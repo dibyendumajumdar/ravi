@@ -35,13 +35,13 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 /*
 ** size and position of opcode arguments.
 */
-#define SIZE_C		9
-#define SIZE_B		9
+#define SIZE_C		8
+#define SIZE_B		8
 #define SIZE_Bx		(SIZE_C + SIZE_B)
 #define SIZE_A		8
 #define SIZE_Ax		(SIZE_C + SIZE_B + SIZE_A)
 
-#define SIZE_OP		6
+#define SIZE_OP		8
 
 #define POS_OP		0
 #define POS_A		(POS_OP + SIZE_OP)

@@ -254,7 +254,7 @@
     defined(__ELF__)		/* { */
 #define LUAI_FUNC	__attribute__((visibility("hidden"))) extern
 #else				/* }{ */
-#define LUAI_FUNC	extern
+#define LUAI_FUNC	LUA_API /* extern */
 #endif				/* } */
 
 #define LUAI_DDEC	LUAI_FUNC
