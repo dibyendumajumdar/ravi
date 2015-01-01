@@ -20,3 +20,39 @@ Will be MIT similar to Lua.
 Language Syntax
 ---------------
 I hope to enhance the language to support following types:
+* int (64-bit)
+* double
+* string
+* table (see below)
+* array (see below)
+* any - this will be a dynamic type similar to existing Lua
+* bool 
+
+The syntax for introducting the type will probably be as below:
+```
+function foo(s: string) : string
+  return s
+end
+```
+
+Local variables may be given types as shown below:
+```
+function foo() : string
+  local s: string = "hello world!"
+  return s
+end
+```
+
+If no type is specified then then type will be `any`.
+
+Tables and arrays need special syntax to denote the element / key types. The syntax might use the angle brackets similar to C++ template aruguments.
+
+```
+function foo() 
+  local t1 = {} -- table<any,any>
+  local t2 : table<string,string> = {} -- table with string keys and values
+  local t3 : table<string,double> = {} -- table with string keys and double values
+  local a1 : array<int> = {} -- array of integers
+end
+```
+
