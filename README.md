@@ -56,4 +56,16 @@ function foo()
 end
 ```
 
-With regards to function types, full static typing at all times is difficult as then all function types have to be known in advance. It seems to me that a pragmatic approach will be to perform run-time checking of function argument types.
+With regards to function types, full static typing at all times is difficult as then all function types have to be known in advance. It seems to me that a pragmatic approach will be to perform run-time checking of function argument types. So for example:
+
+```
+-- array of functions
+local func_table : array<function> = {
+  function (s: string) : string 
+    return s 
+  end,
+  function (i, j) 
+    return i+j 
+  end
+}
+```
