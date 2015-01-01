@@ -56,3 +56,4 @@ function foo()
 end
 ```
 
+With regards to function types, full static typing at all times is difficult as then all function types have to be known in advance. It seems to me that a pragmatic approach will be to perform run-time checking of function argument types.
