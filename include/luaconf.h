@@ -1,5 +1,5 @@
 /*
-** $Id: luaconf.h,v 1.236 2014/12/19 13:31:12 roberto Exp $
+** $Id: luaconf.h,v 1.238 2014/12/29 13:27:55 roberto Exp $
 ** Configuration file for Lua
 ** See Copyright Notice in lua.h
 */
@@ -252,7 +252,8 @@
 */
 #if defined(__GNUC__) && ((__GNUC__*100 + __GNUC_MINOR__) >= 302) && \
     defined(__ELF__)		/* { */
-#define LUAI_FUNC	__attribute__((visibility("hidden"))) extern
+/* #define LUAI_FUNC	__attribute__((visibility("hidden"))) extern */
+#define LUAI_FUNC   extern
 #else				/* }{ */
 #define LUAI_FUNC	LUA_API /* extern */
 #endif				/* } */
@@ -476,7 +477,7 @@
 #include <math.h>
 
 /* floor division (defined as 'floor(a/b)') */
-#define luai_numidiv(L,a,b)	((void)L, l_mathop(floor)((a)/(b)))
+#define luai_numidiv(L,a,b)	((void)L, l_mathop(floor)(luai_numdiv(L,a,b)))
 
 /*
 ** module: defined as 'a - floor(a/b)*b'; the previous definition gives
@@ -505,14 +506,6 @@
 #define luai_numle(a,b)		((a)<=(b))
 #define luai_numisnan(a)	(!luai_numeq((a), (a)))
 #endif
-
-
-/*
-** The following macro checks whether an operation is not safe to be
-** performed by the constant folder. It should result in zero only if
-** the operation is safe.
-*/
-#define luai_numinvalidop(op,a,b)	0
 
 
 /*

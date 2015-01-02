@@ -29,6 +29,12 @@ if (MSVC)
   add_definitions("/wd4800")
 endif()
 
+if (CMAKE_COMPILER_IS_GNUCXX OR APPLE)
+  set(CMAKE_C_FLAGS "-std=c99 -O2 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
+  set(CMAKE_C_FLAGS_DEBUG "-std=c99 -O2 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
+  set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O2 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
+endif()
+
 include_directories("${PROJECT_SOURCE_DIR}/include")
 add_definitions(-DLUA_COMPAT_MODULE)
 
@@ -51,9 +57,19 @@ if (MSVC)
   source_group("Ravi Headers" FILES ${RAVI_HEADERS})
 endif()
 
+if (MSVC)
+else()
+  # On Linux we need to link libdl to get access to
+  # functions like dlopen()
+  set(EXTRA_LIBRARIES m dl readline)
+endif()
+
 #Main library
 add_library(ravi SHARED ${RAVI_HEADERS} ${LUA_LIB_SRCS} ${LUA_CORE_SRCS})
-set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+if (MSVC)
+  set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+endif()
+target_link_libraries(ravi ${EXTRA_LIBRARIES})
 
 add_executable(lua src/lua.c)
 target_link_libraries(lua ravi)
