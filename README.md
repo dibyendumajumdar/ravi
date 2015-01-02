@@ -7,7 +7,7 @@ Lua is perfect as a small embeddable dynamic language. So why a derivative? The 
 
 There are other attempts to add static typing to Lua but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is merely to aid programming - the code is eventually translated to Lua and executed in the VM.
 
-My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. I would also like to add one additional type - an array. This is to allow more efficient array operations.
+My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. 
 
 Status
 ------
@@ -15,7 +15,7 @@ The project is being kicked off in January 2015. I expect it will be a while bef
 
 License
 -------
-Will be MIT similar to Lua.
+Will be same as Lua.
 
 Language Syntax
 ---------------
@@ -43,7 +43,7 @@ function foo() : string
 end
 ```
 
-If no type is specified then then type will be `any`.
+If no type is specified then then type will be `any` - however user cannot specify this - i.e. the lack of a type will imply this.
 
 Tables and arrays need special syntax to denote the element / key types. The syntax might use the angle brackets similar to C++ template aruguments.
 
@@ -69,3 +69,11 @@ local func_table : array<function> = {
   end
 }
 ```
+
+Implementation Strategy
+-----------------------
+I do not want to add actual types to the system as the required types already exist. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser to encode these opcodes when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks.
+
+My plan is to add new opcodes that cover arithmetic operations, array operations and table operations.
+
+I will probably need to augment some existing types such a functions and tables to add the type signature so that at runtime when a function is called it can perform typechecks if a function signature is available.
