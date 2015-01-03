@@ -5,13 +5,15 @@ Experimental derivative of Lua. Ravi is a Sanskrit word that means the Sun.
 
 Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater efficiency in performance. However, at the same time I would like to retain compatibility with Lua to the degree possible.
 
-There are other attempts to add static typing to Lua but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is merely to aid programming - the code is eventually translated to Lua and executed in the VM.
+There are other attempts to add static typing to Lua but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
 My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. 
 
 Status
 ------
-The project is being kicked off in January 2015. I expect it will be a while before there is any code that runs. However my intention is start small and grow incrementally.
+The project was kicked off in January 2015. I expect it will be a while before there is any code that runs. However my intention is start small and grow incrementally.
+
+For latest status see the Changes page in the Wiki.
 
 License
 -------
@@ -19,16 +21,16 @@ Will be same as Lua.
 
 Language Syntax
 ---------------
-I hope to enhance the language to support following types:
+I hope to enhance the language to enable static typing of following:
 * int (64-bit)
 * double
 * string
 * table (see below)
 * array (see below)
-* any - this will be a dynamic type similar to existing Lua
 * bool 
+* functions and closures
 
-The syntax for introducting the type will probably be as below:
+The syntax for introducing the type will probably be as below:
 ```
 function foo(s: string) : string
   return s
@@ -43,7 +45,7 @@ function foo() : string
 end
 ```
 
-If no type is specified then then type will be `any` - however user cannot specify this - i.e. the lack of a type will imply this.
+If no type is specified then then type will be `any` - however user cannot specify this - i.e. the lack of a type will imply this. The `any` type is essentially exactly what the Lua default is.
 
 Tables and arrays need special syntax to denote the element / key types. The syntax might use the angle brackets similar to C++ template aruguments.
 
@@ -69,6 +71,16 @@ local func_table : array<function> = {
   end
 }
 ```
+Above the array of fuctions allows various function types - all it cares is that the element must be a functon.
+
+When a typed function begins to execute the first step will be validate the input parameters against any explicit type specifications. Consider the function below:
+
+```
+local function foo(a, b: int, c: string)
+  return
+end
+```
+When this function starts executing it will validate that `b` is an int and `c` is a string. `a` on the other hand is dynamic so wil behave as regular Lua value. The compiler will ensure that the types of `b` and `c` are respected within the function. So by a combination of runtime checking and compiler static typing a solution can be implemented that is not too disruptive.
 
 Implementation Strategy
 -----------------------
