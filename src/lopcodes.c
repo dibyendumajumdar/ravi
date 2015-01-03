@@ -580,6 +580,8 @@ static const char* PrintRaviCode(char *buf, size_t n, Instruction i) {
     if (getCMode(o) != OpArgN)
       snprintf(buf + strlen(buf), n - strlen(buf), " C=%d", getCMode(o) == OpArgK ? (MYK(INDEXK(c))) : c);
     break;
+  default:
+    break;
   }
   return buf;
 }

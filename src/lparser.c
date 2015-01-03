@@ -95,7 +95,7 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
             get_typename(e->ravi_type));
     break;
   case VKINT:
-    fprintf(fp, "{p=%p, k=VKINT, n=%ld, type=%s}", e, e->u.ival,
+    fprintf(fp, "{p=%p, k=VKINT, n=%lld, type=%s}", e, e->u.ival,
             get_typename(e->ravi_type));
     break;
   case VNONRELOC:
@@ -339,7 +339,6 @@ static void new_localvar (LexState *ls, TString *name, int tt) {
   FuncState *fs = ls->fs;
   Dyndata *dyd = ls->dyd;
   int reg = registerlocalvar(ls, name, tt);
-  int oldsize = dyd->actvar.size;
   checklimit(fs, dyd->actvar.n + 1 - fs->firstlocal,
                   MAXVARS, "local variables");
   luaM_growvector(ls->L, dyd->actvar.arr, dyd->actvar.n + 1,
@@ -400,13 +399,6 @@ int getlocvartype(FuncState *fs, int reg) {
   }
   /* Variable in scope so return the type if we know it */
   return v->ravi_type;
-}
-
-/* set type of a local var (RAVI) */
-static void setlocvartype(FuncState *fs, int i, int tt) {
-  if (i < 0 || (fs->firstlocal + i) >= fs->ls->dyd->actvar.n)
-    return;
-  getlocvar(fs, i)->ravi_type = tt;
 }
 
 /* set the starting code location (set to current instruction) 
@@ -546,7 +538,6 @@ static void ravi_coercetype(LexState *ls, expdesc *v, int n)
   Instruction *pc = &getcode(ls->fs, v); /* Obtain the instruction for OP_CALL */
   lua_assert(GET_OPCODE(*pc) == OP_CALL);
   int a = GETARG_A(*pc); /* function return values will be placed from register pointed by A and upwards */
-  int nrets = GETARG_C(*pc) - 1; /* operand C contais number of return values expected */
   /* all return values that are going to be assigned to typed local vars must be converted to the correct type */
   int i;
   for (i = a + 1; i < a + n; i++) {

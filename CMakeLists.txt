@@ -31,7 +31,7 @@ endif()
 
 if (CMAKE_COMPILER_IS_GNUCXX OR APPLE)
   set(CMAKE_C_FLAGS "-std=c99 -O2 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
-  set(CMAKE_C_FLAGS_DEBUG "-std=c99 -O2 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
+  set(CMAKE_C_FLAGS_DEBUG "-std=c99 -O0 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
   set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O2 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
 endif()
 

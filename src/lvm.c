@@ -673,7 +673,7 @@ void stackDump(lua_State *L, const char *s) {
     else if (ttisfloat(p))
       printf("stack[%d] = float (%.6f)\n", i, fltvalue(p));
     else if (ttisinteger(p))
-      printf("stack[%d] = integer (%d)\n", i, ivalue(p));
+      printf("stack[%d] = integer (%lld)\n", i, ivalue(p));
     else if (ttislightuserdata(p))
       printf("stack[%d] = light user data\n", i);
     else if (ttisfulluserdata(p))
