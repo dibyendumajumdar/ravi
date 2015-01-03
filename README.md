@@ -72,8 +72,16 @@ local func_table : array<function> = {
 
 Implementation Strategy
 -----------------------
-I do not want to add actual types to the system as the required types already exist. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser to encode these opcodes when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks.
+I do not want to add actual types to the system as the required types already exist. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser/code generator to encode these opcodes when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks.
 
 My plan is to add new opcodes that cover arithmetic operations, array operations and table operations.
 
 I will probably need to augment some existing types such a functions and tables to add the type signature so that at runtime when a function is called it can perform typechecks if a function signature is available.
+
+I intend to first add the opcodes to the VM before starting work on the parser and code generator.
+
+New OpCodes
+-----------
+
+
+
