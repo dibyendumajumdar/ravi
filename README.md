@@ -76,12 +76,16 @@ I do not want to add actual types to the system as the required types already ex
 
 My plan is to add new opcodes that cover arithmetic operations, array operations and table operations.
 
-I will probably need to augment some existing types such a functions and tables to add the type signature so that at runtime when a function is called it can perform typechecks if a function signature is available.
+I will probably need to augment some existing types such as functions and tables to add the type signature so that at runtime when a function is called it can perform typechecks if a function signature is available.
 
 I intend to first add the opcodes to the VM before starting work on the parser and code generator.
 
 New OpCodes
 -----------
 
+OP           |  A    | B    | C    |  Description                 | Remarks
+-------------|-------|------|------|------------------------------|---------------------------------------
+UNMF         |  R(A) | R(B) |      | R(A) = - R(B) floating point unary minus, R(B) must be float type | lcode.c has references to OP_UNM that are unclear to me. I assume ldebug.c is not impacted as by definition this opcode cannot support user defined methods
+             
 
 
