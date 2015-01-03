@@ -70,6 +70,59 @@ static void free_handle(LuaHandle *h)
     free(h);
 }
 
+static int test_unmf()
+{
+    LuaHandle *h = alloc_handle();
+    LuaHandle copyh = *h; /* save contents */
+    int rc = 0;
+
+    /* Here we simulate following
+     * local p = 56.65
+     * local q = -p
+     * return q
+     * 
+     * So we need two registers
+     * p in register 0
+     * q in register 1
+     * return value must be register 1
+     */
+
+    /* R(1) = -R(0) */
+    /* register 1 holds q */
+    /* register 0 holds p */
+    h->instructions[0] = CREATE_ABC(OP_UNMF, 1, 0, 0);
+    /* return register 1 (q) */
+    h->instructions[1] = CREATE_ABC(OP_RETURN, 1, 2, 0);
+
+    if (GETARG_A(h->instructions[0]) != 1)
+        return 1;
+    if (GETARG_B(h->instructions[0]) != 0)
+        return 1;
+
+    /* set register 0 (p) */
+    h->stack[1].tt_ = LUA_TNUMFLT;
+    h->stack[1].value_.n = 56.65;
+
+    h->p->maxstacksize = 2; /* need two registers */
+    h->ci->top = h->ci->u.l.base + h->p->maxstacksize;
+    h->L->top = h->ci->top;
+    h->ci->nresults = 1;
+    luaV_execute(h->L);
+
+    if (h->L->top != &h->L->stack[1])
+        rc = 1;
+    if (h->L->ci != NULL)
+        rc = 1;
+    if (h->stack[0].tt_ != LUA_TNUMFLT ||
+        h->stack[0].value_.n != -56.65)
+        rc = 1;
+
+    *h = copyh; /* restore contents */
+    free_handle(h);
+    return rc;
+}
+
+
 static int test_return1()
 {
     LuaHandle *h = alloc_handle();
@@ -94,7 +147,7 @@ static int test_return1()
 
     *h = copyh; /* restore contents */
     free_handle(h);
-    return 0;
+    return rc;
 }
 
 static int test_return0()
@@ -114,7 +167,7 @@ static int test_return0()
 
     *h = copyh; /* restore contents */
     free_handle(h);
-    return 0;
+    return rc;
 }
 
 
@@ -123,6 +176,7 @@ int main(const char *argv[])
     int failures = 0;
     failures += test_return0();
     failures += test_return1();
+    failures += test_unmf();
 
     return failures ? 1 : 0;
 }

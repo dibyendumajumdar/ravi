@@ -648,7 +648,7 @@ void luaV_finishOp (lua_State *L) {
 #define vmcasenb(l,b)	case l: {b}		/* nb = no break */
 
 static void stackDump(lua_State *L, const char *s) {
-  if (s)
+  if (!s)
     return;
   StkId p = L->stack;
   if (p == NULL)
@@ -671,9 +671,9 @@ static void stackDump(lua_State *L, const char *s) {
     else if (ttisnil(p))
       printf("stack[%d] = nil\n", i);
     else if (ttisfloat(p))
-      printf("stack[%d] = float\n", i);
+      printf("stack[%d] = float (%.6f)\n", i, fltvalue(p));
     else if (ttisinteger(p))
-      printf("stack[%d] = integer\n", i);
+      printf("stack[%d] = integer (%d)\n", i, ivalue(p));
     else if (ttislightuserdata(p))
       printf("stack[%d] = light user data\n", i);
     else if (ttisfulluserdata(p))
