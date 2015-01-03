@@ -901,6 +901,12 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_POW)); }
     } break;
+    case OP_UNMF: {
+        /* R(A) = -R(B), R(B) must be a float */
+        TValue *rb = RB(i);
+        lua_assert(ttisfloat(rb));
+        setfltvalue(ra, -fltvalue(rb));
+    } break;
     case OP_UNM: {
         TValue *rb = RB(i);
         lua_Number nb;
