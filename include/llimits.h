@@ -146,14 +146,16 @@ typedef LUAI_UACINT l_uacInt;
 ** in a program. (Value must fit in an unsigned short int.)
 */
 #if !defined(LUAI_MAXCCALLS)
-#define LUAI_MAXCCALLS		200
+#define LUAI_MAXCCALLS		125 
+/* RAVI change; was 200 */
 #endif
 
 /*
 ** maximum number of upvalues in a closure (both C and Lua). (Value
 ** must fit in an unsigned char.)
 */
-#define MAXUPVAL	UCHAR_MAX
+#define MAXUPVAL	125
+/* RAVI change; was UCHAR_MAX */
 
 
 /*

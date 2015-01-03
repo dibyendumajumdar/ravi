@@ -321,7 +321,7 @@ assert(x() == 24)
 
 -- test for dump/undump with many upvalues
 do
-  local nup = 200    -- maximum number of local variables
+  local nup = 125 -- RAVI change; was 200    -- maximum number of local variables
   local prog = {"local a1"}
   for i = 2, nup do prog[#prog + 1] = ", a" .. i end
   prog[#prog + 1] = " = 1"

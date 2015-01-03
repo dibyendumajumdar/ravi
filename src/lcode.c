@@ -30,7 +30,8 @@
 
 
 /* Maximum number of registers in a Lua function */
-#define MAXREGS		250
+#define MAXREGS		MAXARG_A
+/* RAVI change; was 250 */
 
 
 #define hasjumps(e)	((e)->t != (e)->f)
