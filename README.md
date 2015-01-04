@@ -96,7 +96,7 @@ Challenges with Lua Bytecode structure
 --------------------------------------
 An immediate issue is that the Lua bytecode structure has a 6-bit opcode which is insufficient to hold the various opcodes that I will need. Simply extending the size of this is problematic as then it reduces the space available to the operands A B and C. Furthermore the way Lua bytecodes work means that B and C operands must be 1-bit larger than A - as the extra bit is used to flag whether the operand refers to a constant or a register. (Thanks to Dirk Laurie for pointing this out). 
 
-If I change the sizes of the components it will make the new bytecode incompatible with Lua. Although this doesn't matter so much as long as source level compatibility is maintained - I would rather have a solution that allows me to maintain full compatibility at bytecode level. The obvious solution seems to be allow 64-bit instructions - while retaining the existing 32-bit instructions. So I will either need a bit that I can use to flag the instruction as 64-bit or use a technique similar to OP_LOADKX. I am worried though that this additional level of decoding will impact performance.
+If I change the sizes of the components it will make the new bytecode incompatible with Lua. Although this doesn't matter so much as long as source level compatibility is maintained - I would rather have a solution that allows me to maintain full compatibility at bytecode level. The obvious solution seems to be allow 64-bit instructions - while retaining the existing 32-bit instructions. So I will most likely need to use a technique similar to OP_LOADKX. I am worried though that this additional level of decoding will impact performance.
 
 New OpCodes
 -----------
