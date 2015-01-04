@@ -74,55 +74,37 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "UNMF",  /*	A B	R(A) := -R(B) floating point      */
   "UNMI",  /*   A B R(A) := -R(B) integer */
 
-  "ADDFFKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
   "ADDFFKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
-  "ADDFFRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
   "ADDFFRR",/*	A B C	R(A) := R(B) + R(C)				*/
-  "ADDFIKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
   "ADDFIKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
   "ADDFIRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
+  "ADDFIRN",/*	A B C	R(A) := R(B) + C				*/
   "ADDFIRR",/*	A B C	R(A) := R(B) + R(C)				*/
-  "ADDIFKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
-  "ADDIFKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
-  "ADDIFRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
-  "ADDIFRR",/*	A B C	R(A) := R(B) + R(C)				*/
-  "ADDIIKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
-  "ADDIIKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
   "ADDIIRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
+  "ADDIIRN",/*	A B C	R(A) := R(B) + C				*/
   "ADDIIRR",/*	A B C	R(A) := R(B) + R(C)				*/
 
-  "SUBFFKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
   "SUBFFKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
   "SUBFFRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
   "SUBFFRR",/*	A B C	R(A) := R(B) - R(C)				*/
-  "SUBFIKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
   "SUBFIKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
   "SUBFIRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
   "SUBFIRR",/*	A B C	R(A) := R(B) - R(C)				*/
-  "SUBIFKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
   "SUBIFKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
   "SUBIFRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
   "SUBIFRR",/*	A B C	R(A) := R(B) - R(C)				*/
-  "SUBIIKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
   "SUBIIKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
   "SUBIIRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
   "SUBIIRR",/*	A B C	R(A) := R(B) - R(C)				*/
 
-  "MULFFKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
   "MULFFKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
-  "MULFFRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
   "MULFFRR",/*	A B C	R(A) := R(B) * R(C)				*/
-  "MULFIKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
   "MULFIKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
   "MULFIRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
+  "MULFIRN",/*	A B C	R(A) := R(B) * C				*/
   "MULFIRR",/*	A B C	R(A) := R(B) * R(C)				*/
-  "MULIFKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
-  "MULIFKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
-  "MULIFRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
-  "MULIFRR",/*	A B C	R(A) := R(B) * R(C)				*/
-  "MULIIKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
-  "MULIIKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
   "MULIIRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
+  "MULIIRN",/*	A B C	R(A) := R(B) * C				*/
   "MULIIRR",/*	A B C	R(A) := R(B) * R(C)				*/
 
   "DIVFFKK",/*	A B C	R(A) := Kst(B) / Kst(C)				*/
@@ -261,64 +243,46 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgU, OpArgN, iABC)		/* OP_VARARG */
  ,opmode(0, 0, OpArgU, OpArgU, iAx)		    /* OP_EXTRAARG */
 
- ,opmode(0, 1, OpArgN, OpArgN, iABC) /* A R(A) := array of int */
- ,opmode(0, 1, OpArgN, OpArgN, iABC) /* A R(A) := array of float */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_NEWARRAYI A R(A) := array of int */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_NEWARRAYF A R(A) := array of float */
 
- ,opmode(0, 1, OpArgN, OpArgN, iABC)  /*	OP_RAVI_LOADIZ A R(A) := tointeger(0)		*/
- ,opmode(0, 1, OpArgN, OpArgN, iABC)  /*	OP_RAVI_LOADFZ A R(A) := tonumber(0)		*/
+ ,opmode(0, 1, OpArgN, OpArgN, iABC) /*	OP_RAVI_LOADIZ A R(A) := tointeger(0)		*/
+ ,opmode(0, 1, OpArgN, OpArgN, iABC) /*	OP_RAVI_LOADFZ A R(A) := tonumber(0)		*/
 
- ,opmode(0, 1, OpArgR, OpArgN, iABC)/* OP_RAVI_UNMF	A B	    R(A) := -R(B) floating point      */
- ,opmode(0, 1, OpArgR, OpArgN, iABC)/* OP_RAVI_UNMI A B     R(A) := -R(B) integer */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_UNMF A B	   R(A) := -R(B) floating point      */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_UNMI A B     R(A) := -R(B) integer */
 
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_ADDFFKK	A B C	R(A) := Kst(B) + Kst(C)				*/
  ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_ADDFFKR	A B C	R(A) := Kst(B) + R(C)				*/
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ADDFFRK	A B C	R(A) := R(B) + Kst(C)				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ADDFFRR	A B C	R(A) := R(B) + R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_ADDFIKK	A B C	R(A) := Kst(B) + Kst(C)				*/
  ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_ADDFIKR	A B C	R(A) := Kst(B) + R(C)				*/
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ADDFIRK	A B C	R(A) := R(B) + Kst(C)				*/
+ ,opmode(0, 1, OpArgR, OpArgU, iABC) /*RAVI_ADDFIRN	A B C	R(A) := R(B) + C				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ADDFIRR	A B C	R(A) := R(B) + R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_ADDIFKK	A B C	R(A) := Kst(B) + Kst(C)				*/
- ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_ADDIFKR	A B C	R(A) := Kst(B) + R(C)				*/
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ADDIFRK	A B C	R(A) := R(B) + Kst(C)				*/
- ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ADDIFRR	A B C	R(A) := R(B) + R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_ADDIIKK	A B C	R(A) := Kst(B) + Kst(C)				*/
- ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_ADDIIKR	A B C	R(A) := Kst(B) + R(C)				*/
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ADDIIRK	A B C	R(A) := R(B) + Kst(C)				*/
+ ,opmode(0, 1, OpArgR, OpArgU, iABC) /*RAVI_ADDIIRN	A B C	R(A) := R(B) + C				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ADDIIRR	A B C	R(A) := R(B) + R(C)				*/
 
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_SUBFFKK	A B C	R(A) := Kst(B) - Kst(C)				*/
  ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_SUBFFKR	A B C	R(A) := Kst(B) - R(C)				*/
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_SUBFFRK	A B C	R(A) := R(B) - Kst(C)				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_SUBFFRR	A B C	R(A) := R(B) - R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_SUBFIKK	A B C	R(A) := Kst(B) - Kst(C)				*/
  ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_SUBFIKR	A B C	R(A) := Kst(B) - R(C)				*/
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_SUBFIRK	A B C	R(A) := R(B) - Kst(C)				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_SUBFIRR	A B C	R(A) := R(B) - R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_SUBIFKK	A B C	R(A) := Kst(B) - Kst(C)				*/
  ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_SUBIFKR	A B C	R(A) := Kst(B) - R(C)				*/
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_SUBIFRK	A B C	R(A) := R(B) - Kst(C)				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_SUBIFRR	A B C	R(A) := R(B) - R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_SUBIIKK	A B C	R(A) := Kst(B) - Kst(C)				*/
  ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_SUBIIKR	A B C	R(A) := Kst(B) - R(C)				*/
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_SUBIIRK	A B C	R(A) := R(B) - Kst(C)				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_SUBIIRR	A B C	R(A) := R(B) - R(C)				*/
 
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_MULFFKK	A B C	R(A) := Kst(B) * Kst(C)				*/
  ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_MULFFKR	A B C	R(A) := Kst(B) * R(C)				*/
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_MULFFRK	A B C	R(A) := R(B) * Kst(C)				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_MULFFRR	A B C	R(A) := R(B) * R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_MULFIKK	A B C	R(A) := Kst(B) * Kst(C)				*/
  ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_MULFIKR	A B C	R(A) := Kst(B) * R(C)				*/
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_MULFIRK	A B C	R(A) := R(B) * Kst(C)				*/
+ ,opmode(0, 1, OpArgR, OpArgU, iABC) /*RAVI_MULFIRN	A B C	R(A) := R(B) * C				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_MULFIRR	A B C	R(A) := R(B) * R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_MULIFKK	A B C	R(A) := Kst(B) * Kst(C)				*/
- ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_MULIFKR	A B C	R(A) := Kst(B) * R(C)				*/
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_MULIFRK	A B C	R(A) := R(B) * Kst(C)				*/
- ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_MULIFRR	A B C	R(A) := R(B) * R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_MULIIKK	A B C	R(A) := Kst(B) * Kst(C)				*/
- ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_MULIIKR	A B C	R(A) := Kst(B) * R(C)				*/
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_MULIIRK	A B C	R(A) := R(B) * Kst(C)				*/
+ ,opmode(0, 1, OpArgR, OpArgU, iABC) /*RAVI_MULIIRN	A B C	R(A) := R(B) * C				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_MULIIRR	A B C	R(A) := R(B) * R(C)				*/
 
  ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_DIVFFKK	A B C	R(A) := Kst(B) / Kst(C)				*/
@@ -367,13 +331,13 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
  , opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
  , opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_TOFLT  A R(A) := tonumber(R(A)) */
- , opmode(0, 1, OpArgN, OpArgN, iABC) /* A R(A) := to_arrayi(R(A)) */
- , opmode(0, 1, OpArgN, OpArgN, iABC) /* A R(A) := to_arrayf(R(A)) */
+ , opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_TOARRAYI A R(A) := check_array_of_int(R(A)) */
+ , opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_TOARRAYF A R(A) := check_array_of_float(R(A)) */
 
  , opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))	*/
  , opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B)) */
- , opmode(0, 1, OpArgR, OpArgN, iABC) /* A B R(A) := R(B), check R(B) is array of int */
- , opmode(0, 1, OpArgR, OpArgN, iABC) /* A B R(A) := R(B), check R(B) is array of floats */
+ , opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_MOVEAI A B R(A) := R(B), check R(B) is array of int */
+ , opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_MOVEAF A B R(A) := R(B), check R(B) is array of floats */
 
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ARRAYGET_SIK	A B C	R(A) := R(B)[Kst(C)]				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ARRAYGET_SIR	A B C	R(A) := R(B)[R(C)]				*/
