@@ -395,7 +395,7 @@ static int register_to_locvar_index(FuncState *fs, int reg) {
  * return the type associated with the variable.
  * This is a RAVI function
  */
-int raviY_get_register_typeinfo(FuncState *fs, int reg) {
+ravitype_t raviY_get_register_typeinfo(FuncState *fs, int reg) {
   int idx;
   LocVar *v;
   if (reg < 0 || reg >= fs->nactvar || (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n)
