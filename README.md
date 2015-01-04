@@ -1,5 +1,5 @@
-Ravi
-====
+Ravi Programming Language
+=========================
 
 Experimental derivative of Lua. Ravi is a Sanskrit word that means the Sun.
 
@@ -25,7 +25,7 @@ I hope to enhance the language to enable static typing of following:
 * int (64-bit)
 * double
 * string
-* table (see below)
+* table 
 * array (see below)
 * bool 
 * functions and closures
@@ -58,7 +58,7 @@ function foo()
 end
 ```
 
-With regards to function types, full static typing at all times is difficult as then all function types have to be known in advance. It seems to me that a pragmatic approach will be to perform run-time checking of function argument types. So for example:
+With regards to function types, full static typing at all times is difficult as then all function types have to be known in advance (either via forward declarations or by access to bytecodes). It seems to me that a pragmatic approach will be to perform run-time checking of function argument types. So for example:
 
 ```
 -- array of functions
@@ -80,17 +80,23 @@ local function foo(a, b: int, c: string)
   return
 end
 ```
-When this function starts executing it will validate that `b` is an int and `c` is a string. `a` on the other hand is dynamic so wil behave as regular Lua value. The compiler will ensure that the types of `b` and `c` are respected within the function. So by a combination of runtime checking and compiler static typing a solution can be implemented that is not too disruptive.
+When this function starts executing it will validate that `b` is an int and `c` is a string. `a` on the other hand is dynamic so will behave as regular Lua value. The compiler will ensure that the types of `b` and `c` are respected within the function. So by a combination of runtime checking and compiler static typing a solution can be implemented that is not too disruptive.
 
 Implementation Strategy
 -----------------------
-I do not want to add actual types to the system as the required types already exist. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser/code generator to encode these opcodes when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks.
+I do not want to any new types to the Lua system as the required types already exist. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser/code generator to encode these opcodes when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks.
 
 My plan is to add new opcodes that cover arithmetic operations, array operations and table operations.
 
 I will probably need to augment some existing types such as functions and tables to add the type signature so that at runtime when a function is called it can perform typechecks if a function signature is available.
 
 I intend to first add the opcodes to the VM before starting work on the parser and code generator.
+
+Challenges with Lua Bytecode structure
+--------------------------------------
+An immediate issue is that the Lua bytecode structure has a 6-bit opcode which is insufficient to hold the various opcodes that I will need. Simply extending the size of this is problematic as then it reduces the space available to the operands A B and C. Furthermore the way Lua bytecodes work means that B and C operands must be 1-bit larger than A - as the extra bit is used to flag whether the operand refers to a constant or a register. (Thanks to Dirk Laurie for pointing this out). 
+
+If I change the sizes of the components it will make the new bytecode incompatible with Lua. Although this doesn't matter so much as long as source level compatibility is maintained - I would rather have a solution that allows me to maintain full compatibility at bytecode level. The obvious solution seems to be allow 64-bit instructions - while retaining the existing 32-bit instructions. So I will either need a bit that I can use to flag the instruction as 64-bit or use a technique similar to OP_LOADKX. I am worried though that this additional level of decoding will impact performance.
 
 New OpCodes
 -----------
