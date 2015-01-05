@@ -87,17 +87,13 @@ static int test_unmf()
      * return value must be register 1
      */
 
+    h->instructions[0] = cast(Instruction, (1 << 16)) | (cast(Instruction,OP_RAVI_UNMF)<<6) | cast(Instruction, OP_RAVI);
     /* R(1) = -R(0) */
     /* register 1 holds q */
     /* register 0 holds p */
-    h->instructions[0] = CREATE_ABC(OP_UNMF, 1, 0, 0);
+    h->instructions[1] = RAVI_CREATE_BC(0, 0);
     /* return register 1 (q) */
-    h->instructions[1] = CREATE_ABC(OP_RETURN, 1, 2, 0);
-
-    if (GETARG_A(h->instructions[0]) != 1)
-        return 1;
-    if (GETARG_B(h->instructions[0]) != 0)
-        return 1;
+    h->instructions[2] = CREATE_ABC(OP_RETURN, 1, 2, 0);
 
     /* set register 0 (p) */
     h->stack[1].tt_ = LUA_TNUMFLT;
@@ -174,8 +170,8 @@ static int test_return0()
 int main(const char *argv[]) 
 {
     int failures = 0;
-    failures += test_return0();
-    failures += test_return1();
+   // failures += test_return0();
+   // failures += test_return1();
     failures += test_unmf();
 
     return failures ? 1 : 0;

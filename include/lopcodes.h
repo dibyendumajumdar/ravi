@@ -35,13 +35,13 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 /*
 ** size and position of opcode arguments.
 */
-#define SIZE_C		8
-#define SIZE_B		8
+#define SIZE_C		9
+#define SIZE_B		9
 #define SIZE_Bx		(SIZE_C + SIZE_B)
 #define SIZE_A		8
 #define SIZE_Ax		(SIZE_C + SIZE_B + SIZE_A)
 
-#define SIZE_OP		8
+#define SIZE_OP		6
 
 #define POS_OP		0
 #define POS_A		(POS_OP + SIZE_OP)
@@ -113,6 +113,21 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 #define SETARG_sBx(i,b)	SETARG_Bx((i),cast(unsigned int, (b)+MAXARG_sBx))
 
 
+#define RAVI_GET_OPCODE(i)	(cast(OpCode, ((i)>>SIZE_OP) & MASK1(10,0)))
+#define RAVI_SET_OPCODE(i,o)	((i) = (((i)&MASK0(16,0)) | \
+		(((cast(Instruction, o)<<SIZE_OP)|OP_RAVI)&MASK1(SIZE_OP,POS_OP))))
+
+#define RAVI_GETARG_A(i)	getarg(i, 16, 16)
+#define RAVI_SETARG_A(i,v)	setarg(i, v, 16, 16)
+
+#define RAVI_GETARG_B(i)	getarg(i, 0, 16)
+#define RAVI_SETARG_B(i,v)	setarg(i, v, 0, 16)
+
+#define RAVI_GETARG_C(i)	getarg(i, 16, 16)
+#define RAVI_SETARG_C(i,v)	setarg(i, v, 16, 16)
+
+
+
 #define CREATE_ABC(o,a,b,c)	((cast(Instruction, o)<<POS_OP) \
 			| (cast(Instruction, a)<<POS_A) \
 			| (cast(Instruction, b)<<POS_B) \
@@ -124,6 +139,12 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 
 #define CREATE_Ax(o,a)		((cast(Instruction, o)<<POS_OP) \
 			| (cast(Instruction, a)<<POS_Ax))
+
+#define RAVI_CREATE_A(o,a)		((cast(Instruction, a)<<16) \
+			| (cast(Instruction, o)))
+
+#define RAVI_CREATE_BC(b,c)		((cast(Instruction, c)<<16) \
+			| (cast(Instruction, b)))
 
 
 /*
@@ -227,14 +248,162 @@ OP_SETLIST,/*	A B C	R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B	*/
 OP_CLOSURE,/*	A Bx	R(A) := closure(KPROTO[Bx])			*/
 
 OP_VARARG,/*	A B	R(A), R(A+1), ..., R(A+B-2) = vararg		*/
-OP_UNMF,  /*	A B	R(A) := -R(B) floating point      */
-OP_EXTRAARG/*	Ax	extra (larger) argument for previous opcode	*/
+OP_EXTRAARG,/*	Ax	extra (larger) argument for previous opcode	*/
+
+OP_RAVI,        /* Extension point for RAVI */
+
+OP_RAVI_UNMF,  /*	A B	R(A) := -R(B) floating point      */
+OP_RAVI_UNMI,  /*   A B R(A) := -R(B) integer */
+
+OP_RAVI_ADDFFKK,/*	A B C	R(A) := Kst(B) + Kst(C)				*/
+OP_RAVI_ADDFFKR,/*	A B C	R(A) := Kst(B) + R(C)				*/
+OP_RAVI_ADDFFRK,/*	A B C	R(A) := R(B) + Kst(C)				*/
+OP_RAVI_ADDFFRR,/*	A B C	R(A) := R(B) + R(C)				*/
+OP_RAVI_ADDFIKK,/*	A B C	R(A) := Kst(B) + Kst(C)				*/
+OP_RAVI_ADDFIKR,/*	A B C	R(A) := Kst(B) + R(C)				*/
+OP_RAVI_ADDFIRK,/*	A B C	R(A) := R(B) + Kst(C)				*/
+OP_RAVI_ADDFIRR,/*	A B C	R(A) := R(B) + R(C)				*/
+OP_RAVI_ADDIFKK,/*	A B C	R(A) := Kst(B) + Kst(C)				*/
+OP_RAVI_ADDIFKR,/*	A B C	R(A) := Kst(B) + R(C)				*/
+OP_RAVI_ADDIFRK,/*	A B C	R(A) := R(B) + Kst(C)				*/
+OP_RAVI_ADDIFRR,/*	A B C	R(A) := R(B) + R(C)				*/
+OP_RAVI_ADDIIKK,/*	A B C	R(A) := Kst(B) + Kst(C)				*/
+OP_RAVI_ADDIIKR,/*	A B C	R(A) := Kst(B) + R(C)				*/
+OP_RAVI_ADDIIRK,/*	A B C	R(A) := R(B) + Kst(C)				*/
+OP_RAVI_ADDIIRR,/*	A B C	R(A) := R(B) + R(C)				*/
+
+OP_RAVI_SUBFFKK,/*	A B C	R(A) := Kst(B) - Kst(C)				*/
+OP_RAVI_SUBFFKR,/*	A B C	R(A) := Kst(B) - R(C)				*/
+OP_RAVI_SUBFFRK,/*	A B C	R(A) := R(B) - Kst(C)				*/
+OP_RAVI_SUBFFRR,/*	A B C	R(A) := R(B) - R(C)				*/
+OP_RAVI_SUBFIKK,/*	A B C	R(A) := Kst(B) - Kst(C)				*/
+OP_RAVI_SUBFIKR,/*	A B C	R(A) := Kst(B) - R(C)				*/
+OP_RAVI_SUBFIRK,/*	A B C	R(A) := R(B) - Kst(C)				*/
+OP_RAVI_SUBFIRR,/*	A B C	R(A) := R(B) - R(C)				*/
+OP_RAVI_SUBIFKK,/*	A B C	R(A) := Kst(B) - Kst(C)				*/
+OP_RAVI_SUBIFKR,/*	A B C	R(A) := Kst(B) - R(C)				*/
+OP_RAVI_SUBIFRK,/*	A B C	R(A) := R(B) - Kst(C)				*/
+OP_RAVI_SUBIFRR,/*	A B C	R(A) := R(B) - R(C)				*/
+OP_RAVI_SUBIIKK,/*	A B C	R(A) := Kst(B) - Kst(C)				*/
+OP_RAVI_SUBIIKR,/*	A B C	R(A) := Kst(B) - R(C)				*/
+OP_RAVI_SUBIIRK,/*	A B C	R(A) := R(B) - Kst(C)				*/
+OP_RAVI_SUBIIRR,/*	A B C	R(A) := R(B) - R(C)				*/
+
+OP_RAVI_MULFFKK,/*	A B C	R(A) := Kst(B) * Kst(C)				*/
+OP_RAVI_MULFFKR,/*	A B C	R(A) := Kst(B) * R(C)				*/
+OP_RAVI_MULFFRK,/*	A B C	R(A) := R(B) * Kst(C)				*/
+OP_RAVI_MULFFRR,/*	A B C	R(A) := R(B) * R(C)				*/
+OP_RAVI_MULFIKK,/*	A B C	R(A) := Kst(B) * Kst(C)				*/
+OP_RAVI_MULFIKR,/*	A B C	R(A) := Kst(B) * R(C)				*/
+OP_RAVI_MULFIRK,/*	A B C	R(A) := R(B) * Kst(C)				*/
+OP_RAVI_MULFIRR,/*	A B C	R(A) := R(B) * R(C)				*/
+OP_RAVI_MULIFKK,/*	A B C	R(A) := Kst(B) * Kst(C)				*/
+OP_RAVI_MULIFKR,/*	A B C	R(A) := Kst(B) * R(C)				*/
+OP_RAVI_MULIFRK,/*	A B C	R(A) := R(B) * Kst(C)				*/
+OP_RAVI_MULIFRR,/*	A B C	R(A) := R(B) * R(C)				*/
+OP_RAVI_MULIIKK,/*	A B C	R(A) := Kst(B) * Kst(C)				*/
+OP_RAVI_MULIIKR,/*	A B C	R(A) := Kst(B) * R(C)				*/
+OP_RAVI_MULIIRK,/*	A B C	R(A) := R(B) * Kst(C)				*/
+OP_RAVI_MULIIRR,/*	A B C	R(A) := R(B) * R(C)				*/
+
+OP_RAVI_DIVFFKK,/*	A B C	R(A) := Kst(B) / Kst(C)				*/
+OP_RAVI_DIVFFKR,/*	A B C	R(A) := Kst(B) / R(C)				*/
+OP_RAVI_DIVFFRK,/*	A B C	R(A) := R(B) / Kst(C)				*/
+OP_RAVI_DIVFFRR,/*	A B C	R(A) := R(B) / R(C)				*/
+OP_RAVI_DIVFIKK,/*	A B C	R(A) := Kst(B) / Kst(C)				*/
+OP_RAVI_DIVFIKR,/*	A B C	R(A) := Kst(B) / R(C)				*/
+OP_RAVI_DIVFIRK,/*	A B C	R(A) := R(B) / Kst(C)				*/
+OP_RAVI_DIVFIRR,/*	A B C	R(A) := R(B) / R(C)				*/
+OP_RAVI_DIVIFKK,/*	A B C	R(A) := Kst(B) / Kst(C)				*/
+OP_RAVI_DIVIFKR,/*	A B C	R(A) := Kst(B) / R(C)				*/
+OP_RAVI_DIVIFRK,/*	A B C	R(A) := R(B) / Kst(C)				*/
+OP_RAVI_DIVIFRR,/*	A B C	R(A) := R(B) / R(C)				*/
+OP_RAVI_DIVIIKK,/*	A B C	R(A) := Kst(B) / Kst(C)				*/
+OP_RAVI_DIVIIKR,/*	A B C	R(A) := Kst(B) / R(C)				*/
+OP_RAVI_DIVIIRK,/*	A B C	R(A) := R(B) / Kst(C)				*/
+OP_RAVI_DIVIIRR,/*	A B C	R(A) := R(B) / R(C)				*/
+
+OP_RAVI_EQFFKK,/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
+OP_RAVI_EQFFKR,/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
+OP_RAVI_EQFFRK,/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
+OP_RAVI_EQFFRR,/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
+OP_RAVI_EQFIKK,/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
+OP_RAVI_EQFIKR,/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
+OP_RAVI_EQFIRK,/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
+OP_RAVI_EQFIRR,/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
+OP_RAVI_EQIFKK,/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
+OP_RAVI_EQIFKR,/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
+OP_RAVI_EQIFRK,/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
+OP_RAVI_EQIFRR,/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
+OP_RAVI_EQIIKK,/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
+OP_RAVI_EQIIKR,/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
+OP_RAVI_EQIIRK,/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
+OP_RAVI_EQIIRR,/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
+
+OP_RAVI_LTFFKK,/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LTFFKR,/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
+OP_RAVI_LTFFRK,/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LTFFRR,/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
+OP_RAVI_LTFIKK,/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LTFIKR,/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
+OP_RAVI_LTFIRK,/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LTFIRR,/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
+OP_RAVI_LTIFKK,/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LTIFKR,/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
+OP_RAVI_LTIFRK,/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LTIFRR,/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
+OP_RAVI_LTIIKK,/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LTIIKR,/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
+OP_RAVI_LTIIRK,/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LTIIRR,/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
+
+OP_RAVI_LEFFKK,/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LEFFKR,/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
+OP_RAVI_LEFFRK,/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LEFFRR,/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
+OP_RAVI_LEFIKK,/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LEFIKR,/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
+OP_RAVI_LEFIRK,/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LEFIRR,/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
+OP_RAVI_LEIFKK,/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LEIFKR,/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
+OP_RAVI_LEIFRK,/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LEIFRR,/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
+OP_RAVI_LEIIKK,/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LEIIKR,/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
+OP_RAVI_LEIIRK,/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
+OP_RAVI_LEIIRR,/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
+
+OP_RAVI_ARRAYGET_SIK,/*	A B C	R(A) := R(B)[Kst(C)]				*/
+OP_RAVI_ARRAYGET_SIR,/*	A B C	R(A) := R(B)[R(C)]				*/
+OP_RAVI_ARRAYGET_IIK,/*	A B C	R(A) := R(B)[Kst(C)]				*/
+OP_RAVI_ARRAYGET_IIR,/*	A B C	R(A) := R(B)[R(C)]				*/
+OP_RAVI_ARRAYGET_FIK,/*	A B C	R(A) := R(B)[Kst(C)]				*/
+OP_RAVI_ARRAYGET_FIR,/*	A B C	R(A) := R(B)[R(C)]				*/
+OP_RAVI_ARRAYGET_LIK,/*	A B C	R(A) := R(B)[Kst(C)]				*/
+OP_RAVI_ARRAYGET_LIR,/*	A B C	R(A) := R(B)[R(C)]				*/
+
+OP_RAVI_ARRAYSET_ISKK,/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
+OP_RAVI_ARRAYSET_ISKR,/*	A B C	R(A)[Kst(B)] := R(C)				*/
+OP_RAVI_ARRAYSET_ISRK,/*	A B C	R(A)[R(B)] := Kst(C)				*/
+OP_RAVI_ARRAYSET_ISRR,/*	A B C	R(A)[R(B)] := R(C)				*/
+OP_RAVI_ARRAYSET_IIKK,/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
+OP_RAVI_ARRAYSET_IIKR,/*	A B C	R(A)[Kst(B)] := R(C)				*/
+OP_RAVI_ARRAYSET_IIRK,/*	A B C	R(A)[R(B)] := Kst(C)				*/
+OP_RAVI_ARRAYSET_IIRR,/*	A B C	R(A)[R(B)] := R(C)				*/
+OP_RAVI_ARRAYSET_IFKK,/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
+OP_RAVI_ARRAYSET_IFKR,/*	A B C	R(A)[Kst(B)] := R(C)				*/
+OP_RAVI_ARRAYSET_IFRK,/*	A B C	R(A)[R(B)] := Kst(C)				*/
+OP_RAVI_ARRAYSET_IFRR,/*	A B C	R(A)[R(B)] := R(C)				*/
+OP_RAVI_ARRAYSET_ILKK,/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
+OP_RAVI_ARRAYSET_ILKR,/*	A B C	R(A)[Kst(B)] := R(C)				*/
+OP_RAVI_ARRAYSET_ILRK,/*	A B C	R(A)[R(B)] := Kst(C)				*/
+OP_RAVI_ARRAYSET_ILRR,/*	A B C	R(A)[R(B)] := R(C)				*/
+
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_EXTRAARG) + 1)
-
-
+#define NUM_OPCODES	(cast(int, OP_RAVI_ARRAYSET_ILRR) + 1)
 
 /*===========================================================================
   Notes:

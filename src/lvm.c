@@ -707,10 +707,11 @@ newframe:  /* reentry point when frame changes (call/return) */
       Protect(luaG_traceexec(L));
     }
     /* WARNING: several calls may realloc the stack and invalidate 'ra' */
-    ra = RA(i);
+    OpCode op = GET_OPCODE(i);
+    ra = (op == OP_RAVI) ? NULL : RA(i);
     lua_assert(base == ci->u.l.base);
     lua_assert(base <= L->top && L->top < L->stack + L->stacksize);
-    switch (GET_OPCODE(i)) {
+    switch (op) {
     case OP_MOVE: {
         setobjs2s(L, ra, RB(i));
     } break;
@@ -900,12 +901,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             setfltvalue(ra, luai_numpow(L, nb, nc));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_POW)); }
-    } break;
-    case OP_UNMF: {
-        /* R(A) = -R(B), R(B) must be a float */
-        TValue *rb = RB(i);
-        lua_assert(ttisfloat(rb));
-        setfltvalue(ra, -fltvalue(rb));
     } break;
     case OP_UNM: {
         TValue *rb = RB(i);
@@ -1177,6 +1172,28 @@ newframe:  /* reentry point when frame changes (call/return) */
     } break;
     case OP_EXTRAARG: {
         lua_assert(0);
+    } break;
+    case OP_RAVI: {
+        Instruction j = *(ci->u.l.savedpc++);
+        OpCode ravi_opcode = RAVI_GET_OPCODE(i);
+       
+        int a = RAVI_GETARG_A(i);
+        int b = RAVI_GETARG_B(j);
+        int c = RAVI_GETARG_C(j);
+
+        ra = base+a;
+
+        printf("Instruction %s\n", luaP_opnames[ravi_opcode]);
+
+        switch (ravi_opcode-OP_RAVI) {
+        case OP_RAVI_UNMF - OP_RAVI: {
+            /* R(A) = -R(B), R(B) must be a float */
+            TValue *rb = base+b;
+            lua_assert(ttisfloat(rb));
+            setfltvalue(ra, -fltvalue(rb));
+        } break;
+        }
+
     } break;
     }
   }
