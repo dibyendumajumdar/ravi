@@ -112,6 +112,17 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 #define GETARG_sBx(i)	(GETARG_Bx(i)-MAXARG_sBx)
 #define SETARG_sBx(i,b)	SETARG_Bx((i),cast(unsigned int, (b)+MAXARG_sBx))
 
+#define CREATE_ABC(o,a,b,c)	((cast(Instruction, o)<<POS_OP) \
+			| (cast(Instruction, a)<<POS_A) \
+			| (cast(Instruction, b)<<POS_B) \
+			| (cast(Instruction, c)<<POS_C))
+
+#define CREATE_ABx(o,a,bc)	((cast(Instruction, o)<<POS_OP) \
+			| (cast(Instruction, a)<<POS_A) \
+			| (cast(Instruction, bc)<<POS_Bx))
+
+#define CREATE_Ax(o,a)		((cast(Instruction, o)<<POS_OP) \
+			| (cast(Instruction, a)<<POS_Ax))
 
 #define RAVI_GET_OPCODE(i)	(cast(OpCode, ((i)>>SIZE_OP) & MASK1(10,0)))
 #define RAVI_SET_OPCODE(i,o)	((i) = (((i)&MASK0(16,0)) | \
@@ -126,25 +137,14 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 #define RAVI_GETARG_C(i)	getarg(i, 16, 16)
 #define RAVI_SETARG_C(i,v)	setarg(i, v, 16, 16)
 
+/* A (16 bits) Opcode (10 bits) OP_RAVI (6 bits) */
+#define RAVI_CREATE_A(o,a) ((cast(Instruction, a)<<16) \
+                         |  (cast(Instruction, o)<<6) \
+                         |  cast(Instruction, OP_RAVI))
 
-
-#define CREATE_ABC(o,a,b,c)	((cast(Instruction, o)<<POS_OP) \
-			| (cast(Instruction, a)<<POS_A) \
-			| (cast(Instruction, b)<<POS_B) \
-			| (cast(Instruction, c)<<POS_C))
-
-#define CREATE_ABx(o,a,bc)	((cast(Instruction, o)<<POS_OP) \
-			| (cast(Instruction, a)<<POS_A) \
-			| (cast(Instruction, bc)<<POS_Bx))
-
-#define CREATE_Ax(o,a)		((cast(Instruction, o)<<POS_OP) \
-			| (cast(Instruction, a)<<POS_Ax))
-
-#define RAVI_CREATE_A(o,a)		((cast(Instruction, a)<<16) \
-			| (cast(Instruction, o)))
-
-#define RAVI_CREATE_BC(b,c)		((cast(Instruction, c)<<16) \
-			| (cast(Instruction, b)))
+/* B (16 bits) C (16 bits) */
+#define RAVI_CREATE_BC(b,c)	((cast(Instruction, c)<<16) \
+                           | (cast(Instruction, b)))
 
 
 /*

@@ -70,11 +70,66 @@ static void free_handle(LuaHandle *h)
     free(h);
 }
 
+static int test_binintop(OpCode o, int p, int q, int expected)
+{
+    LuaHandle *h = alloc_handle();
+    LuaHandle copyh = *h; /* save contents */
+    int rc = 0;
+
+    /* Here we simulate following
+    * local p = x
+    * local q = y
+    * return x+y
+    *
+    * So we need three registers
+    * p in register 0
+    * q in register 1
+    * return value must be register 2
+    */
+
+    int A = 2;
+    int B = 1;
+    int C = 0;
+    int RETURN_ITEMS = 1;
+    /* register A (2) will hold return value */
+    h->instructions[0] = RAVI_CREATE_A(o, A);
+    /* register B (1) will hold q */
+    /* register C (0) will hold p */
+    h->instructions[1] = RAVI_CREATE_BC(B, C);
+    /* return register 2 (A) */
+    h->instructions[2] = CREATE_ABC(OP_RETURN, A, RETURN_ITEMS+1, 0);
+
+    /* set register 0 (p) */
+    setivalue(&h->stack[1], p);
+    /* set register 1 (q) */
+    setivalue(&h->stack[2], q);
+
+    h->p->maxstacksize = 3; /* need three registers */
+    h->ci->top = h->ci->u.l.base + h->p->maxstacksize;
+    h->L->top = h->ci->top;
+    h->ci->nresults = 1;
+    luaV_execute(h->L);
+
+    if (h->L->top != &h->L->stack[1])
+        rc = 1;
+    if (h->L->ci != NULL)
+        rc = 1;
+    if (!ttisinteger(&h->stack[0]) ||
+        ivalue(&h->stack[0]) != expected)
+        rc = 1;
+
+    *h = copyh; /* restore contents */
+    free_handle(h);
+    return rc;
+}
+
 static int test_unmf()
 {
     LuaHandle *h = alloc_handle();
     LuaHandle copyh = *h; /* save contents */
     int rc = 0;
+
+    printf("Number of opcodes %d\n", NUM_OPCODES);
 
     /* Here we simulate following
      * local p = 56.65
@@ -87,10 +142,9 @@ static int test_unmf()
      * return value must be register 1
      */
 
-    h->instructions[0] = cast(Instruction, (1 << 16)) | (cast(Instruction,OP_RAVI_UNMF)<<6) | cast(Instruction, OP_RAVI);
-    /* R(1) = -R(0) */
-    /* register 1 holds q */
-    /* register 0 holds p */
+    /* register 1 holds q, so A = 1 */
+    /* register 0 holds p, so B = 0 */
+    h->instructions[0] = RAVI_CREATE_A(OP_RAVI_UNMF, 1);
     h->instructions[1] = RAVI_CREATE_BC(0, 0);
     /* return register 1 (q) */
     h->instructions[2] = CREATE_ABC(OP_RETURN, 1, 2, 0);
@@ -170,9 +224,12 @@ static int test_return0()
 int main(const char *argv[]) 
 {
     int failures = 0;
-   // failures += test_return0();
-   // failures += test_return1();
+    failures += test_return0();
+    failures += test_return1();
     failures += test_unmf();
+    failures += test_binintop(OP_RAVI_ADDIIRR, 6, 7, 13);
+    failures += test_binintop(OP_RAVI_MULIIRR, 6, 7, 42);
+
 
     return failures ? 1 : 0;
 }
