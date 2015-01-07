@@ -141,14 +141,6 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "OP_RAVI_EQFFKR",/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
   "OP_RAVI_EQFFRK",/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
   "OP_RAVI_EQFFRR",/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQFIKK",/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQFIKR",/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQFIRK",/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQFIRR",/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQIFKK",/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQIFKR",/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQIFRK",/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQIFRR",/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
   "OP_RAVI_EQIIKK",/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
   "OP_RAVI_EQIIKR",/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
   "OP_RAVI_EQIIRK",/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
@@ -158,14 +150,6 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "OP_RAVI_LTFFKR",/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
   "OP_RAVI_LTFFRK",/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
   "OP_RAVI_LTFFRR",/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTFIKK",/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTFIKR",/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTFIRK",/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTFIRR",/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTIFKK",/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTIFKR",/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTIFRK",/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTIFRR",/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
   "OP_RAVI_LTIIKK",/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
   "OP_RAVI_LTIIKR",/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
   "OP_RAVI_LTIIRK",/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
@@ -175,14 +159,6 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "OP_RAVI_LEFFKR",/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
   "OP_RAVI_LEFFRK",/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
   "OP_RAVI_LEFFRR",/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEFIKK",/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEFIKR",/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEFIRK",/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEFIRR",/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEIFKK",/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEIFKR",/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEIFRK",/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEIFRR",/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
   "OP_RAVI_LEIIKK",/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
   "OP_RAVI_LEIIKR",/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
   "OP_RAVI_LEIIRK",/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
@@ -347,14 +323,6 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_EQFFKR	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_EQFFRK	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_EQFFRR	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_EQFIKK	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_EQFIKR	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_EQFIRK	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_EQFIRR	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_EQIFKK	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_EQIFKR	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_EQIFRK	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_EQIFRR	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_EQIIKK	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_EQIIKR	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_EQIIRK	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
@@ -364,14 +332,6 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LTFFKR	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LTFFRK	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_LTFFRR	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_LTFIKK	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LTFIKR	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LTFIRK	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_LTFIRR	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_LTIFKK	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LTIFKR	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LTIFRK	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_LTIFRR	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_LTIIKK	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LTIIKR	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LTIIRK	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
@@ -381,14 +341,6 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LEFFKR	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LEFFRK	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_LEFFRR	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_LEFIKK	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LEFIKR	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LEFIRK	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_LEFIRR	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_LEIFKK	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LEIFKR	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LEIFRK	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_LEIFRR	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_LEIIKK	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LEIIKR	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LEIIRK	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/

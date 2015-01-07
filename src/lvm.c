@@ -1526,6 +1526,249 @@ newframe:  /* reentry point when frame changes (call/return) */
             setivalue(ra, ivalue(rb) / ivalue(rc));
         } break;
 
+        case OP(OP_RAVI_EQFFKK): {
+            TValue *rb = k + b;
+            TValue *rc = k + c;
+            Protect(
+                if (cast_int(fltvalue(rb) == fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_EQFFKR): {
+            TValue *rb = k + b;
+            TValue *rc = base + c;
+            Protect(
+                if (cast_int(fltvalue(rb) == fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_EQFFRK): {
+            TValue *rb = base + b;
+            TValue *rc = k + c;
+            Protect(
+                if (cast_int(fltvalue(rb) == fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_EQFFRR): {
+            TValue *rb = base + b;
+            TValue *rc = base + c;
+            Protect(
+                if (cast_int(fltvalue(rb) == fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_EQIIKK): {
+            TValue *rb = k + b;
+            TValue *rc = k + c;
+            Protect(
+                if ((ivalue(rb) == ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_EQIIKR): {
+            TValue *rb = k + b;
+            TValue *rc = base + c;
+            Protect(
+                if ((ivalue(rb) == ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_EQIIRK): {
+            TValue *rb = base + b;
+            TValue *rc = k + c;
+            Protect(
+                if ((ivalue(rb) == ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_EQIIRR): {
+            TValue *rb = base + b;
+            TValue *rc = base + c;
+            Protect(
+                if ((ivalue(rb) == ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+
+        case OP(OP_RAVI_LTFFKK): {
+            TValue *rb = k + b;
+            TValue *rc = k + c;
+            Protect(
+                if (cast_int(fltvalue(rb) < fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LTFFKR): {
+            TValue *rb = k + b;
+            TValue *rc = base + c;
+            Protect(
+                if (cast_int(fltvalue(rb) < fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LTFFRK): {
+            TValue *rb = base + b;
+            TValue *rc = k + c;
+            Protect(
+                if (cast_int(fltvalue(rb) < fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LTFFRR): {
+            TValue *rb = base + b;
+            TValue *rc = base + c;
+            Protect(
+                if (cast_int(fltvalue(rb) < fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LTIIKK): {
+            TValue *rb = k + b;
+            TValue *rc = k + c;
+            Protect(
+                if ((ivalue(rb) < ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LTIIKR): {
+            TValue *rb = k + b;
+            TValue *rc = base + c;
+            Protect(
+                if ((ivalue(rb) < ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LTIIRK): {
+            TValue *rb = base + b;
+            TValue *rc = k + c;
+            Protect(
+                if ((ivalue(rb) < ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LTIIRR): {
+            TValue *rb = base + b;
+            TValue *rc = base + c;
+            Protect(
+                if ((ivalue(rb) < ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+
+        case OP(OP_RAVI_LEFFKK): {
+            TValue *rb = k + b;
+            TValue *rc = k + c;
+            Protect(
+                if (cast_int(fltvalue(rb) <= fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LEFFKR): {
+            TValue *rb = k + b;
+            TValue *rc = base + c;
+            Protect(
+                if (cast_int(fltvalue(rb) <= fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LEFFRK): {
+            TValue *rb = base + b;
+            TValue *rc = k + c;
+            Protect(
+                if (cast_int(fltvalue(rb) <= fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LEFFRR): {
+            TValue *rb = base + b;
+            TValue *rc = base + c;
+            Protect(
+                if (cast_int(fltvalue(rb) <= fltvalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LEIIKK): {
+            TValue *rb = k + b;
+            TValue *rc = k + c;
+            Protect(
+                if ((ivalue(rb) <= ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LEIIKR): {
+            TValue *rb = k + b;
+            TValue *rc = base + c;
+            Protect(
+                if ((ivalue(rb) <= ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LEIIRK): {
+            TValue *rb = base + b;
+            TValue *rc = k + c;
+            Protect(
+                if ((ivalue(rb) <= ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+        case OP(OP_RAVI_LEIIRR): {
+            TValue *rb = base + b;
+            TValue *rc = base + c;
+            Protect(
+                if ((ivalue(rb) <= ivalue(rc)) != a)
+                    ci->u.l.savedpc++;
+                else
+                    donextjump(ci);
+            )
+        } break;
+
         }
 
     } break;
