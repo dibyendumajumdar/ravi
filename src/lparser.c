@@ -170,8 +170,8 @@ static int registerlocalvar (LexState *ls, TString *varname) {
   return fs->nlocvars++;
 }
 
-
-static void new_localvar (LexState *ls, TString *name) {
+/* RAVI - added type tt */
+static void new_localvar (LexState *ls, TString *name, int tt) {
   FuncState *fs = ls->fs;
   Dyndata *dyd = ls->dyd;
   int reg = registerlocalvar(ls, name);
@@ -180,11 +180,14 @@ static void new_localvar (LexState *ls, TString *name) {
   luaM_growvector(ls->L, dyd->actvar.arr, dyd->actvar.n + 1,
                   dyd->actvar.size, Vardesc, MAX_INT, "local variables");
   dyd->actvar.arr[dyd->actvar.n++].idx = cast(short, reg);
+  /* RAVI change - record type info for local variable */
+  dyd->actvar.arr[dyd->actvar.n - 1].ravi_tt = tt;
 }
 
 
 static void new_localvarliteral_ (LexState *ls, const char *name, size_t sz) {
-  new_localvar(ls, luaX_newstring(ls, name, sz));
+  /* RAVI change - add type */
+  new_localvar(ls, luaX_newstring(ls, name, sz), LUA_TSTRING);
 }
 
 #define new_localvarliteral(ls,v) \
@@ -754,7 +757,8 @@ static void parlist (LexState *ls) {
     do {
       switch (ls->t.token) {
         case TK_NAME: {  /* param -> NAME */
-          new_localvar(ls, str_checkname(ls));
+          /* RAVI change - add type */
+          new_localvar(ls, str_checkname(ls), LUA_TNONE);
           nparams++;
           break;
         }
@@ -1318,7 +1322,7 @@ static void fornum (LexState *ls, TString *varname, int line) {
   new_localvarliteral(ls, "(for index)");
   new_localvarliteral(ls, "(for limit)");
   new_localvarliteral(ls, "(for step)");
-  new_localvar(ls, varname);
+  new_localvar(ls, varname, LUA_TNONE);  /* RAVI TODO - add for x: type syntax? */
   checknext(ls, '=');
   exp1(ls);  /* initial value */
   checknext(ls, ',');
@@ -1345,9 +1349,9 @@ static void forlist (LexState *ls, TString *indexname) {
   new_localvarliteral(ls, "(for state)");
   new_localvarliteral(ls, "(for control)");
   /* create declared variables */
-  new_localvar(ls, indexname);
+  new_localvar(ls, indexname, LUA_TNONE); /* RAVI TODO for name:type syntax? */
   while (testnext(ls, ',')) {
-    new_localvar(ls, str_checkname(ls));
+    new_localvar(ls, str_checkname(ls), LUA_TNONE); /* RAVI change - add type */
     nvars++;
   }
   checknext(ls, TK_IN);
@@ -1428,7 +1432,8 @@ static void ifstat (LexState *ls, int line) {
 static void localfunc (LexState *ls) {
   expdesc b;
   FuncState *fs = ls->fs;
-  new_localvar(ls, str_checkname(ls));  /* new local variable */
+  /* RAVI change - add type */
+  new_localvar(ls, str_checkname(ls), LUA_TFUNCTION);  /* new local variable */
   adjustlocalvars(ls, 1);  /* enter its scope */
   body(ls, &b, 0, ls->linenumber);  /* function created in next register */
   /* debug information will only see the variable after this point! */
@@ -1442,7 +1447,20 @@ static void localstat (LexState *ls) {
   int nexps;
   expdesc e;
   do {
-    new_localvar(ls, str_checkname(ls));
+    /* RAVI changes start */
+    /* local name : type = value */
+    TString *name = str_checkname(ls);
+    int tt = LUA_TNONE;
+    if (testnext(ls, ':')) {
+      TString *typename = str_checkname(ls); /* we expect a type name */
+      const char *str = getaddrstr(typename);
+      if (strcmp(str, "int") == 0)
+        tt = LUA_TNUMINT;
+      else if (strcmp(str, "double") == 0)
+        tt = LUA_TNUMFLT;
+    }
+    new_localvar(ls, name, tt);
+    /* RAVI changes end */
     nvars++;
   } while (testnext(ls, ','));
   if (testnext(ls, '='))

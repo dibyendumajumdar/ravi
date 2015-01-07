@@ -255,7 +255,8 @@
 /* #define LUAI_FUNC	__attribute__((visibility("hidden"))) extern */
 #define LUAI_FUNC   extern
 #else				/* }{ */
-#define LUAI_FUNC	LUA_API /* extern */
+#define LUAI_FUNC	LUA_API 
+/* extern */
 #endif				/* } */
 
 #define LUAI_DDEC	LUAI_FUNC

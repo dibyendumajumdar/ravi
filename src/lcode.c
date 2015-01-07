@@ -263,7 +263,6 @@ static int codeextraarg (FuncState *fs, int a) {
   return luaK_code(fs, CREATE_Ax(OP_EXTRAARG, a));
 }
 
-
 int luaK_codek (FuncState *fs, int reg, int k) {
   if (k <= MAXARG_Bx)
     return luaK_codeABx(fs, OP_LOADK, reg, k);

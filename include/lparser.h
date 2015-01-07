@@ -58,6 +58,7 @@ typedef struct expdesc {
 /* description of active local variable */
 typedef struct Vardesc {
   short idx;  /* variable index in stack */
+  int ravi_tt; /* type of variable if known */
 } Vardesc;
 
 
