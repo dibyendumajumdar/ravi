@@ -86,7 +86,7 @@ Implementation Strategy
 -----------------------
 I do not want to any new types to the Lua system as the required types already exist. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser/code generator to encode these opcodes when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks.
 
-My plan is to add new opcodes that cover arithmetic operations, array operations and table operations.
+My plan is to add new opcodes that cover arithmetic operations, array operations and table operations (this is lower priority).
 
 I will probably need to augment some existing types such as functions and tables to add the type signature so that at runtime when a function is called it can perform typechecks if a function signature is available.
 
@@ -96,14 +96,24 @@ Challenges with Lua Bytecode structure
 --------------------------------------
 An immediate issue is that the Lua bytecode structure has a 6-bit opcode which is insufficient to hold the various opcodes that I will need. Simply extending the size of this is problematic as then it reduces the space available to the operands A B and C. Furthermore the way Lua bytecodes work means that B and C operands must be 1-bit larger than A - as the extra bit is used to flag whether the operand refers to a constant or a register. (Thanks to Dirk Laurie for pointing this out). 
 
-If I change the sizes of the components it will make the new bytecode incompatible with Lua. Although this doesn't matter so much as long as source level compatibility is maintained - I would rather have a solution that allows me to maintain full compatibility at bytecode level. The obvious solution seems to be allow 64-bit instructions - while retaining the existing 32-bit instructions. So I will most likely need to use a technique similar to OP_LOADKX. I am worried though that this additional level of decoding will impact performance.
+If I change the sizes of the components it will make the new bytecode incompatible with Lua. Although this doesn't matter so much as long as source level compatibility is retained - I would rather have a solution that allows me to maintain full compatibility at bytecode level. An obvious solution is to allow 64-bit instructions - while retaining the existing 32-bit instructions. So I will most likely need to use a technique similar to OP_LOADKX. I am worried though that this additional level of decoding will impact performance.
 
 New OpCodes
 -----------
+A new OpCode OP_RAVI acts as a way to introduce the 64-bit opcodes.
+The new opcodes take up two 32-bit instructions as follows:
 
-OP           |  A    | B    | C    |  Description                 | Remarks
--------------|-------|------|------|------------------------------|---------------------------------------
-UNMF         |  R(A) | R(B) |      | R(A) = - R(B) floating point unary minus, R(B) must be float type | lcode.c has references to OP_UNM that are unclear to me. I assume ldebug.c is not impacted as by definition this opcode cannot support user defined methods
-             
+```
+First 32-bit instruction contains:
+<16 bits holding A register location> <10 bits holding type specific opcode> <6 bits holding OP_RAVI>
+
+Second 32-bit instruction contains:
+<16 bits holding B register location> <16 bits holding C register location>
+```
+
+The new instructions are specialised for types, and also for register/versus constant. So for example `OP_RAVI_ADDFIKK` means add `float` and `int` where both values are constants. And `OP_RAVI_ADDFFRR` means add `float` and `float` - both obtained from registers. The existing Lua opcodes that these are based on define which registers are used.
+
+
+
 
 
