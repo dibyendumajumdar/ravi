@@ -101,16 +101,17 @@ If I change the sizes of the components it will make the new bytecode incompatib
 New OpCodes
 -----------
 A new OpCode OP_RAVI acts as a way to introduce the 64-bit opcodes.
-The first opcode is structured as follows:
+The new opcodes take up two 32-bit instructions as follows:
 
 ```
 First 32-bit instruction contains:
 <16 bits holding A register location> <10 bits holding type specific opcode> <6 bits holding OP_RAVI>
+
 Second 32-bit instruction contains:
 <16 bits holding B register location> <16 bits holding C register location>
 ```
 
-The new instructions are specialised for types, and also for register/versus constant. So for example `OP_RAVI_ADDFIKK` means add `float` and `int` with both values being constants. And `OP_RAVI_ADDFFRR` means add `float` and `float` - both to be obtained from registers.
+The new instructions are specialised for types, and also for register/versus constant. So for example `OP_RAVI_ADDFIKK` means add `float` and `int` where both values are constants. And `OP_RAVI_ADDFFRR` means add `float` and `float` - both obtained from registers. The existing Lua opcodes that these are based on define which registers are used.
 
 
 
