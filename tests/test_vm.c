@@ -86,6 +86,28 @@ static void PrintConstant(const Proto* f, int i)
 #define UPVALNAME(x) ((f->upvalues[x].name) ? getstr(f->upvalues[x].name) : "-")
 #define MYK(x)		(-1-(x))
 
+static void PrintRaviCode(const Proto* f, Instruction i, Instruction j, int pc)
+{
+  OpCode o = RAVI_GET_OPCODE(i);
+  int a = RAVI_GETARG_A(i);
+  int b = RAVI_GETARG_B(j);
+  int c = RAVI_GETARG_C(j);
+  int line = getfuncline(f, pc);
+  printf("\t%d\t", pc + 1);
+  if (line>0) printf("[%d]\t", line); else printf("[-]\t");
+  printf("%-9s\t", luaP_opnames[o]);
+  switch (getOpMode(o))
+  {
+  case iABC:
+    printf("%d", a);
+    if (getBMode(o) != OpArgN) printf(" %d", getBMode(o) == OpArgK ? (MYK(b)) : b);
+    if (getCMode(o) != OpArgN) printf(" %d", getCMode(o) == OpArgK ? (MYK(c)) : c);
+    break;
+  }
+  printf("\n");
+}
+
+
 static void PrintCode(const Proto* f)
 {
   const Instruction* code = f->code;
@@ -94,6 +116,11 @@ static void PrintCode(const Proto* f)
   {
     Instruction i = code[pc];
     OpCode o = GET_OPCODE(i);
+    if (o == OP_RAVI) {
+      Instruction j = code[++pc];
+      PrintRaviCode(f, i, j, pc);
+      continue;
+    }
     int a = GETARG_A(i);
     int b = GETARG_B(i);
     int c = GETARG_C(i);
@@ -340,8 +367,12 @@ static int test_binintop(OpCode o, int p, int q, int expected)
 
     h->p->maxstacksize = 3; /* need three registers */
     h->ci->top = h->ci->u.l.base + h->p->maxstacksize;
-    h->L->top = h->ci->top;
     h->ci->nresults = 1;
+    h->p->sizecode = 3;
+
+    DumpFunction(h->L);
+    h->L->top = h->ci->top;
+
     luaV_execute(h->L);
 
     if (h->L->top != &h->L->stack[1])
@@ -389,8 +420,10 @@ static int test_unmf()
 
     h->p->maxstacksize = 2; /* need two registers */
     h->ci->top = h->ci->u.l.base + h->p->maxstacksize;
-    h->L->top = h->ci->top;
     h->ci->nresults = 1;
+    h->p->sizecode = 3;
+    DumpFunction(h->L);
+    h->L->top = h->ci->top;
     luaV_execute(h->L);
 
     if (h->L->top != &h->L->stack[1])
@@ -417,8 +450,11 @@ static int test_return1()
     h->instructions[0] = CREATE_ABC(OP_RETURN, 0, 2, 0);
     h->stack[1].tt_ = LUA_TNUMFLT;
     h->stack[1].value_.n = 56.65;
-    h->L->top++;
     h->ci->nresults = 1;
+    h->p->sizecode = 1;
+    DumpFunction(h->L);
+
+    h->L->top++;
     luaV_execute(h->L);
 
     if (h->L->top != &h->L->stack[1])
@@ -459,7 +495,7 @@ static int test_luacomp1()
     int rc = 0;
     lua_State *L;
     L = luaL_newstate();
-    const char *code = "local i:int = 5; return i";
+    const char *code = "local b:int = 6; local i:int = 5+b; return i";
     if (luaL_loadbuffer(L, code, strlen(code), "testfunc") != 0)
       rc = 1;
     DumpFunction(L);
