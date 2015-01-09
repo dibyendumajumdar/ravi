@@ -708,7 +708,7 @@ newframe:  /* reentry point when frame changes (call/return) */
     }
     /* WARNING: several calls may realloc the stack and invalidate 'ra' */
     OpCode op = GET_OPCODE(i);
-    ra = (op == OP_RAVI) ? NULL : RA(i);
+    ra = RA(i);
     lua_assert(base == ci->u.l.base);
     lua_assert(base <= L->top && L->top < L->stack + L->stacksize);
     switch (op) {
@@ -1174,21 +1174,13 @@ newframe:  /* reentry point when frame changes (call/return) */
         lua_assert(0);
     } break;
 
-#define OP(i) (i - OP_RAVI)
+#define OP(i) (i - OP_RAVI_UNMF)
 
     default: {
-        Instruction j = *(ci->u.l.savedpc++);
-        OpCode ravi_opcode = RAVI_GET_OPCODE(i);
-       
-        int a = RAVI_GETARG_A(i);
-        int b = RAVI_GETARG_B(j);
-        int c = RAVI_GETARG_C(j);
+        int b = GETARG_B(i);
+        int c = GETARG_C(i);
 
-        ra = base+a;
-
-        printf("Instruction %s\n", luaP_opnames[ravi_opcode]);
-
-        switch (OP(ravi_opcode)) {
+        switch (OP(op)) {
         case OP(OP_RAVI_UNMF): {
             /* R(A) = -R(B), R(B) must be a float */
             TValue *rb = base+b;
@@ -1530,7 +1522,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = k + c;
             Protect(
-                if (cast_int(fltvalue(rb) == fltvalue(rc)) != a)
+                if (cast_int(fltvalue(rb) == fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1540,7 +1532,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = base + c;
             Protect(
-                if (cast_int(fltvalue(rb) == fltvalue(rc)) != a)
+              if (cast_int(fltvalue(rb) == fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1550,7 +1542,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = k + c;
             Protect(
-                if (cast_int(fltvalue(rb) == fltvalue(rc)) != a)
+              if (cast_int(fltvalue(rb) == fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1560,7 +1552,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             Protect(
-                if (cast_int(fltvalue(rb) == fltvalue(rc)) != a)
+              if (cast_int(fltvalue(rb) == fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1570,7 +1562,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = k + c;
             Protect(
-                if ((ivalue(rb) == ivalue(rc)) != a)
+              if ((ivalue(rb) == ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1580,7 +1572,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = base + c;
             Protect(
-                if ((ivalue(rb) == ivalue(rc)) != a)
+              if ((ivalue(rb) == ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1590,7 +1582,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = k + c;
             Protect(
-                if ((ivalue(rb) == ivalue(rc)) != a)
+              if ((ivalue(rb) == ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1600,7 +1592,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             Protect(
-                if ((ivalue(rb) == ivalue(rc)) != a)
+              if ((ivalue(rb) == ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1611,7 +1603,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = k + c;
             Protect(
-                if (cast_int(fltvalue(rb) < fltvalue(rc)) != a)
+              if (cast_int(fltvalue(rb) < fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1621,7 +1613,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = base + c;
             Protect(
-                if (cast_int(fltvalue(rb) < fltvalue(rc)) != a)
+              if (cast_int(fltvalue(rb) < fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1631,7 +1623,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = k + c;
             Protect(
-                if (cast_int(fltvalue(rb) < fltvalue(rc)) != a)
+              if (cast_int(fltvalue(rb) < fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1641,7 +1633,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             Protect(
-                if (cast_int(fltvalue(rb) < fltvalue(rc)) != a)
+              if (cast_int(fltvalue(rb) < fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1651,7 +1643,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = k + c;
             Protect(
-                if ((ivalue(rb) < ivalue(rc)) != a)
+              if ((ivalue(rb) < ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1661,7 +1653,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = base + c;
             Protect(
-                if ((ivalue(rb) < ivalue(rc)) != a)
+              if ((ivalue(rb) < ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1671,7 +1663,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = k + c;
             Protect(
-                if ((ivalue(rb) < ivalue(rc)) != a)
+              if ((ivalue(rb) < ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1681,7 +1673,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             Protect(
-                if ((ivalue(rb) < ivalue(rc)) != a)
+              if ((ivalue(rb) < ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1692,7 +1684,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = k + c;
             Protect(
-                if (cast_int(fltvalue(rb) <= fltvalue(rc)) != a)
+              if (cast_int(fltvalue(rb) <= fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1702,7 +1694,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = base + c;
             Protect(
-                if (cast_int(fltvalue(rb) <= fltvalue(rc)) != a)
+              if (cast_int(fltvalue(rb) <= fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1712,7 +1704,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = k + c;
             Protect(
-                if (cast_int(fltvalue(rb) <= fltvalue(rc)) != a)
+              if (cast_int(fltvalue(rb) <= fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1722,7 +1714,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             Protect(
-                if (cast_int(fltvalue(rb) <= fltvalue(rc)) != a)
+              if (cast_int(fltvalue(rb) <= fltvalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1732,7 +1724,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = k + c;
             Protect(
-                if ((ivalue(rb) <= ivalue(rc)) != a)
+              if ((ivalue(rb) <= ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1742,7 +1734,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = k + b;
             TValue *rc = base + c;
             Protect(
-                if ((ivalue(rb) <= ivalue(rc)) != a)
+              if ((ivalue(rb) <= ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1752,7 +1744,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = k + c;
             Protect(
-                if ((ivalue(rb) <= ivalue(rc)) != a)
+              if ((ivalue(rb) <= ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);
@@ -1762,7 +1754,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             Protect(
-                if ((ivalue(rb) <= ivalue(rc)) != a)
+              if ((ivalue(rb) <= ivalue(rc)) != GETARG_A(i))
                     ci->u.l.savedpc++;
                 else
                     donextjump(ci);

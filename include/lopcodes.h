@@ -35,13 +35,13 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 /*
 ** size and position of opcode arguments.
 */
-#define SIZE_C		9
-#define SIZE_B		9
+#define SIZE_C		8
+#define SIZE_B		8
 #define SIZE_Bx		(SIZE_C + SIZE_B)
-#define SIZE_A		8
+#define SIZE_A		7
 #define SIZE_Ax		(SIZE_C + SIZE_B + SIZE_A)
 
-#define SIZE_OP		6
+#define SIZE_OP		9
 
 #define POS_OP		0
 #define POS_A		(POS_OP + SIZE_OP)
@@ -123,29 +123,6 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 
 #define CREATE_Ax(o,a)		((cast(Instruction, o)<<POS_OP) \
 			| (cast(Instruction, a)<<POS_Ax))
-
-#define RAVI_GET_OPCODE(i)	(cast(OpCode, ((i)>>SIZE_OP) & MASK1(10,0)))
-#define RAVI_SET_OPCODE(i,o)	((i) = (((i)&MASK0(16,0)) | \
-		(((cast(Instruction, o)<<SIZE_OP)|OP_RAVI)&MASK1(SIZE_OP,POS_OP))))
-
-#define RAVI_GETARG_A(i)	getarg(i, 16, 16)
-#define RAVI_SETARG_A(i,v)	setarg(i, v, 16, 16)
-
-#define RAVI_GETARG_B(i)	getarg(i, 0, 16)
-#define RAVI_SETARG_B(i,v)	setarg(i, v, 0, 16)
-
-#define RAVI_GETARG_C(i)	getarg(i, 16, 16)
-#define RAVI_SETARG_C(i,v)	setarg(i, v, 16, 16)
-
-/* A (16 bits) Opcode (10 bits) OP_RAVI (6 bits) */
-#define RAVI_CREATE_A(o,a) ((cast(Instruction, a)<<16) \
-                         |  (cast(Instruction, o)<<6) \
-                         |  cast(Instruction, OP_RAVI))
-
-/* B (16 bits) C (16 bits) */
-#define RAVI_CREATE_BC(b,c)	((cast(Instruction, c)<<16) \
-                           | (cast(Instruction, b)))
-
 
 /*
 ** Macros to operate RK indices
@@ -249,8 +226,6 @@ OP_CLOSURE,/*	A Bx	R(A) := closure(KPROTO[Bx])			*/
 
 OP_VARARG,/*	A B	R(A), R(A+1), ..., R(A+B-2) = vararg		*/
 OP_EXTRAARG,/*	Ax	extra (larger) argument for previous opcode	*/
-
-OP_RAVI,        /* Extension point for RAVI */
 
 OP_RAVI_UNMF,  /*	A B	R(A) := -R(B) floating point      */
 OP_RAVI_UNMI,  /*   A B R(A) := -R(B) integer */

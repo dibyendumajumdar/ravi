@@ -64,8 +64,6 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "VARARG",
   "EXTRAARG",
 
-  "OP_RAVI",        /* Extension point for RAVI */
-
   "OP_RAVI_UNMF",  /*	A B	R(A) := -R(B) floating point      */
   "OP_RAVI_UNMI",  /*   A B R(A) := -R(B) integer */
 
@@ -245,8 +243,6 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgU, OpArgN, iABx)		/* OP_CLOSURE */
  ,opmode(0, 1, OpArgU, OpArgN, iABC)		/* OP_VARARG */
  ,opmode(0, 0, OpArgU, OpArgU, iAx)		    /* OP_EXTRAARG */
-
- ,opmode(0, 0, OpArgU, OpArgU, iAx) /* OP_RAVI Extension point for RAVI */
 
  ,opmode(0, 1, OpArgR, OpArgN, iABC)/* OP_RAVI_UNMF	A B	    R(A) := -R(B) floating point      */
  ,opmode(0, 1, OpArgR, OpArgN, iABC)/* OP_RAVI_UNMI A B     R(A) := -R(B) integer */

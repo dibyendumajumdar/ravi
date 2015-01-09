@@ -304,7 +304,7 @@ static void freeexp (FuncState *fs, expdesc *e) {
 }
 
 
-/*
+/* Add constant to constant array (ensures uniqueness of each constant)
 ** Use scanner's table to cache position of constants in constant list
 ** and try to reuse constants
 */
@@ -334,7 +334,7 @@ static int addk (FuncState *fs, TValue *key, TValue *v) {
   return k;
 }
 
-
+/* add string constant */
 int luaK_stringK (FuncState *fs, TString *s) {
   TValue o;
   setsvalue(fs->ls->L, &o, s);
@@ -342,7 +342,7 @@ int luaK_stringK (FuncState *fs, TString *s) {
 }
 
 
-/*
+/* Add integer constant
 ** Integers use userdata as keys to avoid collision with floats with same
 ** value; conversion to 'void*' used only for hashing, no "precision"
 ** problems
@@ -354,21 +354,21 @@ int luaK_intK (FuncState *fs, lua_Integer n) {
   return addk(fs, &k, &o);
 }
 
-
+/* add number constant */
 static int luaK_numberK (FuncState *fs, lua_Number r) {
   TValue o;
   setfltvalue(&o, r);
   return addk(fs, &o, &o);
 }
 
-
+/* add boolean constant */
 static int boolK (FuncState *fs, int b) {
   TValue o;
   setbvalue(&o, b);
   return addk(fs, &o, &o);
 }
 
-
+/* add nil constant */
 static int nilK (FuncState *fs) {
   TValue k, v;
   setnilvalue(&v);

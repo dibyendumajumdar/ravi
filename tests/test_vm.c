@@ -86,12 +86,12 @@ static void PrintConstant(const Proto* f, int i)
 #define UPVALNAME(x) ((f->upvalues[x].name) ? getstr(f->upvalues[x].name) : "-")
 #define MYK(x)		(-1-(x))
 
-static void PrintRaviCode(const Proto* f, Instruction i, Instruction j, int pc)
+static void PrintRaviCode(const Proto* f, Instruction i, int pc)
 {
-  OpCode o = RAVI_GET_OPCODE(i);
-  int a = RAVI_GETARG_A(i);
-  int b = RAVI_GETARG_B(j);
-  int c = RAVI_GETARG_C(j);
+  OpCode o = GET_OPCODE(i);
+  int a = GETARG_A(i);
+  int b = GETARG_B(i);
+  int c = GETARG_C(i);
   int line = getfuncline(f, pc);
   printf("\t%d\t", pc + 1);
   if (line>0) printf("[%d]\t", line); else printf("[-]\t");
@@ -116,9 +116,8 @@ static void PrintCode(const Proto* f)
   {
     Instruction i = code[pc];
     OpCode o = GET_OPCODE(i);
-    if (o == OP_RAVI) {
-      Instruction j = code[++pc];
-      PrintRaviCode(f, i, j, pc);
+    if (o >= OP_RAVI_UNMF) {
+      PrintRaviCode(f, i, pc);
       continue;
     }
     int a = GETARG_A(i);
@@ -353,12 +352,11 @@ static int test_binintop(OpCode o, int p, int q, int expected)
     int C = 0;
     int RETURN_ITEMS = 1;
     /* register A (2) will hold return value */
-    h->instructions[0] = RAVI_CREATE_A(o, A);
     /* register B (1) will hold q */
     /* register C (0) will hold p */
-    h->instructions[1] = RAVI_CREATE_BC(B, C);
+    h->instructions[0] = CREATE_ABC(o, A, B, C);
     /* return register 2 (A) */
-    h->instructions[2] = CREATE_ABC(OP_RETURN, A, RETURN_ITEMS+1, 0);
+    h->instructions[1] = CREATE_ABC(OP_RETURN, A, RETURN_ITEMS+1, 0);
 
     /* set register 0 (p) */
     setivalue(&h->stack[1], p);
@@ -368,7 +366,7 @@ static int test_binintop(OpCode o, int p, int q, int expected)
     h->p->maxstacksize = 3; /* need three registers */
     h->ci->top = h->ci->u.l.base + h->p->maxstacksize;
     h->ci->nresults = 1;
-    h->p->sizecode = 3;
+    h->p->sizecode = 2;
 
     DumpFunction(h->L);
     h->L->top = h->ci->top;
@@ -409,10 +407,9 @@ static int test_unmf()
 
     /* register 1 holds q, so A = 1 */
     /* register 0 holds p, so B = 0 */
-    h->instructions[0] = RAVI_CREATE_A(OP_RAVI_UNMF, 1);
-    h->instructions[1] = RAVI_CREATE_BC(0, 0);
+    h->instructions[0] = CREATE_ABC(OP_RAVI_UNMF, 1, 0, 0);
     /* return register 1 (q) */
-    h->instructions[2] = CREATE_ABC(OP_RETURN, 1, 2, 0);
+    h->instructions[1] = CREATE_ABC(OP_RETURN, 1, 2, 0);
 
     /* set register 0 (p) */
     h->stack[1].tt_ = LUA_TNUMFLT;
@@ -421,7 +418,7 @@ static int test_unmf()
     h->p->maxstacksize = 2; /* need two registers */
     h->ci->top = h->ci->u.l.base + h->p->maxstacksize;
     h->ci->nresults = 1;
-    h->p->sizecode = 3;
+    h->p->sizecode = 2;
     DumpFunction(h->L);
     h->L->top = h->ci->top;
     luaV_execute(h->L);
