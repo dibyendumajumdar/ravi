@@ -140,7 +140,7 @@ static TString *str_checkname (LexState *ls) {
   return ts;
 }
 
-
+/* Initialize expression. */
 static void init_exp (expdesc *e, expkind k, int i) {
   e->f = e->t = NO_JUMP;
   e->k = k;

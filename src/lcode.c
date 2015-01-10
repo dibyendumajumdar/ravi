@@ -50,13 +50,13 @@ static int tonumeral(expdesc *e, TValue *v) {
   }
 }
 
-
+/* Emit bytecode to set a range of registers to nil. */
 void luaK_nil (FuncState *fs, int from, int n) {
   Instruction *previous;
   int l = from + n - 1;  /* last register to set nil */
   if (fs->pc > fs->lasttarget) {  /* no jumps to current position? */
     previous = &fs->f->code[fs->pc-1];
-    if (GET_OPCODE(*previous) == OP_LOADNIL) {
+    if (GET_OPCODE(*previous) == OP_LOADNIL) { /* Try to merge with the previous instruction. */
       int pfrom = GETARG_A(*previous);
       int pl = pfrom + GETARG_B(*previous);
       if ((pfrom <= from && from <= pl + 1) ||
@@ -72,7 +72,7 @@ void luaK_nil (FuncState *fs, int from, int n) {
   luaK_codeABC(fs, OP_LOADNIL, from, n - 1, 0);  /* else no optimization */
 }
 
-
+/* Emit unconditional branch. */
 int luaK_jump (FuncState *fs) {
   int jpc = fs->jpc;  /* save list of jumps to here */
   int j;
@@ -87,13 +87,13 @@ void luaK_ret (FuncState *fs, int first, int nret) {
   luaK_codeABC(fs, OP_RETURN, first, nret+1, 0);
 }
 
-
+/* Emit conditional branch. */
 static int condjump (FuncState *fs, OpCode op, int A, int B, int C) {
   luaK_codeABC(fs, op, A, B, C);
   return luaK_jump(fs);
 }
 
-
+/* Patch jump instruction to target. */
 static void fixjump (FuncState *fs, int pc, int dest) {
   Instruction *jmp = &fs->f->code[pc];
   int offset = dest-(pc+1);
@@ -144,7 +144,7 @@ static int need_value (FuncState *fs, int list) {
   return 0;  /* not found */
 }
 
-
+/* Patch register of test instructions. */
 static int patchtestreg (FuncState *fs, int node, int reg) {
   Instruction *i = getjumpcontrol(fs, node);
   if (GET_OPCODE(*i) != OP_TESTSET)
@@ -157,19 +157,19 @@ static int patchtestreg (FuncState *fs, int node, int reg) {
   return 1;
 }
 
-
+/* Drop values for all instructions on jump list. */
 static void removevalues (FuncState *fs, int list) {
   for (; list != NO_JUMP; list = getjump(fs, list))
       patchtestreg(fs, list, NO_REG);
 }
 
-
+/* Patch jump list and preserve produced values. */
 static void patchlistaux (FuncState *fs, int list, int vtarget, int reg,
                           int dtarget) {
   while (list != NO_JUMP) {
     int next = getjump(fs, list);
     if (patchtestreg(fs, list, reg))
-      fixjump(fs, list, vtarget);
+      fixjump(fs, list, vtarget);  /* Jump to target with value. */
     else
       fixjump(fs, list, dtarget);  /* jump to default target */
     list = next;
@@ -263,6 +263,7 @@ static int codeextraarg (FuncState *fs, int a) {
   return luaK_code(fs, CREATE_Ax(OP_EXTRAARG, a));
 }
 
+/* code access to a constant */
 int luaK_codek (FuncState *fs, int reg, int k) {
   if (k <= MAXARG_Bx)
     return luaK_codeABx(fs, OP_LOADK, reg, k);
@@ -283,13 +284,13 @@ void luaK_checkstack (FuncState *fs, int n) {
   }
 }
 
-
+/* Reserve registers. */
 void luaK_reserveregs (FuncState *fs, int n) {
   luaK_checkstack(fs, n);
   fs->freereg += n;
 }
 
-
+/* Free register. */
 static void freereg (FuncState *fs, int reg) {
   if (!ISK(reg) && reg >= fs->nactvar) {
     fs->freereg--;
@@ -297,7 +298,7 @@ static void freereg (FuncState *fs, int reg) {
   }
 }
 
-
+/* Free register for expression. */
 static void freeexp (FuncState *fs, expdesc *e) {
   if (e->k == VNONRELOC)
     freereg(fs, e->u.info);
@@ -490,7 +491,7 @@ static void discharge2anyreg (FuncState *fs, expdesc *e) {
   }
 }
 
-
+/* Discharge an expression to a specific register. */
 static void exp2reg (FuncState *fs, expdesc *e, int reg) {
   discharge2reg(fs, e, reg);
   if (e->k == VJMP)
@@ -514,7 +515,7 @@ static void exp2reg (FuncState *fs, expdesc *e, int reg) {
   e->k = VNONRELOC;
 }
 
-
+/* Discharge an expression to the next free register. */
 void luaK_exp2nextreg (FuncState *fs, expdesc *e) {
   luaK_dischargevars(fs, e);
   freeexp(fs, e);
@@ -522,7 +523,7 @@ void luaK_exp2nextreg (FuncState *fs, expdesc *e) {
   exp2reg(fs, e, fs->freereg - 1);
 }
 
-
+/* Discharge an expression to any register. */
 int luaK_exp2anyreg (FuncState *fs, expdesc *e) {
   luaK_dischargevars(fs, e);
   if (e->k == VNONRELOC) {
@@ -542,7 +543,7 @@ void luaK_exp2anyregup (FuncState *fs, expdesc *e) {
     luaK_exp2anyreg(fs, e);
 }
 
-
+/* Partially discharge expression to a value. */
 void luaK_exp2val (FuncState *fs, expdesc *e) {
   if (hasjumps(e))
     luaK_exp2anyreg(fs, e);
@@ -550,7 +551,7 @@ void luaK_exp2val (FuncState *fs, expdesc *e) {
     luaK_dischargevars(fs, e);
 }
 
-
+/* convert from expression to register or constant value ? */
 int luaK_exp2RK (FuncState *fs, expdesc *e) {
   luaK_exp2val(fs, e);
   switch (e->k) {
@@ -586,7 +587,7 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
   return luaK_exp2anyreg(fs, e);
 }
 
-
+/* Emit store for LHS expression. */
 void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
   switch (var->k) {
     case VLOCAL: {
@@ -760,7 +761,7 @@ static int validop (int op, TValue *v1, TValue *v2) {
 
 
 /*
-** Try to "constant-fold" an operation; return 1 iff successful
+** Try to "constant-fold" an operation; return 1 if successful
 */
 static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
   TValue v1, v2, res;
@@ -819,7 +820,7 @@ static void codeexpval (FuncState *fs, OpCode op,
   }
 }
 
-
+/* Emit comparison operator. */
 static void codecomp (FuncState *fs, OpCode op, int cond, expdesc *e1,
                                                           expdesc *e2) {
   int o1 = luaK_exp2RK(fs, e1);
