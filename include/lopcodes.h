@@ -407,6 +407,8 @@ LUAI_DDEC const lu_byte luaP_opmodes[NUM_OPCODES];
 
 LUAI_DDEC const char *const luaP_opnames[NUM_OPCODES+1];  /* opcode names */
 
+LUAI_DDEC const lu_byte luaP_optypes[NUM_OPCODES]; /* opcode types */
+
 
 /* number of list items to accumulate before a SETLIST instruction */
 #define LFIELDS_PER_FLUSH	50

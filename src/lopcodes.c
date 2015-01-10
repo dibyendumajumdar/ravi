@@ -11,7 +11,7 @@
 
 
 #include "lopcodes.h"
-
+#include "lobject.h"
 
 /* ORDER OP */
 
@@ -368,5 +368,179 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 0, OpArgR, OpArgK, iABC) /*RAVI_ARRAYSET_ILRK	A B C	R(A)[R(B)] := Kst(C)				*/
  ,opmode(0, 0, OpArgR, OpArgR, iABC) /*RAVI_ARRAYSET_ILRR	A B C	R(A)[R(B)] := R(C)				*/
 
+};
+
+LUAI_DDEF const lu_byte luaP_optypes[NUM_OPCODES] = {
+  LUA_TNONE		/* OP_MOVE */
+  , LUA_TNONE		/* OP_LOADK */
+  , LUA_TNONE		/* OP_LOADKX */
+  , LUA_TNONE		/* OP_LOADBOOL */
+  , LUA_TNONE		/* OP_LOADNIL */
+  , LUA_TNONE		/* OP_GETUPVAL */
+  , LUA_TNONE		/* OP_GETTABUP */
+  , LUA_TNONE		/* OP_GETTABLE */
+  , LUA_TNONE		/* OP_SETTABUP */
+  , LUA_TNONE		/* OP_SETUPVAL */
+  , LUA_TNONE		/* OP_SETTABLE */
+  , LUA_TNONE		/* OP_NEWTABLE */
+  , LUA_TNONE		/* OP_SELF */
+  , LUA_TNONE		/* OP_ADD */
+  , LUA_TNONE		/* OP_SUB */
+  , LUA_TNONE		/* OP_MUL */
+  , LUA_TNONE		/* OP_MOD */
+  , LUA_TNONE		/* OP_POW */
+  , LUA_TNONE		/* OP_DIV */
+  , LUA_TNONE		/* OP_IDIV */
+  , LUA_TNONE		/* OP_BAND */
+  , LUA_TNONE		/* OP_BOR */
+  , LUA_TNONE		/* OP_BXOR */
+  , LUA_TNONE		/* OP_SHL */
+  , LUA_TNONE		/* OP_SHR */
+  , LUA_TNONE		/* OP_UNM */
+  , LUA_TNONE		/* OP_BNOT */
+  , LUA_TNONE		/* OP_NOT */
+  , LUA_TNONE		/* OP_LEN */
+  , LUA_TNONE		/* OP_CONCAT */
+  , LUA_TNONE		/* OP_JMP */
+  , LUA_TNONE		/* OP_EQ */
+  , LUA_TNONE		/* OP_LT */
+  , LUA_TNONE		/* OP_LE */
+  , LUA_TNONE		/* OP_TEST */
+  , LUA_TNONE		/* OP_TESTSET */
+  , LUA_TNONE		/* OP_CALL */
+  , LUA_TNONE		/* OP_TAILCALL */
+  , LUA_TNONE		/* OP_RETURN */
+  , LUA_TNONE		/* OP_FORLOOP */
+  , LUA_TNONE		/* OP_FORPREP */
+  , LUA_TNONE		/* OP_TFORCALL */
+  , LUA_TNONE		/* OP_TFORLOOP */
+  , LUA_TNONE		/* OP_SETLIST */
+  , LUA_TNONE		/* OP_CLOSURE */
+  , LUA_TNONE		/* OP_VARARG */
+  , LUA_TNONE		    /* OP_EXTRAARG */
+
+  , LUA_TNUMFLT/* OP_RAVI_UNMF	A B	    R(A) := -R(B) floating point      */
+  , LUA_TNUMINT/* OP_RAVI_UNMI A B     R(A) := -R(B) integer */
+
+  , LUA_TNUMFLT /*RAVI_ADDFFKK	A B C	R(A) := Kst(B) + Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_ADDFFKR	A B C	R(A) := Kst(B) + R(C)				*/
+  , LUA_TNUMFLT /*RAVI_ADDFFRK	A B C	R(A) := R(B) + Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_ADDFFRR	A B C	R(A) := R(B) + R(C)				*/
+  , LUA_TNUMFLT /*RAVI_ADDFIKK	A B C	R(A) := Kst(B) + Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_ADDFIKR	A B C	R(A) := Kst(B) + R(C)				*/
+  , LUA_TNUMFLT /*RAVI_ADDFIRK	A B C	R(A) := R(B) + Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_ADDFIRR	A B C	R(A) := R(B) + R(C)				*/
+  , LUA_TNUMFLT /*RAVI_ADDIFKK	A B C	R(A) := Kst(B) + Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_ADDIFKR	A B C	R(A) := Kst(B) + R(C)				*/
+  , LUA_TNUMFLT /*RAVI_ADDIFRK	A B C	R(A) := R(B) + Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_ADDIFRR	A B C	R(A) := R(B) + R(C)				*/
+  , LUA_TNUMINT /*RAVI_ADDIIKK	A B C	R(A) := Kst(B) + Kst(C)				*/
+  , LUA_TNUMINT /*RAVI_ADDIIKR	A B C	R(A) := Kst(B) + R(C)				*/
+  , LUA_TNUMINT /*RAVI_ADDIIRK	A B C	R(A) := R(B) + Kst(C)				*/
+  , LUA_TNUMINT /*RAVI_ADDIIRR	A B C	R(A) := R(B) + R(C)				*/
+
+  , LUA_TNUMFLT /*RAVI_SUBFFKK	A B C	R(A) := Kst(B) - Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_SUBFFKR	A B C	R(A) := Kst(B) - R(C)				*/
+  , LUA_TNUMFLT /*RAVI_SUBFFRK	A B C	R(A) := R(B) - Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_SUBFFRR	A B C	R(A) := R(B) - R(C)				*/
+  , LUA_TNUMFLT /*RAVI_SUBFIKK	A B C	R(A) := Kst(B) - Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_SUBFIKR	A B C	R(A) := Kst(B) - R(C)				*/
+  , LUA_TNUMFLT /*RAVI_SUBFIRK	A B C	R(A) := R(B) - Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_SUBFIRR	A B C	R(A) := R(B) - R(C)				*/
+  , LUA_TNUMFLT /*RAVI_SUBIFKK	A B C	R(A) := Kst(B) - Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_SUBIFKR	A B C	R(A) := Kst(B) - R(C)				*/
+  , LUA_TNUMFLT /*RAVI_SUBIFRK	A B C	R(A) := R(B) - Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_SUBIFRR	A B C	R(A) := R(B) - R(C)				*/
+  , LUA_TNUMINT /*RAVI_SUBIIKK	A B C	R(A) := Kst(B) - Kst(C)				*/
+  , LUA_TNUMINT /*RAVI_SUBIIKR	A B C	R(A) := Kst(B) - R(C)				*/
+  , LUA_TNUMINT /*RAVI_SUBIIRK	A B C	R(A) := R(B) - Kst(C)				*/
+  , LUA_TNUMINT /*RAVI_SUBIIRR	A B C	R(A) := R(B) - R(C)				*/
+
+  , LUA_TNUMFLT /*RAVI_MULFFKK	A B C	R(A) := Kst(B) * Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_MULFFKR	A B C	R(A) := Kst(B) * R(C)				*/
+  , LUA_TNUMFLT /*RAVI_MULFFRK	A B C	R(A) := R(B) * Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_MULFFRR	A B C	R(A) := R(B) * R(C)				*/
+  , LUA_TNUMFLT /*RAVI_MULFIKK	A B C	R(A) := Kst(B) * Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_MULFIKR	A B C	R(A) := Kst(B) * R(C)				*/
+  , LUA_TNUMFLT /*RAVI_MULFIRK	A B C	R(A) := R(B) * Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_MULFIRR	A B C	R(A) := R(B) * R(C)				*/
+  , LUA_TNUMFLT /*RAVI_MULIFKK	A B C	R(A) := Kst(B) * Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_MULIFKR	A B C	R(A) := Kst(B) * R(C)				*/
+  , LUA_TNUMFLT /*RAVI_MULIFRK	A B C	R(A) := R(B) * Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_MULIFRR	A B C	R(A) := R(B) * R(C)				*/
+  , LUA_TNUMINT /*RAVI_MULIIKK	A B C	R(A) := Kst(B) * Kst(C)				*/
+  , LUA_TNUMINT /*RAVI_MULIIKR	A B C	R(A) := Kst(B) * R(C)				*/
+  , LUA_TNUMINT /*RAVI_MULIIRK	A B C	R(A) := R(B) * Kst(C)				*/
+  , LUA_TNUMINT /*RAVI_MULIIRR	A B C	R(A) := R(B) * R(C)				*/
+
+  , LUA_TNUMFLT /*RAVI_DIVFFKK	A B C	R(A) := Kst(B) / Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_DIVFFKR	A B C	R(A) := Kst(B) / R(C)				*/
+  , LUA_TNUMFLT /*RAVI_DIVFFRK	A B C	R(A) := R(B) / Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_DIVFFRR	A B C	R(A) := R(B) / R(C)				*/
+  , LUA_TNUMFLT /*RAVI_DIVFIKK	A B C	R(A) := Kst(B) / Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_DIVFIKR	A B C	R(A) := Kst(B) / R(C)				*/
+  , LUA_TNUMFLT /*RAVI_DIVFIRK	A B C	R(A) := R(B) / Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_DIVFIRR	A B C	R(A) := R(B) / R(C)				*/
+  , LUA_TNUMFLT /*RAVI_DIVIFKK	A B C	R(A) := Kst(B) / Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_DIVIFKR	A B C	R(A) := Kst(B) / R(C)				*/
+  , LUA_TNUMFLT /*RAVI_DIVIFRK	A B C	R(A) := R(B) / Kst(C)				*/
+  , LUA_TNUMFLT /*RAVI_DIVIFRR	A B C	R(A) := R(B) / R(C)				*/
+  , LUA_TNUMINT /*RAVI_DIVIIKK	A B C	R(A) := Kst(B) / Kst(C)				*/
+  , LUA_TNUMINT /*RAVI_DIVIIKR	A B C	R(A) := Kst(B) / R(C)				*/
+  , LUA_TNUMINT /*RAVI_DIVIIRK	A B C	R(A) := R(B) / Kst(C)				*/
+  , LUA_TNUMINT /*RAVI_DIVIIRR	A B C	R(A) := R(B) / R(C)				*/
+
+  , LUA_TNONE /*RAVI_EQFFKK	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_EQFFKR	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_EQFFRK	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_EQFFRR	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_EQIIKK	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_EQIIKR	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_EQIIRK	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_EQIIRR	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
+
+  , LUA_TNONE /*RAVI_LTFFKK	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LTFFKR	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LTFFRK	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LTFFRR	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LTIIKK	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LTIIKR	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LTIIRK	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LTIIRR	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
+
+  , LUA_TNONE /*RAVI_LEFFKK	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LEFFKR	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LEFFRK	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LEFFRR	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LEIIKK	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LEIIKR	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LEIIRK	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
+  , LUA_TNONE /*RAVI_LEIIRR	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
+
+  , LUA_TSTRING /*RAVI_ARRAYGET_SIK	A B C	R(A) := R(B)[Kst(C)]				*/
+  , LUA_TSTRING /*RAVI_ARRAYGET_SIR	A B C	R(A) := R(B)[R(C)]				*/
+  , LUA_TNUMINT /*RAVI_ARRAYGET_IIK	A B C	R(A) := R(B)[Kst(C)]				*/
+  , LUA_TNUMINT /*RAVI_ARRAYGET_IIR	A B C	R(A) := R(B)[R(C)]				*/
+  , LUA_TNUMFLT /*RAVI_ARRAYGET_FIK	A B C	R(A) := R(B)[Kst(C)]				*/
+  , LUA_TNUMFLT /*RAVI_ARRAYGET_FIR	A B C	R(A) := R(B)[R(C)]				*/
+  , LUA_TFUNCTION /*RAVI_ARRAYGET_LIK	A B C	R(A) := R(B)[Kst(C)]				*/
+  , LUA_TFUNCTION /*RAVI_ARRAYGET_LIR	A B C	R(A) := R(B)[R(C)]				*/
+
+  , LUA_TNONE /*RAVI_ARRAYSET_ISKK	A B C	R(A)[Kst(B)] := Kst(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_ISKR	A B C	R(A)[Kst(B)] := R(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_ISRK	A B C	R(A)[R(B)] := Kst(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_ISRR	A B C	R(A)[R(B)] := R(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_IIKK	A B C	R(A)[Kst(B)] := Kst(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_IIKR	A B C	R(A)[Kst(B)] := R(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_IIRK	A B C	R(A)[R(B)] := Kst(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_IIRR	A B C	R(A)[R(B)] := R(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_IFKK	A B C	R(A)[Kst(B)] := Kst(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_IFKR	A B C	R(A)[Kst(B)] := R(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_IFRK	A B C	R(A)[R(B)] := Kst(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_IFRR	A B C	R(A)[R(B)] := R(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_ILKK	A B C	R(A)[Kst(B)] := Kst(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_ILKR	A B C	R(A)[Kst(B)] := R(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_ILRK	A B C	R(A)[R(B)] := Kst(C)				*/
+  , LUA_TNONE /*RAVI_ARRAYSET_ILRR	A B C	R(A)[R(B)] := R(C)				*/
 };
 
