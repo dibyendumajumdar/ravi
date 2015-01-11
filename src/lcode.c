@@ -592,7 +592,7 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
 void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
   switch (var->k) {
     case VLOCAL: {
-      if (var->ravi_tt != ex->ravi_tt)
+      if (var->ravi_tt != LUA_TNONE && var->ravi_tt != ex->ravi_tt)
         luaX_syntaxerror(fs->ls, "invalid assignment type");
       freeexp(fs, ex);
       exp2reg(fs, ex, var->u.info);
