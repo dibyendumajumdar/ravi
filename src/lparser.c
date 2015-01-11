@@ -1023,7 +1023,7 @@ static void simpleexp (LexState *ls, expdesc *v) {
       break;
     }
     case TK_NIL: {
-      init_exp(v, VNIL, 0, LUA_TNONE);
+      init_exp(v, VNIL, 0, LUA_TNIL);
       break;
     }
     case TK_TRUE: {
