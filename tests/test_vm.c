@@ -487,15 +487,19 @@ static int test_return0()
     return rc;
 }
 
-static int test_luacomp1()
+/* test supplied lua code compiles */
+static int test_luacomp1(const char *code)
 {
     int rc = 0;
     lua_State *L;
     L = luaL_newstate();
-    const char *code = "local b:int = 6; local i:int = 5+b; return i";
-    if (luaL_loadbuffer(L, code, strlen(code), "testfunc") != 0)
+    if (luaL_loadbuffer(L, code, strlen(code), "testfunc") != 0) {
       rc = 1;
-    DumpFunction(L);
+      fprintf(stderr, "%s", lua_tostring(L, -1));
+      lua_pop(L, 1);  /* pop error message from the stack */
+    }
+    else
+      DumpFunction(L);
     lua_close(L);
     return rc;
 }
@@ -509,7 +513,7 @@ int main(const char *argv[])
     failures += test_unmf();
     failures += test_binintop(OP_RAVI_ADDIIRR, 6, 7, 13);
     failures += test_binintop(OP_RAVI_MULIIRR, 6, 7, 42);
-    failures += test_luacomp1();
+    failures += test_luacomp1("local b:int = 6; local i:int = 5+b; return i");
 
     return failures ? 1 : 0;
 }

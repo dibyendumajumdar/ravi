@@ -592,6 +592,8 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
 void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
   switch (var->k) {
     case VLOCAL: {
+      if (var->ravi_tt != ex->ravi_tt)
+        luaX_syntaxerror(fs->ls, "invalid assignment type");
       freeexp(fs, ex);
       exp2reg(fs, ex, var->u.info);
       return;
@@ -704,10 +706,12 @@ static void codenot (FuncState *fs, expdesc *e) {
   switch (e->k) {
     case VNIL: case VFALSE: {
       e->k = VTRUE;
+      e->ravi_tt = LUA_TBOOLEAN;
       break;
     }
     case VK: case VKFLT: case VKINT: case VTRUE: {
       e->k = VFALSE;
+      e->ravi_tt = LUA_TBOOLEAN;
       break;
     }
     case VJMP: {
@@ -720,6 +724,7 @@ static void codenot (FuncState *fs, expdesc *e) {
       freeexp(fs, e);
       e->u.info = luaK_codeABC(fs, OP_NOT, 0, e->u.info, 0);
       e->k = VRELOCABLE;
+      e->ravi_tt = LUA_TBOOLEAN;
       break;
     }
     default: {
@@ -772,6 +777,7 @@ static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
   if (ttisinteger(&res)) {
     e1->k = VKINT;
     e1->u.ival = ivalue(&res);
+    e1->ravi_tt = LUA_TNUMINT;
   }
   else {  /* folds neither NaN nor 0.0 (to avoid collapsing with -0.0) */
     lua_Number n = fltvalue(&res);
@@ -779,6 +785,7 @@ static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
       return 0;
     e1->k = VKFLT;
     e1->u.nval = n;
+    e1->ravi_tt = LUA_TNUMFLT;
   }
   return 1;
 }
@@ -798,10 +805,12 @@ static void codeexpval (FuncState *fs, OpCode op,
     return;  /* result has been folded */
   else {
     int o1, o2;
+    int isbinary = 1;
     /* move operands to registers (if needed) */
     if (op == OP_UNM || op == OP_BNOT || op == OP_LEN) {  /* unary op? */
       o2 = 0;  /* no second expression */
       o1 = luaK_exp2anyreg(fs, e1);  /* cannot operate on constants */
+      isbinary = 0;
     }
     else {  /* regular case (binary operators) */
       o2 = luaK_exp2RK(fs, e2);  /* both operands are "RK" */
@@ -817,6 +826,18 @@ static void codeexpval (FuncState *fs, OpCode op,
     }
     e1->u.info = luaK_codeABC(fs, op, 0, o1, o2);  /* generate opcode */
     e1->k = VRELOCABLE;  /* all those operations are relocable */
+    if (isbinary) {
+      if (e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMFLT)
+        e1->ravi_tt = LUA_TNUMFLT;
+      else if (e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMINT)
+        e1->ravi_tt = LUA_TNUMFLT;
+      else if (e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMFLT)
+        e1->ravi_tt = LUA_TNUMFLT;
+      else if (e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMINT)
+        e1->ravi_tt = LUA_TNUMINT;
+      else
+        e1->ravi_tt = LUA_TNONE;
+    }
     luaK_fixline(fs, line);
   }
 }
@@ -835,6 +856,7 @@ static void codecomp (FuncState *fs, OpCode op, int cond, expdesc *e1,
   }
   e1->u.info = condjump(fs, op, cond, o1, o2);
   e1->k = VJMP;
+  e1->ravi_tt = LUA_TNONE;
 }
 
 
@@ -906,6 +928,7 @@ void luaK_posfix (FuncState *fs, BinOpr op,
         freeexp(fs, e1);
         SETARG_B(getcode(fs, e2), e1->u.info);
         e1->k = VRELOCABLE; e1->u.info = e2->u.info;
+        e1->ravi_tt = LUA_TNONE; /* RAVI TODO check */
       }
       else {
         luaK_exp2nextreg(fs, e2);  /* operand must be on the 'stack' */
