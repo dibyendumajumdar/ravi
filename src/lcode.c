@@ -588,13 +588,32 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
   return luaK_exp2anyreg(fs, e);
 }
 
+static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
+  if ((var->ravi_tt == LUA_TNUMFLT || var->ravi_tt == LUA_TNUMINT) &&
+      var->ravi_tt != ex->ravi_tt)
+    luaX_syntaxerror(
+        fs->ls,
+        luaO_pushfstring(
+            fs->ls->L,
+            "Invalid assignment of type: var type %d, expression type %d",
+            var->ravi_tt,
+            ex->ravi_tt));
+  else if ((var->ravi_tt == LUA_TFUNCTION || var->ravi_tt == LUA_TSTRING || var->ravi_tt == LUA_TNIL) &&
+           (var->ravi_tt != ex->ravi_tt && ex->ravi_tt != LUA_TNIL))
+    luaX_syntaxerror(
+        fs->ls,
+        luaO_pushfstring(
+            fs->ls->L,
+            "Invalid assignment of type: var type %d, expression type %d",
+            var->ravi_tt,
+            ex->ravi_tt));
+}
+
 /* Emit store for LHS expression. */
 void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
   switch (var->k) {
     case VLOCAL: {
-      if ((var->ravi_tt == LUA_TNUMFLT || var->ravi_tt == LUA_TNUMINT) && var->ravi_tt != ex->ravi_tt)
-        luaX_syntaxerror(fs->ls, luaO_pushfstring(fs->ls->L, "Invalid assignment of type: var type %d, expression type %d",
-          var->ravi_tt, ex->ravi_tt));
+      check_valid_store(fs, var, ex);
       freeexp(fs, ex);
       exp2reg(fs, ex, var->u.info);
       return;
