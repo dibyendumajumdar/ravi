@@ -510,13 +510,13 @@ int main(const char *argv[])
     failures += test_return1();
     failures += test_unmf();
     failures += test_binintop(OP_RAVI_ADDIIRR, 6, 7, 13);
-    failures += test_binintop(OP_RAVI_MULIIRR, 6, 7, 42);
+    failures += test_binintop(OP_RAVI_MULIIRR, 6, 7, 42); 
+    failures += test_luacomp1("local max, min = 0x7fffffff, -0x80000000; assert(string.format(\"%d\", min) == \"-2147483648\"); max, min = 0x7fffffffffffffff, -0x8000000000000000; if max > 2.0 ^ 53 then; end;");
     failures += test_luacomp1("local function F (m); local function round(m); m = m + 0.04999; return format(\"%.1f\", m);end; end");
     failures += test_luacomp1("local b:int = 6; local i:int = 5+b; return i");
     failures += test_luacomp1("local f = function(); end");
     failures += test_luacomp1("local b:int = 6; b = nil; return i") == 1 ? 0 : 1; /* should fail */
     failures += test_luacomp1("local f = function(); local function y() ; end; end");
-    failures += test_luacomp1("local function F (m); local function round(m); return format(\"%.1f\", m);end; end");
 
     printf("Number of opcodes %d\n", NUM_OPCODES);
 

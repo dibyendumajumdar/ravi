@@ -312,6 +312,7 @@ static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
     if (v >= 0) {  /* found? */
       /* RAVI set type of local var / expr if possible */
       int tt = getlocvartype(fs, v);
+      /*
       if (tt == LUA_TNONE && var->ravi_tt != LUA_TNONE) {
         tt = var->ravi_tt;
         setlocvartype(fs, v, tt);
@@ -319,6 +320,7 @@ static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
       else if (tt != LUA_TNONE && var->ravi_tt == LUA_TNONE)
         var->ravi_tt = tt;
       lua_assert(tt == var->ravi_tt);
+      */
       init_exp(var, VLOCAL, v, tt);  /* variable is local, RAVI set type */
       if (!base)
         markupval(fs, v);  /* local will be used as an upval */
