@@ -502,6 +502,35 @@ static int test_luacomp1(const char *code)
     return rc;
 }
 
+/* test supplied lua code compiles */
+static int test_luacompexec1(const char *code, int expected)
+{
+  int rc = 0;
+  lua_State *L;
+  L = luaL_newstate();
+  if (luaL_loadbuffer(L, code, strlen(code), "testfunc") != 0) {
+    rc = 1;
+    fprintf(stderr, "%s\n", lua_tostring(L, -1));
+    lua_pop(L, 1);  /* pop error message from the stack */
+  }
+  else {
+    DumpFunction(L);
+    if (lua_pcall(L, 0, 1, 0) != 0) {
+      rc = 1;
+      fprintf(stderr, "%s\n", lua_tostring(L, -1));
+    }
+    else {
+      stackDump(L, "after executing function");
+      if (!(lua_isinteger(L, -1) && lua_tointeger(L, -1) == expected)) {
+        rc = 1;
+      }
+    }
+  }
+  lua_close(L);
+  return rc;
+}
+
+
 
 int main(const char *argv[]) 
 {
@@ -515,6 +544,7 @@ int main(const char *argv[])
     failures += test_luacomp1("local max, min = 0x7fffffff, -0x80000000; assert(string.format(\"%d\", min) == \"-2147483648\"); max, min = 0x7fffffffffffffff, -0x8000000000000000; if max > 2.0 ^ 53 then; end;");
     failures += test_luacomp1("local function F (m); local function round(m); m = m + 0.04999; return format(\"%.1f\", m);end; end");
     failures += test_luacomp1("local b:int = 6; local i:int = 5+b; return i");
+    failures += test_luacompexec1("local b:int = 6; local i:int = 5+b; return i", 11);
     failures += test_luacomp1("local f = function(); end");
     failures += test_luacomp1("local b:int = 6; b = nil; return i") == 1 ? 0 : 1; /* should fail */
     failures += test_luacomp1("local f = function(); local function y() ; end; end");

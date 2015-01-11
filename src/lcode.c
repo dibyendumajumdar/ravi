@@ -846,7 +846,37 @@ static void codeexpval (FuncState *fs, OpCode op,
       freeexp(fs, e2);
       freeexp(fs, e1);
     }
-    e1->u.info = luaK_codeABC(fs, op, 0, o1, o2);  /* generate opcode */
+    if (op == OP_ADD && e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMFLT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMINT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIIKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIIKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIIRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIIRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else {
+      e1->u.info = luaK_codeABC(fs, op, 0, o1, o2);  /* generate opcode */
+    }
     e1->k = VRELOCABLE;  /* all those operations are relocable */
     if (isbinary) {
       if (e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMFLT)

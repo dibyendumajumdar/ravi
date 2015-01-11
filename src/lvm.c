@@ -647,7 +647,7 @@ void luaV_finishOp (lua_State *L) {
 #define vmcase(l,b)	case l: {b}  break;
 #define vmcasenb(l,b)	case l: {b}		/* nb = no break */
 
-static void stackDump(lua_State *L, const char *s) {
+void stackDump(lua_State *L, const char *s) {
   if (!s)
     return;
   StkId p = L->stack;
@@ -1177,8 +1177,8 @@ newframe:  /* reentry point when frame changes (call/return) */
 #define OP(i) (i - OP_RAVI_UNMF)
 
     default: {
-        int b = GETARG_B(i);
-        int c = GETARG_C(i);
+        int b = INDEXK(GETARG_B(i));
+        int c = INDEXK(GETARG_C(i));
 
         switch (OP(op)) {
         case OP(OP_RAVI_UNMF): {
