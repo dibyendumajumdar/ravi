@@ -598,6 +598,7 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
             "Invalid assignment of type: var type %d, expression type %d",
             var->ravi_tt,
             ex->ravi_tt));
+  /*
   else if ((var->ravi_tt == LUA_TFUNCTION || var->ravi_tt == LUA_TSTRING || var->ravi_tt == LUA_TNIL) &&
            (var->ravi_tt != ex->ravi_tt && ex->ravi_tt != LUA_TNIL))
     luaX_syntaxerror(
@@ -607,6 +608,7 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
             "Invalid assignment of type: var type %d, expression type %d",
             var->ravi_tt,
             ex->ravi_tt));
+  */
 }
 
 /* Emit store for LHS expression. */
