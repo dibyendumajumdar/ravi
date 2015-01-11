@@ -52,7 +52,7 @@ typedef struct expdesc {
   } u;
   int t;  /* patch list of 'exit when true' */
   int f;  /* patch list of 'exit when false' */
-  int ravi_tt; /* track type of each expression */
+  int ravi_tt; /* RAVI type of the expression */
 } expdesc;
 
 

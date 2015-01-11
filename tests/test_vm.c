@@ -392,8 +392,6 @@ static int test_unmf()
     LuaHandle copyh = *h; /* save contents */
     int rc = 0;
 
-    printf("Number of opcodes %d\n", NUM_OPCODES);
-
     /* Here we simulate following
      * local p = 56.65
      * local q = -p
@@ -495,7 +493,7 @@ static int test_luacomp1(const char *code)
     L = luaL_newstate();
     if (luaL_loadbuffer(L, code, strlen(code), "testfunc") != 0) {
       rc = 1;
-      fprintf(stderr, "%s", lua_tostring(L, -1));
+      fprintf(stderr, "%s\n", lua_tostring(L, -1));
       lua_pop(L, 1);  /* pop error message from the stack */
     }
     else
@@ -514,6 +512,11 @@ int main(const char *argv[])
     failures += test_binintop(OP_RAVI_ADDIIRR, 6, 7, 13);
     failures += test_binintop(OP_RAVI_MULIIRR, 6, 7, 42);
     failures += test_luacomp1("local b:int = 6; local i:int = 5+b; return i");
+    failures += test_luacomp1("local f = function(); end");
+    failures += test_luacomp1("local b:int = 6; b = nil; return i") == 1 ? 0 : 1; /* should fail */
+
+    printf("Number of opcodes %d\n", NUM_OPCODES);
+
 
     return failures ? 1 : 0;
 }

@@ -217,11 +217,15 @@ static LocVar *getlocvar (FuncState *fs, int i) {
   return &fs->f->locvars[idx];
 }
 
+/* get type of a local var */
 static int getlocvartype(FuncState *fs, int i) {
+  lua_assert(i < dyd->actvar.n);
   return fs->ls->dyd->actvar.arr[fs->firstlocal + i].ravi_tt;
 }
 
+/* set type of a local var */
 static void setlocvartype(FuncState *fs, int i, int tt) {
+  lua_assert(i < dyd->actvar.n);
   fs->ls->dyd->actvar.arr[fs->firstlocal + i].ravi_tt = tt;
 }
 
@@ -245,7 +249,9 @@ static void removevars (FuncState *fs, int tolevel) {
     getlocvar(fs, --fs->nactvar)->endpc = fs->pc;
 }
 
-/* search for an upvalue by name */
+/* search for an upvalue by name, return location if
+ * found else -1
+ */
 static int searchupvalue (FuncState *fs, TString *name) {
   int i;
   Upvaldesc *up = fs->f->upvalues;
@@ -841,7 +847,7 @@ static void body (LexState *ls, expdesc *e, int ismethod, int line) {
   close_func(ls);
 }
 
-
+/* parse exxpression list */
 static int explist (LexState *ls, expdesc *v) {
   /* explist -> expr { ',' expr } */
   int n = 1;  /* at least one expression */
@@ -854,18 +860,21 @@ static int explist (LexState *ls, expdesc *v) {
   return n;
 }
 
+/* parse expression list, and validate that the expressions match expected
+ * types provided in vars array
+ */
 static int localvar_explist(LexState *ls, expdesc *v, int *vars, int nvars) {
   /* explist -> expr { ',' expr } */
   int n = 1;  /* at least one expression */
   expr(ls, v);
-  if (nvars && v->ravi_tt != vars[0])
+  if (nvars && vars[0] != LUA_TNONE && v->ravi_tt != vars[0])
     luaX_syntaxerror(ls, "invalid assignment type");
   while (testnext(ls, ',')) {
     luaK_exp2nextreg(ls->fs, v);
     expr(ls, v);
-    n++;
-    if (nvars > n && v->ravi_tt != vars[n])
+    if (nvars > n && vars[n] != LUA_TNONE && v->ravi_tt != vars[n])
       luaX_syntaxerror(ls, "invalid assignment type");
+    n++;
   }
   return n;
 }
@@ -925,7 +934,7 @@ static void funcargs (LexState *ls, expdesc *f, int line) {
 ** =======================================================================
 */
 
-
+/* primary expression - name or subexpression */
 static void primaryexp (LexState *ls, expdesc *v) {
   /* primaryexp -> NAME | '(' expr ')' */
   switch (ls->t.token) {
@@ -947,7 +956,7 @@ static void primaryexp (LexState *ls, expdesc *v) {
   }
 }
 
-
+/* variable or field access or function call */
 static void suffixedexp (LexState *ls, expdesc *v) {
   /* suffixedexp ->
        primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
@@ -1561,7 +1570,7 @@ static void funcstat (LexState *ls, int line) {
   luaK_fixline(ls->fs, line);  /* definition "happens" in the first line */
 }
 
-
+/* expression statement */
 static void exprstat (LexState *ls) {
   /* stat -> func | assignment */
   FuncState *fs = ls->fs;
@@ -1577,7 +1586,7 @@ static void exprstat (LexState *ls) {
   }
 }
 
-
+/* return statement */
 static void retstat (LexState *ls) {
   /* stat -> RETURN [explist] [';'] */
   FuncState *fs = ls->fs;
@@ -1610,7 +1619,7 @@ static void retstat (LexState *ls) {
   testnext(ls, ';');  /* skip optional semicolon */
 }
 
-
+/* parse a statement */
 static void statement (LexState *ls) {
   int line = ls->linenumber;  /* may be needed for error messages */
   enterlevel(ls);
