@@ -1027,11 +1027,11 @@ static void simpleexp (LexState *ls, expdesc *v) {
       break;
     }
     case TK_TRUE: {
-      init_exp(v, VTRUE, 0, LUA_TBOOLEAN);
+      init_exp(v, VTRUE, 0, LUA_TNONE); /* RAVI TODO */
       break;
     }
     case TK_FALSE: {
-      init_exp(v, VFALSE, 0, LUA_TBOOLEAN);
+      init_exp(v, VFALSE, 0, LUA_TNONE); /* RAVI TODO */
       break;
     }
     case TK_DOTS: {  /* vararg */

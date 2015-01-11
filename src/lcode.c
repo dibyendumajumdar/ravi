@@ -728,12 +728,12 @@ static void codenot (FuncState *fs, expdesc *e) {
   switch (e->k) {
     case VNIL: case VFALSE: {
       e->k = VTRUE;
-      e->ravi_tt = LUA_TBOOLEAN;
+      e->ravi_tt = LUA_TNONE; /* RAVI TODO */
       break;
     }
     case VK: case VKFLT: case VKINT: case VTRUE: {
       e->k = VFALSE;
-      e->ravi_tt = LUA_TBOOLEAN;
+      e->ravi_tt = LUA_TNONE; /* RAVI TODO*/
       break;
     }
     case VJMP: {
@@ -746,7 +746,7 @@ static void codenot (FuncState *fs, expdesc *e) {
       freeexp(fs, e);
       e->u.info = luaK_codeABC(fs, OP_NOT, 0, e->u.info, 0);
       e->k = VRELOCABLE;
-      e->ravi_tt = LUA_TBOOLEAN;
+      e->ravi_tt = LUA_TNONE; /* RAVI TODO */
       break;
     }
     default: {
@@ -846,6 +846,7 @@ static void codeexpval (FuncState *fs, OpCode op,
       freeexp(fs, e2);
       freeexp(fs, e1);
     }
+#if RAVI_ENABLED
     if (op == OP_ADD && e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMFLT) {
       if (ISK(o1) && ISK(o2)) {
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFKK, 0, o1, o2);  /* generate opcode */
@@ -875,17 +876,20 @@ static void codeexpval (FuncState *fs, OpCode op,
       }
     }
     else {
+#endif
       e1->u.info = luaK_codeABC(fs, op, 0, o1, o2);  /* generate opcode */
+#if RAVI_ENABLED
     }
+#endif
     e1->k = VRELOCABLE;  /* all those operations are relocable */
     if (isbinary) {
-      if (e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMFLT)
+      if (op == OP_ADD && e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMFLT)
         e1->ravi_tt = LUA_TNUMFLT;
-      else if (e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMINT)
+      else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMINT)
         e1->ravi_tt = LUA_TNUMFLT;
-      else if (e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMFLT)
+      else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMFLT)
         e1->ravi_tt = LUA_TNUMFLT;
-      else if (e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMINT)
+      else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMINT)
         e1->ravi_tt = LUA_TNUMINT;
       else
         e1->ravi_tt = LUA_TNONE;
@@ -964,14 +968,18 @@ void luaK_posfix (FuncState *fs, BinOpr op,
       lua_assert(e1->t == NO_JUMP);  /* list must be closed */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->f, e1->f);
+      int tt = e1->ravi_tt;
       *e1 = *e2;
+      e1->ravi_tt = tt;
       break;
     }
     case OPR_OR: {
       lua_assert(e1->f == NO_JUMP);  /* list must be closed */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->t, e1->t);
+      int tt = e1->ravi_tt;
       *e1 = *e2;
+      e1->ravi_tt = tt;
       break;
     }
     case OPR_CONCAT: {

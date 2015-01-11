@@ -413,5 +413,7 @@ LUAI_DDEC const lu_byte luaP_optypes[NUM_OPCODES]; /* opcode types */
 /* number of list items to accumulate before a SETLIST instruction */
 #define LFIELDS_PER_FLUSH	50
 
+#define RAVI_ENABLED 1
+
 
 #endif
