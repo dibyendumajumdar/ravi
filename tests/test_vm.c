@@ -556,7 +556,10 @@ int main(const char *argv[])
     failures += test_luacomp1("local f = function(); local function y() ; end; end");
     failures += test_luacompexec1("return -(1 or 2)", -1);
     failures += test_luacompexec1("return (1 and 2)+(-1.25 or -4) == 0.75", 1);
+    failures += test_luacomp1("local a=1; if a==0 then; a = 2; else a=3; end;");
     printf("Number of opcodes %d\n", NUM_OPCODES);
+    printf("LUA_TNUMFLT = %d\n", LUA_TNUMFLT);
+    printf("LUA_TNUMINT = %d\n", LUA_TNUMINT);
 
     return failures ? 1 : 0;
 }

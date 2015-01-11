@@ -861,6 +861,34 @@ static void codeexpval (FuncState *fs, OpCode op,
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFRR, 0, o1, o2);  /* generate opcode */
       }
     }
+    else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMINT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFIKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFIKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFIRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFIRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMFLT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIFKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIFKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIFRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIFRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
     else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMINT) {
       if (ISK(o1) && ISK(o2)) {
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIIKK, 0, o1, o2);  /* generate opcode */
