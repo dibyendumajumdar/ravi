@@ -514,6 +514,7 @@ int main(const char *argv[])
     failures += test_luacomp1("local b:int = 6; local i:int = 5+b; return i");
     failures += test_luacomp1("local f = function(); end");
     failures += test_luacomp1("local b:int = 6; b = nil; return i") == 1 ? 0 : 1; /* should fail */
+    failures += test_luacomp1("local f = function(); local function y() ; end; end");
 
     printf("Number of opcodes %d\n", NUM_OPCODES);
 

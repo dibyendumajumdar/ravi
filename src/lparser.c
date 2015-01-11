@@ -868,12 +868,12 @@ static int localvar_explist(LexState *ls, expdesc *v, int *vars, int nvars) {
   int n = 1;  /* at least one expression */
   expr(ls, v);
   if (nvars && vars[0] != LUA_TNONE && v->ravi_tt != vars[0])
-    luaX_syntaxerror(ls, "invalid assignment type");
+    luaX_syntaxerror(ls, "invalid local assignment");
   while (testnext(ls, ',')) {
     luaK_exp2nextreg(ls->fs, v);
     expr(ls, v);
     if (nvars > n && vars[n] != LUA_TNONE && v->ravi_tt != vars[n])
-      luaX_syntaxerror(ls, "invalid assignment type");
+      luaX_syntaxerror(ls, "invalid local assignment");
     n++;
   }
   return n;
