@@ -347,6 +347,7 @@ static void singlevar (LexState *ls, expdesc *var) {
   FuncState *fs = ls->fs;
   if (singlevaraux(fs, varname, var, 1) == VVOID) {  /* global name? */
     expdesc key;
+    key.ravi_tt = LUA_TNONE;
     singlevaraux(fs, ls->envn, var, 1);  /* get environment variable */
     lua_assert(var->k == VLOCAL || var->k == VUPVAL);
     codestring(ls, &key, varname);  /* key is variable name */
@@ -657,6 +658,7 @@ static void fieldsel (LexState *ls, expdesc *v) {
   /* fieldsel -> ['.' | ':'] NAME */
   FuncState *fs = ls->fs;
   expdesc key;
+  key.ravi_tt = LUA_TNONE;
   luaK_exp2anyregup(fs, v);
   luaX_next(ls);  /* skip the dot or colon */
   checkname(ls, &key);
@@ -694,6 +696,8 @@ static void recfield (LexState *ls, struct ConsControl *cc) {
   FuncState *fs = ls->fs;
   int reg = ls->fs->freereg;
   expdesc key, val;
+  key.ravi_tt = LUA_TNONE;
+  val.ravi_tt = LUA_TNONE;
   int rkkey;
   if (ls->t.token == TK_NAME) {
     checklimit(fs, cc->nh, MAX_INT, "items in a constructor");
@@ -884,6 +888,7 @@ static int localvar_explist(LexState *ls, expdesc *v, int *vars, int nvars) {
 static void funcargs (LexState *ls, expdesc *f, int line) {
   FuncState *fs = ls->fs;
   expdesc args;
+  args.ravi_tt = LUA_TNONE;
   int base, nparams;
   switch (ls->t.token) {
     case '(': {  /* funcargs -> '(' [ explist ] ')' */
@@ -971,6 +976,7 @@ static void suffixedexp (LexState *ls, expdesc *v) {
       }
       case '[': {  /* '[' exp1 ']' */
         expdesc key;
+        key.ravi_tt = LUA_TNONE;
         luaK_exp2anyregup(fs, v);
         yindex(ls, &key);
         luaK_indexed(fs, v, &key);
@@ -978,6 +984,7 @@ static void suffixedexp (LexState *ls, expdesc *v) {
       }
       case ':': {  /* ':' NAME funcargs */
         expdesc key;
+        key.ravi_tt = LUA_TNONE;
         luaX_next(ls);
         checkname(ls, &key);
         luaK_self(fs, v, &key);
@@ -1128,6 +1135,7 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
   op = getbinopr(ls->t.token);
   while (op != OPR_NOBINOPR && priority[op].left > limit) {
     expdesc v2;
+    v2.ravi_tt = LUA_TNONE;
     BinOpr nextop;
     int line = ls->linenumber;
     luaX_next(ls);
@@ -1213,9 +1221,11 @@ static void check_conflict (LexState *ls, struct LHS_assign *lh, expdesc *v) {
 
 static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
   expdesc e;
+  e.ravi_tt = LUA_TNONE;
   check_condition(ls, vkisvar(lh->v.k), "syntax error");
   if (testnext(ls, ',')) {  /* assignment -> ',' suffixedexp assignment */
     struct LHS_assign nv;
+    nv.v.ravi_tt = LUA_TNONE;
     nv.prev = lh;
     suffixedexp(ls, &nv.v);
     if (nv.v.k != VINDEXED)
@@ -1247,6 +1257,7 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
 static int cond (LexState *ls) {
   /* cond -> exp */
   expdesc v;
+  v.ravi_tt = LUA_TNONE;
   expr(ls, &v);  /* read condition */
   if (v.k == VNIL) v.k = VFALSE;  /* 'falses' are all equal here */
   luaK_goiftrue(ls->fs, &v);
@@ -1349,6 +1360,7 @@ static void repeatstat (LexState *ls, int line) {
 
 static int exp1 (LexState *ls) {
   expdesc e;
+  e.ravi_tt = LUA_TNONE;
   int reg;
   expr(ls, &e);
   luaK_exp2nextreg(ls->fs, &e);
@@ -1410,6 +1422,7 @@ static void forlist (LexState *ls, TString *indexname) {
   /* forlist -> NAME {,NAME} IN explist forbody */
   FuncState *fs = ls->fs;
   expdesc e;
+  e.ravi_tt = LUA_TNONE;
   int nvars = 4;  /* gen, state, control, plus at least one declared var */
   int line;
   int base = fs->freereg;
@@ -1454,6 +1467,7 @@ static void test_then_block (LexState *ls, int *escapelist) {
   BlockCnt bl;
   FuncState *fs = ls->fs;
   expdesc v;
+  v.ravi_tt = LUA_TNONE;
   int jf;  /* instruction to skip 'then' code (if condition is false) */
   luaX_next(ls);  /* skip IF or ELSEIF */
   expr(ls, &v);  /* read condition */
@@ -1500,6 +1514,7 @@ static void ifstat (LexState *ls, int line) {
 
 static void localfunc (LexState *ls) {
   expdesc b;
+  b.ravi_tt = LUA_TNONE;
   FuncState *fs = ls->fs;
   /* RAVI change - add type */
   new_localvar(ls, str_checkname(ls), LUA_TFUNCTION);  /* new local variable */
@@ -1515,6 +1530,7 @@ static void localstat (LexState *ls) {
   int nvars = 0;
   int nexps;
   expdesc e;
+  e.ravi_tt = LUA_TNONE;
   int vars[MAXVARS] = { 0 };
   do {
     /* RAVI changes start */
@@ -1563,6 +1579,8 @@ static void funcstat (LexState *ls, int line) {
   /* funcstat -> FUNCTION funcname body */
   int ismethod;
   expdesc v, b;
+  v.ravi_tt = LUA_TNONE;
+  b.ravi_tt = LUA_TNONE;
   luaX_next(ls);  /* skip FUNCTION */
   ismethod = funcname(ls, &v);
   body(ls, &b, ismethod, line);
@@ -1575,6 +1593,7 @@ static void exprstat (LexState *ls) {
   /* stat -> func | assignment */
   FuncState *fs = ls->fs;
   struct LHS_assign v;
+  v.v.ravi_tt = LUA_TNONE;
   suffixedexp(ls, &v.v);
   if (ls->t.token == '=' || ls->t.token == ',') { /* stat -> assignment ? */
     v.prev = NULL;
@@ -1591,6 +1610,7 @@ static void retstat (LexState *ls) {
   /* stat -> RETURN [explist] [';'] */
   FuncState *fs = ls->fs;
   expdesc e;
+  e.ravi_tt = LUA_TNONE;
   int first, nret;  /* registers with returned values */
   if (block_follow(ls, 1) || ls->t.token == ';')
     first = nret = 0;  /* return no values */
@@ -1698,6 +1718,7 @@ static void statement (LexState *ls) {
 static void mainfunc (LexState *ls, FuncState *fs) {
   BlockCnt bl;
   expdesc v;
+  v.ravi_tt = LUA_TNONE;
   open_func(ls, fs, &bl);
   fs->f->is_vararg = 1;  /* main function is always vararg */
   init_exp(&v, VLOCAL, 0, LUA_TNONE);  /* create and... - RAVI TODO var arg is unknown type */

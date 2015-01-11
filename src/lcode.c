@@ -862,6 +862,7 @@ static void codecomp (FuncState *fs, OpCode op, int cond, expdesc *e1,
 
 void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
   expdesc e2;
+  e2.ravi_tt = LUA_TNONE;
   e2.t = e2.f = NO_JUMP; e2.k = VKINT; e2.u.ival = 0;
   switch (op) {
     case OPR_MINUS: case OPR_BNOT: case OPR_LEN: {
