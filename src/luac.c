@@ -263,8 +263,13 @@ static void PrintConstant(const Proto* f, int i)
 	printf(bvalue(o) ? "true" : "false");
 	break;
   case LUA_TNUMFLT:
-	printf(LUA_NUMBER_FMT,fltvalue(o));
-	break;
+  {
+    char buff[100];
+    sprintf(buff, LUA_NUMBER_FMT, fltvalue(o));
+    printf("%s", buff);
+    if (buff[strspn(buff, "-0123456789")] == '\0') printf(".0");
+    break;
+  }
   case LUA_TNUMINT:
 	printf(LUA_INTEGER_FMT,ivalue(o));
 	break;

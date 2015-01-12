@@ -70,8 +70,13 @@ static void PrintConstant(const Proto* f, int i)
     printf(bvalue(o) ? "true" : "false");
     break;
   case LUA_TNUMFLT:
-    printf(LUA_NUMBER_FMT, fltvalue(o));
+  {
+    char buff[100];
+    sprintf(buff, LUA_NUMBER_FMT, fltvalue(o));
+    printf("%s", buff);
+    if (buff[strspn(buff, "-0123456789")] == '\0') printf(".0");
     break;
+  }
   case LUA_TNUMINT:
     printf(LUA_INTEGER_FMT, ivalue(o));
     break;
@@ -561,7 +566,7 @@ int main(const char *argv[])
     failures += test_luacompexec1("return -(1 or 2)", -1);
     failures += test_luacompexec1("return (1 and 2)+(-1.25 or -4) == 0.75", 1);
     failures += test_luacomp1("local a=1; if a==0 then; a = 2; else a=3; end;");
-    failures += test_luacompexec1("local i, j:double; j=0.0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
+    failures += test_luacompexec1("local i, j:double; j=0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     failures += test_luacompexec1("local i, j:int; j=0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     printf("Number of opcodes %d\n", NUM_OPCODES);
     printf("LUA_TNUMFLT = %d\n", LUA_TNUMFLT);

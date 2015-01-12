@@ -591,7 +591,8 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
 static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
 #if RAVI_ENABLED
   if ((var->ravi_tt == LUA_TNUMFLT || var->ravi_tt == LUA_TNUMINT) &&
-    (var->ravi_tt != var->ravi_tt))
+      ((var->ravi_tt == LUA_TNUMFLT && ex->ravi_tt != LUA_TNUMFLT && ex->ravi_tt != LUA_TNUMINT) ||
+       (var->ravi_tt == LUA_TNUMINT && ex->ravi_tt != LUA_TNUMFLT && ex->ravi_tt != LUA_TNUMINT)))
     luaX_syntaxerror(
         fs->ls,
         luaO_pushfstring(
