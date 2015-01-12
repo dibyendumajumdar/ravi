@@ -82,11 +82,11 @@ Return statements in typed functions can also be validated.
 
 Implementation Strategy
 -----------------------
-I do not want to any new types to the Lua system as the required types already exist. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser/code generator to encode these opcodes when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks.
+I do not want to introduce any new types to the Lua system as the types I need already exist and I quite like the minimalist nature of Lua. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser/code generator to encode these opcodes only when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks. In reality the performance gain may be offset by the increase in the instruction decoding / branching - so it remains to be seen whether this approach is beneficial. However, I am hoping that type specific instructions will lend themselves to more efficient JIT at a later stage.
 
-My plan is to add new opcodes that cover arithmetic operations, array operations and table operations (latter is lower priority).
+My plan is to add new opcodes that cover arithmetic operations, array operations, variable assignments, etc..
 
-I will probably need to augment some existing types such as functions and tables to add the type signature so that at runtime when a function is called it can perform typechecks if a function signature is available.
+I will probably need to augment some existing types such as functions and tables to add the type signature.
 
 I intend to first add the opcodes to the VM before starting work on the parser and code generator.
 
