@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "lua.h"
 #include "lauxlib.h"
@@ -515,12 +516,15 @@ static int test_luacompexec1(const char *code, int expected)
   }
   else {
     DumpFunction(L);
+    time_t start = time(NULL);
     if (lua_pcall(L, 0, 1, 0) != 0) {
       rc = 1;
       fprintf(stderr, "%s\n", lua_tostring(L, -1));
     }
     else {
+      time_t end = time(NULL);
       stackDump(L, "after executing function");
+      printf("time taken = %f\n", difftime(end, start));
       lua_Integer got = 0;
       if (lua_isboolean(L, -1))
         got = lua_toboolean(L, -1) ? 1 : 0;
@@ -557,6 +561,8 @@ int main(const char *argv[])
     failures += test_luacompexec1("return -(1 or 2)", -1);
     failures += test_luacompexec1("return (1 and 2)+(-1.25 or -4) == 0.75", 1);
     failures += test_luacomp1("local a=1; if a==0 then; a = 2; else a=3; end;");
+    failures += test_luacompexec1("local i, j:double; j=0.0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
+    failures += test_luacompexec1("local i, j:int; j=0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     printf("Number of opcodes %d\n", NUM_OPCODES);
     printf("LUA_TNUMFLT = %d\n", LUA_TNUMFLT);
     printf("LUA_TNUMINT = %d\n", LUA_TNUMINT);

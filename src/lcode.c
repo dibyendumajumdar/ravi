@@ -589,8 +589,9 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
 }
 
 static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
+#if RAVI_ENABLED
   if ((var->ravi_tt == LUA_TNUMFLT || var->ravi_tt == LUA_TNUMINT) &&
-      var->ravi_tt != ex->ravi_tt)
+    (var->ravi_tt != var->ravi_tt))
     luaX_syntaxerror(
         fs->ls,
         luaO_pushfstring(
@@ -598,6 +599,7 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
             "Invalid assignment of type: var type %d, expression type %d",
             var->ravi_tt,
             ex->ravi_tt));
+#endif
   /*
   else if ((var->ravi_tt == LUA_TFUNCTION || var->ravi_tt == LUA_TSTRING || var->ravi_tt == LUA_TNIL) &&
            (var->ravi_tt != ex->ravi_tt && ex->ravi_tt != LUA_TNIL))
@@ -996,18 +998,16 @@ void luaK_posfix (FuncState *fs, BinOpr op,
       lua_assert(e1->t == NO_JUMP);  /* list must be closed */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->f, e1->f);
-      int tt = e1->ravi_tt;
+      e2->ravi_tt = e1->ravi_tt;  /* RAVI TODO why ? this seems to be needed but don't understand reason */
       *e1 = *e2;
-      e1->ravi_tt = tt;
       break;
     }
     case OPR_OR: {
       lua_assert(e1->f == NO_JUMP);  /* list must be closed */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->t, e1->t);
-      int tt = e1->ravi_tt;
+      e2->ravi_tt = e1->ravi_tt; /* RAVI TODO why ? this seems to be needed but don't understand reason */
       *e1 = *e2;
-      e1->ravi_tt = tt;
       break;
     }
     case OPR_CONCAT: {
