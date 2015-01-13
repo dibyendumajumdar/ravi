@@ -56,11 +56,7 @@ function foo()
   local t3 : table<string,double> = {} -- table with string keys and double values
   local a1 : array<int> = {} -- array of integers
 end
-```
 
-With regards to function types, full static typing at all times is difficult as then all function types have to be known in advance (either via forward declarations or by access to bytecodes). It seems to me that a pragmatic approach will be to perform run-time checking of function argument types. So for example:
-
-```
 -- array of functions
 local func_table : array<function> = {
   function (s: string) : string 
@@ -71,24 +67,26 @@ local func_table : array<function> = {
   end
 }
 ```
-Above the array of functions allows various function types - all it cares is that the element must be a functon.
+Above the array of functions allows various function types.
 
-When a typed function begins to execute the first step will be validate the input parameters against any explicit type specifications. Consider the function below:
+When a typed function is called the inputs and return value can be validated. Consider the function below:
 
 ```
 local function foo(a, b: int, c: string)
   return
 end
 ```
-When this function starts executing it will validate that `b` is an int and `c` is a string. `a` on the other hand is dynamic so will behave as regular Lua value. The compiler will ensure that the types of `b` and `c` are respected within the function. So by a combination of runtime checking and compiler static typing a solution can be implemented that is not too disruptive.
+When this function is called the compiler can validate that `b` is an int and `c` is a string. `a` on the other hand is dynamic so will behave as regular Lua value. The compiler can also ensure that the types of `b` and `c` are respected within the function. 
+
+Return statements in typed functions can also be validated.
 
 Implementation Strategy
 -----------------------
-I do not want to any new types to the Lua system as the required types already exist. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser/code generator to encode these opcodes when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks.
+I do not want to introduce any new types to the Lua system as the types I need already exist and I quite like the minimalist nature of Lua. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser/code generator to encode these opcodes only when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks. In reality the performance gain may be offset by the increase in the instruction decoding / branching - so it remains to be seen whether this approach is beneficial. However, I am hoping that type specific instructions will lend themselves to more efficient JIT at a later stage.
 
-My plan is to add new opcodes that cover arithmetic operations, array operations and table operations (latter is lower priority).
+My plan is to add new opcodes that cover arithmetic operations, array operations, variable assignments, etc..
 
-I will probably need to augment some existing types such as functions and tables to add the type signature so that at runtime when a function is called it can perform typechecks if a function signature is available.
+I will probably need to augment some existing types such as functions and tables to add the type signature.
 
 I intend to first add the opcodes to the VM before starting work on the parser and code generator.
 
@@ -100,7 +98,7 @@ If I change the sizes of the components it will make the new bytecode incompatib
 
 Unfortunately the way the Lua parser / byte-code generator works, it turns out that while expressions are being parsed, values may be held as bytecode instructions. So this makes it much more complex to implement the two instruction approach.
 
-For now therefore I am just amending the bit mapping in the 32-bit instruction to allow 9-bits for the byte-code, 7-bits for operand A, and 8-bits for operands B and C.  
+For now therefore I am just amending the bit mapping in the 32-bit instruction to allow 9-bits for the byte-code, 7-bits for operand A, and 8-bits for operands B and C. This means that some of the Lua limits (maximum number of variables in a function, etc.) have to be revised to be lower than the default.
 
 New OpCodes
 -----------
