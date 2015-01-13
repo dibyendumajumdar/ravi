@@ -22,6 +22,7 @@
 #include "lgc.h"
 #include "lobject.h"
 #include "lopcodes.h"
+#include "lparser.h"
 #include "lstate.h"
 #include "lstring.h"
 #include "ltable.h"
@@ -561,15 +562,16 @@ int main(const char *argv[])
     failures += test_luacomp1("local b:int = 6; local i:int = 5+b; return i");
     failures += test_luacompexec1("local b:int = 6; local i:int = 5+b; return i", 11);
     failures += test_luacomp1("local f = function(); end");
-    failures += test_luacomp1("local b:int = 6; b = nil; return i") == 1 ? 0 : 1; /* should fail */
+    failures += test_luacomp1("local b:int = 6; b = nil; return i") == RAVI_ENABLED ? 0 : 1; /* should fail */
     failures += test_luacomp1("local f = function(); local function y() ; end; end");
     failures += test_luacompexec1("return -(1 or 2)", -1);
     failures += test_luacompexec1("return (1 and 2)+(-1.25 or -4) == 0.75", 1);
     failures += test_luacomp1("local a=1; if a==0 then; a = 2; else a=3; end;");
     failures += test_luacomp1("local f = function(); return; end; local d = 5.0; d = f(); return d");
-    failures += test_luacomp1("local f = function(); return; end; local d:double = 5.0; d = f(); return d") == 1 ? 0 : 1;
+    failures += test_luacomp1("local f = function(); return; end; local d:double = 5.0; d = f(); return d") == RAVI_ENABLED ? 0 : 1;
     failures += test_luacompexec1("local i, j:double; j=0.0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     failures += test_luacompexec1("local i, j:int; j=0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
+    failures += test_luacomp1("local f = function(); return; end; local d:double, j:int = f(); return d") == RAVI_ENABLED ? 0 : 1;
     printf("Number of opcodes %d\n", NUM_OPCODES);
     printf("LUA_TNUMFLT = %d\n", LUA_TNUMFLT);
     printf("LUA_TNUMINT = %d\n", LUA_TNUMINT);
