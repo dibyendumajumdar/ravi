@@ -8,7 +8,7 @@
 #define lopcodes_h
 
 #include "llimits.h"
-
+#include <stdio.h>
 
 /*===========================================================================
   We assume that instructions are unsigned numbers.
@@ -415,5 +415,6 @@ LUAI_DDEC const lu_byte luaP_optypes[NUM_OPCODES]; /* opcode types */
 
 #define RAVI_ENABLED 1
 
+LUAI_FUNC const char* print_instruction(char *buf, size_t n, Instruction i);
 
 #endif

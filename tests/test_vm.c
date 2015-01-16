@@ -567,11 +567,12 @@ int main(const char *argv[])
     failures += test_luacompexec1("return -(1 or 2)", -1);
     failures += test_luacompexec1("return (1 and 2)+(-1.25 or -4) == 0.75", 1);
     failures += test_luacomp1("local a=1; if a==0 then; a = 2; else a=3; end;");
-    failures += test_luacomp1("local f = function(); return; end; local d = 5.0; d = f(); return d");
     failures += test_luacomp1("local f = function(); return; end; local d:double = 5.0; d = f(); return d") == RAVI_ENABLED ? 0 : 1;
     failures += test_luacompexec1("local i, j:double; j=0.0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     failures += test_luacompexec1("local i, j:int; j=0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     failures += test_luacomp1("local f = function(); return; end; local d:double, j:int = f(); return d") == RAVI_ENABLED ? 0 : 1;
+    failures += test_luacomp1("local f = function(); return; end; local d = 5.0; d = f(); return d");
+    failures += test_luacomp1("local d, e = f();");
     printf("Number of opcodes %d\n", NUM_OPCODES);
     printf("LUA_TNUMFLT = %d\n", LUA_TNUMFLT);
     printf("LUA_TNUMINT = %d\n", LUA_TNUMINT);

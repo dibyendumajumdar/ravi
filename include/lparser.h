@@ -11,6 +11,7 @@
 #include "lobject.h"
 #include "lzio.h"
 
+#include <stdio.h>
 
 /*
 ** Expression descriptor
@@ -120,5 +121,7 @@ LUAI_FUNC LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
 
 
 LUAI_FUNC int ravi_parser_debug;
+
+LUAI_FUNC void print_expdesc(FILE *fp, const char *desc, const expdesc *e);
 
 #endif

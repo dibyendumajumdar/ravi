@@ -9,9 +9,10 @@
 
 #include "lprefix.h"
 
-
 #include "lopcodes.h"
 #include "lobject.h"
+
+#include <string.h>
 
 /* ORDER OP */
 
@@ -544,3 +545,58 @@ LUAI_DDEF const lu_byte luaP_optypes[NUM_OPCODES] = {
   , LUA_TNONE /*RAVI_ARRAYSET_ILRR	A B C	R(A)[R(B)] := R(C)				*/
 };
 
+#define MYK(x)		(-1-(x))
+
+static const char* PrintRaviCode(char *buf, size_t n, Instruction i) {
+  OpCode o = GET_OPCODE(i);
+  int a = GETARG_A(i);
+  int b = GETARG_B(i);
+  int c = GETARG_C(i);
+  snprintf(buf, n, "%-9s\t", luaP_opnames[o]);
+  switch (getOpMode(o)) {
+  case iABC:
+    snprintf(buf + strlen(buf), n - strlen(buf), "%d", a);
+    if (getBMode(o) != OpArgN)
+      snprintf(buf + strlen(buf), n - strlen(buf), " %d", getBMode(o) == OpArgK ? (MYK(INDEXK(b))) : b);
+    if (getCMode(o) != OpArgN)
+      snprintf(buf + strlen(buf), n - strlen(buf), " %d", getCMode(o) == OpArgK ? (MYK(INDEXK(c))) : c);
+    break;
+  }
+  return buf;
+}
+
+const char* print_instruction(char *buf, size_t n, Instruction i) {
+  OpCode o = GET_OPCODE(i);
+  if (o >= OP_RAVI_UNMF) 
+    return PrintRaviCode(buf, n, i);
+  int a = GETARG_A(i);
+  int b = GETARG_B(i);
+  int c = GETARG_C(i);
+  int ax = GETARG_Ax(i);
+  int bx = GETARG_Bx(i);
+  int sbx = GETARG_sBx(i);
+  snprintf(buf, n, "%s %-9s\t", luaP_opnames[o]);
+  switch (getOpMode(o)) {
+  case iABC:
+    snprintf(buf+strlen(buf), n-strlen(buf), "%d", a);
+    if (getBMode(o) != OpArgN)
+      snprintf(buf + strlen(buf), n - strlen(buf), " %d", ISK(b) ? (MYK(INDEXK(b))) : b);
+    if (getCMode(o) != OpArgN)
+      snprintf(buf + strlen(buf), n - strlen(buf), " %d", ISK(c) ? (MYK(INDEXK(c))) : c);
+    break;
+  case iABx:
+    snprintf(buf + strlen(buf), n - strlen(buf), "%d", a);
+    if (getBMode(o) == OpArgK)
+      snprintf(buf + strlen(buf), n - strlen(buf), " %d", MYK(bx));
+    if (getBMode(o) == OpArgU)
+      snprintf(buf + strlen(buf), n - strlen(buf), " %d", bx);
+    break;
+  case iAsBx:
+    snprintf(buf + strlen(buf), n - strlen(buf), "%d %d", a, sbx);
+    break;
+  case iAx:
+    snprintf(buf + strlen(buf), n - strlen(buf), "%d", MYK(ax));
+    break;
+  }
+  return buf;
+}

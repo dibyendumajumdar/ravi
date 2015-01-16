@@ -28,10 +28,10 @@
 #include "ltable.h"
 
 int ravi_parser_debug = 0;
-#define DEBUG0(s) if (ravi_parser_debug) printf(s); else;
-#define DEBUG1(s,p1) if (ravi_parser_debug) printf(s,p1); else;
-#define DEBUG2(s,p1,p2) if (ravi_parser_debug) printf(s,p1,p2); else;
-
+#define DEBUG0(s) if (ravi_parser_debug) printf(s); else {}
+#define DEBUG1(s,p1) if (ravi_parser_debug) printf(s,p1); else {}
+#define DEBUG2(s,p1,p2) if (ravi_parser_debug) printf(s,p1,p2); else {}
+#define DEBUG(p) if (ravi_parser_debug) {p;} else;
 
 
 /* maximum number of local variables per function (must be smaller
@@ -60,6 +60,41 @@ typedef struct BlockCnt {
   lu_byte isloop;  /* true if 'block' is a loop */
 } BlockCnt;
 
+static const char *get_typename(int tt) {
+  switch (tt) {
+  case LUA_TNIL: return "nil";
+  case LUA_TBOOLEAN: return "B";
+  case LUA_TNUMFLT: return "D"; 
+  case LUA_TNUMINT: return "I";
+  case LUA_TSHRSTR: case LUA_TLNGSTR:
+    return "S";
+  case LUA_TFUNCTION: 
+    return "F";
+  default: return "?";
+  }
+}
+
+void print_expdesc(FILE *fp, const char *desc, const expdesc *e) {
+  char buf[80] = { 0 };
+  fprintf(fp, desc);
+  switch (e->k) {
+  case VVOID: fprintf(fp, "e{p=%p, k=VVOID, tt=%s}", e, get_typename(e->ravi_tt)); break;
+  case VNIL: fprintf(fp, "e{p=%p, k=VNIL, tt=%s}", e, get_typename(e->ravi_tt)); break;
+  case VTRUE: fprintf(fp, "e{p=%p, k=VTRUE, tt=%s}", e, get_typename(e->ravi_tt)); break;
+  case VFALSE: fprintf(fp, "e{p=%p, k=VFALSE, tt=%s}", e, get_typename(e->ravi_tt)); break;
+  case VK: fprintf(fp, "e{p=%p, k=VK, Kst=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_tt)); break;
+  case VKFLT: fprintf(fp, "e{p=%p, k=VKFLT, n=%f, tt=%s}", e, e->u.nval, get_typename(e->ravi_tt)); break;
+  case VKINT: fprintf(fp, "e{p=%p, k=VKINT, n=%d, tt=%s}", e, e->u.ival, get_typename(e->ravi_tt)); break;
+  case VNONRELOC: fprintf(fp, "e{p=%p, k=VNONRELOC, register=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_tt)); break;
+  case VLOCAL: fprintf(fp, "e{p=%p, k=LOCAL, register=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_tt)); break;
+  case VUPVAL: fprintf(fp, "e{p=%p, k=VUPVAL, idx=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_tt)); break;
+  case VINDEXED: fprintf(fp, "e{p=%p, k=VINDEXED, t=%d, idx=%d, tt=%s}", e, e->u.ind.t, e->u.ind.idx, get_typename(e->ravi_tt)); break;
+  case VJMP: fprintf(fp, "e{p=%p, k=VJMP, pc=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_tt)); break;
+  case VRELOCABLE: fprintf(fp, "e{p=%p, k=VRELOCABLE, pc=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_tt)); break;
+  case VCALL: fprintf(fp, "e{p=%p, k=VCALL, pc=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_tt)); break;
+  case VVARARG: fprintf(fp, "e{p=%p, k=VVARARG, pc=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_tt)); break;
+  }
+}
 
 
 /*
@@ -310,8 +345,11 @@ static void markupval (FuncState *fs, int level) {
   upvalue into all intermediate functions.
 */
 static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
-  if (fs == NULL)  /* no more levels? */
+  DEBUG0("enter singlevaraux\n");
+  if (fs == NULL)  /* no more levels? */ {
+    DEBUG0("exit singlevaraux (VVOID)\n");
     return VVOID;  /* default is global */
+  }
   else {
     int v = searchvar(fs, n);  /* look up locals at current level */
     if (v >= 0) {  /* found? */
@@ -329,6 +367,8 @@ static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
       init_exp(var, VLOCAL, v, tt);  /* variable is local, RAVI set type */
       if (!base)
         markupval(fs, v);  /* local will be used as an upval */
+      DEBUG(print_expdesc(stdout, " var = ", var); printf("\n"));
+      DEBUG0("exit singlevaraux (VLOCAL)\n");
       return VLOCAL;
     }
     else {  /* not found as local at current level; try upvalues */
@@ -340,6 +380,8 @@ static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
         idx  = newupvalue(fs, n, var);  /* will be a new upvalue */
       }
       init_exp(var, VUPVAL, idx, LUA_TNONE); /* RAVI : variable type not known as global or upvalue */
+      DEBUG(print_expdesc(stdout, " var = ", var); printf("\n"));
+      DEBUG0("exit singlevaraux (VUPVAL)\n");
       return VUPVAL;
     }
   }
@@ -941,7 +983,8 @@ static void funcargs (LexState *ls, expdesc *f, int line) {
       luaK_exp2nextreg(fs, &args);  /* close last argument */
     nparams = fs->freereg - (base+1);
   }
-  init_exp(f, VCALL, luaK_codeABC(fs, OP_CALL, base, nparams + 1, 2), LUA_TNONE); /* RAVI TODO return value from funcion call not known */
+  init_exp(f, VCALL, luaK_codeABC(fs, OP_CALL, base, nparams + 1, 2), LUA_TNONE); /* RAVI TODO return value from function call not known */
+  DEBUG(print_expdesc(stdout, " f = ", f); printf("\n"));
   luaK_fixline(fs, line);
   fs->freereg = base+1;  /* call remove function and arguments and leaves
                             (unless changed) one result */
@@ -968,12 +1011,14 @@ static void primaryexp (LexState *ls, expdesc *v) {
       expr(ls, v);
       check_match(ls, ')', '(', line);
       luaK_dischargevars(ls->fs, v);
-      DEBUG0("exit primaryexp (1)\n");
+      DEBUG(print_expdesc(stdout, " v = ", v); printf("\n"));
+      DEBUG0("exit primaryexp ()\n");
       return;
     }
     case TK_NAME: {
       singlevar(ls, v);
-      DEBUG0("exit primaryexp (2)\n");
+      DEBUG(print_expdesc(stdout, " TK_NAME = ", v); printf("\n"));
+      DEBUG0("exit primaryexp (NAME)\n");
       return;
     }
     default: {
@@ -1067,23 +1112,24 @@ static void simpleexp (LexState *ls, expdesc *v) {
     }
     case '{': {  /* constructor */
       constructor(ls, v);
-      DEBUG0("exit simpleexp (1)\n");
+      DEBUG0("exit simpleexp (CONSTRUCTOR)\n");
       return;
     }
     case TK_FUNCTION: {
       luaX_next(ls);
       body(ls, v, 0, ls->linenumber);
-      DEBUG0("exit simpleexp (2)\n");
+      DEBUG0("exit simpleexp (TK_FUNCTION)\n");
       return;
     }
     default: {
       suffixedexp(ls, v);
-      DEBUG0("exit simpleexp (3)\n");
+      DEBUG0("exit simpleexp (DEFAULT - suffixed exp)\n");
       return;
     }
   }
   luaX_next(ls);
-  DEBUG0("exit simpleexp (4)\n");
+  DEBUG(print_expdesc(stdout, " v = ", v); printf("\n"));
+  DEBUG0("exit simpleexp\n");
 }
 
 
@@ -1288,7 +1334,10 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
     }
   }
   init_exp(&e, VNONRELOC, ls->fs->freereg-1, LUA_TNONE);  /* default assignment */
+  DEBUG(print_expdesc(stdout, "default assignment ", &e); printf("\n"));
   luaK_storevar(ls->fs, &lh->v, &e);
+  DEBUG(print_expdesc(stdout, "lhs.v after storevar ", &lh->v); printf("\n"));
+  DEBUG(print_expdesc(stdout, "e after storevar ", &e); printf("\n"));
   DEBUG0("exit assignment (2)\n");
 }
 
