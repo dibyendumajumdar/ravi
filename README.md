@@ -1,13 +1,19 @@
 Ravi Programming Language
 =========================
 
-Experimental derivative of Lua. Ravi is a Sanskrit word that means the Sun.
+Experimental derivative/dialect of Lua. Ravi is a Sanskrit word that means the Sun.
 
-Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater performance. However, at the same time I would like to retain compatibility with standard Lua.
+Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater performance. However, at the same time maintain full compatibility with standard Lua.
 
 There are various attempts to add static typing to Lua but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
 My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. 
+
+Goals
+-----
+* Optional static typing for Lua 
+* No new types
+* Full backward compatibility with Lua 5.3
 
 Status
 ------
