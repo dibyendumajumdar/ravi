@@ -53,14 +53,14 @@ typedef struct expdesc {
   } u;
   int t;  /* patch list of 'exit when true' */
   int f;  /* patch list of 'exit when false' */
-  int ravi_tt; /* RAVI type of the expression */
+  int ravi_type; /* RAVI change: type of the expression if known, else LUA_TNONE */
 } expdesc;
 
 
 /* description of active local variable */
 typedef struct Vardesc {
   short idx;  /* variable index in stack */
-  int ravi_tt; /* type of variable if known */
+  int ravi_type; /* RAVI change: type of variable if known */
 } Vardesc;
 
 

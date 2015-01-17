@@ -590,27 +590,27 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
 
 static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
 #if RAVI_ENABLED
-  if ((var->ravi_tt == LUA_TNUMFLT || var->ravi_tt == LUA_TNUMINT) &&
-      ((var->ravi_tt == LUA_TNUMFLT && ex->ravi_tt != LUA_TNUMFLT /* && ex->ravi_tt != LUA_TNUMINT */) ||
-       (var->ravi_tt == LUA_TNUMINT /* && ex->ravi_tt != LUA_TNUMFLT */ && ex->ravi_tt != LUA_TNUMINT)))
+  if ((var->ravi_type == LUA_TNUMFLT || var->ravi_type == LUA_TNUMINT) &&
+      ((var->ravi_type == LUA_TNUMFLT && ex->ravi_type != LUA_TNUMFLT /* && ex->ravi_type != LUA_TNUMINT */) ||
+       (var->ravi_type == LUA_TNUMINT /* && ex->ravi_type != LUA_TNUMFLT */ && ex->ravi_type != LUA_TNUMINT)))
     luaX_syntaxerror(
         fs->ls,
         luaO_pushfstring(
             fs->ls->L,
             "Invalid assignment of type: var type %d, expression type %d",
-            var->ravi_tt,
-            ex->ravi_tt));
+            var->ravi_type,
+            ex->ravi_type));
 #endif
   /*
-  else if ((var->ravi_tt == LUA_TFUNCTION || var->ravi_tt == LUA_TSTRING || var->ravi_tt == LUA_TNIL) &&
-           (var->ravi_tt != ex->ravi_tt && ex->ravi_tt != LUA_TNIL))
+  else if ((var->ravi_type == LUA_TFUNCTION || var->ravi_type == LUA_TSTRING || var->ravi_type == LUA_TNIL) &&
+           (var->ravi_type != ex->ravi_type && ex->ravi_type != LUA_TNIL))
     luaX_syntaxerror(
         fs->ls,
         luaO_pushfstring(
             fs->ls->L,
             "Invalid assignment of type: var type %d, expression type %d",
-            var->ravi_tt,
-            ex->ravi_tt));
+            var->ravi_type,
+            ex->ravi_type));
   */
 }
 
@@ -731,12 +731,12 @@ static void codenot (FuncState *fs, expdesc *e) {
   switch (e->k) {
     case VNIL: case VFALSE: {
       e->k = VTRUE;
-      e->ravi_tt = LUA_TNONE; /* RAVI TODO */
+      e->ravi_type = LUA_TNONE; /* RAVI TODO */
       break;
     }
     case VK: case VKFLT: case VKINT: case VTRUE: {
       e->k = VFALSE;
-      e->ravi_tt = LUA_TNONE; /* RAVI TODO*/
+      e->ravi_type = LUA_TNONE; /* RAVI TODO*/
       break;
     }
     case VJMP: {
@@ -749,7 +749,7 @@ static void codenot (FuncState *fs, expdesc *e) {
       freeexp(fs, e);
       e->u.info = luaK_codeABC(fs, OP_NOT, 0, e->u.info, 0);
       e->k = VRELOCABLE;
-      e->ravi_tt = LUA_TNONE; /* RAVI TODO */
+      e->ravi_type = LUA_TNONE; /* RAVI TODO */
       break;
     }
     default: {
@@ -802,7 +802,7 @@ static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
   if (ttisinteger(&res)) {
     e1->k = VKINT;
     e1->u.ival = ivalue(&res);
-    e1->ravi_tt = LUA_TNUMINT;
+    e1->ravi_type = LUA_TNUMINT;
   }
   else {  /* folds neither NaN nor 0.0 (to avoid collapsing with -0.0) */
     lua_Number n = fltvalue(&res);
@@ -810,7 +810,7 @@ static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
       return 0;
     e1->k = VKFLT;
     e1->u.nval = n;
-    e1->ravi_tt = LUA_TNUMFLT;
+    e1->ravi_type = LUA_TNUMFLT;
   }
   return 1;
 }
@@ -850,7 +850,7 @@ static void codeexpval (FuncState *fs, OpCode op,
       freeexp(fs, e1);
     }
 #if RAVI_ENABLED
-    if (op == OP_ADD && e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMFLT) {
+    if (op == OP_ADD && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMFLT) {
       if (ISK(o1) && ISK(o2)) {
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFKK, 0, o1, o2);  /* generate opcode */
       }
@@ -864,7 +864,7 @@ static void codeexpval (FuncState *fs, OpCode op,
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFRR, 0, o1, o2);  /* generate opcode */
       }
     }
-    else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMINT) {
+    else if (op == OP_ADD && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMINT) {
       if (ISK(o1) && ISK(o2)) {
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFIKK, 0, o1, o2);  /* generate opcode */
       }
@@ -878,7 +878,7 @@ static void codeexpval (FuncState *fs, OpCode op,
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFIRR, 0, o1, o2);  /* generate opcode */
       }
     }
-    else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMFLT) {
+    else if (op == OP_ADD && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMFLT) {
       if (ISK(o1) && ISK(o2)) {
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIFKK, 0, o1, o2);  /* generate opcode */
       }
@@ -892,7 +892,7 @@ static void codeexpval (FuncState *fs, OpCode op,
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIFRR, 0, o1, o2);  /* generate opcode */
       }
     }
-    else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMINT) {
+    else if (op == OP_ADD && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMINT) {
       if (ISK(o1) && ISK(o2)) {
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIIKK, 0, o1, o2);  /* generate opcode */
       }
@@ -914,16 +914,16 @@ static void codeexpval (FuncState *fs, OpCode op,
 #endif
     e1->k = VRELOCABLE;  /* all those operations are relocable */
     if (isbinary) {
-      if (op == OP_ADD && e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMFLT)
-        e1->ravi_tt = LUA_TNUMFLT;
-      else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMFLT && e2->ravi_tt == LUA_TNUMINT)
-        e1->ravi_tt = LUA_TNUMFLT;
-      else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMFLT)
-        e1->ravi_tt = LUA_TNUMFLT;
-      else if (op == OP_ADD && e1->ravi_tt == LUA_TNUMINT && e2->ravi_tt == LUA_TNUMINT)
-        e1->ravi_tt = LUA_TNUMINT;
+      if (op == OP_ADD && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMFLT)
+        e1->ravi_type = LUA_TNUMFLT;
+      else if (op == OP_ADD && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMINT)
+        e1->ravi_type = LUA_TNUMFLT;
+      else if (op == OP_ADD && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMFLT)
+        e1->ravi_type = LUA_TNUMFLT;
+      else if (op == OP_ADD && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMINT)
+        e1->ravi_type = LUA_TNUMINT;
       else
-        e1->ravi_tt = LUA_TNONE;
+        e1->ravi_type = LUA_TNONE;
     }
     luaK_fixline(fs, line);
   }
@@ -943,13 +943,13 @@ static void codecomp (FuncState *fs, OpCode op, int cond, expdesc *e1,
   }
   e1->u.info = condjump(fs, op, cond, o1, o2);
   e1->k = VJMP;
-  e1->ravi_tt = LUA_TNONE;
+  e1->ravi_type = LUA_TNONE;
 }
 
 
 void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
   expdesc e2;
-  e2.ravi_tt = LUA_TNONE;
+  e2.ravi_type = LUA_TNONE;
   e2.t = e2.f = NO_JUMP; e2.k = VKINT; e2.u.ival = 0;
   switch (op) {
     case OPR_MINUS: case OPR_BNOT: case OPR_LEN: {
@@ -999,7 +999,7 @@ void luaK_posfix (FuncState *fs, BinOpr op,
       lua_assert(e1->t == NO_JUMP);  /* list must be closed */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->f, e1->f);
-      e2->ravi_tt = e1->ravi_tt;  /* RAVI TODO why ? this seems to be needed but don't understand reason */
+      e2->ravi_type = e1->ravi_type;  /* RAVI TODO why ? this seems to be needed but don't understand reason */
       *e1 = *e2;
       break;
     }
@@ -1007,7 +1007,7 @@ void luaK_posfix (FuncState *fs, BinOpr op,
       lua_assert(e1->f == NO_JUMP);  /* list must be closed */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->t, e1->t);
-      e2->ravi_tt = e1->ravi_tt; /* RAVI TODO why ? this seems to be needed but don't understand reason */
+      e2->ravi_type = e1->ravi_type; /* RAVI TODO why ? this seems to be needed but don't understand reason */
       *e1 = *e2;
       break;
     }
@@ -1018,7 +1018,7 @@ void luaK_posfix (FuncState *fs, BinOpr op,
         freeexp(fs, e1);
         SETARG_B(getcode(fs, e2), e1->u.info);
         e1->k = VRELOCABLE; e1->u.info = e2->u.info;
-        e1->ravi_tt = LUA_TNONE; /* RAVI TODO check */
+        e1->ravi_type = LUA_TNONE; /* RAVI TODO check */
       }
       else {
         luaK_exp2nextreg(fs, e2);  /* operand must be on the 'stack' */
