@@ -11,7 +11,7 @@ My motivation is somewhat different - I want to enhance the VM to support more e
 
 Goals
 -----
-* Optional static typing in Lua 
+* Optional static typing for Lua 
 * No new types
 * Full backward compatibility with Lua 5.3
 
