@@ -258,7 +258,7 @@ static LocVar *getlocvar (FuncState *fs, int i) {
 }
 
 /* get type of a local var */
-static int getlocvartype(FuncState *fs, int i) {
+int getlocvartype(FuncState *fs, int i) {
   lua_assert(i < dyd->actvar.n);
   return fs->ls->dyd->actvar.arr[fs->firstlocal + i].ravi_type;
 }

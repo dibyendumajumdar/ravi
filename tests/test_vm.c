@@ -550,12 +550,13 @@ static int test_luacompexec1(const char *code, int expected)
 int main(const char *argv[]) 
 {
     int failures = 0;
-/*    failures += test_luacomp1("local i:int, j:double; i,j = f()"); */
+    failures += test_luacomp1("local i:int, j:double; i,j = f()");
+    failures += test_luacomp1("local d; d = f()");
+    failures += test_luacomp1("local d, e; d, e = f(), g()");
     failures += test_luacomp1("local i:int, d:double = f()");
     failures += test_luacomp1("local i:int,j:double,k:int = f(), g()");
     failures += test_luacomp1("local f = function(); return; end; local d:double, j:int = f(); return d");
     failures += test_luacomp1("local d = f()");
-    failures += test_luacomp1("local d, e; d, e = f(), g()");
     failures += test_return0();
     failures += test_return1();
     failures += test_unmf();
@@ -573,7 +574,7 @@ int main(const char *argv[])
     failures += test_luacompexec1("return -(1 or 2)", -1);
     failures += test_luacompexec1("return (1 and 2)+(-1.25 or -4) == 0.75", 1);
     failures += test_luacomp1("local a=1; if a==0 then; a = 2; else a=3; end;");
-    failures += test_luacomp1("local f = function(); return; end; local d:double = 5.0; d = f(); return d") == RAVI_ENABLED ? 0 : 1;
+    failures += test_luacomp1("local f = function(); return; end; local d:double = 5.0; d = f(); return d");
     failures += test_luacompexec1("local i, j:double; j=0.0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     failures += test_luacompexec1("local i, j:int; j=0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     failures += test_luacomp1("local f = function(); return; end; local d = 5.0; d = f(); return d");

@@ -1766,7 +1766,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             setivalue(ra, i);
           }
           else 
-            luaG_typeerror(L, ra, "int type expected");
+            luaG_runerror(L, "int type expected");
         } break;
         case OP(OP_RAVI_TOFLT): {
           lua_Number i;
@@ -1774,7 +1774,25 @@ newframe:  /* reentry point when frame changes (call/return) */
             setfltvalue(ra, i);
           }
           else
-            luaG_typeerror(L, ra, "double type expected");
+            luaG_runerror(L, "double type expected");
+        } break;
+        case OP(OP_RAVI_MOVEI): {
+          lua_Integer i;
+          TValue *rb = base + b;
+          if (tointeger(rb, &i)) {
+            setivalue(ra, i);
+          }
+          else 
+            luaG_runerror(L, "int type expected");
+        } break;
+        case OP(OP_RAVI_MOVEF): {
+          lua_Number i;
+          TValue *rb = base + b;
+          if (tonumber(rb, &i)) {
+            setfltvalue(ra, i);
+          }
+          else
+            luaG_runerror(L, "double type expected");
         } break;
 
         }

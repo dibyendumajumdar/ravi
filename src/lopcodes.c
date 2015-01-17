@@ -65,132 +65,135 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "VARARG",
   "EXTRAARG",
 
-  "OP_RAVI_UNMF",  /*	A B	R(A) := -R(B) floating point      */
-  "OP_RAVI_UNMI",  /*   A B R(A) := -R(B) integer */
+  "UNMF",  /*	A B	R(A) := -R(B) floating point      */
+  "UNMI",  /*   A B R(A) := -R(B) integer */
 
-  "OP_RAVI_ADDFFKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
-  "OP_RAVI_ADDFFKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
-  "OP_RAVI_ADDFFRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
-  "OP_RAVI_ADDFFRR",/*	A B C	R(A) := R(B) + R(C)				*/
-  "OP_RAVI_ADDFIKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
-  "OP_RAVI_ADDFIKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
-  "OP_RAVI_ADDFIRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
-  "OP_RAVI_ADDFIRR",/*	A B C	R(A) := R(B) + R(C)				*/
-  "OP_RAVI_ADDIFKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
-  "OP_RAVI_ADDIFKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
-  "OP_RAVI_ADDIFRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
-  "OP_RAVI_ADDIFRR",/*	A B C	R(A) := R(B) + R(C)				*/
-  "OP_RAVI_ADDIIKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
-  "OP_RAVI_ADDIIKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
-  "OP_RAVI_ADDIIRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
-  "OP_RAVI_ADDIIRR",/*	A B C	R(A) := R(B) + R(C)				*/
+  "ADDFFKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
+  "ADDFFKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
+  "ADDFFRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
+  "ADDFFRR",/*	A B C	R(A) := R(B) + R(C)				*/
+  "ADDFIKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
+  "ADDFIKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
+  "ADDFIRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
+  "ADDFIRR",/*	A B C	R(A) := R(B) + R(C)				*/
+  "ADDIFKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
+  "ADDIFKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
+  "ADDIFRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
+  "ADDIFRR",/*	A B C	R(A) := R(B) + R(C)				*/
+  "ADDIIKK",/*	A B C	R(A) := Kst(B) + Kst(C)				*/
+  "ADDIIKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
+  "ADDIIRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
+  "ADDIIRR",/*	A B C	R(A) := R(B) + R(C)				*/
 
-  "OP_RAVI_SUBFFKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
-  "OP_RAVI_SUBFFKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
-  "OP_RAVI_SUBFFRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
-  "OP_RAVI_SUBFFRR",/*	A B C	R(A) := R(B) - R(C)				*/
-  "OP_RAVI_SUBFIKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
-  "OP_RAVI_SUBFIKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
-  "OP_RAVI_SUBFIRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
-  "OP_RAVI_SUBFIRR",/*	A B C	R(A) := R(B) - R(C)				*/
-  "OP_RAVI_SUBIFKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
-  "OP_RAVI_SUBIFKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
-  "OP_RAVI_SUBIFRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
-  "OP_RAVI_SUBIFRR",/*	A B C	R(A) := R(B) - R(C)				*/
-  "OP_RAVI_SUBIIKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
-  "OP_RAVI_SUBIIKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
-  "OP_RAVI_SUBIIRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
-  "OP_RAVI_SUBIIRR",/*	A B C	R(A) := R(B) - R(C)				*/
+  "SUBFFKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
+  "SUBFFKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
+  "SUBFFRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
+  "SUBFFRR",/*	A B C	R(A) := R(B) - R(C)				*/
+  "SUBFIKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
+  "SUBFIKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
+  "SUBFIRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
+  "SUBFIRR",/*	A B C	R(A) := R(B) - R(C)				*/
+  "SUBIFKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
+  "SUBIFKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
+  "SUBIFRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
+  "SUBIFRR",/*	A B C	R(A) := R(B) - R(C)				*/
+  "SUBIIKK",/*	A B C	R(A) := Kst(B) - Kst(C)				*/
+  "SUBIIKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
+  "SUBIIRK",/*	A B C	R(A) := R(B) - Kst(C)				*/
+  "SUBIIRR",/*	A B C	R(A) := R(B) - R(C)				*/
 
-  "OP_RAVI_MULFFKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
-  "OP_RAVI_MULFFKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
-  "OP_RAVI_MULFFRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
-  "OP_RAVI_MULFFRR",/*	A B C	R(A) := R(B) * R(C)				*/
-  "OP_RAVI_MULFIKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
-  "OP_RAVI_MULFIKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
-  "OP_RAVI_MULFIRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
-  "OP_RAVI_MULFIRR",/*	A B C	R(A) := R(B) * R(C)				*/
-  "OP_RAVI_MULIFKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
-  "OP_RAVI_MULIFKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
-  "OP_RAVI_MULIFRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
-  "OP_RAVI_MULIFRR",/*	A B C	R(A) := R(B) * R(C)				*/
-  "OP_RAVI_MULIIKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
-  "OP_RAVI_MULIIKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
-  "OP_RAVI_MULIIRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
-  "OP_RAVI_MULIIRR",/*	A B C	R(A) := R(B) * R(C)				*/
+  "MULFFKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
+  "MULFFKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
+  "MULFFRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
+  "MULFFRR",/*	A B C	R(A) := R(B) * R(C)				*/
+  "MULFIKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
+  "MULFIKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
+  "MULFIRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
+  "MULFIRR",/*	A B C	R(A) := R(B) * R(C)				*/
+  "MULIFKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
+  "MULIFKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
+  "MULIFRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
+  "MULIFRR",/*	A B C	R(A) := R(B) * R(C)				*/
+  "MULIIKK",/*	A B C	R(A) := Kst(B) * Kst(C)				*/
+  "MULIIKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
+  "MULIIRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
+  "MULIIRR",/*	A B C	R(A) := R(B) * R(C)				*/
 
-  "OP_RAVI_DIVFFKK",/*	A B C	R(A) := Kst(B) / Kst(C)				*/
-  "OP_RAVI_DIVFFKR",/*	A B C	R(A) := Kst(B) / R(C)				*/
-  "OP_RAVI_DIVFFRK",/*	A B C	R(A) := R(B) / Kst(C)				*/
-  "OP_RAVI_DIVFFRR",/*	A B C	R(A) := R(B) / R(C)				*/
-  "OP_RAVI_DIVFIKK",/*	A B C	R(A) := Kst(B) / Kst(C)				*/
-  "OP_RAVI_DIVFIKR",/*	A B C	R(A) := Kst(B) / R(C)				*/
-  "OP_RAVI_DIVFIRK",/*	A B C	R(A) := R(B) / Kst(C)				*/
-  "OP_RAVI_DIVFIRR",/*	A B C	R(A) := R(B) / R(C)				*/
-  "OP_RAVI_DIVIFKK",/*	A B C	R(A) := Kst(B) / Kst(C)				*/
-  "OP_RAVI_DIVIFKR",/*	A B C	R(A) := Kst(B) / R(C)				*/
-  "OP_RAVI_DIVIFRK",/*	A B C	R(A) := R(B) / Kst(C)				*/
-  "OP_RAVI_DIVIFRR",/*	A B C	R(A) := R(B) / R(C)				*/
-  "OP_RAVI_DIVIIKK",/*	A B C	R(A) := Kst(B) / Kst(C)				*/
-  "OP_RAVI_DIVIIKR",/*	A B C	R(A) := Kst(B) / R(C)				*/
-  "OP_RAVI_DIVIIRK",/*	A B C	R(A) := R(B) / Kst(C)				*/
-  "OP_RAVI_DIVIIRR",/*	A B C	R(A) := R(B) / R(C)				*/
+  "DIVFFKK",/*	A B C	R(A) := Kst(B) / Kst(C)				*/
+  "DIVFFKR",/*	A B C	R(A) := Kst(B) / R(C)				*/
+  "DIVFFRK",/*	A B C	R(A) := R(B) / Kst(C)				*/
+  "DIVFFRR",/*	A B C	R(A) := R(B) / R(C)				*/
+  "DIVFIKK",/*	A B C	R(A) := Kst(B) / Kst(C)				*/
+  "DIVFIKR",/*	A B C	R(A) := Kst(B) / R(C)				*/
+  "DIVFIRK",/*	A B C	R(A) := R(B) / Kst(C)				*/
+  "DIVFIRR",/*	A B C	R(A) := R(B) / R(C)				*/
+  "DIVIFKK",/*	A B C	R(A) := Kst(B) / Kst(C)				*/
+  "DIVIFKR",/*	A B C	R(A) := Kst(B) / R(C)				*/
+  "DIVIFRK",/*	A B C	R(A) := R(B) / Kst(C)				*/
+  "DIVIFRR",/*	A B C	R(A) := R(B) / R(C)				*/
+  "DIVIIKK",/*	A B C	R(A) := Kst(B) / Kst(C)				*/
+  "DIVIIKR",/*	A B C	R(A) := Kst(B) / R(C)				*/
+  "DIVIIRK",/*	A B C	R(A) := R(B) / Kst(C)				*/
+  "DIVIIRR",/*	A B C	R(A) := R(B) / R(C)				*/
 
-  "OP_RAVI_EQFFKK",/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQFFKR",/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQFFRK",/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQFFRR",/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQIIKK",/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQIIKR",/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQIIRK",/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_EQIIRR",/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
+  "EQFFKK",/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
+  "EQFFKR",/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
+  "EQFFRK",/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
+  "EQFFRR",/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
+  "EQIIKK",/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
+  "EQIIKR",/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
+  "EQIIRK",/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
+  "EQIIRR",/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
 
-  "OP_RAVI_LTFFKK",/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTFFKR",/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTFFRK",/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTFFRR",/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTIIKK",/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTIIKR",/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTIIRK",/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LTIIRR",/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
+  "LTFFKK",/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
+  "LTFFKR",/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
+  "LTFFRK",/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
+  "LTFFRR",/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
+  "LTIIKK",/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
+  "LTIIKR",/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
+  "LTIIRK",/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
+  "LTIIRR",/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
 
-  "OP_RAVI_LEFFKK",/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEFFKR",/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEFFRK",/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEFFRR",/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEIIKK",/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEIIKR",/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEIIRK",/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
-  "OP_RAVI_LEIIRR",/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
+  "LEFFKK",/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
+  "LEFFKR",/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
+  "LEFFRK",/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
+  "LEFFRR",/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
+  "LEIIKK",/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
+  "LEIIKR",/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
+  "LEIIRK",/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
+  "LEIIRR",/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
 
-  "OP_RAVI_ARRAYGET_SIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
-  "OP_RAVI_ARRAYGET_SIR",/*	A B C	R(A) := R(B)[R(C)]				*/
-  "OP_RAVI_ARRAYGET_IIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
-  "OP_RAVI_ARRAYGET_IIR",/*	A B C	R(A) := R(B)[R(C)]				*/
-  "OP_RAVI_ARRAYGET_FIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
-  "OP_RAVI_ARRAYGET_FIR",/*	A B C	R(A) := R(B)[R(C)]				*/
-  "OP_RAVI_ARRAYGET_LIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
-  "OP_RAVI_ARRAYGET_LIR",/*	A B C	R(A) := R(B)[R(C)]				*/
+  "ARRAYGET_SIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
+  "ARRAYGET_SIR",/*	A B C	R(A) := R(B)[R(C)]				*/
+  "ARRAYGET_IIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
+  "ARRAYGET_IIR",/*	A B C	R(A) := R(B)[R(C)]				*/
+  "ARRAYGET_FIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
+  "ARRAYGET_FIR",/*	A B C	R(A) := R(B)[R(C)]				*/
+  "ARRAYGET_LIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
+  "ARRAYGET_LIR",/*	A B C	R(A) := R(B)[R(C)]				*/
 
-  "OP_RAVI_ARRAYSET_ISKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-  "OP_RAVI_ARRAYSET_ISKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
-  "OP_RAVI_ARRAYSET_ISRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
-  "OP_RAVI_ARRAYSET_ISRR",/*	A B C	R(A)[R(B)] := R(C)				*/
-  "OP_RAVI_ARRAYSET_IIKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-  "OP_RAVI_ARRAYSET_IIKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
-  "OP_RAVI_ARRAYSET_IIRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
-  "OP_RAVI_ARRAYSET_IIRR",/*	A B C	R(A)[R(B)] := R(C)				*/
-  "OP_RAVI_ARRAYSET_IFKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-  "OP_RAVI_ARRAYSET_IFKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
-  "OP_RAVI_ARRAYSET_IFRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
-  "OP_RAVI_ARRAYSET_IFRR",/*	A B C	R(A)[R(B)] := R(C)				*/
-  "OP_RAVI_ARRAYSET_ILKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-  "OP_RAVI_ARRAYSET_ILKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
-  "OP_RAVI_ARRAYSET_ILRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
-  "OP_RAVI_ARRAYSET_ILRR",/*	A B C	R(A)[R(B)] := R(C)				*/
+  "ARRAYSET_ISKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
+  "ARRAYSET_ISKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
+  "ARRAYSET_ISRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
+  "ARRAYSET_ISRR",/*	A B C	R(A)[R(B)] := R(C)				*/
+  "ARRAYSET_IIKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
+  "ARRAYSET_IIKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
+  "ARRAYSET_IIRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
+  "ARRAYSET_IIRR",/*	A B C	R(A)[R(B)] := R(C)				*/
+  "ARRAYSET_IFKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
+  "ARRAYSET_IFKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
+  "ARRAYSET_IFRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
+  "ARRAYSET_IFRR",/*	A B C	R(A)[R(B)] := R(C)				*/
+  "ARRAYSET_ILKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
+  "ARRAYSET_ILKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
+  "ARRAYSET_ILRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
+  "ARRAYSET_ILRR",/*	A B C	R(A)[R(B)] := R(C)				*/
 
-  "OP_RAVI_TOINT", /* A R(A) := toint(R(A)) */
-  "OP_RAVI_TOFLT", /* A R(A) := tofloat(R(A)) */
+  "TOINT", /* A R(A) := toint(R(A)) */
+  "TOFLT", /* A R(A) := tofloat(R(A)) */
+
+  "MOVEI", /*	A B	R(A) := R(B)					*/
+  "MOVEF", /*	A B	R(A) := R(B)					*/
 
   NULL
 };
@@ -373,7 +376,10 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 0, OpArgR, OpArgR, iABC) /*RAVI_ARRAYSET_ILRR	A B C	R(A)[R(B)] := R(C)				*/
 
  ,opmode(0, 1, OpArgU, OpArgU, iABC) /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
- ,opmode(0, 1, OpArgU, OpArgU, iABC) /* OP_RAVI_TOFLT  A R(A) := tofloat(R(A)) */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC) /* OP_RAVI_TOFLT  A R(A) := tonumber(R(A)) */
+
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)		/* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))					*/
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)		/* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B))					*/
 
 };
 
@@ -552,6 +558,9 @@ LUAI_DDEF const lu_byte luaP_optypes[NUM_OPCODES] = {
 
   , LUA_TNUMINT /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
   , LUA_TNUMFLT /* OP_RAVI_TOFLT  A R(A) := tofloat(R(A)) */
+
+  , LUA_TNUMINT		/* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))					*/
+  , LUA_TNUMFLT		/* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B))					*/
 
 };
 

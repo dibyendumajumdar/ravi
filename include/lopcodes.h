@@ -354,10 +354,13 @@ OP_RAVI_ARRAYSET_ILRR,/*	A B C	R(A)[R(B)] := R(C)				*/
 OP_RAVI_TOINT, /* A R(A) := toint(R(A)) */
 OP_RAVI_TOFLT, /* A R(A) := tofloat(R(A)) */
 
+OP_RAVI_MOVEI, /*	A B	R(A) := R(B)					*/
+OP_RAVI_MOVEF, /*	A B	R(A) := R(B)					*/
+
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_RAVI_TOFLT) + 1)
+#define NUM_OPCODES	(cast(int, OP_RAVI_MOVEF) + 1)
 
 /*===========================================================================
   Notes:

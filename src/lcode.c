@@ -471,8 +471,20 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
       break;
     }
     case VNONRELOC: {
-      if (reg != e->u.info)
-        luaK_codeABC(fs, OP_MOVE, reg, e->u.info, 0);
+      if (reg != e->u.info) {
+        int ravi_type = getlocvartype(fs, reg);
+        switch (ravi_type) {
+        case LUA_TNUMINT:
+          luaK_codeABC(fs, OP_RAVI_MOVEI, reg, e->u.info, 0);
+          break;
+        case LUA_TNUMFLT:
+          luaK_codeABC(fs, OP_RAVI_MOVEF, reg, e->u.info, 0);
+          break;
+        default:
+          luaK_codeABC(fs, OP_MOVE, reg, e->u.info, 0);
+          break;
+        }
+      }
       break;
     }
     default: {
@@ -590,6 +602,10 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
 
 static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
 #if RAVI_ENABLED
+  if (ex->k == VNONRELOC && (var->ravi_type == LUA_TNUMFLT || var->ravi_type == LUA_TNUMINT)) {
+    /* handled by MOVEI or MOVEF at runtime */
+    return;
+  }
   if ((var->ravi_type == LUA_TNUMFLT || var->ravi_type == LUA_TNUMINT) &&
       ((var->ravi_type == LUA_TNUMFLT && ex->ravi_type != LUA_TNUMFLT /* && ex->ravi_type != LUA_TNUMINT */) ||
        (var->ravi_type == LUA_TNUMINT /* && ex->ravi_type != LUA_TNUMFLT */ && ex->ravi_type != LUA_TNUMINT)))
