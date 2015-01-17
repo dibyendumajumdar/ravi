@@ -550,6 +550,8 @@ static int test_luacompexec1(const char *code, int expected)
 int main(const char *argv[]) 
 {
     int failures = 0;
+    failures += test_luacomp1("local d, e = f()");
+    failures += test_luacomp1("local d, e; d, e = f()");
     failures += test_return0();
     failures += test_return1();
     failures += test_unmf();
@@ -572,7 +574,6 @@ int main(const char *argv[])
     failures += test_luacompexec1("local i, j:int; j=0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     failures += test_luacomp1("local f = function(); return; end; local d:double, j:int = f(); return d") == RAVI_ENABLED ? 0 : 1;
     failures += test_luacomp1("local f = function(); return; end; local d = 5.0; d = f(); return d");
-    failures += test_luacomp1("local d, e = f();");
     printf("Number of opcodes %d\n", NUM_OPCODES);
     printf("LUA_TNUMFLT = %d\n", LUA_TNUMFLT);
     printf("LUA_TNUMINT = %d\n", LUA_TNUMINT);
