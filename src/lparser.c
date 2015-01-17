@@ -898,6 +898,7 @@ static int explist (LexState *ls, expdesc *v) {
   return n;
 }
 
+#if RAVI_ENABLED
 static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n)
 {
   if (n < nvars && vars[n] != LUA_TNONE && v->ravi_tt != vars[n]) {
@@ -910,23 +911,26 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
        * we need to coerce the return values in situ.
        */
       Instruction *pc = &getcode(ls->fs, v); /* Obtain the instruction for OP_CALL */
+      lua_assert(GET_OPCODE(*pc) == OP_CALL);
       int a = GETARG_A(*pc); /* function return values will be placed from register pointed by A and upwards */
       int nrets = GETARG_C(*pc) - 1; /* operand C contais number of return values expected */
       /* all return values that are going to be assigned to typed local vars must be converted to the correct type */
       int i;
-      for (i = 0; i < nrets; i++)
+      for (i = n; i < nvars; i++)
         /* do we need to convert ? */
         if ((vars[i] == LUA_TNUMFLT || vars[i] == LUA_TNUMINT))
           /* code an instruction to convert in place */
-          luaK_codeABC(ls->fs, v->ravi_tt == LUA_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, a+i, 0, 0);
+          luaK_codeABC(ls->fs, vars[i] == LUA_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, a+(i-n), 0, 0);
     }
     else
       luaX_syntaxerror(ls, "Invalid local assignment");
   }
 }
+#endif
 
 /* parse expression list, and validate that the expressions match expected
- * types provided in vars array
+ * types provided in vars array. This is a modified version of explist() to be
+ * used to local variable declaration statement only.
  */
 static int localvar_explist(LexState *ls, expdesc *v, int *vars, int nvars) {
   /* explist -> expr { ',' expr } */
