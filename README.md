@@ -94,16 +94,17 @@ Challenges with Lua Bytecode structure
 --------------------------------------
 An immediate issue is that the Lua bytecode structure has a 6-bit opcode which is insufficient to hold the various opcodes that I will need. Simply extending the size of this is problematic as then it reduces the space available to the operands A B and C. Furthermore the way Lua bytecodes work means that B and C operands must be 1-bit larger than A - as the extra bit is used to flag whether the operand refers to a constant or a register. (Thanks to Dirk Laurie for pointing this out). 
 
-If I change the sizes of the components it will make the new bytecode incompatible with Lua. Although this doesn't matter so much as long as source level compatibility is retained - I would rather have a solution that allows me to maintain full compatibility at bytecode level. An obvious solution is to allow 64-bit instructions - while retaining the existing 32-bit instructions. So I investigated whether I could use a technique similar to OP_LOADKX. 
+If I change the sizes of the components it will make the new bytecode incompatible with Lua. Although this doesn't matter so much as long as source level compatibility is retained - I would like a solution that allows me to maintain full compatibility at bytecode level. An obvious solution is to allow extended 64-bit instructions - while retaining the existing 32-bit instructions.  
 
-Unfortunately the way the Lua parser / byte-code generator works, it turns out that while expressions are being parsed, values may be held as bytecode instructions. So this makes it much more complex to implement the two instruction approach.
-
-For now therefore I am just amending the bit mapping in the 32-bit instruction to allow 9-bits for the byte-code, 7-bits for operand A, and 8-bits for operands B and C. This means that some of the Lua limits (maximum number of variables in a function, etc.) have to be revised to be lower than the default.
+For now however I am just amending the bit mapping in the 32-bit instruction to allow 9-bits for the byte-code, 7-bits for operand A, and 8-bits for operands B and C. This means that some of the Lua limits (maximum number of variables in a function, etc.) have to be revised to be lower than the default.
 
 New OpCodes
 -----------
 The new instructions are specialised for types, and also for register/versus constant. So for example `OP_RAVI_ADDFIKK` means add `float` and `int` where both values are constants. And `OP_RAVI_ADDFFRR` means add `float` and `float` - both obtained from registers. The existing Lua opcodes that these are based on define which operands are used.
 
+Documentation
+-------------
+As I progress I will add documentation in the Wiki.
 
 
 
