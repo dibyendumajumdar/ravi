@@ -189,6 +189,9 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "OP_RAVI_ARRAYSET_ILRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
   "OP_RAVI_ARRAYSET_ILRR",/*	A B C	R(A)[R(B)] := R(C)				*/
 
+  "OP_RAVI_TOINT", /* A R(A) := toint(R(A)) */
+  "OP_RAVI_TOFLT", /* A R(A) := tofloat(R(A)) */
+
   NULL
 };
 
@@ -369,6 +372,9 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 0, OpArgR, OpArgK, iABC) /*RAVI_ARRAYSET_ILRK	A B C	R(A)[R(B)] := Kst(C)				*/
  ,opmode(0, 0, OpArgR, OpArgR, iABC) /*RAVI_ARRAYSET_ILRR	A B C	R(A)[R(B)] := R(C)				*/
 
+ ,opmode(0, 1, OpArgU, OpArgU, iABC) /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
+ ,opmode(0, 1, OpArgU, OpArgU, iABC) /* OP_RAVI_TOFLT  A R(A) := tofloat(R(A)) */
+
 };
 
 LUAI_DDEF const lu_byte luaP_optypes[NUM_OPCODES] = {
@@ -543,6 +549,10 @@ LUAI_DDEF const lu_byte luaP_optypes[NUM_OPCODES] = {
   , LUA_TNONE /*RAVI_ARRAYSET_ILKR	A B C	R(A)[Kst(B)] := R(C)				*/
   , LUA_TNONE /*RAVI_ARRAYSET_ILRK	A B C	R(A)[R(B)] := Kst(C)				*/
   , LUA_TNONE /*RAVI_ARRAYSET_ILRR	A B C	R(A)[R(B)] := R(C)				*/
+
+  , LUA_TNUMINT /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
+  , LUA_TNUMFLT /* OP_RAVI_TOFLT  A R(A) := tofloat(R(A)) */
+
 };
 
 #define MYK(x)		(-1-(x))

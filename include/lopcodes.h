@@ -351,10 +351,13 @@ OP_RAVI_ARRAYSET_ILKR,/*	A B C	R(A)[Kst(B)] := R(C)				*/
 OP_RAVI_ARRAYSET_ILRK,/*	A B C	R(A)[R(B)] := Kst(C)				*/
 OP_RAVI_ARRAYSET_ILRR,/*	A B C	R(A)[R(B)] := R(C)				*/
 
+OP_RAVI_TOINT, /* A R(A) := toint(R(A)) */
+OP_RAVI_TOFLT, /* A R(A) := tofloat(R(A)) */
+
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_RAVI_ARRAYSET_ILRR) + 1)
+#define NUM_OPCODES	(cast(int, OP_RAVI_TOFLT) + 1)
 
 /*===========================================================================
   Notes:

@@ -1760,6 +1760,22 @@ newframe:  /* reentry point when frame changes (call/return) */
                     donextjump(ci);
             )
         } break;
+        case OP(OP_RAVI_TOINT): {
+          lua_Integer i;
+          if (tointeger(ra, &i)) {
+            setivalue(ra, i);
+          }
+          else 
+            luaG_typeerror(L, ra, "int type expected");
+        } break;
+        case OP(OP_RAVI_TOFLT): {
+          lua_Number i;
+          if (tonumber(ra, &i)) {
+            setfltvalue(ra, i);
+          }
+          else
+            luaG_typeerror(L, ra, "double type expected");
+        } break;
 
         }
 

@@ -898,6 +898,33 @@ static int explist (LexState *ls, expdesc *v) {
   return n;
 }
 
+static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n)
+{
+  if (n < nvars && vars[n] != LUA_TNONE && v->ravi_tt != vars[n]) {
+    /* if we are calling a function then convert return types */
+    if (v->ravi_tt != vars[n] && (vars[n] == LUA_TNUMFLT || vars[n] == LUA_TNUMINT) && v->k == VCALL) {
+      /* For local variable declarations that call functions e.g.
+       * local i = func()
+       * Lua ensures that the function returns values to register assigned to variable i
+       * and above so that no separate OP_MOVE instruction is necessary. So that means that
+       * we need to coerce the return values in situ.
+       */
+      Instruction *pc = &getcode(ls->fs, v); /* Obtain the instruction for OP_CALL */
+      int a = GETARG_A(*pc); /* function return values will be placed from register pointed by A and upwards */
+      int nrets = GETARG_C(*pc) - 1; /* operand C contais number of return values expected */
+      /* all return values that are going to be assigned to typed local vars must be converted to the correct type */
+      int i;
+      for (i = 0; i < nrets; i++)
+        /* do we need to convert ? */
+        if ((vars[i] == LUA_TNUMFLT || vars[i] == LUA_TNUMINT))
+          /* code an instruction to convert in place */
+          luaK_codeABC(ls->fs, v->ravi_tt == LUA_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, a+i, 0, 0);
+    }
+    else
+      luaX_syntaxerror(ls, "Invalid local assignment");
+  }
+}
+
 /* parse expression list, and validate that the expressions match expected
  * types provided in vars array
  */
@@ -906,15 +933,13 @@ static int localvar_explist(LexState *ls, expdesc *v, int *vars, int nvars) {
   int n = 1;  /* at least one expression */
   expr(ls, v);
 #if RAVI_ENABLED
-  if (nvars && vars[0] != LUA_TNONE && v->ravi_tt != vars[0])
-    luaX_syntaxerror(ls, "Invalid local assignment");
+  ravi_typecheck(ls, v, vars, nvars, 0);
 #endif
   while (testnext(ls, ',')) {
     luaK_exp2nextreg(ls->fs, v);
     expr(ls, v);
 #if RAVI_ENABLED
-    if (nvars > n && vars[n] != LUA_TNONE && v->ravi_tt != vars[n])
-      luaX_syntaxerror(ls, "Invalid local assignment");
+    ravi_typecheck(ls, v, vars, nvars, n);
 #endif
     n++;
   }
@@ -1295,7 +1320,9 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
   luaK_storevar(ls->fs, &lh->v, &e);
 }
 
-
+/* parse condition in a repeat statement or an if control structure
+ * called by repeatstat(), test_then_block()
+ */
 static int cond (LexState *ls) {
   /* cond -> exp */
   expdesc v;
@@ -1360,7 +1387,9 @@ static void labelstat (LexState *ls, TString *label, int line) {
   findgotos(ls, &ll->arr[l]);
 }
 
-
+/* parse a while-do control structure, body processed by block()
+ * called by statement()
+ */
 static void whilestat (LexState *ls, int line) {
   /* whilestat -> WHILE cond DO block END */
   FuncState *fs = ls->fs;
@@ -1379,7 +1408,9 @@ static void whilestat (LexState *ls, int line) {
   luaK_patchtohere(fs, condexit);  /* false conditions finish the loop */
 }
 
-
+/* parse a repeat-until control structure, body parsed by statlist()
+ * called by statement()
+ */
 static void repeatstat (LexState *ls, int line) {
   /* repeatstat -> REPEAT block UNTIL cond */
   int condexit;
@@ -1399,7 +1430,9 @@ static void repeatstat (LexState *ls, int line) {
   leaveblock(fs);  /* finish loop */
 }
 
-
+/* parse the single expressions needed in numerical for loops
+ * called by fornum()
+ */
 static int exp1 (LexState *ls) {
   expdesc e;
   int reg;
@@ -1411,7 +1444,9 @@ static int exp1 (LexState *ls) {
   return reg;
 }
 
-
+/* parse a for loop body for both versions of the for loop
+ * called by fornum(), forlist()
+ */
 static void forbody (LexState *ls, int base, int line, int nvars, int isnum) {
   /* forbody -> DO block */
   BlockCnt bl;
@@ -1437,7 +1472,9 @@ static void forbody (LexState *ls, int base, int line, int nvars, int isnum) {
   luaK_fixline(fs, line);
 }
 
-
+/* parse a numerical for loop, calls forbody()
+ * called from forstat()
+ */
 static void fornum (LexState *ls, TString *varname, int line) {
   /* fornum -> NAME = exp1,exp1[,exp1] forbody */
   FuncState *fs = ls->fs;
@@ -1459,7 +1496,9 @@ static void fornum (LexState *ls, TString *varname, int line) {
   forbody(ls, base, line, 1, 1);
 }
 
-
+/* parse a generic for loop, calls forbody() 
+ * called from forstat()
+ */
 static void forlist (LexState *ls, TString *indexname) {
   /* forlist -> NAME {,NAME} IN explist forbody */
   FuncState *fs = ls->fs;
@@ -1485,7 +1524,9 @@ static void forlist (LexState *ls, TString *indexname) {
   forbody(ls, base, line, nvars - 3, 0);
 }
 
-
+/* initial parsing of a for loop - calls fornum() or forlist()
+ * called from statement()
+ */
 static void forstat (LexState *ls, int line) {
   /* forstat -> FOR (fornum | forlist) END */
   FuncState *fs = ls->fs;
@@ -1503,7 +1544,7 @@ static void forstat (LexState *ls, int line) {
   leaveblock(fs);  /* loop scope ('break' jumps to this point) */
 }
 
-
+/* parse if cond then block - called from ifstat() */
 static void test_then_block (LexState *ls, int *escapelist) {
   /* test_then_block -> [IF | ELSEIF] cond THEN block */
   BlockCnt bl;
@@ -1539,7 +1580,7 @@ static void test_then_block (LexState *ls, int *escapelist) {
   luaK_patchtohere(fs, jf);
 }
 
-
+/* parse an if control structure - called from statement() */
 static void ifstat (LexState *ls, int line) {
   /* ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END */
   FuncState *fs = ls->fs;
@@ -1553,7 +1594,7 @@ static void ifstat (LexState *ls, int line) {
   luaK_patchtohere(fs, escapelist);  /* patch escape list to 'if' end */
 }
 
-
+/* parse a local function statement - called from statement() */
 static void localfunc (LexState *ls) {
   expdesc b;
   FuncState *fs = ls->fs;
@@ -1566,7 +1607,7 @@ static void localfunc (LexState *ls) {
   getlocvar(fs, b.u.info)->startpc = fs->pc;
 }
 
-/* local statement */
+/* parse a local variable declaration statement - called from statement() */
 static void localstat (LexState *ls) {
   /* stat -> LOCAL NAME {',' NAME} ['=' explist] */
   int nvars = 0;
@@ -1602,7 +1643,9 @@ static void localstat (LexState *ls) {
   adjustlocalvars(ls, nvars);
 }
 
-
+/* parse a function name specification - called from funcstat() 
+ * returns boolean value - true if function is a method
+ */
 static int funcname (LexState *ls, expdesc *v) {
   /* funcname -> NAME {fieldsel} [':' NAME] */
   int ismethod = 0;
@@ -1616,7 +1659,7 @@ static int funcname (LexState *ls, expdesc *v) {
   return ismethod;
 }
 
-
+/* parse a function statement - called from statement() */
 static void funcstat (LexState *ls, int line) {
   /* funcstat -> FUNCTION funcname body */
   int ismethod;
@@ -1630,7 +1673,7 @@ static void funcstat (LexState *ls, int line) {
   luaK_fixline(ls->fs, line);  /* definition "happens" in the first line */
 }
 
-/* expression statement */
+/* parse function call with no returns or assignment statement - called from statement() */
 static void exprstat (LexState *ls) {
   /* stat -> func | assignment */
   FuncState *fs = ls->fs;
@@ -1647,7 +1690,7 @@ static void exprstat (LexState *ls) {
   }
 }
 
-/* return statement */
+/* parse return statement - called from statement() */
 static void retstat (LexState *ls) {
   /* stat -> RETURN [explist] [';'] */
   FuncState *fs = ls->fs;
