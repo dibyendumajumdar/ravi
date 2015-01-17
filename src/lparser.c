@@ -415,6 +415,33 @@ static void ravi_coercetype(LexState *ls, expdesc *v, int n)
   }
 }
 
+static void localvar_adjust_assign(LexState *ls, int nvars, int nexps, expdesc *e) {
+  FuncState *fs = ls->fs;
+  int extra = nvars - nexps;
+  if (hasmultret(e->k)) {
+    extra++;  /* includes call itself */
+    if (extra < 0) extra = 0;
+    /* following adjusts the C operand in the OP_CALL instruction */
+    luaK_setreturns(fs, e, extra);  /* last exp. provides the difference */
+#if RAVI_ENABLED
+    /* Since we did not know how many return values to process in localvar_explist() we
+    * need to add instructions for type coercions at this stage for any remaining
+    * variables
+    */
+    ravi_coercetype(ls, e, extra);
+#endif
+    if (extra > 1) luaK_reserveregs(fs, extra - 1);
+  }
+  else {
+    if (e->k != VVOID) luaK_exp2nextreg(fs, e);  /* close last expression */
+    if (extra > 0) {
+      int reg = fs->freereg;
+      luaK_reserveregs(fs, extra);
+      /* RAVI TODO for typed variables we should not set to nil? */
+      luaK_nil(fs, reg, extra);
+    }
+  }
+}
 
 static void adjust_assign (LexState *ls, int nvars, int nexps, expdesc *e) {
   FuncState *fs = ls->fs;
@@ -424,9 +451,6 @@ static void adjust_assign (LexState *ls, int nvars, int nexps, expdesc *e) {
     if (extra < 0) extra = 0;
     /* following adjusts the C operand in the OP_CALL instruction */
     luaK_setreturns(fs, e, extra);  /* last exp. provides the difference */
-#if RAVI_ENABLED
-    ravi_coercetype(ls, e, extra);
-#endif
     if (extra > 1) luaK_reserveregs(fs, extra-1);
   }
   else {
@@ -944,7 +968,9 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
       Instruction *pc = &getcode(ls->fs, v); /* Obtain the instruction for OP_CALL */
       lua_assert(GET_OPCODE(*pc) == OP_CALL);
       int a = GETARG_A(*pc); /* function return values will be placed from register pointed by A and upwards */
-      int nrets = GETARG_C(*pc) - 1; /* operand C contais number of return values expected */
+      int nrets = GETARG_C(*pc) - 1; /* operand C contais number of return values expected  */
+      /* Note that at this stage nrets is always 1 - as Lua patches in the this value for the last function call in a 
+       * variable declaration statement in adjust_assign and localvar_adjust_assign */
       /* all return values that are going to be assigned to typed local vars must be converted to the correct type */
       int i;
       for (i = n; i < (n+nrets); i++)
@@ -1674,7 +1700,7 @@ static void localstat (LexState *ls) {
     e.k = VVOID;
     nexps = 0;
   }
-  adjust_assign(ls, nvars, nexps, &e);
+  localvar_adjust_assign(ls, nvars, nexps, &e);
   adjustlocalvars(ls, nvars);
 }
 
