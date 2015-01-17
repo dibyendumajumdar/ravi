@@ -389,6 +389,32 @@ static void singlevar (LexState *ls, expdesc *var) {
   }
 }
 
+/* n = number of return values to adjust
+ */
+static void ravi_coercetype(LexState *ls, expdesc *v, int n)
+{
+  if (v->k != VCALL || n <= 0) return;
+  /* For local variable declarations that call functions e.g.
+  * local i = func()
+  * Lua ensures that the function returns values to register assigned to variable i
+  * and above so that no separate OP_MOVE instruction is necessary. So that means that
+  * we need to coerce the return values in situ.
+  */
+  Instruction *pc = &getcode(ls->fs, v); /* Obtain the instruction for OP_CALL */
+  lua_assert(GET_OPCODE(*pc) == OP_CALL);
+  int a = GETARG_A(*pc); /* function return values will be placed from register pointed by A and upwards */
+  int nrets = GETARG_C(*pc) - 1; /* operand C contais number of return values expected */
+  /* all return values that are going to be assigned to typed local vars must be converted to the correct type */
+  int i;
+  for (i = a + 1; i < a + n; i++) {
+    int ravi_tt = getlocvartype(ls->fs, i);
+    /* do we need to convert ? */
+    if (ravi_tt == LUA_TNUMFLT || ravi_tt == LUA_TNUMINT)
+      /* code an instruction to convert in place */
+      luaK_codeABC(ls->fs, ravi_tt == LUA_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, i, 0, 0);
+  }
+}
+
 
 static void adjust_assign (LexState *ls, int nvars, int nexps, expdesc *e) {
   FuncState *fs = ls->fs;
@@ -396,7 +422,11 @@ static void adjust_assign (LexState *ls, int nvars, int nexps, expdesc *e) {
   if (hasmultret(e->k)) {
     extra++;  /* includes call itself */
     if (extra < 0) extra = 0;
+    /* following adjusts the C operand in the OP_CALL instruction */
     luaK_setreturns(fs, e, extra);  /* last exp. provides the difference */
+#if RAVI_ENABLED
+    ravi_coercetype(ls, e, extra);
+#endif
     if (extra > 1) luaK_reserveregs(fs, extra-1);
   }
   else {
@@ -404,6 +434,7 @@ static void adjust_assign (LexState *ls, int nvars, int nexps, expdesc *e) {
     if (extra > 0) {
       int reg = fs->freereg;
       luaK_reserveregs(fs, extra);
+      /* RAVI TODO for typed variables we should not set to nil? */
       luaK_nil(fs, reg, extra);
     }
   }
@@ -916,7 +947,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
       int nrets = GETARG_C(*pc) - 1; /* operand C contais number of return values expected */
       /* all return values that are going to be assigned to typed local vars must be converted to the correct type */
       int i;
-      for (i = n; i < nvars; i++)
+      for (i = n; i < (n+nrets); i++)
         /* do we need to convert ? */
         if ((vars[i] == LUA_TNUMFLT || vars[i] == LUA_TNUMINT))
           /* code an instruction to convert in place */
