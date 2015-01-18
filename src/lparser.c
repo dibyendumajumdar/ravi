@@ -9,6 +9,7 @@
 
 #include "lprefix.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -74,27 +75,124 @@ static const char *get_typename(int tt) {
   }
 }
 
-void print_expdesc(FILE *fp, const char *desc, const expdesc *e) {
-  char buf[80] = { 0 };
-  fprintf(fp, desc);
+static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
+  char buf[80] = {0};
   switch (e->k) {
-  case VVOID: fprintf(fp, "e{p=%p, k=VVOID, tt=%s}", e, get_typename(e->ravi_type)); break;
-  case VNIL: fprintf(fp, "e{p=%p, k=VNIL, tt=%s}", e, get_typename(e->ravi_type)); break;
-  case VTRUE: fprintf(fp, "e{p=%p, k=VTRUE, tt=%s}", e, get_typename(e->ravi_type)); break;
-  case VFALSE: fprintf(fp, "e{p=%p, k=VFALSE, tt=%s}", e, get_typename(e->ravi_type)); break;
-  case VK: fprintf(fp, "e{p=%p, k=VK, Kst=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_type)); break;
-  case VKFLT: fprintf(fp, "e{p=%p, k=VKFLT, n=%f, tt=%s}", e, e->u.nval, get_typename(e->ravi_type)); break;
-  case VKINT: fprintf(fp, "e{p=%p, k=VKINT, n=%d, tt=%s}", e, e->u.ival, get_typename(e->ravi_type)); break;
-  case VNONRELOC: fprintf(fp, "e{p=%p, k=VNONRELOC, register=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_type)); break;
-  case VLOCAL: fprintf(fp, "e{p=%p, k=LOCAL, register=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_type)); break;
-  case VUPVAL: fprintf(fp, "e{p=%p, k=VUPVAL, idx=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_type)); break;
-  case VINDEXED: fprintf(fp, "e{p=%p, k=VINDEXED, t=%d, idx=%d, tt=%s}", e, e->u.ind.t, e->u.ind.idx, get_typename(e->ravi_type)); break;
-  case VJMP: fprintf(fp, "e{p=%p, k=VJMP, pc=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_type)); break;
-  case VRELOCABLE: fprintf(fp, "e{p=%p, k=VRELOCABLE, pc=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_type)); break;
-  case VCALL: fprintf(fp, "e{p=%p, k=VCALL, pc=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_type)); break;
-  case VVARARG: fprintf(fp, "e{p=%p, k=VVARARG, pc=%d, tt=%s}", e, e->u.info, get_typename(e->ravi_type)); break;
+  case VVOID:
+    fprintf(fp, "e{p=%p, k=VVOID, tt=%s}", e, get_typename(e->ravi_type));
+    break;
+  case VNIL:
+    fprintf(fp, "e{p=%p, k=VNIL, tt=%s}", e, get_typename(e->ravi_type));
+    break;
+  case VTRUE:
+    fprintf(fp, "e{p=%p, k=VTRUE, tt=%s}", e, get_typename(e->ravi_type));
+    break;
+  case VFALSE:
+    fprintf(fp, "e{p=%p, k=VFALSE, tt=%s}", e, get_typename(e->ravi_type));
+    break;
+  case VK:
+    fprintf(fp, "e{p=%p, k=VK, Kst=%d, tt=%s}", e, e->u.info,
+            get_typename(e->ravi_type));
+    break;
+  case VKFLT:
+    fprintf(fp, "e{p=%p, k=VKFLT, n=%f, tt=%s}", e, e->u.nval,
+            get_typename(e->ravi_type));
+    break;
+  case VKINT:
+    fprintf(fp, "e{p=%p, k=VKINT, n=%ld, tt=%s}", e, e->u.ival,
+            get_typename(e->ravi_type));
+    break;
+  case VNONRELOC:
+    fprintf(fp, "e{p=%p, k=VNONRELOC, register=%d %s, tt=%s}", e, e->u.info,
+            get_typename(getlocvartype(fs, e->u.info)),
+            get_typename(e->ravi_type));
+    break;
+  case VLOCAL:
+    fprintf(fp, "e{p=%p, k=LOCAL, register=%d, tt=%s}", e, e->u.info,
+            get_typename(e->ravi_type));
+    break;
+  case VUPVAL:
+    fprintf(fp, "e{p=%p, k=VUPVAL, idx=%d, tt=%s}", e, e->u.info,
+            get_typename(e->ravi_type));
+    break;
+  case VINDEXED:
+    fprintf(fp, "e{p=%p, k=VINDEXED, t=%d, idx=%d, tt=%s}", e, e->u.ind.t,
+            e->u.ind.idx, get_typename(e->ravi_type));
+    break;
+  case VJMP:
+    fprintf(fp, "e{p=%p, k=VJMP, pc=%d, i=(%s), tt=%s}", e, e->u.info,
+            print_instruction(buf, sizeof buf, getcode(fs, e)),
+            get_typename(e->ravi_type));
+    break;
+  case VRELOCABLE:
+    fprintf(fp, "e{p=%p, k=VRELOCABLE, pc=%d, i=(%s), tt=%s}", e, e->u.info,
+            print_instruction(buf, sizeof buf, getcode(fs, e)),
+            get_typename(e->ravi_type));
+    break;
+  case VCALL:
+    fprintf(fp, "e{p=%p, k=VCALL, pc=%d, i=(%s %s), tt=%s}", e, e->u.info,
+            print_instruction(buf, sizeof buf, getcode(fs, e)),
+            get_typename(getlocvartype(fs, GETARG_A(getcode(fs, e)))),
+            get_typename(e->ravi_type));
+    break;
+  case VVARARG:
+    fprintf(fp, "e{p=%p, k=VVARARG, pc=%d, i=(%s), tt=%s}", e, e->u.info,
+            print_instruction(buf, sizeof buf, getcode(fs, e)),
+            get_typename(e->ravi_type));
+    break;
   }
 }
+
+void ravi_printf(FuncState *fs, const char *format, ...)
+{
+  char buf[80] = { 0 };
+  va_list ap;
+  const char *cp;
+  va_start(ap, format);
+  for (cp = format; *cp; cp++) {
+    if (cp[0] == '%' && cp[1] == 'e') {
+      expdesc *e;
+      e = va_arg(ap, expdesc*);
+      print_expdesc(stdout, fs, e);
+      cp++;
+    }
+    else if (cp[0] == '%' && cp[1] == 'o') {
+      Instruction i;
+      i = va_arg(ap, Instruction);
+      print_instruction(buf, sizeof buf, i);
+      cp++;
+    }
+    else if (cp[0] == '%' && cp[1] == 'd') {
+      int i;
+      i = va_arg(ap, int);
+      printf("%d", i);
+      cp++;
+    }
+    else if (cp[0] == '%' && cp[1] == 's') {
+      const char *s;
+      s = va_arg(ap, const char *);
+      fputs(s, stdout);
+      cp++;
+    }
+    else if (cp[0] == '%' && cp[1] == 'f') {
+      double d;
+      d = va_arg(ap, double);
+      printf("%f", d);
+      cp++;
+    }
+    else if (cp[0] == '%' && cp[1] == 't') {
+      int i;
+      i = va_arg(ap, int);
+      fputs(get_typename(i), stdout);
+      cp++;
+    }
+    else {
+      fputc(*cp, stdout);
+    }
+  }
+  va_end(ap);
+}
+
 
 
 /*
@@ -389,7 +487,10 @@ static void singlevar (LexState *ls, expdesc *var) {
   }
 }
 
-/* n = number of return values to adjust
+/* Generate instructions for converting types 
+ * This is needed post a function call to handle
+ * variable number of return values
+ * n = number of return values to adjust 
  */
 static void ravi_coercetype(LexState *ls, expdesc *v, int n)
 {
@@ -956,6 +1057,11 @@ static int explist (LexState *ls, expdesc *v) {
 #if RAVI_ENABLED
 static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n)
 {
+  if (n < nvars && v->k == VRELOCABLE) {
+#if 0
+    ravi_printf(ls->fs, "typechecking local variable type %t = %e\n", vars[n], v);
+#endif
+  }
   if (n < nvars && vars[n] != LUA_TNONE && v->ravi_type != vars[n]) {
     /* if we are calling a function then convert return types */
     if (v->ravi_type != vars[n] && (vars[n] == LUA_TNUMFLT || vars[n] == LUA_TNUMINT) && v->k == VCALL) {
@@ -1495,6 +1601,11 @@ static void repeatstat (LexState *ls, int line) {
  * called by fornum()
  */
 static int exp1 (LexState *ls) {
+  /* Since the local variable in a fornum loop is local to the loop and does
+   * not use any variable in outer scope we don't need to check its
+   * type - also the loop is already optimised so no point trying to
+   * optimise the iteration variable
+   */
   expdesc e;
   int reg;
   e.ravi_type = LUA_TNONE;

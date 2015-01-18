@@ -571,14 +571,14 @@ static const char* PrintRaviCode(char *buf, size_t n, Instruction i) {
   int a = GETARG_A(i);
   int b = GETARG_B(i);
   int c = GETARG_C(i);
-  snprintf(buf, n, "%-9s\t", luaP_opnames[o]);
+  snprintf(buf, n, "%s ", luaP_opnames[o]);
   switch (getOpMode(o)) {
   case iABC:
-    snprintf(buf + strlen(buf), n - strlen(buf), "%d", a);
+    snprintf(buf + strlen(buf), n - strlen(buf), "A=%d", a);
     if (getBMode(o) != OpArgN)
-      snprintf(buf + strlen(buf), n - strlen(buf), " %d", getBMode(o) == OpArgK ? (MYK(INDEXK(b))) : b);
+      snprintf(buf + strlen(buf), n - strlen(buf), " B=%d", getBMode(o) == OpArgK ? (MYK(INDEXK(b))) : b);
     if (getCMode(o) != OpArgN)
-      snprintf(buf + strlen(buf), n - strlen(buf), " %d", getCMode(o) == OpArgK ? (MYK(INDEXK(c))) : c);
+      snprintf(buf + strlen(buf), n - strlen(buf), " C=%d", getCMode(o) == OpArgK ? (MYK(INDEXK(c))) : c);
     break;
   }
   return buf;
@@ -594,27 +594,27 @@ const char* print_instruction(char *buf, size_t n, Instruction i) {
   int ax = GETARG_Ax(i);
   int bx = GETARG_Bx(i);
   int sbx = GETARG_sBx(i);
-  snprintf(buf, n, "%s %-9s\t", luaP_opnames[o]);
+  snprintf(buf, n, "%s ", luaP_opnames[o]);
   switch (getOpMode(o)) {
   case iABC:
-    snprintf(buf+strlen(buf), n-strlen(buf), "%d", a);
+    snprintf(buf+strlen(buf), n-strlen(buf), "A=%d", a);
     if (getBMode(o) != OpArgN)
-      snprintf(buf + strlen(buf), n - strlen(buf), " %d", ISK(b) ? (MYK(INDEXK(b))) : b);
+      snprintf(buf + strlen(buf), n - strlen(buf), " B=%d", ISK(b) ? (MYK(INDEXK(b))) : b);
     if (getCMode(o) != OpArgN)
-      snprintf(buf + strlen(buf), n - strlen(buf), " %d", ISK(c) ? (MYK(INDEXK(c))) : c);
+      snprintf(buf + strlen(buf), n - strlen(buf), " C=%d", ISK(c) ? (MYK(INDEXK(c))) : c);
     break;
   case iABx:
-    snprintf(buf + strlen(buf), n - strlen(buf), "%d", a);
+    snprintf(buf + strlen(buf), n - strlen(buf), "A=%d", a);
     if (getBMode(o) == OpArgK)
-      snprintf(buf + strlen(buf), n - strlen(buf), " %d", MYK(bx));
+      snprintf(buf + strlen(buf), n - strlen(buf), " Bx=%d", MYK(bx));
     if (getBMode(o) == OpArgU)
-      snprintf(buf + strlen(buf), n - strlen(buf), " %d", bx);
+      snprintf(buf + strlen(buf), n - strlen(buf), " Bx=%d", bx);
     break;
   case iAsBx:
-    snprintf(buf + strlen(buf), n - strlen(buf), "%d %d", a, sbx);
+    snprintf(buf + strlen(buf), n - strlen(buf), "As=%d Bx=%d", a, sbx);
     break;
   case iAx:
-    snprintf(buf + strlen(buf), n - strlen(buf), "%d", MYK(ax));
+    snprintf(buf + strlen(buf), n - strlen(buf), "Ax=%d", MYK(ax));
     break;
   }
   return buf;

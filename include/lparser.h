@@ -30,7 +30,12 @@ typedef enum {
   VUPVAL,       /* info = index of upvalue in 'upvalues' */
   VINDEXED,	/* t = table register/upvalue; idx = index R/K */
   VJMP,		/* info = instruction pc */
-  VRELOCABLE,	/* info = instruction pc */
+  VRELOCABLE,	/* info = instruction pc; 
+              op code may be OP_CLOSURE,OP_NEWTABLE,OP_CONCAT,OP_GETUPVAL,
+              OP_GETTABUP,OP_GETTABLE,OP_NOT,Code for binary and unary expressions 
+              that produce values (arithmetic operations, bitwise operations, 
+              concat, length)
+              */
   VCALL,	/* info = instruction pc */
   VVARARG	/* info = instruction pc */
 } expkind;
@@ -122,7 +127,7 @@ LUAI_FUNC LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
 
 LUAI_FUNC int ravi_parser_debug;
 
-LUAI_FUNC void print_expdesc(FILE *fp, const char *desc, const expdesc *e);
+LUAI_FUNC void ravi_printf(FuncState *fs, const char *format, ...);
 LUAI_FUNC int getlocvartype(FuncState *fs, int reg);
 
 #endif

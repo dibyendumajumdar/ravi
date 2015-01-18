@@ -472,6 +472,7 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
     }
     case VNONRELOC: {
       if (reg != e->u.info) {
+        /* code a MOVEI or MOVEF if the target register is a local typed variable */
         int ravi_type = getlocvartype(fs, reg);
         switch (ravi_type) {
         case LUA_TNUMINT:
@@ -602,6 +603,7 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
 
 static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
 #if RAVI_ENABLED
+  /* VNONRELOC means we have fixed register and do we know the type? */
   if (ex->k == VNONRELOC && (var->ravi_type == LUA_TNUMFLT || var->ravi_type == LUA_TNUMINT)) {
     /* handled by MOVEI or MOVEF at runtime */
     return;
@@ -922,6 +924,177 @@ static void codeexpval (FuncState *fs, OpCode op,
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDIIRR, 0, o1, o2);  /* generate opcode */
       }
     }
+    else if (op == OP_SUB && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMFLT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFFKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFFKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFFRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFFRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else if (op == OP_SUB && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMINT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFIKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFIKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFIRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFIRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else if (op == OP_SUB && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMFLT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBIFKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBIFKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBIFRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBIFRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else if (op == OP_SUB && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMINT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBIIKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBIIKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBIIRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBIIRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+
+    else if (op == OP_MUL && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMFLT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFFKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFFKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFFRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFFRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else if (op == OP_MUL && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMINT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFIKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFIKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFIRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFIRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else if (op == OP_MUL && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMFLT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULIFKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULIFKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULIFRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULIFRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else if (op == OP_MUL && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMINT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULIIKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULIIKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULIIRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_MULIIRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+
+    else if (op == OP_DIV && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMFLT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFFKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFFKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFFRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFFRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else if (op == OP_DIV && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMINT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFIKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFIKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFIRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFIRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else if (op == OP_DIV && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMFLT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIFKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIFKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIFRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIFRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+    else if (op == OP_DIV && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMINT) {
+      if (ISK(o1) && ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIIKK, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o1)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIIKR, 0, o1, o2);  /* generate opcode */
+      }
+      else if (ISK(o2)) {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIIRK, 0, o1, o2);  /* generate opcode */
+      }
+      else {
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIIRR, 0, o1, o2);  /* generate opcode */
+      }
+    }
+
     else {
 #endif
       e1->u.info = luaK_codeABC(fs, op, 0, o1, o2);  /* generate opcode */
@@ -930,13 +1103,13 @@ static void codeexpval (FuncState *fs, OpCode op,
 #endif
     e1->k = VRELOCABLE;  /* all those operations are relocable */
     if (isbinary) {
-      if (op == OP_ADD && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMFLT)
+      if ((op == OP_ADD||op == OP_SUB || op == OP_MUL || op == OP_DIV) && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMFLT)
         e1->ravi_type = LUA_TNUMFLT;
-      else if (op == OP_ADD && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMINT)
+      else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) && e1->ravi_type == LUA_TNUMFLT && e2->ravi_type == LUA_TNUMINT)
         e1->ravi_type = LUA_TNUMFLT;
-      else if (op == OP_ADD && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMFLT)
+      else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMFLT)
         e1->ravi_type = LUA_TNUMFLT;
-      else if (op == OP_ADD && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMINT)
+      else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMINT)
         e1->ravi_type = LUA_TNUMINT;
       else
         e1->ravi_type = LUA_TNONE;
