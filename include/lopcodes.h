@@ -325,6 +325,12 @@ OP_RAVI_LEIIKR,/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
 OP_RAVI_LEIIRK,/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
 OP_RAVI_LEIIRR,/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
 
+OP_RAVI_TOINT, /* A R(A) := toint(R(A)) */
+OP_RAVI_TOFLT, /* A R(A) := tofloat(R(A)) */
+
+OP_RAVI_MOVEI, /*	A B	R(A) := R(B)					*/
+OP_RAVI_MOVEF, /*	A B	R(A) := R(B)					*/
+
 OP_RAVI_ARRAYGET_SIK,/*	A B C	R(A) := R(B)[Kst(C)]				*/
 OP_RAVI_ARRAYGET_SIR,/*	A B C	R(A) := R(B)[R(C)]				*/
 OP_RAVI_ARRAYGET_IIK,/*	A B C	R(A) := R(B)[Kst(C)]				*/
@@ -351,16 +357,10 @@ OP_RAVI_ARRAYSET_ILKR,/*	A B C	R(A)[Kst(B)] := R(C)				*/
 OP_RAVI_ARRAYSET_ILRK,/*	A B C	R(A)[R(B)] := Kst(C)				*/
 OP_RAVI_ARRAYSET_ILRR,/*	A B C	R(A)[R(B)] := R(C)				*/
 
-OP_RAVI_TOINT, /* A R(A) := toint(R(A)) */
-OP_RAVI_TOFLT, /* A R(A) := tofloat(R(A)) */
-
-OP_RAVI_MOVEI, /*	A B	R(A) := R(B)					*/
-OP_RAVI_MOVEF, /*	A B	R(A) := R(B)					*/
-
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_RAVI_MOVEF) + 1)
+#define NUM_OPCODES	(cast(int, OP_RAVI_ARRAYSET_ILRR) + 1)
 
 /*===========================================================================
   Notes:

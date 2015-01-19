@@ -4,6 +4,11 @@
 ** See Copyright Notice in lua.h
 */
 
+#ifdef _WIN32
+// FIXME a hack 
+#define LUA_BUILD_AS_DLL
+#endif
+
 #define lua_c
 
 #include "lprefix.h"
@@ -599,6 +604,9 @@ int main (int argc, char **argv) {
     l_message(argv[0], "cannot create state: not enough memory");
     return EXIT_FAILURE;
   }
+  if (getenv("RAVI_DEBUG_EXPR"))
+    ravi_parser_debug = 1;
+
   lua_pushcfunction(L, &pmain);  /* to call 'pmain' in protected mode */
   lua_pushinteger(L, argc);  /* 1st argument */
   lua_pushlightuserdata(L, argv); /* 2nd argument */

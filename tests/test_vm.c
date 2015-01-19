@@ -550,6 +550,7 @@ static int test_luacompexec1(const char *code, int expected)
 int main(const char *argv[]) 
 {
     int failures = 0;
+    failures += test_luacomp1("local i,j; j = i*j+i");
     failures += test_luacomp1("local i:int; for i=1,10 do; print(i); end; print(i)");
     failures += test_luacomp1("local i:int, j:double; i,j = f(); j = i*j+i");
     failures += test_luacomp1("local d; d = f()");

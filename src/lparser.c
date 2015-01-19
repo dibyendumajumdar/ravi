@@ -29,10 +29,7 @@
 #include "ltable.h"
 
 int ravi_parser_debug = 0;
-#define DEBUG0(s) if (ravi_parser_debug) printf(s); else {}
-#define DEBUG1(s,p1) if (ravi_parser_debug) printf(s,p1); else {}
-#define DEBUG2(s,p1,p2) if (ravi_parser_debug) printf(s,p1,p2); else {}
-#define DEBUG(p) if (ravi_parser_debug) {p;} else;
+#define DEBUG_EXPR(p) if ((ravi_parser_debug & 1) != 0) {p;} else {}
 
 
 /* maximum number of local variables per function (must be smaller
@@ -79,64 +76,64 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
   char buf[80] = {0};
   switch (e->k) {
   case VVOID:
-    fprintf(fp, "e{p=%p, k=VVOID, tt=%s}", e, get_typename(e->ravi_type));
+    fprintf(fp, "{p=%p, k=VVOID, type=%s}", e, get_typename(e->ravi_type));
     break;
   case VNIL:
-    fprintf(fp, "e{p=%p, k=VNIL, tt=%s}", e, get_typename(e->ravi_type));
+    fprintf(fp, "{p=%p, k=VNIL, type=%s}", e, get_typename(e->ravi_type));
     break;
   case VTRUE:
-    fprintf(fp, "e{p=%p, k=VTRUE, tt=%s}", e, get_typename(e->ravi_type));
+    fprintf(fp, "{p=%p, k=VTRUE, type=%s}", e, get_typename(e->ravi_type));
     break;
   case VFALSE:
-    fprintf(fp, "e{p=%p, k=VFALSE, tt=%s}", e, get_typename(e->ravi_type));
+    fprintf(fp, "{p=%p, k=VFALSE, type=%s}", e, get_typename(e->ravi_type));
     break;
   case VK:
-    fprintf(fp, "e{p=%p, k=VK, Kst=%d, tt=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VK, Kst=%d, type=%s}", e, e->u.info,
             get_typename(e->ravi_type));
     break;
   case VKFLT:
-    fprintf(fp, "e{p=%p, k=VKFLT, n=%f, tt=%s}", e, e->u.nval,
+    fprintf(fp, "{p=%p, k=VKFLT, n=%f, type=%s}", e, e->u.nval,
             get_typename(e->ravi_type));
     break;
   case VKINT:
-    fprintf(fp, "e{p=%p, k=VKINT, n=%ld, tt=%s}", e, e->u.ival,
+    fprintf(fp, "{p=%p, k=VKINT, n=%ld, type=%s}", e, e->u.ival,
             get_typename(e->ravi_type));
     break;
   case VNONRELOC:
-    fprintf(fp, "e{p=%p, k=VNONRELOC, register=%d %s, tt=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VNONRELOC, register=%d %s, type=%s}", e, e->u.info,
             get_typename(getlocvartype(fs, e->u.info)),
             get_typename(e->ravi_type));
     break;
   case VLOCAL:
-    fprintf(fp, "e{p=%p, k=LOCAL, register=%d, tt=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VLOCAL, register=%d, type=%s}", e, e->u.info,
             get_typename(e->ravi_type));
     break;
   case VUPVAL:
-    fprintf(fp, "e{p=%p, k=VUPVAL, idx=%d, tt=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VUPVAL, idx=%d, type=%s}", e, e->u.info,
             get_typename(e->ravi_type));
     break;
   case VINDEXED:
-    fprintf(fp, "e{p=%p, k=VINDEXED, t=%d, idx=%d, tt=%s}", e, e->u.ind.t,
-            e->u.ind.idx, get_typename(e->ravi_type));
+    fprintf(fp, "{p=%p, k=VINDEXED, tablereg=%d, indexreg=%d, vtype=%s, type=%s}", e, e->u.ind.t,
+            e->u.ind.idx, (e->u.ind.vt == VLOCAL) ? "VLOCAL": "VUPVAL", get_typename(e->ravi_type));
     break;
   case VJMP:
-    fprintf(fp, "e{p=%p, k=VJMP, pc=%d, i=(%s), tt=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VJMP, pc=%d, instruction=(%s), type=%s}", e, e->u.info,
             print_instruction(buf, sizeof buf, getcode(fs, e)),
             get_typename(e->ravi_type));
     break;
   case VRELOCABLE:
-    fprintf(fp, "e{p=%p, k=VRELOCABLE, pc=%d, i=(%s), tt=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VRELOCABLE, pc=%d, instruction=(%s), type=%s}", e, e->u.info,
             print_instruction(buf, sizeof buf, getcode(fs, e)),
             get_typename(e->ravi_type));
     break;
   case VCALL:
-    fprintf(fp, "e{p=%p, k=VCALL, pc=%d, i=(%s %s), tt=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VCALL, pc=%d, instruction=(%s %s), type=%s}", e, e->u.info,
             print_instruction(buf, sizeof buf, getcode(fs, e)),
             get_typename(getlocvartype(fs, GETARG_A(getcode(fs, e)))),
             get_typename(e->ravi_type));
     break;
   case VVARARG:
-    fprintf(fp, "e{p=%p, k=VVARARG, pc=%d, i=(%s), tt=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VVARARG, pc=%d, instruction=(%s), type=%s}", e, e->u.info,
             print_instruction(buf, sizeof buf, getcode(fs, e)),
             get_typename(e->ravi_type));
     break;
@@ -160,6 +157,7 @@ void ravi_printf(FuncState *fs, const char *format, ...)
       Instruction i;
       i = va_arg(ap, Instruction);
       print_instruction(buf, sizeof buf, i);
+      fputs(buf, stdout);
       cp++;
     }
     else if (cp[0] == '%' && cp[1] == 'd') {
@@ -357,13 +355,17 @@ static LocVar *getlocvar (FuncState *fs, int i) {
 
 /* get type of a local var */
 int getlocvartype(FuncState *fs, int i) {
-  lua_assert(i < dyd->actvar.n);
+  lua_assert(i < fs->ls->dyd->actvar.n);
+  if (i < 0 || i >= fs->ls->dyd->actvar.n)
+    return LUA_TNONE;
   return fs->ls->dyd->actvar.arr[fs->firstlocal + i].ravi_type;
 }
 
 /* set type of a local var */
 static void setlocvartype(FuncState *fs, int i, int tt) {
-  lua_assert(i < dyd->actvar.n);
+  lua_assert(i < fs->ls->dyd->actvar.n);
+  if (i < 0 || i >= fs->ls->dyd->actvar.n)
+    return;
   fs->ls->dyd->actvar.arr[fs->firstlocal + i].ravi_type = tt;
 }
 
@@ -1361,7 +1363,10 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
     subexpr(ls, v, UNARY_PRIORITY);
     luaK_prefix(ls->fs, uop, v, line);
   }
-  else simpleexp(ls, v);
+  else {
+    simpleexp(ls, v);
+    DEBUG_EXPR(ravi_printf(ls->fs, "subexpr -> simpleexpr %e\n", v));
+  }
   /* expand while operators have priorities higher than 'limit' */
   op = getbinopr(ls->t.token);
   while (op != OPR_NOBINOPR && priority[op].left > limit) {
@@ -1373,7 +1378,9 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
     luaK_infix(ls->fs, op, v);
     /* read sub-expression with higher priority */
     nextop = subexpr(ls, &v2, priority[op].right);
+    DEBUG_EXPR(ravi_printf(ls->fs, "subexpr-> %e binop(%d) %e\n", v, (int)op, &v2));
     luaK_posfix(ls->fs, op, v, &v2, line);
+    DEBUG_EXPR(ravi_printf(ls->fs, "subexpr-> after posfix %e\n", v));
     op = nextop;
   }
   leavelevel(ls);
@@ -1462,6 +1469,7 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
     nv.v.ravi_type = LUA_TNONE;
     nv.prev = lh;
     suffixedexp(ls, &nv.v);
+    DEBUG_EXPR(ravi_printf(ls->fs, "assignment -> suffixedexp %e\n", &nv.v));
     if (nv.v.k != VINDEXED)
       check_conflict(ls, lh, &nv.v);
     checklimit(ls->fs, nvars + ls->L->nCcalls, LUAI_MAXCCALLS,
@@ -1472,6 +1480,7 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
     int nexps;
     checknext(ls, '=');
     nexps = explist(ls, &e);
+    DEBUG_EXPR(ravi_printf(ls->fs, "assignment -> = explist %e\n", &e));
     if (nexps != nvars) {
       adjust_assign(ls, nvars, nexps, &e);
       if (nexps > nvars)
@@ -1480,11 +1489,13 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
     else {
       luaK_setoneret(ls->fs, &e);  /* close last expression */
       luaK_storevar(ls->fs, &lh->v, &e);
+      DEBUG_EXPR(ravi_printf(ls->fs, "assignment -> lhs = %e, rhs = %e\n", &lh->v, &e));
       return;  /* avoid default */
     }
   }
   init_exp(&e, VNONRELOC, ls->fs->freereg-1, LUA_TNONE);  /* default assignment */
   luaK_storevar(ls->fs, &lh->v, &e);
+  DEBUG_EXPR(ravi_printf(ls->fs, "assignment lhs = %e, rhs = %e\n", &lh->v, &e));
 }
 
 /* parse condition in a repeat statement or an if control structure

@@ -349,6 +349,12 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LEIIRK	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
  ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_LEIIRR	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
 
+ , opmode(0, 1, OpArgU, OpArgU, iABC) /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
+ , opmode(0, 1, OpArgU, OpArgU, iABC) /* OP_RAVI_TOFLT  A R(A) := tonumber(R(A)) */
+
+ , opmode(0, 1, OpArgR, OpArgN, iABC)		/* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))					*/
+ , opmode(0, 1, OpArgR, OpArgN, iABC)		/* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B))					*/
+
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ARRAYGET_SIK	A B C	R(A) := R(B)[Kst(C)]				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ARRAYGET_SIR	A B C	R(A) := R(B)[R(C)]				*/
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ARRAYGET_IIK	A B C	R(A) := R(B)[Kst(C)]				*/
@@ -374,12 +380,6 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 0, OpArgK, OpArgR, iABC) /*RAVI_ARRAYSET_ILKR	A B C	R(A)[Kst(B)] := R(C)				*/
  ,opmode(0, 0, OpArgR, OpArgK, iABC) /*RAVI_ARRAYSET_ILRK	A B C	R(A)[R(B)] := Kst(C)				*/
  ,opmode(0, 0, OpArgR, OpArgR, iABC) /*RAVI_ARRAYSET_ILRR	A B C	R(A)[R(B)] := R(C)				*/
-
- ,opmode(0, 1, OpArgU, OpArgU, iABC) /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
- ,opmode(0, 1, OpArgU, OpArgU, iABC) /* OP_RAVI_TOFLT  A R(A) := tonumber(R(A)) */
-
- ,opmode(0, 1, OpArgR, OpArgN, iABC)		/* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))					*/
- ,opmode(0, 1, OpArgR, OpArgN, iABC)		/* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B))					*/
 
 };
 
@@ -530,6 +530,12 @@ LUAI_DDEF const lu_byte luaP_optypes[NUM_OPCODES] = {
   , LUA_TNONE /*RAVI_LEIIRK	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
   , LUA_TNONE /*RAVI_LEIIRR	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
 
+  , LUA_TNUMINT /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
+  , LUA_TNUMFLT /* OP_RAVI_TOFLT  A R(A) := tofloat(R(A)) */
+
+  , LUA_TNUMINT		/* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))					*/
+  , LUA_TNUMFLT		/* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B))					*/
+
   , LUA_TSTRING /*RAVI_ARRAYGET_SIK	A B C	R(A) := R(B)[Kst(C)]				*/
   , LUA_TSTRING /*RAVI_ARRAYGET_SIR	A B C	R(A) := R(B)[R(C)]				*/
   , LUA_TNUMINT /*RAVI_ARRAYGET_IIK	A B C	R(A) := R(B)[Kst(C)]				*/
@@ -555,12 +561,6 @@ LUAI_DDEF const lu_byte luaP_optypes[NUM_OPCODES] = {
   , LUA_TNONE /*RAVI_ARRAYSET_ILKR	A B C	R(A)[Kst(B)] := R(C)				*/
   , LUA_TNONE /*RAVI_ARRAYSET_ILRK	A B C	R(A)[R(B)] := Kst(C)				*/
   , LUA_TNONE /*RAVI_ARRAYSET_ILRR	A B C	R(A)[R(B)] := R(C)				*/
-
-  , LUA_TNUMINT /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
-  , LUA_TNUMFLT /* OP_RAVI_TOFLT  A R(A) := tofloat(R(A)) */
-
-  , LUA_TNUMINT		/* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))					*/
-  , LUA_TNUMFLT		/* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B))					*/
 
 };
 

@@ -4,6 +4,11 @@
 ** See Copyright Notice in lua.h
 */
 
+#ifdef _WIN32
+// FIXME a hack 
+#define LUA_BUILD_AS_DLL
+#endif
+
 #define luac_c
 #define LUA_CORE
 
@@ -285,6 +290,27 @@ static void PrintConstant(const Proto* f, int i)
 #define UPVALNAME(x) ((f->upvalues[x].name) ? getstr(f->upvalues[x].name) : "-")
 #define MYK(x)		(-1-(x))
 
+static void PrintRaviCode(const Proto* f, Instruction i, int pc)
+{
+  OpCode o = GET_OPCODE(i);
+  int a = GETARG_A(i);
+  int b = GETARG_B(i);
+  int c = GETARG_C(i);
+  int line = getfuncline(f, pc);
+  printf("\t%d\t", pc + 1);
+  if (line>0) printf("[%d]\t", line); else printf("[-]\t");
+  printf("%-9s\t", luaP_opnames[o]);
+  switch (getOpMode(o))
+  {
+  case iABC:
+    printf("%d", a);
+    if (getBMode(o) != OpArgN) printf(" %d", getBMode(o) == OpArgK ? (MYK(INDEXK(b))) : b);
+    if (getCMode(o) != OpArgN) printf(" %d", getCMode(o) == OpArgK ? (MYK(INDEXK(c))) : c);
+    break;
+  }
+  printf("\n");
+}
+
 static void PrintCode(const Proto* f)
 {
  const Instruction* code=f->code;
@@ -293,7 +319,11 @@ static void PrintCode(const Proto* f)
  {
   Instruction i=code[pc];
   OpCode o=GET_OPCODE(i);
-  int a=GETARG_A(i);
+  if (o >= OP_RAVI_UNMF) {
+    PrintRaviCode(f, i, pc);
+    continue;
+  }
+  int a = GETARG_A(i);
   int b=GETARG_B(i);
   int c=GETARG_C(i);
   int ax=GETARG_Ax(i);

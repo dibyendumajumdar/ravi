@@ -74,6 +74,9 @@ target_link_libraries(ravi ${EXTRA_LIBRARIES})
 add_executable(lua src/lua.c)
 target_link_libraries(lua ravi)
     
+add_executable(luac src/luac.c)
+target_link_libraries(luac ravi)
+
 #VM test
 add_executable(test_vm tests/test_vm.c)
 target_link_libraries(test_vm ravi) 

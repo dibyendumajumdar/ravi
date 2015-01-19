@@ -125,8 +125,6 @@ LUAI_FUNC LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
                                  Dyndata *dyd, const char *name, int firstchar);
 
 
-LUAI_FUNC int ravi_parser_debug;
-
 LUAI_FUNC void ravi_printf(FuncState *fs, const char *format, ...);
 LUAI_FUNC int getlocvartype(FuncState *fs, int reg);
 
