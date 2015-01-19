@@ -112,5 +112,6 @@ Documentation
 -------------
 As I progress I will add documentation in the Wiki.
 
-
+* [Lua Internals](https://github.com/dibyendumajumdar/ravi/wiki/Lua-Internals)
+* [Change Log](https://github.com/dibyendumajumdar/ravi/wiki/Changes)
 
