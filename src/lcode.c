@@ -396,10 +396,12 @@ void luaK_setoneret (FuncState *fs, expdesc *e) {
   if (e->k == VCALL) {  /* expression is an open function call? */
     e->k = VNONRELOC;
     e->u.info = GETARG_A(getcode(fs, e));
+    DEBUG_EXPR(ravi_printf(fs, "luaK_setoneret (VCALL->VNONRELOC) %e\n", e));
   }
   else if (e->k == VVARARG) {
     SETARG_B(getcode(fs, e), 2);
     e->k = VRELOCABLE;  /* can relocate its simple result */
+    DEBUG_EXPR(ravi_printf(fs, "luaK_setoneret (VVARARG->VNONRELOC) %e\n", e));
   }
 }
 
@@ -408,13 +410,13 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
   switch (e->k) {
     case VLOCAL: {
       e->k = VNONRELOC;
-      DEBUG_EXPR(ravi_printf(fs, "luaK_dischargevars -> %e\n", e));
+      DEBUG_EXPR(ravi_printf(fs, "luaK_dischargevars (VLOCAL->VNONRELOC) %e\n", e));
       break;
     }
     case VUPVAL: {
       e->u.info = luaK_codeABC(fs, OP_GETUPVAL, 0, e->u.info, 0);
       e->k = VRELOCABLE;
-      DEBUG_EXPR(ravi_printf(fs, "luaK_dischargevars -> %e\n", e));
+      DEBUG_EXPR(ravi_printf(fs, "luaK_dischargevars (VUPVAL->VRELOCABLE) %e\n", e));
       break;
     }
     case VINDEXED: {
@@ -426,13 +428,12 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
       }
       e->u.info = luaK_codeABC(fs, op, 0, e->u.ind.t, e->u.ind.idx);
       e->k = VRELOCABLE;
-      DEBUG_EXPR(ravi_printf(fs, "luaK_dischargevars -> %e\n", e));
+      DEBUG_EXPR(ravi_printf(fs, "luaK_dischargevars (VINDEXED->VRELOCABLE) %e\n", e));
       break;
     }
     case VVARARG:
     case VCALL: {
       luaK_setoneret(fs, e);
-      DEBUG_EXPR(ravi_printf(fs, "luaK_dischargevars -> %e\n", e));
       break;
     }
     default: break;  /* there is one value available (somewhere) */
@@ -472,6 +473,7 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
     case VRELOCABLE: {
       Instruction *pc = &getcode(fs, e);
       SETARG_A(*pc, reg);
+      DEBUG_EXPR(ravi_printf(fs, "discharge2reg (VRELOCABLE set arg A) %e\n", e));
       break;
     }
     case VNONRELOC: {
