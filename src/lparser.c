@@ -29,7 +29,6 @@
 #include "ltable.h"
 
 int ravi_parser_debug = 0;
-#define DEBUG_EXPR(p) if ((ravi_parser_debug & 1) != 0) {p;} else {}
 
 
 /* maximum number of local variables per function (must be smaller

@@ -408,11 +408,13 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
   switch (e->k) {
     case VLOCAL: {
       e->k = VNONRELOC;
+      DEBUG_EXPR(ravi_printf(fs, "luaK_dischargevars -> %e\n", e));
       break;
     }
     case VUPVAL: {
       e->u.info = luaK_codeABC(fs, OP_GETUPVAL, 0, e->u.info, 0);
       e->k = VRELOCABLE;
+      DEBUG_EXPR(ravi_printf(fs, "luaK_dischargevars -> %e\n", e));
       break;
     }
     case VINDEXED: {
@@ -424,11 +426,13 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
       }
       e->u.info = luaK_codeABC(fs, op, 0, e->u.ind.t, e->u.ind.idx);
       e->k = VRELOCABLE;
+      DEBUG_EXPR(ravi_printf(fs, "luaK_dischargevars -> %e\n", e));
       break;
     }
     case VVARARG:
     case VCALL: {
       luaK_setoneret(fs, e);
+      DEBUG_EXPR(ravi_printf(fs, "luaK_dischargevars -> %e\n", e));
       break;
     }
     default: break;  /* there is one value available (somewhere) */

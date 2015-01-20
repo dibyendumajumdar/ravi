@@ -128,4 +128,6 @@ LUAI_FUNC LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
 LUAI_FUNC void ravi_printf(FuncState *fs, const char *format, ...);
 LUAI_FUNC int getlocvartype(FuncState *fs, int reg);
 
+#define DEBUG_EXPR(p) if ((ravi_parser_debug & 1) != 0) {p;} else {}
+
 #endif
