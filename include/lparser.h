@@ -129,5 +129,6 @@ LUAI_FUNC void ravi_printf(FuncState *fs, const char *format, ...);
 LUAI_FUNC int getlocvartype(FuncState *fs, int reg);
 
 #define DEBUG_EXPR(p) if ((ravi_parser_debug & 1) != 0) {p;} else {}
+#define DEBUG_CODEGEN(p) if ((ravi_parser_debug & 2) != 0) {p;} else {}
 
 #endif

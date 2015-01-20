@@ -65,7 +65,9 @@ void luaK_nil (FuncState *fs, int from, int n) {
         if (pfrom < from) from = pfrom;  /* from = min(from, pfrom) */
         if (pl > l) l = pl;  /* l = max(l, pl) */
         SETARG_A(*previous, from);
+        DEBUG_CODEGEN(ravi_printf(fs, "[%d]* %o ; set A to %d\n", fs->pc - 1, *previous, from));
         SETARG_B(*previous, l - from);
+        DEBUG_CODEGEN(ravi_printf(fs, "[%d]* %o ; set B to %d\n", fs->pc - 1, *previous, (l - from)));
         return;
       }
     }  /* else go through */
@@ -102,6 +104,7 @@ static void fixjump (FuncState *fs, int pc, int dest) {
   if (abs(offset) > MAXARG_sBx)
     luaX_syntaxerror(fs->ls, "control structure too long");
   SETARG_sBx(*jmp, offset);
+  DEBUG_CODEGEN(ravi_printf(fs, "[%d]* %o ; set sBx to %d\n", pc, *jmp, offset));
 }
 
 
@@ -150,10 +153,14 @@ static int patchtestreg (FuncState *fs, int node, int reg) {
   Instruction *i = getjumpcontrol(fs, node);
   if (GET_OPCODE(*i) != OP_TESTSET)
     return 0;  /* cannot patch other instructions */
-  if (reg != NO_REG && reg != GETARG_B(*i))
+  if (reg != NO_REG && reg != GETARG_B(*i)) {
     SETARG_A(*i, reg);
-  else  /* no register to put value or register already has the value */
+    DEBUG_CODEGEN(ravi_printf(fs, "[?]* %o ; set A to %d\n", *i, reg));
+  }
+  else  /* no register to put value or register already has the value */ {
     *i = CREATE_ABC(OP_TEST, GETARG_B(*i), 0, GETARG_C(*i));
+    DEBUG_CODEGEN(ravi_printf(fs, "[?]* %o ; generate OP_TEST\n", *i));
+  }
 
   return 1;
 }
@@ -202,6 +209,7 @@ void luaK_patchclose (FuncState *fs, int list, int level) {
                 (GETARG_A(fs->f->code[list]) == 0 ||
                  GETARG_A(fs->f->code[list]) >= level));
     SETARG_A(fs->f->code[list], level);
+    DEBUG_CODEGEN(ravi_printf(fs, "[?]* %o ; set A to %d\n", fs->f->code[list], level));
     list = next;
   }
 }
@@ -234,6 +242,7 @@ static int luaK_code (FuncState *fs, Instruction i) {
   luaM_growvector(fs->ls->L, f->code, fs->pc, f->sizecode, Instruction,
                   MAX_INT, "opcodes");
   f->code[fs->pc] = i;
+  DEBUG_CODEGEN(ravi_printf(fs, "[%d] %o\n", fs->pc, i));
   /* save corresponding line information */
   luaM_growvector(fs->ls->L, f->lineinfo, fs->pc, f->sizelineinfo, int,
                   MAX_INT, "opcodes");
@@ -383,10 +392,13 @@ static int nilK (FuncState *fs) {
 void luaK_setreturns (FuncState *fs, expdesc *e, int nresults) {
   if (e->k == VCALL) {  /* expression is an open function call? */
     SETARG_C(getcode(fs, e), nresults+1);
+    DEBUG_CODEGEN(ravi_printf(fs, "[%d]* %o ; set C to %d\n", e->u.info, getcode(fs,e), nresults+1));
   }
   else if (e->k == VVARARG) {
     SETARG_B(getcode(fs, e), nresults+1);
+    DEBUG_CODEGEN(ravi_printf(fs, "[%d]* %o ; set B to %d\n", e->u.info, getcode(fs,e), nresults + 1));
     SETARG_A(getcode(fs, e), fs->freereg);
+    DEBUG_CODEGEN(ravi_printf(fs, "[%d]* %o ; set A to %d\n", e->u.info, getcode(fs,e), fs->freereg));
     luaK_reserveregs(fs, 1);
   }
 }
@@ -400,6 +412,7 @@ void luaK_setoneret (FuncState *fs, expdesc *e) {
   }
   else if (e->k == VVARARG) {
     SETARG_B(getcode(fs, e), 2);
+    DEBUG_CODEGEN(ravi_printf(fs, "[%d]* %o ; set B to 2\n", e->u.info, getcode(fs,e)));
     e->k = VRELOCABLE;  /* can relocate its simple result */
     DEBUG_EXPR(ravi_printf(fs, "luaK_setoneret (VVARARG->VNONRELOC) %e\n", e));
   }
@@ -474,6 +487,8 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
       Instruction *pc = &getcode(fs, e);
       SETARG_A(*pc, reg);
       DEBUG_EXPR(ravi_printf(fs, "discharge2reg (VRELOCABLE set arg A) %e\n", e));
+      DEBUG_CODEGEN(ravi_printf(fs, "[%d]* %o ; set A to %d\n", e->u.info, *pc, reg));
+
       break;
     }
     case VNONRELOC: {
@@ -685,6 +700,7 @@ static void invertjump (FuncState *fs, expdesc *e) {
   lua_assert(testTMode(GET_OPCODE(*pc)) && GET_OPCODE(*pc) != OP_TESTSET &&
                                            GET_OPCODE(*pc) != OP_TEST);
   SETARG_A(*pc, !(GETARG_A(*pc)));
+  DEBUG_CODEGEN(ravi_printf(fs, "[%d]* %o ; set A to %d\n", e->u.info, *pc, GETARG_A(*pc)));
 }
 
 
@@ -1212,6 +1228,7 @@ void luaK_posfix (FuncState *fs, BinOpr op,
         lua_assert(e1->u.info == GETARG_B(getcode(fs, e2))-1);
         freeexp(fs, e1);
         SETARG_B(getcode(fs, e2), e1->u.info);
+        DEBUG_CODEGEN(ravi_printf(fs, "[%d]* %o ; set A to %d\n", e2->u.info, getcode(fs,e2), e1->u.info));
         e1->k = VRELOCABLE; e1->u.info = e2->u.info;
         e1->ravi_type = LUA_TNONE; /* RAVI TODO check */
       }
