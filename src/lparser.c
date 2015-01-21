@@ -354,6 +354,8 @@ static LocVar *getlocvar (FuncState *fs, int i) {
 
 /* get type of a local var */
 int getlocvartype(FuncState *fs, int i) {
+  if (fs != fs->ls->fs) /* not current function? */
+    return LUA_TNONE;
   lua_assert(i < fs->ls->dyd->actvar.n);
   if (i < 0 || i >= fs->ls->dyd->actvar.n)
     return LUA_TNONE;

@@ -163,6 +163,12 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "LEIIRK",/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
   "LEIIRR",/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
 
+  "TOINT", /* A R(A) := toint(R(A)) */
+  "TOFLT", /* A R(A) := tofloat(R(A)) */
+
+  "MOVEI", /*	A B	R(A) := R(B)					*/
+  "MOVEF", /*	A B	R(A) := R(B)					*/
+
   "ARRAYGET_SIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
   "ARRAYGET_SIR",/*	A B C	R(A) := R(B)[R(C)]				*/
   "ARRAYGET_IIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
@@ -188,12 +194,6 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "ARRAYSET_ILKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
   "ARRAYSET_ILRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
   "ARRAYSET_ILRR",/*	A B C	R(A)[R(B)] := R(C)				*/
-
-  "TOINT", /* A R(A) := toint(R(A)) */
-  "TOFLT", /* A R(A) := tofloat(R(A)) */
-
-  "MOVEI", /*	A B	R(A) := R(B)					*/
-  "MOVEF", /*	A B	R(A) := R(B)					*/
 
   NULL
 };
