@@ -494,7 +494,7 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
     case VNONRELOC: {
       if (reg != e->u.info) {
         /* code a MOVEI or MOVEF if the target register is a local typed variable */
-        int ravi_type = fs == getlocvartype(fs, reg);
+        int ravi_type = getlocvartype(fs, reg);
         switch (ravi_type) {
         case LUA_TNUMINT:
           luaK_codeABC(fs, OP_RAVI_MOVEI, reg, e->u.info, 0);
