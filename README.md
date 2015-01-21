@@ -32,7 +32,7 @@ I hope to enhance the language to enable static typing of following:
 * double
 * string
 * table 
-* array (see below)
+* array (this will be an optimisation of the array usage of a table)
 * bool 
 * functions and closures
 
@@ -73,8 +73,6 @@ local func_table : array<function> = {
   end
 }
 ```
-Above the array of functions allows various function types.
-
 When a typed function is called the inputs and return value can be validated. Consider the function below:
 
 ```
@@ -85,6 +83,10 @@ end
 When this function is called the compiler can validate that `b` is an int and `c` is a string. `a` on the other hand is dynamic so will behave as regular Lua value. The compiler can also ensure that the types of `b` and `c` are respected within the function. 
 
 Return statements in typed functions can also be validated.
+
+Mixture of compile time and runtime checks
+------------------------------------------
+To keep with Lua's dynamic nature I plan a mix of static type checking and runtime type checks. Runtime type checks may be used for example when a function is called or values from a function call are saved into variables. Also on entry into functions the parameters may be subject to runtime checks. 
 
 Implementation Strategy
 -----------------------
@@ -107,6 +109,29 @@ For now however I am just amending the bit mapping in the 32-bit instruction to 
 New OpCodes
 -----------
 The new instructions are specialised for types, and also for register/versus constant. So for example `OP_RAVI_ADDFIKK` means add `float` and `int` where both values are constants. And `OP_RAVI_ADDFFRR` means add `float` and `float` - both obtained from registers. The existing Lua opcodes that these are based on define which operands are used.
+
+Example:
+--------
+```
+> local i=0; i=i+1
+```
+Above standard Lua code compiles to:
+```
+[0] LOADK A=0 Bx=-1
+[1] ADD A=0 B=0 C=-2
+[2] RETURN A=0 B=1
+```
+We add type info using Ravi extensions:
+```
+> local i:int=0; i=i+1
+```
+Now the code compiles to:
+```
+[0] LOADK A=0 Bx=-1
+[1] ADDIIRK A=0 B=0 C=-2
+[2] RETURN A=0 B=1
+```
+Above uses type specialised opcode `OP_RAVI_ADDIIRK`. 
 
 Documentation
 -------------
