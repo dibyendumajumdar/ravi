@@ -382,6 +382,7 @@ int getlocvartype(FuncState *fs, int reg) {
     return LUA_TNONE;
   /* Get the LocVar associated with the register */
   idx = fs->ls->dyd->actvar.arr[fs->firstlocal + reg].idx;
+  lua_assert(idx < fs->nlocvars);
   v = &fs->f->locvars[idx];
   /* If there is no startpc set that means the variable is not
    * yet in scope
