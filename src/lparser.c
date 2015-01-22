@@ -338,14 +338,15 @@ static int registerlocalvar (LexState *ls, TString *varname, int ravi_type) {
 static void new_localvar (LexState *ls, TString *name, int tt) {
   FuncState *fs = ls->fs;
   Dyndata *dyd = ls->dyd;
-  int reg = registerlocalvar(ls, name, tt);
+  int i = registerlocalvar(ls, name, tt);
   checklimit(fs, dyd->actvar.n + 1 - fs->firstlocal,
                   MAXVARS, "local variables");
   luaM_growvector(ls->L, dyd->actvar.arr, dyd->actvar.n + 1,
                   dyd->actvar.size, Vardesc, MAX_INT, "local variables");
-  dyd->actvar.arr[dyd->actvar.n++].idx = cast(short, reg);
+  dyd->actvar.arr[dyd->actvar.n].idx = cast(short, i);
   /* RAVI change - record type info for local variable */
-  getlocvar(fs, reg)->ravi_type = tt;
+  getlocvar(fs, dyd->actvar.n - fs->firstlocal)->ravi_type = tt;
+  dyd->actvar.n++;
 }
 
 /* create a new local variable from a C string - registering a Lua String
