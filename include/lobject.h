@@ -389,6 +389,7 @@ typedef struct LocVar {
   TString *varname;
   int startpc;  /* first point where variable is active */
   int endpc;    /* first point where variable is dead */
+  int ravi_type; /* RAVI type of the variable - LUA_TNONE if unknown */
 } LocVar;
 
 

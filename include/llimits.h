@@ -10,7 +10,7 @@
 
 #include <limits.h>
 #include <stddef.h>
-
+#include <assert.h>
 
 #include "lua.h"
 
@@ -72,7 +72,6 @@ typedef union { double u; void *s; lua_Integer i; long l; } L_Umaxalign;
 /* types of 'usual argument conversions' for lua_Number and lua_Integer */
 typedef LUAI_UACNUMBER l_uacNumber;
 typedef LUAI_UACINT l_uacInt;
-
 
 /* internal assertions for in-house debugging */
 #if defined(lua_assert)

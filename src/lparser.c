@@ -156,7 +156,7 @@ void ravi_printf(FuncState *fs, const char *format, ...)
       LocVar *v;
       v = va_arg(ap, LocVar*);
       const char *s = getstr(v->varname);
-      printf("var={%s startpc=%d endpc=%d}", s, v->startpc, v->endpc);
+      printf("var={%s startpc=%d endpc=%d, type=%s}", s, v->startpc, v->endpc, get_typename(v->ravi_type));
       cp++;
     }
     else if (cp[0] == '%' && cp[1] == 'o') {
@@ -204,7 +204,7 @@ void ravi_printf(FuncState *fs, const char *format, ...)
 */
 static void statement (LexState *ls);
 static void expr (LexState *ls, expdesc *v);
-
+static LocVar *getlocvar(FuncState *fs, int i);
 
 /* semantic error */
 static l_noret semerror (LexState *ls, const char *msg) {
@@ -313,7 +313,7 @@ static void checkname (LexState *ls, expdesc *e) {
 /* create a local variable in function scope, return the
  * register where the variable will be stored
  */
-static int registerlocalvar (LexState *ls, TString *varname) {
+static int registerlocalvar (LexState *ls, TString *varname, int ravi_type) {
   FuncState *fs = ls->fs;
   Proto *f = fs->f;
   int oldsize = f->sizelocvars;
@@ -323,9 +323,11 @@ static int registerlocalvar (LexState *ls, TString *varname) {
     /* RAVI change initialize */
     f->locvars[oldsize].startpc = -1;
     f->locvars[oldsize].endpc = -1;
+    f->locvars[oldsize].ravi_type = LUA_TNONE;
     f->locvars[oldsize++].varname = NULL;
   }
   f->locvars[fs->nlocvars].varname = varname;
+  f->locvars[fs->nlocvars].ravi_type = ravi_type;
   luaC_objbarrier(ls->L, f, varname);
   /* ravi_printf(fs, "registering %v at register %d\n", &f->locvars[fs->nlocvars], fs->nlocvars); */
   return fs->nlocvars++;
@@ -336,18 +338,15 @@ static int registerlocalvar (LexState *ls, TString *varname) {
 static void new_localvar (LexState *ls, TString *name, int tt) {
   FuncState *fs = ls->fs;
   Dyndata *dyd = ls->dyd;
-  int reg = registerlocalvar(ls, name);
+  int reg = registerlocalvar(ls, name, tt);
   int oldsize = dyd->actvar.size;
-  int j;
   checklimit(fs, dyd->actvar.n + 1 - fs->firstlocal,
                   MAXVARS, "local variables");
   luaM_growvector(ls->L, dyd->actvar.arr, dyd->actvar.n + 1,
                   dyd->actvar.size, Vardesc, MAX_INT, "local variables");
-  for (j = oldsize; j < dyd->actvar.size; j++)
-    dyd->actvar.arr[j].ravi_type = LUA_TNONE;
   dyd->actvar.arr[dyd->actvar.n++].idx = cast(short, reg);
   /* RAVI change - record type info for local variable */
-  dyd->actvar.arr[dyd->actvar.n - 1].ravi_type = tt;
+  getlocvar(fs, reg)->ravi_type = tt;
 }
 
 /* create a new local variable from a C string - registering a Lua String
@@ -380,7 +379,6 @@ static LocVar *getlocvar (FuncState *fs, int i) {
 int getlocvartype(FuncState *fs, int reg) {
   int idx;
   LocVar *v;
-  lua_assert(reg < fs->ls->dyd->actvar.n);
   if (reg < 0 || (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n)
     return LUA_TNONE;
   /* Get the LocVar associated with the register */
@@ -401,15 +399,14 @@ int getlocvartype(FuncState *fs, int reg) {
       return LUA_TNONE;
   }
   /* Variable in scope so return the type if we know it */
-  return fs->ls->dyd->actvar.arr[fs->firstlocal + reg].ravi_type;
+  return v->ravi_type;
 }
 
 /* set type of a local var (RAVI) */
 static void setlocvartype(FuncState *fs, int i, int tt) {
-  lua_assert(i < fs->ls->dyd->actvar.n);
   if (i < 0 || (fs->firstlocal + i) >= fs->ls->dyd->actvar.n)
     return;
-  fs->ls->dyd->actvar.arr[fs->firstlocal + i].ravi_type = tt;
+  getlocvar(fs, i)->ravi_type = tt;
 }
 
 /* set the starting code location (set to current instruction) 

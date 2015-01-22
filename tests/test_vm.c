@@ -560,11 +560,13 @@ int main(const char *argv[])
     failures += test_luacomp1("local i:int,j:double,k:int = f(), g()");
     failures += test_luacomp1("local f = function(); return; end; local d:double, j:int = f(); return d");
     failures += test_luacomp1("local d = f()");
+    /*
     failures += test_return0();
     failures += test_return1();
     failures += test_unmf();
     failures += test_binintop(OP_RAVI_ADDIIRR, 6, 7, 13);
     failures += test_binintop(OP_RAVI_MULIIRR, 6, 7, 42);
+    */
     failures += test_luacomp1("return (-1.25 or -4)+0");
     failures += test_luacomp1("f = nil; local f; function f(a); end");
     failures += test_luacomp1("local max, min = 0x7fffffff, -0x80000000; assert(string.format(\"%d\", min) == \"-2147483648\"); max, min = 0x7fffffffffffffff, -0x8000000000000000; if max > 2.0 ^ 53 then; end;");
