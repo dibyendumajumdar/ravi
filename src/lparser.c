@@ -311,7 +311,7 @@ static void checkname (LexState *ls, expdesc *e) {
 }
 
 /* create a local variable in function scope, return the
- * register where the variable will be stored
+ * variable's index in ls->f->locvars.
  */
 static int registerlocalvar (LexState *ls, TString *varname, int ravi_type) {
   FuncState *fs = ls->fs;
@@ -329,7 +329,6 @@ static int registerlocalvar (LexState *ls, TString *varname, int ravi_type) {
   f->locvars[fs->nlocvars].varname = varname;
   f->locvars[fs->nlocvars].ravi_type = ravi_type;
   luaC_objbarrier(ls->L, f, varname);
-  /* ravi_printf(fs, "registering %v at register %d\n", &f->locvars[fs->nlocvars], fs->nlocvars); */
   return fs->nlocvars++;
 }
 
@@ -338,14 +337,17 @@ static int registerlocalvar (LexState *ls, TString *varname, int ravi_type) {
 static void new_localvar (LexState *ls, TString *name, int tt) {
   FuncState *fs = ls->fs;
   Dyndata *dyd = ls->dyd;
+  /* register variable and get its index */
   int i = registerlocalvar(ls, name, tt);
   checklimit(fs, dyd->actvar.n + 1 - fs->firstlocal,
                   MAXVARS, "local variables");
   luaM_growvector(ls->L, dyd->actvar.arr, dyd->actvar.n + 1,
                   dyd->actvar.size, Vardesc, MAX_INT, "local variables");
+  /* variable will be placed at stack position dyd->actvar.n */
   dyd->actvar.arr[dyd->actvar.n].idx = cast(short, i);
   /* RAVI change - record type info for local variable */
-  getlocvar(fs, dyd->actvar.n - fs->firstlocal)->ravi_type = tt;
+  fs->f->locvars[i].ravi_type = tt;
+  DEBUG_EXPR(ravi_printf(fs, "Registering %v at local register %d at global stack pos ls->dyd->actvar.arr[%d]\n", &fs->f->locvars[i], i, dyd->actvar.n)); 
   dyd->actvar.n++;
 }
 
@@ -361,8 +363,13 @@ static void new_localvarliteral_ (LexState *ls, const char *name, size_t sz) {
 #define new_localvarliteral(ls,v) \
 	new_localvarliteral_(ls, "" v, (sizeof(v)/sizeof(char))-1)
 
-/* obtain the details of a local variable */
+/* obtain the details of a local variable given the local register
+ * where the variable is stored
+ */
 static LocVar *getlocvar (FuncState *fs, int i) {
+  /* convert from local stac position i to global and then retrieve the index
+   * of the variable in f->locvars
+   */
   int idx = fs->ls->dyd->actvar.arr[fs->firstlocal + i].idx;
   lua_assert(idx < fs->nlocvars);
   return &fs->f->locvars[idx];
