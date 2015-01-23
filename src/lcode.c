@@ -826,7 +826,9 @@ static int validop (int op, TValue *v1, TValue *v2) {
     }
     case LUA_OPDIV: case LUA_OPIDIV: case LUA_OPMOD:  /* division by 0 */
       return (nvalue(v2) != 0);
-    default: return 1;  /* everything else is valid */
+    default: {
+      return op >= LUA_OPADD ? 1 : 0;  /* everything else is valid - guard against RAVI operators */
+    }
   }
 }
 
@@ -855,6 +857,20 @@ static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
   return 1;
 }
 
+static int getarithop(OpCode op) {
+  if (op < OP_EXTRAARG)
+    return op - OP_ADD + LUA_OPADD;
+  if (op >= OP_RAVI_ADDFFKK && op <= OP_RAVI_ADDIIRR)
+    return LUA_OPADD;
+  else if (op >= OP_RAVI_SUBFFKK && op <= OP_RAVI_SUBIIRR)
+    return LUA_OPSUB;
+  else if (op >= OP_RAVI_MULFFKK && op <= OP_RAVI_MULIIRR)
+    return LUA_OPMUL;
+  else if (op >= OP_RAVI_DIVFFKK && op <= OP_RAVI_DIVIIRR)
+    return LUA_OPDIV;
+  return LUA_OPADD - 1;
+}
+
 
 /*
 ** Code for binary and unary expressions that "produce values"
@@ -866,7 +882,7 @@ static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
 static void codeexpval (FuncState *fs, OpCode op,
                         expdesc *e1, expdesc *e2, int line) {
   lua_assert(op >= OP_ADD);
-  if (op <= OP_BNOT && constfolding(fs, op - OP_ADD + LUA_OPADD, e1, e2))
+  if (op <= OP_BNOT && constfolding(fs, getarithop(op), e1, e2))
     return;  /* result has been folded */
   else {
     int o1, o2;
@@ -1104,16 +1120,16 @@ static void codeexpval (FuncState *fs, OpCode op,
     }
     else if (op == OP_DIV && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMINT) {
       if (ISK(o1) && ISK(o2)) {
-        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIIKK, 0, o1, o2);  /* generate opcode */
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFFKK, 0, o1, o2);  /* generate opcode */
       }
       else if (ISK(o1)) {
-        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIIKR, 0, o1, o2);  /* generate opcode */
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFFKR, 0, o1, o2);  /* generate opcode */
       }
       else if (ISK(o2)) {
-        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIIRK, 0, o1, o2);  /* generate opcode */
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFFRK, 0, o1, o2);  /* generate opcode */
       }
       else {
-        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIIRR, 0, o1, o2);  /* generate opcode */
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFFRR, 0, o1, o2);  /* generate opcode */
       }
     }
 
@@ -1131,8 +1147,10 @@ static void codeexpval (FuncState *fs, OpCode op,
         e1->ravi_type = LUA_TNUMFLT;
       else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMFLT)
         e1->ravi_type = LUA_TNUMFLT;
-      else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMINT)
+      else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL) && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMINT)
         e1->ravi_type = LUA_TNUMINT;
+      else if ((op == OP_DIV) && e1->ravi_type == LUA_TNUMINT && e2->ravi_type == LUA_TNUMINT)
+        e1->ravi_type = LUA_TNUMFLT;
       else
         e1->ravi_type = LUA_TNONE;
     }

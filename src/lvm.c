@@ -1440,22 +1440,22 @@ newframe:  /* reentry point when frame changes (call/return) */
         case OP(OP_RAVI_DIVFFKK): {
             TValue *rb = k + b;
             TValue *rc = k + c;
-            setfltvalue(ra, fltvalue(rb) / fltvalue(rc));
+            setfltvalue(ra, nvalue(rb) / nvalue(rc));
         } break;
         case OP(OP_RAVI_DIVFFKR): {
             TValue *rb = k + b;
             TValue *rc = base + c;
-            setfltvalue(ra, fltvalue(rb) / fltvalue(rc));
+            setfltvalue(ra, nvalue(rb) / nvalue(rc));
         } break;
         case OP(OP_RAVI_DIVFFRK): {
             TValue *rb = base + b;
             TValue *rc = k + c;
-            setfltvalue(ra, fltvalue(rb) / fltvalue(rc));
+            setfltvalue(ra, nvalue(rb) / nvalue(rc));
         } break;
         case OP(OP_RAVI_DIVFFRR): {
             TValue *rb = base + b;
             TValue *rc = base + c;
-            setfltvalue(ra, fltvalue(rb) / fltvalue(rc));
+            setfltvalue(ra, nvalue(rb) / nvalue(rc));
         } break;
         case OP(OP_RAVI_DIVFIKK): {
             TValue *rb = k + b;
