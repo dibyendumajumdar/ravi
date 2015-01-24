@@ -386,12 +386,9 @@ static int register_to_locvar_index(FuncState *fs, int reg) {
   return idx;
 }
 
-/* get type of a register. 
- * As Lua variables declarations can be
- * intermixed with executable statements it is necessary to
- * consider the span of the code where the variable is 
- * is available. Fortunately this is recorded per variable
- * in LocVar array - for debugging purposes.
+/* get type of a register - if the register is not allocated
+ * to an active local variable, then return LUA_TNONE else
+ * return the type associated with the variable.
  * This is a RAVI function
  */
 int raviY_get_register_typeinfo(FuncState *fs, int reg) {
@@ -403,32 +400,14 @@ int raviY_get_register_typeinfo(FuncState *fs, int reg) {
   idx = fs->ls->dyd->actvar.arr[fs->firstlocal + reg].idx;
   lua_assert(idx < fs->nlocvars);
   v = &fs->f->locvars[idx];
-  /* If there is no startpc set that means the variable is not
-   * yet in scope
-   */
-  if (v->startpc < 0) {
-    lua_assert(reg >= fs->nactvar);
-    lua_assert(0);
-    return LUA_TNONE;
-  }
-  /* Is current code location >= the location of the variable? */
-  if (fs->pc >= v->startpc) {
-    /* If no endpc then the variable is still in scope.
-     * Else if the current code location is <= endpc then the
-     * variable is still in scope
-     */
-    if (v->endpc >= 0 && fs->pc > v->endpc) {
-      lua_assert(reg >= fs->nactvar);
-      lua_assert(0);
-      return LUA_TNONE;
-    }
-  }
   /* Variable in scope so return the type if we know it */
   return v->ravi_type;
 }
 
-/* set the starting code location (set to current instruction) 
- * for nvars new local variables; variable scope starts here 
+/* moves the active variable watermark (nactvar) to cover the 
+ * local variables in the current declaration. Also
+ * sets the starting code location (set to current instruction) 
+ * for nvars new local variables 
  */
 static void adjustlocalvars (LexState *ls, int nvars) {
   FuncState *fs = ls->fs;
@@ -439,8 +418,8 @@ static void adjustlocalvars (LexState *ls, int nvars) {
   DEBUG_VARS(raviY_printf(fs, "adjustlocalvars -> set fs->nactvar to %d\n", fs->nactvar));
 }
 
-/* remove local variables from the stack and 
- * set the ending location - i.e. the instruction where the
+/* removes local variables from the stack and 
+ * also sets the ending location - i.e. the instruction where the
  * variable scope ends - for each variable
  */
 static void removevars (FuncState *fs, int tolevel) {
