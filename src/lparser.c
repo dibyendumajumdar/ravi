@@ -397,7 +397,7 @@ static int register_to_locvar_index(FuncState *fs, int reg) {
 int raviY_get_register_typeinfo(FuncState *fs, int reg) {
   int idx;
   LocVar *v;
-  if (reg < 0 || (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n)
+  if (reg < 0 || reg >= fs->nactvar || (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n)
     return LUA_TNONE;
   /* Get the LocVar associated with the register */
   idx = fs->ls->dyd->actvar.arr[fs->firstlocal + reg].idx;
@@ -408,6 +408,7 @@ int raviY_get_register_typeinfo(FuncState *fs, int reg) {
    */
   if (v->startpc < 0) {
     lua_assert(reg >= fs->nactvar);
+    lua_assert(0);
     return LUA_TNONE;
   }
   /* Is current code location >= the location of the variable? */
@@ -418,6 +419,7 @@ int raviY_get_register_typeinfo(FuncState *fs, int reg) {
      */
     if (v->endpc >= 0 && fs->pc > v->endpc) {
       lua_assert(reg >= fs->nactvar);
+      lua_assert(0);
       return LUA_TNONE;
     }
   }
