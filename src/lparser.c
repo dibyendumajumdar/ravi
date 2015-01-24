@@ -117,23 +117,23 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
     break;
   case VJMP:
     fprintf(fp, "{p=%p, k=VJMP, pc=%d, instruction=(%s), type=%s}", e, e->u.info,
-            print_instruction(buf, sizeof buf, getcode(fs, e)),
+            raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
             get_typename(e->ravi_type));
     break;
   case VRELOCABLE:
     fprintf(fp, "{p=%p, k=VRELOCABLE, pc=%d, instruction=(%s), type=%s}", e, e->u.info,
-            print_instruction(buf, sizeof buf, getcode(fs, e)),
+            raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
             get_typename(e->ravi_type));
     break;
   case VCALL:
     fprintf(fp, "{p=%p, k=VCALL, pc=%d, instruction=(%s %s), type=%s}", e, e->u.info,
-            print_instruction(buf, sizeof buf, getcode(fs, e)),
+            raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
             get_typename(raviY_get_register_typeinfo(fs, GETARG_A(getcode(fs, e)))),
             get_typename(e->ravi_type));
     break;
   case VVARARG:
     fprintf(fp, "{p=%p, k=VVARARG, pc=%d, instruction=(%s), type=%s}", e, e->u.info,
-            print_instruction(buf, sizeof buf, getcode(fs, e)),
+            raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
             get_typename(e->ravi_type));
     break;
   }
@@ -162,7 +162,7 @@ void raviY_printf(FuncState *fs, const char *format, ...)
     else if (cp[0] == '%' && cp[1] == 'o') {
       Instruction i;
       i = va_arg(ap, Instruction);
-      print_instruction(buf, sizeof buf, i);
+      raviP_instruction_to_str(buf, sizeof buf, i);
       fputs(buf, stdout);
       cp++;
     }

@@ -586,7 +586,7 @@ static const char* PrintRaviCode(char *buf, size_t n, Instruction i) {
   return buf;
 }
 
-const char* print_instruction(char *buf, size_t n, Instruction i) {
+const char* raviP_instruction_to_str(char *buf, size_t n, Instruction i) {
   OpCode o = GET_OPCODE(i);
   if (o >= OP_RAVI_UNMF) 
     return PrintRaviCode(buf, n, i);
