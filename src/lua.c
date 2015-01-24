@@ -608,6 +608,8 @@ int main (int argc, char **argv) {
     ravi_parser_debug |= 1;
   if (getenv("RAVI_DEBUG_CODEGEN"))
     ravi_parser_debug |= 2;
+  if (getenv("RAVI_DEBUG_VARS"))
+    ravi_parser_debug |= 4;
 
   lua_pushcfunction(L, &pmain);  /* to call 'pmain' in protected mode */
   lua_pushinteger(L, argc);  /* 1st argument */

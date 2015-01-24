@@ -100,7 +100,7 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
     break;
   case VNONRELOC:
     fprintf(fp, "{p=%p, k=VNONRELOC, register=%d %s, type=%s}", e, e->u.info,
-            get_typename(getlocvartype(fs, e->u.info)),
+            get_typename(raviY_get_register_typeinfo(fs, e->u.info)),
             get_typename(e->ravi_type));
     break;
   case VLOCAL:
@@ -128,7 +128,7 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
   case VCALL:
     fprintf(fp, "{p=%p, k=VCALL, pc=%d, instruction=(%s %s), type=%s}", e, e->u.info,
             print_instruction(buf, sizeof buf, getcode(fs, e)),
-            get_typename(getlocvartype(fs, GETARG_A(getcode(fs, e)))),
+            get_typename(raviY_get_register_typeinfo(fs, GETARG_A(getcode(fs, e)))),
             get_typename(e->ravi_type));
     break;
   case VVARARG:
@@ -139,7 +139,7 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
   }
 }
 
-void ravi_printf(FuncState *fs, const char *format, ...)
+void raviY_printf(FuncState *fs, const char *format, ...)
 {
   char buf[80] = { 0 };
   va_list ap;
@@ -338,6 +338,7 @@ static void new_localvar (LexState *ls, TString *name, int tt) {
   FuncState *fs = ls->fs;
   Dyndata *dyd = ls->dyd;
   /* register variable and get its index */
+  /* RAVI change - record type info for local variable */
   int i = registerlocalvar(ls, name, tt);
   checklimit(fs, dyd->actvar.n + 1 - fs->firstlocal,
                   MAXVARS, "local variables");
@@ -345,10 +346,9 @@ static void new_localvar (LexState *ls, TString *name, int tt) {
                   dyd->actvar.size, Vardesc, MAX_INT, "local variables");
   /* variable will be placed at stack position dyd->actvar.n */
   dyd->actvar.arr[dyd->actvar.n].idx = cast(short, i);
-  /* RAVI change - record type info for local variable */
-  fs->f->locvars[i].ravi_type = tt;
-  DEBUG_EXPR(ravi_printf(fs, "Registering %v at local register %d at global stack pos ls->dyd->actvar.arr[%d]\n", &fs->f->locvars[i], i, dyd->actvar.n)); 
+  DEBUG_VARS(raviY_printf(fs, "new_localvar -> registering %v fs->f->locvars[%d] at ls->dyd->actvar.arr[%d]\n", &fs->f->locvars[i], i, dyd->actvar.n));
   dyd->actvar.n++;
+  DEBUG_VARS(raviY_printf(fs, "new_localvar -> ls->dyd->actvar.n set to %d\n", dyd->actvar.n));
 }
 
 /* create a new local variable from a C string - registering a Lua String
@@ -375,6 +375,17 @@ static LocVar *getlocvar (FuncState *fs, int i) {
   return &fs->f->locvars[idx];
 }
 
+/* translate from local register to local variable index
+ */
+static int register_to_locvar_index(FuncState *fs, int reg) {
+  int idx;
+  lua_assert(reg >= 0 && (fs->firstlocal + reg) < fs->ls->dyd->actvar.n);
+  /* Get the LocVar associated with the register */
+  idx = fs->ls->dyd->actvar.arr[fs->firstlocal + reg].idx;
+  lua_assert(idx < fs->nlocvars);
+  return idx;
+}
+
 /* get type of a register. 
  * As Lua variables declarations can be
  * intermixed with executable statements it is necessary to
@@ -383,7 +394,7 @@ static LocVar *getlocvar (FuncState *fs, int i) {
  * in LocVar array - for debugging purposes.
  * This is a RAVI function
  */
-int getlocvartype(FuncState *fs, int reg) {
+int raviY_get_register_typeinfo(FuncState *fs, int reg) {
   int idx;
   LocVar *v;
   if (reg < 0 || (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n)
@@ -395,16 +406,20 @@ int getlocvartype(FuncState *fs, int reg) {
   /* If there is no startpc set that means the variable is not
    * yet in scope
    */
-  if (v->startpc < 0) 
+  if (v->startpc < 0) {
+    lua_assert(reg >= fs->nactvar);
     return LUA_TNONE;
+  }
   /* Is current code location >= the location of the variable? */
   if (fs->pc >= v->startpc) {
     /* If no endpc then the variable is still in scope.
      * Else if the current code location is <= endpc then the
      * variable is still in scope
      */
-    if (v->endpc >= 0 && fs->pc > v->endpc)
+    if (v->endpc >= 0 && fs->pc > v->endpc) {
+      lua_assert(reg >= fs->nactvar);
       return LUA_TNONE;
+    }
   }
   /* Variable in scope so return the type if we know it */
   return v->ravi_type;
@@ -419,15 +434,18 @@ static void adjustlocalvars (LexState *ls, int nvars) {
   for (; nvars; nvars--) {
     getlocvar(fs, fs->nactvar - nvars)->startpc = fs->pc;
   }
+  DEBUG_VARS(raviY_printf(fs, "adjustlocalvars -> set fs->nactvar to %d\n", fs->nactvar));
 }
 
-/* set the ending location - i.e. the instruction where the
- * variable scope ends
+/* remove local variables from the stack and 
+ * set the ending location - i.e. the instruction where the
+ * variable scope ends - for each variable
  */
 static void removevars (FuncState *fs, int tolevel) {
   fs->ls->dyd->actvar.n -= (fs->nactvar - tolevel);
   while (fs->nactvar > tolevel)
     getlocvar(fs, --fs->nactvar)->endpc = fs->pc;
+  DEBUG_VARS(raviY_printf(fs, "removevars -> reset fs->nactvar to %d\n", fs->nactvar));
 }
 
 /* search for an upvalue by name, return location if
@@ -493,7 +511,7 @@ static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
     int v = searchvar(fs, n);  /* look up locals at current level */
     if (v >= 0) {  /* found? */
       /* RAVI set type of local var / expr if possible */
-      int tt = getlocvartype(fs, v);
+      int tt = raviY_get_register_typeinfo(fs, v);
       init_exp(var, VLOCAL, v, tt);  /* variable is local, RAVI set type */
       if (!base)
         markupval(fs, v);  /* local will be used as an upval */
@@ -550,7 +568,13 @@ static void ravi_coercetype(LexState *ls, expdesc *v, int n)
   /* all return values that are going to be assigned to typed local vars must be converted to the correct type */
   int i;
   for (i = a + 1; i < a + n; i++) {
-    int ravi_type = getlocvartype(ls->fs, i);
+    /* Since this is called when parsing local statements the variable may not yet
+     * have a register assigned to it so we can't use raviY_get_register_typeinfo()
+     * here. Instead we need to check the variable definition - so we 
+     * first convert from local register to variable index.
+     */
+    int idx = register_to_locvar_index(ls->fs, i);
+    int ravi_type = ls->fs->f->locvars[idx].ravi_type;  /* get variable's type */
     /* do we need to convert ? */
     if (ravi_type == LUA_TNUMFLT || ravi_type == LUA_TNUMINT)
       /* code an instruction to convert in place */
@@ -817,7 +841,7 @@ static void open_func (LexState *ls, FuncState *fs, BlockCnt *bl) {
   fs->nk = 0;
   fs->np = 0;
   fs->nups = 0;
-  fs->nlocvars = 0;
+  fs->nlocvars = 0; 
   fs->nactvar = 0;
   fs->firstlocal = ls->dyd->actvar.n;
   fs->bl = NULL;
@@ -825,6 +849,7 @@ static void open_func (LexState *ls, FuncState *fs, BlockCnt *bl) {
   f->source = ls->source;
   f->maxstacksize = 2;  /* registers 0/1 are always valid */
   enterblock(fs, bl, 0);
+  DEBUG_VARS(raviY_printf(fs, "open_func -> fs->firstlocal set to %d (ls->dyd->actvar.n), and fs->nactvar reset to 0\n", ls->dyd->actvar.n));
 }
 
 
@@ -1101,7 +1126,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
 {
   if (n < nvars && v->k == VRELOCABLE) {
 #if 0
-    ravi_printf(ls->fs, "typechecking local variable type %t = %e\n", vars[n], v);
+    raviY_printf(ls->fs, "typechecking local variable type %t = %e\n", vars[n], v);
 #endif
   }
   if (n < nvars && vars[n] != LUA_TNONE && v->ravi_type != vars[n]) {
@@ -1405,7 +1430,7 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
   }
   else {
     simpleexp(ls, v);
-    DEBUG_EXPR(ravi_printf(ls->fs, "subexpr -> simpleexpr %e\n", v));
+    DEBUG_EXPR(raviY_printf(ls->fs, "subexpr -> simpleexpr %e\n", v));
   }
   /* expand while operators have priorities higher than 'limit' */
   op = getbinopr(ls->t.token);
@@ -1418,9 +1443,9 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
     luaK_infix(ls->fs, op, v);
     /* read sub-expression with higher priority */
     nextop = subexpr(ls, &v2, priority[op].right);
-    DEBUG_EXPR(ravi_printf(ls->fs, "subexpr-> %e binop(%d) %e\n", v, (int)op, &v2));
+    DEBUG_EXPR(raviY_printf(ls->fs, "subexpr-> %e binop(%d) %e\n", v, (int)op, &v2));
     luaK_posfix(ls->fs, op, v, &v2, line);
-    DEBUG_EXPR(ravi_printf(ls->fs, "subexpr-> after posfix %e\n", v));
+    DEBUG_EXPR(raviY_printf(ls->fs, "subexpr-> after posfix %e\n", v));
     op = nextop;
   }
   leavelevel(ls);
@@ -1509,7 +1534,7 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
     nv.v.ravi_type = LUA_TNONE;
     nv.prev = lh;
     suffixedexp(ls, &nv.v);
-    DEBUG_EXPR(ravi_printf(ls->fs, "assignment -> suffixedexp %e\n", &nv.v));
+    DEBUG_EXPR(raviY_printf(ls->fs, "assignment -> suffixedexp %e\n", &nv.v));
     if (nv.v.k != VINDEXED)
       check_conflict(ls, lh, &nv.v);
     checklimit(ls->fs, nvars + ls->L->nCcalls, LUAI_MAXCCALLS,
@@ -1520,7 +1545,7 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
     int nexps;
     checknext(ls, '=');
     nexps = explist(ls, &e);
-    DEBUG_EXPR(ravi_printf(ls->fs, "assignment -> = explist %e\n", &e));
+    DEBUG_EXPR(raviY_printf(ls->fs, "assignment -> = explist %e\n", &e));
     if (nexps != nvars) {
       adjust_assign(ls, nvars, nexps, &e);
       if (nexps > nvars)
@@ -1529,13 +1554,13 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
     else {
       luaK_setoneret(ls->fs, &e);  /* close last expression */
       luaK_storevar(ls->fs, &lh->v, &e);
-      DEBUG_EXPR(ravi_printf(ls->fs, "assignment -> lhs = %e, rhs = %e\n", &lh->v, &e));
+      DEBUG_EXPR(raviY_printf(ls->fs, "assignment -> lhs = %e, rhs = %e\n", &lh->v, &e));
       return;  /* avoid default */
     }
   }
   init_exp(&e, VNONRELOC, ls->fs->freereg-1, LUA_TNONE);  /* default assignment */
   luaK_storevar(ls->fs, &lh->v, &e);
-  DEBUG_EXPR(ravi_printf(ls->fs, "assignment lhs = %e, rhs = %e\n", &lh->v, &e));
+  DEBUG_EXPR(raviY_printf(ls->fs, "assignment lhs = %e, rhs = %e\n", &lh->v, &e));
 }
 
 /* parse condition in a repeat statement or an if control structure
