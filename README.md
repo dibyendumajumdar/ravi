@@ -19,7 +19,44 @@ Status
 ------
 The project was kicked off in January 2015. I expect it will be a while before there is any code that runs. However my intention is start small and grow incrementally.
 
-For latest status see the Changes page in the Wiki.
+As of now you can declare local variables as int or double. This triggers following behaviour:
+
+* int and double variables are initialized to 0
+* arithmetic operations trigger type specific bytecode
+* values assigned to these variables are checked - statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime.
+
+Obviously this is early days so expect bugs.
+
+Example of code that works - you can copy this to the command line input:
+```lua
+local function tryme(); local i,j = 5,6; return i,j; end; local i:int, j:int = tryme(); return i+j
+```
+Another:
+```lua
+local j:double; for i=1,1000000000 do; j = j+1; end; return j
+```
+
+The build is CMake based. I am testing this using Visual Studio 2013 on Windows 8.1 64bit and gcc on Unbuntu 64-bit.
+
+To build on Windows I use:
+```
+cd build
+cmake -G "Visual Studio 12 Win64 .."
+```
+I then open the solution in VS2013 and do a build from there.
+
+On Ubuntu I use:
+```
+cd build
+cmake -G "Unix Makefiles" ..
+make
+```
+
+The `lua` command recognizes following environment variables.
+
+* `RAVI_DEBUG_EXPR` - if set to a value this triggers some debug output of expression parsing
+* `RAVI_DEBUG_CODEGEN` - if set to a value this triggers a dump of the code being generated
+* `RAVI_DEBUG_VARS` - if set this triggers a dump of local variables construction and destruction
 
 License
 -------
@@ -137,7 +174,7 @@ Documentation
 -------------
 As I progress I will add documentation in the Wiki.
 
-* [Ravi Internals](https://github.com/dibyendumajumdar/ravi/wiki/RaviImplementationDetails)
+* [Ravi Internals](https://github.com/dibyendumajumdar/ravi/wiki/RaviInternals)
 * [Lua Internals](https://github.com/dibyendumajumdar/ravi/wiki/Lua-Internals)
 * [Change Log](https://github.com/dibyendumajumdar/ravi/wiki/Changes)
 
