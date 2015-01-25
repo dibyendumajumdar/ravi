@@ -551,8 +551,8 @@ int main(const char *argv[])
 {
     int failures = 0;
     failures += test_luacompexec1("local function tryme(); local i,j = 5,6; return i,j; end; local i:int, j:int = tryme(); return i+j", 11);
-    failures += test_luacomp1("local i,j; j = i*j+i");
-    failures += test_luacomp1("local i:int; for i=1,10 do; print(i); end; print(i)");
+    failures += test_luacomp1("local i:int,j:int = 1; j = i*j+i; return j", 1);
+    failures += test_luacomp1("local i:int; for i=1,10 do; print(i); end; print(i); return i", 0);
     failures += test_luacomp1("local i:int, j:double; i,j = f(); j = i*j+i");
     failures += test_luacomp1("local d; d = f()");
     failures += test_luacomp1("local d, e; d, e = f(), g()");

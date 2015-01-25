@@ -563,6 +563,24 @@ static void ravi_coercetype(LexState *ls, expdesc *v, int n)
   }
 }
 
+static void ravi_setzero(FuncState *fs, int from, int n) {
+  int last = from + n - 1;  /* last register to set nil */
+  int i;
+  for (i = from; i <= last; i++) {
+    /* Since this is called when parsing local statements the variable may not yet
+    * have a register assigned to it so we can't use raviY_get_register_typeinfo()
+    * here. Instead we need to check the variable definition - so we
+    * first convert from local register to variable index.
+    */
+    int idx = register_to_locvar_index(fs, i);
+    int ravi_type = fs->f->locvars[idx].ravi_type;  /* get variable's type */
+    /* do we need to convert ? */
+    if (ravi_type == LUA_TNUMFLT || ravi_type == LUA_TNUMINT)
+      /* code an instruction to convert in place */
+      luaK_codeABC(fs, ravi_type == LUA_TNUMFLT ? OP_RAVI_LOADFZ : OP_RAVI_LOADIZ, i, 0, 0);
+  }
+}
+
 static void localvar_adjust_assign(LexState *ls, int nvars, int nexps, expdesc *e) {
   FuncState *fs = ls->fs;
   int extra = nvars - nexps;
@@ -587,6 +605,12 @@ static void localvar_adjust_assign(LexState *ls, int nvars, int nexps, expdesc *
       luaK_reserveregs(fs, extra);
       /* RAVI TODO for typed variables we should not set to nil? */
       luaK_nil(fs, reg, extra);
+#if RAVI_ENABLED
+      /* typed variables that are primitives cannot be set to nil so 
+       * we need to emit instructions to initialise them to default values 
+       */
+      ravi_setzero(fs, reg, extra);
+#endif
     }
   }
 }

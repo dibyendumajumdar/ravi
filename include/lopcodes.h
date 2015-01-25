@@ -227,6 +227,9 @@ OP_CLOSURE,/*	A Bx	R(A) := closure(KPROTO[Bx])			*/
 OP_VARARG,/*	A B	R(A), R(A+1), ..., R(A+B-2) = vararg		*/
 OP_EXTRAARG,/*	Ax	extra (larger) argument for previous opcode	*/
 
+OP_RAVI_LOADIZ,  /*	A R(A) := tointeger(0)		*/
+OP_RAVI_LOADFZ,  /*	A R(A) := tonumber(0)		*/
+
 OP_RAVI_UNMF,  /*	A B	R(A) := -R(B) floating point      */
 OP_RAVI_UNMI,  /*   A B R(A) := -R(B) integer */
 

@@ -1181,6 +1181,13 @@ newframe:  /* reentry point when frame changes (call/return) */
         int c = INDEXK(GETARG_C(i));
 
         switch (OP(op)) {
+        case OP(OP_RAVI_LOADIZ): {
+          setivalue(ra, 0);
+        } break;
+        case OP(OP_RAVI_LOADFZ): {
+          setfltvalue(ra, 0.0);
+        } break;
+
         case OP(OP_RAVI_UNMF): {
             /* R(A) = -R(B), R(B) must be a float */
             TValue *rb = base+b;

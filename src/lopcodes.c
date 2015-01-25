@@ -65,6 +65,9 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "VARARG",
   "EXTRAARG",
 
+  "LOADIZ",  /*	A R(A) := tointeger(0)		*/
+  "LOADFZ",  /*	A R(A) := tonumber(0)		*/
+
   "UNMF",  /*	A B	R(A) := -R(B) floating point      */
   "UNMI",  /*   A B R(A) := -R(B) integer */
 
@@ -251,6 +254,9 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgU, OpArgN, iABC)		/* OP_VARARG */
  ,opmode(0, 0, OpArgU, OpArgU, iAx)		    /* OP_EXTRAARG */
 
+ , opmode(0, 1, OpArgN, OpArgN, iABC)  /*	OP_RAVI_LOADIZ A R(A) := tointeger(0)		*/
+ , opmode(0, 1, OpArgN, OpArgN, iABC)  /*	OP_RAVI_LOADFZ A R(A) := tonumber(0)		*/
+
  ,opmode(0, 1, OpArgR, OpArgN, iABC)/* OP_RAVI_UNMF	A B	    R(A) := -R(B) floating point      */
  ,opmode(0, 1, OpArgR, OpArgN, iABC)/* OP_RAVI_UNMI A B     R(A) := -R(B) integer */
 
@@ -431,6 +437,9 @@ LUAI_DDEF const lu_byte luaP_optypes[NUM_OPCODES] = {
   , LUA_TNONE		/* OP_CLOSURE */
   , LUA_TNONE		/* OP_VARARG */
   , LUA_TNONE		    /* OP_EXTRAARG */
+
+  , LUA_TNUMINT  /*	OP_RAVI_LOADIZ A R(A) := tointeger(0)		*/
+  , LUA_TNUMFLT  /*	OP_RAVI_LOADFZ A R(A) := tonumber(0)		*/
 
   , LUA_TNUMFLT/* OP_RAVI_UNMF	A B	    R(A) := -R(B) floating point      */
   , LUA_TNUMINT/* OP_RAVI_UNMI A B     R(A) := -R(B) integer */
