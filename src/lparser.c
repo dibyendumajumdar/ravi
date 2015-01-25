@@ -291,7 +291,7 @@ static TString *str_checkname (LexState *ls) {
  * expression kind in e->k, e->u.info may have a register 
  * or bytecode 
  */
-static void init_exp (expdesc *e, expkind k, int i, int tt) {
+static void init_exp (expdesc *e, expkind k, int i, ravitype_t tt) {
   e->f = e->t = NO_JUMP;
   e->k = k;
   e->u.info = i;
@@ -338,7 +338,7 @@ static int registerlocalvar (LexState *ls, TString *varname, int ravi_type) {
 
 /* create a new local variable in function scope, and set the
  * variable type (RAVI - added type tt) */
-static void new_localvar (LexState *ls, TString *name, int tt) {
+static void new_localvar (LexState *ls, TString *name, ravitype_t tt) {
   FuncState *fs = ls->fs;
   Dyndata *dyd = ls->dyd;
   /* register variable and get its index */
@@ -359,7 +359,7 @@ static void new_localvar (LexState *ls, TString *name, int tt) {
  */
 static void new_localvarliteral_ (LexState *ls, const char *name, size_t sz) {
   /* RAVI change - add type */
-  new_localvar(ls, luaX_newstring(ls, name, sz), RAVI_TANY);
+  new_localvar(ls, luaX_newstring(ls, name, sz), RAVI_TSTRING);
 }
 
 /* create a new local variable from a C char array - registering a Lua String
@@ -496,7 +496,7 @@ static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
     int v = searchvar(fs, n);  /* look up locals at current level */
     if (v >= 0) {  /* found? */
       /* RAVI set type of local var / expr if possible */
-      int tt = raviY_get_register_typeinfo(fs, v);
+      ravitype_t tt = raviY_get_register_typeinfo(fs, v);
       init_exp(var, VLOCAL, v, tt);  /* variable is local, RAVI set type */
       if (!base)
         markupval(fs, v);  /* local will be used as an upval */
@@ -559,7 +559,7 @@ static void ravi_coercetype(LexState *ls, expdesc *v, int n)
      * first convert from local register to variable index.
      */
     int idx = register_to_locvar_index(ls->fs, i);
-    int ravi_type = ls->fs->f->locvars[idx].ravi_type;  /* get variable's type */
+    ravitype_t ravi_type = ls->fs->f->locvars[idx].ravi_type;  /* get variable's type */
     /* do we need to convert ? */
     if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
       /* code an instruction to convert in place */
@@ -577,7 +577,7 @@ static void ravi_setzero(FuncState *fs, int from, int n) {
     * first convert from local register to variable index.
     */
     int idx = register_to_locvar_index(fs, i);
-    int ravi_type = fs->f->locvars[idx].ravi_type;  /* get variable's type */
+    ravitype_t ravi_type = fs->f->locvars[idx].ravi_type;  /* get variable's type */
     /* do we need to convert ? */
     if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
       /* code an instruction to convert in place */

@@ -230,7 +230,7 @@ LUAI_FUNC void raviY_printf(FuncState *fs, const char *format, ...);
  * Else RAVI_TANY is returned. Note that this function only looks
  * at active local variables - see note on FuncState on what this means.
  */
-LUAI_FUNC int raviY_get_register_typeinfo(FuncState *fs, int reg);
+LUAI_FUNC ravitype_t raviY_get_register_typeinfo(FuncState *fs, int reg);
 
 #define DEBUG_EXPR(p) if ((ravi_parser_debug & 1) != 0) {p;} else {}
 #define DEBUG_CODEGEN(p) if ((ravi_parser_debug & 2) != 0) {p;} else {}
