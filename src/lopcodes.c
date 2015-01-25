@@ -389,6 +389,7 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
 };
 
+#if 0
 LUAI_DDEF const lu_byte luaP_optypes[NUM_OPCODES] = {
   LUA_TNONE		/* OP_MOVE */
   , LUA_TNONE		/* OP_LOADK */
@@ -572,6 +573,7 @@ LUAI_DDEF const lu_byte luaP_optypes[NUM_OPCODES] = {
   , LUA_TNONE /*RAVI_ARRAYSET_ILRR	A B C	R(A)[R(B)] := R(C)				*/
 
 };
+#endif
 
 #define MYK(x)		(-1-(x))
 

@@ -58,7 +58,7 @@ typedef struct expdesc {
   } u;
   int t;  /* patch list of 'exit when true' */
   int f;  /* patch list of 'exit when false' */
-  int ravi_type; /* RAVI change: type of the expression if known, else LUA_TNONE */
+  ravitype_t ravi_type; /* RAVI change: type of the expression if known, else RAVI_TANY */
 } expdesc;
 
 
@@ -227,7 +227,7 @@ LUAI_FUNC void raviY_printf(FuncState *fs, const char *format, ...);
 /* Given a local register obtain available type information - if a 
  * local variable is associated with the register (i.e. register <= fs->nactvar)
  * in the function type info is available then the type will be returned.
- * Else LUA_TNONE is returned. Note that this function only looks
+ * Else RAVI_TANY is returned. Note that this function only looks
  * at active local variables - see note on FuncState on what this means.
  */
 LUAI_FUNC int raviY_get_register_typeinfo(FuncState *fs, int reg);

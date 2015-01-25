@@ -380,6 +380,24 @@ typedef struct Upvaldesc {
   lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
 } Upvaldesc;
 
+/* Following are the types we will use
+** use in parsing. The rationale for types is
+** performance - as of now these are the only types that
+** we care about from a performance point of view - if any
+** other types appear then they are all treated as ANY
+**/
+typedef enum {
+  RAVI_TANY,      /* Lua dynamic type */
+  RAVI_TNUMINT,   /* integer number */
+  RAVI_TNUMFLT,   /* floating point number */
+  RAVI_TARRAYINT, /* array of ints */
+  RAVI_TARRAYFLT,  /* array of doubles */
+  RAVI_TFUNCTION,
+  RAVI_TTABLE,
+  RAVI_TSTRING,
+  RAVI_TNIL,
+  RAVI_TBOOLEAN
+} ravitype_t;
 
 /*
 ** Description of a local variable for function prototypes
@@ -389,7 +407,7 @@ typedef struct LocVar {
   TString *varname;
   int startpc;  /* first point where variable is active */
   int endpc;    /* first point where variable is dead */
-  int ravi_type; /* RAVI type of the variable - LUA_TNONE if unknown */
+  ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
 } LocVar;
 
 

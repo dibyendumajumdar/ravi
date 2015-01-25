@@ -57,16 +57,20 @@ typedef struct BlockCnt {
   lu_byte isloop;  /* true if 'block' is a loop */
 } BlockCnt;
 
-static const char *get_typename(int tt) {
+static const char *get_typename(ravitype_t tt) {
   switch (tt) {
-  case LUA_TNIL: return "nil";
-  case LUA_TBOOLEAN: return "B";
-  case LUA_TNUMFLT: return "D"; 
-  case LUA_TNUMINT: return "I";
-  case LUA_TSHRSTR: case LUA_TLNGSTR:
+  case RAVI_TNIL: return "nil";
+  case RAVI_TBOOLEAN: return "B";
+  case RAVI_TNUMFLT: return "D"; 
+  case RAVI_TNUMINT: return "I";
+  case RAVI_TSTRING: 
     return "S";
-  case LUA_TFUNCTION: 
+  case RAVI_TFUNCTION: 
     return "F";
+  case RAVI_TARRAYINT:
+    return "[I";
+  case RAVI_TARRAYFLT:
+    return "[F";
   default: return "?";
   }
 }
@@ -185,8 +189,8 @@ void raviY_printf(FuncState *fs, const char *format, ...)
       cp++;
     }
     else if (cp[0] == '%' && cp[1] == 't') {
-      int i;
-      i = va_arg(ap, int);
+      ravitype_t i;
+      i = va_arg(ap, ravitype_t);
       fputs(get_typename(i), stdout);
       cp++;
     }
@@ -299,12 +303,12 @@ static void init_exp (expdesc *e, expkind k, int i, int tt) {
  * e->u.info, e->ravi_type = LUA_STRING
  */
 static void codestring (LexState *ls, expdesc *e, TString *s) {
-  init_exp(e, VK, luaK_stringK(ls->fs, s), LUA_TSTRING);
+  init_exp(e, VK, luaK_stringK(ls->fs, s), RAVI_TSTRING);
 }
 
 /* verify that current token is a string, create a string constant
  * expression, e->u.info holds location of constant, 
- * e->ravi_type = LUA_TSTRING
+ * e->ravi_type = RAVI_TSTRING
  */
 static void checkname (LexState *ls, expdesc *e) {
   codestring(ls, e, str_checkname(ls));
@@ -323,7 +327,7 @@ static int registerlocalvar (LexState *ls, TString *varname, int ravi_type) {
     /* RAVI change initialize */
     f->locvars[oldsize].startpc = -1;
     f->locvars[oldsize].endpc = -1;
-    f->locvars[oldsize].ravi_type = LUA_TNONE;
+    f->locvars[oldsize].ravi_type = RAVI_TANY;
     f->locvars[oldsize++].varname = NULL;
   }
   f->locvars[fs->nlocvars].varname = varname;
@@ -355,7 +359,7 @@ static void new_localvar (LexState *ls, TString *name, int tt) {
  */
 static void new_localvarliteral_ (LexState *ls, const char *name, size_t sz) {
   /* RAVI change - add type */
-  new_localvar(ls, luaX_newstring(ls, name, sz), LUA_TNONE);
+  new_localvar(ls, luaX_newstring(ls, name, sz), RAVI_TANY);
 }
 
 /* create a new local variable from a C char array - registering a Lua String
@@ -387,7 +391,7 @@ static int register_to_locvar_index(FuncState *fs, int reg) {
 }
 
 /* get type of a register - if the register is not allocated
- * to an active local variable, then return LUA_TNONE else
+ * to an active local variable, then return RAVI_TANY else
  * return the type associated with the variable.
  * This is a RAVI function
  */
@@ -395,7 +399,7 @@ int raviY_get_register_typeinfo(FuncState *fs, int reg) {
   int idx;
   LocVar *v;
   if (reg < 0 || reg >= fs->nactvar || (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n)
-    return LUA_TNONE;
+    return RAVI_TANY;
   /* Get the LocVar associated with the register */
   idx = fs->ls->dyd->actvar.arr[fs->firstlocal + reg].idx;
   lua_assert(idx < fs->nlocvars);
@@ -506,7 +510,7 @@ static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
         /* else was LOCAL or UPVAL */
         idx  = newupvalue(fs, n, var);  /* will be a new upvalue */
       }
-      init_exp(var, VUPVAL, idx, LUA_TNONE); /* RAVI : variable type not known as global or upvalue */
+      init_exp(var, VUPVAL, idx, RAVI_TANY); /* RAVI : variable type not known as global or upvalue */
       return VUPVAL;
     }
   }
@@ -521,7 +525,7 @@ static void singlevar (LexState *ls, expdesc *var) {
   FuncState *fs = ls->fs;
   if (singlevaraux(fs, varname, var, 1) == VVOID) {  /* global name? */
     expdesc key;
-    key.ravi_type = LUA_TNONE;
+    key.ravi_type = RAVI_TANY;
     singlevaraux(fs, ls->envn, var, 1);  /* get environment variable */
     lua_assert(var->k == VLOCAL || var->k == VUPVAL);
     codestring(ls, &key, varname);  /* key is variable name */
@@ -557,9 +561,9 @@ static void ravi_coercetype(LexState *ls, expdesc *v, int n)
     int idx = register_to_locvar_index(ls->fs, i);
     int ravi_type = ls->fs->f->locvars[idx].ravi_type;  /* get variable's type */
     /* do we need to convert ? */
-    if (ravi_type == LUA_TNUMFLT || ravi_type == LUA_TNUMINT)
+    if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
       /* code an instruction to convert in place */
-      luaK_codeABC(ls->fs, ravi_type == LUA_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, i, 0, 0);
+      luaK_codeABC(ls->fs, ravi_type == RAVI_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, i, 0, 0);
   }
 }
 
@@ -575,9 +579,9 @@ static void ravi_setzero(FuncState *fs, int from, int n) {
     int idx = register_to_locvar_index(fs, i);
     int ravi_type = fs->f->locvars[idx].ravi_type;  /* get variable's type */
     /* do we need to convert ? */
-    if (ravi_type == LUA_TNUMFLT || ravi_type == LUA_TNUMINT)
+    if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
       /* code an instruction to convert in place */
-      luaK_codeABC(fs, ravi_type == LUA_TNUMFLT ? OP_RAVI_LOADFZ : OP_RAVI_LOADIZ, i, 0, 0);
+      luaK_codeABC(fs, ravi_type == RAVI_TNUMFLT ? OP_RAVI_LOADFZ : OP_RAVI_LOADIZ, i, 0, 0);
   }
 }
 
@@ -829,7 +833,7 @@ static Proto *addprototype (LexState *ls) {
 */
 static void codeclosure (LexState *ls, expdesc *v) {
   FuncState *fs = ls->fs->prev;
-  init_exp(v, VRELOCABLE, luaK_codeABx(fs, OP_CLOSURE, 0, fs->np - 1), LUA_TFUNCTION);
+  init_exp(v, VRELOCABLE, luaK_codeABx(fs, OP_CLOSURE, 0, fs->np - 1), RAVI_TFUNCTION);
   luaK_exp2nextreg(fs, v);  /* fix it at the last register */
 }
 
@@ -920,7 +924,7 @@ static void fieldsel (LexState *ls, expdesc *v) {
   /* fieldsel -> ['.' | ':'] NAME */
   FuncState *fs = ls->fs;
   expdesc key;
-  key.ravi_type = LUA_TNONE;
+  key.ravi_type = RAVI_TANY;
   luaK_exp2anyregup(fs, v);
   luaX_next(ls);  /* skip the dot or colon */
   checkname(ls, &key);
@@ -958,8 +962,8 @@ static void recfield (LexState *ls, struct ConsControl *cc) {
   FuncState *fs = ls->fs;
   int reg = ls->fs->freereg;
   expdesc key, val;
-  key.ravi_type = LUA_TNONE;
-  val.ravi_type = LUA_TNONE;
+  key.ravi_type = RAVI_TANY;
+  val.ravi_type = RAVI_TANY;
   int rkkey;
   if (ls->t.token == TK_NAME) {
     checklimit(fs, cc->nh, MAX_INT, "items in a constructor");
@@ -1042,8 +1046,8 @@ static void constructor (LexState *ls, expdesc *t) {
   struct ConsControl cc;
   cc.na = cc.nh = cc.tostore = 0;
   cc.t = t;
-  init_exp(t, VRELOCABLE, pc, LUA_TNONE); /* RAVI TODO - set table of type */
-  init_exp(&cc.v, VVOID, 0, LUA_TNONE);  /* no value (yet) */
+  init_exp(t, VRELOCABLE, pc, RAVI_TANY); /* RAVI TODO - set table of type */
+  init_exp(&cc.v, VVOID, 0, RAVI_TANY);  /* no value (yet) */
   luaK_exp2nextreg(ls->fs, t);  /* fix it at stack top */
   checknext(ls, '{');
   do {
@@ -1073,7 +1077,7 @@ static void parlist (LexState *ls) {
       switch (ls->t.token) {
         case TK_NAME: {  /* param -> NAME */
           /* RAVI change - add type */
-          new_localvar(ls, str_checkname(ls), LUA_TNONE);
+          new_localvar(ls, str_checkname(ls), RAVI_TANY);
           nparams++;
           break;
         }
@@ -1134,9 +1138,9 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
     raviY_printf(ls->fs, "typechecking local variable type %t = %e\n", vars[n], v);
 #endif
   }
-  if (n < nvars && vars[n] != LUA_TNONE && v->ravi_type != vars[n]) {
+  if (n < nvars && vars[n] != RAVI_TANY && v->ravi_type != vars[n]) {
     /* if we are calling a function then convert return types */
-    if (v->ravi_type != vars[n] && (vars[n] == LUA_TNUMFLT || vars[n] == LUA_TNUMINT) && v->k == VCALL) {
+    if (v->ravi_type != vars[n] && (vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT) && v->k == VCALL) {
       /* For local variable declarations that call functions e.g.
        * local i = func()
        * Lua ensures that the function returns values to register assigned to variable i
@@ -1153,9 +1157,9 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
       int i;
       for (i = n; i < (n+nrets); i++)
         /* do we need to convert ? */
-        if ((vars[i] == LUA_TNUMFLT || vars[i] == LUA_TNUMINT))
+        if ((vars[i] == RAVI_TNUMFLT || vars[i] == RAVI_TNUMINT))
           /* code an instruction to convert in place */
-          luaK_codeABC(ls->fs, vars[i] == LUA_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, a+(i-n), 0, 0);
+          luaK_codeABC(ls->fs, vars[i] == RAVI_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, a+(i-n), 0, 0);
     }
     else
       luaX_syntaxerror(ls, "Invalid local assignment");
@@ -1190,7 +1194,7 @@ static void funcargs (LexState *ls, expdesc *f, int line) {
   FuncState *fs = ls->fs;
   expdesc args;
   int base, nparams;
-  args.ravi_type = LUA_TNONE;
+  args.ravi_type = RAVI_TANY;
   switch (ls->t.token) {
     case '(': {  /* funcargs -> '(' [ explist ] ')' */
       luaX_next(ls);
@@ -1225,7 +1229,7 @@ static void funcargs (LexState *ls, expdesc *f, int line) {
       luaK_exp2nextreg(fs, &args);  /* close last argument */
     nparams = fs->freereg - (base+1);
   }
-  init_exp(f, VCALL, luaK_codeABC(fs, OP_CALL, base, nparams + 1, 2), LUA_TNONE); /* RAVI TODO return value from function call not known */
+  init_exp(f, VCALL, luaK_codeABC(fs, OP_CALL, base, nparams + 1, 2), RAVI_TANY); /* RAVI TODO return value from function call not known */
   luaK_fixline(fs, line);
   fs->freereg = base + 1;  /* call remove function and arguments and leaves
                             (unless changed) one result */
@@ -1277,7 +1281,7 @@ static void suffixedexp (LexState *ls, expdesc *v) {
       }
       case '[': {  /* '[' exp1 ']' */
         expdesc key;
-        key.ravi_type = LUA_TNONE;
+        key.ravi_type = RAVI_TANY;
         luaK_exp2anyregup(fs, v);
         yindex(ls, &key);
         luaK_indexed(fs, v, &key);
@@ -1285,7 +1289,7 @@ static void suffixedexp (LexState *ls, expdesc *v) {
       }
       case ':': {  /* ':' NAME funcargs */
         expdesc key;
-        key.ravi_type = LUA_TNONE;
+        key.ravi_type = RAVI_TANY;
         luaX_next(ls);
         checkname(ls, &key);
         luaK_self(fs, v, &key);
@@ -1310,12 +1314,12 @@ static void simpleexp (LexState *ls, expdesc *v) {
                   constructor | FUNCTION body | suffixedexp */
   switch (ls->t.token) {
     case TK_FLT: {
-      init_exp(v, VKFLT, 0, LUA_TNUMFLT);
+      init_exp(v, VKFLT, 0, RAVI_TNUMFLT);
       v->u.nval = ls->t.seminfo.r;
       break;
     }
     case TK_INT: {
-      init_exp(v, VKINT, 0, LUA_TNUMINT);
+      init_exp(v, VKINT, 0, RAVI_TNUMINT);
       v->u.ival = ls->t.seminfo.i;
       break;
     }
@@ -1324,22 +1328,22 @@ static void simpleexp (LexState *ls, expdesc *v) {
       break;
     }
     case TK_NIL: {
-      init_exp(v, VNIL, 0, LUA_TNIL);
+      init_exp(v, VNIL, 0, RAVI_TNIL);
       break;
     }
     case TK_TRUE: {
-      init_exp(v, VTRUE, 0, LUA_TNONE); /* RAVI TODO */
+      init_exp(v, VTRUE, 0, RAVI_TANY); /* RAVI TODO */
       break;
     }
     case TK_FALSE: {
-      init_exp(v, VFALSE, 0, LUA_TNONE); /* RAVI TODO */
+      init_exp(v, VFALSE, 0, RAVI_TANY); /* RAVI TODO */
       break;
     }
     case TK_DOTS: {  /* vararg */
       FuncState *fs = ls->fs;
       check_condition(ls, fs->f->is_vararg,
                       "cannot use '...' outside a vararg function");
-      init_exp(v, VVARARG, luaK_codeABC(fs, OP_VARARG, 0, 1, 0), LUA_TNONE);
+      init_exp(v, VVARARG, luaK_codeABC(fs, OP_VARARG, 0, 1, 0), RAVI_TANY);
       break;
     }
     case '{': {  /* constructor */
@@ -1441,7 +1445,7 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
   op = getbinopr(ls->t.token);
   while (op != OPR_NOBINOPR && priority[op].left > limit) {
     expdesc v2;
-    v2.ravi_type = LUA_TNONE;
+    v2.ravi_type = RAVI_TANY;
     BinOpr nextop;
     int line = ls->linenumber;
     luaX_next(ls);
@@ -1532,11 +1536,11 @@ static void check_conflict (LexState *ls, struct LHS_assign *lh, expdesc *v) {
  */
 static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
   expdesc e;
-  e.ravi_type = LUA_TNONE;
+  e.ravi_type = RAVI_TANY;
   check_condition(ls, vkisvar(lh->v.k), "syntax error");
   if (testnext(ls, ',')) {  /* assignment -> ',' suffixedexp assignment */
     struct LHS_assign nv;
-    nv.v.ravi_type = LUA_TNONE;
+    nv.v.ravi_type = RAVI_TANY;
     nv.prev = lh;
     suffixedexp(ls, &nv.v);
     DEBUG_EXPR(raviY_printf(ls->fs, "assignment -> suffixedexp %e\n", &nv.v));
@@ -1563,7 +1567,7 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
       return;  /* avoid default */
     }
   }
-  init_exp(&e, VNONRELOC, ls->fs->freereg-1, LUA_TNONE);  /* default assignment */
+  init_exp(&e, VNONRELOC, ls->fs->freereg-1, RAVI_TANY);  /* default assignment */
   luaK_storevar(ls->fs, &lh->v, &e);
   DEBUG_EXPR(raviY_printf(ls->fs, "assignment lhs = %e, rhs = %e\n", &lh->v, &e));
 }
@@ -1574,7 +1578,7 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
 static int cond (LexState *ls) {
   /* cond -> exp */
   expdesc v;
-  v.ravi_type = LUA_TNONE;
+  v.ravi_type = RAVI_TANY;
   expr(ls, &v);  /* read condition */
   if (v.k == VNIL) v.k = VFALSE;  /* 'falses' are all equal here */
   luaK_goiftrue(ls->fs, &v);
@@ -1689,7 +1693,7 @@ static int exp1 (LexState *ls) {
    */
   expdesc e;
   int reg;
-  e.ravi_type = LUA_TNONE;
+  e.ravi_type = RAVI_TANY;
   expr(ls, &e);
   luaK_exp2nextreg(ls->fs, &e);
   lua_assert(e.k == VNONRELOC);
@@ -1735,7 +1739,7 @@ static void fornum (LexState *ls, TString *varname, int line) {
   new_localvarliteral(ls, "(for index)");
   new_localvarliteral(ls, "(for limit)");
   new_localvarliteral(ls, "(for step)");
-  new_localvar(ls, varname, LUA_TNONE);  /* RAVI TODO - add for x: type syntax? */
+  new_localvar(ls, varname, RAVI_TANY);  /* RAVI TODO - add for x: type syntax? */
   checknext(ls, '=');
   exp1(ls);  /* initial value */
   checknext(ls, ',');
@@ -1759,15 +1763,15 @@ static void forlist (LexState *ls, TString *indexname) {
   int nvars = 4;  /* gen, state, control, plus at least one declared var */
   int line;
   int base = fs->freereg;
-  e.ravi_type = LUA_TNONE;
+  e.ravi_type = RAVI_TANY;
   /* create control variables */
   new_localvarliteral(ls, "(for generator)");
   new_localvarliteral(ls, "(for state)");
   new_localvarliteral(ls, "(for control)");
   /* create declared variables */
-  new_localvar(ls, indexname, LUA_TNONE); /* RAVI TODO for name:type syntax? */
+  new_localvar(ls, indexname, RAVI_TANY); /* RAVI TODO for name:type syntax? */
   while (testnext(ls, ',')) {
-    new_localvar(ls, str_checkname(ls), LUA_TNONE); /* RAVI change - add type */
+    new_localvar(ls, str_checkname(ls), RAVI_TANY); /* RAVI change - add type */
     nvars++;
   }
   checknext(ls, TK_IN);
@@ -1804,7 +1808,7 @@ static void test_then_block (LexState *ls, int *escapelist) {
   FuncState *fs = ls->fs;
   expdesc v;
   int jf;  /* instruction to skip 'then' code (if condition is false) */
-  v.ravi_type = LUA_TNONE;
+  v.ravi_type = RAVI_TANY;
   luaX_next(ls);  /* skip IF or ELSEIF */
   expr(ls, &v);  /* read condition */
   checknext(ls, TK_THEN);
@@ -1851,9 +1855,9 @@ static void ifstat (LexState *ls, int line) {
 static void localfunc (LexState *ls) {
   expdesc b;
   FuncState *fs = ls->fs;
-  b.ravi_type = LUA_TNONE;
+  b.ravi_type = RAVI_TANY;
   /* RAVI change - add type */
-  new_localvar(ls, str_checkname(ls), LUA_TFUNCTION);  /* new local variable */
+  new_localvar(ls, str_checkname(ls), RAVI_TFUNCTION);  /* new local variable */
   adjustlocalvars(ls, 1);  /* enter its scope */
   body(ls, &b, 0, ls->linenumber);  /* function created in next register */
   /* debug information will only see the variable after this point! */
@@ -1866,20 +1870,20 @@ static void localstat (LexState *ls) {
   int nvars = 0;
   int nexps;
   expdesc e;
-  e.ravi_type = LUA_TNONE;
+  e.ravi_type = RAVI_TANY;
   int vars[MAXVARS] = { 0 };
   do {
     /* RAVI changes start */
     /* local name : type = value */
     TString *name = str_checkname(ls);
-    int tt = LUA_TNONE;
+    int tt = RAVI_TANY;
     if (testnext(ls, ':')) {
       TString *typename = str_checkname(ls); /* we expect a type name */
       const char *str = getaddrstr(typename);
       if (strcmp(str, "int") == 0)
-        tt = LUA_TNUMINT;
+        tt = RAVI_TNUMINT;
       else if (strcmp(str, "double") == 0)
-        tt = LUA_TNUMFLT;
+        tt = RAVI_TNUMFLT;
     }
     new_localvar(ls, name, tt);
     vars[nvars] = tt;
@@ -1917,8 +1921,8 @@ static void funcstat (LexState *ls, int line) {
   /* funcstat -> FUNCTION funcname body */
   int ismethod;
   expdesc v, b;
-  v.ravi_type = LUA_TNONE;
-  b.ravi_type = LUA_TNONE;
+  v.ravi_type = RAVI_TANY;
+  b.ravi_type = RAVI_TANY;
   luaX_next(ls);  /* skip FUNCTION */
   ismethod = funcname(ls, &v);
   body(ls, &b, ismethod, line);
@@ -1931,7 +1935,7 @@ static void exprstat (LexState *ls) {
   /* stat -> func | assignment */
   FuncState *fs = ls->fs;
   struct LHS_assign v;
-  v.v.ravi_type = LUA_TNONE;
+  v.v.ravi_type = RAVI_TANY;
   suffixedexp(ls, &v.v);
   if (ls->t.token == '=' || ls->t.token == ',') { /* stat -> assignment ? */
     v.prev = NULL;
@@ -1948,7 +1952,7 @@ static void retstat (LexState *ls) {
   /* stat -> RETURN [explist] [';'] */
   FuncState *fs = ls->fs;
   expdesc e;
-  e.ravi_type = LUA_TNONE;
+  e.ravi_type = RAVI_TANY;
   int first, nret;  /* registers with returned values */
   if (block_follow(ls, 1) || ls->t.token == ';')
     first = nret = 0;  /* return no values */
@@ -2056,10 +2060,10 @@ static void statement (LexState *ls) {
 static void mainfunc (LexState *ls, FuncState *fs) {
   BlockCnt bl;
   expdesc v;
-  v.ravi_type = LUA_TNONE;
+  v.ravi_type = RAVI_TANY;
   open_func(ls, fs, &bl);
   fs->f->is_vararg = 1;  /* main function is always vararg */
-  init_exp(&v, VLOCAL, 0, LUA_TNONE);  /* create and... - RAVI TODO var arg is unknown type */
+  init_exp(&v, VLOCAL, 0, RAVI_TANY);  /* create and... - RAVI TODO var arg is unknown type */
   newupvalue(fs, ls->envn, &v);  /* ...set environment upvalue */
   luaX_next(ls);  /* read first token */
   statlist(ls);  /* parse main body */
