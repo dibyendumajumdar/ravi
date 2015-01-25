@@ -1174,7 +1174,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         lua_assert(0);
     } break;
 
-#define OP(i) (i - OP_RAVI_UNMF)
+#define OP(i) (i - OP_EXTRAARG - 1)
 
     default: {
         int b = INDEXK(GETARG_B(i));
