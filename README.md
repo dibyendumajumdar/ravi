@@ -5,7 +5,7 @@ Experimental derivative/dialect of Lua. Ravi is a Sanskrit word that means the S
 
 Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater performance. However, at the same time maintain full compatibility with standard Lua.
 
-There are various attempts to add static typing to Lua but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
+There are other attempts to add static typing to Lua (e.g. [Typed Lua](https://github.com/andremm/typedlua>)) but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
 My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. 
 
@@ -13,16 +13,17 @@ Goals
 -----
 * Optional static typing for Lua 
 * No new types
+* Type specific bytecodes to improve performance
 * Full backward compatibility with Lua 5.3
 
 Status
 ------
-The project was kicked off in January 2015. I expect it will be a while before there is any code that runs. However my intention is start small and grow incrementally.
+The project was kicked off in January 2015. My intention is start small and grow incrementally.
 
-As of now you can declare local variables as int or double. This triggers following behaviour:
+As of now (end Jan 2015) you can declare local variables as `int` or `double`. This triggers following behaviour:
 
-* int and double variables are initialized to 0
-* arithmetic operations trigger type specific bytecode
+* `int` and `double` variables are initialized to 0
+* arithmetic operations trigger type specific bytecodes
 * values assigned to these variables are checked - statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime.
 
 Obviously this is early days so expect bugs.
@@ -41,7 +42,7 @@ The build is CMake based. I am testing this using Visual Studio 2013 on Windows 
 To build on Windows I use:
 ```
 cd build
-cmake -G "Visual Studio 12 Win64 .."
+cmake -G "Visual Studio 12 Win64" ..
 ```
 I then open the solution in VS2013 and do a build from there.
 
@@ -54,24 +55,43 @@ make
 
 The `lua` command recognizes following environment variables.
 
-* `RAVI_DEBUG_EXPR` - if set to a value this triggers some debug output of expression parsing
+* `RAVI_DEBUG_EXPR` - if set to a value this triggers debug output of expression parsing
 * `RAVI_DEBUG_CODEGEN` - if set to a value this triggers a dump of the code being generated
 * `RAVI_DEBUG_VARS` - if set this triggers a dump of local variables construction and destruction
 
+Work Plan
+---------
+* Feb 2015 - implement type specialisation for arrays 
+* Mar 2015 - implement function parameter / return type specialisation
+
 License
 -------
-Will be same as Lua.
+Same as Lua.
 
 Language Syntax
 ---------------
-I hope to enhance the language to enable static typing of following:
+I hope to enhance the language to variables to be optionally decorated with types. As the reason for doing so is performance primarily - not all types benefit from this capability. In fact it is quite hard to extend this to generic recursive structures such as tables without encurring significant overhead. For instance - even to represent a recursive type in the parser will require dynamic memory allocation and add great overhead to the parser.
+
+So as of now the only types that seem worth specializing are:
+
 * int (64-bit)
 * double
+* array of ints
+* array of doubles
+
+Everything else will just be dynamic type as in Lua. However we can recognise following types to make the language more user friendly:
+
 * string
 * table 
-* array (this will be an optimisation of the array usage of a table)
-* bool 
-* functions and closures
+* function
+* nil
+* boolean
+
+And we may end up allowing additionally following types depending on whether they help our goals:
+
+* array of booleans
+* array of strings
+* array of functions
 
 The syntax for introducing the type will probably be as below:
 ```
@@ -90,26 +110,18 @@ end
 
 If no type is specified then then type will be dynamic - exactly what the Lua default is.
 
-Tables and arrays need special syntax to denote the element / key types. The syntax might use the angle brackets similar to C++ template aruguments.
+When it comes to complex types such as arrays, tables and functions, at this point in time, I think that Ravi only needs to support explicit specialization for arrays of integers and doubles. 
 
 ```
-function foo() 
-  local t1 = {} -- table<any,any>
-  local t2 : table<string,string> = {} -- table with string keys and values
-  local t3 : table<string,double> = {} -- table with string keys and double values
-  local a1 : array<int> = {} -- array of integers
+function foo(p1: {}, p2: int[])
+  -- p1 is a table
+  -- p2 is an array of integers
+  local t1 = {} -- t1 is a table
+  local a1 : int[] = {} -- a1 is an array of integers, specialization of table
+  local d1 : double[] = {} -- d1 is an array of doubles, specialization of table
 end
-
--- array of functions
-local func_table : array<function> = {
-  function (s: string) : string 
-    return s 
-  end,
-  function (i, j) 
-    return i+j 
-  end
-}
 ```
+
 When a typed function is called the inputs and return value can be validated. Consider the function below:
 
 ```
@@ -121,9 +133,9 @@ When this function is called the compiler can validate that `b` is an int and `c
 
 Return statements in typed functions can also be validated.
 
-Mixture of compile time and runtime checks
-------------------------------------------
-To keep with Lua's dynamic nature I plan a mix of static type checking and runtime type checks. Runtime type checks may be used for example when a function is called or values from a function call are saved into variables. Also on entry into functions the parameters may be subject to runtime checks. 
+All type checks are at runtime
+------------------------------
+To keep with Lua's dynamic nature I plan a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectually all checks are at runtime.
 
 Implementation Strategy
 -----------------------
@@ -135,8 +147,8 @@ I will probably need to augment some existing types such as functions and tables
 
 I intend to first add the opcodes to the VM before starting work on the parser and code generator.
 
-Challenges with Lua Bytecode structure
---------------------------------------
+Modifications to Lua Bytecode structure
+---------------------------------------
 An immediate issue is that the Lua bytecode structure has a 6-bit opcode which is insufficient to hold the various opcodes that I will need. Simply extending the size of this is problematic as then it reduces the space available to the operands A B and C. Furthermore the way Lua bytecodes work means that B and C operands must be 1-bit larger than A - as the extra bit is used to flag whether the operand refers to a constant or a register. (Thanks to Dirk Laurie for pointing this out). 
 
 If I change the sizes of the components it will make the new bytecode incompatible with Lua. Although this doesn't matter so much as long as source level compatibility is retained - I would like a solution that allows me to maintain full compatibility at bytecode level. An obvious solution is to allow extended 64-bit instructions - while retaining the existing 32-bit instructions.  
