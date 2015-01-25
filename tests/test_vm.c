@@ -515,6 +515,7 @@ static int test_luacompexec1(const char *code, int expected)
   int rc = 0;
   lua_State *L;
   L = luaL_newstate();
+  luaL_openlibs(L);  /* open standard libraries */
   if (luaL_loadbuffer(L, code, strlen(code), "testfunc") != 0) {
     rc = 1;
     fprintf(stderr, "%s\n", lua_tostring(L, -1));
@@ -551,8 +552,8 @@ int main(const char *argv[])
 {
     int failures = 0;
     failures += test_luacompexec1("local function tryme(); local i,j = 5,6; return i,j; end; local i:int, j:int = tryme(); return i+j", 11);
-    failures += test_luacomp1("local i:int,j:int = 1; j = i*j+i; return j", 1);
-    failures += test_luacomp1("local i:int; for i=1,10 do; print(i); end; print(i); return i", 0);
+    failures += test_luacompexec1("local i:int,j:int = 1; j = i*j+i; return j", 1);
+    failures += test_luacompexec1("local i:int; for i=1,10 do; print(i); end; print(i); return i", 0);
     failures += test_luacomp1("local i:int, j:double; i,j = f(); j = i*j+i");
     failures += test_luacomp1("local d; d = f()");
     failures += test_luacomp1("local d, e; d, e = f(), g()");
@@ -580,7 +581,7 @@ int main(const char *argv[])
     failures += test_luacompexec1("return (1 and 2)+(-1.25 or -4) == 0.75", 1);
     failures += test_luacomp1("local a=1; if a==0 then; a = 2; else a=3; end;");
     failures += test_luacomp1("local f = function(); return; end; local d:double = 5.0; d = f(); return d");
-    failures += test_luacompexec1("local i, j:double; j=0.0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
+    failures += test_luacompexec1("local j:double; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     failures += test_luacompexec1("local i, j:int; j=0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     failures += test_luacomp1("local f = function(); return; end; local d = 5.0; d = f(); return d");
     printf("Number of opcodes %d\n", NUM_OPCODES);
