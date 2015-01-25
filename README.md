@@ -5,7 +5,7 @@ Experimental derivative/dialect of Lua. Ravi is a Sanskrit word that means the S
 
 Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater performance. However, at the same time maintain full compatibility with standard Lua.
 
-There are various attempts to add static typing to Lua but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
+There are other attempts to add static typing to Lua (e.g. [Typed Lua](https://github.com/andremm/typedlua>) but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
 My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. 
 
@@ -13,16 +13,17 @@ Goals
 -----
 * Optional static typing for Lua 
 * No new types
+* Type specific bytecodes to improve performance
 * Full backward compatibility with Lua 5.3
 
 Status
 ------
-The project was kicked off in January 2015. I expect it will be a while before there is any code that runs. However my intention is start small and grow incrementally.
+The project was kicked off in January 2015. My intention is start small and grow incrementally.
 
-As of now you can declare local variables as int or double. This triggers following behaviour:
+As of now (end Jan 2015) you can declare local variables as `int` or `double`. This triggers following behaviour:
 
-* int and double variables are initialized to 0
-* arithmetic operations trigger type specific bytecode
+* `int` and `double` variables are initialized to 0
+* arithmetic operations trigger type specific bytecodes
 * values assigned to these variables are checked - statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime.
 
 Obviously this is early days so expect bugs.
@@ -41,7 +42,7 @@ The build is CMake based. I am testing this using Visual Studio 2013 on Windows 
 To build on Windows I use:
 ```
 cd build
-cmake -G "Visual Studio 12 Win64 .."
+cmake -G "Visual Studio 12 Win64" ..
 ```
 I then open the solution in VS2013 and do a build from there.
 
@@ -54,13 +55,13 @@ make
 
 The `lua` command recognizes following environment variables.
 
-* `RAVI_DEBUG_EXPR` - if set to a value this triggers some debug output of expression parsing
+* `RAVI_DEBUG_EXPR` - if set to a value this triggers debug output of expression parsing
 * `RAVI_DEBUG_CODEGEN` - if set to a value this triggers a dump of the code being generated
 * `RAVI_DEBUG_VARS` - if set this triggers a dump of local variables construction and destruction
 
 License
 -------
-Will be same as Lua.
+Same as Lua.
 
 Language Syntax
 ---------------
@@ -110,6 +111,12 @@ local func_table : array<function> = {
   end
 }
 ```
+An alternative syntax for array and table declarations I am considering:
+```
+local a1 : int[] = {}       -- array of integers
+local t1 : double[int] = {} -- table keyed by integers containing double values
+```
+
 When a typed function is called the inputs and return value can be validated. Consider the function below:
 
 ```
