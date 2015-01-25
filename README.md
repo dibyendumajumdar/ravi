@@ -70,7 +70,7 @@ Same as Lua.
 
 Language Syntax
 ---------------
-I hope to enhance the language to variables to be optionally decorated with types. As the reason for doing so is performance primarily - not all types benefit from this capability. In fact it is quite hard to extend this to generic recusrive structures such as tables without encurring signficant overhead. For instance - even to represent a recusrive type in the parser will require dynamic memory allocation and add great overhead to the parser.
+I hope to enhance the language to variables to be optionally decorated with types. As the reason for doing so is performance primarily - not all types benefit from this capability. In fact it is quite hard to extend this to generic recursive structures such as tables without encurring significant overhead. For instance - even to represent a recursive type in the parser will require dynamic memory allocation and add great overhead to the parser.
 
 So as of now the only types that seem worth specializing are:
 
