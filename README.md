@@ -59,6 +59,11 @@ The `lua` command recognizes following environment variables.
 * `RAVI_DEBUG_CODEGEN` - if set to a value this triggers a dump of the code being generated
 * `RAVI_DEBUG_VARS` - if set this triggers a dump of local variables construction and destruction
 
+Work Plan
+---------
+* Feb 2015 - implement type specialisation for arrays 
+* Mar 2015 - implement function parameter / return type specialisation
+
 License
 -------
 Same as Lua.
