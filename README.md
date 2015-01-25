@@ -5,7 +5,7 @@ Experimental derivative/dialect of Lua. Ravi is a Sanskrit word that means the S
 
 Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater performance. However, at the same time maintain full compatibility with standard Lua.
 
-There are other attempts to add static typing to Lua (e.g. [Typed Lua](https://github.com/andremm/typedlua>) but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
+There are other attempts to add static typing to Lua (e.g. [Typed Lua](https://github.com/andremm/typedlua>)) but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
 My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. 
 
