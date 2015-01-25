@@ -79,7 +79,7 @@ So as of now the only types that seem worth specializing are:
 * array of ints
 * array of doubles
 
-Everything else will just be dynamic type as in Lua. However we can recognise following types to make the langauge more user friendly:
+Everything else will just be dynamic type as in Lua. However we can recognise following types to make the language more user friendly:
 
 * string
 * table 
