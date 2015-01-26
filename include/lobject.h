@@ -514,6 +514,8 @@ typedef struct Table {
   Node *lastfree;  /* any free position is before this position */
   struct Table *metatable;
   GCObject *gclist;
+  ravitype_t ravi_array_type; /* RAVI specialization */
+  unsigned int ravi_array_len; /* RAVI len specialization */
 } Table;
 
 

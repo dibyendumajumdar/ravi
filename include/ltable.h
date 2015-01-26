@@ -43,6 +43,10 @@ LUAI_FUNC void luaH_free (lua_State *L, Table *t);
 LUAI_FUNC int luaH_next (lua_State *L, Table *t, StkId key);
 LUAI_FUNC int luaH_getn (Table *t);
 
+LUAI_FUNC Table *raviH_new(lua_State *L, ravitype_t tt); /* RAVI array specialization */
+LUAI_FUNC int raviH_getn(Table *t); /* RAVI array specialization */
+LUAI_FUNC void raviH_setint(lua_State *L, Table *t, lua_Integer key, TValue *value); /* RAVI array specialization */
+LUAI_FUNC const TValue *raviH_getint(lua_State *L, Table *t, lua_Integer key); /* RAVI array specialization */
 
 #if defined(LUA_DEBUG)
 LUAI_FUNC Node *luaH_mainposition (const Table *t, const TValue *key);

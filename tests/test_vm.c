@@ -546,11 +546,36 @@ static int test_luacompexec1(const char *code, int expected)
   return rc;
 }
 
-
+int test_ravitable()
+{
+  int rc = 0;
+  lua_State *L;
+  Table *t;
+  L = luaL_newstate();
+  luaL_openlibs(L);  /* open standard libraries */
+  t = raviH_new(L, RAVI_TARRAYFLT);
+  if (raviH_getn(t) != 0)
+    rc = 1;
+  for (int i = 1; i <= 25; i++) {
+    TValue n;
+    const TValue *v;
+    n.tt_ = LUA_TNUMFLT;
+    n.value_.n = 567.654 + i;
+    raviH_setint(L, t, i, &n);
+    if (raviH_getn(t) != i)
+      rc = 1;
+    v = raviH_getint(L, t, i);
+    if (v->tt_ != n.tt_ || v->value_.n != n.value_.n)
+      rc = 1;
+  }
+  lua_close(L);
+  return rc;
+}
 
 int main(const char *argv[]) 
 {
     int failures = 0;
+    failures += test_ravitable();
     failures += test_luacompexec1("local function tryme(); local i,j = 5,6; return i,j; end; local i:int, j:int = tryme(); return i+j", 11);
     failures += test_luacompexec1("local i:int,j:int = 1; j = i*j+i; return j", 1);
     failures += test_luacompexec1("local i:int; for i=1,10 do; print(i); end; print(i); return i", 0);
