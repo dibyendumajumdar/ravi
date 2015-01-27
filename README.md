@@ -149,6 +149,7 @@ The array types will have some special behaviour:
 * it will be possible to pass arrays to functions and return arrays from functions - the array types will be checked at runtime
 * it should be possible to store an array type in a table - however any operations on array type can only be optimised to special bytecode if the array type is a local variable. Otherwise regular table access will be used subject to runtime checks. 
 * array types may not have meta methods - this will be enforced at runtime
+* array elements will be set to 0 not nil as default value
 
 All type checks are at runtime
 ------------------------------
