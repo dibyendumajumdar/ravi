@@ -136,7 +136,7 @@ function foo(p1: {}, p2: int[])
 end
 ```
 
-To support array types we need a mix of runtime and compile time type checking. The Lua table type will be enhanced to have type information so that when an array type is created the type of the array will be recorded. This will allow the runtime to detect incorrect usage of array type and raise errors if necessary. However, on the other hand, it will be possible to pass the array type to an existing Lua function as a regular table - and as long as the Lua function does not attempt to subvert the array type it should work as normal.
+To support array types we need a mix of runtime and compile time type checking. The Lua table type will be enhanced to hold type information so that when an array type is created the type of the array will be recorded. This will allow the runtime to detect incorrect usage of array type and raise errors if necessary. However, on the other hand, it will be possible to pass the array type to an existing Lua function as a regular table - and as long as the Lua function does not attempt to subvert the array type it should work as normal.
 
 The array types will have some special behaviour:
 
