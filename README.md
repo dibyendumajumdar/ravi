@@ -140,14 +140,14 @@ To support array types we need a mix of runtime and compile time type checking. 
 
 The array types will have some special behaviour:
 
-* indices may not be negative
+* indices must be >= 1
 * array will grow automatically if user sets the element just past the array length
 * it will be an error to attempt to set an element that is beyond len+1 
 * the current used length of the array will be recorded and returned by len operations
 * the array will only permit the right type of value to be assigned (this will be checked at runtime to allow full compatibility with Lua)
 * accessing out of bounds elements will cause an error, except for setting the len+1 element
 * it will be possible to pass arrays to functions and return arrays from functions - the array types will be checked at runtime
-* it should be possible to store an array type in a table - however any operations on array type can only be optimised to special bytecode if the array type is a local variable. Otherwise regular table access will be used subject to runtime checks.
+* it should be possible to store an array type in a table - however any operations on array type can only be optimised to special bytecode if the array type is a local variable. Otherwise regular table access will be used subject to runtime checks. 
 * array types may not have meta methods - this will be enforced at runtime
 
 All type checks are at runtime
