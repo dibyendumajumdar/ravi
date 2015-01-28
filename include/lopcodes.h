@@ -333,9 +333,13 @@ OP_RAVI_LEIIRR,/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
 
 OP_RAVI_TOINT, /* A R(A) := toint(R(A)) */
 OP_RAVI_TOFLT, /* A R(A) := tofloat(R(A)) */
+OP_RAVI_TOARRAYI, /* A R(A) := to_arrayi(R(A)) */
+OP_RAVI_TOARRAYF, /* A R(A) := to_arrayf(R(A)) */
 
-OP_RAVI_MOVEI, /*	A B	R(A) := R(B)					*/
-OP_RAVI_MOVEF, /*	A B	R(A) := R(B)					*/
+OP_RAVI_MOVEI, /*	A B	R(A) := R(B), check R(B) is int	*/
+OP_RAVI_MOVEF, /*	A B	R(A) := R(B), check R(B) is float */
+OP_RAVI_MOVEAI, /* A B R(A) := R(B), check R(B) is array of int */
+OP_RAVI_MOVEAF, /* A B R(A) := R(B), check R(B) is array of floats */
 
 OP_RAVI_ARRAYGET_SIK,/*	A B C	R(A) := R(B)[Kst(C)]				*/
 OP_RAVI_ARRAYGET_SIR,/*	A B C	R(A) := R(B)[R(C)]				*/

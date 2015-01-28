@@ -1824,6 +1824,14 @@ newframe:  /* reentry point when frame changes (call/return) */
           else
             luaG_runerror(L, "TOFLT: double type expected");
         } break;
+        case OP(OP_RAVI_TOARRAYI): {
+          if (!ttistable(ra) || hvalue(ra)->ravi_array_type != RAVI_TARRAYINT)
+            luaG_runerror(L, "TOARRAYI: int[] expected");
+        } break;
+        case OP(OP_RAVI_TOARRAYF): {
+          if (!ttistable(ra) || hvalue(ra)->ravi_array_type != RAVI_TARRAYFLT)
+            luaG_runerror(L, "TOARRAYF: double[] expected");
+        } break;
         case OP(OP_RAVI_MOVEI): {
           lua_Integer i;
           TValue *rb = base + b;
@@ -1841,6 +1849,22 @@ newframe:  /* reentry point when frame changes (call/return) */
           }
           else
             luaG_runerror(L, "MOVEF: double type expected");
+        } break;
+        case OP(OP_RAVI_MOVEAI): {
+          TValue *rb = base + b;
+          if (ttistable(rb) && hvalue(rb)->ravi_array_type == RAVI_TARRAYINT) {
+            setobjs2s(L, ra, rb);
+          }
+          else
+            luaG_runerror(L, "MOVEAI: int[] expected");
+        } break;
+        case OP(OP_RAVI_MOVEAF): {
+          TValue *rb = base + b;
+          if (ttistable(rb) && hvalue(rb)->ravi_array_type == RAVI_TARRAYFLT) {
+            setobjs2s(L, ra, rb);
+          }
+          else
+            luaG_runerror(L, "MOVEAF: double[] expected");
         } break;
 
         }
