@@ -441,6 +441,8 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
       }
       e->u.info = luaK_codeABC(fs, op, 0, e->u.ind.t, e->u.ind.idx);
       e->k = VRELOCABLE;
+      if (op == OP_GETTABLE && (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT))
+        e->ravi_type = e->ravi_type == RAVI_TARRAYFLT ? RAVI_TNUMFLT : RAVI_TNUMINT;
       DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VINDEXED->VRELOCABLE) %e\n", e));
       break;
     }
@@ -630,32 +632,37 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
 static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
 #if RAVI_ENABLED
   /* VNONRELOC means we have fixed register and do we know the type? */
-  if (ex->k == VNONRELOC && (var->ravi_type == RAVI_TNUMFLT || var->ravi_type == RAVI_TNUMINT)) {
-    /* handled by MOVEI or MOVEF at runtime */
+  if (ex->k == VNONRELOC && (var->ravi_type == RAVI_TNUMFLT || var->ravi_type == RAVI_TNUMINT || var->ravi_type == RAVI_TARRAYFLT || var->ravi_type == RAVI_TARRAYINT)) {
+    /* handled by MOVEI, MOVEF, MOVEAI, MOVEAF at runtime */
     return;
   }
-  if ((var->ravi_type == RAVI_TNUMFLT || var->ravi_type == RAVI_TNUMINT) &&
-      ((var->ravi_type == RAVI_TNUMFLT && ex->ravi_type != RAVI_TNUMFLT /* && ex->ravi_type != RAVI_TNUMINT */) ||
-       (var->ravi_type == RAVI_TNUMINT /* && ex->ravi_type != RAVI_TNUMFLT */ && ex->ravi_type != RAVI_TNUMINT)))
+  if (var->ravi_type == RAVI_TNUMFLT) {
+    if (ex->ravi_type == RAVI_TNUMFLT)
+      return;
+    if (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYFLT)
+      return;
     luaX_syntaxerror(
-        fs->ls,
-        luaO_pushfstring(
-            fs->ls->L,
-            "Invalid assignment of type: var type %d, expression type %d",
-            var->ravi_type,
-            ex->ravi_type));
+      fs->ls,
+      luaO_pushfstring(
+      fs->ls->L,
+      "Invalid assignment of type: var type %d, expression type %d",
+      var->ravi_type,
+      ex->ravi_type));
+  }
+  else if (var->ravi_type == RAVI_TNUMINT) {
+    if (ex->ravi_type == RAVI_TNUMINT)
+      return;
+    if (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYINT)
+      return;
+    luaX_syntaxerror(
+      fs->ls,
+      luaO_pushfstring(
+      fs->ls->L,
+      "Invalid assignment of type: var type %d, expression type %d",
+      var->ravi_type,
+      ex->ravi_type));
+  }
 #endif
-  /*
-  else if ((var->ravi_type == RAVI_TFUNCTION || var->ravi_type == RAVI_TSTRING || var->ravi_type == RAVI_TNIL) &&
-           (var->ravi_type != ex->ravi_type && ex->ravi_type != RAVI_TNIL))
-    luaX_syntaxerror(
-        fs->ls,
-        luaO_pushfstring(
-            fs->ls->L,
-            "Invalid assignment of type: var type %d, expression type %d",
-            var->ravi_type,
-            ex->ravi_type));
-  */
 }
 
 /* Emit store for LHS expression. */
@@ -1146,15 +1153,20 @@ static void codeexpval (FuncState *fs, OpCode op,
 #endif
     e1->k = VRELOCABLE;  /* all those operations are relocable */
     if (isbinary) {
-      if ((op == OP_ADD||op == OP_SUB || op == OP_MUL || op == OP_DIV) && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT)
+      if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) &&
+        e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT)
         e1->ravi_type = RAVI_TNUMFLT;
-      else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMINT)
+      else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) 
+        && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMINT)
         e1->ravi_type = RAVI_TNUMFLT;
-      else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMFLT)
+      else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) 
+        && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMFLT)
         e1->ravi_type = RAVI_TNUMFLT;
-      else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL) && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
+      else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL) 
+        && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
         e1->ravi_type = RAVI_TNUMINT;
-      else if ((op == OP_DIV) && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
+      else if ((op == OP_DIV) 
+        && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
         e1->ravi_type = RAVI_TNUMFLT;
       else
         e1->ravi_type = RAVI_TANY;

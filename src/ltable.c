@@ -694,8 +694,8 @@ setval2:
         setivalue(&t->array[key - 1], ivalue(value));
       }
       else {
-        if (!ttisfloat(value)) luaG_runerror(L, "double expected");
-        setfltvalue(&t->array[key - 1], fltvalue(value));
+        if (!ttisfloat(value) && !ttisinteger(value)) luaG_runerror(L, "double or int expected");
+        setfltvalue(&t->array[key - 1], ttisfloat(value) ? fltvalue(value) : ivalue(value));
       }
       return;
     }
