@@ -488,7 +488,6 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
       SETARG_A(*pc, reg);
       DEBUG_EXPR(raviY_printf(fs, "discharge2reg (VRELOCABLE set arg A) %e\n", e));
       DEBUG_CODEGEN(raviY_printf(fs, "[%d]* %o ; set A to %d\n", e->u.info, *pc, reg));
-
       break;
     }
     case VNONRELOC: {
@@ -501,6 +500,12 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
           break;
         case RAVI_TNUMFLT:
           luaK_codeABC(fs, OP_RAVI_MOVEF, reg, e->u.info, 0);
+          break;
+        case RAVI_TARRAYINT:
+          luaK_codeABC(fs, OP_RAVI_MOVEAI, reg, e->u.info, 0);
+          break;
+        case RAVI_TARRAYFLT:
+          luaK_codeABC(fs, OP_RAVI_MOVEAF, reg, e->u.info, 0);
           break;
         default:
           luaK_codeABC(fs, OP_MOVE, reg, e->u.info, 0);
