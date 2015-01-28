@@ -1210,6 +1210,18 @@ newframe:  /* reentry point when frame changes (call/return) */
         int c = INDEXK(GETARG_C(i));
 
         switch (OP(op)) {
+
+        case OP(OP_RAVI_NEWARRAYI): {
+          Table *t = raviH_new(L, RAVI_TARRAYINT);
+          sethvalue(L, ra, t);
+          checkGC(L, ra + 1);
+        } break;
+        case OP(OP_RAVI_NEWARRAYF): {
+          Table *t = raviH_new(L, RAVI_TARRAYFLT);
+          sethvalue(L, ra, t);
+          checkGC(L, ra + 1);
+        } break;
+
         case OP(OP_RAVI_LOADIZ): {
           setivalue(ra, 0);
         } break;
