@@ -167,11 +167,19 @@ void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val) {
     const TValue *tm;
     if (ttistable(t)) {  /* 't' is a table? */
       Table *h = hvalue(t);
-      const TValue *res = luaH_get(h, key); /* do a primitive get */
-      if (!ttisnil(res) ||  /* result is not nil? */
-          (tm = fasttm(L, h->metatable, TM_INDEX)) == NULL) { /* or no TM? */
-        setobj2s(L, val, res);  /* result is the raw get */
+      if (h->ravi_array_type != RAVI_TTABLE) {
+        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+        const TValue *res = raviH_getint(L, h, ivalue(key));
+        setobj2s(L, val, res);
         return;
+      }
+      else {
+        const TValue *res = luaH_get(h, key); /* do a primitive get */
+        if (!ttisnil(res) ||  /* result is not nil? */
+          (tm = fasttm(L, h->metatable, TM_INDEX)) == NULL) { /* or no TM? */
+          setobj2s(L, val, res);  /* result is the raw get */
+          return;
+        }
       }
       /* else will try metamethod */
     }
@@ -197,22 +205,29 @@ void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
     const TValue *tm;
     if (ttistable(t)) {  /* 't' is a table? */
       Table *h = hvalue(t);
-      TValue *oldval = cast(TValue *, luaH_get(h, key));
-      /* if previous value is not nil, there must be a previous entry
-         in the table; a metamethod has no relevance */
-      if (!ttisnil(oldval) ||
-         /* previous value is nil; must check the metamethod */
-         ((tm = fasttm(L, h->metatable, TM_NEWINDEX)) == NULL &&
-         /* no metamethod; is there a previous entry in the table? */
-         (oldval != luaO_nilobject ||
-         /* no previous entry; must create one. (The next test is
-            always true; we only need the assignment.) */
-         (oldval = luaH_newkey(L, h, key), 1)))) {
-        /* no metamethod and (now) there is an entry with given key */
-        setobj2t(L, oldval, val);  /* assign new value to that entry */
-        invalidateTMcache(h);
-        luaC_barrierback(L, h, val);
+      if (h->ravi_array_type != RAVI_TTABLE) {
+        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+        raviH_setint(L, h, ivalue(key), val);
         return;
+      }
+      else {
+        TValue *oldval = cast(TValue *, luaH_get(h, key));
+        /* if previous value is not nil, there must be a previous entry
+           in the table; a metamethod has no relevance */
+        if (!ttisnil(oldval) ||
+          /* previous value is nil; must check the metamethod */
+          ((tm = fasttm(L, h->metatable, TM_NEWINDEX)) == NULL &&
+          /* no metamethod; is there a previous entry in the table? */
+          (oldval != luaO_nilobject ||
+          /* no previous entry; must create one. (The next test is
+             always true; we only need the assignment.) */
+             (oldval = luaH_newkey(L, h, key), 1)))) {
+          /* no metamethod and (now) there is an entry with given key */
+          setobj2t(L, oldval, val);  /* assign new value to that entry */
+          invalidateTMcache(h);
+          luaC_barrierback(L, h, val);
+          return;
+        }
       }
       /* else will try the metamethod */
     }
@@ -406,10 +421,16 @@ void luaV_objlen (lua_State *L, StkId ra, const TValue *rb) {
   switch (ttnov(rb)) {
     case LUA_TTABLE: {
       Table *h = hvalue(rb);
-      tm = fasttm(L, h->metatable, TM_LEN);
-      if (tm) break;  /* metamethod? break switch to call it */
-      setivalue(ra, luaH_getn(h));  /* else primitive len */
-      return;
+      if (h->ravi_array_type != RAVI_TTABLE) {
+        setivalue(ra, raviH_getn(h));
+        return;
+      }
+      else {
+        tm = fasttm(L, h->metatable, TM_LEN);
+        if (tm) break;  /* metamethod? break switch to call it */
+        setivalue(ra, luaH_getn(h));  /* else primitive len */
+        return;
+      }
     }
     case LUA_TSTRING: {
       setivalue(ra, tsvalue(rb)->len);
@@ -1133,12 +1154,20 @@ newframe:  /* reentry point when frame changes (call/return) */
         luai_runtimecheck(L, ttistable(ra));
         h = hvalue(ra);
         last = ((c - 1)*LFIELDS_PER_FLUSH) + n;
-        if (last > h->sizearray)  /* needs more space? */
+        if (h->ravi_array_type == RAVI_TTABLE) {
+          if (last > h->sizearray)  /* needs more space? */
             luaH_resizearray(L, h, last);  /* pre-allocate it at once */
-        for (; n > 0; n--) {
+          for (; n > 0; n--) {
             TValue *val = ra + n;
             luaH_setint(L, h, last--, val);
             luaC_barrierback(L, h, val);
+          }
+        }
+        else {
+          for (; n > 0; n--) {
+            TValue *val = ra + n;
+            raviH_setint(L, h, last--, val);
+          }
         }
         L->top = ci->top;  /* correct top (in case of previous open call) */
     } break;
