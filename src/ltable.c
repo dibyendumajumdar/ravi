@@ -647,24 +647,41 @@ int luaH_getn (Table *t) {
 
 /* RAVI array specialization */
 int raviH_getn(Table *t) {
-  return t->ravi_array_type == RAVI_TTABLE ? luaH_getn(t) : t->ravi_array_len;
+  lua_assert(t->ravi_array_type != RAVI_TTABLE);
+  return t->ravi_array_len;
 }
 
 /* RAVI array specialization */
 const TValue *raviH_getint(lua_State *L, Table *t, lua_Integer key) {
-  if (t->ravi_array_type == RAVI_TTABLE)
-    return luaH_getint(t, key);
-  if (key < 1 || key > t->ravi_array_len)
-    luaG_runerror(L, "array out if bounds");
-  return &t->array[key - 1];
+  lua_Unsigned u = l_castS2U(key - 1);
+  lua_assert(t->ravi_array_type != RAVI_TTABLE);
+  if (u < t->ravi_array_len)
+    return &t->array[u];
+  else
+    luaG_runerror(L, "array out of bounds");
 }
+
+static void ravi_resize_array(lua_State *L, Table *t) {
+  unsigned int i;
+  unsigned int size = t->sizearray + 10;
+  luaM_reallocvector(L, t->array, t->sizearray, size, TValue);
+  for (i = t->sizearray; i < size; i++) {
+    if (t->ravi_array_type == RAVI_TARRAYINT) {
+      t->array[i].tt_ = LUA_TNUMINT;
+      t->array[i].value_.i = 0;
+    }
+    else {
+      t->array[i].tt_ = LUA_TNUMFLT;
+      t->array[i].value_.n = 0;
+    }
+  }
+  t->sizearray = size;
+}
+
 
 /* RAVI array specialization */
 void raviH_setint(lua_State *L, Table *t, lua_Integer key, TValue *value) {
-  if (t->ravi_array_type == RAVI_TTABLE) {
-    luaH_setint(L, t, key, value);
-    return;
-  }
+  lua_assert(t->ravi_array_type != RAVI_TTABLE);
   if (key < 1 || key > t->ravi_array_len + 1)
     luaG_runerror(L, "array out of bounds");
   if (key == t->ravi_array_len + 1) {
@@ -681,38 +698,18 @@ setval2:
       return;
     }
     else {
-      unsigned int i;
-      unsigned int size = t->sizearray + 10;
-      luaM_reallocvector(L, t->array, t->sizearray, size, TValue);
-      for (i = t->sizearray; i < size; i++) {
-        if (t->ravi_array_type == RAVI_TARRAYINT) {
-          t->array[i].tt_ = LUA_TNUMINT;
-          t->array[i].value_.i = 0;
-        }
-        else {
-          t->array[i].tt_ = LUA_TNUMFLT;
-          t->array[i].value_.n = 0;
-        }
-      }
-      t->sizearray = size;
+      ravi_resize_array(L, t);
       goto setval;
     }
   }
-  else {
+  else 
     goto setval2;
-  }
 }
 
 Table *raviH_new(lua_State *L, ravitype_t tt) {
   Table *t = luaH_new(L);
-  if (tt == RAVI_TARRAYFLT) {
-    t->ravi_array_type = RAVI_TARRAYFLT;
-  }
-  else if (tt == RAVI_TARRAYINT) {
-    t->ravi_array_type = RAVI_TARRAYINT;
-  }
-  else
-    t->ravi_array_type = RAVI_TTABLE;
+  lua_assert(tt == RAVI_TARRAYFLT || tt == RAVI_TARRAYINT);
+  t->ravi_array_type = tt;
   t->ravi_array_len = 0;
   return t;
 }
