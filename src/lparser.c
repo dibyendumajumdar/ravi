@@ -1139,8 +1139,17 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
 #endif
   }
   if (n < nvars && vars[n] != RAVI_TANY && v->ravi_type != vars[n]) {
+    if (v->ravi_type != vars[n] && (vars[n] == RAVI_TARRAYFLT || vars[n] == RAVI_TARRAYINT) && v->k == VNONRELOC) {
+      /* array variable - the last bytecode must be a OP_NEWTABLE */
+      Instruction *pc = &ls->fs->f->code[ls->fs->pc - 1];
+      OpCode op = GET_OPCODE(*pc);
+      if (op != OP_NEWTABLE) luaX_syntaxerror(ls, "expecting array initializer");
+      op = (vars[n] == RAVI_TARRAYINT) ? OP_RAVI_NEWARRAYI : OP_RAVI_NEWARRAYF;
+      SET_OPCODE(*pc, op); /* modify opcode */
+      DEBUG_CODEGEN(raviY_printf(ls->fs, "[%d]* %o ; modify opcode\n", ls->fs->pc - 1, *pc));
+    }
     /* if we are calling a function then convert return types */
-    if (v->ravi_type != vars[n] && (vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT) && v->k == VCALL) {
+    else if (v->ravi_type != vars[n] && (vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT) && v->k == VCALL) {
       /* For local variable declarations that call functions e.g.
        * local i = func()
        * Lua ensures that the function returns values to register assigned to variable i
@@ -1876,7 +1885,7 @@ static void localstat (LexState *ls) {
     /* RAVI changes start */
     /* local name : type = value */
     TString *name = str_checkname(ls);
-    int tt = RAVI_TANY;
+    ravitype_t tt = RAVI_TANY;
     if (testnext(ls, ':')) {
       TString *typename = str_checkname(ls); /* we expect a type name */
       const char *str = getaddrstr(typename);
@@ -1884,6 +1893,12 @@ static void localstat (LexState *ls) {
         tt = RAVI_TNUMINT;
       else if (strcmp(str, "double") == 0)
         tt = RAVI_TNUMFLT;
+      if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
+        if (testnext(ls, '[')) {
+          checknext(ls, ']');
+          tt = (tt == RAVI_TNUMFLT) ? RAVI_TARRAYFLT : RAVI_TARRAYINT;
+        }
+      }
     }
     new_localvar(ls, name, tt);
     vars[nvars] = tt;

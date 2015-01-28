@@ -690,9 +690,11 @@ setval:
       t->ravi_array_len++;
 setval2:
       if (t->ravi_array_type == RAVI_TARRAYINT) {
+        if (!ttisinteger(value)) luaG_runerror(L, "integer expected");
         setivalue(&t->array[key - 1], ivalue(value));
       }
       else {
+        if (!ttisfloat(value)) luaG_runerror(L, "double expected");
         setfltvalue(&t->array[key - 1], fltvalue(value));
       }
       return;
