@@ -26,7 +26,14 @@ As of now (end Jan 2015) you can declare local variables as `int` or `double`. T
 * arithmetic operations trigger type specific bytecodes
 * values assigned to these variables are checked - statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime.
 
-Obviously this is early days so expect bugs.
+Also initial implementation of arrays is available. So you can declare arrays of integers or doubles.
+
+* The type of an array of integers is denoted as `int[]`. 
+* The type of an array of doubles is denoted as `double[]`.
+* Arrays are implmented using a mix of runtime and compile time checks.
+* Operators to get/set from arrays not yet implemented so we won't yet full benefit.
+
+Obviously this is early days so _please expect bugs_.
 
 Example of code that works - you can copy this to the command line input:
 ```lua
@@ -35,6 +42,10 @@ local function tryme(); local i,j = 5,6; return i,j; end; local i:int, j:int = t
 Another:
 ```lua
 local j:double; for i=1,1000000000 do; j = j+1; end; return j
+```
+An example with arrays:
+```lua
+local a : double[], j:double = {}; for i=1,10 do; a[i] = i; j = j + a[i]; end; return j
 ```
 
 The build is CMake based. I am testing this using Visual Studio 2013 on Windows 8.1 64bit and gcc on Unbuntu 64-bit.
