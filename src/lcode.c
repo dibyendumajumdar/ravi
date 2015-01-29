@@ -662,6 +662,17 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       var->ravi_type,
       ex->ravi_type));
   }
+  else if (var->ravi_type == RAVI_TARRAYFLT || var->ravi_type == RAVI_TARRAYINT) {
+    if (ex->ravi_type == var->ravi_type)
+      return;
+    luaX_syntaxerror(
+      fs->ls,
+      luaO_pushfstring(
+      fs->ls->L,
+      "Invalid assignment of type: var type %d, expression type %d",
+      var->ravi_type,
+      ex->ravi_type));
+  }
 #endif
 }
 
