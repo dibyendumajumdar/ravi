@@ -1243,11 +1243,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             setivalue(ra, -ivalue(rb));
         } break;
 
-        case OP(OP_RAVI_ADDFFKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setfltvalue(ra, fltvalue(rb) + fltvalue(rc));
-        } break;
         case OP(OP_RAVI_ADDFFKR): {
             TValue *rb = k + b;
             TValue *rc = base + c;
@@ -1262,11 +1257,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             setfltvalue(ra, fltvalue(rb) + fltvalue(rc));
-        } break;
-        case OP(OP_RAVI_ADDFIKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setfltvalue(ra, fltvalue(rb) + ivalue(rc));
         } break;
         case OP(OP_RAVI_ADDFIKR): {
             TValue *rb = k + b;
@@ -1283,11 +1273,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rc = base + c;
             setfltvalue(ra, fltvalue(rb) + ivalue(rc));
         } break;
-        case OP(OP_RAVI_ADDIFKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setfltvalue(ra, ivalue(rb) + fltvalue(rc));
-        } break;
         case OP(OP_RAVI_ADDIFKR): {
             TValue *rb = k + b;
             TValue *rc = base + c;
@@ -1302,11 +1287,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             setfltvalue(ra, ivalue(rb) + fltvalue(rc));
-        } break;
-        case OP(OP_RAVI_ADDIIKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setivalue(ra, ivalue(rb) + ivalue(rc));
         } break;
         case OP(OP_RAVI_ADDIIKR): {
             TValue *rb = k + b;
@@ -1324,11 +1304,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             setivalue(ra, ivalue(rb) + ivalue(rc));
         } break;
 
-        case OP(OP_RAVI_SUBFFKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setfltvalue(ra, fltvalue(rb) - fltvalue(rc));
-        } break;
         case OP(OP_RAVI_SUBFFKR): {
             TValue *rb = k + b;
             TValue *rc = base + c;
@@ -1343,11 +1318,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             setfltvalue(ra, fltvalue(rb) - fltvalue(rc));
-        } break;
-        case OP(OP_RAVI_SUBFIKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setfltvalue(ra, fltvalue(rb) - ivalue(rc));
         } break;
         case OP(OP_RAVI_SUBFIKR): {
             TValue *rb = k + b;
@@ -1364,11 +1334,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rc = base + c;
             setfltvalue(ra, fltvalue(rb) - ivalue(rc));
         } break;
-        case OP(OP_RAVI_SUBIFKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setfltvalue(ra, ivalue(rb) - fltvalue(rc));
-        } break;
         case OP(OP_RAVI_SUBIFKR): {
             TValue *rb = k + b;
             TValue *rc = base + c;
@@ -1383,11 +1348,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             setfltvalue(ra, ivalue(rb) - fltvalue(rc));
-        } break;
-        case OP(OP_RAVI_SUBIIKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setivalue(ra, ivalue(rb) - ivalue(rc));
         } break;
         case OP(OP_RAVI_SUBIIKR): {
             TValue *rb = k + b;
@@ -1405,11 +1365,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             setivalue(ra, ivalue(rb) - ivalue(rc));
         } break;
 
-        case OP(OP_RAVI_MULFFKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setfltvalue(ra, fltvalue(rb) * fltvalue(rc));
-        } break;
         case OP(OP_RAVI_MULFFKR): {
             TValue *rb = k + b;
             TValue *rc = base + c;
@@ -1424,11 +1379,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             setfltvalue(ra, fltvalue(rb) * fltvalue(rc));
-        } break;
-        case OP(OP_RAVI_MULFIKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setfltvalue(ra, fltvalue(rb) * ivalue(rc));
         } break;
         case OP(OP_RAVI_MULFIKR): {
             TValue *rb = k + b;
@@ -1445,11 +1395,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rc = base + c;
             setfltvalue(ra, fltvalue(rb) * ivalue(rc));
         } break;
-        case OP(OP_RAVI_MULIFKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setfltvalue(ra, ivalue(rb) * fltvalue(rc));
-        } break;
         case OP(OP_RAVI_MULIFKR): {
             TValue *rb = k + b;
             TValue *rc = base + c;
@@ -1464,11 +1409,6 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rb = base + b;
             TValue *rc = base + c;
             setfltvalue(ra, ivalue(rb) * fltvalue(rc));
-        } break;
-        case OP(OP_RAVI_MULIIKK): {
-            TValue *rb = k + b;
-            TValue *rc = k + c;
-            setivalue(ra, ivalue(rb) * ivalue(rc));
         } break;
         case OP(OP_RAVI_MULIIKR): {
             TValue *rb = k + b;
