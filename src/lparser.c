@@ -359,7 +359,7 @@ static void new_localvar (LexState *ls, TString *name, ravitype_t tt) {
  */
 static void new_localvarliteral_ (LexState *ls, const char *name, size_t sz) {
   /* RAVI change - add type */
-  new_localvar(ls, luaX_newstring(ls, name, sz), RAVI_TSTRING);
+  new_localvar(ls, luaX_newstring(ls, name, sz), RAVI_TANY);
 }
 
 /* create a new local variable from a C char array - registering a Lua String
@@ -1707,7 +1707,7 @@ static void repeatstat (LexState *ls, int line) {
 /* parse the single expressions needed in numerical for loops
  * called by fornum()
  */
-static int exp1 (LexState *ls) {
+static int exp1 (LexState *ls, ravitype_t *type) {
   /* Since the local variable in a fornum loop is local to the loop and does
    * not use any variable in outer scope we don't need to check its
    * type - also the loop is already optimised so no point trying to
@@ -1720,6 +1720,7 @@ static int exp1 (LexState *ls) {
   luaK_exp2nextreg(ls->fs, &e);
   lua_assert(e.k == VNONRELOC);
   reg = e.u.info;
+  *type = e.ravi_type;
   return reg;
 }
 
@@ -1758,19 +1759,41 @@ static void fornum (LexState *ls, TString *varname, int line) {
   /* fornum -> NAME = exp1,exp1[,exp1] forbody */
   FuncState *fs = ls->fs;
   int base = fs->freereg;
+  LocVar *vidx, *vlimit, *vstep, *vvar;
   new_localvarliteral(ls, "(for index)");
   new_localvarliteral(ls, "(for limit)");
   new_localvarliteral(ls, "(for step)");
-  new_localvar(ls, varname, RAVI_TANY);  /* RAVI TODO - add for x: type syntax? */
+  new_localvar(ls, varname, RAVI_TANY);
+  /* The fornum sets up its own variables as above.
+     These are expected to hold numeric values - but from Ravi's
+     point of view we need to know if the variable is an integer or
+     double. So we need to check if this can be determined from the
+     fornum expressions. If we can then we will set the 
+     fornum variables to the type we discover.
+  */
+  vidx = &fs->f->locvars[fs->nlocvars - 4]; /* index variable - not yet active so get it from locvars*/
+  vlimit = &fs->f->locvars[fs->nlocvars - 3]; /* index variable - not yet active so get it from locvars*/
+  vstep = &fs->f->locvars[fs->nlocvars - 2]; /* index variable - not yet active so get it from locvars*/
+  vvar = &fs->f->locvars[fs->nlocvars - 1]; /* index variable - not yet active so get it from locvars*/
   checknext(ls, '=');
-  exp1(ls);  /* initial value */
+  /* get the type of each expression */
+  ravitype_t tidx = RAVI_TANY, tlimit = RAVI_TANY, tstep = RAVI_TNUMINT;
+  exp1(ls, &tidx);  /* initial value */
   checknext(ls, ',');
-  exp1(ls);  /* limit */
+  exp1(ls, &tlimit);  /* limit */
   if (testnext(ls, ','))
-    exp1(ls);  /* optional step */
+    exp1(ls, &tstep);  /* optional step */
   else {  /* default step = 1 */
     luaK_codek(fs, fs->freereg, luaK_intK(fs, 1));
     luaK_reserveregs(fs, 1);
+  }
+  if (tidx == tlimit && tlimit == tstep && (tidx == RAVI_TNUMFLT || tidx == RAVI_TNUMINT)) {
+    /* Ok so we have an integer or double */
+    vidx->ravi_type = vlimit->ravi_type = vstep->ravi_type = vvar->ravi_type = tidx;
+    DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for index %v\n", vidx));
+    DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for limit %v\n", vlimit));
+    DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for step %v\n", vstep));
+    DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for variable %v\n", vvar));
   }
   forbody(ls, base, line, 1, 1);
 }
