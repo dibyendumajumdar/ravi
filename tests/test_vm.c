@@ -575,7 +575,7 @@ int test_ravitable()
 int main(const char *argv[]) 
 {
     int failures = 0;
-    failures += test_luacompexec1("local function tryme(x); print(#x); return x; end; local da: double[] = {}; da[1] = 42; da = tryme(da); return da[1];", 42);
+    failures += test_luacompexec1("local function tryme(x); print(#x); return x; end; local da: double[] = { 5, 6 }; da[1] = 42; da = tryme(da); return da[1];", 42);
     /* following should fail as x is a double[] */
     failures += test_luacompexec1("local function tryme(x); print(#x); x[1] = 'junk'; return x; end; local da: double[] = {}; da[1] = 42; da = tryme(da); return da[1];", 42) == 1 ? 0 : 1;
     failures += test_luacompexec1("for i=1,10 do; end; return 0", 0);

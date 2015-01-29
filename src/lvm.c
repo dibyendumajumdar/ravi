@@ -1164,9 +1164,10 @@ newframe:  /* reentry point when frame changes (call/return) */
           }
         }
         else {
-          for (; n > 0; n--) {
-            TValue *val = ra + n;
-            raviH_setint(L, h, last--, val);
+          int i = last-n+1;
+          for (; i <= last; i++) {
+            TValue *val = ra + i;
+            raviH_setint(L, h, i, val);
           }
         }
         L->top = ci->top;  /* correct top (in case of previous open call) */
