@@ -246,10 +246,6 @@ OP_RAVI_ADDIIRK,/*	A B C	R(A) := R(B) + Kst(C)				*/
 OP_RAVI_ADDIIRN,/*	A B C	R(A) := R(B) + C				*/
 OP_RAVI_ADDIIRR,/*	A B C	R(A) := R(B) + R(C)				*/
 
-
-/* Cleanup below */
-
-
 OP_RAVI_SUBFFKR,/*	A B C	R(A) := Kst(B) - R(C)				*/
 OP_RAVI_SUBFFRK,/*	A B C	R(A) := R(B) - Kst(C)				*/
 OP_RAVI_SUBFFRR,/*	A B C	R(A) := R(B) - R(C)				*/
