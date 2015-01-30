@@ -579,8 +579,13 @@ int main(const char *argv[])
     failures += test_luacompexec1("local a:double = 1.0; return a+128 == 129.0;", 1);
     failures += test_luacompexec1("local a:double = 1.0; return 127+a == 128.0;", 1);
     failures += test_luacompexec1("local a:double = 1.0; return 128+a == 129.0;", 1);
-    failures += test_luacompexec1("local a:double =1.0; return a+1.0 == 1.0+a;", 1);
-    failures += test_luacomp1("local t = {}; local da : double[] = {}; da=t[1];") == 1 ? 0: 1;
+    failures += test_luacompexec1("local a:double = 1.0; return a+1.0 == 1.0+a;", 1);
+    failures += test_luacompexec1("local a:int = 1; return a+127 == 128;", 1);
+    failures += test_luacompexec1("local a:int = 1; return a+128 == 129;", 1);
+    failures += test_luacompexec1("local a:int = 1; return 127+a == 128;", 1);
+    failures += test_luacompexec1("local a:int = 1; return 128+a == 129;", 1);
+    failures += test_luacompexec1("local a:int = 1; return a+1 == 1+a;", 1);
+    failures += test_luacomp1("local t = {}; local da : double[] = {}; da=t[1];") == 1 ? 0 : 1;
     failures += test_luacompexec1("local function tryme(x); print(#x); return x; end; local da: double[] = { 5, 6 }; da[1] = 42; da = tryme(da); return da[1];", 42);
     /* following should fail as x is a double[] */
     failures += test_luacompexec1("local function tryme(x); print(#x); x[1] = 'junk'; return x; end; local da: double[] = {}; da[1] = 42; da = tryme(da); return da[1];", 42) == 1 ? 0 : 1;

@@ -80,8 +80,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "ADDFIRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
   "ADDFIRN",/*	A B C	R(A) := R(B) + C				*/
   "ADDFIRR",/*	A B C	R(A) := R(B) + R(C)				*/
-  "ADDIIKR",/*	A B C	R(A) := Kst(B) + R(C)				*/
   "ADDIIRK",/*	A B C	R(A) := R(B) + Kst(C)				*/
+  "ADDIIRN",/*	A B C	R(A) := R(B) + C				*/
   "ADDIIRR",/*	A B C	R(A) := R(B) + R(C)				*/
 
   "SUBFFKR",/*	A B C	R(A) := Kst(B) - R(C)				*/
@@ -261,8 +261,8 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ADDFIRK	A B C	R(A) := R(B) + Kst(C)				*/
  ,opmode(0, 1, OpArgR, OpArgU, iABC) /*RAVI_ADDFIRN	A B C	R(A) := R(B) + C				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ADDFIRR	A B C	R(A) := R(B) + R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_ADDIIKR	A B C	R(A) := Kst(B) + R(C)				*/
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ADDIIRK	A B C	R(A) := R(B) + Kst(C)				*/
+ ,opmode(0, 1, OpArgR, OpArgU, iABC) /*RAVI_ADDIIRN	A B C	R(A) := R(B) + C				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ADDIIRR	A B C	R(A) := R(B) + R(C)				*/
 
  ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_SUBFFKR	A B C	R(A) := Kst(B) - R(C)				*/
