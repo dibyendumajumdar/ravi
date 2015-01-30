@@ -934,7 +934,7 @@ static void codeexpval (FuncState *fs, OpCode op,
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFKR, 0, o1, o2);  /* generate opcode */
       }
       else if (ISK(o2)) {
-        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFRK, 0, o1, o2);  /* generate opcode */
+        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFKR, 0, o2, o1);  /* generate opcode */
       }
       else {
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFFRR, 0, o1, o2);  /* generate opcode */

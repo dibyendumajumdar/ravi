@@ -237,7 +237,6 @@ OP_RAVI_UNMF,  /*	A B	R(A) := -R(B) floating point      */
 OP_RAVI_UNMI,  /*   A B R(A) := -R(B) integer */
 
 OP_RAVI_ADDFFKR,/*	A B C	R(A) := Kst(B) + R(C)				*/
-OP_RAVI_ADDFFRK,/*	A B C	R(A) := R(B) + Kst(C)				*/
 OP_RAVI_ADDFFRR,/*	A B C	R(A) := R(B) + R(C)				*/
 OP_RAVI_ADDFIKR,/*	A B C	R(A) := Kst(B) + R(C)				*/
 OP_RAVI_ADDFIRK,/*	A B C	R(A) := R(B) + Kst(C)				*/
