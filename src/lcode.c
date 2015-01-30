@@ -250,6 +250,29 @@ static int luaK_code (FuncState *fs, Instruction i) {
   return fs->pc++;
 }
 
+/* Code arith where C is a constant */
+int luaK_codeABKi(FuncState *fs, OpCode o, int a, int b, int c) {
+  TValue *v;
+  int i;
+  lua_Integer val;
+  lua_assert(ISK(c));
+  i = INDEXK(c);
+  lua_assert(i >= 0 && i < fs->nk);
+  v = &fs->f->k[i];
+  lua_assert(ttisinteger(v));
+  val = ivalue(v);
+  /* if the value is upto MAXINDEXRK then it means we can
+   * hold it in operand C  - operand C reserves 1 bit for indicating
+   * constants hence MAXINDEXRK and not MAXARG_C
+   */
+  if (val >= 0 && val <= MAXINDEXRK) {
+    if (o == OP_RAVI_ADDFIRK) {
+      o = OP_RAVI_ADDFIRN;
+      c = (int)val;
+    }
+  }
+  return luaK_codeABC(fs, o, a, b, c);
+}
 
 int luaK_codeABC (FuncState *fs, OpCode o, int a, int b, int c) {
   lua_assert(getOpMode(o) == iABC);
@@ -945,7 +968,7 @@ static void codeexpval (FuncState *fs, OpCode op,
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFIKR, 0, o1, o2);  /* generate opcode */
       }
       else if (ISK(o2)) {
-        e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFIRK, 0, o1, o2);  /* generate opcode */
+        e1->u.info = luaK_codeABKi(fs, OP_RAVI_ADDFIRK, 0, o1, o2);  /* generate opcode */
       }
       else {
         e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFIRR, 0, o1, o2);  /* generate opcode */

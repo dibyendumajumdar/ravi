@@ -240,6 +240,7 @@ OP_RAVI_ADDFFKR,/*	A B C	R(A) := Kst(B) + R(C)				*/
 OP_RAVI_ADDFFRR,/*	A B C	R(A) := R(B) + R(C)				*/
 OP_RAVI_ADDFIKR,/*	A B C	R(A) := Kst(B) + R(C)				*/
 OP_RAVI_ADDFIRK,/*	A B C	R(A) := R(B) + Kst(C)				*/
+OP_RAVI_ADDFIRN,/*	A B C	R(A) := R(B) + C				*/
 OP_RAVI_ADDFIRR,/*	A B C	R(A) := R(B) + R(C)				*/
 OP_RAVI_ADDIFKR,/*	A B C	R(A) := Kst(B) + R(C)				*/
 OP_RAVI_ADDIFRK,/*	A B C	R(A) := R(B) + Kst(C)				*/

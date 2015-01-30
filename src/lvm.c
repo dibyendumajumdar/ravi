@@ -1263,6 +1263,11 @@ newframe:  /* reentry point when frame changes (call/return) */
             TValue *rc = k + c;
             setfltvalue(ra, fltvalue(rb) + ivalue(rc));
         } break;
+        case OP(OP_RAVI_ADDFIRN): {
+          TValue *rb = base + b;
+          setfltvalue(ra, fltvalue(rb) + c);
+        } break;
+
         case OP(OP_RAVI_ADDFIRR): {
             TValue *rb = base + b;
             TValue *rc = base + c;
