@@ -1235,238 +1235,118 @@ newframe:  /* reentry point when frame changes (call/return) */
       setivalue(ra, -ivalue(rb));
     } break;
 
-    case OP_RAVI_ADDFFKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
+    case OP_RAVI_ADDFF: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
       setfltvalue(ra, fltvalue(rb) + fltvalue(rc));
     } break;
-    case OP_RAVI_ADDFFRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, fltvalue(rb) + fltvalue(rc));
-    } break;
-    case OP_RAVI_ADDFIKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
+    case OP_RAVI_ADDFI: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
       setfltvalue(ra, fltvalue(rb) + ivalue(rc));
     } break;
-    case OP_RAVI_ADDFIRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setfltvalue(ra, fltvalue(rb) + ivalue(rc));
+    case OP_RAVI_ADDII: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      setivalue(ra, ivalue(rb) + ivalue(rc));
     } break;
-    case OP_RAVI_ADDFIRN: {
+    case OP_RAVI_ADDFN: {
       int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here ?*/
-      TValue *rb = RB(i);
+      TValue *rb = RKB(i);
       setfltvalue(ra, fltvalue(rb) + c);
     } break;
-    case OP_RAVI_ADDFIRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, fltvalue(rb) + ivalue(rc));
-    } break;
-    case OP_RAVI_ADDIIRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setivalue(ra, ivalue(rb) + ivalue(rc));
-    } break;
-    case OP_RAVI_ADDIIRN: {
+    case OP_RAVI_ADDIN: {
       int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here? */
-      TValue *rb = RB(i);
+      TValue *rb = RKB(i);
       setivalue(ra, ivalue(rb) + c);
     } break;
-    case OP_RAVI_ADDIIRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setivalue(ra, ivalue(rb) + ivalue(rc));
-    } break;
 
-    case OP_RAVI_SUBFFKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
+    case OP_RAVI_SUBFF: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
       setfltvalue(ra, fltvalue(rb) - fltvalue(rc));
     } break;
-    case OP_RAVI_SUBFFRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setfltvalue(ra, fltvalue(rb) - fltvalue(rc));
-    } break;
-    case OP_RAVI_SUBFFRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, fltvalue(rb) - fltvalue(rc));
-    } break;
-    case OP_RAVI_SUBFIKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
+    case OP_RAVI_SUBFI: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
       setfltvalue(ra, fltvalue(rb) - ivalue(rc));
     } break;
-    case OP_RAVI_SUBFIRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setfltvalue(ra, fltvalue(rb) - ivalue(rc));
-    } break;
-    case OP_RAVI_SUBFIRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, fltvalue(rb) - ivalue(rc));
-    } break;
-    case OP_RAVI_SUBIFKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
+    case OP_RAVI_SUBIF: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
       setfltvalue(ra, ivalue(rb) - fltvalue(rc));
     } break;
-    case OP_RAVI_SUBIFRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setfltvalue(ra, ivalue(rb) - fltvalue(rc));
-    } break;
-    case OP_RAVI_SUBIFRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, ivalue(rb) - fltvalue(rc));
-    } break;
-    case OP_RAVI_SUBIIKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
+    case OP_RAVI_SUBII: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
       setivalue(ra, ivalue(rb) - ivalue(rc));
     } break;
-    case OP_RAVI_SUBIIRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setivalue(ra, ivalue(rb) - ivalue(rc));
-    } break;
-    case OP_RAVI_SUBIIRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setivalue(ra, ivalue(rb) - ivalue(rc));
-    } break;
-
-    case OP_RAVI_MULFFKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, fltvalue(rb) * fltvalue(rc));
-    } break;
-    case OP_RAVI_MULFFRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, fltvalue(rb) * fltvalue(rc));
-    } break;
-    case OP_RAVI_MULFIKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, fltvalue(rb) * ivalue(rc));
-    } break;
-    case OP_RAVI_MULFIRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setfltvalue(ra, fltvalue(rb) * ivalue(rc));
-    } break;
-    case OP_RAVI_MULFIRN: {
+    case OP_RAVI_SUBFN: {
       int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here ?*/
-      TValue *rb = RB(i);
+      TValue *rb = RKB(i);
+      setfltvalue(ra, fltvalue(rb) - c);
+    } break;
+    case OP_RAVI_SUBNF: {
+      int b = INDEXK(GETARG_B(i)); /* do we need INDEXK here? */
+      TValue *rc = RKC(i);
+      setfltvalue(ra, b - fltvalue(rc));
+    } break;
+    case OP_RAVI_SUBIN: {
+      int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here ?*/
+      TValue *rb = RKB(i);
+      setivalue(ra, ivalue(rb) - c);
+    } break;
+    case OP_RAVI_SUBNI: {
+      int b = INDEXK(GETARG_B(i)); /* do we need INDEXK here? */
+      TValue *rc = RKC(i);
+      setivalue(ra, b - ivalue(rc));
+    } break;
+
+    case OP_RAVI_MULFF: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      setfltvalue(ra, fltvalue(rb) * fltvalue(rc));
+    } break;
+    case OP_RAVI_MULFI: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      setfltvalue(ra, fltvalue(rb) * ivalue(rc));
+    } break;
+    case OP_RAVI_MULII: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      setivalue(ra, ivalue(rb) * ivalue(rc));
+    } break;
+    case OP_RAVI_MULFN: {
+      int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here ?*/
+      TValue *rb = RKB(i);
       setfltvalue(ra, fltvalue(rb) * c);
     } break;
-    case OP_RAVI_MULFIRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, fltvalue(rb) * ivalue(rc));
-    } break;
-    case OP_RAVI_MULIIRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setivalue(ra, ivalue(rb) * ivalue(rc));
-    } break;
-    case OP_RAVI_MULIIRN: {
+    case OP_RAVI_MULIN: {
       int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here? */
-      TValue *rb = RB(i);
+      TValue *rb = RKB(i);
       setivalue(ra, ivalue(rb) * c);
     } break;
-    case OP_RAVI_MULIIRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setivalue(ra, ivalue(rb) * ivalue(rc));
-    } break;
 
-    case OP_RAVI_DIVFFKK: {
-      TValue *rb = KB(i);
-      TValue *rc = KC(i);
-      setfltvalue(ra, nvalue(rb) / nvalue(rc));
+    case OP_RAVI_DIVFF: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      setfltvalue(ra, fltvalue(rb) / fltvalue(rc));
     } break;
-    case OP_RAVI_DIVFFKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, nvalue(rb) / nvalue(rc));
-    } break;
-    case OP_RAVI_DIVFFRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setfltvalue(ra, nvalue(rb) / nvalue(rc));
-    } break;
-    case OP_RAVI_DIVFFRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, nvalue(rb) / nvalue(rc));
-    } break;
-    case OP_RAVI_DIVFIKK: {
-      TValue *rb = KB(i);
-      TValue *rc = KC(i);
+    case OP_RAVI_DIVFI: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
       setfltvalue(ra, fltvalue(rb) / ivalue(rc));
     } break;
-    case OP_RAVI_DIVFIKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, fltvalue(rb) / ivalue(rc));
-    } break;
-    case OP_RAVI_DIVFIRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setfltvalue(ra, fltvalue(rb) / ivalue(rc));
-    } break;
-    case OP_RAVI_DIVFIRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, fltvalue(rb) / ivalue(rc));
-    } break;
-    case OP_RAVI_DIVIFKK: {
-      TValue *rb = KB(i);
-      TValue *rc = KC(i);
+    case OP_RAVI_DIVIF: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
       setfltvalue(ra, ivalue(rb) / fltvalue(rc));
     } break;
-    case OP_RAVI_DIVIFKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, ivalue(rb) / fltvalue(rc));
-    } break;
-    case OP_RAVI_DIVIFRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setfltvalue(ra, ivalue(rb) / fltvalue(rc));
-    } break;
-    case OP_RAVI_DIVIFRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setfltvalue(ra, ivalue(rb) / fltvalue(rc));
-    } break;
-    case OP_RAVI_DIVIIKK: {
-      TValue *rb = KB(i);
-      TValue *rc = KC(i);
-      setivalue(ra, ivalue(rb) / ivalue(rc));
-    } break;
-    case OP_RAVI_DIVIIKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      setivalue(ra, ivalue(rb) / ivalue(rc));
-    } break;
-    case OP_RAVI_DIVIIRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      setivalue(ra, ivalue(rb) / ivalue(rc));
-    } break;
-    case OP_RAVI_DIVIIRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      setivalue(ra, ivalue(rb) / ivalue(rc));
+    case OP_RAVI_DIVII: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      setfltvalue(ra, (lua_Number)(ivalue(rb)) / (lua_Number)(ivalue(rc)));
     } break;
 
     case OP_RAVI_TOINT: {
@@ -1474,22 +1354,22 @@ newframe:  /* reentry point when frame changes (call/return) */
       if (tointeger(ra, &j)) {
         setivalue(ra, j);
       } else
-        luaG_runerror(L, "TOINT: int type expected");
+        luaG_runerror(L, "integer expected");
     } break;
     case OP_RAVI_TOFLT: {
       lua_Number j;
       if (tonumber(ra, &j)) {
         setfltvalue(ra, j);
       } else
-        luaG_runerror(L, "TOFLT: double type expected");
+        luaG_runerror(L, "float expected");
     } break;
     case OP_RAVI_TOARRAYI: {
       if (!ttistable(ra) || hvalue(ra)->ravi_array_type != RAVI_TARRAYINT)
-        luaG_runerror(L, "TOARRAYI: int[] expected");
+        luaG_runerror(L, "int[] expected");
     } break;
     case OP_RAVI_TOARRAYF: {
       if (!ttistable(ra) || hvalue(ra)->ravi_array_type != RAVI_TARRAYFLT)
-        luaG_runerror(L, "TOARRAYF: double[] expected");
+        luaG_runerror(L, "double[] expected");
     } break;
     case OP_RAVI_MOVEI: {
       TValue *rb = RB(i);
@@ -1497,7 +1377,7 @@ newframe:  /* reentry point when frame changes (call/return) */
       if (tointeger(rb, &j)) {
         setivalue(ra, j);
       } else
-        luaG_runerror(L, "MOVEI: int type expected");
+        luaG_runerror(L, "integer expected");
     } break;
     case OP_RAVI_MOVEF: {
       TValue *rb = RB(i);
@@ -1505,21 +1385,21 @@ newframe:  /* reentry point when frame changes (call/return) */
       if (tonumber(rb, &j)) {
         setfltvalue(ra, j);
       } else
-        luaG_runerror(L, "MOVEF: double type expected");
+        luaG_runerror(L, "float expected");
     } break;
     case OP_RAVI_MOVEAI: {
       TValue *rb = RB(i);
       if (ttistable(rb) && hvalue(rb)->ravi_array_type == RAVI_TARRAYINT) {
         setobjs2s(L, ra, rb);
       } else
-        luaG_runerror(L, "MOVEAI: int[] expected");
+        luaG_runerror(L, "int[] expected");
     } break;
     case OP_RAVI_MOVEAF: {
       TValue *rb = RB(i);
       if (ttistable(rb) && hvalue(rb)->ravi_array_type == RAVI_TARRAYFLT) {
         setobjs2s(L, ra, rb);
       } else
-        luaG_runerror(L, "MOVEAF: double[] expected");
+        luaG_runerror(L, "double[] expected");
     } break;
     case OP_RAVI_GETTABLE_AI:
     case OP_RAVI_GETTABLE_AF: {
