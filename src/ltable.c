@@ -666,6 +666,8 @@ static void ravi_resize_array(lua_State *L, Table *t) {
   unsigned int size = t->sizearray + 10;
   luaM_reallocvector(L, t->array, t->sizearray, size, TValue);
   for (i = t->sizearray; i < size; i++) {
+    setnilvalue(&t->array[i]);
+    /*
     if (t->ravi_array_type == RAVI_TARRAYINT) {
       t->array[i].tt_ = LUA_TNUMINT;
       t->array[i].value_.i = 0;
@@ -674,6 +676,7 @@ static void ravi_resize_array(lua_State *L, Table *t) {
       t->array[i].tt_ = LUA_TNUMFLT;
       t->array[i].value_.n = 0;
     }
+    */
   }
   t->sizearray = size;
 }
