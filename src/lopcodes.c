@@ -98,16 +98,13 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "SUBIIRR",/*	A B C	R(A) := R(B) - R(C)				*/
 
   "MULFFKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
-  "MULFFRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
   "MULFFRR",/*	A B C	R(A) := R(B) * R(C)				*/
   "MULFIKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
   "MULFIRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
+  "MULFIRN",/*	A B C	R(A) := R(B) * C				*/
   "MULFIRR",/*	A B C	R(A) := R(B) * R(C)				*/
-  "MULIFKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
-  "MULIFRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
-  "MULIFRR",/*	A B C	R(A) := R(B) * R(C)				*/
-  "MULIIKR",/*	A B C	R(A) := Kst(B) * R(C)				*/
   "MULIIRK",/*	A B C	R(A) := R(B) * Kst(C)				*/
+  "MULIIRN",/*	A B C	R(A) := R(B) * C				*/
   "MULIIRR",/*	A B C	R(A) := R(B) * R(C)				*/
 
   "DIVFFKK",/*	A B C	R(A) := Kst(B) / Kst(C)				*/
@@ -278,18 +275,15 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_SUBIIRK	A B C	R(A) := R(B) - Kst(C)				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_SUBIIRR	A B C	R(A) := R(B) - R(C)				*/
 
- ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_MULFFKR	A B C	R(A) := Kst(B) * R(C)				*/
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_MULFFRK	A B C	R(A) := R(B) * Kst(C)				*/
- ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_MULFFRR	A B C	R(A) := R(B) * R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_MULFIKR	A B C	R(A) := Kst(B) * R(C)				*/
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_MULFIRK	A B C	R(A) := R(B) * Kst(C)				*/
- ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_MULFIRR	A B C	R(A) := R(B) * R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_MULIFKR	A B C	R(A) := Kst(B) * R(C)				*/
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_MULIFRK	A B C	R(A) := R(B) * Kst(C)				*/
- ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_MULIFRR	A B C	R(A) := R(B) * R(C)				*/
- ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_MULIIKR	A B C	R(A) := Kst(B) * R(C)				*/
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_MULIIRK	A B C	R(A) := R(B) * Kst(C)				*/
- ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_MULIIRR	A B C	R(A) := R(B) * R(C)				*/
+ , opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_MULFFKR	A B C	R(A) := Kst(B) * R(C)				*/
+ , opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_MULFFRR	A B C	R(A) := R(B) * R(C)				*/
+ , opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_MULFIKR	A B C	R(A) := Kst(B) * R(C)				*/
+ , opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_MULFIRK	A B C	R(A) := R(B) * Kst(C)				*/
+ , opmode(0, 1, OpArgR, OpArgU, iABC) /*RAVI_MULFIRN	A B C	R(A) := R(B) * C				*/
+ , opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_MULFIRR	A B C	R(A) := R(B) * R(C)				*/
+ , opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_MULIIRK	A B C	R(A) := R(B) * Kst(C)				*/
+ , opmode(0, 1, OpArgR, OpArgU, iABC) /*RAVI_MULIIRN	A B C	R(A) := R(B) * C				*/
+ , opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_MULIIRR	A B C	R(A) := R(B) * R(C)				*/
 
  ,opmode(0, 1, OpArgK, OpArgK, iABC) /*RAVI_DIVFFKK	A B C	R(A) := Kst(B) / Kst(C)				*/
  ,opmode(0, 1, OpArgK, OpArgR, iABC) /*RAVI_DIVFFKR	A B C	R(A) := Kst(B) / R(C)				*/

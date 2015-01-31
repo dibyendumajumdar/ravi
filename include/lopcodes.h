@@ -260,16 +260,13 @@ OP_RAVI_SUBIIRK,/*	A B C	R(A) := R(B) - Kst(C)				*/
 OP_RAVI_SUBIIRR,/*	A B C	R(A) := R(B) - R(C)				*/
 
 OP_RAVI_MULFFKR,/*	A B C	R(A) := Kst(B) * R(C)				*/
-OP_RAVI_MULFFRK,/*	A B C	R(A) := R(B) * Kst(C)				*/
 OP_RAVI_MULFFRR,/*	A B C	R(A) := R(B) * R(C)				*/
 OP_RAVI_MULFIKR,/*	A B C	R(A) := Kst(B) * R(C)				*/
 OP_RAVI_MULFIRK,/*	A B C	R(A) := R(B) * Kst(C)				*/
+OP_RAVI_MULFIRN,/*	A B C	R(A) := R(B) * C				*/
 OP_RAVI_MULFIRR,/*	A B C	R(A) := R(B) * R(C)				*/
-OP_RAVI_MULIFKR,/*	A B C	R(A) := Kst(B) * R(C)				*/
-OP_RAVI_MULIFRK,/*	A B C	R(A) := R(B) * Kst(C)				*/
-OP_RAVI_MULIFRR,/*	A B C	R(A) := R(B) * R(C)				*/
-OP_RAVI_MULIIKR,/*	A B C	R(A) := Kst(B) * R(C)				*/
 OP_RAVI_MULIIRK,/*	A B C	R(A) := R(B) * Kst(C)				*/
+OP_RAVI_MULIIRN,/*	A B C	R(A) := R(B) * C				*/
 OP_RAVI_MULIIRR,/*	A B C	R(A) := R(B) * R(C)				*/
 
 OP_RAVI_DIVFFKK,/*	A B C	R(A) := Kst(B) / Kst(C)				*/
