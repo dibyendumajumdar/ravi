@@ -48,6 +48,10 @@ LUAI_FUNC int raviH_getn(Table *t); /* RAVI array specialization */
 LUAI_FUNC void raviH_setint(lua_State *L, Table *t, lua_Integer key, TValue *value); /* RAVI array specialization */
 LUAI_FUNC const TValue *raviH_getint(lua_State *L, Table *t, lua_Integer key); /* RAVI array specialization */
 
+LUAI_FUNC void raviH_setint_int(lua_State *L, Table *t, lua_Integer key, lua_Integer value); /* RAVI array specialization */
+LUAI_FUNC void raviH_setint_float(lua_State *L, Table *t, lua_Integer key, lua_Number value); /* RAVI array specialization */
+
+
 #if defined(LUA_DEBUG)
 LUAI_FUNC Node *luaH_mainposition (const Table *t, const TValue *key);
 LUAI_FUNC int luaH_isdummy (Node *n);

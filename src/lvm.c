@@ -1529,13 +1529,25 @@ newframe:  /* reentry point when frame changes (call/return) */
       Table *t = hvalue(rb);
       setobjs2s(L, ra, raviH_getint(L, t, idx));
     } break;
-    case OP_RAVI_SETTABLE_AI:
+    case OP_RAVI_SETTABLE_AI: {
+      Table *t = hvalue(ra);
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      lua_Integer idx = ivalue(rb);
+      if (ttisinteger(rc))
+        raviH_setint_int(L, t, idx, ivalue(rc));
+      else
+        raviH_setint_int(L, t, idx, (lua_Integer) fltvalue(rc));
+    } break;
     case OP_RAVI_SETTABLE_AF: {
       Table *t = hvalue(ra);
       TValue *rb = RKB(i);
       TValue *rc = RKC(i);
       lua_Integer idx = ivalue(rb);
-      raviH_setint(L, t, idx, rc);
+      if (ttisfloat(rc))
+        raviH_setint_float(L, t, idx, fltvalue(rc));
+      else
+        raviH_setint_float(L, t, idx, (lua_Number)ivalue(rc));
     } break;
     }
   }
