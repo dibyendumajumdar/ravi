@@ -41,7 +41,7 @@ for y=0,height-1 do
       for x=width,xbb do bits = bits + bits + 1 end
     end
     -- write(char(255-bits))
-    print(bits);
+    -- print(bits);
   end
 end
 t2 = os.time()
