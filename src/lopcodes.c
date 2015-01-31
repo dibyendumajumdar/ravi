@@ -124,33 +124,6 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "DIVIIRK",/*	A B C	R(A) := R(B) / Kst(C)				*/
   "DIVIIRR",/*	A B C	R(A) := R(B) / R(C)				*/
 
-  "EQFFKK",/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
-  "EQFFKR",/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
-  "EQFFRK",/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
-  "EQFFRR",/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
-  "EQIIKK",/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
-  "EQIIKR",/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
-  "EQIIRK",/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
-  "EQIIRR",/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
-
-  "LTFFKK",/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
-  "LTFFKR",/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
-  "LTFFRK",/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
-  "LTFFRR",/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
-  "LTIIKK",/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
-  "LTIIKR",/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
-  "LTIIRK",/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
-  "LTIIRR",/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
-
-  "LEFFKK",/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
-  "LEFFKR",/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
-  "LEFFRK",/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
-  "LEFFRR",/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
-  "LEIIKK",/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
-  "LEIIKR",/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
-  "LEIIRK",/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
-  "LEIIRR",/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
-
   "TOINT", /* A R(A) := toint(R(A)) */
   "TOFLT", /* A R(A) := tofloat(R(A)) */
   "TOARRAYI", /* A R(A) := to_arrayi(R(A)) */
@@ -161,31 +134,11 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "MOVEAI", /* A B R(A) := R(B), check R(B) is array of int */
   "MOVEAF", /* A B R(A) := R(B), check R(B) is array of floats */
 
-  "ARRAYGET_SIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
-  "ARRAYGET_SIR",/*	A B C	R(A) := R(B)[R(C)]				*/
-  "ARRAYGET_IIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
-  "ARRAYGET_IIR",/*	A B C	R(A) := R(B)[R(C)]				*/
-  "ARRAYGET_FIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
-  "ARRAYGET_FIR",/*	A B C	R(A) := R(B)[R(C)]				*/
-  "ARRAYGET_LIK",/*	A B C	R(A) := R(B)[Kst(C)]				*/
-  "ARRAYGET_LIR",/*	A B C	R(A) := R(B)[R(C)]				*/
+  "GETTABLE_AI",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
+  "GETTABLE_AF",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
 
-  "ARRAYSET_ISKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-  "ARRAYSET_ISKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
-  "ARRAYSET_ISRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
-  "ARRAYSET_ISRR",/*	A B C	R(A)[R(B)] := R(C)				*/
-  "ARRAYSET_IIKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-  "ARRAYSET_IIKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
-  "ARRAYSET_IIRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
-  "ARRAYSET_IIRR",/*	A B C	R(A)[R(B)] := R(C)				*/
-  "ARRAYSET_IFKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-  "ARRAYSET_IFKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
-  "ARRAYSET_IFRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
-  "ARRAYSET_IFRR",/*	A B C	R(A)[R(B)] := R(C)				*/
-  "ARRAYSET_ILKK",/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-  "ARRAYSET_ILKR",/*	A B C	R(A)[Kst(B)] := R(C)				*/
-  "ARRAYSET_ILRK",/*	A B C	R(A)[R(B)] := Kst(C)				*/
-  "ARRAYSET_ILRR",/*	A B C	R(A)[R(B)] := R(C)				*/
+  "SETTABLE_AI",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+  "SETTABLE_AF",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
   NULL
 };
@@ -302,33 +255,6 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_DIVIIRK	A B C	R(A) := R(B) / Kst(C)				*/
  ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_DIVIIRR	A B C	R(A) := R(B) / R(C)				*/
 
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_EQFFKK	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_EQFFKR	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_EQFFRK	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_EQFFRR	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_EQIIKK	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_EQIIKR	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_EQIIRK	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_EQIIRR	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
-
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_LTFFKK	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LTFFKR	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LTFFRK	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_LTFFRR	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_LTIIKK	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LTIIKR	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LTIIRK	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_LTIIRR	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
-
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_LEFFKK	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LEFFKR	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LEFFRK	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_LEFFRR	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgK, iABC) /*RAVI_LEIIKK	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgK, OpArgR, iABC) /*RAVI_LEIIKR	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgK, iABC) /*RAVI_LEIIRK	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
- ,opmode(1, 0, OpArgR, OpArgR, iABC) /*RAVI_LEIIRR	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
-
  , opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
  , opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_TOFLT  A R(A) := tonumber(R(A)) */
  , opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_TOARRAYI A R(A) := check_array_of_int(R(A)) */
@@ -339,31 +265,11 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  , opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_MOVEAI A B R(A) := R(B), check R(B) is array of int */
  , opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_MOVEAF A B R(A) := R(B), check R(B) is array of floats */
 
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ARRAYGET_SIK	A B C	R(A) := R(B)[Kst(C)]				*/
- ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ARRAYGET_SIR	A B C	R(A) := R(B)[R(C)]				*/
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ARRAYGET_IIK	A B C	R(A) := R(B)[Kst(C)]				*/
- ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ARRAYGET_IIR	A B C	R(A) := R(B)[R(C)]				*/
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ARRAYGET_FIK	A B C	R(A) := R(B)[Kst(C)]				*/
- ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ARRAYGET_FIR	A B C	R(A) := R(B)[R(C)]				*/
- ,opmode(0, 1, OpArgR, OpArgK, iABC) /*RAVI_ARRAYGET_LIK	A B C	R(A) := R(B)[Kst(C)]				*/
- ,opmode(0, 1, OpArgR, OpArgR, iABC) /*RAVI_ARRAYGET_LIR	A B C	R(A) := R(B)[R(C)]				*/
+ , opmode(0, 1, OpArgR, OpArgK, iABC) /* OP_RAVI_GETTABLE_AI A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
+ , opmode(0, 1, OpArgR, OpArgK, iABC) /* OP_RAVI_GETTABLE_AF A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
 
- ,opmode(0, 0, OpArgK, OpArgK, iABC) /*RAVI_ARRAYSET_ISKK	A B C	R(A)[Kst(B)] := Kst(C)				*/
- ,opmode(0, 0, OpArgK, OpArgR, iABC) /*RAVI_ARRAYSET_ISKR	A B C	R(A)[Kst(B)] := R(C)				*/
- ,opmode(0, 0, OpArgR, OpArgK, iABC) /*RAVI_ARRAYSET_ISRK	A B C	R(A)[R(B)] := Kst(C)				*/
- ,opmode(0, 0, OpArgR, OpArgR, iABC) /*RAVI_ARRAYSET_ISRR	A B C	R(A)[R(B)] := R(C)				*/
- ,opmode(0, 0, OpArgK, OpArgK, iABC) /*RAVI_ARRAYSET_IIKK	A B C	R(A)[Kst(B)] := Kst(C)				*/
- ,opmode(0, 0, OpArgK, OpArgR, iABC) /*RAVI_ARRAYSET_IIKR	A B C	R(A)[Kst(B)] := R(C)				*/
- ,opmode(0, 0, OpArgR, OpArgK, iABC) /*RAVI_ARRAYSET_IIRK	A B C	R(A)[R(B)] := Kst(C)				*/
- ,opmode(0, 0, OpArgR, OpArgR, iABC) /*RAVI_ARRAYSET_IIRR	A B C	R(A)[R(B)] := R(C)				*/
- ,opmode(0, 0, OpArgK, OpArgK, iABC) /*RAVI_ARRAYSET_IFKK	A B C	R(A)[Kst(B)] := Kst(C)				*/
- ,opmode(0, 0, OpArgK, OpArgR, iABC) /*RAVI_ARRAYSET_IFKR	A B C	R(A)[Kst(B)] := R(C)				*/
- ,opmode(0, 0, OpArgR, OpArgK, iABC) /*RAVI_ARRAYSET_IFRK	A B C	R(A)[R(B)] := Kst(C)				*/
- ,opmode(0, 0, OpArgR, OpArgR, iABC) /*RAVI_ARRAYSET_IFRR	A B C	R(A)[R(B)] := R(C)				*/
- ,opmode(0, 0, OpArgK, OpArgK, iABC) /*RAVI_ARRAYSET_ILKK	A B C	R(A)[Kst(B)] := Kst(C)				*/
- ,opmode(0, 0, OpArgK, OpArgR, iABC) /*RAVI_ARRAYSET_ILKR	A B C	R(A)[Kst(B)] := R(C)				*/
- ,opmode(0, 0, OpArgR, OpArgK, iABC) /*RAVI_ARRAYSET_ILRK	A B C	R(A)[R(B)] := Kst(C)				*/
- ,opmode(0, 0, OpArgR, OpArgR, iABC) /*RAVI_ARRAYSET_ILRR	A B C	R(A)[R(B)] := R(C)				*/
+ , opmode(0, 0, OpArgK, OpArgK, iABC) /* OP_RAVI_SETTABLE_AI A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+ , opmode(0, 0, OpArgK, OpArgK, iABC) /* OP_RAVI_SETTABLE_AF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
 };
 

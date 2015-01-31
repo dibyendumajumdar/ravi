@@ -472,12 +472,19 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
       freereg(fs, e->u.ind.idx);
       if (e->u.ind.vt == VLOCAL) {  /* 't' is in a register? */
         freereg(fs, e->u.ind.t);
-        op = OP_GETTABLE;
+        /* table access - set specialized op codes if array types are detected */
+        if (e->ravi_type == RAVI_TARRAYFLT && e->u.ind.key_type == RAVI_TNUMINT)
+          op = OP_RAVI_GETTABLE_AF;
+        else if (e->ravi_type == RAVI_TARRAYINT && e->u.ind.key_type == RAVI_TNUMINT)
+          op = OP_RAVI_GETTABLE_AI;
+        else
+          op = OP_GETTABLE;
+        if (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT)
+          /* set the type of resulting expression */
+          e->ravi_type = e->ravi_type == RAVI_TARRAYFLT ? RAVI_TNUMFLT : RAVI_TNUMINT;
       }
       e->u.info = luaK_codeABC(fs, op, 0, e->u.ind.t, e->u.ind.idx);
       e->k = VRELOCABLE;
-      if (op == OP_GETTABLE && (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT))
-        e->ravi_type = e->ravi_type == RAVI_TARRAYFLT ? RAVI_TNUMFLT : RAVI_TNUMINT;
       DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VINDEXED->VRELOCABLE) %e\n", e));
       break;
     }
@@ -727,6 +734,13 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
     }
     case VINDEXED: {
       OpCode op = (var->u.ind.vt == VLOCAL) ? OP_SETTABLE : OP_SETTABUP;
+      if (op == OP_SETTABLE) {
+        /* table value set - if array access then use specialized versions */
+        if (var->ravi_type == RAVI_TARRAYFLT && var->u.ind.key_type == RAVI_TNUMINT)
+          op = OP_RAVI_SETTABLE_AF;
+        else if (var->ravi_type == RAVI_TARRAYINT && var->u.ind.key_type == RAVI_TNUMINT)
+          op = OP_RAVI_SETTABLE_AI;
+      }
       int e = luaK_exp2RK(fs, ex);
       luaK_codeABC(fs, op, var->u.ind.t, var->u.ind.idx, e);
       break;
@@ -865,6 +879,7 @@ static void codenot (FuncState *fs, expdesc *e) {
 void luaK_indexed (FuncState *fs, expdesc *t, expdesc *k) {
   lua_assert(!hasjumps(t));
   t->u.ind.t = t->u.info;
+  t->u.ind.key_type = k->ravi_type;   /* RAVI record the key type */
   t->u.ind.idx = luaK_exp2RK(fs, k);
   t->u.ind.vt = (t->k == VUPVAL) ? VUPVAL
                                  : check_exp(vkisinreg(t->k), VLOCAL);

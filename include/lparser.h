@@ -51,6 +51,7 @@ typedef struct expdesc {
       short idx;  /* index (R/K) */
       lu_byte t;  /* table (register or upvalue) */
       lu_byte vt;  /* whether 't' is register (VLOCAL) or upvalue (VUPVAL) */
+      ravitype_t key_type; /* key type */
     } ind;
     int info;  /* for generic use */
     lua_Number nval;  /* for VKFLT */

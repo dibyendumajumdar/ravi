@@ -1469,164 +1469,6 @@ newframe:  /* reentry point when frame changes (call/return) */
       setivalue(ra, ivalue(rb) / ivalue(rc));
     } break;
 
-    case OP_RAVI_EQFFKK: {
-      TValue *rb = KB(i);
-      TValue *rc = KC(i);
-      Protect(if (cast_int(fltvalue(rb) == fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_EQFFKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      Protect(if (cast_int(fltvalue(rb) == fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_EQFFRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      Protect(if (cast_int(fltvalue(rb) == fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_EQFFRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      Protect(if (cast_int(fltvalue(rb) == fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_EQIIKK: {
-      TValue *rb = KB(i);
-      TValue *rc = KC(i);
-      Protect(if ((ivalue(rb) == ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_EQIIKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      Protect(if ((ivalue(rb) == ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_EQIIRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      Protect(if ((ivalue(rb) == ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_EQIIRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      Protect(if ((ivalue(rb) == ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-
-    case OP_RAVI_LTFFKK: {
-      TValue *rb = KB(i);
-      TValue *rc = KC(i);
-      Protect(if (cast_int(fltvalue(rb) < fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LTFFKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      Protect(if (cast_int(fltvalue(rb) < fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LTFFRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      Protect(if (cast_int(fltvalue(rb) < fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LTFFRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      Protect(if (cast_int(fltvalue(rb) < fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LTIIKK: {
-      TValue *rb = KB(i);
-      TValue *rc = KC(i);
-      Protect(if ((ivalue(rb) < ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LTIIKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      Protect(if ((ivalue(rb) < ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LTIIRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      Protect(if ((ivalue(rb) < ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LTIIRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      Protect(if ((ivalue(rb) < ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-
-    case OP_RAVI_LEFFKK: {
-      TValue *rb = KB(i);
-      TValue *rc = KC(i);
-      Protect(if (cast_int(fltvalue(rb) <= fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LEFFKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      Protect(if (cast_int(fltvalue(rb) <= fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LEFFRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      Protect(if (cast_int(fltvalue(rb) <= fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LEFFRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      Protect(if (cast_int(fltvalue(rb) <= fltvalue(rc)) != GETARG_A(i))
-                  ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LEIIKK: {
-      TValue *rb = KB(i);
-      TValue *rc = KC(i);
-      Protect(if ((ivalue(rb) <= ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LEIIKR: {
-      TValue *rb = KB(i);
-      TValue *rc = RC(i);
-      Protect(if ((ivalue(rb) <= ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LEIIRK: {
-      TValue *rb = RB(i);
-      TValue *rc = KC(i);
-      Protect(if ((ivalue(rb) <= ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
-    case OP_RAVI_LEIIRR: {
-      TValue *rb = RB(i);
-      TValue *rc = RC(i);
-      Protect(if ((ivalue(rb) <= ivalue(rc)) != GETARG_A(i)) ci->u.l.savedpc++;
-              else donextjump(ci);)
-    } break;
     case OP_RAVI_TOINT: {
       lua_Integer j;
       if (tointeger(ra, &j)) {
@@ -1678,6 +1520,22 @@ newframe:  /* reentry point when frame changes (call/return) */
         setobjs2s(L, ra, rb);
       } else
         luaG_runerror(L, "MOVEAF: double[] expected");
+    } break;
+    case OP_RAVI_GETTABLE_AI:
+    case OP_RAVI_GETTABLE_AF: {
+      TValue *rb = RB(i);
+      TValue *rc = RKC(i);
+      lua_Integer idx = ivalue(rc);
+      Table *t = hvalue(rb);
+      setobjs2s(L, ra, raviH_getint(L, t, idx));
+    } break;
+    case OP_RAVI_SETTABLE_AI:
+    case OP_RAVI_SETTABLE_AF: {
+      Table *t = hvalue(ra);
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      lua_Integer idx = ivalue(rb);
+      raviH_setint(L, t, idx, rc);
     } break;
     }
   }

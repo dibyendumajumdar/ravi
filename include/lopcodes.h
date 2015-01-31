@@ -286,33 +286,6 @@ OP_RAVI_DIVIIKR,/*	A B C	R(A) := Kst(B) / R(C)				*/
 OP_RAVI_DIVIIRK,/*	A B C	R(A) := R(B) / Kst(C)				*/
 OP_RAVI_DIVIIRR,/*	A B C	R(A) := R(B) / R(C)				*/
 
-OP_RAVI_EQFFKK,/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
-OP_RAVI_EQFFKR,/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
-OP_RAVI_EQFFRK,/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
-OP_RAVI_EQFFRR,/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
-OP_RAVI_EQIIKK,/*	A B C	if ((Kst(B) == Kst(C)) ~= A) then pc++		*/
-OP_RAVI_EQIIKR,/*	A B C	if ((Kst(B) == R(C)) ~= A) then pc++		*/
-OP_RAVI_EQIIRK,/*	A B C	if ((R(B) == Kst(C)) ~= A) then pc++		*/
-OP_RAVI_EQIIRR,/*	A B C	if ((R(B) == R(C)) ~= A) then pc++		*/
-
-OP_RAVI_LTFFKK,/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
-OP_RAVI_LTFFKR,/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
-OP_RAVI_LTFFRK,/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
-OP_RAVI_LTFFRR,/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
-OP_RAVI_LTIIKK,/*	A B C	if ((Kst(B) < Kst(C)) ~= A) then pc++		*/
-OP_RAVI_LTIIKR,/*	A B C	if ((Kst(B) < R(C)) ~= A) then pc++		*/
-OP_RAVI_LTIIRK,/*	A B C	if ((R(B) < Kst(C)) ~= A) then pc++		*/
-OP_RAVI_LTIIRR,/*	A B C	if ((R(B) < R(C)) ~= A) then pc++		*/
-
-OP_RAVI_LEFFKK,/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
-OP_RAVI_LEFFKR,/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
-OP_RAVI_LEFFRK,/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
-OP_RAVI_LEFFRR,/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
-OP_RAVI_LEIIKK,/*	A B C	if ((Kst(B) <= Kst(C)) ~= A) then pc++		*/
-OP_RAVI_LEIIKR,/*	A B C	if ((Kst(B) <= R(C)) ~= A) then pc++		*/
-OP_RAVI_LEIIRK,/*	A B C	if ((R(B) <= Kst(C)) ~= A) then pc++		*/
-OP_RAVI_LEIIRR,/*	A B C	if ((R(B) <= R(C)) ~= A) then pc++		*/
-
 OP_RAVI_TOINT, /* A R(A) := toint(R(A)) */
 OP_RAVI_TOFLT, /* A R(A) := tofloat(R(A)) */
 OP_RAVI_TOARRAYI, /* A R(A) := to_arrayi(R(A)) */
@@ -323,36 +296,16 @@ OP_RAVI_MOVEF, /*	A B	R(A) := R(B), check R(B) is float */
 OP_RAVI_MOVEAI, /* A B R(A) := R(B), check R(B) is array of int */
 OP_RAVI_MOVEAF, /* A B R(A) := R(B), check R(B) is array of floats */
 
-OP_RAVI_ARRAYGET_SIK,/*	A B C	R(A) := R(B)[Kst(C)]				*/
-OP_RAVI_ARRAYGET_SIR,/*	A B C	R(A) := R(B)[R(C)]				*/
-OP_RAVI_ARRAYGET_IIK,/*	A B C	R(A) := R(B)[Kst(C)]				*/
-OP_RAVI_ARRAYGET_IIR,/*	A B C	R(A) := R(B)[R(C)]				*/
-OP_RAVI_ARRAYGET_FIK,/*	A B C	R(A) := R(B)[Kst(C)]				*/
-OP_RAVI_ARRAYGET_FIR,/*	A B C	R(A) := R(B)[R(C)]				*/
-OP_RAVI_ARRAYGET_LIK,/*	A B C	R(A) := R(B)[Kst(C)]				*/
-OP_RAVI_ARRAYGET_LIR,/*	A B C	R(A) := R(B)[R(C)]				*/
+OP_RAVI_GETTABLE_AI,/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
+OP_RAVI_GETTABLE_AF,/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
 
-OP_RAVI_ARRAYSET_ISKK,/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-OP_RAVI_ARRAYSET_ISKR,/*	A B C	R(A)[Kst(B)] := R(C)				*/
-OP_RAVI_ARRAYSET_ISRK,/*	A B C	R(A)[R(B)] := Kst(C)				*/
-OP_RAVI_ARRAYSET_ISRR,/*	A B C	R(A)[R(B)] := R(C)				*/
-OP_RAVI_ARRAYSET_IIKK,/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-OP_RAVI_ARRAYSET_IIKR,/*	A B C	R(A)[Kst(B)] := R(C)				*/
-OP_RAVI_ARRAYSET_IIRK,/*	A B C	R(A)[R(B)] := Kst(C)				*/
-OP_RAVI_ARRAYSET_IIRR,/*	A B C	R(A)[R(B)] := R(C)				*/
-OP_RAVI_ARRAYSET_IFKK,/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-OP_RAVI_ARRAYSET_IFKR,/*	A B C	R(A)[Kst(B)] := R(C)				*/
-OP_RAVI_ARRAYSET_IFRK,/*	A B C	R(A)[R(B)] := Kst(C)				*/
-OP_RAVI_ARRAYSET_IFRR,/*	A B C	R(A)[R(B)] := R(C)				*/
-OP_RAVI_ARRAYSET_ILKK,/*	A B C	R(A)[Kst(B)] := Kst(C)				*/
-OP_RAVI_ARRAYSET_ILKR,/*	A B C	R(A)[Kst(B)] := R(C)				*/
-OP_RAVI_ARRAYSET_ILRK,/*	A B C	R(A)[R(B)] := Kst(C)				*/
-OP_RAVI_ARRAYSET_ILRR,/*	A B C	R(A)[R(B)] := R(C)				*/
+OP_RAVI_SETTABLE_AI,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+OP_RAVI_SETTABLE_AF,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_RAVI_ARRAYSET_ILRR) + 1)
+#define NUM_OPCODES	(cast(int, OP_RAVI_SETTABLE_AF) + 1)
 
 /*===========================================================================
   Notes:
