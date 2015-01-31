@@ -1534,10 +1534,7 @@ newframe:  /* reentry point when frame changes (call/return) */
       TValue *rb = RKB(i);
       TValue *rc = RKC(i);
       lua_Integer idx = ivalue(rb);
-      if (ttisinteger(rc))
-        raviH_setint_int(L, t, idx, ivalue(rc));
-      else
-        raviH_setint_int(L, t, idx, (lua_Integer) fltvalue(rc));
+      raviH_setint_int(L, t, idx, ivalue(rc));
     } break;
     case OP_RAVI_SETTABLE_AF: {
       Table *t = hvalue(ra);
