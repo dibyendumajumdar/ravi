@@ -66,5 +66,8 @@ local function fannkuch(n)
 end
 
 local n = tonumber(arg and arg[1]) or 1
+local t1 = os.time()
 local sum, flips = fannkuch(n)
+local t2 = os.time()
 io.write(sum, "\nPfannkuchen(", n, ") = ", flips, "\n")
+io.write("elapsed time in secs ", os.difftime(t2,t1))

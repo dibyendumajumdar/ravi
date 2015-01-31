@@ -12,16 +12,14 @@ local function fannkuch(n1)
   end
   repeat
     -- Copy and flip.
-    local q1: int
-    q1 = p[1]				-- Cache 1st element.
+    local q1: int = p[1]				-- Cache 1st element.
     if q1 ~= 1 then
       for i=2,n do 
         q[i] = p[i] 
       end		-- Work on a copy.
       local flips: int = 1
       repeat
-	      local qq: int  
-        qq = q[q1]
+	      local qq: int = q[q1]
 	      if qq == 1 then				-- ... until 1st element is 1.
 	        sum = sum + sign*flips
 	        if flips > maxflips then 
@@ -48,8 +46,7 @@ local function fannkuch(n1)
     else
       p[2], p[3] = p[3], p[2]; sign = 1		-- Rotate 1<-2 and 1<-2<-3.
       for i=3,n do
-	      local sx: int 
-        sx = s[i]
+	      local sx: int = s[i]
 	      if sx ~= 1 then 
           s[i] = sx-1; 
           break 
@@ -59,8 +56,7 @@ local function fannkuch(n1)
         end	-- Out of permutations.
 	      s[i] = i
 	      -- Rotate 1<-...<-i+1.
-	      local t: int 
-        t = p[1]; 
+	      local t: int = p[1]; 
         for j=1,i do 
           p[j] = p[j+1] 
         end; 
@@ -71,5 +67,8 @@ local function fannkuch(n1)
 end
 
 local n = tonumber(arg and arg[1]) or 1
+local t1 = os.time()
 local sum, flips = fannkuch(n)
+local t2 = os.time()
 io.write(sum, "\nPfannkuchen(", n, ") = ", flips, "\n")
+io.write("elapsed time in secs ", os.difftime(t2,t1))
