@@ -1,0 +1,143 @@
+
+main <fannkuchen.ravi:0,0> (39 instructions at 0x1c5d5c0)
+0+ params, 13 slots, 1 upvalue, 6 locals, 12 constants, 1 function
+	1	[67]	CLOSURE  	0 0	; 0x1c5d880
+	2	[69]	GETTABUP 	1 0 -1	; _ENV "tonumber"
+	3	[69]	GETTABUP 	2 0 -2	; _ENV "arg"
+	4	[69]	TEST     	2 0
+	5	[69]	JMP      	0 2	; to 8
+	6	[69]	GETTABUP 	2 0 -2	; _ENV "arg"
+	7	[69]	GETTABLE 	2 2 -3	; 1
+	8	[69]	CALL     	1 2 2
+	9	[69]	TEST     	1 1
+	10	[69]	JMP      	0 1	; to 12
+	11	[69]	LOADK    	1 -3	; 1
+	12	[70]	GETTABUP 	2 0 -4	; _ENV "os"
+	13	[70]	GETTABLE 	2 2 -5	; "time"
+	14	[70]	CALL     	2 1 2
+	15	[71]	MOVE     	3 0
+	16	[71]	MOVE     	4 1
+	17	[71]	CALL     	3 2 3
+	18	[72]	GETTABUP 	5 0 -4	; _ENV "os"
+	19	[72]	GETTABLE 	5 5 -5	; "time"
+	20	[72]	CALL     	5 1 2
+	21	[73]	GETTABUP 	6 0 -6	; _ENV "io"
+	22	[73]	GETTABLE 	6 6 -7	; "write"
+	23	[73]	MOVE     	7 3
+	24	[73]	LOADK    	8 -8	; "\nPfannkuchen("
+	25	[73]	MOVE     	9 1
+	26	[73]	LOADK    	10 -9	; ") = "
+	27	[73]	MOVE     	11 4
+	28	[73]	LOADK    	12 -10	; "\n"
+	29	[73]	CALL     	6 7 1
+	30	[74]	GETTABUP 	6 0 -6	; _ENV "io"
+	31	[74]	GETTABLE 	6 6 -7	; "write"
+	32	[74]	LOADK    	7 -11	; "elapsed time in secs "
+	33	[74]	GETTABUP 	8 0 -4	; _ENV "os"
+	34	[74]	GETTABLE 	8 8 -12	; "difftime"
+	35	[74]	MOVE     	9 5
+	36	[74]	MOVE     	10 2
+	37	[74]	CALL     	8 3 0
+	38	[74]	CALL     	6 0 1
+	39	[74]	RETURN   	0 1
+
+function <fannkuchen.ravi:5,67> (98 instructions at 0x1c5d880)
+1 param, 20 slots, 0 upvalues, 31 locals, 7 constants, 0 functions
+	1	[6]	LOADK    	1 -1	; 11
+	2	[7]	NEWARRAYI	2
+	3	[7]	NEWARRAYI	3
+	4	[7]	NEWARRAYI	4
+	5	[7]	LOADK    	5 -2	; 1
+	6	[7]	LOADK    	6 -3	; 0
+	7	[7]	LOADK    	7 -3	; 0
+	8	[8]	LOADK    	8 -2	; 1
+	9	[8]	MOVE     	9 1
+	10	[8]	LOADK    	10 -2	; 1
+	11	[8]	FORPREP  	8 3	; to 15
+	12	[9]	SETTABLE_AI	2 -12 -12
+	13	[10]	SETTABLE_AI	3 -12 -12
+	14	[11]	SETTABLE_AI	4 -12 -12
+	15	[8]	FORLOOP  	8 -4	; to 12
+	16	[15]	GETTABLE_AI	8 2 -2
+	17	[16]	EQ       	1 8 -2	; - 1
+	18	[16]	JMP      	0 35	; to 54
+	19	[17]	LOADK    	9 -4	; 2
+	20	[17]	MOVE     	10 1
+	21	[17]	LOADK    	11 -2	; 1
+	22	[17]	FORPREP  	9 2	; to 25
+	23	[18]	GETTABLE_AI	13 2 -13
+	24	[18]	SETTABLE_AI	3 -13 -14
+	25	[17]	FORLOOP  	9 -3	; to 23
+	26	[20]	LOADK    	9 -2	; 1
+	27	[22]	GETTABLE_AI	10 3 -9
+	28	[23]	EQ       	0 10 -2	; - 1
+	29	[23]	JMP      	0 6	; to 36
+	30	[24]	MULII    	11 -6 -10
+	31	[24]	ADDII    	7 -8 -12
+	32	[25]	LT       	0 6 9
+	33	[25]	JMP      	0 20	; to 54
+	34	[26]	MOVEI    	6 9
+	35	[27]	JMP      	0 18	; to 54
+	36	[30]	SETTABLE_AI	3 -9 -9
+	37	[31]	LE       	0 -5 8	; 4 -
+	38	[31]	JMP      	0 10	; to 49
+	39	[32]	LOADK    	11 -4	; 2
+	40	[32]	SUBII    	12 -9 -2
+	41	[34]	GETTABLE_AI	13 3 -13
+	42	[34]	GETTABLE_AI	14 3 -12
+	43	[34]	SETTABLE_AI	3 -13 -15
+	44	[34]	SETTABLE_AI	3 -12 -14
+	45	[35]	ADDIN    	11 -12 1
+	46	[36]	SUBII    	12 -13 -2
+	47	[37]	LE       	0 12 11
+	48	[37]	JMP      	0 -8	; to 41
+	49	[39]	MOVEI    	8 10
+	50	[40]	ADDIN    	9 -10 1
+	51	[41]	LOADBOOL 	11 0 0
+	52	[41]	TEST     	11 0
+	53	[41]	JMP      	0 -27	; to 27
+	54	[44]	EQ       	0 5 -2	; - 1
+	55	[44]	JMP      	0 6	; to 62
+	56	[45]	GETTABLE_AI	9 2 -2
+	57	[45]	GETTABLE_AI	10 2 -4
+	58	[45]	SETTABLE_AI	2 -2 -11
+	59	[45]	SETTABLE_AI	2 -4 -10
+	60	[45]	LOADK    	5 -6	; -1
+	61	[45]	JMP      	0 33	; to 95
+	62	[47]	GETTABLE_AI	9 2 -7
+	63	[47]	GETTABLE_AI	10 2 -4
+	64	[47]	SETTABLE_AI	2 -7 -11
+	65	[47]	SETTABLE_AI	2 -4 -10
+	66	[47]	LOADK    	5 -2	; 1
+	67	[48]	LOADK    	9 -7	; 3
+	68	[48]	MOVE     	10 1
+	69	[48]	LOADK    	11 -2	; 1
+	70	[48]	FORPREP  	9 23	; to 94
+	71	[49]	GETTABLE_AI	13 4 -13
+	72	[50]	EQ       	1 13 -2	; - 1
+	73	[50]	JMP      	0 3	; to 77
+	74	[51]	SUBII    	14 -14 -2
+	75	[51]	SETTABLE_AI	4 -13 -15
+	76	[51]	JMP      	0 18	; to 95
+	77	[54]	EQ       	0 12 1
+	78	[54]	JMP      	0 3	; to 82
+	79	[55]	MOVE     	14 7
+	80	[55]	MOVE     	15 6
+	81	[55]	RETURN   	14 3
+	82	[57]	SETTABLE_AI	4 -13 -13
+	83	[59]	GETTABLE_AI	14 2 -2
+	84	[60]	LOADK    	15 -2	; 1
+	85	[60]	MOVE     	16 12
+	86	[60]	LOADK    	17 -2	; 1
+	87	[60]	FORPREP  	15 3	; to 91
+	88	[61]	ADDIN    	19 -19 1
+	89	[61]	GETTABLE_AI	19 2 -20
+	90	[61]	SETTABLE_AI	2 -19 -20
+	91	[60]	FORLOOP  	15 -4	; to 88
+	92	[63]	ADDIN    	15 -13 1
+	93	[63]	SETTABLE_AI	2 -16 -15
+	94	[48]	FORLOOP  	9 -24	; to 71
+	95	[66]	LOADBOOL 	9 0 0
+	96	[66]	TEST     	9 0
+	97	[66]	JMP      	0 -82	; to 16
+	98	[67]	RETURN   	0 1

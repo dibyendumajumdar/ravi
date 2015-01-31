@@ -1,0 +1,107 @@
+
+main <mandel.ravi:0,0> (104 instructions at 0x1c665c0)
+0+ params, 35 slots, 1 upvalue, 38 locals, 24 constants, 0 functions
+	1	[5]	GETTABUP 	0 0 -1	; _ENV "arg"
+	2	[5]	TEST     	0 0
+	3	[5]	JMP      	0 4	; to 8
+	4	[5]	GETTABUP 	0 0 -1	; _ENV "arg"
+	5	[5]	GETTABLE 	0 0 -2	; 1
+	6	[5]	TEST     	0 1
+	7	[5]	JMP      	0 1	; to 9
+	8	[5]	LOADK    	0 -3	; 100
+	9	[6]	GETTABUP 	1 0 -4	; _ENV "tonumber"
+	10	[6]	MOVE     	2 0
+	11	[6]	CALL     	1 2 2
+	12	[6]	TOINT    	1
+	13	[7]	MOVE     	2 1
+	14	[7]	DIVFI    	3 -5 -2
+	15	[8]	LOADK    	4 -6	; 50
+	16	[8]	LOADK    	5 -7	; 4.0
+	17	[9]	GETTABUP 	6 0 -8	; _ENV "io"
+	18	[9]	GETTABLE 	6 6 -9	; "write"
+	19	[9]	GETTABUP 	7 0 -10	; _ENV "string"
+	20	[9]	GETTABLE 	7 7 -11	; "char"
+	21	[11]	MOVE     	8 6
+	22	[11]	LOADK    	9 -12	; "P4\n"
+	23	[11]	MOVE     	10 1
+	24	[11]	LOADK    	11 -13	; " "
+	25	[11]	MOVE     	12 2
+	26	[11]	LOADK    	13 -14	; "\n"
+	27	[11]	CALL     	8 6 1
+	28	[12]	GETTABUP 	8 0 -16	; _ENV "os"
+	29	[12]	GETTABLE 	8 8 -17	; "time"
+	30	[12]	CALL     	8 1 2
+	31	[12]	SETTABUP 	0 -15 8	; _ENV "t1"
+	32	[13]	LOADK    	8 -18	; 0
+	33	[13]	SUBII    	9 -3 -2
+	34	[13]	LOADK    	10 -2	; 1
+	35	[13]	FORPREP  	8 58	; to 94
+	36	[14]	MULFI    	12 -5 -12
+	37	[14]	DIVFI    	12 -13 -3
+	38	[14]	SUBFI    	12 -13 -2
+	39	[15]	LOADK    	13 -18	; 0
+	40	[15]	SUBII    	14 -2 -2
+	41	[15]	LOADK    	15 -19	; 8
+	42	[15]	FORPREP  	13 50	; to 93
+	43	[16]	LOADK    	17 -18	; 0
+	44	[17]	ADDIN    	18 -17 7
+	45	[18]	LOADNIL  	19 0
+	46	[18]	LOADIZ   	19
+	47	[19]	LT       	0 18 1
+	48	[19]	JMP      	0 2	; to 51
+	49	[20]	MOVEI    	19 18
+	50	[20]	JMP      	0 1	; to 52
+	51	[22]	SUBII    	19 -2 -2
+	52	[24]	MOVE     	20 16
+	53	[24]	MOVE     	21 19
+	54	[24]	LOADK    	22 -2	; 1
+	55	[24]	FORPREP  	20 24	; to 80
+	56	[25]	ADDII    	17 -18 -18
+	57	[26]	LOADK    	24 -21	; 0.0
+	58	[26]	LOADK    	25 -21	; 0.0
+	59	[26]	LOADK    	26 -21	; 0.0
+	60	[26]	LOADK    	27 -21	; 0.0
+	61	[27]	MULFI    	28 -4 -24
+	62	[27]	SUBFF    	28 -29 -22
+	63	[28]	LOADK    	29 -2	; 1
+	64	[28]	MOVE     	30 4
+	65	[28]	LOADK    	31 -2	; 1
+	66	[28]	FORPREP  	29 12	; to 79
+	67	[29]	MULFF    	33 -25 -26
+	68	[30]	SUBFF    	34 -27 -28
+	69	[30]	ADDFF    	24 -35 -29
+	70	[31]	ADDFF    	34 -34 -34
+	71	[31]	ADDFF    	25 -35 -13
+	72	[32]	MULFF    	26 -25 -25
+	73	[33]	MULFF    	27 -26 -26
+	74	[34]	ADDFF    	34 -27 -28
+	75	[34]	LT       	0 5 34
+	76	[34]	JMP      	0 2	; to 79
+	77	[35]	ADDIN    	17 -18 1
+	78	[35]	JMP      	0 1	; to 80
+	79	[28]	FORLOOP  	29 -13	; to 67
+	80	[24]	FORLOOP  	20 -25	; to 56
+	81	[40]	LE       	0 1 18
+	82	[40]	JMP      	0 7	; to 90
+	83	[41]	MOVE     	20 1
+	84	[41]	MOVE     	21 18
+	85	[41]	LOADK    	22 -2	; 1
+	86	[41]	FORPREP  	20 2	; to 89
+	87	[41]	ADDII    	24 -18 -18
+	88	[41]	ADDIN    	17 -25 1
+	89	[41]	FORLOOP  	20 -3	; to 87
+	90	[44]	GETTABUP 	20 0 -23	; _ENV "print"
+	91	[44]	MOVE     	21 17
+	92	[44]	CALL     	20 2 1
+	93	[15]	FORLOOP  	13 -51	; to 43
+	94	[13]	FORLOOP  	8 -59	; to 36
+	95	[47]	GETTABUP 	8 0 -16	; _ENV "os"
+	96	[47]	GETTABLE 	8 8 -17	; "time"
+	97	[47]	CALL     	8 1 2
+	98	[47]	SETTABUP 	0 -24 8	; _ENV "t2"
+	99	[48]	GETTABUP 	8 0 -23	; _ENV "print"
+	100	[48]	GETTABUP 	9 0 -24	; _ENV "t2"
+	101	[48]	GETTABUP 	10 0 -15	; _ENV "t1"
+	102	[48]	SUB      	9 9 10
+	103	[48]	CALL     	8 2 1
+	104	[48]	RETURN   	0 1
