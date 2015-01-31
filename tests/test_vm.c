@@ -575,7 +575,7 @@ int test_ravitable()
 int main(const char *argv[]) 
 {
     int failures = 0;
-    failures += test_luacompexec1("local x:double[] = {1}; local i:int = 1; local d:double = x[i]; x[i] = 5; return d*x[i];", 5);
+    failures += test_luacompexec1("local x:int[] = {1}; local i:int = 1; local d:int = x[i]; x[i] = 5; return d*x[i];", 5);
     failures += test_luacompexec1("local d:double = 5.0; return d+5 == 5+d and d-5 == 5-d and d*5 == 5*d", 1);
     failures += test_luacompexec1("local a:double = 1.0; return a+127 == 128.0;", 1);
     failures += test_luacompexec1("local a:double = 1.0; return a+128 == 129.0;", 1);
