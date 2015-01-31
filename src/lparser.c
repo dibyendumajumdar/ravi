@@ -1193,6 +1193,11 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
           /* code an instruction to convert in place */
           luaK_codeABC(ls->fs, vars[i] == RAVI_TARRAYFLT ? OP_RAVI_TOARRAYF : OP_RAVI_TOARRAYI, a + (i - n), 0, 0);
     }
+    else if ((vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT) && v->k == VINDEXED) {
+      if (vars[n] == RAVI_TNUMFLT && v->ravi_type != RAVI_TARRAYFLT || 
+        vars[n] == RAVI_TNUMINT && v->ravi_type != RAVI_TARRAYINT) 
+        luaX_syntaxerror(ls, "Invalid local assignment");
+    }
     else
       luaX_syntaxerror(ls, "Invalid local assignment");
   }
