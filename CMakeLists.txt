@@ -1,8 +1,17 @@
 cmake_minimum_required(VERSION 2.8)
 project(Ravi)
 
+enable_language(CXX)
 enable_language(C)
 enable_testing()
+
+find_package(LLVM REQUIRED CONFIG)
+
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
 
 if (MSVC)
   set(CMAKE_C_FLAGS_DEBUG "/Od /D_DEBUG /MDd /Zi")
@@ -27,12 +36,21 @@ if (MSVC)
   add_definitions("/wd4099")
   # Disable performance warning about int-to-bool conversion.
   add_definitions("/wd4800")
+  # Disable signed/unsigned int conversion warnings.
+  add_definitions("/wd4018")
+  # Disable warning about the insecurity of using "std::copy".
+  add_definitions("/wd4996")
 endif()
 
 if (CMAKE_COMPILER_IS_GNUCXX OR APPLE)
   set(CMAKE_C_FLAGS "-std=c99 -O2 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
   set(CMAKE_C_FLAGS_DEBUG "-std=c99 -O0 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
   set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O2 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
+  set(CMAKE_CXX_FLAGS "-Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O2 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
+  set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
+  set(CMAKE_CXX_FLAGS_DEBUG "-g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
 endif()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
@@ -69,7 +87,8 @@ add_library(ravi SHARED ${RAVI_HEADERS} ${LUA_LIB_SRCS} ${LUA_CORE_SRCS})
 if (MSVC)
   set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
 endif()
-target_link_libraries(ravi ${EXTRA_LIBRARIES})
+llvm_map_components_to_libnames(llvm_libs support core irreader)
+target_link_libraries(ravi ${EXTRA_LIBRARIES} ${llvm_libs})
 
 add_executable(lua src/lua.c)
 target_link_libraries(lua ravi)
@@ -81,4 +100,9 @@ target_link_libraries(luac ravi)
 add_executable(test_vm tests/test_vm.c)
 target_link_libraries(test_vm ravi) 
 
+#LLVM playground
+add_executable(test_llvm tests/test_llvm.cpp)
+target_link_libraries(test_llvm ravi)
+
 add_test(TestVM test_vm)
+add_test(TestLLVM test_llvm)

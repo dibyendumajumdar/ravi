@@ -1135,11 +1135,6 @@ static int explist (LexState *ls, expdesc *v) {
 #if RAVI_ENABLED
 static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n)
 {
-  if (n < nvars && v->k == VRELOCABLE) {
-#if 0
-    raviY_printf(ls->fs, "typechecking local variable type %t = %e\n", vars[n], v);
-#endif
-  }
   if (n < nvars && vars[n] != RAVI_TANY && v->ravi_type != vars[n]) {
     if (v->ravi_type != vars[n] && (vars[n] == RAVI_TARRAYFLT || vars[n] == RAVI_TARRAYINT) && v->k == VNONRELOC) {
       /* as the bytecode for generating a table is already emitted by this stage
