@@ -216,6 +216,6 @@ Documentation
 As I progress I will add documentation in the Wiki.
 
 * [Ravi Internals](https://github.com/dibyendumajumdar/ravi/wiki/RaviInternals)
+* [JIT Compilation for Ravi](https://github.com/dibyendumajumdar/ravi/wiki/RaviJITCompilation)
 * [Lua Internals](https://github.com/dibyendumajumdar/ravi/wiki/Lua-Internals)
 * [Change Log](https://github.com/dibyendumajumdar/ravi/wiki/Changes)
-
