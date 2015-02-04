@@ -15,12 +15,15 @@ Goals
 * No new types
 * Type specific bytecodes to improve performance
 * Full backward compatibility with Lua 5.3
+* LLVM based JIT compiler
 
 Status
 ------
 The project was kicked off in January 2015. My intention is start small and grow incrementally.
 
-As of now (end Jan 2015) you can declare local variables as `int` or `double`. This triggers following behaviour:
+Right now (as of Feb 2015) I am working on the JIT implementation. Please see [JIT Compilation for Ravi](https://github.com/dibyendumajumdar/ravi/wiki/RaviJITCompilation) for details of this effort.
+
+As of end Jan 2015, the Ravi interpreter allows you to declare local variables as `int` or `double`. This triggers following behaviour:
 
 * `int` and `double` variables are initialized to 0
 * arithmetic operations trigger type specific bytecodes
