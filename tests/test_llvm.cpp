@@ -216,7 +216,7 @@ int test2() {
   // Add an extern int mytest(RaviGCObject *obj) and link this
   // to mytest()
   llvm::Constant *mytestFunc =
-      func->addExternFunction(mytestFuncType, &mytest, "mytest");
+      func->addExternFunction(mytestFuncType, reinterpret_cast<void *>(&mytest), "mytest");
 
   // Call the mytest() function
   std::vector<llvm::Value *> values;

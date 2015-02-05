@@ -1136,7 +1136,7 @@ RaviJITStateImpl::RaviJITStateImpl() : context_(llvm::getGlobalContext()) {
 
 RaviJITStateImpl::~RaviJITStateImpl() {
   std::vector<RaviJITFunction *> todelete;
-  for (auto &f = std::begin(functions_); f != std::end(functions_); f++) {
+  for (auto f = std::begin(functions_); f != std::end(functions_); f++) {
     todelete.push_back(f->second);
   }
   // delete all the compiled objects
@@ -1871,19 +1871,19 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   // Add extern declarations for Lua functions that we need to call
   def->luaD_poscallF = def->raviF->addExternFunction(
-      def->types->luaD_poscallT, &luaD_poscall, "luaD_poscall");
+      def->types->luaD_poscallT, reinterpret_cast<void *>(&luaD_poscall), "luaD_poscall");
   def->luaF_closeF = def->raviF->addExternFunction(def->types->luaF_closeT,
-                                                   &luaF_close, "luaF_close");
+                                                   reinterpret_cast<void *>(&luaF_close), "luaF_close");
   def->luaV_equalobjF = def->raviF->addExternFunction(
-      def->types->luaV_equalobjT, &luaV_equalobj, "luaV_equalobj");
+      def->types->luaV_equalobjT, reinterpret_cast<void *>(&luaV_equalobj), "luaV_equalobj");
   def->luaV_lessthanF = def->raviF->addExternFunction(
-      def->types->luaV_lessthanT, &luaV_lessthan, "luaV_lessthan");
+      def->types->luaV_lessthanT, reinterpret_cast<void *>(&luaV_lessthan), "luaV_lessthan");
   def->luaV_lessequalF = def->raviF->addExternFunction(
-      def->types->luaV_lessequalT, &luaV_lessequal, "luaV_lessequal");
+      def->types->luaV_lessequalT, reinterpret_cast<void *>(&luaV_lessequal), "luaV_lessequal");
   def->luaG_runerrorF = def->raviF->addExternFunction(
-    def->types->luaG_runerrorT, &luaG_runerror, "luaG_runerror");
+    def->types->luaG_runerrorT, reinterpret_cast<void *>(&luaG_runerror), "luaG_runerror");
   def->luaV_forlimitF = def->raviF->addExternFunction(
-    def->types->luaV_forlimitT, &luaV_forlimit, "luaV_forlimit");
+    def->types->luaV_forlimitT, reinterpret_cast<void *>(&luaV_forlimit), "luaV_forlimit");
   
 }
 
