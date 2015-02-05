@@ -92,14 +92,14 @@ if (MSVC)
 endif()
 target_link_libraries(ravi ${EXTRA_LIBRARIES} ${llvm_libs})
 
-add_library(ravis ${RAVI_HEADERS} ${LUA_LIB_SRCS} ${LUA_CORE_SRCS})
-target_link_libraries(ravis ${EXTRA_LIBRARIES} ${llvm_libs})
+#add_library(ravis ${RAVI_HEADERS} ${LUA_LIB_SRCS} ${LUA_CORE_SRCS})
+#target_link_libraries(ravis ${EXTRA_LIBRARIES} ${llvm_libs})
 
 add_executable(lua src/lua.c)
 target_link_libraries(lua ravi)
     
-add_executable(luac src/luac.c)
-target_link_libraries(luac ravis)
+#add_executable(luac src/luac.c)
+#target_link_libraries(luac ravis)
 
 #VM test
 add_executable(test_vm tests/test_vm.c)

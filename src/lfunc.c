@@ -20,7 +20,7 @@
 #include "lobject.h"
 #include "lstate.h"
 
-
+#include "ravijit.h"
 
 CClosure *luaF_newCclosure (lua_State *L, int n) {
   GCObject *o = luaC_newobj(L, LUA_TCCL, sizeCclosure(n));
@@ -118,7 +118,9 @@ Proto *luaF_newproto (lua_State *L) {
   f->linedefined = 0;
   f->lastlinedefined = 0;
   f->source = NULL;
-  f->ravi_jit = NULL;
+  f->ravi_jit.jit_data = NULL;
+  f->ravi_jit.jit_function = NULL;
+  f->ravi_jit.jit_status = 0; /* not compiled */
   return f;
 }
 

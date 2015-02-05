@@ -466,6 +466,8 @@ LUA_API void ravi_dump_stack(lua_State *L, const char *s);
 LUA_API void ravi_dump_function(lua_State *L);
 LUA_API void ravi_set_debuglevel(int level);
 
+#define DEBUG_STACK(p) if ((ravi_parser_debug & 8) != 0) {p;} else {}
+
 /******************************************************************************
 * Copyright (C) 1994-2015 Lua.org, PUC-Rio.
 *

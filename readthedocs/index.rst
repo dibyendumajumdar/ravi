@@ -16,6 +16,7 @@ Contents:
    ravi-internals
    ravi-jit-overview
    ravi-jit-initial
+   ravi-jit-infra
 
 
 Indices and tables

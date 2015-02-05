@@ -101,7 +101,7 @@ typedef struct CallInfo {
 #define setoah(st,v)	((st) = ((st) & ~CIST_OAH) | (v))
 #define getoah(st)	((st) & CIST_OAH)
 
-typedef struct ravijit_State ravijit_State;
+typedef struct ravi_State ravi_State;
 
 /*
 ** 'global state', shared by all threads of this state
@@ -142,7 +142,7 @@ typedef struct global_State {
   TString *tmname[TM_N];  /* array with tag-method names */
   struct Table *mt[LUA_NUMTAGS];  /* metatables for basic types */
   /* RAVI */
-  ravijit_State *ravi_jitstate;
+  ravi_State *ravi_state;
 } global_State;
 
 

@@ -673,12 +673,20 @@ void luaV_finishOp (lua_State *L) {
 void ravi_dump_stack(lua_State *L, const char *s) {
   if (!s)
     return;
-  StkId p = L->stack;
+  CallInfo *ci = L->ci;
+  StkId p = L->top-1;
+  int base = ci->u.l.base - L->stack - 1;
+  int func = ci->func - L->stack - 1;
   if (p == NULL)
     return;
-  int i = 0;
-  printf("stack dump %s\n", s);
-  for (i = 0; p < L->top; p++, i++) {
+  int i = L->top-L->stack-1;
+
+  printf("Global stack dump %s\n", s);
+  for (; p >= L->stack; p--, i--) {
+    if (i == base)
+      printf("base -> ");
+    if (i == func)
+      printf("func -> ");
     if (ttisCclosure(p))
       printf("stack[%d] = C closure\n", i);
     else if (ttislcf(p))
@@ -716,7 +724,7 @@ void luaV_execute (lua_State *L) {
   TValue *k;
   StkId base;
 newframe:  /* reentry point when frame changes (call/return) */
-  /* ravi_dump_stack(L, "on function entry"); */
+  DEBUG_STACK(ravi_dump_stack(L, "On function entry");)
   lua_assert(ci == L->ci);
   cl = clLvalue(ci->func);
   k = cl->p->k;
@@ -1014,6 +1022,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
     } break;
     case OP_CALL: {
+        DEBUG_STACK(ravi_dump_stack(L, "OP_CALL: before luaD_precall()");)
         int b = GETARG_B(i);
         int nresults = GETARG_C(i) - 1;
         if (b != 0) L->top = ra + b;  /* else previous instruction set top */
@@ -1057,12 +1066,12 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
     } break;
     case OP_RETURN: {
-        /* ravi_dump_stack(L, "before return"); */
+        DEBUG_STACK(ravi_dump_stack(L, "OP_RETURN: before luaD_poscall()");)
         int b = GETARG_B(i);
         if (b != 0) L->top = ra + b - 1;
         if (cl->p->sizep > 0) luaF_close(L, base);
         b = luaD_poscall(L, ra);
-        /* ravi_dump_stack(L, "after return"); */
+        DEBUG_STACK(ravi_dump_stack(L, "OP_RETURN: after luaD_poscall()");)
         if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */
             return;  /* external invocation: return */
         else {  /* invocation via reentry: continue execution */

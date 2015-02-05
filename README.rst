@@ -5,7 +5,7 @@ Experimental derivative/dialect of Lua. Ravi is a Sanskrit word that means the S
 
 Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater performance. However, at the same time maintain full compatibility with standard Lua.
 
-There are other attempts to add static typing to Lua (e.g. [Typed Lua](https://github.com/andremm/typedlua>)) but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
+There are other attempts to add static typing to Lua (e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
 My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. 
 
@@ -21,62 +21,68 @@ Status
 ------
 The project was kicked off in January 2015. My intention is start small and grow incrementally.
 
-Right now (as of Feb 2015) I am working on the JIT implementation. Please see [JIT Compilation for Ravi](https://github.com/dibyendumajumdar/ravi/wiki/RaviJITCompilation) for details of this effort.
+Right now (as of Feb 2015) I am working on the JIT implementation. Please see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_ for details of this effort.
 
-As of end Jan 2015, the Ravi interpreter allows you to declare local variables as `int` or `double`. This triggers following behaviour:
+As of end Jan 2015, the Ravi interpreter allows you to declare local variables as ``int`` or ``double``. This triggers following behaviour:
 
-* `int` and `double` variables are initialized to 0
+* ``int`` and ``double`` variables are initialized to 0
 * arithmetic operations trigger type specific bytecodes
 * values assigned to these variables are checked - statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime.
 
 Also initial implementation of arrays is available. So you can declare arrays of integers or doubles.
 
-* The type of an array of integers is denoted as `int[]`. 
-* The type of an array of doubles is denoted as `double[]`.
+* The type of an array of integers is denoted as ``int[]``. 
+* The type of an array of doubles is denoted as ``double[]``.
 * Arrays are implmented using a mix of runtime and compile time checks.
 * Operators to get/set from arrays not yet implemented so we won't yet full benefit.
 
-Obviously this is early days so _please expect bugs_.
+Obviously this is early days so please expect bugs.
 
-Example of code that works - you can copy this to the command line input:
-```lua
-local function tryme(); local i,j = 5,6; return i,j; end; local i:int, j:int = tryme(); return i+j
-```
-Another:
-```lua
-local j:double; for i=1,1000000000 do; j = j+1; end; return j
-```
-An example with arrays:
-```lua
-local a : double[], j:double = {}; for i=1,10 do; a[i] = i; j = j + a[i]; end; return j
-```
+Example of code that works - you can copy this to the command line input::
 
+  local function tryme(); local i,j = 5,6; return i,j; end; local i:int, j:int = tryme(); return i+j
+
+Another::
+
+  local j:double; for i=1,1000000000 do; j = j+1; end; return j
+
+An example with arrays::
+
+  local a : double[], j:double = {}; for i=1,10 do; a[i] = i; j = j + a[i]; end; return j
+
+Documentation
+--------------
+See `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
+As more stuff is built I will keep updating the documentation so please revisit for latest information.
+
+Building Ravi
+--------------
 The build is CMake based. I am testing this using Visual Studio 2013 on Windows 8.1 64bit and gcc on Unbuntu 64-bit.
+As of Feb 2015 LLVM 3.5.1 is a dependency.
 
-To build on Windows I use:
-```
-cd build
-cmake -G "Visual Studio 12 Win64" ..
-```
+To build on Windows I use::
+
+  cd build
+  cmake -G "Visual Studio 12 Win64" ..
+
 I then open the solution in VS2013 and do a build from there.
 
-On Ubuntu I use:
-```
-cd build
-cmake -G "Unix Makefiles" ..
-make
-```
+On Ubuntu I use::
 
-The `lua` command recognizes following environment variables.
+  cd build
+  cmake -G "Unix Makefiles" ..
+  make
 
-* `RAVI_DEBUG_EXPR` - if set to a value this triggers debug output of expression parsing
-* `RAVI_DEBUG_CODEGEN` - if set to a value this triggers a dump of the code being generated
-* `RAVI_DEBUG_VARS` - if set this triggers a dump of local variables construction and destruction
+The ``lua`` command recognizes following environment variables.
+
+* ``RAVI_DEBUG_EXPR`` - if set to a value this triggers debug output of expression parsing
+* ``RAVI_DEBUG_CODEGEN`` - if set to a value this triggers a dump of the code being generated
+* ``RAVI_DEBUG_VARS`` - if set this triggers a dump of local variables construction and destruction
 
 Work Plan
 ---------
-* Feb 2015 - implement type specialisation for arrays 
-* Mar 2015 - implement function parameter / return type specialisation
+* Feb-May 2015 - implement JIT compilation using LLVM 
+* June 2015 - implement function parameter / return type specialisation
 
 License
 -------
@@ -107,48 +113,44 @@ And we may end up allowing additionally following types depending on whether the
 * array of strings
 * array of functions
 
-The syntax for introducing the type will probably be as below:
-```
-function foo(s: string) : string
-  return s
-end
-```
+The syntax for introducing the type will probably be as below::
 
-Local variables may be given types as shown below:
-```
-function foo() : string
-  local s: string = "hello world!"
-  return s
-end
-```
+  function foo(s: string) : string
+    return s
+  end
+
+Local variables may be given types as shown below::
+
+  function foo() : string
+    local s: string = "hello world!"
+    return s
+  end
 
 If no type is specified then then type will be dynamic - exactly what the Lua default is.
 
-When a typed function is called the inputs and return value can be validated. Consider the function below:
+When a typed function is called the inputs and return value can be validated. Consider the function below::
 
-```
-local function foo(a, b: int, c: string)
-  return
-end
-```
-When this function is called the compiler can validate that `b` is an int and `c` is a string. `a` on the other hand is dynamic so will behave as regular Lua value. The compiler can also ensure that the types of `b` and `c` are respected within the function. 
+  local function foo(a, b: int, c: string)
+    return
+  end
+
+When this function is called the compiler can validate that ``b`` is an int and ``c`` is a string. ``a`` on the other hand is dynamic so will behave as regular Lua value. The compiler can also ensure that the types of ``b`` and ``c`` are respected within the function. 
 
 Return statements in typed functions can also be validated.
 
 Array Types
 -----------
 
-When it comes to complex types such as arrays, tables and functions, at this point in time, I think that Ravi only needs to support explicit specialization for arrays of integers and doubles. 
+When it comes to complex types such as arrays, tables and functions, at this point in time, I think that Ravi only needs to support explicit specialization for arrays of integers and doubles::
 
-```
-function foo(p1: {}, p2: int[])
-  -- p1 is a table
-  -- p2 is an array of integers
-  local t1 = {} -- t1 is a table
-  local a1 : int[] = {} -- a1 is an array of integers, specialization of table
-  local d1 : double[] = {} -- d1 is an array of doubles, specialization of table
-end
-```
+  function foo(p1: {}, p2: int[])
+    -- p1 is a table
+    -- p2 is an array of integers
+    local t1 = {} -- t1 is a table
+    local a1 : int[] = {} -- a1 is an array of integers, specialization of table
+    local d1 : double[] = {} -- d1 is an array of doubles, specialization of table
+  end
+
 
 To support array types we need a mix of runtime and compile time type checking. The Lua table type will be enhanced to hold type information so that when an array type is created the type of the array will be recorded. This will allow the runtime to detect incorrect usage of array type and raise errors if necessary. However, on the other hand, it will be possible to pass the array type to an existing Lua function as a regular table - and as long as the Lua function does not attempt to subvert the array type it should work as normal.
 
@@ -189,33 +191,27 @@ For now however I am just amending the bit mapping in the 32-bit instruction to 
 
 New OpCodes
 -----------
-The new instructions are specialised for types, and also for register/versus constant. So for example `OP_RAVI_ADDFIKK` means add `float` and `int` where both values are constants. And `OP_RAVI_ADDFFRR` means add `float` and `float` - both obtained from registers. The existing Lua opcodes that these are based on define which operands are used.
+The new instructions are specialised for types, and also for register/versus constant. So for example ``OP_RAVI_ADDFI`` means add ``float`` and ``int``. And ``OP_RAVI_ADDFF`` means add ``float`` and ``float``. The existing Lua opcodes that these are based on define which operands are used.
 
-Example:
---------
-```
-> local i=0; i=i+1
-```
-Above standard Lua code compiles to:
-```
-[0] LOADK A=0 Bx=-1
-[1] ADD A=0 B=0 C=-2
-[2] RETURN A=0 B=1
-```
-We add type info using Ravi extensions:
-```
-> local i:int=0; i=i+1
-```
-Now the code compiles to:
-```
-[0] LOADK A=0 Bx=-1
-[1] ADDIIRK A=0 B=0 C=-2
-[2] RETURN A=0 B=1
-```
-Above uses type specialised opcode `OP_RAVI_ADDIIRK`. 
+Example::
 
-Documentation
--------------
+  local i=0; i=i+1
 
-* [Ravi Programming Language](http://the-ravi-programming-language.readthedocs.org/en/latest/index.html)
-* [Change Log](https://github.com/dibyendumajumdar/ravi/wiki/Changes)
+Above standard Lua code compiles to::
+
+  [0] LOADK A=0 Bx=-1
+  [1] ADD A=0 B=0 C=-2
+  [2] RETURN A=0 B=1
+
+We add type info using Ravi extensions::
+
+  local i:int=0; i=i+1
+
+Now the code compiles to::
+
+  [0] LOADK A=0 Bx=-1
+  [1] ADDII A=0 B=0 C=-2
+  [2] RETURN A=0 B=1
+
+Above uses type specialised opcode ``OP_RAVI_ADDII``. 
+

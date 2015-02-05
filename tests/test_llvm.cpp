@@ -29,14 +29,7 @@ typedef struct RaviGCObject {
 // Our prototype for the JITted function
 typedef int (*myfunc_t)(RaviGCObject *);
 
-int main() {
-
-  // Looks like unless following three lines are not executed then
-  // ExecutionEngine cannot be created
-  llvm::InitializeNativeTarget();
-  llvm::InitializeNativeTargetAsmPrinter();
-  llvm::InitializeNativeTargetAsmParser();
-
+int test1() {
   // Get global context - not sure what the impact is of sharing
   // the global context
   llvm::LLVMContext &context = llvm::getGlobalContext();
@@ -58,8 +51,10 @@ int main() {
 #endif
 
   // create a GCObject structure as defined in lobject.h
-  llvm::StructType *structType = llvm::StructType::create(context, "RaviGCObject");
-  llvm::PointerType *pstructType = llvm::PointerType::get(structType, 0); // pointer to RaviGCObject
+  llvm::StructType *structType =
+      llvm::StructType::create(context, "RaviGCObject");
+  llvm::PointerType *pstructType =
+      llvm::PointerType::get(structType, 0); // pointer to RaviGCObject
   std::vector<llvm::Type *> elements;
   elements.push_back(pstructType);
   elements.push_back(llvm::Type::getInt8Ty(context));
@@ -133,7 +128,8 @@ int main() {
                     .setUseMCJIT(true)
                     .create();
   if (!engine) {
-    llvm::errs() << "Failed to construct MCJIT ExecutionEngine: " << errStr << "\n";
+    llvm::errs() << "Failed to construct MCJIT ExecutionEngine: " << errStr
+                 << "\n";
     return 1;
   }
 
@@ -146,8 +142,106 @@ int main() {
   }
 
   // Run the function and test results.
-  RaviGCObject obj = { NULL, 42, 65 };
+  RaviGCObject obj = {NULL, 42, 65};
   int ans = funcptr(&obj);
   printf("The answer is %d\n", ans);
   return ans == 42 ? 0 : 1;
+}
+
+extern "C" int mytest(RaviGCObject *obj) {
+  printf("value = %d\n", obj->b1);
+  return obj->b1;
+}
+
+// This version of the test calls mytest() rather than
+// printf() as in test1(). Also we use RaviJITState and related
+// infrastructure
+int test2() {
+
+  auto jitStatePtr = ravi::RaviJITStateFactory::newJITState();
+  ravi::RaviJITState &jitState = *jitStatePtr.get();
+
+  jitState.dump();
+
+  llvm::LLVMContext &context = jitState.context();
+  llvm::IRBuilder<> builder(context);
+
+  // create a GCObject structure as defined in lobject.h
+  llvm::StructType *structType =
+      llvm::StructType::create(context, "RaviGCObject");
+  llvm::PointerType *pstructType =
+      llvm::PointerType::get(structType, 0); // pointer to RaviGCObject
+  std::vector<llvm::Type *> elements;
+  elements.push_back(pstructType);
+  elements.push_back(llvm::Type::getInt8Ty(context));
+  elements.push_back(llvm::Type::getInt8Ty(context));
+  structType->setBody(elements);
+  structType->dump();
+
+  // Create declaration for mytest
+  // int mytest(RaviGCObject *obj)
+  std::vector<llvm::Type *> args;
+  args.push_back(pstructType);
+  llvm::FunctionType *mytestFuncType =
+      llvm::FunctionType::get(builder.getInt32Ty(), args, false);
+
+  // Create the testfunc()
+  args.clear();
+  args.push_back(pstructType);
+  llvm::FunctionType *funcType =
+      llvm::FunctionType::get(builder.getInt32Ty(), args, false);
+  ravi::RaviJITFunction *func = jitState.createFunction(
+      funcType, llvm::Function::ExternalLinkage, "testfunc");
+
+  llvm::Function *mainFunc = func->function();
+  llvm::BasicBlock *entry =
+      llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
+  builder.SetInsertPoint(entry);
+
+  // Get the first argument which is RaviGCObject *
+  auto argiter = mainFunc->arg_begin();
+  llvm::Value *arg1 = argiter++;
+  arg1->setName("obj");
+
+  // Add an extern int mytest(RaviGCObject *obj) and link this
+  // to mytest()
+  llvm::Constant *mytestFunc =
+      func->addExternFunction(mytestFuncType, &mytest, "mytest");
+
+  // Call the mytest() function
+  std::vector<llvm::Value *> values;
+  values.push_back(arg1);
+  llvm::Value *tmp2 = builder.CreateCall(mytestFunc, values, "i");
+
+  // return i
+  builder.CreateRet(tmp2);
+  func->dump();
+
+  // Now lets compile our function into machine code
+  myfunc_t funcptr = (myfunc_t)func->compile();
+  if (funcptr == nullptr) {
+    llvm::errs() << "Failed to obtain compiled function\n";
+    return 1;
+  }
+
+  // Run the function and test results.
+  RaviGCObject obj = {NULL, 42, 65};
+  int ans = funcptr(&obj);
+  printf("The answer is %d\n", ans);
+  return ans == 42 ? 0 : 1;
+}
+
+int main() {
+
+  // Looks like unless following three lines are not executed then
+  // ExecutionEngine cannot be created
+  llvm::InitializeNativeTarget();
+  llvm::InitializeNativeTargetAsmPrinter();
+  llvm::InitializeNativeTargetAsmParser();
+
+  int failure_count = 0;
+  failure_count += test1();
+  failure_count += test2();
+
+  return failure_count != 0 ? 1 : 0;
 }
