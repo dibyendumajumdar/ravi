@@ -64,7 +64,7 @@ static int test_luacompexec1(const char *code, int expected)
   return rc;
 }
 
-int main(const char *argv[]) 
+int main(int argc, const char *argv[]) 
 {
     int failures = 0;
     failures += test_luacompexec1("local x:int[] = {1}; local i:int = 1; local d:int = x[i]; x[i] = 5; return d*x[i];", 5);
