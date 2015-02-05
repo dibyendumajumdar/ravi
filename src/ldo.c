@@ -311,7 +311,7 @@ static void tryfuncTM (lua_State *L, StkId func) {
 /*
 ** returns true if function has been executed (C function)
 */
-int luaD_precall (lua_State *L, StkId func, int nresults) {
+int luaD_precall (lua_State *L, StkId func, int nresults, int compile) {
   lua_CFunction f;
   CallInfo *ci;
   int n;  /* number of arguments (Lua) or returns (C) */
@@ -368,19 +368,21 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
       luaC_checkGC(L);  /* stack grow uses memory */
       if (L->hookmask & LUA_MASKCALL)
         callhook(L, ci);
-      if (p->ravi_jit.jit_status == 0) {
-        /* not compiled */
-        raviV_compile(L, p);
-      }
-      if (p->ravi_jit.jit_status == 2) {
-        /* compiled */
-        lua_assert(p->ravi_jit.jit_function != NULL);
-        (*p->ravi_jit.jit_function)(L);
-        lua_assert(L->ci == prevci);
-        ci = L->ci;
-        lua_assert(isLua(ci));
-        lua_assert(GET_OPCODE(*((ci)->u.l.savedpc - 1)) == OP_CALL);
-        return 1;
+      if (compile) {
+        if (p->ravi_jit.jit_status == 0) {
+          /* not compiled */
+          raviV_compile(L, p);
+        }
+        if (p->ravi_jit.jit_status == 2) {
+          /* compiled */
+          lua_assert(p->ravi_jit.jit_function != NULL);
+          (*p->ravi_jit.jit_function)(L);
+          lua_assert(L->ci == prevci);
+          ci = L->ci;
+          lua_assert(isLua(ci));
+          lua_assert(GET_OPCODE(*((ci)->u.l.savedpc - 1)) == OP_CALL);
+          return 1;
+        }
       }
       return 0;
     }
@@ -388,7 +390,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
       luaD_checkstack(L, 1);  /* ensure space for metamethod */
       func = restorestack(L, funcr);  /* previous call may change stack */
       tryfuncTM(L, func);  /* try to get '__call' metamethod */
-      return luaD_precall(L, func, nresults);  /* now it must be a function */
+      return luaD_precall(L, func, nresults, 0);  /* now it must be a function */
     }
   }
 }
@@ -433,7 +435,7 @@ void luaD_call (lua_State *L, StkId func, int nResults, int allowyield) {
       luaD_throw(L, LUA_ERRERR);  /* error while handing stack error */
   }
   if (!allowyield) L->nny++;
-  if (!luaD_precall(L, func, nResults))  /* is a Lua function? */
+  if (!luaD_precall(L, func, nResults, 0))  /* is a Lua function? */
     luaV_execute(L);  /* call it */
   if (!allowyield) L->nny--;
   L->nCcalls--;
@@ -556,7 +558,7 @@ static void resume (lua_State *L, void *ud) {
     if (ci != &L->base_ci)  /* not in base level? */
       resume_error(L, "cannot resume non-suspended coroutine", firstArg);
     /* coroutine is in base level; start running it */
-    if (!luaD_precall(L, firstArg - 1, LUA_MULTRET))  /* Lua function? */
+    if (!luaD_precall(L, firstArg - 1, LUA_MULTRET, 0))  /* Lua function? */
       luaV_execute(L);  /* call it */
   }
   else if (L->status != LUA_YIELD)

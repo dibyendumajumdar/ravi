@@ -1026,7 +1026,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         int b = GETARG_B(i);
         int nresults = GETARG_C(i) - 1;
         if (b != 0) L->top = ra + b;  /* else previous instruction set top */
-        if (luaD_precall(L, ra, nresults)) {  /* C function? */
+        if (luaD_precall(L, ra, nresults, 1)) {  /* C function? */
             if (nresults >= 0) L->top = ci->top;  /* adjust results */
             base = ci->u.l.base;
         }
@@ -1040,7 +1040,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         int b = GETARG_B(i);
         if (b != 0) L->top = ra + b;  /* else previous instruction set top */
         lua_assert(GETARG_C(i) - 1 == LUA_MULTRET);
-        if (luaD_precall(L, ra, LUA_MULTRET))  /* C function? */
+        if (luaD_precall(L, ra, LUA_MULTRET, 0))  /* C function? */
             base = ci->u.l.base;
         else {
             /* tail call: put called frame (n) in place of caller one (o) */

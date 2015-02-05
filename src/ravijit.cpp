@@ -1,9 +1,17 @@
+/**
+* Copyright (c) Dibyendu Majumdar
+* 2015
+*/
+
 #include "ravijit.h"
 #include "ravillvm.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// TODO we probably do not need all the headers
+// below
 
 #define lvm_c
 #define LUA_CORE
@@ -33,11 +41,13 @@ extern "C" {
 }
 #endif
 
+#include <array>
 #include <iterator>
 #include <type_traits>
 
 namespace ravi {
 
+// TODO - should probably be an atomic int
 static volatile int init = 0;
 
 // All Lua types are gathered here
@@ -121,8 +131,8 @@ struct LuaLLVMTypes {
   llvm::PointerType *pProtoT;
   llvm::PointerType *ppProtoT;
 
-  llvm::StructType* UpValT;
-  llvm::PointerType* pUpValT;
+  llvm::StructType *UpValT;
+  llvm::PointerType *pUpValT;
 
   llvm::StructType *CClosureT;
   llvm::PointerType *pCClosureT;
@@ -152,16 +162,13 @@ struct LuaLLVMTypes {
   llvm::FunctionType *jitFunctionT;
 
   llvm::FunctionType *luaD_poscallT;
+  llvm::FunctionType *luaF_closeT;
+  llvm::FunctionType *luaV_equalobjT;
+  llvm::FunctionType *luaV_lessthanT;
+  llvm::FunctionType *luaV_lessequalT;
+  llvm::FunctionType *luaG_runerrorT;
 
-  llvm::Constant *kZeroInt;
-  llvm::Constant *kOneInt;
-  llvm::Constant *kTwoInt;
-  llvm::Constant *kThreeInt;
-  llvm::Constant *kFourInt;
-  llvm::Constant *kFiveInt;
-  llvm::Constant *kSixInt;
-  llvm::Constant *kSevenInt;
-  llvm::Constant *kFourteenInt;
+  std::array<llvm::Constant *, 21> kInt;
 
   llvm::Constant *kFalse;
 };
@@ -169,14 +176,17 @@ struct LuaLLVMTypes {
 LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
 
   static_assert(std::is_floating_point<lua_Number>::value &&
-    sizeof(lua_Number) == sizeof(double),
-    "lua_Number is not a double");
+                    sizeof(lua_Number) == sizeof(double),
+                "lua_Number is not a double");
   lua_NumberT = llvm::Type::getDoubleTy(context);
 
-  static_assert(std::is_integral<lua_Integer>::value, "lua_Integer is not an integer type");
+  static_assert(sizeof(lua_Integer) == sizeof(lua_Number), "Only 64-bit int supported");
+  static_assert(std::is_integral<lua_Integer>::value,
+                "lua_Integer is not an integer type");
   lua_IntegerT = llvm::Type::getIntNTy(context, sizeof(lua_Integer) * 8);
 
-  static_assert(sizeof(lua_Integer) == sizeof(lua_Unsigned), "lua_Integer and lua_Unsigned are of different size");
+  static_assert(sizeof(lua_Integer) == sizeof(lua_Unsigned),
+                "lua_Integer and lua_Unsigned are of different size");
   lua_UnsignedT = lua_IntegerT;
 
   C_intptr_t = llvm::Type::getIntNTy(context, sizeof(intptr_t) * 8);
@@ -184,13 +194,16 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   C_ptrdiff_t = llvm::Type::getIntNTy(context, sizeof(ptrdiff_t) * 8);
   C_intT = llvm::Type::getIntNTy(context, sizeof(int) * 8);
 
-  static_assert(sizeof(size_t) == sizeof(lu_mem), "lu_mem size is not same as size_t");
+  static_assert(sizeof(size_t) == sizeof(lu_mem),
+                "lu_mem size is not same as size_t");
   lu_memT = C_size_t;
 
-  static_assert(sizeof(ptrdiff_t) == sizeof(l_mem), "l_mem size is not same as ptrdiff_t");
+  static_assert(sizeof(ptrdiff_t) == sizeof(l_mem),
+                "l_mem size is not same as ptrdiff_t");
   l_memT = C_ptrdiff_t;
 
-  static_assert(sizeof(L_Umaxalign) == sizeof(double), "L_Umaxalign is not same size as double");
+  static_assert(sizeof(L_Umaxalign) == sizeof(double),
+                "L_Umaxalign is not same size as double");
   L_UmaxalignT = llvm::Type::getDoubleTy(context);
 
   lu_byteT = llvm::Type::getInt8Ty(context);
@@ -223,7 +236,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(llvm::Type::getInt8PtrTy(context));
   elements.push_back(C_size_t);
   elements.push_back(C_size_t);
-  lua_AllocT = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(context), elements, false);
+  lua_AllocT = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(context),
+                                       elements, false);
   plua_AllocT = llvm::PointerType::get(lua_AllocT, 0);
 
   lua_DebugT = llvm::StructType::create(context, "ravi.lua_Debug");
@@ -232,12 +246,13 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(plua_DebugT);
-  lua_HookT = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(context), elements, false);
+  lua_HookT = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(context),
+                                      elements, false);
   plua_HookT = llvm::PointerType::get(lua_HookT, 0);
 
   // struct GCObject {
-  //   GCObject *next; 
-  //   lu_byte tt; 
+  //   GCObject *next;
+  //   lu_byte tt;
   //   lu_byte marked
   // };
   GCObjectT = llvm::StructType::create(context, "ravi.GCObject");
@@ -247,8 +262,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
   GCObjectT->setBody(elements);
-  
-  static_assert(sizeof(Value) == sizeof(lua_Number), "Value type is larger than lua_Number");
+
+  static_assert(sizeof(Value) == sizeof(lua_Number) && sizeof(Value) == sizeof(lua_Integer),
+                "Value type is larger than lua_Number");
   // In LLVM unions should be set to the largest member
   // So in the case of a Value this is the double type
   // union Value {
@@ -281,11 +297,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   //** Header for string value; string bytes follow the end of this structure
   //** (aligned according to 'UTString'; see next).
   //*/
-  //typedef struct TString {
-  //   GCObject *next; 
-  //   lu_byte tt; 
+  // typedef struct TString {
+  //   GCObject *next;
+  //   lu_byte tt;
   //   lu_byte marked
-  //   lu_byte extra;  /* reserved words for short strings; "has hash" for longs */
+  //   lu_byte extra;  /* reserved words for short strings; "has hash" for longs
+  //   */
   //   unsigned int hash;
   //   size_t len;  /* number of characters in string */
   //   struct TString *hnext;  /* linked list for hash table */
@@ -294,7 +311,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   ///*
   //** Ensures that address after this type is always fully aligned.
   //*/
-  //typedef union UTString {
+  // typedef union UTString {
   //  L_Umaxalign dummy;  /* ensures maximum alignment for strings */
   //  TString tsv;
   //} UTString;
@@ -305,9 +322,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT); /* extra */
-  elements.push_back(C_intT); /* hash */
-  elements.push_back(C_size_t); /* len */
+  elements.push_back(lu_byteT);  /* extra */
+  elements.push_back(C_intT);    /* hash */
+  elements.push_back(C_size_t);  /* len */
   elements.push_back(pTStringT); /* hnext */
   TStringT->setBody(elements);
 
@@ -319,9 +336,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   //** Header for userdata; memory area follows the end of this structure
   //** (aligned according to 'UUdata'; see next).
   //*/
-  //typedef struct Udata {
-  //  GCObject *next; 
-  //  lu_byte tt; 
+  // typedef struct Udata {
+  //  GCObject *next;
+  //  lu_byte tt;
   //  lu_byte marked
   //  lu_byte ttuv_;  /* user value's tag */
   //  struct Table *metatable;
@@ -334,18 +351,19 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT); /* ttuv_ */
-  elements.push_back(pTableT); /* metatable */
+  elements.push_back(pTableT);  /* metatable */
   elements.push_back(C_size_t); /* len */
-  elements.push_back(ValueT); /* user_ */
+  elements.push_back(ValueT);   /* user_ */
   UdataT->setBody(elements);
 
   ///*
   //** Description of an upvalue for function prototypes
   //*/
-  //typedef struct Upvaldesc {
+  // typedef struct Upvaldesc {
   //  TString *name;  /* upvalue name (for debug information) */
   //  lu_byte instack;  /* whether it is in stack */
-  //  lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
+  //  lu_byte idx;  /* index of upvalue (in stack or in outer function's list)
+  //  */
   //}Upvaldesc;
   UpvaldescT = llvm::StructType::create(context, "ravi.Upvaldesc");
   elements.clear();
@@ -359,18 +377,19 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   //** Description of a local variable for function prototypes
   //** (used for debug information)
   //*/
-  //typedef struct LocVar {
+  // typedef struct LocVar {
   //  TString *varname;
   //  int startpc;  /* first point where variable is active */
   //  int endpc;    /* first point where variable is dead */
-  //  ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
+  //  ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown
+  //  */
   //} LocVar;
   ravitype_tT = llvm::Type::getIntNTy(context, sizeof(ravitype_t) * 8);
   LocVarT = llvm::StructType::create(context, "ravi.LocVar");
   elements.clear();
-  elements.push_back(pTStringT); /* varname */
-  elements.push_back(C_intT); /* startpc */
-  elements.push_back(C_intT); /* endpc */
+  elements.push_back(pTStringT);   /* varname */
+  elements.push_back(C_intT);      /* startpc */
+  elements.push_back(C_intT);      /* endpc */
   elements.push_back(ravitype_tT); /* ravi_type */
   LocVarT->setBody(elements);
   pLocVarT = llvm::PointerType::get(LocVarT, 0);
@@ -386,7 +405,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   ///*
   //** Function Prototypes
   //*/
-  //typedef struct Proto {
+  // typedef struct Proto {
   //  CommonHeader;
   //  lu_byte numparams;  /* number of fixed parameters */
   //  lu_byte is_vararg;
@@ -403,7 +422,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   //  Instruction *code;
   //  struct Proto **p;  /* functions defined inside the function */
   //  int *lineinfo;  /* map from opcodes to source lines (debug information) */
-  //  LocVar *locvars;  /* information about local variables (debug information) */
+  //  LocVar *locvars;  /* information about local variables (debug information)
+  //  */
   //  Upvaldesc *upvalues;  /* upvalue information */
   //  struct LClosure *cache;  /* last created closure with this prototype */
   //  TString  *source;  /* used for debug information */
@@ -419,33 +439,33 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT); /* numparams */
-  elements.push_back(lu_byteT); /* is_vararg */
-  elements.push_back(lu_byteT); /* maxstacksize */
-  elements.push_back(C_intT); /* sizeupvalues */
-  elements.push_back(C_intT); /* sizek */
-  elements.push_back(C_intT); /* sizecode */
-  elements.push_back(C_intT); /* sizelineinfo */
-  elements.push_back(C_intT); /* sizep */
-  elements.push_back(C_intT); /* sizelocvars */
-  elements.push_back(C_intT); /* linedefined */
-  elements.push_back(C_intT); /* lastlinedefined */
-  elements.push_back(pTValueT); /* k */
-  elements.push_back(pInstructionT); /* code */
-  elements.push_back(ppProtoT); /* p */
+  elements.push_back(lu_byteT);                          /* numparams */
+  elements.push_back(lu_byteT);                          /* is_vararg */
+  elements.push_back(lu_byteT);                          /* maxstacksize */
+  elements.push_back(C_intT);                            /* sizeupvalues */
+  elements.push_back(C_intT);                            /* sizek */
+  elements.push_back(C_intT);                            /* sizecode */
+  elements.push_back(C_intT);                            /* sizelineinfo */
+  elements.push_back(C_intT);                            /* sizep */
+  elements.push_back(C_intT);                            /* sizelocvars */
+  elements.push_back(C_intT);                            /* linedefined */
+  elements.push_back(C_intT);                            /* lastlinedefined */
+  elements.push_back(pTValueT);                          /* k */
+  elements.push_back(pInstructionT);                     /* code */
+  elements.push_back(ppProtoT);                          /* p */
   elements.push_back(llvm::PointerType::get(C_intT, 0)); /* lineinfo */
-  elements.push_back(pLocVarT); /* locvars */
-  elements.push_back(pUpvaldescT); /* upvalues */
-  elements.push_back(pLClosureT); /* cache */
-  elements.push_back(pTStringT); /* source */
-  elements.push_back(pGCObjectT); /* gclist */
-  elements.push_back(pRaviJITProtoT); /* ravi_jit */
+  elements.push_back(pLocVarT);                          /* locvars */
+  elements.push_back(pUpvaldescT);                       /* upvalues */
+  elements.push_back(pLClosureT);                        /* cache */
+  elements.push_back(pTStringT);                         /* source */
+  elements.push_back(pGCObjectT);                        /* gclist */
+  elements.push_back(pRaviJITProtoT);                    /* ravi_jit */
   ProtoT->setBody(elements);
 
   ///*
   //** Lua Upvalues
   //*/
-  //typedef struct UpVal UpVal;
+  // typedef struct UpVal UpVal;
   UpValT = llvm::StructType::create(context, "ravi.UpVal");
   pUpValT = llvm::PointerType::get(UpValT, 0);
 
@@ -456,7 +476,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   //#define ClosureHeader \
 	//CommonHeader; lu_byte nupvalues; GCObject *gclist
 
-  //typedef struct CClosure {
+  // typedef struct CClosure {
   //  ClosureHeader;
   //  lua_CFunction f;
   //  TValue upvalue[1];  /* list of upvalues */
@@ -467,14 +487,14 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT); /* nupvalues */
-  elements.push_back(pGCObjectT); /* gclist */
+  elements.push_back(lu_byteT);        /* nupvalues */
+  elements.push_back(pGCObjectT);      /* gclist */
   elements.push_back(plua_CFunctionT); /* f */
   elements.push_back(llvm::ArrayType::get(TValueT, 1));
   CClosureT->setBody(elements);
   pCClosureT = llvm::PointerType::get(CClosureT, 0);
 
-  //typedef struct LClosure {
+  // typedef struct LClosure {
   //  ClosureHeader;
   //  struct Proto *p;
   //  UpVal *upvals[1];  /* list of upvalues */
@@ -483,9 +503,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT); /* nupvalues */
+  elements.push_back(lu_byteT);   /* nupvalues */
   elements.push_back(pGCObjectT); /* gclist */
-  elements.push_back(pProtoT); /* p */
+  elements.push_back(pProtoT);    /* p */
   elements.push_back(llvm::ArrayType::get(pUpValT, 1));
   LClosureT->setBody(elements);
 
@@ -493,7 +513,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   //** Tables
   //*/
 
-  //typedef union TKey {
+  // typedef union TKey {
   //  struct {
   //    TValuefields;
   //    int next;  /* for chaining (offset for next node) */
@@ -508,18 +528,18 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   TKeyT->setBody(elements);
   pTKeyT = llvm::PointerType::get(TKeyT, 0);
 
-  //typedef struct Node {
+  // typedef struct Node {
   // TValue i_val;
   // TKey i_key;
   //} Node;
   NodeT = llvm::StructType::create(context, "ravi.Node");
   elements.clear();
   elements.push_back(TValueT); /* i_val */
-  elements.push_back(TKeyT); /* i_key */
+  elements.push_back(TKeyT);   /* i_key */
   NodeT->setBody(elements);
   pNodeT = llvm::PointerType::get(NodeT, 0);
 
-  //typedef struct Table {
+  // typedef struct Table {
   //  CommonHeader;
   //  lu_byte flags;  /* 1<<p means tagmethod(p) is not present */
   //  lu_byte lsizenode;  /* log2 of size of 'node' array */
@@ -536,24 +556,24 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT); /* flags */
-  elements.push_back(lu_byteT); /* lsizenode */
-  elements.push_back(C_intT); /* sizearray */
-  elements.push_back(pTValueT); /* array part */
-  elements.push_back(pNodeT); /* node */
-  elements.push_back(pNodeT); /* lastfree */
-  elements.push_back(pTableT); /* metatable */
-  elements.push_back(pGCObjectT); /* gclist */
+  elements.push_back(lu_byteT);    /* flags */
+  elements.push_back(lu_byteT);    /* lsizenode */
+  elements.push_back(C_intT);      /* sizearray */
+  elements.push_back(pTValueT);    /* array part */
+  elements.push_back(pNodeT);      /* node */
+  elements.push_back(pNodeT);      /* lastfree */
+  elements.push_back(pTableT);     /* metatable */
+  elements.push_back(pGCObjectT);  /* gclist */
   elements.push_back(ravitype_tT); /* ravi_array_type */
-  elements.push_back(C_intT); /* ravi_array_len */
+  elements.push_back(C_intT);      /* ravi_array_len */
   TableT->setBody(elements);
 
-  //struct lua_longjmp;  /* defined in ldo.c */
+  // struct lua_longjmp;  /* defined in ldo.c */
   lua_longjumpT = llvm::StructType::create(context, "ravi.lua_longjmp");
   plua_longjumpT = llvm::PointerType::get(lua_longjumpT, 0);
 
   // lzio.h
-  //typedef struct Mbuffer {
+  // typedef struct Mbuffer {
   //  char *buffer;
   //  size_t n;
   //  size_t buffsize;
@@ -561,11 +581,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   MbufferT = llvm::StructType::create(context, "ravi.Mbuffer");
   elements.clear();
   elements.push_back(llvm::Type::getInt8PtrTy(context)); /* buffer */
-  elements.push_back(C_size_t); /* n */
-  elements.push_back(C_size_t); /* buffsize */
+  elements.push_back(C_size_t);                          /* n */
+  elements.push_back(C_size_t);                          /* buffsize */
   MbufferT->setBody(elements);
 
-  //typedef struct stringtable {
+  // typedef struct stringtable {
   //  TString **hash;
   //  int nuse;  /* number of elements */
   //  int size;
@@ -573,10 +593,10 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   stringtableT = llvm::StructType::create(context, "ravi.stringtable");
   elements.clear();
   elements.push_back(ppTStringT); /* hash */
-  elements.push_back(C_intT); /* nuse */
-  elements.push_back(C_intT); /* size */
+  elements.push_back(C_intT);     /* nuse */
+  elements.push_back(C_intT);     /* size */
   stringtableT->setBody(elements);
-  
+
   ///*
   //** Information about a call.
   //** When a thread yields, 'func' is adjusted to pretend that the
@@ -586,7 +606,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   //** the function index so that, in case of errors, the continuation
   //** function can be called with the correct top.
   //*/
-  //typedef struct CallInfo {
+  // typedef struct CallInfo {
   //  StkId func;  /* function index in the stack */
   //  StkId	top;  /* top for this function */
   //  struct CallInfo *previous, *next;  /* dynamic call link */
@@ -607,31 +627,34 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   //} CallInfo;
 
   elements.clear();
-  elements.push_back(StkIdT); /* base */
+  elements.push_back(StkIdT);        /* base */
   elements.push_back(pInstructionT); /* savedpc */
-  elements.push_back(C_ptrdiff_t); /* dummy to make this same size as the other member */
+  elements.push_back(
+      C_ptrdiff_t); /* dummy to make this same size as the other member */
   CallInfo_lT = llvm::StructType::create(elements);
 
   elements.clear();
   elements.push_back(plua_KFunctionT); /* k */
-  elements.push_back(C_ptrdiff_t); /* old_errfunc */
-  elements.push_back(lua_KContextT); /* ctx */
+  elements.push_back(C_ptrdiff_t);     /* old_errfunc */
+  elements.push_back(lua_KContextT);   /* ctx */
   CallInfo_cT = llvm::StructType::create(elements);
 
   CallInfoT = llvm::StructType::create(context, "ravi.CallInfo");
   pCallInfoT = llvm::PointerType::get(CallInfoT, 0);
   elements.clear();
-  elements.push_back(StkIdT); /* func */
-  elements.push_back(StkIdT); /* top */
+  elements.push_back(StkIdT);     /* func */
+  elements.push_back(StkIdT);     /* top */
   elements.push_back(pCallInfoT); /* previous */
   elements.push_back(pCallInfoT); /* next */
-  elements.push_back(CallInfo_lT); /* u.l  - as we will typically access the lua call details */
-  elements.push_back(C_ptrdiff_t); /* extra */
+  elements.push_back(
+      CallInfo_lT); /* u.l  - as we will typically access the lua call details
+                       */
+  elements.push_back(C_ptrdiff_t);                     /* extra */
   elements.push_back(llvm::Type::getInt16Ty(context)); /* nresults */
-  elements.push_back(lu_byteT); /* callstatus */
+  elements.push_back(lu_byteT);                        /* callstatus */
   CallInfoT->setBody(elements);
 
-  //typedef struct ravi_State ravi_State;
+  // typedef struct ravi_State ravi_State;
 
   ravi_StateT = llvm::StructType::create(context, "ravi.ravi_State");
   pravi_StateT = llvm::PointerType::get(ravi_StateT, 0);
@@ -639,7 +662,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   ///*
   //** 'global state', shared by all threads of this state
   //*/
-  //typedef struct global_State {
+  // typedef struct global_State {
   //  lua_Alloc frealloc;  /* function to reallocate memory */
   //  void *ud;         /* auxiliary data to 'frealloc' */
   //  lu_mem totalbytes;  /* number of bytes currently allocated - GCdebt */
@@ -684,7 +707,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   ///*
   //** 'per thread' state
   //*/
-  //struct lua_State {
+  // struct lua_State {
   //  CommonHeader;
   //  lu_byte status;
   //  StkId top;  /* first free slot in the stack */
@@ -712,27 +735,27 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT); /* status */
-  elements.push_back(StkIdT); /* top */
-  elements.push_back(pglobal_StateT); /* l_G */
-  elements.push_back(pCallInfoT); /* ci */
-  elements.push_back(pInstructionT); /* oldpc */
-  elements.push_back(StkIdT); /* stack_last */
-  elements.push_back(StkIdT); /* stack */
-  elements.push_back(pUpValT); /* openupval */
-  elements.push_back(pGCObjectT); /* gclist */
-  elements.push_back(plua_StateT); /* twups */
-  elements.push_back(plua_longjumpT); /* errorJmp */
-  elements.push_back(CallInfoT); /* base_ci */
-  elements.push_back(plua_HookT); /* hook */
-  elements.push_back(C_ptrdiff_t); /* errfunc */
-  elements.push_back(C_intT); /* stacksize */
-  elements.push_back(C_intT); /* basehookcount */
-  elements.push_back(C_intT); /* hookcount */
+  elements.push_back(lu_byteT);                        /* status */
+  elements.push_back(StkIdT);                          /* top */
+  elements.push_back(pglobal_StateT);                  /* l_G */
+  elements.push_back(pCallInfoT);                      /* ci */
+  elements.push_back(pInstructionT);                   /* oldpc */
+  elements.push_back(StkIdT);                          /* stack_last */
+  elements.push_back(StkIdT);                          /* stack */
+  elements.push_back(pUpValT);                         /* openupval */
+  elements.push_back(pGCObjectT);                      /* gclist */
+  elements.push_back(plua_StateT);                     /* twups */
+  elements.push_back(plua_longjumpT);                  /* errorJmp */
+  elements.push_back(CallInfoT);                       /* base_ci */
+  elements.push_back(plua_HookT);                      /* hook */
+  elements.push_back(C_ptrdiff_t);                     /* errfunc */
+  elements.push_back(C_intT);                          /* stacksize */
+  elements.push_back(C_intT);                          /* basehookcount */
+  elements.push_back(C_intT);                          /* hookcount */
   elements.push_back(llvm::Type::getInt16Ty(context)); /* nny */
   elements.push_back(llvm::Type::getInt16Ty(context)); /* nCcalls */
-  elements.push_back(lu_byteT); /* hookmask */
-  elements.push_back(lu_byteT); /* allowhook */
+  elements.push_back(lu_byteT);                        /* hookmask */
+  elements.push_back(lu_byteT);                        /* allowhook */
   lua_StateT->setBody(elements);
 
   // int luaD_poscall (lua_State *L, StkId firstResult)
@@ -741,40 +764,74 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(StkIdT);
   luaD_poscallT = llvm::FunctionType::get(C_intT, elements, false);
 
-  kZeroInt = llvm::ConstantInt::get(C_intT, 0);
-  kOneInt = llvm::ConstantInt::get(C_intT, 1);
-  kTwoInt = llvm::ConstantInt::get(C_intT, 2);
-  kThreeInt = llvm::ConstantInt::get(C_intT, 3);
-  kFourInt = llvm::ConstantInt::get(C_intT, 4);
-  kFiveInt = llvm::ConstantInt::get(C_intT, 5);
-  kSixInt = llvm::ConstantInt::get(C_intT, 6);
-  kSevenInt = llvm::ConstantInt::get(C_intT, 7);
-  kFourteenInt = llvm::ConstantInt::get(C_intT, 14);
+  // void luaF_close (lua_State *L, StkId level)
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(StkIdT);
+  luaF_closeT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
+  // int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2)
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pTValueT);
+  elements.push_back(pTValueT);
+  luaV_equalobjT = llvm::FunctionType::get(C_intT, elements, false);
+
+  // int luaV_lessthan (lua_State *L, const TValue *l, const TValue *r)
+  luaV_lessthanT = llvm::FunctionType::get(C_intT, elements, false);
+
+  // int luaV_lessequal (lua_State *L, const TValue *l, const TValue *r)
+  luaV_lessequalT = llvm::FunctionType::get(C_intT, elements, false);
+
+  // l_noret luaG_runerror (lua_State *L, const char *fmt, ...)
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(C_pcharT);
+  luaG_runerrorT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, true);
+
+  for (int j = 0; j < kInt.size(); j++)
+    kInt[j] = llvm::ConstantInt::get(C_intT, j);
 
   kFalse = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
 }
 
 void LuaLLVMTypes::dump() {
-  GCObjectT->dump(); fputs("\n", stdout);
-  TValueT->dump(); fputs("\n", stdout);
-  TStringT->dump(); fputs("\n", stdout);
-  UdataT->dump(); fputs("\n", stdout);
-  UpvaldescT->dump(); fputs("\n", stdout);
-  LocVarT->dump(); fputs("\n", stdout);
-  ProtoT->dump(); fputs("\n", stdout);
-  CClosureT->dump(); fputs("\n", stdout);
-  LClosureT->dump(); fputs("\n", stdout);
-  TKeyT->dump(); fputs("\n", stdout);
-  NodeT->dump(); fputs("\n", stdout);
-  TableT->dump(); fputs("\n", stdout);
-  MbufferT->dump(); fputs("\n", stdout);
-  stringtableT->dump(); fputs("\n", stdout);
-  CallInfoT->dump(); fputs("\n", stdout);
-  lua_StateT->dump(); fputs("\n", stdout);
+  GCObjectT->dump();
+  fputs("\n", stdout);
+  TValueT->dump();
+  fputs("\n", stdout);
+  TStringT->dump();
+  fputs("\n", stdout);
+  UdataT->dump();
+  fputs("\n", stdout);
+  UpvaldescT->dump();
+  fputs("\n", stdout);
+  LocVarT->dump();
+  fputs("\n", stdout);
+  ProtoT->dump();
+  fputs("\n", stdout);
+  CClosureT->dump();
+  fputs("\n", stdout);
+  LClosureT->dump();
+  fputs("\n", stdout);
+  TKeyT->dump();
+  fputs("\n", stdout);
+  NodeT->dump();
+  fputs("\n", stdout);
+  TableT->dump();
+  fputs("\n", stdout);
+  MbufferT->dump();
+  fputs("\n", stdout);
+  stringtableT->dump();
+  fputs("\n", stdout);
+  CallInfoT->dump();
+  fputs("\n", stdout);
+  lua_StateT->dump();
+  fputs("\n", stdout);
 }
 
 class RAVI_API RaviJITStateImpl;
-
 
 // Represents a JITed or JITable function
 // Each function gets its own module and execution engine - this
@@ -807,9 +864,9 @@ class RAVI_API RaviJITFunctionImpl : public RaviJITFunction {
 
 public:
   RaviJITFunctionImpl(RaviJITStateImpl *owner, llvm::Module *module,
-    llvm::FunctionType *type,
-    llvm::GlobalValue::LinkageTypes linkage,
-    const std::string &name);
+                      llvm::FunctionType *type,
+                      llvm::GlobalValue::LinkageTypes linkage,
+                      const std::string &name);
   virtual ~RaviJITFunctionImpl();
 
   // Compile the function if not already compiled and
@@ -819,8 +876,9 @@ public:
   // Add declaration for an extern function that is not
   // loaded dynamically - i.e., is part of the the executable
   // and therefore not visible at runtime by name
-  virtual llvm::Constant *addExternFunction(llvm::FunctionType *type, void *address,
-    const std::string &name);
+  virtual llvm::Constant *addExternFunction(llvm::FunctionType *type,
+                                            void *address,
+                                            const std::string &name);
 
   virtual const std::string &name() const { return name_; }
   virtual llvm::Function *function() const { return function_; }
@@ -833,11 +891,16 @@ public:
 // Ravi's JIT State
 // All of the JIT information is held here
 class RAVI_API RaviJITStateImpl : public RaviJITState {
+
   // map of names to functions
   std::map<std::string, RaviJITFunction *> functions_;
+
   llvm::LLVMContext &context_;
+
   // The triple represents the host target
   std::string triple_;
+
+  // Lua type definitions
   LuaLLVMTypes *types_;
 
 public:
@@ -845,9 +908,10 @@ public:
   virtual ~RaviJITStateImpl();
 
   // Create a function of specified type and linkage
-  virtual RaviJITFunction *createFunction(llvm::FunctionType *type,
-    llvm::GlobalValue::LinkageTypes linkage,
-    const std::string &name);
+  virtual RaviJITFunction *
+  createFunction(llvm::FunctionType *type,
+                 llvm::GlobalValue::LinkageTypes linkage,
+                 const std::string &name);
 
   // Stop tracking the named function - note that
   // the function is assumed to be destroyed by the user
@@ -860,14 +924,14 @@ public:
   LuaLLVMTypes *types() const { return types_; }
 };
 
-RaviJITState * RaviJITFunctionImpl::owner() const {
-  return owner_;
-}
-
+RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
 
 RaviJITStateImpl::RaviJITStateImpl() : context_(llvm::getGlobalContext()) {
   // Unless following three lines are not executed then
   // ExecutionEngine cannot be created
+  // This should ideally be an atomic check but because LLVM docs
+  // say that it is okay to call these functions more than once we
+  // do not bother
   if (init == 0) {
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
@@ -876,7 +940,7 @@ RaviJITStateImpl::RaviJITStateImpl() : context_(llvm::getGlobalContext()) {
   }
   triple_ = llvm::sys::getProcessTriple();
 #ifdef _WIN32
-  // On Windows we get error saying incompatible object format
+  // On Windows we get compilation error saying incompatible object format
   // Reading posts on mailining lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set -elf as the object
   // format
@@ -890,6 +954,7 @@ RaviJITStateImpl::~RaviJITStateImpl() {
   for (auto &f = std::begin(functions_); f != std::end(functions_); f++) {
     todelete.push_back(f->second);
   }
+  // delete all the compiled objects
   for (int i = 0; i < todelete.size(); i++) {
     delete todelete[i];
   }
@@ -909,10 +974,10 @@ void RaviJITStateImpl::dump() {
 
 RaviJITFunction *
 RaviJITStateImpl::createFunction(llvm::FunctionType *type,
-                             llvm::GlobalValue::LinkageTypes linkage,
-                             const std::string &name) {
+                                 llvm::GlobalValue::LinkageTypes linkage,
+                                 const std::string &name) {
   // MCJIT treats each module as a compilation unit
-  // To enabe function level life cycle we create a
+  // To enable function level life cycle we create a
   // module per function
   std::string moduleName = "ravi_module_" + name;
   llvm::Module *module = new llvm::Module(moduleName, context_);
@@ -923,7 +988,8 @@ RaviJITStateImpl::createFunction(llvm::FunctionType *type,
   // -elf as the object format
   module->setTargetTriple(triple_);
 #endif
-  RaviJITFunction *f = new RaviJITFunctionImpl(this, module, type, linkage, name);
+  RaviJITFunction *f =
+      new RaviJITFunctionImpl(this, module, type, linkage, name);
   functions_[name] = f;
   return f;
 }
@@ -933,10 +999,9 @@ void RaviJITStateImpl::deleteFunction(const std::string &name) {
   // This is called when RaviJITFunction is deleted
 }
 
-RaviJITFunctionImpl::RaviJITFunctionImpl(RaviJITStateImpl *owner, llvm::Module *module,
-                                 llvm::FunctionType *type,
-                                 llvm::GlobalValue::LinkageTypes linkage,
-                                 const std::string &name)
+RaviJITFunctionImpl::RaviJITFunctionImpl(
+    RaviJITStateImpl *owner, llvm::Module *module, llvm::FunctionType *type,
+    llvm::GlobalValue::LinkageTypes linkage, const std::string &name)
     : owner_(owner), module_(module), name_(name), engine_(nullptr),
       function_(nullptr), ptr_(nullptr) {
   function_ = llvm::Function::Create(type, linkage, name, module);
@@ -965,14 +1030,14 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
 
 void *RaviJITFunctionImpl::compile() {
 
-#if 0
+  //function_->dump();
+
   // Create a function pass manager for this engine
-  llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(OpenModule);
+  llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(module_);
 
   // Set up the optimizer pipeline.  Start with registering info about how the
   // target lays out data structures.
-  OpenModule->setDataLayout(NewEngine->getDataLayout());
-  FPM->add(new llvm::DataLayoutPass());
+  FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
   // Provide basic AliasAnalysis support for GVN.
   FPM->add(llvm::createBasicAliasAnalysisPass());
   // Promote allocas to registers.
@@ -988,16 +1053,13 @@ void *RaviJITFunctionImpl::compile() {
   FPM->doInitialization();
 
   // For each function in the module
-  llvm::Module::iterator it;
-  llvm::Module::iterator end = OpenModule->end();
-  for (it = OpenModule->begin(); it != end; ++it) {
-    // Run the FPM on this function
-    FPM->run(*it);
-  }
+  // Run the FPM on this function
+  FPM->run(*function_);
+
+  //module_->dump();
 
   // We don't need this anymore
   delete FPM;
-#endif
 
   if (ptr_)
     return ptr_;
@@ -1015,9 +1077,9 @@ void *RaviJITFunctionImpl::compile() {
   return ptr_;
 }
 
-llvm::Constant *RaviJITFunctionImpl::addExternFunction(llvm::FunctionType *type,
-                                                   void *address,
-                                                   const std::string &name) {
+llvm::Constant *
+RaviJITFunctionImpl::addExternFunction(llvm::FunctionType *type, void *address,
+                                       const std::string &name) {
   llvm::Function *f = llvm::Function::Create(
       type, llvm::Function::ExternalLinkage, name, module_);
   // We should have been able to call
@@ -1035,6 +1097,8 @@ std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
   return std::unique_ptr<RaviJITState>(new RaviJITStateImpl());
 }
 
+// This structure holds stuff we need when compiling a single
+// function
 struct RaviFunctionDef {
   RaviJITStateImpl *jitState;
   RaviJITFunctionImpl *raviF;
@@ -1044,56 +1108,106 @@ struct RaviFunctionDef {
   LuaLLVMTypes *types;
   llvm::IRBuilder<> *builder;
   llvm::Constant *luaD_poscallF;
+  llvm::Constant *luaF_closeF;
+  llvm::Constant *luaV_equalobjF;
+  llvm::Constant *luaV_lessthanF;
+  llvm::Constant *luaV_lessequalF;
+  llvm::Constant *luaG_runerrorF;
+  std::vector<llvm::BasicBlock *> jmp_targets;
+  // Pointer to proto
+  //llvm::Value *proto;
+  // Load pointer to proto
+  llvm::Value *proto_ptr;
+  // Obtain pointer to Proto->k
+  llvm::Value *proto_k;
+  // Load pointer to k
+  llvm::Value *k_ptr;
+
 };
 
+// This class is responsible for compiling Lua byte code
+// to LLVM IR
 class RaviCodeGenerator {
 public:
   RaviCodeGenerator(RaviJITStateImpl *jitState);
 
+  // Compile given function if possible
+  // The p->ravi_jit structure will be updated
+  // Note that if a function fails to compile then
+  // a flag is set so that it doesn't get compiled again
   void compile(lua_State *L, Proto *p);
+
+  // We can only compile a subset of op codes
+  // and not all features are supported
   bool canCompile(Proto *p);
+
+  // Create a unique function name in the context
+  // of this generator
   const char *unique_function_name();
 
   // Create the prologue of the JIT function
   // Argument will be named L
   // Initial BasicBlock will be created
   // int func(lua_State *L) {
-  std::unique_ptr<RaviJITFunctionImpl> create_function(llvm::IRBuilder<>& builder, RaviFunctionDef *def);
+  std::unique_ptr<RaviJITFunctionImpl>
+  create_function(llvm::IRBuilder<> &builder, RaviFunctionDef *def);
 
   // Add extern declarations for Lua functions we need to call
   void emit_extern_declarations(RaviFunctionDef *def);
 
-  // Get pointer to L->ci
-  llvm::Value *emit_gep_L_ci(RaviFunctionDef *def);
+  // emit code for (LClosure *)ci->func->value_.gc
+  llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
+                                                    llvm::Value *ci);
 
-  llvm::Value *emit_gep_ci_u_l_base(RaviFunctionDef *def, llvm::Value *ci_val);
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
+                        int arg1, int arg2);
 
-  llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def, llvm::Value *ci);
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
+                        int arg1, int arg2, int arg3);
 
-  llvm::Value *emit_gep_LClosure_p(RaviFunctionDef *def, llvm::Value *cl);
+  // emit code for &ptr[offset]
+  llvm::Value *emit_array_get(RaviFunctionDef *def, llvm::Value *ptr,
+                              int offset);
 
-  llvm::Value *emit_gep_Proto_k(RaviFunctionDef *def, llvm::Value *p);
+  // Look for Lua bytecodes that are jump targets and allocate
+  // a BasicBlock for each such target in def->jump_targets.
+  // The BasicBlocks are not inserted into the function until later
+  // but having them created allows rest of the code to insert
+  // branch instructions
+  void scan_jump_targets(RaviFunctionDef *def, Proto *p);
 
-  llvm::Value *emit_gep_L_top(RaviFunctionDef *def, llvm::Value *L);
+  void link_block(RaviFunctionDef *def, int pc);
 
-  llvm::Value *emit_gep_ci_top(RaviFunctionDef *def, llvm::Value *ci);
+  void emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                  int A, int Bx);
 
-  void emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr, int A, llvm::Value *k_ptr, int Bx);
+  void emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                   int A, int B);
 
-  llvm::Value *emit_array_get(RaviFunctionDef *def, llvm::Value *ptr, int offset);
+  void emit_JMP(RaviFunctionDef *def, int j);
 
-  void emit_RETURN(RaviFunctionDef *def, llvm::Value *base_ptr, llvm::Value *ci, int A, int B);
+  void emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int sBx);
+
+  // Emit code for OP_EQ, OP_LT and OP_LE
+  // The callee parameter should be luaV_equalobj, luaV_lessthan and
+  // luaV_lessequal
+  // respectively
+  // A, B, C must be operands of the OP_EQ/OP_LT/OP_LE instructions
+  // j must be the jump target (offset of the code to which we need to jump to)
+  // jA must be the A operand of the jump instruction
+  void emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+               int A, int B, int C, int j, int jA, llvm::Constant *callee);
 
 private:
   RaviJITStateImpl *jitState_;
-  std::vector<llvm::Value *> values_;
   char temp_[31]; // for name
-  int id_; // for name
+  int id_;        // for name
 };
 
-RaviCodeGenerator::RaviCodeGenerator(RaviJITStateImpl *jitState) :
-  jitState_(jitState), id_(1) {
-  temp_[0] = 0; 
+RaviCodeGenerator::RaviCodeGenerator(RaviJITStateImpl *jitState)
+    : jitState_(jitState), id_(1) {
+  temp_[0] = 0;
 }
 
 const char *RaviCodeGenerator::unique_function_name() {
@@ -1101,150 +1215,407 @@ const char *RaviCodeGenerator::unique_function_name() {
   return temp_;
 }
 
-llvm::Value *RaviCodeGenerator::emit_gep_L_ci(RaviFunctionDef *def) {
-  values_.clear();
-  values_.push_back(def->types->kZeroInt);  // L[0]
-  values_.push_back(def->types->kSixInt); // L[0].ci
-  return def->builder->CreateInBoundsGEP(def->L, values_, "ci");
+llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, const char *name,
+                                         llvm::Value *s, int arg1, int arg2) {
+  llvm::SmallVector<llvm::Value *, 2> values;
+  values.push_back(def->types->kInt[arg1]);
+  values.push_back(def->types->kInt[arg2]);
+  return def->builder->CreateInBoundsGEP(s, values, name);
 }
 
-llvm::Value *RaviCodeGenerator::emit_gep_ci_u_l_base(RaviFunctionDef *def, llvm::Value *ci_val) {
-  values_.clear();
-  values_.push_back(def->types->kZeroInt);  // ci[0]
-  values_.push_back(def->types->kFourInt); // cl[0].u.l
-  values_.push_back(def->types->kZeroInt); // cl[0].u.l.base
-  return def->builder->CreateInBoundsGEP(ci_val, values_, "base");
+llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, const char *name,
+                                         llvm::Value *s, int arg1, int arg2,
+                                         int arg3) {
+  llvm::SmallVector<llvm::Value *, 3> values;
+  values.push_back(def->types->kInt[arg1]);
+  values.push_back(def->types->kInt[arg2]);
+  values.push_back(def->types->kInt[arg3]);
+  return def->builder->CreateInBoundsGEP(s, values, name);
 }
 
-llvm::Value *RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def, llvm::Value *ci) {
-  llvm::Value *pppLuaClosure = def->builder->CreateBitCast(ci, def->types->pppLClosureT);
-  llvm::Value *ppLuaClosure = def->builder->CreateLoad(pppLuaClosure, "cl");
+llvm::Value *
+RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
+                                                        llvm::Value *ci) {
+  // emit code for (LClosure *)ci->func->value_.gc
+  // fortunately as func is at the beginning of the ci
+  // structure we can just cast ci to LClosure*
+  llvm::Value *pppLuaClosure =
+      def->builder->CreateBitCast(ci, def->types->pppLClosureT);
+  llvm::Value *ppLuaClosure = def->builder->CreateLoad(pppLuaClosure);
   return ppLuaClosure;
 }
 
-llvm::Value *RaviCodeGenerator::emit_gep_LClosure_p(RaviFunctionDef *def, llvm::Value *cl) {
-  values_.clear();
-  values_.push_back(def->types->kZeroInt);  // LClosure[0]
-  values_.push_back(def->types->kFiveInt); // LClosure[0].p
-  return def->builder->CreateInBoundsGEP(cl, values_, "p");
+llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def,
+                                               llvm::Value *ptr, int offset) {
+  // emit code for &ptr[offset]
+  return def->builder->CreateInBoundsGEP(
+      ptr, llvm::ConstantInt::get(def->types->C_intT, offset));
 }
 
-llvm::Value *RaviCodeGenerator::emit_gep_Proto_k(RaviFunctionDef *def, llvm::Value *p) {
-  values_.clear();
-  values_.push_back(def->types->kZeroInt);  // Proto[0]
-  values_.push_back(def->types->kFourteenInt); // Proto[0].k
-  return def->builder->CreateInBoundsGEP(p, values_, "k");
+void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int j) {
+  assert(def->jmp_targets[j]);
+  if (def->builder->GetInsertBlock()->getTerminator()) {
+    llvm::BasicBlock *jmp_block =
+        llvm::BasicBlock::Create(def->jitState->context(), "jump", def->f);
+    def->builder->SetInsertPoint(jmp_block);
+  }
+  def->builder->CreateBr(def->jmp_targets[j]);
 }
 
-llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def, llvm::Value *ptr, int offset) {
-  values_.clear();
-  values_.push_back(llvm::ConstantInt::get(def->types->C_intT, offset));
-  return def->builder->CreateInBoundsGEP(ptr, values_);
+void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
+  llvm::Value *proto, int A, int sBx) {
+
+    //case OP_FORPREP: {
+    //  TValue *init = ra;
+    //  TValue *plimit = ra + 1;
+    //  TValue *pstep = ra + 2;
+    //  lua_Integer ilimit;
+    //  int stopnow;
+    //  if (ttisinteger(init) && ttisinteger(pstep) &&
+    //    forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
+    //    /* all values are integer */
+    //    lua_Integer initv = (stopnow ? 0 : ivalue(init));
+    //    setivalue(plimit, ilimit);
+    //    setivalue(init, initv - ivalue(pstep));
+    //  }
+    //  else {  /* try making all values floats */
+    //    lua_Number ninit; lua_Number nlimit; lua_Number nstep;
+    //    if (!tonumber(plimit, &nlimit))
+    //      luaG_runerror(L, "'for' limit must be a number");
+    //    setfltvalue(plimit, nlimit);
+    //    if (!tonumber(pstep, &nstep))
+    //      luaG_runerror(L, "'for' step must be a number");
+    //    setfltvalue(pstep, nstep);
+    //    if (!tonumber(init, &ninit))
+    //      luaG_runerror(L, "'for' initial value must be a number");
+    //    setfltvalue(init, luai_numsub(L, ninit, nstep));
+    //  }
+    //  ci->u.l.savedpc += GETARG_sBx(i);
+    //} break;
+
+  // Load L->ci
+  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
+
+  // Get pointer to base
+  llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
+
+  // Load pointer to base
+  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+
+  // Load pointer to k
+  llvm::Value *k_ptr = def->k_ptr;
+
+  llvm::Value *init = A == 0 ? base_ptr : emit_array_get(def, base_ptr, A);
+
+  llvm::Value *plimit = emit_array_get(def, base_ptr, A + 1);
+
+  llvm::Value *pstep = emit_array_get(def, base_ptr, A + 2);
 }
 
-llvm::Value *RaviCodeGenerator::emit_gep_L_top(RaviFunctionDef *def, llvm::Value *L) {
-  values_.clear();
-  values_.push_back(def->types->kZeroInt);  // L[0]
-  values_.push_back(def->types->kFourInt); // L[0].top
-  return def->builder->CreateInBoundsGEP(L, values_);
-}
+void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
+                                   llvm::Value *proto, int A, int Bx) {
+  //    case OP_LOADK: {
+  //      TValue *rb = k + GETARG_Bx(i);
+  //      setobj2s(L, ra, rb);
+  //    } break;
 
-llvm::Value *RaviCodeGenerator::emit_gep_ci_top(RaviFunctionDef *def, llvm::Value *ci) {
-  values_.clear();
-  values_.push_back(def->types->kZeroInt);  // L[0]
-  values_.push_back(def->types->kOneInt); // L[0].top
-  return def->builder->CreateInBoundsGEP(ci, values_);
-}
+  // Load L->ci
+  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
 
+  // Get pointer to base
+  llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
 
-void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr, int A, llvm::Value *k_ptr, int Bx) {
+  // Load pointer to base
+  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+
+  // Load pointer to k
+  llvm::Value *k_ptr = def->k_ptr; 
+
+  // LOADK requires a structure assignment
+  // in LLVM as far as I can tell this requires a call to
+  // an intrinsic memcpy
   llvm::Value *src;
   llvm::Value *dest;
+
   if (A == 0) {
+    // If A is 0 we can use the base pointer which is &base[0]
     dest = base_ptr;
-  }
-  else {
+  } else {
+    // emit &base[A]
     dest = emit_array_get(def, base_ptr, A);
   }
   if (Bx == 0) {
+    // If Bx is 0 we can use the base pointer which is &k[0]
     src = k_ptr;
-  }
-  else {
+  } else {
+    // emit &k[Bx]
     src = emit_array_get(def, k_ptr, Bx);
   }
-  llvm::SmallVector<llvm::Type*, 3> vec;
-  // CHECK this
-  vec.push_back(def->types->C_pcharT);
-  vec.push_back(def->types->C_pcharT);
+
+#if 1
+  // destvalue->value->i = srcvalue->value->i;
+  llvm::Value *srcvalue = emit_gep(def, "srcvalue", src, 0, 0, 0);
+  llvm::Value *destvalue = emit_gep(def, "destvalue", dest, 0, 0, 0);
+  def->builder->CreateStore(def->builder->CreateLoad(srcvalue), destvalue);
+
+  // destvalue->type = srcvalue->type
+  llvm::Value *srctype = emit_gep(def, "srctype", src, 0, 1);
+  llvm::Value *desttype = emit_gep(def, "desttype", dest, 0, 1);
+  def->builder->CreateStore(def->builder->CreateLoad(srctype), desttype);
+#else
+  // First get the declaration for the inttrinsic memcpy
+  llvm::SmallVector<llvm::Type *, 3> vec;
+  vec.push_back(def->types->C_pcharT); /* i8 */
+  vec.push_back(def->types->C_pcharT); /* i8 */
   vec.push_back(def->types->C_intT);
-  llvm::Function *f = llvm::Intrinsic::getDeclaration(def->raviF->module(), llvm::Intrinsic::memcpy, vec);
+  llvm::Function *f = llvm::Intrinsic::getDeclaration(
+      def->raviF->module(), llvm::Intrinsic::memcpy, vec);
   lua_assert(f);
-  llvm::Value *dest_ptr = def->builder->CreateBitCast(dest, def->types->C_pcharT);
+
+  // Cast src and dest to i8*
+  llvm::Value *dest_ptr =
+      def->builder->CreateBitCast(dest, def->types->C_pcharT);
   llvm::Value *src_ptr = def->builder->CreateBitCast(src, def->types->C_pcharT);
 
-  values_.clear();
-  values_.push_back(dest_ptr);
-  values_.push_back(src_ptr);
-  values_.push_back(llvm::ConstantInt::get(def->types->C_intT, sizeof(TValue)));
-  values_.push_back(llvm::ConstantInt::get(def->types->C_intT, sizeof(L_Umaxalign)));
-  values_.push_back(def->types->kFalse);
-
-  def->builder->CreateCall(f, values_);
+  // Create call to intrinsic memcpy
+  llvm::SmallVector<llvm::Value *, 5> values;
+  values.push_back(dest_ptr);
+  values.push_back(src_ptr);
+  values.push_back(llvm::ConstantInt::get(def->types->C_intT, sizeof(TValue)));
+  values.push_back(
+      llvm::ConstantInt::get(def->types->C_intT, sizeof(L_Umaxalign)));
+  values.push_back(def->types->kFalse);
+  def->builder->CreateCall(f, values);
+#endif
 }
 
-void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *base_ptr, llvm::Value *ci, int A, int B) {
+void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
+                                    llvm::Value *proto, int A, int B) {
+
+  // Here is what OP_RETURN looks like. We only compile steps
+  // marked with //*.
+  // TODO that means we cannot handle functions that have sub
+  // functions (closures) as do not handle the luaF_close() call
+
+  // case OP_RETURN: {
+  //  int b = GETARG_B(i);
+  //*  if (b != 0) L->top = ra + b - 1;
+  //*  if (cl->p->sizep > 0) luaF_close(L, base);
+  //*  b = luaD_poscall(L, ra);
+  //    if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */
+  //      return;  /* external invocation: return */
+  //    else {  /* invocation via reentry: continue execution */
+  //*      ci = L->ci;
+  //*      if (b) L->top = ci->top;
+  //      goto newframe;  /* restart luaV_execute over new Lua function */
+  //    }
+  // }
+
+  // As Lua inserts redundant OP_RETURN instructions it is
+  // possible that this is one of them. If this is the case then the
+  // current block may already be terminated - so we have to insert
+  // a new block
+  if (def->builder->GetInsertBlock()->getTerminator()) {
+    llvm::BasicBlock *return_block =
+        llvm::BasicBlock::Create(def->jitState->context(), "return", def->f);
+    def->builder->SetInsertPoint(return_block);
+  }
+
+  // Load L->ci
+  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
+
+  // Get pointer to base
+  llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
+
+  // Load pointer to base
+  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+
+  // Load pointer to k
+  llvm::Value *k_ptr = def->k_ptr; 
+
   llvm::Value *top = nullptr;
+
+  // Get pointer to register A
+  llvm::Value *ra_ptr = A == 0 ? base_ptr : emit_array_get(def, base_ptr, A);
+
+  //*  if (b != 0) L->top = ra + b - 1;
   if (B != 0) {
-    llvm::Value *ptr = emit_array_get(def, base_ptr, B - 1);
-    top = emit_gep_L_top(def, def->L);
+    // Get pointer to register at ra + b - 1
+    llvm::Value *ptr = emit_array_get(def, base_ptr, A + B - 1);
+    // Get pointer to L->top
+    top = emit_gep(def, "L_top", def->L, 0, 4);
+    // Assign to L->top
     def->builder->CreateStore(ptr, top);
   }
-  values_.clear();
-  values_.push_back(def->L);
-  values_.push_back(base_ptr);
-  llvm::Value *result = def->builder->CreateCall(def->luaD_poscallF, values_);
-  llvm::Value *result_is_zero = def->builder->CreateICmpNE(result, def->types->kZeroInt);
 
-  llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(def->jitState->context(), "then", def->f);
-  llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(def->jitState->context(), "else");
+  // if (cl->p->sizep > 0) luaF_close(L, base);
+  // Get pointer to Proto->sizep
+  llvm::Value *psize_ptr = emit_gep(def, "sizep", def->proto_ptr, 0, 10);
+  // Load psize
+  llvm::Value *psize = def->builder->CreateLoad(psize_ptr);
+  // Test if psize > 0
+  llvm::Value *psize_gt_0 =
+      def->builder->CreateICmpSGT(psize, def->types->kInt[0]);
+  llvm::BasicBlock *then_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
+  llvm::BasicBlock *else_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.else");
+  def->builder->CreateCondBr(psize_gt_0, then_block, else_block);
+  def->builder->SetInsertPoint(then_block);
+  // Call luaF_close
+  def->builder->CreateCall2(def->luaF_closeF, def->L, base_ptr);
+  def->builder->CreateBr(else_block);
+  def->f->getBasicBlockList().push_back(else_block);
+  def->builder->SetInsertPoint(else_block);
 
-  def->builder->CreateCondBr(result_is_zero, ThenBB, ElseBB);
+  //*  b = luaD_poscall(L, ra);
+  llvm::Value *result =
+      def->builder->CreateCall2(def->luaD_poscallF, def->L, ra_ptr);
+
+  //*      if (b) L->top = ci->top;
+  // Test if b is != 0
+  llvm::Value *result_is_notzero =
+      def->builder->CreateICmpNE(result, def->types->kInt[0]);
+  llvm::BasicBlock *ThenBB =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
+  llvm::BasicBlock *ElseBB =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.else");
+  def->builder->CreateCondBr(result_is_notzero, ThenBB, ElseBB);
   def->builder->SetInsertPoint(ThenBB);
-
-  llvm::Value *citop = emit_gep_ci_top(def, ci);
-  llvm::Value *citop_val = def->builder->CreateLoad(citop, "ci_top");
+  // Get pointer to ci->top
+  llvm::Value *citop = emit_gep(def, "ci_top", ci_val, 0, 1);
+  // Load ci->top
+  llvm::Value *citop_val = def->builder->CreateLoad(citop);
   if (!top)
-    top = emit_gep_L_top(def, def->L);
+    // Get L->top
+    top = emit_gep(def, "L_top", def->L, 0, 4);
+  // Assign ci>top to L->top
   def->builder->CreateStore(citop_val, top);
   def->builder->CreateBr(ElseBB);
-
   def->f->getBasicBlockList().push_back(ElseBB);
   def->builder->SetInsertPoint(ElseBB);
-  def->builder->CreateRet(def->types->kOneInt);
+
+  // as our prototype is lua_Cfunction we need
+  // to return a value
+  def->builder->CreateRet(def->types->kInt[1]);
+}
+
+void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
+                                llvm::Value *proto, int A, int B, int C, int j,
+                                int jA, llvm::Constant *callee) {
+  //  case OP_EQ: {
+  //    TValue *rb = RKB(i);
+  //    TValue *rc = RKC(i);
+  //    Protect(
+  //      if (cast_int(luaV_equalobj(L, rb, rc)) != GETARG_A(i))
+  //        ci->u.l.savedpc++;
+  //      else
+  //        donextjump(ci);
+  //    )
+  //  } break;
+
+  // Load L->ci
+  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
+
+  // Get pointer to base
+  llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
+
+  // Load pointer to base
+  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+
+  // Load pointer to k
+  llvm::Value *k_ptr = def->k_ptr;
+
+  llvm::Value *lhs_ptr;
+  llvm::Value *rhs_ptr;
+
+  // Get pointer to register B
+  llvm::Value *base_or_k = ISK(B) ? k_ptr : base_ptr;
+  int b = ISK(B) ? INDEXK(B) : B;
+  if (b == 0) {
+    lhs_ptr = base_or_k;
+  } else {
+    lhs_ptr = emit_array_get(def, base_or_k, b);
+  }
+
+  // Get pointer to register C
+  base_or_k = ISK(C) ? k_ptr : base_ptr;
+  int c = ISK(C) ? INDEXK(C) : C;
+  if (c == 0) {
+    rhs_ptr = base_or_k;
+  } else {
+    rhs_ptr = emit_array_get(def, base_or_k, c);
+  }
+
+  // Call luaV_equalobj with register B and C
+  llvm::Value *result =
+      def->builder->CreateCall3(callee, def->L, lhs_ptr, rhs_ptr);
+  // Test if result is equal to operand A
+  llvm::Value *result_eq_A = def->builder->CreateICmpEQ(
+      result, llvm::ConstantInt::get(def->types->C_intT, A));
+  // If result == A then we need to execute the next statement which is a jump
+  llvm::BasicBlock *then_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
+  llvm::BasicBlock *else_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.else");
+  def->builder->CreateCondBr(result_eq_A, then_block, else_block);
+  def->builder->SetInsertPoint(then_block);
+
+  // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
+  if (jA > 0) {
+    // jA is the A operand of the Jump instruction
+    // Get pointer to base
+    llvm::Value *Ci_base2 = emit_gep(def, "base", ci_val, 0, 4, 0);
+
+    // Load pointer to base
+    llvm::Value *base2_ptr = def->builder->CreateLoad(Ci_base2);
+
+    // base + a - 1
+    llvm::Value *val =
+        jA == 1 ? base2_ptr : emit_array_get(def, base2_ptr, jA - 1);
+
+    // Call
+    def->builder->CreateCall2(def->luaF_closeF, def->L, val);
+  }
+  // Do the jump
+  def->builder->CreateBr(def->jmp_targets[j]);
+  // Add the else block and make it current so that the next instruction flows
+  // here
+  def->f->getBasicBlockList().push_back(else_block);
+  def->builder->SetInsertPoint(else_block);
 }
 
 // Check if we can compile
 // The cases we can compile will increase over time
 bool RaviCodeGenerator::canCompile(Proto *p) {
+  if (p->ravi_jit.jit_status == 1)
+    return false;
   if (jitState_ == nullptr) {
     p->ravi_jit.jit_status = 1;
     return false;
   }
-  const Instruction* code = p->code;
+  const Instruction *code = p->code;
   int pc, n = p->sizecode;
-  if (p->sizep > 0) {
+  // TODO we cannot handle variable arguments or
+  // if the function has sub functions (closures)
+  if (p->sizep > 0 || p->is_vararg) {
     p->ravi_jit.jit_status = 1;
     return false;
   }
-  for (pc = 0; pc < n; pc++)
-  {
+  // Loop over the byte codes; as Lua compiler inserts
+  // an extra RETURN op we need to ignore the last op
+  for (pc = 0; pc < n; pc++) {
     Instruction i = code[pc];
     OpCode o = GET_OPCODE(i);
     switch (o) {
     case OP_LOADK:
     case OP_RETURN:
+    case OP_JMP:
+    case OP_EQ:
+    case OP_LT:
+    case OP_LE:
       break;
-    default: 
+    default:
       return false;
     }
   }
@@ -1266,7 +1637,7 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
 
   llvm::Function *mainFunc = func->function();
   llvm::BasicBlock *entry =
-      llvm::BasicBlock::Create(jitState_->context(), "entrypoint", mainFunc);
+      llvm::BasicBlock::Create(jitState_->context(), "entry", mainFunc);
   builder.SetInsertPoint(entry);
 
   auto argiter = mainFunc->arg_begin();
@@ -1280,38 +1651,78 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
   def->raviF = func.get();
   def->types = types;
   def->builder = &builder;
+  def->luaD_poscallF = nullptr;
+  def->luaF_closeF = nullptr;
+  def->luaV_equalobjF = nullptr;
 
   return func;
 }
 
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   // Add extern declarations for Lua functions that we need to call
-  def->luaD_poscallF = def->raviF->addExternFunction(def->types->luaD_poscallT, &luaD_poscall, "luaD_poscall");
+  def->luaD_poscallF = def->raviF->addExternFunction(
+      def->types->luaD_poscallT, &luaD_poscall, "luaD_poscall");
+  def->luaF_closeF = def->raviF->addExternFunction(def->types->luaF_closeT,
+                                                   &luaF_close, "luaF_close");
+  def->luaV_equalobjF = def->raviF->addExternFunction(
+      def->types->luaV_equalobjT, &luaV_equalobj, "luaV_equalobj");
+  def->luaV_lessthanF = def->raviF->addExternFunction(
+      def->types->luaV_lessthanT, &luaV_lessthan, "luaV_lessthan");
+  def->luaV_lessequalF = def->raviF->addExternFunction(
+      def->types->luaV_lessequalT, &luaV_lessequal, "luaV_lessequal");
+  def->luaG_runerrorF = def->raviF->addExternFunction(
+    def->types->luaG_runerrorT, &luaG_runerror, "luaG_runerror");
 }
 
-#define RA(i)	(base+GETARG_A(i))
+#define RA(i) (base + GETARG_A(i))
 /* to be used after possible stack reallocation */
-#define RB(i)	check_exp(getBMode(GET_OPCODE(i)) == OpArgR, base+GETARG_B(i))
-#define RC(i)	check_exp(getCMode(GET_OPCODE(i)) == OpArgR, base+GETARG_C(i))
-#define RKB(i)	check_exp(getBMode(GET_OPCODE(i)) == OpArgK, \
-	ISK(GETARG_B(i)) ? k+INDEXK(GETARG_B(i)) : base+GETARG_B(i))
-#define RKC(i)	check_exp(getCMode(GET_OPCODE(i)) == OpArgK, \
-	ISK(GETARG_C(i)) ? k+INDEXK(GETARG_C(i)) : base+GETARG_C(i))
-#define KBx(i)  \
+#define RB(i) check_exp(getBMode(GET_OPCODE(i)) == OpArgR, base + GETARG_B(i))
+#define RC(i) check_exp(getCMode(GET_OPCODE(i)) == OpArgR, base + GETARG_C(i))
+#define RKB(i)                                                                 \
+  check_exp(getBMode(GET_OPCODE(i)) == OpArgK,                                 \
+            ISK(GETARG_B(i)) ? k + INDEXK(GETARG_B(i)) : base + GETARG_B(i))
+#define RKC(i)                                                                 \
+  check_exp(getCMode(GET_OPCODE(i)) == OpArgK,                                 \
+            ISK(GETARG_C(i)) ? k + INDEXK(GETARG_C(i)) : base + GETARG_C(i))
+#define KBx(i)                                                                 \
   (k + (GETARG_Bx(i) != 0 ? GETARG_Bx(i) - 1 : GETARG_Ax(*ci->u.l.savedpc++)))
 /* RAVI */
-#define KB(i)	check_exp(getBMode(GET_OPCODE(i)) == OpArgK, k+INDEXK(GETARG_B(i)))
-#define KC(i)	check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k+INDEXK(GETARG_C(i)))
+#define KB(i)                                                                  \
+  check_exp(getBMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_B(i)))
+#define KC(i)                                                                  \
+  check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_C(i)))
 
+void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
+  // If the current bytecode offset pc is on a jump target
+  // then we need to insert the block we previously created in
+  // scan_jump_targets()
+  // and make it the current insert block; also if the previous block
+  // is unterminated then we simply provide a branch from previous block to the
+  // new block
+  if (def->jmp_targets[pc]) {
+    // We are on a jump target
+    // Get the block we previously created scan_jump_targets
+    llvm::BasicBlock *block = def->jmp_targets[pc];
+    if (!def->builder->GetInsertBlock()->getTerminator()) {
+      // Previous block not terminated so branch to the
+      // new block
+      def->builder->CreateBr(block);
+    }
+    // Now add the new block and make it current
+    def->f->getBasicBlockList().push_back(block);
+    def->builder->SetInsertPoint(block);
+  }
+}
 
 void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   if (p->ravi_jit.jit_status != 0 || !canCompile(p))
     return;
 #if 1
+  RaviFunctionDef def = {0};
+
   llvm::LLVMContext &context = jitState_->context();
   llvm::IRBuilder<> builder(context);
 
-  RaviFunctionDef def = { 0 };
   auto f = create_function(builder, &def);
   if (!f) {
     p->ravi_jit.jit_status = 1; // can't compile
@@ -1320,17 +1731,14 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   // Add extern declarations for Lua functions we need to call
   emit_extern_declarations(&def);
 
+  // Create BasicBlocks for all the jump targets in the Lua bytecode
+  scan_jump_targets(&def, p);
+
   // Get pointer to L->ci
-  llvm::Value *L_ci = emit_gep_L_ci(&def);
+  llvm::Value *L_ci = emit_gep(&def, "L_ci", def.L, 0, 6);
 
   // Load pointer value
   llvm::Value *ci_val = builder.CreateLoad(L_ci);
-
-  // Get pointer to base
-  llvm::Value *Ci_base = emit_gep_ci_u_l_base(&def, ci_val);
-
-  // Load pointer to base
-  llvm::Value *base_ptr = builder.CreateLoad(Ci_base);
 
   // We need to get hold of the constants table
   // which is located in ci->func->value_.gc
@@ -1343,49 +1751,79 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   llvm::Value *cl_ptr = builder.CreateLoad(L_cl);
 
   // Get pointer to the Proto* which is cl->p
-  llvm::Value *proto = emit_gep_LClosure_p(&def, cl_ptr);
+  llvm::Value *proto = emit_gep(&def, "Proto", cl_ptr, 0, 5);
 
   // Load pointer to proto
-  llvm::Value *proto_ptr = builder.CreateLoad(proto);
+  def.proto_ptr = builder.CreateLoad(proto);
 
   // Obtain pointer to Proto->k
-  llvm::Value *proto_k = emit_gep_Proto_k(&def, proto_ptr);
+  def.proto_k = emit_gep(&def, "k", def.proto_ptr, 0, 14);
 
   // Load pointer to k
-  llvm::Value *k_ptr = builder.CreateLoad(proto_k);
-
-  const Instruction* code = p->code;
+  def.k_ptr = builder.CreateLoad(def.proto_k);
+  
+  const Instruction *code = p->code;
   int pc, n = p->sizecode;
-  for (pc = 0; pc < n-1; pc++)
-  {
+  for (pc = 0; pc < n; pc++) {
+    link_block(&def, pc);
     Instruction i = code[pc];
     OpCode op = GET_OPCODE(i);
     int A = GETARG_A(i);
     switch (op) {
     case OP_LOADK: {
       int Bx = GETARG_Bx(i);
-      emit_LOADK(&def, base_ptr, A, k_ptr, Bx);
+      emit_LOADK(&def, L_ci, proto, A, Bx);
     } break;
     case OP_RETURN: {
       int B = GETARG_B(i);
-      emit_RETURN(&def, base_ptr, ci_val, A, B);
-      break;
-    }
+      emit_RETURN(&def, L_ci, proto, A, B);
+    } break;
+    case OP_LT:
+    case OP_LE:
+    case OP_EQ: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      llvm::Constant *comparison_function =
+          (op == OP_EQ
+               ? def.luaV_equalobjF
+               : (op == OP_LT ? def.luaV_lessthanF : def.luaV_lessequalF));
+      // OP_EQ is followed by OP_JMP - we process this
+      // along with OP_EQ
+      pc++;
+      i = code[pc];
+      op = GET_OPCODE(i);
+      lua_assert(op == OP_JMP);
+      int sbx = GETARG_sBx(i);
+      // j below is the jump target
+      int j = sbx + pc + 1;
+      emit_EQ(&def, L_ci, proto, A, B, C, j, GETARG_A(i), comparison_function);
+    } break;
+    case OP_JMP: {
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      emit_JMP(&def, j);
+    } break;
+    case OP_FORPREP: {
+      assert(false);
+    } break;
+    case OP_FORLOOP: {
+      assert(false);
+    } break;
     default:
       break;
     }
   }
 
-  // f->dump();
+  llvm::verifyFunction(*f->function());
   ravi::RaviJITFunctionImpl *llvm_func = f.release();
-  p->ravi_jit.jit_data = reinterpret_cast<void*>(llvm_func);
-  p->ravi_jit.jit_function = (lua_CFunction) llvm_func->compile();
+  p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
+  p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile();
+  lua_assert(p->ravi_jit.jit_function);
   if (p->ravi_jit.jit_function == nullptr) {
     p->ravi_jit.jit_status = 1; // can't compile
     delete llvm_func;
     p->ravi_jit.jit_data = NULL;
-  }
-  else {
+  } else {
     p->ravi_jit.jit_status = 2;
   }
 #else
@@ -1394,7 +1832,33 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
 #endif
 }
 
-
+void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
+  // We need to precreate blocks for jump targets so that we
+  // can generate branch instructions in the code
+  def->jmp_targets.clear();
+  const Instruction *code = p->code;
+  int pc, n = p->sizecode;
+  for (pc = 0; pc < n; pc++)
+    def->jmp_targets.push_back(nullptr);
+  for (pc = 0; pc < n; pc++) {
+    Instruction i = code[pc];
+    OpCode op = GET_OPCODE(i);
+    int A = GETARG_A(i);
+    switch (op) {
+    case OP_JMP:
+    case OP_FORLOOP:
+    case OP_FORPREP:
+    case OP_TFORLOOP: {
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      def->jmp_targets[j] =
+          llvm::BasicBlock::Create(def->jitState->context(), "jmptarget");
+    } break;
+    default:
+      break;
+    }
+  }
+}
 }
 
 #ifdef __cplusplus
@@ -1412,7 +1876,8 @@ int raviV_initjit(struct lua_State *L) {
     return -1;
   ravi_State *jit = (ravi_State *)calloc(1, sizeof(ravi_State));
   jit->jit = new ravi::RaviJITStateImpl();
-  jit->code_generator = new ravi::RaviCodeGenerator((ravi::RaviJITStateImpl *) jit->jit);
+  jit->code_generator =
+      new ravi::RaviCodeGenerator((ravi::RaviJITStateImpl *)jit->jit);
   G->ravi_state = jit;
   return 0;
 }
@@ -1434,11 +1899,12 @@ int raviV_compile(struct lua_State *L, struct Proto *p) {
   return 0;
 }
 
-
 void raviV_freeproto(struct lua_State *L, struct Proto *p) {
   if (p->ravi_jit.jit_status == 2) /* compiled */ {
-    ravi::RaviJITFunction *f = (ravi::RaviJITFunction *) p->ravi_jit.jit_data;
-    if (f) delete f;
+    ravi::RaviJITFunction *f =
+        reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
+    if (f)
+      delete f;
     p->ravi_jit.jit_status = 3;
     p->ravi_jit.jit_function = NULL;
     p->ravi_jit.jit_data = NULL;

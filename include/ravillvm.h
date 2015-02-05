@@ -1,3 +1,8 @@
+/**
+* Copyright (c) Dibyendu Majumdar
+* 2015
+*/
+
 #ifndef RAVI_LLVM_H
 #define RAVI_LLVM_H
 

@@ -67,7 +67,13 @@ static int test_luacompexec1(const char *code, int expected)
 int main(int argc, const char *argv[]) 
 {
     int failures = 0;
-    failures += test_luacompexec1("local function x(); return 1004,2; end; local y; y = x(); print(y); return y", 1004);
+    failures += test_luacompexec1("local function x(); local a=5; return 1004,2; end; local y; y = x(); print(y); return y", 1004);
+    failures += test_luacompexec1("local function x(); if 1 == 2 then; return 5.0; end; return 1.0; end; local z = x(); print(z); return z", 1);
+    failures += test_luacompexec1("local function x(y); if y == 1 then; return 1.0; elseif y == 5 then; return 2.0; else; return 3.0; end; end; local z = x(5); print(z); return z", 2);
+    failures += test_luacompexec1("local function x(y); if y == 1 then; return 1.0; elseif y == 5 then; return 2.0; else; return 3.0; end; end; local z = x(4); print(z); return z", 3);
+    failures += test_luacompexec1("local function x(y,z); if y == 1 then; if z == 1 then; return 99.0; else; return z; end; elseif y == 5 then; return 2.0; else; return 3.0; end; end; local z = x(1,1); print(z); return z", 99);
+    failures += test_luacompexec1("local function x(); local j = 0; for i=1,5 do; j = i; end; return j; end; local y = x(); print(y); return y", 5);
+
     failures += test_luacompexec1("local x:int[] = {1}; local i:int = 1; local d:int = x[i]; x[i] = 5; return d*x[i];", 5);
     failures += test_luacompexec1("local d:double = 5.0; return d+5 == 5+d and d-5 == 5-d and d*5 == 5*d", 1);
     failures += test_luacompexec1("local a:double = 1.0; return a+127 == 128.0;", 1);
