@@ -39,24 +39,29 @@ Also initial implementation of arrays is available. So you can declare arrays of
 Obviously this is early days so please expect bugs.
 
 Example of code that works - you can copy this to the command line input::
+
   local function tryme(); local i,j = 5,6; return i,j; end; local i:int, j:int = tryme(); return i+j
 
 Another::
+
   local j:double; for i=1,1000000000 do; j = j+1; end; return j
 
 An example with arrays::
+
   local a : double[], j:double = {}; for i=1,10 do; a[i] = i; j = j + a[i]; end; return j
 
 
 The build is CMake based. I am testing this using Visual Studio 2013 on Windows 8.1 64bit and gcc on Unbuntu 64-bit.
 
 To build on Windows I use::
+
   cd build
   cmake -G "Visual Studio 12 Win64" ..
 
 I then open the solution in VS2013 and do a build from there.
 
 On Ubuntu I use::
+
   cd build
   cmake -G "Unix Makefiles" ..
   make
@@ -182,10 +187,8 @@ New OpCodes
 -----------
 The new instructions are specialised for types, and also for register/versus constant. So for example ``OP_RAVI_ADDFI`` means add ``float`` and ``int``. And ``OP_RAVI_ADDFF`` means add ``float`` and ``float``. The existing Lua opcodes that these are based on define which operands are used.
 
-Example
--------
+Example::
 
-::
   local i=0; i=i+1
 
 Above standard Lua code compiles to::
@@ -206,11 +209,3 @@ Now the code compiles to::
 
 Above uses type specialised opcode ``OP_RAVI_ADDII``. 
 
-Documentation
--------------
-As I progress I will add documentation in the Wiki.
-
-* `Ravi Internals <https://github.com/dibyendumajumdar/ravi/wiki/RaviInternals>`_
-* `JIT Compilation for Ravi <https://github.com/dibyendumajumdar/ravi/wiki/RaviJITCompilation>`_
-* `Lua Internals <https://github.com/dibyendumajumdar/ravi/wiki/Lua-Internals>`_
-* `Change Log <https://github.com/dibyendumajumdar/ravi/wiki/Changes>`_
