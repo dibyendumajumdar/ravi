@@ -507,7 +507,7 @@ public:
   // isnil(reg) || isboolean(reg) && reg.value == 0
   // !(isnil(reg) || isboolean(reg) && reg.value == 0)
   llvm::Value *emit_boolean_testfalse(RaviFunctionDef *def, llvm::Value *reg,
-                                      bool not);
+                                      bool donot);
 
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.

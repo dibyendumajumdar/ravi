@@ -92,7 +92,7 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
 
 llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
                                                        llvm::Value *reg,
-                                                       bool not) {
+                                                       bool donot) {
   // (isnil() || isbool() && b == 0)
 
   llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
@@ -138,7 +138,7 @@ llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
   def->builder->SetInsertPoint(end_block);
 
   llvm::Value *result = nullptr;
-  if (not) {
+  if (donot) {
     auto ins = def->builder->CreateLoad(var);
     ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
     result = def->builder->CreateNot(ins);
