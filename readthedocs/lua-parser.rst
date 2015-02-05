@@ -382,12 +382,12 @@ The state transitions for ``expdesc`` structure are as follows:
 |                  | constructor                            |                                    |
 +------------------+----------------------------------------+------------------------------------+
 |``VRELOCABLE``    | This is used to indicate that the      | In terms of transitions the        |
-|                  | result from expression needs to be set | following expression kinds convert | 
+|                  | result from expression needs to be set | following expression kinds convert |
 |                  | to a register. The operation that      | to ``VRELOCABLE``: ``VVARARG``     |
 |                  | created the expression is referenced   | ``VUPVAL`` (``OP_GETUPVAL``        |
 |                  | by the ``u.info`` parameter which      | ``VINDEXED`` (``OP_GETTABUP`` or   |
 |                  | contains an offset into the ``code``   | ``OP_GETTABLE`` And following      |
-|                  | of the function that is being compiled.| expression states can result from  |
+|                  | of the function that is being compiled | expression states can result from  |
 |                  | So you can access this instruction by  | a ``VRELOCABLE`` expression:       |
 |                  | calling                                | ``VNONRELOC`` which                |
 |                  | ``getcode(FuncState *, expdesc *)``    | means that the result register in  |
@@ -409,12 +409,12 @@ The state transitions for ``expdesc`` structure are as follows:
 |``VNONRELOC``     | This state indicates that the output   | As for transitions, the            |
 |                  | or result register has been set. The   | ``VNONELOC`` state results from    | 
 |                  | register is referenced in ``u.info``   | ``VRELOCABLE`` after a register    |
-|                  | parameter. Once set the register cannot| is assigned to the operation       |
-|                  | be changed for this expression -       | referenced by ``VRELOCABLE``.      |
+|                  | parameter. Once set the register       | is assigned to the operation       |
+|                  | cannot be changed for this expression; | referenced by ``VRELOCABLE``.      |
 |                  | subsequent operations involving this   | Also a ``VCALL`` expression        |
 |                  | expression can refer to the register   | transitions to ``VNONRELOC``       |
 |                  | to obtain the result value.            | expression - ``u.info`` is set to  |
-|                  |                                        | the operand ``A`` of the associated|
+|                  |                                        | the operand ``A`` in the           |
 |                  |                                        | call instruction. ``VLOCAL``       |
 |                  |                                        | ``VNIL`` ``VTRUE`` ``VFALSE``      |
 |                  |                                        | ``VK`` ``VKINT`` ``VKFLT`` and     |
@@ -426,9 +426,9 @@ The state transitions for ``expdesc`` structure are as follows:
 |                  | local variable's register.             | although this doesn't change the   |
 |                  |                                        | ``u.info`` parameter.              |
 +------------------+----------------------------------------+------------------------------------+
-|``VCALL``         | This results from a function call. The |  In terms of transitions, the      |
-|                  | ``OP_CALL`` instruction is referenced  | ``VCALL`` expression transitions to|
-|                  | by ``u.info`` parameter and may be     | ``VNONRELOC`` When this happens    |
+|``VCALL``         | This results from a function call. The | In terms of transitions, the       |
+|                  | ``OP_CALL`` instruction is referenced  | ``VCALL`` expression transitions   |
+|                  | by ``u.info`` parameter and may be     | to ``VNONRELOC`` When this happens |
 |                  | retrieved by calling                   | the result register in             |
 |                  | ``getcode(FuncState *, expdesc *)``.   | ``VNONRELOC`` (``u.info`` is set   |
 |                  | The ``OP_CALL`` instruction gets       | to the operand ``A`` in the        |
@@ -441,14 +441,15 @@ The state transitions for ``expdesc`` structure are as follows:
 |                  | function call.                         |                                    |
 +------------------+----------------------------------------+------------------------------------+
 |``VINDEXED``      | This expression represents a table     | The ``VINDEXED`` expression        |
-|                  | access. The ``u.ind.t`` parameter is   |  transitions to ``VRELOCABLE``     |
-|                  | set to the register or upvalue? that   |When this happens the ``u.info``    |
+|                  | access. The ``u.ind.t`` parameter is   | transitions to ``VRELOCABLE``      |
+|                  | set to the register or upvalue? that   | When this happens the ``u.info``   |
 |                  | holds the table, the ``u.ind.idx`` is  | is set to the offset of the code   |
 |                  | set to the register or constant that   | that contains the opcode           |
-|                  | is the key, and ``u.ind.vt`` is either |``OP_GETTABUP`` if ``u.ind.vt`` was |
-|                  |``VLOCAL`` or ``VUPVAL``                | ``VUPVAL`` or ``OP_GETTABLE`` if   |
-|                  |                                        | ``u.ind.vt`` was ``VLOCAL``        |
+|                  | is the key, and ``u.ind.vt`` is either | ``OP_GETTABUP`` if ``u.ind.vt``    |
+|                  | ``VLOCAL`` or ``VUPVAL``               | was ``VUPVAL`` or ``OP_GETTABLE``  |
+|                  |                                        | if ``u.ind.vt`` was ``VLOCAL``     |
 +------------------+----------------------------------------+------------------------------------+
+
 
 Examples of Parsing
 -------------------
