@@ -11,6 +11,7 @@ The ``Callinfo`` stack tracks activation frames.
 There is the secondary stack ``L->stack`` that is an array of ``TValue`` objects. The ``Callinfo`` objects index into this array. Registers are basically slots in the ``L->stack`` array.
 
 When a function is called - the stack is setup as follows::
+
   stack
   |            function reference
   |  base->    parameter 1
@@ -48,6 +49,7 @@ another function may return -- only how many need to be stored.
 
 
 Example::
+
   function f2(arg1, arg2, ..., argN)
     local local1, local2, ...
     ...
@@ -123,6 +125,7 @@ unbounded (reallocated) stack on the heap.
 > performance;-)?
 
 All instructions are 32 bit. The current layout as of Lua 5.1work4 is::
+
   BBBBBBBB BCCCCCCC CCAAAAAA AAOOOOOO   ABC format
   BBBBBBBB BBBBBBBB BBAAAAAA AAOOOOOO   ABx format
   sBBBBBBB BBBBBBBB BBAAAAAA AAOOOOOO   AsBx format
@@ -196,6 +199,7 @@ local registers available to the function
 Note that function parameters are handled as locals.
   
 Example of what all this mean.  Let's say we are parsing following chunk of code::
+
    function testfunc()
      -- at this stage 'nactvar' is 0 (no active variables)
      -- 'firstlocal' is set to current top of the variables stack 
@@ -231,6 +235,7 @@ Example of what all this mean.  Let's say we are parsing following chunk of code
    -- LexState->dyd.actvar.n to 0 (the value before testfunc() was parsed)
 
 A rough debug trace of the above gives::
+
    function testfunc()
      -- open_func -> fs->firstlocal set to 0 (ls->dyd->actvar.n), and fs->nactvar reset to 0
      local function tryme()
@@ -326,6 +331,7 @@ and marks the endpc's of all the removed locals.
 
 except in between ``new_localvar`` and ``adjustlocalvar`` calls, i
 believe that::
+
   fs->ls->dyd->actvar.n - fs->firstlocal == fs->nactvar
 
 temporary registers
@@ -366,7 +372,7 @@ State Transitions
 -----------------
 The state transitions for ``expdesc`` structure are as follows:
 
-+------------------|----------------------------------------|------------------------------------+
++------------------+----------------------------------------+------------------------------------+
 | expkind          | Description                            | State Transitions                  |
 +==================+========================================+====================================+
 |``VVOID``         | This is used to indicate the lack of   | None                               |
@@ -450,6 +456,7 @@ example 1
 ~~~~~~~~~
 
 We investigate the simple code chunk below::
+
   local i,j; j = i*j+i
 
 The compiler allocates following local registers, constants and upvalues::
@@ -468,6 +475,7 @@ Reference to variable ``i`` which is located in register ``0``. The ``p`` here i
   {p=0000007428E1F170, k=VLOCAL, register=0}
 
 Reference to variable ``j`` located in register ``1``::
+
   {p=0000007428E1F078, k=VLOCAL, register=1}
 
 Now the MUL operator is applied so we get following. Note that the previously ``VLOCAL`` expression for ``i`` is now ``VNONRELOC``::
@@ -487,6 +495,7 @@ And the ``ADD`` operator must be applied to the result of the ``MUL`` operator a
   {p=0000007428E1F170, k=VNONRELOC, register=2} ADD {p=0000007428E1F078, k=VLOCAL, register=0}
 
 Next the result of the ``ADD`` expression gets encoded similarly to ``MUL`` earlier. As this is a ``VRELOCABLE`` expression it will be later on assigned a result register::
+
   {p=0000007428E1F170, k=VRELOCABLE, pc=2, instruction=(ADD A=0 B=2 C=0)}
 
 Eventually above gets assigned a result register and becomes ``VNONRELOC`` (not shown here) - and so the final generated code looks like below::
