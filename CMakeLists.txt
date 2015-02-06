@@ -87,7 +87,7 @@ add_library(ravi SHARED ${RAVI_HEADERS} ${LUA_LIB_SRCS} ${LUA_CORE_SRCS})
 if (MSVC)
   set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
 endif()
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+llvm_map_components_to_libnames(llvm_libs all)
 target_link_libraries(ravi ${EXTRA_LIBRARIES} ${llvm_libs})
 
 add_executable(lua src/lua.c)
