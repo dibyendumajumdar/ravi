@@ -457,8 +457,11 @@ struct lua_Debug {
 
 /* }====================================================================== */
 
+#ifdef _WIN32
 LUAI_FUNC extern int ravi_parser_debug;
-
+#else
+LUAI_FUNC int ravi_parser_debug;
+#endif
 
 /******************************************************************************
 * Copyright (C) 1994-2015 Lua.org, PUC-Rio.
