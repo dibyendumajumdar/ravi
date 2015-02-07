@@ -216,9 +216,6 @@ Above uses type specialised opcode `OP_RAVI_ADDIIRK`.
 
 Documentation
 -------------
-As I progress I will add documentation in the Wiki.
 
-* [Ravi Internals](https://github.com/dibyendumajumdar/ravi/wiki/RaviInternals)
-* [JIT Compilation for Ravi](https://github.com/dibyendumajumdar/ravi/wiki/RaviJITCompilation)
-* [Lua Internals](https://github.com/dibyendumajumdar/ravi/wiki/Lua-Internals)
+* [Ravi Programming Language](http://the-ravi-programming-language.readthedocs.org/en/latest/index.html)
 * [Change Log](https://github.com/dibyendumajumdar/ravi/wiki/Changes)
