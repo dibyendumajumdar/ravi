@@ -366,14 +366,83 @@ State Transitions
 -----------------
 The state transitions for ``expdesc`` structure are as follows:
 
-expkind            | Description                            | State Transitions 
------------------- | ---------------------------------------| -----------------
-``VVOID``              | This is used to indicate the lack of value - e.g. function call with no arguments, the rhs of local variable declaration, and empty table constructor  | None
-``VRELOCABLE``         | This is used to indicate that the result from expression needs to be set to a register. The operation that created the expression is referenced by the ``u.info`` parameter which contains an offset into the ``code`` of the function that is being compiled. So you can access this instruction by calling ``getcode(FuncState *, expdesc *)`` The operations that result in a ``VRELOCABLE`` object include ``OP_CLOSURE`` ``OP_NEWTABLE`` ``OP_GETUPVAL`` ``OP_GETTABUP`` ``OP_GETTABLE`` ``OP_NOT`` and code for binary and unary expressions that produce values (arithmetic operations, bitwise operations, concat, length). The associated code instruction has operand ``A`` unset (defaulted to 0) - this the ``VRELOCABLE`` expression must be later transitioned to ``VNONRELOC`` state when the register is set. | In terms of transitions the following expression kinds convert to ``VRELOCABLE``: ``VVARARG`` ``VUPVAL`` (``OP_GETUPVAL`` ``VINDEXED`` (``OP_GETTABUP`` or ``OP_GETTABLE`` And following expression states can result from a ``VRELOCABLE`` expression: ``VNONRELOC`` which means that the result register in the instruction operand A has been set.  
-``VNONRELOC`` | This state indicates that the output or result register has been set. The register is referenced in ``u.info`` parameter. Once set the register cannot be changed for this expression - subsequent operations involving this expression can refer to the register to obtain the result value. | As for transitions, the ``VNONELOC`` state results from ``VRELOCABLE`` after a register is assigned to the operation referenced by ``VRELOCABLE`` Also a ``VCALL`` expression transitions to ``VNONRELOC`` expression - ``u.info`` is set to the operand ``A`` of the associated call instruction. ``VLOCAL`` ``VNIL`` ``VTRUE`` ``VFALSE`` ``VK`` ``VKINT`` ``VKFLT`` and ``VJMP`` expressions transition to ``VNONRELOC``
-``VLOCAL`` | This is used when referencing local variables. ``u.info`` is set to the local variable's register. | The ``VLOCAL`` expression may transition to ``VNONRELOC`` although this doesn't change the ``u.info`` parameter.
-``VCALL`` | This results from a function call. The ``OP_CALL`` instruction is referenced by ``u.info`` parameter and may be retrieved by calling ``getcode(FuncState *, expdesc *)`` The ``OP_CALL`` instruction gets changed to ``OP_TAILCALL`` if the function call expression is the value of a ``RETURN`` statement. The instructions operand ``C`` gets updated when it is known the number of expected results from the function call. | In terms of transitions, the ``VCALL`` expression transitions to ``VNONRELOC`` When this happens the result register in ``VNONRELOC`` (``u.info`` is set to the operand ``A`` in the ``OP_CALL`` instruction.
-``VINDEXED`` | This expression represents a table access. The ``u.ind.t`` parameter is set to the register or upvalue? that holds the table, the ``u.ind.idx`` is set to the register or constant that is the key, and ``u.ind.vt`` is either ``VLOCAL`` or ``VUPVAL`` | The ``VINDEXED`` expression transitions to ``VRELOCABLE`` When this happens the ``u.info`` is set to the offset of the code that contains the opcode ``OP_GETTABUP`` if ``u.ind.vt`` was ``VUPVAL`` or ``OP_GETTABLE`` if ``u.ind.vt`` was ``VLOCAL``
++------------------|----------------------------------------|------------------------------------+
+| expkind          | Description                            | State Transitions                  |
++==================+========================================+====================================+
+|``VVOID``         | This is used to indicate the lack of   | None                               |
+|                  | value - e.g. function call with no     |                                    |
+|                  | arguments, the rhs of local variable   |                                    |
+|                  | declaration, and empty table           |                                    |
+|                  | constructor                            |                                    |
++------------------+----------------------------------------+------------------------------------+
+|``VRELOCABLE``    | This is used to indicate that the      | In terms of transitions the        |
+|                  | result from expression needs to be set | following expression kinds convert | 
+|                  | to a register. The operation that      | to ``VRELOCABLE``: ``VVARARG``     |
+|                  | created the expression is referenced   | ``VUPVAL`` (``OP_GETUPVAL``        |
+|                  | by the ``u.info`` parameter which      | ``VINDEXED`` (``OP_GETTABUP`` or   |
+|                  | contains an offset into the ``code``   | ``OP_GETTABLE`` And following      |
+|                  | of the function that is being compiled.| expression states can result from  |
+|                  | So you can access this instruction by  | a ``VRELOCABLE`` expression:       |
+|                  | calling                                | ``VNONRELOC`` which                |
+|                  | ``getcode(FuncState *, expdesc *)``    | means that the result register in  |
+|                  | The operations that result in a        | the instruction operand A has been |
+|                  | ``VRELOCABLE`` object include          | set.                               |
+|                  | ``OP_CLOSURE`` ``OP_NEWTABLE``         |                                    |
+|                  | ``OP_GETUPVAL`` ``OP_GETTABUP``        |                                    |
+|                  | ``OP_GETTABLE`` ``OP_NOT`` and code    |                                    |
+|                  | for binary and unary expressions that  |                                    |
+|                  | produce values (arithmetic operations, |                                    |
+|                  | bitwise operations, concat, length).   |                                    |
+|                  | The associated code instruction has    |                                    |
+|                  | operand ``A`` unset (defaulted to 0) - |                                    |
+|                  | this the ``VRELOCABLE`` expression     |                                    |
+|                  | must be later transitioned to          |                                    |
+|                  | ``VNONRELOC`` state when the register  |                                    |
+|                  | is set.                                |                                    |
++------------------+----------------------------------------+------------------------------------+
+|``VNONRELOC``     | This state indicates that the output   | As for transitions, the            |
+|                  | or result register has been set. The   | ``VNONELOC`` state results from    | 
+|                  | register is referenced in ``u.info``   | ``VRELOCABLE`` after a register    |
+|                  | parameter. Once set the register cannot| is assigned to the operation       |
+|                  | be changed for this expression -       | referenced by ``VRELOCABLE``.      |
+|                  | subsequent operations involving this   | Also a ``VCALL`` expression        |
+|                  | expression can refer to the register   | transitions to ``VNONRELOC``       |
+|                  | to obtain the result value.            | expression - ``u.info`` is set to  |
+|                  |                                        | the operand ``A`` of the associated|
+|                  |                                        | call instruction. ``VLOCAL``       |
+|                  |                                        | ``VNIL`` ``VTRUE`` ``VFALSE``      |
+|                  |                                        | ``VK`` ``VKINT`` ``VKFLT`` and     |
+|                  |                                        | ``VJMP`` expressions transition to |
+|                  |                                        | ``VNONRELOC``.                     |
++------------------+----------------------------------------+------------------------------------+
+|``VLOCAL``        | This is used when referencing local    | The ``VLOCAL`` expression may      |
+|                  | variables. ``u.info`` is set to the    | transition to ``VNONRELOC``        |
+|                  | local variable's register.             | although this doesn't change the   |
+|                  |                                        | ``u.info`` parameter.              |
++------------------+----------------------------------------+------------------------------------+
+|``VCALL``         | This results from a function call. The |  In terms of transitions, the      |
+|                  | ``OP_CALL`` instruction is referenced  | ``VCALL`` expression transitions to|
+|                  | by ``u.info`` parameter and may be     | ``VNONRELOC`` When this happens    |
+|                  | retrieved by calling                   | the result register in             |
+|                  | ``getcode(FuncState *, expdesc *)``.   | ``VNONRELOC`` (``u.info`` is set   |
+|                  | The ``OP_CALL`` instruction gets       | to the operand ``A`` in the        |
+|                  | changed to ``OP_TAILCALL`` if the      | ``OP_CALL`` instruction.           |
+|                  | function call expression is the value  |                                    |
+|                  | of a ``RETURN`` statement.             |                                    |
+|                  | The instructions operand ``C``         |                                    |
+|                  | gets updated when it is known the      |                                    |
+|                  | number of expected results from the    |                                    |
+|                  | function call.                         |                                    |
++------------------+----------------------------------------+------------------------------------+
+|``VINDEXED``      | This expression represents a table     | The ``VINDEXED`` expression        |
+|                  | access. The ``u.ind.t`` parameter is   |  transitions to ``VRELOCABLE``     |
+|                  | set to the register or upvalue? that   |When this happens the ``u.info``    |
+|                  | holds the table, the ``u.ind.idx`` is  | is set to the offset of the code   |
+|                  | set to the register or constant that   | that contains the opcode           |
+|                  | is the key, and ``u.ind.vt`` is either |``OP_GETTABUP`` if ``u.ind.vt`` was |
+|                  |``VLOCAL`` or ``VUPVAL``                | ``VUPVAL`` or ``OP_GETTABLE`` if   |
+|                  |                                        | ``u.ind.vt`` was ``VLOCAL``        |
++------------------+----------------------------------------+------------------------------------+
 
 Examples of Parsing
 -------------------
