@@ -411,6 +411,8 @@ typedef struct LocVar {
 } LocVar;
 
 
+typedef struct RaviJITProto RaviJITProto;
+
 /*
 ** Function Prototypes
 */
@@ -436,6 +438,8 @@ typedef struct Proto {
   struct LClosure *cache;  /* last created closure with this prototype */
   TString  *source;  /* used for debug information */
   GCObject *gclist;
+  /* RAVI */
+  RaviJITProto *ravi_jit;
 } Proto;
 
 

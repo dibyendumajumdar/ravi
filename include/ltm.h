@@ -53,7 +53,7 @@ typedef enum {
 #define ttypename(x)	luaT_typenames_[(x) + 1]
 #define objtypename(x)	ttypename(ttnov(x))
 
-LUAI_DDEC const char *const luaT_typenames_[LUA_TOTALTAGS];
+LUAI_DDEC extern const char *const luaT_typenames_[LUA_TOTALTAGS];
 
 
 LUAI_FUNC const TValue *luaT_gettm (Table *events, TMS event, TString *ename);

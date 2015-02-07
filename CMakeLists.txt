@@ -19,6 +19,12 @@ if (MSVC)
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "/DNDEBUG /O2 /MD /Zi")
   set(CMAKE_C_FLAGS_MINSIZEREL "/DNDEBUG /O1 /MD")    
 
+  set(CMAKE_CXX_FLAGS "/EHsc")
+  set(CMAKE_CXX_FLAGS_DEBUG "/Od /D_DEBUG /MDd /Zi")
+  set(CMAKE_CXX_FLAGS_RELEASE "/DNDEBUG /O2 /MD")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/DNDEBUG /O2 /MD /Zi")
+  set(CMAKE_CXX_FLAGS_MINSIZEREL "/DNDEBUG /O1 /MD")  
+  
   SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "/DEBUG")
   SET(CMAKE_EXE_LINKER_FLAGS_RELEASE "/RELEASE /INCREMENTAL:NO")
   SET(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "/DEBUG /RELEASE /INCREMENTAL:NO")
@@ -60,22 +66,16 @@ add_definitions(-DLUA_COMPAT_MODULE)
 set (LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c 
      src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
      src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
-     src/lvm.c src/lzio.c)
+     src/lvm.c src/lzio.c src/ravijit.cpp)
 # define the lua lib source files
 set (LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
      src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
-
-if (MSVC)
-  source_group("Ravi Source Files" FILES ${LUA_CORE_SRCS} ${LUA_LIB_SRCS})
-endif(MSVC)
 
 file(GLOB RAVI_HEADERS "${PROJECT_SOURCE_DIR}/include/*.h")
 
 if (MSVC)
   source_group("Ravi Headers" FILES ${RAVI_HEADERS})
-endif()
-
-if (MSVC)
+  source_group("Ravi Source Files" FILES ${LUA_CORE_SRCS} ${LUA_LIB_SRCS})
 else()
   # On Linux we need to link libdl to get access to
   # functions like dlopen()
@@ -91,17 +91,29 @@ llvm_map_components_to_libnames(llvm_libs all)
 target_link_libraries(ravi ${EXTRA_LIBRARIES} ${llvm_libs})
 
 add_executable(lua src/lua.c)
+if (MSVC)
+  set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+endif()
 target_link_libraries(lua ravi)
     
 add_executable(luac src/luac.c)
+if (MSVC)
+  set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+endif()
 target_link_libraries(luac ravi)
 
 #VM test
 add_executable(test_vm tests/test_vm.c)
+if (MSVC)
+  set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+endif()
 target_link_libraries(test_vm ravi) 
 
 #LLVM playground
 add_executable(test_llvm tests/test_llvm.cpp)
+if (MSVC)
+  set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+endif()
 target_link_libraries(test_llvm ravi)
 
 add_test(TestVM test_vm)
