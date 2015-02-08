@@ -15,6 +15,7 @@ Contents:
    lua-parser
    ravi-internals
    ravi-jit-overview
+   ravi-jit-initial
 
 
 Indices and tables
