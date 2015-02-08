@@ -1,27 +1,33 @@
-#include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/ExecutionEngine/MCJIT.h"
-#include "llvm/ExecutionEngine/SectionMemoryManager.h"
-#include "llvm/ExecutionEngine/GenericValue.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/ADT/Triple.h"
+#include "ravillvm.h"
 
-#include <cstdio>
-#include <string>
-#include <vector>
-#include <memory>
+// This file contains a basic test case that covers following:
+// Creating a function that takes pointer to struct as argument
+// The function gets value from one of the fields in the struct
+// And returns it
+// The equivalent C program is:
+//
+// extern int printf(const char *, ...);
+//
+// struct GCObject {
+//   struct GCObject *next;
+//   unsigned char a;
+//   unsigned char b;
+// };
+//
+// int testfunc(struct GCObject *obj) {
+//   printf("value = %d\n", obj->a);
+//   return obj->a;
+// }
 
 // This mirrors the Lua GCObject structure in lobject.h
-typedef struct RaviGCObject_st {
-  struct RaviGCObject_st *next;
+typedef struct RaviGCObject {
+  struct RaviGCObject *next;
   unsigned char b1;
   unsigned char b2;
-} RaviGCObject_t;
+} RaviGCObject;
 
 // Our prototype for the JITted function
-typedef int (*myfunc_t)(RaviGCObject_t *);
+typedef int (*myfunc_t)(RaviGCObject *);
 
 int main() {
 
@@ -31,7 +37,8 @@ int main() {
   llvm::InitializeNativeTargetAsmPrinter();
   llvm::InitializeNativeTargetAsmParser();
 
-  // Get context - need not be global
+  // Get global context - not sure what the impact is of sharing
+  // the global context
   llvm::LLVMContext &context = llvm::getGlobalContext();
 
   // Module is the translation unit
@@ -43,35 +50,22 @@ int main() {
 #ifdef _WIN32
   // On Windows we get error saying incompatible object format
   // Reading posts on mailining lists I found that the issue is that COEFF
+  // format is not supported and therefore we need to set -elf as the object
   // format
-  // is not supported and therefore we need to set -elf as the object format
-  module->setTargetTriple("x86_64-pc-win32-elf");
+  auto triple = llvm::sys::getProcessTriple();
+  // module->setTargetTriple("x86_64-pc-win32-elf");
+  module->setTargetTriple(triple + "-elf");
 #endif
 
-  // We will create the following C code
-  //
-  // extern int printf(const char *, ...);
-  //
-  // struct RaviObject {
-  //   struct RaviObject *next;
-  //   unsigned char a;
-  //   unsigned char b;
-  // };
-  //
-  // void testfunc(struct RaviObject *obj) {
-  //   printf("value = %d\n", obj->a);
-  // }
-  //
-
-  /* create a GCObject structure as defined in lobject.h */
-  llvm::StructType *myt = llvm::StructType::create(context, "RaviGCObject");
-  llvm::PointerType *pmyt = llvm::PointerType::get(myt, 0);
+  // create a GCObject structure as defined in lobject.h
+  llvm::StructType *structType = llvm::StructType::create(context, "RaviGCObject");
+  llvm::PointerType *pstructType = llvm::PointerType::get(structType, 0); // pointer to RaviGCObject
   std::vector<llvm::Type *> elements;
-  elements.push_back(pmyt);
+  elements.push_back(pstructType);
   elements.push_back(llvm::Type::getInt8Ty(context));
   elements.push_back(llvm::Type::getInt8Ty(context));
-  myt->setBody(elements);
-  myt->dump();
+  structType->setBody(elements);
+  structType->dump();
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
@@ -84,7 +78,7 @@ int main() {
 
   // Create the testfunc()
   args.clear();
-  args.push_back(pmyt);
+  args.push_back(pstructType);
   llvm::FunctionType *funcType =
       llvm::FunctionType::get(builder.getInt32Ty(), args, false);
   llvm::Function *mainFunc = llvm::Function::Create(
@@ -131,6 +125,7 @@ int main() {
   builder.CreateRet(tmp2);
   module->dump();
 
+  // Lets create the MCJIT engine
   std::string errStr;
   auto engine = llvm::EngineBuilder(module)
                     .setErrorStr(&errStr)
@@ -138,11 +133,11 @@ int main() {
                     .setUseMCJIT(true)
                     .create();
   if (!engine) {
-    llvm::errs() << "Failed to construct ExecutionEngine: " << errStr << "\n";
+    llvm::errs() << "Failed to construct MCJIT ExecutionEngine: " << errStr << "\n";
     return 1;
   }
-  RaviGCObject_t obj = {0, 42, 65};
 
+  // Now lets compile our function into machine code
   std::string funcname = "testfunc";
   myfunc_t funcptr = (myfunc_t)engine->getFunctionAddress(funcname);
   if (funcptr == nullptr) {
@@ -150,8 +145,9 @@ int main() {
     return 1;
   }
 
+  // Run the function and test results.
+  RaviGCObject obj = { NULL, 42, 65 };
   int ans = funcptr(&obj);
-
-  printf("Answer is %d\n", ans);
+  printf("The answer is %d\n", ans);
   return ans == 42 ? 0 : 1;
 }
