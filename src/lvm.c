@@ -670,7 +670,7 @@ void luaV_finishOp (lua_State *L) {
 #define vmcase(l,b)	case l: {b}  break;
 #define vmcasenb(l,b)	case l: {b}		/* nb = no break */
 
-void stackDump(lua_State *L, const char *s) {
+void ravi_dump_stack(lua_State *L, const char *s) {
   if (!s)
     return;
   StkId p = L->stack;
@@ -716,7 +716,7 @@ void luaV_execute (lua_State *L) {
   TValue *k;
   StkId base;
 newframe:  /* reentry point when frame changes (call/return) */
-  /* stackDump(L, "on function entry"); */
+  /* ravi_dump_stack(L, "on function entry"); */
   lua_assert(ci == L->ci);
   cl = clLvalue(ci->func);
   k = cl->p->k;
@@ -1057,12 +1057,12 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
     } break;
     case OP_RETURN: {
-        /* stackDump(L, "before return"); */
+        /* ravi_dump_stack(L, "before return"); */
         int b = GETARG_B(i);
         if (b != 0) L->top = ra + b - 1;
         if (cl->p->sizep > 0) luaF_close(L, base);
         b = luaD_poscall(L, ra);
-        /* stackDump(L, "after return"); */
+        /* ravi_dump_stack(L, "after return"); */
         if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */
             return;  /* external invocation: return */
         else {  /* invocation via reentry: continue execution */

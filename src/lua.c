@@ -604,12 +604,14 @@ int main (int argc, char **argv) {
     l_message(argv[0], "cannot create state: not enough memory");
     return EXIT_FAILURE;
   }
+  int level = 0;
   if (getenv("RAVI_DEBUG_EXPR"))
-    ravi_parser_debug |= 1;
+    level |= 1;
   if (getenv("RAVI_DEBUG_CODEGEN"))
-    ravi_parser_debug |= 2;
+    level |= 2;
   if (getenv("RAVI_DEBUG_VARS"))
-    ravi_parser_debug |= 4;
+    level |= 4;
+  ravi_set_debuglevel(level);
 
   lua_pushcfunction(L, &pmain);  /* to call 'pmain' in protected mode */
   lua_pushinteger(L, argc);  /* 1st argument */

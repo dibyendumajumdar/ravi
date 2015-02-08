@@ -57,6 +57,10 @@ typedef struct BlockCnt {
   lu_byte isloop;  /* true if 'block' is a loop */
 } BlockCnt;
 
+void ravi_set_debuglevel(int level) {
+  ravi_parser_debug = level;
+}
+
 static const char *get_typename(ravitype_t tt) {
   switch (tt) {
   case RAVI_TNIL: return "nil";

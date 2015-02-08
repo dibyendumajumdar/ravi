@@ -92,30 +92,21 @@ if (MSVC)
 endif()
 target_link_libraries(ravi ${EXTRA_LIBRARIES} ${llvm_libs})
 
+add_library(ravis ${RAVI_HEADERS} ${LUA_LIB_SRCS} ${LUA_CORE_SRCS})
+target_link_libraries(ravis ${EXTRA_LIBRARIES} ${llvm_libs})
+
 add_executable(lua src/lua.c)
-if (MSVC)
-  set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-endif()
 target_link_libraries(lua ravi)
     
 add_executable(luac src/luac.c)
-if (MSVC)
-  set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-endif()
-target_link_libraries(luac ravi)
+target_link_libraries(luac ravis)
 
 #VM test
 add_executable(test_vm tests/test_vm.c)
-if (MSVC)
-  set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-endif()
 target_link_libraries(test_vm ravi)
 
 #LLVM playground
 add_executable(test_llvm tests/test_llvm.cpp)
-if (MSVC)
-  set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-endif()
 target_link_libraries(test_llvm ravi)
 
 add_test(TestVM test_vm)

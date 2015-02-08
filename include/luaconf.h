@@ -216,19 +216,19 @@
 ** the libraries, you may want to use the following definition (define
 ** LUA_BUILD_AS_DLL to get it).
 */
-#if defined(LUA_BUILD_AS_DLL)	/* { */
+#if defined(LUA_BUILD_AS_DLL)   /* { */
 
-#if defined(LUA_CORE) || defined(LUA_LIB)	/* { */
+#if defined(LUA_CORE) || defined(LUA_LIB)       /* { */
 #define LUA_API __declspec(dllexport)
-#else						/* }{ */
+#else                                           /* }{ */
 #define LUA_API __declspec(dllimport)
-#endif						/* } */
+#endif                                          /* } */
 
-#else				/* }{ */
+#else                           /* }{ */
 
-#define LUA_API		extern
+#define LUA_API         extern
 
-#endif				/* } */
+#endif                          /* } */
 
 
 /* more often than not the libs go together with the core */
@@ -251,16 +251,15 @@
 ** default definition.
 */
 #if defined(__GNUC__) && ((__GNUC__*100 + __GNUC_MINOR__) >= 302) && \
-    defined(__ELF__)		/* { */
-/* #define LUAI_FUNC	__attribute__((visibility("hidden"))) extern */
-#define LUAI_FUNC   extern
-#else				/* }{ */
-#define LUAI_FUNC	LUA_API 
-/* extern */
-#endif				/* } */
+    defined(__ELF__)            /* { */
+#define LUAI_FUNC       __attribute__((visibility("hidden"))) extern
+#else                           /* }{ */
+#define LUAI_FUNC       extern
+#endif                          /* } */
 
-#define LUAI_DDEC	LUAI_FUNC
-#define LUAI_DDEF	/* empty */
+#define LUAI_DDEC       LUAI_FUNC
+#define LUAI_DDEF       /* empty */
+
 
 /* }================================================================== */
 

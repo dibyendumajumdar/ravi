@@ -457,11 +457,14 @@ struct lua_Debug {
 
 /* }====================================================================== */
 
-#ifdef _WIN32
-LUAI_FUNC extern int ravi_parser_debug;
-#else
-LUAI_FUNC int ravi_parser_debug;
-#endif
+/* RAVI Extensions */
+
+LUAI_DDEC int ravi_parser_debug;
+
+
+LUA_API void ravi_dump_stack(lua_State *L, const char *s);
+LUA_API void ravi_dump_function(lua_State *L);
+LUA_API void ravi_set_debuglevel(int level);
 
 /******************************************************************************
 * Copyright (C) 1994-2015 Lua.org, PUC-Rio.

@@ -323,11 +323,7 @@ enum OpArgMask {
   OpArgK   /* argument is a constant or register/constant */
 };
 
-#ifdef _WIN32 // Some stupid error that I need to look into
-LUAI_DDEC extern const lu_byte luaP_opmodes[NUM_OPCODES];
-#else
 LUAI_DDEC const lu_byte luaP_opmodes[NUM_OPCODES];
-#endif
 
 #define getOpMode(m)	(cast(enum OpMode, luaP_opmodes[m] & 3))
 #define getBMode(m)	(cast(enum OpArgMask, (luaP_opmodes[m] >> 4) & 3))
@@ -335,11 +331,7 @@ LUAI_DDEC const lu_byte luaP_opmodes[NUM_OPCODES];
 #define testAMode(m)	(luaP_opmodes[m] & (1 << 6))
 #define testTMode(m)	(luaP_opmodes[m] & (1 << 7))
 
-#ifdef _WIN32
-LUAI_DDEC extern const char *const luaP_opnames[NUM_OPCODES+1];  /* opcode names */
-#else
-LUAI_DDEC const char *const luaP_opnames[NUM_OPCODES + 1];  /* opcode names */
-#endif
+LUAI_DDEC const char *const luaP_opnames[NUM_OPCODES+1];  /* opcode names */
 
 /* number of list items to accumulate before a SETLIST instruction */
 #define LFIELDS_PER_FLUSH	50
