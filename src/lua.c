@@ -4,11 +4,6 @@
 ** See Copyright Notice in lua.h
 */
 
-#ifdef _WIN32
-// FIXME a hack 
-#define LUA_BUILD_AS_DLL
-#endif
-
 #define lua_c
 
 #include "lprefix.h"
