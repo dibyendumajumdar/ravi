@@ -23,4 +23,36 @@
 #include <vector>
 #include <memory>
 
+#if defined(_WIN32) && defined(LUA_BUILD_AS_DLL)
+#define RAVI_API __declspec(dllexport)
+#else                                          
+#define RAVI_API __declspec(dllimport)
+#endif                                                     
+
+// Most of the code below is based on the very useful
+// blog post:
+// http://blog.llvm.org/2013/07/using-mcjit-with-kaleidoscope-tutorial.html
+class RAVI_API RaviJITState {
+  typedef std::vector<llvm::Module *> ModuleVector;
+  typedef std::vector<llvm::ExecutionEngine *> EngineVector;
+
+  llvm::LLVMContext &Context;
+  llvm::Module *OpenModule;
+  ModuleVector Modules;
+  EngineVector Engines;
+  std::string triple;
+
+public:
+  RaviJITState();
+  ~RaviJITState();
+  llvm::Module *getModuleForNewFunction();
+  void *getPointerToFunction(llvm::Function *F);
+  void dump();
+  void releaseFunction(llvm::Function *F);
+  llvm::LLVMContext& getContext() { return Context; }
+
+  // For internal use only
+  void *getSymbolAddress(const std::string &Name);
+};
+
 #endif

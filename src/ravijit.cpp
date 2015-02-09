@@ -1,7 +1,6 @@
 #include "ravijit.h"
 #include "ravillvm.h"
 
-
 // FIXME: Obviously we can do better than this
 static std::string GenerateUniqueName(const char *root) {
   static int i = 0;
@@ -39,39 +38,7 @@ static std::string MakeLegalFunctionName(std::string Name) {
   return NewName;
 }
 
-class LLVMInitializer {
-public:
-  LLVMInitializer() {
-    // Looks like unless following three lines are not executed then
-    // ExecutionEngine cannot be created
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
-    llvm::InitializeNativeTargetAsmParser();
-  }
-};
-
-// Most of the code below is based on the very useful
-// blog post:
-// http://blog.llvm.org/2013/07/using-mcjit-with-kaleidoscope-tutorial.html
-class RaviJITState {
-  typedef std::vector<llvm::Module *> ModuleVector;
-  typedef std::vector<llvm::ExecutionEngine *> EngineVector;
-
-  llvm::LLVMContext &Context;
-  llvm::Module *OpenModule;
-  ModuleVector Modules;
-  EngineVector Engines;
-
-  static LLVMInitializer init;
-
-public:
-  RaviJITState();
-  ~RaviJITState();
-  llvm::Module *getModuleForNewFunction();
-  void *getPointerToFunction(llvm::Function *F);
-  void *getSymbolAddress(const std::string &Name);
-  void dump();
-};
+static volatile int init = 0;
 
 class HelpingMemoryManager : public llvm::SectionMemoryManager {
   HelpingMemoryManager(const HelpingMemoryManager &) LLVM_DELETED_FUNCTION;
@@ -105,7 +72,25 @@ uint64_t HelpingMemoryManager::getSymbolAddress(const std::string &Name) {
 }
 
 RaviJITState::RaviJITState()
-    : Context(llvm::getGlobalContext()), OpenModule(nullptr) {}
+    : Context(llvm::getGlobalContext()), OpenModule(nullptr) {
+  // Looks like unless following three lines are not executed then
+  // ExecutionEngine cannot be created
+  if (init == 0) {
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTargetAsmParser();
+    init++;
+  }
+
+  triple = llvm::sys::getProcessTriple();
+#ifdef _WIN32
+  // On Windows we get error saying incompatible object format
+  // Reading posts on mailining lists I found that the issue is that COEFF
+  // format is not supported and therefore we need to set -elf as the object
+  // format
+  triple += "-elf";
+#endif
+}
 
 RaviJITState::~RaviJITState() {
   if (OpenModule)
@@ -130,7 +115,7 @@ llvm::Module *RaviJITState::getModuleForNewFunction() {
   // Reading posts on mailining lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set
   // -elf as the object format
-  M->setTargetTriple("x86_64-pc-win32-elf");
+  M->setTargetTriple(triple);
 #endif
   Modules.push_back(M);
   OpenModule = M;
@@ -138,6 +123,7 @@ llvm::Module *RaviJITState::getModuleForNewFunction() {
 }
 
 void *RaviJITState::getPointerToFunction(llvm::Function *F) {
+#if 0
   // See if an existing instance of MCJIT has this function.
   EngineVector::iterator begin = Engines.begin();
   EngineVector::iterator end = Engines.end();
@@ -147,9 +133,14 @@ void *RaviJITState::getPointerToFunction(llvm::Function *F) {
     if (P)
       return P;
   }
+#endif
 
   // If we didn't find the function, see if we can generate it.
   if (OpenModule) {
+    llvm::Module *m = F->getParent();
+    if (m != OpenModule) {
+      fprintf(stderr, "Module does not match!\n");
+    }
     std::string ErrStr;
     llvm::ExecutionEngine *NewEngine =
         llvm::EngineBuilder(OpenModule)
@@ -163,6 +154,7 @@ void *RaviJITState::getPointerToFunction(llvm::Function *F) {
       return NULL;
     }
 
+#if 0
     // Create a function pass manager for this engine
     llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(OpenModule);
 
@@ -194,6 +186,7 @@ void *RaviJITState::getPointerToFunction(llvm::Function *F) {
 
     // We don't need this anymore
     delete FPM;
+#endif
 
     OpenModule = NULL;
     Engines.push_back(NewEngine);
@@ -231,9 +224,6 @@ void RaviJITState::dump() {
     (*it)->dump();
 }
 
-// To ensure that the LLVM initializers are called
-LLVMInitializer RaviJITState::init;
-
 class RaviJITFunction {};
 
 #ifdef __cplusplus
@@ -264,26 +254,26 @@ extern "C" {
 #include "ltm.h"
 #include "lvm.h"
 
-struct ravijit_State {
+struct ravi_State {
   RaviJITState *jit;
 };
 
 int raviV_initjit(struct lua_State *L) {
   global_State *G = G(L);
-  if (G->ravi_jitstate != NULL)
+  if (G->ravi_state != NULL)
     return -1;
-  ravijit_State *jit = (ravijit_State *)calloc(1, sizeof(ravijit_State));
+  ravi_State *jit = (ravi_State *)calloc(1, sizeof(ravi_State));
   jit->jit = new RaviJITState();
-  G->ravi_jitstate = jit;
+  G->ravi_state = jit;
   return 0;
 }
 
 void raviV_close(struct lua_State *L) {
   global_State *G = G(L);
-  if (G->ravi_jitstate == NULL)
+  if (G->ravi_state == NULL)
     return;
-  delete G->ravi_jitstate->jit;
-  free(G->ravi_jitstate);
+  delete G->ravi_state->jit;
+  free(G->ravi_state);
 }
 
 #ifdef __cplusplus
