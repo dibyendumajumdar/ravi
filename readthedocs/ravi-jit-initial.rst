@@ -43,3 +43,8 @@ functions into a single module.
 I found the blog post `Using MCJIT with Kaleidoscope 
 <http://blog.llvm.org/2013/07/using-mcjit-with-kaleidoscope-tutorial.html>`_ useful in understanding some 
 finer points about using ``MCJIT``. 
+
+Links
+-----
+* `Resolving extern functions <http://lists.cs.uiuc.edu/pipermail/llvmdev/2009-July/023559.html>`_
+* `Object format issue on Windows <http://lists.cs.uiuc.edu/pipermail/llvmdev/2013-December/068407.html>`_
