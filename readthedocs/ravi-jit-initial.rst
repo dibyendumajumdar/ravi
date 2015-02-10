@@ -56,9 +56,8 @@ Our prototype for the JITted function::
 
   typedef int (*myfunc_t)(RaviGCObject *);
 
-  int test1() {
-    // Get global context - not sure what the impact is of sharing
-    // the global context
+Get global context - not sure what the impact is of sharing::
+
     llvm::LLVMContext &context = llvm::getGlobalContext();
 
 Module is the translation unit::
@@ -113,7 +112,8 @@ Create the testfunc()::
       llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
     builder.SetInsertPoint(entry);
 
-printf format string::
+The printf format string::
+
     llvm::Value *formatStr = builder.CreateGlobalStringPtr("value = %d\n");
 
 Get the first argument which is RaviGCObject *::
@@ -188,7 +188,6 @@ Run the function and test results::
     int ans = funcptr(&obj);
     printf("The answer is %d\n", ans);
     return ans == 42 ? 0 : 1;
-  }
 
 
 Links
