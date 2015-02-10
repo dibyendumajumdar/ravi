@@ -6,7 +6,7 @@
 static volatile int init = 0;
 
 RaviJITState::RaviJITState() : context_(llvm::getGlobalContext()) {
-  // Looks like unless following three lines are not executed then
+  // Unless following three lines are not executed then
   // ExecutionEngine cannot be created
   if (init == 0) {
     llvm::InitializeNativeTarget();
@@ -34,11 +34,24 @@ RaviJITState::~RaviJITState() {
   }
 }
 
+void RaviJITState::addGlobalSymbol(const std::string& name, void *address)
+{
+  llvm::sys::DynamicLibrary::AddSymbol(name, address);
+}
+
+void RaviJITState::dump() {
+  for (auto f : functions_) {
+    f.second->dump();
+  }
+}
+
 RaviJITFunction *
 RaviJITState::createFunction(llvm::FunctionType *type,
                              llvm::GlobalValue::LinkageTypes linkage,
                              const std::string &name) {
-  // Otherwise create a new Module.
+  // MCJIT treats each module as a compilation unit
+  // To enabe function level life cycle we create a 
+  // module per function
   std::string moduleName = "ravi_module_" + name;
   llvm::Module *module = new llvm::Module(moduleName, context_);
 #if defined(_WIN32)
@@ -53,39 +66,9 @@ RaviJITState::createFunction(llvm::FunctionType *type,
   return f;
 }
 
-class HelpingMemoryManager : public llvm::SectionMemoryManager {
-  HelpingMemoryManager(const HelpingMemoryManager &) LLVM_DELETED_FUNCTION;
-  void operator=(const HelpingMemoryManager &) LLVM_DELETED_FUNCTION;
-
-public:
-  HelpingMemoryManager(RaviJITState *Helper) : MasterHelper(Helper) {}
-  virtual ~HelpingMemoryManager() {}
-
-  /// This method returns the address of the specified function.
-  /// Our implementation will attempt to find functions in other
-  /// modules associated with the MCJITHelper to cross link functions
-  /// from one generated module to another.
-  ///
-  /// If \p AbortOnFailure is false and no function with the given name is
-  /// found, this function returns a null pointer. Otherwise, it prints a
-  /// message to stderr and aborts.
-  virtual void *getPointerToNamedFunction(const std::string &Name,
-                                          bool AbortOnFailure = true);
-
-private:
-  RaviJITState *MasterHelper;
-};
-
-void *HelpingMemoryManager::getPointerToNamedFunction(const std::string &Name,
-                                                      bool AbortOnFailure) {
-  // Try the standard symbol resolution first, but ask it not to abort.
-  void *pfn = RTDyldMemoryManager::getPointerToNamedFunction(Name, true);
-  // TODO
-  return pfn;
-}
-
 void RaviJITState::deleteFunction(const std::string &name) {
   functions_.erase(name);
+  // This is called when RaviJITFunction is deleted
 }
 
 RaviJITFunction::RaviJITFunction(RaviJITState *owner, llvm::Module *module,
@@ -175,13 +158,14 @@ llvm::Constant *RaviJITFunction::addExternFunction(llvm::FunctionType *type,
                                                    const std::string &name) {
   llvm::Function *f = llvm::Function::Create(
       type, llvm::Function::ExternalLinkage, name, module_);
-  // Don't know why but engine_->addGlobalMapping() doesn't work
-  // following seems to work though
-  llvm::sys::DynamicLibrary::AddSymbol(name, address);
+  // We should have been able to call
+  // engine_->addGlobalMapping() but this doesn't work
+  // See http://lists.cs.uiuc.edu/pipermail/llvmdev/2014-April/071856.html
+  // See bug report http://llvm.org/bugs/show_bug.cgi?id=20656
+  // following will call DynamicLibrary::AddSymbol
+  owner_->addGlobalSymbol(name, address);
   return f;
 }
-
-void RaviJITState::dump() {}
 
 void RaviJITFunction::dump() { module_->dump(); }
 

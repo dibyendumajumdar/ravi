@@ -36,7 +36,7 @@ int test1() {
 
   // Module is the translation unit
   std::unique_ptr<llvm::Module> theModule =
-    std::unique_ptr<llvm::Module>(new llvm::Module("ravi", context));
+      std::unique_ptr<llvm::Module>(new llvm::Module("ravi", context));
   llvm::Module *module = theModule.get();
   llvm::IRBuilder<> builder(context);
 
@@ -51,8 +51,10 @@ int test1() {
 #endif
 
   // create a GCObject structure as defined in lobject.h
-  llvm::StructType *structType = llvm::StructType::create(context, "RaviGCObject");
-  llvm::PointerType *pstructType = llvm::PointerType::get(structType, 0); // pointer to RaviGCObject
+  llvm::StructType *structType =
+      llvm::StructType::create(context, "RaviGCObject");
+  llvm::PointerType *pstructType =
+      llvm::PointerType::get(structType, 0); // pointer to RaviGCObject
   std::vector<llvm::Type *> elements;
   elements.push_back(pstructType);
   elements.push_back(llvm::Type::getInt8Ty(context));
@@ -65,19 +67,19 @@ int test1() {
   args.push_back(llvm::Type::getInt8PtrTy(context));
   // accepts a char*, is vararg, and returns int
   llvm::FunctionType *printfType =
-    llvm::FunctionType::get(builder.getInt32Ty(), args, true);
+      llvm::FunctionType::get(builder.getInt32Ty(), args, true);
   llvm::Constant *printfFunc =
-    module->getOrInsertFunction("printf", printfType);
+      module->getOrInsertFunction("printf", printfType);
 
   // Create the testfunc()
   args.clear();
   args.push_back(pstructType);
   llvm::FunctionType *funcType =
-    llvm::FunctionType::get(builder.getInt32Ty(), args, false);
+      llvm::FunctionType::get(builder.getInt32Ty(), args, false);
   llvm::Function *mainFunc = llvm::Function::Create(
-    funcType, llvm::Function::ExternalLinkage, "testfunc", module);
+      funcType, llvm::Function::ExternalLinkage, "testfunc", module);
   llvm::BasicBlock *entry =
-    llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
+      llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
   builder.SetInsertPoint(entry);
 
   // printf format string
@@ -94,10 +96,10 @@ int test1() {
   llvm::APInt one(32, 1);
   // This is the array offset into RaviGCObject*
   values.push_back(
-    llvm::Constant::getIntegerValue(llvm::Type::getInt32Ty(context), zero));
+      llvm::Constant::getIntegerValue(llvm::Type::getInt32Ty(context), zero));
   // This is the field offset
   values.push_back(
-    llvm::Constant::getIntegerValue(llvm::Type::getInt32Ty(context), one));
+      llvm::Constant::getIntegerValue(llvm::Type::getInt32Ty(context), one));
 
   // Create the GEP value
   llvm::Value *arg1_a = builder.CreateGEP(arg1, values, "ptr");
@@ -106,7 +108,7 @@ int test1() {
   llvm::Value *tmp1 = builder.CreateLoad(arg1_a, "a");
   // As the retrieved value is a byte - convert to int i
   llvm::Value *tmp2 =
-    builder.CreateZExt(tmp1, llvm::Type::getInt32Ty(context), "i");
+      builder.CreateZExt(tmp1, llvm::Type::getInt32Ty(context), "i");
 
   // Call the printf function
   values.clear();
@@ -121,12 +123,13 @@ int test1() {
   // Lets create the MCJIT engine
   std::string errStr;
   auto engine = llvm::EngineBuilder(module)
-    .setErrorStr(&errStr)
-    .setEngineKind(llvm::EngineKind::JIT)
-    .setUseMCJIT(true)
-    .create();
+                    .setErrorStr(&errStr)
+                    .setEngineKind(llvm::EngineKind::JIT)
+                    .setUseMCJIT(true)
+                    .create();
   if (!engine) {
-    llvm::errs() << "Failed to construct MCJIT ExecutionEngine: " << errStr << "\n";
+    llvm::errs() << "Failed to construct MCJIT ExecutionEngine: " << errStr
+                 << "\n";
     return 1;
   }
 
@@ -139,7 +142,7 @@ int test1() {
   }
 
   // Run the function and test results.
-  RaviGCObject obj = { NULL, 42, 65 };
+  RaviGCObject obj = {NULL, 42, 65};
   int ans = funcptr(&obj);
   printf("The answer is %d\n", ans);
   return ans == 42 ? 0 : 1;
@@ -157,12 +160,14 @@ int test2() {
 
   RaviJITState jitState;
 
-  llvm::LLVMContext& context = jitState.getContext();
+  llvm::LLVMContext &context = jitState.context();
   llvm::IRBuilder<> builder(context);
 
   // create a GCObject structure as defined in lobject.h
-  llvm::StructType *structType = llvm::StructType::create(context, "RaviGCObject");
-  llvm::PointerType *pstructType = llvm::PointerType::get(structType, 0); // pointer to RaviGCObject
+  llvm::StructType *structType =
+      llvm::StructType::create(context, "RaviGCObject");
+  llvm::PointerType *pstructType =
+      llvm::PointerType::get(structType, 0); // pointer to RaviGCObject
   std::vector<llvm::Type *> elements;
   elements.push_back(pstructType);
   elements.push_back(llvm::Type::getInt8Ty(context));
@@ -170,23 +175,24 @@ int test2() {
   structType->setBody(elements);
   structType->dump();
 
-  // Create declaration for mytest 
+  // Create declaration for mytest
   // int mytest(RaviGCObject *obj)
   std::vector<llvm::Type *> args;
   args.push_back(pstructType);
   llvm::FunctionType *mytestFuncType =
-    llvm::FunctionType::get(builder.getInt32Ty(), args, false);
+      llvm::FunctionType::get(builder.getInt32Ty(), args, false);
 
   // Create the testfunc()
   args.clear();
   args.push_back(pstructType);
   llvm::FunctionType *funcType =
-    llvm::FunctionType::get(builder.getInt32Ty(), args, false);
-  RaviJITFunction *func = jitState.createFunction(funcType, llvm::Function::ExternalLinkage, "testfunc");
+      llvm::FunctionType::get(builder.getInt32Ty(), args, false);
+  RaviJITFunction *func = jitState.createFunction(
+      funcType, llvm::Function::ExternalLinkage, "testfunc");
 
   llvm::Function *mainFunc = func->function();
   llvm::BasicBlock *entry =
-    llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
+      llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
   builder.SetInsertPoint(entry);
 
   // Get the first argument which is RaviGCObject *
@@ -196,7 +202,8 @@ int test2() {
 
   // Add an extern int mytest(RaviGCObject *obj) and link this
   // to mytest()
-  llvm::Constant *mytestFunc = func->addExternFunction(mytestFuncType, &mytest, "mytest");
+  llvm::Constant *mytestFunc =
+      func->addExternFunction(mytestFuncType, &mytest, "mytest");
 
   // Call the mytest() function
   std::vector<llvm::Value *> values;
@@ -215,13 +222,11 @@ int test2() {
   }
 
   // Run the function and test results.
-  RaviGCObject obj = { NULL, 42, 65 };
+  RaviGCObject obj = {NULL, 42, 65};
   int ans = funcptr(&obj);
   printf("The answer is %d\n", ans);
   return ans == 42 ? 0 : 1;
-
 }
-
 
 int main() {
 
