@@ -1,44 +1,57 @@
 #include "ravijit.h"
 #include "ravillvm.h"
 
-// FIXME: Obviously we can do better than this
-static std::string GenerateUniqueName(const char *root) {
-  static int i = 0;
-  char s[16];
-  sprintf(s, "%s%d", root, i++);
-  std::string S = s;
-  return S;
-}
-
-static std::string MakeLegalFunctionName(std::string Name) {
-  std::string NewName;
-  if (!Name.length())
-    return GenerateUniqueName("anon_func_");
-
-  // Start with what we have
-  NewName = Name;
-
-  // Look for a numberic first character
-  if (NewName.find_first_of("0123456789") == 0) {
-    NewName.insert(0, 1, 'n');
-  }
-
-  // Replace illegal characters with their ASCII equivalent
-  std::string legal_elements =
-      "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  size_t pos;
-  while ((pos = NewName.find_first_not_of(legal_elements)) !=
-         std::string::npos) {
-    char old_c = NewName.at(pos);
-    char new_str[16];
-    sprintf(new_str, "%d", (int)old_c);
-    NewName = NewName.replace(pos, 1, new_str);
-  }
-
-  return NewName;
-}
+#include <iterator>
 
 static volatile int init = 0;
+
+RaviJITState::RaviJITState() : context_(llvm::getGlobalContext()) {
+  // Looks like unless following three lines are not executed then
+  // ExecutionEngine cannot be created
+  if (init == 0) {
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTargetAsmParser();
+    init++;
+  }
+  triple_ = llvm::sys::getProcessTriple();
+#ifdef _WIN32
+  // On Windows we get error saying incompatible object format
+  // Reading posts on mailining lists I found that the issue is that COEFF
+  // format is not supported and therefore we need to set -elf as the object
+  // format
+  triple_ += "-elf";
+#endif
+}
+
+RaviJITState::~RaviJITState() {
+  std::vector<RaviJITFunction *> todelete;
+  for (auto &f = std::begin(functions_); f != std::end(functions_); f++) {
+    todelete.push_back(f->second);
+  }
+  for (int i = 0; i < todelete.size(); i++) {
+    delete todelete[i];
+  }
+}
+
+RaviJITFunction *
+RaviJITState::createFunction(llvm::FunctionType *type,
+                             llvm::GlobalValue::LinkageTypes linkage,
+                             const std::string &name) {
+  // Otherwise create a new Module.
+  std::string moduleName = "ravi_module_" + name;
+  llvm::Module *module = new llvm::Module(moduleName, context_);
+#if defined(_WIN32)
+  // On Windows we get error saying incompatible object format
+  // Reading posts on mailining lists I found that the issue is that COEFF
+  // format is not supported and therefore we need to set
+  // -elf as the object format
+  module->setTargetTriple(triple_);
+#endif
+  RaviJITFunction *f = new RaviJITFunction(this, module, type, linkage, name);
+  functions_[name] = f;
+  return f;
+}
 
 class HelpingMemoryManager : public llvm::SectionMemoryManager {
   HelpingMemoryManager(const HelpingMemoryManager &) LLVM_DELETED_FUNCTION;
@@ -48,111 +61,64 @@ public:
   HelpingMemoryManager(RaviJITState *Helper) : MasterHelper(Helper) {}
   virtual ~HelpingMemoryManager() {}
 
-  /// This method returns the address of the specified symbol.
-  /// Our implementation will attempt to find symbols in other
-  /// modules associated with the MCJITHelper to cross link symbols
+  /// This method returns the address of the specified function.
+  /// Our implementation will attempt to find functions in other
+  /// modules associated with the MCJITHelper to cross link functions
   /// from one generated module to another.
-  virtual uint64_t getSymbolAddress(const std::string &Name) override;
+  ///
+  /// If \p AbortOnFailure is false and no function with the given name is
+  /// found, this function returns a null pointer. Otherwise, it prints a
+  /// message to stderr and aborts.
+  virtual void *getPointerToNamedFunction(const std::string &Name,
+                                          bool AbortOnFailure = true);
 
 private:
   RaviJITState *MasterHelper;
 };
 
-uint64_t HelpingMemoryManager::getSymbolAddress(const std::string &Name) {
-  uint64_t FnAddr = SectionMemoryManager::getSymbolAddress(Name);
-  if (FnAddr)
-    return FnAddr;
-
-  uint64_t HelperFun = (uint64_t)MasterHelper->getSymbolAddress(Name);
-  if (!HelperFun)
-    fprintf(stderr, "Program used extern function '%s' "
-                    " which could not be resolved!",
-            Name.c_str());
-  return HelperFun;
+void *HelpingMemoryManager::getPointerToNamedFunction(const std::string &Name,
+                                                      bool AbortOnFailure) {
+  // Try the standard symbol resolution first, but ask it not to abort.
+  void *pfn = RTDyldMemoryManager::getPointerToNamedFunction(Name, true);
+  // TODO
+  return pfn;
 }
 
-RaviJITState::RaviJITState()
-    : Context(llvm::getGlobalContext()), OpenModule(nullptr) {
-  // Looks like unless following three lines are not executed then
-  // ExecutionEngine cannot be created
-  if (init == 0) {
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
-    llvm::InitializeNativeTargetAsmParser();
-    init++;
+void RaviJITState::deleteFunction(const std::string &name) {
+  functions_.erase(name);
+}
+
+RaviJITFunction::RaviJITFunction(RaviJITState *owner, llvm::Module *module,
+                                 llvm::FunctionType *type,
+                                 llvm::GlobalValue::LinkageTypes linkage,
+                                 const std::string &name)
+    : owner_(owner), module_(module), name_(name), engine_(nullptr), function_(nullptr),
+      ptr_(nullptr) {
+  function_ = llvm::Function::Create(type, linkage, name, module);
+  std::string errStr;
+  engine_ = llvm::EngineBuilder(module)
+                .setEngineKind(llvm::EngineKind::JIT)
+                .setUseMCJIT(true)
+                .setErrorStr(&errStr)
+                .create();
+  if (!engine_) {
+    fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
+    return;
   }
-
-  triple = llvm::sys::getProcessTriple();
-#ifdef _WIN32
-  // On Windows we get error saying incompatible object format
-  // Reading posts on mailining lists I found that the issue is that COEFF
-  // format is not supported and therefore we need to set -elf as the object
-  // format
-  triple += "-elf";
-#endif
 }
 
-RaviJITState::~RaviJITState() {
-  if (OpenModule)
-    delete OpenModule;
-  EngineVector::iterator begin = Engines.begin();
-  EngineVector::iterator end = Engines.end();
-  EngineVector::iterator it;
-  for (it = begin; it != end; ++it)
-    delete *it;
+RaviJITFunction::~RaviJITFunction() {
+  // Remove this function from parent
+  owner_->deleteFunction(name_);
+  if (engine_)
+    delete engine_;
+  else if (module_)
+    delete module_;
+  // Check - we assume here that deleting engine deletes the module
+  // and function, and deleting module deletes function
 }
 
-llvm::Module *RaviJITState::getModuleForNewFunction() {
-  // If we have a Module that hasn't been JITed, use that.
-  if (OpenModule)
-    return OpenModule;
-
-  // Otherwise create a new Module.
-  std::string ModName = GenerateUniqueName("ravi_module_");
-  llvm::Module *M = new llvm::Module(ModName, Context);
-#if defined(_WIN32)
-  // On Windows we get error saying incompatible object format
-  // Reading posts on mailining lists I found that the issue is that COEFF
-  // format is not supported and therefore we need to set
-  // -elf as the object format
-  M->setTargetTriple(triple);
-#endif
-  Modules.push_back(M);
-  OpenModule = M;
-  return M;
-}
-
-void *RaviJITState::getPointerToFunction(llvm::Function *F) {
-#if 0
-  // See if an existing instance of MCJIT has this function.
-  EngineVector::iterator begin = Engines.begin();
-  EngineVector::iterator end = Engines.end();
-  EngineVector::iterator it;
-  for (it = begin; it != end; ++it) {
-    void *P = (*it)->getPointerToFunction(F);
-    if (P)
-      return P;
-  }
-#endif
-
-  // If we didn't find the function, see if we can generate it.
-  if (OpenModule) {
-    llvm::Module *m = F->getParent();
-    if (m != OpenModule) {
-      fprintf(stderr, "Module does not match!\n");
-    }
-    std::string ErrStr;
-    llvm::ExecutionEngine *NewEngine =
-        llvm::EngineBuilder(OpenModule)
-            .setEngineKind(llvm::EngineKind::JIT)
-            .setUseMCJIT(true)
-            .setMCJITMemoryManager(new HelpingMemoryManager(this))
-            .setErrorStr(&ErrStr)
-            .create();
-    if (!NewEngine) {
-      fprintf(stderr, "Could not create ExecutionEngine: %s\n", ErrStr.c_str());
-      return NULL;
-    }
+void *RaviJITFunction::compile() {
 
 #if 0
     // Create a function pass manager for this engine
@@ -188,43 +154,36 @@ void *RaviJITState::getPointerToFunction(llvm::Function *F) {
     delete FPM;
 #endif
 
-    OpenModule = NULL;
-    Engines.push_back(NewEngine);
-    // Upon creation, MCJIT holds a pointer to the Module object
-    // that it received from EngineBuilder but it does not immediately
-    // generate code for this module. Code generation is deferred
-    // until either the MCJIT::finalizeObject method is called
-    // explicitly or a function such as MCJIT::getPointerToFunction
-    // is called which requires the code to have been generated.
-    NewEngine->finalizeObject();
-    return NewEngine->getPointerToFunction(F);
-  }
-  return NULL;
+  if (ptr_)
+    return ptr_;
+  if (!function_ || !engine_)
+    return NULL;
+
+  // Upon creation, MCJIT holds a pointer to the Module object
+  // that it received from EngineBuilder but it does not immediately
+  // generate code for this module. Code generation is deferred
+  // until either the MCJIT::finalizeObject method is called
+  // explicitly or a function such as MCJIT::getPointerToFunction
+  // is called which requires the code to have been generated.
+  engine_->finalizeObject();
+  ptr_ = engine_->getPointerToFunction(function_);
+  return ptr_;
 }
 
-void *RaviJITState::getSymbolAddress(const std::string &Name) {
-  // Look for the symbol in each of our execution engines.
-  EngineVector::iterator begin = Engines.begin();
-  EngineVector::iterator end = Engines.end();
-  EngineVector::iterator it;
-  for (it = begin; it != end; ++it) {
-    uint64_t FAddr = (*it)->getFunctionAddress(Name);
-    if (FAddr) {
-      return (void *)FAddr;
-    }
-  }
-  return NULL;
+llvm::Constant *RaviJITFunction::addExternFunction(llvm::FunctionType *type,
+                                                   void *address,
+                                                   const std::string &name) {
+  llvm::Function *f = llvm::Function::Create(
+      type, llvm::Function::ExternalLinkage, name, module_);
+  // Don't know why but engine_->addGlobalMapping() doesn't work
+  // following seems to work though
+  llvm::sys::DynamicLibrary::AddSymbol(name, address);
+  return f;
 }
 
-void RaviJITState::dump() {
-  ModuleVector::iterator begin = Modules.begin();
-  ModuleVector::iterator end = Modules.end();
-  ModuleVector::iterator it;
-  for (it = begin; it != end; ++it)
-    (*it)->dump();
-}
+void RaviJITState::dump() {}
 
-class RaviJITFunction {};
+void RaviJITFunction::dump() { module_->dump(); }
 
 #ifdef __cplusplus
 extern "C" {

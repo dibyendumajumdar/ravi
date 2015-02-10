@@ -16,6 +16,7 @@
 #include "llvm/PassManager.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Transforms/Scalar.h"
 
 #include <cstdio>
@@ -29,30 +30,54 @@
 #define RAVI_API __declspec(dllimport)
 #endif                                                     
 
-// Most of the code below is based on the very useful
-// blog post:
-// http://blog.llvm.org/2013/07/using-mcjit-with-kaleidoscope-tutorial.html
+class RAVI_API RaviJITState;
+
+// Represents a JITed or JITable function
+// Each function gets its own module and execution engine - this
+// may change in future
+// The advantage is that we can drop the function when the corresponding
+// Lua object is garbage collected - with MCJIT this is not possible
+// to do at function level
+class RAVI_API RaviJITFunction {
+
+  RaviJITState *owner_;
+  llvm::Module *module_;
+  std::string name_;
+
+  llvm::ExecutionEngine *engine_;
+  llvm::Function *function_;
+  void *ptr_;
+
+public:
+  RaviJITFunction(RaviJITState *owner, llvm::Module *module, llvm::FunctionType *type, llvm::GlobalValue::LinkageTypes linkage,
+    const std::string& name);
+  ~RaviJITFunction();
+  llvm::Constant * addExternFunction(llvm::FunctionType *type, void *address, const std::string& name);
+  void *compile();
+  const std::string& name() const { return name_; }
+  llvm::Function *function() const { return function_; }
+  void dump();
+};
+
+
+// Ravi's JIT State 
+// All of the JIT information is held here 
 class RAVI_API RaviJITState {
-  typedef std::vector<llvm::Module *> ModuleVector;
-  typedef std::vector<llvm::ExecutionEngine *> EngineVector;
-
-  llvm::LLVMContext &Context;
-  llvm::Module *OpenModule;
-  ModuleVector Modules;
-  EngineVector Engines;
-  std::string triple;
-
+  // map of names to functions
+  std::map<std::string, RaviJITFunction *> functions_;
+  llvm::LLVMContext &context_;
+  // The triple represents the host target 
+  std::string triple_;
 public:
   RaviJITState();
   ~RaviJITState();
-  llvm::Module *getModuleForNewFunction();
-  void *getPointerToFunction(llvm::Function *F);
-  void dump();
-  void releaseFunction(llvm::Function *F);
-  llvm::LLVMContext& getContext() { return Context; }
 
-  // For internal use only
-  void *getSymbolAddress(const std::string &Name);
+  // Create a function of specified type and linkage
+  RaviJITFunction * createFunction(llvm::FunctionType *type, llvm::GlobalValue::LinkageTypes linkage,
+    const std::string& name);
+  void deleteFunction(const std::string& name);
+  void dump();
+  llvm::LLVMContext& getContext() { return context_; }
 };
 
 #endif
