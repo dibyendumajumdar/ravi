@@ -1,6 +1,8 @@
 LLVM First Steps
 ================
 
+Note that the discussion below is for LVM 3.5.1. 
+
 Although there appears to be a lot of documentation in the LLVM site surprisingly some basic information is hard to find.
 The main source of guidance for creating a JIT is in the example toy language 
 `Kaleidoscope <https://github.com/llvm-mirror/llvm/blob/master/examples/Kaleidoscope/MCJIT/complete/toy.cpp>`_. But here too
@@ -192,5 +194,4 @@ Run the function and test results::
 
 Links
 -----
-* `Resolving extern functions <http://lists.cs.uiuc.edu/pipermail/llvmdev/2009-July/023559.html>`_
 * `Object format issue on Windows <http://lists.cs.uiuc.edu/pipermail/llvmdev/2013-December/068407.html>`_
