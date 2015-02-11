@@ -21,7 +21,7 @@ Status
 ------
 The project was kicked off in January 2015. My intention is start small and grow incrementally.
 
-Right now (as of Feb 2015) I am working on the JIT implementation. Please see `JIT Compilation for Ravi <https://github.com/dibyendumajumdar/ravi/wiki/RaviJITCompilation>`_ for details of this effort.
+Right now (as of Feb 2015) I am working on the JIT implementation. Please see `JIT Compilation for Ravi <https://github.com/dibyendumajumdar/ravi/blob/master/readthedocs/ravi-jit-overview.rst`_ for details of this effort.
 
 As of end Jan 2015, the Ravi interpreter allows you to declare local variables as ``int`` or ``double``. This triggers following behaviour:
 
