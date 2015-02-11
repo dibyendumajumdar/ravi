@@ -1,777 +1,211 @@
-===========================
-Ravi Implementation Details
-===========================
+Ravi Programming Language
+=========================
 
-As I progress with Ravi I will document the design and implementation details here.
+Experimental derivative/dialect of Lua. Ravi is a Sanskrit word that means the Sun.
 
-Type Information
-================
-The basic first step is to add type information to Lua. 
+Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater performance. However, at the same time maintain full compatibility with standard Lua.
 
-As the parser progresses it creates a vector of ``LocVar`` for each function containing a list of local variables. I have enhanced ``LocVar`` structure in ``lobject.h`` to hold type information.
+There are other attempts to add static typing to Lua (e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
-::
+My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. 
 
-  /* Following are the types we will use
-  ** use in parsing. The rationale for types is
-  ** performance - as of now these are the only types that
-  ** we care about from a performance point of view - if any
-  ** other types appear then they are all treated as ANY
-  **/
-  typedef enum {
-    RAVI_TANY,      /* Lua dynamic type */
-    RAVI_TNUMINT,   /* integer number */
-    RAVI_TNUMFLT,   /* floating point number */
-    RAVI_TARRAYINT, /* array of ints */
-    RAVI_TARRAYFLT,  /* array of doubles */
-    RAVI_TFUNCTION,
-    RAVI_TTABLE,
-    RAVI_TSTRING,
-    RAVI_TNIL,
-    RAVI_TBOOLEAN
-  } ravitype_t;
+Goals
+-----
+* Optional static typing for Lua 
+* No new types
+* Type specific bytecodes to improve performance
+* Full backward compatibility with Lua 5.3
+* LLVM based JIT compiler
 
-  /*
-  ** Description of a local variable for function prototypes
-  ** (used for debug information)
-  */
-  typedef struct LocVar {
-    TString *varname;
-    int startpc;  /* first point where variable is active */
-    int endpc;    /* first point where variable is dead */
-    ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
-  } LocVar;
+Status
+------
+The project was kicked off in January 2015. My intention is start small and grow incrementally.
 
-The ``expdesc`` structure is used by the parser to hold nodes in the expression tree. I have enhanced the ``expdesc`` structure to hold the type of an expression.  
+Right now (as of Feb 2015) I am working on the JIT implementation. Please see `JIT Compilation for Ravi <https://github.com/dibyendumajumdar/ravi/wiki/RaviJITCompilation>`_ for details of this effort.
 
-::
+As of end Jan 2015, the Ravi interpreter allows you to declare local variables as ``int`` or ``double``. This triggers following behaviour:
 
-   typedef struct expdesc {
-     expkind k;
-     union {
-       struct {  /* for indexed variables (VINDEXED) */
-         short idx;  /* index (R/K) */
-         lu_byte t;  /* table (register or upvalue) */
-         lu_byte vt;  /* whether 't' is register (VLOCAL) or upvalue (VUPVAL) */
-         ravitype_t key_type; /* key type */
-       } ind;
-       int info;  /* for generic use */
-       lua_Number nval;  /* for VKFLT */
-       lua_Integer ival;    /* for VKINT */
-     } u;
-     int t;  /* patch list of 'exit when true' */
-     int f;  /* patch list of 'exit when false' */
-     ravitype_t ravi_type; /* RAVI change: type of the expression if known, else RAVI_TANY */
-   } expdesc;
+* ``int`` and ``double`` variables are initialized to 0
+* arithmetic operations trigger type specific bytecodes
+* values assigned to these variables are checked - statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime.
 
-Note the addition of type information in two places. Firstly at the ``expdesc`` level which identifies the type of the ``expdesc``. Secondly in the `ind` structure - the ``key_type`` is used to track the type of the key that will be used to index into a table. 
+Also initial implementation of arrays is available. So you can declare arrays of integers or doubles.
 
-The table structure has been enhanced to hold additional information for array usage.
+* The type of an array of integers is denoted as ``int[]``. 
+* The type of an array of doubles is denoted as ``double[]``.
+* Arrays are implmented using a mix of runtime and compile time checks.
+* Operators to get/set from arrays not yet implemented so we won't yet full benefit.
 
-::
+Obviously this is early days so please expect bugs.
 
-  typedef struct Table {
-    CommonHeader;
-    lu_byte flags;  /* 1<<p means tagmethod(p) is not present */
-    lu_byte lsizenode;  /* log2 of size of 'node' array */
-    unsigned int sizearray;  /* size of 'array' array */
-    TValue *array;  /* array part */
-    Node *node;
-    Node *lastfree;  /* any free position is before this position */
-    struct Table *metatable;
-    GCObject *gclist;
-    ravitype_t ravi_array_type; /* RAVI specialization */
-    unsigned int ravi_array_len; /* RAVI len specialization */
-  } Table;
+Example of code that works - you can copy this to the command line input::
+
+  local function tryme(); local i,j = 5,6; return i,j; end; local i:int, j:int = tryme(); return i+j
+
+Another::
+
+  local j:double; for i=1,1000000000 do; j = j+1; end; return j
+
+An example with arrays::
+
+  local a : double[], j:double = {}; for i=1,10 do; a[i] = i; j = j + a[i]; end; return j
 
 
-Parser Enhancements
-===================
-The parser needs to be enhanced to generate type specific instructions at various points. 
+The build is CMake based. I am testing this using Visual Studio 2013 on Windows 8.1 64bit and gcc on Unbuntu 64-bit.
 
-Local Variable Declarations
----------------------------
-First enhancement needed is when local variable declarations are parsed. We need to allow the type to be defined for each variable and ensure that any assignments are type-checked. This is somewhat complex process, due to the fact that assignments can be expressions involving function calls. The last function call is treated as a variable assignment - i.e. all trailing variables are assumed to be assigned values from the function call - if not the variables are set to nil by default. 
+To build on Windows I use::
 
-The entry point for parsing a local statement is ``localstat()`` in ``lparser.c``. This function has been enhanced to parse the type annotations supported by Ravi. The modified function is shown below.
+  cd build
+  cmake -G "Visual Studio 12 Win64" ..
 
-::
+I then open the solution in VS2013 and do a build from there.
 
-  static void localstat (LexState *ls) {
-    /* stat -> LOCAL NAME {',' NAME} ['=' explist] */
-    int nvars = 0;
-    int nexps;
-    expdesc e;
-    e.ravi_type = RAVI_TANY;
-    int vars[MAXVARS] = { 0 };
-    do {
-      /* RAVI changes start */
-      /* local name : type = value */
-      TString *name = str_checkname(ls);
-      ravitype_t tt = RAVI_TANY;
-      if (testnext(ls, ':')) {
-        TString *typename = str_checkname(ls); /* we expect a type name */
-        const char *str = getaddrstr(typename);
-        if (strcmp(str, "int") == 0)
-          tt = RAVI_TNUMINT;
-        else if (strcmp(str, "double") == 0)
-          tt = RAVI_TNUMFLT;
-        if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
-          if (testnext(ls, '[')) {
-            checknext(ls, ']');
-            tt = (tt == RAVI_TNUMFLT) ? RAVI_TARRAYFLT : RAVI_TARRAYINT;
-          }
-        }
-      }
-      new_localvar(ls, name, tt);
-      vars[nvars] = tt;
-      /* RAVI changes end */
-      nvars++;
-    } while (testnext(ls, ','));
-    if (testnext(ls, '='))
-      nexps = localvar_explist(ls, &e, vars, nvars);
-    else {
-      e.k = VVOID;
-      nexps = 0;
-    }
-    localvar_adjust_assign(ls, nvars, nexps, &e);
-    adjustlocalvars(ls, nvars);
-  }
+On Ubuntu I use::
 
-The do-while loop is responsible for parsing the variable names and the type annotations. As each variable name is parsed we detect if there is a type annotation, if and if present the type is recorded in the array ``vars``. 
+  cd build
+  cmake -G "Unix Makefiles" ..
+  make
 
-The type of the variable is also passed to ``new_localvar()`` which records this in the ``LocVar`` structure associated with the variable.
 
-::
-  
-  static int registerlocalvar (LexState *ls, TString *varname, int ravi_type) {
-    FuncState *fs = ls->fs;
-    Proto *f = fs->f;
-    int oldsize = f->sizelocvars;
-    luaM_growvector(ls->L, f->locvars, fs->nlocvars, f->sizelocvars,
-                  LocVar, SHRT_MAX, "local variables");
-    while (oldsize < f->sizelocvars) {
-      /* RAVI change initialize */
-      f->locvars[oldsize].startpc = -1;
-      f->locvars[oldsize].endpc = -1;
-      f->locvars[oldsize].ravi_type = RAVI_TANY;
-      f->locvars[oldsize++].varname = NULL;
-    }
-    f->locvars[fs->nlocvars].varname = varname;
-    f->locvars[fs->nlocvars].ravi_type = ravi_type;
-    luaC_objbarrier(ls->L, f, varname);
-    return fs->nlocvars++;
-  }
+The ``lua`` command recognizes following environment variables.
 
-  /* create a new local variable in function scope, and set the
-   * variable type (RAVI - added type tt) */
-  static void new_localvar (LexState *ls, TString *name, ravitype_t tt) {
-    FuncState *fs = ls->fs;
-    Dyndata *dyd = ls->dyd;
-    /* register variable and get its index */
-    /* RAVI change - record type info for local variable */
-    int i = registerlocalvar(ls, name, tt);
-    checklimit(fs, dyd->actvar.n + 1 - fs->firstlocal,
-                  MAXVARS, "local variables");
-    luaM_growvector(ls->L, dyd->actvar.arr, dyd->actvar.n + 1,
-                  dyd->actvar.size, Vardesc, MAX_INT, "local variables");
-    /* variable will be placed at stack position dyd->actvar.n */
-    dyd->actvar.arr[dyd->actvar.n].idx = cast(short, i);
-    DEBUG_VARS(raviY_printf(fs, "new_localvar -> registering %v fs->f->locvars[%d] at ls->dyd->actvar.arr[%d]\n", &fs->f->locvars[i], i, dyd->actvar.n));
-    dyd->actvar.n++;
-    DEBUG_VARS(raviY_printf(fs, "new_localvar -> ls->dyd->actvar.n set to %d\n", dyd->actvar.n));
-  }
+* ``RAVI_DEBUG_EXPR`` - if set to a value this triggers debug output of expression parsing
+* ``RAVI_DEBUG_CODEGEN`` - if set to a value this triggers a dump of the code being generated
+* ``RAVI_DEBUG_VARS`` - if set this triggers a dump of local variables construction and destruction
 
-The next bit of change is how the expressions are handled following the ``=`` symbol. The previously built ``vars`` array is passed to a modified version of ``explist()`` called ``localvar_explist()``. This handles the parsing of expressions and then ensuring that each expression matches the type of the variable where known. The ``localvar_explist()`` function is shown next.
+Work Plan
+---------
+* Feb 2015 - implement type specialisation for arrays 
+* Mar 2015 - implement function parameter / return type specialisation
 
-::
+License
+-------
+Same as Lua.
 
-  static int localvar_explist(LexState *ls, expdesc *v, int *vars, int nvars) {
-    /* explist -> expr { ',' expr } */
-    int n = 1;  /* at least one expression */
-    expr(ls, v);
-  #if RAVI_ENABLED
-    ravi_typecheck(ls, v, vars, nvars, 0);
-  #endif
-    while (testnext(ls, ',')) {
-      luaK_exp2nextreg(ls->fs, v);
-      expr(ls, v);
-  #if RAVI_ENABLED
-      ravi_typecheck(ls, v, vars, nvars, n);
-  #endif
-      n++;
-    }
-    return n;
-  }
+Language Syntax
+---------------
+I hope to enhance the language to variables to be optionally decorated with types. As the reason for doing so is performance primarily - not all types benefit from this capability. In fact it is quite hard to extend this to generic recursive structures such as tables without encurring significant overhead. For instance - even to represent a recursive type in the parser will require dynamic memory allocation and add great overhead to the parser.
 
-The main changes compared to ``explist()`` are the calls to ``ravi_typecheck()``. Note that the array ``vars`` is passed to the ``ravi_typecheck()`` function along with the current variable index in ``n``. The ``ravi_typecheck()`` function is reproduced below.
+So as of now the only types that seem worth specializing are:
 
-::
+* int (64-bit)
+* double
+* array of ints
+* array of doubles
 
-  static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n)
-  {
-    if (n < nvars && vars[n] != RAVI_TANY && v->ravi_type != vars[n]) {
-      if (v->ravi_type != vars[n] && 
-          (vars[n] == RAVI_TARRAYFLT || vars[n] == RAVI_TARRAYINT) && 
-          v->k == VNONRELOC) {
-        /* as the bytecode for generating a table is already 
-         * emitted by this stage we have to amend the generated byte code 
-         * - not sure if there is a better approach.
-         * We look for the last bytecode that is OP_NEWTABLE 
-         * and that has the same destination
-         * register as v->u.info which is our variable
-         * local a:int[] = { 1 }
-         *                     ^ We are just past this and
-         *                       about to assign to a
-         */
-        int i = ls->fs->pc - 1;
-        for (; i >= 0; i--) {
-          Instruction *pc = &ls->fs->f->code[i];
-          OpCode op = GET_OPCODE(*pc);
-          int reg;
-          if (op != OP_NEWTABLE)
-            continue;
-          reg = GETARG_A(*pc);
-          if (reg != v->u.info)
-            continue;
-          op = (vars[n] == RAVI_TARRAYINT) ? OP_RAVI_NEWARRAYI : OP_RAVI_NEWARRAYF;
-          SET_OPCODE(*pc, op); /* modify opcode */
-          DEBUG_CODEGEN(raviY_printf(ls->fs, "[%d]* %o ; modify opcode\n", i, *pc));
-          break;
-        }
-        if (i < 0)
-          luaX_syntaxerror(ls, "expecting array initializer");
-      }
-      /* if we are calling a function then convert return types */
-      else if (v->ravi_type != vars[n] && 
-              (vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT) && 
-              v->k == VCALL) {
-        /* For local variable declarations that call functions e.g.
-         * local i = func()
-         * Lua ensures that the function returns values 
-         * to register assigned to variable i and above so that no 
-         * separate OP_MOVE instruction is necessary. So that means that
-         * we need to coerce the return values in situ.
-         */
-        /* Obtain the instruction for OP_CALL */
-        Instruction *pc = &getcode(ls->fs, v); 
-        lua_assert(GET_OPCODE(*pc) == OP_CALL);
-        int a = GETARG_A(*pc); /* function return values 
-                                  will be placed from register pointed 
-                                  by A and upwards */
-        int nrets = GETARG_C(*pc) - 1; /* operand C contains 
-                                          number of return values expected  */
-        /* Note that at this stage nrets is always 1 
-         * - as Lua patches in the this value for the last 
-         * function call in a variable declaration statement 
-         * in adjust_assign and localvar_adjust_assign */
-        /* all return values that are going to be assigned 
-           to typed local vars must be converted to the correct type */
-        int i;
-        for (i = n; i < (n+nrets); i++)
-          /* do we need to convert ? */
-          if ((vars[i] == RAVI_TNUMFLT || vars[i] == RAVI_TNUMINT))
-            /* code an instruction to convert in place */
-            luaK_codeABC(ls->fs, 
-                         vars[i] == RAVI_TNUMFLT ? 
-                                    OP_RAVI_TOFLT : OP_RAVI_TOINT, 
-                         a+(i-n), 0, 0);
-          else if ((vars[i] == RAVI_TARRAYFLT || vars[i] == RAVI_TARRAYINT))
-            /* code an instruction to convert in place */
-            luaK_codeABC(ls->fs, 
-                         vars[i] == RAVI_TARRAYFLT ? 
-                                    OP_RAVI_TOARRAYF : OP_RAVI_TOARRAYI, 
-                         a + (i - n), 0, 0);
-      }
-      else if ((vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT) && 
-               v->k == VINDEXED) {
-        if (vars[n] == RAVI_TNUMFLT && v->ravi_type != RAVI_TARRAYFLT || 
-          vars[n] == RAVI_TNUMINT && v->ravi_type != RAVI_TARRAYINT) 
-          luaX_syntaxerror(ls, "Invalid local assignment");
-      }
-      else
-        luaX_syntaxerror(ls, "Invalid local assignment");
-    }
-  }
+Everything else will just be dynamic type as in Lua. However we can recognise following types to make the language more user friendly:
 
-There are several parts to this function.
+* string
+* table 
+* function
+* nil
+* boolean
 
-The simple case is when the type of the expression matches the variable.
+And we may end up allowing additionally following types depending on whether they help our goals:
 
-Secondly if the expression is a table initializer then we need to generate specialized opcodes if the target variable is supposed to be ``int[]`` or ``double[]``. The specialized opcode sets up some information in the ``Table`` structure. The problem is that this requires us to modify ``OP_NEWTABLE`` instruction which has already been emitted. So we scan the generated instructions to find the last ``OP_NEWTABLE`` instruction that assigns to the register associated with the target variable.  
+* array of booleans
+* array of strings
+* array of functions
 
-Next bit of special handling is for function calls. If the assignment makes a function call then we perform type coercion on return values where these values are being assigned to variables with defined types. This means that if the target variable is ``int`` or ``double`` we issue opcodes ``TOINT`` and ``TOFLT`` respectively. If the target variable is ``int[]`` or ``double[]`` then we issue ``TOARRAYI`` and ``TOARRAYF`` respectively. These opcodes ensure that the values are of required type or can be cast to the required type.
+The syntax for introducing the type will probably be as below::
 
-Note that any left over variables that are not assigned values, are set to 0 if they are of int or double type, else they are set to nil as per Lua's default behavior. This is handled in ``localvar_adjust_assign()`` which is described later on.
+  function foo(s: string) : string
+    return s
+  end
 
-Finally the last case is when the target variable is ``int`` or ``double`` and the expression is a table / array access. In this case we check that the table is of required type.
+Local variables may be given types as shown below::
 
-The ``localvar_adjust_assign()`` function referred to above is shown below.
+  function foo() : string
+    local s: string = "hello world!"
+    return s
+  end
 
-::
+If no type is specified then then type will be dynamic - exactly what the Lua default is.
 
-  static void localvar_adjust_assign(LexState *ls, int nvars, int nexps, expdesc *e) {
-    FuncState *fs = ls->fs;
-    int extra = nvars - nexps;
-    if (hasmultret(e->k)) {
-      extra++;  /* includes call itself */
-      if (extra < 0) extra = 0;
-      /* following adjusts the C operand in the OP_CALL instruction */
-      luaK_setreturns(fs, e, extra);  /* last exp. provides the difference */
-  #if RAVI_ENABLED
-      /* Since we did not know how many return values to process in localvar_explist() we
-      * need to add instructions for type coercions at this stage for any remaining
-      * variables
-      */
-      ravi_coercetype(ls, e, extra);
-  #endif
-      if (extra > 1) luaK_reserveregs(fs, extra - 1);
-    }
-    else {
-      if (e->k != VVOID) luaK_exp2nextreg(fs, e);  /* close last expression */
-      if (extra > 0) {
-        int reg = fs->freereg;
-        luaK_reserveregs(fs, extra);
-        /* RAVI TODO for typed variables we should not set to nil? */
-        luaK_nil(fs, reg, extra);
-  #if RAVI_ENABLED
-        /* typed variables that are primitives cannot be set to nil so 
-         * we need to emit instructions to initialise them to default values 
-         */
-        ravi_setzero(fs, reg, extra);
-  #endif
-      }
-    }
-  }
+When a typed function is called the inputs and return value can be validated. Consider the function below::
 
-As mentioned before any variables left over in a local declaration that have not been assigned values must be set to default values appropriate for the type. In the case of trailing values returned by a function call we need to coerce the values to the required types. All this is done in the ``localvar_adjust_assign()`` function above.
+  local function foo(a, b: int, c: string)
+    return
+  end
 
-Note that local declarations have a complication that until the declaration is complete the variable does not come in scope. So we have to be careful when we wish to map from a register to the local variable declaration as this mapping is only available after the variable is activated. Couple of helper routines are shown below. 
+When this function is called the compiler can validate that ``b`` is an int and ``c`` is a string. ``a`` on the other hand is dynamic so will behave as regular Lua value. The compiler can also ensure that the types of ``b`` and ``c`` are respected within the function. 
 
-::
+Return statements in typed functions can also be validated.
 
-  /* translate from local register to local variable index
-   */
-  static int register_to_locvar_index(FuncState *fs, int reg) {
-    int idx;
-    lua_assert(reg >= 0 && (fs->firstlocal + reg) < fs->ls->dyd->actvar.n);
-    /* Get the LocVar associated with the register */
-    idx = fs->ls->dyd->actvar.arr[fs->firstlocal + reg].idx;
-    lua_assert(idx < fs->nlocvars);
-    return idx;
-  }
-
-  /* get type of a register - if the register is not allocated
-   * to an active local variable, then return RAVI_TANY else
-   * return the type associated with the variable.
-   * This is a RAVI function
-   */
-  ravitype_t raviY_get_register_typeinfo(FuncState *fs, int reg) {
-    int idx; 
-    LocVar *v;
-    if (reg < 0 || reg >= fs->nactvar || (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n)
-      return RAVI_TANY;
-    /* Get the LocVar associated with the register */
-    idx = fs->ls->dyd->actvar.arr[fs->firstlocal + reg].idx;
-    lua_assert(idx < fs->nlocvars);
-    v = &fs->f->locvars[idx];
-    /* Variable in scope so return the type if we know it */
-    return v->ravi_type;
-  }
-
-Note the use of ``register_to_localvar_index()`` in functions below.
-
-::
-
-  /* Generate instructions for converting types 
-   * This is needed post a function call to handle
-   * variable number of return values
-   * n = number of return values to adjust 
-   */
-  static void ravi_coercetype(LexState *ls, expdesc *v, int n)
-  {
-    if (v->k != VCALL || n <= 0) return;
-    /* For local variable declarations that call functions e.g.
-    * local i = func()
-    * Lua ensures that the function returns values to register 
-    * assigned to variable and above so that no separate 
-    * OP_MOVE instruction is necessary. So that means that
-    * we need to coerce the return values in situ.
-    */
-    /* Obtain the instruction for OP_CALL */
-    Instruction *pc = &getcode(ls->fs, v); 
-    lua_assert(GET_OPCODE(*pc) == OP_CALL);
-    int a = GETARG_A(*pc); /* function return values will be placed 
-                              from register pointed by A and upwards */
-    /* all return values that are going to be assigned 
-     to typed local vars must be converted to the correct type */
-    int i;
-    for (i = a + 1; i < a + n; i++) {
-      /* Since this is called when parsing local statements the 
-       * variable may not yet have a register assigned to it 
-       * so we can't use raviY_get_register_typeinfo()
-       * here. Instead we need to check the variable definition - so we 
-       * first convert from local register to variable index.
-       */
-      int idx = register_to_locvar_index(ls->fs, i);
-      /* get variable's type */
-      ravitype_t ravi_type = ls->fs->f->locvars[idx].ravi_type;  
-      /* do we need to convert ? */
-      if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
-        /* code an instruction to convert in place */
-        luaK_codeABC(ls->fs, ravi_type == RAVI_TNUMFLT ? 
-                     OP_RAVI_TOFLT : OP_RAVI_TOINT, i, 0, 0);
-      else if (ravi_type == RAVI_TARRAYINT || ravi_type == RAVI_TARRAYFLT)
-        luaK_codeABC(ls->fs, ravi_type == RAVI_TARRAYINT ? 
-                     OP_RAVI_TOARRAYI : OP_RAVI_TOARRAYF, i, 0, 0);
-    }
-  }
-
-  static void ravi_setzero(FuncState *fs, int from, int n) {
-    int last = from + n - 1;  /* last register to set nil */
-    int i;
-    for (i = from; i <= last; i++) {
-      /* Since this is called when parsing local statements 
-       * the variable may not yet have a register assigned to 
-       * it so we can't use raviY_get_register_typeinfo()
-       * here. Instead we need to check the variable definition - so we
-       * first convert from local register to variable index.
-       */
-      int idx = register_to_locvar_index(fs, i);
-      /* get variable's type */   
-      ravitype_t ravi_type = fs->f->locvars[idx].ravi_type;  
-      /* do we need to convert ? */
-      if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
-        /* code an instruction to convert in place */
-        luaK_codeABC(fs, ravi_type == RAVI_TNUMFLT ? 
-           OP_RAVI_LOADFZ : OP_RAVI_LOADIZ, i, 0, 0);
-    }
-  }
-
-Assignments
+Array Types
 -----------
 
-Assignment statements have to be enhanced to perform similar type checks as for local declarations. Fortunately he assignment goes through the function ``luaK_storevar()`` in ``lcode.c``. A modified version of this is shown below.
+When it comes to complex types such as arrays, tables and functions, at this point in time, I think that Ravi only needs to support explicit specialization for arrays of integers and doubles::
 
-::
+  function foo(p1: {}, p2: int[])
+    -- p1 is a table
+    -- p2 is an array of integers
+    local t1 = {} -- t1 is a table
+    local a1 : int[] = {} -- a1 is an array of integers, specialization of table
+    local d1 : double[] = {} -- d1 is an array of doubles, specialization of table
+  end
 
-  void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
-    switch (var->k) {
-      case VLOCAL: {
-        check_valid_store(fs, var, ex);
-        freeexp(fs, ex);
-        exp2reg(fs, ex, var->u.info);
-        return;
-      }
-      case VUPVAL: {
-        int e = luaK_exp2anyreg(fs, ex);
-        luaK_codeABC(fs, OP_SETUPVAL, e, var->u.info, 0);
-        break;
-      }
-      case VINDEXED: {
-        OpCode op = (var->u.ind.vt == VLOCAL) ? 
-                       OP_SETTABLE : OP_SETTABUP;
-        if (op == OP_SETTABLE) {
-          /* table value set - if array access then use specialized versions */
-          if (var->ravi_type == RAVI_TARRAYFLT && 
-              var->u.ind.key_type == RAVI_TNUMINT)
-            op = OP_RAVI_SETTABLE_AF;
-          else if (var->ravi_type == RAVI_TARRAYINT && 
-                   var->u.ind.key_type == RAVI_TNUMINT)
-            op = OP_RAVI_SETTABLE_AI;
-        }
-        int e = luaK_exp2RK(fs, ex);
-        luaK_codeABC(fs, op, var->u.ind.t, var->u.ind.idx, e);
-        break;
-      }
-      default: {
-        lua_assert(0);  /* invalid var kind to store */
-        break;
-      }
-    }
-    freeexp(fs, ex);
-  }
 
-Firstly note the call to ``check_valid_store()`` for a local variable assignment. The ``check_valid_store()`` function validates that the assignment is compatible.
+To support array types we need a mix of runtime and compile time type checking. The Lua table type will be enhanced to hold type information so that when an array type is created the type of the array will be recorded. This will allow the runtime to detect incorrect usage of array type and raise errors if necessary. However, on the other hand, it will be possible to pass the array type to an existing Lua function as a regular table - and as long as the Lua function does not attempt to subvert the array type it should work as normal.
 
-Secondly if the assignment is to an indexed variable, i.e., table, then we need to generate special opcodes for arrays.
+The array types will have some special behaviour:
 
-MOVE opcodes
-------------
-Any ``MOVE`` instructions must be modified so that if the target is register that hosts a variable of known type then we need to generate special instructions that do a type conversion during the move. This is handled in ``discharge2reg()`` function which is reproduced below.
+* indices must be >= 1
+* array will grow automatically if user sets the element just past the array length
+* it will be an error to attempt to set an element that is beyond len+1 
+* the current used length of the array will be recorded and returned by len operations
+* the array will only permit the right type of value to be assigned (this will be checked at runtime to allow full compatibility with Lua)
+* accessing out of bounds elements will cause an error, except for setting the len+1 element
+* it will be possible to pass arrays to functions and return arrays from functions - the array types will be checked at runtime
+* it should be possible to store an array type in a table - however any operations on array type can only be optimised to special bytecode if the array type is a local variable. Otherwise regular table access will be used subject to runtime checks. 
+* array types may not have meta methods - this will be enforced at runtime
+* array elements will be set to 0 not nil as default value
 
-::
+All type checks are at runtime
+------------------------------
+To keep with Lua's dynamic nature I plan a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectually all checks are at runtime.
 
-  static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
-    luaK_dischargevars(fs, e);
-    switch (e->k) {
-      case VNIL: {
-        luaK_nil(fs, reg, 1);
-        break;
-      }
-      case VFALSE: case VTRUE: {
-        luaK_codeABC(fs, OP_LOADBOOL, reg, e->k == VTRUE, 0);
-        break;
-      }
-      case VK: {
-        luaK_codek(fs, reg, e->u.info);
-        break;
-      }
-      case VKFLT: {
-        luaK_codek(fs, reg, luaK_numberK(fs, e->u.nval));
-        break;
-      }
-      case VKINT: {
-        luaK_codek(fs, reg, luaK_intK(fs, e->u.ival));
-        break;
-      }
-      case VRELOCABLE: {
-        Instruction *pc = &getcode(fs, e);
-        SETARG_A(*pc, reg);
-        DEBUG_EXPR(raviY_printf(fs, "discharge2reg (VRELOCABLE set arg A) %e\n", e));
-        DEBUG_CODEGEN(raviY_printf(fs, "[%d]* %o ; set A to %d\n", e->u.info, *pc, reg));
-        break;
-      }
-      case VNONRELOC: {
-        if (reg != e->u.info) {
-          /* code a MOVEI or MOVEF if the target register is a local typed variable */
-          int ravi_type = raviY_get_register_typeinfo(fs, reg);
-          switch (ravi_type) {
-          case RAVI_TNUMINT:
-            luaK_codeABC(fs, OP_RAVI_MOVEI, reg, e->u.info, 0);
-            break;
-          case RAVI_TNUMFLT:
-            luaK_codeABC(fs, OP_RAVI_MOVEF, reg, e->u.info, 0);
-            break;
-          case RAVI_TARRAYINT:
-            luaK_codeABC(fs, OP_RAVI_MOVEAI, reg, e->u.info, 0);
-            break;
-          case RAVI_TARRAYFLT:
-            luaK_codeABC(fs, OP_RAVI_MOVEAF, reg, e->u.info, 0);
-            break;
-          default:
-            luaK_codeABC(fs, OP_MOVE, reg, e->u.info, 0);
-            break;
-          }
-        }
-        break;
-      }
-      default: {
-        lua_assert(e->k == VVOID || e->k == VJMP);
-        return;  /* nothing to do... */
-      }
-    }
-    e->u.info = reg;
-    e->k = VNONRELOC; 
-  }
+Implementation Strategy
+-----------------------
+I do not want to introduce any new types to the Lua system as the types I need already exist and I quite like the minimalist nature of Lua. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser/code generator to encode these opcodes only when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks. In reality the performance gain may be offset by the increase in the instruction decoding / branching - so it remains to be seen whether this approach is beneficial. However, I am hoping that type specific instructions will lend themselves to more efficient JIT at a later stage.
 
-Note the handling of ``VNONRELOC`` case.
+My plan is to add new opcodes that cover arithmetic operations, array operations, variable assignments, etc..
 
-Expression Parsing
-------------------
-The expression evaluation process must be modified so that type information is retained and flows through as the parser evaluates the expression. This involves ensuring that the type information is passed through as the parser modifies, reuses, creates new ``expdesc`` objects. Essentially this means keeping the ``ravi_type`` correct.
+I will probably need to augment some existing types such as functions and tables to add the type signature.
 
-Additionally when arithmetic operations take place two things need to happen: a) specialized opcodes need to be emitted and b) the type of the resulting expression needs to be set.
+I intend to first add the opcodes to the VM before starting work on the parser and code generator.
 
-::
+Modifications to Lua Bytecode structure
+---------------------------------------
+An immediate issue is that the Lua bytecode structure has a 6-bit opcode which is insufficient to hold the various opcodes that I will need. Simply extending the size of this is problematic as then it reduces the space available to the operands A B and C. Furthermore the way Lua bytecodes work means that B and C operands must be 1-bit larger than A - as the extra bit is used to flag whether the operand refers to a constant or a register. (Thanks to Dirk Laurie for pointing this out). 
 
-  static void codeexpval (FuncState *fs, OpCode op,
-                        expdesc *e1, expdesc *e2, int line) {
-    lua_assert(op >= OP_ADD);
-    if (op <= OP_BNOT && constfolding(fs, getarithop(op), e1, e2))
-      return;  /* result has been folded */
-    else {
-      int o1, o2;
-      int isbinary = 1;
-      /* move operands to registers (if needed) */
-      if (op == OP_UNM || op == OP_BNOT || op == OP_LEN) {  /* unary op? */
-        o2 = 0;  /* no second expression */
-        o1 = luaK_exp2anyreg(fs, e1);  /* cannot operate on constants */
-        isbinary = 0;
-      }
-      else {  /* regular case (binary operators) */
-        o2 = luaK_exp2RK(fs, e2);  /* both operands are "RK" */
-        o1 = luaK_exp2RK(fs, e1);
-      }
-      if (o1 > o2) {  /* free registers in proper order */
-        freeexp(fs, e1);
-        freeexp(fs, e2);
-      }
-      else {
-        freeexp(fs, e2);
-        freeexp(fs, e1);
-      }
-  #if RAVI_ENABLED
-      if (op == OP_ADD && 
-        (e1->ravi_type == RAVI_TNUMFLT || e1->ravi_type == RAVI_TNUMINT) &&
-        (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT))
-        generate_binarithop(fs, e1, e2, o1, o2, 0);
-      else if (op == OP_MUL &&
-        (e1->ravi_type == RAVI_TNUMFLT || e1->ravi_type == RAVI_TNUMINT) &&
-        (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT))
-        generate_binarithop(fs, e1, e2, o1, o2, OP_RAVI_MULFF - OP_RAVI_ADDFF);
+If I change the sizes of the components it will make the new bytecode incompatible with Lua. Although this doesn't matter so much as long as source level compatibility is retained - I would like a solution that allows me to maintain full compatibility at bytecode level. An obvious solution is to allow extended 64-bit instructions - while retaining the existing 32-bit instructions.  
 
-      /* todo optimize the SUB opcodes when constant is small */
-      else if (op == OP_SUB && 
-               e1->ravi_type == RAVI_TNUMFLT && 
-               e2->ravi_type == RAVI_TNUMFLT) {
-        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFF, 0, o1, o2); 
-      }
-      else if (op == OP_SUB && 
-               e1->ravi_type == RAVI_TNUMFLT && 
-               e2->ravi_type == RAVI_TNUMINT) {
-        e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFI, 0, o1, o2); 
-      }
-      /* code omitted here  .... */
-      else {
-  #endif
-        e1->u.info = luaK_codeABC(fs, op, 0, o1, o2);  /* generate opcode */
-  #if RAVI_ENABLED
-      }
-  #endif
-      e1->k = VRELOCABLE;  /* all those operations are relocable */
-      if (isbinary) {
-        if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) 
-          && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT)
-          e1->ravi_type = RAVI_TNUMFLT;
-        else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) 
-          && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMINT)
-          e1->ravi_type = RAVI_TNUMFLT;
-        else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) 
-          && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMFLT)
-          e1->ravi_type = RAVI_TNUMFLT;
-        else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL) 
-          && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
-          e1->ravi_type = RAVI_TNUMINT;
-        else if ((op == OP_DIV) 
-          && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
-          e1->ravi_type = RAVI_TNUMFLT;
-        else
-          e1->ravi_type = RAVI_TANY;
-      }
-      luaK_fixline(fs, line);
-    }
-  } 
+For now however I am just amending the bit mapping in the 32-bit instruction to allow 9-bits for the byte-code, 7-bits for operand A, and 8-bits for operands B and C. This means that some of the Lua limits (maximum number of variables in a function, etc.) have to be revised to be lower than the default.
 
-When expression reference indexed variables, i.e., tables, we need to emit specialized opcodes if the table is an array. This is done in ``luaK_dischargevars()``.
+New OpCodes
+-----------
+The new instructions are specialised for types, and also for register/versus constant. So for example ``OP_RAVI_ADDFI`` means add ``float`` and ``int``. And ``OP_RAVI_ADDFF`` means add ``float`` and ``float``. The existing Lua opcodes that these are based on define which operands are used.
 
-::
+Example::
 
-  void luaK_dischargevars (FuncState *fs, expdesc *e) {
-    switch (e->k) {
-      case VLOCAL: {
-        e->k = VNONRELOC;
-        DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VLOCAL->VNONRELOC) %e\n", e));
-        break;
-      }
-      case VUPVAL: {
-        e->u.info = luaK_codeABC(fs, OP_GETUPVAL, 0, e->u.info, 0);
-        e->k = VRELOCABLE;
-        DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VUPVAL->VRELOCABLE) %e\n", e));
-        break;
-      }
-      case VINDEXED: {
-        OpCode op = OP_GETTABUP;  /* assume 't' is in an upvalue */
-        freereg(fs, e->u.ind.idx);
-        if (e->u.ind.vt == VLOCAL) {  /* 't' is in a register? */
-          freereg(fs, e->u.ind.t);
-          /* table access - set specialized op codes if array types are detected */
-          if (e->ravi_type == RAVI_TARRAYFLT && 
-              e->u.ind.key_type == RAVI_TNUMINT)
-            op = OP_RAVI_GETTABLE_AF;
-          else if (e->ravi_type == RAVI_TARRAYINT && 
-                   e->u.ind.key_type == RAVI_TNUMINT)
-            op = OP_RAVI_GETTABLE_AI;
-          else
-            op = OP_GETTABLE;
-          if (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT)
-            /* set the type of resulting expression */
-            e->ravi_type = e->ravi_type == RAVI_TARRAYFLT ? 
-                             RAVI_TNUMFLT : RAVI_TNUMINT;
-        }
-        e->u.info = luaK_codeABC(fs, op, 0, e->u.ind.t, e->u.ind.idx);
-        e->k = VRELOCABLE;
-        DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VINDEXED->VRELOCABLE) %e\n", e));
-        break;
-      }
-      case VVARARG:
-      case VCALL: {
-        luaK_setoneret(fs, e);
-        break;
-      }
-      default: break;  /* there is one value available (somewhere) */
-    }
-  }
+  local i=0; i=i+1
 
-fornum statements
------------------
+Above standard Lua code compiles to::
 
-The Lua fornum statements create special variables. In order to allows the loop variable to be used in expressions within the loop body we need to set the types of these variables. This is handled in ``fornum()`` as shown below.
+  [0] LOADK A=0 Bx=-1
+  [1] ADD A=0 B=0 C=-2
+  [2] RETURN A=0 B=1
 
-::
+We add type info using Ravi extensions::
 
-  /* parse a numerical for loop, calls forbody()
-   * called from forstat()
-   */
-  static void fornum (LexState *ls, TString *varname, int line) {
-    /* fornum -> NAME = exp1,exp1[,exp1] forbody */
-    FuncState *fs = ls->fs;
-    int base = fs->freereg;
-    LocVar *vidx, *vlimit, *vstep, *vvar;
-    new_localvarliteral(ls, "(for index)");
-    new_localvarliteral(ls, "(for limit)");
-    new_localvarliteral(ls, "(for step)");
-    new_localvar(ls, varname, RAVI_TANY);
-    /* The fornum sets up its own variables as above.
-       These are expected to hold numeric values - but from Ravi's
-       point of view we need to know if the variable is an integer or
-       double. So we need to check if this can be determined from the
-       fornum expressions. If we can then we will set the 
-       fornum variables to the type we discover.
-    */
-    /* index variable - not yet active so get it from locvars*/
-    vidx = &fs->f->locvars[fs->nlocvars - 4]; 
-    /* index variable - not yet active so get it from locvars*/
-    vlimit = &fs->f->locvars[fs->nlocvars - 3];
-    /* index variable - not yet active so get it from locvars*/ 
-    vstep = &fs->f->locvars[fs->nlocvars - 2];
-    /* index variable - not yet active so get it from locvars*/ 
-    vvar = &fs->f->locvars[fs->nlocvars - 1]; 
-    checknext(ls, '=');
-    /* get the type of each expression */
-    ravitype_t tidx = RAVI_TANY, 
-               tlimit = RAVI_TANY, 
-               tstep = RAVI_TNUMINT;
-    exp1(ls, &tidx);  /* initial value */
-    checknext(ls, ',');
-    exp1(ls, &tlimit);  /* limit */
-    if (testnext(ls, ','))
-      exp1(ls, &tstep);  /* optional step */
-    else {  /* default step = 1 */
-      luaK_codek(fs, fs->freereg, luaK_intK(fs, 1));
-      luaK_reserveregs(fs, 1);
-    }
-    if (tidx == tlimit && tlimit == tstep 
-        && (tidx == RAVI_TNUMFLT || tidx == RAVI_TNUMINT)) {
-      /* Ok so we have an integer or double */
-      vidx->ravi_type = vlimit->ravi_type 
-                      = vstep->ravi_type 
-                      = vvar->ravi_type = tidx;
-      DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for index %v\n", vidx));
-      DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for limit %v\n", vlimit));
-      DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for step %v\n", vstep));
-      DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for variable %v\n", vvar));
-    }
-    forbody(ls, base, line, 1, 1);
-  }
+  local i:int=0; i=i+1
 
-VM Enhancements
-===============
-A number of new opcodes are introduced to allow type specific operations.
+Now the code compiles to::
 
-Currently there are specialized versions of ``ADD``, ``SUB``, ``MUL`` and ``DIV`` operations. This will be extended to cover additional operators such as ``IDIV``.
-The ``ADD`` and ``MUL`` operations are implemented in a similar way. Both allow a second operand to be encoded directly in the ``C`` operand - when the value is a constant in the range [0,127]. 
+  [0] LOADK A=0 Bx=-1
+  [1] ADDII A=0 B=0 C=-2
+  [2] RETURN A=0 B=1
 
-One thing to note is that apart from division if an operation involves constants it is folded by Lua. Divisions are treated specially - an expression involving the ``0`` constant is not folded, even when the ``0`` is a numerator. Also worth noting is that DIV operator results in a float even when two integers are divided; you have to use ``IDIV`` to get an integer result - this opcode triggered in Lua 5.3 when the ``//`` operator is used. 
+Above uses type specialised opcode ``OP_RAVI_ADDII``. 
 
-A divide by zero when using integers causes a run time error, whereas for floating point operation the result is NaN. 
