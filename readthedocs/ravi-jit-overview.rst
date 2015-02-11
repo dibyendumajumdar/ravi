@@ -34,26 +34,6 @@ The command to create makefiles was as follows::
 
   cmake -DLLVM_DIR=/home/user/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
 
-Creating Lua Structure Mappings
--------------------------------
-One of the first tasks appears to be to map Lua structures to LLVM type definitions. Here is an example of how the ``GCObject`` structure may be mapped::
-
-  /* create a GCObject structure as defined in lobject.h */
-  // create struct type
-  llvm::StructType *myt = llvm::StructType::create(context, "RaviGCObject");
-  // we nee pointer to struct as this is the first field
-  llvm::PointerType *pmyt = llvm::PointerType::get(myt, 0);
-  std::vector<llvm::Type *> elements;
-  elements.push_back(pmyt); 
-  elements.push_back(llvm::Type::getInt8Ty(context));
-  elements.push_back(llvm::Type::getInt8Ty(context));
-  // define structure body
-  myt->setBody(elements);
-
-Memory Management
------------------
-Curiously LLVM docs do not say much about how memory should be managed. I am still trying to figure this out.
-
 
 Links
 -----
