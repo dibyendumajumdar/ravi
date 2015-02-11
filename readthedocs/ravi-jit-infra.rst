@@ -11,7 +11,7 @@ The Kaleidoscope MCJIT samples try to optimise the module to function mapping by
 function until a function is compiled. Once any function in the module is compiled, then a new module is allocated. Each module of course
 gets its own MCJIT instance.
 
-For Ravi, I want to have an abtraction layer that hides all this detail and allows us to change the implementation strategy without
+For Ravi, I want to have an abstraction layer that hides all this detail and allows us to change the implementation strategy without
 having to modify the rest of the system. In order to allow that I have created the following two interfaces.
 
 RaviJITState interface
@@ -69,8 +69,8 @@ This interface is for each JITed function. It looks like this::
     llvm::ExecutionEngine *engine() const;
   };
 
-Discussion
-----------
+Example Usage
+-------------
 What above does is abstracts away all the implementation details. Here is a test program that uses the above two interfaces::
 
   extern "C" int mytest(RaviGCObject *obj) {
