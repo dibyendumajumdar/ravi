@@ -50,8 +50,15 @@ An example with arrays::
 
   local a : double[], j:double = {}; for i=1,10 do; a[i] = i; j = j + a[i]; end; return j
 
+Documentation
+--------------
+See `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
+As more stuff is built I will keep updating the documentation so please revisit for latest information.
 
+Building Ravi
+--------------
 The build is CMake based. I am testing this using Visual Studio 2013 on Windows 8.1 64bit and gcc on Unbuntu 64-bit.
+As of Feb 2015 LLVM 3.5.1 is a dependency.
 
 To build on Windows I use::
 
@@ -66,7 +73,6 @@ On Ubuntu I use::
   cmake -G "Unix Makefiles" ..
   make
 
-
 The ``lua`` command recognizes following environment variables.
 
 * ``RAVI_DEBUG_EXPR`` - if set to a value this triggers debug output of expression parsing
@@ -75,8 +81,8 @@ The ``lua`` command recognizes following environment variables.
 
 Work Plan
 ---------
-* Feb 2015 - implement type specialisation for arrays 
-* Mar 2015 - implement function parameter / return type specialisation
+* Feb-May 2015 - implement JIT compilation using LLVM 
+* June 2015 - implement function parameter / return type specialisation
 
 License
 -------
