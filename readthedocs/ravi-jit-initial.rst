@@ -192,6 +192,30 @@ Run the function and test results::
     return ans == 42 ? 0 : 1;
 
 
+Accessing ``extern`` functions from JIT compiled code
+-----------------------------------------------------
+
+The JITed function needs to access ``extern`` Lua functions. We need a way to map these to make these visible to the JITed code. Simply declaring
+the functions ``extern`` only appears to work if the functios are available as exported symbols in dynamic libraries, e.g. the call to
+``printf`` above.
+
+From reading posts on the subject it appears that the way to do this is to add a global mapping in the ``ExecutionEngine`` by calling the
+``addGlobalMapping()`` method. However this doesn't work with MCJIT due to a bug! So we need to use a workaround. Apparently there are two
+solutions:
+
+* Create a custom memory manager that resolves the ``extern`` functions.
+* Add the symbol to the global symbols by calling ``llvm::sys::DynamicLibrary::AddSymbol()``.
+
+I am using the latter approach for now. 
+
+Memory Management in LLVM
+-------------------------
+Curiously LLVM docs do not say much about how memory should be managed. I am still trying to figure this out, but in general it seems that there is 
+hierarchy of ownership. Example: ``ExecutionEngine`` owns the ``Module``. By deleting the parent the 'owned' objects are automatically
+deleted.
+
+
 Links
 -----
 * `Object format issue on Windows <http://lists.cs.uiuc.edu/pipermail/llvmdev/2013-December/068407.html>`_
+* `ExecutionEngine::addGlobalMapping() bug in MCJIT <http://llvm.org/bugs/show_bug.cgi?id=20656>`_
