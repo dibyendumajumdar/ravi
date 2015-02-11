@@ -73,6 +73,16 @@ Example Usage
 -------------
 What above does is abstracts away all the implementation details. Here is a test program that uses the above two interfaces::
 
+  // This mirrors the Lua GCObject structure in lobject.h
+  typedef struct RaviGCObject {
+    struct RaviGCObject *next;
+    unsigned char b1;
+    unsigned char b2;
+  } RaviGCObject;
+
+  // Our prototype for the JITted function
+  typedef int (*myfunc_t)(RaviGCObject *);
+  
   extern "C" int mytest(RaviGCObject *obj) {
     printf("value = %d\n", obj->b1);
     return obj->b1;
