@@ -219,3 +219,4 @@ Links
 -----
 * `Object format issue on Windows <http://lists.cs.uiuc.edu/pipermail/llvmdev/2013-December/068407.html>`_
 * `ExecutionEngine::addGlobalMapping() bug in MCJIT <http://llvm.org/bugs/show_bug.cgi?id=20656>`_
+* `LLVM Notes <http://nondot.org/sabre/LLVMNotes/>`_
