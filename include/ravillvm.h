@@ -30,6 +30,8 @@
 #define RAVI_API __declspec(dllimport)
 #endif
 
+namespace ravi {
+
 class RAVI_API RaviJITState;
 
 // Represents a JITed or JITable function
@@ -113,5 +115,6 @@ public:
   void dump();
   llvm::LLVMContext &context() { return context_; }
 };
+}
 
 #endif

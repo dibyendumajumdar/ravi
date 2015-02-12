@@ -158,7 +158,7 @@ extern "C" int mytest(RaviGCObject *obj) {
 // infrastructure
 int test2() {
 
-  RaviJITState jitState;
+  ravi::RaviJITState jitState;
 
   llvm::LLVMContext &context = jitState.context();
   llvm::IRBuilder<> builder(context);
@@ -187,7 +187,7 @@ int test2() {
   args.push_back(pstructType);
   llvm::FunctionType *funcType =
       llvm::FunctionType::get(builder.getInt32Ty(), args, false);
-  RaviJITFunction *func = jitState.createFunction(
+  ravi::RaviJITFunction *func = jitState.createFunction(
       funcType, llvm::Function::ExternalLinkage, "testfunc");
 
   llvm::Function *mainFunc = func->function();
