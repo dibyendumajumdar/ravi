@@ -158,7 +158,10 @@ extern "C" int mytest(RaviGCObject *obj) {
 // infrastructure
 int test2() {
 
-  ravi::RaviJITState jitState;
+  auto jitStatePtr = ravi::RaviJITStateFactory::newJITState();
+  ravi::RaviJITState &jitState = *jitStatePtr.get();
+
+  jitState.dump();
 
   llvm::LLVMContext &context = jitState.context();
   llvm::IRBuilder<> builder(context);

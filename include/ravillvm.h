@@ -41,80 +41,58 @@ class RAVI_API RaviJITState;
 // Lua object is garbage collected - with MCJIT this is not possible
 // to do at function level
 class RAVI_API RaviJITFunction {
-
-  // The function is tracked by RaviJITState so we need to
-  // tell RaviJITState when this function dies
-  RaviJITState *owner_;
-
-  // Module within which the function will be defined
-  llvm::Module *module_;
-
-  // Unique name for the function
-  std::string name_;
-
-  // The execution engine responsible for compiling the
-  // module
-  llvm::ExecutionEngine *engine_;
-
-  // The llvm Function definition
-  llvm::Function *function_;
-
-  // Pointer to compiled function - this is only set when
-  // the function
-  void *ptr_;
-
 public:
-  RaviJITFunction(RaviJITState *owner, llvm::Module *module,
-                  llvm::FunctionType *type,
-                  llvm::GlobalValue::LinkageTypes linkage,
-                  const std::string &name);
-  ~RaviJITFunction();
+  virtual ~RaviJITFunction() {}
 
   // Compile the function if not already compiled and
   // return pointer to function
-  void *compile();
+  virtual void *compile() = 0;
 
   // Add declaration for an extern function that is not
   // loaded dynamically - i.e., is part of the the executable
   // and therefore not visible at runtime by name
-  llvm::Constant *addExternFunction(llvm::FunctionType *type, void *address,
-                                    const std::string &name);
+  virtual llvm::Constant *addExternFunction(llvm::FunctionType *type, void *address,
+                                    const std::string &name) = 0;
 
-  const std::string &name() const { return name_; }
-  llvm::Function *function() const { return function_; }
-  llvm::Module *module() const { return module_; }
-  llvm::ExecutionEngine *engine() const { return engine_; }
-  RaviJITState *owner() const { return owner_; }
-  void dump();
+  virtual const std::string &name() const = 0;
+  virtual llvm::Function *function() const = 0;
+  virtual llvm::Module *module() const = 0;
+  virtual llvm::ExecutionEngine *engine() const = 0;
+  virtual RaviJITState *owner() const = 0;
+  virtual void dump() = 0;
+
+protected:
+  RaviJITFunction() {}
+private:
+  RaviJITFunction(const RaviJITFunction&) = delete;
+  RaviJITFunction& operator=(const RaviJITFunction&) = delete;
 };
 
 // Ravi's JIT State
 // All of the JIT information is held here
 class RAVI_API RaviJITState {
-  // map of names to functions
-  std::map<std::string, RaviJITFunction *> functions_;
-  llvm::LLVMContext &context_;
-  // The triple represents the host target
-  std::string triple_;
-
 public:
-  RaviJITState();
-  ~RaviJITState();
+  virtual ~RaviJITState() {}
 
   // Create a function of specified type and linkage
-  RaviJITFunction *createFunction(llvm::FunctionType *type,
+  virtual RaviJITFunction *createFunction(llvm::FunctionType *type,
                                   llvm::GlobalValue::LinkageTypes linkage,
-                                  const std::string &name);
+                                  const std::string &name) = 0;
 
-  // Stop tracking the named function - note that
-  // the function is assumed to be destroyed by the user
-  void deleteFunction(const std::string &name);
-
-  void addGlobalSymbol(const std::string &name, void *address);
-
-  void dump();
-  llvm::LLVMContext &context() { return context_; }
+  virtual void dump() = 0;
+  virtual llvm::LLVMContext &context() = 0;
+protected:
+  RaviJITState() {}
+private:
+  RaviJITState(const RaviJITState&) = delete;
+  RaviJITState& operator=(const RaviJITState&) = delete;
 };
+
+class RAVI_API RaviJITStateFactory {
+public:
+  static std::unique_ptr<RaviJITState> newJITState();
+};
+
 }
 
 #endif
