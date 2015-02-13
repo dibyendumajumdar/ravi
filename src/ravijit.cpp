@@ -55,7 +55,8 @@ struct LuaLLVMTypes {
   llvm::Type *lua_UnsignedT;
   llvm::Type *lua_KContextT;
 
-  llvm::Type *lua_CFunctionT;
+  llvm::FunctionType *lua_CFunctionT;
+  llvm::PointerType *plua_CFunctionT;
   llvm::Type *lua_KFunctionT;
 
   llvm::Type *l_memT;
@@ -74,6 +75,7 @@ struct LuaLLVMTypes {
 
   llvm::StructType *ValueT;
   llvm::StructType *TValueT;
+  llvm::PointerType *pTValueT;
 
   llvm::StructType *TStringT;
   llvm::PointerType *pTStringT;
@@ -83,10 +85,28 @@ struct LuaLLVMTypes {
   llvm::PointerType *pTableT;
 
   llvm::StructType *UpvaldescT;
+  llvm::PointerType *pUpvaldescT;
 
   llvm::Type *ravitype_tT;
   llvm::StructType *LocVarT;
+  llvm::PointerType *pLocVarT;
 
+  llvm::Type *InstructionT;
+  llvm::PointerType *pInstructionT;
+  llvm::StructType *LClosureT;
+  llvm::PointerType *pLClosureT;
+  llvm::StructType *RaviJITProtoT;
+  llvm::PointerType *pRaviJITProtoT;
+
+  llvm::StructType *ProtoT;
+  llvm::PointerType *pProtoT;
+  llvm::PointerType *ppProtoT;
+
+  llvm::StructType* UpValT;
+  llvm::PointerType* pUpValT;
+
+  llvm::StructType *CClosureT;
+  llvm::PointerType *pCClosureT;
 };
 
 LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
@@ -118,10 +138,16 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
 
   lu_byteT = llvm::Type::getInt8Ty(context);
 
+  InstructionT = C_intT;
+  pInstructionT = llvm::PointerType::get(InstructionT, 0);
+
   lua_StateT = llvm::StructType::create(context, "ravi.lua_State");
   plua_StateT = llvm::PointerType::get(lua_StateT, 0);
 
   std::vector<llvm::Type *> elements;
+  elements.push_back(plua_StateT);
+  lua_CFunctionT = llvm::FunctionType::get(C_intT, elements, false);
+  plua_CFunctionT = llvm::PointerType::get(lua_CFunctionT, 0);
 
   // struct GCObject {
   //   GCObject *next; 
@@ -130,6 +156,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   // };
   GCObjectT = llvm::StructType::create(context, "ravi.GCObject");
   pGCObjectT = llvm::PointerType::get(GCObjectT, 0);
+  elements.clear();
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
@@ -160,6 +187,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(ValueT);
   elements.push_back(C_intT);
   TValueT->setBody(elements);
+  pTValueT = llvm::PointerType::get(TValueT, 0);
 
   ///*
   //** Header for string value; string bytes follow the end of this structure
@@ -236,6 +264,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
   UpvaldescT->setBody(elements);
+  pUpvaldescT = llvm::PointerType::get(UpvaldescT, 0);
 
   ///*
   //** Description of a local variable for function prototypes
@@ -255,7 +284,119 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(C_intT); /* endpc */
   elements.push_back(ravitype_tT); /* ravi_type */
   LocVarT->setBody(elements);
+  pLocVarT = llvm::PointerType::get(LocVarT, 0);
 
+  LClosureT = llvm::StructType::create(context, "ravi.LClosure");
+  pLClosureT = llvm::PointerType::get(LClosureT, 0);
+
+  RaviJITProtoT = llvm::StructType::create(context, "ravi.RaviJITProto");
+  pRaviJITProtoT = llvm::PointerType::get(RaviJITProtoT, 0);
+
+  ///*
+  //** Function Prototypes
+  //*/
+  //typedef struct Proto {
+  //  CommonHeader;
+  //  lu_byte numparams;  /* number of fixed parameters */
+  //  lu_byte is_vararg;
+  //  lu_byte maxstacksize;  /* maximum stack used by this function */
+  //  int sizeupvalues;  /* size of 'upvalues' */
+  //  int sizek;  /* size of 'k' */
+  //  int sizecode;
+  //  int sizelineinfo;
+  //  int sizep;  /* size of 'p' */
+  //  int sizelocvars;
+  //  int linedefined;
+  //  int lastlinedefined;
+  //  TValue *k;  /* constants used by the function */
+  //  Instruction *code;
+  //  struct Proto **p;  /* functions defined inside the function */
+  //  int *lineinfo;  /* map from opcodes to source lines (debug information) */
+  //  LocVar *locvars;  /* information about local variables (debug information) */
+  //  Upvaldesc *upvalues;  /* upvalue information */
+  //  struct LClosure *cache;  /* last created closure with this prototype */
+  //  TString  *source;  /* used for debug information */
+  //  GCObject *gclist;
+  //  /* RAVI */
+  //  RaviJITProto *ravi_jit;
+  //} Proto;
+
+  ProtoT = llvm::StructType::create(context, "ravi.Proto");
+  pProtoT = llvm::PointerType::get(ProtoT, 0);
+  ppProtoT = llvm::PointerType::get(pProtoT, 0);
+  elements.clear();
+  elements.push_back(pGCObjectT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT); /* numparams */
+  elements.push_back(lu_byteT); /* is_vararg */
+  elements.push_back(lu_byteT); /* maxstacksize */
+  elements.push_back(C_intT); /* sizeupvalues */
+  elements.push_back(C_intT); /* sizek */
+  elements.push_back(C_intT); /* sizecode */
+  elements.push_back(C_intT); /* sizelineinfo */
+  elements.push_back(C_intT); /* sizep */
+  elements.push_back(C_intT); /* sizelocvars */
+  elements.push_back(C_intT); /* linedefined */
+  elements.push_back(C_intT); /* lastlinedefined */
+  elements.push_back(pTValueT); /* k */
+  elements.push_back(pInstructionT); /* code */
+  elements.push_back(ppProtoT); /* p */
+  elements.push_back(llvm::PointerType::get(C_intT, 0)); /* lineinfo */
+  elements.push_back(pLocVarT); /* locvars */
+  elements.push_back(pUpvaldescT); /* upvalues */
+  elements.push_back(pLClosureT); /* cache */
+  elements.push_back(pTStringT); /* source */
+  elements.push_back(pGCObjectT); /* gclist */
+  elements.push_back(pRaviJITProtoT); /* ravi_jit */
+  ProtoT->setBody(elements);
+
+  ///*
+  //** Lua Upvalues
+  //*/
+  //typedef struct UpVal UpVal;
+  UpValT = llvm::StructType::create(context, "ravi.UpVal");
+  pUpValT = llvm::PointerType::get(UpValT, 0);
+
+  ///*
+  //** Closures
+  //*/
+
+  //#define ClosureHeader \
+	//CommonHeader; lu_byte nupvalues; GCObject *gclist
+
+  //typedef struct CClosure {
+  //  ClosureHeader;
+  //  lua_CFunction f;
+  //  TValue upvalue[1];  /* list of upvalues */
+  //} CClosure;
+
+  CClosureT = llvm::StructType::create(context, "ravi.CClosure");
+  elements.clear();
+  elements.push_back(pGCObjectT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT); /* nupvalues */
+  elements.push_back(pGCObjectT); /* gclist */
+  elements.push_back(plua_CFunctionT); /* f */
+  elements.push_back(llvm::ArrayType::get(TValueT, 1));
+  CClosureT->setBody(elements);
+  pCClosureT = llvm::PointerType::get(CClosureT, 0);
+
+  //typedef struct LClosure {
+  //  ClosureHeader;
+  //  struct Proto *p;
+  //  UpVal *upvals[1];  /* list of upvalues */
+  //} LClosure;
+  elements.clear();
+  elements.push_back(pGCObjectT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT); /* nupvalues */
+  elements.push_back(pGCObjectT); /* gclist */
+  elements.push_back(pProtoT); /* p */
+  elements.push_back(llvm::ArrayType::get(pUpValT, 1));
+  LClosureT->setBody(elements);
 
 }
 
@@ -266,6 +407,9 @@ void LuaLLVMTypes::dump() {
   UdataT->dump(); fputs("\n", stdout);
   UpvaldescT->dump(); fputs("\n", stdout);
   LocVarT->dump(); fputs("\n", stdout);
+  ProtoT->dump(); fputs("\n", stdout);
+  CClosureT->dump(); fputs("\n", stdout);
+  LClosureT->dump(); fputs("\n", stdout);
 
 }
 
