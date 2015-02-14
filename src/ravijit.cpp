@@ -57,7 +57,12 @@ struct LuaLLVMTypes {
 
   llvm::FunctionType *lua_CFunctionT;
   llvm::PointerType *plua_CFunctionT;
-  llvm::Type *lua_KFunctionT;
+
+  llvm::FunctionType *lua_KFunctionT;
+  llvm::PointerType *plua_KFunctionT;
+
+  llvm::FunctionType *lua_HookT;
+  llvm::PointerType *plua_HookT;
 
   llvm::Type *l_memT;
   llvm::Type *lu_memT;
@@ -79,6 +84,7 @@ struct LuaLLVMTypes {
 
   llvm::StructType *TStringT;
   llvm::PointerType *pTStringT;
+  llvm::PointerType *ppTStringT;
 
   llvm::StructType *UdataT;
   llvm::StructType *TableT;
@@ -113,6 +119,22 @@ struct LuaLLVMTypes {
 
   llvm::StructType *NodeT;
   llvm::PointerType *pNodeT;
+
+  llvm::StructType *lua_DebugT;
+  llvm::PointerType *plua_DebugT;
+
+  llvm::StructType *lua_longjumpT;
+  llvm::PointerType *plua_longjumpT;
+
+  llvm::StructType *MbufferT;
+  llvm::StructType *stringtableT;
+
+  llvm::PointerType *StkIdT;
+
+  llvm::StructType *CallInfoT;
+  llvm::StructType *CallInfo_cT;
+  llvm::StructType *CallInfo_lT;
+  llvm::PointerType *pCallInfoT;
 
 };
 
@@ -151,10 +173,19 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   lua_StateT = llvm::StructType::create(context, "ravi.lua_State");
   plua_StateT = llvm::PointerType::get(lua_StateT, 0);
 
+  lua_KContextT = C_ptrdiff_t;
+
   std::vector<llvm::Type *> elements;
   elements.push_back(plua_StateT);
   lua_CFunctionT = llvm::FunctionType::get(C_intT, elements, false);
   plua_CFunctionT = llvm::PointerType::get(lua_CFunctionT, 0);
+
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(C_intT);
+  elements.push_back(lua_KContextT);
+  lua_KFunctionT = llvm::FunctionType::get(C_intT, elements, false);
+  plua_KFunctionT = llvm::PointerType::get(lua_KFunctionT, 0);
 
   // struct GCObject {
   //   GCObject *next; 
@@ -196,6 +227,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   TValueT->setBody(elements);
   pTValueT = llvm::PointerType::get(TValueT, 0);
 
+  StkIdT = pTValueT;
+
   ///*
   //** Header for string value; string bytes follow the end of this structure
   //  ** (aligned according to 'UTString'; see next).
@@ -219,6 +252,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   //} UTString;
   TStringT = llvm::StructType::create(context, "ravi.TString");
   pTStringT = llvm::PointerType::get(TStringT, 0);
+  ppTStringT = llvm::PointerType::get(pTStringT, 0);
   elements.clear();
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
@@ -464,6 +498,91 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(C_intT); /* ravi_array_len */
   TableT->setBody(elements);
 
+  lua_DebugT = llvm::StructType::create(context, "ravi.lua_Debug");
+  plua_DebugT = llvm::PointerType::get(lua_DebugT, 0);
+
+  //struct lua_longjmp;  /* defined in ldo.c */
+  lua_longjumpT = llvm::StructType::create(context, "ravi.lua_longjmp");
+  plua_longjumpT = llvm::PointerType::get(lua_longjumpT, 0);
+
+  // lzio.h
+  //typedef struct Mbuffer {
+  //  char *buffer;
+  //  size_t n;
+  //  size_t buffsize;
+  //} Mbuffer;
+  MbufferT = llvm::StructType::create(context, "ravi.Mbuffer");
+  elements.clear();
+  elements.push_back(llvm::Type::getInt8PtrTy(context)); /* buffer */
+  elements.push_back(C_size_t); /* n */
+  elements.push_back(C_size_t); /* buffsize */
+  MbufferT->setBody(elements);
+
+  //typedef struct stringtable {
+  //  TString **hash;
+  //  int nuse;  /* number of elements */
+  //  int size;
+  //} stringtable;
+  stringtableT = llvm::StructType::create(context, "ravi.stringtable");
+  elements.clear();
+  elements.push_back(ppTStringT); /* hash */
+  elements.push_back(C_intT); /* nuse */
+  elements.push_back(C_intT); /* size */
+  stringtableT->setBody(elements);
+  
+  ///*
+  //** Information about a call.
+  //** When a thread yields, 'func' is adjusted to pretend that the
+  //** top function has only the yielded values in its stack; in that
+  //** case, the actual 'func' value is saved in field 'extra'.
+  //** When a function calls another with a continuation, 'extra' keeps
+  //** the function index so that, in case of errors, the continuation
+  //** function can be called with the correct top.
+  //*/
+  //typedef struct CallInfo {
+  //  StkId func;  /* function index in the stack */
+  //  StkId	top;  /* top for this function */
+  //  struct CallInfo *previous, *next;  /* dynamic call link */
+  //  union {
+  //    struct {  /* only for Lua functions */
+  //      StkId base;  /* base for this function */
+  //      const Instruction *savedpc;
+  //    } l;
+  //    struct {  /* only for C functions */
+  //      lua_KFunction k;  /* continuation in case of yields */
+  //      ptrdiff_t old_errfunc;
+  //      lua_KContext ctx;  /* context info. in case of yields */
+  //    } c;
+  //  } u;
+  //  ptrdiff_t extra;
+  //  short nresults;  /* expected number of results from this function */
+  //  lu_byte callstatus;
+  //} CallInfo;
+
+  elements.clear();
+  elements.push_back(StkIdT); /* base */
+  elements.push_back(pInstructionT); /* savedpc */
+  CallInfo_lT = llvm::StructType::create(elements);
+
+  elements.clear();
+  elements.push_back(plua_KFunctionT); /* k */
+  elements.push_back(C_ptrdiff_t); /* old_errfunc */
+  elements.push_back(lua_KContextT); /* ctx */
+  CallInfo_cT = llvm::StructType::create(elements);
+
+  CallInfoT = llvm::StructType::create(context, "ravi.CallInfo");
+  elements.clear();
+  elements.push_back(StkIdT); /* func */
+  elements.push_back(StkIdT); /* top */
+  elements.push_back(CallInfo_cT); /* u.c */
+  elements.push_back(C_ptrdiff_t); /* extra */
+  elements.push_back(llvm::Type::getInt16Ty(context)); /* nresults */
+  elements.push_back(lu_byteT); /* callstatus */
+  CallInfoT->setBody(elements);
+  pCallInfoT = llvm::PointerType::get(CallInfoT, 0);
+
+
+
 }
 
 void LuaLLVMTypes::dump() {
@@ -479,6 +598,9 @@ void LuaLLVMTypes::dump() {
   TKeyT->dump(); fputs("\n", stdout);
   NodeT->dump(); fputs("\n", stdout);
   TableT->dump(); fputs("\n", stdout);
+  MbufferT->dump(); fputs("\n", stdout);
+  stringtableT->dump(); fputs("\n", stdout);
+  CallInfoT->dump(); fputs("\n", stdout);
 }
 
 class RAVI_API RaviJITStateImpl;
