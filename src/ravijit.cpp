@@ -64,6 +64,9 @@ struct LuaLLVMTypes {
   llvm::FunctionType *lua_HookT;
   llvm::PointerType *plua_HookT;
 
+  llvm::FunctionType *lua_AllocT;
+  llvm::PointerType *plua_AllocT;
+
   llvm::Type *l_memT;
   llvm::Type *lu_memT;
 
@@ -74,6 +77,12 @@ struct LuaLLVMTypes {
 
   llvm::StructType *lua_StateT;
   llvm::PointerType *plua_StateT;
+
+  llvm::StructType *global_StateT;
+  llvm::PointerType *pglobal_StateT;
+
+  llvm::StructType *ravi_StateT;
+  llvm::PointerType *pravi_StateT;
 
   llvm::StructType *GCObjectT;
   llvm::PointerType *pGCObjectT;
@@ -187,6 +196,23 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   lua_KFunctionT = llvm::FunctionType::get(C_intT, elements, false);
   plua_KFunctionT = llvm::PointerType::get(lua_KFunctionT, 0);
 
+  elements.clear();
+  elements.push_back(llvm::Type::getInt8PtrTy(context));
+  elements.push_back(llvm::Type::getInt8PtrTy(context));
+  elements.push_back(C_size_t);
+  elements.push_back(C_size_t);
+  lua_AllocT = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(context), elements, false);
+  plua_AllocT = llvm::PointerType::get(lua_AllocT, 0);
+
+  lua_DebugT = llvm::StructType::create(context, "ravi.lua_Debug");
+  plua_DebugT = llvm::PointerType::get(lua_DebugT, 0);
+
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(plua_DebugT);
+  lua_HookT = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(context), elements, false);
+  plua_HookT = llvm::PointerType::get(lua_HookT, 0);
+
   // struct GCObject {
   //   GCObject *next; 
   //   lu_byte tt; 
@@ -231,9 +257,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
 
   ///*
   //** Header for string value; string bytes follow the end of this structure
-  //  ** (aligned according to 'UTString'; see next).
-  //  * /
-  //  typedef struct TString {
+  //** (aligned according to 'UTString'; see next).
+  //*/
+  //typedef struct TString {
   //   GCObject *next; 
   //   lu_byte tt; 
   //   lu_byte marked
@@ -498,9 +524,6 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(C_intT); /* ravi_array_len */
   TableT->setBody(elements);
 
-  lua_DebugT = llvm::StructType::create(context, "ravi.lua_Debug");
-  plua_DebugT = llvm::PointerType::get(lua_DebugT, 0);
-
   //struct lua_longjmp;  /* defined in ldo.c */
   lua_longjumpT = llvm::StructType::create(context, "ravi.lua_longjmp");
   plua_longjumpT = llvm::PointerType::get(lua_longjumpT, 0);
@@ -581,7 +604,109 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   CallInfoT->setBody(elements);
   pCallInfoT = llvm::PointerType::get(CallInfoT, 0);
 
+  //typedef struct ravi_State ravi_State;
 
+  ravi_StateT = llvm::StructType::create(context, "ravi.ravi_State");
+  pravi_StateT = llvm::PointerType::get(ravi_StateT, 0);
+
+  ///*
+  //** 'global state', shared by all threads of this state
+  //*/
+  //typedef struct global_State {
+  //  lua_Alloc frealloc;  /* function to reallocate memory */
+  //  void *ud;         /* auxiliary data to 'frealloc' */
+  //  lu_mem totalbytes;  /* number of bytes currently allocated - GCdebt */
+  //  l_mem GCdebt;  /* bytes allocated not yet compensated by the collector */
+  //  lu_mem GCmemtrav;  /* memory traversed by the GC */
+  //  lu_mem GCestimate;  /* an estimate of the non-garbage memory in use */
+  //  stringtable strt;  /* hash table for strings */
+  //  TValue l_registry;
+  //  unsigned int seed;  /* randomized seed for hashes */
+  //  lu_byte currentwhite;
+  //  lu_byte gcstate;  /* state of garbage collector */
+  //  lu_byte gckind;  /* kind of GC running */
+  //  lu_byte gcrunning;  /* true if GC is running */
+  //  GCObject *allgc;  /* list of all collectable objects */
+  //  GCObject **sweepgc;  /* current position of sweep in list */
+  //  GCObject *finobj;  /* list of collectable objects with finalizers */
+  //  GCObject *gray;  /* list of gray objects */
+  //  GCObject *grayagain;  /* list of objects to be traversed atomically */
+  //  GCObject *weak;  /* list of tables with weak values */
+  //  GCObject *ephemeron;  /* list of ephemeron tables (weak keys) */
+  //  GCObject *allweak;  /* list of all-weak tables */
+  //  GCObject *tobefnz;  /* list of userdata to be GC */
+  //  GCObject *fixedgc;  /* list of objects not to be collected */
+  //  struct lua_State *twups;  /* list of threads with open upvalues */
+  //  Mbuffer buff;  /* temporary buffer for string concatenation */
+  //  unsigned int gcfinnum;  /* number of finalizers to call in each GC step */
+  //  int gcpause;  /* size of pause between successive GCs */
+  //  int gcstepmul;  /* GC 'granularity' */
+  //  lua_CFunction panic;  /* to be called in unprotected errors */
+  //  struct lua_State *mainthread;
+  //  const lua_Number *version;  /* pointer to version number */
+  //  TString *memerrmsg;  /* memory-error message */
+  //  TString *tmname[TM_N];  /* array with tag-method names */
+  //  struct Table *mt[LUA_NUMTAGS];  /* metatables for basic types */
+  //  /* RAVI */
+  //  ravi_State *ravi_state;
+  //} global_State;
+
+  global_StateT = llvm::StructType::create(context, "ravi.global_State");
+  pglobal_StateT = llvm::PointerType::get(global_StateT, 0);
+
+  ///*
+  //** 'per thread' state
+  //*/
+  //struct lua_State {
+  //  CommonHeader;
+  //  lu_byte status;
+  //  StkId top;  /* first free slot in the stack */
+  //  global_State *l_G;
+  //  CallInfo *ci;  /* call info for current function */
+  //  const Instruction *oldpc;  /* last pc traced */
+  //  StkId stack_last;  /* last free slot in the stack */
+  //  StkId stack;  /* stack base */
+  //  UpVal *openupval;  /* list of open upvalues in this stack */
+  //  GCObject *gclist;
+  //  struct lua_State *twups;  /* list of threads with open upvalues */
+  //  struct lua_longjmp *errorJmp;  /* current error recover point */
+  //  CallInfo base_ci;  /* CallInfo for first level (C calling Lua) */
+  //  lua_Hook hook;
+  //  ptrdiff_t errfunc;  /* current error handling function (stack index) */
+  //  int stacksize;
+  //  int basehookcount;
+  //  int hookcount;
+  //  unsigned short nny;  /* number of non-yieldable calls in stack */
+  //  unsigned short nCcalls;  /* number of nested C calls */
+  //  lu_byte hookmask;
+  //  lu_byte allowhook;
+  //};
+  elements.clear();
+  elements.push_back(pGCObjectT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT); /* status */
+  elements.push_back(StkIdT); /* top */
+  elements.push_back(pglobal_StateT); /* l_G */
+  elements.push_back(pCallInfoT); /* ci */
+  elements.push_back(pInstructionT); /* oldpc */
+  elements.push_back(StkIdT); /* stack_last */
+  elements.push_back(StkIdT); /* stack */
+  elements.push_back(pUpValT); /* openupval */
+  elements.push_back(pGCObjectT); /* gclist */
+  elements.push_back(plua_StateT); /* twups */
+  elements.push_back(plua_longjumpT); /* errorJmp */
+  elements.push_back(CallInfoT); /* base_ci */
+  elements.push_back(plua_HookT); /* hook */
+  elements.push_back(C_ptrdiff_t); /* errfunc */
+  elements.push_back(C_intT); /* stacksize */
+  elements.push_back(C_intT); /* basehookcount */
+  elements.push_back(C_intT); /* hookcount */
+  elements.push_back(llvm::Type::getInt16Ty(context)); /* nny */
+  elements.push_back(llvm::Type::getInt16Ty(context)); /* nCcalls */
+  elements.push_back(lu_byteT); /* hookmask */
+  elements.push_back(lu_byteT); /* allowhook */
+  lua_StateT->setBody(elements);
 
 }
 
@@ -601,6 +726,7 @@ void LuaLLVMTypes::dump() {
   MbufferT->dump(); fputs("\n", stdout);
   stringtableT->dump(); fputs("\n", stdout);
   CallInfoT->dump(); fputs("\n", stdout);
+  lua_StateT->dump(); fputs("\n", stdout);
 }
 
 class RAVI_API RaviJITStateImpl;
