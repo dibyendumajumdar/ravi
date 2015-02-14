@@ -594,15 +594,17 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   CallInfo_cT = llvm::StructType::create(elements);
 
   CallInfoT = llvm::StructType::create(context, "ravi.CallInfo");
+  pCallInfoT = llvm::PointerType::get(CallInfoT, 0);
   elements.clear();
   elements.push_back(StkIdT); /* func */
   elements.push_back(StkIdT); /* top */
+  elements.push_back(pCallInfoT); /* previous */
+  elements.push_back(pCallInfoT); /* next */
   elements.push_back(CallInfo_cT); /* u.c */
   elements.push_back(C_ptrdiff_t); /* extra */
   elements.push_back(llvm::Type::getInt16Ty(context)); /* nresults */
   elements.push_back(lu_byteT); /* callstatus */
   CallInfoT->setBody(elements);
-  pCallInfoT = llvm::PointerType::get(CallInfoT, 0);
 
   //typedef struct ravi_State ravi_State;
 
