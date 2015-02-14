@@ -107,6 +107,13 @@ struct LuaLLVMTypes {
 
   llvm::StructType *CClosureT;
   llvm::PointerType *pCClosureT;
+
+  llvm::StructType *TKeyT;
+  llvm::PointerType *pTKeyT;
+
+  llvm::StructType *NodeT;
+  llvm::PointerType *pNodeT;
+
 };
 
 LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
@@ -398,6 +405,65 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(llvm::ArrayType::get(pUpValT, 1));
   LClosureT->setBody(elements);
 
+  ///*
+  //** Tables
+  //*/
+
+  //typedef union TKey {
+  //  struct {
+  //    TValuefields;
+  //    int next;  /* for chaining (offset for next node) */
+  //  } nk;
+  //  TValue tvk;
+  //} TKey;
+  TKeyT = llvm::StructType::create(context, "ravi.TKey");
+  elements.clear();
+  elements.push_back(ValueT);
+  elements.push_back(C_intT);
+  elements.push_back(C_intT); /* next */
+  TKeyT->setBody(elements);
+  pTKeyT = llvm::PointerType::get(TKeyT, 0);
+
+  //typedef struct Node {
+  // TValue i_val;
+  // TKey i_key;
+  //} Node;
+  NodeT = llvm::StructType::create(context, "ravi.Node");
+  elements.clear();
+  elements.push_back(TValueT); /* i_val */
+  elements.push_back(TKeyT); /* i_key */
+  NodeT->setBody(elements);
+  pNodeT = llvm::PointerType::get(NodeT, 0);
+
+  //typedef struct Table {
+  //  CommonHeader;
+  //  lu_byte flags;  /* 1<<p means tagmethod(p) is not present */
+  //  lu_byte lsizenode;  /* log2 of size of 'node' array */
+  //  unsigned int sizearray;  /* size of 'array' array */
+  //  TValue *array;  /* array part */
+  //  Node *node;
+  //  Node *lastfree;  /* any free position is before this position */
+  //  struct Table *metatable;
+  //  GCObject *gclist;
+  //  ravitype_t ravi_array_type; /* RAVI specialization */
+  //  unsigned int ravi_array_len; /* RAVI len specialization */
+  //} Table;
+  elements.clear();
+  elements.push_back(pGCObjectT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT); /* flags */
+  elements.push_back(lu_byteT); /* lsizenode */
+  elements.push_back(C_intT); /* sizearray */
+  elements.push_back(pTValueT); /* array part */
+  elements.push_back(pNodeT); /* node */
+  elements.push_back(pNodeT); /* lastfree */
+  elements.push_back(pTableT); /* metatable */
+  elements.push_back(pGCObjectT); /* gclist */
+  elements.push_back(ravitype_tT); /* ravi_array_type */
+  elements.push_back(C_intT); /* ravi_array_len */
+  TableT->setBody(elements);
+
 }
 
 void LuaLLVMTypes::dump() {
@@ -410,7 +476,9 @@ void LuaLLVMTypes::dump() {
   ProtoT->dump(); fputs("\n", stdout);
   CClosureT->dump(); fputs("\n", stdout);
   LClosureT->dump(); fputs("\n", stdout);
-
+  TKeyT->dump(); fputs("\n", stdout);
+  NodeT->dump(); fputs("\n", stdout);
+  TableT->dump(); fputs("\n", stdout);
 }
 
 class RAVI_API RaviJITStateImpl;
