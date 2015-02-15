@@ -72,6 +72,7 @@ struct LuaLLVMTypes {
 
   llvm::Type *lu_byteT;
   llvm::Type *L_UmaxalignT;
+  llvm::Type *C_pcharT;
 
   llvm::Type *C_intT;
 
@@ -110,6 +111,9 @@ struct LuaLLVMTypes {
   llvm::PointerType *pInstructionT;
   llvm::StructType *LClosureT;
   llvm::PointerType *pLClosureT;
+  llvm::PointerType *ppLClosureT;
+  llvm::PointerType *pppLClosureT;
+
   llvm::StructType *RaviJITProtoT;
   llvm::PointerType *pRaviJITProtoT;
 
@@ -145,6 +149,21 @@ struct LuaLLVMTypes {
   llvm::StructType *CallInfo_lT;
   llvm::PointerType *pCallInfoT;
 
+  llvm::FunctionType *jitFunctionT;
+
+  llvm::FunctionType *luaD_poscallT;
+
+  llvm::Constant *kZeroInt;
+  llvm::Constant *kOneInt;
+  llvm::Constant *kTwoInt;
+  llvm::Constant *kThreeInt;
+  llvm::Constant *kFourInt;
+  llvm::Constant *kFiveInt;
+  llvm::Constant *kSixInt;
+  llvm::Constant *kSevenInt;
+  llvm::Constant *kFourteenInt;
+
+  llvm::Constant *kFalse;
 };
 
 LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
@@ -175,6 +194,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   L_UmaxalignT = llvm::Type::getDoubleTy(context);
 
   lu_byteT = llvm::Type::getInt8Ty(context);
+  C_pcharT = llvm::Type::getInt8PtrTy(context);
 
   InstructionT = C_intT;
   pInstructionT = llvm::PointerType::get(InstructionT, 0);
@@ -188,6 +208,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(plua_StateT);
   lua_CFunctionT = llvm::FunctionType::get(C_intT, elements, false);
   plua_CFunctionT = llvm::PointerType::get(lua_CFunctionT, 0);
+
+  jitFunctionT = lua_CFunctionT;
 
   elements.clear();
   elements.push_back(plua_StateT);
@@ -355,6 +377,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
 
   LClosureT = llvm::StructType::create(context, "ravi.LClosure");
   pLClosureT = llvm::PointerType::get(LClosureT, 0);
+  ppLClosureT = llvm::PointerType::get(pLClosureT, 0);
+  pppLClosureT = llvm::PointerType::get(ppLClosureT, 0);
 
   RaviJITProtoT = llvm::StructType::create(context, "ravi.RaviJITProto");
   pRaviJITProtoT = llvm::PointerType::get(RaviJITProtoT, 0);
@@ -585,6 +609,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.clear();
   elements.push_back(StkIdT); /* base */
   elements.push_back(pInstructionT); /* savedpc */
+  elements.push_back(C_ptrdiff_t); /* dummy to make this same size as the other member */
   CallInfo_lT = llvm::StructType::create(elements);
 
   elements.clear();
@@ -600,7 +625,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(StkIdT); /* top */
   elements.push_back(pCallInfoT); /* previous */
   elements.push_back(pCallInfoT); /* next */
-  elements.push_back(CallInfo_cT); /* u.c */
+  elements.push_back(CallInfo_lT); /* u.l  - as we will typically access the lua call details */
   elements.push_back(C_ptrdiff_t); /* extra */
   elements.push_back(llvm::Type::getInt16Ty(context)); /* nresults */
   elements.push_back(lu_byteT); /* callstatus */
@@ -710,6 +735,23 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(lu_byteT); /* allowhook */
   lua_StateT->setBody(elements);
 
+  // int luaD_poscall (lua_State *L, StkId firstResult)
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(StkIdT);
+  luaD_poscallT = llvm::FunctionType::get(C_intT, elements, false);
+
+  kZeroInt = llvm::ConstantInt::get(C_intT, 0);
+  kOneInt = llvm::ConstantInt::get(C_intT, 1);
+  kTwoInt = llvm::ConstantInt::get(C_intT, 2);
+  kThreeInt = llvm::ConstantInt::get(C_intT, 3);
+  kFourInt = llvm::ConstantInt::get(C_intT, 4);
+  kFiveInt = llvm::ConstantInt::get(C_intT, 5);
+  kSixInt = llvm::ConstantInt::get(C_intT, 6);
+  kSevenInt = llvm::ConstantInt::get(C_intT, 7);
+  kFourteenInt = llvm::ConstantInt::get(C_intT, 14);
+
+  kFalse = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
 }
 
 void LuaLLVMTypes::dump() {
@@ -815,6 +857,7 @@ public:
 
   virtual void dump();
   virtual llvm::LLVMContext &context() { return context_; }
+  LuaLLVMTypes *types() const { return types_; }
 };
 
 RaviJITState * RaviJITFunctionImpl::owner() const {
@@ -992,6 +1035,296 @@ std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
   return std::unique_ptr<RaviJITState>(new RaviJITStateImpl());
 }
 
+struct RaviFunctionDef {
+  RaviJITFunctionImpl *raviF;
+  llvm::Function *f;
+  llvm::BasicBlock *entry;
+  llvm::Value *L;
+  LuaLLVMTypes *types;
+  llvm::IRBuilder<> *builder;
+};
+
+class RaviCodeGenerator {
+public:
+  RaviCodeGenerator(RaviJITStateImpl *jitState);
+
+  void compile(lua_State *L, Proto *p);
+  bool canCompile(Proto *p);
+  const char *unique_function_name();
+
+  // Create the prologue of the JIT function
+  // Argument will be named L
+  // Initial BasicBlock will be created
+  // int func(lua_State *L) {
+  std::unique_ptr<RaviJITFunctionImpl> create_function(llvm::IRBuilder<>& builder, RaviFunctionDef *def);
+
+  // Add extern declarations for Lua functions we need to call
+  void emit_extern_declarations(RaviFunctionDef *def);
+
+  // Get pointer to L->ci
+  llvm::Value *emit_gep_L_ci(RaviFunctionDef *def);
+
+  llvm::Value *emit_gep_ci_u_l_base(RaviFunctionDef *def, llvm::Value *ci_val);
+
+  llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def, llvm::Value *ci);
+
+  llvm::Value *emit_gep_LClosure_p(RaviFunctionDef *def, llvm::Value *cl);
+
+  llvm::Value *emit_gep_Proto_k(RaviFunctionDef *def, llvm::Value *p);
+
+  void emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr, int A, llvm::Value *k_ptr, int Bx);
+
+  llvm::Value *emit_array_get(RaviFunctionDef *def, llvm::Value *ptr, int offset);
+
+private:
+  RaviJITStateImpl *jitState_;
+  std::vector<llvm::Value *> values_;
+  char temp_[31]; // for name
+  int id_; // for name
+};
+
+RaviCodeGenerator::RaviCodeGenerator(RaviJITStateImpl *jitState) :
+  jitState_(jitState), id_(1) {
+  temp_[0] = 0; 
+}
+
+const char *RaviCodeGenerator::unique_function_name() {
+  snprintf(temp_, sizeof temp_, "ravif%d", id_++);
+  return temp_;
+}
+
+llvm::Value *RaviCodeGenerator::emit_gep_L_ci(RaviFunctionDef *def) {
+  values_.clear();
+  values_.push_back(def->types->kZeroInt);  // L[0]
+  values_.push_back(def->types->kSixInt); // L[0].ci
+  return def->builder->CreateInBoundsGEP(def->L, values_, "ci");
+}
+
+llvm::Value *RaviCodeGenerator::emit_gep_ci_u_l_base(RaviFunctionDef *def, llvm::Value *ci_val) {
+  values_.clear();
+  values_.push_back(def->types->kZeroInt);  // ci[0]
+  values_.push_back(def->types->kFourInt); // cl[0].u.l
+  values_.push_back(def->types->kZeroInt); // cl[0].u.l.base
+  return def->builder->CreateInBoundsGEP(ci_val, values_, "base");
+}
+
+llvm::Value *RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def, llvm::Value *ci) {
+  llvm::Value *pppLuaClosure = def->builder->CreateBitCast(ci, def->types->pppLClosureT);
+  llvm::Value *ppLuaClosure = def->builder->CreateLoad(pppLuaClosure, "cl");
+  return ppLuaClosure;
+}
+
+llvm::Value *RaviCodeGenerator::emit_gep_LClosure_p(RaviFunctionDef *def, llvm::Value *cl) {
+  values_.clear();
+  values_.push_back(def->types->kZeroInt);  // LClosure[0]
+  values_.push_back(def->types->kFiveInt); // LClosure[0].p
+  return def->builder->CreateInBoundsGEP(cl, values_, "p");
+}
+
+llvm::Value *RaviCodeGenerator::emit_gep_Proto_k(RaviFunctionDef *def, llvm::Value *p) {
+  values_.clear();
+  values_.push_back(def->types->kZeroInt);  // Proto[0]
+  values_.push_back(def->types->kFourteenInt); // Proto[0].k
+  return def->builder->CreateInBoundsGEP(p, values_, "k");
+}
+
+llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def, llvm::Value *ptr, int offset) {
+  values_.clear();
+  values_.push_back(llvm::ConstantInt::get(def->types->C_intT, offset));
+  return def->builder->CreateInBoundsGEP(ptr, values_);
+}
+
+void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr, int A, llvm::Value *k_ptr, int Bx) {
+  llvm::Value *src;
+  llvm::Value *dest;
+  if (A == 0) {
+    dest = base_ptr;
+  }
+  else {
+    dest = emit_array_get(def, base_ptr, A);
+  }
+  if (Bx == 0) {
+    src = k_ptr;
+  }
+  else {
+    src = emit_array_get(def, k_ptr, Bx);
+  }
+  llvm::SmallVector<llvm::Type*, 3> vec;
+  // CHECK this
+  vec.push_back(def->types->C_pcharT);
+  vec.push_back(def->types->C_pcharT);
+  vec.push_back(def->types->C_intT);
+  llvm::Function *f = llvm::Intrinsic::getDeclaration(def->raviF->module(), llvm::Intrinsic::memcpy, vec);
+  lua_assert(f);
+  llvm::Value *dest_ptr = def->builder->CreateBitCast(dest, def->types->C_pcharT);
+  llvm::Value *src_ptr = def->builder->CreateBitCast(src, def->types->C_pcharT);
+
+  values_.clear();
+  values_.push_back(dest_ptr);
+  values_.push_back(src_ptr);
+  values_.push_back(llvm::ConstantInt::get(def->types->C_intT, sizeof(TValue)));
+  values_.push_back(llvm::ConstantInt::get(def->types->C_intT, sizeof(L_Umaxalign)));
+  values_.push_back(def->types->kFalse);
+
+  def->builder->CreateCall(f, values_);
+}
+
+// Check if we can compile
+// The cases we can compile will increase over time
+bool RaviCodeGenerator::canCompile(Proto *p) {
+  if (jitState_ == nullptr) {
+    p->ravi_jit.jit_status = 1;
+    return false;
+  }
+  const Instruction* code = p->code;
+  int pc, n = p->sizecode;
+  if (p->sizep > 0) {
+    p->ravi_jit.jit_status = 1;
+    return false;
+  }
+  for (pc = 0; pc < n; pc++)
+  {
+    Instruction i = code[pc];
+    OpCode o = GET_OPCODE(i);
+    switch (o) {
+    case OP_LOADK:
+    case OP_RETURN:
+      break;
+    default: 
+      return false;
+    }
+  }
+  return true;
+}
+
+std::unique_ptr<RaviJITFunctionImpl>
+RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
+                                   RaviFunctionDef *def) {
+  LuaLLVMTypes *types = jitState_->types();
+
+  std::unique_ptr<ravi::RaviJITFunctionImpl> func =
+      std::unique_ptr<RaviJITFunctionImpl>(
+          (RaviJITFunctionImpl *)jitState_->createFunction(
+              types->jitFunctionT, llvm::Function::ExternalLinkage,
+              unique_function_name()));
+  if (!func)
+    return func;
+
+  llvm::Function *mainFunc = func->function();
+  llvm::BasicBlock *entry =
+      llvm::BasicBlock::Create(jitState_->context(), "entrypoint", mainFunc);
+  builder.SetInsertPoint(entry);
+
+  auto argiter = mainFunc->arg_begin();
+  llvm::Value *arg1 = argiter++;
+  arg1->setName("L");
+
+  def->f = mainFunc;
+  def->entry = entry;
+  def->L = arg1;
+  def->raviF = func.get();
+  def->types = types;
+  def->builder = &builder;
+
+  return func;
+}
+
+void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
+  // Add extern declarations for Lua functions that we need to call
+  def->raviF->addExternFunction(def->types->luaD_poscallT, &luaD_poscall, "luaD_poscall");
+}
+
+#define RA(i)	(base+GETARG_A(i))
+/* to be used after possible stack reallocation */
+#define RB(i)	check_exp(getBMode(GET_OPCODE(i)) == OpArgR, base+GETARG_B(i))
+#define RC(i)	check_exp(getCMode(GET_OPCODE(i)) == OpArgR, base+GETARG_C(i))
+#define RKB(i)	check_exp(getBMode(GET_OPCODE(i)) == OpArgK, \
+	ISK(GETARG_B(i)) ? k+INDEXK(GETARG_B(i)) : base+GETARG_B(i))
+#define RKC(i)	check_exp(getCMode(GET_OPCODE(i)) == OpArgK, \
+	ISK(GETARG_C(i)) ? k+INDEXK(GETARG_C(i)) : base+GETARG_C(i))
+#define KBx(i)  \
+  (k + (GETARG_Bx(i) != 0 ? GETARG_Bx(i) - 1 : GETARG_Ax(*ci->u.l.savedpc++)))
+/* RAVI */
+#define KB(i)	check_exp(getBMode(GET_OPCODE(i)) == OpArgK, k+INDEXK(GETARG_B(i)))
+#define KC(i)	check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k+INDEXK(GETARG_C(i)))
+
+
+void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
+  if (p->ravi_jit.jit_status != 0 || !canCompile(p))
+    return;
+#if 0
+  llvm::LLVMContext &context = jitState_->context();
+  llvm::IRBuilder<> builder(context);
+
+  RaviFunctionDef def = { 0 };
+  auto f = create_function(builder, &def);
+  if (!f) {
+    p->ravi_jit.jit_status = 1; // can't compile
+    return;
+  }
+  // Add extern declarations for Lua functions we need to call
+  emit_extern_declarations(&def);
+
+  // Get pointer to L->ci
+  llvm::Value *L_ci = emit_gep_L_ci(&def);
+
+  // Load pointer value
+  llvm::Value *ci_val = builder.CreateLoad(L_ci);
+
+  // Get pointer to base
+  llvm::Value *Ci_base = emit_gep_ci_u_l_base(&def, ci_val);
+
+  // Load pointer to base
+  llvm::Value *base_ptr = builder.CreateLoad(Ci_base);
+
+  // We need to get hold of the constants table
+  // which is located in ci->func->value_.gc
+  // and is a value of type LClosure*
+  // fortunately as func is at the beginning of the ci
+  // structure we can just cast ci to LClosure*
+  llvm::Value *L_cl = emit_gep_ci_func_value_gc_asLClosure(&def, ci_val);
+
+  // Load pointer to LClosure
+  llvm::Value *cl_ptr = builder.CreateLoad(L_cl);
+
+  // Get pointer to the Proto* which is cl->p
+  llvm::Value *proto = emit_gep_LClosure_p(&def, cl_ptr);
+
+  // Load pointer to proto
+  llvm::Value *proto_ptr = builder.CreateLoad(proto);
+
+  // Obtain pointer to Proto->k
+  llvm::Value *proto_k = emit_gep_Proto_k(&def, proto_ptr);
+
+  // Load pointer to k
+  llvm::Value *k_ptr = builder.CreateLoad(proto_k);
+
+  const Instruction* code = p->code;
+  int pc, n = p->sizecode;
+  for (pc = 0; pc < n; pc++)
+  {
+    Instruction i = code[pc];
+    OpCode op = GET_OPCODE(i);
+    int A = GETARG_A(i);
+    switch (op) {
+    case OP_LOADK: {
+      int Bx = GETARG_Bx(i);
+      emit_LOADK(&def, base_ptr, A, k_ptr, Bx);
+    } break;
+
+    default:
+      break;
+    }
+  }
+
+  f->dump();
+#endif
+  // For now
+  p->ravi_jit.jit_status = 1; // can't compile
+  return;
+}
+
+
 }
 
 #ifdef __cplusplus
@@ -1000,6 +1333,7 @@ extern "C" {
 
 struct ravi_State {
   ravi::RaviJITState *jit;
+  ravi::RaviCodeGenerator *code_generator;
 };
 
 int raviV_initjit(struct lua_State *L) {
@@ -1008,6 +1342,7 @@ int raviV_initjit(struct lua_State *L) {
     return -1;
   ravi_State *jit = (ravi_State *)calloc(1, sizeof(ravi_State));
   jit->jit = new ravi::RaviJITStateImpl();
+  jit->code_generator = new ravi::RaviCodeGenerator((ravi::RaviJITStateImpl *) jit->jit);
   G->ravi_state = jit;
   return 0;
 }
@@ -1016,11 +1351,16 @@ void raviV_close(struct lua_State *L) {
   global_State *G = G(L);
   if (G->ravi_state == NULL)
     return;
+  delete G->ravi_state->code_generator;
   delete G->ravi_state->jit;
   free(G->ravi_state);
 }
 
 int raviV_compile(struct lua_State *L, struct Proto *p) {
+  global_State *G = G(L);
+  if (G->ravi_state == NULL)
+    return 0;
+  G->ravi_state->code_generator->compile(L, p);
   p->ravi_jit.jit_status = 1;
   return 0;
 }
