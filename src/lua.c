@@ -606,6 +606,8 @@ int main (int argc, char **argv) {
     level |= 2;
   if (getenv("RAVI_DEBUG_VARS"))
     level |= 4;
+  if (getenv("RAVI_DEBUG_STACK"))
+    level |= 8;
   ravi_set_debuglevel(level);
 
   lua_pushcfunction(L, &pmain);  /* to call 'pmain' in protected mode */

@@ -411,7 +411,11 @@ typedef struct LocVar {
 } LocVar;
 
 
-typedef struct RaviJITProto RaviJITProto;
+typedef struct RaviJITProto {
+  lu_byte jit_status; // 0=not compiled, 1=can't compile, 2=compiled, 3=freed
+  void *jit_data;
+  lua_CFunction jit_function;
+} RaviJITProto;
 
 /*
 ** Function Prototypes
@@ -439,7 +443,7 @@ typedef struct Proto {
   TString  *source;  /* used for debug information */
   GCObject *gclist;
   /* RAVI */
-  RaviJITProto *ravi_jit;
+  RaviJITProto ravi_jit;
 } Proto;
 
 

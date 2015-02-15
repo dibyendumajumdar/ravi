@@ -1020,6 +1020,22 @@ void raviV_close(struct lua_State *L) {
   free(G->ravi_state);
 }
 
+int raviV_compile(struct lua_State *L, struct Proto *p) {
+  p->ravi_jit.jit_status = 1;
+  return 0;
+}
+
+
+void raviV_freeproto(struct lua_State *L, struct Proto *p) {
+  if (p->ravi_jit.jit_status == 2) /* compiled */ {
+    ravi::RaviJITFunction *f = (ravi::RaviJITFunction *) p->ravi_jit.jit_data;
+    if (f) delete f;
+    p->ravi_jit.jit_status = 3;
+    p->ravi_jit.jit_function = NULL;
+    p->ravi_jit.jit_data = NULL;
+  }
+}
+
 #ifdef __cplusplus
 }
 #endif
