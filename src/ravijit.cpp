@@ -1307,7 +1307,7 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
 void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   if (p->ravi_jit.jit_status != 0 || !canCompile(p))
     return;
-#if 0
+#if 1
   llvm::LLVMContext &context = jitState_->context();
   llvm::IRBuilder<> builder(context);
 
@@ -1376,11 +1376,22 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     }
   }
 
-  f->dump();
-#endif
+  // f->dump();
+  ravi::RaviJITFunctionImpl *llvm_func = f.release();
+  p->ravi_jit.jit_data = reinterpret_cast<void*>(llvm_func);
+  p->ravi_jit.jit_function = (lua_CFunction) llvm_func->compile();
+  if (p->ravi_jit.jit_function == nullptr) {
+    p->ravi_jit.jit_status = 1; // can't compile
+    delete llvm_func;
+    p->ravi_jit.jit_data = NULL;
+  }
+  else {
+    p->ravi_jit.jit_status = 2;
+  }
+#else
   // For now
   p->ravi_jit.jit_status = 1; // can't compile
-  return;
+#endif
 }
 
 
@@ -1420,7 +1431,6 @@ int raviV_compile(struct lua_State *L, struct Proto *p) {
   if (G->ravi_state == NULL)
     return 0;
   G->ravi_state->code_generator->compile(L, p);
-  p->ravi_jit.jit_status = 1;
   return 0;
 }
 

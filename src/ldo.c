@@ -341,6 +341,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
       return 1;
     }
     case LUA_TLCL: {  /* Lua function: prepare its call */
+      CallInfo *prevci = L->ci; /* RAVI - for validation */
       StkId base;
       Proto *p = clLvalue(func)->p;
       n = cast_int(L->top - func) - 1;  /* number of real arguments */
@@ -375,6 +376,10 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
         /* compiled */
         lua_assert(p->ravi_jit.jit_function != NULL);
         (*p->ravi_jit.jit_function)(L);
+        lua_assert(L->ci == prevci);
+        ci = L->ci;
+        lua_assert(isLua(ci));
+        lua_assert(GET_OPCODE(*((ci)->u.l.savedpc - 1)) == OP_CALL);
         return 1;
       }
       return 0;
