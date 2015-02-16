@@ -1036,12 +1036,14 @@ std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
 }
 
 struct RaviFunctionDef {
+  RaviJITStateImpl *jitState;
   RaviJITFunctionImpl *raviF;
   llvm::Function *f;
   llvm::BasicBlock *entry;
   llvm::Value *L;
   LuaLLVMTypes *types;
   llvm::IRBuilder<> *builder;
+  llvm::Constant *luaD_poscallF;
 };
 
 class RaviCodeGenerator {
@@ -1072,9 +1074,15 @@ public:
 
   llvm::Value *emit_gep_Proto_k(RaviFunctionDef *def, llvm::Value *p);
 
+  llvm::Value *emit_gep_L_top(RaviFunctionDef *def, llvm::Value *L);
+
+  llvm::Value *emit_gep_ci_top(RaviFunctionDef *def, llvm::Value *ci);
+
   void emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr, int A, llvm::Value *k_ptr, int Bx);
 
   llvm::Value *emit_array_get(RaviFunctionDef *def, llvm::Value *ptr, int offset);
+
+  void emit_RETURN(RaviFunctionDef *def, llvm::Value *base_ptr, llvm::Value *ci, int A, int B);
 
 private:
   RaviJITStateImpl *jitState_;
@@ -1134,6 +1142,21 @@ llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def, llvm::Value
   return def->builder->CreateInBoundsGEP(ptr, values_);
 }
 
+llvm::Value *RaviCodeGenerator::emit_gep_L_top(RaviFunctionDef *def, llvm::Value *L) {
+  values_.clear();
+  values_.push_back(def->types->kZeroInt);  // L[0]
+  values_.push_back(def->types->kFourInt); // L[0].top
+  return def->builder->CreateInBoundsGEP(L, values_);
+}
+
+llvm::Value *RaviCodeGenerator::emit_gep_ci_top(RaviFunctionDef *def, llvm::Value *ci) {
+  values_.clear();
+  values_.push_back(def->types->kZeroInt);  // L[0]
+  values_.push_back(def->types->kOneInt); // L[0].top
+  return def->builder->CreateInBoundsGEP(ci, values_);
+}
+
+
 void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr, int A, llvm::Value *k_ptr, int Bx) {
   llvm::Value *src;
   llvm::Value *dest;
@@ -1167,6 +1190,37 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr, 
   values_.push_back(def->types->kFalse);
 
   def->builder->CreateCall(f, values_);
+}
+
+void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *base_ptr, llvm::Value *ci, int A, int B) {
+  llvm::Value *top = nullptr;
+  if (B != 0) {
+    llvm::Value *ptr = emit_array_get(def, base_ptr, B - 1);
+    top = emit_gep_L_top(def, def->L);
+    def->builder->CreateStore(ptr, top);
+  }
+  values_.clear();
+  values_.push_back(def->L);
+  values_.push_back(base_ptr);
+  llvm::Value *result = def->builder->CreateCall(def->luaD_poscallF, values_);
+  llvm::Value *result_is_zero = def->builder->CreateICmpNE(result, def->types->kZeroInt);
+
+  llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(def->jitState->context(), "then", def->f);
+  llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(def->jitState->context(), "else");
+
+  def->builder->CreateCondBr(result_is_zero, ThenBB, ElseBB);
+  def->builder->SetInsertPoint(ThenBB);
+
+  llvm::Value *citop = emit_gep_ci_top(def, ci);
+  llvm::Value *citop_val = def->builder->CreateLoad(citop, "ci_top");
+  if (!top)
+    top = emit_gep_L_top(def, def->L);
+  def->builder->CreateStore(citop_val, top);
+  def->builder->CreateBr(ElseBB);
+
+  def->f->getBasicBlockList().push_back(ElseBB);
+  def->builder->SetInsertPoint(ElseBB);
+  def->builder->CreateRet(def->types->kOneInt);
 }
 
 // Check if we can compile
@@ -1219,6 +1273,7 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
   llvm::Value *arg1 = argiter++;
   arg1->setName("L");
 
+  def->jitState = jitState_;
   def->f = mainFunc;
   def->entry = entry;
   def->L = arg1;
@@ -1231,7 +1286,7 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
 
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   // Add extern declarations for Lua functions that we need to call
-  def->raviF->addExternFunction(def->types->luaD_poscallT, &luaD_poscall, "luaD_poscall");
+  def->luaD_poscallF = def->raviF->addExternFunction(def->types->luaD_poscallT, &luaD_poscall, "luaD_poscall");
 }
 
 #define RA(i)	(base+GETARG_A(i))
@@ -1301,7 +1356,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
 
   const Instruction* code = p->code;
   int pc, n = p->sizecode;
-  for (pc = 0; pc < n; pc++)
+  for (pc = 0; pc < n-1; pc++)
   {
     Instruction i = code[pc];
     OpCode op = GET_OPCODE(i);
@@ -1311,7 +1366,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int Bx = GETARG_Bx(i);
       emit_LOADK(&def, base_ptr, A, k_ptr, Bx);
     } break;
-
+    case OP_RETURN: {
+      int B = GETARG_B(i);
+      emit_RETURN(&def, base_ptr, ci_val, A, B);
+      break;
+    }
     default:
       break;
     }
