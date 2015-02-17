@@ -1572,7 +1572,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p) {
 
 void raviV_freeproto(struct lua_State *L, struct Proto *p) {
   if (p->ravi_jit.jit_status == 2) /* compiled */ {
-    ravi::RaviJITFunction *f = (ravi::RaviJITFunction *)p->ravi_jit.jit_data;
+    ravi::RaviJITFunction *f = reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
     if (f)
       delete f;
     p->ravi_jit.jit_status = 3;

@@ -14,6 +14,7 @@ Contents:
    ravi-overview
    lua-parser
    ravi-internals
+   llvm-notes
    ravi-jit-overview
    ravi-jit-initial
    ravi-jit-infra

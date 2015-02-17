@@ -12,7 +12,7 @@ Primary reason for Ravi's existence is that it needs to be implemented using tec
 
 Status
 ------
-Project kicked off Feb 2015. I am new to this so progress will be slow and painful. I would like to get this compiler built and working by first half of 2015. As I make progress I will document the results here.
+Project kicked off Feb 2015. I am new to this so progress will be slow. I would like to get this compiler built and working by first half of 2015. As I make progress I will document the results here.
 
 Preparing for LLVM
 ------------------
@@ -28,7 +28,7 @@ After modifying Ravi's ``CMakeLists.txt`` I invoked the cmake config as follows:
 
 On Ubuntu I found that the official LLVM distributions don't work with CMake. The CMake config files appear to be broken.
 
-So I ended up downloading and building LLVM 3.5.1 from source and that worked. I used the same approach as on Windows - i.e., set ``CMAKE_INSTALL_PREFIX`` using ``cmake-gui`` and that was about it.
+So I ended up downloading and building LLVM 3.5.1 from source and that worked. I used the same approach as on Windows - i.e., set ``CMAKE_INSTALL_PREFIX`` using ``cmake-gui`` to ``~/LLVM`` and that was about it.
 
 The command to create makefiles was as follows::
 
