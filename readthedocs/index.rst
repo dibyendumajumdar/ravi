@@ -18,6 +18,8 @@ Contents:
    ravi-jit-overview
    ravi-jit-initial
    ravi-jit-infra
+   ravi-lua-types
+   ravi-jit-compilation-hook
 
 
 Indices and tables
