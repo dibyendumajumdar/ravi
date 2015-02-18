@@ -1495,7 +1495,9 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
 
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
-  for (pc = 0; pc < n - 1; pc++) {
+  OpCode lastOp = OP_ADD; // some random op
+  int done = 0;
+  for (pc = 0; pc < n && !done; pc++) {
     Instruction i = code[pc];
     OpCode op = GET_OPCODE(i);
     int A = GETARG_A(i);
@@ -1505,6 +1507,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_LOADK(&def, base_ptr, A, k_ptr, Bx);
     } break;
     case OP_RETURN: {
+      // Lua emits two return statements - the last one can be ignored
+      if (lastOp == OP_RETURN) {
+        done = 1;
+        continue;
+      }
       int B = GETARG_B(i);
       emit_RETURN(&def, base_ptr, ci_val, A, B);
       break;
@@ -1512,9 +1519,10 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     default:
       break;
     }
+    lastOp = op;
   }
 
-  f->dump();
+  //f->dump();
   ravi::RaviJITFunctionImpl *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile();
