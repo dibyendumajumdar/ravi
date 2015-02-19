@@ -161,6 +161,8 @@ struct LuaLLVMTypes {
   llvm::FunctionType *jitFunctionT;
 
   llvm::FunctionType *luaD_poscallT;
+  llvm::FunctionType *luaF_closeT;
+  llvm::FunctionType *luaV_equalobjT;
 
   llvm::Constant *kZeroInt;
   llvm::Constant *kOneInt;
@@ -765,6 +767,19 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(StkIdT);
   luaD_poscallT = llvm::FunctionType::get(C_intT, elements, false);
 
+  // void luaF_close (lua_State *L, StkId level)
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(StkIdT);
+  luaF_closeT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
+  // int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2)
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pTValueT);
+  elements.push_back(pTValueT);
+  luaV_equalobjT = llvm::FunctionType::get(C_intT, elements, false);
+
   kZeroInt = llvm::ConstantInt::get(C_intT, 0);
   kOneInt = llvm::ConstantInt::get(C_intT, 1);
   kTwoInt = llvm::ConstantInt::get(C_intT, 2);
@@ -1094,6 +1109,8 @@ struct RaviFunctionDef {
   LuaLLVMTypes *types;
   llvm::IRBuilder<> *builder;
   llvm::Constant *luaD_poscallF;
+  llvm::Constant *luaF_closeF;
+  llvm::Constant *luaV_equalobjF;
 };
 
 // This class is responsible for compiling Lua byte code 
@@ -1401,7 +1418,7 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
 
   llvm::Function *mainFunc = func->function();
   llvm::BasicBlock *entry =
-      llvm::BasicBlock::Create(jitState_->context(), "entrypoint", mainFunc);
+      llvm::BasicBlock::Create(jitState_->context(), "entry", mainFunc);
   builder.SetInsertPoint(entry);
 
   auto argiter = mainFunc->arg_begin();
@@ -1415,6 +1432,9 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
   def->raviF = func.get();
   def->types = types;
   def->builder = &builder;
+  def->luaD_poscallF = nullptr;
+  def->luaF_closeF = nullptr;
+  def->luaV_equalobjF = nullptr;
 
   return func;
 }
@@ -1423,6 +1443,10 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   // Add extern declarations for Lua functions that we need to call
   def->luaD_poscallF = def->raviF->addExternFunction(
       def->types->luaD_poscallT, &luaD_poscall, "luaD_poscall");
+  def->luaF_closeF = def->raviF->addExternFunction(
+    def->types->luaF_closeT, &luaF_close, "luaF_close");
+  def->luaV_equalobjF = def->raviF->addExternFunction(
+    def->types->luaV_equalobjT, &luaV_equalobj, "luaV_equalobj");
 }
 
 #define RA(i) (base + GETARG_A(i))
