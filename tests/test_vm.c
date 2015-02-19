@@ -67,6 +67,7 @@ static int test_luacompexec1(const char *code, int expected)
 int main(const char *argv[]) 
 {
     int failures = 0;
+    failures += test_luacompexec1("local function x(y); if y == 1 then; return 1.0; elseif y == 5 then; return 2.0; else; return 3.0; end; end; return x(2)", 3);
     failures += test_luacompexec1("local function x(); return 1004,2; end; local y; y = x(); print(y); return y", 1004);
     failures += test_luacompexec1("local x:int[] = {1}; local i:int = 1; local d:int = x[i]; x[i] = 5; return d*x[i];", 5);
     failures += test_luacompexec1("local d:double = 5.0; return d+5 == 5+d and d-5 == 5-d and d*5 == 5*d", 1);
