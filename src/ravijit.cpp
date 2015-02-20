@@ -1133,9 +1133,11 @@ public:
   llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
                                                     llvm::Value *ci);
 
-  llvm::Value *emit_gep(RaviFunctionDef *def, llvm::Value *s, int arg1, int arg2);
+  llvm::Value *emit_gep(RaviFunctionDef *def, llvm::Value *s, int arg1,
+                        int arg2);
 
-  llvm::Value *emit_gep(RaviFunctionDef *def, llvm::Value *s, int arg1, int arg2, int arg3);
+  llvm::Value *emit_gep(RaviFunctionDef *def, llvm::Value *s, int arg1,
+                        int arg2, int arg3);
 
   void emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr, int A,
                   llvm::Value *k_ptr, int Bx);
@@ -1148,7 +1150,6 @@ public:
 
 private:
   RaviJITStateImpl *jitState_;
-  std::vector<llvm::Value *> values_;
   char temp_[31]; // for name
   int id_;        // for name
 };
@@ -1163,21 +1164,22 @@ const char *RaviCodeGenerator::unique_function_name() {
   return temp_;
 }
 
-llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, llvm::Value *s, int arg1, int arg2) {
+llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, llvm::Value *s,
+                                         int arg1, int arg2) {
   llvm::SmallVector<llvm::Value *, 2> values;
   values.push_back(def->types->kInt[arg1]);
   values.push_back(def->types->kInt[arg2]);
   return def->builder->CreateInBoundsGEP(s, values);
 }
 
-llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, llvm::Value *s, int arg1, int arg2, int arg3) {
+llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, llvm::Value *s,
+                                         int arg1, int arg2, int arg3) {
   llvm::SmallVector<llvm::Value *, 3> values;
   values.push_back(def->types->kInt[arg1]);
   values.push_back(def->types->kInt[arg2]);
   values.push_back(def->types->kInt[arg3]);
   return def->builder->CreateInBoundsGEP(s, values);
 }
-
 
 llvm::Value *
 RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
@@ -1194,9 +1196,8 @@ RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
 llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def,
                                                llvm::Value *ptr, int offset) {
   // emit code for &ptr[offset]
-  values_.clear();
-  values_.push_back(llvm::ConstantInt::get(def->types->C_intT, offset));
-  return def->builder->CreateInBoundsGEP(ptr, values_);
+  return def->builder->CreateInBoundsGEP(
+      ptr, llvm::ConstantInt::get(def->types->C_intT, offset));
 }
 
 void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr,
@@ -1237,14 +1238,14 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr,
   llvm::Value *src_ptr = def->builder->CreateBitCast(src, def->types->C_pcharT);
 
   // Create call to intrinsic memcpy
-  values_.clear();
-  values_.push_back(dest_ptr);
-  values_.push_back(src_ptr);
-  values_.push_back(llvm::ConstantInt::get(def->types->C_intT, sizeof(TValue)));
-  values_.push_back(
+  llvm::SmallVector<llvm::Value *, 5> values;
+  values.push_back(dest_ptr);
+  values.push_back(src_ptr);
+  values.push_back(llvm::ConstantInt::get(def->types->C_intT, sizeof(TValue)));
+  values.push_back(
       llvm::ConstantInt::get(def->types->C_intT, sizeof(L_Umaxalign)));
-  values_.push_back(def->types->kFalse);
-  def->builder->CreateCall(f, values_);
+  values.push_back(def->types->kFalse);
+  def->builder->CreateCall(f, values);
 }
 
 void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
@@ -1269,6 +1270,17 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
   //      goto newframe;  /* restart luaV_execute over new Lua function */
   //    }
   // }
+
+  // As Lua inserts redundant OP_RETURN instructions it is
+  // possible that this is one of them. If this is the case then the
+  // current block may already be terminated - so we have to insert
+  // a new block
+  if (def->builder->GetInsertBlock()->getTerminator()) {
+    llvm::BasicBlock *return_block =
+        llvm::BasicBlock::Create(def->jitState->context(), "return", def->f);
+    def->builder->SetInsertPoint(return_block);
+  }
+
   llvm::Value *top = nullptr;
 
   //*  if (b != 0) L->top = ra + b - 1;
@@ -1293,19 +1305,14 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
       llvm::BasicBlock::Create(def->jitState->context(), "if.else");
   def->builder->CreateCondBr(psize_gt_0, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
-  values_.clear();
-  values_.push_back(def->L);
-  values_.push_back(base_ptr);
-  def->builder->CreateCall(def->luaF_closeF, values_);
+  def->builder->CreateCall2(def->luaF_closeF, def->L, base_ptr);
   def->builder->CreateBr(else_block);
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
   //*  b = luaD_poscall(L, ra);
-  values_.clear();
-  values_.push_back(def->L);
-  values_.push_back(base_ptr);
-  llvm::Value *result = def->builder->CreateCall(def->luaD_poscallF, values_);
+  llvm::Value *result =
+      def->builder->CreateCall2(def->luaD_poscallF, def->L, base_ptr);
 
   //*      if (b) L->top = ci->top;
   llvm::Value *result_is_zero =
@@ -1481,9 +1488,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
 
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
-  OpCode lastOp = OP_ADD; // some random op
-  int done = 0;
-  for (pc = 0; pc < n && !done; pc++) {
+  for (pc = 0; pc < n; pc++) {
     Instruction i = code[pc];
     OpCode op = GET_OPCODE(i);
     int A = GETARG_A(i);
@@ -1493,11 +1498,6 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_LOADK(&def, base_ptr, A, k_ptr, Bx);
     } break;
     case OP_RETURN: {
-      // Lua emits two return statements - the last one can be ignored
-      if (lastOp == OP_RETURN) {
-        done = 1;
-        continue;
-      }
       int B = GETARG_B(i);
       emit_RETURN(&def, proto, base_ptr, ci_val, A, B);
       break;
@@ -1505,7 +1505,6 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     default:
       break;
     }
-    lastOp = op;
   }
 
   f->dump();

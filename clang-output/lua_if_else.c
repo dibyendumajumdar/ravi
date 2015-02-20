@@ -265,7 +265,7 @@ extern int luaD_poscall(struct lua_State *L, struct TValue *ra);
 
 /*
  The following represents a C version of the Lua function:
- 
+
  local function x(y)
    if y == 1 then
      return 1.0
@@ -311,6 +311,8 @@ void test1(struct lua_State *L) {
   struct TValue *k;
   struct TValue *base;
   struct CallInfoL *cil;
+  struct TValue *ra2, *rb2, *ra3;
+  int b;
 
   ci = L->ci;
   base = ci->l.base;
@@ -321,27 +323,22 @@ void test1(struct lua_State *L) {
   struct TValue *ra = base + 0;
   struct TValue *rb = base + 0;
   struct TValue *rc = k + 0;
-  struct TValue *ra2, *rb2, *ra3;
-  int b;
-  {
-    {
-      int A = 0;
-      int eq = luaV_equalobj(L, rb, rc);
-      if (eq != A) // true; skip instruction 2
-        //ci->u.l.savedpc++;
-        ;
-      else {
-        // i = *ci->l.savedpc;
-        //  2       [1]     JMP             0 3     ; to 6
-        int a = 0; //  GETARG_A(i);
-        if (a > 0) 
-          luaF_close(L, ci->l.base + a - 1); 
-        //ci->u.l.savedpc += GETARG_sBx(i) + e;
-        goto label6;
-      }
-    }
-    base = ci->l.base;
+  int eq = luaV_equalobj(L, rb, rc);
+  if (eq != 0) // A=0, if eq == A skip instruction 2
+    // ci->u.l.savedpc++;
+    ;
+  else {
+    // i = *ci->l.savedpc;
+    //  2       [1]     JMP             0 3     ; to 6
+    int a = 0; //  GETARG_A(i);
+    if (a > 0)
+      luaF_close(L, ci->l.base + a - 1);
+    // ci->u.l.savedpc += GETARG_sBx(i) + e;
+    // jmp taken care below.
   }
+  base = ci->l.base;
+  if (eq == 0)
+    goto label6;
 
 label3:
   // 3[1]     LOADK           1 - 2; 1.0
@@ -354,6 +351,8 @@ label3:
   ra3 = base + 1;
   // if (b)
   L->top = ra3 + b - 1;
+  if (cl->p->sizep > 0)
+    luaF_close(L, base);
   b = luaD_poscall(L, ra3);
   if (b)
     L->top = ci->top;
@@ -364,55 +363,56 @@ label6:
   ra = base + 0;
   rb = base + 0;
   rc = k + 2;
-  {
-    {
-      int A = 0;
-      int eq = luaV_equalobj(L, rb, rc);
-      if (eq != A) // true; skip instruction 8
-        //ci->u.l.savedpc++;
-        ;
-      else {
-        // i = *ci->l.savedpc;
-        // 7[1]     JMP             0 3; to 11
-        int a = 0; //  GETARG_A(i);
-        if (a > 0)
-          luaF_close(L, ci->l.base + a - 1);
-        //ci->u.l.savedpc += GETARG_sBx(i) + e;
-        goto label11;
-      }
-    }
-    base = ci->l.base;
+  eq = luaV_equalobj(L, rb, rc);
+  if (eq != 0) // true; skip instruction 8
+    // ci->u.l.savedpc++;
+    ;
+  else {
+    // i = *ci->l.savedpc;
+    // 7[1]     JMP             0 3; to 11
+    int a = 0; //  GETARG_A(i);
+    if (a > 0)
+      luaF_close(L, ci->l.base + a - 1);
+    // ci->u.l.savedpc += GETARG_sBx(i) + e;
+    // jmp taken care below.
   }
+  base = ci->l.base;
+  if (eq == 0)
+    goto label11;
 
 label8:
   /* Second LOADK instruction */
-  //8[1]     LOADK           1 -4; 2.0
+  // 8[1]     LOADK           1 -4; 2.0
   ra2 = base + 1;
   rb2 = k + 3;
   *ra2 = *rb2;
 
-  //9[1]     RETURN          1 2
+  // 9[1]     RETURN          1 2
   b = 2;
   ra3 = base + 1;
   // if (b)
   L->top = ra3 + b - 1;
+  if (cl->p->sizep > 0)
+    luaF_close(L, base);
   b = luaD_poscall(L, ra3);
   if (b)
     L->top = ci->top;
   return;
 
 label11:
-  //11[1]     LOADK           1 -5; 3.0
-  //12[1]     RETURN          1 2
+  // 11[1]     LOADK           1 -5; 3.0
+  // 12[1]     RETURN          1 2
   ra2 = base + 1;
   rb2 = k + 4;
   *ra2 = *rb2;
 
-  //9[1]     RETURN          1 2
+  // 9[1]     RETURN          1 2
   b = 2;
   ra3 = base + 1;
   // if (b)
   L->top = ra3 + b - 1;
+  if (cl->p->sizep > 0)
+    luaF_close(L, base);
   b = luaD_poscall(L, ra3);
   if (b)
     L->top = ci->top;
