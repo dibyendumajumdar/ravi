@@ -1130,23 +1130,12 @@ public:
   // Add extern declarations for Lua functions we need to call
   void emit_extern_declarations(RaviFunctionDef *def);
 
-  // Get pointer to L->ci
-  llvm::Value *emit_gep_L_ci(RaviFunctionDef *def);
-
-  llvm::Value *emit_gep_ci_u_l_base(RaviFunctionDef *def, llvm::Value *ci_val);
-
   llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
                                                     llvm::Value *ci);
 
-  llvm::Value *emit_gep_LClosure_p(RaviFunctionDef *def, llvm::Value *cl);
+  llvm::Value *emit_gep(RaviFunctionDef *def, llvm::Value *s, int arg1, int arg2);
 
-  llvm::Value *emit_gep_Proto_k(RaviFunctionDef *def, llvm::Value *p);
-
-  llvm::Value *emit_gep_Proto_psize(RaviFunctionDef *def, llvm::Value *p);
-
-  llvm::Value *emit_gep_L_top(RaviFunctionDef *def, llvm::Value *L);
-
-  llvm::Value *emit_gep_ci_top(RaviFunctionDef *def, llvm::Value *ci);
+  llvm::Value *emit_gep(RaviFunctionDef *def, llvm::Value *s, int arg1, int arg2, int arg3);
 
   void emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr, int A,
                   llvm::Value *k_ptr, int Bx);
@@ -1174,25 +1163,21 @@ const char *RaviCodeGenerator::unique_function_name() {
   return temp_;
 }
 
-llvm::Value *RaviCodeGenerator::emit_gep_L_ci(RaviFunctionDef *def) {
-  // emit code for L->ci
-  values_.clear();
-  values_.push_back(def->types->kInt[0]); // L[0]
-  values_.push_back(def->types->kInt[6]); // L[0].ci
-  return def->builder->CreateInBoundsGEP(def->L, values_);
+llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, llvm::Value *s, int arg1, int arg2) {
+  llvm::SmallVector<llvm::Value *, 2> values;
+  values.push_back(def->types->kInt[arg1]);
+  values.push_back(def->types->kInt[arg2]);
+  return def->builder->CreateInBoundsGEP(s, values);
 }
 
-llvm::Value *RaviCodeGenerator::emit_gep_ci_u_l_base(RaviFunctionDef *def,
-                                                     llvm::Value *ci_val) {
-  // emit code for ci->u.l.base
-  // As LLVM does not handle unions we actually redefine this
-  // as a struct - see CallInfo_lT definition in LuaLLVMTypes
-  values_.clear();
-  values_.push_back(def->types->kInt[0]); // ci[0]
-  values_.push_back(def->types->kInt[4]); // cl[0].u.l
-  values_.push_back(def->types->kInt[0]); // cl[0].u.l.base
-  return def->builder->CreateInBoundsGEP(ci_val, values_);
+llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, llvm::Value *s, int arg1, int arg2, int arg3) {
+  llvm::SmallVector<llvm::Value *, 3> values;
+  values.push_back(def->types->kInt[arg1]);
+  values.push_back(def->types->kInt[arg2]);
+  values.push_back(def->types->kInt[arg3]);
+  return def->builder->CreateInBoundsGEP(s, values);
 }
+
 
 llvm::Value *
 RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
@@ -1206,57 +1191,12 @@ RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
   return ppLuaClosure;
 }
 
-llvm::Value *RaviCodeGenerator::emit_gep_LClosure_p(RaviFunctionDef *def,
-                                                    llvm::Value *cl) {
-  // emit code for for the p member in LClosure
-  values_.clear();
-  values_.push_back(def->types->kInt[0]); // LClosure[0]
-  values_.push_back(def->types->kInt[5]); // LClosure[0].p
-  return def->builder->CreateInBoundsGEP(cl, values_);
-}
-
-llvm::Value *RaviCodeGenerator::emit_gep_Proto_k(RaviFunctionDef *def,
-                                                 llvm::Value *p) {
-  // emit code for for the k member in Proto
-  values_.clear();
-  values_.push_back(def->types->kInt[0]);  // Proto[0]
-  values_.push_back(def->types->kInt[14]); // Proto[0].k
-  return def->builder->CreateInBoundsGEP(p, values_);
-}
-
-llvm::Value *RaviCodeGenerator::emit_gep_Proto_psize(RaviFunctionDef *def,
-                                                     llvm::Value *p) {
-  // emit code for for the psize member in Proto
-  values_.clear();
-  values_.push_back(def->types->kInt[0]);  // Proto[0]
-  values_.push_back(def->types->kInt[10]); // Proto[0].psize
-  return def->builder->CreateInBoundsGEP(p, values_);
-}
-
 llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def,
                                                llvm::Value *ptr, int offset) {
   // emit code for &ptr[offset]
   values_.clear();
   values_.push_back(llvm::ConstantInt::get(def->types->C_intT, offset));
   return def->builder->CreateInBoundsGEP(ptr, values_);
-}
-
-llvm::Value *RaviCodeGenerator::emit_gep_L_top(RaviFunctionDef *def,
-                                               llvm::Value *L) {
-  // emit code for L->top
-  values_.clear();
-  values_.push_back(def->types->kInt[0]); // L[0]
-  values_.push_back(def->types->kInt[4]); // L[0].top
-  return def->builder->CreateInBoundsGEP(L, values_);
-}
-
-llvm::Value *RaviCodeGenerator::emit_gep_ci_top(RaviFunctionDef *def,
-                                                llvm::Value *ci) {
-  // emit code for ci->top
-  values_.clear();
-  values_.push_back(def->types->kInt[0]); // ci[0]
-  values_.push_back(def->types->kInt[1]); // ci[0].top
-  return def->builder->CreateInBoundsGEP(ci, values_);
 }
 
 void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr,
@@ -1334,14 +1274,14 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
   //*  if (b != 0) L->top = ra + b - 1;
   if (B != 0) {
     llvm::Value *ptr = emit_array_get(def, base_ptr, B - 1);
-    top = emit_gep_L_top(def, def->L);
+    top = emit_gep(def, def->L, 0, 4);
     def->builder->CreateStore(ptr, top);
   }
 
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Load pointer to proto
   llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
-  llvm::Value *psize_ptr = emit_gep_Proto_psize(def, proto_ptr);
+  llvm::Value *psize_ptr = emit_gep(def, proto_ptr, 0, 10);
   // Load pointer to psize
   llvm::Value *psize = def->builder->CreateLoad(psize_ptr);
   // Check if psize > 0
@@ -1379,10 +1319,10 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
   def->builder->CreateCondBr(result_is_zero, ThenBB, ElseBB);
   def->builder->SetInsertPoint(ThenBB);
 
-  llvm::Value *citop = emit_gep_ci_top(def, ci);
+  llvm::Value *citop = emit_gep(def, ci, 0, 1);
   llvm::Value *citop_val = def->builder->CreateLoad(citop);
   if (!top)
-    top = emit_gep_L_top(def, def->L);
+    top = emit_gep(def, def->L, 0, 4);
   def->builder->CreateStore(citop_val, top);
   def->builder->CreateBr(ElseBB);
 
@@ -1506,13 +1446,13 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   emit_extern_declarations(&def);
 
   // Get pointer to L->ci
-  llvm::Value *L_ci = emit_gep_L_ci(&def);
+  llvm::Value *L_ci = emit_gep(&def, def.L, 0, 6);
 
   // Load pointer value
   llvm::Value *ci_val = builder.CreateLoad(L_ci);
 
   // Get pointer to base
-  llvm::Value *Ci_base = emit_gep_ci_u_l_base(&def, ci_val);
+  llvm::Value *Ci_base = emit_gep(&def, ci_val, 0, 4, 0);
 
   // Load pointer to base
   llvm::Value *base_ptr = builder.CreateLoad(Ci_base);
@@ -1528,13 +1468,13 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   llvm::Value *cl_ptr = builder.CreateLoad(L_cl);
 
   // Get pointer to the Proto* which is cl->p
-  llvm::Value *proto = emit_gep_LClosure_p(&def, cl_ptr);
+  llvm::Value *proto = emit_gep(&def, cl_ptr, 0, 5);
 
   // Load pointer to proto
   llvm::Value *proto_ptr = builder.CreateLoad(proto);
 
   // Obtain pointer to Proto->k
-  llvm::Value *proto_k = emit_gep_Proto_k(&def, proto_ptr);
+  llvm::Value *proto_k = emit_gep(&def, proto_ptr, 0, 14);
 
   // Load pointer to k
   llvm::Value *k_ptr = builder.CreateLoad(proto_k);
