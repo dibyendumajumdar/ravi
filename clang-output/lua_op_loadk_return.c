@@ -262,6 +262,7 @@ struct lua_State {
 void testfunc(struct GCObject *obj) { printf("value = %d\n", obj->tt); }
 
 extern int luaD_poscall(struct lua_State *L, struct TValue *ra);
+extern void luaF_close(struct lua_State *L, struct TValue *base);
 
 /*
  The following represents a C version of the Lua function:
@@ -293,8 +294,7 @@ void test1(struct lua_State *L) {
   struct TValue *k;
   struct TValue *base;
   struct CallInfoL *cil;
-  static_assert(sizeof(struct CallInfoL) == sizeof(struct CallInfoC),
-                "callInfoL != callInfoC");
+
   ci = L->ci;
   base = ci->l.base;
   cl = (struct LClosure *)(ci->func->value_.gc);
@@ -315,6 +315,8 @@ void test1(struct lua_State *L) {
   struct TValue *ra3 = base + 0;
   // if (b)
   L->top = ra3 + b - 1;
+  if (cl->p->sizep > 0) 
+    luaF_close(L, base);
   b = luaD_poscall(L, ra3);
   if (b)
     L->top = ci->top;

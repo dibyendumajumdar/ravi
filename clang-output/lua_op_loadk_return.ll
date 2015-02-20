@@ -22,7 +22,6 @@ target triple = "i686-pc-windows-gnu"
 %struct.lua_Debug = type opaque
 
 @.str = private unnamed_addr constant [12 x i8] c"value = %d\0A\00", align 1
-@.str1 = private unnamed_addr constant [23 x i8] c"callInfoL != callInfoC\00", align 1
 @Proto = common global %struct.Proto zeroinitializer, align 4
 
 ; Function Attrs: nounwind
@@ -31,7 +30,7 @@ entry:
   %tt = getelementptr inbounds %struct.GCObject* %obj, i32 0, i32 1
   %0 = load i8* %tt, align 1, !tbaa !1
   %conv = zext i8 %0 to i32
-  %call = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([12 x i8]* @.str, i32 0, i32 0), i32 %conv) #2
+  %call = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([12 x i8]* @.str, i32 0, i32 0), i32 %conv) #1
   ret void
 }
 
@@ -41,7 +40,6 @@ declare i32 @printf(i8* nocapture readonly, ...) #0
 ; Function Attrs: nounwind
 define void @test1(%struct.lua_State* %L) #0 {
 entry:
-  %call = tail call i32 bitcast (i32 (...)* @static_assert to i32 (i32, i8*)*)(i32 0, i8* getelementptr inbounds ([23 x i8]* @.str1, i32 0, i32 0)) #2
   %ci1 = getelementptr inbounds %struct.lua_State* %L, i32 0, i32 6
   %0 = load %struct.CallInfoLua** %ci1, align 4, !tbaa !6
   %base2 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 4, i32 0
@@ -64,30 +62,41 @@ entry:
   %add.ptr9 = getelementptr inbounds %struct.TValue* %1, i32 2
   %top = getelementptr inbounds %struct.lua_State* %L, i32 0, i32 4
   store %struct.TValue* %add.ptr9, %struct.TValue** %top, align 4, !tbaa !26
-  %call10 = tail call i32 @luaD_poscall(%struct.lua_State* %L, %struct.TValue* %1) #2
-  %tobool = icmp eq i32 %call10, 0
-  br i1 %tobool, label %if.end, label %if.then
+  %11 = load %struct.Proto** %p, align 4, !tbaa !17
+  %sizep = getelementptr inbounds %struct.Proto* %11, i32 0, i32 10
+  %12 = load i32* %sizep, align 4, !tbaa !27
+  %cmp = icmp sgt i32 %12, 0
+  br i1 %cmp, label %if.then, label %if.end
 
 if.then:                                          ; preds = %entry
-  %top11 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 1
-  %11 = load %struct.TValue** %top11, align 4, !tbaa !27
-  store %struct.TValue* %11, %struct.TValue** %top, align 4, !tbaa !26
+  tail call void @luaF_close(%struct.lua_State* %L, %struct.TValue* %1) #1
   br label %if.end
 
-if.end:                                           ; preds = %entry, %if.then
+if.end:                                           ; preds = %if.then, %entry
+  %call = tail call i32 @luaD_poscall(%struct.lua_State* %L, %struct.TValue* %1) #1
+  %tobool = icmp eq i32 %call, 0
+  br i1 %tobool, label %if.end14, label %if.then11
+
+if.then11:                                        ; preds = %if.end
+  %top12 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 1
+  %13 = load %struct.TValue** %top12, align 4, !tbaa !28
+  store %struct.TValue* %13, %struct.TValue** %top, align 4, !tbaa !26
+  br label %if.end14
+
+if.end14:                                         ; preds = %if.end, %if.then11
   ret void
 }
 
-declare i32 @static_assert(...) #1
-
 ; Function Attrs: nounwind
-declare void @llvm.memcpy.p0i8.p0i8.i32(i8* nocapture, i8* nocapture readonly, i32, i32, i1) #2
+declare void @llvm.memcpy.p0i8.p0i8.i32(i8* nocapture, i8* nocapture readonly, i32, i32, i1) #1
 
-declare i32 @luaD_poscall(%struct.lua_State*, %struct.TValue*) #1
+declare void @luaF_close(%struct.lua_State*, %struct.TValue*) #2
+
+declare i32 @luaD_poscall(%struct.lua_State*, %struct.TValue*) #2
 
 attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #2 = { nounwind }
+attributes #1 = { nounwind }
+attributes #2 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.ident = !{!0}
 
@@ -118,4 +127,5 @@ attributes #2 = { nounwind }
 !24 = metadata !{metadata !25, metadata !25, i64 0}
 !25 = metadata !{metadata !"double", metadata !4, i64 0}
 !26 = metadata !{metadata !7, metadata !3, i64 8}
-!27 = metadata !{metadata !13, metadata !3, i64 4}
+!27 = metadata !{metadata !20, metadata !11, i64 28}
+!28 = metadata !{metadata !13, metadata !3, i64 4}
