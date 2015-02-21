@@ -1098,6 +1098,7 @@ struct RaviFunctionDef {
   llvm::Constant *luaD_poscallF;
   llvm::Constant *luaF_closeF;
   llvm::Constant *luaV_equalobjF;
+  std::vector<llvm::BasicBlock *>jmp_targets;
 };
 
 // This class is responsible for compiling Lua byte code
@@ -1139,14 +1140,19 @@ public:
   llvm::Value *emit_gep(RaviFunctionDef *def, llvm::Value *s, int arg1,
                         int arg2, int arg3);
 
-  void emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr, int A,
-                  llvm::Value *k_ptr, int Bx);
+  void emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto, int A, int Bx);
 
   llvm::Value *emit_array_get(RaviFunctionDef *def, llvm::Value *ptr,
                               int offset);
 
-  void emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
-                   llvm::Value *base_ptr, llvm::Value *ci, int A, int B);
+  void emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                   int A, int B);
+
+  void emit_JMP(RaviFunctionDef *def, int j);
+
+  void scan_jump_targets(RaviFunctionDef *def, Proto *p);
+
+  void emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto, int A, int B, int C, int j, int jA);
 
 private:
   RaviJITStateImpl *jitState_;
@@ -1200,8 +1206,36 @@ llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def,
       ptr, llvm::ConstantInt::get(def->types->C_intT, offset));
 }
 
-void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr,
-                                   int A, llvm::Value *k_ptr, int Bx) {
+void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int j) {
+  assert(def->jmp_targets[j]);
+  if (def->builder->GetInsertBlock()->getTerminator()) {
+    llvm::BasicBlock *jmp_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "jmp", def->f);
+    def->builder->SetInsertPoint(jmp_block);
+  }
+  def->builder->CreateBr(def->jmp_targets[j]);
+}
+
+void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                                   int A, int Bx) {
+  // Load pointer value
+  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
+
+  // Get pointer to base
+  llvm::Value *Ci_base = emit_gep(def, ci_val, 0, 4, 0);
+
+  // Load pointer to base
+  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+
+  // Load pointer to proto
+  llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
+
+  // Obtain pointer to Proto->k
+  llvm::Value *proto_k = emit_gep(def, proto_ptr, 0, 14);
+
+  // Load pointer to k
+  llvm::Value *k_ptr = def->builder->CreateLoad(proto_k);
+
   // LOADK requires a structure assignment
   // in LLVM as far as I can tell this requires a call to
   // an intrinsic memcpy
@@ -1248,9 +1282,8 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *base_ptr,
   def->builder->CreateCall(f, values);
 }
 
-void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
-                                    llvm::Value *base_ptr, llvm::Value *ci,
-                                    int A, int B) {
+void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+  int A, int B) {
 
   // Here is what OP_RETURN looks like. We only compile steps
   // marked with //*.
@@ -1281,6 +1314,24 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
     def->builder->SetInsertPoint(return_block);
   }
 
+  // Load pointer value
+  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
+
+  // Get pointer to base
+  llvm::Value *Ci_base = emit_gep(def, ci_val, 0, 4, 0);
+
+  // Load pointer to base
+  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+
+  // Load pointer to proto
+  llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
+
+  // Obtain pointer to Proto->k
+  llvm::Value *proto_k = emit_gep(def, proto_ptr, 0, 14);
+
+  // Load pointer to k
+  llvm::Value *k_ptr = def->builder->CreateLoad(proto_k);
+
   llvm::Value *top = nullptr;
 
   //*  if (b != 0) L->top = ra + b - 1;
@@ -1290,9 +1341,10 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
     def->builder->CreateStore(ptr, top);
   }
 
+  llvm::Value *ra_ptr = A == 0 ? base_ptr : emit_array_get(def, base_ptr, A);
+
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Load pointer to proto
-  llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
   llvm::Value *psize_ptr = emit_gep(def, proto_ptr, 0, 10);
   // Load pointer to psize
   llvm::Value *psize = def->builder->CreateLoad(psize_ptr);
@@ -1312,7 +1364,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
 
   //*  b = luaD_poscall(L, ra);
   llvm::Value *result =
-      def->builder->CreateCall2(def->luaD_poscallF, def->L, base_ptr);
+      def->builder->CreateCall2(def->luaD_poscallF, def->L, ra_ptr);
 
   //*      if (b) L->top = ci->top;
   llvm::Value *result_is_zero =
@@ -1326,7 +1378,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
   def->builder->CreateCondBr(result_is_zero, ThenBB, ElseBB);
   def->builder->SetInsertPoint(ThenBB);
 
-  llvm::Value *citop = emit_gep(def, ci, 0, 1);
+  llvm::Value *citop = emit_gep(def, ci_val, 0, 1);
   llvm::Value *citop_val = def->builder->CreateLoad(citop);
   if (!top)
     top = emit_gep(def, def->L, 0, 4);
@@ -1339,6 +1391,72 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *proto,
   // as our prototype is lua_Cfunction we need
   // to return a value
   def->builder->CreateRet(def->types->kInt[1]);
+}
+
+void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto, int A, int B, int C, int j, int jA) {
+  // Load pointer value
+  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
+
+  // Get pointer to base
+  llvm::Value *Ci_base = emit_gep(def, ci_val, 0, 4, 0);
+
+  // Load pointer to base
+  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+
+  // Load pointer to proto
+  llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
+
+  // Obtain pointer to Proto->k
+  llvm::Value *proto_k = emit_gep(def, proto_ptr, 0, 14);
+
+  // Load pointer to k
+  llvm::Value *k_ptr = def->builder->CreateLoad(proto_k);
+
+  llvm::Value *lhs_ptr;
+  llvm::Value *rhs_ptr;
+
+  llvm::Value *base_or_k = ISK(B) ? k_ptr : base_ptr;
+  int b = ISK(B) ? INDEXK(B) : B;
+  if (b == 0) {
+    lhs_ptr = base_or_k;
+  }
+  else {
+    lhs_ptr = emit_array_get(def, base_or_k, b);
+  }
+
+  base_or_k = ISK(C) ? k_ptr : base_ptr;
+  int c = ISK(C) ? INDEXK(C) : C;
+  if (c == 0) {
+    rhs_ptr = base_or_k;
+  }
+  else {
+    rhs_ptr = emit_array_get(def, base_or_k, c);
+  }
+
+  llvm::Value *result = def->builder->CreateCall3(def->luaV_equalobjF, def->L, lhs_ptr, rhs_ptr);
+  llvm::Value *result_eq_A = def->builder->CreateICmpEQ(result, llvm::ConstantInt::get(def->types->C_intT, A));
+
+  llvm::BasicBlock *then_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
+  llvm::BasicBlock *else_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else");
+  def->builder->CreateCondBr(result_eq_A, then_block, else_block);
+  def->builder->SetInsertPoint(then_block);
+  if (jA > 0) {
+    // Get pointer to base
+    llvm::Value *Ci_base2 = emit_gep(def, ci_val, 0, 4, 0);
+
+    // Load pointer to base
+    llvm::Value *base_ptr2 = def->builder->CreateLoad(Ci_base2);
+
+    llvm::Value *base_ptr3 = emit_array_get(def, base_ptr2, jA - 1);
+
+    def->builder->CreateCall2(def->luaF_closeF, def->L, base_ptr3);
+  }
+  def->builder->CreateBr(def->jmp_targets[j]);
+  def->f->getBasicBlockList().push_back(else_block);
+  def->builder->SetInsertPoint(else_block);
+  
 }
 
 // Check if we can compile
@@ -1364,6 +1482,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     switch (o) {
     case OP_LOADK:
     case OP_RETURN:
+    case OP_JMP:
+    case OP_EQ:
       break;
     default:
       return false;
@@ -1440,10 +1560,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   if (p->ravi_jit.jit_status != 0 || !canCompile(p))
     return;
 #if 1
+  RaviFunctionDef def = { 0 };
+
   llvm::LLVMContext &context = jitState_->context();
   llvm::IRBuilder<> builder(context);
 
-  RaviFunctionDef def = {0};
   auto f = create_function(builder, &def);
   if (!f) {
     p->ravi_jit.jit_status = 1; // can't compile
@@ -1451,6 +1572,8 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   }
   // Add extern declarations for Lua functions we need to call
   emit_extern_declarations(&def);
+
+  scan_jump_targets(&def, p);
 
   // Get pointer to L->ci
   llvm::Value *L_ci = emit_gep(&def, def.L, 0, 6);
@@ -1489,25 +1612,49 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
   for (pc = 0; pc < n; pc++) {
+    if (def.jmp_targets[pc]) {
+      llvm::BasicBlock *block = def.jmp_targets[pc];
+      if (!def.builder->GetInsertBlock()->getTerminator()) {
+        def.builder->CreateBr(block);
+      }
+      def.f->getBasicBlockList().push_back(block);
+      def.builder->SetInsertPoint(block);
+    }
     Instruction i = code[pc];
     OpCode op = GET_OPCODE(i);
     int A = GETARG_A(i);
     switch (op) {
     case OP_LOADK: {
       int Bx = GETARG_Bx(i);
-      emit_LOADK(&def, base_ptr, A, k_ptr, Bx);
+      emit_LOADK(&def, L_ci, proto, A, Bx);
     } break;
     case OP_RETURN: {
       int B = GETARG_B(i);
-      emit_RETURN(&def, proto, base_ptr, ci_val, A, B);
-      break;
-    }
+      emit_RETURN(&def, L_ci, proto, A, B);
+    } break;
+    case OP_EQ: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      pc++;
+      i = code[pc];
+      op = GET_OPCODE(i);
+      lua_assert(op == OP_JMP);
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      emit_EQ(&def, L_ci, proto, A, B, C, j, GETARG_A(i));
+    } break;
+    case OP_JMP: {
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      emit_JMP(&def, j);
+    } break;
     default:
       break;
     }
   }
 
   f->dump();
+  llvm::verifyFunction(*f->function());
   ravi::RaviJITFunctionImpl *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile();
@@ -1523,6 +1670,34 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   p->ravi_jit.jit_status = 1; // can't compile
 #endif
 }
+
+void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p)  {
+  def->jmp_targets.clear();
+  const Instruction *code = p->code;
+  int pc, n = p->sizecode;
+  for (pc = 0; pc < n; pc++)
+    def->jmp_targets.push_back(nullptr);
+
+  for (pc = 0; pc < n; pc++) {
+    Instruction i = code[pc];
+    OpCode op = GET_OPCODE(i);
+    int A = GETARG_A(i);
+    switch (op) {
+    case OP_JMP:
+    case OP_FORLOOP:
+    case OP_FORPREP:
+    case OP_TFORLOOP: {
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      def->jmp_targets[j] = llvm::BasicBlock::Create(def->jitState->context(), "jmptarget");
+    } break;
+    default:
+      break;
+    }
+  }
+}
+
+
 }
 
 #ifdef __cplusplus

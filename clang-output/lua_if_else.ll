@@ -43,88 +43,124 @@ entry:
   %ci1 = getelementptr inbounds %struct.lua_State* %L, i32 0, i32 6
   %0 = load %struct.CallInfoLua** %ci1, align 4, !tbaa !6
   %base2 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 4, i32 0
-  %1 = load %struct.TValue** %base2, align 4, !tbaa !12
-  %2 = bitcast %struct.CallInfoLua* %0 to %struct.LClosure***
-  %3 = load %struct.LClosure*** %2, align 4, !tbaa !15
-  %4 = load %struct.LClosure** %3, align 4, !tbaa !16
-  %p = getelementptr inbounds %struct.LClosure* %4, i32 0, i32 5
-  %5 = load %struct.Proto** %p, align 4, !tbaa !17
-  %k3 = getelementptr inbounds %struct.Proto* %5, i32 0, i32 14
+  %1 = bitcast %struct.CallInfoLua* %0 to %struct.LClosure***
+  %2 = load %struct.LClosure*** %1, align 4, !tbaa !12
+  %3 = load %struct.LClosure** %2, align 4, !tbaa !15
+  %p = getelementptr inbounds %struct.LClosure* %3, i32 0, i32 5
+  %4 = load %struct.Proto** %p, align 4, !tbaa !16
+  %k3 = getelementptr inbounds %struct.Proto* %4, i32 0, i32 14
+  %5 = load %struct.TValue** %base2, align 4, !tbaa !18
   %6 = load %struct.TValue** %k3, align 4, !tbaa !19
-  %call = tail call i32 bitcast (i32 (...)* @luaV_equalobj to i32 (%struct.lua_State*, %struct.TValue*, %struct.TValue*)*)(%struct.lua_State* %L, %struct.TValue* %1, %struct.TValue* %6) #2
+  %call = tail call i32 bitcast (i32 (...)* @luaV_equalobj to i32 (%struct.lua_State*, %struct.TValue*, %struct.TValue*)*)(%struct.lua_State* %L, %struct.TValue* %5, %struct.TValue* %6) #2
   %cmp = icmp eq i32 %call, 0
-  br i1 %cmp, label %label6, label %if.end13
+  br i1 %cmp, label %label6, label %label3
 
-if.end13:                                         ; preds = %entry
-  %7 = load %struct.TValue** %base2, align 4, !tbaa !12
-  %add.ptr16 = getelementptr inbounds %struct.TValue* %7, i32 1
-  %add.ptr17 = getelementptr inbounds %struct.TValue* %6, i32 1
-  %8 = bitcast %struct.TValue* %add.ptr16 to i8*
-  %9 = bitcast %struct.TValue* %add.ptr17 to i8*
-  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %8, i8* %9, i32 16, i32 8, i1 false), !tbaa.struct !21
-  %add.ptr20 = getelementptr inbounds %struct.TValue* %7, i32 2
+label3:                                           ; preds = %entry
+  %add.ptr18 = getelementptr inbounds %struct.TValue* %5, i32 1
+  %add.ptr19 = getelementptr inbounds %struct.TValue* %6, i32 1
+  %7 = bitcast %struct.TValue* %add.ptr18 to i8*
+  %8 = bitcast %struct.TValue* %add.ptr19 to i8*
+  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %7, i8* %8, i32 16, i32 8, i1 false), !tbaa.struct !21
+  %add.ptr22 = getelementptr inbounds %struct.TValue* %5, i32 2
   %top = getelementptr inbounds %struct.lua_State* %L, i32 0, i32 4
-  store %struct.TValue* %add.ptr20, %struct.TValue** %top, align 4, !tbaa !26
-  %call21 = tail call i32 @luaD_poscall(%struct.lua_State* %L, %struct.TValue* %add.ptr16) #2
-  %tobool = icmp eq i32 %call21, 0
-  br i1 %tobool, label %return, label %if.then22
+  store %struct.TValue* %add.ptr22, %struct.TValue** %top, align 4, !tbaa !26
+  %9 = load %struct.Proto** %p, align 4, !tbaa !16
+  %sizep = getelementptr inbounds %struct.Proto* %9, i32 0, i32 10
+  %10 = load i32* %sizep, align 4, !tbaa !27
+  %cmp24 = icmp sgt i32 %10, 0
+  br i1 %cmp24, label %if.then25, label %if.end27
 
-if.then22:                                        ; preds = %if.end13
-  %top23 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 1
-  %10 = load %struct.TValue** %top23, align 4, !tbaa !27
-  store %struct.TValue* %10, %struct.TValue** %top, align 4, !tbaa !26
+if.then25:                                        ; preds = %label3
+  %call26 = tail call i32 bitcast (i32 (...)* @luaF_close to i32 (%struct.lua_State*, %struct.TValue*)*)(%struct.lua_State* %L, %struct.TValue* %5) #2
+  br label %if.end27
+
+if.end27:                                         ; preds = %if.then25, %label3
+  %call28 = tail call i32 @luaD_poscall(%struct.lua_State* %L, %struct.TValue* %add.ptr18) #2
+  %tobool = icmp eq i32 %call28, 0
+  br i1 %tobool, label %return, label %if.then29
+
+if.then29:                                        ; preds = %if.end27
+  %top30 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 1
+  %11 = load %struct.TValue** %top30, align 4, !tbaa !28
+  store %struct.TValue* %11, %struct.TValue** %top, align 4, !tbaa !26
   br label %return
 
 label6:                                           ; preds = %entry
-  %add.ptr28 = getelementptr inbounds %struct.TValue* %6, i32 2
-  %call31 = tail call i32 bitcast (i32 (...)* @luaV_equalobj to i32 (%struct.lua_State*, %struct.TValue*, %struct.TValue*)*)(%struct.lua_State* %L, %struct.TValue* %1, %struct.TValue* %add.ptr28) #2
-  %cmp32 = icmp eq i32 %call31, 0
-  br i1 %cmp32, label %label11, label %if.end44
+  %12 = load %struct.TValue** %base2, align 4, !tbaa !18
+  %13 = load %struct.Proto** %p, align 4, !tbaa !16
+  %k36 = getelementptr inbounds %struct.Proto* %13, i32 0, i32 14
+  %14 = load %struct.TValue** %k36, align 4, !tbaa !19
+  %add.ptr39 = getelementptr inbounds %struct.TValue* %14, i32 2
+  %call40 = tail call i32 bitcast (i32 (...)* @luaV_equalobj to i32 (%struct.lua_State*, %struct.TValue*, %struct.TValue*)*)(%struct.lua_State* %L, %struct.TValue* %12, %struct.TValue* %add.ptr39) #2
+  %cmp41 = icmp eq i32 %call40, 0
+  %add.ptr71 = getelementptr inbounds %struct.TValue* %12, i32 1
+  br i1 %cmp41, label %label11, label %label8
 
-if.end44:                                         ; preds = %label6
-  %11 = load %struct.TValue** %base2, align 4, !tbaa !12
-  %add.ptr47 = getelementptr inbounds %struct.TValue* %11, i32 1
-  %add.ptr48 = getelementptr inbounds %struct.TValue* %6, i32 3
-  %12 = bitcast %struct.TValue* %add.ptr47 to i8*
-  %13 = bitcast %struct.TValue* %add.ptr48 to i8*
-  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %12, i8* %13, i32 16, i32 8, i1 false), !tbaa.struct !21
-  %add.ptr51 = getelementptr inbounds %struct.TValue* %11, i32 2
-  %top52 = getelementptr inbounds %struct.lua_State* %L, i32 0, i32 4
-  store %struct.TValue* %add.ptr51, %struct.TValue** %top52, align 4, !tbaa !26
-  %call53 = tail call i32 @luaD_poscall(%struct.lua_State* %L, %struct.TValue* %add.ptr47) #2
-  %tobool54 = icmp eq i32 %call53, 0
-  br i1 %tobool54, label %return, label %if.then55
-
-if.then55:                                        ; preds = %if.end44
-  %top56 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 1
-  %14 = load %struct.TValue** %top56, align 4, !tbaa !27
-  store %struct.TValue* %14, %struct.TValue** %top52, align 4, !tbaa !26
-  br label %return
-
-label11:                                          ; preds = %label6
-  %add.ptr59 = getelementptr inbounds %struct.TValue* %1, i32 1
-  %add.ptr60 = getelementptr inbounds %struct.TValue* %6, i32 4
-  %15 = bitcast %struct.TValue* %add.ptr59 to i8*
-  %16 = bitcast %struct.TValue* %add.ptr60 to i8*
+label8:                                           ; preds = %label6
+  %add.ptr54 = getelementptr inbounds %struct.TValue* %14, i32 3
+  %15 = bitcast %struct.TValue* %add.ptr71 to i8*
+  %16 = bitcast %struct.TValue* %add.ptr54 to i8*
   tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %15, i8* %16, i32 16, i32 8, i1 false), !tbaa.struct !21
-  %add.ptr63 = getelementptr inbounds %struct.TValue* %1, i32 2
-  %top64 = getelementptr inbounds %struct.lua_State* %L, i32 0, i32 4
-  store %struct.TValue* %add.ptr63, %struct.TValue** %top64, align 4, !tbaa !26
-  %call65 = tail call i32 @luaD_poscall(%struct.lua_State* %L, %struct.TValue* %add.ptr59) #2
+  %add.ptr57 = getelementptr inbounds %struct.TValue* %12, i32 2
+  %top58 = getelementptr inbounds %struct.lua_State* %L, i32 0, i32 4
+  store %struct.TValue* %add.ptr57, %struct.TValue** %top58, align 4, !tbaa !26
+  %17 = load %struct.Proto** %p, align 4, !tbaa !16
+  %sizep60 = getelementptr inbounds %struct.Proto* %17, i32 0, i32 10
+  %18 = load i32* %sizep60, align 4, !tbaa !27
+  %cmp61 = icmp sgt i32 %18, 0
+  br i1 %cmp61, label %if.then62, label %if.end64
+
+if.then62:                                        ; preds = %label8
+  %call63 = tail call i32 bitcast (i32 (...)* @luaF_close to i32 (%struct.lua_State*, %struct.TValue*)*)(%struct.lua_State* %L, %struct.TValue* %12) #2
+  br label %if.end64
+
+if.end64:                                         ; preds = %if.then62, %label8
+  %call65 = tail call i32 @luaD_poscall(%struct.lua_State* %L, %struct.TValue* %add.ptr71) #2
   %tobool66 = icmp eq i32 %call65, 0
   br i1 %tobool66, label %return, label %if.then67
 
-if.then67:                                        ; preds = %label11
+if.then67:                                        ; preds = %if.end64
   %top68 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 1
-  %17 = load %struct.TValue** %top68, align 4, !tbaa !27
-  store %struct.TValue* %17, %struct.TValue** %top64, align 4, !tbaa !26
+  %19 = load %struct.TValue** %top68, align 4, !tbaa !28
+  store %struct.TValue* %19, %struct.TValue** %top58, align 4, !tbaa !26
   br label %return
 
-return:                                           ; preds = %if.end13, %if.end44, %label11, %if.then67, %if.then55, %if.then22
+label11:                                          ; preds = %label6
+  %add.ptr72 = getelementptr inbounds %struct.TValue* %14, i32 4
+  %20 = bitcast %struct.TValue* %add.ptr71 to i8*
+  %21 = bitcast %struct.TValue* %add.ptr72 to i8*
+  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %20, i8* %21, i32 16, i32 8, i1 false), !tbaa.struct !21
+  %add.ptr75 = getelementptr inbounds %struct.TValue* %12, i32 2
+  %top76 = getelementptr inbounds %struct.lua_State* %L, i32 0, i32 4
+  store %struct.TValue* %add.ptr75, %struct.TValue** %top76, align 4, !tbaa !26
+  %22 = load %struct.Proto** %p, align 4, !tbaa !16
+  %sizep78 = getelementptr inbounds %struct.Proto* %22, i32 0, i32 10
+  %23 = load i32* %sizep78, align 4, !tbaa !27
+  %cmp79 = icmp sgt i32 %23, 0
+  br i1 %cmp79, label %if.then80, label %if.end82
+
+if.then80:                                        ; preds = %label11
+  %call81 = tail call i32 bitcast (i32 (...)* @luaF_close to i32 (%struct.lua_State*, %struct.TValue*)*)(%struct.lua_State* %L, %struct.TValue* %12) #2
+  br label %if.end82
+
+if.end82:                                         ; preds = %if.then80, %label11
+  %call83 = tail call i32 @luaD_poscall(%struct.lua_State* %L, %struct.TValue* %add.ptr71) #2
+  %tobool84 = icmp eq i32 %call83, 0
+  br i1 %tobool84, label %return, label %if.then85
+
+if.then85:                                        ; preds = %if.end82
+  %top86 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 1
+  %24 = load %struct.TValue** %top86, align 4, !tbaa !28
+  store %struct.TValue* %24, %struct.TValue** %top76, align 4, !tbaa !26
+  br label %return
+
+return:                                           ; preds = %if.end82, %if.end64, %if.end27, %if.then85, %if.then67, %if.then29
   ret void
 }
 
 declare i32 @luaV_equalobj(...) #1
+
+declare i32 @luaF_close(...) #1
 
 ; Function Attrs: nounwind
 declare void @llvm.memcpy.p0i8.p0i8.i32(i8* nocapture, i8* nocapture readonly, i32, i32, i1) #2
@@ -149,19 +185,20 @@ attributes #2 = { nounwind }
 !9 = metadata !{metadata !"long long", metadata !4, i64 0}
 !10 = metadata !{metadata !"short", metadata !4, i64 0}
 !11 = metadata !{metadata !"int", metadata !4, i64 0}
-!12 = metadata !{metadata !13, metadata !3, i64 16}
+!12 = metadata !{metadata !13, metadata !3, i64 0}
 !13 = metadata !{metadata !"CallInfoLua", metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8, metadata !3, i64 12, metadata !14, i64 16, metadata !9, i64 32, metadata !10, i64 40, metadata !4, i64 42}
 !14 = metadata !{metadata !"CallInfoL", metadata !3, i64 0, metadata !3, i64 4, metadata !9, i64 8}
-!15 = metadata !{metadata !13, metadata !3, i64 0}
-!16 = metadata !{metadata !3, metadata !3, i64 0}
-!17 = metadata !{metadata !18, metadata !3, i64 12}
-!18 = metadata !{metadata !"LClosure", metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, metadata !4, i64 6, metadata !3, i64 8, metadata !3, i64 12, metadata !4, i64 16}
+!15 = metadata !{metadata !3, metadata !3, i64 0}
+!16 = metadata !{metadata !17, metadata !3, i64 12}
+!17 = metadata !{metadata !"LClosure", metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, metadata !4, i64 6, metadata !3, i64 8, metadata !3, i64 12, metadata !4, i64 16}
+!18 = metadata !{metadata !13, metadata !3, i64 16}
 !19 = metadata !{metadata !20, metadata !3, i64 44}
 !20 = metadata !{metadata !"Proto", metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, metadata !4, i64 6, metadata !4, i64 7, metadata !4, i64 8, metadata !11, i64 12, metadata !11, i64 16, metadata !11, i64 20, metadata !11, i64 24, metadata !11, i64 28, metadata !11, i64 32, metadata !11, i64 36, metadata !11, i64 40, metadata !3, i64 44, metadata !3, i64 48, metadata !3, i64 52, metadata !3, i64 56, metadata !3, i64 60, metadata !3, i64 64, metadata !3, i64 68, metadata !3, i64 72, metadata !3, i64 76}
-!21 = metadata !{i64 0, i64 4, metadata !16, i64 0, i64 4, metadata !16, i64 0, i64 4, metadata !22, i64 0, i64 4, metadata !16, i64 0, i64 8, metadata !23, i64 0, i64 8, metadata !24, i64 8, i64 4, metadata !22}
+!21 = metadata !{i64 0, i64 4, metadata !15, i64 0, i64 4, metadata !15, i64 0, i64 4, metadata !22, i64 0, i64 4, metadata !15, i64 0, i64 8, metadata !23, i64 0, i64 8, metadata !24, i64 8, i64 4, metadata !22}
 !22 = metadata !{metadata !11, metadata !11, i64 0}
 !23 = metadata !{metadata !9, metadata !9, i64 0}
 !24 = metadata !{metadata !25, metadata !25, i64 0}
 !25 = metadata !{metadata !"double", metadata !4, i64 0}
 !26 = metadata !{metadata !7, metadata !3, i64 8}
-!27 = metadata !{metadata !13, metadata !3, i64 4}
+!27 = metadata !{metadata !20, metadata !11, i64 28}
+!28 = metadata !{metadata !13, metadata !3, i64 4}

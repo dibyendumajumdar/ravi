@@ -320,14 +320,14 @@ void test1(struct lua_State *L) {
   k = cl->p->k;
 
   /*1 [1] EQ 0 0 -1 ; - 1 */
+  base = ci->l.base;
+  k = cl->p->k;      
   struct TValue *ra = base + 0;
   struct TValue *rb = base + 0;
   struct TValue *rc = k + 0;
   int eq = luaV_equalobj(L, rb, rc);
-  if (eq != 0) // A=0, if eq == A skip instruction 2
-    // ci->u.l.savedpc++;
-    ;
-  else {
+  // A=0, if eq == A skip instruction 2
+  if (eq == 0) {
     // i = *ci->l.savedpc;
     //  2       [1]     JMP             0 3     ; to 6
     int a = 0; //  GETARG_A(i);
@@ -335,10 +335,8 @@ void test1(struct lua_State *L) {
       luaF_close(L, ci->l.base + a - 1);
     // ci->u.l.savedpc += GETARG_sBx(i) + e;
     // jmp taken care below.
-  }
-  base = ci->l.base;
-  if (eq == 0)
     goto label6;
+  }
 
 label3:
   // 3[1]     LOADK           1 - 2; 1.0
@@ -358,16 +356,18 @@ label3:
     L->top = ci->top;
   return;
 
+  goto label_return;
+
 label6:
   // 6[1]     EQ              0 0 -3; -5
+  base = ci->l.base;
+  k = cl->p->k;      
   ra = base + 0;
   rb = base + 0;
   rc = k + 2;
   eq = luaV_equalobj(L, rb, rc);
-  if (eq != 0) // true; skip instruction 8
-    // ci->u.l.savedpc++;
-    ;
-  else {
+  // true; skip instruction 8
+  if (eq == 0) {
     // i = *ci->l.savedpc;
     // 7[1]     JMP             0 3; to 11
     int a = 0; //  GETARG_A(i);
@@ -375,10 +375,8 @@ label6:
       luaF_close(L, ci->l.base + a - 1);
     // ci->u.l.savedpc += GETARG_sBx(i) + e;
     // jmp taken care below.
-  }
-  base = ci->l.base;
-  if (eq == 0)
     goto label11;
+  }
 
 label8:
   /* Second LOADK instruction */
@@ -399,6 +397,8 @@ label8:
     L->top = ci->top;
   return;
 
+  goto label_return;
+
 label11:
   // 11[1]     LOADK           1 -5; 3.0
   // 12[1]     RETURN          1 2
@@ -416,5 +416,8 @@ label11:
   b = luaD_poscall(L, ra3);
   if (b)
     L->top = ci->top;
+  return;
+
+label_return:
   return;
 }
