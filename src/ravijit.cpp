@@ -1022,15 +1022,12 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
 
 void *RaviJITFunctionImpl::compile() {
 
-// TODO add optimize steps
-#if 0
   // Create a function pass manager for this engine
-  llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(OpenModule);
+  llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(module_);
 
   // Set up the optimizer pipeline.  Start with registering info about how the
   // target lays out data structures.
-  OpenModule->setDataLayout(NewEngine->getDataLayout());
-  FPM->add(new llvm::DataLayoutPass());
+  FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
   // Provide basic AliasAnalysis support for GVN.
   FPM->add(llvm::createBasicAliasAnalysisPass());
   // Promote allocas to registers.
@@ -1046,16 +1043,13 @@ void *RaviJITFunctionImpl::compile() {
   FPM->doInitialization();
 
   // For each function in the module
-  llvm::Module::iterator it;
-  llvm::Module::iterator end = OpenModule->end();
-  for (it = OpenModule->begin(); it != end; ++it) {
-    // Run the FPM on this function
-    FPM->run(*it);
-  }
+  // Run the FPM on this function
+  FPM->run(*function_);
+
+  // function_->dump();
 
   // We don't need this anymore
   delete FPM;
-#endif
 
   if (ptr_)
     return ptr_;
@@ -1109,6 +1103,15 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_lessthanF;
   llvm::Constant *luaV_lessequalF;
   std::vector<llvm::BasicBlock *> jmp_targets;
+  // Pointer to proto
+  //llvm::Value *proto;
+  // Load pointer to proto
+  llvm::Value *proto_ptr;
+  // Obtain pointer to Proto->k
+  llvm::Value *proto_k;
+  // Load pointer to k
+  llvm::Value *k_ptr;
+
 };
 
 // This class is responsible for compiling Lua byte code
@@ -1141,6 +1144,7 @@ public:
   // Add extern declarations for Lua functions we need to call
   void emit_extern_declarations(RaviFunctionDef *def);
 
+  // emit code for (LClosure *)ci->func->value_.gc
   llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
                                                     llvm::Value *ci);
 
@@ -1150,23 +1154,36 @@ public:
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
                         int arg1, int arg2, int arg3);
 
-  void emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-                  int A, int Bx);
-
+  // emit code for &ptr[offset]
   llvm::Value *emit_array_get(RaviFunctionDef *def, llvm::Value *ptr,
                               int offset);
+
+  // Look for Lua bytecodes that are jump targets and allocate
+  // a BasicBlock for each such target in def->jump_targets.
+  // The BasicBlocks are not inserted into the function until later
+  // but having them created allows rest of the code to insert
+  // branch instructions
+  void scan_jump_targets(RaviFunctionDef *def, Proto *p);
+
+  void link_block(RaviFunctionDef *def, int pc);
+
+  void emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                  int A, int Bx);
 
   void emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                    int A, int B);
 
   void emit_JMP(RaviFunctionDef *def, int j);
 
-  void scan_jump_targets(RaviFunctionDef *def, Proto *p);
-
+  // Emit code for OP_EQ, OP_LT and OP_LE
+  // The callee parameter should be luaV_equalobj, luaV_lessthan and
+  // luaV_lessequal
+  // respectively
+  // A, B, C must be operands of the OP_EQ/OP_LT/OP_LE instructions
+  // j must be the jump target (offset of the code to which we need to jump to)
+  // jA must be the A operand of the jump instruction
   void emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                int A, int B, int C, int j, int jA, llvm::Constant *callee);
-
-  void link_block(RaviFunctionDef *def, int pc);
 
 private:
   RaviJITStateImpl *jitState_;
@@ -1248,13 +1265,13 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
 
   // Load pointer to proto
-  llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
+  //llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
 
   // Obtain pointer to Proto->k
-  llvm::Value *proto_k = emit_gep(def, "k", proto_ptr, 0, 14);
+  //llvm::Value *proto_k = emit_gep(def, "k", proto_ptr, 0, 14);
 
   // Load pointer to k
-  llvm::Value *k_ptr = def->builder->CreateLoad(proto_k);
+  llvm::Value *k_ptr = def->k_ptr; // def->builder->CreateLoad(proto_k);
 
   // LOADK requires a structure assignment
   // in LLVM as far as I can tell this requires a call to
@@ -1344,13 +1361,13 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
 
   // Load pointer to proto
-  llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
+  //llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
 
   // Obtain pointer to Proto->k
-  llvm::Value *proto_k = emit_gep(def, "k", proto_ptr, 0, 14);
+  //llvm::Value *proto_k = emit_gep(def, "k", proto_ptr, 0, 14);
 
   // Load pointer to k
-  llvm::Value *k_ptr = def->builder->CreateLoad(proto_k);
+  llvm::Value *k_ptr = def->k_ptr; // def->builder->CreateLoad(proto_k);
 
   llvm::Value *top = nullptr;
 
@@ -1369,7 +1386,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Get pointer to Proto->sizep
-  llvm::Value *psize_ptr = emit_gep(def, "sizep", proto_ptr, 0, 10);
+  llvm::Value *psize_ptr = emit_gep(def, "sizep", def->proto_ptr, 0, 10);
   // Load psize
   llvm::Value *psize = def->builder->CreateLoad(psize_ptr);
   // Test if psize > 0
@@ -1443,13 +1460,13 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
 
   // Load pointer to proto
-  llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
+  //llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
 
   // Obtain pointer to Proto->k
-  llvm::Value *proto_k = emit_gep(def, "k", proto_ptr, 0, 14);
+  //llvm::Value *proto_k = emit_gep(def, "k", proto_ptr, 0, 14);
 
   // Load pointer to k
-  llvm::Value *k_ptr = def->builder->CreateLoad(proto_k);
+  llvm::Value *k_ptr = def->k_ptr; // def->builder->CreateLoad(proto_k);
 
   llvm::Value *lhs_ptr;
   llvm::Value *rhs_ptr;
@@ -1676,6 +1693,15 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   // Get pointer to the Proto* which is cl->p
   llvm::Value *proto = emit_gep(&def, "Proto", cl_ptr, 0, 5);
 
+  // Load pointer to proto
+  def.proto_ptr = builder.CreateLoad(proto);
+
+  // Obtain pointer to Proto->k
+  def.proto_k = emit_gep(&def, "k", def.proto_ptr, 0, 14);
+
+  // Load pointer to k
+  def.k_ptr = builder.CreateLoad(def.proto_k);
+  
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
   for (pc = 0; pc < n; pc++) {
@@ -1722,8 +1748,8 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     }
   }
 
-  //f->dump();
-  //llvm::verifyFunction(*f->function());
+  // f->dump();
+  // llvm::verifyFunction(*f->function());
   ravi::RaviJITFunctionImpl *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile();
