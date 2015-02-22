@@ -320,12 +320,11 @@ void test1(struct lua_State *L) {
   k = cl->p->k;
 
   /*1 [1] EQ 0 0 -1 ; - 1 */
-  base = ci->l.base;
-  k = cl->p->k;      
   struct TValue *ra = base + 0;
   struct TValue *rb = base + 0;
   struct TValue *rc = k + 0;
   int eq = luaV_equalobj(L, rb, rc);
+  base = ci->l.base;
   // A=0, if eq == A skip instruction 2
   if (eq == 0) {
     // i = *ci->l.savedpc;
@@ -360,12 +359,11 @@ label3:
 
 label6:
   // 6[1]     EQ              0 0 -3; -5
-  base = ci->l.base;
-  k = cl->p->k;      
   ra = base + 0;
   rb = base + 0;
   rc = k + 2;
   eq = luaV_equalobj(L, rb, rc);
+  base = ci->l.base;
   // true; skip instruction 8
   if (eq == 0) {
     // i = *ci->l.savedpc;

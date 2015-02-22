@@ -166,6 +166,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_equalobjT;
   llvm::FunctionType *luaV_lessthanT;
   llvm::FunctionType *luaV_lessequalT;
+  llvm::FunctionType *luaG_runerrorT;
 
   std::array<llvm::Constant *, 21> kInt;
 
@@ -782,6 +783,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   // int luaV_lessequal (lua_State *L, const TValue *l, const TValue *r)
   luaV_lessequalT = llvm::FunctionType::get(C_intT, elements, false);
 
+  // l_noret luaG_runerror (lua_State *L, const char *fmt, ...)
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(C_pcharT);
+  luaG_runerrorT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, true);
+
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
 
@@ -1102,6 +1109,7 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_equalobjF;
   llvm::Constant *luaV_lessthanF;
   llvm::Constant *luaV_lessequalF;
+  llvm::Constant *luaG_runerrorF;
   std::vector<llvm::BasicBlock *> jmp_targets;
   // Pointer to proto
   //llvm::Value *proto;
@@ -1174,6 +1182,9 @@ public:
                    int A, int B);
 
   void emit_JMP(RaviFunctionDef *def, int j);
+
+  void emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int sBx);
 
   // Emit code for OP_EQ, OP_LT and OP_LE
   // The callee parameter should be luaV_equalobj, luaV_lessthan and
@@ -1248,6 +1259,56 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int j) {
   def->builder->CreateBr(def->jmp_targets[j]);
 }
 
+void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
+  llvm::Value *proto, int A, int sBx) {
+
+    //case OP_FORPREP: {
+    //  TValue *init = ra;
+    //  TValue *plimit = ra + 1;
+    //  TValue *pstep = ra + 2;
+    //  lua_Integer ilimit;
+    //  int stopnow;
+    //  if (ttisinteger(init) && ttisinteger(pstep) &&
+    //    forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
+    //    /* all values are integer */
+    //    lua_Integer initv = (stopnow ? 0 : ivalue(init));
+    //    setivalue(plimit, ilimit);
+    //    setivalue(init, initv - ivalue(pstep));
+    //  }
+    //  else {  /* try making all values floats */
+    //    lua_Number ninit; lua_Number nlimit; lua_Number nstep;
+    //    if (!tonumber(plimit, &nlimit))
+    //      luaG_runerror(L, "'for' limit must be a number");
+    //    setfltvalue(plimit, nlimit);
+    //    if (!tonumber(pstep, &nstep))
+    //      luaG_runerror(L, "'for' step must be a number");
+    //    setfltvalue(pstep, nstep);
+    //    if (!tonumber(init, &ninit))
+    //      luaG_runerror(L, "'for' initial value must be a number");
+    //    setfltvalue(init, luai_numsub(L, ninit, nstep));
+    //  }
+    //  ci->u.l.savedpc += GETARG_sBx(i);
+    //} break;
+
+  // Load L->ci
+  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
+
+  // Get pointer to base
+  llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
+
+  // Load pointer to base
+  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+
+  // Load pointer to k
+  llvm::Value *k_ptr = def->k_ptr;
+
+  llvm::Value *init = A == 0 ? base_ptr : emit_array_get(def, base_ptr, A);
+
+  llvm::Value *plimit = emit_array_get(def, base_ptr, A + 1);
+
+  llvm::Value *pstep = emit_array_get(def, base_ptr, A + 2);
+}
+
 void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int Bx) {
   //    case OP_LOADK: {
@@ -1264,14 +1325,8 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
   // Load pointer to base
   llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
 
-  // Load pointer to proto
-  //llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
-
-  // Obtain pointer to Proto->k
-  //llvm::Value *proto_k = emit_gep(def, "k", proto_ptr, 0, 14);
-
   // Load pointer to k
-  llvm::Value *k_ptr = def->k_ptr; // def->builder->CreateLoad(proto_k);
+  llvm::Value *k_ptr = def->k_ptr; 
 
   // LOADK requires a structure assignment
   // in LLVM as far as I can tell this requires a call to
@@ -1360,14 +1415,8 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   // Load pointer to base
   llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
 
-  // Load pointer to proto
-  //llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
-
-  // Obtain pointer to Proto->k
-  //llvm::Value *proto_k = emit_gep(def, "k", proto_ptr, 0, 14);
-
   // Load pointer to k
-  llvm::Value *k_ptr = def->k_ptr; // def->builder->CreateLoad(proto_k);
+  llvm::Value *k_ptr = def->k_ptr; 
 
   llvm::Value *top = nullptr;
 
@@ -1459,14 +1508,8 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
   // Load pointer to base
   llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
 
-  // Load pointer to proto
-  //llvm::Value *proto_ptr = def->builder->CreateLoad(proto);
-
-  // Obtain pointer to Proto->k
-  //llvm::Value *proto_k = emit_gep(def, "k", proto_ptr, 0, 14);
-
   // Load pointer to k
-  llvm::Value *k_ptr = def->k_ptr; // def->builder->CreateLoad(proto_k);
+  llvm::Value *k_ptr = def->k_ptr;
 
   llvm::Value *lhs_ptr;
   llvm::Value *rhs_ptr;
@@ -1612,6 +1655,8 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       def->types->luaV_lessthanT, &luaV_lessthan, "luaV_lessthan");
   def->luaV_lessequalF = def->raviF->addExternFunction(
       def->types->luaV_lessequalT, &luaV_lessequal, "luaV_lessequal");
+  def->luaG_runerrorF = def->raviF->addExternFunction(
+    def->types->luaG_runerrorT, &luaG_runerror, "luaG_runerror");
 }
 
 #define RA(i) (base + GETARG_A(i))
@@ -1742,6 +1787,12 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
       emit_JMP(&def, j);
+    } break;
+    case OP_FORPREP: {
+      assert(false);
+    } break;
+    case OP_FORLOOP: {
+      assert(false);
     } break;
     default:
       break;
