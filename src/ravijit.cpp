@@ -180,6 +180,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
                 "lua_Number is not a double");
   lua_NumberT = llvm::Type::getDoubleTy(context);
 
+  static_assert(sizeof(lua_Integer) == sizeof(lua_Number), "Only 64-bit int supported");
   static_assert(std::is_integral<lua_Integer>::value,
                 "lua_Integer is not an integer type");
   lua_IntegerT = llvm::Type::getIntNTy(context, sizeof(lua_Integer) * 8);
@@ -262,7 +263,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
   elements.push_back(lu_byteT);
   GCObjectT->setBody(elements);
 
-  static_assert(sizeof(Value) == sizeof(lua_Number),
+  static_assert(sizeof(Value) == sizeof(lua_Number) && sizeof(Value) == sizeof(lua_Integer),
                 "Value type is larger than lua_Number");
   // In LLVM unions should be set to the largest member
   // So in the case of a Value this is the double type
@@ -1029,6 +1030,8 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
 
 void *RaviJITFunctionImpl::compile() {
 
+  //function_->dump();
+
   // Create a function pass manager for this engine
   llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(module_);
 
@@ -1053,7 +1056,7 @@ void *RaviJITFunctionImpl::compile() {
   // Run the FPM on this function
   FPM->run(*function_);
 
-  // function_->dump();
+  //function_->dump();
 
   // We don't need this anymore
   delete FPM;
@@ -1349,6 +1352,17 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
     src = emit_array_get(def, k_ptr, Bx);
   }
 
+#if 1
+  // destvalue->value->i = srcvalue->value->i;
+  llvm::Value *srcvalue = emit_gep(def, "srcvalue", src, 0, 0, 0);
+  llvm::Value *destvalue = emit_gep(def, "destvalue", dest, 0, 0, 0);
+  def->builder->CreateStore(def->builder->CreateLoad(srcvalue), destvalue);
+
+  // destvalue->type = srcvalue->type
+  llvm::Value *srctype = emit_gep(def, "srctype", src, 0, 1);
+  llvm::Value *desttype = emit_gep(def, "desttype", dest, 0, 1);
+  def->builder->CreateStore(def->builder->CreateLoad(srctype), desttype);
+#else
   // First get the declaration for the inttrinsic memcpy
   llvm::SmallVector<llvm::Type *, 3> vec;
   vec.push_back(def->types->C_pcharT); /* i8 */
@@ -1372,6 +1386,7 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
       llvm::ConstantInt::get(def->types->C_intT, sizeof(L_Umaxalign)));
   values.push_back(def->types->kFalse);
   def->builder->CreateCall(f, values);
+#endif
 }
 
 void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -1799,11 +1814,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     }
   }
 
-  // f->dump();
-  // llvm::verifyFunction(*f->function());
+  llvm::verifyFunction(*f->function());
   ravi::RaviJITFunctionImpl *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile();
+  lua_assert(p->ravi_jit.jit_function);
   if (p->ravi_jit.jit_function == nullptr) {
     p->ravi_jit.jit_status = 1; // can't compile
     delete llvm_func;
