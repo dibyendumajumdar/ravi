@@ -1056,7 +1056,7 @@ void *RaviJITFunctionImpl::compile() {
   // Run the FPM on this function
   FPM->run(*function_);
 
-  //function_->dump();
+  //module_->dump();
 
   // We don't need this anymore
   delete FPM;
