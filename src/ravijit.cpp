@@ -171,9 +171,32 @@ struct LuaLLVMTypes {
   std::array<llvm::Constant *, 21> kInt;
 
   llvm::Constant *kFalse;
+
+  llvm::MDBuilder mdbuilder;
+  llvm::MDNode *tbaa_root;
+  llvm::MDNode *tbaa_charT;
+  llvm::MDNode *tbaa_shortT;
+  llvm::MDNode *tbaa_intT;
+  llvm::MDNode *tbaa_longlongT;
+  llvm::MDNode *tbaa_pointerT;
+  llvm::MDNode *tbaa_CallInfo_lT;
+  llvm::MDNode *tbaa_CallInfoT;
+  llvm::MDNode *tbaa_luaStateT;
+  llvm::MDNode *tbaa_luaState_ciT;
+  llvm::MDNode *tbaa_luaState_ci_baseT;
+  llvm::MDNode *tbaa_CallInfo_funcT;
+  llvm::MDNode *tbaa_CallInfo_func_LClosureT;
+  llvm::MDNode *tbaa_LClosureT;
+  llvm::MDNode *tbaa_LClosure_pT;
+  llvm::MDNode *tbaa_ProtoT;
+  llvm::MDNode *tbaa_Proto_kT;
+  llvm::MDNode *tbaa_TValueT;
+  llvm::MDNode *tbaa_TValue_nT;
+  llvm::MDNode *tbaa_TValue_ttT;
+
 };
 
-LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
+LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   static_assert(std::is_floating_point<lua_Number>::value &&
                     sizeof(lua_Number) == sizeof(double),
@@ -794,6 +817,146 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) {
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
 
   kFalse = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
+
+  // Do what Clang does
+  //!5 = metadata !{metadata !"Simple C/C++ TBAA"}
+  tbaa_root = mdbuilder.createTBAARoot("Simple C / C++ TBAA"); 
+  //!4 = metadata !{metadata !"omnipotent char", metadata !5, i64 0}
+  tbaa_charT = mdbuilder.createTBAAScalarTypeNode("omnipotent char", tbaa_root, 0); 
+  //!3 = metadata !{metadata !"any pointer", metadata !4, i64 0}
+  tbaa_pointerT = mdbuilder.createTBAAScalarTypeNode("any pointer", tbaa_charT, 0);
+  //!10 = metadata !{metadata !"short", metadata !4, i64 0}
+  tbaa_shortT = mdbuilder.createTBAAScalarTypeNode("short", tbaa_charT, 0);
+  //!11 = metadata !{metadata !"int", metadata !4, i64 0}
+  tbaa_intT = mdbuilder.createTBAAScalarTypeNode("int", tbaa_charT, 0);
+  //!9 = metadata !{metadata !"long long", metadata !4, i64 0}
+  tbaa_longlongT = mdbuilder.createTBAAScalarTypeNode("long long", tbaa_charT, 0);
+
+  //!14 = metadata !{metadata !"CallInfoL", metadata !3, i64 0, metadata !3, i64 4, metadata !9, i64 8}
+  std::vector<std::pair<llvm::MDNode *, uint64_t> > nodes;
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 4));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_longlongT, 8));
+  tbaa_CallInfo_lT = mdbuilder.createTBAAStructTypeNode("CallInfo_l", nodes);
+
+  //!13 = metadata !{metadata !"CallInfoLua", 
+  //                 metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8, 
+  //                 metadata !3, i64 12, metadata !14, i64 16, metadata !9, i64 32, 
+  //                 metadata !10, i64 40, metadata !4, i64 42}
+  nodes.clear();
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 4));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 8));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 12));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_CallInfo_lT, 16));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_longlongT, 32));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_shortT, 40));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 42));
+  tbaa_CallInfoT = mdbuilder.createTBAAStructTypeNode("CallInfo", nodes);
+
+  //!7 = metadata !{metadata !"lua_State", 
+  //                metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, 
+  //                metadata !4, i64 6, metadata !3, i64 8, metadata !3, i64 12, 
+  //                metadata !3, i64 16, metadata !3, i64 20, metadata !3, i64 24, 
+  //                metadata !3, i64 28, metadata !3, i64 32, metadata !3, i64 36, 
+  //                metadata !3, i64 40, metadata !3, i64 44, metadata !8, i64 48, 
+  //                metadata !3, i64 104, metadata !9, i64 112, metadata !11, i64 120, 
+  //                metadata !11, i64 124, metadata !11, i64 128, metadata !10, i64 132, 
+  //                metadata !10, i64 134, metadata !4, i64 136, metadata !4, i64 137}
+  nodes.clear();
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 4));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 5));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 6));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 8));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 12));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 16));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 20));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 24));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 28));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 32));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 36));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 40));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 44));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_CallInfoT, 48));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 92));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_longlongT, 96));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 104));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 108));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 112));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_shortT, 114));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_shortT, 116));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 118));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 119));
+  tbaa_luaStateT = mdbuilder.createTBAAStructTypeNode("lua_State", nodes);
+
+  tbaa_luaState_ciT = mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_CallInfoT, 16);
+  tbaa_luaState_ci_baseT = mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 16);
+  tbaa_CallInfo_funcT = mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 0);
+  tbaa_CallInfo_func_LClosureT = mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
+
+  //!20 = metadata !{metadata !"Proto", 
+  //                 metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, 
+  //                 metadata !4, i64 6, metadata !4, i64 7, metadata !4, i64 8, 
+  //                 metadata !11, i64 12, metadata !11, i64 16, metadata !11, i64 20, 
+  //                 metadata !11, i64 24, metadata !11, i64 28, metadata !11, i64 32, 
+  //                 metadata !11, i64 36, metadata !11, i64 40, metadata !3, i64 44, 
+  //                 metadata !3, i64 48, metadata !3, i64 52, metadata !3, i64 56, 
+  //                 metadata !3, i64 60, metadata !3, i64 64, metadata !3, i64 68, 
+  //                 metadata !3, i64 72, metadata !3, i64 76}
+  nodes.clear();
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 4));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 5));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 6));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 7));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 8));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 12));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 16));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 20));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 24));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 28));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 32));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 36));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 40));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 44));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 48));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 52));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 56));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 60));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 64));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 68));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 72));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 76));
+  tbaa_ProtoT = mdbuilder.createTBAAStructTypeNode("Proto", nodes);
+
+  //!18 = metadata !{metadata !"LClosure", 
+  //                 metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, 
+  //                 metadata !4, i64 6, metadata !3, i64 8, metadata !3, i64 12, 
+  //                 metadata !4, i64 16}
+  nodes.clear();
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 4));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 5));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 6));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 8));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 12));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 16));
+  tbaa_LClosureT = mdbuilder.createTBAAStructTypeNode("LClosure", nodes);
+
+  tbaa_LClosure_pT = mdbuilder.createTBAAStructTagNode(tbaa_LClosureT, tbaa_pointerT, 12);
+
+  //!19 = metadata !{metadata !20, metadata !3, i64 44}
+  tbaa_Proto_kT = mdbuilder.createTBAAStructTagNode(tbaa_ProtoT, tbaa_pointerT, 44);
+
+  nodes.clear();
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_longlongT, 0));
+  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 8));
+  tbaa_TValueT = mdbuilder.createTBAAStructTypeNode("TValue", nodes);
+
+  tbaa_TValue_nT = mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_longlongT, 0);
+  tbaa_TValue_ttT = mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_intT, 8);
+
 }
 
 void LuaLLVMTypes::dump() {
@@ -1015,6 +1178,8 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
     fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
     return;
   }
+  auto target_layout = engine_->getTargetMachine()->getDataLayout();
+  module_->setDataLayout(target_layout);
 }
 
 RaviJITFunctionImpl::~RaviJITFunctionImpl() {
@@ -1030,7 +1195,7 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
 
 void *RaviJITFunctionImpl::compile() {
 
-  //function_->dump();
+  //module_->dump();
 
   // Create a function pass manager for this engine
   llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(module_);
@@ -1046,6 +1211,7 @@ void *RaviJITFunctionImpl::compile() {
   FPM->add(llvm::createInstructionCombiningPass());
   // Reassociate expressions.
   FPM->add(llvm::createReassociatePass());
+  FPM->add(llvm::createTypeBasedAliasAnalysisPass());
   // Eliminate Common SubExpressions.
   FPM->add(llvm::createGVNPass());
   // Simplify the control flow graph (deleting unreachable blocks, etc).
@@ -1114,14 +1280,16 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_lessequalF;
   llvm::Constant *luaG_runerrorF;
   std::vector<llvm::BasicBlock *> jmp_targets;
-  // Pointer to proto
-  //llvm::Value *proto;
   // Load pointer to proto
-  llvm::Value *proto_ptr;
+  llvm::Instruction *proto_ptr;
   // Obtain pointer to Proto->k
   llvm::Value *proto_k;
   // Load pointer to k
-  llvm::Value *k_ptr;
+  llvm::Instruction *k_ptr;
+  // Load L->ci
+  llvm::Instruction *ci_val;
+  // Get pointer to base
+  llvm::Value *Ci_base;
 
 };
 
@@ -1294,13 +1462,13 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
     //} break;
 
   // Load L->ci
-  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
+  //llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
 
   // Get pointer to base
-  llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
+  //llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
 
   // Load pointer to base
-  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+  llvm::Value *base_ptr = def->builder->CreateLoad(def->Ci_base);
 
   // Load pointer to k
   llvm::Value *k_ptr = def->k_ptr;
@@ -1320,13 +1488,14 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
   //    } break;
 
   // Load L->ci
-  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
+  //llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
 
   // Get pointer to base
-  llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
+  //llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
 
   // Load pointer to base
-  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
+  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_ci_baseT);
 
   // Load pointer to k
   llvm::Value *k_ptr = def->k_ptr; 
@@ -1356,12 +1525,15 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
   // destvalue->value->i = srcvalue->value->i;
   llvm::Value *srcvalue = emit_gep(def, "srcvalue", src, 0, 0, 0);
   llvm::Value *destvalue = emit_gep(def, "destvalue", dest, 0, 0, 0);
-  def->builder->CreateStore(def->builder->CreateLoad(srcvalue), destvalue);
+  llvm::Instruction *store = def->builder->CreateStore(def->builder->CreateLoad(srcvalue), destvalue);
+  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 
   // destvalue->type = srcvalue->type
   llvm::Value *srctype = emit_gep(def, "srctype", src, 0, 1);
   llvm::Value *desttype = emit_gep(def, "desttype", dest, 0, 1);
-  def->builder->CreateStore(def->builder->CreateLoad(srctype), desttype);
+  store = def->builder->CreateStore(def->builder->CreateLoad(srctype), desttype);
+  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+
 #else
   // First get the declaration for the inttrinsic memcpy
   llvm::SmallVector<llvm::Type *, 3> vec;
@@ -1422,13 +1594,14 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   }
 
   // Load L->ci
-  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
+  //llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
 
   // Get pointer to base
-  llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
+  //llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
 
   // Load pointer to base
-  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
+  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_ci_baseT);
 
   // Load pointer to k
   llvm::Value *k_ptr = def->k_ptr; 
@@ -1483,7 +1656,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->CreateCondBr(result_is_notzero, ThenBB, ElseBB);
   def->builder->SetInsertPoint(ThenBB);
   // Get pointer to ci->top
-  llvm::Value *citop = emit_gep(def, "ci_top", ci_val, 0, 1);
+  llvm::Value *citop = emit_gep(def, "ci_top", def->ci_val, 0, 1);
   // Load ci->top
   llvm::Value *citop_val = def->builder->CreateLoad(citop);
   if (!top)
@@ -1515,13 +1688,13 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
   //  } break;
 
   // Load L->ci
-  llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
+  //llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
 
   // Get pointer to base
-  llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
+  //llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
 
   // Load pointer to base
-  llvm::Value *base_ptr = def->builder->CreateLoad(Ci_base);
+  llvm::Value *base_ptr = def->builder->CreateLoad(def->Ci_base);
 
   // Load pointer to k
   llvm::Value *k_ptr = def->k_ptr;
@@ -1565,10 +1738,10 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
   if (jA > 0) {
     // jA is the A operand of the Jump instruction
     // Get pointer to base
-    llvm::Value *Ci_base2 = emit_gep(def, "base", ci_val, 0, 4, 0);
+    //llvm::Value *Ci_base2 = emit_gep(def, "base", ci_val, 0, 4, 0);
 
     // Load pointer to base
-    llvm::Value *base2_ptr = def->builder->CreateLoad(Ci_base2);
+    llvm::Value *base2_ptr = def->builder->CreateLoad(def->Ci_base);
 
     // base + a - 1
     llvm::Value *val =
@@ -1738,29 +1911,39 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   llvm::Value *L_ci = emit_gep(&def, "L_ci", def.L, 0, 6);
 
   // Load pointer value
-  llvm::Value *ci_val = builder.CreateLoad(L_ci);
+  //llvm::Value *ci_val = builder.CreateLoad(L_ci);
+
+  // Load L->ci
+  def.ci_val = builder.CreateLoad(L_ci);
+  def.ci_val->setMetadata(llvm::LLVMContext::MD_tbaa, def.types->tbaa_CallInfoT); 
+
+  // Get pointer to base
+  def.Ci_base = emit_gep(&def, "base", def.ci_val, 0, 4, 0);
 
   // We need to get hold of the constants table
   // which is located in ci->func->value_.gc
   // and is a value of type LClosure*
   // fortunately as func is at the beginning of the ci
   // structure we can just cast ci to LClosure*
-  llvm::Value *L_cl = emit_gep_ci_func_value_gc_asLClosure(&def, ci_val);
+  llvm::Value *L_cl = emit_gep_ci_func_value_gc_asLClosure(&def, def.ci_val);
 
   // Load pointer to LClosure
-  llvm::Value *cl_ptr = builder.CreateLoad(L_cl);
+  llvm::Instruction *cl_ptr = builder.CreateLoad(L_cl);
+  cl_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def.types->tbaa_CallInfo_func_LClosureT);
 
   // Get pointer to the Proto* which is cl->p
   llvm::Value *proto = emit_gep(&def, "Proto", cl_ptr, 0, 5);
 
   // Load pointer to proto
   def.proto_ptr = builder.CreateLoad(proto);
+  def.proto_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def.types->tbaa_LClosure_pT);
 
   // Obtain pointer to Proto->k
   def.proto_k = emit_gep(&def, "k", def.proto_ptr, 0, 14);
 
   // Load pointer to k
   def.k_ptr = builder.CreateLoad(def.proto_k);
+  def.k_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def.types->tbaa_Proto_kT);
   
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
