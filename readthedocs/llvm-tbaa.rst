@@ -22,12 +22,12 @@ I won't show the Clang generated tbaa metadata here, but here is how I added sim
 
 Creating TBAA Metadata
 ----------------------
-Firstly you need an MDBuilder instance. So you need to include following headers:
+Firstly you need an MDBuilder instance. So you need to include following headers::
 
   #include "llvm/IR/MDBuilder.h"
   #include "llvm/IR/Metadata.h"
 
-We can create an MDBuilder instance like this:
+We can create an MDBuilder instance like this::
 
   llvm::MDBuilder mdbuilder(llvm::getGlobalContext());
 
@@ -65,13 +65,13 @@ The second argument to ``createTBAAScalarTypeNode()`` is the parent node. Note t
   |
   +--+ char
      |
-     +-- any pointer
-     |
-     +-- short
-     |
-     +-- int
-     |
-     +-- long long 
+     +--+-- any pointer
+        |
+        +-- short
+        |
+        +-- int
+        |
+        +-- long long 
 
 This is how Clang has it defined. 
 
@@ -141,12 +141,16 @@ We have a ``CallInfoL`` as the type of a field within the struct. Therefore::
   nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 42));
   tbaa_CallInfoT = mdbuilder.createTBAAStructTypeNode("CallInfo", nodes);
 
+Decorating Load and Store instructions
+--------------------------------------
+
 So now we have created TBAA metadata for two struct types.
 Next we need to see how we use these in Load and Store instructions. Lets assume we need to load the pointer 
 stored in ``Callinfo.top``. In order to decorate the Load instruction with tbaa we need to create
 a Struct Tag Node - which is like a path node. Here it is:: 
 
-  llvm::MDNode *tbaa_CallInfo_topT = mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 4);
+  llvm::MDNode *tbaa_CallInfo_topT;
+  tbaa_CallInfo_topT = mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 4);
  
 Above is saying that the field ``top`` in struct ``CallInfo`` is a pointer at offset 4.
 
@@ -156,3 +160,8 @@ Armed with this we can code::
   llvm::Instruction *top = Builder.CreateLoad(callinfo_top);
   top->setMetadata(llvm::LLVMContext::MD_tbaa, tbaa_CallInfo_topT);
 
+Links
+-----
+* `TypeBasedAliasAnalysis code <http://llvm.org/docs/doxygen/html/TypeBasedAliasAnalysis_8cpp_source.html>`_.
+* `IR documentation on tbaa metadata <http://llvm.org/docs/LangRef.html#tbaa-metadata>`_.
+* `Embedded metadata <http://nondot.org/sabre/LLVMNotes/EmbeddedMetadata.txt>`_.
