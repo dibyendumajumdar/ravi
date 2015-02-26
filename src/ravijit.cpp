@@ -28,13 +28,13 @@ extern "C" {
 #include "ldebug.h"
 #include "ldo.h"
 #include "lfunc.h"
-#include "lgc.h"
+//#include "lgc.h"
 #include "lobject.h"
 #include "lopcodes.h"
 #include "lstate.h"
 #include "lstring.h"
 #include "ltable.h"
-#include "ltm.h"
+//#include "ltm.h"
 #include "lvm.h"
 
 #ifdef __cplusplus
@@ -44,11 +44,12 @@ extern "C" {
 #include <array>
 #include <iterator>
 #include <type_traits>
+#include <atomic>
 
 namespace ravi {
 
 // TODO - should probably be an atomic int
-static volatile int init = 0;
+static std::atomic_int init;
 
 // All Lua types are gathered here
 struct LuaLLVMTypes {
@@ -59,6 +60,7 @@ struct LuaLLVMTypes {
   llvm::Type *C_intptr_t;
   llvm::Type *C_size_t;
   llvm::Type *C_ptrdiff_t;
+  llvm::Type *C_int64_t;
 
   llvm::Type *lua_NumberT;
   llvm::Type *lua_IntegerT;
@@ -172,6 +174,9 @@ struct LuaLLVMTypes {
 
   llvm::Constant *kFalse;
 
+  // To allow better optimization we need to decorate the
+  // LLVM Load/Store instructions with type information.
+  // For this we need to construct tbaa metadata 
   llvm::MDBuilder mdbuilder;
   llvm::MDNode *tbaa_root;
   llvm::MDNode *tbaa_charT;
@@ -193,7 +198,7 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_TValueT;
   llvm::MDNode *tbaa_TValue_nT;
   llvm::MDNode *tbaa_TValue_ttT;
-
+  llvm::MDNode *tbaa_luaState_topT;
 };
 
 LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
@@ -215,6 +220,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   C_intptr_t = llvm::Type::getIntNTy(context, sizeof(intptr_t) * 8);
   C_size_t = llvm::Type::getIntNTy(context, sizeof(size_t) * 8);
   C_ptrdiff_t = llvm::Type::getIntNTy(context, sizeof(ptrdiff_t) * 8);
+  C_int64_t = llvm::Type::getIntNTy(context, sizeof(int64_t) * 8);
   C_intT = llvm::Type::getIntNTy(context, sizeof(int) * 8);
 
   static_assert(sizeof(size_t) == sizeof(lu_mem),
@@ -956,7 +962,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   tbaa_TValue_nT = mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_longlongT, 0);
   tbaa_TValue_ttT = mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_intT, 8);
-
+  
+  tbaa_luaState_topT = mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_pointerT, 8);
 }
 
 void LuaLLVMTypes::dump() {
@@ -1273,24 +1280,32 @@ struct RaviFunctionDef {
   llvm::Value *L;
   LuaLLVMTypes *types;
   llvm::IRBuilder<> *builder;
+
+  // Lua function declarations
   llvm::Constant *luaD_poscallF;
   llvm::Constant *luaF_closeF;
   llvm::Constant *luaV_equalobjF;
   llvm::Constant *luaV_lessthanF;
   llvm::Constant *luaV_lessequalF;
   llvm::Constant *luaG_runerrorF;
+
+  // Jump targets in the function
   std::vector<llvm::BasicBlock *> jmp_targets;
+
   // Load pointer to proto
   llvm::Instruction *proto_ptr;
+
   // Obtain pointer to Proto->k
   llvm::Value *proto_k;
+
   // Load pointer to k
   llvm::Instruction *k_ptr;
+
   // Load L->ci
   llvm::Instruction *ci_val;
+
   // Get pointer to base
   llvm::Value *Ci_base;
-
 };
 
 // This class is responsible for compiling Lua byte code
@@ -1409,7 +1424,8 @@ RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
   // structure we can just cast ci to LClosure*
   llvm::Value *pppLuaClosure =
       def->builder->CreateBitCast(ci, def->types->pppLClosureT);
-  llvm::Value *ppLuaClosure = def->builder->CreateLoad(pppLuaClosure);
+  llvm::Instruction *ppLuaClosure = def->builder->CreateLoad(pppLuaClosure);
+  ppLuaClosure->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_CallInfo_funcT);
   return ppLuaClosure;
 }
 
@@ -1461,14 +1477,9 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
     //  ci->u.l.savedpc += GETARG_sBx(i);
     //} break;
 
-  // Load L->ci
-  //llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
-
-  // Get pointer to base
-  //llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
-
   // Load pointer to base
-  llvm::Value *base_ptr = def->builder->CreateLoad(def->Ci_base);
+  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
+  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_ci_baseT);
 
   // Load pointer to k
   llvm::Value *k_ptr = def->k_ptr;
@@ -1486,12 +1497,6 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
   //      TValue *rb = k + GETARG_Bx(i);
   //      setobj2s(L, ra, rb);
   //    } break;
-
-  // Load L->ci
-  //llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
-
-  // Get pointer to base
-  //llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
 
   // Load pointer to base
   llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
@@ -1593,12 +1598,6 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
     def->builder->SetInsertPoint(return_block);
   }
 
-  // Load L->ci
-  //llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
-
-  // Get pointer to base
-  //llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
-
   // Load pointer to base
   llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
   base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_ci_baseT);
@@ -1618,14 +1617,15 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
     // Get pointer to L->top
     top = emit_gep(def, "L_top", def->L, 0, 4);
     // Assign to L->top
-    def->builder->CreateStore(ptr, top);
+    llvm::Instruction *ins = def->builder->CreateStore(ptr, top);
+    ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
   }
 
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Get pointer to Proto->sizep
   llvm::Value *psize_ptr = emit_gep(def, "sizep", def->proto_ptr, 0, 10);
   // Load psize
-  llvm::Value *psize = def->builder->CreateLoad(psize_ptr);
+  llvm::Instruction *psize = def->builder->CreateLoad(psize_ptr);
   // Test if psize > 0
   llvm::Value *psize_gt_0 =
       def->builder->CreateICmpSGT(psize, def->types->kInt[0]);
@@ -1658,12 +1658,12 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   // Get pointer to ci->top
   llvm::Value *citop = emit_gep(def, "ci_top", def->ci_val, 0, 1);
   // Load ci->top
-  llvm::Value *citop_val = def->builder->CreateLoad(citop);
+  llvm::Instruction *citop_val = def->builder->CreateLoad(citop);
   if (!top)
     // Get L->top
     top = emit_gep(def, "L_top", def->L, 0, 4);
   // Assign ci>top to L->top
-  def->builder->CreateStore(citop_val, top);
+  llvm::Instruction *ins2 = def->builder->CreateStore(citop_val, top);
   def->builder->CreateBr(ElseBB);
   def->f->getBasicBlockList().push_back(ElseBB);
   def->builder->SetInsertPoint(ElseBB);
@@ -1687,14 +1687,9 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
   //    )
   //  } break;
 
-  // Load L->ci
-  //llvm::Value *ci_val = def->builder->CreateLoad(L_ci);
-
-  // Get pointer to base
-  //llvm::Value *Ci_base = emit_gep(def, "base", ci_val, 0, 4, 0);
-
   // Load pointer to base
-  llvm::Value *base_ptr = def->builder->CreateLoad(def->Ci_base);
+  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
+  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_ci_baseT);
 
   // Load pointer to k
   llvm::Value *k_ptr = def->k_ptr;
@@ -1737,11 +1732,10 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
   // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
   if (jA > 0) {
     // jA is the A operand of the Jump instruction
-    // Get pointer to base
-    //llvm::Value *Ci_base2 = emit_gep(def, "base", ci_val, 0, 4, 0);
 
     // Load pointer to base
-    llvm::Value *base2_ptr = def->builder->CreateLoad(def->Ci_base);
+    llvm::Instruction *base2_ptr = def->builder->CreateLoad(def->Ci_base);
+    base2_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_ci_baseT);
 
     // base + a - 1
     llvm::Value *val =
@@ -1824,9 +1818,6 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
   def->raviF = func.get();
   def->types = types;
   def->builder = &builder;
-  def->luaD_poscallF = nullptr;
-  def->luaF_closeF = nullptr;
-  def->luaV_equalobjF = nullptr;
 
   return func;
 }
@@ -1909,9 +1900,6 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
 
   // Get pointer to L->ci
   llvm::Value *L_ci = emit_gep(&def, "L_ci", def.L, 0, 6);
-
-  // Load pointer value
-  //llvm::Value *ci_val = builder.CreateLoad(L_ci);
 
   // Load L->ci
   def.ci_val = builder.CreateLoad(L_ci);
