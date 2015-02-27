@@ -64,6 +64,7 @@ struct LuaLLVMTypes {
 
   llvm::Type *lua_NumberT;
   llvm::Type *lua_IntegerT;
+  llvm::PointerType *plua_IntegerT;
   llvm::Type *lua_UnsignedT;
   llvm::Type *lua_KContextT;
 
@@ -87,6 +88,7 @@ struct LuaLLVMTypes {
   llvm::Type *C_pcharT;
 
   llvm::Type *C_intT;
+  llvm::Type *C_pintT;
 
   llvm::StructType *lua_StateT;
   llvm::PointerType *plua_StateT;
@@ -169,6 +171,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_lessthanT;
   llvm::FunctionType *luaV_lessequalT;
   llvm::FunctionType *luaG_runerrorT;
+  llvm::FunctionType *luaV_forlimitT;
 
   std::array<llvm::Constant *, 21> kInt;
 
@@ -212,6 +215,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   static_assert(std::is_integral<lua_Integer>::value,
                 "lua_Integer is not an integer type");
   lua_IntegerT = llvm::Type::getIntNTy(context, sizeof(lua_Integer) * 8);
+  plua_IntegerT = llvm::PointerType::get(lua_IntegerT, 0);
 
   static_assert(sizeof(lua_Integer) == sizeof(lua_Unsigned),
                 "lua_Integer and lua_Unsigned are of different size");
@@ -222,6 +226,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   C_ptrdiff_t = llvm::Type::getIntNTy(context, sizeof(ptrdiff_t) * 8);
   C_int64_t = llvm::Type::getIntNTy(context, sizeof(int64_t) * 8);
   C_intT = llvm::Type::getIntNTy(context, sizeof(int) * 8);
+  C_pintT = llvm::PointerType::get(C_intT, 0);
 
   static_assert(sizeof(size_t) == sizeof(lu_mem),
                 "lu_mem size is not same as size_t");
@@ -819,6 +824,13 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_pcharT);
   luaG_runerrorT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, true);
 
+  elements.clear();
+  elements.push_back(pTValueT);
+  elements.push_back(plua_IntegerT);
+  elements.push_back(lua_IntegerT);
+  elements.push_back(C_pintT);
+  luaV_forlimitT = llvm::FunctionType::get(C_intT, elements, false);
+
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
 
@@ -1288,6 +1300,7 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_lessthanF;
   llvm::Constant *luaV_lessequalF;
   llvm::Constant *luaG_runerrorF;
+  llvm::Constant *luaV_forlimitF;
 
   // Jump targets in the function
   std::vector<llvm::BasicBlock *> jmp_targets;
@@ -1484,11 +1497,25 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   // Load pointer to k
   llvm::Value *k_ptr = def->k_ptr;
 
+  llvm::Value *ilimit = def->builder->CreateAlloca(def->types->lua_IntegerT, nullptr, "ilimit");
+  llvm::Value *stopnow = def->builder->CreateAlloca(def->types->C_intT, nullptr, "stopnow");
+  llvm::Value *nlimit = def->builder->CreateAlloca(def->types->lua_NumberT, nullptr, "nlimit");
+  llvm::Value *ninit = def->builder->CreateAlloca(def->types->lua_NumberT, nullptr, "ninit");
+  llvm::Value *nstep = def->builder->CreateAlloca(def->types->lua_IntegerT, nullptr, "nstep");
+
   llvm::Value *init = A == 0 ? base_ptr : emit_array_get(def, base_ptr, A);
-
   llvm::Value *plimit = emit_array_get(def, base_ptr, A + 1);
-
   llvm::Value *pstep = emit_array_get(def, base_ptr, A + 2);
+  llvm::Value *tt = emit_gep(def, "tt_", init, 0, 1);
+  llvm::Instruction *tt_i = def->builder->CreateLoad(tt);
+  tt_i->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  llvm::Value *cmp1 = def->builder->CreateICmpEQ(tt_i, def->types->kInt[LUA_TNUMINT]);
+  llvm::Value *tt2 = emit_gep(def, "tt_", pstep, 0, 1);
+  llvm::Instruction *tt_j = def->builder->CreateLoad(tt2);
+  tt_j->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  llvm::Value *icmp2 = def->builder->CreateICmpEQ(tt_j, def->types->kInt[LUA_TNUMINT]);
+
+
 }
 
 void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -1836,6 +1863,9 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       def->types->luaV_lessequalT, &luaV_lessequal, "luaV_lessequal");
   def->luaG_runerrorF = def->raviF->addExternFunction(
     def->types->luaG_runerrorT, &luaG_runerror, "luaG_runerror");
+  def->luaV_forlimitF = def->raviF->addExternFunction(
+    def->types->luaV_forlimitT, &luaV_forlimit, "luaV_forlimit");
+  
 }
 
 #define RA(i) (base + GETARG_A(i))

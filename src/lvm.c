@@ -137,7 +137,7 @@ int luaV_tointeger_ (const TValue *obj, lua_Integer *p) {
 ** the extreme case when the initial value is LUA_MININTEGER, in which
 ** case the LUA_MININTEGER limit would still run the loop once.
 */
-static int forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
+int luaV_forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
                      int *stopnow) {
   *stopnow = 0;  /* usually, let loops run */
   if (!tointeger_aux(obj, p, (step < 0 ? 2 : 1))) {  /* not fit in integer? */
@@ -1112,7 +1112,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         lua_Integer ilimit;
         int stopnow;
         if (ttisinteger(init) && ttisinteger(pstep) &&
-            forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
+            luaV_forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
             /* all values are integer */
             lua_Integer initv = (stopnow ? 0 : ivalue(init));
             setivalue(plimit, ilimit);
