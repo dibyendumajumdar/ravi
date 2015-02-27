@@ -1168,7 +1168,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
         luaX_syntaxerror(ls, "expecting array initializer");
     }
     /* if we are calling a function then convert return types */
-    else if (v->ravi_type != vars[n] && (vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT) && v->k == VCALL) {
+    else if (v->ravi_type != vars[n] && (vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT || vars[n] == RAVI_TARRAYFLT || vars[n] == RAVI_TARRAYINT) && v->k == VCALL) {
       /* For local variable declarations that call functions e.g.
        * local i = func()
        * Lua ensures that the function returns values to register assigned to variable i
