@@ -19,7 +19,7 @@ Goals
 
 Status
 ------
-The project was kicked off in January 2015. My intention is start small and grow incrementally.
+The project was kicked off in January 2015. 
 
 Right now (as of Feb 2015) I am working on the JIT implementation. Please see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_ for details of this effort.
 
@@ -55,23 +55,47 @@ Documentation
 See `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
 As more stuff is built I will keep updating the documentation so please revisit for latest information.
 
-Building Ravi
---------------
-The build is CMake based. I am testing this using Visual Studio 2013 on Windows 8.1 64bit and gcc on Unbuntu 64-bit.
-As of Feb 2015 LLVM 3.5.1 is a dependency.
+Build Dependencies
+------------------
 
-To build on Windows I use::
+* CMake
+* LLVM 3.6.0
+
+The build is CMake based. As of Feb 2015 LLVM is a dependency. Both LLVM 3.5.1 and 3.6.0 should work.
+
+Building LLVM on Windows
+------------------------
+I built LLVM 3.6.0 from source. I used the CMake GUI to create the build configuration. The only item I changed was ``CMAKE_INSTALL_PREFIX`` which I set to ``c:\LLVM``. I then opened the solution in VS2013 and performed a Debug INSTALL build from there. 
+
+Note that if you perform a Release build of LLVM then you will also need to do a Release build of Ravi otherwise you will get link errors. I build both in Debug mode right now.
+
+Building LLVM on Ubuntu
+-----------------------
+On Ubuntu I found that the official LLVM distributions don't work with CMake. The CMake config files appear to be broken.
+So I ended up downloading and building LLVM 3.5.1 from source and that worked. I used the same approach as on Windows - i.e., set ``CMAKE_INSTALL_PREFIX`` using ``cmake-gui`` to ``~/LLVM``. I then ran::
+
+  make install
+
+Building Ravi
+-------------
+I am developing Ravi using Visual Studio 2013 Community Edition on Windows 8.1 64bit and using gcc on Unbuntu 64-bit.
+
+Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
   cd build
-  cmake -G "Visual Studio 12 Win64" ..
+  cmake -DLLVM_DIR=c:\LLVM\share\llvm\cmake -G "Visual Studio 12 Win64" ..
 
-I then open the solution in VS2013 and do a build from there.
+I then open the solution in VS2013 and do a Debug build from there.
 
 On Ubuntu I use::
 
   cd build
-  cmake -G "Unix Makefiles" ..
+  cmake -DLLVM_DIR=~/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
   make
+
+Build Artifacts
+---------------
+The Ravi build creates a shared library, the Lua executable and some test programs.
 
 The ``lua`` command recognizes following environment variables.
 
