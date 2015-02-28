@@ -16,7 +16,6 @@ Contents:
    ravi-internals
    llvm-notes
    llvm-tbaa
-   ravi-jit-overview
    ravi-jit-initial
    ravi-jit-infra
    ravi-lua-types
