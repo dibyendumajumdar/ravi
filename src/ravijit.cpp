@@ -174,6 +174,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_forlimitT;
 
   std::array<llvm::Constant *, 21> kInt;
+  std::array<llvm::Constant *, 21> kluaInteger;
 
   llvm::Constant *kFalse;
 
@@ -833,6 +834,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
+  for (int j = 0; j < kluaInteger.size(); j++)
+    kluaInteger[j] = llvm::ConstantInt::get(lua_IntegerT, j);
 
   kFalse = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
 
@@ -1533,8 +1536,43 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *tt_j = def->builder->CreateLoad(tt2);
   tt_j->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
   llvm::Value *icmp2 = def->builder->CreateICmpEQ(tt_j, def->types->kInt[LUA_TNUMINT]);
+  llvm::Value *pstep_ivalue_ptr = def->builder->CreateBitCast(pstep, def->types->plua_IntegerT);
+  llvm::Instruction *pstep_ivalue = def->builder->CreateLoad(pstep_ivalue_ptr, "pstep_ivalue");
+  pstep_ivalue->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  llvm::Value *forlimit_ret = def->builder->CreateCall4(def->luaV_forlimitF, plimit, ilimit, pstep_ivalue, stopnow);
+  llvm::Value *and1 = def->builder->CreateAnd(cmp1, icmp2);
+  llvm::Value *tobool = def->builder->CreateICmpNE(forlimit_ret, def->types->kInt[0]);
+  llvm::Value *and2 = def->builder->CreateAnd(and1, tobool);
+  llvm::BasicBlock *then1 =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
+  llvm::BasicBlock *else1 =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else");
+  def->builder->CreateCondBr(and2, then1, else1);
+  def->builder->SetInsertPoint(then1);
 
+  llvm::Instruction *stopnow_val = def->builder->CreateLoad(stopnow, "stopnow_val");
+  stopnow_val->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
+  llvm::Value *stopnow_is_zero = def->builder->CreateICmpEQ(stopnow_val, def->types->kInt[0]);
+  llvm::Value *init_value_ptr = def->builder->CreateBitCast(init, def->types->plua_IntegerT, "init_ivalue_ptr");
 
+  llvm::BasicBlock *then1_iffalse =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.then.iffalse", def->f);
+  llvm::BasicBlock *then1_iftrue =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.then.iftrue");
+  def->builder->CreateCondBr(stopnow_is_zero, then1_iffalse, then1_iftrue);
+  def->builder->SetInsertPoint(then1_iffalse);
+  llvm::Instruction *init_ivalue = def->builder->CreateLoad(init_value_ptr, "init_ivalue");
+  init_ivalue->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  def->builder->CreateBr(then1_iftrue);
+  def->f->getBasicBlockList().push_back(then1_iftrue);
+  def->builder->SetInsertPoint(then1_iftrue);
+
+  auto phi1 = def->builder->CreatePHI(def->types->lua_IntegerT, 2);
+  phi1->addIncoming(init_ivalue, then1_iffalse);
+  phi1->addIncoming(def->types->kluaInteger[0], then1);
+  def->f->dump();
+
+  assert(false);
 }
 
 void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -1827,6 +1865,11 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_EQ:
     case OP_LT:
     case OP_LE:
+#if 0
+    case OP_FORPREP:
+    case OP_FORLOOP:
+    case OP_MOVE:
+#endif
       break;
     default:
       return false;
@@ -2024,7 +2067,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_JMP(&def, j);
     } break;
     case OP_FORPREP: {
-      assert(false);
+      emit_FORPREP(&def, L_ci, proto, A, GETARG_sBx(i));
     } break;
     case OP_FORLOOP: {
       assert(false);
