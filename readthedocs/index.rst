@@ -15,11 +15,11 @@ Contents:
    lua-parser
    ravi-internals
    llvm-notes
-   llvm-tbaa
    ravi-jit-initial
    ravi-jit-infra
-   ravi-lua-types
    ravi-jit-compilation-hook
+   ravi-lua-types
+   llvm-tbaa
 
 
 Indices and tables
