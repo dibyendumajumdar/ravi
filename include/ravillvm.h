@@ -6,6 +6,12 @@
 #ifndef RAVI_LLVM_H
 #define RAVI_LLVM_H
 
+#include "llvm/Config/llvm-config.h"
+
+#if (LLVM_VERSION_MAJOR != 3 || LLVM_VERSION_MINOR < 5)
+#error Unsupported LLVM version
+#endif
+
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"

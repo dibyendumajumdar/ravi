@@ -1,5 +1,7 @@
 #include "ravillvm.h"
 
+#include <iostream>
+
 // This file contains a basic test case that covers following:
 // Creating a function that takes pointer to struct as argument
 // The function gets value from one of the fields in the struct
@@ -122,13 +124,21 @@ int test1() {
 
   // Lets create the MCJIT engine
   std::string errStr;
-  auto engine = llvm::EngineBuilder(module)
+#if LLVM_VERSION_MINOR > 5
+  std::unique_ptr<llvm::Module> module_(module);
+  auto engine = llvm::EngineBuilder(std::move(module_))
                     .setErrorStr(&errStr)
                     .setEngineKind(llvm::EngineKind::JIT)
-                    .setUseMCJIT(true)
                     .create();
+#else
+  auto engine = llvm::EngineBuilder(module)
+    .setErrorStr(&errStr)
+    .setEngineKind(llvm::EngineKind::JIT)
+    .setUseMCJIT(true)
+    .create();
+#endif
   if (!engine) {
-    llvm::errs() << "Failed to construct MCJIT ExecutionEngine: " << errStr
+    std::cerr << "Failed to construct MCJIT ExecutionEngine: " << errStr
                  << "\n";
     return 1;
   }
@@ -137,7 +147,7 @@ int test1() {
   std::string funcname = "testfunc";
   myfunc_t funcptr = (myfunc_t)engine->getFunctionAddress(funcname);
   if (funcptr == nullptr) {
-    llvm::errs() << "Failed to obtain compiled function\n";
+    std::cerr << "Failed to obtain compiled function\n";
     return 1;
   }
 
@@ -220,7 +230,7 @@ int test2() {
   // Now lets compile our function into machine code
   myfunc_t funcptr = (myfunc_t)func->compile();
   if (funcptr == nullptr) {
-    llvm::errs() << "Failed to obtain compiled function\n";
+    std::cerr << "Failed to obtain compiled function\n";
     return 1;
   }
 

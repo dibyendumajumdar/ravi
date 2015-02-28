@@ -1045,7 +1045,7 @@ class RAVI_API RaviJITFunctionImpl : public RaviJITFunction {
   void *ptr_;
 
 public:
-  RaviJITFunctionImpl(RaviJITStateImpl *owner, llvm::Module *module,
+  RaviJITFunctionImpl(RaviJITStateImpl *owner, 
                       llvm::FunctionType *type,
                       llvm::GlobalValue::LinkageTypes linkage,
                       const std::string &name);
@@ -1104,6 +1104,9 @@ public:
   virtual void dump();
   virtual llvm::LLVMContext &context() { return context_; }
   LuaLLVMTypes *types() const { return types_; }
+  const std::string& triple() const {
+    return triple_;
+  }
 };
 
 RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
@@ -1158,20 +1161,8 @@ RaviJITFunction *
 RaviJITStateImpl::createFunction(llvm::FunctionType *type,
                                  llvm::GlobalValue::LinkageTypes linkage,
                                  const std::string &name) {
-  // MCJIT treats each module as a compilation unit
-  // To enable function level life cycle we create a
-  // module per function
-  std::string moduleName = "ravi_module_" + name;
-  llvm::Module *module = new llvm::Module(moduleName, context_);
-#if defined(_WIN32)
-  // On Windows we get error saying incompatible object format
-  // Reading posts on mailining lists I found that the issue is that COEFF
-  // format is not supported and therefore we need to set
-  // -elf as the object format
-  module->setTargetTriple(triple_);
-#endif
   RaviJITFunction *f =
-      new RaviJITFunctionImpl(this, module, type, linkage, name);
+      new RaviJITFunctionImpl(this, type, linkage, name);
   functions_[name] = f;
   return f;
 }
@@ -1182,23 +1173,43 @@ void RaviJITStateImpl::deleteFunction(const std::string &name) {
 }
 
 RaviJITFunctionImpl::RaviJITFunctionImpl(
-    RaviJITStateImpl *owner, llvm::Module *module, llvm::FunctionType *type,
+    RaviJITStateImpl *owner, llvm::FunctionType *type,
     llvm::GlobalValue::LinkageTypes linkage, const std::string &name)
-    : owner_(owner), module_(module), name_(name), engine_(nullptr),
+    : owner_(owner), name_(name), engine_(nullptr), module_(nullptr),
       function_(nullptr), ptr_(nullptr) {
-  function_ = llvm::Function::Create(type, linkage, name, module);
+  // MCJIT treats each module as a compilation unit
+  // To enable function level life cycle we create a
+  // module per function
+  std::string moduleName = "ravi_module_" + name;
+  module_ = new llvm::Module(moduleName, owner->context());
+#if defined(_WIN32)
+  // On Windows we get error saying incompatible object format
+  // Reading posts on mailining lists I found that the issue is that COEFF
+  // format is not supported and therefore we need to set
+  // -elf as the object format
+  module_->setTargetTriple(owner->triple());
+#endif
+
+  function_ = llvm::Function::Create(type, linkage, name, module_);
   std::string errStr;
-  engine_ = llvm::EngineBuilder(module)
+#if LLVM_VERSION_MINOR > 5
+  // LLVM 3.6.0 change
+  std::unique_ptr<llvm::Module> module(module_);
+  engine_ = llvm::EngineBuilder(std::move(module))
                 .setEngineKind(llvm::EngineKind::JIT)
-                .setUseMCJIT(true)
                 .setErrorStr(&errStr)
                 .create();
+#else
+  engine_ = llvm::EngineBuilder(module_)
+    .setEngineKind(llvm::EngineKind::JIT)
+    .setUseMCJIT(true)
+    .setErrorStr(&errStr)
+    .create();
+#endif
   if (!engine_) {
     fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
     return;
   }
-  auto target_layout = engine_->getTargetMachine()->getDataLayout();
-  module_->setDataLayout(target_layout);
 }
 
 RaviJITFunctionImpl::~RaviJITFunctionImpl() {
@@ -1207,9 +1218,9 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
   if (engine_)
     delete engine_;
   else if (module_)
+    // if engine was created then we don't need to delete the
+    // module as it would have been deleted by the engine
     delete module_;
-  // Check - we assume here that deleting engine deletes the module
-  // and function, and deleting module deletes function
 }
 
 void *RaviJITFunctionImpl::compile() {
@@ -1221,7 +1232,15 @@ void *RaviJITFunctionImpl::compile() {
 
   // Set up the optimizer pipeline.  Start with registering info about how the
   // target lays out data structures.
+#if LLVM_VERSION_MINOR > 5
+  // LLVM 3.6.0 change
+  module_->setDataLayout(engine_->getDataLayout());
+  FPM->add(new llvm::DataLayoutPass());
+#else
+  auto target_layout = engine_->getTargetMachine()->getDataLayout();
+  module_->setDataLayout(target_layout);
   FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
+#endif
   // Provide basic AliasAnalysis support for GVN.
   FPM->add(llvm::createBasicAliasAnalysisPass());
   // Promote allocas to registers.
