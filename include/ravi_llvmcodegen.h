@@ -1,7 +1,6 @@
 #ifndef RAVI_LLVMCODEGEN_H
 #define RAVI_LLVMCODEGEN_H
 
-
 #include "ravijit.h"
 #include "ravillvm.h"
 
@@ -180,7 +179,7 @@ struct LuaLLVMTypes {
 
   // To allow better optimization we need to decorate the
   // LLVM Load/Store instructions with type information.
-  // For this we need to construct tbaa metadata 
+  // For this we need to construct tbaa metadata
   llvm::MDBuilder mdbuilder;
   llvm::MDNode *tbaa_root;
   llvm::MDNode *tbaa_charT;
@@ -237,8 +236,7 @@ class RAVI_API RaviJITFunctionImpl : public RaviJITFunction {
   void *ptr_;
 
 public:
-  RaviJITFunctionImpl(RaviJITStateImpl *owner, 
-                      llvm::FunctionType *type,
+  RaviJITFunctionImpl(RaviJITStateImpl *owner, llvm::FunctionType *type,
                       llvm::GlobalValue::LinkageTypes linkage,
                       const std::string &name);
   virtual ~RaviJITFunctionImpl();
@@ -296,9 +294,7 @@ public:
   virtual void dump();
   virtual llvm::LLVMContext &context() { return context_; }
   LuaLLVMTypes *types() const { return types_; }
-  const std::string& triple() const {
-    return triple_;
-  }
+  const std::string &triple() const { return triple_; }
 };
 
 // This structure holds stuff we need when compiling a single
@@ -340,7 +336,6 @@ struct RaviFunctionDef {
   // Get pointer to base
   llvm::Value *Ci_base;
 };
-
 
 // This class is responsible for compiling Lua byte code
 // to LLVM IR
@@ -404,7 +399,13 @@ public:
   void emit_JMP(RaviFunctionDef *def, int j);
 
   void emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int sBx);
+                    int A, int sBx);
+
+  void emit_FORLOOP(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                    int A, int sBx);
+
+  void emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                 int A, int B);
 
   // Emit code for OP_EQ, OP_LT and OP_LE
   // The callee parameter should be luaV_equalobj, luaV_lessthan and
@@ -421,8 +422,6 @@ private:
   char temp_[31]; // for name
   int id_;        // for name
 };
-
-
 }
 
 #endif

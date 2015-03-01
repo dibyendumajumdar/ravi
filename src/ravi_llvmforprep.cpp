@@ -404,7 +404,6 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   // Done so jump to forloop
   def->builder->CreateBr(def->jmp_targets[pc]);
 
-  def->f->dump();
-  assert(false);
 }
+
 }

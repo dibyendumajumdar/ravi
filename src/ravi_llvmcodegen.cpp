@@ -90,11 +90,9 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_EQ:
     case OP_LT:
     case OP_LE:
-#if 0
     case OP_FORPREP:
     case OP_FORLOOP:
     case OP_MOVE:
-#endif
       break;
     default:
       return false;
@@ -274,6 +272,10 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int Bx = GETARG_Bx(i);
       emit_LOADK(&def, L_ci, proto, A, Bx);
     } break;
+    case OP_MOVE: {
+      int B = GETARG_B(i);
+      emit_MOVE(&def, L_ci, proto, A, B);
+    } break;
     case OP_RETURN: {
       int B = GETARG_B(i);
       emit_RETURN(&def, L_ci, proto, A, B);
@@ -309,7 +311,9 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_FORPREP(&def, L_ci, proto, A, j);
     } break;
     case OP_FORLOOP: {
-      assert(false);
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      emit_FORLOOP(&def, L_ci, proto, A, j);
     } break;
     default:
       break;
