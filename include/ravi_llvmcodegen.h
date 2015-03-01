@@ -317,6 +317,8 @@ struct RaviFunctionDef {
   llvm::Constant *luaG_runerrorF;
   llvm::Constant *luaV_forlimitF;
   llvm::Constant *luaV_tonumberF;
+  llvm::Constant *printfFunc;
+  llvm::Value *str;
 
   // Jump targets in the function
   std::vector<llvm::BasicBlock *> jmp_targets;

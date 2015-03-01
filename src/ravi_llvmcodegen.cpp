@@ -130,6 +130,7 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
   def->raviF = func.get();
   def->types = types;
   def->builder = &builder;
+  def->str = builder.CreateGlobalString("DEBUG %f\n");
 
   return func;
 }
@@ -160,6 +161,14 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaV_tonumberF = def->raviF->addExternFunction(
       def->types->luaV_tonumberT, reinterpret_cast<void *>(&luaV_tonumber_),
       "luaV_tonumber_");
+  // Create printf declaration
+  std::vector<llvm::Type *> args;
+  args.push_back(def->types->C_pcharT);
+  // accepts a char*, is vararg, and returns int
+  llvm::FunctionType *printfType =
+    llvm::FunctionType::get(def->types->C_intT, args, true);
+  def->printfFunc =
+    def->raviF->module()->getOrInsertFunction("printf", printfType);
 }
 
 #define RA(i) (base + GETARG_A(i))

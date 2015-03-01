@@ -202,7 +202,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Already a float - copy to nlimit
   llvm::Value *plimit_nvalue_ptr = def->builder->CreateBitCast(
-      init, def->types->plua_NumberT, "plimit.n.ptr");
+      plimit, def->types->plua_NumberT, "plimit.n.ptr");
   llvm::Instruction *plimit_nvalue_load =
       def->builder->CreateLoad(plimit_nvalue_ptr);
   plimit_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa,
@@ -211,6 +211,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
       def->builder->CreateStore(plimit_nvalue_load, nlimit);
   nlimit_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                             def->types->tbaa_longlongT);
+
 
   // Go to the PSTEP section
   llvm::BasicBlock *else1_pstep =
