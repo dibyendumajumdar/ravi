@@ -63,8 +63,11 @@ struct LuaLLVMTypes {
   llvm::Type *C_int64_t;
 
   llvm::Type *lua_NumberT;
+  llvm::Type *plua_NumberT;
+
   llvm::Type *lua_IntegerT;
   llvm::PointerType *plua_IntegerT;
+
   llvm::Type *lua_UnsignedT;
   llvm::Type *lua_KContextT;
 
@@ -172,6 +175,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_lessequalT;
   llvm::FunctionType *luaG_runerrorT;
   llvm::FunctionType *luaV_forlimitT;
+  llvm::FunctionType *luaV_tonumberT;
 
   std::array<llvm::Constant *, 21> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
@@ -211,6 +215,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
                     sizeof(lua_Number) == sizeof(double),
                 "lua_Number is not a double");
   lua_NumberT = llvm::Type::getDoubleTy(context);
+  plua_NumberT = llvm::PointerType::get(lua_NumberT, 0);
 
   static_assert(sizeof(lua_Integer) == sizeof(lua_Number), "Only 64-bit int supported");
   static_assert(std::is_integral<lua_Integer>::value,
@@ -823,7 +828,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(C_pcharT);
-  luaG_runerrorT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, true);
+  luaG_runerrorT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   elements.clear();
   elements.push_back(pTValueT);
@@ -831,6 +836,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(lua_IntegerT);
   elements.push_back(C_pintT);
   luaV_forlimitT = llvm::FunctionType::get(C_intT, elements, false);
+
+  elements.clear();
+  elements.push_back(pTValueT);
+  elements.push_back(plua_NumberT);
+  luaV_tonumberT = llvm::FunctionType::get(C_intT, elements, false);
 
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
@@ -1323,6 +1333,7 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_lessequalF;
   llvm::Constant *luaG_runerrorF;
   llvm::Constant *luaV_forlimitF;
+  llvm::Constant *luaV_tonumberF;
 
   // Jump targets in the function
   std::vector<llvm::BasicBlock *> jmp_targets;
@@ -1520,7 +1531,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *stopnow = def->builder->CreateAlloca(def->types->C_intT, nullptr, "stopnow");
   llvm::Value *nlimit = def->builder->CreateAlloca(def->types->lua_NumberT, nullptr, "nlimit");
   llvm::Value *ninit = def->builder->CreateAlloca(def->types->lua_NumberT, nullptr, "ninit");
-  llvm::Value *nstep = def->builder->CreateAlloca(def->types->lua_IntegerT, nullptr, "nstep");
+  llvm::Value *nstep = def->builder->CreateAlloca(def->types->lua_NumberT, nullptr, "nstep");
 
   //  TValue *init = ra;
   //  TValue *plimit = ra + 1;
@@ -1580,7 +1591,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *plimit_ivalue_ptr = def->builder->CreateBitCast(init, def->types->plua_IntegerT, "plimit_ivalue_ptr");
   llvm::Instruction *plimit_value = def->builder->CreateStore(ilimit_val, plimit_ivalue_ptr);
   plimit_value->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
-  llvm::Value *plimit_tt_ptr = emit_gep(def, "plimit_tt", plimit, 0, 1);
+  llvm::Value *plimit_tt_ptr = emit_gep(def, "plimit.tt_", plimit, 0, 1);
   llvm::Instruction *plimit_tt = def->builder->CreateStore(def->types->kInt[LUA_TNUMINT], plimit_tt_ptr);
   plimit_tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
   //    setivalue(init, initv - ivalue(pstep));
@@ -1591,6 +1602,152 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *init_ivalue_store = def->builder->CreateStore(sub, init_value_ptr);
   init_ivalue_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
   lua_assert(def->jmp_targets[pc]);
+  def->builder->CreateBr(def->jmp_targets[pc]);
+
+  def->f->getBasicBlockList().push_back(else1);
+  def->builder->SetInsertPoint(else1);
+
+  // PLIMIT
+
+  plimit_tt_ptr = emit_gep(def, "plimit.tt_", plimit, 0, 1);
+  plimit_tt = def->builder->CreateLoad(plimit_tt_ptr);
+  plimit_tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  cmp1 = def->builder->CreateICmpEQ(plimit_tt, def->types->kInt[LUA_TNUMFLT]);
+  llvm::BasicBlock *else1_plimit_ifnum =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.plimit.ifnum", def->f);
+  llvm::BasicBlock *else1_plimit_elsenum =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.plimit.elsenum");
+  def->builder->CreateCondBr(cmp1, else1_plimit_ifnum, else1_plimit_elsenum);
+  def->builder->SetInsertPoint(else1_plimit_ifnum);
+
+  llvm::Value *plimit_nvalue_ptr = def->builder->CreateBitCast(init, def->types->plua_NumberT, "plimit.n.ptr");
+  llvm::Instruction *plimit_nvalue_load = def->builder->CreateLoad(plimit_nvalue_ptr);
+  plimit_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  llvm::Instruction *nlimit_store = def->builder->CreateStore(plimit_nvalue_load, nlimit);
+  nlimit_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  llvm::BasicBlock *else1_pstep =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.pstep");
+  def->builder->CreateBr(else1_pstep);
+
+  def->f->getBasicBlockList().push_back(else1_plimit_elsenum);
+  def->builder->SetInsertPoint(else1_plimit_elsenum);
+
+  llvm::Value *plimit_isnum = def->builder->CreateCall2(def->luaV_tonumberF, plimit, nlimit);
+  llvm::Value *plimit_isnum_bool = def->builder->CreateICmpEQ(plimit_isnum, def->types->kInt[0], "plimit.isnum");
+  llvm::BasicBlock *else1_plimit_tonum_elsenum =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.plimit.tonum.ifnum", def->f);
+  def->builder->CreateCondBr(plimit_isnum_bool, else1_plimit_tonum_elsenum, else1_pstep);
+
+  def->builder->SetInsertPoint(else1_plimit_tonum_elsenum);
+  llvm::Value *errmsg1 = def->builder->CreateGlobalString("'for' limit must be a number");
+  def->builder->CreateCall2(def->luaG_runerrorF, def->L, emit_gep(def, "", errmsg1, 0, 0));
+  def->builder->CreateBr(else1_pstep);
+
+  def->f->getBasicBlockList().push_back(else1_pstep);
+  def->builder->SetInsertPoint(else1_pstep);
+  llvm::Instruction *nlimit_load = def->builder->CreateLoad(nlimit);
+  nlimit_load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  llvm::Value *plimit_n = def->builder->CreateBitCast(plimit, def->types->plua_NumberT, "plimit.n.ptr");
+  llvm::Instruction *plimit_store = def->builder->CreateStore(nlimit_load, plimit_n);
+  plimit_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  llvm::Instruction *plimit_tt_store = def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], plimit_tt_ptr);
+  plimit_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+
+  ///   PSTEP
+
+  llvm::Instruction *pstep_tt = def->builder->CreateLoad(tt2);
+  pstep_tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  cmp1 = def->builder->CreateICmpEQ(pstep_tt, def->types->kInt[LUA_TNUMFLT]);
+  llvm::BasicBlock *else1_pstep_ifnum =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.pstep.ifnum", def->f);
+  llvm::BasicBlock *else1_pstep_elsenum =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.pstep.elsenum");
+  def->builder->CreateCondBr(cmp1, else1_pstep_ifnum, else1_pstep_elsenum);
+  def->builder->SetInsertPoint(else1_pstep_ifnum);
+
+  llvm::Value *pstep_nvalue_ptr = def->builder->CreateBitCast(pstep, def->types->plua_NumberT, "pstep.n.ptr");
+  llvm::Instruction *pstep_nvalue_load = def->builder->CreateLoad(pstep_nvalue_ptr);
+  pstep_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  llvm::Instruction *nstep_store = def->builder->CreateStore(pstep_nvalue_load, nstep);
+  nstep_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  llvm::BasicBlock *else1_pinit =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.pinit");
+  def->builder->CreateBr(else1_pinit);
+
+  def->f->getBasicBlockList().push_back(else1_pstep_elsenum);
+  def->builder->SetInsertPoint(else1_pstep_elsenum);
+
+  llvm::Value *pstep_isnum = def->builder->CreateCall2(def->luaV_tonumberF, pstep, nstep);
+  llvm::Value *pstep_isnum_bool = def->builder->CreateICmpEQ(pstep_isnum, def->types->kInt[0], "pstep.isnum");
+  llvm::BasicBlock *else1_pstep_tonum_elsenum =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.pstep.tonum.ifnum", def->f);
+  def->builder->CreateCondBr(pstep_isnum_bool, else1_pstep_tonum_elsenum, else1_pinit);
+
+  def->builder->SetInsertPoint(else1_pstep_tonum_elsenum);
+  errmsg1 = def->builder->CreateGlobalString("'for' step must be a number");
+  def->builder->CreateCall2(def->luaG_runerrorF, def->L, emit_gep(def, "", errmsg1, 0, 0));
+  def->builder->CreateBr(else1_pinit);
+
+  def->f->getBasicBlockList().push_back(else1_pinit);
+  def->builder->SetInsertPoint(else1_pinit);
+  llvm::Instruction *nstep_load = def->builder->CreateLoad(nstep);
+  nstep_load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  llvm::Value *pstep_n = def->builder->CreateBitCast(pstep, def->types->plua_NumberT, "pstep.n.ptr");
+  llvm::Instruction *pstep_store = def->builder->CreateStore(nstep_load, pstep_n);
+  pstep_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  llvm::Instruction *pstep_tt_store = def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], tt2);
+  pstep_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+
+  ///   PINIT
+
+  llvm::Instruction *pinit_tt = def->builder->CreateLoad(tt);
+  pinit_tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  cmp1 = def->builder->CreateICmpEQ(pinit_tt, def->types->kInt[LUA_TNUMFLT]);
+  llvm::BasicBlock *else1_pinit_ifnum =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.pinit.ifnum", def->f);
+  llvm::BasicBlock *else1_pinit_elsenum =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.pinit.elsenum");
+  def->builder->CreateCondBr(cmp1, else1_pinit_ifnum, else1_pinit_elsenum);
+  def->builder->SetInsertPoint(else1_pinit_ifnum);
+
+  llvm::Value *pinit_nvalue_ptr = def->builder->CreateBitCast(init, def->types->plua_NumberT, "pinit.n.ptr");
+  llvm::Instruction *pinit_nvalue_load = def->builder->CreateLoad(pinit_nvalue_ptr);
+  pinit_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  llvm::Instruction *ninit_store = def->builder->CreateStore(pinit_nvalue_load, ninit);
+  ninit_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  llvm::BasicBlock *else1_pdone =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.pdone");
+  def->builder->CreateBr(else1_pdone);
+
+  def->f->getBasicBlockList().push_back(else1_pinit_elsenum);
+  def->builder->SetInsertPoint(else1_pinit_elsenum);
+
+  llvm::Value *pinit_isnum = def->builder->CreateCall2(def->luaV_tonumberF, init, ninit);
+  llvm::Value *pinit_isnum_bool = def->builder->CreateICmpEQ(pinit_isnum, def->types->kInt[0], "pinit.isnum");
+  llvm::BasicBlock *else1_pinit_tonum_elsenum =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.else.pinit.tonum.ifnum", def->f);
+  def->builder->CreateCondBr(pinit_isnum_bool, else1_pinit_tonum_elsenum, else1_pdone);
+
+  def->builder->SetInsertPoint(else1_pinit_tonum_elsenum);
+  errmsg1 = def->builder->CreateGlobalString("'for' initial value must be a number");
+  def->builder->CreateCall2(def->luaG_runerrorF, def->L, emit_gep(def, "", errmsg1, 0, 0));
+  def->builder->CreateBr(else1_pdone);
+
+  def->f->getBasicBlockList().push_back(else1_pdone);
+  def->builder->SetInsertPoint(else1_pdone);
+  llvm::Instruction *ninit_load = def->builder->CreateLoad(ninit);
+  ninit_load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  nstep_load = def->builder->CreateLoad(nstep);
+  nstep_load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  llvm::Value *init_n = def->builder->CreateFSub(ninit_load, nstep_load);
+  llvm::Value *pinit_n = def->builder->CreateBitCast(init, def->types->plua_NumberT, "pinit.n.ptr");
+  llvm::Instruction *pinit_store = def->builder->CreateStore(init_n, pinit_n);
+  pinit_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  llvm::Instruction *pinit_tt_store = def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], tt);
+  pinit_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
   def->builder->CreateBr(def->jmp_targets[pc]);
 
   def->f->dump();
@@ -1949,7 +2106,8 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
     def->types->luaG_runerrorT, reinterpret_cast<void *>(&luaG_runerror), "luaG_runerror");
   def->luaV_forlimitF = def->raviF->addExternFunction(
     def->types->luaV_forlimitT, reinterpret_cast<void *>(&luaV_forlimit), "luaV_forlimit");
-  
+  def->luaV_tonumberF = def->raviF->addExternFunction(
+    def->types->luaV_tonumberT, reinterpret_cast<void *>(&luaV_tonumber_), "luaV_tonumber_");
 }
 
 #define RA(i) (base + GETARG_A(i))
@@ -2141,11 +2299,11 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
       if (op == OP_JMP)
         targetname = "jmp";
       else if (op == OP_FORLOOP)
-        targetname = "forloop";
+        targetname = "forbody";
       else if (op == OP_FORPREP)
-        targetname = "forprep";
+        targetname = "forloop";
       else
-        targetname = "tforloop";
+        targetname = "tforbody";
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
       snprintf(temp, sizeof temp, "%s%d_", targetname, j+1);
