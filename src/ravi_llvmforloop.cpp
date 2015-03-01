@@ -126,8 +126,9 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
   //    setivalue(ra, idx);  /* update internal index... */
   llvm::Instruction *idx_store = def->builder->CreateStore(new_idx, idx_int_ptr);
   idx_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
-  llvm::Instruction *idx_tt_store = def->builder->CreateStore(def->types->kInt[LUA_TNUMINT], rinit_tt_ptr);
-  idx_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  llvm::Instruction *idx_tt_store;
+  //idx_tt_store = def->builder->CreateStore(def->types->kInt[LUA_TNUMINT], rinit_tt_ptr);
+  //idx_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
 
   //    setivalue(ra + 3, idx);  /* ...and external index */
   idx_store = def->builder->CreateStore(new_idx, var_int_ptr);
@@ -190,8 +191,8 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
   //    setfltvalue(ra, idx);  /* update internal index... */
   idx_store = def->builder->CreateStore(new_idx, idx_double_ptr);
   idx_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
-  idx_tt_store = def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], rinit_tt_ptr);
-  idx_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  //idx_tt_store = def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], rinit_tt_ptr);
+  //idx_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
 
   //    setfltvalue(ra + 3, idx);  /* ...and external index */
   idx_store = def->builder->CreateStore(new_idx, var_double_ptr);

@@ -34,19 +34,47 @@ void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci,
     src = emit_array_get(def, base_ptr, B);
   }
 
+#if 1
   // destvalue->value->i = srcvalue->value->i;
   llvm::Value *srcvalue = emit_gep(def, "srcvalue", src, 0, 0, 0);
   llvm::Value *destvalue = emit_gep(def, "destvalue", dest, 0, 0, 0);
-  llvm::Instruction *store =
-      def->builder->CreateStore(def->builder->CreateLoad(srcvalue), destvalue);
+  llvm::Instruction *load = def->builder->CreateLoad(srcvalue);
+  load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  llvm::Instruction *store = def->builder->CreateStore(load, destvalue);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 
   // destvalue->type = srcvalue->type
   llvm::Value *srctype = emit_gep(def, "srctype", src, 0, 1);
   llvm::Value *desttype = emit_gep(def, "desttype", dest, 0, 1);
-  store =
-      def->builder->CreateStore(def->builder->CreateLoad(srctype), desttype);
+  load = def->builder->CreateLoad(srctype);
+  load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  store = def->builder->CreateStore(load, desttype);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+#else
+  // First get the declaration for the inttrinsic memcpy
+  llvm::SmallVector<llvm::Type *, 3> vec;
+  vec.push_back(def->types->C_pcharT); /* i8 */
+  vec.push_back(def->types->C_pcharT); /* i8 */
+  vec.push_back(def->types->C_intT);
+  llvm::Function *f = llvm::Intrinsic::getDeclaration(
+    def->raviF->module(), llvm::Intrinsic::memcpy, vec);
+  lua_assert(f);
+
+  // Cast src and dest to i8*
+  llvm::Value *dest_ptr =
+    def->builder->CreateBitCast(dest, def->types->C_pcharT);
+  llvm::Value *src_ptr = def->builder->CreateBitCast(src, def->types->C_pcharT);
+
+  // Create call to intrinsic memcpy
+  llvm::SmallVector<llvm::Value *, 5> values;
+  values.push_back(dest_ptr);
+  values.push_back(src_ptr);
+  values.push_back(llvm::ConstantInt::get(def->types->C_intT, sizeof(TValue)));
+  values.push_back(
+    llvm::ConstantInt::get(def->types->C_intT, sizeof(L_Umaxalign)));
+  values.push_back(def->types->kFalse);
+  def->builder->CreateCall(f, values);
+#endif
 }
 
 void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -89,15 +117,17 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
   // destvalue->value->i = srcvalue->value->i;
   llvm::Value *srcvalue = emit_gep(def, "srcvalue", src, 0, 0, 0);
   llvm::Value *destvalue = emit_gep(def, "destvalue", dest, 0, 0, 0);
-  llvm::Instruction *store =
-      def->builder->CreateStore(def->builder->CreateLoad(srcvalue), destvalue);
+  llvm::Instruction *load = def->builder->CreateLoad(srcvalue);
+  load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  llvm::Instruction *store = def->builder->CreateStore(load, destvalue);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 
   // destvalue->type = srcvalue->type
   llvm::Value *srctype = emit_gep(def, "srctype", src, 0, 1);
   llvm::Value *desttype = emit_gep(def, "desttype", dest, 0, 1);
-  store =
-      def->builder->CreateStore(def->builder->CreateLoad(srctype), desttype);
+  load = def->builder->CreateLoad(srctype);
+  load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  store = def->builder->CreateStore(load, desttype);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
 
 #else

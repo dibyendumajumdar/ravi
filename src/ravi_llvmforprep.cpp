@@ -28,12 +28,9 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   //} break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
+  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base, "base");
   base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
                         def->types->tbaa_luaState_ci_baseT);
-
-  // Load pointer to k
-  llvm::Value *k_ptr = def->k_ptr;
 
   //  lua_Integer ilimit;
   //  int stopnow;
@@ -60,28 +57,28 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   //    forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
 
   // Get init->tt_
-  llvm::Value *pinit_tt_ptr = emit_gep(def, "init.tt_", init, 0, 1);
-  llvm::Instruction *tt_i = def->builder->CreateLoad(pinit_tt_ptr);
-  tt_i->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  llvm::Value *pinit_tt_ptr = emit_gep(def, "init.tt.ptr", init, 0, 1);
+  llvm::Instruction *pinit_tt = def->builder->CreateLoad(pinit_tt_ptr, "init.tt");
+  pinit_tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
 
   // Compare init->tt_ == LUA_TNUMINT
   llvm::Value *cmp1 =
-      def->builder->CreateICmpEQ(tt_i, def->types->kInt[LUA_TNUMINT]);
+      def->builder->CreateICmpEQ(pinit_tt, def->types->kInt[LUA_TNUMINT], "init.is.integer");
 
   // Get pstep->tt_
-  llvm::Value *pstep_tt_ptr = emit_gep(def, "tt_", pstep, 0, 1);
-  llvm::Instruction *tt_j = def->builder->CreateLoad(pstep_tt_ptr);
-  tt_j->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  llvm::Value *pstep_tt_ptr = emit_gep(def, "step.tt.ptr", pstep, 0, 1);
+  llvm::Instruction *pstep_tt = def->builder->CreateLoad(pstep_tt_ptr, "step.tt");
+  pstep_tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
 
   // Compare pstep->tt_ == LUA_TNUMINT
   llvm::Value *icmp2 =
-      def->builder->CreateICmpEQ(tt_j, def->types->kInt[LUA_TNUMINT]);
+      def->builder->CreateICmpEQ(pstep_tt, def->types->kInt[LUA_TNUMINT], "step.is.integer");
 
   // Get ivalue(pstep)
   llvm::Value *pstep_ivalue_ptr =
-      def->builder->CreateBitCast(pstep, def->types->plua_IntegerT);
+      def->builder->CreateBitCast(pstep, def->types->plua_IntegerT, "step.i.ptr");
   llvm::Instruction *pstep_ivalue =
-      def->builder->CreateLoad(pstep_ivalue_ptr, "pstep_ivalue");
+      def->builder->CreateLoad(pstep_ivalue_ptr, "step.i");
   pstep_ivalue->setMetadata(llvm::LLVMContext::MD_tbaa,
                             def->types->tbaa_TValue_nT);
 
@@ -90,51 +87,51 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
       def->luaV_forlimitF, plimit, ilimit, pstep_ivalue, stopnow);
 
   // init->tt_ == LUA_TNUMINT && pstep->tt_ == LUA_TNUMINT
-  llvm::Value *and1 = def->builder->CreateAnd(cmp1, icmp2);
+  llvm::Value *and1 = def->builder->CreateAnd(cmp1, icmp2, "init.and.step.are.integers");
 
   // Convert result from forlimit() to bool
   llvm::Value *tobool =
       def->builder->CreateICmpNE(forlimit_ret, def->types->kInt[0]);
 
   // init->tt_ == LUA_TNUMINT && pstep->tt_ == LUA_TNUMINT && forlimit()
-  llvm::Value *and2 = def->builder->CreateAnd(and1, tobool);
+  llvm::Value *and2 = def->builder->CreateAnd(and1, tobool, "all.integers");
 
   // Create if then else branch
   llvm::BasicBlock *then1 = llvm::BasicBlock::Create(def->jitState->context(),
-                                                     "if.all.integer", def->f);
+                                                     "if.all.integers", def->f);
   llvm::BasicBlock *else1 =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.not.all.integer");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.not.all.integers");
   def->builder->CreateCondBr(and2, then1, else1);
   def->builder->SetInsertPoint(then1);
 
-  //    /* all values are integer */
+  //    all values are integers
   //    lua_Integer initv = (stopnow ? 0 : ivalue(init));
 
   // Get stopnow
   llvm::Instruction *stopnow_val =
-      def->builder->CreateLoad(stopnow, "stopnow_val");
+      def->builder->CreateLoad(stopnow, "stopnow.value");
   stopnow_val->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
 
   // Test if stopnow is 0
   llvm::Value *stopnow_is_zero =
-      def->builder->CreateICmpEQ(stopnow_val, def->types->kInt[0]);
+      def->builder->CreateICmpEQ(stopnow_val, def->types->kInt[0], "stopnow.is.zero");
 
   // Get ptr to init->i
   llvm::Value *init_value_ptr = def->builder->CreateBitCast(
-      init, def->types->plua_IntegerT, "init_ivalue_ptr");
+      init, def->types->plua_IntegerT, "init.i.ptr");
 
   // Setup if then else branch for stopnow
   llvm::BasicBlock *then1_iffalse = llvm::BasicBlock::Create(
       def->jitState->context(), "if.stopnow.iszero", def->f);
   llvm::BasicBlock *then1_iftrue =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.stopnow.nonzero");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.stopnow.notzero");
   def->builder->CreateCondBr(stopnow_is_zero, then1_iffalse, then1_iftrue);
   def->builder->SetInsertPoint(then1_iffalse);
 
   // stopnow is 0
   // Get init->i
   llvm::Instruction *init_ivalue =
-      def->builder->CreateLoad(init_value_ptr, "init_ivalue");
+      def->builder->CreateLoad(init_value_ptr, "init.i");
   init_ivalue->setMetadata(llvm::LLVMContext::MD_tbaa,
                            def->types->tbaa_TValue_nT);
 
@@ -144,7 +141,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(then1_iftrue);
 
   // Set initv to 0 if !stopnow else init->i
-  auto phi1 = def->builder->CreatePHI(def->types->lua_IntegerT, 2);
+  auto phi1 = def->builder->CreatePHI(def->types->lua_IntegerT, 2, "initv");
   phi1->addIncoming(init_ivalue, then1_iffalse);
   phi1->addIncoming(def->types->kluaInteger[0], then1);
 
@@ -153,26 +150,26 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   ilimit_val->setMetadata(llvm::LLVMContext::MD_tbaa,
                           def->types->tbaa_longlongT);
   llvm::Value *plimit_ivalue_ptr = def->builder->CreateBitCast(
-      init, def->types->plua_IntegerT, "plimit_ivalue_ptr");
+      plimit, def->types->plua_IntegerT, "limit.i.ptr");
   llvm::Instruction *plimit_value =
       def->builder->CreateStore(ilimit_val, plimit_ivalue_ptr);
   plimit_value->setMetadata(llvm::LLVMContext::MD_tbaa,
                             def->types->tbaa_TValue_nT);
-  llvm::Value *plimit_tt_ptr = emit_gep(def, "plimit.tt_", plimit, 0, 1);
+  llvm::Value *plimit_tt_ptr = emit_gep(def, "limit.tt.ptr", plimit, 0, 1);
   llvm::Instruction *plimit_tt =
-      def->builder->CreateStore(def->types->kInt[LUA_TNUMINT], plimit_tt_ptr);
+      def->builder->CreateStore(def->types->kInt[LUA_TNUMINT], plimit_tt_ptr, "limit.tt");
   plimit_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
                          def->types->tbaa_TValue_ttT);
 
   //    setivalue(init, initv - ivalue(pstep));
   // we aleady know init is LUA_TNUMINT
-  pstep_ivalue = def->builder->CreateLoad(pstep_ivalue_ptr, "pstep_ivalue");
+  pstep_ivalue = def->builder->CreateLoad(pstep_ivalue_ptr, "step.i.ptr");
   pstep_ivalue->setMetadata(llvm::LLVMContext::MD_tbaa,
                             def->types->tbaa_TValue_nT);
   llvm::Value *sub =
-      def->builder->CreateSub(phi1, pstep_ivalue, "sub", false, true);
+      def->builder->CreateSub(phi1, pstep_ivalue, "initv-pstep.i", false, true);
   llvm::Instruction *init_ivalue_store =
-      def->builder->CreateStore(sub, init_value_ptr);
+      def->builder->CreateStore(sub, init_value_ptr, "init.i");
   init_ivalue_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                                  def->types->tbaa_TValue_nT);
 
@@ -187,35 +184,34 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // ************ PLIMIT - Convert plimit to float
 
-  plimit_tt_ptr = emit_gep(def, "plimit.tt_", plimit, 0, 1);
-  plimit_tt = def->builder->CreateLoad(plimit_tt_ptr);
+  plimit_tt_ptr = emit_gep(def, "limit.tt.ptr", plimit, 0, 1);
+  plimit_tt = def->builder->CreateLoad(plimit_tt_ptr, "limit.tt");
   plimit_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
                          def->types->tbaa_TValue_ttT);
   // Test if already a float
-  cmp1 = def->builder->CreateICmpEQ(plimit_tt, def->types->kInt[LUA_TNUMFLT]);
+  cmp1 = def->builder->CreateICmpEQ(plimit_tt, def->types->kInt[LUA_TNUMFLT], "limit.is.float");
   llvm::BasicBlock *else1_plimit_ifnum = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.else.plimit.ifnum", def->f);
+      def->jitState->context(), "if.limit.isfloat", def->f);
   llvm::BasicBlock *else1_plimit_elsenum = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.else.plimit.elsenum");
+      def->jitState->context(), "if.limit.notfloat");
   def->builder->CreateCondBr(cmp1, else1_plimit_ifnum, else1_plimit_elsenum);
   def->builder->SetInsertPoint(else1_plimit_ifnum);
 
   // Already a float - copy to nlimit
   llvm::Value *plimit_nvalue_ptr = def->builder->CreateBitCast(
-      plimit, def->types->plua_NumberT, "plimit.n.ptr");
+      plimit, def->types->plua_NumberT, "limit.n.ptr");
   llvm::Instruction *plimit_nvalue_load =
-      def->builder->CreateLoad(plimit_nvalue_ptr);
+      def->builder->CreateLoad(plimit_nvalue_ptr, "limit.n");
   plimit_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa,
                                   def->types->tbaa_TValue_nT);
   llvm::Instruction *nlimit_store =
-      def->builder->CreateStore(plimit_nvalue_load, nlimit);
+      def->builder->CreateStore(plimit_nvalue_load, nlimit, "nlimit");
   nlimit_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                             def->types->tbaa_longlongT);
 
-
   // Go to the PSTEP section
   llvm::BasicBlock *else1_pstep =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.else.pstep");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.else.step");
   def->builder->CreateBr(else1_pstep);
 
   // If plimit was not already a float we need to convert
@@ -225,11 +221,11 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *plimit_isnum =
       def->builder->CreateCall2(def->luaV_tonumberF, plimit, nlimit);
   llvm::Value *plimit_isnum_bool = def->builder->CreateICmpEQ(
-      plimit_isnum, def->types->kInt[0], "plimit.isnum");
+      plimit_isnum, def->types->kInt[0], "limit.float.ok");
 
   // Did conversion fail?
   llvm::BasicBlock *else1_plimit_tonum_elsenum = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.else.plimit.tonum.ifnum", def->f);
+      def->jitState->context(), "if.limit.float.failed", def->f);
   def->builder->CreateCondBr(plimit_isnum_bool, else1_plimit_tonum_elsenum,
                              else1_pstep);
 
@@ -245,48 +241,48 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   // Update plimit
   def->f->getBasicBlockList().push_back(else1_pstep);
   def->builder->SetInsertPoint(else1_pstep);
-  llvm::Instruction *nlimit_load = def->builder->CreateLoad(nlimit);
+  llvm::Instruction *nlimit_load = def->builder->CreateLoad(nlimit, "nlimit");
   nlimit_load->setMetadata(llvm::LLVMContext::MD_tbaa,
                            def->types->tbaa_longlongT);
   llvm::Value *plimit_n = def->builder->CreateBitCast(
-      plimit, def->types->plua_NumberT, "plimit.n.ptr");
+      plimit, def->types->plua_NumberT, "limit.n.ptr");
   llvm::Instruction *plimit_store =
-      def->builder->CreateStore(nlimit_load, plimit_n);
+      def->builder->CreateStore(nlimit_load, plimit_n, "limit.n");
   plimit_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                             def->types->tbaa_TValue_nT);
   llvm::Instruction *plimit_tt_store =
-      def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], plimit_tt_ptr);
+      def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], plimit_tt_ptr, "limit.tt");
   plimit_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                                def->types->tbaa_TValue_ttT);
 
   // ***********  PSTEP - convert pstep to float
   // Test if already a float
-  llvm::Instruction *pstep_tt = def->builder->CreateLoad(pstep_tt_ptr);
+  pstep_tt = def->builder->CreateLoad(pstep_tt_ptr, "step.tt.ptr");
   pstep_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
                         def->types->tbaa_TValue_ttT);
-  cmp1 = def->builder->CreateICmpEQ(pstep_tt, def->types->kInt[LUA_TNUMFLT]);
+  cmp1 = def->builder->CreateICmpEQ(pstep_tt, def->types->kInt[LUA_TNUMFLT], "step.is.float");
   llvm::BasicBlock *else1_pstep_ifnum = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.else.pstep.ifnum", def->f);
+      def->jitState->context(), "if.step.isfloat", def->f);
   llvm::BasicBlock *else1_pstep_elsenum = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.else.pstep.elsenum");
+      def->jitState->context(), "if.step.notfloat");
   def->builder->CreateCondBr(cmp1, else1_pstep_ifnum, else1_pstep_elsenum);
   def->builder->SetInsertPoint(else1_pstep_ifnum);
 
   // We float then copy to nstep
   llvm::Value *pstep_nvalue_ptr = def->builder->CreateBitCast(
-      pstep, def->types->plua_NumberT, "pstep.n.ptr");
+      pstep, def->types->plua_NumberT, "step.n.ptr");
   llvm::Instruction *pstep_nvalue_load =
-      def->builder->CreateLoad(pstep_nvalue_ptr);
+      def->builder->CreateLoad(pstep_nvalue_ptr, "step.n");
   pstep_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa,
                                  def->types->tbaa_TValue_nT);
   llvm::Instruction *nstep_store =
-      def->builder->CreateStore(pstep_nvalue_load, nstep);
+      def->builder->CreateStore(pstep_nvalue_load, nstep, "nstep");
   nstep_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                            def->types->tbaa_longlongT);
 
   // Now go to handle initial value
   llvm::BasicBlock *else1_pinit =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.else.pinit");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.else.init");
   def->builder->CreateBr(else1_pinit);
 
   // If pstep was not already a float then we need to convert
@@ -297,9 +293,9 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *pstep_isnum =
       def->builder->CreateCall2(def->luaV_tonumberF, pstep, nstep);
   llvm::Value *pstep_isnum_bool = def->builder->CreateICmpEQ(
-      pstep_isnum, def->types->kInt[0], "pstep.isnum");
+      pstep_isnum, def->types->kInt[0], "step.float.ok");
   llvm::BasicBlock *else1_pstep_tonum_elsenum = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.else.pstep.tonum.ifnum", def->f);
+      def->jitState->context(), "if.step.float.failed", def->f);
   def->builder->CreateCondBr(pstep_isnum_bool, else1_pstep_tonum_elsenum,
                              else1_pinit);
 
@@ -313,49 +309,49 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   // Conversion okay so update pstep
   def->f->getBasicBlockList().push_back(else1_pinit);
   def->builder->SetInsertPoint(else1_pinit);
-  llvm::Instruction *nstep_load = def->builder->CreateLoad(nstep);
+  llvm::Instruction *nstep_load = def->builder->CreateLoad(nstep, "nstep");
   nstep_load->setMetadata(llvm::LLVMContext::MD_tbaa,
                           def->types->tbaa_longlongT);
   llvm::Value *pstep_n = def->builder->CreateBitCast(
-      pstep, def->types->plua_NumberT, "pstep.n.ptr");
+      pstep, def->types->plua_NumberT, "step.n.ptr");
   llvm::Instruction *pstep_store =
-      def->builder->CreateStore(nstep_load, pstep_n);
+      def->builder->CreateStore(nstep_load, pstep_n, "step.n");
   pstep_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                            def->types->tbaa_TValue_nT);
   llvm::Instruction *pstep_tt_store =
-      def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], pstep_tt_ptr);
+      def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], pstep_tt_ptr, "step.tt");
   pstep_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                               def->types->tbaa_TValue_ttT);
 
   // *********** PINIT finally handle initial value
 
   // Check if it is already a float
-  llvm::Instruction *pinit_tt = def->builder->CreateLoad(pinit_tt_ptr);
+  pinit_tt = def->builder->CreateLoad(pinit_tt_ptr, "init.tt");
   pinit_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
                         def->types->tbaa_TValue_ttT);
-  cmp1 = def->builder->CreateICmpEQ(pinit_tt, def->types->kInt[LUA_TNUMFLT]);
+  cmp1 = def->builder->CreateICmpEQ(pinit_tt, def->types->kInt[LUA_TNUMFLT], "init.is.float");
   llvm::BasicBlock *else1_pinit_ifnum = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.else.pinit.ifnum", def->f);
+      def->jitState->context(), "if.init.is.float", def->f);
   llvm::BasicBlock *else1_pinit_elsenum = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.else.pinit.elsenum");
+      def->jitState->context(), "if.init.not.float");
   def->builder->CreateCondBr(cmp1, else1_pinit_ifnum, else1_pinit_elsenum);
   def->builder->SetInsertPoint(else1_pinit_ifnum);
 
   // Already float so copy to ninit
   llvm::Value *pinit_nvalue_ptr = def->builder->CreateBitCast(
-      init, def->types->plua_NumberT, "pinit.n.ptr");
+      init, def->types->plua_NumberT, "init.n.ptr");
   llvm::Instruction *pinit_nvalue_load =
-      def->builder->CreateLoad(pinit_nvalue_ptr);
+      def->builder->CreateLoad(pinit_nvalue_ptr, "init.n");
   pinit_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa,
                                  def->types->tbaa_TValue_nT);
   llvm::Instruction *ninit_store =
-      def->builder->CreateStore(pinit_nvalue_load, ninit);
+      def->builder->CreateStore(pinit_nvalue_load, ninit, "ninit");
   ninit_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                            def->types->tbaa_longlongT);
 
   // Go to final section
   llvm::BasicBlock *else1_pdone =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.else.pdone");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.else.done");
   def->builder->CreateBr(else1_pdone);
 
   // Not a float so we need to convert
@@ -366,9 +362,9 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *pinit_isnum =
       def->builder->CreateCall2(def->luaV_tonumberF, init, ninit);
   llvm::Value *pinit_isnum_bool = def->builder->CreateICmpEQ(
-      pinit_isnum, def->types->kInt[0], "pinit.isnum");
+      pinit_isnum, def->types->kInt[0], "init.float.ok");
   llvm::BasicBlock *else1_pinit_tonum_elsenum = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.else.pinit.tonum.ifnum", def->f);
+      def->jitState->context(), "if.init.float.failed", def->f);
   def->builder->CreateCondBr(pinit_isnum_bool, else1_pinit_tonum_elsenum,
                              else1_pdone);
 
@@ -383,27 +379,29 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   // Conversion OK so we are nearly done
   def->f->getBasicBlockList().push_back(else1_pdone);
   def->builder->SetInsertPoint(else1_pdone);
-  llvm::Instruction *ninit_load = def->builder->CreateLoad(ninit);
+  llvm::Instruction *ninit_load = def->builder->CreateLoad(ninit, "ninit");
   ninit_load->setMetadata(llvm::LLVMContext::MD_tbaa,
                           def->types->tbaa_longlongT);
-  nstep_load = def->builder->CreateLoad(nstep);
+  nstep_load = def->builder->CreateLoad(nstep, "nstep");
   nstep_load->setMetadata(llvm::LLVMContext::MD_tbaa,
                           def->types->tbaa_longlongT);
 
   //    setfltvalue(init, luai_numsub(L, ninit, nstep));
-  llvm::Value *init_n = def->builder->CreateFSub(ninit_load, nstep_load);
+  llvm::Value *init_n = def->builder->CreateFSub(ninit_load, nstep_load, "ninit-nstep");
   llvm::Value *pinit_n = def->builder->CreateBitCast(
-      init, def->types->plua_NumberT, "pinit.n.ptr");
-  llvm::Instruction *pinit_store = def->builder->CreateStore(init_n, pinit_n);
+      init, def->types->plua_NumberT, "init.n.ptr");
+  llvm::Instruction *pinit_store = def->builder->CreateStore(init_n, pinit_n, "init.n");
   pinit_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                            def->types->tbaa_TValue_nT);
   llvm::Instruction *pinit_tt_store =
-      def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], pinit_tt_ptr);
+      def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], pinit_tt_ptr, "init.tt");
   pinit_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                               def->types->tbaa_TValue_ttT);
 
   // Done so jump to forloop
   def->builder->CreateBr(def->jmp_targets[pc]);
+
+  //def->f->dump();
 
 }
 
