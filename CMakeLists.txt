@@ -46,6 +46,7 @@ if (MSVC)
   add_definitions("/wd4018")
   # Disable warning about the insecurity of using "std::copy".
   add_definitions("/wd4996")
+  add_definitions("/wd4291")
 endif()
 
 if (CMAKE_COMPILER_IS_GNUCXX OR APPLE)
@@ -67,7 +68,8 @@ set (LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c sr
      src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
      src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
      src/lvm.c src/lzio.c src/ravijit.cpp src/ravi_llvmtypes.cpp 
-     src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp)
+     src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
+     src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp)
 # define the lua lib source files
 set (LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
      src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)

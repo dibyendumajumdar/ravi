@@ -10,7 +10,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   lua_NumberT = llvm::Type::getDoubleTy(context);
   plua_NumberT = llvm::PointerType::get(lua_NumberT, 0);
 
-  static_assert(sizeof(lua_Integer) == sizeof(lua_Number), "Only 64-bit int supported");
+  static_assert(sizeof(lua_Integer) == sizeof(lua_Number),
+                "Only 64-bit int supported");
   static_assert(std::is_integral<lua_Integer>::value,
                 "lua_Integer is not an integer type");
   lua_IntegerT = llvm::Type::getIntNTy(context, sizeof(lua_Integer) * 8);
@@ -96,7 +97,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(lu_byteT);
   GCObjectT->setBody(elements);
 
-  static_assert(sizeof(Value) == sizeof(lua_Number) && sizeof(Value) == sizeof(lua_Integer),
+  static_assert(sizeof(Value) == sizeof(lua_Number) &&
+                    sizeof(Value) == sizeof(lua_Integer),
                 "Value type is larger than lua_Number");
   // In LLVM unions should be set to the largest member
   // So in the case of a Value this is the double type
@@ -621,7 +623,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(C_pcharT);
-  luaG_runerrorT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  luaG_runerrorT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   elements.clear();
   elements.push_back(pTValueT);
@@ -644,144 +647,170 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   // Do what Clang does
   //!5 = metadata !{metadata !"Simple C/C++ TBAA"}
-  tbaa_root = mdbuilder.createTBAARoot("Simple C / C++ TBAA"); 
+  tbaa_root = mdbuilder.createTBAARoot("Simple C / C++ TBAA");
   //!4 = metadata !{metadata !"omnipotent char", metadata !5, i64 0}
-  tbaa_charT = mdbuilder.createTBAAScalarTypeNode("omnipotent char", tbaa_root, 0); 
+  tbaa_charT =
+      mdbuilder.createTBAAScalarTypeNode("omnipotent char", tbaa_root, 0);
   //!3 = metadata !{metadata !"any pointer", metadata !4, i64 0}
-  tbaa_pointerT = mdbuilder.createTBAAScalarTypeNode("any pointer", tbaa_charT, 0);
+  tbaa_pointerT =
+      mdbuilder.createTBAAScalarTypeNode("any pointer", tbaa_charT, 0);
   //!10 = metadata !{metadata !"short", metadata !4, i64 0}
   tbaa_shortT = mdbuilder.createTBAAScalarTypeNode("short", tbaa_charT, 0);
   //!11 = metadata !{metadata !"int", metadata !4, i64 0}
   tbaa_intT = mdbuilder.createTBAAScalarTypeNode("int", tbaa_charT, 0);
   //!9 = metadata !{metadata !"long long", metadata !4, i64 0}
-  tbaa_longlongT = mdbuilder.createTBAAScalarTypeNode("long long", tbaa_charT, 0);
+  tbaa_longlongT =
+      mdbuilder.createTBAAScalarTypeNode("long long", tbaa_charT, 0);
 
-  //!14 = metadata !{metadata !"CallInfoL", metadata !3, i64 0, metadata !3, i64 4, metadata !9, i64 8}
-  std::vector<std::pair<llvm::MDNode *, uint64_t> > nodes;
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 0));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 4));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_longlongT, 8));
+  //!14 = metadata !{metadata !"CallInfoL", metadata !3, i64 0, metadata !3, i64
+  //4, metadata !9, i64 8}
+  std::vector<std::pair<llvm::MDNode *, uint64_t>> nodes;
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 4));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 8));
   tbaa_CallInfo_lT = mdbuilder.createTBAAStructTypeNode("CallInfo_l", nodes);
 
-  //!13 = metadata !{metadata !"CallInfoLua", 
-  //                 metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8, 
-  //                 metadata !3, i64 12, metadata !14, i64 16, metadata !9, i64 32, 
+  //!13 = metadata !{metadata !"CallInfoLua",
+  //                 metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8,
+  //                 metadata !3, i64 12, metadata !14, i64 16, metadata !9, i64
+  //                 32,
   //                 metadata !10, i64 40, metadata !4, i64 42}
   nodes.clear();
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 0));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 4));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 8));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 12));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_CallInfo_lT, 16));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_longlongT, 32));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_shortT, 40));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 42));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 4));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 12));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_CallInfo_lT, 16));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 32));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_shortT, 40));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 42));
   tbaa_CallInfoT = mdbuilder.createTBAAStructTypeNode("CallInfo", nodes);
 
-  //!7 = metadata !{metadata !"lua_State", 
-  //                metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, 
-  //                metadata !4, i64 6, metadata !3, i64 8, metadata !3, i64 12, 
-  //                metadata !3, i64 16, metadata !3, i64 20, metadata !3, i64 24, 
-  //                metadata !3, i64 28, metadata !3, i64 32, metadata !3, i64 36, 
-  //                metadata !3, i64 40, metadata !3, i64 44, metadata !8, i64 48, 
-  //                metadata !3, i64 104, metadata !9, i64 112, metadata !11, i64 120, 
-  //                metadata !11, i64 124, metadata !11, i64 128, metadata !10, i64 132, 
-  //                metadata !10, i64 134, metadata !4, i64 136, metadata !4, i64 137}
+  //!7 = metadata !{metadata !"lua_State",
+  //                metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5,
+  //                metadata !4, i64 6, metadata !3, i64 8, metadata !3, i64 12,
+  //                metadata !3, i64 16, metadata !3, i64 20, metadata !3, i64
+  //                24,
+  //                metadata !3, i64 28, metadata !3, i64 32, metadata !3, i64
+  //                36,
+  //                metadata !3, i64 40, metadata !3, i64 44, metadata !8, i64
+  //                48,
+  //                metadata !3, i64 104, metadata !9, i64 112, metadata !11,
+  //                i64 120,
+  //                metadata !11, i64 124, metadata !11, i64 128, metadata !10,
+  //                i64 132,
+  //                metadata !10, i64 134, metadata !4, i64 136, metadata !4,
+  //                i64 137}
   nodes.clear();
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 0));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 4));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 5));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 6));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 8));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 12));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 16));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 20));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 24));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 28));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 32));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 36));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 40));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 44));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_CallInfoT, 48));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 92));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_longlongT, 96));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 104));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 108));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 112));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_shortT, 114));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_shortT, 116));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 118));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 119));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 4));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 5));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 6));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 12));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 16));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 20));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 24));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 28));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 32));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 36));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 40));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 44));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_CallInfoT, 48));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 92));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 96));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 104));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 108));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 112));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_shortT, 114));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_shortT, 116));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 118));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 119));
   tbaa_luaStateT = mdbuilder.createTBAAStructTypeNode("lua_State", nodes);
 
-  tbaa_luaState_ciT = mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_CallInfoT, 16);
-  tbaa_luaState_ci_baseT = mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 16);
-  tbaa_CallInfo_funcT = mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 0);
-  tbaa_CallInfo_func_LClosureT = mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
+  tbaa_luaState_ciT =
+      mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_CallInfoT, 16);
+  tbaa_luaState_ci_baseT =
+      mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 16);
+  tbaa_CallInfo_funcT =
+      mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 0);
+  tbaa_CallInfo_func_LClosureT =
+      mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
 
-  //!20 = metadata !{metadata !"Proto", 
-  //                 metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, 
-  //                 metadata !4, i64 6, metadata !4, i64 7, metadata !4, i64 8, 
-  //                 metadata !11, i64 12, metadata !11, i64 16, metadata !11, i64 20, 
-  //                 metadata !11, i64 24, metadata !11, i64 28, metadata !11, i64 32, 
-  //                 metadata !11, i64 36, metadata !11, i64 40, metadata !3, i64 44, 
-  //                 metadata !3, i64 48, metadata !3, i64 52, metadata !3, i64 56, 
-  //                 metadata !3, i64 60, metadata !3, i64 64, metadata !3, i64 68, 
+  //!20 = metadata !{metadata !"Proto",
+  //                 metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5,
+  //                 metadata !4, i64 6, metadata !4, i64 7, metadata !4, i64 8,
+  //                 metadata !11, i64 12, metadata !11, i64 16, metadata !11,
+  //                 i64 20,
+  //                 metadata !11, i64 24, metadata !11, i64 28, metadata !11,
+  //                 i64 32,
+  //                 metadata !11, i64 36, metadata !11, i64 40, metadata !3,
+  //                 i64 44,
+  //                 metadata !3, i64 48, metadata !3, i64 52, metadata !3, i64
+  //                 56,
+  //                 metadata !3, i64 60, metadata !3, i64 64, metadata !3, i64
+  //                 68,
   //                 metadata !3, i64 72, metadata !3, i64 76}
   nodes.clear();
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 0));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 4));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 5));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 6));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 7));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 8));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 12));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 16));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 20));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 24));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 28));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 32));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 36));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 40));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 44));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 48));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 52));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 56));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 60));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 64));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 68));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 72));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 76));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 4));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 5));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 6));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 7));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 12));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 16));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 20));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 24));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 28));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 32));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 36));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 40));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 44));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 48));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 52));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 56));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 60));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 64));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 68));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 72));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 76));
   tbaa_ProtoT = mdbuilder.createTBAAStructTypeNode("Proto", nodes);
 
-  //!18 = metadata !{metadata !"LClosure", 
-  //                 metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, 
-  //                 metadata !4, i64 6, metadata !3, i64 8, metadata !3, i64 12, 
+  //!18 = metadata !{metadata !"LClosure",
+  //                 metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5,
+  //                 metadata !4, i64 6, metadata !3, i64 8, metadata !3, i64
+  //                 12,
   //                 metadata !4, i64 16}
   nodes.clear();
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 0));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 4));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 5));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 6));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 8));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_pointerT, 12));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_charT, 16));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 4));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 5));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 6));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 12));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 16));
   tbaa_LClosureT = mdbuilder.createTBAAStructTypeNode("LClosure", nodes);
 
-  tbaa_LClosure_pT = mdbuilder.createTBAAStructTagNode(tbaa_LClosureT, tbaa_pointerT, 12);
+  tbaa_LClosure_pT =
+      mdbuilder.createTBAAStructTagNode(tbaa_LClosureT, tbaa_pointerT, 12);
 
   //!19 = metadata !{metadata !20, metadata !3, i64 44}
-  tbaa_Proto_kT = mdbuilder.createTBAAStructTagNode(tbaa_ProtoT, tbaa_pointerT, 44);
+  tbaa_Proto_kT =
+      mdbuilder.createTBAAStructTagNode(tbaa_ProtoT, tbaa_pointerT, 44);
 
   nodes.clear();
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_longlongT, 0));
-  nodes.push_back(std::pair<llvm::MDNode*, uint64_t>(tbaa_intT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 0));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 8));
   tbaa_TValueT = mdbuilder.createTBAAStructTypeNode("TValue", nodes);
 
-  tbaa_TValue_nT = mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_longlongT, 0);
-  tbaa_TValue_ttT = mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_intT, 8);
-  
-  tbaa_luaState_topT = mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_pointerT, 8);
+  tbaa_TValue_nT =
+      mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_longlongT, 0);
+  tbaa_TValue_ttT =
+      mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_intT, 8);
+
+  tbaa_luaState_topT =
+      mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_pointerT, 8);
 }
 
 void LuaLLVMTypes::dump() {
@@ -818,5 +847,4 @@ void LuaLLVMTypes::dump() {
   lua_StateT->dump();
   fputs("\n", stdout);
 }
-
 }
