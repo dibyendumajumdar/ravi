@@ -28,6 +28,7 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/PassManager.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/DynamicLibrary.h"

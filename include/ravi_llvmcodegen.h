@@ -337,6 +337,11 @@ struct RaviFunctionDef {
 
   // Get pointer to base
   llvm::Value *Ci_base;
+
+//  llvm::Value *for_init;
+//  llvm::Value *for_step;
+//  llvm::Value *for_limit;
+
 };
 
 // This class is responsible for compiling Lua byte code
