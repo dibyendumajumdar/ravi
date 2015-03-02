@@ -142,6 +142,7 @@ void *RaviJITFunctionImpl::compile() {
   module_->setDataLayout(target_layout);
   FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
 #endif
+  FPM->add(llvm::createTypeBasedAliasAnalysisPass());
   // Provide basic AliasAnalysis support for GVN.
   FPM->add(llvm::createBasicAliasAnalysisPass());
   // Promote allocas to registers.
@@ -150,11 +151,11 @@ void *RaviJITFunctionImpl::compile() {
   FPM->add(llvm::createInstructionCombiningPass());
   // Reassociate expressions.
   FPM->add(llvm::createReassociatePass());
-  FPM->add(llvm::createTypeBasedAliasAnalysisPass());
   // Eliminate Common SubExpressions.
   FPM->add(llvm::createGVNPass());
   // Simplify the control flow graph (deleting unreachable blocks, etc).
   FPM->add(llvm::createCFGSimplificationPass());
+
   FPM->doInitialization();
 
   // For each function in the module
