@@ -297,6 +297,29 @@ public:
   const std::string &triple() const { return triple_; }
 };
 
+struct RaviBranchDef {
+  // main or int step > 0
+  llvm::BasicBlock *jmp1;
+  // forloop int step < 0
+  llvm::BasicBlock *jmp2;
+  // forloop float step > 0
+  llvm::BasicBlock *jmp3;
+  // forlook float step < 0
+  llvm::BasicBlock *jmp4;
+
+  llvm::Value *ilimit;
+  llvm::Value *istep;
+  llvm::Value *iidx;
+  llvm::Value *flimit;
+  llvm::Value *fstep;
+  llvm::Value *fidx;
+
+  llvm::Value *forloop_branch;
+
+  RaviBranchDef();
+};
+
+
 // This structure holds stuff we need when compiling a single
 // function
 struct RaviFunctionDef {
@@ -321,7 +344,7 @@ struct RaviFunctionDef {
   llvm::Value *str;
 
   // Jump targets in the function
-  std::vector<llvm::BasicBlock *> jmp_targets;
+  std::vector<RaviBranchDef> jmp_targets;
 
   // Load pointer to proto
   llvm::Instruction *proto_ptr;
@@ -337,10 +360,6 @@ struct RaviFunctionDef {
 
   // Get pointer to base
   llvm::Value *Ci_base;
-
-//  llvm::Value *for_init;
-//  llvm::Value *for_step;
-//  llvm::Value *for_limit;
 
 };
 
@@ -410,6 +429,13 @@ public:
 
   void emit_FORLOOP(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                     int A, int sBx);
+
+  void emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int sBx);
+
+  void emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int sBx, RaviBranchDef& b);
+
 
   void emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);

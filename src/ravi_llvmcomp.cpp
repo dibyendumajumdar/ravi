@@ -76,7 +76,7 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
     def->builder->CreateCall2(def->luaF_closeF, def->L, val);
   }
   // Do the jump
-  def->builder->CreateBr(def->jmp_targets[j]);
+  def->builder->CreateBr(def->jmp_targets[j].jmp1);
   // Add the else block and make it current so that the next instruction flows
   // here
   def->f->getBasicBlockList().push_back(else_block);

@@ -2,6 +2,11 @@
 
 namespace ravi {
 
+  RaviBranchDef::RaviBranchDef() : jmp1(nullptr), jmp2(nullptr),
+    jmp3(nullptr), jmp4(nullptr), ilimit(nullptr), istep(nullptr),
+    iidx(nullptr), flimit(nullptr), fstep(nullptr), fidx(nullptr) {
+  }
+
 RaviCodeGenerator::RaviCodeGenerator(RaviJITStateImpl *jitState)
     : jitState_(jitState), id_(1) {
   temp_[0] = 0;
@@ -52,13 +57,13 @@ llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def,
 }
 
 void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int j) {
-  assert(def->jmp_targets[j]);
+  assert(def->jmp_targets[j].jmp1);
   if (def->builder->GetInsertBlock()->getTerminator()) {
     llvm::BasicBlock *jmp_block =
         llvm::BasicBlock::Create(def->jitState->context(), "jump", def->f);
     def->builder->SetInsertPoint(jmp_block);
   }
-  def->builder->CreateBr(def->jmp_targets[j]);
+  def->builder->CreateBr(def->jmp_targets[j].jmp1);
 }
 
 // Check if we can compile
@@ -196,10 +201,19 @@ void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
   // and make it the current insert block; also if the previous block
   // is unterminated then we simply provide a branch from previous block to the
   // new block
-  if (def->jmp_targets[pc]) {
+  if (def->jmp_targets[pc].jmp2) {
+    auto b = def->builder->CreateLoad(def->jmp_targets[pc].forloop_branch);
+    auto idb = def->builder->CreateIndirectBr(b, 4);
+    idb->addDestination(def->jmp_targets[pc].jmp1);
+    idb->addDestination(def->jmp_targets[pc].jmp2);
+    idb->addDestination(def->jmp_targets[pc].jmp3);
+    idb->addDestination(def->jmp_targets[pc].jmp4);
+  }
+
+  if (def->jmp_targets[pc].jmp1) {
     // We are on a jump target
     // Get the block we previously created scan_jump_targets
-    llvm::BasicBlock *block = def->jmp_targets[pc];
+    llvm::BasicBlock *block = def->jmp_targets[pc].jmp1;
     if (!def->builder->GetInsertBlock()->getTerminator()) {
       // Previous block not terminated so branch to the
       // new block
@@ -317,12 +331,12 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     case OP_FORPREP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
-      emit_FORPREP(&def, L_ci, proto, A, j);
+      emit_FORPREP2(&def, L_ci, proto, A, j);
     } break;
     case OP_FORLOOP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
-      emit_FORLOOP(&def, L_ci, proto, A, j);
+      emit_FORLOOP2(&def, L_ci, proto, A, j, def.jmp_targets[pc]);
     } break;
     default:
       break;
@@ -353,8 +367,7 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
   def->jmp_targets.clear();
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
-  for (pc = 0; pc < n; pc++)
-    def->jmp_targets.push_back(nullptr);
+  def->jmp_targets.resize(n);
   for (pc = 0; pc < n; pc++) {
     Instruction i = code[pc];
     OpCode op = GET_OPCODE(i);
@@ -377,8 +390,16 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
       snprintf(temp, sizeof temp, "%s%d_", targetname, j + 1);
-      def->jmp_targets[j] =
+      def->jmp_targets[j].jmp1 = 
           llvm::BasicBlock::Create(def->jitState->context(), temp);
+      if (op == OP_FORPREP) {
+        // Second target is for int > limit
+        def->jmp_targets[j].jmp2 = llvm::BasicBlock::Create(def->jitState->context(), "forloop_igt");
+        // Third target is for float < limit
+        def->jmp_targets[j].jmp3 = llvm::BasicBlock::Create(def->jitState->context(), "forloop_flt");
+        // Fourth target is for flot > limit
+        def->jmp_targets[j].jmp4 = llvm::BasicBlock::Create(def->jitState->context(), "forloop_fgt");
+      }
     } break;
     default:
       break;
