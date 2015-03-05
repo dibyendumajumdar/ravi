@@ -43,6 +43,15 @@
 /* limit for table tag-method chains (to avoid loops) */
 #define MAXTAGLOOP	2000
 
+// This is a cheat for a boring opcode
+void luaV_op_loadnil(CallInfo *ci, int a, int b) {
+  StkId base;
+  base = ci->u.l.base;
+  TValue *ra = base + a;
+  do {
+    setnilvalue(ra++);
+  } while (b--);
+}
 
 /*
 ** Similar to 'tonumber', but does not attempt to convert strings and

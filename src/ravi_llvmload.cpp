@@ -2,6 +2,42 @@
 
 namespace ravi {
 
+void RaviCodeGenerator::emit_LOADNIL(RaviFunctionDef *def, llvm::Value *L_ci,
+                                     llvm::Value *proto, int A, int B) {
+  def->builder->CreateCall3(def->luaV_op_loadnilF, def->ci_val,
+                            llvm::ConstantInt::get(def->types->C_intT, A),
+                            llvm::ConstantInt::get(def->types->C_intT, B));
+}
+
+void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+  int A) {
+  // Load pointer to base
+  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
+  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
+    def->types->tbaa_luaState_ci_baseT);
+
+  llvm::Value *dest;
+
+  if (A == 0) {
+    // If A is 0 we can use the base pointer which is &base[0]
+    dest = base_ptr;
+  }
+  else {
+    // emit &base[A]
+    dest = emit_array_get(def, base_ptr, A);
+  }
+
+  // destvalue->n = 0.0
+  llvm::Value *destvalue = emit_gep(def, "dest.value", dest, 0, 0, 0);
+  llvm::Instruction *store = def->builder->CreateStore(llvm::ConstantFP::get(def->types->lua_NumberT, 0.0), destvalue);
+  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+
+  // destvalue->type = LUA_TNUMFLT
+  llvm::Value *desttype = emit_gep(def, "dest.tt", dest, 0, 1);
+  store = def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], desttype);
+  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+}
+
 void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci,
                                   llvm::Value *proto, int A, int B) {
 

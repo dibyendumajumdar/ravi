@@ -2,10 +2,10 @@
 
 namespace ravi {
 
-  RaviBranchDef::RaviBranchDef() : jmp1(nullptr), jmp2(nullptr),
-    jmp3(nullptr), jmp4(nullptr), ilimit(nullptr), istep(nullptr),
-    iidx(nullptr), flimit(nullptr), fstep(nullptr), fidx(nullptr) {
-  }
+RaviBranchDef::RaviBranchDef()
+    : jmp1(nullptr), jmp2(nullptr), jmp3(nullptr), jmp4(nullptr),
+      ilimit(nullptr), istep(nullptr), iidx(nullptr), flimit(nullptr),
+      fstep(nullptr), fidx(nullptr) {}
 
 RaviCodeGenerator::RaviCodeGenerator(RaviJITStateImpl *jitState)
     : jitState_(jitState), id_(1) {
@@ -98,6 +98,9 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_FORPREP:
     case OP_FORLOOP:
     case OP_MOVE:
+    case OP_LOADNIL:
+    case OP_RAVI_LOADFZ:
+    case OP_RAVI_ADDFN:
       break;
     default:
       return false;
@@ -141,6 +144,7 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
 }
 
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
+
   // Add extern declarations for Lua functions that we need to call
   def->luaD_poscallF = def->raviF->addExternFunction(
       def->types->luaD_poscallT, reinterpret_cast<void *>(&luaD_poscall),
@@ -166,14 +170,17 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaV_tonumberF = def->raviF->addExternFunction(
       def->types->luaV_tonumberT, reinterpret_cast<void *>(&luaV_tonumber_),
       "luaV_tonumber_");
+  def->luaV_op_loadnilF = def->raviF->addExternFunction(
+      def->types->luaV_op_loadnilT, reinterpret_cast<void *>(&luaV_op_loadnil),
+      "luaV_op_loadnil");
   // Create printf declaration
   std::vector<llvm::Type *> args;
   args.push_back(def->types->C_pcharT);
   // accepts a char*, is vararg, and returns int
   llvm::FunctionType *printfType =
-    llvm::FunctionType::get(def->types->C_intT, args, true);
+      llvm::FunctionType::get(def->types->C_intT, args, true);
   def->printfFunc =
-    def->raviF->module()->getOrInsertFunction("printf", printfType);
+      def->raviF->module()->getOrInsertFunction("printf", printfType);
 }
 
 #define RA(i) (base + GETARG_A(i))
@@ -195,13 +202,8 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_C(i)))
 
 void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
-  // If the current bytecode offset pc is on a jump target
-  // then we need to insert the block we previously created in
-  // scan_jump_targets()
-  // and make it the current insert block; also if the previous block
-  // is unterminated then we simply provide a branch from previous block to the
-  // new block
   if (def->jmp_targets[pc].jmp2) {
+    // Handle special case for body of FORLOOP
     auto b = def->builder->CreateLoad(def->jmp_targets[pc].forloop_branch);
     auto idb = def->builder->CreateIndirectBr(b, 4);
     idb->addDestination(def->jmp_targets[pc].jmp1);
@@ -209,7 +211,12 @@ void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
     idb->addDestination(def->jmp_targets[pc].jmp3);
     idb->addDestination(def->jmp_targets[pc].jmp4);
   }
-
+  // If the current bytecode offset pc is on a jump target
+  // then we need to insert the block we previously created in
+  // scan_jump_targets()
+  // and make it the current insert block; also if the previous block
+  // is unterminated then we simply provide a branch from previous block to the
+  // new block
   if (def->jmp_targets[pc].jmp1) {
     // We are on a jump target
     // Get the block we previously created scan_jump_targets
@@ -338,6 +345,18 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int j = sbx + pc + 1;
       emit_FORLOOP2(&def, L_ci, proto, A, j, def.jmp_targets[pc]);
     } break;
+    case OP_LOADNIL: {
+      int B = GETARG_B(i);
+      emit_LOADNIL(&def, L_ci, proto, A, B);
+    } break;
+    case OP_RAVI_LOADFZ: {
+      emit_LOADFZ(&def, L_ci, proto, A);
+    } break;
+    case OP_RAVI_ADDFN: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_ADDFN(&def, L_ci, proto, A, B, C);
+    } break;
     default:
       break;
     }
@@ -390,15 +409,18 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
       snprintf(temp, sizeof temp, "%s%d_", targetname, j + 1);
-      def->jmp_targets[j].jmp1 = 
+      def->jmp_targets[j].jmp1 =
           llvm::BasicBlock::Create(def->jitState->context(), temp);
       if (op == OP_FORPREP) {
         // Second target is for int > limit
-        def->jmp_targets[j].jmp2 = llvm::BasicBlock::Create(def->jitState->context(), "forloop_igt");
+        def->jmp_targets[j].jmp2 =
+            llvm::BasicBlock::Create(def->jitState->context(), "forloop_igt");
         // Third target is for float < limit
-        def->jmp_targets[j].jmp3 = llvm::BasicBlock::Create(def->jitState->context(), "forloop_flt");
+        def->jmp_targets[j].jmp3 =
+            llvm::BasicBlock::Create(def->jitState->context(), "forloop_flt");
         // Fourth target is for flot > limit
-        def->jmp_targets[j].jmp4 = llvm::BasicBlock::Create(def->jitState->context(), "forloop_fgt");
+        def->jmp_targets[j].jmp4 =
+            llvm::BasicBlock::Create(def->jitState->context(), "forloop_fgt");
       }
     } break;
     default:

@@ -172,6 +172,8 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_forlimitT;
   llvm::FunctionType *luaV_tonumberT;
 
+  llvm::FunctionType *luaV_op_loadnilT;
+
   std::array<llvm::Constant *, 21> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
 
@@ -297,6 +299,12 @@ public:
   const std::string &triple() const { return triple_; }
 };
 
+// To optimise fornum loops
+// i.e. OP_FORPREP and OP_FORLOOP instructions
+// we use computed gotos to specialised
+// jmp labels. Hence the 4 jmp targets.
+// For other instructions only the first jump 
+// targetis used
 struct RaviBranchDef {
   // main or int step > 0
   llvm::BasicBlock *jmp1;
@@ -307,6 +315,8 @@ struct RaviBranchDef {
   // forlook float step < 0
   llvm::BasicBlock *jmp4;
 
+  // These are local variables for a fornum
+  // loop
   llvm::Value *ilimit;
   llvm::Value *istep;
   llvm::Value *iidx;
@@ -314,6 +324,9 @@ struct RaviBranchDef {
   llvm::Value *fstep;
   llvm::Value *fidx;
 
+  // This holds the branch to which the
+  // loop body will jump to using a
+  // IndirectBr instruction
   llvm::Value *forloop_branch;
 
   RaviBranchDef();
@@ -340,6 +353,11 @@ struct RaviFunctionDef {
   llvm::Constant *luaG_runerrorF;
   llvm::Constant *luaV_forlimitF;
   llvm::Constant *luaV_tonumberF;
+
+  // Some cheats
+  llvm::Constant *luaV_op_loadnilF;
+
+  // printf
   llvm::Constant *printfFunc;
   llvm::Value *str;
 
@@ -415,6 +433,15 @@ public:
   void scan_jump_targets(RaviFunctionDef *def, Proto *p);
 
   void link_block(RaviFunctionDef *def, int pc);
+
+  void emit_LOADNIL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B);
+
+  void emit_LOADFZ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A);
+
+  void emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
 
   void emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A, int Bx);
