@@ -130,7 +130,6 @@ void *RaviJITFunctionImpl::compile() {
 
   // Create a function pass manager for this engine
   llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(module_);
-  llvm::PassManager *MPM = new llvm::PassManager();
 
   // Set up the optimizer pipeline.  Start with registering info about how the
   // target lays out data structures.
@@ -145,9 +144,10 @@ void *RaviJITFunctionImpl::compile() {
 #endif
   llvm::PassManagerBuilder pmb;
   pmb.OptLevel = 3;
+  pmb.SizeLevel = 0;
+#if 1
   pmb.populateFunctionPassManager(*FPM);
-  pmb.populateModulePassManager(*MPM);
-#if 0
+#else
   FPM->add(llvm::createTypeBasedAliasAnalysisPass());
   // Provide basic AliasAnalysis support for GVN.
   FPM->add(llvm::createBasicAliasAnalysisPass());
@@ -168,13 +168,16 @@ void *RaviJITFunctionImpl::compile() {
   // For each function in the module
   // Run the FPM on this function
   FPM->run(*function_);
+  delete FPM;
+
+  llvm::PassManager *MPM = new llvm::PassManager();
+  pmb.populateModulePassManager(*MPM);
   MPM->run(*module_);
+  delete MPM;
 
   //module_->dump();
 
   // We don't need this anymore
-  delete FPM;
-  delete MPM;
 
   if (ptr_)
     return ptr_;

@@ -43,30 +43,31 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   // Setup local vars on C stack and link them
   // to the forloop_target so that the forloop code can access these
 
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
   llvm::Value *stopnow =
-      def->builder->CreateAlloca(def->types->C_intT, nullptr, "stopnow");
+      TmpB.CreateAlloca(def->types->C_intT, nullptr, "stopnow");
 
   forloop_target.ilimit =
-      def->builder->CreateAlloca(def->types->lua_IntegerT, nullptr, "ilimit");
+      TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "ilimit");
   forloop_target.istep =
-      def->builder->CreateAlloca(def->types->lua_IntegerT, nullptr, "istep");
+      TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "istep");
   forloop_target.iidx =
-      def->builder->CreateAlloca(def->types->lua_IntegerT, nullptr, "iidx");
+      TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "iidx");
   forloop_target.flimit =
-      def->builder->CreateAlloca(def->types->lua_NumberT, nullptr, "nlimit");
+      TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nlimit");
   forloop_target.fidx =
-      def->builder->CreateAlloca(def->types->lua_NumberT, nullptr, "ninit");
+      TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "ninit");
   forloop_target.fstep =
-      def->builder->CreateAlloca(def->types->lua_NumberT, nullptr, "nstep");
+      TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nstep");
   forloop_target.forloop_branch =
-      def->builder->CreateAlloca(def->types->C_pcharT, nullptr, "brnch");
+      TmpB.CreateAlloca(def->types->C_pcharT, nullptr, "brnch");
 
-  llvm::Value *isint = def->builder->CreateAlloca(
-      llvm::Type::getInt1Ty(def->jitState->context()), nullptr,
-      "loop.is.integer");
-  llvm::Value *isinc = def->builder->CreateAlloca(
-      llvm::Type::getInt1Ty(def->jitState->context()), nullptr,
-      "loop.increasing");
+  llvm::Value *isint =
+      TmpB.CreateAlloca(llvm::Type::getInt1Ty(def->jitState->context()),
+                        nullptr, "loop.is.integer");
+  llvm::Value *isinc =
+      TmpB.CreateAlloca(llvm::Type::getInt1Ty(def->jitState->context()),
+                        nullptr, "loop.increasing");
 
   //  TValue *init = ra;
   //  TValue *plimit = ra + 1;
@@ -141,9 +142,9 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   //    lua_Integer initv = (stopnow ? 0 : ivalue(init));
   // Save step
   llvm::Instruction *istep_store =
-    def->builder->CreateStore(pstep_ivalue, forloop_target.istep);
+      def->builder->CreateStore(pstep_ivalue, forloop_target.istep);
   istep_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-    def->types->tbaa_longlongT);
+                           def->types->tbaa_longlongT);
 
   // Get stopnow
   llvm::Instruction *stopnow_val =
@@ -492,16 +493,18 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   //  lua_Integer ilimit;
   //  int stopnow;
   //  lua_Number ninit; lua_Number nlimit; lua_Number nstep;
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+
   llvm::Value *ilimit =
-      def->builder->CreateAlloca(def->types->lua_IntegerT, nullptr, "ilimit");
+      TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "ilimit");
   llvm::Value *stopnow =
-      def->builder->CreateAlloca(def->types->C_intT, nullptr, "stopnow");
+      TmpB.CreateAlloca(def->types->C_intT, nullptr, "stopnow");
   llvm::Value *nlimit =
-      def->builder->CreateAlloca(def->types->lua_NumberT, nullptr, "nlimit");
+      TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nlimit");
   llvm::Value *ninit =
-      def->builder->CreateAlloca(def->types->lua_NumberT, nullptr, "ninit");
+      TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "ninit");
   llvm::Value *nstep =
-      def->builder->CreateAlloca(def->types->lua_NumberT, nullptr, "nstep");
+      TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nstep");
 
   //  TValue *init = ra;
   //  TValue *plimit = ra + 1;

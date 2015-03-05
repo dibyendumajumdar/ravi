@@ -338,12 +338,20 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     case OP_FORPREP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
+#if RAVI_CODEGEN_FORPREP2
       emit_FORPREP2(&def, L_ci, proto, A, j);
+#else
+      emit_FORPREP(&def, L_ci, proto, A, j);
+#endif
     } break;
     case OP_FORLOOP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
+#if RAVI_CODEGEN_FORPREP2
       emit_FORLOOP2(&def, L_ci, proto, A, j, def.jmp_targets[pc]);
+#else
+      emit_FORLOOP(&def, L_ci, proto, A, j);
+#endif
     } break;
     case OP_LOADNIL: {
       int B = GETARG_B(i);
@@ -403,7 +411,7 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
       else if (op == OP_FORLOOP)
         targetname = "forbody";
       else if (op == OP_FORPREP)
-        targetname = "forloop";
+        targetname = "forloop_ilt";
       else
         targetname = "tforbody";
       int sbx = GETARG_sBx(i);
@@ -411,17 +419,22 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
       snprintf(temp, sizeof temp, "%s%d_", targetname, j + 1);
       def->jmp_targets[j].jmp1 =
           llvm::BasicBlock::Create(def->jitState->context(), temp);
+#if RAVI_CODEGEN_FORPREP2
       if (op == OP_FORPREP) {
         // Second target is for int > limit
+        snprintf(temp, sizeof temp, "%s%d_", "forloop_igt", j + 1);
         def->jmp_targets[j].jmp2 =
-            llvm::BasicBlock::Create(def->jitState->context(), "forloop_igt");
+            llvm::BasicBlock::Create(def->jitState->context(), temp);
         // Third target is for float < limit
+        snprintf(temp, sizeof temp, "%s%d_", "forloop_flt", j + 1);
         def->jmp_targets[j].jmp3 =
-            llvm::BasicBlock::Create(def->jitState->context(), "forloop_flt");
+            llvm::BasicBlock::Create(def->jitState->context(), temp);
         // Fourth target is for flot > limit
+        snprintf(temp, sizeof temp, "%s%d_", "forloop_fgt", j + 1);
         def->jmp_targets[j].jmp4 =
-            llvm::BasicBlock::Create(def->jitState->context(), "forloop_fgt");
+            llvm::BasicBlock::Create(def->jitState->context(), temp);
       }
+#endif
     } break;
     default:
       break;
