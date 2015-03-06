@@ -479,8 +479,19 @@ public:
   void emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
     int A, int B, int C);
 
+  void emit_ADDFF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
+  void emit_ADDFI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
+  void emit_ADDII(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
   void emit_ADDIN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
     int A, int B, int C);
+
+
 
   void emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A, int Bx);
