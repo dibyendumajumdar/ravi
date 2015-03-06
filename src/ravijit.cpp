@@ -62,8 +62,7 @@ RaviJITFunction *
 RaviJITStateImpl::createFunction(llvm::FunctionType *type,
                                  llvm::GlobalValue::LinkageTypes linkage,
                                  const std::string &name) {
-  RaviJITFunction *f =
-      new RaviJITFunctionImpl(this, type, linkage, name);
+  RaviJITFunction *f = new RaviJITFunctionImpl(this, type, linkage, name);
   functions_[name] = f;
   return f;
 }
@@ -102,10 +101,10 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
                 .create();
 #else
   engine_ = llvm::EngineBuilder(module_)
-    .setEngineKind(llvm::EngineKind::JIT)
-    .setUseMCJIT(true)
-    .setErrorStr(&errStr)
-    .create();
+                .setEngineKind(llvm::EngineKind::JIT)
+                .setUseMCJIT(true)
+                .setErrorStr(&errStr)
+                .create();
 #endif
   if (!engine_) {
     fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
@@ -126,13 +125,13 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
 
 void *RaviJITFunctionImpl::compile() {
 
-  //module_->dump();
+  // module_->dump();
 
   // Create a function pass manager for this engine
   llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(module_);
 
-  // Set up the optimizer pipeline.  Start with registering info about how the
-  // target lays out data structures.
+// Set up the optimizer pipeline.  Start with registering info about how the
+// target lays out data structures.
 #if LLVM_VERSION_MINOR > 5
   // LLVM 3.6.0 change
   module_->setDataLayout(engine_->getDataLayout());
@@ -175,7 +174,7 @@ void *RaviJITFunctionImpl::compile() {
   MPM->run(*module_);
   delete MPM;
 
-  //module_->dump();
+  // module_->dump();
 
   // We don't need this anymore
 
@@ -214,7 +213,6 @@ void RaviJITFunctionImpl::dump() { module_->dump(); }
 std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
   return std::unique_ptr<RaviJITState>(new RaviJITStateImpl());
 }
-
 }
 
 #ifdef __cplusplus

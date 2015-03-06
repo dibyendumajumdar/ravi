@@ -303,7 +303,7 @@ public:
 // i.e. OP_FORPREP and OP_FORLOOP instructions
 // we use computed gotos to specialised
 // jmp labels. Hence the 4 jmp targets.
-// For other instructions only the first jump 
+// For other instructions only the first jump
 // targetis used
 struct RaviBranchDef {
   // main or int step > 0
@@ -331,7 +331,6 @@ struct RaviBranchDef {
 
   RaviBranchDef();
 };
-
 
 // This structure holds stuff we need when compiling a single
 // function
@@ -378,7 +377,6 @@ struct RaviFunctionDef {
 
   // Get pointer to base
   llvm::Value *Ci_base;
-
 };
 
 // This class is responsible for compiling Lua byte code
@@ -429,22 +427,26 @@ public:
   llvm::Instruction *emit_load_base(RaviFunctionDef *def);
 
   // emit code to obtain address of register at location A
-  llvm::Value *emit_gep_ra(RaviFunctionDef *def, llvm::Instruction *base, int A);
+  llvm::Value *emit_gep_ra(RaviFunctionDef *def, llvm::Instruction *base,
+                           int A);
 
   // emit code to obtain address of register or constant at locaton B
-  llvm::Value *emit_gep_rkb(RaviFunctionDef *def, llvm::Instruction *base, int B);
+  llvm::Value *emit_gep_rkb(RaviFunctionDef *def, llvm::Instruction *base,
+                            int B);
 
-  // emit code to load the lua_Number value from register 
+  // emit code to load the lua_Number value from register
   llvm::Instruction *emit_load_reg_n(RaviFunctionDef *def, llvm::Value *ra);
 
   // emit code to load the lua_Integer value from register
   llvm::Instruction *emit_load_reg_i(RaviFunctionDef *def, llvm::Value *rb);
 
   // emit code to store lua_Number value into register
-  void emit_store_reg_n(RaviFunctionDef *def, llvm::Value *value, llvm::Value *dest_ptr);
+  void emit_store_reg_n(RaviFunctionDef *def, llvm::Value *value,
+                        llvm::Value *dest_ptr);
 
   // emit code to store lua_Integer value into register
-  void emit_store_reg_i(RaviFunctionDef *def, llvm::Value *value, llvm::Value *dest_ptr);
+  void emit_store_reg_i(RaviFunctionDef *def, llvm::Value *value,
+                        llvm::Value *dest_ptr);
 
   // emit code to set the type in the register
   void emit_store_type(RaviFunctionDef *def, llvm::Value *value, int type);
@@ -462,36 +464,34 @@ public:
   void link_block(RaviFunctionDef *def, int pc);
 
   void emit_LOADNIL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B);
+                    int A, int B);
 
   void emit_LOADFZ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A);
+                   int A);
 
   void emit_LOADIZ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A);
+                   int A);
 
   void emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B);
+                 int A, int B);
 
   void emit_UNMI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B);
+                 int A, int B);
 
   void emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_ADDFF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_ADDFI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_ADDII(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_ADDIN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
-
-
+                  int A, int B, int C);
 
   void emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A, int Bx);
@@ -507,12 +507,11 @@ public:
   void emit_FORLOOP(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                     int A, int sBx);
 
-  void emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int sBx);
+  void emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int sBx);
 
-  void emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int sBx, RaviBranchDef& b);
-
+  void emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int sBx, RaviBranchDef &b);
 
   void emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);

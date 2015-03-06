@@ -641,7 +641,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pCallInfoT);
   elements.push_back(C_intT);
   elements.push_back(C_intT);
-  luaV_op_loadnilT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  luaV_op_loadnilT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
@@ -668,7 +669,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       mdbuilder.createTBAAScalarTypeNode("long long", tbaa_charT, 0);
 
   //!14 = metadata !{metadata !"CallInfoL", metadata !3, i64 0, metadata !3, i64
-  //4, metadata !9, i64 8}
+  // 4, metadata !9, i64 8}
   std::vector<std::pair<llvm::MDNode *, uint64_t>> nodes;
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 4));
