@@ -281,8 +281,6 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Obtain pointers to the tt_ field
   llvm::Value *rinit_tt_ptr = emit_gep(def, "init.tt.ptr", rinit, 0, 1);
-  llvm::Value *rlimit_tt_ptr = emit_gep(def, "limit.tt.ptr", rlimit, 0, 1);
-  llvm::Value *rstep_tt_ptr = emit_gep(def, "step.tt.ptr", rstep, 0, 1);
   llvm::Value *rvar_tt_ptr = emit_gep(def, "var.tt.ptr", rvar, 0, 1);
 
   // Obtain pointers to the value.i field

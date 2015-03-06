@@ -517,7 +517,6 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
   for (pc = 0; pc < n; pc++) {
     Instruction i = code[pc];
     OpCode op = GET_OPCODE(i);
-    int A = GETARG_A(i);
     switch (op) {
     case OP_JMP:
     case OP_FORLOOP:

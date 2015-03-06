@@ -308,8 +308,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //** Closures
   //*/
 
-  //#define ClosureHeader \
-	//CommonHeader; lu_byte nupvalues; GCObject *gclist
+  //#define ClosureHeader CommonHeader; lu_byte nupvalues; GCObject *gclist
 
   // typedef struct CClosure {
   //  ClosureHeader;

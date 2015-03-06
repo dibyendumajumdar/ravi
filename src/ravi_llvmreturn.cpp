@@ -39,9 +39,6 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
                         def->types->tbaa_luaState_ci_baseT);
 
-  // Load pointer to k
-  llvm::Value *k_ptr = def->k_ptr;
-
   llvm::Value *top = nullptr;
 
   // Get pointer to register A
@@ -101,7 +98,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
     // Get L->top
     top = emit_gep(def, "L_top", def->L, 0, 4);
   // Assign ci>top to L->top
-  llvm::Instruction *ins2 = def->builder->CreateStore(citop_val, top);
+  def->builder->CreateStore(citop_val, top);
   def->builder->CreateBr(ElseBB);
   def->f->getBasicBlockList().push_back(ElseBB);
   def->builder->SetInsertPoint(ElseBB);

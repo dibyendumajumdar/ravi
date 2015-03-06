@@ -1185,7 +1185,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else {
           int i = last-n+1;
-          for (; i <= last; i++) {
+          for (; i <= (int)last; i++) {
             TValue *val = ra + i;
             raviH_setint(L, h, i, val);
           }

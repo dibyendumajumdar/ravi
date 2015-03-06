@@ -226,12 +226,12 @@ class RAVI_API RaviJITFunctionImpl : public RaviJITFunction {
   // Unique name for the function
   std::string name_;
 
+  // The llvm Function definition
+  llvm::Function *function_;
+
   // The execution engine responsible for compiling the
   // module
   llvm::ExecutionEngine *engine_;
-
-  // The llvm Function definition
-  llvm::Function *function_;
 
   // Pointer to compiled function - this is only set when
   // the function
