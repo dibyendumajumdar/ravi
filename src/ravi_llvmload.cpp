@@ -38,6 +38,16 @@ void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, llvm::Value *L_ci, llv
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
 }
 
+void RaviCodeGenerator::emit_LOADIZ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+  int A) {
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  // dest->i = 0
+  emit_store_reg_i(def, def->types->kluaInteger[0], dest);
+  // dest->type = LUA_TNUMINT
+  emit_store_type(def, dest, LUA_TNUMINT);
+}
+
 void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci,
                                   llvm::Value *proto, int A, int B) {
 

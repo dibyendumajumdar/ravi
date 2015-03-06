@@ -66,6 +66,97 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int j) {
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
 }
 
+llvm::Instruction *RaviCodeGenerator::emit_load_base(RaviFunctionDef *def) {
+  // Load pointer to base
+  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
+  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
+                        def->types->tbaa_luaState_ci_baseT);
+  return base_ptr;
+}
+
+llvm::Value *RaviCodeGenerator::emit_gep_ra(RaviFunctionDef *def,
+                                            llvm::Instruction *base_ptr,
+                                            int A) {
+  llvm::Value *dest;
+  if (A == 0) {
+    // If A is 0 we can use the base pointer which is &base[0]
+    dest = base_ptr;
+  } else {
+    // emit &base[A]
+    dest = emit_array_get(def, base_ptr, A);
+  }
+  return dest;
+}
+
+llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
+                                                      llvm::Value *rb) {
+  llvm::Value *rb_n = def->builder->CreateBitCast(rb, def->types->plua_NumberT);
+  llvm::Instruction *lhs = def->builder->CreateLoad(rb_n);
+  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  return lhs;
+}
+
+llvm::Instruction *RaviCodeGenerator::emit_load_reg_i(RaviFunctionDef *def,
+                                                      llvm::Value *rb) {
+  llvm::Value *rb_n =
+      def->builder->CreateBitCast(rb, def->types->plua_IntegerT);
+  llvm::Instruction *lhs = def->builder->CreateLoad(rb_n);
+  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  return lhs;
+}
+
+void RaviCodeGenerator::emit_store_reg_n(RaviFunctionDef *def,
+                                         llvm::Value *result,
+                                         llvm::Value *dest_ptr) {
+  llvm::Value *ra_n =
+      def->builder->CreateBitCast(dest_ptr, def->types->plua_NumberT);
+  llvm::Instruction *store = def->builder->CreateStore(result, ra_n);
+  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+}
+
+void RaviCodeGenerator::emit_store_reg_i(RaviFunctionDef *def,
+                                         llvm::Value *result,
+                                         llvm::Value *dest_ptr) {
+  llvm::Value *ra_n =
+      def->builder->CreateBitCast(dest_ptr, def->types->plua_IntegerT);
+  llvm::Instruction *store = def->builder->CreateStore(result, ra_n);
+  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+}
+
+void RaviCodeGenerator::emit_store_type(RaviFunctionDef *def,
+                                        llvm::Value *value, int type) {
+  llvm::Value *desttype = emit_gep(def, "dest.tt", value, 0, 1);
+  lua_assert(type == LUA_TNUMFLT || type == LUA_TNUMINT);
+  llvm::Instruction *store =
+      def->builder->CreateStore(def->types->kInt[type], desttype);
+  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+}
+
+llvm::Instruction *RaviCodeGenerator::emit_load_type(RaviFunctionDef *def,
+                                                     llvm::Value *value) {
+  llvm::Value *tt_ptr = emit_gep(def, "value.tt.ptr", value, 0, 1);
+  llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "value.tt");
+  tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  return tt;
+}
+
+llvm::Value *RaviCodeGenerator::emit_gep_rkb(RaviFunctionDef *def,
+                                             llvm::Instruction *base_ptr,
+                                             int B) {
+  // Load pointer to k
+  llvm::Value *k_ptr = def->k_ptr;
+  llvm::Value *rb;
+  // Get pointer to register B
+  llvm::Value *base_or_k = ISK(B) ? k_ptr : base_ptr;
+  int b = ISK(B) ? INDEXK(B) : B;
+  if (b == 0) {
+    rb = base_or_k;
+  } else {
+    rb = emit_array_get(def, base_or_k, b);
+  }
+  return rb;
+}
+
 // Check if we can compile
 // The cases we can compile will increase over time
 bool RaviCodeGenerator::canCompile(Proto *p) {
@@ -90,6 +181,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     OpCode o = GET_OPCODE(i);
     switch (o) {
     case OP_LOADK:
+    case OP_LOADNIL:
     case OP_RETURN:
     case OP_JMP:
     case OP_EQ:
@@ -98,9 +190,10 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_FORPREP:
     case OP_FORLOOP:
     case OP_MOVE:
-    case OP_LOADNIL:
     case OP_RAVI_LOADFZ:
+    case OP_RAVI_LOADIZ:
     case OP_RAVI_ADDFN:
+    case OP_RAVI_ADDIN:
       break;
     default:
       return false;
@@ -360,10 +453,18 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     case OP_RAVI_LOADFZ: {
       emit_LOADFZ(&def, L_ci, proto, A);
     } break;
+    case OP_RAVI_LOADIZ: {
+      emit_LOADIZ(&def, L_ci, proto, A);
+    } break;
     case OP_RAVI_ADDFN: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_ADDFN(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_RAVI_ADDIN: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_ADDIN(&def, L_ci, proto, A, B, C);
     } break;
     default:
       break;

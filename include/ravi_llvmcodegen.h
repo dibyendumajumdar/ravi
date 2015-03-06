@@ -425,6 +425,33 @@ public:
   llvm::Value *emit_array_get(RaviFunctionDef *def, llvm::Value *ptr,
                               int offset);
 
+  // emit code to load pointer L->ci->u.l.base
+  llvm::Instruction *emit_load_base(RaviFunctionDef *def);
+
+  // emit code to obtain address of register at location A
+  llvm::Value *emit_gep_ra(RaviFunctionDef *def, llvm::Instruction *base, int A);
+
+  // emit code to obtain address of register or constant at locaton B
+  llvm::Value *emit_gep_rkb(RaviFunctionDef *def, llvm::Instruction *base, int B);
+
+  // emit code to load the lua_Number value from register 
+  llvm::Instruction *emit_load_reg_n(RaviFunctionDef *def, llvm::Value *ra);
+
+  // emit code to load the lua_Integer value from register
+  llvm::Instruction *emit_load_reg_i(RaviFunctionDef *def, llvm::Value *rb);
+
+  // emit code to store lua_Number value into register
+  void emit_store_reg_n(RaviFunctionDef *def, llvm::Value *value, llvm::Value *dest_ptr);
+
+  // emit code to store lua_Integer value into register
+  void emit_store_reg_i(RaviFunctionDef *def, llvm::Value *value, llvm::Value *dest_ptr);
+
+  // emit code to set the type in the register
+  void emit_store_type(RaviFunctionDef *def, llvm::Value *value, int type);
+
+  // emit code to load the type from a register
+  llvm::Instruction *emit_load_type(RaviFunctionDef *def, llvm::Value *value);
+
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.
   // The BasicBlocks are not inserted into the function until later
@@ -440,7 +467,19 @@ public:
   void emit_LOADFZ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
     int A);
 
+  void emit_LOADIZ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A);
+
+  void emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B);
+
+  void emit_UNMI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B);
+
   void emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
+  void emit_ADDIN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
     int A, int B, int C);
 
   void emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,

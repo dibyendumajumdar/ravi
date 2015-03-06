@@ -85,6 +85,7 @@ int main(int argc, const char *argv[])
 {
     int failures = 0;
     //failures += test_luacompfile("ravi-tests/mandel1.ravi");
+    failures += test_luacompexec1("local function x(); local i, j:int; j=0; for i=1,1000000000 do; j = j+1; end; return j; end; local y = x(); print(y); return y", 1000000000);
     failures += test_luacompexec1("local function x(); local j:double; for i=1,1000000000 do; j = j+1; end; return j; end; local y = x(); print(y); return y", 1000000000);
 
     failures += test_luacompexec1("local function x(); local j = 0; for i=2,6,3 do; j = i; end; return j; end; local y = x(); print(y); return y", 5);
@@ -138,7 +139,6 @@ int main(int argc, const char *argv[])
     failures += test_luacompexec1("return (1 and 2)+(-1.25 or -4) == 0.75", 1);
     failures += test_luacomp1("local a=1; if a==0 then; a = 2; else a=3; end;");
     failures += test_luacomp1("local f = function(); return; end; local d:double = 5.0; d = f(); return d");
-    failures += test_luacompexec1("local i, j:int; j=0; for i=1,1000000000 do; j = j+1; end; return j", 1000000000);
     failures += test_luacomp1("local f = function(); return; end; local d = 5.0; d = f(); return d");
     return failures ? 1 : 0;
 }

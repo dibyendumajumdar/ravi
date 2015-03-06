@@ -2,6 +2,26 @@
 
 namespace ravi {
 
+void RaviCodeGenerator::emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci,
+                                  llvm::Value *proto, int A, int B) {
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Instruction *lhs = emit_load_reg_n(def, rb);
+  llvm::Value *result = def->builder->CreateFNeg(lhs);
+  emit_store_reg_n(def, result, ra);
+}
+
+void RaviCodeGenerator::emit_UNMI(RaviFunctionDef *def, llvm::Value *L_ci,
+  llvm::Value *proto, int A, int B) {
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Instruction *lhs = emit_load_reg_i(def, rb);
+  llvm::Value *result = def->builder->CreateNeg(lhs, "", false, true);
+  emit_store_reg_i(def, result, ra);
+}
+
 void RaviCodeGenerator::emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
 
@@ -47,4 +67,16 @@ void RaviCodeGenerator::emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *store = def->builder->CreateStore(result, ra_n);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 }
+
+void RaviCodeGenerator::emit_ADDIN(RaviFunctionDef *def, llvm::Value *L_ci,
+                                   llvm::Value *proto, int A, int B, int C) {
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Instruction *lhs = emit_load_reg_i(def, rb);
+  llvm::Value *result = def->builder->CreateAdd(
+      lhs, llvm::ConstantInt::get(def->types->lua_IntegerT, C), "", false, true);
+  emit_store_reg_i(def, result, ra);
+}
+
 }
