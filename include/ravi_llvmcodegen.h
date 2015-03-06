@@ -220,18 +220,18 @@ class RAVI_API RaviJITFunctionImpl : public RaviJITFunction {
   // tell RaviJITState when this function dies
   RaviJITStateImpl *owner_;
 
-  // Module within which the function will be defined
-  llvm::Module *module_;
-
   // Unique name for the function
   std::string name_;
-
-  // The llvm Function definition
-  llvm::Function *function_;
 
   // The execution engine responsible for compiling the
   // module
   llvm::ExecutionEngine *engine_;
+
+  // Module within which the function will be defined
+  llvm::Module *module_;
+
+  // The llvm Function definition
+  llvm::Function *function_;
 
   // Pointer to compiled function - this is only set when
   // the function
