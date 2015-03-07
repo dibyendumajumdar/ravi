@@ -210,6 +210,10 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_MULFF:
     case OP_RAVI_MULFI:
     case OP_RAVI_MULII:
+    case OP_RAVI_DIVFF:
+    case OP_RAVI_DIVFI:
+    case OP_RAVI_DIVIF:
+    case OP_RAVI_DIVII:
       break;
     default:
       return false;
@@ -566,7 +570,26 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_MULII(&def, L_ci, proto, A, B, C);
     } break;
 
-
+    case OP_RAVI_DIVFF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_DIVFF(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_RAVI_DIVFI: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_DIVFI(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_RAVI_DIVIF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_DIVIF(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_RAVI_DIVII: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_DIVII(&def, L_ci, proto, A, B, C);
+    } break;
 
     default:
       break;

@@ -532,7 +532,17 @@ public:
   void emit_MULIN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
     int A, int B, int C);
 
+  void emit_DIVFF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
 
+  void emit_DIVFI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
+  void emit_DIVIF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
+  void emit_DIVII(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
 
   void emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A, int Bx);

@@ -84,7 +84,7 @@ static int test_luacompexec1(const char *code, int expected)
 int main(int argc, const char *argv[]) 
 {
     int failures = 0;
-    //failures += test_luacompfile("ravi-tests/mandel1.ravi");
+    //failures += test_luacompfile("/github/ravi/ravi-tests/mandel1.ravi");
     failures += test_luacompexec1("local function x(); local i, j:int; j=0; for i=1,1000000000 do; j = j+1; end; return j; end; local y = x(); print(y); return y", 1000000000);
     failures += test_luacompexec1("local function x(); local j:double; for i=1,1000000000 do; j = j+1; end; return j; end; local y = x(); print(y); return y", 1000000000);
 
