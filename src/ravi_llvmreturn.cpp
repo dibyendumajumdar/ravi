@@ -98,7 +98,8 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
     // Get L->top
     top = emit_gep(def, "L_top", def->L, 0, 4);
   // Assign ci>top to L->top
-  def->builder->CreateStore(citop_val, top);
+  auto ins = def->builder->CreateStore(citop_val, top);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
   def->builder->CreateBr(ElseBB);
   def->f->getBasicBlockList().push_back(ElseBB);
   def->builder->SetInsertPoint(ElseBB);

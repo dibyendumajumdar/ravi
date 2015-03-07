@@ -380,8 +380,8 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int compile) {
           lua_assert(L->ci == prevci);
           ci = L->ci;
           lua_assert(isLua(ci));
-          lua_assert(GET_OPCODE(*((ci)->u.l.savedpc - 1)) == OP_CALL);
-          return 1;
+          /* Return a different value from 1 to allow luaV_execute() to distinguish between JITed function and true C function*/
+          return 2;
         }
       }
       return 0;

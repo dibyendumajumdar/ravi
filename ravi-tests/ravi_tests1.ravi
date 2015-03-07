@@ -1,0 +1,32 @@
+local z,x,y
+
+-- test 1
+z = function(a)
+  print(a)
+  return a+1
+end
+x = function(yy)
+  local j = 5
+  j = yy(j)
+  return j
+end
+
+y = x(z)
+assert(y == 6)
+
+-- test 2
+
+z = function (a,p)
+  p(a)
+  return 6
+end
+
+x = function (yy,p)
+  local j = 5
+  j = yy(j,p)
+  return j
+end
+
+y = x(z,print)
+assert(y == 6)
+

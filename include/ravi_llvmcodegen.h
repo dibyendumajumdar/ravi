@@ -164,14 +164,16 @@ struct LuaLLVMTypes {
   llvm::FunctionType *jitFunctionT;
 
   llvm::FunctionType *luaD_poscallT;
+  llvm::FunctionType *luaD_precallT;
   llvm::FunctionType *luaF_closeT;
+  llvm::FunctionType *luaG_runerrorT;
   llvm::FunctionType *luaV_equalobjT;
   llvm::FunctionType *luaV_lessthanT;
   llvm::FunctionType *luaV_lessequalT;
-  llvm::FunctionType *luaG_runerrorT;
   llvm::FunctionType *luaV_forlimitT;
   llvm::FunctionType *luaV_tonumberT;
   llvm::FunctionType *luaV_tointegerT;
+  llvm::FunctionType *luaV_executeT;
 
   llvm::FunctionType *luaV_op_loadnilT;
 
@@ -346,14 +348,16 @@ struct RaviFunctionDef {
 
   // Lua function declarations
   llvm::Constant *luaD_poscallF;
+  llvm::Constant *luaD_precallF;
   llvm::Constant *luaF_closeF;
+  llvm::Constant *luaG_runerrorF;
   llvm::Constant *luaV_equalobjF;
   llvm::Constant *luaV_lessthanF;
   llvm::Constant *luaV_lessequalF;
-  llvm::Constant *luaG_runerrorF;
   llvm::Constant *luaV_forlimitF;
   llvm::Constant *luaV_tonumberF;
   llvm::Constant *luaV_tointegerF;
+  llvm::Constant *luaV_executeF;
 
   // Some cheats
   llvm::Constant *luaV_op_loadnilF;
@@ -551,6 +555,9 @@ public:
 
   void emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                    int A, int B);
+
+  void emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
 
   void emit_JMP(RaviFunctionDef *def, int j);
 

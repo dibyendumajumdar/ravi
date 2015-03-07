@@ -170,7 +170,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
   int pc, n = p->sizecode;
   // TODO we cannot handle variable arguments or
   // if the function has sub functions (closures)
-  if (p->sizep > 0 || p->is_vararg) {
+  //if (p->sizep > 0 || p->is_vararg) {
+  if (p->is_vararg) {
     p->ravi_jit.jit_status = 1;
     return false;
   }
@@ -182,6 +183,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     switch (o) {
     case OP_LOADK:
     case OP_LOADNIL:
+    case OP_CALL:
     case OP_RETURN:
     case OP_JMP:
     case OP_EQ:
@@ -263,9 +265,15 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaD_poscallF = def->raviF->addExternFunction(
       def->types->luaD_poscallT, reinterpret_cast<void *>(&luaD_poscall),
       "luaD_poscall");
+  def->luaD_precallF = def->raviF->addExternFunction(
+      def->types->luaD_precallT, reinterpret_cast<void *>(&luaD_precall),
+      "luaD_precall");
   def->luaF_closeF = def->raviF->addExternFunction(
       def->types->luaF_closeT, reinterpret_cast<void *>(&luaF_close),
       "luaF_close");
+  def->luaG_runerrorF = def->raviF->addExternFunction(
+      def->types->luaG_runerrorT, reinterpret_cast<void *>(&luaG_runerror),
+      "luaG_runerror");
   def->luaV_equalobjF = def->raviF->addExternFunction(
       def->types->luaV_equalobjT, reinterpret_cast<void *>(&luaV_equalobj),
       "luaV_equalobj");
@@ -275,9 +283,6 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaV_lessequalF = def->raviF->addExternFunction(
       def->types->luaV_lessequalT, reinterpret_cast<void *>(&luaV_lessequal),
       "luaV_lessequal");
-  def->luaG_runerrorF = def->raviF->addExternFunction(
-      def->types->luaG_runerrorT, reinterpret_cast<void *>(&luaG_runerror),
-      "luaG_runerror");
   def->luaV_forlimitF = def->raviF->addExternFunction(
       def->types->luaV_forlimitT, reinterpret_cast<void *>(&luaV_forlimit),
       "luaV_forlimit");
@@ -287,9 +292,13 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaV_tointegerF = def->raviF->addExternFunction(
       def->types->luaV_tointegerT, reinterpret_cast<void *>(&luaV_tointeger_),
       "luaV_tointeger_");
+  def->luaV_executeF = def->raviF->addExternFunction(
+      def->types->luaV_executeT, reinterpret_cast<void *>(&luaV_execute),
+      "luaV_execute");
   def->luaV_op_loadnilF = def->raviF->addExternFunction(
       def->types->luaV_op_loadnilT, reinterpret_cast<void *>(&luaV_op_loadnil),
       "luaV_op_loadnil");
+
   // Create printf declaration
   std::vector<llvm::Type *> args;
   args.push_back(def->types->C_pcharT);
@@ -319,7 +328,8 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_C(i)))
 
 void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
-  if (def->jmp_targets[pc].jmp2 && !def->builder->GetInsertBlock()->getTerminator()) {
+  if (def->jmp_targets[pc].jmp2 &&
+      !def->builder->GetInsertBlock()->getTerminator()) {
     // Handle special case for body of FORLOOP
     auto b = def->builder->CreateLoad(def->jmp_targets[pc].forloop_branch);
     auto idb = def->builder->CreateIndirectBr(b, 4);
@@ -352,7 +362,6 @@ void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
 void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   if (p->ravi_jit.jit_status != 0 || !canCompile(p))
     return;
-#if 1
   RaviFunctionDef def = {0};
 
   llvm::LLVMContext &context = jitState_->context();
@@ -483,6 +492,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     } break;
     case OP_RAVI_LOADIZ: {
       emit_LOADIZ(&def, L_ci, proto, A);
+    } break;
+    case OP_CALL: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_CALL(&def, L_ci, proto, A, B, C);
     } break;
 
     case OP_RAVI_ADDFN: {
@@ -616,10 +630,6 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   } else {
     p->ravi_jit.jit_status = 2;
   }
-#else
-  // For now
-  p->ravi_jit.jit_status = 1; // can't compile
-#endif
 }
 
 void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
