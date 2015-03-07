@@ -8,7 +8,7 @@ local m, limit2 = 50, 4.0
 local write, char = io.write, string.char
 
 write("P4\n", width, " ", height, "\n")
-t1 = os.time()
+t1 = os.clock()
 for y=0,height-1 do
   local Ci = 2*y / height - 1
   for xb=0,width-1,8 do
@@ -37,5 +37,5 @@ for y=0,height-1 do
     -- print(bits);
   end
 end
-t2 = os.time()
+t2 = os.clock()
 print(t2-t1)

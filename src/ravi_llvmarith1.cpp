@@ -11,6 +11,7 @@ void RaviCodeGenerator::emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Value *result = def->builder->CreateFNeg(lhs);
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 // -int
@@ -22,6 +23,7 @@ void RaviCodeGenerator::emit_UNMI(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Value *result = def->builder->CreateNeg(lhs, "", false, true);
   emit_store_reg_i(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMINT);
 }
 
 // float+c
@@ -36,6 +38,7 @@ void RaviCodeGenerator::emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci,
       def->builder->CreateSIToFP(llvm::ConstantInt::get(def->types->C_intT, C),
                                  def->types->lua_NumberT));
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 // float+float
@@ -49,6 +52,7 @@ void RaviCodeGenerator::emit_ADDFF(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *rhs = emit_load_reg_n(def, rc);
   llvm::Value *result = def->builder->CreateFAdd(lhs, rhs);
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 // float+int
@@ -63,6 +67,7 @@ void RaviCodeGenerator::emit_ADDFI(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *result = def->builder->CreateFAdd(
       lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 // int+int
@@ -77,6 +82,7 @@ void RaviCodeGenerator::emit_ADDII(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateAdd(lhs, rhs, "", false, true);
   emit_store_reg_i(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMINT);
 }
 
 // int+c
@@ -90,6 +96,7 @@ void RaviCodeGenerator::emit_ADDIN(RaviFunctionDef *def, llvm::Value *L_ci,
       lhs, llvm::ConstantInt::get(def->types->lua_IntegerT, C), "", false,
       true);
   emit_store_reg_i(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMINT);
 }
 
 void RaviCodeGenerator::emit_SUBFF(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -102,6 +109,7 @@ void RaviCodeGenerator::emit_SUBFF(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *rhs = emit_load_reg_n(def, rc);
   llvm::Value *result = def->builder->CreateFSub(lhs, rhs);
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 void RaviCodeGenerator::emit_SUBFI(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -115,6 +123,7 @@ void RaviCodeGenerator::emit_SUBFI(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *result = def->builder->CreateFSub(
       lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 void RaviCodeGenerator::emit_SUBIF(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -128,6 +137,7 @@ void RaviCodeGenerator::emit_SUBIF(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *result = def->builder->CreateFSub(
       def->builder->CreateSIToFP(lhs, def->types->lua_NumberT), rhs);
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 void RaviCodeGenerator::emit_SUBII(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -140,6 +150,7 @@ void RaviCodeGenerator::emit_SUBII(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateSub(lhs, rhs, "", false, true);
   emit_store_reg_i(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMINT);
 }
 
 void RaviCodeGenerator::emit_SUBFN(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -153,6 +164,7 @@ void RaviCodeGenerator::emit_SUBFN(RaviFunctionDef *def, llvm::Value *L_ci,
       def->builder->CreateSIToFP(llvm::ConstantInt::get(def->types->C_intT, C),
                                  def->types->lua_NumberT));
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 void RaviCodeGenerator::emit_SUBNF(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -166,6 +178,7 @@ void RaviCodeGenerator::emit_SUBNF(RaviFunctionDef *def, llvm::Value *L_ci,
                                  def->types->lua_NumberT),
       rhs);
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 void RaviCodeGenerator::emit_SUBIN(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -178,6 +191,7 @@ void RaviCodeGenerator::emit_SUBIN(RaviFunctionDef *def, llvm::Value *L_ci,
       lhs, llvm::ConstantInt::get(def->types->lua_IntegerT, C), "", false,
       true);
   emit_store_reg_i(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMINT);
 }
 
 void RaviCodeGenerator::emit_SUBNI(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -190,6 +204,7 @@ void RaviCodeGenerator::emit_SUBNI(RaviFunctionDef *def, llvm::Value *L_ci,
       llvm::ConstantInt::get(def->types->lua_IntegerT, C), rhs, "", false,
       true);
   emit_store_reg_i(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMINT);
 }
 
 // float+c
@@ -204,6 +219,7 @@ void RaviCodeGenerator::emit_MULFN(RaviFunctionDef *def, llvm::Value *L_ci,
       def->builder->CreateSIToFP(llvm::ConstantInt::get(def->types->C_intT, C),
                                  def->types->lua_NumberT));
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 // float+float
@@ -217,6 +233,7 @@ void RaviCodeGenerator::emit_MULFF(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *rhs = emit_load_reg_n(def, rc);
   llvm::Value *result = def->builder->CreateFMul(lhs, rhs);
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 // float+int
@@ -231,6 +248,7 @@ void RaviCodeGenerator::emit_MULFI(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *result = def->builder->CreateFMul(
       lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 // int+int
@@ -245,6 +263,7 @@ void RaviCodeGenerator::emit_MULII(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateMul(lhs, rhs, "", false, true);
   emit_store_reg_i(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMINT);
 }
 
 // int+c
@@ -258,6 +277,7 @@ void RaviCodeGenerator::emit_MULIN(RaviFunctionDef *def, llvm::Value *L_ci,
       lhs, llvm::ConstantInt::get(def->types->lua_IntegerT, C), "", false,
       true);
   emit_store_reg_i(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMINT);
 }
 
 void RaviCodeGenerator::emit_DIVFF(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -270,6 +290,7 @@ void RaviCodeGenerator::emit_DIVFF(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *rhs = emit_load_reg_n(def, rc);
   llvm::Value *result = def->builder->CreateFDiv(lhs, rhs);
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 void RaviCodeGenerator::emit_DIVFI(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -283,6 +304,7 @@ void RaviCodeGenerator::emit_DIVFI(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *result = def->builder->CreateFDiv(
       lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 void RaviCodeGenerator::emit_DIVIF(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -296,6 +318,7 @@ void RaviCodeGenerator::emit_DIVIF(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *result = def->builder->CreateFDiv(
       def->builder->CreateSIToFP(lhs, def->types->lua_NumberT), rhs);
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
 void RaviCodeGenerator::emit_DIVII(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -310,5 +333,7 @@ void RaviCodeGenerator::emit_DIVII(RaviFunctionDef *def, llvm::Value *L_ci,
       def->builder->CreateSIToFP(lhs, def->types->lua_NumberT),
       def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
   emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
 }
+
 }

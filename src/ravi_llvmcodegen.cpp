@@ -190,6 +190,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_FORPREP:
     case OP_FORLOOP:
     case OP_MOVE:
+    case OP_RAVI_MOVEI:
     case OP_RAVI_LOADFZ:
     case OP_RAVI_LOADIZ:
     case OP_RAVI_ADDFN:
@@ -283,6 +284,9 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaV_tonumberF = def->raviF->addExternFunction(
       def->types->luaV_tonumberT, reinterpret_cast<void *>(&luaV_tonumber_),
       "luaV_tonumber_");
+  def->luaV_tointegerF = def->raviF->addExternFunction(
+      def->types->luaV_tointegerT, reinterpret_cast<void *>(&luaV_tointeger_),
+      "luaV_tointeger_");
   def->luaV_op_loadnilF = def->raviF->addExternFunction(
       def->types->luaV_op_loadnilT, reinterpret_cast<void *>(&luaV_op_loadnil),
       "luaV_op_loadnil");
@@ -315,7 +319,7 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_C(i)))
 
 void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
-  if (def->jmp_targets[pc].jmp2) {
+  if (def->jmp_targets[pc].jmp2 && !def->builder->GetInsertBlock()->getTerminator()) {
     // Handle special case for body of FORLOOP
     auto b = def->builder->CreateLoad(def->jmp_targets[pc].forloop_branch);
     auto idb = def->builder->CreateIndirectBr(b, 4);
@@ -418,6 +422,10 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     case OP_MOVE: {
       int B = GETARG_B(i);
       emit_MOVE(&def, L_ci, proto, A, B);
+    } break;
+    case OP_RAVI_MOVEI: {
+      int B = GETARG_B(i);
+      emit_MOVEI(&def, L_ci, proto, A, B);
     } break;
     case OP_RETURN: {
       int B = GETARG_B(i);

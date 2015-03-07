@@ -43,6 +43,43 @@ static int test_luacompfile(const char *code)
   return rc;
 }
 
+/* test supplied lua code compiles */
+static int test_luafileexec1(const char *code, int expected)
+{
+  int rc = 0;
+  lua_State *L;
+  L = luaL_newstate();
+  luaL_openlibs(L);  /* open standard libraries */
+  if (luaL_loadfile(L, code) != 0) {
+    rc = 1;
+    fprintf(stderr, "%s\n", lua_tostring(L, -1));
+    lua_pop(L, 1);  /* pop error message from the stack */
+  }
+  else {
+    ravi_dump_function(L);
+    time_t start = time(NULL);
+    if (lua_pcall(L, 0, 1, 0) != 0) {
+      rc = 1;
+      fprintf(stderr, "%s\n", lua_tostring(L, -1));
+    }
+    else {
+      time_t end = time(NULL);
+      ravi_dump_stack(L, "after executing function");
+      printf("time taken = %f\n", difftime(end, start));
+      lua_Integer got = 0;
+      if (lua_isboolean(L, -1))
+        got = lua_toboolean(L, -1) ? 1 : 0;
+      else
+        got = lua_tointeger(L, -1);
+      if (got != expected) {
+        rc = 1;
+      }
+    }
+  }
+  lua_close(L);
+  return rc;
+}
+
 
 /* test supplied lua code compiles */
 static int test_luacompexec1(const char *code, int expected)
@@ -84,7 +121,7 @@ static int test_luacompexec1(const char *code, int expected)
 int main(int argc, const char *argv[]) 
 {
     int failures = 0;
-    //failures += test_luacompfile("/github/ravi/ravi-tests/mandel1.ravi");
+    //failures += test_luafileexec1("\\github\\ravi\\ravi-tests\\mandel1.ravi", 0);
     failures += test_luacompexec1("local function x(); local i, j:int; j=0; for i=1,1000000000 do; j = j+1; end; return j; end; local y = x(); print(y); return y", 1000000000);
     failures += test_luacompexec1("local function x(); local j:double; for i=1,1000000000 do; j = j+1; end; return j; end; local y = x(); print(y); return y", 1000000000);
 

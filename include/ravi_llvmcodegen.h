@@ -171,6 +171,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaG_runerrorT;
   llvm::FunctionType *luaV_forlimitT;
   llvm::FunctionType *luaV_tonumberT;
+  llvm::FunctionType *luaV_tointegerT;
 
   llvm::FunctionType *luaV_op_loadnilT;
 
@@ -352,6 +353,7 @@ struct RaviFunctionDef {
   llvm::Constant *luaG_runerrorF;
   llvm::Constant *luaV_forlimitF;
   llvm::Constant *luaV_tonumberF;
+  llvm::Constant *luaV_tointegerF;
 
   // Some cheats
   llvm::Constant *luaV_op_loadnilF;
@@ -566,6 +568,10 @@ public:
 
   void emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);
+
+  void emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B);
+
 
   // Emit code for OP_EQ, OP_LT and OP_LE
   // The callee parameter should be luaV_equalobj, luaV_lessthan and

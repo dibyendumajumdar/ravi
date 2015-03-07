@@ -638,6 +638,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   luaV_tonumberT = llvm::FunctionType::get(C_intT, elements, false);
 
   elements.clear();
+  elements.push_back(pTValueT);
+  elements.push_back(plua_IntegerT);
+  luaV_tointegerT = llvm::FunctionType::get(C_intT, elements, false);
+
+  elements.clear();
   elements.push_back(pCallInfoT);
   elements.push_back(C_intT);
   elements.push_back(C_intT);
