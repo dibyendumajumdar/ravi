@@ -7,7 +7,7 @@ local height, wscale = width, 2/width
 local m, limit2 = 50, 4.0
 local write, char = io.write, string.char
 
-write("P4\n", width, " ", height, "\n")
+--write("P4\n", width, " ", height, "\n")
 t1 = os.clock()
 for y=0,height-1 do
   local Ci = 2*y / height - 1
@@ -34,7 +34,7 @@ for y=0,height-1 do
       for x=width,xbb do bits = bits + bits + 1 end
     end
     -- write(char(255-bits))
-    -- print(bits);
+    --print(bits);
   end
 end
 t2 = os.clock()

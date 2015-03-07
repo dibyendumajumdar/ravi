@@ -3,7 +3,7 @@
 -- contributed by Mike Pall
 
 
-local function domandel()
+local function domandel(pfunc)
   local width :int = 4000
   local height :int, wscale :double = width, 2.0/width
   local m:int, limit2 :double = 50, 4.0
@@ -39,13 +39,17 @@ local function domandel()
       if xbb >= width then
         for x=width,xbb do bits = bits + bits + 1 end
      end
+     --pfunc(bits)
     end
   end
 end
 
-domandel()
+local function dummy(x) 
+end
+
+domandel(dummy)
 
 t1 = os.clock()
-domandel()
+domandel(print)
 t2 = os.clock()
 print(t2-t1)
