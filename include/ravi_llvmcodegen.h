@@ -478,9 +478,6 @@ public:
   void emit_UNMI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);
 
-  void emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-                  int A, int B, int C);
-
   void emit_ADDFF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A, int B, int C);
 
@@ -489,6 +486,9 @@ public:
 
   void emit_ADDII(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A, int B, int C);
+
+  void emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
 
   void emit_ADDIN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A, int B, int C);
@@ -516,6 +516,23 @@ public:
 
   void emit_SUBNI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
     int A, int B, int C);
+
+  void emit_MULFF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
+  void emit_MULFI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
+  void emit_MULII(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
+  void emit_MULFN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
+  void emit_MULIN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
+
 
   void emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A, int Bx);

@@ -205,6 +205,11 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_SUBNF:
     case OP_RAVI_SUBIN:
     case OP_RAVI_SUBNI:
+    case OP_RAVI_MULFN:
+    case OP_RAVI_MULIN:
+    case OP_RAVI_MULFF:
+    case OP_RAVI_MULFI:
+    case OP_RAVI_MULII:
       break;
     default:
       return false;
@@ -467,6 +472,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     case OP_RAVI_LOADIZ: {
       emit_LOADIZ(&def, L_ci, proto, A);
     } break;
+
     case OP_RAVI_ADDFN: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
@@ -532,6 +538,32 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_SUBNI(&def, L_ci, proto, A, B, C);
+    } break;
+
+    case OP_RAVI_MULFN: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_MULFN(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_RAVI_MULIN: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_MULIN(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_RAVI_MULFF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_MULFF(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_RAVI_MULFI: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_MULFI(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_RAVI_MULII: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_MULII(&def, L_ci, proto, A, B, C);
     } break;
 
 
