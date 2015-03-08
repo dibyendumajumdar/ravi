@@ -74,6 +74,7 @@ JIT Compilation
 ---------------
 I am currently working on JIT compilation of Ravi using LLVM. As of now not all bytecodes can be compiled.
 There are two modes of JIT compilation.
+
 * auto mode - in this mode the compiler decides when to compile a Lua function
 * manual mode - in this mode user must explicitly request compilation
 
