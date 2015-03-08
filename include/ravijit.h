@@ -20,7 +20,7 @@ int raviV_initjit(struct lua_State *L);
 void raviV_close(struct lua_State *L);
 
 /* Compile the given function if possible */
-int raviV_compile(struct lua_State *L, struct Proto *p);
+int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request);
 
 /* Free the JIT structures associated with the prototype */
 void raviV_freeproto(struct lua_State *L, struct Proto *p);

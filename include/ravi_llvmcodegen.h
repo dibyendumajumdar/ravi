@@ -280,6 +280,9 @@ class RAVI_API RaviJITStateImpl : public RaviJITState {
   // Lua type definitions
   LuaLLVMTypes *types_;
 
+  // Should we auto compile what we can?
+  bool auto_;
+
 public:
   RaviJITStateImpl();
   virtual ~RaviJITStateImpl();
@@ -300,6 +303,8 @@ public:
   virtual llvm::LLVMContext &context() { return context_; }
   LuaLLVMTypes *types() const { return types_; }
   const std::string &triple() const { return triple_; }
+  bool is_auto() const { return auto_; }
+  void set_auto(bool value) { auto_ = value; }
 };
 
 // To optimise fornum loops

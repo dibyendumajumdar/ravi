@@ -100,6 +100,8 @@ public:
 
   virtual void dump() = 0;
   virtual llvm::LLVMContext &context() = 0;
+  virtual bool is_auto() const = 0;
+  virtual void set_auto(bool value) = 0;
 protected:
   RaviJITState() {}
 private:

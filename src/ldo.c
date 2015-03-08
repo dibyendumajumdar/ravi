@@ -371,7 +371,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int compile) {
       if (compile) {
         if (p->ravi_jit.jit_status == 0) {
           /* not compiled */
-          raviV_compile(L, p);
+          raviV_compile(L, p, 0);
         }
         if (p->ravi_jit.jit_status == 2) {
           /* compiled */

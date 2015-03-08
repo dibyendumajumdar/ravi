@@ -27,28 +27,63 @@ As of end Jan 2015, the Ravi interpreter allows you to declare local variables a
 
 * ``int`` and ``double`` variables are initialized to 0
 * arithmetic operations trigger type specific bytecodes
-* values assigned to these variables are checked - statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime.
+* values assigned to these variables are checked statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime.
 
 Also initial implementation of arrays is available. So you can declare arrays of integers or doubles.
 
 * The type of an array of integers is denoted as ``int[]``. 
 * The type of an array of doubles is denoted as ``double[]``.
-* Arrays are implmented using a mix of runtime and compile time checks.
-* Operators to get/set from arrays not yet implemented so we won't yet full benefit.
+* Arrays are implemented using a mix of runtime and compile time checks.
+* Specialised operators to get/set from arrays are implemented.
+* The standard table operations on arrays are checked to ensure that the type is not subverted.
 
 Obviously this is early days so please expect bugs.
 
 Example of code that works - you can copy this to the command line input::
 
-  local function tryme(); local i,j = 5,6; return i,j; end; local i:int, j:int = tryme(); return i+j
+  function tryme()
+    local i,j = 5,6
+    return i,j
+  end
+  local i:int, j:int = tryme(); print(i+j)
 
 Another::
 
-  local j:double; for i=1,1000000000 do; j = j+1; end; return j
+  function tryme()
+    local j:double
+    for i=1,1000000000 do
+      j = j+1
+    end
+    return j
+  end
+  print(tryme())
 
 An example with arrays::
 
-  local a : double[], j:double = {}; for i=1,10 do; a[i] = i; j = j + a[i]; end; return j
+  function tryme()
+    local a : double[], j:double = {}
+    for i=1,10 do
+      a[i] = i
+      j = j + a[i]
+    end
+    return j
+  end
+  print(tryme())
+
+JIT Compilation
+---------------
+I am currently working on JIT compilation of Ravi using LLVM. As of now not all bytecodes can be compiled.
+There are two modes of JIT compilation.
+* auto mode - in this mode the compiler decides when to compile a Lua function
+* manual mode - in this mode user must explicitly request compilation
+
+A JIT api is available with following functions:
+
+* ``ravi.auto([b])`` - returns setting of auto compilation; also sets the new setting if ``b`` is supplied
+* ``ravi.compile(func)`` - compiles a Lua function if possible, returns ``true`` if compilation was successful
+* ``ravi.iscompiled(func)`` - returns the JIT status of a function
+* ``ravi.dumplua(func)`` - dumps the Lua bytecode of the function
+* ``ravi.dumpllvm(func)`` - dumps the LLVM IR of the compiled function (only if function was compiled)
 
 Documentation
 --------------
@@ -97,7 +132,7 @@ Build Artifacts
 ---------------
 The Ravi build creates a shared library, the Lua executable and some test programs.
 
-The ``lua`` command recognizes following environment variables.
+The ``lua`` command recognizes following environment variables. Note that these are only for internal debugging purposes.
 
 * ``RAVI_DEBUG_EXPR`` - if set to a value this triggers debug output of expression parsing
 * ``RAVI_DEBUG_CODEGEN`` - if set to a value this triggers a dump of the code being generated

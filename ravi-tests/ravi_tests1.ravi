@@ -144,3 +144,25 @@ assert(x(1,5.3) == 5.3)
 assert(x(5) == 2.0)
 assert(x(4) == 3.0)
 print("test 10 OK")
+
+-- test 11
+function tryme()
+  local i,j = 5,6
+  return i,j
+end
+assert(ravi.compile(tryme))
+local i:int, j:int = tryme(); assert(i+j == 11)
+print("test 11 OK")
+
+-- test 12
+function tryme()
+  local a : double[], j:double = {}
+  for i=1,10 do
+    a[i] = i
+    j = j + a[i]
+  end
+  return j
+end
+-- assert(ravi.compile(tryme)) 
+assert(tryme() == 55.0)
+

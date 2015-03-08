@@ -12,7 +12,7 @@ static std::atomic_int init;
 
 RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
 
-RaviJITStateImpl::RaviJITStateImpl() : context_(llvm::getGlobalContext()) {
+RaviJITStateImpl::RaviJITStateImpl() : context_(llvm::getGlobalContext()), auto_(true) {
   // Unless following three lines are not executed then
   // ExecutionEngine cannot be created
   // This should ideally be an atomic check but because LLVM docs
@@ -230,11 +230,12 @@ void raviV_close(struct lua_State *L) {
   free(G->ravi_state);
 }
 
-int raviV_compile(struct lua_State *L, struct Proto *p) {
+int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
   global_State *G = G(L);
   if (G->ravi_state == NULL)
     return 0;
-  G->ravi_state->code_generator->compile(L, p);
+  if (G->ravi_state->jit->is_auto() || manual_request)
+    G->ravi_state->code_generator->compile(L, p);
   return p->ravi_jit.jit_status == 2;
 }
 
@@ -277,7 +278,7 @@ static int ravi_compile(lua_State *L) {
   luaL_checktype(L, 1, LUA_TLCL);
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
-  int result = raviV_compile(L, l->p);
+  int result = raviV_compile(L, l->p, 1);
   lua_pushboolean(L, result);
   return 1;
 }
@@ -303,10 +304,26 @@ static int ravi_dump_llvmir(lua_State *L) {
   return 0;
 }
 
+static int ravi_auto(lua_State *L) {
+  global_State *G = G(L);
+  int n = lua_gettop(L);
+  bool value = false;
+  if (n == 1)
+    value = lua_toboolean(L, 1);
+  if (G->ravi_state == NULL)
+    lua_pushboolean(L, 0);
+  else
+    lua_pushboolean(L, G->ravi_state->jit->is_auto());
+  if (n == 1)
+    G->ravi_state->jit->set_auto(value);
+  return 1;
+}
+
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"compile", ravi_compile},
                                    {"dumplua", ravi_dump_luacode},
                                    {"dumpllvm", ravi_dump_llvmir},
+                                   {"auto", ravi_auto},
                                    {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmjit(lua_State *L) {
