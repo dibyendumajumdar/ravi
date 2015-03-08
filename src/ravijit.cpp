@@ -219,6 +219,9 @@ std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
 extern "C" {
 #endif
 
+#include "lualib.h"
+#include "lauxlib.h"
+
 struct ravi_State {
   ravi::RaviJITState *jit;
   ravi::RaviCodeGenerator *code_generator;
@@ -250,7 +253,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p) {
   if (G->ravi_state == NULL)
     return 0;
   G->ravi_state->code_generator->compile(L, p);
-  return 0;
+  return p->ravi_jit.jit_status == 2;
 }
 
 void raviV_freeproto(struct lua_State *L, struct Proto *p) {
@@ -263,6 +266,72 @@ void raviV_freeproto(struct lua_State *L, struct Proto *p) {
     p->ravi_jit.jit_function = NULL;
     p->ravi_jit.jit_data = NULL;
   }
+}
+
+void raviV_dumpllvmir(struct lua_State *L, struct Proto *p) {
+  if (p->ravi_jit.jit_status == 2) /* compiled */ {
+    ravi::RaviJITFunction *f =
+      reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
+    if (f)
+      f->dump();
+  }
+}
+
+
+static int ravi_is_compiled(lua_State *L)
+{
+  int n = lua_gettop(L);
+  luaL_argcheck(L, n == 1, 1, "1 argument expected");
+  luaL_checktype(L, 1, LUA_TLCL);
+  void *p = (void*)lua_topointer(L, 1);
+  LClosure *l = (LClosure *)p;
+  lua_pushboolean(L, l->p->ravi_jit.jit_status == 2);
+  return 1;
+}
+
+static int ravi_compile(lua_State *L)
+{
+  int n = lua_gettop(L);
+  luaL_argcheck(L, n == 1, 1, "1 argument expected");
+  luaL_checktype(L, 1, LUA_TLCL);
+  void *p = (void*)lua_topointer(L, 1);
+  LClosure *l = (LClosure *)p;
+  int result = raviV_compile(L, l->p);
+  lua_pushboolean(L, result);
+  return 1;
+}
+
+static int ravi_dump_luacode(lua_State *L)
+{
+  int n = lua_gettop(L);
+  luaL_argcheck(L, n == 1, 1, "1 argument expected");
+  luaL_checktype(L, 1, LUA_TLCL);
+  ravi_dump_function(L);
+  return 0;
+}
+
+static int ravi_dump_llvmir(lua_State *L)
+{
+  int n = lua_gettop(L);
+  luaL_argcheck(L, n == 1, 1, "1 argument expected");
+  luaL_checktype(L, 1, LUA_TLCL);
+  void *p = (void*)lua_topointer(L, 1);
+  LClosure *l = (LClosure *)p;
+  raviV_dumpllvmir(L, l->p);
+  return 0;
+}
+
+static const luaL_Reg ravilib[] = {
+  { "iscompiled", ravi_is_compiled },
+  { "compile", ravi_compile },
+  { "dumplua", ravi_dump_luacode },
+  { "dumpllvm", ravi_dump_llvmir },
+  { NULL, NULL }
+};
+
+LUAMOD_API int raviopen_llvmjit(lua_State *L) {
+  luaL_newlib(L, ravilib);
+  return 1;
 }
 
 #ifdef __cplusplus

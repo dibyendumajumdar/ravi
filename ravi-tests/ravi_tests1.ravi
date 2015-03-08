@@ -5,14 +5,15 @@ z = function(a)
   print(a)
   return a+1
 end
-x = function(yy)
+x = function(f)
   local j = 5
-  j = yy(j)
+  j = f(j)
   return j
 end
 
-y = x(z)
-assert(y == 6)
+assert(ravi.compile(x))
+assert(x(z) == 6)
+print("test 1 OK")
 
 -- test 2
 z = function (a,p)
@@ -26,8 +27,10 @@ x = function (yy,p)
   return j
 end
 
-y = x(z,print)
-assert(y == 6)
+assert(ravi.compile(z))
+assert(ravi.compile(x))
+assert(x(z,print) == 6)
+print("test 2 OK")
 
 -- test 3
 x = function () 
@@ -39,8 +42,9 @@ x = function ()
   return j
 end
 
-y = x()
-assert(y == 1000000000)
+assert(ravi.compile(x))
+assert(x() == 1000000000)
+print("test 3 OK")
 
 -- test 4
 x = function ()
@@ -51,8 +55,9 @@ x = function ()
   return j
 end
 
-local y = x()
-assert(y == 1000000000.0)
+assert(ravi.compile(x))
+assert(x() == 1000000000.0)
+print("test 4 OK")
 
 -- test 5
 x = function ()
@@ -63,8 +68,9 @@ x = function ()
   return j
 end
 
-y = x()
-assert(y == 5)
+assert(ravi.compile(x))
+assert(x() == 5)
+print("test 5 OK")
 
 -- test 6
 x = function ()
@@ -75,8 +81,9 @@ x = function ()
   return j
 end
 
-y = x()
-assert(y == 5.1)
+assert(ravi.compile(x))
+assert(x() == 5.1)
+print("test 6 OK")
 
 -- test 7
 x = function ()
@@ -84,8 +91,9 @@ x = function ()
   return 1004,2
 end
 
-y = x()
-assert(y == 1004)
+assert(ravi.compile(x))
+assert(x() == 1004)
+print("test 7 OK")
 
 -- test 8
 x = function ()
@@ -95,7 +103,9 @@ x = function ()
   return 1.0
 end
 
+assert(ravi.compile(x))
 assert(x() == 1.0)
+print("test 8 OK")
 
 -- test 9
 x = function (y)
@@ -107,8 +117,10 @@ x = function (y)
     return 3.0
   end
 end
+assert(ravi.compile(x))
 assert(x(5) == 2.0)
 assert(x(4) == 3.0)
+print("test 9 OK")
 
 -- test 10
 x = function (y,z)
@@ -125,8 +137,10 @@ x = function (y,z)
   end
 end
 
+assert(ravi.compile(x))
 assert(x(1,1) == 99.0)
 assert(x(1,2) == 2)
 assert(x(1,5.3) == 5.3)
 assert(x(5) == 2.0)
 assert(x(4) == 3.0)
+print("test 10 OK")
