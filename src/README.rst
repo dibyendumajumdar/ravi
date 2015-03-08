@@ -20,3 +20,5 @@ The LLVM JIT implementation is in following sources:
 * ravi_llvmreturn.cpp - implements OP_RETURN
 * ravi_llvmforprep.cpp - implements OP_FORPREP
 * ravi_llvmforloop.cpp - implements OP_FORLOOP
+* ravi_llvmarith1.cpp - implements various arithmetic operations
+* ravi_llvmcall.cpp - implements OP_CALL
