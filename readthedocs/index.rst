@@ -20,6 +20,7 @@ Contents:
    ravi-jit-compilation-hook
    ravi-lua-types
    llvm-tbaa
+   ravi-benchmarks
 
 
 Indices and tables
