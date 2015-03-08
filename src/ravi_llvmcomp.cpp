@@ -24,6 +24,8 @@
 
 namespace ravi {
 
+// Although the name is EQ this actually
+// implements EQ, LE and LT - by using the supplied lua function to call.
 void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
                                 llvm::Value *proto, int A, int B, int C, int j,
                                 int jA, llvm::Constant *callee) {

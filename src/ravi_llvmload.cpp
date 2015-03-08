@@ -81,7 +81,6 @@ void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci,
     src = emit_array_get(def, base_ptr, B);
   }
 
-#if 1
   // Below is more efficient that memcpy()
   // destvalue->value->i = srcvalue->value->i;
   llvm::Value *srcvalue = emit_gep(def, "src.value", src, 0, 0, 0);
@@ -98,31 +97,6 @@ void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci,
   load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
   store = def->builder->CreateStore(load, desttype);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
-#else
-  // First get the declaration for the inttrinsic memcpy
-  llvm::SmallVector<llvm::Type *, 3> vec;
-  vec.push_back(def->types->C_pcharT); /* i8 */
-  vec.push_back(def->types->C_pcharT); /* i8 */
-  vec.push_back(def->types->C_intT);
-  llvm::Function *f = llvm::Intrinsic::getDeclaration(
-      def->raviF->module(), llvm::Intrinsic::memcpy, vec);
-  lua_assert(f);
-
-  // Cast src and dest to i8*
-  llvm::Value *dest_ptr =
-      def->builder->CreateBitCast(dest, def->types->C_pcharT);
-  llvm::Value *src_ptr = def->builder->CreateBitCast(src, def->types->C_pcharT);
-
-  // Create call to intrinsic memcpy
-  llvm::SmallVector<llvm::Value *, 5> values;
-  values.push_back(dest_ptr);
-  values.push_back(src_ptr);
-  values.push_back(llvm::ConstantInt::get(def->types->C_intT, sizeof(TValue)));
-  values.push_back(
-      llvm::ConstantInt::get(def->types->C_intT, sizeof(L_Umaxalign)));
-  values.push_back(def->types->kFalse);
-  def->builder->CreateCall(f, values);
-#endif
 }
 
 void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -206,6 +180,88 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_store_type(def, dest, LUA_TNUMINT);
 }
 
+void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci,
+  llvm::Value *proto, int A, int B) {
+
+  //  case OP_RAVI_MOVEF: {
+  //    TValue *rb = RB(i);
+  //    lua_Number j;
+  //    if (tonumber(rb, &j)) {
+  //      setfltvalue(ra, j);
+  //    }
+  //    else
+  //      luaG_runerror(L, "float expected");
+  //  } break;
+
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+  llvm::Value *var =
+    TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "n");
+
+  // Load pointer to base
+  llvm::Instruction *base_ptr = emit_load_base(def);
+
+  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *src = emit_gep_ra(def, base_ptr, B);
+
+  llvm::Value *src_type = emit_load_type(def, src);
+
+  // Compare src->tt == LUA_TNUMFLT
+  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
+    src_type, def->types->kInt[LUA_TNUMFLT], "is.float");
+
+  llvm::BasicBlock *then1 = llvm::BasicBlock::Create(
+    def->jitState->context(), "if.float", def->f);
+  llvm::BasicBlock *else1 =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.not.float");
+  llvm::BasicBlock *end1 =
+    llvm::BasicBlock::Create(def->jitState->context(), "done");
+
+  def->builder->CreateCondBr(cmp1, then1, else1);
+  def->builder->SetInsertPoint(then1);
+
+  // Already a float - copy to var
+  llvm::Instruction *tmp = emit_load_reg_n(def, src);
+  llvm::Instruction *store = def->builder->CreateStore(
+    tmp, var, "n");
+  store->setMetadata(llvm::LLVMContext::MD_tbaa,
+    def->types->tbaa_longlongT);
+  def->builder->CreateBr(end1);
+
+  // we need to convert
+  def->f->getBasicBlockList().push_back(else1);
+  def->builder->SetInsertPoint(else1);
+  // Call luaV_tonumber()
+
+  llvm::Value *var_isflt = def->builder->CreateCall2(
+    def->luaV_tonumberF, src, var);
+  llvm::Value *tobool = def->builder->CreateICmpEQ(
+    var_isflt, def->types->kInt[0], "float.conversion.failed");
+
+  // Did conversion fail?
+  llvm::BasicBlock *else2 = llvm::BasicBlock::Create(
+    def->jitState->context(), "if.conversion.failed", def->f);
+  def->builder->CreateCondBr(tobool, else2,
+    end1);
+
+  // Conversion failed, so raise error
+  def->builder->SetInsertPoint(else2);
+  llvm::Value *errmsg1 =
+    def->builder->CreateGlobalString("number expected");
+  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
+    emit_gep(def, "", errmsg1, 0, 0));
+  def->builder->CreateBr(end1);
+
+  // Conversion OK
+  def->f->getBasicBlockList().push_back(end1);
+  def->builder->SetInsertPoint(end1);
+
+  // Set R(A)
+  auto load_var = def->builder->CreateLoad(var);
+  load_var->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  emit_store_reg_n(def, load_var, dest);
+  emit_store_type(def, dest, LUA_TNUMFLT);
+}
+
 
 void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int Bx) {
@@ -243,7 +299,6 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
     src = emit_array_get(def, k_ptr, Bx);
   }
 
-#if 1
   // Below is more efficient that memcpy()
   // destvalue->value->i = srcvalue->value->i;
   // destvalue->value->i = srcvalue->value->i;
@@ -261,31 +316,5 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
   load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
   store = def->builder->CreateStore(load, desttype);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
-
-#else
-  // First get the declaration for the inttrinsic memcpy
-  llvm::SmallVector<llvm::Type *, 3> vec;
-  vec.push_back(def->types->C_pcharT); /* i8 */
-  vec.push_back(def->types->C_pcharT); /* i8 */
-  vec.push_back(def->types->C_intT);
-  llvm::Function *f = llvm::Intrinsic::getDeclaration(
-      def->raviF->module(), llvm::Intrinsic::memcpy, vec);
-  lua_assert(f);
-
-  // Cast src and dest to i8*
-  llvm::Value *dest_ptr =
-      def->builder->CreateBitCast(dest, def->types->C_pcharT);
-  llvm::Value *src_ptr = def->builder->CreateBitCast(src, def->types->C_pcharT);
-
-  // Create call to intrinsic memcpy
-  llvm::SmallVector<llvm::Value *, 5> values;
-  values.push_back(dest_ptr);
-  values.push_back(src_ptr);
-  values.push_back(llvm::ConstantInt::get(def->types->C_intT, sizeof(TValue)));
-  values.push_back(
-      llvm::ConstantInt::get(def->types->C_intT, sizeof(L_Umaxalign)));
-  values.push_back(def->types->kFalse);
-  def->builder->CreateCall(f, values);
-#endif
 }
 }

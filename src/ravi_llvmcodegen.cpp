@@ -215,6 +215,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_FORLOOP:
     case OP_MOVE:
     case OP_RAVI_MOVEI:
+    case OP_RAVI_MOVEF:
     case OP_RAVI_LOADFZ:
     case OP_RAVI_LOADIZ:
     case OP_RAVI_ADDFN:
@@ -467,6 +468,10 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     case OP_RAVI_MOVEI: {
       int B = GETARG_B(i);
       emit_MOVEI(&def, L_ci, proto, A, B);
+    } break;
+    case OP_RAVI_MOVEF: {
+      int B = GETARG_B(i);
+      emit_MOVEF(&def, L_ci, proto, A, B);
     } break;
     case OP_RETURN: {
       int B = GETARG_B(i);

@@ -83,6 +83,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *psize_ptr = emit_gep(def, "sizep", def->proto_ptr, 0, 10);
   // Load psize
   llvm::Instruction *psize = def->builder->CreateLoad(psize_ptr);
+  // TODO add tbaa
   // Test if psize > 0
   llvm::Value *psize_gt_0 =
       def->builder->CreateICmpSGT(psize, def->types->kInt[0]);
@@ -92,15 +93,23 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
       llvm::BasicBlock::Create(def->jitState->context(), "if.else");
   def->builder->CreateCondBr(psize_gt_0, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
+
   // Call luaF_close
   def->builder->CreateCall2(def->luaF_closeF, def->L, base_ptr);
   def->builder->CreateBr(else_block);
+
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
   //*  b = luaD_poscall(L, ra);
   llvm::Value *result =
       def->builder->CreateCall2(def->luaD_poscallF, def->L, ra_ptr);
+
+  // I don't think we need below as we are not in the same
+  // luaV_execute() as the calling function -
+  // TODO check this is the case
+  //    if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */
+  //      return;  /* external invocation: return */
 
   //*      if (b) L->top = ci->top;
   // Test if b is != 0
