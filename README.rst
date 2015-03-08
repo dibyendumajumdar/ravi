@@ -175,13 +175,13 @@ And we may end up allowing additionally following types depending on whether the
 
 The syntax for introducing the type will probably be as below::
 
-  function foo(s: string) : string
+  function foo(s: string)
     return s
   end
 
 Local variables may be given types as shown below::
 
-  function foo() : string
+  function foo()
     local s: string = "hello world!"
     return s
   end
