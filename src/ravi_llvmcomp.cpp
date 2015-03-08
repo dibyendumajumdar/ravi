@@ -43,29 +43,10 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
   base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
                         def->types->tbaa_luaState_ci_baseT);
 
-  // Load pointer to k
-  llvm::Value *k_ptr = def->k_ptr;
-
-  llvm::Value *lhs_ptr;
-  llvm::Value *rhs_ptr;
-
   // Get pointer to register B
-  llvm::Value *base_or_k = ISK(B) ? k_ptr : base_ptr;
-  int b = ISK(B) ? INDEXK(B) : B;
-  if (b == 0) {
-    lhs_ptr = base_or_k;
-  } else {
-    lhs_ptr = emit_array_get(def, base_or_k, b);
-  }
-
+  llvm::Value *lhs_ptr = emit_gep_rkb(def, base_ptr, B);
   // Get pointer to register C
-  base_or_k = ISK(C) ? k_ptr : base_ptr;
-  int c = ISK(C) ? INDEXK(C) : C;
-  if (c == 0) {
-    rhs_ptr = base_or_k;
-  } else {
-    rhs_ptr = emit_array_get(def, base_or_k, c);
-  }
+  llvm::Value *rhs_ptr = emit_gep_rkb(def, base_ptr, C);
 
   // Call luaV_equalobj with register B and C
   llvm::Value *result =
@@ -85,16 +66,18 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
   if (jA > 0) {
     // jA is the A operand of the Jump instruction
 
-    // Load pointer to base
-    llvm::Instruction *base2_ptr = def->builder->CreateLoad(def->Ci_base);
-    base2_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                           def->types->tbaa_luaState_ci_baseT);
+    // Reload pointer to base as the call to luaV_equalobj() may
+    // have invoked a Lua function and as a result the stack may have
+    // been reallocated - so the previous base pointer could be stale
+    base_ptr = def->builder->CreateLoad(def->Ci_base);
+    base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
+                          def->types->tbaa_luaState_ci_baseT);
 
     // base + a - 1
     llvm::Value *val =
-        jA == 1 ? base2_ptr : emit_array_get(def, base2_ptr, jA - 1);
+        jA == 1 ? base_ptr : emit_array_get(def, base_ptr, jA - 1);
 
-    // Call
+    // Call luaF_close
     def->builder->CreateCall2(def->luaF_closeF, def->L, val);
   }
   // Do the jump

@@ -67,6 +67,9 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // int c = luaD_precall(L, ra, nresults, 1);  /* C or JITed function? */
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  // We pass 2 as the last argument here just to be able to
+  // differentiate - the argument is used as a boolean to indicate
+  // that its okay to compile the called function
   llvm::Value *precall_result = def->builder->CreateCall4(
       def->luaD_precallF, def->L, ra,
       llvm::ConstantInt::get(def->types->C_intT, nresults),
@@ -83,13 +86,15 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->CreateCondBr(precall_bool, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
 
-  // Lua function so call luaV_execute
+  // Lua function, not compiled, so call luaV_execute
   def->builder->CreateCall(def->luaV_executeF, def->L);
   def->builder->CreateBr(end_block);
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
   if (nresults >= 0) {
+    // In case the precall returned 1 then a C function was
+    // called so we need to update L->top
     //   if (c == 1 && nresults >= 0)
     //     L->top = ci->top;  /* adjust results if C function */
     llvm::Value *precall_C =

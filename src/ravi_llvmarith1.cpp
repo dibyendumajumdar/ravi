@@ -373,5 +373,4 @@ void RaviCodeGenerator::emit_DIVII(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_store_reg_n(def, result, ra);
   emit_store_type(def, ra, LUA_TNUMFLT);
 }
-
 }

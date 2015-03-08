@@ -350,6 +350,13 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_C(i)))
 
 void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
+  // If we are on a jump target then check if this is a forloop
+  // target. Forloop targets are special as they use computed goto
+  // to branch to one of 4 possible labels. That is why we test for
+  // jmp2 below.
+  // We need to check whether current block is already terminated -
+  // this can be because of a return or break or goto within the forloop
+  // body
   if (def->jmp_targets[pc].jmp2 &&
       !def->builder->GetInsertBlock()->getTerminator()) {
     // Handle special case for body of FORLOOP
@@ -359,6 +366,9 @@ void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
     idb->addDestination(def->jmp_targets[pc].jmp2);
     idb->addDestination(def->jmp_targets[pc].jmp3);
     idb->addDestination(def->jmp_targets[pc].jmp4);
+    // As we have terminated the block the code below will not
+    // add the branch insruction, but we still need to create the new
+    // block which is handled below.
   }
   // If the current bytecode offset pc is on a jump target
   // then we need to insert the block we previously created in
@@ -655,7 +665,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
 }
 
 void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
-  // We need to precreate blocks for jump targets so that we
+  // We need to pre-create blocks for jump targets so that we
   // can generate branch instructions in the code
   def->jmp_targets.clear();
   const Instruction *code = p->code;
@@ -676,16 +686,22 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
       else if (op == OP_FORLOOP)
         targetname = "forbody";
       else if (op == OP_FORPREP)
+#if RAVI_CODEGEN_FORPREP2
         targetname = "forloop_ilt";
+#else
+        targetname = "forloop";
+#endif
       else
         targetname = "tforbody";
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
+      // We append the Lua bytecode location to help debug the IR
       snprintf(temp, sizeof temp, "%s%d_", targetname, j + 1);
       def->jmp_targets[j].jmp1 =
           llvm::BasicBlock::Create(def->jitState->context(), temp);
 #if RAVI_CODEGEN_FORPREP2
       if (op == OP_FORPREP) {
+        // first target (created above) is for int < limit 
         // Second target is for int > limit
         snprintf(temp, sizeof temp, "%s%d_", "forloop_igt", j + 1);
         def->jmp_targets[j].jmp2 =
@@ -694,7 +710,7 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
         snprintf(temp, sizeof temp, "%s%d_", "forloop_flt", j + 1);
         def->jmp_targets[j].jmp3 =
             llvm::BasicBlock::Create(def->jitState->context(), temp);
-        // Fourth target is for flot > limit
+        // Fourth target is for float > limit
         snprintf(temp, sizeof temp, "%s%d_", "forloop_fgt", j + 1);
         def->jmp_targets[j].jmp4 =
             llvm::BasicBlock::Create(def->jitState->context(), temp);
