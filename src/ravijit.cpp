@@ -125,7 +125,7 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
 
 void *RaviJITFunctionImpl::compile() {
 
-  //module_->dump();
+  // module_->dump();
 
   // Create a function pass manager for this engine
   llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(module_);
@@ -144,28 +144,8 @@ void *RaviJITFunctionImpl::compile() {
   llvm::PassManagerBuilder pmb;
   pmb.OptLevel = 3;
   pmb.SizeLevel = 0;
-#if 1
   pmb.populateFunctionPassManager(*FPM);
-#else
-  FPM->add(llvm::createTypeBasedAliasAnalysisPass());
-  // Provide basic AliasAnalysis support for GVN.
-  FPM->add(llvm::createBasicAliasAnalysisPass());
-  FPM->add(llvm::createLICMPass());
-  // Promote allocas to registers.
-  FPM->add(llvm::createPromoteMemoryToRegisterPass());
-  // Do simple "peephole" optimizations and bit-twiddling optzns.
-  FPM->add(llvm::createInstructionCombiningPass());
-  // Reassociate expressions.
-  FPM->add(llvm::createReassociatePass());
-  // Eliminate Common SubExpressions.
-  FPM->add(llvm::createGVNPass());
-  // Simplify the control flow graph (deleting unreachable blocks, etc).
-  FPM->add(llvm::createCFGSimplificationPass());
-#endif
   FPM->doInitialization();
-
-  // For each function in the module
-  // Run the FPM on this function
   FPM->run(*function_);
   delete FPM;
 
@@ -174,9 +154,7 @@ void *RaviJITFunctionImpl::compile() {
   MPM->run(*module_);
   delete MPM;
 
-  //module_->dump();
-
-  // We don't need this anymore
+  // module_->dump();
 
   if (ptr_)
     return ptr_;
@@ -227,6 +205,10 @@ struct ravi_State {
   ravi::RaviCodeGenerator *code_generator;
 };
 
+// Initialize the JIT State and attach is to the
+// Global Lua State
+// If a JIT State already exists then this function
+// will return -1
 int raviV_initjit(struct lua_State *L) {
   global_State *G = G(L);
   if (G->ravi_state != NULL)
@@ -271,38 +253,37 @@ void raviV_freeproto(struct lua_State *L, struct Proto *p) {
 void raviV_dumpllvmir(struct lua_State *L, struct Proto *p) {
   if (p->ravi_jit.jit_status == 2) /* compiled */ {
     ravi::RaviJITFunction *f =
-      reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
+        reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
     if (f)
       f->dump();
   }
 }
 
-
-static int ravi_is_compiled(lua_State *L)
-{
+// Test if the given function is compiled
+static int ravi_is_compiled(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
   luaL_checktype(L, 1, LUA_TLCL);
-  void *p = (void*)lua_topointer(L, 1);
+  void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
   lua_pushboolean(L, l->p->ravi_jit.jit_status == 2);
   return 1;
 }
 
-static int ravi_compile(lua_State *L)
-{
+// Trt to JIT compile the given function
+static int ravi_compile(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
   luaL_checktype(L, 1, LUA_TLCL);
-  void *p = (void*)lua_topointer(L, 1);
+  void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
   int result = raviV_compile(L, l->p);
   lua_pushboolean(L, result);
   return 1;
 }
 
-static int ravi_dump_luacode(lua_State *L)
-{
+// Dump Lua bytecode of the supplied function
+static int ravi_dump_luacode(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
   luaL_checktype(L, 1, LUA_TLCL);
@@ -310,24 +291,23 @@ static int ravi_dump_luacode(lua_State *L)
   return 0;
 }
 
-static int ravi_dump_llvmir(lua_State *L)
-{
+// Dump LLVM IR of the supplied function
+// if it has been compiled
+static int ravi_dump_llvmir(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
   luaL_checktype(L, 1, LUA_TLCL);
-  void *p = (void*)lua_topointer(L, 1);
+  void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
   raviV_dumpllvmir(L, l->p);
   return 0;
 }
 
-static const luaL_Reg ravilib[] = {
-  { "iscompiled", ravi_is_compiled },
-  { "compile", ravi_compile },
-  { "dumplua", ravi_dump_luacode },
-  { "dumpllvm", ravi_dump_llvmir },
-  { NULL, NULL }
-};
+static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
+                                   {"compile", ravi_compile},
+                                   {"dumplua", ravi_dump_luacode},
+                                   {"dumpllvm", ravi_dump_llvmir},
+                                   {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmjit(lua_State *L) {
   luaL_newlib(L, ravilib);
