@@ -151,7 +151,7 @@ Hooking up Optimization Passes
 ------------------------------
 The LLVM documentation does not provide guidance on how the optimization passes should be hooked up. There are descriptions of what the passes do, but if you are new to LLVM and trying to work out which passes to use and in what order, then there is not much help available. The `Kaleidoscope Sample <http://www.llvm.org/docs/tutorial/LangImpl4.html>`_ shows a small example of how optimization passes may be hooked up. 
 
-Fortunately it seems that there is a `PassManagerBuilder <http://llvm.org/docs/doxygen/html/classllvm_1_1PassManagerBuilder.html>`_ component that allows easy setup of the standard passes for a C like language. Unfortunately there isn't much guidance on how to use this either. The best source of information I found was an example toy compiler by `David Chisnell <http://cs.swan.ac.uk/~csdavec/FOSDEM12/compiler.cc.html>`_. 
+Fortunately it seems that there is a `PassManagerBuilder <http://llvm.org/docs/doxygen/html/classllvm_1_1PassManagerBuilder.html>`_ component that allows easy setup of the standard passes for a C like language. Unfortunately there isn't much guidance on how to use this either. The best source of information I found was an example toy compiler by `David Chisnall <http://cs.swan.ac.uk/~csdavec/FOSDEM12/compiler.cc.html>`_. 
 
 In Ravi each function is kept in its own llvm Module. The way I setup the optimization passes is shown below::
 
