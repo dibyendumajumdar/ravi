@@ -663,7 +663,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     }
   }
 
-  llvm::verifyFunction(*f->function());
+  lua_assert(!llvm::verifyFunction(*f->function(), &llvm::errs()));
   ravi::RaviJITFunctionImpl *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile();
