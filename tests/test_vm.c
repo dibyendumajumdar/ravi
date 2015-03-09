@@ -121,7 +121,7 @@ static int test_luacompexec1(const char *code, int expected)
 int main(int argc, const char *argv[]) 
 {
     int failures = 0;
-    //failures += test_luafileexec1("\\github\\ravi\\ravi-tests\\mandel1.ravi", 0);
+    failures += test_luacompexec1("function x(f); local i : int, j : int = f(); return i + j; end; return ravi.compile(x)", 1);
     failures += test_luacompexec1("local function z(a); print(a); return a+1; end; local function x(yy); local j = 5; j = yy(j); return j; end; local y = x(z); return y", 6);
     failures += test_luacompexec1("local function z(a,p); p(a); return 6; end; local function x(yy,p); local j = 5; j = yy(j,p); return j; end; local y = x(z,print); return y", 6);
     failures += test_luacompexec1("local function x(yy); local j = 5; yy(j); return j; end; local y = x(print); return y", 5);

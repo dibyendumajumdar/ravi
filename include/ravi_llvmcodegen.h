@@ -610,6 +610,13 @@ public:
   void emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
     int A, int B);
 
+  void emit_TOINT(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A);
+
+  void emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A);
+
+
   // Emit code for OP_EQ, OP_LT and OP_LE
   // The callee parameter should be luaV_equalobj, luaV_lessthan and
   // luaV_lessequal

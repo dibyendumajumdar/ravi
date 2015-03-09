@@ -262,6 +262,148 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_store_type(def, dest, LUA_TNUMFLT);
 }
 
+void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, llvm::Value *L_ci,
+  llvm::Value *proto, int A) {
+
+  //  case OP_RAVI_TOINT: {
+  //    lua_Integer j;
+  //    if (tointeger(ra, &j)) {
+  //      setivalue(ra, j);
+  //    }
+  //    else
+  //      luaG_runerror(L, "integer expected");
+  //  } break;
+
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+  llvm::Value *var =
+    TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "i");
+
+  // Load pointer to base
+  llvm::Instruction *base_ptr = emit_load_base(def);
+
+  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *src = dest;
+
+  llvm::Value *src_type = emit_load_type(def, src);
+
+  // Compare src->tt == LUA_TNUMINT
+  llvm::Value *cmp1 = def->builder->CreateICmpNE(
+    src_type, def->types->kInt[LUA_TNUMINT], "is.not.integer");
+
+  llvm::BasicBlock *then1 = llvm::BasicBlock::Create(
+    def->jitState->context(), "if.not.integer", def->f);
+  llvm::BasicBlock *end1 =
+    llvm::BasicBlock::Create(def->jitState->context(), "done");
+  def->builder->CreateCondBr(cmp1, then1, end1);
+  def->builder->SetInsertPoint(then1);
+
+  // Call luaV_tointeger_()
+  llvm::Value *var_isint = def->builder->CreateCall2(
+    def->luaV_tointegerF, src, var);
+  llvm::Value *tobool = def->builder->CreateICmpEQ(
+    var_isint, def->types->kInt[0], "int.conversion.failed");
+
+  // Did conversion fail?
+  llvm::BasicBlock *then2 = llvm::BasicBlock::Create(
+    def->jitState->context(), "if.conversion.failed", def->f);
+  llvm::BasicBlock *else2 =
+    llvm::BasicBlock::Create(def->jitState->context(), "conversion.ok");
+  def->builder->CreateCondBr(tobool, then2,
+    else2);
+  def->builder->SetInsertPoint(then2);
+
+  // Conversion failed, so raise error
+  llvm::Value *errmsg1 =
+    def->builder->CreateGlobalString("integer expected");
+  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
+    emit_gep(def, "", errmsg1, 0, 0));
+  def->builder->CreateBr(else2);
+
+  // Conversion OK
+  def->f->getBasicBlockList().push_back(else2);
+  def->builder->SetInsertPoint(else2);
+
+  auto load_var = def->builder->CreateLoad(var);
+  load_var->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  emit_store_reg_i(def, load_var, dest);
+  emit_store_type(def, dest, LUA_TNUMINT);
+  def->builder->CreateBr(end1);
+
+  def->f->getBasicBlockList().push_back(end1);
+  def->builder->SetInsertPoint(end1);
+}
+
+void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci,
+  llvm::Value *proto, int A) {
+
+  //  case OP_RAVI_TOFLT: {
+  //    lua_Number j;
+  //    if (tonumber(ra, &j)) {
+  //      setfltvalue(ra, j);
+  //    }
+  //    else
+  //      luaG_runerror(L, "float expected");
+  //  } break;
+
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+  llvm::Value *var =
+    TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "n");
+
+  // Load pointer to base
+  llvm::Instruction *base_ptr = emit_load_base(def);
+
+  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *src = dest;
+
+  llvm::Value *src_type = emit_load_type(def, src);
+
+  // Compare src->tt == LUA_TNUMFLT
+  llvm::Value *cmp1 = def->builder->CreateICmpNE(
+    src_type, def->types->kInt[LUA_TNUMFLT], "is.not.float");
+
+  llvm::BasicBlock *then1 = llvm::BasicBlock::Create(
+    def->jitState->context(), "if.not.float", def->f);
+  llvm::BasicBlock *end1 =
+    llvm::BasicBlock::Create(def->jitState->context(), "done");
+  def->builder->CreateCondBr(cmp1, then1, end1);
+  def->builder->SetInsertPoint(then1);
+
+  // Call luaV_tonumber()
+  llvm::Value *var_isflt = def->builder->CreateCall2(
+    def->luaV_tonumberF, src, var);
+  llvm::Value *tobool = def->builder->CreateICmpEQ(
+    var_isflt, def->types->kInt[0], "float.conversion.failed");
+
+  // Did conversion fail?
+  llvm::BasicBlock *then2 = llvm::BasicBlock::Create(
+    def->jitState->context(), "if.conversion.failed", def->f);
+  llvm::BasicBlock *else2 =
+    llvm::BasicBlock::Create(def->jitState->context(), "conversion.ok");
+  def->builder->CreateCondBr(tobool, then2,
+    else2);
+  def->builder->SetInsertPoint(then2);
+
+  // Conversion failed, so raise error
+  llvm::Value *errmsg1 =
+    def->builder->CreateGlobalString("number expected");
+  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
+    emit_gep(def, "", errmsg1, 0, 0));
+  def->builder->CreateBr(else2);
+
+  // Conversion OK
+  def->f->getBasicBlockList().push_back(else2);
+  def->builder->SetInsertPoint(else2);
+
+  auto load_var = def->builder->CreateLoad(var);
+  load_var->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  emit_store_reg_n(def, load_var, dest);
+  emit_store_type(def, dest, LUA_TNUMFLT);
+  def->builder->CreateBr(end1);
+
+  def->f->getBasicBlockList().push_back(end1);
+  def->builder->SetInsertPoint(end1);
+}
+
 
 void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int Bx) {
