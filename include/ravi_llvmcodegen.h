@@ -392,7 +392,6 @@ struct RaviFunctionDef {
 
   // printf
   llvm::Constant *printfFunc;
-  llvm::Value *str;
 
   // Jump targets in the function
   std::vector<RaviBranchDef> jmp_targets;
@@ -482,6 +481,10 @@ public:
   void emit_store_reg_i(RaviFunctionDef *def, llvm::Value *value,
                         llvm::Value *dest_ptr);
 
+  // emit code to store bool value into register
+  void emit_store_reg_b(RaviFunctionDef *def, llvm::Value *value,
+    llvm::Value *dest_ptr);
+
   // emit code to set the type in the register
   void emit_store_type(RaviFunctionDef *def, llvm::Value *value, int type);
 
@@ -505,6 +508,9 @@ public:
 
   void emit_LOADIZ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                    int A);
+
+  void emit_LOADBOOL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C, int j);
 
   void emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);

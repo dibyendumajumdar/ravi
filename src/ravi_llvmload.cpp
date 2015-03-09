@@ -51,6 +51,18 @@ void RaviCodeGenerator::emit_LOADIZ(RaviFunctionDef *def, llvm::Value *L_ci, llv
   emit_store_type(def, dest, LUA_TNUMINT);
 }
 
+void RaviCodeGenerator::emit_LOADBOOL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+  int A, int B, int C, int j) {
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  // dest->i = 0
+  emit_store_reg_b(def, llvm::ConstantInt::get(def->types->C_intT, B), dest);
+  // dest->type = LUA_TBOOLEAN
+  emit_store_type(def, dest, LUA_TBOOLEAN);
+  if (C)
+    def->builder->CreateBr(def->jmp_targets[j].jmp1);
+}
+
 void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci,
                                   llvm::Value *proto, int A, int B) {
 

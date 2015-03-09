@@ -209,3 +209,29 @@ assert(ravi.compile(tryme))
 assert(ravi.compile(x))
 assert(x(tryme) == 11.3)
 print("test 15 OK")
+
+-- test 16
+function tryme(x,y)
+  if x < y then
+    return 1
+  else
+    return 0
+  end
+end
+ravi.dumplua(tryme)
+assert(ravi.compile(tryme))
+assert(tryme(1,2) == 1)
+assert(tryme(2,1) == 0)
+print("test 16 OK")
+
+-- test 17
+function tryme(x,y)
+  return x < y
+end
+ravi.dumplua(tryme)
+assert(ravi.compile(tryme))
+assert(tryme(1,2))
+assert(not tryme(2,1))
+print("test 17 OK")
+
+
