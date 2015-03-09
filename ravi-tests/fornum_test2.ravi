@@ -1,5 +1,5 @@
 local function x()
-  local j:double
+  local j:number
   for i=1,1000000000 do
   	j = j+1
   	end

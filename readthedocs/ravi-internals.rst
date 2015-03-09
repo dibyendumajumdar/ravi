@@ -112,9 +112,9 @@ The entry point for parsing a local statement is ``localstat()`` in ``lparser.c`
       if (testnext(ls, ':')) {
         TString *typename = str_checkname(ls); /* we expect a type name */
         const char *str = getaddrstr(typename);
-        if (strcmp(str, "int") == 0)
+        if (strcmp(str, "integer") == 0)
           tt = RAVI_TNUMINT;
-        else if (strcmp(str, "double") == 0)
+        else if (strcmp(str, "number") == 0)
           tt = RAVI_TNUMFLT;
         if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
           if (testnext(ls, '[')) {
@@ -220,7 +220,7 @@ The main changes compared to ``explist()`` are the calls to ``ravi_typecheck()``
          * We look for the last bytecode that is OP_NEWTABLE 
          * and that has the same destination
          * register as v->u.info which is our variable
-         * local a:int[] = { 1 }
+         * local a:integer[] = { 1 }
          *                     ^ We are just past this and
          *                       about to assign to a
          */
@@ -298,13 +298,13 @@ There are several parts to this function.
 
 The simple case is when the type of the expression matches the variable.
 
-Secondly if the expression is a table initializer then we need to generate specialized opcodes if the target variable is supposed to be ``int[]`` or ``double[]``. The specialized opcode sets up some information in the ``Table`` structure. The problem is that this requires us to modify ``OP_NEWTABLE`` instruction which has already been emitted. So we scan the generated instructions to find the last ``OP_NEWTABLE`` instruction that assigns to the register associated with the target variable.  
+Secondly if the expression is a table initializer then we need to generate specialized opcodes if the target variable is supposed to be ``integer[]`` or ``number[]``. The specialized opcode sets up some information in the ``Table`` structure. The problem is that this requires us to modify ``OP_NEWTABLE`` instruction which has already been emitted. So we scan the generated instructions to find the last ``OP_NEWTABLE`` instruction that assigns to the register associated with the target variable.  
 
-Next bit of special handling is for function calls. If the assignment makes a function call then we perform type coercion on return values where these values are being assigned to variables with defined types. This means that if the target variable is ``int`` or ``double`` we issue opcodes ``TOINT`` and ``TOFLT`` respectively. If the target variable is ``int[]`` or ``double[]`` then we issue ``TOARRAYI`` and ``TOARRAYF`` respectively. These opcodes ensure that the values are of required type or can be cast to the required type.
+Next bit of special handling is for function calls. If the assignment makes a function call then we perform type coercion on return values where these values are being assigned to variables with defined types. This means that if the target variable is ``integer`` or ``number`` we issue opcodes ``TOINT`` and ``TOFLT`` respectively. If the target variable is ``integer[]`` or ``number[]`` then we issue ``TOARRAYI`` and ``TOARRAYF`` respectively. These opcodes ensure that the values are of required type or can be cast to the required type.
 
-Note that any left over variables that are not assigned values, are set to 0 if they are of int or double type, else they are set to nil as per Lua's default behavior. This is handled in ``localvar_adjust_assign()`` which is described later on.
+Note that any left over variables that are not assigned values, are set to 0 if they are of integer or number type, else they are set to nil as per Lua's default behavior. This is handled in ``localvar_adjust_assign()`` which is described later on.
 
-Finally the last case is when the target variable is ``int`` or ``double`` and the expression is a table / array access. In this case we check that the table is of required type.
+Finally the last case is when the target variable is ``integer`` or ``number`` and the expression is a table / array access. In this case we check that the table is of required type.
 
 The ``localvar_adjust_assign()`` function referred to above is shown below.
 
@@ -725,7 +725,7 @@ The Lua fornum statements create special variables. In order to allows the loop 
     /* The fornum sets up its own variables as above.
        These are expected to hold numeric values - but from Ravi's
        point of view we need to know if the variable is an integer or
-       double. So we need to check if this can be determined from the
+       number. So we need to check if this can be determined from the
        fornum expressions. If we can then we will set the 
        fornum variables to the type we discover.
     */
@@ -753,7 +753,7 @@ The Lua fornum statements create special variables. In order to allows the loop 
     }
     if (tidx == tlimit && tlimit == tstep 
         && (tidx == RAVI_TNUMFLT || tidx == RAVI_TNUMINT)) {
-      /* Ok so we have an integer or double */
+      /* Ok so we have an integer or number */
       vidx->ravi_type = vlimit->ravi_type 
                       = vstep->ravi_type 
                       = vvar->ravi_type = tidx;

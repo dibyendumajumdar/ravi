@@ -1,5 +1,5 @@
 function pisum()
-    local sum : double
+    local sum : number
     for j = 1,500 do
         sum = 0.0
         for k = 1,10000 do

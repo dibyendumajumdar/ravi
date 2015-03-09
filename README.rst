@@ -23,16 +23,16 @@ The project was kicked off in January 2015.
 
 Right now (as of Feb 2015) I am working on the JIT implementation. Please see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_ for details of this effort.
 
-As of end Jan 2015, the Ravi interpreter allows you to declare local variables as ``int`` or ``double``. This triggers following behaviour:
+As of end Jan 2015, the Ravi interpreter allows you to declare local variables as ``integer`` or ``number``. This triggers following behaviour:
 
-* ``int`` and ``double`` variables are initialized to 0
+* ``integer`` and ``number`` variables are initialized to 0
 * arithmetic operations trigger type specific bytecodes
 * values assigned to these variables are checked statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime.
 
 Also initial implementation of arrays is available. So you can declare arrays of integers or doubles.
 
-* The type of an array of integers is denoted as ``int[]``. 
-* The type of an array of doubles is denoted as ``double[]``.
+* The type of an array of integers is denoted as ``integer[]``. 
+* The type of an array of doubles is denoted as ``number[]``.
 * Arrays are implemented using a mix of runtime and compile time checks.
 * Specialised operators to get/set from arrays are implemented.
 * The standard table operations on arrays are checked to ensure that the type is not subverted.
@@ -45,12 +45,12 @@ Example of code that works - you can copy this to the command line input::
     local i,j = 5,6
     return i,j
   end
-  local i:int, j:int = tryme(); print(i+j)
+  local i:integer, j:integer = tryme(); print(i+j)
 
 Another::
 
   function tryme()
-    local j:double
+    local j:number
     for i=1,1000000000 do
       j = j+1
     end
@@ -61,7 +61,7 @@ Another::
 An example with arrays::
 
   function tryme()
-    local a : double[], j:double = {}
+    local a : number[], j:number = {}
     for i=1,10 do
       a[i] = i
       j = j + a[i]
@@ -154,8 +154,8 @@ I hope to enhance the language to variables to be optionally decorated with type
 
 So as of now the only types that seem worth specializing are:
 
-* int (64-bit)
-* double
+* integer (64-bit)
+* number
 * array of ints
 * array of doubles
 
@@ -190,11 +190,11 @@ If no type is specified then then type will be dynamic - exactly what the Lua de
 
 When a typed function is called the inputs and return value can be validated. Consider the function below::
 
-  local function foo(a, b: int, c: string)
+  local function foo(a, b: integer, c: string)
     return
   end
 
-When this function is called the compiler can validate that ``b`` is an int and ``c`` is a string. ``a`` on the other hand is dynamic so will behave as regular Lua value. The compiler can also ensure that the types of ``b`` and ``c`` are respected within the function. 
+When this function is called the compiler can validate that ``b`` is an integer and ``c`` is a string. ``a`` on the other hand is dynamic so will behave as regular Lua value. The compiler can also ensure that the types of ``b`` and ``c`` are respected within the function. 
 
 Return statements in typed functions can also be validated.
 
@@ -203,12 +203,12 @@ Array Types
 
 When it comes to complex types such as arrays, tables and functions, at this point in time, I think that Ravi only needs to support explicit specialization for arrays of integers and doubles::
 
-  function foo(p1: {}, p2: int[])
+  function foo(p1: {}, p2: integer[])
     -- p1 is a table
     -- p2 is an array of integers
     local t1 = {} -- t1 is a table
-    local a1 : int[] = {} -- a1 is an array of integers, specialization of table
-    local d1 : double[] = {} -- d1 is an array of doubles, specialization of table
+    local a1 : integer[] = {} -- a1 is an array of integers, specialization of table
+    local d1 : number[] = {} -- d1 is an array of doubles, specialization of table
   end
 
 
@@ -251,7 +251,7 @@ For now however I am just amending the bit mapping in the 32-bit instruction to 
 
 New OpCodes
 -----------
-The new instructions are specialised for types, and also for register/versus constant. So for example ``OP_RAVI_ADDFI`` means add ``float`` and ``int``. And ``OP_RAVI_ADDFF`` means add ``float`` and ``float``. The existing Lua opcodes that these are based on define which operands are used.
+The new instructions are specialised for types, and also for register/versus constant. So for example ``OP_RAVI_ADDFI`` means add ``float`` and ``integer``. And ``OP_RAVI_ADDFF`` means add ``float`` and ``float``. The existing Lua opcodes that these are based on define which operands are used.
 
 Example::
 
@@ -265,7 +265,7 @@ Above standard Lua code compiles to::
 
 We add type info using Ravi extensions::
 
-  local i:int=0; i=i+1
+  local i:integer=0; i=i+1
 
 Now the code compiles to::
 

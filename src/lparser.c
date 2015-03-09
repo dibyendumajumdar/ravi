@@ -1939,9 +1939,9 @@ static void localstat (LexState *ls) {
     if (testnext(ls, ':')) {
       TString *typename = str_checkname(ls); /* we expect a type name */
       const char *str = getaddrstr(typename);
-      if (strcmp(str, "int") == 0)
+      if (strcmp(str, "integer") == 0)
         tt = RAVI_TNUMINT;
-      else if (strcmp(str, "double") == 0)
+      else if (strcmp(str, "number") == 0)
         tt = RAVI_TNUMFLT;
       if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
         if (testnext(ls, '[')) {
