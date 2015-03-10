@@ -146,10 +146,10 @@ void RaviCodeGenerator::emit_store_reg_i(RaviFunctionDef *def,
 }
 
 void RaviCodeGenerator::emit_store_reg_b(RaviFunctionDef *def,
-  llvm::Value *result,
-  llvm::Value *dest_ptr) {
+                                         llvm::Value *result,
+                                         llvm::Value *dest_ptr) {
   llvm::Value *ra_n =
-    def->builder->CreateBitCast(dest_ptr, def->types->C_pintT);
+      def->builder->CreateBitCast(dest_ptr, def->types->C_pintT);
   llvm::Instruction *store = def->builder->CreateStore(result, ra_n);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 }
@@ -157,7 +157,8 @@ void RaviCodeGenerator::emit_store_reg_b(RaviFunctionDef *def,
 void RaviCodeGenerator::emit_store_type(RaviFunctionDef *def,
                                         llvm::Value *value, int type) {
   llvm::Value *desttype = emit_gep(def, "dest.tt", value, 0, 1);
-  lua_assert(type == LUA_TNUMFLT || type == LUA_TNUMINT || type == LUA_TBOOLEAN);
+  lua_assert(type == LUA_TNUMFLT || type == LUA_TNUMINT ||
+             type == LUA_TBOOLEAN);
   llvm::Instruction *store =
       def->builder->CreateStore(def->types->kInt[type], desttype);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
@@ -201,7 +202,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
   int pc, n = p->sizecode;
   // TODO we cannot handle variable arguments or
   // if the function has sub functions (closures)
-  //if (p->sizep > 0 || p->is_vararg) {
+  // if (p->sizep > 0 || p->is_vararg) {
   if (p->is_vararg) {
     p->ravi_jit.jit_status = 1;
     return false;
@@ -224,6 +225,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_FORPREP:
     case OP_FORLOOP:
     case OP_MOVE:
+    case OP_SETTABLE:
+    case OP_GETTABLE:
     case OP_RAVI_MOVEI:
     case OP_RAVI_MOVEF:
     case OP_RAVI_TOINT:
@@ -329,6 +332,12 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaV_executeF = def->raviF->addExternFunction(
       def->types->luaV_executeT, reinterpret_cast<void *>(&luaV_execute),
       "luaV_execute");
+  def->luaV_settableF = def->raviF->addExternFunction(
+      def->types->luaV_settableT, reinterpret_cast<void *>(&luaV_settable),
+      "luaV_settable");
+  def->luaV_gettableF = def->raviF->addExternFunction(
+      def->types->luaV_gettableT, reinterpret_cast<void *>(&luaV_gettable),
+      "luaV_gettable");
   def->luaV_op_loadnilF = def->raviF->addExternFunction(
       def->types->luaV_op_loadnilT, reinterpret_cast<void *>(&luaV_op_loadnil),
       "luaV_op_loadnil");
@@ -475,7 +484,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     case OP_LOADBOOL: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_LOADBOOL(&def, L_ci, proto, A, B, C, pc+2);
+      emit_LOADBOOL(&def, L_ci, proto, A, B, C, pc + 2);
     } break;
     case OP_MOVE: {
       int B = GETARG_B(i);
@@ -556,6 +565,17 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_CALL(&def, L_ci, proto, A, B, C);
+    } break;
+
+    case OP_SETTABLE: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_SETTABLE(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_GETTABLE: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_GETTABLE(&def, L_ci, proto, A, B, C);
     } break;
 
     case OP_RAVI_ADDFN: {
@@ -706,7 +726,8 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
       int C = GETARG_C(i);
       int j = pc + 2; // jump target
       if (C && !def->jmp_targets[j].jmp1)
-        def->jmp_targets[j].jmp1 = llvm::BasicBlock::Create(def->jitState->context(), "loadbool");
+        def->jmp_targets[j].jmp1 =
+            llvm::BasicBlock::Create(def->jitState->context(), "loadbool");
     } break;
     case OP_JMP:
     case OP_FORLOOP:
@@ -730,15 +751,15 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
       int j = sbx + pc + 1;
       // We append the Lua bytecode location to help debug the IR
       snprintf(temp, sizeof temp, "%s%d_", targetname, j + 1);
-      // 
+      //
       if (!def->jmp_targets[j].jmp1) {
         def->jmp_targets[j].jmp1 =
-          llvm::BasicBlock::Create(def->jitState->context(), temp);
+            llvm::BasicBlock::Create(def->jitState->context(), temp);
       }
 #if RAVI_CODEGEN_FORPREP2
       if (op == OP_FORPREP) {
         lua_assert(def->jmp_targets[j].jmp2 == nullptr);
-        // first target (created above) is for int < limit 
+        // first target (created above) is for int < limit
         // Second target is for int > limit
         snprintf(temp, sizeof temp, "%s%d_", "forloop_igt", j + 1);
         def->jmp_targets[j].jmp2 =

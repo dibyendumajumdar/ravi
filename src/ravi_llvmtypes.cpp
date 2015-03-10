@@ -678,6 +678,14 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   luaV_tointegerT = llvm::FunctionType::get(C_intT, elements, false);
 
   elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pTValueT);
+  elements.push_back(pTValueT);
+  elements.push_back(pTValueT);
+  luaV_gettableT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  luaV_settableT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
+  elements.clear();
   elements.push_back(pCallInfoT);
   elements.push_back(C_intT);
   elements.push_back(C_intT);

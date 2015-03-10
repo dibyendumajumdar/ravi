@@ -102,41 +102,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else_block);
 
   //*  b = luaD_poscall(L, ra);
-  llvm::Value *result =
-      def->builder->CreateCall2(def->luaD_poscallF, def->L, ra_ptr);
-
-  // I don't think we need below as we are not in the same
-  // luaV_execute() as the calling function -
-  // TODO check this is the case
-  //    if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */
-  //      return;  /* external invocation: return */
-
-  //*      if (b) L->top = ci->top;
-  // Test if b is != 0
-  llvm::Value *result_is_notzero =
-      def->builder->CreateICmpNE(result, def->types->kInt[0]);
-  llvm::BasicBlock *ThenBB =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
-  llvm::BasicBlock *ElseBB =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.else");
-  def->builder->CreateCondBr(result_is_notzero, ThenBB, ElseBB);
-  def->builder->SetInsertPoint(ThenBB);
-  // Get pointer to ci->top
-  llvm::Value *citop = emit_gep(def, "ci_top", def->ci_val, 0, 1);
-  // Load ci->top
-  llvm::Instruction *citop_val = def->builder->CreateLoad(citop);
-  if (!top)
-    // Get L->top
-    top = emit_gep(def, "L_top", def->L, 0, 4);
-  // Assign ci>top to L->top
-  auto ins = def->builder->CreateStore(citop_val, top);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
-  def->builder->CreateBr(ElseBB);
-  def->f->getBasicBlockList().push_back(ElseBB);
-  def->builder->SetInsertPoint(ElseBB);
-
-  // as our prototype is lua_Cfunction we need
-  // to return a value
+  def->builder->CreateCall2(def->luaD_poscallF, def->L, ra_ptr);
   def->builder->CreateRet(def->types->kInt[1]);
 }
 }

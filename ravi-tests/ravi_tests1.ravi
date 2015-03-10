@@ -218,7 +218,7 @@ function tryme(x,y)
     return 0
   end
 end
-ravi.dumplua(tryme)
+--ravi.dumplua(tryme)
 assert(ravi.compile(tryme))
 assert(tryme(1,2) == 1)
 assert(tryme(2,1) == 0)
@@ -228,10 +228,21 @@ print("test 16 OK")
 function tryme(x,y)
   return x < y
 end
-ravi.dumplua(tryme)
+--ravi.dumplua(tryme)
 assert(ravi.compile(tryme))
 assert(tryme(1,2))
 assert(not tryme(2,1))
 print("test 17 OK")
+
+-- test 18
+function tabtest(x)
+  x[1] = 5
+  return x[1]
+end
+--ravi.dumplua(tabtest)
+assert(ravi.compile(tabtest))
+--ravi.dumpllvm(tabtest)
+assert(tabtest({}) == 5)
+print("test 18 OK")
 
 

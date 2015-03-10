@@ -197,6 +197,8 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_tonumberT;
   llvm::FunctionType *luaV_tointegerT;
   llvm::FunctionType *luaV_executeT;
+  llvm::FunctionType *luaV_gettableT;
+  llvm::FunctionType *luaV_settableT;
 
   llvm::FunctionType *luaV_op_loadnilT;
 
@@ -386,6 +388,8 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_tonumberF;
   llvm::Constant *luaV_tointegerF;
   llvm::Constant *luaV_executeF;
+  llvm::Constant *luaV_gettableF;
+  llvm::Constant *luaV_settableF;
 
   // Some cheats
   llvm::Constant *luaV_op_loadnilF;
@@ -622,6 +626,11 @@ public:
   void emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
     int A);
 
+  void emit_SETTABLE(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
+
+  void emit_GETTABLE(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
 
   // Emit code for OP_EQ, OP_LT and OP_LE
   // The callee parameter should be luaV_equalobj, luaV_lessthan and
