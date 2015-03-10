@@ -14,14 +14,14 @@ Goals
 * Optional static typing for Lua 
 * No new types
 * Type specific bytecodes to improve performance
-* Full backward compatibility with Lua 5.3
+* Compatibility with Lua 5.3 (see Array Types section below)
 * LLVM based JIT compiler
 
 Status
 ------
 The project was kicked off in January 2015. 
 
-Right now (as of Feb 2015) I am working on the JIT implementation. Please see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_ for details of this effort.
+Right now (as of Feb 2015) I am working on the JIT implementation. Please see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_ for details of this effort. 
 
 As of end Jan 2015, the Ravi interpreter allows you to declare local variables as ``integer`` or ``number``. This triggers following behaviour:
 
@@ -29,12 +29,12 @@ As of end Jan 2015, the Ravi interpreter allows you to declare local variables a
 * arithmetic operations trigger type specific bytecodes
 * values assigned to these variables are checked statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime.
 
-Also initial implementation of arrays is available. So you can declare arrays of integers or doubles.
+Also initial implementation of arrays is available. So you can declare arrays of integers or numbers.
 
 * The type of an array of integers is denoted as ``integer[]``. 
-* The type of an array of doubles is denoted as ``number[]``.
+* The type of an array of numbers is denoted as ``number[]``.
 * Arrays are implemented using a mix of runtime and compile time checks.
-* Specialised operators to get/set from arrays are implemented.
+* Specialised operators to get/set from arrays are being implemented.
 * The standard table operations on arrays are checked to ensure that the type is not subverted.
 
 Obviously this is early days so please expect bugs.
@@ -154,10 +154,10 @@ I hope to enhance the language to variables to be optionally decorated with type
 
 So as of now the only types that seem worth specializing are:
 
-* integer (64-bit)
-* number
-* array of ints
-* array of doubles
+* integer (64-bit int)
+* number (double)
+* array of integers
+* array of numbers
 
 Everything else will just be dynamic type as in Lua. However we can recognise following types to make the language more user friendly:
 
@@ -201,16 +201,15 @@ Return statements in typed functions can also be validated.
 Array Types
 -----------
 
-When it comes to complex types such as arrays, tables and functions, at this point in time, I think that Ravi only needs to support explicit specialization for arrays of integers and doubles::
+When it comes to complex types such as arrays, tables and functions, at this point in time, I think that Ravi only needs to support explicit specialization for arrays of integers and numbers::
 
   function foo(p1: {}, p2: integer[])
     -- p1 is a table
     -- p2 is an array of integers
     local t1 = {} -- t1 is a table
     local a1 : integer[] = {} -- a1 is an array of integers, specialization of table
-    local d1 : number[] = {} -- d1 is an array of doubles, specialization of table
+    local d1 : number[] = {} -- d1 is an array of numbers, specialization of table
   end
-
 
 To support array types we need a mix of runtime and compile time type checking. The Lua table type will be enhanced to hold type information so that when an array type is created the type of the array will be recorded. This will allow the runtime to detect incorrect usage of array type and raise errors if necessary. However, on the other hand, it will be possible to pass the array type to an existing Lua function as a regular table - and as long as the Lua function does not attempt to subvert the array type it should work as normal.
 
@@ -220,7 +219,7 @@ The array types will have some special behaviour:
 * array will grow automatically if user sets the element just past the array length
 * it will be an error to attempt to set an element that is beyond len+1 
 * the current used length of the array will be recorded and returned by len operations
-* the array will only permit the right type of value to be assigned (this will be checked at runtime to allow full compatibility with Lua)
+* the array will only permit the right type of value to be assigned (this will be checked at runtime to allow compatibility with Lua)
 * accessing out of bounds elements will cause an error, except for setting the len+1 element
 * it will be possible to pass arrays to functions and return arrays from functions - the array types will be checked at runtime
 * it should be possible to store an array type in a table - however any operations on array type can only be optimised to special bytecode if the array type is a local variable. Otherwise regular table access will be used subject to runtime checks. 
@@ -233,13 +232,11 @@ To keep with Lua's dynamic nature I plan a mix of compile type checking and runt
 
 Implementation Strategy
 -----------------------
-I do not want to introduce any new types to the Lua system as the types I need already exist and I quite like the minimalist nature of Lua. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser/code generator to encode these opcodes only when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks. In reality the performance gain may be offset by the increase in the instruction decoding / branching - so it remains to be seen whether this approach is beneficial. However, I am hoping that type specific instructions will lend themselves to more efficient JIT at a later stage.
+I want to avoid introducing any new types to the Lua system (however see note on Array Types above) as the types I need already exist and I quite like the minimalist nature of Lua. However, to make the execution efficient I want to approach this by adding new type specific opcodes, and by enhancing the Lua parser/code generator to encode these opcodes only when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks. In reality the performance gain may be offset by the increase in the instruction decoding / branching - so it remains to be seen whether this approach is beneficial. However, I am hoping that type specific instructions will lend themselves to more efficient JIT compilation.
 
 My plan is to add new opcodes that cover arithmetic operations, array operations, variable assignments, etc..
 
 I will probably need to augment some existing types such as functions and tables to add the type signature.
-
-I intend to first add the opcodes to the VM before starting work on the parser and code generator.
 
 Modifications to Lua Bytecode structure
 ---------------------------------------

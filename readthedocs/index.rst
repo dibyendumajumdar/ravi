@@ -21,6 +21,7 @@ Contents:
    ravi-lua-types
    llvm-tbaa
    ravi-benchmarks
+   ravi-jit-status
 
 
 Indices and tables
