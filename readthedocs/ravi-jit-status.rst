@@ -6,6 +6,8 @@ The JIT compilation status of the Lua and Ravi bytecodes are given below.
 This information was last updated on 10th March 2015. As new bytecodes are being added to the JIT compiler on a regular basis
 the status information below may be slightly out of date.
 
+Note that if a Lua functions contains a bytecode that cannot be be JITed then the function cannot be JITed.
+
 +-------------------------+----------+--------------------------------------------------+
 | name                    | JITed?   | description                                      |
 +=========================+==========+==================================================+
@@ -81,8 +83,8 @@ the status information below may be slightly out of date.
 +-------------------------+----------+--------------------------------------------------+
 | OP_TESTSET              | NO       | if (R(B) <=> C) then R(A) := R(B) else pc++      |
 +-------------------------+----------+--------------------------------------------------+
-| OP_CALL                 | YES      | R(A), ... ,R(A+C-2) := R(A)(R(A+1),              |
-|                         |          |                        ... ,R(A+B-1))            |
+| OP_CALL                 | YES      | R(A), .. ,R(A+C-2) := R(A)(R(A+1),               |
+|                         |          |                        .. ,R(A+B-1))             |
 +-------------------------+----------+--------------------------------------------------+
 | OP_TAILCALL             | NO       | return R(A)(R(A+1), ... ,R(A+B-1))               |
 +-------------------------+----------+--------------------------------------------------+
