@@ -86,6 +86,9 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int j) {
     def->builder->SetInsertPoint(jmp_block);
   }
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
+  llvm::BasicBlock *block =
+    llvm::BasicBlock::Create(def->jitState->context(), "postjump", def->f);
+  def->builder->SetInsertPoint(block);
 }
 
 llvm::Instruction *RaviCodeGenerator::emit_load_base(RaviFunctionDef *def) {
@@ -122,6 +125,15 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_i(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
   llvm::Value *rb_n =
       def->builder->CreateBitCast(rb, def->types->plua_IntegerT);
+  llvm::Instruction *lhs = def->builder->CreateLoad(rb_n);
+  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  return lhs;
+}
+
+llvm::Instruction *RaviCodeGenerator::emit_load_reg_b(RaviFunctionDef *def,
+  llvm::Value *rb) {
+  llvm::Value *rb_n =
+    def->builder->CreateBitCast(rb, def->types->C_pintT);
   llvm::Instruction *lhs = def->builder->CreateLoad(rb_n);
   lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
   return lhs;
@@ -222,6 +234,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_EQ:
     case OP_LT:
     case OP_LE:
+    case OP_TEST:
+    case OP_TESTSET:
     case OP_FORPREP:
     case OP_FORLOOP:
     case OP_MOVE:
@@ -528,6 +542,35 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int j = sbx + pc + 1;
       emit_EQ(&def, L_ci, proto, A, B, C, j, GETARG_A(i), comparison_function);
     } break;
+    case OP_TEST: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      // OP_TEST is followed by OP_JMP - we process this
+      // along with OP_EQ
+      pc++;
+      i = code[pc];
+      op = GET_OPCODE(i);
+      lua_assert(op == OP_JMP);
+      int sbx = GETARG_sBx(i);
+      // j below is the jump target
+      int j = sbx + pc + 1;
+      emit_TEST(&def, L_ci, proto, A, B, C, j, GETARG_A(i));
+    } break;
+    case OP_TESTSET: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      // OP_TESTSET is followed by OP_JMP - we process this
+      // along with OP_EQ
+      pc++;
+      i = code[pc];
+      op = GET_OPCODE(i);
+      lua_assert(op == OP_JMP);
+      int sbx = GETARG_sBx(i);
+      // j below is the jump target
+      int j = sbx + pc + 1;
+      emit_TESTSET(&def, L_ci, proto, A, B, C, j, GETARG_A(i));
+    } break;
+
     case OP_JMP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;

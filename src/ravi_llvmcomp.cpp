@@ -89,4 +89,177 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 }
+
+llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
+                                                       llvm::Value *reg,
+                                                       bool not) {
+  // (isnil() || isbool() && b == 0)
+
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+  llvm::Value *var = TmpB.CreateAlloca(
+      llvm::Type::getInt1Ty(def->jitState->context()), nullptr, "b");
+
+  llvm::Value *type = emit_load_type(def, reg);
+
+  // Test if type == LUA_TNIL (0)
+  llvm::Value *isnil = def->builder->CreateICmpEQ(type, def->types->kInt[0]);
+  llvm::BasicBlock *then_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.nil", def->f);
+  llvm::BasicBlock *else_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "not.nil");
+  llvm::BasicBlock *end_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "end");
+  def->builder->CreateCondBr(isnil, then_block, else_block);
+  def->builder->SetInsertPoint(then_block);
+
+  auto ins = def->builder->CreateStore(isnil, var);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
+  def->builder->CreateBr(end_block);
+
+  def->f->getBasicBlockList().push_back(else_block);
+  def->builder->SetInsertPoint(else_block);
+  // value is not nil
+  // so check if bool and b == 0
+
+  // Test if type == LUA_TBOOLEAN
+  llvm::Value *isbool = def->builder->CreateICmpEQ(type, def->types->kInt[1]);
+  // Test if bool value == 0
+  llvm::Value *bool_value = emit_load_reg_b(def, reg);
+  llvm::Value *boolzero =
+      def->builder->CreateICmpEQ(bool_value, def->types->kInt[0]);
+  // Test type == LUA_TBOOLEAN && bool value == 0
+  llvm::Value *andvalue = def->builder->CreateAnd(isbool, boolzero);
+
+  auto ins2 = def->builder->CreateStore(andvalue, var);
+  ins2->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
+  def->builder->CreateBr(end_block);
+
+  def->f->getBasicBlockList().push_back(end_block);
+  def->builder->SetInsertPoint(end_block);
+
+  llvm::Value *result = nullptr;
+  if (not) {
+    auto ins = def->builder->CreateLoad(var);
+    ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
+    result = def->builder->CreateNot(ins);
+  }
+  else {
+    auto ins = def->builder->CreateLoad(var);
+    ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
+    result = ins;
+  }
+
+  return result;
+}
+
+void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, llvm::Value *L_ci,
+                                  llvm::Value *proto, int A, int B, int C,
+                                  int j, int jA) {
+
+  //    case OP_TEST: {
+  //      if (GETARG_C(i) ? l_isfalse(ra) : !l_isfalse(ra))
+  //        ci->u.l.savedpc++;
+  //      else
+  //        donextjump(ci);
+  //    } break;
+
+  // Load pointer to base
+  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
+  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
+                        def->types->tbaa_luaState_ci_baseT);
+
+  // Get pointer to register A
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  // v = C ? is_false(ra) : !is_false(ra)
+  llvm::Value *v = C ? emit_boolean_testfalse(def, ra, false)
+                     : emit_boolean_testfalse(def, ra, true);
+
+  // Test NOT v
+  llvm::Value *result = def->builder->CreateNot(v);
+  // If !v then we need to execute the next statement which is a jump
+  llvm::BasicBlock *then_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
+  llvm::BasicBlock *else_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.else");
+  def->builder->CreateCondBr(result, then_block, else_block);
+  def->builder->SetInsertPoint(then_block);
+
+  // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
+  if (jA > 0) {
+    // jA is the A operand of the Jump instruction
+
+    // base + a - 1
+    llvm::Value *val =
+        jA == 1 ? base_ptr : emit_array_get(def, base_ptr, jA - 1);
+
+    // Call luaF_close
+    def->builder->CreateCall2(def->luaF_closeF, def->L, val);
+  }
+  // Do the jump
+  def->builder->CreateBr(def->jmp_targets[j].jmp1);
+
+  // Add the else block and make it current so that the next instruction flows
+  // here
+  def->f->getBasicBlockList().push_back(else_block);
+  def->builder->SetInsertPoint(else_block);
+}
+
+void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, llvm::Value *L_ci,
+                                     llvm::Value *proto, int A, int B, int C,
+                                     int j, int jA) {
+
+  //  case OP_TESTSET: {
+  //    TValue *rb = RB(i);
+  //    if (GETARG_C(i) ? l_isfalse(rb) : !l_isfalse(rb))
+  //      ci->u.l.savedpc++;
+  //    else {
+  //      setobjs2s(L, ra, rb);
+  //      donextjump(ci);
+  //    }
+  //  } break;
+
+  // Load pointer to base
+  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
+  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
+                        def->types->tbaa_luaState_ci_baseT);
+
+  // Get pointer to register B
+  llvm::Value *rb = emit_gep_ra(def, base_ptr, B);
+  // v = C ? is_false(ra) : !is_false(ra)
+  llvm::Value *v = C ? emit_boolean_testfalse(def, rb, false)
+                     : emit_boolean_testfalse(def, rb, true);
+
+  // Test NOT v
+  llvm::Value *result = def->builder->CreateNot(v);
+  // If !v then we need to execute the next statement which is a jump
+  llvm::BasicBlock *then_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
+  llvm::BasicBlock *else_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.else");
+  def->builder->CreateCondBr(result, then_block, else_block);
+  def->builder->SetInsertPoint(then_block);
+
+  // Get pointer to register A
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  emit_assign(def, ra, rb);
+
+  // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
+  if (jA > 0) {
+    // jA is the A operand of the Jump instruction
+
+    // base + a - 1
+    llvm::Value *val =
+        jA == 1 ? base_ptr : emit_array_get(def, base_ptr, jA - 1);
+
+    // Call luaF_close
+    def->builder->CreateCall2(def->luaF_closeF, def->L, val);
+  }
+  // Do the jump
+  def->builder->CreateBr(def->jmp_targets[j].jmp1);
+
+  // Add the else block and make it current so that the next instruction flows
+  // here
+  def->f->getBasicBlockList().push_back(else_block);
+  def->builder->SetInsertPoint(else_block);
+}
 }

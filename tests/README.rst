@@ -1,4 +1,4 @@
-The tests in ths folder are run via the CMake CTest capability.
+The tests in this folder are run via the CMake CTest capability.
 
 On UNIX systems, just execute::
 

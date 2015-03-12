@@ -245,4 +245,54 @@ assert(ravi.compile(tabtest))
 assert(tabtest({}) == 5)
 print("test 18 OK")
 
+-- test 19
+function optest()
+  local a,b,c = 1, 5
+  c = a and b
+  return c
+end
+-- ravi.dumplua(optest)
+assert(ravi.compile(optest))
+-- ravi.dumpllvm(optest)
+assert(optest() == 5)
+print("test 19 OK")
 
+-- test 20
+function optest()
+  local a,b,c = 1, 5
+  c = a or b
+  return c
+end
+-- ravi.dumplua(optest)
+assert(ravi.compile(optest))
+-- ravi.dumpllvm(optest)
+assert(optest() == 1)
+print("test 20 OK")
+
+-- test 21
+function optest()
+  local a,b = 1, 5
+  if a and b then
+    return b
+  end
+  return a
+end
+-- ravi.dumplua(optest)
+assert(ravi.compile(optest))
+-- ravi.dumpllvm(optest)
+assert(optest() == 5)
+print("test 21 OK")
+
+-- test 22
+function optest()
+  local a,b = nil, 5
+  if a or b then
+    return b
+  end
+  return a
+end
+-- ravi.dumplua(optest)
+assert(ravi.compile(optest))
+-- ravi.dumpllvm(optest)
+assert(optest() == 5)
+print("test 22 OK")

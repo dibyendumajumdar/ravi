@@ -477,6 +477,9 @@ public:
   // emit code to load the lua_Integer value from register
   llvm::Instruction *emit_load_reg_i(RaviFunctionDef *def, llvm::Value *rb);
 
+  // emit code to load the boolean value from register
+  llvm::Instruction *emit_load_reg_b(RaviFunctionDef *def, llvm::Value *ra);
+
   // emit code to store lua_Number value into register
   void emit_store_reg_n(RaviFunctionDef *def, llvm::Value *value,
                         llvm::Value *dest_ptr);
@@ -494,6 +497,10 @@ public:
 
   // emit code to load the type from a register
   llvm::Instruction *emit_load_type(RaviFunctionDef *def, llvm::Value *value);
+
+  void emit_assign(RaviFunctionDef *def, llvm::Value *ra, llvm::Value *rb);
+
+  llvm::Value *emit_boolean_testfalse(RaviFunctionDef *def, llvm::Value *reg, bool not);
 
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.
@@ -641,6 +648,13 @@ public:
   // jA must be the A operand of the jump instruction
   void emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                int A, int B, int C, int j, int jA, llvm::Constant *callee);
+
+  void emit_TEST(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C, int j, int jA);
+
+  void emit_TESTSET(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C, int j, int jA);
+
 
 private:
   RaviJITStateImpl *jitState_;
