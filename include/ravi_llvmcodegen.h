@@ -188,6 +188,7 @@ struct LuaLLVMTypes {
 
   llvm::FunctionType *luaD_poscallT;
   llvm::FunctionType *luaD_precallT;
+  llvm::FunctionType *luaD_callT;
   llvm::FunctionType *luaF_closeT;
   llvm::FunctionType *luaG_runerrorT;
   llvm::FunctionType *luaV_equalobjT;
@@ -337,9 +338,10 @@ public:
 // we use computed gotos to specialised
 // jmp labels. Hence the 4 jmp targets.
 // For other instructions only the first jump
-// targetis used
+// target is used
 struct RaviBranchDef {
-  // main or int step > 0
+  // this field is used for all branches
+  // forloop int step > 0
   llvm::BasicBlock *jmp1;
   // forloop int step < 0
   llvm::BasicBlock *jmp2;
@@ -379,6 +381,7 @@ struct RaviFunctionDef {
   // Lua function declarations
   llvm::Constant *luaD_poscallF;
   llvm::Constant *luaD_precallF;
+  llvm::Constant *luaD_callF;
   llvm::Constant *luaF_closeF;
   llvm::Constant *luaG_runerrorF;
   llvm::Constant *luaV_equalobjF;
@@ -467,7 +470,7 @@ public:
   llvm::Value *emit_gep_ra(RaviFunctionDef *def, llvm::Instruction *base,
                            int A);
 
-  // emit code to obtain address of register or constant at locaton B
+  // emit code to obtain address of register or constant at location B
   llvm::Value *emit_gep_rkb(RaviFunctionDef *def, llvm::Instruction *base,
                             int B);
 
@@ -490,7 +493,7 @@ public:
 
   // emit code to store bool value into register
   void emit_store_reg_b(RaviFunctionDef *def, llvm::Value *value,
-    llvm::Value *dest_ptr);
+                        llvm::Value *dest_ptr);
 
   // emit code to set the type in the register
   void emit_store_type(RaviFunctionDef *def, llvm::Value *value, int type);
@@ -498,9 +501,13 @@ public:
   // emit code to load the type from a register
   llvm::Instruction *emit_load_type(RaviFunctionDef *def, llvm::Value *value);
 
+  // TValue assign 
   void emit_assign(RaviFunctionDef *def, llvm::Value *ra, llvm::Value *rb);
 
-  llvm::Value *emit_boolean_testfalse(RaviFunctionDef *def, llvm::Value *reg, bool not);
+  // isnil(reg) || isboolean(reg) && reg.value == 0
+  // !(isnil(reg) || isboolean(reg) && reg.value == 0)
+  llvm::Value *emit_boolean_testfalse(RaviFunctionDef *def, llvm::Value *reg,
+                                      bool not);
 
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.
@@ -509,6 +516,9 @@ public:
   // branch instructions
   void scan_jump_targets(RaviFunctionDef *def, Proto *p);
 
+  // Should be called before processing a Lua OpCode
+  // This function checks if a new block should be started
+  // and links in the new block
   void link_block(RaviFunctionDef *def, int pc);
 
   void emit_LOADNIL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
@@ -520,8 +530,8 @@ public:
   void emit_LOADIZ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                    int A);
 
-  void emit_LOADBOOL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C, int j);
+  void emit_LOADBOOL(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int B, int C, int j);
 
   void emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);
@@ -539,61 +549,61 @@ public:
                   int A, int B, int C);
 
   void emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_ADDIN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A, int B, int C);
 
   void emit_SUBFF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_SUBFI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_SUBIF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_SUBII(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_SUBFN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_SUBNF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_SUBIN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_SUBNI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_MULFF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_MULFI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_MULII(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_MULFN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_MULIN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_DIVFF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_DIVFI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_DIVIF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_DIVII(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                  int A, int B, int C);
 
   void emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A, int Bx);
@@ -602,7 +612,7 @@ public:
                    int A, int B);
 
   void emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                 int A, int B, int C);
 
   void emit_JMP(RaviFunctionDef *def, int j);
 
@@ -622,22 +632,22 @@ public:
                  int A, int B);
 
   void emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B);
+                  int A, int B);
 
   void emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B);
+                  int A, int B);
 
   void emit_TOINT(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A);
+                  int A);
 
   void emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A);
+                  int A);
 
-  void emit_SETTABLE(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+  void emit_SETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int B, int C);
 
-  void emit_GETTABLE(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+  void emit_GETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int B, int C);
 
   // Emit code for OP_EQ, OP_LT and OP_LE
   // The callee parameter should be luaV_equalobj, luaV_lessthan and
@@ -649,12 +659,21 @@ public:
   void emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                int A, int B, int C, int j, int jA, llvm::Constant *callee);
 
+  // OP_TEST is followed by a OP_JMP instruction - both are handled
+  // together
+  // A, B, C must be operands of the OP_TEST instruction
+  // j must be the jump target (offset of the code to which we need to jump to)
+  // jA must be the A operand of the jump instruction
   void emit_TEST(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C, int j, int jA);
+                 int A, int B, int C, int j, int jA);
 
+  // OP_TESTSET is followed by a OP_JMP instruction - both are handled
+  // together
+  // A, B, C must be operands of the OP_TESTSET instruction
+  // j must be the jump target (offset of the code to which we need to jump to)
+  // jA must be the A operand of the jump instruction
   void emit_TESTSET(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C, int j, int jA);
-
+                    int A, int B, int C, int j, int jA);
 
 private:
   RaviJITStateImpl *jitState_;

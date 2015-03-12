@@ -87,7 +87,7 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int j) {
   }
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
   llvm::BasicBlock *block =
-    llvm::BasicBlock::Create(def->jitState->context(), "postjump", def->f);
+      llvm::BasicBlock::Create(def->jitState->context(), "postjump", def->f);
   def->builder->SetInsertPoint(block);
 }
 
@@ -131,9 +131,8 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_i(RaviFunctionDef *def,
 }
 
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_b(RaviFunctionDef *def,
-  llvm::Value *rb) {
-  llvm::Value *rb_n =
-    def->builder->CreateBitCast(rb, def->types->C_pintT);
+                                                      llvm::Value *rb) {
+  llvm::Value *rb_n = def->builder->CreateBitCast(rb, def->types->C_pintT);
   llvm::Instruction *lhs = def->builder->CreateLoad(rb_n);
   lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
   return lhs;
@@ -313,6 +312,9 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
 
   // Add extern declarations for Lua functions that we need to call
+  def->luaD_callF = def->raviF->addExternFunction(
+      def->types->luaD_callT, reinterpret_cast<void *>(&luaD_call),
+      "luaD_call");
   def->luaD_poscallF = def->raviF->addExternFunction(
       def->types->luaD_poscallT, reinterpret_cast<void *>(&luaD_poscall),
       "luaD_poscall");

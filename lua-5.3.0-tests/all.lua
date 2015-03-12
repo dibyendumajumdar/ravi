@@ -148,7 +148,7 @@ report"gc.lua"
 local f = assert(loadfile('gc.lua'))
 f()
 
-dofile('db.lua')
+--dofile('db.lua')
 assert(dofile('calls.lua') == deep and deep)
 olddofile('strings.lua')
 olddofile('literals.lua')

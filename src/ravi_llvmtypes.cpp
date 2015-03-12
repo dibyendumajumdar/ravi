@@ -628,6 +628,15 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_intT);
   luaD_precallT = llvm::FunctionType::get(C_intT, elements, false);
 
+  // void luaD_call (lua_State *L, StkId func, int nResults,
+  //                 int allowyield);
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(StkIdT);
+  elements.push_back(C_intT);
+  elements.push_back(C_intT);
+  luaD_callT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
   // void luaV_execute(lua_State L);
   elements.clear();
   elements.push_back(plua_StateT);
