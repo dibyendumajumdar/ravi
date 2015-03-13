@@ -376,7 +376,9 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int compile) {
         if (p->ravi_jit.jit_status == 2) {
           /* compiled */
           lua_assert(p->ravi_jit.jit_function != NULL);
+          L->nny++;
           (*p->ravi_jit.jit_function)(L);
+          L->nny--;
           lua_assert(L->ci == prevci);
           ci = L->ci;
           lua_assert(isLua(ci));
