@@ -719,52 +719,81 @@ void luaV_finishOp (lua_State *L) {
 #define vmcase(l,b)	case l: {b}  break;
 #define vmcasenb(l,b)	case l: {b}		/* nb = no break */
 
+void ravi_dump_ci(lua_State *L, CallInfo *ci) {
+  StkId func = ci->func;
+  int func_type = ttype(func);
+  StkId base = NULL;
+  const char *func_typename;
+  Proto *p = NULL;
+  int funcpos = ci->func - L->stack;
+  StkId stack_ptr = ci->top - 1;
+  int i;
+  switch (func_type) {
+  case LUA_TLCF:
+    printf("stack[%d] = Light C function\n", funcpos);
+    printf("---> called from \n");
+    return;
+  case LUA_TCCL:
+    printf("stack[%d] = C closure\n", funcpos);
+    printf("---> called from \n");
+    return;
+  case LUA_TFUNCTION:
+    p = clLvalue(func)->p;
+    base = ci->u.l.base;
+    i = ci->top - L->stack - 1;
+    break;
+  default:
+    return;
+  }
+
+  for (; stack_ptr >= base; stack_ptr--, i--) {
+    printf("stack[%d] = %s", i, (stack_ptr == base ? "(base) " : ""));
+    if (ttisCclosure(stack_ptr))
+      printf("C closure\n");
+    else if (ttislcf(stack_ptr))
+      printf("light C function\n");
+    else if (ttisLclosure(stack_ptr))
+      printf("Lua closure\n");
+    else if (ttisfunction(stack_ptr))
+      printf("function\n");
+    else if (ttislngstring(stack_ptr) || ttisshrstring(stack_ptr) || ttisstring(stack_ptr))
+      printf("'%s'\n", svalue(stack_ptr));
+    else if (ttistable(stack_ptr))
+      printf("table\n");
+    else if (ttisnil(stack_ptr))
+      printf("nil\n");
+    else if (ttisfloat(stack_ptr))
+      printf("%.6f\n", fltvalue(stack_ptr));
+    else if (ttisinteger(stack_ptr))
+      printf("%lld\n", ivalue(stack_ptr));
+    else if (ttislightuserdata(stack_ptr))
+      printf("light user data\n");
+    else if (ttisfulluserdata(stack_ptr))
+      printf("full user data\n");
+    else if (ttisboolean(stack_ptr))
+      printf("boolean\n");
+    else if (ttisthread(stack_ptr))
+      printf("thread\n");
+    else
+      printf("other\n");
+  }
+  printf("stack[%d] = Lua function (maxstack = %d, numparams = %d, locals = %d)\n", funcpos, p->maxstacksize, p->numparams, p->sizelocvars);
+  printf("---> called from \n");
+}
+
 void ravi_dump_stack(lua_State *L, const char *s) {
   if (!s)
     return;
   CallInfo *ci = L->ci;
-  StkId p = L->top-1;
-  int base = ci->u.l.base - L->stack - 1;
-  int func = ci->func - L->stack - 1;
-  if (p == NULL)
-    return;
-  int i = L->top-L->stack-1;
-
-  printf("Global stack dump %s\n", s);
-  for (; p >= L->stack; p--, i--) {
-    if (i == base)
-      printf("base -> ");
-    if (i == func)
-      printf("func -> ");
-    if (ttisCclosure(p))
-      printf("stack[%d] = C closure\n", i);
-    else if (ttislcf(p))
-      printf("stack[%d] = light C function\n", i);
-    else if (ttisLclosure(p))
-      printf("stack[%d] = Lua closure\n", i);
-    else if (ttisfunction(p))
-      printf("stack[%d] = function\n", i);
-    else if (ttislngstring(p) || ttisshrstring(p) || ttisstring(p))
-      printf("stack[%d] = string '%s'\n", i, svalue(p));
-    else if (ttistable(p))
-      printf("stack[%d] = table\n", i);
-    else if (ttisnil(p))
-      printf("stack[%d] = nil\n", i);
-    else if (ttisfloat(p))
-      printf("stack[%d] = float (%.6f)\n", i, fltvalue(p));
-    else if (ttisinteger(p))
-      printf("stack[%d] = integer (%lld)\n", i, ivalue(p));
-    else if (ttislightuserdata(p))
-      printf("stack[%d] = light user data\n", i);
-    else if (ttisfulluserdata(p))
-      printf("stack[%d] = full user data\n", i);
-    else if (ttisboolean(p))
-      printf("stack[%d] = boolean\n", i);
-    else if (ttisthread(p))
-      printf("stack[%d] = thread\n", i);
-    else
-      printf("stack[%d] = other\n", i);
+  printf("=======================\n", s);
+  printf("Stack dump %s\n", s);
+  printf("=======================\n", s);
+  while (ci) {
+    ravi_dump_ci(L, ci);
+    ci = ci->previous;
   }
+  printf("\n", s);
+
 }
 
 void luaV_execute (lua_State *L) {
