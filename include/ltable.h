@@ -45,27 +45,46 @@ LUAI_FUNC int luaH_getn (Table *t);
 
 LUAI_FUNC Table *raviH_new(lua_State *L, ravitype_t tt); /* RAVI array specialization */
 LUAI_FUNC int raviH_getn(Table *t); /* RAVI array specialization */
-LUAI_FUNC void raviH_setint(lua_State *L, Table *t, lua_Integer key, TValue *value); /* RAVI array specialization */
-LUAI_FUNC const TValue *raviH_getint(lua_State *L, Table *t, lua_Integer key); /* RAVI array specialization */
 
-LUAI_FUNC void raviH_setint_int(lua_State *L, Table *t, lua_Integer key, lua_Integer value); /* RAVI array specialization */
-LUAI_FUNC void raviH_setint_float(lua_State *L, Table *t, lua_Integer key, lua_Number value); /* RAVI array specialization */
+LUAI_FUNC void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer value); /* RAVI array specialization */
+LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value); /* RAVI array specialization */
 
-#define raviH_getint_inline(L, t, key, v) \
-  { unsigned ukey = (unsigned)(key-1); \
-    if (ukey < t->ravi_array_len) \
-      v = &t->array[ukey]; \
-    else \
+#define raviH_get_int_inline(L, t, key, v) \
+  { unsigned ukey = (unsigned)((key)-1); \
+    lua_Integer *data = (lua_Integer *)t->ravi_array.data; \
+    if (ukey < t->ravi_array.len) {\
+      setivalue(v, data[ukey]); \
+    } else \
       luaG_runerror(L, "array out of bounds"); \
   }
 
-#define raviH_setint_int_inline(L, t, key, value) \
-  { unsigned u = (unsigned)(key-1); \
-    if (u < t->ravi_array_len) { \
-      setivalue(&t->array[u], value); \
-    } else \
-      raviH_setint_int(L, t, key, value); \
+#define raviH_get_float_inline(L, t, key, v) \
+  { unsigned ukey = (unsigned)((key)-1); \
+    lua_Number *data = (lua_Number *)t->ravi_array.data; \
+    if (ukey < t->ravi_array.len) {\
+      setfltvalue(v, data[ukey]); \
+    }else \
+      luaG_runerror(L, "array out of bounds"); \
   }
+
+#define raviH_set_int_inline(L, t, key, value) \
+  { unsigned ukey = (unsigned)((key)-1); \
+    lua_Integer *data = (lua_Integer *)t->ravi_array.data; \
+    if (ukey < t->ravi_array.len) { \
+      data[ukey] = value; \
+    } else \
+      raviH_set_int(L, t, ukey, value); \
+  }
+
+#define raviH_set_float_inline(L, t, key, value) \
+  { unsigned ukey = (unsigned)((key)-1); \
+    lua_Number *data = (lua_Number *)t->ravi_array.data; \
+    if (ukey < t->ravi_array.len) { \
+      data[ukey] = value; \
+    } else \
+      raviH_set_float(L, t, ukey, value); \
+    }
+
 
 #if defined(LUA_DEBUG)
 LUAI_FUNC Node *luaH_mainposition (const Table *t, const TValue *key);

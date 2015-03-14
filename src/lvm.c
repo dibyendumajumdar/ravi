@@ -176,20 +176,28 @@ void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val) {
     const TValue *tm;
     if (ttistable(t)) {  /* 't' is a table? */
       Table *h = hvalue(t);
-      if (h->ravi_array_type != RAVI_TTABLE) {
-        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
-        const TValue *res = raviH_getint(L, h, ivalue(key));
-        setobj2s(L, val, res);
-        return;
-      }
-      else {
+      switch (h->ravi_array.type) {
+      case RAVI_TTABLE: {
         const TValue *res = luaH_get(h, key); /* do a primitive get */
         if (!ttisnil(res) ||  /* result is not nil? */
           (tm = fasttm(L, h->metatable, TM_INDEX)) == NULL) { /* or no TM? */
           setobj2s(L, val, res);  /* result is the raw get */
           return;
         }
-      }
+      } break;
+      case RAVI_TARRAYINT: {
+        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+        raviH_get_int_inline(L, h, ivalue(key), val);
+        return;
+      } break;
+      case RAVI_TARRAYFLT: {
+        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+        raviH_get_float_inline(L, h, ivalue(key), val);
+        return;
+      } break;
+      default:
+        lua_assert(0);
+      } 
       /* else will try metamethod */
     }
     else if (ttisnil(tm = luaT_gettmbyobj(L, t, TM_INDEX)))
@@ -214,29 +222,61 @@ void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
     const TValue *tm;
     if (ttistable(t)) {  /* 't' is a table? */
       Table *h = hvalue(t);
-      if (h->ravi_array_type != RAVI_TTABLE) {
-        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
-        raviH_setint(L, h, ivalue(key), val);
-        return;
-      }
-      else {
+      switch (h->ravi_array.type) {
+      case RAVI_TTABLE: {
         TValue *oldval = cast(TValue *, luaH_get(h, key));
         /* if previous value is not nil, there must be a previous entry
-           in the table; a metamethod has no relevance */
+        in the table; a metamethod has no relevance */
         if (!ttisnil(oldval) ||
           /* previous value is nil; must check the metamethod */
           ((tm = fasttm(L, h->metatable, TM_NEWINDEX)) == NULL &&
           /* no metamethod; is there a previous entry in the table? */
           (oldval != luaO_nilobject ||
           /* no previous entry; must create one. (The next test is
-             always true; we only need the assignment.) */
-             (oldval = luaH_newkey(L, h, key), 1)))) {
+          always true; we only need the assignment.) */
+          (oldval = luaH_newkey(L, h, key), 1)))) {
           /* no metamethod and (now) there is an entry with given key */
           setobj2t(L, oldval, val);  /* assign new value to that entry */
           invalidateTMcache(h);
           luaC_barrierback(L, h, val);
           return;
         }
+      } break;
+      case RAVI_TARRAYINT: {
+        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+        if (ttisinteger(val)) {
+          raviH_set_int_inline(L, h, ivalue(key), ivalue(val));
+        }
+        else {
+          lua_Integer i = 0;
+          if (luaV_tointeger_(val, &i)) {
+            raviH_set_int_inline(L, h, ivalue(key), i);
+          }
+          else
+            luaG_runerror(L, "value cannot be converted to integer");
+        }
+        return;
+      } break;
+      case RAVI_TARRAYFLT: {
+        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+        if (ttisfloat(val)) {
+          raviH_set_float_inline(L, h, ivalue(key), fltvalue(val));
+        }
+        else if (ttisinteger(val)) {
+          raviH_set_float_inline(L, h, ivalue(key), (lua_Number)(ivalue(val)));
+        }
+        else {
+          lua_Number d = 0.0;
+          if (luaV_tonumber_(val, &d)) {
+            raviH_set_float_inline(L, h, ivalue(key), d);
+          }
+          else
+            luaG_runerror(L, "value cannot be converted to number");
+        }
+        return;
+      } break;
+      default:
+        lua_assert(0);
       }
       /* else will try the metamethod */
     }
@@ -430,7 +470,7 @@ void luaV_objlen (lua_State *L, StkId ra, const TValue *rb) {
   switch (ttnov(rb)) {
     case LUA_TTABLE: {
       Table *h = hvalue(rb);
-      if (h->ravi_array_type != RAVI_TTABLE) {
+      if (h->ravi_array.type != RAVI_TTABLE) {
         setivalue(ra, raviH_getn(h));
         return;
       }
@@ -1178,7 +1218,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         luai_runtimecheck(L, ttistable(ra));
         h = hvalue(ra);
         last = ((c - 1)*LFIELDS_PER_FLUSH) + n;
-        if (h->ravi_array_type == RAVI_TTABLE) {
+        if (h->ravi_array.type == RAVI_TTABLE) {
           if (last > h->sizearray)  /* needs more space? */
             luaH_resizearray(L, h, last);  /* pre-allocate it at once */
           for (; n > 0; n--) {
@@ -1191,7 +1231,23 @@ newframe:  /* reentry point when frame changes (call/return) */
           int i = last-n+1;
           for (; i <= (int)last; i++) {
             TValue *val = ra + i;
-            raviH_setint(L, h, i, val);
+            lua_Unsigned u = (lua_Unsigned)(i - 1);
+            switch (h->ravi_array.type) {
+            case RAVI_TARRAYINT: {
+              if (ttisinteger(val))
+                raviH_set_int(L, h, u, ivalue(val));
+              else
+                raviH_set_int(L, h, u, (lua_Integer)(fltvalue(val)));
+            } break;
+            case RAVI_TARRAYFLT: {
+              if (ttisinteger(val))
+                raviH_set_float(L, h, u, (lua_Number)(ivalue(val)));
+              else
+                raviH_set_float(L, h, u, fltvalue(val));
+            } break;
+            default:
+              lua_assert(0);
+            }
           }
         }
         L->top = ci->top;  /* correct top (in case of previous open call) */
@@ -1386,11 +1442,11 @@ newframe:  /* reentry point when frame changes (call/return) */
         luaG_runerror(L, "float expected");
     } break;
     case OP_RAVI_TOARRAYI: {
-      if (!ttistable(ra) || hvalue(ra)->ravi_array_type != RAVI_TARRAYINT)
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
         luaG_runerror(L, "int[] expected");
     } break;
     case OP_RAVI_TOARRAYF: {
-      if (!ttistable(ra) || hvalue(ra)->ravi_array_type != RAVI_TARRAYFLT)
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYFLT)
         luaG_runerror(L, "double[] expected");
     } break;
     case OP_RAVI_MOVEI: {
@@ -1411,31 +1467,31 @@ newframe:  /* reentry point when frame changes (call/return) */
     } break;
     case OP_RAVI_MOVEAI: {
       TValue *rb = RB(i);
-      if (ttistable(rb) && hvalue(rb)->ravi_array_type == RAVI_TARRAYINT) {
+      if (ttistable(rb) && hvalue(rb)->ravi_array.type == RAVI_TARRAYINT) {
         setobjs2s(L, ra, rb);
       } else
         luaG_runerror(L, "int[] expected");
     } break;
     case OP_RAVI_MOVEAF: {
       TValue *rb = RB(i);
-      if (ttistable(rb) && hvalue(rb)->ravi_array_type == RAVI_TARRAYFLT) {
+      if (ttistable(rb) && hvalue(rb)->ravi_array.type == RAVI_TARRAYFLT) {
         setobjs2s(L, ra, rb);
       } else
         luaG_runerror(L, "double[] expected");
     } break;
-    case OP_RAVI_GETTABLE_AI:
+    case OP_RAVI_GETTABLE_AI: {
+      TValue *rb = RB(i);
+      TValue *rc = RKC(i);
+      lua_Integer idx = ivalue(rc);
+      Table *t = hvalue(rb);
+      raviH_get_int_inline(L, t, idx, ra);
+    } break;
     case OP_RAVI_GETTABLE_AF: {
       TValue *rb = RB(i);
       TValue *rc = RKC(i);
       lua_Integer idx = ivalue(rc);
       Table *t = hvalue(rb);
-      TValue *value;
-#if 0
-      value = raviH_getint(L, t, idx);
-#else
-      raviH_getint_inline(L, t, idx, value);
-#endif
-      setobjs2s(L, ra, value);
+      raviH_get_float_inline(L, t, idx, ra);
     } break;
     case OP_RAVI_SETTABLE_AI: {
       Table *t = hvalue(ra);
@@ -1443,21 +1499,19 @@ newframe:  /* reentry point when frame changes (call/return) */
       TValue *rc = RKC(i);
       lua_Integer idx = ivalue(rb);
       lua_Integer value = ivalue(rc);
-#if 0
-      raviH_setint_int(L, t, idx, value);
-#else
-      raviH_setint_int_inline(L, t, idx, value);
-#endif
+      raviH_set_int_inline(L, t, idx, value);
     } break;
     case OP_RAVI_SETTABLE_AF: {
       Table *t = hvalue(ra);
       TValue *rb = RKB(i);
       TValue *rc = RKC(i);
       lua_Integer idx = ivalue(rb);
-      if (ttisfloat(rc))
-        raviH_setint_float(L, t, idx, fltvalue(rc));
-      else
-        raviH_setint_float(L, t, idx, (lua_Number)ivalue(rc));
+      if (ttisfloat(rc)) {
+        raviH_set_float_inline(L, t, idx, fltvalue(rc));
+      } 
+      else {
+        raviH_set_float_inline(L, t, idx, ((lua_Number)ivalue(rc)));
+      }
     } break;
     }
   }

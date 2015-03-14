@@ -511,6 +511,12 @@ typedef struct Node {
   TKey i_key;
 } Node;
 
+typedef struct RaviArray {
+  ravitype_t type; /* RAVI specialization */
+  unsigned int len; /* RAVI len specialization */
+  unsigned int size; /* amount of memory allocated */
+  char *data;
+} RaviArray;
 
 typedef struct Table {
   CommonHeader;
@@ -522,10 +528,8 @@ typedef struct Table {
   Node *lastfree;  /* any free position is before this position */
   struct Table *metatable;
   GCObject *gclist;
-  ravitype_t ravi_array_type; /* RAVI specialization */
-  unsigned int ravi_array_len; /* RAVI len specialization */
+  RaviArray ravi_array;
 } Table;
-
 
 
 /*

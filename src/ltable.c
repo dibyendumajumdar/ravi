@@ -407,14 +407,18 @@ Table *luaH_new (lua_State *L) {
   t->flags = cast_byte(~0);
   t->array = NULL;
   t->sizearray = 0;
-  t->ravi_array_len = 0; /* RAVI */
-  t->ravi_array_type = RAVI_TTABLE; /* default is a Lua table */
+  t->ravi_array.len = 0; /* RAVI */
+  t->ravi_array.type = RAVI_TTABLE; /* default is a Lua table */
+  t->ravi_array.data = NULL; /* data */
+  t->ravi_array.size = 0;
   setnodevector(L, t, 0);
   return t;
 }
 
 
 void luaH_free (lua_State *L, Table *t) {
+  if (t->ravi_array.data)
+    luaM_freemem(L, t->ravi_array.data, (t->ravi_array.size*sizeof(lua_Number)));
   if (!isdummy(t->node))
     luaM_freearray(L, t->node, cast(size_t, sizenode(t)));
   luaM_freearray(L, t->array, t->sizearray);
@@ -624,9 +628,9 @@ static int unbound_search (Table *t, unsigned int j) {
 int luaH_getn (Table *t) {
   unsigned int j;
   /* if this is a RAVI array then use specialized function */
-  if (t->ravi_array_type != RAVI_TTABLE) {
-    lua_assert(t->ravi_array_type == RAVI_TARRAYFLT || t->ravi_array_type == RAVI_TARRAYINT);
-    return raviH_getn(t);
+  if (t->ravi_array.type != RAVI_TTABLE) {
+    lua_assert(t->ravi_array.type == RAVI_TARRAYFLT || t->ravi_array.type == RAVI_TARRAYINT);
+    return t->ravi_array.len;
   }
   j = t->sizearray;
   if (j > 0 && ttisnil(&t->array[j - 1])) {
@@ -647,80 +651,31 @@ int luaH_getn (Table *t) {
 
 /* RAVI array specialization */
 int raviH_getn(Table *t) {
-  lua_assert(t->ravi_array_type != RAVI_TTABLE);
-  return t->ravi_array_len;
-}
-
-/* RAVI array specialization */
-const TValue *raviH_getint(lua_State *L, Table *t, lua_Integer key) {
-  lua_Unsigned u = l_castS2U(key - 1);
-  lua_assert(t->ravi_array_type != RAVI_TTABLE);
-  if (u < t->ravi_array_len)
-    return &t->array[u];
-  else
-    luaG_runerror(L, "array out of bounds");
+  lua_assert(t->ravi_array.type != RAVI_TTABLE);
+  return t->ravi_array.len;
 }
 
 static void ravi_resize_array(lua_State *L, Table *t) {
   unsigned int i;
-  unsigned int size = t->sizearray + 10;
-  luaM_reallocvector(L, t->array, t->sizearray, size, TValue);
-  for (i = t->sizearray; i < size; i++) {
-    setnilvalue(&t->array[i]);
-    /*
-    if (t->ravi_array_type == RAVI_TARRAYINT) {
-      t->array[i].tt_ = LUA_TNUMINT;
-      t->array[i].value_.i = 0;
-    }
-    else {
-      t->array[i].tt_ = LUA_TNUMFLT;
-      t->array[i].value_.n = 0;
-    }
-    */
-  }
-  t->sizearray = size;
+  unsigned int size = t->ravi_array.size + 10;
+  t->ravi_array.data = (char *) luaM_reallocv(L, t->ravi_array.data, t->ravi_array.size, size, sizeof(lua_Number));
+  lua_Number *data = (lua_Number*) t->ravi_array.data;
+  memset(&data[t->ravi_array.len], 0, size-t->ravi_array.size);
+  t->ravi_array.size = size;
 }
 
-/* RAVI array specialization */
-void raviH_setint(lua_State *L, Table *t, lua_Integer key, TValue *value) {
-  lua_assert(t->ravi_array_type != RAVI_TTABLE);
-  if (key < 1 || key > t->ravi_array_len + 1)
-    luaG_runerror(L, "array out of bounds");
-  if (key == t->ravi_array_len + 1) {
-    if (key <= t->sizearray) {
-setval:
-      t->ravi_array_len++;
-setval2:
-      if (t->ravi_array_type == RAVI_TARRAYINT) {
-        if (!ttisinteger(value)) luaG_runerror(L, "integer expected");
-        setivalue(&t->array[key - 1], ivalue(value));
-      }
-      else {
-        if (!ttisfloat(value) && !ttisinteger(value)) luaG_runerror(L, "double or int expected");
-        setfltvalue(&t->array[key - 1], ttisfloat(value) ? fltvalue(value) : ivalue(value));
-      }
-      return;
-    }
-    else {
-      ravi_resize_array(L, t);
-      goto setval;
-    }
-  }
-  else 
-    goto setval2;
-}
-
-void raviH_setint_int(lua_State *L, Table *t, lua_Integer key, lua_Integer value) {
-  lua_assert(t->ravi_array_type == RAVI_TARRAYINT);
-  lua_Unsigned u = l_castS2U(key - 1);
-  if (u < t->ravi_array_len) {
+void raviH_set_int(lua_State *L, Table *t, lua_Unsigned u, lua_Integer value) {
+  lua_assert(t->ravi_array.type == RAVI_TARRAYINT);
+  lua_Integer *data;
+  if (u < t->ravi_array.len) {
   setval2:
-    setivalue(&t->array[u], value);
+    data = (lua_Integer *)t->ravi_array.data;
+    data[u] = value;
   }
-  else if (u == t->ravi_array_len) {
-    if (u < t->sizearray) {
+  else if (u == t->ravi_array.len) {
+    if (u < t->ravi_array.size) {
     setval:
-      t->ravi_array_len++;
+      t->ravi_array.len++;
       goto setval2;
     }
     else {
@@ -732,17 +687,18 @@ void raviH_setint_int(lua_State *L, Table *t, lua_Integer key, lua_Integer value
     luaG_runerror(L, "array out of bounds");
 }
 
-void raviH_setint_float(lua_State *L, Table *t, lua_Integer key, lua_Number value) {
-  lua_assert(t->ravi_array_type == RAVI_TARRAYFLT);
-  lua_Unsigned u = l_castS2U(key - 1);
-  if (u < t->ravi_array_len) {
+void raviH_set_float(lua_State *L, Table *t, lua_Unsigned u, lua_Number value) {
+  lua_assert(t->ravi_array.type == RAVI_TARRAYFLT);
+  lua_Number *data;
+  if (u < t->ravi_array.len) {
   setval2:
-    setfltvalue(&t->array[u], value);
+    data = (lua_Number *)t->ravi_array.data;
+    data[u] = value;
   }
-  else if (u == t->ravi_array_len) {
-    if (u < t->sizearray) {
+  else if (u == t->ravi_array.len) {
+    if (u < t->ravi_array.size) {
     setval:
-      t->ravi_array_len++;
+      t->ravi_array.len++;
       goto setval2;
     }
     else {
@@ -757,8 +713,7 @@ void raviH_setint_float(lua_State *L, Table *t, lua_Integer key, lua_Number valu
 Table *raviH_new(lua_State *L, ravitype_t tt) {
   Table *t = luaH_new(L);
   lua_assert(tt == RAVI_TARRAYFLT || tt == RAVI_TARRAYINT);
-  t->ravi_array_type = tt;
-  t->ravi_array_len = 0;
+  t->ravi_array.type = tt;
   return t;
 }
 
