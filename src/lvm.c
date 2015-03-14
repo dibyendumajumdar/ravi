@@ -777,7 +777,7 @@ void ravi_dump_ci(lua_State *L, CallInfo *ci) {
     else
       printf("other\n");
   }
-  printf("stack[%d] = Lua function (maxstack = %d, numparams = %d, locals = %d)\n", funcpos, p->maxstacksize, p->numparams, p->sizelocvars);
+  printf("stack[%d] = Lua function (registers = %d, params = %d, locals = %d)\n", funcpos, (int)(p->maxstacksize), (int)(p->numparams), p->sizelocvars);
   printf("---> called from \n");
 }
 
@@ -785,14 +785,14 @@ void ravi_dump_stack(lua_State *L, const char *s) {
   if (!s)
     return;
   CallInfo *ci = L->ci;
-  printf("=======================\n", s);
+  printf("=======================\n");
   printf("Stack dump %s\n", s);
-  printf("=======================\n", s);
+  printf("=======================\n");
   while (ci) {
     ravi_dump_ci(L, ci);
     ci = ci->previous;
   }
-  printf("\n", s);
+  printf("\n");
 
 }
 
