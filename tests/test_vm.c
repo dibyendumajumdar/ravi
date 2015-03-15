@@ -122,6 +122,7 @@ int main(int argc, const char *argv[])
 {
     int failures = 0;
     //  
+    failures += test_luacompexec1("function z(); local a = 5; a = a + 1; return a; end; ravi.compile(z); return z()", 6);
     failures += test_luacompexec1("function z(x); x[1] = 5; return x[1]; end; ravi.compile(z); return z({})", 5);
     failures += test_luacompexec1("function z(x,y) return x<y end; ravi.compile(z); return not z(2,1)", 1);
     failures += test_luacompexec1("local function x(); local d:number = 5.0; return d+5 == 5+d and d-5 == 5-d and d*5 == 5*d; end; local y = x(); return y", 1);

@@ -104,6 +104,8 @@ struct LuaLLVMTypes {
   llvm::Type *l_memT;
   llvm::Type *lu_memT;
 
+  llvm::Type *tmsT;
+
   llvm::Type *lu_byteT;
   llvm::Type *L_UmaxalignT;
   llvm::Type *C_pcharT;
@@ -190,6 +192,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaD_precallT;
   llvm::FunctionType *luaD_callT;
   llvm::FunctionType *luaF_closeT;
+  llvm::FunctionType *luaT_trybinTMT;
   llvm::FunctionType *luaG_runerrorT;
   llvm::FunctionType *luaV_equalobjT;
   llvm::FunctionType *luaV_lessthanT;
@@ -203,7 +206,7 @@ struct LuaLLVMTypes {
 
   llvm::FunctionType *luaV_op_loadnilT;
 
-  std::array<llvm::Constant *, 21> kInt;
+  std::array<llvm::Constant *, TM_N> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
 
   llvm::Constant *kFalse;
@@ -384,6 +387,7 @@ struct RaviFunctionDef {
   llvm::Constant *luaD_callF;
   llvm::Constant *luaF_closeF;
   llvm::Constant *luaG_runerrorF;
+  llvm::Constant *luaT_trybinTMF;
   llvm::Constant *luaV_equalobjF;
   llvm::Constant *luaV_lessthanF;
   llvm::Constant *luaV_lessequalF;
@@ -501,7 +505,7 @@ public:
   // emit code to load the type from a register
   llvm::Instruction *emit_load_type(RaviFunctionDef *def, llvm::Value *value);
 
-  // TValue assign 
+  // TValue assign
   void emit_assign(RaviFunctionDef *def, llvm::Value *ra, llvm::Value *rb);
 
   // isnil(reg) || isboolean(reg) && reg.value == 0
@@ -532,6 +536,9 @@ public:
 
   void emit_LOADBOOL(RaviFunctionDef *def, llvm::Value *L_ci,
                      llvm::Value *proto, int A, int B, int C, int j);
+
+  void emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                int A, int B, int C, OpCode op, TMS tms);
 
   void emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);

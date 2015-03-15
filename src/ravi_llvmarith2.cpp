@@ -1,0 +1,224 @@
+/******************************************************************************
+* Copyright (C) 2015 Dibyendu Majumdar
+*
+* Permission is hereby granted, free of charge, to any person obtaining
+* a copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sublicense, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice shall be
+* included in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+******************************************************************************/
+#include "ravi_llvmcodegen.h"
+
+// This file contains LLVM IR generation for standard Lua arithmetic op codes
+
+namespace ravi {
+
+// OP_ADD, OP_SUB and OP_MUL
+void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
+                                   llvm::Value *proto, int A, int B, int C,
+                                   OpCode op, TMS tms) {
+
+  // TValue *rb = RKB(i);
+  // TValue *rc = RKC(i);
+  // lua_Number nb; lua_Number nc;
+  // if (ttisinteger(rb) && ttisinteger(rc)) {
+  //  lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
+  //  setivalue(ra, intop(+, ib, ic));
+  //}
+  // else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+  //  setfltvalue(ra, luai_numadd(L, nb, nc));
+  //}
+  // else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_ADD)); }
+
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+  llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
+  llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
+
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+
+  llvm::Value *rb_type = emit_load_type(def, rb);
+  llvm::Value *rc_type = emit_load_type(def, rc);
+
+  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
+      rb_type, def->types->kInt[LUA_TNUMINT], "rb.is.integer");
+  llvm::Value *cmp2 = def->builder->CreateICmpEQ(
+      rc_type, def->types->kInt[LUA_TNUMINT], "rc.is.integer");
+
+  llvm::Value *andvalue = def->builder->CreateAnd(cmp1, cmp2);
+
+  // Check if both RB and RC are integers
+  llvm::BasicBlock *then_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.integer", def->f);
+  llvm::BasicBlock *else_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.not.integer");
+  llvm::BasicBlock *float_op =
+      llvm::BasicBlock::Create(def->jitState->context(), "float.op");
+  llvm::BasicBlock *try_meta =
+      llvm::BasicBlock::Create(def->jitState->context(), "try_meta");
+  llvm::BasicBlock *done_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "done");
+  def->builder->CreateCondBr(andvalue, then_block, else_block);
+  def->builder->SetInsertPoint(then_block);
+
+  // Both are integers
+  llvm::Instruction *lhs = emit_load_reg_i(def, rb);
+  llvm::Instruction *rhs = emit_load_reg_i(def, rc);
+
+  llvm::Value *result = nullptr;
+  switch (op) {
+  case OP_ADD:
+    result = def->builder->CreateAdd(lhs, rhs, "", false, true);
+    break;
+  case OP_SUB:
+    result = def->builder->CreateSub(lhs, rhs, "", false, true);
+    break;
+  case OP_MUL:
+    result = def->builder->CreateMul(lhs, rhs, "", false, true);
+    break;
+  default:
+    lua_assert(0);
+  }
+
+  emit_store_reg_i(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMINT);
+
+  def->builder->CreateBr(done_block);
+
+  // Not integer
+  def->f->getBasicBlockList().push_back(else_block);
+  def->builder->SetInsertPoint(else_block);
+
+  // Is RB a float?
+  cmp1 = def->builder->CreateICmpEQ(rb_type, def->types->kInt[LUA_TNUMFLT],
+                                    "rb.is.float");
+
+  llvm::BasicBlock *convert_rb =
+      llvm::BasicBlock::Create(def->jitState->context(), "convert.rb");
+  llvm::BasicBlock *test_rc =
+      llvm::BasicBlock::Create(def->jitState->context(), "test.rc");
+  llvm::BasicBlock *load_rb =
+      llvm::BasicBlock::Create(def->jitState->context(), "load.rb");
+
+  // If RB is floating then load RB, else convert RB
+  def->builder->CreateCondBr(cmp1, load_rb, convert_rb);
+
+  // Convert RB
+  def->f->getBasicBlockList().push_back(convert_rb);
+  def->builder->SetInsertPoint(convert_rb);
+
+  // Call luaV_tonumber_()
+  llvm::Value *rb_isnum =
+      def->builder->CreateCall2(def->luaV_tonumberF, rb, nb);
+  cmp1 =
+      def->builder->CreateICmpEQ(rb_isnum, def->types->kInt[1], "rb.float.ok");
+
+  // If not number then go to meta block
+  // Else proceed to test RC
+  def->builder->CreateCondBr(cmp1, test_rc, try_meta);
+
+  def->f->getBasicBlockList().push_back(load_rb);
+  def->builder->SetInsertPoint(load_rb);
+
+  // Copy RB to local nb
+  auto src = emit_load_reg_n(def, rb);
+  auto ins = def->builder->CreateStore(src, nb);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  def->builder->CreateBr(test_rc);
+
+  def->f->getBasicBlockList().push_back(test_rc);
+  def->builder->SetInsertPoint(test_rc);
+
+  // Is RC a float?
+  cmp1 = def->builder->CreateICmpEQ(rc_type, def->types->kInt[LUA_TNUMFLT],
+                                    "rc.is.float");
+
+  llvm::BasicBlock *convert_rc =
+      llvm::BasicBlock::Create(def->jitState->context(), "convert.rc");
+  llvm::BasicBlock *load_rc =
+      llvm::BasicBlock::Create(def->jitState->context(), "load.rc");
+
+  // If RC is float load RC
+  // else try to convert RC
+  def->builder->CreateCondBr(cmp1, load_rc, convert_rc);
+
+  def->f->getBasicBlockList().push_back(convert_rc);
+  def->builder->SetInsertPoint(convert_rc);
+
+  // Call luaV_tonumber_()
+  llvm::Value *rc_isnum =
+      def->builder->CreateCall2(def->luaV_tonumberF, rc, nc);
+  cmp1 =
+      def->builder->CreateICmpEQ(rc_isnum, def->types->kInt[1], "rc.float.ok");
+
+  // If not number then go to meta block
+  // else both RB and RC float so go to op
+  def->builder->CreateCondBr(cmp1, float_op, try_meta);
+
+  def->f->getBasicBlockList().push_back(load_rc);
+  def->builder->SetInsertPoint(load_rc);
+
+  // Copy RC to local;
+  src = emit_load_reg_n(def, rc);
+  ins = def->builder->CreateStore(src, nc);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  def->builder->CreateBr(float_op);
+
+  def->f->getBasicBlockList().push_back(float_op);
+  def->builder->SetInsertPoint(float_op);
+
+  lhs = def->builder->CreateLoad(nb);
+  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  rhs = def->builder->CreateLoad(nc);
+  rhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  // Add and set RA
+  switch (op) {
+  case OP_ADD:
+    result = def->builder->CreateFAdd(lhs, rhs);
+    break;
+  case OP_SUB:
+    result = def->builder->CreateFSub(lhs, rhs);
+    break;
+  case OP_MUL:
+    result = def->builder->CreateFMul(lhs, rhs);
+    break;
+  default:
+    lua_assert(0);
+  }
+
+  emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
+
+  def->builder->CreateBr(done_block);
+
+  // Neither integer nor float so try meta
+  def->f->getBasicBlockList().push_back(try_meta);
+  def->builder->SetInsertPoint(try_meta);
+
+  def->builder->CreateCall5(def->luaT_trybinTMF, def->L, rb, rc, ra,
+                            def->types->kInt[tms]);
+  def->builder->CreateBr(done_block);
+
+  def->f->getBasicBlockList().push_back(done_block);
+  def->builder->SetInsertPoint(done_block);
+}
+}

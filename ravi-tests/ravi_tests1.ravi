@@ -296,3 +296,36 @@ assert(ravi.compile(optest))
 -- ravi.dumpllvm(optest)
 assert(optest() == 5)
 print("test 22 OK")
+
+-- test 23
+function testadd(a,b)
+  return a+b
+end
+assert(ravi.compile(testadd))
+assert(testadd(1,1) == 2)
+assert(testadd(1.5,1.6) == 3.1)
+assert(testadd("1.5",1.6) == 3.1)
+assert(testadd("1.5","1.6") == 3.1)
+print("test 23 OK")
+
+-- test 24
+function testsub(a,b)
+  return a-b
+end
+assert(ravi.compile(testsub))
+assert(testsub(1,1) == 0)
+assert(math.abs(testsub(1.5,1.6)-(-0.1)) < 1e-12)
+assert(math.abs(testsub("1.5",1.6)-(-0.1)) < 1e-12)
+assert(math.abs(testsub("1.5","1.6")-(-0.1)) < 1e-12)
+print("test 24 OK")
+
+-- test 25
+function testmul(a,b)
+  return a*b
+end
+assert(ravi.compile(testmul))
+assert(testmul(2,2) == 4)
+assert(math.abs(testmul(1.5,1.6)-2.4) < 1e-12)
+assert(math.abs(testmul("1.5",1.6)-2.4) < 1e-12)
+assert(math.abs(testmul("1.5","1.6")-2.4) < 1e-12)
+print("test 25 OK")

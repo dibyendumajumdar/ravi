@@ -3,7 +3,7 @@ Ravi JIT Compilation Status
 
 The JIT compilation status of the Lua and Ravi bytecodes are given below.
 
-This information was last updated on 10th March 2015. As new bytecodes are being added to the JIT compiler on a regular basis
+This information was last updated on 15th March 2015. As new bytecodes are being added to the JIT compiler on a regular basis
 the status information below may be slightly out of date.
 
 Note that if a Lua functions contains a bytecode that cannot be be JITed then the function cannot be JITed.
@@ -37,11 +37,11 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_SELF                 | NO       | R(A+1) := R(B); R(A) := R(B)[RK(C)]              |
 +-------------------------+----------+--------------------------------------------------+
-| OP_ADD                  | NO       | R(A) := RK(B) + RK(C)                            |
+| OP_ADD                  | YES      | R(A) := RK(B) + RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SUB                  | NO       | R(A) := RK(B) - RK(C)                            |
+| OP_SUB                  | YES      | R(A) := RK(B) - RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_MUL                  | NO       | R(A) := RK(B) * RK(C)                            |
+| OP_MUL                  | YES      | R(A) := RK(B) * RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
 | OP_MOD                  | NO       | R(A) := RK(B) % RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+

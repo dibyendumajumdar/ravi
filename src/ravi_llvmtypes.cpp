@@ -58,6 +58,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
                 "l_mem size is not same as ptrdiff_t");
   l_memT = C_ptrdiff_t;
 
+  tmsT = C_intT;
+
   static_assert(sizeof(L_Umaxalign) == sizeof(double),
                 "L_Umaxalign is not same size as double");
   L_UmaxalignT = llvm::Type::getDoubleTy(context);
@@ -693,6 +695,14 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pTValueT);
   luaV_gettableT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
   luaV_settableT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pTValueT);
+  elements.push_back(pTValueT);
+  elements.push_back(pTValueT);
+  elements.push_back(tmsT);
+  luaT_trybinTMT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   elements.clear();
   elements.push_back(pCallInfoT);

@@ -238,6 +238,9 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_FORPREP:
     case OP_FORLOOP:
     case OP_MOVE:
+    case OP_ADD:
+    case OP_SUB:
+    case OP_MUL:
     case OP_SETTABLE:
     case OP_GETTABLE:
     case OP_RAVI_MOVEI:
@@ -312,6 +315,9 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
 
   // Add extern declarations for Lua functions that we need to call
+  def->luaT_trybinTMF = def->raviF->addExternFunction(
+      def->types->luaT_trybinTMT, reinterpret_cast<void *>(&luaT_trybinTM),
+      "luaT_trybinTM");
   def->luaD_callF = def->raviF->addExternFunction(
       def->types->luaD_callT, reinterpret_cast<void *>(&luaD_call),
       "luaD_call");
@@ -623,6 +629,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_GETTABLE(&def, L_ci, proto, A, B, C);
     } break;
 
+    case OP_ADD: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_ARITH(&def, L_ci, proto, A, B, C, OP_ADD, TM_ADD);
+    } break;
     case OP_RAVI_ADDFN: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
@@ -649,6 +660,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_ADDII(&def, L_ci, proto, A, B, C);
     } break;
 
+    case OP_SUB: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_ARITH(&def, L_ci, proto, A, B, C, OP_SUB, TM_SUB);
+    } break;
     case OP_RAVI_SUBFF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
@@ -690,6 +706,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_SUBNI(&def, L_ci, proto, A, B, C);
     } break;
 
+    case OP_MUL: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_ARITH(&def, L_ci, proto, A, B, C, OP_MUL, TM_MUL);
+    } break;
     case OP_RAVI_MULFN: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
