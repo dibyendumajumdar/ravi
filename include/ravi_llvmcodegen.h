@@ -538,7 +538,7 @@ public:
                      llvm::Value *proto, int A, int B, int C, int j);
 
   void emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-                int A, int B, int C, OpCode op, TMS tms);
+                  int A, int B, int C, OpCode op, TMS tms);
 
   void emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);

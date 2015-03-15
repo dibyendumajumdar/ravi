@@ -26,7 +26,7 @@
 
 namespace ravi {
 
-// OP_ADD, OP_SUB and OP_MUL
+// OP_ADD, OP_SUB, OP_MUL and OP_DIV
 void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C,
                                    OpCode op, TMS tms) {
@@ -55,58 +55,61 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *rb_type = emit_load_type(def, rb);
   llvm::Value *rc_type = emit_load_type(def, rc);
 
-  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-      rb_type, def->types->kInt[LUA_TNUMINT], "rb.is.integer");
-  llvm::Value *cmp2 = def->builder->CreateICmpEQ(
-      rc_type, def->types->kInt[LUA_TNUMINT], "rc.is.integer");
-
-  llvm::Value *andvalue = def->builder->CreateAnd(cmp1, cmp2);
-
-  // Check if both RB and RC are integers
-  llvm::BasicBlock *then_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.integer", def->f);
-  llvm::BasicBlock *else_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.not.integer");
   llvm::BasicBlock *float_op =
       llvm::BasicBlock::Create(def->jitState->context(), "float.op");
   llvm::BasicBlock *try_meta =
       llvm::BasicBlock::Create(def->jitState->context(), "try_meta");
   llvm::BasicBlock *done_block =
       llvm::BasicBlock::Create(def->jitState->context(), "done");
-  def->builder->CreateCondBr(andvalue, then_block, else_block);
-  def->builder->SetInsertPoint(then_block);
 
-  // Both are integers
-  llvm::Instruction *lhs = emit_load_reg_i(def, rb);
-  llvm::Instruction *rhs = emit_load_reg_i(def, rc);
+  if (op != OP_DIV) {
+    llvm::Value *cmp1 = def->builder->CreateICmpEQ(
+        rb_type, def->types->kInt[LUA_TNUMINT], "rb.is.integer");
+    llvm::Value *cmp2 = def->builder->CreateICmpEQ(
+        rc_type, def->types->kInt[LUA_TNUMINT], "rc.is.integer");
 
-  llvm::Value *result = nullptr;
-  switch (op) {
-  case OP_ADD:
-    result = def->builder->CreateAdd(lhs, rhs, "", false, true);
-    break;
-  case OP_SUB:
-    result = def->builder->CreateSub(lhs, rhs, "", false, true);
-    break;
-  case OP_MUL:
-    result = def->builder->CreateMul(lhs, rhs, "", false, true);
-    break;
-  default:
-    lua_assert(0);
+    llvm::Value *andvalue = def->builder->CreateAnd(cmp1, cmp2);
+
+    // Check if both RB and RC are integers
+    llvm::BasicBlock *then_block = llvm::BasicBlock::Create(
+        def->jitState->context(), "if.integer", def->f);
+    llvm::BasicBlock *else_block =
+        llvm::BasicBlock::Create(def->jitState->context(), "if.not.integer");
+    def->builder->CreateCondBr(andvalue, then_block, else_block);
+    def->builder->SetInsertPoint(then_block);
+
+    // Both are integers
+    llvm::Instruction *lhs = emit_load_reg_i(def, rb);
+    llvm::Instruction *rhs = emit_load_reg_i(def, rc);
+
+    llvm::Value *result = nullptr;
+    switch (op) {
+    case OP_ADD:
+      result = def->builder->CreateAdd(lhs, rhs, "", false, true);
+      break;
+    case OP_SUB:
+      result = def->builder->CreateSub(lhs, rhs, "", false, true);
+      break;
+    case OP_MUL:
+      result = def->builder->CreateMul(lhs, rhs, "", false, true);
+      break;
+    default:
+      lua_assert(0);
+    }
+
+    emit_store_reg_i(def, result, ra);
+    emit_store_type(def, ra, LUA_TNUMINT);
+
+    def->builder->CreateBr(done_block);
+
+    // Not integer
+    def->f->getBasicBlockList().push_back(else_block);
+    def->builder->SetInsertPoint(else_block);
   }
 
-  emit_store_reg_i(def, result, ra);
-  emit_store_type(def, ra, LUA_TNUMINT);
-
-  def->builder->CreateBr(done_block);
-
-  // Not integer
-  def->f->getBasicBlockList().push_back(else_block);
-  def->builder->SetInsertPoint(else_block);
-
   // Is RB a float?
-  cmp1 = def->builder->CreateICmpEQ(rb_type, def->types->kInt[LUA_TNUMFLT],
-                                    "rb.is.float");
+  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
+      rb_type, def->types->kInt[LUA_TNUMFLT], "rb.is.float");
 
   llvm::BasicBlock *convert_rb =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rb");
@@ -184,12 +187,13 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(float_op);
   def->builder->SetInsertPoint(float_op);
 
-  lhs = def->builder->CreateLoad(nb);
+  llvm::Instruction *lhs = def->builder->CreateLoad(nb);
   lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
 
-  rhs = def->builder->CreateLoad(nc);
+  llvm::Instruction *rhs = def->builder->CreateLoad(nc);
   rhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
 
+  llvm::Value *result = nullptr;
   // Add and set RA
   switch (op) {
   case OP_ADD:
@@ -200,6 +204,9 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
     break;
   case OP_MUL:
     result = def->builder->CreateFMul(lhs, rhs);
+    break;
+  case OP_DIV:
+    result = def->builder->CreateFDiv(lhs, rhs);
     break;
   default:
     lua_assert(0);

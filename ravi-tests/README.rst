@@ -19,6 +19,7 @@ Following performance tests were obtained from the `The Computer Programming Lan
 * mandel.lua
 * mandel.ravi - with optional types
 * mandel1.ravi - modified so that it can be JIT compiled
+* mandel1.lua - can be JIT compiled but also compatible with Lua
 
 Example LLVM and Ravi bytecode listings
 ---------------------------------------

@@ -4,17 +4,17 @@
 
 
 local function domandel(pfunc)
-  local width :integer = 4000
-  local height :integer, wscale :number = width, 2.0/width
-  local m:integer, limit2 :number = 50, 4.0
+  local width = 4000
+  local height, wscale = width, 2.0/width
+  local m, limit2 = 50, 4.0
   --local write, char = io.write, string.char
 
   for y=0,height-1 do
-    local Ci :number = 2.0*y / height - 1
+    local Ci = 2.0*y / height - 1
     for xb=0,width-1,8 do
-      local bits :integer = 0
-      local xbb :integer = xb+7
-      local xblimit :integer
+      local bits = 0
+      local xbb = xb+7
+      local xblimit 
       if xbb < width then
         xblimit = xbb
       else
@@ -22,10 +22,10 @@ local function domandel(pfunc)
       end
       for x=xb,xblimit do
         bits = bits + bits
-        local Zr :number, Zi :number, Zrq :number, Ziq :number = 0.0, 0.0, 0.0, 0.0
-        local Cr :number = x * wscale - 1.5
+        local Zr, Zi, Zrq, Ziq = 0.0, 0.0, 0.0, 0.0
+        local Cr = x * wscale - 1.5
         for i=1,m do
-          local Zri :number = Zr*Zi
+          local Zri = Zr*Zi
           Zr = Zrq - Ziq + Cr
           Zi = Zri + Zri + Ci
           Zrq = Zr*Zr
@@ -47,7 +47,9 @@ end
 local function dummy(x) 
 end
 
-assert(ravi.compile(domandel))
+if ravi then
+  assert(ravi.compile(domandel))
+end
 
 t1 = os.clock()
 domandel(print)

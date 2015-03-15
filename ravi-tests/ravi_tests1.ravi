@@ -329,3 +329,15 @@ assert(math.abs(testmul(1.5,1.6)-2.4) < 1e-12)
 assert(math.abs(testmul("1.5",1.6)-2.4) < 1e-12)
 assert(math.abs(testmul("1.5","1.6")-2.4) < 1e-12)
 print("test 25 OK")
+
+
+-- test 26
+function testdiv(a,b)
+  return a/b
+end
+assert(ravi.compile(testdiv))
+assert(testdiv(2,2) == 1.0)
+assert(math.abs(testdiv(1.5,1.6)-0.9375) < 1e-12)
+assert(math.abs(testdiv("1.5",1.6)-0.9375) < 1e-12)
+assert(math.abs(testdiv("1.5","1.6")-0.9375) < 1e-12)
+print("test 26 OK")
