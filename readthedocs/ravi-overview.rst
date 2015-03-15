@@ -12,16 +12,15 @@ My motivation is somewhat different - I want to enhance the VM to support more e
 Goals
 -----
 * Optional static typing for Lua 
-* No new types
 * Type specific bytecodes to improve performance
-* Compatibility with Lua 5.3 (see Array Types section below)
+* Compatibility with Lua 5.3 (see Compatibility section below)
 * LLVM based JIT compiler
 
 Status
 ------
 The project was kicked off in January 2015. 
 
-Right now (as of Feb 2015) I am working on the JIT implementation. Please see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_ for details of this effort. The Lua and Ravi bytecodes currently implemented are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
+Right now (as of March 2015) I am working on the JIT implementation. Please see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_ for details of this effort. The Lua and Ravi bytecodes currently implemented are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
 As of end Jan 2015, the Ravi interpreter allows you to declare local variables as ``integer`` or ``number``. This triggers following behaviour:
 
@@ -75,8 +74,10 @@ JIT Compilation
 I am currently working on JIT compilation of Ravi using LLVM. As of now not all bytecodes can be compiled.
 There are two modes of JIT compilation.
 
-* auto mode - in this mode the compiler decides when to compile a Lua function
-* manual mode - in this mode user must explicitly request compilation
+* auto mode - in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - any Lua function call is
+is checked to see if the bytecodes contained in it can be compiled. If this is true then the function is compiled. Because of this simplistic behaviour
+performance will be degraded so user should disable auto compilation and instead compile specific functions using the API described below.
+* manual mode - in this mode user must explicitly request compilation.
 
 A JIT api is available with following functions:
 
@@ -85,6 +86,17 @@ A JIT api is available with following functions:
 * ``ravi.iscompiled(func)`` - returns the JIT status of a function
 * ``ravi.dumplua(func)`` - dumps the Lua bytecode of the function
 * ``ravi.dumpllvm(func)`` - dumps the LLVM IR of the compiled function (only if function was compiled)
+
+Compatibility with Lua
+----------------------
+Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT compilation is enabled some things may not work:
+
+* You cannot yield from a compiled function
+* The debugger doesn't work whe compilation is turned on as information it requires is not available
+* JIT compilation is work in progress and not all features are supported yet
+
+Ravi also supports optional typing and enhanced types such as arrays (described later). Programs using these features cannot be run by standard Lua.
+However all types in Ravi can be passed to Lua functions - there are some restrictions on arrays that are described in a later section.
 
 Documentation
 --------------
@@ -139,10 +151,12 @@ The ``lua`` command recognizes following environment variables. Note that these 
 * ``RAVI_DEBUG_CODEGEN`` - if set to a value this triggers a dump of the code being generated
 * ``RAVI_DEBUG_VARS`` - if set this triggers a dump of local variables construction and destruction
 
+Also see section above on available API for dumping either Lua bytecode or LLVM IR for compiled code.
+
 Work Plan
 ---------
 * Feb-May 2015 - implement JIT compilation using LLVM 
-* June 2015 - implement function parameter / return type specialisation
+* June 2015 - implement function parameter specialisation
 
 License
 -------
