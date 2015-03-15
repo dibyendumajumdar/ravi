@@ -74,9 +74,7 @@ JIT Compilation
 I am currently working on JIT compilation of Ravi using LLVM. As of now not all bytecodes can be compiled.
 There are two modes of JIT compilation.
 
-* auto mode - in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - any Lua function call is
-is checked to see if the bytecodes contained in it can be compiled. If this is true then the function is compiled. Because of this simplistic behaviour
-performance will be degraded so user should disable auto compilation and instead compile specific functions using the API described below.
+* auto mode - in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - any Lua function call is is checked to see if the bytecodes contained in it can be compiled. If this is true then the function is compiled. Because of this simplistic behaviour performance will be degraded so user should disable auto compilation and instead compile specific functions using the API described below.
 * manual mode - in this mode user must explicitly request compilation.
 
 A JIT api is available with following functions:
