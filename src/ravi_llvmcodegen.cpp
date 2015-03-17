@@ -435,6 +435,30 @@ void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
   }
 }
 
+llvm::Value *RaviCodeGenerator::emit_gep_upvals(RaviFunctionDef *def, llvm::Value *cl_ptr, int offset) {
+  return emit_gep(def, "upvals", cl_ptr, 0, 6, offset);
+}
+
+llvm::Instruction *RaviCodeGenerator::emit_load_pupval(RaviFunctionDef *def, llvm::Value *ppupval) {
+  llvm::Instruction *ins = def->builder->CreateLoad(ppupval);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_ppointerT);
+  return ins;
+}
+
+// Load upval->v
+llvm::Instruction *RaviCodeGenerator::emit_load_upval_v(RaviFunctionDef *def, llvm::Instruction *pupval) {
+  llvm::Value *p_v = emit_gep(def, "v", pupval, 0, 0);
+  llvm::Instruction *v = def->builder->CreateLoad(p_v);
+  v->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_UpVal_vT);
+  return v;
+}
+
+// Get &upval->value -> result is TValue *
+llvm::Value *RaviCodeGenerator::emit_gep_upval_value(RaviFunctionDef *def, llvm::Instruction *pupval) {
+  return emit_gep(def, "value", pupval, 0, 2);
+}
+
+
 void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   if (p->ravi_jit.jit_status != 0 || !canCompile(p))
     return;
@@ -476,6 +500,8 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   llvm::Instruction *cl_ptr = builder.CreateLoad(L_cl);
   cl_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
                       def.types->tbaa_CallInfo_func_LClosureT);
+
+  def.p_LClosure = cl_ptr;
 
   // Get pointer to the Proto* which is cl->p
   llvm::Value *proto = emit_gep(&def, "Proto", cl_ptr, 0, 5);

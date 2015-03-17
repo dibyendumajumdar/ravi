@@ -32,7 +32,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   lua_NumberT = llvm::Type::getDoubleTy(context);
   plua_NumberT = llvm::PointerType::get(lua_NumberT, 0);
 
-  static_assert(sizeof(lua_Integer) == sizeof(lua_Number),
+  static_assert(sizeof(lua_Integer) == sizeof(lua_Number) && sizeof(lua_Integer) == sizeof(int64_t),
                 "Only 64-bit int supported");
   static_assert(std::is_integral<lua_Integer>::value,
                 "lua_Integer is not an integer type");
@@ -124,6 +124,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   static_assert(sizeof(Value) == sizeof(lua_Number) &&
                     sizeof(Value) == sizeof(lua_Integer),
                 "Value type is larger than lua_Number");
+  static_assert(sizeof(TValue) == sizeof(lua_Number) * 2, 
+    "TValue type is not 2*sizeof(lua_Number)");
   // In LLVM unions should be set to the largest member
   // So in the case of a Value this is the double type
   // union Value {
@@ -616,6 +618,23 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(lu_byteT);                        /* allowhook */
   lua_StateT->setBody(elements);
 
+  //struct UpVal {
+  //  struct TValue *v;  /* points to stack or to its own value */
+  //  unsigned long long refcount;  /* reference counter */
+  //  union {
+  //    struct {  /* (when open) */
+  //      struct UpVal *next;  /* linked list */
+  //      int touched;  /* mark to avoid cycles with dead threads */
+  //    } open;
+  //    struct TValue value;  /* the value (when closed) */
+  //  } u;
+  //};
+  elements.clear();
+  elements.push_back(pTValueT);
+  elements.push_back(C_size_t);
+  elements.push_back(TValueT);
+  UpValT->setBody(elements);
+
   // int luaD_poscall (lua_State *L, StkId firstResult)
   elements.clear();
   elements.push_back(plua_StateT);
@@ -734,6 +753,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //!9 = metadata !{metadata !"long long", metadata !4, i64 0}
   tbaa_longlongT =
       mdbuilder.createTBAAScalarTypeNode("long long", tbaa_charT, 0);
+  tbaa_ppointerT = mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
 
   //!14 = metadata !{metadata !"CallInfoL", metadata !3, i64 0, metadata !3, i64
   // 4, metadata !9, i64 8}
@@ -862,11 +882,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 6));
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 8));
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 12));
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 16));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 16));
   tbaa_LClosureT = mdbuilder.createTBAAStructTypeNode("LClosure", nodes);
 
   tbaa_LClosure_pT =
       mdbuilder.createTBAAStructTagNode(tbaa_LClosureT, tbaa_pointerT, 12);
+  tbaa_LClosure_upvalsT = mdbuilder.createTBAAStructTagNode(tbaa_LClosureT, tbaa_pointerT, 16);
 
   //!19 = metadata !{metadata !20, metadata !3, i64 44}
   tbaa_Proto_kT =
@@ -884,6 +905,14 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   tbaa_luaState_topT =
       mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_pointerT, 8);
+
+  nodes.clear();
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_TValueT, 16));
+  tbaa_UpValT = mdbuilder.createTBAAStructTypeNode("UpVal", nodes);
+  tbaa_UpVal_vT = mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_pointerT, 0);
+  tbaa_UpVal_valueT = mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_TValueT, 16);
 }
 
 void LuaLLVMTypes::dump() {

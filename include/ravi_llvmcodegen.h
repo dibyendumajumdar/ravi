@@ -221,6 +221,7 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_intT;
   llvm::MDNode *tbaa_longlongT;
   llvm::MDNode *tbaa_pointerT;
+  llvm::MDNode *tbaa_ppointerT;
   llvm::MDNode *tbaa_CallInfo_lT;
   llvm::MDNode *tbaa_CallInfoT;
   llvm::MDNode *tbaa_luaStateT;
@@ -230,12 +231,17 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_CallInfo_func_LClosureT;
   llvm::MDNode *tbaa_LClosureT;
   llvm::MDNode *tbaa_LClosure_pT;
+  llvm::MDNode *tbaa_LClosure_upvalsT;
   llvm::MDNode *tbaa_ProtoT;
   llvm::MDNode *tbaa_Proto_kT;
   llvm::MDNode *tbaa_TValueT;
   llvm::MDNode *tbaa_TValue_nT;
   llvm::MDNode *tbaa_TValue_ttT;
   llvm::MDNode *tbaa_luaState_topT;
+  llvm::MDNode *tbaa_UpValT;
+  llvm::MDNode *tbaa_UpVal_vT;
+  llvm::MDNode *tbaa_UpVal_valueT;
+
 };
 
 class RAVI_API RaviJITStateImpl;
@@ -421,6 +427,9 @@ struct RaviFunctionDef {
 
   // Get pointer to base
   llvm::Value *Ci_base;
+
+  // Pointer to LClosure
+  llvm::Value *p_LClosure;
 };
 
 // This class is responsible for compiling Lua byte code
@@ -507,6 +516,19 @@ public:
 
   // TValue assign
   void emit_assign(RaviFunctionDef *def, llvm::Value *ra, llvm::Value *rb);
+
+  // Get &upvals[offset] from LClosure 
+  llvm::Value *emit_gep_upvals(RaviFunctionDef *def, llvm::Value *cl_ptr, int offset);
+
+  // Load the &upvals[offset] -> result is UpVal*
+  llvm::Instruction *emit_load_pupval(RaviFunctionDef *def, llvm::Value *ppupval);
+
+  // Load upval->v
+  llvm::Instruction *emit_load_upval_v(RaviFunctionDef *def, llvm::Instruction *pupval);
+
+  // Get &upval->value -> result is TValue *
+  llvm::Value *emit_gep_upval_value(RaviFunctionDef *def, llvm::Instruction *pupval);
+
 
   // isnil(reg) || isboolean(reg) && reg.value == 0
   // !(isnil(reg) || isboolean(reg) && reg.value == 0)
