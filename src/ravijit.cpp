@@ -159,7 +159,7 @@ void *RaviJITFunctionImpl::compile() {
   FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
 #endif
   llvm::PassManagerBuilder pmb;
-  pmb.OptLevel = 3;
+  pmb.OptLevel = 1;
   pmb.SizeLevel = 0;
   pmb.populateFunctionPassManager(*FPM);
   FPM->doInitialization();

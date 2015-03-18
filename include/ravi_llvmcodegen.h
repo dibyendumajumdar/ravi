@@ -206,7 +206,7 @@ struct LuaLLVMTypes {
 
   llvm::FunctionType *luaV_op_loadnilT;
 
-  std::array<llvm::Constant *, TM_N> kInt;
+  std::array<llvm::Constant *, 256> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
 
   llvm::Constant *kFalse;
@@ -241,7 +241,6 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_UpValT;
   llvm::MDNode *tbaa_UpVal_vT;
   llvm::MDNode *tbaa_UpVal_valueT;
-
 };
 
 class RAVI_API RaviJITStateImpl;
@@ -517,18 +516,25 @@ public:
   // TValue assign
   void emit_assign(RaviFunctionDef *def, llvm::Value *ra, llvm::Value *rb);
 
-  // Get &upvals[offset] from LClosure 
-  llvm::Value *emit_gep_upvals(RaviFunctionDef *def, llvm::Value *cl_ptr, int offset);
+  // Get &upvals[offset] from LClosure
+  llvm::Value *emit_gep_upvals(RaviFunctionDef *def, llvm::Value *cl_ptr,
+                               int offset);
 
   // Load the &upvals[offset] -> result is UpVal*
-  llvm::Instruction *emit_load_pupval(RaviFunctionDef *def, llvm::Value *ppupval);
+  llvm::Instruction *emit_load_pupval(RaviFunctionDef *def,
+                                      llvm::Value *ppupval);
+
+  // Get &upval->v
+  llvm::Value *emit_gep_upval_v(RaviFunctionDef *def,
+                                llvm::Instruction *pupval);
 
   // Load upval->v
-  llvm::Instruction *emit_load_upval_v(RaviFunctionDef *def, llvm::Instruction *pupval);
+  llvm::Instruction *emit_load_upval_v(RaviFunctionDef *def,
+                                       llvm::Instruction *pupval);
 
   // Get &upval->value -> result is TValue *
-  llvm::Value *emit_gep_upval_value(RaviFunctionDef *def, llvm::Instruction *pupval);
-
+  llvm::Value *emit_gep_upval_value(RaviFunctionDef *def,
+                                    llvm::Instruction *pupval);
 
   // isnil(reg) || isboolean(reg) && reg.value == 0
   // !(isnil(reg) || isboolean(reg) && reg.value == 0)
@@ -676,6 +682,12 @@ public:
                      llvm::Value *proto, int A, int B, int C);
 
   void emit_GETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int B, int C);
+
+  void emit_GETUPVAL(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int B);
+
+  void emit_GETTABUP(RaviFunctionDef *def, llvm::Value *L_ci,
                      llvm::Value *proto, int A, int B, int C);
 
   // Emit code for OP_EQ, OP_LT and OP_LE

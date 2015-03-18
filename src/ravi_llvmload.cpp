@@ -59,8 +59,12 @@ void RaviCodeGenerator::emit_LOADBOOL(RaviFunctionDef *def, llvm::Value *L_ci, l
   emit_store_reg_b(def, llvm::ConstantInt::get(def->types->C_intT, B), dest);
   // dest->type = LUA_TBOOLEAN
   emit_store_type(def, dest, LUA_TBOOLEAN);
-  if (C)
+  if (C) {
     def->builder->CreateBr(def->jmp_targets[j].jmp1);
+    llvm::BasicBlock *block = llvm::BasicBlock::Create(
+      def->jitState->context(), "nextblock", def->f);
+    def->builder->SetInsertPoint(block);
+  }
 }
 
 void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci,

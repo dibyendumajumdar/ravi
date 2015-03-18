@@ -341,3 +341,46 @@ assert(math.abs(testdiv(1.5,1.6)-0.9375) < 1e-12)
 assert(math.abs(testdiv("1.5",1.6)-0.9375) < 1e-12)
 assert(math.abs(testdiv("1.5","1.6")-0.9375) < 1e-12)
 print("test 26 OK")
+
+
+-- test 27
+-- upvalues
+local x = 1
+local y=function()
+  local f = function()
+               return x
+            end
+  ravi.compile(f)
+  return f
+end
+--ravi.dumplua(y)
+--ravi.compile(y)
+local f = y()
+assert(ravi.iscompiled(f))
+--ravi.dumplua(f)
+--ravi.dumpllvm(f)
+assert(f() == 1)
+x=5
+assert(f() == 5)
+print("test 27 OK")
+
+-- test 28
+-- upvalues
+x1 = 3
+local y=function()
+  local f = function()
+               return x1
+            end
+  ravi.compile(f)
+  return f
+end
+--ravi.dumplua(y)
+--ravi.compile(y)
+local f = y()
+assert(ravi.iscompiled(f))
+--ravi.dumplua(f)
+--ravi.dumpllvm(f)
+assert(f() == 3)
+x1=5
+assert(f() == 5)
+print("test 28 OK")
