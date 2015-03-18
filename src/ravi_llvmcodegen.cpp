@@ -246,6 +246,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_GETTABLE:
     case OP_GETUPVAL:
     case OP_GETTABUP:
+    case OP_RAVI_NEWARRAYI:
+    case OP_RAVI_NEWARRAYF:
     case OP_RAVI_MOVEI:
     case OP_RAVI_MOVEF:
     case OP_RAVI_TOINT:
@@ -366,6 +368,12 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaV_op_loadnilF = def->raviF->addExternFunction(
       def->types->luaV_op_loadnilT, reinterpret_cast<void *>(&luaV_op_loadnil),
       "luaV_op_loadnil");
+  def->luaV_newarrayintF = def->raviF->addExternFunction(
+      def->types->luaV_newarrayintT,
+      reinterpret_cast<void *>(&luaV_newarrayint), "luaV_newarrayint");
+  def->luaV_newarrayfloatF = def->raviF->addExternFunction(
+      def->types->luaV_newarrayfloatT,
+      reinterpret_cast<void *>(&luaV_newarrayfloat), "luaV_newarrayfloat");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
@@ -566,6 +574,12 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     } break;
     case OP_RAVI_TOFLT: {
       emit_TOFLT(&def, L_ci, proto, A);
+    } break;
+    case OP_RAVI_NEWARRAYI: {
+      emit_NEWARRAYINT(&def, L_ci, proto, A);
+    } break;
+    case OP_RAVI_NEWARRAYF: {
+      emit_NEWARRAYFLOAT(&def, L_ci, proto, A);
     } break;
     case OP_RETURN: {
       int B = GETARG_B(i);

@@ -736,6 +736,13 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   luaV_op_loadnilT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pCallInfoT);
+  elements.push_back(pTValueT);
+  luaV_newarrayintT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  luaV_newarrayfloatT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
   for (int j = 0; j < kluaInteger.size(); j++)

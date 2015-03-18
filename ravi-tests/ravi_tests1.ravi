@@ -384,3 +384,15 @@ assert(f() == 3)
 x1=5
 assert(f() == 5)
 print("test 28 OK")
+
+-- test 29
+x=function()
+  local j:number[] = {}
+  return j
+end
+assert(ravi.compile(x))
+y=x()
+y[1] = 99.67
+assert(y[1], 99.67)
+assert(#y == 1)
+print("test 29 OK")

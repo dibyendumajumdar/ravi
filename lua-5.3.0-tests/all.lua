@@ -148,7 +148,9 @@ report"gc.lua"
 local f = assert(loadfile('gc.lua'))
 f()
 
---dofile('db.lua')
+if not ravi.auto() then
+  dofile('db.lua')
+end
 assert(dofile('calls.lua') == deep and deep)
 olddofile('strings.lua')
 olddofile('literals.lua')
@@ -171,9 +173,13 @@ dofile('api.lua')
 assert(dofile('events.lua') == 12)
 dofile('vararg.lua')
 dofile('closure.lua')
-dofile('coroutine.lua')
+if not ravi.auto() then
+  dofile('coroutine.lua')
+end
 dofile('goto.lua', true)
-dofile('errors.lua')
+if not ravi.auto() then
+  dofile('errors.lua')
+end
 dofile('math.lua')
 dofile('sort.lua', true)
 dofile('bitwise.lua')

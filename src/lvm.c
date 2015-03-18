@@ -793,7 +793,30 @@ void ravi_dump_stack(lua_State *L, const char *s) {
     ci = ci->previous;
   }
   printf("\n");
+}
 
+void luaV_newarrayint(lua_State *L, CallInfo *ci, TValue *ra) {
+  Table *t = raviH_new(L, RAVI_TARRAYINT);
+  sethvalue(L, ra, t);
+  luaC_condGC(
+      L, {
+        L->top = ra + 1; /* limit of live values */
+        luaC_step(L);
+        L->top = ci->top;
+      }) /* restore top */     
+  luai_threadyield(L);
+}
+
+void luaV_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra) {
+  Table *t = raviH_new(L, RAVI_TARRAYFLT);
+  sethvalue(L, ra, t);
+  luaC_condGC(
+    L, {
+      L->top = ra + 1; /* limit of live values */
+      luaC_step(L);
+      L->top = ci->top;
+    }) /* restore top */
+  luai_threadyield(L);
 }
 
 void luaV_execute (lua_State *L) {
@@ -1333,12 +1356,10 @@ newframe:  /* reentry point when frame changes (call/return) */
 
     case OP_RAVI_UNMF: {
       TValue *rb = RB(i);
-      lua_assert(ttisfloat(rb));
       setfltvalue(ra, -fltvalue(rb));
     } break;
     case OP_RAVI_UNMI: {
       TValue *rb = RB(i);
-      lua_assert(ttisinteger(rb));
       setivalue(ra, -ivalue(rb));
     } break;
 

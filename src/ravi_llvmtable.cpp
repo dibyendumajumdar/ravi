@@ -75,4 +75,20 @@ void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *v = emit_load_upval_v(def, upval);
   def->builder->CreateCall4(def->luaV_gettableF, def->L, v, rc, ra);
 }
+
+void RaviCodeGenerator::emit_NEWARRAYINT(RaviFunctionDef *def,
+                                         llvm::Value *L_ci, llvm::Value *proto,
+                                         int A) {
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  def->builder->CreateCall3(def->luaV_newarrayintF, def->L, def->ci_val, ra);
+}
+
+void RaviCodeGenerator::emit_NEWARRAYFLOAT(RaviFunctionDef *def,
+                                           llvm::Value *L_ci,
+                                           llvm::Value *proto, int A) {
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  def->builder->CreateCall3(def->luaV_newarrayfloatF, def->L, def->ci_val, ra);
+}
 }
