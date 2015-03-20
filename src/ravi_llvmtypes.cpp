@@ -743,6 +743,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   luaV_newarrayintT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
   luaV_newarrayfloatT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  elements.push_back(C_intT);
+  elements.push_back(C_intT);
+  luaV_newtableT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  luaV_setlistT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
   for (int j = 0; j < kluaInteger.size(); j++)

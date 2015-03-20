@@ -205,6 +205,8 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_settableT;
   llvm::FunctionType *luaV_newarrayintT;
   llvm::FunctionType *luaV_newarrayfloatT;
+  llvm::FunctionType *luaV_setlistT;
+  llvm::FunctionType *luaV_newtableT;
 
   llvm::FunctionType *luaV_op_loadnilT;
 
@@ -404,10 +406,13 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_executeF;
   llvm::Constant *luaV_gettableF;
   llvm::Constant *luaV_settableF;
+
+  // Some cheats - these correspond to OPCODEs that
+  // are not inlined as of now
   llvm::Constant *luaV_newarrayintF;
   llvm::Constant *luaV_newarrayfloatF;
-
-  // Some cheats
+  llvm::Constant *luaV_setlistF;
+  llvm::Constant *luaV_newtableF;
   llvm::Constant *luaV_op_loadnilF;
 
   // printf
@@ -699,6 +704,12 @@ public:
 
   void emit_NEWARRAYFLOAT(RaviFunctionDef *def, llvm::Value *L_ci,
                           llvm::Value *proto, int A);
+
+  void emit_NEWTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int B, int C);
+
+  void emit_SETLIST(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                    int A, int B, int C);
 
   // Emit code for OP_EQ, OP_LT and OP_LE
   // The callee parameter should be luaV_equalobj, luaV_lessthan and

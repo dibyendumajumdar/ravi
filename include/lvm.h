@@ -62,5 +62,7 @@ LUAI_FUNC int luaV_forlimit(const TValue *obj, lua_Integer *p, lua_Integer step,
 LUAI_FUNC void luaV_op_loadnil(CallInfo *ci, int a, int b);
 LUAI_FUNC void luaV_newarrayint(lua_State *L, CallInfo *ci, TValue *ra);
 LUAI_FUNC void luaV_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra);
+LUAI_FUNC void luaV_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);
+LUAI_FUNC void luaV_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);
 
 #endif

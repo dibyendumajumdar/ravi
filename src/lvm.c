@@ -819,6 +819,63 @@ void luaV_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra) {
   luai_threadyield(L);
 }
 
+void luaV_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
+  Table *t = luaH_new(L);
+  sethvalue(L, ra, t);
+  if (b != 0 || c != 0)
+    luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
+  luaC_condGC(
+    L, {
+      L->top = ra + 1; /* limit of live values */
+      luaC_step(L);
+      L->top = ci->top;
+    }) /* restore top */
+  luai_threadyield(L);
+}
+
+void luaV_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
+  int n = b;
+  unsigned int last;
+  Table *h;
+  if (n == 0) n = cast_int(L->top - ra) - 1;
+  luai_runtimecheck(L, ttistable(ra));
+  h = hvalue(ra);
+  last = ((c - 1)*LFIELDS_PER_FLUSH) + n;
+  if (h->ravi_array.type == RAVI_TTABLE) {
+    if (last > h->sizearray)  /* needs more space? */
+      luaH_resizearray(L, h, last);  /* pre-allocate it at once */
+    for (; n > 0; n--) {
+      TValue *val = ra + n;
+      luaH_setint(L, h, last--, val);
+      luaC_barrierback(L, h, val);
+    }
+  }
+  else {
+    int i = last - n + 1;
+    for (; i <= (int)last; i++) {
+      TValue *val = ra + i;
+      lua_Unsigned u = (lua_Unsigned)(i - 1);
+      switch (h->ravi_array.type) {
+      case RAVI_TARRAYINT: {
+        if (ttisinteger(val))
+          raviH_set_int(L, h, u, ivalue(val));
+        else
+          raviH_set_int(L, h, u, (lua_Integer)(fltvalue(val)));
+      } break;
+      case RAVI_TARRAYFLT: {
+        if (ttisinteger(val))
+          raviH_set_float(L, h, u, (lua_Number)(ivalue(val)));
+        else
+          raviH_set_float(L, h, u, fltvalue(val));
+      } break;
+      default:
+        lua_assert(0);
+      }
+    }
+  }
+  L->top = ci->top;  /* correct top (in case of previous open call) */
+}
+
 void luaV_execute (lua_State *L) {
   CallInfo *ci = L->ci;
   LClosure *cl;

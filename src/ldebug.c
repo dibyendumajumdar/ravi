@@ -447,6 +447,10 @@ static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
     *name = "?";
     return "hook";
   }
+  if (p->ravi_jit.jit_status == 2) {
+    *name = "?";
+    return "compiled";
+  }
   switch (GET_OPCODE(i)) {
     case OP_CALL:
     case OP_TAILCALL:  /* get function name */
@@ -476,7 +480,9 @@ static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
     case OP_EQ: tm = TM_EQ; break;
     case OP_LT: tm = TM_LT; break;
     case OP_LE: tm = TM_LE; break;
-    default: lua_assert(0);  /* other instructions cannot call a function */
+    default: {
+      lua_assert(0); /* other instructions cannot call a function */
+    }
   }
   *name = getstr(G(L)->tmname[tm]);
   return "metamethod";
