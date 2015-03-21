@@ -550,8 +550,11 @@ public:
   llvm::Value *emit_boolean_testfalse(RaviFunctionDef *def, llvm::Value *reg,
                                       bool donot);
 
+  // L->top = ci->top
   void emit_refresh_L_top(RaviFunctionDef *def);
 
+  // L->top = R(B)
+  void emit_set_L_top_toreg(RaviFunctionDef *def, llvm::Instruction *base_ptr, int B);
 
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.

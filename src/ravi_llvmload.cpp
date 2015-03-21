@@ -77,42 +77,43 @@ void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci,
   // Load pointer to base
   llvm::Instruction *base_ptr = emit_load_base(def);
 
-  llvm::Value *src;
-  llvm::Value *dest;
-
   lua_assert(A != B);
 
-  if (A == 0) {
-    // If A is 0 we can use the base pointer which is &base[0]
-    dest = base_ptr;
-  } else {
-    // emit &base[A]
-    dest = emit_array_get(def, base_ptr, A);
-  }
-  if (B == 0) {
-    // If Bx is 0 we can use the base pointer which is &k[0]
-    src = base_ptr;
-  } else {
-    // emit &base[B]
-    src = emit_array_get(def, base_ptr, B);
-  }
+  llvm::Value *src = emit_gep_ra(def, base_ptr, B);
+  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  emit_assign(def, dest, src);
 
-  // Below is more efficient that memcpy()
-  // destvalue->value->i = srcvalue->value->i;
-  llvm::Value *srcvalue = emit_gep(def, "src.value", src, 0, 0, 0);
-  llvm::Value *destvalue = emit_gep(def, "dest.value", dest, 0, 0, 0);
-  llvm::Instruction *load = def->builder->CreateLoad(srcvalue);
-  load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
-  llvm::Instruction *store = def->builder->CreateStore(load, destvalue);
-  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  //if (A == 0) {
+  //  // If A is 0 we can use the base pointer which is &base[0]
+  //  dest = base_ptr;
+  //} else {
+  //  // emit &base[A]
+  //  dest = emit_array_get(def, base_ptr, A);
+  //}
+  //if (B == 0) {
+  //  // If Bx is 0 we can use the base pointer which is &k[0]
+  //  src = base_ptr;
+  //} else {
+  //  // emit &base[B]
+  //  src = emit_array_get(def, base_ptr, B);
+  //}
 
-  // destvalue->type = srcvalue->type
-  llvm::Value *srctype = emit_gep(def, "src.tt", src, 0, 1);
-  llvm::Value *desttype = emit_gep(def, "dest.tt", dest, 0, 1);
-  load = def->builder->CreateLoad(srctype);
-  load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
-  store = def->builder->CreateStore(load, desttype);
-  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  //// Below is more efficient that memcpy()
+  //// destvalue->value->i = srcvalue->value->i;
+  //llvm::Value *srcvalue = emit_gep(def, "src.value", src, 0, 0, 0);
+  //llvm::Value *destvalue = emit_gep(def, "dest.value", dest, 0, 0, 0);
+  //llvm::Instruction *load = def->builder->CreateLoad(srcvalue);
+  //load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  //llvm::Instruction *store = def->builder->CreateStore(load, destvalue);
+  //store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+
+  //// destvalue->type = srcvalue->type
+  //llvm::Value *srctype = emit_gep(def, "src.tt", src, 0, 1);
+  //llvm::Value *desttype = emit_gep(def, "dest.tt", dest, 0, 1);
+  //load = def->builder->CreateLoad(srctype);
+  //load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  //store = def->builder->CreateStore(load, desttype);
+  //store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
 }
 
 void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -429,9 +430,7 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
   //    } break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
-  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_luaState_ci_baseT);
+  llvm::Instruction *base_ptr = emit_load_base(def);
 
   // Load pointer to k
   llvm::Value *k_ptr = def->k_ptr;
@@ -439,16 +438,16 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
   // LOADK requires a structure assignment
   // in LLVM as far as I can tell this requires a call to
   // an intrinsic memcpy
-  llvm::Value *src;
-  llvm::Value *dest;
+  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
 
-  if (A == 0) {
-    // If A is 0 we can use the base pointer which is &base[0]
-    dest = base_ptr;
-  } else {
-    // emit &base[A]
-    dest = emit_array_get(def, base_ptr, A);
-  }
+  //if (A == 0) {
+  //  // If A is 0 we can use the base pointer which is &base[0]
+  //  dest = base_ptr;
+  //} else {
+  //  // emit &base[A]
+  //  dest = emit_array_get(def, base_ptr, A);
+  //}
+  llvm::Value *src;
   if (Bx == 0) {
     // If Bx is 0 we can use the base pointer which is &k[0]
     src = k_ptr;
@@ -457,23 +456,25 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
     src = emit_array_get(def, k_ptr, Bx);
   }
 
-  // Below is more efficient that memcpy()
-  // destvalue->value->i = srcvalue->value->i;
-  // destvalue->value->i = srcvalue->value->i;
-  llvm::Value *srcvalue = emit_gep(def, "srcvalue", src, 0, 0, 0);
-  llvm::Value *destvalue = emit_gep(def, "destvalue", dest, 0, 0, 0);
-  llvm::Instruction *load = def->builder->CreateLoad(srcvalue);
-  load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
-  llvm::Instruction *store = def->builder->CreateStore(load, destvalue);
-  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  emit_assign(def, dest, src);
 
-  // destvalue->type = srcvalue->type
-  llvm::Value *srctype = emit_gep(def, "srctype", src, 0, 1);
-  llvm::Value *desttype = emit_gep(def, "desttype", dest, 0, 1);
-  load = def->builder->CreateLoad(srctype);
-  load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
-  store = def->builder->CreateStore(load, desttype);
-  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  //// Below is more efficient that memcpy()
+  //// destvalue->value->i = srcvalue->value->i;
+  //// destvalue->value->i = srcvalue->value->i;
+  //llvm::Value *srcvalue = emit_gep(def, "srcvalue", src, 0, 0, 0);
+  //llvm::Value *destvalue = emit_gep(def, "destvalue", dest, 0, 0, 0);
+  //llvm::Instruction *load = def->builder->CreateLoad(srcvalue);
+  //load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+  //llvm::Instruction *store = def->builder->CreateStore(load, destvalue);
+  //store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+
+  //// destvalue->type = srcvalue->type
+  //llvm::Value *srctype = emit_gep(def, "srctype", src, 0, 1);
+  //llvm::Value *desttype = emit_gep(def, "desttype", dest, 0, 1);
+  //load = def->builder->CreateLoad(srctype);
+  //load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  //store = def->builder->CreateStore(load, desttype);
+  //store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
 }
 
 void RaviCodeGenerator::emit_assign(RaviFunctionDef *def, llvm::Value *dest, llvm::Value *src) {

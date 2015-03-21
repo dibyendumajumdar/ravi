@@ -24,19 +24,6 @@
 
 namespace ravi {
 
-void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def) {
-  // Get pointer to ci->top
-  llvm::Value *citop = emit_gep(def, "ci_top", def->ci_val, 0, 1);
-  // Load ci->top
-  llvm::Instruction *citop_val = def->builder->CreateLoad(citop);
-  // TODO set tbaa
-  // Get L->top
-  llvm::Value *top = emit_gep(def, "L_top", def->L, 0, 4);
-  // Assign ci>top to L->top
-  auto ins = def->builder->CreateStore(citop_val, top);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
-}
-
 void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, llvm::Value *L_ci,
                                       llvm::Value *proto, int A, int B, int C,
                                       int j, int jA) {

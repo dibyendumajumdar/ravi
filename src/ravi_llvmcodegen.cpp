@@ -78,19 +78,6 @@ llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def,
       ptr, llvm::ConstantInt::get(def->types->C_intT, offset));
 }
 
-void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int j) {
-  assert(def->jmp_targets[j].jmp1);
-  if (def->builder->GetInsertBlock()->getTerminator()) {
-    llvm::BasicBlock *jmp_block =
-        llvm::BasicBlock::Create(def->jitState->context(), "jump", def->f);
-    def->builder->SetInsertPoint(jmp_block);
-  }
-  def->builder->CreateBr(def->jmp_targets[j].jmp1);
-  llvm::BasicBlock *block =
-      llvm::BasicBlock::Create(def->jitState->context(), "postjump", def->f);
-  def->builder->SetInsertPoint(block);
-}
-
 llvm::Instruction *RaviCodeGenerator::emit_load_base(RaviFunctionDef *def) {
   // Load pointer to base
   llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
@@ -198,6 +185,31 @@ llvm::Value *RaviCodeGenerator::emit_gep_rkb(RaviFunctionDef *def,
     rb = emit_array_get(def, base_or_k, b);
   }
   return rb;
+}
+
+void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def) {
+  // Get pointer to ci->top
+  llvm::Value *citop = emit_gep(def, "ci_top", def->ci_val, 0, 1);
+  // Load ci->top
+  llvm::Instruction *citop_val = def->builder->CreateLoad(citop);
+  // TODO set tbaa
+  // Get L->top
+  llvm::Value *top = emit_gep(def, "L_top", def->L, 0, 4);
+  // Assign ci>top to L->top
+  auto ins = def->builder->CreateStore(citop_val, top);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
+}
+
+void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def, llvm::Instruction *base_ptr, int B) {
+  // L->top = R(B)
+  // Get pointer to register at R(B)
+  llvm::Value *ptr = emit_array_get(def, base_ptr, B);
+  // Get pointer to L->top
+  llvm::Value *top = emit_gep(def, "L.top", def->L, 0, 4);
+  // Assign to L->top
+  llvm::Instruction *ins = def->builder->CreateStore(ptr, top);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa,
+    def->types->tbaa_luaState_topT);
 }
 
 // Check if we can compile

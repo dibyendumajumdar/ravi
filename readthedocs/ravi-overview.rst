@@ -89,7 +89,7 @@ Compatibility with Lua
 ----------------------
 Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT compilation is enabled some things may not work:
 
-* You cannot yield from a compiled function, so if you use coroutines then it is better to use the interpreter
+* You cannot yield from a compiled function, so if you use coroutines then it is better to use the interpreter, as compiled code does not support coroutines 
 * The debugger doesn't work when JIT compilation is turned on as information it requires is not available; the debugger also does not support Ravi's extended opcodes
 * JIT compilation is work in progress and not all features are supported yet
 * Ravi supports optional typing and enhanced types such as arrays (described later). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions - there are some restrictions on arrays that are described in a later section. Values crossing from Lua to Ravi may be subjected to typechecks.

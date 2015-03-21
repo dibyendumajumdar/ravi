@@ -57,9 +57,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   }
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
-  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_luaState_ci_baseT);
+  llvm::Instruction *base_ptr = emit_load_base(def);
 
   llvm::Value *top = nullptr;
 
@@ -68,14 +66,15 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
 
   //*  if (b != 0) L->top = ra + b - 1;
   if (B != 0) {
+    emit_set_L_top_toreg(def, base_ptr, A + B - 1);
     // Get pointer to register at ra + b - 1
-    llvm::Value *ptr = emit_array_get(def, base_ptr, A + B - 1);
+    //llvm::Value *ptr = emit_array_get(def, base_ptr, A + B - 1);
     // Get pointer to L->top
-    top = emit_gep(def, "L_top", def->L, 0, 4);
+    //top = emit_gep(def, "L_top", def->L, 0, 4);
     // Assign to L->top
-    llvm::Instruction *ins = def->builder->CreateStore(ptr, top);
-    ins->setMetadata(llvm::LLVMContext::MD_tbaa,
-                     def->types->tbaa_luaState_topT);
+    //llvm::Instruction *ins = def->builder->CreateStore(ptr, top);
+    //ins->setMetadata(llvm::LLVMContext::MD_tbaa,
+    //                 def->types->tbaa_luaState_topT);
   }
 
   // if (cl->p->sizep > 0) luaF_close(L, base);
