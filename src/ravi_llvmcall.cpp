@@ -63,16 +63,6 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci,
   // if (b != 0)
   if (B != 0) {
     emit_set_L_top_toreg(def, base_ptr, A + B);
-    // L->top = ra + b
-    // See similar construct in OP_RETURN
-    // Get pointer to register at ra + b
-    //llvm::Value *ptr = emit_array_get(def, base_ptr, A + B);
-    // Get pointer to L->top
-    //top = emit_gep(def, "L.top", def->L, 0, 4);
-    // Assign to L->top
-    //llvm::Instruction *ins = def->builder->CreateStore(ptr, top);
-    //ins->setMetadata(llvm::LLVMContext::MD_tbaa,
-    //                 def->types->tbaa_luaState_topT);
   }
 
   // luaD_precall() returns following
@@ -120,20 +110,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci,
     def->builder->CreateCondBr(precall_C, then1_block, end_block);
     def->builder->SetInsertPoint(then1_block);
 
-    // TODO replace below with emit_refresh_L_top()
     emit_refresh_L_top(def);
-    // Get pointer to ci->top
-    //llvm::Value *citop = emit_gep(def, "ci_top", def->ci_val, 0, 1);
-    // Load ci->top
-    //llvm::Instruction *citop_val = def->builder->CreateLoad(citop);
-    // TODO set tbaa
-    //if (!top)
-      // Get L->top
-    //  top = emit_gep(def, "L_top", def->L, 0, 4);
-    // Assign ci>top to L->top
-    //auto ins = def->builder->CreateStore(citop_val, top);
-    //ins->setMetadata(llvm::LLVMContext::MD_tbaa,
-    //                 def->types->tbaa_luaState_topT);
   }
   def->builder->CreateBr(end_block);
   def->f->getBasicBlockList().push_back(end_block);
