@@ -108,27 +108,31 @@ local function range (i, j)
   end
 end
 
-local abc = string.char(range(0, 255));
+if not ravi.auto() then
+  local abc = string.char(range(0, 255));
 
-assert(string.len(abc) == 256)
+  assert(string.len(abc) == 256)
 
-function strset (p)
-  local res = {s=''}
-  string.gsub(abc, p, function (c) res.s = res.s .. c end)
-  return res.s
-end;
+  function strset (p)
+    local res = {s=''}
+    string.gsub(abc, p, function (c) res.s = res.s .. c end)
+    return res.s
+  end;
 
-assert(string.len(strset('[\200-\210]')) == 11)
+  assert(string.len(strset('[\200-\210]')) == 11)
 
-assert(strset('[a-z]') == "abcdefghijklmnopqrstuvwxyz")
-assert(strset('[a-z%d]') == strset('[%da-uu-z]'))
-assert(strset('[a-]') == "-a")
-assert(strset('[^%W]') == strset('[%w]'))
-assert(strset('[]%%]') == '%]')
-assert(strset('[a%-z]') == '-az')
-assert(strset('[%^%[%-a%]%-b]') == '-[]^ab')
-assert(strset('%Z') == strset('[\1-\255]'))
-assert(strset('.') == strset('[\1-\255%z]'))
+  assert(strset('[a-z]') == "abcdefghijklmnopqrstuvwxyz")
+  assert(strset('[a-z%d]') == strset('[%da-uu-z]'))
+  assert(strset('[a-]') == "-a")
+  assert(strset('[^%W]') == strset('[%w]'))
+  assert(strset('[]%%]') == '%]')
+  assert(strset('[a%-z]') == '-az')
+  assert(strset('[%^%[%-a%]%-b]') == '-[]^ab')
+  assert(strset('%Z') == strset('[\1-\255]'))
+  assert(strset('.') == strset('[\1-\255%z]'))
+
+end
+
 print('+');
 
 assert(string.match("alo xyzK", "(%w+)K") == "xyz")

@@ -105,6 +105,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci,
     def->builder->CreateCondBr(precall_C, then1_block, end_block);
     def->builder->SetInsertPoint(then1_block);
 
+    // TODO replace below with emit_refresh_L_top()
     // Get pointer to ci->top
     llvm::Value *citop = emit_gep(def, "ci_top", def->ci_val, 0, 1);
     // Load ci->top

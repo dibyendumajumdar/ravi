@@ -396,3 +396,18 @@ y[1] = 99.67
 assert(y[1], 99.67)
 assert(#y == 1)
 print("test 29 OK")
+
+-- test 30
+days = {"Sunday", "Monday", "Tuesday", "Wednesday",
+            "Thursday", "Friday", "Saturday"}
+x = function() 
+  local t
+  for k,v in pairs(days) do
+    print(k,v)
+    t = v
+  end
+  return t
+end
+assert(ravi.compile(x))
+assert(x() == "Saturday")
+print("test 30 OK")

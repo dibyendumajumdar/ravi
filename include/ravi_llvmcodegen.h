@@ -550,6 +550,9 @@ public:
   llvm::Value *emit_boolean_testfalse(RaviFunctionDef *def, llvm::Value *reg,
                                       bool donot);
 
+  void emit_refresh_L_top(RaviFunctionDef *def);
+
+
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.
   // The BasicBlocks are not inserted into the function until later
@@ -736,6 +739,12 @@ public:
   // jA must be the A operand of the jump instruction
   void emit_TESTSET(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                     int A, int B, int C, int j, int jA);
+
+  void emit_TFORCALL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C, int j, int jA);
+
+  void emit_TFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int j);
 
 private:
   RaviJITStateImpl *jitState_;

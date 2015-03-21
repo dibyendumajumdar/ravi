@@ -238,6 +238,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_TESTSET:
     case OP_FORPREP:
     case OP_FORLOOP:
+    case OP_TFORCALL:
+    case OP_TFORLOOP:
     case OP_MOVE:
     case OP_ADD:
     case OP_SUB:
@@ -625,6 +627,25 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int j = sbx + pc + 1;
       emit_EQ(&def, L_ci, proto, A, B, C, j, GETARG_A(i), comparison_function);
     } break;
+    case OP_TFORCALL: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      // OP_TFORCALL is followed by OP_TFORLOOP - we process this
+      // along with OP_TFORCALL
+      pc++;
+      i = code[pc];
+      op = GET_OPCODE(i);
+      lua_assert(op == OP_TFORLOOP);
+      int sbx = GETARG_sBx(i);
+      // j below is the jump target
+      int j = sbx + pc + 1;
+      emit_TFORCALL(&def, L_ci, proto, A, B, C, j, GETARG_A(i));
+    } break;
+    case OP_TFORLOOP: {
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      emit_TFORLOOP(&def, L_ci, proto, A, j);
+    } break;
     case OP_TEST: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
@@ -659,6 +680,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int j = sbx + pc + 1;
       emit_JMP(&def, j);
     } break;
+
     case OP_FORPREP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
@@ -677,6 +699,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_FORLOOP(&def, L_ci, proto, A, j);
 #endif
     } break;
+
     case OP_LOADNIL: {
       int B = GETARG_B(i);
       emit_LOADNIL(&def, L_ci, proto, A, B);
