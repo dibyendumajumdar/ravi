@@ -246,6 +246,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_EQ:
     case OP_LT:
     case OP_LE:
+    case OP_NOT:
     case OP_TEST:
     case OP_TESTSET:
     case OP_FORPREP:
@@ -657,6 +658,10 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
       emit_TFORLOOP(&def, L_ci, proto, A, j);
+    } break;
+    case OP_NOT: {
+      int B = GETARG_B(i);
+      emit_NOT(&def, L_ci, proto, A, B);
     } break;
     case OP_TEST: {
       int B = GETARG_B(i);

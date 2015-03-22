@@ -204,6 +204,23 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else_block);
 }
 
+void RaviCodeGenerator::emit_NOT(RaviFunctionDef *def, llvm::Value *L_ci,
+  llvm::Value *proto, int A, int B) {
+  //  case OP_NOT: {
+  //    TValue *rb = RB(i);
+  //    int res = l_isfalse(rb);  /* next assignment may change this value */
+  //    setbvalue(ra, res);
+  //  } break;
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  // Get pointer to register B
+  llvm::Value *rb = emit_gep_ra(def, base_ptr, B);
+  llvm::Value *v = emit_boolean_testfalse(def, rb, false);
+  llvm::Value *result = def->builder->CreateZExt(v, def->types->C_intT, "i");
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  emit_store_reg_b(def, result, ra);
+  emit_store_type(def, ra, LUA_TBOOLEAN);
+}
+
 void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, llvm::Value *L_ci,
                                      llvm::Value *proto, int A, int B, int C,
                                      int j, int jA) {
@@ -219,9 +236,7 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, llvm::Value *L_ci,
   //  } break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
-  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_luaState_ci_baseT);
+  llvm::Instruction *base_ptr = emit_load_base(def);
 
   // Get pointer to register B
   llvm::Value *rb = emit_gep_ra(def, base_ptr, B);

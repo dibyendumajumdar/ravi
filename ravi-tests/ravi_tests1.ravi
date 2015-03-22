@@ -403,7 +403,6 @@ days = {"Sunday", "Monday", "Tuesday", "Wednesday",
 x = function() 
   local t
   for k,v in pairs(days) do
-    print(k,v)
     t = v
   end
   return t
@@ -411,3 +410,17 @@ end
 assert(ravi.compile(x))
 assert(x() == "Saturday")
 print("test 30 OK")
+
+-- test 31
+x = function(a)
+  return not a
+end
+y = function(a)
+  return a
+end
+assert(ravi.compile(x))
+assert(ravi.compile(y))
+assert(y(x()))
+assert(y(x(false)))
+assert(not y(x(true)))
+print("test 31 OK")

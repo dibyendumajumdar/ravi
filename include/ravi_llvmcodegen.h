@@ -554,7 +554,8 @@ public:
   void emit_refresh_L_top(RaviFunctionDef *def);
 
   // L->top = R(B)
-  void emit_set_L_top_toreg(RaviFunctionDef *def, llvm::Instruction *base_ptr, int B);
+  void emit_set_L_top_toreg(RaviFunctionDef *def, llvm::Instruction *base_ptr,
+                            int B);
 
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.
@@ -717,6 +718,9 @@ public:
   void emit_SETLIST(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                     int A, int B, int C);
 
+  void emit_NOT(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                int A, int B);
+
   // Emit code for OP_EQ, OP_LT and OP_LE
   // The callee parameter should be luaV_equalobj, luaV_lessthan and
   // luaV_lessequal
@@ -743,11 +747,11 @@ public:
   void emit_TESTSET(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                     int A, int B, int C, int j, int jA);
 
-  void emit_TFORCALL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C, int j, int jA);
+  void emit_TFORCALL(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int B, int C, int j, int jA);
 
-  void emit_TFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int j);
+  void emit_TFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int j);
 
 private:
   RaviJITStateImpl *jitState_;
