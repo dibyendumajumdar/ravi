@@ -715,6 +715,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(plua_StateT);
   elements.push_back(pTValueT);
   elements.push_back(pTValueT);
+  luaV_objlenT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
   elements.push_back(pTValueT);
   luaV_gettableT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
@@ -758,6 +761,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(lua_IntegerT);
   elements.push_back(lua_IntegerT);
   luaV_modT = llvm::FunctionType::get(lua_IntegerT, elements, false);
+  luaV_divT = llvm::FunctionType::get(lua_IntegerT, elements, false);
 
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);

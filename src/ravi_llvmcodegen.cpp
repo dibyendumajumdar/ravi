@@ -260,6 +260,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_MUL:
     case OP_DIV:
     case OP_MOD:
+    case OP_IDIV:
     case OP_SETTABLE:
     case OP_GETTABLE:
     case OP_GETUPVAL:
@@ -402,6 +403,11 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       "luaV_setlist");
   def->luaV_modF = def->raviF->addExternFunction(
       def->types->luaV_modT, reinterpret_cast<void *>(&luaV_mod), "luaV_mod");
+  def->luaV_divF = def->raviF->addExternFunction(
+      def->types->luaV_divT, reinterpret_cast<void *>(&luaV_div), "luaV_div");
+  def->luaV_objlenF = def->raviF->addExternFunction(
+      def->types->luaV_objlenT, reinterpret_cast<void *>(&luaV_objlen),
+      "luaV_objlen");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
@@ -412,13 +418,21 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->printfFunc =
       def->raviF->module()->getOrInsertFunction("printf", printfType);
 
-  // fmod declaration
+  // stdc fmod declaration
   args.clear();
   args.push_back(def->types->C_doubleT);
   args.push_back(def->types->C_doubleT);
   llvm::FunctionType *fmodType =
       llvm::FunctionType::get(def->types->C_doubleT, args, false);
   def->fmodFunc = def->raviF->module()->getOrInsertFunction("fmod", fmodType);
+
+  // stdc floor declaration
+  args.clear();
+  args.push_back(def->types->C_doubleT);
+  llvm::FunctionType *floorType =
+      llvm::FunctionType::get(def->types->C_doubleT, args, false);
+  def->floorFunc =
+      def->raviF->module()->getOrInsertFunction("floor", floorType);
 }
 
 #define RA(i) (base + GETARG_A(i))
@@ -904,6 +918,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_MOD(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_IDIV: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_IDIV(&def, L_ci, proto, A, B, C);
     } break;
 
     default:

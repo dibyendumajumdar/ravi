@@ -202,6 +202,8 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_tonumberT;
   llvm::FunctionType *luaV_tointegerT;
   llvm::FunctionType *luaV_modT;
+  llvm::FunctionType *luaV_objlenT;
+  llvm::FunctionType *luaV_divT;
 
   llvm::FunctionType *luaV_executeT;
   llvm::FunctionType *luaV_gettableT;
@@ -409,6 +411,8 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_gettableF;
   llvm::Constant *luaV_settableF;
   llvm::Constant *luaV_modF;
+  llvm::Constant *luaV_divF;
+  llvm::Constant *luaV_objlenF;
 
   // Some cheats - these correspond to OPCODEs that
   // are not inlined as of now
@@ -418,9 +422,10 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_newtableF;
   llvm::Constant *luaV_op_loadnilF;
 
-  // printf
+  // standard C functions
   llvm::Constant *printfFunc;
   llvm::Constant *fmodFunc;
+  llvm::Constant *floorFunc;
 
   // Jump targets in the function
   std::vector<RaviBranchDef> jmp_targets;
@@ -590,6 +595,9 @@ public:
 
   void emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                 int A, int B, int C);
+
+  void emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+    int A, int B, int C);
 
   void emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);
