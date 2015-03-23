@@ -29,7 +29,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   static_assert(std::is_floating_point<lua_Number>::value &&
                     sizeof(lua_Number) == sizeof(double),
                 "lua_Number is not a double");
-  lua_NumberT = llvm::Type::getDoubleTy(context);
+  C_doubleT = llvm::Type::getDoubleTy(context);
+  lua_NumberT = C_doubleT;
   plua_NumberT = llvm::PointerType::get(lua_NumberT, 0);
 
   static_assert(sizeof(lua_Integer) == sizeof(lua_Number) &&
@@ -740,13 +741,23 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(plua_StateT);
   elements.push_back(pCallInfoT);
   elements.push_back(pTValueT);
-  luaV_newarrayintT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
-  luaV_newarrayfloatT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  luaV_newarrayintT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  luaV_newarrayfloatT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   elements.push_back(C_intT);
   elements.push_back(C_intT);
-  luaV_newtableT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
-  luaV_setlistT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  luaV_newtableT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  luaV_setlistT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(lua_IntegerT);
+  elements.push_back(lua_IntegerT);
+  luaV_modT = llvm::FunctionType::get(lua_IntegerT, elements, false);
 
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);

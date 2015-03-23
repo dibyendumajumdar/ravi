@@ -75,6 +75,7 @@ struct LuaLLVMTypes {
   LuaLLVMTypes(llvm::LLVMContext &context);
   void dump();
 
+  llvm::Type *C_doubleT;
   llvm::Type *C_intptr_t;
   llvm::Type *C_size_t;
   llvm::Type *C_ptrdiff_t;
@@ -200,6 +201,8 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_forlimitT;
   llvm::FunctionType *luaV_tonumberT;
   llvm::FunctionType *luaV_tointegerT;
+  llvm::FunctionType *luaV_modT;
+
   llvm::FunctionType *luaV_executeT;
   llvm::FunctionType *luaV_gettableT;
   llvm::FunctionType *luaV_settableT;
@@ -207,7 +210,6 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_newarrayfloatT;
   llvm::FunctionType *luaV_setlistT;
   llvm::FunctionType *luaV_newtableT;
-
   llvm::FunctionType *luaV_op_loadnilT;
 
   std::array<llvm::Constant *, 256> kInt;
@@ -406,6 +408,7 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_executeF;
   llvm::Constant *luaV_gettableF;
   llvm::Constant *luaV_settableF;
+  llvm::Constant *luaV_modF;
 
   // Some cheats - these correspond to OPCODEs that
   // are not inlined as of now
@@ -417,6 +420,7 @@ struct RaviFunctionDef {
 
   // printf
   llvm::Constant *printfFunc;
+  llvm::Constant *fmodFunc;
 
   // Jump targets in the function
   std::vector<RaviBranchDef> jmp_targets;
@@ -583,6 +587,9 @@ public:
 
   void emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A, int B, int C, OpCode op, TMS tms);
+
+  void emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                int A, int B, int C);
 
   void emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);

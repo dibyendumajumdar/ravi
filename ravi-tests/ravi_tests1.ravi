@@ -424,3 +424,12 @@ assert(y(x()))
 assert(y(x(false)))
 assert(not y(x(true)))
 print("test 31 OK")
+
+-- test 32
+x=function(a,b) 
+  return a%b
+end
+assert(ravi.compile(x))
+assert(x(5,2) == 1)
+assert(math.abs(x(5.1,2.1)-0.9) < 1e-12)
+print("test 32 OK")

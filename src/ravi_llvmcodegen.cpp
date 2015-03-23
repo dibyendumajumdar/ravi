@@ -200,7 +200,9 @@ void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def) {
   ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
 }
 
-void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def, llvm::Instruction *base_ptr, int B) {
+void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def,
+                                             llvm::Instruction *base_ptr,
+                                             int B) {
   // L->top = R(B)
   // Get pointer to register at R(B)
   llvm::Value *ptr = emit_array_get(def, base_ptr, B);
@@ -208,8 +210,7 @@ void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def, llvm::Instruc
   llvm::Value *top = emit_gep(def, "L.top", def->L, 0, 4);
   // Assign to L->top
   llvm::Instruction *ins = def->builder->CreateStore(ptr, top);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa,
-    def->types->tbaa_luaState_topT);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
 }
 
 // Check if we can compile
@@ -258,6 +259,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_SUB:
     case OP_MUL:
     case OP_DIV:
+    case OP_MOD:
     case OP_SETTABLE:
     case OP_GETTABLE:
     case OP_GETUPVAL:
@@ -398,6 +400,8 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaV_setlistF = def->raviF->addExternFunction(
       def->types->luaV_setlistT, reinterpret_cast<void *>(&luaV_setlist),
       "luaV_setlist");
+  def->luaV_modF = def->raviF->addExternFunction(
+      def->types->luaV_modT, reinterpret_cast<void *>(&luaV_mod), "luaV_mod");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
@@ -407,6 +411,14 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       llvm::FunctionType::get(def->types->C_intT, args, true);
   def->printfFunc =
       def->raviF->module()->getOrInsertFunction("printf", printfType);
+
+  // fmod declaration
+  args.clear();
+  args.push_back(def->types->C_doubleT);
+  args.push_back(def->types->C_doubleT);
+  llvm::FunctionType *fmodType =
+      llvm::FunctionType::get(def->types->C_doubleT, args, false);
+  def->fmodFunc = def->raviF->module()->getOrInsertFunction("fmod", fmodType);
 }
 
 #define RA(i) (base + GETARG_A(i))
@@ -886,6 +898,12 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_DIVII(&def, L_ci, proto, A, B, C);
+    } break;
+
+    case OP_MOD: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_MOD(&def, L_ci, proto, A, B, C);
     } break;
 
     default:
