@@ -24,6 +24,14 @@
 
 namespace ravi {
 
+void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, llvm::Value *L_ci,
+                                 llvm::Value *proto, int A, int B) {
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_ra(def, base_ptr, B);
+  def->builder->CreateCall3(def->luaV_objlenF, def->L, ra, rb);
+}
+
 // R(A)[RK(B)] := RK(C)
 void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
                                       llvm::Value *proto, int A, int B, int C) {

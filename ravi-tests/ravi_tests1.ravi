@@ -442,3 +442,12 @@ assert(ravi.compile(x))
 assert(x(5,2) == 2)
 assert(math.abs(x(5.5,2.1)-2.0) < 1e-12)
 print("test 33 OK")
+
+-- test 34
+x=function()
+  local t={1,2,3,4,5}
+  return #t
+end
+assert(ravi.compile(x))
+assert(x() == 5)
+print("test 34 OK")

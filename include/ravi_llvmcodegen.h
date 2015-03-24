@@ -597,7 +597,7 @@ public:
                 int A, int B, int C);
 
   void emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
-    int A, int B, int C);
+                 int A, int B, int C);
 
   void emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);
@@ -708,6 +708,9 @@ public:
 
   void emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                   int A);
+
+  void emit_LEN(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                int A, int B);
 
   void emit_SETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
                      llvm::Value *proto, int A, int B, int C);
