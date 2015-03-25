@@ -605,4 +605,257 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(done_block);
   def->builder->SetInsertPoint(done_block);
 }
+
+// OP_POW
+void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
+                                 llvm::Value *proto, int A, int B, int C) {
+
+  // TValue *rb = RKB(i);
+  // TValue *rc = RKC(i);
+  // lua_Number nb; lua_Number nc;
+  // if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+  //  setfltvalue(ra, luai_numpow(L, nb, nc));
+  //}
+  // else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_POW)); }
+
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+  llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
+  llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
+
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+
+  llvm::Value *rb_type = emit_load_type(def, rb);
+  llvm::Value *rc_type = emit_load_type(def, rc);
+
+  llvm::BasicBlock *float_op =
+      llvm::BasicBlock::Create(def->jitState->context(), "float.op");
+  llvm::BasicBlock *try_meta =
+      llvm::BasicBlock::Create(def->jitState->context(), "try_meta");
+  llvm::BasicBlock *done_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "done");
+
+  // Is RB a float?
+  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
+      rb_type, def->types->kInt[LUA_TNUMFLT], "rb.is.float");
+
+  llvm::BasicBlock *convert_rb =
+      llvm::BasicBlock::Create(def->jitState->context(), "convert.rb");
+  llvm::BasicBlock *test_rc =
+      llvm::BasicBlock::Create(def->jitState->context(), "test.rc");
+  llvm::BasicBlock *load_rb =
+      llvm::BasicBlock::Create(def->jitState->context(), "load.rb");
+
+  // If RB is floating then load RB, else convert RB
+  def->builder->CreateCondBr(cmp1, load_rb, convert_rb);
+
+  // Convert RB
+  def->f->getBasicBlockList().push_back(convert_rb);
+  def->builder->SetInsertPoint(convert_rb);
+
+  // Call luaV_tonumber_()
+  llvm::Value *rb_isnum =
+      def->builder->CreateCall2(def->luaV_tonumberF, rb, nb);
+  cmp1 =
+      def->builder->CreateICmpEQ(rb_isnum, def->types->kInt[1], "rb.float.ok");
+
+  // If not number then go to meta block
+  // Else proceed to test RC
+  def->builder->CreateCondBr(cmp1, test_rc, try_meta);
+
+  def->f->getBasicBlockList().push_back(load_rb);
+  def->builder->SetInsertPoint(load_rb);
+
+  // Copy RB to local nb
+  auto src = emit_load_reg_n(def, rb);
+  auto ins = def->builder->CreateStore(src, nb);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  def->builder->CreateBr(test_rc);
+
+  def->f->getBasicBlockList().push_back(test_rc);
+  def->builder->SetInsertPoint(test_rc);
+
+  // Is RC a float?
+  cmp1 = def->builder->CreateICmpEQ(rc_type, def->types->kInt[LUA_TNUMFLT],
+                                    "rc.is.float");
+
+  llvm::BasicBlock *convert_rc =
+      llvm::BasicBlock::Create(def->jitState->context(), "convert.rc");
+  llvm::BasicBlock *load_rc =
+      llvm::BasicBlock::Create(def->jitState->context(), "load.rc");
+
+  // If RC is float load RC
+  // else try to convert RC
+  def->builder->CreateCondBr(cmp1, load_rc, convert_rc);
+
+  def->f->getBasicBlockList().push_back(convert_rc);
+  def->builder->SetInsertPoint(convert_rc);
+
+  // Call luaV_tonumber_()
+  llvm::Value *rc_isnum =
+      def->builder->CreateCall2(def->luaV_tonumberF, rc, nc);
+  cmp1 =
+      def->builder->CreateICmpEQ(rc_isnum, def->types->kInt[1], "rc.float.ok");
+
+  // If not number then go to meta block
+  // else both RB and RC float so go to op
+  def->builder->CreateCondBr(cmp1, float_op, try_meta);
+
+  def->f->getBasicBlockList().push_back(load_rc);
+  def->builder->SetInsertPoint(load_rc);
+
+  // Copy RC to local;
+  src = emit_load_reg_n(def, rc);
+  ins = def->builder->CreateStore(src, nc);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  def->builder->CreateBr(float_op);
+
+  def->f->getBasicBlockList().push_back(float_op);
+  def->builder->SetInsertPoint(float_op);
+
+  llvm::Instruction *lhs = def->builder->CreateLoad(nb);
+  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  llvm::Instruction *rhs = def->builder->CreateLoad(nc);
+  rhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  llvm::Value *pow_result = def->builder->CreateCall2(def->powFunc, lhs, rhs);
+
+  emit_store_reg_n(def, pow_result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
+
+  def->builder->CreateBr(done_block);
+
+  // Neither integer nor float so try meta
+  def->f->getBasicBlockList().push_back(try_meta);
+  def->builder->SetInsertPoint(try_meta);
+
+  def->builder->CreateCall5(def->luaT_trybinTMF, def->L, rb, rc, ra,
+                            def->types->kInt[TM_POW]);
+  def->builder->CreateBr(done_block);
+
+  def->f->getBasicBlockList().push_back(done_block);
+  def->builder->SetInsertPoint(done_block);
+}
+
+void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, llvm::Value *L_ci,
+                                 llvm::Value *proto, int A, int B) {
+
+  // TValue *rb = RB(i);
+  // lua_Number nb;
+  // if (ttisinteger(rb)) {
+  //  lua_Integer ib = ivalue(rb);
+  //  setivalue(ra, intop(-, 0, ib));
+  //}
+  // else if (tonumber(rb, &nb)) {
+  //  setfltvalue(ra, luai_numunm(L, nb));
+  //}
+  // else {
+  //  Protect(luaT_trybinTM(L, rb, rb, ra, TM_UNM));
+  //}
+
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+  llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
+
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+
+  llvm::Value *rb_type = emit_load_type(def, rb);
+
+  llvm::BasicBlock *float_op =
+      llvm::BasicBlock::Create(def->jitState->context(), "float.op");
+  llvm::BasicBlock *try_meta =
+      llvm::BasicBlock::Create(def->jitState->context(), "try_meta");
+  llvm::BasicBlock *done_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "done");
+
+  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
+      rb_type, def->types->kInt[LUA_TNUMINT], "rb.is.integer");
+
+  // Check if both RB and RC are integers
+  llvm::BasicBlock *then_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.integer", def->f);
+  llvm::BasicBlock *else_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.not.integer");
+  def->builder->CreateCondBr(cmp1, then_block, else_block);
+  def->builder->SetInsertPoint(then_block);
+
+  // Both are integers
+  llvm::Instruction *lhs = emit_load_reg_i(def, rb);
+  llvm::Value *result = def->builder->CreateNeg(lhs, "", false, true);
+
+  emit_store_reg_i(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMINT);
+
+  def->builder->CreateBr(done_block);
+
+  // Not integer
+  def->f->getBasicBlockList().push_back(else_block);
+  def->builder->SetInsertPoint(else_block);
+
+  // Is RB a float?
+  cmp1 = def->builder->CreateICmpEQ(
+      rb_type, def->types->kInt[LUA_TNUMFLT], "rb.is.float");
+
+  llvm::BasicBlock *convert_rb =
+      llvm::BasicBlock::Create(def->jitState->context(), "convert.rb");
+  llvm::BasicBlock *load_rb =
+      llvm::BasicBlock::Create(def->jitState->context(), "load.rb");
+
+  // If RB is floating then load RB, else convert RB
+  def->builder->CreateCondBr(cmp1, load_rb, convert_rb);
+
+  // Convert RB
+  def->f->getBasicBlockList().push_back(convert_rb);
+  def->builder->SetInsertPoint(convert_rb);
+
+  // Call luaV_tonumber_()
+  llvm::Value *rb_isnum =
+      def->builder->CreateCall2(def->luaV_tonumberF, rb, nb);
+  cmp1 =
+      def->builder->CreateICmpEQ(rb_isnum, def->types->kInt[1], "rb.float.ok");
+
+  // If not number then go to meta block
+  // Else proceed to test RC
+  def->builder->CreateCondBr(cmp1, float_op, try_meta);
+
+  def->f->getBasicBlockList().push_back(load_rb);
+  def->builder->SetInsertPoint(load_rb);
+
+  // Copy RB to local nb
+  auto src = emit_load_reg_n(def, rb);
+  auto ins = def->builder->CreateStore(src, nb);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  def->builder->CreateBr(float_op);
+
+  def->f->getBasicBlockList().push_back(float_op);
+  def->builder->SetInsertPoint(float_op);
+
+  lhs = def->builder->CreateLoad(nb);
+  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+  result = def->builder->CreateFNeg(lhs);
+
+  emit_store_reg_n(def, result, ra);
+  emit_store_type(def, ra, LUA_TNUMFLT);
+
+  def->builder->CreateBr(done_block);
+
+  // Neither integer nor float so try meta
+  def->f->getBasicBlockList().push_back(try_meta);
+  def->builder->SetInsertPoint(try_meta);
+
+  def->builder->CreateCall5(def->luaT_trybinTMF, def->L, rb, rb, ra,
+                            def->types->kInt[TM_UNM]);
+  def->builder->CreateBr(done_block);
+
+  def->f->getBasicBlockList().push_back(done_block);
+  def->builder->SetInsertPoint(done_block);
+}
 }

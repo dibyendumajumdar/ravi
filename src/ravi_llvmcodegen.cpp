@@ -261,6 +261,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_DIV:
     case OP_MOD:
     case OP_IDIV:
+    case OP_UNM:
+    case OP_POW:
     case OP_LEN:
     case OP_SETTABLE:
     case OP_GETTABLE:
@@ -426,6 +428,9 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   llvm::FunctionType *fmodType =
       llvm::FunctionType::get(def->types->C_doubleT, args, false);
   def->fmodFunc = def->raviF->module()->getOrInsertFunction("fmod", fmodType);
+  llvm::FunctionType *powType =
+      llvm::FunctionType::get(def->types->C_doubleT, args, false);
+  def->powFunc = def->raviF->module()->getOrInsertFunction("pow", powType);
 
   // stdc floor declaration
   args.clear();
@@ -928,6 +933,15 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_IDIV(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_POW: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_POW(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_UNM: {
+      int B = GETARG_B(i);
+      emit_UNM(&def, L_ci, proto, A, B);
     } break;
 
     default:

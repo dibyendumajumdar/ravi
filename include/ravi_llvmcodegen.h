@@ -426,6 +426,7 @@ struct RaviFunctionDef {
   llvm::Constant *printfFunc;
   llvm::Constant *fmodFunc;
   llvm::Constant *floorFunc;
+  llvm::Constant *powFunc;
 
   // Jump targets in the function
   std::vector<RaviBranchDef> jmp_targets;
@@ -598,6 +599,12 @@ public:
 
   void emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B, int C);
+
+  void emit_POW(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                int A, int B, int C);
+
+  void emit_UNM(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                int A, int B);
 
   void emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B);
