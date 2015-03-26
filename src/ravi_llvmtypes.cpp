@@ -643,6 +643,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(StkIdT);
   luaD_poscallT = llvm::FunctionType::get(C_intT, elements, false);
 
+  // void luaC_upvalbarrier_ (lua_State *L, UpVal *uv)
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pUpValT);
+  luaC_upvalbarrierT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
   // int luaD_precall (lua_State *L, StkId func, int nresults, int compile);
   elements.clear();
   elements.push_back(plua_StateT);

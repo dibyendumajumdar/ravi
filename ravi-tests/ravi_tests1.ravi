@@ -451,3 +451,18 @@ end
 assert(ravi.compile(x))
 assert(x() == 5)
 print("test 34 OK")
+
+-- test 35
+function x()
+  local x = 1
+  local f = function()
+    x=x+1
+    return x
+  end
+  return f
+end
+f=x()
+assert(ravi.compile(f))
+assert(f() == 2)
+assert(f() == 3)
+print("test 35 OK")

@@ -67,6 +67,47 @@ void RaviCodeGenerator::emit_GETUPVAL(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_assign(def, ra, v);
 }
 
+// UpValue[B] := R(A)
+void RaviCodeGenerator::emit_SETUPVAL(RaviFunctionDef *def, llvm::Value *L_ci,
+                                      llvm::Value *proto, int A, int B) {
+
+  // UpVal *uv = cl->upvals[GETARG_B(i)];
+  // setobj(L, uv->v, ra);
+  // luaC_upvalbarrier(L, uv);
+
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, B);
+  llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
+  llvm::Value *v = emit_load_upval_v(def, upval);
+  emit_assign(def, v, ra);
+
+  llvm::Value *type = emit_load_type(def, v);
+  llvm::Value *is_collectible =
+      def->builder->CreateAnd(type, def->types->kInt[BIT_ISCOLLECTABLE]);
+
+  llvm::Value *value = emit_gep_upval_value(def, upval);
+  llvm::Value *cmp = def->builder->CreateICmpNE(v, value, "v.ne.value");
+  llvm::Value *tobool = def->builder->CreateICmpEQ(
+      is_collectible, def->types->kInt[0], "not.collectible");
+  llvm::Value *orcond =
+      def->builder->CreateOr(cmp, tobool, "v.ne.value.or.not.collectible");
+
+  llvm::BasicBlock *then =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
+  llvm::BasicBlock *end =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+
+  def->builder->CreateCondBr(orcond, end, then);
+  def->builder->SetInsertPoint(then);
+
+  def->builder->CreateCall2(def->luaC_upvalbarrierF, def->L, upval);
+  def->builder->CreateBr(end);
+
+  def->f->getBasicBlockList().push_back(end);
+  def->builder->SetInsertPoint(end);
+}
+
 // R(A) := UpValue[B][RK(C)]
 void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, llvm::Value *L_ci,
                                       llvm::Value *proto, int A, int B, int C) {
@@ -82,6 +123,23 @@ void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
   llvm::Value *v = emit_load_upval_v(def, upval);
   def->builder->CreateCall4(def->luaV_gettableF, def->L, v, rc, ra);
+}
+
+// UpValue[A][RK(B)] := RK(C)
+void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, llvm::Value *L_ci,
+                                      llvm::Value *proto, int A, int B, int C) {
+
+  // int a = GETARG_A(i);
+  // Protect(luaV_settable(L, cl->upvals[a]->v, RKB(i), RKC(i)));
+
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+
+  llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, A);
+  llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
+  llvm::Value *v = emit_load_upval_v(def, upval);
+  def->builder->CreateCall4(def->luaV_settableF, def->L, v, rb, rc);
 }
 
 void RaviCodeGenerator::emit_NEWARRAYINT(RaviFunctionDef *def,

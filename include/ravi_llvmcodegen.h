@@ -204,6 +204,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_modT;
   llvm::FunctionType *luaV_objlenT;
   llvm::FunctionType *luaV_divT;
+  llvm::FunctionType *luaC_upvalbarrierT;
 
   llvm::FunctionType *luaV_executeT;
   llvm::FunctionType *luaV_gettableT;
@@ -413,6 +414,7 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_modF;
   llvm::Constant *luaV_divF;
   llvm::Constant *luaV_objlenF;
+  llvm::Constant *luaC_upvalbarrierF;
 
   // Some cheats - these correspond to OPCODEs that
   // are not inlined as of now
@@ -728,7 +730,13 @@ public:
   void emit_GETUPVAL(RaviFunctionDef *def, llvm::Value *L_ci,
                      llvm::Value *proto, int A, int B);
 
+  void emit_SETUPVAL(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int B);
+
   void emit_GETTABUP(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int B, int C);
+
+  void emit_SETTABUP(RaviFunctionDef *def, llvm::Value *L_ci,
                      llvm::Value *proto, int A, int B, int C);
 
   void emit_NEWARRAYINT(RaviFunctionDef *def, llvm::Value *L_ci,

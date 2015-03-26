@@ -267,7 +267,9 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_SETTABLE:
     case OP_GETTABLE:
     case OP_GETUPVAL:
+    case OP_SETUPVAL:
     case OP_GETTABUP:
+    case OP_SETTABUP:
     case OP_NEWTABLE:
     case OP_SETLIST:
     case OP_RAVI_NEWARRAYI:
@@ -411,6 +413,9 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaV_objlenF = def->raviF->addExternFunction(
       def->types->luaV_objlenT, reinterpret_cast<void *>(&luaV_objlen),
       "luaV_objlen");
+  def->luaC_upvalbarrierF = def->raviF->addExternFunction(
+      def->types->luaC_upvalbarrierT,
+      reinterpret_cast<void *>(&luaC_upvalbarrier_), "luaC_upvalbarrier_");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
@@ -788,6 +793,15 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     case OP_GETUPVAL: {
       int B = GETARG_B(i);
       emit_GETUPVAL(&def, L_ci, proto, A, B);
+    } break;
+    case OP_SETTABUP: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_SETTABUP(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_SETUPVAL: {
+      int B = GETARG_B(i);
+      emit_SETUPVAL(&def, L_ci, proto, A, B);
     } break;
 
     case OP_ADD: {
