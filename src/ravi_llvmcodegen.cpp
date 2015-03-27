@@ -238,6 +238,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     OpCode o = GET_OPCODE(i);
     switch (o) {
     case OP_LOADK:
+    case OP_LOADKX:
     case OP_LOADNIL:
     case OP_LOADBOOL:
     case OP_CALL:
@@ -614,6 +615,14 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int Bx = GETARG_Bx(i);
       emit_LOADK(&def, L_ci, proto, A, Bx);
     } break;
+    case OP_LOADKX: {
+      // OP_LOADKX is followed by OP_EXTRAARG
+      Instruction inst = code[++pc];
+      int Ax = GETARG_Ax(inst);
+      lua_assert(GET_OPCODE(inst) == OP_EXTRAARG);
+      emit_LOADK(&def, L_ci, proto, A, Ax);
+    } break;
+
     case OP_LOADBOOL: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
