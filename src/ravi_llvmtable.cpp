@@ -24,8 +24,23 @@
 
 namespace ravi {
 
+void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, llvm::Value *L_ci,
+                                  llvm::Value *proto, int A, int B, int C) {
+  // StkId rb = RB(i);
+  // setobjs2s(L, ra + 1, rb);
+  // Protect(luaV_gettable(L, rb, RKC(i), ra));
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *rb = emit_gep_ra(def, base_ptr, B);
+  llvm::Value *ra1 = emit_gep_ra(def, base_ptr, A + 1);
+  emit_assign(def, ra1, rb);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  def->builder->CreateCall4(def->luaV_gettableF, def->L, rb, rc, ra);
+}
+
 void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, llvm::Value *L_ci,
                                  llvm::Value *proto, int A, int B) {
+  //Protect(luaV_objlen(L, ra, RB(i)));
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
   llvm::Value *rb = emit_gep_ra(def, base_ptr, B);
@@ -35,6 +50,7 @@ void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, llvm::Value *L_ci,
 // R(A)[RK(B)] := RK(C)
 void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
                                       llvm::Value *proto, int A, int B, int C) {
+  //Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
   llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
@@ -45,6 +61,7 @@ void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
 // R(A) := R(B)[RK(C)]
 void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
                                       llvm::Value *proto, int A, int B, int C) {
+  //Protect(luaV_gettable(L, RB(i), RKC(i), ra));
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
   llvm::Value *rb = emit_gep_ra(def, base_ptr, B);
@@ -55,10 +72,8 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
 // R(A) := UpValue[B]
 void RaviCodeGenerator::emit_GETUPVAL(RaviFunctionDef *def, llvm::Value *L_ci,
                                       llvm::Value *proto, int A, int B) {
-  //  case OP_GETUPVAL: {
-  //    int b = GETARG_B(i);
-  //    setobj2s(L, ra, cl->upvals[b]->v);
-  //  } break;
+  //int b = GETARG_B(i);
+  //setobj2s(L, ra, cl->upvals[b]->v);
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
   llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, B);
@@ -111,10 +126,8 @@ void RaviCodeGenerator::emit_SETUPVAL(RaviFunctionDef *def, llvm::Value *L_ci,
 // R(A) := UpValue[B][RK(C)]
 void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, llvm::Value *L_ci,
                                       llvm::Value *proto, int A, int B, int C) {
-  //  case OP_GETTABUP: {
-  //    int b = GETARG_B(i);
-  //    Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
-  //  } break;
+  //int b = GETARG_B(i);
+  //Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
   llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);

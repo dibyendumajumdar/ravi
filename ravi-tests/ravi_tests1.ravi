@@ -466,3 +466,16 @@ assert(ravi.compile(f))
 assert(f() == 2)
 assert(f() == 3)
 print("test 35 OK")
+
+-- test 36
+t = { name_ = "ravi" }
+function t:name() 
+  return self.name_
+end
+function z(t)
+  return t:name()
+end
+assert(ravi.compile(t.name))
+assert(ravi.compile(z))
+assert(z(t) == "ravi")
+print("test 36 OK")

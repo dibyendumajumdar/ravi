@@ -272,6 +272,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_SETTABUP:
     case OP_NEWTABLE:
     case OP_SETLIST:
+    case OP_SELF:
     case OP_RAVI_NEWARRAYI:
     case OP_RAVI_NEWARRAYF:
     case OP_RAVI_MOVEI:
@@ -651,6 +652,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_SETLIST(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_SELF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_SELF(&def, L_ci, proto, A, B, C);
     } break;
     case OP_LEN: {
       int B = GETARG_B(i);

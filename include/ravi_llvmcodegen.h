@@ -727,6 +727,9 @@ public:
   void emit_GETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
                      llvm::Value *proto, int A, int B, int C);
 
+  void emit_SELF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                 int A, int B, int C);
+
   void emit_GETUPVAL(RaviFunctionDef *def, llvm::Value *L_ci,
                      llvm::Value *proto, int A, int B);
 
