@@ -647,7 +647,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pUpValT);
-  luaC_upvalbarrierT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  luaC_upvalbarrierT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   // int luaD_precall (lua_State *L, StkId func, int nresults, int compile);
   elements.clear();
@@ -722,7 +723,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pTValueT);
   elements.push_back(pTValueT);
   luaV_objlenT =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   elements.push_back(pTValueT);
   luaV_gettableT =
@@ -768,6 +769,30 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(lua_IntegerT);
   luaV_modT = llvm::FunctionType::get(lua_IntegerT, elements, false);
   luaV_divT = llvm::FunctionType::get(lua_IntegerT, elements, false);
+
+  // void luaV_opconcat(lua_State *L, CallInfo *ci, int a, int b, int c);
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pCallInfoT);
+  elements.push_back(C_intT);
+  elements.push_back(C_intT);
+  elements.push_back(C_intT);
+  luaV_opconcatT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
+  // void luaV_opclosure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int
+  // Bx);
+  // void luaV_opvararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pCallInfoT);
+  elements.push_back(pLClosureT);
+  elements.push_back(C_intT);
+  elements.push_back(C_intT);
+  luaV_opclosureT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  luaV_opvarargT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);

@@ -25,13 +25,31 @@
 namespace ravi {
 
 // OP_JMP
-void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int j) {
+void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int j) {
+
+  //#define dojump(ci,i,e) \
+  // { int a = GETARG_A(i); \
+  //   if (a > 0) luaF_close(L, ci->u.l.base + a - 1); \
+  //   ci->u.l.savedpc += GETARG_sBx(i) + e; }
+  //
+  // dojump(ci, i, 0);
+
   assert(def->jmp_targets[j].jmp1);
   if (def->builder->GetInsertBlock()->getTerminator()) {
     llvm::BasicBlock *jmp_block =
         llvm::BasicBlock::Create(def->jitState->context(), "jump", def->f);
     def->builder->SetInsertPoint(jmp_block);
   }
+
+  // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
+  if (A > 0) {
+    llvm::Instruction *base = emit_load_base(def);
+    // base + a - 1
+    llvm::Value *val = emit_gep_ra(def, base, A - 1);
+    // Call luaF_close
+    def->builder->CreateCall2(def->luaF_closeF, def->L, val);
+  }
+
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
   llvm::BasicBlock *block =
       llvm::BasicBlock::Create(def->jitState->context(), "postjump", def->f);

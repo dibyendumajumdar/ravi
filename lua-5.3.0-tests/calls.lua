@@ -118,7 +118,7 @@ function deep (n)
   if n>0 then deep(n-1) end
 end
 deep(10)
-deep(ravi.auto() and 120 or 200)
+deep(ravi.auto() and 110 or 200)
 
 -- testing tail call
 if not ravi.auto() then

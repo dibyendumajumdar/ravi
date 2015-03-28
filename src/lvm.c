@@ -876,6 +876,57 @@ void luaV_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
   L->top = ci->top;  /* correct top (in case of previous open call) */
 }
 
+void luaV_opconcat(lua_State *L, CallInfo *ci, int a, int b, int c) {
+  StkId rb, ra;
+  StkId base = ci->u.l.base;
+  L->top = base + c + 1;  /* mark the end of concat operands */
+  Protect(luaV_concat(L, c - b + 1));
+  ra = base + a;  /* 'luav_concat' may invoke TMs and move the stack */
+  rb = base + b;
+  setobjs2s(L, ra, rb);
+  checkGC(L, (ra >= rb ? ra + 1 : rb));
+  L->top = ci->top;  /* restore top */
+}
+
+void luaV_opclosure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx) {
+  StkId base = ci->u.l.base;
+  Proto *p = cl->p->p[Bx];
+  LClosure *ncl = getcached(p, cl->upvals, base);  /* cached closure */
+  StkId ra = base + a;
+  if (ncl == NULL)  /* no match? */ {
+    pushclosure(L, p, cl->upvals, base, ra);  /* create a new one */
+  }
+  else {
+    setclLvalue(L, ra, ncl);  /* push cashed closure */
+  }
+  checkGC(L, ra + 1);
+}
+
+void luaV_opvararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b) {
+  StkId base = ci->u.l.base;
+  int j;
+  int n = cast_int(base - ci->func) - cl->p->numparams - 1;
+  StkId ra;
+  b = b - 1;
+  if (b < 0) {  /* B == 0? */
+    b = n;  /* get all var. arguments */
+    Protect(luaD_checkstack(L, n));
+    ra = base + a;  /* previous call may change the stack */
+    L->top = ra + n;
+  }
+  else {
+    ra = base + a;
+  }
+  for (j = 0; j < b; j++) {
+    if (j < n) {
+      setobjs2s(L, ra + j, base - n + j);
+    }
+    else {
+      setnilvalue(ra + j);
+    }
+  }
+}
+
 void luaV_execute (lua_State *L) {
   CallInfo *ci = L->ci;
   LClosure *cl;
@@ -1364,9 +1415,9 @@ newframe:  /* reentry point when frame changes (call/return) */
     case OP_CLOSURE: {
         Proto *p = cl->p->p[GETARG_Bx(i)];
         LClosure *ncl = getcached(p, cl->upvals, base);  /* cached closure */
-        if (ncl == NULL)  /* no match? */
+        if (ncl == NULL)  /* no match? */ 
             pushclosure(L, p, cl->upvals, base, ra);  /* create a new one */
-        else
+        else 
             setclLvalue(L, ra, ncl);  /* push cashed closure */
         checkGC(L, ra + 1);
     } break;

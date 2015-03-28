@@ -64,5 +64,8 @@ LUAI_FUNC void luaV_newarrayint(lua_State *L, CallInfo *ci, TValue *ra);
 LUAI_FUNC void luaV_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra);
 LUAI_FUNC void luaV_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);
 LUAI_FUNC void luaV_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);
+LUAI_FUNC void luaV_opconcat(lua_State *L, CallInfo *ci, int a, int b, int c);
+LUAI_FUNC void luaV_opclosure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx);
+LUAI_FUNC void luaV_opvararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);
 
 #endif

@@ -29,8 +29,6 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Here is what OP_RETURN looks like. We only compile steps
   // marked with //*.
-  // TODO that means we cannot handle functions that have sub
-  // functions (closures) as do not handle the luaF_close() call
 
   // case OP_RETURN: {
   //  int b = GETARG_B(i);
@@ -40,8 +38,8 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   //    if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */
   //      return;  /* external invocation: return */
   //    else {  /* invocation via reentry: continue execution */
-  //*      ci = L->ci;
-  //*      if (b) L->top = ci->top;
+  //      ci = L->ci;
+  //      if (b) L->top = ci->top;
   //      goto newframe;  /* restart luaV_execute over new Lua function */
   //    }
   // }

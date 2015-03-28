@@ -227,10 +227,10 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
   // TODO we cannot handle variable arguments or
   // if the function has sub functions (closures)
   // if (p->sizep > 0 || p->is_vararg) {
-  if (p->is_vararg) {
-    p->ravi_jit.jit_status = 1;
-    return false;
-  }
+  // if (p->is_vararg) {
+  //  p->ravi_jit.jit_status = 1;
+  //  return false;
+  //}
   // Loop over the byte codes; as Lua compiler inserts
   // an extra RETURN op we need to ignore the last op
   for (pc = 0; pc < n; pc++) {
@@ -265,6 +265,9 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_UNM:
     case OP_POW:
     case OP_LEN:
+    case OP_VARARG:
+    case OP_CONCAT:
+    case OP_CLOSURE:
     case OP_SETTABLE:
     case OP_GETTABLE:
     case OP_GETUPVAL:
@@ -418,6 +421,15 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaC_upvalbarrierF = def->raviF->addExternFunction(
       def->types->luaC_upvalbarrierT,
       reinterpret_cast<void *>(&luaC_upvalbarrier_), "luaC_upvalbarrier_");
+  def->luaV_opconcatF = def->raviF->addExternFunction(
+      def->types->luaV_opconcatT, reinterpret_cast<void *>(&luaV_opconcat),
+      "luaV_opconcat");
+  def->luaV_opclosureF = def->raviF->addExternFunction(
+      def->types->luaV_opclosureT, reinterpret_cast<void *>(&luaV_opclosure),
+      "luaV_opclosure");
+  def->luaV_opvarargF = def->raviF->addExternFunction(
+      def->types->luaV_opvarargT, reinterpret_cast<void *>(&luaV_opvararg),
+      "luaV_opvararg");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
@@ -623,6 +635,20 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_LOADK(&def, L_ci, proto, A, Ax);
     } break;
 
+    case OP_CONCAT: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_CONCAT(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_CLOSURE: {
+      int Bx = GETARG_Bx(i);
+      emit_CLOSURE(&def, L_ci, proto, A, Bx);
+    } break;
+    case OP_VARARG: {
+      int B = GETARG_B(i);
+      emit_VARARG(&def, L_ci, proto, A, B);
+    } break;
+
     case OP_LOADBOOL: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
@@ -751,7 +777,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     case OP_JMP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
-      emit_JMP(&def, j);
+      emit_JMP(&def, A, j);
     } break;
 
     case OP_FORPREP: {

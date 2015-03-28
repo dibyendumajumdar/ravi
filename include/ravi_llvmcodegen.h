@@ -214,6 +214,9 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_setlistT;
   llvm::FunctionType *luaV_newtableT;
   llvm::FunctionType *luaV_op_loadnilT;
+  llvm::FunctionType *luaV_opconcatT;
+  llvm::FunctionType *luaV_opclosureT;
+  llvm::FunctionType *luaV_opvarargT;
 
   std::array<llvm::Constant *, 256> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
@@ -423,6 +426,9 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_setlistF;
   llvm::Constant *luaV_newtableF;
   llvm::Constant *luaV_op_loadnilF;
+  llvm::Constant *luaV_opconcatF;
+  llvm::Constant *luaV_opclosureF;
+  llvm::Constant *luaV_opvarargF;
 
   // standard C functions
   llvm::Constant *printfFunc;
@@ -581,6 +587,15 @@ public:
   // and links in the new block
   void link_block(RaviFunctionDef *def, int pc);
 
+  void emit_CONCAT(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                   int A, int B, int C);
+
+  void emit_CLOSURE(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                    int A, int Bx);
+
+  void emit_VARARG(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                   int A, int B);
+
   void emit_LOADNIL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                     int A, int B);
 
@@ -689,7 +704,7 @@ public:
   void emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                  int A, int B, int C);
 
-  void emit_JMP(RaviFunctionDef *def, int j);
+  void emit_JMP(RaviFunctionDef *def, int A, int j);
 
   void emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                     int A, int sBx);

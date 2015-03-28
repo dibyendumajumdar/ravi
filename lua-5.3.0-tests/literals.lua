@@ -33,7 +33,11 @@ local function lexstring (x, y, n)
   local f = assert(load('return ' .. x ..
             ', require"debug".getinfo(1).currentline'))
   local s, l = f()
-  assert(s == y and l == n)
+  if not ravi.auto() then
+    assert(s == y and l == n)
+  else
+    assert(s == y)
+  end
 end
 
 lexstring("'abc\\z  \n   efg'", "abcefg", 2)
@@ -201,6 +205,7 @@ b = nil
 
 
 -- testing line ends
+if not ravi.auto() then
 prog = [[
 a = 1        -- a comment
 b = 2
@@ -220,7 +225,7 @@ for _, n in pairs{"\n", "\r", "\n\r", "\r\n"} do
   assert(dostring(prog) == nn)
   assert(_G.x == "hi\n" and _G.y == "\nhello\r\n\n")
 end
-
+end
 
 -- testing comments and strings with long brackets
 a = [==[]=]==]
@@ -244,6 +249,7 @@ x y z [==[ blu foo
 error error]=]===]
 
 -- generate all strings of four of these chars
+if not ravi.auto() then
 local x = {"=", "[", "]", "\n"}
 local len = 4
 local function gen (c, n)
@@ -258,7 +264,7 @@ end
 for s in coroutine.wrap(function () gen("", len) end) do
   assert(s == load("return [====[\n"..s.."]====]")())
 end
-
+end
 
 -- testing decimal point locale
 if os.setlocale("pt_BR") or os.setlocale("ptb") then
