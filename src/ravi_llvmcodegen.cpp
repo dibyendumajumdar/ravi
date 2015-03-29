@@ -204,6 +204,14 @@ llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(RaviFunctionDef *
   return tt;
 }
 
+llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraylength(RaviFunctionDef *def,
+  llvm::Value *value) {
+  llvm::Value *tt_ptr = emit_gep(def, "raviarray.len_ptr", value, 0, 11, 2);
+  llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.len");
+  tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_lenT);
+  return tt;
+}
+
 llvm::Value *RaviCodeGenerator::emit_gep_rkb(RaviFunctionDef *def,
                                              llvm::Instruction *base_ptr,
                                              int B) {
@@ -341,6 +349,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_DIVFI:
     case OP_RAVI_DIVIF:
     case OP_RAVI_DIVII:
+    case OP_RAVI_GETTABLE_AI:
+    case OP_RAVI_GETTABLE_AF:
       break;
     default:
       return false;
@@ -860,6 +870,17 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int C = GETARG_C(i);
       emit_GETTABLE(&def, L_ci, proto, A, B, C);
     } break;
+    case OP_RAVI_GETTABLE_AI: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_GETTABLE_AI(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_RAVI_GETTABLE_AF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_GETTABLE_AF(&def, L_ci, proto, A, B, C);
+    } break;
+
     case OP_GETTABUP: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);

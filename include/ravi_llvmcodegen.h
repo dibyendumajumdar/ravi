@@ -535,10 +535,12 @@ public:
   llvm::Instruction *emit_load_reg_h(RaviFunctionDef *def, llvm::Value *ra);
 
   // emit code to load pointer to int array
-  llvm::Instruction *emit_load_reg_h_intarray(RaviFunctionDef *def, llvm::Instruction *ra);
+  llvm::Instruction *emit_load_reg_h_intarray(RaviFunctionDef *def,
+                                              llvm::Instruction *ra);
 
   // emit code to load pointer to double array
-  llvm::Instruction *emit_load_reg_h_floatarray(RaviFunctionDef *def, llvm::Instruction *ra);
+  llvm::Instruction *emit_load_reg_h_floatarray(RaviFunctionDef *def,
+                                                llvm::Instruction *ra);
 
   // emit code to store lua_Number value into register
   void emit_store_reg_n(RaviFunctionDef *def, llvm::Value *value,
@@ -558,8 +560,13 @@ public:
   // emit code to load the type from a register
   llvm::Instruction *emit_load_type(RaviFunctionDef *def, llvm::Value *value);
 
-  // emit code to load the type from a register
-  llvm::Instruction *emit_load_ravi_arraytype(RaviFunctionDef *def, llvm::Value *value);
+  // emit code to load the array type
+  llvm::Instruction *emit_load_ravi_arraytype(RaviFunctionDef *def,
+                                              llvm::Value *value);
+
+  // emit code to load the array length
+  llvm::Instruction *emit_load_ravi_arraylength(RaviFunctionDef *def,
+                                                llvm::Value *value);
 
   // TValue assign
   void emit_assign(RaviFunctionDef *def, llvm::Value *ra, llvm::Value *rb);
@@ -824,6 +831,12 @@ public:
 
   void emit_TFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
                      llvm::Value *proto, int A, int j);
+
+  void emit_GETTABLE_AF(RaviFunctionDef *def, llvm::Value *L_ci,
+                        llvm::Value *proto, int A, int B, int C);
+
+  void emit_GETTABLE_AI(RaviFunctionDef *def, llvm::Value *L_ci,
+                        llvm::Value *proto, int A, int B, int C);
 
 private:
   RaviJITStateImpl *jitState_;

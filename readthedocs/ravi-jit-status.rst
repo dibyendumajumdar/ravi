@@ -179,10 +179,10 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_MOVEAF          | NO       | R(A) := R(B), check R(B) is array of numbers     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_GETTABLE_AI     | NO       | R(A) := R(B)[RK(C)] where R(B) is array of       |
+| OP_RAVI_GETTABLE_AI     | YES      | R(A) := R(B)[RK(C)] where R(B) is array of       |
 |                         |          | integers and RK(C) is integer                    |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_GETTABLE_AF     | NO       | R(A) := R(B)[RK(C)] where R(B) is array of       |
+| OP_RAVI_GETTABLE_AF     | YES      | R(A) := R(B)[RK(C)] where R(B) is array of       |
 |                         |          | numbers and RK(C) is integer                     |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SETTABLE_AI     | NO       | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |

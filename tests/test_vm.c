@@ -122,6 +122,7 @@ int main(int argc, const char *argv[])
 {
     int failures = 0;
     //  
+    failures += test_luacompexec1("function arrayaccess (); local x: integer[] = {5}; return x[1]; end; assert(ravi.compile(arrayaccess)); return arrayaccess()", 5);
     failures += test_luacompexec1("function cannotload (msg, a,b); assert(not a and string.find(b, msg)); end; ravi.compile(cannotload); return 1", 1);
     failures += test_luacompexec1("function z(); local a = 5; a = a + 1; return a; end; ravi.compile(z); return z()", 6);
     failures += test_luacompexec1("function z(x); x[1] = 5; return x[1]; end; ravi.compile(z); return z({})", 5);
