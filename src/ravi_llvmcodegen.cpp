@@ -125,6 +125,32 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_b(RaviFunctionDef *def,
   return lhs;
 }
 
+llvm::Instruction *RaviCodeGenerator::emit_load_reg_h(RaviFunctionDef *def,
+  llvm::Value *rb) {
+  llvm::Value *rb_h = def->builder->CreateBitCast(rb, def->types->ppTableT);
+  llvm::Instruction *h = def->builder->CreateLoad(rb_h);
+  h->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_ppointerT);
+  return h;
+}
+
+llvm::Instruction *RaviCodeGenerator::emit_load_reg_h_floatarray(RaviFunctionDef *def,
+  llvm::Instruction *h) {
+  llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 11, 0);
+  llvm::Value *darray_ptr = def->builder->CreateBitCast(data_ptr, def->types->pplua_NumberT);
+  llvm::Instruction *darray = def->builder->CreateLoad(darray_ptr);
+  darray->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_dataT);
+  return darray;
+}
+
+llvm::Instruction *RaviCodeGenerator::emit_load_reg_h_intarray(RaviFunctionDef *def,
+  llvm::Instruction *h) {
+  llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 11, 0);
+  llvm::Value *darray_ptr = def->builder->CreateBitCast(data_ptr, def->types->pplua_IntegerT);
+  llvm::Instruction *darray = def->builder->CreateLoad(darray_ptr);
+  darray->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_dataT);
+  return darray;
+}
+
 void RaviCodeGenerator::emit_store_reg_n(RaviFunctionDef *def,
                                          llvm::Value *result,
                                          llvm::Value *dest_ptr) {
@@ -167,6 +193,14 @@ llvm::Instruction *RaviCodeGenerator::emit_load_type(RaviFunctionDef *def,
   llvm::Value *tt_ptr = emit_gep(def, "value.tt.ptr", value, 0, 1);
   llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "value.tt");
   tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  return tt;
+}
+
+llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(RaviFunctionDef *def,
+  llvm::Value *value) {
+  llvm::Value *tt_ptr = emit_gep(def, "raviarray.type_ptr", value, 0, 11, 1);
+  llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.type");
+  tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_typeT);
   return tt;
 }
 

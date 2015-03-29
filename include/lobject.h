@@ -512,10 +512,10 @@ typedef struct Node {
 } Node;
 
 typedef struct RaviArray {
+  char *data;
   ravitype_t type; /* RAVI specialization */
   unsigned int len; /* RAVI len specialization */
   unsigned int size; /* amount of memory allocated */
-  char *data;
 } RaviArray;
 
 typedef struct Table {

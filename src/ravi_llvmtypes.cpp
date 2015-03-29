@@ -32,6 +32,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   C_doubleT = llvm::Type::getDoubleTy(context);
   lua_NumberT = C_doubleT;
   plua_NumberT = llvm::PointerType::get(lua_NumberT, 0);
+  pplua_NumberT = llvm::PointerType::get(plua_NumberT, 0);
 
   static_assert(sizeof(lua_Integer) == sizeof(lua_Number) &&
                     sizeof(lua_Integer) == sizeof(int64_t),
@@ -40,6 +41,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
                 "lua_Integer is not an integer type");
   lua_IntegerT = llvm::Type::getIntNTy(context, sizeof(lua_Integer) * 8);
   plua_IntegerT = llvm::PointerType::get(lua_IntegerT, 0);
+  pplua_IntegerT = llvm::PointerType::get(plua_IntegerT, 0);
 
   static_assert(sizeof(lua_Integer) == sizeof(lua_Unsigned),
                 "lua_Integer and lua_Unsigned are of different size");
@@ -194,6 +196,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   // Table
   TableT = llvm::StructType::create(context, "ravi.Table");
   pTableT = llvm::PointerType::get(TableT, 0);
+  ppTableT = llvm::PointerType::get(pTableT, 0);
 
   ///*
   //** Header for userdata; memory area follows the end of this structure
@@ -401,6 +404,21 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   NodeT->setBody(elements);
   pNodeT = llvm::PointerType::get(NodeT, 0);
 
+  //typedef struct RaviArray {
+  //  char *data;
+  //  ravitype_t type; /* RAVI specialization */
+  //  unsigned int len; /* RAVI len specialization */
+  //  unsigned int size; /* amount of memory allocated */
+  //} RaviArray;
+
+  RaviArrayT = llvm::StructType::create(context, "ravi.RaviArray");
+  elements.clear();
+  elements.push_back(C_pcharT);
+  elements.push_back(ravitype_tT);
+  elements.push_back(C_intT);
+  elements.push_back(C_intT);
+  RaviArrayT->setBody(elements);
+
   // typedef struct Table {
   //  CommonHeader;
   //  lu_byte flags;  /* 1<<p means tagmethod(p) is not present */
@@ -426,8 +444,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pNodeT);      /* lastfree */
   elements.push_back(pTableT);     /* metatable */
   elements.push_back(pGCObjectT);  /* gclist */
-  elements.push_back(ravitype_tT); /* ravi_array_type */
-  elements.push_back(C_intT);      /* ravi_array_len */
+  elements.push_back(RaviArrayT);  /* RaviArray */
   TableT->setBody(elements);
 
   // struct lua_longjmp;  /* defined in ldo.c */
@@ -981,6 +998,35 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_pointerT, 0);
   tbaa_UpVal_valueT =
       mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_TValueT, 16);
+
+  // RaviArray
+  nodes.clear();
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 4));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 12));
+  tbaa_RaviArrayT = mdbuilder.createTBAAStructTypeNode("RaviArray", nodes);
+
+  // Table
+  nodes.clear();
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 4));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 5));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 6));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 7));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 12));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 16));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 20));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 24));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 28));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_RaviArrayT, 32));
+  tbaa_TableT = mdbuilder.createTBAAStructTypeNode("Table", nodes);
+
+  tbaa_RaviArray_dataT = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 32);
+  tbaa_RaviArray_typeT = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 36);
+  tbaa_RaviArray_lenT = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 40);
+
 }
 
 void LuaLLVMTypes::dump() {

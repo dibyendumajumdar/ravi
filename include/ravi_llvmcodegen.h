@@ -82,10 +82,12 @@ struct LuaLLVMTypes {
   llvm::Type *C_int64_t;
 
   llvm::Type *lua_NumberT;
-  llvm::Type *plua_NumberT;
+  llvm::PointerType *plua_NumberT;
+  llvm::PointerType *pplua_NumberT;
 
   llvm::Type *lua_IntegerT;
   llvm::PointerType *plua_IntegerT;
+  llvm::PointerType *pplua_IntegerT;
 
   llvm::Type *lua_UnsignedT;
   llvm::Type *lua_KContextT;
@@ -135,8 +137,10 @@ struct LuaLLVMTypes {
   llvm::PointerType *ppTStringT;
 
   llvm::StructType *UdataT;
+  llvm::StructType *RaviArrayT;
   llvm::StructType *TableT;
   llvm::PointerType *pTableT;
+  llvm::PointerType *ppTableT;
 
   llvm::StructType *UpvaldescT;
   llvm::PointerType *pUpvaldescT;
@@ -253,6 +257,11 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_UpValT;
   llvm::MDNode *tbaa_UpVal_vT;
   llvm::MDNode *tbaa_UpVal_valueT;
+  llvm::MDNode *tbaa_RaviArrayT;
+  llvm::MDNode *tbaa_TableT;
+  llvm::MDNode *tbaa_RaviArray_typeT;
+  llvm::MDNode *tbaa_RaviArray_dataT;
+  llvm::MDNode *tbaa_RaviArray_lenT;
 };
 
 class RAVI_API RaviJITStateImpl;
@@ -522,6 +531,15 @@ public:
   // emit code to load the boolean value from register
   llvm::Instruction *emit_load_reg_b(RaviFunctionDef *def, llvm::Value *ra);
 
+  // emit code to load the table value from register
+  llvm::Instruction *emit_load_reg_h(RaviFunctionDef *def, llvm::Value *ra);
+
+  // emit code to load pointer to int array
+  llvm::Instruction *emit_load_reg_h_intarray(RaviFunctionDef *def, llvm::Instruction *ra);
+
+  // emit code to load pointer to double array
+  llvm::Instruction *emit_load_reg_h_floatarray(RaviFunctionDef *def, llvm::Instruction *ra);
+
   // emit code to store lua_Number value into register
   void emit_store_reg_n(RaviFunctionDef *def, llvm::Value *value,
                         llvm::Value *dest_ptr);
@@ -539,6 +557,9 @@ public:
 
   // emit code to load the type from a register
   llvm::Instruction *emit_load_type(RaviFunctionDef *def, llvm::Value *value);
+
+  // emit code to load the type from a register
+  llvm::Instruction *emit_load_ravi_arraytype(RaviFunctionDef *def, llvm::Value *value);
 
   // TValue assign
   void emit_assign(RaviFunctionDef *def, llvm::Value *ra, llvm::Value *rb);

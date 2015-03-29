@@ -1597,22 +1597,15 @@ newframe:  /* reentry point when frame changes (call/return) */
       if (tonumber(ra, &j)) {
         setfltvalue(ra, j);
       } else
-        luaG_runerror(L, "float expected");
-    } break;
-    case OP_RAVI_TOARRAYI: {
-      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
-        luaG_runerror(L, "int[] expected");
-    } break;
-    case OP_RAVI_TOARRAYF: {
-      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYFLT)
-        luaG_runerror(L, "double[] expected");
+        luaG_runerror(L, "number expected");
     } break;
     case OP_RAVI_MOVEI: {
       TValue *rb = RB(i);
       lua_Integer j;
       if (tointeger(rb, &j)) {
         setivalue(ra, j);
-      } else
+      }
+      else
         luaG_runerror(L, "integer expected");
     } break;
     case OP_RAVI_MOVEF: {
@@ -1620,22 +1613,32 @@ newframe:  /* reentry point when frame changes (call/return) */
       lua_Number j;
       if (tonumber(rb, &j)) {
         setfltvalue(ra, j);
-      } else
-        luaG_runerror(L, "float expected");
+      }
+      else
+        luaG_runerror(L, "number expected");
+    } break;
+
+    case OP_RAVI_TOARRAYI: {
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
+        luaG_runerror(L, "integer[] expected");
+    } break;
+    case OP_RAVI_TOARRAYF: {
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYFLT)
+        luaG_runerror(L, "number[] expected");
     } break;
     case OP_RAVI_MOVEAI: {
       TValue *rb = RB(i);
       if (ttistable(rb) && hvalue(rb)->ravi_array.type == RAVI_TARRAYINT) {
         setobjs2s(L, ra, rb);
       } else
-        luaG_runerror(L, "int[] expected");
+        luaG_runerror(L, "integer[] expected");
     } break;
     case OP_RAVI_MOVEAF: {
       TValue *rb = RB(i);
       if (ttistable(rb) && hvalue(rb)->ravi_array.type == RAVI_TARRAYFLT) {
         setobjs2s(L, ra, rb);
       } else
-        luaG_runerror(L, "double[] expected");
+        luaG_runerror(L, "number[] expected");
     } break;
     case OP_RAVI_GETTABLE_AI: {
       TValue *rb = RB(i);
