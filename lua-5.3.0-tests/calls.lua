@@ -112,7 +112,9 @@ do
   end
 end
 
+-- FIXME - this causes a fault
 dummy(10)
+print('+')
 
 function deep (n)
   if n>0 then deep(n-1) end

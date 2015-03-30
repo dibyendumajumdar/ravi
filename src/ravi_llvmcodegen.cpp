@@ -126,28 +126,34 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_b(RaviFunctionDef *def,
 }
 
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_h(RaviFunctionDef *def,
-  llvm::Value *rb) {
+                                                      llvm::Value *rb) {
   llvm::Value *rb_h = def->builder->CreateBitCast(rb, def->types->ppTableT);
   llvm::Instruction *h = def->builder->CreateLoad(rb_h);
   h->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_ppointerT);
   return h;
 }
 
-llvm::Instruction *RaviCodeGenerator::emit_load_reg_h_floatarray(RaviFunctionDef *def,
-  llvm::Instruction *h) {
+llvm::Instruction *
+RaviCodeGenerator::emit_load_reg_h_floatarray(RaviFunctionDef *def,
+                                              llvm::Instruction *h) {
   llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 11, 0);
-  llvm::Value *darray_ptr = def->builder->CreateBitCast(data_ptr, def->types->pplua_NumberT);
+  llvm::Value *darray_ptr =
+      def->builder->CreateBitCast(data_ptr, def->types->pplua_NumberT);
   llvm::Instruction *darray = def->builder->CreateLoad(darray_ptr);
-  darray->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_dataT);
+  darray->setMetadata(llvm::LLVMContext::MD_tbaa,
+                      def->types->tbaa_RaviArray_dataT);
   return darray;
 }
 
-llvm::Instruction *RaviCodeGenerator::emit_load_reg_h_intarray(RaviFunctionDef *def,
-  llvm::Instruction *h) {
+llvm::Instruction *
+RaviCodeGenerator::emit_load_reg_h_intarray(RaviFunctionDef *def,
+                                            llvm::Instruction *h) {
   llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 11, 0);
-  llvm::Value *darray_ptr = def->builder->CreateBitCast(data_ptr, def->types->pplua_IntegerT);
+  llvm::Value *darray_ptr =
+      def->builder->CreateBitCast(data_ptr, def->types->pplua_IntegerT);
   llvm::Instruction *darray = def->builder->CreateLoad(darray_ptr);
-  darray->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_dataT);
+  darray->setMetadata(llvm::LLVMContext::MD_tbaa,
+                      def->types->tbaa_RaviArray_dataT);
   return darray;
 }
 
@@ -196,16 +202,18 @@ llvm::Instruction *RaviCodeGenerator::emit_load_type(RaviFunctionDef *def,
   return tt;
 }
 
-llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(RaviFunctionDef *def,
-  llvm::Value *value) {
+llvm::Instruction *
+RaviCodeGenerator::emit_load_ravi_arraytype(RaviFunctionDef *def,
+                                            llvm::Value *value) {
   llvm::Value *tt_ptr = emit_gep(def, "raviarray.type_ptr", value, 0, 11, 1);
   llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.type");
   tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_typeT);
   return tt;
 }
 
-llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraylength(RaviFunctionDef *def,
-  llvm::Value *value) {
+llvm::Instruction *
+RaviCodeGenerator::emit_load_ravi_arraylength(RaviFunctionDef *def,
+                                              llvm::Value *value) {
   llvm::Value *tt_ptr = emit_gep(def, "raviarray.len_ptr", value, 0, 11, 2);
   llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.len");
   tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_lenT);
@@ -351,6 +359,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_DIVII:
     case OP_RAVI_GETTABLE_AI:
     case OP_RAVI_GETTABLE_AF:
+    case OP_RAVI_SETTABLE_AI:
       break;
     default:
       return false;
@@ -474,6 +483,12 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaV_opvarargF = def->raviF->addExternFunction(
       def->types->luaV_opvarargT, reinterpret_cast<void *>(&luaV_opvararg),
       "luaV_opvararg");
+  def->raviH_set_intF = def->raviF->addExternFunction(
+      def->types->raviH_set_intT, reinterpret_cast<void *>(&raviH_set_int),
+      "raviH_set_int");
+  def->raviH_set_floatF = def->raviF->addExternFunction(
+      def->types->raviH_set_floatT, reinterpret_cast<void *>(&raviH_set_float),
+      "raviH_set_float");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
@@ -874,6 +889,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_GETTABLE_AI(&def, L_ci, proto, A, B, C);
+    } break;
+    case OP_RAVI_SETTABLE_AI: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_SETTABLE_AI(&def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_GETTABLE_AF: {
       int B = GETARG_B(i);

@@ -404,7 +404,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   NodeT->setBody(elements);
   pNodeT = llvm::PointerType::get(NodeT, 0);
 
-  //typedef struct RaviArray {
+  // typedef struct RaviArray {
   //  char *data;
   //  ravitype_t type; /* RAVI specialization */
   //  unsigned int len; /* RAVI len specialization */
@@ -436,15 +436,15 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT);    /* flags */
-  elements.push_back(lu_byteT);    /* lsizenode */
-  elements.push_back(C_intT);      /* sizearray */
-  elements.push_back(pTValueT);    /* array part */
-  elements.push_back(pNodeT);      /* node */
-  elements.push_back(pNodeT);      /* lastfree */
-  elements.push_back(pTableT);     /* metatable */
-  elements.push_back(pGCObjectT);  /* gclist */
-  elements.push_back(RaviArrayT);  /* RaviArray */
+  elements.push_back(lu_byteT);   /* flags */
+  elements.push_back(lu_byteT);   /* lsizenode */
+  elements.push_back(C_intT);     /* sizearray */
+  elements.push_back(pTValueT);   /* array part */
+  elements.push_back(pNodeT);     /* node */
+  elements.push_back(pNodeT);     /* lastfree */
+  elements.push_back(pTableT);    /* metatable */
+  elements.push_back(pGCObjectT); /* gclist */
+  elements.push_back(RaviArrayT); /* RaviArray */
   TableT->setBody(elements);
 
   // struct lua_longjmp;  /* defined in ldo.c */
@@ -811,6 +811,26 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   luaV_opvarargT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  // void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer
+  // value);
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pTableT);
+  elements.push_back(lua_UnsignedT);
+  elements.push_back(lua_IntegerT);
+  raviH_set_intT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
+  // void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number
+  // value);
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pTableT);
+  elements.push_back(lua_UnsignedT);
+  elements.push_back(lua_NumberT);
+  raviH_set_floatT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
   for (int j = 0; j < kluaInteger.size(); j++)
@@ -1023,10 +1043,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_RaviArrayT, 32));
   tbaa_TableT = mdbuilder.createTBAAStructTypeNode("Table", nodes);
 
-  tbaa_RaviArray_dataT = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 32);
-  tbaa_RaviArray_typeT = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 36);
-  tbaa_RaviArray_lenT = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 40);
-
+  tbaa_RaviArray_dataT =
+      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 32);
+  tbaa_RaviArray_typeT =
+      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 36);
+  tbaa_RaviArray_lenT =
+      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 40);
 }
 
 void LuaLLVMTypes::dump() {

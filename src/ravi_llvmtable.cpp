@@ -81,11 +81,11 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,
   //    luaG_runerror(L, "array out of bounds"); \
   //}
 
-  //TValue *rb = RB(i);
-  //TValue *rc = RKC(i);
-  //lua_Integer idx = ivalue(rc);
-  //Table *t = hvalue(rb);
-  //raviH_get_float_inline(L, t, idx, ra);
+  // TValue *rb = RB(i);
+  // TValue *rc = RKC(i);
+  // lua_Integer idx = ivalue(rc);
+  // Table *t = hvalue(rb);
+  // raviH_get_float_inline(L, t, idx, ra);
 
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
@@ -96,17 +96,17 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,
   llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
   llvm::Value *key_minus_1 =
-    def->builder->CreateSub(key, def->types->kluaInteger[1]);
+      def->builder->CreateSub(key, def->types->kluaInteger[1]);
   llvm::Value *ukey =
-    def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
+      def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
 
   llvm::Value *cmp = def->builder->CreateICmpULT(ukey, len);
   llvm::BasicBlock *then_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);
+      llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);
   llvm::BasicBlock *else_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
   llvm::BasicBlock *end_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.end");
   def->builder->CreateCondBr(cmp, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
 
@@ -122,9 +122,9 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,
   def->builder->SetInsertPoint(else_block);
 
   llvm::Value *errmsg1 =
-    def->builder->CreateGlobalString("array out of bounds");
+      def->builder->CreateGlobalString("array out of bounds");
   def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-    emit_gep(def, "out_of_bounds_msg", errmsg1, 0, 0));
+                            emit_gep(def, "out_of_bounds_msg", errmsg1, 0, 0));
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(end_block);
@@ -188,6 +188,67 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def,
       def->builder->CreateGlobalString("array out of bounds");
   def->builder->CreateCall2(def->luaG_runerrorF, def->L,
                             emit_gep(def, "out_of_bounds_msg", errmsg1, 0, 0));
+  def->builder->CreateBr(end_block);
+
+  def->f->getBasicBlockList().push_back(end_block);
+  def->builder->SetInsertPoint(end_block);
+}
+
+void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def,
+                                         llvm::Value *L_ci, llvm::Value *proto,
+                                         int A, int B, int C) {
+
+  //#define raviH_set_int_inline(L, t, key, value) \
+  //{ unsigned ukey = (unsigned)((key)-1); \
+  //  lua_Integer *data = (lua_Integer *)t->ravi_array.data; \
+  //  if (ukey < t->ravi_array.len) { \
+  //    data[ukey] = value; \
+  //      } else \
+  //    raviH_set_int(L, t, ukey, value); \
+  //}
+
+  // Table *t = hvalue(ra);
+  // TValue *rb = RKB(i);
+  // TValue *rc = RKC(i);
+  // lua_Integer idx = ivalue(rb);
+  // lua_Integer value = ivalue(rc);
+  // raviH_set_int_inline(L, t, idx, value);
+
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Instruction *key = emit_load_reg_i(def, rb);
+  llvm::Instruction *value = emit_load_reg_i(def, rc);
+  llvm::Instruction *t = emit_load_reg_h(def, ra);
+  llvm::Instruction *data = emit_load_reg_h_intarray(def, t);
+  llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
+  llvm::Value *key_minus_1 =
+      def->builder->CreateSub(key, def->types->kluaInteger[1]);
+  llvm::Value *ukey =
+      def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
+
+  llvm::Value *cmp = def->builder->CreateICmpULT(ukey, len);
+  llvm::BasicBlock *then_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);
+  llvm::BasicBlock *else_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
+  llvm::BasicBlock *end_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+  def->builder->CreateCondBr(cmp, then_block, else_block);
+  def->builder->SetInsertPoint(then_block);
+
+  llvm::Value *ptr = def->builder->CreateGEP(data, ukey);
+
+  llvm::Instruction *ins = def->builder->CreateStore(value, ptr);
+  // TODO tbaa
+  def->builder->CreateBr(end_block);
+
+  def->f->getBasicBlockList().push_back(else_block);
+  def->builder->SetInsertPoint(else_block);
+
+  llvm::Value *uukey = def->builder->CreateZExt(ukey, def->types->lua_UnsignedT);
+  def->builder->CreateCall4(def->raviH_set_intF, def->L, t, uukey, value);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(end_block);

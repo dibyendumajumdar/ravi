@@ -222,6 +222,9 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_opclosureT;
   llvm::FunctionType *luaV_opvarargT;
 
+  llvm::FunctionType *raviH_set_intT;
+  llvm::FunctionType *raviH_set_floatT;
+
   std::array<llvm::Constant *, 256> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
 
@@ -438,6 +441,9 @@ struct RaviFunctionDef {
   llvm::Constant *luaV_opconcatF;
   llvm::Constant *luaV_opclosureF;
   llvm::Constant *luaV_opvarargF;
+
+  llvm::Constant *raviH_set_intF;
+  llvm::Constant *raviH_set_floatF;
 
   // standard C functions
   llvm::Constant *printfFunc;
@@ -836,6 +842,12 @@ public:
                         llvm::Value *proto, int A, int B, int C);
 
   void emit_GETTABLE_AI(RaviFunctionDef *def, llvm::Value *L_ci,
+                        llvm::Value *proto, int A, int B, int C);
+
+  void emit_SETTABLE_AF(RaviFunctionDef *def, llvm::Value *L_ci,
+                        llvm::Value *proto, int A, int B, int C);
+
+  void emit_SETTABLE_AI(RaviFunctionDef *def, llvm::Value *L_ci,
                         llvm::Value *proto, int A, int B, int C);
 
 private:

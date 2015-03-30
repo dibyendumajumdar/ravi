@@ -66,8 +66,11 @@ local function fannkuch(n)
 end
 
 local n = tonumber(arg and arg[1]) or 1
-local t1 = os.time()
+if ravi then
+  ravi.compile(fannkuch)
+end
+local t1 = os.clock()
 local sum, flips = fannkuch(n)
-local t2 = os.time()
+local t2 = os.clock()
 io.write(sum, "\nPfannkuchen(", n, ") = ", flips, "\n")
-io.write("elapsed time in secs ", os.difftime(t2,t1))
+io.write("elapsed time in secs ", (t2-t1))
