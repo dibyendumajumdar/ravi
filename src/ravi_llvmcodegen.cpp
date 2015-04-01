@@ -618,148 +618,157 @@ RaviCodeGenerator::emit_gep_upval_value(RaviFunctionDef *def,
 void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   if (p->ravi_jit.jit_status != 0 || !canCompile(p))
     return;
-  RaviFunctionDef def = {0};
 
   llvm::LLVMContext &context = jitState_->context();
   llvm::IRBuilder<> builder(context);
 
-  auto f = create_function(builder, &def);
+  //std::unique_ptr<RaviFunctionDef> definition = std::unique_ptr<RaviFunctionDef>(new RaviFunctionDef());
+  //RaviFunctionDef *def = definition.get();
+  RaviFunctionDef definition = {0};
+  RaviFunctionDef *def = &definition;
+
+  //printf("compiling function\n");
+  auto f = create_function(builder, def);
   if (!f) {
     p->ravi_jit.jit_status = 1; // can't compile
     return;
   }
   // Add extern declarations for Lua functions we need to call
-  emit_extern_declarations(&def);
+  emit_extern_declarations(def);
 
   // Create BasicBlocks for all the jump targets in the Lua bytecode
-  scan_jump_targets(&def, p);
+  scan_jump_targets(def, p);
 
   // Get pointer to L->ci
-  llvm::Value *L_ci = emit_gep(&def, "L_ci", def.L, 0, 6);
+  llvm::Value *L_ci = emit_gep(def, "L_ci", def->L, 0, 6);
 
   // Load L->ci
-  def.ci_val = builder.CreateLoad(L_ci);
-  def.ci_val->setMetadata(llvm::LLVMContext::MD_tbaa,
-                          def.types->tbaa_CallInfoT);
+  def->ci_val = builder.CreateLoad(L_ci);
+  def->ci_val->setMetadata(llvm::LLVMContext::MD_tbaa,
+                          def->types->tbaa_CallInfoT);
 
   // Get pointer to base
-  def.Ci_base = emit_gep(&def, "base", def.ci_val, 0, 4, 0);
+  def->Ci_base = emit_gep(def, "base", def->ci_val, 0, 4, 0);
 
   // We need to get hold of the constants table
   // which is located in ci->func->value_.gc
   // and is a value of type LClosure*
   // fortunately as func is at the beginning of the ci
   // structure we can just cast ci to LClosure*
-  llvm::Value *L_cl = emit_gep_ci_func_value_gc_asLClosure(&def, def.ci_val);
+  llvm::Value *L_cl = emit_gep_ci_func_value_gc_asLClosure(def, def->ci_val);
 
   // Load pointer to LClosure
   llvm::Instruction *cl_ptr = builder.CreateLoad(L_cl);
   cl_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                      def.types->tbaa_CallInfo_func_LClosureT);
+                      def->types->tbaa_CallInfo_func_LClosureT);
 
-  def.p_LClosure = cl_ptr;
+  def->p_LClosure = cl_ptr;
 
   // Get pointer to the Proto* which is cl->p
-  llvm::Value *proto = emit_gep(&def, "Proto", cl_ptr, 0, 5);
+  llvm::Value *proto = emit_gep(def, "Proto", cl_ptr, 0, 5);
 
   // Load pointer to proto
-  def.proto_ptr = builder.CreateLoad(proto);
-  def.proto_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                             def.types->tbaa_LClosure_pT);
+  def->proto_ptr = builder.CreateLoad(proto);
+  def->proto_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
+                             def->types->tbaa_LClosure_pT);
 
   // Obtain pointer to Proto->k
-  def.proto_k = emit_gep(&def, "k", def.proto_ptr, 0, 14);
+  def->proto_k = emit_gep(def, "k", def->proto_ptr, 0, 14);
 
   // Load pointer to k
-  def.k_ptr = builder.CreateLoad(def.proto_k);
-  def.k_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def.types->tbaa_Proto_kT);
+  def->k_ptr = builder.CreateLoad(def->proto_k);
+  def->k_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Proto_kT);
+
+  //llvm::Value *msg1 =
+  //  def->builder->CreateGlobalString("In compiled function\n");
+  //def->builder->CreateCall(def->printfFunc, emit_gep(def, "msg", msg1, 0, 0));
 
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
   for (pc = 0; pc < n; pc++) {
-    link_block(&def, pc);
+    link_block(def, pc);
     Instruction i = code[pc];
     OpCode op = GET_OPCODE(i);
     int A = GETARG_A(i);
     switch (op) {
     case OP_LOADK: {
       int Bx = GETARG_Bx(i);
-      emit_LOADK(&def, L_ci, proto, A, Bx);
+      emit_LOADK(def, L_ci, proto, A, Bx);
     } break;
     case OP_LOADKX: {
       // OP_LOADKX is followed by OP_EXTRAARG
       Instruction inst = code[++pc];
       int Ax = GETARG_Ax(inst);
       lua_assert(GET_OPCODE(inst) == OP_EXTRAARG);
-      emit_LOADK(&def, L_ci, proto, A, Ax);
+      emit_LOADK(def, L_ci, proto, A, Ax);
     } break;
 
     case OP_CONCAT: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_CONCAT(&def, L_ci, proto, A, B, C);
+      emit_CONCAT(def, L_ci, proto, A, B, C);
     } break;
     case OP_CLOSURE: {
       int Bx = GETARG_Bx(i);
-      emit_CLOSURE(&def, L_ci, proto, A, Bx);
+      emit_CLOSURE(def, L_ci, proto, A, Bx);
     } break;
     case OP_VARARG: {
       int B = GETARG_B(i);
-      emit_VARARG(&def, L_ci, proto, A, B);
+      emit_VARARG(def, L_ci, proto, A, B);
     } break;
 
     case OP_LOADBOOL: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_LOADBOOL(&def, L_ci, proto, A, B, C, pc + 2);
+      emit_LOADBOOL(def, L_ci, proto, A, B, C, pc + 2);
     } break;
     case OP_MOVE: {
       int B = GETARG_B(i);
-      emit_MOVE(&def, L_ci, proto, A, B);
+      emit_MOVE(def, L_ci, proto, A, B);
     } break;
     case OP_RAVI_MOVEI: {
       int B = GETARG_B(i);
-      emit_MOVEI(&def, L_ci, proto, A, B);
+      emit_MOVEI(def, L_ci, proto, A, B);
     } break;
     case OP_RAVI_MOVEF: {
       int B = GETARG_B(i);
-      emit_MOVEF(&def, L_ci, proto, A, B);
+      emit_MOVEF(def, L_ci, proto, A, B);
     } break;
     case OP_RAVI_TOINT: {
-      emit_TOINT(&def, L_ci, proto, A);
+      emit_TOINT(def, L_ci, proto, A);
     } break;
     case OP_RAVI_TOFLT: {
-      emit_TOFLT(&def, L_ci, proto, A);
+      emit_TOFLT(def, L_ci, proto, A);
     } break;
     case OP_RAVI_NEWARRAYI: {
-      emit_NEWARRAYINT(&def, L_ci, proto, A);
+      emit_NEWARRAYINT(def, L_ci, proto, A);
     } break;
     case OP_RAVI_NEWARRAYF: {
-      emit_NEWARRAYFLOAT(&def, L_ci, proto, A);
+      emit_NEWARRAYFLOAT(def, L_ci, proto, A);
     } break;
     case OP_NEWTABLE: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_NEWTABLE(&def, L_ci, proto, A, B, C);
+      emit_NEWTABLE(def, L_ci, proto, A, B, C);
     } break;
     case OP_SETLIST: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SETLIST(&def, L_ci, proto, A, B, C);
+      emit_SETLIST(def, L_ci, proto, A, B, C);
     } break;
     case OP_SELF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SELF(&def, L_ci, proto, A, B, C);
+      emit_SELF(def, L_ci, proto, A, B, C);
     } break;
     case OP_LEN: {
       int B = GETARG_B(i);
-      emit_LEN(&def, L_ci, proto, A, B);
+      emit_LEN(def, L_ci, proto, A, B);
     } break;
 
     case OP_RETURN: {
       int B = GETARG_B(i);
-      emit_RETURN(&def, L_ci, proto, A, B);
+      emit_RETURN(def, L_ci, proto, A, B);
     } break;
     case OP_LT:
     case OP_LE:
@@ -768,8 +777,8 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int C = GETARG_C(i);
       llvm::Constant *comparison_function =
           (op == OP_EQ
-               ? def.luaV_equalobjF
-               : (op == OP_LT ? def.luaV_lessthanF : def.luaV_lessequalF));
+               ? def->luaV_equalobjF
+               : (op == OP_LT ? def->luaV_lessthanF : def->luaV_lessequalF));
       // OP_EQ is followed by OP_JMP - we process this
       // along with OP_EQ
       pc++;
@@ -779,7 +788,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      emit_EQ(&def, L_ci, proto, A, B, C, j, GETARG_A(i), comparison_function);
+      emit_EQ(def, L_ci, proto, A, B, C, j, GETARG_A(i), comparison_function);
     } break;
     case OP_TFORCALL: {
       int B = GETARG_B(i);
@@ -793,16 +802,16 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      emit_TFORCALL(&def, L_ci, proto, A, B, C, j, GETARG_A(i));
+      emit_TFORCALL(def, L_ci, proto, A, B, C, j, GETARG_A(i));
     } break;
     case OP_TFORLOOP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
-      emit_TFORLOOP(&def, L_ci, proto, A, j);
+      emit_TFORLOOP(def, L_ci, proto, A, j);
     } break;
     case OP_NOT: {
       int B = GETARG_B(i);
-      emit_NOT(&def, L_ci, proto, A, B);
+      emit_NOT(def, L_ci, proto, A, B);
     } break;
     case OP_TEST: {
       int B = GETARG_B(i);
@@ -816,7 +825,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      emit_TEST(&def, L_ci, proto, A, B, C, j, GETARG_A(i));
+      emit_TEST(def, L_ci, proto, A, B, C, j, GETARG_A(i));
     } break;
     case OP_TESTSET: {
       int B = GETARG_B(i);
@@ -830,248 +839,248 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      emit_TESTSET(&def, L_ci, proto, A, B, C, j, GETARG_A(i));
+      emit_TESTSET(def, L_ci, proto, A, B, C, j, GETARG_A(i));
     } break;
 
     case OP_JMP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
-      emit_JMP(&def, A, j);
+      emit_JMP(def, A, j);
     } break;
 
     case OP_FORPREP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
 #if RAVI_CODEGEN_FORPREP2
-      emit_FORPREP2(&def, L_ci, proto, A, j);
+      emit_FORPREP2(def, L_ci, proto, A, j);
 #else
-      emit_FORPREP(&def, L_ci, proto, A, j);
+      emit_FORPREP(def, L_ci, proto, A, j);
 #endif
     } break;
     case OP_FORLOOP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
 #if RAVI_CODEGEN_FORPREP2
-      emit_FORLOOP2(&def, L_ci, proto, A, j, def.jmp_targets[pc]);
+      emit_FORLOOP2(def, L_ci, proto, A, j, def->jmp_targets[pc]);
 #else
-      emit_FORLOOP(&def, L_ci, proto, A, j);
+      emit_FORLOOP(def, L_ci, proto, A, j);
 #endif
     } break;
 
     case OP_LOADNIL: {
       int B = GETARG_B(i);
-      emit_LOADNIL(&def, L_ci, proto, A, B);
+      emit_LOADNIL(def, L_ci, proto, A, B);
     } break;
     case OP_RAVI_LOADFZ: {
-      emit_LOADFZ(&def, L_ci, proto, A);
+      emit_LOADFZ(def, L_ci, proto, A);
     } break;
     case OP_RAVI_LOADIZ: {
-      emit_LOADIZ(&def, L_ci, proto, A);
+      emit_LOADIZ(def, L_ci, proto, A);
     } break;
     case OP_TAILCALL:
     case OP_CALL: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_CALL(&def, L_ci, proto, A, B, C);
+      emit_CALL(def, L_ci, proto, A, B, C);
     } break;
 
     case OP_SETTABLE: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SETTABLE(&def, L_ci, proto, A, B, C);
+      emit_SETTABLE(def, L_ci, proto, A, B, C);
     } break;
     case OP_GETTABLE: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_GETTABLE(&def, L_ci, proto, A, B, C);
+      emit_GETTABLE(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_GETTABLE_AI: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_GETTABLE_AI(&def, L_ci, proto, A, B, C);
+      emit_GETTABLE_AI(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_SETTABLE_AI: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SETTABLE_AI(&def, L_ci, proto, A, B, C);
+      emit_SETTABLE_AI(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_GETTABLE_AF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_GETTABLE_AF(&def, L_ci, proto, A, B, C);
+      emit_GETTABLE_AF(def, L_ci, proto, A, B, C);
     } break;
 
     case OP_GETTABUP: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_GETTABUP(&def, L_ci, proto, A, B, C);
+      emit_GETTABUP(def, L_ci, proto, A, B, C);
     } break;
     case OP_GETUPVAL: {
       int B = GETARG_B(i);
-      emit_GETUPVAL(&def, L_ci, proto, A, B);
+      emit_GETUPVAL(def, L_ci, proto, A, B);
     } break;
     case OP_SETTABUP: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SETTABUP(&def, L_ci, proto, A, B, C);
+      emit_SETTABUP(def, L_ci, proto, A, B, C);
     } break;
     case OP_SETUPVAL: {
       int B = GETARG_B(i);
-      emit_SETUPVAL(&def, L_ci, proto, A, B);
+      emit_SETUPVAL(def, L_ci, proto, A, B);
     } break;
 
     case OP_ADD: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_ARITH(&def, L_ci, proto, A, B, C, OP_ADD, TM_ADD);
+      emit_ARITH(def, L_ci, proto, A, B, C, OP_ADD, TM_ADD);
     } break;
     case OP_RAVI_ADDFN: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_ADDFN(&def, L_ci, proto, A, B, C);
+      emit_ADDFN(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_ADDIN: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_ADDIN(&def, L_ci, proto, A, B, C);
+      emit_ADDIN(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_ADDFF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_ADDFF(&def, L_ci, proto, A, B, C);
+      emit_ADDFF(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_ADDFI: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_ADDFI(&def, L_ci, proto, A, B, C);
+      emit_ADDFI(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_ADDII: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_ADDII(&def, L_ci, proto, A, B, C);
+      emit_ADDII(def, L_ci, proto, A, B, C);
     } break;
 
     case OP_SUB: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_ARITH(&def, L_ci, proto, A, B, C, OP_SUB, TM_SUB);
+      emit_ARITH(def, L_ci, proto, A, B, C, OP_SUB, TM_SUB);
     } break;
     case OP_RAVI_SUBFF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SUBFF(&def, L_ci, proto, A, B, C);
+      emit_SUBFF(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_SUBFI: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SUBFI(&def, L_ci, proto, A, B, C);
+      emit_SUBFI(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_SUBIF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SUBIF(&def, L_ci, proto, A, B, C);
+      emit_SUBIF(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_SUBII: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SUBII(&def, L_ci, proto, A, B, C);
+      emit_SUBII(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_SUBFN: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SUBFN(&def, L_ci, proto, A, B, C);
+      emit_SUBFN(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_SUBNF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SUBNF(&def, L_ci, proto, A, B, C);
+      emit_SUBNF(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_SUBIN: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SUBIN(&def, L_ci, proto, A, B, C);
+      emit_SUBIN(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_SUBNI: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SUBNI(&def, L_ci, proto, A, B, C);
+      emit_SUBNI(def, L_ci, proto, A, B, C);
     } break;
 
     case OP_MUL: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_ARITH(&def, L_ci, proto, A, B, C, OP_MUL, TM_MUL);
+      emit_ARITH(def, L_ci, proto, A, B, C, OP_MUL, TM_MUL);
     } break;
     case OP_RAVI_MULFN: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_MULFN(&def, L_ci, proto, A, B, C);
+      emit_MULFN(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_MULIN: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_MULIN(&def, L_ci, proto, A, B, C);
+      emit_MULIN(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_MULFF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_MULFF(&def, L_ci, proto, A, B, C);
+      emit_MULFF(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_MULFI: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_MULFI(&def, L_ci, proto, A, B, C);
+      emit_MULFI(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_MULII: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_MULII(&def, L_ci, proto, A, B, C);
+      emit_MULII(def, L_ci, proto, A, B, C);
     } break;
 
     case OP_DIV: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_ARITH(&def, L_ci, proto, A, B, C, OP_DIV, TM_DIV);
+      emit_ARITH(def, L_ci, proto, A, B, C, OP_DIV, TM_DIV);
     } break;
     case OP_RAVI_DIVFF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_DIVFF(&def, L_ci, proto, A, B, C);
+      emit_DIVFF(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_DIVFI: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_DIVFI(&def, L_ci, proto, A, B, C);
+      emit_DIVFI(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_DIVIF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_DIVIF(&def, L_ci, proto, A, B, C);
+      emit_DIVIF(def, L_ci, proto, A, B, C);
     } break;
     case OP_RAVI_DIVII: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_DIVII(&def, L_ci, proto, A, B, C);
+      emit_DIVII(def, L_ci, proto, A, B, C);
     } break;
 
     case OP_MOD: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_MOD(&def, L_ci, proto, A, B, C);
+      emit_MOD(def, L_ci, proto, A, B, C);
     } break;
     case OP_IDIV: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_IDIV(&def, L_ci, proto, A, B, C);
+      emit_IDIV(def, L_ci, proto, A, B, C);
     } break;
     case OP_POW: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_POW(&def, L_ci, proto, A, B, C);
+      emit_POW(def, L_ci, proto, A, B, C);
     } break;
     case OP_UNM: {
       int B = GETARG_B(i);
-      emit_UNM(&def, L_ci, proto, A, B);
+      emit_UNM(def, L_ci, proto, A, B);
     } break;
 
     default:
@@ -1079,7 +1088,8 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     }
   }
 
-  lua_assert(!llvm::verifyFunction(*f->function(), &llvm::errs()));
+  if (llvm::verifyFunction(*f->function(), &llvm::errs()))
+    abort();
   ravi::RaviJITFunctionImpl *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile();
@@ -1091,6 +1101,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   } else {
     p->ravi_jit.jit_status = 2;
   }
+  //printf("compiled function\n");
 }
 
 void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {

@@ -109,6 +109,7 @@ static void seterrorobj (lua_State *L, int errcode, StkId oldtop) {
 
 l_noret luaD_throw (lua_State *L, int errcode) {
   if (L->errorJmp) {  /* thread has an error handler? */
+    //printf("raising exception\n");
     L->errorJmp->status = errcode;  /* set status */
     LUAI_THROW(L, L->errorJmp);  /* jump to it */
   }

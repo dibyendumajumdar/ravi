@@ -92,6 +92,11 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
 
   //*  b = luaD_poscall(L, ra);
   def->builder->CreateCall2(def->luaD_poscallF, def->L, ra_ptr);
+
+  //llvm::Value *msg1 =
+  //  def->builder->CreateGlobalString("Returning from compiled function\n");
+  //def->builder->CreateCall(def->printfFunc, emit_gep(def, "msg", msg1, 0, 0));
+
   def->builder->CreateRet(def->types->kInt[1]);
 }
 }
