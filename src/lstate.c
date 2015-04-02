@@ -107,6 +107,7 @@ void luaE_setdebt (global_State *g, l_mem debt) {
 
 CallInfo *luaE_extendCI (lua_State *L) {
   CallInfo *ci = luaM_new(L, CallInfo);
+  ci->jitstatus = 0;
   lua_assert(L->ci->next == NULL);
   L->ci->next = ci;
   ci->previous = L->ci;
@@ -158,6 +159,7 @@ static void stack_init (lua_State *L1, lua_State *L) {
   ci = &L1->base_ci;
   ci->next = ci->previous = NULL;
   ci->callstatus = 0;
+  ci->jitstatus = 0; /* RAVI extension */
   ci->func = L1->top;
   setnilvalue(L1->top++);  /* 'function' entry for this 'ci' */
   ci->top = L1->top + LUA_MINSTACK;

@@ -331,6 +331,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int compile) {
       ci->top = L->top + LUA_MINSTACK;
       lua_assert(ci->top <= L->stack_last);
       ci->callstatus = 0;
+      ci->jitstatus = 0;
       luaC_checkGC(L);  /* stack grow uses memory */
       if (L->hookmask & LUA_MASKCALL)
         luaD_hook(L, LUA_HOOKCALL, -1);
@@ -365,6 +366,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int compile) {
       lua_assert(ci->top <= L->stack_last);
       ci->u.l.savedpc = p->code;  /* starting point */
       ci->callstatus = CIST_LUA;
+      ci->jitstatus = 0;
       L->top = ci->top;
       luaC_checkGC(L);  /* stack grow uses memory */
       if (L->hookmask & LUA_MASKCALL)
@@ -377,12 +379,14 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int compile) {
         if (p->ravi_jit.jit_status == 2) {
           /* compiled */
           lua_assert(p->ravi_jit.jit_function != NULL);
+          ci->jitstatus = 1;
           if (++L->nCcalls >= LUAI_MAXCCALLS) {
             if (L->nCcalls == LUAI_MAXCCALLS)
               luaG_runerror(L, "C stack overflow");
             else if (L->nCcalls >= (LUAI_MAXCCALLS + (LUAI_MAXCCALLS >> 3)))
               luaD_throw(L, LUA_ERRERR);  /* error while handing stack error */
           }
+
           L->nny++;
           (*p->ravi_jit.jit_function)(L);
           L->nny--;
@@ -390,6 +394,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int compile) {
           lua_assert(L->ci == prevci);
           ci = L->ci;
           lua_assert(isLua(ci));
+          lua_assert(isJITed(ci));
           /* Return a different value from 1 to allow luaV_execute() to distinguish between JITed function and true C function*/
           return 2;
         }
