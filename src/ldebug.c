@@ -38,7 +38,7 @@ static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name);
 
 
 static int currentpc (CallInfo *ci) {
-  lua_assert(isLua(ci));
+  lua_assert(isLua(ci) && !isJITed(ci));
   return pcRel(ci->u.l.savedpc, ci_func(ci)->p);
 }
 
@@ -56,7 +56,7 @@ LUA_API void lua_sethook (lua_State *L, lua_Hook func, int mask, int count) {
     mask = 0;
     func = NULL;
   }
-  if (isLua(L->ci))
+  if (isLua(L->ci) && !isJITed(L->ci))
     L->oldpc = L->ci->u.l.savedpc;
   L->hook = func;
   L->basehookcount = count;
@@ -119,7 +119,7 @@ static const char *findlocal (lua_State *L, CallInfo *ci, int n,
                               StkId *pos) {
   const char *name = NULL;
   StkId base;
-  if (isLua(ci)) {
+  if (isLua(ci) && !isJITed(ci)) {
     if (n < 0)  /* access to vararg values? */
       return findvararg(ci, -n, pos);
     else {
@@ -223,7 +223,7 @@ static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
         break;
       }
       case 'l': {
-        ar->currentline = (ci && isLua(ci)) ? currentline(ci) : -1;
+        ar->currentline = (ci && isLua(ci) && !isJITed(ci)) ? currentline(ci) : -1;
         break;
       }
       case 'u': {
@@ -244,7 +244,7 @@ static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
       }
       case 'n': {
         /* calling function is a known Lua function? */
-        if (ci && !(ci->callstatus & CIST_TAIL) && isLua(ci->previous))
+        if (ci && !(ci->callstatus & CIST_TAIL) && isLua(ci->previous) && !isJITed(ci->previous))
           ar->namewhat = getfuncname(L, ci->previous, &ar->name);
         else
           ar->namewhat = NULL;
@@ -441,15 +441,15 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
 static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
   TMS tm = (TMS)0;  /* to avoid warnings */
   Proto *p = ci_func(ci)->p;  /* calling function */
+  if (p->ravi_jit.jit_status == 2) {
+    *name = "?";
+    return "compiled";
+  }
   int pc = currentpc(ci);  /* calling instruction index */
   Instruction i = p->code[pc];  /* calling instruction */
   if (ci->callstatus & CIST_HOOKED) {  /* was it called inside a hook? */
     *name = "?";
     return "hook";
-  }
-  if (p->ravi_jit.jit_status == 2) {
-    *name = "?";
-    return "compiled";
   }
   switch (GET_OPCODE(i)) {
     case OP_CALL:
@@ -526,7 +526,7 @@ static const char *varinfo (lua_State *L, const TValue *o) {
   const char *name = NULL;  /* to avoid warnings */
   CallInfo *ci = L->ci;
   const char *kind = NULL;
-  if (isLua(ci)) {
+  if (isLua(ci) && !isJITed(ci)) {
     kind = getupvalname(ci, o, &name);  /* check whether 'o' is an upvalue */
     if (!kind && isinstack(ci, o))  /* no? try a register */
       kind = getobjname(ci_func(ci)->p, currentpc(ci),
@@ -580,7 +580,7 @@ l_noret luaG_ordererror (lua_State *L, const TValue *p1, const TValue *p2) {
 
 static void addinfo (lua_State *L, const char *msg) {
   CallInfo *ci = L->ci;
-  if (isLua(ci)) {  /* is Lua code? */
+  if (isLua(ci) && !isJITed(ci)) {  /* is Lua code? */
     char buff[LUA_IDSIZE];  /* add file:line information */
     int line = currentline(ci);
     TString *src = ci_func(ci)->p->source;

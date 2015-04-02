@@ -167,8 +167,10 @@ struct Table {
   struct Node *lastfree; /* any free position is before this position */
   struct Table *metatable;
   struct GCObject *gclist;
+  char *ravi_data;
   enum ravitype_t ravi_array_type; /* RAVI specialization */
   unsigned int ravi_array_len;     /* RAVI len specialization */
+  unsigned int ravi_array_size;     /* RAVI len specialization */  
 };
 
 struct Mbuffer {
@@ -214,6 +216,7 @@ struct CallInfo {
   ptrdiff_t extra;
   short nresults; /* expected number of results from this function */
   unsigned char callstatus;
+  unsigned char jitstatus;
 };
 
 struct CallInfoLua {
@@ -224,6 +227,7 @@ struct CallInfoLua {
   ptrdiff_t extra;
   short nresults; /* expected number of results from this function */
   unsigned char callstatus;
+  unsigned char jitstatus;
 };
 
 struct global_State;

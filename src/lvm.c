@@ -1246,6 +1246,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         else {  /* Lua function */
             ci = L->ci;
             ci->callstatus |= CIST_REENTRY;
+            lua_assert(!ci->jitstatus);
             goto newframe;  /* restart luaV_execute over new Lua function */
         }
     } break;
@@ -1273,6 +1274,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             oci->top = L->top = ofunc + (L->top - nfunc);  /* correct top */
             oci->u.l.savedpc = nci->u.l.savedpc;
             oci->callstatus |= CIST_TAIL;  /* function was tail called */
+            oci->jitstatus = 0;
             ci = L->ci = oci;  /* remove new frame */
             lua_assert(L->top == oci->u.l.base + getproto(ofunc)->maxstacksize);
             goto newframe;  /* restart luaV_execute over new Lua function */

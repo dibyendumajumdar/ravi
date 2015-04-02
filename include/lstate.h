@@ -80,6 +80,7 @@ typedef struct CallInfo {
   ptrdiff_t extra;
   short nresults;  /* expected number of results from this function */
   lu_byte callstatus;
+  lu_byte jitstatus; /* Only valid if Lua function - if 1 means JITed - RAVI extension */
 } CallInfo;
 
 
@@ -96,6 +97,7 @@ typedef struct CallInfo {
 #define CIST_HOOKYIELD	(1<<6)	/* last hook called yielded */
 
 #define isLua(ci)	((ci)->callstatus & CIST_LUA)
+#define isJITed(ci) ((ci)->jitstatus)
 
 /* assume that CIST_OAH has offset 0 and that 'v' is strictly 0/1 */
 #define setoah(st,v)	((st) = ((st) & ~CIST_OAH) | (v))
