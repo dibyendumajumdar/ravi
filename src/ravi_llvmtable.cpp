@@ -24,6 +24,7 @@
 
 namespace ravi {
 
+// R(A+1) := R(B); R(A) := R(B)[RK(C)]
 void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, llvm::Value *L_ci,
                                   llvm::Value *proto, int A, int B, int C) {
   // StkId rb = RB(i);
@@ -38,6 +39,7 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->CreateCall4(def->luaV_gettableF, def->L, rb, rc, ra);
 }
 
+// R(A) := length of R(B)
 void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, llvm::Value *L_ci,
                                  llvm::Value *proto, int A, int B) {
   // Protect(luaV_objlen(L, ra, RB(i)));
@@ -346,7 +348,7 @@ void RaviCodeGenerator::emit_NEWARRAYINT(RaviFunctionDef *def,
                                          int A) {
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  def->builder->CreateCall3(def->luaV_newarrayintF, def->L, def->ci_val, ra);
+  def->builder->CreateCall3(def->raviV_op_newarrayintF, def->L, def->ci_val, ra);
 }
 
 void RaviCodeGenerator::emit_NEWARRAYFLOAT(RaviFunctionDef *def,
@@ -354,7 +356,7 @@ void RaviCodeGenerator::emit_NEWARRAYFLOAT(RaviFunctionDef *def,
                                            llvm::Value *proto, int A) {
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  def->builder->CreateCall3(def->luaV_newarrayfloatF, def->L, def->ci_val, ra);
+  def->builder->CreateCall3(def->raviV_op_newarrayfloatF, def->L, def->ci_val, ra);
 }
 
 void RaviCodeGenerator::emit_NEWTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -371,7 +373,7 @@ void RaviCodeGenerator::emit_NEWTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
 
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  def->builder->CreateCall5(def->luaV_newtableF, def->L, def->ci_val, ra,
+  def->builder->CreateCall5(def->raviV_op_newtableF, def->L, def->ci_val, ra,
                             def->types->kInt[B], def->types->kInt[C]);
 }
 
@@ -379,7 +381,7 @@ void RaviCodeGenerator::emit_SETLIST(RaviFunctionDef *def, llvm::Value *L_ci,
                                      llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  def->builder->CreateCall5(def->luaV_setlistF, def->L, def->ci_val, ra,
+  def->builder->CreateCall5(def->raviV_op_setlistF, def->L, def->ci_val, ra,
                             def->types->kInt[B], def->types->kInt[C]);
 }
 }

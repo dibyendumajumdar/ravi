@@ -43,16 +43,6 @@
 /* limit for table tag-method chains (to avoid loops) */
 #define MAXTAGLOOP	2000
 
-// This is a cheat for a boring opcode
-void luaV_op_loadnil(CallInfo *ci, int a, int b) {
-  StkId base;
-  base = ci->u.l.base;
-  TValue *ra = base + a;
-  do {
-    setnilvalue(ra++);
-  } while (b--);
-}
-
 /*
 ** Similar to 'tonumber', but does not attempt to convert strings and
 ** ensure correct precision (no extra bits). Used in comparisons.
@@ -719,213 +709,6 @@ void luaV_finishOp (lua_State *L) {
 #define vmcase(l,b)	case l: {b}  break;
 #define vmcasenb(l,b)	case l: {b}		/* nb = no break */
 
-void ravi_dump_ci(lua_State *L, CallInfo *ci) {
-  StkId func = ci->func;
-  int func_type = ttype(func);
-  StkId base = NULL;
-  const char *func_typename;
-  Proto *p = NULL;
-  int funcpos = ci->func - L->stack;
-  StkId stack_ptr = ci->top - 1;
-  int i;
-  switch (func_type) {
-  case LUA_TLCF:
-    printf("stack[%d] = Light C function\n", funcpos);
-    printf("---> called from \n");
-    return;
-  case LUA_TCCL:
-    printf("stack[%d] = C closure\n", funcpos);
-    printf("---> called from \n");
-    return;
-  case LUA_TFUNCTION:
-    p = clLvalue(func)->p;
-    base = ci->u.l.base;
-    i = ci->top - L->stack - 1;
-    break;
-  default:
-    return;
-  }
-
-  for (; stack_ptr >= base; stack_ptr--, i--) {
-    printf("stack[%d] = %s", i, (stack_ptr == base ? "(base) " : ""));
-    if (ttisCclosure(stack_ptr))
-      printf("C closure\n");
-    else if (ttislcf(stack_ptr))
-      printf("light C function\n");
-    else if (ttisLclosure(stack_ptr))
-      printf("Lua closure\n");
-    else if (ttisfunction(stack_ptr))
-      printf("function\n");
-    else if (ttislngstring(stack_ptr) || ttisshrstring(stack_ptr) || ttisstring(stack_ptr))
-      printf("'%s'\n", svalue(stack_ptr));
-    else if (ttistable(stack_ptr))
-      printf("table\n");
-    else if (ttisnil(stack_ptr))
-      printf("nil\n");
-    else if (ttisfloat(stack_ptr))
-      printf("%.6f\n", fltvalue(stack_ptr));
-    else if (ttisinteger(stack_ptr))
-      printf("%lld\n", ivalue(stack_ptr));
-    else if (ttislightuserdata(stack_ptr))
-      printf("light user data\n");
-    else if (ttisfulluserdata(stack_ptr))
-      printf("full user data\n");
-    else if (ttisboolean(stack_ptr))
-      printf("boolean\n");
-    else if (ttisthread(stack_ptr))
-      printf("thread\n");
-    else
-      printf("other\n");
-  }
-  printf("stack[%d] = Lua function (registers = %d, params = %d, locals = %d)\n", funcpos, (int)(p->maxstacksize), (int)(p->numparams), p->sizelocvars);
-  printf("---> called from \n");
-}
-
-void ravi_dump_stack(lua_State *L, const char *s) {
-  if (!s)
-    return;
-  CallInfo *ci = L->ci;
-  printf("=======================\n");
-  printf("Stack dump %s\n", s);
-  printf("=======================\n");
-  while (ci) {
-    ravi_dump_ci(L, ci);
-    ci = ci->previous;
-  }
-  printf("\n");
-}
-
-void luaV_newarrayint(lua_State *L, CallInfo *ci, TValue *ra) {
-  Table *t = raviH_new(L, RAVI_TARRAYINT);
-  sethvalue(L, ra, t);
-  luaC_condGC(
-      L, {
-        L->top = ra + 1; /* limit of live values */
-        luaC_step(L);
-        L->top = ci->top;
-      }) /* restore top */     
-  luai_threadyield(L);
-}
-
-void luaV_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra) {
-  Table *t = raviH_new(L, RAVI_TARRAYFLT);
-  sethvalue(L, ra, t);
-  luaC_condGC(
-    L, {
-      L->top = ra + 1; /* limit of live values */
-      luaC_step(L);
-      L->top = ci->top;
-    }) /* restore top */
-  luai_threadyield(L);
-}
-
-void luaV_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
-  Table *t = luaH_new(L);
-  sethvalue(L, ra, t);
-  if (b != 0 || c != 0)
-    luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
-  luaC_condGC(
-    L, {
-      L->top = ra + 1; /* limit of live values */
-      luaC_step(L);
-      L->top = ci->top;
-    }) /* restore top */
-  luai_threadyield(L);
-}
-
-void luaV_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
-  int n = b;
-  unsigned int last;
-  Table *h;
-  if (n == 0) n = cast_int(L->top - ra) - 1;
-  luai_runtimecheck(L, ttistable(ra));
-  h = hvalue(ra);
-  last = ((c - 1)*LFIELDS_PER_FLUSH) + n;
-  if (h->ravi_array.type == RAVI_TTABLE) {
-    if (last > h->sizearray)  /* needs more space? */
-      luaH_resizearray(L, h, last);  /* pre-allocate it at once */
-    for (; n > 0; n--) {
-      TValue *val = ra + n;
-      luaH_setint(L, h, last--, val);
-      luaC_barrierback(L, h, val);
-    }
-  }
-  else {
-    int i = last - n + 1;
-    for (; i <= (int)last; i++) {
-      TValue *val = ra + i;
-      lua_Unsigned u = (lua_Unsigned)(i - 1);
-      switch (h->ravi_array.type) {
-      case RAVI_TARRAYINT: {
-        if (ttisinteger(val))
-          raviH_set_int(L, h, u, ivalue(val));
-        else
-          raviH_set_int(L, h, u, (lua_Integer)(fltvalue(val)));
-      } break;
-      case RAVI_TARRAYFLT: {
-        if (ttisinteger(val))
-          raviH_set_float(L, h, u, (lua_Number)(ivalue(val)));
-        else
-          raviH_set_float(L, h, u, fltvalue(val));
-      } break;
-      default:
-        lua_assert(0);
-      }
-    }
-  }
-  L->top = ci->top;  /* correct top (in case of previous open call) */
-}
-
-void luaV_opconcat(lua_State *L, CallInfo *ci, int a, int b, int c) {
-  StkId rb, ra;
-  StkId base = ci->u.l.base;
-  L->top = base + c + 1;  /* mark the end of concat operands */
-  Protect(luaV_concat(L, c - b + 1));
-  ra = base + a;  /* 'luav_concat' may invoke TMs and move the stack */
-  rb = base + b;
-  setobjs2s(L, ra, rb);
-  checkGC(L, (ra >= rb ? ra + 1 : rb));
-  L->top = ci->top;  /* restore top */
-}
-
-void luaV_opclosure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx) {
-  StkId base = ci->u.l.base;
-  Proto *p = cl->p->p[Bx];
-  LClosure *ncl = getcached(p, cl->upvals, base);  /* cached closure */
-  StkId ra = base + a;
-  if (ncl == NULL)  /* no match? */ {
-    pushclosure(L, p, cl->upvals, base, ra);  /* create a new one */
-  }
-  else {
-    setclLvalue(L, ra, ncl);  /* push cashed closure */
-  }
-  checkGC(L, ra + 1);
-}
-
-void luaV_opvararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b) {
-  StkId base = ci->u.l.base;
-  int j;
-  int n = cast_int(base - ci->func) - cl->p->numparams - 1;
-  StkId ra;
-  b = b - 1;
-  if (b < 0) {  /* B == 0? */
-    b = n;  /* get all var. arguments */
-    Protect(luaD_checkstack(L, n));
-    ra = base + a;  /* previous call may change the stack */
-    L->top = ra + n;
-  }
-  else {
-    ra = base + a;
-  }
-  for (j = 0; j < b; j++) {
-    if (j < n) {
-      setobjs2s(L, ra + j, base - n + j);
-    }
-    else {
-      setnilvalue(ra + j);
-    }
-  }
-}
 
 void luaV_execute (lua_State *L) {
   CallInfo *ci = L->ci;
@@ -1678,6 +1461,224 @@ newframe:  /* reentry point when frame changes (call/return) */
     } break;
     }
   }
+}
+
+void ravi_dump_ci(lua_State *L, CallInfo *ci) {
+  StkId func = ci->func;
+  int func_type = ttype(func);
+  StkId base = NULL;
+  const char *func_typename;
+  Proto *p = NULL;
+  int funcpos = ci->func - L->stack;
+  StkId stack_ptr = ci->top - 1;
+  int i;
+  switch (func_type) {
+  case LUA_TLCF:
+    printf("stack[%d] = Light C function\n", funcpos);
+    printf("---> called from \n");
+    return;
+  case LUA_TCCL:
+    printf("stack[%d] = C closure\n", funcpos);
+    printf("---> called from \n");
+    return;
+  case LUA_TFUNCTION:
+    p = clLvalue(func)->p;
+    base = ci->u.l.base;
+    i = ci->top - L->stack - 1;
+    break;
+  default:
+    return;
+  }
+
+  for (; stack_ptr >= base; stack_ptr--, i--) {
+    printf("stack[%d] = %s", i, (stack_ptr == base ? "(base) " : ""));
+    if (ttisCclosure(stack_ptr))
+      printf("C closure\n");
+    else if (ttislcf(stack_ptr))
+      printf("light C function\n");
+    else if (ttisLclosure(stack_ptr))
+      printf("Lua closure\n");
+    else if (ttisfunction(stack_ptr))
+      printf("function\n");
+    else if (ttislngstring(stack_ptr) || ttisshrstring(stack_ptr) ||
+             ttisstring(stack_ptr))
+      printf("'%s'\n", svalue(stack_ptr));
+    else if (ttistable(stack_ptr))
+      printf("table\n");
+    else if (ttisnil(stack_ptr))
+      printf("nil\n");
+    else if (ttisfloat(stack_ptr))
+      printf("%.6f\n", fltvalue(stack_ptr));
+    else if (ttisinteger(stack_ptr))
+      printf("%lld\n", ivalue(stack_ptr));
+    else if (ttislightuserdata(stack_ptr))
+      printf("light user data\n");
+    else if (ttisfulluserdata(stack_ptr))
+      printf("full user data\n");
+    else if (ttisboolean(stack_ptr))
+      printf("boolean\n");
+    else if (ttisthread(stack_ptr))
+      printf("thread\n");
+    else
+      printf("other\n");
+  }
+  printf(
+      "stack[%d] = Lua function (registers = %d, params = %d, locals = %d)\n",
+      funcpos, (int)(p->maxstacksize), (int)(p->numparams), p->sizelocvars);
+  printf("---> called from \n");
+}
+
+void ravi_dump_stack(lua_State *L, const char *s) {
+  if (!s)
+    return;
+  CallInfo *ci = L->ci;
+  printf("=======================\n");
+  printf("Stack dump %s\n", s);
+  printf("=======================\n");
+  while (ci) {
+    ravi_dump_ci(L, ci);
+    ci = ci->previous;
+  }
+  printf("\n");
+}
+
+void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra) {
+  Table *t = raviH_new(L, RAVI_TARRAYINT);
+  sethvalue(L, ra, t);
+  luaC_condGC(
+      L, {
+        L->top = ra + 1; /* limit of live values */
+        luaC_step(L);
+        L->top = ci->top;
+      }) /* restore top */
+      luai_threadyield(L);
+}
+
+void raviV_op_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra) {
+  Table *t = raviH_new(L, RAVI_TARRAYFLT);
+  sethvalue(L, ra, t);
+  luaC_condGC(
+      L, {
+        L->top = ra + 1; /* limit of live values */
+        luaC_step(L);
+        L->top = ci->top;
+      }) /* restore top */
+      luai_threadyield(L);
+}
+
+void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
+  Table *t = luaH_new(L);
+  sethvalue(L, ra, t);
+  if (b != 0 || c != 0)
+    luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
+  luaC_condGC(
+      L, {
+        L->top = ra + 1; /* limit of live values */
+        luaC_step(L);
+        L->top = ci->top;
+      }) /* restore top */
+      luai_threadyield(L);
+}
+
+void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
+  int n = b;
+  unsigned int last;
+  Table *h;
+  if (n == 0)
+    n = cast_int(L->top - ra) - 1;
+  luai_runtimecheck(L, ttistable(ra));
+  h = hvalue(ra);
+  last = ((c - 1) * LFIELDS_PER_FLUSH) + n;
+  if (h->ravi_array.type == RAVI_TTABLE) {
+    if (last > h->sizearray)        /* needs more space? */
+      luaH_resizearray(L, h, last); /* pre-allocate it at once */
+    for (; n > 0; n--) {
+      TValue *val = ra + n;
+      luaH_setint(L, h, last--, val);
+      luaC_barrierback(L, h, val);
+    }
+  } else {
+    int i = last - n + 1;
+    for (; i <= (int)last; i++) {
+      TValue *val = ra + i;
+      lua_Unsigned u = (lua_Unsigned)(i - 1);
+      switch (h->ravi_array.type) {
+      case RAVI_TARRAYINT: {
+        if (ttisinteger(val))
+          raviH_set_int(L, h, u, ivalue(val));
+        else
+          raviH_set_int(L, h, u, (lua_Integer)(fltvalue(val)));
+      } break;
+      case RAVI_TARRAYFLT: {
+        if (ttisinteger(val))
+          raviH_set_float(L, h, u, (lua_Number)(ivalue(val)));
+        else
+          raviH_set_float(L, h, u, fltvalue(val));
+      } break;
+      default:
+        lua_assert(0);
+      }
+    }
+  }
+  L->top = ci->top; /* correct top (in case of previous open call) */
+}
+
+void raviV_op_concat(lua_State *L, CallInfo *ci, int a, int b, int c) {
+  StkId rb, ra;
+  StkId base = ci->u.l.base;
+  L->top = base + c + 1; /* mark the end of concat operands */
+  Protect(luaV_concat(L, c - b + 1));
+  ra = base + a; /* 'luav_concat' may invoke TMs and move the stack */
+  rb = base + b;
+  setobjs2s(L, ra, rb);
+  checkGC(L, (ra >= rb ? ra + 1 : rb));
+  L->top = ci->top; /* restore top */
+}
+
+void raviV_op_closure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx) {
+  StkId base = ci->u.l.base;
+  Proto *p = cl->p->p[Bx];
+  LClosure *ncl = getcached(p, cl->upvals, base); /* cached closure */
+  StkId ra = base + a;
+  if (ncl == NULL) /* no match? */ {
+    pushclosure(L, p, cl->upvals, base, ra); /* create a new one */
+  } else {
+    setclLvalue(L, ra, ncl); /* push cashed closure */
+  }
+  checkGC(L, ra + 1);
+}
+
+void raviV_op_vararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b) {
+  StkId base = ci->u.l.base;
+  int j;
+  int n = cast_int(base - ci->func) - cl->p->numparams - 1;
+  StkId ra;
+  b = b - 1;
+  if (b < 0) { /* B == 0? */
+    b = n;     /* get all var. arguments */
+    Protect(luaD_checkstack(L, n));
+    ra = base + a; /* previous call may change the stack */
+    L->top = ra + n;
+  } else {
+    ra = base + a;
+  }
+  for (j = 0; j < b; j++) {
+    if (j < n) {
+      setobjs2s(L, ra + j, base - n + j);
+    } else {
+      setnilvalue(ra + j);
+    }
+  }
+}
+
+// This is a cheat for a boring opcode
+void raviV_op_loadnil(CallInfo *ci, int a, int b) {
+  StkId base;
+  base = ci->u.l.base;
+  TValue *ra = base + a;
+  do {
+    setnilvalue(ra++);
+  } while (b--);
 }
 
 /* }================================================================== */

@@ -213,14 +213,18 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_executeT;
   llvm::FunctionType *luaV_gettableT;
   llvm::FunctionType *luaV_settableT;
-  llvm::FunctionType *luaV_newarrayintT;
-  llvm::FunctionType *luaV_newarrayfloatT;
-  llvm::FunctionType *luaV_setlistT;
-  llvm::FunctionType *luaV_newtableT;
-  llvm::FunctionType *luaV_op_loadnilT;
-  llvm::FunctionType *luaV_opconcatT;
-  llvm::FunctionType *luaV_opclosureT;
-  llvm::FunctionType *luaV_opvarargT;
+
+  // Following are functions that handle specific bytecodes
+  // We cheat for these bytecodes by calling the function that
+  // implements it
+  llvm::FunctionType *raviV_op_newarrayintT;
+  llvm::FunctionType *raviV_op_newarrayfloatT;
+  llvm::FunctionType *raviV_op_setlistT;
+  llvm::FunctionType *raviV_op_newtableT;
+  llvm::FunctionType *raviV_op_loadnilT;
+  llvm::FunctionType *raviV_op_concatT;
+  llvm::FunctionType *raviV_op_closureT;
+  llvm::FunctionType *raviV_op_varargT;
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -433,14 +437,14 @@ struct RaviFunctionDef {
 
   // Some cheats - these correspond to OPCODEs that
   // are not inlined as of now
-  llvm::Constant *luaV_newarrayintF;
-  llvm::Constant *luaV_newarrayfloatF;
-  llvm::Constant *luaV_setlistF;
-  llvm::Constant *luaV_newtableF;
-  llvm::Constant *luaV_op_loadnilF;
-  llvm::Constant *luaV_opconcatF;
-  llvm::Constant *luaV_opclosureF;
-  llvm::Constant *luaV_opvarargF;
+  llvm::Constant *raviV_op_newarrayintF;
+  llvm::Constant *raviV_op_newarrayfloatF;
+  llvm::Constant *raviV_op_setlistF;
+  llvm::Constant *raviV_op_newtableF;
+  llvm::Constant *raviV_op_loadnilF;
+  llvm::Constant *raviV_op_concatF;
+  llvm::Constant *raviV_op_closureF;
+  llvm::Constant *raviV_op_varargF;
 
   llvm::Constant *raviH_set_intF;
   llvm::Constant *raviH_set_floatF;

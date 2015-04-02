@@ -59,13 +59,13 @@ LUAI_FUNC void luaV_objlen (lua_State *L, StkId ra, const TValue *rb);
 
 LUAI_FUNC int luaV_forlimit(const TValue *obj, lua_Integer *p, lua_Integer step,
   int *stopnow);
-LUAI_FUNC void luaV_op_loadnil(CallInfo *ci, int a, int b);
-LUAI_FUNC void luaV_newarrayint(lua_State *L, CallInfo *ci, TValue *ra);
-LUAI_FUNC void luaV_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra);
-LUAI_FUNC void luaV_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);
-LUAI_FUNC void luaV_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);
-LUAI_FUNC void luaV_opconcat(lua_State *L, CallInfo *ci, int a, int b, int c);
-LUAI_FUNC void luaV_opclosure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx);
-LUAI_FUNC void luaV_opvararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);
+LUAI_FUNC void raviV_op_loadnil(CallInfo *ci, int a, int b);
+LUAI_FUNC void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra);
+LUAI_FUNC void raviV_op_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra);
+LUAI_FUNC void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);
+LUAI_FUNC void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);
+LUAI_FUNC void raviV_op_concat(lua_State *L, CallInfo *ci, int a, int b, int c);
+LUAI_FUNC void raviV_op_closure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx);
+LUAI_FUNC void raviV_op_vararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);
 
 #endif

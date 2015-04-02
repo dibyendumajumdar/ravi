@@ -26,7 +26,7 @@ namespace ravi {
 
 void RaviCodeGenerator::emit_LOADNIL(RaviFunctionDef *def, llvm::Value *L_ci,
                                      llvm::Value *proto, int A, int B) {
-  def->builder->CreateCall3(def->luaV_op_loadnilF, def->ci_val,
+  def->builder->CreateCall3(def->raviV_op_loadnilF, def->ci_val,
                             llvm::ConstantInt::get(def->types->C_intT, A),
                             llvm::ConstantInt::get(def->types->C_intT, B));
 }

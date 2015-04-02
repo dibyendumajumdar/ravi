@@ -449,21 +449,21 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaV_gettableF = def->raviF->addExternFunction(
       def->types->luaV_gettableT, reinterpret_cast<void *>(&luaV_gettable),
       "luaV_gettable");
-  def->luaV_op_loadnilF = def->raviF->addExternFunction(
-      def->types->luaV_op_loadnilT, reinterpret_cast<void *>(&luaV_op_loadnil),
-      "luaV_op_loadnil");
-  def->luaV_newarrayintF = def->raviF->addExternFunction(
-      def->types->luaV_newarrayintT,
-      reinterpret_cast<void *>(&luaV_newarrayint), "luaV_newarrayint");
-  def->luaV_newarrayfloatF = def->raviF->addExternFunction(
-      def->types->luaV_newarrayfloatT,
-      reinterpret_cast<void *>(&luaV_newarrayfloat), "luaV_newarrayfloat");
-  def->luaV_newtableF = def->raviF->addExternFunction(
-      def->types->luaV_newtableT, reinterpret_cast<void *>(&luaV_newtable),
-      "luaV_newtable");
-  def->luaV_setlistF = def->raviF->addExternFunction(
-      def->types->luaV_setlistT, reinterpret_cast<void *>(&luaV_setlist),
-      "luaV_setlist");
+  def->raviV_op_loadnilF = def->raviF->addExternFunction(
+      def->types->raviV_op_loadnilT, reinterpret_cast<void *>(&raviV_op_loadnil),
+      "raviV_op_loadnil");
+  def->raviV_op_newarrayintF = def->raviF->addExternFunction(
+      def->types->raviV_op_newarrayintT,
+      reinterpret_cast<void *>(&raviV_op_newarrayint), "raviV_op_newarrayint");
+  def->raviV_op_newarrayfloatF = def->raviF->addExternFunction(
+      def->types->raviV_op_newarrayfloatT,
+      reinterpret_cast<void *>(&raviV_op_newarrayfloat), "raviV_op_newarrayfloat");
+  def->raviV_op_newtableF = def->raviF->addExternFunction(
+      def->types->raviV_op_newtableT, reinterpret_cast<void *>(&raviV_op_newtable),
+      "raviV_op_newtable");
+  def->raviV_op_setlistF = def->raviF->addExternFunction(
+      def->types->raviV_op_setlistT, reinterpret_cast<void *>(&raviV_op_setlist),
+      "raviV_op_setlist");
   def->luaV_modF = def->raviF->addExternFunction(
       def->types->luaV_modT, reinterpret_cast<void *>(&luaV_mod), "luaV_mod");
   def->luaV_divF = def->raviF->addExternFunction(
@@ -474,15 +474,15 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaC_upvalbarrierF = def->raviF->addExternFunction(
       def->types->luaC_upvalbarrierT,
       reinterpret_cast<void *>(&luaC_upvalbarrier_), "luaC_upvalbarrier_");
-  def->luaV_opconcatF = def->raviF->addExternFunction(
-      def->types->luaV_opconcatT, reinterpret_cast<void *>(&luaV_opconcat),
-      "luaV_opconcat");
-  def->luaV_opclosureF = def->raviF->addExternFunction(
-      def->types->luaV_opclosureT, reinterpret_cast<void *>(&luaV_opclosure),
-      "luaV_opclosure");
-  def->luaV_opvarargF = def->raviF->addExternFunction(
-      def->types->luaV_opvarargT, reinterpret_cast<void *>(&luaV_opvararg),
-      "luaV_opvararg");
+  def->raviV_op_concatF = def->raviF->addExternFunction(
+      def->types->raviV_op_concatT, reinterpret_cast<void *>(&raviV_op_concat),
+      "raviV_op_concat");
+  def->raviV_op_closureF = def->raviF->addExternFunction(
+      def->types->raviV_op_closureT, reinterpret_cast<void *>(&raviV_op_closure),
+      "raviV_op_closure");
+  def->raviV_op_varargF = def->raviF->addExternFunction(
+      def->types->raviV_op_varargT, reinterpret_cast<void *>(&raviV_op_vararg),
+      "raviV_op_vararg");
   def->raviH_set_intF = def->raviF->addExternFunction(
       def->types->raviH_set_intT, reinterpret_cast<void *>(&raviH_set_int),
       "raviH_set_int");

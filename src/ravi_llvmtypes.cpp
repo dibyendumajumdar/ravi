@@ -762,23 +762,23 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pCallInfoT);
   elements.push_back(C_intT);
   elements.push_back(C_intT);
-  luaV_op_loadnilT =
+  raviV_op_loadnilT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pCallInfoT);
   elements.push_back(pTValueT);
-  luaV_newarrayintT =
+  raviV_op_newarrayintT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
-  luaV_newarrayfloatT =
+  raviV_op_newarrayfloatT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   elements.push_back(C_intT);
   elements.push_back(C_intT);
-  luaV_newtableT =
+  raviV_op_newtableT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
-  luaV_setlistT =
+  raviV_op_setlistT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   elements.clear();
@@ -795,7 +795,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_intT);
   elements.push_back(C_intT);
   elements.push_back(C_intT);
-  luaV_opconcatT =
+  raviV_op_concatT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   // void luaV_opclosure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int
@@ -807,9 +807,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pLClosureT);
   elements.push_back(C_intT);
   elements.push_back(C_intT);
-  luaV_opclosureT =
+  raviV_op_closureT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
-  luaV_opvarargT =
+  raviV_op_varargT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   // void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer
