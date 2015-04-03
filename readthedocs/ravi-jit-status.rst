@@ -3,7 +3,7 @@ Ravi JIT Compilation Status
 
 The JIT compilation status of the Lua and Ravi bytecodes are given below.
 
-This information was last updated on 27th March 2015. As new bytecodes are being added to the JIT compiler on a regular basis
+This information was last updated on 2nd April 2015. As new bytecodes are being added to the JIT compiler on a regular basis
 the status information below may be slightly out of date.
 
 Note that if a Lua functions contains a bytecode that cannot be be JITed then the function cannot be JITed.
@@ -185,9 +185,9 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 | OP_RAVI_GETTABLE_AF     | YES      | R(A) := R(B)[RK(C)] where R(B) is array of       |
 |                         |          | numbers and RK(C) is integer                     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_AI     | NO       | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+| OP_RAVI_SETTABLE_AI     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of integers, and RK(C) is an int   |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_AF     | NO       | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+| OP_RAVI_SETTABLE_AF     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of numbers, and RK(C) is a number  |
 +-------------------------+----------+--------------------------------------------------+

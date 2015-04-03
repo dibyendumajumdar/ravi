@@ -360,6 +360,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_GETTABLE_AI:
     case OP_RAVI_GETTABLE_AF:
     case OP_RAVI_SETTABLE_AI:
+    case OP_RAVI_SETTABLE_AF:
       break;
     default:
       return false;
@@ -908,6 +909,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_GETTABLE_AF(def, L_ci, proto, A, B, C);
+    } break;
+    case OP_RAVI_SETTABLE_AF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_SETTABLE_AF(def, L_ci, proto, A, B, C);
     } break;
 
     case OP_GETTABUP: {

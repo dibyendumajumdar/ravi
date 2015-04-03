@@ -249,8 +249,122 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def,
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
-  llvm::Value *uukey = def->builder->CreateZExt(ukey, def->types->lua_UnsignedT);
+  llvm::Value *uukey =
+      def->builder->CreateZExt(ukey, def->types->lua_UnsignedT);
   def->builder->CreateCall4(def->raviH_set_intF, def->L, t, uukey, value);
+  def->builder->CreateBr(end_block);
+
+  def->f->getBasicBlockList().push_back(end_block);
+  def->builder->SetInsertPoint(end_block);
+}
+
+void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
+                                         llvm::Value *L_ci, llvm::Value *proto,
+                                         int A, int B, int C) {
+
+  //#define raviH_set_float_inline(L, t, key, value) \
+  //{ unsigned ukey = (unsigned)((key)-1); \
+  //  lua_Number *data = (lua_Number *)t->ravi_array.data; \
+  //  if (ukey < t->ravi_array.len) { \
+  //    data[ukey] = value; \
+  //      } else \
+  //    raviH_set_float(L, t, ukey, value); \
+  //  }
+
+  // Table *t = hvalue(ra);
+  // TValue *rb = RKB(i);
+  // TValue *rc = RKC(i);
+  // lua_Integer idx = ivalue(rb);
+  // if (ttisfloat(rc)) {
+  //  raviH_set_float_inline(L, t, idx, fltvalue(rc));
+  //}
+  // else {
+  //  raviH_set_float_inline(L, t, idx, ((lua_Number)ivalue(rc)));
+  //}
+
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+  llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
+
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Instruction *key = emit_load_reg_i(def, rb);
+
+  llvm::Instruction *rc_type = emit_load_type(def, rc);
+
+  // Is RC a float?
+  llvm::Value *cmp = def->builder->CreateICmpEQ(
+      rc_type, def->types->kInt[LUA_TNUMFLT], "rc.is.float");
+
+  llvm::BasicBlock *convert_rc =
+      llvm::BasicBlock::Create(def->jitState->context(), "convert.rc");
+  llvm::BasicBlock *load_rc =
+      llvm::BasicBlock::Create(def->jitState->context(), "load.rc");
+  llvm::BasicBlock *set_af =
+      llvm::BasicBlock::Create(def->jitState->context(), "set.af");
+
+  // If RC is floating then load RC, else convert RC
+  def->builder->CreateCondBr(cmp, load_rc, convert_rc);
+
+  // Load RC
+  def->f->getBasicBlockList().push_back(load_rc);
+  def->builder->SetInsertPoint(load_rc);
+
+  // Copy RC to local
+  auto src = emit_load_reg_n(def, rc);
+  auto ins = def->builder->CreateStore(src, nc);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  def->builder->CreateBr(set_af);
+
+  // Convert int to float
+  def->f->getBasicBlockList().push_back(convert_rc);
+  def->builder->SetInsertPoint(convert_rc);
+
+  llvm::Instruction *ivalue = emit_load_reg_i(def, rc);
+  llvm::Value *floatvalue =
+      def->builder->CreateSIToFP(ivalue, def->types->lua_NumberT);
+  auto ins1 = def->builder->CreateStore(floatvalue, nc);
+  ins1->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  def->builder->CreateBr(set_af);
+
+  def->f->getBasicBlockList().push_back(set_af);
+  def->builder->SetInsertPoint(set_af);
+
+  llvm::Instruction *load_nc = def->builder->CreateLoad(nc);
+  load_nc->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+
+
+  llvm::Instruction *t = emit_load_reg_h(def, ra);
+  llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);
+  llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
+  llvm::Value *key_minus_1 =
+      def->builder->CreateSub(key, def->types->kluaInteger[1]);
+  llvm::Value *ukey =
+      def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
+
+  cmp = def->builder->CreateICmpULT(ukey, len);
+  llvm::BasicBlock *then_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);
+  llvm::BasicBlock *else_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
+  llvm::BasicBlock *end_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+  def->builder->CreateCondBr(cmp, then_block, else_block);
+  def->builder->SetInsertPoint(then_block);
+
+  llvm::Value *ptr = def->builder->CreateGEP(data, ukey);
+
+  llvm::Instruction *ins2 = def->builder->CreateStore(load_nc, ptr);
+  // TODO tbaa
+  def->builder->CreateBr(end_block);
+
+  def->f->getBasicBlockList().push_back(else_block);
+  def->builder->SetInsertPoint(else_block);
+
+  llvm::Value *uukey =
+      def->builder->CreateZExt(ukey, def->types->lua_UnsignedT);
+  def->builder->CreateCall4(def->raviH_set_floatF, def->L, t, uukey, load_nc);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(end_block);
@@ -348,7 +462,8 @@ void RaviCodeGenerator::emit_NEWARRAYINT(RaviFunctionDef *def,
                                          int A) {
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  def->builder->CreateCall3(def->raviV_op_newarrayintF, def->L, def->ci_val, ra);
+  def->builder->CreateCall3(def->raviV_op_newarrayintF, def->L, def->ci_val,
+                            ra);
 }
 
 void RaviCodeGenerator::emit_NEWARRAYFLOAT(RaviFunctionDef *def,
@@ -356,7 +471,8 @@ void RaviCodeGenerator::emit_NEWARRAYFLOAT(RaviFunctionDef *def,
                                            llvm::Value *proto, int A) {
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  def->builder->CreateCall3(def->raviV_op_newarrayfloatF, def->L, def->ci_val, ra);
+  def->builder->CreateCall3(def->raviV_op_newarrayfloatF, def->L, def->ci_val,
+                            ra);
 }
 
 void RaviCodeGenerator::emit_NEWTABLE(RaviFunctionDef *def, llvm::Value *L_ci,

@@ -520,3 +520,14 @@ end
 assert(ravi.compile(f))
 assert(f() == 6)
 print("test 38 OK")
+
+-- test 39
+function f()
+  local x: number[] = { 5.0, 6.1 }
+  x[3] = x[1] + x[2]
+  return x[3]
+end
+--ravi.dumplua(f)
+assert(ravi.compile(f))
+assert(math.abs(f()-11.1) < 1e-12)
+print("test 39 OK")
