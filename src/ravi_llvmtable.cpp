@@ -334,7 +334,6 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
   llvm::Instruction *load_nc = def->builder->CreateLoad(nc);
   load_nc->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
 
-
   llvm::Instruction *t = emit_load_reg_h(def, ra);
   llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
@@ -499,5 +498,76 @@ void RaviCodeGenerator::emit_SETLIST(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
   def->builder->CreateCall5(def->raviV_op_setlistF, def->L, def->ci_val, ra,
                             def->types->kInt[B], def->types->kInt[C]);
+}
+
+llvm::Instruction *RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def,
+                                                   llvm::Value *L_ci,
+                                                   llvm::Value *proto, int A,
+                                                   int array_type_expected,
+                                                   const char *errmsg) {
+
+  // if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
+  //  luaG_runerror(L, "integer[] expected");
+
+  llvm::Instruction *base_ptr = emit_load_base(def);
+  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Instruction *type = emit_load_type(def, ra);
+
+  // type != LUA_TTABLE ?
+  llvm::Value *cmp1 = def->builder->CreateICmpNE(
+      type, def->types->kInt[LUA_TTABLE], "is.not.table");
+
+  llvm::BasicBlock *raise_error = llvm::BasicBlock::Create(
+      def->jitState->context(), "if.not.table", def->f);
+  llvm::BasicBlock *else1 =
+      llvm::BasicBlock::Create(def->jitState->context(), "test.if.array");
+  llvm::BasicBlock *done =
+      llvm::BasicBlock::Create(def->jitState->context(), "done");
+  def->builder->CreateCondBr(cmp1, raise_error, else1);
+  def->builder->SetInsertPoint(raise_error);
+
+  // Conversion failed, so raise error
+  llvm::Value *errmsg1 = def->builder->CreateGlobalString(errmsg);
+  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
+                            emit_gep(def, "", errmsg1, 0, 0));
+  def->builder->CreateBr(done);
+
+  def->f->getBasicBlockList().push_back(else1);
+  def->builder->SetInsertPoint(else1);
+
+  // Get table
+  llvm::Instruction *h = emit_load_reg_h(def, ra);
+  // Get array type
+  llvm::Instruction *ravi_array_type = emit_load_ravi_arraytype(def, h);
+
+  // array_type == RAVI_TARRAYXXX?
+  llvm::Value *cmp2 = def->builder->CreateICmpEQ(
+      ravi_array_type, def->types->kInt[array_type_expected], "is.array.type");
+
+  // If array then fine else raise error
+  def->builder->CreateCondBr(cmp1, done, raise_error);
+
+  def->f->getBasicBlockList().push_back(done);
+  def->builder->SetInsertPoint(done);
+
+  return base_ptr;
+}
+
+void RaviCodeGenerator::emit_MOVEAI(RaviFunctionDef *def, llvm::Value *L_ci,
+                                    llvm::Value *proto, int A, int B) {
+  llvm::Instruction *base_ptr =
+      emit_TOARRAY(def, L_ci, proto, B, RAVI_TARRAYINT, "integer[] expected");
+  llvm::Value *src = emit_gep_ra(def, base_ptr, B);
+  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  emit_assign(def, dest, src);
+}
+
+void RaviCodeGenerator::emit_MOVEAF(RaviFunctionDef *def, llvm::Value *L_ci,
+                                    llvm::Value *proto, int A, int B) {
+  llvm::Instruction *base_ptr =
+      emit_TOARRAY(def, L_ci, proto, B, RAVI_TARRAYFLT, "number[] expected");
+  llvm::Value *src = emit_gep_ra(def, base_ptr, B);
+  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  emit_assign(def, dest, src);
 }
 }

@@ -361,6 +361,10 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_GETTABLE_AF:
     case OP_RAVI_SETTABLE_AI:
     case OP_RAVI_SETTABLE_AF:
+    case OP_RAVI_TOARRAYI:
+    case OP_RAVI_TOARRAYF:
+    case OP_RAVI_MOVEAI:
+    case OP_RAVI_MOVEAF:
       break;
     default:
       return false;
@@ -451,20 +455,21 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       def->types->luaV_gettableT, reinterpret_cast<void *>(&luaV_gettable),
       "luaV_gettable");
   def->raviV_op_loadnilF = def->raviF->addExternFunction(
-      def->types->raviV_op_loadnilT, reinterpret_cast<void *>(&raviV_op_loadnil),
-      "raviV_op_loadnil");
+      def->types->raviV_op_loadnilT,
+      reinterpret_cast<void *>(&raviV_op_loadnil), "raviV_op_loadnil");
   def->raviV_op_newarrayintF = def->raviF->addExternFunction(
       def->types->raviV_op_newarrayintT,
       reinterpret_cast<void *>(&raviV_op_newarrayint), "raviV_op_newarrayint");
   def->raviV_op_newarrayfloatF = def->raviF->addExternFunction(
       def->types->raviV_op_newarrayfloatT,
-      reinterpret_cast<void *>(&raviV_op_newarrayfloat), "raviV_op_newarrayfloat");
+      reinterpret_cast<void *>(&raviV_op_newarrayfloat),
+      "raviV_op_newarrayfloat");
   def->raviV_op_newtableF = def->raviF->addExternFunction(
-      def->types->raviV_op_newtableT, reinterpret_cast<void *>(&raviV_op_newtable),
-      "raviV_op_newtable");
+      def->types->raviV_op_newtableT,
+      reinterpret_cast<void *>(&raviV_op_newtable), "raviV_op_newtable");
   def->raviV_op_setlistF = def->raviF->addExternFunction(
-      def->types->raviV_op_setlistT, reinterpret_cast<void *>(&raviV_op_setlist),
-      "raviV_op_setlist");
+      def->types->raviV_op_setlistT,
+      reinterpret_cast<void *>(&raviV_op_setlist), "raviV_op_setlist");
   def->luaV_modF = def->raviF->addExternFunction(
       def->types->luaV_modT, reinterpret_cast<void *>(&luaV_mod), "luaV_mod");
   def->luaV_divF = def->raviF->addExternFunction(
@@ -479,8 +484,8 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       def->types->raviV_op_concatT, reinterpret_cast<void *>(&raviV_op_concat),
       "raviV_op_concat");
   def->raviV_op_closureF = def->raviF->addExternFunction(
-      def->types->raviV_op_closureT, reinterpret_cast<void *>(&raviV_op_closure),
-      "raviV_op_closure");
+      def->types->raviV_op_closureT,
+      reinterpret_cast<void *>(&raviV_op_closure), "raviV_op_closure");
   def->raviV_op_varargF = def->raviF->addExternFunction(
       def->types->raviV_op_varargT, reinterpret_cast<void *>(&raviV_op_vararg),
       "raviV_op_vararg");
@@ -623,12 +628,13 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   llvm::LLVMContext &context = jitState_->context();
   llvm::IRBuilder<> builder(context);
 
-  //std::unique_ptr<RaviFunctionDef> definition = std::unique_ptr<RaviFunctionDef>(new RaviFunctionDef());
-  //RaviFunctionDef *def = definition.get();
+  // std::unique_ptr<RaviFunctionDef> definition =
+  // std::unique_ptr<RaviFunctionDef>(new RaviFunctionDef());
+  // RaviFunctionDef *def = definition.get();
   RaviFunctionDef definition = {0};
   RaviFunctionDef *def = &definition;
 
-  //printf("compiling function\n");
+  // printf("compiling function\n");
   auto f = create_function(builder, def);
   if (!f) {
     p->ravi_jit.jit_status = 1; // can't compile
@@ -646,7 +652,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   // Load L->ci
   def->ci_val = builder.CreateLoad(L_ci);
   def->ci_val->setMetadata(llvm::LLVMContext::MD_tbaa,
-                          def->types->tbaa_CallInfoT);
+                           def->types->tbaa_CallInfoT);
 
   // Get pointer to base
   def->Ci_base = emit_gep(def, "base", def->ci_val, 0, 4, 0);
@@ -671,18 +677,20 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   // Load pointer to proto
   def->proto_ptr = builder.CreateLoad(proto);
   def->proto_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                             def->types->tbaa_LClosure_pT);
+                              def->types->tbaa_LClosure_pT);
 
   // Obtain pointer to Proto->k
   def->proto_k = emit_gep(def, "k", def->proto_ptr, 0, 14);
 
   // Load pointer to k
   def->k_ptr = builder.CreateLoad(def->proto_k);
-  def->k_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Proto_kT);
+  def->k_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
+                          def->types->tbaa_Proto_kT);
 
-  //llvm::Value *msg1 =
+  // llvm::Value *msg1 =
   //  def->builder->CreateGlobalString("In compiled function\n");
-  //def->builder->CreateCall(def->printfFunc, emit_gep(def, "msg", msg1, 0, 0));
+  // def->builder->CreateCall(def->printfFunc, emit_gep(def, "msg", msg1, 0,
+  // 0));
 
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
@@ -915,6 +923,20 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       int C = GETARG_C(i);
       emit_SETTABLE_AF(def, L_ci, proto, A, B, C);
     } break;
+    case OP_RAVI_TOARRAYI: {
+      emit_TOARRAY(def, L_ci, proto, A, RAVI_TARRAYINT, "integer[] expected");
+    } break;
+    case OP_RAVI_TOARRAYF: {
+      emit_TOARRAY(def, L_ci, proto, A, RAVI_TARRAYFLT, "number[] expected");
+    } break;
+    case OP_RAVI_MOVEAI: {
+      int B = GETARG_B(i);
+      emit_MOVEAI(def, L_ci, proto, A, B);
+    } break;
+    case OP_RAVI_MOVEAF: {
+      int B = GETARG_B(i);
+      emit_MOVEAF(def, L_ci, proto, A, B);
+    } break;
 
     case OP_GETTABUP: {
       int B = GETARG_B(i);
@@ -1107,7 +1129,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   } else {
     p->ravi_jit.jit_status = 2;
   }
-  //printf("compiled function\n");
+  // printf("compiled function\n");
 }
 
 void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {

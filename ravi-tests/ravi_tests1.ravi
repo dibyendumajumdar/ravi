@@ -531,3 +531,30 @@ end
 assert(ravi.compile(f))
 assert(math.abs(f()-11.1) < 1e-12)
 print("test 39 OK")
+
+-- test 40
+function x(t) return t; end
+function f()
+  local tt: integer[] = {1}
+  local ss: number[] = { 55.5 }
+  tt = x(tt)
+  ss = x(ss)
+end
+assert(ravi.compile(x))
+assert(ravi.compile(f))
+assert(pcall(f))
+function f()
+  local tt: integer[] = {1}
+  tt = x({})
+end
+assert(ravi.compile(f))
+assert(not pcall(f))
+function f()
+  local tt: integer[] = {1}
+  local ss: number[] = { 55.5 }
+  ss = x(tt)
+end
+assert(ravi.compile(f))
+assert(not pcall(f))
+
+print("test 40 OK")

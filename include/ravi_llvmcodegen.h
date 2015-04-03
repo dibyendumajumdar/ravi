@@ -854,6 +854,17 @@ public:
   void emit_SETTABLE_AI(RaviFunctionDef *def, llvm::Value *L_ci,
                         llvm::Value *proto, int A, int B, int C);
 
+  void emit_MOVEAI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                   int A, int B);
+
+  void emit_MOVEAF(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
+                   int A, int B);
+
+  // Return the base pointer
+  llvm::Instruction *emit_TOARRAY(RaviFunctionDef *def, llvm::Value *L_ci,
+                                  llvm::Value *proto, int A,
+                                  int array_type_expected, const char *errmsg);
+
 private:
   RaviJITStateImpl *jitState_;
   char temp_[31]; // for name
