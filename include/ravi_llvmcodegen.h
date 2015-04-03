@@ -345,6 +345,14 @@ class RAVI_API RaviJITStateImpl : public RaviJITState {
   // Should we auto compile what we can?
   bool auto_;
 
+  // Is JIT enabled
+  bool enabled_;
+
+  // Optimizer level (LLVM PassManagerBuilder)
+  int opt_level_;
+
+  // Size level (LLVM PassManagerBuilder)
+  int size_level_;
 public:
   RaviJITStateImpl();
   virtual ~RaviJITStateImpl();
@@ -367,6 +375,12 @@ public:
   const std::string &triple() const { return triple_; }
   bool is_auto() const { return auto_; }
   void set_auto(bool value) { auto_ = value; }
+  bool is_enabled() const { return enabled_; }
+  void set_enabled(bool value) { enabled_ = value; }
+  int get_optlevel() const { return opt_level_; }
+  void set_optlevel(int value) { if (value >= 0 && value <= 3) opt_level_ = value; }
+  int get_sizelevel() const { return size_level_; }
+  void set_sizelevel(int value) { if (value >= 0 && value <= 2) size_level_ = value; }
 };
 
 // To optimise fornum loops

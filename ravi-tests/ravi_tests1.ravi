@@ -1,3 +1,5 @@
+ravi.auto(true)
+
 local z,x,y
 
 -- test 1 

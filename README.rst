@@ -75,15 +75,18 @@ I am currently working on JIT compilation of Ravi using LLVM. As of now not all 
 There are two modes of JIT compilation.
 
 * auto mode - in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - any Lua function call is is checked to see if the bytecodes contained in it can be compiled. If this is true then the function is compiled. Because of this simplistic behaviour performance will be degraded so user should disable auto compilation and instead compile specific functions using the API described below.
-* manual mode - in this mode user must explicitly request compilation.
+* manual mode - in this mode user must explicitly request compilation. This is the default mode.
 
 A JIT api is available with following functions:
 
-* ``ravi.auto([b])`` - returns setting of auto compilation; also sets the new setting if ``b`` is supplied
+* ``ravi.jit([b])`` - returns enabled setting of JIT compiler; also enables/disables the JIT compiler; defaults to true
+* ``ravi.auto([b])`` - returns setting of auto compilation; also sets the new setting if ``b`` is supplied; defaults to false
 * ``ravi.compile(func)`` - compiles a Lua function if possible, returns ``true`` if compilation was successful
 * ``ravi.iscompiled(func)`` - returns the JIT status of a function
 * ``ravi.dumplua(func)`` - dumps the Lua bytecode of the function
 * ``ravi.dumpllvm(func)`` - dumps the LLVM IR of the compiled function (only if function was compiled)
+* ``ravi.optlevel([n])`` - sets LLVM optimization level (0, 1, 2, 3); defaults to 2
+* ``ravi.sizelevel([n])`` - sets LLVM size level (0, 1, 2); defaults to 0
 
 Compatibility with Lua
 ----------------------

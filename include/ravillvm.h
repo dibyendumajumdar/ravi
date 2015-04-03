@@ -120,6 +120,12 @@ public:
   virtual llvm::LLVMContext &context() = 0;
   virtual bool is_auto() const = 0;
   virtual void set_auto(bool value) = 0;
+  virtual bool is_enabled() const = 0;
+  virtual void set_enabled(bool value) = 0;
+  virtual int get_optlevel() const = 0;
+  virtual void set_optlevel(int value) = 0;
+  virtual int get_sizelevel() const = 0;
+  virtual void set_sizelevel(int value) = 0;
 protected:
   RaviJITState() {}
 private:

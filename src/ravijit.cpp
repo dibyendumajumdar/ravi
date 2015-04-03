@@ -29,7 +29,9 @@ static std::atomic_int init;
 
 RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
 
-RaviJITStateImpl::RaviJITStateImpl() : context_(llvm::getGlobalContext()), auto_(true) {
+RaviJITStateImpl::RaviJITStateImpl()
+    : context_(llvm::getGlobalContext()), auto_(false), enabled_(true),
+      opt_level_(2), size_level_(0) {
   // Unless following three lines are not executed then
   // ExecutionEngine cannot be created
   // This should ideally be an atomic check but because LLVM docs
@@ -142,7 +144,7 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
 
 void *RaviJITFunctionImpl::compile() {
 
-  //module_->dump();
+  // module_->dump();
 
   // Create a function pass manager for this engine
   llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(module_);
@@ -159,8 +161,8 @@ void *RaviJITFunctionImpl::compile() {
   FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
 #endif
   llvm::PassManagerBuilder pmb;
-  pmb.OptLevel = 1;
-  pmb.SizeLevel = 0;
+  pmb.OptLevel = owner_->get_optlevel();
+  pmb.SizeLevel = owner_->get_sizelevel();
   pmb.populateFunctionPassManager(*FPM);
   FPM->doInitialization();
   FPM->run(*function_);
@@ -251,6 +253,9 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
   global_State *G = G(L);
   if (G->ravi_state == NULL)
     return 0;
+  if (!G->ravi_state->jit->is_enabled()) {
+    return 0;
+  }
   if (G->ravi_state->jit->is_auto() || manual_request)
     G->ravi_state->code_generator->compile(L, p);
   return p->ravi_jit.jit_status == 2;
@@ -331,8 +336,53 @@ static int ravi_auto(lua_State *L) {
     lua_pushboolean(L, 0);
   else
     lua_pushboolean(L, G->ravi_state->jit->is_auto());
-  if (n == 1)
+  if (n == 1 && G->ravi_state)
     G->ravi_state->jit->set_auto(value);
+  return 1;
+}
+
+static int ravi_jitenable(lua_State *L) {
+  global_State *G = G(L);
+  int n = lua_gettop(L);
+  bool value = false;
+  if (n == 1)
+    value = lua_toboolean(L, 1);
+  if (G->ravi_state == NULL)
+    lua_pushboolean(L, 0);
+  else
+    lua_pushboolean(L, G->ravi_state->jit->is_enabled());
+  if (n == 1 && G->ravi_state)
+    G->ravi_state->jit->set_enabled(value);
+  return 1;
+}
+
+static int ravi_optlevel(lua_State *L) {
+  global_State *G = G(L);
+  int n = lua_gettop(L);
+  int value = 1;
+  if (n == 1)
+    value = lua_tointeger(L, 1);
+  if (G->ravi_state == NULL)
+    lua_pushinteger(L, 0);
+  else
+    lua_pushinteger(L, G->ravi_state->jit->get_optlevel());
+  if (n == 1 && G->ravi_state)
+    G->ravi_state->jit->set_optlevel(value);
+  return 1;
+}
+
+static int ravi_sizelevel(lua_State *L) {
+  global_State *G = G(L);
+  int n = lua_gettop(L);
+  int value = 0;
+  if (n == 1)
+    value = lua_tointeger(L, 1);
+  if (G->ravi_state == NULL)
+    lua_pushinteger(L, 0);
+  else
+    lua_pushinteger(L, G->ravi_state->jit->get_sizelevel());
+  if (n == 1 && G->ravi_state)
+    G->ravi_state->jit->set_sizelevel(value);
   return 1;
 }
 
@@ -341,6 +391,9 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"dumplua", ravi_dump_luacode},
                                    {"dumpllvm", ravi_dump_llvmir},
                                    {"auto", ravi_auto},
+                                   {"jit", ravi_jitenable},
+                                   {"optlevel", ravi_optlevel},
+                                   {"sizelevel", ravi_sizelevel},
                                    {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmjit(lua_State *L) {
