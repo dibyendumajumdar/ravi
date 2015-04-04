@@ -71,7 +71,8 @@ An example with arrays::
 
 JIT Compilation
 ---------------
-I am currently working on JIT compilation of Ravi using LLVM. As of now not all bytecodes can be compiled.
+I am currently working on JIT compilation of Ravi using LLVM. As of now all bytecodes other than bit-wise operators can be compiled, but there are restrictions as described in compatibility section below.
+
 There are two modes of JIT compilation.
 
 * auto mode - in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - any Lua function call is is checked to see if the bytecodes contained in it can be compiled. If this is true then the function is compiled. Because of this simplistic behaviour performance will be degraded so user should disable auto compilation and instead compile specific functions using the API described below.
@@ -90,12 +91,13 @@ A JIT api is available with following functions:
 
 Compatibility with Lua
 ----------------------
-Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT compilation is enabled some things may not work:
+Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT compilation is enabled some things will not work:
 
 * You cannot yield from a compiled function, so if you use coroutines then it is better to use the interpreter, as compiled code does not support coroutines 
 * The debugger doesn't work when JIT compilation is turned on as information it requires is not available; the debugger also does not support Ravi's extended opcodes
-* JIT compilation is work in progress and not all features are supported yet
+* Functions using bit-wise operations cannot be JIT compiled as yet (to be implemented)
 * Ravi supports optional typing and enhanced types such as arrays (described later). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions - there are some restrictions on arrays that are described in a later section. Values crossing from Lua to Ravi may be subjected to typechecks.
+* In JITed code tailcalls are implemented as regular calls so unlike Lua VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110.
 
 Documentation
 --------------
@@ -114,7 +116,7 @@ Building LLVM on Windows
 ------------------------
 I built LLVM 3.6.0 from source. I used the CMake GUI to create the build configuration. The only item I changed was ``CMAKE_INSTALL_PREFIX`` which I set to ``c:\LLVM``. I then opened the solution in VS2013 and performed a Debug INSTALL build from there. 
 
-Note that if you perform a Release build of LLVM then you will also need to do a Release build of Ravi otherwise you will get link errors. I build both in Debug mode right now.
+Note that if you perform a Release build of LLVM then you will also need to do a Release build of Ravi otherwise you will get link errors.
 
 Building LLVM on Ubuntu
 -----------------------
@@ -155,7 +157,7 @@ Also see section above on available API for dumping either Lua bytecode or LLVM 
 Work Plan
 ---------
 * Feb-May 2015 - implement JIT compilation using LLVM 
-* June 2015 - implement function parameter specialisation
+* June 2015 - first beta release
 
 License
 -------
