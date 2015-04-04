@@ -71,8 +71,8 @@ The ``ravi_jit`` member is initialized in ``lfunc.c``::
     GCObject *o = luaC_newobj(L, LUA_TPROTO, sizeof(Proto));
     Proto *f = gco2p(o);
     f->k = NULL;
-	/* code ommitted */
-	f->ravi_jit.jit_data = NULL;
+    /* code ommitted */
+    f->ravi_jit.jit_data = NULL;
     f->ravi_jit.jit_function = NULL;
     f->ravi_jit.jit_status = 0; /* not compiled */
     return f;
@@ -130,23 +130,44 @@ When a Lua Function is called it goes through ``luaD_precall()`` in ``ldo.c``. T
       lua_assert(ci->top <= L->stack_last);
       ci->u.l.savedpc = p->code;  /* starting point */
       ci->callstatus = CIST_LUA;
+      ci->jitstatus = 0;
       L->top = ci->top;
       luaC_checkGC(L);  /* stack grow uses memory */
       if (L->hookmask & LUA_MASKCALL)
         callhook(L, ci);
-      if (p->ravi_jit.jit_status == 0) {
-        /* not compiled */
-        raviV_compile(L, p);
-      }
-      if (p->ravi_jit.jit_status == 2) {
-        /* compiled */
-        lua_assert(p->ravi_jit.jit_function != NULL);
-        (*p->ravi_jit.jit_function)(L);
-        lua_assert(L->ci == prevci);
-        ci = L->ci;
-        lua_assert(isLua(ci));
-        lua_assert(GET_OPCODE(*((ci)->u.l.savedpc - 1)) == OP_CALL);
-        return 1;
+      if (compile) {
+        if (p->ravi_jit.jit_status == 0) {
+          /* not compiled */
+          raviV_compile(L, p, 0);
+        }
+        if (p->ravi_jit.jit_status == 2) {
+          /* compiled */
+          lua_assert(p->ravi_jit.jit_function != NULL);
+          ci->jitstatus = 1;
+          /* As JITed function is like a C function 
+           * employ the same restrictions on recursive
+           * calls as for C functions
+           */
+          if (++L->nCcalls >= LUAI_MAXCCALLS) {
+            if (L->nCcalls == LUAI_MAXCCALLS)
+              luaG_runerror(L, "C stack overflow");
+            else if (L->nCcalls >= (LUAI_MAXCCALLS + (LUAI_MAXCCALLS >> 3)))
+              luaD_throw(L, LUA_ERRERR);  /* error while handing stack error */
+          }
+          /* Disable YIELDs - so JITed functions cannot
+           * yield
+           */
+          L->nny++;
+          (*p->ravi_jit.jit_function)(L);
+          L->nny--;
+          L->nCcalls--;
+          lua_assert(L->ci == prevci);
+          /* Return a different value from 1 to 
+           * allow luaV_execute() to distinguish between 
+           * JITed function and true C function
+           */
+          return 2;
+        }
       }
       return 0;
     }
@@ -158,5 +179,5 @@ When a Lua Function is called it goes through ``luaD_precall()`` in ``ldo.c``. T
   }
 
 
-Note that the above returns 1 if compiled function is called so that the behaviour in ``lvm.c`` is similar to that when a C function is called.
+Note that the above returns 2 if compiled Lua function is called. The behaviour in ``lvm.c`` is similar to that when a C function is called.
 

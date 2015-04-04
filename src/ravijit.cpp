@@ -22,9 +22,16 @@
 ******************************************************************************/
 #include "ravi_llvmcodegen.h"
 
+/*
+ * Implementation Notes:
+ * Each Lua function is compiled into an LLVM Module/Function
+ * This strategy allows functions to be garbage collected as normal by Lua
+ */
+
 namespace ravi {
 
-// TODO - should probably be an atomic int
+// This is just to avoid initailizing LLVM repeatedly -
+// see below
 static std::atomic_int init;
 
 RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
@@ -32,7 +39,7 @@ RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
 RaviJITStateImpl::RaviJITStateImpl()
     : context_(llvm::getGlobalContext()), auto_(false), enabled_(true),
       opt_level_(2), size_level_(0) {
-  // Unless following three lines are not executed then
+  // LLVM needs to be initialized else
   // ExecutionEngine cannot be created
   // This should ideally be an atomic check but because LLVM docs
   // say that it is okay to call these functions more than once we
@@ -46,7 +53,7 @@ RaviJITStateImpl::RaviJITStateImpl()
   triple_ = llvm::sys::getProcessTriple();
 #ifdef _WIN32
   // On Windows we get compilation error saying incompatible object format
-  // Reading posts on mailining lists I found that the issue is that COEFF
+  // Reading posts on mailing lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set -elf as the object
   // format
   triple_ += "-elf";
@@ -144,36 +151,40 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
 
 void *RaviJITFunctionImpl::compile() {
 
-  // module_->dump();
+  // We use the PassManagerBuilder to setup optimization
+  // passes - the PassManagerBuilder allows easy configuration of
+  // typical C/C++ passes corresponding to O0, O1, O2, and O3 compiler options
+  llvm::PassManagerBuilder pmb;
+  pmb.OptLevel = owner_->get_optlevel();
+  pmb.SizeLevel = owner_->get_sizelevel();
 
-  // Create a function pass manager for this engine
-  llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(module_);
+  {
+    // Create a function pass manager for this engine
+    std::unique_ptr<llvm::FunctionPassManager> FPM(
+        new llvm::FunctionPassManager(module_));
 
 // Set up the optimizer pipeline.  Start with registering info about how the
 // target lays out data structures.
 #if LLVM_VERSION_MINOR > 5
-  // LLVM 3.6.0 change
-  module_->setDataLayout(engine_->getDataLayout());
-  FPM->add(new llvm::DataLayoutPass());
+    // LLVM 3.6.0 change
+    module_->setDataLayout(engine_->getDataLayout());
+    FPM->add(new llvm::DataLayoutPass());
 #else
-  auto target_layout = engine_->getTargetMachine()->getDataLayout();
-  module_->setDataLayout(target_layout);
-  FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
+    // LLVM 3.5.0
+    auto target_layout = engine_->getTargetMachine()->getDataLayout();
+    module_->setDataLayout(target_layout);
+    FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
 #endif
-  llvm::PassManagerBuilder pmb;
-  pmb.OptLevel = owner_->get_optlevel();
-  pmb.SizeLevel = owner_->get_sizelevel();
-  pmb.populateFunctionPassManager(*FPM);
-  FPM->doInitialization();
-  FPM->run(*function_);
-  delete FPM;
+    pmb.populateFunctionPassManager(*FPM);
+    FPM->doInitialization();
+    FPM->run(*function_);
+  }
 
-  llvm::PassManager *MPM = new llvm::PassManager();
-  pmb.populateModulePassManager(*MPM);
-  MPM->run(*module_);
-  delete MPM;
-
-  // module_->dump();
+  {
+    std::unique_ptr<llvm::PassManager> MPM(new llvm::PassManager());
+    pmb.populateModulePassManager(*MPM);
+    MPM->run(*module_);
+  }
 
   if (ptr_)
     return ptr_;
@@ -240,6 +251,7 @@ int raviV_initjit(struct lua_State *L) {
   return 0;
 }
 
+// Free up the JIT State
 void raviV_close(struct lua_State *L) {
   global_State *G = G(L);
   if (G->ravi_state == NULL)
@@ -249,6 +261,11 @@ void raviV_close(struct lua_State *L) {
   free(G->ravi_state);
 }
 
+// Compile a Lua function 
+// If JIT is turned off then compilation is skipped
+// Compilation occurs if either auto compilation is ON  or
+// a manual compilation request was made
+// Returns true if compilation was successful
 int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
   global_State *G = G(L);
   if (G->ravi_state == NULL)
@@ -261,6 +278,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
   return p->ravi_jit.jit_status == 2;
 }
 
+// Free the JIT compiled function
+// Note that this is called by the garbage collector
 void raviV_freeproto(struct lua_State *L, struct Proto *p) {
   if (p->ravi_jit.jit_status == 2) /* compiled */ {
     ravi::RaviJITFunction *f =
@@ -273,6 +292,7 @@ void raviV_freeproto(struct lua_State *L, struct Proto *p) {
   }
 }
 
+// Dump the LLVM IR
 void raviV_dumpllvmir(struct lua_State *L, struct Proto *p) {
   if (p->ravi_jit.jit_status == 2) /* compiled */ {
     ravi::RaviJITFunction *f =
@@ -293,7 +313,7 @@ static int ravi_is_compiled(lua_State *L) {
   return 1;
 }
 
-// Trt to JIT compile the given function
+// Try to JIT compile the given function
 static int ravi_compile(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
@@ -326,6 +346,7 @@ static int ravi_dump_llvmir(lua_State *L) {
   return 0;
 }
 
+// Turn on/off auto JIT compilation
 static int ravi_auto(lua_State *L) {
   global_State *G = G(L);
   int n = lua_gettop(L);
@@ -341,6 +362,7 @@ static int ravi_auto(lua_State *L) {
   return 1;
 }
 
+// Turn on/off the JIT compiler
 static int ravi_jitenable(lua_State *L) {
   global_State *G = G(L);
   int n = lua_gettop(L);
@@ -356,6 +378,7 @@ static int ravi_jitenable(lua_State *L) {
   return 1;
 }
 
+// Set LLVM optimization level
 static int ravi_optlevel(lua_State *L) {
   global_State *G = G(L);
   int n = lua_gettop(L);
@@ -371,6 +394,7 @@ static int ravi_optlevel(lua_State *L) {
   return 1;
 }
 
+// Set LLVM code size level
 static int ravi_sizelevel(lua_State *L) {
   global_State *G = G(L);
   int n = lua_gettop(L);

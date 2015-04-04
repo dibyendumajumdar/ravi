@@ -1,8 +1,9 @@
-===========================
-Ravi Implementation Details
-===========================
+================================================
+Ravi Parsing and ByteCode Implementation Details
+================================================
 
-As I progress with Ravi I will document the design and implementation details here.
+This document covers the enhancements to the Lua parser and byte-code generator.
+The Ravi JIT implementation is described elsewhere.
 
 Type Information
 ================

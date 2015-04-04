@@ -1,13 +1,11 @@
-=============
-Lua Internals
-=============
-
-As I learn more about Lua internals I will make notes here.
+=========================================
+Lua Parsing and Code Generation Internals
+=========================================
 
 Stack and Registers
 ===================
-There are two stacks.
-The ``Callinfo`` stack tracks activation frames.
+Lua employs two stacks.
+The ``Callinfo`` stack tracks activation frames. 
 There is the secondary stack ``L->stack`` that is an array of ``TValue`` objects. The ``Callinfo`` objects index into this array. Registers are basically slots in the ``L->stack`` array.
 
 When a function is called - the stack is setup as follows::

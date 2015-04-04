@@ -1,9 +1,60 @@
 Ravi JIT Compilation Status
 ===========================
 
+Introduction
+------------
+Ravi uses LLVM for JIT compilation. 
+
+Benefits of using LLVM
+----------------------
+* LLVM has a well documented intermediate representation called LLVM IR.
+* The LLVM ``IRBuilder`` implements type checks so that when LLVM code is being generated, basic type errors are caught by the builder. 
+* LLVM provides a verifier to check that the generated IR is valid. This allows the IR to be validated prior to machine code generation.
+* All of the LLVM optimization passes can be used.
+* The Clang compiler supports generating LLVM IR so that if you want to know what the LLVM IR should look like for a parycular piece of code, you can write a small C snippet and have Clang generate the IR for you.
+* There is great momentum behind LLVM.
+* The LLVM license is not based on GPL, so it is not viral.
+* LLVM is much better documented than other products that aim to cover similar ground.
+* LLVM's API is well designed and has a layered architecture.
+
+Drawbacks of LLVM
+-----------------
+* LLVM is huge in size. Lua on its own is tiny - but when linked to LLVM the resulting binary is a monster.
+* There is a cost to compiling in LLVM so the benefit of compilation accrues only when a Lua function will be used again and again.
+* LLVM cannot be linked as a shared library on Windows and a shared library configuration is not recommended on other platforms as well.
+* LLVM's API keeps changing so that with every release of LLVM one has to revise the way it is used.
+
+The Architecture of Ravi's JIT Compilation
+------------------------------------------
+* The unit of compilation is a Lua function
+* Each Lua function is compiled to a Module/Function in LLVM parlance
+* The compiled code is attached to the Lua function prototype
+* The compiled code is garbage collected as normal by Lua
+* The Lua runtime coordinates function calls - so anytime a Lua function is called it goes via the Lua infrastructure. 
+* The decision to call a JIT compiled version is made in the Lua Infrastructure (specifically in ``luaD_precall()`` function in ``ldo.c``)
+* The JIT compiler translates Lua/Ravi bytecode to LLVM IR - i.e. it does not translate Lua source code.
+* There is no inlining of Lua functions.
+* Generally the JIT compiler implements the same instructions as in ``lvm.c`` - however for some bytecodes the code calls a C function rather than generating inline IR. These opcodes are OP_LOADNIL, OP_NEWTABLE, OP_RAVI_NEWARRAYINT, OP_RAVI_NEWARRAYFLT, OP_SETLIST, OP_CONCAT, OP_CLOSURE, OP_VARARG. 
+* Ravi represents Lua values as done by Lua 5.3 - i.e. in a 16 byte structure. In future this could change to a more optimized structure.
+* Ravi compiler generates type specifc opcodes which result in simpler and higher performance LLVM IR.
+
+Limitations of JIT compilation
+------------------------------
+* Coroutines are not supported - JITed functions cannot yield
+* The Debug API relies upon a field called ``savedpc`` which tracks the current instruction being executed by Lua interpreter. As this is not updated by the JIT code the Debug API can only provide a subset of normal functionality. The Debug API is not yet fully tested.
+* The Lua VM supports infinite tail recursion. The JIT compiler treats OP_TAILCALL as normal OP_CALL so that recursion is limited to about 110 levels.
+* The Lua C API has not yet been tested against the Ravi extensions - especially static typing and array types. Do not use the C API for now - as you could break the type system of Ravi.
+* Bit-wise operators are not yet JIT compiled.
+
+Future Performance Enhancements
+-------------------------------
+The main area of enhancement is to provide specialised versions of Lua FORNUM loops so that the generated code is more efficient and is moreover recognised by LLVM as a loop.
+
+JIT Status of Lua/Ravi Bytecodes
+---------------------------------
 The JIT compilation status of the Lua and Ravi bytecodes are given below.
 
-This information was last updated on 2nd April 2015. As new bytecodes are being added to the JIT compiler on a regular basis
+This information was last updated on 3rd April 2015. As new bytecodes are being added to the JIT compiler on a regular basis
 the status information below may be slightly out of date.
 
 Note that if a Lua functions contains a bytecode that cannot be be JITed then the function cannot be JITed.
@@ -191,3 +242,27 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 | OP_RAVI_SETTABLE_AF     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of numbers, and RK(C) is a number  |
 +-------------------------+----------+--------------------------------------------------+
+
+Ravi's JIT compiler source
+--------------------------
+The LLVM JIT implementation is in following sources:
+
+* ravillvm.h - includes LLVM headers and defines the generic JIT State and Function interfaces
+* ravijit.h - defines the JIT API
+* ravi_llvmcodegen.h - defines the types used by the code generator
+
+* ravijit.cpp - basic LLVM infrastructure and Ravi API definition
+* ravi_llvmtypes.cpp - contains LLVM type definitions for Lua objects 
+* ravi_llvmcodegen.cpp - LLVM JIT compiler - main driver for compiling Lua bytecodes into LLVM IR
+* ravi_llvmload.cpp - implements OP_LOADK and OP_MOVE, and related operations, also OP_LOADBOOL
+* ravi_llvmcomp.cpp - implements OP_EQ, OP_LT, OP_LE, OP_TEST and OP_TESTSET.
+* ravi_llvmreturn.cpp - implements OP_RETURN
+* ravi_llvmforprep.cpp - implements OP_FORPREP
+* ravi_llvmforloop.cpp - implements OP_FORLOOP
+* ravi_llvmtforcall.cpp - implements OP_TFORCALL and OP_TFORLOOP
+* ravi_llvmarith1.cpp - implements various type specialized arithmetic operations - these are Ravi extensions
+* ravi_llvmarith2.cpp - implements Lua opcodes such as OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_POW, OP_IDIV, OP_MOD, OP_UNM
+* ravi_llvmcall.cpp - implements OP_CALL, OP_JMP
+* ravi_llvmtable.cpp - implements OP_GETTABLE, OP_SETTABLE and various other table operations, OP_SELF, and also upvalue operations
+* ravi_llvmrest.cpp - OP_CLOSURE, OP_VARARG, OP_CONCAT
+
