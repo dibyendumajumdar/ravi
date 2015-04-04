@@ -11,7 +11,7 @@ Benefits of using LLVM
 * The LLVM ``IRBuilder`` implements type checks so that when LLVM code is being generated, basic type errors are caught by the builder. 
 * LLVM provides a verifier to check that the generated IR is valid. This allows the IR to be validated prior to machine code generation.
 * All of the LLVM optimization passes can be used.
-* The Clang compiler supports generating LLVM IR so that if you want to know what the LLVM IR should look like for a parycular piece of code, you can write a small C snippet and have Clang generate the IR for you.
+* The Clang compiler supports generating LLVM IR so that if you want to know what the LLVM IR should look like for a particular piece of code, you can write a small C snippet and have Clang generate the IR for you.
 * There is great momentum behind LLVM.
 * The LLVM license is not based on GPL, so it is not viral.
 * LLVM is much better documented than other products that aim to cover similar ground.
