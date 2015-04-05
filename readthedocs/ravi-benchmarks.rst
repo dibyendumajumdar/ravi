@@ -16,6 +16,8 @@ The programs used in the performance testing can be found at `Ravi Tests <https:
 +-------------+---------+----------+-----------+
 |mandel       | 21.247  | 5.79     | 1.633     |
 +-------------+---------+----------+-----------+
+|fannkuchen   | 63.446  | 11.044   | 4.751     |
++-------------+---------+----------+-----------+
 
 There are a number of reasons why Ravi's performance is not as good as Luajit.
 
@@ -27,10 +29,9 @@ There are a number of reasons why Ravi's performance is not as good as Luajit.
    ideas on what can be improved but have parked this for now as I want
    to get more coverage of Lua bytecodes first.
 
-3. Luajit obviously is significant smaller in size when LLVM is added
-   to the comparison. Using LLVM will tend to preclude Ravi's JIT engine
-   from being useful in constrained devices - although ahead of time
-   compilation could be used in such cases.
+3. Luajit compilation approach ensures that it can use information about 
+   the actual execution path taken by the code at runtime whereas Ravi
+   compiles each function as a whole regardless of how it will be used.
 
 Ideas
 -----
@@ -43,6 +44,10 @@ However an internal variable is actually used as the loop index. The external va
 instructions. The obvious optimization is to eliminate this variable by making the loop index available as a readonly value. If for backward 
 compatiblity it is necessary to allow updates to the external variable then a compromise would be analyse the Lua program and only create the
 external variable if necessary.
+
+The Fornum loop needs to handle four different scenarios, resulting from the type of the index variable and whether the loop increments or decrements. 
+The generated code is not very efficient due to branching. The common case of integer index with constant step can be specialized for greater
+performance. 
 
 The Value Storage
 -----------------
