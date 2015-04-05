@@ -306,7 +306,7 @@ void raviV_dumpllvmir(struct lua_State *L, struct Proto *p) {
 static int ravi_is_compiled(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
-  luaL_checktype(L, 1, LUA_TLCL);
+  luaL_argcheck(L, lua_isfunction(L,1) && !lua_iscfunction(L,1), 1, "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
   lua_pushboolean(L, l->p->ravi_jit.jit_status == 2);
@@ -317,7 +317,7 @@ static int ravi_is_compiled(lua_State *L) {
 static int ravi_compile(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
-  luaL_checktype(L, 1, LUA_TLCL);
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1, "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
   int result = raviV_compile(L, l->p, 1);
@@ -329,7 +329,7 @@ static int ravi_compile(lua_State *L) {
 static int ravi_dump_luacode(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
-  luaL_checktype(L, 1, LUA_TLCL);
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1, "argument must be a Lua function");
   ravi_dump_function(L);
   return 0;
 }
@@ -339,7 +339,7 @@ static int ravi_dump_luacode(lua_State *L) {
 static int ravi_dump_llvmir(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
-  luaL_checktype(L, 1, LUA_TLCL);
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1, "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
   raviV_dumpllvmir(L, l->p);
