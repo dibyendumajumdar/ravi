@@ -244,7 +244,7 @@ static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
       }
       case 'n': {
         /* calling function is a known Lua function? */
-        if (ci && !(ci->callstatus & CIST_TAIL) && isLua(ci->previous) && !isJITed(ci->previous))
+        if (ci && !(ci->callstatus & CIST_TAIL) && isLua(ci->previous))
           ar->namewhat = getfuncname(L, ci->previous, &ar->name);
         else
           ar->namewhat = NULL;
