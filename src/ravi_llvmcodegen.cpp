@@ -86,6 +86,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_base(RaviFunctionDef *def) {
   return base_ptr;
 }
 
+// emit code to obtain address of register at location A
 llvm::Value *RaviCodeGenerator::emit_gep_ra(RaviFunctionDef *def,
                                             llvm::Instruction *base_ptr,
                                             int A) {
@@ -220,6 +221,7 @@ RaviCodeGenerator::emit_load_ravi_arraylength(RaviFunctionDef *def,
   return tt;
 }
 
+// emit code to obtain address of register or constant at location B
 llvm::Value *RaviCodeGenerator::emit_gep_rkb(RaviFunctionDef *def,
                                              llvm::Instruction *base_ptr,
                                              int B) {
@@ -237,23 +239,27 @@ llvm::Value *RaviCodeGenerator::emit_gep_rkb(RaviFunctionDef *def,
   return rb;
 }
 
+// L->top = ci->top
 void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def) {
   // Get pointer to ci->top
   llvm::Value *citop = emit_gep(def, "ci_top", def->ci_val, 0, 1);
+  
   // Load ci->top
   llvm::Instruction *citop_val = def->builder->CreateLoad(citop);
-  // TODO set tbaa
+  citop_val->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_CallInfo_topT);
+
   // Get L->top
   llvm::Value *top = emit_gep(def, "L_top", def->L, 0, 4);
+  
   // Assign ci>top to L->top
   auto ins = def->builder->CreateStore(citop_val, top);
   ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
 }
 
+// L->top = R(B)
 void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def,
                                              llvm::Instruction *base_ptr,
                                              int B) {
-  // L->top = R(B)
   // Get pointer to register at R(B)
   llvm::Value *ptr = emit_array_get(def, base_ptr, B);
   // Get pointer to L->top

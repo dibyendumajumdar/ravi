@@ -252,11 +252,13 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_luaState_ci_baseT;
   llvm::MDNode *tbaa_CallInfo_funcT;
   llvm::MDNode *tbaa_CallInfo_func_LClosureT;
+  llvm::MDNode *tbaa_CallInfo_topT;
   llvm::MDNode *tbaa_LClosureT;
   llvm::MDNode *tbaa_LClosure_pT;
   llvm::MDNode *tbaa_LClosure_upvalsT;
   llvm::MDNode *tbaa_ProtoT;
   llvm::MDNode *tbaa_Proto_kT;
+  llvm::MDNode *tbaa_Proto_sizepT;
   llvm::MDNode *tbaa_TValueT;
   llvm::MDNode *tbaa_TValue_nT;
   llvm::MDNode *tbaa_TValue_ttT;

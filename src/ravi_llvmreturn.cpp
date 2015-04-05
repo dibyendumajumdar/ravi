@@ -28,7 +28,8 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
                                     llvm::Value *proto, int A, int B) {
 
   // Here is what OP_RETURN looks like. We only compile steps
-  // marked with //*.
+  // marked with //*. This is because the rest is only relevant in the
+  // interpreter
 
   // case OP_RETURN: {
   //  int b = GETARG_B(i);
@@ -60,7 +61,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *top = nullptr;
 
   // Get pointer to register A
-  llvm::Value *ra_ptr = A == 0 ? base_ptr : emit_array_get(def, base_ptr, A);
+  llvm::Value *ra_ptr = emit_gep_ra(def, base_ptr, A);
 
   //*  if (b != 0) L->top = ra + b - 1;
   if (B != 0) {
@@ -72,7 +73,8 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *psize_ptr = emit_gep(def, "sizep", def->proto_ptr, 0, 10);
   // Load psize
   llvm::Instruction *psize = def->builder->CreateLoad(psize_ptr);
-  // TODO add tbaa
+  psize->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Proto_sizepT);
+
   // Test if psize > 0
   llvm::Value *psize_gt_0 =
       def->builder->CreateICmpSGT(psize, def->types->kInt[0]);
