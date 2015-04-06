@@ -370,7 +370,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int compile) {
       luaC_checkGC(L);  /* stack grow uses memory */
       if (L->hookmask & LUA_MASKCALL)
         callhook(L, ci);
-      if (compile) {
+//      if (compile) {
         if (p->ravi_jit.jit_status == 0) {
           /* not compiled */
           raviV_compile(L, p, 0);
@@ -403,7 +403,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int compile) {
            */
           return 2;
         }
-      }
+//      }
       return 0;
     }
     default: {  /* not a function */

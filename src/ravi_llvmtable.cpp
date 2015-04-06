@@ -515,7 +515,7 @@ llvm::Instruction *RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def,
 
   // type != LUA_TTABLE ?
   llvm::Value *cmp1 = def->builder->CreateICmpNE(
-      type, def->types->kInt[LUA_TTABLE], "is.not.table");
+      type, def->types->kInt[LUA_TTABLE | BIT_ISCOLLECTABLE], "is.not.table");
 
   llvm::BasicBlock *raise_error = llvm::BasicBlock::Create(
       def->jitState->context(), "if.not.table", def->f);
@@ -545,7 +545,7 @@ llvm::Instruction *RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def,
       ravi_array_type, def->types->kInt[array_type_expected], "is.array.type");
 
   // If array then fine else raise error
-  def->builder->CreateCondBr(cmp1, done, raise_error);
+  def->builder->CreateCondBr(cmp2, done, raise_error);
 
   def->f->getBasicBlockList().push_back(done);
   def->builder->SetInsertPoint(done);
