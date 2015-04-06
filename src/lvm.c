@@ -1018,7 +1018,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         int b = GETARG_B(i);
         int nresults = GETARG_C(i) - 1;
         if (b != 0) L->top = ra + b;  /* else previous instruction set top */
-        int c_or_compiled = luaD_precall(L, ra, nresults, 1);
+        int c_or_compiled = luaD_precall(L, ra, nresults);
         if (c_or_compiled) {  /* C or Lua JITed function? */
           /* RAVI change - if the Lua function was JIT compiled then luaD_precall() returns 2 
            * A return value of 1 indicates non Lua C function
@@ -1037,7 +1037,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         int b = GETARG_B(i);
         if (b != 0) L->top = ra + b;  /* else previous instruction set top */
         lua_assert(GETARG_C(i) - 1 == LUA_MULTRET);
-        if (luaD_precall(L, ra, LUA_MULTRET, 0))  /* C function? */
+        if (luaD_precall(L, ra, LUA_MULTRET))  /* C function? */
             base = ci->u.l.base;
         else {
             /* tail call: put called frame (n) in place of caller one (o) */

@@ -63,7 +63,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci,
   // int nresults = c - 1;
   // if (b != 0)
   //   L->top = ra + b;  /* else previous instruction set top */
-  // int c = luaD_precall(L, ra, nresults, 1);  /* C or JITed function? */
+  // int c = luaD_precall(L, ra, nresults);  /* C or JITed function? */
   // if (c) {
   //   if (c == 1 && nresults >= 0)
   //     L->top = ci->top;  /* adjust results if C function */
@@ -88,15 +88,11 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci,
   // 2 - JITed Lua function called, no action
   // 0 - Run interpreter on Lua function
 
-  // int c = luaD_precall(L, ra, nresults, 1);  /* C or JITed function? */
+  // int c = luaD_precall(L, ra, nresults);  /* C or JITed function? */
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  // We pass 2 as the last argument here just to be able to
-  // differentiate - the argument is used as a boolean to indicate
-  // that its okay to compile the called function
-  llvm::Value *precall_result = def->builder->CreateCall4(
+  llvm::Value *precall_result = def->builder->CreateCall3(
       def->luaD_precallF, def->L, ra,
-      llvm::ConstantInt::get(def->types->C_intT, nresults),
-      def->types->kInt[2]);
+      llvm::ConstantInt::get(def->types->C_intT, nresults));
   llvm::Value *precall_bool =
       def->builder->CreateICmpEQ(precall_result, def->types->kInt[0]);
 
