@@ -109,7 +109,6 @@ static void seterrorobj (lua_State *L, int errcode, StkId oldtop) {
 
 l_noret luaD_throw (lua_State *L, int errcode) {
   if (L->errorJmp) {  /* thread has an error handler? */
-    //printf("raising exception\n");
     L->errorJmp->status = errcode;  /* set status */
     LUAI_THROW(L, L->errorJmp);  /* jump to it */
   }
@@ -371,7 +370,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int compile) {
       luaC_checkGC(L);  /* stack grow uses memory */
       if (L->hookmask & LUA_MASKCALL)
         callhook(L, ci);
-      if (compile) {
+      if (compile || 1) {
         if (p->ravi_jit.jit_status == 0) {
           /* not compiled */
           raviV_compile(L, p, 0);
