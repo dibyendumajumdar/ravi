@@ -371,6 +371,10 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_TOARRAYF:
     case OP_RAVI_MOVEAI:
     case OP_RAVI_MOVEAF:
+    case OP_RAVI_FORLOOP_IP:
+    case OP_RAVI_FORLOOP_IN:
+    case OP_RAVI_FORPREP_IP:
+    case OP_RAVI_FORPREP_IN:
       break;
     default:
       return false;
@@ -863,6 +867,8 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_JMP(def, A, j);
     } break;
 
+    case OP_RAVI_FORPREP_IP:
+    case OP_RAVI_FORPREP_IN:
     case OP_FORPREP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
@@ -872,6 +878,8 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_FORPREP(def, L_ci, proto, A, j);
 #endif
     } break;
+    case OP_RAVI_FORLOOP_IP:
+    case OP_RAVI_FORLOOP_IN:
     case OP_FORLOOP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
@@ -1157,6 +1165,10 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
             llvm::BasicBlock::Create(def->jitState->context(), "loadbool");
     } break;
     case OP_JMP:
+    case OP_RAVI_FORPREP_IP:
+    case OP_RAVI_FORPREP_IN:
+    case OP_RAVI_FORLOOP_IP:
+    case OP_RAVI_FORLOOP_IN:
     case OP_FORLOOP:
     case OP_FORPREP:
     case OP_TFORLOOP: {
@@ -1164,9 +1176,9 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
       char temp[80];
       if (op == OP_JMP)
         targetname = "jmp";
-      else if (op == OP_FORLOOP)
+      else if (op == OP_FORLOOP || op == OP_RAVI_FORLOOP_IP || op == OP_RAVI_FORLOOP_IN)
         targetname = "forbody";
-      else if (op == OP_FORPREP)
+      else if (op == OP_FORPREP || op == OP_RAVI_FORPREP_IP || op == OP_RAVI_FORPREP_IN)
 #if RAVI_CODEGEN_FORPREP2
         targetname = "forloop_ilt";
 #else
@@ -1184,7 +1196,7 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
             llvm::BasicBlock::Create(def->jitState->context(), temp);
       }
 #if RAVI_CODEGEN_FORPREP2
-      if (op == OP_FORPREP) {
+      if (op == OP_FORPREP || op == OP_RAVI_FORPREP_IP || op == OP_RAVI_FORPREP_IN) {
         lua_assert(def->jmp_targets[j].jmp2 == nullptr);
         // first target (created above) is for int < limit
         // Second target is for int > limit

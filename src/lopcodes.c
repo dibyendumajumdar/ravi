@@ -120,6 +120,11 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "SETTABLE_AI",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
   "SETTABLE_AF",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
+  "FORLOOP_IP",
+  "FORLOOP_IN",
+  "FORPREP_IP",
+  "FORPREP_IN",
+
   NULL
 };
 
@@ -226,6 +231,11 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
  , opmode(0, 0, OpArgK, OpArgK, iABC) /* OP_RAVI_SETTABLE_AI A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
  , opmode(0, 0, OpArgK, OpArgK, iABC) /* OP_RAVI_SETTABLE_AF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+
+ , opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_IP */
+ , opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_IN */
+ , opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_IP */
+ , opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_IN */
 
 };
 
@@ -462,7 +472,11 @@ static void PrintCode(const Proto* f)
       break;
     case OP_JMP:
     case OP_FORLOOP:
+    case OP_RAVI_FORLOOP_IP:
+    case OP_RAVI_FORLOOP_IN:
     case OP_FORPREP:
+    case OP_RAVI_FORPREP_IP:
+    case OP_RAVI_FORPREP_IN:
     case OP_TFORLOOP:
       printf("\t; to %d", sbx + pc + 2);
       break;

@@ -1718,10 +1718,16 @@ static void repeatstat (LexState *ls, int line) {
   leaveblock(fs);  /* finish loop */
 }
 
+typedef struct Fornuminfo {
+  ravitype_t type;
+  int is_constant;
+  int int_value;
+} Fornuminfo;
+
 /* parse the single expressions needed in numerical for loops
  * called by fornum()
  */
-static int exp1 (LexState *ls, ravitype_t *type) {
+static int exp1 (LexState *ls, Fornuminfo *info) {
   /* Since the local variable in a fornum loop is local to the loop and does
    * not use any variable in outer scope we don't need to check its
    * type - also the loop is already optimised so no point trying to
@@ -1731,24 +1737,38 @@ static int exp1 (LexState *ls, ravitype_t *type) {
   int reg;
   e.ravi_type = RAVI_TANY;
   expr(ls, &e);
+  DEBUG_EXPR(raviY_printf(ls->fs, "fornum exp -> %e\n", &e));
+  info->is_constant = (e.k == VKINT);
+  info->int_value = info->is_constant ? e.u.ival : 0;
   luaK_exp2nextreg(ls->fs, &e);
   lua_assert(e.k == VNONRELOC);
   reg = e.u.info;
-  *type = e.ravi_type;
+  info->type = e.ravi_type;
   return reg;
 }
 
 /* parse a for loop body for both versions of the for loop
  * called by fornum(), forlist()
  */
-static void forbody (LexState *ls, int base, int line, int nvars, int isnum) {
+static void forbody (LexState *ls, int base, int line, int nvars, int isnum, Fornuminfo *info) {
   /* forbody -> DO block */
   BlockCnt bl;
+  OpCode forprep_inst = OP_FORPREP, forloop_inst = OP_FORLOOP;
   FuncState *fs = ls->fs;
   int prep, endfor;
   adjustlocalvars(ls, 3);  /* control variables */
   checknext(ls, TK_DO);
-  prep = isnum ? luaK_codeAsBx(fs, OP_FORPREP, base, NO_JUMP) : luaK_jump(fs);
+  if (isnum) {
+    if (info && info->is_constant && info->int_value > 0) {
+      forprep_inst = OP_RAVI_FORPREP_IP;
+      forloop_inst = OP_RAVI_FORLOOP_IP;
+    }
+    else if (info && info->is_constant && info->int_value < 0) {
+      forprep_inst = OP_RAVI_FORPREP_IN;
+      forloop_inst = OP_RAVI_FORLOOP_IN;
+    }
+  }
+  prep = isnum ? luaK_codeAsBx(fs, forprep_inst, base, NO_JUMP) : luaK_jump(fs);
   enterblock(fs, &bl, 0);  /* scope for declared variables */
   adjustlocalvars(ls, nvars);
   luaK_reserveregs(fs, nvars);
@@ -1756,7 +1776,7 @@ static void forbody (LexState *ls, int base, int line, int nvars, int isnum) {
   leaveblock(fs);  /* end of scope for declared variables */
   luaK_patchtohere(fs, prep);
   if (isnum)  /* numeric for? */
-    endfor = luaK_codeAsBx(fs, OP_FORLOOP, base, NO_JUMP);
+    endfor = luaK_codeAsBx(fs, forloop_inst, base, NO_JUMP);
   else {  /* generic for */
     luaK_codeABC(fs, OP_TFORCALL, base, 0, nvars);
     luaK_fixline(fs, line);
@@ -1791,25 +1811,30 @@ static void fornum (LexState *ls, TString *varname, int line) {
   vvar = &fs->f->locvars[fs->nlocvars - 1]; /* index variable - not yet active so get it from locvars*/
   checknext(ls, '=');
   /* get the type of each expression */
-  ravitype_t tidx = RAVI_TANY, tlimit = RAVI_TANY, tstep = RAVI_TNUMINT;
+  Fornuminfo tidx = { RAVI_TANY }, tlimit = { RAVI_TANY }, tstep = { RAVI_TNUMINT };
+  Fornuminfo *info = NULL;
   exp1(ls, &tidx);  /* initial value */
   checknext(ls, ',');
   exp1(ls, &tlimit);  /* limit */
   if (testnext(ls, ','))
     exp1(ls, &tstep);  /* optional step */
   else {  /* default step = 1 */
+    tstep.is_constant = 1;
+    tstep.int_value = 1;
     luaK_codek(fs, fs->freereg, luaK_intK(fs, 1));
     luaK_reserveregs(fs, 1);
   }
-  if (tidx == tlimit && tlimit == tstep && (tidx == RAVI_TNUMFLT || tidx == RAVI_TNUMINT)) {
+  if (tidx.type == tlimit.type && tlimit.type == tstep.type && (tidx.type == RAVI_TNUMFLT || tidx.type == RAVI_TNUMINT)) {
+    if (tidx.type == RAVI_TNUMINT && tstep.is_constant)
+      info = &tstep;
     /* Ok so we have an integer or double */
-    vidx->ravi_type = vlimit->ravi_type = vstep->ravi_type = vvar->ravi_type = tidx;
+    vidx->ravi_type = vlimit->ravi_type = vstep->ravi_type = vvar->ravi_type = tidx.type;
     DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for index %v\n", vidx));
     DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for limit %v\n", vlimit));
     DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for step %v\n", vstep));
     DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for variable %v\n", vvar));
   }
-  forbody(ls, base, line, 1, 1);
+  forbody(ls, base, line, 1, 1, info);
 }
 
 /* parse a generic for loop, calls forbody() 
@@ -1837,7 +1862,7 @@ static void forlist (LexState *ls, TString *indexname) {
   line = ls->linenumber;
   adjust_assign(ls, 3, explist(ls, &e), &e);
   luaK_checkstack(fs, 3);  /* extra space to call generator */
-  forbody(ls, base, line, nvars - 3, 0);
+  forbody(ls, base, line, nvars - 3, 0, NULL);
 }
 
 /* initial parsing of a for loop - calls fornum() or forlist()
