@@ -895,4 +895,79 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // def->f->dump();
 }
+
+void RaviCodeGenerator::emit_iFORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
+                                      llvm::Value *proto, int A, int pc,
+                                      int step_one) {
+
+  RaviBranchDef &forloop_target = def->jmp_targets[pc];
+
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+
+  forloop_target.ilimit =
+      TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "ilimit");
+  if (!step_one) {
+    forloop_target.istep =
+        TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "istep");
+  }
+  forloop_target.iidx =
+      TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "iidx");
+
+  //    lua_Integer initv = ivalue(init);
+  //    setivalue(init, initv - ivalue(pstep));
+
+  // Load pointer to base
+  llvm::Instruction *base_ptr = emit_load_base(def);
+
+  //  TValue *init = ra;
+  //  TValue *pstep = ra + 2;
+  llvm::Value *init = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *plimit = emit_gep_ra(def, base_ptr, A + 1);
+  llvm::Value *pstep = nullptr;
+  if (!step_one)
+    pstep = emit_gep_ra(def, base_ptr, A + 2);
+
+  // Get ivalue(pstep)
+  llvm::Instruction *limit_ivalue = emit_load_reg_i(def, plimit);
+  llvm::Instruction *init_ivalue = emit_load_reg_i(def, init);
+
+  if (!step_one) {
+    //    setivalue(init, initv - ivalue(pstep));
+    llvm::Instruction *step_ivalue = emit_load_reg_i(def, pstep);
+    llvm::Value *idx = def->builder->CreateSub(init_ivalue, step_ivalue,
+                                               "initv-pstep.i", false, true);
+
+    // Save idx
+    llvm::Instruction *iinit_store =
+        def->builder->CreateStore(idx, forloop_target.iidx);
+    iinit_store->setMetadata(llvm::LLVMContext::MD_tbaa,
+                             def->types->tbaa_longlongT);
+
+    // Save step
+    llvm::Instruction *istep_store =
+        def->builder->CreateStore(step_ivalue, forloop_target.istep);
+    istep_store->setMetadata(llvm::LLVMContext::MD_tbaa,
+                             def->types->tbaa_longlongT);
+  } else {
+    //    setivalue(init, initv - ivalue(pstep));
+    llvm::Value *idx = def->builder->CreateSub(
+        init_ivalue, def->types->kluaInteger[1], "initv-pstep.i", false, true);
+
+    // Save idx
+    llvm::Instruction *iinit_store =
+        def->builder->CreateStore(idx, forloop_target.iidx);
+    iinit_store->setMetadata(llvm::LLVMContext::MD_tbaa,
+                             def->types->tbaa_longlongT);
+  }
+
+  // Save limit
+  llvm::Instruction *ilimit_store =
+      def->builder->CreateStore(limit_ivalue, forloop_target.ilimit);
+  ilimit_store->setMetadata(llvm::LLVMContext::MD_tbaa,
+                            def->types->tbaa_longlongT);
+
+  // We are done so jump to forloop
+  lua_assert(def->jmp_targets[pc].jmp1);
+  def->builder->CreateBr(def->jmp_targets[pc].jmp1);
+}
 }

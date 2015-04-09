@@ -243,14 +243,15 @@ llvm::Value *RaviCodeGenerator::emit_gep_rkb(RaviFunctionDef *def,
 void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def) {
   // Get pointer to ci->top
   llvm::Value *citop = emit_gep(def, "ci_top", def->ci_val, 0, 1);
-  
+
   // Load ci->top
   llvm::Instruction *citop_val = def->builder->CreateLoad(citop);
-  citop_val->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_CallInfo_topT);
+  citop_val->setMetadata(llvm::LLVMContext::MD_tbaa,
+                         def->types->tbaa_CallInfo_topT);
 
   // Get L->top
   llvm::Value *top = emit_gep(def, "L_top", def->L, 0, 4);
-  
+
   // Assign ci>top to L->top
   auto ins = def->builder->CreateStore(citop_val, top);
   ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
@@ -372,9 +373,9 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_MOVEAI:
     case OP_RAVI_MOVEAF:
     case OP_RAVI_FORLOOP_IP:
-    case OP_RAVI_FORLOOP_IN:
+    case OP_RAVI_FORLOOP_I1:
     case OP_RAVI_FORPREP_IP:
-    case OP_RAVI_FORPREP_IN:
+    case OP_RAVI_FORPREP_I1:
       break;
     default:
       return false;
@@ -867,8 +868,12 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_JMP(def, A, j);
     } break;
 
-    case OP_RAVI_FORPREP_IP:
-    case OP_RAVI_FORPREP_IN:
+    case OP_RAVI_FORPREP_I1:
+    case OP_RAVI_FORPREP_IP: {
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      emit_iFORPREP(def, L_ci, proto, A, j, op == OP_RAVI_FORPREP_I1);
+    } break;
     case OP_FORPREP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
@@ -878,8 +883,13 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
       emit_FORPREP(def, L_ci, proto, A, j);
 #endif
     } break;
-    case OP_RAVI_FORLOOP_IP:
-    case OP_RAVI_FORLOOP_IN:
+    case OP_RAVI_FORLOOP_I1:
+    case OP_RAVI_FORLOOP_IP: {
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      emit_iFORLOOP(def, L_ci, proto, A, j, def->jmp_targets[pc],
+                    op == OP_RAVI_FORLOOP_I1);
+    } break;
     case OP_FORLOOP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
@@ -1166,9 +1176,9 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
     } break;
     case OP_JMP:
     case OP_RAVI_FORPREP_IP:
-    case OP_RAVI_FORPREP_IN:
+    case OP_RAVI_FORPREP_I1:
     case OP_RAVI_FORLOOP_IP:
-    case OP_RAVI_FORLOOP_IN:
+    case OP_RAVI_FORLOOP_I1:
     case OP_FORLOOP:
     case OP_FORPREP:
     case OP_TFORLOOP: {
@@ -1176,9 +1186,11 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
       char temp[80];
       if (op == OP_JMP)
         targetname = "jmp";
-      else if (op == OP_FORLOOP || op == OP_RAVI_FORLOOP_IP || op == OP_RAVI_FORLOOP_IN)
+      else if (op == OP_FORLOOP || op == OP_RAVI_FORLOOP_IP ||
+               op == OP_RAVI_FORLOOP_I1)
         targetname = "forbody";
-      else if (op == OP_FORPREP || op == OP_RAVI_FORPREP_IP || op == OP_RAVI_FORPREP_IN)
+      else if (op == OP_FORPREP || op == OP_RAVI_FORPREP_IP ||
+               op == OP_RAVI_FORPREP_I1)
 #if RAVI_CODEGEN_FORPREP2
         targetname = "forloop_ilt";
 #else
@@ -1196,7 +1208,7 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
             llvm::BasicBlock::Create(def->jitState->context(), temp);
       }
 #if RAVI_CODEGEN_FORPREP2
-      if (op == OP_FORPREP || op == OP_RAVI_FORPREP_IP || op == OP_RAVI_FORPREP_IN) {
+      if (op == OP_FORPREP) {
         lua_assert(def->jmp_targets[j].jmp2 == nullptr);
         // first target (created above) is for int < limit
         // Second target is for int > limit

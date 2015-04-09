@@ -1081,7 +1081,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
     }
     case OP_RAVI_FORLOOP_IP:
-    case OP_RAVI_FORLOOP_IN:
+    case OP_RAVI_FORLOOP_I1:
     case OP_FORLOOP: {
         if (ttisinteger(ra)) {  /* integer loop? */
             lua_Integer step = ivalue(ra + 2);
@@ -1106,7 +1106,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
     } break;
     case OP_RAVI_FORPREP_IP:
-    case OP_RAVI_FORPREP_IN:
+    case OP_RAVI_FORPREP_I1:
     case OP_FORPREP: {
         TValue *init = ra;
         TValue *plimit = ra + 1;

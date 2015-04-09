@@ -507,4 +507,95 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(exit_block);
   def->builder->SetInsertPoint(exit_block);
 }
+
+void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
+  llvm::Value *proto, int A, int pc, RaviBranchDef &b, int step_one) {
+
+  //  lua_Integer step = ivalue(ra + 2);
+  //  lua_Integer idx = ivalue(ra) + step; /* increment index */
+  //  lua_Integer limit = ivalue(ra + 1);
+  //  if (idx <= limit) {
+  //    ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
+  //    setivalue(ra, idx);  /* update internal index... */
+  //    setivalue(ra + 3, idx);  /* ...and external index */
+  //  }
+
+  // We are in b.jmp1 as this is already the current block
+  lua_assert(def->builder->GetInsertBlock() == b.jmp1);
+
+  // Obtain pointers to the value.i field
+  llvm::Value *idx_int_ptr = b.iidx;
+  llvm::Value *limit_int_ptr = b.ilimit;
+
+  // Create the done block
+  llvm::BasicBlock *exit_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "exit_iforloop");
+
+  //  lua_Integer idx = ivalue(ra) + step; /* increment index */
+  llvm::Instruction *idx_int_value =
+    def->builder->CreateLoad(idx_int_ptr, "init.i");
+  idx_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
+    def->types->tbaa_longlongT);
+  llvm::Value *new_idx;
+
+  if (!step_one) {
+    //  lua_Integer step = ivalue(ra + 2);
+    llvm::Value *step_int_ptr = b.istep;
+    llvm::Instruction *step_int_value =
+      def->builder->CreateLoad(step_int_ptr, "step.i");
+    step_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
+      def->types->tbaa_longlongT);
+    new_idx = def->builder->CreateAdd(step_int_value, idx_int_value,
+      "next.idx", false, true);
+  }
+  else
+    new_idx = def->builder->CreateAdd(def->types->kluaInteger[1], idx_int_value,
+    "next.idx", false, true);
+  
+  // save new index
+  llvm::Instruction *idx_store =
+    def->builder->CreateStore(new_idx, idx_int_ptr);
+  idx_store->setMetadata(llvm::LLVMContext::MD_tbaa,
+    def->types->tbaa_longlongT);
+
+  // lua_Integer limit = ivalue(ra + 1);
+  llvm::Instruction *limit_int_value =
+    def->builder->CreateLoad(limit_int_ptr, "limit.i");
+  limit_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
+    def->types->tbaa_longlongT);
+
+  // idx > limit?
+  llvm::Value *new_idx_gt_limit =
+    def->builder->CreateICmpSGT(new_idx, limit_int_value, "idx.gt.limit");
+
+  // If idx > limit we are done
+  llvm::BasicBlock *update_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "updatei");
+  def->builder->CreateCondBr(new_idx_gt_limit, exit_block, update_block);
+
+  // Merge into update block
+  def->f->getBasicBlockList().push_back(update_block);
+  def->builder->SetInsertPoint(update_block);
+
+  // Load pointer to base
+  llvm::Instruction *base_ptr = emit_load_base(def);
+
+  llvm::Value *rvar = emit_gep_ra(def, base_ptr, A + 3);
+
+  //    setivalue(ra + 3, idx);  /* ...and external index */
+  idx_int_value = def->builder->CreateLoad(idx_int_ptr, "init.i");
+  idx_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
+    def->types->tbaa_longlongT);
+
+  emit_store_reg_i(def, idx_int_value, rvar);
+  emit_store_type(def, rvar, LUA_TNUMINT);
+
+  //    ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
+  def->builder->CreateBr(def->jmp_targets[pc].jmp1);
+
+  def->f->getBasicBlockList().push_back(exit_block);
+  def->builder->SetInsertPoint(exit_block);
+
+}
+
 }

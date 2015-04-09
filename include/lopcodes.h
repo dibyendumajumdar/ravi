@@ -279,14 +279,14 @@ OP_RAVI_SETTABLE_AI,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is
 OP_RAVI_SETTABLE_AF,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
 OP_RAVI_FORLOOP_IP,
-OP_RAVI_FORLOOP_IN,
+OP_RAVI_FORLOOP_I1,
 OP_RAVI_FORPREP_IP,
-OP_RAVI_FORPREP_IN,
+OP_RAVI_FORPREP_I1,
 
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_RAVI_FORPREP_IN) + 1)
+#define NUM_OPCODES	(cast(int, OP_RAVI_FORPREP_I1) + 1)
 
 /*===========================================================================
   Notes:

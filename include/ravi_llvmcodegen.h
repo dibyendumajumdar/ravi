@@ -355,6 +355,7 @@ class RAVI_API RaviJITStateImpl : public RaviJITState {
 
   // Size level (LLVM PassManagerBuilder)
   int size_level_;
+
 public:
   RaviJITStateImpl();
   virtual ~RaviJITStateImpl();
@@ -380,9 +381,15 @@ public:
   bool is_enabled() const { return enabled_; }
   void set_enabled(bool value) { enabled_ = value; }
   int get_optlevel() const { return opt_level_; }
-  void set_optlevel(int value) { if (value >= 0 && value <= 3) opt_level_ = value; }
+  void set_optlevel(int value) {
+    if (value >= 0 && value <= 3)
+      opt_level_ = value;
+  }
   int get_sizelevel() const { return size_level_; }
-  void set_sizelevel(int value) { if (value >= 0 && value <= 2) size_level_ = value; }
+  void set_sizelevel(int value) {
+    if (value >= 0 && value <= 2)
+      size_level_ = value;
+  }
 };
 
 // To optimise fornum loops
@@ -759,6 +766,13 @@ public:
                  int A, int B, int C);
 
   void emit_JMP(RaviFunctionDef *def, int A, int j);
+
+  void emit_iFORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int sBx, int step_one);
+
+  void emit_iFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
+                     llvm::Value *proto, int A, int sBx, RaviBranchDef &b,
+                     int step_one);
 
   void emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                     int A, int sBx);
