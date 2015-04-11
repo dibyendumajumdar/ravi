@@ -75,7 +75,7 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,
                                          llvm::Value *L_ci, llvm::Value *proto,
                                          int A, int B, int C) {
   //#define raviH_get_float_inline(L, t, key, v) \
-  //{ unsigned ukey = (unsigned)((key)-1); \
+  //{ unsigned ukey = (unsigned)((key)); \
   //  lua_Number *data = (lua_Number *)t->ravi_array.data; \
   //  if (ukey < t->ravi_array.len) {\
   //    setfltvalue(v, data[ukey]); \
@@ -97,10 +97,8 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,
   llvm::Instruction *t = emit_load_reg_h(def, rb);
   llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
-  llvm::Value *key_minus_1 =
-      def->builder->CreateSub(key, def->types->kluaInteger[1]);
   llvm::Value *ukey =
-      def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
+      def->builder->CreateTrunc(key, def->types->C_intT);
 
   llvm::Value *cmp = def->builder->CreateICmpULT(ukey, len);
   llvm::BasicBlock *then_block =
@@ -138,7 +136,7 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def,
                                          int A, int B, int C) {
 
   //#define raviH_get_int_inline(L, t, key, v) \
-  //{ unsigned ukey = (unsigned)((key)-1); \
+  //{ unsigned ukey = (unsigned)((key)); \
   //  lua_Integer *data = (lua_Integer *)t->ravi_array.data; \
   //  if (ukey < t->ravi_array.len) {\
   //    setivalue(v, data[ukey]); \
@@ -160,10 +158,8 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def,
   llvm::Instruction *t = emit_load_reg_h(def, rb);
   llvm::Instruction *data = emit_load_reg_h_intarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
-  llvm::Value *key_minus_1 =
-      def->builder->CreateSub(key, def->types->kluaInteger[1]);
   llvm::Value *ukey =
-      def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
+      def->builder->CreateTrunc(key, def->types->C_intT);
 
   llvm::Value *cmp = def->builder->CreateICmpULT(ukey, len);
   llvm::BasicBlock *then_block =
@@ -201,7 +197,7 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def,
                                          int A, int B, int C) {
 
   //#define raviH_set_int_inline(L, t, key, value) \
-  //{ unsigned ukey = (unsigned)((key)-1); \
+  //{ unsigned ukey = (unsigned)((key)); \
   //  lua_Integer *data = (lua_Integer *)t->ravi_array.data; \
   //  if (ukey < t->ravi_array.len) { \
   //    data[ukey] = value; \
@@ -225,10 +221,8 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def,
   llvm::Instruction *t = emit_load_reg_h(def, ra);
   llvm::Instruction *data = emit_load_reg_h_intarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
-  llvm::Value *key_minus_1 =
-      def->builder->CreateSub(key, def->types->kluaInteger[1]);
   llvm::Value *ukey =
-      def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
+      def->builder->CreateTrunc(key, def->types->C_intT);
 
   llvm::Value *cmp = def->builder->CreateICmpULT(ukey, len);
   llvm::BasicBlock *then_block =
@@ -263,7 +257,7 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
                                          int A, int B, int C) {
 
   //#define raviH_set_float_inline(L, t, key, value) \
-  //{ unsigned ukey = (unsigned)((key)-1); \
+  //{ unsigned ukey = (unsigned)((key)); \
   //  lua_Number *data = (lua_Number *)t->ravi_array.data; \
   //  if (ukey < t->ravi_array.len) { \
   //    data[ukey] = value; \
@@ -337,10 +331,8 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
   llvm::Instruction *t = emit_load_reg_h(def, ra);
   llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
-  llvm::Value *key_minus_1 =
-      def->builder->CreateSub(key, def->types->kluaInteger[1]);
   llvm::Value *ukey =
-      def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
+      def->builder->CreateTrunc(key, def->types->C_intT);
 
   cmp = def->builder->CreateICmpULT(ukey, len);
   llvm::BasicBlock *then_block =

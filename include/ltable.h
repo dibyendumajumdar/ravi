@@ -50,7 +50,7 @@ LUAI_FUNC void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integ
 LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value); /* RAVI array specialization */
 
 #define raviH_get_int_inline(L, t, key, v) \
-  { unsigned ukey = (unsigned)((key)-1); \
+  { unsigned ukey = (unsigned)((key)); \
     lua_Integer *data = (lua_Integer *)t->ravi_array.data; \
     if (ukey < t->ravi_array.len) {\
       setivalue(v, data[ukey]); \
@@ -59,7 +59,7 @@ LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Num
   }
 
 #define raviH_get_float_inline(L, t, key, v) \
-  { unsigned ukey = (unsigned)((key)-1); \
+  { unsigned ukey = (unsigned)((key)); \
     lua_Number *data = (lua_Number *)t->ravi_array.data; \
     if (ukey < t->ravi_array.len) {\
       setfltvalue(v, data[ukey]); \
@@ -68,7 +68,7 @@ LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Num
   }
 
 #define raviH_set_int_inline(L, t, key, value) \
-  { unsigned ukey = (unsigned)((key)-1); \
+  { unsigned ukey = (unsigned)((key)); \
     lua_Integer *data = (lua_Integer *)t->ravi_array.data; \
     if (ukey < t->ravi_array.len) { \
       data[ukey] = value; \
@@ -77,7 +77,7 @@ LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Num
   }
 
 #define raviH_set_float_inline(L, t, key, value) \
-  { unsigned ukey = (unsigned)((key)-1); \
+  { unsigned ukey = (unsigned)((key)); \
     lua_Number *data = (lua_Number *)t->ravi_array.data; \
     if (ukey < t->ravi_array.len) { \
       data[ukey] = value; \

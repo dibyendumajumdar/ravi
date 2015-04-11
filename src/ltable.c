@@ -652,7 +652,7 @@ int luaH_getn (Table *t) {
 /* RAVI array specialization */
 int raviH_getn(Table *t) {
   lua_assert(t->ravi_array.type != RAVI_TTABLE);
-  return t->ravi_array.len;
+  return t->ravi_array.len-1;
 }
 
 static void ravi_resize_array(lua_State *L, Table *t) {
@@ -714,6 +714,12 @@ Table *raviH_new(lua_State *L, ravitype_t tt) {
   Table *t = luaH_new(L);
   lua_assert(tt == RAVI_TARRAYFLT || tt == RAVI_TARRAYINT);
   t->ravi_array.type = tt;
+  if (tt == RAVI_TARRAYFLT) {
+    raviH_set_float_inline(L, t, 0, 0.0);
+  }
+  else {
+    raviH_set_int_inline(L, t, 0, 0);
+  }
   return t;
 }
 

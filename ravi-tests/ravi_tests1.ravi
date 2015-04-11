@@ -560,3 +560,21 @@ assert(ravi.compile(f))
 assert(not pcall(f))
 
 print("test 40 OK")
+
+-- test 41
+-- Ravi arrays support for ipairs()
+-- Plus special slot at [0]
+x = function() 
+  local nums: integer[] = {1, 2, 3, 4, 5, 6, 7}
+  local t = 0
+  assert(#nums == 7)
+  nums[0] = 558
+  for k,v in ipairs(nums) do
+    t = t + v
+  end
+  assert(nums[0] == 558)
+  return t
+end
+assert(ravi.compile(x))
+assert(x() == 28)
+print("test 41 OK")

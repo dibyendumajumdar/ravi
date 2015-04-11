@@ -88,6 +88,9 @@ else()
 endif()
 
 llvm_map_components_to_libnames(llvm_libs all)
+#llvm_map_components_to_libnames(llvm_libs Support Core CodeGen AsmPrinter BitReader TransformUtils  
+# InstCombine ScalarOpts Analysis ipa Object ExecutionEngine MC MCParser MCJIT ProfileData ipo
+# RuntimeDyld Target X86CodeGen X86AsmParser X86Disassembler X86AsmPrinter X86Desc X86Info X86Utils AsmParser)
 message(STATUS "llvm_libs ${llvm_libs}")
 
 #Main library
