@@ -11,6 +11,7 @@ The following Lua sources have been enhanced for Ravi.
 * lfunc.c - changes to support JIT compilation
 * linit.c - the Ravi api functions get loaded here
 * ltable.c - enhancements for Ravi array types
+* lapi.c - enhancements for Ravi array types
 
 The LLVM JIT implementation is in following sources:
 
