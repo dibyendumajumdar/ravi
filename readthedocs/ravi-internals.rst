@@ -798,7 +798,7 @@ Whenever a new upvalue is referenced, we assign the type of the the upvalue to t
       /* ... omitted code ... */
   }
 
-The function ``newupvalue()`` sets the type of a new upvalue.
+The function ``newupvalue()`` sets the type of a new upvalue::
 
   /* create a new upvalue */
   static int newupvalue (FuncState *fs, TString *name, expdesc *v) {
