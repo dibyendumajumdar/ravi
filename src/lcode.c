@@ -718,6 +718,27 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
 #endif
 }
 
+static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex) {
+  OpCode op = OP_SETUPVAL;
+  if (var->ravi_type != RAVI_TANY && var->ravi_type != ex->ravi_type) {
+    if (var->ravi_type == RAVI_TNUMINT)
+      op = OP_RAVI_SETUPVALI;
+    else if (var->ravi_type == RAVI_TNUMFLT)
+      op = OP_RAVI_SETUPVALF;
+    else if (var->ravi_type == RAVI_TARRAYINT)
+      op = OP_RAVI_SETUPVALAI;
+    else if (var->ravi_type == RAVI_TARRAYFLT)
+      op = OP_RAVI_SETUPVALAF;
+    else
+      luaX_syntaxerror(fs->ls,
+                       luaO_pushfstring(fs->ls->L, "Invalid assignment of "
+                                                   "upvalue: upvalue type "
+                                                   "%d, expression type %d",
+                                        var->ravi_type, ex->ravi_type));
+  }
+  return op;
+}
+
 /* Emit store for LHS expression. */
 void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
   switch (var->k) {
@@ -728,8 +749,9 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
       return;
     }
     case VUPVAL: {
+      OpCode op = check_valid_setupval(fs, var, ex);
       int e = luaK_exp2anyreg(fs, ex);
-      luaK_codeABC(fs, OP_SETUPVAL, e, var->u.info, 0);
+      luaK_codeABC(fs, op, e, var->u.info, 0);
       break;
     }
     case VINDEXED: {

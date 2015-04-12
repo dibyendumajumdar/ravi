@@ -283,10 +283,15 @@ OP_RAVI_FORLOOP_I1,
 OP_RAVI_FORPREP_IP,
 OP_RAVI_FORPREP_I1,
 
+OP_RAVI_SETUPVALI,  /*	A B	UpValue[B] := tointeger(R(A))			*/
+OP_RAVI_SETUPVALF,  /*	A B	UpValue[B] := tonumber(R(A))			*/
+OP_RAVI_SETUPVALAI,  /*	A B	UpValue[B] := toarrayint(R(A))			*/
+OP_RAVI_SETUPVALAF,  /*	A B	UpValue[B] := toarrayflt(R(A))			*/
+
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_RAVI_FORPREP_I1) + 1)
+#define NUM_OPCODES	(cast(int, OP_RAVI_SETUPVALAF) + 1)
 
 /*===========================================================================
   Notes:

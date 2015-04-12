@@ -74,6 +74,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   InstructionT = C_intT;
   pInstructionT = llvm::PointerType::get(InstructionT, 0);
 
+  ravitype_tT = llvm::Type::getIntNTy(context, sizeof(ravitype_t) * 8);
+
   lua_StateT = llvm::StructType::create(context, "ravi.lua_State");
   plua_StateT = llvm::PointerType::get(lua_StateT, 0);
 
@@ -227,15 +229,17 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //*/
   // typedef struct Upvaldesc {
   //  TString *name;  /* upvalue name (for debug information) */
+  //  ravitype_t type;
   //  lu_byte instack;  /* whether it is in stack */
   //  lu_byte idx;  /* index of upvalue (in stack or in outer function's list)
   //  */
   //}Upvaldesc;
   UpvaldescT = llvm::StructType::create(context, "ravi.Upvaldesc");
   elements.clear();
-  elements.push_back(pTStringT);
-  elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT);
+  elements.push_back(pTStringT);   /* name */
+  elements.push_back(ravitype_tT); /* type */
+  elements.push_back(lu_byteT);    /* instack */
+  elements.push_back(lu_byteT);    /* idx */
   UpvaldescT->setBody(elements);
   pUpvaldescT = llvm::PointerType::get(UpvaldescT, 0);
 
@@ -250,7 +254,6 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown
   //  */
   //} LocVar;
-  ravitype_tT = llvm::Type::getIntNTy(context, sizeof(ravitype_t) * 8);
   LocVarT = llvm::StructType::create(context, "ravi.LocVar");
   elements.clear();
   elements.push_back(pTStringT);   /* varname */

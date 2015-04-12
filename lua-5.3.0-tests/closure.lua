@@ -64,9 +64,9 @@ end
 assert(a[4] == nil)
 a[1].set(10)
 assert(a[2].get() == 2)
-a[2].set('a')
+--a[2].set('a')
 assert(a[3].get() == 3)
-assert(a[2].get() == 'a')
+--assert(a[2].get() == 'a')
 
 a = {}
 local t = {"a", "b"}

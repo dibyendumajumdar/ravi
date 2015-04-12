@@ -370,16 +370,6 @@ typedef union UUdata {
 	  io->value_ = iu->user_; io->tt_ = iu->ttuv_; \
 	  checkliveness(G(L),io); }
 
-
-/*
-** Description of an upvalue for function prototypes
-*/
-typedef struct Upvaldesc {
-  TString *name;  /* upvalue name (for debug information) */
-  lu_byte instack;  /* whether it is in stack */
-  lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
-} Upvaldesc;
-
 /* Following are the types we will use
 ** use in parsing. The rationale for types is
 ** performance - as of now these are the only types that
@@ -398,6 +388,17 @@ typedef enum {
   RAVI_TNIL,
   RAVI_TBOOLEAN
 } ravitype_t;
+
+/*
+** Description of an upvalue for function prototypes
+*/
+typedef struct Upvaldesc {
+  TString *name;  /* upvalue name (for debug information) */
+  ravitype_t type; /* RAVI type of upvalue */
+  lu_byte instack;  /* whether it is in stack */
+  lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
+} Upvaldesc;
+
 
 /*
 ** Description of a local variable for function prototypes

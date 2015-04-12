@@ -125,6 +125,11 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "FORPREP_IP",
   "FORPREP_I1",
 
+  "SETUPVALI",
+  "SETUPVALF",
+  "SETUPVALAI",
+  "SETUPVALAF",
+
   NULL
 };
 
@@ -236,6 +241,10 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  , opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_I1 */
  , opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_IP */
  , opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_I1 */
+ , opmode(0, 0, OpArgU, OpArgN, iABC)		  /* OP_RAVI_SETUPVALI */
+ , opmode(0, 0, OpArgU, OpArgN, iABC)		  /* OP_RAVI_SETUPVALF */
+ , opmode(0, 0, OpArgU, OpArgN, iABC)		  /* OP_RAVI_SETUPVALAI */
+ , opmode(0, 0, OpArgU, OpArgN, iABC)		  /* OP_RAVI_SETUPVALAF */
 
 };
 
@@ -431,6 +440,10 @@ static void PrintCode(const Proto* f)
       printf("\t; "); PrintConstant(f, bx);
       break;
     case OP_GETUPVAL:
+    case OP_RAVI_SETUPVALI:
+    case OP_RAVI_SETUPVALF:
+    case OP_RAVI_SETUPVALAI:
+    case OP_RAVI_SETUPVALAF:
     case OP_SETUPVAL:
       printf("\t; %s", UPVALNAME(b));
       break;

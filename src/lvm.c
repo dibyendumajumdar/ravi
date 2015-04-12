@@ -1463,6 +1463,42 @@ newframe:  /* reentry point when frame changes (call/return) */
         raviH_set_float_inline(L, t, idx, ((lua_Number)ivalue(rc)));
       }
     } break;
+
+    case OP_RAVI_SETUPVALI: {
+      lua_Integer ia;
+      if (tointeger(ra, &ia)) {
+        UpVal *uv = cl->upvals[GETARG_B(i)];
+        setivalue(uv->v, ia);
+        luaC_upvalbarrier(L, uv);
+      }
+      else
+        luaG_runerror(L, "upvalue of integer type, cannot be set to non integer value");
+    } break;
+    case OP_RAVI_SETUPVALF: {
+      lua_Number na;
+      if (tonumber(ra, &na)) {
+        UpVal *uv = cl->upvals[GETARG_B(i)];
+        setfltvalue(uv->v, na);
+        luaC_upvalbarrier(L, uv);
+      }
+      else
+        luaG_runerror(L, "upvalue of number type, cannot be set to non number value");
+    } break;
+    case OP_RAVI_SETUPVALAI: {
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
+        luaG_runerror(L, "upvalue of integer[] type, cannot be set to non integer[] value");
+      UpVal *uv = cl->upvals[GETARG_B(i)];
+      setobj(L, uv->v, ra);
+      luaC_upvalbarrier(L, uv);
+    } break;
+    case OP_RAVI_SETUPVALAF: {
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYFLT)
+        luaG_runerror(L, "upvalue of number[] type, cannot be set to non number[] value");
+      UpVal *uv = cl->upvals[GETARG_B(i)];
+      setobj(L, uv->v, ra);
+      luaC_upvalbarrier(L, uv);
+    } break;
+
     }
   }
 }

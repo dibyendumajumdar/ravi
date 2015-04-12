@@ -457,9 +457,12 @@ static int newupvalue (FuncState *fs, TString *name, expdesc *v) {
   luaM_growvector(fs->ls->L, f->upvalues, fs->nups, f->sizeupvalues,
                   Upvaldesc, MAXUPVAL, "upvalues");
   while (oldsize < f->sizeupvalues) f->upvalues[oldsize++].name = NULL;
+
   f->upvalues[fs->nups].instack = (v->k == VLOCAL);
   f->upvalues[fs->nups].idx = cast_byte(v->u.info);
   f->upvalues[fs->nups].name = name;
+  //raviY_printf(fs, "Creating upvalue for local variable exp %e\n", v);
+  f->upvalues[fs->nups].type = v->ravi_type;
   luaC_objbarrier(fs->ls->L, f, name);
   return fs->nups++;
 }
@@ -514,7 +517,7 @@ static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
         /* else was LOCAL or UPVAL */
         idx  = newupvalue(fs, n, var);  /* will be a new upvalue */
       }
-      init_exp(var, VUPVAL, idx, RAVI_TANY); /* RAVI : variable type not known as global or upvalue */
+      init_exp(var, VUPVAL, idx, fs->f->upvalues[idx].type); /* RAVI : set upvalue type */
       return VUPVAL;
     }
   }
