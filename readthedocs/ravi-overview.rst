@@ -99,7 +99,7 @@ Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT co
 * Ravi supports optional typing and enhanced types such as arrays (described later). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions - there are some restrictions on arrays that are described in a later section. Values crossing from Lua to Ravi may be subjected to typechecks.
 * In JITed code tailcalls are implemented as regular calls so unlike Lua VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue 17)
 * pairs() and ipairs() do not work on ravi arrays yet (issues 24 and 25)
-* Up-values can subvert the static typing of local variables (issue 26)
+* Upvalues can subvert the static typing of local variables (issue 26)
 * Lua C API doesn't work correctly for Ravi arrays (issue 9)
 
 Documentation

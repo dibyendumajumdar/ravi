@@ -766,6 +766,95 @@ The Lua fornum statements create special variables. In order to allows the loop 
     forbody(ls, base, line, 1, 1);
   }
 
+
+Handling of Upvalues
+====================
+Upvalues can be used to update local variables that have static typing specified. So this means that upvalues need to be annotated with types as well and any operation that updates an upvalue must be type checked. To support this the Lua parser has been enhanced to record the type of an upvalue in ``Upvaldesc``::
+
+  /*
+  ** Description of an upvalue for function prototypes
+  */
+  typedef struct Upvaldesc {
+    TString *name;  /* upvalue name (for debug information) */
+    ravitype_t type; /* RAVI type of upvalue */
+    lu_byte instack;  /* whether it is in stack */
+    lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
+  } Upvaldesc;
+
+
+Whenever a new upvalue is referenced, we assign the type of the the upvalue to the expression in function ``singlevaraux()`` - relevant code is shown below::
+
+  static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
+    /* ... omitted code ... */  
+      int idx = searchupvalue(fs, n);  /* try existing upvalues */
+      if (idx < 0) {  /* not found? */
+        if (singlevaraux(fs->prev, n, var, 0) == VVOID) /* try upper levels */
+          return VVOID;  /* not found; is a global */
+        /* else was LOCAL or UPVAL */
+        idx  = newupvalue(fs, n, var);  /* will be a new upvalue */
+      }
+      init_exp(var, VUPVAL, idx, fs->f->upvalues[idx].type); /* RAVI : set upvalue type */
+      return VUPVAL;
+      /* ... omitted code ... */
+  }
+
+The function ``newupvalue()`` sets the type of a new upvalue.
+
+  /* create a new upvalue */
+  static int newupvalue (FuncState *fs, TString *name, expdesc *v) {
+    Proto *f = fs->f;
+    int oldsize = f->sizeupvalues;
+    checklimit(fs, fs->nups + 1, MAXUPVAL, "upvalues");
+    luaM_growvector(fs->ls->L, f->upvalues, fs->nups, f->sizeupvalues,
+                  Upvaldesc, MAXUPVAL, "upvalues");
+    while (oldsize < f->sizeupvalues) f->upvalues[oldsize++].name = NULL;
+
+    f->upvalues[fs->nups].instack = (v->k == VLOCAL);
+    f->upvalues[fs->nups].idx = cast_byte(v->u.info);
+    f->upvalues[fs->nups].name = name;
+    f->upvalues[fs->nups].type = v->ravi_type;
+    luaC_objbarrier(fs->ls->L, f, name);
+    return fs->nups++;
+  }
+
+When we need to generate assignments to an upvalue (OP_SETUPVAL) we need to use more specialized opcodes that do the necessary conversion at runtime. This is handled in ``luaK_storevar()`` in ``lcode.c``::
+
+
+  /* Emit store for LHS expression. */
+  void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
+    switch (var->k) {
+      /* ... omitted code .. */
+      case VUPVAL: {
+        OpCode op = check_valid_setupval(fs, var, ex);
+        int e = luaK_exp2anyreg(fs, ex);
+        luaK_codeABC(fs, op, e, var->u.info, 0);
+        break;
+      }
+      /* ... omitted code ... */
+    }
+  }
+
+  static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex) {
+    OpCode op = OP_SETUPVAL;
+    if (var->ravi_type != RAVI_TANY && var->ravi_type != ex->ravi_type) {
+      if (var->ravi_type == RAVI_TNUMINT)
+        op = OP_RAVI_SETUPVALI;
+      else if (var->ravi_type == RAVI_TNUMFLT)
+        op = OP_RAVI_SETUPVALF;
+      else if (var->ravi_type == RAVI_TARRAYINT)
+        op = OP_RAVI_SETUPVALAI;
+      else if (var->ravi_type == RAVI_TARRAYFLT)
+        op = OP_RAVI_SETUPVALAF;
+      else
+        luaX_syntaxerror(fs->ls,
+                      luaO_pushfstring(fs->ls->L, "Invalid assignment of "
+                                                   "upvalue: upvalue type "
+                                                   "%d, expression type %d",
+                                        var->ravi_type, ex->ravi_type));
+    }
+    return op;
+  }
+
 VM Enhancements
 ===============
 A number of new opcodes are introduced to allow type specific operations.

@@ -242,6 +242,30 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 | OP_RAVI_SETTABLE_AF     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of numbers, and RK(C) is a number  |
 +-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_FORLOOP_IP      | YES      | R(A)+=R(A+2);                                    |
+|                         |          | if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) } |
+|                         |          | Specialization for integer step > 1              |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_FORPREP_IP      | YES      | R(A)-=R(A+2); pc+=sBx                            |
+|                         |          | Specialization for integer step > 1              |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_FORLOOP_I1      | YES      | R(A)+=R(A+2);                                    |
+|                         |          | if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) } |
+|                         |          | Specialization for integer step == 1             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_FORPREP_I1      | YES      | R(A)-=R(A+2); pc+=sBx                            |
+|                         |          | Specialization for integer step == 1             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SETUPVALI       | NO       | UpValue[B] := tointeger(R(A))                    |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SETUPVALF       | NO       | UpValue[B] := tonumber(R(A))                     |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SETUPVALAI      | NO       | UpValue[B] := toarrayint(R(A))                   |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SETUPVALAF      | NO       | UpValue[B] := toarrayflt(R(A))                   |
++-------------------------+----------+--------------------------------------------------+
+
+
 
 Ravi's JIT compiler source
 --------------------------

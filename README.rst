@@ -93,11 +93,14 @@ Compatibility with Lua
 ----------------------
 Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT compilation is enabled some things will not work:
 
-* You cannot yield from a compiled function, so if you use coroutines then it is better to use the interpreter, as compiled code does not support coroutines 
-* The debugger doesn't work when JIT compilation is turned on as information it requires is not available; the debugger also does not support Ravi's extended opcodes
-* Functions using bit-wise operations cannot be JIT compiled as yet (to be implemented)
+* You cannot yield from a compiled function, so if you use coroutines then it is better to use the interpreter, as compiled code does not support coroutines (issue 14)
+* The debugger doesn't work when JIT compilation is turned on as information it requires is not available; the debugger also does not support Ravi's extended opcodes (issue 15)
+* Functions using bit-wise operations cannot be JIT compiled as yet (issue 27)
 * Ravi supports optional typing and enhanced types such as arrays (described later). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions - there are some restrictions on arrays that are described in a later section. Values crossing from Lua to Ravi may be subjected to typechecks.
-* In JITed code tailcalls are implemented as regular calls so unlike Lua VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110.
+* In JITed code tailcalls are implemented as regular calls so unlike Lua VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue 17)
+* pairs() and ipairs() do not work on ravi arrays yet (issues 24 and 25)
+* Upvalues can subvert the static typing of local variables (issue 26)
+* Lua C API doesn't work correctly for Ravi arrays (issue 9)
 
 Documentation
 --------------
