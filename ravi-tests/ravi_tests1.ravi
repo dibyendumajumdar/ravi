@@ -578,3 +578,21 @@ end
 assert(ravi.compile(x))
 assert(x() == 28)
 print("test 41 OK")
+
+-- test 42
+-- Ravi arrays support for pairs()
+-- Plus special slot at [0]
+x = function() 
+  local nums: integer[] = {1, 2, 3, 4, 5, 6, 7}
+  local t = 0
+  assert(#nums == 7)
+  nums[0] = 558
+  for k,v in pairs(nums) do
+    t = t + v
+  end
+  assert(nums[0] == 558)
+  return t
+end
+assert(ravi.compile(x))
+assert(x() == 28)
+print("test 42 OK")

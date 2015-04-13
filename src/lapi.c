@@ -710,11 +710,14 @@ LUA_API int lua_rawgeti (lua_State *L, int idx, lua_Integer n) {
 LUA_API int lua_rawgetp (lua_State *L, int idx, const void *p) {
   StkId t;
   TValue k;
+  Table *h;
   lua_lock(L);
   t = index2addr(L, idx);
   api_check(ttistable(t), "table expected");
+  h = hvalue(t);
+  api_check(h->ravi_array.type == RAVI_TTABLE, "Lua table expected");
   setpvalue(&k, cast(void *, p));
-  setobj2s(L, L->top, luaH_get(hvalue(t), &k));
+  setobj2s(L, L->top, luaH_get(h, &k));
   api_incr_top(L);
   lua_unlock(L);
   return ttnov(L->top - 1);
@@ -932,6 +935,7 @@ LUA_API void lua_rawsetp (lua_State *L, int idx, const void *p) {
   o = index2addr(L, idx);
   api_check(ttistable(o), "table expected");
   t = hvalue(o);
+  api_check(t->ravi_array.type == RAVI_TTABLE, "Lua table expected");
   setpvalue(&k, cast(void *, p));
   setobj2t(L, luaH_set(L, t, &k), L->top - 1);
   luaC_barrierback(L, t, L->top - 1);

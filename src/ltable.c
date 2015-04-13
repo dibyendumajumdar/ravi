@@ -189,26 +189,60 @@ static unsigned int findindex (lua_State *L, Table *t, StkId key) {
   }
 }
 
-
-int luaH_next (lua_State *L, Table *t, StkId key) {
-  unsigned int i = findindex(L, t, key);  /* find original element */
-  for (; i < t->sizearray; i++) {  /* try first array part */
-    if (!ttisnil(&t->array[i])) {  /* a non-nil value? */
-      setivalue(key, i + 1);
-      setobj2s(L, key+1, &t->array[i]);
-      return 1;
-    }
+/* RAVI's implementation of luaH_next() equivalent 
+ * if no more keys return 0
+ * else return 1
+ * If key is nil then start the iterator 
+ * set value to key+1
+ * increment *key 
+ */
+int raviH_next(lua_State *L, Table *t, StkId key) { 
+  lua_Integer i;
+  if (ttisnil(key))
+    /* Lua keys start at 1 so this is just before that 
+     * (although 0 is valid Ravi index it cannot be 
+     * accessed using this method) 
+     */
+    i = 0; 
+  else if (!tointeger(key, &i)) {
+    return 0;
   }
-  for (i -= t->sizearray; cast_int(i) < sizenode(t); i++) {  /* hash part */
-    if (!ttisnil(gval(gnode(t, i)))) {  /* a non-nil value? */
-      setobj2s(L, key, gkey(gnode(t, i)));
-      setobj2s(L, key+1, gval(gnode(t, i)));
-      return 1;
-    }
+  i = i + 1;
+  if (i >= t->ravi_array.len)
+    /* no more keys */
+    return 0;
+  setivalue(key, i);
+  if (t->ravi_array.type == RAVI_TARRAYFLT) {
+    raviH_get_float_inline(L, t, i, (key + 1));
   }
-  return 0;  /* no more elements */
+  else {
+    raviH_get_int_inline(L, t, i, (key + 1));
+  }
+  return 1;
 }
 
+int luaH_next (lua_State *L, Table *t, StkId key) {
+  if (t->ravi_array.type != RAVI_TTABLE)
+    return raviH_next(L, t, key);
+  else {
+    unsigned int i = findindex(L, t, key);  /* find original element */
+    for (; i < t->sizearray; i++) {  /* try first array part */
+      if (!ttisnil(&t->array[i])) {  /* a non-nil value? */
+        setivalue(key, i + 1);
+        setobj2s(L, key + 1, &t->array[i]);
+        return 1;
+      }
+    }
+    for (i -= t->sizearray; cast_int(i) < sizenode(t); i++) {  /* hash part */
+      if (!ttisnil(gval(gnode(t, i)))) {  /* a non-nil value? */
+        setobj2s(L, key, gkey(gnode(t, i)));
+        setobj2s(L, key + 1, gval(gnode(t, i)));
+        return 1;
+      }
+    }
+    return 0;  /* no more elements */
+  }
+}
 
 /*
 ** {=============================================================

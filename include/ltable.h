@@ -45,7 +45,6 @@ LUAI_FUNC int luaH_getn (Table *t);
 
 LUAI_FUNC Table *raviH_new(lua_State *L, ravitype_t tt); /* RAVI array specialization */
 LUAI_FUNC int raviH_getn(Table *t); /* RAVI array specialization */
-
 LUAI_FUNC void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer value); /* RAVI array specialization */
 LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value); /* RAVI array specialization */
 
