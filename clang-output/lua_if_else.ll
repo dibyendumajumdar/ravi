@@ -2,27 +2,28 @@
 target datalayout = "e-m:w-p:32:32-i64:64-f80:32-n8:16:32-S32"
 target triple = "i686-pc-windows-gnu"
 
-%struct.Proto = type { %struct.GCObject*, i8, i8, i8, i8, i8, i32, i32, i32, i32, i32, i32, i32, i32, %struct.TValue*, i32*, %struct.Proto**, i32*, %struct.LocVar*, %struct.Upvaldesc*, %struct.LClosure*, %struct.TString*, %struct.GCObject* }
-%struct.TValue = type { %union.Value, i32 }
-%union.Value = type { i64 }
-%struct.LocVar = type { %struct.TString*, i32, i32, i32 }
-%struct.Upvaldesc = type { %struct.TString*, i8, i8 }
-%struct.LClosure = type { %struct.GCObject*, i8, i8, i8, %struct.GCObject*, %struct.Proto*, [1 x %struct.UpVal*] }
-%struct.UpVal = type opaque
-%struct.TString = type { %struct.GCObject*, i8, i8, i8, i32, i64, %struct.TString* }
 %struct.GCObject = type { %struct.GCObject*, i8, i8 }
 %struct.lua_State = type { %struct.GCObject*, i8, i8, i8, %struct.TValue*, %struct.global_State*, %struct.CallInfoLua*, i32*, %struct.TValue*, %struct.TValue*, %struct.UpVal*, %struct.GCObject*, %struct.lua_State*, %struct.lua_longjmp*, %struct.CallInfo, void (%struct.lua_State*, %struct.lua_Debug*)*, i64, i32, i32, i32, i16, i16, i8, i8 }
 %struct.global_State = type opaque
-%struct.CallInfoLua = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %struct.CallInfoL, i64, i16, i8 }
+%struct.CallInfoLua = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %struct.CallInfoL, i64, i16, i8, i8 }
 %struct.CallInfoL = type { %struct.TValue*, i32*, i64 }
+%struct.TValue = type { %union.Value, i32 }
+%union.Value = type { i64 }
+%struct.UpVal = type { %struct.TValue*, i64, %union.anon.0 }
+%union.anon.0 = type { %struct.TValue }
 %struct.lua_longjmp = type opaque
-%struct.CallInfo = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %union.anon, i64, i16, i8 }
+%struct.CallInfo = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %union.anon, i64, i16, i8, i8 }
 %union.anon = type { %struct.CallInfoC }
 %struct.CallInfoC = type { i32 (%struct.lua_State*, i32, i64)*, i64, i64 }
 %struct.lua_Debug = type opaque
+%struct.LClosure = type { %struct.GCObject*, i8, i8, i8, %struct.GCObject*, %struct.Proto*, [1 x %struct.UpVal*] }
+%struct.Proto = type { %struct.GCObject*, i8, i8, i8, i8, i8, i32, i32, i32, i32, i32, i32, i32, i32, %struct.TValue*, i32*, %struct.Proto**, i32*, %struct.LocVar*, %struct.Upvaldesc*, %struct.LClosure*, %struct.TString*, %struct.GCObject*, %struct.RaviJITProto }
+%struct.LocVar = type { %struct.TString*, i32, i32, i32 }
+%struct.Upvaldesc = type { %struct.TString*, i32, i8, i8 }
+%struct.TString = type { %struct.GCObject*, i8, i8, i8, i32, i64, %struct.TString* }
+%struct.RaviJITProto = type { i8, i8*, i32 (%struct.lua_State*)* }
 
 @.str = private unnamed_addr constant [12 x i8] c"value = %d\0A\00", align 1
-@Proto = common global %struct.Proto zeroinitializer, align 4
 
 ; Function Attrs: nounwind
 define void @testfunc(%struct.GCObject* nocapture readonly %obj) #0 {
@@ -61,13 +62,13 @@ label3:                                           ; preds = %entry
   %add.ptr17 = getelementptr inbounds %struct.TValue* %6, i32 1
   %8 = bitcast %struct.TValue* %add.ptr16 to i8*
   %9 = bitcast %struct.TValue* %add.ptr17 to i8*
-  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %8, i8* %9, i32 16, i32 8, i1 false), !tbaa.struct !21
+  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %8, i8* %9, i32 16, i32 8, i1 false), !tbaa.struct !22
   %add.ptr20 = getelementptr inbounds %struct.TValue* %7, i32 2
   %top = getelementptr inbounds %struct.lua_State* %L, i32 0, i32 4
-  store %struct.TValue* %add.ptr20, %struct.TValue** %top, align 4, !tbaa !26
+  store %struct.TValue* %add.ptr20, %struct.TValue** %top, align 4, !tbaa !27
   %10 = load %struct.Proto** %p, align 4, !tbaa !17
   %sizep = getelementptr inbounds %struct.Proto* %10, i32 0, i32 10
-  %11 = load i32* %sizep, align 4, !tbaa !27
+  %11 = load i32* %sizep, align 4, !tbaa !28
   %cmp22 = icmp sgt i32 %11, 0
   br i1 %cmp22, label %if.then23, label %if.end25
 
@@ -82,8 +83,8 @@ if.end25:                                         ; preds = %if.then23, %label3
 
 if.then27:                                        ; preds = %if.end25
   %top28 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 1
-  %12 = load %struct.TValue** %top28, align 4, !tbaa !28
-  store %struct.TValue* %12, %struct.TValue** %top, align 4, !tbaa !26
+  %12 = load %struct.TValue** %top28, align 4, !tbaa !29
+  store %struct.TValue* %12, %struct.TValue** %top, align 4, !tbaa !27
   br label %return
 
 label6:                                           ; preds = %entry
@@ -98,13 +99,13 @@ label8:                                           ; preds = %label6
   %add.ptr50 = getelementptr inbounds %struct.TValue* %6, i32 3
   %14 = bitcast %struct.TValue* %add.ptr67 to i8*
   %15 = bitcast %struct.TValue* %add.ptr50 to i8*
-  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %14, i8* %15, i32 16, i32 8, i1 false), !tbaa.struct !21
+  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %14, i8* %15, i32 16, i32 8, i1 false), !tbaa.struct !22
   %add.ptr53 = getelementptr inbounds %struct.TValue* %13, i32 2
   %top54 = getelementptr inbounds %struct.lua_State* %L, i32 0, i32 4
-  store %struct.TValue* %add.ptr53, %struct.TValue** %top54, align 4, !tbaa !26
+  store %struct.TValue* %add.ptr53, %struct.TValue** %top54, align 4, !tbaa !27
   %16 = load %struct.Proto** %p, align 4, !tbaa !17
   %sizep56 = getelementptr inbounds %struct.Proto* %16, i32 0, i32 10
-  %17 = load i32* %sizep56, align 4, !tbaa !27
+  %17 = load i32* %sizep56, align 4, !tbaa !28
   %cmp57 = icmp sgt i32 %17, 0
   br i1 %cmp57, label %if.then58, label %if.end60
 
@@ -119,21 +120,21 @@ if.end60:                                         ; preds = %if.then58, %label8
 
 if.then63:                                        ; preds = %if.end60
   %top64 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 1
-  %18 = load %struct.TValue** %top64, align 4, !tbaa !28
-  store %struct.TValue* %18, %struct.TValue** %top54, align 4, !tbaa !26
+  %18 = load %struct.TValue** %top64, align 4, !tbaa !29
+  store %struct.TValue* %18, %struct.TValue** %top54, align 4, !tbaa !27
   br label %return
 
 label11:                                          ; preds = %label6
   %add.ptr68 = getelementptr inbounds %struct.TValue* %6, i32 4
   %19 = bitcast %struct.TValue* %add.ptr67 to i8*
   %20 = bitcast %struct.TValue* %add.ptr68 to i8*
-  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %19, i8* %20, i32 16, i32 8, i1 false), !tbaa.struct !21
+  tail call void @llvm.memcpy.p0i8.p0i8.i32(i8* %19, i8* %20, i32 16, i32 8, i1 false), !tbaa.struct !22
   %add.ptr71 = getelementptr inbounds %struct.TValue* %13, i32 2
   %top72 = getelementptr inbounds %struct.lua_State* %L, i32 0, i32 4
-  store %struct.TValue* %add.ptr71, %struct.TValue** %top72, align 4, !tbaa !26
+  store %struct.TValue* %add.ptr71, %struct.TValue** %top72, align 4, !tbaa !27
   %21 = load %struct.Proto** %p, align 4, !tbaa !17
   %sizep74 = getelementptr inbounds %struct.Proto* %21, i32 0, i32 10
-  %22 = load i32* %sizep74, align 4, !tbaa !27
+  %22 = load i32* %sizep74, align 4, !tbaa !28
   %cmp75 = icmp sgt i32 %22, 0
   br i1 %cmp75, label %if.then76, label %if.end78
 
@@ -148,8 +149,8 @@ if.end78:                                         ; preds = %if.then76, %label11
 
 if.then81:                                        ; preds = %if.end78
   %top82 = getelementptr inbounds %struct.CallInfoLua* %0, i32 0, i32 1
-  %23 = load %struct.TValue** %top82, align 4, !tbaa !28
-  store %struct.TValue* %23, %struct.TValue** %top72, align 4, !tbaa !26
+  %23 = load %struct.TValue** %top82, align 4, !tbaa !29
+  store %struct.TValue* %23, %struct.TValue** %top72, align 4, !tbaa !27
   br label %return
 
 return:                                           ; preds = %if.end78, %if.end60, %if.end25, %if.then81, %if.then63, %if.then27
@@ -179,24 +180,25 @@ attributes #2 = { nounwind }
 !5 = metadata !{metadata !"Simple C/C++ TBAA"}
 !6 = metadata !{metadata !7, metadata !3, i64 16}
 !7 = metadata !{metadata !"lua_State", metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, metadata !4, i64 6, metadata !3, i64 8, metadata !3, i64 12, metadata !3, i64 16, metadata !3, i64 20, metadata !3, i64 24, metadata !3, i64 28, metadata !3, i64 32, metadata !3, i64 36, metadata !3, i64 40, metadata !3, i64 44, metadata !8, i64 48, metadata !3, i64 104, metadata !9, i64 112, metadata !11, i64 120, metadata !11, i64 124, metadata !11, i64 128, metadata !10, i64 132, metadata !10, i64 134, metadata !4, i64 136, metadata !4, i64 137}
-!8 = metadata !{metadata !"CallInfo", metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8, metadata !3, i64 12, metadata !4, i64 16, metadata !9, i64 40, metadata !10, i64 48, metadata !4, i64 50}
+!8 = metadata !{metadata !"CallInfo", metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8, metadata !3, i64 12, metadata !4, i64 16, metadata !9, i64 40, metadata !10, i64 48, metadata !4, i64 50, metadata !4, i64 51}
 !9 = metadata !{metadata !"long long", metadata !4, i64 0}
 !10 = metadata !{metadata !"short", metadata !4, i64 0}
 !11 = metadata !{metadata !"int", metadata !4, i64 0}
 !12 = metadata !{metadata !13, metadata !3, i64 16}
-!13 = metadata !{metadata !"CallInfoLua", metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8, metadata !3, i64 12, metadata !14, i64 16, metadata !9, i64 32, metadata !10, i64 40, metadata !4, i64 42}
+!13 = metadata !{metadata !"CallInfoLua", metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8, metadata !3, i64 12, metadata !14, i64 16, metadata !9, i64 32, metadata !10, i64 40, metadata !4, i64 42, metadata !4, i64 43}
 !14 = metadata !{metadata !"CallInfoL", metadata !3, i64 0, metadata !3, i64 4, metadata !9, i64 8}
 !15 = metadata !{metadata !13, metadata !3, i64 0}
 !16 = metadata !{metadata !3, metadata !3, i64 0}
 !17 = metadata !{metadata !18, metadata !3, i64 12}
 !18 = metadata !{metadata !"LClosure", metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, metadata !4, i64 6, metadata !3, i64 8, metadata !3, i64 12, metadata !4, i64 16}
 !19 = metadata !{metadata !20, metadata !3, i64 44}
-!20 = metadata !{metadata !"Proto", metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, metadata !4, i64 6, metadata !4, i64 7, metadata !4, i64 8, metadata !11, i64 12, metadata !11, i64 16, metadata !11, i64 20, metadata !11, i64 24, metadata !11, i64 28, metadata !11, i64 32, metadata !11, i64 36, metadata !11, i64 40, metadata !3, i64 44, metadata !3, i64 48, metadata !3, i64 52, metadata !3, i64 56, metadata !3, i64 60, metadata !3, i64 64, metadata !3, i64 68, metadata !3, i64 72, metadata !3, i64 76}
-!21 = metadata !{i64 0, i64 4, metadata !16, i64 0, i64 4, metadata !16, i64 0, i64 4, metadata !22, i64 0, i64 4, metadata !16, i64 0, i64 8, metadata !23, i64 0, i64 8, metadata !24, i64 8, i64 4, metadata !22}
-!22 = metadata !{metadata !11, metadata !11, i64 0}
-!23 = metadata !{metadata !9, metadata !9, i64 0}
-!24 = metadata !{metadata !25, metadata !25, i64 0}
-!25 = metadata !{metadata !"double", metadata !4, i64 0}
-!26 = metadata !{metadata !7, metadata !3, i64 8}
-!27 = metadata !{metadata !20, metadata !11, i64 28}
-!28 = metadata !{metadata !13, metadata !3, i64 4}
+!20 = metadata !{metadata !"Proto", metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, metadata !4, i64 6, metadata !4, i64 7, metadata !4, i64 8, metadata !11, i64 12, metadata !11, i64 16, metadata !11, i64 20, metadata !11, i64 24, metadata !11, i64 28, metadata !11, i64 32, metadata !11, i64 36, metadata !11, i64 40, metadata !3, i64 44, metadata !3, i64 48, metadata !3, i64 52, metadata !3, i64 56, metadata !3, i64 60, metadata !3, i64 64, metadata !3, i64 68, metadata !3, i64 72, metadata !3, i64 76, metadata !21, i64 80}
+!21 = metadata !{metadata !"RaviJITProto", metadata !4, i64 0, metadata !3, i64 4, metadata !3, i64 8}
+!22 = metadata !{i64 0, i64 4, metadata !16, i64 0, i64 4, metadata !16, i64 0, i64 4, metadata !23, i64 0, i64 4, metadata !16, i64 0, i64 8, metadata !24, i64 0, i64 8, metadata !25, i64 8, i64 4, metadata !23}
+!23 = metadata !{metadata !11, metadata !11, i64 0}
+!24 = metadata !{metadata !9, metadata !9, i64 0}
+!25 = metadata !{metadata !26, metadata !26, i64 0}
+!26 = metadata !{metadata !"double", metadata !4, i64 0}
+!27 = metadata !{metadata !7, metadata !3, i64 8}
+!28 = metadata !{metadata !20, metadata !11, i64 28}
+!29 = metadata !{metadata !13, metadata !3, i64 4}

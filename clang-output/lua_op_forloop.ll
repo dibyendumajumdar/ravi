@@ -2,28 +2,23 @@
 target datalayout = "e-m:w-p:32:32-i64:64-f80:32-n8:16:32-S32"
 target triple = "i686-pc-windows-gnu"
 
-%struct.Proto = type { %struct.GCObject*, i8, i8, i8, i8, i8, i32, i32, i32, i32, i32, i32, i32, i32, %struct.TValue*, i32*, %struct.Proto**, i32*, %struct.LocVar*, %struct.Upvaldesc*, %struct.LClosure*, %struct.TString*, %struct.GCObject* }
-%struct.TValue = type { %union.Value, i32 }
-%union.Value = type { i64 }
-%struct.LocVar = type { %struct.TString*, i32, i32, i32 }
-%struct.Upvaldesc = type { %struct.TString*, i8, i8 }
-%struct.LClosure = type { %struct.GCObject*, i8, i8, i8, %struct.GCObject*, %struct.Proto*, [1 x %struct.UpVal*] }
-%struct.UpVal = type opaque
-%struct.TString = type { %struct.GCObject*, i8, i8, i8, i32, i64, %struct.TString* }
 %struct.GCObject = type { %struct.GCObject*, i8, i8 }
 %struct.lua_State = type { %struct.GCObject*, i8, i8, i8, %struct.TValue*, %struct.global_State*, %struct.CallInfoLua*, i32*, %struct.TValue*, %struct.TValue*, %struct.UpVal*, %struct.GCObject*, %struct.lua_State*, %struct.lua_longjmp*, %struct.CallInfo, void (%struct.lua_State*, %struct.lua_Debug*)*, i64, i32, i32, i32, i16, i16, i8, i8 }
 %struct.global_State = type opaque
-%struct.CallInfoLua = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %struct.CallInfoL, i64, i16, i8 }
+%struct.CallInfoLua = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %struct.CallInfoL, i64, i16, i8, i8 }
 %struct.CallInfoL = type { %struct.TValue*, i32*, i64 }
+%struct.TValue = type { %union.Value, i32 }
+%union.Value = type { i64 }
+%struct.UpVal = type { %struct.TValue*, i64, %union.anon.0 }
+%union.anon.0 = type { %struct.TValue }
 %struct.lua_longjmp = type opaque
-%struct.CallInfo = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %union.anon, i64, i16, i8 }
+%struct.CallInfo = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %union.anon, i64, i16, i8, i8 }
 %union.anon = type { %struct.CallInfoC }
 %struct.CallInfoC = type { i32 (%struct.lua_State*, i32, i64)*, i64, i64 }
 %struct.lua_Debug = type opaque
 
 @.str = private unnamed_addr constant [12 x i8] c"value = %d\0A\00", align 1
 @.str1 = private unnamed_addr constant [6 x i8] c"dummy\00", align 1
-@Proto = common global %struct.Proto zeroinitializer, align 4
 
 ; Function Attrs: nounwind
 define void @testfunc(%struct.GCObject* nocapture readonly %obj) #0 {
@@ -133,12 +128,12 @@ attributes #1 = { nounwind }
 !5 = metadata !{metadata !"Simple C/C++ TBAA"}
 !6 = metadata !{metadata !7, metadata !3, i64 16}
 !7 = metadata !{metadata !"lua_State", metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5, metadata !4, i64 6, metadata !3, i64 8, metadata !3, i64 12, metadata !3, i64 16, metadata !3, i64 20, metadata !3, i64 24, metadata !3, i64 28, metadata !3, i64 32, metadata !3, i64 36, metadata !3, i64 40, metadata !3, i64 44, metadata !8, i64 48, metadata !3, i64 104, metadata !9, i64 112, metadata !11, i64 120, metadata !11, i64 124, metadata !11, i64 128, metadata !10, i64 132, metadata !10, i64 134, metadata !4, i64 136, metadata !4, i64 137}
-!8 = metadata !{metadata !"CallInfo", metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8, metadata !3, i64 12, metadata !4, i64 16, metadata !9, i64 40, metadata !10, i64 48, metadata !4, i64 50}
+!8 = metadata !{metadata !"CallInfo", metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8, metadata !3, i64 12, metadata !4, i64 16, metadata !9, i64 40, metadata !10, i64 48, metadata !4, i64 50, metadata !4, i64 51}
 !9 = metadata !{metadata !"long long", metadata !4, i64 0}
 !10 = metadata !{metadata !"short", metadata !4, i64 0}
 !11 = metadata !{metadata !"int", metadata !4, i64 0}
 !12 = metadata !{metadata !13, metadata !3, i64 16}
-!13 = metadata !{metadata !"CallInfoLua", metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8, metadata !3, i64 12, metadata !14, i64 16, metadata !9, i64 32, metadata !10, i64 40, metadata !4, i64 42}
+!13 = metadata !{metadata !"CallInfoLua", metadata !3, i64 0, metadata !3, i64 4, metadata !3, i64 8, metadata !3, i64 12, metadata !14, i64 16, metadata !9, i64 32, metadata !10, i64 40, metadata !4, i64 42, metadata !4, i64 43}
 !14 = metadata !{metadata !"CallInfoL", metadata !3, i64 0, metadata !3, i64 4, metadata !9, i64 8}
 !15 = metadata !{metadata !16, metadata !11, i64 8}
 !16 = metadata !{metadata !"TValue", metadata !4, i64 0, metadata !11, i64 8}

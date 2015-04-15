@@ -2,27 +2,26 @@
 target datalayout = "e-m:w-p:32:32-i64:64-f80:32-n8:16:32-S32"
 target triple = "i686-pc-windows-gnu"
 
-%struct.Proto = type { %struct.GCObject*, i8, i8, i8, i8, i8, i32, i32, i32, i32, i32, i32, i32, i32, %struct.TValue*, i32*, %struct.Proto**, i32*, %struct.LocVar*, %struct.Upvaldesc*, %struct.LClosure*, %struct.TString*, %struct.GCObject* }
-%struct.TValue = type { %union.Value, i32 }
-%union.Value = type { i64 }
-%struct.LocVar = type { %struct.TString*, i32, i32, i32 }
-%struct.Upvaldesc = type { %struct.TString*, i8, i8 }
-%struct.LClosure = type { %struct.GCObject*, i8, i8, i8, %struct.GCObject*, %struct.Proto*, [1 x %struct.UpVal*] }
-%struct.UpVal = type { %struct.TValue*, i64, %union.anon.0 }
-%union.anon.0 = type { %struct.TValue }
-%struct.TString = type { %struct.GCObject*, i8, i8, i8, i32, i64, %struct.TString* }
-%struct.GCObject = type { %struct.GCObject*, i8, i8 }
 %struct.lua_State = type { %struct.GCObject*, i8, i8, i8, %struct.TValue*, %struct.global_State*, %struct.CallInfoLua*, i32*, %struct.TValue*, %struct.TValue*, %struct.UpVal*, %struct.GCObject*, %struct.lua_State*, %struct.lua_longjmp*, %struct.CallInfo, void (%struct.lua_State*, %struct.lua_Debug*)*, i64, i32, i32, i32, i16, i16, i8, i8 }
 %struct.global_State = type opaque
-%struct.CallInfoLua = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %struct.CallInfoL, i64, i16, i8 }
+%struct.CallInfoLua = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %struct.CallInfoL, i64, i16, i8, i8 }
 %struct.CallInfoL = type { %struct.TValue*, i32*, i64 }
+%struct.UpVal = type { %struct.TValue*, i64, %union.anon.0 }
+%union.anon.0 = type { %struct.TValue }
+%struct.TValue = type { %union.Value, i32 }
+%union.Value = type { i64 }
+%struct.GCObject = type { %struct.GCObject*, i8, i8 }
 %struct.lua_longjmp = type opaque
-%struct.CallInfo = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %union.anon, i64, i16, i8 }
+%struct.CallInfo = type { %struct.TValue*, %struct.TValue*, %struct.CallInfo*, %struct.CallInfo*, %union.anon, i64, i16, i8, i8 }
 %union.anon = type { %struct.CallInfoC }
 %struct.CallInfoC = type { i32 (%struct.lua_State*, i32, i64)*, i64, i64 }
 %struct.lua_Debug = type opaque
-
-@Proto = common global %struct.Proto zeroinitializer, align 4
+%struct.LClosure = type { %struct.GCObject*, i8, i8, i8, %struct.GCObject*, %struct.Proto*, [1 x %struct.UpVal*] }
+%struct.Proto = type { %struct.GCObject*, i8, i8, i8, i8, i8, i32, i32, i32, i32, i32, i32, i32, i32, %struct.TValue*, i32*, %struct.Proto**, i32*, %struct.LocVar*, %struct.Upvaldesc*, %struct.LClosure*, %struct.TString*, %struct.GCObject*, %struct.RaviJITProto }
+%struct.LocVar = type { %struct.TString*, i32, i32, i32 }
+%struct.Upvaldesc = type { %struct.TString*, i32, i8, i8 }
+%struct.TString = type { %struct.GCObject*, i8, i8, i8, i32, i64, %struct.TString* }
+%struct.RaviJITProto = type { i8, i8*, i32 (%struct.lua_State*)* }
 
 ; Function Attrs: nounwind
 define void @luaV_op_call(%struct.lua_State* %L, %struct.LClosure* nocapture readonly %cl, %struct.TValue* nocapture readonly %ra, i32 %b, i32 %c) #0 {
