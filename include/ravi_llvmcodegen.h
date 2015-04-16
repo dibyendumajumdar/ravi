@@ -240,9 +240,13 @@ struct LuaLLVMTypes {
   llvm::MDBuilder mdbuilder;
   llvm::MDNode *tbaa_root;
   llvm::MDNode *tbaa_charT;
+  llvm::MDNode *tbaa_pcharT;
   llvm::MDNode *tbaa_shortT;
+  llvm::MDNode *tbaa_pshortT;
   llvm::MDNode *tbaa_intT;
+  llvm::MDNode *tbaa_pintT;
   llvm::MDNode *tbaa_longlongT;
+  llvm::MDNode *tbaa_plonglongT;
   llvm::MDNode *tbaa_pointerT;
   llvm::MDNode *tbaa_ppointerT;
   llvm::MDNode *tbaa_CallInfo_lT;
@@ -261,6 +265,7 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_Proto_sizepT;
   llvm::MDNode *tbaa_TValueT;
   llvm::MDNode *tbaa_TValue_nT;
+  llvm::MDNode *tbaa_TValue_hT;
   llvm::MDNode *tbaa_TValue_ttT;
   llvm::MDNode *tbaa_luaState_topT;
   llvm::MDNode *tbaa_UpValT;
@@ -529,6 +534,18 @@ public:
 
   // Add extern declarations for Lua functions we need to call
   void emit_extern_declarations(RaviFunctionDef *def);
+
+  // Store lua_Number or lua_Integer 
+  llvm::Instruction *emit_store_local_n(RaviFunctionDef *def, llvm::Value *src, llvm::Value *dest);
+
+  // Load lua_Number or lua_Integer
+  llvm::Instruction *emit_load_local_n(RaviFunctionDef *def, llvm::Value *src);
+
+  // Store int 
+  llvm::Instruction *emit_store_local_int(RaviFunctionDef *def, llvm::Value *src, llvm::Value *dest);
+
+  // Load int
+  llvm::Instruction *emit_load_local_int(RaviFunctionDef *def, llvm::Value *src);
 
   // emit code for (LClosure *)ci->func->value_.gc
   llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,

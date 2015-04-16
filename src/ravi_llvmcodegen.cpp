@@ -130,7 +130,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_h(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
   llvm::Value *rb_h = def->builder->CreateBitCast(rb, def->types->ppTableT);
   llvm::Instruction *h = def->builder->CreateLoad(rb_h);
-  h->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_ppointerT);
+  h->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_hT);
   return h;
 }
 
@@ -220,6 +220,36 @@ RaviCodeGenerator::emit_load_ravi_arraylength(RaviFunctionDef *def,
   tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_lenT);
   return tt;
 }
+
+// Store lua_Number or lua_Integer 
+llvm::Instruction *RaviCodeGenerator::emit_store_local_n(RaviFunctionDef *def, llvm::Value *src, llvm::Value *dest) {
+  llvm::Instruction *ins = def->builder->CreateStore(src, dest);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_plonglongT);
+  return ins;
+}
+
+// Load lua_Number or lua_Integer
+llvm::Instruction *RaviCodeGenerator::emit_load_local_n(RaviFunctionDef *def, llvm::Value *src) {
+  llvm::Instruction *ins = def->builder->CreateLoad(src);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_plonglongT);
+  return ins;
+}
+
+// Store int 
+llvm::Instruction *RaviCodeGenerator::emit_store_local_int(RaviFunctionDef *def, llvm::Value *src, llvm::Value *dest) {
+  llvm::Instruction *ins = def->builder->CreateStore(src, dest);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pintT);
+  return ins;
+}
+
+// Load int
+llvm::Instruction *RaviCodeGenerator::emit_load_local_int(RaviFunctionDef *def, llvm::Value *src) {
+  llvm::Instruction *ins = def->builder->CreateLoad(src);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pintT);
+  return ins;
+}
+
+
 
 // emit code to obtain address of register or constant at location B
 llvm::Value *RaviCodeGenerator::emit_gep_rkb(RaviFunctionDef *def,

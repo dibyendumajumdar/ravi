@@ -112,8 +112,7 @@ llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
   def->builder->CreateCondBr(isnil, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
 
-  auto ins = def->builder->CreateStore(isnil, var);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
+  auto ins = emit_store_local_int(def, isnil, var);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(else_block);
@@ -130,8 +129,7 @@ llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
   // Test type == LUA_TBOOLEAN && bool value == 0
   llvm::Value *andvalue = def->builder->CreateAnd(isbool, boolzero);
 
-  auto ins2 = def->builder->CreateStore(andvalue, var);
-  ins2->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
+  auto ins2 = emit_store_local_int(def, andvalue, var);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(end_block);
@@ -139,13 +137,11 @@ llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
 
   llvm::Value *result = nullptr;
   if (donot) {
-    auto ins = def->builder->CreateLoad(var);
-    ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
+    auto ins = emit_load_local_int(def, var);
     result = def->builder->CreateNot(ins);
   }
   else {
-    auto ins = def->builder->CreateLoad(var);
-    ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
+    auto ins = emit_load_local_int(def, var);
     result = ins;
   }
 

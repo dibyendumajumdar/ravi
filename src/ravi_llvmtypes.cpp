@@ -844,21 +844,34 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   // Do what Clang does
   //!5 = metadata !{metadata !"Simple C/C++ TBAA"}
   tbaa_root = mdbuilder.createTBAARoot("Simple C / C++ TBAA");
+
   //!4 = metadata !{metadata !"omnipotent char", metadata !5, i64 0}
   tbaa_charT =
       mdbuilder.createTBAAScalarTypeNode("omnipotent char", tbaa_root, 0);
+  tbaa_pcharT =
+    mdbuilder.createTBAAStructTagNode(tbaa_charT, tbaa_charT, 0);
+
   //!3 = metadata !{metadata !"any pointer", metadata !4, i64 0}
   tbaa_pointerT =
       mdbuilder.createTBAAScalarTypeNode("any pointer", tbaa_charT, 0);
+  tbaa_ppointerT =
+    mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
+
   //!10 = metadata !{metadata !"short", metadata !4, i64 0}
   tbaa_shortT = mdbuilder.createTBAAScalarTypeNode("short", tbaa_charT, 0);
+  tbaa_pshortT =
+    mdbuilder.createTBAAStructTagNode(tbaa_shortT, tbaa_shortT, 0);
+
   //!11 = metadata !{metadata !"int", metadata !4, i64 0}
   tbaa_intT = mdbuilder.createTBAAScalarTypeNode("int", tbaa_charT, 0);
+  tbaa_pintT =
+    mdbuilder.createTBAAStructTagNode(tbaa_intT, tbaa_intT, 0);
+
   //!9 = metadata !{metadata !"long long", metadata !4, i64 0}
   tbaa_longlongT =
       mdbuilder.createTBAAScalarTypeNode("long long", tbaa_charT, 0);
-  tbaa_ppointerT =
-      mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
+  tbaa_plonglongT =
+    mdbuilder.createTBAAStructTagNode(tbaa_longlongT, tbaa_longlongT, 0);
 
   //!14 = metadata !{metadata !"CallInfoL", metadata !3, i64 0, metadata !3, i64
   // 4, metadata !9, i64 8}
@@ -928,7 +941,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_luaStateT = mdbuilder.createTBAAStructTypeNode("lua_State", nodes);
 
   tbaa_luaState_ciT =
-      mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_CallInfoT, 16);
+      mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_pointerT, 16);
   tbaa_luaState_ci_baseT =
       mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 16);
   tbaa_CallInfo_funcT =
@@ -1013,8 +1026,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   tbaa_TValue_nT =
       mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_longlongT, 0);
+  tbaa_TValue_hT =
+    mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_pointerT, 0);
   tbaa_TValue_ttT =
       mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_intT, 8);
+
 
   tbaa_luaState_topT =
       mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_pointerT, 8);
@@ -1027,7 +1043,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_UpVal_vT =
       mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_pointerT, 0);
   tbaa_UpVal_valueT =
-      mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_TValueT, 16);
+      mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_intT, 16);
 
   // RaviArray
   nodes.clear();

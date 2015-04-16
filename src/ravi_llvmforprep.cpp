@@ -169,9 +169,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
                            def->types->tbaa_longlongT);
 
   // Get stopnow
-  llvm::Instruction *stopnow_val =
-      def->builder->CreateLoad(stopnow, "stopnow.value");
-  stopnow_val->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
+  llvm::Instruction *stopnow_val = emit_load_local_int(def, stopnow);
 
   // Test if stopnow is 0
   llvm::Value *stopnow_is_zero = def->builder->CreateICmpEQ(
@@ -595,9 +593,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   //    lua_Integer initv = (stopnow ? 0 : ivalue(init));
 
   // Get stopnow
-  llvm::Instruction *stopnow_val =
-      def->builder->CreateLoad(stopnow, "stopnow.value");
-  stopnow_val->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_intT);
+  llvm::Instruction *stopnow_val = emit_load_local_int(def, stopnow);
 
   // Test if stopnow is 0
   llvm::Value *stopnow_is_zero = def->builder->CreateICmpEQ(

@@ -36,13 +36,20 @@ entry:
   store i32 %1, i32* %tt_1, align 4, !tbaa !5
   %n = bitcast %struct.TValue* %ra to double*
   %3 = load double* %n, align 8, !tbaa !11
-  %4 = bitcast %struct.TValue* %2 to double*
-  store double %3, double* %4, align 8, !tbaa !11
-  %and = and i32 %1, 64
-  %value7 = getelementptr inbounds %struct.UpVal* %0, i32 0, i32 2, i32 0
-  %cmp = icmp ne %struct.TValue* %2, %value7
+  %4 = bitcast %struct.UpVal* %0 to double**
+  %5 = load double** %4, align 4, !tbaa !8
+  store double %3, double* %5, align 8, !tbaa !11
+  %6 = load %struct.TValue** %v, align 4, !tbaa !8
+  %tt_6 = getelementptr inbounds %struct.TValue* %6, i32 0, i32 1
+  %7 = load i32* %tt_6, align 4, !tbaa !5
+  %and = and i32 %7, 64
+  %value = getelementptr inbounds %struct.UpVal* %0, i32 0, i32 2, i32 0
+  %tt_7 = getelementptr inbounds %struct.UpVal* %0, i32 0, i32 2, i32 0, i32 1
+  store i32 1, i32* %tt_7, align 4, !tbaa !5
+  %8 = load %struct.TValue** %v, align 4, !tbaa !8
+  %cmp = icmp ne %struct.TValue* %8, %value
   %tobool = icmp eq i32 %and, 0
-  %or.cond = or i1 %cmp, %tobool
+  %or.cond = or i1 %tobool, %cmp
   br i1 %or.cond, label %if.end, label %if.then
 
 if.then:                                          ; preds = %entry
