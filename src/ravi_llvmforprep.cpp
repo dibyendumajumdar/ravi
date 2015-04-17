@@ -519,11 +519,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   //    forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
 
   // Get init->tt_
-  llvm::Value *pinit_tt_ptr = emit_gep(def, "init.tt.ptr", init, 0, 1);
-  llvm::Instruction *pinit_tt =
-      def->builder->CreateLoad(pinit_tt_ptr, "init.tt");
-  pinit_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_TValue_ttT);
+  llvm::Instruction *pinit_tt = emit_load_type(def, init);
 
   // Compare init->tt_ == LUA_TNUMINT
   llvm::Value *cmp1 = def->builder->CreateICmpEQ(
@@ -783,9 +779,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   // *********** PINIT finally handle initial value
 
   // Check if it is already a float
-  pinit_tt = def->builder->CreateLoad(pinit_tt_ptr, "init.tt");
-  pinit_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_TValue_ttT);
+  pinit_tt = emit_load_type(def, init);
   cmp1 = def->builder->CreateICmpEQ(pinit_tt, def->types->kInt[LUA_TNUMFLT],
                                     "init.is.float");
   llvm::BasicBlock *else1_pinit_ifnum = llvm::BasicBlock::Create(
@@ -847,10 +841,8 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
       def->builder->CreateStore(init_n, pinit_n, "init.n");
   pinit_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                            def->types->tbaa_TValue_nT);
-  llvm::Instruction *pinit_tt_store = def->builder->CreateStore(
-      def->types->kInt[LUA_TNUMFLT], pinit_tt_ptr, "init.tt");
-  pinit_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                              def->types->tbaa_TValue_ttT);
+
+  emit_store_type(def, init, LUA_TNUMFLT);
 
   // Done so jump to forloop
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);
