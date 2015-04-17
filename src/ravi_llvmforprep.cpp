@@ -531,12 +531,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
       pstep_tt, def->types->kInt[LUA_TNUMINT], "step.is.integer");
 
   // Get ivalue(pstep)
-  llvm::Value *pstep_ivalue_ptr = def->builder->CreateBitCast(
-      pstep, def->types->plua_IntegerT, "step.i.ptr");
-  llvm::Instruction *pstep_ivalue =
-      def->builder->CreateLoad(pstep_ivalue_ptr, "step.i");
-  pstep_ivalue->setMetadata(llvm::LLVMContext::MD_tbaa,
-                            def->types->tbaa_TValue_nT);
+  llvm::Instruction *pstep_ivalue = emit_load_reg_i(def, pstep);
 
   // Call forlimit()
   llvm::Value *forlimit_ret = def->builder->CreateCall4(
@@ -571,10 +566,6 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *stopnow_is_zero = def->builder->CreateICmpEQ(
       stopnow_val, def->types->kInt[0], "stopnow.is.zero");
 
-  // Get ptr to init->i
-  llvm::Value *init_value_ptr = def->builder->CreateBitCast(
-      init, def->types->plua_IntegerT, "init.i.ptr");
-
   // Setup if then else branch for stopnow
   llvm::BasicBlock *then1_iffalse = llvm::BasicBlock::Create(
       def->jitState->context(), "if.stopnow.iszero", def->f);
@@ -585,10 +576,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // stopnow is 0
   // Get init->i
-  llvm::Instruction *init_ivalue =
-      def->builder->CreateLoad(init_value_ptr, "init.i");
-  init_ivalue->setMetadata(llvm::LLVMContext::MD_tbaa,
-                           def->types->tbaa_TValue_nT);
+  llvm::Instruction *init_ivalue = emit_load_reg_i(def, init);
 
   // Join after the branch
   def->builder->CreateBr(then1_iftrue);
@@ -602,29 +590,17 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   //    setivalue(plimit, ilimit);
   llvm::Instruction *ilimit_val = emit_load_local_n(def, ilimit);
-  llvm::Value *plimit_ivalue_ptr = def->builder->CreateBitCast(
-      plimit, def->types->plua_IntegerT, "limit.i.ptr");
-  llvm::Instruction *plimit_value =
-      def->builder->CreateStore(ilimit_val, plimit_ivalue_ptr);
-  plimit_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                            def->types->tbaa_TValue_nT);
-  llvm::Value *plimit_tt_ptr = emit_gep(def, "limit.tt.ptr", plimit, 0, 1);
-  llvm::Instruction *plimit_tt = def->builder->CreateStore(
-      def->types->kInt[LUA_TNUMINT], plimit_tt_ptr, "limit.tt");
-  plimit_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
-                         def->types->tbaa_TValue_ttT);
+
+  emit_store_reg_i(def, ilimit_val, plimit);
+  emit_store_type(def, plimit, LUA_TNUMINT);
 
   //    setivalue(init, initv - ivalue(pstep));
   // we aleady know init is LUA_TNUMINT
-  pstep_ivalue = def->builder->CreateLoad(pstep_ivalue_ptr, "step.i.ptr");
-  pstep_ivalue->setMetadata(llvm::LLVMContext::MD_tbaa,
-                            def->types->tbaa_TValue_nT);
+  pstep_ivalue = emit_load_reg_i(def, pstep);
   llvm::Value *sub =
       def->builder->CreateSub(phi1, pstep_ivalue, "initv-pstep.i", false, true);
-  llvm::Instruction *init_ivalue_store =
-      def->builder->CreateStore(sub, init_value_ptr, "init.i");
-  init_ivalue_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                 def->types->tbaa_TValue_nT);
+
+  emit_store_reg_i(def, sub, init);
 
   // We are done so jump to forloop
   lua_assert(def->jmp_targets[pc].jmp1);
@@ -637,10 +613,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // ************ PLIMIT - Convert plimit to float
 
-  plimit_tt_ptr = emit_gep(def, "limit.tt.ptr", plimit, 0, 1);
-  plimit_tt = def->builder->CreateLoad(plimit_tt_ptr, "limit.tt");
-  plimit_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
-                         def->types->tbaa_TValue_ttT);
+  llvm::Instruction *plimit_tt = emit_load_type(def, plimit);
   // Test if already a float
   cmp1 = def->builder->CreateICmpEQ(plimit_tt, def->types->kInt[LUA_TNUMFLT],
                                     "limit.is.float");
@@ -652,12 +625,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else1_plimit_ifnum);
 
   // Already a float - copy to nlimit
-  llvm::Value *plimit_nvalue_ptr = def->builder->CreateBitCast(
-      plimit, def->types->plua_NumberT, "limit.n.ptr");
-  llvm::Instruction *plimit_nvalue_load =
-      def->builder->CreateLoad(plimit_nvalue_ptr, "limit.n");
-  plimit_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                  def->types->tbaa_TValue_nT);
+  llvm::Instruction *plimit_nvalue_load = emit_load_reg_n(def, plimit);
   llvm::Instruction *nlimit_store =
       emit_store_local_n(def, plimit_nvalue_load, nlimit);
 
@@ -694,16 +662,9 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(else1_pstep);
   def->builder->SetInsertPoint(else1_pstep);
   llvm::Instruction *nlimit_load = emit_load_local_n(def, nlimit);
-  llvm::Value *plimit_n = def->builder->CreateBitCast(
-      plimit, def->types->plua_NumberT, "limit.n.ptr");
-  llvm::Instruction *plimit_store =
-      def->builder->CreateStore(nlimit_load, plimit_n, "limit.n");
-  plimit_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                            def->types->tbaa_TValue_nT);
-  llvm::Instruction *plimit_tt_store = def->builder->CreateStore(
-      def->types->kInt[LUA_TNUMFLT], plimit_tt_ptr, "limit.tt");
-  plimit_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                               def->types->tbaa_TValue_ttT);
+
+  emit_store_reg_n(def, nlimit_load, plimit);
+  emit_store_type(def, plimit, LUA_TNUMFLT);
 
   // ***********  PSTEP - convert pstep to float
   // Test if already a float
@@ -718,12 +679,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else1_pstep_ifnum);
 
   // We float then copy to nstep
-  llvm::Value *pstep_nvalue_ptr = def->builder->CreateBitCast(
-      pstep, def->types->plua_NumberT, "step.n.ptr");
-  llvm::Instruction *pstep_nvalue_load =
-      def->builder->CreateLoad(pstep_nvalue_ptr, "step.n");
-  pstep_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                 def->types->tbaa_TValue_nT);
+  llvm::Instruction *pstep_nvalue_load = emit_load_reg_n(def, pstep);
   llvm::Instruction *nstep_store =
       emit_store_local_n(def, pstep_nvalue_load, nstep);
 
@@ -756,14 +712,10 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   // Conversion okay so update pstep
   def->f->getBasicBlockList().push_back(else1_pinit);
   def->builder->SetInsertPoint(else1_pinit);
-  llvm::Instruction *nstep_load = emit_load_local_n(def, nstep);
-  llvm::Value *pstep_n = def->builder->CreateBitCast(
-      pstep, def->types->plua_NumberT, "step.n.ptr");
-  llvm::Instruction *pstep_store =
-      def->builder->CreateStore(nstep_load, pstep_n, "step.n");
-  pstep_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                           def->types->tbaa_TValue_nT);
 
+  llvm::Instruction *nstep_load = emit_load_local_n(def, nstep);
+
+  emit_store_reg_n(def, nstep_load, pstep);
   emit_store_type(def, pstep, LUA_TNUMFLT);
 
   // *********** PINIT finally handle initial value
@@ -780,12 +732,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else1_pinit_ifnum);
 
   // Already float so copy to ninit
-  llvm::Value *pinit_nvalue_ptr =
-      def->builder->CreateBitCast(init, def->types->plua_NumberT, "init.n.ptr");
-  llvm::Instruction *pinit_nvalue_load =
-      def->builder->CreateLoad(pinit_nvalue_ptr, "init.n");
-  pinit_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                 def->types->tbaa_TValue_nT);
+  llvm::Instruction *pinit_nvalue_load = emit_load_reg_n(def, init);
   llvm::Instruction *ninit_store =
       emit_store_local_n(def, pinit_nvalue_load, ninit);
 
@@ -825,13 +772,8 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   //    setfltvalue(init, luai_numsub(L, ninit, nstep));
   llvm::Value *init_n =
       def->builder->CreateFSub(ninit_load, nstep_load, "ninit-nstep");
-  llvm::Value *pinit_n =
-      def->builder->CreateBitCast(init, def->types->plua_NumberT, "init.n.ptr");
-  llvm::Instruction *pinit_store =
-      def->builder->CreateStore(init_n, pinit_n, "init.n");
-  pinit_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                           def->types->tbaa_TValue_nT);
 
+  emit_store_reg_n(def, init_n, init);
   emit_store_type(def, init, LUA_TNUMFLT);
 
   // Done so jump to forloop
