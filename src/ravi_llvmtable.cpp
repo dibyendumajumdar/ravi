@@ -307,8 +307,7 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
 
   // Copy RC to local
   auto src = emit_load_reg_n(def, rc);
-  auto ins = def->builder->CreateStore(src, nc);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  auto ins = emit_store_local_n(def, src, nc);
   def->builder->CreateBr(set_af);
 
   // Convert int to float
@@ -318,15 +317,13 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
   llvm::Instruction *ivalue = emit_load_reg_i(def, rc);
   llvm::Value *floatvalue =
       def->builder->CreateSIToFP(ivalue, def->types->lua_NumberT);
-  auto ins1 = def->builder->CreateStore(floatvalue, nc);
-  ins1->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  auto ins1 = emit_store_local_n(def, floatvalue, nc);
   def->builder->CreateBr(set_af);
 
   def->f->getBasicBlockList().push_back(set_af);
   def->builder->SetInsertPoint(set_af);
 
-  llvm::Instruction *load_nc = def->builder->CreateLoad(nc);
-  load_nc->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  llvm::Instruction *load_nc = emit_load_local_n(def, nc);
 
   llvm::Instruction *t = emit_load_reg_h(def, ra);
   llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);

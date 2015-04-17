@@ -71,27 +71,19 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   //  lua_Integer step = ivalue(ra + 2);
   llvm::Instruction *step_int_value =
-      def->builder->CreateLoad(step_int_ptr, "step.i");
-  step_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                              def->types->tbaa_longlongT);
+      emit_load_local_n(def, step_int_ptr);
 
   //  lua_Integer idx = ivalue(ra) + step; /* increment index */
   llvm::Instruction *idx_int_value =
-      def->builder->CreateLoad(idx_int_ptr, "init.i");
-  idx_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                             def->types->tbaa_longlongT);
+      emit_load_local_n(def, idx_int_ptr);
   llvm::Value *new_idx = def->builder->CreateAdd(step_int_value, idx_int_value,
                                                  "next.idx", false, true);
   llvm::Instruction *idx_store =
-      def->builder->CreateStore(new_idx, idx_int_ptr);
-  idx_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                         def->types->tbaa_longlongT);
+      emit_store_local_n(def, new_idx, idx_int_ptr);
 
   // lua_Integer limit = ivalue(ra + 1);
   llvm::Instruction *limit_int_value =
-      def->builder->CreateLoad(limit_int_ptr, "limit.i");
-  limit_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                               def->types->tbaa_longlongT);
+      emit_load_local_n(def, limit_int_ptr);
 
   // idx > limit?
   llvm::Value *new_idx_gt_limit =
@@ -107,24 +99,16 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(b.jmp2);
   def->builder->SetInsertPoint(b.jmp2);
 
-  step_int_value = def->builder->CreateLoad(step_int_ptr, "step.i");
-  step_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                              def->types->tbaa_longlongT);
+  step_int_value = emit_load_local_n(def, step_int_ptr);
 
   //  lua_Integer idx = ivalue(ra) + step; /* increment index */
-  idx_int_value = def->builder->CreateLoad(idx_int_ptr, "init.i");
-  idx_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                             def->types->tbaa_longlongT);
+  idx_int_value = emit_load_local_n(def, idx_int_ptr);
   new_idx = def->builder->CreateAdd(step_int_value, idx_int_value, "next.idx",
                                     false, true);
-  idx_store = def->builder->CreateStore(new_idx, idx_int_ptr);
-  idx_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                         def->types->tbaa_longlongT);
+  idx_store = emit_store_local_n(def, new_idx, idx_int_ptr);
 
   // lua_Integer limit = ivalue(ra + 1);
-  limit_int_value = def->builder->CreateLoad(limit_int_ptr, "limit.i");
-  limit_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                               def->types->tbaa_longlongT);
+  limit_int_value = emit_load_local_n(def, limit_int_ptr);
 
   // limit > idx?
   llvm::Value *limit_gt_idx =
@@ -146,9 +130,7 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
       def->builder->CreateBitCast(rvar, def->types->plua_IntegerT, "var.i");
 
   //    setivalue(ra + 3, idx);  /* ...and external index */
-  idx_int_value = def->builder->CreateLoad(idx_int_ptr, "init.i");
-  idx_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                             def->types->tbaa_longlongT);
+  idx_int_value = emit_load_local_n(def, idx_int_ptr);
   idx_store = def->builder->CreateStore(idx_int_value, var_int_ptr);
   idx_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                          def->types->tbaa_TValue_nT);
@@ -167,26 +149,18 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   //  lua_Number step = fltvalue(ra + 2);
   llvm::Instruction *step_double_value =
-      def->builder->CreateLoad(step_double_ptr, "step.n");
-  step_double_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                 def->types->tbaa_longlongT);
+      emit_load_local_n(def, step_double_ptr);
 
   //  lua_Number idx = luai_numadd(L, fltvalue(ra), step); /* inc. index */
   llvm::Instruction *idx_double_value =
-      def->builder->CreateLoad(idx_double_ptr, "init.n");
-  idx_double_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                def->types->tbaa_longlongT);
+      emit_load_local_n(def, idx_double_ptr);
   new_idx =
       def->builder->CreateFAdd(step_double_value, idx_double_value, "next.idx");
-  idx_store = def->builder->CreateStore(new_idx, idx_double_ptr);
-  idx_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                         def->types->tbaa_longlongT);
+  idx_store = emit_store_local_n(def, new_idx, idx_double_ptr);
 
   //  lua_Number limit = fltvalue(ra + 1);
   llvm::Instruction *limit_double_value =
-      def->builder->CreateLoad(limit_double_ptr, "limit.n");
-  limit_double_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                  def->types->tbaa_longlongT);
+      emit_load_local_n(def, limit_double_ptr);
 
   // step > 0?
   // idx > limit?
@@ -201,24 +175,16 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(b.jmp4);
 
   //  lua_Number step = fltvalue(ra + 2);
-  step_double_value = def->builder->CreateLoad(step_double_ptr, "step.n");
-  step_double_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                 def->types->tbaa_longlongT);
+  step_double_value = emit_load_local_n(def, step_double_ptr);
 
   //  lua_Number idx = luai_numadd(L, fltvalue(ra), step); /* inc. index */
-  idx_double_value = def->builder->CreateLoad(idx_double_ptr, "init.n");
-  idx_double_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                def->types->tbaa_longlongT);
+  idx_double_value = emit_load_local_n(def, idx_double_ptr);
   new_idx =
       def->builder->CreateFAdd(step_double_value, idx_double_value, "next.idx");
-  idx_store = def->builder->CreateStore(new_idx, idx_double_ptr);
-  idx_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                         def->types->tbaa_longlongT);
+  idx_store = emit_store_local_n(def, new_idx, idx_double_ptr);
 
   //  lua_Number limit = fltvalue(ra + 1);
-  limit_double_value = def->builder->CreateLoad(limit_double_ptr, "limit.n");
-  limit_double_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                  def->types->tbaa_longlongT);
+  limit_double_value = emit_load_local_n(def, limit_double_ptr);
 
   // limit > idx?
   limit_gt_idx =
@@ -240,9 +206,8 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
       def->builder->CreateBitCast(rvar, def->types->plua_NumberT, "var.n");
 
   //    setfltvalue(ra + 3, idx);  /* ...and external index */
-  idx_double_value = def->builder->CreateLoad(idx_double_ptr, "init.n");
-  idx_double_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                def->types->tbaa_longlongT);
+  idx_double_value = emit_load_local_n(def, idx_double_ptr);
+
   idx_store = def->builder->CreateStore(idx_double_value, var_double_ptr);
   idx_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                          def->types->tbaa_TValue_nT);
@@ -533,18 +498,14 @@ void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   //  lua_Integer idx = ivalue(ra) + step; /* increment index */
   llvm::Instruction *idx_int_value =
-    def->builder->CreateLoad(idx_int_ptr, "init.i");
-  idx_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-    def->types->tbaa_longlongT);
+    emit_load_local_n(def, idx_int_ptr);
   llvm::Value *new_idx;
 
   if (!step_one) {
     //  lua_Integer step = ivalue(ra + 2);
     llvm::Value *step_int_ptr = b.istep;
     llvm::Instruction *step_int_value =
-      def->builder->CreateLoad(step_int_ptr, "step.i");
-    step_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-      def->types->tbaa_longlongT);
+      emit_load_local_n(def, step_int_ptr);
     new_idx = def->builder->CreateAdd(step_int_value, idx_int_value,
       "next.idx", false, true);
   }
@@ -554,15 +515,11 @@ void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
   
   // save new index
   llvm::Instruction *idx_store =
-    def->builder->CreateStore(new_idx, idx_int_ptr);
-  idx_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-    def->types->tbaa_longlongT);
+    emit_store_local_n(def, new_idx, idx_int_ptr);
 
   // lua_Integer limit = ivalue(ra + 1);
   llvm::Instruction *limit_int_value =
-    def->builder->CreateLoad(limit_int_ptr, "limit.i");
-  limit_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-    def->types->tbaa_longlongT);
+    emit_load_local_n(def, limit_int_ptr);
 
   // idx > limit?
   llvm::Value *new_idx_gt_limit =
@@ -583,9 +540,7 @@ void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *rvar = emit_gep_ra(def, base_ptr, A + 3);
 
   //    setivalue(ra + 3, idx);  /* ...and external index */
-  idx_int_value = def->builder->CreateLoad(idx_int_ptr, "init.i");
-  idx_int_value->setMetadata(llvm::LLVMContext::MD_tbaa,
-    def->types->tbaa_longlongT);
+  idx_int_value = emit_load_local_n(def, idx_int_ptr);
 
   emit_store_reg_i(def, idx_int_value, rvar);
   emit_store_type(def, rvar, LUA_TNUMINT);

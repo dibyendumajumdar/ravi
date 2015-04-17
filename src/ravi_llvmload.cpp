@@ -132,8 +132,7 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Already a int - move
   llvm::Instruction *tmp = emit_load_reg_i(def, src);
-  llvm::Instruction *store = def->builder->CreateStore(tmp, var, "i");
-  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  llvm::Instruction *store = emit_store_local_n(def, tmp, var);
   def->builder->CreateBr(end1);
 
   // we need to convert
@@ -162,8 +161,7 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(end1);
   def->builder->SetInsertPoint(end1);
 
-  auto load_var = def->builder->CreateLoad(var);
-  load_var->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  auto load_var = emit_load_local_n(def, var);
   emit_store_reg_i(def, load_var, dest);
   emit_store_type(def, dest, LUA_TNUMINT);
 }
@@ -208,8 +206,7 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Already a float - copy to var
   llvm::Instruction *tmp = emit_load_reg_n(def, src);
-  llvm::Instruction *store = def->builder->CreateStore(tmp, var, "n");
-  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  llvm::Instruction *store = emit_store_local_n(def, tmp, var);
   def->builder->CreateBr(end1);
 
   // we need to convert
@@ -239,8 +236,7 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(end1);
 
   // Set R(A)
-  auto load_var = def->builder->CreateLoad(var);
-  load_var->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  auto load_var = emit_load_local_n(def, var);
   emit_store_reg_n(def, load_var, dest);
   emit_store_type(def, dest, LUA_TNUMFLT);
 }
@@ -303,8 +299,7 @@ void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(else2);
   def->builder->SetInsertPoint(else2);
 
-  auto load_var = def->builder->CreateLoad(var);
-  load_var->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  auto load_var = emit_load_local_n(def, var);
   emit_store_reg_i(def, load_var, dest);
   emit_store_type(def, dest, LUA_TNUMINT);
   def->builder->CreateBr(end1);
@@ -371,8 +366,7 @@ void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(else2);
   def->builder->SetInsertPoint(else2);
 
-  auto load_var = def->builder->CreateLoad(var);
-  load_var->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  auto load_var = emit_load_local_n(def, var);
   emit_store_reg_n(def, load_var, dest);
   emit_store_type(def, dest, LUA_TNUMFLT);
   def->builder->CreateBr(end1);

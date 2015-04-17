@@ -140,8 +140,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RB to local nb
   auto src = emit_load_reg_n(def, rb);
-  auto ins = def->builder->CreateStore(src, nb);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  auto ins = emit_store_local_n(def, src, nb);
 
   def->builder->CreateBr(test_rc);
 
@@ -179,19 +178,15 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RC to local;
   src = emit_load_reg_n(def, rc);
-  ins = def->builder->CreateStore(src, nc);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  ins = emit_store_local_n(def, src, nc);
 
   def->builder->CreateBr(float_op);
 
   def->f->getBasicBlockList().push_back(float_op);
   def->builder->SetInsertPoint(float_op);
 
-  llvm::Instruction *lhs = def->builder->CreateLoad(nb);
-  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
-
-  llvm::Instruction *rhs = def->builder->CreateLoad(nc);
-  rhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  llvm::Instruction *lhs = emit_load_local_n(def, nb);
+  llvm::Instruction *rhs = emit_load_local_n(def, nc);
 
   llvm::Value *result = nullptr;
   // Add and set RA
@@ -329,8 +324,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RB to local nb
   auto src = emit_load_reg_n(def, rb);
-  auto ins = def->builder->CreateStore(src, nb);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  auto ins = emit_store_local_n(def, src, nb);
 
   def->builder->CreateBr(test_rc);
 
@@ -368,19 +362,15 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RC to local;
   src = emit_load_reg_n(def, rc);
-  ins = def->builder->CreateStore(src, nc);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  ins = emit_store_local_n(def, src, nc);
 
   def->builder->CreateBr(float_op);
 
   def->f->getBasicBlockList().push_back(float_op);
   def->builder->SetInsertPoint(float_op);
 
-  lhs = def->builder->CreateLoad(nb);
-  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
-
-  rhs = def->builder->CreateLoad(nc);
-  rhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  lhs = emit_load_local_n(def, nb);
+  rhs = emit_load_local_n(def, nc);
 
   llvm::Value *fmod_result = def->builder->CreateCall2(def->fmodFunc, lhs, rhs);
 
@@ -401,22 +391,19 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(mb_lt0_then);
 
   result = def->builder->CreateFAdd(fmod_result, rhs);
-  ins = def->builder->CreateStore(result, nb);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  ins = emit_store_local_n(def, result, nb);
   def->builder->CreateBr(mb_lt0_done);
 
   def->f->getBasicBlockList().push_back(mb_lt0_else);
   def->builder->SetInsertPoint(mb_lt0_else);
 
-  ins = def->builder->CreateStore(fmod_result, nb);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  ins = emit_store_local_n(def, fmod_result, nb);
   def->builder->CreateBr(mb_lt0_done);
 
   def->f->getBasicBlockList().push_back(mb_lt0_done);
   def->builder->SetInsertPoint(mb_lt0_done);
 
-  lhs = def->builder->CreateLoad(nb);
-  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  lhs = emit_load_local_n(def, nb);
 
   emit_store_reg_n(def, lhs, ra);
   emit_store_type(def, ra, LUA_TNUMFLT);
@@ -533,8 +520,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RB to local nb
   auto src = emit_load_reg_n(def, rb);
-  auto ins = def->builder->CreateStore(src, nb);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  auto ins = emit_store_local_n(def, src, nb);
 
   def->builder->CreateBr(test_rc);
 
@@ -572,19 +558,15 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RC to local;
   src = emit_load_reg_n(def, rc);
-  ins = def->builder->CreateStore(src, nc);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  ins = emit_store_local_n(def, src, nc);
 
   def->builder->CreateBr(float_op);
 
   def->f->getBasicBlockList().push_back(float_op);
   def->builder->SetInsertPoint(float_op);
 
-  lhs = def->builder->CreateLoad(nb);
-  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
-
-  rhs = def->builder->CreateLoad(nc);
-  rhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  lhs = emit_load_local_n(def, nb);
+  rhs = emit_load_local_n(def, nc);
 
   result = def->builder->CreateFDiv(lhs, rhs);
   llvm::Value *floor_result = def->builder->CreateCall(def->floorFunc, result);
@@ -670,8 +652,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RB to local nb
   auto src = emit_load_reg_n(def, rb);
-  auto ins = def->builder->CreateStore(src, nb);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  auto ins = emit_store_local_n(def, src, nb);
 
   def->builder->CreateBr(test_rc);
 
@@ -709,19 +690,15 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RC to local;
   src = emit_load_reg_n(def, rc);
-  ins = def->builder->CreateStore(src, nc);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  ins = emit_store_local_n(def, src, nc);
 
   def->builder->CreateBr(float_op);
 
   def->f->getBasicBlockList().push_back(float_op);
   def->builder->SetInsertPoint(float_op);
 
-  llvm::Instruction *lhs = def->builder->CreateLoad(nb);
-  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
-
-  llvm::Instruction *rhs = def->builder->CreateLoad(nc);
-  rhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  llvm::Instruction *lhs = emit_load_local_n(def, nb);
+  llvm::Instruction *rhs = emit_load_local_n(def, nc);
 
   llvm::Value *pow_result = def->builder->CreateCall2(def->powFunc, lhs, rhs);
 
@@ -829,16 +806,14 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RB to local nb
   auto src = emit_load_reg_n(def, rb);
-  auto ins = def->builder->CreateStore(src, nb);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  auto ins = emit_store_local_n(def, src, nb);
 
   def->builder->CreateBr(float_op);
 
   def->f->getBasicBlockList().push_back(float_op);
   def->builder->SetInsertPoint(float_op);
 
-  lhs = def->builder->CreateLoad(nb);
-  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_longlongT);
+  lhs = emit_load_local_n(def, nb);
 
   result = def->builder->CreateFNeg(lhs);
 
