@@ -64,18 +64,15 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_assign(def, cb1, ra1);
   emit_assign(def, cb, ra);
 
-  // Get pointer to register at cb+3
-  llvm::Value *cb3 = emit_gep_ra(def, base_ptr, A + 6);
-  // Get pointer to L->top
-  llvm::Value *top = emit_gep(def, "L_top", def->L, 0, 4);
-  // Assign to L->top
-  llvm::Instruction *ins = def->builder->CreateStore(cb3, top);
-  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
+  // L->top = cb + 3;  /* func. + 2 args (state and index) */
+  emit_set_L_top_toreg(def, base_ptr, A + 6);
 
+  // Protect(luaD_call(L, cb, GETARG_C(i), 1));
   def->builder->CreateCall4(def->luaD_callF, def->L, cb, def->types->kInt[C],
                             def->types->kInt[1]);
   // reload base
   base_ptr = emit_load_base(def);
+  // L->top = ci->top;
   emit_refresh_L_top(def);
   ra = emit_gep_ra(def, base_ptr, jA);
   ra1 = emit_gep_ra(def, base_ptr, jA + 1);

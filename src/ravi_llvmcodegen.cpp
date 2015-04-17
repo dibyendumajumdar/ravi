@@ -292,7 +292,7 @@ void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def,
                                              llvm::Instruction *base_ptr,
                                              int B) {
   // Get pointer to register at R(B)
-  llvm::Value *ptr = emit_array_get(def, base_ptr, B);
+  llvm::Value *ptr = emit_gep_ra(def, base_ptr, B);
   // Get pointer to L->top
   llvm::Value *top = emit_gep(def, "L.top", def->L, 0, 4);
   // Assign to L->top

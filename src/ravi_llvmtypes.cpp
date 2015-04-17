@@ -1031,7 +1031,6 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_TValue_ttT =
       mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_intT, 8);
 
-
   tbaa_luaState_topT =
       mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_pointerT, 8);
 
@@ -1042,8 +1041,6 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_UpValT = mdbuilder.createTBAAStructTypeNode("UpVal", nodes);
   tbaa_UpVal_vT =
       mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_pointerT, 0);
-  tbaa_UpVal_valueT =
-      mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_intT, 16);
 
   // RaviArray
   nodes.clear();

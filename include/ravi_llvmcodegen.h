@@ -270,7 +270,6 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_luaState_topT;
   llvm::MDNode *tbaa_UpValT;
   llvm::MDNode *tbaa_UpVal_vT;
-  llvm::MDNode *tbaa_UpVal_valueT;
   llvm::MDNode *tbaa_RaviArrayT;
   llvm::MDNode *tbaa_TableT;
   llvm::MDNode *tbaa_RaviArray_typeT;
