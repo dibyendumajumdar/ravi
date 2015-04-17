@@ -488,9 +488,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   //} break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base, "base");
-  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_luaState_ci_baseT);
+  llvm::Instruction *base_ptr = emit_load_base(def);
 
   //  lua_Integer ilimit;
   //  int stopnow;
@@ -511,9 +509,9 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   //  TValue *init = ra;
   //  TValue *plimit = ra + 1;
   //  TValue *pstep = ra + 2;
-  llvm::Value *init = A == 0 ? base_ptr : emit_array_get(def, base_ptr, A);
-  llvm::Value *plimit = emit_array_get(def, base_ptr, A + 1);
-  llvm::Value *pstep = emit_array_get(def, base_ptr, A + 2);
+  llvm::Value *init = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *plimit = emit_gep_ra(def, base_ptr, A + 1);
+  llvm::Value *pstep = emit_gep_ra(def, base_ptr, A + 2);
 
   //  if (ttisinteger(init) && ttisinteger(pstep) &&
   //    forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
@@ -526,11 +524,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
       pinit_tt, def->types->kInt[LUA_TNUMINT], "init.is.integer");
 
   // Get pstep->tt_
-  llvm::Value *pstep_tt_ptr = emit_gep(def, "step.tt.ptr", pstep, 0, 1);
-  llvm::Instruction *pstep_tt =
-      def->builder->CreateLoad(pstep_tt_ptr, "step.tt");
-  pstep_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_TValue_ttT);
+  llvm::Instruction *pstep_tt = emit_load_type(def, pstep);
 
   // Compare pstep->tt_ == LUA_TNUMINT
   llvm::Value *icmp2 = def->builder->CreateICmpEQ(
@@ -713,9 +707,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // ***********  PSTEP - convert pstep to float
   // Test if already a float
-  pstep_tt = def->builder->CreateLoad(pstep_tt_ptr, "step.tt.ptr");
-  pstep_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_TValue_ttT);
+  pstep_tt = emit_load_type(def, pstep);
   cmp1 = def->builder->CreateICmpEQ(pstep_tt, def->types->kInt[LUA_TNUMFLT],
                                     "step.is.float");
   llvm::BasicBlock *else1_pstep_ifnum = llvm::BasicBlock::Create(
@@ -771,10 +763,8 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
       def->builder->CreateStore(nstep_load, pstep_n, "step.n");
   pstep_store->setMetadata(llvm::LLVMContext::MD_tbaa,
                            def->types->tbaa_TValue_nT);
-  llvm::Instruction *pstep_tt_store = def->builder->CreateStore(
-      def->types->kInt[LUA_TNUMFLT], pstep_tt_ptr, "step.tt");
-  pstep_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                              def->types->tbaa_TValue_ttT);
+
+  emit_store_type(def, pstep, LUA_TNUMFLT);
 
   // *********** PINIT finally handle initial value
 
