@@ -121,23 +121,15 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(update_block);
   def->builder->SetInsertPoint(update_block);
 
-  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
-  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_luaState_ci_baseT);
-  llvm::Value *rvar = emit_array_get(def, base_ptr, A + 3);
-  llvm::Value *rvar_tt_ptr = emit_gep(def, "var.tt.ptr", rvar, 0, 1);
-  llvm::Value *var_int_ptr =
-      def->builder->CreateBitCast(rvar, def->types->plua_IntegerT, "var.i");
+  llvm::Instruction *base_ptr = emit_load_base(def);
+
+  llvm::Value *rvar = emit_gep_ra(def, base_ptr, A + 3);
 
   //    setivalue(ra + 3, idx);  /* ...and external index */
   idx_int_value = emit_load_local_n(def, idx_int_ptr);
-  idx_store = def->builder->CreateStore(idx_int_value, var_int_ptr);
-  idx_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                         def->types->tbaa_TValue_nT);
-  llvm::Instruction *idx_tt_store =
-      def->builder->CreateStore(def->types->kInt[LUA_TNUMINT], rvar_tt_ptr);
-  idx_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                            def->types->tbaa_TValue_ttT);
+
+  emit_store_reg_i(def, idx_int_value, rvar);
+  emit_store_type(def, rvar, LUA_TNUMINT);
 
   //    ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);
@@ -197,24 +189,14 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(update_block);
   def->builder->SetInsertPoint(update_block);
 
-  base_ptr = def->builder->CreateLoad(def->Ci_base);
-  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_luaState_ci_baseT);
-  rvar = emit_array_get(def, base_ptr, A + 3);
-  rvar_tt_ptr = emit_gep(def, "var.tt.ptr", rvar, 0, 1);
-  llvm::Value *var_double_ptr =
-      def->builder->CreateBitCast(rvar, def->types->plua_NumberT, "var.n");
+  base_ptr = emit_load_base(def);
+  rvar = emit_gep_ra(def, base_ptr, A + 3);
 
   //    setfltvalue(ra + 3, idx);  /* ...and external index */
   idx_double_value = emit_load_local_n(def, idx_double_ptr);
 
-  idx_store = def->builder->CreateStore(idx_double_value, var_double_ptr);
-  idx_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                         def->types->tbaa_TValue_nT);
-  idx_tt_store =
-      def->builder->CreateStore(def->types->kInt[LUA_TNUMFLT], rvar_tt_ptr);
-  idx_tt_store->setMetadata(llvm::LLVMContext::MD_tbaa,
-                            def->types->tbaa_TValue_ttT);
+  emit_store_reg_n(def, idx_double_value, rvar);
+  emit_store_type(def, rvar, LUA_TNUMFLT);
 
   //    ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);
@@ -222,8 +204,6 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(exit_block);
   def->builder->SetInsertPoint(exit_block);
 
-  // def->f->dump();
-  // assert(false);
 }
 
 void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
