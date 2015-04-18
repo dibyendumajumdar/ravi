@@ -41,9 +41,7 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
   //  } break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
-  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_luaState_ci_baseT);
+  llvm::Instruction *base_ptr = emit_load_base(def);
 
   // Get pointer to register B
   llvm::Value *lhs_ptr = emit_gep_rkb(def, base_ptr, B);
@@ -71,9 +69,7 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
     // Reload pointer to base as the call to luaV_equalobj() may
     // have invoked a Lua function and as a result the stack may have
     // been reallocated - so the previous base pointer could be stale
-    base_ptr = def->builder->CreateLoad(def->Ci_base);
-    base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                          def->types->tbaa_luaState_ci_baseT);
+    base_ptr = emit_load_base(def);
 
     // base + a - 1
     llvm::Value *val =
@@ -160,9 +156,7 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, llvm::Value *L_ci,
   //    } break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
-  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_luaState_ci_baseT);
+  llvm::Instruction *base_ptr = emit_load_base(def);
 
   // Get pointer to register A
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);

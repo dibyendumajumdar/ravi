@@ -70,10 +70,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Get pointer to Proto->sizep
-  llvm::Value *psize_ptr = emit_gep(def, "sizep", def->proto_ptr, 0, 10);
-  // Load psize
-  llvm::Instruction *psize = def->builder->CreateLoad(psize_ptr);
-  psize->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Proto_sizepT);
+  llvm::Instruction *psize = emit_load_proto_sizep(def, def->proto_ptr);
 
   // Test if psize > 0
   llvm::Value *psize_gt_0 =

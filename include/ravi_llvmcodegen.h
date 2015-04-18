@@ -534,6 +534,9 @@ public:
   // Add extern declarations for Lua functions we need to call
   void emit_extern_declarations(RaviFunctionDef *def);
 
+  // Retrieve the proto->sizep
+  llvm::Instruction *emit_load_proto_sizep(RaviFunctionDef *def, llvm::Value *proto_ptr);
+
   // Store lua_Number or lua_Integer 
   llvm::Instruction *emit_store_local_n(RaviFunctionDef *def, llvm::Value *src, llvm::Value *dest);
 
