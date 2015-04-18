@@ -54,9 +54,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   //} break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base, "base");
-  base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_luaState_ci_baseT);
+  llvm::Instruction *base_ptr = emit_load_base(def);
 
   //  lua_Integer ilimit;
   //  int stopnow;
@@ -84,9 +82,6 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   forloop_target.forloop_branch =
       TmpB.CreateAlloca(def->types->C_pcharT, nullptr, "brnch");
 
-  llvm::Value *isint =
-      TmpB.CreateAlloca(llvm::Type::getInt1Ty(def->jitState->context()),
-                        nullptr, "loop.is.integer");
   llvm::Value *isinc =
       TmpB.CreateAlloca(llvm::Type::getInt1Ty(def->jitState->context()),
                         nullptr, "loop.increasing");
@@ -94,42 +89,29 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   //  TValue *init = ra;
   //  TValue *plimit = ra + 1;
   //  TValue *pstep = ra + 2;
-  llvm::Value *init = A == 0 ? base_ptr : emit_array_get(def, base_ptr, A);
-  llvm::Value *plimit = emit_array_get(def, base_ptr, A + 1);
-  llvm::Value *pstep = emit_array_get(def, base_ptr, A + 2);
+  llvm::Value *init = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *plimit = emit_gep_ra(def, base_ptr, A + 1);
+  llvm::Value *pstep = emit_gep_ra(def, base_ptr, A + 2);
 
   //  if (ttisinteger(init) && ttisinteger(pstep) &&
   //    forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
 
   // Get init->tt
-  llvm::Value *pinit_tt_ptr = emit_gep(def, "init.tt.ptr", init, 0, 1);
-  llvm::Instruction *pinit_tt =
-      def->builder->CreateLoad(pinit_tt_ptr, "init.tt");
-  pinit_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_TValue_ttT);
+  llvm::Instruction *pinit_tt = emit_load_type(def, init);
 
   // Compare init->tt == LUA_TNUMINT
   llvm::Value *cmp1 = def->builder->CreateICmpEQ(
       pinit_tt, def->types->kInt[LUA_TNUMINT], "init.is.integer");
 
   // Get pstep->tt
-  llvm::Value *pstep_tt_ptr = emit_gep(def, "step.tt.ptr", pstep, 0, 1);
-  llvm::Instruction *pstep_tt =
-      def->builder->CreateLoad(pstep_tt_ptr, "step.tt");
-  pstep_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_TValue_ttT);
+  llvm::Instruction *pstep_tt = emit_load_type(def, pstep);
 
   // Compare pstep->tt == LUA_TNUMINT
   llvm::Value *icmp2 = def->builder->CreateICmpEQ(
       pstep_tt, def->types->kInt[LUA_TNUMINT], "step.is.integer");
 
   // Get ivalue(pstep)
-  llvm::Value *pstep_ivalue_ptr = def->builder->CreateBitCast(
-      pstep, def->types->plua_IntegerT, "step.i.ptr");
-  llvm::Instruction *pstep_ivalue =
-      def->builder->CreateLoad(pstep_ivalue_ptr, "step.i");
-  pstep_ivalue->setMetadata(llvm::LLVMContext::MD_tbaa,
-                            def->types->tbaa_TValue_nT);
+  llvm::Instruction *pstep_ivalue = emit_load_reg_i(def, pstep);
 
   // Call forlimit()
   llvm::Value *forlimit_ret =
@@ -147,10 +129,6 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   // Are all vars integers?
   // init->tt == LUA_TNUMINT && pstep->tt == LUA_TNUMINT && forlimit()
   llvm::Value *and2 = def->builder->CreateAnd(and1, tobool, "all.integers");
-
-  // Save outcome in forloop target - NOT NEEDED?
-  llvm::Instruction *bInt_store = def->builder->CreateStore(and2, isint);
-  bInt_store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_charT);
 
   // Create if then else branch
   llvm::BasicBlock *then1 = llvm::BasicBlock::Create(def->jitState->context(),
@@ -174,8 +152,6 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
       stopnow_val, def->types->kInt[0], "stopnow.is.zero");
 
   // Get ptr to init->i
-  llvm::Value *init_value_ptr = def->builder->CreateBitCast(
-      init, def->types->plua_IntegerT, "init.i.ptr");
 
   // Setup if then else branch for stopnow
   llvm::BasicBlock *then1_iffalse = llvm::BasicBlock::Create(
@@ -187,10 +163,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // stopnow is 0
   // Get init->i
-  llvm::Instruction *init_ivalue =
-      def->builder->CreateLoad(init_value_ptr, "init.i");
-  init_ivalue->setMetadata(llvm::LLVMContext::MD_tbaa,
-                           def->types->tbaa_TValue_nT);
+  llvm::Instruction *init_ivalue = emit_load_reg_i(def, init);
 
   // Join after the branch
   def->builder->CreateBr(then1_iftrue);
@@ -225,16 +198,21 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->CreateCondBr(isinc, b1, b2);
   def->builder->SetInsertPoint(b1);
 
+  // TODO tbaa?
   def->builder->CreateStore(
       llvm::BlockAddress::get(def->f, forloop_target.jmp1),
       forloop_target.forloop_branch);
+  
   def->builder->CreateBr(b3);
 
   def->f->getBasicBlockList().push_back(b2);
   def->builder->SetInsertPoint(b2);
+
+  // TODO tbaa?
   def->builder->CreateStore(
       llvm::BlockAddress::get(def->f, forloop_target.jmp2),
       forloop_target.forloop_branch);
+
   def->builder->CreateBr(b3);
 
   def->f->getBasicBlockList().push_back(b3);
@@ -250,11 +228,8 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // ************ PLIMIT - Convert plimit to float
 
-  llvm::Value *plimit_tt_ptr = emit_gep(def, "limit.tt.ptr", plimit, 0, 1);
-  llvm::Instruction *plimit_tt =
-      def->builder->CreateLoad(plimit_tt_ptr, "limit.tt");
-  plimit_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
-                         def->types->tbaa_TValue_ttT);
+  llvm::Instruction *plimit_tt = emit_load_type(def, plimit);
+  
   // Test if already a float
   cmp1 = def->builder->CreateICmpEQ(plimit_tt, def->types->kInt[LUA_TNUMFLT],
                                     "limit.is.float");
@@ -266,12 +241,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else1_plimit_ifnum);
 
   // Already a float - copy to nlimit
-  llvm::Value *plimit_nvalue_ptr = def->builder->CreateBitCast(
-      plimit, def->types->plua_NumberT, "limit.n.ptr");
-  llvm::Instruction *plimit_nvalue_load =
-      def->builder->CreateLoad(plimit_nvalue_ptr, "limit.n");
-  plimit_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                  def->types->tbaa_TValue_nT);
+  llvm::Instruction *plimit_nvalue_load = emit_load_reg_n(def, plimit);
   llvm::Instruction *nlimit_store = emit_store_local_n(def, plimit_nvalue_load, forloop_target.flimit);
 
   // Go to the PSTEP section
@@ -309,9 +279,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // ***********  PSTEP - convert pstep to float
   // Test if already a float
-  pstep_tt = def->builder->CreateLoad(pstep_tt_ptr, "step.tt");
-  pstep_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_TValue_ttT);
+  pstep_tt = emit_load_type(def, pstep);
   cmp1 = def->builder->CreateICmpEQ(pstep_tt, def->types->kInt[LUA_TNUMFLT],
                                     "step.is.float");
   llvm::BasicBlock *else1_pstep_ifnum = llvm::BasicBlock::Create(
@@ -322,12 +290,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else1_pstep_ifnum);
 
   // We float then copy to nstep
-  llvm::Value *pstep_nvalue_ptr = def->builder->CreateBitCast(
-      pstep, def->types->plua_NumberT, "step.n.ptr");
-  llvm::Instruction *pstep_nvalue_load =
-      def->builder->CreateLoad(pstep_nvalue_ptr, "step.n");
-  pstep_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                 def->types->tbaa_TValue_nT);
+  llvm::Instruction *pstep_nvalue_load = emit_load_reg_n(def, pstep);
   llvm::Instruction *nstep_store = emit_store_local_n(def, pstep_nvalue_load, forloop_target.fstep);
 
   // Now go to handle initial value
@@ -363,9 +326,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   // *********** PINIT finally handle initial value
 
   // Check if it is already a float
-  pinit_tt = def->builder->CreateLoad(pinit_tt_ptr, "init.tt");
-  pinit_tt->setMetadata(llvm::LLVMContext::MD_tbaa,
-                        def->types->tbaa_TValue_ttT);
+  pinit_tt = emit_load_type(def, init);
   cmp1 = def->builder->CreateICmpEQ(pinit_tt, def->types->kInt[LUA_TNUMFLT],
                                     "init.is.float");
   llvm::BasicBlock *else1_pinit_ifnum = llvm::BasicBlock::Create(
@@ -376,12 +337,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else1_pinit_ifnum);
 
   // Already float so copy to ninit
-  llvm::Value *pinit_nvalue_ptr =
-      def->builder->CreateBitCast(init, def->types->plua_NumberT, "init.n.ptr");
-  llvm::Instruction *pinit_nvalue_load =
-      def->builder->CreateLoad(pinit_nvalue_ptr, "init.n");
-  pinit_nvalue_load->setMetadata(llvm::LLVMContext::MD_tbaa,
-                                 def->types->tbaa_TValue_nT);
+  llvm::Instruction *pinit_nvalue_load = emit_load_reg_n(def, init);
   llvm::Instruction *fidx_store =
       emit_store_local_n(def, pinit_nvalue_load, forloop_target.fidx);
 
@@ -428,7 +384,6 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
       emit_store_local_n(def, init_n, forloop_target.fidx);
 
   // Done so jump to forloop
-  // def->builder->CreateBr(def->jmp_targets[pc]);
   llvm::Value *fstep_gt_zero = def->builder->CreateFCmpOGT(
       nstep_load, llvm::ConstantFP::get(def->types->lua_NumberT, 0.0),
       "step.gt.zero");
@@ -458,8 +413,6 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   def->builder->CreateCondBr(fstep_gt_zero, forloop_target.jmp3,
                              forloop_target.jmp4);
-  // def->f->dump();
-  // assert(false);
 }
 
 void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -778,8 +731,6 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Done so jump to forloop
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);
-
-  // def->f->dump();
 }
 
 void RaviCodeGenerator::emit_iFORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
