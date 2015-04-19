@@ -173,9 +173,7 @@ dofile('api.lua')
 assert(dofile('events.lua') == 12)
 dofile('vararg.lua')
 dofile('closure.lua')
-if not ravi.auto() then
-  dofile('coroutine.lua')
-end
+dofile('coroutine.lua')
 dofile('goto.lua', true)
 if not ravi.auto() then
   dofile('errors.lua')

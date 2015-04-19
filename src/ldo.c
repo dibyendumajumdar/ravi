@@ -370,15 +370,15 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
       luaC_checkGC(L);  /* stack grow uses memory */
       if (L->hookmask & LUA_MASKCALL)
         callhook(L, ci);
-      if (p->ravi_jit.jit_status == 0) {
+      if (L == G(L)->mainthread && p->ravi_jit.jit_status == 0) {
         /* not compiled */
         raviV_compile(L, p, 0);
       }
-      if (p->ravi_jit.jit_status == 2) {
+      if (L == G(L)->mainthread && p->ravi_jit.jit_status == 2) {
         /* compiled */
         lua_assert(p->ravi_jit.jit_function != NULL);
         ci->jitstatus = 1;
-        /* As JITed function is like a C function 
+        /* As JITed function is like a C function
          * employ the same restrictions on recursive
          * calls as for C functions
          */
@@ -386,7 +386,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
           if (L->nCcalls == LUAI_MAXCCALLS)
             luaG_runerror(L, "C stack overflow");
           else if (L->nCcalls >= (LUAI_MAXCCALLS + (LUAI_MAXCCALLS >> 3)))
-            luaD_throw(L, LUA_ERRERR);  /* error while handing stack error */
+            luaD_throw(L, LUA_ERRERR); /* error while handing stack error */
         }
         /* Disable YIELDs - so JITed functions cannot
          * yield
@@ -396,8 +396,8 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
         L->nny--;
         L->nCcalls--;
         lua_assert(L->ci == prevci);
-        /* Return a different value from 1 to 
-         * allow luaV_execute() to distinguish between 
+        /* Return a different value from 1 to
+         * allow luaV_execute() to distinguish between
          * JITed function and true C function
          */
         return 2;
