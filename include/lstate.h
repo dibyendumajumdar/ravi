@@ -12,6 +12,9 @@
 #include "lobject.h"
 #include "ltm.h"
 #include "lzio.h"
+#ifndef COCO_DISABLE
+#include "lcoco.h"
+#endif
 
 
 /*

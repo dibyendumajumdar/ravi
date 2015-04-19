@@ -61,12 +61,12 @@ if (CMAKE_COMPILER_IS_GNUCXX OR APPLE)
 endif()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
-add_definitions(-DLUA_COMPAT_MODULE)
+add_definitions(-DLUA_COMPAT_MODULE -DCOCO_DISABLE)
 
 # define the lua core source files
 set (LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c 
      src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
-     src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
+     src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c src/lcoco.c
      src/lvm.c src/lzio.c src/ravijit.cpp src/ravi_llvmtypes.cpp 
      src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
      src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
