@@ -112,18 +112,16 @@ do
   end
 end
 
--- FIXME - this causes a fault
 dummy(10)
-print('+')
 
 function deep (n)
   if n>0 then deep(n-1) end
 end
 deep(10)
-deep(ravi.auto() and 110 or 200)
+deep(ravi and ravi.auto and 110 or 200)
 
 -- testing tail call
-if not ravi.auto() then
+if not ravi or not ravi.auto() then
   function deep (n) if n>0 then return deep(n-1) else return 101 end end
   assert(deep(30000) == 101)
   a = {}
