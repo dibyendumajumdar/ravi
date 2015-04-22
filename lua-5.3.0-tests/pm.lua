@@ -108,7 +108,7 @@ local function range (i, j)
   end
 end
 
-if not ravi.auto() then
+if not ravi or not ravi.auto() then
   local abc = string.char(range(0, 255));
 
   assert(string.len(abc) == 256)

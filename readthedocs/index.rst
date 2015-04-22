@@ -22,6 +22,7 @@ Contents:
    llvm-tbaa
    ravi-benchmarks
    ravi-jit-status
+   ravi-jit-libgccjit
 
 
 Indices and tables
