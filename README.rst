@@ -128,6 +128,18 @@ So I ended up downloading and building LLVM 3.5.1 from source and that worked. I
 
   make install
 
+Building LLVM on MAC OS X
+-------------------------
+I am using Max OSX Yosemite. Pre-requisites are XCode 6.1 and CMake.
+Ensure cmake is on the path.
+Assuming that LLVM source has been extracted to ``/Users/name/llvm-3.6.0.src`` I follow these steps::
+
+  cd llvm-3.6.0.src
+  mkdir build
+  cd build
+  cmake -DCMAKE_INSTALL_PREFIX=/Users/name/LLVM ..
+  make install
+
 Building Ravi
 -------------
 I am developing Ravi using Visual Studio 2013 Community Edition on Windows 8.1 64bit and using gcc on Unbuntu 64-bit.
