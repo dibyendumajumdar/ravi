@@ -53,6 +53,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   C_int64_t = llvm::Type::getIntNTy(context, sizeof(int64_t) * 8);
   C_intT = llvm::Type::getIntNTy(context, sizeof(int) * 8);
   C_pintT = llvm::PointerType::get(C_intT, 0);
+  C_shortT = llvm::Type::getIntNTy(context, sizeof(short) * 8);
 
   static_assert(sizeof(size_t) == sizeof(lu_mem),
                 "lu_mem size is not same as size_t");
@@ -269,7 +270,13 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   pppLClosureT = llvm::PointerType::get(ppLClosureT, 0);
 
   RaviJITProtoT = llvm::StructType::create(context, "ravi.RaviJITProto");
-  pRaviJITProtoT = llvm::PointerType::get(RaviJITProtoT, 0);
+  elements.clear();
+  elements.push_back(lu_byteT); /* jit_status*/
+  elements.push_back(lu_byteT); /* jit_flags */
+  elements.push_back(C_shortT); /* execution_count */
+  elements.push_back(C_pcharT); /* jit_data */
+  elements.push_back(plua_CFunctionT); /* jit_function */
+  RaviJITProtoT->setBody(elements);
 
   ///*
   //** Function Prototypes
@@ -328,7 +335,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pLClosureT);                        /* cache */
   elements.push_back(pTStringT);                         /* source */
   elements.push_back(pGCObjectT);                        /* gclist */
-  elements.push_back(pRaviJITProtoT);                    /* ravi_jit */
+  elements.push_back(RaviJITProtoT);                     /* ravi_jit */
   ProtoT->setBody(elements);
 
   ///*
@@ -1086,6 +1093,8 @@ void LuaLLVMTypes::dump() {
   UpvaldescT->dump();
   fputs("\n", stdout);
   LocVarT->dump();
+  fputs("\n", stdout);
+  RaviJITProtoT->dump();
   fputs("\n", stdout);
   ProtoT->dump();
   fputs("\n", stdout);

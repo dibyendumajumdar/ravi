@@ -80,6 +80,7 @@ struct LuaLLVMTypes {
   llvm::Type *C_size_t;
   llvm::Type *C_ptrdiff_t;
   llvm::Type *C_int64_t;
+  llvm::Type *C_shortT;
 
   llvm::Type *lua_NumberT;
   llvm::PointerType *plua_NumberT;
@@ -157,7 +158,6 @@ struct LuaLLVMTypes {
   llvm::PointerType *pppLClosureT;
 
   llvm::StructType *RaviJITProtoT;
-  llvm::PointerType *pRaviJITProtoT;
 
   llvm::StructType *ProtoT;
   llvm::PointerType *pProtoT;

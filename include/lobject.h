@@ -413,7 +413,9 @@ typedef struct LocVar {
 
 
 typedef struct RaviJITProto {
-  lu_byte jit_status; // 0=not compiled, 1=can't compile, 2=compiled, 3=freed
+  lu_byte jit_status; /* 0=not compiled, 1=can't compile, 2=compiled, 3=freed */
+  lu_byte jit_flags; 
+  unsigned short execution_count;   /* how many times has function been executed */
   void *jit_data;
   lua_CFunction jit_function;
 } RaviJITProto;

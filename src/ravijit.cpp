@@ -267,13 +267,32 @@ void raviV_close(struct lua_State *L) {
 // a manual compilation request was made
 // Returns true if compilation was successful
 int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
+  if (p->ravi_jit.jit_status == 2)
+    return true;
   global_State *G = G(L);
   if (G->ravi_state == NULL)
     return 0;
   if (!G->ravi_state->jit->is_enabled()) {
     return 0;
   }
+#if 0
   if (G->ravi_state->jit->is_auto() || manual_request)
+#else
+  bool doCompile = manual_request != 0;
+  if (!doCompile && G->ravi_state->jit->is_auto()) {
+    if (p->ravi_jit.jit_flags != 0) /* loop */
+      doCompile = true;
+    else if (p->sizecode > 1)
+      doCompile = true;
+    else {
+      if (p->ravi_jit.execution_count < 50)
+        p->ravi_jit.execution_count++;
+      else
+        doCompile = true;
+    }
+  }
+  if (doCompile)
+#endif
     G->ravi_state->code_generator->compile(L, p);
   return p->ravi_jit.jit_status == 2;
 }
@@ -289,6 +308,7 @@ void raviV_freeproto(struct lua_State *L, struct Proto *p) {
     p->ravi_jit.jit_status = 3;
     p->ravi_jit.jit_function = NULL;
     p->ravi_jit.jit_data = NULL;
+    p->ravi_jit.execution_count = 0;
   }
 }
 
