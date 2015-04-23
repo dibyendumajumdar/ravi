@@ -73,7 +73,6 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci,
   // }
 
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *top = nullptr;
 
   // int nresults = c - 1;
   int nresults = C - 1;

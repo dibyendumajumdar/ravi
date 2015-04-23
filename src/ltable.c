@@ -690,7 +690,6 @@ int raviH_getn(Table *t) {
 }
 
 static void ravi_resize_array(lua_State *L, Table *t) {
-  unsigned int i;
   unsigned int size = t->ravi_array.size + 10;
   t->ravi_array.data = (char *) luaM_reallocv(L, t->ravi_array.data, t->ravi_array.size, size, sizeof(lua_Number));
   lua_Number *data = (lua_Number*) t->ravi_array.data;

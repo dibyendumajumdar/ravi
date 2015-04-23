@@ -1507,7 +1507,6 @@ void ravi_dump_ci(lua_State *L, CallInfo *ci) {
   StkId func = ci->func;
   int func_type = ttype(func);
   StkId base = NULL;
-  const char *func_typename;
   Proto *p = NULL;
   int funcpos = ci->func - L->stack;
   StkId stack_ptr = ci->top - 1;

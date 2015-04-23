@@ -426,8 +426,7 @@ void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
     "next.idx", false, true);
   
   // save new index
-  llvm::Instruction *idx_store =
-    emit_store_local_n(def, new_idx, idx_int_ptr);
+  emit_store_local_n(def, new_idx, idx_int_ptr);
 
   // lua_Integer limit = ivalue(ra + 1);
   llvm::Instruction *limit_int_value =

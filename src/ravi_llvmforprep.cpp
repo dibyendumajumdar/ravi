@@ -141,8 +141,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   //    all values are integers
   //    lua_Integer initv = (stopnow ? 0 : ivalue(init));
   // Save step
-  llvm::Instruction *istep_store =
-      emit_store_local_n(def, pstep_ivalue, forloop_target.istep);
+  emit_store_local_n(def, pstep_ivalue, forloop_target.istep);
 
   // Get stopnow
   llvm::Instruction *stopnow_val = emit_load_local_int(def, stopnow);
@@ -180,8 +179,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   llvm::Value *sub =
       def->builder->CreateSub(phi1, pstep_ivalue, "initv-pstep.i", false, true);
-  llvm::Instruction *init_ivalue_store =
-      emit_store_local_n(def, sub, forloop_target.iidx);
+  emit_store_local_n(def, sub, forloop_target.iidx);
 
   // Ok so now we need to decide which jump target
   isinc = def->builder->CreateICmpSGT(pstep_ivalue, def->types->kluaInteger[0],
@@ -242,7 +240,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Already a float - copy to nlimit
   llvm::Instruction *plimit_nvalue_load = emit_load_reg_n(def, plimit);
-  llvm::Instruction *nlimit_store = emit_store_local_n(def, plimit_nvalue_load, forloop_target.flimit);
+  emit_store_local_n(def, plimit_nvalue_load, forloop_target.flimit);
 
   // Go to the PSTEP section
   llvm::BasicBlock *else1_pstep =
@@ -291,7 +289,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // We float then copy to nstep
   llvm::Instruction *pstep_nvalue_load = emit_load_reg_n(def, pstep);
-  llvm::Instruction *nstep_store = emit_store_local_n(def, pstep_nvalue_load, forloop_target.fstep);
+  emit_store_local_n(def, pstep_nvalue_load, forloop_target.fstep);
 
   // Now go to handle initial value
   llvm::BasicBlock *else1_pinit =
@@ -338,8 +336,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Already float so copy to ninit
   llvm::Instruction *pinit_nvalue_load = emit_load_reg_n(def, init);
-  llvm::Instruction *fidx_store =
-      emit_store_local_n(def, pinit_nvalue_load, forloop_target.fidx);
+  emit_store_local_n(def, pinit_nvalue_load, forloop_target.fidx);
 
   // Go to final section
   llvm::BasicBlock *else1_pdone =
@@ -380,8 +377,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *init_n =
       def->builder->CreateFSub(ninit_load, nstep_load, "ninit-nstep");
 
-  llvm::Instruction *ninit_store =
-      emit_store_local_n(def, init_n, forloop_target.fidx);
+  emit_store_local_n(def, init_n, forloop_target.fidx);
 
   // Done so jump to forloop
   llvm::Value *fstep_gt_zero = def->builder->CreateFCmpOGT(
@@ -579,8 +575,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Already a float - copy to nlimit
   llvm::Instruction *plimit_nvalue_load = emit_load_reg_n(def, plimit);
-  llvm::Instruction *nlimit_store =
-      emit_store_local_n(def, plimit_nvalue_load, nlimit);
+  emit_store_local_n(def, plimit_nvalue_load, nlimit);
 
   // Go to the PSTEP section
   llvm::BasicBlock *else1_pstep =
@@ -633,8 +628,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // We float then copy to nstep
   llvm::Instruction *pstep_nvalue_load = emit_load_reg_n(def, pstep);
-  llvm::Instruction *nstep_store =
-      emit_store_local_n(def, pstep_nvalue_load, nstep);
+  emit_store_local_n(def, pstep_nvalue_load, nstep);
 
   // Now go to handle initial value
   llvm::BasicBlock *else1_pinit =
@@ -686,8 +680,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Already float so copy to ninit
   llvm::Instruction *pinit_nvalue_load = emit_load_reg_n(def, init);
-  llvm::Instruction *ninit_store =
-      emit_store_local_n(def, pinit_nvalue_load, ninit);
+  emit_store_local_n(def, pinit_nvalue_load, ninit);
 
   // Go to final section
   llvm::BasicBlock *else1_pdone =
@@ -775,25 +768,21 @@ void RaviCodeGenerator::emit_iFORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
                                                "initv-pstep.i", false, true);
 
     // Save idx
-    llvm::Instruction *iinit_store =
-        emit_store_local_n(def, idx, forloop_target.iidx);
+    emit_store_local_n(def, idx, forloop_target.iidx);
 
     // Save step
-    llvm::Instruction *istep_store =
-        emit_store_local_n(def, step_ivalue, forloop_target.istep);
+    emit_store_local_n(def, step_ivalue, forloop_target.istep);
   } else {
     //    setivalue(init, initv - ivalue(pstep));
     llvm::Value *idx = def->builder->CreateSub(
         init_ivalue, def->types->kluaInteger[1], "initv-pstep.i", false, true);
 
     // Save idx
-    llvm::Instruction *iinit_store =
-        emit_store_local_n(def, idx, forloop_target.iidx);
+    emit_store_local_n(def, idx, forloop_target.iidx);
   }
 
   // Save limit
-  llvm::Instruction *ilimit_store =
-      emit_store_local_n(def, limit_ivalue, forloop_target.ilimit);
+  emit_store_local_n(def, limit_ivalue, forloop_target.ilimit);
 
   // We are done so jump to forloop
   lua_assert(def->jmp_targets[pc].jmp1);

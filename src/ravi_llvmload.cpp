@@ -132,7 +132,7 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Already a int - move
   llvm::Instruction *tmp = emit_load_reg_i(def, src);
-  llvm::Instruction *store = emit_store_local_n(def, tmp, var);
+  emit_store_local_n(def, tmp, var);
   def->builder->CreateBr(end1);
 
   // we need to convert
@@ -206,7 +206,7 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Already a float - copy to var
   llvm::Instruction *tmp = emit_load_reg_n(def, src);
-  llvm::Instruction *store = emit_store_local_n(def, tmp, var);
+  emit_store_local_n(def, tmp, var);
   def->builder->CreateBr(end1);
 
   // we need to convert

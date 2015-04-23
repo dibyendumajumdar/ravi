@@ -806,7 +806,7 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RB to local nb
   auto src = emit_load_reg_n(def, rb);
-  auto ins = emit_store_local_n(def, src, nb);
+  emit_store_local_n(def, src, nb);
 
   def->builder->CreateBr(float_op);
 

@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 /* ORDER OP */
 
@@ -388,6 +389,7 @@ static void PrintRaviCodePC(const Proto* f, Instruction i, int pc)
     if (getBMode(o) != OpArgN) printf(" %d", getBMode(o) == OpArgK ? (MYK(INDEXK(b))) : b);
     if (getCMode(o) != OpArgN) printf(" %d", getCMode(o) == OpArgK ? (MYK(INDEXK(c))) : c);
     break;
+      default: break;
   }
   printf("\n");
 }

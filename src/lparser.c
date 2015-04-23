@@ -1196,8 +1196,8 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
           luaK_codeABC(ls->fs, vars[i] == RAVI_TARRAYFLT ? OP_RAVI_TOARRAYF : OP_RAVI_TOARRAYI, a + (i - n), 0, 0);
     }
     else if ((vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT) && v->k == VINDEXED) {
-      if (vars[n] == RAVI_TNUMFLT && v->ravi_type != RAVI_TARRAYFLT || 
-        vars[n] == RAVI_TNUMINT && v->ravi_type != RAVI_TARRAYINT) 
+      if ((vars[n] == RAVI_TNUMFLT && v->ravi_type != RAVI_TARRAYFLT) ||
+        (vars[n] == RAVI_TNUMINT && v->ravi_type != RAVI_TARRAYINT))
         luaX_syntaxerror(ls, "Invalid local assignment");
     }
     else
@@ -1816,7 +1816,7 @@ static void fornum (LexState *ls, TString *varname, int line) {
   vvar = &fs->f->locvars[fs->nlocvars - 1]; /* index variable - not yet active so get it from locvars*/
   checknext(ls, '=');
   /* get the type of each expression */
-  Fornuminfo tidx = { RAVI_TANY }, tlimit = { RAVI_TANY }, tstep = { RAVI_TNUMINT };
+  Fornuminfo tidx = { RAVI_TANY,0,0 }, tlimit = { RAVI_TANY,0,0 }, tstep = { RAVI_TNUMINT,0,0 };
   Fornuminfo *info = NULL;
   exp1(ls, &tidx);  /* initial value */
   checknext(ls, ',');

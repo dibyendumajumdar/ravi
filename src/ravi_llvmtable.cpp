@@ -236,7 +236,7 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def,
 
   llvm::Value *ptr = def->builder->CreateGEP(data, ukey);
 
-  llvm::Instruction *ins = def->builder->CreateStore(value, ptr);
+  def->builder->CreateStore(value, ptr);
   // TODO tbaa
   def->builder->CreateBr(end_block);
 
@@ -307,7 +307,7 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
 
   // Copy RC to local
   auto src = emit_load_reg_n(def, rc);
-  auto ins = emit_store_local_n(def, src, nc);
+  emit_store_local_n(def, src, nc);
   def->builder->CreateBr(set_af);
 
   // Convert int to float
@@ -317,7 +317,7 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
   llvm::Instruction *ivalue = emit_load_reg_i(def, rc);
   llvm::Value *floatvalue =
       def->builder->CreateSIToFP(ivalue, def->types->lua_NumberT);
-  auto ins1 = emit_store_local_n(def, floatvalue, nc);
+  emit_store_local_n(def, floatvalue, nc);
   def->builder->CreateBr(set_af);
 
   def->f->getBasicBlockList().push_back(set_af);
@@ -343,7 +343,7 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
 
   llvm::Value *ptr = def->builder->CreateGEP(data, ukey);
 
-  llvm::Instruction *ins2 = def->builder->CreateStore(load_nc, ptr);
+  def->builder->CreateStore(load_nc, ptr);
   // TODO tbaa
   def->builder->CreateBr(end_block);
 

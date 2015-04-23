@@ -58,7 +58,6 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   // Load pointer to base
   llvm::Instruction *base_ptr = emit_load_base(def);
 
-  llvm::Value *top = nullptr;
 
   // Get pointer to register A
   llvm::Value *ra_ptr = emit_gep_ra(def, base_ptr, A);

@@ -27,6 +27,7 @@ static int test_luacomp1(const char *code)
     return rc;
 }
 
+#if 0
 static int test_luacompfile(const char *code)
 {
   int rc = 0;
@@ -79,6 +80,7 @@ static int test_luafileexec1(const char *code, int expected)
   lua_close(L);
   return rc;
 }
+#endif
 
 
 /* test supplied lua code compiles */
@@ -118,7 +120,7 @@ static int test_luacompexec1(const char *code, int expected)
   return rc;
 }
 
-int main(int argc, const char *argv[]) 
+int main() 
 {
     int failures = 0;
     //  

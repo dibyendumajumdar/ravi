@@ -108,7 +108,7 @@ llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
   def->builder->CreateCondBr(isnil, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
 
-  auto ins = emit_store_local_int(def, isnil, var);
+  emit_store_local_int(def, isnil, var);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(else_block);
@@ -125,7 +125,7 @@ llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
   // Test type == LUA_TBOOLEAN && bool value == 0
   llvm::Value *andvalue = def->builder->CreateAnd(isbool, boolzero);
 
-  auto ins2 = emit_store_local_int(def, andvalue, var);
+  emit_store_local_int(def, andvalue, var);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(end_block);
