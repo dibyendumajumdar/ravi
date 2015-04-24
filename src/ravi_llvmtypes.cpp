@@ -678,7 +678,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   luaC_upvalbarrierT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
-  // int luaD_precall (lua_State *L, StkId func, int nresults, int compile);
+  // int luaD_precall (lua_State *L, StkId func, int nresults);
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(StkIdT);
@@ -726,7 +726,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(plua_StateT);
   elements.push_back(C_pcharT);
   luaG_runerrorT =
-      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, true);
 
   elements.clear();
   elements.push_back(pTValueT);

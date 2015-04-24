@@ -580,10 +580,10 @@ l_noret luaG_ordererror (lua_State *L, const TValue *p1, const TValue *p2) {
 
 static void addinfo (lua_State *L, const char *msg) {
   CallInfo *ci = L->ci;
-  if (isLua(ci) && !isJITed(ci)) {  /* is Lua code? */
+  if (isLua(ci)) {  /* is Lua code? */
     char buff[LUA_IDSIZE];  /* add file:line information */
-    int line = currentline(ci);
-    TString *src = ci_func(ci)->p->source;
+    int line = (isJITed(ci)) ? 0 : currentline(ci);
+    TString *src = (isJITed(ci)) ? NULL : ci_func(ci)->p->source;
     if (src)
       luaO_chunkid(buff, getstr(src), LUA_IDSIZE);
     else {  /* no source available; use "?" instead */

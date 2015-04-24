@@ -72,7 +72,9 @@ RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
 }
 
 // Retrieve the proto->sizep
-llvm::Instruction *RaviCodeGenerator::emit_load_proto_sizep(RaviFunctionDef *def, llvm::Value *proto_ptr) {
+llvm::Instruction *
+RaviCodeGenerator::emit_load_proto_sizep(RaviFunctionDef *def,
+                                         llvm::Value *proto_ptr) {
   llvm::Value *psize_ptr = emit_gep(def, "sizep", def->proto_ptr, 0, 10);
   // Load sizep
   llvm::Instruction *psize = def->builder->CreateLoad(psize_ptr);
@@ -230,35 +232,39 @@ RaviCodeGenerator::emit_load_ravi_arraylength(RaviFunctionDef *def,
   return tt;
 }
 
-// Store lua_Number or lua_Integer 
-llvm::Instruction *RaviCodeGenerator::emit_store_local_n(RaviFunctionDef *def, llvm::Value *src, llvm::Value *dest) {
+// Store lua_Number or lua_Integer
+llvm::Instruction *RaviCodeGenerator::emit_store_local_n(RaviFunctionDef *def,
+                                                         llvm::Value *src,
+                                                         llvm::Value *dest) {
   llvm::Instruction *ins = def->builder->CreateStore(src, dest);
   ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_plonglongT);
   return ins;
 }
 
 // Load lua_Number or lua_Integer
-llvm::Instruction *RaviCodeGenerator::emit_load_local_n(RaviFunctionDef *def, llvm::Value *src) {
+llvm::Instruction *RaviCodeGenerator::emit_load_local_n(RaviFunctionDef *def,
+                                                        llvm::Value *src) {
   llvm::Instruction *ins = def->builder->CreateLoad(src);
   ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_plonglongT);
   return ins;
 }
 
-// Store int 
-llvm::Instruction *RaviCodeGenerator::emit_store_local_int(RaviFunctionDef *def, llvm::Value *src, llvm::Value *dest) {
+// Store int
+llvm::Instruction *RaviCodeGenerator::emit_store_local_int(RaviFunctionDef *def,
+                                                           llvm::Value *src,
+                                                           llvm::Value *dest) {
   llvm::Instruction *ins = def->builder->CreateStore(src, dest);
   ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pintT);
   return ins;
 }
 
 // Load int
-llvm::Instruction *RaviCodeGenerator::emit_load_local_int(RaviFunctionDef *def, llvm::Value *src) {
+llvm::Instruction *RaviCodeGenerator::emit_load_local_int(RaviFunctionDef *def,
+                                                          llvm::Value *src) {
   llvm::Instruction *ins = def->builder->CreateLoad(src);
   ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pintT);
   return ins;
 }
-
-
 
 // emit code to obtain address of register or constant at location B
 llvm::Value *RaviCodeGenerator::emit_gep_rkb(RaviFunctionDef *def,
