@@ -149,6 +149,29 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
     delete module_;
 }
 
+static void addAddressSanitizerPasses(const llvm::PassManagerBuilder &Builder,
+                                      llvm::PassManagerBase &PM) {
+  PM.add(llvm::createAddressSanitizerFunctionPass());
+  PM.add(llvm::createAddressSanitizerModulePass());
+}
+
+static void addMemorySanitizerPass(const llvm::PassManagerBuilder &Builder,
+                                   llvm::PassManagerBase &PM) {
+  PM.add(llvm::createMemorySanitizerPass());
+
+  // MemorySanitizer inserts complex instrumentation that mostly follows
+  // the logic of the original code, but operates on "shadow" values.
+  // It can benefit from re-running some general purpose optimization passes.
+  if (Builder.OptLevel > 0) {
+    PM.add(llvm::createEarlyCSEPass());
+    PM.add(llvm::createReassociatePass());
+    PM.add(llvm::createLICMPass());
+    PM.add(llvm::createGVNPass());
+    PM.add(llvm::createInstructionCombiningPass());
+    PM.add(llvm::createDeadStoreEliminationPass());
+  }
+}
+
 void *RaviJITFunctionImpl::compile() {
 
   // We use the PassManagerBuilder to setup optimization
@@ -158,6 +181,16 @@ void *RaviJITFunctionImpl::compile() {
   pmb.OptLevel = owner_->get_optlevel();
   pmb.SizeLevel = owner_->get_sizelevel();
 
+#if 0
+  pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
+                   addAddressSanitizerPasses);
+  pmb.addExtension(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+                   addAddressSanitizerPasses);
+  pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
+                   addMemorySanitizerPass);
+  pmb.addExtension(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+                   addMemorySanitizerPass);
+#endif
   {
     // Create a function pass manager for this engine
     std::unique_ptr<llvm::FunctionPassManager> FPM(
@@ -182,6 +215,9 @@ void *RaviJITFunctionImpl::compile() {
 
   {
     std::unique_ptr<llvm::PassManager> MPM(new llvm::PassManager());
+#if LLVM_VERSION_MINOR > 5
+    MPM->add(new llvm::DataLayoutPass());
+#endif
     pmb.populateModulePassManager(*MPM);
     MPM->run(*module_);
   }
@@ -261,7 +297,7 @@ void raviV_close(struct lua_State *L) {
   free(G->ravi_state);
 }
 
-// Compile a Lua function 
+// Compile a Lua function
 // If JIT is turned off then compilation is skipped
 // Compilation occurs if either auto compilation is ON  or
 // a manual compilation request was made
@@ -293,7 +329,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
   }
   if (doCompile)
 #endif
-    G->ravi_state->code_generator->compile(L, p);
+  G->ravi_state->code_generator->compile(L, p);
   return p->ravi_jit.jit_status == 2;
 }
 
@@ -326,7 +362,8 @@ void raviV_dumpllvmir(struct lua_State *L, struct Proto *p) {
 static int ravi_is_compiled(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
-  luaL_argcheck(L, lua_isfunction(L,1) && !lua_iscfunction(L,1), 1, "argument must be a Lua function");
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
+                "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
   lua_pushboolean(L, l->p->ravi_jit.jit_status == 2);
@@ -337,7 +374,8 @@ static int ravi_is_compiled(lua_State *L) {
 static int ravi_compile(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
-  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1, "argument must be a Lua function");
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
+                "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
   int result = raviV_compile(L, l->p, 1);
@@ -349,7 +387,8 @@ static int ravi_compile(lua_State *L) {
 static int ravi_dump_luacode(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
-  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1, "argument must be a Lua function");
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
+                "argument must be a Lua function");
   ravi_dump_function(L);
   return 0;
 }
@@ -359,7 +398,8 @@ static int ravi_dump_luacode(lua_State *L) {
 static int ravi_dump_llvmir(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n == 1, 1, "1 argument expected");
-  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1, "argument must be a Lua function");
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
+                "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
   raviV_dumpllvmir(L, l->p);

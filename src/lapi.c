@@ -669,7 +669,9 @@ LUA_API int lua_rawget (lua_State *L, int idx) {
       setnilvalue(key);
     }
   } break;
-      default: lua_assert(0); break;
+  default:
+    lua_assert(0);
+    break;
   }
   lua_unlock(L);
   return ttnov(L->top - 1);
@@ -701,10 +703,9 @@ LUA_API int lua_rawgeti (lua_State *L, int idx, lua_Integer n) {
       setnilvalue(L->top);
     }
   } break;
-      default:
-          lua_assert(0);
-          break;
-
+  default:
+    lua_assert(0);
+    break;
   }
   api_incr_top(L);
   lua_unlock(L);
@@ -844,7 +845,7 @@ LUA_API void lua_rawset (lua_State *L, int idx) {
   t = hvalue(o);
   switch (t->ravi_array.type) {
   case RAVI_TTABLE: {
-    setobj2t(L, luaH_set(L, t, L->top-2), L->top-1);
+    setobj2t(L, luaH_set(L, t, L->top - 2), L->top - 1);
   } break;
   case RAVI_TARRAYINT: {
     TValue *key = L->top - 2;
@@ -878,10 +879,9 @@ LUA_API void lua_rawset (lua_State *L, int idx) {
         luaG_runerror(L, "value cannot be converted to number");
     }
   } break;
-      default:
-          lua_assert(0);
-          break;
-
+  default:
+    lua_assert(0);
+    break;
   }
   invalidateTMcache(t);
   luaC_barrierback(L, t, L->top-1);
@@ -928,12 +928,11 @@ LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
         luaG_runerror(L, "value cannot be converted to number");
     }
   } break;
-      default:
-          lua_assert(0);
-          break;
-
+  default:
+    lua_assert(0);
+    break;
   }
-  luaC_barrierback(L, t, L->top-1);
+  luaC_barrierback(L, t, L->top - 1);
   L->top--;
   lua_unlock(L);
 }
