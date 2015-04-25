@@ -614,6 +614,9 @@ l_noret luaG_runerror (lua_State *L, const char *fmt, ...) {
   luaG_errormsg(L);
 }
 
+void luaG_runerror1(lua_State *L, const char *msg) {
+  luaG_runerror(L, msg);
+}
 
 void luaG_traceexec (lua_State *L) {
   CallInfo *ci = L->ci;

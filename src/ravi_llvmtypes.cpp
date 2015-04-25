@@ -726,7 +726,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(plua_StateT);
   elements.push_back(C_pcharT);
   luaG_runerrorT =
-      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, true);
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   elements.clear();
   elements.push_back(pTValueT);

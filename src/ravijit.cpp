@@ -117,6 +117,18 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
 #endif
 
   function_ = llvm::Function::Create(type, linkage, name, module_);
+// function_->addFnAttr(llvm::Attribute::StackProtectReq);
+#if defined(_WIN32)
+// For some reason on Windows we get inaligned stack
+// error when calling longjmp - following appears to help in at
+// least one test case
+  //llvm::AttrBuilder attr;
+  //attr.addStackAlignmentAttr(16);
+  //function_->addAttributes(
+  // llvm::AttributeSet::FunctionIndex,
+  // llvm::AttributeSet::get(owner_->context(),
+  //                         llvm::AttributeSet::FunctionIndex, attr));
+#endif
   std::string errStr;
 #if LLVM_VERSION_MINOR > 5
   // LLVM 3.6.0 change
@@ -217,6 +229,8 @@ void *RaviJITFunctionImpl::compile() {
     std::unique_ptr<llvm::PassManager> MPM(new llvm::PassManager());
 #if LLVM_VERSION_MINOR > 5
     MPM->add(new llvm::DataLayoutPass());
+#else
+    MPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
 #endif
     pmb.populateModulePassManager(*MPM);
     MPM->run(*module_);
@@ -238,11 +252,12 @@ void *RaviJITFunctionImpl::compile() {
   return ptr_;
 }
 
-llvm::Constant *
+llvm::Function *
 RaviJITFunctionImpl::addExternFunction(llvm::FunctionType *type, void *address,
                                        const std::string &name) {
   llvm::Function *f = llvm::Function::Create(
       type, llvm::Function::ExternalLinkage, name, module_);
+  f->setDoesNotThrow();
   // We should have been able to call
   // engine_->addGlobalMapping() but this doesn't work
   // See http://lists.cs.uiuc.edu/pipermail/llvmdev/2014-April/071856.html
@@ -312,9 +327,9 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
     return 0;
   }
 #if 0
-  if (G->ravi_state->jit->is_auto() || manual_request)
+  bool doCompile = (G->ravi_state->jit->is_auto() || (bool)manual_request);
 #else
-  bool doCompile = manual_request != 0;
+  bool doCompile = (bool)manual_request;
   if (!doCompile && G->ravi_state->jit->is_auto()) {
     if (p->ravi_jit.jit_flags != 0) /* loop */
       doCompile = true;
@@ -327,9 +342,11 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
         doCompile = true;
     }
   }
-  if (doCompile)
 #endif
-  G->ravi_state->code_generator->compile(L, p);
+  //if (manual_request)
+  //  printf("do compile %d\n", (int)doCompile);
+  if (doCompile)
+    G->ravi_state->code_generator->compile(L, p);
   return p->ravi_jit.jit_status == 2;
 }
 

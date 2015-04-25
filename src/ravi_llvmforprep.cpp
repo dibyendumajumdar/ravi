@@ -264,10 +264,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Conversion failed, so raise error
   def->builder->SetInsertPoint(else1_plimit_tonum_elsenum);
-  llvm::Value *errmsg1 =
-      def->builder->CreateGlobalString("'for' limit must be a number");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "'for' limit must be a number");
   def->builder->CreateBr(else1_pstep);
 
   // Conversion OK
@@ -312,9 +309,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // If conversion failed raise error
   def->builder->SetInsertPoint(else1_pstep_tonum_elsenum);
-  errmsg1 = def->builder->CreateGlobalString("'for' step must be a number");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "'for' step must be a number");
   def->builder->CreateBr(else1_pinit);
 
   // Conversion okay so update pstep
@@ -359,10 +354,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Conversion failed so raise error
   def->builder->SetInsertPoint(else1_pinit_tonum_elsenum);
-  errmsg1 =
-      def->builder->CreateGlobalString("'for' initial value must be a number");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "'for' initial value must be a number");
   def->builder->CreateBr(else1_pdone);
 
   // Conversion OK so we are nearly done
@@ -599,10 +591,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Conversion failed, so raise error
   def->builder->SetInsertPoint(else1_plimit_tonum_elsenum);
-  llvm::Value *errmsg1 =
-      def->builder->CreateGlobalString("'for' limit must be a number");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "'for' limit must be a number");
   def->builder->CreateBr(else1_pstep);
 
   // Conversion OK
@@ -651,9 +640,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // If conversion failed raise error
   def->builder->SetInsertPoint(else1_pstep_tonum_elsenum);
-  errmsg1 = def->builder->CreateGlobalString("'for' step must be a number");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "'for' step must be a number");
   def->builder->CreateBr(else1_pinit);
 
   // Conversion okay so update pstep
@@ -703,10 +690,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Conversion failed so raise error
   def->builder->SetInsertPoint(else1_pinit_tonum_elsenum);
-  errmsg1 =
-      def->builder->CreateGlobalString("'for' initial value must be a number");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "'for' initial value must be a number");
   def->builder->CreateBr(else1_pdone);
 
   // Conversion OK so we are nearly done

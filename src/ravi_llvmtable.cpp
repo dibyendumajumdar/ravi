@@ -121,10 +121,7 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
-  llvm::Value *errmsg1 =
-      def->builder->CreateGlobalString("array out of bounds");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "out_of_bounds_msg", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "array out of bounds");
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(end_block);
@@ -182,10 +179,7 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def,
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
-  llvm::Value *errmsg1 =
-      def->builder->CreateGlobalString("array out of bounds");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "out_of_bounds_msg", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "array out of bounds");
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(end_block);
@@ -516,9 +510,7 @@ llvm::Instruction *RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def,
   def->builder->SetInsertPoint(raise_error);
 
   // Conversion failed, so raise error
-  llvm::Value *errmsg1 = def->builder->CreateGlobalString(errmsg);
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "", errmsg1, 0, 0));
+  emit_raise_lua_error(def, errmsg);
   def->builder->CreateBr(done);
 
   def->f->getBasicBlockList().push_back(else1);

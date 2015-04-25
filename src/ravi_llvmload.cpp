@@ -152,9 +152,7 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Conversion failed, so raise error
   def->builder->SetInsertPoint(else2);
-  llvm::Value *errmsg1 = def->builder->CreateGlobalString("integer expected");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "integer expected");
   def->builder->CreateBr(end1);
 
   // Conversion OK
@@ -226,9 +224,7 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Conversion failed, so raise error
   def->builder->SetInsertPoint(else2);
-  llvm::Value *errmsg1 = def->builder->CreateGlobalString("number expected");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "number expected");
   def->builder->CreateBr(end1);
 
   // Conversion OK
@@ -290,9 +286,7 @@ void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(then2);
 
   // Conversion failed, so raise error
-  llvm::Value *errmsg1 = def->builder->CreateGlobalString("integer expected");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "integer expected");
   def->builder->CreateBr(else2);
 
   // Conversion OK
@@ -357,9 +351,7 @@ void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(then2);
 
   // Conversion failed, so raise error
-  llvm::Value *errmsg1 = def->builder->CreateGlobalString("number expected");
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            emit_gep(def, "", errmsg1, 0, 0));
+  emit_raise_lua_error(def, "number expected");
   def->builder->CreateBr(else2);
 
   // Conversion OK

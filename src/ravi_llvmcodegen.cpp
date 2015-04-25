@@ -462,6 +462,10 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
   return func;
 }
 
+void RaviCodeGenerator::emit_raise_lua_error(RaviFunctionDef *def, const char *str) {
+  def->builder->CreateCall2(def->luaG_runerrorF, def->L, def->builder->CreateGlobalStringPtr(str));
+}
+
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
 
   // Add extern declarations for Lua functions that we need to call
@@ -483,6 +487,7 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaG_runerrorF = def->raviF->addExternFunction(
       def->types->luaG_runerrorT, reinterpret_cast<void *>(&luaG_runerror),
       "luaG_runerror");
+  def->luaG_runerrorF->setDoesNotReturn();
   def->luaV_equalobjF = def->raviF->addExternFunction(
       def->types->luaV_equalobjT, reinterpret_cast<void *>(&luaV_equalobj),
       "luaV_equalobj");

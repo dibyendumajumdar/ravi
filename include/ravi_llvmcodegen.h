@@ -321,7 +321,7 @@ public:
   // Add declaration for an extern function that is not
   // loaded dynamically - i.e., is part of the the executable
   // and therefore not visible at runtime by name
-  virtual llvm::Constant *addExternFunction(llvm::FunctionType *type,
+  virtual llvm::Function *addExternFunction(llvm::FunctionType *type,
                                             void *address,
                                             const std::string &name);
 
@@ -442,39 +442,39 @@ struct RaviFunctionDef {
   llvm::IRBuilder<> *builder;
 
   // Lua function declarations
-  llvm::Constant *luaD_poscallF;
-  llvm::Constant *luaD_precallF;
-  llvm::Constant *luaD_callF;
-  llvm::Constant *luaF_closeF;
-  llvm::Constant *luaG_runerrorF;
-  llvm::Constant *luaT_trybinTMF;
-  llvm::Constant *luaV_equalobjF;
-  llvm::Constant *luaV_lessthanF;
-  llvm::Constant *luaV_lessequalF;
-  llvm::Constant *luaV_forlimitF;
-  llvm::Constant *luaV_tonumberF;
-  llvm::Constant *luaV_tointegerF;
-  llvm::Constant *luaV_executeF;
-  llvm::Constant *luaV_gettableF;
-  llvm::Constant *luaV_settableF;
-  llvm::Constant *luaV_modF;
-  llvm::Constant *luaV_divF;
-  llvm::Constant *luaV_objlenF;
-  llvm::Constant *luaC_upvalbarrierF;
+  llvm::Function *luaD_poscallF;
+  llvm::Function *luaD_precallF;
+  llvm::Function *luaD_callF;
+  llvm::Function *luaF_closeF;
+  llvm::Function *luaG_runerrorF;
+  llvm::Function *luaT_trybinTMF;
+  llvm::Function *luaV_equalobjF;
+  llvm::Function *luaV_lessthanF;
+  llvm::Function *luaV_lessequalF;
+  llvm::Function *luaV_forlimitF;
+  llvm::Function *luaV_tonumberF;
+  llvm::Function *luaV_tointegerF;
+  llvm::Function *luaV_executeF;
+  llvm::Function *luaV_gettableF;
+  llvm::Function *luaV_settableF;
+  llvm::Function *luaV_modF;
+  llvm::Function *luaV_divF;
+  llvm::Function *luaV_objlenF;
+  llvm::Function *luaC_upvalbarrierF;
 
   // Some cheats - these correspond to OPCODEs that
   // are not inlined as of now
-  llvm::Constant *raviV_op_newarrayintF;
-  llvm::Constant *raviV_op_newarrayfloatF;
-  llvm::Constant *raviV_op_setlistF;
-  llvm::Constant *raviV_op_newtableF;
-  llvm::Constant *raviV_op_loadnilF;
-  llvm::Constant *raviV_op_concatF;
-  llvm::Constant *raviV_op_closureF;
-  llvm::Constant *raviV_op_varargF;
+  llvm::Function *raviV_op_newarrayintF;
+  llvm::Function *raviV_op_newarrayfloatF;
+  llvm::Function *raviV_op_setlistF;
+  llvm::Function *raviV_op_newtableF;
+  llvm::Function *raviV_op_loadnilF;
+  llvm::Function *raviV_op_concatF;
+  llvm::Function *raviV_op_closureF;
+  llvm::Function *raviV_op_varargF;
 
-  llvm::Constant *raviH_set_intF;
-  llvm::Constant *raviH_set_floatF;
+  llvm::Function *raviH_set_intF;
+  llvm::Function *raviH_set_floatF;
 
   // standard C functions
   llvm::Constant *printfFunc;
@@ -530,6 +530,8 @@ public:
   // int func(lua_State *L) {
   std::unique_ptr<RaviJITFunctionImpl>
   create_function(llvm::IRBuilder<> &builder, RaviFunctionDef *def);
+
+  void emit_raise_lua_error(RaviFunctionDef *def, const char *str);
 
   // Add extern declarations for Lua functions we need to call
   void emit_extern_declarations(RaviFunctionDef *def);
