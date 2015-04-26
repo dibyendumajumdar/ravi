@@ -118,18 +118,18 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
 
   function_ = llvm::Function::Create(type, linkage, name, module_);
 
-  //TODO add stack checks as debug more
-  // function_->addFnAttr(llvm::Attribute::StackProtectReq);
-          
+// TODO add stack checks as debug more
+// function_->addFnAttr(llvm::Attribute::StackProtectReq);
+
 #if defined(_WIN32)
-  // TODO On 32-bit Windows we need to force
-  // 16-byte alignment
-  // llvm::AttrBuilder attr;
-  // attr.addStackAlignmentAttr(16);
-  // function_->addAttributes(
-  //   llvm::AttributeSet::FunctionIndex,
-  //   llvm::AttributeSet::get(owner_->context(),
-  //                         llvm::AttributeSet::FunctionIndex, attr));
+// TODO On 32-bit Windows we need to force
+// 16-byte alignment
+// llvm::AttrBuilder attr;
+// attr.addStackAlignmentAttr(16);
+// function_->addAttributes(
+//   llvm::AttributeSet::FunctionIndex,
+//   llvm::AttributeSet::get(owner_->context(),
+//                         llvm::AttributeSet::FunctionIndex, attr));
 #endif
   std::string errStr;
 #if LLVM_VERSION_MINOR > 5
@@ -331,7 +331,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
   if (!G->ravi_state->jit->is_enabled()) {
     return 0;
   }
-#ifdef _WIN32
+#if 0
   // For some reason on Windows we sometimes get
   // an exception in luaD_throw() when JIT compilation
   // is ON.
@@ -437,8 +437,7 @@ static int ravi_auto(lua_State *L) {
     lua_pushboolean(L, 0);
     lua_pushinteger(L, -1);
     lua_pushinteger(L, -1);
-  }
-  else {
+  } else {
     lua_pushboolean(L, G->ravi_state->jit->is_auto());
     lua_pushinteger(L, G->ravi_state->jit->get_mincodesize());
     lua_pushinteger(L, G->ravi_state->jit->get_minexeccount());

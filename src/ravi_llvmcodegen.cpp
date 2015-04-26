@@ -462,8 +462,10 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
   return func;
 }
 
-void RaviCodeGenerator::emit_raise_lua_error(RaviFunctionDef *def, const char *str) {
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L, def->builder->CreateGlobalStringPtr(str));
+void RaviCodeGenerator::emit_raise_lua_error(RaviFunctionDef *def,
+                                             const char *str) {
+  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
+                            def->builder->CreateGlobalStringPtr(str));
 }
 
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
@@ -689,11 +691,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
   llvm::LLVMContext &context = jitState_->context();
   llvm::IRBuilder<> builder(context);
 
-  // std::unique_ptr<RaviFunctionDef> definition =
-  // std::unique_ptr<RaviFunctionDef>(new RaviFunctionDef());
-  // RaviFunctionDef *def = definition.get();
-  RaviFunctionDef definition = {0};
-  RaviFunctionDef *def = &definition;
+  std::unique_ptr<RaviFunctionDef> definition =
+      std::unique_ptr<RaviFunctionDef>(new RaviFunctionDef());
+  RaviFunctionDef *def = definition.get();
+  // RaviFunctionDef definition = {0};
+  // RaviFunctionDef *def = &definition;
 
   // printf("compiling function\n");
   auto f = create_function(builder, def);
