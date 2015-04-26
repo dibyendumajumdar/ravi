@@ -183,7 +183,7 @@ Also see section above on available API for dumping either Lua bytecode or LLVM 
 Work Plan
 ---------
 * Feb-May 2015 - implement JIT compilation using LLVM 
-* June-Sep 2015 - testing & and JIT compilation using libgccjit
+* June-Sep 2015 - testing and JIT compilation using libgccjit
 * Oct 2015 - beta release
 
 License
