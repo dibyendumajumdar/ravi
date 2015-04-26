@@ -1762,13 +1762,12 @@ static void forbody (LexState *ls, int base, int line, int nvars, int isnum, For
   adjustlocalvars(ls, 3);  /* control variables */
   checknext(ls, TK_DO);
   if (isnum) {
+    ls->fs->f->ravi_jit.jit_flags = 1;
     if (info && info->is_constant && info->int_value > 1) {
-      ls->fs->f->ravi_jit.jit_flags = 1;
       forprep_inst = OP_RAVI_FORPREP_IP;
       forloop_inst = OP_RAVI_FORLOOP_IP;
     }
     else if (info && info->is_constant && info->int_value == 1) {
-      ls->fs->f->ravi_jit.jit_flags = 1;
       forprep_inst = OP_RAVI_FORPREP_I1;
       forloop_inst = OP_RAVI_FORLOOP_I1;
     }

@@ -38,7 +38,7 @@ RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
 
 RaviJITStateImpl::RaviJITStateImpl()
     : context_(llvm::getGlobalContext()), auto_(false), enabled_(true),
-      opt_level_(2), size_level_(0) {
+      opt_level_(2), size_level_(0), min_code_size_(150), min_exec_count_(50) {
   // LLVM needs to be initialized else
   // ExecutionEngine cannot be created
   // This should ideally be an atomic check but because LLVM docs
@@ -117,16 +117,18 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
 #endif
 
   function_ = llvm::Function::Create(type, linkage, name, module_);
-// function_->addFnAttr(llvm::Attribute::StackProtectReq);
+
+  //TODO add stack checks as debug more
+  // function_->addFnAttr(llvm::Attribute::StackProtectReq);
+          
 #if defined(_WIN32)
-// For some reason on Windows we get inaligned stack
-// error when calling longjmp - following appears to help in at
-// least one test case
-  //llvm::AttrBuilder attr;
-  //attr.addStackAlignmentAttr(16);
-  //function_->addAttributes(
-  // llvm::AttributeSet::FunctionIndex,
-  // llvm::AttributeSet::get(owner_->context(),
+  // TODO On 32-bit Windows we need to force
+  // 16-byte alignment
+  // llvm::AttrBuilder attr;
+  // attr.addStackAlignmentAttr(16);
+  // function_->addAttributes(
+  //   llvm::AttributeSet::FunctionIndex,
+  //   llvm::AttributeSet::get(owner_->context(),
   //                         llvm::AttributeSet::FunctionIndex, attr));
 #endif
   std::string errStr;
@@ -161,6 +163,7 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
     delete module_;
 }
 
+// Following two functions based upon similar in Clang
 static void addAddressSanitizerPasses(const llvm::PassManagerBuilder &Builder,
                                       llvm::PassManagerBase &PM) {
   PM.add(llvm::createAddressSanitizerFunctionPass());
@@ -194,6 +197,8 @@ void *RaviJITFunctionImpl::compile() {
   pmb.SizeLevel = owner_->get_sizelevel();
 
 #if 0
+  // TODO following appears to require linking to some
+  // additional LLVM libraries
   pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
                    addAddressSanitizerPasses);
   pmb.addExtension(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
@@ -326,25 +331,26 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
   if (!G->ravi_state->jit->is_enabled()) {
     return 0;
   }
-#if 0
+#ifdef _WIN32
+  // For some reason on Windows we sometimes get
+  // an exception in luaD_throw() when JIT compilation
+  // is ON.
   bool doCompile = (G->ravi_state->jit->is_auto() || (bool)manual_request);
 #else
   bool doCompile = (bool)manual_request;
   if (!doCompile && G->ravi_state->jit->is_auto()) {
     if (p->ravi_jit.jit_flags != 0) /* loop */
       doCompile = true;
-    else if (p->sizecode > 1)
+    else if (p->sizecode > G->ravi_state->jit->get_mincodesize())
       doCompile = true;
     else {
-      if (p->ravi_jit.execution_count < 50)
+      if (p->ravi_jit.execution_count < G->ravi_state->jit->get_minexeccount())
         p->ravi_jit.execution_count++;
       else
         doCompile = true;
     }
   }
 #endif
-  //if (manual_request)
-  //  printf("do compile %d\n", (int)doCompile);
   if (doCompile)
     G->ravi_state->code_generator->compile(L, p);
   return p->ravi_jit.jit_status == 2;
@@ -427,16 +433,30 @@ static int ravi_dump_llvmir(lua_State *L) {
 static int ravi_auto(lua_State *L) {
   global_State *G = G(L);
   int n = lua_gettop(L);
-  bool value = false;
-  if (n == 1)
-    value = lua_toboolean(L, 1);
-  if (G->ravi_state == NULL)
+  if (G->ravi_state == NULL) {
     lua_pushboolean(L, 0);
-  else
+    lua_pushinteger(L, -1);
+    lua_pushinteger(L, -1);
+  }
+  else {
     lua_pushboolean(L, G->ravi_state->jit->is_auto());
-  if (n == 1 && G->ravi_state)
-    G->ravi_state->jit->set_auto(value);
-  return 1;
+    lua_pushinteger(L, G->ravi_state->jit->get_mincodesize());
+    lua_pushinteger(L, G->ravi_state->jit->get_minexeccount());
+  }
+  if (G->ravi_state) {
+    bool value = false;
+    if (n >= 1)
+      value = lua_toboolean(L, 1);
+    if (n >= 1)
+      G->ravi_state->jit->set_auto(value);
+    int min_code_size = (n >= 2) ? (int)(lua_tointeger(L, 2)) : -1;
+    int min_exec_count = (n == 3) ? (int)(lua_tointeger(L, 3)) : -1;
+    if (min_code_size >= 1)
+      G->ravi_state->jit->set_mincodesize(min_code_size);
+    if (min_exec_count >= 1)
+      G->ravi_state->jit->set_minexeccount(min_exec_count);
+  }
+  return 3;
 }
 
 // Turn on/off the JIT compiler

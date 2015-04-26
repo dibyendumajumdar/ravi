@@ -359,6 +359,12 @@ class RAVI_API RaviJITStateImpl : public RaviJITState {
 
   // Size level (LLVM PassManagerBuilder)
   int size_level_;
+  
+  // min code size for compilation
+  int min_code_size_;
+  
+  // min execution count for compilation
+  int min_exec_count_;
 
 public:
   RaviJITStateImpl();
@@ -394,6 +400,11 @@ public:
     if (value >= 0 && value <= 2)
       size_level_ = value;
   }
+  int get_mincodesize() const { return min_code_size_; }
+  void set_mincodesize(int value) { min_code_size_ = value > 0 ? value : min_code_size_; }
+  int get_minexeccount() const { return min_exec_count_; }
+  void set_minexeccount(int value) { min_exec_count_ = value > 0 ? value : min_exec_count_; }
+
 };
 
 // To optimise fornum loops

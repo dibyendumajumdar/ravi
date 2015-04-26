@@ -127,6 +127,11 @@ public:
   virtual void set_optlevel(int value) = 0;
   virtual int get_sizelevel() const = 0;
   virtual void set_sizelevel(int value) = 0;
+  virtual int get_mincodesize() const = 0;
+  virtual void set_mincodesize(int) = 0;
+  virtual int get_minexeccount() const = 0;
+  virtual void set_minexeccount(int) = 0;
+    
 protected:
   RaviJITState() {}
 private:
