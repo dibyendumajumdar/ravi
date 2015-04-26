@@ -75,7 +75,7 @@ I am currently working on JIT compilation of Ravi using LLVM. As of now all byte
 
 There are two modes of JIT compilation.
 
-* auto mode - in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - any Lua function call is is checked to see if the bytecodes contained in it can be compiled. If this is true then the function is compiled provided a) function has a fornum loop, b) it is largish (greater than 150 bytecodes) or c) it is being executed many times (> 50). Because of the simplistic behaviour performance the benefit of JIT compilation is only available if the JIT compiled functions will be executed many times.
+* auto mode - in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - any Lua function call is checked to see if the bytecodes contained in it can be compiled. If this is true then the function is compiled provided a) function has a fornum loop, b) it is largish (greater than 150 bytecodes) or c) it is being executed many times (> 50). Because of the simplistic behaviour performance the benefit of JIT compilation is only available if the JIT compiled functions will be executed many times so that the cost of JIT compilation can be amortized.
 * manual mode - in this mode user must explicitly request compilation. This is the default mode. This mode is suitable for library developers who can pre compile the functions in library module table.
 
 A JIT api is available with following functions:
@@ -93,7 +93,7 @@ Compatibility with Lua
 ----------------------
 Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT compilation is enabled some things will not work:
 
-* You cannot yield from a compiled function as compiled code does not support coroutines (issue 14); as coroutines do not work in JITed code, as a workaround Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
+* You cannot yield from a compiled function as compiled code does not support coroutines (issue 14); since coroutines do not work in JITed code, as a workaround Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
 * The debugger will not provide certain information when JIT compilation is turned on as information it requires is not available; the debugger also does not support Ravi's extended opcodes (issue 15)
 * Functions using bit-wise operations cannot be JIT compiled as yet (issue 27)
 * Ravi supports optional typing and enhanced types such as arrays (described later). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions - there are some restrictions on arrays that are described in a later section. Values crossing from Lua to Ravi may be subjected to typechecks.
