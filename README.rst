@@ -1,13 +1,13 @@
 Ravi Programming Language
 =========================
 
-Experimental derivative/dialect of Lua. Ravi is a Sanskrit word that means the Sun.
+Ravi is an experimental derivative/dialect of Lua. Ravi is a Sanskrit word that means the Sun.
 
 Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater performance. However, at the same time maintain full compatibility with standard Lua.
 
 There are other attempts to add static typing to Lua (e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
-My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. 
+My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. Type information can be exploited by JIT compilation technology to improve performance.
 
 Goals
 -----
@@ -75,13 +75,13 @@ I am currently working on JIT compilation of Ravi using LLVM. As of now all byte
 
 There are two modes of JIT compilation.
 
-* auto mode - in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - any Lua function call is is checked to see if the bytecodes contained in it can be compiled. If this is true then the function is compiled. Because of this simplistic behaviour performance will be degraded so user should disable auto compilation and instead compile specific functions using the API described below.
-* manual mode - in this mode user must explicitly request compilation. This is the default mode.
+* auto mode - in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - any Lua function call is is checked to see if the bytecodes contained in it can be compiled. If this is true then the function is compiled provided a) function has a fornum loop, b) it is largish (greater than 150 bytecodes) or c) it is being executed many times (> 50). Because of the simplistic behaviour performance the benefit of JIT compilation is only available if the JIT compiled functions will be executed many times.
+* manual mode - in this mode user must explicitly request compilation. This is the default mode. This mode is suitable for library developers who can pre compile the functions in library module table.
 
 A JIT api is available with following functions:
 
 * ``ravi.jit([b])`` - returns enabled setting of JIT compiler; also enables/disables the JIT compiler; defaults to true
-* ``ravi.auto([b])`` - returns setting of auto compilation; also sets the new setting if ``b`` is supplied; defaults to false
+* ``ravi.auto([b [, min_size [, min_executions]]])`` - returns setting of auto compilation and compilation thresholds; also sets the new settings if values are supplied; defaults are false, 150, 50.
 * ``ravi.compile(func)`` - compiles a Lua function if possible, returns ``true`` if compilation was successful
 * ``ravi.iscompiled(func)`` - returns the JIT status of a function
 * ``ravi.dumplua(func)`` - dumps the Lua bytecode of the function
@@ -93,14 +93,14 @@ Compatibility with Lua
 ----------------------
 Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT compilation is enabled some things will not work:
 
-* You cannot yield from a compiled function, so if you use coroutines then it is better to use the interpreter, as compiled code does not support coroutines (issue 14)
-* The debugger doesn't work when JIT compilation is turned on as information it requires is not available; the debugger also does not support Ravi's extended opcodes (issue 15)
+* You cannot yield from a compiled function as compiled code does not support coroutines (issue 14); as coroutines do not work in JITed code, as a workaround Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
+* The debugger will not provide certain information when JIT compilation is turned on as information it requires is not available; the debugger also does not support Ravi's extended opcodes (issue 15)
 * Functions using bit-wise operations cannot be JIT compiled as yet (issue 27)
 * Ravi supports optional typing and enhanced types such as arrays (described later). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions - there are some restrictions on arrays that are described in a later section. Values crossing from Lua to Ravi may be subjected to typechecks.
 * In JITed code tailcalls are implemented as regular calls so unlike Lua VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue 17)
-* pairs() and ipairs() do not work on ravi arrays yet (issues 24 and 25)
-* Upvalues can subvert the static typing of local variables (issue 26)
-* Lua C API doesn't work correctly for Ravi arrays (issue 9)
+* pairs() and ipairs() work on Ravi arrays since release 0.4 but more testing needed (issues 24 and 25)
+* Upvalues cannot subvert the static typing of local variables since release 0.4 but more testing is needed (issue 26)
+* Lua C API may not work correctly for Ravi arrays, although some initial work has been done in this area (issue 9)
 
 Documentation
 --------------
@@ -117,32 +117,36 @@ The build is CMake based. As of Feb 2015 LLVM is a dependency. Both LLVM 3.5.1 a
 
 Building LLVM on Windows
 ------------------------
-I built LLVM 3.6.0 from source. I used the CMake GUI to create the build configuration. The only item I changed was ``CMAKE_INSTALL_PREFIX`` which I set to ``c:\LLVM``. I then opened the solution in VS2013 and performed a Debug INSTALL build from there. 
+I built LLVM 3.6.0 from source. I used the following sequence from the VS2013 command window::
 
+  cd \llvm-3.6.0.src
+  mkdir build
+  cd build
+  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 12 Win64" ..  
+
+I then opened the generated solution in VS2013 and performed a INSTALL build from there. 
 Note that if you perform a Release build of LLVM then you will also need to do a Release build of Ravi otherwise you will get link errors.
 
 Building LLVM on Ubuntu
 -----------------------
 On Ubuntu I found that the official LLVM distributions don't work with CMake. The CMake config files appear to be broken.
-So I ended up downloading and building LLVM 3.5.1 from source and that worked. I used the same approach as on Windows - i.e., set ``CMAKE_INSTALL_PREFIX`` using ``cmake-gui`` to ``~/LLVM``. I then ran::
-
-  make install
+So I ended up downloading and building LLVM 3.5.1 from source and that worked. The approach is similar to that described for MAC OS X below.
 
 Building LLVM on MAC OS X
 -------------------------
 I am using Max OSX Yosemite. Pre-requisites are XCode 6.1 and CMake.
 Ensure cmake is on the path.
-Assuming that LLVM source has been extracted to ``/Users/name/llvm-3.6.0.src`` I follow these steps::
+Assuming that LLVM source has been extracted to ``$HOME/llvm-3.6.0.src`` I follow these steps::
 
   cd llvm-3.6.0.src
   mkdir build
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=/Users/name/LLVM ..
+  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/LLVM -DLLVM_TARGETS_TO_BUILD="X86" ..
   make install
 
 Building Ravi
 -------------
-I am developing Ravi using Visual Studio 2013 Community Edition on Windows 8.1 64bit and using gcc on Unbuntu 64-bit.
+I am developing Ravi using Visual Studio 2013 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X.
 
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
@@ -156,6 +160,14 @@ On Ubuntu I use::
   cd build
   cmake -DLLVM_DIR=~/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
   make
+
+On MAC OS X I use::
+
+  cd build
+  cmake -DLLVM_DIR=~/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
+  make
+
+I open the generated project in Xcode and do a build from there.
 
 Build Artifacts
 ---------------
@@ -172,11 +184,12 @@ Also see section above on available API for dumping either Lua bytecode or LLVM 
 Work Plan
 ---------
 * Feb-May 2015 - implement JIT compilation using LLVM 
-* June 2015 - first beta release
+* June-Sep 2015 - testing & and JIT compilation using libgccjit
+* Oct 2015 - beta release
 
 License
 -------
-Same as Lua.
+MIT License for LLVM version.
 
 Language Syntax
 ---------------
