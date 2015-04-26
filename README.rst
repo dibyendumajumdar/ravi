@@ -165,7 +165,6 @@ On MAC OS X I use::
 
   cd build
   cmake -DLLVM_DIR=~/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
-  make
 
 I open the generated project in Xcode and do a build from there.
 
