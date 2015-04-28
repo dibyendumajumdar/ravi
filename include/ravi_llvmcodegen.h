@@ -316,7 +316,7 @@ public:
 
   // Compile the function if not already compiled and
   // return pointer to function
-  virtual void *compile();
+  virtual void *compile(bool doDump = false);
 
   // Add declaration for an extern function that is not
   // loaded dynamically - i.e., is part of the the executable
@@ -331,6 +331,7 @@ public:
   virtual llvm::ExecutionEngine *engine() const { return engine_; }
   virtual RaviJITState *owner() const;
   virtual void dump();
+  virtual void dumpAssembly();
 };
 
 // Ravi's JIT State
@@ -359,10 +360,10 @@ class RAVI_API RaviJITStateImpl : public RaviJITState {
 
   // Size level (LLVM PassManagerBuilder)
   int size_level_;
-  
+
   // min code size for compilation
   int min_code_size_;
-  
+
   // min execution count for compilation
   int min_exec_count_;
 
@@ -401,10 +402,13 @@ public:
       size_level_ = value;
   }
   int get_mincodesize() const { return min_code_size_; }
-  void set_mincodesize(int value) { min_code_size_ = value > 0 ? value : min_code_size_; }
+  void set_mincodesize(int value) {
+    min_code_size_ = value > 0 ? value : min_code_size_;
+  }
   int get_minexeccount() const { return min_exec_count_; }
-  void set_minexeccount(int value) { min_exec_count_ = value > 0 ? value : min_exec_count_; }
-
+  void set_minexeccount(int value) {
+    min_exec_count_ = value > 0 ? value : min_exec_count_;
+  }
 };
 
 // To optimise fornum loops
@@ -525,7 +529,7 @@ public:
   // The p->ravi_jit structure will be updated
   // Note that if a function fails to compile then
   // a flag is set so that it doesn't get compiled again
-  void compile(lua_State *L, Proto *p);
+  void compile(lua_State *L, Proto *p, bool doDump = false, bool doVerify=true);
 
   // We can only compile a subset of op codes
   // and not all features are supported
@@ -548,19 +552,23 @@ public:
   void emit_extern_declarations(RaviFunctionDef *def);
 
   // Retrieve the proto->sizep
-  llvm::Instruction *emit_load_proto_sizep(RaviFunctionDef *def, llvm::Value *proto_ptr);
+  llvm::Instruction *emit_load_proto_sizep(RaviFunctionDef *def,
+                                           llvm::Value *proto_ptr);
 
-  // Store lua_Number or lua_Integer 
-  llvm::Instruction *emit_store_local_n(RaviFunctionDef *def, llvm::Value *src, llvm::Value *dest);
+  // Store lua_Number or lua_Integer
+  llvm::Instruction *emit_store_local_n(RaviFunctionDef *def, llvm::Value *src,
+                                        llvm::Value *dest);
 
   // Load lua_Number or lua_Integer
   llvm::Instruction *emit_load_local_n(RaviFunctionDef *def, llvm::Value *src);
 
-  // Store int 
-  llvm::Instruction *emit_store_local_int(RaviFunctionDef *def, llvm::Value *src, llvm::Value *dest);
+  // Store int
+  llvm::Instruction *emit_store_local_int(RaviFunctionDef *def,
+                                          llvm::Value *src, llvm::Value *dest);
 
   // Load int
-  llvm::Instruction *emit_load_local_int(RaviFunctionDef *def, llvm::Value *src);
+  llvm::Instruction *emit_load_local_int(RaviFunctionDef *def,
+                                         llvm::Value *src);
 
   // emit code for (LClosure *)ci->func->value_.gc
   llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,

@@ -684,7 +684,7 @@ RaviCodeGenerator::emit_gep_upval_value(RaviFunctionDef *def,
   return emit_gep(def, "value", pupval, 0, 2);
 }
 
-void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
+void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump, bool doVerify) {
   if (p->ravi_jit.jit_status != 0 || !canCompile(p))
     return;
 
@@ -1192,11 +1192,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p) {
     }
   }
 
-  if (llvm::verifyFunction(*f->function(), &llvm::errs()))
+  if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs()))
     abort();
   ravi::RaviJITFunctionImpl *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
-  p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile();
+  p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile(doDump);
   lua_assert(p->ravi_jit.jit_function);
   if (p->ravi_jit.jit_function == nullptr) {
     p->ravi_jit.jit_status = 1; // can't compile

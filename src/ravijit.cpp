@@ -135,16 +135,15 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
 #if LLVM_VERSION_MINOR > 5
   // LLVM 3.6.0 change
   std::unique_ptr<llvm::Module> module(module_);
-  engine_ = llvm::EngineBuilder(std::move(module))
-                .setEngineKind(llvm::EngineKind::JIT)
-                .setErrorStr(&errStr)
-                .create();
+  llvm::EngineBuilder builder(std::move(module));
+  builder.setEngineKind(llvm::EngineKind::JIT).setErrorStr(&errStr);
+  engine_ = builder.create();
 #else
-  engine_ = llvm::EngineBuilder(module_)
-                .setEngineKind(llvm::EngineKind::JIT)
-                .setUseMCJIT(true)
-                .setErrorStr(&errStr)
-                .create();
+  llvm::EngineBuilder builder(module_);
+  builder.setEngineKind(llvm::EngineKind::JIT)
+      .setUseMCJIT(true)
+      .setErrorStr(&errStr);
+  engine_ = builder.create();
 #endif
   if (!engine_) {
     fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
@@ -187,7 +186,7 @@ static void addMemorySanitizerPass(const llvm::PassManagerBuilder &Builder,
   }
 }
 
-void *RaviJITFunctionImpl::compile() {
+void *RaviJITFunctionImpl::compile(bool doDump) {
 
   // We use the PassManagerBuilder to setup optimization
   // passes - the PassManagerBuilder allows easy configuration of
@@ -246,6 +245,11 @@ void *RaviJITFunctionImpl::compile() {
   if (!function_ || !engine_)
     return NULL;
 
+  if (doDump) {
+    llvm::TargetMachine *TM = engine_->getTargetMachine();
+    TM->Options.PrintMachineCode = 1;
+  }
+
   // Upon creation, MCJIT holds a pointer to the Module object
   // that it received from EngineBuilder but it does not immediately
   // generate code for this module. Code generation is deferred
@@ -273,6 +277,31 @@ RaviJITFunctionImpl::addExternFunction(llvm::FunctionType *type, void *address,
 }
 
 void RaviJITFunctionImpl::dump() { module_->dump(); }
+
+// Dumps the machine code
+void RaviJITFunctionImpl::dumpAssembly() {
+  std::string codestr;
+  llvm::raw_string_ostream ostream(codestr);
+  llvm::formatted_raw_ostream formatted_stream(ostream);
+  llvm::TargetMachine *TM = engine_->getTargetMachine();
+  if (!TM) {
+    llvm::errs() << "unable to dump assembly\n";
+    return;
+  }
+  if (!ptr_)
+    module_->setDataLayout(engine_->getDataLayout());
+  llvm::legacy::PassManager pass;
+  if (TM->addPassesToEmitFile(pass, formatted_stream,
+                              llvm::TargetMachine::CGFT_AssemblyFile)) {
+    llvm::errs() << "unable to add passes for generating assemblyfile\n";
+    return;
+  }
+  pass.run(*module_);
+  formatted_stream.flush();
+  llvm::errs() << codestr << "\n";
+  llvm::errs()
+      << "Please note that this is not a disassembly of JITed function\n";
+}
 
 std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
   return std::unique_ptr<RaviJITState>(new RaviJITStateImpl());
@@ -322,7 +351,8 @@ void raviV_close(struct lua_State *L) {
 // Compilation occurs if either auto compilation is ON  or
 // a manual compilation request was made
 // Returns true if compilation was successful
-int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
+int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
+                  int dump) {
   if (p->ravi_jit.jit_status == 2)
     return true;
   global_State *G = G(L);
@@ -352,7 +382,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request) {
   }
 #endif
   if (doCompile)
-    G->ravi_state->code_generator->compile(L, p);
+    G->ravi_state->code_generator->compile(L, p, dump != 0);
   return p->ravi_jit.jit_status == 2;
 }
 
@@ -381,6 +411,16 @@ void raviV_dumpllvmir(struct lua_State *L, struct Proto *p) {
   }
 }
 
+// Dump the LLVM ASM
+void raviV_dumpllvmasm(struct lua_State *L, struct Proto *p) {
+  if (p->ravi_jit.jit_status == 2) /* compiled */ {
+    ravi::RaviJITFunction *f =
+        reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
+    if (f)
+      f->dumpAssembly();
+  }
+}
+
 // Test if the given function is compiled
 static int ravi_is_compiled(lua_State *L) {
   int n = lua_gettop(L);
@@ -396,12 +436,12 @@ static int ravi_is_compiled(lua_State *L) {
 // Try to JIT compile the given function
 static int ravi_compile(lua_State *L) {
   int n = lua_gettop(L);
-  luaL_argcheck(L, n == 1, 1, "1 argument expected");
+  luaL_argcheck(L, n >= 1, 1, "1 or 2 arguments expected");
   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
-  int result = raviV_compile(L, l->p, 1);
+  int result = raviV_compile(L, l->p, 1, (n == 2) ? lua_toboolean(L, 2) : 0);
   lua_pushboolean(L, result);
   return 1;
 }
@@ -426,6 +466,19 @@ static int ravi_dump_llvmir(lua_State *L) {
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
   raviV_dumpllvmir(L, l->p);
+  return 0;
+}
+
+// Dump LLVM ASM of the supplied function
+// if it has been compiled
+static int ravi_dump_llvmasm(lua_State *L) {
+  int n = lua_gettop(L);
+  luaL_argcheck(L, n == 1, 1, "1 argument expected");
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
+                "argument must be a Lua function");
+  void *p = (void *)lua_topointer(L, 1);
+  LClosure *l = (LClosure *)p;
+  raviV_dumpllvmasm(L, l->p);
   return 0;
 }
 
@@ -510,6 +563,7 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"compile", ravi_compile},
                                    {"dumplua", ravi_dump_luacode},
                                    {"dumpllvm", ravi_dump_llvmir},
+                                   {"dumpllvmasm", ravi_dump_llvmasm},
                                    {"auto", ravi_auto},
                                    {"jit", ravi_jitenable},
                                    {"optlevel", ravi_optlevel},

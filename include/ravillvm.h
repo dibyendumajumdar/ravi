@@ -52,6 +52,7 @@
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Support/FormattedStream.h"
 
 #include <cstdio>
 #include <string>
@@ -84,7 +85,7 @@ public:
 
   // Compile the function if not already compiled and
   // return pointer to function
-  virtual void *compile() = 0;
+  virtual void *compile(bool doDump = false) = 0;
 
   // Add declaration for an extern function that is not
   // loaded dynamically - i.e., is part of the the executable
@@ -98,6 +99,7 @@ public:
   virtual llvm::ExecutionEngine *engine() const = 0;
   virtual RaviJITState *owner() const = 0;
   virtual void dump() = 0;
+  virtual void dumpAssembly() = 0;
 
 protected:
   RaviJITFunction() {}
