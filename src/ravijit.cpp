@@ -162,6 +162,8 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
     delete module_;
 }
 
+#if 0
+// TODO
 // Following two functions based upon similar in Clang
 static void addAddressSanitizerPasses(const llvm::PassManagerBuilder &Builder,
                                       llvm::PassManagerBase &PM) {
@@ -185,6 +187,7 @@ static void addMemorySanitizerPass(const llvm::PassManagerBuilder &Builder,
     PM.add(llvm::createDeadStoreEliminationPass());
   }
 }
+#endif
 
 void *RaviJITFunctionImpl::compile(bool doDump) {
 
@@ -196,7 +199,9 @@ void *RaviJITFunctionImpl::compile(bool doDump) {
   pmb.SizeLevel = owner_->get_sizelevel();
 
 #if 0
-  // TODO following appears to require linking to some
+  // TODO - we want to allow instrumentation of JITed code
+  // TODO - it should be controlled via a flag
+  // Note that following appears to require linking to some
   // additional LLVM libraries
   pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
                    addAddressSanitizerPasses);
@@ -245,6 +250,8 @@ void *RaviJITFunctionImpl::compile(bool doDump) {
   if (!function_ || !engine_)
     return NULL;
 
+  // Following will generate very verbose dump when machine code is
+  // produced below
   if (doDump) {
     llvm::TargetMachine *TM = engine_->getTargetMachine();
     TM->Options.PrintMachineCode = 1;
@@ -279,6 +286,9 @@ RaviJITFunctionImpl::addExternFunction(llvm::FunctionType *type, void *address,
 void RaviJITFunctionImpl::dump() { module_->dump(); }
 
 // Dumps the machine code
+// I am not completely sure but it seems that this
+// approach regenerates the code and therefore does not
+// use the optimization passes in the main compilation process
 void RaviJITFunctionImpl::dumpAssembly() {
   std::string codestr;
   llvm::raw_string_ostream ostream(codestr);
