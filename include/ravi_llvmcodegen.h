@@ -332,6 +332,7 @@ public:
   virtual RaviJITState *owner() const;
   virtual void dump();
   virtual void dumpAssembly();
+  void runpasses(bool dumpAsm = false);
 };
 
 // Ravi's JIT State

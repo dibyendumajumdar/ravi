@@ -188,68 +188,96 @@ static void addMemorySanitizerPass(const llvm::PassManagerBuilder &Builder,
   }
 }
 #endif
+  
+  void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
+    // We use the PassManagerBuilder to setup optimization
+    // passes - the PassManagerBuilder allows easy configuration of
+    // typical C/C++ passes corresponding to O0, O1, O2, and O3 compiler options
+    llvm::PassManagerBuilder pmb;
+    pmb.OptLevel = owner_->get_optlevel();
+    pmb.SizeLevel = owner_->get_sizelevel();
+    
+#if 0
+    // TODO - we want to allow instrumentation of JITed code
+    // TODO - it should be controlled via a flag
+    // Note that following appears to require linking to some
+    // additional LLVM libraries
+    pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
+                     addAddressSanitizerPasses);
+    pmb.addExtension(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+                     addAddressSanitizerPasses);
+    pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
+                     addMemorySanitizerPass);
+    pmb.addExtension(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+                     addMemorySanitizerPass);
+#endif
+    {
+      // Create a function pass manager for this engine
+      std::unique_ptr<llvm::FunctionPassManager> FPM(
+                                                     new llvm::FunctionPassManager(module_));
+      
+      // Set up the optimizer pipeline.  Start with registering info about how the
+      // target lays out data structures.
+#if LLVM_VERSION_MINOR > 5
+      // LLVM 3.6.0 change
+      module_->setDataLayout(engine_->getDataLayout());
+      FPM->add(new llvm::DataLayoutPass());
+#else
+      // LLVM 3.5.0
+      auto target_layout = engine_->getTargetMachine()->getDataLayout();
+      module_->setDataLayout(target_layout);
+      FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
+#endif
+      pmb.populateFunctionPassManager(*FPM);
+      FPM->doInitialization();
+      FPM->run(*function_);
+    }
+    
+    {
+      std::unique_ptr<llvm::PassManager> MPM(new llvm::PassManager());
+#if LLVM_VERSION_MINOR > 5
+      MPM->add(new llvm::DataLayoutPass());
+#else
+      MPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
+#endif
+      pmb.populateModulePassManager(*MPM);
+      
+      std::string codestr;
+      llvm::raw_string_ostream ostream(codestr);
+      llvm::formatted_raw_ostream formatted_stream(ostream);
+      
+      for (int i = 0; dumpAsm && i < 1; i++) {
+        llvm::TargetMachine *TM = engine_->getTargetMachine();
+        if (!TM) {
+          llvm::errs() << "unable to dump assembly\n";
+          break;
+        }
+        if (TM->addPassesToEmitFile(*MPM, formatted_stream,
+                                    llvm::TargetMachine::CGFT_AssemblyFile)) {
+          llvm::errs() << "unable to add passes for generating assemblyfile\n";
+          break;
+        }
+      }
+      
+      MPM->run(*module_);
+      
+      formatted_stream.flush();
+      if (dumpAsm && codestr.length() > 0)
+        llvm::errs() << codestr << "\n";
+    }
+  }
 
 void *RaviJITFunctionImpl::compile(bool doDump) {
-
-  // We use the PassManagerBuilder to setup optimization
-  // passes - the PassManagerBuilder allows easy configuration of
-  // typical C/C++ passes corresponding to O0, O1, O2, and O3 compiler options
-  llvm::PassManagerBuilder pmb;
-  pmb.OptLevel = owner_->get_optlevel();
-  pmb.SizeLevel = owner_->get_sizelevel();
-
-#if 0
-  // TODO - we want to allow instrumentation of JITed code
-  // TODO - it should be controlled via a flag
-  // Note that following appears to require linking to some
-  // additional LLVM libraries
-  pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
-                   addAddressSanitizerPasses);
-  pmb.addExtension(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                   addAddressSanitizerPasses);
-  pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
-                   addMemorySanitizerPass);
-  pmb.addExtension(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                   addMemorySanitizerPass);
-#endif
-  {
-    // Create a function pass manager for this engine
-    std::unique_ptr<llvm::FunctionPassManager> FPM(
-        new llvm::FunctionPassManager(module_));
-
-// Set up the optimizer pipeline.  Start with registering info about how the
-// target lays out data structures.
-#if LLVM_VERSION_MINOR > 5
-    // LLVM 3.6.0 change
-    module_->setDataLayout(engine_->getDataLayout());
-    FPM->add(new llvm::DataLayoutPass());
-#else
-    // LLVM 3.5.0
-    auto target_layout = engine_->getTargetMachine()->getDataLayout();
-    module_->setDataLayout(target_layout);
-    FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
-#endif
-    pmb.populateFunctionPassManager(*FPM);
-    FPM->doInitialization();
-    FPM->run(*function_);
-  }
-
-  {
-    std::unique_ptr<llvm::PassManager> MPM(new llvm::PassManager());
-#if LLVM_VERSION_MINOR > 5
-    MPM->add(new llvm::DataLayoutPass());
-#else
-    MPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
-#endif
-    pmb.populateModulePassManager(*MPM);
-    MPM->run(*module_);
-  }
-
   if (ptr_)
+    // Already compiled
     return ptr_;
+  
   if (!function_ || !engine_)
+    // Invalid - something went wrong
     return NULL;
 
+  runpasses();
+  
   // Following will generate very verbose dump when machine code is
   // produced below
   if (doDump) {
@@ -290,27 +318,7 @@ void RaviJITFunctionImpl::dump() { module_->dump(); }
 // approach regenerates the code and therefore does not
 // use the optimization passes in the main compilation process
 void RaviJITFunctionImpl::dumpAssembly() {
-  std::string codestr;
-  llvm::raw_string_ostream ostream(codestr);
-  llvm::formatted_raw_ostream formatted_stream(ostream);
-  llvm::TargetMachine *TM = engine_->getTargetMachine();
-  if (!TM) {
-    llvm::errs() << "unable to dump assembly\n";
-    return;
-  }
-  if (!ptr_)
-    module_->setDataLayout(engine_->getDataLayout());
-  llvm::legacy::PassManager pass;
-  if (TM->addPassesToEmitFile(pass, formatted_stream,
-                              llvm::TargetMachine::CGFT_AssemblyFile)) {
-    llvm::errs() << "unable to add passes for generating assemblyfile\n";
-    return;
-  }
-  pass.run(*module_);
-  formatted_stream.flush();
-  llvm::errs() << codestr << "\n";
-  llvm::errs()
-      << "Please note that this is not a disassembly of JITed function\n";
+  runpasses(true);
 }
 
 std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
