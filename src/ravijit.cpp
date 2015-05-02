@@ -30,7 +30,7 @@
 
 namespace ravi {
 
-// This is just to avoid initailizing LLVM repeatedly -
+// This is just to avoid initializing LLVM repeatedly -
 // see below
 static std::atomic_int init;
 
@@ -51,7 +51,7 @@ RaviJITStateImpl::RaviJITStateImpl()
     init++;
   }
   triple_ = llvm::sys::getProcessTriple();
-#ifdef _WIN32
+#if defined(_WIN32) && LLVM_VERSION_MINOR < 7
   // On Windows we get compilation error saying incompatible object format
   // Reading posts on mailing lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set -elf as the object
@@ -108,9 +108,9 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
   // module per function
   std::string moduleName = "ravi_module_" + name;
   module_ = new llvm::Module(moduleName, owner->context());
-#if defined(_WIN32)
+#if defined(_WIN32) && LLVM_VERSION_MINOR < 7
   // On Windows we get error saying incompatible object format
-  // Reading posts on mailining lists I found that the issue is that COEFF
+  // Reading posts on mailing lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set
   // -elf as the object format
   module_->setTargetTriple(owner->triple());
@@ -190,9 +190,21 @@ static void addMemorySanitizerPass(const llvm::PassManagerBuilder &Builder,
 #endif
 
 void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
+
+#if LLVM_VERSION_MINOR == 7
+  using llvm::legacy::FunctionPassManager;
+  using llvm::legacy::PassManager;
+#else
+  using llvm::FunctionPassManager;
+  using llvm::PassManager;
+#endif
+
   // We use the PassManagerBuilder to setup optimization
   // passes - the PassManagerBuilder allows easy configuration of
   // typical C/C++ passes corresponding to O0, O1, O2, and O3 compiler options
+  // If dumpAsm is true then the generated assembly code will be
+  // dumped to stderr
+
   llvm::PassManagerBuilder pmb;
   pmb.OptLevel = owner_->get_optlevel();
   pmb.SizeLevel = owner_->get_sizelevel();
@@ -213,38 +225,50 @@ void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
 #endif
   {
     // Create a function pass manager for this engine
-    std::unique_ptr<llvm::FunctionPassManager> FPM(
-        new llvm::FunctionPassManager(module_));
+    std::unique_ptr<FunctionPassManager> FPM(new FunctionPassManager(module_));
 
 // Set up the optimizer pipeline.  Start with registering info about how the
 // target lays out data structures.
-#if LLVM_VERSION_MINOR > 5
+#if LLVM_VERSION_MINOR == 6
     // LLVM 3.6.0 change
     module_->setDataLayout(engine_->getDataLayout());
     FPM->add(new llvm::DataLayoutPass());
-#else
+#elif LLVM_VERSION_MINOR == 5
     // LLVM 3.5.0
     auto target_layout = engine_->getTargetMachine()->getDataLayout();
     module_->setDataLayout(target_layout);
     FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
+#elif LLVM_VERSION_MINOR == 7
+#else
+#error Unsupported LLVM version
 #endif
     pmb.populateFunctionPassManager(*FPM);
     FPM->doInitialization();
     FPM->run(*function_);
   }
 
+  std::string codestr;
   {
-    std::unique_ptr<llvm::PassManager> MPM(new llvm::PassManager());
-#if LLVM_VERSION_MINOR > 5
-    MPM->add(new llvm::DataLayoutPass());
+    // In LLVM 3.7 for some reason the string is not saved
+    // until the stream is destroyed - even though there is a
+    // flush; so we introduce a scope here to ensure destruction
+    // of the stream
+    llvm::raw_string_ostream ostream(codestr);
+#if LLVM_VERSION_MINOR < 7
+    llvm::formatted_raw_ostream formatted_stream(ostream);
 #else
+    llvm::buffer_ostream formatted_stream(ostream);
+#endif
+
+    // Also in 3.7 the pass manager seems to hold on to the stream
+    // so we need to ensure that the stream outlives the pass manager
+    std::unique_ptr<PassManager> MPM(new PassManager());
+#if LLVM_VERSION_MINOR == 6
+    MPM->add(new llvm::DataLayoutPass());
+#elif LLVM_VERSION_MINOR == 5
     MPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
 #endif
     pmb.populateModulePassManager(*MPM);
-
-    std::string codestr;
-    llvm::raw_string_ostream ostream(codestr);
-    llvm::formatted_raw_ostream formatted_stream(ostream);
 
     for (int i = 0; dumpAsm && i < 1; i++) {
       llvm::TargetMachine *TM = engine_->getTargetMachine();
@@ -258,13 +282,13 @@ void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
         break;
       }
     }
-
     MPM->run(*module_);
 
+    // Note that in 3.7 this flus appears to have no effect
     formatted_stream.flush();
-    if (dumpAsm && codestr.length() > 0)
-      llvm::errs() << codestr << "\n";
   }
+  if (dumpAsm && codestr.length() > 0)
+    llvm::errs() << codestr << "\n";
 }
 
 void *RaviJITFunctionImpl::compile(bool doDump) {
@@ -364,8 +388,8 @@ void raviV_close(struct lua_State *L) {
 
 // Compile a Lua function
 // If JIT is turned off then compilation is skipped
-// Compilation occurs if either auto compilation is ON  or
-// a manual compilation request was made
+// Compilation occurs if either auto compilation is ON (subject to some thresholds) 
+// or if a manual compilation request was made
 // Returns true if compilation was successful
 int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
                   int dump) {
@@ -377,26 +401,19 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   if (!G->ravi_state->jit->is_enabled()) {
     return 0;
   }
-#if 0
-  // For some reason on Windows we sometimes get
-  // an exception in luaD_throw() when JIT compilation
-  // is ON.
-  bool doCompile = (G->ravi_state->jit->is_auto() || (bool)manual_request);
-#else
   bool doCompile = (bool)manual_request;
   if (!doCompile && G->ravi_state->jit->is_auto()) {
-    if (p->ravi_jit.jit_flags != 0) /* loop */
+    if (p->ravi_jit.jit_flags != 0) /* function has fornum loop, so compile */
       doCompile = true;
-    else if (p->sizecode > G->ravi_state->jit->get_mincodesize())
+    else if (p->sizecode > G->ravi_state->jit->get_mincodesize()) /* function is long so compile */
       doCompile = true;
     else {
-      if (p->ravi_jit.execution_count < G->ravi_state->jit->get_minexeccount())
+      if (p->ravi_jit.execution_count < G->ravi_state->jit->get_minexeccount()) /* function has been executed many times so compile */
         p->ravi_jit.execution_count++;
       else
         doCompile = true;
     }
   }
-#endif
   if (doCompile)
     G->ravi_state->code_generator->compile(L, p, dump != 0);
   return p->ravi_jit.jit_status == 2;
@@ -450,6 +467,8 @@ static int ravi_is_compiled(lua_State *L) {
 }
 
 // Try to JIT compile the given function
+// Optional boolean (second) parameter specifies whether
+// to dump the code generation 
 static int ravi_compile(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n >= 1, 1, "1 or 2 arguments expected");
@@ -457,7 +476,11 @@ static int ravi_compile(lua_State *L) {
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = (LClosure *)p;
-  int result = raviV_compile(L, l->p, 1, (n == 2) ? lua_toboolean(L, 2) : 0);
+  int manualRequest = 1; 
+  // Is there a second boolean parameter requesting
+  // dump of code generation?
+  int dumpAsm = (n == 2) ? lua_toboolean(L, 2) : 0;
+  int result = raviV_compile(L, l->p, manualRequest, dumpAsm);
   lua_pushboolean(L, result);
   return 1;
 }

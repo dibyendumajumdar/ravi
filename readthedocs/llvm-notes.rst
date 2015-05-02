@@ -73,8 +73,11 @@ Then as I intend to use the ``u.l`` field more often, I used the following defin
 
 JIT Compilation Error on Windows
 --------------------------------
+Note: The latest LLVM version from LLVM source repository appears to support COEFF format. So below
+applies to version 3.6.x and 3.5.x.
+
 On Windows when we attempt to JIT compile we get an error saying incompatible object format
-Reading posts on mailining lists I found that the issue is that COEFF
+Reading posts on mailing lists I found that the issue is that COEFF
 format is not supported and therefore we need to set -elf as the object
 format::
 
@@ -152,42 +155,6 @@ Hooking up Optimization Passes
 The LLVM documentation does not provide guidance on how the optimization passes should be hooked up. There are descriptions of what the passes do, but if you are new to LLVM and trying to work out which passes to use and in what order, then there is not much help available. The `Kaleidoscope Sample <http://www.llvm.org/docs/tutorial/LangImpl4.html>`_ shows a small example of how optimization passes may be hooked up. 
 
 Fortunately it seems that there is a `PassManagerBuilder <http://llvm.org/docs/doxygen/html/classllvm_1_1PassManagerBuilder.html>`_ component that allows easy setup of the standard passes for a C like language. Unfortunately there isn't much guidance on how to use this either. The best source of information I found was an example toy compiler by `David Chisnall <http://cs.swan.ac.uk/~csdavec/FOSDEM12/compiler.cc.html>`_. 
-
-In Ravi each function is kept in its own llvm Module. The way I setup the optimization passes is shown below::
-
-  // Create a function pass manager for this engine
-  llvm::FunctionPassManager *FPM = new llvm::FunctionPassManager(module_);
-
-  // Set up the optimizer pipeline.  Start with registering info about how the
-  // target lays out data structures.
-  #if LLVM_VERSION_MINOR > 5
-  
-  // LLVM 3.6.0 change
-  module_->setDataLayout(engine_->getDataLayout());
-  FPM->add(new llvm::DataLayoutPass());
-  
-  #else
-  
-  auto target_layout = engine_->getTargetMachine()->getDataLayout();
-  module_->setDataLayout(target_layout);
-  FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
-  
-  #endif
-  
-  llvm::PassManagerBuilder pmb;
-  pmb.OptLevel = 3;
-  pmb.SizeLevel = 0;
-  
-  pmb.populateFunctionPassManager(*FPM);
-  FPM->doInitialization();
-  FPM->run(*function_);
-  delete FPM;
-
-  llvm::PassManager *MPM = new llvm::PassManager();
-  pmb.populateModulePassManager(*MPM);
-  MPM->run(*module_);
-  delete MPM;
-
 
 Links
 -----

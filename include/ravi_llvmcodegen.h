@@ -530,7 +530,8 @@ public:
   // The p->ravi_jit structure will be updated
   // Note that if a function fails to compile then
   // a flag is set so that it doesn't get compiled again
-  void compile(lua_State *L, Proto *p, bool doDump = false, bool doVerify=true);
+  void compile(lua_State *L, Proto *p, bool doDump = false,
+               bool doVerify = true);
 
   // We can only compile a subset of op codes
   // and not all features are supported
