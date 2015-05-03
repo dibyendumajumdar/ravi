@@ -20,7 +20,7 @@ Status
 ------
 The project was kicked off in January 2015. 
 
-Right now (as of April 2015) I am working on the JIT implementation. Please see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_ for details of this effort. The Lua and Ravi bytecodes currently implemented are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
+Right now (as of May 2015) I am working on the JIT implementation. Please see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_ for details of this effort. The Lua and Ravi bytecodes currently implemented are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
 As of end Jan 2015, the Ravi interpreter allows you to declare local variables as ``integer`` or ``number``. This triggers following behaviour:
 
@@ -86,6 +86,7 @@ A JIT api is available with following functions:
 * ``ravi.iscompiled(func)`` - returns the JIT status of a function
 * ``ravi.dumplua(func)`` - dumps the Lua bytecode of the function
 * ``ravi.dumpllvm(func)`` - dumps the LLVM IR of the compiled function (only if function was compiled)
+* ``ravi.dumpllvmasm(func)`` - dumps the machine code using the currently set optimization level (only if function was compiled)
 * ``ravi.optlevel([n])`` - sets LLVM optimization level (0, 1, 2, 3); defaults to 2
 * ``ravi.sizelevel([n])`` - sets LLVM size level (0, 1, 2); defaults to 0
 
@@ -93,7 +94,7 @@ Compatibility with Lua
 ----------------------
 Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT compilation is enabled some things will not work:
 
-* You cannot yield from a compiled function as compiled code does not support coroutines (issue 14); since coroutines do not work in JITed code, as a workaround Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
+* You cannot yield from a compiled function as compiled code does not support coroutines (issue 14); as a workaround Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
 * The debugger will not provide certain information when JIT compilation is turned on as information it requires is not available; the debugger also does not support Ravi's extended opcodes (issue 15)
 * Functions using bit-wise operations cannot be JIT compiled as yet (issue 27)
 * Ravi supports optional typing and enhanced types such as arrays (described later). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions - there are some restrictions on arrays that are described in a later section. Values crossing from Lua to Ravi may be subjected to typechecks.
@@ -111,15 +112,15 @@ Build Dependencies
 ------------------
 
 * CMake
-* LLVM 3.6.0
+* LLVM 3.5.1, 3.6 or 3.7
 
-The build is CMake based. As of Feb 2015 LLVM is a dependency. Both LLVM 3.5.1 and 3.6.0 should work.
+The build is CMake based. As of Feb 2015 LLVM is a dependency. LLVM 3.5.1, 3.6.0 and 3.7 should work.
 
 Building LLVM on Windows
 ------------------------
-I built LLVM 3.6.0 from source. I used the following sequence from the VS2013 command window::
+I built LLVM 3.7.0 from source. I used the following sequence from the VS2013 command window::
 
-  cd \llvm-3.6.0.src
+  cd \github\llvm
   mkdir build
   cd build
   cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 12 Win64" ..  
