@@ -36,6 +36,10 @@ static std::atomic_int init;
 
 RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
 
+// Construct the JIT compiler state
+// The JIT compiler state will be attached to the
+// lua_State - all compilation activity happens
+// in the context of the JIT State
 RaviJITStateImpl::RaviJITStateImpl()
     : context_(llvm::getGlobalContext()), auto_(false), enabled_(true),
       opt_level_(2), size_level_(0), min_code_size_(150), min_exec_count_(50) {
@@ -55,12 +59,14 @@ RaviJITStateImpl::RaviJITStateImpl()
   // On Windows we get compilation error saying incompatible object format
   // Reading posts on mailing lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set -elf as the object
-  // format
+  // format; LLVM 3.7 onwards COEFF is supported
   triple_ += "-elf";
 #endif
   types_ = new LuaLLVMTypes(context_);
 }
 
+// Destroy the JIT state freeing up any
+// functions that were compiled
 RaviJITStateImpl::~RaviJITStateImpl() {
   std::vector<RaviJITFunction *> todelete;
   for (auto f = std::begin(functions_); f != std::end(functions_); f++) {
@@ -84,6 +90,9 @@ void RaviJITStateImpl::dump() {
   }
 }
 
+// Allocate a JIT Function of specified type
+// and linkage - note at this stage the function has no
+// implementation
 RaviJITFunction *
 RaviJITStateImpl::createFunction(llvm::FunctionType *type,
                                  llvm::GlobalValue::LinkageTypes linkage,
@@ -93,6 +102,8 @@ RaviJITStateImpl::createFunction(llvm::FunctionType *type,
   return f;
 }
 
+// Unregister a function - to be used when a function is
+// destroyed by the Lua garbage collector
 void RaviJITStateImpl::deleteFunction(const std::string &name) {
   functions_.erase(name);
   // This is called when RaviJITFunction is deleted
@@ -112,7 +123,7 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
   // On Windows we get error saying incompatible object format
   // Reading posts on mailing lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set
-  // -elf as the object format
+  // -elf as the object format; LLVM 3.7 onwards COEFF is supported
   module_->setTargetTriple(owner->triple());
 #endif
 
@@ -131,20 +142,19 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
 //   llvm::AttributeSet::get(owner_->context(),
 //                         llvm::AttributeSet::FunctionIndex, attr));
 #endif
-  std::string errStr;
+
 #if LLVM_VERSION_MINOR > 5
   // LLVM 3.6.0 change
   std::unique_ptr<llvm::Module> module(module_);
   llvm::EngineBuilder builder(std::move(module));
-  builder.setEngineKind(llvm::EngineKind::JIT).setErrorStr(&errStr);
-  engine_ = builder.create();
 #else
   llvm::EngineBuilder builder(module_);
-  builder.setEngineKind(llvm::EngineKind::JIT)
-      .setUseMCJIT(true)
-      .setErrorStr(&errStr);
-  engine_ = builder.create();
+  builder.setUseMCJIT(true);
 #endif
+  builder.setEngineKind(llvm::EngineKind::JIT);
+  std::string errStr;
+  builder.setErrorStr(&errStr);
+  engine_ = builder.create();
   if (!engine_) {
     fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
     return;
@@ -239,6 +249,7 @@ void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
     module_->setDataLayout(target_layout);
     FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
 #elif LLVM_VERSION_MINOR == 7
+    // Apparently no need to set DataLayout
 #else
 #error Unsupported LLVM version
 #endif
@@ -338,9 +349,10 @@ RaviJITFunctionImpl::addExternFunction(llvm::FunctionType *type, void *address,
 void RaviJITFunctionImpl::dump() { module_->dump(); }
 
 // Dumps the machine code
-// I am not completely sure but it seems that this
-// approach regenerates the code and therefore does not
-// use the optimization passes in the main compilation process
+// Will execute the passes as required by currently set
+// optimzation level; this may or may not match the actual
+// JITed code which would have used the optimzation level set at the
+// time of compilation
 void RaviJITFunctionImpl::dumpAssembly() { runpasses(true); }
 
 std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
@@ -360,7 +372,7 @@ struct ravi_State {
   ravi::RaviCodeGenerator *code_generator;
 };
 
-// Initialize the JIT State and attach is to the
+// Initialize the JIT State and attach it to the
 // Global Lua State
 // If a JIT State already exists then this function
 // will return -1
@@ -461,7 +473,7 @@ static int ravi_is_compiled(lua_State *L) {
   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
-  LClosure *l = (LClosure *)p;
+  LClosure *l = reinterpret_cast<LClosure *>(p);
   lua_pushboolean(L, l->p->ravi_jit.jit_status == 2);
   return 1;
 }
@@ -475,7 +487,7 @@ static int ravi_compile(lua_State *L) {
   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
-  LClosure *l = (LClosure *)p;
+  LClosure *l = reinterpret_cast<LClosure *>(p);
   int manualRequest = 1; 
   // Is there a second boolean parameter requesting
   // dump of code generation?
@@ -503,7 +515,7 @@ static int ravi_dump_llvmir(lua_State *L) {
   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
-  LClosure *l = (LClosure *)p;
+  LClosure *l = reinterpret_cast<LClosure *>(p);
   raviV_dumpllvmir(L, l->p);
   return 0;
 }
@@ -516,7 +528,7 @@ static int ravi_dump_llvmasm(lua_State *L) {
   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
-  LClosure *l = (LClosure *)p;
+  LClosure *l = reinterpret_cast<LClosure *>(p);
   raviV_dumpllvmasm(L, l->p);
   return 0;
 }
