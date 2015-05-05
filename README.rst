@@ -75,20 +75,31 @@ I am currently working on JIT compilation of Ravi using LLVM. As of now all byte
 
 There are two modes of JIT compilation.
 
-* auto mode - in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - any Lua function call is checked to see if the bytecodes contained in it can be compiled. If this is true then the function is compiled provided a) function has a fornum loop, b) it is largish (greater than 150 bytecodes) or c) it is being executed many times (> 50). Because of the simplistic behaviour performance the benefit of JIT compilation is only available if the JIT compiled functions will be executed many times so that the cost of JIT compilation can be amortized.
-* manual mode - in this mode user must explicitly request compilation. This is the default mode. This mode is suitable for library developers who can pre compile the functions in library module table.
+auto mode
+  in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - any Lua function call is checked to see if the bytecodes contained in it can be compiled. If this is true then the function is compiled provided either a) function has a fornum loop, or b) it is largish (greater than 150 bytecodes) or c) it is being executed many times (> 50). Because of the simplistic behaviour performance the benefit of JIT compilation is only available if the JIT compiled functions will be executed many times so that the cost of JIT compilation can be amortized.
+manual mode
+  in this mode user must explicitly request compilation. This is the default mode. This mode is suitable for library developers who can pre compile the functions in library module table.
 
 A JIT api is available with following functions:
 
-* ``ravi.jit([b])`` - returns enabled setting of JIT compiler; also enables/disables the JIT compiler; defaults to true
-* ``ravi.auto([b [, min_size [, min_executions]]])`` - returns setting of auto compilation and compilation thresholds; also sets the new settings if values are supplied; defaults are false, 150, 50.
-* ``ravi.compile(func)`` - compiles a Lua function if possible, returns ``true`` if compilation was successful
-* ``ravi.iscompiled(func)`` - returns the JIT status of a function
-* ``ravi.dumplua(func)`` - dumps the Lua bytecode of the function
-* ``ravi.dumpllvm(func)`` - dumps the LLVM IR of the compiled function (only if function was compiled)
-* ``ravi.dumpllvmasm(func)`` - dumps the machine code using the currently set optimization level (only if function was compiled)
-* ``ravi.optlevel([n])`` - sets LLVM optimization level (0, 1, 2, 3); defaults to 2
-* ``ravi.sizelevel([n])`` - sets LLVM size level (0, 1, 2); defaults to 0
+``ravi.jit([b])``
+  returns enabled setting of JIT compiler; also enables/disables the JIT compiler; defaults to true
+``ravi.auto([b [, min_size [, min_executions]]])``
+  returns setting of auto compilation and compilation thresholds; also sets the new settings if values are supplied; defaults are false, 150, 50.
+``ravi.compile(func)``
+  compiles a Lua function if possible, returns ``true`` if compilation was successful
+``ravi.iscompiled(func)``
+  returns the JIT status of a function
+``ravi.dumplua(func)``
+  dumps the Lua bytecode of the function
+``ravi.dumpllvm(func)``
+  dumps the LLVM IR of the compiled function (only if function was compiled)
+``ravi.dumpllvmasm(func)``
+  dumps the machine code using the currently set optimization level (only if function was compiled)
+``ravi.optlevel([n])``
+  sets LLVM optimization level (0, 1, 2, 3); defaults to 2
+``ravi.sizelevel([n])``
+  sets LLVM size level (0, 1, 2); defaults to 0
 
 Compatibility with Lua
 ----------------------
@@ -175,9 +186,12 @@ The Ravi build creates a shared library, the Lua executable and some test progra
 
 The ``lua`` command recognizes following environment variables. Note that these are only for internal debugging purposes.
 
-* ``RAVI_DEBUG_EXPR`` - if set to a value this triggers debug output of expression parsing
-* ``RAVI_DEBUG_CODEGEN`` - if set to a value this triggers a dump of the code being generated
-* ``RAVI_DEBUG_VARS`` - if set this triggers a dump of local variables construction and destruction
+``RAVI_DEBUG_EXPR``
+  if set to a value this triggers debug output of expression parsing
+``RAVI_DEBUG_CODEGEN``
+  if set to a value this triggers a dump of the code being generated
+``RAVI_DEBUG_VARS``
+  if set this triggers a dump of local variables construction and destruction
 
 Also see section above on available API for dumping either Lua bytecode or LLVM IR for compiled code.
 
