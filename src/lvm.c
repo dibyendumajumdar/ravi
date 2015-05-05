@@ -1180,7 +1180,7 @@ newframe:  /* reentry point when frame changes (call/return) */
           int i = last-n+1;
           for (; i <= (int)last; i++) {
             TValue *val = ra + i;
-            lua_Unsigned u = (lua_Unsigned)(i);
+            unsigned int u = (unsigned int)(i);
             switch (h->ravi_array.array_type) {
             case RAVI_TARRAYINT: {
               if (ttisinteger(val))
@@ -1640,7 +1640,7 @@ void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
     int i = last - n + 1;
     for (; i <= (int)last; i++) {
       TValue *val = ra + i;
-      lua_Unsigned u = (lua_Unsigned)(i);
+      unsigned int u = (unsigned int)(i);
       switch (h->ravi_array.array_type) {
       case RAVI_TARRAYINT: {
         if (ttisinteger(val))

@@ -729,7 +729,7 @@
 */
 
 
-#if _WIN32
+#if _WIN32 && _MSC_VER < 1900
 #define snprintf _snprintf
 #endif
 
