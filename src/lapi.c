@@ -742,6 +742,17 @@ LUA_API void lua_createtable (lua_State *L, int narray, int nrec) {
   lua_unlock(L);
 }
 
+LUA_API void ravi_createintegerarray(lua_State *L, int narray, lua_Integer initial_value) {
+  lua_assert(0);
+}
+
+LUA_API void ravi_createnumberarray(lua_State *L, int narray, lua_Number initial_value) {
+  lua_assert(0);
+}
+
+LUA_API void ravi_createslice(lua_State *L, int idx, unsigned int start, unsigned int len) {
+  lua_assert(0);
+}
 
 LUA_API int lua_getmetatable (lua_State *L, int objindex) {
   const TValue *obj;
