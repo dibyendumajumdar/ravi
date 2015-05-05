@@ -514,11 +514,18 @@ typedef struct Node {
   TKey i_key;
 } Node;
 
+typedef enum RaviArrayModifer {
+  RAVI_ARRAY_SLICE = 1,
+  RAVI_ARRAY_MATRIX = 2
+} RaviArrayModifier;
+
+
 typedef struct RaviArray {
   char *data;
-  ravitype_t type; /* RAVI specialization */
   unsigned int len; /* RAVI len specialization */
   unsigned int size; /* amount of memory allocated */
+  lu_byte array_type; /* RAVI specialization */
+  lu_byte array_modifier; /* Flags that affect how the array is handled */
 } RaviArray;
 
 typedef struct Table {

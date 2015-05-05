@@ -394,7 +394,7 @@ LUA_API size_t lua_rawlen (lua_State *L, int idx) {
     case LUA_TUSERDATA: return uvalue(o)->len;
     case LUA_TTABLE: {
       Table *h = hvalue(o);
-      switch (h->ravi_array.type) {
+      switch (h->ravi_array.array_type) {
       case RAVI_TTABLE: return luaH_getn(h);
       default: return raviH_getn(h);
       }
@@ -637,7 +637,7 @@ LUA_API int lua_rawget (lua_State *L, int idx) {
   t = index2addr(L, idx);
   api_check(ttistable(t), "table expected");
   h = hvalue(t);
-  switch (h->ravi_array.type) {
+  switch (h->ravi_array.array_type) {
   case RAVI_TTABLE: {
     setobj2s(L, L->top - 1, luaH_get(hvalue(t), L->top - 1));
   } break;
@@ -685,7 +685,7 @@ LUA_API int lua_rawgeti (lua_State *L, int idx, lua_Integer n) {
   t = index2addr(L, idx);
   api_check(ttistable(t), "table expected");
   h = hvalue(t);
-  switch (h->ravi_array.type) {
+  switch (h->ravi_array.array_type) {
   case RAVI_TTABLE: {
     setobj2s(L, L->top, luaH_getint(hvalue(t), n));
   } break;
@@ -721,7 +721,7 @@ LUA_API int lua_rawgetp (lua_State *L, int idx, const void *p) {
   t = index2addr(L, idx);
   api_check(ttistable(t), "table expected");
   h = hvalue(t);
-  api_check(h->ravi_array.type == RAVI_TTABLE, "Lua table expected");
+  api_check(h->ravi_array.array_type == RAVI_TTABLE, "Lua table expected");
   setpvalue(&k, cast(void *, p));
   setobj2s(L, L->top, luaH_get(h, &k));
   api_incr_top(L);
@@ -843,7 +843,7 @@ LUA_API void lua_rawset (lua_State *L, int idx) {
   o = index2addr(L, idx);
   api_check(ttistable(o), "table expected");
   t = hvalue(o);
-  switch (t->ravi_array.type) {
+  switch (t->ravi_array.array_type) {
   case RAVI_TTABLE: {
     setobj2t(L, luaH_set(L, t, L->top - 2), L->top - 1);
   } break;
@@ -898,7 +898,7 @@ LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
   o = index2addr(L, idx);
   api_check(ttistable(o), "table expected");
   t = hvalue(o);
-  switch (t->ravi_array.type) {
+  switch (t->ravi_array.array_type) {
   case RAVI_TTABLE: {
     luaH_setint(L, t, n, L->top - 1);
   } break;
@@ -947,7 +947,7 @@ LUA_API void lua_rawsetp (lua_State *L, int idx, const void *p) {
   o = index2addr(L, idx);
   api_check(ttistable(o), "table expected");
   t = hvalue(o);
-  api_check(t->ravi_array.type == RAVI_TTABLE, "Lua table expected");
+  api_check(t->ravi_array.array_type == RAVI_TTABLE, "Lua table expected");
   setpvalue(&k, cast(void *, p));
   setobj2t(L, luaH_set(L, t, &k), L->top - 1);
   luaC_barrierback(L, t, L->top - 1);

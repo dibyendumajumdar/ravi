@@ -237,9 +237,7 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def,
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
-  llvm::Value *uukey =
-      def->builder->CreateZExt(ukey, def->types->lua_UnsignedT);
-  def->builder->CreateCall4(def->raviH_set_intF, def->L, t, uukey, value);
+  def->builder->CreateCall4(def->raviH_set_intF, def->L, t, ukey, value);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(end_block);
@@ -344,9 +342,7 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
-  llvm::Value *uukey =
-      def->builder->CreateZExt(ukey, def->types->lua_UnsignedT);
-  def->builder->CreateCall4(def->raviH_set_floatF, def->L, t, uukey, load_nc);
+  def->builder->CreateCall4(def->raviH_set_floatF, def->L, t, ukey, load_nc);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(end_block);
@@ -523,7 +519,7 @@ llvm::Instruction *RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def,
 
   // array_type == RAVI_TARRAYXXX?
   llvm::Value *cmp2 = def->builder->CreateICmpEQ(
-      ravi_array_type, def->types->kInt[array_type_expected], "is.array.type");
+      ravi_array_type, def->types->kByte[array_type_expected], "is.array.type");
 
   // If array then fine else raise error
   def->builder->CreateCondBr(cmp2, done, raise_error);

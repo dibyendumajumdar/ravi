@@ -414,19 +414,21 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   NodeT->setBody(elements);
   pNodeT = llvm::PointerType::get(NodeT, 0);
 
-  // typedef struct RaviArray {
+  //typedef struct RaviArray {
   //  char *data;
-  //  ravitype_t type; /* RAVI specialization */
   //  unsigned int len; /* RAVI len specialization */
   //  unsigned int size; /* amount of memory allocated */
+  //  lu_byte array_type; /* RAVI specialization */
+  //  lu_byte array_modifier; /* Flags that affect how the array is handled */
   //} RaviArray;
-
+  
   RaviArrayT = llvm::StructType::create(context, "ravi.RaviArray");
   elements.clear();
   elements.push_back(C_pcharT);
-  elements.push_back(ravitype_tT);
   elements.push_back(C_intT);
   elements.push_back(C_intT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT);
   RaviArrayT->setBody(elements);
 
   // typedef struct Table {
@@ -821,22 +823,22 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviV_op_varargT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
-  // void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer
+  // void raviH_set_int(lua_State *L, Table *t, unsigned int key, lua_Integer
   // value);
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTableT);
-  elements.push_back(lua_UnsignedT);
+  elements.push_back(C_intT);
   elements.push_back(lua_IntegerT);
   raviH_set_intT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
-  // void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number
+  // void raviH_set_float(lua_State *L, Table *t, unsigned int key, lua_Number
   // value);
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTableT);
-  elements.push_back(lua_UnsignedT);
+  elements.push_back(C_intT);
   elements.push_back(lua_NumberT);
   raviH_set_floatT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
@@ -845,7 +847,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
   for (int j = 0; j < kluaInteger.size(); j++)
     kluaInteger[j] = llvm::ConstantInt::get(lua_IntegerT, j);
-
+  for (int j = 0; j < kByte.size(); j++)
+    kByte[j] = llvm::ConstantInt::get(lu_byteT, j);
   kFalse = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
 
   // Do what Clang does
@@ -1051,10 +1054,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   // RaviArray
   nodes.clear();
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 4));
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 8));
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 12));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0)); /* data */
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 4));     /* len */
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 8));     /* size */
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 12));   /* type */
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 13));   /* modifiers */
   tbaa_RaviArrayT = mdbuilder.createTBAAStructTypeNode("RaviArray", nodes);
 
   // Table
@@ -1075,10 +1079,10 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   tbaa_RaviArray_dataT =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 32);
-  tbaa_RaviArray_typeT =
-      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 36);
   tbaa_RaviArray_lenT =
-      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 40);
+      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 36);
+  tbaa_RaviArray_typeT =
+      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 44);
 }
 
 void LuaLLVMTypes::dump() {

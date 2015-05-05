@@ -231,6 +231,7 @@ struct LuaLLVMTypes {
 
   std::array<llvm::Constant *, 256> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
+  std::array<llvm::Constant *, 10> kByte;
 
   llvm::Constant *kFalse;
 

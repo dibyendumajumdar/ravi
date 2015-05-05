@@ -45,11 +45,11 @@ LUAI_FUNC int luaH_getn (Table *t);
 
 LUAI_FUNC Table *raviH_new(lua_State *L, ravitype_t tt); /* RAVI array specialization */
 LUAI_FUNC int raviH_getn(Table *t); /* RAVI array specialization */
-LUAI_FUNC void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer value); /* RAVI array specialization */
-LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value); /* RAVI array specialization */
+LUAI_FUNC void raviH_set_int(lua_State *L, Table *t, unsigned int key, lua_Integer value); /* RAVI array specialization */
+LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, unsigned int key, lua_Number value); /* RAVI array specialization */
 
 #define raviH_get_int_inline(L, t, key, v) \
-  { unsigned ukey = (unsigned)((key)); \
+  { unsigned int ukey = (unsigned int)((key)); \
     lua_Integer *data = (lua_Integer *)t->ravi_array.data; \
     if (ukey < t->ravi_array.len) {\
       setivalue(v, data[ukey]); \
@@ -58,7 +58,7 @@ LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Num
   }
 
 #define raviH_get_float_inline(L, t, key, v) \
-  { unsigned ukey = (unsigned)((key)); \
+  { unsigned int ukey = (unsigned int)((key)); \
     lua_Number *data = (lua_Number *)t->ravi_array.data; \
     if (ukey < t->ravi_array.len) {\
       setfltvalue(v, data[ukey]); \
@@ -67,7 +67,7 @@ LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Num
   }
 
 #define raviH_set_int_inline(L, t, key, value) \
-  { unsigned ukey = (unsigned)((key)); \
+  { unsigned int ukey = (unsigned int)((key)); \
     lua_Integer *data = (lua_Integer *)t->ravi_array.data; \
     if (ukey < t->ravi_array.len) { \
       data[ukey] = value; \
@@ -76,7 +76,7 @@ LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Num
   }
 
 #define raviH_set_float_inline(L, t, key, value) \
-  { unsigned ukey = (unsigned)((key)); \
+  { unsigned int ukey = (unsigned int)((key)); \
     lua_Number *data = (lua_Number *)t->ravi_array.data; \
     if (ukey < t->ravi_array.len) { \
       data[ukey] = value; \

@@ -212,7 +212,7 @@ int raviH_next(lua_State *L, Table *t, StkId key) {
     /* no more keys */
     return 0;
   setivalue(key, i);
-  if (t->ravi_array.type == RAVI_TARRAYFLT) {
+  if (t->ravi_array.array_type == RAVI_TARRAYFLT) {
     raviH_get_float_inline(L, t, i, (key + 1));
   }
   else {
@@ -222,7 +222,7 @@ int raviH_next(lua_State *L, Table *t, StkId key) {
 }
 
 int luaH_next (lua_State *L, Table *t, StkId key) {
-  if (t->ravi_array.type != RAVI_TTABLE)
+  if (t->ravi_array.array_type != RAVI_TTABLE)
     return raviH_next(L, t, key);
   else {
     unsigned int i = findindex(L, t, key);  /* find original element */
@@ -442,7 +442,8 @@ Table *luaH_new (lua_State *L) {
   t->array = NULL;
   t->sizearray = 0;
   t->ravi_array.len = 0; /* RAVI */
-  t->ravi_array.type = RAVI_TTABLE; /* default is a Lua table */
+  t->ravi_array.array_type = RAVI_TTABLE; /* default is a Lua table */
+  t->ravi_array.array_modifier = 0;
   t->ravi_array.data = NULL; /* data */
   t->ravi_array.size = 0;
   setnodevector(L, t, 0);
@@ -662,8 +663,8 @@ static int unbound_search (Table *t, unsigned int j) {
 int luaH_getn (Table *t) {
   unsigned int j;
   /* if this is a RAVI array then use specialized function */
-  if (t->ravi_array.type != RAVI_TTABLE) {
-    lua_assert(t->ravi_array.type == RAVI_TARRAYFLT || t->ravi_array.type == RAVI_TARRAYINT);
+  if (t->ravi_array.array_type != RAVI_TTABLE) {
+    lua_assert(t->ravi_array.array_type == RAVI_TARRAYFLT || t->ravi_array.array_type == RAVI_TARRAYINT);
     return t->ravi_array.len;
   }
   j = t->sizearray;
@@ -685,7 +686,7 @@ int luaH_getn (Table *t) {
 
 /* RAVI array specialization */
 int raviH_getn(Table *t) {
-  lua_assert(t->ravi_array.type != RAVI_TTABLE);
+  lua_assert(t->ravi_array.array_type != RAVI_TTABLE);
   return t->ravi_array.len-1;
 }
 
@@ -697,8 +698,8 @@ static void ravi_resize_array(lua_State *L, Table *t) {
   t->ravi_array.size = size;
 }
 
-void raviH_set_int(lua_State *L, Table *t, lua_Unsigned u, lua_Integer value) {
-  lua_assert(t->ravi_array.type == RAVI_TARRAYINT);
+void raviH_set_int(lua_State *L, Table *t, unsigned int u, lua_Integer value) {
+  lua_assert(t->ravi_array.array_type == RAVI_TARRAYINT);
   lua_Integer *data;
   if (u < t->ravi_array.len) {
   setval2:
@@ -720,8 +721,8 @@ void raviH_set_int(lua_State *L, Table *t, lua_Unsigned u, lua_Integer value) {
     luaG_runerror(L, "array out of bounds");
 }
 
-void raviH_set_float(lua_State *L, Table *t, lua_Unsigned u, lua_Number value) {
-  lua_assert(t->ravi_array.type == RAVI_TARRAYFLT);
+void raviH_set_float(lua_State *L, Table *t, unsigned int u, lua_Number value) {
+  lua_assert(t->ravi_array.array_type == RAVI_TARRAYFLT);
   lua_Number *data;
   if (u < t->ravi_array.len) {
   setval2:
@@ -746,7 +747,7 @@ void raviH_set_float(lua_State *L, Table *t, lua_Unsigned u, lua_Number value) {
 Table *raviH_new(lua_State *L, ravitype_t tt) {
   Table *t = luaH_new(L);
   lua_assert(tt == RAVI_TARRAYFLT || tt == RAVI_TARRAYINT);
-  t->ravi_array.type = tt;
+  t->ravi_array.array_type = tt;
   if (tt == RAVI_TARRAYFLT) {
     raviH_set_float_inline(L, t, 0, 0.0);
   }

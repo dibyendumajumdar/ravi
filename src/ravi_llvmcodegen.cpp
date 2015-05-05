@@ -217,7 +217,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_type(RaviFunctionDef *def,
 llvm::Instruction *
 RaviCodeGenerator::emit_load_ravi_arraytype(RaviFunctionDef *def,
                                             llvm::Value *value) {
-  llvm::Value *tt_ptr = emit_gep(def, "raviarray.type_ptr", value, 0, 11, 1);
+  llvm::Value *tt_ptr = emit_gep(def, "raviarray.type_ptr", value, 0, 11, 3);
   llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.type");
   tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_typeT);
   return tt;
@@ -226,7 +226,7 @@ RaviCodeGenerator::emit_load_ravi_arraytype(RaviFunctionDef *def,
 llvm::Instruction *
 RaviCodeGenerator::emit_load_ravi_arraylength(RaviFunctionDef *def,
                                               llvm::Value *value) {
-  llvm::Value *tt_ptr = emit_gep(def, "raviarray.len_ptr", value, 0, 11, 2);
+  llvm::Value *tt_ptr = emit_gep(def, "raviarray.len_ptr", value, 0, 11, 1);
   llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.len");
   tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_lenT);
   return tt;

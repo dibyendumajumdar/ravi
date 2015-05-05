@@ -166,7 +166,7 @@ void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val) {
     const TValue *tm;
     if (ttistable(t)) {  /* 't' is a table? */
       Table *h = hvalue(t);
-      switch (h->ravi_array.type) {
+      switch (h->ravi_array.array_type) {
       case RAVI_TTABLE: {
         const TValue *res = luaH_get(h, key); /* do a primitive get */
         if (!ttisnil(res) ||  /* result is not nil? */
@@ -212,7 +212,7 @@ void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
     const TValue *tm;
     if (ttistable(t)) {  /* 't' is a table? */
       Table *h = hvalue(t);
-      switch (h->ravi_array.type) {
+      switch (h->ravi_array.array_type) {
       case RAVI_TTABLE: {
         TValue *oldval = cast(TValue *, luaH_get(h, key));
         /* if previous value is not nil, there must be a previous entry
@@ -460,7 +460,7 @@ void luaV_objlen (lua_State *L, StkId ra, const TValue *rb) {
   switch (ttnov(rb)) {
     case LUA_TTABLE: {
       Table *h = hvalue(rb);
-      if (h->ravi_array.type != RAVI_TTABLE) {
+      if (h->ravi_array.array_type != RAVI_TTABLE) {
         setivalue(ra, raviH_getn(h));
         return;
       }
@@ -1167,7 +1167,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         luai_runtimecheck(L, ttistable(ra));
         h = hvalue(ra);
         last = ((c - 1)*LFIELDS_PER_FLUSH) + n;
-        if (h->ravi_array.type == RAVI_TTABLE) {
+        if (h->ravi_array.array_type == RAVI_TTABLE) {
           if (last > h->sizearray)  /* needs more space? */
             luaH_resizearray(L, h, last);  /* pre-allocate it at once */
           for (; n > 0; n--) {
@@ -1181,7 +1181,7 @@ newframe:  /* reentry point when frame changes (call/return) */
           for (; i <= (int)last; i++) {
             TValue *val = ra + i;
             lua_Unsigned u = (lua_Unsigned)(i);
-            switch (h->ravi_array.type) {
+            switch (h->ravi_array.array_type) {
             case RAVI_TARRAYINT: {
               if (ttisinteger(val))
                 raviH_set_int(L, h, u, ivalue(val));
@@ -1408,23 +1408,23 @@ newframe:  /* reentry point when frame changes (call/return) */
     } break;
 
     case OP_RAVI_TOARRAYI: {
-      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.array_type != RAVI_TARRAYINT)
         luaG_runerror(L, "integer[] expected");
     } break;
     case OP_RAVI_TOARRAYF: {
-      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYFLT)
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.array_type != RAVI_TARRAYFLT)
         luaG_runerror(L, "number[] expected");
     } break;
     case OP_RAVI_MOVEAI: {
       TValue *rb = RB(i);
-      if (ttistable(rb) && hvalue(rb)->ravi_array.type == RAVI_TARRAYINT) {
+      if (ttistable(rb) && hvalue(rb)->ravi_array.array_type == RAVI_TARRAYINT) {
         setobjs2s(L, ra, rb);
       } else
         luaG_runerror(L, "integer[] expected");
     } break;
     case OP_RAVI_MOVEAF: {
       TValue *rb = RB(i);
-      if (ttistable(rb) && hvalue(rb)->ravi_array.type == RAVI_TARRAYFLT) {
+      if (ttistable(rb) && hvalue(rb)->ravi_array.array_type == RAVI_TARRAYFLT) {
         setobjs2s(L, ra, rb);
       } else
         luaG_runerror(L, "number[] expected");
@@ -1485,14 +1485,14 @@ newframe:  /* reentry point when frame changes (call/return) */
         luaG_runerror(L, "upvalue of number type, cannot be set to non number value");
     } break;
     case OP_RAVI_SETUPVALAI: {
-      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.array_type != RAVI_TARRAYINT)
         luaG_runerror(L, "upvalue of integer[] type, cannot be set to non integer[] value");
       UpVal *uv = cl->upvals[GETARG_B(i)];
       setobj(L, uv->v, ra);
       luaC_upvalbarrier(L, uv);
     } break;
     case OP_RAVI_SETUPVALAF: {
-      if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYFLT)
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.array_type != RAVI_TARRAYFLT)
         luaG_runerror(L, "upvalue of number[] type, cannot be set to non number[] value");
       UpVal *uv = cl->upvals[GETARG_B(i)];
       setobj(L, uv->v, ra);
@@ -1628,7 +1628,7 @@ void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
   luai_runtimecheck(L, ttistable(ra));
   h = hvalue(ra);
   last = ((c - 1) * LFIELDS_PER_FLUSH) + n;
-  if (h->ravi_array.type == RAVI_TTABLE) {
+  if (h->ravi_array.array_type == RAVI_TTABLE) {
     if (last > h->sizearray)        /* needs more space? */
       luaH_resizearray(L, h, last); /* pre-allocate it at once */
     for (; n > 0; n--) {
@@ -1641,7 +1641,7 @@ void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
     for (; i <= (int)last; i++) {
       TValue *val = ra + i;
       lua_Unsigned u = (lua_Unsigned)(i);
-      switch (h->ravi_array.type) {
+      switch (h->ravi_array.array_type) {
       case RAVI_TARRAYINT: {
         if (ttisinteger(val))
           raviH_set_int(L, h, u, ivalue(val));
