@@ -329,6 +329,28 @@ static int sort (lua_State *L) {
 
 /* }====================================================== */
 
+static int create_intarray(lua_State *L) {
+  int n = lua_gettop(L);
+  lua_Integer init_value = (n == 2 ? luaL_checkinteger(L, 2) : 0);
+  int size = (int)luaL_checkinteger(L, 1);
+  ravi_createintegerarray(L, size, init_value);
+  return 1;
+}
+
+static int create_fltarray(lua_State *L) {
+  int n = lua_gettop(L);
+  lua_Number init_value = (n == 2 ? luaL_checknumber(L, 2) : 0.0);
+  int size = (int)luaL_checkinteger(L, 1);
+  ravi_createnumberarray(L, size, init_value);
+  return 1;
+}
+
+static int create_slice(lua_State *L) {
+  int start = (int)luaL_checkinteger(L, 2);
+  int len = (int)luaL_checkinteger(L, 3);
+  ravi_createslice(L, 1, start, len);
+  return 1;
+}
 
 static const luaL_Reg tab_funcs[] = {
   {"concat", tconcat},
@@ -341,6 +363,9 @@ static const luaL_Reg tab_funcs[] = {
   {"remove", tremove},
   {"move", tmove},
   {"sort", sort},
+  {"iarray", create_intarray},
+  {"narray", create_fltarray},
+  {"slice", create_slice},
   {NULL, NULL}
 };
 

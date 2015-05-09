@@ -461,6 +461,12 @@ struct lua_Debug {
 
 LUAI_DDEC int ravi_parser_debug;
 
+LUA_API void ravi_createintegerarray(lua_State *L, int narray,
+                                     lua_Integer initial_value);
+LUA_API void ravi_createnumberarray(lua_State *L, int narray,
+                                    lua_Number initial_value);
+LUA_API void ravi_createslice(lua_State *L, int idx, unsigned int start,
+                              unsigned int len);
 
 LUA_API void ravi_dump_stack(lua_State *L, const char *s);
 LUA_API void ravi_dump_function(lua_State *L);

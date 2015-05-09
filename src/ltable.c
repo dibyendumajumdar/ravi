@@ -757,52 +757,50 @@ Table *raviH_new(lua_State *L, ravitype_t tt) {
   return t;
 }
 
-Table *raviH_new_integer_array(lua_State *L, unsigned int len, lua_Integer init_value) {
+Table *raviH_new_integer_array(lua_State *L, unsigned int len,
+                               lua_Integer init_value) {
   Table *t = luaH_new(L);
   t->ravi_array.array_type = RAVI_TARRAYINT;
-  ravi_resize_array(L, t, len+1, 0);
+  ravi_resize_array(L, t, len + 1, 0);
   lua_Integer *data = (lua_Integer *)t->ravi_array.data;
   data[0] = 0;
   for (int i = 1; i <= len; i++) {
     data[i] = init_value;
   }
-  t->ravi_array.len = len;
+  t->ravi_array.len = len + 1;
   return t;
 }
 
-Table *raviH_new_number_array(lua_State *L, unsigned int len, lua_Number init_value) {
+Table *raviH_new_number_array(lua_State *L, unsigned int len,
+                              lua_Number init_value) {
   Table *t = luaH_new(L);
   t->ravi_array.array_type = RAVI_TARRAYFLT;
-  ravi_resize_array(L, t, len+1, 0);
+  ravi_resize_array(L, t, len + 1, 0);
   lua_Number *data = (lua_Number *)t->ravi_array.data;
   data[0] = 0;
   for (int i = 1; i <= len; i++) {
     data[i] = init_value;
   }
-  t->ravi_array.len = len;
+  t->ravi_array.len = len + 1;
   return t;
 }
 
 static const char *key_orig_table = "Originaltable";
 
-/* Create a slice of an existing array 
+/* Create a slice of an existing array
  * The original table containing the array is inserted into the
  * the slice as a value against special key pointer('key_orig_table') so that
- * the parent table is not garbage collected while this array contains a 
+ * the parent table is not garbage collected while this array contains a
  * reference to it
  * The array slice starts at start but start-1 is also accessible because of the
- * implementation having array values starting at 0. 
- * A slice must not attempt to release the data array as this is not owned by it,
+ * implementation having array values starting at 0.
+ * A slice must not attempt to release the data array as this is not owned by
+ * it,
  * and in fact may point to garbage from a memory allocater's point of view.
  */
-Table *raviH_new_slice(lua_State *L, TValue *parent, unsigned int start, unsigned int len) {
-  if (!ttistable(parent))
-    luaG_runerror(L, "integer[] or number[] expected");
+Table *raviH_new_slice(lua_State *L, TValue *parent, unsigned int start,
+                       unsigned int len) {
   Table *orig = hvalue(parent);
-  if (orig->ravi_array.array_type == RAVI_TTABLE)
-    luaG_runerror(L, "cannot create a slice of a table, integer[] or number[] expected");
-  if (start < 1 || start+len > orig->ravi_array.len+1)
-    luaG_runerror(L, "cannot create a slice of given bounds");
   /* Create the slice table */
   Table *t = luaH_new(L);
   /* Add a reference to the parent table */
@@ -813,13 +811,30 @@ Table *raviH_new_slice(lua_State *L, TValue *parent, unsigned int start, unsigne
   /* Initialize */
   t->ravi_array.array_type = orig->ravi_array.array_type;
   t->ravi_array.array_modifier = RAVI_ARRAY_SLICE;
-  lua_Number *data = (lua_Number *)t->ravi_array.data;
-  t->ravi_array.data = (char *) (data+start-1);
-  t->ravi_array.len = len;
-  t->ravi_array.size = len;
+  lua_Number *data = (lua_Number *)orig->ravi_array.data;
+  t->ravi_array.data = (char *)(data + start - 1);
+  t->ravi_array.len = len+1;
+  t->ravi_array.size = len+1;
   return t;
 }
 
+/* Obtain parent array of the slice */
+const TValue *raviH_slice_parent(lua_State *L, TValue *slice) {
+  if (!ttistable(slice))
+    luaG_runerror(L, "integer[] or number[] expected");
+  Table *orig = hvalue(slice);
+  if (orig->ravi_array.array_type == RAVI_TTABLE)
+    luaG_runerror(
+        L, "cannot create a slice of a table, integer[] or number[] expected");
+  if (orig->ravi_array.array_modifier != RAVI_ARRAY_SLICE)
+    luaG_runerror(L, "slice of integer[] or number[] expected");
+  /* Get reference to the parent table */
+  TValue k;
+  setpvalue(&k, (void *)key_orig_table);
+  const TValue *cell = luaH_get(orig, &k);
+  lua_assert(ttistable(cell));
+  return cell;
+}
 
 #if defined(LUA_DEBUG)
 

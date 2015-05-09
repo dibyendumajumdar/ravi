@@ -742,16 +742,60 @@ LUA_API void lua_createtable (lua_State *L, int narray, int nrec) {
   lua_unlock(L);
 }
 
-LUA_API void ravi_createintegerarray(lua_State *L, int narray, lua_Integer initial_value) {
-  lua_assert(0);
+LUA_API void ravi_createintegerarray(lua_State *L, int narray,
+                                     lua_Integer initial_value) {
+  Table *t;
+  lua_lock(L);
+  luaC_checkGC(L);
+  t = raviH_new_integer_array(L, (unsigned int)narray, initial_value);
+  sethvalue(L, L->top, t);
+  api_incr_top(L);
+  lua_unlock(L);
 }
 
-LUA_API void ravi_createnumberarray(lua_State *L, int narray, lua_Number initial_value) {
-  lua_assert(0);
+LUA_API void ravi_createnumberarray(lua_State *L, int narray,
+                                    lua_Number initial_value) {
+  Table *t;
+  lua_lock(L);
+  luaC_checkGC(L);
+  t = raviH_new_number_array(L, (unsigned int)narray, initial_value);
+  sethvalue(L, L->top, t);
+  api_incr_top(L);
+  lua_unlock(L);
 }
 
-LUA_API void ravi_createslice(lua_State *L, int idx, unsigned int start, unsigned int len) {
-  lua_assert(0);
+LUA_API void ravi_createslice(lua_State *L, int idx, unsigned int start,
+                              unsigned int len) {
+  TValue *parent;
+  Table *slice;
+  lua_lock(L);
+  /* TODO what happens to lock if an error is thrown? */
+  const char *errmsg = NULL;
+  for (;;) {
+    parent = index2addr(L, idx);
+    if (!ttistable(parent)) {
+      errmsg = "integer[] or number[] expected";
+      break;
+    }
+    Table *orig = hvalue(parent);
+    if (orig->ravi_array.array_type == RAVI_TTABLE) {
+      errmsg =
+          "cannot create a slice of a table, integer[] or number[] expected";
+      break;
+    }
+    if (start < 1 || start + len > orig->ravi_array.len) {
+      errmsg = "cannot create a slice of given bounds";
+      break;
+    }
+    luaC_checkGC(L);
+    slice = raviH_new_slice(L, parent, start, len);
+    sethvalue(L, L->top, slice);
+    api_incr_top(L);
+    break;
+  }
+  lua_unlock(L);
+  if (errmsg)
+    luaG_runerror(L, errmsg);
 }
 
 LUA_API int lua_getmetatable (lua_State *L, int objindex) {

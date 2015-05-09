@@ -50,6 +50,12 @@ LUAI_FUNC int luaH_getn (Table *t);
  */
 LUAI_FUNC Table *raviH_new(lua_State *L, ravitype_t array_type);
 
+LUAI_FUNC Table *raviH_new_integer_array(lua_State *L, unsigned int len,
+                                         lua_Integer init_value);
+
+LUAI_FUNC Table *raviH_new_number_array(lua_State *L, unsigned int len,
+                                        lua_Number init_value);
+
 /* Returns the array length - note that this function will
  * ignore any elements outside of the Ravi Array structure
  */
@@ -62,6 +68,22 @@ LUAI_FUNC void raviH_set_int(lua_State *L, Table *t, unsigned int key,
 /* Type specific array set operation */
 LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, unsigned int key,
                                lua_Number value);
+
+/* Create a slice of an existing array
+* The original table containing the array is inserted into the
+* the slice as a value against special key pointer('key_orig_table') so that
+* the parent table is not garbage collected while this array contains a
+* reference to it
+* The array slice starts at start but start-1 is also accessible because of the
+* implementation having array values starting at 0.
+* A slice must not attempt to release the data array as this is not owned by it,
+* and in fact may point to garbage from a memory allocater's point of view.
+*/
+LUAI_FUNC Table *raviH_new_slice(lua_State *L, TValue *parent,
+                                 unsigned int start, unsigned int len);
+
+/* Obtain parent array of the slice */
+LUAI_FUNC const TValue *raviH_slice_parent(lua_State *L, TValue *slice);
 
 /* Type specific array get operation */
 #define raviH_get_int_inline(L, t, key, v)                                     \
