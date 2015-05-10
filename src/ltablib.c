@@ -363,8 +363,8 @@ static const luaL_Reg tab_funcs[] = {
   {"remove", tremove},
   {"move", tmove},
   {"sort", sort},
-  {"iarray", create_intarray},
-  {"narray", create_fltarray},
+  {"intarray", create_intarray},
+  {"numarray", create_fltarray},
   {"slice", create_slice},
   {NULL, NULL}
 };

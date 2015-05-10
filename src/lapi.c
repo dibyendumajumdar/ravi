@@ -742,6 +742,9 @@ LUA_API void lua_createtable (lua_State *L, int narray, int nrec) {
   lua_unlock(L);
 }
 
+/* Create an integer array (specialization of Lua table)
+ * of given size and initialize array with supplied initial value
+ */
 LUA_API void ravi_createintegerarray(lua_State *L, int narray,
                                      lua_Integer initial_value) {
   Table *t;
@@ -753,6 +756,9 @@ LUA_API void ravi_createintegerarray(lua_State *L, int narray,
   lua_unlock(L);
 }
 
+/* Create an number array (specialization of Lua table)
+ * of given size and initialize array with supplied initial value
+ */
 LUA_API void ravi_createnumberarray(lua_State *L, int narray,
                                     lua_Number initial_value) {
   Table *t;
@@ -764,14 +770,25 @@ LUA_API void ravi_createnumberarray(lua_State *L, int narray,
   lua_unlock(L);
 }
 
+/* Create a slice of an existing array
+ * The original table containing the array is inserted into the
+ * the slice as a value against special key so that
+ * the parent table is not garbage collected while this array contains a
+ * reference to it
+ * The array slice starts at start but start-1 is also accessible because of the
+ * implementation having array values starting at 0.
+ * A slice must not attempt to release the data array as this is not owned by
+ * it,
+ * and in fact may point to garbage from a memory allocater's point of view.
+ */
 LUA_API void ravi_createslice(lua_State *L, int idx, unsigned int start,
                               unsigned int len) {
   TValue *parent;
   Table *slice;
   lua_lock(L);
-  /* TODO what happens to lock if an error is thrown? */
   const char *errmsg = NULL;
-  for (;;) {
+  /* The do-while loop here is just for error handling */
+  do {
     parent = index2addr(L, idx);
     if (!ttistable(parent)) {
       errmsg = "integer[] or number[] expected";
@@ -791,8 +808,7 @@ LUA_API void ravi_createslice(lua_State *L, int idx, unsigned int start,
     slice = raviH_new_slice(L, parent, start, len);
     sethvalue(L, L->top, slice);
     api_incr_top(L);
-    break;
-  }
+  } while (0);
   lua_unlock(L);
   if (errmsg)
     luaG_runerror(L, errmsg);

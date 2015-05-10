@@ -596,3 +596,71 @@ end
 assert(ravi.compile(x))
 assert(x() == 28)
 print("test 42 OK")
+
+-- test 43
+-- test creation of arrays and slice
+x = function() 
+  local zeros: integer[] = table.intarray(10, 0)
+  local ones: integer[] = table.intarray(10, 1)
+
+  local a : integer[] = table.slice(ones, 1, 10)
+  assert(#zeros == 10)
+  assert(#ones == 10)
+  assert(#a == 10)
+
+  local i = 0
+  for k,v in ipairs(a) do
+    i = i + v
+  end
+  assert(i == 10)
+  local y = table.slice(ones, 10, 1)
+  y[1] = 115
+  return ones[10] == 115
+end
+assert(ravi.compile(x))
+assert(x() == true)
+print("test 43 OK")
+
+-- test 44
+matrix = {}
+matrix.new = function (m, n) 
+  local t = {m, n, table.numarray(m*n, 0)}
+  return t
+end
+
+matrix.getcol = function(m, col)
+  local rows = m[1]
+  local cols = m[2]
+  local data = m[3]
+  assert(col > 0 and col <= cols)
+  return table.slice(data, (col-1)*rows+1, rows)
+end
+
+matrix.getdata = function(m)
+  return m[3]
+end
+
+x = function() 
+  local m = matrix.new(5,5)
+  local data: number[] = matrix.getdata(m)
+  for i = 1,#data do
+    data[i] = i
+  end
+  -- get third col
+  local col3 = matrix.getcol(m, 3)
+  -- should be 11,12,13,14,15
+  local n = 0
+  for k,v in ipairs(col3) do
+    n = n + v
+  end
+  -- should be 65
+  return n
+end
+
+assert(ravi.compile(matrix.new))
+assert(ravi.compile(matrix.getcol))
+assert(ravi.compile(matrix.getdata))
+assert(ravi.compile(x))
+assert(x() == 65)
+print("test 44 OK")
+
