@@ -781,7 +781,7 @@ LUA_API void ravi_createnumberarray(lua_State *L, int narray,
  * it,
  * and in fact may point to garbage from a memory allocater's point of view.
  */
-LUA_API void ravi_createslice(lua_State *L, int idx, unsigned int start,
+LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
                               unsigned int len) {
   TValue *parent;
   Table *slice;

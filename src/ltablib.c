@@ -348,7 +348,7 @@ static int create_fltarray(lua_State *L) {
 static int create_slice(lua_State *L) {
   int start = (int)luaL_checkinteger(L, 2);
   int len = (int)luaL_checkinteger(L, 3);
-  ravi_createslice(L, 1, start, len);
+  ravi_create_slice(L, 1, start, len);
   return 1;
 }
 

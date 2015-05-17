@@ -465,7 +465,7 @@ LUA_API void ravi_createintegerarray(lua_State *L, int narray,
                                      lua_Integer initial_value);
 LUA_API void ravi_createnumberarray(lua_State *L, int narray,
                                     lua_Number initial_value);
-LUA_API void ravi_createslice(lua_State *L, int idx, unsigned int start,
+LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
                               unsigned int len);
 
 LUA_API void ravi_dump_stack(lua_State *L, const char *s);
