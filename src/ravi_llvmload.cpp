@@ -27,9 +27,9 @@ namespace ravi {
 // R(A+1), ..., R(A+B) := nil
 void RaviCodeGenerator::emit_LOADNIL(RaviFunctionDef *def, llvm::Value *L_ci,
                                      llvm::Value *proto, int A, int B) {
-  def->builder->CreateCall3(def->raviV_op_loadnilF, def->ci_val,
-                            llvm::ConstantInt::get(def->types->C_intT, A),
-                            llvm::ConstantInt::get(def->types->C_intT, B));
+  CreateCall3(def->builder, def->raviV_op_loadnilF, def->ci_val,
+              llvm::ConstantInt::get(def->types->C_intT, A),
+              llvm::ConstantInt::get(def->types->C_intT, B));
 }
 
 // R(A) := tonumber(0)
@@ -141,7 +141,7 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
   // Call luaV_tointeger_()
 
   llvm::Value *var_isint =
-      def->builder->CreateCall2(def->luaV_tointegerF, src, var);
+      CreateCall2(def->builder, def->luaV_tointegerF, src, var);
   llvm::Value *tobool = def->builder->CreateICmpEQ(
       var_isint, def->types->kInt[0], "int.conversion.failed");
 
@@ -213,7 +213,7 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci,
   // Call luaV_tonumber()
 
   llvm::Value *var_isflt =
-      def->builder->CreateCall2(def->luaV_tonumberF, src, var);
+      CreateCall2(def->builder, def->luaV_tonumberF, src, var);
   llvm::Value *tobool = def->builder->CreateICmpEQ(
       var_isflt, def->types->kInt[0], "float.conversion.failed");
 
@@ -273,7 +273,7 @@ void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tointeger_()
   llvm::Value *var_isint =
-      def->builder->CreateCall2(def->luaV_tointegerF, src, var);
+      CreateCall2(def->builder, def->luaV_tointegerF, src, var);
   llvm::Value *tobool = def->builder->CreateICmpEQ(
       var_isint, def->types->kInt[0], "int.conversion.failed");
 
@@ -338,7 +338,7 @@ void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber()
   llvm::Value *var_isflt =
-      def->builder->CreateCall2(def->luaV_tonumberF, src, var);
+      CreateCall2(def->builder, def->luaV_tonumberF, src, var);
   llvm::Value *tobool = def->builder->CreateICmpEQ(
       var_isflt, def->types->kInt[0], "float.conversion.failed");
 

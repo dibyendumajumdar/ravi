@@ -50,7 +50,7 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_equalobj with register B and C
   llvm::Value *result =
-      def->builder->CreateCall3(callee, def->L, lhs_ptr, rhs_ptr);
+      CreateCall3(def->builder, callee, def->L, lhs_ptr, rhs_ptr);
   // Test if result is equal to operand A
   llvm::Value *result_eq_A = def->builder->CreateICmpEQ(
       result, llvm::ConstantInt::get(def->types->C_intT, A));
@@ -76,7 +76,7 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
         jA == 1 ? base_ptr : emit_array_get(def, base_ptr, jA - 1);
 
     // Call luaF_close
-    def->builder->CreateCall2(def->luaF_closeF, def->L, val);
+    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
@@ -135,8 +135,7 @@ llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
   if (donot) {
     auto ins = emit_load_local_int(def, var);
     result = def->builder->CreateNot(ins);
-  }
-  else {
+  } else {
     auto ins = emit_load_local_int(def, var);
     result = ins;
   }
@@ -183,7 +182,7 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, llvm::Value *L_ci,
         jA == 1 ? base_ptr : emit_array_get(def, base_ptr, jA - 1);
 
     // Call luaF_close
-    def->builder->CreateCall2(def->luaF_closeF, def->L, val);
+    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
@@ -195,7 +194,7 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, llvm::Value *L_ci,
 }
 
 void RaviCodeGenerator::emit_NOT(RaviFunctionDef *def, llvm::Value *L_ci,
-  llvm::Value *proto, int A, int B) {
+                                 llvm::Value *proto, int A, int B) {
   //  case OP_NOT: {
   //    TValue *rb = RB(i);
   //    int res = l_isfalse(rb);  /* next assignment may change this value */
@@ -257,7 +256,7 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, llvm::Value *L_ci,
         jA == 1 ? base_ptr : emit_array_get(def, base_ptr, jA - 1);
 
     // Call luaF_close
-    def->builder->CreateCall2(def->luaF_closeF, def->L, val);
+    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);

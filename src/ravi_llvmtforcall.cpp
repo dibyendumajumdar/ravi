@@ -68,8 +68,8 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_set_L_top_toreg(def, base_ptr, A + 6);
 
   // Protect(luaD_call(L, cb, GETARG_C(i), 1));
-  def->builder->CreateCall4(def->luaD_callF, def->L, cb, def->types->kInt[C],
-                            def->types->kInt[1]);
+  CreateCall4(def->builder, def->luaD_callF, def->L, cb, def->types->kInt[C],
+              def->types->kInt[1]);
   // reload base
   base_ptr = emit_load_base(def);
   // L->top = ci->top;

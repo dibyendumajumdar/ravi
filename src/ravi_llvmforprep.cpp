@@ -115,8 +115,8 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call forlimit()
   llvm::Value *forlimit_ret =
-      def->builder->CreateCall4(def->luaV_forlimitF, plimit,
-                                forloop_target.ilimit, pstep_ivalue, stopnow);
+      CreateCall4(def->builder, def->luaV_forlimitF, plimit,
+                  forloop_target.ilimit, pstep_ivalue, stopnow);
 
   // Is init->tt == LUA_TNUMINT && pstep->tt == LUA_TNUMINT
   llvm::Value *and1 =
@@ -200,7 +200,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->CreateStore(
       llvm::BlockAddress::get(def->f, forloop_target.jmp1),
       forloop_target.forloop_branch);
-  
+
   def->builder->CreateBr(b3);
 
   def->f->getBasicBlockList().push_back(b2);
@@ -227,7 +227,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   // ************ PLIMIT - Convert plimit to float
 
   llvm::Instruction *plimit_tt = emit_load_type(def, plimit);
-  
+
   // Test if already a float
   cmp1 = def->builder->CreateICmpEQ(plimit_tt, def->types->kInt[LUA_TNUMFLT],
                                     "limit.is.float");
@@ -251,8 +251,8 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(else1_plimit_elsenum);
   def->builder->SetInsertPoint(else1_plimit_elsenum);
   // Call luaV_tonumber_()
-  llvm::Value *plimit_isnum = def->builder->CreateCall2(
-      def->luaV_tonumberF, plimit, forloop_target.flimit);
+  llvm::Value *plimit_isnum = CreateCall2(def->builder, def->luaV_tonumberF,
+                                          plimit, forloop_target.flimit);
   llvm::Value *plimit_isnum_bool = def->builder->CreateICmpEQ(
       plimit_isnum, def->types->kInt[0], "limit.float.ok");
 
@@ -298,8 +298,8 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else1_pstep_elsenum);
 
   // call luaV_tonumber_()
-  llvm::Value *pstep_isnum = def->builder->CreateCall2(
-      def->luaV_tonumberF, pstep, forloop_target.fstep);
+  llvm::Value *pstep_isnum = CreateCall2(def->builder, def->luaV_tonumberF,
+                                         pstep, forloop_target.fstep);
   llvm::Value *pstep_isnum_bool = def->builder->CreateICmpEQ(
       pstep_isnum, def->types->kInt[0], "step.float.ok");
   llvm::BasicBlock *else1_pstep_tonum_elsenum = llvm::BasicBlock::Create(
@@ -344,7 +344,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber_()
   llvm::Value *pinit_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, init, forloop_target.fidx);
+      CreateCall2(def->builder, def->luaV_tonumberF, init, forloop_target.fidx);
   llvm::Value *pinit_isnum_bool = def->builder->CreateICmpEQ(
       pinit_isnum, def->types->kInt[0], "init.float.ok");
   llvm::BasicBlock *else1_pinit_tonum_elsenum = llvm::BasicBlock::Create(
@@ -360,10 +360,8 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   // Conversion OK so we are nearly done
   def->f->getBasicBlockList().push_back(else1_pdone);
   def->builder->SetInsertPoint(else1_pdone);
-  llvm::Instruction *ninit_load =
-      emit_load_local_n(def, forloop_target.fidx);
-  llvm::Instruction *nstep_load =
-      emit_load_local_n(def, forloop_target.fstep);
+  llvm::Instruction *ninit_load = emit_load_local_n(def, forloop_target.fidx);
+  llvm::Instruction *nstep_load = emit_load_local_n(def, forloop_target.fstep);
 
   //    setfltvalue(init, luai_numsub(L, ninit, nstep));
   llvm::Value *init_n =
@@ -475,8 +473,8 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *pstep_ivalue = emit_load_reg_i(def, pstep);
 
   // Call forlimit()
-  llvm::Value *forlimit_ret = def->builder->CreateCall4(
-      def->luaV_forlimitF, plimit, ilimit, pstep_ivalue, stopnow);
+  llvm::Value *forlimit_ret = CreateCall4(
+      def->builder, def->luaV_forlimitF, plimit, ilimit, pstep_ivalue, stopnow);
 
   // init->tt_ == LUA_TNUMINT && pstep->tt_ == LUA_TNUMINT
   llvm::Value *and1 =
@@ -579,7 +577,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else1_plimit_elsenum);
   // Call luaV_tonumber_()
   llvm::Value *plimit_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, plimit, nlimit);
+      CreateCall2(def->builder, def->luaV_tonumberF, plimit, nlimit);
   llvm::Value *plimit_isnum_bool = def->builder->CreateICmpEQ(
       plimit_isnum, def->types->kInt[0], "limit.float.ok");
 
@@ -630,7 +628,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // call luaV_tonumber_()
   llvm::Value *pstep_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, pstep, nstep);
+      CreateCall2(def->builder, def->luaV_tonumberF, pstep, nstep);
   llvm::Value *pstep_isnum_bool = def->builder->CreateICmpEQ(
       pstep_isnum, def->types->kInt[0], "step.float.ok");
   llvm::BasicBlock *else1_pstep_tonum_elsenum = llvm::BasicBlock::Create(
@@ -680,7 +678,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber_()
   llvm::Value *pinit_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, init, ninit);
+      CreateCall2(def->builder, def->luaV_tonumberF, init, ninit);
   llvm::Value *pinit_isnum_bool = def->builder->CreateICmpEQ(
       pinit_isnum, def->types->kInt[0], "init.float.ok");
   llvm::BasicBlock *else1_pinit_tonum_elsenum = llvm::BasicBlock::Create(

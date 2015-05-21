@@ -549,6 +549,19 @@ public:
   std::unique_ptr<RaviJITFunctionImpl>
   create_function(llvm::IRBuilder<> &builder, RaviFunctionDef *def);
 
+  llvm::CallInst *CreateCall2(llvm::IRBuilder<> *builder, llvm::Value *func,
+                              llvm::Value *arg1, llvm::Value *arg2);
+  llvm::CallInst *CreateCall3(llvm::IRBuilder<> *builder, llvm::Value *func,
+                              llvm::Value *arg1, llvm::Value *arg2,
+                              llvm::Value *arg3);
+  llvm::CallInst *CreateCall4(llvm::IRBuilder<> *builder, llvm::Value *func,
+                              llvm::Value *arg1, llvm::Value *arg2,
+                              llvm::Value *arg3, llvm::Value *arg4);
+  llvm::CallInst *CreateCall5(llvm::IRBuilder<> *builder, llvm::Value *func,
+                              llvm::Value *arg1, llvm::Value *arg2,
+                              llvm::Value *arg3, llvm::Value *arg4,
+                              llvm::Value *arg5);
+
   void emit_raise_lua_error(RaviFunctionDef *def, const char *str);
 
   // Add extern declarations for Lua functions we need to call

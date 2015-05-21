@@ -1,7 +1,7 @@
 Ravi Programming Language
 =========================
 
-Ravi is an experimental derivative/dialect of Lua. Ravi is a Sanskrit word that means the Sun.
+Ravi is an experimental derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_, with limited optional static typing and an LLVM based JIT compiler. Ravi is a Sanskrit word that means the Sun.
 
 Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater performance. However, at the same time maintain full compatibility with standard Lua.
 
@@ -129,14 +129,14 @@ The build is CMake based. As of Feb 2015 LLVM is a dependency. LLVM 3.5.1, 3.6.0
 
 Building LLVM on Windows
 ------------------------
-I built LLVM 3.7.0 from source. I used the following sequence from the VS2013 command window::
+I built LLVM 3.7.0 from source. I used the following sequence from the VS2015 command window::
 
   cd \github\llvm
   mkdir build
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 12 Win64" ..  
+  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM37 -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 14 Win64" ..  
 
-I then opened the generated solution in VS2013 and performed a INSTALL build from there. 
+I then opened the generated solution in VS2015 and performed a INSTALL build from there. 
 Note that if you perform a Release build of LLVM then you will also need to do a Release build of Ravi otherwise you will get link errors.
 
 Building LLVM on Ubuntu
@@ -158,14 +158,14 @@ Assuming that LLVM source has been extracted to ``$HOME/llvm-3.6.0.src`` I follo
 
 Building Ravi
 -------------
-I am developing Ravi using Visual Studio 2013 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X.
+I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X.
 
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
   cd build
-  cmake -DLLVM_DIR=c:\LLVM\share\llvm\cmake -G "Visual Studio 12 Win64" ..
+  cmake -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 14 Win64" ..
 
-I then open the solution in VS2013 and do a Debug build from there.
+I then open the solution in VS2015 and do a build from there.
 
 On Ubuntu I use::
 
@@ -197,9 +197,9 @@ Also see section above on available API for dumping either Lua bytecode or LLVM 
 
 Work Plan
 ---------
-* Feb-May 2015 - implement JIT compilation using LLVM 
-* June-Sep 2015 - testing and JIT compilation using libgccjit
-* Oct 2015 - beta release
+* Feb-June 2015 - implement JIT compilation using LLVM 
+* June-Nov 2015 - testing and create libraries 
+* Dec 2015 - beta release
 
 License
 -------

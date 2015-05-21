@@ -127,7 +127,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber_()
   llvm::Value *rb_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, rb, nb);
+      CreateCall2(def->builder, def->luaV_tonumberF, rb, nb);
   cmp1 =
       def->builder->CreateICmpEQ(rb_isnum, def->types->kInt[1], "rb.float.ok");
 
@@ -165,7 +165,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber_()
   llvm::Value *rc_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, rc, nc);
+      CreateCall2(def->builder, def->luaV_tonumberF, rc, nc);
   cmp1 =
       def->builder->CreateICmpEQ(rc_isnum, def->types->kInt[1], "rc.float.ok");
 
@@ -216,8 +216,8 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
-  def->builder->CreateCall5(def->luaT_trybinTMF, def->L, rb, rc, ra,
-                            def->types->kInt[tms]);
+  CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
+              def->types->kInt[tms]);
   def->builder->CreateBr(done_block);
 
   def->f->getBasicBlockList().push_back(done_block);
@@ -281,7 +281,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
 
   llvm::Value *result =
-      def->builder->CreateCall3(def->luaV_modF, def->L, lhs, rhs);
+      CreateCall3(def->builder, def->luaV_modF, def->L, lhs, rhs);
   emit_store_reg_i(def, result, ra);
   emit_store_type(def, ra, LUA_TNUMINT);
 
@@ -311,7 +311,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber_()
   llvm::Value *rb_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, rb, nb);
+      CreateCall2(def->builder, def->luaV_tonumberF, rb, nb);
   cmp1 =
       def->builder->CreateICmpEQ(rb_isnum, def->types->kInt[1], "rb.float.ok");
 
@@ -349,7 +349,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber_()
   llvm::Value *rc_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, rc, nc);
+      CreateCall2(def->builder, def->luaV_tonumberF, rc, nc);
   cmp1 =
       def->builder->CreateICmpEQ(rc_isnum, def->types->kInt[1], "rc.float.ok");
 
@@ -372,7 +372,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
   lhs = emit_load_local_n(def, nb);
   rhs = emit_load_local_n(def, nc);
 
-  llvm::Value *fmod_result = def->builder->CreateCall2(def->fmodFunc, lhs, rhs);
+  llvm::Value *fmod_result = CreateCall2(def->builder, def->fmodFunc, lhs, rhs);
 
   // if ((m)*(b) < 0) (m) += (b);
   llvm::Value *mb = def->builder->CreateFMul(fmod_result, rhs);
@@ -414,8 +414,8 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
-  def->builder->CreateCall5(def->luaT_trybinTMF, def->L, rb, rc, ra,
-                            def->types->kInt[TM_MOD]);
+  CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
+              def->types->kInt[TM_MOD]);
   def->builder->CreateBr(done_block);
 
   def->f->getBasicBlockList().push_back(done_block);
@@ -477,7 +477,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
 
   llvm::Value *result =
-      def->builder->CreateCall3(def->luaV_divF, def->L, lhs, rhs);
+      CreateCall3(def->builder, def->luaV_divF, def->L, lhs, rhs);
   emit_store_reg_i(def, result, ra);
   emit_store_type(def, ra, LUA_TNUMINT);
 
@@ -507,7 +507,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber_()
   llvm::Value *rb_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, rb, nb);
+      CreateCall2(def->builder, def->luaV_tonumberF, rb, nb);
   cmp1 =
       def->builder->CreateICmpEQ(rb_isnum, def->types->kInt[1], "rb.float.ok");
 
@@ -545,7 +545,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber_()
   llvm::Value *rc_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, rc, nc);
+      CreateCall2(def->builder, def->luaV_tonumberF, rc, nc);
   cmp1 =
       def->builder->CreateICmpEQ(rc_isnum, def->types->kInt[1], "rc.float.ok");
 
@@ -580,8 +580,8 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
-  def->builder->CreateCall5(def->luaT_trybinTMF, def->L, rb, rc, ra,
-                            def->types->kInt[TM_MOD]);
+  CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
+              def->types->kInt[TM_MOD]);
   def->builder->CreateBr(done_block);
 
   def->f->getBasicBlockList().push_back(done_block);
@@ -639,7 +639,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber_()
   llvm::Value *rb_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, rb, nb);
+      CreateCall2(def->builder, def->luaV_tonumberF, rb, nb);
   cmp1 =
       def->builder->CreateICmpEQ(rb_isnum, def->types->kInt[1], "rb.float.ok");
 
@@ -677,7 +677,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber_()
   llvm::Value *rc_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, rc, nc);
+      CreateCall2(def->builder, def->luaV_tonumberF, rc, nc);
   cmp1 =
       def->builder->CreateICmpEQ(rc_isnum, def->types->kInt[1], "rc.float.ok");
 
@@ -700,7 +700,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *lhs = emit_load_local_n(def, nb);
   llvm::Instruction *rhs = emit_load_local_n(def, nc);
 
-  llvm::Value *pow_result = def->builder->CreateCall2(def->powFunc, lhs, rhs);
+  llvm::Value *pow_result = CreateCall2(def->builder, def->powFunc, lhs, rhs);
 
   emit_store_reg_n(def, pow_result, ra);
   emit_store_type(def, ra, LUA_TNUMFLT);
@@ -711,8 +711,8 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
-  def->builder->CreateCall5(def->luaT_trybinTMF, def->L, rb, rc, ra,
-                            def->types->kInt[TM_POW]);
+  CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
+              def->types->kInt[TM_POW]);
   def->builder->CreateBr(done_block);
 
   def->f->getBasicBlockList().push_back(done_block);
@@ -776,8 +776,8 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else_block);
 
   // Is RB a float?
-  cmp1 = def->builder->CreateICmpEQ(
-      rb_type, def->types->kInt[LUA_TNUMFLT], "rb.is.float");
+  cmp1 = def->builder->CreateICmpEQ(rb_type, def->types->kInt[LUA_TNUMFLT],
+                                    "rb.is.float");
 
   llvm::BasicBlock *convert_rb =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rb");
@@ -793,7 +793,7 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Call luaV_tonumber_()
   llvm::Value *rb_isnum =
-      def->builder->CreateCall2(def->luaV_tonumberF, rb, nb);
+      CreateCall2(def->builder, def->luaV_tonumberF, rb, nb);
   cmp1 =
       def->builder->CreateICmpEQ(rb_isnum, def->types->kInt[1], "rb.float.ok");
 
@@ -826,8 +826,8 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, llvm::Value *L_ci,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
-  def->builder->CreateCall5(def->luaT_trybinTMF, def->L, rb, rb, ra,
-                            def->types->kInt[TM_UNM]);
+  CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rb, ra,
+              def->types->kInt[TM_UNM]);
   def->builder->CreateBr(done_block);
 
   def->f->getBasicBlockList().push_back(done_block);

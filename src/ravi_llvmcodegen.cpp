@@ -39,6 +39,54 @@ const char *RaviCodeGenerator::unique_function_name() {
   return temp_;
 }
 
+llvm::CallInst *RaviCodeGenerator::CreateCall2(llvm::IRBuilder<> *builder,
+                                               llvm::Value *func,
+                                               llvm::Value *arg1,
+                                               llvm::Value *arg2) {
+  llvm::SmallVector<llvm::Value *, 2> values;
+  values.push_back(arg1);
+  values.push_back(arg2);
+  return builder->CreateCall(func, values);
+}
+
+llvm::CallInst *RaviCodeGenerator::CreateCall3(llvm::IRBuilder<> *builder,
+                                               llvm::Value *func,
+                                               llvm::Value *arg1,
+                                               llvm::Value *arg2,
+                                               llvm::Value *arg3) {
+  llvm::SmallVector<llvm::Value *, 2> values;
+  values.push_back(arg1);
+  values.push_back(arg2);
+  values.push_back(arg3);
+  return builder->CreateCall(func, values);
+}
+
+llvm::CallInst *
+RaviCodeGenerator::CreateCall4(llvm::IRBuilder<> *builder, llvm::Value *func,
+                               llvm::Value *arg1, llvm::Value *arg2,
+                               llvm::Value *arg3, llvm::Value *arg4) {
+  llvm::SmallVector<llvm::Value *, 2> values;
+  values.push_back(arg1);
+  values.push_back(arg2);
+  values.push_back(arg3);
+  values.push_back(arg4);
+  return builder->CreateCall(func, values);
+}
+
+llvm::CallInst *
+RaviCodeGenerator::CreateCall5(llvm::IRBuilder<> *builder, llvm::Value *func,
+                               llvm::Value *arg1, llvm::Value *arg2,
+                               llvm::Value *arg3, llvm::Value *arg4,
+                               llvm::Value *arg5) {
+  llvm::SmallVector<llvm::Value *, 2> values;
+  values.push_back(arg1);
+  values.push_back(arg2);
+  values.push_back(arg3);
+  values.push_back(arg4);
+  values.push_back(arg5);
+  return builder->CreateCall(func, values);
+}
+
 llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, const char *name,
                                          llvm::Value *s, int arg1, int arg2) {
   llvm::SmallVector<llvm::Value *, 2> values;
@@ -464,8 +512,8 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
 
 void RaviCodeGenerator::emit_raise_lua_error(RaviFunctionDef *def,
                                              const char *str) {
-  def->builder->CreateCall2(def->luaG_runerrorF, def->L,
-                            def->builder->CreateGlobalStringPtr(str));
+  CreateCall2(def->builder, def->luaG_runerrorF, def->L,
+              def->builder->CreateGlobalStringPtr(str));
 }
 
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
@@ -684,7 +732,8 @@ RaviCodeGenerator::emit_gep_upval_value(RaviFunctionDef *def,
   return emit_gep(def, "value", pupval, 0, 2);
 }
 
-void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump, bool doVerify) {
+void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
+                                bool doVerify) {
   if (p->ravi_jit.jit_status != 0 || !canCompile(p))
     return;
 

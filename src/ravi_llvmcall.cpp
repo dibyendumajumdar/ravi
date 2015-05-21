@@ -47,7 +47,7 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int j) {
     // base + a - 1
     llvm::Value *val = emit_gep_ra(def, base, A - 1);
     // Call luaF_close
-    def->builder->CreateCall2(def->luaF_closeF, def->L, val);
+    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
   }
 
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
@@ -89,9 +89,9 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // int c = luaD_precall(L, ra, nresults);  /* C or JITed function? */
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *precall_result = def->builder->CreateCall3(
-      def->luaD_precallF, def->L, ra,
-      llvm::ConstantInt::get(def->types->C_intT, nresults));
+  llvm::Value *precall_result =
+      CreateCall3(def->builder, def->luaD_precallF, def->L, ra,
+                  llvm::ConstantInt::get(def->types->C_intT, nresults));
   llvm::Value *precall_bool =
       def->builder->CreateICmpEQ(precall_result, def->types->kInt[0]);
 

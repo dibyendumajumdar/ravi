@@ -26,25 +26,23 @@ namespace ravi {
 
 void RaviCodeGenerator::emit_CONCAT(RaviFunctionDef *def, llvm::Value *L_ci,
                                     llvm::Value *proto, int A, int B, int C) {
-  def->builder->CreateCall5(def->raviV_op_concatF, def->L, def->ci_val,
-                            llvm::ConstantInt::get(def->types->C_intT, A),
-                            llvm::ConstantInt::get(def->types->C_intT, B),
-                            llvm::ConstantInt::get(def->types->C_intT, C));
+  CreateCall5(def->builder, def->raviV_op_concatF, def->L, def->ci_val,
+              llvm::ConstantInt::get(def->types->C_intT, A),
+              llvm::ConstantInt::get(def->types->C_intT, B),
+              llvm::ConstantInt::get(def->types->C_intT, C));
 }
 
 void RaviCodeGenerator::emit_CLOSURE(RaviFunctionDef *def, llvm::Value *L_ci,
                                      llvm::Value *proto, int A, int Bx) {
-  def->builder->CreateCall5(def->raviV_op_closureF, def->L, def->ci_val,
-                            def->p_LClosure,
-                            llvm::ConstantInt::get(def->types->C_intT, A),
-                            llvm::ConstantInt::get(def->types->C_intT, Bx));
+  CreateCall5(def->builder, def->raviV_op_closureF, def->L, def->ci_val,
+              def->p_LClosure, llvm::ConstantInt::get(def->types->C_intT, A),
+              llvm::ConstantInt::get(def->types->C_intT, Bx));
 }
 
 void RaviCodeGenerator::emit_VARARG(RaviFunctionDef *def, llvm::Value *L_ci,
                                     llvm::Value *proto, int A, int B) {
-  def->builder->CreateCall5(def->raviV_op_varargF, def->L, def->ci_val,
-                            def->p_LClosure,
-                            llvm::ConstantInt::get(def->types->C_intT, A),
-                            llvm::ConstantInt::get(def->types->C_intT, B));
+  CreateCall5(def->builder, def->raviV_op_varargF, def->L, def->ci_val,
+              def->p_LClosure, llvm::ConstantInt::get(def->types->C_intT, A),
+              llvm::ConstantInt::get(def->types->C_intT, B));
 }
 }

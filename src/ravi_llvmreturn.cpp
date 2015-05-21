@@ -58,7 +58,6 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   // Load pointer to base
   llvm::Instruction *base_ptr = emit_load_base(def);
 
-
   // Get pointer to register A
   llvm::Value *ra_ptr = emit_gep_ra(def, base_ptr, A);
 
@@ -82,18 +81,19 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(then_block);
 
   // Call luaF_close
-  def->builder->CreateCall2(def->luaF_closeF, def->L, base_ptr);
+  CreateCall2(def->builder, def->luaF_closeF, def->L, base_ptr);
   def->builder->CreateBr(else_block);
 
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
   //*  b = luaD_poscall(L, ra);
-  def->builder->CreateCall2(def->luaD_poscallF, def->L, ra_ptr);
+  CreateCall2(def->builder, def->luaD_poscallF, def->L, ra_ptr);
 
-  //llvm::Value *msg1 =
+  // llvm::Value *msg1 =
   //  def->builder->CreateGlobalString("Returning from compiled function\n");
-  //def->builder->CreateCall(def->printfFunc, emit_gep(def, "msg", msg1, 0, 0));
+  // def->builder->CreateCall(def->printfFunc, emit_gep(def, "msg", msg1, 0,
+  // 0));
 
   def->builder->CreateRet(def->types->kInt[1]);
 }

@@ -36,7 +36,7 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_assign(def, ra1, rb);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
   llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
-  def->builder->CreateCall4(def->luaV_gettableF, def->L, rb, rc, ra);
+  CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
 }
 
 // R(A) := length of R(B)
@@ -46,7 +46,7 @@ void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
   llvm::Value *rb = emit_gep_ra(def, base_ptr, B);
-  def->builder->CreateCall3(def->luaV_objlenF, def->L, ra, rb);
+  CreateCall3(def->builder, def->luaV_objlenF, def->L, ra, rb);
 }
 
 // R(A)[RK(B)] := RK(C)
@@ -57,7 +57,7 @@ void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
   llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
   llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
-  def->builder->CreateCall4(def->luaV_settableF, def->L, ra, rb, rc);
+  CreateCall4(def->builder, def->luaV_settableF, def->L, ra, rb, rc);
 }
 
 // R(A) := R(B)[RK(C)]
@@ -68,7 +68,7 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
   llvm::Value *rb = emit_gep_ra(def, base_ptr, B);
   llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
-  def->builder->CreateCall4(def->luaV_gettableF, def->L, rb, rc, ra);
+  CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
 }
 
 void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,
@@ -97,8 +97,7 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,
   llvm::Instruction *t = emit_load_reg_h(def, rb);
   llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
-  llvm::Value *ukey =
-      def->builder->CreateTrunc(key, def->types->C_intT);
+  llvm::Value *ukey = def->builder->CreateTrunc(key, def->types->C_intT);
 
   llvm::Value *cmp = def->builder->CreateICmpULT(ukey, len);
   llvm::BasicBlock *then_block =
@@ -155,8 +154,7 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def,
   llvm::Instruction *t = emit_load_reg_h(def, rb);
   llvm::Instruction *data = emit_load_reg_h_intarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
-  llvm::Value *ukey =
-      def->builder->CreateTrunc(key, def->types->C_intT);
+  llvm::Value *ukey = def->builder->CreateTrunc(key, def->types->C_intT);
 
   llvm::Value *cmp = def->builder->CreateICmpULT(ukey, len);
   llvm::BasicBlock *then_block =
@@ -215,8 +213,7 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def,
   llvm::Instruction *t = emit_load_reg_h(def, ra);
   llvm::Instruction *data = emit_load_reg_h_intarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
-  llvm::Value *ukey =
-      def->builder->CreateTrunc(key, def->types->C_intT);
+  llvm::Value *ukey = def->builder->CreateTrunc(key, def->types->C_intT);
 
   llvm::Value *cmp = def->builder->CreateICmpULT(ukey, len);
   llvm::BasicBlock *then_block =
@@ -237,7 +234,7 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def,
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
-  def->builder->CreateCall4(def->raviH_set_intF, def->L, t, ukey, value);
+  CreateCall4(def->builder, def->raviH_set_intF, def->L, t, ukey, value);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(end_block);
@@ -320,8 +317,7 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
   llvm::Instruction *t = emit_load_reg_h(def, ra);
   llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
-  llvm::Value *ukey =
-      def->builder->CreateTrunc(key, def->types->C_intT);
+  llvm::Value *ukey = def->builder->CreateTrunc(key, def->types->C_intT);
 
   cmp = def->builder->CreateICmpULT(ukey, len);
   llvm::BasicBlock *then_block =
@@ -342,7 +338,7 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
-  def->builder->CreateCall4(def->raviH_set_floatF, def->L, t, ukey, load_nc);
+  CreateCall4(def->builder, def->raviH_set_floatF, def->L, t, ukey, load_nc);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(end_block);
@@ -396,7 +392,7 @@ void RaviCodeGenerator::emit_SETUPVAL(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->CreateCondBr(orcond, end, then);
   def->builder->SetInsertPoint(then);
 
-  def->builder->CreateCall2(def->luaC_upvalbarrierF, def->L, upval);
+  CreateCall2(def->builder, def->luaC_upvalbarrierF, def->L, upval);
   def->builder->CreateBr(end);
 
   def->f->getBasicBlockList().push_back(end);
@@ -415,7 +411,7 @@ void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, B);
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
   llvm::Value *v = emit_load_upval_v(def, upval);
-  def->builder->CreateCall4(def->luaV_gettableF, def->L, v, rc, ra);
+  CreateCall4(def->builder, def->luaV_gettableF, def->L, v, rc, ra);
 }
 
 // UpValue[A][RK(B)] := RK(C)
@@ -432,7 +428,7 @@ void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, A);
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
   llvm::Value *v = emit_load_upval_v(def, upval);
-  def->builder->CreateCall4(def->luaV_settableF, def->L, v, rb, rc);
+  CreateCall4(def->builder, def->luaV_settableF, def->L, v, rb, rc);
 }
 
 void RaviCodeGenerator::emit_NEWARRAYINT(RaviFunctionDef *def,
@@ -440,8 +436,8 @@ void RaviCodeGenerator::emit_NEWARRAYINT(RaviFunctionDef *def,
                                          int A) {
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  def->builder->CreateCall3(def->raviV_op_newarrayintF, def->L, def->ci_val,
-                            ra);
+  CreateCall3(def->builder, def->raviV_op_newarrayintF, def->L, def->ci_val,
+              ra);
 }
 
 void RaviCodeGenerator::emit_NEWARRAYFLOAT(RaviFunctionDef *def,
@@ -449,8 +445,8 @@ void RaviCodeGenerator::emit_NEWARRAYFLOAT(RaviFunctionDef *def,
                                            llvm::Value *proto, int A) {
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  def->builder->CreateCall3(def->raviV_op_newarrayfloatF, def->L, def->ci_val,
-                            ra);
+  CreateCall3(def->builder, def->raviV_op_newarrayfloatF, def->L, def->ci_val,
+              ra);
 }
 
 void RaviCodeGenerator::emit_NEWTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
@@ -467,16 +463,16 @@ void RaviCodeGenerator::emit_NEWTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
 
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  def->builder->CreateCall5(def->raviV_op_newtableF, def->L, def->ci_val, ra,
-                            def->types->kInt[B], def->types->kInt[C]);
+  CreateCall5(def->builder, def->raviV_op_newtableF, def->L, def->ci_val, ra,
+              def->types->kInt[B], def->types->kInt[C]);
 }
 
 void RaviCodeGenerator::emit_SETLIST(RaviFunctionDef *def, llvm::Value *L_ci,
                                      llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  def->builder->CreateCall5(def->raviV_op_setlistF, def->L, def->ci_val, ra,
-                            def->types->kInt[B], def->types->kInt[C]);
+  CreateCall5(def->builder, def->raviV_op_setlistF, def->L, def->ci_val, ra,
+              def->types->kInt[B], def->types->kInt[C]);
 }
 
 llvm::Instruction *RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def,
