@@ -4,6 +4,8 @@ function cast(n, to)
 	return n
 end
 
+local slice = table.slice
+
 matrix = {}
 function matrix.new(m, n) 
 	local t = {m, n, table.numarray(m*n, 0)}
@@ -15,7 +17,7 @@ function matrix.getrow(m, row)
 	local cols = m[2]
 	local data = m[3]
 	assert(row > 0 and row <= rows)
-	return table.slice(data, (row-1)*cols+1, cols)
+	return slice(data, (row-1)*cols+1, cols)
 end
 
 function matrix.getdata(m)
