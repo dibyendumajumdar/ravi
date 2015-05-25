@@ -8,7 +8,7 @@ The programs used in the performance testing can be found at `Ravi Tests <https:
 +---------------+---------+----------+-----------+
 | Program       | Lua5.3  | Ravi     | Luajit 2.1|
 +===============+=========+==========+===========+
-|fornum_test1   | 9.187   | 2.75     | 0.309     |
+|fornum_test1   | 9.187   | 0.305    | 0.309     |
 +---------------+---------+----------+-----------+
 |fornum_test2   | 9.57    | 0.922    | 0.906     |
 +---------------+---------+----------+-----------+
@@ -17,6 +17,8 @@ The programs used in the performance testing can be found at `Ravi Tests <https:
 |mandel(4000)   | 21.247  | 2.94     | 1.633     |
 +---------------+---------+----------+-----------+
 |fannkuchen(11) | 63.446  | 8.875    | 4.751     |
++---------------+---------+----------+-----------+
+|matmul(1000)   | 34.604  | 4.2      | 0.968     |
 +---------------+---------+----------+-----------+
 
 There are a number of reasons why Ravi's performance is not as good as Luajit.
