@@ -21,11 +21,12 @@ The programs used in the performance testing can be found at `Ravi Tests <https:
 |matmul(1000)   | 34.604  | 4.2      | 0.968     |
 +---------------+---------+----------+-----------+
 
-There are a number of reasons why Ravi's performance is not as good as Luajit.
+Following points are worth bearing in mind when looking at above benchmarks.
 
-1. Luajit uses an optimized representation of values. In Lua 5.3 and
-   in Ravi, the value is 16 bytes - and many operations require two loads
-   / two stores. Luajit therefore will always have an advantage here.
+1. Luajit uses an optimized representation of double values. In Lua 5.3 and
+   in Ravi, a value is 16 bytes - and floating point operations require two loads
+   / two stores. Luajit has a performance advantage when it comes to floating 
+   point operations due to this.
 
 2. More work is needed to optimize fornum loops in Ravi. I have some
    ideas on what can be improved but have parked this for now as I want
@@ -34,6 +35,10 @@ There are a number of reasons why Ravi's performance is not as good as Luajit.
 3. Luajit compilation approach ensures that it can use information about 
    the actual execution path taken by the code at runtime whereas Ravi
    compiles each function as a whole regardless of how it will be used.
+
+4. For Ravi the timings above do not include the LLVM compilation time.
+   But LuaJIT timings include the JIT compilation times, so they show
+   incredible performance.
 
 Ideas
 -----
@@ -49,7 +54,7 @@ external variable if necessary.
 
 The Fornum loop needs to handle four different scenarios, resulting from the type of the index variable and whether the loop increments or decrements. 
 The generated code is not very efficient due to branching. The common case of integer index with constant step can be specialized for greater
-performance. 
+performance. I have implemented the case when index is an integer and the step size is a positive constant. This seems to be the most common case.
 
 The Value Storage
 -----------------
