@@ -692,10 +692,15 @@ int raviH_getn(Table *t) {
 }
 
 /* resize array and initialize new elements if requested */
-static void ravi_resize_array(lua_State *L, Table *t, unsigned int new_size, int initialize) {
+static int ravi_resize_array(lua_State *L, Table *t, unsigned int new_size,
+                             int initialize) {
+  if (t->ravi_array.array_modifier) {
+    return 0;
+  }
   /* NOTE - relies upon lua_Number and lua_Integer being the same size */
   lua_assert(sizeof(lua_Integer) == sizeof(lua_Number));
-  unsigned int size = new_size < t->ravi_array.size + 10 ? t->ravi_array.size + 10 : new_size;
+  unsigned int size =
+      new_size < t->ravi_array.size + 10 ? t->ravi_array.size + 10 : new_size;
   t->ravi_array.data = (char *)luaM_reallocv(
       L, t->ravi_array.data, t->ravi_array.size, size, sizeof(lua_Number));
   if (initialize) {
@@ -703,6 +708,7 @@ static void ravi_resize_array(lua_State *L, Table *t, unsigned int new_size, int
     memset(&data[t->ravi_array.len], 0, size - t->ravi_array.size);
   }
   t->ravi_array.size = size;
+  return 1;
 }
 
 void raviH_set_int(lua_State *L, Table *t, unsigned int u, lua_Integer value) {
@@ -718,8 +724,10 @@ void raviH_set_int(lua_State *L, Table *t, unsigned int u, lua_Integer value) {
       t->ravi_array.len++;
       goto setval2;
     } else {
-      ravi_resize_array(L, t, 0, 1);
-      goto setval;
+      if (ravi_resize_array(L, t, 0, 1))
+        goto setval;
+      else
+        luaG_runerror(L, "array cannot be resized");
     }
   } else
     luaG_runerror(L, "array out of bounds");
@@ -738,8 +746,10 @@ void raviH_set_float(lua_State *L, Table *t, unsigned int u, lua_Number value) {
       t->ravi_array.len++;
       goto setval2;
     } else {
-      ravi_resize_array(L, t, 0, 1);
-      goto setval;
+      if (ravi_resize_array(L, t, 0, 1))
+        goto setval;
+      else
+        luaG_runerror(L, "array cannot be resized");
     }
   } else
     luaG_runerror(L, "array out of bounds");
@@ -768,6 +778,7 @@ Table *raviH_new_integer_array(lua_State *L, unsigned int len,
     data[i] = init_value;
   }
   t->ravi_array.len = len + 1;
+  t->ravi_array.array_modifier = RAVI_ARRAY_FIXEDSIZE;
   return t;
 }
 
@@ -782,6 +793,7 @@ Table *raviH_new_number_array(lua_State *L, unsigned int len,
     data[i] = init_value;
   }
   t->ravi_array.len = len + 1;
+  t->ravi_array.array_modifier = RAVI_ARRAY_FIXEDSIZE;
   return t;
 }
 
@@ -800,7 +812,14 @@ static const char *key_orig_table = "Originaltable";
  */
 Table *raviH_new_slice(lua_State *L, TValue *parent, unsigned int start,
                        unsigned int len) {
+  if (!ttistable(parent))
+    luaG_runerror(L, "integer[] or number[] expected");
   Table *orig = hvalue(parent);
+  if (orig->ravi_array.array_type == RAVI_TTABLE)
+    luaG_runerror(L, "integer[] or number[] expected");
+  if (!orig->ravi_array.array_modifier)
+    luaG_runerror(
+        L, "cannot create slice from dynamic integer[] or number[] array");
   /* Create the slice table */
   Table *t = luaH_new(L);
   /* Add a reference to the parent table */
@@ -813,19 +832,18 @@ Table *raviH_new_slice(lua_State *L, TValue *parent, unsigned int start,
   t->ravi_array.array_modifier = RAVI_ARRAY_SLICE;
   lua_Number *data = (lua_Number *)orig->ravi_array.data;
   t->ravi_array.data = (char *)(data + start - 1);
-  t->ravi_array.len = len+1;
-  t->ravi_array.size = len+1;
+  t->ravi_array.len = len + 1;
+  t->ravi_array.size = len + 1;
   return t;
 }
 
 /* Obtain parent array of the slice */
 const TValue *raviH_slice_parent(lua_State *L, TValue *slice) {
   if (!ttistable(slice))
-    luaG_runerror(L, "integer[] or number[] expected");
+    luaG_runerror(L, "slice of integer[] or number[] expected");
   Table *orig = hvalue(slice);
   if (orig->ravi_array.array_type == RAVI_TTABLE)
-    luaG_runerror(
-        L, "cannot create a slice of a table, integer[] or number[] expected");
+    luaG_runerror(L, "slice of integer[] or number[] expected");
   if (orig->ravi_array.array_modifier != RAVI_ARRAY_SLICE)
     luaG_runerror(L, "slice of integer[] or number[] expected");
   /* Get reference to the parent table */

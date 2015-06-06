@@ -516,7 +516,7 @@ typedef struct Node {
 
 typedef enum RaviArrayModifer {
   RAVI_ARRAY_SLICE = 1,
-  RAVI_ARRAY_MATRIX = 2
+  RAVI_ARRAY_FIXEDSIZE = 2
 } RaviArrayModifier;
 
 
