@@ -883,6 +883,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_plonglongT =
     mdbuilder.createTBAAStructTagNode(tbaa_longlongT, tbaa_longlongT, 0);
 
+  tbaa_doubleT =
+    mdbuilder.createTBAAScalarTypeNode("double", tbaa_charT, 0);
+  tbaa_pdoubleT =
+    mdbuilder.createTBAAStructTagNode(tbaa_doubleT, tbaa_doubleT, 0);
+
   //!14 = metadata !{metadata !"CallInfoL", metadata !3, i64 0, metadata !3, i64
   // 4, metadata !9, i64 8}
   std::vector<std::pair<llvm::MDNode *, uint64_t>> nodes;

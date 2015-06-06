@@ -269,6 +269,8 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_pintT;
   llvm::MDNode *tbaa_longlongT;
   llvm::MDNode *tbaa_plonglongT;
+  llvm::MDNode *tbaa_doubleT;
+  llvm::MDNode *tbaa_pdoubleT;
   llvm::MDNode *tbaa_pointerT;
   llvm::MDNode *tbaa_ppointerT;
   llvm::MDNode *tbaa_CallInfo_lT;

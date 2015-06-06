@@ -111,7 +111,7 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,
 
   llvm::Value *ptr = def->builder->CreateGEP(data, ukey);
   llvm::Instruction *value = def->builder->CreateLoad(ptr);
-  // TODO tbaa
+  value->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pdoubleT);
 
   emit_store_reg_n(def, value, ra);
   emit_store_type(def, ra, LUA_TNUMFLT);
@@ -168,7 +168,7 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def,
 
   llvm::Value *ptr = def->builder->CreateGEP(data, ukey);
   llvm::Instruction *value = def->builder->CreateLoad(ptr);
-  // TODO tbaa
+  value->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_plonglongT);
 
   emit_store_reg_i(def, value, ra);
   emit_store_type(def, ra, LUA_TNUMINT);
@@ -227,8 +227,8 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def,
 
   llvm::Value *ptr = def->builder->CreateGEP(data, ukey);
 
-  def->builder->CreateStore(value, ptr);
-  // TODO tbaa
+  llvm::Instruction *storeinst = def->builder->CreateStore(value, ptr);
+  storeinst->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_plonglongT);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(else_block);
@@ -331,8 +331,8 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
 
   llvm::Value *ptr = def->builder->CreateGEP(data, ukey);
 
-  def->builder->CreateStore(load_nc, ptr);
-  // TODO tbaa
+  llvm::Instruction *storeinst = def->builder->CreateStore(load_nc, ptr);
+  storeinst->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pdoubleT);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(else_block);
