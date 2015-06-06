@@ -98,7 +98,7 @@ llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
   llvm::Value *type = emit_load_type(def, reg);
 
   // Test if type == LUA_TNIL (0)
-  llvm::Value *isnil = def->builder->CreateICmpEQ(type, def->types->kInt[0]);
+  llvm::Value *isnil = emit_is_value_of_type(def, type, LUA__TNIL, "is.nil");
   llvm::BasicBlock *then_block =
       llvm::BasicBlock::Create(def->jitState->context(), "if.nil", def->f);
   llvm::BasicBlock *else_block =
@@ -117,7 +117,8 @@ llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
   // so check if bool and b == 0
 
   // Test if type == LUA_TBOOLEAN
-  llvm::Value *isbool = def->builder->CreateICmpEQ(type, def->types->kInt[1]);
+  llvm::Value *isbool =
+      emit_is_value_of_type(def, type, LUA__TBOOLEAN, "is.boolean");
   // Test if bool value == 0
   llvm::Value *bool_value = emit_load_reg_b(def, reg);
   llvm::Value *boolzero =

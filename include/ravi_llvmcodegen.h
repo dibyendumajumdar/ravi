@@ -69,6 +69,27 @@ extern "C" {
 
 namespace ravi {
 
+  enum LuaTypeCode {
+    LUA__TNIL = LUA_TNIL,
+    LUA__TBOOLEAN = LUA_TBOOLEAN,
+    LUA__TLIGHTUSERDATA = LUA_TLIGHTUSERDATA,
+    LUA__TNUMBER = LUA_TNUMBER,
+    LUA__TSTRING = ctb(LUA_TSTRING),
+    LUA__TTABLE = ctb(LUA_TTABLE),
+    LUA__TFUNCTION = ctb(LUA_TFUNCTION),
+    LUA__TUSERDATA = ctb(LUA_TUSERDATA),
+    LUA__TTHREAD = ctb(LUA_TTHREAD),
+    LUA__TLCL = ctb(LUA_TLCL),
+    LUA__TLCF = LUA_TLCF,
+    LUA__TCCL = ctb(LUA_TCCL),
+    LUA__TSHRSTR = ctb(LUA_TSHRSTR),
+    LUA__TLNGSTR = ctb(LUA_TLNGSTR),
+    LUA__TNUMFLT = LUA_TNUMFLT,
+    LUA__TNUMINT = LUA_TNUMINT 
+  };
+
+
+
 // All Lua types are gathered here
 struct LuaLLVMTypes {
 
@@ -585,6 +606,23 @@ public:
   // Load int
   llvm::Instruction *emit_load_local_int(RaviFunctionDef *def,
                                          llvm::Value *src);
+
+  // Test if value type is of specific Lua type
+  // Value_type should have been obtained by emit_load_type() 
+  // The Lua typecode to check must be in lua_typecode
+  // The return value is a boolean type as a result of 
+  // integer comparison result which is i1 in LLVM
+  llvm::Value *emit_is_value_of_type(RaviFunctionDef *def, llvm::Value *value_type,
+    LuaTypeCode lua_typecode, const char *varname = "value.typeof");
+
+  // Test if value type is NOT of specific Lua type
+  // Value_type should have been obtained by emit_load_type() 
+  // The Lua typecode to check must be in lua_typecode
+  // The return value is a boolean type as a result of 
+  // integer comparison result which is i1 in LLVM
+  llvm::Value *emit_is_not_value_of_type(RaviFunctionDef *def, llvm::Value *value_type,
+    LuaTypeCode lua_typecode, const char *varname = "value.not.typeof");
+
 
   // emit code for (LClosure *)ci->func->value_.gc
   llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,

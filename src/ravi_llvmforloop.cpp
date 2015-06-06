@@ -250,8 +250,7 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Is index an integer?
   llvm::Instruction *rinit_tt = emit_load_type(def, rinit);
-  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-      rinit_tt, def->types->kInt[LUA_TNUMINT], "is.integer");
+  llvm::Value *cmp1 = emit_is_value_of_type(def, rinit_tt, LUA__TNUMINT, "init.is.integer");
 
   // Setup if then else branch for integer
   llvm::BasicBlock *if_integer =

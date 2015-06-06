@@ -63,10 +63,10 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
       llvm::BasicBlock::Create(def->jitState->context(), "done");
 
   if (op != OP_DIV) {
-    llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-        rb_type, def->types->kInt[LUA_TNUMINT], "rb.is.integer");
-    llvm::Value *cmp2 = def->builder->CreateICmpEQ(
-        rc_type, def->types->kInt[LUA_TNUMINT], "rc.is.integer");
+    llvm::Value *cmp1 =
+        emit_is_value_of_type(def, rb_type, LUA__TNUMINT, "rb.is.integer");
+    llvm::Value *cmp2 =
+        emit_is_value_of_type(def, rc_type, LUA__TNUMINT, "rc.is.integer");
 
     llvm::Value *andvalue = def->builder->CreateAnd(cmp1, cmp2);
 
@@ -108,8 +108,8 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
   }
 
   // Is RB a float?
-  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-      rb_type, def->types->kInt[LUA_TNUMFLT], "rb.is.float");
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, rb_type, LUA__TNUMFLT, "rb.is.float");
 
   llvm::BasicBlock *convert_rb =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rb");
@@ -148,8 +148,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(test_rc);
 
   // Is RC a float?
-  cmp1 = def->builder->CreateICmpEQ(rc_type, def->types->kInt[LUA_TNUMFLT],
-                                    "rc.is.float");
+  cmp1 = emit_is_value_of_type(def, rc_type, LUA__TNUMFLT, "rc.is.float");
 
   llvm::BasicBlock *convert_rc =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rc");
@@ -261,10 +260,10 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::BasicBlock *done_block =
       llvm::BasicBlock::Create(def->jitState->context(), "done");
 
-  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-      rb_type, def->types->kInt[LUA_TNUMINT], "rb.is.integer");
-  llvm::Value *cmp2 = def->builder->CreateICmpEQ(
-      rc_type, def->types->kInt[LUA_TNUMINT], "rc.is.integer");
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, rb_type, LUA__TNUMINT, "rb.is.integer");
+  llvm::Value *cmp2 =
+      emit_is_value_of_type(def, rc_type, LUA__TNUMINT, "rc.is.integer");
 
   llvm::Value *andvalue = def->builder->CreateAnd(cmp1, cmp2);
 
@@ -292,8 +291,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else_block);
 
   // Is RB a float?
-  cmp1 = def->builder->CreateICmpEQ(rb_type, def->types->kInt[LUA_TNUMFLT],
-                                    "rb.is.float");
+  cmp1 = emit_is_value_of_type(def, rb_type, LUA__TNUMFLT, "rb.is.float");
 
   llvm::BasicBlock *convert_rb =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rb");
@@ -332,8 +330,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(test_rc);
 
   // Is RC a float?
-  cmp1 = def->builder->CreateICmpEQ(rc_type, def->types->kInt[LUA_TNUMFLT],
-                                    "rc.is.float");
+  cmp1 = emit_is_value_of_type(def, rc_type, LUA__TNUMFLT, "rc.is.float");
 
   llvm::BasicBlock *convert_rc =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rc");
@@ -457,10 +454,10 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::BasicBlock *done_block =
       llvm::BasicBlock::Create(def->jitState->context(), "done");
 
-  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-      rb_type, def->types->kInt[LUA_TNUMINT], "rb.is.integer");
-  llvm::Value *cmp2 = def->builder->CreateICmpEQ(
-      rc_type, def->types->kInt[LUA_TNUMINT], "rc.is.integer");
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, rb_type, LUA__TNUMINT, "rb.is.integer");
+  llvm::Value *cmp2 =
+      emit_is_value_of_type(def, rc_type, LUA__TNUMINT, "rc.is.integer");
 
   llvm::Value *andvalue = def->builder->CreateAnd(cmp1, cmp2);
 
@@ -488,8 +485,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else_block);
 
   // Is RB a float?
-  cmp1 = def->builder->CreateICmpEQ(rb_type, def->types->kInt[LUA_TNUMFLT],
-                                    "rb.is.float");
+  cmp1 = emit_is_value_of_type(def, rb_type, LUA__TNUMFLT, "rb.is.float");
 
   llvm::BasicBlock *convert_rb =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rb");
@@ -528,8 +524,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(test_rc);
 
   // Is RC a float?
-  cmp1 = def->builder->CreateICmpEQ(rc_type, def->types->kInt[LUA_TNUMFLT],
-                                    "rc.is.float");
+  cmp1 = emit_is_value_of_type(def, rc_type, LUA__TNUMFLT, "rc.is.float");
 
   llvm::BasicBlock *convert_rc =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rc");
@@ -620,8 +615,8 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
       llvm::BasicBlock::Create(def->jitState->context(), "done");
 
   // Is RB a float?
-  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-      rb_type, def->types->kInt[LUA_TNUMFLT], "rb.is.float");
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, rb_type, LUA__TNUMFLT, "rb.is.float");
 
   llvm::BasicBlock *convert_rb =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rb");
@@ -660,8 +655,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(test_rc);
 
   // Is RC a float?
-  cmp1 = def->builder->CreateICmpEQ(rc_type, def->types->kInt[LUA_TNUMFLT],
-                                    "rc.is.float");
+  cmp1 = emit_is_value_of_type(def, rc_type, LUA__TNUMFLT, "rc.is.float");
 
   llvm::BasicBlock *convert_rc =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rc");
@@ -751,8 +745,8 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::BasicBlock *done_block =
       llvm::BasicBlock::Create(def->jitState->context(), "done");
 
-  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-      rb_type, def->types->kInt[LUA_TNUMINT], "rb.is.integer");
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, rb_type, LUA__TNUMINT, "rb.is.integer");
 
   // Check if both RB and RC are integers
   llvm::BasicBlock *then_block =
@@ -776,8 +770,7 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else_block);
 
   // Is RB a float?
-  cmp1 = def->builder->CreateICmpEQ(rb_type, def->types->kInt[LUA_TNUMFLT],
-                                    "rb.is.float");
+  cmp1 = emit_is_value_of_type(def, rb_type, LUA__TNUMFLT, "rb.is.float");
 
   llvm::BasicBlock *convert_rb =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rb");

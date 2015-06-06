@@ -100,15 +100,15 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *pinit_tt = emit_load_type(def, init);
 
   // Compare init->tt == LUA_TNUMINT
-  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-      pinit_tt, def->types->kInt[LUA_TNUMINT], "init.is.integer");
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, pinit_tt, LUA__TNUMINT, "init.is.integer");
 
   // Get pstep->tt
   llvm::Instruction *pstep_tt = emit_load_type(def, pstep);
 
   // Compare pstep->tt == LUA_TNUMINT
-  llvm::Value *icmp2 = def->builder->CreateICmpEQ(
-      pstep_tt, def->types->kInt[LUA_TNUMINT], "step.is.integer");
+  llvm::Value *icmp2 =
+      emit_is_value_of_type(def, pstep_tt, LUA__TNUMINT, "step.is.integer");
 
   // Get ivalue(pstep)
   llvm::Instruction *pstep_ivalue = emit_load_reg_i(def, pstep);
@@ -229,8 +229,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *plimit_tt = emit_load_type(def, plimit);
 
   // Test if already a float
-  cmp1 = def->builder->CreateICmpEQ(plimit_tt, def->types->kInt[LUA_TNUMFLT],
-                                    "limit.is.float");
+  cmp1 = emit_is_value_of_type(def, plimit_tt, LUA__TNUMFLT, "limit.is.float");
   llvm::BasicBlock *else1_plimit_ifnum = llvm::BasicBlock::Create(
       def->jitState->context(), "if.limit.isfloat", def->f);
   llvm::BasicBlock *else1_plimit_elsenum =
@@ -275,8 +274,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   // ***********  PSTEP - convert pstep to float
   // Test if already a float
   pstep_tt = emit_load_type(def, pstep);
-  cmp1 = def->builder->CreateICmpEQ(pstep_tt, def->types->kInt[LUA_TNUMFLT],
-                                    "step.is.float");
+  cmp1 = emit_is_value_of_type(def, pstep_tt, LUA__TNUMFLT, "step.is.float");
   llvm::BasicBlock *else1_pstep_ifnum = llvm::BasicBlock::Create(
       def->jitState->context(), "if.step.isfloat", def->f);
   llvm::BasicBlock *else1_pstep_elsenum =
@@ -320,8 +318,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Check if it is already a float
   pinit_tt = emit_load_type(def, init);
-  cmp1 = def->builder->CreateICmpEQ(pinit_tt, def->types->kInt[LUA_TNUMFLT],
-                                    "init.is.float");
+  cmp1 = emit_is_value_of_type(def, pinit_tt, LUA__TNUMFLT, "init.is.float");
   llvm::BasicBlock *else1_pinit_ifnum = llvm::BasicBlock::Create(
       def->jitState->context(), "if.init.is.float", def->f);
   llvm::BasicBlock *else1_pinit_elsenum =
@@ -459,15 +456,15 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *pinit_tt = emit_load_type(def, init);
 
   // Compare init->tt_ == LUA_TNUMINT
-  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-      pinit_tt, def->types->kInt[LUA_TNUMINT], "init.is.integer");
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, pinit_tt, LUA__TNUMINT, "init.is.integer");
 
   // Get pstep->tt_
   llvm::Instruction *pstep_tt = emit_load_type(def, pstep);
 
   // Compare pstep->tt_ == LUA_TNUMINT
-  llvm::Value *icmp2 = def->builder->CreateICmpEQ(
-      pstep_tt, def->types->kInt[LUA_TNUMINT], "step.is.integer");
+  llvm::Value *icmp2 =
+      emit_is_value_of_type(def, pstep_tt, LUA__TNUMINT, "step.is.integer");
 
   // Get ivalue(pstep)
   llvm::Instruction *pstep_ivalue = emit_load_reg_i(def, pstep);
@@ -554,8 +551,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   llvm::Instruction *plimit_tt = emit_load_type(def, plimit);
   // Test if already a float
-  cmp1 = def->builder->CreateICmpEQ(plimit_tt, def->types->kInt[LUA_TNUMFLT],
-                                    "limit.is.float");
+  cmp1 = emit_is_value_of_type(def, plimit_tt, LUA__TNUMFLT, "limit.is.float");
   llvm::BasicBlock *else1_plimit_ifnum = llvm::BasicBlock::Create(
       def->jitState->context(), "if.limit.isfloat", def->f);
   llvm::BasicBlock *else1_plimit_elsenum =
@@ -604,8 +600,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   // ***********  PSTEP - convert pstep to float
   // Test if already a float
   pstep_tt = emit_load_type(def, pstep);
-  cmp1 = def->builder->CreateICmpEQ(pstep_tt, def->types->kInt[LUA_TNUMFLT],
-                                    "step.is.float");
+  cmp1 = emit_is_value_of_type(def, pstep_tt, LUA__TNUMFLT, "step.is.float");
   llvm::BasicBlock *else1_pstep_ifnum = llvm::BasicBlock::Create(
       def->jitState->context(), "if.step.isfloat", def->f);
   llvm::BasicBlock *else1_pstep_elsenum =
@@ -654,8 +649,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Check if it is already a float
   pinit_tt = emit_load_type(def, init);
-  cmp1 = def->builder->CreateICmpEQ(pinit_tt, def->types->kInt[LUA_TNUMFLT],
-                                    "init.is.float");
+  cmp1 = emit_is_value_of_type(def, pinit_tt, LUA__TNUMFLT, "init.is.float");
   llvm::BasicBlock *else1_pinit_ifnum = llvm::BasicBlock::Create(
       def->jitState->context(), "if.init.is.float", def->f);
   llvm::BasicBlock *else1_pinit_elsenum =

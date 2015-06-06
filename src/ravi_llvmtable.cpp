@@ -277,8 +277,8 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
   llvm::Instruction *rc_type = emit_load_type(def, rc);
 
   // Is RC a float?
-  llvm::Value *cmp = def->builder->CreateICmpEQ(
-      rc_type, def->types->kInt[LUA_TNUMFLT], "rc.is.float");
+  llvm::Value *cmp =
+      emit_is_value_of_type(def, rc_type, LUA__TNUMFLT, "rc.is.float");
 
   llvm::BasicBlock *convert_rc =
       llvm::BasicBlock::Create(def->jitState->context(), "convert.rc");
@@ -489,8 +489,8 @@ llvm::Instruction *RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def,
   llvm::Instruction *type = emit_load_type(def, ra);
 
   // type != LUA_TTABLE ?
-  llvm::Value *cmp1 = def->builder->CreateICmpNE(
-      type, def->types->kInt[LUA_TTABLE | BIT_ISCOLLECTABLE], "is.not.table");
+  llvm::Value *cmp1 =
+      emit_is_not_value_of_type(def, type, LUA__TTABLE, "is.not.table");
 
   llvm::BasicBlock *raise_error = llvm::BasicBlock::Create(
       def->jitState->context(), "if.not.table", def->f);

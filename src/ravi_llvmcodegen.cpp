@@ -262,6 +262,21 @@ llvm::Instruction *RaviCodeGenerator::emit_load_type(RaviFunctionDef *def,
   return tt;
 }
 
+llvm::Value *RaviCodeGenerator::emit_is_value_of_type(RaviFunctionDef *def,
+                                                      llvm::Value *value_type,
+                                                      LuaTypeCode lua_type,
+                                                      const char *varname) {
+  return def->builder->CreateICmpEQ(value_type, def->types->kInt[int(lua_type)],
+                                    varname);
+}
+
+llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type(
+    RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_type,
+    const char *varname) {
+  return def->builder->CreateICmpNE(value_type, def->types->kInt[int(lua_type)],
+                                    varname);
+}
+
 llvm::Instruction *
 RaviCodeGenerator::emit_load_ravi_arraytype(RaviFunctionDef *def,
                                             llvm::Value *value) {

@@ -79,7 +79,8 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *type = emit_load_type(def, ra1);
 
   // Test if type != LUA_TNIL (0)
-  llvm::Value *isnotnil = def->builder->CreateICmpNE(type, def->types->kInt[0]);
+  llvm::Value *isnotnil =
+      emit_is_not_value_of_type(def, type, LUA__TNIL, "is.not.nil");
   llvm::BasicBlock *then_block =
       llvm::BasicBlock::Create(def->jitState->context(), "if.not.nil", def->f);
   llvm::BasicBlock *else_block =
@@ -116,7 +117,8 @@ void RaviCodeGenerator::emit_TFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *type = emit_load_type(def, ra1);
 
   // Test if type != LUA_TNIL (0)
-  llvm::Value *isnotnil = def->builder->CreateICmpNE(type, def->types->kInt[0]);
+  llvm::Value *isnotnil =
+      emit_is_not_value_of_type(def, type, LUA__TNIL, "is.not.nil");
   llvm::BasicBlock *then_block =
       llvm::BasicBlock::Create(def->jitState->context(), "if.not.nil", def->f);
   llvm::BasicBlock *else_block =

@@ -117,8 +117,8 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *src_type = emit_load_type(def, src);
 
   // Compare src->tt == LUA_TNUMINT
-  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-      src_type, def->types->kInt[LUA_TNUMINT], "is.integer");
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, src_type, LUA__TNUMINT, "is.src.integer");
 
   llvm::BasicBlock *then1 =
       llvm::BasicBlock::Create(def->jitState->context(), "if.integer", def->f);
@@ -189,8 +189,8 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *src_type = emit_load_type(def, src);
 
   // Compare src->tt == LUA_TNUMFLT
-  llvm::Value *cmp1 = def->builder->CreateICmpEQ(
-      src_type, def->types->kInt[LUA_TNUMFLT], "is.float");
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, src_type, LUA__TNUMFLT, "is.src.float");
 
   llvm::BasicBlock *then1 =
       llvm::BasicBlock::Create(def->jitState->context(), "if.float", def->f);
@@ -260,9 +260,9 @@ void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, llvm::Value *L_ci,
 
   llvm::Value *src_type = emit_load_type(def, src);
 
-  // Compare src->tt == LUA_TNUMINT
-  llvm::Value *cmp1 = def->builder->CreateICmpNE(
-      src_type, def->types->kInt[LUA_TNUMINT], "is.not.integer");
+  // Is src->tt != LUA_TNUMINT?
+  llvm::Value *cmp1 =
+      emit_is_not_value_of_type(def, src_type, LUA__TNUMINT, "is.not.integer");
 
   llvm::BasicBlock *then1 = llvm::BasicBlock::Create(def->jitState->context(),
                                                      "if.not.integer", def->f);
@@ -325,9 +325,9 @@ void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci,
 
   llvm::Value *src_type = emit_load_type(def, src);
 
-  // Compare src->tt == LUA_TNUMFLT
-  llvm::Value *cmp1 = def->builder->CreateICmpNE(
-      src_type, def->types->kInt[LUA_TNUMFLT], "is.not.float");
+  // Is src->tt != LUA_TNUMFLT?
+  llvm::Value *cmp1 =
+      emit_is_not_value_of_type(def, src_type, LUA__TNUMFLT, "is.not.float");
 
   llvm::BasicBlock *then1 = llvm::BasicBlock::Create(def->jitState->context(),
                                                      "if.not.float", def->f);
