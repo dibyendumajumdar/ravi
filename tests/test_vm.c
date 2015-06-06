@@ -1,13 +1,102 @@
 #include <ctype.h>
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <inttypes.h>
 
 #include "lua.h"
 #include "lauxlib.h"
 #include "lualib.h"
+
+/*
+** LUA_TFUNCTION variants:
+** 0 - Lua function
+** 1 - light C function
+** 2 - regular C function (closure)
+*/
+
+/* Variant tags for functions */
+#define LUA_TLCL	(LUA_TFUNCTION | (0 << 4))  /* Lua closure */
+#define LUA_TLCF	(LUA_TFUNCTION | (1 << 4))  /* light C function */
+#define LUA_TCCL	(LUA_TFUNCTION | (2 << 4))  /* C closure */
+
+
+/* Variant tags for strings */
+#define LUA_TSHRSTR	(LUA_TSTRING | (0 << 4))  /* short strings */
+#define LUA_TLNGSTR	(LUA_TSTRING | (1 << 4))  /* long strings */
+
+
+/* Variant tags for numbers */
+#define LUA_TNUMFLT	(LUA_TNUMBER | (0 << 4))  /* float numbers */
+#define LUA_TNUMINT	(LUA_TNUMBER | (1 << 4))  /* integer numbers */
+
+
+/* Bit mark for collectable types */
+#define BIT_ISCOLLECTABLE	(1 << 6)
+
+/* mark a tag as collectable */
+#define ctb(t)			((t) | BIT_ISCOLLECTABLE)
+
+
+static void dumpll(uint64_t d)
+{
+  union {
+    uint64_t d;
+    unsigned char bytes[8];
+  } tt;
+
+  tt.d = d;
+  // Litle endian assumed
+  for (int i = 7; i >= 0; i--) {
+    printf("%02x", tt.bytes[i]);
+  }
+  printf("\n");
+}
+
+static void dumpd(double d)
+{
+  union {
+    double d;
+    unsigned char bytes[8];
+  } tt;
+
+  tt.d = d;
+  // Litle endian assumed
+  for (int i = 7; i >=0 ; i--) {
+    printf("%02x", tt.bytes[i]);
+  }
+  printf("\n");
+}
+
+#define QNAN ((uint64_t)0x7ffc000000000000)
+
+#define LUA__TNUMFLT   (QNAN | ((uint64_t)LUA_TNUMFLT))
+#define LUA__TNUMINT   (QNAN | ((uint64_t)LUA_TNUMINT))
+#define LUA__TNUMBER   (QNAN | ((uint64_t)LUA_TNUMINT))
+#define LUA__TTABLE    (QNAN | ((uint64_t)ctb(LUA_TTABLE)))
+#define LUA__TFUNCTION (QNAN | ((uint64_t)ctb(LUA_TFUNCTION)))
+#define LUA__TCCL      (QNAN | ((uint64_t)ctb(LUA_TCCL)))
+#define LUA__TLCL      (QNAN | ((uint64_t)ctb(LUA_TLCL)))
+#define LUA__TLCF      (QNAN | ((uint64_t)ctb(LUA_TLCF)))
+
+
+static void tryme() {
+  double x = 1.0;
+  //unsigned long long d = ((unsigned long long)0x7ffc000000000000);
+  //unsigned long long d = ((unsigned long long)~1);
+  dumpll(QNAN);
+  dumpll(LUA__TNUMBER);
+  dumpll(LUA__TNUMFLT);
+  dumpll(LUA__TNUMINT);
+  dumpll(LUA__TTABLE);
+  dumpll(LUA__TFUNCTION);
+  dumpll(LUA__TCCL);
+  dumpll(LUA__TLCL);
+  dumpll(LUA__TLCF);
+}
 
 
 /* test supplied lua code compiles */
@@ -124,6 +213,9 @@ int main()
 {
     int failures = 0;
     //  
+#if 0
+    tryme();
+#endif
     failures += test_luacompexec1("function test(); local x: integer = 1; return function (j) x = j; return x; end; end; fn = test(); return fn('55')", 55);
     failures += test_luacompexec1("ravi.auto(true); function arrayaccess (); local x: integer[] = {5}; return x[1]; end; assert(ravi.compile(arrayaccess)); return arrayaccess()", 5);
     failures += test_luacompexec1("ravi.auto(true); function cannotload (msg, a,b); assert(not a and string.find(b, msg)); end; ravi.compile(cannotload); return 1", 1);
