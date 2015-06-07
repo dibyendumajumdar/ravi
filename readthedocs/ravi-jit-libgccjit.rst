@@ -19,3 +19,23 @@ Well partly as I feel I have a moral obligation to support gcc, given it has bee
 Secondly I am always looking for alternatives that will let me reduce the footprint of Ravi. The libgccjit is offered as a shared library - this is a great thing. I hate to have to statically link LLVM. 
 
 LLVM implementation and libgccjit implementation will both be kept in sync so that user can choose either option. 
+
+Building GCC
+------------
+I am running Ubuntu 14.04 LTS on VMWare virtual machine.
+
+I built gcc 5.1 from source as follows.
+
+1. Unpacked source to ``~/gcc-5.1.0``
+2. Created a build folder ``~/buildgcc``
+3. Installed various pre-requisites for gcc.
+4. Then ran following from inside the build folder:
+
+   ../gcc-5.1.0/configure --prefix=~/local --enable-host-shared --enable-languages=jit,c++ --disable-bootstrap --disable-multilib
+
+5. Next performed the build as follows:
+
+   make
+   make install
+
+
