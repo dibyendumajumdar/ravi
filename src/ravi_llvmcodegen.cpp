@@ -162,9 +162,17 @@ llvm::Value *RaviCodeGenerator::emit_gep_ra(RaviFunctionDef *def,
 
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
+#if RAVI_NAN_TAGGING
+  llvm::Value *tt_ptr = emit_gep(def, "value.tt.ptr", rb, 0, 1);
+  llvm::Value *rb_n =
+      def->builder->CreateBitCast(tt_ptr, def->types->plua_NumberT);
+  llvm::Instruction *lhs = def->builder->CreateLoad(rb_n);
+  lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pdoubleT);
+#else
   llvm::Value *rb_n = def->builder->CreateBitCast(rb, def->types->plua_NumberT);
   llvm::Instruction *lhs = def->builder->CreateLoad(rb_n);
   lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+#endif
   return lhs;
 }
 
@@ -220,10 +228,18 @@ RaviCodeGenerator::emit_load_reg_h_intarray(RaviFunctionDef *def,
 void RaviCodeGenerator::emit_store_reg_n(RaviFunctionDef *def,
                                          llvm::Value *result,
                                          llvm::Value *dest_ptr) {
+#if RAVI_NAN_TAGGING
+  llvm::Value *tt_ptr = emit_gep(def, "value.tt.ptr", dest_ptr, 0, 1);
+  llvm::Value *ra_n =
+      def->builder->CreateBitCast(tt_ptr, def->types->plua_NumberT);
+  llvm::Instruction *store = def->builder->CreateStore(result, ra_n);
+  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pdoubleT);
+#else
   llvm::Value *ra_n =
       def->builder->CreateBitCast(dest_ptr, def->types->plua_NumberT);
   llvm::Instruction *store = def->builder->CreateStore(result, ra_n);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+#endif
 }
 
 void RaviCodeGenerator::emit_store_reg_i(RaviFunctionDef *def,
@@ -246,19 +262,36 @@ void RaviCodeGenerator::emit_store_reg_b(RaviFunctionDef *def,
 
 void RaviCodeGenerator::emit_store_type(RaviFunctionDef *def,
                                         llvm::Value *value, int type) {
-  llvm::Value *desttype = emit_gep(def, "dest.tt", value, 0, 1);
   lua_assert(type == LUA_TNUMFLT || type == LUA_TNUMINT ||
              type == LUA_TBOOLEAN);
+#if RAVI_NAN_TAGGING
+  // The whole point of NaN tagging!
+  if (type == LUA_TNUMFLT || type == LUA_TNUMBER)
+    return;
+  int code = (type | RAVI_NAN_TAG);
+  llvm::Value *hi_ptr = emit_gep(def, "hi.ptr", value, 0, 1, 1);
+  llvm::Instruction *store = def->builder->CreateStore(
+      llvm::ConstantInt::get(def->types->C_intT, code), hi_ptr);
+  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_HiLo_hiT);
+#else
+  llvm::Value *desttype = emit_gep(def, "dest.tt", value, 0, 1);
   llvm::Instruction *store =
       def->builder->CreateStore(def->types->kInt[type], desttype);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+#endif
 }
 
 llvm::Instruction *RaviCodeGenerator::emit_load_type(RaviFunctionDef *def,
                                                      llvm::Value *value) {
+#if RAVI_NAN_TAGGING
+  llvm::Value *hi_ptr = emit_gep(def, "hi.ptr", value, 0, 1, 1);
+  llvm::Instruction *tt = def->builder->CreateLoad(hi_ptr, "hi");
+  tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_HiLo_hiT);
+#else
   llvm::Value *tt_ptr = emit_gep(def, "value.tt.ptr", value, 0, 1);
   llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "value.tt");
   tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+#endif
   return tt;
 }
 
@@ -266,15 +299,49 @@ llvm::Value *RaviCodeGenerator::emit_is_value_of_type(RaviFunctionDef *def,
                                                       llvm::Value *value_type,
                                                       LuaTypeCode lua_type,
                                                       const char *varname) {
+#if RAVI_NAN_TAGGING
+  if (lua_type == LUA__TNUMFLT || lua_type == LUA__TNUMBER) {
+    //%and = and i32 % 1, 2147221504
+    //% cmp = icmp ne i32 %and, 2147221504
+    llvm::Value *andNaN = def->builder->CreateAnd(
+        value_type, llvm::ConstantInt::get(def->types->C_intT, RAVI_NAN_TAG),
+        "and.NaN");
+    return def->builder->CreateICmpNE(
+        andNaN, llvm::ConstantInt::get(def->types->C_intT, RAVI_NAN_TAG),
+        "is.numflt");
+  } else {
+    llvm::Constant *expect =
+        llvm::ConstantInt::get(def->types->C_intT, lua_type | RAVI_NAN_TAG);
+    return def->builder->CreateICmpEQ(value_type, expect, "is.type");
+  }
+#else
   return def->builder->CreateICmpEQ(value_type, def->types->kInt[int(lua_type)],
                                     varname);
+#endif
 }
 
 llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type(
     RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_type,
     const char *varname) {
+#if RAVI_NAN_TAGGING
+  if (lua_type == LUA__TNUMFLT || lua_type == LUA__TNUMBER) {
+    //%and = and i32 % 1, 2147221504
+    //% cmp = icmp ne i32 %and, 2147221504
+    llvm::Value *andNaN = def->builder->CreateAnd(
+        value_type, llvm::ConstantInt::get(def->types->C_intT, RAVI_NAN_TAG),
+        "and.NaN");
+    return def->builder->CreateICmpEQ(
+        andNaN, llvm::ConstantInt::get(def->types->C_intT, RAVI_NAN_TAG),
+        "is.numflt");
+  } else {
+    llvm::Constant *expect =
+        llvm::ConstantInt::get(def->types->C_intT, lua_type | RAVI_NAN_TAG);
+    return def->builder->CreateICmpNE(value_type, expect, "is.type");
+  }
+#else
   return def->builder->CreateICmpNE(value_type, def->types->kInt[int(lua_type)],
                                     varname);
+#endif
 }
 
 llvm::Instruction *

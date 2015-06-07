@@ -77,7 +77,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   ravitype_tT = llvm::Type::getIntNTy(context, sizeof(ravitype_t) * 8);
 
-  lua_StateT = llvm::StructType::create(context, "ravi.lua_State");
+  lua_StateT = llvm::StructType::create(context, "struct.lua_State");
   plua_StateT = llvm::PointerType::get(lua_StateT, 0);
 
   lua_KContextT = C_ptrdiff_t;
@@ -105,7 +105,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
                                        elements, false);
   plua_AllocT = llvm::PointerType::get(lua_AllocT, 0);
 
-  lua_DebugT = llvm::StructType::create(context, "ravi.lua_Debug");
+  lua_DebugT = llvm::StructType::create(context, "struct.lua_Debug");
   plua_DebugT = llvm::PointerType::get(lua_DebugT, 0);
 
   elements.clear();
@@ -120,7 +120,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //   lu_byte tt;
   //   lu_byte marked
   // };
-  GCObjectT = llvm::StructType::create(context, "ravi.GCObject");
+  GCObjectT = llvm::StructType::create(context, "struct.GCObject");
   pGCObjectT = llvm::PointerType::get(GCObjectT, 0);
   elements.clear();
   elements.push_back(pGCObjectT);
@@ -143,23 +143,41 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //   lua_Integer i;   /* integer numbers */
   //   lua_Number n;    /* float numbers */
   // };
-  ValueT = llvm::StructType::create(context, "ravi.Value");
+  ValueT = llvm::StructType::create(context, "union.Value");
   elements.clear();
   elements.push_back(lua_NumberT);
   ValueT->setBody(elements);
 
+  // TODO Needs to handle big endian
+  //struct ravi_HiLo {
+  //  int lo;
+  //  int hi;
+  //} HiLo;
+  HiLoT = llvm::StructType::create(context, "struct.HiLo");
+  elements.clear();
+  elements.push_back(C_intT);
+  elements.push_back(C_intT);
+  HiLoT->setBody(elements);
+  pHiLoT = llvm::PointerType::get(HiLoT, 0);
+
+  // NOTE: Following structure changes when NaN tagging is enabled
   // struct TValue {
   //   union Value value_;
   //   int tt_;
   // };
-  TValueT = llvm::StructType::create(context, "ravi.TValue");
+  TValueT = llvm::StructType::create(context, "struct.TValue");
   elements.clear();
   elements.push_back(ValueT);
+#if RAVI_NAN_TAGGING
+  elements.push_back(HiLoT);
+#else
   elements.push_back(C_intT);
+#endif
   TValueT->setBody(elements);
   pTValueT = llvm::PointerType::get(TValueT, 0);
 
   StkIdT = pTValueT;
+
 
   ///*
   //** Header for string value; string bytes follow the end of this structure
@@ -183,7 +201,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  L_Umaxalign dummy;  /* ensures maximum alignment for strings */
   //  TString tsv;
   //} UTString;
-  TStringT = llvm::StructType::create(context, "ravi.TString");
+  TStringT = llvm::StructType::create(context, "struct.TString");
   pTStringT = llvm::PointerType::get(TStringT, 0);
   ppTStringT = llvm::PointerType::get(pTStringT, 0);
   elements.clear();
@@ -197,7 +215,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   TStringT->setBody(elements);
 
   // Table
-  TableT = llvm::StructType::create(context, "ravi.Table");
+  TableT = llvm::StructType::create(context, "struct.Table");
   pTableT = llvm::PointerType::get(TableT, 0);
   ppTableT = llvm::PointerType::get(pTableT, 0);
 
@@ -214,7 +232,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  size_t len;  /* number of bytes */
   //  union Value user_;  /* user value */
   //} Udata;
-  UdataT = llvm::StructType::create(context, "ravi.Udata");
+  UdataT = llvm::StructType::create(context, "struct.Udata");
   elements.clear();
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
@@ -235,7 +253,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  lu_byte idx;  /* index of upvalue (in stack or in outer function's list)
   //  */
   //}Upvaldesc;
-  UpvaldescT = llvm::StructType::create(context, "ravi.Upvaldesc");
+  UpvaldescT = llvm::StructType::create(context, "struct.Upvaldesc");
   elements.clear();
   elements.push_back(pTStringT);   /* name */
   elements.push_back(ravitype_tT); /* type */
@@ -255,7 +273,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown
   //  */
   //} LocVar;
-  LocVarT = llvm::StructType::create(context, "ravi.LocVar");
+  LocVarT = llvm::StructType::create(context, "struct.LocVar");
   elements.clear();
   elements.push_back(pTStringT);   /* varname */
   elements.push_back(C_intT);      /* startpc */
@@ -264,12 +282,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   LocVarT->setBody(elements);
   pLocVarT = llvm::PointerType::get(LocVarT, 0);
 
-  LClosureT = llvm::StructType::create(context, "ravi.LClosure");
+  LClosureT = llvm::StructType::create(context, "struct.LClosure");
   pLClosureT = llvm::PointerType::get(LClosureT, 0);
   ppLClosureT = llvm::PointerType::get(pLClosureT, 0);
   pppLClosureT = llvm::PointerType::get(ppLClosureT, 0);
 
-  RaviJITProtoT = llvm::StructType::create(context, "ravi.RaviJITProto");
+  RaviJITProtoT = llvm::StructType::create(context, "struct.RaviJITProto");
   elements.clear();
   elements.push_back(lu_byteT); /* jit_status*/
   elements.push_back(lu_byteT); /* jit_flags */
@@ -308,7 +326,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  RaviJITProto *ravi_jit;
   //} Proto;
 
-  ProtoT = llvm::StructType::create(context, "ravi.Proto");
+  ProtoT = llvm::StructType::create(context, "struct.Proto");
   pProtoT = llvm::PointerType::get(ProtoT, 0);
   ppProtoT = llvm::PointerType::get(pProtoT, 0);
   elements.clear();
@@ -342,7 +360,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //** Lua Upvalues
   //*/
   // typedef struct UpVal UpVal;
-  UpValT = llvm::StructType::create(context, "ravi.UpVal");
+  UpValT = llvm::StructType::create(context, "struct.UpVal");
   pUpValT = llvm::PointerType::get(UpValT, 0);
 
   ///*
@@ -357,7 +375,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  TValue upvalue[1];  /* list of upvalues */
   //} CClosure;
 
-  CClosureT = llvm::StructType::create(context, "ravi.CClosure");
+  CClosureT = llvm::StructType::create(context, "struct.CClosure");
   elements.clear();
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
@@ -388,6 +406,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //** Tables
   //*/
 
+  // NOTE following structure changes when NaN Tagging is enabled
+
   // typedef union TKey {
   //  struct {
   //    TValuefields;
@@ -395,10 +415,14 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  } nk;
   //  TValue tvk;
   //} TKey;
-  TKeyT = llvm::StructType::create(context, "ravi.TKey");
+  TKeyT = llvm::StructType::create(context, "struct.TKey");
   elements.clear();
   elements.push_back(ValueT);
+#if RAVI_NAN_TAGGING
+  elements.push_back(HiLoT);
+#else
   elements.push_back(C_intT);
+#endif
   elements.push_back(C_intT); /* next */
   TKeyT->setBody(elements);
   pTKeyT = llvm::PointerType::get(TKeyT, 0);
@@ -407,7 +431,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   // TValue i_val;
   // TKey i_key;
   //} Node;
-  NodeT = llvm::StructType::create(context, "ravi.Node");
+  NodeT = llvm::StructType::create(context, "struct.Node");
   elements.clear();
   elements.push_back(TValueT); /* i_val */
   elements.push_back(TKeyT);   /* i_key */
@@ -422,7 +446,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  lu_byte array_modifier; /* Flags that affect how the array is handled */
   //} RaviArray;
   
-  RaviArrayT = llvm::StructType::create(context, "ravi.RaviArray");
+  RaviArrayT = llvm::StructType::create(context, "struct.RaviArray");
   elements.clear();
   elements.push_back(C_pcharT);
   elements.push_back(C_intT);
@@ -460,7 +484,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   TableT->setBody(elements);
 
   // struct lua_longjmp;  /* defined in ldo.c */
-  lua_longjumpT = llvm::StructType::create(context, "ravi.lua_longjmp");
+  lua_longjumpT = llvm::StructType::create(context, "struct.lua_longjmp");
   plua_longjumpT = llvm::PointerType::get(lua_longjumpT, 0);
 
   // lzio.h
@@ -469,7 +493,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  size_t n;
   //  size_t buffsize;
   //} Mbuffer;
-  MbufferT = llvm::StructType::create(context, "ravi.Mbuffer");
+  MbufferT = llvm::StructType::create(context, "struct.Mbuffer");
   elements.clear();
   elements.push_back(llvm::Type::getInt8PtrTy(context)); /* buffer */
   elements.push_back(C_size_t);                          /* n */
@@ -481,7 +505,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  int nuse;  /* number of elements */
   //  int size;
   //} stringtable;
-  stringtableT = llvm::StructType::create(context, "ravi.stringtable");
+  stringtableT = llvm::StructType::create(context, "struct.stringtable");
   elements.clear();
   elements.push_back(ppTStringT); /* hash */
   elements.push_back(C_intT);     /* nuse */
@@ -530,7 +554,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(lua_KContextT);   /* ctx */
   CallInfo_cT = llvm::StructType::create(elements);
 
-  CallInfoT = llvm::StructType::create(context, "ravi.CallInfo");
+  CallInfoT = llvm::StructType::create(context, "struct.CallInfo");
   pCallInfoT = llvm::PointerType::get(CallInfoT, 0);
   elements.clear();
   elements.push_back(StkIdT);     /* func */
@@ -548,7 +572,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   // typedef struct ravi_State ravi_State;
 
-  ravi_StateT = llvm::StructType::create(context, "ravi.ravi_State");
+  ravi_StateT = llvm::StructType::create(context, "struct.ravi_State");
   pravi_StateT = llvm::PointerType::get(ravi_StateT, 0);
 
   ///*
@@ -593,7 +617,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  ravi_State *ravi_state;
   //} global_State;
 
-  global_StateT = llvm::StructType::create(context, "ravi.global_State");
+  global_StateT = llvm::StructType::create(context, "struct.global_State");
   pglobal_StateT = llvm::PointerType::get(global_StateT, 0);
 
   ///*
@@ -1088,6 +1112,17 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 36);
   tbaa_RaviArray_typeT =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 44);
+
+  // TODO Needs to handle big endian
+  nodes.clear();
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 0));     /* lo */
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 4));     /* hi */
+  tbaa_HiLoT = mdbuilder.createTBAAStructTypeNode("HiLo", nodes);
+  tbaa_HiLo_loT =
+    mdbuilder.createTBAAStructTagNode(tbaa_HiLoT, tbaa_intT, 0);
+  tbaa_HiLo_hiT =
+    mdbuilder.createTBAAStructTagNode(tbaa_HiLoT, tbaa_intT, 4);
+
 }
 
 void LuaLLVMTypes::dump() {

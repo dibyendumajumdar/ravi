@@ -408,11 +408,27 @@ void RaviCodeGenerator::emit_assign(RaviFunctionDef *def, llvm::Value *dest,
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 
   // destvalue->type = srcvalue->type
+#if RAVI_NAN_TAGGING
+  llvm::Value *srctype = emit_gep(def, "srctype", src, 0, 1, 0);
+  llvm::Value *desttype = emit_gep(def, "desttype", dest, 0, 1, 0);
+  // TODO note assumption below that lua_Number is double
+  load = def->builder->CreateLoad(srctype);
+  load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_HiLo_loT);
+  store = def->builder->CreateStore(load, desttype);
+  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_HiLo_loT);
+  srctype = emit_gep(def, "srctype", src, 0, 1, 1);
+  desttype = emit_gep(def, "desttype", dest, 0, 1, 1);
+  load = def->builder->CreateLoad(srctype);
+  load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_HiLo_hiT);
+  store = def->builder->CreateStore(load, desttype);
+  store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_HiLo_hiT);
+#else
   llvm::Value *srctype = emit_gep(def, "srctype", src, 0, 1);
   llvm::Value *desttype = emit_gep(def, "desttype", dest, 0, 1);
   load = def->builder->CreateLoad(srctype);
   load->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
   store = def->builder->CreateStore(load, desttype);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+#endif
 }
 }
