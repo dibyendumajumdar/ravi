@@ -40,6 +40,26 @@
 /* mark a tag as collectable */
 #define ctb(t)			((t) | BIT_ISCOLLECTABLE)
 
+union ValueX {
+  double n;
+  long long i;
+};
+
+typedef struct {
+  int lo;
+  int hi;
+} PartsX;
+
+union TypeX {
+  double d;
+  PartsX tt;
+  unsigned char bytes[8];
+};
+
+typedef struct {
+  union ValueX value_;
+  union TypeX tt_;
+} MyValueT;
 
 static void dumpll(uint64_t d)
 {
@@ -71,31 +91,58 @@ static void dumpd(double d)
   printf("\n");
 }
 
-#define QNAN ((uint64_t)0x7ffc000000000000)
+static void dumpvalue(MyValueT* v)
+{
+  // Litle endian assumed
+  for (int i = 7; i >= 0; i--) {
+    printf("%02x", v->tt_.bytes[i]);
+  }
+  printf("\n");
+}
 
-#define LUA__TNUMFLT   (QNAN | ((uint64_t)LUA_TNUMFLT))
-#define LUA__TNUMINT   (QNAN | ((uint64_t)LUA_TNUMINT))
-#define LUA__TNUMBER   (QNAN | ((uint64_t)LUA_TNUMINT))
-#define LUA__TTABLE    (QNAN | ((uint64_t)ctb(LUA_TTABLE)))
-#define LUA__TFUNCTION (QNAN | ((uint64_t)ctb(LUA_TFUNCTION)))
-#define LUA__TCCL      (QNAN | ((uint64_t)ctb(LUA_TCCL)))
-#define LUA__TLCL      (QNAN | ((uint64_t)ctb(LUA_TLCL)))
-#define LUA__TLCF      (QNAN | ((uint64_t)ctb(LUA_TLCF)))
 
+#define QNAN 0x7ffc0000
+#define QVAL 0x0000ffff
+
+#define LUA__TNUMFLT   (QNAN | LUA_TNUMFLT)
+#define LUA__TNUMINT   (QNAN | LUA_TNUMINT)
+#define LUA__TNUMBER   (QNAN | LUA_TNUMINT)
+#define LUA__TTABLE    (QNAN | ctb(LUA_TTABLE))
 
 static void tryme() {
-  double x = 1.0;
-  //unsigned long long d = ((unsigned long long)0x7ffc000000000000);
-  //unsigned long long d = ((unsigned long long)~1);
-  dumpll(QNAN);
-  dumpll(LUA__TNUMBER);
-  dumpll(LUA__TNUMFLT);
-  dumpll(LUA__TNUMINT);
-  dumpll(LUA__TTABLE);
-  dumpll(LUA__TFUNCTION);
-  dumpll(LUA__TCCL);
-  dumpll(LUA__TLCL);
-  dumpll(LUA__TLCF);
+  MyValueT v = { 0 };
+
+  //v.tt_.d = 1.0;
+  //v.tt_.d /= 0;
+  //dumpvalue(&v);
+
+  v.tt_.tt.hi = LUA__TNUMINT;
+  dumpvalue(&v);
+
+  if (isnan(v.tt_.d))
+    printf("Is NaN set as expected\n");
+
+  if ((v.tt_.tt.hi & QNAN) == QNAN)
+    printf("QNAN set as expected\n");
+  if ((v.tt_.tt.hi & QVAL) == LUA_TNUMINT)
+    printf("LUA_TNUMINT set as expected\n");
+
+
+  v.tt_.d = 1.5;
+  if ((v.tt_.tt.hi & QNAN) != QNAN)
+    printf("QNAN unset as expected\n");
+
+  v.tt_.tt.hi = LUA__TTABLE;
+  dumpvalue(&v);
+
+  if ((v.tt_.tt.hi & QNAN) == QNAN)
+    printf("QNAN set as expected\n");
+  if ((v.tt_.tt.hi & QVAL) == ctb(LUA_TTABLE))
+    printf("LUA_TTABLE set as expected\n");
+
+  v.tt_.d = 42;
+  if ((v.tt_.tt.hi & QNAN) != QNAN)
+    printf("QNAN unset as expected\n");
 }
 
 
@@ -215,7 +262,7 @@ int main()
     //  
 #if 0
     tryme();
-#endif
+#else
     failures += test_luacompexec1("function test(); local x: integer = 1; return function (j) x = j; return x; end; end; fn = test(); return fn('55')", 55);
     failures += test_luacompexec1("ravi.auto(true); function arrayaccess (); local x: integer[] = {5}; return x[1]; end; assert(ravi.compile(arrayaccess)); return arrayaccess()", 5);
     failures += test_luacompexec1("ravi.auto(true); function cannotload (msg, a,b); assert(not a and string.find(b, msg)); end; ravi.compile(cannotload); return 1", 1);
@@ -281,5 +328,6 @@ int main()
     failures += test_luacomp1("local a=1; if a==0 then; a = 2; else a=3; end;");
     failures += test_luacomp1("local f = function(); return; end; local d:number = 5.0; d = f(); return d");
     failures += test_luacomp1("local f = function(); return; end; local d = 5.0; d = f(); return d");
+#endif
     return failures ? 1 : 0;
 }

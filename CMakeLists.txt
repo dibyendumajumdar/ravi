@@ -159,5 +159,8 @@ target_link_libraries(test_vm ravi)
 add_executable(test_llvm tests/test_llvm.cpp)
 target_link_libraries(test_llvm ravi)
 
+add_executable(test_misc tests/test_misc.c)
+
 add_test(TestVM test_vm)
 add_test(TestLLVM test_llvm)
+add_test(TestMisc test_misc)
