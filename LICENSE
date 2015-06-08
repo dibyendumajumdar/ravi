@@ -1,0 +1,5 @@
+Most of Ravi is under MIT License
+There are components that are under GPL - please see relevant
+source files. These are optional components that are part of the
+libgccjit implementation of the JIT compiler. You can remove these
+components if you do not want GPL license.
