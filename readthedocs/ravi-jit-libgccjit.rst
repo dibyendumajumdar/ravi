@@ -38,4 +38,19 @@ I built gcc 5.1 from source as follows.
    make
    make install
 
+Current Status
+--------------
+Work on this started only recently (8 June 2015) so not much to show yet. But expectation is that there will be a working implementation by end June - the strategy is to port the existing LLVM implementation to equivalent libgccjit implementation.
 
+Building Ravi with libgccjit on Linux
+-------------------------------------
+Note that right now the libgccjit implementation is not yet functional. However you can build Ravi with libgccjit linked in as follows:
+
+  mkdir build
+  cd build
+  cmake -DLLVM_JIT=OFF -DGCC_JIT=ON ..
+  make
+
+Above assumes that gccjit is installed under ``~/local`` as described in Building GCC section above.
+
+A helloworld test program is built. To run it though you need to set your ``PATH`` and ``LD_LIBRARY_PATH`` variables to ``~/local/bin`` and ``~/local/lib`` respectively.
