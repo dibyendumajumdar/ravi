@@ -8,7 +8,7 @@ enable_testing()
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled" ON)
-option(GCC_JIT "Controls whether GCC JIT compilation will be enabled" ON)
+option(GCC_JIT "Controls whether GCC JIT compilation will be enabled" OFF)
 
 if (LLVM_JIT)
   find_package(LLVM REQUIRED CONFIG)
