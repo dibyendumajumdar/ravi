@@ -20,6 +20,7 @@
 * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
+#ifdef USE_LLVM
 #include "ravi_llvmcodegen.h"
 
 /*
@@ -360,9 +361,14 @@ std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
 }
 }
 
+#endif
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#ifdef USE_LLVM
 
 #include "lualib.h"
 #include "lauxlib.h"
@@ -466,6 +472,60 @@ void raviV_dumpllvmasm(struct lua_State *L, struct Proto *p) {
   }
 }
 
+#else
+
+// TODO we probably do not need all the headers
+// below
+
+#define lvm_c
+#define LUA_CORE
+
+#include "lprefix.h"
+#include "lua.h"
+#include "lobject.h"
+#include "lstate.h"
+#include "lualib.h"
+#include "lauxlib.h"
+
+
+// Initialize the JIT State and attach it to the
+// Global Lua State
+// If a JIT State already exists then this function
+// will return -1
+int raviV_initjit(struct lua_State *L) {
+  return -1;
+}
+
+// Free up the JIT State
+void raviV_close(struct lua_State *L) {
+}
+
+// Compile a Lua function
+// If JIT is turned off then compilation is skipped
+// Compilation occurs if either auto compilation is ON (subject to some thresholds) 
+// or if a manual compilation request was made
+// Returns true if compilation was successful
+int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
+                  int dump) {
+  return false;
+}
+
+// Free the JIT compiled function
+// Note that this is called by the garbage collector
+void raviV_freeproto(struct lua_State *L, struct Proto *p) {
+}
+
+// Dump the LLVM IR
+void raviV_dumpllvmir(struct lua_State *L, struct Proto *p) {
+}
+
+// Dump the LLVM ASM
+void raviV_dumpllvmasm(struct lua_State *L, struct Proto *p) {
+}
+
+#endif
+
+
 // Test if the given function is compiled
 static int ravi_is_compiled(lua_State *L) {
   int n = lua_gettop(L);
@@ -535,6 +595,7 @@ static int ravi_dump_llvmasm(lua_State *L) {
 
 // Turn on/off auto JIT compilation
 static int ravi_auto(lua_State *L) {
+#ifdef USE_LLVM
   global_State *G = G(L);
   int n = lua_gettop(L);
   if (G->ravi_state == NULL) {
@@ -560,10 +621,14 @@ static int ravi_auto(lua_State *L) {
       G->ravi_state->jit->set_minexeccount(min_exec_count);
   }
   return 3;
+#else
+  return 0;
+#endif
 }
 
 // Turn on/off the JIT compiler
 static int ravi_jitenable(lua_State *L) {
+#ifdef USE_LLVM
   global_State *G = G(L);
   int n = lua_gettop(L);
   bool value = false;
@@ -576,10 +641,14 @@ static int ravi_jitenable(lua_State *L) {
   if (n == 1 && G->ravi_state)
     G->ravi_state->jit->set_enabled(value);
   return 1;
+#else
+  return 0;
+#endif
 }
 
 // Set LLVM optimization level
 static int ravi_optlevel(lua_State *L) {
+#ifdef USE_LLVM
   global_State *G = G(L);
   int n = lua_gettop(L);
   int value = 1;
@@ -592,10 +661,14 @@ static int ravi_optlevel(lua_State *L) {
   if (n == 1 && G->ravi_state)
     G->ravi_state->jit->set_optlevel(value);
   return 1;
+#else
+  return 0;
+#endif
 }
 
 // Set LLVM code size level
 static int ravi_sizelevel(lua_State *L) {
+#ifdef USE_LLVM
   global_State *G = G(L);
   int n = lua_gettop(L);
   int value = 0;
@@ -608,6 +681,9 @@ static int ravi_sizelevel(lua_State *L) {
   if (n == 1 && G->ravi_state)
     G->ravi_state->jit->set_sizelevel(value);
   return 1;
+#else
+  return 0;
+#endif
 }
 
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},

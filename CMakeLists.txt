@@ -5,13 +5,31 @@ enable_language(CXX)
 enable_language(C)
 enable_testing()
 
-find_package(LLVM REQUIRED CONFIG)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled" ON)
+option(GCC_JIT "Controls whether GCC JIT compilation will be enabled" OFF)
 
-include_directories(${LLVM_INCLUDE_DIRS})
-add_definitions(${LLVM_DEFINITIONS})
+if (LLVM_JIT)
+  find_package(LLVM REQUIRED CONFIG)
+
+  message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+  message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+  include_directories(${LLVM_INCLUDE_DIRS})
+  add_definitions(${LLVM_DEFINITIONS})
+  add_definitions(-DUSE_LLVM)
+endif()
+
+if (GCC_JIT)
+  find_package(GCCJIT REQUIRED)
+
+  message(STATUS "Found GCCJIT")
+
+  include_directories(${GCCJIT_INCLUDE_DIRS})
+  add_definitions(-DUSE_GCCJIT)
+endif()
+
 
 if (MSVC)
   set(CMAKE_C_FLAGS_DEBUG "/Od /D_DEBUG /MDd /Zi /RTC1 /EHsc")
@@ -72,15 +90,19 @@ endif()
 include_directories("${PROJECT_SOURCE_DIR}/include")
 add_definitions(-DLUA_COMPAT_MODULE -DCOCO_DISABLE)
 
+# define LLVM JIT compiler sources
+if (LLVM_JIT)
+  set (LLVM_JIT_SRCS  src/ravi_llvmtypes.cpp 
+     src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
+     src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
+     src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
+     src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
+endif()
 # define the lua core source files
 set (LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c 
      src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
      src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c src/lcoco.c
-     src/lvm.c src/lzio.c src/ravijit.cpp src/ravi_llvmtypes.cpp 
-     src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
-     src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
-	   src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
-     src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
+     src/lvm.c src/lzio.c src/ravijit.cpp)
 # define the lua lib source files
 set (LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
      src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
@@ -104,43 +126,45 @@ endif()
 # InstCombine ScalarOpts Analysis ipa Object ExecutionEngine MC MCParser MCJIT ProfileData ipo
 # RuntimeDyld Target X86CodeGen X86AsmParser X86Disassembler X86AsmPrinter X86Desc X86Info X86Utils AsmParser)
 
-llvm_map_components_to_libnames(llvm_libs 
-  Analysis 
-  Core 
-  CodeGen 
-  AsmParser 
-  AsmPrinter 
-  BitReader 
-  ExecutionEngine 
-  InstCombine 
-  ipa 
-  ipo  
-  MC 
-  MCJIT 
-  MCParser 
-  Object  
-  RuntimeDyld 
-  ScalarOpts 
-  Support 
-  Target 
-  TransformUtils 
-  X86CodeGen 
-  X86AsmParser 
-  X86Disassembler 
-  X86AsmPrinter 
-  X86Desc 
-  X86Info 
-  X86Utils 
-  )
+if (LLVM_JIT)
+  llvm_map_components_to_libnames(llvm_libs 
+    Analysis 
+    Core 
+    CodeGen 
+    AsmParser 
+    AsmPrinter 
+    BitReader 
+    ExecutionEngine 
+    InstCombine 
+    ipa 
+    ipo  
+    MC 
+    MCJIT 
+    MCParser 
+    Object  
+    RuntimeDyld 
+    ScalarOpts 
+    Support 
+    Target 
+    TransformUtils 
+    X86CodeGen 
+    X86AsmParser 
+    X86Disassembler 
+    X86AsmPrinter 
+    X86Desc 
+    X86Info 
+    X86Utils 
+    )
+  message(STATUS "llvm_libs ${llvm_libs}")
+endif()
 
-message(STATUS "llvm_libs ${llvm_libs}")
 
 #Main library
-add_library(ravi SHARED ${RAVI_HEADERS} ${LUA_LIB_SRCS} ${LUA_CORE_SRCS})
+add_library(ravi SHARED ${RAVI_HEADERS} ${LUA_LIB_SRCS} ${LUA_CORE_SRCS} ${LLVM_JIT_SRCS} ${GCC_JIT_SRCS})
 if (MSVC)
   set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
 endif()
-target_link_libraries(ravi ${EXTRA_LIBRARIES} ${llvm_libs})
+target_link_libraries(ravi ${EXTRA_LIBRARIES} ${llvm_libs} ${GCCJIT_LIBRARIES})
 
 #add_library(ravis ${RAVI_HEADERS} ${LUA_LIB_SRCS} ${LUA_CORE_SRCS})
 #target_link_libraries(ravis ${EXTRA_LIBRARIES} ${llvm_libs})
@@ -151,16 +175,27 @@ target_link_libraries(lua ravi)
 #add_executable(luac src/luac.c)
 #target_link_libraries(luac ravis)
 
-#VM test
-add_executable(test_vm tests/test_vm.c)
-target_link_libraries(test_vm ravi)
+if (LLVM_JIT)
+  #VM test
+  add_executable(test_vm tests/test_vm.c)
+  target_link_libraries(test_vm ravi)
 
-#LLVM playground
-add_executable(test_llvm tests/test_llvm.cpp)
-target_link_libraries(test_llvm ravi)
+  #LLVM playground
+  add_executable(test_llvm tests/test_llvm.cpp)
+  target_link_libraries(test_llvm ravi)
+endif()
+
+
+if (GCC_JIT)
+  #GCC JIT playground
+  add_executable(test_gccjit tests/test_gccjit.c)
+  target_link_libraries(test_gccjit ravi)
+endif()
 
 add_executable(test_misc tests/test_misc.c)
 
-add_test(TestVM test_vm)
-add_test(TestLLVM test_llvm)
+if (LLVM_JIT)
+  add_test(TestVM test_vm)
+  add_test(TestLLVM test_llvm)
+endif()
 add_test(TestMisc test_misc)
