@@ -22,3 +22,59 @@
 ******************************************************************************/
 
 #include "ravi_gccjit.h"
+
+ravi_gcc_context_t *ravi_jit_new_context(void) {
+  gcc_jit_context *gcc_ctx = gcc_jit_context_acquire();
+  if (!gcc_ctx) {
+    fprintf(stderr, "failed to allocate a GCC JIT context\n");
+    goto on_error;
+  }
+
+  ravi_gcc_context_t *ravi = (ravi_gcc_context_t *) calloc(1, sizeof(ravi_gcc_context_t));
+  if (!ravi) {
+    fprintf(stderr, "failed to allocate a Ravi JIT context\n");
+    goto on_error;
+  }
+  ravi->context = gcc_ctx;
+  ravi->auto_ = false;
+  ravi->enabled_ = false;
+  ravi->min_code_size_ = 150;
+  ravi->min_exec_count_ = 50;
+  ravi->opt_level_ = 3;
+  ravi->size_level_ = 0;
+
+  if (!ravi_setup_lua_types(ravi)) {
+    fprintf(stderr, "failed to setup types\n");
+    goto on_error;
+  }
+
+  return ravi;
+on_error:
+  if (ravi) {
+    ravi_jit_context_free(ravi);
+  }
+  else if (gcc_ctx) {
+    gcc_jit_context_release(gcc_ctx);
+  }
+  return NULL;
+}
+
+void ravi_jit_context_free(ravi_gcc_context_t *ravi) {
+  assert(ravi != NULL);
+  if (ravi->context) {
+    gcc_jit_context_release(ravi->context);
+  }
+  if (ravi->types)
+    free(ravi->types);
+  free(ravi);
+}
+
+bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
+  ravi->types = (ravi_gcc_types_t *) calloc(1, sizeof(ravi_gcc_types_t));
+  if (!ravi->types)
+    return false;
+
+  
+
+  return false;
+}

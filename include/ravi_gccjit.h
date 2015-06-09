@@ -43,20 +43,21 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "lua.h"
 
 #include "ldebug.h"
 #include "ldo.h"
 #include "lfunc.h"
-//#include "lgc.h"
 #include "lobject.h"
 #include "lopcodes.h"
 #include "lstate.h"
 #include "lstring.h"
 #include "ltable.h"
-//#include "ltm.h"
 #include "lvm.h"
+
+
 
 typedef enum {
   LUA__TNIL = LUA_TNIL,
@@ -240,6 +241,45 @@ struct ravi_gcc_types_t {
   gcc_jit_function *raviH_set_intT;
   gcc_jit_function *raviH_set_floatT;
 };
+
+struct ravi_gcc_context_t {
+
+  /* parent JIT context - all functions are child contexts
+   * of this.
+   */
+  gcc_jit_context *context;
+
+  /* Lua type definitions */
+  ravi_gcc_types_t *types;
+
+  /* Should we auto compile what we can? */
+  bool auto_;
+
+  /* Is JIT enabled */
+  bool enabled_;
+
+  /* Optimizer level */
+  int opt_level_;
+
+  /* Size level */
+  int size_level_;
+
+  /* min code size for compilation */
+  int min_code_size_;
+
+  /* min execution count for compilation */
+  int min_exec_count_;
+};
+
+
+/* Create a new context */
+extern ravi_gcc_context_t *ravi_jit_new_context(void);
+
+/* Destroy a context */
+extern void ravi_jit_context_free(ravi_gcc_context_t *);
+
+/* Setup Lua types */
+extern bool ravi_setup_lua_types(ravi_gcc_context_t *);
 
 #ifdef __cplusplus
 };
