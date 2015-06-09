@@ -98,6 +98,13 @@ if (LLVM_JIT)
      src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
      src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
 endif()
+if (GCC_JIT)
+  set (GCC_JIT_SRCS src/ravi_gccjit.c src/ravi_gcctypes.c
+     src/ravi_gcccodegen.c src/ravi_gccforprep.c src/ravi_gcccomp.c
+     src/ravi_gccreturn.c src/ravi_gccload.c src/ravi_gccforloop.c
+     src/ravi_gccarith1.c src/ravi_gcccall.c src/ravi_gcctable.c
+     src/ravi_gccarith2.c src/ravi_gcctforcall.c src/ravi_gccrest.c)
+endif()
 # define the lua core source files
 set (LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c 
      src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c

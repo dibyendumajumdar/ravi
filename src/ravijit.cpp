@@ -472,6 +472,84 @@ void raviV_dumpllvmasm(struct lua_State *L, struct Proto *p) {
   }
 }
 
+// Turn on/off auto JIT compilation
+int raviV_auto(lua_State *L) {
+  global_State *G = G(L);
+  int n = lua_gettop(L);
+  if (G->ravi_state == NULL) {
+    lua_pushboolean(L, 0);
+    lua_pushinteger(L, -1);
+    lua_pushinteger(L, -1);
+  } else {
+    lua_pushboolean(L, G->ravi_state->jit->is_auto());
+    lua_pushinteger(L, G->ravi_state->jit->get_mincodesize());
+    lua_pushinteger(L, G->ravi_state->jit->get_minexeccount());
+  }
+  if (G->ravi_state) {
+    bool value = false;
+    if (n >= 1)
+      value = lua_toboolean(L, 1);
+    if (n >= 1)
+      G->ravi_state->jit->set_auto(value);
+    int min_code_size = (n >= 2) ? (int)(lua_tointeger(L, 2)) : -1;
+    int min_exec_count = (n == 3) ? (int)(lua_tointeger(L, 3)) : -1;
+    if (min_code_size >= 1)
+      G->ravi_state->jit->set_mincodesize(min_code_size);
+    if (min_exec_count >= 1)
+      G->ravi_state->jit->set_minexeccount(min_exec_count);
+  }
+  return 3;
+}
+
+// Turn on/off the JIT compiler
+int raviV_jitenable(lua_State *L) {
+  global_State *G = G(L);
+  int n = lua_gettop(L);
+  bool value = false;
+  if (n == 1)
+    value = lua_toboolean(L, 1);
+  if (G->ravi_state == NULL)
+    lua_pushboolean(L, 0);
+  else
+    lua_pushboolean(L, G->ravi_state->jit->is_enabled());
+  if (n == 1 && G->ravi_state)
+    G->ravi_state->jit->set_enabled(value);
+  return 1;
+}
+
+// Set LLVM optimization level
+int raviV_optlevel(lua_State *L) {
+  global_State *G = G(L);
+  int n = lua_gettop(L);
+  int value = 1;
+  if (n == 1)
+    value = lua_tointeger(L, 1);
+  if (G->ravi_state == NULL)
+    lua_pushinteger(L, 0);
+  else
+    lua_pushinteger(L, G->ravi_state->jit->get_optlevel());
+  if (n == 1 && G->ravi_state)
+    G->ravi_state->jit->set_optlevel(value);
+  return 1;
+}
+
+// Set LLVM code size level
+int raviV_sizelevel(lua_State *L) {
+  global_State *G = G(L);
+  int n = lua_gettop(L);
+  int value = 0;
+  if (n == 1)
+    value = lua_tointeger(L, 1);
+  if (G->ravi_state == NULL)
+    lua_pushinteger(L, 0);
+  else
+    lua_pushinteger(L, G->ravi_state->jit->get_sizelevel());
+  if (n == 1 && G->ravi_state)
+    G->ravi_state->jit->set_sizelevel(value);
+  return 1;
+}
+
+
 #else
 
 // TODO we probably do not need all the headers
@@ -522,6 +600,27 @@ void raviV_dumpllvmir(struct lua_State *L, struct Proto *p) {
 // Dump the LLVM ASM
 void raviV_dumpllvmasm(struct lua_State *L, struct Proto *p) {
 }
+
+// Turn on/off auto JIT compilation
+int raviV_auto(lua_State *L) {
+  return 0;
+}
+
+// Turn on/off the JIT compiler
+int raviV_jitenable(lua_State *L) {
+    return 0;
+}
+
+// Set LLVM optimization level
+int raviV_optlevel(lua_State *L) {
+    return 0;
+}
+
+// Set LLVM code size level
+int raviV_sizelevel(lua_State *L) {
+    return 0;
+}
+
 
 #endif
 
@@ -595,95 +694,22 @@ static int ravi_dump_llvmasm(lua_State *L) {
 
 // Turn on/off auto JIT compilation
 static int ravi_auto(lua_State *L) {
-#ifdef USE_LLVM
-  global_State *G = G(L);
-  int n = lua_gettop(L);
-  if (G->ravi_state == NULL) {
-    lua_pushboolean(L, 0);
-    lua_pushinteger(L, -1);
-    lua_pushinteger(L, -1);
-  } else {
-    lua_pushboolean(L, G->ravi_state->jit->is_auto());
-    lua_pushinteger(L, G->ravi_state->jit->get_mincodesize());
-    lua_pushinteger(L, G->ravi_state->jit->get_minexeccount());
-  }
-  if (G->ravi_state) {
-    bool value = false;
-    if (n >= 1)
-      value = lua_toboolean(L, 1);
-    if (n >= 1)
-      G->ravi_state->jit->set_auto(value);
-    int min_code_size = (n >= 2) ? (int)(lua_tointeger(L, 2)) : -1;
-    int min_exec_count = (n == 3) ? (int)(lua_tointeger(L, 3)) : -1;
-    if (min_code_size >= 1)
-      G->ravi_state->jit->set_mincodesize(min_code_size);
-    if (min_exec_count >= 1)
-      G->ravi_state->jit->set_minexeccount(min_exec_count);
-  }
-  return 3;
-#else
-  return 0;
-#endif
+  return raviV_auto(L);
 }
 
 // Turn on/off the JIT compiler
 static int ravi_jitenable(lua_State *L) {
-#ifdef USE_LLVM
-  global_State *G = G(L);
-  int n = lua_gettop(L);
-  bool value = false;
-  if (n == 1)
-    value = lua_toboolean(L, 1);
-  if (G->ravi_state == NULL)
-    lua_pushboolean(L, 0);
-  else
-    lua_pushboolean(L, G->ravi_state->jit->is_enabled());
-  if (n == 1 && G->ravi_state)
-    G->ravi_state->jit->set_enabled(value);
-  return 1;
-#else
-  return 0;
-#endif
+  return raviV_jitenable(L);
 }
 
 // Set LLVM optimization level
 static int ravi_optlevel(lua_State *L) {
-#ifdef USE_LLVM
-  global_State *G = G(L);
-  int n = lua_gettop(L);
-  int value = 1;
-  if (n == 1)
-    value = lua_tointeger(L, 1);
-  if (G->ravi_state == NULL)
-    lua_pushinteger(L, 0);
-  else
-    lua_pushinteger(L, G->ravi_state->jit->get_optlevel());
-  if (n == 1 && G->ravi_state)
-    G->ravi_state->jit->set_optlevel(value);
-  return 1;
-#else
-  return 0;
-#endif
+  return raviV_optlevel(L);
 }
 
 // Set LLVM code size level
 static int ravi_sizelevel(lua_State *L) {
-#ifdef USE_LLVM
-  global_State *G = G(L);
-  int n = lua_gettop(L);
-  int value = 0;
-  if (n == 1)
-    value = lua_tointeger(L, 1);
-  if (G->ravi_state == NULL)
-    lua_pushinteger(L, 0);
-  else
-    lua_pushinteger(L, G->ravi_state->jit->get_sizelevel());
-  if (n == 1 && G->ravi_state)
-    G->ravi_state->jit->set_sizelevel(value);
-  return 1;
-#else
-  return 0;
-#endif
+  return raviV_sizelevel(L);
 }
 
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
