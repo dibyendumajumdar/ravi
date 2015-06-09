@@ -24,6 +24,8 @@
 #ifndef RAVI_LLVMCODEGEN_H
 #define RAVI_LLVMCODEGEN_H
 
+#ifdef USE_LLVMJIT
+
 #include "ravijit.h"
 #include "ravillvm.h"
 
@@ -1005,5 +1007,7 @@ private:
 }
 
 #define RAVI_CODEGEN_FORPREP2 1
+
+#endif
 
 #endif

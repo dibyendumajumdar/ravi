@@ -24,4 +24,22 @@
 #ifndef RAVI_RAVI_GCCJIT_H
 #define RAVI_RAVI_GCCJIT_H
 
-#endif //RAVI_RAVI_GCCJIT_H
+#ifdef USE_GCCJIT
+#include <libgccjit.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct ravi_gcc_context_t ravi_gcc_context_t;
+typedef struct ravi_gcc_types_t ravi_gcc_types_t;
+
+
+
+#ifdef __cplusplus
+};
+#endif
+
+#endif /* USE_GCCJIT */
+
+#endif /* RAVI_RAVI_GCCJIT_H */

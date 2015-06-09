@@ -23,6 +23,8 @@
 #ifndef RAVI_LLVM_H
 #define RAVI_LLVM_H
 
+#ifdef USE_LLVMJIT
+
 #include "llvm/Config/llvm-config.h"
 
 #if (LLVM_VERSION_MAJOR != 3 || LLVM_VERSION_MINOR < 5)
@@ -154,5 +156,7 @@ public:
   static std::unique_ptr<RaviJITState> newJITState();
 };
 }
+
+#endif
 
 #endif
