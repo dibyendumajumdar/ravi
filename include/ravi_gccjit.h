@@ -82,6 +82,7 @@ typedef enum {
 
 typedef struct ravi_gcc_context_t ravi_gcc_context_t;
 typedef struct ravi_gcc_types_t ravi_gcc_types_t;
+typedef struct ravi_gcc_codegen_t ravi_gcc_codegen_t;
 
 struct ravi_gcc_types_t {
 
@@ -103,7 +104,7 @@ struct ravi_gcc_types_t {
   gcc_jit_type *lua_UnsignedT;
   gcc_jit_type *lua_KContextT;
 
-  gcc_jit_function *lua_CFunctionT;
+  //gcc_jit_function *lua_CFunctionT;
   gcc_jit_type *plua_CFunctionT;
 
   gcc_jit_function *lua_KFunctionT;
@@ -127,8 +128,9 @@ struct ravi_gcc_types_t {
 
   gcc_jit_type *C_intT;
   gcc_jit_type *C_pintT;
+  gcc_jit_type *C_unsigned_intT;
 
-  gcc_jit_type *lua_StateT;
+  gcc_jit_struct *lua_StateT;
   gcc_jit_type *plua_StateT;
 
   gcc_jit_type *global_StateT;
@@ -282,6 +284,10 @@ extern void ravi_jit_context_free(ravi_gcc_context_t *);
 
 /* Setup Lua types */
 extern bool ravi_setup_lua_types(ravi_gcc_context_t *);
+
+extern ravi_gcc_codegen_t *ravi_jit_new_codegen(ravi_gcc_context_t *);
+
+extern void ravi_jit_codegen_free(ravi_gcc_context_t *, ravi_gcc_codegen_t *);
 
 #ifdef __cplusplus
 };

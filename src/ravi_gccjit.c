@@ -61,7 +61,8 @@ on_error:
 }
 
 void ravi_jit_context_free(ravi_gcc_context_t *ravi) {
-  assert(ravi != NULL);
+  if (!ravi)
+    return;
   if (ravi->context) {
     gcc_jit_context_release(ravi->context);
   }
@@ -95,6 +96,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   t->C_intT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_INT);
   t->C_pintT = gcc_jit_type_get_pointer(t->C_intT);
   t->C_shortT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_SHORT);
+  t->C_unsigned_intT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_UNSIGNED_INT);
 
   t->lu_memT = t->C_size_t;
 
@@ -108,7 +110,33 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   t->C_charT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_SIGNED_CHAR);
   t->C_pcharT = gcc_jit_type_get_pointer(t->C_charT);
 
-  
+  /* typedef unsigned int Instruction */
+  t->InstructionT = t->C_unsigned_intT;
+  t->pInstructionT = gcc_jit_type_get_pointer(t->InstructionT);
 
+  t->ravitype_tT = gcc_jit_context_get_int_type(ravi->context, sizeof(ravitype_t), 1);
+
+  t->lua_StateT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "struct.lua_State");
+  t->plua_StateT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->lua_StateT));
+
+  t->lua_KContextT = t->C_ptrdiff_t;
+
+  gcc_jit_type *elements[64];
+
+  elements[0] = t->plua_StateT;
+  t->plua_CFunctionT = gcc_jit_context_new_function_ptr_type(ravi->context, NULL,
+                                                             t->C_intT, 1, elements,
+                                                             0);
+
+  //gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
   return false;
+}
+
+
+ravi_gcc_codegen_t *ravi_jit_new_codegen(ravi_gcc_context_t *ravi) {
+  return NULL;
+}
+
+void ravi_jit_codegen_free(ravi_gcc_context_t *ravi, ravi_gcc_codegen_t *codegen) {
+
 }

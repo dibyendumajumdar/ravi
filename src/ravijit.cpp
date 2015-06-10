@@ -564,6 +564,12 @@ int raviV_sizelevel(lua_State *L) {
 #include "lstate.h"
 #include "lualib.h"
 #include "lauxlib.h"
+#include "ravi_gccjit.h"
+
+struct ravi_State {
+  ravi_gcc_context_t *jit;
+  ravi_gcc_codegen_t *code_generator;
+};
 
 
 // Initialize the JIT State and attach it to the
@@ -571,12 +577,27 @@ int raviV_sizelevel(lua_State *L) {
 // If a JIT State already exists then this function
 // will return -1
 int raviV_initjit(struct lua_State *L) {
-  return -1;
+  global_State *G = G(L);
+  if (G->ravi_state != NULL)
+    return -1;
+  ravi_State *jit = (ravi_State *)calloc(1, sizeof(ravi_State));
+  jit->jit = ravi_jit_new_context();
+  jit->code_generator =
+          ravi_jit_new_codegen(jit->jit);
+  G->ravi_state = jit;
+  return 0;
 }
 
 // Free up the JIT State
 void raviV_close(struct lua_State *L) {
+  global_State *G = G(L);
+  if (G->ravi_state == NULL)
+    return;
+  ravi_jit_codegen_free(G->ravi_state->jit, G->ravi_state->code_generator);
+  ravi_jit_context_free(G->ravi_state->jit);
+  free(G->ravi_state);
 }
+
 
 // Compile a Lua function
 // If JIT is turned off then compilation is skipped
