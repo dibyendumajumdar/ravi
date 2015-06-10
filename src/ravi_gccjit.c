@@ -21,6 +21,7 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 
+#include <stddef.h>
 #include "ravi_gccjit.h"
 
 ravi_gcc_context_t *ravi_jit_new_context(void) {
@@ -73,6 +74,39 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   ravi->types = (ravi_gcc_types_t *) calloc(1, sizeof(ravi_gcc_types_t));
   if (!ravi->types)
     return false;
+
+  ravi_gcc_types_t *t = ravi->types;
+
+  t->C_doubleT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_DOUBLE);
+  t->lua_NumberT = t->C_doubleT;
+  t->plua_NumberT = gcc_jit_type_get_pointer(t->lua_NumberT);
+  t->pplua_NumberT = gcc_jit_type_get_pointer(t->plua_NumberT);
+
+  t->lua_IntegerT = gcc_jit_context_get_int_type(ravi->context, sizeof(lua_Integer), 1);
+  t->plua_IntegerT = gcc_jit_type_get_pointer(t->lua_IntegerT);
+  t->pplua_IntegerT = gcc_jit_type_get_pointer(t->plua_IntegerT);
+
+  t->lua_UnsignedT = gcc_jit_context_get_int_type(ravi->context, sizeof(lua_Unsigned), 0);
+
+  t->C_intptr_t = gcc_jit_context_get_int_type(ravi->context, sizeof(intptr_t), 1);
+  t->C_size_t = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_SIZE_T);
+  t->C_ptrdiff_t = gcc_jit_context_get_int_type(ravi->context, sizeof(ptrdiff_t), 1);
+  t->C_int64_t = gcc_jit_context_get_int_type(ravi->context, sizeof(int64_t), 1);
+  t->C_intT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_INT);
+  t->C_pintT = gcc_jit_type_get_pointer(t->C_intT);
+  t->C_shortT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_SHORT);
+
+  t->lu_memT = t->C_size_t;
+
+  t->l_memT = t->C_ptrdiff_t;
+
+  t->tmsT = t->C_intT;
+
+  t->L_UmaxalignT = t->C_doubleT;
+
+  t->lu_byteT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_UNSIGNED_CHAR);
+  t->C_charT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_SIGNED_CHAR);
+  t->C_pcharT = gcc_jit_type_get_pointer(t->C_charT);
 
   
 

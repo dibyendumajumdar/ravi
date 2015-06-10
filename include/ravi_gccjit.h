@@ -44,6 +44,7 @@ extern "C" {
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "lua.h"
 
@@ -121,6 +122,7 @@ struct ravi_gcc_types_t {
 
   gcc_jit_type *lu_byteT;
   gcc_jit_type *L_UmaxalignT;
+  gcc_jit_type *C_charT;
   gcc_jit_type *C_pcharT;
 
   gcc_jit_type *C_intT;
