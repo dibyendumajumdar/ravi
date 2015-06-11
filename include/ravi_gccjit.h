@@ -92,6 +92,8 @@ struct ravi_gcc_types_t {
   gcc_jit_type *C_ptrdiff_t;
   gcc_jit_type *C_int64_t;
   gcc_jit_type *C_shortT;
+  gcc_jit_type *C_voidT;
+  gcc_jit_type *C_pvoidT;
 
   gcc_jit_type *lua_NumberT;
   gcc_jit_type *plua_NumberT;
@@ -107,13 +109,13 @@ struct ravi_gcc_types_t {
   //gcc_jit_function *lua_CFunctionT;
   gcc_jit_type *plua_CFunctionT;
 
-  gcc_jit_function *lua_KFunctionT;
+  //gcc_jit_function *lua_KFunctionT;
   gcc_jit_type *plua_KFunctionT;
 
-  gcc_jit_function *lua_HookT;
+  //gcc_jit_function *lua_HookT;
   gcc_jit_type *plua_HookT;
 
-  gcc_jit_function *lua_AllocT;
+  //gcc_jit_function *lua_AllocT;
   gcc_jit_type *plua_AllocT;
 
   gcc_jit_type *l_memT;
@@ -133,16 +135,16 @@ struct ravi_gcc_types_t {
   gcc_jit_struct *lua_StateT;
   gcc_jit_type *plua_StateT;
 
-  gcc_jit_type *global_StateT;
+  gcc_jit_struct *global_StateT;
   gcc_jit_type *pglobal_StateT;
 
-  gcc_jit_type *ravi_StateT;
+  gcc_jit_struct *ravi_StateT;
   gcc_jit_type *pravi_StateT;
 
-  gcc_jit_type *GCObjectT;
+  gcc_jit_struct *GCObjectT;
   gcc_jit_type *pGCObjectT;
 
-  gcc_jit_type *ValueT;
+  gcc_jit_struct *ValueT;
   gcc_jit_type *TValueT;
   gcc_jit_type *pTValueT;
 

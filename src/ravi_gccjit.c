@@ -110,25 +110,78 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   t->C_charT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_SIGNED_CHAR);
   t->C_pcharT = gcc_jit_type_get_pointer(t->C_charT);
 
+  t->C_voidT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_VOID);
+  t->C_pvoidT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_VOID_PTR);
+
   /* typedef unsigned int Instruction */
   t->InstructionT = t->C_unsigned_intT;
   t->pInstructionT = gcc_jit_type_get_pointer(t->InstructionT);
 
   t->ravitype_tT = gcc_jit_context_get_int_type(ravi->context, sizeof(ravitype_t), 1);
 
-  t->lua_StateT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "struct.lua_State");
+  t->lua_StateT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_lua_State");
   t->plua_StateT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->lua_StateT));
 
   t->lua_KContextT = t->C_ptrdiff_t;
 
-  gcc_jit_type *elements[64];
+  gcc_jit_type *elements[32];
 
+  /*
+   ** Type for C functions registered with Lua
+   *  typedef int (*lua_CFunction) (lua_State *L);
+   */
   elements[0] = t->plua_StateT;
   t->plua_CFunctionT = gcc_jit_context_new_function_ptr_type(ravi->context, NULL,
                                                              t->C_intT, 1, elements,
                                                              0);
 
-  //gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
+  /*
+   ** Type for continuation functions
+   * typedef int (*lua_KFunction) (lua_State *L, int status, lua_KContext ctx);
+   */
+  elements[0] = t->plua_StateT;
+  elements[1] = t->C_intT;
+  elements[2] = t->lua_KContextT;
+  t->plua_KFunctionT = gcc_jit_context_new_function_ptr_type(ravi->context, NULL, t->C_intT,
+                                                             3, elements, 0);
+
+  /*
+   ** Type for memory-allocation functions
+   *  typedef void * (*lua_Alloc) (void *ud, void *ptr, size_t osize, size_t nsize);
+   */
+  elements[0] = t->C_pvoidT;
+  elements[1] = t->C_pvoidT;
+  elements[2] = t->C_size_t;
+  elements[3] = t->C_size_t;
+  t->plua_AllocT = gcc_jit_context_new_function_ptr_type(ravi->context, NULL, t->C_voidT,
+                                                         4, elements, 0);
+
+  t->lua_DebugT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_lua_Debug");
+  t->plua_DebugT = gcc_jit_type_get_pointer(t->lua_DebugT);
+
+
+  /* typedef void (*lua_Hook) (lua_State *L, lua_Debug *ar); */
+  elements[0] = t->plua_StateT;
+  elements[1] = t->plua_DebugT;
+  t->plua_HookT = gcc_jit_context_new_function_ptr_type(ravi->context, NULL, t->C_pvoidT,
+                                                        2, elements, 0);
+
+  gcc_jit_field *fields[32];
+
+  // struct GCObject {
+  //   GCObject *next;
+  //   lu_byte tt;
+  //   lu_byte marked
+  // };
+  t->GCObjectT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_GCObject");
+  t->pGCObjectT = gcc_jit_type_get_pointer(t->GCObjectT);
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "next");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "tt");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "marked");
+  gcc_jit_struct_set_fields(t->GCObjectT, NULL, 3, fields);
+
+
+  gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
   return false;
 }
 
