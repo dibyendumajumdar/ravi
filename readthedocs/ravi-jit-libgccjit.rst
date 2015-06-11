@@ -29,11 +29,11 @@ I built gcc 5.1 from source as follows.
 1. Unpacked source to ``~/gcc-5.1.0``
 2. Created a build folder ``~/buildgcc``
 3. Installed various pre-requisites for gcc.
-4. Then ran following from inside the build folder:
+4. Then ran following from inside the build folder::
 
    ../gcc-5.1.0/configure --prefix=~/local --enable-host-shared --enable-languages=jit,c++ --disable-bootstrap --disable-multilib
 
-5. Next performed the build as follows:
+5. Next performed the build as follows::
 
    make
    make install
@@ -44,7 +44,7 @@ Work on this started only recently (8 June 2015) so not much to show yet. But ex
 
 Building Ravi with libgccjit on Linux
 -------------------------------------
-Note that right now the libgccjit implementation is not yet functional. However you can build Ravi with libgccjit linked in as follows:
+Note that right now the libgccjit implementation is not yet functional. However you can build Ravi with libgccjit linked in as follows::
 
   mkdir build
   cd build
