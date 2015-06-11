@@ -144,69 +144,69 @@ struct ravi_gcc_types_t {
   gcc_jit_struct *GCObjectT;
   gcc_jit_type *pGCObjectT;
 
-  gcc_jit_struct *ValueT;
+  gcc_jit_type *ValueT;
   gcc_jit_type *TValueT;
   gcc_jit_type *pTValueT;
 
-  gcc_jit_type *HiLoT;
+  gcc_jit_struct *HiLoT;
   gcc_jit_type *pHiLoT;
 
-  gcc_jit_type *TStringT;
+  gcc_jit_struct *TStringT;
   gcc_jit_type *pTStringT;
   gcc_jit_type *ppTStringT;
 
-  gcc_jit_type *UdataT;
-  gcc_jit_type *RaviArrayT;
-  gcc_jit_type *TableT;
+  gcc_jit_struct *UdataT;
+  gcc_jit_struct *RaviArrayT;
+  gcc_jit_struct *TableT;
   gcc_jit_type *pTableT;
   gcc_jit_type *ppTableT;
 
-  gcc_jit_type *UpvaldescT;
+  gcc_jit_struct *UpvaldescT;
   gcc_jit_type *pUpvaldescT;
 
-  gcc_jit_type *ravitype_tT;
-  gcc_jit_type *LocVarT;
+  gcc_jit_struct *ravitype_tT;
+  gcc_jit_struct *LocVarT;
   gcc_jit_type *pLocVarT;
 
   gcc_jit_type *InstructionT;
   gcc_jit_type *pInstructionT;
-  gcc_jit_type *LClosureT;
+  gcc_jit_struct *LClosureT;
   gcc_jit_type *pLClosureT;
   gcc_jit_type *ppLClosureT;
   gcc_jit_type *pppLClosureT;
 
-  gcc_jit_type *RaviJITProtoT;
+  gcc_jit_struct *RaviJITProtoT;
 
-  gcc_jit_type *ProtoT;
+  gcc_jit_struct *ProtoT;
   gcc_jit_type *pProtoT;
   gcc_jit_type *ppProtoT;
 
-  gcc_jit_type *UpValT;
+  gcc_jit_struct *UpValT;
   gcc_jit_type *pUpValT;
 
-  gcc_jit_type *CClosureT;
+  gcc_jit_struct *CClosureT;
   gcc_jit_type *pCClosureT;
 
-  gcc_jit_type *TKeyT;
+  gcc_jit_struct *TKeyT;
   gcc_jit_type *pTKeyT;
 
-  gcc_jit_type *NodeT;
+  gcc_jit_struct *NodeT;
   gcc_jit_type *pNodeT;
 
   gcc_jit_type *lua_DebugT;
   gcc_jit_type *plua_DebugT;
 
-  gcc_jit_type *lua_longjumpT;
+  gcc_jit_struct *lua_longjumpT;
   gcc_jit_type *plua_longjumpT;
 
-  gcc_jit_type *MbufferT;
+  gcc_jit_struct *MbufferT;
   gcc_jit_type *stringtableT;
 
   gcc_jit_type *StkIdT;
 
-  gcc_jit_type *CallInfoT;
-  gcc_jit_type *CallInfo_cT;
-  gcc_jit_type *CallInfo_lT;
+  gcc_jit_struct *CallInfoT;
+  gcc_jit_struct *CallInfo_cT;
+  gcc_jit_struct *CallInfo_lT;
   gcc_jit_type *pCallInfoT;
 
   gcc_jit_function *jitFunctionT;

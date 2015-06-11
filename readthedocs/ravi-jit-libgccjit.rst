@@ -31,12 +31,12 @@ I built gcc 5.1 from source as follows.
 3. Installed various pre-requisites for gcc.
 4. Then ran following from inside the build folder::
 
-   ../gcc-5.1.0/configure --prefix=~/local --enable-host-shared --enable-languages=jit,c++ --disable-bootstrap --disable-multilib
+     ../gcc-5.1.0/configure --prefix=~/local --enable-host-shared --enable-languages=jit,c++ --disable-bootstrap --disable-multilib
 
 5. Next performed the build as follows::
 
-   make
-   make install
+     make
+     make install
 
 Current Status
 --------------

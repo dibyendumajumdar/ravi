@@ -180,6 +180,21 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "marked");
   gcc_jit_struct_set_fields(t->GCObjectT, NULL, 3, fields);
 
+  // union Value {
+  //   GCObject *gc;    /* collectable objects */
+  //   void *p;         /* light userdata */
+  //   int b;           /* booleans */
+  //   lua_CFunction f; /* light C functions */
+  //   lua_Integer i;   /* integer numbers */
+  //   lua_Number n;    /* float numbers */
+  // };
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "gc");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_pvoidT, "p");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "b");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->plua_CFunctionT, "f");
+  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->lua_IntegerT, "i");
+  fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->lua_NumberT, "n");
+  t->ValueT = gcc_jit_context_new_union_type(ravi->context, NULL, "ravi_Value", 6, fields);
 
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
   return false;
