@@ -774,7 +774,7 @@ Table *raviH_new_integer_array(lua_State *L, unsigned int len,
   ravi_resize_array(L, t, len + 1, 0);
   lua_Integer *data = (lua_Integer *)t->ravi_array.data;
   data[0] = 0;
-  for (int i = 1; i <= len; i++) {
+  for (unsigned int i = 1; i <= len; i++) {
     data[i] = init_value;
   }
   t->ravi_array.len = len + 1;
@@ -789,7 +789,7 @@ Table *raviH_new_number_array(lua_State *L, unsigned int len,
   ravi_resize_array(L, t, len + 1, 0);
   lua_Number *data = (lua_Number *)t->ravi_array.data;
   data[0] = 0;
-  for (int i = 1; i <= len; i++) {
+  for (unsigned int i = 1; i <= len; i++) {
     data[i] = init_value;
   }
   t->ravi_array.len = len + 1;

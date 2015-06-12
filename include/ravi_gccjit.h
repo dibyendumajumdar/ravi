@@ -145,7 +145,7 @@ struct ravi_gcc_types_t {
   gcc_jit_type *pGCObjectT;
 
   gcc_jit_type *ValueT;
-  gcc_jit_type *TValueT;
+  gcc_jit_struct *TValueT;
   gcc_jit_type *pTValueT;
 
   gcc_jit_struct *HiLoT;
@@ -164,7 +164,7 @@ struct ravi_gcc_types_t {
   gcc_jit_struct *UpvaldescT;
   gcc_jit_type *pUpvaldescT;
 
-  gcc_jit_struct *ravitype_tT;
+  gcc_jit_type *ravitype_tT;
   gcc_jit_struct *LocVarT;
   gcc_jit_type *pLocVarT;
 
@@ -193,7 +193,7 @@ struct ravi_gcc_types_t {
   gcc_jit_struct *NodeT;
   gcc_jit_type *pNodeT;
 
-  gcc_jit_type *lua_DebugT;
+  gcc_jit_struct *lua_DebugT;
   gcc_jit_type *plua_DebugT;
 
   gcc_jit_struct *lua_longjumpT;

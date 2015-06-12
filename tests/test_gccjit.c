@@ -81,6 +81,9 @@ main (int argc, char **argv)
   gcc_jit_context *ctxt;
   gcc_jit_result *result;
 
+  (void)argc;
+  (void)argv;
+
   /* Get a "context" object for working with the library.  */
   ctxt = gcc_jit_context_acquire ();
   if (!ctxt)

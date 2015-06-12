@@ -569,7 +569,7 @@ typedef union UUdata {
 ** other types appear then they are all treated as ANY
 **/
 typedef enum {
-  RAVI_TANY,      /* Lua dynamic type */
+  RAVI_TANY = -1,      /* Lua dynamic type */
   RAVI_TNUMINT,   /* integer number */
   RAVI_TNUMFLT,   /* floating point number */
   RAVI_TARRAYINT, /* array of ints */

@@ -145,7 +145,7 @@ typedef struct lua_TValue TValue;
 
 
 /* macro defining a nil value */
-#define NILCONSTANT {NULL}, {0, (RAVI_NAN_TAG|LUA_TNIL)}
+#define NILCONSTANT {NULL}, { {0, (RAVI_NAN_TAG|LUA_TNIL)} }
 
 /* Note that numbers are not stored in value_ when NaN tagging is ON */
 #define val_(o)   ((o)->value_)
@@ -508,7 +508,10 @@ static void dumpvalue(TValue* v)
 }
 
 
-int main(int argc, const char *argv) {
+int main(int argc, const char **argv) {
+
+  (void)argc;
+  (void)argv;
 
   TValue v = { NILCONSTANT };
   dumpvalue(&v);
