@@ -175,6 +175,8 @@ struct ravi_gcc_types_t {
   gcc_jit_type *pLClosureT;
   gcc_jit_type *ppLClosureT;
   gcc_jit_type *pppLClosureT;
+  gcc_jit_type *ClosureT;
+  gcc_jit_type *pClosureT;
 
   gcc_jit_struct *RaviJITProtoT;
 

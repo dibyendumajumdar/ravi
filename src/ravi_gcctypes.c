@@ -310,6 +310,57 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   fields[23] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->RaviJITProtoT), "ravi_jit");
   gcc_jit_struct_set_fields(t->ProtoT, NULL, 24, fields);
 
+  // typedef struct UpVal UpVal;
+  t->UpValT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_UpVal");
+  t->pUpValT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->UpValT));
+
+  //#define ClosureHeader CommonHeader; lu_byte nupvalues; GCObject *gclist
+  // typedef struct CClosure {
+  //  ClosureHeader;
+  //  lua_CFunction f;
+  //  TValue upvalue[1];  /* list of upvalues */
+  //} CClosure;
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "next");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "tt");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "marked");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "nupvalues");
+  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "gclist");
+  fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->plua_CFunctionT, "f");
+  fields[6] = gcc_jit_context_new_field(ravi->context, NULL,
+                                        gcc_jit_context_new_array_type(ravi->context, NULL,
+                                                                       gcc_jit_struct_as_type(t->TValueT), 1),
+                                        "upvalue");
+  t->CClosureT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_CClosure", 7, fields);
+  t->pCClosureT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->CClosureT));
+
+  // typedef struct LClosure {
+  //  ClosureHeader;
+  //  struct Proto *p;
+  //  UpVal *upvals[1];  /* list of upvalues */
+  //} LClosure;
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "next");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "tt");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "marked");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "nupvalues");
+  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "gclist");
+  fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->pProtoT, "p");
+  fields[6] = gcc_jit_context_new_field(ravi->context, NULL,
+                                        gcc_jit_context_new_array_type(ravi->context, NULL,
+                                                                       t->pUpValT, 1),
+                                        "upvals");
+  gcc_jit_struct_set_fields(t->LClosureT, NULL, 7, fields);
+
+
+  //typedef union Closure {
+  //  CClosure c;
+  //  LClosure l;
+  //} Closure;
+
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->CClosureT), "c");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->LClosureT), "l");
+  t->ClosureT = gcc_jit_context_new_union_type(ravi->context, NULL, "Closure", 2, fields);
+  t->pCClosureT = gcc_jit_type_get_pointer(t->ClosureT);
+
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
   return false;
 }
