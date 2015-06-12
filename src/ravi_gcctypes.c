@@ -49,6 +49,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   t->C_intT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_INT);
   t->C_pintT = gcc_jit_type_get_pointer(t->C_intT);
   t->C_shortT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_SHORT);
+  t->C_unsigned_shortT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_UNSIGNED_SHORT);
   t->C_unsigned_intT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_UNSIGNED_INT);
 
   t->lu_memT = t->C_size_t;
@@ -221,6 +222,38 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   t->UpvaldescT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_Upvaldesc", 4, fields);
   t->pUpvaldescT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->UpvaldescT));
 
+  // typedef struct LocVar {
+  //  TString *varname;
+  //  int startpc;  /* first point where variable is active */
+  //  int endpc;    /* first point where variable is dead */
+  //  ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown
+  //  */
+  //} LocVar;
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pTStringT, "varname");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "startpc");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "endpc");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->ravitype_tT, "ravi_type");
+  t->LocVarT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_LocVar", 4, fields);
+  t->pLocVarT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->LocVarT));
+
+  t->LClosureT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_LClosure");
+  t->pLClosureT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->LClosureT));
+  t->ppLClosureT = gcc_jit_type_get_pointer(t->pLClosureT);
+  t->pppLClosureT = gcc_jit_type_get_pointer(t->ppLClosureT);
+
+  //typedef struct RaviJITProto {
+  //  lu_byte jit_status; /* 0=not compiled, 1=can't compile, 2=compiled, 3=freed */
+  //  lu_byte jit_flags;
+  //  unsigned short execution_count;   /* how many times has function been executed */
+  //  void *jit_data;
+  //  lua_CFunction jit_function;
+  //} RaviJITProto;
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "jit_status");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "jit_flags");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->C_unsigned_shortT, "execution_count");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->C_pvoidT, "jit_data");
+  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->plua_CFunctionT, "jit_function");
+  t->RaviJITProtoT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_RaviJITProto", 5, fields);
 
 
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);

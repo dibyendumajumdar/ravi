@@ -92,6 +92,7 @@ struct ravi_gcc_types_t {
   gcc_jit_type *C_ptrdiff_t;
   gcc_jit_type *C_int64_t;
   gcc_jit_type *C_shortT;
+  gcc_jit_type *C_unsigned_shortT;
   gcc_jit_type *C_voidT;
   gcc_jit_type *C_pvoidT;
 
