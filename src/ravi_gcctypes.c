@@ -183,6 +183,46 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   fields[6] = gcc_jit_context_new_field(ravi->context, NULL, t->pTStringT, "hash");
   gcc_jit_struct_set_fields(t->TStringT, NULL, 7, fields);
 
+  // Table
+  t->TableT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_Table");
+  t->pTableT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->TableT));
+  t->ppTableT = gcc_jit_type_get_pointer(t->pTableT);
+
+  //typedef struct Udata {
+  //  GCObject *next;
+  //  lu_byte tt;
+  //  lu_byte marked
+  //  lu_byte ttuv_;  /* user value's tag */
+  //  struct Table *metatable;
+  //  size_t len;  /* number of bytes */
+  //  union Value user_;  /* user value */
+  //} Udata;
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "next");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "tt");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "marked");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "ttuv_");
+  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->pTableT, "metatable");
+  fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->C_size_t, "len");
+  fields[6] = gcc_jit_context_new_field(ravi->context, NULL, t->ValueT, "user_");
+  t->UdataT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_Udata", 7, fields);
+
+
+  // typedef struct Upvaldesc {
+  //  TString *name;  /* upvalue name (for debug information) */
+  //  ravitype_t type;
+  //  lu_byte instack;  /* whether it is in stack */
+  //  lu_byte idx;  /* index of upvalue (in stack or in outer function's list)
+  //  */
+  //}Upvaldesc;
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pTStringT, "name");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->ravitype_tT, "type");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "instack");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "idx");
+  t->UpvaldescT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_Upvaldesc", 4, fields);
+  t->pUpvaldescT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->UpvaldescT));
+
+
+
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
   return false;
 }
