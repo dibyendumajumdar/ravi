@@ -323,7 +323,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  TString  *source;  /* used for debug information */
   //  GCObject *gclist;
   //  /* RAVI */
-  //  RaviJITProto *ravi_jit;
+  //  RaviJITProto ravi_jit;
   //} Proto;
 
   ProtoT = llvm::StructType::create(context, "struct.Proto");

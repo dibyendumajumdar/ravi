@@ -255,6 +255,60 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->plua_CFunctionT, "jit_function");
   t->RaviJITProtoT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_RaviJITProto", 5, fields);
 
+  // typedef struct Proto {
+  //  CommonHeader;
+  //  lu_byte numparams;  /* number of fixed parameters */
+  //  lu_byte is_vararg;
+  //  lu_byte maxstacksize;  /* maximum stack used by this function */
+  //  int sizeupvalues;  /* size of 'upvalues' */
+  //  int sizek;  /* size of 'k' */
+  //  int sizecode;
+  //  int sizelineinfo;
+  //  int sizep;  /* size of 'p' */
+  //  int sizelocvars;
+  //  int linedefined;
+  //  int lastlinedefined;
+  //  TValue *k;  /* constants used by the function */
+  //  Instruction *code;
+  //  struct Proto **p;  /* functions defined inside the function */
+  //  int *lineinfo;  /* map from opcodes to source lines (debug information) */
+  //  LocVar *locvars;  /* information about local variables (debug information)
+  //  */
+  //  Upvaldesc *upvalues;  /* upvalue information */
+  //  struct LClosure *cache;  /* last created closure with this prototype */
+  //  TString  *source;  /* used for debug information */
+  //  GCObject *gclist;
+  //  /* RAVI */
+  //  RaviJITProto *ravi_jit;
+  //} Proto;
+  t->ProtoT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_Proto");
+  t->pProtoT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->ProtoT));
+  t->ppProtoT = gcc_jit_type_get_pointer(t->pProtoT);
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "next");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "tt");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "marked");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "numparams");
+  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "is_vararg");
+  fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "maxstacksize");
+  fields[6] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "sizeupvalues");
+  fields[7] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "sizek");
+  fields[8] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "sizecode");
+  fields[9] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "sizelineinfo");
+  fields[10] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "sizep");
+  fields[11] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "sizelocvars");
+  fields[12] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "linedefined");
+  fields[13] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "lastlinedefined");
+  fields[14] = gcc_jit_context_new_field(ravi->context, NULL, t->pTValueT, "k");
+  fields[15] = gcc_jit_context_new_field(ravi->context, NULL, t->pInstructionT, "code");
+  fields[16] = gcc_jit_context_new_field(ravi->context, NULL, t->ppProtoT, "p");
+  fields[17] = gcc_jit_context_new_field(ravi->context, NULL, t->C_pintT, "lineinfo");
+  fields[18] = gcc_jit_context_new_field(ravi->context, NULL, t->pLocVarT, "locvars");
+  fields[19] = gcc_jit_context_new_field(ravi->context, NULL, t->pUpvaldescT, "upvalues");
+  fields[20] = gcc_jit_context_new_field(ravi->context, NULL, t->pLClosureT, "cache");
+  fields[21] = gcc_jit_context_new_field(ravi->context, NULL, t->pTStringT, "source");
+  fields[22] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "gclist");
+  fields[23] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->RaviJITProtoT), "ravi_jit");
+  gcc_jit_struct_set_fields(t->ProtoT, NULL, 24, fields);
 
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
   return false;
