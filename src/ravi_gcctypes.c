@@ -358,8 +358,25 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
 
   fields[0] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->CClosureT), "c");
   fields[1] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->LClosureT), "l");
-  t->ClosureT = gcc_jit_context_new_union_type(ravi->context, NULL, "Closure", 2, fields);
+  t->ClosureT = gcc_jit_context_new_union_type(ravi->context, NULL, "ravi_Closure", 2, fields);
   t->pCClosureT = gcc_jit_type_get_pointer(t->ClosureT);
+
+  // typedef union TKey {
+  //  struct {
+  //    TValuefields;
+  //    int next;  /* for chaining (offset for next node) */
+  //  } nk;
+  //  TValue tvk;
+  //} TKey;
+
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->ValueT, "value_");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "tt_");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "next");
+  gcc_jit_struct* nk = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_TKey_nk", 3, fields);
+
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(nk), "nk");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->TValueT), "tvk");
+  t->TKeyT = gcc_jit_context_new_union_type(ravi->context, NULL, "ravi_TKey", 2, fields);
 
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
   return false;

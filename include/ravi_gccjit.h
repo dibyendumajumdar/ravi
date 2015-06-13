@@ -190,7 +190,7 @@ struct ravi_gcc_types_t {
   gcc_jit_struct *CClosureT;
   gcc_jit_type *pCClosureT;
 
-  gcc_jit_struct *TKeyT;
+  gcc_jit_type *TKeyT;
   gcc_jit_type *pTKeyT;
 
   gcc_jit_struct *NodeT;
