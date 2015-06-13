@@ -32,7 +32,7 @@ ravi_gcc_context_t *ravi_jit_new_context(void) {
     goto on_error;
   }
 
-  ravi = (ravi_gcc_context_t *) calloc(1, sizeof(ravi_gcc_context_t));
+  ravi = (ravi_gcc_context_t *)calloc(1, sizeof(ravi_gcc_context_t));
   if (!ravi) {
     fprintf(stderr, "failed to allocate a Ravi JIT context\n");
     goto on_error;
@@ -54,8 +54,7 @@ ravi_gcc_context_t *ravi_jit_new_context(void) {
 on_error:
   if (ravi) {
     ravi_jit_context_free(ravi);
-  }
-  else if (gcc_ctx) {
+  } else if (gcc_ctx) {
     gcc_jit_context_release(gcc_ctx);
   }
   return NULL;
@@ -72,14 +71,13 @@ void ravi_jit_context_free(ravi_gcc_context_t *ravi) {
   free(ravi);
 }
 
-
-
 ravi_gcc_codegen_t *ravi_jit_new_codegen(ravi_gcc_context_t *ravi) {
-  (void) ravi;
+  (void)ravi;
   return NULL;
 }
 
-void ravi_jit_codegen_free(ravi_gcc_context_t *ravi, ravi_gcc_codegen_t *codegen) {
+void ravi_jit_codegen_free(ravi_gcc_context_t *ravi,
+                           ravi_gcc_codegen_t *codegen) {
   (void)ravi;
   (void)codegen;
 }
