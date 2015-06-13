@@ -597,9 +597,9 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   gcc_jit_struct_set_fields(t->UpValT, NULL, 3, fields);
 
 
-  // int luaD_poscall (lua_State *L, StkId firstResult)
   gcc_jit_param *params[12];
 
+  // int luaD_poscall (lua_State *L, StkId firstResult)
   params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
   params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->StkIdT, "firstResult");
   t->luaD_poscallT = gcc_jit_context_new_function (ravi->context, NULL,
@@ -768,6 +768,8 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
                                                   "luaV_gettable",
                                                   4, params,
                                                   0);
+
+  // TODO const
   // void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val)
   params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
   params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "t");
@@ -855,7 +857,94 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
                                                              5, params,
                                                              0);
 
+  // lua_Integer luaV_div (lua_State *L, lua_Integer m, lua_Integer n)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->lua_IntegerT, "m");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->lua_IntegerT, "n");
+  t->luaV_divT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                       GCC_JIT_FUNCTION_IMPORTED,
+                                                       t->lua_IntegerT,
+                                                       "luaV_div",
+                                                       3, params,
+                                                       0);
 
+
+  // lua_Integer luaV_mod (lua_State *L, lua_Integer m, lua_Integer n)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->lua_IntegerT, "m");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->lua_IntegerT, "n");
+  t->luaV_modT = gcc_jit_context_new_function (ravi->context, NULL,
+                                               GCC_JIT_FUNCTION_IMPORTED,
+                                               t->lua_IntegerT,
+                                               "luaV_mod",
+                                               3, params,
+                                               0);
+
+  // void raviV_op_concat(lua_State *L, CallInfo *ci, int a, int b, int c)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pCallInfoT, "ci");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "a");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "b");
+  params[4] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "c");
+  t->raviV_op_concatT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                       GCC_JIT_FUNCTION_IMPORTED,
+                                                       t->C_voidT,
+                                                       "raviV_op_concat",
+                                                       5, params,
+                                                       0);
+
+  // void raviV_op_closure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pCallInfoT, "ci");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pLClosureT, "cl");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "a");
+  params[4] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "Bx");
+  t->raviV_op_closureT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                      GCC_JIT_FUNCTION_IMPORTED,
+                                                      t->C_voidT,
+                                                      "raviV_op_closure",
+                                                      5, params,
+                                                      0);
+
+
+  // void raviV_op_vararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pCallInfoT, "ci");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pLClosureT, "cl");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "a");
+  params[4] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "b");
+  t->raviV_op_varargT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                       GCC_JIT_FUNCTION_IMPORTED,
+                                                       t->C_voidT,
+                                                       "raviV_op_vararg",
+                                                       5, params,
+                                                       0);
+
+  // void raviH_set_int(lua_State *L, Table *t, unsigned int key, lua_Integer
+  // value);
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pTableT, "table");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->C_unsigned_intT, "key");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->lua_IntegerT, "value");
+  t->raviH_set_intT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                      GCC_JIT_FUNCTION_IMPORTED,
+                                                      t->C_voidT,
+                                                      "raviH_set_int",
+                                                      4, params,
+                                                      0);
+
+  // void raviH_set_float(lua_State *L, Table *t, unsigned int key, lua_Number
+  // value);
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pTableT, "table");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->C_unsigned_intT, "key");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->lua_NumberT, "value");
+  t->raviH_set_intT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                    GCC_JIT_FUNCTION_IMPORTED,
+                                                    t->C_voidT,
+                                                    "raviH_set_float",
+                                                    4, params,
+                                                    0);
 
 
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);

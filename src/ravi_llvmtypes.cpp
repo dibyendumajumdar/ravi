@@ -830,6 +830,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviV_op_setlistT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  // lua_Integer luaV_div (lua_State *L, lua_Integer m, lua_Integer n)
+  // lua_Integer luaV_mod (lua_State *L, lua_Integer m, lua_Integer n)
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(lua_IntegerT);
@@ -837,7 +839,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   luaV_modT = llvm::FunctionType::get(lua_IntegerT, elements, false);
   luaV_divT = llvm::FunctionType::get(lua_IntegerT, elements, false);
 
-  // void luaV_opconcat(lua_State *L, CallInfo *ci, int a, int b, int c);
+  // void raviV_op_concat(lua_State *L, CallInfo *ci, int a, int b, int c)
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pCallInfoT);
@@ -847,9 +849,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviV_op_concatT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
-  // void luaV_opclosure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int
-  // Bx);
-  // void luaV_opvararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);
+  // void raviV_op_closure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx)
+  // void raviV_op_vararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b)
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pCallInfoT);
