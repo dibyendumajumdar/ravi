@@ -597,6 +597,107 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   gcc_jit_struct_set_fields(t->UpValT, NULL, 3, fields);
 
 
+  // int luaD_poscall (lua_State *L, StkId firstResult)
+  gcc_jit_param *params[12];
+
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->StkIdT, "firstResult");
+  t->luaD_poscallT = gcc_jit_context_new_function (ravi->context, NULL,
+                                GCC_JIT_FUNCTION_IMPORTED,
+                                t->C_intT,
+                                "luaD_poscall",
+                                2, params,
+                                0);
+
+  // void luaC_upvalbarrier_ (lua_State *L, UpVal *uv)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pUpValT, "uv");
+  t->luaC_upvalbarrierT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                   GCC_JIT_FUNCTION_IMPORTED,
+                                                   t->C_voidT,
+                                                   "luaC_upvalbarrier_",
+                                                   2, params,
+                                                   0);
+
+  // int luaD_precall (lua_State *L, StkId func, int nresults);
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->StkIdT, "func");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "nresults");
+  t->luaD_precallT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                        GCC_JIT_FUNCTION_IMPORTED,
+                                                        t->C_intT,
+                                                        "luaD_precall",
+                                                        3, params,
+                                                        0);
+
+  // void luaD_call (lua_State *L, StkId func, int nResults,
+  //                 int allowyield);
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->StkIdT, "func");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "nresults");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "allowyield");
+  t->luaD_callT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                   GCC_JIT_FUNCTION_IMPORTED,
+                                                   t->C_intT,
+                                                   "luaD_call",
+                                                   4, params,
+                                                   0);
+  // void luaV_execute(lua_State L);
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  t->luaV_executeT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                GCC_JIT_FUNCTION_IMPORTED,
+                                                t->C_voidT,
+                                                "luaV_execute",
+                                                1, params,
+                                                0);
+
+  // void luaF_close (lua_State *L, StkId level)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->StkIdT, "level");
+  t->luaF_closeT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                   GCC_JIT_FUNCTION_IMPORTED,
+                                                   t->C_voidT,
+                                                   "luaF_close",
+                                                   2, params,
+                                                   0);
+
+  // TODO const
+  // int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "t1");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "t2");
+  t->luaV_equalobjT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                GCC_JIT_FUNCTION_IMPORTED,
+                                                t->C_intT,
+                                                "luaV_equalobj",
+                                                3, params,
+                                                0);
+
+  // TODO const
+  // int luaV_lessthan (lua_State *L, const TValue *l, const TValue *r)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "l");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "r");
+  t->luaV_lessthanT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                    GCC_JIT_FUNCTION_IMPORTED,
+                                                    t->C_intT,
+                                                    "luaV_lessthan",
+                                                    3, params,
+                                                    0);
+
+  // TODO const
+  // int luaV_lessequal (lua_State *L, const TValue *l, const TValue *r)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "l");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "r");
+  t->luaV_lessequalT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                    GCC_JIT_FUNCTION_IMPORTED,
+                                                    t->C_intT,
+                                                    "luaV_lessequal",
+                                                    3, params,
+                                                    0);
+
+
 
 
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
