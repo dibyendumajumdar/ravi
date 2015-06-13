@@ -697,6 +697,164 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
                                                     3, params,
                                                     0);
 
+  // TODO const
+  // l_noret luaG_runerror (lua_State *L, const char *fmt, ...)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->C_pcharT, "fmt");
+  t->luaG_runerrorT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                     GCC_JIT_FUNCTION_IMPORTED,
+                                                     t->C_voidT,
+                                                     "luaG_runerror",
+                                                     2, params,
+                                                     1);
+
+  // TODO const
+  // int luaV_forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
+  //                    int *stopnow)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "obj");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_IntegerT, "p");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->lua_IntegerT, "step");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->C_pintT, "stopnow");
+  t->luaV_forlimitT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                GCC_JIT_FUNCTION_IMPORTED,
+                                                t->C_intT,
+                                                "luaV_forlimit",
+                                                4, params,
+                                                0);
+
+  // TODO const
+  // int luaV_tonumber_ (const TValue *obj, lua_Number *n)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "obj");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_NumberT, "n");
+  t->luaV_tonumberT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                    GCC_JIT_FUNCTION_IMPORTED,
+                                                    t->C_intT,
+                                                    "luaV_tonumber_",
+                                                    2, params,
+                                                    0);
+
+  // TODO const
+  // int luaV_tointeger_ (const TValue *obj, lua_Integer *p)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "obj");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_IntegerT, "p");
+  t->luaV_tointegerT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                    GCC_JIT_FUNCTION_IMPORTED,
+                                                    t->C_intT,
+                                                    "luaV_tointeger_",
+                                                    2, params,
+                                                    0);
+
+  // TODO const
+  // void luaV_objlen (lua_State *L, StkId ra, const TValue *rb)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->StkIdT, "ra");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "rb");
+  t->luaV_objlenT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                     GCC_JIT_FUNCTION_IMPORTED,
+                                                     t->C_voidT,
+                                                     "luaV_objlen",
+                                                     3, params,
+                                                     0);
+
+  // TODO const
+  // void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "t");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "key");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->StkIdT, "val");
+  t->luaV_gettableT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                  GCC_JIT_FUNCTION_IMPORTED,
+                                                  t->C_voidT,
+                                                  "luaV_gettable",
+                                                  4, params,
+                                                  0);
+  // void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "t");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "key");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->StkIdT, "val");
+  t->luaV_settableT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                    GCC_JIT_FUNCTION_IMPORTED,
+                                                    t->C_voidT,
+                                                    "luaV_settable",
+                                                    4, params,
+                                                    0);
+
+  // TODO const
+  // void luaT_trybinTM (lua_State *L, const TValue *p1, const TValue *p2,
+  //                     StkId res, TMS event);
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "p1");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "p2");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->StkIdT, "res");
+  params[4] = gcc_jit_context_new_param (ravi->context, NULL, t->tmsT, "event");
+  t->luaT_trybinTMT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                    GCC_JIT_FUNCTION_IMPORTED,
+                                                    t->C_voidT,
+                                                    "luaT_trybinTM",
+                                                    5, params,
+                                                    0);
+
+
+  // void raviV_op_loadnil(CallInfo *ci, int a, int b)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->pCallInfoT, "ci");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "a");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "b");
+  t->raviV_op_loadnilT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                    GCC_JIT_FUNCTION_IMPORTED,
+                                                    t->C_voidT,
+                                                    "raviV_op_loadnil",
+                                                    3, params,
+                                                    0);
+
+  // void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pCallInfoT, "ci");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "ra");
+  t->raviV_op_newarrayintT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                       GCC_JIT_FUNCTION_IMPORTED,
+                                                       t->C_voidT,
+                                                       "raviV_op_newarrayint",
+                                                       3, params,
+                                                       0);
+
+  // void raviV_op_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pCallInfoT, "ci");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "ra");
+  t->raviV_op_newarrayfloatT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                           GCC_JIT_FUNCTION_IMPORTED,
+                                                           t->C_voidT,
+                                                           "raviV_op_newarrayfloat",
+                                                           3, params,
+                                                           0);
+
+  // void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pCallInfoT, "ci");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "ra");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "b");
+  params[4] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "c");
+  t->raviV_op_newtableT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                           GCC_JIT_FUNCTION_IMPORTED,
+                                                           t->C_voidT,
+                                                           "raviV_op_newtable",
+                                                           5, params,
+                                                           0);
+
+  // void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c)
+  params[0] = gcc_jit_context_new_param (ravi->context, NULL, t->plua_StateT, "L");
+  params[1] = gcc_jit_context_new_param (ravi->context, NULL, t->pCallInfoT, "ci");
+  params[2] = gcc_jit_context_new_param (ravi->context, NULL, t->pTValueT, "ra");
+  params[3] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "b");
+  params[4] = gcc_jit_context_new_param (ravi->context, NULL, t->C_intT, "c");
+  t->raviV_op_setlistT = gcc_jit_context_new_function (ravi->context, NULL,
+                                                             GCC_JIT_FUNCTION_IMPORTED,
+                                                             t->C_voidT,
+                                                             "raviV_op_setlist",
+                                                             5, params,
+                                                             0);
+
 
 
 

@@ -753,6 +753,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   luaG_runerrorT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  // int luaV_forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
+  //                    int *stopnow)
   elements.clear();
   elements.push_back(pTValueT);
   elements.push_back(plua_IntegerT);
@@ -760,16 +762,19 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_pintT);
   luaV_forlimitT = llvm::FunctionType::get(C_intT, elements, false);
 
+  // int luaV_tonumber_ (const TValue *obj, lua_Number *n)
   elements.clear();
   elements.push_back(pTValueT);
   elements.push_back(plua_NumberT);
   luaV_tonumberT = llvm::FunctionType::get(C_intT, elements, false);
 
+  // int luaV_tointeger_ (const TValue *obj, lua_Integer *p)
   elements.clear();
   elements.push_back(pTValueT);
   elements.push_back(plua_IntegerT);
   luaV_tointegerT = llvm::FunctionType::get(C_intT, elements, false);
 
+  // void luaV_objlen (lua_State *L, StkId ra, const TValue *rb)
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTValueT);
@@ -777,12 +782,17 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   luaV_objlenT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+
+  // void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val)
   elements.push_back(pTValueT);
   luaV_gettableT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  // void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val)
   luaV_settableT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  // void luaT_trybinTM (lua_State *L, const TValue *p1, const TValue *p2,
+  //                     StkId res, TMS event);
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTValueT);
@@ -792,6 +802,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   luaT_trybinTMT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  // void raviV_op_loadnil(CallInfo *ci, int a, int b)
   elements.clear();
   elements.push_back(pCallInfoT);
   elements.push_back(C_intT);
@@ -799,6 +810,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviV_op_loadnilT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  // void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra)
+  // void raviV_op_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra)
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pCallInfoT);
@@ -808,6 +821,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviV_op_newarrayfloatT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  // void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c)
+  // void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c)
   elements.push_back(C_intT);
   elements.push_back(C_intT);
   raviV_op_newtableT =
