@@ -83,3 +83,12 @@ void ravi_jit_codegen_free(ravi_gcc_context_t *ravi, ravi_gcc_codegen_t *codegen
   (void)ravi;
   (void)codegen;
 }
+
+bool ravi_jit_has_errored(ravi_gcc_context_t *ravi) {
+  const char *msg = gcc_jit_context_get_first_error(ravi->context);
+  if (msg) {
+    fprintf(stderr, "JIT error: %s\n", msg);
+    return true;
+  }
+  return false;
+}

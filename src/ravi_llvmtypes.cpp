@@ -465,8 +465,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  Node *lastfree;  /* any free position is before this position */
   //  struct Table *metatable;
   //  GCObject *gclist;
-  //  ravitype_t ravi_array_type; /* RAVI specialization */
-  //  unsigned int ravi_array_len; /* RAVI len specialization */
+  //  RaviArray ravi_array;
   //} Table;
   elements.clear();
   elements.push_back(pGCObjectT);

@@ -175,6 +175,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   // } TString;
   t->TStringT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_TString");
   t->pTStringT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->TStringT));
+  t->ppTStringT = gcc_jit_type_get_pointer(t->pTStringT);
   fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "next");
   fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "tt");
   fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "marked");
@@ -377,8 +378,140 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   fields[0] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(nk), "nk");
   fields[1] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->TValueT), "tvk");
   t->TKeyT = gcc_jit_context_new_union_type(ravi->context, NULL, "ravi_TKey", 2, fields);
+  t->pTKeyT = gcc_jit_type_get_pointer(t->TKeyT);
+
+  // typedef struct Node {
+  // TValue i_val;
+  // TKey i_key;
+  //} Node;
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->TValueT), "i_val");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->TKeyT, "i_key");
+  t->NodeT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_Node", 2, fields);
+  t->pNodeT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->NodeT));
+
+  //typedef struct RaviArray {
+  //  char *data;
+  //  unsigned int len; /* RAVI len specialization */
+  //  unsigned int size; /* amount of memory allocated */
+  //  lu_byte array_type; /* RAVI specialization */
+  //  lu_byte array_modifier; /* Flags that affect how the array is handled */
+  //} RaviArray;
+
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->C_pvoidT, "data");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_unsigned_intT, "len");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->C_unsigned_intT, "size");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "array_type");
+  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "array_modifier");
+  t->RaviArrayT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_RaviArray", 5, fields);
+
+  // typedef struct Table {
+  //  CommonHeader;
+  //  lu_byte flags;  /* 1<<p means tagmethod(p) is not present */
+  //  lu_byte lsizenode;  /* log2 of size of 'node' array */
+  //  unsigned int sizearray;  /* size of 'array' array */
+  //  TValue *array;  /* array part */
+  //  Node *node;
+  //  Node *lastfree;  /* any free position is before this position */
+  //  struct Table *metatable;
+  //  GCObject *gclist;
+  //  RaviArray ravi_array;
+  //} Table;
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "next");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "tt");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "marked");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "flags");
+  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "lsizenode");
+  fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->C_unsigned_intT, "sizearray");
+  fields[6] = gcc_jit_context_new_field(ravi->context, NULL, t->pTValueT, "array");
+  fields[7] = gcc_jit_context_new_field(ravi->context, NULL, t->pNodeT, "node");
+  fields[8] = gcc_jit_context_new_field(ravi->context, NULL, t->pNodeT, "lastfree");
+  fields[9] = gcc_jit_context_new_field(ravi->context, NULL, t->pTableT, "metatable");
+  fields[10] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "gclist");
+  fields[11] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->RaviArrayT), "ravi_array");
+  gcc_jit_struct_set_fields(t->TableT, NULL, 12, fields);
+
+  // struct lua_longjmp;  /* defined in ldo.c */
+  t->lua_longjumpT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_lua_longjmp");
+  t->plua_longjumpT = gcc_jit_struct_as_type(t->lua_longjumpT);
+
+  // lzio.h
+  // typedef struct Mbuffer {
+  //  char *buffer;
+  //  size_t n;
+  //  size_t buffsize;
+  //} Mbuffer;
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->C_pcharT, "buffer");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_size_t, "n");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->C_size_t, "buffsize");
+  t->MbufferT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_Mbuffer", 3, fields);
+
+  // typedef struct stringtable {
+  //  TString **hash;
+  //  int nuse;  /* number of elements */
+  //  int size;
+  //} stringtable;
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->ppTStringT, "hash");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "nuse");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "size");
+  t->stringtableT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_stringtable", 3, fields);
+
+  ///*
+  //** Information about a call.
+  //** When a thread yields, 'func' is adjusted to pretend that the
+  //** top function has only the yielded values in its stack; in that
+  //** case, the actual 'func' value is saved in field 'extra'.
+  //** When a function calls another with a continuation, 'extra' keeps
+  //** the function index so that, in case of errors, the continuation
+  //** function can be called with the correct top.
+  //*/
+  // typedef struct CallInfo {
+  //  StkId func;  /* function index in the stack */
+  //  StkId	top;  /* top for this function */
+  //  struct CallInfo *previous, *next;  /* dynamic call link */
+  //  union {
+  //    struct {  /* only for Lua functions */
+  //      StkId base;  /* base for this function */
+  //      const Instruction *savedpc;
+  //    } l;
+  //    struct {  /* only for C functions */
+  //      lua_KFunction k;  /* continuation in case of yields */
+  //      ptrdiff_t old_errfunc;
+  //      lua_KContext ctx;  /* context info. in case of yields */
+  //    } c;
+  //  } u;
+  //  ptrdiff_t extra;
+  //  short nresults;  /* expected number of results from this function */
+  //  lu_byte callstatus;
+  //} CallInfo;
+
+  t->CallInfoT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_CallInfo");
+  t->pCallInfoT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->CallInfoT));
+
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "base");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->pInstructionT, "savedpc");
+  t->CallInfo_lT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_CallInfo_lua", 2, fields);
+
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->plua_KFunctionT, "k");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_ptrdiff_t, "old_errfunc");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->lua_KContextT, "ctx");
+  t->CallInfo_cT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_CallInfo_C", 3, fields);
+
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->CallInfo_lT), "l");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->CallInfo_cT), "c");
+  t->CallInfo_uT = gcc_jit_context_new_union_type(ravi->context, NULL, "ravi_CallInfo_u", 2, fields);
+
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "func");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "top");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->pCallInfoT, "previous");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->pCallInfoT, "next");
+  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->CallInfo_uT, "u");
+  fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->C_ptrdiff_t, "extra");
+  fields[6] = gcc_jit_context_new_field(ravi->context, NULL, t->C_shortT, "nresults");
+  fields[7] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "callstatus");
+  gcc_jit_struct_set_fields(t->CallInfoT, NULL, 8, fields);
 
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
-  return false;
+
+  return ravi_jit_has_errored(ravi) ? false : false;
 }
 

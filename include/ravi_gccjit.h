@@ -203,13 +203,14 @@ struct ravi_gcc_types_t {
   gcc_jit_type *plua_longjumpT;
 
   gcc_jit_struct *MbufferT;
-  gcc_jit_type *stringtableT;
+  gcc_jit_struct *stringtableT;
 
   gcc_jit_type *StkIdT;
 
   gcc_jit_struct *CallInfoT;
   gcc_jit_struct *CallInfo_cT;
   gcc_jit_struct *CallInfo_lT;
+  gcc_jit_type *CallInfo_uT;
   gcc_jit_type *pCallInfoT;
 
   gcc_jit_function *jitFunctionT;
@@ -293,6 +294,8 @@ extern bool ravi_setup_lua_types(ravi_gcc_context_t *);
 extern ravi_gcc_codegen_t *ravi_jit_new_codegen(ravi_gcc_context_t *);
 
 extern void ravi_jit_codegen_free(ravi_gcc_context_t *, ravi_gcc_codegen_t *);
+
+extern bool ravi_jit_has_errored(ravi_gcc_context_t *);
 
 #ifdef __cplusplus
 };
