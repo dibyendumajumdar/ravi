@@ -186,6 +186,8 @@ struct ravi_gcc_types_t {
 
   gcc_jit_struct *UpValT;
   gcc_jit_type *pUpValT;
+  gcc_jit_struct *UpVal_u_openT;
+  gcc_jit_type *UpVal_uT;
 
   gcc_jit_struct *CClosureT;
   gcc_jit_type *pCClosureT;

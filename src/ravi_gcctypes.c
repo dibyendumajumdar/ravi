@@ -510,6 +510,95 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   fields[7] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "callstatus");
   gcc_jit_struct_set_fields(t->CallInfoT, NULL, 8, fields);
 
+  // typedef struct ravi_State ravi_State;
+  t->ravi_StateT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_State");
+  t->pravi_StateT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->ravi_StateT));
+
+  // typedef struct global_State global_State;
+  t->global_StateT = gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_global_State");
+  t->pglobal_StateT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->global_StateT));
+
+  ///*
+  //** 'per thread' state
+  //*/
+  // struct lua_State {
+  //  CommonHeader;
+  //  lu_byte status;
+  //  StkId top;  /* first free slot in the stack */
+  //  global_State *l_G;
+  //  CallInfo *ci;  /* call info for current function */
+  //  const Instruction *oldpc;  /* last pc traced */
+  //  StkId stack_last;  /* last free slot in the stack */
+  //  StkId stack;  /* stack base */
+  //  UpVal *openupval;  /* list of open upvalues in this stack */
+  //  GCObject *gclist;
+  //  struct lua_State *twups;  /* list of threads with open upvalues */
+  //  struct lua_longjmp *errorJmp;  /* current error recover point */
+  //  CallInfo base_ci;  /* CallInfo for first level (C calling Lua) */
+  //  lua_Hook hook;
+  //  ptrdiff_t errfunc;  /* current error handling function (stack index) */
+  //  int stacksize;
+  //  int basehookcount;
+  //  int hookcount;
+  //  unsigned short nny;  /* number of non-yieldable calls in stack */
+  //  unsigned short nCcalls;  /* number of nested C calls */
+  //  lu_byte hookmask;
+  //  lu_byte allowhook;
+  //};
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "next");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "tt");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "marked");
+  fields[3] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "status");
+  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "top");
+  fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->pglobal_StateT, "l_G");
+  fields[6] = gcc_jit_context_new_field(ravi->context, NULL, t->pCallInfoT, "ci");
+  fields[7] = gcc_jit_context_new_field(ravi->context, NULL, t->pInstructionT, "oldpc");
+  fields[8] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "stack_last");
+  fields[9] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "stack");
+  fields[10] = gcc_jit_context_new_field(ravi->context, NULL, t->pUpValT, "openupval");
+  fields[11] = gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "gclist");
+  fields[12] = gcc_jit_context_new_field(ravi->context, NULL, t->plua_StateT, "twups");
+  fields[13] = gcc_jit_context_new_field(ravi->context, NULL, t->plua_longjumpT, "errorJmp");
+  fields[14] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->CallInfoT), "base_ci");
+  fields[15] = gcc_jit_context_new_field(ravi->context, NULL, t->plua_HookT, "hook");
+  fields[16] = gcc_jit_context_new_field(ravi->context, NULL, t->C_ptrdiff_t, "errfunc");
+  fields[17] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "stacksize");
+  fields[18] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "basehookcount");
+  fields[19] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "hookcount");
+  fields[20] = gcc_jit_context_new_field(ravi->context, NULL, t->C_unsigned_shortT, "nny");
+  fields[21] = gcc_jit_context_new_field(ravi->context, NULL, t->C_unsigned_shortT, "nCcalls");
+  fields[22] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "hookmask");
+  fields[23] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "allowhook");
+  gcc_jit_struct_set_fields(t->lua_StateT, NULL, 24, fields);
+
+  // struct UpVal {
+  //  struct TValue *v;  /* points to stack or to its own value */
+  //  lu_mem refcount;  /* reference counter */
+  //  union {
+  //    struct {  /* (when open) */
+  //      struct UpVal *next;  /* linked list */
+  //      int touched;  /* mark to avoid cycles with dead threads */
+  //    } open;
+  //    struct TValue value;  /* the value (when closed) */
+  //  } u;
+  //};
+
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pUpValT, "next");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "touched");
+  t->UpVal_u_openT = gcc_jit_context_new_struct_type(ravi->context, NULL, "ravi_UpVal_u_open", 2, fields);
+
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->UpVal_u_openT), "open");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, gcc_jit_struct_as_type(t->TValueT), "value");
+  t->UpVal_uT = gcc_jit_context_new_union_type(ravi->context, NULL, "ravi_UpVal_u", 2, fields);
+
+  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pTValueT, "v");
+  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_memT, "refcount");
+  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->UpVal_uT, "u");
+  gcc_jit_struct_set_fields(t->UpValT, NULL, 3, fields);
+
+
+
+
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
 
   return ravi_jit_has_errored(ravi) ? false : false;
