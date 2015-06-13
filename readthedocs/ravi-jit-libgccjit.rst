@@ -53,4 +53,16 @@ Note that right now the libgccjit implementation is not yet functional. However 
 
 Above assumes that gccjit is installed under ``~/local`` as described in Building GCC section above.
 
-A helloworld test program is built. To run it though you need to set your ``PATH`` and ``LD_LIBRARY_PATH`` variables to ``~/local/bin`` and ``~/local/lib`` respectively.
+A helloworld test program is built. To run it though you need to ensure that your ``PATH`` and ``LD_LIBRARY_PATH`` variables include ``~/local/bin`` and ``~/local/lib`` respectively.
+
+
+Initial Observations 
+--------------------
+In terms of packaging ``libgccjit`` consists of a C header file, a C++ header file and one shared library. That is pretty neat as it simplifies the usage.
+
+Setting up of the Lua types is proving easier in ``libgccjit`` due to the fact that Lua uses unions extensively and ``libgccjit`` supports defining union types. This means that most of the Lua types can be translated more naturally. LLVM on the other hand does not support unions so I had to carefully define structs that would match the size of the union, and in the JIT compilation use casts where needed.
+
+
+
+
+
