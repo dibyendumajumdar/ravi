@@ -73,7 +73,7 @@ void ravi_jit_context_free(ravi_gcc_context_t *ravi) {
 
 ravi_gcc_codegen_t *ravi_jit_new_codegen(ravi_gcc_context_t *ravi) {
   ravi_gcc_codegen_t *cg = NULL;
-  cg = (ravi_gcc_codegen_t *) calloc(1, sizeof(ravi_gcc_codegen_t));
+  cg = (ravi_gcc_codegen_t *)calloc(1, sizeof(ravi_gcc_codegen_t));
   if (cg == NULL) {
     fprintf(stderr, "error creating a new context: out of memory\n");
     goto on_error;
