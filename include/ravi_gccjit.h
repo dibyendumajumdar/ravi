@@ -26,6 +26,7 @@
 
 #ifdef USE_GCCJIT
 #include <libgccjit.h>
+#include "ravijit.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -83,6 +84,12 @@ typedef enum {
 typedef struct ravi_gcc_context_t ravi_gcc_context_t;
 typedef struct ravi_gcc_types_t ravi_gcc_types_t;
 typedef struct ravi_gcc_codegen_t ravi_gcc_codegen_t;
+typedef struct ravi_gcc_function_t ravi_gcc_function_t;
+
+struct ravi_State {
+  ravi_gcc_context_t *jit;
+  ravi_gcc_codegen_t *code_generator;
+};
 
 struct ravi_gcc_types_t {
 
@@ -284,6 +291,30 @@ struct ravi_gcc_context_t {
 };
 
 
+struct ravi_gcc_codegen_t {
+
+  ravi_gcc_context_t *ravi;
+
+  char temp[31];
+
+  int id;
+
+};
+
+struct ravi_gcc_function_t {
+
+  ravi_gcc_context_t *ravi;
+
+  /* Child context for the function being compiled */
+  gcc_jit_context *function_context;
+
+  gcc_jit_function *jit_function;
+
+  gcc_jit_result *jit_result;
+
+};
+
+
 /* Create a new context */
 extern ravi_gcc_context_t *ravi_jit_new_context(void);
 
@@ -293,9 +324,9 @@ extern void ravi_jit_context_free(ravi_gcc_context_t *);
 /* Setup Lua types */
 extern bool ravi_setup_lua_types(ravi_gcc_context_t *);
 
-extern ravi_gcc_codegen_t *ravi_jit_new_codegen(ravi_gcc_context_t *);
+extern ravi_gcc_codegen_t *ravi_jit_new_codegen(ravi_gcc_context_t *global_context);
 
-extern void ravi_jit_codegen_free(ravi_gcc_context_t *, ravi_gcc_codegen_t *);
+extern void ravi_jit_codegen_free(ravi_gcc_codegen_t *);
 
 extern bool ravi_jit_has_errored(ravi_gcc_context_t *);
 

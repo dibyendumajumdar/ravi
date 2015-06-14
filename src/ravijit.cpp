@@ -564,12 +564,8 @@ int raviV_sizelevel(lua_State *L) {
 #include "lstate.h"
 #include "lualib.h"
 #include "lauxlib.h"
-#include "ravi_gccjit.h"
 
-struct ravi_State {
-  ravi_gcc_context_t *jit;
-  ravi_gcc_codegen_t *code_generator;
-};
+#include "ravi_gccjit.h"
 
 
 // Initialize the JIT State and attach it to the
@@ -593,26 +589,11 @@ void raviV_close(struct lua_State *L) {
   global_State *G = G(L);
   if (G->ravi_state == NULL)
     return;
-  ravi_jit_codegen_free(G->ravi_state->jit, G->ravi_state->code_generator);
+  ravi_jit_codegen_free(G->ravi_state->code_generator);
   ravi_jit_context_free(G->ravi_state->jit);
   free(G->ravi_state);
 }
 
-
-// Compile a Lua function
-// If JIT is turned off then compilation is skipped
-// Compilation occurs if either auto compilation is ON (subject to some thresholds) 
-// or if a manual compilation request was made
-// Returns true if compilation was successful
-int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
-                  int dump) {
-  return false;
-}
-
-// Free the JIT compiled function
-// Note that this is called by the garbage collector
-void raviV_freeproto(struct lua_State *L, struct Proto *p) {
-}
 
 // Dump the LLVM IR
 void raviV_dumpllvmir(struct lua_State *L, struct Proto *p) {

@@ -1096,5 +1096,5 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
 
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
 
-  return ravi_jit_has_errored(ravi) ? false : false;
+  return ravi_jit_has_errored(ravi) ? false : true;
 }

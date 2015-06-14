@@ -456,13 +456,6 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
   }
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
-  // TODO we cannot handle variable arguments or
-  // if the function has sub functions (closures)
-  // if (p->sizep > 0 || p->is_vararg) {
-  // if (p->is_vararg) {
-  //  p->ravi_jit.jit_status = 1;
-  //  return false;
-  //}
   // Loop over the byte codes; as Lua compiler inserts
   // an extra RETURN op we need to ignore the last op
   for (pc = 0; pc < n; pc++) {

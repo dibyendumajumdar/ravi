@@ -72,14 +72,27 @@ void ravi_jit_context_free(ravi_gcc_context_t *ravi) {
 }
 
 ravi_gcc_codegen_t *ravi_jit_new_codegen(ravi_gcc_context_t *ravi) {
-  (void)ravi;
+  ravi_gcc_codegen_t *cg = NULL;
+  cg = (ravi_gcc_codegen_t *) calloc(1, sizeof(ravi_gcc_codegen_t));
+  if (cg == NULL) {
+    fprintf(stderr, "error creating a new context: out of memory\n");
+    goto on_error;
+  }
+  cg->id = 1;
+  cg->temp[0] = 0;
+  cg->ravi = ravi;
+  return cg;
+
+on_error:
+  if (cg)
+    ravi_jit_codegen_free(cg);
   return NULL;
 }
 
-void ravi_jit_codegen_free(ravi_gcc_context_t *ravi,
-                           ravi_gcc_codegen_t *codegen) {
-  (void)ravi;
-  (void)codegen;
+void ravi_jit_codegen_free(ravi_gcc_codegen_t *codegen) {
+  if (codegen == NULL)
+    return;
+  free(codegen);
 }
 
 bool ravi_jit_has_errored(ravi_gcc_context_t *ravi) {
