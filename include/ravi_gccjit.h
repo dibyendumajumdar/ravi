@@ -143,6 +143,7 @@ struct ravi_gcc_types_t {
   gcc_jit_type *plua_StateT;
 
   gcc_jit_field *lua_State_ci;
+  gcc_jit_field *lua_State_top;
 
   gcc_jit_struct *global_StateT;
   gcc_jit_type *pglobal_StateT;
@@ -340,6 +341,8 @@ typedef struct ravi_function_def_t {
 
   gcc_jit_block *current_block;
 
+  bool current_block_terminated;
+
   /* The Lua stack base - this can change during execution so needs to be lvalue */
   gcc_jit_rvalue *base_ref;
   gcc_jit_lvalue *base;
@@ -366,6 +369,14 @@ extern ravi_gcc_codegen_t *ravi_jit_new_codegen(ravi_gcc_context_t *global_conte
 extern void ravi_jit_codegen_free(ravi_gcc_codegen_t *);
 
 extern bool ravi_jit_has_errored(ravi_gcc_context_t *);
+
+extern void ravi_emit_refresh_base(ravi_function_def_t *def);
+
+extern void ravi_emit_return(ravi_function_def_t *def, int A, int B);
+
+extern gcc_jit_lvalue *ravi_emit_get_register(ravi_function_def_t* def, int A);
+
+extern void ravi_emit_set_L_top_toreg(ravi_function_def_t *A, int B);
 
 #ifdef __cplusplus
 };

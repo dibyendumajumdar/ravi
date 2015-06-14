@@ -270,8 +270,27 @@ static void emit_getL_ci_value(ravi_function_def_t *def) {
 }
 
 /* Refresh local copy of L->ci.u.l.base */
-static void emit_refresh_base(ravi_function_def_t *def) {
+void ravi_emit_refresh_base(ravi_function_def_t *def) {
   gcc_jit_block_add_assignment(def->current_block, NULL, def->base, def->base_ref);
+}
+
+/* Get access to the register identified by A - registers as just base[offset] */
+gcc_jit_lvalue *ravi_emit_get_register(ravi_function_def_t* def, int A) {
+  /* Note we assume that base is correct */
+  gcc_jit_lvalue *reg = gcc_jit_context_new_array_access(def->function_context, NULL,
+                                                         gcc_jit_lvalue_as_rvalue(def->base),
+                                                         gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, A));
+  return reg;
+}
+
+// L->top = R(B)
+void ravi_emit_set_L_top_toreg(ravi_function_def_t *def, int B) {
+  // Get pointer to register at R(B)
+  gcc_jit_lvalue *reg = ravi_emit_get_register(def, B);
+  // Get pointer to L->top
+  gcc_jit_lvalue *top = gcc_jit_rvalue_dereference_field(gcc_jit_param_as_rvalue(def->L), NULL, def->ravi->types->lua_State_top);
+  // L->top = R(B)
+  gcc_jit_block_add_assignment(def->current_block, NULL, top, gcc_jit_lvalue_get_address(reg, NULL));
 }
 
 /* Obtain reference to L->ci.u.l.base */
@@ -280,7 +299,7 @@ static void emit_getL_base_reference(ravi_function_def_t *def, gcc_jit_lvalue *c
   gcc_jit_rvalue *u_l = gcc_jit_rvalue_access_field(gcc_jit_lvalue_as_rvalue(u), NULL, def->ravi->types->CallInfo_u_l);
   gcc_jit_rvalue *u_l_base = gcc_jit_rvalue_access_field(u_l, NULL, def->ravi->types->CallInfo_u_l_base);
   def->base_ref = u_l_base;
-  emit_refresh_base(def);
+  ravi_emit_refresh_base(def);
 }
 
 /* Get the Lua function prototpe and constants table */
@@ -290,6 +309,13 @@ static void emit_get_proto_and_k(ravi_function_def_t *def) {
   gcc_jit_lvalue *k = gcc_jit_rvalue_dereference_field(def->proto, NULL, def->ravi->types->LClosure_p_k);
   def->k = gcc_jit_lvalue_as_rvalue(k);
 }
+
+static void link_block(ravi_function_def_t *def, int pc) {
+  (void) def;
+  (void) pc;
+}
+
+
 
 // Compile a Lua function
 // If JIT is turned off then compilation is skipped
@@ -330,6 +356,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   def.proto = NULL;
   def.k = NULL;
   def.base = NULL;
+  def.current_block_terminated = false;
 
   if (!create_function(codegen, &def)) {
     p->ravi_jit.jit_status = 1; // can't compile
@@ -349,6 +376,38 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
 
   /* get Lclosure->p and p->k */
   emit_get_proto_and_k(&def);
+
+  const Instruction *code = p->code;
+  int pc, n = p->sizecode;
+  for (pc = 0; pc < n; pc++) {
+    link_block(&def, pc);
+    Instruction i = code[pc];
+    OpCode op = GET_OPCODE(i);
+    int A = GETARG_A(i);
+    switch (op) {
+      case OP_RETURN: {
+        int B = GETARG_B(i);
+        ravi_emit_return(&def, A, B);
+      } break;
+      default:
+        break;
+    }
+  }
+#if 0
+  if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs()))
+    abort();
+  ravi::RaviJITFunctionImpl *llvm_func = f.release();
+  p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
+  p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile(doDump);
+          lua_assert(p->ravi_jit.jit_function);
+  if (p->ravi_jit.jit_function == nullptr) {
+    p->ravi_jit.jit_status = 1; // can't compile
+    delete llvm_func;
+    p->ravi_jit.jit_data = NULL;
+  } else {
+    p->ravi_jit.jit_status = 2;
+  }
+#endif
 
 on_error:
   gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);

@@ -698,7 +698,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "marked");
   fields[3] =
       gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "status");
-  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "top");
+  t->lua_State_top = fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "top");
   fields[5] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pglobal_StateT, "l_G");
   t->lua_State_ci = fields[6] =
