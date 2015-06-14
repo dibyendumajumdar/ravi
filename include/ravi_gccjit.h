@@ -186,6 +186,9 @@ struct ravi_gcc_types_t {
   gcc_jit_type *ClosureT;
   gcc_jit_type *pClosureT;
 
+  gcc_jit_field *LClosure_p;
+  gcc_jit_field *LClosure_p_k;
+
   gcc_jit_struct *RaviJITProtoT;
 
   gcc_jit_struct *ProtoT;
@@ -327,9 +330,25 @@ typedef struct ravi_function_def_t {
 
   gcc_jit_block **jmp_targets;
 
+  /* Currently compiled function's stack frame L->ci */
   gcc_jit_lvalue *ci_val;
 
-  gcc_jit_rvalue *LClosure;
+  /* Currently compiled function's stack value L->ci->func
+   * type is LClosure *
+   */
+  gcc_jit_rvalue *lua_closure;
+
+  gcc_jit_block *current_block;
+
+  /* The Lua stack base - this can change during execution so needs to be lvalue */
+  gcc_jit_rvalue *base_ref;
+  gcc_jit_lvalue *base;
+
+  /* Reference to lua_closure->p - never changes */
+  gcc_jit_rvalue *proto;
+
+  /* The Lua constants list for the function - this never changes */
+  gcc_jit_rvalue *k;
 
 } ravi_function_def_t;
 

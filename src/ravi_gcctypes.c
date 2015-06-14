@@ -371,7 +371,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "linedefined");
   fields[13] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT,
                                          "lastlinedefined");
-  fields[14] = gcc_jit_context_new_field(ravi->context, NULL, t->pTValueT, "k");
+  t->LClosure_p_k = fields[14] = gcc_jit_context_new_field(ravi->context, NULL, t->pTValueT, "k");
   fields[15] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pInstructionT, "code");
   fields[16] = gcc_jit_context_new_field(ravi->context, NULL, t->ppProtoT, "p");
@@ -438,7 +438,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "nupvalues");
   fields[4] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "gclist");
-  fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->pProtoT, "p");
+  t->LClosure_p = fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->pProtoT, "p");
   fields[6] = gcc_jit_context_new_field(
       ravi->context, NULL,
       gcc_jit_context_new_array_type(ravi->context, NULL, t->pUpValT, 1),

@@ -135,6 +135,9 @@ static bool can_compile(Proto *p) {
 
 static bool create_function(ravi_gcc_codegen_t *codegen, ravi_function_def_t *def) {
 
+  /* The child context will hold function specific stuff - so that we can release
+   * this when we have compiled the function
+   */
   def->function_context =
       gcc_jit_context_new_child_context(codegen->ravi->context);
   if (!def->function_context) {
@@ -142,21 +145,31 @@ static bool create_function(ravi_gcc_codegen_t *codegen, ravi_function_def_t *de
     goto on_error;
   }
 
+  /* each function is given a unique name - as Lua functions are closures and do not really have names */
   const char *name = unique_function_name(codegen);
+
+  /* the function signature is int (*) (lua_State *) */
   gcc_jit_param *param = gcc_jit_context_new_param(
       def->function_context, NULL, codegen->ravi->types->plua_StateT, "L");
-  def->L = param;
+  def->L = param; /* store the L parameter as we will need it */
   def->jit_function = gcc_jit_context_new_function(
       def->function_context, NULL, GCC_JIT_FUNCTION_INTERNAL,
       codegen->ravi->types->C_intT, name, 1, &param, 0);
+
+  /* The entry block of the function */
   def->entry_block = gcc_jit_function_new_block(def->jit_function, "entry");
+  def->current_block = def->entry_block;
+
+  def->base = gcc_jit_function_new_local(def->jit_function, NULL, def->ravi->types->pTValueT, "base");
+
   return true;
 
 on_error:
   return false;
 }
 
-
+/* release the resources allocated when compiling a function
+ * note that the compiled function is not released here */
 static void free_function_def(ravi_function_def_t *def) {
   if (def->function_context)
     gcc_jit_context_release(def->function_context);
@@ -183,6 +196,11 @@ static void free_function_def(ravi_function_def_t *def) {
 #define KC(i)                                                                  \
   check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_C(i)))
 
+
+/* Scan the Lua bytecode to identify the jump targets and pre-create
+ * basic blocks for each target. The blocks are saved in an array def->jmp_targets
+ * which is indexed by the byte code offset 0 .. p->sizecode-1.
+ */
 static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
   // We need to pre-create blocks for jump targets so that we
   // can generate branch instructions in the code
@@ -236,13 +254,42 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
   }
 }
 
-static gcc_jit_rvalue* emit_ci_func_value_gc_asLClosure(ravi_function_def_t *def,
+/* Obtain reference to currently executing function L->ci->func */
+static void emit_ci_func_value_gc_asLClosure(ravi_function_def_t *def,
                                                             gcc_jit_lvalue *ci) {
-  gcc_jit_lvalue *gc = gcc_jit_lvalue_access_field(ci, NULL, def->ravi->types->CallInfo_func);
+  gcc_jit_lvalue *gc = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(ci), NULL, def->ravi->types->CallInfo_func);
+  //const char *debugstr = gcc_jit_object_get_debug_string(gcc_jit_lvalue_as_object(gc));
+  //fprintf(stderr, "%s\n", debugstr);
   gcc_jit_rvalue *func = gcc_jit_context_new_cast(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(gc), def->ravi->types->pLClosureT);
-  return func;
+  def->lua_closure = func;
 }
 
+/* Obtain reference to L->ci */
+static void emit_getL_ci_value(ravi_function_def_t *def) {
+  def->ci_val = gcc_jit_rvalue_dereference_field(gcc_jit_param_as_rvalue(def->L), NULL, def->ravi->types->lua_State_ci);
+}
+
+/* Refresh local copy of L->ci.u.l.base */
+static void emit_refresh_base(ravi_function_def_t *def) {
+  gcc_jit_block_add_assignment(def->current_block, NULL, def->base, def->base_ref);
+}
+
+/* Obtain reference to L->ci.u.l.base */
+static void emit_getL_base_reference(ravi_function_def_t *def, gcc_jit_lvalue *ci) {
+  gcc_jit_lvalue *u = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(ci), NULL, def->ravi->types->CallInfo_u);
+  gcc_jit_rvalue *u_l = gcc_jit_rvalue_access_field(gcc_jit_lvalue_as_rvalue(u), NULL, def->ravi->types->CallInfo_u_l);
+  gcc_jit_rvalue *u_l_base = gcc_jit_rvalue_access_field(u_l, NULL, def->ravi->types->CallInfo_u_l_base);
+  def->base_ref = u_l_base;
+  emit_refresh_base(def);
+}
+
+/* Get the Lua function prototpe and constants table */
+static void emit_get_proto_and_k(ravi_function_def_t *def) {
+  gcc_jit_lvalue *proto = gcc_jit_rvalue_dereference_field(def->lua_closure, NULL, def->ravi->types->LClosure_p);
+  def->proto = gcc_jit_lvalue_as_rvalue(proto);
+  gcc_jit_lvalue *k = gcc_jit_rvalue_dereference_field(def->proto, NULL, def->ravi->types->LClosure_p_k);
+  def->k = gcc_jit_lvalue_as_rvalue(k);
+}
 
 // Compile a Lua function
 // If JIT is turned off then compilation is skipped
@@ -269,7 +316,6 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     return false;
 
   ravi_State *ravi_state = (ravi_State *)G->ravi_state;
-  ravi_gcc_context_t *ravi = ravi_state->jit;
   ravi_gcc_codegen_t *codegen = ravi_state->code_generator;
 
   ravi_function_def_t def;
@@ -279,7 +325,11 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   def.jit_function = NULL;
   def.jmp_targets = NULL;
   def.ci_val = NULL;
-  def.LClosure = NULL;
+  def.lua_closure = NULL;
+  def.current_block = NULL;
+  def.proto = NULL;
+  def.k = NULL;
+  def.base = NULL;
 
   if (!create_function(codegen, &def)) {
     p->ravi_jit.jit_status = 1; // can't compile
@@ -288,13 +338,20 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
 
   scan_jump_targets(&def, p);
 
-  def.ci_val = gcc_jit_lvalue_access_field(gcc_jit_param_as_lvalue(def.L), NULL, ravi->types->lua_State_ci);
+  /* Get L->ci */
+  emit_getL_ci_value(&def);
 
-  def.LClosure = emit_ci_func_value_gc_asLClosure(&def, def.ci_val);
+  /* Get L->ci->func as LClosure* */
+  emit_ci_func_value_gc_asLClosure(&def, def.ci_val);
 
+  /* Get L->ci->u.l.base */
+  emit_getL_base_reference(&def, def.ci_val);
+
+  /* get Lclosure->p and p->k */
+  emit_get_proto_and_k(&def);
 
 on_error:
-  gcc_jit_context_dump_reproducer_to_file(def.function_context, "fdump.txt");
+  gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
   free_function_def(&def);
 
   return false;
