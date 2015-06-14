@@ -68,26 +68,38 @@ void ravi_emit_return(ravi_function_def_t *def, int A, int B) {
   gcc_jit_lvalue *psize = ravi_emit_get_Proto_sizep(def);
 
   // Test if psize > 0
-  gcc_jit_rvalue *psize_gt_0 = gcc_jit_context_new_comparison(def->function_context, NULL,
-                                                              GCC_JIT_COMPARISON_GT, gcc_jit_lvalue_as_rvalue(psize),
-    gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, 0));
+  gcc_jit_rvalue *psize_gt_0 = gcc_jit_context_new_comparison(
+      def->function_context, NULL, GCC_JIT_COMPARISON_GT,
+      gcc_jit_lvalue_as_rvalue(psize),
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->C_intT, 0));
 
-  gcc_jit_block *then_block = gcc_jit_function_new_block(def->jit_function, NULL);
-  gcc_jit_block *else_block = gcc_jit_function_new_block(def->jit_function, NULL);
+  gcc_jit_block *then_block =
+      gcc_jit_function_new_block(def->jit_function, NULL);
+  gcc_jit_block *else_block =
+      gcc_jit_function_new_block(def->jit_function, NULL);
 
-  gcc_jit_block_end_with_conditional(def->current_block, NULL, psize_gt_0, then_block, else_block);
+  gcc_jit_block_end_with_conditional(def->current_block, NULL, psize_gt_0,
+                                     then_block, else_block);
 
   ravi_set_current_block(def, then_block);
-  gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                                                              gcc_jit_param_as_rvalue(def->L), gcc_jit_lvalue_as_rvalue(def->base)));
+  gcc_jit_block_add_eval(
+      def->current_block, NULL,
+      ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
+                                 gcc_jit_param_as_rvalue(def->L),
+                                 gcc_jit_lvalue_as_rvalue(def->base)));
 
   gcc_jit_block_end_with_jump(def->current_block, NULL, else_block);
   ravi_set_current_block(def, else_block);
 
-  gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call2_rvalue(def, def->ravi->types->luaD_poscallT,
-                                                                              gcc_jit_param_as_rvalue(def->L), ra_ptr));
+  gcc_jit_block_add_eval(
+      def->current_block, NULL,
+      ravi_function_call2_rvalue(def, def->ravi->types->luaD_poscallT,
+                                 gcc_jit_param_as_rvalue(def->L), ra_ptr));
 
-  gcc_jit_block_end_with_return(def->current_block, NULL, gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, 1));
+  gcc_jit_block_end_with_return(
+      def->current_block, NULL,
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->C_intT, 1));
   def->current_block_terminated = true;
 }
-

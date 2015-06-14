@@ -52,7 +52,8 @@ ravi_gcc_context_t *ravi_jit_new_context(void) {
 
   ravi->parent_result_ = gcc_jit_context_compile(ravi->context);
   if (gcc_jit_context_get_first_error(ravi->context)) {
-    fprintf(stderr, "aborting due to JIT error: %s\n", gcc_jit_context_get_first_error(ravi->context));
+    fprintf(stderr, "aborting due to JIT error: %s\n",
+            gcc_jit_context_get_first_error(ravi->context));
     abort();
   }
 
