@@ -363,7 +363,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "sizecode");
   fields[9] =
       gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "sizelineinfo");
-  fields[10] =
+  t->Proto_sizep = fields[10] =
       gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "sizep");
   fields[11] =
       gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "sizelocvars");

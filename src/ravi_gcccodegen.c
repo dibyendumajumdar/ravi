@@ -274,23 +274,23 @@ void ravi_emit_refresh_base(ravi_function_def_t *def) {
   gcc_jit_block_add_assignment(def->current_block, NULL, def->base, def->base_ref);
 }
 
-/* Get access to the register identified by A - registers as just base[offset] */
-gcc_jit_lvalue *ravi_emit_get_register(ravi_function_def_t* def, int A) {
+/* Get access to the register identified by A - registers as just &base[offset] */
+gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t* def, int A) {
   /* Note we assume that base is correct */
   gcc_jit_lvalue *reg = gcc_jit_context_new_array_access(def->function_context, NULL,
                                                          gcc_jit_lvalue_as_rvalue(def->base),
                                                          gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, A));
-  return reg;
+  return gcc_jit_lvalue_get_address(reg, NULL);
 }
 
 // L->top = R(B)
 void ravi_emit_set_L_top_toreg(ravi_function_def_t *def, int B) {
   // Get pointer to register at R(B)
-  gcc_jit_lvalue *reg = ravi_emit_get_register(def, B);
+  gcc_jit_rvalue *reg = ravi_emit_get_register(def, B);
   // Get pointer to L->top
   gcc_jit_lvalue *top = gcc_jit_rvalue_dereference_field(gcc_jit_param_as_rvalue(def->L), NULL, def->ravi->types->lua_State_top);
   // L->top = R(B)
-  gcc_jit_block_add_assignment(def->current_block, NULL, top, gcc_jit_lvalue_get_address(reg, NULL));
+  gcc_jit_block_add_assignment(def->current_block, NULL, top, reg);
 }
 
 /* Obtain reference to L->ci.u.l.base */
@@ -310,11 +310,61 @@ static void emit_get_proto_and_k(ravi_function_def_t *def) {
   def->k = gcc_jit_lvalue_as_rvalue(k);
 }
 
-static void link_block(ravi_function_def_t *def, int pc) {
-  (void) def;
-  (void) pc;
+gcc_jit_lvalue *ravi_emit_get_Proto_sizep(ravi_function_def_t *def) {
+  gcc_jit_lvalue *psize = gcc_jit_rvalue_dereference_field(def->proto, NULL, def->ravi->types->Proto_sizep);
+  const char *debugstr = gcc_jit_object_get_debug_string(gcc_jit_lvalue_as_object(psize));
+  fprintf(stderr, "%s\n", debugstr);
+  return psize;
 }
 
+static void link_block(ravi_function_def_t *def, int pc) {
+  // If the current bytecode offset pc is on a jump target
+  // then we need to insert the block we previously created in
+  // scan_jump_targets()
+  // and make it the current insert block; also if the previous block
+  // is unterminated then we simply provide a branch from previous block to the
+  // new block
+  if (def->jmp_targets[pc]) {
+    // We are on a jump target
+    // Get the block we previously created scan_jump_targets
+    gcc_jit_block *block = def->jmp_targets[pc];
+    if (!def->current_block_terminated) {
+      // Previous block not terminated so branch to the
+      // new block
+      gcc_jit_block_end_with_jump(def->current_block, NULL, block);
+    }
+    // Now add the new block and make it current
+    def->current_block = block;
+    def->current_block_terminated = false;
+  }
+}
+
+gcc_jit_rvalue *ravi_function_call2_rvalue(ravi_function_def_t *def, gcc_jit_function *f, gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2) {
+  gcc_jit_rvalue *args[2];
+  args[0] = arg1;
+  args[1] = arg2;
+  return gcc_jit_context_new_call(def->function_context, NULL, f, 2, args);
+}
+
+void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *block) {
+  def->current_block = block;
+  def->current_block_terminated = false;
+}
+
+static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi) {
+  def->ravi = ravi;
+  def->entry_block = NULL;
+  def->function_context = NULL;
+  def->jit_function = NULL;
+  def->jmp_targets = NULL;
+  def->ci_val = NULL;
+  def->lua_closure = NULL;
+  def->current_block = NULL;
+  def->proto = NULL;
+  def->k = NULL;
+  def->base = NULL;
+  def->current_block_terminated = false;
+}
 
 
 // Compile a Lua function
@@ -334,6 +384,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   (void)manual_request;
   (void)dump;
 
+  bool status = false;
+
   global_State *G = G(L);
   if (G->ravi_state == NULL || G->ravi_state->jit == NULL)
     return false;
@@ -345,18 +397,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   ravi_gcc_codegen_t *codegen = ravi_state->code_generator;
 
   ravi_function_def_t def;
-  def.ravi = ravi_state->jit;
-  def.entry_block = NULL;
-  def.function_context = NULL;
-  def.jit_function = NULL;
-  def.jmp_targets = NULL;
-  def.ci_val = NULL;
-  def.lua_closure = NULL;
-  def.current_block = NULL;
-  def.proto = NULL;
-  def.k = NULL;
-  def.base = NULL;
-  def.current_block_terminated = false;
+  init_def(&def, ravi_state->jit);
 
   if (!create_function(codegen, &def)) {
     p->ravi_jit.jit_status = 1; // can't compile
@@ -393,27 +434,42 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
         break;
     }
   }
-#if 0
-  if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs()))
+
+  gcc_jit_context_set_bool_option (
+          def.function_context,
+          GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE,
+          0);
+
+  if (gcc_jit_context_get_first_error(def.function_context)) {
+    fprintf(stderr, "aborting due to JIT error: %s\n", gcc_jit_context_get_first_error(def.function_context));
     abort();
-  ravi::RaviJITFunctionImpl *llvm_func = f.release();
-  p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
-  p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile(doDump);
-          lua_assert(p->ravi_jit.jit_function);
-  if (p->ravi_jit.jit_function == nullptr) {
+  }
+  gcc_jit_result *compilation_result = gcc_jit_context_compile(def.function_context);
+  if (gcc_jit_context_get_first_error(def.function_context)) {
+    fprintf(stderr, "aborting due to JIT error: %s\n", gcc_jit_context_get_first_error(def.function_context));
+    abort();
+  }
+
+  p->ravi_jit.jit_data = compilation_result;
+  p->ravi_jit.jit_function = (lua_CFunction) gcc_jit_result_get_code(compilation_result, NULL);
+  lua_assert(p->ravi_jit.jit_function);
+
+  if (p->ravi_jit.jit_function == NULL) {
     p->ravi_jit.jit_status = 1; // can't compile
-    delete llvm_func;
     p->ravi_jit.jit_data = NULL;
+    goto on_error;
   } else {
     p->ravi_jit.jit_status = 2;
   }
-#endif
+  status = true;
 
 on_error:
   gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
+  gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
+
   free_function_def(&def);
 
-  return false;
+  return status;
 }
 
 // Free the JIT compiled function

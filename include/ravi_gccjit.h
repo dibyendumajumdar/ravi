@@ -196,6 +196,8 @@ struct ravi_gcc_types_t {
   gcc_jit_type *pProtoT;
   gcc_jit_type *ppProtoT;
 
+  gcc_jit_field *Proto_sizep;
+
   gcc_jit_struct *UpValT;
   gcc_jit_type *pUpValT;
   gcc_jit_struct *UpVal_u_openT;
@@ -374,9 +376,15 @@ extern void ravi_emit_refresh_base(ravi_function_def_t *def);
 
 extern void ravi_emit_return(ravi_function_def_t *def, int A, int B);
 
-extern gcc_jit_lvalue *ravi_emit_get_register(ravi_function_def_t* def, int A);
+extern gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t* def, int A);
 
 extern void ravi_emit_set_L_top_toreg(ravi_function_def_t *A, int B);
+
+extern gcc_jit_lvalue *ravi_emit_get_Proto_sizep(ravi_function_def_t *def);
+
+extern void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *block);
+
+extern gcc_jit_rvalue *ravi_function_call2_rvalue(ravi_function_def_t *def, gcc_jit_function *f, gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2);
 
 #ifdef __cplusplus
 };

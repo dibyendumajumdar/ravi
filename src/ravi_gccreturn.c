@@ -56,48 +56,38 @@ void ravi_emit_return(ravi_function_def_t *def, int A, int B) {
   ravi_emit_refresh_base(def);
 
   // Get pointer to register A
-  gcc_jit_lvalue *ra_ptr = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *ra_ptr = ravi_emit_get_register(def, A);
 
   //*  if (b != 0) L->top = ra + b - 1;
   if (B != 0) {
     ravi_emit_set_L_top_toreg(def, A + B - 1);
   }
-  (void) ra_ptr;
-
-#if 0
-
 
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Get pointer to Proto->sizep
-  llvm::Instruction *psize = emit_load_proto_sizep(def, def->proto_ptr);
+  gcc_jit_lvalue *psize = ravi_emit_get_Proto_sizep(def);
 
   // Test if psize > 0
-  llvm::Value *psize_gt_0 =
-          def->builder->CreateICmpSGT(psize, def->types->kInt[0]);
-  llvm::BasicBlock *then_block =
-          llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
-  llvm::BasicBlock *else_block =
-          llvm::BasicBlock::Create(def->jitState->context(), "if.else");
-  def->builder->CreateCondBr(psize_gt_0, then_block, else_block);
-  def->builder->SetInsertPoint(then_block);
+  gcc_jit_rvalue *psize_gt_0 = gcc_jit_context_new_comparison(def->function_context, NULL,
+                                                              GCC_JIT_COMPARISON_GT, gcc_jit_lvalue_as_rvalue(psize),
+    gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, 0));
 
-  // Call luaF_close
-  CreateCall2(def->builder, def->luaF_closeF, def->L, base_ptr);
-  def->builder->CreateBr(else_block);
+  gcc_jit_block *then_block = gcc_jit_function_new_block(def->jit_function, NULL);
+  gcc_jit_block *else_block = gcc_jit_function_new_block(def->jit_function, NULL);
 
-  def->f->getBasicBlockList().push_back(else_block);
-  def->builder->SetInsertPoint(else_block);
+  gcc_jit_block_end_with_conditional(def->current_block, NULL, psize_gt_0, then_block, else_block);
 
-  //*  b = luaD_poscall(L, ra);
-  CreateCall2(def->builder, def->luaD_poscallF, def->L, ra_ptr);
+  ravi_set_current_block(def, then_block);
+  gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
+                                                                              gcc_jit_param_as_rvalue(def->L), gcc_jit_lvalue_as_rvalue(def->base)));
 
-#if 0
-  llvm::Value *msg1 =
-      def->builder->CreateGlobalString("Returning from compiled function\n");
-  def->builder->CreateCall(def->printfFunc, emit_gep(def, "msg", msg1, 0, 0));
-#endif
+  gcc_jit_block_end_with_jump(def->current_block, NULL, else_block);
+  ravi_set_current_block(def, else_block);
 
-  def->builder->CreateRet(def->types->kInt[1]);
-#endif
+  gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call2_rvalue(def, def->ravi->types->luaD_poscallT,
+                                                                              gcc_jit_param_as_rvalue(def->L), ra_ptr));
+
+  gcc_jit_block_end_with_return(def->current_block, NULL, gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, 1));
+  def->current_block_terminated = true;
 }
 
