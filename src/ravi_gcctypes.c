@@ -614,7 +614,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   t->pCallInfoT =
       gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->CallInfoT));
 
-  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "base");
+  t->CallInfo_u_l_base = fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "base");
   fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->pInstructionT,
                                         "savedpc");
   t->CallInfo_lT = gcc_jit_context_new_struct_type(
@@ -629,20 +629,20 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   t->CallInfo_cT = gcc_jit_context_new_struct_type(
       ravi->context, NULL, "ravi_CallInfo_C", 3, fields);
 
-  fields[0] = gcc_jit_context_new_field(
+  t->CallInfo_u_l = fields[0] = gcc_jit_context_new_field(
       ravi->context, NULL, gcc_jit_struct_as_type(t->CallInfo_lT), "l");
   fields[1] = gcc_jit_context_new_field(
       ravi->context, NULL, gcc_jit_struct_as_type(t->CallInfo_cT), "c");
   t->CallInfo_uT = gcc_jit_context_new_union_type(ravi->context, NULL,
                                                   "ravi_CallInfo_u", 2, fields);
 
-  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "func");
+  t->CallInfo_func = fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "func");
   fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "top");
   fields[2] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pCallInfoT, "previous");
   fields[3] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pCallInfoT, "next");
-  fields[4] =
+  t->CallInfo_u = fields[4] =
       gcc_jit_context_new_field(ravi->context, NULL, t->CallInfo_uT, "u");
   fields[5] =
       gcc_jit_context_new_field(ravi->context, NULL, t->C_ptrdiff_t, "extra");
@@ -701,7 +701,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "top");
   fields[5] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pglobal_StateT, "l_G");
-  fields[6] =
+  t->lua_State_ci = fields[6] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pCallInfoT, "ci");
   fields[7] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pInstructionT, "oldpc");

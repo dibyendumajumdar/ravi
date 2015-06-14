@@ -84,7 +84,6 @@ typedef enum {
 typedef struct ravi_gcc_context_t ravi_gcc_context_t;
 typedef struct ravi_gcc_types_t ravi_gcc_types_t;
 typedef struct ravi_gcc_codegen_t ravi_gcc_codegen_t;
-typedef struct ravi_gcc_function_t ravi_gcc_function_t;
 
 struct ravi_State {
   ravi_gcc_context_t *jit;
@@ -142,6 +141,8 @@ struct ravi_gcc_types_t {
 
   gcc_jit_struct *lua_StateT;
   gcc_jit_type *plua_StateT;
+
+  gcc_jit_field *lua_State_ci;
 
   gcc_jit_struct *global_StateT;
   gcc_jit_type *pglobal_StateT;
@@ -221,6 +222,11 @@ struct ravi_gcc_types_t {
   gcc_jit_struct *CallInfo_lT;
   gcc_jit_type *CallInfo_uT;
   gcc_jit_type *pCallInfoT;
+
+  gcc_jit_field *CallInfo_func;
+  gcc_jit_field *CallInfo_u;
+  gcc_jit_field *CallInfo_u_l;
+  gcc_jit_field *CallInfo_u_l_base;
 
   gcc_jit_function *jitFunctionT;
 
@@ -303,17 +309,29 @@ struct ravi_gcc_codegen_t {
 
 struct ravi_gcc_function_t {
 
+  gcc_jit_result *jit_result;
+
+};
+
+typedef struct ravi_function_def_t {
   ravi_gcc_context_t *ravi;
 
   /* Child context for the function being compiled */
   gcc_jit_context *function_context;
 
+  gcc_jit_param *L;
+
   gcc_jit_function *jit_function;
 
-  gcc_jit_result *jit_result;
+  gcc_jit_block *entry_block;
 
-};
+  gcc_jit_block **jmp_targets;
 
+  gcc_jit_lvalue *ci_val;
+
+  gcc_jit_rvalue *LClosure;
+
+} ravi_function_def_t;
 
 /* Create a new context */
 extern ravi_gcc_context_t *ravi_jit_new_context(void);

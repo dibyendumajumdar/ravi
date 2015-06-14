@@ -133,51 +133,116 @@ static bool can_compile(Proto *p) {
   return true;
 }
 
-static void ravi_function_free(struct ravi_gcc_function_t *f) {
-  if (f) {
-    if (f->function_context)
-      gcc_jit_context_release(f->function_context);
-    if (f->jit_result)
-      gcc_jit_result_release(f->jit_result);
-    free(f);
-  }
-}
+static bool create_function(ravi_gcc_codegen_t *codegen, ravi_function_def_t *def) {
 
-static ravi_gcc_function_t *create_function(ravi_gcc_codegen_t *codegen) {
-
-  ravi_gcc_function_t *f = NULL;
-  gcc_jit_context *function_context =
+  def->function_context =
       gcc_jit_context_new_child_context(codegen->ravi->context);
-  if (function_context == NULL) {
-    fprintf(stderr, "error creating a new child context\n");
+  if (!def->function_context) {
+    fprintf(stderr, "error creating child context\n");
     goto on_error;
   }
-
-  f = (ravi_gcc_function_t *)calloc(1, sizeof(ravi_gcc_function_t));
-  if (f == NULL) {
-    fprintf(stderr, "error creating a new function\n");
-    goto on_error;
-  }
-  f->function_context = function_context;
-  f->ravi = codegen->ravi;
-  f->jit_result = NULL;
 
   const char *name = unique_function_name(codegen);
   gcc_jit_param *param = gcc_jit_context_new_param(
-      function_context, NULL, codegen->ravi->types->plua_StateT, "L");
-  f->jit_function = gcc_jit_context_new_function(
-      f->function_context, NULL, GCC_JIT_FUNCTION_INTERNAL,
+      def->function_context, NULL, codegen->ravi->types->plua_StateT, "L");
+  def->L = param;
+  def->jit_function = gcc_jit_context_new_function(
+      def->function_context, NULL, GCC_JIT_FUNCTION_INTERNAL,
       codegen->ravi->types->C_intT, name, 1, &param, 0);
-
-  gcc_jit_context_dump_to_file(function_context, "fdump.txt", 0);
+  def->entry_block = gcc_jit_function_new_block(def->jit_function, "entry");
+  return true;
 
 on_error:
-  if (f)
-    ravi_function_free(f);
-  else if (function_context)
-    gcc_jit_context_release(function_context);
-  return NULL;
+  return false;
 }
+
+
+static void free_function_def(ravi_function_def_t *def) {
+  if (def->function_context)
+    gcc_jit_context_release(def->function_context);
+  if (def->jmp_targets)
+    free(def->jmp_targets);
+}
+
+
+#define RA(i) (base + GETARG_A(i))
+/* to be used after possible stack reallocation */
+#define RB(i) check_exp(getBMode(GET_OPCODE(i)) == OpArgR, base + GETARG_B(i))
+#define RC(i) check_exp(getCMode(GET_OPCODE(i)) == OpArgR, base + GETARG_C(i))
+#define RKB(i)                                                                 \
+  check_exp(getBMode(GET_OPCODE(i)) == OpArgK,                                 \
+            ISK(GETARG_B(i)) ? k + INDEXK(GETARG_B(i)) : base + GETARG_B(i))
+#define RKC(i)                                                                 \
+  check_exp(getCMode(GET_OPCODE(i)) == OpArgK,                                 \
+            ISK(GETARG_C(i)) ? k + INDEXK(GETARG_C(i)) : base + GETARG_C(i))
+#define KBx(i)                                                                 \
+  (k + (GETARG_Bx(i) != 0 ? GETARG_Bx(i) - 1 : GETARG_Ax(*ci->u.l.savedpc++)))
+/* RAVI */
+#define KB(i)                                                                  \
+  check_exp(getBMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_B(i)))
+#define KC(i)                                                                  \
+  check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_C(i)))
+
+static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
+  // We need to pre-create blocks for jump targets so that we
+  // can generate branch instructions in the code
+  const Instruction *code = p->code;
+  int pc, n = p->sizecode;
+  def->jmp_targets = (gcc_jit_block **)calloc(n, sizeof (gcc_jit_block *));
+  for (pc = 0; pc < n; pc++) {
+    Instruction i = code[pc];
+    OpCode op = GET_OPCODE(i);
+    switch (op) {
+      case OP_LOADBOOL: {
+        int C = GETARG_C(i);
+        int j = pc + 2; // jump target
+        if (C && !def->jmp_targets[j])
+          def->jmp_targets[j] =
+                  gcc_jit_function_new_block(def->jit_function, "loadbool");
+      } break;
+      case OP_JMP:
+      case OP_RAVI_FORPREP_IP:
+      case OP_RAVI_FORPREP_I1:
+      case OP_RAVI_FORLOOP_IP:
+      case OP_RAVI_FORLOOP_I1:
+      case OP_FORLOOP:
+      case OP_FORPREP:
+      case OP_TFORLOOP: {
+        const char *targetname = NULL;
+        char temp[80];
+        if (op == OP_JMP)
+          targetname = "jmp";
+        else if (op == OP_FORLOOP || op == OP_RAVI_FORLOOP_IP ||
+                 op == OP_RAVI_FORLOOP_I1)
+          targetname = "forbody";
+        else if (op == OP_FORPREP || op == OP_RAVI_FORPREP_IP ||
+                 op == OP_RAVI_FORPREP_I1)
+          targetname = "forloop";
+        else
+          targetname = "tforbody";
+        int sbx = GETARG_sBx(i);
+        int j = sbx + pc + 1;
+        // We append the Lua bytecode location to help debug the IR
+        snprintf(temp, sizeof temp, "%s%d_", targetname, j + 1);
+        //
+        if (!def->jmp_targets[j]) {
+          def->jmp_targets[j] =
+                  gcc_jit_function_new_block(def->jit_function, temp);
+        }
+      } break;
+      default:
+        break;
+    }
+  }
+}
+
+static gcc_jit_rvalue* emit_ci_func_value_gc_asLClosure(ravi_function_def_t *def,
+                                                            gcc_jit_lvalue *ci) {
+  gcc_jit_lvalue *gc = gcc_jit_lvalue_access_field(ci, NULL, def->ravi->types->CallInfo_func);
+  gcc_jit_rvalue *func = gcc_jit_context_new_cast(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(gc), def->ravi->types->pLClosureT);
+  return func;
+}
+
 
 // Compile a Lua function
 // If JIT is turned off then compilation is skipped
@@ -204,13 +269,33 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     return false;
 
   ravi_State *ravi_state = (ravi_State *)G->ravi_state;
-  // ravi_gcc_context_t *ravi = ravi_state->jit;
+  ravi_gcc_context_t *ravi = ravi_state->jit;
   ravi_gcc_codegen_t *codegen = ravi_state->code_generator;
 
-  ravi_gcc_function_t *f = create_function(codegen);
+  ravi_function_def_t def;
+  def.ravi = ravi_state->jit;
+  def.entry_block = NULL;
+  def.function_context = NULL;
+  def.jit_function = NULL;
+  def.jmp_targets = NULL;
+  def.ci_val = NULL;
+  def.LClosure = NULL;
 
-  if (f)
-    ravi_function_free(f);
+  if (!create_function(codegen, &def)) {
+    p->ravi_jit.jit_status = 1; // can't compile
+    goto on_error;
+  }
+
+  scan_jump_targets(&def, p);
+
+  def.ci_val = gcc_jit_lvalue_access_field(gcc_jit_param_as_lvalue(def.L), NULL, ravi->types->lua_State_ci);
+
+  def.LClosure = emit_ci_func_value_gc_asLClosure(&def, def.ci_val);
+
+
+on_error:
+  gcc_jit_context_dump_reproducer_to_file(def.function_context, "fdump.txt");
+  free_function_def(&def);
 
   return false;
 }
@@ -220,9 +305,10 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
 void raviV_freeproto(struct lua_State *L, struct Proto *p) {
   (void)L;
   if (p->ravi_jit.jit_status == 2) /* compiled */ {
-    struct ravi_gcc_function_t *f =
-        (struct ravi_gcc_function_t *)(p->ravi_jit.jit_data);
-    ravi_function_free(f);
+    gcc_jit_result *f =
+        (gcc_jit_result *)(p->ravi_jit.jit_data);
+    if (f)
+      gcc_jit_result_release(f);
     p->ravi_jit.jit_status = 3;
     p->ravi_jit.jit_function = NULL;
     p->ravi_jit.jit_data = NULL;
