@@ -25,9 +25,14 @@
 
 // Create a unique function name in the context
 // of this generator
-static const char *unique_function_name(ravi_gcc_codegen_t *cg) {
-  snprintf(cg->temp, sizeof cg->temp, "ravif%d", cg->id++);
-  return cg->temp;
+static const char *unique_function_name(ravi_function_def_t* def, ravi_gcc_codegen_t *cg) {
+  snprintf(def->name, sizeof def->name, "ravif%d", cg->id++);
+  return def->name;
+}
+
+const char *unique_name(ravi_function_def_t *def, const char *prefix, int pc) {
+  snprintf(def->buf, sizeof def->buf, "%s_%d_%d", prefix, pc, def->counter++);
+  return def->buf;
 }
 
 // We can only compile a subset of op codes
@@ -149,8 +154,7 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
 
   /* each function is given a unique name - as Lua functions are closures and do
    * not really have names */
-  const char *name = unique_function_name(codegen);
-  def->name = name;
+  unique_function_name(def, codegen);
 
   /* the function signature is int (*) (lua_State *) */
   gcc_jit_param *param = gcc_jit_context_new_param(
@@ -158,7 +162,7 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   def->L = param; /* store the L parameter as we will need it */
   def->jit_function = gcc_jit_context_new_function(
       def->function_context, NULL, GCC_JIT_FUNCTION_EXPORTED,
-      codegen->ravi->types->C_intT, name, 1, &param, 0);
+      codegen->ravi->types->C_intT, def->name, 1, &param, 0);
 
   /* The entry block of the function */
   def->entry_block = gcc_jit_function_new_block(def->jit_function, "entry");
@@ -222,7 +226,7 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
       int j = pc + 2; // jump target
       if (C && !def->jmp_targets[j])
         def->jmp_targets[j] =
-            gcc_jit_function_new_block(def->jit_function, "loadbool");
+            gcc_jit_function_new_block(def->jit_function, unique_name(def, "loadbool", j));
     } break;
     case OP_JMP:
     case OP_RAVI_FORPREP_IP:
@@ -233,7 +237,6 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
     case OP_FORPREP:
     case OP_TFORLOOP: {
       const char *targetname = NULL;
-      char temp[80];
       if (op == OP_JMP)
         targetname = "jmp";
       else if (op == OP_FORLOOP || op == OP_RAVI_FORLOOP_IP ||
@@ -246,12 +249,9 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
         targetname = "tforbody";
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
-      // We append the Lua bytecode location to help debug the IR
-      snprintf(temp, sizeof temp, "%s%d_", targetname, j + 1);
-      //
       if (!def->jmp_targets[j]) {
         def->jmp_targets[j] =
-            gcc_jit_function_new_block(def->jit_function, temp);
+            gcc_jit_function_new_block(def->jit_function, unique_name(def, targetname, j+1));
       }
     } break;
     default:
@@ -260,7 +260,7 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
   }
 }
 
-/* Obtain reference to currently executing function L->ci->func */
+/* Obtain reference to currently executing function (LClosure*) L->ci->func.value_.gc */
 static void emit_ci_func_value_gc_asLClosure(ravi_function_def_t *def,
                                              gcc_jit_lvalue *ci) {
   gcc_jit_lvalue *func = gcc_jit_rvalue_dereference_field(
@@ -286,7 +286,7 @@ static void emit_getL_ci_value(ravi_function_def_t *def) {
       gcc_jit_param_as_rvalue(def->L), NULL, def->ravi->types->lua_State_ci);
 }
 
-/* Refresh local copy of L->ci.u.l.base */
+/* Refresh local copy of L->ci->u.l.base */
 void ravi_emit_refresh_base(ravi_function_def_t *def) {
   gcc_jit_block_add_assignment(def->current_block, NULL, def->base,
                                def->base_ref);
@@ -314,7 +314,7 @@ void ravi_emit_set_L_top_toreg(ravi_function_def_t *def, int B) {
   gcc_jit_block_add_assignment(def->current_block, NULL, top, reg);
 }
 
-/* Obtain reference to L->ci.u.l.base */
+/* Obtain reference to L->ci->u.l.base */
 static void emit_getL_base_reference(ravi_function_def_t *def,
                                      gcc_jit_lvalue *ci) {
   gcc_jit_lvalue *u = gcc_jit_rvalue_dereference_field(
@@ -327,7 +327,7 @@ static void emit_getL_base_reference(ravi_function_def_t *def,
   ravi_emit_refresh_base(def);
 }
 
-/* Get the Lua function prototpe and constants table */
+/* Get the Lua function prototype and constants table */
 static void emit_get_proto_and_k(ravi_function_def_t *def) {
   gcc_jit_lvalue *proto = gcc_jit_rvalue_dereference_field(
       gcc_jit_lvalue_as_rvalue(def->lua_closure_val), NULL,
@@ -394,6 +394,9 @@ static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi) {
   def->k = NULL;
   def->base = NULL;
   def->current_block_terminated = false;
+  def->buf[0] = 0;
+  def->counter = 1;
+  def->name[0] = 0;
 }
 
 // Compile a Lua function
@@ -457,7 +460,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     switch (op) {
     case OP_RETURN: {
       int B = GETARG_B(i);
-      ravi_emit_return(&def, A, B);
+      ravi_emit_RETURN(&def, A, B, pc);
     } break;
     default:
       break;

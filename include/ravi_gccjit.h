@@ -327,7 +327,7 @@ struct ravi_gcc_function_t {
 typedef struct ravi_function_def_t {
   ravi_gcc_context_t *ravi;
 
-  const char *name;
+  char name[31];
 
   /* Child context for the function being compiled */
   gcc_jit_context *function_context;
@@ -363,9 +363,9 @@ typedef struct ravi_function_def_t {
   /* The Lua constants list for the function - this never changes */
   gcc_jit_rvalue *k;
 
-//  gcc_jit_function *luaD_poscallT;
-//
-//  gcc_jit_function *luaF_closeT;
+  char buf[80];
+
+  unsigned int counter;
 
 } ravi_function_def_t;
 
@@ -386,7 +386,7 @@ extern bool ravi_jit_has_errored(ravi_gcc_context_t *);
 
 extern void ravi_emit_refresh_base(ravi_function_def_t *def);
 
-extern void ravi_emit_return(ravi_function_def_t *def, int A, int B);
+extern void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc);
 
 extern gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t* def, int A);
 
@@ -397,6 +397,8 @@ extern gcc_jit_lvalue *ravi_emit_get_Proto_sizep(ravi_function_def_t *def);
 extern void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *block);
 
 extern gcc_jit_rvalue *ravi_function_call2_rvalue(ravi_function_def_t *def, gcc_jit_function *f, gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2);
+
+extern const char *unique_name(ravi_function_def_t *def, const char *prefix, int pc);
 
 #ifdef __cplusplus
 };
