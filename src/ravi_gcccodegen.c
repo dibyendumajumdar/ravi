@@ -147,13 +147,14 @@ static bool create_function(ravi_gcc_codegen_t *codegen, ravi_function_def_t *de
 
   /* each function is given a unique name - as Lua functions are closures and do not really have names */
   const char *name = unique_function_name(codegen);
+  def->name = name;
 
   /* the function signature is int (*) (lua_State *) */
   gcc_jit_param *param = gcc_jit_context_new_param(
       def->function_context, NULL, codegen->ravi->types->plua_StateT, "L");
   def->L = param; /* store the L parameter as we will need it */
   def->jit_function = gcc_jit_context_new_function(
-      def->function_context, NULL, GCC_JIT_FUNCTION_INTERNAL,
+      def->function_context, NULL, GCC_JIT_FUNCTION_EXPORTED,
       codegen->ravi->types->C_intT, name, 1, &param, 0);
 
   /* The entry block of the function */
@@ -161,6 +162,7 @@ static bool create_function(ravi_gcc_codegen_t *codegen, ravi_function_def_t *de
   def->current_block = def->entry_block;
 
   def->base = gcc_jit_function_new_local(def->jit_function, NULL, def->ravi->types->pTValueT, "base");
+  def->lua_closure_val = gcc_jit_function_new_local(def->jit_function, NULL, def->ravi->types->pLClosureT, "cl");
 
   return true;
 
@@ -257,11 +259,14 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
 /* Obtain reference to currently executing function L->ci->func */
 static void emit_ci_func_value_gc_asLClosure(ravi_function_def_t *def,
                                                             gcc_jit_lvalue *ci) {
-  gcc_jit_lvalue *gc = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(ci), NULL, def->ravi->types->CallInfo_func);
+  gcc_jit_lvalue *func = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(ci), NULL, def->ravi->types->CallInfo_func);
+  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(func), NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *gc = gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_gc);
+
   //const char *debugstr = gcc_jit_object_get_debug_string(gcc_jit_lvalue_as_object(gc));
   //fprintf(stderr, "%s\n", debugstr);
-  gcc_jit_rvalue *func = gcc_jit_context_new_cast(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(gc), def->ravi->types->pLClosureT);
-  def->lua_closure = func;
+  def->lua_closure = gcc_jit_context_new_cast(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(gc), def->ravi->types->pLClosureT);
+  gcc_jit_block_add_assignment(def->current_block, NULL, def->lua_closure_val, def->lua_closure);
 }
 
 /* Obtain reference to L->ci */
@@ -304,7 +309,7 @@ static void emit_getL_base_reference(ravi_function_def_t *def, gcc_jit_lvalue *c
 
 /* Get the Lua function prototpe and constants table */
 static void emit_get_proto_and_k(ravi_function_def_t *def) {
-  gcc_jit_lvalue *proto = gcc_jit_rvalue_dereference_field(def->lua_closure, NULL, def->ravi->types->LClosure_p);
+  gcc_jit_lvalue *proto = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(def->lua_closure_val), NULL, def->ravi->types->LClosure_p);
   def->proto = gcc_jit_lvalue_as_rvalue(proto);
   gcc_jit_lvalue *k = gcc_jit_rvalue_dereference_field(def->proto, NULL, def->ravi->types->LClosure_p_k);
   def->k = gcc_jit_lvalue_as_rvalue(k);
@@ -312,8 +317,6 @@ static void emit_get_proto_and_k(ravi_function_def_t *def) {
 
 gcc_jit_lvalue *ravi_emit_get_Proto_sizep(ravi_function_def_t *def) {
   gcc_jit_lvalue *psize = gcc_jit_rvalue_dereference_field(def->proto, NULL, def->ravi->types->Proto_sizep);
-  const char *debugstr = gcc_jit_object_get_debug_string(gcc_jit_lvalue_as_object(psize));
-  fprintf(stderr, "%s\n", debugstr);
   return psize;
 }
 
@@ -365,7 +368,6 @@ static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi) {
   def->base = NULL;
   def->current_block_terminated = false;
 }
-
 
 // Compile a Lua function
 // If JIT is turned off then compilation is skipped
@@ -440,6 +442,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
           GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE,
           0);
 
+  gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
+
   if (gcc_jit_context_get_first_error(def.function_context)) {
     fprintf(stderr, "aborting due to JIT error: %s\n", gcc_jit_context_get_first_error(def.function_context));
     abort();
@@ -451,7 +455,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   }
 
   p->ravi_jit.jit_data = compilation_result;
-  p->ravi_jit.jit_function = (lua_CFunction) gcc_jit_result_get_code(compilation_result, NULL);
+  p->ravi_jit.jit_function = (lua_CFunction) gcc_jit_result_get_code(compilation_result, def.name);
   lua_assert(p->ravi_jit.jit_function);
 
   if (p->ravi_jit.jit_function == NULL) {

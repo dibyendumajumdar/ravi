@@ -159,7 +159,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   //   lua_Integer i;   /* integer numbers */
   //   lua_Number n;    /* float numbers */
   // };
-  fields[0] =
+  t->Value_value_gc = fields[0] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "gc");
   fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_pvoidT, "p");
   fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "b");
@@ -177,7 +177,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   //   union Value value_;
   //   int tt_;
   // };
-  fields[0] =
+  t->Value_value = fields[0] =
       gcc_jit_context_new_field(ravi->context, NULL, t->ValueT, "value_");
   fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "tt_");
   t->TValueT = gcc_jit_context_new_struct_type(ravi->context, NULL,

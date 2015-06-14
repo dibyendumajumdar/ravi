@@ -158,6 +158,9 @@ struct ravi_gcc_types_t {
   gcc_jit_struct *TValueT;
   gcc_jit_type *pTValueT;
 
+  gcc_jit_field *Value_value;
+  gcc_jit_field *Value_value_gc;
+
   gcc_jit_struct *HiLoT;
   gcc_jit_type *pHiLoT;
 
@@ -280,6 +283,8 @@ struct ravi_gcc_context_t {
    */
   gcc_jit_context *context;
 
+  gcc_jit_result *parent_result_;
+
   /* Lua type definitions */
   ravi_gcc_types_t *types;
 
@@ -322,6 +327,8 @@ struct ravi_gcc_function_t {
 typedef struct ravi_function_def_t {
   ravi_gcc_context_t *ravi;
 
+  const char *name;
+
   /* Child context for the function being compiled */
   gcc_jit_context *function_context;
 
@@ -340,6 +347,7 @@ typedef struct ravi_function_def_t {
    * type is LClosure *
    */
   gcc_jit_rvalue *lua_closure;
+  gcc_jit_lvalue *lua_closure_val;
 
   gcc_jit_block *current_block;
 
@@ -354,6 +362,10 @@ typedef struct ravi_function_def_t {
 
   /* The Lua constants list for the function - this never changes */
   gcc_jit_rvalue *k;
+
+//  gcc_jit_function *luaD_poscallT;
+//
+//  gcc_jit_function *luaF_closeT;
 
 } ravi_function_def_t;
 

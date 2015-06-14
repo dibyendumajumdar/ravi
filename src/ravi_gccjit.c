@@ -50,6 +50,12 @@ ravi_gcc_context_t *ravi_jit_new_context(void) {
     goto on_error;
   }
 
+  ravi->parent_result_ = gcc_jit_context_compile(ravi->context);
+  if (gcc_jit_context_get_first_error(ravi->context)) {
+    fprintf(stderr, "aborting due to JIT error: %s\n", gcc_jit_context_get_first_error(ravi->context));
+    abort();
+  }
+
   return ravi;
 on_error:
   if (ravi) {
@@ -63,6 +69,9 @@ on_error:
 void ravi_jit_context_free(ravi_gcc_context_t *ravi) {
   if (ravi == NULL)
     return;
+  if (ravi->parent_result_) {
+    gcc_jit_result_release(ravi->parent_result_);
+  }
   if (ravi->context) {
     gcc_jit_context_release(ravi->context);
   }
