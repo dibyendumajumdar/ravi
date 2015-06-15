@@ -33,12 +33,11 @@ void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc) {
   // Load pointer to base
   ravi_emit_refresh_base(def);
 
-  // LOADK requires a structure assignment
-  // in LLVM as far as I can tell this requires a call to
-  // an intrinsic memcpy
+  // ra
   gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  // rb
   gcc_jit_rvalue *src = ravi_emit_get_constant(def, Bx);
 
-  // *dest = *src
+  // *ra = *rb
   ravi_emit_struct_assign(def, dest, src);
 }
