@@ -6,10 +6,10 @@ local function x()
   return j
 end
 if ravi then
-  print('compiling')
+  ravi.optlevel(2)
   assert(ravi.compile(x))
+  ravi.dumpllvmasm(x)
 end
-x()
 
 local t1 = os.clock()
 local y = x(); 
