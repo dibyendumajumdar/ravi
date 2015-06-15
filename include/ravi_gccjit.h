@@ -386,9 +386,9 @@ extern bool ravi_jit_has_errored(ravi_gcc_context_t *);
 
 extern void ravi_emit_refresh_base(ravi_function_def_t *def);
 
-extern void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc);
-
 extern gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t* def, int A);
+
+extern gcc_jit_rvalue *ravi_emit_get_constant(ravi_function_def_t* def, int Bx);
 
 extern void ravi_emit_set_L_top_toreg(ravi_function_def_t *A, int B);
 
@@ -399,6 +399,14 @@ extern void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *bloc
 extern gcc_jit_rvalue *ravi_function_call2_rvalue(ravi_function_def_t *def, gcc_jit_function *f, gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2);
 
 extern const char *unique_name(ravi_function_def_t *def, const char *prefix, int pc);
+
+extern void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue* dest, gcc_jit_rvalue *src);
+
+extern void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc);
+
+extern void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc);
+
+
 
 #ifdef __cplusplus
 };

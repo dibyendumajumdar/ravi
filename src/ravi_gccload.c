@@ -21,3 +21,24 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 
+#include <ravi_gccjit.h>
+
+void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc) {
+
+  (void)pc;
+
+  // TValue *rb = k + GETARG_Bx(i);
+  // setobj2s(L, ra, rb);
+
+  // Load pointer to base
+  ravi_emit_refresh_base(def);
+
+  // LOADK requires a structure assignment
+  // in LLVM as far as I can tell this requires a call to
+  // an intrinsic memcpy
+  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *src = ravi_emit_get_constant(def, Bx);
+
+  // *dest = *src
+  ravi_emit_struct_assign(def, dest, src);
+}

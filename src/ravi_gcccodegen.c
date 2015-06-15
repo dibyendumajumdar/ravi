@@ -49,8 +49,8 @@ static bool can_compile(Proto *p) {
     OpCode o = GET_OPCODE(i);
     switch (o) {
     case OP_RETURN:
-      break;
     case OP_LOADK:
+      break;
     case OP_LOADKX:
     case OP_LOADNIL:
     case OP_LOADBOOL:
@@ -151,6 +151,10 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
     fprintf(stderr, "error creating child context\n");
     goto on_error;
   }
+  gcc_jit_context_set_bool_option(def->function_context,
+                                  GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 0);
+  gcc_jit_context_set_int_option(def->function_context,
+                                GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, 2);
 
   /* each function is given a unique name - as Lua functions are closures and do
    * not really have names */
@@ -260,6 +264,12 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
   }
 }
 
+void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue* dest, gcc_jit_rvalue *src) {
+  gcc_jit_block_add_assignment(def->current_block, NULL,
+                               gcc_jit_rvalue_dereference(dest, NULL),
+                               gcc_jit_lvalue_as_rvalue(gcc_jit_rvalue_dereference(src, NULL)));
+}
+
 /* Obtain reference to currently executing function (LClosure*) L->ci->func.value_.gc */
 static void emit_ci_func_value_gc_asLClosure(ravi_function_def_t *def,
                                              gcc_jit_lvalue *ci) {
@@ -301,6 +311,15 @@ gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t *def, int A) {
       gcc_jit_context_new_rvalue_from_int(def->function_context,
                                           def->ravi->types->C_intT, A));
   return gcc_jit_lvalue_get_address(reg, NULL);
+}
+
+/* Get access to a constant identify by Bx */
+gcc_jit_rvalue *ravi_emit_get_constant(ravi_function_def_t* def, int Bx) {
+  gcc_jit_lvalue *kst = gcc_jit_context_new_array_access(
+          def->function_context, NULL, def->k,
+          gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                              def->ravi->types->C_intT, Bx));
+  return gcc_jit_lvalue_get_address(kst, NULL);
 }
 
 // L->top = R(B)
@@ -462,13 +481,14 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int B = GETARG_B(i);
       ravi_emit_RETURN(&def, A, B, pc);
     } break;
+    case OP_LOADK: {
+      int Bx = GETARG_Bx(i);
+      ravi_emit_LOADK(&def, A, Bx, pc);
+    } break;
     default:
       break;
     }
   }
-
-  gcc_jit_context_set_bool_option(def.function_context,
-                                  GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 0);
 
   gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
 
