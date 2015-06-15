@@ -432,14 +432,18 @@ extern void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue* de
 
 extern gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def, gcc_jit_rvalue *value);
 
-
+extern void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, gcc_jit_rvalue *ivalue);
 
 extern void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc);
 
 extern void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc);
 
-void ravi_emit_iFORPREP(ravi_function_def_t *def, int A, int pc,
+extern void ravi_emit_iFORPREP(ravi_function_def_t *def, int A, int pc,
                         int step_one);
+
+extern void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc, ravi_branch_def_t *b, int step_one);
+
+extern void ravi_emit_MOVE(ravi_function_def_t *def, int A, int B);
 
 #ifdef __cplusplus
 };

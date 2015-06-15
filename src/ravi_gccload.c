@@ -41,3 +41,21 @@ void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc) {
   // *ra = *rb
   ravi_emit_struct_assign(def, dest, src);
 }
+
+// R(A) := R(B)
+void ravi_emit_MOVE(ravi_function_def_t *def, int A, int B) {
+  // setobjs2s(L, ra, RB(i));
+
+  lua_assert(A != B);
+
+  // Load pointer to base
+  ravi_emit_refresh_base(def);
+
+  // rb
+  gcc_jit_rvalue *src = ravi_emit_get_register(def, B);
+  // ra
+  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+
+  // *ra = *rb
+  ravi_emit_struct_assign(def, dest, src);
+}

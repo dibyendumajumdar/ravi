@@ -50,6 +50,11 @@ static bool can_compile(Proto *p) {
     switch (o) {
     case OP_RETURN:
     case OP_LOADK:
+    case OP_RAVI_FORLOOP_IP:
+    case OP_RAVI_FORLOOP_I1:
+    case OP_RAVI_FORPREP_IP:
+    case OP_RAVI_FORPREP_I1:
+    case OP_MOVE:
       break;
     case OP_LOADKX:
     case OP_LOADNIL:
@@ -67,7 +72,6 @@ static bool can_compile(Proto *p) {
     case OP_FORLOOP:
     case OP_TFORCALL:
     case OP_TFORLOOP:
-    case OP_MOVE:
     case OP_ADD:
     case OP_SUB:
     case OP_MUL:
@@ -127,10 +131,6 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_TOARRAYF:
     case OP_RAVI_MOVEAI:
     case OP_RAVI_MOVEAF:
-    case OP_RAVI_FORLOOP_IP:
-    case OP_RAVI_FORLOOP_I1:
-    case OP_RAVI_FORPREP_IP:
-    case OP_RAVI_FORPREP_I1:
     default:
       return false;
     }
@@ -191,8 +191,8 @@ static void free_function_def(ravi_function_def_t *def) {
     gcc_jit_context_release(def->function_context);
   if (def->jmp_targets) {
     for (int i = 0; i < def->p->sizecode; i++) {
-      if (def->jmp_targets[i]->jmp)
-        free(def->jmp_targets[i]->jmp);
+      if (def->jmp_targets[i])
+        free(def->jmp_targets[i]);
     }
     free(def->jmp_targets);
   }
@@ -358,8 +358,17 @@ static void emit_getL_base_reference(ravi_function_def_t *def,
 /* Get TValue->value_.i */
 gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def, gcc_jit_rvalue *tv) {
   gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_value);
-  gcc_jit_lvalue *i = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(value), NULL, def->ravi->types->Value_value_i);
+  gcc_jit_lvalue *i = gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_i);
   return i;
+}
+
+void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, gcc_jit_rvalue *ivalue) {
+  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *i = gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_i);
+  gcc_jit_block_add_assignment(def->current_block, NULL, i, ivalue);
+  gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, LUA_TNUMINT);
+  gcc_jit_lvalue *tt = gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_tt);
+  gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
 }
 
 /* Get the Lua function prototype and constants table */
@@ -508,6 +517,17 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
       ravi_emit_iFORPREP(&def, A, j, op == OP_RAVI_FORPREP_I1);
+    } break;
+    case OP_RAVI_FORLOOP_I1:
+    case OP_RAVI_FORLOOP_IP: {
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      ravi_emit_iFORLOOP(&def, A, j, def.jmp_targets[pc],
+                      op == OP_RAVI_FORLOOP_I1);
+    } break;
+    case OP_MOVE: {
+      int B = GETARG_B(i);
+      ravi_emit_MOVE(&def, A, B);
     } break;
     default:
       break;
