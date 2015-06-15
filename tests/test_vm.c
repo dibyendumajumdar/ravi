@@ -11,141 +11,6 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
-/*
-** LUA_TFUNCTION variants:
-** 0 - Lua function
-** 1 - light C function
-** 2 - regular C function (closure)
-*/
-
-/* Variant tags for functions */
-#define LUA_TLCL	(LUA_TFUNCTION | (0 << 4))  /* Lua closure */
-#define LUA_TLCF	(LUA_TFUNCTION | (1 << 4))  /* light C function */
-#define LUA_TCCL	(LUA_TFUNCTION | (2 << 4))  /* C closure */
-
-
-/* Variant tags for strings */
-#define LUA_TSHRSTR	(LUA_TSTRING | (0 << 4))  /* short strings */
-#define LUA_TLNGSTR	(LUA_TSTRING | (1 << 4))  /* long strings */
-
-
-/* Variant tags for numbers */
-#define LUA_TNUMFLT	(LUA_TNUMBER | (0 << 4))  /* float numbers */
-#define LUA_TNUMINT	(LUA_TNUMBER | (1 << 4))  /* integer numbers */
-
-
-/* Bit mark for collectable types */
-#define BIT_ISCOLLECTABLE	(1 << 6)
-
-/* mark a tag as collectable */
-#define ctb(t)			((t) | BIT_ISCOLLECTABLE)
-
-union ValueX {
-  double n;
-  long long i;
-};
-
-typedef struct {
-  int lo;
-  int hi;
-} PartsX;
-
-union TypeX {
-  double d;
-  PartsX tt;
-  unsigned char bytes[8];
-};
-
-typedef struct {
-  union ValueX value_;
-  union TypeX tt_;
-} MyValueT;
-
-static void dumpll(uint64_t d)
-{
-  union {
-    uint64_t d;
-    unsigned char bytes[8];
-  } tt;
-
-  tt.d = d;
-  // Litle endian assumed
-  for (int i = 7; i >= 0; i--) {
-    printf("%02x", tt.bytes[i]);
-  }
-  printf("\n");
-}
-
-static void dumpd(double d)
-{
-  union {
-    double d;
-    unsigned char bytes[8];
-  } tt;
-
-  tt.d = d;
-  // Litle endian assumed
-  for (int i = 7; i >=0 ; i--) {
-    printf("%02x", tt.bytes[i]);
-  }
-  printf("\n");
-}
-
-static void dumpvalue(MyValueT* v)
-{
-  // Litle endian assumed
-  for (int i = 7; i >= 0; i--) {
-    printf("%02x", v->tt_.bytes[i]);
-  }
-  printf("\n");
-}
-
-
-#define QNAN 0x7ffc0000
-#define QVAL 0x0000ffff
-
-#define LUA__TNUMFLT   (QNAN | LUA_TNUMFLT)
-#define LUA__TNUMINT   (QNAN | LUA_TNUMINT)
-#define LUA__TNUMBER   (QNAN | LUA_TNUMINT)
-#define LUA__TTABLE    (QNAN | ctb(LUA_TTABLE))
-
-static void tryme() {
-  MyValueT v = { 0 };
-
-  //v.tt_.d = 1.0;
-  //v.tt_.d /= 0;
-  //dumpvalue(&v);
-
-  v.tt_.tt.hi = LUA__TNUMINT;
-  dumpvalue(&v);
-
-  if (isnan(v.tt_.d))
-    printf("Is NaN set as expected\n");
-
-  if ((v.tt_.tt.hi & QNAN) == QNAN)
-    printf("QNAN set as expected\n");
-  if ((v.tt_.tt.hi & QVAL) == LUA_TNUMINT)
-    printf("LUA_TNUMINT set as expected\n");
-
-
-  v.tt_.d = 1.5;
-  if ((v.tt_.tt.hi & QNAN) != QNAN)
-    printf("QNAN unset as expected\n");
-
-  v.tt_.tt.hi = LUA__TTABLE;
-  dumpvalue(&v);
-
-  if ((v.tt_.tt.hi & QNAN) == QNAN)
-    printf("QNAN set as expected\n");
-  if ((v.tt_.tt.hi & QVAL) == ctb(LUA_TTABLE))
-    printf("LUA_TTABLE set as expected\n");
-
-  v.tt_.d = 42;
-  if ((v.tt_.tt.hi & QNAN) != QNAN)
-    printf("QNAN unset as expected\n");
-}
-
-
 /* test supplied lua code compiles */
 static int test_luacomp1(const char *code)
 {
@@ -260,9 +125,6 @@ int main()
 {
     int failures = 0;
     //  
-#if 0
-    tryme();
-#else
     failures += test_luacompexec1("function test(); local x: integer = 1; return function (j) x = j; return x; end; end; fn = test(); return fn('55')", 55);
     failures += test_luacompexec1("ravi.auto(true); function arrayaccess (); local x: integer[] = {5}; return x[1]; end; assert(ravi.compile(arrayaccess)); return arrayaccess()", 5);
     failures += test_luacompexec1("ravi.auto(true); function cannotload (msg, a,b); assert(not a and string.find(b, msg)); end; ravi.compile(cannotload); return 1", 1);
@@ -328,6 +190,5 @@ int main()
     failures += test_luacomp1("local a=1; if a==0 then; a = 2; else a=3; end;");
     failures += test_luacomp1("local f = function(); return; end; local d:number = 5.0; d = f(); return d");
     failures += test_luacomp1("local f = function(); return; end; local d = 5.0; d = f(); return d");
-#endif
     return failures ? 1 : 0;
 }

@@ -78,8 +78,7 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
       emit_load_local_n(def, idx_int_ptr);
   llvm::Value *new_idx = def->builder->CreateAdd(step_int_value, idx_int_value,
                                                  "next.idx", false, true);
-  llvm::Instruction *idx_store =
-      emit_store_local_n(def, new_idx, idx_int_ptr);
+  emit_store_local_n(def, new_idx, idx_int_ptr);
 
   // lua_Integer limit = ivalue(ra + 1);
   llvm::Instruction *limit_int_value =
@@ -105,7 +104,7 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
   idx_int_value = emit_load_local_n(def, idx_int_ptr);
   new_idx = def->builder->CreateAdd(step_int_value, idx_int_value, "next.idx",
                                     false, true);
-  idx_store = emit_store_local_n(def, new_idx, idx_int_ptr);
+  emit_store_local_n(def, new_idx, idx_int_ptr);
 
   // lua_Integer limit = ivalue(ra + 1);
   limit_int_value = emit_load_local_n(def, limit_int_ptr);
@@ -148,7 +147,7 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
       emit_load_local_n(def, idx_double_ptr);
   new_idx =
       def->builder->CreateFAdd(step_double_value, idx_double_value, "next.idx");
-  idx_store = emit_store_local_n(def, new_idx, idx_double_ptr);
+  emit_store_local_n(def, new_idx, idx_double_ptr);
 
   //  lua_Number limit = fltvalue(ra + 1);
   llvm::Instruction *limit_double_value =
@@ -173,7 +172,7 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
   idx_double_value = emit_load_local_n(def, idx_double_ptr);
   new_idx =
       def->builder->CreateFAdd(step_double_value, idx_double_value, "next.idx");
-  idx_store = emit_store_local_n(def, new_idx, idx_double_ptr);
+  emit_store_local_n(def, new_idx, idx_double_ptr);
 
   //  lua_Number limit = fltvalue(ra + 1);
   limit_double_value = emit_load_local_n(def, limit_double_ptr);

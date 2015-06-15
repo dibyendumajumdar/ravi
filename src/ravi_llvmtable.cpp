@@ -74,13 +74,13 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,
                                          llvm::Value *L_ci, llvm::Value *proto,
                                          int A, int B, int C) {
-  //#define raviH_get_float_inline(L, t, key, v) \
-  //{ unsigned ukey = (unsigned)((key)); \
-  //  lua_Number *data = (lua_Number *)t->ravi_array.data; \
-  //  if (ukey < t->ravi_array.len) {\
-  //    setfltvalue(v, data[ukey]); \
-  //      }else \
-  //    luaG_runerror(L, "array out of bounds"); \
+  //#define raviH_get_float_inline(L, t, key, v)
+  //{ unsigned ukey = (unsigned)((key));
+  //  lua_Number *data = (lua_Number *)t->ravi_array.data;
+  //  if (ukey < t->ravi_array.len) {
+  //    setfltvalue(v, data[ukey]);
+  //      }else
+  //    luaG_runerror(L, "array out of bounds");
   //}
 
   // TValue *rb = RB(i);
@@ -131,13 +131,13 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def,
                                          llvm::Value *L_ci, llvm::Value *proto,
                                          int A, int B, int C) {
 
-  //#define raviH_get_int_inline(L, t, key, v) \
-  //{ unsigned ukey = (unsigned)((key)); \
-  //  lua_Integer *data = (lua_Integer *)t->ravi_array.data; \
-  //  if (ukey < t->ravi_array.len) {\
-  //    setivalue(v, data[ukey]); \
-  //      } else \
-  //    luaG_runerror(L, "array out of bounds"); \
+  //#define raviH_get_int_inline(L, t, key, v)
+  //{ unsigned ukey = (unsigned)((key));
+  //  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
+  //  if (ukey < t->ravi_array.len) {
+  //    setivalue(v, data[ukey]);
+  //      } else
+  //    luaG_runerror(L, "array out of bounds");
   //}
 
   // TValue *rb = RB(i);
@@ -188,13 +188,13 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def,
                                          llvm::Value *L_ci, llvm::Value *proto,
                                          int A, int B, int C) {
 
-  //#define raviH_set_int_inline(L, t, key, value) \
-  //{ unsigned ukey = (unsigned)((key)); \
-  //  lua_Integer *data = (lua_Integer *)t->ravi_array.data; \
-  //  if (ukey < t->ravi_array.len) { \
-  //    data[ukey] = value; \
-  //      } else \
-  //    raviH_set_int(L, t, ukey, value); \
+  //#define raviH_set_int_inline(L, t, key, value)
+  //{ unsigned ukey = (unsigned)((key));
+  //  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
+  //  if (ukey < t->ravi_array.len) {
+  //    data[ukey] = value;
+  //      } else
+  //    raviH_set_int(L, t, ukey, value);
   //}
 
   // Table *t = hvalue(ra);
@@ -245,13 +245,13 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
                                          llvm::Value *L_ci, llvm::Value *proto,
                                          int A, int B, int C) {
 
-  //#define raviH_set_float_inline(L, t, key, value) \
-  //{ unsigned ukey = (unsigned)((key)); \
-  //  lua_Number *data = (lua_Number *)t->ravi_array.data; \
-  //  if (ukey < t->ravi_array.len) { \
-  //    data[ukey] = value; \
-  //      } else \
-  //    raviH_set_float(L, t, ukey, value); \
+  //#define raviH_set_float_inline(L, t, key, value)
+  //{ unsigned ukey = (unsigned)((key));
+  //  lua_Number *data = (lua_Number *)t->ravi_array.data;
+  //  if (ukey < t->ravi_array.len) {
+  //    data[ukey] = value;
+  //      } else
+  //    raviH_set_float(L, t, ukey, value);
   //  }
 
   // Table *t = hvalue(ra);

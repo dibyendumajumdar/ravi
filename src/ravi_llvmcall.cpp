@@ -27,9 +27,9 @@ namespace ravi {
 // OP_JMP
 void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int j) {
 
-  //#define dojump(ci,i,e) \
-  // { int a = GETARG_A(i); \
-  //   if (a > 0) luaF_close(L, ci->u.l.base + a - 1); \
+  //#define dojump(ci,i,e)
+  // { int a = GETARG_A(i);
+  //   if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
   //   ci->u.l.savedpc += GETARG_sBx(i) + e; }
   //
   // dojump(ci, i, 0);

@@ -152,9 +152,9 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
     goto on_error;
   }
   gcc_jit_context_set_bool_option(def->function_context,
-                                  GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 0);
+                                  GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
   gcc_jit_context_set_int_option(def->function_context,
-                                GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, 2);
+                                GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, 3);
 
   /* each function is given a unique name - as Lua functions are closures and do
    * not really have names */

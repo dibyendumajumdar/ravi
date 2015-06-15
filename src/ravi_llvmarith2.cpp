@@ -140,7 +140,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RB to local nb
   auto src = emit_load_reg_n(def, rb);
-  auto ins = emit_store_local_n(def, src, nb);
+  emit_store_local_n(def, src, nb);
 
   def->builder->CreateBr(test_rc);
 
@@ -177,7 +177,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RC to local;
   src = emit_load_reg_n(def, rc);
-  ins = emit_store_local_n(def, src, nc);
+  emit_store_local_n(def, src, nc);
 
   def->builder->CreateBr(float_op);
 
@@ -322,7 +322,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RB to local nb
   auto src = emit_load_reg_n(def, rb);
-  auto ins = emit_store_local_n(def, src, nb);
+  emit_store_local_n(def, src, nb);
 
   def->builder->CreateBr(test_rc);
 
@@ -359,7 +359,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RC to local;
   src = emit_load_reg_n(def, rc);
-  ins = emit_store_local_n(def, src, nc);
+  emit_store_local_n(def, src, nc);
 
   def->builder->CreateBr(float_op);
 
@@ -388,13 +388,13 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(mb_lt0_then);
 
   result = def->builder->CreateFAdd(fmod_result, rhs);
-  ins = emit_store_local_n(def, result, nb);
+  emit_store_local_n(def, result, nb);
   def->builder->CreateBr(mb_lt0_done);
 
   def->f->getBasicBlockList().push_back(mb_lt0_else);
   def->builder->SetInsertPoint(mb_lt0_else);
 
-  ins = emit_store_local_n(def, fmod_result, nb);
+  emit_store_local_n(def, fmod_result, nb);
   def->builder->CreateBr(mb_lt0_done);
 
   def->f->getBasicBlockList().push_back(mb_lt0_done);
@@ -516,7 +516,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RB to local nb
   auto src = emit_load_reg_n(def, rb);
-  auto ins = emit_store_local_n(def, src, nb);
+  emit_store_local_n(def, src, nb);
 
   def->builder->CreateBr(test_rc);
 
@@ -553,7 +553,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RC to local;
   src = emit_load_reg_n(def, rc);
-  ins = emit_store_local_n(def, src, nc);
+  emit_store_local_n(def, src, nc);
 
   def->builder->CreateBr(float_op);
 
@@ -647,7 +647,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RB to local nb
   auto src = emit_load_reg_n(def, rb);
-  auto ins = emit_store_local_n(def, src, nb);
+  emit_store_local_n(def, src, nb);
 
   def->builder->CreateBr(test_rc);
 
@@ -684,7 +684,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
 
   // Copy RC to local;
   src = emit_load_reg_n(def, rc);
-  ins = emit_store_local_n(def, src, nc);
+  emit_store_local_n(def, src, nc);
 
   def->builder->CreateBr(float_op);
 

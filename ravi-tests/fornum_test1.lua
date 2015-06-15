@@ -5,7 +5,10 @@ local function x()
   end
   return j
 end
-
+if ravi then
+  print('compiling')
+  assert(ravi.compile(x))
+end
 x()
 
 local t1 = os.clock()
