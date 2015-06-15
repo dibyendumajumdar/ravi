@@ -109,6 +109,7 @@ struct ravi_gcc_types_t {
   gcc_jit_type *lua_IntegerT;
   gcc_jit_type *plua_IntegerT;
   gcc_jit_type *pplua_IntegerT;
+  gcc_jit_type *clua_IntegerT;
 
   gcc_jit_type *lua_UnsignedT;
   gcc_jit_type *lua_KContextT;
@@ -160,6 +161,10 @@ struct ravi_gcc_types_t {
 
   gcc_jit_field *Value_value;
   gcc_jit_field *Value_value_gc;
+  gcc_jit_field *Value_value_n;
+  gcc_jit_field *Value_value_i;
+  gcc_jit_field *Value_value_b;
+  gcc_jit_field *Value_tt;
 
   gcc_jit_struct *HiLoT;
   gcc_jit_type *pHiLoT;
@@ -318,14 +323,33 @@ struct ravi_gcc_codegen_t {
 
 };
 
-struct ravi_gcc_function_t {
+//struct ravi_gcc_function_t {
+//
+//  gcc_jit_result *jit_result;
+//
+//};
 
-  gcc_jit_result *jit_result;
+typedef struct ravi_branch_def_t {
+  // this field is used for all branches
+  gcc_jit_block *jmp;
 
-};
+  // These are local variables for a fornum
+  // loop
+  gcc_jit_lvalue *ilimit;
+  gcc_jit_lvalue *istep;
+  gcc_jit_lvalue *iidx;
+  gcc_jit_lvalue *flimit;
+  gcc_jit_lvalue *fstep;
+  gcc_jit_lvalue *fidx;
+
+} ravi_branch_def_t;
+
 
 typedef struct ravi_function_def_t {
+
   ravi_gcc_context_t *ravi;
+
+  Proto *p;
 
   char name[31];
 
@@ -338,7 +362,7 @@ typedef struct ravi_function_def_t {
 
   gcc_jit_block *entry_block;
 
-  gcc_jit_block **jmp_targets;
+  struct ravi_branch_def_t **jmp_targets;
 
   /* Currently compiled function's stack frame L->ci */
   gcc_jit_lvalue *ci_val;
@@ -348,6 +372,8 @@ typedef struct ravi_function_def_t {
    */
   gcc_jit_rvalue *lua_closure;
   gcc_jit_lvalue *lua_closure_val;
+
+  gcc_jit_lvalue *kOne_luaInteger;
 
   gcc_jit_block *current_block;
 
@@ -363,8 +389,10 @@ typedef struct ravi_function_def_t {
   /* The Lua constants list for the function - this never changes */
   gcc_jit_rvalue *k;
 
+  /* temporary buffer for creating unique names */
   char buf[80];
 
+  /* counter used for creating unique names */
   unsigned int counter;
 
 } ravi_function_def_t;
@@ -402,11 +430,16 @@ extern const char *unique_name(ravi_function_def_t *def, const char *prefix, int
 
 extern void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue* dest, gcc_jit_rvalue *src);
 
+extern gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def, gcc_jit_rvalue *value);
+
+
+
 extern void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc);
 
 extern void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc);
 
-
+void ravi_emit_iFORPREP(ravi_function_def_t *def, int A, int pc,
+                        int step_one);
 
 #ifdef __cplusplus
 };

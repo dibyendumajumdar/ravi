@@ -40,6 +40,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       gcc_jit_context_get_int_type(ravi->context, sizeof(lua_Integer), 1);
   t->plua_IntegerT = gcc_jit_type_get_pointer(t->lua_IntegerT);
   t->pplua_IntegerT = gcc_jit_type_get_pointer(t->plua_IntegerT);
+  t->clua_IntegerT = gcc_jit_type_get_const(t->lua_IntegerT);
 
   t->lua_UnsignedT =
       gcc_jit_context_get_int_type(ravi->context, sizeof(lua_Unsigned), 0);
@@ -162,12 +163,12 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   t->Value_value_gc = fields[0] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "gc");
   fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_pvoidT, "p");
-  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "b");
+  t->Value_value_b = fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "b");
   fields[3] =
       gcc_jit_context_new_field(ravi->context, NULL, t->plua_CFunctionT, "f");
-  fields[4] =
+  t->Value_value_i = fields[4] =
       gcc_jit_context_new_field(ravi->context, NULL, t->lua_IntegerT, "i");
-  fields[5] =
+  t->Value_value_n = fields[5] =
       gcc_jit_context_new_field(ravi->context, NULL, t->lua_NumberT, "n");
   t->ValueT = gcc_jit_context_new_union_type(ravi->context, NULL, "ravi_Value",
                                              6, fields);
@@ -179,7 +180,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   // };
   t->Value_value = fields[0] =
       gcc_jit_context_new_field(ravi->context, NULL, t->ValueT, "value_");
-  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "tt_");
+  t->Value_tt = fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->C_intT, "tt_");
   t->TValueT = gcc_jit_context_new_struct_type(ravi->context, NULL,
                                                "ravi_TValue", 2, fields);
   t->pTValueT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->TValueT));

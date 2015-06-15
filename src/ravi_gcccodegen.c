@@ -177,6 +177,7 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   def->lua_closure_val = gcc_jit_function_new_local(
       def->jit_function, NULL, def->ravi->types->pLClosureT, "cl");
 
+
   return true;
 
 on_error:
@@ -188,8 +189,13 @@ on_error:
 static void free_function_def(ravi_function_def_t *def) {
   if (def->function_context)
     gcc_jit_context_release(def->function_context);
-  if (def->jmp_targets)
+  if (def->jmp_targets) {
+    for (int i = 0; i < def->p->sizecode; i++) {
+      if (def->jmp_targets[i]->jmp)
+        free(def->jmp_targets[i]->jmp);
+    }
     free(def->jmp_targets);
+  }
 }
 
 #define RA(i) (base + GETARG_A(i))
@@ -220,7 +226,7 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
   // can generate branch instructions in the code
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
-  def->jmp_targets = (gcc_jit_block **)calloc(n, sizeof(gcc_jit_block *));
+  def->jmp_targets = (ravi_branch_def_t **)calloc(n, sizeof(ravi_branch_def_t *));
   for (pc = 0; pc < n; pc++) {
     Instruction i = code[pc];
     OpCode op = GET_OPCODE(i);
@@ -228,9 +234,11 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
     case OP_LOADBOOL: {
       int C = GETARG_C(i);
       int j = pc + 2; // jump target
-      if (C && !def->jmp_targets[j])
-        def->jmp_targets[j] =
-            gcc_jit_function_new_block(def->jit_function, unique_name(def, "loadbool", j));
+      if (C && !def->jmp_targets[j]) {
+        def->jmp_targets[j] = (ravi_branch_def_t *)calloc(1, sizeof(ravi_branch_def_t));
+        def->jmp_targets[j]->jmp =
+                gcc_jit_function_new_block(def->jit_function, unique_name(def, "loadbool", j));
+      }
     } break;
     case OP_JMP:
     case OP_RAVI_FORPREP_IP:
@@ -254,7 +262,8 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
       if (!def->jmp_targets[j]) {
-        def->jmp_targets[j] =
+        def->jmp_targets[j] = (ravi_branch_def_t *)calloc(1, sizeof(ravi_branch_def_t));
+        def->jmp_targets[j]->jmp =
             gcc_jit_function_new_block(def->jit_function, unique_name(def, targetname, j+1));
       }
     } break;
@@ -346,6 +355,13 @@ static void emit_getL_base_reference(ravi_function_def_t *def,
   ravi_emit_refresh_base(def);
 }
 
+/* Get TValue->value_.i */
+gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def, gcc_jit_rvalue *tv) {
+  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *i = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(value), NULL, def->ravi->types->Value_value_i);
+  return i;
+}
+
 /* Get the Lua function prototype and constants table */
 static void emit_get_proto_and_k(ravi_function_def_t *def) {
   gcc_jit_lvalue *proto = gcc_jit_rvalue_dereference_field(
@@ -371,9 +387,10 @@ static void link_block(ravi_function_def_t *def, int pc) {
   // is unterminated then we simply provide a branch from previous block to the
   // new block
   if (def->jmp_targets[pc]) {
+    assert(def->jmp_targets[pc]->jmp);
     // We are on a jump target
     // Get the block we previously created scan_jump_targets
-    gcc_jit_block *block = def->jmp_targets[pc];
+    gcc_jit_block *block = def->jmp_targets[pc]->jmp;
     if (!def->current_block_terminated) {
       // Previous block not terminated so branch to the
       // new block
@@ -400,7 +417,7 @@ void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *block) {
   def->current_block_terminated = false;
 }
 
-static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi) {
+static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi, Proto *p) {
   def->ravi = ravi;
   def->entry_block = NULL;
   def->function_context = NULL;
@@ -416,6 +433,7 @@ static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi) {
   def->buf[0] = 0;
   def->counter = 1;
   def->name[0] = 0;
+  def->p = p;
 }
 
 // Compile a Lua function
@@ -448,7 +466,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   ravi_gcc_codegen_t *codegen = ravi_state->code_generator;
 
   ravi_function_def_t def;
-  init_def(&def, ravi_state->jit);
+  init_def(&def, ravi_state->jit, p);
 
   if (!create_function(codegen, &def)) {
     p->ravi_jit.jit_status = 1; // can't compile
@@ -484,6 +502,12 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     case OP_LOADK: {
       int Bx = GETARG_Bx(i);
       ravi_emit_LOADK(&def, A, Bx, pc);
+    } break;
+    case OP_RAVI_FORPREP_I1:
+    case OP_RAVI_FORPREP_IP: {
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      ravi_emit_iFORPREP(&def, A, j, op == OP_RAVI_FORPREP_I1);
     } break;
     default:
       break;
