@@ -3,7 +3,7 @@ Ravi Programming Language
 
 Ravi is an experimental derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_, with limited optional static typing and an LLVM based JIT compiler. Ravi is a Sanskrit word that means the Sun.
 
-Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater performance. However, at the same time maintain full compatibility with standard Lua.
+Lua is perfect as a small embeddable dynamic language. So why a derivative? The reason is primarily to extend Lua with static typing for greater performance under JIT compilation. However, at the same time maintain full compatibility with standard Lua.
 
 There are other attempts to add static typing to Lua (e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
@@ -15,12 +15,15 @@ Goals
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * LLVM based JIT compiler
+* Additionally a libgccjit alternative JIT compiler (work in progress)
 
 Status
 ------
 The project was kicked off in January 2015. 
 
-Right now (as of May 2015) I am working on the JIT implementation. Please see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_ for details of this effort. The Lua and Ravi bytecodes currently implemented are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
+Right now (as of June 2015) I am working on the ``libgccjit`` based JIT implementation. 
+
+The LLVM JIT compiler is mostly functional - please see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_ for details of this effort. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
 As of end Jan 2015, the Ravi interpreter allows you to declare local variables as ``integer`` or ``number``. This triggers following behaviour:
 
@@ -71,7 +74,7 @@ An example with arrays::
 
 JIT Compilation
 ---------------
-I am currently working on JIT compilation of Ravi using LLVM. As of now all bytecodes other than bit-wise operators can be compiled, but there are restrictions as described in compatibility section below.
+I am currently working on JIT compilation of Ravi using LLVM (an alternative ``libgccjit`` implementation is also in progress). As of now all bytecodes other than bit-wise operators can be compiled when using LLVM, but there are restrictions as described in compatibility section below. Everything described below relates to using LLVM as the JIT compiler.
 
 There are two modes of JIT compilation.
 
