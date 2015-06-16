@@ -239,16 +239,16 @@ MIT License for LLVM version.
 
 Language Syntax - Future work
 -----------------------------
-I hope to enhance the language to variables to be optionally decorated with types. As the reason for doing so is performance primarily - not all types benefit from this capability. In fact it is quite hard to extend this to generic recursive structures such as tables without encurring significant overhead. For instance - even to represent a recursive type in the parser will require dynamic memory allocation and add great overhead to the parser.
+Since the reason for introducing optional static typing is to enhance performance primarily - not all types benefit from this capability. In fact it is quite hard to extend this to generic recursive structures such as tables without encurring significant overhead. For instance - even to represent a recursive type in the parser will require dynamic memory allocation and add great overhead to the parser.
 
-So as of now the only types that seem worth specializing are:
+From a performance point of view the only types that seem worth specializing are:
 
 * integer (64-bit int)
 * number (double)
 * array of integers
 * array of numbers
 
-Everything else will just be dynamic type as in Lua. However in future we may recognise following types to make the language more user friendly:
+Everything else will just be dynamic type as in Lua. However in future I may enhance Ravi to recognise following types to make the language more user friendly:
 
 * string
 * table 
@@ -256,7 +256,7 @@ Everything else will just be dynamic type as in Lua. However in future we may re
 * nil
 * boolean
 
-And we may end up allowing additionally following types depending on whether they help our goals:
+I may also allow following types depending on whether they help in the goals set for Ravi:
 
 * array of booleans
 * array of strings
