@@ -24,7 +24,7 @@
 #ifndef RAVI_LLVMCODEGEN_H
 #define RAVI_LLVMCODEGEN_H
 
-#ifdef USE_LLVMJIT
+#ifdef USE_LLVM
 
 #include "ravijit.h"
 #include "ravillvm.h"

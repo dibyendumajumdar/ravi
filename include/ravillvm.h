@@ -23,7 +23,7 @@
 #ifndef RAVI_LLVM_H
 #define RAVI_LLVM_H
 
-#ifdef USE_LLVMJIT
+#ifdef USE_LLVM
 
 #include "llvm/Config/llvm-config.h"
 
