@@ -65,7 +65,7 @@ The array types are specializations of Lua table with some additional special be
 
 All type checks are at runtime
 ++++++++++++++++++++++++++++++
-To keep with Lua's dynamic nature Ravu uses a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectually all checks are at runtime. 
+To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectually all checks are at runtime. 
 
 Examples
 ++++++++
