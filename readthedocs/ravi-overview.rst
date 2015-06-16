@@ -1,7 +1,7 @@
 Ravi Programming Language
 =========================
 
-Ravi is an experimental derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_, with limited optional static typing and an `LLVM <http://www.llvm.org/>` based JIT compiler. Ravi is a Sanskrit word that means the Sun.
+Ravi is an experimental derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_, with limited optional static typing and an `LLVM <http://www.llvm.org/>`_ based JIT compiler. Ravi is a Sanskrit word that means the Sun.
 
 Lua is perfect as a small embeddable dynamic language. So why a derivative? Ravi extends Lua with static typing for greater performance under JIT compilation. However, the static typing is optional and therefore Lua programs are also valid Ravi programs.
 
@@ -14,8 +14,8 @@ Goals
 * Optional static typing for Lua 
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
-* `LLVM <http://www.llvm.org/>` based JIT compiler
-* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>` based alternative JIT compiler is in the works
+* `LLVM <http://www.llvm.org/>`_ based JIT compiler
+* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is in the works
 
 Status
 ------
