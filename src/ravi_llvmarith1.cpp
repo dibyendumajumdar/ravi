@@ -32,8 +32,8 @@ namespace ravi {
 void RaviCodeGenerator::emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci,
                                   llvm::Value *proto, int A, int B) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Value *result = def->builder->CreateFNeg(lhs);
   emit_store_reg_n(def, result, ra);
@@ -44,8 +44,8 @@ void RaviCodeGenerator::emit_UNMF(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_UNMI(RaviFunctionDef *def, llvm::Value *L_ci,
                                   llvm::Value *proto, int A, int B) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Value *result = def->builder->CreateNeg(lhs, "", false, true);
   emit_store_reg_i(def, result, ra);
@@ -56,8 +56,8 @@ void RaviCodeGenerator::emit_UNMI(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Value *result = def->builder->CreateFAdd(
       lhs,
@@ -71,9 +71,9 @@ void RaviCodeGenerator::emit_ADDFN(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_ADDFF(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Instruction *rhs = emit_load_reg_n(def, rc);
   llvm::Value *result = def->builder->CreateFAdd(lhs, rhs);
@@ -85,9 +85,9 @@ void RaviCodeGenerator::emit_ADDFF(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_ADDFI(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateFAdd(
@@ -101,9 +101,9 @@ void RaviCodeGenerator::emit_ADDII(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
 
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateAdd(lhs, rhs, "", false, true);
@@ -115,8 +115,8 @@ void RaviCodeGenerator::emit_ADDII(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_ADDIN(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Value *result = def->builder->CreateAdd(
       lhs, llvm::ConstantInt::get(def->types->lua_IntegerT, C), "", false,
@@ -129,9 +129,9 @@ void RaviCodeGenerator::emit_ADDIN(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_SUBFF(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Instruction *rhs = emit_load_reg_n(def, rc);
   llvm::Value *result = def->builder->CreateFSub(lhs, rhs);
@@ -143,9 +143,9 @@ void RaviCodeGenerator::emit_SUBFF(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_SUBFI(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateFSub(
@@ -158,9 +158,9 @@ void RaviCodeGenerator::emit_SUBFI(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_SUBIF(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Instruction *rhs = emit_load_reg_n(def, rc);
   llvm::Value *result = def->builder->CreateFSub(
@@ -173,9 +173,9 @@ void RaviCodeGenerator::emit_SUBIF(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_SUBII(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateSub(lhs, rhs, "", false, true);
@@ -187,8 +187,8 @@ void RaviCodeGenerator::emit_SUBII(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_SUBFN(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Value *result = def->builder->CreateFSub(
       lhs,
@@ -202,8 +202,8 @@ void RaviCodeGenerator::emit_SUBFN(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_SUBNF(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *rhs = emit_load_reg_n(def, rc);
   llvm::Value *result = def->builder->CreateFSub(
       def->builder->CreateSIToFP(llvm::ConstantInt::get(def->types->C_intT, B),
@@ -217,8 +217,8 @@ void RaviCodeGenerator::emit_SUBNF(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_SUBIN(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Value *result = def->builder->CreateSub(
       lhs, llvm::ConstantInt::get(def->types->lua_IntegerT, C), "", false,
@@ -231,8 +231,8 @@ void RaviCodeGenerator::emit_SUBIN(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_SUBNI(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateSub(
       llvm::ConstantInt::get(def->types->lua_IntegerT, C), rhs, "", false,
@@ -245,8 +245,8 @@ void RaviCodeGenerator::emit_SUBNI(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_MULFN(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Value *result = def->builder->CreateFMul(
       lhs,
@@ -260,9 +260,9 @@ void RaviCodeGenerator::emit_MULFN(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_MULFF(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Instruction *rhs = emit_load_reg_n(def, rc);
   llvm::Value *result = def->builder->CreateFMul(lhs, rhs);
@@ -274,9 +274,9 @@ void RaviCodeGenerator::emit_MULFF(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_MULFI(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateFMul(
@@ -290,9 +290,9 @@ void RaviCodeGenerator::emit_MULII(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
 
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateMul(lhs, rhs, "", false, true);
@@ -304,8 +304,8 @@ void RaviCodeGenerator::emit_MULII(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_MULIN(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Value *result = def->builder->CreateMul(
       lhs, llvm::ConstantInt::get(def->types->lua_IntegerT, C), "", false,
@@ -318,9 +318,9 @@ void RaviCodeGenerator::emit_MULIN(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_DIVFF(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Instruction *rhs = emit_load_reg_n(def, rc);
   llvm::Value *result = def->builder->CreateFDiv(lhs, rhs);
@@ -332,9 +332,9 @@ void RaviCodeGenerator::emit_DIVFF(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_DIVFI(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_n(def, rb);
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateFDiv(
@@ -347,9 +347,9 @@ void RaviCodeGenerator::emit_DIVFI(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_DIVIF(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Instruction *rhs = emit_load_reg_n(def, rc);
   llvm::Value *result = def->builder->CreateFDiv(
@@ -362,9 +362,9 @@ void RaviCodeGenerator::emit_DIVIF(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_DIVII(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
   llvm::Value *result = def->builder->CreateFDiv(

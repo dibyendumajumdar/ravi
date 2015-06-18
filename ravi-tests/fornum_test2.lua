@@ -6,7 +6,11 @@ local function x()
   return j
 end
 
-x()
+if ravi then
+  ravi.optlevel(2)
+  assert(ravi.compile(x))
+  -- ravi.dumpllvmasm(x)
+end
 
 local t1 = os.clock()
 local y = x(); 

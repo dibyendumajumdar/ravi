@@ -36,7 +36,7 @@ void RaviCodeGenerator::emit_LOADNIL(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, llvm::Value *L_ci,
                                     llvm::Value *proto, int A) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *dest = emit_gep_register(def, base_ptr, A);
   // destvalue->n = 0.0
   emit_store_reg_n(def, llvm::ConstantFP::get(def->types->lua_NumberT, 0.0),
                    dest);
@@ -48,7 +48,7 @@ void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, llvm::Value *L_ci,
 void RaviCodeGenerator::emit_LOADIZ(RaviFunctionDef *def, llvm::Value *L_ci,
                                     llvm::Value *proto, int A) {
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *dest = emit_gep_register(def, base_ptr, A);
   // dest->i = 0
   emit_store_reg_i(def, def->types->kluaInteger[0], dest);
   // dest->type = LUA_TNUMINT
@@ -64,7 +64,7 @@ void RaviCodeGenerator::emit_LOADBOOL(RaviFunctionDef *def, llvm::Value *L_ci,
   // if (GETARG_C(i)) ci->u.l.savedpc++;  /* skip next instruction (if C) */
 
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *dest = emit_gep_register(def, base_ptr, A);
   // dest->i = 0
   emit_store_reg_b(def, llvm::ConstantInt::get(def->types->C_intT, B), dest);
   // dest->type = LUA_TBOOLEAN
@@ -88,8 +88,8 @@ void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci,
 
   lua_assert(A != B);
 
-  llvm::Value *src = emit_gep_ra(def, base_ptr, B);
-  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *src = emit_gep_register(def, base_ptr, B);
+  llvm::Value *dest = emit_gep_register(def, base_ptr, A);
   emit_assign(def, dest, src);
 }
 
@@ -111,8 +111,8 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
   // Load pointer to base
   llvm::Instruction *base_ptr = emit_load_base(def);
 
-  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *src = emit_gep_ra(def, base_ptr, B);
+  llvm::Value *dest = emit_gep_register(def, base_ptr, A);
+  llvm::Value *src = emit_gep_register(def, base_ptr, B);
 
   llvm::Value *src_type = emit_load_type(def, src);
 
@@ -183,8 +183,8 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci,
   // Load pointer to base
   llvm::Instruction *base_ptr = emit_load_base(def);
 
-  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *src = emit_gep_ra(def, base_ptr, B);
+  llvm::Value *dest = emit_gep_register(def, base_ptr, A);
+  llvm::Value *src = emit_gep_register(def, base_ptr, B);
 
   llvm::Value *src_type = emit_load_type(def, src);
 
@@ -255,7 +255,7 @@ void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, llvm::Value *L_ci,
   // Load pointer to base
   llvm::Instruction *base_ptr = emit_load_base(def);
 
-  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *dest = emit_gep_register(def, base_ptr, A);
   llvm::Value *src = dest;
 
   llvm::Value *src_type = emit_load_type(def, src);
@@ -320,7 +320,7 @@ void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci,
   // Load pointer to base
   llvm::Instruction *base_ptr = emit_load_base(def);
 
-  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *dest = emit_gep_register(def, base_ptr, A);
   llvm::Value *src = dest;
 
   llvm::Value *src_type = emit_load_type(def, src);
@@ -381,7 +381,7 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
   // LOADK requires a structure assignment
   // in LLVM as far as I can tell this requires a call to
   // an intrinsic memcpy
-  llvm::Value *dest = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *dest = emit_gep_register(def, base_ptr, A);
 
   llvm::Value *src;
   if (Bx == 0) {

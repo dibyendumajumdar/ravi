@@ -133,16 +133,18 @@ function matrix.print(a)
   end
 end
 
-assert(ravi.compile(cast))
-assert(ravi.compile(matrix.gen))
-assert(ravi.compile(matrix.mul))
-assert(ravi.compile(matrix.mul2))
-assert(ravi.compile(matrix.T))
-assert(ravi.compile(matrix.cols))
-assert(ravi.compile(matrix.rows))
-assert(ravi.compile(matrix.getdata))
-assert(ravi.compile(matrix.getrow))
-assert(ravi.compile(matrix.new))
+if ravi.jit() then
+  assert(ravi.compile(cast))
+  assert(ravi.compile(matrix.gen))
+  assert(ravi.compile(matrix.mul))
+  assert(ravi.compile(matrix.mul2))
+  assert(ravi.compile(matrix.T))
+  assert(ravi.compile(matrix.cols))
+  assert(ravi.compile(matrix.rows))
+  assert(ravi.compile(matrix.getdata))
+  assert(ravi.compile(matrix.getrow))
+  assert(ravi.compile(matrix.new))
+end
 
 local n = arg[1] or 100;
 n = math.floor(n/2) * 2;

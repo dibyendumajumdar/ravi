@@ -89,9 +89,9 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
   //  TValue *init = ra;
   //  TValue *plimit = ra + 1;
   //  TValue *pstep = ra + 2;
-  llvm::Value *init = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *plimit = emit_gep_ra(def, base_ptr, A + 1);
-  llvm::Value *pstep = emit_gep_ra(def, base_ptr, A + 2);
+  llvm::Value *init = emit_gep_register(def, base_ptr, A);
+  llvm::Value *plimit = emit_gep_register(def, base_ptr, A + 1);
+  llvm::Value *pstep = emit_gep_register(def, base_ptr, A + 2);
 
   //  if (ttisinteger(init) && ttisinteger(pstep) &&
   //    forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
@@ -445,9 +445,9 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   //  TValue *init = ra;
   //  TValue *plimit = ra + 1;
   //  TValue *pstep = ra + 2;
-  llvm::Value *init = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *plimit = emit_gep_ra(def, base_ptr, A + 1);
-  llvm::Value *pstep = emit_gep_ra(def, base_ptr, A + 2);
+  llvm::Value *init = emit_gep_register(def, base_ptr, A);
+  llvm::Value *plimit = emit_gep_register(def, base_ptr, A + 1);
+  llvm::Value *pstep = emit_gep_register(def, base_ptr, A + 2);
 
   //  if (ttisinteger(init) && ttisinteger(pstep) &&
   //    forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
@@ -727,11 +727,11 @@ void RaviCodeGenerator::emit_iFORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
 
   //  TValue *init = ra;
   //  TValue *pstep = ra + 2;
-  llvm::Value *init = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *plimit = emit_gep_ra(def, base_ptr, A + 1);
+  llvm::Value *init = emit_gep_register(def, base_ptr, A);
+  llvm::Value *plimit = emit_gep_register(def, base_ptr, A + 1);
   llvm::Value *pstep = nullptr;
   if (!step_one)
-    pstep = emit_gep_ra(def, base_ptr, A + 2);
+    pstep = emit_gep_register(def, base_ptr, A + 2);
 
   // Get ivalue(pstep)
   llvm::Instruction *limit_ivalue = emit_load_reg_i(def, plimit);

@@ -48,9 +48,9 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
 
   llvm::Value *rb_type = emit_load_type(def, rb);
   llvm::Value *rc_type = emit_load_type(def, rc);
@@ -246,9 +246,9 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
 
   llvm::Value *rb_type = emit_load_type(def, rb);
   llvm::Value *rc_type = emit_load_type(def, rc);
@@ -440,9 +440,9 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
 
   llvm::Value *rb_type = emit_load_type(def, rb);
   llvm::Value *rc_type = emit_load_type(def, rc);
@@ -600,9 +600,9 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
 
   llvm::Value *rb_type = emit_load_type(def, rb);
   llvm::Value *rc_type = emit_load_type(def, rc);
@@ -733,8 +733,8 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
 
   llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
 
   llvm::Value *rb_type = emit_load_type(def, rb);
 
