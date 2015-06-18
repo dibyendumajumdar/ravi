@@ -657,6 +657,12 @@ public:
   llvm::Value *emit_gep_register_or_constant(RaviFunctionDef *def, llvm::Instruction *base,
                             int B);
 
+  // obtain address of L->top
+  llvm::Value *emit_gep_L_top(RaviFunctionDef *def);
+
+  // (int)(L->top - ra)
+  llvm::Value *emit_num_stack_elements(RaviFunctionDef *def, llvm::Value *L_top, llvm::Value *ra);
+
   // emit code to load the lua_Number value from register
   llvm::Instruction *emit_load_reg_n(RaviFunctionDef *def, llvm::Value *ra);
 

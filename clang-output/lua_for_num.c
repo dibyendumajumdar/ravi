@@ -235,6 +235,9 @@ label_forloop:
   ra = base + 0;
   // if (b)
   L->top = ra + b - 1;
+
+  printf("ptr diff %d\n", (int)(ra-L->top));
+
   if (cl->p->sizep > 0)
     luaF_close(L, base);
   b = luaD_poscall(L, ra);

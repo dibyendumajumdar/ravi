@@ -432,6 +432,11 @@ void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def) {
   ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
 }
 
+llvm::Value *RaviCodeGenerator::emit_gep_L_top(RaviFunctionDef *def) {
+  // Get pointer to L->top
+  return  emit_gep(def, "L.top", def->L, 0, 4);
+}
+
 // L->top = R(B)
 void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def,
                                              llvm::Instruction *base_ptr,
@@ -439,11 +444,21 @@ void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def,
   // Get pointer to register at R(B)
   llvm::Value *ptr = emit_gep_register(def, base_ptr, B);
   // Get pointer to L->top
-  llvm::Value *top = emit_gep(def, "L.top", def->L, 0, 4);
+  llvm::Value *top = emit_gep_L_top(def);
   // Assign to L->top
   llvm::Instruction *ins = def->builder->CreateStore(ptr, top);
   ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
 }
+
+// (int)(L->top - ra)
+llvm::Value *RaviCodeGenerator::emit_num_stack_elements(RaviFunctionDef *def, llvm::Value *L_top, llvm::Value *ra) {
+  llvm::Instruction *top_ptr = def->builder->CreateLoad(L_top, "L_top");
+  llvm::Value *top_asint = def->builder->CreatePtrToInt(top_ptr, def->types->C_intptr_t, "L_top_as_intptr");
+  llvm::Value *ra_asint = def->builder->CreatePtrToInt(ra, def->types->C_intptr_t, "ra_as_intptr");
+  llvm::Value *result = def->builder->CreateSub(top_asint, ra_asint, "num_stack_elements");
+  return def->builder->CreateTrunc(result, def->types->C_intT, "num_stack_elements");
+}
+
 
 // Check if we can compile
 // The cases we can compile will increase over time
