@@ -53,12 +53,12 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *base_ptr = emit_load_base(def);
 
   // Get pointer to register A
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *ra1 = emit_gep_ra(def, base_ptr, A + 1);
-  llvm::Value *ra2 = emit_gep_ra(def, base_ptr, A + 2);
-  llvm::Value *cb = emit_gep_ra(def, base_ptr, A + 3);
-  llvm::Value *cb1 = emit_gep_ra(def, base_ptr, A + 4);
-  llvm::Value *cb2 = emit_gep_ra(def, base_ptr, A + 5);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *ra1 = emit_gep_register(def, base_ptr, A + 1);
+  llvm::Value *ra2 = emit_gep_register(def, base_ptr, A + 2);
+  llvm::Value *cb = emit_gep_register(def, base_ptr, A + 3);
+  llvm::Value *cb1 = emit_gep_register(def, base_ptr, A + 4);
+  llvm::Value *cb2 = emit_gep_register(def, base_ptr, A + 5);
 
   emit_assign(def, cb2, ra2);
   emit_assign(def, cb1, ra1);
@@ -74,8 +74,8 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, llvm::Value *L_ci,
   base_ptr = emit_load_base(def);
   // L->top = ci->top;
   emit_refresh_L_top(def);
-  ra = emit_gep_ra(def, base_ptr, jA);
-  ra1 = emit_gep_ra(def, base_ptr, jA + 1);
+  ra = emit_gep_register(def, base_ptr, jA);
+  ra1 = emit_gep_register(def, base_ptr, jA + 1);
   llvm::Value *type = emit_load_type(def, ra1);
 
   // Test if type != LUA_TNIL (0)
@@ -112,8 +112,8 @@ void RaviCodeGenerator::emit_TFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *base_ptr = emit_load_base(def);
 
   // Get pointer to register A
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
-  llvm::Value *ra1 = emit_gep_ra(def, base_ptr, A + 1);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *ra1 = emit_gep_register(def, base_ptr, A + 1);
   llvm::Value *type = emit_load_type(def, ra1);
 
   // Test if type != LUA_TNIL (0)

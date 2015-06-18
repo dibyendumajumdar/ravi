@@ -51,13 +51,11 @@ extern "C" {
 #include "ldebug.h"
 #include "ldo.h"
 #include "lfunc.h"
-//#include "lgc.h"
 #include "lobject.h"
 #include "lopcodes.h"
 #include "lstate.h"
 #include "lstring.h"
 #include "ltable.h"
-//#include "ltm.h"
 #include "lvm.h"
 
 #ifdef __cplusplus
@@ -652,11 +650,11 @@ public:
   llvm::Instruction *emit_load_base(RaviFunctionDef *def);
 
   // emit code to obtain address of register at location A
-  llvm::Value *emit_gep_ra(RaviFunctionDef *def, llvm::Instruction *base,
+  llvm::Value *emit_gep_register(RaviFunctionDef *def, llvm::Instruction *base,
                            int A);
 
   // emit code to obtain address of register or constant at location B
-  llvm::Value *emit_gep_rkb(RaviFunctionDef *def, llvm::Instruction *base,
+  llvm::Value *emit_gep_register_or_constant(RaviFunctionDef *def, llvm::Instruction *base,
                             int B);
 
   // emit code to load the lua_Number value from register

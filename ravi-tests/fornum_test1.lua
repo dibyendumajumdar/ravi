@@ -8,7 +8,7 @@ end
 if ravi then
   ravi.optlevel(2)
   assert(ravi.compile(x))
-  ravi.dumpllvmasm(x)
+  -- ravi.dumpllvmasm(x)
 end
 
 local t1 = os.clock()

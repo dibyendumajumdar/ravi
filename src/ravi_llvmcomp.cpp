@@ -44,9 +44,9 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *base_ptr = emit_load_base(def);
 
   // Get pointer to register B
-  llvm::Value *lhs_ptr = emit_gep_rkb(def, base_ptr, B);
+  llvm::Value *lhs_ptr = emit_gep_register_or_constant(def, base_ptr, B);
   // Get pointer to register C
-  llvm::Value *rhs_ptr = emit_gep_rkb(def, base_ptr, C);
+  llvm::Value *rhs_ptr = emit_gep_register_or_constant(def, base_ptr, C);
 
   // Call luaV_equalobj with register B and C
   llvm::Value *result =
@@ -159,7 +159,7 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *base_ptr = emit_load_base(def);
 
   // Get pointer to register A
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
   // v = C ? is_false(ra) : !is_false(ra)
   llvm::Value *v = C ? emit_boolean_testfalse(def, ra, false)
                      : emit_boolean_testfalse(def, ra, true);
@@ -203,10 +203,10 @@ void RaviCodeGenerator::emit_NOT(RaviFunctionDef *def, llvm::Value *L_ci,
   //  } break;
   llvm::Instruction *base_ptr = emit_load_base(def);
   // Get pointer to register B
-  llvm::Value *rb = emit_gep_ra(def, base_ptr, B);
+  llvm::Value *rb = emit_gep_register(def, base_ptr, B);
   llvm::Value *v = emit_boolean_testfalse(def, rb, false);
   llvm::Value *result = def->builder->CreateZExt(v, def->types->C_intT, "i");
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
   emit_store_reg_b(def, result, ra);
   emit_store_type(def, ra, LUA_TBOOLEAN);
 }
@@ -229,7 +229,7 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, llvm::Value *L_ci,
   llvm::Instruction *base_ptr = emit_load_base(def);
 
   // Get pointer to register B
-  llvm::Value *rb = emit_gep_ra(def, base_ptr, B);
+  llvm::Value *rb = emit_gep_register(def, base_ptr, B);
   // v = C ? is_false(ra) : !is_false(ra)
   llvm::Value *v = C ? emit_boolean_testfalse(def, rb, false)
                      : emit_boolean_testfalse(def, rb, true);
@@ -245,7 +245,7 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(then_block);
 
   // Get pointer to register A
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
   emit_assign(def, ra, rb);
 
   // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);

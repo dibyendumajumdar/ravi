@@ -45,7 +45,7 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int j) {
   if (A > 0) {
     llvm::Instruction *base = emit_load_base(def);
     // base + a - 1
-    llvm::Value *val = emit_gep_ra(def, base, A - 1);
+    llvm::Value *val = emit_gep_register(def, base, A - 1);
     // Call luaF_close
     CreateCall2(def->builder, def->luaF_closeF, def->L, val);
   }
@@ -88,7 +88,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci,
   // 0 - Run interpreter on Lua function
 
   // int c = luaD_precall(L, ra, nresults);  /* C or JITed function? */
-  llvm::Value *ra = emit_gep_ra(def, base_ptr, A);
+  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
   llvm::Value *precall_result =
       CreateCall3(def->builder, def->luaD_precallF, def->L, ra,
                   llvm::ConstantInt::get(def->types->C_intT, nresults));

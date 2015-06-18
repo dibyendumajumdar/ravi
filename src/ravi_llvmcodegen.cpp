@@ -146,7 +146,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_base(RaviFunctionDef *def) {
 }
 
 // emit code to obtain address of register at location A
-llvm::Value *RaviCodeGenerator::emit_gep_ra(RaviFunctionDef *def,
+llvm::Value *RaviCodeGenerator::emit_gep_register(RaviFunctionDef *def,
                                             llvm::Instruction *base_ptr,
                                             int A) {
   llvm::Value *dest;
@@ -397,7 +397,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_local_int(RaviFunctionDef *def,
 }
 
 // emit code to obtain address of register or constant at location B
-llvm::Value *RaviCodeGenerator::emit_gep_rkb(RaviFunctionDef *def,
+llvm::Value *RaviCodeGenerator::emit_gep_register_or_constant(RaviFunctionDef *def,
                                              llvm::Instruction *base_ptr,
                                              int B) {
   // Load pointer to k
@@ -437,7 +437,7 @@ void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def,
                                              llvm::Instruction *base_ptr,
                                              int B) {
   // Get pointer to register at R(B)
-  llvm::Value *ptr = emit_gep_ra(def, base_ptr, B);
+  llvm::Value *ptr = emit_gep_register(def, base_ptr, B);
   // Get pointer to L->top
   llvm::Value *top = emit_gep(def, "L.top", def->L, 0, 4);
   // Assign to L->top
