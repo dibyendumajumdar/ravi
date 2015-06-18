@@ -151,8 +151,10 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
     fprintf(stderr, "error creating child context\n");
     goto on_error;
   }
-  gcc_jit_context_set_bool_option(def->function_context,
-                                  GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
+  //gcc_jit_context_set_bool_option(def->function_context,
+  //                                GCC_JIT_BOOL_OPTION_DUMP_EVERYTHING, 1);
+  //gcc_jit_context_set_bool_option(def->function_context,
+  //                                GCC_JIT_BOOL_OPTION_KEEP_INTERMEDIATES, 1);
   gcc_jit_context_set_int_option(def->function_context,
                                 GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, 3);
 
@@ -535,6 +537,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   }
 
   gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
+  //gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
+  //gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
 
   if (gcc_jit_context_get_first_error(def.function_context)) {
     fprintf(stderr, "aborting due to JIT error: %s\n",
@@ -564,8 +568,6 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   status = true;
 
 on_error:
-  gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
-  gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
 
   free_function_def(&def);
 
