@@ -21,3 +21,29 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 
+#include <ravi_gccjit.h>
+
+// R(A) := RK(B) + C, result is floating
+void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C) {
+  // Load pointer to base
+  ravi_emit_refresh_base(def);
+
+  // ra
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+
+  // rb
+  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+
+  // rb->value_.n
+  gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
+
+  gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(def->function_context, NULL, GCC_JIT_BINARY_OP_PLUS,
+                                                         def->ravi->types->lua_NumberT,
+                                                         gcc_jit_lvalue_as_rvalue(lhs),
+                                                         gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                                                                             def->ravi->types->lua_NumberT,
+                                                                                             C));
+
+  ravi_emit_store_reg_n_withtype(def, ra, result);
+}
+

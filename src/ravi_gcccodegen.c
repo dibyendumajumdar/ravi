@@ -55,9 +55,11 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_FORPREP_IP:
     case OP_RAVI_FORPREP_I1:
     case OP_MOVE:
+    case OP_LOADNIL:
+    case OP_RAVI_LOADFZ:
+    case OP_RAVI_ADDFN:
       break;
     case OP_LOADKX:
-    case OP_LOADNIL:
     case OP_LOADBOOL:
     case OP_CALL:
     case OP_TAILCALL:
@@ -99,9 +101,7 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_MOVEF:
     case OP_RAVI_TOINT:
     case OP_RAVI_TOFLT:
-    case OP_RAVI_LOADFZ:
     case OP_RAVI_LOADIZ:
-    case OP_RAVI_ADDFN:
     case OP_RAVI_ADDIN:
     case OP_RAVI_ADDFF:
     case OP_RAVI_ADDFI:
@@ -151,12 +151,12 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
     fprintf(stderr, "error creating child context\n");
     goto on_error;
   }
-  gcc_jit_context_set_bool_option(def->function_context,
-                                  GCC_JIT_BOOL_OPTION_DUMP_EVERYTHING, 1);
-  gcc_jit_context_set_bool_option(def->function_context,
-                                  GCC_JIT_BOOL_OPTION_KEEP_INTERMEDIATES, 1);
   //gcc_jit_context_set_bool_option(def->function_context,
-  //                                GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
+  //                                GCC_JIT_BOOL_OPTION_DUMP_EVERYTHING, 1);
+  //gcc_jit_context_set_bool_option(def->function_context,
+  //                                GCC_JIT_BOOL_OPTION_KEEP_INTERMEDIATES, 1);
+  gcc_jit_context_set_bool_option(def->function_context,
+                                  GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
   gcc_jit_context_set_int_option(def->function_context,
                                 GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, 3);
 
@@ -353,6 +353,13 @@ gcc_jit_rvalue *ravi_emit_get_constant(ravi_function_def_t* def, int Bx) {
   return gcc_jit_lvalue_get_address(kst, NULL);
 }
 
+gcc_jit_rvalue *ravi_emit_get_register_or_constant(ravi_function_def_t* def, int B) {
+  if (ISK(B))
+    return ravi_emit_get_constant(def, INDEXK(B));
+  else
+    return ravi_emit_get_register(def, B);
+}
+
 // L->top = R(B)
 void ravi_emit_set_L_top_toreg(ravi_function_def_t *def, int B) {
   // Get pointer to register at R(B)
@@ -384,11 +391,28 @@ gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def, gcc_jit_rvalue *t
   return i;
 }
 
+/* Get TValue->value_.n */
+gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def, gcc_jit_rvalue *tv) {
+  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *n = gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_n);
+  return n;
+}
+
+
 void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, gcc_jit_rvalue *ivalue) {
   gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_value);
   gcc_jit_lvalue *i = gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_i);
   gcc_jit_block_add_assignment(def->current_block, NULL, i, ivalue);
   gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, LUA_TNUMINT);
+  gcc_jit_lvalue *tt = gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
+  gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
+}
+
+void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, gcc_jit_rvalue *nvalue) {
+  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *n = gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_n);
+  gcc_jit_block_add_assignment(def->current_block, NULL, n, nvalue);
+  gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, LUA_TNUMFLT);
   gcc_jit_lvalue *tt = gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
   gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
 }
@@ -431,6 +455,49 @@ static void link_block(ravi_function_def_t *def, int pc) {
     def->current_block = block;
     def->current_block_terminated = false;
   }
+}
+
+gcc_jit_rvalue *ravi_function_call5_rvalue(ravi_function_def_t *def,
+                                           gcc_jit_function *f,
+                                           gcc_jit_rvalue *arg1,
+                                           gcc_jit_rvalue *arg2,
+                                           gcc_jit_rvalue *arg3,
+                                           gcc_jit_rvalue *arg4,
+                                           gcc_jit_rvalue *arg5) {
+  gcc_jit_rvalue *args[5];
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = arg4;
+  args[4] = arg5;
+  return gcc_jit_context_new_call(def->function_context, NULL, f, 5, args);
+}
+
+gcc_jit_rvalue *ravi_function_call4_rvalue(ravi_function_def_t *def,
+                                           gcc_jit_function *f,
+                                           gcc_jit_rvalue *arg1,
+                                           gcc_jit_rvalue *arg2,
+                                           gcc_jit_rvalue *arg3,
+                                           gcc_jit_rvalue *arg4) {
+  gcc_jit_rvalue *args[4];
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = arg4;
+  return gcc_jit_context_new_call(def->function_context, NULL, f, 4, args);
+}
+
+
+gcc_jit_rvalue *ravi_function_call3_rvalue(ravi_function_def_t *def,
+                                           gcc_jit_function *f,
+                                           gcc_jit_rvalue *arg1,
+                                           gcc_jit_rvalue *arg2,
+                                           gcc_jit_rvalue *arg3) {
+  gcc_jit_rvalue *args[3];
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  return gcc_jit_context_new_call(def->function_context, NULL, f, 3, args);
 }
 
 gcc_jit_rvalue *ravi_function_call2_rvalue(ravi_function_def_t *def,
@@ -551,14 +618,26 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int B = GETARG_B(i);
       ravi_emit_MOVE(&def, A, B);
     } break;
+    case OP_LOADNIL: {
+      int B = GETARG_B(i);
+      ravi_emit_LOADNIL(&def, A, B);
+    } break;
+    case OP_RAVI_LOADFZ: {
+      ravi_emit_LOADFZ(&def, A);
+    } break;
+    case OP_RAVI_ADDFN: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_ADDFN(&def, A, B, C);
+    } break;
     default:
-      break;
+    break;
     }
   }
 
   gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
-  gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
-  gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
+  //gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
+  //gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
 
   if (gcc_jit_context_get_first_error(def.function_context)) {
     fprintf(stderr, "aborting due to JIT error: %s\n",

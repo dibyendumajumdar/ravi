@@ -418,6 +418,8 @@ extern gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t* def, int A);
 
 extern gcc_jit_rvalue *ravi_emit_get_constant(ravi_function_def_t* def, int Bx);
 
+extern gcc_jit_rvalue *ravi_emit_get_register_or_constant(ravi_function_def_t* def, int B);
+
 extern void ravi_emit_set_L_top_toreg(ravi_function_def_t *A, int B);
 
 extern gcc_jit_lvalue *ravi_emit_get_Proto_sizep(ravi_function_def_t *def);
@@ -426,13 +428,38 @@ extern void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *bloc
 
 extern gcc_jit_rvalue *ravi_function_call2_rvalue(ravi_function_def_t *def, gcc_jit_function *f, gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2);
 
+extern gcc_jit_rvalue *ravi_function_call5_rvalue(ravi_function_def_t *def,
+                                                  gcc_jit_function *f,
+                                                  gcc_jit_rvalue *arg1,
+                                                  gcc_jit_rvalue *arg2,
+                                                  gcc_jit_rvalue *arg3,
+                                                  gcc_jit_rvalue *arg4,
+                                                  gcc_jit_rvalue *arg5);
+
+extern gcc_jit_rvalue *ravi_function_call4_rvalue(ravi_function_def_t *def,
+                                                  gcc_jit_function *f,
+                                                  gcc_jit_rvalue *arg1,
+                                                  gcc_jit_rvalue *arg2,
+                                                  gcc_jit_rvalue *arg3,
+                                                  gcc_jit_rvalue *arg4);
+
+extern gcc_jit_rvalue *ravi_function_call3_rvalue(ravi_function_def_t *def,
+                                                  gcc_jit_function *f,
+                                                  gcc_jit_rvalue *arg1,
+                                                  gcc_jit_rvalue *arg2,
+                                                  gcc_jit_rvalue *arg3);
+
 extern const char *unique_name(ravi_function_def_t *def, const char *prefix, int pc);
 
 extern void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue* dest, gcc_jit_rvalue *src);
 
 extern gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def, gcc_jit_rvalue *value);
 
+extern gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def, gcc_jit_rvalue *tv);
+
 extern void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, gcc_jit_rvalue *ivalue);
+
+extern void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, gcc_jit_rvalue *nvalue);
 
 extern void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc);
 
@@ -444,6 +471,12 @@ extern void ravi_emit_iFORPREP(ravi_function_def_t *def, int A, int pc,
 extern void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc, ravi_branch_def_t *b, int step_one);
 
 extern void ravi_emit_MOVE(ravi_function_def_t *def, int A, int B);
+
+extern void ravi_emit_LOADNIL(ravi_function_def_t *def, int A, int B);
+
+extern void ravi_emit_LOADFZ(ravi_function_def_t *def, int A);
+
+extern void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C);
 
 #ifdef __cplusplus
 };
