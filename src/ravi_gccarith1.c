@@ -37,13 +37,13 @@ void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C) {
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
 
-  gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(def->function_context, NULL, GCC_JIT_BINARY_OP_PLUS,
-                                                         def->ravi->types->lua_NumberT,
-                                                         gcc_jit_lvalue_as_rvalue(lhs),
-                                                         gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                                                                             def->ravi->types->lua_NumberT,
-                                                                                             C));
-
+  // result = rb->value_.n + (double)C
+  gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
+      def->function_context, NULL, GCC_JIT_BINARY_OP_PLUS,
+      def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->lua_NumberT, C));
+  // ra->value_.n = result
+  // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, ra, result);
 }
-

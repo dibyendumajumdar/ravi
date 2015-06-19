@@ -250,7 +250,7 @@ void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
     module_->setDataLayout(target_layout);
     FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
 #elif LLVM_VERSION_MINOR == 7
-    // Apparently no need to set DataLayout
+// Apparently no need to set DataLayout
 #else
 #error Unsupported LLVM version
 #endif
@@ -363,7 +363,6 @@ std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
 
 #endif
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -406,7 +405,8 @@ void raviV_close(struct lua_State *L) {
 
 // Compile a Lua function
 // If JIT is turned off then compilation is skipped
-// Compilation occurs if either auto compilation is ON (subject to some thresholds) 
+// Compilation occurs if either auto compilation is ON (subject to some
+// thresholds)
 // or if a manual compilation request was made
 // Returns true if compilation was successful
 int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
@@ -423,10 +423,15 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   if (!doCompile && G->ravi_state->jit->is_auto()) {
     if (p->ravi_jit.jit_flags != 0) /* function has fornum loop, so compile */
       doCompile = true;
-    else if (p->sizecode > G->ravi_state->jit->get_mincodesize()) /* function is long so compile */
+    else if (p->sizecode >
+             G->ravi_state->jit
+                 ->get_mincodesize()) /* function is long so compile */
       doCompile = true;
     else {
-      if (p->ravi_jit.execution_count < G->ravi_state->jit->get_minexeccount()) /* function has been executed many times so compile */
+      if (p->ravi_jit.execution_count <
+          G->ravi_state
+              ->jit->get_minexeccount()) /* function has been executed many
+                                            times so compile */
         p->ravi_jit.execution_count++;
       else
         doCompile = true;
@@ -549,7 +554,6 @@ int raviV_sizelevel(lua_State *L) {
   return 1;
 }
 
-
 #else
 
 // TODO we probably do not need all the headers
@@ -567,7 +571,6 @@ int raviV_sizelevel(lua_State *L) {
 
 #include "ravi_gccjit.h"
 
-
 // Initialize the JIT State and attach it to the
 // Global Lua State
 // If a JIT State already exists then this function
@@ -578,8 +581,7 @@ int raviV_initjit(struct lua_State *L) {
     return -1;
   ravi_State *jit = (ravi_State *)calloc(1, sizeof(ravi_State));
   jit->jit = ravi_jit_new_context();
-  jit->code_generator =
-          ravi_jit_new_codegen(jit->jit);
+  jit->code_generator = ravi_jit_new_codegen(jit->jit);
   G->ravi_state = jit;
   return 0;
 }
@@ -594,38 +596,25 @@ void raviV_close(struct lua_State *L) {
   free(G->ravi_state);
 }
 
-
 // Dump the LLVM IR
-void raviV_dumpllvmir(struct lua_State *L, struct Proto *p) {
-}
+void raviV_dumpllvmir(struct lua_State *L, struct Proto *p) {}
 
 // Dump the LLVM ASM
-void raviV_dumpllvmasm(struct lua_State *L, struct Proto *p) {
-}
+void raviV_dumpllvmasm(struct lua_State *L, struct Proto *p) {}
 
 // Turn on/off auto JIT compilation
-int raviV_auto(lua_State *L) {
-  return 0;
-}
+int raviV_auto(lua_State *L) { return 0; }
 
 // Turn on/off the JIT compiler
-int raviV_jitenable(lua_State *L) {
-    return 0;
-}
+int raviV_jitenable(lua_State *L) { return 0; }
 
 // Set LLVM optimization level
-int raviV_optlevel(lua_State *L) {
-    return 0;
-}
+int raviV_optlevel(lua_State *L) { return 0; }
 
 // Set LLVM code size level
-int raviV_sizelevel(lua_State *L) {
-    return 0;
-}
-
+int raviV_sizelevel(lua_State *L) { return 0; }
 
 #endif
-
 
 // Test if the given function is compiled
 static int ravi_is_compiled(lua_State *L) {
@@ -641,7 +630,7 @@ static int ravi_is_compiled(lua_State *L) {
 
 // Try to JIT compile the given function
 // Optional boolean (second) parameter specifies whether
-// to dump the code generation 
+// to dump the code generation
 static int ravi_compile(lua_State *L) {
   int n = lua_gettop(L);
   luaL_argcheck(L, n >= 1, 1, "1 or 2 arguments expected");
@@ -649,7 +638,7 @@ static int ravi_compile(lua_State *L) {
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = reinterpret_cast<LClosure *>(p);
-  int manualRequest = 1; 
+  int manualRequest = 1;
   // Is there a second boolean parameter requesting
   // dump of code generation?
   int dumpAsm = (n == 2) ? lua_toboolean(L, 2) : 0;
@@ -695,24 +684,16 @@ static int ravi_dump_llvmasm(lua_State *L) {
 }
 
 // Turn on/off auto JIT compilation
-static int ravi_auto(lua_State *L) {
-  return raviV_auto(L);
-}
+static int ravi_auto(lua_State *L) { return raviV_auto(L); }
 
 // Turn on/off the JIT compiler
-static int ravi_jitenable(lua_State *L) {
-  return raviV_jitenable(L);
-}
+static int ravi_jitenable(lua_State *L) { return raviV_jitenable(L); }
 
 // Set LLVM optimization level
-static int ravi_optlevel(lua_State *L) {
-  return raviV_optlevel(L);
-}
+static int ravi_optlevel(lua_State *L) { return raviV_optlevel(L); }
 
 // Set LLVM code size level
-static int ravi_sizelevel(lua_State *L) {
-  return raviV_sizelevel(L);
-}
+static int ravi_sizelevel(lua_State *L) { return raviV_sizelevel(L); }
 
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"compile", ravi_compile},

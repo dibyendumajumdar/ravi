@@ -73,3 +73,5 @@ local sum, flips = fannkuch(n)
 local t2 = os.clock()
 io.write(sum, "\nPfannkuchen(", n, ") = ", flips, "\n")
 io.write("elapsed time in secs ", (t2-t1), "\n")
+
+-- ravi.dumplua(fannkuch)

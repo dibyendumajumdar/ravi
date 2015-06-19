@@ -25,7 +25,8 @@
 
 // Create a unique function name in the context
 // of this generator
-static const char *unique_function_name(ravi_function_def_t* def, ravi_gcc_codegen_t *cg) {
+static const char *unique_function_name(ravi_function_def_t *def,
+                                        ravi_gcc_codegen_t *cg) {
   snprintf(def->name, sizeof def->name, "ravif%d", cg->id++);
   return def->name;
 }
@@ -151,14 +152,14 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
     fprintf(stderr, "error creating child context\n");
     goto on_error;
   }
-  //gcc_jit_context_set_bool_option(def->function_context,
+  // gcc_jit_context_set_bool_option(def->function_context,
   //                                GCC_JIT_BOOL_OPTION_DUMP_EVERYTHING, 1);
-  //gcc_jit_context_set_bool_option(def->function_context,
+  // gcc_jit_context_set_bool_option(def->function_context,
   //                                GCC_JIT_BOOL_OPTION_KEEP_INTERMEDIATES, 1);
   gcc_jit_context_set_bool_option(def->function_context,
                                   GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
   gcc_jit_context_set_int_option(def->function_context,
-                                GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, 3);
+                                 GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, 3);
 
   /* each function is given a unique name - as Lua functions are closures and do
    * not really have names */
@@ -180,7 +181,6 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
                                          def->ravi->types->pTValueT, "base");
   def->lua_closure_val = gcc_jit_function_new_local(
       def->jit_function, NULL, def->ravi->types->pLClosureT, "cl");
-
 
   return true;
 
@@ -230,7 +230,8 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
   // can generate branch instructions in the code
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
-  def->jmp_targets = (ravi_branch_def_t **)calloc(n, sizeof(ravi_branch_def_t *));
+  def->jmp_targets =
+      (ravi_branch_def_t **)calloc(n, sizeof(ravi_branch_def_t *));
   for (pc = 0; pc < n; pc++) {
     Instruction i = code[pc];
     OpCode op = GET_OPCODE(i);
@@ -239,9 +240,10 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
       int C = GETARG_C(i);
       int j = pc + 2; // jump target
       if (C && !def->jmp_targets[j]) {
-        def->jmp_targets[j] = (ravi_branch_def_t *)calloc(1, sizeof(ravi_branch_def_t));
-        def->jmp_targets[j]->jmp =
-                gcc_jit_function_new_block(def->jit_function, unique_name(def, "loadbool", j));
+        def->jmp_targets[j] =
+            (ravi_branch_def_t *)calloc(1, sizeof(ravi_branch_def_t));
+        def->jmp_targets[j]->jmp = gcc_jit_function_new_block(
+            def->jit_function, unique_name(def, "loadbool", j));
       }
     } break;
     case OP_JMP:
@@ -266,9 +268,10 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
       if (!def->jmp_targets[j]) {
-        def->jmp_targets[j] = (ravi_branch_def_t *)calloc(1, sizeof(ravi_branch_def_t));
-        def->jmp_targets[j]->jmp =
-            gcc_jit_function_new_block(def->jit_function, unique_name(def, targetname, j+1));
+        def->jmp_targets[j] =
+            (ravi_branch_def_t *)calloc(1, sizeof(ravi_branch_def_t));
+        def->jmp_targets[j]->jmp = gcc_jit_function_new_block(
+            def->jit_function, unique_name(def, targetname, j + 1));
       }
     } break;
     default:
@@ -277,31 +280,36 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
   }
 }
 
-void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue* dest, gcc_jit_rvalue *src) {
-//  gcc_jit_block_add_assignment(def->current_block, NULL,
-//                               gcc_jit_rvalue_dereference(dest, NULL),
-//                               gcc_jit_lvalue_as_rvalue(gcc_jit_rvalue_dereference(src, NULL)));
+void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue *dest,
+                             gcc_jit_rvalue *src) {
+  //  gcc_jit_block_add_assignment(def->current_block, NULL,
+  //                               gcc_jit_rvalue_dereference(dest, NULL),
+  //                               gcc_jit_lvalue_as_rvalue(gcc_jit_rvalue_dereference(src,
+  //                               NULL)));
   gcc_jit_lvalue *dest_value = gcc_jit_rvalue_dereference_field(
-          dest, NULL, def->ravi->types->Value_value);
+      dest, NULL, def->ravi->types->Value_value);
   gcc_jit_lvalue *dest_value_i = gcc_jit_lvalue_access_field(
-          dest_value, NULL, def->ravi->types->Value_value_i);
+      dest_value, NULL, def->ravi->types->Value_value_i);
 
   gcc_jit_lvalue *src_value = gcc_jit_rvalue_dereference_field(
-          src, NULL, def->ravi->types->Value_value);
+      src, NULL, def->ravi->types->Value_value);
   gcc_jit_lvalue *src_value_i = gcc_jit_lvalue_access_field(
-          src_value, NULL, def->ravi->types->Value_value_i);
+      src_value, NULL, def->ravi->types->Value_value_i);
 
-  gcc_jit_block_add_assignment(def->current_block, NULL,
-                               dest_value_i,
+  gcc_jit_block_add_assignment(def->current_block, NULL, dest_value_i,
                                gcc_jit_lvalue_as_rvalue(src_value_i));
 
-  gcc_jit_lvalue *dest_tt = gcc_jit_rvalue_dereference_field(dest, NULL, def->ravi->types->Value_tt);
-  gcc_jit_lvalue *src_tt = gcc_jit_rvalue_dereference_field(src, NULL, def->ravi->types->Value_tt);
+  gcc_jit_lvalue *dest_tt =
+      gcc_jit_rvalue_dereference_field(dest, NULL, def->ravi->types->Value_tt);
+  gcc_jit_lvalue *src_tt =
+      gcc_jit_rvalue_dereference_field(src, NULL, def->ravi->types->Value_tt);
 
-  gcc_jit_block_add_assignment(def->current_block, NULL, dest_tt, gcc_jit_lvalue_as_rvalue(src_tt));
+  gcc_jit_block_add_assignment(def->current_block, NULL, dest_tt,
+                               gcc_jit_lvalue_as_rvalue(src_tt));
 }
 
-/* Obtain reference to currently executing function (LClosure*) L->ci->func.value_.gc */
+/* Obtain reference to currently executing function (LClosure*)
+ * L->ci->func.value_.gc */
 static void emit_ci_func_value_gc_asLClosure(ravi_function_def_t *def,
                                              gcc_jit_lvalue *ci) {
   gcc_jit_lvalue *func = gcc_jit_rvalue_dereference_field(
@@ -345,15 +353,16 @@ gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t *def, int A) {
 }
 
 /* Get access to a constant identify by Bx */
-gcc_jit_rvalue *ravi_emit_get_constant(ravi_function_def_t* def, int Bx) {
+gcc_jit_rvalue *ravi_emit_get_constant(ravi_function_def_t *def, int Bx) {
   gcc_jit_lvalue *kst = gcc_jit_context_new_array_access(
-          def->function_context, NULL, def->k,
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->C_intT, Bx));
+      def->function_context, NULL, def->k,
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->C_intT, Bx));
   return gcc_jit_lvalue_get_address(kst, NULL);
 }
 
-gcc_jit_rvalue *ravi_emit_get_register_or_constant(ravi_function_def_t* def, int B) {
+gcc_jit_rvalue *ravi_emit_get_register_or_constant(ravi_function_def_t *def,
+                                                   int B) {
   if (ISK(B))
     return ravi_emit_get_constant(def, INDEXK(B));
   else
@@ -385,35 +394,52 @@ static void emit_getL_base_reference(ravi_function_def_t *def,
 }
 
 /* Get TValue->value_.i */
-gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def, gcc_jit_rvalue *tv) {
-  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_value);
-  gcc_jit_lvalue *i = gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_i);
+gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def,
+                                     gcc_jit_rvalue *tv) {
+  gcc_jit_lvalue *value =
+      gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *i =
+      gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_i);
   return i;
 }
 
 /* Get TValue->value_.n */
-gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def, gcc_jit_rvalue *tv) {
-  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_value);
-  gcc_jit_lvalue *n = gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_n);
+gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def,
+                                     gcc_jit_rvalue *tv) {
+  gcc_jit_lvalue *value =
+      gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *n =
+      gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_n);
   return n;
 }
 
-
-void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, gcc_jit_rvalue *ivalue) {
-  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_value);
-  gcc_jit_lvalue *i = gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_i);
+void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def,
+                                    gcc_jit_rvalue *reg,
+                                    gcc_jit_rvalue *ivalue) {
+  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(
+      reg, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *i =
+      gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_i);
   gcc_jit_block_add_assignment(def->current_block, NULL, i, ivalue);
-  gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, LUA_TNUMINT);
-  gcc_jit_lvalue *tt = gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
+  gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(
+      def->function_context, def->ravi->types->C_intT, LUA_TNUMINT);
+  gcc_jit_lvalue *tt =
+      gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
   gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
 }
 
-void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, gcc_jit_rvalue *nvalue) {
-  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_value);
-  gcc_jit_lvalue *n = gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_n);
+void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def,
+                                    gcc_jit_rvalue *reg,
+                                    gcc_jit_rvalue *nvalue) {
+  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(
+      reg, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *n =
+      gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_n);
   gcc_jit_block_add_assignment(def->current_block, NULL, n, nvalue);
-  gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, LUA_TNUMFLT);
-  gcc_jit_lvalue *tt = gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
+  gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(
+      def->function_context, def->ravi->types->C_intT, LUA_TNUMFLT);
+  gcc_jit_lvalue *tt =
+      gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
   gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
 }
 
@@ -457,13 +483,11 @@ static void link_block(ravi_function_def_t *def, int pc) {
   }
 }
 
-gcc_jit_rvalue *ravi_function_call5_rvalue(ravi_function_def_t *def,
-                                           gcc_jit_function *f,
-                                           gcc_jit_rvalue *arg1,
-                                           gcc_jit_rvalue *arg2,
-                                           gcc_jit_rvalue *arg3,
-                                           gcc_jit_rvalue *arg4,
-                                           gcc_jit_rvalue *arg5) {
+gcc_jit_rvalue *
+ravi_function_call5_rvalue(ravi_function_def_t *def, gcc_jit_function *f,
+                           gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2,
+                           gcc_jit_rvalue *arg3, gcc_jit_rvalue *arg4,
+                           gcc_jit_rvalue *arg5) {
   gcc_jit_rvalue *args[5];
   args[0] = arg1;
   args[1] = arg2;
@@ -473,12 +497,10 @@ gcc_jit_rvalue *ravi_function_call5_rvalue(ravi_function_def_t *def,
   return gcc_jit_context_new_call(def->function_context, NULL, f, 5, args);
 }
 
-gcc_jit_rvalue *ravi_function_call4_rvalue(ravi_function_def_t *def,
-                                           gcc_jit_function *f,
-                                           gcc_jit_rvalue *arg1,
-                                           gcc_jit_rvalue *arg2,
-                                           gcc_jit_rvalue *arg3,
-                                           gcc_jit_rvalue *arg4) {
+gcc_jit_rvalue *
+ravi_function_call4_rvalue(ravi_function_def_t *def, gcc_jit_function *f,
+                           gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2,
+                           gcc_jit_rvalue *arg3, gcc_jit_rvalue *arg4) {
   gcc_jit_rvalue *args[4];
   args[0] = arg1;
   args[1] = arg2;
@@ -486,7 +508,6 @@ gcc_jit_rvalue *ravi_function_call4_rvalue(ravi_function_def_t *def,
   args[3] = arg4;
   return gcc_jit_context_new_call(def->function_context, NULL, f, 4, args);
 }
-
 
 gcc_jit_rvalue *ravi_function_call3_rvalue(ravi_function_def_t *def,
                                            gcc_jit_function *f,
@@ -515,7 +536,8 @@ void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *block) {
   def->current_block_terminated = false;
 }
 
-static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi, Proto *p) {
+static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi,
+                     Proto *p) {
   def->ravi = ravi;
   def->entry_block = NULL;
   def->function_context = NULL;
@@ -612,7 +634,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
       ravi_emit_iFORLOOP(&def, A, j, def.jmp_targets[pc],
-                      op == OP_RAVI_FORLOOP_I1);
+                         op == OP_RAVI_FORLOOP_I1);
     } break;
     case OP_MOVE: {
       int B = GETARG_B(i);
@@ -631,13 +653,13 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       ravi_emit_ADDFN(&def, A, B, C);
     } break;
     default:
-    break;
+      break;
     }
   }
 
   gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
-  //gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
-  //gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
+  // gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
+  // gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
 
   if (gcc_jit_context_get_first_error(def.function_context)) {
     fprintf(stderr, "aborting due to JIT error: %s\n",

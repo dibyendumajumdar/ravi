@@ -170,6 +170,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
   lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pdoubleT);
 #else
   llvm::Value *rb_n = def->builder->CreateBitCast(rb, def->types->plua_NumberT);
+  //llvm::Value *rb_n = emit_gep(def, "value.value_.n", rb, 0, 0, 0);
   llvm::Instruction *lhs = def->builder->CreateLoad(rb_n);
   lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 #endif
@@ -237,6 +238,7 @@ void RaviCodeGenerator::emit_store_reg_n(RaviFunctionDef *def,
 #else
   llvm::Value *ra_n =
       def->builder->CreateBitCast(dest_ptr, def->types->plua_NumberT);
+  //llvm::Value *ra_n = emit_gep(def, "value.value_.n", dest_ptr, 0, 0, 0);
   llvm::Instruction *store = def->builder->CreateStore(result, ra_n);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 #endif

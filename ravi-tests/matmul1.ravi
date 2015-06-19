@@ -164,3 +164,6 @@ print(matrix.getrow(a, y)[y])
 --matrix.print(matrix.mul(matrix.gen(2), matrix.gen(2)))
 
 --ravi.dumpllvmasm(matrix.mul)
+
+
+-- ravi.dumplua(matrix.mul)

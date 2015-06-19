@@ -48,7 +48,8 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   // current block may already be terminated - so we have to insert
   // a new block
   if (def->current_block_terminated) {
-    def->current_block = gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_RETURN", pc));
+    def->current_block = gcc_jit_function_new_block(
+        def->jit_function, unique_name(def, "OP_RETURN", pc));
     def->current_block_terminated = false;
   }
 
@@ -74,10 +75,10 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
       gcc_jit_context_new_rvalue_from_int(def->function_context,
                                           def->ravi->types->C_intT, 0));
 
-  gcc_jit_block *then_block =
-      gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_RETURN_if_sizep_gt_0", pc));
-  gcc_jit_block *else_block =
-      gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_RETURN_else_sizep_gt_0", pc));
+  gcc_jit_block *then_block = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "OP_RETURN_if_sizep_gt_0", pc));
+  gcc_jit_block *else_block = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "OP_RETURN_else_sizep_gt_0", pc));
 
   gcc_jit_block_end_with_conditional(def->current_block, NULL, psize_gt_0,
                                      then_block, else_block);
