@@ -151,10 +151,12 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
     fprintf(stderr, "error creating child context\n");
     goto on_error;
   }
+  gcc_jit_context_set_bool_option(def->function_context,
+                                  GCC_JIT_BOOL_OPTION_DUMP_EVERYTHING, 1);
+  gcc_jit_context_set_bool_option(def->function_context,
+                                  GCC_JIT_BOOL_OPTION_KEEP_INTERMEDIATES, 1);
   //gcc_jit_context_set_bool_option(def->function_context,
-  //                                GCC_JIT_BOOL_OPTION_DUMP_EVERYTHING, 1);
-  //gcc_jit_context_set_bool_option(def->function_context,
-  //                                GCC_JIT_BOOL_OPTION_KEEP_INTERMEDIATES, 1);
+  //                                GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
   gcc_jit_context_set_int_option(def->function_context,
                                 GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, 3);
 
@@ -276,9 +278,27 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
 }
 
 void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue* dest, gcc_jit_rvalue *src) {
+//  gcc_jit_block_add_assignment(def->current_block, NULL,
+//                               gcc_jit_rvalue_dereference(dest, NULL),
+//                               gcc_jit_lvalue_as_rvalue(gcc_jit_rvalue_dereference(src, NULL)));
+  gcc_jit_lvalue *dest_value = gcc_jit_rvalue_dereference_field(
+          dest, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *dest_value_i = gcc_jit_lvalue_access_field(
+          dest_value, NULL, def->ravi->types->Value_value_i);
+
+  gcc_jit_lvalue *src_value = gcc_jit_rvalue_dereference_field(
+          src, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *src_value_i = gcc_jit_lvalue_access_field(
+          src_value, NULL, def->ravi->types->Value_value_i);
+
   gcc_jit_block_add_assignment(def->current_block, NULL,
-                               gcc_jit_rvalue_dereference(dest, NULL),
-                               gcc_jit_lvalue_as_rvalue(gcc_jit_rvalue_dereference(src, NULL)));
+                               dest_value_i,
+                               gcc_jit_lvalue_as_rvalue(src_value_i));
+
+  gcc_jit_lvalue *dest_tt = gcc_jit_rvalue_dereference_field(dest, NULL, def->ravi->types->Value_tt);
+  gcc_jit_lvalue *src_tt = gcc_jit_rvalue_dereference_field(src, NULL, def->ravi->types->Value_tt);
+
+  gcc_jit_block_add_assignment(def->current_block, NULL, dest_tt, gcc_jit_lvalue_as_rvalue(src_tt));
 }
 
 /* Obtain reference to currently executing function (LClosure*) L->ci->func.value_.gc */
@@ -537,8 +557,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   }
 
   gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
-  //gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
-  //gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
+  gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
+  gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
 
   if (gcc_jit_context_get_first_error(def.function_context)) {
     fprintf(stderr, "aborting due to JIT error: %s\n",
