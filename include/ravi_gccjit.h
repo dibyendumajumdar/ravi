@@ -412,7 +412,7 @@ extern void ravi_jit_codegen_free(ravi_gcc_codegen_t *);
 
 extern bool ravi_jit_has_errored(ravi_gcc_context_t *);
 
-extern void ravi_emit_refresh_base(ravi_function_def_t *def);
+extern void ravi_emit_load_base(ravi_function_def_t *def);
 
 extern gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t* def, int A);
 
@@ -453,13 +453,15 @@ extern const char *unique_name(ravi_function_def_t *def, const char *prefix, int
 
 extern void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue* dest, gcc_jit_rvalue *src);
 
+/* Store an integer value and set type to TNUMINT */
 extern gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def, gcc_jit_rvalue *value);
 
+/* Store a number value and set type to TNUMFLT */
 extern gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def, gcc_jit_rvalue *tv);
 
-extern void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, gcc_jit_rvalue *ivalue);
+extern void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def, gcc_jit_rvalue *ivalue, gcc_jit_rvalue *reg);
 
-extern void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, gcc_jit_rvalue *nvalue);
+extern void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def, gcc_jit_rvalue *nvalue, gcc_jit_rvalue *reg);
 
 extern void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc);
 

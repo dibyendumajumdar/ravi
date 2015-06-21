@@ -38,16 +38,17 @@ void ravi_emit_LOADNIL(ravi_function_def_t *def, int A, int B) {
 void ravi_emit_LOADFZ(ravi_function_def_t *def, int A) {
 
   // Load pointer to base
-  ravi_emit_refresh_base(def);
+  ravi_emit_load_base(def);
 
   // ra
   gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
 
   // destvalue->n = 0.0
   ravi_emit_store_reg_n_withtype(
-      def, dest,
+      def,
       gcc_jit_context_new_rvalue_from_double(
-          def->function_context, def->ravi->types->lua_NumberT, 0.0));
+          def->function_context, def->ravi->types->lua_NumberT, 0.0),
+      dest);
 }
 
 void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc) {
@@ -58,7 +59,7 @@ void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc) {
   // setobj2s(L, ra, rb);
 
   // Load pointer to base
-  ravi_emit_refresh_base(def);
+  ravi_emit_load_base(def);
 
   // ra
   gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
@@ -76,7 +77,7 @@ void ravi_emit_MOVE(ravi_function_def_t *def, int A, int B) {
   lua_assert(A != B);
 
   // Load pointer to base
-  ravi_emit_refresh_base(def);
+  ravi_emit_load_base(def);
 
   // rb
   gcc_jit_rvalue *src = ravi_emit_get_register(def, B);

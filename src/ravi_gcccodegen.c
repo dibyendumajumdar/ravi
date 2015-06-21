@@ -336,7 +336,7 @@ static void emit_getL_ci_value(ravi_function_def_t *def) {
 }
 
 /* Refresh local copy of L->ci->u.l.base */
-void ravi_emit_refresh_base(ravi_function_def_t *def) {
+void ravi_emit_load_base(ravi_function_def_t *def) {
   gcc_jit_block_add_assignment(def->current_block, NULL, def->base,
                                def->base_ref);
 }
@@ -390,7 +390,7 @@ static void emit_getL_base_reference(ravi_function_def_t *def,
   gcc_jit_rvalue *u_l_base = gcc_jit_rvalue_access_field(
       u_l, NULL, def->ravi->types->CallInfo_u_l_base);
   def->base_ref = u_l_base;
-  ravi_emit_refresh_base(def);
+  ravi_emit_load_base(def);
 }
 
 /* Get TValue->value_.i */
@@ -413,6 +413,7 @@ gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def,
   return n;
 }
 
+/* Store an integer value and set type to TNUMINT */
 void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def,
                                     gcc_jit_rvalue *reg,
                                     gcc_jit_rvalue *ivalue) {
@@ -428,9 +429,10 @@ void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def,
   gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
 }
 
+/* Store a number value and set type to TNUMFLT */
 void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def,
-                                    gcc_jit_rvalue *reg,
-                                    gcc_jit_rvalue *nvalue) {
+                                    gcc_jit_rvalue *nvalue,
+                                    gcc_jit_rvalue *reg) {
   gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(
       reg, NULL, def->ravi->types->Value_value);
   gcc_jit_lvalue *n =
@@ -659,7 +661,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
 
   gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
   // gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
-  // gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
+  gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
 
   if (gcc_jit_context_get_first_error(def.function_context)) {
     fprintf(stderr, "aborting due to JIT error: %s\n",

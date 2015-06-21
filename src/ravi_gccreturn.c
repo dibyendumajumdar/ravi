@@ -54,7 +54,7 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   }
 
   // Load pointer to base
-  ravi_emit_refresh_base(def);
+  ravi_emit_load_base(def);
 
   // Get pointer to register A
   gcc_jit_rvalue *ra_ptr = ravi_emit_get_register(def, A);

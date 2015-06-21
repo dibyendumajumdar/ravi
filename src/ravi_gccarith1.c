@@ -26,7 +26,7 @@
 // R(A) := RK(B) + C, result is floating
 void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C) {
   // Load pointer to base
-  ravi_emit_refresh_base(def);
+  ravi_emit_load_base(def);
 
   // ra
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
@@ -45,5 +45,5 @@ void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C) {
                                           def->ravi->types->lua_NumberT, C));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
-  ravi_emit_store_reg_n_withtype(def, ra, result);
+  ravi_emit_store_reg_n_withtype(def, result, ra);
 }

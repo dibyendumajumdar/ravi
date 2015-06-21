@@ -76,7 +76,7 @@ void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc,
   ravi_set_current_block(def, update_block);
 
   // Load pointer to base
-  ravi_emit_refresh_base(def);
+  ravi_emit_load_base(def);
 
   // setivalue(ra + 3, idx);  /* ...and external index */
   gcc_jit_rvalue *rvar = ravi_emit_get_register(def, A + 3);

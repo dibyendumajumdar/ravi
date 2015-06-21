@@ -42,7 +42,7 @@ void ravi_emit_iFORPREP(ravi_function_def_t *def, int A, int pc, int step_one) {
   //    setivalue(init, initv - ivalue(pstep));
 
   // Load pointer to base
-  ravi_emit_refresh_base(def);
+  ravi_emit_load_base(def);
 
   //  TValue *init = ra;
   //  TValue *pstep = ra + 2;
