@@ -341,6 +341,21 @@ void ravi_emit_load_base(ravi_function_def_t *def) {
                                def->base_ref);
 }
 
+// L->top = ci->top
+void ravi_emit_refresh_L_top(ravi_function_def_t *def) {
+  // Load ci->top
+  gcc_jit_lvalue *citop = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(def->ci_val),
+                                                           NULL, def->ravi->types->CallInfo_top);
+
+  // Get L->top
+  gcc_jit_lvalue *top = gcc_jit_rvalue_dereference_field(
+          gcc_jit_param_as_rvalue(def->L), NULL, def->ravi->types->lua_State_top);
+
+  // Assign ci>top to L->top
+  gcc_jit_block_add_assignment(def->current_block, NULL, top, gcc_jit_lvalue_as_rvalue(citop));
+}
+
+
 /* Get access to the register identified by A - registers as just &base[offset]
  */
 gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t *def, int A) {
@@ -533,9 +548,30 @@ gcc_jit_rvalue *ravi_function_call2_rvalue(ravi_function_def_t *def,
   return gcc_jit_context_new_call(def->function_context, NULL, f, 2, args);
 }
 
+gcc_jit_rvalue *ravi_function_call1_rvalue(ravi_function_def_t *def,
+                                           gcc_jit_function *f,
+                                           gcc_jit_rvalue *arg1) {
+  gcc_jit_rvalue *args[1];
+  args[0] = arg1;
+  return gcc_jit_context_new_call(def->function_context, NULL, f, 1, args);
+}
+
 void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *block) {
   def->current_block = block;
   def->current_block_terminated = false;
+}
+
+void ravi_emit_branch(ravi_function_def_t *def, gcc_jit_block *target_block) {
+  assert(!def->current_block_terminated);
+  gcc_jit_block_end_with_jump(def->current_block, NULL, target_block);
+  def->current_block_terminated = true;
+}
+
+void ravi_emit_conditional_branch(ravi_function_def_t *def, gcc_jit_rvalue *cond, gcc_jit_block *true_block,
+                                  gcc_jit_block *false_block) {
+  assert(!def->current_block_terminated);
+  gcc_jit_block_end_with_conditional(def->current_block, NULL, cond, true_block, false_block);
+  def->current_block_terminated = true;
 }
 
 static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi,

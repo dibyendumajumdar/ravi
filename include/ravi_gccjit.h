@@ -238,6 +238,7 @@ struct ravi_gcc_types_t {
   gcc_jit_type *pCallInfoT;
 
   gcc_jit_field *CallInfo_func;
+  gcc_jit_field *CallInfo_top;
   gcc_jit_field *CallInfo_u;
   gcc_jit_field *CallInfo_u_l;
   gcc_jit_field *CallInfo_u_l_base;
@@ -420,11 +421,15 @@ extern gcc_jit_rvalue *ravi_emit_get_constant(ravi_function_def_t* def, int Bx);
 
 extern gcc_jit_rvalue *ravi_emit_get_register_or_constant(ravi_function_def_t* def, int B);
 
-extern void ravi_emit_set_L_top_toreg(ravi_function_def_t *A, int B);
+extern void ravi_emit_set_L_top_toreg(ravi_function_def_t *def, int B);
+
+extern void ravi_emit_refresh_L_top(ravi_function_def_t *def);
 
 extern gcc_jit_lvalue *ravi_emit_get_Proto_sizep(ravi_function_def_t *def);
 
 extern void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *block);
+
+extern gcc_jit_rvalue *ravi_function_call1_rvalue(ravi_function_def_t *def, gcc_jit_function *f, gcc_jit_rvalue *arg1);
 
 extern gcc_jit_rvalue *ravi_function_call2_rvalue(ravi_function_def_t *def, gcc_jit_function *f, gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2);
 
@@ -463,6 +468,11 @@ extern void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def, gcc_jit_rva
 
 extern void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def, gcc_jit_rvalue *nvalue, gcc_jit_rvalue *reg);
 
+extern void ravi_emit_conditional_branch(ravi_function_def_t *def, gcc_jit_rvalue *cond, gcc_jit_block *true_block,
+  gcc_jit_block *false_block);
+
+extern void ravi_emit_branch(ravi_function_def_t *def, gcc_jit_block *target_block);
+
 extern void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc);
 
 extern void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc);
@@ -480,8 +490,14 @@ extern void ravi_emit_LOADFZ(ravi_function_def_t *def, int A);
 
 extern void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C);
 
-extern void ravi_emit_EQ(ravi_function_def_t *def, int A, int B, int C, int j,
-                         int jA, gcc_jit_function *callee, const char *opname, int pc);
+// implements EQ, LE and LT - by using the supplied lua function to call.
+extern void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
+                        int jA, gcc_jit_function *callee, const char *opname, int pc);
+
+extern void ravi_emit_JMP(ravi_function_def_t *def, int A, int j, int pc);
+
+// Handle OP_CALL
+extern void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C, int pc);
 
 #ifdef __cplusplus
 };

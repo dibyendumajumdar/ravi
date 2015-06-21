@@ -642,7 +642,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
 
   t->CallInfo_func = fields[0] =
       gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "func");
-  fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "top");
+  t->CallInfo_top = fields[1] = gcc_jit_context_new_field(ravi->context, NULL, t->StkIdT, "top");
   fields[2] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pCallInfoT, "previous");
   fields[3] =

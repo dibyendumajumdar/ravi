@@ -23,9 +23,8 @@
 
 #include <ravi_gccjit.h>
 
-// Although the name is EQ this actually
 // implements EQ, LE and LT - by using the supplied lua function to call.
-void ravi_emit_EQ(ravi_function_def_t *def, int A, int B, int C, int j,
+void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
                                 int jA, gcc_jit_function *callee, const char *opname, int pc) {
   //  case OP_EQ: {
   //    TValue *rb = RKB(i);
@@ -63,9 +62,7 @@ void ravi_emit_EQ(ravi_function_def_t *def, int A, int B, int C, int j,
   gcc_jit_block *else_block =
           gcc_jit_function_new_block(
                   def->jit_function, unique_name(def, temp, pc));
-  gcc_jit_block_end_with_conditional(def->current_block, NULL, result_eq_A, then_block, else_block);
-  def->current_block_terminated = true;
-
+  ravi_emit_conditional_branch(def, result_eq_A, then_block, else_block);
   ravi_set_current_block(def, then_block);
 
   // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
@@ -84,10 +81,8 @@ void ravi_emit_EQ(ravi_function_def_t *def, int A, int B, int C, int j,
     ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT, gcc_jit_param_as_rvalue(def->L), val);
   }
   // Do the jump
-  gcc_jit_block_end_with_jump(def->current_block, NULL, def->jmp_targets[j]->jmp);
+  ravi_emit_branch(def, def->jmp_targets[j]->jmp);
   // Add the else block and make it current so that the next instruction flows
   // here
-  def->current_block_terminated = true;
-
-  ravi_set_current_block(def, then_block);
+  ravi_set_current_block(def, else_block);
 }
