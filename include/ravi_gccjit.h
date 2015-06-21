@@ -197,6 +197,7 @@ struct ravi_gcc_types_t {
 
   gcc_jit_field *LClosure_p;
   gcc_jit_field *LClosure_p_k;
+  gcc_jit_field *LClosure_upvals;
 
   gcc_jit_struct *RaviJITProtoT;
 
@@ -210,6 +211,10 @@ struct ravi_gcc_types_t {
   gcc_jit_type *pUpValT;
   gcc_jit_struct *UpVal_u_openT;
   gcc_jit_type *UpVal_uT;
+
+  gcc_jit_field *UpVal_v;
+  gcc_jit_field *UpVal_u;
+  gcc_jit_field *UpVal_u_value;
 
   gcc_jit_struct *CClosureT;
   gcc_jit_type *pCClosureT;
@@ -427,6 +432,17 @@ extern void ravi_emit_refresh_L_top(ravi_function_def_t *def);
 
 extern gcc_jit_lvalue *ravi_emit_get_Proto_sizep(ravi_function_def_t *def);
 
+extern gcc_jit_rvalue* ravi_emit_get_upvals(ravi_function_def_t *def,
+                                            int offset);
+// Get upval->v
+extern gcc_jit_lvalue *ravi_emit_get_upval_v(ravi_function_def_t *def,
+                                      gcc_jit_rvalue *pupval);
+
+// Get upval->u.value
+extern gcc_jit_lvalue *
+        ravi_emit_get_upval_value(ravi_function_def_t *def,
+                                  gcc_jit_rvalue *pupval);
+
 extern void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *block);
 
 extern gcc_jit_rvalue *ravi_function_call1_rvalue(ravi_function_def_t *def, gcc_jit_function *f, gcc_jit_rvalue *arg1);
@@ -498,6 +514,8 @@ extern void ravi_emit_JMP(ravi_function_def_t *def, int A, int j, int pc);
 
 // Handle OP_CALL
 extern void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc);
 
 #ifdef __cplusplus
 };

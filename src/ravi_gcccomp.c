@@ -78,7 +78,7 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
     gcc_jit_rvalue *val = ravi_emit_get_register(def, jA-1);
 
     // Call luaF_close
-    ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT, gcc_jit_param_as_rvalue(def->L), val);
+    gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT, gcc_jit_param_as_rvalue(def->L), val));
   }
   // Do the jump
   ravi_emit_branch(def, def->jmp_targets[j]->jmp);

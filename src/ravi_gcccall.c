@@ -46,7 +46,7 @@ void ravi_emit_JMP(ravi_function_def_t *def, int A, int j, int pc) {
     // base + a - 1
     gcc_jit_rvalue *val = ravi_emit_get_register(def, A - 1);
     // Call luaF_close
-    ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT, gcc_jit_param_as_rvalue(def->L), val);
+    gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT, gcc_jit_param_as_rvalue(def->L), val));
   }
 
   ravi_emit_branch(def, def->jmp_targets[j]->jmp);
@@ -110,7 +110,8 @@ void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C, int pc) {
   ravi_set_current_block(def, then_block);
 
   // Lua function, not compiled, so call luaV_execute
-  ravi_function_call1_rvalue(def, def->ravi->types->luaV_executeT, gcc_jit_param_as_rvalue(def->L));
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call1_rvalue(def, def->ravi->types->luaV_executeT, gcc_jit_param_as_rvalue(def->L)));
   ravi_emit_branch(def, end_block);
 
   ravi_set_current_block(def, else_block);

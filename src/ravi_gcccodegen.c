@@ -65,6 +65,7 @@ static bool can_compile(Proto *p) {
     case OP_EQ:
     case OP_LT:
     case OP_LE:
+    case OP_GETTABUP:
       break;
     case OP_LOADKX:
     case OP_LOADBOOL:
@@ -91,7 +92,6 @@ static bool can_compile(Proto *p) {
     case OP_GETTABLE:
     case OP_GETUPVAL:
     case OP_SETUPVAL:
-    case OP_GETTABUP:
     case OP_SETTABUP:
     case OP_NEWTABLE:
     case OP_SETLIST:
@@ -556,6 +556,34 @@ gcc_jit_rvalue *ravi_function_call1_rvalue(ravi_function_def_t *def,
   return gcc_jit_context_new_call(def->function_context, NULL, f, 1, args);
 }
 
+gcc_jit_rvalue* ravi_emit_get_upvals(ravi_function_def_t *def,
+                                                int offset) {
+  gcc_jit_lvalue *upvals = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(def->lua_closure_val),
+                                          NULL, def->ravi->types->LClosure_upvals);
+  gcc_jit_lvalue *upval = gcc_jit_context_new_array_access(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(upvals),
+    gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, offset));
+  return gcc_jit_lvalue_as_rvalue(upval);
+}
+
+// Get upval->v
+gcc_jit_lvalue *ravi_emit_get_upval_v(ravi_function_def_t *def,
+                                                 gcc_jit_rvalue *pupval) {
+//   const char *debugstr =
+//   gcc_jit_object_get_debug_string(gcc_jit_rvalue_as_object(pupval));
+//   fprintf(stderr, "%s\n", debugstr);
+
+  return gcc_jit_rvalue_dereference_field(pupval, NULL, def->ravi->types->UpVal_v);
+}
+
+// Get upval->u.value
+gcc_jit_lvalue *
+ravi_emit_get_upval_value(ravi_function_def_t *def,
+                                        gcc_jit_rvalue *pupval) {
+  gcc_jit_lvalue *u = gcc_jit_rvalue_dereference_field(pupval, NULL, def->ravi->types->UpVal_u);
+  return gcc_jit_lvalue_access_field(u, NULL, def->ravi->types->UpVal_u_value);
+}
+
+
 void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *block) {
   def->current_block = block;
   def->current_block_terminated = false;
@@ -728,6 +756,13 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       ravi_emit_EQ_LE_LT(&def, A, B, C, j, GETARG_A(i), comparison_function, opname, pc);
     } break;
 
+    case OP_GETTABUP: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_GETTABUP(&def, A, B, C, pc);
+    } break;
+
+
     default:
       break;
     }
@@ -735,7 +770,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
 
   gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
   // gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
-  gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
+  //gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
 
   if (gcc_jit_context_get_first_error(def.function_context)) {
     fprintf(stderr, "aborting due to JIT error: %s\n",

@@ -442,7 +442,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "gclist");
   t->LClosure_p = fields[5] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pProtoT, "p");
-  fields[6] = gcc_jit_context_new_field(
+  t->LClosure_upvals = fields[6] = gcc_jit_context_new_field(
       ravi->context, NULL,
       gcc_jit_context_new_array_type(ravi->context, NULL, t->pUpValT, 1),
       "upvals");
@@ -766,15 +766,15 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
 
   fields[0] = gcc_jit_context_new_field(
       ravi->context, NULL, gcc_jit_struct_as_type(t->UpVal_u_openT), "open");
-  fields[1] = gcc_jit_context_new_field(
+  t->UpVal_u_value = fields[1] = gcc_jit_context_new_field(
       ravi->context, NULL, gcc_jit_struct_as_type(t->TValueT), "value");
   t->UpVal_uT = gcc_jit_context_new_union_type(ravi->context, NULL,
                                                "ravi_UpVal_u", 2, fields);
 
-  fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pTValueT, "v");
+  t->UpVal_v = fields[0] = gcc_jit_context_new_field(ravi->context, NULL, t->pTValueT, "v");
   fields[1] =
       gcc_jit_context_new_field(ravi->context, NULL, t->lu_memT, "refcount");
-  fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->UpVal_uT, "u");
+  t->UpVal_u = fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->UpVal_uT, "u");
   gcc_jit_struct_set_fields(t->UpValT, NULL, 3, fields);
 
   gcc_jit_param *params[12];
