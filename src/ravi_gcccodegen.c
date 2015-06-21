@@ -59,15 +59,15 @@ static bool can_compile(Proto *p) {
     case OP_LOADNIL:
     case OP_RAVI_LOADFZ:
     case OP_RAVI_ADDFN:
-      break;
-    case OP_LOADKX:
-    case OP_LOADBOOL:
     case OP_CALL:
     case OP_TAILCALL:
     case OP_JMP:
     case OP_EQ:
     case OP_LT:
     case OP_LE:
+      break;
+    case OP_LOADKX:
+    case OP_LOADBOOL:
     case OP_NOT:
     case OP_TEST:
     case OP_TESTSET:
@@ -690,6 +690,44 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int C = GETARG_C(i);
       ravi_emit_ADDFN(&def, A, B, C);
     } break;
+    case OP_JMP: {
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      ravi_emit_JMP(&def, A, j, pc);
+    } break;
+
+    case OP_TAILCALL:
+    case OP_CALL: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_CALL(&def, A, B, C, pc);
+    } break;
+
+    case OP_LT:
+    case OP_LE:
+    case OP_EQ: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      const char *opname =
+              (op == OP_EQ
+               ? "OP_EQ"
+               : (op == OP_LT ? "OP_LT" : "OP_LE"));
+      gcc_jit_function *comparison_function =
+                (op == OP_EQ
+                 ? def.ravi->types->luaV_equalobjT
+                 : (op == OP_LT ? def.ravi->types->luaV_lessthanT : def.ravi->types->luaV_lessequalT));
+      // OP_EQ is followed by OP_JMP - we process this
+      // along with OP_EQ
+      pc++;
+      i = code[pc];
+      op = GET_OPCODE(i);
+              lua_assert(op == OP_JMP);
+      int sbx = GETARG_sBx(i);
+      // j below is the jump target
+      int j = sbx + pc + 1;
+      ravi_emit_EQ_LE_LT(&def, A, B, C, j, GETARG_A(i), comparison_function, opname, pc);
+    } break;
+
     default:
       break;
     }
