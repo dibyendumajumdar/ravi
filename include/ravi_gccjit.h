@@ -480,6 +480,9 @@ extern void ravi_emit_LOADFZ(ravi_function_def_t *def, int A);
 
 extern void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C);
 
+extern void ravi_emit_EQ(ravi_function_def_t *def, int A, int B, int C, int j,
+                         int jA, gcc_jit_function *callee, const char *opname, int pc);
+
 #ifdef __cplusplus
 };
 #endif

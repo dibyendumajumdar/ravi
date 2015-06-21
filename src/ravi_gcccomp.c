@@ -21,3 +21,73 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 
+#include <ravi_gccjit.h>
+
+// Although the name is EQ this actually
+// implements EQ, LE and LT - by using the supplied lua function to call.
+void ravi_emit_EQ(ravi_function_def_t *def, int A, int B, int C, int j,
+                                int jA, gcc_jit_function *callee, const char *opname, int pc) {
+  //  case OP_EQ: {
+  //    TValue *rb = RKB(i);
+  //    TValue *rc = RKC(i);
+  //    Protect(
+  //      if (cast_int(luaV_equalobj(L, rb, rc)) != GETARG_A(i))
+  //        ci->u.l.savedpc++;
+  //      else
+  //        donextjump(ci);
+  //    )
+  //  } break;
+
+  // Load pointer to base
+  ravi_emit_load_base(def);
+
+  // Get pointer to register B
+  gcc_jit_rvalue *lhs_ptr = ravi_emit_get_register_or_constant(def, B);
+  // Get pointer to register C
+  gcc_jit_rvalue *rhs_ptr = ravi_emit_get_register_or_constant(def, C);
+
+  // Call luaV_equalobj with register B and C
+  gcc_jit_rvalue *result =
+          ravi_function_call3_rvalue(def, callee, gcc_jit_param_as_rvalue(def->L), lhs_ptr, rhs_ptr);
+  // Test if result is equal to operand A
+  gcc_jit_rvalue *A_const = gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, A);
+  gcc_jit_rvalue *result_eq_A = gcc_jit_context_new_comparison(def->function_context, NULL, GCC_JIT_COMPARISON_EQ,
+    result, A_const);
+  // If result == A then we need to execute the next statement which is a jump
+  char temp[80];
+  snprintf(temp, sizeof temp, "%s_then", opname);
+  gcc_jit_block *then_block = gcc_jit_function_new_block(
+          def->jit_function, unique_name(def, temp, pc));
+
+  snprintf(temp, sizeof temp, "%s_else", opname);
+  gcc_jit_block *else_block =
+          gcc_jit_function_new_block(
+                  def->jit_function, unique_name(def, temp, pc));
+  gcc_jit_block_end_with_conditional(def->current_block, NULL, result_eq_A, then_block, else_block);
+  def->current_block_terminated = true;
+
+  ravi_set_current_block(def, then_block);
+
+  // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
+  if (jA > 0) {
+    // jA is the A operand of the Jump instruction
+
+    // Reload pointer to base as the call to luaV_equalobj() may
+    // have invoked a Lua function and as a result the stack may have
+    // been reallocated - so the previous base pointer could be stale
+    ravi_emit_load_base(def);
+
+    // base + a - 1
+    gcc_jit_rvalue *val = ravi_emit_get_register(def, jA-1);
+
+    // Call luaF_close
+    ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT, gcc_jit_param_as_rvalue(def->L), val);
+  }
+  // Do the jump
+  gcc_jit_block_end_with_jump(def->current_block, NULL, def->jmp_targets[j]->jmp);
+  // Add the else block and make it current so that the next instruction flows
+  // here
+  def->current_block_terminated = true;
+
+  ravi_set_current_block(def, then_block);
+}
