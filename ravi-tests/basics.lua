@@ -47,3 +47,35 @@ ravi.dumplua(y)
 assert(ravi.compile(y))
 assert(y() == 1234.0)
 print('test 5 ok')
+
+x=function(a,b)
+  if a == b then 
+    return "foo" 
+  else 
+    return "bar" 
+  end
+end
+
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x(1,1) == "foo")
+assert(x(1,2) == "bar")
+print('test 6 ok')
+
+x=function(a,b)
+  if a ~= b then 
+    return "foo" 
+  else 
+    return "bar" 
+  end
+end
+
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x(1,1) == "bar")
+assert(x(1,2) == "foo")
+print('test 7 ok')
+
+
+
+
