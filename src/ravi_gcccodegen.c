@@ -344,17 +344,18 @@ void ravi_emit_load_base(ravi_function_def_t *def) {
 // L->top = ci->top
 void ravi_emit_refresh_L_top(ravi_function_def_t *def) {
   // Load ci->top
-  gcc_jit_lvalue *citop = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(def->ci_val),
-                                                           NULL, def->ravi->types->CallInfo_top);
+  gcc_jit_lvalue *citop =
+      gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(def->ci_val),
+                                       NULL, def->ravi->types->CallInfo_top);
 
   // Get L->top
   gcc_jit_lvalue *top = gcc_jit_rvalue_dereference_field(
-          gcc_jit_param_as_rvalue(def->L), NULL, def->ravi->types->lua_State_top);
+      gcc_jit_param_as_rvalue(def->L), NULL, def->ravi->types->lua_State_top);
 
   // Assign ci>top to L->top
-  gcc_jit_block_add_assignment(def->current_block, NULL, top, gcc_jit_lvalue_as_rvalue(citop));
+  gcc_jit_block_add_assignment(def->current_block, NULL, top,
+                               gcc_jit_lvalue_as_rvalue(citop));
 }
-
 
 /* Get access to the register identified by A - registers as just &base[offset]
  */
@@ -556,33 +557,35 @@ gcc_jit_rvalue *ravi_function_call1_rvalue(ravi_function_def_t *def,
   return gcc_jit_context_new_call(def->function_context, NULL, f, 1, args);
 }
 
-gcc_jit_rvalue* ravi_emit_get_upvals(ravi_function_def_t *def,
-                                                int offset) {
-  gcc_jit_lvalue *upvals = gcc_jit_rvalue_dereference_field(gcc_jit_lvalue_as_rvalue(def->lua_closure_val),
-                                          NULL, def->ravi->types->LClosure_upvals);
-  gcc_jit_lvalue *upval = gcc_jit_context_new_array_access(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(upvals),
-    gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, offset));
+gcc_jit_rvalue *ravi_emit_get_upvals(ravi_function_def_t *def, int offset) {
+  gcc_jit_lvalue *upvals = gcc_jit_rvalue_dereference_field(
+      gcc_jit_lvalue_as_rvalue(def->lua_closure_val), NULL,
+      def->ravi->types->LClosure_upvals);
+  gcc_jit_lvalue *upval = gcc_jit_context_new_array_access(
+      def->function_context, NULL, gcc_jit_lvalue_as_rvalue(upvals),
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->C_intT, offset));
   return gcc_jit_lvalue_as_rvalue(upval);
 }
 
 // Get upval->v
 gcc_jit_lvalue *ravi_emit_get_upval_v(ravi_function_def_t *def,
-                                                 gcc_jit_rvalue *pupval) {
-//   const char *debugstr =
-//   gcc_jit_object_get_debug_string(gcc_jit_rvalue_as_object(pupval));
-//   fprintf(stderr, "%s\n", debugstr);
+                                      gcc_jit_rvalue *pupval) {
+  //   const char *debugstr =
+  //   gcc_jit_object_get_debug_string(gcc_jit_rvalue_as_object(pupval));
+  //   fprintf(stderr, "%s\n", debugstr);
 
-  return gcc_jit_rvalue_dereference_field(pupval, NULL, def->ravi->types->UpVal_v);
+  return gcc_jit_rvalue_dereference_field(pupval, NULL,
+                                          def->ravi->types->UpVal_v);
 }
 
 // Get upval->u.value
-gcc_jit_lvalue *
-ravi_emit_get_upval_value(ravi_function_def_t *def,
-                                        gcc_jit_rvalue *pupval) {
-  gcc_jit_lvalue *u = gcc_jit_rvalue_dereference_field(pupval, NULL, def->ravi->types->UpVal_u);
+gcc_jit_lvalue *ravi_emit_get_upval_value(ravi_function_def_t *def,
+                                          gcc_jit_rvalue *pupval) {
+  gcc_jit_lvalue *u =
+      gcc_jit_rvalue_dereference_field(pupval, NULL, def->ravi->types->UpVal_u);
   return gcc_jit_lvalue_access_field(u, NULL, def->ravi->types->UpVal_u_value);
 }
-
 
 void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *block) {
   def->current_block = block;
@@ -595,10 +598,13 @@ void ravi_emit_branch(ravi_function_def_t *def, gcc_jit_block *target_block) {
   def->current_block_terminated = true;
 }
 
-void ravi_emit_conditional_branch(ravi_function_def_t *def, gcc_jit_rvalue *cond, gcc_jit_block *true_block,
+void ravi_emit_conditional_branch(ravi_function_def_t *def,
+                                  gcc_jit_rvalue *cond,
+                                  gcc_jit_block *true_block,
                                   gcc_jit_block *false_block) {
   assert(!def->current_block_terminated);
-  gcc_jit_block_end_with_conditional(def->current_block, NULL, cond, true_block, false_block);
+  gcc_jit_block_end_with_conditional(def->current_block, NULL, cond, true_block,
+                                     false_block);
   def->current_block_terminated = true;
 }
 
@@ -737,23 +743,22 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       const char *opname =
-              (op == OP_EQ
-               ? "OP_EQ"
-               : (op == OP_LT ? "OP_LT" : "OP_LE"));
+          (op == OP_EQ ? "OP_EQ" : (op == OP_LT ? "OP_LT" : "OP_LE"));
       gcc_jit_function *comparison_function =
-                (op == OP_EQ
-                 ? def.ravi->types->luaV_equalobjT
-                 : (op == OP_LT ? def.ravi->types->luaV_lessthanT : def.ravi->types->luaV_lessequalT));
+          (op == OP_EQ ? def.ravi->types->luaV_equalobjT
+                       : (op == OP_LT ? def.ravi->types->luaV_lessthanT
+                                      : def.ravi->types->luaV_lessequalT));
       // OP_EQ is followed by OP_JMP - we process this
       // along with OP_EQ
       pc++;
       i = code[pc];
       op = GET_OPCODE(i);
-              lua_assert(op == OP_JMP);
+      lua_assert(op == OP_JMP);
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      ravi_emit_EQ_LE_LT(&def, A, B, C, j, GETARG_A(i), comparison_function, opname, pc);
+      ravi_emit_EQ_LE_LT(&def, A, B, C, j, GETARG_A(i), comparison_function,
+                         opname, pc);
     } break;
 
     case OP_GETTABUP: {
@@ -762,7 +767,6 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       ravi_emit_GETTABUP(&def, A, B, C, pc);
     } break;
 
-
     default:
       break;
     }
@@ -770,7 +774,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
 
   gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
   // gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
-  //gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
+  // gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
 
   if (gcc_jit_context_get_first_error(def.function_context)) {
     fprintf(stderr, "aborting due to JIT error: %s\n",

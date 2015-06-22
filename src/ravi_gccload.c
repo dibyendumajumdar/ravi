@@ -45,9 +45,8 @@ void ravi_emit_LOADFZ(ravi_function_def_t *def, int A) {
 
   // destvalue->n = 0.0
   ravi_emit_store_reg_n_withtype(
-      def,
-      gcc_jit_context_new_rvalue_from_double(
-          def->function_context, def->ravi->types->lua_NumberT, 0.0),
+      def, gcc_jit_context_new_rvalue_from_double(
+               def->function_context, def->ravi->types->lua_NumberT, 0.0),
       dest);
 }
 

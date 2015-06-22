@@ -25,7 +25,8 @@
 
 // implements EQ, LE and LT - by using the supplied lua function to call.
 void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
-                                int jA, gcc_jit_function *callee, const char *opname, int pc) {
+                        int jA, gcc_jit_function *callee, const char *opname,
+                        int pc) {
   //  case OP_EQ: {
   //    TValue *rb = RKB(i);
   //    TValue *rc = RKC(i);
@@ -46,22 +47,22 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
   gcc_jit_rvalue *rhs_ptr = ravi_emit_get_register_or_constant(def, C);
 
   // Call luaV_equalobj with register B and C
-  gcc_jit_rvalue *result =
-          ravi_function_call3_rvalue(def, callee, gcc_jit_param_as_rvalue(def->L), lhs_ptr, rhs_ptr);
+  gcc_jit_rvalue *result = ravi_function_call3_rvalue(
+      def, callee, gcc_jit_param_as_rvalue(def->L), lhs_ptr, rhs_ptr);
   // Test if result is equal to operand A
-  gcc_jit_rvalue *A_const = gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, A);
-  gcc_jit_rvalue *result_eq_A = gcc_jit_context_new_comparison(def->function_context, NULL, GCC_JIT_COMPARISON_EQ,
-    result, A_const);
+  gcc_jit_rvalue *A_const = gcc_jit_context_new_rvalue_from_int(
+      def->function_context, def->ravi->types->C_intT, A);
+  gcc_jit_rvalue *result_eq_A = gcc_jit_context_new_comparison(
+      def->function_context, NULL, GCC_JIT_COMPARISON_EQ, result, A_const);
   // If result == A then we need to execute the next statement which is a jump
   char temp[80];
   snprintf(temp, sizeof temp, "%s_then", opname);
-  gcc_jit_block *then_block = gcc_jit_function_new_block(
-          def->jit_function, unique_name(def, temp, pc));
+  gcc_jit_block *then_block =
+      gcc_jit_function_new_block(def->jit_function, unique_name(def, temp, pc));
 
   snprintf(temp, sizeof temp, "%s_else", opname);
   gcc_jit_block *else_block =
-          gcc_jit_function_new_block(
-                  def->jit_function, unique_name(def, temp, pc));
+      gcc_jit_function_new_block(def->jit_function, unique_name(def, temp, pc));
   ravi_emit_conditional_branch(def, result_eq_A, then_block, else_block);
   ravi_set_current_block(def, then_block);
 
@@ -75,10 +76,13 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
     ravi_emit_load_base(def);
 
     // base + a - 1
-    gcc_jit_rvalue *val = ravi_emit_get_register(def, jA-1);
+    gcc_jit_rvalue *val = ravi_emit_get_register(def, jA - 1);
 
     // Call luaF_close
-    gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT, gcc_jit_param_as_rvalue(def->L), val));
+    gcc_jit_block_add_eval(
+        def->current_block, NULL,
+        ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
+                                   gcc_jit_param_as_rvalue(def->L), val));
   }
   // Do the jump
   ravi_emit_branch(def, def->jmp_targets[j]->jmp);
