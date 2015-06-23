@@ -473,6 +473,22 @@ gcc_jit_rvalue *ravi_emit_is_value_of_type(ravi_function_def_t *def,
 #endif
 }
 
+/* Store a boolean value and set type to TBOOLEAN */
+void ravi_emit_store_reg_b_withtype(ravi_function_def_t *def,
+                                    gcc_jit_rvalue *bvalue,
+                                    gcc_jit_rvalue *reg) {
+  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(
+          reg, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *n =
+          gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_b);
+  gcc_jit_block_add_assignment(def->current_block, NULL, n, bvalue);
+  gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(
+          def->function_context, def->ravi->types->C_intT, LUA__TBOOLEAN);
+  gcc_jit_lvalue *tt =
+          gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
+  gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
+}
+
 
 /* Store a number value and set type to TNUMFLT */
 void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def,
@@ -794,6 +810,39 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       ravi_emit_GETTABUP(&def, A, B, C, pc);
+    } break;
+
+    case OP_NOT: {
+      int B = GETARG_B(i);
+      ravi_emit_NOT(&def, A, B, pc);
+    } break;
+    case OP_TEST: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      // OP_TEST is followed by OP_JMP - we process this
+      // along with OP_EQ
+      pc++;
+      i = code[pc];
+      op = GET_OPCODE(i);
+              lua_assert(op == OP_JMP);
+      int sbx = GETARG_sBx(i);
+      // j below is the jump target
+      int j = sbx + pc + 1;
+      ravi_emit_TEST(&def, A, B, C, j, GETARG_A(i), pc-1);
+    } break;
+    case OP_TESTSET: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      // OP_TESTSET is followed by OP_JMP - we process this
+      // along with OP_EQ
+      pc++;
+      i = code[pc];
+      op = GET_OPCODE(i);
+              lua_assert(op == OP_JMP);
+      int sbx = GETARG_sBx(i);
+      // j below is the jump target
+      int j = sbx + pc + 1;
+      ravi_emit_TESTSET(&def, A, B, C, j, GETARG_A(i), pc-1);
     } break;
 
     default:
