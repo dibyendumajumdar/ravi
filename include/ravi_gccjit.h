@@ -531,6 +531,9 @@ extern void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C, int pc
 
 extern void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc);
 
+extern void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C,
+                           int j, int jA, int pc);
+
 #ifdef __cplusplus
 };
 #endif

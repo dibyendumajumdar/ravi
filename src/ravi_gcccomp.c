@@ -150,3 +150,53 @@ gcc_jit_rvalue *ravi_emit_boolean_testfalse(ravi_function_def_t *def,
   return result;
 }
 
+void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C,
+                    int j, int jA, int pc) {
+
+  //    case OP_TEST: {
+  //      if (GETARG_C(i) ? l_isfalse(ra) : !l_isfalse(ra))
+  //        ci->u.l.savedpc++;
+  //      else
+  //        donextjump(ci);
+  //    } break;
+
+  (void) B;
+
+  // Load pointer to base
+  ravi_emit_load_base(def);
+
+  // Get pointer to register A
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  // v = C ? is_false(ra) : !is_false(ra)
+  gcc_jit_rvalue *v = C ? ravi_emit_boolean_testfalse(def, ra, false)
+                        : ravi_emit_boolean_testfalse(def, ra, true);
+
+  // Test NOT v
+  gcc_jit_rvalue *result = gcc_jit_context_new_unary_op(def->function_context, NULL, GCC_JIT_UNARY_OP_LOGICAL_NEGATE,
+                                                        def->ravi->types->C_intT, v);
+  // If !v then we need to execute the next statement which is a jump
+  gcc_jit_block *then_block =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "if.then", pc));
+  gcc_jit_block *else_block =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "if.else", pc));
+  ravi_emit_conditional_branch(def, result, then_block, else_block);
+  ravi_set_current_block(def, then_block);
+
+  // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
+  if (jA > 0) {
+    // jA is the A operand of the Jump instruction
+
+    // base + a - 1
+    gcc_jit_rvalue *val = ravi_emit_get_register(def, jA - 1);
+
+    // Call luaF_close
+    gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
+                                                                                gcc_jit_param_as_rvalue(def->L), val));
+  }
+  // Do the jump
+  ravi_emit_branch(def, def->jmp_targets[j]->jmp);
+
+  // Add the else block and make it current so that the next instruction flows
+  // here
+  ravi_set_current_block(def, else_block);
+}
