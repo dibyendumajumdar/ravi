@@ -480,6 +480,16 @@ extern gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def, gcc_jit_rv
 /* Store a number value and set type to TNUMFLT */
 extern gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def, gcc_jit_rvalue *tv);
 
+/* Get TValue->value_.b */
+extern gcc_jit_lvalue *ravi_emit_load_reg_b(ravi_function_def_t *def,
+                                     gcc_jit_rvalue *tv);
+
+extern gcc_jit_lvalue *ravi_emit_load_type(ravi_function_def_t *def, gcc_jit_rvalue *tv);
+
+extern gcc_jit_rvalue *ravi_emit_is_value_of_type(ravi_function_def_t *def,
+                                                  gcc_jit_rvalue *value_type,
+                                                  int lua_type);
+
 extern void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def, gcc_jit_rvalue *ivalue, gcc_jit_rvalue *reg);
 
 extern void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def, gcc_jit_rvalue *nvalue, gcc_jit_rvalue *reg);
@@ -488,6 +498,10 @@ extern void ravi_emit_conditional_branch(ravi_function_def_t *def, gcc_jit_rvalu
   gcc_jit_block *false_block);
 
 extern void ravi_emit_branch(ravi_function_def_t *def, gcc_jit_block *target_block);
+
+extern gcc_jit_rvalue *ravi_emit_boolean_testfalse(ravi_function_def_t *def,
+                                                   gcc_jit_rvalue *reg,
+                                                   bool negate);
 
 extern void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc);
 

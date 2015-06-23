@@ -90,3 +90,63 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
   // here
   ravi_set_current_block(def, else_block);
 }
+
+
+gcc_jit_rvalue *ravi_emit_boolean_testfalse(ravi_function_def_t *def,
+                                            gcc_jit_rvalue *reg,
+                                            bool negate) {
+  // (isnil() || isbool() && b == 0)
+
+  gcc_jit_lvalue *var = gcc_jit_function_new_local(def->jit_function, NULL, def->ravi->types->C_intT,
+                                                   unique_name(def, "bvalue", 0));
+  gcc_jit_lvalue *type = ravi_emit_load_type(def, reg);
+
+  // Test if type == LUA_TNIL (0)
+  gcc_jit_rvalue *isnil = ravi_emit_is_value_of_type(def, gcc_jit_lvalue_as_rvalue(type), LUA__TNIL);
+  gcc_jit_block *then_block =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "if.nil", 0));
+  gcc_jit_block *else_block =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "not.nil", 0));
+  gcc_jit_block *end_block =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "end", 0));
+
+  ravi_emit_conditional_branch(def, isnil, then_block, else_block);
+  ravi_set_current_block(def, then_block);
+
+  gcc_jit_block_add_assignment(def->current_block, NULL, var, isnil);
+  ravi_emit_branch(def, end_block);
+
+  ravi_set_current_block(def, else_block);
+  // value is not nil
+  // so check if bool and b == 0
+
+  // Test if type == LUA_TBOOLEAN
+  gcc_jit_rvalue *isbool =
+          ravi_emit_is_value_of_type(def, gcc_jit_lvalue_as_rvalue(type), LUA__TBOOLEAN);
+  // Test if bool value == 0
+  gcc_jit_lvalue *bool_value = ravi_emit_load_reg_b(def, reg);
+  gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, 0);
+  gcc_jit_rvalue *boolzero =
+          gcc_jit_context_new_comparison(def->function_context, NULL, GCC_JIT_COMPARISON_EQ,
+                                         gcc_jit_lvalue_as_rvalue(bool_value), zero);
+  // Test type == LUA_TBOOLEAN && bool value == 0
+  gcc_jit_rvalue *andvalue = gcc_jit_context_new_binary_op(def->function_context, NULL,
+                                                           GCC_JIT_BINARY_OP_LOGICAL_AND, def->ravi->types->C_intT,
+                                                           isbool, boolzero);
+
+  gcc_jit_block_add_assignment(def->current_block, NULL, var, andvalue);
+  ravi_emit_branch(def, end_block);
+
+  ravi_set_current_block(def, end_block);
+
+  gcc_jit_rvalue *result = NULL;
+  if (negate) {
+    result = gcc_jit_context_new_unary_op(def->function_context, NULL, GCC_JIT_UNARY_OP_LOGICAL_NEGATE,
+                                          def->ravi->types->C_intT, gcc_jit_lvalue_as_rvalue(var));
+  } else {
+    result = gcc_jit_lvalue_as_rvalue(var);
+  }
+
+  return result;
+}
+
