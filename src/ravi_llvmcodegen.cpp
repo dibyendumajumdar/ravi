@@ -147,8 +147,8 @@ llvm::Instruction *RaviCodeGenerator::emit_load_base(RaviFunctionDef *def) {
 
 // emit code to obtain address of register at location A
 llvm::Value *RaviCodeGenerator::emit_gep_register(RaviFunctionDef *def,
-                                            llvm::Instruction *base_ptr,
-                                            int A) {
+                                                  llvm::Instruction *base_ptr,
+                                                  int A) {
   llvm::Value *dest;
   if (A == 0) {
     // If A is 0 we can use the base pointer which is &base[0]
@@ -170,7 +170,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
   lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pdoubleT);
 #else
   llvm::Value *rb_n = def->builder->CreateBitCast(rb, def->types->plua_NumberT);
-  //llvm::Value *rb_n = emit_gep(def, "value.value_.n", rb, 0, 0, 0);
+  // llvm::Value *rb_n = emit_gep(def, "value.value_.n", rb, 0, 0, 0);
   llvm::Instruction *lhs = def->builder->CreateLoad(rb_n);
   lhs->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 #endif
@@ -238,7 +238,7 @@ void RaviCodeGenerator::emit_store_reg_n(RaviFunctionDef *def,
 #else
   llvm::Value *ra_n =
       def->builder->CreateBitCast(dest_ptr, def->types->plua_NumberT);
-  //llvm::Value *ra_n = emit_gep(def, "value.value_.n", dest_ptr, 0, 0, 0);
+  // llvm::Value *ra_n = emit_gep(def, "value.value_.n", dest_ptr, 0, 0, 0);
   llvm::Instruction *store = def->builder->CreateStore(result, ra_n);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 #endif
@@ -399,9 +399,8 @@ llvm::Instruction *RaviCodeGenerator::emit_load_local_int(RaviFunctionDef *def,
 }
 
 // emit code to obtain address of register or constant at location B
-llvm::Value *RaviCodeGenerator::emit_gep_register_or_constant(RaviFunctionDef *def,
-                                             llvm::Instruction *base_ptr,
-                                             int B) {
+llvm::Value *RaviCodeGenerator::emit_gep_register_or_constant(
+    RaviFunctionDef *def, llvm::Instruction *base_ptr, int B) {
   // Load pointer to k
   llvm::Value *k_ptr = def->k_ptr;
   llvm::Value *rb;
@@ -436,7 +435,7 @@ void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def) {
 
 llvm::Value *RaviCodeGenerator::emit_gep_L_top(RaviFunctionDef *def) {
   // Get pointer to L->top
-  return  emit_gep(def, "L.top", def->L, 0, 4);
+  return emit_gep(def, "L.top", def->L, 0, 4);
 }
 
 // L->top = R(B)
@@ -452,15 +451,130 @@ void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def,
   ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
 }
 
-// (int)(L->top - ra)
-llvm::Value *RaviCodeGenerator::emit_num_stack_elements(RaviFunctionDef *def, llvm::Value *L_top, llvm::Value *ra) {
-  llvm::Instruction *top_ptr = def->builder->CreateLoad(L_top, "L_top");
-  llvm::Value *top_asint = def->builder->CreatePtrToInt(top_ptr, def->types->C_intptr_t, "L_top_as_intptr");
-  llvm::Value *ra_asint = def->builder->CreatePtrToInt(ra, def->types->C_intptr_t, "ra_as_intptr");
-  llvm::Value *result = def->builder->CreateSub(top_asint, ra_asint, "num_stack_elements");
-  return def->builder->CreateTrunc(result, def->types->C_intT, "num_stack_elements");
+llvm::Instruction *RaviCodeGenerator::emit_tointeger(RaviFunctionDef *def,
+                                               llvm::Value *reg) {
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+  llvm::Value *value =
+      TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "value");
+  llvm::Value *reg_type = emit_load_type(def, reg);
+
+  // Is reg an integer?
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, reg_type, LUA__TNUMINT, "reg.is.integer");
+
+  llvm::BasicBlock *convert_reg =
+      llvm::BasicBlock::Create(def->jitState->context(), "convert.reg");
+  llvm::BasicBlock *copy_reg =
+      llvm::BasicBlock::Create(def->jitState->context(), "copy.reg");
+  llvm::BasicBlock *load_val =
+      llvm::BasicBlock::Create(def->jitState->context(), "load.val");
+  llvm::BasicBlock *failed_conversion = llvm::BasicBlock::Create(
+      def->jitState->context(), "if.conversion.failed");
+
+  // If reg is integer then copy reg, else convert reg
+  def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+
+  // Convert RB
+  def->f->getBasicBlockList().push_back(convert_reg);
+  def->builder->SetInsertPoint(convert_reg);
+
+  llvm::Value *var_isint =
+      CreateCall2(def->builder, def->luaV_tointegerF, reg, value);
+  llvm::Value *tobool = def->builder->CreateICmpEQ(
+      var_isint, def->types->kInt[0], "conversion.failed");
+
+  // Did conversion fail?
+  def->builder->CreateCondBr(tobool, failed_conversion, load_val);
+
+  // Conversion failed, so raise error
+  def->f->getBasicBlockList().push_back(failed_conversion);
+  def->builder->SetInsertPoint(failed_conversion);
+  emit_raise_lua_error(def, "integer expected");
+  def->builder->CreateBr(load_val);
+
+  // Conversion OK
+  def->f->getBasicBlockList().push_back(copy_reg);
+  def->builder->SetInsertPoint(copy_reg);
+
+  llvm::Value *i = emit_load_reg_i(def, reg);
+  emit_store_local_int(def, i, value);
+  def->builder->CreateBr(load_val);
+
+  def->f->getBasicBlockList().push_back(load_val);
+  def->builder->SetInsertPoint(load_val);
+
+  return emit_load_local_int(def, value);
 }
 
+llvm::Instruction *RaviCodeGenerator::emit_tofloat(RaviFunctionDef *def,
+                                             llvm::Value *reg) {
+  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
+  llvm::Value *value =
+      TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "value");
+  llvm::Value *reg_type = emit_load_type(def, reg);
+
+  // Is reg an number?
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, reg_type, LUA__TNUMFLT, "reg.is.float");
+
+  llvm::BasicBlock *convert_reg =
+      llvm::BasicBlock::Create(def->jitState->context(), "convert.reg");
+  llvm::BasicBlock *copy_reg =
+      llvm::BasicBlock::Create(def->jitState->context(), "copy.reg");
+  llvm::BasicBlock *load_val =
+      llvm::BasicBlock::Create(def->jitState->context(), "load.val");
+  llvm::BasicBlock *failed_conversion = llvm::BasicBlock::Create(
+      def->jitState->context(), "if.conversion.failed");
+
+  // If reg is integer then copy reg, else convert reg
+  def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+
+  // Convert RB
+  def->f->getBasicBlockList().push_back(convert_reg);
+  def->builder->SetInsertPoint(convert_reg);
+
+  llvm::Value *var_isfloat =
+      CreateCall2(def->builder, def->luaV_tonumberF, reg, value);
+  llvm::Value *tobool = def->builder->CreateICmpEQ(
+      var_isfloat, def->types->kInt[0], "conversion.failed");
+
+  // Did conversion fail?
+  def->builder->CreateCondBr(tobool, failed_conversion, load_val);
+
+  // Conversion failed, so raise error
+  def->f->getBasicBlockList().push_back(failed_conversion);
+  def->builder->SetInsertPoint(failed_conversion);
+  emit_raise_lua_error(def, "number expected");
+  def->builder->CreateBr(load_val);
+
+  // Conversion OK
+  def->f->getBasicBlockList().push_back(copy_reg);
+  def->builder->SetInsertPoint(copy_reg);
+
+  llvm::Value *i = emit_load_reg_n(def, reg);
+  emit_store_local_n(def, i, value);
+  def->builder->CreateBr(load_val);
+
+  def->f->getBasicBlockList().push_back(load_val);
+  def->builder->SetInsertPoint(load_val);
+
+  return emit_load_local_n(def, value);
+}
+
+// (int)(L->top - ra)
+llvm::Value *RaviCodeGenerator::emit_num_stack_elements(RaviFunctionDef *def,
+                                                        llvm::Value *L_top,
+                                                        llvm::Value *ra) {
+  llvm::Instruction *top_ptr = def->builder->CreateLoad(L_top, "L_top");
+  llvm::Value *top_asint = def->builder->CreatePtrToInt(
+      top_ptr, def->types->C_intptr_t, "L_top_as_intptr");
+  llvm::Value *ra_asint =
+      def->builder->CreatePtrToInt(ra, def->types->C_intptr_t, "ra_as_intptr");
+  llvm::Value *result =
+      def->builder->CreateSub(top_asint, ra_asint, "num_stack_elements");
+  return def->builder->CreateTrunc(result, def->types->C_intT,
+                                   "num_stack_elements");
+}
 
 // Check if we can compile
 // The cases we can compile will increase over time
@@ -552,7 +666,9 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_GETTABLE_AI:
     case OP_RAVI_GETTABLE_AF:
     case OP_RAVI_SETTABLE_AI:
+    case OP_RAVI_SETTABLE_AII:
     case OP_RAVI_SETTABLE_AF:
+    case OP_RAVI_SETTABLE_AFF:
     case OP_RAVI_TOARRAYI:
     case OP_RAVI_TOARRAYF:
     case OP_RAVI_MOVEAI:
@@ -1125,20 +1241,22 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
       int C = GETARG_C(i);
       emit_GETTABLE_AI(def, L_ci, proto, A, B, C);
     } break;
+    case OP_RAVI_SETTABLE_AII:
     case OP_RAVI_SETTABLE_AI: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SETTABLE_AI(def, L_ci, proto, A, B, C);
+      emit_SETTABLE_AI(def, L_ci, proto, A, B, C, op == OP_RAVI_SETTABLE_AII);
     } break;
     case OP_RAVI_GETTABLE_AF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_GETTABLE_AF(def, L_ci, proto, A, B, C);
     } break;
+    case OP_RAVI_SETTABLE_AFF:
     case OP_RAVI_SETTABLE_AF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_SETTABLE_AF(def, L_ci, proto, A, B, C);
+      emit_SETTABLE_AF(def, L_ci, proto, A, B, C, op == OP_RAVI_SETTABLE_AFF);
     } break;
     case OP_RAVI_TOARRAYI: {
       emit_TOARRAY(def, L_ci, proto, A, RAVI_TARRAYINT, "integer[] expected");

@@ -737,6 +737,10 @@ public:
   llvm::Value *emit_boolean_testfalse(RaviFunctionDef *def, llvm::Value *reg,
                                       bool donot);
 
+  llvm::Instruction *emit_tointeger(RaviFunctionDef *def, llvm::Value *reg);
+
+  llvm::Instruction *emit_tofloat(RaviFunctionDef *def, llvm::Value *reg);
+
   // L->top = ci->top
   void emit_refresh_L_top(RaviFunctionDef *def);
 
@@ -987,10 +991,10 @@ public:
                         llvm::Value *proto, int A, int B, int C);
 
   void emit_SETTABLE_AF(RaviFunctionDef *def, llvm::Value *L_ci,
-                        llvm::Value *proto, int A, int B, int C);
+                        llvm::Value *proto, int A, int B, int C, bool known_int);
 
   void emit_SETTABLE_AI(RaviFunctionDef *def, llvm::Value *L_ci,
-                        llvm::Value *proto, int A, int B, int C);
+                        llvm::Value *proto, int A, int B, int C, bool known_float);
 
   void emit_MOVEAI(RaviFunctionDef *def, llvm::Value *L_ci, llvm::Value *proto,
                    int A, int B);

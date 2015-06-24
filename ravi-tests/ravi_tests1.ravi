@@ -165,7 +165,7 @@ function tryme()
   end
   return j
 end
--- assert(ravi.compile(tryme)) 
+assert(ravi.compile(tryme)) 
 assert(tryme() == 55.0)
 print("test 12 OK")
 

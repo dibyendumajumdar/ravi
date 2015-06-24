@@ -758,10 +758,19 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
       OpCode op = (var->u.ind.vt == VLOCAL) ? OP_SETTABLE : OP_SETTABUP;
       if (op == OP_SETTABLE) {
         /* table value set - if array access then use specialized versions */
-        if (var->ravi_type == RAVI_TARRAYFLT && var->u.ind.key_type == RAVI_TNUMINT)
-          op = OP_RAVI_SETTABLE_AF;
-        else if (var->ravi_type == RAVI_TARRAYINT && var->u.ind.key_type == RAVI_TNUMINT)
-          op = OP_RAVI_SETTABLE_AI;
+        if (var->ravi_type == RAVI_TARRAYFLT &&
+            var->u.ind.key_type == RAVI_TNUMINT) {
+          if (!(ex->ravi_type == RAVI_TNUMFLT || ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYFLT))
+            op = OP_RAVI_SETTABLE_AF;
+          else
+            op = OP_RAVI_SETTABLE_AFF;
+        } else if (var->ravi_type == RAVI_TARRAYINT &&
+                   var->u.ind.key_type == RAVI_TNUMINT) {
+          if (!(ex->ravi_type == RAVI_TNUMINT || ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYINT))
+            op = OP_RAVI_SETTABLE_AI;          
+          else
+            op = OP_RAVI_SETTABLE_AII;
+        }
       }
       int e = luaK_exp2RK(fs, ex);
       luaK_codeABC(fs, op, var->u.ind.t, var->u.ind.idx, e);

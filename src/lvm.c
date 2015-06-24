@@ -1448,8 +1448,27 @@ newframe:  /* reentry point when frame changes (call/return) */
       TValue *rb = RKB(i);
       TValue *rc = RKC(i);
       lua_Integer idx = ivalue(rb);
-      lua_Integer value = ivalue(rc);
-      raviH_set_int_inline(L, t, idx, value);
+      if (ttisinteger(rc)) {
+        raviH_set_int_inline(L, t, idx, ivalue(rc));
+      }
+      else if (ttisfloat(rc)) {
+        raviH_set_int_inline(L, t, idx, (lua_Integer) fltvalue(rc));
+      }
+      else {
+        lua_Integer j;
+        if (tointeger(rc, &j)) {
+          raviH_set_int_inline(L, t, idx, j);
+        }
+        else
+          luaG_runerror(L, "integer expected");
+      }
+    } break;
+    case OP_RAVI_SETTABLE_AII: {
+      Table *t = hvalue(ra);
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      lua_Integer idx = ivalue(rb);
+      raviH_set_int_inline(L, t, idx, ivalue(rc));
     } break;
     case OP_RAVI_SETTABLE_AF: {
       Table *t = hvalue(ra);
@@ -1459,9 +1478,24 @@ newframe:  /* reentry point when frame changes (call/return) */
       if (ttisfloat(rc)) {
         raviH_set_float_inline(L, t, idx, fltvalue(rc));
       } 
-      else {
+      else if (ttisinteger(rc)) {
         raviH_set_float_inline(L, t, idx, ((lua_Number)ivalue(rc)));
       }
+      else {
+        lua_Number j;
+        if (tonumber(rc, &j)) {
+          raviH_set_float_inline(L, t, idx, j);
+        }
+        else
+          luaG_runerror(L, "number expected");
+      }
+    } break;
+    case OP_RAVI_SETTABLE_AFF: {
+      Table *t = hvalue(ra);
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      lua_Integer idx = ivalue(rb);
+      raviH_set_float_inline(L, t, idx, fltvalue(rc));
     } break;
 
     case OP_RAVI_SETUPVALI: {

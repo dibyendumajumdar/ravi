@@ -6,8 +6,8 @@ local function fannkuch(n1)
   local n:integer = 11
   local p: integer[], q :integer[], s: integer[], sign: integer, maxflips: integer, sum: integer = {}, {}, {}, 1, 0, 0
   for i=1,n do 
-    p[i] = i; 
-    q[i] = i; 
+    p[i] = i 
+    q[i] = i
     s[i] = i 
   end
   repeat

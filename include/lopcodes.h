@@ -288,10 +288,13 @@ OP_RAVI_SETUPVALF,  /*	A B	UpValue[B] := tonumber(R(A))			*/
 OP_RAVI_SETUPVALAI,  /*	A B	UpValue[B] := toarrayint(R(A))			*/
 OP_RAVI_SETUPVALAF,  /*	A B	UpValue[B] := toarrayflt(R(A))			*/
 
+OP_RAVI_SETTABLE_AII,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+OP_RAVI_SETTABLE_AFF,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_RAVI_SETUPVALAF) + 1)
+#define NUM_OPCODES	(cast(int, OP_RAVI_SETTABLE_AFF) + 1)
 
 /*===========================================================================
   Notes:
