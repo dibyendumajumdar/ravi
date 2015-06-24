@@ -760,15 +760,19 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
         /* table value set - if array access then use specialized versions */
         if (var->ravi_type == RAVI_TARRAYFLT &&
             var->u.ind.key_type == RAVI_TNUMINT) {
-          if (!(ex->ravi_type == RAVI_TNUMFLT || ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYFLT))
+          if (!(ex->ravi_type == RAVI_TNUMFLT || (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYFLT)))
+            /* input value may need conversion */
             op = OP_RAVI_SETTABLE_AF;
           else
+            /* input value is known to be number */
             op = OP_RAVI_SETTABLE_AFF;
         } else if (var->ravi_type == RAVI_TARRAYINT &&
                    var->u.ind.key_type == RAVI_TNUMINT) {
-          if (!(ex->ravi_type == RAVI_TNUMINT || ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYINT))
+          if (!(ex->ravi_type == RAVI_TNUMINT || (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYINT)))
+            /* input value may need conversion */
             op = OP_RAVI_SETTABLE_AI;          
           else
+            /* input value is known to be integer */
             op = OP_RAVI_SETTABLE_AII;
         }
       }

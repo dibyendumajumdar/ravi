@@ -265,9 +265,6 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def,
   //  raviH_set_float_inline(L, t, idx, ((lua_Number)ivalue(rc)));
   //}
 
-  llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
-  llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
-
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, base_ptr, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
