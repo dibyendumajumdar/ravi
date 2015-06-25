@@ -24,7 +24,9 @@
 #include <ravi_gccjit.h>
 
 // R(A+1), ..., R(A+B) := nil
-void ravi_emit_LOADNIL(ravi_function_def_t *def, int A, int B) {
+void ravi_emit_LOADNIL(ravi_function_def_t *def, int A, int B, int pc) {
+  (void) pc;
+
   ravi_function_call3_rvalue(
       def, def->ravi->types->raviV_op_loadnilT,
       gcc_jit_lvalue_as_rvalue(def->ci_val),
@@ -35,7 +37,8 @@ void ravi_emit_LOADNIL(ravi_function_def_t *def, int A, int B) {
 }
 
 // R(A) := tonumber(0)
-void ravi_emit_LOADFZ(ravi_function_def_t *def, int A) {
+void ravi_emit_LOADFZ(ravi_function_def_t *def, int A, int pc) {
+  (void) pc;
 
   // Load pointer to base
   ravi_emit_load_base(def);
@@ -43,12 +46,30 @@ void ravi_emit_LOADFZ(ravi_function_def_t *def, int A) {
   // ra
   gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
 
-  // destvalue->n = 0.0
+  // destvalue->value_.n = 0.0
   ravi_emit_store_reg_n_withtype(
       def, gcc_jit_context_new_rvalue_from_double(
                def->function_context, def->ravi->types->lua_NumberT, 0.0),
       dest);
 }
+
+// R(A) := tointeger(0)
+void ravi_emit_LOADIZ(ravi_function_def_t *def, int A, int pc) {
+  (void)pc;
+
+  // Load pointer to base
+  ravi_emit_load_base(def);
+
+  // ra
+  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+
+  // destvalue->value_.i =
+  ravi_emit_store_reg_i_withtype(
+          def, gcc_jit_context_new_rvalue_from_int(
+                  def->function_context, def->ravi->types->lua_IntegerT, 0),
+          dest);
+}
+
 
 void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc) {
 
@@ -85,4 +106,30 @@ void ravi_emit_MOVE(ravi_function_def_t *def, int A, int B) {
 
   // *ra = *rb
   ravi_emit_struct_assign(def, dest, src);
+}
+
+// R(A) := (Bool)B; if (C) pc++
+void ravi_emit_LOADBOOL(ravi_function_def_t *def, int A, int B, int C,
+                        int j, int pc) {
+
+  // setbvalue(ra, GETARG_B(i));
+  // if (GETARG_C(i)) ci->u.l.savedpc++;  /* skip next instruction (if C) */
+
+  // Load pointer to base
+  ravi_emit_load_base(def);
+  // ra
+  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  // dest->i = 0
+  ravi_emit_store_reg_b_withtype(def,
+                                 gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT,
+                                                                     B),
+                                 dest);
+  if (C) {
+    // Skip next instruction if C
+    ravi_emit_branch(def, def->jmp_targets[j]->jmp);
+
+    gcc_jit_block *block =
+            gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_LOADBOOL_", pc));
+    ravi_set_current_block(def, block);
+  }
 }

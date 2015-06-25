@@ -92,6 +92,7 @@ struct ravi_State {
 
 struct ravi_gcc_types_t {
 
+  gcc_jit_type *C_boolT;
   gcc_jit_type *C_doubleT;
   gcc_jit_type *C_intptr_t;
   gcc_jit_type *C_size_t;
@@ -516,9 +517,14 @@ extern void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc, ravi_bra
 
 extern void ravi_emit_MOVE(ravi_function_def_t *def, int A, int B);
 
-extern void ravi_emit_LOADNIL(ravi_function_def_t *def, int A, int B);
+extern void ravi_emit_LOADNIL(ravi_function_def_t *def, int A, int B, int pc);
 
-extern void ravi_emit_LOADFZ(ravi_function_def_t *def, int A);
+extern void ravi_emit_LOADFZ(ravi_function_def_t *def, int A, int pc);
+
+extern void ravi_emit_LOADIZ(ravi_function_def_t *def, int A, int pc);
+
+extern void ravi_emit_LOADBOOL(ravi_function_def_t *def, int A, int B, int C,
+                               int j, int pc);
 
 extern void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C);
 

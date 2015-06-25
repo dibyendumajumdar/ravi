@@ -31,6 +31,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
 
   ravi_gcc_types_t *t = ravi->types;
 
+  t->C_boolT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_BOOL);
   t->C_doubleT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_DOUBLE);
   t->lua_NumberT = t->C_doubleT;
   t->plua_NumberT = gcc_jit_type_get_pointer(t->lua_NumberT);

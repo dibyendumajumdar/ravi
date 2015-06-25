@@ -182,11 +182,11 @@ target_link_libraries(lua ravi)
 #add_executable(luac src/luac.c)
 #target_link_libraries(luac ravis)
 
-if (LLVM_JIT)
-  #VM test
-  add_executable(test_vm tests/test_vm.c)
-  target_link_libraries(test_vm ravi)
+#VM test
+add_executable(test_vm tests/test_vm.c)
+target_link_libraries(test_vm ravi)
 
+if (LLVM_JIT)
   #LLVM playground
   add_executable(test_llvm tests/test_llvm.cpp)
   target_link_libraries(test_llvm ravi)
@@ -202,7 +202,7 @@ endif()
 add_executable(test_misc tests/test_misc.c)
 
 if (LLVM_JIT)
-  add_test(TestVM test_vm)
   add_test(TestLLVM test_llvm)
 endif()
+add_test(TestVM test_vm)
 add_test(TestMisc test_misc)

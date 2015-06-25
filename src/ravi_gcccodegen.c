@@ -57,6 +57,7 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_FORPREP_I1:
     case OP_MOVE:
     case OP_LOADNIL:
+    case OP_RAVI_LOADIZ:
     case OP_RAVI_LOADFZ:
     case OP_RAVI_ADDFN:
     case OP_CALL:
@@ -66,12 +67,12 @@ static bool can_compile(Proto *p) {
     case OP_LT:
     case OP_LE:
     case OP_GETTABUP:
-      break;
-    case OP_LOADKX:
     case OP_LOADBOOL:
     case OP_NOT:
     case OP_TEST:
     case OP_TESTSET:
+      break;
+    case OP_LOADKX:
     case OP_FORPREP:
     case OP_FORLOOP:
     case OP_TFORCALL:
@@ -102,7 +103,6 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_MOVEF:
     case OP_RAVI_TOINT:
     case OP_RAVI_TOFLT:
-    case OP_RAVI_LOADIZ:
     case OP_RAVI_ADDIN:
     case OP_RAVI_ADDFF:
     case OP_RAVI_ADDFI:
@@ -127,7 +127,9 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_GETTABLE_AI:
     case OP_RAVI_GETTABLE_AF:
     case OP_RAVI_SETTABLE_AI:
+    case OP_RAVI_SETTABLE_AII:
     case OP_RAVI_SETTABLE_AF:
+    case OP_RAVI_SETTABLE_AFF:
     case OP_RAVI_TOARRAYI:
     case OP_RAVI_TOARRAYF:
     case OP_RAVI_MOVEAI:
@@ -156,8 +158,8 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   //                                GCC_JIT_BOOL_OPTION_DUMP_EVERYTHING, 1);
   // gcc_jit_context_set_bool_option(def->function_context,
   //                                GCC_JIT_BOOL_OPTION_KEEP_INTERMEDIATES, 1);
-  gcc_jit_context_set_bool_option(def->function_context,
-                                  GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
+  //gcc_jit_context_set_bool_option(def->function_context,
+  //                                GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
   gcc_jit_context_set_int_option(def->function_context,
                                  GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, 3);
 
@@ -759,10 +761,18 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     } break;
     case OP_LOADNIL: {
       int B = GETARG_B(i);
-      ravi_emit_LOADNIL(&def, A, B);
+      ravi_emit_LOADNIL(&def, A, B, pc);
     } break;
     case OP_RAVI_LOADFZ: {
-      ravi_emit_LOADFZ(&def, A);
+      ravi_emit_LOADFZ(&def, A, pc);
+    } break;
+    case OP_RAVI_LOADIZ: {
+      ravi_emit_LOADIZ(&def, A, pc);
+    } break;
+    case OP_LOADBOOL: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_LOADBOOL(&def, A, B, C, pc + 2, pc);
     } break;
     case OP_RAVI_ADDFN: {
       int B = GETARG_B(i);

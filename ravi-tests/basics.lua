@@ -48,6 +48,7 @@ assert(ravi.compile(y))
 assert(y() == 1234.0)
 print('test 5 ok')
 
+-- Test OP_EQ
 x=function(a,b)
   if a == b then 
     return "foo" 
@@ -62,6 +63,7 @@ assert(x(1,1) == "foo")
 assert(x(1,2) == "bar")
 print('test 6 ok')
 
+-- Test OP_EQ
 x=function(a,b)
   if a ~= b then 
     return "foo" 
@@ -76,6 +78,93 @@ assert(x(1,1) == "bar")
 assert(x(1,2) == "foo")
 print('test 7 ok')
 
+-- Test OP_LOADBOOL
+function x() return not nil; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x())
+print('test 8 Ok')
 
 
+-- Test OP_LOADBOOL
+function x() return not 1; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(not x())
+print('test 9 Ok')
+
+-- test 8
+x = function ()
+  if 1 == 2 then
+    return 5.0
+  end
+  return 1.0
+end
+
+assert(ravi.compile(x))
+assert(x() == 1.0)
+print("test 8 OK")
+
+-- test 9
+x = function (y)
+  if y == 1 then
+    return 1.0
+  elseif y == 5 then
+    return 2.0
+  else
+    return 3.0
+  end
+end
+assert(ravi.compile(x))
+assert(x(5) == 2.0)
+assert(x(4) == 3.0)
+print("test 9 OK")
+
+-- test 10
+x = function (y,z)
+  if y == 1 then
+    if z == 1 then
+      return 99.0
+    else
+      return z
+    end
+  elseif y == 5 then
+    return 2.0
+  else
+    return 3.0
+  end
+end
+
+assert(ravi.compile(x))
+assert(x(1,1) == 99.0)
+assert(x(1,2) == 2)
+assert(x(1,5.3) == 5.3)
+assert(x(5) == 2.0)
+assert(x(4) == 3.0)
+print("test 10 OK")
+
+
+-- test 16
+function tryme(x,y)
+  if x < y then
+    return 1
+  else
+    return 0
+  end
+end
+--ravi.dumplua(tryme)
+assert(ravi.compile(tryme))
+assert(tryme(1,2) == 1)
+assert(tryme(2,1) == 0)
+print("test 16 OK")
+
+-- test 17
+function tryme(x,y)
+  return x < y
+end
+--ravi.dumplua(tryme)
+assert(ravi.compile(tryme))
+assert(tryme(1,2))
+assert(not tryme(2,1))
+print("test 17 OK")
 

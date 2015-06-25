@@ -28,8 +28,6 @@ void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc) {
   // int b = GETARG_B(i);
   // Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
 
-  fprintf(stderr, "GETTABUP called");
-
   (void)pc;
   ravi_emit_load_base(def);
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);

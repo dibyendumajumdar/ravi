@@ -97,7 +97,8 @@ gcc_jit_rvalue *ravi_emit_boolean_testfalse(ravi_function_def_t *def,
                                             bool negate) {
   // (isnil() || isbool() && b == 0)
 
-  gcc_jit_lvalue *var = gcc_jit_function_new_local(def->jit_function, NULL, def->ravi->types->C_intT,
+  // FIXME should this be bool or int?
+  gcc_jit_lvalue *var = gcc_jit_function_new_local(def->jit_function, NULL, def->ravi->types->C_boolT,
                                                    unique_name(def, "bvalue", 0));
   gcc_jit_lvalue *type = ravi_emit_load_type(def, reg);
 
