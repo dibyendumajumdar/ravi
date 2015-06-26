@@ -310,6 +310,19 @@ void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue *dest,
                                gcc_jit_lvalue_as_rvalue(src_tt));
 }
 
+void ravi_dump_rvalue(gcc_jit_rvalue *rv) {
+  const char *debugstr =
+          gcc_jit_object_get_debug_string(gcc_jit_rvalue_as_object(rv));
+  fprintf(stderr, "%s\n", debugstr);
+}
+
+void ravi_dump_lvalue(gcc_jit_lvalue *lv) {
+  const char *debugstr =
+          gcc_jit_object_get_debug_string(gcc_jit_lvalue_as_object(lv));
+  fprintf(stderr, "%s\n", debugstr);
+}
+
+
 /* Obtain reference to currently executing function (LClosure*)
  * L->ci->func.value_.gc */
 static void emit_ci_func_value_gc_asLClosure(ravi_function_def_t *def,
@@ -321,9 +334,6 @@ static void emit_ci_func_value_gc_asLClosure(ravi_function_def_t *def,
   gcc_jit_lvalue *gc = gcc_jit_lvalue_access_field(
       value, NULL, def->ravi->types->Value_value_gc);
 
-  // const char *debugstr =
-  // gcc_jit_object_get_debug_string(gcc_jit_lvalue_as_object(gc));
-  // fprintf(stderr, "%s\n", debugstr);
   def->lua_closure = gcc_jit_context_new_cast(def->function_context, NULL,
                                               gcc_jit_lvalue_as_rvalue(gc),
                                               def->ravi->types->pLClosureT);
@@ -860,7 +870,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     }
   }
 
-  gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
+  // gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
   // gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
   // gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
 

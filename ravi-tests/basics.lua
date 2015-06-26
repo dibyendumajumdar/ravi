@@ -100,7 +100,7 @@ x = function ()
   end
   return 1.0
 end
-
+ravi.dumplua(x)
 assert(ravi.compile(x))
 assert(x() == 1.0)
 print("test 8 OK")
@@ -115,6 +115,7 @@ x = function (y)
     return 3.0
   end
 end
+ravi.dumplua(x)
 assert(ravi.compile(x))
 assert(x(5) == 2.0)
 assert(x(4) == 3.0)
@@ -134,7 +135,7 @@ x = function (y,z)
     return 3.0
   end
 end
-
+ravi.dumplua(x)
 assert(ravi.compile(x))
 assert(x(1,1) == 99.0)
 assert(x(1,2) == 2)
@@ -152,7 +153,7 @@ function tryme(x,y)
     return 0
   end
 end
---ravi.dumplua(tryme)
+ravi.dumplua(tryme)
 assert(ravi.compile(tryme))
 assert(tryme(1,2) == 1)
 assert(tryme(2,1) == 0)
@@ -162,9 +163,61 @@ print("test 16 OK")
 function tryme(x,y)
   return x < y
 end
---ravi.dumplua(tryme)
+ravi.dumplua(tryme)
 assert(ravi.compile(tryme))
 assert(tryme(1,2))
 assert(not tryme(2,1))
 print("test 17 OK")
+
+-- test 19
+function optest()
+  local a,b,c = 1, 5
+  c = a and b
+  return c
+end
+ravi.dumplua(optest)
+assert(ravi.compile(optest))
+-- ravi.dumpllvm(optest)
+assert(optest() == 5)
+print("test 19 OK")
+
+-- test 20
+function optest()
+  local a,b,c = 1, 5
+  c = a or b
+  return c
+end
+ravi.dumplua(optest)
+assert(ravi.compile(optest))
+-- ravi.dumpllvm(optest)
+assert(optest() == 1)
+print("test 20 OK")
+
+-- test 21
+function optest()
+  local a,b = 1, 5
+  if a and b then
+    return b
+  end
+  return a
+end
+ravi.dumplua(optest)
+assert(ravi.compile(optest))
+-- ravi.dumpllvm(optest)
+assert(optest() == 5)
+print("test 21 OK")
+
+-- test 22
+function optest()
+  local a,b = nil, 5
+  if a or b then
+    return b
+  end
+  return a
+end
+ravi.dumplua(optest)
+assert(ravi.compile(optest))
+-- ravi.dumpllvm(optest)
+assert(optest() == 5)
+print("test 22 OK")
 
