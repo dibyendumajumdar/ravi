@@ -158,7 +158,7 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   //                                GCC_JIT_BOOL_OPTION_DUMP_EVERYTHING, 1);
   // gcc_jit_context_set_bool_option(def->function_context,
   //                                GCC_JIT_BOOL_OPTION_KEEP_INTERMEDIATES, 1);
-  //gcc_jit_context_set_bool_option(def->function_context,
+  // gcc_jit_context_set_bool_option(def->function_context,
   //                                GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
   gcc_jit_context_set_int_option(def->function_context,
                                  GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, 3);
@@ -189,7 +189,6 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
 on_error:
   return false;
 }
-
 
 /* release the resources allocated when compiling a function
  * note that the compiled function is not released here */
@@ -283,12 +282,11 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
   }
 }
 
-void ravi_emit_raise_lua_error(ravi_function_def_t *def,
-                               const char *str) {
-  ravi_function_call2_rvalue(def, def->ravi->types->luaG_runerrorT, gcc_jit_param_as_rvalue(def->L),
-                             gcc_jit_context_new_string_literal(def->function_context, str));
+void ravi_emit_raise_lua_error(ravi_function_def_t *def, const char *str) {
+  ravi_function_call2_rvalue(
+      def, def->ravi->types->luaG_runerrorT, gcc_jit_param_as_rvalue(def->L),
+      gcc_jit_context_new_string_literal(def->function_context, str));
 }
-
 
 void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue *dest,
                              gcc_jit_rvalue *src) {
@@ -320,16 +318,15 @@ void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue *dest,
 
 void ravi_dump_rvalue(gcc_jit_rvalue *rv) {
   const char *debugstr =
-          gcc_jit_object_get_debug_string(gcc_jit_rvalue_as_object(rv));
+      gcc_jit_object_get_debug_string(gcc_jit_rvalue_as_object(rv));
   fprintf(stderr, "%s\n", debugstr);
 }
 
 void ravi_dump_lvalue(gcc_jit_lvalue *lv) {
   const char *debugstr =
-          gcc_jit_object_get_debug_string(gcc_jit_lvalue_as_object(lv));
+      gcc_jit_object_get_debug_string(gcc_jit_lvalue_as_object(lv));
   fprintf(stderr, "%s\n", debugstr);
 }
-
 
 /* Obtain reference to currently executing function (LClosure*)
  * L->ci->func.value_.gc */
@@ -443,12 +440,11 @@ gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def,
 gcc_jit_lvalue *ravi_emit_load_reg_b(ravi_function_def_t *def,
                                      gcc_jit_rvalue *tv) {
   gcc_jit_lvalue *value =
-          gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_value);
+      gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_value);
   gcc_jit_lvalue *i =
-          gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_b);
+      gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_b);
   return i;
 }
-
 
 /* Get TValue->value_.n */
 gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def,
@@ -476,7 +472,8 @@ void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def,
   gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
 }
 
-gcc_jit_lvalue *ravi_emit_load_type(ravi_function_def_t *def, gcc_jit_rvalue *tv) {
+gcc_jit_lvalue *ravi_emit_load_type(ravi_function_def_t *def,
+                                    gcc_jit_rvalue *tv) {
   return gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_tt);
 }
 
@@ -486,41 +483,41 @@ gcc_jit_rvalue *ravi_emit_is_value_of_type(ravi_function_def_t *def,
 #if RAVI_NAN_TAGGING
 #error NaN tagging not supported
 #else
-  return gcc_jit_context_new_comparison(def->function_context, NULL,
-                                        GCC_JIT_COMPARISON_EQ, value_type,
-                                        gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                                                            def->ravi->types->C_intT, lua_type));
+  return gcc_jit_context_new_comparison(
+      def->function_context, NULL, GCC_JIT_COMPARISON_EQ, value_type,
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->C_intT, lua_type));
 #endif
 }
 
 gcc_jit_rvalue *ravi_emit_is_not_value_of_type(ravi_function_def_t *def,
-                                           gcc_jit_rvalue *value_type,
-                                           int lua_type) {
+                                               gcc_jit_rvalue *value_type,
+                                               int lua_type) {
 #if RAVI_NAN_TAGGING
 #error NaN tagging not supported
 #else
-  return gcc_jit_context_new_unary_op(def->function_context, NULL, GCC_JIT_UNARY_OP_LOGICAL_NEGATE,
-    def->ravi->types->C_boolT, ravi_emit_is_value_of_type(def, value_type, lua_type));
+  return gcc_jit_context_new_unary_op(
+      def->function_context, NULL, GCC_JIT_UNARY_OP_LOGICAL_NEGATE,
+      def->ravi->types->C_boolT,
+      ravi_emit_is_value_of_type(def, value_type, lua_type));
 #endif
 }
-
 
 /* Store a boolean value and set type to TBOOLEAN */
 void ravi_emit_store_reg_b_withtype(ravi_function_def_t *def,
                                     gcc_jit_rvalue *bvalue,
                                     gcc_jit_rvalue *reg) {
   gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(
-          reg, NULL, def->ravi->types->Value_value);
+      reg, NULL, def->ravi->types->Value_value);
   gcc_jit_lvalue *n =
-          gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_b);
+      gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_b);
   gcc_jit_block_add_assignment(def->current_block, NULL, n, bvalue);
   gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(
-          def->function_context, def->ravi->types->C_intT, LUA__TBOOLEAN);
+      def->function_context, def->ravi->types->C_intT, LUA__TBOOLEAN);
   gcc_jit_lvalue *tt =
-          gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
+      gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
   gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
 }
-
 
 /* Store a number value and set type to TNUMFLT */
 void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def,
@@ -878,11 +875,11 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       pc++;
       i = code[pc];
       op = GET_OPCODE(i);
-              lua_assert(op == OP_JMP);
+      lua_assert(op == OP_JMP);
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      ravi_emit_TEST(&def, A, B, C, j, GETARG_A(i), pc-1);
+      ravi_emit_TEST(&def, A, B, C, j, GETARG_A(i), pc - 1);
     } break;
     case OP_TESTSET: {
       int B = GETARG_B(i);
@@ -892,11 +889,11 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       pc++;
       i = code[pc];
       op = GET_OPCODE(i);
-              lua_assert(op == OP_JMP);
+      lua_assert(op == OP_JMP);
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      ravi_emit_TESTSET(&def, A, B, C, j, GETARG_A(i), pc-1);
+      ravi_emit_TESTSET(&def, A, B, C, j, GETARG_A(i), pc - 1);
     } break;
 
     default:
