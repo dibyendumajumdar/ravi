@@ -493,6 +493,18 @@ gcc_jit_rvalue *ravi_emit_is_value_of_type(ravi_function_def_t *def,
 #endif
 }
 
+gcc_jit_rvalue *ravi_emit_is_not_value_of_type(ravi_function_def_t *def,
+                                           gcc_jit_rvalue *value_type,
+                                           int lua_type) {
+#if RAVI_NAN_TAGGING
+#error NaN tagging not supported
+#else
+  return gcc_jit_context_new_unary_op(def->function_context, NULL, GCC_JIT_UNARY_OP_LOGICAL_NEGATE,
+    def->ravi->types->C_boolT, ravi_emit_is_value_of_type(def, value_type, lua_type));
+#endif
+}
+
+
 /* Store a boolean value and set type to TBOOLEAN */
 void ravi_emit_store_reg_b_withtype(ravi_function_def_t *def,
                                     gcc_jit_rvalue *bvalue,

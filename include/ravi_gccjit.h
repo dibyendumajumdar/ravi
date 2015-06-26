@@ -491,6 +491,10 @@ extern gcc_jit_rvalue *ravi_emit_is_value_of_type(ravi_function_def_t *def,
                                                   gcc_jit_rvalue *value_type,
                                                   int lua_type);
 
+extern gcc_jit_rvalue *ravi_emit_is_not_value_of_type(ravi_function_def_t *def,
+                                                  gcc_jit_rvalue *value_type,
+                                                  int lua_type);
+
 extern void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def, gcc_jit_rvalue *ivalue, gcc_jit_rvalue *reg);
 
 extern void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def, gcc_jit_rvalue *nvalue, gcc_jit_rvalue *reg);
