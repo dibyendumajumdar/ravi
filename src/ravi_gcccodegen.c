@@ -75,6 +75,9 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_MOVEF:
     case OP_RAVI_TOINT:
     case OP_RAVI_TOFLT:
+    case OP_VARARG:
+    case OP_CONCAT:
+    case OP_CLOSURE:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -90,9 +93,6 @@ static bool can_compile(Proto *p) {
     case OP_UNM:
     case OP_POW:
     case OP_LEN:
-    case OP_VARARG:
-    case OP_CONCAT:
-    case OP_CLOSURE:
     case OP_SETTABLE:
     case OP_GETTABLE:
     case OP_GETUPVAL:
@@ -761,6 +761,19 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     OpCode op = GET_OPCODE(i);
     int A = GETARG_A(i);
     switch (op) {
+    case OP_CONCAT: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_CONCAT(&def, A, B, C, pc);
+    } break;
+    case OP_CLOSURE: {
+      int Bx = GETARG_Bx(i);
+      ravi_emit_CLOSURE(&def, A, Bx, pc);
+    } break;
+    case OP_VARARG: {
+      int B = GETARG_B(i);
+      ravi_emit_VARARG(&def, A, B, pc);
+    } break;
     case OP_RAVI_MOVEI: {
       int B = GETARG_B(i);
       ravi_emit_MOVEI(&def, A, B, pc);
