@@ -521,6 +521,8 @@ extern void ravi_emit_MOVE(ravi_function_def_t *def, int A, int B);
 
 extern void ravi_emit_MOVEI(ravi_function_def_t *def, int A, int B, int pc);
 
+extern void ravi_emit_MOVEF(ravi_function_def_t *def, int A, int B, int pc);
+
 extern void ravi_emit_LOADNIL(ravi_function_def_t *def, int A, int B, int pc);
 
 extern void ravi_emit_LOADFZ(ravi_function_def_t *def, int A, int pc);
