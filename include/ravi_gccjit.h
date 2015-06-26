@@ -557,6 +557,10 @@ extern void ravi_emit_TESTSET(ravi_function_def_t *def, int A, int B, int C,
 
 extern void ravi_emit_NOT(ravi_function_def_t *def, int A, int B, int pc);
 
+extern void ravi_emit_TOFLT(ravi_function_def_t *def, int A, int pc);
+
+extern void ravi_emit_TOINT(ravi_function_def_t *def, int A, int pc);
+
 extern void ravi_dump_rvalue(gcc_jit_rvalue *rv);
 
 extern void ravi_dump_lvalue(gcc_jit_lvalue *lv);

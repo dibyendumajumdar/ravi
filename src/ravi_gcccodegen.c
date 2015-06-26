@@ -71,6 +71,10 @@ static bool can_compile(Proto *p) {
     case OP_NOT:
     case OP_TEST:
     case OP_TESTSET:
+    case OP_RAVI_MOVEI:
+    case OP_RAVI_MOVEF:
+    case OP_RAVI_TOINT:
+    case OP_RAVI_TOFLT:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -99,10 +103,6 @@ static bool can_compile(Proto *p) {
     case OP_SELF:
     case OP_RAVI_NEWARRAYI:
     case OP_RAVI_NEWARRAYF:
-    case OP_RAVI_MOVEI:
-    case OP_RAVI_MOVEF:
-    case OP_RAVI_TOINT:
-    case OP_RAVI_TOFLT:
     case OP_RAVI_ADDIN:
     case OP_RAVI_ADDFF:
     case OP_RAVI_ADDFI:
@@ -764,6 +764,20 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     OpCode op = GET_OPCODE(i);
     int A = GETARG_A(i);
     switch (op) {
+    case OP_RAVI_MOVEI: {
+      int B = GETARG_B(i);
+      ravi_emit_MOVEI(&def, A, B, pc);
+    } break;
+    case OP_RAVI_MOVEF: {
+      int B = GETARG_B(i);
+      ravi_emit_MOVEF(&def, A, B, pc);
+    } break;
+    case OP_RAVI_TOINT: {
+      ravi_emit_TOINT(&def, A, pc);
+    } break;
+    case OP_RAVI_TOFLT: {
+      ravi_emit_TOFLT(&def, A, pc);
+    } break;
     case OP_RETURN: {
       int B = GETARG_B(i);
       ravi_emit_RETURN(&def, A, B, pc);
