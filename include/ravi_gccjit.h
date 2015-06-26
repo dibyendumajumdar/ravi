@@ -506,6 +506,8 @@ extern gcc_jit_rvalue *ravi_emit_boolean_testfalse(ravi_function_def_t *def,
                                                    gcc_jit_rvalue *reg,
                                                    bool negate);
 
+extern void ravi_emit_raise_lua_error(ravi_function_def_t *def, const char *msg);
+
 extern void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc);
 
 extern void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc);
@@ -516,6 +518,8 @@ extern void ravi_emit_iFORPREP(ravi_function_def_t *def, int A, int pc,
 extern void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc, ravi_branch_def_t *b, int step_one);
 
 extern void ravi_emit_MOVE(ravi_function_def_t *def, int A, int B);
+
+extern void ravi_emit_MOVEI(ravi_function_def_t *def, int A, int B, int pc);
 
 extern void ravi_emit_LOADNIL(ravi_function_def_t *def, int A, int B, int pc);
 

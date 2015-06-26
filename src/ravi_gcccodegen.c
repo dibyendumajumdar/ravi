@@ -190,6 +190,7 @@ on_error:
   return false;
 }
 
+
 /* release the resources allocated when compiling a function
  * note that the compiled function is not released here */
 static void free_function_def(ravi_function_def_t *def) {
@@ -281,6 +282,13 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
     }
   }
 }
+
+void ravi_emit_raise_lua_error(ravi_function_def_t *def,
+                               const char *str) {
+  ravi_function_call2_rvalue(def, def->ravi->types->luaG_runerrorT, gcc_jit_param_as_rvalue(def->L),
+                             gcc_jit_context_new_string_literal(def->function_context, str));
+}
+
 
 void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue *dest,
                              gcc_jit_rvalue *src) {

@@ -97,7 +97,6 @@ gcc_jit_rvalue *ravi_emit_boolean_testfalse(ravi_function_def_t *def,
                                             bool negate) {
   // (isnil() || isbool() && b == 0)
 
-  // FIXME should this be bool or int?
   gcc_jit_lvalue *var = gcc_jit_function_new_local(def->jit_function, NULL, def->ravi->types->C_boolT,
                                                    unique_name(def, "bvalue", 0));
   gcc_jit_lvalue *type = ravi_emit_load_type(def, reg);
@@ -181,9 +180,9 @@ void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C,
                                                         def->ravi->types->C_boolT, v);
   // If !v then we need to execute the next statement which is a jump
   gcc_jit_block *then_block =
-          gcc_jit_function_new_block(def->jit_function, unique_name(def, "if.then", pc));
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_TEST_if_then", pc));
   gcc_jit_block *else_block =
-          gcc_jit_function_new_block(def->jit_function, unique_name(def, "if.else", pc));
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_TEST_if_else", pc));
   ravi_emit_conditional_branch(def, result, then_block, else_block);
   ravi_set_current_block(def, then_block);
 
@@ -251,9 +250,9 @@ void ravi_emit_TESTSET(ravi_function_def_t *def, int A, int B, int C,
 
   // If !v then we need to execute the next statement which is a jump
   gcc_jit_block *then_block =
-          gcc_jit_function_new_block(def->jit_function, unique_name(def, "if.then", pc));
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_TESTSET_if_then", pc));
   gcc_jit_block *else_block =
-          gcc_jit_function_new_block(def->jit_function, unique_name(def, "if.else", pc));
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_TESTSET_if_else", pc));
   ravi_emit_conditional_branch(def, result, then_block, else_block);
   ravi_set_current_block(def, then_block);
 

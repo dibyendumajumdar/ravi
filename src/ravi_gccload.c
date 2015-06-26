@@ -133,3 +133,71 @@ void ravi_emit_LOADBOOL(ravi_function_def_t *def, int A, int B, int C,
     ravi_set_current_block(def, block);
   }
 }
+
+// R(A) := R(B), check R(B) is int
+void ravi_emit_MOVEI(ravi_function_def_t *def, int A, int B, int pc) {
+
+  // TValue *rb = RB(i);
+  // lua_Integer j;
+  // if (tointeger(rb, &j)) {
+  //   setivalue(ra, j);
+  // }
+  // else
+  //   luaG_runerror(L, "integer expected");
+
+  gcc_jit_lvalue *var = gcc_jit_function_new_local(def->jit_function, NULL, def->ravi->types->lua_IntegerT,
+                                                   unique_name(def, "OP_RAVI_MOVEI_i", pc));
+
+  // Load pointer to base
+  ravi_emit_load_base(def);
+
+  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *src = ravi_emit_get_register(def, B);
+
+  gcc_jit_lvalue *src_type = ravi_emit_load_type(def, src);
+
+  // Compare src->tt == LUA_TNUMINT
+  gcc_jit_rvalue *cmp1 =
+          ravi_emit_is_value_of_type(def, gcc_jit_lvalue_as_rvalue(src_type), LUA__TNUMINT);
+
+  gcc_jit_block *then1 =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_RAVI_MOVEI_if_integer", pc));
+  gcc_jit_block *else1 =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_RAVI_MOVEI_if_not_integer", pc));
+  gcc_jit_block *end1 =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_RAVI_MOVEI_done", pc));
+
+  ravi_emit_conditional_branch(def, cmp1, then1, else1);
+  ravi_set_current_block(def, then1);
+
+  // Already a int - move
+  gcc_jit_lvalue *tmp = ravi_emit_load_reg_i(def, src);
+  gcc_jit_block_add_assignment(def->current_block, NULL, var, gcc_jit_lvalue_as_rvalue(tmp));
+  ravi_emit_branch(def, end1);
+
+  // we need to convert
+  ravi_set_current_block(def, else1);
+
+  // Call luaV_tointeger_()
+  gcc_jit_rvalue *var_isint =
+          ravi_function_call2_rvalue(def, def->ravi->types->luaV_tointegerT, src, gcc_jit_lvalue_as_rvalue(var));
+  gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, 0);
+  gcc_jit_rvalue *tobool = gcc_jit_context_new_comparison(def->function_context, NULL,
+                                                          GCC_JIT_COMPARISON_EQ, var_isint, zero);
+
+  // Did conversion fail?
+  gcc_jit_block *else2 = gcc_jit_function_new_block(def->jit_function,
+                                                    unique_name(def, "OP_RAVI_MOVEI_if_conversion_failed", pc));
+  ravi_emit_conditional_branch(def, tobool, else2, end1);
+
+  // Conversion failed, so raise error
+  ravi_set_current_block(def, else2);
+  ravi_emit_raise_lua_error(def, "integer expected");
+
+  ravi_emit_branch(def, end1);
+
+  // Conversion OK
+  ravi_set_current_block(def, end1);
+
+  ravi_emit_store_reg_i_withtype(def, gcc_jit_lvalue_as_rvalue(var), dest);
+}
