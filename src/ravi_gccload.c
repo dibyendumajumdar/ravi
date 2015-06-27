@@ -185,8 +185,8 @@ void ravi_emit_MOVEI(ravi_function_def_t *def, int A, int B, int pc) {
                                  gcc_jit_lvalue_get_address(var, NULL));
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
-  gcc_jit_rvalue *tobool = ravi_emit_comparison(
-      def, GCC_JIT_COMPARISON_EQ, var_isint, zero);
+  gcc_jit_rvalue *tobool =
+      ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, var_isint, zero);
 
   // Did conversion fail?
   gcc_jit_block *else2 = gcc_jit_function_new_block(
@@ -260,8 +260,8 @@ void ravi_emit_MOVEF(ravi_function_def_t *def, int A, int B, int pc) {
                                  gcc_jit_lvalue_get_address(var, NULL));
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
-  gcc_jit_rvalue *tobool = ravi_emit_comparison(
-      def, GCC_JIT_COMPARISON_EQ, var_isflt, zero);
+  gcc_jit_rvalue *tobool =
+      ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, var_isflt, zero);
 
   // Did conversion fail?
   gcc_jit_block *else2 = gcc_jit_function_new_block(
@@ -323,8 +323,8 @@ void ravi_emit_TOINT(ravi_function_def_t *def, int A, int pc) {
                                  gcc_jit_lvalue_get_address(var, NULL));
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
-  gcc_jit_rvalue *tobool = ravi_emit_comparison(
-      def, GCC_JIT_COMPARISON_EQ, var_isint, zero);
+  gcc_jit_rvalue *tobool =
+      ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, var_isint, zero);
 
   // Did conversion fail?
   gcc_jit_block *then2 = gcc_jit_function_new_block(
@@ -393,8 +393,8 @@ void ravi_emit_TOFLT(ravi_function_def_t *def, int A, int pc) {
                                  gcc_jit_lvalue_get_address(var, NULL));
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
-  gcc_jit_rvalue *tobool = ravi_emit_comparison(
-      def, GCC_JIT_COMPARISON_EQ, var_isflt, zero);
+  gcc_jit_rvalue *tobool =
+      ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, var_isflt, zero);
 
   // Did conversion fail?
   gcc_jit_block *then2 = gcc_jit_function_new_block(

@@ -161,11 +161,12 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   // gcc_jit_context_set_bool_option(def->function_context,
   //                                GCC_JIT_BOOL_OPTION_KEEP_INTERMEDIATES, 1);
   if (def->dump_asm) {
-     gcc_jit_context_set_bool_option(def->function_context,
+    gcc_jit_context_set_bool_option(def->function_context,
                                     GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
   }
   gcc_jit_context_set_int_option(def->function_context,
-                                 GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, def->opt_level);
+                                 GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL,
+                                 def->opt_level);
 
   /* each function is given a unique name - as Lua functions are closures and do
    * not really have names */
@@ -465,14 +466,14 @@ gcc_jit_lvalue *ravi_emit_load_type(ravi_function_def_t *def,
   return gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_tt);
 }
 
-gcc_jit_rvalue *ravi_emit_comparison(ravi_function_def_t *def, enum gcc_jit_comparison op, gcc_jit_rvalue *a,
-                                     gcc_jit_rvalue *b) {
-  gcc_jit_lvalue *tmp_var = gcc_jit_function_new_local(def->jit_function, NULL, def->ravi->types->C_boolT,
-                                                       unique_name(def, "comparison", 0));
-  gcc_jit_rvalue *cmp = gcc_jit_context_new_comparison(
-          def->function_context, NULL, op,
-          a,
-          b);
+gcc_jit_rvalue *ravi_emit_comparison(ravi_function_def_t *def,
+                                     enum gcc_jit_comparison op,
+                                     gcc_jit_rvalue *a, gcc_jit_rvalue *b) {
+  gcc_jit_lvalue *tmp_var = gcc_jit_function_new_local(
+      def->jit_function, NULL, def->ravi->types->C_boolT,
+      unique_name(def, "comparison", 0));
+  gcc_jit_rvalue *cmp =
+      gcc_jit_context_new_comparison(def->function_context, NULL, op, a, b);
   gcc_jit_block_add_assignment(def->current_block, NULL, tmp_var, cmp);
   return gcc_jit_lvalue_as_rvalue(tmp_var);
 }
@@ -508,14 +509,14 @@ void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def,
                                     gcc_jit_rvalue *ivalue,
                                     gcc_jit_rvalue *reg) {
   gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(
-          reg, NULL, def->ravi->types->Value_value);
+      reg, NULL, def->ravi->types->Value_value);
   gcc_jit_lvalue *i =
-          gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_i);
+      gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_i);
   gcc_jit_block_add_assignment(def->current_block, NULL, i, ivalue);
   gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(
-          def->function_context, def->ravi->types->C_intT, LUA_TNUMINT);
+      def->function_context, def->ravi->types->C_intT, LUA_TNUMINT);
   gcc_jit_lvalue *tt =
-          gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
+      gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
   gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
 }
 
@@ -747,13 +748,13 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       doCompile = true;
     else if (p->sizecode >
              G->ravi_state->jit
-                     ->min_code_size_) /* function is long so compile */
+                 ->min_code_size_) /* function is long so compile */
       doCompile = true;
     else {
       if (p->ravi_jit.execution_count <
-          G->ravi_state
-                  ->jit->min_exec_count_) /* function has been executed many
-                                            times so compile */
+          G->ravi_state->jit
+              ->min_exec_count_) /* function has been executed many
+                                   times so compile */
         p->ravi_jit.execution_count++;
       else
         doCompile = true;

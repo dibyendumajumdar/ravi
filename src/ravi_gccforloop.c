@@ -64,14 +64,13 @@ void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc,
 
   // idx > limit?
   gcc_jit_rvalue *new_idx_gt_limit = ravi_emit_comparison(
-      def, GCC_JIT_COMPARISON_GT,
-      gcc_jit_lvalue_as_rvalue(b->iidx), gcc_jit_lvalue_as_rvalue(b->ilimit));
+      def, GCC_JIT_COMPARISON_GT, gcc_jit_lvalue_as_rvalue(b->iidx),
+      gcc_jit_lvalue_as_rvalue(b->ilimit));
 
   // If idx > limit we are done
   gcc_jit_block *update_block = gcc_jit_function_new_block(
       def->jit_function, unique_name(def, "FORLOOP_I1_updatei", 0));
-  ravi_emit_conditional_branch(def, new_idx_gt_limit,
-                                     exit_block, update_block);
+  ravi_emit_conditional_branch(def, new_idx_gt_limit, exit_block, update_block);
 
   ravi_set_current_block(def, update_block);
 

@@ -70,8 +70,7 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
 
   // Test if psize > 0
   gcc_jit_rvalue *psize_gt_0 = ravi_emit_comparison(
-      def, GCC_JIT_COMPARISON_GT,
-      gcc_jit_lvalue_as_rvalue(psize),
+      def, GCC_JIT_COMPARISON_GT, gcc_jit_lvalue_as_rvalue(psize),
       gcc_jit_context_new_rvalue_from_int(def->function_context,
                                           def->ravi->types->C_intT, 0));
 
@@ -80,8 +79,7 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   gcc_jit_block *else_block = gcc_jit_function_new_block(
       def->jit_function, unique_name(def, "OP_RETURN_else_sizep_gt_0", pc));
 
-  ravi_emit_conditional_branch(def, psize_gt_0,
-                                     then_block, else_block);
+  ravi_emit_conditional_branch(def, psize_gt_0, then_block, else_block);
 
   ravi_set_current_block(def, then_block);
   gcc_jit_block_add_eval(

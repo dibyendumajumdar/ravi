@@ -52,8 +52,8 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
   // Test if result is equal to operand A
   gcc_jit_rvalue *A_const = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, A);
-  gcc_jit_rvalue *result_eq_A = ravi_emit_comparison(
-      def, GCC_JIT_COMPARISON_EQ, result, A_const);
+  gcc_jit_rvalue *result_eq_A =
+      ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, result, A_const);
   // If result == A then we need to execute the next statement which is a jump
   char temp[80];
   snprintf(temp, sizeof temp, "%s_then", opname);
@@ -130,8 +130,7 @@ gcc_jit_rvalue *ravi_emit_boolean_testfalse(ravi_function_def_t *def,
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
   gcc_jit_rvalue *boolzero = ravi_emit_comparison(
-      def, GCC_JIT_COMPARISON_EQ,
-      gcc_jit_lvalue_as_rvalue(bool_value), zero);
+      def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(bool_value), zero);
 
   // Test type == LUA_TBOOLEAN && bool value == 0
   gcc_jit_rvalue *andvalue = gcc_jit_context_new_binary_op(
