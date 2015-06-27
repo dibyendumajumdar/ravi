@@ -69,8 +69,8 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   gcc_jit_lvalue *psize = ravi_emit_get_Proto_sizep(def);
 
   // Test if psize > 0
-  gcc_jit_rvalue *psize_gt_0 = gcc_jit_context_new_comparison(
-      def->function_context, NULL, GCC_JIT_COMPARISON_GT,
+  gcc_jit_rvalue *psize_gt_0 = ravi_emit_comparison(
+      def, GCC_JIT_COMPARISON_GT,
       gcc_jit_lvalue_as_rvalue(psize),
       gcc_jit_context_new_rvalue_from_int(def->function_context,
                                           def->ravi->types->C_intT, 0));

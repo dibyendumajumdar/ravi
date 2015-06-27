@@ -63,8 +63,8 @@ void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc,
   // lua_Integer limit = ivalue(ra + 1);
 
   // idx > limit?
-  gcc_jit_rvalue *new_idx_gt_limit = gcc_jit_context_new_comparison(
-      def->function_context, NULL, GCC_JIT_COMPARISON_GT,
+  gcc_jit_rvalue *new_idx_gt_limit = ravi_emit_comparison(
+      def, GCC_JIT_COMPARISON_GT,
       gcc_jit_lvalue_as_rvalue(b->iidx), gcc_jit_lvalue_as_rvalue(b->ilimit));
 
   // If idx > limit we are done

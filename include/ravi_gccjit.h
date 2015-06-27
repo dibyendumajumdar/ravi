@@ -505,6 +505,9 @@ extern void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def, gcc_jit_rva
 
 extern void ravi_emit_store_reg_b_withtype(ravi_function_def_t *def, gcc_jit_rvalue *bvalue, gcc_jit_rvalue *reg);
 
+extern gcc_jit_rvalue *ravi_emit_comparison(ravi_function_def_t *def, enum gcc_jit_comparison op, gcc_jit_rvalue *a,
+                                            gcc_jit_rvalue *b);
+
 extern void ravi_emit_conditional_branch(ravi_function_def_t *def, gcc_jit_rvalue *cond, gcc_jit_block *true_block,
   gcc_jit_block *false_block);
 

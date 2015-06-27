@@ -465,14 +465,26 @@ gcc_jit_lvalue *ravi_emit_load_type(ravi_function_def_t *def,
   return gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_tt);
 }
 
+gcc_jit_rvalue *ravi_emit_comparison(ravi_function_def_t *def, enum gcc_jit_comparison op, gcc_jit_rvalue *a,
+                                     gcc_jit_rvalue *b) {
+  gcc_jit_lvalue *tmp_var = gcc_jit_function_new_local(def->jit_function, NULL, def->ravi->types->C_boolT,
+                                                       unique_name(def, "comparison", 0));
+  gcc_jit_rvalue *cmp = gcc_jit_context_new_comparison(
+          def->function_context, NULL, op,
+          a,
+          b);
+  gcc_jit_block_add_assignment(def->current_block, NULL, tmp_var, cmp);
+  return gcc_jit_lvalue_as_rvalue(tmp_var);
+}
+
 gcc_jit_rvalue *ravi_emit_is_value_of_type(ravi_function_def_t *def,
                                            gcc_jit_rvalue *value_type,
                                            int lua_type) {
 #if RAVI_NAN_TAGGING
 #error NaN tagging not supported
 #else
-  return gcc_jit_context_new_comparison(
-      def->function_context, NULL, GCC_JIT_COMPARISON_EQ, value_type,
+  return ravi_emit_comparison(
+      def, GCC_JIT_COMPARISON_EQ, value_type,
       gcc_jit_context_new_rvalue_from_int(def->function_context,
                                           def->ravi->types->C_intT, lua_type));
 #endif

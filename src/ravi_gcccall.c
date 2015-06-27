@@ -105,8 +105,8 @@ void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_block_add_assignment(def->current_block, NULL, tmp_var, precall_result);
   gcc_jit_rvalue *zero_const = gcc_jit_context_new_rvalue_from_int(
           def->function_context, def->ravi->types->C_intT, 0);
-  gcc_jit_rvalue *precall_bool = gcc_jit_context_new_comparison(
-          def->function_context, NULL, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(tmp_var),
+  gcc_jit_rvalue *precall_bool = ravi_emit_comparison(
+          def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(tmp_var),
           zero_const);
 
   gcc_jit_block *then_block = gcc_jit_function_new_block(
@@ -135,8 +135,8 @@ void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C, int pc) {
     //     L->top = ci->top;  /* adjust results if C function */
     gcc_jit_rvalue *one_const = gcc_jit_context_new_rvalue_from_int(
             def->function_context, def->ravi->types->C_intT, 1);
-    gcc_jit_rvalue *precall_C = gcc_jit_context_new_comparison(
-            def->function_context, NULL, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(tmp_var),
+    gcc_jit_rvalue *precall_C = ravi_emit_comparison(
+            def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(tmp_var),
             one_const);
 
     gcc_jit_block *then1_block = gcc_jit_function_new_block(
