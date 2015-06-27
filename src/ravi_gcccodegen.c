@@ -59,7 +59,6 @@ static bool can_compile(Proto *p) {
     case OP_LOADNIL:
     case OP_RAVI_LOADIZ:
     case OP_RAVI_LOADFZ:
-    case OP_RAVI_ADDFN:
     case OP_CALL:
     case OP_TAILCALL:
     case OP_JMP:
@@ -78,9 +77,11 @@ static bool can_compile(Proto *p) {
     case OP_VARARG:
     case OP_CONCAT:
     case OP_CLOSURE:
+    case OP_RAVI_ADDFN:
     case OP_RAVI_ADDFF:
     case OP_RAVI_ADDFI:
     case OP_RAVI_ADDII:
+    case OP_RAVI_ADDIN:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -106,7 +107,6 @@ static bool can_compile(Proto *p) {
     case OP_SELF:
     case OP_RAVI_NEWARRAYI:
     case OP_RAVI_NEWARRAYF:
-    case OP_RAVI_ADDIN:
     case OP_RAVI_SUBFF:
     case OP_RAVI_SUBFI:
     case OP_RAVI_SUBIF:
@@ -873,7 +873,12 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     case OP_RAVI_ADDFN: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      ravi_emit_ADDFN(&def, A, B, C);
+      ravi_emit_ADDFN(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_ADDIN: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_ADDIN(&def, A, B, C, pc);
     } break;
     case OP_JMP: {
       int sbx = GETARG_sBx(i);

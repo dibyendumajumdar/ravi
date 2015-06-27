@@ -543,7 +543,9 @@ extern void ravi_emit_LOADIZ(ravi_function_def_t *def, int A, int pc);
 extern void ravi_emit_LOADBOOL(ravi_function_def_t *def, int A, int B, int C,
                                int j, int pc);
 
-extern void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C);
+extern void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_ADDIN(ravi_function_def_t *def, int A, int B, int C, int pc);
 
 // implements EQ, LE and LT - by using the supplied lua function to call.
 extern void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,

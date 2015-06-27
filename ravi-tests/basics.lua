@@ -242,3 +242,9 @@ assert(ravi.compile(x))
 assert(x() == 11)
 print("test ADDII ok")
 
+-- test ADDIN
+x=function() local i: integer = 42; return i+2; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x() == 44)
+print("test ADDIN ok")
