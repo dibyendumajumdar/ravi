@@ -23,26 +23,94 @@
 
 #include <ravi_gccjit.h>
 
+// R(A) := -R(B), floating point
+void ravi_emit_UNMF(ravi_function_def_t *def, int A, int B, int pc) {
+  (void) pc;
+  // Load pointer to base
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  // rb->value_.n
+  gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
+  // result = -rb->value_.n;
+  gcc_jit_rvalue *result = gcc_jit_context_new_unary_op(def->function_context, NULL, GCC_JIT_UNARY_OP_MINUS,
+                                                        def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs));
+  ravi_emit_store_reg_n_withtype(def, result, ra);
+}
+
+// R(A) := -R(B), integer
+void ravi_emit_UNMI(ravi_function_def_t *def, int A, int B, int pc) {
+  (void) pc;
+  // Load pointer to base
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  // rb->value_.n
+  gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
+  gcc_jit_rvalue *result = gcc_jit_context_new_unary_op(def->function_context, NULL, GCC_JIT_UNARY_OP_MINUS,
+                                                        def->ravi->types->lua_IntegerT, gcc_jit_lvalue_as_rvalue(lhs));
+  ravi_emit_store_reg_i_withtype(def, result, ra);
+}
+
 // R(A) := RK(B) + C, result is floating
 void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C) {
   // Load pointer to base
   ravi_emit_load_base(def);
-
-  // ra
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-
-  // rb
   gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
-
   // result = rb->value_.n + (double)C
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
       def->function_context, NULL, GCC_JIT_BINARY_OP_PLUS,
       def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
       gcc_jit_context_new_rvalue_from_int(def->function_context,
                                           def->ravi->types->lua_NumberT, C));
+  // ra->value_.n = result
+  // ra->tt_ = LUA_TNUMFLT
+  ravi_emit_store_reg_n_withtype(def, result, ra);
+}
+
+// R(A) := RK(B) + RK(C), all floating
+void ravi_emit_ADDFF(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  (void) pc;
+  // Load pointer to base
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  // rb->value_.n
+  gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
+  // rc->value_.n
+  gcc_jit_lvalue *rhs = ravi_emit_load_reg_n(def, rc);
+  // result = rb->value_.n + rc->value_.n
+  gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
+          def->function_context, NULL, GCC_JIT_BINARY_OP_PLUS,
+          def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
+          gcc_jit_lvalue_as_rvalue(rhs));
+  // ra->value_.n = result
+  // ra->tt_ = LUA_TNUMFLT
+  ravi_emit_store_reg_n_withtype(def, result, ra);
+}
+
+// R(A) := RK(B) + RK(C), float+int
+void ravi_emit_ADDFI(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  (void) pc;
+  // Load pointer to base
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  // rb->value_.n
+  gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
+  // rc->value_.n
+  gcc_jit_lvalue *rhs = ravi_emit_load_reg_i(def, rc);
+  // result = rb->value_.n + (lua_number)rc->value_.i
+  gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
+          def->function_context, NULL, GCC_JIT_BINARY_OP_PLUS,
+          def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
+          gcc_jit_context_new_cast(def->function_context, NULL,
+                  gcc_jit_lvalue_as_rvalue(rhs), def->ravi->types->lua_NumberT));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);

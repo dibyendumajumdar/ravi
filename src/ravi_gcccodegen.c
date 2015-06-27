@@ -78,6 +78,8 @@ static bool can_compile(Proto *p) {
     case OP_VARARG:
     case OP_CONCAT:
     case OP_CLOSURE:
+    case OP_RAVI_ADDFF:
+    case OP_RAVI_ADDFI:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -104,8 +106,6 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_NEWARRAYI:
     case OP_RAVI_NEWARRAYF:
     case OP_RAVI_ADDIN:
-    case OP_RAVI_ADDFF:
-    case OP_RAVI_ADDFI:
     case OP_RAVI_ADDII:
     case OP_RAVI_SUBFF:
     case OP_RAVI_SUBFI:
@@ -134,8 +134,10 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_TOARRAYF:
     case OP_RAVI_MOVEAI:
     case OP_RAVI_MOVEAF:
-    default:
+    default: {
+      p->ravi_jit.jit_status = 1;
       return false;
+    }
     }
   }
   return true;
@@ -714,19 +716,40 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   // The p->ravi_jit structure will be updated
   // Note that if a function fails to compile then
   // a flag is set so that it doesn't get compiled again
-  (void)L;
-  (void)p;
-  (void)manual_request;
-  (void)dump;
 
-  bool status = false;
-
+  if (p->ravi_jit.jit_status == 2)
+    return true;
   global_State *G = G(L);
-  if (G->ravi_state == NULL || G->ravi_state->jit == NULL)
-    return false;
+  if (G->ravi_state == NULL)
+    return 0;
+  if (!G->ravi_state->jit->enabled_) {
+    return 0;
+  }
+  bool doCompile = (bool)manual_request;
+  if (!doCompile && G->ravi_state->jit->auto_) {
+    if (p->ravi_jit.jit_flags != 0) /* function has fornum loop, so compile */
+      doCompile = true;
+    else if (p->sizecode >
+             G->ravi_state->jit
+                     ->min_code_size_) /* function is long so compile */
+      doCompile = true;
+    else {
+      if (p->ravi_jit.execution_count <
+          G->ravi_state
+                  ->jit->min_exec_count_) /* function has been executed many
+                                            times so compile */
+        p->ravi_jit.execution_count++;
+      else
+        doCompile = true;
+    }
+  }
+  if (!doCompile)
+    return 0;
+
+  int status = 0;
 
   if (!can_compile(p))
-    return false;
+    return 0;
 
   ravi_State *ravi_state = (ravi_State *)G->ravi_state;
   ravi_gcc_codegen_t *codegen = ravi_state->code_generator;
@@ -909,12 +932,25 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       ravi_emit_TESTSET(&def, A, B, C, j, GETARG_A(i), pc - 1);
     } break;
 
+    case OP_RAVI_ADDFF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_ADDFF(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_ADDFI: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_ADDFI(&def, A, B, C, pc);
+    } break;
+
     default:
       break;
     }
   }
 
-  // gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
+  if (dump == 1) {
+    gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
+  }
   // gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
   // gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
 
@@ -943,7 +979,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   } else {
     p->ravi_jit.jit_status = 2;
   }
-  status = true;
+  status = 1;
 
 on_error:
 

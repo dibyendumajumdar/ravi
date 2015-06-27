@@ -221,3 +221,17 @@ assert(ravi.compile(optest))
 assert(optest() == 5)
 print("test 22 OK")
 
+-- test ADDFI
+x=function() local i: integer = 5; local f: number=6.0; return f+i; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x() == 11.0)
+print("test ADDFI ok")
+
+-- test ADDFF
+x=function() local i: number = 5.0; local f: number=6.0; return f+i; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x() == 11.0)
+print("test ADDFF ok")
+

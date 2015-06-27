@@ -39,7 +39,7 @@ ravi_gcc_context_t *ravi_jit_new_context(void) {
   }
   ravi->context = gcc_ctx;
   ravi->auto_ = false;
-  ravi->enabled_ = false;
+  ravi->enabled_ = true;
   ravi->min_code_size_ = 150;
   ravi->min_exec_count_ = 50;
   ravi->opt_level_ = 3;
@@ -72,12 +72,16 @@ void ravi_jit_context_free(ravi_gcc_context_t *ravi) {
     return;
   if (ravi->parent_result_) {
     gcc_jit_result_release(ravi->parent_result_);
+    ravi->parent_result_ = NULL;
   }
   if (ravi->context) {
     gcc_jit_context_release(ravi->context);
+    ravi->context = NULL;
   }
-  if (ravi->types)
+  if (ravi->types) {
     free(ravi->types);
+    ravi->types = NULL;
+  }
   free(ravi);
 }
 
