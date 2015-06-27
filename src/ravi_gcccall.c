@@ -92,31 +92,38 @@ void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C, int pc) {
   // int c = luaD_precall(L, ra, nresults);  /* C or JITed function? */
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_rvalue *nresults_const = gcc_jit_context_new_rvalue_from_int(
-      def->function_context, def->ravi->types->C_intT, nresults);
+          def->function_context, def->ravi->types->C_intT, nresults);
   gcc_jit_rvalue *precall_result = ravi_function_call3_rvalue(
-      def, def->ravi->types->luaD_precallT, gcc_jit_param_as_rvalue(def->L), ra,
-      nresults_const);
+          def, def->ravi->types->luaD_precallT, gcc_jit_param_as_rvalue(def->L), ra,
+          nresults_const);
+  /* Need to save the result of the luaD_precall() so that we can do another
+   * check later on
+   */
+  gcc_jit_lvalue *tmp_var = gcc_jit_function_new_local(def->jit_function, NULL,
+                                                       def->ravi->types->C_intT,
+                                                       unique_name(def, "OP_CALL_luaD_precall_result", pc));
+  gcc_jit_block_add_assignment(def->current_block, NULL, tmp_var, precall_result);
   gcc_jit_rvalue *zero_const = gcc_jit_context_new_rvalue_from_int(
-      def->function_context, def->ravi->types->C_intT, 0);
+          def->function_context, def->ravi->types->C_intT, 0);
   gcc_jit_rvalue *precall_bool = gcc_jit_context_new_comparison(
-      def->function_context, NULL, GCC_JIT_COMPARISON_EQ, precall_result,
-      zero_const);
+          def->function_context, NULL, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(tmp_var),
+          zero_const);
 
   gcc_jit_block *then_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "OP_CALL_if_lua_function", pc));
+          def->jit_function, unique_name(def, "OP_CALL_if_lua_function", pc));
   gcc_jit_block *else_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "OP_CALL_else_lua_function", pc));
+          def->jit_function, unique_name(def, "OP_CALL_else_lua_function", pc));
   gcc_jit_block *end_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "OP_CALL_done", pc));
+          def->jit_function, unique_name(def, "OP_CALL_done", pc));
 
   ravi_emit_conditional_branch(def, precall_bool, then_block, else_block);
   ravi_set_current_block(def, then_block);
 
   // Lua function, not compiled, so call luaV_execute
   gcc_jit_block_add_eval(
-      def->current_block, NULL,
-      ravi_function_call1_rvalue(def, def->ravi->types->luaV_executeT,
-                                 gcc_jit_param_as_rvalue(def->L)));
+          def->current_block, NULL,
+          ravi_function_call1_rvalue(def, def->ravi->types->luaV_executeT,
+                                     gcc_jit_param_as_rvalue(def->L)));
   ravi_emit_branch(def, end_block);
 
   ravi_set_current_block(def, else_block);
@@ -127,13 +134,13 @@ void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C, int pc) {
     //   if (c == 1 && nresults >= 0)
     //     L->top = ci->top;  /* adjust results if C function */
     gcc_jit_rvalue *one_const = gcc_jit_context_new_rvalue_from_int(
-        def->function_context, def->ravi->types->C_intT, 1);
+            def->function_context, def->ravi->types->C_intT, 1);
     gcc_jit_rvalue *precall_C = gcc_jit_context_new_comparison(
-        def->function_context, NULL, GCC_JIT_COMPARISON_EQ, precall_result,
-        one_const);
+            def->function_context, NULL, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(tmp_var),
+            one_const);
 
     gcc_jit_block *then1_block = gcc_jit_function_new_block(
-        def->jit_function, unique_name(def, "OP_CALL_if_C_function", pc));
+            def->jit_function, unique_name(def, "OP_CALL_if_C_function", pc));
     ravi_emit_conditional_branch(def, precall_C, then1_block, end_block);
     ravi_set_current_block(def, then1_block);
 

@@ -80,7 +80,7 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   gcc_jit_block *else_block = gcc_jit_function_new_block(
       def->jit_function, unique_name(def, "OP_RETURN_else_sizep_gt_0", pc));
 
-  gcc_jit_block_end_with_conditional(def->current_block, NULL, psize_gt_0,
+  ravi_emit_conditional_branch(def, psize_gt_0,
                                      then_block, else_block);
 
   ravi_set_current_block(def, then_block);

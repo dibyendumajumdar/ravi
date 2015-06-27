@@ -70,7 +70,7 @@ void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc,
   // If idx > limit we are done
   gcc_jit_block *update_block = gcc_jit_function_new_block(
       def->jit_function, unique_name(def, "FORLOOP_I1_updatei", 0));
-  gcc_jit_block_end_with_conditional(def->current_block, NULL, new_idx_gt_limit,
+  ravi_emit_conditional_branch(def, new_idx_gt_limit,
                                      exit_block, update_block);
 
   ravi_set_current_block(def, update_block);
