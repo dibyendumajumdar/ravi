@@ -402,6 +402,10 @@ typedef struct ravi_function_def_t {
   /* counter used for creating unique names */
   unsigned int counter;
 
+  int dump_ir;
+  int dump_asm;
+  int opt_level;
+
 } ravi_function_def_t;
 
 /* Create a new context */
@@ -574,6 +578,8 @@ extern void ravi_emit_UNMI(ravi_function_def_t *def, int A, int B, int pc);
 extern void ravi_emit_ADDFF(ravi_function_def_t *def, int A, int B, int C, int pc);
 
 extern void ravi_emit_ADDFI(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_ADDII(ravi_function_def_t *def, int A, int B, int C, int pc);
 
 extern void ravi_dump_rvalue(gcc_jit_rvalue *rv);
 

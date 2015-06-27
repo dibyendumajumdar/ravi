@@ -80,6 +80,7 @@ static bool can_compile(Proto *p) {
     case OP_CLOSURE:
     case OP_RAVI_ADDFF:
     case OP_RAVI_ADDFI:
+    case OP_RAVI_ADDII:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -106,7 +107,6 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_NEWARRAYI:
     case OP_RAVI_NEWARRAYF:
     case OP_RAVI_ADDIN:
-    case OP_RAVI_ADDII:
     case OP_RAVI_SUBFF:
     case OP_RAVI_SUBFI:
     case OP_RAVI_SUBIF:
@@ -160,10 +160,12 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   //                                GCC_JIT_BOOL_OPTION_DUMP_EVERYTHING, 1);
   // gcc_jit_context_set_bool_option(def->function_context,
   //                                GCC_JIT_BOOL_OPTION_KEEP_INTERMEDIATES, 1);
-  // gcc_jit_context_set_bool_option(def->function_context,
-  //                                GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
+  if (def->dump_asm) {
+     gcc_jit_context_set_bool_option(def->function_context,
+                                    GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
+  }
   gcc_jit_context_set_int_option(def->function_context,
-                                 GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, 3);
+                                 GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL, def->opt_level);
 
   /* each function is given a unique name - as Lua functions are closures and do
    * not really have names */
@@ -458,22 +460,6 @@ gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def,
   return n;
 }
 
-/* Store an integer value and set type to TNUMINT */
-void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def,
-                                    gcc_jit_rvalue *reg,
-                                    gcc_jit_rvalue *ivalue) {
-  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(
-      reg, NULL, def->ravi->types->Value_value);
-  gcc_jit_lvalue *i =
-      gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_i);
-  gcc_jit_block_add_assignment(def->current_block, NULL, i, ivalue);
-  gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(
-      def->function_context, def->ravi->types->C_intT, LUA_TNUMINT);
-  gcc_jit_lvalue *tt =
-      gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
-  gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
-}
-
 gcc_jit_lvalue *ravi_emit_load_type(ravi_function_def_t *def,
                                     gcc_jit_rvalue *tv) {
   return gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_tt);
@@ -503,6 +489,22 @@ gcc_jit_rvalue *ravi_emit_is_not_value_of_type(ravi_function_def_t *def,
       def->ravi->types->C_boolT,
       ravi_emit_is_value_of_type(def, value_type, lua_type));
 #endif
+}
+
+/* Store an integer value and set type to TNUMINT */
+void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def,
+                                    gcc_jit_rvalue *ivalue,
+                                    gcc_jit_rvalue *reg) {
+  gcc_jit_lvalue *value = gcc_jit_rvalue_dereference_field(
+          reg, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *i =
+          gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_i);
+  gcc_jit_block_add_assignment(def->current_block, NULL, i, ivalue);
+  gcc_jit_rvalue *type = gcc_jit_context_new_rvalue_from_int(
+          def->function_context, def->ravi->types->C_intT, LUA_TNUMINT);
+  gcc_jit_lvalue *tt =
+          gcc_jit_rvalue_dereference_field(reg, NULL, def->ravi->types->Value_tt);
+  gcc_jit_block_add_assignment(def->current_block, NULL, tt, type);
 }
 
 /* Store a boolean value and set type to TBOOLEAN */
@@ -702,6 +704,8 @@ static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi,
   def->counter = 1;
   def->name[0] = 0;
   def->p = p;
+  def->dump_ir = 0;
+  def->dump_asm = 0;
 }
 
 // Compile a Lua function
@@ -756,6 +760,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
 
   ravi_function_def_t def;
   init_def(&def, ravi_state->jit, p);
+  def.dump_ir = def.dump_asm = dump;
+  def.opt_level = G->ravi_state->jit->opt_level_;
 
   if (!create_function(codegen, &def)) {
     p->ravi_jit.jit_status = 1; // can't compile
@@ -942,13 +948,18 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int C = GETARG_C(i);
       ravi_emit_ADDFI(&def, A, B, C, pc);
     } break;
+    case OP_RAVI_ADDII: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_ADDII(&def, A, B, C, pc);
+    } break;
 
     default:
       break;
     }
   }
 
-  if (dump == 1) {
+  if (def.dump_ir) {
     gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
   }
   // gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");

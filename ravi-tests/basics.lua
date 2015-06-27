@@ -235,3 +235,10 @@ assert(ravi.compile(x))
 assert(x() == 11.0)
 print("test ADDFF ok")
 
+-- test ADDII
+x=function() local i: integer = 5; local f: integer=6; return f+i; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x() == 11)
+print("test ADDII ok")
+
