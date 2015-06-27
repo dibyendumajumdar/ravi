@@ -83,6 +83,7 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_ADDII:
     case OP_RAVI_ADDIN:
     case OP_RAVI_SUBFF:
+    case OP_RAVI_SUBFI:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -108,7 +109,6 @@ static bool can_compile(Proto *p) {
     case OP_SELF:
     case OP_RAVI_NEWARRAYI:
     case OP_RAVI_NEWARRAYF:
-    case OP_RAVI_SUBFI:
     case OP_RAVI_SUBIF:
     case OP_RAVI_SUBII:
     case OP_RAVI_SUBFN:
@@ -975,6 +975,11 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       ravi_emit_SUBFF(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_SUBFI: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_SUBFI(&def, A, B, C, pc);
     } break;
 
     default:
