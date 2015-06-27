@@ -586,6 +586,8 @@ extern void ravi_emit_ADDFI(ravi_function_def_t *def, int A, int B, int C, int p
 
 extern void ravi_emit_ADDII(ravi_function_def_t *def, int A, int B, int C, int pc);
 
+extern void ravi_emit_SUBFF(ravi_function_def_t *def, int A, int B, int C, int pc);
+
 extern void ravi_dump_rvalue(gcc_jit_rvalue *rv);
 
 extern void ravi_dump_lvalue(gcc_jit_lvalue *lv);

@@ -248,3 +248,10 @@ ravi.dumplua(x)
 assert(ravi.compile(x))
 assert(x() == 44)
 print("test ADDIN ok")
+
+-- test SUBFF
+x=function() local a: number, b:number = 42.5, 32.5; return a-b; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x() == 10.0)
+print("test SUBFF ok")
