@@ -7,8 +7,6 @@ The programs used in the performance testing can be found at `Ravi Tests <https:
 
 +---------------+---------+------------+------------------------+
 | Program       | Lua5.3  | Ravi       | Ravi      | Luajit 2.1 |
-|               | Windows | LLVM 3.7   | libgccjit | Windows    |
-|               |         | Windows    | Ubuntu VM |            |
 +===============+=========+============+===========+============+
 |fornum_test1   | 9.187   | 0.305      | 0.000001  | 0.309      |
 +---------------+---------+------------+-----------+------------+
