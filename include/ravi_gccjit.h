@@ -136,6 +136,7 @@ struct ravi_gcc_types_t {
   gcc_jit_type *L_UmaxalignT;
   gcc_jit_type *C_charT;
   gcc_jit_type *C_pcharT;
+  gcc_jit_type *C_pconstcharT;
 
   gcc_jit_type *C_intT;
   gcc_jit_type *C_pintT;
@@ -601,6 +602,24 @@ extern void ravi_emit_SUBNF(ravi_function_def_t *def, int A, int B, int C, int p
 extern void ravi_emit_SUBIN(ravi_function_def_t *def, int A, int B, int C, int pc);
 
 extern void ravi_emit_SUBNI(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_DIVFF(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_DIVFI(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_DIVIF(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_DIVII(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_MULFN(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_MULFF(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_MULFI(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_MULII(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_MULIN(ravi_function_def_t *def, int A, int B, int C, int pc);
 
 extern void ravi_dump_rvalue(gcc_jit_rvalue *rv);
 

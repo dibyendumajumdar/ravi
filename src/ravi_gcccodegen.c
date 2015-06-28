@@ -90,6 +90,15 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_SUBNF:
     case OP_RAVI_SUBIN:
     case OP_RAVI_SUBNI:
+    case OP_RAVI_MULFN:
+    case OP_RAVI_MULIN:
+    case OP_RAVI_MULFF:
+    case OP_RAVI_MULFI:
+    case OP_RAVI_MULII:
+    case OP_RAVI_DIVFF:
+    case OP_RAVI_DIVFI:
+    case OP_RAVI_DIVIF:
+    case OP_RAVI_DIVII:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -115,15 +124,6 @@ static bool can_compile(Proto *p) {
     case OP_SELF:
     case OP_RAVI_NEWARRAYI:
     case OP_RAVI_NEWARRAYF:
-    case OP_RAVI_MULFN:
-    case OP_RAVI_MULIN:
-    case OP_RAVI_MULFF:
-    case OP_RAVI_MULFI:
-    case OP_RAVI_MULII:
-    case OP_RAVI_DIVFF:
-    case OP_RAVI_DIVFI:
-    case OP_RAVI_DIVIF:
-    case OP_RAVI_DIVII:
     case OP_RAVI_GETTABLE_AI:
     case OP_RAVI_GETTABLE_AF:
     case OP_RAVI_SETTABLE_AI:
@@ -1011,6 +1011,53 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int C = GETARG_C(i);
       ravi_emit_SUBNI(&def, A, B, C, pc);
     } break;
+    case OP_RAVI_MULFN: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_MULFN(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_MULIN: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_MULIN(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_MULFF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_MULFF(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_MULFI: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_MULFI(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_MULII: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_MULII(&def, A, B, C, pc);
+    } break;
+
+    case OP_RAVI_DIVFF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_DIVFF(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_DIVFI: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_DIVFI(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_DIVIF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_DIVIF(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_DIVII: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_DIVII(&def, A, B, C, pc);
+    } break;
+
 
     default:
       break;

@@ -47,6 +47,7 @@ end
 local function dummy(x) 
 end
 
+ravi.dumplua(domandel)
 assert(ravi.compile(domandel))
 
 t1 = os.clock()
