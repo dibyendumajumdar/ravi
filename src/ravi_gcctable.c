@@ -41,3 +41,20 @@ void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc) {
                                  gcc_jit_param_as_rvalue(def->L),
                                  gcc_jit_lvalue_as_rvalue(v), rc, ra));
 }
+
+// R(A+1) := R(B); R(A) := R(B)[RK(C)]
+void ravi_emit_SELF(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  // StkId rb = RB(i);
+  // setobjs2s(L, ra + 1, rb);
+  // Protect(luaV_gettable(L, rb, RKC(i), ra));
+  (void)pc;
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_rvalue *ra1 = ravi_emit_get_register(def, A + 1);
+  ravi_emit_struct_assign(def, ra1, rb);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_block_add_eval(def->current_block, NULL,
+    ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
+                               gcc_jit_param_as_rvalue(def->L), rb, rc, ra));
+}

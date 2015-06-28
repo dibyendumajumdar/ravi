@@ -99,6 +99,7 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_DIVFI:
     case OP_RAVI_DIVIF:
     case OP_RAVI_DIVII:
+    case OP_SELF:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -121,7 +122,6 @@ static bool can_compile(Proto *p) {
     case OP_SETTABUP:
     case OP_NEWTABLE:
     case OP_SETLIST:
-    case OP_SELF:
     case OP_RAVI_NEWARRAYI:
     case OP_RAVI_NEWARRAYF:
     case OP_RAVI_GETTABLE_AI:
@@ -921,6 +921,11 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       ravi_emit_GETTABUP(&def, A, B, C, pc);
+    } break;
+    case OP_SELF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_SELF(&def, A, B, C, pc);
     } break;
 
     case OP_NOT: {
