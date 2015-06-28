@@ -27,6 +27,10 @@ Right now (June 2015) I am working on the ``libgccjit`` based JIT implementation
 
 The LLVM JIT compiler is mostly functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
+Performance Benchmarks
+++++++++++++++++++++++
+For performance benchmarks please visit the `Ravi Performance Benchmarks <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-benchmarks.html>`_ page.
+
 Optional Static Typing
 ++++++++++++++++++++++
 Ravi allows you to annotate local variables with static types. The supported types and the resulting behaviour are as follows:
