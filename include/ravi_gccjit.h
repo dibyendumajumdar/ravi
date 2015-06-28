@@ -592,6 +592,16 @@ extern void ravi_emit_SUBFI(ravi_function_def_t *def, int A, int B, int C, int p
 
 extern void ravi_emit_SUBIF(ravi_function_def_t *def, int A, int B, int C, int pc);
 
+extern void ravi_emit_SUBII(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_SUBFN(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_SUBNF(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_SUBIN(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_SUBNI(ravi_function_def_t *def, int A, int B, int C, int pc);
+
 extern void ravi_dump_rvalue(gcc_jit_rvalue *rv);
 
 extern void ravi_dump_lvalue(gcc_jit_lvalue *lv);

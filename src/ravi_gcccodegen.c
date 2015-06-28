@@ -85,6 +85,11 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_SUBFF:
     case OP_RAVI_SUBFI:
     case OP_RAVI_SUBIF:
+    case OP_RAVI_SUBII:
+    case OP_RAVI_SUBFN:
+    case OP_RAVI_SUBNF:
+    case OP_RAVI_SUBIN:
+    case OP_RAVI_SUBNI:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -110,11 +115,6 @@ static bool can_compile(Proto *p) {
     case OP_SELF:
     case OP_RAVI_NEWARRAYI:
     case OP_RAVI_NEWARRAYF:
-    case OP_RAVI_SUBII:
-    case OP_RAVI_SUBFN:
-    case OP_RAVI_SUBNF:
-    case OP_RAVI_SUBIN:
-    case OP_RAVI_SUBNI:
     case OP_RAVI_MULFN:
     case OP_RAVI_MULIN:
     case OP_RAVI_MULFF:
@@ -985,6 +985,31 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       ravi_emit_SUBIF(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_SUBII: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_SUBII(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_SUBFN: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_SUBFN(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_SUBNF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_SUBNF(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_SUBIN: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_SUBIN(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_SUBNI: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_SUBNI(&def, A, B, C, pc);
     } break;
 
     default:

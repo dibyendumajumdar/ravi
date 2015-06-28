@@ -213,7 +213,7 @@ void RaviCodeGenerator::emit_SUBNF(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_store_type(def, ra, LUA_TNUMFLT);
 }
 
-// R(A) := RK(B) - C, int - c
+// R(A) := B - RK(C), b - int
 void RaviCodeGenerator::emit_SUBIN(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);
@@ -227,7 +227,7 @@ void RaviCodeGenerator::emit_SUBIN(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_store_type(def, ra, LUA_TNUMINT);
 }
 
-// R(A) := B - RK(C), b - int
+// R(A) := RK(B) - C, int - c
 void RaviCodeGenerator::emit_SUBNI(RaviFunctionDef *def, llvm::Value *L_ci,
                                    llvm::Value *proto, int A, int B, int C) {
   llvm::Instruction *base_ptr = emit_load_base(def);

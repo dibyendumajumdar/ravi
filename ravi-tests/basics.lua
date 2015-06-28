@@ -270,3 +270,37 @@ assert(ravi.compile(x))
 assert(x() == -37.5)
 print("test SUBIF ok")
 
+-- test SUBII
+x=function() local a: integer, b:integer = 42, 5; return b-a; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x() == -37)
+print("test SUBII ok")
+
+-- test SUBFN
+x=function() local a: number = 42.5; return a-5; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x() == 37.5)
+print("test SUBFN ok")
+
+-- test SUBNF
+x=function() local a: number = 42.5; return 5-a; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x() == -37.5)
+print("test SUBNF ok")
+
+-- test SUBIN
+x=function() local a: integer = 42; return a-5; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x() == 37)
+print("test SUBIN ok")
+
+-- test SUBNI
+x=function() local a: integer = 42; return 5-a; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x() == -37)
+print("test SUBNI ok")
