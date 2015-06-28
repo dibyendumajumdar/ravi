@@ -263,3 +263,10 @@ assert(ravi.compile(x))
 assert(x() == 37.5)
 print("test SUBFI ok")
 
+-- test SUBIF
+x=function() local a: number, b:integer = 42.5, 5; return b-a; end
+ravi.dumplua(x)
+assert(ravi.compile(x))
+assert(x() == -37.5)
+print("test SUBIF ok")
+
