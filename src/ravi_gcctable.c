@@ -70,3 +70,30 @@ void ravi_emit_LEN(ravi_function_def_t *def, int A, int B, int pc) {
                          ravi_function_call3_rvalue(def, def->ravi->types->luaV_objlenT,
                                                     gcc_jit_param_as_rvalue(def->L), ra, rb));
 }
+
+// R(A)[RK(B)] := RK(C)
+void ravi_emit_SETTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  // Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
+  (void)pc;
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call4_rvalue(def, def->ravi->types->luaV_settableT,
+                                                    gcc_jit_param_as_rvalue(def->L), ra, rb, rc));
+}
+
+// R(A) := R(B)[RK(C)]
+void ravi_emit_GETTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  // Protect(luaV_gettable(L, RB(i), RKC(i), ra));
+  (void)pc;
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
+                                                    gcc_jit_param_as_rvalue(def->L), rb, rc, ra));
+}
+
