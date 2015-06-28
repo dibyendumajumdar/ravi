@@ -623,6 +623,8 @@ extern void ravi_emit_MULIN(ravi_function_def_t *def, int A, int B, int C, int p
 
 extern void ravi_emit_SELF(ravi_function_def_t *def, int A, int B, int C, int pc);
 
+extern void ravi_emit_LEN(ravi_function_def_t *def, int A, int B, int pc);
+
 extern void ravi_dump_rvalue(gcc_jit_rvalue *rv);
 
 extern void ravi_dump_lvalue(gcc_jit_lvalue *lv);

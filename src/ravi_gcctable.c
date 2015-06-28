@@ -58,3 +58,15 @@ void ravi_emit_SELF(ravi_function_def_t *def, int A, int B, int C, int pc) {
     ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
                                gcc_jit_param_as_rvalue(def->L), rb, rc, ra));
 }
+
+// R(A) := length of R(B)
+void ravi_emit_LEN(ravi_function_def_t *def, int A, int B, int pc) {
+  // Protect(luaV_objlen(L, ra, RB(i)));
+  (void)pc;
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call3_rvalue(def, def->ravi->types->luaV_objlenT,
+                                                    gcc_jit_param_as_rvalue(def->L), ra, rb));
+}
