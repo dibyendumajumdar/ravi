@@ -97,3 +97,41 @@ void ravi_emit_GETTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
                                                     gcc_jit_param_as_rvalue(def->L), rb, rc, ra));
 }
 
+void ravi_emit_NEWTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  //  case OP_NEWTABLE: {
+  //    int b = GETARG_B(i);
+  //    int c = GETARG_C(i);
+  //    Table *t = luaH_new(L);
+  //    sethvalue(L, ra, t);
+  //    if (b != 0 || c != 0)
+  //      luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
+  //    checkGC(L, ra + 1);
+  //  } break;
+  (void) pc;
+
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call5_rvalue(def, def->ravi->types->raviV_op_newtableT,
+                                                    gcc_jit_param_as_rvalue(def->L),
+                                                    gcc_jit_lvalue_as_rvalue(def->ci_val), ra,
+                                                    gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                                                                        def->ravi->types->C_intT, B),
+                                                    gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                                                                        def->ravi->types->C_intT, C)));
+}
+
+void ravi_emit_SETLIST(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  (void) pc;
+
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call5_rvalue(def, def->ravi->types->raviV_op_setlistT,
+                                                    gcc_jit_param_as_rvalue(def->L),
+                                                    gcc_jit_lvalue_as_rvalue(def->ci_val), ra,
+                                                    gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                                                                        def->ravi->types->C_intT, B),
+                                                    gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                                                                        def->ravi->types->C_intT, C)));
+}
