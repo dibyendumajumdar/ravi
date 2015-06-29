@@ -105,12 +105,12 @@ static bool can_compile(Proto *p) {
     case OP_GETTABLE:
     case OP_NEWTABLE:
     case OP_SETLIST:
+    case OP_TFORCALL:
+    case OP_TFORLOOP:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
     case OP_FORLOOP:
-    case OP_TFORCALL:
-    case OP_TFORLOOP:
     case OP_ADD:
     case OP_SUB:
     case OP_MUL:
@@ -852,6 +852,26 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       ravi_emit_iFORLOOP(&def, A, j, def.jmp_targets[pc],
                          op == OP_RAVI_FORLOOP_I1);
     } break;
+    case OP_TFORCALL: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      // OP_TFORCALL is followed by OP_TFORLOOP - we process this
+      // along with OP_TFORCALL
+      pc++;
+      i = code[pc];
+      op = GET_OPCODE(i);
+      lua_assert(op == OP_TFORLOOP);
+      int sbx = GETARG_sBx(i);
+      // j below is the jump target
+      int j = sbx + pc + 1;
+      ravi_emit_TFORCALL(&def, A, B, C, j, GETARG_A(i), pc-1);
+    } break;
+    case OP_TFORLOOP: {
+      int sbx = GETARG_sBx(i);
+      int j = sbx + pc + 1;
+      ravi_emit_TFORLOOP(&def, A, j, pc);
+    } break;
+
     case OP_MOVE: {
       int B = GETARG_B(i);
       ravi_emit_MOVE(&def, A, B);

@@ -636,6 +636,11 @@ extern void ravi_emit_NEWTABLE(ravi_function_def_t *def, int A, int B, int C, in
 
 extern void ravi_emit_SETLIST(ravi_function_def_t *def, int A, int B, int C, int pc);
 
+extern void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C,
+                                    int j, int jA, int pc);
+
+extern void ravi_emit_TFORLOOP(ravi_function_def_t *def, int A, int j, int pc);
+
 extern void ravi_dump_rvalue(gcc_jit_rvalue *rv);
 
 extern void ravi_dump_lvalue(gcc_jit_lvalue *lv);
