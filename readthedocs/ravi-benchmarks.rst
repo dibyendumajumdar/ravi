@@ -5,21 +5,21 @@ Ravi's reason for existence is to achieve greater performance than standard Lua 
 
 The programs used in the performance testing can be found at `Ravi Tests <https://github.com/dibyendumajumdar/ravi/tree/master/ravi-tests>`_ folder.
 
-+---------------+---------+------------+-------------+------------+
-| Program       | Lua5.3  | Ravi(LLVM) | Ravi(gccjit)| Luajit 2.1 |
-+===============+=========+============+=============+============+
-|fornum_test1   | 9.187   | 0.305      | 0.000001    | 0.309      |
-+---------------+---------+------------+-------------+------------+
-|fornum_test2   | 9.57    | 0.922      | 0.939       | 0.906      |
-+---------------+---------+------------+-------------+------------+
-|fornum_test3   | 53.932  | 4.593      |             | 7.778      |
-+---------------+---------+------------+-------------+------------+
-|mandel(4000)   | 21.247  | 2.94       | 3.09        | 1.633      |
-+---------------+---------+------------+-------------+------------+
-|fannkuchen(11) | 63.446  | 8.875      |             | 4.751      |
-+---------------+---------+------------+-------------+------------+
-|matmul(1000)   | 34.604  | 4.2        |             | 0.968      |
-+---------------+---------+------------+-------------+------------+
++---------------+---------+------------+----------------------+------------+
+| Program       | Lua5.3  | Ravi(LLVM) | Ravi(gccjit;guest VM)| Luajit 2.1 |
++===============+=========+============+======================+============+
+|fornum_test1   | 9.187   | 0.305      | 0.000001             | 0.309      |
++---------------+---------+------------+----------------------+------------+
+|fornum_test2   | 9.57    | 0.922      | 0.939                | 0.906      |
++---------------+---------+------------+----------------------+------------+
+|fornum_test3   | 53.932  | 4.593      |                      | 7.778      |
++---------------+---------+------------+----------------------+------------+
+|mandel(4000)   | 21.247  | 2.94       | 3.09                 | 1.633      |
++---------------+---------+------------+----------------------+------------+
+|fannkuchen(11) | 63.446  | 8.875      |                      | 4.751      |
++---------------+---------+------------+----------------------+------------+
+|matmul(1000)   | 34.604  | 4.2        |                      | 0.968      |
++---------------+---------+------------+----------------------+------------+
 
 Following points are worth bearing in mind when looking at above benchmarks.
 
@@ -40,8 +40,9 @@ Following points are worth bearing in mind when looking at above benchmarks.
    But LuaJIT timings include the JIT compilation times, so they show
    incredible performance.
 
-5. The benchmarks were run on Windows 8.1 64-bit except for the libgccjit 
+5. The benchmarks were run on Windows 8.1 64-bit except for the libgccjit 5.1
    benchmarks which were run on a Ubuntu 64-bit VM running on Windows 8.1.
+   LLVM version 3.7 was used.
 
 Ideas
 -----
