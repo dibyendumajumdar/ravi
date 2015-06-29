@@ -25,7 +25,7 @@
 
 void ravi_emit_CONCAT(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
-  ravi_function_call5_rvalue(
+  gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call5_rvalue(
       def, def->ravi->types->raviV_op_concatT, gcc_jit_param_as_rvalue(def->L),
       gcc_jit_lvalue_as_rvalue(def->ci_val),
       gcc_jit_context_new_rvalue_from_int(def->function_context,
@@ -33,27 +33,27 @@ void ravi_emit_CONCAT(ravi_function_def_t *def, int A, int B, int C, int pc) {
       gcc_jit_context_new_rvalue_from_int(def->function_context,
                                           def->ravi->types->C_intT, B),
       gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                          def->ravi->types->C_intT, C));
+                                          def->ravi->types->C_intT, C)));
 }
 
 void ravi_emit_CLOSURE(ravi_function_def_t *def, int A, int Bx, int pc) {
   (void)pc;
-  ravi_function_call5_rvalue(
+  gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call5_rvalue(
       def, def->ravi->types->raviV_op_closureT, gcc_jit_param_as_rvalue(def->L),
       gcc_jit_lvalue_as_rvalue(def->ci_val), def->lua_closure,
       gcc_jit_context_new_rvalue_from_int(def->function_context,
                                           def->ravi->types->C_intT, A),
       gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                          def->ravi->types->C_intT, Bx));
+                                          def->ravi->types->C_intT, Bx)));
 }
 
 void ravi_emit_VARARG(ravi_function_def_t *def, int A, int B, int pc) {
   (void)pc;
-  ravi_function_call5_rvalue(
+  gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call5_rvalue(
       def, def->ravi->types->raviV_op_varargT, gcc_jit_param_as_rvalue(def->L),
       gcc_jit_lvalue_as_rvalue(def->ci_val), def->lua_closure,
       gcc_jit_context_new_rvalue_from_int(def->function_context,
                                           def->ravi->types->C_intT, A),
       gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                          def->ravi->types->C_intT, B));
+                                          def->ravi->types->C_intT, B)));
 }

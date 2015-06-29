@@ -25,15 +25,15 @@
 
 // R(A+1), ..., R(A+B) := nil
 void ravi_emit_LOADNIL(ravi_function_def_t *def, int A, int B, int pc) {
-  (void)pc;
+  (void) pc;
 
-  ravi_function_call3_rvalue(
-      def, def->ravi->types->raviV_op_loadnilT,
-      gcc_jit_lvalue_as_rvalue(def->ci_val),
-      gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                          def->ravi->types->C_intT, A),
-      gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                          def->ravi->types->C_intT, B));
+  gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call3_rvalue(
+          def, def->ravi->types->raviV_op_loadnilT,
+          gcc_jit_lvalue_as_rvalue(def->ci_val),
+          gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                              def->ravi->types->C_intT, A),
+          gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                              def->ravi->types->C_intT, B)));
 }
 
 // R(A) := tonumber(0)
@@ -323,7 +323,7 @@ void ravi_emit_TOINT(ravi_function_def_t *def, int A, int pc) {
                                  gcc_jit_lvalue_get_address(var, NULL));
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
-  gcc_jit_rvalue *tobool =
+  gcc_jit_rvalue *failed_conversion =
       ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, var_isint, zero);
 
   // Did conversion fail?
@@ -333,7 +333,7 @@ void ravi_emit_TOINT(ravi_function_def_t *def, int A, int pc) {
   gcc_jit_block *else2 = gcc_jit_function_new_block(
       def->jit_function,
       unique_name(def, "OP_RAVI_TOINT_if_conversion_ok", pc));
-  ravi_emit_conditional_branch(def, tobool, then2, else2);
+  ravi_emit_conditional_branch(def, failed_conversion, then2, else2);
 
   ravi_set_current_block(def, then2);
 
@@ -366,9 +366,6 @@ void ravi_emit_TOFLT(ravi_function_def_t *def, int A, int pc) {
   gcc_jit_lvalue *var = gcc_jit_function_new_local(
       def->jit_function, NULL, def->ravi->types->lua_NumberT,
       unique_name(def, "OP_RAVI_TOFLT_n", pc));
-  gcc_jit_lvalue *tonum_result = gcc_jit_function_new_local(
-          def->jit_function, NULL, def->ravi->types->C_intT,
-          unique_name(def, "tonum_result", pc));
 
   // Load pointer to base
   ravi_emit_load_base(def);
@@ -396,11 +393,10 @@ void ravi_emit_TOFLT(ravi_function_def_t *def, int A, int pc) {
   gcc_jit_rvalue *var_isflt =
       ravi_function_call2_rvalue(def, def->ravi->types->luaV_tonumberT, src,
                                  var_ptr);
-  gcc_jit_block_add_assignment(def->current_block, NULL, tonum_result, var_isflt);
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
-  gcc_jit_rvalue *tobool =
-      ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(tonum_result), zero);
+  gcc_jit_rvalue *failed_conversion =
+      ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, var_isflt, zero);
 
   // Did conversion fail?
   gcc_jit_block *then2 = gcc_jit_function_new_block(
@@ -409,7 +405,7 @@ void ravi_emit_TOFLT(ravi_function_def_t *def, int A, int pc) {
   gcc_jit_block *else2 = gcc_jit_function_new_block(
       def->jit_function,
       unique_name(def, "OP_RAVI_TOFLT_if_conversion_ok", pc));
-  ravi_emit_conditional_branch(def, tobool, then2, else2);
+  ravi_emit_conditional_branch(def, failed_conversion, then2, else2);
 
   ravi_set_current_block(def, then2);
 
