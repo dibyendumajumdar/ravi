@@ -507,13 +507,13 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   //  lu_byte array_modifier; /* Flags that affect how the array is handled */
   //} RaviArray;
 
-  fields[0] =
+  t->RaviArray_data = fields[0] =
       gcc_jit_context_new_field(ravi->context, NULL, t->C_pvoidT, "data");
-  fields[1] =
+  t->RaviArray_len = fields[1] =
       gcc_jit_context_new_field(ravi->context, NULL, t->C_unsigned_intT, "len");
   fields[2] = gcc_jit_context_new_field(ravi->context, NULL, t->C_unsigned_intT,
                                         "size");
-  fields[3] =
+  t->RaviArray_array_type = fields[3] =
       gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "array_type");
   fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT,
                                         "array_modifier");
@@ -552,7 +552,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       gcc_jit_context_new_field(ravi->context, NULL, t->pTableT, "metatable");
   fields[10] =
       gcc_jit_context_new_field(ravi->context, NULL, t->pGCObjectT, "gclist");
-  fields[11] = gcc_jit_context_new_field(
+  t->Table_ravi_array = fields[11] = gcc_jit_context_new_field(
       ravi->context, NULL, gcc_jit_struct_as_type(t->RaviArrayT), "ravi_array");
   gcc_jit_struct_set_fields(t->TableT, NULL, 12, fields);
 

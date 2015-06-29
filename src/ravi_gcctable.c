@@ -121,6 +121,28 @@ void ravi_emit_NEWTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
                                                                                         def->ravi->types->C_intT, C)));
 }
 
+void ravi_emit_NEWARRAYINT(ravi_function_def_t *def, int A, int pc) {
+  (void)pc;
+
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call3_rvalue(def, def->ravi->types->raviV_op_newarrayintT,
+                                                    gcc_jit_param_as_rvalue(def->L),
+                                                    gcc_jit_lvalue_as_rvalue(def->ci_val), ra));
+}
+
+void ravi_emit_NEWARRAYFLOAT(ravi_function_def_t *def, int A, int pc) {
+  (void)pc;
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call3_rvalue(def, def->ravi->types->raviV_op_newarrayfloatT,
+                                                    gcc_jit_param_as_rvalue(def->L),
+                                                    gcc_jit_lvalue_as_rvalue(def->ci_val), ra));
+}
+
+
 void ravi_emit_SETLIST(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void) pc;
 
@@ -134,4 +156,102 @@ void ravi_emit_SETLIST(ravi_function_def_t *def, int A, int B, int C, int pc) {
                                                                                         def->ravi->types->C_intT, B),
                                                     gcc_jit_context_new_rvalue_from_int(def->function_context,
                                                                                         def->ravi->types->C_intT, C)));
+}
+
+void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  //#define raviH_get_float_inline(L, t, key, v)
+  //{ unsigned ukey = (unsigned)((key));
+  //  lua_Number *data = (lua_Number *)t->ravi_array.data;
+  //  if (ukey < t->ravi_array.len) {
+  //    setfltvalue(v, data[ukey]);
+  //      }else
+  //    luaG_runerror(L, "array out of bounds");
+  //}
+
+  // TValue *rb = RB(i);
+  // TValue *rc = RKC(i);
+  // lua_Integer idx = ivalue(rc);
+  // Table *t = hvalue(rb);
+  // raviH_get_float_inline(L, t, idx, ra);
+
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *key = ravi_emit_load_reg_i(def, rc);
+  gcc_jit_rvalue *t = ravi_emit_load_reg_h(def, rb);
+  gcc_jit_rvalue *data = ravi_emit_load_reg_h_floatarray(def, t);
+  gcc_jit_lvalue *len = ravi_emit_load_ravi_arraylength(def, t);
+  gcc_jit_rvalue *ukey = gcc_jit_context_new_cast(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key), def->ravi->types->C_unsigned_intT);
+
+  gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey, gcc_jit_lvalue_as_rvalue(len));
+  gcc_jit_block *then_block =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "GETTABLE_AF_if_in_range", pc));
+  gcc_jit_block *else_block =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "GETTABLE_AF_if_not_in_range", pc));
+  gcc_jit_block *end_block =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "GETTABLE_AF_if_end", pc));
+  ravi_emit_conditional_branch(def, cmp, then_block, else_block);
+  ravi_set_current_block(def, then_block);
+
+  gcc_jit_rvalue *value = ravi_emit_array_get(def, data, ukey);
+
+  ravi_emit_store_reg_n_withtype(def, value, ra);
+  ravi_emit_branch(def, end_block);
+
+  ravi_set_current_block(def, else_block);
+
+  ravi_emit_raise_lua_error(def, "array out of bounds");
+  ravi_set_current_block(def, end_block);
+
+  ravi_set_current_block(def, end_block);
+}
+
+void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  //#define raviH_get_int_inline(L, t, key, v)
+  //{ unsigned ukey = (unsigned)((key));
+  //  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
+  //  if (ukey < t->ravi_array.len) {
+  //    setivalue(v, data[ukey]);
+  //      } else
+  //    luaG_runerror(L, "array out of bounds");
+  //}
+
+  // TValue *rb = RB(i);
+  // TValue *rc = RKC(i);
+  // lua_Integer idx = ivalue(rc);
+  // Table *t = hvalue(rb);
+  // raviH_get_int_inline(L, t, idx, ra);
+
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *key = ravi_emit_load_reg_i(def, rc);
+  gcc_jit_rvalue *t = ravi_emit_load_reg_h(def, rb);
+  gcc_jit_rvalue *data = ravi_emit_load_reg_h_intarray(def, t);
+  gcc_jit_lvalue *len = ravi_emit_load_ravi_arraylength(def, t);
+  gcc_jit_rvalue *ukey = gcc_jit_context_new_cast(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key), def->ravi->types->C_unsigned_intT);
+
+  gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey, gcc_jit_lvalue_as_rvalue(len));
+  gcc_jit_block *then_block =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "GETTABLE_AI_if_in_range", pc));
+  gcc_jit_block *else_block =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "GETTABLE_AI_if_not_in_range", pc));
+  gcc_jit_block *end_block =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "GETTABLE_AI_if_end", pc));
+  ravi_emit_conditional_branch(def, cmp, then_block, else_block);
+  ravi_set_current_block(def, then_block);
+
+  gcc_jit_rvalue *value = ravi_emit_array_get(def, data, ukey);
+
+  ravi_emit_store_reg_i_withtype(def, value, ra);
+  ravi_emit_branch(def, end_block);
+
+  ravi_set_current_block(def, else_block);
+
+  ravi_emit_raise_lua_error(def, "array out of bounds");
+  ravi_set_current_block(def, end_block);
+
+  ravi_set_current_block(def, end_block);
 }

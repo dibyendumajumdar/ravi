@@ -107,6 +107,10 @@ static bool can_compile(Proto *p) {
     case OP_SETLIST:
     case OP_TFORCALL:
     case OP_TFORLOOP:
+    case OP_RAVI_NEWARRAYI:
+    case OP_RAVI_NEWARRAYF:
+    case OP_RAVI_GETTABLE_AI:
+    case OP_RAVI_GETTABLE_AF:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -122,10 +126,6 @@ static bool can_compile(Proto *p) {
     case OP_GETUPVAL:
     case OP_SETUPVAL:
     case OP_SETTABUP:
-    case OP_RAVI_NEWARRAYI:
-    case OP_RAVI_NEWARRAYF:
-    case OP_RAVI_GETTABLE_AI:
-    case OP_RAVI_GETTABLE_AF:
     case OP_RAVI_SETTABLE_AI:
     case OP_RAVI_SETTABLE_AII:
     case OP_RAVI_SETTABLE_AF:
@@ -380,6 +380,21 @@ void ravi_emit_refresh_L_top(ravi_function_def_t *def) {
                                gcc_jit_lvalue_as_rvalue(citop));
 }
 
+gcc_jit_rvalue *ravi_emit_array_get(ravi_function_def_t *def, gcc_jit_rvalue *ptr, gcc_jit_rvalue *index) {
+  /* Note we assume that base is correct */
+  gcc_jit_lvalue *el = gcc_jit_context_new_array_access(
+          def->function_context, NULL, ptr, index);
+  return gcc_jit_lvalue_as_rvalue(el);
+}
+
+gcc_jit_rvalue *ravi_emit_array_get_ptr(ravi_function_def_t *def, gcc_jit_rvalue *ptr, gcc_jit_rvalue *index) {
+  /* Note we assume that base is correct */
+  gcc_jit_lvalue *el = gcc_jit_context_new_array_access(
+          def->function_context, NULL, ptr, index);
+  return gcc_jit_lvalue_get_address(el, NULL);
+}
+
+
 /* Get access to the register identified by A - registers as just &base[offset]
  */
 gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t *def, int A) {
@@ -461,6 +476,66 @@ gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def,
       gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_n);
   return n;
 }
+
+/* Get (Table *) TValue->value_.gc */
+gcc_jit_rvalue *ravi_emit_load_reg_h(ravi_function_def_t *def,
+                                                      gcc_jit_rvalue *tv) {
+
+  gcc_jit_lvalue *value =
+          gcc_jit_rvalue_dereference_field(tv, NULL, def->ravi->types->Value_value);
+  gcc_jit_lvalue *gc =
+          gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->Value_value_gc);
+  gcc_jit_rvalue *h = gcc_jit_context_new_cast(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(gc), def->ravi->types->pTableT);
+  return h;
+}
+
+/* Get Table->ravi_array.data as lua_Number* */
+gcc_jit_rvalue *ravi_emit_load_reg_h_floatarray(ravi_function_def_t *def,
+                                     gcc_jit_rvalue *h) {
+
+  gcc_jit_lvalue *value =
+          gcc_jit_rvalue_dereference_field(h, NULL, def->ravi->types->Table_ravi_array);
+  gcc_jit_lvalue *data =
+          gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->RaviArray_data);
+  gcc_jit_rvalue *floatarray = gcc_jit_context_new_cast(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(data), def->ravi->types->plua_NumberT);
+  return floatarray;
+}
+
+/* Get Table->ravi_array.data as lua_Integer* */
+gcc_jit_rvalue *ravi_emit_load_reg_h_intarray(ravi_function_def_t *def,
+                                                gcc_jit_rvalue *h) {
+
+  gcc_jit_lvalue *value =
+          gcc_jit_rvalue_dereference_field(h, NULL, def->ravi->types->Table_ravi_array);
+  gcc_jit_lvalue *data =
+          gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->RaviArray_data);
+  gcc_jit_rvalue *intarray = gcc_jit_context_new_cast(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(data), def->ravi->types->plua_IntegerT);
+  return intarray;
+}
+
+
+/* Get Table->ravi_array.len */
+gcc_jit_lvalue *ravi_emit_load_ravi_arraylength(ravi_function_def_t *def,
+                                              gcc_jit_rvalue *h) {
+
+  gcc_jit_lvalue *value =
+          gcc_jit_rvalue_dereference_field(h, NULL, def->ravi->types->Table_ravi_array);
+  gcc_jit_lvalue *len =
+          gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->RaviArray_len);
+  return len;
+}
+
+/* Get Table->ravi_array.array_type */
+gcc_jit_lvalue *ravi_emit_load_ravi_arraytype(ravi_function_def_t *def,
+                                                gcc_jit_rvalue *h) {
+
+  gcc_jit_lvalue *value =
+          gcc_jit_rvalue_dereference_field(h, NULL, def->ravi->types->Table_ravi_array);
+  gcc_jit_lvalue *t =
+          gcc_jit_lvalue_access_field(value, NULL, def->ravi->types->RaviArray_array_type);
+  return t;
+}
+
 
 gcc_jit_lvalue *ravi_emit_load_type(ravi_function_def_t *def,
                                     gcc_jit_rvalue *tv) {
@@ -943,6 +1018,23 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int C = GETARG_C(i);
       ravi_emit_NEWTABLE(&def, A, B, C, pc);
     } break;
+    case OP_RAVI_NEWARRAYI: {
+      ravi_emit_NEWARRAYINT(&def, A, pc);
+    } break;
+    case OP_RAVI_NEWARRAYF: {
+      ravi_emit_NEWARRAYFLOAT(&def, A, pc);
+    } break;
+    case OP_RAVI_GETTABLE_AI: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_GETTABLE_AI(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_GETTABLE_AF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_GETTABLE_AF(&def, A, B, C, pc);
+    } break;
+
     case OP_SETLIST: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);

@@ -177,9 +177,14 @@ struct ravi_gcc_types_t {
 
   gcc_jit_struct *UdataT;
   gcc_jit_struct *RaviArrayT;
+  gcc_jit_field *RaviArray_len;
+  gcc_jit_field *RaviArray_data;
+  gcc_jit_field *RaviArray_array_type;
+
   gcc_jit_struct *TableT;
   gcc_jit_type *pTableT;
   gcc_jit_type *ppTableT;
+  gcc_jit_field *Table_ravi_array;
 
   gcc_jit_struct *UpvaldescT;
   gcc_jit_type *pUpvaldescT;
@@ -509,6 +514,25 @@ extern void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def, gcc_jit_rva
 
 extern void ravi_emit_store_reg_b_withtype(ravi_function_def_t *def, gcc_jit_rvalue *bvalue, gcc_jit_rvalue *reg);
 
+extern gcc_jit_rvalue *ravi_emit_load_reg_h(ravi_function_def_t *def,
+                                            gcc_jit_rvalue *tv);
+
+extern gcc_jit_rvalue *ravi_emit_load_reg_h_floatarray(ravi_function_def_t *def,
+                                                       gcc_jit_rvalue *h);
+
+extern gcc_jit_rvalue *ravi_emit_load_reg_h_intarray(ravi_function_def_t *def,
+                                                     gcc_jit_rvalue *h);
+
+extern gcc_jit_lvalue *ravi_emit_load_ravi_arraylength(ravi_function_def_t *def,
+                                                       gcc_jit_rvalue *h);
+
+extern gcc_jit_lvalue *ravi_emit_load_ravi_arraytype(ravi_function_def_t *def,
+                                                     gcc_jit_rvalue *h);
+
+extern gcc_jit_rvalue *ravi_emit_array_get(ravi_function_def_t *def, gcc_jit_rvalue *ptr, gcc_jit_rvalue *index);
+
+extern gcc_jit_rvalue *ravi_emit_array_get_ptr(ravi_function_def_t *def, gcc_jit_rvalue *ptr, gcc_jit_rvalue *index);
+
 extern gcc_jit_rvalue *ravi_emit_comparison(ravi_function_def_t *def, enum gcc_jit_comparison op, gcc_jit_rvalue *a,
                                             gcc_jit_rvalue *b);
 
@@ -640,6 +664,14 @@ extern void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C,
                                     int j, int jA, int pc);
 
 extern void ravi_emit_TFORLOOP(ravi_function_def_t *def, int A, int j, int pc);
+
+extern void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_NEWARRAYFLOAT(ravi_function_def_t *def, int A, int pc);
+
+extern void ravi_emit_NEWARRAYINT(ravi_function_def_t *def, int A, int pc);
 
 extern void ravi_dump_rvalue(gcc_jit_rvalue *rv);
 
