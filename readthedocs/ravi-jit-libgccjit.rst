@@ -42,12 +42,14 @@ Current Status
 --------------
 Work on this started only recently (8 June 2015) so not much to show yet. But expectation is that there will be a working implementation by end June - the strategy is to port the existing LLVM implementation to equivalent libgccjit implementation.
 
-.. warning:: Note that the current official distrbution does not work for Ravi due to the fact that unreachable blocks are treated as errors - this prevents ravi code from being compiled. I have a personal copy where I have disabled this validation - I am hoping that the next release of libgccjit will make this an optional validation.
-
-
 Building Ravi with libgccjit on Linux
 -------------------------------------
-Note that right now the libgccjit implementation is not yet functional. However you can build Ravi with libgccjit linked in as follows::
+
+.. warning:: The current official distribution of ``libgccjit`` does not work for Ravi due to the fact that unreachable blocks are treated as errors - this prevents Ravi code from being compiled. I have a personal copy where I have disabled this validation - I am hoping that the next release of ``libgccjit`` will make this an optional validation.
+
+.. warning:: Note that right now the Ravi's ``libgccjit`` based JIT implementation is work in progress and has bugs (some Lua tests fail). 
+
+You can build Ravi with ``libgccjit`` linked in as follows::
 
   mkdir build
   cd build
