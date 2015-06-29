@@ -1107,6 +1107,12 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_voidT,
       "raviH_set_float", 4, params, 0);
 
+
+  params[0] = gcc_jit_context_new_param(ravi->context, NULL, t->C_pconstcharT, "format");
+  t->printfT = gcc_jit_context_new_function(
+          ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_intT,
+          "printf", 1, params, 1);
+
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
 
   return ravi_jit_has_errored(ravi) ? false : true;

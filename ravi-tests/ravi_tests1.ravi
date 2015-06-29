@@ -83,7 +83,9 @@ x = function ()
   return j
 end
 
-assert(ravi.compile(x))
+if (not ravi.compile(x)) then
+  print("test 6 FAILED to compile")
+end
 assert(x() == 5.1)
 print("test 6 OK")
 
@@ -165,7 +167,9 @@ function tryme()
   end
   return j
 end
-assert(ravi.compile(tryme)) 
+if (not ravi.compile(tryme)) then
+  print("test 12 FAILED to compile")
+end
 assert(tryme() == 55.0)
 print("test 12 OK")
 
@@ -207,6 +211,8 @@ function x(f)
   local i:number, j:number = f()
   return i+j
 end
+--ravi.dumplua(tryme)
+--ravi.dumplua(x)
 assert(ravi.compile(tryme))
 assert(ravi.compile(x))
 assert(x(tryme) == 11.3)

@@ -288,9 +288,10 @@ static void scan_jump_targets(ravi_function_def_t *def, Proto *p) {
 }
 
 void ravi_emit_raise_lua_error(ravi_function_def_t *def, const char *str) {
-  ravi_function_call2_rvalue(
-      def, def->ravi->types->luaG_runerrorT, gcc_jit_param_as_rvalue(def->L),
-      gcc_jit_context_new_string_literal(def->function_context, str));
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call2_rvalue(
+                                 def, def->ravi->types->luaG_runerrorT, gcc_jit_param_as_rvalue(def->L),
+                                 gcc_jit_context_new_string_literal(def->function_context, str)));
 }
 
 void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue *dest,
@@ -1085,8 +1086,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
 
   if (def.dump_ir) {
     gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
+    gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
   }
-  // gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
   // gcc_jit_context_set_logfile (def.function_context, stderr, 0, 0);
 
   if (gcc_jit_context_get_first_error(def.function_context)) {
@@ -1121,6 +1122,23 @@ on_error:
   free_function_def(&def);
 
   return status;
+}
+
+void ravi_debug_printf(ravi_function_def_t *def, const char *str) {
+  gcc_jit_block_add_eval(def->current_block, NULL,
+    ravi_function_call1_rvalue(def, def->ravi->types->printfT, gcc_jit_context_new_string_literal(def->function_context, str)));
+}
+
+void ravi_debug_printf2(ravi_function_def_t *def, const char *str, gcc_jit_rvalue *arg1) {
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call2_rvalue(def, def->ravi->types->printfT, gcc_jit_context_new_string_literal(def->function_context, str),
+                         arg1));
+}
+
+void ravi_debug_printf3(ravi_function_def_t *def, const char *str, gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2) {
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call3_rvalue(def, def->ravi->types->printfT, gcc_jit_context_new_string_literal(def->function_context, str),
+                                                    arg1, arg2));
 }
 
 // Free the JIT compiled function

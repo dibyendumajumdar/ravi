@@ -287,6 +287,9 @@ struct ravi_gcc_types_t {
 
   gcc_jit_function *raviH_set_intT;
   gcc_jit_function *raviH_set_floatT;
+
+  gcc_jit_function *printfT;
+
 };
 
 struct ravi_gcc_context_t {
@@ -633,6 +636,11 @@ extern void ravi_dump_rvalue(gcc_jit_rvalue *rv);
 
 extern void ravi_dump_lvalue(gcc_jit_lvalue *lv);
 
+extern void ravi_debug_printf(ravi_function_def_t *def, const char *str);
+
+extern void ravi_debug_printf2(ravi_function_def_t *def, const char *str, gcc_jit_rvalue *arg1);
+
+extern void ravi_debug_printf3(ravi_function_def_t *def, const char *str, gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2);
 
 #ifdef __cplusplus
 };
