@@ -6,7 +6,7 @@ Ravi's reason for existence is to achieve greater performance than standard Lua 
 The programs used in the performance testing can be found at `Ravi Tests <https://github.com/dibyendumajumdar/ravi/tree/master/ravi-tests>`_ folder.
 
 +---------------+---------+------------+----------------------+------------+
-| Program       | Lua5.3  | Ravi(LLVM) | Ravi(gccjit;guest VM)| Luajit 2.1 |
+| Program       | Lua5.3  | Ravi(LLVM) | Ravi(gccjit|guest VM)| Luajit 2.1 |
 +===============+=========+============+======================+============+
 |fornum_test1   | 9.187   | 0.305      | 0.000001             | 0.309      |
 +---------------+---------+------------+----------------------+------------+
