@@ -45,7 +45,7 @@ Work on this started only recently (8 June 2015) so not much to show yet. But ex
 Building Ravi with ``libgccjit`` on Linux
 -------------------------------------
 
-.. warning:: The current official distribution of ``libgccjit`` does not work for Ravi due to the fact that unreachable blocks are treated as errors - this prevents Ravi code from being compiled. There is also `a bug <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66700>`_ I have a personal copy where I have disabled this validation - I am hoping that the next release of ``libgccjit`` will make this an optional validation.
+.. warning:: The current official distribution of ``libgccjit`` does not work for Ravi due to the fact that unreachable blocks are treated as errors - this prevents Ravi code from being compiled. There is also `a bug <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66700>`_ in ``libgccjit`` that requires a fix. I have a personal copy where I have disabled aforementioned validation, and applied a patch to fix the bug. 
 
 .. warning:: Note that right now the Ravi's ``libgccjit`` based JIT implementation is work in progress and has bugs (some Lua tests fail). 
 
