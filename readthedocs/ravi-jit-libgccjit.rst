@@ -1,5 +1,5 @@
 ========================================
-JIT Compilation for Ravi using libgccjit
+JIT Compilation for Ravi using ``libgccjit``
 ========================================
 
 Introduction
@@ -16,9 +16,9 @@ Why another JIT engine?
 -----------------------
 Well partly as I feel I have a moral obligation to support gcc, given it has been instrumental in bringing about the OpenSource / Free Software ecosystem. 
 
-Secondly I am always looking for alternatives that will let me reduce the footprint of Ravi. The libgccjit is offered as a shared library - this is a great thing. I hate to have to statically link LLVM. 
+Secondly I am always looking for alternatives that will let me reduce the footprint of Ravi. The ``libgccjit`` is offered as a shared library - this is a great thing. I hate to have to statically link LLVM. 
 
-LLVM implementation and libgccjit implementation will both be kept in sync so that user can choose either option. 
+LLVM implementation and ``libgccjit`` implementation will both be kept in sync so that user can choose either option. 
 
 Building GCC
 ------------
@@ -40,12 +40,12 @@ I built gcc 5.1 from source as follows.
 
 Current Status
 --------------
-Work on this started only recently (8 June 2015) so not much to show yet. But expectation is that there will be a working implementation by end June - the strategy is to port the existing LLVM implementation to equivalent libgccjit implementation.
+Work on this started only recently (8 June 2015) so not much to show yet. But expectation is that there will be a working implementation by end June - the strategy is to port the existing LLVM implementation to equivalent ``libgccjit`` implementation.
 
-Building Ravi with libgccjit on Linux
+Building Ravi with ``libgccjit`` on Linux
 -------------------------------------
 
-.. warning:: The current official distribution of ``libgccjit`` does not work for Ravi due to the fact that unreachable blocks are treated as errors - this prevents Ravi code from being compiled. I have a personal copy where I have disabled this validation - I am hoping that the next release of ``libgccjit`` will make this an optional validation.
+.. warning:: The current official distribution of ``libgccjit`` does not work for Ravi due to the fact that unreachable blocks are treated as errors - this prevents Ravi code from being compiled. There is also `a bug <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66700>`_ I have a personal copy where I have disabled this validation - I am hoping that the next release of ``libgccjit`` will make this an optional validation.
 
 .. warning:: Note that right now the Ravi's ``libgccjit`` based JIT implementation is work in progress and has bugs (some Lua tests fail). 
 
@@ -69,7 +69,7 @@ Setting up of the Lua types is proving easier in ``libgccjit`` due to the fact t
 
 JIT Status of Lua/Ravi Bytecodes
 ---------------------------------
-Following is the status as of 28 June 2015.
+Following is the status as of 30 June 2015.
 
 +-------------------------+----------+--------------------------------------------------+
 | name                    | JITed?   | description                                      |
@@ -88,17 +88,17 @@ Following is the status as of 28 June 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_GETTABUP             | YES      | R(A) := UpValue[B][RK(C)]                        |
 +-------------------------+----------+--------------------------------------------------+
-| OP_GETTABLE             | NO       | R(A) := R(B)[RK(C)]                              |
+| OP_GETTABLE             | YES      | R(A) := R(B)[RK(C)]                              |
 +-------------------------+----------+--------------------------------------------------+
 | OP_SETTABUP             | NO       | UpValue[A][RK(B)] := RK(C)                       |
 +-------------------------+----------+--------------------------------------------------+
 | OP_SETUPVAL             | NO       | UpValue[B] := R(A)                               |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SETTABLE             | NO       | R(A)[RK(B)] := RK(C)                             |
+| OP_SETTABLE             | YES      | R(A)[RK(B)] := RK(C)                             |
 +-------------------------+----------+--------------------------------------------------+
-| OP_NEWTABLE             | NO       | R(A) := {} (size = B,C)                          |
+| OP_NEWTABLE             | YES      | R(A) := {} (size = B,C)                          |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SELF                 | NO       | R(A+1) := R(B); R(A) := R(B)[RK(C)]              |
+| OP_SELF                 | YES      | R(A+1) := R(B); R(A) := R(B)[RK(C)]              |
 +-------------------------+----------+--------------------------------------------------+
 | OP_ADD                  | NO       | R(A) := RK(B) + RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
@@ -128,9 +128,9 @@ Following is the status as of 28 June 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_BNOT                 | NO       | R(A) := ~R(B)                                    |
 +-------------------------+----------+--------------------------------------------------+
-| OP_NOT                  | NO       | R(A) := not R(B)                                 |
+| OP_NOT                  | YES      | R(A) := not R(B)                                 |
 +-------------------------+----------+--------------------------------------------------+
-| OP_LEN                  | NO       | R(A) := length of R(B)                           |
+| OP_LEN                  | YES      | R(A) := length of R(B)                           |
 +-------------------------+----------+--------------------------------------------------+
 | OP_CONCAT               | YES      | R(A) := R(B).. ... ..R(C)                        |
 +-------------------------+----------+--------------------------------------------------+
@@ -162,7 +162,7 @@ Following is the status as of 28 June 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_TFORLOOP             | NO       | if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx } |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SETLIST              | NO       | R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B	        |
+| OP_SETLIST              | YES      | R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B	        |
 +-------------------------+----------+--------------------------------------------------+
 | OP_CLOSURE              | YES      | R(A) := closure(KPROTO[Bx])                      |
 +-------------------------+----------+--------------------------------------------------+
