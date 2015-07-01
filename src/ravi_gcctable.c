@@ -202,7 +202,7 @@ void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C, int pc
   ravi_set_current_block(def, else_block);
 
   ravi_emit_raise_lua_error(def, "array out of bounds");
-  ravi_set_current_block(def, end_block);
+  ravi_emit_branch(def, end_block);
 
   ravi_set_current_block(def, end_block);
 }
@@ -251,7 +251,7 @@ void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C, int pc
   ravi_set_current_block(def, else_block);
 
   ravi_emit_raise_lua_error(def, "array out of bounds");
-  ravi_set_current_block(def, end_block);
+  ravi_emit_branch(def, end_block);
 
   ravi_set_current_block(def, end_block);
 }
