@@ -56,7 +56,7 @@ void ravi_emit_UNMI(ravi_function_def_t *def, int A, int B, int pc) {
 
 // R(A) := RK(B) + C, result is floating
 void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C, int pc) {
-  (void) pc;
+  (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
@@ -76,7 +76,7 @@ void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C, int pc) {
 
 // R(A) := RK(B) * C, float*c
 void ravi_emit_MULFN(ravi_function_def_t *def, int A, int B, int C, int pc) {
-  (void) pc;
+  (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
@@ -85,10 +85,10 @@ void ravi_emit_MULFN(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // result = rb->value_.n * (double)C
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MULT,
-          def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->lua_NumberT, C));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MULT,
+      def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->lua_NumberT, C));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);
@@ -96,7 +96,7 @@ void ravi_emit_MULFN(ravi_function_def_t *def, int A, int B, int C, int pc) {
 
 // R(A) := RK(B) - C
 void ravi_emit_SUBFN(ravi_function_def_t *def, int A, int B, int C, int pc) {
-  (void) pc;
+  (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
@@ -105,10 +105,10 @@ void ravi_emit_SUBFN(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // result = rb->value_.n - (double)C
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
-          def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->lua_NumberT, C));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
+      def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->lua_NumberT, C));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);
@@ -116,7 +116,7 @@ void ravi_emit_SUBFN(ravi_function_def_t *def, int A, int B, int C, int pc) {
 
 // R(A) := B - RK(C)
 void ravi_emit_SUBNF(ravi_function_def_t *def, int A, int B, int C, int pc) {
-  (void) pc;
+  (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
@@ -125,11 +125,11 @@ void ravi_emit_SUBNF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_n(def, rc);
   // result = (double)C - rc->value_.n
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
-          def->ravi->types->lua_NumberT,
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->lua_NumberT, B),
-          gcc_jit_lvalue_as_rvalue(rhs));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
+      def->ravi->types->lua_NumberT,
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->lua_NumberT, B),
+      gcc_jit_lvalue_as_rvalue(rhs));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);
@@ -137,7 +137,7 @@ void ravi_emit_SUBNF(ravi_function_def_t *def, int A, int B, int C, int pc) {
 
 // R(A) := RK(B) - C
 void ravi_emit_SUBIN(ravi_function_def_t *def, int A, int B, int C, int pc) {
-  (void) pc;
+  (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
@@ -146,10 +146,10 @@ void ravi_emit_SUBIN(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // result = rb->value_.i - (lua_Integer)C
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
-          def->ravi->types->lua_IntegerT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->lua_IntegerT, C));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
+      def->ravi->types->lua_IntegerT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->lua_IntegerT, C));
   // ra->value_.i = result
   // ra->tt_ = LUA_TNUMINT
   ravi_emit_store_reg_i_withtype(def, result, ra);
@@ -157,7 +157,7 @@ void ravi_emit_SUBIN(ravi_function_def_t *def, int A, int B, int C, int pc) {
 
 // R(A) := B - RK(C)
 void ravi_emit_SUBNI(ravi_function_def_t *def, int A, int B, int C, int pc) {
-  (void) pc;
+  (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
@@ -166,11 +166,11 @@ void ravi_emit_SUBNI(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_i(def, rc);
   // result = (lua_Integer)B - rc->value_.i
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
-          def->ravi->types->lua_IntegerT,
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->lua_IntegerT, B),
-          gcc_jit_lvalue_as_rvalue(rhs));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
+      def->ravi->types->lua_IntegerT,
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->lua_IntegerT, B),
+      gcc_jit_lvalue_as_rvalue(rhs));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMINT
   ravi_emit_store_reg_i_withtype(def, result, ra);
@@ -212,14 +212,13 @@ void ravi_emit_MULFF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_n(def, rc);
   // result = rb->value_.n * rc->value_.n
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MULT,
-          def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_lvalue_as_rvalue(rhs));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MULT,
+      def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_lvalue_as_rvalue(rhs));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);
 }
-
 
 // R(A) := RK(B) - RK(C), float-float
 void ravi_emit_SUBFF(ravi_function_def_t *def, int A, int B, int C, int pc) {
@@ -235,9 +234,9 @@ void ravi_emit_SUBFF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_n(def, rc);
   // result = rb->value_.n - rc->value_.n
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
-          def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_lvalue_as_rvalue(rhs));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
+      def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_lvalue_as_rvalue(rhs));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);
@@ -257,14 +256,13 @@ void ravi_emit_DIVFF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_n(def, rc);
   // result = rb->value_.n / rc->value_.n
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_DIVIDE,
-          def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_lvalue_as_rvalue(rhs));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_DIVIDE,
+      def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_lvalue_as_rvalue(rhs));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);
 }
-
 
 // R(A) := RK(B) + RK(C), float+int
 void ravi_emit_ADDFI(ravi_function_def_t *def, int A, int B, int C, int pc) {
@@ -304,16 +302,15 @@ void ravi_emit_MULFI(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_i(def, rc);
   // result = rb->value_.n * (lua_number)rc->value_.i
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MULT,
-          def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_context_new_cast(def->function_context, NULL,
-                                   gcc_jit_lvalue_as_rvalue(rhs),
-                                   def->ravi->types->lua_NumberT));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MULT,
+      def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_context_new_cast(def->function_context, NULL,
+                               gcc_jit_lvalue_as_rvalue(rhs),
+                               def->ravi->types->lua_NumberT));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);
 }
-
 
 // R(A) := RK(B) - RK(C), float-int
 void ravi_emit_SUBFI(ravi_function_def_t *def, int A, int B, int C, int pc) {
@@ -329,11 +326,11 @@ void ravi_emit_SUBFI(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_i(def, rc);
   // result = rb->value_.n - (lua_number)rc->value_.i
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
-          def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_context_new_cast(def->function_context, NULL,
-                                   gcc_jit_lvalue_as_rvalue(rhs),
-                                   def->ravi->types->lua_NumberT));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
+      def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_context_new_cast(def->function_context, NULL,
+                               gcc_jit_lvalue_as_rvalue(rhs),
+                               def->ravi->types->lua_NumberT));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);
@@ -353,16 +350,15 @@ void ravi_emit_DIVFI(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_i(def, rc);
   // result = rb->value_.n / (lua_number)rc->value_.i
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_DIVIDE,
-          def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_context_new_cast(def->function_context, NULL,
-                                   gcc_jit_lvalue_as_rvalue(rhs),
-                                   def->ravi->types->lua_NumberT));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_DIVIDE,
+      def->ravi->types->lua_NumberT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_context_new_cast(def->function_context, NULL,
+                               gcc_jit_lvalue_as_rvalue(rhs),
+                               def->ravi->types->lua_NumberT));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);
 }
-
 
 // R(A) := RK(B) - RK(C), int-float
 void ravi_emit_SUBIF(ravi_function_def_t *def, int A, int B, int C, int pc) {
@@ -378,12 +374,12 @@ void ravi_emit_SUBIF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_n(def, rc);
   // result = (lua_Number) rb->value_.i - rc->value_.n
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
-          def->ravi->types->lua_NumberT,
-          gcc_jit_context_new_cast(def->function_context, NULL,
-                                   gcc_jit_lvalue_as_rvalue(lhs),
-                                   def->ravi->types->lua_NumberT),
-          gcc_jit_lvalue_as_rvalue(rhs));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
+      def->ravi->types->lua_NumberT,
+      gcc_jit_context_new_cast(def->function_context, NULL,
+                               gcc_jit_lvalue_as_rvalue(lhs),
+                               def->ravi->types->lua_NumberT),
+      gcc_jit_lvalue_as_rvalue(rhs));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);
@@ -403,12 +399,12 @@ void ravi_emit_DIVIF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_n(def, rc);
   // result = (lua_Number) rb->value_.i / rc->value_.n
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_DIVIDE,
-          def->ravi->types->lua_NumberT,
-          gcc_jit_context_new_cast(def->function_context, NULL,
-                                   gcc_jit_lvalue_as_rvalue(lhs),
-                                   def->ravi->types->lua_NumberT),
-          gcc_jit_lvalue_as_rvalue(rhs));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_DIVIDE,
+      def->ravi->types->lua_NumberT,
+      gcc_jit_context_new_cast(def->function_context, NULL,
+                               gcc_jit_lvalue_as_rvalue(lhs),
+                               def->ravi->types->lua_NumberT),
+      gcc_jit_lvalue_as_rvalue(rhs));
   // ra->value_.n = result
   // ra->tt_ = LUA_TNUMFLT
   ravi_emit_store_reg_n_withtype(def, result, ra);
@@ -450,9 +446,9 @@ void ravi_emit_MULII(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_i(def, rc);
   // result = rb->value_.i * rc->value_.i
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MULT,
-          def->ravi->types->lua_IntegerT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_lvalue_as_rvalue(rhs));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MULT,
+      def->ravi->types->lua_IntegerT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_lvalue_as_rvalue(rhs));
   // ra->value_.i = result
   // ra->tt_ = LUA_TNUMINT
   ravi_emit_store_reg_i_withtype(def, result, ra);
@@ -472,9 +468,9 @@ void ravi_emit_SUBII(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_i(def, rc);
   // result = rb->value_.i - rc->value_.i
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
-          def->ravi->types->lua_IntegerT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_lvalue_as_rvalue(rhs));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
+      def->ravi->types->lua_IntegerT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_lvalue_as_rvalue(rhs));
   // ra->value_.i = result
   // ra->tt_ = LUA_TNUMINT
   ravi_emit_store_reg_i_withtype(def, result, ra);
@@ -494,10 +490,14 @@ void ravi_emit_DIVII(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_i(def, rc);
   // result = (lua_Number)rb->value_.i / (lua_Number)rc->value_.i
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_DIVIDE,
-          def->ravi->types->lua_IntegerT,
-          gcc_jit_context_new_cast(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(lhs), def->ravi->types->lua_NumberT),
-          gcc_jit_context_new_cast(def->function_context, NULL, gcc_jit_lvalue_as_rvalue(rhs), def->ravi->types->lua_NumberT));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_DIVIDE,
+      def->ravi->types->lua_IntegerT,
+      gcc_jit_context_new_cast(def->function_context, NULL,
+                               gcc_jit_lvalue_as_rvalue(lhs),
+                               def->ravi->types->lua_NumberT),
+      gcc_jit_context_new_cast(def->function_context, NULL,
+                               gcc_jit_lvalue_as_rvalue(rhs),
+                               def->ravi->types->lua_NumberT));
   // ra->value_.i = result
   // ra->tt_ = LUA_TNUMINT
   ravi_emit_store_reg_i_withtype(def, result, ra);
@@ -514,10 +514,10 @@ void ravi_emit_ADDIN(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // result = rb->value_.i + (lua_Integer)C
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_PLUS,
-          def->ravi->types->lua_IntegerT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->lua_IntegerT, C));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_PLUS,
+      def->ravi->types->lua_IntegerT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->lua_IntegerT, C));
   // ra->value_.i = result
   // ra->tt_ = LUA_TNUMINT
   ravi_emit_store_reg_i_withtype(def, result, ra);
@@ -534,10 +534,10 @@ void ravi_emit_MULIN(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // result = rb->value_.i * (lua_Integer)C
   gcc_jit_rvalue *result = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_MULT,
-          def->ravi->types->lua_IntegerT, gcc_jit_lvalue_as_rvalue(lhs),
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->lua_IntegerT, C));
+      def->function_context, NULL, GCC_JIT_BINARY_OP_MULT,
+      def->ravi->types->lua_IntegerT, gcc_jit_lvalue_as_rvalue(lhs),
+      gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                          def->ravi->types->lua_IntegerT, C));
   // ra->value_.i = result
   // ra->tt_ = LUA_TNUMINT
   ravi_emit_store_reg_i_withtype(def, result, ra);

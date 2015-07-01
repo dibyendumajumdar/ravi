@@ -220,7 +220,10 @@ void ravi_emit_NOT(ravi_function_def_t *def, int A, int B, int pc) {
   gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
   gcc_jit_rvalue *v = ravi_emit_boolean_testfalse(def, rb, false);
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  ravi_emit_store_reg_b_withtype(def, gcc_jit_context_new_cast(def->function_context, NULL, v, def->ravi->types->C_intT), ra);
+  ravi_emit_store_reg_b_withtype(
+      def, gcc_jit_context_new_cast(def->function_context, NULL, v,
+                                    def->ravi->types->C_intT),
+      ra);
 }
 
 void ravi_emit_TESTSET(ravi_function_def_t *def, int A, int B, int C, int j,

@@ -25,9 +25,11 @@
 
 // R(A+1), ..., R(A+B) := nil
 void ravi_emit_LOADNIL(ravi_function_def_t *def, int A, int B, int pc) {
-  (void) pc;
+  (void)pc;
 
-  gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call3_rvalue(
+  gcc_jit_block_add_eval(
+      def->current_block, NULL,
+      ravi_function_call3_rvalue(
           def, def->ravi->types->raviV_op_loadnilT,
           gcc_jit_lvalue_as_rvalue(def->ci_val),
           gcc_jit_context_new_rvalue_from_int(def->function_context,
@@ -389,10 +391,10 @@ void ravi_emit_TOFLT(ravi_function_def_t *def, int A, int pc) {
 
   // Call luaV_tonumber()
   gcc_jit_rvalue *var_ptr = gcc_jit_lvalue_get_address(var, NULL);
-  //ravi_debug_printf3(def, "number %p = %f before call to luaV_number\n", var_ptr, gcc_jit_lvalue_as_rvalue(var));
-  gcc_jit_rvalue *var_isflt =
-      ravi_function_call2_rvalue(def, def->ravi->types->luaV_tonumberT, src,
-                                 var_ptr);
+  // ravi_debug_printf3(def, "number %p = %f before call to luaV_number\n",
+  // var_ptr, gcc_jit_lvalue_as_rvalue(var));
+  gcc_jit_rvalue *var_isflt = ravi_function_call2_rvalue(
+      def, def->ravi->types->luaV_tonumberT, src, var_ptr);
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
   gcc_jit_rvalue *failed_conversion =
@@ -417,7 +419,7 @@ void ravi_emit_TOFLT(ravi_function_def_t *def, int A, int pc) {
   // Conversion OK
   ravi_set_current_block(def, else2);
 
-  //ravi_debug_printf2(def, "number ok = %f\n", gcc_jit_lvalue_as_rvalue(var));
+  // ravi_debug_printf2(def, "number ok = %f\n", gcc_jit_lvalue_as_rvalue(var));
   ravi_emit_store_reg_n_withtype(def, gcc_jit_lvalue_as_rvalue(var), dest);
 
   ravi_emit_branch(def, end1);

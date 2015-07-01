@@ -59,8 +59,6 @@ extern "C" {
 #include "ltable.h"
 #include "lvm.h"
 
-
-
 typedef enum {
   LUA__TNIL = LUA_TNIL,
   LUA__TBOOLEAN = LUA_TBOOLEAN,
@@ -79,7 +77,6 @@ typedef enum {
   LUA__TNUMFLT = LUA_TNUMFLT,
   LUA__TNUMINT = LUA_TNUMINT
 } lua_typecode_t;
-
 
 typedef struct ravi_gcc_context_t ravi_gcc_context_t;
 typedef struct ravi_gcc_types_t ravi_gcc_types_t;
@@ -115,16 +112,16 @@ struct ravi_gcc_types_t {
   gcc_jit_type *lua_UnsignedT;
   gcc_jit_type *lua_KContextT;
 
-  //gcc_jit_function *lua_CFunctionT;
+  // gcc_jit_function *lua_CFunctionT;
   gcc_jit_type *plua_CFunctionT;
 
-  //gcc_jit_function *lua_KFunctionT;
+  // gcc_jit_function *lua_KFunctionT;
   gcc_jit_type *plua_KFunctionT;
 
-  //gcc_jit_function *lua_HookT;
+  // gcc_jit_function *lua_HookT;
   gcc_jit_type *plua_HookT;
 
-  //gcc_jit_function *lua_AllocT;
+  // gcc_jit_function *lua_AllocT;
   gcc_jit_type *plua_AllocT;
 
   gcc_jit_type *l_memT;
@@ -294,7 +291,6 @@ struct ravi_gcc_types_t {
   gcc_jit_function *raviH_set_floatT;
 
   gcc_jit_function *printfT;
-
 };
 
 struct ravi_gcc_context_t {
@@ -328,7 +324,6 @@ struct ravi_gcc_context_t {
   int min_exec_count_;
 };
 
-
 struct ravi_gcc_codegen_t {
 
   ravi_gcc_context_t *ravi;
@@ -336,10 +331,9 @@ struct ravi_gcc_codegen_t {
   char temp[31];
 
   int id;
-
 };
 
-//struct ravi_gcc_function_t {
+// struct ravi_gcc_function_t {
 //
 //  gcc_jit_result *jit_result;
 //
@@ -359,7 +353,6 @@ typedef struct ravi_branch_def_t {
   gcc_jit_lvalue *fidx;
 
 } ravi_branch_def_t;
-
 
 typedef struct ravi_function_def_t {
 
@@ -395,7 +388,8 @@ typedef struct ravi_function_def_t {
 
   bool current_block_terminated;
 
-  /* The Lua stack base - this can change during execution so needs to be lvalue */
+  /* The Lua stack base - this can change during execution so needs to be lvalue
+   */
   gcc_jit_rvalue *base_ref;
   gcc_jit_lvalue *base;
 
@@ -426,7 +420,8 @@ extern void ravi_jit_context_free(ravi_gcc_context_t *);
 /* Setup Lua types */
 extern bool ravi_setup_lua_types(ravi_gcc_context_t *);
 
-extern ravi_gcc_codegen_t *ravi_jit_new_codegen(ravi_gcc_context_t *global_context);
+extern ravi_gcc_codegen_t *
+ravi_jit_new_codegen(ravi_gcc_context_t *global_context);
 
 extern void ravi_jit_codegen_free(ravi_gcc_codegen_t *);
 
@@ -434,11 +429,12 @@ extern bool ravi_jit_has_errored(ravi_gcc_context_t *);
 
 extern void ravi_emit_load_base(ravi_function_def_t *def);
 
-extern gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t* def, int A);
+extern gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t *def, int A);
 
-extern gcc_jit_rvalue *ravi_emit_get_constant(ravi_function_def_t* def, int Bx);
+extern gcc_jit_rvalue *ravi_emit_get_constant(ravi_function_def_t *def, int Bx);
 
-extern gcc_jit_rvalue *ravi_emit_get_register_or_constant(ravi_function_def_t* def, int B);
+extern gcc_jit_rvalue *
+ravi_emit_get_register_or_constant(ravi_function_def_t *def, int B);
 
 extern void ravi_emit_set_L_top_toreg(ravi_function_def_t *def, int B);
 
@@ -446,37 +442,38 @@ extern void ravi_emit_refresh_L_top(ravi_function_def_t *def);
 
 extern gcc_jit_lvalue *ravi_emit_get_Proto_sizep(ravi_function_def_t *def);
 
-extern gcc_jit_rvalue* ravi_emit_get_upvals(ravi_function_def_t *def,
+extern gcc_jit_rvalue *ravi_emit_get_upvals(ravi_function_def_t *def,
                                             int offset);
 // Get upval->v
 extern gcc_jit_lvalue *ravi_emit_get_upval_v(ravi_function_def_t *def,
-                                      gcc_jit_rvalue *pupval);
+                                             gcc_jit_rvalue *pupval);
 
 // Get upval->u.value
-extern gcc_jit_lvalue *
-        ravi_emit_get_upval_value(ravi_function_def_t *def,
-                                  gcc_jit_rvalue *pupval);
+extern gcc_jit_lvalue *ravi_emit_get_upval_value(ravi_function_def_t *def,
+                                                 gcc_jit_rvalue *pupval);
 
-extern void ravi_set_current_block(ravi_function_def_t *def, gcc_jit_block *block);
+extern void ravi_set_current_block(ravi_function_def_t *def,
+                                   gcc_jit_block *block);
 
-extern gcc_jit_rvalue *ravi_function_call1_rvalue(ravi_function_def_t *def, gcc_jit_function *f, gcc_jit_rvalue *arg1);
+extern gcc_jit_rvalue *ravi_function_call1_rvalue(ravi_function_def_t *def,
+                                                  gcc_jit_function *f,
+                                                  gcc_jit_rvalue *arg1);
 
-extern gcc_jit_rvalue *ravi_function_call2_rvalue(ravi_function_def_t *def, gcc_jit_function *f, gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2);
-
-extern gcc_jit_rvalue *ravi_function_call5_rvalue(ravi_function_def_t *def,
+extern gcc_jit_rvalue *ravi_function_call2_rvalue(ravi_function_def_t *def,
                                                   gcc_jit_function *f,
                                                   gcc_jit_rvalue *arg1,
-                                                  gcc_jit_rvalue *arg2,
-                                                  gcc_jit_rvalue *arg3,
-                                                  gcc_jit_rvalue *arg4,
-                                                  gcc_jit_rvalue *arg5);
+                                                  gcc_jit_rvalue *arg2);
 
-extern gcc_jit_rvalue *ravi_function_call4_rvalue(ravi_function_def_t *def,
-                                                  gcc_jit_function *f,
-                                                  gcc_jit_rvalue *arg1,
-                                                  gcc_jit_rvalue *arg2,
-                                                  gcc_jit_rvalue *arg3,
-                                                  gcc_jit_rvalue *arg4);
+extern gcc_jit_rvalue *
+ravi_function_call5_rvalue(ravi_function_def_t *def, gcc_jit_function *f,
+                           gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2,
+                           gcc_jit_rvalue *arg3, gcc_jit_rvalue *arg4,
+                           gcc_jit_rvalue *arg5);
+
+extern gcc_jit_rvalue *
+ravi_function_call4_rvalue(ravi_function_def_t *def, gcc_jit_function *f,
+                           gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2,
+                           gcc_jit_rvalue *arg3, gcc_jit_rvalue *arg4);
 
 extern gcc_jit_rvalue *ravi_function_call3_rvalue(ravi_function_def_t *def,
                                                   gcc_jit_function *f,
@@ -484,35 +481,46 @@ extern gcc_jit_rvalue *ravi_function_call3_rvalue(ravi_function_def_t *def,
                                                   gcc_jit_rvalue *arg2,
                                                   gcc_jit_rvalue *arg3);
 
-extern const char *unique_name(ravi_function_def_t *def, const char *prefix, int pc);
+extern const char *unique_name(ravi_function_def_t *def, const char *prefix,
+                               int pc);
 
-extern void ravi_emit_struct_assign(ravi_function_def_t *def, gcc_jit_rvalue* dest, gcc_jit_rvalue *src);
+extern void ravi_emit_struct_assign(ravi_function_def_t *def,
+                                    gcc_jit_rvalue *dest, gcc_jit_rvalue *src);
 
 /* Store an integer value and set type to TNUMINT */
-extern gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def, gcc_jit_rvalue *value);
+extern gcc_jit_lvalue *ravi_emit_load_reg_i(ravi_function_def_t *def,
+                                            gcc_jit_rvalue *value);
 
 /* Store a number value and set type to TNUMFLT */
-extern gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def, gcc_jit_rvalue *tv);
+extern gcc_jit_lvalue *ravi_emit_load_reg_n(ravi_function_def_t *def,
+                                            gcc_jit_rvalue *tv);
 
 /* Get TValue->value_.b */
 extern gcc_jit_lvalue *ravi_emit_load_reg_b(ravi_function_def_t *def,
-                                     gcc_jit_rvalue *tv);
+                                            gcc_jit_rvalue *tv);
 
-extern gcc_jit_lvalue *ravi_emit_load_type(ravi_function_def_t *def, gcc_jit_rvalue *tv);
+extern gcc_jit_lvalue *ravi_emit_load_type(ravi_function_def_t *def,
+                                           gcc_jit_rvalue *tv);
 
 extern gcc_jit_rvalue *ravi_emit_is_value_of_type(ravi_function_def_t *def,
                                                   gcc_jit_rvalue *value_type,
                                                   int lua_type);
 
-extern gcc_jit_rvalue *ravi_emit_is_not_value_of_type(ravi_function_def_t *def,
-                                                  gcc_jit_rvalue *value_type,
-                                                  int lua_type);
+extern gcc_jit_rvalue *
+ravi_emit_is_not_value_of_type(ravi_function_def_t *def,
+                               gcc_jit_rvalue *value_type, int lua_type);
 
-extern void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def, gcc_jit_rvalue *ivalue, gcc_jit_rvalue *reg);
+extern void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def,
+                                           gcc_jit_rvalue *ivalue,
+                                           gcc_jit_rvalue *reg);
 
-extern void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def, gcc_jit_rvalue *nvalue, gcc_jit_rvalue *reg);
+extern void ravi_emit_store_reg_n_withtype(ravi_function_def_t *def,
+                                           gcc_jit_rvalue *nvalue,
+                                           gcc_jit_rvalue *reg);
 
-extern void ravi_emit_store_reg_b_withtype(ravi_function_def_t *def, gcc_jit_rvalue *bvalue, gcc_jit_rvalue *reg);
+extern void ravi_emit_store_reg_b_withtype(ravi_function_def_t *def,
+                                           gcc_jit_rvalue *bvalue,
+                                           gcc_jit_rvalue *reg);
 
 extern gcc_jit_rvalue *ravi_emit_load_reg_h(ravi_function_def_t *def,
                                             gcc_jit_rvalue *tv);
@@ -529,32 +537,43 @@ extern gcc_jit_lvalue *ravi_emit_load_ravi_arraylength(ravi_function_def_t *def,
 extern gcc_jit_lvalue *ravi_emit_load_ravi_arraytype(ravi_function_def_t *def,
                                                      gcc_jit_rvalue *h);
 
-extern gcc_jit_rvalue *ravi_emit_array_get(ravi_function_def_t *def, gcc_jit_rvalue *ptr, gcc_jit_rvalue *index);
+extern gcc_jit_rvalue *ravi_emit_array_get(ravi_function_def_t *def,
+                                           gcc_jit_rvalue *ptr,
+                                           gcc_jit_rvalue *index);
 
-extern gcc_jit_rvalue *ravi_emit_array_get_ptr(ravi_function_def_t *def, gcc_jit_rvalue *ptr, gcc_jit_rvalue *index);
+extern gcc_jit_rvalue *ravi_emit_array_get_ptr(ravi_function_def_t *def,
+                                               gcc_jit_rvalue *ptr,
+                                               gcc_jit_rvalue *index);
 
-extern gcc_jit_rvalue *ravi_emit_comparison(ravi_function_def_t *def, enum gcc_jit_comparison op, gcc_jit_rvalue *a,
+extern gcc_jit_rvalue *ravi_emit_comparison(ravi_function_def_t *def,
+                                            enum gcc_jit_comparison op,
+                                            gcc_jit_rvalue *a,
                                             gcc_jit_rvalue *b);
 
-extern void ravi_emit_conditional_branch(ravi_function_def_t *def, gcc_jit_rvalue *cond, gcc_jit_block *true_block,
-  gcc_jit_block *false_block);
+extern void ravi_emit_conditional_branch(ravi_function_def_t *def,
+                                         gcc_jit_rvalue *cond,
+                                         gcc_jit_block *true_block,
+                                         gcc_jit_block *false_block);
 
-extern void ravi_emit_branch(ravi_function_def_t *def, gcc_jit_block *target_block);
+extern void ravi_emit_branch(ravi_function_def_t *def,
+                             gcc_jit_block *target_block);
 
 extern gcc_jit_rvalue *ravi_emit_boolean_testfalse(ravi_function_def_t *def,
                                                    gcc_jit_rvalue *reg,
                                                    bool negate);
 
-extern void ravi_emit_raise_lua_error(ravi_function_def_t *def, const char *msg);
+extern void ravi_emit_raise_lua_error(ravi_function_def_t *def,
+                                      const char *msg);
 
 extern void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc);
 
 extern void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc);
 
 extern void ravi_emit_iFORPREP(ravi_function_def_t *def, int A, int pc,
-                        int step_one);
+                               int step_one);
 
-extern void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc, ravi_branch_def_t *b, int step_one);
+extern void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc,
+                               ravi_branch_def_t *b, int step_one);
 
 extern void ravi_emit_MOVE(ravi_function_def_t *def, int A, int B);
 
@@ -571,23 +590,28 @@ extern void ravi_emit_LOADIZ(ravi_function_def_t *def, int A, int pc);
 extern void ravi_emit_LOADBOOL(ravi_function_def_t *def, int A, int B, int C,
                                int j, int pc);
 
-extern void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_ADDIN(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_ADDIN(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
 // implements EQ, LE and LT - by using the supplied lua function to call.
-extern void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
-                        int jA, gcc_jit_function *callee, const char *opname, int pc);
+extern void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C,
+                               int j, int jA, gcc_jit_function *callee,
+                               const char *opname, int pc);
 
 extern void ravi_emit_JMP(ravi_function_def_t *def, int A, int j, int pc);
 
 // Handle OP_CALL
-extern void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C,
+                           int pc);
 
-extern void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C,
+                               int pc);
 
-extern void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C,
-                           int j, int jA, int pc);
+extern void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C, int j,
+                           int jA, int pc);
 
 extern void ravi_emit_TESTSET(ravi_function_def_t *def, int A, int B, int C,
                               int j, int jA, int pc);
@@ -598,7 +622,8 @@ extern void ravi_emit_TOFLT(ravi_function_def_t *def, int A, int pc);
 
 extern void ravi_emit_TOINT(ravi_function_def_t *def, int A, int pc);
 
-extern void ravi_emit_CONCAT(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_CONCAT(ravi_function_def_t *def, int A, int B, int C,
+                             int pc);
 
 extern void ravi_emit_CLOSURE(ravi_function_def_t *def, int A, int Bx, int pc);
 
@@ -608,74 +633,101 @@ extern void ravi_emit_UNMF(ravi_function_def_t *def, int A, int B, int pc);
 
 extern void ravi_emit_UNMI(ravi_function_def_t *def, int A, int B, int pc);
 
-extern void ravi_emit_ADDFF(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_ADDFF(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_ADDFI(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_ADDFI(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_ADDII(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_ADDII(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_SUBFF(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SUBFF(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_SUBFI(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SUBFI(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_SUBIF(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SUBIF(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_SUBII(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SUBII(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_SUBFN(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SUBFN(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_SUBNF(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SUBNF(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_SUBIN(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SUBIN(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_SUBNI(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SUBNI(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_DIVFF(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_DIVFF(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_DIVFI(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_DIVFI(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_DIVIF(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_DIVIF(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_DIVII(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_DIVII(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_MULFN(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_MULFN(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_MULFF(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_MULFF(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_MULFI(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_MULFI(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_MULII(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_MULII(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_MULIN(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_MULIN(ravi_function_def_t *def, int A, int B, int C,
+                            int pc);
 
-extern void ravi_emit_SELF(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SELF(ravi_function_def_t *def, int A, int B, int C,
+                           int pc);
 
 extern void ravi_emit_LEN(ravi_function_def_t *def, int A, int B, int pc);
 
-extern void ravi_emit_SETTABLE(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SETTABLE(ravi_function_def_t *def, int A, int B, int C,
+                               int pc);
 
-extern void ravi_emit_GETTABLE(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_GETTABLE(ravi_function_def_t *def, int A, int B, int C,
+                               int pc);
 
-extern void ravi_emit_NEWTABLE(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_NEWTABLE(ravi_function_def_t *def, int A, int B, int C,
+                               int pc);
 
-extern void ravi_emit_SETLIST(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SETLIST(ravi_function_def_t *def, int A, int B, int C,
+                              int pc);
 
 extern void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C,
-                                    int j, int jA, int pc);
+                               int j, int jA, int pc);
 
 extern void ravi_emit_TFORLOOP(ravi_function_def_t *def, int A, int j, int pc);
 
-extern void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C,
+                                  int pc);
 
-extern void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C,
+                                  int pc);
 
 extern void ravi_emit_NEWARRAYFLOAT(ravi_function_def_t *def, int A, int pc);
 
 extern void ravi_emit_NEWARRAYINT(ravi_function_def_t *def, int A, int pc);
 
 extern void ravi_emit_TOARRAY(ravi_function_def_t *def, int A,
-                              int array_type_expected,
-                              const char *errmsg, int pc);
+                              int array_type_expected, const char *errmsg,
+                              int pc);
 
 extern void ravi_emit_MOVEAI(ravi_function_def_t *def, int A, int B, int pc);
 
@@ -687,9 +739,11 @@ extern void ravi_dump_lvalue(gcc_jit_lvalue *lv);
 
 extern void ravi_debug_printf(ravi_function_def_t *def, const char *str);
 
-extern void ravi_debug_printf2(ravi_function_def_t *def, const char *str, gcc_jit_rvalue *arg1);
+extern void ravi_debug_printf2(ravi_function_def_t *def, const char *str,
+                               gcc_jit_rvalue *arg1);
 
-extern void ravi_debug_printf3(ravi_function_def_t *def, const char *str, gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2);
+extern void ravi_debug_printf3(ravi_function_def_t *def, const char *str,
+                               gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2);
 
 #ifdef __cplusplus
 };

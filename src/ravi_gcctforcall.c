@@ -23,8 +23,8 @@
 
 #include <ravi_gccjit.h>
 
-void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C,
-                                      int j, int jA, int pc) {
+void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C, int j,
+                        int jA, int pc) {
 
   //  case OP_TFORCALL: {
   //    StkId cb = ra + 3;  /* call base */
@@ -67,13 +67,14 @@ void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C,
   ravi_emit_set_L_top_toreg(def, A + 6);
 
   // Protect(luaD_call(L, cb, GETARG_C(i), 1));
-  gcc_jit_block_add_eval(def->current_block, NULL,
-    ravi_function_call4_rvalue(def, def->ravi->types->luaD_callT,
-                               gcc_jit_param_as_rvalue(def->L), cb,
-                               gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                                                   def->ravi->types->C_intT, C),
-                               gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                                                   def->ravi->types->C_intT, 1)));
+  gcc_jit_block_add_eval(
+      def->current_block, NULL,
+      ravi_function_call4_rvalue(
+          def, def->ravi->types->luaD_callT, gcc_jit_param_as_rvalue(def->L),
+          cb, gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                                  def->ravi->types->C_intT, C),
+          gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                              def->ravi->types->C_intT, 1)));
   // reload base
   ravi_emit_load_base(def);
   // L->top = ci->top;
@@ -83,12 +84,12 @@ void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C,
   gcc_jit_lvalue *type = ravi_emit_load_type(def, ra1);
 
   // Test if type != LUA_TNIL (0)
-  gcc_jit_rvalue *isnotnil =
-          ravi_emit_is_not_value_of_type(def, gcc_jit_lvalue_as_rvalue(type), LUA__TNIL);
-  gcc_jit_block *then_block =
-          gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_TFORCALL_if_not_nil", pc));
-  gcc_jit_block *else_block =
-          gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_TFORCALL_if_nil", pc));
+  gcc_jit_rvalue *isnotnil = ravi_emit_is_not_value_of_type(
+      def, gcc_jit_lvalue_as_rvalue(type), LUA__TNIL);
+  gcc_jit_block *then_block = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "OP_TFORCALL_if_not_nil", pc));
+  gcc_jit_block *else_block = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "OP_TFORCALL_if_nil", pc));
   ravi_emit_conditional_branch(def, isnotnil, then_block, else_block);
 
   ravi_set_current_block(def, then_block);
@@ -120,12 +121,12 @@ void ravi_emit_TFORLOOP(ravi_function_def_t *def, int A, int j, int pc) {
   gcc_jit_lvalue *type = ravi_emit_load_type(def, ra1);
 
   // Test if type != LUA_TNIL (0)
-  gcc_jit_rvalue *isnotnil =
-          ravi_emit_is_not_value_of_type(def, gcc_jit_lvalue_as_rvalue(type), LUA__TNIL);
-  gcc_jit_block *then_block =
-          gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_TFORLOOP_if_not_nil", pc));
-  gcc_jit_block *else_block =
-          gcc_jit_function_new_block(def->jit_function, unique_name(def, "OP_TFORLOOP_if_nil", pc));
+  gcc_jit_rvalue *isnotnil = ravi_emit_is_not_value_of_type(
+      def, gcc_jit_lvalue_as_rvalue(type), LUA__TNIL);
+  gcc_jit_block *then_block = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "OP_TFORLOOP_if_not_nil", pc));
+  gcc_jit_block *else_block = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "OP_TFORLOOP_if_nil", pc));
   ravi_emit_conditional_branch(def, isnotnil, then_block, else_block);
 
   ravi_set_current_block(def, then_block);

@@ -71,10 +71,10 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
 
   t->lu_byteT =
       gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_UNSIGNED_CHAR);
-  t->C_charT =
-      gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_CHAR);
+  t->C_charT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_CHAR);
   t->C_pcharT = gcc_jit_type_get_pointer(t->C_charT);
-  t->C_pconstcharT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_CONST_CHAR_PTR);
+  t->C_pconstcharT =
+      gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_CONST_CHAR_PTR);
 
   t->C_voidT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_VOID);
   t->C_pvoidT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_VOID_PTR);
@@ -1107,11 +1107,11 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_voidT,
       "raviH_set_float", 4, params, 0);
 
-
-  params[0] = gcc_jit_context_new_param(ravi->context, NULL, t->C_pconstcharT, "format");
-  t->printfT = gcc_jit_context_new_function(
-          ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_intT,
-          "printf", 1, params, 1);
+  params[0] = gcc_jit_context_new_param(ravi->context, NULL, t->C_pconstcharT,
+                                        "format");
+  t->printfT = gcc_jit_context_new_function(ravi->context, NULL,
+                                            GCC_JIT_FUNCTION_IMPORTED,
+                                            t->C_intT, "printf", 1, params, 1);
 
   gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
 
