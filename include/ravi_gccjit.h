@@ -673,6 +673,14 @@ extern void ravi_emit_NEWARRAYFLOAT(ravi_function_def_t *def, int A, int pc);
 
 extern void ravi_emit_NEWARRAYINT(ravi_function_def_t *def, int A, int pc);
 
+extern void ravi_emit_TOARRAY(ravi_function_def_t *def, int A,
+                              int array_type_expected,
+                              const char *errmsg, int pc);
+
+extern void ravi_emit_MOVEAI(ravi_function_def_t *def, int A, int B, int pc);
+
+extern void ravi_emit_MOVEAF(ravi_function_def_t *def, int A, int B, int pc);
+
 extern void ravi_dump_rvalue(gcc_jit_rvalue *rv);
 
 extern void ravi_dump_lvalue(gcc_jit_lvalue *lv);

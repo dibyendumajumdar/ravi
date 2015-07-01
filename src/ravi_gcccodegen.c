@@ -111,6 +111,10 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_NEWARRAYF:
     case OP_RAVI_GETTABLE_AI:
     case OP_RAVI_GETTABLE_AF:
+    case OP_RAVI_TOARRAYI:
+    case OP_RAVI_TOARRAYF:
+    case OP_RAVI_MOVEAI:
+    case OP_RAVI_MOVEAF:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -130,10 +134,6 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_SETTABLE_AII:
     case OP_RAVI_SETTABLE_AF:
     case OP_RAVI_SETTABLE_AFF:
-    case OP_RAVI_TOARRAYI:
-    case OP_RAVI_TOARRAYF:
-    case OP_RAVI_MOVEAI:
-    case OP_RAVI_MOVEAF:
     default: {
       p->ravi_jit.jit_status = 1;
       return false;
@@ -1033,6 +1033,20 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       ravi_emit_GETTABLE_AF(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_TOARRAYI: {
+      ravi_emit_TOARRAY(&def, A, RAVI_TARRAYINT, "integer[] expected", pc);
+    } break;
+    case OP_RAVI_TOARRAYF: {
+      ravi_emit_TOARRAY(&def, A, RAVI_TARRAYFLT, "number[] expected", pc);
+    } break;
+    case OP_RAVI_MOVEAI: {
+      int B = GETARG_B(i);
+      ravi_emit_MOVEAI(&def, A, B, pc);
+    } break;
+    case OP_RAVI_MOVEAF: {
+      int B = GETARG_B(i);
+      ravi_emit_MOVEAF(&def, A, B, pc);
     } break;
 
     case OP_SETLIST: {
