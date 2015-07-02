@@ -69,7 +69,7 @@ Setting up of the Lua types is proving easier in ``libgccjit`` due to the fact t
 
 JIT Status of Lua/Ravi Bytecodes
 ---------------------------------
-Following is the status as of 30 June 2015.
+Following is the status as of 2 July 2015.
 
 +-------------------------+----------+--------------------------------------------------+
 | name                    | JITed?   | description                                      |
@@ -158,9 +158,9 @@ Following is the status as of 30 June 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_FORPREP              | NO       | R(A)-=R(A+2); pc+=sBx                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_TFORCALL             | NO       | R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));   |
+| OP_TFORCALL             | YES      | R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));   |
 +-------------------------+----------+--------------------------------------------------+
-| OP_TFORLOOP             | NO       | if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx } |
+| OP_TFORLOOP             | YES      | if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx } |
 +-------------------------+----------+--------------------------------------------------+
 | OP_SETLIST              | YES      | R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B	        |
 +-------------------------+----------+--------------------------------------------------+
@@ -170,9 +170,9 @@ Following is the status as of 30 June 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_EXTRAARG             | N/A      | extra (larger) argument for previous opcode      |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_NEWARRAYI       | NO       | R(A) := array of int                             |
+| OP_RAVI_NEWARRAYI       | YES      | R(A) := array of int                             |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_NEWARRAYF       | NO       | R(A) := array of float                           |
+| OP_RAVI_NEWARRAYF       | YES      | R(A) := array of float                           |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_LOADIZ          | YES      | R(A) := tointeger(0)                             |
 +-------------------------+----------+--------------------------------------------------+
@@ -230,28 +230,28 @@ Following is the status as of 30 June 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_TOFLT           | YES      | R(A) := tofloat(R(A))                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_TOARRAYI        | NO       | R(A) := to_arrayi(R(A))                          |
+| OP_RAVI_TOARRAYI        | YES      | R(A) := to_arrayi(R(A))                          |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_TOARRAYF        | NO       | R(A) := to_arrayf(R(A))                          |
+| OP_RAVI_TOARRAYF        | YES      | R(A) := to_arrayf(R(A))                          |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_MOVEI           | YES      | R(A) := R(B), check R(B) is integer              |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_MOVEF           | YES      | R(A) := R(B), check R(B) is number               |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_MOVEAI          | NO       | R(A) := R(B), check R(B) is array of integer     |
+| OP_RAVI_MOVEAI          | YES      | R(A) := R(B), check R(B) is array of integer     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_MOVEAF          | NO       | R(A) := R(B), check R(B) is array of numbers     |
+| OP_RAVI_MOVEAF          | YES      | R(A) := R(B), check R(B) is array of numbers     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_GETTABLE_AI     | NO       | R(A) := R(B)[RK(C)] where R(B) is array of       |
+| OP_RAVI_GETTABLE_AI     | YES      | R(A) := R(B)[RK(C)] where R(B) is array of       |
 |                         |          | integers and RK(C) is integer                    |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_GETTABLE_AF     | NO       | R(A) := R(B)[RK(C)] where R(B) is array of       |
+| OP_RAVI_GETTABLE_AF     | YES      | R(A) := R(B)[RK(C)] where R(B) is array of       |
 |                         |          | numbers and RK(C) is integer                     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_AI     | NO       | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+| OP_RAVI_SETTABLE_AI     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of integers, and RK(C) is an int   |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_AF     | NO       | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+| OP_RAVI_SETTABLE_AF     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of numbers, and RK(C) is a number  |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_FORLOOP_IP      | YES      | R(A)+=R(A+2);                                    |
