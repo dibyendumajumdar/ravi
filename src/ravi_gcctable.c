@@ -333,3 +333,84 @@ void ravi_emit_MOVEAF(ravi_function_def_t *def, int A, int B, int pc) {
   gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
   ravi_emit_struct_assign(def, dest, src);
 }
+
+void ravi_emit_SETTABLE_AI_AF(ravi_function_def_t *def, int A, int B, int C, bool known_tt, lua_typecode_t tt, int pc) {
+
+  //#define raviH_set_int_inline(L, t, key, value)
+  //{ unsigned ukey = (unsigned)((key));
+  //  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
+  //  if (ukey < t->ravi_array.len) {
+  //    data[ukey] = value;
+  //      } else
+  //    raviH_set_int(L, t, ukey, value);
+  //}
+
+  // Table *t = hvalue(ra);
+  // TValue *rb = RKB(i);
+  // TValue *rc = RKC(i);
+  // lua_Integer idx = ivalue(rb);
+  // lua_Integer value = ivalue(rc);
+  // raviH_set_int_inline(L, t, idx, value);
+
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *key = ravi_emit_load_reg_i(def, rb);
+  gcc_jit_lvalue *value = NULL;
+
+  switch(tt) {
+    case LUA__TNUMINT:
+      value = known_tt ? ravi_emit_load_reg_i(def, rc) : ravi_emit_tonumtype(def, rc, LUA__TNUMINT, pc);
+      break;
+    case LUA__TNUMFLT:
+      value = known_tt ? ravi_emit_load_reg_n(def, rc) : ravi_emit_tonumtype(def, rc, LUA__TNUMFLT, pc);
+      break;
+    default:
+      assert(false);
+  }
+
+  gcc_jit_rvalue *t = ravi_emit_load_reg_h(def, ra);
+  gcc_jit_rvalue *data = ravi_emit_load_reg_h_intarray(def, t);
+  gcc_jit_lvalue *len = ravi_emit_load_ravi_arraylength(def, t);
+  gcc_jit_rvalue *ukey = gcc_jit_context_new_cast(
+          def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
+          def->ravi->types->C_unsigned_intT);
+
+  gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey,
+                                             gcc_jit_lvalue_as_rvalue(len));
+  gcc_jit_block *then_block = gcc_jit_function_new_block(
+          def->jit_function, unique_name(def, "SETTABLE_AX_if_in_range", pc));
+  gcc_jit_block *else_block = gcc_jit_function_new_block(
+          def->jit_function, unique_name(def, "SETTABLE_AX_if_not_in_range", pc));
+  gcc_jit_block *end_block = gcc_jit_function_new_block(
+          def->jit_function, unique_name(def, "SETTABLE_AX_if_end", pc));
+  ravi_emit_conditional_branch(def, cmp, then_block, else_block);
+  ravi_set_current_block(def, then_block);
+
+  gcc_jit_lvalue *ptr = ravi_emit_array_get_ptr(def, data, ukey);
+
+  gcc_jit_block_add_assignment(def->current_block, NULL, ptr, gcc_jit_lvalue_as_rvalue(value));
+  ravi_emit_branch(def, end_block);
+
+  ravi_set_current_block(def, else_block);
+
+  gcc_jit_function *f = NULL;
+  switch (tt) {
+    case LUA__TNUMINT:
+      f = def->ravi->types->raviH_set_intT;
+      break;
+    case LUA__TNUMFLT:
+      f = def->ravi->types->raviH_set_floatT;
+      break;
+    default:
+      assert(false);
+  }
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call4_rvalue(def, f,
+                                                    gcc_jit_param_as_rvalue(def->L), t, ukey, gcc_jit_lvalue_as_rvalue(value)));
+  ravi_emit_branch(def, end_block);
+
+  ravi_set_current_block(def, end_block);
+}
+

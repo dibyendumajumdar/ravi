@@ -1103,7 +1103,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       gcc_jit_context_new_param(ravi->context, NULL, t->C_unsigned_intT, "key");
   params[3] =
       gcc_jit_context_new_param(ravi->context, NULL, t->lua_NumberT, "value");
-  t->raviH_set_intT = gcc_jit_context_new_function(
+  t->raviH_set_floatT = gcc_jit_context_new_function(
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_voidT,
       "raviH_set_float", 4, params, 0);
 

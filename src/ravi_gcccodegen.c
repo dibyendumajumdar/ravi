@@ -115,6 +115,10 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_TOARRAYF:
     case OP_RAVI_MOVEAI:
     case OP_RAVI_MOVEAF:
+    case OP_RAVI_SETTABLE_AI:
+    case OP_RAVI_SETTABLE_AII:
+    case OP_RAVI_SETTABLE_AF:
+    case OP_RAVI_SETTABLE_AFF:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -130,10 +134,6 @@ static bool can_compile(Proto *p) {
     case OP_GETUPVAL:
     case OP_SETUPVAL:
     case OP_SETTABUP:
-    case OP_RAVI_SETTABLE_AI:
-    case OP_RAVI_SETTABLE_AII:
-    case OP_RAVI_SETTABLE_AF:
-    case OP_RAVI_SETTABLE_AFF:
     default: {
       p->ravi_jit.jit_status = 1;
       return false;
@@ -391,13 +391,13 @@ gcc_jit_rvalue *ravi_emit_array_get(ravi_function_def_t *def,
   return gcc_jit_lvalue_as_rvalue(el);
 }
 
-gcc_jit_rvalue *ravi_emit_array_get_ptr(ravi_function_def_t *def,
+gcc_jit_lvalue *ravi_emit_array_get_ptr(ravi_function_def_t *def,
                                         gcc_jit_rvalue *ptr,
                                         gcc_jit_rvalue *index) {
   /* Note we assume that base is correct */
   gcc_jit_lvalue *el =
       gcc_jit_context_new_array_access(def->function_context, NULL, ptr, index);
-  return gcc_jit_lvalue_get_address(el, NULL);
+  return el;
 }
 
 /* Get access to the register identified by A - registers as just &base[offset]
@@ -783,6 +783,65 @@ void ravi_emit_conditional_branch(ravi_function_def_t *def,
                                      false_block);
   def->current_block_terminated = true;
 }
+
+gcc_jit_lvalue *ravi_emit_tonumtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, lua_typecode_t tt, int pc) {
+
+  gcc_jit_lvalue *value = gcc_jit_function_new_local(def->jit_function, NULL,
+                                                     tt == LUA__TNUMFLT ?
+                                                     def->ravi->types->lua_NumberT :
+                                                     def->ravi->types->lua_IntegerT,
+                                                     unique_name(def, "value", pc));
+  gcc_jit_lvalue *reg_type = ravi_emit_load_type(def, reg);
+
+  // Is reg an number?
+  gcc_jit_rvalue *cmp1 =
+          ravi_emit_is_value_of_type(def, gcc_jit_lvalue_as_rvalue(reg_type), tt);
+
+  gcc_jit_block *convert_reg =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "convert_reg", pc));
+  gcc_jit_block *copy_reg =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "copy_reg", pc));
+  gcc_jit_block *load_val =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "load_val", pc));
+  gcc_jit_block *failed_conversion = gcc_jit_function_new_block(def->jit_function,
+                                                                unique_name(def, "if_conversion_failed", pc));
+
+  // If reg is integer then copy reg, else convert reg
+  ravi_emit_conditional_branch(def, cmp1, copy_reg, convert_reg);
+
+  // Convert RB
+  ravi_set_current_block(def, convert_reg);
+
+  // Do the conversion
+  gcc_jit_rvalue *var_istt =
+          ravi_function_call2_rvalue(def, tt == LUA__TNUMFLT ? def->ravi->types->luaV_tonumberT
+                                                             : def->ravi->types->luaV_tointegerT,
+                                     reg, gcc_jit_lvalue_get_address(value, NULL));
+  gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
+          def->function_context, def->ravi->types->C_intT, 0);
+  gcc_jit_rvalue *conversion_failed = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ,
+                                                           var_istt, zero);
+
+  // Did conversion fail?
+  ravi_emit_conditional_branch(def, conversion_failed, failed_conversion, load_val);
+
+  // Conversion failed, so raise error
+  ravi_set_current_block(def, failed_conversion);
+  ravi_emit_raise_lua_error(def, tt == LUA__TNUMFLT ? "number expected" : "integer expected");
+  ravi_emit_branch(def, load_val);
+
+  // Conversion OK
+  ravi_set_current_block(def, copy_reg);
+
+  gcc_jit_lvalue *i = tt == LUA__TNUMFLT ? ravi_emit_load_reg_n(def, reg) : ravi_emit_load_reg_i(def, reg);
+  gcc_jit_block_add_assignment(def->current_block, NULL, value, gcc_jit_lvalue_as_rvalue(i));
+  ravi_emit_branch(def, load_val);
+
+  ravi_set_current_block(def, load_val);
+
+  return value;
+}
+
 
 static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi,
                      Proto *p) {
@@ -1221,6 +1280,18 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       ravi_emit_DIVII(&def, A, B, C, pc);
+    } break;
+    case OP_RAVI_SETTABLE_AII:
+    case OP_RAVI_SETTABLE_AI: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_SETTABLE_AI_AF(&def, A, B, C, op == OP_RAVI_SETTABLE_AII, LUA__TNUMINT, pc);
+    } break;
+    case OP_RAVI_SETTABLE_AFF:
+    case OP_RAVI_SETTABLE_AF: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_SETTABLE_AI_AF(&def, A, B, C, op == OP_RAVI_SETTABLE_AFF, LUA__TNUMFLT, pc);
     } break;
 
     default:
