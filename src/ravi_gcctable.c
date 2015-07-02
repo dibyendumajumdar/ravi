@@ -368,10 +368,23 @@ void ravi_emit_SETTABLE_AI_AF(ravi_function_def_t *def, int A, int B, int C, boo
       break;
     default:
       assert(false);
+      abort();
   }
 
   gcc_jit_rvalue *t = ravi_emit_load_reg_h(def, ra);
-  gcc_jit_rvalue *data = ravi_emit_load_reg_h_intarray(def, t);
+  gcc_jit_rvalue *data = NULL;
+  switch(tt) {
+    case LUA__TNUMINT:
+      data = ravi_emit_load_reg_h_intarray(def, t);
+      break;
+    case LUA__TNUMFLT:
+      data = ravi_emit_load_reg_h_floatarray(def, t);
+      break;
+    default:
+      assert(false);
+      abort();
+  }
+
   gcc_jit_lvalue *len = ravi_emit_load_ravi_arraylength(def, t);
   gcc_jit_rvalue *ukey = gcc_jit_context_new_cast(
           def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
@@ -405,6 +418,7 @@ void ravi_emit_SETTABLE_AI_AF(ravi_function_def_t *def, int A, int B, int C, boo
       break;
     default:
       assert(false);
+      abort();
   }
   gcc_jit_block_add_eval(def->current_block, NULL,
                          ravi_function_call4_rvalue(def, f,

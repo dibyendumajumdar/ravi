@@ -107,7 +107,7 @@ struct ravi_gcc_types_t {
   gcc_jit_type *lua_IntegerT;
   gcc_jit_type *plua_IntegerT;
   gcc_jit_type *pplua_IntegerT;
-  gcc_jit_type *clua_IntegerT;
+  //gcc_jit_type *clua_IntegerT;
 
   gcc_jit_type *lua_UnsignedT;
   gcc_jit_type *lua_KContextT;
@@ -156,7 +156,9 @@ struct ravi_gcc_types_t {
 
   gcc_jit_type *ValueT;
   gcc_jit_struct *TValueT;
+  gcc_jit_type *cTValueT;
   gcc_jit_type *pTValueT;
+  gcc_jit_type *pcTValueT;
 
   gcc_jit_field *Value_value;
   gcc_jit_field *Value_value_gc;
