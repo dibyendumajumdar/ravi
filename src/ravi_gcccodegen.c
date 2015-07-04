@@ -125,6 +125,7 @@ static bool can_compile(Proto *p) {
     case OP_MUL:
     case OP_DIV:
     case OP_GETUPVAL:
+    case OP_SETUPVAL:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -133,7 +134,6 @@ static bool can_compile(Proto *p) {
     case OP_IDIV:
     case OP_UNM:
     case OP_POW:
-    case OP_SETUPVAL:
     default: {
       p->ravi_jit.jit_status = 1;
       return false;

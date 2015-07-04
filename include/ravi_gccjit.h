@@ -288,6 +288,7 @@ struct ravi_gcc_types_t {
   gcc_jit_function *raviV_op_concatT;
   gcc_jit_function *raviV_op_closureT;
   gcc_jit_function *raviV_op_varargT;
+  gcc_jit_function *raviV_op_setupvalT;
 
   gcc_jit_function *raviH_set_intT;
   gcc_jit_function *raviH_set_floatT;

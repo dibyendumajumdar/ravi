@@ -1754,5 +1754,14 @@ void raviV_op_loadnil(CallInfo *ci, int a, int b) {
   } while (b--);
 }
 
+
+void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b) {
+  UpVal *uv = cl->upvals[b];
+  setobj(L, uv->v, ra);
+  luaC_upvalbarrier(L, uv);
+}
+
+
+
 /* }================================================================== */
 

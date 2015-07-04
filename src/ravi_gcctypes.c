@@ -1109,6 +1109,19 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_voidT,
       "raviH_set_float", 4, params, 0);
 
+
+  //void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b)
+  params[0] =
+      gcc_jit_context_new_param(ravi->context, NULL, t->plua_StateT, "L");
+  params[1] =
+      gcc_jit_context_new_param(ravi->context, NULL, t->pLClosureT, "cl");
+  params[2] = gcc_jit_context_new_param(ravi->context, NULL, t->pTValueT, "ra");
+  params[3] = gcc_jit_context_new_param(ravi->context, NULL, t->C_intT, "b");
+  t->raviV_op_setupvalT = gcc_jit_context_new_function(
+      ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_voidT,
+      "raviV_op_setupval", 4, params, 0);
+
+
   params[0] = gcc_jit_context_new_param(ravi->context, NULL, t->C_pconstcharT,
                                         "format");
   t->printfT = gcc_jit_context_new_function(ravi->context, NULL,

@@ -74,21 +74,6 @@ assert(ravi.compile(x))
 assert(x() == 5)
 print("test 5 OK")
 
--- test 6
-x = function ()
-  local j = 0
-  for i=2.0,6.0,3.1 do
-    j = i
-  end
-  return j
-end
-
-if (not ravi.compile(x)) then
-  print("test 6 FAILED to compile")
-end
-assert(x() == 5.1)
-print("test 6 OK")
-
 -- test 7
 x = function ()
   local a=5
@@ -472,10 +457,15 @@ matrix.getdata = function(m)
   return m[3]
 end
 
+matrix.datalen = function(data)
+  return #data
+end
+
 x = function() 
   local m = matrix.new(5,5)
   local data: number[] = matrix.getdata(m)
-  for i = 1,#data do
+  local data_len: integer = matrix.datalen(data)
+  for i = 1,data_len do
     data[i] = i
   end
   -- get third col
@@ -639,6 +629,35 @@ x1=5
 assert(f() == 5)
 print("test 28 OK")
 
+-- test 35
+function x()
+  local x = 1
+  local f = function()
+    x=x+1
+    return x
+  end
+  return f
+end
+f=x()
+assert(ravi.compile(f))
+assert(f() == 2)
+assert(f() == 3)
+print("test 35 OK")
+
+-- test setupval, getupval
+function x() 
+  local a = 0
+  return function(x) a=a+x; return a; end
+end
+-- ravi.dumplua(x)
+ravi.compile(x)
+y=x()
+ravi.compile(y)
+assert(y(2) == 2)
+assert(y(2) == 4)
+assert(y(3) == 7)
+print('test SETUPVAL and GETUPVAL Ok')
+
 -- test 32
 x=function(a,b) 
   return a%b
@@ -657,18 +676,18 @@ assert(x(5,2) == 2)
 assert(math.abs(x(5.5,2.1)-2.0) < 1e-12)
 print("test 33 OK")
 
--- test 35
-function x()
-  local x = 1
-  local f = function()
-    x=x+1
-    return x
+-- test 6
+x = function ()
+  local j = 0
+  for i=2.0,6.0,3.1 do
+    j = i
   end
-  return f
+  return j
 end
-f=x()
-assert(ravi.compile(f))
-assert(f() == 2)
-assert(f() == 3)
-print("test 35 OK")
+
+if (not ravi.compile(x)) then
+  print("test 6 FAILED to compile")
+end
+assert(x() == 5.1)
+print("test 6 OK")
 

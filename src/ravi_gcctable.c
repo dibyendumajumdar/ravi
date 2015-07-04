@@ -299,7 +299,19 @@ void ravi_emit_GETUPVAL(ravi_function_def_t *def, int A, int B, int pc) {
 
 // UpValue[B] := R(A)
 void ravi_emit_SETUPVAL(ravi_function_def_t *def, int A, int B, int pc) {
-
+#if 1
+  // Work around libgccjit compilation failure
+  // The inline version causes segmentation fault during compilation
+  (void)pc;
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_block_add_eval(def->current_block, NULL, 
+    ravi_function_call4_rvalue(def, 
+       def->ravi->types->raviV_op_setupvalT,
+       gcc_jit_param_as_rvalue(def->L),
+       gcc_jit_lvalue_as_rvalue(def->lua_closure_val), 
+       ra, ravi_int_constant(def, B)));
+#else
   // UpVal *uv = cl->upvals[GETARG_B(i)];
   // setobj(L, uv->v, ra);
   // luaC_upvalbarrier(L, uv);
@@ -313,12 +325,11 @@ void ravi_emit_SETUPVAL(ravi_function_def_t *def, int A, int B, int pc) {
   gcc_jit_lvalue *type = ravi_emit_load_type(def, gcc_jit_lvalue_as_rvalue(v));
 
   // (type & BIT_ISCOLLECTIBLE) != 0
-  gcc_jit_rvalue *bit_iscollectible = gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                                                           def->ravi->types->C_intT, BIT_ISCOLLECTABLE);
+  gcc_jit_rvalue *bit_iscollectible = ravi_int_constant(def, BIT_ISCOLLECTABLE);
   gcc_jit_rvalue *is_collectible_bit =
           gcc_jit_context_new_binary_op(def->function_context, NULL, GCC_JIT_BINARY_OP_BITWISE_AND,
                                         def->ravi->types->C_intT, gcc_jit_lvalue_as_rvalue(type), bit_iscollectible);
-  gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, 0);
+  gcc_jit_rvalue *zero = ravi_int_constant(def, 0);
   gcc_jit_rvalue *is_collectible = ravi_emit_comparison(def, GCC_JIT_COMPARISON_NE,
                                                         is_collectible_bit, zero);
 
@@ -331,7 +342,8 @@ void ravi_emit_SETUPVAL(ravi_function_def_t *def, int A, int B, int pc) {
   // Collectible type and upvalue is closed
   // ((type & BIT_ISCOLLECTIBLE) != 0) && ((up)->v == &(up)->u.value))
   gcc_jit_rvalue *andcond =
-          gcc_jit_context_new_binary_op(def->function_context, NULL, GCC_JIT_BINARY_OP_LOGICAL_AND, def->ravi->types->C_boolT,
+          gcc_jit_context_new_binary_op(def->function_context, NULL, GCC_JIT_BINARY_OP_LOGICAL_AND,
+                                        def->ravi->types->C_boolT,
                                         is_collectible, upisclosed);
 
   gcc_jit_block *then =
@@ -348,6 +360,7 @@ void ravi_emit_SETUPVAL(ravi_function_def_t *def, int A, int B, int pc) {
   ravi_emit_branch(def, end);
 
   ravi_set_current_block(def, end);
+#endif
 }
 
 // UpValue[A][RK(B)] := RK(C)
