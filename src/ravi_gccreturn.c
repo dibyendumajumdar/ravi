@@ -48,9 +48,9 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   // current block may already be terminated - so we have to insert
   // a new block
   if (def->current_block_terminated) {
-    def->current_block = gcc_jit_function_new_block(
+    gcc_jit_block *block = gcc_jit_function_new_block(
         def->jit_function, unique_name(def, "OP_RETURN", pc));
-    def->current_block_terminated = false;
+    ravi_set_current_block(def, block);
   }
 
 //  ravi_debug_printf2(def, "OP_RETURN(pc=%d) return %d args\n", ravi_int_constant(def, pc+1), ravi_int_constant(def, B-1));
@@ -90,7 +90,7 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
                                  gcc_jit_param_as_rvalue(def->L),
                                  gcc_jit_lvalue_as_rvalue(def->base)));
 
-  gcc_jit_block_end_with_jump(def->current_block, NULL, else_block);
+  ravi_emit_branch(def, else_block);
   ravi_set_current_block(def, else_block);
 
   gcc_jit_block_add_eval(

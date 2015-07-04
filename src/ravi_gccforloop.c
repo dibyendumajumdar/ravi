@@ -82,7 +82,6 @@ void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc,
   ravi_emit_store_reg_i_withtype(def, gcc_jit_lvalue_as_rvalue(b->iidx), rvar);
 
   // ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
-  gcc_jit_block_end_with_jump(def->current_block, NULL,
-                              def->jmp_targets[pc]->jmp);
+  ravi_emit_branch(def, def->jmp_targets[pc]->jmp);
   ravi_set_current_block(def, exit_block);
 }

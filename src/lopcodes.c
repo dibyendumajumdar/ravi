@@ -566,13 +566,13 @@ static void PrintDebug(const Proto* f)
   }
 }
 
-static void PrintFunction(const Proto* f, int full)
+void ravi_print_function(const Proto* f, int full)
 {
   int i, n = f->sizep;
   PrintHeader(f);
   PrintCode(f);
   if (full) PrintDebug(f);
-  for (i = 0; i<n; i++) PrintFunction(f->p[i], full);
+  for (i = 0; i<n; i++) ravi_print_function(f->p[i], full);
 }
 
 #define toproto(L,i) getproto(L->top+(i))
@@ -581,5 +581,5 @@ void ravi_dump_function(lua_State *L)
 {
   Proto* f;
   f = toproto(L, -1);
-  PrintFunction(f, 1);
+  ravi_print_function(f, 1);
 }

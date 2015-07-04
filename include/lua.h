@@ -469,6 +469,8 @@ LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
                               unsigned int len);
 
 LUA_API void ravi_dump_stack(lua_State *L, const char *s);
+struct Proto;
+LUA_API void ravi_print_function(const struct Proto* f, int full);
 LUA_API void ravi_dump_function(lua_State *L);
 LUA_API void ravi_set_debuglevel(int level);
 

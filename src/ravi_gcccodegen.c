@@ -172,6 +172,7 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   gcc_jit_context_set_int_option(def->function_context,
                                  GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL,
                                  def->opt_level);
+  gcc_jit_context_add_command_line_option(def->function_context, "-fno-strict-aliasing");
 
   /* each function is given a unique name - as Lua functions are closures and do
    * not really have names */
@@ -674,11 +675,15 @@ static void link_block(ravi_function_def_t *def, int pc) {
     if (!def->current_block_terminated) {
       // Previous block not terminated so branch to the
       // new block
-      gcc_jit_block_end_with_jump(def->current_block, NULL, block);
+      ravi_emit_branch(def, block);
     }
     // Now add the new block and make it current
-    def->current_block = block;
-    def->current_block_terminated = false;
+    ravi_set_current_block(def, block);
+  }
+  else if (def->current_block_terminated) {
+    gcc_jit_block *block = gcc_jit_function_new_block(
+            def->jit_function, unique_name(def, "LINK_BLOCK", pc));
+    ravi_set_current_block(def, block);
   }
 }
 
@@ -1322,6 +1327,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   if (gcc_jit_context_get_first_error(def.function_context)) {
     fprintf(stderr, "aborting due to JIT error: %s\n",
             gcc_jit_context_get_first_error(def.function_context));
+    ravi_print_function(p,1);
     abort();
   }
   gcc_jit_result *compilation_result =

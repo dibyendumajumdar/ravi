@@ -90,7 +90,5 @@ void ravi_emit_iFORPREP(ravi_function_def_t *def, int A, int pc, int step_one) {
 
   // We are done so jump to forloop
   lua_assert(def->jmp_targets[pc]->jmp);
-  gcc_jit_block_end_with_jump(def->current_block, NULL,
-                              def->jmp_targets[pc]->jmp);
-  def->current_block_terminated = true;
+  ravi_emit_branch(def, def->jmp_targets[pc]->jmp);
 }
