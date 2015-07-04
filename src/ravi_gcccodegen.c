@@ -120,20 +120,20 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_SETTABLE_AF:
     case OP_RAVI_SETTABLE_AFF:
     case OP_SETTABUP:
-      break;
-    case OP_LOADKX:
-    case OP_FORPREP:
-    case OP_FORLOOP:
     case OP_ADD:
     case OP_SUB:
     case OP_MUL:
     case OP_DIV:
+    case OP_GETUPVAL:
+      break;
+    case OP_LOADKX:
+    case OP_FORPREP:
+    case OP_FORLOOP:
     case OP_MOD:
     case OP_IDIV:
     case OP_UNM:
     case OP_POW:
-      case OP_GETUPVAL:
-      case OP_SETUPVAL:
+    case OP_SETUPVAL:
     default: {
       p->ravi_jit.jit_status = 1;
       return false;
@@ -1311,6 +1311,27 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       ravi_emit_SETTABLE_AI_AF(&def, A, B, C, op == OP_RAVI_SETTABLE_AFF, LUA__TNUMFLT, pc);
+    } break;
+
+    case OP_ADD: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_ARITH(&def, A, B, C, OP_ADD, TM_ADD, pc);
+    } break;
+    case OP_SUB: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_ARITH(&def, A, B, C, OP_SUB, TM_SUB, pc);
+    } break;
+    case OP_MUL: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_ARITH(&def, A, B, C, OP_MUL, TM_MUL, pc);
+    } break;
+    case OP_DIV: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_ARITH(&def, A, B, C, OP_DIV, TM_DIV, pc);
     } break;
 
     default:
