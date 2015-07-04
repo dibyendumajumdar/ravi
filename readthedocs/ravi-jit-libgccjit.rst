@@ -24,10 +24,12 @@ Building GCC
 ------------
 I am running Ubuntu 14.04 LTS on VMWare virtual machine.
 
+.. warning:: The current official distribution of ``libgccjit`` does not work for Ravi due to the fact that unreachable blocks are treated as errors - this prevents Ravi code from being compiled. There is also `a bug <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66700>`_ in ``libgccjit`` that requires a fix. Please use the latest ``gcc-5-branch`` as there are bug fixes required by Ravi. 
+
 I built gcc 5.1 from source as follows.
 
-1. Unpacked source to ``~/gcc-5.1.0``
-2. Created a build folder ``~/buildgcc``
+1. Cloned ``gcc-5-branch`` source to ``~/gcc-5.1.0`` using github mirror.
+2. Created a build folder ``~/buildgcc``.
 3. Installed various pre-requisites for gcc.
 4. Then ran following from inside the build folder::
 
@@ -44,10 +46,7 @@ Work on this started only recently (8 June 2015) so not much to show yet. But ex
 
 Building Ravi with ``libgccjit`` on Linux
 -------------------------------------
-
-.. warning:: The current official distribution of ``libgccjit`` does not work for Ravi due to the fact that unreachable blocks are treated as errors - this prevents Ravi code from being compiled. There is also `a bug <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66700>`_ in ``libgccjit`` that requires a fix. I have a personal copy where I have disabled aforementioned validation, and applied a patch to fix the bug. 
-
-.. warning:: Note that right now the Ravi's ``libgccjit`` based JIT implementation is work in progress and has bugs (some Lua tests fail). 
+.. warning:: Note that right now the Ravi's ``libgccjit`` based JIT implementation is work in progress - please expect bugs. 
 
 You can build Ravi with ``libgccjit`` linked in as follows::
 
@@ -66,10 +65,9 @@ In terms of packaging ``libgccjit`` consists of a C header file, a C++ header fi
 
 Setting up of the Lua types is proving easier in ``libgccjit`` due to the fact that Lua uses unions extensively and ``libgccjit`` supports defining union types. This means that most of the Lua types can be translated more naturally. LLVM on the other hand does not support unions so I had to carefully define structs that would match the size of the union, and in the JIT compilation use casts where needed.
 
-
 JIT Status of Lua/Ravi Bytecodes
 ---------------------------------
-Following is the status as of 2 July 2015.
+Following is the status as of 4 July 2015.
 
 +-------------------------+----------+--------------------------------------------------+
 | name                    | JITed?   | description                                      |
@@ -84,13 +82,13 @@ Following is the status as of 2 July 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_LOADNIL              | YES      | R(A), R(A+1), ..., R(A+B) := nil                 |
 +-------------------------+----------+--------------------------------------------------+
-| OP_GETUPVAL             | NO       | R(A) := UpValue[B]                               |
+| OP_GETUPVAL             | YES      | R(A) := UpValue[B]                               |
 +-------------------------+----------+--------------------------------------------------+
 | OP_GETTABUP             | YES      | R(A) := UpValue[B][RK(C)]                        |
 +-------------------------+----------+--------------------------------------------------+
 | OP_GETTABLE             | YES      | R(A) := R(B)[RK(C)]                              |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SETTABUP             | NO       | UpValue[A][RK(B)] := RK(C)                       |
+| OP_SETTABUP             | YES      | UpValue[A][RK(B)] := RK(C)                       |
 +-------------------------+----------+--------------------------------------------------+
 | OP_SETUPVAL             | NO       | UpValue[B] := R(A)                               |
 +-------------------------+----------+--------------------------------------------------+
@@ -100,17 +98,17 @@ Following is the status as of 2 July 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_SELF                 | YES      | R(A+1) := R(B); R(A) := R(B)[RK(C)]              |
 +-------------------------+----------+--------------------------------------------------+
-| OP_ADD                  | NO       | R(A) := RK(B) + RK(C)                            |
+| OP_ADD                  | YES      | R(A) := RK(B) + RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SUB                  | NO       | R(A) := RK(B) - RK(C)                            |
+| OP_SUB                  | YES      | R(A) := RK(B) - RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_MUL                  | NO       | R(A) := RK(B) * RK(C)                            |
+| OP_MUL                  | YES      | R(A) := RK(B) * RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
 | OP_MOD                  | NO       | R(A) := RK(B) % RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
 | OP_POW                  | NO       | R(A) := RK(B) ^ RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_DIV                  | NO       | R(A) := RK(B) / RK(C)                            |
+| OP_DIV                  | YES      | R(A) := RK(B) / RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
 | OP_IDIV                 | NO       | R(A) := RK(B) // RK(C)                           |
 +-------------------------+----------+--------------------------------------------------+
@@ -124,7 +122,7 @@ Following is the status as of 2 July 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_SHR                  | NO       | R(A) := RK(B) >> RK(C)                           |
 +-------------------------+----------+--------------------------------------------------+
-| OP_UNM                  | NO       | R(A) := -R(B)                                    |
+| OP_UNM                  | YES      | R(A) := -R(B)                                    |
 +-------------------------+----------+--------------------------------------------------+
 | OP_BNOT                 | NO       | R(A) := ~R(B)                                    |
 +-------------------------+----------+--------------------------------------------------+
@@ -276,7 +274,4 @@ Following is the status as of 2 July 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SETUPVALAF      | NO       | UpValue[B] := toarrayflt(R(A))                   |
 +-------------------------+----------+--------------------------------------------------+
-
-
-
 

@@ -42,7 +42,7 @@ Following points are worth bearing in mind when looking at above benchmarks.
 
 5. The benchmarks were run on Windows 8.1 64-bit except for the libgccjit 5.1
    benchmarks which were run on a Ubuntu 64-bit VM running on Windows 8.1.
-   LLVM version 3.7 was used.
+   LLVM version 3.7 was used. 
 
 Ideas
 -----
