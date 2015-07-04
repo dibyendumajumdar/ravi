@@ -53,6 +53,8 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
     def->current_block_terminated = false;
   }
 
+//  ravi_debug_printf2(def, "OP_RETURN(pc=%d) return %d args\n", ravi_int_constant(def, pc+1), ravi_int_constant(def, B-1));
+
   // Load pointer to base
   ravi_emit_load_base(def);
 

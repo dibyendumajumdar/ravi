@@ -755,11 +755,29 @@ extern void ravi_dump_lvalue(gcc_jit_lvalue *lv);
 
 extern void ravi_debug_printf(ravi_function_def_t *def, const char *str);
 
-extern void ravi_debug_printf2(ravi_function_def_t *def, const char *str,
+extern void ravi_debug_printf1(ravi_function_def_t *def, const char *str,
                                gcc_jit_rvalue *arg1);
 
-extern void ravi_debug_printf3(ravi_function_def_t *def, const char *str,
+extern void ravi_debug_printf2(ravi_function_def_t *def, const char *str,
                                gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2);
+
+extern void ravi_debug_printf3(ravi_function_def_t *def, const char *str,
+                               gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2,
+                               gcc_jit_rvalue *arg3);
+
+extern void ravi_debug_printf4(ravi_function_def_t *def, const char *str,
+                               gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2,
+                               gcc_jit_rvalue *arg3, gcc_jit_rvalue *arg4);
+
+
+extern gcc_jit_rvalue *ravi_int_constant(ravi_function_def_t *def, int value);
+
+extern gcc_jit_rvalue *ravi_bool_constant(ravi_function_def_t *def, int value);
+
+extern gcc_jit_rvalue *ravi_lua_Integer_constant(ravi_function_def_t *def, int value);
+
+extern gcc_jit_rvalue *ravi_lua_Number_constant(ravi_function_def_t *def, double value);
+
 
 #ifdef __cplusplus
 };

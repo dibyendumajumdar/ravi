@@ -42,7 +42,7 @@ ravi_gcc_context_t *ravi_jit_new_context(void) {
   ravi->enabled_ = true;
   ravi->min_code_size_ = 150;
   ravi->min_exec_count_ = 50;
-  ravi->opt_level_ = 3;
+  ravi->opt_level_ = 2;
   ravi->size_level_ = 0;
 
   if (!ravi_setup_lua_types(ravi)) {

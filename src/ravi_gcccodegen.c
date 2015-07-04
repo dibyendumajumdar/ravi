@@ -163,7 +163,12 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   if (def->dump_asm) {
     gcc_jit_context_set_bool_option(def->function_context,
                                     GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
+//    gcc_jit_context_set_bool_option(def->function_context,
+//                                    GCC_JIT_BOOL_OPTION_DUMP_INITIAL_TREE, 1);
+    gcc_jit_context_set_bool_option(def->function_context,
+                                    GCC_JIT_BOOL_OPTION_DUMP_INITIAL_GIMPLE, 1);
   }
+  gcc_jit_context_set_bool_allow_unreachable_blocks(def->function_context, 1);
   gcc_jit_context_set_int_option(def->function_context,
                                  GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL,
                                  def->opt_level);
@@ -1356,7 +1361,7 @@ void ravi_debug_printf(ravi_function_def_t *def, const char *str) {
           gcc_jit_context_new_string_literal(def->function_context, str)));
 }
 
-void ravi_debug_printf2(ravi_function_def_t *def, const char *str,
+void ravi_debug_printf1(ravi_function_def_t *def, const char *str,
                         gcc_jit_rvalue *arg1) {
   gcc_jit_block_add_eval(
       def->current_block, NULL,
@@ -1366,7 +1371,7 @@ void ravi_debug_printf2(ravi_function_def_t *def, const char *str,
           arg1));
 }
 
-void ravi_debug_printf3(ravi_function_def_t *def, const char *str,
+void ravi_debug_printf2(ravi_function_def_t *def, const char *str,
                         gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2) {
   gcc_jit_block_add_eval(
       def->current_block, NULL,
@@ -1375,6 +1380,43 @@ void ravi_debug_printf3(ravi_function_def_t *def, const char *str,
           gcc_jit_context_new_string_literal(def->function_context, str), arg1,
           arg2));
 }
+
+void ravi_debug_printf3(ravi_function_def_t *def, const char *str,
+                        gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2, gcc_jit_rvalue *arg3) {
+  gcc_jit_block_add_eval(
+          def->current_block, NULL,
+          ravi_function_call4_rvalue(
+                  def, def->ravi->types->printfT,
+                  gcc_jit_context_new_string_literal(def->function_context, str), arg1,
+                  arg2, arg3));
+}
+
+void ravi_debug_printf4(ravi_function_def_t *def, const char *str,
+                        gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2, gcc_jit_rvalue *arg3, gcc_jit_rvalue *arg4) {
+  gcc_jit_block_add_eval(
+          def->current_block, NULL,
+          ravi_function_call5_rvalue(
+                  def, def->ravi->types->printfT,
+                  gcc_jit_context_new_string_literal(def->function_context, str), arg1,
+                  arg2, arg3, arg4));
+}
+
+gcc_jit_rvalue *ravi_int_constant(ravi_function_def_t *def, int value) {
+  return gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, value);
+}
+
+gcc_jit_rvalue *ravi_bool_constant(ravi_function_def_t *def, int value) {
+  return gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_boolT, value ? 1 : 0);
+}
+
+gcc_jit_rvalue *ravi_lua_Integer_constant(ravi_function_def_t *def, int value) {
+  return gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->lua_IntegerT, value);
+}
+
+gcc_jit_rvalue *ravi_lua_Number_constant(ravi_function_def_t *def, double value) {
+  return gcc_jit_context_new_rvalue_from_double(def->function_context, def->ravi->types->lua_NumberT, value);
+}
+
 
 // Free the JIT compiled function
 // Note that this is called by the garbage collector

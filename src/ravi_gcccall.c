@@ -39,6 +39,7 @@ void ravi_emit_JMP(ravi_function_def_t *def, int A, int j, int pc) {
         def->jit_function, unique_name(def, "OP_JMP", pc));
     ravi_set_current_block(def, jmp_block);
   }
+  //ravi_debug_printf2(def, "OP_JMP(%d) jmp to %d\n", ravi_int_constant(def, pc+1), ravi_int_constant(def, j+1));
 
   // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
   if (A > 0) {

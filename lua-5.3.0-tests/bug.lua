@@ -4,5 +4,5 @@ function x()
 end
 
 --ravi.dumplua(x)
---ravi.compile(x)
+ravi.compile(x,1)
 assert(x() == false)

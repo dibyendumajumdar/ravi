@@ -212,6 +212,15 @@ void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C, int j,
 
   (void)B;
 
+//  if (C) {
+//    ravi_debug_printf3(def, "OP_TEST(%d C=1)) if (!reg(A=%d)) then skip next else jmp to %d\n", ravi_int_constant(def, pc+1),
+//                       ravi_int_constant(def, A), ravi_int_constant(def, j+1));
+//  }
+//  else {
+//    ravi_debug_printf3(def, "OP_TEST(%d C=0) if (reg(A=%d)) then skip next else jmp to %d\n", ravi_int_constant(def, pc+1),
+//                       ravi_int_constant(def, A), ravi_int_constant(def, j+1));
+//  }
+
   // Load pointer to base
   ravi_emit_load_base(def);
 
