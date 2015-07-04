@@ -345,24 +345,6 @@ assert(y(x(false)))
 assert(not y(x(true)))
 print("test 31 OK")
 
--- test 32
-x=function(a,b) 
-  return a%b
-end
-assert(ravi.compile(x))
-assert(x(5,2) == 1)
-assert(math.abs(x(5.1,2.1)-0.9) < 1e-12)
-print("test 32 OK")
-
--- test 33
-x=function(a,b) 
-  return a//b
-end
-assert(ravi.compile(x))
-assert(x(5,2) == 2)
-assert(math.abs(x(5.5,2.1)-2.0) < 1e-12)
-print("test 33 OK")
-
 -- test 34
 x=function()
   local t={1,2,3,4,5}
@@ -371,21 +353,6 @@ end
 assert(ravi.compile(x))
 assert(x() == 5)
 print("test 34 OK")
-
--- test 35
-function x()
-  local x = 1
-  local f = function()
-    x=x+1
-    return x
-  end
-  return f
-end
-f=x()
-assert(ravi.compile(f))
-assert(f() == 2)
-assert(f() == 3)
-print("test 35 OK")
 
 -- test 36
 t = { name_ = "ravi" }
@@ -406,7 +373,7 @@ print("test 36 OK")
 function f()
   local a={}
   for i=1,2 do
-    local y = 0
+    local y:integer = 0
     a[i] = function()
       y = y + 10
       return y;
@@ -669,4 +636,37 @@ assert(f() == 3)
 x1=5
 assert(f() == 5)
 print("test 28 OK")
+
+-- test 32
+x=function(a,b) 
+  return a%b
+end
+assert(ravi.compile(x))
+assert(x(5,2) == 1)
+assert(math.abs(x(5.1,2.1)-0.9) < 1e-12)
+print("test 32 OK")
+
+-- test 33
+x=function(a,b) 
+  return a//b
+end
+assert(ravi.compile(x))
+assert(x(5,2) == 2)
+assert(math.abs(x(5.5,2.1)-2.0) < 1e-12)
+print("test 33 OK")
+
+-- test 35
+function x()
+  local x = 1
+  local f = function()
+    x=x+1
+    return x
+  end
+  return f
+end
+f=x()
+assert(ravi.compile(f))
+assert(f() == 2)
+assert(f() == 3)
+print("test 35 OK")
 

@@ -130,7 +130,7 @@ void ravi_emit_LOADBOOL(ravi_function_def_t *def, int A, int B, int C, int j,
     ravi_emit_branch(def, def->jmp_targets[j]->jmp);
 
     gcc_jit_block *block = gcc_jit_function_new_block(
-        def->jit_function, unique_name(def, "OP_LOADBOOL_", pc));
+        def->jit_function, unique_name(def, "OP_LOADBOOL_skip_next", pc));
     ravi_set_current_block(def, block);
   }
 }

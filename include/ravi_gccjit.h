@@ -447,11 +447,11 @@ extern gcc_jit_lvalue *ravi_emit_get_Proto_sizep(ravi_function_def_t *def);
 extern gcc_jit_rvalue *ravi_emit_get_upvals(ravi_function_def_t *def,
                                             int offset);
 // Get upval->v
-extern gcc_jit_lvalue *ravi_emit_get_upval_v(ravi_function_def_t *def,
+extern gcc_jit_lvalue *ravi_emit_load_upval_v(ravi_function_def_t *def,
                                              gcc_jit_rvalue *pupval);
 
 // Get upval->u.value
-extern gcc_jit_lvalue *ravi_emit_get_upval_value(ravi_function_def_t *def,
+extern gcc_jit_lvalue *ravi_emit_load_upval_value(ravi_function_def_t *def,
                                                  gcc_jit_rvalue *pupval);
 
 extern void ravi_set_current_block(ravi_function_def_t *def,
@@ -617,6 +617,12 @@ extern void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C,
 
 extern void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C,
                                int pc);
+
+extern void ravi_emit_SETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc);
+
+extern void ravi_emit_SETUPVAL(ravi_function_def_t *def, int A, int B, int pc);
+
+extern void ravi_emit_GETUPVAL(ravi_function_def_t *def, int A, int B, int pc);
 
 extern void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C, int j,
                            int jA, int pc);

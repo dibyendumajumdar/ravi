@@ -119,6 +119,7 @@ static bool can_compile(Proto *p) {
     case OP_RAVI_SETTABLE_AII:
     case OP_RAVI_SETTABLE_AF:
     case OP_RAVI_SETTABLE_AFF:
+    case OP_SETTABUP:
       break;
     case OP_LOADKX:
     case OP_FORPREP:
@@ -131,9 +132,8 @@ static bool can_compile(Proto *p) {
     case OP_IDIV:
     case OP_UNM:
     case OP_POW:
-    case OP_GETUPVAL:
-    case OP_SETUPVAL:
-    case OP_SETTABUP:
+      case OP_GETUPVAL:
+      case OP_SETUPVAL:
     default: {
       p->ravi_jit.jit_status = 1;
       return false;
@@ -745,18 +745,14 @@ gcc_jit_rvalue *ravi_emit_get_upvals(ravi_function_def_t *def, int offset) {
 }
 
 // Get upval->v
-gcc_jit_lvalue *ravi_emit_get_upval_v(ravi_function_def_t *def,
+gcc_jit_lvalue *ravi_emit_load_upval_v(ravi_function_def_t *def,
                                       gcc_jit_rvalue *pupval) {
-  //   const char *debugstr =
-  //   gcc_jit_object_get_debug_string(gcc_jit_rvalue_as_object(pupval));
-  //   fprintf(stderr, "%s\n", debugstr);
-
   return gcc_jit_rvalue_dereference_field(pupval, NULL,
                                           def->ravi->types->UpVal_v);
 }
 
 // Get upval->u.value
-gcc_jit_lvalue *ravi_emit_get_upval_value(ravi_function_def_t *def,
+gcc_jit_lvalue *ravi_emit_load_upval_value(ravi_function_def_t *def,
                                           gcc_jit_rvalue *pupval) {
   gcc_jit_lvalue *u =
       gcc_jit_rvalue_dereference_field(pupval, NULL, def->ravi->types->UpVal_u);
@@ -1126,6 +1122,19 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       ravi_emit_GETTABUP(&def, A, B, C, pc);
+    } break;
+    case OP_GETUPVAL: {
+      int B = GETARG_B(i);
+      ravi_emit_GETUPVAL(&def, A, B, pc);
+    } break;
+    case OP_SETTABUP: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      ravi_emit_SETTABUP(&def, A, B, C, pc);
+    } break;
+    case OP_SETUPVAL: {
+      int B = GETARG_B(i);
+      ravi_emit_SETUPVAL(&def, A, B, pc);
     } break;
     case OP_SELF: {
       int B = GETARG_B(i);

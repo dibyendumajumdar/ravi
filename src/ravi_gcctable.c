@@ -23,25 +23,6 @@
 
 #include <ravi_gccjit.h>
 
-// R(A) := UpValue[B][RK(C)]
-void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc) {
-  // int b = GETARG_B(i);
-  // Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
-
-  (void)pc;
-  ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
-
-  gcc_jit_rvalue *upval = ravi_emit_get_upvals(def, B);
-  gcc_jit_lvalue *v = ravi_emit_get_upval_v(def, upval);
-  gcc_jit_block_add_eval(
-      def->current_block, NULL,
-      ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
-                                 gcc_jit_param_as_rvalue(def->L),
-                                 gcc_jit_lvalue_as_rvalue(v), rc, ra));
-}
-
 // R(A+1) := R(B); R(A) := R(B)[RK(C)]
 void ravi_emit_SELF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   // StkId rb = RB(i);
@@ -55,9 +36,9 @@ void ravi_emit_SELF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
   gcc_jit_block_add_eval(
-      def->current_block, NULL,
-      ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
-                                 gcc_jit_param_as_rvalue(def->L), rb, rc, ra));
+          def->current_block, NULL,
+          ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
+                                     gcc_jit_param_as_rvalue(def->L), rb, rc, ra));
 }
 
 // R(A) := length of R(B)
@@ -68,9 +49,9 @@ void ravi_emit_LEN(ravi_function_def_t *def, int A, int B, int pc) {
   gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
   gcc_jit_block_add_eval(
-      def->current_block, NULL,
-      ravi_function_call3_rvalue(def, def->ravi->types->luaV_objlenT,
-                                 gcc_jit_param_as_rvalue(def->L), ra, rb));
+          def->current_block, NULL,
+          ravi_function_call3_rvalue(def, def->ravi->types->luaV_objlenT,
+                                     gcc_jit_param_as_rvalue(def->L), ra, rb));
 }
 
 // R(A)[RK(B)] := RK(C)
@@ -82,9 +63,9 @@ void ravi_emit_SETTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
   gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
   gcc_jit_block_add_eval(
-      def->current_block, NULL,
-      ravi_function_call4_rvalue(def, def->ravi->types->luaV_settableT,
-                                 gcc_jit_param_as_rvalue(def->L), ra, rb, rc));
+          def->current_block, NULL,
+          ravi_function_call4_rvalue(def, def->ravi->types->luaV_settableT,
+                                     gcc_jit_param_as_rvalue(def->L), ra, rb, rc));
 }
 
 // R(A) := R(B)[RK(C)]
@@ -96,75 +77,9 @@ void ravi_emit_GETTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
   gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
   gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
   gcc_jit_block_add_eval(
-      def->current_block, NULL,
-      ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
-                                 gcc_jit_param_as_rvalue(def->L), rb, rc, ra));
-}
-
-void ravi_emit_NEWTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
-  //  case OP_NEWTABLE: {
-  //    int b = GETARG_B(i);
-  //    int c = GETARG_C(i);
-  //    Table *t = luaH_new(L);
-  //    sethvalue(L, ra, t);
-  //    if (b != 0 || c != 0)
-  //      luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
-  //    checkGC(L, ra + 1);
-  //  } break;
-  (void)pc;
-
-  ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_block_add_eval(
-      def->current_block, NULL,
-      ravi_function_call5_rvalue(
-          def, def->ravi->types->raviV_op_newtableT,
-          gcc_jit_param_as_rvalue(def->L),
-          gcc_jit_lvalue_as_rvalue(def->ci_val), ra,
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->C_intT, B),
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->C_intT, C)));
-}
-
-void ravi_emit_NEWARRAYINT(ravi_function_def_t *def, int A, int pc) {
-  (void)pc;
-
-  ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_block_add_eval(
-      def->current_block, NULL,
-      ravi_function_call3_rvalue(def, def->ravi->types->raviV_op_newarrayintT,
-                                 gcc_jit_param_as_rvalue(def->L),
-                                 gcc_jit_lvalue_as_rvalue(def->ci_val), ra));
-}
-
-void ravi_emit_NEWARRAYFLOAT(ravi_function_def_t *def, int A, int pc) {
-  (void)pc;
-  ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_block_add_eval(
-      def->current_block, NULL,
-      ravi_function_call3_rvalue(def, def->ravi->types->raviV_op_newarrayfloatT,
-                                 gcc_jit_param_as_rvalue(def->L),
-                                 gcc_jit_lvalue_as_rvalue(def->ci_val), ra));
-}
-
-void ravi_emit_SETLIST(ravi_function_def_t *def, int A, int B, int C, int pc) {
-  (void)pc;
-
-  ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_block_add_eval(
-      def->current_block, NULL,
-      ravi_function_call5_rvalue(
-          def, def->ravi->types->raviV_op_setlistT,
-          gcc_jit_param_as_rvalue(def->L),
-          gcc_jit_lvalue_as_rvalue(def->ci_val), ra,
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->C_intT, B),
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->C_intT, C)));
+          def->current_block, NULL,
+          ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
+                                     gcc_jit_param_as_rvalue(def->L), rb, rc, ra));
 }
 
 void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C,
@@ -193,17 +108,17 @@ void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C,
   gcc_jit_rvalue *data = ravi_emit_load_reg_h_floatarray(def, t);
   gcc_jit_lvalue *len = ravi_emit_load_ravi_arraylength(def, t);
   gcc_jit_rvalue *ukey = gcc_jit_context_new_cast(
-      def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
-      def->ravi->types->C_unsigned_intT);
+          def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
+          def->ravi->types->C_unsigned_intT);
 
   gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey,
                                              gcc_jit_lvalue_as_rvalue(len));
   gcc_jit_block *then_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AF_if_in_range", pc));
+          def->jit_function, unique_name(def, "GETTABLE_AF_if_in_range", pc));
   gcc_jit_block *else_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AF_if_not_in_range", pc));
+          def->jit_function, unique_name(def, "GETTABLE_AF_if_not_in_range", pc));
   gcc_jit_block *end_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AF_if_end", pc));
+          def->jit_function, unique_name(def, "GETTABLE_AF_if_end", pc));
   ravi_emit_conditional_branch(def, cmp, then_block, else_block);
   ravi_set_current_block(def, then_block);
 
@@ -246,17 +161,17 @@ void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C,
   gcc_jit_rvalue *data = ravi_emit_load_reg_h_intarray(def, t);
   gcc_jit_lvalue *len = ravi_emit_load_ravi_arraylength(def, t);
   gcc_jit_rvalue *ukey = gcc_jit_context_new_cast(
-      def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
-      def->ravi->types->C_unsigned_intT);
+          def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
+          def->ravi->types->C_unsigned_intT);
 
   gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey,
                                              gcc_jit_lvalue_as_rvalue(len));
   gcc_jit_block *then_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AI_if_in_range", pc));
+          def->jit_function, unique_name(def, "GETTABLE_AI_if_in_range", pc));
   gcc_jit_block *else_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AI_if_not_in_range", pc));
+          def->jit_function, unique_name(def, "GETTABLE_AI_if_not_in_range", pc));
   gcc_jit_block *end_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AI_if_end", pc));
+          def->jit_function, unique_name(def, "GETTABLE_AI_if_end", pc));
   ravi_emit_conditional_branch(def, cmp, then_block, else_block);
   ravi_set_current_block(def, then_block);
 
@@ -271,67 +186,6 @@ void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C,
   ravi_emit_branch(def, end_block);
 
   ravi_set_current_block(def, end_block);
-}
-
-void ravi_emit_TOARRAY(ravi_function_def_t *def, int A, int array_type_expected,
-                       const char *errmsg, int pc) {
-
-  // if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
-  //  luaG_runerror(L, "integer[] expected");
-
-  ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_lvalue *type = ravi_emit_load_type(def, ra);
-
-  // type != LUA_TTABLE ?
-  gcc_jit_rvalue *cmp1 = ravi_emit_is_not_value_of_type(
-      def, gcc_jit_lvalue_as_rvalue(type), LUA__TTABLE);
-
-  gcc_jit_block *raise_error = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "TOARRAY_if_not_table", pc));
-  gcc_jit_block *else1 = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "TOARRAY_test_if_array", pc));
-  gcc_jit_block *done = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "TOARRAY_done", pc));
-  ravi_emit_conditional_branch(def, cmp1, raise_error, else1);
-  ravi_set_current_block(def, raise_error);
-
-  // Conversion failed, so raise error
-  ravi_emit_raise_lua_error(def, errmsg);
-  ravi_emit_branch(def, done);
-
-  ravi_set_current_block(def, else1);
-
-  // Get table
-  gcc_jit_rvalue *h = ravi_emit_load_reg_h(def, ra);
-  // Get array type
-  gcc_jit_rvalue *ravi_array_type =
-      gcc_jit_lvalue_as_rvalue(ravi_emit_load_ravi_arraytype(def, h));
-
-  // array_type == RAVI_TARRAYXXX?
-  gcc_jit_rvalue *expected = gcc_jit_context_new_rvalue_from_int(
-      def->function_context, def->ravi->types->lu_byteT, array_type_expected);
-  gcc_jit_rvalue *cmp2 = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ,
-                                              ravi_array_type, expected);
-
-  // If array then fine else raise error
-  ravi_emit_conditional_branch(def, cmp2, done, raise_error);
-
-  ravi_set_current_block(def, done);
-}
-
-void ravi_emit_MOVEAI(ravi_function_def_t *def, int A, int B, int pc) {
-  ravi_emit_TOARRAY(def, B, RAVI_TARRAYINT, "integer[] expected", pc);
-  gcc_jit_rvalue *src = ravi_emit_get_register(def, B);
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
-  ravi_emit_struct_assign(def, dest, src);
-}
-
-void ravi_emit_MOVEAF(ravi_function_def_t *def, int A, int B, int pc) {
-  ravi_emit_TOARRAY(def, B, RAVI_TARRAYFLT, "number[] expected", pc);
-  gcc_jit_rvalue *src = ravi_emit_get_register(def, B);
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
-  ravi_emit_struct_assign(def, dest, src);
 }
 
 void ravi_emit_SETTABLE_AI_AF(ravi_function_def_t *def, int A, int B, int C, bool known_tt, lua_typecode_t tt, int pc) {
@@ -426,5 +280,239 @@ void ravi_emit_SETTABLE_AI_AF(ravi_function_def_t *def, int A, int B, int C, boo
   ravi_emit_branch(def, end_block);
 
   ravi_set_current_block(def, end_block);
+}
+
+
+// R(A) := UpValue[B]
+void ravi_emit_GETUPVAL(ravi_function_def_t *def, int A, int B, int pc) {
+  // int b = GETARG_B(i);
+  // setobj2s(L, ra, cl->upvals[b]->v);
+  (void) pc;
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *upval = ravi_emit_get_upvals(def, B);
+  gcc_jit_lvalue *v = ravi_emit_load_upval_v(def, upval);
+  ravi_emit_struct_assign(def, ra, gcc_jit_lvalue_as_rvalue(v));
+}
+
+
+
+// UpValue[B] := R(A)
+void ravi_emit_SETUPVAL(ravi_function_def_t *def, int A, int B, int pc) {
+
+  // UpVal *uv = cl->upvals[GETARG_B(i)];
+  // setobj(L, uv->v, ra);
+  // luaC_upvalbarrier(L, uv);
+
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *upval = ravi_emit_get_upvals(def, B);
+  gcc_jit_lvalue *v = ravi_emit_load_upval_v(def, upval);
+  ravi_emit_struct_assign(def, gcc_jit_lvalue_as_rvalue(v), ra);
+
+  gcc_jit_lvalue *type = ravi_emit_load_type(def, gcc_jit_lvalue_as_rvalue(v));
+
+  // (type & BIT_ISCOLLECTIBLE) != 0
+  gcc_jit_rvalue *bit_iscollectible = gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                                                           def->ravi->types->C_intT, BIT_ISCOLLECTABLE);
+  gcc_jit_rvalue *is_collectible_bit =
+          gcc_jit_context_new_binary_op(def->function_context, NULL, GCC_JIT_BINARY_OP_BITWISE_AND,
+                                        def->ravi->types->C_intT, gcc_jit_lvalue_as_rvalue(type), bit_iscollectible);
+  gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, 0);
+  gcc_jit_rvalue *is_collectible = ravi_emit_comparison(def, GCC_JIT_COMPARISON_NE,
+                                                        is_collectible_bit, zero);
+
+  // Is upvalue closed?
+  // (up->v == &up->u.value)
+  gcc_jit_lvalue *value = ravi_emit_load_upval_value(def, upval);
+  gcc_jit_rvalue *upisclosed = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(v),
+                                                  gcc_jit_lvalue_get_address(value, NULL));
+
+  // Collectible type and upvalue is closed
+  // ((type & BIT_ISCOLLECTIBLE) != 0) && ((up)->v == &(up)->u.value))
+  gcc_jit_rvalue *andcond =
+          gcc_jit_context_new_binary_op(def->function_context, NULL, GCC_JIT_BINARY_OP_LOGICAL_AND, def->ravi->types->C_boolT,
+                                        is_collectible, upisclosed);
+
+  gcc_jit_block *then =
+          gcc_jit_function_new_block(def->jit_function,
+                                     unique_name(def, "SETUPVAL_if_collectible_and_upval_is_closed", pc));
+  gcc_jit_block *end =
+          gcc_jit_function_new_block(def->jit_function, unique_name(def, "SETUPVAL_if_end", pc));
+
+  ravi_emit_conditional_branch(def, andcond, then, end);
+  ravi_set_current_block(def, then);
+
+  gcc_jit_block_add_eval(def->current_block, NULL, ravi_function_call2_rvalue(def, def->ravi->types->luaC_upvalbarrierT,
+                                                                              gcc_jit_param_as_rvalue(def->L), upval));
+  ravi_emit_branch(def, end);
+
+  ravi_set_current_block(def, end);
+}
+
+// UpValue[A][RK(B)] := RK(C)
+void ravi_emit_SETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc) {
+
+  // int a = GETARG_A(i);
+  // Protect(luaV_settable(L, cl->upvals[a]->v, RKB(i), RKC(i)));
+
+  (void)pc;
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+
+  gcc_jit_rvalue *upval = ravi_emit_get_upvals(def, A);
+  gcc_jit_lvalue *v = ravi_emit_load_upval_v(def, upval);
+  gcc_jit_block_add_eval(
+          def->current_block, NULL,
+          ravi_function_call4_rvalue(def, def->ravi->types->luaV_settableT,
+                                     gcc_jit_param_as_rvalue(def->L),
+                                     gcc_jit_lvalue_as_rvalue(v), rb, rc));
+}
+
+// R(A) := UpValue[B][RK(C)]
+void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  // int b = GETARG_B(i);
+  // Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
+
+  (void)pc;
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+
+  gcc_jit_rvalue *upval = ravi_emit_get_upvals(def, B);
+  gcc_jit_lvalue *v = ravi_emit_load_upval_v(def, upval);
+  gcc_jit_block_add_eval(
+      def->current_block, NULL,
+      ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
+                                 gcc_jit_param_as_rvalue(def->L),
+                                 gcc_jit_lvalue_as_rvalue(v), rc, ra));
+}
+
+void ravi_emit_NEWTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  //  case OP_NEWTABLE: {
+  //    int b = GETARG_B(i);
+  //    int c = GETARG_C(i);
+  //    Table *t = luaH_new(L);
+  //    sethvalue(L, ra, t);
+  //    if (b != 0 || c != 0)
+  //      luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
+  //    checkGC(L, ra + 1);
+  //  } break;
+  (void)pc;
+
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_block_add_eval(
+      def->current_block, NULL,
+      ravi_function_call5_rvalue(
+          def, def->ravi->types->raviV_op_newtableT,
+          gcc_jit_param_as_rvalue(def->L),
+          gcc_jit_lvalue_as_rvalue(def->ci_val), ra,
+          gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                              def->ravi->types->C_intT, B),
+          gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                              def->ravi->types->C_intT, C)));
+}
+
+void ravi_emit_NEWARRAYINT(ravi_function_def_t *def, int A, int pc) {
+  (void)pc;
+
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_block_add_eval(
+      def->current_block, NULL,
+      ravi_function_call3_rvalue(def, def->ravi->types->raviV_op_newarrayintT,
+                                 gcc_jit_param_as_rvalue(def->L),
+                                 gcc_jit_lvalue_as_rvalue(def->ci_val), ra));
+}
+
+void ravi_emit_NEWARRAYFLOAT(ravi_function_def_t *def, int A, int pc) {
+  (void)pc;
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_block_add_eval(
+      def->current_block, NULL,
+      ravi_function_call3_rvalue(def, def->ravi->types->raviV_op_newarrayfloatT,
+                                 gcc_jit_param_as_rvalue(def->L),
+                                 gcc_jit_lvalue_as_rvalue(def->ci_val), ra));
+}
+
+void ravi_emit_SETLIST(ravi_function_def_t *def, int A, int B, int C, int pc) {
+  (void)pc;
+
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_block_add_eval(
+      def->current_block, NULL,
+      ravi_function_call5_rvalue(
+          def, def->ravi->types->raviV_op_setlistT,
+          gcc_jit_param_as_rvalue(def->L),
+          gcc_jit_lvalue_as_rvalue(def->ci_val), ra,
+          gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                              def->ravi->types->C_intT, B),
+          gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                              def->ravi->types->C_intT, C)));
+}
+
+void ravi_emit_TOARRAY(ravi_function_def_t *def, int A, int array_type_expected,
+                       const char *errmsg, int pc) {
+
+  // if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
+  //  luaG_runerror(L, "integer[] expected");
+
+  ravi_emit_load_base(def);
+  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *type = ravi_emit_load_type(def, ra);
+
+  // type != LUA_TTABLE ?
+  gcc_jit_rvalue *cmp1 = ravi_emit_is_not_value_of_type(
+      def, gcc_jit_lvalue_as_rvalue(type), LUA__TTABLE);
+
+  gcc_jit_block *raise_error = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "TOARRAY_if_not_table", pc));
+  gcc_jit_block *else1 = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "TOARRAY_test_if_array", pc));
+  gcc_jit_block *done = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "TOARRAY_done", pc));
+  ravi_emit_conditional_branch(def, cmp1, raise_error, else1);
+  ravi_set_current_block(def, raise_error);
+
+  // Conversion failed, so raise error
+  ravi_emit_raise_lua_error(def, errmsg);
+  ravi_emit_branch(def, done);
+
+  ravi_set_current_block(def, else1);
+
+  // Get table
+  gcc_jit_rvalue *h = ravi_emit_load_reg_h(def, ra);
+  // Get array type
+  gcc_jit_rvalue *ravi_array_type =
+      gcc_jit_lvalue_as_rvalue(ravi_emit_load_ravi_arraytype(def, h));
+
+  // array_type == RAVI_TARRAYXXX?
+  gcc_jit_rvalue *expected = gcc_jit_context_new_rvalue_from_int(
+      def->function_context, def->ravi->types->lu_byteT, array_type_expected);
+  gcc_jit_rvalue *cmp2 = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ,
+                                              ravi_array_type, expected);
+
+  // If array then fine else raise error
+  ravi_emit_conditional_branch(def, cmp2, done, raise_error);
+
+  ravi_set_current_block(def, done);
+}
+
+void ravi_emit_MOVEAI(ravi_function_def_t *def, int A, int B, int pc) {
+  ravi_emit_TOARRAY(def, B, RAVI_TARRAYINT, "integer[] expected", pc);
+  gcc_jit_rvalue *src = ravi_emit_get_register(def, B);
+  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  ravi_emit_struct_assign(def, dest, src);
+}
+
+void ravi_emit_MOVEAF(ravi_function_def_t *def, int A, int B, int pc) {
+  ravi_emit_TOARRAY(def, B, RAVI_TARRAYFLT, "number[] expected", pc);
+  gcc_jit_rvalue *src = ravi_emit_get_register(def, B);
+  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  ravi_emit_struct_assign(def, dest, src);
 }
 
