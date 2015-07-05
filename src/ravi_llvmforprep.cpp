@@ -591,8 +591,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, int A, int pc) {
   def->builder->SetInsertPoint(else1_pstep);
   llvm::Instruction *nlimit_load = emit_load_local_n(def, nlimit);
 
-  emit_store_reg_n(def, nlimit_load, plimit);
-  emit_store_type(def, plimit, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, nlimit_load, plimit);
 
   // ***********  PSTEP - convert pstep to float
   // Test if already a float
@@ -639,8 +638,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, int A, int pc) {
 
   llvm::Instruction *nstep_load = emit_load_local_n(def, nstep);
 
-  emit_store_reg_n(def, nstep_load, pstep);
-  emit_store_type(def, pstep, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, nstep_load, pstep);
 
   // *********** PINIT finally handle initial value
 
@@ -692,8 +690,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, int A, int pc) {
   llvm::Value *init_n =
       def->builder->CreateFSub(ninit_load, nstep_load, "ninit-nstep");
 
-  emit_store_reg_n(def, init_n, init);
-  emit_store_type(def, init, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, init_n, init);
 
   // Done so jump to forloop
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);

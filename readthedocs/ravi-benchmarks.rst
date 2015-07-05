@@ -5,21 +5,21 @@ Ravi's reason for existence is to achieve greater performance than standard Lua 
 
 The programs used in the performance testing can be found at `Ravi Tests <https://github.com/dibyendumajumdar/ravi/tree/master/ravi-tests>`_ folder.
 
-+---------------+---------+------------+-----------------------+------------+
-| Program       | Lua5.3  | Ravi(LLVM) | Ravi (gccjit;guest VM)| Luajit 2.1 |
-+===============+=========+============+=======================+============+
-|fornum_test1   | 9.187   | 0.305      | 0.000001 (VM)         | 0.309      |
-+---------------+---------+------------+-----------------------+------------+
-|fornum_test2   | 9.57    | 0.922      | 0.939 (VM)            | 0.906      |
-+---------------+---------+------------+-----------------------+------------+
-|fornum_test3   | 53.932  | 4.593      |                       | 7.778      |
-+---------------+---------+------------+-----------------------+------------+
-|mandel(4000)   | 21.247  | 2.94       | 3.09 (VM)             | 1.633      |
-+---------------+---------+------------+-----------------------+------------+
-|fannkuchen(11) | 63.446  | 8.875      | 10.678 (VM)           | 4.751      |
-+---------------+---------+------------+-----------------------+------------+
-|matmul(1000)   | 34.604  | 4.2        |                       | 0.968      |
-+---------------+---------+------------+-----------------------+------------+
++---------------+---------+------------+------------+
+| Program       | Lua5.3  | Ravi(LLVM) | Luajit 2.1 |
++===============+=========+============+============+
+|fornum_test1   | 9.187   | 0.31       | 0.309      |
++---------------+---------+------------+------------+
+|fornum_test2   | 9.57    | 0.917      | 0.906      |
++---------------+---------+------------+------------+
+|fornum_test3   | 53.932  | 4.598      | 7.778      |
++---------------+---------+------------+------------+
+|mandel(4000)   | 21.247  | 2.936      | 1.633      |
++---------------+---------+------------+------------+
+|fannkuchen(11) | 63.446  | 8.317      | 4.751      |
++---------------+---------+------------+------------+
+|matmul(1000)   | 34.604  | 2.942      | 0.968      |
++---------------+---------+------------+------------+
 
 Following points are worth bearing in mind when looking at above benchmarks.
 
@@ -28,9 +28,7 @@ Following points are worth bearing in mind when looking at above benchmarks.
    / two stores. Luajit has a performance advantage when it comes to floating 
    point operations due to this.
 
-2. More work is needed to optimize fornum loops in Ravi. I have some
-   ideas on what can be improved but have parked this for now as I want
-   to get more coverage of Lua bytecodes first.
+2. More work is needed to optimize numeric operations in Ravi.
 
 3. Luajit compilation approach ensures that it can use information about 
    the actual execution path taken by the code at runtime whereas Ravi
@@ -40,13 +38,17 @@ Following points are worth bearing in mind when looking at above benchmarks.
    But LuaJIT timings include the JIT compilation times, so they show
    incredible performance.
 
-5. The benchmarks were run on Windows 8.1 64-bit except for the libgccjit 5.1
-   benchmarks which were run on a Ubuntu 64-bit VM running on Windows 8.1.
-   LLVM version 3.7 was used. 
+5. The benchmarks were run on Windows 8.1 64-bit. LLVM version 3.7 was used.
+
+6. The Ravi benchmarks are based on code that uses optional static types.
 
 Ideas
 -----
 There are a number of improvements possible. Below are some of my thoughts.
+
+Allocating variables on C stack
+-------------------------------
+Certain local and temporary variables that hold numeric values could be allocated on the C stack avoiding the overhead of accessing the Lua stack. This requires implementing escape analysis to determine which variables are safe to be allocated on the C stack.
 
 Optimizing Fornum loops
 -----------------------
