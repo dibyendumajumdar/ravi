@@ -106,13 +106,12 @@ llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, const char *name,
 }
 
 llvm::Value *
-RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
-                                                        llvm::Value *ci) {
+RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def) {
   // emit code for (LClosure *)ci->func->value_.gc
   // fortunately as func is at the beginning of the ci
   // structure we can just cast ci to LClosure*
   llvm::Value *pppLuaClosure =
-      def->builder->CreateBitCast(ci, def->types->pppLClosureT);
+      def->builder->CreateBitCast(def->ci_val, def->types->pppLClosureT);
   llvm::Instruction *ppLuaClosure = def->builder->CreateLoad(pppLuaClosure);
   ppLuaClosure->setMetadata(llvm::LLVMContext::MD_tbaa,
                             def->types->tbaa_CallInfo_funcT);

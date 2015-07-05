@@ -635,8 +635,7 @@ public:
 
 
   // emit code for (LClosure *)ci->func->value_.gc
-  llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
-                                                    llvm::Value *ci);
+  llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def);
 
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
                         int arg1, int arg2);
