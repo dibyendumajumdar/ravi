@@ -53,7 +53,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, int A, int pc) {
   //} break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
   //  lua_Integer ilimit;
   //  int stopnow;
@@ -88,9 +88,9 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, int A, int pc) {
   //  TValue *init = ra;
   //  TValue *plimit = ra + 1;
   //  TValue *pstep = ra + 2;
-  llvm::Value *init = emit_gep_register(def, base_ptr, A);
-  llvm::Value *plimit = emit_gep_register(def, base_ptr, A + 1);
-  llvm::Value *pstep = emit_gep_register(def, base_ptr, A + 2);
+  llvm::Value *init = emit_gep_register(def, A);
+  llvm::Value *plimit = emit_gep_register(def, A + 1);
+  llvm::Value *pstep = emit_gep_register(def, A + 2);
 
   //  if (ttisinteger(init) && ttisinteger(pstep) &&
   //    forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
@@ -422,7 +422,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, int A, int pc) {
   //} break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
   //  lua_Integer ilimit;
   //  int stopnow;
@@ -443,9 +443,9 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, int A, int pc) {
   //  TValue *init = ra;
   //  TValue *plimit = ra + 1;
   //  TValue *pstep = ra + 2;
-  llvm::Value *init = emit_gep_register(def, base_ptr, A);
-  llvm::Value *plimit = emit_gep_register(def, base_ptr, A + 1);
-  llvm::Value *pstep = emit_gep_register(def, base_ptr, A + 2);
+  llvm::Value *init = emit_gep_register(def, A);
+  llvm::Value *plimit = emit_gep_register(def, A + 1);
+  llvm::Value *pstep = emit_gep_register(def, A + 2);
 
   //  if (ttisinteger(init) && ttisinteger(pstep) &&
   //    forlimit(plimit, &ilimit, ivalue(pstep), &stopnow)) {
@@ -720,15 +720,15 @@ void RaviCodeGenerator::emit_iFORPREP(RaviFunctionDef *def, int A, int pc,
   //    setivalue(init, initv - ivalue(pstep));
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
   //  TValue *init = ra;
   //  TValue *pstep = ra + 2;
-  llvm::Value *init = emit_gep_register(def, base_ptr, A);
-  llvm::Value *plimit = emit_gep_register(def, base_ptr, A + 1);
+  llvm::Value *init = emit_gep_register(def, A);
+  llvm::Value *plimit = emit_gep_register(def, A + 1);
   llvm::Value *pstep = nullptr;
   if (!step_one)
-    pstep = emit_gep_register(def, base_ptr, A + 2);
+    pstep = emit_gep_register(def, A + 2);
 
   // Get ivalue(pstep)
   llvm::Instruction *limit_ivalue = emit_load_reg_i(def, plimit);

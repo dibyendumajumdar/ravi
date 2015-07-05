@@ -43,9 +43,9 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int j) {
 
   // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
   if (A > 0) {
-    llvm::Instruction *base = emit_load_base(def);
+    emit_load_base(def);
     // base + a - 1
-    llvm::Value *val = emit_gep_register(def, base, A - 1);
+    llvm::Value *val = emit_gep_register(def, A - 1);
     // Call luaF_close
     CreateCall2(def->builder, def->luaF_closeF, def->L, val);
   }
@@ -71,14 +71,14 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C) {
   //   luaV_execute(L);
   // }
 
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
   // int nresults = c - 1;
   int nresults = C - 1;
 
   // if (b != 0)
   if (B != 0) {
-    emit_set_L_top_toreg(def, base_ptr, A + B);
+    emit_set_L_top_toreg(def, A + B);
   }
 
   // luaD_precall() returns following
@@ -87,7 +87,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C) {
   // 0 - Run interpreter on Lua function
 
   // int c = luaD_precall(L, ra, nresults);  /* C or JITed function? */
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *precall_result =
       CreateCall3(def->builder, def->luaD_precallF, def->L, ra,
                   llvm::ConstantInt::get(def->types->C_intT, nresults));

@@ -648,15 +648,13 @@ public:
                               int offset);
 
   // emit code to load pointer L->ci->u.l.base
-  llvm::Instruction *emit_load_base(RaviFunctionDef *def);
+  void emit_load_base(RaviFunctionDef *def);
 
   // emit code to obtain address of register at location A
-  llvm::Value *emit_gep_register(RaviFunctionDef *def, llvm::Instruction *base,
-                           int A);
+  llvm::Value *emit_gep_register(RaviFunctionDef *def, int A);
 
   // emit code to obtain address of register or constant at location B
-  llvm::Value *emit_gep_register_or_constant(RaviFunctionDef *def, llvm::Instruction *base,
-                            int B);
+  llvm::Value *emit_gep_register_or_constant(RaviFunctionDef *def, int B);
 
   // obtain address of L->top
   llvm::Value *emit_gep_L_top(RaviFunctionDef *def);
@@ -746,8 +744,7 @@ public:
   void emit_refresh_L_top(RaviFunctionDef *def);
 
   // L->top = R(B)
-  void emit_set_L_top_toreg(RaviFunctionDef *def, llvm::Instruction *base_ptr,
-                            int B);
+  void emit_set_L_top_toreg(RaviFunctionDef *def, int B);
 
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.
@@ -929,8 +926,7 @@ public:
 
   void emit_MOVEAF(RaviFunctionDef *def, int A, int B);
 
-  // Return the base pointer
-  llvm::Instruction *emit_TOARRAY(RaviFunctionDef *def, int A,
+  void emit_TOARRAY(RaviFunctionDef *def, int A,
                                   int array_type_expected, const char *errmsg);
 
 private:

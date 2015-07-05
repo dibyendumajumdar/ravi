@@ -55,14 +55,14 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
   }
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
   // Get pointer to register A
-  llvm::Value *ra_ptr = emit_gep_register(def, base_ptr, A);
+  llvm::Value *ra_ptr = emit_gep_register(def, A);
 
   //*  if (b != 0) L->top = ra + b - 1;
   if (B != 0) {
-    emit_set_L_top_toreg(def, base_ptr, A + B - 1);
+    emit_set_L_top_toreg(def, A + B - 1);
   }
 
   // if (cl->p->sizep > 0) luaF_close(L, base);
@@ -80,7 +80,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
   def->builder->SetInsertPoint(then_block);
 
   // Call luaF_close
-  CreateCall2(def->builder, def->luaF_closeF, def->L, base_ptr);
+  CreateCall2(def->builder, def->luaF_closeF, def->L, def->base_ptr);
   def->builder->CreateBr(else_block);
 
   def->f->getBasicBlockList().push_back(else_block);

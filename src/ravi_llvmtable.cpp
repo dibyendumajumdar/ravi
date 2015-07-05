@@ -29,41 +29,41 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, int A, int B, int C) {
   // StkId rb = RB(i);
   // setobjs2s(L, ra + 1, rb);
   // Protect(luaV_gettable(L, rb, RKC(i), ra));
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *rb = emit_gep_register(def, base_ptr, B);
-  llvm::Value *ra1 = emit_gep_register(def, base_ptr, A + 1);
+  emit_load_base(def);
+  llvm::Value *rb = emit_gep_register(def, B);
+  llvm::Value *ra1 = emit_gep_register(def, A + 1);
   emit_assign(def, ra1, rb);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
-  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
   CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
 }
 
 // R(A) := length of R(B)
 void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B) {
   // Protect(luaV_objlen(L, ra, RB(i)));
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_register(def, base_ptr, B);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register(def, B);
   CreateCall3(def->builder, def->luaV_objlenF, def->L, ra, rb);
 }
 
 // R(A)[RK(B)] := RK(C)
 void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C) {
   // Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
   CreateCall4(def->builder, def->luaV_settableF, def->L, ra, rb, rc);
 }
 
 // R(A) := R(B)[RK(C)]
 void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C) {
   // Protect(luaV_gettable(L, RB(i), RKC(i), ra));
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_register(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
   CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
 }
 
@@ -83,10 +83,10 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,int A, int B, int 
   // Table *t = hvalue(rb);
   // raviH_get_float_inline(L, t, idx, ra);
 
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_register(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
   llvm::Instruction *key = emit_load_reg_i(def, rc);
   llvm::Instruction *t = emit_load_reg_h(def, rb);
   llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);
@@ -138,10 +138,10 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B, int
   // Table *t = hvalue(rb);
   // raviH_get_int_inline(L, t, idx, ra);
 
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_register(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
   llvm::Instruction *key = emit_load_reg_i(def, rc);
   llvm::Instruction *t = emit_load_reg_h(def, rb);
   llvm::Instruction *data = emit_load_reg_h_intarray(def, t);
@@ -194,10 +194,10 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B, int
   // lua_Integer value = ivalue(rc);
   // raviH_set_int_inline(L, t, idx, value);
 
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
   llvm::Instruction *key = emit_load_reg_i(def, rb);
   llvm::Instruction *value = known_int ? emit_load_reg_i(def, rc) : emit_tointeger(def, rc);
   llvm::Instruction *t = emit_load_reg_h(def, ra);
@@ -253,10 +253,10 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B, int
   //  raviH_set_float_inline(L, t, idx, ((lua_Number)ivalue(rc)));
   //}
 
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
-  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
   llvm::Instruction *key = emit_load_reg_i(def, rb);
   llvm::Instruction *value = known_float ? emit_load_reg_n(def, rc) : emit_tofloat(def, rc);
   llvm::Instruction *t = emit_load_reg_h(def, ra);
@@ -294,8 +294,8 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B, int
 void RaviCodeGenerator::emit_GETUPVAL(RaviFunctionDef *def, int A, int B) {
   // int b = GETARG_B(i);
   // setobj2s(L, ra, cl->upvals[b]->v);
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, B);
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
   llvm::Value *v = emit_load_upval_v(def, upval);
@@ -309,8 +309,8 @@ void RaviCodeGenerator::emit_SETUPVAL(RaviFunctionDef *def, int A, int B) {
   // setobj(L, uv->v, ra);
   // luaC_upvalbarrier(L, uv);
 
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, B);
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
   llvm::Value *v = emit_load_upval_v(def, upval);
@@ -346,9 +346,9 @@ void RaviCodeGenerator::emit_SETUPVAL(RaviFunctionDef *def, int A, int B) {
 void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C) {
   // int b = GETARG_B(i);
   // Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
-  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
 
   llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, B);
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
@@ -362,9 +362,9 @@ void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C)
   // int a = GETARG_A(i);
   // Protect(luaV_settable(L, cl->upvals[a]->v, RKB(i), RKC(i)));
 
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *rb = emit_gep_register_or_constant(def, base_ptr, B);
-  llvm::Value *rc = emit_gep_register_or_constant(def, base_ptr, C);
+  emit_load_base(def);
+  llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
 
   llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, A);
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
@@ -373,15 +373,15 @@ void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C)
 }
 
 void RaviCodeGenerator::emit_NEWARRAYINT(RaviFunctionDef *def, int A) {
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
   CreateCall3(def->builder, def->raviV_op_newarrayintF, def->L, def->ci_val,
               ra);
 }
 
 void RaviCodeGenerator::emit_NEWARRAYFLOAT(RaviFunctionDef *def, int A) {
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
   CreateCall3(def->builder, def->raviV_op_newarrayfloatF, def->L, def->ci_val,
               ra);
 }
@@ -397,28 +397,28 @@ void RaviCodeGenerator::emit_NEWTABLE(RaviFunctionDef *def, int A, int B, int C)
   //    checkGC(L, ra + 1);
   //  } break;
 
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
   CreateCall5(def->builder, def->raviV_op_newtableF, def->L, def->ci_val, ra,
               def->types->kInt[B], def->types->kInt[C]);
 }
 
 void RaviCodeGenerator::emit_SETLIST(RaviFunctionDef *def, int A, int B, int C) {
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
   CreateCall5(def->builder, def->raviV_op_setlistF, def->L, def->ci_val, ra,
               def->types->kInt[B], def->types->kInt[C]);
 }
 
-llvm::Instruction *RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
+void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
                                                    int array_type_expected,
                                                    const char *errmsg) {
 
   // if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
   //  luaG_runerror(L, "integer[] expected");
 
-  llvm::Instruction *base_ptr = emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
   llvm::Instruction *type = emit_load_type(def, ra);
 
   // type != LUA_TTABLE ?
@@ -455,23 +455,19 @@ llvm::Instruction *RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
 
   def->f->getBasicBlockList().push_back(done);
   def->builder->SetInsertPoint(done);
-
-  return base_ptr;
 }
 
 void RaviCodeGenerator::emit_MOVEAI(RaviFunctionDef *def, int A, int B) {
-  llvm::Instruction *base_ptr =
-      emit_TOARRAY(def, B, RAVI_TARRAYINT, "integer[] expected");
-  llvm::Value *src = emit_gep_register(def, base_ptr, B);
-  llvm::Value *dest = emit_gep_register(def, base_ptr, A);
+  emit_TOARRAY(def, B, RAVI_TARRAYINT, "integer[] expected");
+  llvm::Value *src = emit_gep_register(def, B);
+  llvm::Value *dest = emit_gep_register(def, A);
   emit_assign(def, dest, src);
 }
 
 void RaviCodeGenerator::emit_MOVEAF(RaviFunctionDef *def, int A, int B) {
-  llvm::Instruction *base_ptr =
-      emit_TOARRAY(def, B, RAVI_TARRAYFLT, "number[] expected");
-  llvm::Value *src = emit_gep_register(def, base_ptr, B);
-  llvm::Value *dest = emit_gep_register(def, base_ptr, A);
+  emit_TOARRAY(def, B, RAVI_TARRAYFLT, "number[] expected");
+  llvm::Value *src = emit_gep_register(def, B);
+  llvm::Value *dest = emit_gep_register(def, A);
   emit_assign(def, dest, src);
 }
 }

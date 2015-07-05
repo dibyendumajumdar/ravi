@@ -40,12 +40,12 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C, int j
   //  } break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
   // Get pointer to register B
-  llvm::Value *lhs_ptr = emit_gep_register_or_constant(def, base_ptr, B);
+  llvm::Value *lhs_ptr = emit_gep_register_or_constant(def, B);
   // Get pointer to register C
-  llvm::Value *rhs_ptr = emit_gep_register_or_constant(def, base_ptr, C);
+  llvm::Value *rhs_ptr = emit_gep_register_or_constant(def, C);
 
   // Call luaV_equalobj with register B and C
   llvm::Value *result =
@@ -68,11 +68,10 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C, int j
     // Reload pointer to base as the call to luaV_equalobj() may
     // have invoked a Lua function and as a result the stack may have
     // been reallocated - so the previous base pointer could be stale
-    base_ptr = emit_load_base(def);
+    emit_load_base(def);
 
     // base + a - 1
-    llvm::Value *val =
-        jA == 1 ? base_ptr : emit_array_get(def, base_ptr, jA - 1);
+    llvm::Value *val = emit_gep_register(def, jA-1);
 
     // Call luaF_close
     CreateCall2(def->builder, def->luaF_closeF, def->L, val);
@@ -154,10 +153,10 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
   //    } break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
   // Get pointer to register A
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *ra = emit_gep_register(def, A);
   // v = C ? is_false(ra) : !is_false(ra)
   llvm::Value *v = C ? emit_boolean_testfalse(def, ra, false)
                      : emit_boolean_testfalse(def, ra, true);
@@ -177,8 +176,7 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
     // jA is the A operand of the Jump instruction
 
     // base + a - 1
-    llvm::Value *val =
-        jA == 1 ? base_ptr : emit_array_get(def, base_ptr, jA - 1);
+    llvm::Value *val = emit_gep_register(def, jA - 1);
 
     // Call luaF_close
     CreateCall2(def->builder, def->luaF_closeF, def->L, val);
@@ -198,12 +196,12 @@ void RaviCodeGenerator::emit_NOT(RaviFunctionDef *def, int A, int B) {
   //    int res = l_isfalse(rb);  /* next assignment may change this value */
   //    setbvalue(ra, res);
   //  } break;
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
   // Get pointer to register B
-  llvm::Value *rb = emit_gep_register(def, base_ptr, B);
+  llvm::Value *rb = emit_gep_register(def, B);
   llvm::Value *v = emit_boolean_testfalse(def, rb, false);
   llvm::Value *result = def->builder->CreateZExt(v, def->types->C_intT, "i");
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *ra = emit_gep_register(def, A);
   emit_store_reg_b(def, result, ra);
   emit_store_type(def, ra, LUA_TBOOLEAN);
 }
@@ -222,10 +220,10 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
   //  } break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
   // Get pointer to register B
-  llvm::Value *rb = emit_gep_register(def, base_ptr, B);
+  llvm::Value *rb = emit_gep_register(def, B);
   // v = C ? is_false(ra) : !is_false(ra)
   llvm::Value *v = C ? emit_boolean_testfalse(def, rb, false)
                      : emit_boolean_testfalse(def, rb, true);
@@ -241,7 +239,7 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
   def->builder->SetInsertPoint(then_block);
 
   // Get pointer to register A
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
+  llvm::Value *ra = emit_gep_register(def, A);
   emit_assign(def, ra, rb);
 
   // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
@@ -249,8 +247,7 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
     // jA is the A operand of the Jump instruction
 
     // base + a - 1
-    llvm::Value *val =
-        jA == 1 ? base_ptr : emit_array_get(def, base_ptr, jA - 1);
+    llvm::Value *val = emit_gep_register(def, jA - 1);
 
     // Call luaF_close
     CreateCall2(def->builder, def->luaF_closeF, def->L, val);

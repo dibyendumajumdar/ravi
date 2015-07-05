@@ -119,9 +119,9 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, int A, int pc,
   def->f->getBasicBlockList().push_back(update_block);
   def->builder->SetInsertPoint(update_block);
 
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
-  llvm::Value *rvar = emit_gep_register(def, base_ptr, A + 3);
+  llvm::Value *rvar = emit_gep_register(def, A + 3);
 
   //    setivalue(ra + 3, idx);  /* ...and external index */
   idx_int_value = emit_load_local_n(def, idx_int_ptr);
@@ -187,8 +187,8 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, int A, int pc,
   def->f->getBasicBlockList().push_back(update_block);
   def->builder->SetInsertPoint(update_block);
 
-  base_ptr = emit_load_base(def);
-  rvar = emit_gep_register(def, base_ptr, A + 3);
+  emit_load_base(def);
+  rvar = emit_gep_register(def, A + 3);
 
   //    setfltvalue(ra + 3, idx);  /* ...and external index */
   idx_double_value = emit_load_local_n(def, idx_double_ptr);
@@ -230,16 +230,16 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, int A, int pc) {
   //}
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
   //  TValue *rinit = ra;
   //  TValue *rlimit = ra + 1;
   //  TValue *rstep = ra + 2;
   //  TValue *rvar = ra + 3
-  llvm::Value *rinit = emit_gep_register(def, base_ptr, A);
-  llvm::Value *rlimit = emit_gep_register(def, base_ptr, A + 1);
-  llvm::Value *rstep = emit_gep_register(def, base_ptr, A + 2);
-  llvm::Value *rvar = emit_gep_register(def, base_ptr, A + 3);
+  llvm::Value *rinit = emit_gep_register(def, A);
+  llvm::Value *rlimit = emit_gep_register(def, A + 1);
+  llvm::Value *rstep = emit_gep_register(def, A + 2);
+  llvm::Value *rvar = emit_gep_register(def, A + 3);
 
   // Create the done block
   llvm::BasicBlock *exit_block =
@@ -441,9 +441,9 @@ void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, int A, int pc, RaviB
   def->builder->SetInsertPoint(update_block);
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
-  llvm::Value *rvar = emit_gep_register(def, base_ptr, A + 3);
+  llvm::Value *rvar = emit_gep_register(def, A + 3);
 
   //    setivalue(ra + 3, idx);  /* ...and external index */
   idx_int_value = emit_load_local_n(def, idx_int_ptr);

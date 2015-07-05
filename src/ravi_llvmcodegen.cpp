@@ -135,26 +135,24 @@ llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def,
       ptr, llvm::ConstantInt::get(def->types->C_intT, offset));
 }
 
-llvm::Instruction *RaviCodeGenerator::emit_load_base(RaviFunctionDef *def) {
+void RaviCodeGenerator::emit_load_base(RaviFunctionDef *def) {
   // Load pointer to base
   llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
   base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
                         def->types->tbaa_luaState_ci_baseT);
   def->base_ptr = base_ptr;
-  return base_ptr;
 }
 
 // emit code to obtain address of register at location A
 llvm::Value *RaviCodeGenerator::emit_gep_register(RaviFunctionDef *def,
-                                                  llvm::Instruction *base_ptr,
                                                   int A) {
   llvm::Value *dest;
   if (A == 0) {
     // If A is 0 we can use the base pointer which is &base[0]
-    dest = base_ptr;
+    dest = def->base_ptr;
   } else {
     // emit &base[A]
-    dest = emit_array_get(def, base_ptr, A);
+    dest = emit_array_get(def, def->base_ptr, A);
   }
   return dest;
 }
@@ -399,12 +397,12 @@ llvm::Instruction *RaviCodeGenerator::emit_load_local_int(RaviFunctionDef *def,
 
 // emit code to obtain address of register or constant at location B
 llvm::Value *RaviCodeGenerator::emit_gep_register_or_constant(
-    RaviFunctionDef *def, llvm::Instruction *base_ptr, int B) {
+    RaviFunctionDef *def, int B) {
   // Load pointer to k
   llvm::Value *k_ptr = def->k_ptr;
   llvm::Value *rb;
   // Get pointer to register B
-  llvm::Value *base_or_k = ISK(B) ? k_ptr : base_ptr;
+  llvm::Value *base_or_k = ISK(B) ? k_ptr : def->base_ptr;
   int b = ISK(B) ? INDEXK(B) : B;
   if (b == 0) {
     rb = base_or_k;
@@ -439,10 +437,9 @@ llvm::Value *RaviCodeGenerator::emit_gep_L_top(RaviFunctionDef *def) {
 
 // L->top = R(B)
 void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def,
-                                             llvm::Instruction *base_ptr,
                                              int B) {
   // Get pointer to register at R(B)
-  llvm::Value *ptr = emit_gep_register(def, base_ptr, B);
+  llvm::Value *ptr = emit_gep_register(def, B);
   // Get pointer to L->top
   llvm::Value *top = emit_gep_L_top(def);
   // Assign to L->top
@@ -982,7 +979,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
   // and is a value of type LClosure*
   // fortunately as func is at the beginning of the ci
   // structure we can just cast ci to LClosure*
-  llvm::Value *L_cl = emit_gep_ci_func_value_gc_asLClosure(def, def->ci_val);
+  llvm::Value *L_cl = emit_gep_ci_func_value_gc_asLClosure(def);
 
   // Load pointer to LClosure
   llvm::Instruction *cl_ptr = builder.CreateLoad(L_cl);

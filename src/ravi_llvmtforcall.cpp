@@ -49,32 +49,32 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C,
   //  } break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
   // Get pointer to register A
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
-  llvm::Value *ra1 = emit_gep_register(def, base_ptr, A + 1);
-  llvm::Value *ra2 = emit_gep_register(def, base_ptr, A + 2);
-  llvm::Value *cb = emit_gep_register(def, base_ptr, A + 3);
-  llvm::Value *cb1 = emit_gep_register(def, base_ptr, A + 4);
-  llvm::Value *cb2 = emit_gep_register(def, base_ptr, A + 5);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *ra1 = emit_gep_register(def, A + 1);
+  llvm::Value *ra2 = emit_gep_register(def, A + 2);
+  llvm::Value *cb = emit_gep_register(def, A + 3);
+  llvm::Value *cb1 = emit_gep_register(def, A + 4);
+  llvm::Value *cb2 = emit_gep_register(def, A + 5);
 
   emit_assign(def, cb2, ra2);
   emit_assign(def, cb1, ra1);
   emit_assign(def, cb, ra);
 
   // L->top = cb + 3;  /* func. + 2 args (state and index) */
-  emit_set_L_top_toreg(def, base_ptr, A + 6);
+  emit_set_L_top_toreg(def, A + 6);
 
   // Protect(luaD_call(L, cb, GETARG_C(i), 1));
   CreateCall4(def->builder, def->luaD_callF, def->L, cb, def->types->kInt[C],
               def->types->kInt[1]);
   // reload base
-  base_ptr = emit_load_base(def);
+  emit_load_base(def);
   // L->top = ci->top;
   emit_refresh_L_top(def);
-  ra = emit_gep_register(def, base_ptr, jA);
-  ra1 = emit_gep_register(def, base_ptr, jA + 1);
+  ra = emit_gep_register(def, jA);
+  ra1 = emit_gep_register(def, jA + 1);
   llvm::Value *type = emit_load_type(def, ra1);
 
   // Test if type != LUA_TNIL (0)
@@ -107,11 +107,11 @@ void RaviCodeGenerator::emit_TFORLOOP(RaviFunctionDef *def, int A, int j) {
   //  } break;
 
   // Load pointer to base
-  llvm::Instruction *base_ptr = emit_load_base(def);
+  emit_load_base(def);
 
   // Get pointer to register A
-  llvm::Value *ra = emit_gep_register(def, base_ptr, A);
-  llvm::Value *ra1 = emit_gep_register(def, base_ptr, A + 1);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *ra1 = emit_gep_register(def, A + 1);
   llvm::Value *type = emit_load_type(def, ra1);
 
   // Test if type != LUA_TNIL (0)
