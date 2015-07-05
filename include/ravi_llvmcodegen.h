@@ -486,6 +486,7 @@ struct RaviFunctionDef {
   llvm::Value *L;
   LuaLLVMTypes *types;
   llvm::IRBuilder<> *builder;
+  Proto *p;
 
   // Lua function declarations
   llvm::Function *luaD_poscallF;
@@ -532,19 +533,21 @@ struct RaviFunctionDef {
   std::vector<RaviBranchDef> jmp_targets;
 
   // Load pointer to proto
+  llvm::Value *proto; // gep
   llvm::Instruction *proto_ptr;
 
   // Obtain pointer to Proto->k
   llvm::Value *proto_k;
-
-  // Load pointer to k
+  // Load pointer to Proto->k; this does not change 
   llvm::Instruction *k_ptr;
 
   // Load L->ci
+  llvm::Value *L_ci; // gep
   llvm::Instruction *ci_val;
 
   // Get pointer to base
-  llvm::Value *Ci_base;
+  llvm::Value *Ci_base; // gep
+  llvm::Instruction *base_ptr;
 
   // Pointer to LClosure
   llvm::Value *p_LClosure;
