@@ -23,7 +23,7 @@ The project was kicked off in January 2015.
 
 JIT Implementation
 ++++++++++++++++++
-Right now (June 2015) I am working on the ``libgccjit`` based JIT implementation. 
+Right now (July 2015) I am working on the ``libgccjit`` based JIT implementation. 
 
 The LLVM JIT compiler is mostly functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
@@ -33,7 +33,7 @@ For performance benchmarks please visit the `Ravi Performance Benchmarks <http:/
 
 Optional Static Typing
 ++++++++++++++++++++++
-Ravi allows you to annotate local variables with static types. The supported types and the resulting behaviour are as follows:
+Ravi allows you to annotate ``local`` variables with static types. The supported types and the resulting behaviour are as follows:
 
 ``integer``
   denotes an integral value of 64-bits.
@@ -44,12 +44,14 @@ Ravi allows you to annotate local variables with static types. The supported typ
 ``number[]``
   denotes an array of numbers
 
-Declaring the types of variables has following advantages.
+Declaring the types of ``local`` variables has following advantages.
 
-* Variables declared with above types are automatically initialized to 0
+.. attention:: Currently function parameters cannot be decorated with types; this will be added in future. 
+
+* Local variables declared with above types are automatically initialized to 0
 * Arithmetic operations trigger type specific bytecodes which leads to more efficient JIT compilation
 * Specialised operators to get/set from arrays are implemented which makes array access more efficient in JIT mode as the access can be inlined
-* Values assigned to typed variables are checked statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime
+* Values assigned to typed variables are checked statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime (i.e. value is cast to the expected type - this can be exploited to work around the limitation that function parameter types cannot be specified)
 * The standard table operations on arrays are checked to ensure that the type is not subverted
 * Even if a typed variable is captured in a closure its type must be respected
 

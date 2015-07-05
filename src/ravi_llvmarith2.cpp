@@ -96,8 +96,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
       lua_assert(0);
     }
 
-    emit_store_reg_i(def, result, ra);
-    emit_store_type(def, ra, LUA_TNUMINT);
+    emit_store_reg_i_withtype(def, result, ra);
 
     def->builder->CreateBr(done_block);
 
@@ -205,8 +204,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
     lua_assert(0);
   }
 
-  emit_store_reg_n(def, result, ra);
-  emit_store_type(def, ra, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, result, ra);
 
   def->builder->CreateBr(done_block);
 
@@ -279,8 +277,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C) {
 
   llvm::Value *result =
       CreateCall3(def->builder, def->luaV_modF, def->L, lhs, rhs);
-  emit_store_reg_i(def, result, ra);
-  emit_store_type(def, ra, LUA_TNUMINT);
+  emit_store_reg_i_withtype(def, result, ra);
 
   def->builder->CreateBr(done_block);
 
@@ -400,8 +397,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C) {
 
   lhs = emit_load_local_n(def, nb);
 
-  emit_store_reg_n(def, lhs, ra);
-  emit_store_type(def, ra, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, lhs, ra);
 
   def->builder->CreateBr(done_block);
 
@@ -472,8 +468,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C) {
 
   llvm::Value *result =
       CreateCall3(def->builder, def->luaV_divF, def->L, lhs, rhs);
-  emit_store_reg_i(def, result, ra);
-  emit_store_type(def, ra, LUA_TNUMINT);
+  emit_store_reg_i_withtype(def, result, ra);
 
   def->builder->CreateBr(done_block);
 
@@ -563,8 +558,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C) {
   result = def->builder->CreateFDiv(lhs, rhs);
   llvm::Value *floor_result = def->builder->CreateCall(def->floorFunc, result);
 
-  emit_store_reg_n(def, floor_result, ra);
-  emit_store_type(def, ra, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, floor_result, ra);
 
   def->builder->CreateBr(done_block);
 
@@ -692,8 +686,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C) {
 
   llvm::Value *pow_result = CreateCall2(def->builder, def->powFunc, lhs, rhs);
 
-  emit_store_reg_n(def, pow_result, ra);
-  emit_store_type(def, ra, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, pow_result, ra);
 
   def->builder->CreateBr(done_block);
 
@@ -755,8 +748,7 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, int A, int B) {
   llvm::Instruction *lhs = emit_load_reg_i(def, rb);
   llvm::Value *result = def->builder->CreateNeg(lhs, "", false, true);
 
-  emit_store_reg_i(def, result, ra);
-  emit_store_type(def, ra, LUA_TNUMINT);
+  emit_store_reg_i_withtype(def, result, ra);
 
   def->builder->CreateBr(done_block);
 
@@ -805,8 +797,7 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, int A, int B) {
 
   result = def->builder->CreateFNeg(lhs);
 
-  emit_store_reg_n(def, result, ra);
-  emit_store_type(def, ra, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, result, ra);
 
   def->builder->CreateBr(done_block);
 

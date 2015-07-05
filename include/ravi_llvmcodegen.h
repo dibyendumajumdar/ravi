@@ -685,17 +685,23 @@ public:
   // emit code to store lua_Number value into register
   void emit_store_reg_n(RaviFunctionDef *def, llvm::Value *value,
                         llvm::Value *dest_ptr);
+  void emit_store_reg_n_withtype(RaviFunctionDef *def, llvm::Value *value,
+    llvm::Value *dest_ptr);
 
   // emit code to store lua_Integer value into register
   void emit_store_reg_i(RaviFunctionDef *def, llvm::Value *value,
                         llvm::Value *dest_ptr);
+  void emit_store_reg_i_withtype(RaviFunctionDef *def, llvm::Value *value,
+    llvm::Value *dest_ptr);
 
   // emit code to store bool value into register
   void emit_store_reg_b(RaviFunctionDef *def, llvm::Value *value,
                         llvm::Value *dest_ptr);
+  void emit_store_reg_b_withtype(RaviFunctionDef *def, llvm::Value *value,
+    llvm::Value *dest_ptr);
 
   // emit code to set the type in the register
-  void emit_store_type(RaviFunctionDef *def, llvm::Value *value, int type);
+  void emit_store_type_(RaviFunctionDef *def, llvm::Value *value, int type);
 
   // emit code to load the type from a register
   llvm::Instruction *emit_load_type(RaviFunctionDef *def, llvm::Value *value);
@@ -712,8 +718,7 @@ public:
   void emit_assign(RaviFunctionDef *def, llvm::Value *ra, llvm::Value *rb);
 
   // Get &upvals[offset] from LClosure
-  llvm::Value *emit_gep_upvals(RaviFunctionDef *def, llvm::Value *cl_ptr,
-                               int offset);
+  llvm::Value *emit_gep_upvals(RaviFunctionDef *def, int offset);
 
   // Load the &upvals[offset] -> result is UpVal*
   llvm::Instruction *emit_load_pupval(RaviFunctionDef *def,

@@ -107,8 +107,7 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def,int A, int B, int 
   llvm::Instruction *value = def->builder->CreateLoad(ptr);
   value->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pdoubleT);
 
-  emit_store_reg_n(def, value, ra);
-  emit_store_type(def, ra, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, value, ra);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(else_block);
@@ -162,8 +161,7 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B, int
   llvm::Instruction *value = def->builder->CreateLoad(ptr);
   value->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_plonglongT);
 
-  emit_store_reg_i(def, value, ra);
-  emit_store_type(def, ra, LUA_TNUMINT);
+  emit_store_reg_i_withtype(def, value, ra);
   def->builder->CreateBr(end_block);
 
   def->f->getBasicBlockList().push_back(else_block);
@@ -296,7 +294,7 @@ void RaviCodeGenerator::emit_GETUPVAL(RaviFunctionDef *def, int A, int B) {
   // setobj2s(L, ra, cl->upvals[b]->v);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, B);
+  llvm::Value *upval_ptr = emit_gep_upvals(def, B);
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
   llvm::Value *v = emit_load_upval_v(def, upval);
   emit_assign(def, ra, v);
@@ -311,7 +309,7 @@ void RaviCodeGenerator::emit_SETUPVAL(RaviFunctionDef *def, int A, int B) {
 
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, B);
+  llvm::Value *upval_ptr = emit_gep_upvals(def, B);
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
   llvm::Value *v = emit_load_upval_v(def, upval);
   emit_assign(def, v, ra);
@@ -350,7 +348,7 @@ void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C)
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
 
-  llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, B);
+  llvm::Value *upval_ptr = emit_gep_upvals(def, B);
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
   llvm::Value *v = emit_load_upval_v(def, upval);
   CreateCall4(def->builder, def->luaV_gettableF, def->L, v, rc, ra);
@@ -366,7 +364,7 @@ void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C)
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
 
-  llvm::Value *upval_ptr = emit_gep_upvals(def, def->p_LClosure, A);
+  llvm::Value *upval_ptr = emit_gep_upvals(def, A);
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
   llvm::Value *v = emit_load_upval_v(def, upval);
   CreateCall4(def->builder, def->luaV_settableF, def->L, v, rb, rc);

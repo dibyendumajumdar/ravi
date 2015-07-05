@@ -36,10 +36,8 @@ void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, int A) {
   emit_load_base(def);
   llvm::Value *dest = emit_gep_register(def, A);
   // destvalue->n = 0.0
-  emit_store_reg_n(def, llvm::ConstantFP::get(def->types->lua_NumberT, 0.0),
+  emit_store_reg_n_withtype(def, llvm::ConstantFP::get(def->types->lua_NumberT, 0.0),
                    dest);
-  // destvalue->type = LUA_TNUMFLT
-  emit_store_type(def, dest, LUA_TNUMFLT);
 }
 
 // R(A) := tointeger(0)
@@ -47,9 +45,7 @@ void RaviCodeGenerator::emit_LOADIZ(RaviFunctionDef *def, int A) {
   emit_load_base(def);
   llvm::Value *dest = emit_gep_register(def, A);
   // dest->i = 0
-  emit_store_reg_i(def, def->types->kluaInteger[0], dest);
-  // dest->type = LUA_TNUMINT
-  emit_store_type(def, dest, LUA_TNUMINT);
+  emit_store_reg_i_withtype(def, def->types->kluaInteger[0], dest);
 }
 
 // R(A) := (Bool)B; if (C) pc++
@@ -62,9 +58,7 @@ void RaviCodeGenerator::emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C,
   emit_load_base(def);
   llvm::Value *dest = emit_gep_register(def, A);
   // dest->i = 0
-  emit_store_reg_b(def, llvm::ConstantInt::get(def->types->C_intT, B), dest);
-  // dest->type = LUA_TBOOLEAN
-  emit_store_type(def, dest, LUA_TBOOLEAN);
+  emit_store_reg_b_withtype(def, llvm::ConstantInt::get(def->types->C_intT, B), dest);
   if (C) {
     // Skip next instruction if C
     def->builder->CreateBr(def->jmp_targets[j].jmp1);
@@ -154,8 +148,7 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, int A, int B) {
   def->builder->SetInsertPoint(end1);
 
   auto load_var = emit_load_local_n(def, var);
-  emit_store_reg_i(def, load_var, dest);
-  emit_store_type(def, dest, LUA_TNUMINT);
+  emit_store_reg_i_withtype(def, load_var, dest);
 }
 
 void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, int A, int B) {
@@ -226,8 +219,7 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, int A, int B) {
 
   // Set R(A)
   auto load_var = emit_load_local_n(def, var);
-  emit_store_reg_n(def, load_var, dest);
-  emit_store_type(def, dest, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, load_var, dest);
 }
 
 void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, int A) {
@@ -286,8 +278,7 @@ void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, int A) {
   def->builder->SetInsertPoint(else2);
 
   auto load_var = emit_load_local_n(def, var);
-  emit_store_reg_i(def, load_var, dest);
-  emit_store_type(def, dest, LUA_TNUMINT);
+  emit_store_reg_i_withtype(def, load_var, dest);
   def->builder->CreateBr(end1);
 
   def->f->getBasicBlockList().push_back(end1);
@@ -350,8 +341,7 @@ void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, int A) {
   def->builder->SetInsertPoint(else2);
 
   auto load_var = emit_load_local_n(def, var);
-  emit_store_reg_n(def, load_var, dest);
-  emit_store_type(def, dest, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, load_var, dest);
   def->builder->CreateBr(end1);
 
   def->f->getBasicBlockList().push_back(end1);

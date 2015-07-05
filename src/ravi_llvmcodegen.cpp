@@ -241,6 +241,13 @@ void RaviCodeGenerator::emit_store_reg_n(RaviFunctionDef *def,
 #endif
 }
 
+void RaviCodeGenerator::emit_store_reg_n_withtype(RaviFunctionDef *def,
+  llvm::Value *result,
+  llvm::Value *dest_ptr) {
+  emit_store_reg_n(def, result, dest_ptr);
+  emit_store_type_(def, dest_ptr, LUA_TNUMFLT);
+}
+
 void RaviCodeGenerator::emit_store_reg_i(RaviFunctionDef *def,
                                          llvm::Value *result,
                                          llvm::Value *dest_ptr) {
@@ -248,6 +255,13 @@ void RaviCodeGenerator::emit_store_reg_i(RaviFunctionDef *def,
       def->builder->CreateBitCast(dest_ptr, def->types->plua_IntegerT);
   llvm::Instruction *store = def->builder->CreateStore(result, ra_n);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
+}
+
+void RaviCodeGenerator::emit_store_reg_i_withtype(RaviFunctionDef *def,
+  llvm::Value *result,
+  llvm::Value *dest_ptr) {
+  emit_store_reg_i(def, result, dest_ptr);
+  emit_store_type_(def, dest_ptr, LUA_TNUMINT);
 }
 
 void RaviCodeGenerator::emit_store_reg_b(RaviFunctionDef *def,
@@ -259,7 +273,15 @@ void RaviCodeGenerator::emit_store_reg_b(RaviFunctionDef *def,
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 }
 
-void RaviCodeGenerator::emit_store_type(RaviFunctionDef *def,
+void RaviCodeGenerator::emit_store_reg_b_withtype(RaviFunctionDef *def,
+  llvm::Value *result,
+  llvm::Value *dest_ptr) {
+  emit_store_reg_b(def, result, dest_ptr);
+  emit_store_type_(def, dest_ptr, LUA_TBOOLEAN);
+}
+
+
+void RaviCodeGenerator::emit_store_type_(RaviFunctionDef *def,
                                         llvm::Value *value, int type) {
   lua_assert(type == LUA_TNUMFLT || type == LUA_TNUMINT ||
              type == LUA_TBOOLEAN);
@@ -901,9 +923,8 @@ void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
 }
 
 llvm::Value *RaviCodeGenerator::emit_gep_upvals(RaviFunctionDef *def,
-                                                llvm::Value *cl_ptr,
                                                 int offset) {
-  return emit_gep(def, "upvals", cl_ptr, 0, 6, offset);
+  return emit_gep(def, "upvals", def->p_LClosure, 0, 6, offset);
 }
 
 llvm::Instruction *RaviCodeGenerator::emit_load_pupval(RaviFunctionDef *def,

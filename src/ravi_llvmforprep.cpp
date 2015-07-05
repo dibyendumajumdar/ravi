@@ -525,8 +525,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, int A, int pc) {
   //    setivalue(plimit, ilimit);
   llvm::Instruction *ilimit_val = emit_load_local_n(def, ilimit);
 
-  emit_store_reg_i(def, ilimit_val, plimit);
-  emit_store_type(def, plimit, LUA_TNUMINT);
+  emit_store_reg_i_withtype(def, ilimit_val, plimit);
 
   //    setivalue(init, initv - ivalue(pstep));
   // we aleady know init is LUA_TNUMINT

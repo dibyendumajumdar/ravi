@@ -202,8 +202,7 @@ void RaviCodeGenerator::emit_NOT(RaviFunctionDef *def, int A, int B) {
   llvm::Value *v = emit_boolean_testfalse(def, rb, false);
   llvm::Value *result = def->builder->CreateZExt(v, def->types->C_intT, "i");
   llvm::Value *ra = emit_gep_register(def, A);
-  emit_store_reg_b(def, result, ra);
-  emit_store_type(def, ra, LUA_TBOOLEAN);
+  emit_store_reg_b_withtype(def, result, ra);
 }
 
 void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,

@@ -126,8 +126,7 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, int A, int pc,
   //    setivalue(ra + 3, idx);  /* ...and external index */
   idx_int_value = emit_load_local_n(def, idx_int_ptr);
 
-  emit_store_reg_i(def, idx_int_value, rvar);
-  emit_store_type(def, rvar, LUA_TNUMINT);
+  emit_store_reg_i_withtype(def, idx_int_value, rvar);
 
   //    ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);
@@ -193,8 +192,7 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, int A, int pc,
   //    setfltvalue(ra + 3, idx);  /* ...and external index */
   idx_double_value = emit_load_local_n(def, idx_double_ptr);
 
-  emit_store_reg_n(def, idx_double_value, rvar);
-  emit_store_type(def, rvar, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, idx_double_value, rvar);
 
   //    ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);
@@ -309,8 +307,7 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, int A, int pc) {
   emit_store_reg_i(def, new_idx, rinit);
 
   //    setivalue(ra + 3, idx);  /* ...and external index */
-  emit_store_reg_i(def, new_idx, rvar);
-  emit_store_type(def, rvar, LUA_TNUMINT);
+  emit_store_reg_i_withtype(def, new_idx, rvar);
 
   //    ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);
@@ -371,8 +368,7 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, int A, int pc) {
   emit_store_reg_n(def, new_idx, rinit);
 
   //    setfltvalue(ra + 3, idx);  /* ...and external index */
-  emit_store_reg_n(def, new_idx, rvar);
-  emit_store_type(def, rvar, LUA_TNUMFLT);
+  emit_store_reg_n_withtype(def, new_idx, rvar);
 
   //    ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);
@@ -448,8 +444,7 @@ void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, int A, int pc, RaviB
   //    setivalue(ra + 3, idx);  /* ...and external index */
   idx_int_value = emit_load_local_n(def, idx_int_ptr);
 
-  emit_store_reg_i(def, idx_int_value, rvar);
-  emit_store_type(def, rvar, LUA_TNUMINT);
+  emit_store_reg_i_withtype(def, idx_int_value, rvar);
 
   //    ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);
