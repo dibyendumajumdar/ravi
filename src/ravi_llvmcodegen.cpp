@@ -121,8 +121,7 @@ RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def,
 
 // Retrieve the proto->sizep
 llvm::Instruction *
-RaviCodeGenerator::emit_load_proto_sizep(RaviFunctionDef *def,
-                                         llvm::Value *proto_ptr) {
+RaviCodeGenerator::emit_load_proto_sizep(RaviFunctionDef *def) {
   llvm::Value *psize_ptr = emit_gep(def, "sizep", def->proto_ptr, 0, 10);
   // Load sizep
   llvm::Instruction *psize = def->builder->CreateLoad(psize_ptr);
@@ -142,6 +141,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_base(RaviFunctionDef *def) {
   llvm::Instruction *base_ptr = def->builder->CreateLoad(def->Ci_base);
   base_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
                         def->types->tbaa_luaState_ci_baseT);
+  def->base_ptr = base_ptr;
   return base_ptr;
 }
 
