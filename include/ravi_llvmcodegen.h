@@ -69,26 +69,24 @@ extern "C" {
 
 namespace ravi {
 
-  enum LuaTypeCode {
-    LUA__TNIL = LUA_TNIL,
-    LUA__TBOOLEAN = LUA_TBOOLEAN,
-    LUA__TLIGHTUSERDATA = LUA_TLIGHTUSERDATA,
-    LUA__TNUMBER = LUA_TNUMBER,
-    LUA__TSTRING = ctb(LUA_TSTRING),
-    LUA__TTABLE = ctb(LUA_TTABLE),
-    LUA__TFUNCTION = ctb(LUA_TFUNCTION),
-    LUA__TUSERDATA = ctb(LUA_TUSERDATA),
-    LUA__TTHREAD = ctb(LUA_TTHREAD),
-    LUA__TLCL = ctb(LUA_TLCL),
-    LUA__TLCF = LUA_TLCF,
-    LUA__TCCL = ctb(LUA_TCCL),
-    LUA__TSHRSTR = ctb(LUA_TSHRSTR),
-    LUA__TLNGSTR = ctb(LUA_TLNGSTR),
-    LUA__TNUMFLT = LUA_TNUMFLT,
-    LUA__TNUMINT = LUA_TNUMINT 
-  };
-
-
+enum LuaTypeCode {
+  LUA__TNIL = LUA_TNIL,
+  LUA__TBOOLEAN = LUA_TBOOLEAN,
+  LUA__TLIGHTUSERDATA = LUA_TLIGHTUSERDATA,
+  LUA__TNUMBER = LUA_TNUMBER,
+  LUA__TSTRING = ctb(LUA_TSTRING),
+  LUA__TTABLE = ctb(LUA_TTABLE),
+  LUA__TFUNCTION = ctb(LUA_TFUNCTION),
+  LUA__TUSERDATA = ctb(LUA_TUSERDATA),
+  LUA__TTHREAD = ctb(LUA_TTHREAD),
+  LUA__TLCL = ctb(LUA_TLCL),
+  LUA__TLCF = LUA_TLCF,
+  LUA__TCCL = ctb(LUA_TCCL),
+  LUA__TSHRSTR = ctb(LUA_TSHRSTR),
+  LUA__TLNGSTR = ctb(LUA_TLNGSTR),
+  LUA__TNUMFLT = LUA_TNUMFLT,
+  LUA__TNUMINT = LUA_TNUMINT
+};
 
 // All Lua types are gathered here
 struct LuaLLVMTypes {
@@ -538,7 +536,7 @@ struct RaviFunctionDef {
 
   // Obtain pointer to Proto->k
   llvm::Value *proto_k;
-  // Load pointer to Proto->k; this does not change 
+  // Load pointer to Proto->k; this does not change
   llvm::Instruction *k_ptr;
 
   // Load L->ci
@@ -618,21 +616,24 @@ public:
                                          llvm::Value *src);
 
   // Test if value type is of specific Lua type
-  // Value_type should have been obtained by emit_load_type() 
+  // Value_type should have been obtained by emit_load_type()
   // The Lua typecode to check must be in lua_typecode
-  // The return value is a boolean type as a result of 
+  // The return value is a boolean type as a result of
   // integer comparison result which is i1 in LLVM
-  llvm::Value *emit_is_value_of_type(RaviFunctionDef *def, llvm::Value *value_type,
-    LuaTypeCode lua_typecode, const char *varname = "value.typeof");
+  llvm::Value *emit_is_value_of_type(RaviFunctionDef *def,
+                                     llvm::Value *value_type,
+                                     LuaTypeCode lua_typecode,
+                                     const char *varname = "value.typeof");
 
   // Test if value type is NOT of specific Lua type
-  // Value_type should have been obtained by emit_load_type() 
+  // Value_type should have been obtained by emit_load_type()
   // The Lua typecode to check must be in lua_typecode
-  // The return value is a boolean type as a result of 
+  // The return value is a boolean type as a result of
   // integer comparison result which is i1 in LLVM
-  llvm::Value *emit_is_not_value_of_type(RaviFunctionDef *def, llvm::Value *value_type,
-    LuaTypeCode lua_typecode, const char *varname = "value.not.typeof");
-
+  llvm::Value *
+  emit_is_not_value_of_type(RaviFunctionDef *def, llvm::Value *value_type,
+                            LuaTypeCode lua_typecode,
+                            const char *varname = "value.not.typeof");
 
   // emit code for (LClosure *)ci->func->value_.gc
   llvm::Value *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def);
@@ -660,7 +661,8 @@ public:
   llvm::Value *emit_gep_L_top(RaviFunctionDef *def);
 
   // (int)(L->top - ra)
-  llvm::Value *emit_num_stack_elements(RaviFunctionDef *def, llvm::Value *L_top, llvm::Value *ra);
+  llvm::Value *emit_num_stack_elements(RaviFunctionDef *def, llvm::Value *L_top,
+                                       llvm::Value *ra);
 
   // emit code to load the lua_Number value from register
   llvm::Instruction *emit_load_reg_n(RaviFunctionDef *def, llvm::Value *ra);
@@ -686,19 +688,19 @@ public:
   void emit_store_reg_n(RaviFunctionDef *def, llvm::Value *value,
                         llvm::Value *dest_ptr);
   void emit_store_reg_n_withtype(RaviFunctionDef *def, llvm::Value *value,
-    llvm::Value *dest_ptr);
+                                 llvm::Value *dest_ptr);
 
   // emit code to store lua_Integer value into register
   void emit_store_reg_i(RaviFunctionDef *def, llvm::Value *value,
                         llvm::Value *dest_ptr);
   void emit_store_reg_i_withtype(RaviFunctionDef *def, llvm::Value *value,
-    llvm::Value *dest_ptr);
+                                 llvm::Value *dest_ptr);
 
   // emit code to store bool value into register
   void emit_store_reg_b(RaviFunctionDef *def, llvm::Value *value,
                         llvm::Value *dest_ptr);
   void emit_store_reg_b_withtype(RaviFunctionDef *def, llvm::Value *value,
-    llvm::Value *dest_ptr);
+                                 llvm::Value *dest_ptr);
 
   // emit code to set the type in the register
   void emit_store_type_(RaviFunctionDef *def, llvm::Value *value, int type);
@@ -777,7 +779,8 @@ public:
 
   void emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C, int j);
 
-  void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms);
+  void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op,
+                  TMS tms);
 
   void emit_MOD(RaviFunctionDef *def, int A, int B, int C);
 
@@ -899,7 +902,8 @@ public:
   // A, B, C must be operands of the OP_EQ/OP_LT/OP_LE instructions
   // j must be the jump target (offset of the code to which we need to jump to)
   // jA must be the A operand of the jump instruction
-  void emit_EQ(RaviFunctionDef *def, int A, int B, int C, int j, int jA, llvm::Constant *callee);
+  void emit_EQ(RaviFunctionDef *def, int A, int B, int C, int j, int jA,
+               llvm::Constant *callee);
 
   // OP_TEST is followed by a OP_JMP instruction - both are handled
   // together
@@ -923,16 +927,18 @@ public:
 
   void emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B, int C);
 
-  void emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B, int C, bool known_int);
+  void emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B, int C,
+                        bool known_int);
 
-  void emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B, int C, bool known_float);
+  void emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B, int C,
+                        bool known_float);
 
   void emit_MOVEAI(RaviFunctionDef *def, int A, int B);
 
   void emit_MOVEAF(RaviFunctionDef *def, int A, int B);
 
-  void emit_TOARRAY(RaviFunctionDef *def, int A,
-                                  int array_type_expected, const char *errmsg);
+  void emit_TOARRAY(RaviFunctionDef *def, int A, int array_type_expected,
+                    const char *errmsg);
 
 private:
   RaviJITStateImpl *jitState_;

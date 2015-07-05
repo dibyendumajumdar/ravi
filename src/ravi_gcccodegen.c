@@ -163,8 +163,9 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   if (def->dump_asm) {
     gcc_jit_context_set_bool_option(def->function_context,
                                     GCC_JIT_BOOL_OPTION_DUMP_GENERATED_CODE, 1);
-//    gcc_jit_context_set_bool_option(def->function_context,
-//                                    GCC_JIT_BOOL_OPTION_DUMP_INITIAL_TREE, 1);
+    //    gcc_jit_context_set_bool_option(def->function_context,
+    //                                    GCC_JIT_BOOL_OPTION_DUMP_INITIAL_TREE,
+    //                                    1);
     gcc_jit_context_set_bool_option(def->function_context,
                                     GCC_JIT_BOOL_OPTION_DUMP_INITIAL_GIMPLE, 1);
   }
@@ -172,7 +173,8 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   gcc_jit_context_set_int_option(def->function_context,
                                  GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL,
                                  def->opt_level);
-  gcc_jit_context_add_command_line_option(def->function_context, "-fno-strict-aliasing");
+  gcc_jit_context_add_command_line_option(def->function_context,
+                                          "-fno-strict-aliasing");
 
   /* each function is given a unique name - as Lua functions are closures and do
    * not really have names */
@@ -679,10 +681,9 @@ static void link_block(ravi_function_def_t *def, int pc) {
     }
     // Now add the new block and make it current
     ravi_set_current_block(def, block);
-  }
-  else if (def->current_block_terminated) {
+  } else if (def->current_block_terminated) {
     gcc_jit_block *block = gcc_jit_function_new_block(
-            def->jit_function, unique_name(def, "LINK_BLOCK", pc));
+        def->jit_function, unique_name(def, "LINK_BLOCK", pc));
     ravi_set_current_block(def, block);
   }
 }
@@ -756,14 +757,14 @@ gcc_jit_rvalue *ravi_emit_get_upvals(ravi_function_def_t *def, int offset) {
 
 // Get upval->v
 gcc_jit_lvalue *ravi_emit_load_upval_v(ravi_function_def_t *def,
-                                      gcc_jit_rvalue *pupval) {
+                                       gcc_jit_rvalue *pupval) {
   return gcc_jit_rvalue_dereference_field(pupval, NULL,
                                           def->ravi->types->UpVal_v);
 }
 
 // Get upval->u.value
 gcc_jit_lvalue *ravi_emit_load_upval_value(ravi_function_def_t *def,
-                                          gcc_jit_rvalue *pupval) {
+                                           gcc_jit_rvalue *pupval) {
   gcc_jit_lvalue *u =
       gcc_jit_rvalue_dereference_field(pupval, NULL, def->ravi->types->UpVal_u);
   return gcc_jit_lvalue_access_field(u, NULL, def->ravi->types->UpVal_u_value);
@@ -790,27 +791,29 @@ void ravi_emit_conditional_branch(ravi_function_def_t *def,
   def->current_block_terminated = true;
 }
 
-gcc_jit_lvalue *ravi_emit_tonumtype(ravi_function_def_t *def, gcc_jit_rvalue *reg, lua_typecode_t tt, int pc) {
+gcc_jit_lvalue *ravi_emit_tonumtype(ravi_function_def_t *def,
+                                    gcc_jit_rvalue *reg, lua_typecode_t tt,
+                                    int pc) {
 
-  gcc_jit_lvalue *value = gcc_jit_function_new_local(def->jit_function, NULL,
-                                                     tt == LUA__TNUMFLT ?
-                                                     def->ravi->types->lua_NumberT :
-                                                     def->ravi->types->lua_IntegerT,
-                                                     unique_name(def, "value", pc));
+  gcc_jit_lvalue *value = gcc_jit_function_new_local(
+      def->jit_function, NULL,
+      tt == LUA__TNUMFLT ? def->ravi->types->lua_NumberT
+                         : def->ravi->types->lua_IntegerT,
+      unique_name(def, "value", pc));
   gcc_jit_lvalue *reg_type = ravi_emit_load_type(def, reg);
 
   // Is reg an number?
   gcc_jit_rvalue *cmp1 =
-          ravi_emit_is_value_of_type(def, gcc_jit_lvalue_as_rvalue(reg_type), tt);
+      ravi_emit_is_value_of_type(def, gcc_jit_lvalue_as_rvalue(reg_type), tt);
 
-  gcc_jit_block *convert_reg =
-          gcc_jit_function_new_block(def->jit_function, unique_name(def, "convert_reg", pc));
-  gcc_jit_block *copy_reg =
-          gcc_jit_function_new_block(def->jit_function, unique_name(def, "copy_reg", pc));
-  gcc_jit_block *load_val =
-          gcc_jit_function_new_block(def->jit_function, unique_name(def, "load_val", pc));
-  gcc_jit_block *failed_conversion = gcc_jit_function_new_block(def->jit_function,
-                                                                unique_name(def, "if_conversion_failed", pc));
+  gcc_jit_block *convert_reg = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "convert_reg", pc));
+  gcc_jit_block *copy_reg = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "copy_reg", pc));
+  gcc_jit_block *load_val = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "load_val", pc));
+  gcc_jit_block *failed_conversion = gcc_jit_function_new_block(
+      def->jit_function, unique_name(def, "if_conversion_failed", pc));
 
   // If reg is integer then copy reg, else convert reg
   ravi_emit_conditional_branch(def, cmp1, copy_reg, convert_reg);
@@ -819,35 +822,38 @@ gcc_jit_lvalue *ravi_emit_tonumtype(ravi_function_def_t *def, gcc_jit_rvalue *re
   ravi_set_current_block(def, convert_reg);
 
   // Do the conversion
-  gcc_jit_rvalue *var_istt =
-          ravi_function_call2_rvalue(def, tt == LUA__TNUMFLT ? def->ravi->types->luaV_tonumberT
-                                                             : def->ravi->types->luaV_tointegerT,
-                                     reg, gcc_jit_lvalue_get_address(value, NULL));
+  gcc_jit_rvalue *var_istt = ravi_function_call2_rvalue(
+      def, tt == LUA__TNUMFLT ? def->ravi->types->luaV_tonumberT
+                              : def->ravi->types->luaV_tointegerT,
+      reg, gcc_jit_lvalue_get_address(value, NULL));
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
-          def->function_context, def->ravi->types->C_intT, 0);
-  gcc_jit_rvalue *conversion_failed = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ,
-                                                           var_istt, zero);
+      def->function_context, def->ravi->types->C_intT, 0);
+  gcc_jit_rvalue *conversion_failed =
+      ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, var_istt, zero);
 
   // Did conversion fail?
-  ravi_emit_conditional_branch(def, conversion_failed, failed_conversion, load_val);
+  ravi_emit_conditional_branch(def, conversion_failed, failed_conversion,
+                               load_val);
 
   // Conversion failed, so raise error
   ravi_set_current_block(def, failed_conversion);
-  ravi_emit_raise_lua_error(def, tt == LUA__TNUMFLT ? "number expected" : "integer expected");
+  ravi_emit_raise_lua_error(def, tt == LUA__TNUMFLT ? "number expected"
+                                                    : "integer expected");
   ravi_emit_branch(def, load_val);
 
   // Conversion OK
   ravi_set_current_block(def, copy_reg);
 
-  gcc_jit_lvalue *i = tt == LUA__TNUMFLT ? ravi_emit_load_reg_n(def, reg) : ravi_emit_load_reg_i(def, reg);
-  gcc_jit_block_add_assignment(def->current_block, NULL, value, gcc_jit_lvalue_as_rvalue(i));
+  gcc_jit_lvalue *i = tt == LUA__TNUMFLT ? ravi_emit_load_reg_n(def, reg)
+                                         : ravi_emit_load_reg_i(def, reg);
+  gcc_jit_block_add_assignment(def->current_block, NULL, value,
+                               gcc_jit_lvalue_as_rvalue(i));
   ravi_emit_branch(def, load_val);
 
   ravi_set_current_block(def, load_val);
 
   return value;
 }
-
 
 static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi,
                      Proto *p) {
@@ -1304,13 +1310,15 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     case OP_RAVI_SETTABLE_AI: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      ravi_emit_SETTABLE_AI_AF(&def, A, B, C, op == OP_RAVI_SETTABLE_AII, LUA__TNUMINT, pc);
+      ravi_emit_SETTABLE_AI_AF(&def, A, B, C, op == OP_RAVI_SETTABLE_AII,
+                               LUA__TNUMINT, pc);
     } break;
     case OP_RAVI_SETTABLE_AFF:
     case OP_RAVI_SETTABLE_AF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      ravi_emit_SETTABLE_AI_AF(&def, A, B, C, op == OP_RAVI_SETTABLE_AFF, LUA__TNUMFLT, pc);
+      ravi_emit_SETTABLE_AI_AF(&def, A, B, C, op == OP_RAVI_SETTABLE_AFF,
+                               LUA__TNUMFLT, pc);
     } break;
 
     case OP_ADD: {
@@ -1348,7 +1356,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   if (gcc_jit_context_get_first_error(def.function_context)) {
     fprintf(stderr, "aborting due to JIT error: %s\n",
             gcc_jit_context_get_first_error(def.function_context));
-    ravi_print_function(p,1);
+    ravi_print_function(p, 1);
     abort();
   }
   gcc_jit_result *compilation_result =
@@ -1409,41 +1417,47 @@ void ravi_debug_printf2(ravi_function_def_t *def, const char *str,
 }
 
 void ravi_debug_printf3(ravi_function_def_t *def, const char *str,
-                        gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2, gcc_jit_rvalue *arg3) {
+                        gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2,
+                        gcc_jit_rvalue *arg3) {
   gcc_jit_block_add_eval(
-          def->current_block, NULL,
-          ravi_function_call4_rvalue(
-                  def, def->ravi->types->printfT,
-                  gcc_jit_context_new_string_literal(def->function_context, str), arg1,
-                  arg2, arg3));
+      def->current_block, NULL,
+      ravi_function_call4_rvalue(
+          def, def->ravi->types->printfT,
+          gcc_jit_context_new_string_literal(def->function_context, str), arg1,
+          arg2, arg3));
 }
 
 void ravi_debug_printf4(ravi_function_def_t *def, const char *str,
-                        gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2, gcc_jit_rvalue *arg3, gcc_jit_rvalue *arg4) {
+                        gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2,
+                        gcc_jit_rvalue *arg3, gcc_jit_rvalue *arg4) {
   gcc_jit_block_add_eval(
-          def->current_block, NULL,
-          ravi_function_call5_rvalue(
-                  def, def->ravi->types->printfT,
-                  gcc_jit_context_new_string_literal(def->function_context, str), arg1,
-                  arg2, arg3, arg4));
+      def->current_block, NULL,
+      ravi_function_call5_rvalue(
+          def, def->ravi->types->printfT,
+          gcc_jit_context_new_string_literal(def->function_context, str), arg1,
+          arg2, arg3, arg4));
 }
 
 gcc_jit_rvalue *ravi_int_constant(ravi_function_def_t *def, int value) {
-  return gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_intT, value);
+  return gcc_jit_context_new_rvalue_from_int(def->function_context,
+                                             def->ravi->types->C_intT, value);
 }
 
 gcc_jit_rvalue *ravi_bool_constant(ravi_function_def_t *def, int value) {
-  return gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_boolT, value ? 1 : 0);
+  return gcc_jit_context_new_rvalue_from_int(
+      def->function_context, def->ravi->types->C_boolT, value ? 1 : 0);
 }
 
 gcc_jit_rvalue *ravi_lua_Integer_constant(ravi_function_def_t *def, int value) {
-  return gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->lua_IntegerT, value);
+  return gcc_jit_context_new_rvalue_from_int(
+      def->function_context, def->ravi->types->lua_IntegerT, value);
 }
 
-gcc_jit_rvalue *ravi_lua_Number_constant(ravi_function_def_t *def, double value) {
-  return gcc_jit_context_new_rvalue_from_double(def->function_context, def->ravi->types->lua_NumberT, value);
+gcc_jit_rvalue *ravi_lua_Number_constant(ravi_function_def_t *def,
+                                         double value) {
+  return gcc_jit_context_new_rvalue_from_double(
+      def->function_context, def->ravi->types->lua_NumberT, value);
 }
-
 
 // Free the JIT compiled function
 // Note that this is called by the garbage collector

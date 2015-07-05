@@ -116,7 +116,10 @@ void ravi_emit_LOADBOOL(ravi_function_def_t *def, int A, int B, int C, int j,
   // setbvalue(ra, GETARG_B(i));
   // if (GETARG_C(i)) ci->u.l.savedpc++;  /* skip next instruction (if C) */
 
-//  ravi_debug_printf4(def, "LOADBOOL(pc=%d) set reg(A=%d) to boolean(B=%d); if ((C=%d) != 0) skip next\n", ravi_int_constant(def, pc+1), ravi_int_constant(def, A), ravi_int_constant(def, B), ravi_int_constant(def, C));
+  //  ravi_debug_printf4(def, "LOADBOOL(pc=%d) set reg(A=%d) to boolean(B=%d);
+  //  if ((C=%d) != 0) skip next\n", ravi_int_constant(def, pc+1),
+  //  ravi_int_constant(def, A), ravi_int_constant(def, B),
+  //  ravi_int_constant(def, C));
   // Load pointer to base
   ravi_emit_load_base(def);
   // ra

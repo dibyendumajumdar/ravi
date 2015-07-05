@@ -144,8 +144,7 @@ void RaviCodeGenerator::emit_load_base(RaviFunctionDef *def) {
 }
 
 // emit code to obtain address of register at location A
-llvm::Value *RaviCodeGenerator::emit_gep_register(RaviFunctionDef *def,
-                                                  int A) {
+llvm::Value *RaviCodeGenerator::emit_gep_register(RaviFunctionDef *def, int A) {
   llvm::Value *dest;
   if (A == 0) {
     // If A is 0 we can use the base pointer which is &base[0]
@@ -242,8 +241,8 @@ void RaviCodeGenerator::emit_store_reg_n(RaviFunctionDef *def,
 }
 
 void RaviCodeGenerator::emit_store_reg_n_withtype(RaviFunctionDef *def,
-  llvm::Value *result,
-  llvm::Value *dest_ptr) {
+                                                  llvm::Value *result,
+                                                  llvm::Value *dest_ptr) {
   emit_store_reg_n(def, result, dest_ptr);
   emit_store_type_(def, dest_ptr, LUA_TNUMFLT);
 }
@@ -258,8 +257,8 @@ void RaviCodeGenerator::emit_store_reg_i(RaviFunctionDef *def,
 }
 
 void RaviCodeGenerator::emit_store_reg_i_withtype(RaviFunctionDef *def,
-  llvm::Value *result,
-  llvm::Value *dest_ptr) {
+                                                  llvm::Value *result,
+                                                  llvm::Value *dest_ptr) {
   emit_store_reg_i(def, result, dest_ptr);
   emit_store_type_(def, dest_ptr, LUA_TNUMINT);
 }
@@ -274,15 +273,14 @@ void RaviCodeGenerator::emit_store_reg_b(RaviFunctionDef *def,
 }
 
 void RaviCodeGenerator::emit_store_reg_b_withtype(RaviFunctionDef *def,
-  llvm::Value *result,
-  llvm::Value *dest_ptr) {
+                                                  llvm::Value *result,
+                                                  llvm::Value *dest_ptr) {
   emit_store_reg_b(def, result, dest_ptr);
   emit_store_type_(def, dest_ptr, LUA_TBOOLEAN);
 }
 
-
 void RaviCodeGenerator::emit_store_type_(RaviFunctionDef *def,
-                                        llvm::Value *value, int type) {
+                                         llvm::Value *value, int type) {
   lua_assert(type == LUA_TNUMFLT || type == LUA_TNUMINT ||
              type == LUA_TBOOLEAN);
 #if RAVI_NAN_TAGGING
@@ -418,8 +416,8 @@ llvm::Instruction *RaviCodeGenerator::emit_load_local_int(RaviFunctionDef *def,
 }
 
 // emit code to obtain address of register or constant at location B
-llvm::Value *RaviCodeGenerator::emit_gep_register_or_constant(
-    RaviFunctionDef *def, int B) {
+llvm::Value *
+RaviCodeGenerator::emit_gep_register_or_constant(RaviFunctionDef *def, int B) {
   // Load pointer to k
   llvm::Value *k_ptr = def->k_ptr;
   llvm::Value *rb;
@@ -458,8 +456,7 @@ llvm::Value *RaviCodeGenerator::emit_gep_L_top(RaviFunctionDef *def) {
 }
 
 // L->top = R(B)
-void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def,
-                                             int B) {
+void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def, int B) {
   // Get pointer to register at R(B)
   llvm::Value *ptr = emit_gep_register(def, B);
   // Get pointer to L->top
@@ -470,7 +467,7 @@ void RaviCodeGenerator::emit_set_L_top_toreg(RaviFunctionDef *def,
 }
 
 llvm::Instruction *RaviCodeGenerator::emit_tointeger(RaviFunctionDef *def,
-                                               llvm::Value *reg) {
+                                                     llvm::Value *reg) {
   llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
   llvm::Value *value =
       TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "value");
@@ -525,7 +522,7 @@ llvm::Instruction *RaviCodeGenerator::emit_tointeger(RaviFunctionDef *def,
 }
 
 llvm::Instruction *RaviCodeGenerator::emit_tofloat(RaviFunctionDef *def,
-                                             llvm::Value *reg) {
+                                                   llvm::Value *reg) {
   llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
   llvm::Value *value =
       TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "value");
@@ -1214,8 +1211,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
     case OP_RAVI_FORLOOP_IP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
-      emit_iFORLOOP(def, A, j, def->jmp_targets[pc],
-                    op == OP_RAVI_FORLOOP_I1);
+      emit_iFORLOOP(def, A, j, def->jmp_targets[pc], op == OP_RAVI_FORLOOP_I1);
     } break;
     case OP_FORLOOP: {
       int sbx = GETARG_sBx(i);

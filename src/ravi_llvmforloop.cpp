@@ -69,19 +69,16 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, int A, int pc,
   // INTEGER CASE
 
   //  lua_Integer step = ivalue(ra + 2);
-  llvm::Instruction *step_int_value =
-      emit_load_local_n(def, step_int_ptr);
+  llvm::Instruction *step_int_value = emit_load_local_n(def, step_int_ptr);
 
   //  lua_Integer idx = ivalue(ra) + step; /* increment index */
-  llvm::Instruction *idx_int_value =
-      emit_load_local_n(def, idx_int_ptr);
+  llvm::Instruction *idx_int_value = emit_load_local_n(def, idx_int_ptr);
   llvm::Value *new_idx = def->builder->CreateAdd(step_int_value, idx_int_value,
                                                  "next.idx", false, true);
   emit_store_local_n(def, new_idx, idx_int_ptr);
 
   // lua_Integer limit = ivalue(ra + 1);
-  llvm::Instruction *limit_int_value =
-      emit_load_local_n(def, limit_int_ptr);
+  llvm::Instruction *limit_int_value = emit_load_local_n(def, limit_int_ptr);
 
   // idx > limit?
   llvm::Value *new_idx_gt_limit =
@@ -141,8 +138,7 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, int A, int pc,
       emit_load_local_n(def, step_double_ptr);
 
   //  lua_Number idx = luai_numadd(L, fltvalue(ra), step); /* inc. index */
-  llvm::Instruction *idx_double_value =
-      emit_load_local_n(def, idx_double_ptr);
+  llvm::Instruction *idx_double_value = emit_load_local_n(def, idx_double_ptr);
   new_idx =
       def->builder->CreateFAdd(step_double_value, idx_double_value, "next.idx");
   emit_store_local_n(def, new_idx, idx_double_ptr);
@@ -199,7 +195,6 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, int A, int pc,
 
   def->f->getBasicBlockList().push_back(exit_block);
   def->builder->SetInsertPoint(exit_block);
-
 }
 
 void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, int A, int pc) {
@@ -245,7 +240,8 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, int A, int pc) {
 
   // Is index an integer?
   llvm::Instruction *rinit_tt = emit_load_type(def, rinit);
-  llvm::Value *cmp1 = emit_is_value_of_type(def, rinit_tt, LUA__TNUMINT, "init.is.integer");
+  llvm::Value *cmp1 =
+      emit_is_value_of_type(def, rinit_tt, LUA__TNUMINT, "init.is.integer");
 
   // Setup if then else branch for integer
   llvm::BasicBlock *if_integer =
@@ -377,7 +373,8 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, int A, int pc) {
   def->builder->SetInsertPoint(exit_block);
 }
 
-void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, int A, int pc, RaviBranchDef &b, int step_one) {
+void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, int A, int pc,
+                                      RaviBranchDef &b, int step_one) {
 
   //  lua_Integer step = ivalue(ra + 2);
   //  lua_Integer idx = ivalue(ra) + step; /* increment index */
@@ -397,39 +394,35 @@ void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, int A, int pc, RaviB
 
   // Create the done block
   llvm::BasicBlock *exit_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "exit_iforloop");
+      llvm::BasicBlock::Create(def->jitState->context(), "exit_iforloop");
 
   //  lua_Integer idx = ivalue(ra) + step; /* increment index */
-  llvm::Instruction *idx_int_value =
-    emit_load_local_n(def, idx_int_ptr);
+  llvm::Instruction *idx_int_value = emit_load_local_n(def, idx_int_ptr);
   llvm::Value *new_idx;
 
   if (!step_one) {
     //  lua_Integer step = ivalue(ra + 2);
     llvm::Value *step_int_ptr = b.istep;
-    llvm::Instruction *step_int_value =
-      emit_load_local_n(def, step_int_ptr);
-    new_idx = def->builder->CreateAdd(step_int_value, idx_int_value,
-      "next.idx", false, true);
-  }
-  else
+    llvm::Instruction *step_int_value = emit_load_local_n(def, step_int_ptr);
+    new_idx = def->builder->CreateAdd(step_int_value, idx_int_value, "next.idx",
+                                      false, true);
+  } else
     new_idx = def->builder->CreateAdd(def->types->kluaInteger[1], idx_int_value,
-    "next.idx", false, true);
-  
+                                      "next.idx", false, true);
+
   // save new index
   emit_store_local_n(def, new_idx, idx_int_ptr);
 
   // lua_Integer limit = ivalue(ra + 1);
-  llvm::Instruction *limit_int_value =
-    emit_load_local_n(def, limit_int_ptr);
+  llvm::Instruction *limit_int_value = emit_load_local_n(def, limit_int_ptr);
 
   // idx > limit?
   llvm::Value *new_idx_gt_limit =
-    def->builder->CreateICmpSGT(new_idx, limit_int_value, "idx.gt.limit");
+      def->builder->CreateICmpSGT(new_idx, limit_int_value, "idx.gt.limit");
 
   // If idx > limit we are done
   llvm::BasicBlock *update_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "updatei");
+      llvm::BasicBlock::Create(def->jitState->context(), "updatei");
   def->builder->CreateCondBr(new_idx_gt_limit, exit_block, update_block);
 
   // Merge into update block
@@ -451,7 +444,5 @@ void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, int A, int pc, RaviB
 
   def->f->getBasicBlockList().push_back(exit_block);
   def->builder->SetInsertPoint(exit_block);
-
 }
-
 }

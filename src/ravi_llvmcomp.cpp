@@ -26,8 +26,8 @@ namespace ravi {
 
 // Although the name is EQ this actually
 // implements EQ, LE and LT - by using the supplied lua function to call.
-void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C, int j,
-                                int jA, llvm::Constant *callee) {
+void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
+                                int j, int jA, llvm::Constant *callee) {
   //  case OP_EQ: {
   //    TValue *rb = RKB(i);
   //    TValue *rc = RKC(i);
@@ -71,7 +71,7 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C, int j
     emit_load_base(def);
 
     // base + a - 1
-    llvm::Value *val = emit_gep_register(def, jA-1);
+    llvm::Value *val = emit_gep_register(def, jA - 1);
 
     // Call luaF_close
     CreateCall2(def->builder, def->luaF_closeF, def->L, val);

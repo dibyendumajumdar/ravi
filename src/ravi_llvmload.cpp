@@ -36,8 +36,8 @@ void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, int A) {
   emit_load_base(def);
   llvm::Value *dest = emit_gep_register(def, A);
   // destvalue->n = 0.0
-  emit_store_reg_n_withtype(def, llvm::ConstantFP::get(def->types->lua_NumberT, 0.0),
-                   dest);
+  emit_store_reg_n_withtype(
+      def, llvm::ConstantFP::get(def->types->lua_NumberT, 0.0), dest);
 }
 
 // R(A) := tointeger(0)
@@ -58,7 +58,8 @@ void RaviCodeGenerator::emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C,
   emit_load_base(def);
   llvm::Value *dest = emit_gep_register(def, A);
   // dest->i = 0
-  emit_store_reg_b_withtype(def, llvm::ConstantInt::get(def->types->C_intT, B), dest);
+  emit_store_reg_b_withtype(def, llvm::ConstantInt::get(def->types->C_intT, B),
+                            dest);
   if (C) {
     // Skip next instruction if C
     def->builder->CreateBr(def->jmp_targets[j].jmp1);
@@ -387,7 +388,7 @@ void RaviCodeGenerator::emit_assign(RaviFunctionDef *def, llvm::Value *dest,
   llvm::Instruction *store = def->builder->CreateStore(load, destvalue);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 
-  // destvalue->type = srcvalue->type
+// destvalue->type = srcvalue->type
 #if RAVI_NAN_TAGGING
   llvm::Value *srctype = emit_gep(def, "srctype", src, 0, 1, 0);
   llvm::Value *desttype = emit_gep(def, "desttype", dest, 0, 1, 0);

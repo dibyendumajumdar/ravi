@@ -107,7 +107,7 @@ struct ravi_gcc_types_t {
   gcc_jit_type *lua_IntegerT;
   gcc_jit_type *plua_IntegerT;
   gcc_jit_type *pplua_IntegerT;
-  //gcc_jit_type *clua_IntegerT;
+  // gcc_jit_type *clua_IntegerT;
 
   gcc_jit_type *lua_UnsignedT;
   gcc_jit_type *lua_KContextT;
@@ -449,11 +449,11 @@ extern gcc_jit_rvalue *ravi_emit_get_upvals(ravi_function_def_t *def,
                                             int offset);
 // Get upval->v
 extern gcc_jit_lvalue *ravi_emit_load_upval_v(ravi_function_def_t *def,
-                                             gcc_jit_rvalue *pupval);
+                                              gcc_jit_rvalue *pupval);
 
 // Get upval->u.value
 extern gcc_jit_lvalue *ravi_emit_load_upval_value(ravi_function_def_t *def,
-                                                 gcc_jit_rvalue *pupval);
+                                                  gcc_jit_rvalue *pupval);
 
 extern void ravi_set_current_block(ravi_function_def_t *def,
                                    gcc_jit_block *block);
@@ -553,11 +553,9 @@ extern gcc_jit_rvalue *ravi_emit_comparison(ravi_function_def_t *def,
                                             gcc_jit_rvalue *a,
                                             gcc_jit_rvalue *b);
 
-
-extern gcc_jit_lvalue* ravi_emit_tonumtype(ravi_function_def_t *def,
-                                         gcc_jit_rvalue *reg,
-                                         lua_typecode_t tt,
-                                         int pc);
+extern gcc_jit_lvalue *ravi_emit_tonumtype(ravi_function_def_t *def,
+                                           gcc_jit_rvalue *reg,
+                                           lua_typecode_t tt, int pc);
 
 extern void ravi_emit_conditional_branch(ravi_function_def_t *def,
                                          gcc_jit_rvalue *cond,
@@ -619,7 +617,8 @@ extern void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C,
 extern void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C,
                                int pc);
 
-extern void ravi_emit_SETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc);
+extern void ravi_emit_SETTABUP(ravi_function_def_t *def, int A, int B, int C,
+                               int pc);
 
 extern void ravi_emit_SETUPVAL(ravi_function_def_t *def, int A, int B, int pc);
 
@@ -748,7 +747,9 @@ extern void ravi_emit_MOVEAI(ravi_function_def_t *def, int A, int B, int pc);
 
 extern void ravi_emit_MOVEAF(ravi_function_def_t *def, int A, int B, int pc);
 
-extern void ravi_emit_SETTABLE_AI_AF(ravi_function_def_t *def, int A, int B, int C, bool known_tt, lua_typecode_t tt, int pc);
+extern void ravi_emit_SETTABLE_AI_AF(ravi_function_def_t *def, int A, int B,
+                                     int C, bool known_tt, lua_typecode_t tt,
+                                     int pc);
 
 extern void ravi_emit_ARITH(ravi_function_def_t *def, int A, int B, int C,
                             OpCode op, TMS tms, int pc);
@@ -773,15 +774,15 @@ extern void ravi_debug_printf4(ravi_function_def_t *def, const char *str,
                                gcc_jit_rvalue *arg1, gcc_jit_rvalue *arg2,
                                gcc_jit_rvalue *arg3, gcc_jit_rvalue *arg4);
 
-
 extern gcc_jit_rvalue *ravi_int_constant(ravi_function_def_t *def, int value);
 
 extern gcc_jit_rvalue *ravi_bool_constant(ravi_function_def_t *def, int value);
 
-extern gcc_jit_rvalue *ravi_lua_Integer_constant(ravi_function_def_t *def, int value);
+extern gcc_jit_rvalue *ravi_lua_Integer_constant(ravi_function_def_t *def,
+                                                 int value);
 
-extern gcc_jit_rvalue *ravi_lua_Number_constant(ravi_function_def_t *def, double value);
-
+extern gcc_jit_rvalue *ravi_lua_Number_constant(ravi_function_def_t *def,
+                                                double value);
 
 #ifdef __cplusplus
 };

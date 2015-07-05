@@ -92,7 +92,7 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
 }
 
 gcc_jit_rvalue *ravi_emit_boolean_testfalse1(ravi_function_def_t *def,
-                                            gcc_jit_rvalue *reg, bool negate) {
+                                             gcc_jit_rvalue *reg, bool negate) {
   // (isnil() || isbool() && b == 0)
 
   gcc_jit_lvalue *var = gcc_jit_function_new_local(
@@ -158,47 +158,46 @@ gcc_jit_rvalue *ravi_emit_boolean_testfalse(ravi_function_def_t *def,
   // (isnil() || isbool() && b == 0)
 
   gcc_jit_lvalue *var = gcc_jit_function_new_local(
-          def->jit_function, NULL, def->ravi->types->C_boolT,
-          unique_name(def, "isfalse", 0));
+      def->jit_function, NULL, def->ravi->types->C_boolT,
+      unique_name(def, "isfalse", 0));
   gcc_jit_lvalue *type = ravi_emit_load_type(def, reg);
 
   // Test if type == LUA_TNIL (0)
   gcc_jit_rvalue *isnil = ravi_emit_is_value_of_type(
-          def, gcc_jit_lvalue_as_rvalue(type), LUA__TNIL);
+      def, gcc_jit_lvalue_as_rvalue(type), LUA__TNIL);
 
   // Test if type == LUA_TBOOLEAN
   gcc_jit_rvalue *isbool = ravi_emit_is_value_of_type(
-          def, gcc_jit_lvalue_as_rvalue(type), LUA__TBOOLEAN);
+      def, gcc_jit_lvalue_as_rvalue(type), LUA__TBOOLEAN);
 
   // Test if bool value == 0
   gcc_jit_lvalue *bool_value = ravi_emit_load_reg_b(def, reg);
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
-          def->function_context, def->ravi->types->C_intT, 0);
+      def->function_context, def->ravi->types->C_intT, 0);
   gcc_jit_rvalue *boolzero = ravi_emit_comparison(
-          def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(bool_value), zero);
+      def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(bool_value), zero);
 
   // Test type == LUA_TBOOLEAN && bool value == 0
   gcc_jit_rvalue *andvalue = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_LOGICAL_AND,
-          def->ravi->types->C_boolT, isbool, boolzero);
+      def->function_context, NULL, GCC_JIT_BINARY_OP_LOGICAL_AND,
+      def->ravi->types->C_boolT, isbool, boolzero);
 
   gcc_jit_rvalue *orvalue = gcc_jit_context_new_binary_op(
-          def->function_context, NULL, GCC_JIT_BINARY_OP_LOGICAL_OR,
-          def->ravi->types->C_boolT, isnil, andvalue);
+      def->function_context, NULL, GCC_JIT_BINARY_OP_LOGICAL_OR,
+      def->ravi->types->C_boolT, isnil, andvalue);
 
   gcc_jit_block_add_assignment(def->current_block, NULL, var, orvalue);
 
   gcc_jit_rvalue *result = NULL;
   if (negate) {
     result = gcc_jit_context_new_unary_op(
-            def->function_context, NULL, GCC_JIT_UNARY_OP_LOGICAL_NEGATE,
-            def->ravi->types->C_boolT, gcc_jit_lvalue_as_rvalue(var));
+        def->function_context, NULL, GCC_JIT_UNARY_OP_LOGICAL_NEGATE,
+        def->ravi->types->C_boolT, gcc_jit_lvalue_as_rvalue(var));
   } else {
     result = gcc_jit_lvalue_as_rvalue(var);
   }
   return result;
 }
-
 
 void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C, int j,
                     int jA, int pc) {
@@ -212,14 +211,18 @@ void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C, int j,
 
   (void)B;
 
-//  if (C) {
-//    ravi_debug_printf3(def, "OP_TEST(%d C=1)) if (!reg(A=%d)) then skip next else jmp to %d\n", ravi_int_constant(def, pc+1),
-//                       ravi_int_constant(def, A), ravi_int_constant(def, j+1));
-//  }
-//  else {
-//    ravi_debug_printf3(def, "OP_TEST(%d C=0) if (reg(A=%d)) then skip next else jmp to %d\n", ravi_int_constant(def, pc+1),
-//                       ravi_int_constant(def, A), ravi_int_constant(def, j+1));
-//  }
+  //  if (C) {
+  //    ravi_debug_printf3(def, "OP_TEST(%d C=1)) if (!reg(A=%d)) then skip next
+  //    else jmp to %d\n", ravi_int_constant(def, pc+1),
+  //                       ravi_int_constant(def, A), ravi_int_constant(def,
+  //                       j+1));
+  //  }
+  //  else {
+  //    ravi_debug_printf3(def, "OP_TEST(%d C=0) if (reg(A=%d)) then skip next
+  //    else jmp to %d\n", ravi_int_constant(def, pc+1),
+  //                       ravi_int_constant(def, A), ravi_int_constant(def,
+  //                       j+1));
+  //  }
 
   // Load pointer to base
   ravi_emit_load_base(def);

@@ -41,7 +41,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       gcc_jit_context_get_int_type(ravi->context, sizeof(lua_Integer), 1);
   t->plua_IntegerT = gcc_jit_type_get_pointer(t->lua_IntegerT);
   t->pplua_IntegerT = gcc_jit_type_get_pointer(t->plua_IntegerT);
-//  t->clua_IntegerT = gcc_jit_type_get_const(t->lua_IntegerT);
+  //  t->clua_IntegerT = gcc_jit_type_get_const(t->lua_IntegerT);
 
   t->lua_UnsignedT =
       gcc_jit_context_get_int_type(ravi->context, sizeof(lua_Unsigned), 0);
@@ -847,8 +847,10 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   // int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2)
   params[0] =
       gcc_jit_context_new_param(ravi->context, NULL, t->plua_StateT, "L");
-  params[1] = gcc_jit_context_new_param(ravi->context, NULL, t->pcTValueT, "t1");
-  params[2] = gcc_jit_context_new_param(ravi->context, NULL, t->pcTValueT, "t2");
+  params[1] =
+      gcc_jit_context_new_param(ravi->context, NULL, t->pcTValueT, "t1");
+  params[2] =
+      gcc_jit_context_new_param(ravi->context, NULL, t->pcTValueT, "t2");
   t->luaV_equalobjT = gcc_jit_context_new_function(
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_intT,
       "luaV_equalobj", 3, params, 0);
@@ -923,7 +925,8 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   params[0] =
       gcc_jit_context_new_param(ravi->context, NULL, t->plua_StateT, "L");
   params[1] = gcc_jit_context_new_param(ravi->context, NULL, t->StkIdT, "ra");
-  params[2] = gcc_jit_context_new_param(ravi->context, NULL, t->pcTValueT, "rb");
+  params[2] =
+      gcc_jit_context_new_param(ravi->context, NULL, t->pcTValueT, "rb");
   t->luaV_objlenT = gcc_jit_context_new_function(
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_voidT, "luaV_objlen",
       3, params, 0);
@@ -957,8 +960,10 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   //                     StkId res, TMS event);
   params[0] =
       gcc_jit_context_new_param(ravi->context, NULL, t->plua_StateT, "L");
-  params[1] = gcc_jit_context_new_param(ravi->context, NULL, t->pcTValueT, "p1");
-  params[2] = gcc_jit_context_new_param(ravi->context, NULL, t->pcTValueT, "p2");
+  params[1] =
+      gcc_jit_context_new_param(ravi->context, NULL, t->pcTValueT, "p1");
+  params[2] =
+      gcc_jit_context_new_param(ravi->context, NULL, t->pcTValueT, "p2");
   params[3] = gcc_jit_context_new_param(ravi->context, NULL, t->StkIdT, "res");
   params[4] = gcc_jit_context_new_param(ravi->context, NULL, t->tmsT, "event");
   t->luaT_trybinTMT = gcc_jit_context_new_function(
@@ -1109,8 +1114,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_voidT,
       "raviH_set_float", 4, params, 0);
 
-
-  //void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b)
+  // void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b)
   params[0] =
       gcc_jit_context_new_param(ravi->context, NULL, t->plua_StateT, "L");
   params[1] =
@@ -1120,7 +1124,6 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   t->raviV_op_setupvalT = gcc_jit_context_new_function(
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_voidT,
       "raviV_op_setupval", 4, params, 0);
-
 
   params[0] = gcc_jit_context_new_param(ravi->context, NULL, t->C_pconstcharT,
                                         "format");
