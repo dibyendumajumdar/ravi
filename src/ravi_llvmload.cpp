@@ -25,16 +25,14 @@
 namespace ravi {
 
 // R(A+1), ..., R(A+B) := nil
-void RaviCodeGenerator::emit_LOADNIL(RaviFunctionDef *def, llvm::Value *L_ci,
-                                     llvm::Value *proto, int A, int B) {
+void RaviCodeGenerator::emit_LOADNIL(RaviFunctionDef *def, int A, int B) {
   CreateCall3(def->builder, def->raviV_op_loadnilF, def->ci_val,
               llvm::ConstantInt::get(def->types->C_intT, A),
               llvm::ConstantInt::get(def->types->C_intT, B));
 }
 
 // R(A) := tonumber(0)
-void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, llvm::Value *L_ci,
-                                    llvm::Value *proto, int A) {
+void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, int A) {
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *dest = emit_gep_register(def, base_ptr, A);
   // destvalue->n = 0.0
@@ -45,8 +43,7 @@ void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, llvm::Value *L_ci,
 }
 
 // R(A) := tointeger(0)
-void RaviCodeGenerator::emit_LOADIZ(RaviFunctionDef *def, llvm::Value *L_ci,
-                                    llvm::Value *proto, int A) {
+void RaviCodeGenerator::emit_LOADIZ(RaviFunctionDef *def, int A) {
   llvm::Instruction *base_ptr = emit_load_base(def);
   llvm::Value *dest = emit_gep_register(def, base_ptr, A);
   // dest->i = 0
@@ -56,8 +53,7 @@ void RaviCodeGenerator::emit_LOADIZ(RaviFunctionDef *def, llvm::Value *L_ci,
 }
 
 // R(A) := (Bool)B; if (C) pc++
-void RaviCodeGenerator::emit_LOADBOOL(RaviFunctionDef *def, llvm::Value *L_ci,
-                                      llvm::Value *proto, int A, int B, int C,
+void RaviCodeGenerator::emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C,
                                       int j) {
 
   // setbvalue(ra, GETARG_B(i));
@@ -79,8 +75,7 @@ void RaviCodeGenerator::emit_LOADBOOL(RaviFunctionDef *def, llvm::Value *L_ci,
 }
 
 // R(A) := R(B)
-void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci,
-                                  llvm::Value *proto, int A, int B) {
+void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, int A, int B) {
   // setobjs2s(L, ra, RB(i));
 
   // Load pointer to base
@@ -94,8 +89,7 @@ void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, llvm::Value *L_ci,
 }
 
 // R(A) := R(B), check R(B) is int
-void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
-                                   llvm::Value *proto, int A, int B) {
+void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, int A, int B) {
 
   // TValue *rb = RB(i);
   // lua_Integer j;
@@ -164,8 +158,7 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_store_type(def, dest, LUA_TNUMINT);
 }
 
-void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci,
-                                   llvm::Value *proto, int A, int B) {
+void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, int A, int B) {
 
   //  case OP_RAVI_MOVEF: {
   //    TValue *rb = RB(i);
@@ -237,8 +230,7 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_store_type(def, dest, LUA_TNUMFLT);
 }
 
-void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, llvm::Value *L_ci,
-                                   llvm::Value *proto, int A) {
+void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, int A) {
 
   //  case OP_RAVI_TOINT: {
   //    lua_Integer j;
@@ -302,8 +294,7 @@ void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(end1);
 }
 
-void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci,
-                                   llvm::Value *proto, int A) {
+void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, int A) {
 
   //  case OP_RAVI_TOFLT: {
   //    lua_Number j;
@@ -367,8 +358,7 @@ void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(end1);
 }
 
-void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, llvm::Value *L_ci,
-                                   llvm::Value *proto, int A, int Bx) {
+void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, int A, int Bx) {
   // TValue *rb = k + GETARG_Bx(i);
   // setobj2s(L, ra, rb);
 

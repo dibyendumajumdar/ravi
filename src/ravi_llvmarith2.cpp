@@ -27,8 +27,7 @@
 namespace ravi {
 
 // OP_ADD, OP_SUB, OP_MUL and OP_DIV
-void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
-                                   llvm::Value *proto, int A, int B, int C,
+void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
                                    OpCode op, TMS tms) {
 
   // TValue *rb = RKB(i);
@@ -224,8 +223,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, llvm::Value *L_ci,
 }
 
 // OP_MOD
-void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
-                                 llvm::Value *proto, int A, int B, int C) {
+void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C) {
 
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
@@ -420,8 +418,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, llvm::Value *L_ci,
 }
 
 // OP_IDIV
-void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
-                                  llvm::Value *proto, int A, int B, int C) {
+void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C) {
 
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
@@ -584,8 +581,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, llvm::Value *L_ci,
 }
 
 // OP_POW
-void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
-                                 llvm::Value *proto, int A, int B, int C) {
+void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C) {
 
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
@@ -713,8 +709,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(done_block);
 }
 
-void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, llvm::Value *L_ci,
-                                 llvm::Value *proto, int A, int B) {
+void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, int A, int B) {
 
   // TValue *rb = RB(i);
   // lua_Number nb;

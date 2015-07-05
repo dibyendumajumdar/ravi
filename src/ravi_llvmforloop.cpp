@@ -24,8 +24,7 @@
 
 namespace ravi {
 
-void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
-                                      llvm::Value *proto, int A, int pc,
+void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, int A, int pc,
                                       RaviBranchDef &b) {
 
   // 7[1]     FORLOOP         1 - 2; to 6
@@ -205,8 +204,7 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, llvm::Value *L_ci,
 
 }
 
-void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
-                                     llvm::Value *proto, int A, int pc) {
+void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, int A, int pc) {
 
   // 7[1]     FORLOOP         1 - 2; to 6
   // if (ttisinteger(ra)) {  /* integer loop? */
@@ -383,8 +381,7 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(exit_block);
 }
 
-void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
-  llvm::Value *proto, int A, int pc, RaviBranchDef &b, int step_one) {
+void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, int A, int pc, RaviBranchDef &b, int step_one) {
 
   //  lua_Integer step = ivalue(ra + 2);
   //  lua_Integer idx = ivalue(ra) + step; /* increment index */

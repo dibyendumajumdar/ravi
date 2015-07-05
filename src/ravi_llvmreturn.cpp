@@ -24,8 +24,7 @@
 
 namespace ravi {
 
-void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, llvm::Value *L_ci,
-                                    llvm::Value *proto, int A, int B) {
+void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
 
   // Here is what OP_RETURN looks like. We only compile steps
   // marked with //*. This is because the rest is only relevant in the

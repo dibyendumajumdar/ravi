@@ -24,8 +24,7 @@
 
 namespace ravi {
 
-void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
-                                      llvm::Value *proto, int A, int pc) {
+void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, int A, int pc) {
 
   // Create additional forloop targets
   // First target is for int < limit
@@ -398,8 +397,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, llvm::Value *L_ci,
                              forloop_target.jmp4);
 }
 
-void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
-                                     llvm::Value *proto, int A, int pc) {
+void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, int A, int pc) {
 
   // case OP_FORPREP: {
   //  if (ttisinteger(init) && ttisinteger(pstep) &&
@@ -702,8 +700,7 @@ void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);
 }
 
-void RaviCodeGenerator::emit_iFORPREP(RaviFunctionDef *def, llvm::Value *L_ci,
-                                      llvm::Value *proto, int A, int pc,
+void RaviCodeGenerator::emit_iFORPREP(RaviFunctionDef *def, int A, int pc,
                                       int step_one) {
 
   RaviBranchDef &forloop_target = def->jmp_targets[pc];

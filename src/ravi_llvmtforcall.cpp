@@ -24,8 +24,7 @@
 
 namespace ravi {
 
-void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, llvm::Value *L_ci,
-                                      llvm::Value *proto, int A, int B, int C,
+void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C,
                                       int j, int jA) {
 
   //  case OP_TFORCALL: {
@@ -98,8 +97,7 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else_block);
 }
 
-void RaviCodeGenerator::emit_TFORLOOP(RaviFunctionDef *def, llvm::Value *L_ci,
-                                      llvm::Value *proto, int A, int j) {
+void RaviCodeGenerator::emit_TFORLOOP(RaviFunctionDef *def, int A, int j) {
   //  case OP_TFORLOOP: {
   //  l_tforloop:
   //    if (!ttisnil(ra + 1)) {  /* continue loop? */

@@ -24,23 +24,20 @@
 
 namespace ravi {
 
-void RaviCodeGenerator::emit_CONCAT(RaviFunctionDef *def, llvm::Value *L_ci,
-                                    llvm::Value *proto, int A, int B, int C) {
+void RaviCodeGenerator::emit_CONCAT(RaviFunctionDef *def, int A, int B, int C) {
   CreateCall5(def->builder, def->raviV_op_concatF, def->L, def->ci_val,
               llvm::ConstantInt::get(def->types->C_intT, A),
               llvm::ConstantInt::get(def->types->C_intT, B),
               llvm::ConstantInt::get(def->types->C_intT, C));
 }
 
-void RaviCodeGenerator::emit_CLOSURE(RaviFunctionDef *def, llvm::Value *L_ci,
-                                     llvm::Value *proto, int A, int Bx) {
+void RaviCodeGenerator::emit_CLOSURE(RaviFunctionDef *def, int A, int Bx) {
   CreateCall5(def->builder, def->raviV_op_closureF, def->L, def->ci_val,
               def->p_LClosure, llvm::ConstantInt::get(def->types->C_intT, A),
               llvm::ConstantInt::get(def->types->C_intT, Bx));
 }
 
-void RaviCodeGenerator::emit_VARARG(RaviFunctionDef *def, llvm::Value *L_ci,
-                                    llvm::Value *proto, int A, int B) {
+void RaviCodeGenerator::emit_VARARG(RaviFunctionDef *def, int A, int B) {
   CreateCall5(def->builder, def->raviV_op_varargF, def->L, def->ci_val,
               def->p_LClosure, llvm::ConstantInt::get(def->types->C_intT, A),
               llvm::ConstantInt::get(def->types->C_intT, B));

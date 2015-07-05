@@ -57,8 +57,7 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int j) {
 }
 
 // Handle OP_CALL
-void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, llvm::Value *L_ci,
-                                  llvm::Value *proto, int A, int B, int C) {
+void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C) {
 
   // int nresults = c - 1;
   // if (b != 0)

@@ -26,8 +26,7 @@ namespace ravi {
 
 // Although the name is EQ this actually
 // implements EQ, LE and LT - by using the supplied lua function to call.
-void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, llvm::Value *L_ci,
-                                llvm::Value *proto, int A, int B, int C, int j,
+void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C, int j,
                                 int jA, llvm::Constant *callee) {
   //  case OP_EQ: {
   //    TValue *rb = RKB(i);
@@ -144,8 +143,7 @@ llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
   return result;
 }
 
-void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, llvm::Value *L_ci,
-                                  llvm::Value *proto, int A, int B, int C,
+void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
                                   int j, int jA) {
 
   //    case OP_TEST: {
@@ -194,8 +192,7 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, llvm::Value *L_ci,
   def->builder->SetInsertPoint(else_block);
 }
 
-void RaviCodeGenerator::emit_NOT(RaviFunctionDef *def, llvm::Value *L_ci,
-                                 llvm::Value *proto, int A, int B) {
+void RaviCodeGenerator::emit_NOT(RaviFunctionDef *def, int A, int B) {
   //  case OP_NOT: {
   //    TValue *rb = RB(i);
   //    int res = l_isfalse(rb);  /* next assignment may change this value */
@@ -211,8 +208,7 @@ void RaviCodeGenerator::emit_NOT(RaviFunctionDef *def, llvm::Value *L_ci,
   emit_store_type(def, ra, LUA_TBOOLEAN);
 }
 
-void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, llvm::Value *L_ci,
-                                     llvm::Value *proto, int A, int B, int C,
+void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
                                      int j, int jA) {
 
   //  case OP_TESTSET: {
