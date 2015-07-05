@@ -89,7 +89,8 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
       def->current_block, NULL,
       ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
                                  gcc_jit_param_as_rvalue(def->L),
-                                 gcc_jit_lvalue_as_rvalue(def->base)));
+                                 def->base_ref));
+//                                 gcc_jit_lvalue_as_rvalue(def->base)));
 
   ravi_emit_branch(def, else_block);
   ravi_set_current_block(def, else_block);

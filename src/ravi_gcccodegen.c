@@ -192,8 +192,8 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   def->entry_block = gcc_jit_function_new_block(def->jit_function, "entry");
   def->current_block = def->entry_block;
 
-  def->base = gcc_jit_function_new_local(def->jit_function, NULL,
-                                         def->ravi->types->pTValueT, "base");
+//  def->base = gcc_jit_function_new_local(def->jit_function, NULL,
+//                                         def->ravi->types->pTValueT, "base");
   def->lua_closure_val = gcc_jit_function_new_local(
       def->jit_function, NULL, def->ravi->types->pLClosureT, "cl");
 
@@ -370,8 +370,9 @@ static void emit_getL_ci_value(ravi_function_def_t *def) {
 
 /* Refresh local copy of L->ci->u.l.base */
 void ravi_emit_load_base(ravi_function_def_t *def) {
-  gcc_jit_block_add_assignment(def->current_block, NULL, def->base,
-                               def->base_ref);
+  (void)def;
+  //gcc_jit_block_add_assignment(def->current_block, NULL, def->base,
+  //                             def->base_ref);
 }
 
 // L->top = ci->top
@@ -413,7 +414,8 @@ gcc_jit_lvalue *ravi_emit_array_get_ptr(ravi_function_def_t *def,
 gcc_jit_rvalue *ravi_emit_get_register(ravi_function_def_t *def, int A) {
   /* Note we assume that base is correct */
   gcc_jit_lvalue *reg = gcc_jit_context_new_array_access(
-      def->function_context, NULL, gcc_jit_lvalue_as_rvalue(def->base),
+//      def->function_context, NULL, gcc_jit_lvalue_as_rvalue(def->base),
+      def->function_context, NULL, def->base_ref,
       gcc_jit_context_new_rvalue_from_int(def->function_context,
                                           def->ravi->types->C_intT, A));
   return gcc_jit_lvalue_get_address(reg, NULL);
@@ -867,7 +869,7 @@ static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi,
   def->current_block = NULL;
   def->proto = NULL;
   def->k = NULL;
-  def->base = NULL;
+//  def->base = NULL;
   def->current_block_terminated = false;
   def->buf[0] = 0;
   def->counter = 1;

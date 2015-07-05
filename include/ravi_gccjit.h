@@ -394,7 +394,7 @@ typedef struct ravi_function_def_t {
   /* The Lua stack base - this can change during execution so needs to be lvalue
    */
   gcc_jit_rvalue *base_ref;
-  gcc_jit_lvalue *base;
+//  gcc_jit_lvalue *base;
 
   /* Reference to lua_closure->p - never changes */
   gcc_jit_rvalue *proto;
