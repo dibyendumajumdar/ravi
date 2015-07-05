@@ -44,9 +44,9 @@ Ravi allows you to annotate ``local`` variables with static types. The supported
 ``number[]``
   denotes an array of numbers
 
-Declaring the types of ``local`` variables has following advantages.
+  .. attention:: Currently function parameters cannot be decorated with types; this will be added in future. 
 
-.. attention:: Currently function parameters cannot be decorated with types; this will be added in future. 
+Declaring the types of ``local`` variables has following advantages.
 
 * Local variables declared with above types are automatically initialized to 0
 * Arithmetic operations trigger type specific bytecodes which leads to more efficient JIT compilation
