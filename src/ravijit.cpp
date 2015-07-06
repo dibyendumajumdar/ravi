@@ -174,6 +174,20 @@ RaviJITFunctionImpl::~RaviJITFunctionImpl() {
 }
 
 #if 0
+static void addAdditionalRaviPasses(const llvm::PassManagerBuilder &Builder,
+  llvm::PassManagerBase &PM) {
+  PM.add(llvm::createLICMPass());
+  PM.add(llvm::createLoopUnswitchPass());
+  PM.add(llvm::createLICMPass());
+  PM.add(llvm::createLoopUnswitchPass());
+}
+
+static void addAdditionalRaviPasses2(const llvm::PassManagerBuilder &Builder,
+  llvm::PassManagerBase &PM) {
+  PM.add(llvm::createInductiveRangeCheckEliminationPass());
+}
+
+
 // TODO
 // Following two functions based upon similar in Clang
 static void addAddressSanitizerPasses(const llvm::PassManagerBuilder &Builder,
@@ -219,8 +233,13 @@ void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
   llvm::PassManagerBuilder pmb;
   pmb.OptLevel = owner_->get_optlevel();
   pmb.SizeLevel = owner_->get_sizelevel();
-
 #if 0
+  pmb.addExtension(llvm::PassManagerBuilder::EP_LoopOptimizerEnd,
+    addAdditionalRaviPasses);
+  pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
+    addAdditionalRaviPasses2);
+
+
     // TODO - we want to allow instrumentation of JITed code
     // TODO - it should be controlled via a flag
     // Note that following appears to require linking to some

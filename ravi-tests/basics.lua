@@ -3,14 +3,14 @@ x=function() return; end
 ravi.dumplua(x)
 assert(ravi.compile(x))
 assert(not x())
-print('test 1 ok')
+print('test OP_RETURN ok')
 
 -- TEST OP_RETURN and OP_LOADK
 x=function() return 42; end
 ravi.dumplua(x)
 assert(ravi.compile(x))
 assert(x() == 42)
-print('test 2 ok')
+print('test OP_RETURN, OP_LOADK ok')
 
 -- Test OP_RETURN, OP_LOADK, OP_MOVE
 -- OP_RAVI_FORPREP_I1, OP_RAVI_FORLOOP_I1
@@ -24,7 +24,7 @@ end
 ravi.dumplua(x)
 assert(ravi.compile(x))
 assert(x() == 1234)
-print('test 3 ok')
+print('test OP_MOVE, OP_RAVI_FORPREP_I1, OP_RAVI_FORLOOP_I1 ok')
 
 -- Test OP_RETURN, OP_LOADK, OP_MOVE
 -- OP_RAVI_FORPREP_I1, OP_RAVI_FORLOOP_I1
