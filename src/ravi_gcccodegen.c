@@ -1350,6 +1350,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   }
 
   if (def.dump_ir) {
+    gcc_jit_context_dump_to_file(def.ravi->context, "cdump.txt", 0);
     gcc_jit_context_dump_to_file(def.function_context, "fdump.txt", 0);
     gcc_jit_context_dump_reproducer_to_file(def.function_context, "rdump.txt");
   }

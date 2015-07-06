@@ -219,7 +219,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   fields[5] =
       gcc_jit_context_new_field(ravi->context, NULL, t->C_size_t, "len");
   fields[6] =
-      gcc_jit_context_new_field(ravi->context, NULL, t->pTStringT, "hash");
+      gcc_jit_context_new_field(ravi->context, NULL, t->pTStringT, "hnext");
   gcc_jit_struct_set_fields(t->TStringT, NULL, 7, fields);
 
   // Table
@@ -338,7 +338,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   //  Instruction *code;
   //  struct Proto **p;  /* functions defined inside the function */
   //  int *lineinfo;  /* map from opcodes to source lines (debug information) */
-  //  LocVar *locvars;  /* information about local variables (debug information)
+     //  LocVar *locvars;  /* information about local variables (debug information)
   //  */
   //  Upvaldesc *upvalues;  /* upvalue information */
   //  struct LClosure *cache;  /* last created closure with this prototype */
@@ -561,7 +561,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   // struct lua_longjmp;  /* defined in ldo.c */
   t->lua_longjumpT = gcc_jit_context_new_opaque_struct(ravi->context, NULL,
                                                        "ravi_lua_longjmp");
-  t->plua_longjumpT = gcc_jit_struct_as_type(t->lua_longjumpT);
+  t->plua_longjumpT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->lua_longjumpT));
 
   // lzio.h
   // typedef struct Mbuffer {
@@ -1130,8 +1130,6 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   t->printfT = gcc_jit_context_new_function(ravi->context, NULL,
                                             GCC_JIT_FUNCTION_IMPORTED,
                                             t->C_intT, "printf", 1, params, 1);
-
-  gcc_jit_context_dump_to_file(ravi->context, "dump.txt", 0);
 
   return ravi_jit_has_errored(ravi) ? false : true;
 }
