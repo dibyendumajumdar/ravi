@@ -28,7 +28,11 @@ The number of registers is determined based on locals and temporaries.
 The base of the stack is set to just past the function reference - i.e. on the first parameter or register.
 All register addressing is done as offset from base - so ``R(0)`` is at ``base+0`` on the stack. 
 
-See `LuaNua <http://homepages.dcc.ufmg.br/~anolan/research/luanua:start>`_.
+.. figure:: Drawing_Lua_Stack.jpg
+   :alt: Drawing of Lua Stack
+
+   The figure shows how the stack is related to other Lua  objects.
+
 
 A description of the stack and registers from Mike Pall on Lua mailing list is reproduced below.
 
@@ -108,36 +112,6 @@ In reality things are a bit more complex due to overlapped locals, block
 scopes, varargs, coroutines and a few other things. But this should get
 you the basic idea.
 
-> Do you deviate from the typical register based architecture in 
-> that case to save memory traffic?
-
-I think the architecture is pretty unique as far as VMs go. Some CPUs
-have sliding register windows, but this gets quite complicated since they
-need to spill/fill registers to/from the stack. A VM can of course use an
-unbounded (reallocated) stack on the heap.
-
-> 2. As far as I learned you do instruction encoding close to hardware 
-> architectures. Therefore you always have to decode the opcode in contrast to 
-> the JVM where opcode and arguments are stored in several independent bytes. 
-> Is opcode decoding cheap (one might forgive my poor knowledge of C operator 
-> performance;-)?
-
-All instructions are 32 bit. The current layout as of Lua 5.1work4 is::
-
-  BBBBBBBB BCCCCCCC CCAAAAAA AAOOOOOO   ABC format
-  BBBBBBBB BBBBBBBB BBAAAAAA AAOOOOOO   ABx format
-  sBBBBBBB BBBBBBBB BBAAAAAA AAOOOOOO   AsBx format
-
-Fetching a 32 bit value once from memory and then extracting the bits to
-other registers is cheaper than doing single-byte fetches for variable
-length operands. Byte alignment does not matter at all (word alignment does).
-
-Memory bandwith is usually not an issue for VM instructions since there
-is so much else going on for each instruction. It's much more important
-to keep the execution units busy by avoiding interlocks caused by memory
-fetches. Tuning the code to make it easy for the compiler to generate
-good code is another issue (the Lua authors have done quite a bit of
-tuning in some important spots).
 
 Parsing and Code Generation
 ===========================
