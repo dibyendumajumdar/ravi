@@ -1117,6 +1117,10 @@ static void codeexpval (FuncState *fs, OpCode op,
       else
         e1->ravi_type = RAVI_TANY;
     }
+    else {
+      if (op == OP_LEN)
+        e1->ravi_type = RAVI_TNUMINT;
+    }
     luaK_fixline(fs, line);
   }
 }

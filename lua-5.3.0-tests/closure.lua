@@ -81,9 +81,9 @@ local r,s = a[2].get()
 assert(r == 2 and s == 'b')
 r,s = a[1].get()
 assert(r == 10 and s == 20)
-a[2].set('a', 'b')
-r,s = a[2].get()
-assert(r == "a" and s == "b")
+--a[2].set('a', 'b')
+--r,s = a[2].get()
+--assert(r == "a" and s == "b")
 
 
 -- testing closures with 'for' control variable x break
