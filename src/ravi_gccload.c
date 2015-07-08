@@ -84,11 +84,30 @@ void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc) {
 
   // ra
   gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
-  // rb
-  gcc_jit_rvalue *src = ravi_emit_get_constant(def, Bx);
 
-  // *ra = *rb
-  ravi_emit_struct_assign(def, dest, src);
+  TValue *Konst = &def->p->k[Bx];
+  switch (Konst->tt_) {
+    case LUA_TNUMINT:
+      ravi_emit_store_reg_i_withtype(
+              def, gcc_jit_context_new_rvalue_from_int(
+                      def->function_context, def->ravi->types->lua_IntegerT, Konst->value_.i),
+              dest);
+      break;
+    case LUA_TNUMFLT:
+      ravi_emit_store_reg_n_withtype(
+              def, gcc_jit_context_new_rvalue_from_double(
+                      def->function_context, def->ravi->types->lua_NumberT, Konst->value_.n),
+              dest);
+      break;
+    default: {
+      // rb
+      gcc_jit_rvalue *src = ravi_emit_get_constant(def, Bx);
+
+      // *ra = *rb
+      ravi_emit_struct_assign(def, dest, src);
+    }
+  }
+
 }
 
 // R(A) := R(B)

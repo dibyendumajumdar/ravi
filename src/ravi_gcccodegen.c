@@ -51,6 +51,7 @@ static bool can_compile(Proto *p) {
     switch (o) {
     case OP_RETURN:
     case OP_LOADK:
+    case OP_LOADKX:
     case OP_RAVI_FORLOOP_IP:
     case OP_RAVI_FORLOOP_I1:
     case OP_RAVI_FORPREP_IP:
@@ -127,7 +128,6 @@ static bool can_compile(Proto *p) {
     case OP_GETUPVAL:
     case OP_SETUPVAL:
       break;
-    case OP_LOADKX:
     case OP_FORPREP:
     case OP_FORLOOP:
     case OP_MOD:
@@ -173,8 +173,8 @@ static bool create_function(ravi_gcc_codegen_t *codegen,
   gcc_jit_context_set_int_option(def->function_context,
                                  GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL,
                                  def->opt_level);
-  gcc_jit_context_add_command_line_option(def->function_context,
-                                          "-fno-strict-aliasing");
+  //gcc_jit_context_add_command_line_option(def->function_context,
+  //                                        "-fno-strict-aliasing");
 
   /* each function is given a unique name - as Lua functions are closures and do
    * not really have names */
@@ -996,6 +996,14 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       int Bx = GETARG_Bx(i);
       ravi_emit_LOADK(&def, A, Bx, pc);
     } break;
+    case OP_LOADKX: {
+      // OP_LOADKX is followed by OP_EXTRAARG
+      Instruction inst = code[++pc];
+      int Ax = GETARG_Ax(inst);
+      lua_assert(GET_OPCODE(inst) == OP_EXTRAARG);
+      ravi_emit_LOADK(&def, A, Ax, pc);
+    } break;
+
     case OP_RAVI_FORPREP_I1:
     case OP_RAVI_FORPREP_IP: {
       int sbx = GETARG_sBx(i);
