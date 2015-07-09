@@ -356,24 +356,35 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, int A, int Bx) {
   // Load pointer to base
   emit_load_base(def);
 
-  // Load pointer to k
-  llvm::Value *k_ptr = def->k_ptr;
-
   // LOADK requires a structure assignment
   // in LLVM as far as I can tell this requires a call to
   // an intrinsic memcpy
   llvm::Value *dest = emit_gep_register(def, A);
 
-  llvm::Value *src;
-  if (Bx == 0) {
-    // If Bx is 0 we can use the base pointer which is &k[0]
-    src = k_ptr;
-  } else {
-    // emit &k[Bx]
-    src = emit_array_get(def, k_ptr, Bx);
-  }
+  TValue *Konst = &def->p->k[Bx];
+  switch (Konst->tt_) {
+  case LUA_TNUMINT:
+    emit_store_reg_i_withtype(
+        def, llvm::ConstantInt::get(def->types->lua_IntegerT, Konst->value_.i),
+        dest);
+    break;
+  case LUA_TNUMFLT:
+    emit_store_reg_n_withtype(
+        def, llvm::ConstantFP::get(def->types->lua_NumberT, Konst->value_.n),
+        dest);
+    break;
+  case LUA_TBOOLEAN:
+    emit_store_reg_b_withtype(
+        def, llvm::ConstantInt::get(def->types->C_intT, Konst->value_.b), dest);
+    break;
+  default: {
+    // rb
+    llvm::Value *src = emit_gep_constant(def, Bx);
 
-  emit_assign(def, dest, src);
+    // *ra = *rb
+    emit_assign(def, dest, src);
+  }
+  }
 }
 
 void RaviCodeGenerator::emit_assign(RaviFunctionDef *def, llvm::Value *dest,

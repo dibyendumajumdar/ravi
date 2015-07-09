@@ -156,6 +156,21 @@ llvm::Value *RaviCodeGenerator::emit_gep_register(RaviFunctionDef *def, int A) {
   return dest;
 }
 
+llvm::Value *RaviCodeGenerator::emit_gep_constant(RaviFunctionDef *def,
+                                                  int Bx) {
+  // Load pointer to k
+  llvm::Value *k_ptr = def->k_ptr;
+  llvm::Value *src;
+  if (Bx == 0) {
+    // If Bx is 0 we can use the base pointer which is &k[0]
+    src = k_ptr;
+  } else {
+    // emit &k[Bx]
+    src = emit_array_get(def, k_ptr, Bx);
+  }
+  return src;
+}
+
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
 #if RAVI_NAN_TAGGING

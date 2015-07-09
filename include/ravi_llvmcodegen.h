@@ -657,6 +657,9 @@ public:
   // emit code to obtain address of register or constant at location B
   llvm::Value *emit_gep_register_or_constant(RaviFunctionDef *def, int B);
 
+  // emit code to obtain address of constant at locatiion B
+  llvm::Value *emit_gep_constant(RaviFunctionDef *def, int B);
+
   // obtain address of L->top
   llvm::Value *emit_gep_L_top(RaviFunctionDef *def);
 
