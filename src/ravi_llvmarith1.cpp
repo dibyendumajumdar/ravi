@@ -331,6 +331,7 @@ void RaviCodeGenerator::emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op, 
 
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
+
   //llvm::Value *rb = emit_gep_register_or_constant(def, B);
   //llvm::Value *rc = emit_gep_register_or_constant(def, C);
   llvm::Value *lhs = emit_load_register_or_constant_i(def, B);
@@ -348,18 +349,36 @@ void RaviCodeGenerator::emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op, 
   case OP_RAVI_BXOR_II:
     result = def->builder->CreateXor(lhs, rhs, "");
     break;
-  case OP_RAVI_SHL_II:
-    result = def->builder->CreateShl(lhs, rhs, "");
-    break;
-  case OP_RAVI_SHR_II:
-    result = def->builder->CreateLShr(lhs, rhs, "");
-    break;
   default:
     fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
     lua_assert(false);
     abort();
   }
   emit_store_reg_i_withtype(def, result, ra);
+}
+
+void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
+                                              int A, int B, int C) {
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+
+  switch (op) {
+  // FIXME Lua has specific requirements for shift operators
+  case OP_SHL:
+  case OP_RAVI_SHL_II:
+    CreateCall4(def->builder, def->raviV_op_shlF, def->L, ra, rb, rc);
+    break;
+  case OP_SHR:
+  case OP_RAVI_SHR_II:
+    CreateCall4(def->builder, def->raviV_op_shrF, def->L, ra, rb, rc);
+    break;
+  default:
+    fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
+    lua_assert(false);
+    abort();
+  }
 }
 
 void RaviCodeGenerator::emit_BNOT_I(RaviFunctionDef *def, int A, int B) {

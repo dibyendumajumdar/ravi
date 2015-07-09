@@ -247,6 +247,8 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_op_concatT;
   llvm::FunctionType *raviV_op_closureT;
   llvm::FunctionType *raviV_op_varargT;
+  llvm::FunctionType *raviV_op_shrT;
+  llvm::FunctionType *raviV_op_shlT;
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -517,6 +519,8 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_concatF;
   llvm::Function *raviV_op_closureF;
   llvm::Function *raviV_op_varargF;
+  llvm::Function *raviV_op_shrF;
+  llvm::Function *raviV_op_shlF;
 
   llvm::Function *raviH_set_intF;
   llvm::Function *raviH_set_floatF;
@@ -947,6 +951,8 @@ public:
                     const char *errmsg);
 
   void emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op, int A, int B, int C);
+
+  void emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op, int A, int B, int C);
 
   void emit_BNOT_I(RaviFunctionDef *def, int A, int B);
 

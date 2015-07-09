@@ -722,9 +722,11 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_BAND_II:
     case OP_RAVI_BOR_II:
     case OP_RAVI_BXOR_II:
+    case OP_RAVI_BNOT_I:
     case OP_RAVI_SHL_II:
     case OP_RAVI_SHR_II:
-    case OP_RAVI_BNOT_I:
+//    case OP_SHR:
+//    case OP_SHL:
       break;
     default:
       return false;
@@ -862,6 +864,12 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviH_set_floatF = def->raviF->addExternFunction(
       def->types->raviH_set_floatT, reinterpret_cast<void *>(&raviH_set_float),
       "raviH_set_float");
+  def->raviV_op_shlF = def->raviF->addExternFunction(
+    def->types->raviV_op_shlT, reinterpret_cast<void *>(&raviV_op_shl),
+    "raviV_op_shl");
+  def->raviV_op_shrF = def->raviF->addExternFunction(
+    def->types->raviV_op_shrT, reinterpret_cast<void *>(&raviV_op_shr),
+    "raviV_op_shr");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
@@ -1343,14 +1351,21 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
       emit_SETUPVAL(def, A, B);
     } break;
 
-    case OP_RAVI_SHR_II:
-    case OP_RAVI_SHL_II:
     case OP_RAVI_BXOR_II:
     case OP_RAVI_BOR_II:
     case OP_RAVI_BAND_II: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_BITWISE_BINARY_OP(def, op, A, B, C);
+    } break;
+
+    case OP_SHR:
+    case OP_SHL:
+    case OP_RAVI_SHL_II:
+    case OP_RAVI_SHR_II: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_BITWISE_SHIFT_OP(def, op, A, B, C);
     } break;
 
     case OP_ADD: {

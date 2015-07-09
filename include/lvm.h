@@ -68,5 +68,7 @@ LUAI_FUNC void raviV_op_concat(lua_State *L, CallInfo *ci, int a, int b, int c);
 LUAI_FUNC void raviV_op_closure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx);
 LUAI_FUNC void raviV_op_vararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);
 LUAI_FUNC void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b);
+LUAI_FUNC void raviV_op_shl(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
+LUAI_FUNC void raviV_op_shr(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
 
 #endif

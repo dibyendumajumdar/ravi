@@ -1767,7 +1767,25 @@ void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b) {
   luaC_upvalbarrier(L, uv);
 }
 
+void raviV_op_shl(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
+  lua_Integer ib;
+  lua_Integer ic;
+  if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+    setivalue(ra, luaV_shiftl(ib, ic));
+  } else {
+    luaT_trybinTM(L, rb, rc, ra, TM_SHL);
+  }
+}
 
+void raviV_op_shr(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
+  lua_Integer ib;
+  lua_Integer ic;
+  if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+    setivalue(ra, luaV_shiftl(ib, -ic));
+  } else {
+    luaT_trybinTM(L, rb, rc, ra, TM_SHR);
+  }
+}
 
 /* }================================================================== */
 
