@@ -1385,14 +1385,14 @@ newframe:  /* reentry point when frame changes (call/return) */
       if (tointeger(ra, &j)) {
         setivalue(ra, j);
       } else
-        luaG_runerror(L, "integer expected");
+        luaG_runerror(L, "TOINT: integer expected");
     } break;
     case OP_RAVI_TOFLT: {
       lua_Number j;
       if (tonumber(ra, &j)) {
         setfltvalue(ra, j);
       } else
-        luaG_runerror(L, "number expected");
+        luaG_runerror(L, "TOFLT: number expected");
     } break;
     case OP_RAVI_MOVEI: {
       TValue *rb = RB(i);
@@ -1401,7 +1401,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         setivalue(ra, j);
       }
       else
-        luaG_runerror(L, "integer expected");
+        luaG_runerror(L, "MOVEI: integer expected");
     } break;
     case OP_RAVI_MOVEF: {
       TValue *rb = RB(i);
@@ -1410,7 +1410,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         setfltvalue(ra, j);
       }
       else
-        luaG_runerror(L, "number expected");
+        luaG_runerror(L, "MOVEF: number expected");
     } break;
 
     case OP_RAVI_TOARRAYI: {

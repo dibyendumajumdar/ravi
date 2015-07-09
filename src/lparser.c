@@ -402,8 +402,9 @@ static int register_to_locvar_index(FuncState *fs, int reg) {
 ravitype_t raviY_get_register_typeinfo(FuncState *fs, int reg) {
   int idx;
   LocVar *v;
-  if (reg < 0 || reg >= fs->nactvar || (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n)
+  if (reg < 0 || reg >= fs->nactvar || (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n) {
     return RAVI_TANY;
+  }
   /* Get the LocVar associated with the register */
   idx = fs->ls->dyd->actvar.arr[fs->firstlocal + reg].idx;
   lua_assert(idx < fs->nlocvars);
@@ -1086,7 +1087,23 @@ static void parlist (LexState *ls) {
       switch (ls->t.token) {
         case TK_NAME: {  /* param -> NAME */
           /* RAVI change - add type */
-          new_localvar(ls, str_checkname(ls), RAVI_TANY);
+          TString *name = str_checkname(ls);
+          ravitype_t tt = RAVI_TANY;
+          if (testnext(ls, ':')) {
+            TString *typename = str_checkname(ls); /* we expect a type name */
+            const char *str = getaddrstr(typename);
+            if (strcmp(str, "integer") == 0)
+              tt = RAVI_TNUMINT;
+            else if (strcmp(str, "number") == 0)
+              tt = RAVI_TNUMFLT;
+            if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
+              if (testnext(ls, '[')) {
+                checknext(ls, ']');
+                tt = (tt == RAVI_TNUMFLT) ? RAVI_TARRAYFLT : RAVI_TARRAYINT;
+              }
+            }
+          }
+          new_localvar(ls, name, tt);
           nparams++;
           break;
         }
@@ -1102,6 +1119,22 @@ static void parlist (LexState *ls) {
   adjustlocalvars(ls, nparams);
   f->numparams = cast_byte(fs->nactvar);
   luaK_reserveregs(fs, fs->nactvar);  /* reserve register for parameters */
+  //printf("nparams = %d\n", f->numparams);
+  //printf("firstlocal = %d\n", fs->firstlocal);
+  for (int i = 0; i < f->numparams; i++) {
+    LocVar *param = getlocvar(fs, i);
+    ravitype_t tt = raviY_get_register_typeinfo(fs, i);
+    //raviY_printf(fs, "Parameter %d is %v\n", i + 1, param);
+    /* do we need to convert ? */
+    if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
+      /* code an instruction to convert in place */
+      luaK_codeABC(ls->fs, tt == RAVI_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, i, 0, 0);
+    }
+    else if (tt == RAVI_TARRAYFLT || tt == RAVI_TARRAYINT) {
+      /* code an instruction to convert in place */
+      luaK_codeABC(ls->fs, tt == RAVI_TARRAYFLT ? OP_RAVI_TOARRAYF : OP_RAVI_TOARRAYI, i, 0, 0);
+    }
+  }
 }
 
 
