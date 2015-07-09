@@ -869,9 +869,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pTValueT);
   elements.push_back(pTValueT);
   raviV_op_shlT =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
   raviV_op_shrT =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   // void raviH_set_int(lua_State *L, Table *t, unsigned int key, lua_Integer
   // value);

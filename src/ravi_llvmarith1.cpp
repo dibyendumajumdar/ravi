@@ -327,13 +327,14 @@ void RaviCodeGenerator::emit_DIVII(RaviFunctionDef *def, int A, int B, int C) {
 }
 
 // R(A) := RK(B) + RK(C), int+int
-void RaviCodeGenerator::emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op, int A, int B, int C) {
+void RaviCodeGenerator::emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op,
+                                               int A, int B, int C) {
 
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
 
-  //llvm::Value *rb = emit_gep_register_or_constant(def, B);
-  //llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  // llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  // llvm::Value *rc = emit_gep_register_or_constant(def, C);
   llvm::Value *lhs = emit_load_register_or_constant_i(def, B);
   llvm::Value *rhs = emit_load_register_or_constant_i(def, C);
 
@@ -384,11 +385,10 @@ void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
 void RaviCodeGenerator::emit_BNOT_I(RaviFunctionDef *def, int A, int B) {
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
-  //llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  // llvm::Value *rb = emit_gep_register_or_constant(def, B);
   llvm::Value *lhs = emit_load_register_or_constant_i(def, B);
   llvm::Value *rhs = llvm::ConstantInt::get(def->types->lua_IntegerT, -1);
   llvm::Value *result = def->builder->CreateXor(lhs, rhs, "");
   emit_store_reg_i_withtype(def, result, ra);
 }
-
 }

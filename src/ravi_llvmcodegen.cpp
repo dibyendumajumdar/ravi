@@ -171,17 +171,17 @@ llvm::Value *RaviCodeGenerator::emit_gep_constant(RaviFunctionDef *def,
   return src;
 }
 
-llvm::Value *RaviCodeGenerator::emit_load_register_or_constant_i(RaviFunctionDef *def, int B) {
+llvm::Value *
+RaviCodeGenerator::emit_load_register_or_constant_i(RaviFunctionDef *def,
+                                                    int B) {
   if (ISK(B) && def->p->k[INDEXK(B)].tt_ == LUA_TNUMINT) {
     TValue *Konst = &def->p->k[INDEXK(B)];
     return llvm::ConstantInt::get(def->types->lua_IntegerT, Konst->value_.i);
-  }
-  else {
+  } else {
     llvm::Value *rb = emit_gep_register_or_constant(def, B);
     return emit_load_reg_i(def, rb);
   }
 }
-
 
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
@@ -725,8 +725,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_BNOT_I:
     case OP_RAVI_SHL_II:
     case OP_RAVI_SHR_II:
-//    case OP_SHR:
-//    case OP_SHL:
+      //    case OP_SHR:
+      //    case OP_SHL:
       break;
     default:
       return false;
@@ -865,11 +865,11 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       def->types->raviH_set_floatT, reinterpret_cast<void *>(&raviH_set_float),
       "raviH_set_float");
   def->raviV_op_shlF = def->raviF->addExternFunction(
-    def->types->raviV_op_shlT, reinterpret_cast<void *>(&raviV_op_shl),
-    "raviV_op_shl");
+      def->types->raviV_op_shlT, reinterpret_cast<void *>(&raviV_op_shl),
+      "raviV_op_shl");
   def->raviV_op_shrF = def->raviF->addExternFunction(
-    def->types->raviV_op_shrT, reinterpret_cast<void *>(&raviV_op_shr),
-    "raviV_op_shr");
+      def->types->raviV_op_shrT, reinterpret_cast<void *>(&raviV_op_shr),
+      "raviV_op_shr");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
