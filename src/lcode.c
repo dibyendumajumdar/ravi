@@ -1091,6 +1091,25 @@ static void codeexpval (FuncState *fs, OpCode op,
       e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVII, 0, o1, o2);
     }
 
+    else if (op == OP_BAND && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_BAND_II, 0, o1, o2);
+    }
+    else if (op == OP_BOR && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_BOR_II, 0, o1, o2);
+    }
+    else if (op == OP_BXOR && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_BXOR_II, 0, o1, o2);
+    }
+    else if (op == OP_SHL && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_SHL_II, 0, o1, o2);
+    }
+    else if (op == OP_SHR && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_SHR_II, 0, o1, o2);
+    }
+    else if (op == OP_BNOT && e1->ravi_type == RAVI_TNUMINT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_BNOT_I, 0, o1, o2);
+    }
+
     else {
 #endif
       e1->u.info = luaK_codeABC(fs, op, 0, o1, o2);  /* generate opcode */
@@ -1114,11 +1133,14 @@ static void codeexpval (FuncState *fs, OpCode op,
       else if ((op == OP_DIV) 
         && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
         e1->ravi_type = RAVI_TNUMFLT;
+      else if ((op == OP_BAND || op == OP_BOR || op == OP_BXOR || op == OP_SHL || op == OP_SHR)
+        && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
+        e1->ravi_type = RAVI_TNUMINT;
       else
         e1->ravi_type = RAVI_TANY;
     }
     else {
-      if (op == OP_LEN)
+      if (op == OP_LEN || op == OP_BNOT)
         e1->ravi_type = RAVI_TNUMINT;
     }
     luaK_fixline(fs, line);

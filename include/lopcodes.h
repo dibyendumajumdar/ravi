@@ -291,10 +291,18 @@ OP_RAVI_SETUPVALAF,  /*	A B	UpValue[B] := toarrayflt(R(A))			*/
 OP_RAVI_SETTABLE_AII,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
 OP_RAVI_SETTABLE_AFF,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
+OP_RAVI_BAND_II,/*	A B C	R(A) := RK(B) & RK(C)				*/
+OP_RAVI_BOR_II, /*	A B C	R(A) := RK(B) | RK(C)				*/
+OP_RAVI_BXOR_II,/*	A B C	R(A) := RK(B) ~ RK(C)				*/
+OP_RAVI_SHL_II, /*	A B C	R(A) := RK(B) << RK(C)				*/
+OP_RAVI_SHR_II, /*	A B C	R(A) := RK(B) >> RK(C)				*/
+OP_RAVI_BNOT_I, /*	A B	R(A) := ~R(B)					*/
+
+
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_RAVI_SETTABLE_AFF) + 1)
+#define NUM_OPCODES	(cast(int, OP_RAVI_BNOT_I) + 1)
 
 /*===========================================================================
   Notes:

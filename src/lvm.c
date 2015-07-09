@@ -843,6 +843,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_DIV)); }
     } break;
+    case OP_RAVI_BAND_II:
     case OP_BAND: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -852,6 +853,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BAND)); }
     } break;
+    case OP_RAVI_BOR_II:
     case OP_BOR: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -861,6 +863,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BOR)); }
     } break;
+    case OP_RAVI_BXOR_II:
     case OP_BXOR: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -870,6 +873,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BXOR)); }
     } break;
+    case OP_RAVI_SHL_II:
     case OP_SHL: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -879,6 +883,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SHL)); }
     } break;
+    case OP_RAVI_SHR_II:
     case OP_SHR: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -939,6 +944,7 @@ newframe:  /* reentry point when frame changes (call/return) */
             Protect(luaT_trybinTM(L, rb, rb, ra, TM_UNM));
         }
     } break;
+    case OP_RAVI_BNOT_I:
     case OP_BNOT: {
         TValue *rb = RB(i);
         lua_Integer ib;
