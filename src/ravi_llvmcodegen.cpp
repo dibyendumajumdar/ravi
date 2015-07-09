@@ -171,6 +171,18 @@ llvm::Value *RaviCodeGenerator::emit_gep_constant(RaviFunctionDef *def,
   return src;
 }
 
+llvm::Value *RaviCodeGenerator::emit_load_register_or_constant_i(RaviFunctionDef *def, int B) {
+  if (ISK(B) && def->p->k[INDEXK(B)].tt_ == LUA_TNUMINT) {
+    TValue *Konst = &def->p->k[INDEXK(B)];
+    return llvm::ConstantInt::get(def->types->lua_IntegerT, Konst->value_.i);
+  }
+  else {
+    llvm::Value *rb = emit_gep_register_or_constant(def, B);
+    return emit_load_reg_i(def, rb);
+  }
+}
+
+
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
 #if RAVI_NAN_TAGGING
@@ -707,6 +719,12 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_FORLOOP_I1:
     case OP_RAVI_FORPREP_IP:
     case OP_RAVI_FORPREP_I1:
+    case OP_RAVI_BAND_II:
+    case OP_RAVI_BOR_II:
+    case OP_RAVI_BXOR_II:
+    case OP_RAVI_SHL_II:
+    case OP_RAVI_SHR_II:
+    case OP_RAVI_BNOT_I:
       break;
     default:
       return false;
@@ -1172,6 +1190,10 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
       int B = GETARG_B(i);
       emit_NOT(def, A, B);
     } break;
+    case OP_RAVI_BNOT_I: {
+      int B = GETARG_B(i);
+      emit_BNOT_I(def, A, B);
+    } break;
     case OP_TEST: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
@@ -1319,6 +1341,16 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
     case OP_SETUPVAL: {
       int B = GETARG_B(i);
       emit_SETUPVAL(def, A, B);
+    } break;
+
+    case OP_RAVI_SHR_II:
+    case OP_RAVI_SHL_II:
+    case OP_RAVI_BXOR_II:
+    case OP_RAVI_BOR_II:
+    case OP_RAVI_BAND_II: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_BITWISE_BINARY_OP(def, op, A, B, C);
     } break;
 
     case OP_ADD: {

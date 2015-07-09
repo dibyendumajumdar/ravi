@@ -325,4 +325,51 @@ void RaviCodeGenerator::emit_DIVII(RaviFunctionDef *def, int A, int B, int C) {
       def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
   emit_store_reg_n_withtype(def, result, ra);
 }
+
+// R(A) := RK(B) + RK(C), int+int
+void RaviCodeGenerator::emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op, int A, int B, int C) {
+
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  //llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  //llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  llvm::Value *lhs = emit_load_register_or_constant_i(def, B);
+  llvm::Value *rhs = emit_load_register_or_constant_i(def, C);
+
+  llvm::Value *result = NULL;
+
+  switch (op) {
+  case OP_RAVI_BAND_II:
+    result = def->builder->CreateAnd(lhs, rhs, "");
+    break;
+  case OP_RAVI_BOR_II:
+    result = def->builder->CreateOr(lhs, rhs, "");
+    break;
+  case OP_RAVI_BXOR_II:
+    result = def->builder->CreateXor(lhs, rhs, "");
+    break;
+  case OP_RAVI_SHL_II:
+    result = def->builder->CreateShl(lhs, rhs, "");
+    break;
+  case OP_RAVI_SHR_II:
+    result = def->builder->CreateLShr(lhs, rhs, "");
+    break;
+  default:
+    fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
+    lua_assert(false);
+    abort();
+  }
+  emit_store_reg_i_withtype(def, result, ra);
+}
+
+void RaviCodeGenerator::emit_BNOT_I(RaviFunctionDef *def, int A, int B) {
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  //llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  llvm::Value *lhs = emit_load_register_or_constant_i(def, B);
+  llvm::Value *rhs = llvm::ConstantInt::get(def->types->lua_IntegerT, -1);
+  llvm::Value *result = def->builder->CreateXor(lhs, rhs, "");
+  emit_store_reg_i_withtype(def, result, ra);
+}
+
 }

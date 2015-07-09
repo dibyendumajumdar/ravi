@@ -667,6 +667,9 @@ public:
   llvm::Value *emit_num_stack_elements(RaviFunctionDef *def, llvm::Value *L_top,
                                        llvm::Value *ra);
 
+  // Load a register or constant - if constant is int then return a direct LLVM constant
+  llvm::Value *emit_load_register_or_constant_i(RaviFunctionDef *def, int K);
+
   // emit code to load the lua_Number value from register
   llvm::Instruction *emit_load_reg_n(RaviFunctionDef *def, llvm::Value *ra);
 
@@ -942,6 +945,10 @@ public:
 
   void emit_TOARRAY(RaviFunctionDef *def, int A, int array_type_expected,
                     const char *errmsg);
+
+  void emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op, int A, int B, int C);
+
+  void emit_BNOT_I(RaviFunctionDef *def, int A, int B);
 
 private:
   RaviJITStateImpl *jitState_;
