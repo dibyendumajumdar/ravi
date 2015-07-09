@@ -85,6 +85,7 @@ void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc) {
   // ra
   gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
 
+#if 1
   TValue *Konst = &def->p->k[Bx];
   switch (Konst->tt_) {
   case LUA_TNUMINT:
@@ -109,13 +110,16 @@ void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc) {
         dest);
     break;
   default: {
+#endif
     // rb
     gcc_jit_rvalue *src = ravi_emit_get_constant(def, Bx);
 
     // *ra = *rb
     ravi_emit_struct_assign(def, dest, src);
+#if 1
   }
   }
+#endif
 }
 
 // R(A) := R(B)
