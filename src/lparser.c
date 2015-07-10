@@ -1119,28 +1119,8 @@ static void parlist (LexState *ls) {
     do {
       switch (ls->t.token) {
         case TK_NAME: {  /* param -> NAME */
-#if 1
-          declare_localvar(ls);
-#else
           /* RAVI change - add type */
-          TString *name = str_checkname(ls);
-          ravitype_t tt = RAVI_TANY;
-          if (testnext(ls, ':')) {
-            TString *typename = str_checkname(ls); /* we expect a type name */
-            const char *str = getaddrstr(typename);
-            if (strcmp(str, "integer") == 0)
-              tt = RAVI_TNUMINT;
-            else if (strcmp(str, "number") == 0)
-              tt = RAVI_TNUMFLT;
-            if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
-              if (testnext(ls, '[')) {
-                checknext(ls, ']');
-                tt = (tt == RAVI_TNUMFLT) ? RAVI_TARRAYFLT : RAVI_TARRAYINT;
-              }
-            }
-          }
-          new_localvar(ls, name, tt);
-#endif
+          declare_localvar(ls);
           nparams++;
           break;
         }
@@ -1158,7 +1138,7 @@ static void parlist (LexState *ls) {
   luaK_reserveregs(fs, fs->nactvar);  /* reserve register for parameters */
   for (int i = 0; i < f->numparams; i++) {
     ravitype_t tt = raviY_get_register_typeinfo(fs, i);
-    //raviY_printf(fs, "Parameter %d is %v\n", i + 1, getlocvar(fs, i));
+    DEBUG_VARS(raviY_printf(fs, "Parameter [%d] = %v\n", i + 1, getlocvar(fs, i)));
     /* do we need to convert ? */
     if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
       /* code an instruction to convert in place */
@@ -1207,6 +1187,7 @@ static int explist (LexState *ls, expdesc *v) {
 }
 
 #if RAVI_ENABLED
+/* TODO instead of using vars here could we just rely upon register_typeinfo? */
 static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n)
 {
   if (n < nvars && vars[n] != RAVI_TANY && v->ravi_type != vars[n]) {
@@ -1248,7 +1229,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
       Instruction *pc = &getcode(ls->fs, v); /* Obtain the instruction for OP_CALL */
       lua_assert(GET_OPCODE(*pc) == OP_CALL);
       int a = GETARG_A(*pc); /* function return values will be placed from register pointed by A and upwards */
-      int nrets = GETARG_C(*pc) - 1; /* operand C contais number of return values expected  */
+      int nrets = GETARG_C(*pc) - 1; /* operand C contains number of return values expected  */
       /* Note that at this stage nrets is always 1 - as Lua patches in the this value for the last function call in a 
        * variable declaration statement in adjust_assign and localvar_adjust_assign */
       /* all return values that are going to be assigned to typed local vars must be converted to the correct type */
@@ -2026,32 +2007,16 @@ static void localstat (LexState *ls) {
   int nexps;
   expdesc e;
   e.ravi_type = RAVI_TANY;
+  /* RAVI while declaring locals we need to gather the types
+   * so that we can check any assignments later on.
+   * TODO we may be able to use register_typeinfo() here
+   * instead.
+   */
   int vars[MAXVARS] = { 0 };
   do {
     /* RAVI changes start */
     /* local name : type = value */
-#if 1
-    ravitype_t tt = declare_localvar(ls);
-#else
-    TString *name = str_checkname(ls);
-    ravitype_t tt = RAVI_TANY;
-    if (testnext(ls, ':')) {
-      TString *typename = str_checkname(ls); /* we expect a type name */
-      const char *str = getaddrstr(typename);
-      if (strcmp(str, "integer") == 0)
-        tt = RAVI_TNUMINT;
-      else if (strcmp(str, "number") == 0)
-        tt = RAVI_TNUMFLT;
-      if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
-        if (testnext(ls, '[')) {
-          checknext(ls, ']');
-          tt = (tt == RAVI_TNUMFLT) ? RAVI_TARRAYFLT : RAVI_TARRAYINT;
-        }
-      }
-    }
-    new_localvar(ls, name, tt);
-#endif
-    vars[nvars] = tt;
+    vars[nvars] = declare_localvar(ls);
     /* RAVI changes end */
     nvars++;
   } while (testnext(ls, ','));
