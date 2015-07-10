@@ -487,6 +487,8 @@ extern gcc_jit_rvalue *ravi_function_call3_rvalue(ravi_function_def_t *def,
 extern const char *unique_name(ravi_function_def_t *def, const char *prefix,
                                int pc);
 
+extern gcc_jit_rvalue *ravi_emit_num_stack_elements(ravi_function_def_t *def, gcc_jit_rvalue *ra);
+
 extern void ravi_emit_struct_assign(ravi_function_def_t *def,
                                     gcc_jit_rvalue *dest, gcc_jit_rvalue *src);
 

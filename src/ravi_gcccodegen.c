@@ -449,6 +449,18 @@ void ravi_emit_set_L_top_toreg(ravi_function_def_t *def, int B) {
   gcc_jit_block_add_assignment(def->current_block, NULL, top, reg);
 }
 
+gcc_jit_rvalue *ravi_emit_num_stack_elements(ravi_function_def_t *def, gcc_jit_rvalue *ra) {
+  gcc_jit_lvalue *top = gcc_jit_rvalue_dereference_field(
+          gcc_jit_param_as_rvalue(def->L), NULL, def->ravi->types->lua_State_top);
+  gcc_jit_rvalue *diff = gcc_jit_context_new_binary_op(def->function_context, NULL, GCC_JIT_BINARY_OP_MINUS,
+    def->ravi->types->C_ptrdiff_t, gcc_jit_lvalue_as_rvalue(top), ra);
+  gcc_jit_rvalue *n_elements = gcc_jit_context_new_binary_op(def->function_context, NULL, GCC_JIT_BINARY_OP_DIVIDE,
+                                                             def->ravi->types->C_ptrdiff_t,
+    diff, gcc_jit_context_new_rvalue_from_int(def->function_context, def->ravi->types->C_ptrdiff_t, sizeof(TValue)));
+  gcc_jit_rvalue *n = gcc_jit_context_new_cast(def->function_context, NULL, n_elements, def->ravi->types->C_intT);
+  return n;
+}
+
 /* Obtain reference to L->ci->u.l.base */
 static void emit_getL_base_reference(ravi_function_def_t *def,
                                      gcc_jit_lvalue *ci) {

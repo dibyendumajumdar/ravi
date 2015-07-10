@@ -95,6 +95,10 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   ravi_emit_branch(def, else_block);
   ravi_set_current_block(def, else_block);
 
+  // 5.3.1 merge prep if (B == 0) {
+  //  ravi_debug_printf1(def, "OP_RETURN n = %d\n", ravi_emit_num_stack_elements(def, ra_ptr));
+  //}
+
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call2_rvalue(def, def->ravi->types->luaD_poscallT,
