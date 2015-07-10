@@ -1074,7 +1074,40 @@ static void constructor (LexState *ls, expdesc *t) {
 
 /* }====================================================================== */
 
-
+/* Parse
+ *   name : type
+ *   where type is 'integer', 'integer[]',
+ *                 'number', 'number[]'
+ */
+static ravitype_t declare_localvar(LexState *ls) {
+  /* RAVI change - add type */
+  TString *name = str_checkname(ls);
+  /* assume a dynamic type */
+  ravitype_t tt = RAVI_TANY;
+  /* if the variable name is followed by a colon then we have a type
+   * specifier 
+   */
+  if (testnext(ls, ':')) {
+    TString *typename = str_checkname(ls); /* we expect a type name */
+    const char *str = getaddrstr(typename);
+    /* following is not very nice but easy as 
+     * the lexer doesn't need to be changed
+     */
+    if (strcmp(str, "integer") == 0)
+      tt = RAVI_TNUMINT;
+    else if (strcmp(str, "number") == 0)
+      tt = RAVI_TNUMFLT;
+    if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
+      /* if we see [] then it is an array type */
+      if (testnext(ls, '[')) {
+        checknext(ls, ']');
+        tt = (tt == RAVI_TNUMFLT) ? RAVI_TARRAYFLT : RAVI_TARRAYINT;
+      }
+    }
+  }
+  new_localvar(ls, name, tt);
+  return tt;
+}
 
 static void parlist (LexState *ls) {
   /* parlist -> [ param { ',' param } ] */
@@ -1086,6 +1119,9 @@ static void parlist (LexState *ls) {
     do {
       switch (ls->t.token) {
         case TK_NAME: {  /* param -> NAME */
+#if 1
+          declare_localvar(ls);
+#else
           /* RAVI change - add type */
           TString *name = str_checkname(ls);
           ravitype_t tt = RAVI_TANY;
@@ -1104,6 +1140,7 @@ static void parlist (LexState *ls) {
             }
           }
           new_localvar(ls, name, tt);
+#endif
           nparams++;
           break;
         }
@@ -1119,12 +1156,9 @@ static void parlist (LexState *ls) {
   adjustlocalvars(ls, nparams);
   f->numparams = cast_byte(fs->nactvar);
   luaK_reserveregs(fs, fs->nactvar);  /* reserve register for parameters */
-  //printf("nparams = %d\n", f->numparams);
-  //printf("firstlocal = %d\n", fs->firstlocal);
   for (int i = 0; i < f->numparams; i++) {
-    LocVar *param = getlocvar(fs, i);
     ravitype_t tt = raviY_get_register_typeinfo(fs, i);
-    //raviY_printf(fs, "Parameter %d is %v\n", i + 1, param);
+    //raviY_printf(fs, "Parameter %d is %v\n", i + 1, getlocvar(fs, i));
     /* do we need to convert ? */
     if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
       /* code an instruction to convert in place */
@@ -1996,6 +2030,9 @@ static void localstat (LexState *ls) {
   do {
     /* RAVI changes start */
     /* local name : type = value */
+#if 1
+    ravitype_t tt = declare_localvar(ls);
+#else
     TString *name = str_checkname(ls);
     ravitype_t tt = RAVI_TANY;
     if (testnext(ls, ':')) {
@@ -2013,6 +2050,7 @@ static void localstat (LexState *ls) {
       }
     }
     new_localvar(ls, name, tt);
+#endif
     vars[nvars] = tt;
     /* RAVI changes end */
     nvars++;
