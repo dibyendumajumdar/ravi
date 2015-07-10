@@ -87,6 +87,10 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
   def->builder->SetInsertPoint(else_block);
 
   //*  b = luaD_poscall(L, ra);
+  // 5.3.1 merge prep
+  //if (B == 0) {
+  //  debug_printf1(def, "OP_RETURN n = %d\n", emit_num_stack_elements(def, ra_ptr));
+  //}
   CreateCall2(def->builder, def->luaD_poscallF, def->L, ra_ptr);
 
 #if 0

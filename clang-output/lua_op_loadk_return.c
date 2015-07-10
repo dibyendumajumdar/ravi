@@ -2,8 +2,9 @@
 
 extern int printf(const char *, ...);
 void testfunc(struct GCObject *obj) { printf("value = %d\n", obj->tt); }
-extern int luaD_poscall(struct lua_State *L, struct TValue *ra);
+extern int luaD_poscall(struct lua_State *L, struct TValue *ra, int n);
 extern void luaF_close(struct lua_State *L, struct TValue *base);
+extern void test1(struct lua_State *L, int b);
 
 /*
  The following represents a C version of the Lua function:
@@ -27,7 +28,7 @@ extern void luaF_close(struct lua_State *L, struct TValue *base);
  upvalues (0) for 00000033C3366630:
 
  */
-void test1(struct lua_State *L) {
+void test1(struct lua_State *L, int b) {
 
   /* This is the function prologue */
   struct CallInfoLua *ci;
@@ -52,13 +53,13 @@ void test1(struct lua_State *L) {
   *ra2 = *rb2;
 
   /* OP_RETURN instruction */
-  int b = 3;
   struct TValue *ra3 = base + 0;
   // if (b)
-  L->top = ra3 + b - 1;
+  //L->top = ra3 + b - 1;
   if (cl->p->sizep > 0) 
     luaF_close(L, base);
-  b = luaD_poscall(L, ra3);
+  int n = (b != 0) ? b-1 : (int)(L->top - ra); 
+  b = luaD_poscall(L, ra3, n);
   if (b)
     L->top = ci->top;
 }

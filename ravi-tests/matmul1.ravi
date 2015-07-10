@@ -71,8 +71,7 @@ function matrix.mul(a, b)
 end
 
 -- this version avoids using slices - we operate on the 
--- one dimensional array; however the version using slices 
--- is faster
+-- one dimensional array
 function matrix.mul2(a, b)
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local m: integer, n: integer, p: integer = mrows(a), mcols(a), mcols(b);
@@ -147,7 +146,7 @@ if ravi.jit() then
   assert(ravi.compile(matrix.new))
 end
 
-local n = arg[1] or 100;
+local n = arg[1] or 1000;
 n = math.floor(n/2) * 2;
 local t1 = os.clock()
 local a = matrix.mul2(matrix.gen(n), matrix.gen(n));

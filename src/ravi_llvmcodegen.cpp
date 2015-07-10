@@ -39,6 +39,14 @@ const char *RaviCodeGenerator::unique_function_name() {
   return temp_;
 }
 
+llvm::CallInst *RaviCodeGenerator::CreateCall1(llvm::IRBuilder<> *builder,
+                                               llvm::Value *func,
+                                               llvm::Value *arg1) {
+  llvm::SmallVector<llvm::Value *, 1> values;
+  values.push_back(arg1);
+  return builder->CreateCall(func, values);
+}
+
 llvm::CallInst *RaviCodeGenerator::CreateCall2(llvm::IRBuilder<> *builder,
                                                llvm::Value *func,
                                                llvm::Value *arg1,
@@ -605,16 +613,20 @@ llvm::Instruction *RaviCodeGenerator::emit_tofloat(RaviFunctionDef *def,
 
 // (int)(L->top - ra)
 llvm::Value *RaviCodeGenerator::emit_num_stack_elements(RaviFunctionDef *def,
-                                                        llvm::Value *L_top,
                                                         llvm::Value *ra) {
-  llvm::Instruction *top_ptr = def->builder->CreateLoad(L_top, "L_top");
+  llvm::Value *L_top = emit_gep_L_top(def);
+  llvm::Instruction *top_ptr = def->builder->CreateLoad(L_top, "L_top_ptr");
   llvm::Value *top_asint = def->builder->CreatePtrToInt(
-      top_ptr, def->types->C_intptr_t, "L_top_as_intptr");
+      top_ptr, def->types->C_intptr_t, "L_top_ptr_as_int");
   llvm::Value *ra_asint =
-      def->builder->CreatePtrToInt(ra, def->types->C_intptr_t, "ra_as_intptr");
-  llvm::Value *result =
-      def->builder->CreateSub(top_asint, ra_asint, "num_stack_elements");
-  return def->builder->CreateTrunc(result, def->types->C_intT,
+      def->builder->CreatePtrToInt(ra, def->types->C_intptr_t, "ra_ptr_as_int");
+  llvm::Value *diff =
+      def->builder->CreateSub(top_asint, ra_asint, "L_top_minus_ra");
+  // Because each value object is 16 bytes we need to divide by 16
+  llvm::Value *n_elements = def->builder->CreateSDiv(
+      diff, llvm::ConstantInt::get(def->types->C_intptr_t, sizeof(TValue)),
+      "num_tvalue_elements", true);
+  return def->builder->CreateTrunc(n_elements, def->types->C_intT,
                                    "num_stack_elements");
 }
 
@@ -772,6 +784,37 @@ void RaviCodeGenerator::emit_raise_lua_error(RaviFunctionDef *def,
                                              const char *str) {
   CreateCall2(def->builder, def->luaG_runerrorF, def->L,
               def->builder->CreateGlobalStringPtr(str));
+}
+
+void RaviCodeGenerator::debug_printf(RaviFunctionDef *def, const char *str) {
+  CreateCall1(def->builder, def->printfFunc,
+              def->builder->CreateGlobalStringPtr(str));
+}
+
+void RaviCodeGenerator::debug_printf1(RaviFunctionDef *def, const char *str,
+                                      llvm::Value *arg1) {
+  CreateCall2(def->builder, def->printfFunc,
+              def->builder->CreateGlobalStringPtr(str), arg1);
+}
+
+void RaviCodeGenerator::debug_printf2(RaviFunctionDef *def, const char *str,
+                                      llvm::Value *arg1, llvm::Value *arg2) {
+  CreateCall3(def->builder, def->printfFunc,
+              def->builder->CreateGlobalStringPtr(str), arg1, arg2);
+}
+
+void RaviCodeGenerator::debug_printf3(RaviFunctionDef *def, const char *str,
+                                      llvm::Value *arg1, llvm::Value *arg2,
+                                      llvm::Value *arg3) {
+  CreateCall4(def->builder, def->printfFunc,
+              def->builder->CreateGlobalStringPtr(str), arg1, arg2, arg3);
+}
+
+void RaviCodeGenerator::debug_printf4(RaviFunctionDef *def, const char *str,
+                                      llvm::Value *arg1, llvm::Value *arg2,
+                                      llvm::Value *arg3, llvm::Value *arg4) {
+  CreateCall5(def->builder, def->printfFunc,
+              def->builder->CreateGlobalStringPtr(str), arg1, arg2, arg3, arg4);
 }
 
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {

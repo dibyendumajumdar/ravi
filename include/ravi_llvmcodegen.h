@@ -583,6 +583,8 @@ public:
   std::unique_ptr<RaviJITFunctionImpl>
   create_function(llvm::IRBuilder<> &builder, RaviFunctionDef *def);
 
+  llvm::CallInst *CreateCall1(llvm::IRBuilder<> *builder, llvm::Value *func,
+                              llvm::Value *arg1);
   llvm::CallInst *CreateCall2(llvm::IRBuilder<> *builder, llvm::Value *func,
                               llvm::Value *arg1, llvm::Value *arg2);
   llvm::CallInst *CreateCall3(llvm::IRBuilder<> *builder, llvm::Value *func,
@@ -668,8 +670,7 @@ public:
   llvm::Value *emit_gep_L_top(RaviFunctionDef *def);
 
   // (int)(L->top - ra)
-  llvm::Value *emit_num_stack_elements(RaviFunctionDef *def, llvm::Value *L_top,
-                                       llvm::Value *ra);
+  llvm::Value *emit_num_stack_elements(RaviFunctionDef *def, llvm::Value *ra);
 
   // Load a register or constant - if constant is int then return a direct LLVM
   // constant
@@ -763,6 +764,22 @@ public:
 
   // L->top = R(B)
   void emit_set_L_top_toreg(RaviFunctionDef *def, int B);
+
+  void debug_printf(RaviFunctionDef *def, const char *str);
+
+  void debug_printf1(RaviFunctionDef *def, const char *str,
+    llvm::Value *arg1);
+
+  void debug_printf2(RaviFunctionDef *def, const char *str,
+    llvm::Value *arg1, llvm::Value *arg2);
+
+  void debug_printf3(RaviFunctionDef *def, const char *str,
+    llvm::Value *arg1, llvm::Value *arg2,
+    llvm::Value *arg3);
+
+  void debug_printf4(RaviFunctionDef *def, const char *str,
+    llvm::Value *arg1, llvm::Value *arg2,
+    llvm::Value *arg3, llvm::Value *arg4);
 
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.

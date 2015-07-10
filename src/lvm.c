@@ -1073,6 +1073,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         DEBUG_STACK(ravi_dump_stack(L, "OP_RETURN: before luaD_poscall()");)
         int b = GETARG_B(i);
         if (b != 0) L->top = ra + b - 1;
+        //5.3.1 merge prep if (b == 0) printf("OP_RETURN n = %d\n", (int)(L->top - ra));
         if (cl->p->sizep > 0) luaF_close(L, base);
         b = luaD_poscall(L, ra);
         DEBUG_STACK(ravi_dump_stack(L, "OP_RETURN: after luaD_poscall()");)
