@@ -1,4 +1,4 @@
--- $Id: calls.lua,v 1.56 2014/12/26 17:20:53 roberto Exp $
+-- $Id: calls.lua,v 1.57 2015/03/04 13:09:38 roberto Exp $
 
 print("testing functions and calls")
 
@@ -87,7 +87,7 @@ assert(t[1] == 1 and t[2] == 2 and t[3] == 3 and t[4] == 'a')
 
 function fat(x)
   if x <= 1 then return 1
-  else return x*load("return fat(" .. x-1 .. ")")()
+  else return x*load("return fat(" .. x-1 .. ")", "")()
   end
 end
 

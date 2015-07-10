@@ -1,4 +1,4 @@
--- $Id: constructs.lua,v 1.37 2014/12/26 17:20:53 roberto Exp $
+-- $Id: constructs.lua,v 1.39 2015/03/04 13:09:38 roberto Exp $
 
 ;;print "testing syntax";;
 
@@ -228,7 +228,7 @@ a,b = F(nil)==nil; assert(a == true and b == nil)
 ------------------------------------------------------------------
 
 -- sometimes will be 0, sometimes will not...
-_ENV.GLOB1 = os.time() % 2
+_ENV.GLOB1 = math.floor(os.time()) % 2
 
 -- basic expressions with their respective values
 local basiccases = {
@@ -284,7 +284,7 @@ local i = 0
 for n = 1, level do
   for _, v in pairs(cases[n]) do
     local s = v[1]
-    local p = load(string.format(prog, s, s))
+    local p = load(string.format(prog, s, s), "")
     IX = false
     assert(p() == v[2] and IX == not not v[2])
     i = i + 1

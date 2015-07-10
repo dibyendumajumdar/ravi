@@ -1,4 +1,4 @@
--- $Id: locals.lua,v 1.35 2014/12/26 17:20:53 roberto Exp $
+-- $Id: locals.lua,v 1.36 2015/03/04 13:09:38 roberto Exp $
 
 print('testing local variables and environments')
 
@@ -89,13 +89,13 @@ do
     for j=-3,3 do
       assert(load(string.format([[local a=%s;
                                         a=a+%s;
-                                        assert(a ==2^%s)]], j, p-j, i))) ()
+                                        assert(a ==2^%s)]], j, p-j, i), '')) ()
       assert(load(string.format([[local a=%s;
                                         a=a-%s;
-                                        assert(a==-2^%s)]], -j, p-j, i))) ()
+                                        assert(a==-2^%s)]], -j, p-j, i), '')) ()
       assert(load(string.format([[local a,b=0,%s;
                                         a=b-%s;
-                                        assert(a==-2^%s)]], -j, p-j, i))) ()
+                                        assert(a==-2^%s)]], -j, p-j, i), '')) ()
     end
     p = 2 * p;  i = i + 1
   until p <= 0

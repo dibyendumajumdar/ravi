@@ -1,4 +1,4 @@
--- $Id: db.lua,v 1.76 2015/01/01 13:52:01 roberto Exp $
+-- $Id: db.lua,v 1.77 2015/06/01 16:39:11 roberto Exp $
 
 -- testing debug library
 
@@ -331,6 +331,19 @@ assert(debug.gethook() == nil)
 
 -- testing access to function arguments
 
+local function collectlocals (level)
+  local tab = {}
+  for i = 1, math.huge do
+    local n, v = debug.getlocal(level + 1, i)
+    if not (n and string.find(n, "^[a-zA-Z0-9_]+$")) then
+       break   -- consider only real variables
+    end
+    tab[n] = v
+  end
+  return tab
+end
+
+
 X = nil
 a = {}
 function a:f (a, b, ...) local arg = {...}; local c = 13 end
@@ -346,14 +359,7 @@ debug.sethook(function (e)
     assert(m == 'l' and c == 0)
     debug.sethook(nil)  -- hook is called only once
     assert(not X)       -- check that
-    X = {}; local i = 1
-    local x,y
-    while 1 do
-      x,y = debug.getlocal(2, i)
-      if x==nil then break end
-      X[x] = y
-      i = i+1
-    end
+    X = collectlocals(2)
   end, "l")
 end, "c")
 
@@ -362,6 +368,30 @@ assert(X.self == a and X.a == 1   and X.b == 2 and X.c == nil)
 assert(XX == 12)
 assert(debug.gethook() == nil)
 
+
+-- testing access to local variables in return hook (bug in 5.2)
+do
+  local function foo (a, b)
+    do local x,y,z end
+    local c, d = 10, 20
+    return
+  end
+
+  local function aux ()
+    if debug.getinfo(2).name == "foo" then
+      foo = nil   -- to signal that it found 'foo'
+      local tab = {a = 100, b = 200, c = 10, d = 20}
+      for n, v in pairs(collectlocals(2)) do
+        assert(tab[n] == v)
+        tab[n] = nil
+      end
+      assert(next(tab) == nil)    -- 'tab' must be empty
+    end
+  end
+
+  debug.sethook(aux, "r"); foo(100, 200); debug.sethook()
+  assert(foo == nil)
+end
 
 -- testing upvalue access
 local function getupvalues (f)

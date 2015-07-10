@@ -1,5 +1,5 @@
 /*
-** $Id: lcode.c,v 2.99 2014/12/29 16:49:25 roberto Exp $
+** $Id: lcode.c,v 2.101 2015/04/29 18:24:11 roberto Exp $
 ** Code generator for Lua
 ** See Copyright Notice in lua.h
 */
@@ -29,9 +29,9 @@
 #include "lvm.h"
 
 
-/* Maximum number of registers in a Lua function */
+/* Maximum number of registers in a Lua function (must fit in operand A) */
 #define MAXREGS		MAXARG_A
-/* RAVI change; was 250 */
+/* RAVI change; #define MAXREGS		255 */
 
 
 #define hasjumps(e)	((e)->t != (e)->f)
@@ -324,7 +324,8 @@ void luaK_checkstack (FuncState *fs, int n) {
   int newstack = fs->freereg + n;
   if (newstack > fs->f->maxstacksize) {
     if (newstack >= MAXREGS)
-      luaX_syntaxerror(fs->ls, "function or expression too complex");
+      luaX_syntaxerror(fs->ls,
+        "function or expression needs too many registers");
     fs->f->maxstacksize = cast_byte(newstack);
   }
 }
@@ -657,8 +658,8 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
     case VKFLT: {
       e->u.info = luaK_numberK(fs, e->u.nval);
       e->k = VK;
-      /* go through */
     }
+    /* FALLTHROUGH */
     case VK: {
      vk:
       if (e->u.info <= MAXINDEXRK)  /* constant fits in 'argC'? */
@@ -720,7 +721,9 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
 
 static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex) {
   OpCode op = OP_SETUPVAL;
-  if (var->ravi_type != RAVI_TANY && var->ravi_type != ex->ravi_type) {
+  if ((var->ravi_type == RAVI_TNUMINT || var->ravi_type == RAVI_TNUMFLT ||
+       var->ravi_type == RAVI_TARRAYFLT || var->ravi_type == RAVI_TARRAYINT) &&
+      var->ravi_type != ex->ravi_type) {
     if (var->ravi_type == RAVI_TNUMINT)
       op = OP_RAVI_SETUPVALI;
     else if (var->ravi_type == RAVI_TNUMFLT)
@@ -1253,11 +1256,11 @@ void luaK_posfix (FuncState *fs, BinOpr op,
       break;
     }
     case OPR_EQ: case OPR_LT: case OPR_LE: {
-      codecomp(fs, cast(OpCode, op - OPR_EQ + OP_EQ), 1, e1, e2);
+      codecomp(fs, cast(OpCode, (op - OPR_EQ) + OP_EQ), 1, e1, e2);
       break;
     }
     case OPR_NE: case OPR_GT: case OPR_GE: {
-      codecomp(fs, cast(OpCode, op - OPR_NE + OP_EQ), 0, e1, e2);
+      codecomp(fs, cast(OpCode, (op - OPR_NE) + OP_EQ), 0, e1, e2);
       break;
     }
     default: lua_assert(0);

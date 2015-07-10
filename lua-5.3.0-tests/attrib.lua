@@ -1,4 +1,4 @@
--- $Id: attrib.lua,v 1.61 2014/12/26 17:20:53 roberto Exp $
+-- $Id: attrib.lua,v 1.62 2015/04/30 14:15:57 roberto Exp $
 
 print "testing require"
 
@@ -395,7 +395,7 @@ a[1].alo(a[2]==10 and b==10 and c==print)
 -- compute maximum integer where all bits fit in a float
 local maxint = math.maxinteger
 
-while maxint - 1.0 == maxint do   -- trim (if needed) to fit in a float
+while maxint - 1.0 == maxint - 0.0 do   -- trim (if needed) to fit in a float
   maxint = maxint // 2
 end
 

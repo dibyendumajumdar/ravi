@@ -1,9 +1,3 @@
-/*
-** compile with
-** 	gcc -Wall -O2 -I.. -ansi -shared -o lib1.so lib1.c
-*/
-
-
 #include "lua.h"
 #include "lauxlib.h"
 

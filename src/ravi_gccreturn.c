@@ -31,9 +31,8 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
 
   // case OP_RETURN: {
   //  int b = GETARG_B(i);
-  //*  if (b != 0) L->top = ra + b - 1;
   //*  if (cl->p->sizep > 0) luaF_close(L, base);
-  //*  b = luaD_poscall(L, ra);
+  //*  b = luaD_poscall(L, ra, (b != 0 ? b - 1 : L->top - ra));
   //    if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */
   //      return;  /* external invocation: return */
   //    else {  /* invocation via reentry: continue execution */
@@ -53,19 +52,11 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
     ravi_set_current_block(def, block);
   }
 
-  //  ravi_debug_printf2(def, "OP_RETURN(pc=%d) return %d args\n",
-  //  ravi_int_constant(def, pc+1), ravi_int_constant(def, B-1));
-
   // Load pointer to base
   ravi_emit_load_base(def);
 
   // Get pointer to register A
   gcc_jit_rvalue *ra_ptr = ravi_emit_get_register(def, A);
-
-  //*  if (b != 0) L->top = ra + b - 1;
-  if (B != 0) {
-    ravi_emit_set_L_top_toreg(def, A + B - 1);
-  }
 
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Get pointer to Proto->sizep
@@ -95,14 +86,17 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   ravi_emit_branch(def, else_block);
   ravi_set_current_block(def, else_block);
 
-  // 5.3.1 merge prep if (B == 0) {
-  //  ravi_debug_printf1(def, "OP_RETURN n = %d\n", ravi_emit_num_stack_elements(def, ra_ptr));
-  //}
+  gcc_jit_rvalue *nresults = NULL;
+  if (B != 0)
+    nresults = ravi_int_constant(def, B - 1);
+  else
+    nresults = ravi_emit_num_stack_elements(def, ra_ptr);
 
+  //*  b = luaD_poscall(L, ra, (b != 0 ? b - 1 : L->top - ra));
   gcc_jit_block_add_eval(
       def->current_block, NULL,
-      ravi_function_call2_rvalue(def, def->ravi->types->luaD_poscallT,
-                                 gcc_jit_param_as_rvalue(def->L), ra_ptr));
+      ravi_function_call3_rvalue(def, def->ravi->types->luaD_poscallT,
+                                 gcc_jit_param_as_rvalue(def->L), ra_ptr, nresults));
 
   gcc_jit_block_end_with_return(
       def->current_block, NULL,

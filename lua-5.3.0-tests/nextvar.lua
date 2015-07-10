@@ -1,4 +1,4 @@
--- $Id: nextvar.lua,v 1.75 2014/12/26 17:20:53 roberto Exp $
+-- $Id: nextvar.lua,v 1.77 2015/04/06 21:12:51 roberto Exp $
 
 print('testing tables, next, and for')
 
@@ -57,7 +57,11 @@ local function fb (n)
 end
 
 -- test fb function
-local a = 1
+for a = 1, 10000 do   -- all numbers up to 10^4
+  local n = fb(a)
+  assert(a <= n and n <= a*1.125)
+end
+local a = 1024   -- plus a few up to 2 ^30
 local lim = 2^30
 while a < lim do
   local n = fb(a)

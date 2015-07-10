@@ -1,4 +1,4 @@
--- $Id: bitwise.lua,v 1.24 2014/12/26 17:20:53 roberto Exp $
+-- $Id: bitwise.lua,v 1.25 2015/04/30 14:15:57 roberto Exp $
 
 print("testing bitwise operations")
 
@@ -35,7 +35,7 @@ d = d << 32
 assert(a | b ~ c & d == 0xF4000000 << 32)
 assert(~~a == a and ~a == -1 ~ a and -d == ~d + 1)
 
-assert(-1 >> 1 == 2^(numbits - 1) - 1 and 1 << 31 == 0x80000000)
+assert(-1 >> 1 == (1 << (numbits - 1)) - 1 and 1 << 31 == 0x80000000)
 assert(-1 >> (numbits - 1) == 1)
 assert(-1 >> numbits == 0 and
        -1 >> -numbits == 0 and
@@ -218,7 +218,7 @@ assert(bit32.rshift(0x12345678, 8) == 0x00123456)
 assert(bit32.rshift(0x12345678, 32) == 0)
 assert(bit32.rshift(0x12345678, -32) == 0)
 assert(bit32.arshift(0x12345678, 0) == 0x12345678)
-assert(bit32.arshift(0x12345678, 1) == 0x12345678 / 2)
+assert(bit32.arshift(0x12345678, 1) == 0x12345678 // 2)
 assert(bit32.arshift(0x12345678, -1) == 0x12345678 * 2)
 assert(bit32.arshift(-1, 1) == 0xffffffff)
 assert(bit32.arshift(-1, 24) == 0xffffffff)

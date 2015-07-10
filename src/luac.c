@@ -1,5 +1,5 @@
 /*
-** $Id: luac.c,v 1.71 2014/11/26 12:08:59 lhf Exp $
+** $Id: luac.c,v 1.75 2015/03/12 01:58:27 lhf Exp $
 ** Lua compiler (saves bytecodes to files; also lists bytecodes)
 ** See Copyright Notice in lua.h
 */
@@ -92,7 +92,7 @@ static int doargs(int argc, char* argv[])
   {
    output=argv[++i];
    if (output==NULL || *output==0 || (*output=='-' && output[1]!=0))
-    usage(LUA_QL("-o") " needs argument");
+    usage("'-o' needs argument");
    if (IS("-")) output=NULL;
   }
   else if (IS("-p"))			/* parse only */
@@ -226,7 +226,7 @@ int main(int argc, char* argv[])
 static void PrintString(const TString* ts)
 {
  const char* s=getstr(ts);
- size_t i,n=ts->len;
+ size_t i,n=tsslen(ts);
  printf("%c",'"');
  for (i=0; i<n; i++)
  {
@@ -263,13 +263,13 @@ static void PrintConstant(const Proto* f, int i)
 	printf(bvalue(o) ? "true" : "false");
 	break;
   case LUA_TNUMFLT:
-  {
-    char buff[100];
-    sprintf(buff, LUA_NUMBER_FMT, fltvalue(o));
-    printf("%s", buff);
-    if (buff[strspn(buff, "-0123456789")] == '\0') printf(".0");
-    break;
-  }
+	{
+	char buff[100];
+	sprintf(buff,LUA_NUMBER_FMT,fltvalue(o));
+	printf("%s",buff);
+	if (buff[strspn(buff,"-0123456789")]=='\0') printf(".0");
+	break;
+	}
   case LUA_TNUMINT:
 	printf(LUA_INTEGER_FMT,ivalue(o));
 	break;

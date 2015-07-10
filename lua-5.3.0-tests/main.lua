@@ -1,5 +1,5 @@
 # testing special comment on first line
--- $Id: main.lua,v 1.61 2014/12/26 17:20:53 roberto Exp $
+-- $Id: main.lua,v 1.62 2015/05/15 12:28:08 roberto Exp $
 
 -- most (all?) tests here assume a reasonable "Unix-like" shell
 if _port then return end
@@ -11,6 +11,8 @@ if _port then return end
 print ("testing stand-alone interpreter")
 
 assert(os.execute())   -- machine has a system command
+
+local arg = arg or _ARG
 
 local prog = os.tmpname()
 local otherprog = os.tmpname()

@@ -1,4 +1,4 @@
--- $Id: math.lua,v 1.69 2015/01/05 18:41:54 roberto Exp $
+-- $Id: math.lua,v 1.72 2015/06/09 15:55:13 roberto Exp $
 
 print("testing numbers and math lib")
 
@@ -160,11 +160,106 @@ do
   end
 end
 
-
-assert(maxint + 0.0 == maxint)
+-- comparison between floats and integers (border cases)
+if floatbits < intbits then
+  assert(2.0^floatbits == (1 << floatbits))
+  assert(2.0^floatbits - 1.0 == (1 << floatbits) - 1.0)
+  assert(2.0^floatbits - 1.0 ~= (1 << floatbits))
+  -- float is rounded, int is not
+  assert(2.0^floatbits + 1.0 ~= (1 << floatbits) + 1)
+else   -- floats can express all integers with full accuracy
+  assert(maxint == maxint + 0.0)
+  assert(maxint - 1 == maxint - 1.0)
+  assert(minint + 1 == minint + 1.0)
+  assert(maxint ~= maxint - 1.0)
+end
 assert(maxint + 0.0 == 2.0^(intbits - 1) - 1.0)
 assert(minint + 0.0 == minint)
 assert(minint + 0.0 == -2.0^(intbits - 1))
+
+
+-- order between floats and integers
+assert(1 < 1.1); assert(not (1 < 0.9))
+assert(1 <= 1.1); assert(not (1 <= 0.9))
+assert(-1 < -0.9); assert(not (-1 < -1.1))
+assert(1 <= 1.1); assert(not (-1 <= -1.1))
+assert(-1 < -0.9); assert(not (-1 < -1.1))
+assert(-1 <= -0.9); assert(not (-1 <= -1.1))
+assert(minint <= minint + 0.0)
+assert(minint + 0.0 <= minint)
+assert(not (minint < minint + 0.0))
+assert(not (minint + 0.0 < minint))
+assert(maxint < minint * -1.0)
+assert(maxint <= minint * -1.0)
+
+do
+  local fmaxi1 = 2^(intbits - 1)
+  assert(maxint < fmaxi1)
+  assert(maxint <= fmaxi1)
+  assert(not (fmaxi1 <= maxint))
+  assert(minint <= -2^(intbits - 1))
+  assert(-2^(intbits - 1) <= minint)
+end
+
+if floatbits < intbits then
+  print("testing order (floats cannot represent all integers)")
+  local fmax = 2^floatbits
+  local ifmax = fmax | 0
+  assert(fmax < ifmax + 1)
+  assert(fmax - 1 < ifmax)
+  assert(-(fmax - 1) > -ifmax)
+  assert(not (fmax <= ifmax - 1))
+  assert(-fmax > -(ifmax + 1))
+  assert(not (-fmax >= -(ifmax - 1)))
+
+  assert(fmax/2 - 0.5 < ifmax//2)
+  assert(-(fmax/2 - 0.5) > -ifmax//2)
+
+  assert(maxint < 2^intbits)
+  assert(minint > -2^intbits)
+  assert(maxint <= 2^intbits)
+  assert(minint >= -2^intbits)
+else
+  print("testing order (floats can represent all integers)")
+  assert(maxint < maxint + 1.0)
+  assert(maxint < maxint + 0.5)
+  assert(maxint - 1.0 < maxint)
+  assert(maxint - 0.5 < maxint)
+  assert(not (maxint + 0.0 < maxint))
+  assert(maxint + 0.0 <= maxint)
+  assert(not (maxint < maxint + 0.0))
+  assert(maxint + 0.0 <= maxint)
+  assert(maxint <= maxint + 0.0)
+  assert(not (maxint + 1.0 <= maxint))
+  assert(not (maxint + 0.5 <= maxint))
+  assert(not (maxint <= maxint - 1.0))
+  assert(not (maxint <= maxint - 0.5))
+
+  assert(minint < minint + 1.0)
+  assert(minint < minint + 0.5)
+  assert(minint <= minint + 0.5)
+  assert(minint - 1.0 < minint)
+  assert(minint - 1.0 <= minint)
+  assert(not (minint + 0.0 < minint))
+  assert(not (minint + 0.5 < minint))
+  assert(not (minint < minint + 0.0))
+  assert(minint + 0.0 <= minint)
+  assert(minint <= minint + 0.0)
+  assert(not (minint + 1.0 <= minint))
+  assert(not (minint + 0.5 <= minint))
+  assert(not (minint <= minint - 1.0))
+end
+
+do
+  local NaN = 0/0
+  assert(not (NaN < 0))
+  assert(not (NaN > minint))
+  assert(not (NaN <= -9))
+  assert(not (NaN <= maxint))
+  assert(not (NaN < maxint))
+  assert(not (minint <= NaN))
+  assert(not (minint < NaN))
+end
 
 
 -- avoiding errors at compile time
@@ -187,8 +282,8 @@ checkerror(msgf2i, f2i, 0/0)           -- NaN
 
 if floatbits < intbits then
   -- conversion tests when float cannot represent all integers
-  assert(maxint + 1.0 == maxint)
-  assert(minint - 1.0 == minint)
+  assert(maxint + 1.0 == maxint + 0.0)
+  assert(minint - 1.0 == minint + 0.0)
   checkerror(msgf2i, f2i, maxint + 0.0)
   assert(f2i(2.0^(intbits - 2)) == 1 << (intbits - 2))
   assert(f2i(-2.0^(intbits - 2)) == -(1 << (intbits - 2)))

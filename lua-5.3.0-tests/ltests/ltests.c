@@ -1,5 +1,5 @@
 /*
-** $Id: ltests.c,v 2.201 2014/12/18 12:13:42 roberto Exp $
+** $Id: ltests.c,v 2.205 2015/04/02 21:10:21 roberto Exp $
 ** Internal Module for Debugging of the Lua Implementation
 ** See Copyright Notice in lua.h
 */
@@ -289,11 +289,11 @@ static void checkLclosure (global_State *g, LClosure *cl) {
 static int lua_checkpc (lua_State *L, CallInfo *ci) {
   if (!isLua(ci)) return 1;
   else {
-    Proto *p;
-    if (L->status != LUA_YIELD || ci != L->ci)
-      p = ci_func(ci)->p;
-    else  /* real 'func' was saved in 'extra' field */
-      p = clLvalue(restorestack(L, ci->extra))->p;
+    /* if function yielded (inside a hook), real 'func' is in 'extra' field */
+    StkId f = (L->status != LUA_YIELD || ci != L->ci)
+              ? ci->func
+              : restorestack(L, ci->extra);
+    Proto *p = clLvalue(f)->p;
     return p->code <= ci->u.l.savedpc &&
            ci->u.l.savedpc <= p->code + p->sizecode;
   }
@@ -724,7 +724,7 @@ static int string_query (lua_State *L) {
   else if (s < tb->size) {
     TString *ts;
     int n = 0;
-    for (ts = tb->hash[s]; ts != NULL; ts = ts->hnext) {
+    for (ts = tb->hash[s]; ts != NULL; ts = ts->u.hnext) {
       setsvalue2s(L, L->top, ts);
       api_incr_top(L);
       n++;
@@ -913,6 +913,13 @@ static int int2fb_aux (lua_State *L) {
   lua_pushinteger(L, b);
   lua_pushinteger(L, luaO_fb2int(b));
   return 2;
+}
+
+
+static int log2_aux (lua_State *L) {
+  unsigned int x = (unsigned int)luaL_checkinteger(L, 1);
+  lua_pushinteger(L, luaO_ceillog2(x));
+  return 1;
 }
 
 
@@ -1508,6 +1515,7 @@ static const struct luaL_Reg tests_funcs[] = {
   {"getref", getref},
   {"hash", hash_query},
   {"int2fb", int2fb_aux},
+  {"log2", log2_aux},
   {"limits", get_limits},
   {"listcode", listcode},
   {"listk", listk},

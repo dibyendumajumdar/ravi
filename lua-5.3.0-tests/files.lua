@@ -1,4 +1,4 @@
--- $Id: files.lua,v 1.84 2014/12/26 17:20:53 roberto Exp $
+-- $Id: files.lua,v 1.88 2015/05/15 12:29:29 roberto Exp $
 
 local debug = require "debug"
 
@@ -588,6 +588,13 @@ if not _soft then
 end
 
 if not _port then
+  local progname
+  do  -- get name of running executable
+    local arg = arg or _ARG
+    local i = 0
+    while arg[i] do i = i - 1 end
+    progname = '"' .. arg[i + 1] .. '"'
+  end
   print("testing popen/pclose and execute")
   local tests = {
     -- command,   what,  code
@@ -598,7 +605,9 @@ if not _port then
     {"kill -s HUP $$", "signal", 1},
     {"kill -s KILL $$", "signal", 9},
     {"sh -c 'kill -s HUP $$'", "exit"},
-    {'lua -e "os.exit(20, true)"', "exit", 20},
+    {progname .. ' -e " "', "ok"},
+    {progname .. ' -e "os.exit(0, true)"', "ok"},
+    {progname .. ' -e "os.exit(20, true)"', "exit", 20},
   }
   print("\n(some error messages are expected now)")
   for _, v in ipairs(tests) do
@@ -627,6 +636,7 @@ end --}
 
 print'+'
 
+print("testing date/time")
 
 assert(os.date("") == "")
 assert(os.date("!") == "")
@@ -654,10 +664,17 @@ if not _port then
   -- test Posix-specific modifiers
   assert(type(os.date("%Ex")) == 'string')
   assert(type(os.date("%Oy")) == 'string')
+
+  -- test out-of-range dates (at least for Unix)
+  -- either time_t cannot represent year 4000 (if time_t is 4 bytes) or
+  -- year cannot represent time_t 2^60 (if time_t is 8 bytes)
+  assert(not os.time{year=4000, month=1, day=1} or not os.date("%Y", 2^60))
 end
 
-assert(os.time(D) == t)
-assert(not pcall(os.time, {hour = 12}))
+-- assume that time has at least 1-second precision
+assert(math.abs(os.difftime(os.time(D), t)) < 1)
+
+assert(not pcall(os.time, {hour = 12}))   -- missing date
 
 D = os.date("!*t", t)
 load(os.date([[!assert(D.year==%Y and D.month==%m and D.day==%d and
@@ -679,9 +696,11 @@ local t1 = os.time(D)
 -- allow for leap years
 assert(math.abs(os.difftime(t,t1)/(24*3600) - 365) < 2)
 
+-- should not take more than 2 second to execute these two lines
 t = os.time()
 t1 = os.time(os.date("*t"))
-assert(os.difftime(t1,t) <= 2)
+t1 = os.difftime(t1,t)
+assert(0 <= t1 and t1 <= 2)
 
 local t1 = os.time{year=2000, month=10, day=1, hour=23, min=12}
 local t2 = os.time{year=2000, month=10, day=1, hour=23, min=10, sec=19}

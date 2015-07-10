@@ -16,9 +16,6 @@
 
 #include "lauxlib.h"
 #include "lualib.h"
-#ifndef COCO_DISABLE
-#include "lcoco.h"
-#endif
 
 
 static lua_State *getco (lua_State *L) {
@@ -88,26 +85,11 @@ static int luaB_auxwrap (lua_State *L) {
   return r;
 }
 
-#ifndef COCO_DISABLE
-static int luaB_cstacksize (lua_State *L)
-{
-  lua_pushinteger(L, luaCOCO_cstacksize((int)luaL_optinteger(L, 1, -1)));
-  return 1;
-}
-#endif
 
 static int luaB_cocreate (lua_State *L) {
-#ifdef COCO_DISABLE
   lua_State *NL;
   luaL_checktype(L, 1, LUA_TFUNCTION);
   NL = lua_newthread(L);
-#else
-  int cstacksize = (int)luaL_optinteger(L, 2, 0);
-  lua_State *NL = lua_newcthread(L, cstacksize);
-  luaL_argcheck(L, lua_isfunction(L, 1) &&
-                   (cstacksize >= 0 ? 1 : !lua_iscfunction(L, 1)),
-                1, "Lua function expected");
-#endif
   lua_pushvalue(L, 1);  /* move function to top */
   lua_xmove(L, NL, 1);  /* move function from L to NL */
   return 1;
@@ -174,9 +156,6 @@ static const luaL_Reg co_funcs[] = {
   {"wrap", luaB_cowrap},
   {"yield", luaB_yield},
   {"isyieldable", luaB_yieldable},
-#ifndef COCO_DISABLE
-  {"cstacksize", luaB_cstacksize},
-#endif
   {NULL, NULL}
 };
 

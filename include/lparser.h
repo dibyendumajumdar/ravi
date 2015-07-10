@@ -11,7 +11,6 @@
 #include "lobject.h"
 #include "lzio.h"
 
-#include <stdio.h>
 
 /*
 ** Expression descriptor

@@ -1,4 +1,4 @@
--- $Id: strings.lua,v 1.77 2014/12/26 17:20:53 roberto Exp $
+-- $Id: strings.lua,v 1.79 2015/02/05 17:52:25 roberto Exp $
 
 print('testing strings and string library')
 
@@ -186,9 +186,16 @@ assert(string.format("%+08d", 31501) == "+0031501")
 assert(string.format("%+08d", -30927) == "-0030927")
 
 
--- longest number that can be formated
-local largefinite = (string.packsize("n") >= 8) and 1e308 or 1e38
-assert(string.len(string.format('%99.99f', -largefinite)) >= 100)
+do    -- longest number that can be formatted
+  local i = 1
+  local j = 10000
+  while i + 1 < j do   -- binary search for maximum finite float
+    local m = (i + j) // 2
+    if 10^m < math.huge then i = m else j = m end
+  end
+  assert(10^i < math.huge and 10^j == math.huge)
+  assert(string.len(string.format('%.99f', -(10^i))) > i)
+end
 
 
 -- testing large numbers for format
@@ -217,20 +224,38 @@ do   -- assume at least 32 bits
   end
 end
 
-if not pcall(string.format, "%a", 0) then
-  (Message or print)("\n >>> format '%a' not available <<<\n")
-else
-  print("testing 'format %a %A'")
-  local s = string.format("%.2a", 0.5)
-  -- ISO C does not enforce a unique format...
-  assert(string.find(s, "^0x%x%.%x%xp[-+]%d$"))
-  assert(tonumber(s) == 0.5)
-  s = string.format("%.4A", -3)
-  assert(string.find(s, "^%-0X%x%.%x%x%x%xP[-+]%d$"))
-  assert(tonumber(s) == -3.0)
-  assert(tonumber(string.format("%A", 0x1fffff.0)) == 0X1.FFFFFP+20)
-  assert(tonumber(string.format("%.30a", -0.1)) == -0.1)
-  assert(tonumber(string.format("%a", -3^12)) == -3^12)
+
+do print("testing 'format %a %A'")
+  local function matchhexa (n)
+    local s = string.format("%a", n)
+    -- result matches ISO C requirements
+    assert(string.find(s, "^%-?0x[1-9a-f]%.?[0-9a-f]*p[-+]?%d+$"))
+    assert(tonumber(s) == n)  -- and has full precision
+    s = string.format("%A", n)
+    assert(string.find(s, "^%-?0X[1-9A-F]%.?[0-9A-F]*P[-+]?%d+$"))
+    assert(tonumber(s) == n)
+  end
+  for _, n in ipairs{0.1, -0.1, 1/3, -1/3, 1e30, -1e30,
+                     -45/247, 1, -1, 2, -2, 3e-20, -3e-20} do
+    matchhexa(n)
+  end
+
+  assert(string.find(string.format("%A", 0.0), "^0X0%.?0?P%+?0$"))
+  assert(string.find(string.format("%a", -0.0), "^%-0x0%.?0?p%+?0$"))
+
+  if not _port then   -- test inf, -inf, NaN, and -0.0
+    assert(string.find(string.format("%a", 1/0), "^inf"))
+    assert(string.find(string.format("%A", -1/0), "^%-INF"))
+    assert(string.find(string.format("%a", 0/0), "^%-?nan"))
+    assert(string.find(string.format("%a", -0.0), "^%-0x0"))
+  end
+  
+  if not pcall(string.format, "%.3a", 0) then
+    (Message or print)("\n >>> modifiers for format '%a' not available <<<\n")
+  else
+    assert(string.find(string.format("%+.2A", 12), "^%+0X%x%.%x0P%+?%d$"))
+    assert(string.find(string.format("%.4A", -12), "^%-0X%x%.%x000P%+?%d$"))
+  end
 end
 
 

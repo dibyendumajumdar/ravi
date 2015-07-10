@@ -28,9 +28,12 @@ struct TString {
   unsigned char tt;
   unsigned char marked;
   unsigned char extra;
+  unsigned char shrlen;
   unsigned int hash;
-  unsigned long long len;
-  struct TString *hnext;
+  union {
+    unsigned long long len;
+    struct TString *hnext;
+  } u;
 };
 
 union MaxAlign {

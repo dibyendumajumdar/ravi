@@ -1,10 +1,13 @@
--- $Id: sort.lua,v 1.30 2014/12/26 17:20:53 roberto Exp $
+-- $Id: sort.lua,v 1.32 2015/03/04 13:09:38 roberto Exp $
 
 print "testing (parts of) table library"
 
 print "testing unpack"
 
 local unpack = table.unpack
+
+local maxI = math.maxinteger
+local minI = math.mininteger
 
 
 local function checkerror (msg, f, ...)
@@ -39,8 +42,6 @@ a,x = unpack({1,2}, 1, 1)
 assert(a==1 and x==nil)
 
 do
-  local maxI = math.maxinteger
-  local minI = math.mininteger
   local maxi = (1 << 31) - 1          -- maximum value for an int (usually)
   local mini = -(1 << 31)             -- minimum value for an int (usually)
   checkerror("too many results", unpack, {}, 0, maxi)
@@ -102,13 +103,28 @@ do
   a = table.move({10,20,30}, 1, 3, 1, {})   -- move
   eqT(a, {10,20,30})
 
-  a = table.move({10,20,30}, 1, 0, 3)   -- do not move
+  a = table.move({10,20,30}, 1, 0, 3, {})   -- do not move
+  eqT(a, {})
+
+  a = table.move({10,20,30}, 1, 10, 1)   -- move to the same place
   eqT(a, {10,20,30})
 
-  local max = math.maxinteger
-  a = table.move({[max - 2] = 1, [max - 1] = 2, [max] = 3},
-        max - 2, max, -10, {})
+  a = table.move({[maxI - 2] = 1, [maxI - 1] = 2, [maxI] = 3},
+                 maxI - 2, maxI, -10, {})
   eqT(a, {[-10] = 1, [-9] = 2, [-8] = 3})
+
+  a = table.move({[minI] = 1, [minI + 1] = 2, [minI + 2] = 3},
+                 minI, minI + 2, -10, {})
+  eqT(a, {[-10] = 1, [-9] = 2, [-8] = 3})
+
+  a = table.move({45}, 1, 1, maxI)
+  eqT(a, {45, [maxI] = 45})
+
+  a = table.move({[maxI] = 100}, maxI, maxI, minI)
+  eqT(a, {[minI] = 100, [maxI] = 100})
+
+  a = table.move({[minI] = 100}, minI, minI, maxI)
+  eqT(a, {[minI] = 100, [maxI] = 100})
 
   a = setmetatable({}, {
         __index = function (_,k) return k * 10 end,
@@ -128,7 +144,31 @@ do
   assert(not stat and msg == b)
 end
 
-checkerror("must be positive", table.move, {}, -1, 1, 1)
+do
+  -- for very long moves, just check initial accesses and interrupt
+  -- move with an error
+  local function checkmove (f, e, t, x, y)
+    local pos1, pos2
+    local a = setmetatable({}, {
+                __index = function (_,k) pos1 = k end,
+                __newindex = function (_,k) pos2 = k; error() end, })
+    local st, msg = pcall(table.move, a, f, e, t)
+    assert(not st and not msg and pos1 == x and pos2 == y)
+  end
+  checkmove(1, maxI, 0, 1, 0)
+  checkmove(0, maxI - 1, 1, maxI - 1, maxI)
+  checkmove(minI, -2, 0, -2, maxI - 1)
+  checkmove(minI + 1, -1, 1, -1, maxI)
+end
+
+checkerror("too many", table.move, {}, 0, maxI, 1)
+checkerror("too many", table.move, {}, -1, maxI - 1, 1)
+checkerror("too many", table.move, {}, minI, -1, 1)
+checkerror("too many", table.move, {}, minI, maxI, 1)
+checkerror("wrap around", table.move, {}, 1, maxI, 2)
+checkerror("wrap around", table.move, {}, 1, 2, maxI)
+checkerror("wrap around", table.move, {}, minI, -2, 2)
+
 
 print"testing sort"
 
@@ -227,7 +267,7 @@ table.sort(A)
 check(A)
 
 table.sort(A, function (x, y)
-          load(string.format("A[%q] = ''", x))()
+          load(string.format("A[%q] = ''", x), "")()
           collectgarbage()
           return x<y
         end)

@@ -197,11 +197,13 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   //   GCObject *next;
   //   lu_byte tt;
   //   lu_byte marked
-  //   lu_byte extra;  /* reserved words for short strings; "has hash" for longs
-  //   */
+  //   lu_byte extra;  /* reserved words for short strings; "has hash" for longs */
+  //   lu_byte shrlen;  /* length for short strings */
   //   unsigned int hash;
-  //   size_t len;  /* number of characters in string */
-  //   struct TString *hnext;  /* linked list for hash table */
+  //   union {
+  //     size_t lnglen;  /* length for long strings */
+  //     struct TString *hnext;  /* linked list for hash table */
+  //   } u;
   // } TString;
   t->TStringT =
       gcc_jit_context_new_opaque_struct(ravi->context, NULL, "ravi_TString");
@@ -214,12 +216,13 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "marked");
   fields[3] =
       gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "extra");
-  fields[4] = gcc_jit_context_new_field(ravi->context, NULL, t->C_unsigned_intT,
+  fields[4] =
+    gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "shrlen");
+  fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->C_unsigned_intT,
                                         "hash");
-  fields[5] =
-      gcc_jit_context_new_field(ravi->context, NULL, t->C_size_t, "len");
+  /* union not mapped */
   fields[6] =
-      gcc_jit_context_new_field(ravi->context, NULL, t->pTStringT, "hnext");
+      gcc_jit_context_new_field(ravi->context, NULL, t->C_size_t, "lnglen");
   gcc_jit_struct_set_fields(t->TStringT, NULL, 7, fields);
 
   // Table
@@ -788,14 +791,16 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
 
   gcc_jit_param *params[12];
 
-  // int luaD_poscall (lua_State *L, StkId firstResult)
+  // int luaD_poscall (lua_State *L, StkId firstResult, int nres);
   params[0] =
       gcc_jit_context_new_param(ravi->context, NULL, t->plua_StateT, "L");
   params[1] =
       gcc_jit_context_new_param(ravi->context, NULL, t->StkIdT, "firstResult");
+  params[2] =
+    gcc_jit_context_new_param(ravi->context, NULL, t->C_intT, "nres");
   t->luaD_poscallT = gcc_jit_context_new_function(
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_intT, "luaD_poscall",
-      2, params, 0);
+      3, params, 0);
 
   // void luaC_upvalbarrier_ (lua_State *L, UpVal *uv)
   params[0] =

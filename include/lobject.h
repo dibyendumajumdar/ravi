@@ -1,5 +1,5 @@
 /*
-** $Id: lobject.h,v 2.105 2014/12/19 13:36:32 roberto Exp $
+** $Id: lobject.h,v 2.111 2015/06/09 14:21:42 roberto Exp $
 ** Type definitions for Lua objects
 ** See Copyright Notice in lua.h
 */
@@ -34,8 +34,6 @@
 ** bits 4-5: variant bits
 ** bit 6: whether value is collectable
 */
-
-#define VARBITS		(3 << 4)
 
 
 /*
@@ -381,8 +379,14 @@ typedef struct lua_TValue TValue;
 #define setfltvalue(obj,x) \
   { TValue *io=(obj); val_(io).n=(x); settt_(io, LUA_TNUMFLT); }
 
+#define chgfltvalue(obj,x) \
+  { TValue *io=(obj); lua_assert(ttisfloat(io)); val_(io).n=(x); }
+
 #define setivalue(obj,x) \
   { TValue *io=(obj); val_(io).i=(x); settt_(io, LUA_TNUMINT); }
+
+#define chgivalue(obj,x) \
+  { TValue *io=(obj); lua_assert(ttisinteger(io)); val_(io).i=(x); }
 
 #define setnilvalue(obj) settt_(obj, LUA_TNIL)
 
@@ -495,9 +499,12 @@ typedef TValue *StkId;  /* index to stack elements */
 typedef struct TString {
   CommonHeader;
   lu_byte extra;  /* reserved words for short strings; "has hash" for longs */
+  lu_byte shrlen;  /* length for short strings */
   unsigned int hash;
-  size_t len;  /* number of characters in string */
-  struct TString *hnext;  /* linked list for hash table */
+  union {
+    size_t lnglen;  /* length for long strings */
+    struct TString *hnext;  /* linked list for hash table */
+  } u;
 } TString;
 
 
@@ -520,6 +527,12 @@ typedef union UTString {
 
 /* get the actual string (array of bytes) from a Lua value */
 #define svalue(o)       getstr(tsvalue(o))
+
+/* get string length from 'TString *s' */
+#define tsslen(s)	((s)->tt == LUA_TSHRSTR ? (s)->shrlen : (s)->u.lnglen)
+
+/* get string length from 'TValue *o' */
+#define vslen(o)	tsslen(tsvalue(o))
 
 
 /*
@@ -587,7 +600,7 @@ typedef enum {
 typedef struct Upvaldesc {
   TString *name;  /* upvalue name (for debug information) */
   ravitype_t type; /* RAVI type of upvalue */
-  lu_byte instack;  /* whether it is in stack */
+  lu_byte instack;  /* whether it is in stack (register) */
   lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
 } Upvaldesc;
 
@@ -619,7 +632,7 @@ typedef struct Proto {
   CommonHeader;
   lu_byte numparams;  /* number of fixed parameters */
   lu_byte is_vararg;
-  lu_byte maxstacksize;  /* maximum stack used by this function */
+  lu_byte maxstacksize;  /* number of registers needed by this function */
   int sizeupvalues;  /* size of 'upvalues' */
   int sizek;  /* size of 'k' */
   int sizecode;
@@ -629,12 +642,12 @@ typedef struct Proto {
   int linedefined;
   int lastlinedefined;
   TValue *k;  /* constants used by the function */
-  Instruction *code;
+  Instruction *code;  /* opcodes */
   struct Proto **p;  /* functions defined inside the function */
   int *lineinfo;  /* map from opcodes to source lines (debug information) */
   LocVar *locvars;  /* information about local variables (debug information) */
   Upvaldesc *upvalues;  /* upvalue information */
-  struct LClosure *cache;  /* last created closure with this prototype */
+  struct LClosure *cache;  /* last-created closure with this prototype */
   TString  *source;  /* used for debug information */
   GCObject *gclist;
   /* RAVI */
@@ -732,6 +745,7 @@ typedef struct Table {
   GCObject *gclist;
   RaviArray ravi_array;
 } Table;
+
 
 
 /*

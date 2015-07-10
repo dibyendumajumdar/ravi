@@ -1,5 +1,5 @@
 #!../lua
--- $Id: all.lua,v 1.91 2014/12/26 17:20:53 roberto Exp $
+-- $Id: all.lua,v 1.93 2015/05/15 12:28:08 roberto Exp $
 
 local version = "Lua 5.3"
 if _VERSION ~= version then
@@ -7,6 +7,9 @@ if _VERSION ~= version then
     "\nExiting tests\n")
   return
 end
+
+
+_G._ARG = arg   -- save arg for other tests
 
 
 -- next variables control the execution of some tests
@@ -207,8 +210,9 @@ _G.showmem = showmem
 
 end   --)
 
-local _G, showmem, print, format, clock, time, assert, open =
-      _G, showmem, print, string.format, os.clock, os.time, assert, io.open
+local _G, showmem, print, format, clock, time, difftime, assert, open =
+      _G, showmem, print, string.format, os.clock, os.time, os.difftime,
+      assert, io.open
 
 -- file with time of last performed test
 local fname = T and "time-debug.txt" or "time.txt"
@@ -242,9 +246,9 @@ collectgarbage()
 collectgarbage();showmem()
 
 local clocktime = clock() - initclock
-walltime = time() - walltime
+walltime = difftime(time(), walltime)
 
-print(format("\n\ntotal time: %.2fs (wall time: %ds)\n", clocktime, walltime))
+print(format("\n\ntotal time: %.2fs (wall time: %gs)\n", clocktime, walltime))
 
 if not usertests then
   lasttime = lasttime or clocktime    -- if no last time, ignore difference

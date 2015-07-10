@@ -1,11 +1,11 @@
--- $Id: literals.lua,v 1.33 2014/12/26 17:20:53 roberto Exp $
+-- $Id: literals.lua,v 1.34 2015/03/04 13:09:38 roberto Exp $
 
 print('testing scanner')
 
 local debug = require "debug"
 
 
-local function dostring (x) return assert(load(x))() end
+local function dostring (x) return assert(load(x), "")() end
 
 dostring("x \v\f = \t\r 'a\0a' \v\f\f")
 assert(x == 'a\0a' and string.len(x) == 3)
@@ -31,7 +31,7 @@ assert("\x00\x05\x10\x1f\x3C\xfF\xe8" == "\0\5\16\31\60\255\232")
 
 local function lexstring (x, y, n)
   local f = assert(load('return ' .. x ..
-            ', require"debug".getinfo(1).currentline'))
+            ', require"debug".getinfo(1).currentline', ''))
   local s, l = f()
   if not ravi.auto() then
     assert(s == y and l == n)
@@ -261,8 +261,9 @@ local function gen (c, n)
 end
 
 for s in coroutine.wrap(function () gen("", len) end) do
-  assert(s == load("return [====[\n"..s.."]====]")())
+  assert(s == load("return [====[\n"..s.."]====]", "")())
 end
+
 
 -- testing decimal point locale
 if os.setlocale("pt_BR") or os.setlocale("ptb") then

@@ -34,7 +34,7 @@ int ravi_parser_debug = 0;
 /* maximum number of local variables per function (must be smaller
    than 250, due to the bytecode format) */
 #define MAXVARS		125 
-/* RAVI change; was 200 */
+/* RAVI change; #define MAXVARS		200 */
 
 
 #define hasmultret(k)		((k) == VCALL || (k) == VVARARG)
@@ -497,9 +497,8 @@ static void markupval (FuncState *fs, int level) {
   upvalue into all intermediate functions.
 */
 static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
-  if (fs == NULL)  /* no more levels? */ {
+  if (fs == NULL)  /* no more levels? */
     return VVOID;  /* default is global */
-  }
   else {
     int v = searchvar(fs, n);  /* look up locals at current level */
     if (v >= 0) {  /* found? */
@@ -860,7 +859,7 @@ static void open_func (LexState *ls, FuncState *fs, BlockCnt *bl) {
   fs->nk = 0;
   fs->np = 0;
   fs->nups = 0;
-  fs->nlocvars = 0; 
+  fs->nlocvars = 0;
   fs->nactvar = 0;
   fs->firstlocal = ls->dyd->actvar.n;
   fs->bl = NULL;
@@ -1318,7 +1317,7 @@ static void funcargs (LexState *ls, expdesc *f, int line) {
   }
   init_exp(f, VCALL, luaK_codeABC(fs, OP_CALL, base, nparams + 1, 2), RAVI_TANY); /* RAVI TODO return value from function call not known */
   luaK_fixline(fs, line);
-  fs->freereg = base + 1;  /* call remove function and arguments and leaves
+  fs->freereg = base+1;  /* call remove function and arguments and leaves
                             (unless changed) one result */
 }
 
@@ -1388,9 +1387,7 @@ static void suffixedexp (LexState *ls, expdesc *v) {
         funcargs(ls, v, line);
         break;
       }
-      default: {
-        return;
-      }
+      default: return;
     }
   }
 }

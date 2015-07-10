@@ -182,15 +182,18 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //** Header for string value; string bytes follow the end of this structure
   //** (aligned according to 'UTString'; see next).
   //*/
+
   // typedef struct TString {
   //   GCObject *next;
   //   lu_byte tt;
   //   lu_byte marked
-  //   lu_byte extra;  /* reserved words for short strings; "has hash" for longs
-  //   */
+  //   lu_byte extra;  /* reserved words for short strings; "has hash" for longs */
+  //   lu_byte shrlen;  /* length for short strings */
   //   unsigned int hash;
-  //   size_t len;  /* number of characters in string */
-  //   struct TString *hnext;  /* linked list for hash table */
+  //   union {
+  //     size_t lnglen;  /* length for long strings */
+  //     struct TString *hnext;  /* linked list for hash table */
+  //   } u;
   // } TString;
 
   ///*
@@ -208,9 +211,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);  /* extra */
+  elements.push_back(lu_byteT);  /* shrlen */
   elements.push_back(C_intT);    /* hash */
-  elements.push_back(C_size_t);  /* len */
-  elements.push_back(pTStringT); /* hnext */
+  elements.push_back(C_size_t);  /* len (as this is the larger member) */
   TStringT->setBody(elements);
 
   // Table
@@ -611,6 +614,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  TString *memerrmsg;  /* memory-error message */
   //  TString *tmname[TM_N];  /* array with tag-method names */
   //  struct Table *mt[LUA_NUMTAGS];  /* metatables for basic types */
+  //  TString *strcache[STRCACHE_SIZE][1];  /* cache for strings in API */
   //  /* RAVI */
   //  ravi_State *ravi_state;
   //} global_State;
@@ -689,10 +693,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(TValueT);
   UpValT->setBody(elements);
 
-  // int luaD_poscall (lua_State *L, StkId firstResult)
+  // int luaD_poscall (lua_State *L, StkId firstResult, int nres);
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(StkIdT);
+  elements.push_back(C_intT);
   luaD_poscallT = llvm::FunctionType::get(C_intT, elements, false);
 
   // void luaC_upvalbarrier_ (lua_State *L, UpVal *uv)
@@ -750,7 +755,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(plua_StateT);
   elements.push_back(C_pcharT);
   luaG_runerrorT =
-      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, true);
 
   // int luaV_forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
   //                    int *stopnow)

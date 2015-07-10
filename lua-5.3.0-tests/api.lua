@@ -1,4 +1,4 @@
--- $Id: api.lua,v 1.139 2014/12/26 17:20:53 roberto Exp $
+-- $Id: api.lua,v 1.141 2015/05/15 12:25:38 roberto Exp $
 
 if T==nil then
   (Message or print)('\n >>> testC not active: skipping API tests <<<\n')
@@ -35,9 +35,9 @@ assert(T.testC("settop 10; absindex 1; return 1") == 1)
 assert(T.testC("settop 10; absindex R; return 1") < -10)
 
 -- testing alignment
-a = T.d2s(12458954321123)
-assert(a == string.pack("d", 12458954321123))
-assert(T.s2d(a) == 12458954321123)
+a = T.d2s(12458954321123.0)
+assert(a == string.pack("d", 12458954321123.0))
+assert(T.s2d(a) == 12458954321123.0)
 
 a,b,c = T.testC("pushnum 1; pushnum 2; pushnum 3; return 2")
 assert(a == 2 and b == 3 and not c)
@@ -369,8 +369,8 @@ do
   
 
   -- memory error
-  T.totalmem(T.totalmem()+5000)   -- set low memory limit (+5k)
-  assert(T.checkpanic("newuserdata 10000") == "not enough memory")
+  T.totalmem(T.totalmem()+10000)   -- set low memory limit (+10k)
+  assert(T.checkpanic("newuserdata 20000") == "not enough memory")
   T.totalmem(0)          -- restore high limit
 
   -- stack error

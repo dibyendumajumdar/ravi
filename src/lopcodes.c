@@ -1,5 +1,5 @@
 /*
-** $Id: lopcodes.c,v 1.54 2014/11/02 19:19:04 roberto Exp $
+** $Id: lopcodes.c,v 1.55 2015/01/05 13:48:33 roberto Exp $
 ** Opcodes for Lua virtual machine
 ** See Copyright Notice in lua.h
 */
@@ -8,6 +8,9 @@
 #define LUA_CORE
 
 #include "lprefix.h"
+
+
+#include <stddef.h>
 
 #include "lopcodes.h"
 #include "lobject.h"
@@ -332,7 +335,7 @@ const char* raviP_instruction_to_str(char *buf, size_t n, Instruction i) {
 static void PrintString(const TString* ts)
 {
   const char* s = getstr(ts);
-  size_t i, n = ts->len;
+  size_t i, n = tsslen(ts);
   printf("%c", '"');
   for (i = 0; i<n; i++)
   {

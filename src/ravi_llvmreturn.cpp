@@ -32,9 +32,8 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
 
   // case OP_RETURN: {
   //  int b = GETARG_B(i);
-  //*  if (b != 0) L->top = ra + b - 1;
   //*  if (cl->p->sizep > 0) luaF_close(L, base);
-  //*  b = luaD_poscall(L, ra);
+  //*  b = luaD_poscall(L, ra, (b != 0 ? b - 1 : L->top - ra));
   //    if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */
   //      return;  /* external invocation: return */
   //    else {  /* invocation via reentry: continue execution */
@@ -60,11 +59,6 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
   // Get pointer to register A
   llvm::Value *ra_ptr = emit_gep_register(def, A);
 
-  //*  if (b != 0) L->top = ra + b - 1;
-  if (B != 0) {
-    emit_set_L_top_toreg(def, A + B - 1);
-  }
-
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Get pointer to Proto->sizep
   llvm::Instruction *psize = emit_load_proto_sizep(def);
@@ -86,19 +80,14 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
-  //*  b = luaD_poscall(L, ra);
-  // 5.3.1 merge prep
-  //if (B == 0) {
-  //  debug_printf1(def, "OP_RETURN n = %d\n", emit_num_stack_elements(def, ra_ptr));
-  //}
-  CreateCall2(def->builder, def->luaD_poscallF, def->L, ra_ptr);
+  //*  b = luaD_poscall(L, ra, (b != 0 ? b - 1 : L->top - ra));
+  llvm::Value *nresults = NULL;
+  if (B != 0)
+    nresults = llvm::ConstantInt::get(def->types->C_intT, B - 1);
+  else
+    nresults = emit_num_stack_elements(def, ra_ptr);
 
-#if 0
-  llvm::Value *msg1 =
-      def->builder->CreateGlobalString("Returning from compiled function\n");
-  def->builder->CreateCall(def->printfFunc, emit_gep(def, "msg", msg1, 0, 0));
-#endif
-
+  CreateCall3(def->builder, def->luaD_poscallF, def->L, ra_ptr, nresults);
   def->builder->CreateRet(def->types->kInt[1]);
 }
 }

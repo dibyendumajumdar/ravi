@@ -20,7 +20,8 @@ target triple = "i686-pc-windows-gnu"
 %struct.Proto = type { %struct.GCObject*, i8, i8, i8, i8, i8, i32, i32, i32, i32, i32, i32, i32, i32, %struct.TValue*, i32*, %struct.Proto**, i32*, %struct.LocVar*, %struct.Upvaldesc*, %struct.LClosure*, %struct.TString*, %struct.GCObject*, %struct.RaviJITProto }
 %struct.LocVar = type { %struct.TString*, i32, i32, i32 }
 %struct.Upvaldesc = type { %struct.TString*, i32, i8, i8 }
-%struct.TString = type { %struct.GCObject*, i8, i8, i8, i32, i64, %struct.TString* }
+%struct.TString = type { %struct.GCObject*, i8, i8, i8, i8, i32, %union.anon.1 }
+%union.anon.1 = type { i64 }
 %struct.RaviJITProto = type { i8, i8*, i32 (%struct.lua_State*)* }
 
 @.str = private unnamed_addr constant [12 x i8] c"value = %d\0A\00", align 1
