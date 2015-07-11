@@ -144,36 +144,24 @@ The entry point for parsing a local statement is ``localstat()`` in ``lparser.c`
     new_localvar(ls, name, tt);
     return tt;
   }
-
    
+  /* parse a local variable declaration statement - called from statement() */
   static void localstat (LexState *ls) {
     /* stat -> LOCAL NAME {',' NAME} ['=' explist] */
     int nvars = 0;
     int nexps;
     expdesc e;
     e.ravi_type = RAVI_TANY;
+    /* RAVI while declaring locals we need to gather the types
+     * so that we can check any assignments later on.
+     * TODO we may be able to use register_typeinfo() here
+     * instead.
+     */
     int vars[MAXVARS] = { 0 };
     do {
       /* RAVI changes start */
       /* local name : type = value */
-      TString *name = str_checkname(ls);
-      ravitype_t tt = RAVI_TANY;
-      if (testnext(ls, ':')) {
-        TString *typename = str_checkname(ls); /* we expect a type name */
-        const char *str = getaddrstr(typename);
-        if (strcmp(str, "integer") == 0)
-          tt = RAVI_TNUMINT;
-        else if (strcmp(str, "number") == 0)
-          tt = RAVI_TNUMFLT;
-        if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
-          if (testnext(ls, '[')) {
-            checknext(ls, ']');
-            tt = (tt == RAVI_TNUMFLT) ? RAVI_TARRAYFLT : RAVI_TARRAYINT;
-          }
-        }
-      }
-      new_localvar(ls, name, tt);
-      vars[nvars] = tt;
+      vars[nvars] = declare_localvar(ls);
       /* RAVI changes end */
       nvars++;
     } while (testnext(ls, ','));
@@ -189,7 +177,7 @@ The entry point for parsing a local statement is ``localstat()`` in ``lparser.c`
 
 The do-while loop is responsible for parsing the variable names and the type annotations. As each variable name is parsed we detect if there is a type annotation, if and if present the type is recorded in the array ``vars``. 
 
-Parameter lists have to treated the same way.
+Parameter lists may have static type annotations as well, so when parsing parameters we again need to invoke ``declare_localvar()``.
 
 ::
 
@@ -235,7 +223,7 @@ Parameter lists have to treated the same way.
     }
   }
 
-For parameters that are decorated with statc types we need to introduce new instructions to coerce the types at run time. That is what is happening in the for loop at the end.
+Additionally for parameters that are decorated with static types we need to introduce new instructions to coerce the types at run time. That is what is happening in the for loop at the end.
 
 The ``declare_localvar()`` function passes the type of the variable to ``new_localvar()`` which records this in the ``LocVar`` structure associated with the variable.
 
