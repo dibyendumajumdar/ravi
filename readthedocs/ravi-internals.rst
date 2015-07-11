@@ -20,7 +20,7 @@ As the parser progresses it creates a vector of ``LocVar`` for each function con
   ** other types appear then they are all treated as ANY
   **/
   typedef enum {
-    RAVI_TANY,      /* Lua dynamic type */
+    RAVI_TANY = -1,      /* Lua dynamic type */
     RAVI_TNUMINT,   /* integer number */
     RAVI_TNUMFLT,   /* floating point number */
     RAVI_TARRAYINT, /* array of ints */
@@ -71,6 +71,19 @@ The table structure has been enhanced to hold additional information for array u
 
 ::
 
+  typedef enum RaviArrayModifer {
+    RAVI_ARRAY_SLICE = 1,
+    RAVI_ARRAY_FIXEDSIZE = 2
+  } RaviArrayModifier;
+
+  typedef struct RaviArray {
+    char *data;
+    unsigned int len; /* RAVI len specialization */
+    unsigned int size; /* amount of memory allocated */
+    lu_byte array_type; /* RAVI specialization */
+    lu_byte array_modifier; /* Flags that affect how the array is handled */
+  } RaviArray;
+
   typedef struct Table {
     CommonHeader;
     lu_byte flags;  /* 1<<p means tagmethod(p) is not present */
@@ -81,8 +94,7 @@ The table structure has been enhanced to hold additional information for array u
     Node *lastfree;  /* any free position is before this position */
     struct Table *metatable;
     GCObject *gclist;
-    ravitype_t ravi_array_type; /* RAVI specialization */
-    unsigned int ravi_array_len; /* RAVI len specialization */
+    RaviArray ravi_array;
   } Table;
 
 
@@ -98,6 +110,42 @@ The entry point for parsing a local statement is ``localstat()`` in ``lparser.c`
 
 ::
 
+  /* Parse
+   *   name : type
+   *   where type is 'integer', 'integer[]',
+   *                 'number', 'number[]'
+   */
+  static ravitype_t declare_localvar(LexState *ls) {
+    /* RAVI change - add type */
+    TString *name = str_checkname(ls);
+    /* assume a dynamic type */
+    ravitype_t tt = RAVI_TANY;
+    /* if the variable name is followed by a colon then we have a type
+     * specifier 
+     */
+    if (testnext(ls, ':')) {
+      TString *typename = str_checkname(ls); /* we expect a type name */
+      const char *str = getaddrstr(typename);
+      /* following is not very nice but easy as 
+       * the lexer doesn't need to be changed
+       */
+      if (strcmp(str, "integer") == 0)
+        tt = RAVI_TNUMINT;
+      else if (strcmp(str, "number") == 0)
+        tt = RAVI_TNUMFLT;
+      if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
+        /* if we see [] then it is an array type */
+        if (testnext(ls, '[')) {
+          checknext(ls, ']');
+          tt = (tt == RAVI_TNUMFLT) ? RAVI_TARRAYFLT : RAVI_TARRAYINT;
+        }
+      }
+    }
+    new_localvar(ls, name, tt);
+    return tt;
+  }
+
+   
   static void localstat (LexState *ls) {
     /* stat -> LOCAL NAME {',' NAME} ['=' explist] */
     int nvars = 0;
@@ -141,7 +189,55 @@ The entry point for parsing a local statement is ``localstat()`` in ``lparser.c`
 
 The do-while loop is responsible for parsing the variable names and the type annotations. As each variable name is parsed we detect if there is a type annotation, if and if present the type is recorded in the array ``vars``. 
 
-The type of the variable is also passed to ``new_localvar()`` which records this in the ``LocVar`` structure associated with the variable.
+Parameter lists have to treated the same way.
+
+::
+
+  static void parlist (LexState *ls) {
+    /* parlist -> [ param { ',' param } ] */
+    FuncState *fs = ls->fs;
+    Proto *f = fs->f;
+    int nparams = 0;
+    f->is_vararg = 0;
+    if (ls->t.token != ')') {  /* is 'parlist' not empty? */
+      do {
+        switch (ls->t.token) {
+          case TK_NAME: {  /* param -> NAME */
+            /* RAVI change - add type */
+            declare_localvar(ls);
+            nparams++;
+            break;
+          }
+          case TK_DOTS: {  /* param -> '...' */
+            luaX_next(ls);
+            f->is_vararg = 1;
+            break;
+          }
+          default: luaX_syntaxerror(ls, "<name> or '...' expected");
+        }
+      } while (!f->is_vararg && testnext(ls, ','));
+    }
+    adjustlocalvars(ls, nparams);
+    f->numparams = cast_byte(fs->nactvar);
+    luaK_reserveregs(fs, fs->nactvar);  /* reserve register for parameters */
+    for (int i = 0; i < f->numparams; i++) {
+      ravitype_t tt = raviY_get_register_typeinfo(fs, i);
+      DEBUG_VARS(raviY_printf(fs, "Parameter [%d] = %v\n", i + 1, getlocvar(fs, i)));
+      /* do we need to convert ? */
+      if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
+        /* code an instruction to convert in place */
+        luaK_codeABC(ls->fs, tt == RAVI_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, i, 0, 0);
+      }
+      else if (tt == RAVI_TARRAYFLT || tt == RAVI_TARRAYINT) {
+        /* code an instruction to convert in place */
+        luaK_codeABC(ls->fs, tt == RAVI_TARRAYFLT ? OP_RAVI_TOARRAYF : OP_RAVI_TOARRAYI, i, 0, 0);
+      }
+    }
+  }
+
+For parameters that are decorated with statc types we need to introduce new instructions to coerce the types at run time. That is what is happening in the for loop at the end.
+
+The ``declare_localvar()`` function passes the type of the variable to ``new_localvar()`` which records this in the ``LocVar`` structure associated with the variable.
 
 ::
   
@@ -650,6 +746,10 @@ Additionally when arithmetic operations take place two things need to happen: a)
         else
           e1->ravi_type = RAVI_TANY;
       }
+      else {
+        if (op == OP_LEN || op == OP_BNOT)
+          e1->ravi_type = RAVI_TNUMINT;
+      }
       luaK_fixline(fs, line);
     }
   } 
@@ -707,9 +807,78 @@ When expression reference indexed variables, i.e., tables, we need to emit speci
 fornum statements
 -----------------
 
-The Lua fornum statements create special variables. In order to allows the loop variable to be used in expressions within the loop body we need to set the types of these variables. This is handled in ``fornum()`` as shown below.
+The Lua fornum statements create special variables. In order to allows the loop variable to be used in expressions within the loop body we need to set the types of these variables. This is handled in ``fornum()`` as shown below. Additional complexity is due to the fact that Ravi tries to detect when fornum loops use positive integer step and if this step is ``1``; specialized bytecodes are generated for these scenarios.
 
 ::
+
+  typedef struct Fornuminfo {
+    ravitype_t type;
+    int is_constant;
+    int int_value;
+  } Fornuminfo;
+
+  /* parse the single expressions needed in numerical for loops
+   * called by fornum()
+   */
+  static int exp1 (LexState *ls, Fornuminfo *info) {
+    /* Since the local variable in a fornum loop is local to the loop and does
+     * not use any variable in outer scope we don't need to check its
+     * type - also the loop is already optimised so no point trying to
+     * optimise the iteration variable
+     */
+    expdesc e;
+    int reg;
+    e.ravi_type = RAVI_TANY;
+    expr(ls, &e);
+    DEBUG_EXPR(raviY_printf(ls->fs, "fornum exp -> %e\n", &e));
+    info->is_constant = (e.k == VKINT);
+    info->int_value = info->is_constant ? e.u.ival : 0;
+    luaK_exp2nextreg(ls->fs, &e);
+    lua_assert(e.k == VNONRELOC);
+    reg = e.u.info;
+    info->type = e.ravi_type;
+    return reg;
+  }
+
+  /* parse a for loop body for both versions of the for loop
+   * called by fornum(), forlist()
+   */
+  static void forbody (LexState *ls, int base, int line, int nvars, int isnum, Fornuminfo *info) {
+    /* forbody -> DO block */
+    BlockCnt bl;
+    OpCode forprep_inst = OP_FORPREP, forloop_inst = OP_FORLOOP;
+    FuncState *fs = ls->fs;
+    int prep, endfor;
+    adjustlocalvars(ls, 3);  /* control variables */
+    checknext(ls, TK_DO);
+    if (isnum) {
+      ls->fs->f->ravi_jit.jit_flags = 1;
+      if (info && info->is_constant && info->int_value > 1) {
+        forprep_inst = OP_RAVI_FORPREP_IP;
+        forloop_inst = OP_RAVI_FORLOOP_IP;
+      }
+      else if (info && info->is_constant && info->int_value == 1) {
+        forprep_inst = OP_RAVI_FORPREP_I1;
+        forloop_inst = OP_RAVI_FORLOOP_I1;
+      }
+    }
+    prep = isnum ? luaK_codeAsBx(fs, forprep_inst, base, NO_JUMP) : luaK_jump(fs);
+    enterblock(fs, &bl, 0);  /* scope for declared variables */
+    adjustlocalvars(ls, nvars);
+    luaK_reserveregs(fs, nvars);
+    block(ls);
+    leaveblock(fs);  /* end of scope for declared variables */
+    luaK_patchtohere(fs, prep);
+    if (isnum)  /* numeric for? */
+      endfor = luaK_codeAsBx(fs, forloop_inst, base, NO_JUMP);
+    else {  /* generic for */
+      luaK_codeABC(fs, OP_TFORCALL, base, 0, nvars);
+      luaK_fixline(fs, line);
+      endfor = luaK_codeAsBx(fs, OP_TFORLOOP, base + 2, NO_JUMP);
+    }
+    luaK_patchlist(fs, endfor, prep + 1);
+    luaK_fixline(fs, line);
+  }
 
   /* parse a numerical for loop, calls forbody()
    * called from forstat()
@@ -726,46 +895,42 @@ The Lua fornum statements create special variables. In order to allows the loop 
     /* The fornum sets up its own variables as above.
        These are expected to hold numeric values - but from Ravi's
        point of view we need to know if the variable is an integer or
-       number. So we need to check if this can be determined from the
+       double. So we need to check if this can be determined from the
        fornum expressions. If we can then we will set the 
        fornum variables to the type we discover.
     */
-    /* index variable - not yet active so get it from locvars*/
-    vidx = &fs->f->locvars[fs->nlocvars - 4]; 
-    /* index variable - not yet active so get it from locvars*/
-    vlimit = &fs->f->locvars[fs->nlocvars - 3];
-    /* index variable - not yet active so get it from locvars*/ 
-    vstep = &fs->f->locvars[fs->nlocvars - 2];
-    /* index variable - not yet active so get it from locvars*/ 
-    vvar = &fs->f->locvars[fs->nlocvars - 1]; 
+    vidx = &fs->f->locvars[fs->nlocvars - 4]; /* index variable - not yet active so get it from locvars*/
+    vlimit = &fs->f->locvars[fs->nlocvars - 3]; /* index variable - not yet active so get it from locvars*/
+    vstep = &fs->f->locvars[fs->nlocvars - 2]; /* index variable - not yet active so get it from locvars*/
+    vvar = &fs->f->locvars[fs->nlocvars - 1]; /* index variable - not yet active so get it from locvars*/
     checknext(ls, '=');
     /* get the type of each expression */
-    ravitype_t tidx = RAVI_TANY, 
-               tlimit = RAVI_TANY, 
-               tstep = RAVI_TNUMINT;
+    Fornuminfo tidx = { RAVI_TANY,0,0 }, tlimit = { RAVI_TANY,0,0 }, tstep = { RAVI_TNUMINT,0,0 };
+    Fornuminfo *info = NULL;
     exp1(ls, &tidx);  /* initial value */
     checknext(ls, ',');
     exp1(ls, &tlimit);  /* limit */
     if (testnext(ls, ','))
       exp1(ls, &tstep);  /* optional step */
     else {  /* default step = 1 */
+      tstep.is_constant = 1;
+      tstep.int_value = 1;
       luaK_codek(fs, fs->freereg, luaK_intK(fs, 1));
       luaK_reserveregs(fs, 1);
     }
-    if (tidx == tlimit && tlimit == tstep 
-        && (tidx == RAVI_TNUMFLT || tidx == RAVI_TNUMINT)) {
-      /* Ok so we have an integer or number */
-      vidx->ravi_type = vlimit->ravi_type 
-                      = vstep->ravi_type 
-                      = vvar->ravi_type = tidx;
+    if (tidx.type == tlimit.type && tlimit.type == tstep.type && (tidx.type == RAVI_TNUMFLT || tidx.type == RAVI_TNUMINT)) {
+      if (tidx.type == RAVI_TNUMINT && tstep.is_constant)
+        info = &tstep;
+      /* Ok so we have an integer or double */
+      vidx->ravi_type = vlimit->ravi_type = vstep->ravi_type = vvar->ravi_type = tidx.type;
       DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for index %v\n", vidx));
       DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for limit %v\n", vlimit));
       DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for step %v\n", vstep));
       DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for variable %v\n", vvar));
     }
-    forbody(ls, base, line, 1, 1);
+    forbody(ls, base, line, 1, 1, info);
   }
-
+   
 
 Handling of Upvalues
 ====================
