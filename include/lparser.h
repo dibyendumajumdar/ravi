@@ -106,26 +106,33 @@ typedef struct Dyndata {
 struct BlockCnt;  /* defined in lparser.c */
 
 
-/* state needed to generate code for a given function 
-   functions have a register window on the stack 
-   the stack is represented in LexState->dyd.actvar (Dyndata) 
+/* State needed to generate code for a given function. 
+   Functions have a register window on the stack. 
+   The stack is represented in LexState->dyd.actvar (Dyndata) 
    structure (see llex.h). The register window of the function 
-   starts from LexState->dyd.actvar.arr[firstlocal]. The 'active' local variables 
-   of the function extend upto LexState->dyd.actvar.arr[nactvar-1]. Note that 
-   when parsing a 'local' declaration statement the 'nactvar' is adjusted at the end of 
-   the statement so that during parsing of the statement the 'nactvar'
+   starts from LexState->dyd.actvar.arr[firstlocal]. 
+   The 'active' local variables of the function extend 
+   upto LexState->dyd.actvar.arr[nactvar-1]. 
+   Note that when parsing a 'local' declaration statement 
+   the 'nactvar' is adjusted at the end of the statement 
+   so that during parsing of the statement the 'nactvar'
    covers locals upto the start of the statement. This means that 
-   local variables come into scope (become 'active') after the local statement ends.
-   However, if the local statement defines a function then the variable becomes 'active'
+   local variables come into scope (become 'active') after 
+   the local statement ends. However, if the local statement 
+   defines a function then the variable becomes 'active'
    before the function body is parsed.
-   A tricky thing to note is that while 'nactvar' is adjusted at the end of the 
-   statement - the 'stack' as represented by LexState->dyd.actvar.arr is extended to the required 
+   A tricky thing to note is that while 'nactvar' is adjusted 
+   at the end of the statement - the 'stack' as represented 
+   by LexState->dyd.actvar.arr is extended to the required 
    size as the local variables are created by new_localvar(). 
    When a function is the topmost function being parsed, the 
-   registers between LexState->dyd.actvar.arr[nactvar] and LexState->dyd.actvar.arr[freereg-1] 
-   are used by the parser for evaluating expressions - i.e. these are part of the 
-   local registers available to the function 
-   Note that function parameters are handled as locals 
+   registers between LexState->dyd.actvar.arr[nactvar] 
+   and LexState->dyd.actvar.arr[freereg-1] 
+   are used by the parser for evaluating expressions - 
+   i.e. these are part of the local registers available to 
+   the function 
+   Note that function parameters are handled in the
+   same way as local variables. 
   
    example of what all this means: 
   
@@ -202,11 +209,17 @@ typedef struct FuncState {
   int jpc;  /* list of pending jumps to 'pc' */
   int nk;  /* number of elements in 'k' */
   int np;  /* number of elements in 'p' */
-  int firstlocal;  /* index of first local var (in Dyndata array) - this marks the start of the register window of the function */
-  short nlocvars;  /* number of elements in 'f->locvars' - i.e. number of local variables */
-  lu_byte nactvar;  /* number of active local variables in the function - see note above on how this works */
+  int firstlocal;  /* index of first local variable (in Dyndata array) - 
+                      this marks the start of the register 
+                      window of the function i.e. register
+                      zero is here */
+  short nlocvars;  /* number of elements in 'f->locvars' 
+                      - i.e. number of local variables */
+  lu_byte nactvar;  /* number of active local variables in 
+                       the function - see note above on how this works */
   lu_byte nups;  /* number of upvalues */
-  lu_byte freereg;  /* first free register - this tracks the top of the stack as parsing progresses */
+  lu_byte freereg;  /* first free register - this tracks the top 
+                       of the stack as parsing progresses */
 } FuncState;
 
 
@@ -232,8 +245,20 @@ LUAI_FUNC void raviY_printf(FuncState *fs, const char *format, ...);
  */
 LUAI_FUNC ravitype_t raviY_get_register_typeinfo(FuncState *fs, int reg);
 
-#define DEBUG_EXPR(p) if ((ravi_parser_debug & 1) != 0) {p;} else {}
-#define DEBUG_CODEGEN(p) if ((ravi_parser_debug & 2) != 0) {p;} else {}
-#define DEBUG_VARS(p) if ((ravi_parser_debug & 4) != 0) {p;} else {}
+#define DEBUG_EXPR(p)                                                          \
+  if ((ravi_parser_debug & 1) != 0) {                                          \
+    p;                                                                         \
+  } else {                                                                     \
+  }
+#define DEBUG_CODEGEN(p)                                                       \
+  if ((ravi_parser_debug & 2) != 0) {                                          \
+    p;                                                                         \
+  } else {                                                                     \
+  }
+#define DEBUG_VARS(p)                                                          \
+  if ((ravi_parser_debug & 4) != 0) {                                          \
+    p;                                                                         \
+  } else {                                                                     \
+  }
 
 #endif

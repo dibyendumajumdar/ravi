@@ -28,8 +28,8 @@
 #include "lstring.h"
 #include "ltable.h"
 
+/* RAVI - only global (sorry!) but in this case the global is fine */
 int ravi_parser_debug = 0;
-
 
 /* maximum number of local variables per function (must be smaller
    than 250, due to the bytecode format) */
@@ -57,28 +57,34 @@ typedef struct BlockCnt {
   lu_byte isloop;  /* true if 'block' is a loop */
 } BlockCnt;
 
-void ravi_set_debuglevel(int level) {
-  ravi_parser_debug = level;
-}
+/* RAVI set debug level */
+void ravi_set_debuglevel(int level) { ravi_parser_debug = level; }
 
+/* RAVI - return the type name */
 static const char *get_typename(ravitype_t tt) {
   switch (tt) {
-  case RAVI_TNIL: return "nil";
-  case RAVI_TBOOLEAN: return "B";
-  case RAVI_TNUMFLT: return "D"; 
-  case RAVI_TNUMINT: return "I";
-  case RAVI_TSTRING: 
+  case RAVI_TNIL:
+    return "nil";
+  case RAVI_TBOOLEAN:
+    return "B";
+  case RAVI_TNUMFLT:
+    return "D";
+  case RAVI_TNUMINT:
+    return "I";
+  case RAVI_TSTRING:
     return "S";
-  case RAVI_TFUNCTION: 
+  case RAVI_TFUNCTION:
     return "F";
   case RAVI_TARRAYINT:
     return "[I";
   case RAVI_TARRAYFLT:
     return "[F";
-  default: return "?";
+  default:
+    return "?";
   }
 }
 
+/* RAVI - prints a Lua expression node */
 static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
   char buf[80] = {0};
   switch (e->k) {
@@ -120,92 +126,91 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
             get_typename(e->ravi_type));
     break;
   case VINDEXED:
-    fprintf(fp, "{p=%p, k=VINDEXED, tablereg=%d, indexreg=%d, vtype=%s, type=%s}", e, e->u.ind.t,
-            e->u.ind.idx, (e->u.ind.vt == VLOCAL) ? "VLOCAL": "VUPVAL", get_typename(e->ravi_type));
+    fprintf(fp,
+            "{p=%p, k=VINDEXED, tablereg=%d, indexreg=%d, vtype=%s, type=%s}",
+            e, e->u.ind.t, e->u.ind.idx,
+            (e->u.ind.vt == VLOCAL) ? "VLOCAL" : "VUPVAL",
+            get_typename(e->ravi_type));
     break;
   case VJMP:
-    fprintf(fp, "{p=%p, k=VJMP, pc=%d, instruction=(%s), type=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VJMP, pc=%d, instruction=(%s), type=%s}", e,
+            e->u.info,
             raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
             get_typename(e->ravi_type));
     break;
   case VRELOCABLE:
-    fprintf(fp, "{p=%p, k=VRELOCABLE, pc=%d, instruction=(%s), type=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VRELOCABLE, pc=%d, instruction=(%s), type=%s}", e,
+            e->u.info,
             raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
             get_typename(e->ravi_type));
     break;
   case VCALL:
-    fprintf(fp, "{p=%p, k=VCALL, pc=%d, instruction=(%s %s), type=%s}", e, e->u.info,
-            raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
-            get_typename(raviY_get_register_typeinfo(fs, GETARG_A(getcode(fs, e)))),
-            get_typename(e->ravi_type));
+    fprintf(
+        fp, "{p=%p, k=VCALL, pc=%d, instruction=(%s %s), type=%s}", e,
+        e->u.info, raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
+        get_typename(raviY_get_register_typeinfo(fs, GETARG_A(getcode(fs, e)))),
+        get_typename(e->ravi_type));
     break;
   case VVARARG:
-    fprintf(fp, "{p=%p, k=VVARARG, pc=%d, instruction=(%s), type=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VVARARG, pc=%d, instruction=(%s), type=%s}", e,
+            e->u.info,
             raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
             get_typename(e->ravi_type));
     break;
   }
 }
 
-void raviY_printf(FuncState *fs, const char *format, ...)
-{
-  char buf[80] = { 0 };
+/* RAVI - printf type utility for debugging */
+void raviY_printf(FuncState *fs, const char *format, ...) {
+  char buf[80] = {0};
   va_list ap;
   const char *cp;
   va_start(ap, format);
   for (cp = format; *cp; cp++) {
     if (cp[0] == '%' && cp[1] == 'e') {
       expdesc *e;
-      e = va_arg(ap, expdesc*);
+      e = va_arg(ap, expdesc *);
       print_expdesc(stdout, fs, e);
       cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 'v') {
+    } else if (cp[0] == '%' && cp[1] == 'v') {
       LocVar *v;
-      v = va_arg(ap, LocVar*);
+      v = va_arg(ap, LocVar *);
       const char *s = getstr(v->varname);
-      printf("var={%s startpc=%d endpc=%d, type=%s}", s, v->startpc, v->endpc, get_typename(v->ravi_type));
+      printf("var={%s startpc=%d endpc=%d, type=%s}", s, v->startpc, v->endpc,
+             get_typename(v->ravi_type));
       cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 'o') {
+    } else if (cp[0] == '%' && cp[1] == 'o') {
       Instruction i;
       i = va_arg(ap, Instruction);
       raviP_instruction_to_str(buf, sizeof buf, i);
       fputs(buf, stdout);
       cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 'd') {
+    } else if (cp[0] == '%' && cp[1] == 'd') {
       int i;
       i = va_arg(ap, int);
       printf("%d", i);
       cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 's') {
+    } else if (cp[0] == '%' && cp[1] == 's') {
       const char *s;
       s = va_arg(ap, const char *);
       fputs(s, stdout);
       cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 'f') {
+    } else if (cp[0] == '%' && cp[1] == 'f') {
       double d;
       d = va_arg(ap, double);
       printf("%f", d);
       cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 't') {
+    } else if (cp[0] == '%' && cp[1] == 't') {
       ravitype_t i;
       i = va_arg(ap, ravitype_t);
       fputs(get_typename(i), stdout);
       cp++;
-    }
-    else {
+    } else {
       fputc(*cp, stdout);
     }
   }
   va_end(ap);
 }
-
-
 
 /*
 ** prototypes for recursive non-terminal functions
@@ -320,6 +325,7 @@ static void checkname (LexState *ls, expdesc *e) {
 
 /* create a local variable in function scope, return the
  * variable's index in ls->f->locvars.
+ * RAVI change - added the type of the variable.
  */
 static int registerlocalvar (LexState *ls, TString *varname, int ravi_type) {
   FuncState *fs = ls->fs;
@@ -383,7 +389,7 @@ static LocVar *getlocvar (FuncState *fs, int i) {
   return &fs->f->locvars[idx];
 }
 
-/* translate from local register to local variable index
+/* RAVI translate from local register to local variable index
  */
 static int register_to_locvar_index(FuncState *fs, int reg) {
   int idx;
@@ -394,7 +400,7 @@ static int register_to_locvar_index(FuncState *fs, int reg) {
   return idx;
 }
 
-/* get type of a register - if the register is not allocated
+/* RAVI get type of a register - if the register is not allocated
  * to an active local variable, then return RAVI_TANY else
  * return the type associated with the variable.
  * This is a RAVI function
@@ -402,6 +408,7 @@ static int register_to_locvar_index(FuncState *fs, int reg) {
 ravitype_t raviY_get_register_typeinfo(FuncState *fs, int reg) {
   int idx;
   LocVar *v;
+  /* Due to the way Lus parser works it is not safe to look beyond nactvar */
   if (reg < 0 || reg >= fs->nactvar || (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n) {
     return RAVI_TANY;
   }
