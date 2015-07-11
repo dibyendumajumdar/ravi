@@ -1,9 +1,9 @@
 Ravi Programming Language
 =========================
 
-Ravi is an experimental derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_, with limited optional static typing and an `LLVM <http://www.llvm.org/>`_ based JIT compiler. Ravi is a Sanskrit word that means the Sun.
+Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and an `LLVM <http://www.llvm.org/>`_ based JIT compiler. The name Ravi comes from the Sanskrit word for the Sun.
 
-Lua is perfect as a small embeddable dynamic language. So why a derivative? Ravi extends Lua with static typing for greater performance under JIT compilation. However, the static typing is optional and therefore Lua programs are also valid Ravi programs.
+Lua is perfect as a small embeddable dynamic language so why a derivative? Ravi extends Lua with static typing for greater performance under JIT compilation. However, the static typing is optional and therefore Lua programs are also valid Ravi programs.
 
 There are other attempts to add static typing to Lua (e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
@@ -17,62 +17,85 @@ Goals
 * `LLVM <http://www.llvm.org/>`_ based JIT compiler
 * Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is in the works
 
+Documentation
+--------------
+See `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
+As more stuff is built I will keep updating the documentation so please revisit for latest information.
+
 Status
 ------
 The project was kicked off in January 2015. 
 
 JIT Implementation
 ++++++++++++++++++
-Right now (July 2015) I am working on the ``libgccjit`` based JIT implementation. 
-
 The LLVM JIT compiler is mostly functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
+
+As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is not fully functional although a large proportion of byte codes are handled. 
 
 Performance Benchmarks
 ++++++++++++++++++++++
 For performance benchmarks please visit the `Ravi Performance Benchmarks <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-benchmarks.html>`_ page.
 
+Ravi Extensions to Lua 5.3
+--------------------------
+
 Optional Static Typing
 ++++++++++++++++++++++
-Ravi allows you to annotate ``local`` variables with static types. The supported types and the resulting behaviour are as follows:
+Ravi allows you to annotate ``local`` variables and function parameters with static types. The supported types and the resulting behaviour are as follows:
 
 ``integer``
   denotes an integral value of 64-bits.
 ``number``
-  denotes a double (floating point) value.
+  denotes a double (floating point) value of 8 bytes.
 ``integer[]``
   denotes an array of integers
 ``number[]``
   denotes an array of numbers
 
-  .. attention:: Currently function parameters cannot be decorated with types; this will be added in future. 
-
-Declaring the types of ``local`` variables has following advantages.
+Declaring the types of ``local`` variables and function parameters has following advantages.
 
 * Local variables declared with above types are automatically initialized to 0
 * Arithmetic operations trigger type specific bytecodes which leads to more efficient JIT compilation
 * Specialised operators to get/set from arrays are implemented which makes array access more efficient in JIT mode as the access can be inlined
-* Values assigned to typed variables are checked statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime (i.e. value is cast to the expected type - this can be exploited to work around the limitation that function parameter types cannot be specified)
+* Values assigned to typed variables are checked statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime (i.e. value is cast to the expected type)
 * The standard table operations on arrays are checked to ensure that the type is not subverted
 * Even if a typed variable is captured in a closure its type must be respected
+* When function parameters are decorated with types, Ravi performs an implicit coersion of those parameters to the required types. If the coersion fails a runtime error occurs.
 
 The array types are specializations of Lua table with some additional special behaviour:
 
-* indices >= 1 should be used  
-* array will grow automatically if user sets the element just past the array length
-* it is an error to attempt to set an element that is beyond len+1 
-* the current used length of the array is recorded and returned by len operations
-* the array only permits the right type of value to be assigned (this is also checked at runtime to allow compatibility with Lua)
-* accessing out of bounds elements will cause an error, except for setting the len+1 element
-* it is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside those functions but with restrictions as above. Arrays returned from functions can be stored into typed local variables - in which case there is validation that the types match.
-* operations on array types can be optimised to special bytecode and JIT only when the array type is statically known. Otherwise regular table access will be used subject to runtime checks. 
-* array types may not have meta methods - this will be enforced at runtime (TODO)
-* array elements are set to 0 not nil as default value
-* pairs() and ipairs() work on arrays as normal
+* Indices >= 1 should be used (note that Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible under ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot)  
+* Array elements are set to 0 not nil as default value
+* An array will grow automatically if user sets the element just past the array length
+* It is an error to attempt to set an element that is beyond len+1 
+* The current used length of the array is recorded and returned by len operations
+* The array only permits the right type of value to be assigned (this is also checked at runtime to allow compatibility with Lua)
+* Accessing out of bounds elements will cause an error, except for setting the len+1 element
+* It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time. 
+* Arrays returned from functions can be stored into appropriately typed local variables - there is validation that the types match.
+* Operations on array types can be optimised to special bytecode and JIT only when the array type is statically known. Otherwise regular table access will be used subject to runtime checks.
+* Array types may not have meta methods - this will be enforced at runtime (TODO)
+* ``pairs()`` and ``ipairs()`` work on arrays as normal
+* There is no way to delete an array element.
 
-All type checks are at runtime
-++++++++++++++++++++++++++++++
-To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectually all checks are at runtime. 
+Array Slices
+++++++++++++
+Since release 0.6 Ravi supports array slices. An array slice allows a portion of a Ravi array to be treated as if it is an array - this allows efficient access to the underlying array elements. Following new functions are available:
 
+``table.intarray(num_elements, initial_value)``
+  creates an integer array of specified size, and initializes with initial value. The return type is integer[]
+
+``table.numarray(num_elements, initial_value)``
+  creates an number array of specified size, and initializes with initial value. The return type is number[]
+
+``table.slice(array, start_index, num_elements)``
+  creates a slice from an existing array - allowing efficient access to the underlying array elements.
+
+The functions are currently part of the table module but this may change in future.
+For an example use of these functions please see the `matmul1.ravi <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/matmul1.ravi>`_ benchmark program in the repository. Note that this feature is highly experimental and not very well tested.
+
+Array slices do not support automatic extension - i.e. the size of the slice cannot be changed once it is created.
+  
 Examples
 ++++++++
 Example of code that works - you can copy this to the command line input::
@@ -83,16 +106,17 @@ Example of code that works - you can copy this to the command line input::
   end
   local i:integer, j:integer = tryme(); print(i+j)
 
-Another::
+When values from a function call are assigned to a typed variable, an implicit type coersion takes place. In above example an error would occur if the function returned values that could not converted to integers.
 
-  function tryme()
-    local j:number
+In the following example, the parameter ``j`` is defined as a ``number``, hence it is an eror to pass a value that cannot be converted to a ``number``::
+
+  function tryme(j: number)
     for i=1,1000000000 do
       j = j+1
     end
     return j
   end
-  print(tryme())
+  print(tryme(0.0))
 
 An example with arrays::
 
@@ -105,6 +129,24 @@ An example with arrays::
     return j
   end
   print(tryme())
+
+Another example using arrays. Here the function receives a parameter ``arr`` of type ``number[]`` - it would be an error to pass any other type to the function because only ``number[]`` types can be converted to ``number[]`` types::
+
+  function sum(arr: number[]) 
+    local n: number = 0.0
+    for i = 1,#arr do
+      n = n + arr[i]
+    end
+    return n
+  end
+
+  print(sum(table.numarray(10, 2.0)))
+
+The ``table.numarray(n, initial_value)`` creates a ``number[]`` of specified size and initializes the array with the given initial value.
+
+All type checks are at runtime
+++++++++++++++++++++++++++++++
+To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectually all checks are at runtime. 
 
 JIT Compilation
 ---------------
@@ -144,25 +186,20 @@ Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT co
 
 * You cannot yield from a compiled function as compiled code does not support coroutines (issue 14); as a workaround Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
 * The debugger will not provide certain information when JIT compilation is turned on as information it requires is not available; the debugger also does not support Ravi's extended opcodes (issue 15)
-* Functions using bit-wise operations cannot be JIT compiled as yet (issue 27)
+* Functions using bit-wise operations may not be JIT compiled always (issue 27)
 * Ravi supports optional typing and enhanced types such as arrays (described above). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions - there are some restrictions on arrays as described above. Values crossing from Lua to Ravi will be subjected to typechecks.
 * In JITed code tailcalls are implemented as regular calls so unlike Lua VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue 17)
-* pairs() and ipairs() work on Ravi arrays since release 0.4 but more testing needed (issues 24 and 25)
+* ``pairs()`` and ``ipairs()`` work on Ravi arrays since release 0.4 but more testing needed (issues 24 and 25)
 * Upvalues cannot subvert the static typing of local variables since release 0.4 but more testing is needed (issue 26)
 * Lua C API may not work correctly for Ravi arrays, although some initial work has been done in this area (issue 9)
-
-Documentation
---------------
-See `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
-As more stuff is built I will keep updating the documentation so please revisit for latest information.
 
 Build Dependencies - LLVM version
 ---------------------------------
 
 * CMake
-* LLVM 3.5.1, 3.6 or 3.7
+* LLVM 3.6 or 3.7
 
-The build is CMake based. As of Feb 2015 LLVM is a dependency. LLVM 3.5.1, 3.6.0 and 3.7 should work.
+The build is CMake based.
 
 Building LLVM on Windows
 ------------------------
@@ -179,7 +216,7 @@ Note that if you perform a Release build of LLVM then you will also need to do a
 Building LLVM on Ubuntu
 -----------------------
 On Ubuntu I found that the official LLVM distributions don't work with CMake. The CMake config files appear to be broken.
-So I ended up downloading and building LLVM 3.5.1 from source and that worked. The approach is similar to that described for MAC OS X below.
+So I ended up downloading and building LLVM 3.6.1 from source and that worked. The approach is similar to that described for MAC OS X below.
 
 Building LLVM on MAC OS X
 -------------------------
