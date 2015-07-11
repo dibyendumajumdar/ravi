@@ -108,7 +108,7 @@ Example of code that works - you can copy this to the command line input::
 
 When values from a function call are assigned to a typed variable, an implicit type coersion takes place. In above example an error would occur if the function returned values that could not converted to integers.
 
-In the following example, the parameter ``j`` is defined as a ``number``, hence it is an eror to pass a value that cannot be converted to a ``number``::
+In the following example, the parameter ``j`` is defined as a ``number``, hence it is an error to pass a value that cannot be converted to a ``number``::
 
   function tryme(j: number)
     for i=1,1000000000 do

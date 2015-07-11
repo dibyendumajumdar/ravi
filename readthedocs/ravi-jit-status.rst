@@ -44,11 +44,7 @@ Limitations of JIT compilation
 * The Debug API relies upon a field called ``savedpc`` which tracks the current instruction being executed by Lua interpreter. As this is not updated by the JIT code the Debug API can only provide a subset of normal functionality. The Debug API is not yet fully tested.
 * The Lua VM supports infinite tail recursion. The JIT compiler treats OP_TAILCALL as normal OP_CALL so that recursion is limited to about 110 levels.
 * The Lua C API has not yet been tested against the Ravi extensions - especially static typing and array types. Do not use the C API for now - as you could break the type system of Ravi.
-* Bit-wise operators are not yet JIT compiled.
-
-Future Performance Enhancements
--------------------------------
-The main area of enhancement is to provide specialised versions of Lua FORNUM loops so that the generated code is more efficient and is moreover recognised by LLVM as a loop.
+* Bit-wise operators are not always JIT compiled.
 
 JIT Status of Lua/Ravi Bytecodes
 ---------------------------------

@@ -10,6 +10,16 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled" ON)
 option(GCC_JIT "Controls whether GCC JIT compilation will be enabled" OFF)
 
+if (LLVM_JIT AND GCC_JIT)
+  message(FATAL_ERROR
+          "Both LLVM_JIT and GCC_JIT cannot be set to ON at the same time")
+endif()
+
+if (NOT LLVM_JIT AND NOT GCC_JIT)
+  message(FATAL_ERROR
+          "One of LLVM_JIT and GCC_JIT must be set to ON")
+endif()
+
 if (LLVM_JIT)
   find_package(LLVM REQUIRED CONFIG)
 
@@ -29,7 +39,6 @@ if (GCC_JIT)
   include_directories(${GCCJIT_INCLUDE_DIRS})
   add_definitions(-DUSE_GCCJIT)
 endif()
-
 
 if (MSVC)
   set(CMAKE_C_FLAGS_DEBUG "/Od /D_DEBUG /MDd /Zi /RTC1 /EHsc")
@@ -118,7 +127,8 @@ file(GLOB RAVI_HEADERS "${PROJECT_SOURCE_DIR}/include/*.h")
 
 if (MSVC OR APPLE)
   source_group("Ravi Headers" FILES ${RAVI_HEADERS})
-  source_group("Ravi Source Files" FILES ${LUA_CORE_SRCS} ${LUA_LIB_SRCS})
+  source_group("Ravi Source Files" FILES ${LUA_CORE_SRCS} ${LUA_LIB_SRCS}
+               ${LLVM_JIT_SRCS} ${GCC_JIT_SRCS})
   if (APPLE)
     set(EXTRA_LIBRARIES m readline)
   endif()
