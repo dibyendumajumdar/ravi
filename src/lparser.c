@@ -864,6 +864,7 @@ static void codeclosure (LexState *ls, expdesc *v) {
   FuncState *fs = ls->fs->prev;
   init_exp(v, VRELOCABLE, luaK_codeABx(fs, OP_CLOSURE, 0, fs->np - 1), RAVI_TFUNCTION);
   luaK_exp2nextreg(fs, v);  /* fix it at the last register */
+  DEBUG_VARS(raviY_printf(ls->fs, "codeclosure -> closure created %e\n", v));
 }
 
 
@@ -2080,6 +2081,7 @@ static void funcstat (LexState *ls, int line) {
   b.ravi_type = RAVI_TANY;
   luaX_next(ls);  /* skip FUNCTION */
   ismethod = funcname(ls, &v);
+  DEBUG_VARS(raviY_printf(ls->fs, "funcstat -> declaring function %e\n", &v));
   body(ls, &b, ismethod, line);
   luaK_storevar(ls->fs, &v, &b);
   luaK_fixline(ls->fs, line);  /* definition "happens" in the first line */

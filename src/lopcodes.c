@@ -198,106 +198,85 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 0, OpArgU, OpArgU, iABC)		/* OP_SETLIST */
  ,opmode(0, 1, OpArgU, OpArgN, iABx)		/* OP_CLOSURE */
  ,opmode(0, 1, OpArgU, OpArgN, iABC)		/* OP_VARARG */
- ,opmode(0, 0, OpArgU, OpArgU, iAx)		    /* OP_EXTRAARG */
+ ,opmode(0, 0, OpArgU, OpArgU, iAx)		  /* OP_EXTRAARG */
 
- ,opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_NEWARRAYI A R(A) := array of int */
- ,opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_NEWARRAYF A R(A) := array of float */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_NEWARRAYI A R(A) := array of int */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_NEWARRAYF A R(A) := array of float */
 
- ,opmode(0, 1, OpArgN, OpArgN, iABC) /*	OP_RAVI_LOADIZ A R(A) := tointeger(0)		*/
- ,opmode(0, 1, OpArgN, OpArgN, iABC) /*	OP_RAVI_LOADFZ A R(A) := tonumber(0)		*/
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_LOADIZ A R(A) := tointeger(0)		*/
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_LOADFZ A R(A) := tonumber(0)		*/
 
- ,opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_UNMF A B	   R(A) := -R(B) floating point      */
- ,opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_UNMI A B     R(A) := -R(B) integer */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_UNMF A B	R(A) := -R(B) floating point      */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_UNMI A B R(A) := -R(B) integer */
 
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_ADDFF	A B C	R(A) := RK(B) + RK(C)		*/
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_ADDFI	A B C	R(A) := RK(B) + RK(C)		*/
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_ADDII	A B C	R(A) := RK(B) + RK(C)	  */
- , opmode(0, 1, OpArgK, OpArgU, iABC)/* OP_RAVI_ADDFN	A B C	R(A) := RK(B) + C				*/
- , opmode(0, 1, OpArgK, OpArgU, iABC)/* OP_RAVI_ADDIN	A B C	R(A) := RK(B) + C				*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_ADDFF	A B C	R(A) := RK(B) + RK(C)		*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_ADDFI	A B C	R(A) := RK(B) + RK(C)		*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_ADDII	A B C	R(A) := RK(B) + RK(C)	  */
+ ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_ADDFN	A B C	R(A) := RK(B) + C				*/
+ ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_ADDIN	A B C	R(A) := RK(B) + C				*/
 
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_SUBFF	A B C	R(A) := RK(B) - RK(C)		*/
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_SUBFI	A B C	R(A) := RK(B) - RK(C)		*/
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_SUBIF	A B C	R(A) := RK(B) - RK(C)	  */
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_SUBII	A B C	R(A) := RK(B) - RK(C)		*/
- , opmode(0, 1, OpArgK, OpArgU, iABC)/* OP_RAVI_SUBFN	A B C	R(A) := RK(B) - C				*/
- , opmode(0, 1, OpArgU, OpArgK, iABC)/* OP_RAVI_SUBNF	A B C	R(A) := B - RK(C)				*/
- , opmode(0, 1, OpArgK, OpArgU, iABC)/* OP_RAVI_SUBIN	A B C	R(A) := RK(B) - C				*/
- , opmode(0, 1, OpArgU, OpArgK, iABC)/* OP_RAVI_SUBNI	A B C	R(A) := B - RK(C)				*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_SUBFF	A B C	R(A) := RK(B) - RK(C)		*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_SUBFI	A B C	R(A) := RK(B) - RK(C)		*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_SUBIF	A B C	R(A) := RK(B) - RK(C)	  */
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_SUBII	A B C	R(A) := RK(B) - RK(C)		*/
+ ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_SUBFN	A B C	R(A) := RK(B) - C				*/
+ ,opmode(0, 1, OpArgU, OpArgK, iABC)    /* OP_RAVI_SUBNF	A B C	R(A) := B - RK(C)				*/
+ ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_SUBIN	A B C	R(A) := RK(B) - C				*/
+ ,opmode(0, 1, OpArgU, OpArgK, iABC)    /* OP_RAVI_SUBNI	A B C	R(A) := B - RK(C)				*/
 
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_MULFF	A B C	R(A) := RK(B) * RK(C)		*/
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_MULFI	A B C	R(A) := RK(B) * RK(C)		*/
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_MULII	A B C	R(A) := RK(B) * RK(C)	  */
- , opmode(0, 1, OpArgK, OpArgU, iABC)/* OP_RAVI_MULFN	A B C	R(A) := RK(B) * C				*/
- , opmode(0, 1, OpArgK, OpArgU, iABC)/* OP_RAVI_MULIN	A B C	R(A) := RK(B) * C				*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_MULFF	A B C	R(A) := RK(B) * RK(C)		*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_MULFI	A B C	R(A) := RK(B) * RK(C)		*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_MULII	A B C	R(A) := RK(B) * RK(C)	  */
+ ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_MULFN	A B C	R(A) := RK(B) * C				*/
+ ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_MULIN	A B C	R(A) := RK(B) * C				*/
 
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_DIVFF	A B C	R(A) := RK(B) / RK(C)		*/
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_DIVFI	A B C	R(A) := RK(B) / RK(C)		*/
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_DIVIF	A B C	R(A) := RK(B) / RK(C)	  */
- , opmode(0, 1, OpArgK, OpArgK, iABC)/* OP_RAVI_DIVII	A B C	R(A) := RK(B) / RK(C)		*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_DIVFF	A B C	R(A) := RK(B) / RK(C)		*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_DIVFI	A B C	R(A) := RK(B) / RK(C)		*/
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_DIVIF	A B C	R(A) := RK(B) / RK(C)	  */
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_DIVII	A B C	R(A) := RK(B) / RK(C)		*/
 
- , opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
- , opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_TOFLT  A R(A) := tonumber(R(A)) */
- , opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_TOARRAYI A R(A) := check_array_of_int(R(A)) */
- , opmode(0, 1, OpArgN, OpArgN, iABC) /* OP_RAVI_TOARRAYF A R(A) := check_array_of_float(R(A)) */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOFLT  A R(A) := tonumber(R(A)) */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOARRAYI A R(A) := check_array_of_int(R(A)) */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOARRAYF A R(A) := check_array_of_float(R(A)) */
 
- , opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))	*/
- , opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B)) */
- , opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_MOVEAI A B R(A) := R(B), check R(B) is array of int */
- , opmode(0, 1, OpArgR, OpArgN, iABC) /* OP_RAVI_MOVEAF A B R(A) := R(B), check R(B) is array of floats */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))	*/
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B)) */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEAI A B R(A) := R(B), check R(B) is array of int */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEAF A B R(A) := R(B), check R(B) is array of floats */
 
- , opmode(0, 1, OpArgR, OpArgK, iABC) /* OP_RAVI_GETTABLE_AI A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
- , opmode(0, 1, OpArgR, OpArgK, iABC) /* OP_RAVI_GETTABLE_AF A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_GETTABLE_AI A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_GETTABLE_AF A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
 
- , opmode(0, 0, OpArgK, OpArgK, iABC) /* OP_RAVI_SETTABLE_AI A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
- , opmode(0, 0, OpArgK, OpArgK, iABC) /* OP_RAVI_SETTABLE_AF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AI A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
- , opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_IP */
- , opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_I1 */
- , opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_IP */
- , opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_I1 */
- , opmode(0, 0, OpArgU, OpArgN, iABC)		  /* OP_RAVI_SETUPVALI */
- , opmode(0, 0, OpArgU, OpArgN, iABC)		  /* OP_RAVI_SETUPVALF */
- , opmode(0, 0, OpArgU, OpArgN, iABC)		  /* OP_RAVI_SETUPVALAI */
- , opmode(0, 0, OpArgU, OpArgN, iABC)		  /* OP_RAVI_SETUPVALAF */
+ ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_IP */
+ ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_I1 */
+ ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_IP */
+ ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_I1 */
+ ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALI */
+ ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALF */
+ ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALAI */
+ ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALAF */
 
- , opmode(0, 0, OpArgK, OpArgK, iABC) /* OP_RAVI_SETTABLE_AII A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
- , opmode(0, 0, OpArgK, OpArgK, iABC) /* OP_RAVI_SETTABLE_AFF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
- , opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_BAND_II */
- , opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_BOR_II */
- , opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_BXOR_II */
- , opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_SHL_II */
- , opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_SHR_II */
- , opmode(0, 1, OpArgR, OpArgN, iABC)		/* OP_RAVI_BNOT_I */
-
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AII A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AFF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_BAND_II */
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_BOR_II */
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_BXOR_II */
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_SHL_II */
+ ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_SHR_II */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)		/* OP_RAVI_BNOT_I */
 };
 
 
+#define UPVALNAME(x) ((f->upvalues[x].name) ? getstr(f->upvalues[x].name) : "-")
 #define MYK(x)		(-1-(x))
-
-static const char* PrintRaviCode(char *buf, size_t n, Instruction i) {
-  OpCode o = GET_OPCODE(i);
-  int a = GETARG_A(i);
-  int b = GETARG_B(i);
-  int c = GETARG_C(i);
-  snprintf(buf, n, "%s ", luaP_opnames[o]);
-  switch (getOpMode(o)) {
-  case iABC:
-    snprintf(buf + strlen(buf), n - strlen(buf), "A=%d", a);
-    if (getBMode(o) != OpArgN)
-      snprintf(buf + strlen(buf), n - strlen(buf), " B=%d", getBMode(o) == OpArgK ? (MYK(INDEXK(b))) : b);
-    if (getCMode(o) != OpArgN)
-      snprintf(buf + strlen(buf), n - strlen(buf), " C=%d", getCMode(o) == OpArgK ? (MYK(INDEXK(c))) : c);
-    break;
-  default:
-    break;
-  }
-  return buf;
-}
+#define VOID(p)		((const void*)(p))
 
 const char* raviP_instruction_to_str(char *buf, size_t n, Instruction i) {
   OpCode o = GET_OPCODE(i);
-  if (o >= OP_RAVI_UNMF) 
-    return PrintRaviCode(buf, n, i);
   int a = GETARG_A(i);
   int b = GETARG_B(i);
   int c = GETARG_C(i);
@@ -309,9 +288,9 @@ const char* raviP_instruction_to_str(char *buf, size_t n, Instruction i) {
   case iABC:
     snprintf(buf+strlen(buf), n-strlen(buf), "A=%d", a);
     if (getBMode(o) != OpArgN)
-      snprintf(buf + strlen(buf), n - strlen(buf), " B=%d", ISK(b) ? (MYK(INDEXK(b))) : b);
+      snprintf(buf + strlen(buf), n - strlen(buf), " B=%d", (getBMode(o) == OpArgK && ISK(b)) ? (MYK(INDEXK(b))) : b);
     if (getCMode(o) != OpArgN)
-      snprintf(buf + strlen(buf), n - strlen(buf), " C=%d", ISK(c) ? (MYK(INDEXK(c))) : c);
+      snprintf(buf + strlen(buf), n - strlen(buf), " C=%d", (getCMode(o) == OpArgK && ISK(c)) ? (MYK(INDEXK(c))) : c);
     break;
   case iABx:
     snprintf(buf + strlen(buf), n - strlen(buf), "A=%d", a);
@@ -330,207 +309,216 @@ const char* raviP_instruction_to_str(char *buf, size_t n, Instruction i) {
   return buf;
 }
 
-#define VOID(p)		((const void*)(p))
-
 static void PrintString(const TString* ts)
 {
-  const char* s = getstr(ts);
-  size_t i, n = tsslen(ts);
-  printf("%c", '"');
-  for (i = 0; i<n; i++)
+ const char* s=getstr(ts);
+ size_t i,n=tsslen(ts);
+ printf("%c",'"');
+ for (i=0; i<n; i++)
+ {
+  int c=(int)(unsigned char)s[i];
+  switch (c)
   {
-    int c = (int)(unsigned char)s[i];
-    switch (c)
-    {
-    case '"':  printf("\\\""); break;
-    case '\\': printf("\\\\"); break;
-    case '\a': printf("\\a"); break;
-    case '\b': printf("\\b"); break;
-    case '\f': printf("\\f"); break;
-    case '\n': printf("\\n"); break;
-    case '\r': printf("\\r"); break;
-    case '\t': printf("\\t"); break;
-    case '\v': printf("\\v"); break;
-    default:	if (isprint(c))
-      printf("%c", c);
-              else
-                printf("\\%03d", c);
-    }
+   case '"':  printf("\\\""); break;
+   case '\\': printf("\\\\"); break;
+   case '\a': printf("\\a"); break;
+   case '\b': printf("\\b"); break;
+   case '\f': printf("\\f"); break;
+   case '\n': printf("\\n"); break;
+   case '\r': printf("\\r"); break;
+   case '\t': printf("\\t"); break;
+   case '\v': printf("\\v"); break;
+   default:	if (isprint(c))
+   			printf("%c",c);
+		else
+			printf("\\%03d",c);
   }
-  printf("%c", '"');
+ }
+ printf("%c",'"');
 }
 
 static void PrintConstant(const Proto* f, int i)
 {
-  const TValue* o = &f->k[i];
-  switch (ttype(o))
-  {
+ const TValue* o=&f->k[i];
+ switch (ttype(o))
+ {
   case LUA_TNIL:
-    printf("nil");
-    break;
+	printf("nil");
+	break;
   case LUA_TBOOLEAN:
-    printf(bvalue(o) ? "true" : "false");
-    break;
+	printf(bvalue(o) ? "true" : "false");
+	break;
   case LUA_TNUMFLT:
-  {
-    char buff[100];
-    sprintf(buff, LUA_NUMBER_FMT, fltvalue(o));
-    printf("%s", buff);
-    if (buff[strspn(buff, "-0123456789")] == '\0') printf(".0");
-    break;
-  }
+	{
+	char buff[100];
+	sprintf(buff,LUA_NUMBER_FMT,fltvalue(o));
+	printf("%s",buff);
+	if (buff[strspn(buff,"-0123456789")]=='\0') printf(".0");
+	break;
+	}
   case LUA_TNUMINT:
-    printf(LUA_INTEGER_FMT, ivalue(o));
-    break;
+	printf(LUA_INTEGER_FMT,ivalue(o));
+	break;
   case LUA_TSHRSTR: case LUA_TLNGSTR:
-    PrintString(tsvalue(o));
-    break;
+	PrintString(tsvalue(o));
+	break;
   default:				/* cannot happen */
-    printf("? type=%d", ttype(o));
-    break;
-  }
+	printf("? type=%d",ttype(o));
+	break;
+ }
 }
-
-#define UPVALNAME(x) ((f->upvalues[x].name) ? getstr(f->upvalues[x].name) : "-")
-#define MYK(x)		(-1-(x))
-
-static void PrintRaviCodePC(const Proto* f, Instruction i, int pc)
-{
-  OpCode o = GET_OPCODE(i);
-  int a = GETARG_A(i);
-  int b = GETARG_B(i);
-  int c = GETARG_C(i);
-  int line = getfuncline(f, pc);
-  printf("\t%d\t", pc + 1);
-  if (line>0) printf("[%d]\t", line); else printf("[-]\t");
-  printf("%-9s\t", luaP_opnames[o]);
-  switch (getOpMode(o))
-  {
-  case iABC:
-    printf("%d", a);
-    if (getBMode(o) != OpArgN) printf(" %d", getBMode(o) == OpArgK ? (MYK(INDEXK(b))) : b);
-    if (getCMode(o) != OpArgN) printf(" %d", getCMode(o) == OpArgK ? (MYK(INDEXK(c))) : c);
-    break;
-      default: break;
-  }
-  printf("\n");
-}
-
 
 static void PrintCode(const Proto* f)
 {
-  const Instruction* code = f->code;
-  int pc, n = f->sizecode;
-  for (pc = 0; pc<n; pc++)
+ const Instruction* code=f->code;
+ int pc,n=f->sizecode;
+ for (pc=0; pc<n; pc++)
+ {
+  Instruction i=code[pc];
+  OpCode o=GET_OPCODE(i);
+  int a=GETARG_A(i);
+  int b=GETARG_B(i);
+  int c=GETARG_C(i);
+  int ax=GETARG_Ax(i);
+  int bx=GETARG_Bx(i);
+  int sbx=GETARG_sBx(i);
+  int line=getfuncline(f,pc);
+  printf("\t%d\t",pc+1);
+  if (line>0) printf("[%d]\t",line); else printf("[-]\t");
+  printf("%-9s\t",luaP_opnames[o]);
+  switch (getOpMode(o))
   {
-    Instruction i = code[pc];
-    OpCode o = GET_OPCODE(i);
-    if (o >= OP_RAVI_UNMF) {
-      PrintRaviCodePC(f, i, pc);
-      continue;
-    }
-    int a = GETARG_A(i);
-    int b = GETARG_B(i);
-    int c = GETARG_C(i);
-    int ax = GETARG_Ax(i);
-    int bx = GETARG_Bx(i);
-    int sbx = GETARG_sBx(i);
-    int line = getfuncline(f, pc);
-    printf("\t%d\t", pc + 1);
-    if (line>0) printf("[%d]\t", line); else printf("[-]\t");
-    printf("%-9s\t", luaP_opnames[o]);
-    switch (getOpMode(o))
-    {
-    case iABC:
-      printf("%d", a);
-      if (getBMode(o) != OpArgN) printf(" %d", ISK(b) ? (MYK(INDEXK(b))) : b);
-      if (getCMode(o) != OpArgN) printf(" %d", ISK(c) ? (MYK(INDEXK(c))) : c);
-      break;
-    case iABx:
-      printf("%d", a);
-      if (getBMode(o) == OpArgK) printf(" %d", MYK(bx));
-      if (getBMode(o) == OpArgU) printf(" %d", bx);
-      break;
-    case iAsBx:
-      printf("%d %d", a, sbx);
-      break;
-    case iAx:
-      printf("%d", MYK(ax));
-      break;
-    }
-    switch (o)
-    {
-    case OP_LOADK:
-      printf("\t; "); PrintConstant(f, bx);
-      break;
-    case OP_GETUPVAL:
-    case OP_RAVI_SETUPVALI:
-    case OP_RAVI_SETUPVALF:
-    case OP_RAVI_SETUPVALAI:
-    case OP_RAVI_SETUPVALAF:
-    case OP_SETUPVAL:
-      printf("\t; %s", UPVALNAME(b));
-      break;
-    case OP_GETTABUP:
-      printf("\t; %s", UPVALNAME(b));
-      if (ISK(c)) { printf(" "); PrintConstant(f, INDEXK(c)); }
-      break;
-    case OP_SETTABUP:
-      printf("\t; %s", UPVALNAME(a));
-      if (ISK(b)) { printf(" "); PrintConstant(f, INDEXK(b)); }
-      if (ISK(c)) { printf(" "); PrintConstant(f, INDEXK(c)); }
-      break;
-    case OP_GETTABLE:
-    case OP_SELF:
-      if (ISK(c)) { printf("\t; "); PrintConstant(f, INDEXK(c)); }
-      break;
-    case OP_SETTABLE:
-    case OP_ADD:
-    case OP_SUB:
-    case OP_MUL:
-    case OP_POW:
-    case OP_DIV:
-    case OP_IDIV:
-    case OP_BAND:
-    case OP_BOR:
-    case OP_BXOR:
-    case OP_SHL:
-    case OP_SHR:
-    case OP_EQ:
-    case OP_LT:
-    case OP_LE:
-      if (ISK(b) || ISK(c))
-      {
-        printf("\t; ");
-        if (ISK(b)) PrintConstant(f, INDEXK(b)); else printf("-");
-        printf(" ");
-        if (ISK(c)) PrintConstant(f, INDEXK(c)); else printf("-");
-      }
-      break;
-    case OP_JMP:
-    case OP_FORLOOP:
-    case OP_RAVI_FORLOOP_IP:
-    case OP_RAVI_FORLOOP_I1:
-    case OP_FORPREP:
-    case OP_RAVI_FORPREP_IP:
-    case OP_RAVI_FORPREP_I1:
-    case OP_TFORLOOP:
-      printf("\t; to %d", sbx + pc + 2);
-      break;
-    case OP_CLOSURE:
-      printf("\t; %p", VOID(f->p[bx]));
-      break;
-    case OP_SETLIST:
-      if (c == 0) printf("\t; %d", (int)code[++pc]); else printf("\t; %d", c);
-      break;
-    case OP_EXTRAARG:
-      printf("\t; "); PrintConstant(f, ax);
-      break;
-    default:
-      break;
-    }
-    printf("\n");
+   case iABC:
+    printf("%d",a);
+    if (getBMode(o)!=OpArgN) printf(" %d", (getBMode(o) == OpArgK && ISK(b)) ? (MYK(INDEXK(b))) : b);
+    if (getCMode(o)!=OpArgN) printf(" %d", (getCMode(o) == OpArgK && ISK(c)) ? (MYK(INDEXK(c))) : c);
+    break;
+   case iABx:
+    printf("%d",a);
+    if (getBMode(o)==OpArgK) printf(" %d",MYK(bx));
+    if (getBMode(o)==OpArgU) printf(" %d",bx);
+    break;
+   case iAsBx:
+    printf("%d %d",a,sbx);
+    break;
+   case iAx:
+    printf("%d",MYK(ax));
+    break;
   }
+  switch (o)
+  {
+   case OP_LOADK:
+    printf("\t; "); PrintConstant(f,bx);
+    break;
+   case OP_GETUPVAL:
+   case OP_RAVI_SETUPVALI:
+   case OP_RAVI_SETUPVALF:
+   case OP_RAVI_SETUPVALAI:
+   case OP_RAVI_SETUPVALAF:
+   case OP_SETUPVAL:
+    printf("\t; %s",UPVALNAME(b));
+    break;
+   case OP_GETTABUP:
+    printf("\t; %s",UPVALNAME(b));
+    if (ISK(c)) { printf(" "); PrintConstant(f,INDEXK(c)); }
+    break;
+   case OP_SETTABUP:
+    printf("\t; %s",UPVALNAME(a));
+    if (ISK(b)) { printf(" "); PrintConstant(f,INDEXK(b)); }
+    if (ISK(c)) { printf(" "); PrintConstant(f,INDEXK(c)); }
+    break;
+   case OP_GETTABLE:
+   case OP_RAVI_GETTABLE_AF:
+   case OP_RAVI_GETTABLE_AI:
+   case OP_SELF:
+    if (ISK(c)) { printf("\t; "); PrintConstant(f,INDEXK(c)); }
+    break;
+   case OP_SETTABLE:
+   case OP_RAVI_SETTABLE_AF:
+   case OP_RAVI_SETTABLE_AFF:
+   case OP_RAVI_SETTABLE_AI:
+   case OP_RAVI_SETTABLE_AII:
+   case OP_ADD:
+   case OP_RAVI_ADDFF:
+   case OP_RAVI_ADDFI:
+   case OP_RAVI_ADDII:
+   case OP_SUB:
+   case OP_RAVI_SUBFF:
+   case OP_RAVI_SUBFI:
+   case OP_RAVI_SUBIF:
+   case OP_RAVI_SUBII:
+   case OP_MUL:
+   case OP_RAVI_MULFF:
+   case OP_RAVI_MULFI:
+   case OP_RAVI_MULII:
+   case OP_POW:
+   case OP_DIV:
+   case OP_RAVI_DIVFF:
+   case OP_RAVI_DIVFI:
+   case OP_RAVI_DIVIF:
+   case OP_RAVI_DIVII:
+   case OP_IDIV:
+   case OP_BAND:
+   case OP_RAVI_BAND_II:
+   case OP_BOR:
+   case OP_RAVI_BOR_II:
+   case OP_BXOR:
+   case OP_RAVI_BXOR_II:
+   case OP_SHL:
+   case OP_RAVI_SHL_II:
+   case OP_SHR:
+   case OP_RAVI_SHR_II:
+   case OP_EQ:
+   case OP_LT:
+   case OP_LE:
+    if (ISK(b) || ISK(c))
+    {
+     printf("\t; ");
+     if (ISK(b)) PrintConstant(f,INDEXK(b)); else printf("-");
+     printf(" ");
+     if (ISK(c)) PrintConstant(f,INDEXK(c)); else printf("-");
+    }
+    break;
+   case OP_RAVI_ADDFN:
+   case OP_RAVI_ADDIN:
+   case OP_RAVI_SUBFN:
+   case OP_RAVI_SUBIN:
+   case OP_RAVI_MULFN:
+   case OP_RAVI_MULIN:
+     printf("\t; ");
+     if (ISK(b)) PrintConstant(f, INDEXK(b)); else printf("-");
+     printf(" %d", c);
+     break;
+   case OP_RAVI_SUBNF:
+   case OP_RAVI_SUBNI:
+     printf("\t; ");
+     printf("%d ", b);
+     if (ISK(c)) PrintConstant(f, INDEXK(c)); else printf("-");
+     break;
+   case OP_JMP:
+   case OP_FORLOOP:
+   case OP_RAVI_FORLOOP_IP:
+   case OP_RAVI_FORLOOP_I1:
+   case OP_FORPREP:
+   case OP_RAVI_FORPREP_IP:
+   case OP_RAVI_FORPREP_I1:
+   case OP_TFORLOOP:
+    printf("\t; to %d",sbx+pc+2);
+    break;
+   case OP_CLOSURE:
+    printf("\t; %p",VOID(f->p[bx]));
+    break;
+   case OP_SETLIST:
+    if (c==0) printf("\t; %d",(int)code[++pc]); else printf("\t; %d",c);
+    break;
+   case OP_EXTRAARG:
+    printf("\t; "); PrintConstant(f,ax);
+    break;
+   default:
+    break;
+  }
+  printf("\n");
+ }
 }
 
 #define SS(x)	((x==1)?"":"s")
@@ -538,49 +526,49 @@ static void PrintCode(const Proto* f)
 
 static void PrintHeader(const Proto* f)
 {
-  const char* s = f->source ? getstr(f->source) : "=?";
-  if (*s == '@' || *s == '=')
-    s++;
-  else if (*s == LUA_SIGNATURE[0])
-    s = "(bstring)";
-  else
-    s = "(string)";
-  printf("\n%s <%s:%d,%d> (%d instruction%s at %p)\n",
-    (f->linedefined == 0) ? "main" : "function", s,
-    f->linedefined, f->lastlinedefined,
-    S(f->sizecode), VOID(f));
-  printf("%d%s param%s, %d slot%s, %d upvalue%s, ",
-    (int)(f->numparams), f->is_vararg ? "+" : "", SS(f->numparams),
-    S(f->maxstacksize), S(f->sizeupvalues));
-  printf("%d local%s, %d constant%s, %d function%s\n",
-    S(f->sizelocvars), S(f->sizek), S(f->sizep));
+ const char* s=f->source ? getstr(f->source) : "=?";
+ if (*s=='@' || *s=='=')
+  s++;
+ else if (*s==LUA_SIGNATURE[0])
+  s="(bstring)";
+ else
+  s="(string)";
+ printf("\n%s <%s:%d,%d> (%d instruction%s at %p)\n",
+ 	(f->linedefined==0)?"main":"function",s,
+	f->linedefined,f->lastlinedefined,
+	S(f->sizecode),VOID(f));
+ printf("%d%s param%s, %d slot%s, %d upvalue%s, ",
+	(int)(f->numparams),f->is_vararg?"+":"",SS(f->numparams),
+	S(f->maxstacksize),S(f->sizeupvalues));
+ printf("%d local%s, %d constant%s, %d function%s\n",
+	S(f->sizelocvars),S(f->sizek),S(f->sizep));
 }
 
 static void PrintDebug(const Proto* f)
 {
-  int i, n;
-  n = f->sizek;
-  printf("constants (%d) for %p:\n", n, VOID(f));
-  for (i = 0; i<n; i++)
-  {
-    printf("\t%d\t", i + 1);
-    PrintConstant(f, i);
-    printf("\n");
-  }
-  n = f->sizelocvars;
-  printf("locals (%d) for %p:\n", n, VOID(f));
-  for (i = 0; i<n; i++)
-  {
-    printf("\t%d\t%s\t%d\t%d\n",
-      i, getstr(f->locvars[i].varname), f->locvars[i].startpc + 1, f->locvars[i].endpc + 1);
-  }
-  n = f->sizeupvalues;
-  printf("upvalues (%d) for %p:\n", n, VOID(f));
-  for (i = 0; i<n; i++)
-  {
-    printf("\t%d\t%s\t%d\t%d\n",
-      i, UPVALNAME(i), f->upvalues[i].instack, f->upvalues[i].idx);
-  }
+ int i,n;
+ n=f->sizek;
+ printf("constants (%d) for %p:\n",n,VOID(f));
+ for (i=0; i<n; i++)
+ {
+  printf("\t%d\t",i+1);
+  PrintConstant(f,i);
+  printf("\n");
+ }
+ n=f->sizelocvars;
+ printf("locals (%d) for %p:\n",n,VOID(f));
+ for (i=0; i<n; i++)
+ {
+  printf("\t%d\t%s\t%d\t%d\n",
+  i,getstr(f->locvars[i].varname),f->locvars[i].startpc+1,f->locvars[i].endpc+1);
+ }
+ n=f->sizeupvalues;
+ printf("upvalues (%d) for %p:\n",n,VOID(f));
+ for (i=0; i<n; i++)
+ {
+  printf("\t%d\t%s\t%d\t%d\n",
+  i,UPVALNAME(i),f->upvalues[i].instack,f->upvalues[i].idx);
+ }
 }
 
 void ravi_print_function(const Proto* f, int full)
