@@ -524,7 +524,8 @@ for j = 1,300 do
 end
 s = s.."b\n"
 local a,b = load(s)
-assert(string.find(b, "line 2") and string.find(b, "too many local variables"))
+--assert(string.find(b, "line 2") and string.find(b, "too many local variables"))
+assert(string.find(b, "too many local variables"))
 
 mt.__index = oldmm
 

@@ -381,7 +381,8 @@ static void new_localvarliteral_ (LexState *ls, const char *name, size_t sz) {
  * where the variable is stored
  */
 static LocVar *getlocvar (FuncState *fs, int i) {
-  /* convert from local stac position i to global and then retrieve the index
+  /* convert from local stack position i to global 
+   * and then retrieve the index
    * of the variable in f->locvars
    */
   int idx = fs->ls->dyd->actvar.arr[fs->firstlocal + i].idx;
@@ -408,8 +409,9 @@ static int register_to_locvar_index(FuncState *fs, int reg) {
 ravitype_t raviY_get_register_typeinfo(FuncState *fs, int reg) {
   int idx;
   LocVar *v;
-  /* Due to the way Lus parser works it is not safe to look beyond nactvar */
-  if (reg < 0 || reg >= fs->nactvar || (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n) {
+  /* Due to the way Lua parser works it is not safe to look beyond nactvar */
+  if (reg < 0 || reg >= fs->nactvar ||
+      (fs->firstlocal + reg) >= fs->ls->dyd->actvar.n) {
     return RAVI_TANY;
   }
   /* Get the LocVar associated with the register */
@@ -547,6 +549,21 @@ static void singlevar (LexState *ls, expdesc *var) {
   }
 }
 
+/* RAVI code an instruction to coerce the type, reg is the register, 
+   and ravi_type is the type we want */
+static void ravi_code_typecoersion(LexState *ls, int reg, ravitype_t ravi_type) {
+  /* do we need to convert ? */
+  if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
+    /* code an instruction to convert in place */
+    luaK_codeABC(ls->fs,
+                 ravi_type == RAVI_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, reg,
+                 0, 0);
+  else if (ravi_type == RAVI_TARRAYINT || ravi_type == RAVI_TARRAYFLT)
+    luaK_codeABC(ls->fs, ravi_type == RAVI_TARRAYINT ? OP_RAVI_TOARRAYI
+                                                     : OP_RAVI_TOARRAYF,
+                 reg, 0, 0);
+}
+
 /* Generate instructions for converting types 
  * This is needed post a function call to handle
  * variable number of return values
@@ -575,11 +592,7 @@ static void ravi_coercetype(LexState *ls, expdesc *v, int n)
     int idx = register_to_locvar_index(ls->fs, i);
     ravitype_t ravi_type = ls->fs->f->locvars[idx].ravi_type;  /* get variable's type */
     /* do we need to convert ? */
-    if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
-      /* code an instruction to convert in place */
-      luaK_codeABC(ls->fs, ravi_type == RAVI_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, i, 0, 0);
-    else if (ravi_type == RAVI_TARRAYINT || ravi_type == RAVI_TARRAYFLT)
-      luaK_codeABC(ls->fs, ravi_type == RAVI_TARRAYINT ? OP_RAVI_TOARRAYI : OP_RAVI_TOARRAYF, i, 0, 0);
+    ravi_code_typecoersion(ls, i, ravi_type);
   }
 }
 
@@ -1080,7 +1093,7 @@ static void constructor (LexState *ls, expdesc *t) {
 
 /* }====================================================================== */
 
-/* Parse
+/* RAVI Parse
  *   name : type
  *   where type is 'integer', 'integer[]',
  *                 'number', 'number[]'
@@ -1091,12 +1104,12 @@ static ravitype_t declare_localvar(LexState *ls) {
   /* assume a dynamic type */
   ravitype_t tt = RAVI_TANY;
   /* if the variable name is followed by a colon then we have a type
-   * specifier 
+   * specifier
    */
   if (testnext(ls, ':')) {
     TString *typename = str_checkname(ls); /* we expect a type name */
     const char *str = getaddrstr(typename);
-    /* following is not very nice but easy as 
+    /* following is not very nice but easy as
      * the lexer doesn't need to be changed
      */
     if (strcmp(str, "integer") == 0)
@@ -1146,14 +1159,7 @@ static void parlist (LexState *ls) {
     ravitype_t tt = raviY_get_register_typeinfo(fs, i);
     DEBUG_VARS(raviY_printf(fs, "Parameter [%d] = %v\n", i + 1, getlocvar(fs, i)));
     /* do we need to convert ? */
-    if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
-      /* code an instruction to convert in place */
-      luaK_codeABC(ls->fs, tt == RAVI_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, i, 0, 0);
-    }
-    else if (tt == RAVI_TARRAYFLT || tt == RAVI_TARRAYINT) {
-      /* code an instruction to convert in place */
-      luaK_codeABC(ls->fs, tt == RAVI_TARRAYFLT ? OP_RAVI_TOARRAYF : OP_RAVI_TOARRAYI, i, 0, 0);
-    }
+    ravi_code_typecoersion(ls, i, tt);
   }
 }
 
@@ -1194,14 +1200,17 @@ static int explist (LexState *ls, expdesc *v) {
 
 #if RAVI_ENABLED
 /* TODO instead of using vars here could we just rely upon register_typeinfo? */
-static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n)
-{
+static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars,
+                           int n) {
   if (n < nvars && vars[n] != RAVI_TANY && v->ravi_type != vars[n]) {
-    if (v->ravi_type != vars[n] && (vars[n] == RAVI_TARRAYFLT || vars[n] == RAVI_TARRAYINT) && v->k == VNONRELOC) {
+    if (v->ravi_type != vars[n] &&
+        (vars[n] == RAVI_TARRAYFLT || vars[n] == RAVI_TARRAYINT) &&
+        v->k == VNONRELOC) {
       /* as the bytecode for generating a table is already emitted by this stage
-       * we have to amend the generated byte code - not sure if there is a better approach.
-       * We look for the last bytecode that is OP_NEWTABLE  and that has the same destination
-       * register as v->u.info which is our variable
+       * we have to amend the generated byte code - not sure if there is a
+       * better approach. We look for the last bytecode that is OP_NEWTABLE 
+       * and that has the same destination register as v->u.info which is our 
+       * variable
        * local a:int[] = { 1 }
        *                     ^ We are just past this and
        *                       about to assign to a
@@ -1216,45 +1225,51 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars, int n
         reg = GETARG_A(*pc);
         if (reg != v->u.info)
           continue;
-        op = (vars[n] == RAVI_TARRAYINT) ? OP_RAVI_NEWARRAYI : OP_RAVI_NEWARRAYF;
+        op =
+            (vars[n] == RAVI_TARRAYINT) ? OP_RAVI_NEWARRAYI : OP_RAVI_NEWARRAYF;
         SET_OPCODE(*pc, op); /* modify opcode */
-        DEBUG_CODEGEN(raviY_printf(ls->fs, "[%d]* %o ; modify opcode\n", i, *pc));
+        DEBUG_CODEGEN(
+            raviY_printf(ls->fs, "[%d]* %o ; modify opcode\n", i, *pc));
         break;
       }
       if (i < 0)
         luaX_syntaxerror(ls, "expecting array initializer");
     }
     /* if we are calling a function then convert return types */
-    else if (v->ravi_type != vars[n] && (vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT || vars[n] == RAVI_TARRAYFLT || vars[n] == RAVI_TARRAYINT) && v->k == VCALL) {
+    else if (v->ravi_type != vars[n] &&
+             (vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT ||
+              vars[n] == RAVI_TARRAYFLT || vars[n] == RAVI_TARRAYINT) &&
+             v->k == VCALL) {
       /* For local variable declarations that call functions e.g.
        * local i = func()
-       * Lua ensures that the function returns values to register assigned to variable i
-       * and above so that no separate OP_MOVE instruction is necessary. So that means that
-       * we need to coerce the return values in situ.
+       * Lua ensures that the function returns values to register assigned to
+       * variable i and above so that no separate OP_MOVE instruction is 
+       * necessary. So that means that we need to coerce the return values 
+       * in situ.
        */
-      Instruction *pc = &getcode(ls->fs, v); /* Obtain the instruction for OP_CALL */
+      Instruction *pc =
+          &getcode(ls->fs, v); /* Obtain the instruction for OP_CALL */
       lua_assert(GET_OPCODE(*pc) == OP_CALL);
-      int a = GETARG_A(*pc); /* function return values will be placed from register pointed by A and upwards */
-      int nrets = GETARG_C(*pc) - 1; /* operand C contains number of return values expected  */
-      /* Note that at this stage nrets is always 1 - as Lua patches in the this value for the last function call in a 
-       * variable declaration statement in adjust_assign and localvar_adjust_assign */
-      /* all return values that are going to be assigned to typed local vars must be converted to the correct type */
+      int a = GETARG_A(*pc); /* function return values will be placed from
+                                register pointed by A and upwards */
+      int nrets = GETARG_C(*pc) - 1;
+      /* operand C contains number of return values expected  */
+      /* Note that at this stage nrets is always 1 - as Lua patches in the this
+       * value for the last function call in a
+       * variable declaration statement in adjust_assign and
+       * localvar_adjust_assign */
+      /* all return values that are going to be assigned to typed local vars
+       * must be converted to the correct type */
       int i;
-      for (i = n; i < (n+nrets); i++)
+      for (i = n; i < (n + nrets); i++)
         /* do we need to convert ? */
-        if ((vars[i] == RAVI_TNUMFLT || vars[i] == RAVI_TNUMINT))
-          /* code an instruction to convert in place */
-          luaK_codeABC(ls->fs, vars[i] == RAVI_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, a+(i-n), 0, 0);
-        else if ((vars[i] == RAVI_TARRAYFLT || vars[i] == RAVI_TARRAYINT))
-          /* code an instruction to convert in place */
-          luaK_codeABC(ls->fs, vars[i] == RAVI_TARRAYFLT ? OP_RAVI_TOARRAYF : OP_RAVI_TOARRAYI, a + (i - n), 0, 0);
-    }
-    else if ((vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT) && v->k == VINDEXED) {
+        ravi_code_typecoersion(ls, a + (i - n), vars[i]);
+    } else if ((vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT) &&
+               v->k == VINDEXED) {
       if ((vars[n] == RAVI_TNUMFLT && v->ravi_type != RAVI_TARRAYFLT) ||
-        (vars[n] == RAVI_TNUMINT && v->ravi_type != RAVI_TARRAYINT))
+          (vars[n] == RAVI_TNUMINT && v->ravi_type != RAVI_TARRAYINT))
         luaX_syntaxerror(ls, "Invalid local assignment");
-    }
-    else
+    } else
       luaX_syntaxerror(ls, "Invalid local assignment");
   }
 }
@@ -1849,7 +1864,6 @@ static void fornum (LexState *ls, TString *varname, int line) {
   /* fornum -> NAME = exp1,exp1[,exp1] forbody */
   FuncState *fs = ls->fs;
   int base = fs->freereg;
-  LocVar *vidx, *vlimit, *vstep, *vvar;
   new_localvarliteral(ls, "(for index)");
   new_localvarliteral(ls, "(for limit)");
   new_localvarliteral(ls, "(for step)");
@@ -1861,10 +1875,7 @@ static void fornum (LexState *ls, TString *varname, int line) {
      fornum expressions. If we can then we will set the 
      fornum variables to the type we discover.
   */
-  vidx = &fs->f->locvars[fs->nlocvars - 4]; /* index variable - not yet active so get it from locvars*/
-  vlimit = &fs->f->locvars[fs->nlocvars - 3]; /* index variable - not yet active so get it from locvars*/
-  vstep = &fs->f->locvars[fs->nlocvars - 2]; /* index variable - not yet active so get it from locvars*/
-  vvar = &fs->f->locvars[fs->nlocvars - 1]; /* index variable - not yet active so get it from locvars*/
+  int var_idx = fs->nlocvars - 4; /* note location of idx variable */
   checknext(ls, '=');
   /* get the type of each expression */
   Fornuminfo tidx = { RAVI_TANY,0,0 }, tlimit = { RAVI_TANY,0,0 }, tstep = { RAVI_TNUMINT,0,0 };
@@ -1880,10 +1891,18 @@ static void fornum (LexState *ls, TString *varname, int line) {
     luaK_codek(fs, fs->freereg, luaK_intK(fs, 1));
     luaK_reserveregs(fs, 1);
   }
-  if (tidx.type == tlimit.type && tlimit.type == tstep.type && (tidx.type == RAVI_TNUMFLT || tidx.type == RAVI_TNUMINT)) {
+  if (tidx.type == tlimit.type && tlimit.type == tstep.type && 
+     (tidx.type == RAVI_TNUMFLT || tidx.type == RAVI_TNUMINT)) {
+    LocVar *vidx, *vlimit, *vstep, *vvar;
     if (tidx.type == RAVI_TNUMINT && tstep.is_constant)
       info = &tstep;
-    /* Ok so we have an integer or double */
+    /* Note that as locvars may be reallocated while creating variables
+       therefore we access the variables here */
+    vidx = &fs->f->locvars[var_idx]; /* index variable - not yet active so get it from locvars*/
+    vlimit = &fs->f->locvars[var_idx+1]; /* index variable - not yet active so get it from locvars*/
+    vstep = &fs->f->locvars[var_idx+2]; /* index variable - not yet active so get it from locvars*/
+    vvar = &fs->f->locvars[var_idx+3]; /* index variable - not yet active so get it from locvars*/
+                                              /* Ok so we have an integer or double */
     vidx->ravi_type = vlimit->ravi_type = vstep->ravi_type = vvar->ravi_type = tidx.type;
     DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for index %v\n", vidx));
     DEBUG_VARS(raviY_printf(fs, "fornum -> setting type for limit %v\n", vlimit));
@@ -2023,6 +2042,8 @@ static void localstat (LexState *ls) {
     vars[nvars] = declare_localvar(ls);
     /* RAVI changes end */
     nvars++;
+    if (nvars >= MAXVARS)
+      luaX_syntaxerror(ls, "too many local variables");
   } while (testnext(ls, ','));
   if (testnext(ls, '='))
     nexps = localvar_explist(ls, &e, vars, nvars);

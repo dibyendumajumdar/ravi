@@ -737,10 +737,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_BNOT_I:
     case OP_RAVI_SHL_II:
     case OP_RAVI_SHR_II:
-#ifndef _WIN32
     case OP_SHR:
     case OP_SHL:
-#endif
       break;
     default:
       return false;
