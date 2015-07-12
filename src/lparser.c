@@ -353,14 +353,14 @@ static void new_localvar (LexState *ls, TString *name, ravitype_t tt) {
   Dyndata *dyd = ls->dyd;
   /* register variable and get its index */
   /* RAVI change - record type info for local variable */
-  int i = registerlocalvar(ls, name, tt);
+  int reg = registerlocalvar(ls, name, tt);
   checklimit(fs, dyd->actvar.n + 1 - fs->firstlocal,
                   MAXVARS, "local variables");
   luaM_growvector(ls->L, dyd->actvar.arr, dyd->actvar.n + 1,
                   dyd->actvar.size, Vardesc, MAX_INT, "local variables");
   /* variable will be placed at stack position dyd->actvar.n */
-  dyd->actvar.arr[dyd->actvar.n].idx = cast(short, i);
-  DEBUG_VARS(raviY_printf(fs, "new_localvar -> registering %v fs->f->locvars[%d] at ls->dyd->actvar.arr[%d]\n", &fs->f->locvars[i], i, dyd->actvar.n));
+  dyd->actvar.arr[dyd->actvar.n].idx = cast(short, reg);
+  DEBUG_VARS(raviY_printf(fs, "new_localvar -> registering %v fs->f->locvars[%d] at ls->dyd->actvar.arr[%d]\n", &fs->f->locvars[reg], reg, dyd->actvar.n));
   dyd->actvar.n++;
   DEBUG_VARS(raviY_printf(fs, "new_localvar -> ls->dyd->actvar.n set to %d\n", dyd->actvar.n));
 }
