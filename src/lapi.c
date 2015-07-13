@@ -640,9 +640,6 @@ LUA_API int lua_rawget (lua_State *L, int idx) {
   api_check(L, ttistable(t), "table expected");
   h = hvalue(t);
   switch (h->ravi_array.array_type) {
-  case RAVI_TTABLE: {
-    setobj2s(L, L->top - 1, luaH_get(hvalue(t), L->top - 1));
-  } break;
   case RAVI_TARRAYINT: {
     TValue *key = L->top - 1;
     api_check(L, ttisinteger(key), "key must be integer");
@@ -672,7 +669,7 @@ LUA_API int lua_rawget (lua_State *L, int idx) {
     }
   } break;
   default:
-    lua_assert(0);
+    setobj2s(L, L->top - 1, luaH_get(hvalue(t), L->top - 1));
     break;
   }
   lua_unlock(L);
@@ -688,9 +685,6 @@ LUA_API int lua_rawgeti (lua_State *L, int idx, lua_Integer n) {
   api_check(L, ttistable(t), "table expected");
   h = hvalue(t);
   switch (h->ravi_array.array_type) {
-  case RAVI_TTABLE: {
-    setobj2s(L, L->top, luaH_getint(hvalue(t), n));
-  } break;
   case RAVI_TARRAYINT: {
     if (n <= raviH_getn(h)) {
       raviH_get_int_inline(L, h, n, L->top);
@@ -706,7 +700,7 @@ LUA_API int lua_rawgeti (lua_State *L, int idx, lua_Integer n) {
     }
   } break;
   default:
-    lua_assert(0);
+    setobj2s(L, L->top, luaH_getint(hvalue(t), n));
     break;
   }
   api_incr_top(L);
@@ -920,9 +914,6 @@ LUA_API void lua_rawset (lua_State *L, int idx) {
   api_check(L, ttistable(o), "table expected");
   t = hvalue(o);
   switch (t->ravi_array.array_type) {
-  case RAVI_TTABLE: {
-    setobj2t(L, luaH_set(L, t, L->top - 2), L->top - 1);
-  } break;
   case RAVI_TARRAYINT: {
     TValue *key = L->top - 2;
     TValue *val = L->top - 1;
@@ -956,7 +947,7 @@ LUA_API void lua_rawset (lua_State *L, int idx) {
     }
   } break;
   default:
-    lua_assert(0);
+    setobj2t(L, luaH_set(L, t, L->top - 2), L->top - 1);
     break;
   }
   invalidateTMcache(t);
@@ -975,9 +966,6 @@ LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
   api_check(L, ttistable(o), "table expected");
   t = hvalue(o);
   switch (t->ravi_array.array_type) {
-  case RAVI_TTABLE: {
-    luaH_setint(L, t, n, L->top - 1);
-  } break;
   case RAVI_TARRAYINT: {
     TValue *val = L->top - 1;
     if (ttisinteger(val)) {
@@ -1005,7 +993,7 @@ LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
     }
   } break;
   default:
-    lua_assert(0);
+    luaH_setint(L, t, n, L->top - 1);
     break;
   }
   luaC_barrierback(L, t, L->top - 1);
