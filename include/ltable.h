@@ -62,11 +62,11 @@ LUAI_FUNC Table *raviH_new_number_array(lua_State *L, unsigned int len,
 LUAI_FUNC int raviH_getn(Table *t);
 
 /* Type specific array set operation */
-LUAI_FUNC void raviH_set_int(lua_State *L, Table *t, unsigned int key,
+LUAI_FUNC void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key,
                              lua_Integer value);
 
 /* Type specific array set operation */
-LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, unsigned int key,
+LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key,
                                lua_Number value);
 
 /* Create a slice of an existing array

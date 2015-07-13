@@ -718,7 +718,8 @@ static int ravi_resize_array(lua_State *L, Table *t, unsigned int new_size,
   return 1;
 }
 
-void raviH_set_int(lua_State *L, Table *t, unsigned int u, lua_Integer value) {
+void raviH_set_int(lua_State *L, Table *t, lua_Unsigned u1, lua_Integer value) {
+  unsigned int u = (unsigned int)u1;
   lua_assert(t->ravi_array.array_type == RAVI_TARRAYINT);
   lua_Integer *data;
   if (u < t->ravi_array.len) {
@@ -740,7 +741,8 @@ void raviH_set_int(lua_State *L, Table *t, unsigned int u, lua_Integer value) {
     luaG_runerror(L, "array out of bounds");
 }
 
-void raviH_set_float(lua_State *L, Table *t, unsigned int u, lua_Number value) {
+void raviH_set_float(lua_State *L, Table *t, lua_Unsigned u1, lua_Number value) {
+  unsigned int u = (unsigned int)u1;
   lua_assert(t->ravi_array.array_type == RAVI_TARRAYFLT);
   lua_Number *data;
   if (u < t->ravi_array.len) {

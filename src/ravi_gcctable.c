@@ -108,11 +108,13 @@ void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C,
   gcc_jit_rvalue *data = ravi_emit_load_reg_h_floatarray(def, t);
   gcc_jit_lvalue *len = ravi_emit_load_ravi_arraylength(def, t);
   gcc_jit_rvalue *ukey = gcc_jit_context_new_cast(
-      def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
-      def->ravi->types->C_unsigned_intT);
+    def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
+    def->ravi->types->lua_UnsignedT);
+  gcc_jit_rvalue *ulen = gcc_jit_context_new_cast(
+      def->function_context, NULL, gcc_jit_lvalue_as_rvalue(len),
+      def->ravi->types->lua_UnsignedT);
 
-  gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey,
-                                             gcc_jit_lvalue_as_rvalue(len));
+  gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey, ulen);
   gcc_jit_block *then_block = gcc_jit_function_new_block(
       def->jit_function, unique_name(def, "GETTABLE_AF_if_in_range", pc));
   gcc_jit_block *else_block = gcc_jit_function_new_block(
@@ -161,11 +163,13 @@ void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C,
   gcc_jit_rvalue *data = ravi_emit_load_reg_h_intarray(def, t);
   gcc_jit_lvalue *len = ravi_emit_load_ravi_arraylength(def, t);
   gcc_jit_rvalue *ukey = gcc_jit_context_new_cast(
-      def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
-      def->ravi->types->C_unsigned_intT);
+    def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
+    def->ravi->types->lua_UnsignedT);
+  gcc_jit_rvalue *ulen = gcc_jit_context_new_cast(
+    def->function_context, NULL, gcc_jit_lvalue_as_rvalue(len),
+    def->ravi->types->lua_UnsignedT);
 
-  gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey,
-                                             gcc_jit_lvalue_as_rvalue(len));
+  gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey, ulen);
   gcc_jit_block *then_block = gcc_jit_function_new_block(
       def->jit_function, unique_name(def, "GETTABLE_AI_if_in_range", pc));
   gcc_jit_block *else_block = gcc_jit_function_new_block(
@@ -244,11 +248,13 @@ void ravi_emit_SETTABLE_AI_AF(ravi_function_def_t *def, int A, int B, int C,
 
   gcc_jit_lvalue *len = ravi_emit_load_ravi_arraylength(def, t);
   gcc_jit_rvalue *ukey = gcc_jit_context_new_cast(
-      def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
-      def->ravi->types->C_unsigned_intT);
+    def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
+    def->ravi->types->lua_UnsignedT);
+  gcc_jit_rvalue *ulen = gcc_jit_context_new_cast(
+    def->function_context, NULL, gcc_jit_lvalue_as_rvalue(len),
+    def->ravi->types->lua_UnsignedT);
 
-  gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey,
-                                             gcc_jit_lvalue_as_rvalue(len));
+  gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey, ulen);
   gcc_jit_block *then_block = gcc_jit_function_new_block(
       def->jit_function, unique_name(def, "SETTABLE_AX_if_in_range", pc));
   gcc_jit_block *else_block = gcc_jit_function_new_block(

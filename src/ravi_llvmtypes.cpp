@@ -878,22 +878,22 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviV_op_shrT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
-  // void raviH_set_int(lua_State *L, Table *t, unsigned int key, lua_Integer
+  // void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer
   // value);
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTableT);
-  elements.push_back(C_intT);
+  elements.push_back(lua_UnsignedT);
   elements.push_back(lua_IntegerT);
   raviH_set_intT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
-  // void raviH_set_float(lua_State *L, Table *t, unsigned int key, lua_Number
+  // void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number
   // value);
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTableT);
-  elements.push_back(C_intT);
+  elements.push_back(lua_UnsignedT);
   elements.push_back(lua_NumberT);
   raviH_set_floatT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
