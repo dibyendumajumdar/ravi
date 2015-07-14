@@ -656,8 +656,14 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RETURN:
     case OP_JMP:
     case OP_EQ:
+    case OP_RAVI_EQ_II:
+    case OP_RAVI_EQ_FF:
     case OP_LT:
+    case OP_RAVI_LT_II:
+    case OP_RAVI_LT_FF:
     case OP_LE:
+    case OP_RAVI_LE_II:
+    case OP_RAVI_LE_FF:
     case OP_NOT:
     case OP_TEST:
     case OP_TESTSET:
@@ -1198,15 +1204,21 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
       int B = GETARG_B(i);
       emit_RETURN(def, A, B);
     } break;
+    case OP_RAVI_EQ_II:
+    case OP_RAVI_EQ_FF:
+    case OP_RAVI_LT_II:
+    case OP_RAVI_LT_FF:
+    case OP_RAVI_LE_II:
+    case OP_RAVI_LE_FF:
     case OP_LT:
     case OP_LE:
     case OP_EQ: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       llvm::Constant *comparison_function =
-          (op == OP_EQ
+          ((op == OP_EQ || op == OP_RAVI_EQ_II || op == OP_RAVI_EQ_FF)
                ? def->luaV_equalobjF
-               : (op == OP_LT ? def->luaV_lessthanF : def->luaV_lessequalF));
+               : ((op == OP_LT || op == OP_RAVI_LT_II || op == OP_RAVI_LT_FF) ? def->luaV_lessthanF : def->luaV_lessequalF));
       // OP_EQ is followed by OP_JMP - we process this
       // along with OP_EQ
       pc++;

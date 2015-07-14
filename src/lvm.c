@@ -1080,6 +1080,8 @@ newframe:  /* reentry point when frame changes (call/return) */
     case OP_JMP: {
         dojump(ci, i, 0);
     } break;
+    case OP_RAVI_EQ_II:
+    case OP_RAVI_EQ_FF:
     case OP_EQ: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -1090,6 +1092,8 @@ newframe:  /* reentry point when frame changes (call/return) */
             donextjump(ci);
         )
     } break;
+    case OP_RAVI_LT_II:
+    case OP_RAVI_LT_FF:
     case OP_LT: {
         Protect(
           if (luaV_lessthan(L, RKB(i), RKC(i)) != GETARG_A(i))
@@ -1098,6 +1102,8 @@ newframe:  /* reentry point when frame changes (call/return) */
             donextjump(ci);
         )
     } break;
+    case OP_RAVI_LE_II:
+    case OP_RAVI_LE_FF:
     case OP_LE: {
         Protect(
           if (luaV_lessequal(L, RKB(i), RKC(i)) != GETARG_A(i))

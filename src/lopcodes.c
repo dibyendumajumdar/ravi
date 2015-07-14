@@ -144,6 +144,13 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "SHR_II", /*	A B C	R(A) := RK(B) >> RK(C)				*/
   "BNOT_I", /*	A B	R(A) := ~R(B)					*/
 
+  "EQ_II",  /*	A B C	if ((RK(B) == RK(C)) ~= A) then pc++		*/
+  "EQ_FF",  /*	A B C	if ((RK(B) == RK(C)) ~= A) then pc++		*/
+  "LT_II",  /*	A B C	if ((RK(B) <  RK(C)) ~= A) then pc++		*/
+  "LT_FF",  /*	A B C	if ((RK(B) <  RK(C)) ~= A) then pc++		*/
+  "LE_II",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
+  "LE_FF",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
+
   NULL
 };
 
@@ -268,6 +275,14 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_SHL_II */
  ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_SHR_II */
  ,opmode(0, 1, OpArgR, OpArgN, iABC)		/* OP_RAVI_BNOT_I */
+
+ ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_EQ_II */
+ ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_EQ_FF */
+ ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LT_II */
+ ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LT_FF */
+ ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_II */
+ ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_FF */
+
 };
 
 
@@ -469,9 +484,15 @@ static void PrintCode(const Proto* f)
    case OP_SHR:
    case OP_RAVI_SHR_II:
    case OP_EQ:
+   case OP_RAVI_EQ_II:
+   case OP_RAVI_EQ_FF:
    case OP_LT:
+   case OP_RAVI_LT_II:
+   case OP_RAVI_LT_FF:
    case OP_LE:
-    if (ISK(b) || ISK(c))
+   case OP_RAVI_LE_II:
+   case OP_RAVI_LE_FF:
+     if (ISK(b) || ISK(c))
     {
      printf("\t; ");
      if (ISK(b)) PrintConstant(f,INDEXK(b)); else printf("-");

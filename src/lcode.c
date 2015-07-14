@@ -1153,14 +1153,37 @@ static void codeexpval (FuncState *fs, OpCode op,
 /* Emit comparison operator. */
 static void codecomp (FuncState *fs, OpCode op, int cond, expdesc *e1,
                                                           expdesc *e2) {
+  DEBUG_EXPR(raviY_printf(fs, "Comparison of %e and %e\n", e1, e2));
+  ravitype_t o1_tt = e1->ravi_type;
   int o1 = luaK_exp2RK(fs, e1);
+  ravitype_t o2_tt = e2->ravi_type;
   int o2 = luaK_exp2RK(fs, e2);
   freeexp(fs, e2);
   freeexp(fs, e1);
   if (cond == 0 && op != OP_EQ) {
+    ravitype_t tt_temp;
     int temp;  /* exchange args to replace by '<' or '<=' */
     temp = o1; o1 = o2; o2 = temp;  /* o1 <==> o2 */
+    tt_temp = o1_tt; o1_tt = o2_tt; o2_tt = tt_temp;
     cond = 1;
+  }
+  if (op == OP_EQ) {
+    if (o1_tt == RAVI_TNUMINT && o2_tt == RAVI_TNUMINT)
+      op = OP_RAVI_EQ_II;
+    else if (o1_tt == RAVI_TNUMFLT && o2_tt == RAVI_TNUMFLT)
+      op = OP_RAVI_EQ_FF;
+  }
+  else if (op == OP_LT) {
+    if (o1_tt == RAVI_TNUMINT && o2_tt == RAVI_TNUMINT)
+      op = OP_RAVI_LT_II;
+    else if (o1_tt == RAVI_TNUMFLT && o2_tt == RAVI_TNUMFLT)
+      op = OP_RAVI_LT_FF;
+  }
+  else if (op == OP_LE) {
+    if (o1_tt == RAVI_TNUMINT && o2_tt == RAVI_TNUMINT)
+      op = OP_RAVI_LE_II;
+    else if (o1_tt == RAVI_TNUMFLT && o2_tt == RAVI_TNUMFLT)
+      op = OP_RAVI_LE_FF;
   }
   e1->u.info = condjump(fs, op, cond, o1, o2);
   e1->k = VJMP;

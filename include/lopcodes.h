@@ -299,11 +299,17 @@ OP_RAVI_SHL_II, /*	A B C	R(A) := RK(B) << RK(C)				*/
 OP_RAVI_SHR_II, /*	A B C	R(A) := RK(B) >> RK(C)				*/
 OP_RAVI_BNOT_I, /*	A B	R(A) := ~R(B)					*/
 
+OP_RAVI_EQ_II,/*	A B C	if ((RK(B) == RK(C)) ~= A) then pc++		*/
+OP_RAVI_EQ_FF,/*	A B C	if ((RK(B) == RK(C)) ~= A) then pc++		*/
+OP_RAVI_LT_II,/*	A B C	if ((RK(B) <  RK(C)) ~= A) then pc++		*/
+OP_RAVI_LT_FF,/*	A B C	if ((RK(B) <  RK(C)) ~= A) then pc++		*/
+OP_RAVI_LE_II,/*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
+OP_RAVI_LE_FF,/*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
 
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_RAVI_BNOT_I) + 1)
+#define NUM_OPCODES	(cast(int, OP_RAVI_LE_FF) + 1)
 
 /*===========================================================================
   Notes:
