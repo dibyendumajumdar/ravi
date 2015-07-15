@@ -28,8 +28,8 @@ void ravi_emit_UNMF(ravi_function_def_t *def, int A, int B, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // result = -rb->value_.n;
@@ -44,8 +44,8 @@ void ravi_emit_UNMI(ravi_function_def_t *def, int A, int B, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   gcc_jit_rvalue *result = gcc_jit_context_new_unary_op(
@@ -59,8 +59,8 @@ void ravi_emit_ADDFN(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // result = rb->value_.n + (double)C
@@ -79,8 +79,8 @@ void ravi_emit_MULFN(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // result = rb->value_.n * (double)C
@@ -99,8 +99,8 @@ void ravi_emit_SUBFN(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // result = rb->value_.n - (double)C
@@ -119,8 +119,8 @@ void ravi_emit_SUBNF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rc->value_.n
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_n(def, rc);
   // result = (double)C - rc->value_.n
@@ -140,8 +140,8 @@ void ravi_emit_SUBIN(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
   // rb->value_.i
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // result = rb->value_.i - (lua_Integer)C
@@ -160,8 +160,8 @@ void ravi_emit_SUBNI(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rc->value_.i
   gcc_jit_lvalue *rhs = ravi_emit_load_reg_i(def, rc);
   // result = (lua_Integer)B - rc->value_.i
@@ -181,9 +181,9 @@ void ravi_emit_ADDFF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // rc->value_.n
@@ -203,9 +203,9 @@ void ravi_emit_MULFF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // rc->value_.n
@@ -225,9 +225,9 @@ void ravi_emit_SUBFF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // rc->value_.n
@@ -247,9 +247,9 @@ void ravi_emit_DIVFF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // rc->value_.n
@@ -269,9 +269,9 @@ void ravi_emit_ADDFI(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // rc->value_.i
@@ -293,9 +293,9 @@ void ravi_emit_MULFI(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // rc->value_.i
@@ -317,9 +317,9 @@ void ravi_emit_SUBFI(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // rc->value_.i
@@ -341,9 +341,9 @@ void ravi_emit_DIVFI(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.n
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_n(def, rb);
   // rc->value_.i
@@ -365,9 +365,9 @@ void ravi_emit_SUBIF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.i
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // rc->value_.n
@@ -390,9 +390,9 @@ void ravi_emit_DIVIF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.i
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // rc->value_.n
@@ -415,9 +415,9 @@ void ravi_emit_ADDII(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.i
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // rc->value_.i
@@ -437,9 +437,9 @@ void ravi_emit_MULII(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.i
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // rc->value_.i
@@ -459,9 +459,9 @@ void ravi_emit_SUBII(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.i
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // rc->value_.i
@@ -481,9 +481,9 @@ void ravi_emit_DIVII(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   // rb->value_.i
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // rc->value_.i
@@ -508,8 +508,8 @@ void ravi_emit_ADDIN(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
   // rb->value_.i
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // result = rb->value_.i + (lua_Integer)C
@@ -528,8 +528,8 @@ void ravi_emit_MULIN(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
   // Load pointer to base
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
   // rb->value_.i
   gcc_jit_lvalue *lhs = ravi_emit_load_reg_i(def, rb);
   // result = rb->value_.i * (lua_Integer)C

@@ -30,15 +30,18 @@ void ravi_emit_SELF(ravi_function_def_t *def, int A, int B, int C, int pc) {
   // Protect(luaV_gettable(L, rb, RKC(i), ra));
   (void)pc;
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
-  gcc_jit_rvalue *ra1 = ravi_emit_get_register(def, A + 1);
+  gcc_jit_lvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *ra1 = ravi_emit_get_register(def, A + 1);
   ravi_emit_struct_assign(def, ra1, rb);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
-                                 gcc_jit_param_as_rvalue(def->L), rb, rc, ra));
+                                 gcc_jit_param_as_rvalue(def->L),
+                                 gcc_jit_lvalue_get_address(rb, NULL),
+                                 gcc_jit_lvalue_get_address(rc, NULL),
+                                 gcc_jit_lvalue_get_address(ra, NULL)));
 }
 
 // R(A) := length of R(B)
@@ -46,12 +49,14 @@ void ravi_emit_LEN(ravi_function_def_t *def, int A, int B, int pc) {
   // Protect(luaV_objlen(L, ra, RB(i)));
   (void)pc;
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register(def, B);
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call3_rvalue(def, def->ravi->types->luaV_objlenT,
-                                 gcc_jit_param_as_rvalue(def->L), ra, rb));
+                                 gcc_jit_param_as_rvalue(def->L),
+                                 gcc_jit_lvalue_get_address(ra, NULL),
+                                 gcc_jit_lvalue_get_address(rb, NULL)));
 }
 
 // R(A)[RK(B)] := RK(C)
@@ -59,13 +64,16 @@ void ravi_emit_SETTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
   // Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
   (void)pc;
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call4_rvalue(def, def->ravi->types->luaV_settableT,
-                                 gcc_jit_param_as_rvalue(def->L), ra, rb, rc));
+                                 gcc_jit_param_as_rvalue(def->L),
+                                 gcc_jit_lvalue_get_address(ra, NULL),
+                                 gcc_jit_lvalue_get_address(rb, NULL),
+                                 gcc_jit_lvalue_get_address(rc, NULL)));
 }
 
 // R(A) := R(B)[RK(C)]
@@ -73,13 +81,16 @@ void ravi_emit_GETTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
   // Protect(luaV_gettable(L, RB(i), RKC(i), ra));
   (void)pc;
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
-                                 gcc_jit_param_as_rvalue(def->L), rb, rc, ra));
+                                 gcc_jit_param_as_rvalue(def->L),
+                                 gcc_jit_lvalue_get_address(rb, NULL),
+                                 gcc_jit_lvalue_get_address(rc, NULL),
+                                 gcc_jit_lvalue_get_address(ra, NULL)));
 }
 
 void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C,
@@ -100,9 +111,9 @@ void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C,
   // raviH_get_float_inline(L, t, idx, ra);
 
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   gcc_jit_lvalue *key = ravi_emit_load_reg_i(def, rc);
   gcc_jit_rvalue *t = ravi_emit_load_reg_h(def, rb);
   gcc_jit_rvalue *data = ravi_emit_load_reg_h_floatarray(def, t);
@@ -155,9 +166,9 @@ void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C,
   // raviH_get_int_inline(L, t, idx, ra);
 
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   gcc_jit_lvalue *key = ravi_emit_load_reg_i(def, rc);
   gcc_jit_rvalue *t = ravi_emit_load_reg_h(def, rb);
   gcc_jit_rvalue *data = ravi_emit_load_reg_h_intarray(def, t);
@@ -212,9 +223,9 @@ void ravi_emit_SETTABLE_AI_AF(ravi_function_def_t *def, int A, int B, int C,
   // raviH_set_int_inline(L, t, idx, value);
 
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
   gcc_jit_lvalue *key = ravi_emit_load_reg_i(def, rb);
   gcc_jit_lvalue *value = NULL;
 
@@ -299,10 +310,10 @@ void ravi_emit_GETUPVAL(ravi_function_def_t *def, int A, int B, int pc) {
   // setobj2s(L, ra, cl->upvals[b]->v);
   (void)pc;
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_rvalue *upval = ravi_emit_get_upvals(def, B);
   gcc_jit_lvalue *v = ravi_emit_load_upval_v(def, upval);
-  ravi_emit_struct_assign(def, ra, gcc_jit_lvalue_as_rvalue(v));
+  ravi_emit_struct_assign(def, ra, gcc_jit_rvalue_dereference(gcc_jit_lvalue_as_rvalue(v), NULL));
 }
 
 // UpValue[B] := R(A)
@@ -312,25 +323,26 @@ void ravi_emit_SETUPVAL(ravi_function_def_t *def, int A, int B, int pc) {
   // The inline version causes segmentation fault during compilation
   (void)pc;
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call4_rvalue(def, def->ravi->types->raviV_op_setupvalT,
                                  gcc_jit_param_as_rvalue(def->L),
                                  gcc_jit_lvalue_as_rvalue(def->lua_closure_val),
-                                 ra, ravi_int_constant(def, B)));
+                                 gcc_jit_lvalue_get_address(ra, NULL),
+                                 ravi_int_constant(def, B)));
 #else
   // UpVal *uv = cl->upvals[GETARG_B(i)];
   // setobj(L, uv->v, ra);
   // luaC_upvalbarrier(L, uv);
 
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_rvalue *upval = ravi_emit_get_upvals(def, B);
   gcc_jit_lvalue *v = ravi_emit_load_upval_v(def, upval);
-  ravi_emit_struct_assign(def, gcc_jit_lvalue_as_rvalue(v), ra);
+  ravi_emit_struct_assign(def, v, ra);
 
-  gcc_jit_lvalue *type = ravi_emit_load_type(def, gcc_jit_lvalue_as_rvalue(v));
+  gcc_jit_lvalue *type = ravi_emit_load_type(def, v);
 
   // (type & BIT_ISCOLLECTIBLE) != 0
   gcc_jit_rvalue *bit_iscollectible = ravi_int_constant(def, BIT_ISCOLLECTABLE);
@@ -382,8 +394,8 @@ void ravi_emit_SETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc) {
 
   (void)pc;
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
 
   gcc_jit_rvalue *upval = ravi_emit_get_upvals(def, A);
   gcc_jit_lvalue *v = ravi_emit_load_upval_v(def, upval);
@@ -391,7 +403,9 @@ void ravi_emit_SETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc) {
       def->current_block, NULL,
       ravi_function_call4_rvalue(def, def->ravi->types->luaV_settableT,
                                  gcc_jit_param_as_rvalue(def->L),
-                                 gcc_jit_lvalue_as_rvalue(v), rb, rc));
+                                 gcc_jit_lvalue_as_rvalue(v),
+                                 gcc_jit_lvalue_get_address(rb, NULL),
+                                 gcc_jit_lvalue_get_address(rc, NULL)));
 }
 
 // R(A) := UpValue[B][RK(C)]
@@ -401,8 +415,8 @@ void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc) {
 
   (void)pc;
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
 
   gcc_jit_rvalue *upval = ravi_emit_get_upvals(def, B);
   gcc_jit_lvalue *v = ravi_emit_load_upval_v(def, upval);
@@ -410,7 +424,9 @@ void ravi_emit_GETTABUP(ravi_function_def_t *def, int A, int B, int C, int pc) {
       def->current_block, NULL,
       ravi_function_call4_rvalue(def, def->ravi->types->luaV_gettableT,
                                  gcc_jit_param_as_rvalue(def->L),
-                                 gcc_jit_lvalue_as_rvalue(v), rc, ra));
+                                 gcc_jit_lvalue_as_rvalue(v),
+                                 gcc_jit_lvalue_get_address(rc, NULL),
+                                 gcc_jit_lvalue_get_address(ra, NULL)));
 }
 
 void ravi_emit_NEWTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
@@ -426,13 +442,14 @@ void ravi_emit_NEWTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
 
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call5_rvalue(
           def, def->ravi->types->raviV_op_newtableT,
           gcc_jit_param_as_rvalue(def->L),
-          gcc_jit_lvalue_as_rvalue(def->ci_val), ra,
+          gcc_jit_lvalue_as_rvalue(def->ci_val),
+          gcc_jit_lvalue_get_address(ra, NULL),
           gcc_jit_context_new_rvalue_from_int(def->function_context,
                                               def->ravi->types->C_intT, B),
           gcc_jit_context_new_rvalue_from_int(def->function_context,
@@ -443,36 +460,39 @@ void ravi_emit_NEWARRAYINT(ravi_function_def_t *def, int A, int pc) {
   (void)pc;
 
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call3_rvalue(def, def->ravi->types->raviV_op_newarrayintT,
                                  gcc_jit_param_as_rvalue(def->L),
-                                 gcc_jit_lvalue_as_rvalue(def->ci_val), ra));
+                                 gcc_jit_lvalue_as_rvalue(def->ci_val),
+                                 gcc_jit_lvalue_get_address(ra, NULL)));
 }
 
 void ravi_emit_NEWARRAYFLOAT(ravi_function_def_t *def, int A, int pc) {
   (void)pc;
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call3_rvalue(def, def->ravi->types->raviV_op_newarrayfloatT,
                                  gcc_jit_param_as_rvalue(def->L),
-                                 gcc_jit_lvalue_as_rvalue(def->ci_val), ra));
+                                 gcc_jit_lvalue_as_rvalue(def->ci_val),
+                                 gcc_jit_lvalue_get_address(ra, NULL)));
 }
 
 void ravi_emit_SETLIST(ravi_function_def_t *def, int A, int B, int C, int pc) {
   (void)pc;
 
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call5_rvalue(
           def, def->ravi->types->raviV_op_setlistT,
           gcc_jit_param_as_rvalue(def->L),
-          gcc_jit_lvalue_as_rvalue(def->ci_val), ra,
+          gcc_jit_lvalue_as_rvalue(def->ci_val),
+          gcc_jit_lvalue_get_address(ra, NULL),
           gcc_jit_context_new_rvalue_from_int(def->function_context,
                                               def->ravi->types->C_intT, B),
           gcc_jit_context_new_rvalue_from_int(def->function_context,
@@ -486,7 +506,7 @@ void ravi_emit_TOARRAY(ravi_function_def_t *def, int A, int array_type_expected,
   //  luaG_runerror(L, "integer[] expected");
 
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_lvalue *type = ravi_emit_load_type(def, ra);
 
   // type != LUA_TTABLE ?
@@ -528,14 +548,14 @@ void ravi_emit_TOARRAY(ravi_function_def_t *def, int A, int array_type_expected,
 
 void ravi_emit_MOVEAI(ravi_function_def_t *def, int A, int B, int pc) {
   ravi_emit_TOARRAY(def, B, RAVI_TARRAYINT, "integer[] expected", pc);
-  gcc_jit_rvalue *src = ravi_emit_get_register(def, B);
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *src = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *dest = ravi_emit_get_register(def, A);
   ravi_emit_struct_assign(def, dest, src);
 }
 
 void ravi_emit_MOVEAF(ravi_function_def_t *def, int A, int B, int pc) {
   ravi_emit_TOARRAY(def, B, RAVI_TARRAYFLT, "number[] expected", pc);
-  gcc_jit_rvalue *src = ravi_emit_get_register(def, B);
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *src = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *dest = ravi_emit_get_register(def, A);
   ravi_emit_struct_assign(def, dest, src);
 }

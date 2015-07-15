@@ -46,7 +46,7 @@ void ravi_emit_LOADFZ(ravi_function_def_t *def, int A, int pc) {
   ravi_emit_load_base(def);
 
   // ra
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *dest = ravi_emit_get_register(def, A);
 
   // destvalue->value_.n = 0.0
   ravi_emit_store_reg_n_withtype(
@@ -63,7 +63,7 @@ void ravi_emit_LOADIZ(ravi_function_def_t *def, int A, int pc) {
   ravi_emit_load_base(def);
 
   // ra
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *dest = ravi_emit_get_register(def, A);
 
   // destvalue->value_.i =
   ravi_emit_store_reg_i_withtype(
@@ -83,7 +83,7 @@ void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc) {
   ravi_emit_load_base(def);
 
   // ra
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *dest = ravi_emit_get_register(def, A);
 
 #if 1
   TValue *Konst = &def->p->k[Bx];
@@ -112,7 +112,7 @@ void ravi_emit_LOADK(ravi_function_def_t *def, int A, int Bx, int pc) {
   default: {
 #endif
     // rb
-    gcc_jit_rvalue *src = ravi_emit_get_constant(def, Bx);
+    gcc_jit_lvalue *src = ravi_emit_get_constant(def, Bx);
 
     // *ra = *rb
     ravi_emit_struct_assign(def, dest, src);
@@ -132,9 +132,9 @@ void ravi_emit_MOVE(ravi_function_def_t *def, int A, int B) {
   ravi_emit_load_base(def);
 
   // rb
-  gcc_jit_rvalue *src = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *src = ravi_emit_get_register(def, B);
   // ra
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *dest = ravi_emit_get_register(def, A);
 
   // *ra = *rb
   ravi_emit_struct_assign(def, dest, src);
@@ -154,7 +154,7 @@ void ravi_emit_LOADBOOL(ravi_function_def_t *def, int A, int B, int C, int j,
   // Load pointer to base
   ravi_emit_load_base(def);
   // ra
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *dest = ravi_emit_get_register(def, A);
   // dest->i = 0
   ravi_emit_store_reg_b_withtype(
       def, gcc_jit_context_new_rvalue_from_int(def->function_context,
@@ -188,8 +188,8 @@ void ravi_emit_MOVEI(ravi_function_def_t *def, int A, int B, int pc) {
   // Load pointer to base
   ravi_emit_load_base(def);
 
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *src = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *src = ravi_emit_get_register(def, B);
 
   gcc_jit_lvalue *src_type = ravi_emit_load_type(def, src);
 
@@ -218,7 +218,8 @@ void ravi_emit_MOVEI(ravi_function_def_t *def, int A, int B, int pc) {
 
   // Call luaV_tointeger_()
   gcc_jit_rvalue *var_isint =
-      ravi_function_call2_rvalue(def, def->ravi->types->luaV_tointegerT, src,
+      ravi_function_call2_rvalue(def, def->ravi->types->luaV_tointegerT,
+                                 gcc_jit_lvalue_get_address(src, NULL),
                                  gcc_jit_lvalue_get_address(var, NULL));
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
@@ -263,8 +264,8 @@ void ravi_emit_MOVEF(ravi_function_def_t *def, int A, int B, int pc) {
   // Load pointer to base
   ravi_emit_load_base(def);
 
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *src = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *src = ravi_emit_get_register(def, B);
 
   gcc_jit_lvalue *src_type = ravi_emit_load_type(def, src);
 
@@ -293,7 +294,8 @@ void ravi_emit_MOVEF(ravi_function_def_t *def, int A, int B, int pc) {
 
   // Call luaV_tonumber()
   gcc_jit_rvalue *var_isflt =
-      ravi_function_call2_rvalue(def, def->ravi->types->luaV_tonumberT, src,
+      ravi_function_call2_rvalue(def, def->ravi->types->luaV_tonumberT,
+                                 gcc_jit_lvalue_get_address(src, NULL),
                                  gcc_jit_lvalue_get_address(var, NULL));
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
@@ -337,8 +339,8 @@ void ravi_emit_TOINT(ravi_function_def_t *def, int A, int pc) {
   // Load pointer to base
   ravi_emit_load_base(def);
 
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *src = dest;
+  gcc_jit_lvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *src = dest;
 
   gcc_jit_lvalue *src_type = ravi_emit_load_type(def, src);
 
@@ -356,7 +358,8 @@ void ravi_emit_TOINT(ravi_function_def_t *def, int A, int pc) {
 
   // Call luaV_tointeger_()
   gcc_jit_rvalue *var_isint =
-      ravi_function_call2_rvalue(def, def->ravi->types->luaV_tointegerT, src,
+      ravi_function_call2_rvalue(def, def->ravi->types->luaV_tointegerT,
+                                 gcc_jit_lvalue_get_address(src, NULL),
                                  gcc_jit_lvalue_get_address(var, NULL));
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
@@ -407,8 +410,8 @@ void ravi_emit_TOFLT(ravi_function_def_t *def, int A, int pc) {
   // Load pointer to base
   ravi_emit_load_base(def);
 
-  gcc_jit_rvalue *dest = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *src = dest;
+  gcc_jit_lvalue *dest = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *src = dest;
 
   gcc_jit_lvalue *src_type = ravi_emit_load_type(def, src);
 
@@ -429,7 +432,8 @@ void ravi_emit_TOFLT(ravi_function_def_t *def, int A, int pc) {
   // ravi_debug_printf3(def, "number %p = %f before call to luaV_number\n",
   // var_ptr, gcc_jit_lvalue_as_rvalue(var));
   gcc_jit_rvalue *var_isflt = ravi_function_call2_rvalue(
-      def, def->ravi->types->luaV_tonumberT, src, var_ptr);
+      def, def->ravi->types->luaV_tonumberT,
+      gcc_jit_lvalue_get_address(src, NULL), var_ptr);
   gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, 0);
   gcc_jit_rvalue *failed_conversion =

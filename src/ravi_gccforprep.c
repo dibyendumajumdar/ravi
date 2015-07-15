@@ -46,9 +46,9 @@ void ravi_emit_iFORPREP(ravi_function_def_t *def, int A, int pc, int step_one) {
 
   //  TValue *init = ra;
   //  TValue *pstep = ra + 2;
-  gcc_jit_rvalue *init = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *plimit = ravi_emit_get_register(def, A + 1);
-  gcc_jit_rvalue *pstep = NULL;
+  gcc_jit_lvalue *init = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *plimit = ravi_emit_get_register(def, A + 1);
+  gcc_jit_lvalue *pstep = NULL;
   if (!step_one)
     pstep = ravi_emit_get_register(def, A + 2);
   // Get ivalue(pstep)

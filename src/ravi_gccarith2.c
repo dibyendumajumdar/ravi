@@ -47,9 +47,9 @@ void ravi_emit_ARITH(ravi_function_def_t *def, int A, int B, int C, OpCode op,
       unique_name(def, "ARITH_nc", pc));
 
   ravi_emit_load_base(def);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *rb = ravi_emit_get_register_or_constant(def, B);
-  gcc_jit_rvalue *rc = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *rb = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *rc = ravi_emit_get_register_or_constant(def, C);
 
   gcc_jit_lvalue *rb_type = ravi_emit_load_type(def, rb);
   gcc_jit_lvalue *rc_type = ravi_emit_load_type(def, rc);
@@ -134,7 +134,8 @@ void ravi_emit_ARITH(ravi_function_def_t *def, int A, int B, int C, OpCode op,
 
   // Call luaV_tonumber_()
   gcc_jit_rvalue *rb_isnum =
-      ravi_function_call2_rvalue(def, def->ravi->types->luaV_tonumberT, rb,
+      ravi_function_call2_rvalue(def, def->ravi->types->luaV_tonumberT,
+                                 gcc_jit_lvalue_get_address(rb, NULL),
                                  gcc_jit_lvalue_get_address(nb, NULL));
   cmp1 = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, rb_isnum,
                               ravi_int_constant(def, 1));
@@ -171,7 +172,8 @@ void ravi_emit_ARITH(ravi_function_def_t *def, int A, int B, int C, OpCode op,
 
   // Call luaV_tonumber_()
   gcc_jit_rvalue *rc_isnum =
-      ravi_function_call2_rvalue(def, def->ravi->types->luaV_tonumberT, rc,
+      ravi_function_call2_rvalue(def, def->ravi->types->luaV_tonumberT,
+                                 gcc_jit_lvalue_get_address(rc, NULL),
                                  gcc_jit_lvalue_get_address(nc, NULL));
   cmp1 = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, rc_isnum,
                               ravi_int_constant(def, 1));
@@ -235,7 +237,10 @@ void ravi_emit_ARITH(ravi_function_def_t *def, int A, int B, int C, OpCode op,
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call5_rvalue(def, def->ravi->types->luaT_trybinTMT,
-                                 gcc_jit_param_as_rvalue(def->L), rb, rc, ra,
+                                 gcc_jit_param_as_rvalue(def->L),
+                                 gcc_jit_lvalue_get_address(rb, NULL),
+                                 gcc_jit_lvalue_get_address(rc, NULL),
+                                 gcc_jit_lvalue_get_address(ra, NULL),
                                  ravi_int_constant(def, tms)));
   ravi_emit_branch(def, done_block);
 

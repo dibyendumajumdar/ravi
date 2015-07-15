@@ -26,7 +26,7 @@
 // implements EQ, LE and LT - by using the supplied lua function to call.
 void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
                         int jA, gcc_jit_function *callee, const char *opname,
-                        int pc) {
+                        OpCode opCode, int pc) {
   //  case OP_EQ: {
   //    TValue *rb = RKB(i);
   //    TValue *rc = RKC(i);
@@ -42,16 +42,69 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
   ravi_emit_load_base(def);
 
   // Get pointer to register B
-  gcc_jit_rvalue *lhs_ptr = ravi_emit_get_register_or_constant(def, B);
+  gcc_jit_lvalue *regB = ravi_emit_get_register_or_constant(def, B);
   // Get pointer to register C
-  gcc_jit_rvalue *rhs_ptr = ravi_emit_get_register_or_constant(def, C);
+  gcc_jit_lvalue *regC = ravi_emit_get_register_or_constant(def, C);
 
-  // Call luaV_equalobj with register B and C
-  gcc_jit_rvalue *result = ravi_function_call3_rvalue(
-      def, callee, gcc_jit_param_as_rvalue(def->L), lhs_ptr, rhs_ptr);
+  gcc_jit_rvalue *result = NULL;
+  switch (opCode) {
+
+    case OP_RAVI_LT_II:
+    case OP_RAVI_LE_II:
+    case OP_RAVI_EQ_II: {
+      gcc_jit_lvalue *p1 = ravi_emit_load_reg_i(def, regB);
+      gcc_jit_lvalue *p2 = ravi_emit_load_reg_i(def, regC);
+
+      switch (opCode) {
+        case OP_RAVI_EQ_II:
+          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
+          break;
+        case OP_RAVI_LT_II:
+          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
+          break;
+        case OP_RAVI_LE_II:
+          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LE, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
+          break;
+        default:
+          assert(0);
+      }
+      result = gcc_jit_context_new_cast(def->function_context, NULL, result, def->ravi->types->C_intT);
+
+    } break;
+
+    case OP_RAVI_LT_FF:
+    case OP_RAVI_LE_FF:
+    case OP_RAVI_EQ_FF: {
+      gcc_jit_lvalue *p1 = ravi_emit_load_reg_n(def, regB);
+      gcc_jit_lvalue *p2 = ravi_emit_load_reg_n(def, regC);
+
+      switch (opCode) {
+        case OP_RAVI_EQ_FF:
+          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
+          break;
+        case OP_RAVI_LT_FF:
+          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
+          break;
+        case OP_RAVI_LE_FF:
+          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LE, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
+          break;
+        default:
+          assert(0);
+      }
+      result = gcc_jit_context_new_cast(def->function_context, NULL, result, def->ravi->types->C_intT);
+
+    } break;
+
+    default:
+      // Call luaV_equalobj with register B and C
+      result = ravi_function_call3_rvalue(
+              def, callee, gcc_jit_param_as_rvalue(def->L),
+              gcc_jit_lvalue_get_address(regB, NULL),
+              gcc_jit_lvalue_get_address(regC, NULL));
+  }
+
   // Test if result is equal to operand A
-  gcc_jit_rvalue *A_const = gcc_jit_context_new_rvalue_from_int(
-      def->function_context, def->ravi->types->C_intT, A);
+  gcc_jit_rvalue *A_const = ravi_int_constant(def, A);
   gcc_jit_rvalue *result_eq_A =
       ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, result, A_const);
   // If result == A then we need to execute the next statement which is a jump
@@ -76,13 +129,13 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
     ravi_emit_load_base(def);
 
     // base + a - 1
-    gcc_jit_rvalue *val = ravi_emit_get_register(def, jA - 1);
+    gcc_jit_lvalue *val = ravi_emit_get_register(def, jA - 1);
 
     // Call luaF_close
     gcc_jit_block_add_eval(
         def->current_block, NULL,
         ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                   gcc_jit_param_as_rvalue(def->L), val));
+                                   gcc_jit_param_as_rvalue(def->L), gcc_jit_lvalue_as_rvalue(val)));
   }
   // Do the jump
   ravi_emit_branch(def, def->jmp_targets[j]->jmp);
@@ -91,70 +144,8 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
   ravi_set_current_block(def, else_block);
 }
 
-gcc_jit_rvalue *ravi_emit_boolean_testfalse1(ravi_function_def_t *def,
-                                             gcc_jit_rvalue *reg, bool negate) {
-  // (isnil() || isbool() && b == 0)
-
-  gcc_jit_lvalue *var = gcc_jit_function_new_local(
-      def->jit_function, NULL, def->ravi->types->C_boolT,
-      unique_name(def, "bvalue", 0));
-  gcc_jit_lvalue *type = ravi_emit_load_type(def, reg);
-
-  // Test if type == LUA_TNIL (0)
-  gcc_jit_rvalue *isnil = ravi_emit_is_value_of_type(
-      def, gcc_jit_lvalue_as_rvalue(type), LUA__TNIL);
-
-  gcc_jit_block *then_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "if.nil", 0));
-  gcc_jit_block *else_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "not.nil", 0));
-  gcc_jit_block *end_block =
-      gcc_jit_function_new_block(def->jit_function, unique_name(def, "end", 0));
-
-  ravi_emit_conditional_branch(def, isnil, then_block, else_block);
-  ravi_set_current_block(def, then_block);
-
-  gcc_jit_block_add_assignment(def->current_block, NULL, var, isnil);
-  ravi_emit_branch(def, end_block);
-
-  ravi_set_current_block(def, else_block);
-  // value is not nil
-  // so check if bool and b == 0
-
-  // Test if type == LUA_TBOOLEAN
-  gcc_jit_rvalue *isbool = ravi_emit_is_value_of_type(
-      def, gcc_jit_lvalue_as_rvalue(type), LUA__TBOOLEAN);
-
-  // Test if bool value == 0
-  gcc_jit_lvalue *bool_value = ravi_emit_load_reg_b(def, reg);
-  gcc_jit_rvalue *zero = gcc_jit_context_new_rvalue_from_int(
-      def->function_context, def->ravi->types->C_intT, 0);
-  gcc_jit_rvalue *boolzero = ravi_emit_comparison(
-      def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(bool_value), zero);
-
-  // Test type == LUA_TBOOLEAN && bool value == 0
-  gcc_jit_rvalue *andvalue = gcc_jit_context_new_binary_op(
-      def->function_context, NULL, GCC_JIT_BINARY_OP_LOGICAL_AND,
-      def->ravi->types->C_boolT, isbool, boolzero);
-
-  gcc_jit_block_add_assignment(def->current_block, NULL, var, andvalue);
-  ravi_emit_branch(def, end_block);
-
-  ravi_set_current_block(def, end_block);
-
-  gcc_jit_rvalue *result = NULL;
-  if (negate) {
-    result = gcc_jit_context_new_unary_op(
-        def->function_context, NULL, GCC_JIT_UNARY_OP_LOGICAL_NEGATE,
-        def->ravi->types->C_boolT, gcc_jit_lvalue_as_rvalue(var));
-  } else {
-    result = gcc_jit_lvalue_as_rvalue(var);
-  }
-  return result;
-}
-
 gcc_jit_rvalue *ravi_emit_boolean_testfalse(ravi_function_def_t *def,
-                                            gcc_jit_rvalue *reg, bool negate) {
+                                            gcc_jit_lvalue *reg, bool negate) {
   // (isnil() || isbool() && b == 0)
 
   gcc_jit_lvalue *var = gcc_jit_function_new_local(
@@ -228,7 +219,7 @@ void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C, int j,
   ravi_emit_load_base(def);
 
   // Get pointer to register A
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   // v = C ? is_false(ra) : !is_false(ra)
   gcc_jit_rvalue *v = C ? ravi_emit_boolean_testfalse(def, ra, false)
                         : ravi_emit_boolean_testfalse(def, ra, true);
@@ -250,13 +241,13 @@ void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C, int j,
     // jA is the A operand of the Jump instruction
 
     // base + a - 1
-    gcc_jit_rvalue *val = ravi_emit_get_register(def, jA - 1);
+    gcc_jit_lvalue *val = ravi_emit_get_register(def, jA - 1);
 
     // Call luaF_close
     gcc_jit_block_add_eval(
         def->current_block, NULL,
         ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                   gcc_jit_param_as_rvalue(def->L), val));
+                                   gcc_jit_param_as_rvalue(def->L), gcc_jit_lvalue_as_rvalue(val)));
   }
   // Do the jump
   ravi_emit_branch(def, def->jmp_targets[j]->jmp);
@@ -276,9 +267,9 @@ void ravi_emit_NOT(ravi_function_def_t *def, int A, int B, int pc) {
 
   ravi_emit_load_base(def);
   // Get pointer to register B
-  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *rb = ravi_emit_get_register(def, B);
   gcc_jit_rvalue *v = ravi_emit_boolean_testfalse(def, rb, false);
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   ravi_emit_store_reg_b_withtype(
       def, gcc_jit_context_new_cast(def->function_context, NULL, v,
                                     def->ravi->types->C_intT),
@@ -303,7 +294,7 @@ void ravi_emit_TESTSET(ravi_function_def_t *def, int A, int B, int C, int j,
   ravi_emit_load_base(def);
 
   // Get pointer to register B
-  gcc_jit_rvalue *rb = ravi_emit_get_register(def, B);
+  gcc_jit_lvalue *rb = ravi_emit_get_register(def, B);
   // v = C ? is_false(ra) : !is_false(ra)
   gcc_jit_rvalue *v = C ? ravi_emit_boolean_testfalse(def, rb, false)
                         : ravi_emit_boolean_testfalse(def, rb, true);
@@ -322,7 +313,7 @@ void ravi_emit_TESTSET(ravi_function_def_t *def, int A, int B, int C, int j,
   ravi_set_current_block(def, then_block);
 
   // Get pointer to register A
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   ravi_emit_struct_assign(def, ra, rb);
 
   // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
@@ -330,13 +321,13 @@ void ravi_emit_TESTSET(ravi_function_def_t *def, int A, int B, int C, int j,
     // jA is the A operand of the Jump instruction
 
     // base + a - 1
-    gcc_jit_rvalue *val = ravi_emit_get_register(def, jA - 1);
+    gcc_jit_lvalue *val = ravi_emit_get_register(def, jA - 1);
 
     // Call luaF_close
     gcc_jit_block_add_eval(
         def->current_block, NULL,
         ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                   gcc_jit_param_as_rvalue(def->L), val));
+                                   gcc_jit_param_as_rvalue(def->L), gcc_jit_lvalue_get_address(val, NULL)));
   }
   // Do the jump
   ravi_emit_branch(def, def->jmp_targets[j]->jmp);

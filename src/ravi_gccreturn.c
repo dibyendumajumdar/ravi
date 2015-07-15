@@ -56,7 +56,7 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   ravi_emit_load_base(def);
 
   // Get pointer to register A
-  gcc_jit_rvalue *ra_ptr = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra_ptr = ravi_emit_get_register(def, A);
 
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Get pointer to Proto->sizep
@@ -90,13 +90,14 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   if (B != 0)
     nresults = ravi_int_constant(def, B - 1);
   else
-    nresults = ravi_emit_num_stack_elements(def, ra_ptr);
+    nresults = ravi_emit_num_stack_elements(def, gcc_jit_lvalue_get_address(ra_ptr, NULL));
 
   //*  b = luaD_poscall(L, ra, (b != 0 ? b - 1 : L->top - ra));
   gcc_jit_block_add_eval(
       def->current_block, NULL,
       ravi_function_call3_rvalue(def, def->ravi->types->luaD_poscallT,
-                                 gcc_jit_param_as_rvalue(def->L), ra_ptr, nresults));
+                                 gcc_jit_param_as_rvalue(def->L),
+                                 gcc_jit_lvalue_get_address(ra_ptr, NULL), nresults));
 
   gcc_jit_block_end_with_return(
       def->current_block, NULL,

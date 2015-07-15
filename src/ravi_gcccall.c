@@ -46,12 +46,13 @@ void ravi_emit_JMP(ravi_function_def_t *def, int A, int j, int pc) {
   if (A > 0) {
     ravi_emit_load_base(def);
     // base + a - 1
-    gcc_jit_rvalue *val = ravi_emit_get_register(def, A - 1);
+    gcc_jit_lvalue *val = ravi_emit_get_register(def, A - 1);
     // Call luaF_close
     gcc_jit_block_add_eval(
         def->current_block, NULL,
         ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                   gcc_jit_param_as_rvalue(def->L), val));
+                                   gcc_jit_param_as_rvalue(def->L),
+                                   gcc_jit_lvalue_get_address(val, NULL)));
   }
 
   ravi_emit_branch(def, def->jmp_targets[j]->jmp);
@@ -92,11 +93,12 @@ void ravi_emit_CALL(ravi_function_def_t *def, int A, int B, int C, int pc) {
   // 0 - Run interpreter on Lua function
 
   // int c = luaD_precall(L, ra, nresults);  /* C or JITed function? */
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_rvalue *nresults_const = gcc_jit_context_new_rvalue_from_int(
       def->function_context, def->ravi->types->C_intT, nresults);
   gcc_jit_rvalue *precall_result = ravi_function_call3_rvalue(
-      def, def->ravi->types->luaD_precallT, gcc_jit_param_as_rvalue(def->L), ra,
+      def, def->ravi->types->luaD_precallT, gcc_jit_param_as_rvalue(def->L),
+      gcc_jit_lvalue_get_address(ra, NULL),
       nresults_const);
   /* Need to save the result of the luaD_precall() so that we can do another
    * check later on

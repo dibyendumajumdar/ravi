@@ -78,7 +78,7 @@ void ravi_emit_iFORLOOP(ravi_function_def_t *def, int A, int pc,
   ravi_emit_load_base(def);
 
   // setivalue(ra + 3, idx);  /* ...and external index */
-  gcc_jit_rvalue *rvar = ravi_emit_get_register(def, A + 3);
+  gcc_jit_lvalue *rvar = ravi_emit_get_register(def, A + 3);
   ravi_emit_store_reg_i_withtype(def, gcc_jit_lvalue_as_rvalue(b->iidx), rvar);
 
   // ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */

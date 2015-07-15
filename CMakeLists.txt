@@ -202,7 +202,6 @@ if (LLVM_JIT)
   target_link_libraries(test_llvm ravi)
 endif()
 
-
 if (GCC_JIT)
   #GCC JIT playground
   add_executable(test_gccjit tests/test_gccjit.c)

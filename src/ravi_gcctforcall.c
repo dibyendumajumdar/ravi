@@ -52,12 +52,12 @@ void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C, int j,
   ravi_emit_load_base(def);
 
   // Get pointer to register A
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *ra1 = ravi_emit_get_register(def, A + 1);
-  gcc_jit_rvalue *ra2 = ravi_emit_get_register(def, A + 2);
-  gcc_jit_rvalue *cb = ravi_emit_get_register(def, A + 3);
-  gcc_jit_rvalue *cb1 = ravi_emit_get_register(def, A + 4);
-  gcc_jit_rvalue *cb2 = ravi_emit_get_register(def, A + 5);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra1 = ravi_emit_get_register(def, A + 1);
+  gcc_jit_lvalue *ra2 = ravi_emit_get_register(def, A + 2);
+  gcc_jit_lvalue *cb = ravi_emit_get_register(def, A + 3);
+  gcc_jit_lvalue *cb1 = ravi_emit_get_register(def, A + 4);
+  gcc_jit_lvalue *cb2 = ravi_emit_get_register(def, A + 5);
 
   ravi_emit_struct_assign(def, cb2, ra2);
   ravi_emit_struct_assign(def, cb1, ra1);
@@ -71,7 +71,8 @@ void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C, int j,
       def->current_block, NULL,
       ravi_function_call4_rvalue(
           def, def->ravi->types->luaD_callT, gcc_jit_param_as_rvalue(def->L),
-          cb, gcc_jit_context_new_rvalue_from_int(def->function_context,
+          gcc_jit_lvalue_get_address(cb, NULL),
+          gcc_jit_context_new_rvalue_from_int(def->function_context,
                                                   def->ravi->types->C_intT, C),
           gcc_jit_context_new_rvalue_from_int(def->function_context,
                                               def->ravi->types->C_intT, 1)));
@@ -116,8 +117,8 @@ void ravi_emit_TFORLOOP(ravi_function_def_t *def, int A, int j, int pc) {
   ravi_emit_load_base(def);
 
   // Get pointer to register A
-  gcc_jit_rvalue *ra = ravi_emit_get_register(def, A);
-  gcc_jit_rvalue *ra1 = ravi_emit_get_register(def, A + 1);
+  gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
+  gcc_jit_lvalue *ra1 = ravi_emit_get_register(def, A + 1);
   gcc_jit_lvalue *type = ravi_emit_load_type(def, ra1);
 
   // Test if type != LUA_TNIL (0)
