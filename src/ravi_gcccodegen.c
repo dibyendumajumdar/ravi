@@ -64,8 +64,14 @@ static bool can_compile(Proto *p) {
     case OP_TAILCALL:
     case OP_JMP:
     case OP_EQ:
+    case OP_RAVI_EQ_II:
+    case OP_RAVI_EQ_FF:
     case OP_LT:
+    case OP_RAVI_LT_II:
+    case OP_RAVI_LT_FF:
     case OP_LE:
+    case OP_RAVI_LE_II:
+    case OP_RAVI_LE_FF:
     case OP_GETTABUP:
     case OP_LOADBOOL:
     case OP_NOT:
@@ -1091,16 +1097,23 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
       ravi_emit_CALL(&def, A, B, C, pc);
     } break;
 
+    case OP_RAVI_EQ_II:
+    case OP_RAVI_EQ_FF:
+    case OP_RAVI_LT_II:
+    case OP_RAVI_LT_FF:
+    case OP_RAVI_LE_II:
+    case OP_RAVI_LE_FF:
     case OP_LT:
     case OP_LE:
     case OP_EQ: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       const char *opname =
-          (op == OP_EQ ? "OP_EQ" : (op == OP_LT ? "OP_LT" : "OP_LE"));
+          ((op == OP_EQ || op == OP_RAVI_EQ_II || op == OP_RAVI_EQ_FF) ? "OP_EQ" :
+           ((op == OP_LT || op == OP_RAVI_LT_II || op == OP_RAVI_LT_FF) ? "OP_LT" : "OP_LE"));
       gcc_jit_function *comparison_function =
-          (op == OP_EQ ? def.ravi->types->luaV_equalobjT
-                       : (op == OP_LT ? def.ravi->types->luaV_lessthanT
+          ((op == OP_EQ || op == OP_RAVI_EQ_II || op == OP_RAVI_EQ_FF) ? def.ravi->types->luaV_equalobjT
+                       : ((op == OP_LT || op == OP_RAVI_LT_II || op == OP_RAVI_LT_FF) ? def.ravi->types->luaV_lessthanT
                                       : def.ravi->types->luaV_lessequalT));
       // OP_EQ is followed by OP_JMP - we process this
       // along with OP_EQ
