@@ -931,7 +931,7 @@ public:
   // j must be the jump target (offset of the code to which we need to jump to)
   // jA must be the A operand of the jump instruction
   void emit_EQ(RaviFunctionDef *def, int A, int B, int C, int j, int jA,
-               llvm::Constant *callee);
+               llvm::Constant *callee, OpCode opCode);
 
   // OP_TEST is followed by a OP_JMP instruction - both are handled
   // together

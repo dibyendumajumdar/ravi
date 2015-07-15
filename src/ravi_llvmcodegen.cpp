@@ -1215,6 +1215,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
     case OP_EQ: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
+      OpCode compOperator = op;
       llvm::Constant *comparison_function =
           ((op == OP_EQ || op == OP_RAVI_EQ_II || op == OP_RAVI_EQ_FF)
                ? def->luaV_equalobjF
@@ -1228,7 +1229,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      emit_EQ(def, A, B, C, j, GETARG_A(i), comparison_function);
+      emit_EQ(def, A, B, C, j, GETARG_A(i), comparison_function, compOperator);
     } break;
     case OP_TFORCALL: {
       int B = GETARG_B(i);

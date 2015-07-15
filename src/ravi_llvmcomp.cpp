@@ -27,7 +27,7 @@ namespace ravi {
 // Although the name is EQ this actually
 // implements EQ, LE and LT - by using the supplied lua function to call.
 void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
-                                int j, int jA, llvm::Constant *callee) {
+                                int j, int jA, llvm::Constant *callee, OpCode opCode) {
   //  case OP_EQ: {
   //    TValue *rb = RKB(i);
   //    TValue *rc = RKC(i);
@@ -43,16 +43,66 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
   emit_load_base(def);
 
   // Get pointer to register B
-  llvm::Value *lhs_ptr = emit_gep_register_or_constant(def, B);
+  llvm::Value *regB = emit_gep_register_or_constant(def, B);
   // Get pointer to register C
-  llvm::Value *rhs_ptr = emit_gep_register_or_constant(def, C);
+  llvm::Value *regC = emit_gep_register_or_constant(def, C);
 
-  // Call luaV_equalobj with register B and C
-  llvm::Value *result =
-      CreateCall3(def->builder, callee, def->L, lhs_ptr, rhs_ptr);
+  llvm::Value *result = NULL;
+  switch (opCode) {
+
+  case OP_RAVI_LT_II:
+  case OP_RAVI_LE_II:
+  case OP_RAVI_EQ_II: {
+    llvm::Instruction *p1 = emit_load_reg_i(def, regB);
+    llvm::Instruction *p2 = emit_load_reg_i(def, regC);
+
+    switch (opCode) {
+    case OP_RAVI_EQ_II:
+      result = def->builder->CreateICmpEQ(p1, p2, "EQ_II_result");
+      break;
+    case OP_RAVI_LT_II:
+      result = def->builder->CreateICmpSLT(p1, p2, "LT_II_result");
+      break;
+    case OP_RAVI_LE_II:
+      result = def->builder->CreateICmpSLE(p1, p2, "LE_II_result");
+      break;
+    }
+    result = def->builder->CreateZExt(result, def->types->C_intT, "II_result_int");
+
+  } break;
+
+  case OP_RAVI_LT_FF:
+  case OP_RAVI_LE_FF:
+  case OP_RAVI_EQ_FF: {
+    llvm::Instruction *p1 = emit_load_reg_n(def, regB);
+    llvm::Instruction *p2 = emit_load_reg_n(def, regC);
+
+    switch (opCode) {
+    case OP_RAVI_EQ_FF:
+      result = def->builder->CreateFCmpOEQ(p1, p2, "EQ_FF_result");
+      break;
+    case OP_RAVI_LT_FF:
+      result = def->builder->CreateFCmpULT(p1, p2, "LT_FF_result");
+      break;
+    case OP_RAVI_LE_FF:
+      result = def->builder->CreateFCmpULE(p1, p2, "LE_FF_result");
+      break;
+    }
+    result = def->builder->CreateZExt(result, def->types->C_intT, "FF_result_int");
+
+  } break;
+
+  default:
+    // Call luaV_equalobj with register B and C
+    result =
+      CreateCall3(def->builder, callee, def->L, regB, regC);
+  }
+
   // Test if result is equal to operand A
   llvm::Value *result_eq_A = def->builder->CreateICmpEQ(
       result, llvm::ConstantInt::get(def->types->C_intT, A));
+  
+  
   // If result == A then we need to execute the next statement which is a jump
   llvm::BasicBlock *then_block =
       llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
