@@ -66,6 +66,8 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
     case OP_RAVI_LE_II:
       result = def->builder->CreateICmpSLE(p1, p2, "LE_II_result");
       break;
+    default:
+        assert(0);
     }
     result = def->builder->CreateZExt(result, def->types->C_intT, "II_result_int");
 
@@ -87,6 +89,8 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
     case OP_RAVI_LE_FF:
       result = def->builder->CreateFCmpULE(p1, p2, "LE_FF_result");
       break;
+    default:
+      assert(0);
     }
     result = def->builder->CreateZExt(result, def->types->C_intT, "FF_result_int");
 
