@@ -135,7 +135,8 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
     gcc_jit_block_add_eval(
         def->current_block, NULL,
         ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                   gcc_jit_param_as_rvalue(def->L), gcc_jit_lvalue_as_rvalue(val)));
+                                   gcc_jit_param_as_rvalue(def->L), 
+                                   gcc_jit_lvalue_get_address(val, NULL)));
   }
   // Do the jump
   ravi_emit_branch(def, def->jmp_targets[j]->jmp);
@@ -247,7 +248,8 @@ void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C, int j,
     gcc_jit_block_add_eval(
         def->current_block, NULL,
         ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                   gcc_jit_param_as_rvalue(def->L), gcc_jit_lvalue_as_rvalue(val)));
+                                   gcc_jit_param_as_rvalue(def->L), 
+                                   gcc_jit_lvalue_get_address(val, NULL)));
   }
   // Do the jump
   ravi_emit_branch(def, def->jmp_targets[j]->jmp);
@@ -327,7 +329,8 @@ void ravi_emit_TESTSET(ravi_function_def_t *def, int A, int B, int C, int j,
     gcc_jit_block_add_eval(
         def->current_block, NULL,
         ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                   gcc_jit_param_as_rvalue(def->L), gcc_jit_lvalue_get_address(val, NULL)));
+                                   gcc_jit_param_as_rvalue(def->L), 
+                                   gcc_jit_lvalue_get_address(val, NULL)));
   }
   // Do the jump
   ravi_emit_branch(def, def->jmp_targets[j]->jmp);
