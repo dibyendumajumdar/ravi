@@ -295,6 +295,7 @@ print("test SUBNF ok")
 x=function() local a: integer = 42; return a-5; end
 ravi.dumplua(x)
 assert(ravi.compile(x))
+--ravi.dumpllvm(x)
 assert(x() == 37)
 print("test SUBIN ok")
 

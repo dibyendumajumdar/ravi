@@ -191,6 +191,18 @@ RaviCodeGenerator::emit_load_register_or_constant_i(RaviFunctionDef *def,
   }
 }
 
+llvm::Value *
+RaviCodeGenerator::emit_load_register_or_constant_n(RaviFunctionDef *def,
+                                                    int B) {
+  if (ISK(B) && def->p->k[INDEXK(B)].tt_ == LUA_TNUMFLT) {
+    TValue *Konst = &def->p->k[INDEXK(B)];
+    return llvm::ConstantFP::get(def->types->lua_NumberT, Konst->value_.n);
+  } else {
+    llvm::Value *rb = emit_gep_register_or_constant(def, B);
+    return emit_load_reg_n(def, rb);
+  }
+}
+
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
 #if RAVI_NAN_TAGGING
@@ -1219,7 +1231,9 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
       llvm::Constant *comparison_function =
           ((op == OP_EQ || op == OP_RAVI_EQ_II || op == OP_RAVI_EQ_FF)
                ? def->luaV_equalobjF
-               : ((op == OP_LT || op == OP_RAVI_LT_II || op == OP_RAVI_LT_FF) ? def->luaV_lessthanF : def->luaV_lessequalF));
+               : ((op == OP_LT || op == OP_RAVI_LT_II || op == OP_RAVI_LT_FF)
+                      ? def->luaV_lessthanF
+                      : def->luaV_lessequalF));
       // OP_EQ is followed by OP_JMP - we process this
       // along with OP_EQ
       pc++;

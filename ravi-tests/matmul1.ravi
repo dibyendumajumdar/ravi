@@ -156,13 +156,10 @@ print("time taken ", t2-t1)
 local y: integer = cast(n/2+1, "integer")
 print(matrix.getrow(a, y)[y])
 
---ravi.dumplua(matrix.mul)
-
 --matrix.print(matrix.gen(2))
 --matrix.print(matrix.T(matrix.gen(2)))
 --matrix.print(matrix.mul(matrix.gen(2), matrix.gen(2)))
 
---ravi.dumpllvmasm(matrix.mul2)
+--ravi.dumpllvm(matrix.mul2)
 
-
--- ravi.dumplua(matrix.mul)
+--ravi.dumplua(matrix.gen)

@@ -676,6 +676,10 @@ public:
   // constant
   llvm::Value *emit_load_register_or_constant_i(RaviFunctionDef *def, int K);
 
+  // Load a register or constant - if constant is int then return a direct LLVM
+  // constant
+  llvm::Value *emit_load_register_or_constant_n(RaviFunctionDef *def, int K);
+
   // emit code to load the lua_Number value from register
   llvm::Instruction *emit_load_reg_n(RaviFunctionDef *def, llvm::Value *ra);
 

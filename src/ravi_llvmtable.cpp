@@ -105,7 +105,6 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
       llvm::BasicBlock::Create(def->jitState->context(), "if.end");
   def->builder->CreateCondBr(cmp, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
-
   llvm::Value *ptr = def->builder->CreateGEP(data, key);
   llvm::Instruction *value = def->builder->CreateLoad(ptr);
   value->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pdoubleT);

@@ -69,7 +69,7 @@ local function fannkuch(n: integer)
 end
 
 local n = tonumber(arg and arg[1]) or 11
-assert(ravi.compile(fannkuch,1))
+assert(ravi.compile(fannkuch))
 local t1 = os.clock()
 local sum, flips = fannkuch(n)
 local t2 = os.clock()
