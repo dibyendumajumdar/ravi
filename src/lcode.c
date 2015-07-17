@@ -1058,6 +1058,7 @@ static void codeexpval (FuncState *fs, OpCode op,
       freeexp(fs, e1);
     }
 #if RAVI_ENABLED
+#if 0
     if (op == OP_ADD && 
       (e1->ravi_type == RAVI_TNUMFLT || e1->ravi_type == RAVI_TNUMINT) &&
       (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT))
@@ -1067,7 +1068,33 @@ static void codeexpval (FuncState *fs, OpCode op,
       (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT))
       generate_binarithop(fs, e1, e2, o1, o2, OP_RAVI_MULFF - OP_RAVI_ADDFF);
 
-    /* todo optimize the SUB opcodes when constant is small */
+#else
+    if (op == OP_ADD && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFF, 0, o1, o2);
+    }
+    else if (op == OP_ADD && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMINT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFI, 0, o1, o2);
+    }
+    else if (op == OP_ADD && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMFLT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFI, 0, o2, o1);
+    }
+    else if (op == OP_ADD && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDII, 0, o1, o2);
+    }
+
+    else if (op == OP_MUL && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFF, 0, o1, o2);
+    }
+    else if (op == OP_MUL && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMINT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFI, 0, o1, o2);
+    }
+    else if (op == OP_MUL && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMFLT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFI, 0, o2, o1);
+    }
+    else if (op == OP_MUL && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_MULII, 0, o1, o2);
+    }
+#endif
     else if (op == OP_SUB && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
       e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFF, 0, o1, o2); 
     }

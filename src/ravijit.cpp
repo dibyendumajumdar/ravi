@@ -216,7 +216,7 @@ static void addMemorySanitizerPass(const llvm::PassManagerBuilder &Builder,
 
 void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
 
-#if LLVM_VERSION_MINOR == 7
+#if LLVM_VERSION_MINOR >= 7
   using llvm::legacy::FunctionPassManager;
   using llvm::legacy::PassManager;
 #else
@@ -268,7 +268,7 @@ void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
     auto target_layout = engine_->getTargetMachine()->getDataLayout();
     module_->setDataLayout(target_layout);
     FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
-#elif LLVM_VERSION_MINOR == 7
+#elif LLVM_VERSION_MINOR >= 7
 // Apparently no need to set DataLayout
 #else
 #error Unsupported LLVM version
