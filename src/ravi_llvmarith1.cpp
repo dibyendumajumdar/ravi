@@ -48,19 +48,6 @@ void RaviCodeGenerator::emit_UNMI(RaviFunctionDef *def, int A, int B) {
   emit_store_reg_i_withtype(def, result, ra);
 }
 
-// R(A) := RK(B) + C, result is floating
-void RaviCodeGenerator::emit_ADDFN(RaviFunctionDef *def, int A, int B, int C) {
-  emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *rb = emit_gep_register_or_constant(def, B);
-  llvm::Instruction *lhs = emit_load_reg_n(def, rb);
-  llvm::Value *result = def->builder->CreateFAdd(
-      lhs,
-      def->builder->CreateSIToFP(llvm::ConstantInt::get(def->types->C_intT, C),
-                                 def->types->lua_NumberT));
-  emit_store_reg_n_withtype(def, result, ra);
-}
-
 // R(A) := RK(B) + RK(C), all floating
 void RaviCodeGenerator::emit_ADDFF(RaviFunctionDef *def, int A, int B, int C) {
   emit_load_base(def);
@@ -90,18 +77,6 @@ void RaviCodeGenerator::emit_ADDII(RaviFunctionDef *def, int A, int B, int C) {
   llvm::Value *rb = emit_load_register_or_constant_i(def, B);
   llvm::Value *rc = emit_load_register_or_constant_i(def, C);
   llvm::Value *result = def->builder->CreateAdd(rb, rc, "", false, true);
-  emit_store_reg_i_withtype(def, result, ra);
-}
-
-// R(A) := RK(B) + C, int+c
-void RaviCodeGenerator::emit_ADDIN(RaviFunctionDef *def, int A, int B, int C) {
-  emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *rb = emit_gep_register_or_constant(def, B);
-  llvm::Instruction *lhs = emit_load_reg_i(def, rb);
-  llvm::Value *result = def->builder->CreateAdd(
-      lhs, llvm::ConstantInt::get(def->types->lua_IntegerT, C), "", false,
-      true);
   emit_store_reg_i_withtype(def, result, ra);
 }
 
@@ -147,68 +122,6 @@ void RaviCodeGenerator::emit_SUBII(RaviFunctionDef *def, int A, int B, int C) {
   emit_store_reg_i_withtype(def, result, ra);
 }
 
-// R(A) := RK(B) - C, float - c
-void RaviCodeGenerator::emit_SUBFN(RaviFunctionDef *def, int A, int B, int C) {
-  emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *rb = emit_gep_register_or_constant(def, B);
-  llvm::Instruction *lhs = emit_load_reg_n(def, rb);
-  llvm::Value *result = def->builder->CreateFSub(
-      lhs,
-      def->builder->CreateSIToFP(llvm::ConstantInt::get(def->types->C_intT, C),
-                                 def->types->lua_NumberT));
-  emit_store_reg_n_withtype(def, result, ra);
-}
-
-// R(A) := B - RK(C), b - float
-void RaviCodeGenerator::emit_SUBNF(RaviFunctionDef *def, int A, int B, int C) {
-  emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *rc = emit_gep_register_or_constant(def, C);
-  llvm::Instruction *rhs = emit_load_reg_n(def, rc);
-  llvm::Value *result = def->builder->CreateFSub(
-      def->builder->CreateSIToFP(llvm::ConstantInt::get(def->types->C_intT, B),
-                                 def->types->lua_NumberT),
-      rhs);
-  emit_store_reg_n_withtype(def, result, ra);
-}
-
-// R(A) := B - RK(C), b - int
-void RaviCodeGenerator::emit_SUBIN(RaviFunctionDef *def, int A, int B, int C) {
-  emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *rb = emit_gep_register_or_constant(def, B);
-  llvm::Instruction *lhs = emit_load_reg_i(def, rb);
-  llvm::Value *result = def->builder->CreateSub(
-      lhs, llvm::ConstantInt::get(def->types->lua_IntegerT, C), "", false,
-      true);
-  emit_store_reg_i_withtype(def, result, ra);
-}
-
-// R(A) := RK(B) - C, int - c
-void RaviCodeGenerator::emit_SUBNI(RaviFunctionDef *def, int A, int B, int C) {
-  emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *rc = emit_gep_register_or_constant(def, C);
-  llvm::Instruction *rhs = emit_load_reg_i(def, rc);
-  llvm::Value *result = def->builder->CreateSub(
-      llvm::ConstantInt::get(def->types->lua_IntegerT, C), rhs, "", false,
-      true);
-  emit_store_reg_i_withtype(def, result, ra);
-}
-
-// R(A) := RK(B) * C, float*c
-void RaviCodeGenerator::emit_MULFN(RaviFunctionDef *def, int A, int B, int C) {
-  emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *rb = emit_load_register_or_constant_n(def, B);
-  llvm::Value *result = def->builder->CreateFMul(
-      rb,
-      def->builder->CreateSIToFP(llvm::ConstantInt::get(def->types->C_intT, C),
-                                 def->types->lua_NumberT));
-  emit_store_reg_n_withtype(def, result, ra);
-}
-
 // R(A) := RK(B) * RK(C), float*float
 void RaviCodeGenerator::emit_MULFF(RaviFunctionDef *def, int A, int B, int C) {
   emit_load_base(def);
@@ -238,18 +151,6 @@ void RaviCodeGenerator::emit_MULII(RaviFunctionDef *def, int A, int B, int C) {
   llvm::Value *rb = emit_load_register_or_constant_i(def, B);
   llvm::Value *rc = emit_load_register_or_constant_i(def, C);
   llvm::Value *result = def->builder->CreateMul(rb, rc, "", false, true);
-  emit_store_reg_i_withtype(def, result, ra);
-}
-
-// R(A) := RK(B) * C, int*c
-void RaviCodeGenerator::emit_MULIN(RaviFunctionDef *def, int A, int B, int C) {
-  emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *rb = emit_gep_register_or_constant(def, B);
-  llvm::Instruction *lhs = emit_load_reg_i(def, rb);
-  llvm::Value *result = def->builder->CreateMul(
-      lhs, llvm::ConstantInt::get(def->types->lua_IntegerT, C), "", false,
-      true);
   emit_store_reg_i_withtype(def, result, ra);
 }
 

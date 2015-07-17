@@ -1387,17 +1387,7 @@ newframe:  /* reentry point when frame changes (call/return) */
       TValue *rc = RKC(i);
       setivalue(ra, ivalue(rb) + ivalue(rc));
     } break;
-    case OP_RAVI_ADDFN: {
-      int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here ?*/
-      TValue *rb = RKB(i);
-      setfltvalue(ra, fltvalue(rb) + c);
-    } break;
-    case OP_RAVI_ADDIN: {
-      int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here? */
-      TValue *rb = RKB(i);
-      setivalue(ra, ivalue(rb) + c);
-    } break;
-
+ 
     case OP_RAVI_SUBFF: {
       TValue *rb = RKB(i);
       TValue *rc = RKC(i);
@@ -1418,26 +1408,6 @@ newframe:  /* reentry point when frame changes (call/return) */
       TValue *rc = RKC(i);
       setivalue(ra, ivalue(rb) - ivalue(rc));
     } break;
-    case OP_RAVI_SUBFN: {
-      int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here ?*/
-      TValue *rb = RKB(i);
-      setfltvalue(ra, fltvalue(rb) - c);
-    } break;
-    case OP_RAVI_SUBNF: {
-      int b = INDEXK(GETARG_B(i)); /* do we need INDEXK here? */
-      TValue *rc = RKC(i);
-      setfltvalue(ra, b - fltvalue(rc));
-    } break;
-    case OP_RAVI_SUBIN: {
-      int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here ?*/
-      TValue *rb = RKB(i);
-      setivalue(ra, ivalue(rb) - c);
-    } break;
-    case OP_RAVI_SUBNI: {
-      int b = INDEXK(GETARG_B(i)); /* do we need INDEXK here? */
-      TValue *rc = RKC(i);
-      setivalue(ra, b - ivalue(rc));
-    } break;
 
     case OP_RAVI_MULFF: {
       TValue *rb = RKB(i);
@@ -1453,16 +1423,6 @@ newframe:  /* reentry point when frame changes (call/return) */
       TValue *rb = RKB(i);
       TValue *rc = RKC(i);
       setivalue(ra, ivalue(rb) * ivalue(rc));
-    } break;
-    case OP_RAVI_MULFN: {
-      int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here ?*/
-      TValue *rb = RKB(i);
-      setfltvalue(ra, fltvalue(rb) * c);
-    } break;
-    case OP_RAVI_MULIN: {
-      int c = INDEXK(GETARG_C(i)); /* do we need INDEXK here? */
-      TValue *rb = RKB(i);
-      setivalue(ra, ivalue(rb) * c);
     } break;
 
     case OP_RAVI_DIVFF: {

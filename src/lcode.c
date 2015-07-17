@@ -250,42 +250,6 @@ static int luaK_code (FuncState *fs, Instruction i) {
   return fs->pc++;
 }
 
-/* Code arith where C is a constant */
-int luaK_codeABKi(FuncState *fs, OpCode o, int a, int b, int c) {
-  TValue *v;
-  int i;
-  lua_Integer val;
-  lua_assert(ISK(c));
-  i = INDEXK(c);
-  lua_assert(i >= 0 && i < fs->nk);
-  v = &fs->f->k[i];
-  lua_assert(ttisinteger(v));
-  val = ivalue(v);
-  /* if the value is upto MAXINDEXRK then it means we can
-   * hold it in operand C  - operand C reserves 1 bit for indicating
-   * constants hence MAXINDEXRK and not MAXARG_C
-   */
-  if (val >= 0 && val <= MAXINDEXRK) {
-    if (o == OP_RAVI_ADDFI) {
-      o = OP_RAVI_ADDFN;
-      c = (int)val;
-    }
-    else if (o == OP_RAVI_ADDII) {
-      o = OP_RAVI_ADDIN;
-      c = (int)val;
-    }
-    else if (o == OP_RAVI_MULFI) {
-      o = OP_RAVI_MULFN;
-      c = (int)val;
-    }
-    else if (o == OP_RAVI_MULII) {
-      o = OP_RAVI_MULIN;
-      c = (int)val;
-    }
-  }
-  return luaK_codeABC(fs, o, a, b, c);
-}
-
 int luaK_codeABC (FuncState *fs, OpCode o, int a, int b, int c) {
   lua_assert(getOpMode(o) == iABC);
   lua_assert(getBMode(o) != OpArgN || b == 0);
@@ -673,7 +637,6 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
 }
 
 static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
-#if RAVI_ENABLED
   /* VNONRELOC means we have fixed register and do we know the type? */
   if (ex->k == VNONRELOC && (var->ravi_type == RAVI_TNUMFLT || var->ravi_type == RAVI_TNUMINT || var->ravi_type == RAVI_TARRAYFLT || var->ravi_type == RAVI_TARRAYINT)) {
     /* handled by MOVEI, MOVEF, MOVEAI, MOVEAF at runtime */
@@ -716,7 +679,6 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       var->ravi_type,
       ex->ravi_type));
   }
-#endif
 }
 
 static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex) {
@@ -974,54 +936,17 @@ static int getarithop(OpCode op) {
     return op - OP_ADD + LUA_OPADD;
 
   /* following are RAVI specific opcodes */
-  if (op >= OP_RAVI_ADDFF && op < OP_RAVI_ADDIN)
+  if (op >= OP_RAVI_ADDFF && op < OP_RAVI_ADDII)
     return LUA_OPADD;
-  else if (op >= OP_RAVI_SUBFF && op <= OP_RAVI_SUBNI)
+  else if (op >= OP_RAVI_SUBFF && op <= OP_RAVI_SUBII)
     return LUA_OPSUB;
-  else if (op >= OP_RAVI_MULFF && op <= OP_RAVI_MULIN)
+  else if (op >= OP_RAVI_MULFF && op <= OP_RAVI_MULII)
     return LUA_OPMUL;
   else if (op >= OP_RAVI_DIVFF && op <= OP_RAVI_DIVII)
     return LUA_OPDIV;
 
   /* should we ever get here?*/
   return LUA_OPADD - 1;
-}
-
-/* generate ADD and MUL codes - for ADD supply offset as 0, and for
- * MUL supply the difference between the two
- */
-static void generate_binarithop(FuncState *fs, expdesc *e1, expdesc *e2, int o1,
-                                int o2, int offset) {
-  if (e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFF + offset, 0, o1, o2);
-  } else if (e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMINT) {
-    if (ISK(o2)) {
-      e1->u.info = luaK_codeABKi(fs, OP_RAVI_ADDFI + offset, 0, o1,
-                                 o2); /* generate opcode */
-    } else {
-      e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFI + offset, 0, o1,
-                                o2); /* generate opcode */
-    }
-  } else if (e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMFLT) {
-    if (ISK(o1)) {
-      e1->u.info = luaK_codeABKi(fs, OP_RAVI_ADDFI + offset, 0, o2,
-                                 o1); /* generate opcode */
-    } else {
-      e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFI + offset, 0, o2,
-                                o1); /* generate opcode */
-    }
-  } else if (e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
-    if (ISK(o1)) {
-      e1->u.info = luaK_codeABKi(fs, OP_RAVI_ADDII + offset, 0, o2,
-                                 o1); /* generate opcode */
-    } else if (ISK(o2)) {
-      e1->u.info = luaK_codeABKi(fs, OP_RAVI_ADDII + offset, 0, o1,
-                                 o2); /* generate opcode */
-    } else {
-      e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDII + offset, 0, o1,
-                                o2); /* generate opcode */
-    }
-  }
 }
 
 /*
@@ -1057,18 +982,6 @@ static void codeexpval (FuncState *fs, OpCode op,
       freeexp(fs, e2);
       freeexp(fs, e1);
     }
-#if RAVI_ENABLED
-#if 0
-    if (op == OP_ADD && 
-      (e1->ravi_type == RAVI_TNUMFLT || e1->ravi_type == RAVI_TNUMINT) &&
-      (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT))
-      generate_binarithop(fs, e1, e2, o1, o2, 0);
-    else if (op == OP_MUL &&
-      (e1->ravi_type == RAVI_TNUMFLT || e1->ravi_type == RAVI_TNUMINT) &&
-      (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT))
-      generate_binarithop(fs, e1, e2, o1, o2, OP_RAVI_MULFF - OP_RAVI_ADDFF);
-
-#else
     if (op == OP_ADD && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
       e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFF, 0, o1, o2);
     }
@@ -1081,7 +994,6 @@ static void codeexpval (FuncState *fs, OpCode op,
     else if (op == OP_ADD && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
       e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDII, 0, o1, o2);
     }
-
     else if (op == OP_MUL && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
       e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFF, 0, o1, o2);
     }
@@ -1094,7 +1006,6 @@ static void codeexpval (FuncState *fs, OpCode op,
     else if (op == OP_MUL && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
       e1->u.info = luaK_codeABC(fs, OP_RAVI_MULII, 0, o1, o2);
     }
-#endif
     else if (op == OP_SUB && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
       e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFF, 0, o1, o2); 
     }
@@ -1107,7 +1018,6 @@ static void codeexpval (FuncState *fs, OpCode op,
     else if (op == OP_SUB && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
       e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBII, 0, o1, o2); 
     }
-
     else if (op == OP_DIV && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
       e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFF, 0, o1, o2);
     }
@@ -1120,7 +1030,6 @@ static void codeexpval (FuncState *fs, OpCode op,
     else if (op == OP_DIV && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
       e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVII, 0, o1, o2);
     }
-
     else if (op == OP_BAND && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
       e1->u.info = luaK_codeABC(fs, OP_RAVI_BAND_II, 0, o1, o2);
     }
@@ -1141,11 +1050,8 @@ static void codeexpval (FuncState *fs, OpCode op,
     }
 
     else {
-#endif
       e1->u.info = luaK_codeABC(fs, op, 0, o1, o2);  /* generate opcode */
-#if RAVI_ENABLED
     }
-#endif
     e1->k = VRELOCABLE;  /* all those operations are relocable */
     if (isbinary) {
       if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) &&

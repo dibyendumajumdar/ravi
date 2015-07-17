@@ -85,23 +85,15 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "ADDFF",  /*	A B C	R(A) := RK(B) + RK(C)		*/
   "ADDFI",  /*	A B C	R(A) := RK(B) + RK(C)		*/
   "ADDII",  /*	A B C	R(A) := RK(B) + RK(C)	  */
-  "ADDFN",  /*	A B C	R(A) := RK(B) + C				*/
-  "ADDIN",  /*	A B C	R(A) := RK(B) + C				*/
 
   "SUBFF",  /*	A B C	R(A) := RK(B) - RK(C)		*/
   "SUBFI",  /*	A B C	R(A) := RK(B) - RK(C)		*/
   "SUBIF",  /*	A B C	R(A) := RK(B) - RK(C)	  */
   "SUBII",  /*	A B C	R(A) := RK(B) - RK(C)		*/
-  "SUBFN",  /*	A B C	R(A) := RK(B) - C				*/
-  "SUBNF",  /*	A B C	R(A) := B - RK(C)				*/
-  "SUBIN",  /*	A B C	R(A) := RK(B) - C				*/
-  "SUBNI",  /*	A B C	R(A) := B - RK(C)				*/
 
   "MULFF",  /*	A B C	R(A) := RK(B) * RK(C)		*/
   "MULFI",  /*	A B C	R(A) := RK(B) * RK(C)		*/
   "MULII",  /*	A B C	R(A) := RK(B) * RK(C)	  */
-  "MULFN",  /*	A B C	R(A) := RK(B) * C				*/
-  "MULIN",  /*	A B C	R(A) := RK(B) * C				*/
 
   "DIVFF",  /*	A B C	R(A) := RK(B) / RK(C)		*/
   "DIVFI",  /*	A B C	R(A) := RK(B) / RK(C)		*/
@@ -219,23 +211,15 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_ADDFF	A B C	R(A) := RK(B) + RK(C)		*/
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_ADDFI	A B C	R(A) := RK(B) + RK(C)		*/
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_ADDII	A B C	R(A) := RK(B) + RK(C)	  */
- ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_ADDFN	A B C	R(A) := RK(B) + C				*/
- ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_ADDIN	A B C	R(A) := RK(B) + C				*/
 
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_SUBFF	A B C	R(A) := RK(B) - RK(C)		*/
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_SUBFI	A B C	R(A) := RK(B) - RK(C)		*/
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_SUBIF	A B C	R(A) := RK(B) - RK(C)	  */
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_SUBII	A B C	R(A) := RK(B) - RK(C)		*/
- ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_SUBFN	A B C	R(A) := RK(B) - C				*/
- ,opmode(0, 1, OpArgU, OpArgK, iABC)    /* OP_RAVI_SUBNF	A B C	R(A) := B - RK(C)				*/
- ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_SUBIN	A B C	R(A) := RK(B) - C				*/
- ,opmode(0, 1, OpArgU, OpArgK, iABC)    /* OP_RAVI_SUBNI	A B C	R(A) := B - RK(C)				*/
 
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_MULFF	A B C	R(A) := RK(B) * RK(C)		*/
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_MULFI	A B C	R(A) := RK(B) * RK(C)		*/
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_MULII	A B C	R(A) := RK(B) * RK(C)	  */
- ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_MULFN	A B C	R(A) := RK(B) * C				*/
- ,opmode(0, 1, OpArgK, OpArgU, iABC)    /* OP_RAVI_MULIN	A B C	R(A) := RK(B) * C				*/
 
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_DIVFF	A B C	R(A) := RK(B) / RK(C)		*/
  ,opmode(0, 1, OpArgK, OpArgK, iABC)    /* OP_RAVI_DIVFI	A B C	R(A) := RK(B) / RK(C)		*/
@@ -500,22 +484,6 @@ static void PrintCode(const Proto* f)
      if (ISK(c)) PrintConstant(f,INDEXK(c)); else printf("-");
     }
     break;
-   case OP_RAVI_ADDFN:
-   case OP_RAVI_ADDIN:
-   case OP_RAVI_SUBFN:
-   case OP_RAVI_SUBIN:
-   case OP_RAVI_MULFN:
-   case OP_RAVI_MULIN:
-     printf("\t; ");
-     if (ISK(b)) PrintConstant(f, INDEXK(b)); else printf("-");
-     printf(" %d", c);
-     break;
-   case OP_RAVI_SUBNF:
-   case OP_RAVI_SUBNI:
-     printf("\t; ");
-     printf("%d ", b);
-     if (ISK(c)) PrintConstant(f, INDEXK(c)); else printf("-");
-     break;
    case OP_JMP:
    case OP_FORLOOP:
    case OP_RAVI_FORLOOP_IP:

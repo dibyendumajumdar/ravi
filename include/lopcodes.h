@@ -240,23 +240,15 @@ OP_RAVI_UNMI,   /*  A B R(A) := -R(B) integer */
 OP_RAVI_ADDFF,  /*	A B C	R(A) := RK(B) + RK(C)		*/
 OP_RAVI_ADDFI,  /*	A B C	R(A) := RK(B) + RK(C)		*/
 OP_RAVI_ADDII,  /*	A B C	R(A) := RK(B) + RK(C)	  */
-OP_RAVI_ADDFN,  /*	A B C	R(A) := RK(B) + C				*/
-OP_RAVI_ADDIN,  /*	A B C	R(A) := RK(B) + C				*/
 
 OP_RAVI_SUBFF,  /*	A B C	R(A) := RK(B) - RK(C)		*/
 OP_RAVI_SUBFI,  /*	A B C	R(A) := RK(B) - RK(C)		*/
 OP_RAVI_SUBIF,  /*	A B C	R(A) := RK(B) - RK(C)	  */
 OP_RAVI_SUBII,  /*	A B C	R(A) := RK(B) - RK(C)		*/
-OP_RAVI_SUBFN,  /*	A B C	R(A) := RK(B) - C				*/
-OP_RAVI_SUBNF,  /*	A B C	R(A) := B - RK(C)				*/
-OP_RAVI_SUBIN,  /*	A B C	R(A) := RK(B) - C				*/
-OP_RAVI_SUBNI,  /*	A B C	R(A) := B - RK(C)				*/
 
 OP_RAVI_MULFF,  /*	A B C	R(A) := RK(B) * RK(C)		*/
 OP_RAVI_MULFI,  /*	A B C	R(A) := RK(B) * RK(C)		*/
 OP_RAVI_MULII,  /*	A B C	R(A) := RK(B) * RK(C)	  */
-OP_RAVI_MULFN,  /*	A B C	R(A) := RK(B) * C				*/
-OP_RAVI_MULIN,  /*	A B C	R(A) := RK(B) * C				*/
 
 OP_RAVI_DIVFF,  /*	A B C	R(A) := RK(B) / RK(C)		*/
 OP_RAVI_DIVFI,  /*	A B C	R(A) := RK(B) / RK(C)		*/
@@ -366,8 +358,8 @@ LUAI_DDEC const char *const luaP_opnames[NUM_OPCODES+1];  /* opcode names */
 /* number of list items to accumulate before a SETLIST instruction */
 #define LFIELDS_PER_FLUSH	50
 
-#define RAVI_ENABLED 1
 
+/* Ravi extension  - prints the given instruction to the supplied buffer */
 LUAI_FUNC const char* raviP_instruction_to_str(char *buf, size_t n, Instruction i);
 
 #endif

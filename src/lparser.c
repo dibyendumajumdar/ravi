@@ -622,13 +622,13 @@ static void localvar_adjust_assign(LexState *ls, int nvars, int nexps, expdesc *
     if (extra < 0) extra = 0;
     /* following adjusts the C operand in the OP_CALL instruction */
     luaK_setreturns(fs, e, extra);  /* last exp. provides the difference */
-#if RAVI_ENABLED
+
     /* Since we did not know how many return values to process in localvar_explist() we
     * need to add instructions for type coercions at this stage for any remaining
     * variables
     */
     ravi_coercetype(ls, e, extra);
-#endif
+
     if (extra > 1) luaK_reserveregs(fs, extra - 1);
   }
   else {
@@ -638,12 +638,11 @@ static void localvar_adjust_assign(LexState *ls, int nvars, int nexps, expdesc *
       luaK_reserveregs(fs, extra);
       /* RAVI TODO for typed variables we should not set to nil? */
       luaK_nil(fs, reg, extra);
-#if RAVI_ENABLED
-      /* typed variables that are primitives cannot be set to nil so 
+
+      /* typed variables that are primitives cannot be set to nil so
        * we need to emit instructions to initialise them to default values 
        */
       ravi_setzero(fs, reg, extra);
-#endif
     }
   }
 }
@@ -1199,7 +1198,6 @@ static int explist (LexState *ls, expdesc *v) {
   return n;
 }
 
-#if RAVI_ENABLED
 /* TODO instead of using vars here could we just rely upon register_typeinfo? */
 static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars,
                            int n) {
@@ -1274,7 +1272,6 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars,
       luaX_syntaxerror(ls, "Invalid local assignment");
   }
 }
-#endif
 
 /* parse expression list, and validate that the expressions match expected
  * types provided in vars array. This is a modified version of explist() to be
@@ -1284,15 +1281,11 @@ static int localvar_explist(LexState *ls, expdesc *v, int *vars, int nvars) {
   /* explist -> expr { ',' expr } */
   int n = 1;  /* at least one expression */
   expr(ls, v);
-#if RAVI_ENABLED
   ravi_typecheck(ls, v, vars, nvars, 0);
-#endif
   while (testnext(ls, ',')) {
     luaK_exp2nextreg(ls->fs, v);
     expr(ls, v);
-#if RAVI_ENABLED
     ravi_typecheck(ls, v, vars, nvars, n);
-#endif
     n++;
   }
   return n;

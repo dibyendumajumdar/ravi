@@ -713,8 +713,6 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_TOFLT:
     case OP_RAVI_LOADFZ:
     case OP_RAVI_LOADIZ:
-    case OP_RAVI_ADDFN:
-    case OP_RAVI_ADDIN:
     case OP_RAVI_ADDFF:
     case OP_RAVI_ADDFI:
     case OP_RAVI_ADDII:
@@ -722,12 +720,6 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_SUBFI:
     case OP_RAVI_SUBIF:
     case OP_RAVI_SUBII:
-    case OP_RAVI_SUBFN:
-    case OP_RAVI_SUBNF:
-    case OP_RAVI_SUBIN:
-    case OP_RAVI_SUBNI:
-    case OP_RAVI_MULFN:
-    case OP_RAVI_MULIN:
     case OP_RAVI_MULFF:
     case OP_RAVI_MULFI:
     case OP_RAVI_MULII:
@@ -1443,16 +1435,6 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
       int C = GETARG_C(i);
       emit_ARITH(def, A, B, C, OP_ADD, TM_ADD);
     } break;
-    case OP_RAVI_ADDFN: {
-      int B = GETARG_B(i);
-      int C = GETARG_C(i);
-      emit_ADDFN(def, A, B, C);
-    } break;
-    case OP_RAVI_ADDIN: {
-      int B = GETARG_B(i);
-      int C = GETARG_C(i);
-      emit_ADDIN(def, A, B, C);
-    } break;
     case OP_RAVI_ADDFF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
@@ -1494,41 +1476,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
       int C = GETARG_C(i);
       emit_SUBII(def, A, B, C);
     } break;
-    case OP_RAVI_SUBFN: {
-      int B = GETARG_B(i);
-      int C = GETARG_C(i);
-      emit_SUBFN(def, A, B, C);
-    } break;
-    case OP_RAVI_SUBNF: {
-      int B = GETARG_B(i);
-      int C = GETARG_C(i);
-      emit_SUBNF(def, A, B, C);
-    } break;
-    case OP_RAVI_SUBIN: {
-      int B = GETARG_B(i);
-      int C = GETARG_C(i);
-      emit_SUBIN(def, A, B, C);
-    } break;
-    case OP_RAVI_SUBNI: {
-      int B = GETARG_B(i);
-      int C = GETARG_C(i);
-      emit_SUBNI(def, A, B, C);
-    } break;
 
     case OP_MUL: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_ARITH(def, A, B, C, OP_MUL, TM_MUL);
-    } break;
-    case OP_RAVI_MULFN: {
-      int B = GETARG_B(i);
-      int C = GETARG_C(i);
-      emit_MULFN(def, A, B, C);
-    } break;
-    case OP_RAVI_MULIN: {
-      int B = GETARG_B(i);
-      int C = GETARG_C(i);
-      emit_MULIN(def, A, B, C);
     } break;
     case OP_RAVI_MULFF: {
       int B = GETARG_B(i);

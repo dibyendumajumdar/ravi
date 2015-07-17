@@ -522,6 +522,7 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_shrF;
   llvm::Function *raviV_op_shlF;
 
+  // array setters 
   llvm::Function *raviH_set_intF;
   llvm::Function *raviH_set_floatF;
 
@@ -544,11 +545,11 @@ struct RaviFunctionDef {
   llvm::Instruction *k_ptr;
 
   // Load L->ci
-  llvm::Value *L_ci; // gep
+  llvm::Value *L_ci; // This is the GEP for L->ci
   llvm::Instruction *ci_val;
 
-  // Get pointer to base
-  llvm::Value *Ci_base; // gep
+  // Pointer to ci->u.l.base
+  llvm::Value *Ci_base; // This is the GEP for ci->u.l.base
   llvm::Instruction *base_ptr;
 
   // Pointer to LClosure
@@ -832,10 +833,6 @@ public:
 
   void emit_ADDII(RaviFunctionDef *def, int A, int B, int C);
 
-  void emit_ADDFN(RaviFunctionDef *def, int A, int B, int C);
-
-  void emit_ADDIN(RaviFunctionDef *def, int A, int B, int C);
-
   void emit_SUBFF(RaviFunctionDef *def, int A, int B, int C);
 
   void emit_SUBFI(RaviFunctionDef *def, int A, int B, int C);
@@ -844,23 +841,11 @@ public:
 
   void emit_SUBII(RaviFunctionDef *def, int A, int B, int C);
 
-  void emit_SUBFN(RaviFunctionDef *def, int A, int B, int C);
-
-  void emit_SUBNF(RaviFunctionDef *def, int A, int B, int C);
-
-  void emit_SUBIN(RaviFunctionDef *def, int A, int B, int C);
-
-  void emit_SUBNI(RaviFunctionDef *def, int A, int B, int C);
-
   void emit_MULFF(RaviFunctionDef *def, int A, int B, int C);
 
   void emit_MULFI(RaviFunctionDef *def, int A, int B, int C);
 
   void emit_MULII(RaviFunctionDef *def, int A, int B, int C);
-
-  void emit_MULFN(RaviFunctionDef *def, int A, int B, int C);
-
-  void emit_MULIN(RaviFunctionDef *def, int A, int B, int C);
 
   void emit_DIVFF(RaviFunctionDef *def, int A, int B, int C);
 
