@@ -1295,16 +1295,33 @@ newframe:  /* reentry point when frame changes (call/return) */
             unsigned int u = (unsigned int)(i);
             switch (h->ravi_array.array_type) {
             case RAVI_TARRAYINT: {
-              if (ttisinteger(val))
-                raviH_set_int(L, h, u, ivalue(val));
-              else
-                raviH_set_int(L, h, u, (lua_Integer)(fltvalue(val)));
+              if (ttisinteger(val)) {
+                raviH_set_int_inline(L, h, u, ivalue(val));
+              }
+              else {
+                lua_Integer i = 0;
+                if (luaV_tointeger_(val, &i)) {
+                  raviH_set_int_inline(L, h, u, i);
+                }
+                else
+                  luaG_runerror(L, "value cannot be converted to integer");
+              }
             } break;
             case RAVI_TARRAYFLT: {
-              if (ttisinteger(val))
-                raviH_set_float(L, h, u, (lua_Number)(ivalue(val)));
-              else
-                raviH_set_float(L, h, u, fltvalue(val));
+              if (ttisfloat(val)) {
+                raviH_set_float_inline(L, h, u, fltvalue(val));
+              }
+              else if (ttisinteger(val)) {
+                raviH_set_float_inline(L, h, u, (lua_Number)(ivalue(val)));
+              }
+              else {
+                lua_Number d = 0.0;
+                if (luaV_tonumber_(val, &d)) {
+                  raviH_set_float_inline(L, h, u, d);
+                }
+                else
+                  luaG_runerror(L, "value cannot be converted to number");
+              }
             } break;
             default:
               lua_assert(0);
@@ -1749,16 +1766,33 @@ void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
       unsigned int u = (unsigned int)(i);
       switch (h->ravi_array.array_type) {
       case RAVI_TARRAYINT: {
-        if (ttisinteger(val))
-          raviH_set_int(L, h, u, ivalue(val));
-        else
-          raviH_set_int(L, h, u, (lua_Integer)(fltvalue(val)));
+        if (ttisinteger(val)) {
+          raviH_set_int_inline(L, h, u, ivalue(val));
+        }
+        else {
+          lua_Integer i = 0;
+          if (luaV_tointeger_(val, &i)) {
+            raviH_set_int_inline(L, h, u, i);
+          }
+          else
+            luaG_runerror(L, "value cannot be converted to integer");
+        }
       } break;
       case RAVI_TARRAYFLT: {
-        if (ttisinteger(val))
-          raviH_set_float(L, h, u, (lua_Number)(ivalue(val)));
-        else
-          raviH_set_float(L, h, u, fltvalue(val));
+        if (ttisfloat(val)) {
+          raviH_set_float_inline(L, h, u, fltvalue(val));
+        }
+        else if (ttisinteger(val)) {
+          raviH_set_float_inline(L, h, u, (lua_Number)(ivalue(val)));
+        }
+        else {
+          lua_Number d = 0.0;
+          if (luaV_tonumber_(val, &d)) {
+            raviH_set_float_inline(L, h, u, d);
+          }
+          else
+            luaG_runerror(L, "value cannot be converted to number");
+        }
       } break;
       default:
         lua_assert(0);

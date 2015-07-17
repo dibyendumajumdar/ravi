@@ -151,10 +151,6 @@ struct LuaLLVMTypes {
   llvm::StructType *ValueT;
   llvm::StructType *TValueT;
   llvm::PointerType *pTValueT;
-
-  llvm::StructType *HiLoT;
-  llvm::PointerType *pHiLoT;
-
   llvm::StructType *TStringT;
   llvm::PointerType *pTStringT;
   llvm::PointerType *ppTStringT;
@@ -302,9 +298,6 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_RaviArray_typeT;
   llvm::MDNode *tbaa_RaviArray_dataT;
   llvm::MDNode *tbaa_RaviArray_lenT;
-  llvm::MDNode *tbaa_HiLoT;
-  llvm::MDNode *tbaa_HiLo_loT;
-  llvm::MDNode *tbaa_HiLo_hiT;
 };
 
 class RAVI_API RaviJITStateImpl;

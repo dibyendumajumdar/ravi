@@ -167,9 +167,6 @@ struct ravi_gcc_types_t {
   gcc_jit_field *Value_value_b;
   gcc_jit_field *Value_tt;
 
-  gcc_jit_struct *HiLoT;
-  gcc_jit_type *pHiLoT;
-
   gcc_jit_struct *TStringT;
   gcc_jit_type *pTStringT;
   gcc_jit_type *ppTStringT;

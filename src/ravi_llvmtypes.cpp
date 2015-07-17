@@ -148,18 +148,6 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(lua_NumberT);
   ValueT->setBody(elements);
 
-  // TODO Needs to handle big endian
-  // struct ravi_HiLo {
-  //  int lo;
-  //  int hi;
-  //} HiLo;
-  HiLoT = llvm::StructType::create(context, "struct.HiLo");
-  elements.clear();
-  elements.push_back(C_intT);
-  elements.push_back(C_intT);
-  HiLoT->setBody(elements);
-  pHiLoT = llvm::PointerType::get(HiLoT, 0);
-
   // NOTE: Following structure changes when NaN tagging is enabled
   // struct TValue {
   //   union Value value_;
@@ -168,11 +156,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   TValueT = llvm::StructType::create(context, "struct.TValue");
   elements.clear();
   elements.push_back(ValueT);
-#if RAVI_NAN_TAGGING
-  elements.push_back(HiLoT);
-#else
   elements.push_back(C_intT);
-#endif
   TValueT->setBody(elements);
   pTValueT = llvm::PointerType::get(TValueT, 0);
 
@@ -420,11 +404,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   TKeyT = llvm::StructType::create(context, "struct.TKey");
   elements.clear();
   elements.push_back(ValueT);
-#if RAVI_NAN_TAGGING
-  elements.push_back(HiLoT);
-#else
   elements.push_back(C_intT);
-#endif
   elements.push_back(C_intT); /* next */
   TKeyT->setBody(elements);
   pTKeyT = llvm::PointerType::get(TKeyT, 0);
@@ -1167,14 +1147,6 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 36);
   tbaa_RaviArray_typeT =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 44);
-
-  // TODO Needs to handle big endian
-  nodes.clear();
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 0)); /* lo */
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 4)); /* hi */
-  tbaa_HiLoT = mdbuilder.createTBAAStructTypeNode("HiLo", nodes);
-  tbaa_HiLo_loT = mdbuilder.createTBAAStructTagNode(tbaa_HiLoT, tbaa_intT, 0);
-  tbaa_HiLo_hiT = mdbuilder.createTBAAStructTagNode(tbaa_HiLoT, tbaa_intT, 4);
 }
 
 void LuaLLVMTypes::dump() {
