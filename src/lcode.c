@@ -30,7 +30,7 @@
 
 
 /* Maximum number of registers in a Lua function (must fit in operand A) */
-#define MAXREGS		MAXARG_A
+#define MAXREGS		125
 /* RAVI change; #define MAXREGS		255 */
 
 

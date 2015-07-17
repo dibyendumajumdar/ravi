@@ -199,11 +199,11 @@ Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT co
 +=================+=============+=============+
 | MAXUPVAL        | 255         | 125         |
 +-----------------+-------------+-------------+
-| LUAI_MAXCCALLS  | 125         | 200         |
+| LUAI_MAXCCALLS  | 200         | 125         |
 +-----------------+-------------+-------------+
-| MAXREGS         | 127         | 255         |
+| MAXREGS         | 255         | 125         |
 +-----------------+-------------+-------------+
-| MAXVARS         | 125         | 200         |
+| MAXVARS         | 200         | 125         |
 +-----------------+-------------+-------------+
 
 Build Dependencies - LLVM version

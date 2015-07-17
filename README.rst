@@ -192,6 +192,19 @@ Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT co
 * ``pairs()`` and ``ipairs()`` work on Ravi arrays since release 0.4 but more testing needed (issues 24 and 25)
 * Upvalues cannot subvert the static typing of local variables since release 0.4 but more testing is needed (issue 26)
 * Lua C API may not work correctly for Ravi arrays, although some initial work has been done in this area (issue 9)
+* Certain Lua limits are reduced due to changed byte code structure. These are described below.
+
++-----------------+-------------+-------------+
+| Limit name      | Lua value   | Ravi value  |
++=================+=============+=============+
+| MAXUPVAL        | 255         | 125         |
++-----------------+-------------+-------------+
+| LUAI_MAXCCALLS  | 200         | 125         |
++-----------------+-------------+-------------+
+| MAXREGS         | 255         | 125         |
++-----------------+-------------+-------------+
+| MAXVARS         | 200         | 125         |
++-----------------+-------------+-------------+
 
 Build Dependencies - LLVM version
 ---------------------------------
