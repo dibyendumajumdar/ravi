@@ -766,6 +766,17 @@ LUA_API void ravi_createnumberarray(lua_State *L, int narray,
   lua_unlock(L);
 }
 
+LUA_API int ravi_is_numberarray(lua_State *L, int idx) {
+  StkId o = index2addr(L, idx);
+  return (ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYFLT ? 1 : 0);
+}
+
+LUA_API void ravi_get_numberarray_rawdata(lua_State *L, int idx, lua_Number **startp, lua_Number **endp) {
+  StkId o = index2addr(L, idx);
+  lua_assert(ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYFLT);
+  raviH_get_number_array_rawdata(L, hvalue(o), startp, endp);
+}
+
 /* Create a slice of an existing array
  * The original table containing the array is inserted into the
  * the slice as a value against special key so that
@@ -778,33 +789,31 @@ LUA_API void ravi_createnumberarray(lua_State *L, int narray,
  * and in fact may point to garbage from a memory allocater's point of view.
  */
 LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
-                              unsigned int len) {
+                               unsigned int len) {
   TValue *parent;
   Table *slice;
   lua_lock(L);
   const char *errmsg = NULL;
   /* The do-while loop here is just for error handling */
-  do {
-    parent = index2addr(L, idx);
-    if (!ttistable(parent)) {
-      errmsg = "integer[] or number[] expected";
-      break;
-    }
-    Table *orig = hvalue(parent);
-    if (orig->ravi_array.array_type == RAVI_TTABLE) {
-      errmsg =
-          "cannot create a slice of a table, integer[] or number[] expected";
-      break;
-    }
-    if (start < 1 || start + len > orig->ravi_array.len) {
-      errmsg = "cannot create a slice of given bounds";
-      break;
-    }
-    luaC_checkGC(L);
-    slice = raviH_new_slice(L, parent, start, len);
-    sethvalue(L, L->top, slice);
-    api_incr_top(L);
-  } while (0);
+  parent = index2addr(L, idx);
+  if (!ttistable(parent)) {
+    errmsg = "integer[] or number[] expected";
+    goto done;
+  }
+  Table *orig = hvalue(parent);
+  if (orig->ravi_array.array_type == RAVI_TTABLE) {
+    errmsg = "cannot create a slice of a table, integer[] or number[] expected";
+    goto done;
+  }
+  if (start < 1 || start + len > orig->ravi_array.len) {
+    errmsg = "cannot create a slice of given bounds";
+    goto done;
+  }
+  luaC_checkGC(L);
+  slice = raviH_new_slice(L, parent, start, len);
+  sethvalue(L, L->top, slice);
+  api_incr_top(L);
+done:
   lua_unlock(L);
   if (errmsg)
     luaG_runerror(L, errmsg);

@@ -129,6 +129,8 @@ LUAI_FUNC const TValue *raviH_slice_parent(lua_State *L, TValue *slice);
       raviH_set_float(L, t, ukey, (value));                                    \
   }
 
+LUAI_FUNC void raviH_get_number_array_rawdata(lua_State *L, Table *t, lua_Number **startp, lua_Number **endp);
+
 #if defined(LUA_DEBUG)
 LUAI_FUNC Node *luaH_mainposition (const Table *t, const TValue *key);
 LUAI_FUNC int luaH_isdummy (Node *n);

@@ -468,6 +468,8 @@ LUA_API void ravi_createnumberarray(lua_State *L, int narray,
                                     lua_Number initial_value);
 LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
                               unsigned int len);
+LUA_API int ravi_is_numberarray(lua_State *L, int stackpos);
+LUA_API void ravi_get_numberarray_rawdata(lua_State *l, int stackpos, lua_Number **startp, lua_Number **endp);
 
 LUA_API void ravi_dump_stack(lua_State *L, const char *s);
 struct Proto;

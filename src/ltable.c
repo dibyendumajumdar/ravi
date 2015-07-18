@@ -806,6 +806,13 @@ Table *raviH_new_number_array(lua_State *L, unsigned int len,
   return t;
 }
 
+void raviH_get_number_array_rawdata(lua_State *L, Table *t, lua_Number **startp, lua_Number **endp) {
+  lua_assert(t->ravi_array.array_type == RAVI_TARRAYFLT);
+  lua_Number *data = (lua_Number *)t->ravi_array.data;
+  *startp = data;
+  *endp = data + t->ravi_array.len + 1;
+}
+
 static const char *key_orig_table = "Originaltable";
 
 /* Create a slice of an existing array
