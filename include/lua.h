@@ -462,18 +462,45 @@ struct lua_Debug {
 
 LUAI_DDEC int ravi_parser_debug;
 
-LUA_API void ravi_createintegerarray(lua_State *L, int narray,
-                                     lua_Integer initial_value);
-LUA_API void ravi_createnumberarray(lua_State *L, int narray,
-                                    lua_Number initial_value);
+/* Create an integer array (specialization of Lua table)
+ * of given size and initialize array with supplied initial value
+ */
+LUA_API void ravi_create_integer_array(lua_State *L, int narray,
+                                       lua_Integer initial_value);
+
+/* Create an number array (specialization of Lua table)
+ * of given size and initialize array with supplied initial value
+ */
+LUA_API void ravi_create_number_array(lua_State *L, int narray,
+                                      lua_Number initial_value);
+
+/* Create a slice of an existing array
+ * The original table containing the array is inserted into the
+ * the slice as a value against special key so that
+ * the parent table is not garbage collected while this array contains a
+ * reference to it
+ * The array slice starts at start but start-1 is also accessible because of the
+ * implementation having array values starting at 0.
+ * A slice must not attempt to release the data array as this is not owned by
+ * it,
+ * and in fact may point to garbage from a memory allocater's point of view.
+ */
 LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
-                              unsigned int len);
-LUA_API int ravi_is_numberarray(lua_State *L, int stackpos);
-LUA_API void ravi_get_numberarray_rawdata(lua_State *l, int stackpos, lua_Number **startp, lua_Number **endp);
+                               unsigned int len);
+
+/* Tests if the argument is a number array
+ */
+LUA_API int ravi_is_number_array(lua_State *L, int idx);
+
+/* Get the raw data associated with the number array at idx.
+ * Note that Ravi arrays have an extra element at offset 0 - this
+ * function returns a pointer to &data[0] - bear in mind that
+ */
+LUA_API lua_Number *ravi_get_number_array_rawdata(lua_State *l, int idx);
 
 LUA_API void ravi_dump_stack(lua_State *L, const char *s);
 struct Proto;
-LUA_API void ravi_print_function(const struct Proto* f, int full);
+LUA_API void ravi_print_function(const struct Proto *f, int full);
 LUA_API void ravi_dump_function(lua_State *L);
 LUA_API void ravi_set_debuglevel(int level);
 

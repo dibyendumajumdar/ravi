@@ -741,7 +741,7 @@ LUA_API void lua_createtable (lua_State *L, int narray, int nrec) {
 /* Create an integer array (specialization of Lua table)
  * of given size and initialize array with supplied initial value
  */
-LUA_API void ravi_createintegerarray(lua_State *L, int narray,
+LUA_API void ravi_create_integer_array(lua_State *L, int narray,
                                      lua_Integer initial_value) {
   Table *t;
   lua_lock(L);
@@ -755,7 +755,7 @@ LUA_API void ravi_createintegerarray(lua_State *L, int narray,
 /* Create an number array (specialization of Lua table)
  * of given size and initialize array with supplied initial value
  */
-LUA_API void ravi_createnumberarray(lua_State *L, int narray,
+LUA_API void ravi_create_number_array(lua_State *L, int narray,
                                     lua_Number initial_value) {
   Table *t;
   lua_lock(L);
@@ -766,15 +766,23 @@ LUA_API void ravi_createnumberarray(lua_State *L, int narray,
   lua_unlock(L);
 }
 
-LUA_API int ravi_is_numberarray(lua_State *L, int idx) {
+/* Tests if the argument is a number array 
+ */
+LUA_API int ravi_is_number_array(lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
   return (ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYFLT ? 1 : 0);
 }
 
-LUA_API void ravi_get_numberarray_rawdata(lua_State *L, int idx, lua_Number **startp, lua_Number **endp) {
+/* Get the raw data associated with the number array at idx.
+ * Note that Ravi arrays have an extra element at offset 0 - this
+ * function returns a pointer to &data[0] - bear in mind that
+ */
+LUA_API lua_Number* ravi_get_number_array_rawdata(lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
   lua_assert(ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYFLT);
-  raviH_get_number_array_rawdata(L, hvalue(o), startp, endp);
+  double *startp, *endp;
+  raviH_get_number_array_rawdata(L, hvalue(o), &startp, &endp);
+  return startp;
 }
 
 /* Create a slice of an existing array

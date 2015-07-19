@@ -335,7 +335,7 @@ static int create_intarray(lua_State *L) {
   int n = lua_gettop(L);
   lua_Integer init_value = (n == 2 ? luaL_checkinteger(L, 2) : 0);
   int size = (int)luaL_checkinteger(L, 1);
-  ravi_createintegerarray(L, size, init_value);
+  ravi_create_integer_array(L, size, init_value);
   return 1;
 }
 
@@ -343,7 +343,7 @@ static int create_fltarray(lua_State *L) {
   int n = lua_gettop(L);
   lua_Number init_value = (n == 2 ? luaL_checknumber(L, 2) : 0.0);
   int size = (int)luaL_checkinteger(L, 1);
-  ravi_createnumberarray(L, size, init_value);
+  ravi_create_number_array(L, size, init_value);
   return 1;
 }
 
