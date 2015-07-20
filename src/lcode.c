@@ -1087,10 +1087,10 @@ static void codeexpval (FuncState *fs, OpCode op,
 static void codecomp (FuncState *fs, OpCode op, int cond, expdesc *e1,
                                                           expdesc *e2) {
   DEBUG_EXPR(raviY_printf(fs, "Comparison of %e and %e\n", e1, e2));
-  ravitype_t o1_tt = e1->ravi_type;
   int o1 = luaK_exp2RK(fs, e1);
-  ravitype_t o2_tt = e2->ravi_type;
+  ravitype_t o1_tt = e1->ravi_type;
   int o2 = luaK_exp2RK(fs, e2);
+  ravitype_t o2_tt = e2->ravi_type;
   freeexp(fs, e2);
   freeexp(fs, e1);
   if (cond == 0 && op != OP_EQ) {
