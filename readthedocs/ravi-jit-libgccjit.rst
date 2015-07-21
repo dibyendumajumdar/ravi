@@ -4,7 +4,7 @@ JIT Compilation for Ravi using ``libgccjit``
 
 Introduction
 ------------
-The latest `gcc 5.1 release <http://gcc.gnu.org/>`_ contains a new component called ``libgccjit``. This basically exposes an API via a shared library to the compilation functions within gcc. 
+The latest `gcc 5.2 release <http://gcc.gnu.org/>`_ contains a new component called ``libgccjit``. This basically exposes an API via a shared library to the compilation functions within gcc. 
 
 I am keen to provide support for this in Ravi. From initial look it seems to contain all the features I need to implement a JIT compiler for Ravi. Obviously having implemented the LLVM version it is going to be a little easier as I can mostly do a port of the LLVM version.
 
@@ -26,9 +26,9 @@ I am running Ubuntu 14.04 LTS on VMWare virtual machine.
 
 .. warning:: The current official distribution of ``libgccjit`` does not work for Ravi due to the fact that unreachable blocks are treated as errors - this prevents Ravi code from being compiled. There is also `a bug <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66700>`_ in ``libgccjit`` that requires a fix. Please use the latest ``gcc-5-branch`` as there are bug fixes required by Ravi. 
 
-I built gcc 5.1 from source as follows.
+I built gcc 5.2 from source as follows.
 
-1. Cloned ``gcc-5-branch`` source to ``~/gcc-5.1.0`` using github mirror.
+1. Extracted gcc-5.2 source to ``~/gcc-5.2.0``.
 2. Created a build folder ``~/buildgcc``.
 3. Installed various pre-requisites for gcc.
 4. Then ran following from inside the build folder::
@@ -52,7 +52,7 @@ You can build Ravi with ``libgccjit`` linked in as follows::
 
   mkdir build
   cd build
-  cmake -DLLVM_JIT=OFF -DGCC_JIT=ON ..
+  cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=/home/dylan/local/bin/gcc -DCMAKE_CXX_COMPILER=/home/dylan/local/bin/g++ -DLLVM_DIR=~/LLVM/share/llvm/cmake -DLLVM_JIT=ON -DGCC_JIT=OFF ..
   make
 
 Above assumes that gccjit is installed under ``~/local`` as described in Building GCC section above.
