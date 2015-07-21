@@ -807,6 +807,7 @@ Table *raviH_new_number_array(lua_State *L, unsigned int len,
 }
 
 void raviH_get_number_array_rawdata(lua_State *L, Table *t, lua_Number **startp, lua_Number **endp) {
+  (void)L;
   lua_assert(t->ravi_array.array_type == RAVI_TARRAYFLT);
   lua_Number *data = (lua_Number *)t->ravi_array.data;
   *startp = data;
