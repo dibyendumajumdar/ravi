@@ -77,7 +77,8 @@ if (MSVC)
 endif()
 
 if (CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_C_FLAGS_DEBUG "-Werror -std=c99 -O0 -g3 -fsanitize=address -fsanitize=bounds -fsanitize=alignment -fsanitize=object-size -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
+  # -fsanitize=bounds -fsanitize=alignment -fsanitize=object-size 
+  set(CMAKE_C_FLAGS_DEBUG "-Werror -std=c99 -O0 -g3 -fsanitize=address -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
   set(CMAKE_C_FLAGS_RELEASE "-Werror -std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Werror -std=c99 -O1 -g3 -fsanitize=address -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
   set(CMAKE_CXX_FLAGS_RELEASE "-Werror -fno-rtti -O3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_LINUX")
@@ -136,7 +137,8 @@ if (MSVC OR APPLE)
 else()
   # On Linux we need to link libdl to get access to
   # functions like dlopen()
-  set(EXTRA_LIBRARIES m dl readline ubsan)
+  # ubsan can be added to get -fsanitize=undefined
+  set(EXTRA_LIBRARIES m dl readline)
 endif()
 
 #llvm_map_components_to_libnames(llvm_libs all)
