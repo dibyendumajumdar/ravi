@@ -52,7 +52,8 @@ You can build Ravi with ``libgccjit`` linked in as follows::
 
   mkdir build
   cd build
-  cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=/home/dylan/local/bin/gcc -DCMAKE_CXX_COMPILER=/home/dylan/local/bin/g++ -DLLVM_DIR=~/LLVM/share/llvm/cmake -DLLVM_JIT=ON -DGCC_JIT=OFF ..
+  export LD_LIBRARY_PATH=~/local/lib64:$LD_LIBRARY_PATH
+  cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=~/local/bin/gcc -DCMAKE_CXX_COMPILER=~/local/bin/g++ -DLLVM_DIR=~/LLVM/share/llvm/cmake -DLLVM_JIT=ON -DGCC_JIT=OFF ..
   make
 
 Above assumes that gccjit is installed under ``~/local`` as described in Building GCC section above.
