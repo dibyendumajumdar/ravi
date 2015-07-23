@@ -336,7 +336,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
       ci->top = L->top + LUA_MINSTACK;
       lua_assert(ci->top <= L->stack_last);
       ci->callstatus = 0;
-	  ci->jitstatus = 0;
+      ci->jitstatus = 0;
       if (L->hookmask & LUA_MASKCALL)
         luaD_hook(L, LUA_HOOKCALL, -1);
       lua_unlock(L);

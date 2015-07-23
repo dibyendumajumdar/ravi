@@ -965,7 +965,7 @@ private:
 };
 }
 
-#define RAVI_CODEGEN_FORPREP2 1
+#define RAVI_CODEGEN_FORPREP2 0
 
 #endif
 

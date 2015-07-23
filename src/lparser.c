@@ -2029,14 +2029,15 @@ static void localstat (LexState *ls) {
    * TODO we may be able to use register_typeinfo() here
    * instead.
    */
-  int vars[MAXVARS] = { 0 };
+  enum { N = MAXVARS + 10 };
+  int vars[N] = { 0 };
   do {
     /* RAVI changes start */
     /* local name : type = value */
     vars[nvars] = declare_localvar(ls);
     /* RAVI changes end */
     nvars++;
-    if (nvars >= MAXVARS)
+    if (nvars >= N)
       luaX_syntaxerror(ls, "too many local variables");
   } while (testnext(ls, ','));
   if (testnext(ls, '='))

@@ -1244,7 +1244,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
 #if RAVI_CODEGEN_FORPREP2
       emit_FORPREP2(def, A, j);
 #else
-      emit_FORPREP(def, def->L_ci, def->proto, A, j);
+      emit_FORPREP(def, A, j);
 #endif
     } break;
     case OP_RAVI_FORLOOP_I1:
@@ -1259,7 +1259,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
 #if RAVI_CODEGEN_FORPREP2
       emit_FORLOOP2(def, A, j, def->jmp_targets[pc]);
 #else
-      emit_FORLOOP(def, def->L_ci, def->proto, A, j);
+      emit_FORLOOP(def, A, j);
 #endif
     } break;
 
