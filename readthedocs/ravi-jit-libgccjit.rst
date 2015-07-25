@@ -24,8 +24,6 @@ Building GCC
 ------------
 I am running Ubuntu 14.04 LTS on VMWare virtual machine.
 
-.. warning:: The current official distribution of ``libgccjit`` does not work for Ravi due to the fact that unreachable blocks are treated as errors - this prevents Ravi code from being compiled. There is also `a bug <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66700>`_ in ``libgccjit`` that requires a fix. Please use the latest ``gcc-5-branch`` as there are bug fixes required by Ravi. 
-
 I built gcc 5.2 from source as follows.
 
 1. Extracted gcc-5.2 source to ``~/gcc-5.2.0``.
@@ -33,7 +31,7 @@ I built gcc 5.2 from source as follows.
 3. Installed various pre-requisites for gcc.
 4. Then ran following from inside the build folder::
 
-     ../gcc-5.1.0/configure --prefix=~/local --enable-host-shared --enable-languages=jit,c++ --disable-bootstrap --disable-multilib
+     ../gcc-5.2.0/configure --prefix=~/local --enable-host-shared --enable-languages=jit,c++ --disable-bootstrap --disable-multilib
 
 5. Next performed the build as follows::
 
@@ -91,7 +89,7 @@ Following is the status as of 4 July 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_SETTABUP             | YES      | UpValue[A][RK(B)] := RK(C)                       |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SETUPVAL             | NO       | UpValue[B] := R(A)                               |
+| OP_SETUPVAL             | YES      | UpValue[B] := R(A)                               |
 +-------------------------+----------+--------------------------------------------------+
 | OP_SETTABLE             | YES      | R(A)[RK(B)] := RK(C)                             |
 +-------------------------+----------+--------------------------------------------------+
@@ -123,7 +121,7 @@ Following is the status as of 4 July 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_SHR                  | NO       | R(A) := RK(B) >> RK(C)                           |
 +-------------------------+----------+--------------------------------------------------+
-| OP_UNM                  | YES      | R(A) := -R(B)                                    |
+| OP_UNM                  | NO       | R(A) := -R(B)                                    |
 +-------------------------+----------+--------------------------------------------------+
 | OP_BNOT                 | NO       | R(A) := ~R(B)                                    |
 +-------------------------+----------+--------------------------------------------------+
@@ -177,19 +175,11 @@ Following is the status as of 4 July 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_LOADFZ          | YES      | R(A) := tonumber(0)                              |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_UNMF            | NO       | R(A) := -R(B) floating point                     |
-+-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_UNMI            | NO       | R(A) := -R(B) integer                            |
-+-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_ADDFF           | YES      | R(A) := RK(B) + RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_ADDFI           | YES      | R(A) := RK(B) + RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_ADDII           | YES      | R(A) := RK(B) + RK(C)                            |
-+-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_ADDFN           | YES      | R(A) := RK(B) + C                                |
-+-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_ADDIN           | YES      | R(A) := RK(B) + C                                |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SUBFF           | YES      | R(A) := RK(B) - RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
@@ -199,23 +189,11 @@ Following is the status as of 4 July 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SUBII           | YES      | R(A) := RK(B) - RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SUBFN           | YES      | R(A) := RK(B) - C                                |
-+-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SUBNF           | YES      | R(A) := B - RK(C)                                |
-+-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SUBIN           | YES      | R(A) := RK(B) - C                                |
-+-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SUBNI           | YES      | R(A) := B - RK(C)                                |
-+-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_MULFF           | YES      | R(A) := RK(B) * RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_MULFI           | YES      | R(A) := RK(B) * RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_MULII           | YES      | R(A) := RK(B) * RK(C)                            |
-+-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_MULFN           | YES      | R(A) := RK(B) * C                                |
-+-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_MULIN           | YES      | R(A) := RK(B) * C                                |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_DIVFF           | YES      | R(A) := RK(B) / RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
@@ -275,4 +253,57 @@ Following is the status as of 4 July 2015.
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SETUPVALAF      | NO       | UpValue[B] := toarrayflt(R(A))                   |
 +-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SETTABLE_AII    | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+|                         |          | R(A) is array of integers, and RK(C) is an int   |
+|                         |          | No conversion as input is known to be int        |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SETTABLE_AFF    | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+|                         |          | R(A) is array of numbers, and RK(C) is a number  |
+|                         |          | No conversion as input is known to be float      |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_BAND_II         | NO       | R(A) := RK(B) & RK(C), operands are int          |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_BOR_II          | NO       | R(A) := RK(B) | RK(C), operands are int          |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_BXOR_II         | NO       | R(A) := RK(B) ~ RK(C), operands are int          |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SHL_II          | NO       | R(A) := RK(B) << RK(C), operands are int         |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SHR_II          | NO       | R(A) := RK(B) >> RK(C), operands are int         |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_BNOT_I          | NO       | R(A) := ~R(B), int operand                       |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_EQ_II           | YES      | if ((RK(B) == RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_EQ_FF           | YES      | if ((RK(B) == RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_LT_II           | YES      | if ((RK(B) <  RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_LT_FF           | YES      | if ((RK(B) <  RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_LE_II           | YES      | if ((RK(B) <= RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_LE_FF           | YES      | if ((RK(B) <= RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
 
+Ravi's libgccjit JIT compiler source
+------------------------------------
+The libgccjit JIT implementation is in following sources:
+
+* ravijit.h - defines the JIT API
+* ravi_gccjit.h - defines the types used by the code generator, and declares prototypes
+
+* ravijit.cpp - basic JIT infrastructure and Ravi API definition
+* ravi_gcctypes.c - contains JIT type definitions for Lua objects 
+* ravi_gcccodegen.c - JIT compiler - main driver for compiling Lua bytecodes 
+* ravi_gccload.c - implements OP_LOADK and OP_MOVE, and related operations, also OP_LOADBOOL
+* ravi_gcccomp.c - implements OP_EQ, OP_LT, OP_LE, OP_TEST and OP_TESTSET.
+* ravi_gccreturn.c - implements OP_RETURN
+* ravi_gccforprep.c - implements OP_RAVI_FORPREP_I1 and OP_RAVI_FORPREP_IP
+* ravi_gccforloop.c - implements OP_RAVI_FORLOOP_I1 and OP_RAVI_FORLOOP_IP
+* ravi_gcctforcall.c - implements OP_TFORCALL and OP_TFORLOOP
+* ravi_gccarith1.c - implements various type specialized arithmetic operations - these are Ravi extensions
+* ravi_gccarith2.c - implements Lua opcodes such as OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_UNM
+* ravi_gcccall.c - implements OP_CALL, OP_JMP
+* ravi_gcctable.c - implements OP_GETTABLE, OP_SETTABLE and various other table operations, OP_SELF, and also upvalue operations
+* ravi_gccrest.c - OP_CLOSURE, OP_VARARG, OP_CONCAT

@@ -34,8 +34,8 @@ The Architecture of Ravi's JIT Compilation
 * The decision to call a JIT compiled version is made in the Lua Infrastructure (specifically in ``luaD_precall()`` function in ``ldo.c``)
 * The JIT compiler translates Lua/Ravi bytecode to LLVM IR - i.e. it does not translate Lua source code.
 * There is no inlining of Lua functions.
-* Generally the JIT compiler implements the same instructions as in ``lvm.c`` - however for some bytecodes the code calls a C function rather than generating inline IR. These opcodes are OP_LOADNIL, OP_NEWTABLE, OP_RAVI_NEWARRAYINT, OP_RAVI_NEWARRAYFLT, OP_SETLIST, OP_CONCAT, OP_CLOSURE, OP_VARARG. 
-* Ravi represents Lua values as done by Lua 5.3 - i.e. in a 16 byte structure. In future this could change to a more optimized structure.
+* Generally the JIT compiler implements the same instructions as in ``lvm.c`` - however for some bytecodes the code calls a C function rather than generating inline IR. These opcodes are OP_LOADNIL, OP_NEWTABLE, OP_RAVI_NEWARRAYINT, OP_RAVI_NEWARRAYFLT, OP_SETLIST, OP_CONCAT, OP_CLOSURE, OP_VARARG, OP_RAVI_SHL_II, OP_RAVI_SHR_II. 
+* Ravi represents Lua values as done by Lua 5.3 - i.e. in a 16 byte structure. 
 * Ravi compiler generates type specifc opcodes which result in simpler and higher performance LLVM IR.
 
 Limitations of JIT compilation
@@ -44,13 +44,13 @@ Limitations of JIT compilation
 * The Debug API relies upon a field called ``savedpc`` which tracks the current instruction being executed by Lua interpreter. As this is not updated by the JIT code the Debug API can only provide a subset of normal functionality. The Debug API is not yet fully tested.
 * The Lua VM supports infinite tail recursion. The JIT compiler treats OP_TAILCALL as normal OP_CALL so that recursion is limited to about 110 levels.
 * The Lua C API has not yet been tested against the Ravi extensions - especially static typing and array types. Do not use the C API for now - as you could break the type system of Ravi.
-* Bit-wise operators are not always JIT compiled.
+* Bit-wise operators are JIT compiled only when the variables are known to be integers (specialized byte codes are used).
 
 JIT Status of Lua/Ravi Bytecodes
 ---------------------------------
 The JIT compilation status of the Lua and Ravi bytecodes are given below.
 
-This information was last updated on 3rd April 2015. As new bytecodes are being added to the JIT compiler on a regular basis
+This information was last updated on 25th July 2015. As new bytecodes are being added to the JIT compiler on a regular basis
 the status information below may be slightly out of date.
 
 Note that if a Lua functions contains a bytecode that cannot be be JITed then the function cannot be JITed.
@@ -240,7 +240,38 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SETUPVALAF      | NO       | UpValue[B] := toarrayflt(R(A))                   |
 +-------------------------+----------+--------------------------------------------------+
-
+| OP_RAVI_SETTABLE_AII    | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+|                         |          | R(A) is array of integers, and RK(C) is an int   |
+|                         |          | No conversion as input is known to be int        |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SETTABLE_AFF    | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+|                         |          | R(A) is array of numbers, and RK(C) is a number  |
+|                         |          | No conversion as input is known to be float      |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_BAND_II         | YES      | R(A) := RK(B) & RK(C), operands are int          |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_BOR_II          | YES      | R(A) := RK(B) | RK(C), operands are int          |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_BXOR_II         | YES      | R(A) := RK(B) ~ RK(C), operands are int          |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SHL_II          | YES      | R(A) := RK(B) << RK(C), operands are int         |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SHR_II          | YES      | R(A) := RK(B) >> RK(C), operands are int         |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_BNOT_I          | YES      | R(A) := ~R(B), int operand                       |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_EQ_II           | YES      | if ((RK(B) == RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_EQ_FF           | YES      | if ((RK(B) == RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_LT_II           | YES      | if ((RK(B) <  RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_LT_FF           | YES      | if ((RK(B) <  RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_LE_II           | YES      | if ((RK(B) <= RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_LE_FF           | YES      | if ((RK(B) <= RK(C)) ~= A) then pc++             |
++-------------------------+----------+--------------------------------------------------+
 
 
 Ravi's JIT compiler source
