@@ -77,24 +77,20 @@ if (MSVC)
   add_definitions("/wd4624")
 endif()
 
+
 if (CMAKE_COMPILER_IS_GNUCXX)
-  if (MSYS)
-    #set(CXX_OPTIONS  -DLUA_USE_WINDOWS)
-  else()
+  if (NOT WIN32)
     set(CXX_OPTIONS  -DLUA_USE_LINUX)
   endif()
-endif()
-if (CMAKE_COMPILER_IS_GNUCXX)
-  # -fsanitize=bounds -fsanitize=alignment -fsanitize=object-size 
+  # -fsanitize=bounds -fsanitize=alignment -fsanitize=object-size
   set(CMAKE_C_FLAGS_DEBUG "-Werror -std=c99 -O0 -g3 -fsanitize=address -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-  set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+  set(CMAKE_C_FLAGS_RELEASE "-Werror -std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Werror -std=c99 -O1 -g3 -fsanitize=address -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-  set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -O3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-  set(CMAKE_CXX_FLAGS_DEBUG "-fno-rtti -O0 -fsanitize=address -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-fno-rtti -O1 -g3 -fsanitize=address -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-  if (NOT MSYS)
-    add_definitions("-D_GLIBCXX_USE_CXX11_ABI=0")
-  endif()
+  set(CMAKE_CXX_FLAGS_RELEASE "-Werror -fno-rtti -O3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+  set(CMAKE_CXX_FLAGS_DEBUG "-Werror -fno-rtti -O0 -fsanitize=address -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Werror -fno-rtti -O1 -g3 -fsanitize=address -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+  # In case we are using gcc 5.1 set ABI version
+  add_definitions("-D_GLIBCXX_USE_CXX11_ABI=0")
 endif()
 
 if (APPLE)
@@ -144,7 +140,7 @@ if (MSVC OR APPLE)
   if (APPLE)
     set(EXTRA_LIBRARIES m readline)
   endif()
-elseif(NOT MINGW)
+elseif(NOT WIN32)
   # On Linux we need to link libdl to get access to
   # functions like dlopen()
   # ubsan can be added to get -fsanitize=undefined
@@ -188,10 +184,12 @@ if (LLVM_JIT)
   message(STATUS "llvm_libs ${llvm_libs}")
 endif()
 
-
 #Main library
-add_library(ravi SHARED ${RAVI_HEADERS} ${LUA_LIB_SRCS} ${LUA_CORE_SRCS} ${LLVM_JIT_SRCS} ${GCC_JIT_SRCS})
-if (MSVC OR MSYS)
+add_library(ravi SHARED ${RAVI_HEADERS}
+                        ${LUA_LIB_SRCS} ${LUA_CORE_SRCS}
+                        ${LLVM_JIT_SRCS}
+                        ${GCC_JIT_SRCS})
+if (WIN32)
   set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
 endif()
 target_link_libraries(ravi ${EXTRA_LIBRARIES} ${llvm_libs} ${GCCJIT_LIBRARIES})
