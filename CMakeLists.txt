@@ -74,6 +74,7 @@ if (MSVC)
   # Disable warning about the insecurity of using "std::copy".
   add_definitions("/wd4996")
   add_definitions("/wd4291")
+  add_definitions("/wd4624")
 endif()
 
 if (CMAKE_COMPILER_IS_GNUCXX)

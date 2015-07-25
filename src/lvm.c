@@ -800,11 +800,14 @@ void luaV_finishOp (lua_State *L) {
 
 #define Protect(x)	{ {x;}; base = ci->u.l.base; }
 
-#define checkGC(L,c)  \
-  Protect( luaC_condGC(L,{L->top = (c);  /* limit of live values */ \
+#define checkGC_(L,c)  \
+         { luaC_condGC(L,{L->top = (c);  /* limit of live values */ \
                           luaC_step(L); \
                           L->top = ci->top;})  /* restore top */ \
-           luai_threadyield(L); )
+           luai_threadyield(L); }
+
+#define checkGC(L,c)  \
+  Protect( checkGC_(L,c) )
 
 
 #define vmdispatch(o)	switch(o)
@@ -1278,7 +1281,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         luai_runtimecheck(L, ttistable(ra));
         h = hvalue(ra);
-        last = ((c - 1)*LFIELDS_PER_FLUSH) + n;
+        last = ((c-1)*LFIELDS_PER_FLUSH) + n;
         if (h->ravi_array.array_type == RAVI_TTABLE) {
           if (last > h->sizearray)  /* needs more space? */
             luaH_resizearray(L, h, last);  /* pre-allocate it at once */
@@ -1333,9 +1336,9 @@ newframe:  /* reentry point when frame changes (call/return) */
     case OP_CLOSURE: {
         Proto *p = cl->p->p[GETARG_Bx(i)];
         LClosure *ncl = getcached(p, cl->upvals, base);  /* cached closure */
-        if (ncl == NULL)  /* no match? */ 
+        if (ncl == NULL)  /* no match? */
           pushclosure(L, p, cl->upvals, base, ra);  /* create a new one */
-        else 
+        else
           setclLvalue(L, ra, ncl);  /* push cashed closure */
         checkGC(L, ra + 1);
     } break;
@@ -1626,7 +1629,7 @@ newframe:  /* reentry point when frame changes (call/return) */
   }
 }
 
-void ravi_dump_ci(lua_State *L, CallInfo *ci) {
+static void ravi_dump_ci(lua_State *L, CallInfo *ci) {
   StkId func = ci->func;
   int func_type = ttype(func);
   StkId base = NULL;
@@ -1707,25 +1710,13 @@ void ravi_dump_stack(lua_State *L, const char *s) {
 void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra) {
   Table *t = raviH_new(L, RAVI_TARRAYINT);
   sethvalue(L, ra, t);
-  luaC_condGC(
-      L, {
-        L->top = ra + 1; /* limit of live values */
-        luaC_step(L);
-        L->top = ci->top;
-      }) /* restore top */
-      luai_threadyield(L);
+  checkGC_(L, ra + 1);
 }
 
 void raviV_op_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra) {
   Table *t = raviH_new(L, RAVI_TARRAYFLT);
   sethvalue(L, ra, t);
-  luaC_condGC(
-      L, {
-        L->top = ra + 1; /* limit of live values */
-        luaC_step(L);
-        L->top = ci->top;
-      }) /* restore top */
-      luai_threadyield(L);
+  checkGC_(L, ra + 1);
 }
 
 void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
@@ -1733,13 +1724,7 @@ void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
   sethvalue(L, ra, t);
   if (b != 0 || c != 0)
     luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
-  luaC_condGC(
-      L, {
-        L->top = ra + 1; /* limit of live values */
-        luaC_step(L);
-        L->top = ci->top;
-      }) /* restore top */
-      luai_threadyield(L);
+  checkGC_(L, ra + 1);
 }
 
 void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {

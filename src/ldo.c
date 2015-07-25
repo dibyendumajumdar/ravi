@@ -88,7 +88,7 @@ struct lua_longjmp {
 };
 
 
-void luaD_seterrorobj (lua_State *L, int errcode, StkId oldtop) {
+static void seterrorobj (lua_State *L, int errcode, StkId oldtop) {
   switch (errcode) {
     case LUA_ERRMEM: {  /* memory error? */
       setsvalue2s(L, oldtop, G(L)->memerrmsg); /* reuse preregistered msg. */
@@ -121,7 +121,7 @@ l_noret luaD_throw (lua_State *L, int errcode) {
     }
     else {  /* no handler at all; abort */
       if (g->panic) {  /* panic function? */
-        luaD_seterrorobj(L, errcode, L->top);  /* assume EXTRA_STACK */
+        seterrorobj(L, errcode, L->top);  /* assume EXTRA_STACK */
         if (L->ci->top < L->top)
           L->ci->top = L->top;  /* pushing msg. can break this invariant */
         lua_unlock(L);
@@ -536,7 +536,7 @@ static int recover (lua_State *L, int status) {
   /* "finish" luaD_pcall */
   oldtop = restorestack(L, ci->extra);
   luaF_close(L, oldtop);
-  luaD_seterrorobj(L, status, oldtop);
+  seterrorobj(L, status, oldtop);
   L->ci = ci;
   L->allowhook = getoah(ci->callstatus);  /* restore original 'allowhook' */
   L->nny = 0;  /* should be zero to be yieldable */
@@ -621,7 +621,7 @@ LUA_API int lua_resume (lua_State *L, lua_State *from, int nargs) {
     }
     if (errorstatus(status)) {  /* unrecoverable error? */
       L->status = cast_byte(status);  /* mark thread as 'dead' */
-      luaD_seterrorobj(L, status, L->top);  /* push error message */
+      seterrorobj(L, status, L->top);  /* push error message */
       L->ci->top = L->top;
     }
     else lua_assert(status == L->status);  /* normal end or yield */
@@ -680,7 +680,7 @@ int luaD_pcall (lua_State *L, Pfunc func, void *u,
   if (status != LUA_OK) {  /* an error occurred? */
     StkId oldtop = restorestack(L, old_top);
     luaF_close(L, oldtop);  /* close possible pending closures */
-    luaD_seterrorobj(L, status, oldtop);
+    seterrorobj(L, status, oldtop);
     L->ci = old_ci;
     L->allowhook = old_allowhooks;
     L->nny = old_nny;

@@ -1013,7 +1013,7 @@ LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
     luaH_setint(L, t, n, L->top - 1);
     break;
   }
-  luaC_barrierback(L, t, L->top - 1);
+  luaC_barrierback(L, t, L->top-1);
   L->top--;
   lua_unlock(L);
 }
