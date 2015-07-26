@@ -51,6 +51,25 @@ function matrix.T(a)
   return x;
 end
 
+function matrix.T2(a)
+  local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
+  local m: integer, n: integer = mrows(a), mcols(a);
+  local x = mnew(n,m)
+  local data: number[] = mdata(x)
+  local adata: number[] = mdata(a)
+  -- for each row
+  for i = 1, m do
+    local ri: integer = (i-1)*n
+    -- for each column
+    for j = 1, n do 
+      -- calculate the array position in transposed matrix [j][i]
+      data[(j-1)*m+i] = adata[ri+j] 
+    end
+  end
+  return x;
+end
+
+
 function matrix.mul(a, b)
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local m: integer, n: integer, p: integer = mrows(a), mcols(a), mcols(b);
@@ -73,7 +92,7 @@ end
 -- this version avoids using slices - we operate on the 
 -- one dimensional array
 function matrix.mul2(a, b)
-  local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
+  local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T2
   local m: integer, n: integer, p: integer = mrows(a), mcols(a), mcols(b);
   assert(n == p)
   local x = mnew(m,n)
@@ -113,6 +132,23 @@ function matrix.gen(arg)
   return a;
 end
 
+function matrix.gen2(arg)
+  local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
+  local n: integer = cast(arg, "integer")
+  local a = mnew(n, n)
+  local data: number[] = mdata(a)
+  local tmp: number = 1.0 / n / n;
+  local ri: integer 
+  for i = 1, n do
+    --local row: number[] = mrow(a, i)
+    ri = (i-1)*n
+    for j = 1, n do
+      data[ri+j] = tmp * (i - j) * (i + j - 2) 
+    end
+  end
+  return a;
+end
+
 function matrix.print(a)
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local m: integer, n: integer = mrows(a), mcols(a);
@@ -120,24 +156,18 @@ function matrix.print(a)
   for i = 1, m do
     local str = ""
     local slice: number[] = mrow(a, i)
-    -- for each column
-    for j = 1, n do
-      if j == 1 then
-        str = str .. slice[j]
-      else
-        str = str .. ", " .. slice[j] 
-      end
-    end
-    print(str)
+    print(table.unpack(slice))
   end
 end
 
 if ravi.jit() then
   assert(ravi.compile(cast))
   assert(ravi.compile(matrix.gen))
+  assert(ravi.compile(matrix.gen2))
   assert(ravi.compile(matrix.mul))
   assert(ravi.compile(matrix.mul2))
   assert(ravi.compile(matrix.T))
+  assert(ravi.compile(matrix.T2))
   assert(ravi.compile(matrix.cols))
   assert(ravi.compile(matrix.rows))
   assert(ravi.compile(matrix.getdata))
@@ -156,10 +186,14 @@ print("time taken ", t2-t1)
 local y: integer = cast(n/2+1, "integer")
 print(matrix.getrow(a, y)[y])
 
---matrix.print(matrix.gen(2))
+matrix.print(matrix.gen(2))
+matrix.print(matrix.gen2(2))
+
 --matrix.print(matrix.T(matrix.gen(2)))
+--matrix.print(matrix.T2(matrix.gen(2)))
+
 --matrix.print(matrix.mul(matrix.gen(2), matrix.gen(2)))
 
 --ravi.dumpllvm(matrix.mul2)
 
---ravi.dumplua(matrix.gen)
+--ravi.dumplua(matrix.T2)

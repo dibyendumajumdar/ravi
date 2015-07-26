@@ -274,8 +274,8 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 
 
-Ravi's JIT compiler source
---------------------------
+Ravi's LLVM JIT compiler source
+-------------------------------
 The LLVM JIT implementation is in following sources:
 
 * ravillvm.h - includes LLVM headers and defines the generic JIT State and Function interfaces
