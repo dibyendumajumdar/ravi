@@ -32,6 +32,7 @@ function matrix.cols(m)
 end 
 
 function matrix.T(a)
+  local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local m: integer, n: integer = mrows(a), mcols(a);
   local x = mnew(n,m)
@@ -48,10 +49,13 @@ function matrix.T(a)
       data[pos] = slice[j] 
     end
   end
+  local t2 = os.clock()
+  print("T: time ", t2-t1)
   return x;
 end
 
 function matrix.T2(a)
+  local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local m: integer, n: integer = mrows(a), mcols(a);
   local x = mnew(n,m)
@@ -66,11 +70,14 @@ function matrix.T2(a)
       data[(j-1)*m+i] = adata[ri+j] 
     end
   end
+  local t2 = os.clock()
+  print("T2: time ", t2-t1)
   return x;
 end
 
 
 function matrix.mul(a, b)
+  local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local m: integer, n: integer, p: integer = mrows(a), mcols(a), mcols(b);
   assert(n == p)
@@ -86,12 +93,15 @@ function matrix.mul(a, b)
       xi[j] = sum;
     end
   end
+  local t2 = os.clock()
+  print("mul: time ", t2-t1)
   return x;
 end
 
 -- this version avoids using slices - we operate on the 
 -- one dimensional array
 function matrix.mul2(a, b)
+  local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T2
   local m: integer, n: integer, p: integer = mrows(a), mcols(a), mcols(b);
   assert(n == p)
@@ -115,10 +125,13 @@ function matrix.mul2(a, b)
       xdata[xi+j] = sum;
     end
   end
+  local t2 = os.clock()
+  print("mul2: time ", t2-t1)
   return x;
 end
 
 function matrix.gen(arg)
+  local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local n: integer = cast(arg, "integer")
   local a = mnew(n, n)
@@ -129,10 +142,13 @@ function matrix.gen(arg)
       row[j] = tmp * (i - j) * (i + j - 2) 
     end
   end
+  local t2 = os.clock()
+  print("gen: time ", t2-t1)
   return a;
 end
 
 function matrix.gen2(arg)
+  local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local n: integer = cast(arg, "integer")
   local a = mnew(n, n)
@@ -146,6 +162,8 @@ function matrix.gen2(arg)
       data[ri+j] = tmp * (i - j) * (i + j - 2) 
     end
   end
+  local t2 = os.clock()
+  print("gen2: time ", t2-t1)
   return a;
 end
 
@@ -180,14 +198,14 @@ n = math.floor(n/2) * 2;
 local t1 = os.clock()
 local a = matrix.mul2(matrix.gen(n), matrix.gen(n));
 local t2 = os.clock()
-print("time taken ", t2-t1)
+print("total time taken ", t2-t1)
 
 --print(a[n/2+1][n/2+1]);
 local y: integer = cast(n/2+1, "integer")
 print(matrix.getrow(a, y)[y])
 
-matrix.print(matrix.gen(2))
-matrix.print(matrix.gen2(2))
+--matrix.print(matrix.gen(2))
+--matrix.print(matrix.gen2(2))
 
 --matrix.print(matrix.T(matrix.gen(2)))
 --matrix.print(matrix.T2(matrix.gen(2)))

@@ -186,8 +186,9 @@ static void addAdditionalRaviPasses2(const llvm::PassManagerBuilder &Builder,
   llvm::PassManagerBase &PM) {
   PM.add(llvm::createInductiveRangeCheckEliminationPass());
 }
+#endif
 
-
+#if 0
 // TODO
 // Following two functions based upon similar in Clang
 static void addAddressSanitizerPasses(const llvm::PassManagerBuilder &Builder,
@@ -238,8 +239,9 @@ void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
     addAdditionalRaviPasses);
   pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
     addAdditionalRaviPasses2);
+#endif
 
-
+#if 0
     // TODO - we want to allow instrumentation of JITed code
     // TODO - it should be controlled via a flag
     // Note that following appears to require linking to some
