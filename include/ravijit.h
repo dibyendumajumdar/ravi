@@ -30,6 +30,21 @@ extern "C" {
 struct lua_State;
 struct Proto;
 
+typedef struct {
+  /* Is this a manual request? */
+  int manual_request;
+
+  /* Should range check be omitted when compiling array access */
+  int omit_array_get_range_check;
+
+  /* Should the compiler dump generated code ? */
+  int dump_level;
+
+  /* Should the compiler validate the generated code ? */
+  int verification_level;
+} ravi_compile_options_t;
+
+
 /* Initialise the JIT engine */
 int raviV_initjit(struct lua_State *L);
 
@@ -37,8 +52,7 @@ int raviV_initjit(struct lua_State *L);
 void raviV_close(struct lua_State *L);
 
 /* Compile the given function if possible */
-int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
-                  int dump);
+int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *options);
 
 /* Free the JIT structures associated with the prototype */
 void raviV_freeproto(struct lua_State *L, struct Proto *p);

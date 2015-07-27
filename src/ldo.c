@@ -372,7 +372,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
         callhook(L, ci);
       if (L == G(L)->mainthread && p->ravi_jit.jit_status == 0) {
         /* not compiled */
-        raviV_compile(L, p, 0, 0);
+        raviV_compile(L, p, NULL);
       }
       if (L == G(L)->mainthread && p->ravi_jit.jit_status == 2) {
         /* compiled */

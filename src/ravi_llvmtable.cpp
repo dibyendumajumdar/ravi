@@ -70,7 +70,7 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B,
 }
 
 void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
-                                         int C) {
+                                         int C, bool omitArrayGetRangeCheck) {
   //#define raviH_get_float_inline(L, t, key, v)
   //{ unsigned ukey = (unsigned)((key));
   //  lua_Number *data = (lua_Number *)t->ravi_array.data;
@@ -93,37 +93,45 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
   llvm::Instruction *key = emit_load_reg_i(def, rc);
   llvm::Instruction *t = emit_load_reg_h(def, rb);
   llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);
-  llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
-  llvm::Value *ulen = def->builder->CreateZExt(len, def->types->lua_UnsignedT, "ulen");
+  llvm::BasicBlock *then_block = nullptr;
+  llvm::BasicBlock *else_block = nullptr;
+  llvm::BasicBlock *end_block = nullptr;
+  if (!omitArrayGetRangeCheck) {
+    llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
+    llvm::Value *ulen = def->builder->CreateZExt(len, def->types->lua_UnsignedT, "ulen");
 
-  llvm::Value *cmp = def->builder->CreateICmpULT(key, ulen);
-  llvm::BasicBlock *then_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);
-  llvm::BasicBlock *else_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
-  llvm::BasicBlock *end_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.end");
-  def->builder->CreateCondBr(cmp, then_block, else_block);
-  def->builder->SetInsertPoint(then_block);
+    llvm::Value *cmp = def->builder->CreateICmpULT(key, ulen);
+    then_block =
+            llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);
+    else_block =
+            llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
+    end_block =
+            llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+    def->builder->CreateCondBr(cmp, then_block, else_block);
+    def->builder->SetInsertPoint(then_block);
+  }
+
   llvm::Value *ptr = def->builder->CreateGEP(data, key);
   llvm::Instruction *value = def->builder->CreateLoad(ptr);
   value->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_pdoubleT);
-
   emit_store_reg_n_withtype(def, value, ra);
-  def->builder->CreateBr(end_block);
 
-  def->f->getBasicBlockList().push_back(else_block);
-  def->builder->SetInsertPoint(else_block);
+  if (!omitArrayGetRangeCheck) {
+    def->builder->CreateBr(end_block);
 
-  emit_raise_lua_error(def, "array out of bounds");
-  def->builder->CreateBr(end_block);
+    def->f->getBasicBlockList().push_back(else_block);
+    def->builder->SetInsertPoint(else_block);
 
-  def->f->getBasicBlockList().push_back(end_block);
-  def->builder->SetInsertPoint(end_block);
+    emit_raise_lua_error(def, "array out of bounds");
+    def->builder->CreateBr(end_block);
+
+    def->f->getBasicBlockList().push_back(end_block);
+    def->builder->SetInsertPoint(end_block);
+  }
 }
 
 void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B,
-                                         int C) {
+                                         int C, bool omitArrayGetRangeCheck) {
 
   //#define raviH_get_int_inline(L, t, key, v)
   //{ unsigned ukey = (unsigned)((key));
@@ -147,34 +155,42 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B,
   llvm::Instruction *key = emit_load_reg_i(def, rc);
   llvm::Instruction *t = emit_load_reg_h(def, rb);
   llvm::Instruction *data = emit_load_reg_h_intarray(def, t);
-  llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
-  llvm::Value *ulen = def->builder->CreateZExt(len, def->types->lua_UnsignedT, "ulen");
 
-  llvm::Value *cmp = def->builder->CreateICmpULT(key, ulen);
-  llvm::BasicBlock *then_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);
-  llvm::BasicBlock *else_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
-  llvm::BasicBlock *end_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.end");
-  def->builder->CreateCondBr(cmp, then_block, else_block);
-  def->builder->SetInsertPoint(then_block);
+  llvm::BasicBlock *then_block = nullptr;
+  llvm::BasicBlock *else_block = nullptr;
+  llvm::BasicBlock *end_block = nullptr;
+  if (!omitArrayGetRangeCheck) {
+    llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
+    llvm::Value *ulen = def->builder->CreateZExt(len, def->types->lua_UnsignedT, "ulen");
+
+    llvm::Value *cmp = def->builder->CreateICmpULT(key, ulen);
+    then_block =
+            llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);
+    else_block =
+            llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
+    end_block =
+            llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+    def->builder->CreateCondBr(cmp, then_block, else_block);
+    def->builder->SetInsertPoint(then_block);
+  }
 
   llvm::Value *ptr = def->builder->CreateGEP(data, key);
   llvm::Instruction *value = def->builder->CreateLoad(ptr);
   value->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_plonglongT);
-
   emit_store_reg_i_withtype(def, value, ra);
-  def->builder->CreateBr(end_block);
 
-  def->f->getBasicBlockList().push_back(else_block);
-  def->builder->SetInsertPoint(else_block);
+  if (!omitArrayGetRangeCheck) {
+    def->builder->CreateBr(end_block);
 
-  emit_raise_lua_error(def, "array out of bounds");
-  def->builder->CreateBr(end_block);
+    def->f->getBasicBlockList().push_back(else_block);
+    def->builder->SetInsertPoint(else_block);
 
-  def->f->getBasicBlockList().push_back(end_block);
-  def->builder->SetInsertPoint(end_block);
+    emit_raise_lua_error(def, "array out of bounds");
+    def->builder->CreateBr(end_block);
+
+    def->f->getBasicBlockList().push_back(end_block);
+    def->builder->SetInsertPoint(end_block);
+  }
 }
 
 void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B,

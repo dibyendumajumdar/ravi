@@ -94,7 +94,7 @@ void ravi_emit_GETTABLE(ravi_function_def_t *def, int A, int B, int C, int pc) {
 }
 
 void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C,
-                           int pc) {
+                           int pc, bool omitArrayGetRangeCheck) {
   //#define raviH_get_float_inline(L, t, key, v)
   //{ unsigned ukey = (unsigned)((key));
   //  lua_Number *data = (lua_Number *)t->ravi_array.data;
@@ -119,37 +119,45 @@ void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C,
   gcc_jit_rvalue *data = ravi_emit_load_reg_h_floatarray(def, t);
   gcc_jit_lvalue *len = ravi_emit_load_ravi_arraylength(def, t);
   gcc_jit_rvalue *ukey = gcc_jit_context_new_cast(
-    def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
-    def->ravi->types->lua_UnsignedT);
-  gcc_jit_rvalue *ulen = gcc_jit_context_new_cast(
-      def->function_context, NULL, gcc_jit_lvalue_as_rvalue(len),
-      def->ravi->types->lua_UnsignedT);
+          def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
+          def->ravi->types->lua_UnsignedT);
 
-  gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey, ulen);
-  gcc_jit_block *then_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AF_if_in_range", pc));
-  gcc_jit_block *else_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AF_if_not_in_range", pc));
-  gcc_jit_block *end_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AF_if_end", pc));
-  ravi_emit_conditional_branch(def, cmp, then_block, else_block);
-  ravi_set_current_block(def, then_block);
+  gcc_jit_block *then_block = NULL;
+  gcc_jit_block *else_block = NULL;
+  gcc_jit_block *end_block = NULL;
 
+  if (omitArrayGetRangeCheck) {
+    gcc_jit_rvalue *ulen = gcc_jit_context_new_cast(
+            def->function_context, NULL, gcc_jit_lvalue_as_rvalue(len),
+            def->ravi->types->lua_UnsignedT);
+
+    gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey, ulen);
+    then_block = gcc_jit_function_new_block(
+            def->jit_function, unique_name(def, "GETTABLE_AF_if_in_range", pc));
+    else_block = gcc_jit_function_new_block(
+            def->jit_function, unique_name(def, "GETTABLE_AF_if_not_in_range", pc));
+    end_block = gcc_jit_function_new_block(
+            def->jit_function, unique_name(def, "GETTABLE_AF_if_end", pc));
+    ravi_emit_conditional_branch(def, cmp, then_block, else_block);
+    ravi_set_current_block(def, then_block);
+  }
   gcc_jit_rvalue *value = ravi_emit_array_get(def, data, ukey);
-
   ravi_emit_store_reg_n_withtype(def, value, ra);
-  ravi_emit_branch(def, end_block);
 
-  ravi_set_current_block(def, else_block);
+  if (omitArrayGetRangeCheck) {
+    ravi_emit_branch(def, end_block);
 
-  ravi_emit_raise_lua_error(def, "array out of bounds");
-  ravi_emit_branch(def, end_block);
+    ravi_set_current_block(def, else_block);
 
-  ravi_set_current_block(def, end_block);
+    ravi_emit_raise_lua_error(def, "array out of bounds");
+    ravi_emit_branch(def, end_block);
+
+    ravi_set_current_block(def, end_block);
+  }
 }
 
 void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C,
-                           int pc) {
+                           int pc, bool omitArrayGetRangeCheck) {
   //#define raviH_get_int_inline(L, t, key, v)
   //{ unsigned ukey = (unsigned)((key));
   //  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
@@ -176,31 +184,39 @@ void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C,
   gcc_jit_rvalue *ukey = gcc_jit_context_new_cast(
     def->function_context, NULL, gcc_jit_lvalue_as_rvalue(key),
     def->ravi->types->lua_UnsignedT);
-  gcc_jit_rvalue *ulen = gcc_jit_context_new_cast(
-    def->function_context, NULL, gcc_jit_lvalue_as_rvalue(len),
-    def->ravi->types->lua_UnsignedT);
 
-  gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey, ulen);
-  gcc_jit_block *then_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AI_if_in_range", pc));
-  gcc_jit_block *else_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AI_if_not_in_range", pc));
-  gcc_jit_block *end_block = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "GETTABLE_AI_if_end", pc));
-  ravi_emit_conditional_branch(def, cmp, then_block, else_block);
-  ravi_set_current_block(def, then_block);
+  gcc_jit_block *then_block = NULL;
+  gcc_jit_block *else_block = NULL;
+  gcc_jit_block *end_block = NULL;
 
+  if (omitArrayGetRangeCheck) {
+    gcc_jit_rvalue *ulen = gcc_jit_context_new_cast(
+            def->function_context, NULL, gcc_jit_lvalue_as_rvalue(len),
+            def->ravi->types->lua_UnsignedT);
+
+    gcc_jit_rvalue *cmp = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, ukey, ulen);
+    then_block = gcc_jit_function_new_block(
+            def->jit_function, unique_name(def, "GETTABLE_AI_if_in_range", pc));
+    else_block = gcc_jit_function_new_block(
+            def->jit_function, unique_name(def, "GETTABLE_AI_if_not_in_range", pc));
+    end_block = gcc_jit_function_new_block(
+            def->jit_function, unique_name(def, "GETTABLE_AI_if_end", pc));
+    ravi_emit_conditional_branch(def, cmp, then_block, else_block);
+    ravi_set_current_block(def, then_block);
+  }
   gcc_jit_rvalue *value = ravi_emit_array_get(def, data, ukey);
 
   ravi_emit_store_reg_i_withtype(def, value, ra);
-  ravi_emit_branch(def, end_block);
+  if (omitArrayGetRangeCheck) {
+    ravi_emit_branch(def, end_block);
 
-  ravi_set_current_block(def, else_block);
+    ravi_set_current_block(def, else_block);
 
-  ravi_emit_raise_lua_error(def, "array out of bounds");
-  ravi_emit_branch(def, end_block);
+    ravi_emit_raise_lua_error(def, "array out of bounds");
+    ravi_emit_branch(def, end_block);
 
-  ravi_set_current_block(def, end_block);
+    ravi_set_current_block(def, end_block);
+  }
 }
 
 void ravi_emit_SETTABLE_AI_AF(ravi_function_def_t *def, int A, int B, int C,

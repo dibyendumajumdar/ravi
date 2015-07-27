@@ -21,6 +21,8 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 #ifdef USE_LLVM
+
+#include <ravijit.h>
 #include "ravi_llvmcodegen.h"
 
 /*
@@ -430,8 +432,7 @@ void raviV_close(struct lua_State *L) {
 // thresholds)
 // or if a manual compilation request was made
 // Returns true if compilation was successful
-int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
-                  int dump) {
+int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *options) {
   if (p->ravi_jit.jit_status == 2)
     return true;
   global_State *G = G(L);
@@ -440,7 +441,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
   if (!G->ravi_state->jit->is_enabled()) {
     return 0;
   }
-  bool doCompile = (bool)manual_request;
+  bool doCompile = (bool)(options && options->manual_request != 0);
   if (!doCompile && G->ravi_state->jit->is_auto()) {
     if (p->ravi_jit.jit_flags != 0) /* function has fornum loop, so compile */
       doCompile = true;
@@ -459,7 +460,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     }
   }
   if (doCompile)
-    G->ravi_state->code_generator->compile(L, p, dump != 0);
+    G->ravi_state->code_generator->compile(L, p, options);
   return p->ravi_jit.jit_status == 2;
 }
 
@@ -704,6 +705,22 @@ static int ravi_is_compiled(lua_State *L) {
   return 1;
 }
 
+// Utility to extract a integer field from a table
+bool l_table_get_integer(lua_State *L, int tab, const char *key,
+                         lua_Integer *result, lua_Integer default_value) {
+  bool rc = false;
+  lua_pushstring(L, key);
+  lua_gettable(L, tab); /* get table[key] */
+  if (!lua_isnumber(L, -1))
+    *result = default_value;
+  else {
+    *result = lua_tointeger(L, -1);
+    rc = true;
+  }
+  lua_pop(L, 1); /* remove number */
+  return rc;
+}
+
 // Try to JIT compile the given function
 // Optional boolean (second) parameter specifies whether
 // to dump the code generation
@@ -714,11 +731,18 @@ static int ravi_compile(lua_State *L) {
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = reinterpret_cast<LClosure *>(p);
-  int manualRequest = 1;
-  // Is there a second boolean parameter requesting
-  // dump of code generation?
-  int dumpAsm = (n == 2) ? lua_toboolean(L, 2) : 0;
-  int result = raviV_compile(L, l->p, manualRequest, dumpAsm);
+  ravi_compile_options_t options = { 0 };
+  options.manual_request = 1;
+  if (lua_istable(L, 2)) {
+    lua_Integer do_dump, do_verify, omit_arrayget_rangecheck;
+    l_table_get_integer(L, 2, "dump", &do_dump, 0);
+    l_table_get_integer(L, 2, "verify", &do_verify, 0);
+    l_table_get_integer(L, 2, "omitArrayGetRangeCheck", &omit_arrayget_rangecheck, 0);
+    options.omit_array_get_range_check = (int) omit_arrayget_rangecheck;
+    options.dump_level = (int) do_dump;
+    options.verification_level = (int) do_verify;
+  }
+  int result = raviV_compile(L, l->p, &options);
   lua_pushboolean(L, result);
   return 1;
 }

@@ -20,6 +20,7 @@
 * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
+#include <ravijit.h>
 #include "ravi_llvmcodegen.h"
 
 namespace ravi {
@@ -981,8 +982,11 @@ RaviCodeGenerator::emit_gep_upval_value(RaviFunctionDef *def,
   return emit_gep(def, "value", pupval, 0, 2);
 }
 
-void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
-                                bool doVerify) {
+void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *options) {
+  bool doDump = options ? options->dump_level != 0 : 0;
+  bool doVerify = options ? options->verification_level != 0: 0;
+  bool omitArrayGetRangeCheck = options ? options->omit_array_get_range_check != 0: 0;
+
   if (p->ravi_jit.jit_status != 0 || !canCompile(p))
     return;
 
@@ -1293,7 +1297,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
     case OP_RAVI_GETTABLE_AI: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_GETTABLE_AI(def, A, B, C);
+      emit_GETTABLE_AI(def, A, B, C, omitArrayGetRangeCheck);
     } break;
     case OP_RAVI_SETTABLE_AII:
     case OP_RAVI_SETTABLE_AI: {
@@ -1304,7 +1308,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, bool doDump,
     case OP_RAVI_GETTABLE_AF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      emit_GETTABLE_AF(def, A, B, C);
+      emit_GETTABLE_AF(def, A, B, C, omitArrayGetRangeCheck);
     } break;
     case OP_RAVI_SETTABLE_AFF:
     case OP_RAVI_SETTABLE_AF: {

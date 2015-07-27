@@ -705,10 +705,10 @@ extern void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C,
 extern void ravi_emit_TFORLOOP(ravi_function_def_t *def, int A, int j, int pc);
 
 extern void ravi_emit_GETTABLE_AI(ravi_function_def_t *def, int A, int B, int C,
-                                  int pc);
+                                  int pc, bool omitArrayGetRangeCheck);
 
 extern void ravi_emit_GETTABLE_AF(ravi_function_def_t *def, int A, int B, int C,
-                                  int pc);
+                                  int pc, bool omitArrayGetRangeCheck);
 
 extern void ravi_emit_NEWARRAYFLOAT(ravi_function_def_t *def, int A, int pc);
 

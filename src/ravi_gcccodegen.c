@@ -22,6 +22,7 @@
 ******************************************************************************/
 
 #include <ravi_gccjit.h>
+#include <ravijit.h>
 
 // Create a unique function name in the context
 // of this generator
@@ -909,13 +910,14 @@ static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi,
 // thresholds)
 // or if a manual compilation request was made
 // Returns true if compilation was successful
-int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
-                  int dump) {
+int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *options) {
   // Compile given function if possible
   // The p->ravi_jit structure will be updated
   // Note that if a function fails to compile then
   // a flag is set so that it doesn't get compiled again
-
+  int manual_request = options ? options->manual_request: 0;
+  int dump = options ? options->dump_level: 0;
+  bool omitArrayGetRangeCheck = options ? options->omit_array_get_range_check != 0: false;
   if (p->ravi_jit.jit_status == 2)
     return true;
   global_State *G = G(L);
@@ -1139,12 +1141,12 @@ int raviV_compile(struct lua_State *L, struct Proto *p, int manual_request,
     case OP_RAVI_GETTABLE_AI: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      ravi_emit_GETTABLE_AI(&def, A, B, C, pc);
+      ravi_emit_GETTABLE_AI(&def, A, B, C, pc, omitArrayGetRangeCheck);
     } break;
     case OP_RAVI_GETTABLE_AF: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
-      ravi_emit_GETTABLE_AF(&def, A, B, C, pc);
+      ravi_emit_GETTABLE_AF(&def, A, B, C, pc, omitArrayGetRangeCheck);
     } break;
     case OP_RAVI_TOARRAYI: {
       ravi_emit_TOARRAY(&def, A, RAVI_TARRAYINT, "integer[] expected", pc);

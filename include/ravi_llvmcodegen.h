@@ -559,8 +559,7 @@ public:
   // The p->ravi_jit structure will be updated
   // Note that if a function fails to compile then
   // a flag is set so that it doesn't get compiled again
-  void compile(lua_State *L, Proto *p, bool doDump = false,
-               bool doVerify = true);
+  void compile(lua_State *L, Proto *p, ravi_compile_options_t *options);
 
   // We can only compile a subset of op codes
   // and not all features are supported
@@ -933,9 +932,9 @@ public:
 
   void emit_TFORLOOP(RaviFunctionDef *def, int A, int j);
 
-  void emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B, int C);
+  void emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B, int C, bool omitArrayGetRangeCheck = false);
 
-  void emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B, int C);
+  void emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B, int C, bool omitArrayGetRangeCheck = false);
 
   void emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B, int C,
                         bool known_int);

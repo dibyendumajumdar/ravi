@@ -183,7 +183,7 @@ if ravi.jit() then
   assert(ravi.compile(matrix.gen))
   assert(ravi.compile(matrix.gen2))
   assert(ravi.compile(matrix.mul))
-  assert(ravi.compile(matrix.mul2))
+  assert(ravi.compile(matrix.mul2, {omitArrayGetRangeCheck=1}))
   assert(ravi.compile(matrix.T))
   assert(ravi.compile(matrix.T2))
   assert(ravi.compile(matrix.cols))
