@@ -44,7 +44,6 @@ typedef struct {
   int verification_level;
 } ravi_compile_options_t;
 
-
 /* Initialise the JIT engine */
 int raviV_initjit(struct lua_State *L);
 
@@ -53,9 +52,40 @@ void raviV_close(struct lua_State *L);
 
 /* Compile the given function if possible */
 int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *options);
+int raviV_iscompiled(struct lua_State *L, struct Proto *p);
 
 /* Free the JIT structures associated with the prototype */
 void raviV_freeproto(struct lua_State *L, struct Proto *p);
+
+/* Set the code size preference */
+void raviV_setsizelevel(lua_State *L, int sizelevel);
+int raviV_getsizelevel(lua_State *L);
+
+/* Set optimizer level */
+void raviV_setoptlevel(lua_State *L, int optlevel);
+int raviV_getoptlevel(lua_State *L);
+
+/* Enable or disable JIT */
+void raviV_setjitenabled(lua_State *L, int enabled);
+int raviV_getjitenabled(lua_State *L);
+
+/* Sets auto compilation flag */
+void raviV_setauto(lua_State *L, int value);
+int raviV_getauto(lua_State *L);
+
+/* Sets the minimum code size for auto compilation */
+void raviV_setmincodesize(lua_State *L, int mincodesize);
+int raviV_getmincodesize(lua_State *L);
+
+/* Sets the minimum execution count */
+void raviV_setminexeccount(lua_State *L, int minexecccount);
+int raviV_getminexeccount(lua_State *L);
+
+/* Dumps the IR if available */
+void raviV_dumpIR(struct lua_State *L, struct Proto *p);
+
+/* Dump the compiled assembly code if available */
+void raviV_dumpASM(struct lua_State *L, struct Proto *p);
 
 #ifdef __cplusplus
 }

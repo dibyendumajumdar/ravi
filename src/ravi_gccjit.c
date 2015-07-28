@@ -117,3 +117,116 @@ bool ravi_jit_has_errored(ravi_gcc_context_t *ravi) {
   }
   return false;
 }
+
+// TODO we probably do not need all the headers
+// below
+
+#define lvm_c
+#define LUA_CORE
+
+#include "lua.h"
+#include "lobject.h"
+#include "lstate.h"
+#include "lauxlib.h"
+
+#include "ravi_gccjit.h"
+
+// Initialize the JIT State and attach it to the
+// Global Lua State
+// If a JIT State already exists then this function
+// will return -1
+int raviV_initjit(struct lua_State *L) {
+  global_State *G = G(L);
+  if (G->ravi_state != NULL)
+    return -1;
+  ravi_State *jit = (ravi_State *)calloc(1, sizeof(ravi_State));
+  jit->jit = ravi_jit_new_context();
+  jit->code_generator = ravi_jit_new_codegen(jit->jit);
+  G->ravi_state = jit;
+  return 0;
+}
+
+// Free up the JIT State
+void raviV_close(struct lua_State *L) {
+  global_State *G = G(L);
+  if (G->ravi_state == NULL)
+    return;
+  ravi_jit_codegen_free(G->ravi_state->code_generator);
+  ravi_jit_context_free(G->ravi_state->jit);
+  free(G->ravi_state);
+}
+
+// Dump the LLVM IR
+void raviV_dumpIR(struct lua_State *L, struct Proto *p) {}
+
+// Dump the LLVM ASM
+void raviV_dumpASM(struct lua_State *L, struct Proto *p) {}
+
+void raviV_setminexeccount(lua_State *L, int value) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return;
+  G->ravi_state->jit->min_exec_count_ = value;
+}
+int raviV_getminexeccount(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+  return G->ravi_state->jit->min_exec_count_;
+}
+
+void raviV_setmincodesize(lua_State *L, int value) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return;
+  G->ravi_state->jit->min_code_size_ = value;
+}
+int raviV_getmincodesize(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+  return G->ravi_state->jit->min_code_size_;
+}
+
+void raviV_setauto(lua_State *L, int value) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return;
+  G->ravi_state->jit->auto_ = value;
+}
+int raviV_getauto(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+  return G->ravi_state->jit->auto_;
+}
+
+// Turn on/off the JIT compiler
+void raviV_setjitenabled(lua_State *L, int value) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return;
+  G->ravi_state->jit->enabled_ = value;
+}
+int raviV_getjitenabled(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+  return G->ravi_state->jit->enabled_;
+}
+
+void raviV_setoptlevel(lua_State *L, int value) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return;
+  G->ravi_state->jit->opt_level_ = value;
+}
+int raviV_getoptlevel(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+  return G->ravi_state->jit->opt_level_;
+}
+
+void raviV_setsizelevel(lua_State *L, int value) {}
+int raviV_getsizelevel(lua_State *L) { return 0; }

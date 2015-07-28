@@ -109,7 +109,7 @@ add_definitions(-DLUA_COMPAT_MODULE)
 
 # define LLVM JIT compiler sources
 if (LLVM_JIT)
-  set (LLVM_JIT_SRCS  src/ravi_llvmtypes.cpp 
+  set (LLVM_JIT_SRCS  src/ravi_llvmjit.cpp src/ravi_llvmtypes.cpp 
      src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
      src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
      src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
