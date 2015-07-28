@@ -15,7 +15,7 @@ Goals
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * `LLVM <http://www.llvm.org/>`_ based JIT compiler
-* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is in the works
+* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available.
 
 Documentation
 --------------
@@ -30,7 +30,7 @@ JIT Implementation
 ++++++++++++++++++
 The LLVM JIT compiler is mostly functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
-As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is not fully functional although a large proportion of byte codes are handled. 
+As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is also functional but some byte codes are not yet compiled. 
 
 Performance Benchmarks
 ++++++++++++++++++++++
@@ -165,16 +165,16 @@ A JIT api is available with following functions:
   returns enabled setting of JIT compiler; also enables/disables the JIT compiler; defaults to true
 ``ravi.auto([b [, min_size [, min_executions]]])``
   returns setting of auto compilation and compilation thresholds; also sets the new settings if values are supplied; defaults are false, 150, 50.
-``ravi.compile(func)``
-  compiles a Lua function if possible, returns ``true`` if compilation was successful
+``ravi.compile(func[, options])``
+  compiles a Lua function if possible, returns ``true`` if compilation was successful. ``options`` is an optional table with compilation options - in particular ``omitArrayGetRangeCheck`` - which disables range checks in array get operations to improve performance in some cases. 
 ``ravi.iscompiled(func)``
   returns the JIT status of a function
 ``ravi.dumplua(func)``
   dumps the Lua bytecode of the function
-``ravi.dumpllvm(func)``
-  dumps the LLVM IR of the compiled function (only if function was compiled)
-``ravi.dumpllvmasm(func)``
-  dumps the machine code using the currently set optimization level (only if function was compiled)
+``ravi.dumpir(func)``
+  dumps the IR of the compiled function (only if function was compiled; only LLVM version)
+``ravi.dumpasm(func)``
+  dumps the machine code using the currently set optimization level (only if function was compiled; only LLVM)
 ``ravi.optlevel([n])``
   sets LLVM optimization level (0, 1, 2, 3); defaults to 2
 ``ravi.sizelevel([n])``
