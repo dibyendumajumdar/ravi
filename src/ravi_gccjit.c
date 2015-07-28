@@ -157,10 +157,16 @@ void raviV_close(struct lua_State *L) {
 }
 
 // Dump the LLVM IR
-void raviV_dumpIR(struct lua_State *L, struct Proto *p) {}
+void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
+  (void)L;
+  (void)p;
+}
 
 // Dump the LLVM ASM
-void raviV_dumpASM(struct lua_State *L, struct Proto *p) {}
+void raviV_dumpASM(struct lua_State *L, struct Proto *p) {
+  (void)L;
+  (void)p;
+}
 
 void raviV_setminexeccount(lua_State *L, int value) {
   global_State *G = G(L);
@@ -228,5 +234,11 @@ int raviV_getoptlevel(lua_State *L) {
   return G->ravi_state->jit->opt_level_;
 }
 
-void raviV_setsizelevel(lua_State *L, int value) {}
-int raviV_getsizelevel(lua_State *L) { return 0; }
+void raviV_setsizelevel(lua_State *L, int value) {
+  (void)L;
+  (void)value;
+}
+int raviV_getsizelevel(lua_State *L) {
+  (void)L;
+  return 0;
+}

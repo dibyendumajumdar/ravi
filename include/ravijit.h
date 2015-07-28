@@ -58,28 +58,28 @@ int raviV_iscompiled(struct lua_State *L, struct Proto *p);
 void raviV_freeproto(struct lua_State *L, struct Proto *p);
 
 /* Set the code size preference */
-void raviV_setsizelevel(lua_State *L, int sizelevel);
-int raviV_getsizelevel(lua_State *L);
+void raviV_setsizelevel(struct lua_State *L, int sizelevel);
+int raviV_getsizelevel(struct lua_State *L);
 
 /* Set optimizer level */
-void raviV_setoptlevel(lua_State *L, int optlevel);
-int raviV_getoptlevel(lua_State *L);
+void raviV_setoptlevel(struct lua_State *L, int optlevel);
+int raviV_getoptlevel(struct lua_State *L);
 
 /* Enable or disable JIT */
-void raviV_setjitenabled(lua_State *L, int enabled);
-int raviV_getjitenabled(lua_State *L);
+void raviV_setjitenabled(struct lua_State *L, int enabled);
+int raviV_getjitenabled(struct lua_State *L);
 
 /* Sets auto compilation flag */
-void raviV_setauto(lua_State *L, int value);
-int raviV_getauto(lua_State *L);
+void raviV_setauto(struct lua_State *L, int value);
+int raviV_getauto(struct lua_State *L);
 
 /* Sets the minimum code size for auto compilation */
-void raviV_setmincodesize(lua_State *L, int mincodesize);
-int raviV_getmincodesize(lua_State *L);
+void raviV_setmincodesize(struct lua_State *L, int mincodesize);
+int raviV_getmincodesize(struct lua_State *L);
 
 /* Sets the minimum execution count */
-void raviV_setminexeccount(lua_State *L, int minexecccount);
-int raviV_getminexeccount(lua_State *L);
+void raviV_setminexeccount(struct lua_State *L, int minexecccount);
+int raviV_getminexeccount(struct lua_State *L);
 
 /* Dumps the IR if available */
 void raviV_dumpIR(struct lua_State *L, struct Proto *p);
