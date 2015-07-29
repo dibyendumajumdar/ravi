@@ -423,6 +423,17 @@ typedef struct LocVar {
   ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
 } LocVar;
 
+typedef enum {
+  RAVI_JIT_NOT_COMPILED = 0,
+  RAVI_JIT_CANT_COMPILE = 1,
+  RAVI_JIT_COMPILED = 2,
+  RAVI_JIT_FREED = 3
+} ravi_jit_status_t;
+
+typedef enum {
+  RAVI_JIT_FLAG_NONE = 0,
+  RAVI_JIT_FLAG_HASFORLOOP = 1
+} ravi_jit_flag_t;
 
 typedef struct RaviJITProto {
   lu_byte jit_status; /* 0=not compiled, 1=can't compile, 2=compiled, 3=freed */

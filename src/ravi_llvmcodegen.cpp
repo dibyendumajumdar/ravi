@@ -579,10 +579,10 @@ llvm::Value *RaviCodeGenerator::emit_num_stack_elements(RaviFunctionDef *def,
 // Check if we can compile
 // The cases we can compile will increase over time
 bool RaviCodeGenerator::canCompile(Proto *p) {
-  if (p->ravi_jit.jit_status == 1)
+  if (p->ravi_jit.jit_status == RAVI_JIT_CANT_COMPILE)
     return false;
   if (jitState_ == nullptr) {
-    p->ravi_jit.jit_status = 1;
+    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
     return false;
   }
   const Instruction *code = p->code;
@@ -987,7 +987,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
   bool doVerify = options ? options->verification_level != 0: 0;
   bool omitArrayGetRangeCheck = options ? options->omit_array_get_range_check != 0: 0;
 
-  if (p->ravi_jit.jit_status != 0 || !canCompile(p))
+  if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED || !canCompile(p))
     return;
 
   llvm::LLVMContext &context = jitState_->context();
@@ -1002,7 +1002,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
   // printf("compiling function\n");
   auto f = create_function(builder, def);
   if (!f) {
-    p->ravi_jit.jit_status = 1; // can't compile
+    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE; // can't compile
     return;
   }
   // Add extern declarations for Lua functions we need to call
@@ -1493,11 +1493,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
   p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile(doDump);
   lua_assert(p->ravi_jit.jit_function);
   if (p->ravi_jit.jit_function == nullptr) {
-    p->ravi_jit.jit_status = 1; // can't compile
+    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE; // can't compile
     delete llvm_func;
     p->ravi_jit.jit_data = NULL;
   } else {
-    p->ravi_jit.jit_status = 2;
+    p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
   }
   // printf("compiled function\n");
 }

@@ -120,8 +120,8 @@ Proto *luaF_newproto (lua_State *L) {
   f->source = NULL;
   f->ravi_jit.jit_data = NULL;
   f->ravi_jit.jit_function = NULL;
-  f->ravi_jit.jit_status = 0; /* not compiled */
-  f->ravi_jit.jit_flags = 0; /* no loop */
+  f->ravi_jit.jit_status = RAVI_JIT_NOT_COMPILED; /* not compiled */
+  f->ravi_jit.jit_flags = RAVI_JIT_FLAG_NONE; /* no loop */
   f->ravi_jit.execution_count = 0; /* number of times function execution (capped) */
   return f;
 }

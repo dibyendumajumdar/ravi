@@ -468,7 +468,7 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
 static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
   TMS tm = (TMS)0;  /* to avoid warnings */
   Proto *p = ci_func(ci)->p;  /* calling function */
-  if (p->ravi_jit.jit_status == 2) {
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) {
     *name = "?";
     return "compiled";
   }

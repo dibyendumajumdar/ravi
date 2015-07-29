@@ -27,7 +27,7 @@
 #ifdef USE_LLVM
 
 #include "ravijit.h"
-#include "ravillvm.h"
+#include "ravi_llvm.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -515,7 +515,7 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_shrF;
   llvm::Function *raviV_op_shlF;
 
-  // array setters 
+  // array setters
   llvm::Function *raviH_set_intF;
   llvm::Function *raviH_set_floatF;
 
@@ -764,19 +764,16 @@ public:
 
   void debug_printf(RaviFunctionDef *def, const char *str);
 
-  void debug_printf1(RaviFunctionDef *def, const char *str,
-    llvm::Value *arg1);
+  void debug_printf1(RaviFunctionDef *def, const char *str, llvm::Value *arg1);
 
-  void debug_printf2(RaviFunctionDef *def, const char *str,
-    llvm::Value *arg1, llvm::Value *arg2);
+  void debug_printf2(RaviFunctionDef *def, const char *str, llvm::Value *arg1,
+                     llvm::Value *arg2);
 
-  void debug_printf3(RaviFunctionDef *def, const char *str,
-    llvm::Value *arg1, llvm::Value *arg2,
-    llvm::Value *arg3);
+  void debug_printf3(RaviFunctionDef *def, const char *str, llvm::Value *arg1,
+                     llvm::Value *arg2, llvm::Value *arg3);
 
-  void debug_printf4(RaviFunctionDef *def, const char *str,
-    llvm::Value *arg1, llvm::Value *arg2,
-    llvm::Value *arg3, llvm::Value *arg4);
+  void debug_printf4(RaviFunctionDef *def, const char *str, llvm::Value *arg1,
+                     llvm::Value *arg2, llvm::Value *arg3, llvm::Value *arg4);
 
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.
@@ -932,9 +929,11 @@ public:
 
   void emit_TFORLOOP(RaviFunctionDef *def, int A, int j);
 
-  void emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B, int C, bool omitArrayGetRangeCheck = false);
+  void emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B, int C,
+                        bool omitArrayGetRangeCheck = false);
 
-  void emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B, int C, bool omitArrayGetRangeCheck = false);
+  void emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B, int C,
+                        bool omitArrayGetRangeCheck = false);
 
   void emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B, int C,
                         bool known_int);

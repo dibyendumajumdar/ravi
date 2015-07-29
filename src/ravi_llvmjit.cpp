@@ -421,7 +421,7 @@ void raviV_close(struct lua_State *L) {
 // Returns true if compilation was successful
 int raviV_compile(struct lua_State *L, struct Proto *p,
                   ravi_compile_options_t *options) {
-  if (p->ravi_jit.jit_status == 2)
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED)
     return true;
   global_State *G = G(L);
   if (G->ravi_state == NULL)
@@ -431,7 +431,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
   }
   bool doCompile = (bool)(options && options->manual_request != 0);
   if (!doCompile && G->ravi_state->jit->is_auto()) {
-    if (p->ravi_jit.jit_flags != 0) /* function has fornum loop, so compile */
+    if (p->ravi_jit.jit_flags == RAVI_JIT_FLAG_HASFORLOOP) /* function has fornum loop, so compile */
       doCompile = true;
     else if (p->sizecode >
              G->ravi_state->jit
@@ -449,18 +449,18 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
   }
   if (doCompile)
     G->ravi_state->code_generator->compile(L, p, options);
-  return p->ravi_jit.jit_status == 2;
+  return p->ravi_jit.jit_status == RAVI_JIT_COMPILED;
 }
 
 // Free the JIT compiled function
 // Note that this is called by the garbage collector
 void raviV_freeproto(struct lua_State *L, struct Proto *p) {
-  if (p->ravi_jit.jit_status == 2) /* compiled */ {
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) /* compiled */ {
     ravi::RaviJITFunction *f =
         reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
     if (f)
       delete f;
-    p->ravi_jit.jit_status = 3;
+    p->ravi_jit.jit_status = RAVI_JIT_FREED;
     p->ravi_jit.jit_function = NULL;
     p->ravi_jit.jit_data = NULL;
     p->ravi_jit.execution_count = 0;
@@ -469,7 +469,7 @@ void raviV_freeproto(struct lua_State *L, struct Proto *p) {
 
 // Dump the LLVM IR
 void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
-  if (p->ravi_jit.jit_status == 2) /* compiled */ {
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) /* compiled */ {
     ravi::RaviJITFunction *f =
         reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
     if (f)
@@ -479,7 +479,7 @@ void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
 
 // Dump the LLVM ASM
 void raviV_dumpASM(struct lua_State *L, struct Proto *p) {
-  if (p->ravi_jit.jit_status == 2) /* compiled */ {
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) /* compiled */ {
     ravi::RaviJITFunction *f =
         reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
     if (f)

@@ -370,11 +370,11 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
       L->top = ci->top;
       if (L->hookmask & LUA_MASKCALL)
         callhook(L, ci);
-      if (L == G(L)->mainthread && p->ravi_jit.jit_status == 0) {
+      if (L == G(L)->mainthread && p->ravi_jit.jit_status == RAVI_JIT_NOT_COMPILED) {
         /* not compiled */
         raviV_compile(L, p, NULL);
       }
-      if (L == G(L)->mainthread && p->ravi_jit.jit_status == 2) {
+      if (L == G(L)->mainthread && p->ravi_jit.jit_status == RAVI_JIT_COMPILED) {
         /* compiled */
         lua_assert(p->ravi_jit.jit_function != NULL);
         ci->jitstatus = 1;
