@@ -81,9 +81,7 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, int A, int pc) {
   forloop_target.forloop_branch =
       TmpB.CreateAlloca(def->types->C_pcharT, nullptr, "brnch");
 
-  llvm::Value *isinc =
-      TmpB.CreateAlloca(llvm::Type::getInt1Ty(def->jitState->context()),
-                        nullptr, "loop.increasing");
+  llvm::Value *isinc = nullptr;
 
   //  TValue *init = ra;
   //  TValue *plimit = ra + 1;
