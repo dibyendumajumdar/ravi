@@ -180,6 +180,8 @@ llvm::Value *RaviCodeGenerator::emit_gep_constant(RaviFunctionDef *def,
   return src;
 }
 
+// Loads the value at register B - if the value is an integer constant
+// then returns a constant literal
 llvm::Value *
 RaviCodeGenerator::emit_load_register_or_constant_i(RaviFunctionDef *def,
                                                     int B) {
@@ -192,6 +194,8 @@ RaviCodeGenerator::emit_load_register_or_constant_i(RaviFunctionDef *def,
   }
 }
 
+// Loads the value at register B - if the value is an number constant
+// then returns a constant literal
 llvm::Value *
 RaviCodeGenerator::emit_load_register_or_constant_n(RaviFunctionDef *def,
                                                     int B) {

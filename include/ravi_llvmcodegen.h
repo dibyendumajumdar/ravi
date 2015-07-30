@@ -36,7 +36,6 @@ extern "C" {
 // TODO we probably do not need all the headers
 // below
 
-#define lvm_c
 #define LUA_CORE
 
 #include "lprefix.h"
@@ -956,6 +955,8 @@ public:
 
   void emit_BNOT_I(RaviFunctionDef *def, int A, int B);
 
+  void emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B, lua_Integer y);
+  
 private:
   RaviJITStateImpl *jitState_;
   char temp_[31]; // for name

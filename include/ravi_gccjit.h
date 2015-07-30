@@ -35,7 +35,6 @@ extern "C" {
 // TODO we probably do not need all the headers
 // below
 
-#define lvm_c
 #define LUA_CORE
 
 #include "lprefix.h"

@@ -227,28 +227,62 @@ void RaviCodeGenerator::emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op,
   }
   emit_store_reg_i_withtype(def, result, ra);
 }
+  
+/* number of bits in an integer */
+#define NBITS	cast_int(sizeof(lua_Integer) * CHAR_BIT)
 
+void RaviCodeGenerator::emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B, lua_Integer y) {
+  if (y < 0) {/* shift right? */
+    if (y <= -NBITS)
+      emit_store_reg_i_withtype(def, llvm::ConstantInt::get(def->types->lua_IntegerT, 0), ra);
+    else {
+      llvm::Value *rb = emit_load_register_or_constant_i(def, B);
+      llvm::Value *result = def->builder->CreateLShr(rb, llvm::ConstantInt::get(def->types->lua_IntegerT, -y));
+      emit_store_reg_i_withtype(def, result, ra);
+    }
+  }
+  else {
+    if (y >= NBITS)
+      emit_store_reg_i_withtype(def, llvm::ConstantInt::get(def->types->lua_IntegerT, 0), ra);
+    else {
+      llvm::Value *rb = emit_load_register_or_constant_i(def, B);
+      llvm::Value *result = def->builder->CreateShl(rb, llvm::ConstantInt::get(def->types->lua_IntegerT, y));
+      emit_store_reg_i_withtype(def, result, ra);
+    }
+  }
+}
+  
 void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
                                               int A, int B, int C) {
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *rb = emit_gep_register_or_constant(def, B);
-  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  
+  if (op == OP_RAVI_SHL_II && ISK(C)) {
+    lua_Integer y = def->p->k[INDEXK(C)].value_.i;
+    emit_bitwise_shiftl(def, ra, B, y);
+  }
+  else if (op == OP_RAVI_SHR_II && ISK(C)) {
+    lua_Integer y = def->p->k[INDEXK(C)].value_.i;
+    emit_bitwise_shiftl(def, ra, B, -y);
+  }
+  else {
+    llvm::Value *rc = emit_gep_register_or_constant(def, C);
+    llvm::Value *rb = emit_gep_register_or_constant(def, B);
 
-  switch (op) {
-  // FIXME Lua has specific requirements for shift operators
-  case OP_SHL:
-  case OP_RAVI_SHL_II:
-    CreateCall4(def->builder, def->raviV_op_shlF, def->L, ra, rb, rc);
-    break;
-  case OP_SHR:
-  case OP_RAVI_SHR_II:
-    CreateCall4(def->builder, def->raviV_op_shrF, def->L, ra, rb, rc);
-    break;
-  default:
-    fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
-    lua_assert(false);
-    abort();
+    switch (op) {
+    case OP_SHL:
+    case OP_RAVI_SHL_II:
+      CreateCall4(def->builder, def->raviV_op_shlF, def->L, ra, rb, rc);
+      break;
+    case OP_SHR:
+    case OP_RAVI_SHR_II:
+      CreateCall4(def->builder, def->raviV_op_shrF, def->L, ra, rb, rc);
+      break;
+    default:
+      fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
+      lua_assert(false);
+      abort();
+    }
   }
 }
 

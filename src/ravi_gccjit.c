@@ -121,7 +121,6 @@ bool ravi_jit_has_errored(ravi_gcc_context_t *ravi) {
 // TODO we probably do not need all the headers
 // below
 
-#define lvm_c
 #define LUA_CORE
 
 #include "lua.h"

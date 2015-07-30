@@ -26,7 +26,6 @@
 extern "C" {
 #endif
 
-#define lvm_c
 #define LUA_CORE
 
 #include "lua.h"
