@@ -1629,6 +1629,38 @@ newframe:  /* reentry point when frame changes (call/return) */
   }
 }
 
+void ravi_dump_value(lua_State *L, const TValue *stack_ptr) {
+  if (ttisCclosure(stack_ptr))
+    printf("C closure\n");
+  else if (ttislcf(stack_ptr))
+    printf("light C function\n");
+  else if (ttisLclosure(stack_ptr))
+    printf("Lua closure\n");
+  else if (ttisfunction(stack_ptr))
+    printf("function\n");
+  else if (ttislngstring(stack_ptr) || ttisshrstring(stack_ptr) ||
+    ttisstring(stack_ptr))
+    printf("'%s'\n", svalue(stack_ptr));
+  else if (ttistable(stack_ptr))
+    printf("table\n");
+  else if (ttisnil(stack_ptr))
+    printf("nil\n");
+  else if (ttisfloat(stack_ptr))
+    printf("%.6f\n", fltvalue(stack_ptr));
+  else if (ttisinteger(stack_ptr))
+    printf("%lld\n", ivalue(stack_ptr));
+  else if (ttislightuserdata(stack_ptr))
+    printf("light user data\n");
+  else if (ttisfulluserdata(stack_ptr))
+    printf("full user data\n");
+  else if (ttisboolean(stack_ptr))
+    printf("boolean\n");
+  else if (ttisthread(stack_ptr))
+    printf("thread\n");
+  else
+    printf("other\n");
+}
+
 static void ravi_dump_ci(lua_State *L, CallInfo *ci) {
   StkId func = ci->func;
   int func_type = ttype(func);

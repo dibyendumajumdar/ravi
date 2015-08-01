@@ -498,6 +498,7 @@ LUA_API int ravi_is_number_array(lua_State *L, int idx);
  */
 LUA_API lua_Number *ravi_get_number_array_rawdata(lua_State *l, int idx);
 
+LUA_API void ravi_dump_value(lua_State *L, const struct lua_TValue *v);
 LUA_API void ravi_dump_stack(lua_State *L, const char *s);
 struct Proto;
 LUA_API void ravi_print_function(const struct Proto *f, int full);
