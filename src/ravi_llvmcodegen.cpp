@@ -728,6 +728,11 @@ RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
   return func;
 }
 
+void RaviCodeGenerator::emit_dump_stack(RaviFunctionDef *def, const char *str) {
+  CreateCall2(def->builder, def->ravi_dump_stackF, def->L,
+              def->builder->CreateGlobalStringPtr(str));
+}
+
 void RaviCodeGenerator::emit_raise_lua_error(RaviFunctionDef *def,
                                              const char *str) {
   CreateCall2(def->builder, def->luaG_runerrorF, def->L,
@@ -861,6 +866,13 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_shrF = def->raviF->addExternFunction(
       def->types->raviV_op_shrT, reinterpret_cast<void *>(&raviV_op_shr),
       "raviV_op_shr");
+
+  def->ravi_dump_valueF = def->raviF->addExternFunction(
+    def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
+    "ravi_dump_function");
+  def->ravi_dump_stackF = def->raviF->addExternFunction(
+    def->types->ravi_dump_stackT, reinterpret_cast<void *>(&ravi_dump_stack),
+    "ravi_dump_stack");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
@@ -1056,6 +1068,8 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
   def->k_ptr = builder.CreateLoad(def->proto_k);
   def->k_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
                           def->types->tbaa_Proto_kT);
+
+  //emit_dump_stack(def, "Function entry-->");
 
   // llvm::Value *msg1 =
   //  def->builder->CreateGlobalString("In compiled function\n");

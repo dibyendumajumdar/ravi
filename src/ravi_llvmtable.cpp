@@ -55,6 +55,7 @@ void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B,
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  //CreateCall2(def->builder, def->ravi_dump_valueF, def->L, rb);
   CreateCall4(def->builder, def->luaV_settableF, def->L, ra, rb, rc);
 }
 

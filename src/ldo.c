@@ -368,6 +368,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
       ci->callstatus = CIST_LUA;
       ci->jitstatus = 0;
       L->top = ci->top;
+      //printf("luaD_precall set L->top to %d\n", (int)(L->top - L->stack));
       if (L->hookmask & LUA_MASKCALL)
         callhook(L, ci);
       if (L == G(L)->mainthread && p->ravi_jit.jit_status == RAVI_JIT_NOT_COMPILED) {

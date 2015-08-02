@@ -87,7 +87,29 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
   else
     nresults = emit_num_stack_elements(def, ra_ptr);
 
+  //llvm::Value *b = 
   CreateCall3(def->builder, def->luaD_poscallF, def->L, ra_ptr, nresults);
+  //llvm::Value *b_is_zero =
+  //  def->builder->CreateICmpEQ(b, def->types->kInt[0]);
+
+  //llvm::BasicBlock *then_block1 = llvm::BasicBlock::Create(
+  //  def->jitState->context(), "if.poscall.returned.nonzero");
+  //llvm::BasicBlock *else_block1 =
+  //  llvm::BasicBlock::Create(def->jitState->context(), "if.poscall.returned.zero");
+  //def->builder->CreateCondBr(b_is_zero, else_block1, then_block1);
+
+  //def->f->getBasicBlockList().push_back(then_block1);
+  //def->builder->SetInsertPoint(then_block1);
+
+  // emit_refresh_L_top(def);
+
+  //def->builder->CreateBr(else_block1);
+
+  //def->f->getBasicBlockList().push_back(else_block1);
+  //def->builder->SetInsertPoint(else_block1);
+
+  //emit_dump_stack(def, "<-- Function exit");
+
   def->builder->CreateRet(def->types->kInt[1]);
 }
 }

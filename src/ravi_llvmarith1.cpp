@@ -76,8 +76,11 @@ void RaviCodeGenerator::emit_ADDII(RaviFunctionDef *def, int A, int B, int C) {
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_load_register_or_constant_i(def, B);
   llvm::Value *rc = emit_load_register_or_constant_i(def, C);
+  //debug_printf1(def, "ADDII rb = %lld\n", rb);
+  //debug_printf1(def, "ADDII rc = %lld\n", rc);
   llvm::Value *result = def->builder->CreateAdd(rb, rc, "", false, true);
   emit_store_reg_i_withtype(def, result, ra);
+  //CreateCall2(def->builder, def->ravi_dump_valueF, def->L, ra);
 }
 
 // R(A) := RK(B) - RK(C), float-float
@@ -150,8 +153,11 @@ void RaviCodeGenerator::emit_MULII(RaviFunctionDef *def, int A, int B, int C) {
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_load_register_or_constant_i(def, B);
   llvm::Value *rc = emit_load_register_or_constant_i(def, C);
+  //debug_printf1(def, "MULII rb = %lld\n", rb);
+  //debug_printf1(def, "MULII rc = %lld\n", rc);
   llvm::Value *result = def->builder->CreateMul(rb, rc, "", false, true);
   emit_store_reg_i_withtype(def, result, ra);
+  //CreateCall2(def->builder, def->ravi_dump_valueF, def->L, ra);
 }
 
 // R(A) := RK(B) / RK(C), float/float

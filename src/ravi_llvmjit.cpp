@@ -337,8 +337,9 @@ void *RaviJITFunctionImpl::compile(bool doDump) {
 
   // Following will generate very verbose dump when machine code is
   // produced below
+  llvm::TargetMachine *TM = engine_->getTargetMachine();
+  // TM->setOptLevel(llvm::CodeGenOpt::None);
   if (doDump) {
-    llvm::TargetMachine *TM = engine_->getTargetMachine();
     TM->Options.PrintMachineCode = 1;
   }
 

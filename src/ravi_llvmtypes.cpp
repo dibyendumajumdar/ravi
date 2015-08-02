@@ -878,6 +878,19 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviH_set_floatT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pTValueT);
+  ravi_dump_valueT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(C_pcharT);
+  ravi_dump_stackT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
+
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
   for (int j = 0; j < kluaInteger.size(); j++)

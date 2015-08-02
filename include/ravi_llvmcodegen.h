@@ -248,6 +248,9 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
 
+  llvm::FunctionType *ravi_dump_valueT;
+  llvm::FunctionType *ravi_dump_stackT;
+
   std::array<llvm::Constant *, 256> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
   std::array<llvm::Constant *, 10> kByte;
@@ -518,6 +521,9 @@ struct RaviFunctionDef {
   llvm::Function *raviH_set_intF;
   llvm::Function *raviH_set_floatF;
 
+  llvm::Function *ravi_dump_valueF;
+  llvm::Function *ravi_dump_stackF;
+
   // standard C functions
   llvm::Constant *printfFunc;
   llvm::Constant *fmodFunc;
@@ -773,6 +779,8 @@ public:
 
   void debug_printf4(RaviFunctionDef *def, const char *str, llvm::Value *arg1,
                      llvm::Value *arg2, llvm::Value *arg3, llvm::Value *arg4);
+
+  void emit_dump_stack(RaviFunctionDef *def, const char *str);
 
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.

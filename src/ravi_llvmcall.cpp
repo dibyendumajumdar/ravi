@@ -79,6 +79,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C) {
   // if (b != 0)
   if (B != 0) {
     emit_set_L_top_toreg(def, A + B);
+    //emit_dump_stack(def, "POST L->top = register");
   }
 
   // luaD_precall() returns following
@@ -123,6 +124,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C) {
     def->builder->SetInsertPoint(then1_block);
 
     emit_refresh_L_top(def);
+    //emit_dump_stack(def, "POST L->top = register");
   }
   def->builder->CreateBr(end_block);
   def->f->getBasicBlockList().push_back(end_block);

@@ -91,8 +91,10 @@ void luaT_callTM (lua_State *L, const TValue *f, const TValue *p1,
   setobj2s(L, L->top++, p2);  /* 2nd argument */
   if (!hasres)  /* no result? 'p3' is third argument */
     setobj2s(L, L->top++, p3);  /* 3rd argument */
+  //ravi_dump_stack(L, "luaT_callM before function call");
   /* metamethod may yield only when called from Lua code */
   luaD_call(L, L->top - (4 - hasres), hasres, isLua(L->ci));
+  //ravi_dump_stack(L, "luaT_callM after function call");
   if (hasres) {  /* if has result, move it to its place */
     p3 = restorestack(L, result);
     setobjs2s(L, p3, --L->top);
