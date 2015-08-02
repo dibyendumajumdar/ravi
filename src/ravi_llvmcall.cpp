@@ -82,6 +82,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C) {
     //emit_dump_stack(def, "POST L->top = register");
   }
 
+  //emit_dump_stacktop(def, "JIT OP_CALL before function call");
   // luaD_precall() returns following
   // 1 - C function called, results to be adjusted
   // 2 - JITed Lua function called, no action
@@ -129,5 +130,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C) {
   def->builder->CreateBr(end_block);
   def->f->getBasicBlockList().push_back(end_block);
   def->builder->SetInsertPoint(end_block);
+
+  //emit_dump_stacktop(def, "JIT OP_CALL after function call");
 }
 }

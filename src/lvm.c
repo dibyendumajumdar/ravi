@@ -279,9 +279,7 @@ void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
         luaG_typeerror(L, t, "index");
     /* try the metamethod */
     if (ttisfunction(tm)) {
-      //ravi_dump_stack(L, "luaV_settable before meta");
       luaT_callTM(L, tm, t, key, val, 0);
-      //ravi_dump_stack(L, "luaV_settable after meta");
       return;
     }
     t = tm;  /* else repeat assignment over 'tm' */
@@ -823,7 +821,6 @@ void luaV_execute (lua_State *L) {
   TValue *k;
   StkId base;
 newframe:  /* reentry point when frame changes (call/return) */
-  //printf("luaV_execute L->top = %d at function entry\n", (int)(L->top - L->stack));
   DEBUG_STACK(ravi_dump_stack(L, "On function entry");)
   lua_assert(ci == L->ci);
   cl = clLvalue(ci->func);
@@ -1139,8 +1136,8 @@ newframe:  /* reentry point when frame changes (call/return) */
         int nresults = GETARG_C(i) - 1;
         if (b != 0) {
           L->top = ra + b;  /* else previous instruction set top */
-          //printf("luaV_execute OP_CALL set L->top to %d before luaD_precall\n", (int)(L->top - L->stack));
         }
+        //ravi_dump_stacktop(L, "OP_CALL before function call");
         int c_or_compiled = luaD_precall(L, ra, nresults);
         if (c_or_compiled) {  /* C or Lua JITed function? */
           /* RAVI change - if the Lua function was JIT compiled then luaD_precall() returns 2 
@@ -1148,14 +1145,15 @@ newframe:  /* reentry point when frame changes (call/return) */
            */
           if (c_or_compiled == 1 && nresults >= 0) {
             L->top = ci->top;  /* adjust results */
-            //printf("luaV_execute OP_CALL set L->top to %d after luaD_precall\n", (int)(L->top - L->stack));
           }
           base = ci->u.l.base;
+          //ravi_dump_stacktop(L, "OP_CALL after function call");
         }
         else {  /* Lua function */
           ci = L->ci;
           ci->callstatus |= CIST_REENTRY;
           lua_assert(!ci->jitstatus);
+          //ravi_dump_stacktop(L, "OP_CALL after function call");
           goto newframe;  /* restart luaV_execute over new Lua function */
         }
     } break;
@@ -1195,10 +1193,11 @@ newframe:  /* reentry point when frame changes (call/return) */
         if (cl->p->sizep > 0) luaF_close(L, base);
         b = luaD_poscall(L, ra, (b != 0 ? b - 1 : L->top - ra));
         if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */ {
+          /* FIXME - it is not clear what the invariants are
+             for L->top
+           */
           if (b && L->ci->jitstatus) {
-           L->top = L->ci->top;
-//            printf("luaV_execute OP_RETURN set L->top to %d\n", (int)(L->top - L->stack));
-//            printf("luaV_execute OP_RETURN b = %d, !CIST_REENTRY, caller is JIT %d\n", b, (int) L->ci->jitstatus);
+             L->top = L->ci->top;
           }
           return;  /* external invocation: return */
         }
@@ -1206,7 +1205,6 @@ newframe:  /* reentry point when frame changes (call/return) */
           ci = L->ci;
           if (b) {
             L->top = ci->top;
-//            printf("luaV_execute OP_RETURN set L->top to %d\n", (int)(L->top - L->stack));
           }
           lua_assert(isLua(ci));
           lua_assert(GET_OPCODE(*((ci)->u.l.savedpc - 1)) == OP_CALL);
@@ -1755,6 +1753,15 @@ void ravi_dump_stack(lua_State *L, const char *s) {
     ci = ci->previous;
   }
   printf("\n");
+}
+
+void ravi_dump_stacktop(lua_State *L, const char *s) {
+  CallInfo *ci = L->ci;
+  int funcpos = (int)(ci->func - L->stack);
+  int top = (int)(L->top - L->stack);
+  int ci_top = (int)(ci->top - L->stack);
+  printf("Stack dump %s function %d L->top = %d, ci->top = %d\n", s, funcpos,
+         top, ci_top);
 }
 
 void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra) {

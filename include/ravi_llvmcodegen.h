@@ -250,6 +250,7 @@ struct LuaLLVMTypes {
 
   llvm::FunctionType *ravi_dump_valueT;
   llvm::FunctionType *ravi_dump_stackT;
+  llvm::FunctionType *ravi_dump_stacktopT;
 
   std::array<llvm::Constant *, 256> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
@@ -282,6 +283,7 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_CallInfo_funcT;
   llvm::MDNode *tbaa_CallInfo_func_LClosureT;
   llvm::MDNode *tbaa_CallInfo_topT;
+  llvm::MDNode *tbaa_CallInfo_jitstatusT;
   llvm::MDNode *tbaa_LClosureT;
   llvm::MDNode *tbaa_LClosure_pT;
   llvm::MDNode *tbaa_LClosure_upvalsT;
@@ -523,6 +525,7 @@ struct RaviFunctionDef {
 
   llvm::Function *ravi_dump_valueF;
   llvm::Function *ravi_dump_stackF;
+  llvm::Function *ravi_dump_stacktopF;
 
   // standard C functions
   llvm::Constant *printfFunc;
@@ -664,6 +667,8 @@ public:
   // emit code to obtain address of constant at locatiion B
   llvm::Value *emit_gep_constant(RaviFunctionDef *def, int B);
 
+  llvm::Value *emit_is_jit_call(RaviFunctionDef *def);
+
   // obtain address of L->top
   llvm::Value *emit_gep_L_top(RaviFunctionDef *def);
 
@@ -781,6 +786,8 @@ public:
                      llvm::Value *arg2, llvm::Value *arg3, llvm::Value *arg4);
 
   void emit_dump_stack(RaviFunctionDef *def, const char *str);
+  void emit_dump_stacktop(RaviFunctionDef *def, const char *str);
+
 
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.

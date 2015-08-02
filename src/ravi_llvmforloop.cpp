@@ -437,7 +437,6 @@ void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, int A, int pc,
   //    setivalue(ra + 3, idx);  /* ...and external index */
   idx_int_value = emit_load_local_n(def, idx_int_ptr);
   emit_store_reg_i_withtype(def, idx_int_value, rvar);
-  //CreateCall2(def->builder, def->ravi_dump_valueF, def->L, rvar);
 
   //    ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
   def->builder->CreateBr(def->jmp_targets[pc].jmp1);

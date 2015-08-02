@@ -89,19 +89,24 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
 
   //llvm::Value *b = 
   CreateCall3(def->builder, def->luaD_poscallF, def->L, ra_ptr, nresults);
-  //llvm::Value *b_is_zero =
-  //  def->builder->CreateICmpEQ(b, def->types->kInt[0]);
+  //llvm::Value *b_not_zero =
+  //  def->builder->CreateICmpNE(b, def->types->kInt[0]);
+  //llvm::Value *is_jit_caller = emit_is_jit_call(def);
+
+  // b != 0 && L->ci->jitstatus
+  //llvm::Value *b_not_zero_and_jit_caller = def->builder->CreateAnd(b_not_zero, is_jit_caller, "b_not_zero_and_jit_caller");
 
   //llvm::BasicBlock *then_block1 = llvm::BasicBlock::Create(
   //  def->jitState->context(), "if.poscall.returned.nonzero");
   //llvm::BasicBlock *else_block1 =
   //  llvm::BasicBlock::Create(def->jitState->context(), "if.poscall.returned.zero");
-  //def->builder->CreateCondBr(b_is_zero, else_block1, then_block1);
+  //def->builder->CreateCondBr(b_not_zero_and_jit_caller, then_block1, else_block1);
 
   //def->f->getBasicBlockList().push_back(then_block1);
   //def->builder->SetInsertPoint(then_block1);
 
-  // emit_refresh_L_top(def);
+  // L->top = L->ci->top
+  //emit_refresh_L_top(def);
 
   //def->builder->CreateBr(else_block1);
 

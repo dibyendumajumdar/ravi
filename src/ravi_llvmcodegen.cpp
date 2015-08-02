@@ -417,6 +417,19 @@ RaviCodeGenerator::emit_gep_register_or_constant(RaviFunctionDef *def, int B) {
   return rb;
 }
 
+// Test if ci->jistatus is true
+llvm::Value *RaviCodeGenerator::emit_is_jit_call(RaviFunctionDef *def) {
+  // Get pointer to ci->jitstatus
+  llvm::Value *ci_jitstatus_ptr = emit_gep(def, "ci_jit_status_ptr", def->ci_val, 0, 8);
+
+  // Load ci->top
+  llvm::Instruction *ci_jitstatus = def->builder->CreateLoad(ci_jitstatus_ptr);
+  ci_jitstatus->setMetadata(llvm::LLVMContext::MD_tbaa,
+    def->types->tbaa_CallInfo_jitstatusT);
+
+  return def->builder->CreateICmpNE(ci_jitstatus, llvm::ConstantInt::get(def->types->lu_byteT, 0), "jit_call");
+}
+
 // L->top = ci->top
 void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def) {
   // Get pointer to ci->top
@@ -733,6 +746,11 @@ void RaviCodeGenerator::emit_dump_stack(RaviFunctionDef *def, const char *str) {
               def->builder->CreateGlobalStringPtr(str));
 }
 
+void RaviCodeGenerator::emit_dump_stacktop(RaviFunctionDef *def, const char *str) {
+  CreateCall2(def->builder, def->ravi_dump_stacktopF, def->L,
+    def->builder->CreateGlobalStringPtr(str));
+}
+
 void RaviCodeGenerator::emit_raise_lua_error(RaviFunctionDef *def,
                                              const char *str) {
   CreateCall2(def->builder, def->luaG_runerrorF, def->L,
@@ -873,6 +891,9 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->ravi_dump_stackF = def->raviF->addExternFunction(
     def->types->ravi_dump_stackT, reinterpret_cast<void *>(&ravi_dump_stack),
     "ravi_dump_stack");
+  def->ravi_dump_stacktopF = def->raviF->addExternFunction(
+    def->types->ravi_dump_stacktopT, reinterpret_cast<void *>(&ravi_dump_stacktop),
+    "ravi_dump_stacktop");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
@@ -1070,11 +1091,6 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
                           def->types->tbaa_Proto_kT);
 
   //emit_dump_stack(def, "Function entry-->");
-
-  // llvm::Value *msg1 =
-  //  def->builder->CreateGlobalString("In compiled function\n");
-  // def->builder->CreateCall(def->printfFunc, emit_gep(def, "msg", msg1, 0,
-  // 0));
 
   const Instruction *code = p->code;
   int pc, n = p->sizecode;

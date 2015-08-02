@@ -889,6 +889,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_pcharT);
   ravi_dump_stackT =
     llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  ravi_dump_stacktopT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
 
   for (int j = 0; j < kInt.size(); j++)
@@ -1017,6 +1019,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
   tbaa_CallInfo_topT =
       mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 4);
+  tbaa_CallInfo_jitstatusT =
+    mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_charT, 43);
+
 
   //!20 = metadata !{metadata !"Proto",
   //                 metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5,
