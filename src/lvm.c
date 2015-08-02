@@ -1191,7 +1191,8 @@ newframe:  /* reentry point when frame changes (call/return) */
         DEBUG_STACK(ravi_dump_stack(L, "OP_RETURN: before luaD_poscall()");)
         int b = GETARG_B(i);
         if (cl->p->sizep > 0) luaF_close(L, base);
-        b = luaD_poscall(L, ra, (b != 0 ? b - 1 : L->top - ra));
+        int nres = (b != 0 ? b - 1 : L->top - ra);
+        b = luaD_poscall(L, ra, nres);
         if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */ {
           /* FIXME - it is not clear what the invariants are
              for L->top
@@ -1199,6 +1200,7 @@ newframe:  /* reentry point when frame changes (call/return) */
           if (b && L->ci->jitstatus) {
              L->top = L->ci->top;
           }
+          //ravi_dump_stacktop(L, "OP_RETURN: external invocation");
           return;  /* external invocation: return */
         }
         else {  /* invocation via reentry: continue execution */
@@ -1208,6 +1210,7 @@ newframe:  /* reentry point when frame changes (call/return) */
           }
           lua_assert(isLua(ci));
           lua_assert(GET_OPCODE(*((ci)->u.l.savedpc - 1)) == OP_CALL);
+          //ravi_dump_stacktop(L, "OP_RETURN: reentry");
           goto newframe;  /* restart luaV_execute over new Lua function */
         }
     }

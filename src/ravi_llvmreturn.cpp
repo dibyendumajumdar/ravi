@@ -113,8 +113,10 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
   //def->f->getBasicBlockList().push_back(else_block1);
   //def->builder->SetInsertPoint(else_block1);
 
+
   //emit_dump_stack(def, "<-- Function exit");
 
-  def->builder->CreateRet(def->types->kInt[1]);
+  //def->builder->CreateRet(def->types->kInt[1]);
+  def->builder->CreateRet(nresults);
 }
 }

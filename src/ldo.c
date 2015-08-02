@@ -392,7 +392,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
          * yield
          */
         L->nny++;
-        (*p->ravi_jit.jit_function)(L);
+        n = (*p->ravi_jit.jit_function)(L);
         L->nny--;
         L->nCcalls--;
         lua_assert(L->ci == prevci);
