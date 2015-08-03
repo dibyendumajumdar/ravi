@@ -836,6 +836,7 @@ newframe:  /* reentry point when frame changes (call/return) */
     }
     /* WARNING: several calls may realloc the stack and invalidate 'ra' */
     OpCode op = GET_OPCODE(i);
+    //ravi_dump_stacktop(L, luaP_opnames[op]);
     ra = RA(i);
     lua_assert(base == ci->u.l.base);
     lua_assert(base <= L->top && L->top < L->stack + L->stacksize);
@@ -1194,13 +1195,6 @@ newframe:  /* reentry point when frame changes (call/return) */
         int nres = (b != 0 ? b - 1 : L->top - ra);
         b = luaD_poscall(L, ra, nres);
         if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */ {
-          /* FIXME - it is not clear what the invariants are
-             for L->top
-           */
-          if (b && L->ci->jitstatus) {
-             L->top = L->ci->top;
-          }
-          //ravi_dump_stacktop(L, "OP_RETURN: external invocation");
           return;  /* external invocation: return */
         }
         else {  /* invocation via reentry: continue execution */
@@ -1210,7 +1204,6 @@ newframe:  /* reentry point when frame changes (call/return) */
           }
           lua_assert(isLua(ci));
           lua_assert(GET_OPCODE(*((ci)->u.l.savedpc - 1)) == OP_CALL);
-          //ravi_dump_stacktop(L, "OP_RETURN: reentry");
           goto newframe;  /* restart luaV_execute over new Lua function */
         }
     }
