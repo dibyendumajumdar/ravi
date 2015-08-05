@@ -661,6 +661,8 @@ public:
   // emit code to load pointer L->ci->u.l.base
   void emit_load_base(RaviFunctionDef *def);
 
+  llvm::Value *emit_load_ci(RaviFunctionDef *def);
+
   // emit code to obtain address of register at location A
   llvm::Value *emit_gep_register(RaviFunctionDef *def, int A);
 
@@ -772,7 +774,8 @@ public:
   llvm::Instruction *emit_tofloat(RaviFunctionDef *def, llvm::Value *reg);
 
   // L->top = ci->top
-  void emit_refresh_L_top(RaviFunctionDef *def);
+  // ci is passed as the def->ci_val may be stale
+  void emit_refresh_L_top(RaviFunctionDef *def, llvm::Value *ci);
 
   // L->top = R(B)
   void emit_set_L_top_toreg(RaviFunctionDef *def, int B);

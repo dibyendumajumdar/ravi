@@ -73,7 +73,7 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C,
   // reload base
   emit_load_base(def);
   // L->top = ci->top;
-  emit_refresh_L_top(def);
+  emit_refresh_L_top(def, def->ci_val);
   ra = emit_gep_register(def, jA);
   ra1 = emit_gep_register(def, jA + 1);
   llvm::Value *type = emit_load_type(def, ra1);

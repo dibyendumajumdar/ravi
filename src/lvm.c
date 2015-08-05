@@ -1146,6 +1146,7 @@ newframe:  /* reentry point when frame changes (call/return) */
            * A return value of 1 indicates non Lua C function
            */
           if (c_or_compiled == 1 && nresults >= 0) {
+            lua_assert(ci == L->ci);
             L->top = ci->top;  /* adjust results */
           }
           base = ci->u.l.base;
@@ -1161,7 +1162,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         int b = GETARG_B(i);
         if (b != 0) L->top = ra+b;  /* else previous instruction set top */
         lua_assert(GETARG_C(i) - 1 == LUA_MULTRET);
-        if (luaD_precall(L, ra, LUA_MULTRET))  /* C function? */
+        if (luaD_precall(L, ra, LUA_MULTRET))  /* C function? or JIT call */
           base = ci->u.l.base;
         else {
           /* tail call: put called frame (n) in place of caller one (o) */
@@ -1194,7 +1195,11 @@ newframe:  /* reentry point when frame changes (call/return) */
         int nres = (b != 0 ? b - 1 : L->top - ra);
         b = luaD_poscall(L, ra, nres);
         if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */ {
-          if (b && L->ci->jitstatus) {
+          /* RAVI change in interpreted mode a Lua function call
+           * via OP_CALL always takes the other branch but in JIT mode
+           * this branch is taken.  
+           */
+          if (b && isLua(L->ci)) {
             L->top = L->ci->top;
           }
           return;  /* external invocation: return */

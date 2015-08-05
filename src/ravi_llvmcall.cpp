@@ -125,7 +125,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C, int
     def->builder->CreateCondBr(precall_C, then1_block, end_block);
     def->builder->SetInsertPoint(then1_block);
 
-    emit_refresh_L_top(def);
+    emit_refresh_L_top(def, def->ci_val);
     //emit_dump_stack(def, "POST L->top = register");
   }
   def->builder->CreateBr(end_block);

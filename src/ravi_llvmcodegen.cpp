@@ -436,7 +436,7 @@ llvm::Value *RaviCodeGenerator::emit_ci_is_Lua(RaviFunctionDef *def, llvm::Value
   llvm::Value *ci_callstatus_ptr = emit_gep(def, "ci_call_status_ptr", ci, 0, 7);
 
   // Load ci->callstatus
-  llvm::Instruction *ci_callstatus = def->builder->CreateLoad(ci_callstatus_ptr);
+  llvm::Instruction *ci_callstatus = def->builder->CreateLoad(ci_callstatus_ptr, "ci_call_status");
   ci_callstatus->setMetadata(llvm::LLVMContext::MD_tbaa,
     def->types->tbaa_CallInfo_callstatusT);
 
@@ -444,11 +444,21 @@ llvm::Value *RaviCodeGenerator::emit_ci_is_Lua(RaviFunctionDef *def, llvm::Value
   return def->builder->CreateICmpNE(isLua, llvm::ConstantInt::get(def->types->lu_byteT, 0));
 }
 
+llvm::Value *RaviCodeGenerator::emit_load_ci(RaviFunctionDef* def) {
+  llvm::Value *L_ci = emit_gep(def, "L_ci", def->L, 0, 6);
+
+  llvm::Instruction *ci_val = def->builder->CreateLoad(L_ci);
+  ci_val->setMetadata(llvm::LLVMContext::MD_tbaa,
+    def->types->tbaa_CallInfoT);
+
+  return ci_val;
+}
+
 
 // L->top = ci->top
-void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def) {
+void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def, llvm::Value *ci_val) {
   // Get pointer to ci->top
-  llvm::Value *citop = emit_gep(def, "ci_top", def->ci_val, 0, 1);
+  llvm::Value *citop = emit_gep(def, "ci_top", ci_val, 0, 1);
 
   // Load ci->top
   llvm::Instruction *citop_val = def->builder->CreateLoad(citop);
