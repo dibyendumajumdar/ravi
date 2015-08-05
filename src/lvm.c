@@ -1649,6 +1649,7 @@ newframe:  /* reentry point when frame changes (call/return) */
 }
 
 void ravi_dump_value(lua_State *L, const TValue *stack_ptr) {
+  (void)L;
   if (ttisCclosure(stack_ptr))
     printf("C closure\n");
   else if (ttislcf(stack_ptr))
