@@ -392,10 +392,14 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
          * yield
          */
         L->nny++;
-        n = (*p->ravi_jit.jit_function)(L);
+        int b = (*p->ravi_jit.jit_function)(L);
         L->nny--;
         L->nCcalls--;
         lua_assert(L->ci == prevci);
+        if (b && isLua(L->ci)) 
+          /* b is the value returned by luaD_poscall()
+           */
+          L->top = L->ci->top;
         /* Return a different value from 1 to
          * allow luaV_execute() to distinguish between
          * JITed function and true C function

@@ -94,7 +94,9 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C, int
   llvm::Value *precall_result =
       CreateCall3(def->builder, def->luaD_precallF, def->L, ra,
                   llvm::ConstantInt::get(def->types->C_intT, nresults));
-  llvm::Value *precall_bool =
+  // If luaD_precall() returns 0 then we need to interpret the
+  // Lua function
+  llvm::Value *do_Lua_interp =
       def->builder->CreateICmpEQ(precall_result, def->types->kInt[0]);
 
   llvm::BasicBlock *then_block = llvm::BasicBlock::Create(
@@ -103,12 +105,25 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C, int
       llvm::BasicBlock::Create(def->jitState->context(), "if.not.lua.function");
   llvm::BasicBlock *end_block =
       llvm::BasicBlock::Create(def->jitState->context(), "op_call.done");
-  def->builder->CreateCondBr(precall_bool, then_block, else_block);
+  def->builder->CreateCondBr(do_Lua_interp, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
 
   // Lua function, not compiled, so call luaV_execute
-  def->builder->CreateCall(def->luaV_executeF, def->L);
+  llvm::Value *b = def->builder->CreateCall(def->luaV_executeF, def->L);
+
+  // If the return value is non zero then we need to refresh L->top = ci->top
+  llvm::Value *b_not_zero =
+    def->builder->CreateICmpNE(b, def->types->kInt[0]);
+
+  llvm::BasicBlock *if_b_block = llvm::BasicBlock::Create(
+    def->jitState->context(), "if.b", def->f);
+  def->builder->CreateCondBr(b_not_zero, if_b_block, end_block);
+  def->builder->SetInsertPoint(if_b_block);
+
+  emit_refresh_L_top(def, def->ci_val);
   def->builder->CreateBr(end_block);
+
+  // Handle the C or JIT case
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
 
@@ -126,12 +141,9 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C, int
     def->builder->SetInsertPoint(then1_block);
 
     emit_refresh_L_top(def, def->ci_val);
-    //emit_dump_stack(def, "POST L->top = register");
   }
   def->builder->CreateBr(end_block);
   def->f->getBasicBlockList().push_back(end_block);
   def->builder->SetInsertPoint(end_block);
-
-  //emit_dump_stacktop(def, "JIT OP_CALL after function call");
 }
 }

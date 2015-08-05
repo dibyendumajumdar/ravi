@@ -704,11 +704,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   luaD_callT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
-  // void luaV_execute(lua_State L);
+  // int luaV_execute(lua_State L);
   elements.clear();
   elements.push_back(plua_StateT);
   luaV_executeT =
-      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(C_intT, elements, false);
 
   // void luaF_close (lua_State *L, StkId level)
   elements.clear();

@@ -92,6 +92,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B, int pc) 
   llvm::Value *b =
       CreateCall3(def->builder, def->luaD_poscallF, def->L, ra_ptr, nresults);
 
+#if 0
   // Reload L->ci (as L->ci would have been updated by luaD_poscall()
   llvm::Value *ci_val = emit_load_ci(def);
 
@@ -128,5 +129,8 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B, int pc) 
   // emit_dump_stack(def, "<-- Function exit");
 
   def->builder->CreateRet(nresults);
+#endif
+  def->builder->CreateRet(b);
+
 }
 }

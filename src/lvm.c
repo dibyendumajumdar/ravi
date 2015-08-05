@@ -815,7 +815,7 @@ void luaV_finishOp (lua_State *L) {
 #define vmcasenb(l,b)	case l: {b}		/* nb = no break */
 
 
-void luaV_execute (lua_State *L) {
+int luaV_execute (lua_State *L) {
   CallInfo *ci = L->ci;
   LClosure *cl;
   TValue *k;
@@ -1199,10 +1199,10 @@ newframe:  /* reentry point when frame changes (call/return) */
            * via OP_CALL always takes the other branch but in JIT mode
            * this branch is taken.  
            */
-          if (b && isLua(L->ci)) {
-            L->top = L->ci->top;
-          }
-          return;  /* external invocation: return */
+          //if (b && isLua(L->ci)) {
+          //  L->top = L->ci->top;
+          //}
+          return b;  /* external invocation: return */
         }
         else {  /* invocation via reentry: continue execution */
           ci = L->ci;
