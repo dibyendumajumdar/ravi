@@ -25,14 +25,16 @@
 namespace ravi {
 
 // R(A+1), ..., R(A+B) := nil
-void RaviCodeGenerator::emit_LOADNIL(RaviFunctionDef *def, int A, int B) {
+void RaviCodeGenerator::emit_LOADNIL(RaviFunctionDef *def, int A, int B, int pc) {
+  emit_debug_trace(def, OP_LOADNIL, pc);
   CreateCall3(def->builder, def->raviV_op_loadnilF, def->ci_val,
               llvm::ConstantInt::get(def->types->C_intT, A),
               llvm::ConstantInt::get(def->types->C_intT, B));
 }
 
 // R(A) := tonumber(0)
-void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, int A) {
+void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, int A, int pc) {
+  emit_debug_trace(def, OP_RAVI_LOADFZ, pc);
   emit_load_base(def);
   llvm::Value *dest = emit_gep_register(def, A);
   // destvalue->n = 0.0
@@ -41,7 +43,8 @@ void RaviCodeGenerator::emit_LOADFZ(RaviFunctionDef *def, int A) {
 }
 
 // R(A) := tointeger(0)
-void RaviCodeGenerator::emit_LOADIZ(RaviFunctionDef *def, int A) {
+void RaviCodeGenerator::emit_LOADIZ(RaviFunctionDef *def, int A, int pc) {
+  emit_debug_trace(def, OP_RAVI_LOADIZ, pc);
   emit_load_base(def);
   llvm::Value *dest = emit_gep_register(def, A);
   // dest->i = 0
@@ -50,11 +53,12 @@ void RaviCodeGenerator::emit_LOADIZ(RaviFunctionDef *def, int A) {
 
 // R(A) := (Bool)B; if (C) pc++
 void RaviCodeGenerator::emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C,
-                                      int j) {
+                                      int j, int pc) {
 
   // setbvalue(ra, GETARG_B(i));
   // if (GETARG_C(i)) ci->u.l.savedpc++;  /* skip next instruction (if C) */
 
+  emit_debug_trace(def, OP_LOADBOOL, pc);
   emit_load_base(def);
   llvm::Value *dest = emit_gep_register(def, A);
   // dest->i = 0
@@ -70,9 +74,10 @@ void RaviCodeGenerator::emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // R(A) := R(B)
-void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, int A, int B) {
+void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, int A, int B, int pc) {
   // setobjs2s(L, ra, RB(i));
 
+  emit_debug_trace(def, OP_MOVE, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -84,7 +89,7 @@ void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, int A, int B) {
 }
 
 // R(A) := R(B), check R(B) is int
-void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, int A, int B) {
+void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, int A, int B, int pc) {
 
   // TValue *rb = RB(i);
   // lua_Integer j;
@@ -97,6 +102,7 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, int A, int B) {
   llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
   llvm::Value *var = TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "i");
 
+  emit_debug_trace(def, OP_RAVI_MOVEI, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -152,7 +158,7 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, int A, int B) {
   emit_store_reg_i_withtype(def, load_var, dest);
 }
 
-void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, int A, int B) {
+void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, int A, int B, int pc) {
 
   //  case OP_RAVI_MOVEF: {
   //    TValue *rb = RB(i);
@@ -167,6 +173,7 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, int A, int B) {
   llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
   llvm::Value *var = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "n");
 
+  emit_debug_trace(def, OP_RAVI_MOVEF, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -223,7 +230,7 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, int A, int B) {
   emit_store_reg_n_withtype(def, load_var, dest);
 }
 
-void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, int A) {
+void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, int A, int pc) {
 
   //  case OP_RAVI_TOINT: {
   //    lua_Integer j;
@@ -237,6 +244,7 @@ void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, int A) {
   llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
   llvm::Value *var = TmpB.CreateAlloca(def->types->lua_IntegerT, nullptr, "i");
 
+  emit_debug_trace(def, OP_RAVI_TOINT, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -286,7 +294,7 @@ void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, int A) {
   def->builder->SetInsertPoint(end1);
 }
 
-void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, int A) {
+void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, int A, int pc) {
 
   //  case OP_RAVI_TOFLT: {
   //    lua_Number j;
@@ -300,6 +308,7 @@ void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, int A) {
   llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
   llvm::Value *var = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "n");
 
+  emit_debug_trace(def, OP_RAVI_TOFLT, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -349,10 +358,11 @@ void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, int A) {
   def->builder->SetInsertPoint(end1);
 }
 
-void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, int A, int Bx) {
+void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, int A, int Bx, int pc) {
   // TValue *rb = k + GETARG_Bx(i);
   // setobj2s(L, ra, rb);
 
+  emit_debug_trace(def, OP_LOADK, pc);
   // Load pointer to base
   emit_load_base(def);
 

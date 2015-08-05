@@ -892,6 +892,13 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   ravi_dump_stacktopT =
     llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(C_intT);
+  elements.push_back(C_intT);
+  ravi_debug_traceT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
 
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
@@ -1019,6 +1026,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
   tbaa_CallInfo_topT =
       mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 4);
+  tbaa_CallInfo_callstatusT =
+    mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_charT, 42);
   tbaa_CallInfo_jitstatusT =
     mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_charT, 43);
 

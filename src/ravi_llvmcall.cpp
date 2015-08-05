@@ -25,7 +25,7 @@
 namespace ravi {
 
 // OP_JMP
-void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int j) {
+void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int j, int pc) {
 
   //#define dojump(ci,i,e)
   // { int a = GETARG_A(i);
@@ -41,6 +41,7 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int j) {
     def->builder->SetInsertPoint(jmp_block);
   }
 
+  emit_debug_trace(def, OP_JMP, pc);
   // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
   if (A > 0) {
     emit_load_base(def);
@@ -57,7 +58,7 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int j) {
 }
 
 // Handle OP_CALL
-void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C) {
+void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C, int pc) {
 
   // int nresults = c - 1;
   // if (b != 0)
@@ -70,7 +71,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C) {
   // else {  /* Lua function */
   //   luaV_execute(L);
   // }
-
+  emit_debug_trace(def, OP_CALL, pc);
   emit_load_base(def);
 
   // int nresults = c - 1;

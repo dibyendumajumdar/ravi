@@ -25,7 +25,7 @@
 namespace ravi {
 
 void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C,
-                                      int j, int jA) {
+                                      int j, int jA, int pc) {
 
   //  case OP_TFORCALL: {
   //    StkId cb = ra + 3;  /* call base */
@@ -48,6 +48,7 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C,
   //    }
   //  } break;
 
+  emit_debug_trace(def, OP_TFORCALL, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -97,7 +98,7 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C,
   def->builder->SetInsertPoint(else_block);
 }
 
-void RaviCodeGenerator::emit_TFORLOOP(RaviFunctionDef *def, int A, int j) {
+void RaviCodeGenerator::emit_TFORLOOP(RaviFunctionDef *def, int A, int j, int pc) {
   //  case OP_TFORLOOP: {
   //  l_tforloop:
   //    if (!ttisnil(ra + 1)) {  /* continue loop? */
@@ -106,6 +107,7 @@ void RaviCodeGenerator::emit_TFORLOOP(RaviFunctionDef *def, int A, int j) {
   //    }
   //  } break;
 
+  emit_debug_trace(def, OP_TFORLOOP, pc);
   // Load pointer to base
   emit_load_base(def);
 

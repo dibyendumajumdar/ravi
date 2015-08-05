@@ -25,7 +25,7 @@
 namespace ravi {
 
 void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, int A, int pc,
-                                      RaviBranchDef &b) {
+                                      RaviBranchDef &b, int pc1) {
 
   // 7[1]     FORLOOP         1 - 2; to 6
   // if (ttisinteger(ra)) {  /* integer loop? */
@@ -49,6 +49,8 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, int A, int pc,
   //    setfltvalue(ra + 3, idx);  /* ...and external index */
   //  }
   //}
+
+  emit_debug_trace(def, OP_FORLOOP, pc1);
 
   // We are in b.jmp1 as this is already the current block
   lua_assert(def->builder->GetInsertBlock() == b.jmp1);
@@ -197,7 +199,7 @@ void RaviCodeGenerator::emit_FORLOOP2(RaviFunctionDef *def, int A, int pc,
   def->builder->SetInsertPoint(exit_block);
 }
 
-void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, int A, int pc) {
+void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, int A, int pc, int pc1) {
 
   // 7[1]     FORLOOP         1 - 2; to 6
   // if (ttisinteger(ra)) {  /* integer loop? */
@@ -221,6 +223,8 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, int A, int pc) {
   //    setfltvalue(ra + 3, idx);  /* ...and external index */
   //  }
   //}
+
+  emit_debug_trace(def, OP_FORLOOP, pc1);
 
   // Load pointer to base
   emit_load_base(def);
@@ -374,7 +378,7 @@ void RaviCodeGenerator::emit_FORLOOP(RaviFunctionDef *def, int A, int pc) {
 }
 
 void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, int A, int pc,
-                                      RaviBranchDef &b, int step_one) {
+                                      RaviBranchDef &b, int step_one, int pc1) {
 
   //  lua_Integer step = ivalue(ra + 2);
   //  lua_Integer idx = ivalue(ra) + step; /* increment index */
@@ -385,6 +389,7 @@ void RaviCodeGenerator::emit_iFORLOOP(RaviFunctionDef *def, int A, int pc,
   //    setivalue(ra + 3, idx);  /* ...and external index */
   //  }
 
+  emit_debug_trace(def, step_one ? OP_RAVI_FORLOOP_I1 : OP_RAVI_FORLOOP_IP, pc1);
   // We are in b.jmp1 as this is already the current block
   lua_assert(def->builder->GetInsertBlock() == b.jmp1);
 

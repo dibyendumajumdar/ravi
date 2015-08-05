@@ -28,7 +28,7 @@ namespace ravi {
 
 // OP_ADD, OP_SUB, OP_MUL and OP_DIV
 void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
-                                   OpCode op, TMS tms) {
+                                   OpCode op, TMS tms, int pc) {
 
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
@@ -46,6 +46,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
   llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
+  emit_debug_trace(def, op, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -221,7 +222,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // OP_MOD
-void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C) {
+void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C, int pc) {
 
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
@@ -241,6 +242,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C) {
   llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
+  emit_debug_trace(def, OP_MOD, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -414,7 +416,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C) {
 }
 
 // OP_IDIV
-void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C) {
+void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C, int pc) {
 
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
@@ -432,6 +434,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C) {
   llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
+  emit_debug_trace(def, OP_IDIV, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -575,7 +578,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C) {
 }
 
 // OP_POW
-void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C) {
+void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C, int pc) {
 
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
@@ -589,6 +592,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C) {
   llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
+  emit_debug_trace(def, OP_POW, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -702,7 +706,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C) {
   def->builder->SetInsertPoint(done_block);
 }
 
-void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, int A, int B) {
+void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, int A, int B, int pc) {
 
   // TValue *rb = RB(i);
   // lua_Number nb;
@@ -720,6 +724,7 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, int A, int B) {
   llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
   llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
 
+  emit_debug_trace(def, OP_UNM, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);

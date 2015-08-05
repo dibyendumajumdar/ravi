@@ -27,7 +27,7 @@ namespace ravi {
 // Although the name is EQ this actually
 // implements EQ, LE and LT - by using the supplied lua function to call.
 void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
-                                int j, int jA, llvm::Constant *callee, OpCode opCode) {
+                                int j, int jA, llvm::Constant *callee, OpCode opCode, int pc) {
   //  case OP_EQ: {
   //    TValue *rb = RKB(i);
   //    TValue *rc = RKC(i);
@@ -38,6 +38,8 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
   //        donextjump(ci);
   //    )
   //  } break;
+
+  emit_debug_trace(def, opCode, pc);
 
   // Load pointer to base
   emit_load_base(def);
@@ -197,7 +199,7 @@ llvm::Value *RaviCodeGenerator::emit_boolean_testfalse(RaviFunctionDef *def,
 }
 
 void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
-                                  int j, int jA) {
+                                  int j, int jA, int pc) {
 
   //    case OP_TEST: {
   //      if (GETARG_C(i) ? l_isfalse(ra) : !l_isfalse(ra))
@@ -206,6 +208,7 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
   //        donextjump(ci);
   //    } break;
 
+  emit_debug_trace(def, OP_TEST, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -244,12 +247,13 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
   def->builder->SetInsertPoint(else_block);
 }
 
-void RaviCodeGenerator::emit_NOT(RaviFunctionDef *def, int A, int B) {
+void RaviCodeGenerator::emit_NOT(RaviFunctionDef *def, int A, int B, int pc) {
   //  case OP_NOT: {
   //    TValue *rb = RB(i);
   //    int res = l_isfalse(rb);  /* next assignment may change this value */
   //    setbvalue(ra, res);
   //  } break;
+  emit_debug_trace(def, OP_NOT, pc);
   emit_load_base(def);
   // Get pointer to register B
   llvm::Value *rb = emit_gep_register(def, B);
@@ -260,7 +264,7 @@ void RaviCodeGenerator::emit_NOT(RaviFunctionDef *def, int A, int B) {
 }
 
 void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
-                                     int j, int jA) {
+                                     int j, int jA, int pc) {
 
   //  case OP_TESTSET: {
   //    TValue *rb = RB(i);
@@ -272,6 +276,7 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
   //    }
   //  } break;
 
+  emit_debug_trace(def, OP_TESTSET, pc);
   // Load pointer to base
   emit_load_base(def);
 

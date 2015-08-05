@@ -836,7 +836,9 @@ newframe:  /* reentry point when frame changes (call/return) */
     }
     /* WARNING: several calls may realloc the stack and invalidate 'ra' */
     OpCode op = GET_OPCODE(i);
-    //ravi_dump_stacktop(L, luaP_opnames[op]);
+#if 0
+    ravi_debug_trace(L, op, (ci->u.l.savedpc-cl->p->code)-1);
+#endif
     ra = RA(i);
     lua_assert(base == ci->u.l.base);
     lua_assert(base <= L->top && L->top < L->stack + L->stacksize);
@@ -1138,7 +1140,6 @@ newframe:  /* reentry point when frame changes (call/return) */
         if (b != 0) {
           L->top = ra + b;  /* else previous instruction set top */
         }
-        //ravi_dump_stacktop(L, "OP_CALL before function call");
         int c_or_compiled = luaD_precall(L, ra, nresults);
         if (c_or_compiled) {  /* C or Lua JITed function? */
           /* RAVI change - if the Lua function was JIT compiled then luaD_precall() returns 2 
@@ -1148,13 +1149,11 @@ newframe:  /* reentry point when frame changes (call/return) */
             L->top = ci->top;  /* adjust results */
           }
           base = ci->u.l.base;
-          //ravi_dump_stacktop(L, "OP_CALL after function call");
         }
         else {  /* Lua function */
           ci = L->ci;
           ci->callstatus |= CIST_REENTRY;
           lua_assert(!ci->jitstatus);
-          //ravi_dump_stacktop(L, "OP_CALL after function call");
           goto newframe;  /* restart luaV_execute over new Lua function */
         }
     } break;
@@ -1195,6 +1194,9 @@ newframe:  /* reentry point when frame changes (call/return) */
         int nres = (b != 0 ? b - 1 : L->top - ra);
         b = luaD_poscall(L, ra, nres);
         if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */ {
+          if (b && L->ci->jitstatus) {
+            L->top = L->ci->top;
+          }
           return;  /* external invocation: return */
         }
         else {  /* invocation via reentry: continue execution */
@@ -1758,6 +1760,16 @@ void ravi_dump_stacktop(lua_State *L, const char *s) {
   int ci_top = (int)(ci->top - L->stack);
   printf("Stack dump %s function %d L->top = %d, ci->top = %d\n", s, funcpos,
          top, ci_top);
+}
+
+void ravi_debug_trace(lua_State *L, int opCode, int pc) {
+  CallInfo *ci = L->ci;
+  int funcpos = (int)(ci->func - L->stack);
+  int top = (int)(L->top - L->stack);
+  int ci_top = (int)(ci->top - L->stack);
+  printf("Stack dump %s function %d, pc=%d, L->top = %d, ci->top = %d\n",
+         luaP_opnames[opCode], funcpos, pc, top, ci_top);
+  lua_assert(L->ci->u.l.base <= L->top && L->top < L->stack + L->stacksize);
 }
 
 void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra) {

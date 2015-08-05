@@ -24,7 +24,7 @@
 
 namespace ravi {
 
-void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
+void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B, int pc) {
 
   // Here is what OP_RETURN looks like. We only compile steps
   // marked with //*. This is because the rest is only relevant in the
@@ -53,6 +53,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
     def->builder->SetInsertPoint(return_block);
   }
 
+  emit_debug_trace(def, OP_RETURN, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -87,36 +88,67 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B) {
   else
     nresults = emit_num_stack_elements(def, ra_ptr);
 
-  //llvm::Value *b = 
-  CreateCall3(def->builder, def->luaD_poscallF, def->L, ra_ptr, nresults);
-  //llvm::Value *b_not_zero =
-  //  def->builder->CreateICmpNE(b, def->types->kInt[0]);
-  //llvm::Value *is_jit_caller = emit_is_jit_call(def);
+  llvm::Value *b =
+      CreateCall3(def->builder, def->luaD_poscallF, def->L, ra_ptr, nresults);
 
-  // b != 0 && L->ci->jitstatus
-  //llvm::Value *b_not_zero_and_jit_caller = def->builder->CreateAnd(b_not_zero, is_jit_caller, "b_not_zero_and_jit_caller");
+  // Reload L->ci (as L->ci would have been updated by luaD_poscall()
+  // Get pointer to L->ci
+  llvm::Value *L_ci = emit_gep(def, "L_ci", def->L, 0, 6);
 
-  //llvm::BasicBlock *then_block1 = llvm::BasicBlock::Create(
-  //  def->jitState->context(), "if.poscall.returned.nonzero");
-  //llvm::BasicBlock *else_block1 =
-  //  llvm::BasicBlock::Create(def->jitState->context(), "if.poscall.returned.zero");
-  //def->builder->CreateCondBr(b_not_zero_and_jit_caller, then_block1, else_block1);
+  llvm::Instruction *ci_val = def->builder->CreateLoad(L_ci);
+  ci_val->setMetadata(llvm::LLVMContext::MD_tbaa,
+                           def->types->tbaa_CallInfoT);
 
-  //def->f->getBasicBlockList().push_back(then_block1);
-  //def->builder->SetInsertPoint(then_block1);
+#if 0
+  llvm::Value *b_not_zero = def->builder->CreateICmpNE(b, def->types->kInt[0]);
+
+  // Is (L->ci->callstatus & CIST_LUA) != 0
+  llvm::Value *is_Lua = emit_ci_is_Lua(def, ci_val);
+  llvm::Value *is_jit = emit_is_jit_call(def, ci_val);
+
+  llvm::Value *isNot_jit = def->builder->CreateNot(is_jit);
+  llvm::Value *is_Lua_and_not_jit = def->builder->CreateAnd(is_Lua, isNot_jit);
+  // b != 0 && isLua(ci) && !ci->jitstatus
+  llvm::Value *b_not_zero_and_Lua =
+      def->builder->CreateAnd(b_not_zero, is_Lua_and_not_jit, "b_not_zero_and_Lua");
+
+  llvm::BasicBlock *then_block1 = llvm::BasicBlock::Create(
+      def->jitState->context(), "if.poscall.returned.nonzero");
+  llvm::BasicBlock *else_block1 = llvm::BasicBlock::Create(
+      def->jitState->context(), "if.poscall.returned.zero");
+  def->builder->CreateCondBr(b_not_zero_and_Lua, then_block1, else_block1);
+
+  def->f->getBasicBlockList().push_back(then_block1);
+  def->builder->SetInsertPoint(then_block1);
 
   // L->top = L->ci->top
-  //emit_refresh_L_top(def);
+  ///////////////////////////////////// FIXME emit_refresh_L_top(def);
+  // Get pointer to ci->top
+  llvm::Value *citop = emit_gep(def, "ci_top", ci_val, 0, 1);
 
-  //def->builder->CreateBr(else_block1);
+  // Load ci->top
+  llvm::Instruction *citop_val = def->builder->CreateLoad(citop);
+  citop_val->setMetadata(llvm::LLVMContext::MD_tbaa,
+    def->types->tbaa_CallInfo_topT);
 
-  //def->f->getBasicBlockList().push_back(else_block1);
-  //def->builder->SetInsertPoint(else_block1);
+  // Get L->top
+  llvm::Value *top = emit_gep(def, "L_top", def->L, 0, 4);
+
+  // Assign ci>top to L->top
+  auto ins = def->builder->CreateStore(citop_val, top);
+  ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_luaState_topT);
+  ///////////////////////////////////// END FIXME
 
 
-  //emit_dump_stack(def, "<-- Function exit");
+  def->builder->CreateBr(else_block1);
 
-  //def->builder->CreateRet(def->types->kInt[1]);
-  def->builder->CreateRet(nresults);
+  def->f->getBasicBlockList().push_back(else_block1);
+  def->builder->SetInsertPoint(else_block1);
+
+  // emit_dump_stack(def, "<-- Function exit");
+#endif
+
+  def->builder->CreateRet(def->types->kInt[1]);
+  //def->builder->CreateRet(nresults);
 }
 }

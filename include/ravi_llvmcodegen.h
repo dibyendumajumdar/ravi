@@ -251,6 +251,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *ravi_dump_valueT;
   llvm::FunctionType *ravi_dump_stackT;
   llvm::FunctionType *ravi_dump_stacktopT;
+  llvm::FunctionType *ravi_debug_traceT;
 
   std::array<llvm::Constant *, 256> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
@@ -284,6 +285,7 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_CallInfo_func_LClosureT;
   llvm::MDNode *tbaa_CallInfo_topT;
   llvm::MDNode *tbaa_CallInfo_jitstatusT;
+  llvm::MDNode *tbaa_CallInfo_callstatusT;
   llvm::MDNode *tbaa_LClosureT;
   llvm::MDNode *tbaa_LClosure_pT;
   llvm::MDNode *tbaa_LClosure_upvalsT;
@@ -526,6 +528,7 @@ struct RaviFunctionDef {
   llvm::Function *ravi_dump_valueF;
   llvm::Function *ravi_dump_stackF;
   llvm::Function *ravi_dump_stacktopF;
+  llvm::Function *ravi_debug_traceF;
 
   // standard C functions
   llvm::Constant *printfFunc;
@@ -667,7 +670,9 @@ public:
   // emit code to obtain address of constant at locatiion B
   llvm::Value *emit_gep_constant(RaviFunctionDef *def, int B);
 
-  llvm::Value *emit_is_jit_call(RaviFunctionDef *def);
+  llvm::Value *emit_is_jit_call(RaviFunctionDef *def, llvm::Value *ci);
+  llvm::Value *emit_ci_is_Lua(RaviFunctionDef *def, llvm::Value *ci);
+
 
   // obtain address of L->top
   llvm::Value *emit_gep_L_top(RaviFunctionDef *def);
@@ -787,6 +792,7 @@ public:
 
   void emit_dump_stack(RaviFunctionDef *def, const char *str);
   void emit_dump_stacktop(RaviFunctionDef *def, const char *str);
+  void emit_debug_trace(RaviFunctionDef *def, int opCode, int pc);
 
 
   // Look for Lua bytecodes that are jump targets and allocate
@@ -801,119 +807,119 @@ public:
   // and links in the new block
   void link_block(RaviFunctionDef *def, int pc);
 
-  void emit_CONCAT(RaviFunctionDef *def, int A, int B, int C);
+  void emit_CONCAT(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_CLOSURE(RaviFunctionDef *def, int A, int Bx);
+  void emit_CLOSURE(RaviFunctionDef *def, int A, int Bx, int pc);
 
-  void emit_VARARG(RaviFunctionDef *def, int A, int B);
+  void emit_VARARG(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_LOADNIL(RaviFunctionDef *def, int A, int B);
+  void emit_LOADNIL(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_LOADFZ(RaviFunctionDef *def, int A);
+  void emit_LOADFZ(RaviFunctionDef *def, int A, int pc);
 
-  void emit_LOADIZ(RaviFunctionDef *def, int A);
+  void emit_LOADIZ(RaviFunctionDef *def, int A, int pc);
 
-  void emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C, int j);
+  void emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C, int j, int pc);
 
   void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op,
-                  TMS tms);
+                  TMS tms, int pc);
 
-  void emit_MOD(RaviFunctionDef *def, int A, int B, int C);
+  void emit_MOD(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_IDIV(RaviFunctionDef *def, int A, int B, int C);
+  void emit_IDIV(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_POW(RaviFunctionDef *def, int A, int B, int C);
+  void emit_POW(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_UNM(RaviFunctionDef *def, int A, int B);
+  void emit_UNM(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_UNMF(RaviFunctionDef *def, int A, int B);
+  void emit_UNMF(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_UNMI(RaviFunctionDef *def, int A, int B);
+  void emit_UNMI(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_ADDFF(RaviFunctionDef *def, int A, int B, int C);
+  void emit_ADDFF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_ADDFI(RaviFunctionDef *def, int A, int B, int C);
+  void emit_ADDFI(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_ADDII(RaviFunctionDef *def, int A, int B, int C);
+  void emit_ADDII(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SUBFF(RaviFunctionDef *def, int A, int B, int C);
+  void emit_SUBFF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SUBFI(RaviFunctionDef *def, int A, int B, int C);
+  void emit_SUBFI(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SUBIF(RaviFunctionDef *def, int A, int B, int C);
+  void emit_SUBIF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SUBII(RaviFunctionDef *def, int A, int B, int C);
+  void emit_SUBII(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_MULFF(RaviFunctionDef *def, int A, int B, int C);
+  void emit_MULFF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_MULFI(RaviFunctionDef *def, int A, int B, int C);
+  void emit_MULFI(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_MULII(RaviFunctionDef *def, int A, int B, int C);
+  void emit_MULII(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_DIVFF(RaviFunctionDef *def, int A, int B, int C);
+  void emit_DIVFF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_DIVFI(RaviFunctionDef *def, int A, int B, int C);
+  void emit_DIVFI(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_DIVIF(RaviFunctionDef *def, int A, int B, int C);
+  void emit_DIVIF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_DIVII(RaviFunctionDef *def, int A, int B, int C);
+  void emit_DIVII(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_LOADK(RaviFunctionDef *def, int A, int Bx);
+  void emit_LOADK(RaviFunctionDef *def, int A, int Bx, int pc);
 
-  void emit_RETURN(RaviFunctionDef *def, int A, int B);
+  void emit_RETURN(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_CALL(RaviFunctionDef *def, int A, int B, int C);
+  void emit_CALL(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_JMP(RaviFunctionDef *def, int A, int j);
+  void emit_JMP(RaviFunctionDef *def, int A, int j, int pc);
 
-  void emit_iFORPREP(RaviFunctionDef *def, int A, int sBx, int step_one);
+  void emit_iFORPREP(RaviFunctionDef *def, int A, int sBx, int step_one, int pc);
 
   void emit_iFORLOOP(RaviFunctionDef *def, int A, int sBx, RaviBranchDef &b,
-                     int step_one);
+                     int step_one, int pc);
 
-  void emit_FORPREP(RaviFunctionDef *def, int A, int sBx);
+  void emit_FORPREP(RaviFunctionDef *def, int A, int sBx, int pc);
 
-  void emit_FORLOOP(RaviFunctionDef *def, int A, int sBx);
+  void emit_FORLOOP(RaviFunctionDef *def, int A, int sBx, int pc);
 
-  void emit_FORPREP2(RaviFunctionDef *def, int A, int sBx);
+  void emit_FORPREP2(RaviFunctionDef *def, int A, int sBx, int pc);
 
-  void emit_FORLOOP2(RaviFunctionDef *def, int A, int sBx, RaviBranchDef &b);
+  void emit_FORLOOP2(RaviFunctionDef *def, int A, int sBx, RaviBranchDef &b, int pc);
 
-  void emit_MOVE(RaviFunctionDef *def, int A, int B);
+  void emit_MOVE(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_MOVEI(RaviFunctionDef *def, int A, int B);
+  void emit_MOVEI(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_MOVEF(RaviFunctionDef *def, int A, int B);
+  void emit_MOVEF(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_TOINT(RaviFunctionDef *def, int A);
+  void emit_TOINT(RaviFunctionDef *def, int A, int pc);
 
-  void emit_TOFLT(RaviFunctionDef *def, int A);
+  void emit_TOFLT(RaviFunctionDef *def, int A, int pc);
 
-  void emit_LEN(RaviFunctionDef *def, int A, int B);
+  void emit_LEN(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C);
+  void emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C);
+  void emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SELF(RaviFunctionDef *def, int A, int B, int C);
+  void emit_SELF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_GETUPVAL(RaviFunctionDef *def, int A, int B);
+  void emit_GETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_SETUPVAL(RaviFunctionDef *def, int A, int B);
+  void emit_SETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C);
+  void emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C);
+  void emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_NEWARRAYINT(RaviFunctionDef *def, int A);
+  void emit_NEWARRAYINT(RaviFunctionDef *def, int A, int pc);
 
-  void emit_NEWARRAYFLOAT(RaviFunctionDef *def, int A);
+  void emit_NEWARRAYFLOAT(RaviFunctionDef *def, int A, int pc);
 
-  void emit_NEWTABLE(RaviFunctionDef *def, int A, int B, int C);
+  void emit_NEWTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SETLIST(RaviFunctionDef *def, int A, int B, int C);
+  void emit_SETLIST(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_NOT(RaviFunctionDef *def, int A, int B);
+  void emit_NOT(RaviFunctionDef *def, int A, int B, int pc);
 
   // Emit code for OP_EQ, OP_LT and OP_LE
   // The callee parameter should be luaV_equalobj, luaV_lessthan and
@@ -923,52 +929,52 @@ public:
   // j must be the jump target (offset of the code to which we need to jump to)
   // jA must be the A operand of the jump instruction
   void emit_EQ(RaviFunctionDef *def, int A, int B, int C, int j, int jA,
-               llvm::Constant *callee, OpCode opCode);
+               llvm::Constant *callee, OpCode opCode, int pc);
 
   // OP_TEST is followed by a OP_JMP instruction - both are handled
   // together
   // A, B, C must be operands of the OP_TEST instruction
   // j must be the jump target (offset of the code to which we need to jump to)
   // jA must be the A operand of the jump instruction
-  void emit_TEST(RaviFunctionDef *def, int A, int B, int C, int j, int jA);
+  void emit_TEST(RaviFunctionDef *def, int A, int B, int C, int j, int jA, int pc);
 
   // OP_TESTSET is followed by a OP_JMP instruction - both are handled
   // together
   // A, B, C must be operands of the OP_TESTSET instruction
   // j must be the jump target (offset of the code to which we need to jump to)
   // jA must be the A operand of the jump instruction
-  void emit_TESTSET(RaviFunctionDef *def, int A, int B, int C, int j, int jA);
+  void emit_TESTSET(RaviFunctionDef *def, int A, int B, int C, int j, int jA, int pc);
 
-  void emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C, int j, int jA);
+  void emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C, int j, int jA, int pc);
 
-  void emit_TFORLOOP(RaviFunctionDef *def, int A, int j);
+  void emit_TFORLOOP(RaviFunctionDef *def, int A, int j, int pc);
 
   void emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B, int C,
-                        bool omitArrayGetRangeCheck = false);
+                        bool omitArrayGetRangeCheck, int pc);
 
   void emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B, int C,
-                        bool omitArrayGetRangeCheck = false);
+                        bool omitArrayGetRangeCheck, int pc);
 
   void emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B, int C,
-                        bool known_int);
+                        bool known_int, int pc);
 
   void emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B, int C,
-                        bool known_float);
+                        bool known_float, int pc);
 
-  void emit_MOVEAI(RaviFunctionDef *def, int A, int B);
+  void emit_MOVEAI(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_MOVEAF(RaviFunctionDef *def, int A, int B);
+  void emit_MOVEAF(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_TOARRAY(RaviFunctionDef *def, int A, int array_type_expected,
-                    const char *errmsg);
+                    const char *errmsg, int pc);
 
   void emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op, int A, int B,
-                              int C);
+                              int C, int pc);
 
   void emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op, int A, int B,
-                             int C);
+                             int C, int pc);
 
-  void emit_BNOT_I(RaviFunctionDef *def, int A, int B);
+  void emit_BNOT_I(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B, lua_Integer y);
   
