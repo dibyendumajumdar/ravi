@@ -25,3 +25,7 @@ then
   echo "all.lua part compiled failed"
   exit 1
 fi
+
+cd ../ravi-tests 
+. ./run_tests.sh "$LUA"
+cd -
