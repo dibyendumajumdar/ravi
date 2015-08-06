@@ -810,15 +810,17 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_voidT,
       "luaC_upvalbarrier_", 2, params, 0);
 
-  // int luaD_precall (lua_State *L, StkId func, int nresults);
+  // int luaD_precall (lua_State *L, StkId func, int nresults, int op_call);
   params[0] =
       gcc_jit_context_new_param(ravi->context, NULL, t->plua_StateT, "L");
   params[1] = gcc_jit_context_new_param(ravi->context, NULL, t->StkIdT, "func");
   params[2] =
       gcc_jit_context_new_param(ravi->context, NULL, t->C_intT, "nresults");
+  params[3] =
+          gcc_jit_context_new_param(ravi->context, NULL, t->C_intT, "op_call");
   t->luaD_precallT = gcc_jit_context_new_function(
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_intT, "luaD_precall",
-      3, params, 0);
+      4, params, 0);
 
   // void luaD_call (lua_State *L, StkId func, int nResults,
   //                 int allowyield);
@@ -832,11 +834,12 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   t->luaD_callT = gcc_jit_context_new_function(
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_intT, "luaD_call", 4,
       params, 0);
+
   // void luaV_execute(lua_State L);
   params[0] =
       gcc_jit_context_new_param(ravi->context, NULL, t->plua_StateT, "L");
   t->luaV_executeT = gcc_jit_context_new_function(
-      ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_voidT,
+      ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_intT,
       "luaV_execute", 1, params, 0);
 
   // void luaF_close (lua_State *L, StkId level)
