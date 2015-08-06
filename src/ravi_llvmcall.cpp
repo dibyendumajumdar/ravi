@@ -92,8 +92,9 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C, int
   // int c = luaD_precall(L, ra, nresults);  /* C or JITed function? */
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *precall_result =
-      CreateCall3(def->builder, def->luaD_precallF, def->L, ra,
-                  llvm::ConstantInt::get(def->types->C_intT, nresults));
+      CreateCall4(def->builder, def->luaD_precallF, def->L, ra,
+                  llvm::ConstantInt::get(def->types->C_intT, nresults),
+        def->types->kInt[1]);
   // If luaD_precall() returns 0 then we need to interpret the
   // Lua function
   llvm::Value *do_Lua_interp =

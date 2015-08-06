@@ -821,7 +821,6 @@ int luaV_execute (lua_State *L) {
   TValue *k;
   StkId base;
 newframe:  /* reentry point when frame changes (call/return) */
-  DEBUG_STACK(ravi_dump_stack(L, "On function entry");)
   lua_assert(ci == L->ci);
   cl = clLvalue(ci->func);
   k = cl->p->k;
@@ -836,9 +835,7 @@ newframe:  /* reentry point when frame changes (call/return) */
     }
     /* WARNING: several calls may realloc the stack and invalidate 'ra' */
     OpCode op = GET_OPCODE(i);
-#if 0
-    ravi_debug_trace(L, op, (ci->u.l.savedpc-cl->p->code)-1);
-#endif
+    RAVI_DEBUG_STACK(ravi_debug_trace(L, op, (ci->u.l.savedpc-cl->p->code)-1));
     ra = RA(i);
     lua_assert(base == ci->u.l.base);
     lua_assert(base <= L->top && L->top < L->stack + L->stacksize);
@@ -1134,13 +1131,17 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
     } break;
     case OP_CALL: {
-        DEBUG_STACK(ravi_dump_stack(L, "OP_CALL: before luaD_precall()");)
         int b = GETARG_B(i);
         int nresults = GETARG_C(i) - 1;
         if (b != 0) {
           L->top = ra + b;  /* else previous instruction set top */
         }
-        int c_or_compiled = luaD_precall(L, ra, nresults);
+        /*
+        See note below under OP_RETURN for why we pass the extra
+        argument to luaD_precall() - it is basicaly to tell it that it
+        was called from OP_CALL instruction
+        */
+        int c_or_compiled = luaD_precall(L, ra, nresults, 1 /* OP_CALL */);
         if (c_or_compiled) {  /* C or Lua JITed function? */
           /* RAVI change - if the Lua function was JIT compiled then luaD_precall() returns 2 
            * A return value of 1 indicates non Lua C function
@@ -1162,7 +1163,12 @@ newframe:  /* reentry point when frame changes (call/return) */
         int b = GETARG_B(i);
         if (b != 0) L->top = ra+b;  /* else previous instruction set top */
         lua_assert(GETARG_C(i) - 1 == LUA_MULTRET);
-        if (luaD_precall(L, ra, LUA_MULTRET))  /* C function? or JIT call */
+        /* See note below under OP_RETURN for why we pass the extra
+           argument to luaD_precall() - it is basicaly to tell it that it
+           was called from OP_CALL instruction
+           */
+        if (luaD_precall(L, ra, LUA_MULTRET,
+                         1 /* OP_CALL */)) /* C function? or JIT call */
           base = ci->u.l.base;
         else {
           /* tail call: put called frame (n) in place of caller one (o) */
@@ -1189,20 +1195,24 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
     } break;
     case OP_RETURN: {
-        DEBUG_STACK(ravi_dump_stack(L, "OP_RETURN: before luaD_poscall()");)
         int b = GETARG_B(i);
         if (cl->p->sizep > 0) luaF_close(L, base);
         int nres = (b != 0 ? b - 1 : L->top - ra);
         b = luaD_poscall(L, ra, nres);
         if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */ {
-          /* RAVI change in interpreted mode a Lua function call
-           * via OP_CALL always takes the other branch but in JIT mode
-           * this branch is taken.  
-           */
-          //if (b && isLua(L->ci)) {
-          //  L->top = L->ci->top;
-          //}
-          return b;  /* external invocation: return */
+          /* Lua VM assumes that this case is only
+             executed when luaV_execute() is called externally
+             i.e. not via OP_CALL, but in JIT mode this is not true
+             as luaV_execute() will be called even from OP_CALL when
+             a particular function cannot be compiled. So we need
+             to somehow trigger the reset of L->top in this case.
+             Since luaV_execute is called from various places it is
+             more convenient to let the caller decide what to do -
+             so we simply return b here. The caller is either OP_CALL
+             in JIT mode (see how b is handled in OP_CALL JIT implementation)
+             or via luaD_precall() if a JITed function is invoked (see
+             ldo.c for how luaD_precall() handles this */
+          return b; /* external invocation: return */
         }
         else {  /* invocation via reentry: continue execution */
           ci = L->ci;

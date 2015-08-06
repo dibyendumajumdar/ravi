@@ -778,11 +778,10 @@ void RaviCodeGenerator::emit_dump_stacktop(RaviFunctionDef *def, const char *str
 
 void RaviCodeGenerator::emit_debug_trace(RaviFunctionDef *def, int opCode,
                                          int pc) {
-#if 0
-  CreateCall3(def->builder, def->ravi_debug_traceF, def->L,
-              llvm::ConstantInt::get(def->types->C_intT, opCode),
-              llvm::ConstantInt::get(def->types->C_intT, pc));
-#endif
+  RAVI_DEBUG_STACK(
+      CreateCall3(def->builder, def->ravi_debug_traceF, def->L,
+                  llvm::ConstantInt::get(def->types->C_intT, opCode),
+                  llvm::ConstantInt::get(def->types->C_intT, pc)));
 }
 
 void RaviCodeGenerator::emit_raise_lua_error(RaviFunctionDef *def,
