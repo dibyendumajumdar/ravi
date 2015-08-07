@@ -35,8 +35,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B, int pc) 
   //*  if (cl->p->sizep > 0) luaF_close(L, base);
   //*  b = luaD_poscall(L, ra, (b != 0 ? b - 1 : L->top - ra));
   //   if (!(ci->callstatus & CIST_REENTRY))  /* 'ci' still the called one */
-  //*     if (b && isLua(L->ci)) L->top = L->ci->top;
-  //*     return;  /* external invocation: return */
+  //*     return b;  /* external invocation: return */
   //    else {  /* invocation via reentry: continue execution */
   //      ci = L->ci;
   //      if (b) L->top = ci->top;
@@ -50,11 +49,12 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B, int pc) 
   // a new block
   if (def->builder->GetInsertBlock()->getTerminator()) {
     llvm::BasicBlock *return_block =
-        llvm::BasicBlock::Create(def->jitState->context(), "return", def->f);
+        llvm::BasicBlock::Create(def->jitState->context(), "OP_RETURN_bridge", def->f);
     def->builder->SetInsertPoint(return_block);
   }
 
   emit_debug_trace(def, OP_RETURN, pc);
+  
   // Load pointer to base
   emit_load_base(def);
 
@@ -69,9 +69,9 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B, int pc) 
   llvm::Value *psize_gt_0 =
       def->builder->CreateICmpSGT(psize, def->types->kInt[0]);
   llvm::BasicBlock *then_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
+      llvm::BasicBlock::Create(def->jitState->context(), "OP_RETURN_if_close", def->f);
   llvm::BasicBlock *else_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.else");
+      llvm::BasicBlock::Create(def->jitState->context(), "OP_RETURN_else_close");
   def->builder->CreateCondBr(psize_gt_0, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
 
@@ -91,45 +91,6 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B, int pc) 
 
   llvm::Value *b =
       CreateCall3(def->builder, def->luaD_poscallF, def->L, ra_ptr, nresults);
-
-#if 0
-  // Reload L->ci (as L->ci would have been updated by luaD_poscall()
-  llvm::Value *ci_val = emit_load_ci(def);
-
-  llvm::Value *b_not_zero = def->builder->CreateICmpNE(b, def->types->kInt[0]);
-
-  // Is (L->ci->callstatus & CIST_LUA) != 0
-  llvm::Value *is_Lua = emit_ci_is_Lua(def, ci_val);
-
-  //llvm::Value *is_jit = emit_is_jit_call(def, ci_val);
-  //llvm::Value *isNot_jit = def->builder->CreateNot(is_jit);
-  //llvm::Value *is_Lua_and_not_jit = def->builder->CreateAnd(is_Lua, isNot_jit);
-  
-  // b != 0 && isLua(ci)
-  llvm::Value *b_not_zero_and_Lua =
-      def->builder->CreateAnd(b_not_zero, is_Lua, "b_not_zero_and_Lua");
-
-  llvm::BasicBlock *then_block1 = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.poscall.nonzero");
-  llvm::BasicBlock *else_block1 = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.poscall.zero");
-  def->builder->CreateCondBr(b_not_zero_and_Lua, then_block1, else_block1);
-
-  def->f->getBasicBlockList().push_back(then_block1);
-  def->builder->SetInsertPoint(then_block1);
-
-  // L->top = L->ci->top
-  emit_refresh_L_top(def, ci_val);
-
-  def->builder->CreateBr(else_block1);
-
-  def->f->getBasicBlockList().push_back(else_block1);
-  def->builder->SetInsertPoint(else_block1);
-
-  // emit_dump_stack(def, "<-- Function exit");
-
-  def->builder->CreateRet(nresults);
-#endif
   def->builder->CreateRet(b);
 
 }
