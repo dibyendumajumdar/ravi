@@ -113,13 +113,12 @@ do
 end
 
 dummy(10)
-print'+'
 
 function deep (n)
   if n>0 then deep(n-1) end
 end
 deep(10)
-deep(ravi and ravi.auto and 110 or 200)
+deep(ravi and ravi.auto() and 110 or 200)
 
 -- testing tail call
 if not ravi or not ravi.auto() then
@@ -323,7 +322,7 @@ assert(x() == 24)
 
 -- test for dump/undump with many upvalues
 do
-  local nup = 123 -- RAVI change; was 200    -- maximum number of local variables
+  local nup = ravi and 123 or 200    -- maximum number of local variables
   local prog = {"local a1"}
   for i = 2, nup do prog[#prog + 1] = ", a" .. i end
   prog[#prog + 1] = " = 1"

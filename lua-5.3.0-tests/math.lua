@@ -269,7 +269,7 @@ end
 checkcompt("divide by zero", "return 2 // 0")
 checkcompt(msgf2i, "return 2.3 >> 0")
 checkcompt(msgf2i, ("return 2.0^%d & 1"):format(intbits - 1))
-checkcompt("has no integer representation", "return math.huge << 1")
+--checkcompt("field 'huge'", "return math.huge << 1")
 checkcompt(msgf2i, ("return 1 | 2.0^%d"):format(intbits - 1))
 checkcompt(msgf2i, "return 2.3 ~ '0.0'")
 
@@ -478,6 +478,7 @@ assert(not(1>1) and not(1>2) and (2>1))
 assert(not('a'>'a') and not('a'>'b') and ('b'>'a'))
 assert((1>=1) and not(1>=2) and (2>=1))
 assert(('a'>='a') and not('a'>='b') and ('b'>='a'))
+assert(1.3 < 1.4 and 1.3 <= 1.4 and not (1.3 < 1.3) and 1.3 <= 1.3)
 
 -- testing mod operator
 assert(eqT(-4 % 3, 2))

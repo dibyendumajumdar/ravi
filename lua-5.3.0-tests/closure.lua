@@ -64,9 +64,13 @@ end
 assert(a[4] == nil)
 a[1].set(10)
 assert(a[2].get() == 2)
---a[2].set('a')
+if not ravi then
+  a[2].set('a')
+end
 assert(a[3].get() == 3)
---assert(a[2].get() == 'a')
+if not ravi then
+  assert(a[2].get() == 'a')
+end
 
 a = {}
 local t = {"a", "b"}
@@ -81,10 +85,11 @@ local r,s = a[2].get()
 assert(r == 2 and s == 'b')
 r,s = a[1].get()
 assert(r == 10 and s == 20)
---a[2].set('a', 'b')
---r,s = a[2].get()
---assert(r == "a" and s == "b")
-
+if not ravi then
+  a[2].set('a', 'b')
+  r,s = a[2].get()
+  assert(r == "a" and s == "b")
+end
 
 -- testing closures with 'for' control variable x break
 for i=1,3 do

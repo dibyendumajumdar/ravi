@@ -33,7 +33,7 @@ local function lexstring (x, y, n)
   local f = assert(load('return ' .. x ..
             ', require"debug".getinfo(1).currentline', ''))
   local s, l = f()
-  if not ravi.auto() then
+  if not ravi or not ravi.auto() then
     assert(s == y and l == n)
   else
     assert(s == y)
@@ -73,7 +73,7 @@ assert("\u{10000}\u{10FFFF}" == "\xF0\x90\x80\x80\z\xF4\x8F\xBF\xBF")
 
 -- Error in escape sequences
 local function lexerror (s, err)
-  local st, msg = load('return ' .. s)
+  local st, msg = load('return ' .. s, '')
   if err ~= '<eof>' then err = err .. "'" end
   assert(not st and string.find(msg, "near .-" .. err))
 end
@@ -117,9 +117,9 @@ lexerror([['alo \98]], "<eof>")
 -- valid characters in variable names
 for i = 0, 255 do
   local s = string.char(i)
-  assert(not string.find(s, "[a-zA-Z_]") == not load(s .. "=1"))
+  assert(not string.find(s, "[a-zA-Z_]") == not load(s .. "=1", ""))
   assert(not string.find(s, "[a-zA-Z_0-9]") ==
-         not load("a" .. s .. "1 = 1"))
+         not load("a" .. s .. "1 = 1", ""))
 end
 
 
@@ -205,7 +205,7 @@ b = nil
 
 
 -- testing line ends
-if not ravi.auto() then
+if not ravi or not ravi.auto() then
 prog = [[
 a = 1        -- a comment
 b = 2

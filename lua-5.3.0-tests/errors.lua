@@ -467,7 +467,7 @@ end
 
 -- testing syntax limits
 
-local maxClevel = 127    -- RAVI change; was 200 -- LUAI_MAXCCALLS (in llimits.h)
+local maxClevel = ravi and 127 or 200 -- LUAI_MAXCCALLS (in llimits.h)
 
 local function testrep (init, rep, close, repc)
   local s = "local a; "..init .. string.rep(rep, maxClevel - 10) .. close ..
@@ -514,9 +514,10 @@ end
 s = s.."\nend  end end"
 local a,b = load(s)
 -- RAVI - test disabled as can't figure out
---assert(c > 255 and string.find(b, "too many upvalues") and
---       string.find(b, "line 5"))
-
+if not ravi then
+  assert(c > 255 and string.find(b, "too many upvalues") and
+       string.find(b, "line 5"))
+end
 -- local variables
 s = "\nfunction foo ()\n  local "
 for j = 1,300 do
@@ -524,8 +525,11 @@ for j = 1,300 do
 end
 s = s.."b\n"
 local a,b = load(s)
---assert(string.find(b, "line 2") and string.find(b, "too many local variables"))
-assert(string.find(b, "too many local variables"))
+if not ravi then
+  assert(string.find(b, "line 2") and string.find(b, "too many local variables"))
+else
+  assert(string.find(b, "too many local variables"))
+end
 
 mt.__index = oldmm
 
