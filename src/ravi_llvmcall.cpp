@@ -35,12 +35,12 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int sBx, int pc) {
   // dojump(ci, i, 0);
 
   assert(def->jmp_targets[sBx].jmp1);
-  
+
   // If the current block is already terminated we
   // need to create a new block
   if (def->builder->GetInsertBlock()->getTerminator()) {
-    llvm::BasicBlock *jmp_block =
-        llvm::BasicBlock::Create(def->jitState->context(), "OP_JMP_bridge", def->f);
+    llvm::BasicBlock *jmp_block = llvm::BasicBlock::Create(
+        def->jitState->context(), "OP_JMP_bridge", def->f);
     def->builder->SetInsertPoint(jmp_block);
   }
 
@@ -57,10 +57,10 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int sBx, int pc) {
 
   // Do the actual jump
   def->builder->CreateBr(def->jmp_targets[sBx].jmp1);
-  
+
   // Start new block
-  llvm::BasicBlock *block =
-      llvm::BasicBlock::Create(def->jitState->context(), "OP_JMP_postjmp", def->f);
+  llvm::BasicBlock *block = llvm::BasicBlock::Create(def->jitState->context(),
+                                                     "OP_JMP_postjmp", def->f);
   def->builder->SetInsertPoint(block);
 }
 
@@ -71,7 +71,8 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int sBx, int pc) {
 // call. However in a JIT case each JIT function is a different call
 // so we need to take care of the behaviour differences between
 // OP_CALL and external calls
-void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C,
+                                  int pc) {
 
   // int nresults = c - 1;
   // if (b != 0)
@@ -109,7 +110,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C, int
   llvm::Value *precall_result =
       CreateCall4(def->builder, def->luaD_precallF, def->L, ra,
                   llvm::ConstantInt::get(def->types->C_intT, nresults),
-        def->types->kInt[1]);
+                  def->types->kInt[1]);
 
   // If luaD_precall() returns 0 then we need to interpret the
   // Lua function
@@ -118,8 +119,8 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C, int
 
   llvm::BasicBlock *then_block = llvm::BasicBlock::Create(
       def->jitState->context(), "OP_CALL_if_Lua_interp_function", def->f);
-  llvm::BasicBlock *else_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "OP_CALL_if_not_Lua_interp_function");
+  llvm::BasicBlock *else_block = llvm::BasicBlock::Create(
+      def->jitState->context(), "OP_CALL_if_not_Lua_interp_function");
   llvm::BasicBlock *end_block =
       llvm::BasicBlock::Create(def->jitState->context(), "OP_CALL_done");
   def->builder->CreateCondBr(do_Lua_interp, then_block, else_block);
@@ -129,17 +130,16 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C, int
   llvm::Value *b = def->builder->CreateCall(def->luaV_executeF, def->L);
 
   // If the return value is non zero then we need to refresh L->top = ci->top
-  llvm::Value *b_not_zero =
-    def->builder->CreateICmpNE(b, def->types->kInt[0]);
+  llvm::Value *b_not_zero = def->builder->CreateICmpNE(b, def->types->kInt[0]);
 
   llvm::BasicBlock *if_b_block = llvm::BasicBlock::Create(
-    def->jitState->context(), "OP_CALL_if_need_reset_L_top", def->f);
+      def->jitState->context(), "OP_CALL_if_need_reset_L_top", def->f);
   def->builder->CreateCondBr(b_not_zero, if_b_block, end_block);
   def->builder->SetInsertPoint(if_b_block);
 
   // Set L->top = ci->top
   emit_refresh_L_top(def, def->ci_val);
-  
+
   // We are done
   def->builder->CreateBr(end_block);
 
@@ -157,7 +157,8 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C, int
         def->builder->CreateICmpEQ(precall_result, def->types->kInt[1]);
 
     llvm::BasicBlock *then1_block = llvm::BasicBlock::Create(
-        def->jitState->context(), "OP_CALL_if_C_function_returned_values", def->f);
+        def->jitState->context(), "OP_CALL_if_C_function_returned_values",
+        def->f);
     def->builder->CreateCondBr(precall_C, then1_block, end_block);
     def->builder->SetInsertPoint(then1_block);
 

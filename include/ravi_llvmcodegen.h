@@ -675,7 +675,6 @@ public:
   llvm::Value *emit_is_jit_call(RaviFunctionDef *def, llvm::Value *ci);
   llvm::Value *emit_ci_is_Lua(RaviFunctionDef *def, llvm::Value *ci);
 
-
   // obtain address of L->top
   llvm::Value *emit_gep_L_top(RaviFunctionDef *def);
 
@@ -797,7 +796,6 @@ public:
   void emit_dump_stacktop(RaviFunctionDef *def, const char *str);
   void emit_debug_trace(RaviFunctionDef *def, int opCode, int pc);
 
-
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.
   // The BasicBlocks are not inserted into the function until later
@@ -824,8 +822,8 @@ public:
 
   void emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C, int j, int pc);
 
-  void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op,
-                  TMS tms, int pc);
+  void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms,
+                  int pc);
 
   void emit_MOD(RaviFunctionDef *def, int A, int B, int C, int pc);
 
@@ -875,7 +873,8 @@ public:
 
   void emit_JMP(RaviFunctionDef *def, int A, int j, int pc);
 
-  void emit_iFORPREP(RaviFunctionDef *def, int A, int sBx, int step_one, int pc);
+  void emit_iFORPREP(RaviFunctionDef *def, int A, int sBx, int step_one,
+                     int pc);
 
   void emit_iFORLOOP(RaviFunctionDef *def, int A, int sBx, RaviBranchDef &b,
                      int step_one, int pc);
@@ -886,7 +885,8 @@ public:
 
   void emit_FORPREP2(RaviFunctionDef *def, int A, int sBx, int pc);
 
-  void emit_FORLOOP2(RaviFunctionDef *def, int A, int sBx, RaviBranchDef &b, int pc);
+  void emit_FORLOOP2(RaviFunctionDef *def, int A, int sBx, RaviBranchDef &b,
+                     int pc);
 
   void emit_MOVE(RaviFunctionDef *def, int A, int B, int pc);
 
@@ -939,16 +939,19 @@ public:
   // A, B, C must be operands of the OP_TEST instruction
   // j must be the jump target (offset of the code to which we need to jump to)
   // jA must be the A operand of the jump instruction
-  void emit_TEST(RaviFunctionDef *def, int A, int B, int C, int j, int jA, int pc);
+  void emit_TEST(RaviFunctionDef *def, int A, int B, int C, int j, int jA,
+                 int pc);
 
   // OP_TESTSET is followed by a OP_JMP instruction - both are handled
   // together
   // A, B, C must be operands of the OP_TESTSET instruction
   // j must be the jump target (offset of the code to which we need to jump to)
   // jA must be the A operand of the jump instruction
-  void emit_TESTSET(RaviFunctionDef *def, int A, int B, int C, int j, int jA, int pc);
+  void emit_TESTSET(RaviFunctionDef *def, int A, int B, int C, int j, int jA,
+                    int pc);
 
-  void emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C, int j, int jA, int pc);
+  void emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C, int j, int jA,
+                     int pc);
 
   void emit_TFORLOOP(RaviFunctionDef *def, int A, int j, int pc);
 
@@ -979,8 +982,9 @@ public:
 
   void emit_BNOT_I(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B, lua_Integer y);
-  
+  void emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B,
+                           lua_Integer y);
+
 private:
   RaviJITStateImpl *jitState_;
   char temp_[31]; // for name

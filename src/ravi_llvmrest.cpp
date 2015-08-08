@@ -24,7 +24,8 @@
 
 namespace ravi {
 
-void RaviCodeGenerator::emit_CONCAT(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_CONCAT(RaviFunctionDef *def, int A, int B, int C,
+                                    int pc) {
   emit_debug_trace(def, OP_CONCAT, pc);
   CreateCall5(def->builder, def->raviV_op_concatF, def->L, def->ci_val,
               llvm::ConstantInt::get(def->types->C_intT, A),
@@ -32,14 +33,16 @@ void RaviCodeGenerator::emit_CONCAT(RaviFunctionDef *def, int A, int B, int C, i
               llvm::ConstantInt::get(def->types->C_intT, C));
 }
 
-void RaviCodeGenerator::emit_CLOSURE(RaviFunctionDef *def, int A, int Bx, int pc) {
+void RaviCodeGenerator::emit_CLOSURE(RaviFunctionDef *def, int A, int Bx,
+                                     int pc) {
   emit_debug_trace(def, OP_CLOSURE, pc);
   CreateCall5(def->builder, def->raviV_op_closureF, def->L, def->ci_val,
               def->p_LClosure, llvm::ConstantInt::get(def->types->C_intT, A),
               llvm::ConstantInt::get(def->types->C_intT, Bx));
 }
 
-void RaviCodeGenerator::emit_VARARG(RaviFunctionDef *def, int A, int B, int pc) {
+void RaviCodeGenerator::emit_VARARG(RaviFunctionDef *def, int A, int B,
+                                    int pc) {
   emit_debug_trace(def, OP_VARARG, pc);
   CreateCall5(def->builder, def->raviV_op_varargF, def->L, def->ci_val,
               def->p_LClosure, llvm::ConstantInt::get(def->types->C_intT, A),

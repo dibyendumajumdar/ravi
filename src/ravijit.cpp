@@ -47,7 +47,8 @@ static int ravi_is_compiled(lua_State *L) {
 
 // Utility to extract a integer field from a table
 static bool l_table_get_integer(lua_State *L, int tab, const char *key,
-                         lua_Integer *result, lua_Integer default_value) {
+                                lua_Integer *result,
+                                lua_Integer default_value) {
   bool rc = false;
   lua_pushstring(L, key);
   lua_gettable(L, tab); /* get table[key] */

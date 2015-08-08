@@ -222,7 +222,8 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // OP_MOD
-void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C,
+                                 int pc) {
 
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
@@ -416,7 +417,8 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C, int 
 }
 
 // OP_IDIV
-void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C,
+                                  int pc) {
 
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
@@ -578,7 +580,8 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C, int
 }
 
 // OP_POW
-void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C,
+                                 int pc) {
 
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);

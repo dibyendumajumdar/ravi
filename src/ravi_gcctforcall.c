@@ -73,7 +73,7 @@ void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C, int j,
           def, def->ravi->types->luaD_callT, gcc_jit_param_as_rvalue(def->L),
           gcc_jit_lvalue_get_address(cb, NULL),
           gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                                  def->ravi->types->C_intT, C),
+                                              def->ravi->types->C_intT, C),
           gcc_jit_context_new_rvalue_from_int(def->function_context,
                                               def->ravi->types->C_intT, 1)));
   // reload base

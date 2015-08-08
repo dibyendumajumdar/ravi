@@ -25,7 +25,8 @@
 namespace ravi {
 
 // R(A+1), ..., R(A+B) := nil
-void RaviCodeGenerator::emit_LOADNIL(RaviFunctionDef *def, int A, int B, int pc) {
+void RaviCodeGenerator::emit_LOADNIL(RaviFunctionDef *def, int A, int B,
+                                     int pc) {
   emit_debug_trace(def, OP_LOADNIL, pc);
   CreateCall3(def->builder, def->raviV_op_loadnilF, def->ci_val,
               llvm::ConstantInt::get(def->types->C_intT, A),
@@ -358,7 +359,8 @@ void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, int A, int pc) {
   def->builder->SetInsertPoint(end1);
 }
 
-void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, int A, int Bx, int pc) {
+void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, int A, int Bx,
+                                   int pc) {
   // TValue *rb = k + GETARG_Bx(i);
   // setobj2s(L, ra, rb);
 
@@ -409,7 +411,7 @@ void RaviCodeGenerator::emit_assign(RaviFunctionDef *def, llvm::Value *dest,
   llvm::Instruction *store = def->builder->CreateStore(load, destvalue);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_nT);
 
-// destvalue->type = srcvalue->type
+  // destvalue->type = srcvalue->type
   llvm::Value *srctype = emit_gep(def, "srctype", src, 0, 1);
   llvm::Value *desttype = emit_gep(def, "desttype", dest, 0, 1);
   load = def->builder->CreateLoad(srctype);

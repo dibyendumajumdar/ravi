@@ -380,4 +380,3 @@ void ravi_emit_DIVII(ravi_function_def_t *def, int A, int B, int C, int pc) {
   // ra->tt_ = LUA_TNUMINT
   ravi_emit_store_reg_i_withtype(def, result, ra);
 }
-

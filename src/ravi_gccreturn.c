@@ -76,12 +76,11 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   ravi_emit_conditional_branch(def, psize_gt_0, then_block, else_block);
 
   ravi_set_current_block(def, then_block);
-  gcc_jit_block_add_eval(
-      def->current_block, NULL,
-      ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                 gcc_jit_param_as_rvalue(def->L),
-                                 def->base_ref));
-//                                 gcc_jit_lvalue_as_rvalue(def->base)));
+  gcc_jit_block_add_eval(def->current_block, NULL,
+                         ravi_function_call2_rvalue(
+                             def, def->ravi->types->luaF_closeT,
+                             gcc_jit_param_as_rvalue(def->L), def->base_ref));
+  //                                 gcc_jit_lvalue_as_rvalue(def->base)));
 
   ravi_emit_branch(def, else_block);
   ravi_set_current_block(def, else_block);
@@ -90,14 +89,14 @@ void ravi_emit_RETURN(ravi_function_def_t *def, int A, int B, int pc) {
   if (B != 0)
     nresults = ravi_int_constant(def, B - 1);
   else
-    nresults = ravi_emit_num_stack_elements(def, gcc_jit_lvalue_get_address(ra_ptr, NULL));
+    nresults = ravi_emit_num_stack_elements(
+        def, gcc_jit_lvalue_get_address(ra_ptr, NULL));
 
   //*  b = luaD_poscall(L, ra, (b != 0 ? b - 1 : L->top - ra));
-  gcc_jit_rvalue *b = ravi_function_call3_rvalue(def, def->ravi->types->luaD_poscallT,
-                                 gcc_jit_param_as_rvalue(def->L),
-                                 gcc_jit_lvalue_get_address(ra_ptr, NULL), nresults);
+  gcc_jit_rvalue *b = ravi_function_call3_rvalue(
+      def, def->ravi->types->luaD_poscallT, gcc_jit_param_as_rvalue(def->L),
+      gcc_jit_lvalue_get_address(ra_ptr, NULL), nresults);
 
-  gcc_jit_block_end_with_return(
-      def->current_block, NULL, b);
+  gcc_jit_block_end_with_return(def->current_block, NULL, b);
   def->current_block_terminated = true;
 }

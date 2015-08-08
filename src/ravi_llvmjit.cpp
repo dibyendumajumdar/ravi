@@ -432,7 +432,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
   }
   bool doCompile = (bool)(options && options->manual_request != 0);
   if (!doCompile && G->ravi_state->jit->is_auto()) {
-    if (p->ravi_jit.jit_flags == RAVI_JIT_FLAG_HASFORLOOP) /* function has fornum loop, so compile */
+    if (p->ravi_jit.jit_flags ==
+        RAVI_JIT_FLAG_HASFORLOOP) /* function has fornum loop, so compile */
       doCompile = true;
     else if (p->sizecode >
              G->ravi_state->jit

@@ -171,7 +171,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //   GCObject *next;
   //   lu_byte tt;
   //   lu_byte marked
-  //   lu_byte extra;  /* reserved words for short strings; "has hash" for longs */
+  //   lu_byte extra;  /* reserved words for short strings; "has hash" for longs
+  //   */
   //   lu_byte shrlen;  /* length for short strings */
   //   unsigned int hash;
   //   union {
@@ -194,10 +195,10 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pGCObjectT);
   elements.push_back(lu_byteT);
   elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT);  /* extra */
-  elements.push_back(lu_byteT);  /* shrlen */
-  elements.push_back(C_intT);    /* hash */
-  elements.push_back(C_size_t);  /* len (as this is the larger member) */
+  elements.push_back(lu_byteT); /* extra */
+  elements.push_back(lu_byteT); /* shrlen */
+  elements.push_back(C_intT);   /* hash */
+  elements.push_back(C_size_t); /* len (as this is the larger member) */
   TStringT->setBody(elements);
 
   // Table
@@ -708,8 +709,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   // int luaV_execute(lua_State L);
   elements.clear();
   elements.push_back(plua_StateT);
-  luaV_executeT =
-      llvm::FunctionType::get(C_intT, elements, false);
+  luaV_executeT = llvm::FunctionType::get(C_intT, elements, false);
 
   // void luaF_close (lua_State *L, StkId level)
   elements.clear();
@@ -883,23 +883,22 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(plua_StateT);
   elements.push_back(pTValueT);
   ravi_dump_valueT =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(C_pcharT);
   ravi_dump_stackT =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
   ravi_dump_stacktopT =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(C_intT);
   elements.push_back(C_intT);
   ravi_debug_traceT =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
-
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   for (int j = 0; j < kInt.size(); j++)
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
@@ -1028,10 +1027,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_CallInfo_topT =
       mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 4);
   tbaa_CallInfo_callstatusT =
-    mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_charT, 42);
+      mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_charT, 42);
   tbaa_CallInfo_jitstatusT =
-    mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_charT, 43);
-
+      mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_charT, 43);
 
   //!20 = metadata !{metadata !"Proto",
   //                 metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5,

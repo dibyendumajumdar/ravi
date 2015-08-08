@@ -197,7 +197,8 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   //   GCObject *next;
   //   lu_byte tt;
   //   lu_byte marked
-  //   lu_byte extra;  /* reserved words for short strings; "has hash" for longs */
+  //   lu_byte extra;  /* reserved words for short strings; "has hash" for longs
+  //   */
   //   lu_byte shrlen;  /* length for short strings */
   //   unsigned int hash;
   //   union {
@@ -217,7 +218,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   fields[3] =
       gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "extra");
   fields[4] =
-    gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "shrlen");
+      gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "shrlen");
   fields[5] = gcc_jit_context_new_field(ravi->context, NULL, t->C_unsigned_intT,
                                         "hash");
   /* union not mapped */
@@ -341,7 +342,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   //  Instruction *code;
   //  struct Proto **p;  /* functions defined inside the function */
   //  int *lineinfo;  /* map from opcodes to source lines (debug information) */
-     //  LocVar *locvars;  /* information about local variables (debug information)
+  //  LocVar *locvars;  /* information about local variables (debug information)
   //  */
   //  Upvaldesc *upvalues;  /* upvalue information */
   //  struct LClosure *cache;  /* last created closure with this prototype */
@@ -564,7 +565,8 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   // struct lua_longjmp;  /* defined in ldo.c */
   t->lua_longjumpT = gcc_jit_context_new_opaque_struct(ravi->context, NULL,
                                                        "ravi_lua_longjmp");
-  t->plua_longjumpT = gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->lua_longjumpT));
+  t->plua_longjumpT =
+      gcc_jit_type_get_pointer(gcc_jit_struct_as_type(t->lua_longjumpT));
 
   // lzio.h
   // typedef struct Mbuffer {
@@ -796,8 +798,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
       gcc_jit_context_new_param(ravi->context, NULL, t->plua_StateT, "L");
   params[1] =
       gcc_jit_context_new_param(ravi->context, NULL, t->StkIdT, "firstResult");
-  params[2] =
-    gcc_jit_context_new_param(ravi->context, NULL, t->C_intT, "nres");
+  params[2] = gcc_jit_context_new_param(ravi->context, NULL, t->C_intT, "nres");
   t->luaD_poscallT = gcc_jit_context_new_function(
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_intT, "luaD_poscall",
       3, params, 0);
@@ -817,7 +818,7 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   params[2] =
       gcc_jit_context_new_param(ravi->context, NULL, t->C_intT, "nresults");
   params[3] =
-          gcc_jit_context_new_param(ravi->context, NULL, t->C_intT, "op_call");
+      gcc_jit_context_new_param(ravi->context, NULL, t->C_intT, "op_call");
   t->luaD_precallT = gcc_jit_context_new_function(
       ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_intT, "luaD_precall",
       4, params, 0);
@@ -839,8 +840,8 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   params[0] =
       gcc_jit_context_new_param(ravi->context, NULL, t->plua_StateT, "L");
   t->luaV_executeT = gcc_jit_context_new_function(
-      ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_intT,
-      "luaV_execute", 1, params, 0);
+      ravi->context, NULL, GCC_JIT_FUNCTION_IMPORTED, t->C_intT, "luaV_execute",
+      1, params, 0);
 
   // void luaF_close (lua_State *L, StkId level)
   params[0] =

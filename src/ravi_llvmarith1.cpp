@@ -53,7 +53,8 @@ void RaviCodeGenerator::emit_UNMI(RaviFunctionDef *def, int A, int B, int pc) {
 }
 
 // R(A) := RK(B) + RK(C), all floating
-void RaviCodeGenerator::emit_ADDFF(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_ADDFF(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_ADDFF, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -64,7 +65,8 @@ void RaviCodeGenerator::emit_ADDFF(RaviFunctionDef *def, int A, int B, int C, in
 }
 
 // R(A) := RK(B) + RK(C), float+int
-void RaviCodeGenerator::emit_ADDFI(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_ADDFI(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_ADDFI, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -76,18 +78,21 @@ void RaviCodeGenerator::emit_ADDFI(RaviFunctionDef *def, int A, int B, int C, in
 }
 
 // R(A) := RK(B) + RK(C), int+int
-void RaviCodeGenerator::emit_ADDII(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_ADDII(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_ADDII, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_load_register_or_constant_i(def, B);
   llvm::Value *rc = emit_load_register_or_constant_i(def, C);
-  llvm::Value *result = def->builder->CreateAdd(rb, rc, "OP_RAVI_ADDII_result", false, true);
+  llvm::Value *result =
+      def->builder->CreateAdd(rb, rc, "OP_RAVI_ADDII_result", false, true);
   emit_store_reg_i_withtype(def, result, ra);
 }
 
 // R(A) := RK(B) - RK(C), float-float
-void RaviCodeGenerator::emit_SUBFF(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_SUBFF(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_SUBFF, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -98,7 +103,8 @@ void RaviCodeGenerator::emit_SUBFF(RaviFunctionDef *def, int A, int B, int C, in
 }
 
 // R(A) := RK(B) - RK(C), float-int
-void RaviCodeGenerator::emit_SUBFI(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_SUBFI(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_SUBFI, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -110,7 +116,8 @@ void RaviCodeGenerator::emit_SUBFI(RaviFunctionDef *def, int A, int B, int C, in
 }
 
 // R(A) := RK(B) - RK(C), int-float
-void RaviCodeGenerator::emit_SUBIF(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_SUBIF(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_SUBIF, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -122,18 +129,21 @@ void RaviCodeGenerator::emit_SUBIF(RaviFunctionDef *def, int A, int B, int C, in
 }
 
 // R(A) := RK(B) - RK(C), int-int
-void RaviCodeGenerator::emit_SUBII(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_SUBII(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_SUBII, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_load_register_or_constant_i(def, B);
   llvm::Value *rc = emit_load_register_or_constant_i(def, C);
-  llvm::Value *result = def->builder->CreateSub(rb, rc, "OP_RAVI_SUBII_result", false, true);
+  llvm::Value *result =
+      def->builder->CreateSub(rb, rc, "OP_RAVI_SUBII_result", false, true);
   emit_store_reg_i_withtype(def, result, ra);
 }
 
 // R(A) := RK(B) * RK(C), float*float
-void RaviCodeGenerator::emit_MULFF(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_MULFF(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_MULFF, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -144,7 +154,8 @@ void RaviCodeGenerator::emit_MULFF(RaviFunctionDef *def, int A, int B, int C, in
 }
 
 // R(A) := RK(B) * RK(C), float*int
-void RaviCodeGenerator::emit_MULFI(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_MULFI(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_MULFI, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -156,18 +167,21 @@ void RaviCodeGenerator::emit_MULFI(RaviFunctionDef *def, int A, int B, int C, in
 }
 
 // R(A) := RK(B) * RK(C), int*int
-void RaviCodeGenerator::emit_MULII(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_MULII(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_MULII, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_load_register_or_constant_i(def, B);
   llvm::Value *rc = emit_load_register_or_constant_i(def, C);
-  llvm::Value *result = def->builder->CreateMul(rb, rc, "OP_RAVI_MULII_result", false, true);
+  llvm::Value *result =
+      def->builder->CreateMul(rb, rc, "OP_RAVI_MULII_result", false, true);
   emit_store_reg_i_withtype(def, result, ra);
 }
 
 // R(A) := RK(B) / RK(C), float/float
-void RaviCodeGenerator::emit_DIVFF(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_DIVFF(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_DIVFF, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -178,7 +192,8 @@ void RaviCodeGenerator::emit_DIVFF(RaviFunctionDef *def, int A, int B, int C, in
 }
 
 // R(A) := RK(B) / RK(C), float/int
-void RaviCodeGenerator::emit_DIVFI(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_DIVFI(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_DIVFI, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -190,7 +205,8 @@ void RaviCodeGenerator::emit_DIVFI(RaviFunctionDef *def, int A, int B, int C, in
 }
 
 // R(A) := RK(B) / RK(C), int/float
-void RaviCodeGenerator::emit_DIVIF(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_DIVIF(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_DIVIF, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -202,7 +218,8 @@ void RaviCodeGenerator::emit_DIVIF(RaviFunctionDef *def, int A, int B, int C, in
 }
 
 // R(A) := RK(B) / RK(C), int/int but result is float
-void RaviCodeGenerator::emit_DIVII(RaviFunctionDef *def, int A, int B, int C, int pc) {
+void RaviCodeGenerator::emit_DIVII(RaviFunctionDef *def, int A, int B, int C,
+                                   int pc) {
   emit_debug_trace(def, OP_RAVI_DIVII, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -239,54 +256,56 @@ void RaviCodeGenerator::emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op,
     break;
   default:
     fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
-    lua_assert(false);
     abort();
   }
   emit_store_reg_i_withtype(def, result, ra);
 }
-  
+
 /* number of bits in an integer */
-#define NBITS	cast_int(sizeof(lua_Integer) * CHAR_BIT)
+#define NBITS cast_int(sizeof(lua_Integer) * CHAR_BIT)
 
 // Handle the case when we have a constant RHS and the LHS is an integer
-void RaviCodeGenerator::emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B, lua_Integer y) {
-  if (y < 0) {/* shift right? */
+void RaviCodeGenerator::emit_bitwise_shiftl(RaviFunctionDef *def,
+                                            llvm::Value *ra, int B,
+                                            lua_Integer y) {
+  if (y < 0) { /* shift right? */
     if (y <= -NBITS)
-      emit_store_reg_i_withtype(def, llvm::ConstantInt::get(def->types->lua_IntegerT, 0), ra);
+      emit_store_reg_i_withtype(
+          def, llvm::ConstantInt::get(def->types->lua_IntegerT, 0), ra);
     else {
       llvm::Value *rb = emit_load_register_or_constant_i(def, B);
-      llvm::Value *result = def->builder->CreateLShr(rb, llvm::ConstantInt::get(def->types->lua_IntegerT, -y));
+      llvm::Value *result = def->builder->CreateLShr(
+          rb, llvm::ConstantInt::get(def->types->lua_IntegerT, -y));
       emit_store_reg_i_withtype(def, result, ra);
     }
-  }
-  else {
+  } else {
     if (y >= NBITS)
-      emit_store_reg_i_withtype(def, llvm::ConstantInt::get(def->types->lua_IntegerT, 0), ra);
+      emit_store_reg_i_withtype(
+          def, llvm::ConstantInt::get(def->types->lua_IntegerT, 0), ra);
     else {
       llvm::Value *rb = emit_load_register_or_constant_i(def, B);
-      llvm::Value *result = def->builder->CreateShl(rb, llvm::ConstantInt::get(def->types->lua_IntegerT, y));
+      llvm::Value *result = def->builder->CreateShl(
+          rb, llvm::ConstantInt::get(def->types->lua_IntegerT, y));
       emit_store_reg_i_withtype(def, result, ra);
     }
   }
 }
-  
+
 void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
                                               int A, int B, int C, int pc) {
   emit_debug_trace(def, op, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
-  
+
   // If the RHS is a constant and we know that LHS is
   // and integer then we can optimize the code generation
   if (op == OP_RAVI_SHL_II && ISK(C)) {
     lua_Integer y = def->p->k[INDEXK(C)].value_.i;
     emit_bitwise_shiftl(def, ra, B, y);
-  }
-  else if (op == OP_RAVI_SHR_II && ISK(C)) {
+  } else if (op == OP_RAVI_SHR_II && ISK(C)) {
     lua_Integer y = def->p->k[INDEXK(C)].value_.i;
     emit_bitwise_shiftl(def, ra, B, -y);
-  }
-  else {
+  } else {
     llvm::Value *rc = emit_gep_register_or_constant(def, C);
     llvm::Value *rb = emit_gep_register_or_constant(def, B);
 
@@ -301,13 +320,13 @@ void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
       break;
     default:
       fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
-      lua_assert(false);
       abort();
     }
   }
 }
 
-void RaviCodeGenerator::emit_BNOT_I(RaviFunctionDef *def, int A, int B, int pc) {
+void RaviCodeGenerator::emit_BNOT_I(RaviFunctionDef *def, int A, int B,
+                                    int pc) {
   emit_debug_trace(def, OP_RAVI_BNOT_I, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);

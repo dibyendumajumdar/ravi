@@ -418,45 +418,53 @@ RaviCodeGenerator::emit_gep_register_or_constant(RaviFunctionDef *def, int B) {
 }
 
 // Test if ci->jistatus is true
-llvm::Value *RaviCodeGenerator::emit_is_jit_call(RaviFunctionDef *def, llvm::Value *ci) {
+llvm::Value *RaviCodeGenerator::emit_is_jit_call(RaviFunctionDef *def,
+                                                 llvm::Value *ci) {
   // Get pointer to ci->jitstatus
   llvm::Value *ci_jitstatus_ptr = emit_gep(def, "ci_jit_status_ptr", ci, 0, 8);
 
   // Load ci->jitstatus
   llvm::Instruction *ci_jitstatus = def->builder->CreateLoad(ci_jitstatus_ptr);
   ci_jitstatus->setMetadata(llvm::LLVMContext::MD_tbaa,
-    def->types->tbaa_CallInfo_jitstatusT);
+                            def->types->tbaa_CallInfo_jitstatusT);
 
-  return def->builder->CreateICmpNE(ci_jitstatus, llvm::ConstantInt::get(def->types->lu_byteT, 0), "jit_call");
+  return def->builder->CreateICmpNE(
+      ci_jitstatus, llvm::ConstantInt::get(def->types->lu_byteT, 0),
+      "jit_call");
 }
 
 // Return (ci->callstatus & CIST_LUA) != 0
-llvm::Value *RaviCodeGenerator::emit_ci_is_Lua(RaviFunctionDef *def, llvm::Value *ci) {
+llvm::Value *RaviCodeGenerator::emit_ci_is_Lua(RaviFunctionDef *def,
+                                               llvm::Value *ci) {
   // Get pointer to ci->callstatus
-  llvm::Value *ci_callstatus_ptr = emit_gep(def, "ci_call_status_ptr", ci, 0, 7);
+  llvm::Value *ci_callstatus_ptr =
+      emit_gep(def, "ci_call_status_ptr", ci, 0, 7);
 
   // Load ci->callstatus
-  llvm::Instruction *ci_callstatus = def->builder->CreateLoad(ci_callstatus_ptr, "ci_call_status");
+  llvm::Instruction *ci_callstatus =
+      def->builder->CreateLoad(ci_callstatus_ptr, "ci_call_status");
   ci_callstatus->setMetadata(llvm::LLVMContext::MD_tbaa,
-    def->types->tbaa_CallInfo_callstatusT);
+                             def->types->tbaa_CallInfo_callstatusT);
 
-  llvm::Value *isLua = def->builder->CreateAnd(ci_callstatus, llvm::ConstantInt::get(def->types->lu_byteT, CIST_LUA), "isLua");
-  return def->builder->CreateICmpNE(isLua, llvm::ConstantInt::get(def->types->lu_byteT, 0));
+  llvm::Value *isLua = def->builder->CreateAnd(
+      ci_callstatus, llvm::ConstantInt::get(def->types->lu_byteT, CIST_LUA),
+      "isLua");
+  return def->builder->CreateICmpNE(
+      isLua, llvm::ConstantInt::get(def->types->lu_byteT, 0));
 }
 
-llvm::Value *RaviCodeGenerator::emit_load_ci(RaviFunctionDef* def) {
+llvm::Value *RaviCodeGenerator::emit_load_ci(RaviFunctionDef *def) {
   llvm::Value *L_ci = emit_gep(def, "L_ci", def->L, 0, 6);
 
   llvm::Instruction *ci_val = def->builder->CreateLoad(L_ci);
-  ci_val->setMetadata(llvm::LLVMContext::MD_tbaa,
-    def->types->tbaa_CallInfoT);
+  ci_val->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_CallInfoT);
 
   return ci_val;
 }
 
-
 // L->top = ci->top
-void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def, llvm::Value *ci_val) {
+void RaviCodeGenerator::emit_refresh_L_top(RaviFunctionDef *def,
+                                           llvm::Value *ci_val) {
   // Get pointer to ci->top
   llvm::Value *citop = emit_gep(def, "ci_top", ci_val, 0, 1);
 
@@ -771,9 +779,10 @@ void RaviCodeGenerator::emit_dump_stack(RaviFunctionDef *def, const char *str) {
               def->builder->CreateGlobalStringPtr(str));
 }
 
-void RaviCodeGenerator::emit_dump_stacktop(RaviFunctionDef *def, const char *str) {
+void RaviCodeGenerator::emit_dump_stacktop(RaviFunctionDef *def,
+                                           const char *str) {
   CreateCall2(def->builder, def->ravi_dump_stacktopF, def->L,
-    def->builder->CreateGlobalStringPtr(str));
+              def->builder->CreateGlobalStringPtr(str));
 }
 
 void RaviCodeGenerator::emit_debug_trace(RaviFunctionDef *def, int opCode,
@@ -919,17 +928,17 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       "raviV_op_shr");
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(
-    def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
-    "ravi_dump_function");
+      def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
+      "ravi_dump_function");
   def->ravi_dump_stackF = def->raviF->addExternFunction(
-    def->types->ravi_dump_stackT, reinterpret_cast<void *>(&ravi_dump_stack),
-    "ravi_dump_stack");
+      def->types->ravi_dump_stackT, reinterpret_cast<void *>(&ravi_dump_stack),
+      "ravi_dump_stack");
   def->ravi_dump_stacktopF = def->raviF->addExternFunction(
-    def->types->ravi_dump_stacktopT, reinterpret_cast<void *>(&ravi_dump_stacktop),
-    "ravi_dump_stacktop");
+      def->types->ravi_dump_stacktopT,
+      reinterpret_cast<void *>(&ravi_dump_stacktop), "ravi_dump_stacktop");
   def->ravi_debug_traceF = def->raviF->addExternFunction(
-    def->types->ravi_debug_traceT, reinterpret_cast<void *>(&ravi_debug_trace),
-    "ravi_debug_trace");
+      def->types->ravi_debug_traceT,
+      reinterpret_cast<void *>(&ravi_debug_trace), "ravi_debug_trace");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
@@ -1055,10 +1064,12 @@ RaviCodeGenerator::emit_gep_upval_value(RaviFunctionDef *def,
   return emit_gep(def, "value", pupval, 0, 2);
 }
 
-void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *options) {
+void RaviCodeGenerator::compile(lua_State *L, Proto *p,
+                                ravi_compile_options_t *options) {
   bool doDump = options ? options->dump_level != 0 : 0;
-  bool doVerify = options ? options->verification_level != 0: 0;
-  bool omitArrayGetRangeCheck = options ? options->omit_array_get_range_check != 0: 0;
+  bool doVerify = options ? options->verification_level != 0 : 0;
+  bool omitArrayGetRangeCheck =
+      options ? options->omit_array_get_range_check != 0 : 0;
 
   if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED || !canCompile(p))
     return;
@@ -1126,7 +1137,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
   def->k_ptr->setMetadata(llvm::LLVMContext::MD_tbaa,
                           def->types->tbaa_Proto_kT);
 
-  //emit_dump_stack(def, "Function entry-->");
+  // emit_dump_stack(def, "Function entry-->");
 
   const Instruction *code = p->code;
   int pc, n = p->sizecode;
@@ -1145,7 +1156,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
       Instruction inst = code[++pc];
       int Ax = GETARG_Ax(inst);
       lua_assert(GET_OPCODE(inst) == OP_EXTRAARG);
-      emit_LOADK(def, A, Ax, pc-1);
+      emit_LOADK(def, A, Ax, pc - 1);
     } break;
 
     case OP_CONCAT: {
@@ -1242,7 +1253,8 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      emit_EQ(def, A, B, C, j, GETARG_A(i), comparison_function, compOperator, pc-1);
+      emit_EQ(def, A, B, C, j, GETARG_A(i), comparison_function, compOperator,
+              pc - 1);
     } break;
     case OP_TFORCALL: {
       int B = GETARG_B(i);
@@ -1256,7 +1268,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      emit_TFORCALL(def, A, B, C, j, GETARG_A(i), pc-1);
+      emit_TFORCALL(def, A, B, C, j, GETARG_A(i), pc - 1);
     } break;
     case OP_TFORLOOP: {
       int sbx = GETARG_sBx(i);
@@ -1283,7 +1295,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      emit_TEST(def, A, B, C, j, GETARG_A(i), pc-1);
+      emit_TEST(def, A, B, C, j, GETARG_A(i), pc - 1);
     } break;
     case OP_TESTSET: {
       int B = GETARG_B(i);
@@ -1297,7 +1309,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
       int sbx = GETARG_sBx(i);
       // j below is the jump target
       int j = sbx + pc + 1;
-      emit_TESTSET(def, A, B, C, j, GETARG_A(i), pc-1);
+      emit_TESTSET(def, A, B, C, j, GETARG_A(i), pc - 1);
     } break;
 
     case OP_JMP: {
@@ -1325,7 +1337,8 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p, ravi_compile_options_t *
     case OP_RAVI_FORLOOP_IP: {
       int sbx = GETARG_sBx(i);
       int j = sbx + pc + 1;
-      emit_iFORLOOP(def, A, j, def->jmp_targets[pc], op == OP_RAVI_FORLOOP_I1, pc);
+      emit_iFORLOOP(def, A, j, def->jmp_targets[pc], op == OP_RAVI_FORLOOP_I1,
+                    pc);
     } break;
     case OP_FORLOOP: {
       int sbx = GETARG_sBx(i);

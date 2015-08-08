@@ -98,7 +98,8 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C,
   def->builder->SetInsertPoint(else_block);
 }
 
-void RaviCodeGenerator::emit_TFORLOOP(RaviFunctionDef *def, int A, int j, int pc) {
+void RaviCodeGenerator::emit_TFORLOOP(RaviFunctionDef *def, int A, int j,
+                                      int pc) {
   //  case OP_TFORLOOP: {
   //  l_tforloop:
   //    if (!ttisnil(ra + 1)) {  /* continue loop? */

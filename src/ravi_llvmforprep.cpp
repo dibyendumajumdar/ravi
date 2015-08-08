@@ -24,7 +24,8 @@
 
 namespace ravi {
 
-void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, int A, int pc, int pc1) {
+void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, int A, int pc,
+                                      int pc1) {
 
   // Create additional forloop targets
   // First target is for int < limit
@@ -396,7 +397,8 @@ void RaviCodeGenerator::emit_FORPREP2(RaviFunctionDef *def, int A, int pc, int p
                              forloop_target.jmp4);
 }
 
-void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, int A, int pc, int pc1) {
+void RaviCodeGenerator::emit_FORPREP(RaviFunctionDef *def, int A, int pc,
+                                     int pc1) {
 
   // case OP_FORPREP: {
   //  if (ttisinteger(init) && ttisinteger(pstep) &&
@@ -715,7 +717,8 @@ void RaviCodeGenerator::emit_iFORPREP(RaviFunctionDef *def, int A, int pc,
   //    lua_Integer initv = ivalue(init);
   //    setivalue(init, initv - ivalue(pstep));
 
-  emit_debug_trace(def, step_one? OP_RAVI_FORPREP_I1 : OP_RAVI_FORPREP_IP, pc1);
+  emit_debug_trace(def, step_one ? OP_RAVI_FORPREP_I1 : OP_RAVI_FORPREP_IP,
+                   pc1);
   // Load pointer to base
   emit_load_base(def);
 

@@ -24,7 +24,8 @@
 
 namespace ravi {
 
-void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B, int pc) {
+void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B,
+                                    int pc) {
 
   // Here is what OP_RETURN looks like. We only compile steps
   // marked with //*. This is because the rest is only relevant in the
@@ -48,13 +49,13 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B, int pc) 
   // current block may already be terminated - so we have to insert
   // a new block
   if (def->builder->GetInsertBlock()->getTerminator()) {
-    llvm::BasicBlock *return_block =
-        llvm::BasicBlock::Create(def->jitState->context(), "OP_RETURN_bridge", def->f);
+    llvm::BasicBlock *return_block = llvm::BasicBlock::Create(
+        def->jitState->context(), "OP_RETURN_bridge", def->f);
     def->builder->SetInsertPoint(return_block);
   }
 
   emit_debug_trace(def, OP_RETURN, pc);
-  
+
   // Load pointer to base
   emit_load_base(def);
 
@@ -68,10 +69,10 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B, int pc) 
   // Test if psize > 0
   llvm::Value *psize_gt_0 =
       def->builder->CreateICmpSGT(psize, def->types->kInt[0]);
-  llvm::BasicBlock *then_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "OP_RETURN_if_close", def->f);
-  llvm::BasicBlock *else_block =
-      llvm::BasicBlock::Create(def->jitState->context(), "OP_RETURN_else_close");
+  llvm::BasicBlock *then_block = llvm::BasicBlock::Create(
+      def->jitState->context(), "OP_RETURN_if_close", def->f);
+  llvm::BasicBlock *else_block = llvm::BasicBlock::Create(
+      def->jitState->context(), "OP_RETURN_else_close");
   def->builder->CreateCondBr(psize_gt_0, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
 
@@ -92,6 +93,5 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B, int pc) 
   llvm::Value *b =
       CreateCall3(def->builder, def->luaD_poscallF, def->L, ra_ptr, nresults);
   def->builder->CreateRet(b);
-
 }
 }

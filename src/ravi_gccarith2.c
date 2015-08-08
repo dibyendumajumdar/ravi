@@ -236,12 +236,11 @@ void ravi_emit_ARITH(ravi_function_def_t *def, int A, int B, int C, OpCode op,
 
   gcc_jit_block_add_eval(
       def->current_block, NULL,
-      ravi_function_call5_rvalue(def, def->ravi->types->luaT_trybinTMT,
-                                 gcc_jit_param_as_rvalue(def->L),
-                                 gcc_jit_lvalue_get_address(rb, NULL),
-                                 gcc_jit_lvalue_get_address(rc, NULL),
-                                 gcc_jit_lvalue_get_address(ra, NULL),
-                                 ravi_int_constant(def, tms)));
+      ravi_function_call5_rvalue(
+          def, def->ravi->types->luaT_trybinTMT,
+          gcc_jit_param_as_rvalue(def->L), gcc_jit_lvalue_get_address(rb, NULL),
+          gcc_jit_lvalue_get_address(rc, NULL),
+          gcc_jit_lvalue_get_address(ra, NULL), ravi_int_constant(def, tms)));
   ravi_emit_branch(def, done_block);
 
   ravi_set_current_block(def, done_block);

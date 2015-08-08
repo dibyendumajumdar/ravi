@@ -49,58 +49,72 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
   gcc_jit_rvalue *result = NULL;
   switch (opCode) {
 
+  case OP_RAVI_LT_II:
+  case OP_RAVI_LE_II:
+  case OP_RAVI_EQ_II: {
+    gcc_jit_lvalue *p1 = ravi_emit_load_reg_i(def, regB);
+    gcc_jit_lvalue *p2 = ravi_emit_load_reg_i(def, regC);
+
+    switch (opCode) {
+    case OP_RAVI_EQ_II:
+      result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ,
+                                    gcc_jit_lvalue_as_rvalue(p1),
+                                    gcc_jit_lvalue_as_rvalue(p2));
+      break;
     case OP_RAVI_LT_II:
+      result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT,
+                                    gcc_jit_lvalue_as_rvalue(p1),
+                                    gcc_jit_lvalue_as_rvalue(p2));
+      break;
     case OP_RAVI_LE_II:
-    case OP_RAVI_EQ_II: {
-      gcc_jit_lvalue *p1 = ravi_emit_load_reg_i(def, regB);
-      gcc_jit_lvalue *p2 = ravi_emit_load_reg_i(def, regC);
-
-      switch (opCode) {
-        case OP_RAVI_EQ_II:
-          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
-          break;
-        case OP_RAVI_LT_II:
-          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
-          break;
-        case OP_RAVI_LE_II:
-          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LE, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
-          break;
-        default:
-          assert(0);
-      }
-      result = gcc_jit_context_new_cast(def->function_context, NULL, result, def->ravi->types->C_intT);
-
-    } break;
-
-    case OP_RAVI_LT_FF:
-    case OP_RAVI_LE_FF:
-    case OP_RAVI_EQ_FF: {
-      gcc_jit_lvalue *p1 = ravi_emit_load_reg_n(def, regB);
-      gcc_jit_lvalue *p2 = ravi_emit_load_reg_n(def, regC);
-
-      switch (opCode) {
-        case OP_RAVI_EQ_FF:
-          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
-          break;
-        case OP_RAVI_LT_FF:
-          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
-          break;
-        case OP_RAVI_LE_FF:
-          result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LE, gcc_jit_lvalue_as_rvalue(p1), gcc_jit_lvalue_as_rvalue(p2));
-          break;
-        default:
-          assert(0);
-      }
-      result = gcc_jit_context_new_cast(def->function_context, NULL, result, def->ravi->types->C_intT);
-
-    } break;
-
+      result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LE,
+                                    gcc_jit_lvalue_as_rvalue(p1),
+                                    gcc_jit_lvalue_as_rvalue(p2));
+      break;
     default:
-      // Call luaV_equalobj with register B and C
-      result = ravi_function_call3_rvalue(
-              def, callee, gcc_jit_param_as_rvalue(def->L),
-              gcc_jit_lvalue_get_address(regB, NULL),
-              gcc_jit_lvalue_get_address(regC, NULL));
+      assert(0);
+    }
+    result = gcc_jit_context_new_cast(def->function_context, NULL, result,
+                                      def->ravi->types->C_intT);
+
+  } break;
+
+  case OP_RAVI_LT_FF:
+  case OP_RAVI_LE_FF:
+  case OP_RAVI_EQ_FF: {
+    gcc_jit_lvalue *p1 = ravi_emit_load_reg_n(def, regB);
+    gcc_jit_lvalue *p2 = ravi_emit_load_reg_n(def, regC);
+
+    switch (opCode) {
+    case OP_RAVI_EQ_FF:
+      result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ,
+                                    gcc_jit_lvalue_as_rvalue(p1),
+                                    gcc_jit_lvalue_as_rvalue(p2));
+      break;
+    case OP_RAVI_LT_FF:
+      result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LT,
+                                    gcc_jit_lvalue_as_rvalue(p1),
+                                    gcc_jit_lvalue_as_rvalue(p2));
+      break;
+    case OP_RAVI_LE_FF:
+      result = ravi_emit_comparison(def, GCC_JIT_COMPARISON_LE,
+                                    gcc_jit_lvalue_as_rvalue(p1),
+                                    gcc_jit_lvalue_as_rvalue(p2));
+      break;
+    default:
+      assert(0);
+    }
+    result = gcc_jit_context_new_cast(def->function_context, NULL, result,
+                                      def->ravi->types->C_intT);
+
+  } break;
+
+  default:
+    // Call luaV_equalobj with register B and C
+    result =
+        ravi_function_call3_rvalue(def, callee, gcc_jit_param_as_rvalue(def->L),
+                                   gcc_jit_lvalue_get_address(regB, NULL),
+                                   gcc_jit_lvalue_get_address(regC, NULL));
   }
 
   // Test if result is equal to operand A
@@ -135,7 +149,7 @@ void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,
     gcc_jit_block_add_eval(
         def->current_block, NULL,
         ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                   gcc_jit_param_as_rvalue(def->L), 
+                                   gcc_jit_param_as_rvalue(def->L),
                                    gcc_jit_lvalue_get_address(val, NULL)));
   }
   // Do the jump
@@ -248,7 +262,7 @@ void ravi_emit_TEST(ravi_function_def_t *def, int A, int B, int C, int j,
     gcc_jit_block_add_eval(
         def->current_block, NULL,
         ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                   gcc_jit_param_as_rvalue(def->L), 
+                                   gcc_jit_param_as_rvalue(def->L),
                                    gcc_jit_lvalue_get_address(val, NULL)));
   }
   // Do the jump
@@ -329,7 +343,7 @@ void ravi_emit_TESTSET(ravi_function_def_t *def, int A, int B, int C, int j,
     gcc_jit_block_add_eval(
         def->current_block, NULL,
         ravi_function_call2_rvalue(def, def->ravi->types->luaF_closeT,
-                                   gcc_jit_param_as_rvalue(def->L), 
+                                   gcc_jit_param_as_rvalue(def->L),
                                    gcc_jit_lvalue_get_address(val, NULL)));
   }
   // Do the jump

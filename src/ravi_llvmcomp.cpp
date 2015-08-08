@@ -27,7 +27,8 @@ namespace ravi {
 // Although the name is EQ this actually
 // implements EQ, LE and LT - by using the supplied lua function to call.
 void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
-                                int j, int jA, llvm::Constant *callee, OpCode opCode, int pc) {
+                                int j, int jA, llvm::Constant *callee,
+                                OpCode opCode, int pc) {
   //  case OP_EQ: {
   //    TValue *rb = RKB(i);
   //    TValue *rc = RKC(i);
@@ -69,9 +70,10 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
       result = def->builder->CreateICmpSLE(p1, p2, "LE_II_result");
       break;
     default:
-        assert(0);
+      assert(0);
     }
-    result = def->builder->CreateZExt(result, def->types->C_intT, "II_result_int");
+    result =
+        def->builder->CreateZExt(result, def->types->C_intT, "II_result_int");
 
   } break;
 
@@ -94,21 +96,20 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
     default:
       assert(0);
     }
-    result = def->builder->CreateZExt(result, def->types->C_intT, "FF_result_int");
+    result =
+        def->builder->CreateZExt(result, def->types->C_intT, "FF_result_int");
 
   } break;
 
   default:
     // Call luaV_equalobj with register B and C
-    result =
-      CreateCall3(def->builder, callee, def->L, regB, regC);
+    result = CreateCall3(def->builder, callee, def->L, regB, regC);
   }
 
   // Test if result is equal to operand A
   llvm::Value *result_eq_A = def->builder->CreateICmpEQ(
       result, llvm::ConstantInt::get(def->types->C_intT, A));
-  
-  
+
   // If result == A then we need to execute the next statement which is a jump
   llvm::BasicBlock *then_block =
       llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
