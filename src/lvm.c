@@ -1783,8 +1783,9 @@ void ravi_debug_trace(lua_State *L, int opCode, int pc) {
   int funcpos = (int)(ci->func - L->stack);
   int top = (int)(L->top - L->stack);
   int ci_top = (int)(ci->top - L->stack);
+  int base = (int)(ci->u.l.base - L->stack);
   printf("Stack dump %s function %d, pc=%d, L->top = %d, ci->top = %d\n",
-         luaP_opnames[opCode], funcpos, pc, top, ci_top);
+         luaP_opnames[opCode], funcpos, pc, (top-base), (ci_top-base));
   lua_assert(L->ci->u.l.base <= L->top && L->top < L->stack + L->stacksize);
 }
 

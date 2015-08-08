@@ -29,6 +29,7 @@
 namespace ravi {
 
 // R(A) := -R(B), floating point
+// NOT yet used
 void RaviCodeGenerator::emit_UNMF(RaviFunctionDef *def, int A, int B, int pc) {
   (void)pc;
   emit_load_base(def);
@@ -40,6 +41,7 @@ void RaviCodeGenerator::emit_UNMF(RaviFunctionDef *def, int A, int B, int pc) {
 }
 
 // R(A) := -R(B), integer
+// NOT yet used
 void RaviCodeGenerator::emit_UNMI(RaviFunctionDef *def, int A, int B, int pc) {
   (void)pc;
   emit_load_base(def);
@@ -80,7 +82,7 @@ void RaviCodeGenerator::emit_ADDII(RaviFunctionDef *def, int A, int B, int C, in
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_load_register_or_constant_i(def, B);
   llvm::Value *rc = emit_load_register_or_constant_i(def, C);
-  llvm::Value *result = def->builder->CreateAdd(rb, rc, "", false, true);
+  llvm::Value *result = def->builder->CreateAdd(rb, rc, "OP_RAVI_ADDII_result", false, true);
   emit_store_reg_i_withtype(def, result, ra);
 }
 
@@ -126,7 +128,7 @@ void RaviCodeGenerator::emit_SUBII(RaviFunctionDef *def, int A, int B, int C, in
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_load_register_or_constant_i(def, B);
   llvm::Value *rc = emit_load_register_or_constant_i(def, C);
-  llvm::Value *result = def->builder->CreateSub(rb, rc, "", false, true);
+  llvm::Value *result = def->builder->CreateSub(rb, rc, "OP_RAVI_SUBII_result", false, true);
   emit_store_reg_i_withtype(def, result, ra);
 }
 
@@ -160,7 +162,7 @@ void RaviCodeGenerator::emit_MULII(RaviFunctionDef *def, int A, int B, int C, in
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_load_register_or_constant_i(def, B);
   llvm::Value *rc = emit_load_register_or_constant_i(def, C);
-  llvm::Value *result = def->builder->CreateMul(rb, rc, "", false, true);
+  llvm::Value *result = def->builder->CreateMul(rb, rc, "OP_RAVI_MULII_result", false, true);
   emit_store_reg_i_withtype(def, result, ra);
 }
 
@@ -212,7 +214,8 @@ void RaviCodeGenerator::emit_DIVII(RaviFunctionDef *def, int A, int B, int C, in
   emit_store_reg_n_withtype(def, result, ra);
 }
 
-// R(A) := RK(B) + RK(C), int+int
+// Bitwise AND, OR and XOR when both operands are known to be
+// integers
 void RaviCodeGenerator::emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op,
                                                int A, int B, int C, int pc) {
   emit_debug_trace(def, op, pc);
@@ -226,13 +229,13 @@ void RaviCodeGenerator::emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op,
 
   switch (op) {
   case OP_RAVI_BAND_II:
-    result = def->builder->CreateAnd(lhs, rhs, "");
+    result = def->builder->CreateAnd(lhs, rhs, "OP_RAVI_BAND_II_result");
     break;
   case OP_RAVI_BOR_II:
-    result = def->builder->CreateOr(lhs, rhs, "");
+    result = def->builder->CreateOr(lhs, rhs, "OP_RAVI_BOR_II_result");
     break;
   case OP_RAVI_BXOR_II:
-    result = def->builder->CreateXor(lhs, rhs, "");
+    result = def->builder->CreateXor(lhs, rhs, "OP_RAVI_BXOR_II_result");
     break;
   default:
     fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
@@ -245,6 +248,7 @@ void RaviCodeGenerator::emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op,
 /* number of bits in an integer */
 #define NBITS	cast_int(sizeof(lua_Integer) * CHAR_BIT)
 
+// Handle the case when we have a constant RHS and the LHS is an integer
 void RaviCodeGenerator::emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B, lua_Integer y) {
   if (y < 0) {/* shift right? */
     if (y <= -NBITS)
@@ -272,6 +276,8 @@ void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   
+  // If the RHS is a constant and we know that LHS is
+  // and integer then we can optimize the code generation
   if (op == OP_RAVI_SHL_II && ISK(C)) {
     lua_Integer y = def->p->k[INDEXK(C)].value_.i;
     emit_bitwise_shiftl(def, ra, B, y);
