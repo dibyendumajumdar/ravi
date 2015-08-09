@@ -9,7 +9,7 @@ Following copyrights are acknowledged:
 
   A No-Frills Introduction to Lua 5.1 VM Instructions
     by Kein-Hong Man, esq. <khman AT users.sf.net>
-    Version 0.1, 20060313
+    Version 0.1, 2006-03-13
 
 
 '``OP_CALL``' instruction
