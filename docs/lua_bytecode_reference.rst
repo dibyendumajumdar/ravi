@@ -30,13 +30,13 @@ Thus upon entry to a function ``base`` is always the location of the first fixed
 
 ::
 
-  One fixed arg               Two variable args and 1     Two variable args and no 
-                              fixed arg                   fixed args
-  CI->func  [ function    ]   CI->func  [ function    ]   CI->func [ function   ]
-  CI->base  [ fixed arg 1 ]             [ var arg 1   ]            [ var arg 1  ]
-            [ local 1     ]             [ var arg 2   ]            [ var arg 2  ]
-                              CI->base  [ fixed arg 1 ]   CI->base [ local 1    ]
-                                        [ local 1     ]
+                                       Two variable args and 1     Two variable args and no 
+  Caller   One fixed arg               fixed arg                   fixed args
+  R(A)     CI->func  [ function    ]   CI->func  [ function    ]   CI->func [ function   ]
+  R(A+1)   CI->base  [ fixed arg 1 ]             [ var arg 1   ]            [ var arg 1  ]
+  R(A+2)             [ local 1     ]             [ var arg 2   ]            [ var arg 2  ]
+  R(A+3)                               CI->base  [ fixed arg 1 ]   CI->base [ local 1    ]
+  R(A+4)                                         [ local 1     ]
                                         
 Results returned by the function call is placed in a range of registers starting from R(A). If C is 1, no return results are saved. If C is 2 or more, (C-1) return values are saved. If C is 0, then multiple return results are saved, depending on the called function.
 
