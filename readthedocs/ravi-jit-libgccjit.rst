@@ -10,7 +10,7 @@ I am keen to provide support for this in Ravi. From initial look it seems to con
 
 License
 -------
-Ravi with this component will be licensed as GPLv3. Without this component the license will be MIT license.
+Ravi itself is licensed under MIT license (including the code that implements the JIT compiler) - however I think that when linked to ``libgccjit`` the effective license will be GPLv3. 
 
 Why another JIT engine?
 -----------------------
@@ -18,7 +18,7 @@ Well partly as I feel I have a moral obligation to support gcc, given it has bee
 
 Secondly I am always looking for alternatives that will let me reduce the footprint of Ravi. The ``libgccjit`` is offered as a shared library - this is a great thing. I hate to have to statically link LLVM. 
 
-LLVM implementation and ``libgccjit`` implementation will both be kept in sync so that user can choose either option. 
+LLVM implementation and ``libgccjit`` implementation will both be kept in sync so that user can choose either option. Right now the LLVM implementation is more advanced and new features are implemented there first and then ported to the ``libgccjit`` implementation.
 
 Building GCC
 ------------
@@ -38,9 +38,15 @@ I built gcc 5.2 from source as follows.
      make
      make install
 
+On Mac OSX Yosemite
+-------------------
+It appears that the `HomeBrew <http://brew.sh/>`_ project supports creating the ``libgccjit`` library::
+
+   brew install gcc --with-jit --without-multilib
+   
 Current Status
 --------------
-Work on this started only recently (8 June 2015) so not much to show yet. But expectation is that there will be a working implementation by end June - the strategy is to port the existing LLVM implementation to equivalent ``libgccjit`` implementation.
+Many bytecodes are now compiled - see below for detailed status. The current version of Ravi passes the Lua test cases using ``libgccjit``.
 
 Building Ravi with ``libgccjit`` on Linux
 -------------------------------------
