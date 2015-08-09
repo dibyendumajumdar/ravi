@@ -26,7 +26,7 @@ Performs a function call, with register R(A) holding the reference to the functi
 
 If B is 0, the function parameters range from R(A+1) to the top of the stack. This form is used when the last expression in the parameter list is a function call, so the number of actual parameters is indeterminate. In this case, upon entry to the function, ``base`` is set to the register beyond the vararg section, which means that the varargs sit between the R(A) and ``base``.
 
-Thus upon entry to a function ``base`` is always the location of the first ``local`` if any.
+Thus upon entry to a function ``base`` is always the location of the first fixed parameter if any or else ``local`` if any.
 
 Results returned by the function call is placed in a range of registers starting from R(A). If C is 1, no return results are saved. If C is 2 or more, (C-1) return values are saved. If C is 0, then multiple return results are saved, depending on the called function.
 
