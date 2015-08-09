@@ -5,13 +5,6 @@ then
   exit 1
 fi
 
-$LUA ravi_tests1.ravi
-if [ $? != 0 ] 
-then
-  echo "ravi_tests1 failed"
-  exit 1
-fi
-
 $LUA fornum_test1.lua
 if [ $? != 0 ] 
 then
@@ -23,13 +16,6 @@ $LUA fornum_test2.ravi
 if [ $? != 0 ] 
 then
   echo "fornum_test2 failed"
-  exit 1
-fi
-
-$LUA fornum_test3.lua
-if [ $? != 0 ] 
-then
-  echo "fornum_test3 failed"
   exit 1
 fi
 
@@ -58,6 +44,20 @@ $LUA basics.lua
 if [ $? != 0 ] 
 then
   echo "basics failed"
+  exit 1
+fi
+
+$LUA ravi_tests1.ravi
+if [ $? != 0 ] 
+then
+  echo "ravi_tests1 failed"
+  exit 1
+fi
+
+$LUA fornum_test3.lua
+if [ $? != 0 ] 
+then
+  echo "fornum_test3 failed"
   exit 1
 fi
 
