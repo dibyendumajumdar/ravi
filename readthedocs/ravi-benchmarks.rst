@@ -17,84 +17,24 @@ The programs used in the performance testing can be found at `Ravi Tests <https:
 +---------------+---------+------------+------------+
 |fannkuchen(11) | 63.446  | 4.55       | 4.751      |
 +---------------+---------+------------+------------+
-|matmul(1000)   | 34.604  | 2.942      | 0.968      |
+|matmul(1000)   | 34.604  | 1.018      | 0.968      |
 +---------------+---------+------------+------------+
 
 Following points are worth bearing in mind when looking at above benchmarks.
 
-1. Luajit uses an optimized representation of double values. In Lua 5.3 and
-   in Ravi, a value is 16 bytes - and floating point operations require two
-   loads / two stores. 
-
-2. More work is needed to optimize numeric operations in Ravi (such as
-   using the C stack for temporaries).
-
-3. Luajit compilation approach ensures that it can use information about 
-   the actual execution path taken by the code at runtime whereas Ravi
-   compiles each function as a whole regardless of how it will be used.
-
-4. For Ravi the timings above do not include the LLVM compilation time.
+1. For Ravi the timings above do not include the LLVM compilation time.
    But LuaJIT timings include the JIT compilation times, so they show
    incredible performance.
 
-5. The benchmarks were run on Windows 8.1 64-bit. LLVM version 3.7 was used.
+2. The benchmarks were run on Windows 8.1 64-bit. A snapshot of upcoming 
+   LLVM version 3.7 was used.
 
-6. The Ravi benchmarks are based on code that uses optional static types.
+3. The Ravi benchmarks are based on code that uses optional static types;
+   additionally for the matmul benchmark a setting was used to disable
+   array bounds checks for array read operations.
 
-Ideas
------
-There are a number of improvements possible. Below are some of my thoughts.
-
-Allocating variables on C stack
--------------------------------
-Certain local and temporary variables that hold numeric values could be
-allocated on the C stack avoiding the overhead of accessing the Lua stack.
-This requires implementing escape analysis to determine which variables are
-safe to be allocated on the C stack.
-
-Optimizing Fornum loops
------------------------
-The Lua fornum loops create an `extra "external" variable <http://www.lua.org/manual/5.3/manual.html#3.3.5>`_ that has the name given by the user. 
-However an internal variable is actually used as the loop index. The external
-variable is updated at every iteration. An obvious optimization is to eliminate
-this variable by making the loop index available as a readonly value.
-If for backward compatiblity it is necessary to allow updates to the external
-variable then a compromise would be analyse the Lua program and only create
-the external variable if necessary.
-
-The Fornum loop needs to handle four different scenarios, resulting from
-the type of the index variable and whether the loop increments or decrements. 
-The common case of integer index with constant step can be specialized
-for greater performance. I have implemented the case when index is an integer
-and the step size is a positive constant. This seems to be the most common case.
-
-The Value Storage
------------------
-In Lua the type of the value and the data associated with a value are stored
-in separate fields. Luajit however overlays the storage by utilizing
-the `technique known as NaN tagging <http://lua-users.org/lists/lua-l/2009-11/msg00089.html>`_. The Luajit model is not suited for Lua 5.3 as in this version
-64-int integers are natively supported by Lua. 
-
-There is however still a possibility that NaN tagging can be used.
-The following scheme should work.
-
-.. note::
-   I have tested the following approach and found that it does not help
-   performance.
-
-Let the first 8 bytes hold a double value. And let the other values be
-held in the second 8 bytes. Then the NaN tagging technique can be used to
-overlay the type information with the double part. This would allow operations
-involving doubles to be faster as avoid the extra step of setting the type.
-However other types including integers will be penalised.
-
-Above scheme can be extended to support complex numbers.
-
-* First 8 bytes could be a double representing the real part.
-* Second 8 bytes could be a double representing the imaginary part.
-
-If a value is a not a complex number then the real part will either be
-NaN, or if the real part is a double then the imaginary part will be a
-NaN.
-
-
+4. Above benchmarks are primarily numerical. In real life scenarios there
+   are other factors that affect performance. For instance, via FFI LuaJIT 
+   is able to make efficient calls to external C functions, but Ravi does
+   not have a similar FFI interface. 
+   
