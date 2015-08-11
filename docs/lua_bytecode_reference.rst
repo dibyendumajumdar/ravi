@@ -22,7 +22,7 @@ Syntax
 
   CALL A B C    R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))
 
-Performs a function call, with register R(A) holding the reference to the function object to be called. Parameters to the function are placed in the registers following R(A). If B is 1, the function has no parameters. If B is 2 or more, there are (B-1) parameters. If B > 0 then upon entry to the function, R(A+1) will be the ``base``. 
+Performs a function call, with register R(A) holding the reference to the function object to be called. Parameters to the function are placed in the registers following R(A). If B is 1, the function has no parameters. If B is 2 or more, there are (B-1) parameters. If B >= 2, then upon entry to the called function, R(A+B-1) will become the ``base``. 
 
 If B is 0, the function parameters range from R(A+1) to the top of the stack. This form is used when the last expression in the parameter list is a function call, so the number of actual parameters is indeterminate. In this case, upon entry to the function, ``base`` is set to the register beyond the vararg section, which means that the varargs sit between the R(A) and ``base``.
 
