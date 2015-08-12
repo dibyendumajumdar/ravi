@@ -65,7 +65,7 @@ Performs a function call, with register R(A) holding the reference to the functi
 
 If B is 0, the function parameters range from R(A+1) to the top of the stack. This form is used when the 
 number of parameters to pass is set by the previous VM instruction, which has to be one of '``OP_CALL``' or
-'``OP_VARARG``'. In this case, upon entry to the called function, ``base`` is set to the register beyond the vararg section, which means that the varargs sit between the R(A) and ``base`` (`adjust_varargs() <http://www.lua.org/source/5.3/ldo.c.html#adjust_varargs>`_).
+'``OP_VARARG``'. 
 
 Example of '``OP_VARARG``' followed by '``OP_CALL``'::
 
