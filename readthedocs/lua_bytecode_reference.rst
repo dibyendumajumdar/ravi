@@ -64,8 +64,27 @@ Syntax
 Performs a function call, with register R(A) holding the reference to the function object to be called. Parameters to the function are placed in the registers following R(A). If B is 1, the function has no parameters. If B is 2 or more, there are (B-1) parameters. If B >= 2, then upon entry to the called function, R(A+B-1) will become the ``base``. 
 
 If B is 0, the function parameters range from R(A+1) to the top of the stack. This form is used when the 
-number of parameters to pass is set by the previous VM instrauction, which has to be one of '``OP_CALL``',
-'``OP_VARARG``' or '``OP_SETLIST``'. In this case, upon entry to the called function, ``base`` is set to the register beyond the vararg section, which means that the varargs sit between the R(A) and ``base`` (`adjust_varargs() <http://www.lua.org/source/5.3/ldo.c.html#adjust_varargs>`_).
+number of parameters to pass is set by the previous VM instruction, which has to be one of '``OP_CALL``' or
+'``OP_VARARG``'. In this case, upon entry to the called function, ``base`` is set to the register beyond the vararg section, which means that the varargs sit between the R(A) and ``base`` (`adjust_varargs() <http://www.lua.org/source/5.3/ldo.c.html#adjust_varargs>`_).
+
+Example of '``OP_VARARG``' followed by '``OP_CALL``'::
+
+  function y(...) print(...) end
+
+  1 [1] GETTABUP  0 0 -1  ; _ENV "print"
+  2 [1] VARARG    1 0     ; VARARG will set L->top
+  3 [1] CALL      0 0 1   ; B=0 so L->top set by previous instruction
+  4 [1] RETURN    0 1
+
+Example of '``OP_CALL``' followed by '``OP_CALL``'::
+
+  function z1() y(x()) end
+
+  1 [1] GETTABUP  0 0 -1  ; _ENV "y"
+  2 [1] GETTABUP  1 0 -2  ; _ENV "x"
+  3 [1] CALL      1 1 0   ; C=0 so return values indicated by L->top
+  4 [1] CALL      0 0 1   ; B=0 so L->top set by previous instruction
+  5 [1] RETURN    0 1
 
 Thus upon entry to a function ``base`` is always the location of the first fixed parameter if any or else ``local`` if any. The three possibilities are shown below.
 
