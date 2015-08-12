@@ -33,15 +33,16 @@ When a function is called - the stack is setup as follows::
   |            local 1
   |            ...
   |            local n
+  |            temporaries 
+  |            ...
   |  top->     
   |  
   V
 
 So ``top`` is just past the registers needed by the function. 
-The number of registers is determined based on locals and temporaries.
+The number of registers is determined based on parameters, locals and temporaries.
 
-The base of the stack is set to just past the function reference - i.e. on the first fixed 
-parameter or local.
+For each Lua function, the ``base`` of the stack is set to the first fixed parameter or local.
 All register addressing is done as offset from ``base`` - so ``R(0)`` is at ``base+0`` on the stack. 
 
 .. figure:: Drawing_Lua_Stack.jpg
