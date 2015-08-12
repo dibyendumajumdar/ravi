@@ -48,7 +48,7 @@ All register addressing is done as offset from ``base`` - so ``R(0)`` is at ``ba
 .. figure:: Drawing_Lua_Stack.jpg
    :alt: Drawing of Lua Stack
 
-   The figure shows how the stack is related to other Lua objects.
+   The figure above shows how the stack is related to other Lua objects.
 
 
 '``OP_CALL``' instruction
@@ -63,7 +63,9 @@ Syntax
 
 Performs a function call, with register R(A) holding the reference to the function object to be called. Parameters to the function are placed in the registers following R(A). If B is 1, the function has no parameters. If B is 2 or more, there are (B-1) parameters. If B >= 2, then upon entry to the called function, R(A+B-1) will become the ``base``. 
 
-If B is 0, the function parameters range from R(A+1) to the top of the stack. This form is used when the last expression in the parameter list is a function call, so the number of actual parameters is indeterminate. In this case, upon entry to the function, ``base`` is set to the register beyond the vararg section, which means that the varargs sit between the R(A) and ``base`` (see `adjust_varargs() <http://www.lua.org/source/5.3/ldo.c.html#adjust_varargs>`_.
+If B is 0, the function parameters range from R(A+1) to the top of the stack. This form is used when the 
+number of parameters to pass is set by the previous VM instrauction, which has to be one of '``OP_CALL``',
+'``OP_VARARG``' or '``OP_SETLIST``'. In this case, upon entry to the called function, ``base`` is set to the register beyond the vararg section, which means that the varargs sit between the R(A) and ``base`` (`adjust_varargs() <http://www.lua.org/source/5.3/ldo.c.html#adjust_varargs>`_).
 
 Thus upon entry to a function ``base`` is always the location of the first fixed parameter if any or else ``local`` if any. The three possibilities are shown below.
 
