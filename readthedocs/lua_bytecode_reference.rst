@@ -62,7 +62,7 @@ Syntax
 
 Performs a function call, with register R(A) holding the reference to the function object to be called. Parameters to the function are placed in the registers following R(A). If B is 1, the function has no parameters. If B is 2 or more, there are (B-1) parameters. If B >= 2, then upon entry to the called function, R(A+B-1) will become the ``base``. 
 
-If B is 0, the function parameters range from R(A+1) to the top of the stack. This form is used when the last expression in the parameter list is a function call, so the number of actual parameters is indeterminate. In this case, upon entry to the function, ``base`` is set to the register beyond the vararg section, which means that the varargs sit between the R(A) and ``base`` (see `adjust_varargs()<http://www.lua.org/source/5.3/ldo.c.html#adjust_varargs>`_.
+If B is 0, the function parameters range from R(A+1) to the top of the stack. This form is used when the last expression in the parameter list is a function call, so the number of actual parameters is indeterminate. In this case, upon entry to the function, ``base`` is set to the register beyond the vararg section, which means that the varargs sit between the R(A) and ``base`` (see `adjust_varargs() <http://www.lua.org/source/5.3/ldo.c.html#adjust_varargs>`_.
 
 Thus upon entry to a function ``base`` is always the location of the first fixed parameter if any or else ``local`` if any. The three possibilities are shown below.
 
@@ -79,7 +79,7 @@ Thus upon entry to a function ``base`` is always the location of the first fixed
 Results returned by the function call is placed in a range of registers starting from R(A). If C is 1, no return results are saved. If C is 2 or more, (C-1) return values are saved. If C is 0, then multiple return results are saved. In this case the number of values to save is determined by one of following ways:
 
 * A C function returns an integer value indicating number of results returned so for C function calls
-  this is used (see the value of ``n`` passed to `luaD_poscall()<http://www.lua.org/source/5.3/ldo.c.html#luaD_poscall>`_ in `luaD_precall()<http://www.lua.org/source/5.3/ldo.c.html#luaD_precall>`_)
+  this is used (see the value of ``n`` passed to `luaD_poscall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_poscall>`_ in `luaD_precall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_precall>`_)
 * For Lua functions, the the results are saved by the called function's '``OP_RETURN``' instruction.
 
 
