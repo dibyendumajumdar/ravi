@@ -40,7 +40,7 @@ I built gcc 5.2 from source as follows.
 
 On Mac OSX Yosemite
 -------------------
-It appears that the `HomeBrew <http://brew.sh/>`_ project supports creating the ``libgccjit`` library::
+It appears that the `HomeBrew <http://brew.sh/>`_ project supports creating the ``libgccjit 5.2`` library. However the default formula doesn't quite work and needs to be patched for libgccjit to work properly. A patched formula can be found at `here <https://github.com/dibyendumajumdar/ravi/patches/gcc.rb>`_. To use the patches version edit the gcc formula and copy the patched version. After that following should build and install gcc 5.2 including the JIT library::
 
    brew install gcc --with-jit --without-multilib
    
