@@ -24,10 +24,10 @@ When a function is called - the stack is setup as follows::
 
   stack
   |            function reference
-  |  base->    var arg 1
+  |            var arg 1
   |            ... 
   |            var arg n
-  |            fixed arg 1
+  | base->     fixed arg 1
   |            ...
   |            fixed arg n
   |            local 1
