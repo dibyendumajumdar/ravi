@@ -105,5 +105,30 @@ Results returned by the function call are placed in a range of registers startin
 * For Lua functions, the the results are saved by the called function's '``OP_RETURN``' instruction.
 
 
+'``OP_RETURN``' instruction
+===========================
+
+Syntax
+------
+
+::
+
+  RETURN  A B return R(A), ... ,R(A+B-2)
+
+Returns to the calling function, with optional return values. 
+
+First RETURN closes any open upvalues by calling `luaF_cloe() <http://www.lua.org/source/5.3/lfunc.c.html#luaF_close>`_.
+
+If B is 1, there are no return values. If B is 2 or more, there are (B-1) return values, located in consecutive registers from R(A) onwards. If B is 0, the set of values range from R(A) to the top of the stack. 
+
+It is assumed that if the VM is returning to a Lua function then it is within the same invocation of the ``luaV_execute()``. Else it is assumed that ``luaV_execute()`` is being invoked from a C function.
+
+If B is 0 then the previous instruction (which must be either '``OP_CALL``' or '``OP_VARARG``' ) would have set ``L->top`` to indicate how many values to return. The number of values to be returned in this case is R(A) to L->top. 
+
+If B > 0 then the number of values to be returned is simply B-1.
+
+'``OP_RETURN``' calls `luaD_poscall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_poscall>`_ which is reposnible for copying return values to the caller - the first result is placed at the current ``closure``'s address. ``luaD_poscall()`` leaves ``L->top`` just past the last result that was copied.
+
+
 
 
