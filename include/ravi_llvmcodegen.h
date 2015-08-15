@@ -992,6 +992,11 @@ private:
 };
 }
 
+struct ravi_State {
+  ravi::RaviJITState *jit;
+  ravi::RaviCodeGenerator *code_generator;
+};
+
 #define RAVI_CODEGEN_FORPREP2 0
 
 #endif

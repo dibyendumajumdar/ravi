@@ -383,11 +383,6 @@ std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
 }
 }
 
-struct ravi_State {
-  ravi::RaviJITState *jit;
-  ravi::RaviCodeGenerator *code_generator;
-};
-
 // Initialize the JIT State and attach it to the
 // Global Lua State
 // If a JIT State already exists then this function

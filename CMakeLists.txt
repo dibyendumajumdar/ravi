@@ -113,7 +113,8 @@ if (LLVM_JIT)
      src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
      src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
      src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
-     src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
+     src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp
+     src/ravi_llvmluaapi.cpp)
 endif()
 if (GCC_JIT)
   set (GCC_JIT_SRCS src/ravi_gccjit.c src/ravi_gcctypes.c
@@ -147,11 +148,8 @@ elseif(NOT WIN32)
   set(EXTRA_LIBRARIES m dl readline)
 endif()
 
-#llvm_map_components_to_libnames(llvm_libs all)
-#llvm_map_components_to_libnames(llvm_libs Support Core CodeGen AsmPrinter BitReader TransformUtils  
-# InstCombine ScalarOpts Analysis ipa Object ExecutionEngine MC MCParser MCJIT ProfileData ipo
-# RuntimeDyld Target X86CodeGen X86AsmParser X86Disassembler X86AsmPrinter X86Desc X86Info X86Utils AsmParser)
-
+# Enable minimal required LLVM components so that the
+# the size of the resulting binary is manageable
 if (LLVM_JIT)
   llvm_map_components_to_libnames(llvm_libs 
     Analysis 
@@ -194,9 +192,6 @@ if (WIN32)
 endif()
 target_link_libraries(ravi ${EXTRA_LIBRARIES} ${llvm_libs} ${GCCJIT_LIBRARIES})
 
-#add_library(ravis ${RAVI_HEADERS} ${LUA_LIB_SRCS} ${LUA_CORE_SRCS})
-#target_link_libraries(ravis ${EXTRA_LIBRARIES} ${llvm_libs})
-
 add_executable(lua src/lua.c)
 target_link_libraries(lua ravi)
     
@@ -211,12 +206,6 @@ if (LLVM_JIT)
   #LLVM playground
   add_executable(test_llvm tests/test_llvm.cpp)
   target_link_libraries(test_llvm ravi)
-endif()
-
-if (GCC_JIT)
-  #GCC JIT playground
-  add_executable(test_gccjit tests/test_gccjit.c)
-  target_link_libraries(test_gccjit ravi)
 endif()
 
 add_executable(test_misc tests/test_misc.c)

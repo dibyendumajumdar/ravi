@@ -47,6 +47,11 @@ LUAMOD_API int (luaopen_package) (lua_State *L);
 #define LUA_RAVILIBNAME	"ravi"
 LUAMOD_API int (raviopen_llvmjit)(lua_State *L);
 
+#ifdef USE_LLVM
+#define LUA_LLVMLIBNAME	"llvm"
+LUAMOD_API int (raviopen_llvmluaapi)(lua_State *L);
+#endif
+
 /* open all previous libraries */
 LUALIB_API void (luaL_openlibs) (lua_State *L);
 
