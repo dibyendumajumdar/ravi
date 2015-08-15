@@ -127,8 +127,8 @@ If B is 0 then the previous instruction (which must be either '``OP_CALL``' or '
 
 If B > 0 then the number of values to be returned is simply B-1.
 
-'``OP_RETURN``' calls `luaD_poscall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_poscall>`_ which is reposnible for copying return values to the caller - the first result is placed at the current ``closure``'s address. ``luaD_poscall()`` leaves ``L->top`` just past the last result that was copied.
+'``OP_RETURN``' calls `luaD_poscall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_poscall>`_ which is responsible for copying return values to the caller - the first result is placed at the current ``closure``'s address. ``luaD_poscall()`` leaves ``L->top`` just past the last result that was copied.
 
 Now if '``OP_RETURN``' is returning to a Lua function and if the number of return values expected was indeterminate - i.e. '``OP_CALL``' had operand C = 0, then ``L->top`` is left where ``luaD_poscall()`` placed it - at the top of the result list. This allows the '``OP_CALL``' instruction to figure out how many results were returned. If however '``OP_CALL``' had invoked with a value of C > 0 then the expected number of results is known, and in that case, ``L->top`` is reset to  the calling function's ``C->top``.
 
-
+On the other hand, if ``luaV_execute()`` was called externally - then '``OP_RETURN``' leaves ``L->top`` unchanged - so it will continue to point to the top of the results list. This is probably because luaV_execute() does not have a way of informing callers how many values were returned; so presumably the caller can determine the number of results by inspecting ``L->top``.
