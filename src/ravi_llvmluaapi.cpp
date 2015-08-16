@@ -217,6 +217,7 @@ struct FunctionTypeHolder {
 /* garbage collected */
 struct FunctionHolder {
   ravi::RaviJITFunctionImpl *func;
+  lua_CFunction compiled_func;
 };
 
 struct BasicBlockHolder {
@@ -312,6 +313,7 @@ static void alloc_LLVM_function(lua_State *L, ravi::RaviJITStateImpl *jit,
   FunctionHolder *h =
       (FunctionHolder *)lua_newuserdata(L, sizeof(FunctionHolder));
   h->func = nullptr;
+  h->compiled_func = nullptr;
   l_getmetatable(L, LLVM_function);
   lua_setmetatable(L, -2);
   h->func = (ravi::RaviJITFunctionImpl *)jit->createFunction(
@@ -595,7 +597,7 @@ static int new_function_type(lua_State *L) {
   return 1;
 }
 
-static int new_function(lua_State *L) {
+static int new_lua_CFunction(lua_State *L) {
   global_State *G = G(L);
   if (!G->ravi_state)
     return 0;
@@ -604,10 +606,9 @@ static int new_function(lua_State *L) {
   if (!jit)
     return 0;
 
-  FunctionTypeHolder *type = check_LLVM_functiontype(L, 1);
-  const char *name = luaL_checkstring(L, 2);
+  const char *name = luaL_checkstring(L, 1);
 
-  alloc_LLVM_function(L, jit, type->type, name);
+  alloc_LLVM_function(L, jit, jit->types()->lua_CFunctionT, name);
   return 1;
 }
 
@@ -687,6 +688,29 @@ static int retval(lua_State *L) {
   return 0;
 }
 
+static int compile(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+
+  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  if (!jit)
+    return 0;
+
+  FunctionHolder *f = check_LLVM_function(L, 1);
+  if (!f->compiled_func) {
+    f->compiled_func = (lua_CFunction)f->func->compile();
+  }
+
+  if (!f->compiled_func)
+    return 0;
+
+  lua_pushvalue(L, 1);
+  lua_pushcclosure(L, f->compiled_func, 1);
+
+  return 1;
+}
+
 
 static const luaL_Reg llvmlib[] = {{"types", get_standard_types},
                                    {"context", get_llvm_context},
@@ -696,12 +720,13 @@ static const luaL_Reg llvmlib[] = {{"types", get_standard_types},
                                    {"pointertype", new_pointer_type},
                                    {"addmembers", add_members},
                                    {"functiontype", new_function_type},
-                                   {"func", new_function},
+                                   {"Cfunction", new_lua_CFunction},
                                    {"basicblock", new_basicblock},
                                    {"appendblock", append_basicblock},
                                    {"setcurrent", set_current_block},
                                    {"intconstant", intconstant},
                                    {"retval", retval},
+                                   {"compile", compile},
                                    {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {

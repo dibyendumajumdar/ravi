@@ -42,7 +42,7 @@ llvm.dump(testfunc)
 -- Create a lua_CFunction instance
 -- At this stage the function will get a module and 
 -- execution engine but no body
-myfunc = llvm.func(types.lua_CFunction, "myfunc")
+myfunc = llvm.Cfunction("myfunc")
 assert(getmetatable(myfunc).type == "LLVMfunction")
 
 -- Get a new IRBuilder intance
@@ -61,3 +61,11 @@ llvm.retval(irbuilder, llvm.intconstant(0))
 
 -- what did we get?
 llvm.dump(myfunc)
+
+-- JIT compile the function
+-- returns a C Closure
+runnable = llvm.compile(myfunc)
+
+print('Type of compiled function is', type(runnable))
+assert(not runnable())
+
