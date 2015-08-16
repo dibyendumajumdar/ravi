@@ -20,8 +20,13 @@ gcobject = llvm.structtype("GCObject")
 
 assert(getmetatable(gcobject).type == "LLVMstructtype")
 
-ptr_gcobject = llvm.pointertype(gcobject)
+pgcobject = llvm.pointertype(gcobject)
 
-assert(getmetatable(ptr_gcobject).type == "LLVMpointertype")
+assert(getmetatable(pgcobject).type == "LLVMpointertype")
 
-llvm.dump(ptr_gcobject)
+llvm.dump(pgcobject)
+print(getmetatable(pgcobject).type)
+
+llvm.addmembers(gcobject, {pgcobject, types.lu_byte, types.lu_byte})
+
+llvm.dump(gcobject)
