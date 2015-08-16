@@ -16,6 +16,8 @@ for k,v in pairs(types) do
 	llvm.dump(v)
 end
 
+-- ***************************************************\
+-- Test creating a struct type
 -- Just as an exercise create a struct type
 -- Initially we have an opaque struct
 gcobject = llvm.structtype("GCObject")
@@ -27,22 +29,20 @@ assert(getmetatable(gcobject_p).type == "LLVMpointertype")
 
 -- Add the members of the struct
 -- Following demonstrates the use of predefined Lua types 
-llvm.addmembers(gcobject, {gcobject_p, types.lu_byte, types.lu_byte})
+llvm.setbody(gcobject, {gcobject_p, types.lu_byte, types.lu_byte})
 
 -- Display structure of gcobject
 llvm.dump(gcobject)
 
--- Create a function type
--- int testfunc(GCObject *obj)
-testfunc = llvm.functiontype(types.int, {gcobject_p}, {vararg=false})
-assert(getmetatable(testfunc).type == "LLVMfunctiontype")
+-- ****************************************************/
 
-llvm.dump(testfunc)
-
+-- ****************************************************\
+-- Test building a Lua C function without writing C code!
+--
 -- Create a lua_CFunction instance
 -- At this stage the function will get a module and 
 -- execution engine but no body
-myfunc = llvm.Cfunction("myfunc")
+myfunc = llvm.lua_CFunction("myfunc")
 assert(getmetatable(myfunc).type == "LLVMfunction")
 
 -- Get a new IRBuilder intance
@@ -55,18 +55,36 @@ block = llvm.basicblock("entry")
 -- Add it to the end of the function
 llvm.appendblock(myfunc, block)
 -- Set this as the next instruction point
-llvm.setcurrent(irbuilder, block)
+llvm.setinsertpoint(irbuilder, block)
 
+-----------------------------------------------
+-- Test calling a predefined extern function
 -- Get printf decl
+-----------------------------------------------
 printf = llvm.extern(myfunc, "printf")
 assert(getmetatable(printf).type == "LLVMexternfunc")
 
 llvm.dump(printf)
 
-llvm.externcall(irbuilder, printf, { llvm.stringconstant(irbuilder, "hello world!\n") })
+hellostr = llvm.stringconstant(irbuilder, "hello world!\n")
+llvm.call(irbuilder, printf, { hellostr })
+
+-------------------------------------------------
+-- Test calling a random function
+------------------------------------------------- 
+puts_type = llvm.functiontype(types.int, {types.pchar}, {vararg=false})
+assert(getmetatable(puts_type).type == "LLVMfunctiontype")
+
+-- Declare extern puts()
+puts = llvm.extern(myfunc, "puts", puts_type);
+assert(getmetatable(puts).type == "LLVMconstant")
+
+-- Call puts
+llvm.call(irbuilder, puts, { hellostr })
 
 -- add CreateRet(0)
-llvm.retval(irbuilder, llvm.intconstant(0))
+llvm.ret(irbuilder, llvm.intconstant(0))
+-- **************************************************/
 
 -- what did we get?
 llvm.dump(myfunc)
