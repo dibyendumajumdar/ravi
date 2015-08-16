@@ -36,3 +36,10 @@ llvm.addmembers(gcobject, {gcobject_p, types.lu_byte, types.lu_byte})
 
 -- Display structure of gcobject
 llvm.dump(gcobject)
+
+-- Create a function type
+-- int testfunc(GCObject *obj)
+testfunc = llvm.functiontype(types.int, {gcobject_p}, {vararg=false})
+assert(getmetatable(testfunc).type == "LLVMfunctiontype")
+
+llvm.dump(testfunc)
