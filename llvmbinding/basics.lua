@@ -43,3 +43,11 @@ testfunc = llvm.functiontype(types.int, {gcobject_p}, {vararg=false})
 assert(getmetatable(testfunc).type == "LLVMfunctiontype")
 
 llvm.dump(testfunc)
+
+-- Create a lua_CFunction instance
+-- At this stage the function will get a module and 
+-- execution engine but no body
+myfunc = llvm.func(types.lua_CFunction, "myfunc")
+assert(getmetatable(myfunc).type == "LLVMfunction")
+
+llvm.dump(myfunc)
