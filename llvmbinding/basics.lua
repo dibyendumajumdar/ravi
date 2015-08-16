@@ -56,6 +56,15 @@ block = llvm.basicblock("entry")
 llvm.appendblock(myfunc, block)
 -- Set this as the next instruction point
 llvm.setcurrent(irbuilder, block)
+
+-- Get printf decl
+printf = llvm.extern(myfunc, "printf")
+assert(getmetatable(printf).type == "LLVMexternfunc")
+
+llvm.dump(printf)
+
+llvm.externcall(irbuilder, printf, { llvm.stringconstant(irbuilder, "hello world!\n") })
+
 -- add CreateRet(0)
 llvm.retval(irbuilder, llvm.intconstant(0))
 

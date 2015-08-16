@@ -140,6 +140,7 @@ static const char *LLVM_structtype = "LLVMstructtype";
 static const char *LLVM_pointertype = "LLVMpointertype";
 static const char *LLVM_functiontype = "LLVMfunctiontype";
 static const char *LLVM_basicblock = "LLVMbasicblock";
+static const char *LLVM_externfunc = "LLVMexternfunc";
 
 #define test_LLVM_irbuilder(L, idx)                                            \
   ((IRBuilderHolder *)l_testudata(L, idx, LLVM_irbuilder))
@@ -184,6 +185,11 @@ static const char *LLVM_basicblock = "LLVMbasicblock";
 #define check_LLVM_value(L, idx)                                          \
   ((ValueHolder *)l_checkudata(L, idx, LLVM_value))
 
+#define test_LLVM_externfunc(L, idx)                                           \
+  ((ExternFuncHolder *)l_testudata(L, idx, LLVM_externfunc))
+#define check_LLVM_externfunc(L, idx)                                          \
+  ((ExternFuncHolder *)l_checkudata(L, idx, LLVM_externfunc))
+
 
 struct ContextHolder {
   llvm::LLVMContext *context;
@@ -222,6 +228,10 @@ struct FunctionHolder {
 
 struct BasicBlockHolder {
   llvm::BasicBlock *b;
+};
+
+struct ExternFuncHolder {
+  llvm::Function *function;
 };
 
 static int alloc_LLVM_irbuilder(lua_State *L) {
@@ -306,6 +316,14 @@ static void alloc_LLVM_functiontype(lua_State *L, llvm::FunctionType *type) {
   l_getmetatable(L, LLVM_functiontype);
   lua_setmetatable(L, -2);
   h->type = type;
+}
+
+static void alloc_LLVM_externfunc(lua_State *L, llvm::Function *f) {
+  ExternFuncHolder *h =
+    (ExternFuncHolder *)lua_newuserdata(L, sizeof(ExternFuncHolder));
+  l_getmetatable(L, LLVM_externfunc);
+  lua_setmetatable(L, -2);
+  h->function = f;
 }
 
 static void alloc_LLVM_function(lua_State *L, ravi::RaviJITStateImpl *jit,
@@ -711,6 +729,75 @@ static int compile(lua_State *L) {
   return 1;
 }
 
+static int printf_decl(lua_State *L, ravi::RaviJITStateImpl *jit, ravi::RaviJITFunctionImpl *f) {
+  std::vector<llvm::Type *> args;
+  args.push_back(jit->types()->C_pcharT);
+  // accepts a char*, is vararg, and returns int
+  llvm::FunctionType *type =
+    llvm::FunctionType::get(jit->types()->C_intT, args, true);
+  llvm::Function *extfunc = f->addExternFunction(type, reinterpret_cast<void *>(&printf), "printf");
+  alloc_LLVM_externfunc(L, extfunc);
+  return 1;
+}
+
+static int addextern(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+
+  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  if (!jit)
+    return 0;
+
+  FunctionHolder *f = check_LLVM_function(L, 1);
+  const char *name = luaL_checkstring(L, 2);
+  luaL_argcheck(L, f->compiled_func == nullptr, 1, "function already compiled");
+  if (strcmp(name, "printf") == 0) {
+    return printf_decl(L, jit, f->func);
+  }
+  return 0;
+}
+
+static int stringconstant(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+
+  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  if (!jit)
+    return 0;
+
+  IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
+  const char *string = luaL_checkstring(L, 2);
+
+  alloc_LLVM_value(L, jit, builder->builder->CreateGlobalStringPtr(string));
+  return 1;
+}
+
+static int externcall(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+
+  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  if (!jit)
+    return 0;
+
+  IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
+  ExternFuncHolder *f = check_LLVM_externfunc(L, 2);
+  luaL_argcheck(L, lua_istable(L, 3), 3, "table expected");
+  int len = luaL_len(L, 3);
+  std::vector<llvm::Value *> elements;
+  for (int i = 1; i <= len; i++) {
+    lua_rawgeti(L, 3, i);
+    ValueHolder *vh = check_LLVM_value(L, -1);
+    elements.push_back(vh->value);
+    lua_pop(L, 1);
+  }
+  llvm::Value *result = builder->builder->CreateCall(f->function, elements);
+  alloc_LLVM_value(L, jit, result);
+  return 1;
+}
 
 static const luaL_Reg llvmlib[] = {{"types", get_standard_types},
                                    {"context", get_llvm_context},
@@ -727,6 +814,9 @@ static const luaL_Reg llvmlib[] = {{"types", get_standard_types},
                                    {"intconstant", intconstant},
                                    {"retval", retval},
                                    {"compile", compile},
+                                   {"extern", addextern},
+                                   {"stringconstant", stringconstant},
+                                   {"externcall", externcall},
                                    {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
@@ -776,6 +866,11 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
 
   l_newmetatable(L, LLVM_basicblock);
   lua_pushstring(L, LLVM_basicblock);
+  lua_setfield(L, -2, "type");
+  lua_pop(L, 1);
+
+  l_newmetatable(L, LLVM_externfunc);
+  lua_pushstring(L, LLVM_externfunc);
   lua_setfield(L, -2, "type");
   lua_pop(L, 1);
 
