@@ -6,11 +6,6 @@ assert(llvm)
 context = llvm.context()
 assert(getmetatable(context).type == "LLVMcontext")
 
--- Get a new IRBuilder intance
--- this will be garbage collected by Lua
-irbuilder = llvm.irbuilder()
-assert(getmetatable(irbuilder).type == "LLVMirbuilder")
-
 -- The bindings provide a number of predefined types that
 -- are Lua specific plus some standard C types such as 'int',
 -- 'double', 'int64_t', etc.
@@ -50,4 +45,19 @@ llvm.dump(testfunc)
 myfunc = llvm.func(types.lua_CFunction, "myfunc")
 assert(getmetatable(myfunc).type == "LLVMfunction")
 
+-- Get a new IRBuilder intance
+-- this will be garbage collected by Lua
+irbuilder = llvm.irbuilder()
+assert(getmetatable(irbuilder).type == "LLVMirbuilder")
+
+-- Create a basic block
+block = llvm.basicblock("entry")
+-- Add it to the end of the function
+llvm.appendblock(myfunc, block)
+-- Set this as the next instruction point
+llvm.setcurrent(irbuilder, block)
+-- add CreateRet(0)
+llvm.retval(irbuilder, llvm.intconstant(0))
+
+-- what did we get?
 llvm.dump(myfunc)
