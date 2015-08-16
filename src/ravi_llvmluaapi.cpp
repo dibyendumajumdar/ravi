@@ -308,6 +308,24 @@ static int get_standard_types(lua_State *L) {
   lua_setfield(L, -2, "lua_Integer");
   alloc_LLVM_type(L, jit, jit->types()->lu_byteT);
   lua_setfield(L, -2, "lu_byte");
+  alloc_LLVM_type(L, jit, jit->types()->C_pcharT);
+  lua_setfield(L, -2, "pchar");
+  alloc_LLVM_type(L, jit, jit->types()->C_doubleT);
+  lua_setfield(L, -2, "double");
+  alloc_LLVM_type(L, jit, jit->types()->C_int64_t);
+  lua_setfield(L, -2, "int64_t");
+  alloc_LLVM_type(L, jit, jit->types()->C_intptr_t);
+  lua_setfield(L, -2, "intptr_t");
+  alloc_LLVM_type(L, jit, jit->types()->C_pintT);
+  lua_setfield(L, -2, "pint");
+  alloc_LLVM_type(L, jit, jit->types()->C_ptrdiff_t);
+  lua_setfield(L, -2, "ptrdiff_t");
+  alloc_LLVM_type(L, jit, jit->types()->C_shortT);
+  lua_setfield(L, -2, "short");
+  alloc_LLVM_type(L, jit, jit->types()->C_size_t);
+  lua_setfield(L, -2, "size_t");
+  alloc_LLVM_type(L, jit, jit->types()->lua_UnsignedT);
+  lua_setfield(L, -2, "lua_Unsigned");
 
   return 1;
 }
