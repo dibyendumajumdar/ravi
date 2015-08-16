@@ -505,10 +505,8 @@ static int new_function_type(lua_State *L) {
     lua_pop(L, 1);
   }
   bool vararg = false;
-  if (lua_istable(L, 3)) {
+  if (lua_istable(L, 3))
     l_table_get_bool(L, 3, "vararg", &vararg, false);
-  }
-  printf("vararg =%d\n", vararg);
   alloc_LLVM_functiontype(L, jit,
                           llvm::FunctionType::get(typeret, elements, vararg));
   return 1;
