@@ -131,4 +131,33 @@ If B > 0 then the number of values to be returned is simply B-1.
 
 If '``OP_RETURN``' is returning to a Lua function and if the number of return values expected was indeterminate - i.e. '``OP_CALL``' had operand C = 0, then ``L->top`` is left where ``luaD_poscall()`` placed it - just beyond the top of the result list. This allows the '``OP_CALL``' instruction to figure out how many results were returned. If however '``OP_CALL``' had invoked with a value of C > 0 then the expected number of results is known, and in that case, ``L->top`` is reset to  the calling function's ``C->top``.
 
-If ``luaV_execute()`` was called externally then '``OP_RETURN``' leaves ``L->top`` unchanged - so it will continue to be just past the top of the results list. This is probably because luaV_execute() does not have a way of informing callers how many values were returned; so presumably the caller can determine the number of results by inspecting ``L->top``.
+If ``luaV_execute()`` was called externally then '``OP_RETURN``' leaves ``L->top`` unchanged - so it will continue to be just past the top of the results list. This is because luaV_execute() does not have a way of informing callers how many values were returned; so the caller can determine the number of results by inspecting ``L->top``.
+
+Example of 'VARARG' followed by 'RETURN'::
+
+  function x(...) return ... end
+
+  1 [1]  VARARG          0 0
+  2 [1]  RETURN          0 0
+
+Now suppose we call ``x(1,2,3)`` then observe the setting of ``L->top`` when '``RETURN``' executes::
+
+  (LOADK A=1 Bx=-2)      L->top = 4, ci->top = 4
+  (LOADK A=2 Bx=-3)      L->top = 4, ci->top = 4
+  (LOADK A=3 Bx=-4)      L->top = 4, ci->top = 4
+  (TAILCALL A=0 B=4 C=0) L->top = 4, ci->top = 4
+  (VARARG A=0 B=0)       L->top = 2, ci->top = 2  ; we are in x()
+  (RETURN A=0 B=0)       L->top = 3, ci->top = 2
+
+Observe that '``VARARG``' set ``L->top`` to ``base+3``.
+
+But if we call ``x(1)`` instead::
+
+  (LOADK A=1 Bx=-2)      L->top = 4, ci->top = 4
+  (LOADK A=2 Bx=-3)      L->top = 4, ci->top = 4
+  (LOADK A=3 Bx=-4)      L->top = 4, ci->top = 4
+  (TAILCALL A=0 B=4 C=0) L->top = 4, ci->top = 4
+  (VARARG A=0 B=0)       L->top = 2, ci->top = 2 ; we are in x()
+  (RETURN A=0 B=0)       L->top = 1, ci->top = 2
+
+Notice that this time '``VARARG``' set ``L->top`` to ``base+1``.

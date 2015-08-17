@@ -1779,13 +1779,15 @@ void ravi_dump_stacktop(lua_State *L, const char *s) {
 }
 
 void ravi_debug_trace(lua_State *L, int opCode, int pc) {
+  char buf[100];
   CallInfo *ci = L->ci;
   int funcpos = (int)(ci->func - L->stack);
   int top = (int)(L->top - L->stack);
   int ci_top = (int)(ci->top - L->stack);
   int base = (int)(ci->u.l.base - L->stack);
-  printf("Stack dump %s function %d, pc=%d, L->top = %d, ci->top = %d\n",
-         luaP_opnames[opCode], funcpos, pc, (top-base), (ci_top-base));
+  raviP_instruction_to_str(buf, sizeof buf, clvalue(L->ci->func)->l.p->code[pc]);
+  printf("Stack dump %s (%s) function %d, pc=%d, L->top = %d, ci->top = %d\n",
+         luaP_opnames[opCode], buf, funcpos, pc, (top-base), (ci_top-base));
   lua_assert(L->ci->u.l.base <= L->top && L->top < L->stack + L->stacksize);
 }
 
