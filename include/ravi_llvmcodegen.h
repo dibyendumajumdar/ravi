@@ -96,6 +96,7 @@ struct LuaLLVMTypes {
   llvm::Type *C_doubleT;
   llvm::Type *C_intptr_t;
   llvm::Type *C_size_t;
+  llvm::PointerType *C_psize_t;
   llvm::Type *C_ptrdiff_t;
   llvm::Type *C_int64_t;
   llvm::Type *C_shortT;
@@ -130,10 +131,10 @@ struct LuaLLVMTypes {
 
   llvm::Type *lu_byteT;
   llvm::Type *L_UmaxalignT;
-  llvm::Type *C_pcharT;
+  llvm::PointerType *C_pcharT;
 
   llvm::Type *C_intT;
-  llvm::Type *C_pintT;
+  llvm::PointerType *C_pintT;
 
   llvm::StructType *lua_StateT;
   llvm::PointerType *plua_StateT;

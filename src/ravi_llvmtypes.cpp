@@ -71,6 +71,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   lu_byteT = llvm::Type::getInt8Ty(context);
   C_pcharT = llvm::Type::getInt8PtrTy(context);
+  C_psize_t = llvm::PointerType::get(C_size_t, 0);
 
   InstructionT = C_intT;
   pInstructionT = llvm::PointerType::get(InstructionT, 0);

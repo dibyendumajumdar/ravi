@@ -64,7 +64,8 @@ llvm.setinsertpoint(irbuilder, block)
 printf = llvm.extern(myfunc, "printf")
 assert(getmetatable(printf).type == "LLVMexternfunc")
 
-llvm.dump(printf)
+luaL_checklstring = llvm.extern(myfunc, "luaL_checklstring")
+assert(getmetatable(luaL_checklstring).type == "LLVMexternfunc")
 
 hellostr = llvm.stringconstant(irbuilder, "hello world!\n")
 llvm.call(irbuilder, printf, { hellostr })
@@ -79,8 +80,14 @@ assert(getmetatable(puts_type).type == "LLVMfunctiontype")
 puts = llvm.extern(myfunc, "puts", puts_type);
 assert(getmetatable(puts).type == "LLVMconstant")
 
+-- Get the L parameter of myfunc
+L = llvm.arg(myfunc, 1)
+
+-- get the first argument as a string
+str = llvm.call(irbuilder, luaL_checklstring, {L, llvm.intconstant(1), llvm.nullconstant(types.psize_t)} )
+
 -- Call puts
-llvm.call(irbuilder, puts, { hellostr })
+llvm.call(irbuilder, puts, { str })
 
 -- add CreateRet(0)
 llvm.ret(irbuilder, llvm.intconstant(0))
@@ -94,5 +101,5 @@ llvm.dump(myfunc)
 runnable = llvm.compile(myfunc)
 
 print('Type of compiled function is', type(runnable))
-assert(not runnable())
+assert(not runnable('ok\n'))
 
