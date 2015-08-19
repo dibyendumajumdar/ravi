@@ -142,6 +142,7 @@ static const char *LLVM_functiontype = "LLVMfunctiontype";
 static const char *LLVM_basicblock = "LLVMbasicblock";
 static const char *LLVM_externfunc = "LLVMexternfunc";
 static const char *LLVM_constant = "LLVMconstant";
+static const char *LLVM_instruction = "LLVMinstruction";
 
 #define test_LLVM_irbuilder(L, idx)                                            \
   ((IRBuilderHolder *)l_testudata(L, idx, LLVM_irbuilder))
@@ -195,6 +196,11 @@ static const char *LLVM_constant = "LLVMconstant";
 #define check_LLVM_constant(L, idx)                                            \
   ((ConstantHolder *)l_checkudata(L, idx, LLVM_constant))
 
+#define test_LLVM_instruction(L, idx)                                             \
+  ((InstructionHolder *)l_testudata(L, idx, LLVM_instruction))
+#define check_LLVM_instruction(L, idx)                                            \
+  ((InstructionHolder *)l_checkudata(L, idx, LLVM_instruction))
+
 struct ContextHolder {
   llvm::LLVMContext *context;
 };
@@ -241,6 +247,10 @@ struct ExternFuncHolder {
 
 struct ConstantHolder {
   llvm::Constant *constant;
+};
+
+struct InstructionHolder {
+  llvm::Instruction *i;
 };
 
 static int alloc_LLVM_irbuilder(lua_State *L) {
@@ -341,6 +351,14 @@ static void alloc_LLVM_constant(lua_State *L, llvm::Constant *f) {
   l_getmetatable(L, LLVM_constant);
   lua_setmetatable(L, -2);
   h->constant = f;
+}
+
+static void alloc_LLVM_instruction(lua_State *L, llvm::Instruction *i) {
+  InstructionHolder *h =
+    (InstructionHolder *)lua_newuserdata(L, sizeof(InstructionHolder));
+  l_getmetatable(L, LLVM_instruction);
+  lua_setmetatable(L, -2);
+  h->i = i;
 }
 
 static FunctionHolder *alloc_LLVM_function(lua_State *L,
@@ -727,9 +745,49 @@ static int retval(lua_State *L) {
     return 0;
 
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
-  ValueHolder *v = check_LLVM_value(L, 2);
-  builder->builder->CreateRet(v->value);
-  return 0;
+  ValueHolder *v = test_LLVM_value(L, 2);
+  llvm::Instruction *i;
+  if (v)
+    i = builder->builder->CreateRet(v->value);
+  else
+    i = builder->builder->CreateRetVoid();
+  alloc_LLVM_instruction(L, i);
+  return 1;
+}
+
+static int branch(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+
+  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  if (!jit)
+    return 0;
+
+  IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
+  BasicBlockHolder *b = check_LLVM_basicblock(L, 2);
+  llvm::Instruction *i = builder->builder->CreateBr(b->b);
+  alloc_LLVM_instruction(L, i);
+  return 1;
+}
+
+static int condbranch(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+
+  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  if (!jit)
+    return 0;
+
+  IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
+  ValueHolder *cond = check_LLVM_value(L, 2);
+  BasicBlockHolder *true_br = check_LLVM_basicblock(L, 3);
+  BasicBlockHolder *false_br = check_LLVM_basicblock(L, 4);
+
+  llvm::Instruction *i = builder->builder->CreateCondBr(cond->value, true_br->b, false_br->b);
+  alloc_LLVM_instruction(L, i);
+  return 1;
 }
 
 static int compile(lua_State *L) {
@@ -1145,6 +1203,8 @@ static const luaL_Reg llvmlib[] = {{"types", get_standard_types},
                                    {"nullconstant", nullconstant},
                                    {"call", externcall},
                                    {"arg", arg},
+                                   {"br", branch},
+                                   {"condbr", condbranch},
                                    {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
@@ -1204,6 +1264,11 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
 
   l_newmetatable(L, LLVM_constant);
   lua_pushstring(L, LLVM_constant);
+  lua_setfield(L, -2, "type");
+  lua_pop(L, 1);
+
+  l_newmetatable(L, LLVM_instruction);
+  lua_pushstring(L, LLVM_instruction);
   lua_setfield(L, -2, "type");
   lua_pop(L, 1);
 
