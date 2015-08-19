@@ -93,6 +93,8 @@ struct LuaLLVMTypes {
   LuaLLVMTypes(llvm::LLVMContext &context);
   void dump();
 
+  llvm::Type *C_voidT;
+
   llvm::Type *C_doubleT;
   llvm::Type *C_intptr_t;
   llvm::Type *C_size_t;

@@ -26,6 +26,8 @@ namespace ravi {
 
 LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
+  C_voidT = llvm::Type::getVoidTy(context);
+
   static_assert(std::is_floating_point<lua_Number>::value &&
                     sizeof(lua_Number) == sizeof(double),
                 "lua_Number is not a double");

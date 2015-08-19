@@ -763,32 +763,41 @@ typedef struct {
 } FunctionDeclaration;
 
 #define str(s) #s
-#define decl_func1(name, ret, arg1)                                            \
+
+#define decl_func1_(name, ret, arg1, vararg)                                   \
   static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
                          ravi::RaviJITFunctionImpl *f) {                       \
     std::vector<llvm::Type *> args;                                            \
     args.push_back(jit->types()->arg1);                                        \
     llvm::FunctionType *type =                                                 \
-        llvm::FunctionType::get(jit->types()->ret, args, true);                \
+        llvm::FunctionType::get(jit->types()->ret, args, vararg);              \
     llvm::Function *extfunc = f->addExternFunction(                            \
         type, reinterpret_cast<void *>(&name), str(name));                     \
     alloc_LLVM_externfunc(L, extfunc);                                         \
     return 1;                                                                  \
   }
 
-#define decl_func2(name, ret, arg1, arg2)                                      \
+#define decl_func1v(name, ret, arg1) decl_func1_(name, ret, arg1, true)
+#define decl_func1(name, ret, arg1) decl_func1_(name, ret, arg1, false)
+
+#define decl_func2_(name, ret, arg1, arg2, vararg)                             \
   static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
                          ravi::RaviJITFunctionImpl *f) {                       \
     std::vector<llvm::Type *> args;                                            \
     args.push_back(jit->types()->arg1);                                        \
     args.push_back(jit->types()->arg2);                                        \
     llvm::FunctionType *type =                                                 \
-        llvm::FunctionType::get(jit->types()->ret, args, true);                \
+        llvm::FunctionType::get(jit->types()->ret, args, vararg);              \
     llvm::Function *extfunc = f->addExternFunction(                            \
         type, reinterpret_cast<void *>(&name), str(name));                     \
     alloc_LLVM_externfunc(L, extfunc);                                         \
     return 1;                                                                  \
   }
+
+#define decl_func2v(name, ret, arg1, arg2)                                     \
+  decl_func2_(name, ret, arg1, arg2, true)
+#define decl_func2(name, ret, arg1, arg2)                                      \
+  decl_func2_(name, ret, arg1, arg2, false)
 
 #define decl_func3(name, ret, arg1, arg2, arg3)                                \
   static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
@@ -798,18 +807,192 @@ typedef struct {
     args.push_back(jit->types()->arg2);                                        \
     args.push_back(jit->types()->arg3);                                        \
     llvm::FunctionType *type =                                                 \
-        llvm::FunctionType::get(jit->types()->ret, args, true);                \
+        llvm::FunctionType::get(jit->types()->ret, args, false);               \
     llvm::Function *extfunc = f->addExternFunction(                            \
         type, reinterpret_cast<void *>(&name), str(name));                     \
     alloc_LLVM_externfunc(L, extfunc);                                         \
     return 1;                                                                  \
   }
 
-decl_func1(printf, C_intT, C_pcharT);
+#define decl_func4(name, ret, arg1, arg2, arg3, arg4)                          \
+  static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
+                         ravi::RaviJITFunctionImpl *f) {                       \
+    std::vector<llvm::Type *> args;                                            \
+    args.push_back(jit->types()->arg1);                                        \
+    args.push_back(jit->types()->arg2);                                        \
+    args.push_back(jit->types()->arg3);                                        \
+    args.push_back(jit->types()->arg4);                                        \
+    llvm::FunctionType *type =                                                 \
+        llvm::FunctionType::get(jit->types()->ret, args, false);               \
+    llvm::Function *extfunc = f->addExternFunction(                            \
+        type, reinterpret_cast<void *>(&name), str(name));                     \
+    alloc_LLVM_externfunc(L, extfunc);                                         \
+    return 1;                                                                  \
+  }
+
+#define decl_voidfunc1(name, arg1)                                             \
+  static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
+                         ravi::RaviJITFunctionImpl *f) {                       \
+    std::vector<llvm::Type *> args;                                            \
+    args.push_back(jit->types()->arg1);                                        \
+    llvm::FunctionType *type =                                                 \
+        llvm::FunctionType::get(jit->types()->C_voidT, args, false);           \
+    llvm::Function *extfunc = f->addExternFunction(                            \
+        type, reinterpret_cast<void *>(&name), str(name));                     \
+    alloc_LLVM_externfunc(L, extfunc);                                         \
+    return 1;                                                                  \
+  }
+
+#define decl_voidfunc2(name, arg1, arg2)                                       \
+  static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
+                         ravi::RaviJITFunctionImpl *f) {                       \
+    std::vector<llvm::Type *> args;                                            \
+    args.push_back(jit->types()->arg1);                                        \
+    args.push_back(jit->types()->arg2);                                        \
+    llvm::FunctionType *type =                                                 \
+        llvm::FunctionType::get(jit->types()->C_voidT, args, false);           \
+    llvm::Function *extfunc = f->addExternFunction(                            \
+        type, reinterpret_cast<void *>(&name), str(name));                     \
+    alloc_LLVM_externfunc(L, extfunc);                                         \
+    return 1;                                                                  \
+  }
+
+#define decl_voidfunc3(name, arg1, arg2, arg3)                                 \
+  static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
+                         ravi::RaviJITFunctionImpl *f) {                       \
+    std::vector<llvm::Type *> args;                                            \
+    args.push_back(jit->types()->arg1);                                        \
+    args.push_back(jit->types()->arg2);                                        \
+    args.push_back(jit->types()->arg3);                                        \
+    llvm::FunctionType *type =                                                 \
+        llvm::FunctionType::get(jit->types()->C_voidT, args, false);           \
+    llvm::Function *extfunc = f->addExternFunction(                            \
+        type, reinterpret_cast<void *>(&name), str(name));                     \
+    alloc_LLVM_externfunc(L, extfunc);                                         \
+    return 1;                                                                  \
+  }
+
+decl_func1v(printf, C_intT, C_pcharT);
+decl_func2(lua_absindex, C_intT, plua_StateT, C_intT);
+decl_func1(lua_gettop, C_intT, plua_StateT);
+decl_voidfunc2(lua_settop, plua_StateT, C_intT);
+decl_voidfunc2(lua_pushvalue, plua_StateT, C_intT);
+decl_voidfunc3(lua_rotate, plua_StateT, C_intT, C_intT);
+decl_voidfunc3(lua_copy, plua_StateT, C_intT, C_intT);
+decl_func2(lua_checkstack, C_intT, plua_StateT, C_intT);
+decl_voidfunc3(lua_xmove, plua_StateT, plua_StateT, C_intT);
+decl_func2(lua_isnumber, C_intT, plua_StateT, C_intT);
+decl_func2(lua_isstring, C_intT, plua_StateT, C_intT);
+decl_func2(lua_iscfunction, C_intT, plua_StateT, C_intT);
+decl_func2(lua_isinteger, C_intT, plua_StateT, C_intT);
+decl_func2(lua_isuserdata, C_intT, plua_StateT, C_intT);
+decl_func2(lua_type, C_intT, plua_StateT, C_intT);
+decl_func2(lua_typename, C_pcharT, plua_StateT, C_intT);
+decl_func3(lua_tonumberx, plua_NumberT, plua_StateT, C_intT, C_pintT);
+decl_func3(lua_tointegerx, plua_IntegerT, plua_StateT, C_intT, C_pintT);
+decl_func2(lua_toboolean, C_intT, plua_StateT, C_intT);
+decl_func3(lua_tolstring, C_pcharT, plua_StateT, C_intT, C_psize_t);
+decl_func2(lua_rawlen, C_size_t, plua_StateT, C_intT);
+decl_func2(lua_tocfunction, plua_CFunctionT, plua_StateT, C_intT);
+decl_func2(lua_touserdata, C_pcharT, plua_StateT, C_intT);
+decl_func2(lua_tothread, plua_StateT, plua_StateT, C_intT);
+decl_func2(lua_topointer, C_pcharT, plua_StateT, C_intT);
+decl_voidfunc2(lua_arith, plua_StateT, C_intT);
+decl_func3(lua_rawequal, C_intT, plua_StateT, C_intT, C_intT);
+decl_func4(lua_compare, C_intT, plua_StateT, C_intT, C_intT, C_intT);
+decl_voidfunc1(lua_pushnil, plua_StateT);
+decl_voidfunc2(lua_pushnumber, plua_StateT, lua_NumberT);
+decl_voidfunc2(lua_pushinteger, plua_StateT, lua_IntegerT);
+decl_func3(lua_pushlstring, C_pcharT, plua_StateT, C_pcharT, C_size_t);
+decl_func2(lua_pushstring, C_pcharT, plua_StateT, C_pcharT);
+decl_func3(lua_pushvfstring, C_pcharT, plua_StateT, C_pcharT, C_pcharT);
+decl_func2v(lua_pushfstring, C_pcharT, plua_StateT, C_pcharT);
+decl_voidfunc3(lua_pushcclosure, plua_StateT, plua_CFunctionT, C_intT);
+decl_voidfunc2(lua_pushboolean, plua_StateT, C_intT);
+decl_voidfunc2(lua_pushlightuserdata, plua_StateT, C_pcharT);
+decl_func1(lua_pushthread, C_intT, plua_StateT);
+decl_func2(lua_getglobal, C_intT, plua_StateT, C_pcharT);
+decl_func2(lua_gettable, C_intT, plua_StateT, C_intT);
+decl_func3(lua_getfield, C_intT, plua_StateT, C_intT, C_pcharT);
+decl_func3(lua_geti, C_intT, plua_StateT, C_intT, lua_IntegerT);
+decl_func2(lua_rawget, C_intT, plua_StateT, C_intT);
+decl_func3(lua_rawgeti, C_intT, plua_StateT, C_intT, lua_IntegerT);
+decl_func3(lua_rawgetp, C_intT, plua_StateT, C_intT, C_pcharT);
+decl_func3(lua_createtable, C_intT, plua_StateT, C_intT, C_intT);
+decl_func2(lua_newuserdata, C_pcharT, plua_StateT, C_size_t);
+decl_func2(lua_getmetatable, C_intT, plua_StateT, C_intT);
+decl_func2(lua_getuservalue, C_intT, plua_StateT, C_intT);
+decl_voidfunc2(lua_setglobal, plua_StateT, C_pcharT);
+decl_voidfunc2(lua_settable, plua_StateT, C_intT);
+decl_voidfunc3(lua_setfield, plua_StateT, C_intT, C_pcharT);
+decl_voidfunc3(lua_seti, plua_StateT, C_intT, lua_IntegerT);
+decl_voidfunc2(lua_rawset, plua_StateT, C_intT);
+decl_voidfunc3(lua_rawseti, plua_StateT, C_intT, lua_IntegerT);
+decl_voidfunc3(lua_rawsetp, plua_StateT, C_intT, C_pcharT);
+decl_func2(lua_setmetatable, C_intT, plua_StateT, C_intT);
+decl_voidfunc2(lua_setuservalue, plua_StateT, C_intT);
 decl_func3(luaL_checklstring, C_pcharT, plua_StateT, C_intT, C_psize_t);
 
 /* Sorted array of declared functions */
 static FunctionDeclaration builtin_functions[] = {
+    {"lua_absindex", lua_absindex_decl},
+    {"lua_gettop", lua_gettop_decl},
+    {"lua_settop", lua_settop_decl},
+    {"lua_pushvalue", lua_pushvalue_decl},
+    {"lua_rotate", lua_rotate_decl},
+    {"lua_copy", lua_copy_decl},
+    {"lua_checkstack", lua_checkstack_decl},
+    {"lua_xmove", lua_xmove_decl},
+    {"lua_isnumber", lua_isnumber_decl},
+    {"lua_isstring", lua_isstring_decl},
+    {"lua_iscfunction", lua_iscfunction_decl},
+    {"lua_isinteger", lua_isinteger_decl},
+    {"lua_isuserdata", lua_isuserdata_decl},
+    {"lua_type", lua_type_decl},
+    {"lua_typename", lua_typename_decl},
+    {"lua_tonumberx", lua_tonumberx_decl},
+    {"lua_tointegerx", lua_tointegerx_decl},
+    {"lua_toboolean", lua_toboolean_decl},
+    {"lua_tolstring", lua_tolstring_decl},
+    {"lua_rawlen", lua_rawlen_decl},
+    {"lua_tocfunction", lua_tocfunction_decl},
+    {"lua_touserdata", lua_touserdata_decl},
+    {"lua_tothread", lua_tothread_decl},
+    {"lua_topointer", lua_topointer_decl},
+    {"lua_arith", lua_arith_decl},
+    {"lua_rawequal", lua_rawequal_decl},
+    {"lua_compare", lua_compare_decl},
+    {"lua_pushnil", lua_pushnil_decl},
+    {"lua_pushnumber", lua_pushnumber_decl},
+    {"lua_pushinteger", lua_pushinteger_decl},
+    {"lua_pushlstring", lua_pushlstring_decl},
+    {"lua_pushstring", lua_pushstring_decl},
+    {"lua_pushvfstring", lua_pushvfstring_decl},
+    {"lua_pushfstring", lua_pushfstring_decl},
+    {"lua_pushcclosure", lua_pushcclosure_decl},
+    {"lua_pushboolean", lua_pushboolean_decl},
+    {"lua_pushlightuserdata", lua_pushlightuserdata_decl},
+    {"lua_pushthread", lua_pushthread_decl},
+    {"lua_getglobal", lua_getglobal_decl},
+    {"lua_gettable", lua_gettable_decl},
+    {"lua_getfield", lua_getfield_decl},
+    {"lua_geti", lua_geti_decl},
+    {"lua_rawget", lua_rawget_decl},
+    {"lua_rawgeti", lua_rawgeti_decl},
+    {"lua_rawgetp", lua_rawgetp_decl},
+    {"lua_createtable", lua_createtable_decl},
+    {"lua_newuserdata", lua_newuserdata_decl},
+    {"lua_getmetatable", lua_getmetatable_decl},
+    {"lua_getuservalue", lua_getuservalue_decl},
+    {"lua_setglobal", lua_setglobal_decl},
+    {"lua_settable", lua_settable_decl},
+    {"lua_setfield", lua_setfield_decl},
+    {"lua_seti", lua_seti_decl},
+    {"lua_rawset", lua_rawset_decl},
+    {"lua_rawseti", lua_rawseti_decl},
+    {"lua_rawsetp", lua_rawsetp_decl},
+    {"lua_setmetatable", lua_setmetatable_decl},
+    {"lua_setuservalue", lua_setuservalue_decl},
     {"luaL_checklstring", luaL_checklstring_decl},
     {"printf", printf_decl},
     {nullptr, nullptr}};
@@ -879,7 +1062,7 @@ static int nullconstant(lua_State *L) {
 }
 
 /*
-  Get argument of the function 
+  Get argument of the function
 */
 static int arg(lua_State *L) {
   global_State *G = G(L);
