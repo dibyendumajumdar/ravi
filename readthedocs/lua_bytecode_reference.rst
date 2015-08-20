@@ -11,6 +11,10 @@ Following copyrights are acknowledged:
     by Kein-Hong Man, esq. <khman AT users.sf.net>
     Version 0.1, 2006-03-13
 
+  A No-Frills Introduction to Lua 5.1 VM Instructions” is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike License 2.0. You are free to copy, distribute and display the work, and make derivative works as long as you give the original author credit, you do not use this work for commercial purposes, and if you alter, transform, or build upon this work, you distribute the resulting work only under a license identical to this one. See the following URLs for more information:
+    http://creativecommons.org/licenses/by-nc-sa/2.0/
+    http://creativecommons.org/licenses/by-nc-sa/2.0/legalcode
+
 
 Lua Stack and Registers
 =======================
@@ -49,6 +53,31 @@ All register addressing is done as offset from ``base`` - so ``R(0)`` is at ``ba
    :alt: Drawing of Lua Stack
 
    The figure above shows how the stack is related to other Lua objects.
+
+
+Instruction Notation
+====================
+
+R(A)
+  Register A (specified in instruction field A)
+R(B)
+  Register B (specified in instruction field B)
+R(C)
+  Register C (specified in instruction field C)
+PC
+  Program Counter
+Kst(n)
+  Element n in the constant list
+Upvalue[n]
+  Name of upvalue with index n
+Gbl[sym]
+  Global variable indexed by symbol sym
+RK(B)
+  Register B or a constant index
+RK(C)
+  Register C or a constant index
+sBx
+  Signed displacement (in field sBx) for all kinds of jumps
 
 
 '``OP_CALL``' instruction
