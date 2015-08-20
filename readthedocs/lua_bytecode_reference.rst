@@ -198,6 +198,8 @@ Notice that this time '``OP_VARARG``' set ``L->top`` to ``base+1``.
 Syntax
 ------
 
+::
+
   JMP sBx PC += sBx
 
 Performs an unconditional jump, with sBx as a signed displacement. sBx is added to the program counter (PC), which points to the next instruction to be executed. 
