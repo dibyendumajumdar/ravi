@@ -147,7 +147,7 @@ Syntax
 
 Returns to the calling function, with optional return values. 
 
-First RETURN closes any open upvalues by calling `luaF_close() <http://www.lua.org/source/5.3/lfunc.c.html#luaF_close>`_.
+First '``OP_RETURN``'' closes any open upvalues by calling `luaF_close() <http://www.lua.org/source/5.3/lfunc.c.html#luaF_close>`_.
 
 If B is 1, there are no return values. If B is 2 or more, there are (B-1) return values, located in consecutive registers from R(A) onwards. If B is 0, the set of values range from R(A) to the top of the stack. 
 
@@ -191,3 +191,38 @@ But if we call ``x(1)`` instead::
   (RETURN A=0 B=0)       L->top = 1, ci->top = 2
 
 Notice that this time '``OP_VARARG``' set ``L->top`` to ``base+1``.
+
+'``OP_JMP``' instruction
+========================
+
+Syntax
+------
+
+  JMP sBx PC += sBx
+
+Performs an unconditional jump, with sBx as a signed displacement. sBx is added to the program counter (PC), which points to the next instruction to be executed. 
+E.g., if sBx is 0, the VM will proceed to the next instruction.
+
+'``OP_JMP``' is used in loops, conditional statements, and in expressions when a boolean true/false need to be generated.
+
+For example, since a relational test instruction makes conditional jumps rather than generate a boolean result, a JMP is used in the code sequence for loading either a true or a false::
+
+  function x() local m, n; return m >= n end
+
+Generates::
+
+  function <stdin:1,1> (7 instructions at 00000034D2ABE340)
+  0 params, 3 slots, 0 upvalues, 2 locals, 0 constants, 0 functions
+    1       [1]     LOADNIL         0 1
+    2       [1]     LE              1 1 0   ; to 4 if false    (n <= m)
+    3       [1]     JMP             0 1     ; to 5
+    4       [1]     LOADBOOL        2 0 1
+    5       [1]     LOADBOOL        2 1 0
+    6       [1]     RETURN          2 2
+    7       [1]     RETURN          0 1
+  constants (0) for 00000034D2ABE340:
+  locals (2) for 00000034D2ABE340:
+    0       m       2       8
+    1       n       2       8
+  upvalues (0) for 00000034D2ABE340:
+
