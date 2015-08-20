@@ -90,7 +90,8 @@ str = llvm.call(irbuilder, luaL_checklstring, {L, llvm.intconstant(1), llvm.null
 llvm.call(irbuilder, puts, { str })
 
 -- add CreateRet(0)
-llvm.ret(irbuilder, llvm.intconstant(0))
+inst = llvm.ret(irbuilder, llvm.intconstant(0))
+assert(getmetatable(inst).type == "LLVMinstruction")
 -- **************************************************/
 
 -- what did we get?

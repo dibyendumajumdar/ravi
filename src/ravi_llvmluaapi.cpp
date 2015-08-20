@@ -559,6 +559,11 @@ static int dump_content(lua_State *L) {
     f->func->dump();
     goto done;
   }
+  InstructionHolder *ii = test_LLVM_instruction(L, 1);
+  if (ii) {
+    ii->i->dump();
+    goto done;
+  }
 
 done:
   return 0;
