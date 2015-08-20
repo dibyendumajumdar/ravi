@@ -11,7 +11,7 @@ Following copyrights are acknowledged:
     by Kein-Hong Man, esq. <khman AT users.sf.net>
     Version 0.1, 2006-03-13
 
-A No-Frills Introduction to Lua 5.1 VM Instructions” is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike License 2.0. You are free to copy, distribute and display the work, and make derivative works as long as you give the original author credit, you do not use this work for commercial purposes, and if you alter, transform, or build upon this work, you distribute the resulting work only under a license identical to this one. See the following URLs for more information::
+`A No-Frills Introduction to Lua 5.1 VM Instructions <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_ is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike License 2.0. You are free to copy, distribute and display the work, and make derivative works as long as you give the original author credit, you do not use this work for commercial purposes, and if you alter, transform, or build upon this work, you distribute the resulting work only under a license identical to this one. See the following URLs for more information::
 
     http://creativecommons.org/licenses/by-nc-sa/2.0/
     http://creativecommons.org/licenses/by-nc-sa/2.0/legalcode
