@@ -34,27 +34,6 @@ extern "C" {
 
 #include "lauxlib.h"
 
-#if LUA_VERSION_NUM < 502
-
-// Forward compatibility with Lua 5.2
-// Following is not defined in 5.1
-
-#define lua_absindex(L, i)                                                     \
-  ((i) > 0 || (i) <= LUA_REGISTRYINDEX ? (i) : lua_gettop(L) + (i) + 1)
-
-#endif
-
-#if (LUA_VERSION_NUM >= 502)
-
-// backward compatibility with Lua 5.1
-#undef lua_equal
-#define lua_equal(L, idx1, idx2) lua_compare(L, (idx1), (idx2), LUA_OPEQ)
-
-#undef lua_objlen
-#define lua_objlen lua_rawlen
-
-#endif
-
 // The normal Lua metatable functions in C use string
 // keys - these are expensive as the key needs to be
 // converted to Lua string, hash code computed etc.
