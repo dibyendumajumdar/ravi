@@ -929,7 +929,7 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(
       def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
-      "ravi_dump_function");
+      "ravi_dump_value");
   def->ravi_dump_stackF = def->raviF->addExternFunction(
       def->types->ravi_dump_stackT, reinterpret_cast<void *>(&ravi_dump_stack),
       "ravi_dump_stack");

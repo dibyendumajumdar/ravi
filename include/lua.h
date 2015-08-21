@@ -460,8 +460,6 @@ struct lua_Debug {
 
 /* RAVI Extensions */
 
-LUAI_DDEC int ravi_parser_debug;
-
 /* Create an integer array (specialization of Lua table)
  * of given size and initialize array with supplied initial value
  */
@@ -492,19 +490,31 @@ LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
  */
 LUA_API int ravi_is_number_array(lua_State *L, int idx);
 
+/* Tests if the argument is a integer array
+*/
+LUA_API int ravi_is_integer_array(lua_State *L, int idx);
+
 /* Get the raw data associated with the number array at idx.
  * Note that Ravi arrays have an extra element at offset 0 - this
  * function returns a pointer to &data[0] - bear in mind that
  */
 LUA_API lua_Number *ravi_get_number_array_rawdata(lua_State *l, int idx);
+
+/////////////////////////////////////////////////////////////////////////////
+/*
+ Bunch of useful functions for debugging
+*/
 struct lua_TValue;
+struct Proto;
+
 LUA_API void ravi_dump_value(lua_State *L, const struct lua_TValue *v);
 LUA_API void ravi_dump_stack(lua_State *L, const char *s);
 LUA_API void ravi_dump_stacktop(lua_State *L, const char *s);
 LUA_API void ravi_debug_trace(lua_State *L, int opCode, int pc);
-struct Proto;
 LUA_API void ravi_print_function(const struct Proto *f, int full);
 LUA_API void ravi_dump_function(lua_State *L);
+
+LUAI_DDEC int ravi_parser_debug;
 LUA_API void ravi_set_debuglevel(int level);
 
 #define RAVI_DEBUG_STACK(p) if ((ravi_parser_debug & 8) != 0) {p;} else {}

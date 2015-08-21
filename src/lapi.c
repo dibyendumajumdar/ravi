@@ -773,6 +773,14 @@ LUA_API int ravi_is_number_array(lua_State *L, int idx) {
   return (ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYFLT ? 1 : 0);
 }
 
+/* Tests if the argument is a integer array
+*/
+LUA_API int ravi_is_integer_array(lua_State *L, int idx) {
+  StkId o = index2addr(L, idx);
+  return (ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYINT ? 1 : 0);
+}
+
+
 /* Get the raw data associated with the number array at idx.
  * Note that Ravi arrays have an extra element at offset 0 - this
  * function returns a pointer to &data[0] - bear in mind that

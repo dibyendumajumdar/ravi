@@ -1000,6 +1000,8 @@ struct ravi_State {
   ravi::RaviCodeGenerator *code_generator;
 };
 
+#define RaviJIT(L) ((ravi::RaviJITStateImpl *)G(L)->ravi_state->jit)
+
 #define RAVI_CODEGEN_FORPREP2 0
 
 #endif

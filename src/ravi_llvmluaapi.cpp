@@ -111,7 +111,7 @@ bool l_table_get_bool(lua_State *L, int idx, const char *key, bool *result,
 // We need fixed pointer values for metatable keys
 static const char *LLVM_context = "LLVMcontext";
 static const char *LLVM_irbuilder = "LLVMirbuilder";
-//static const char *LLVM_module = "LLVMmodule";
+// static const char *LLVM_module = "LLVMmodule";
 static const char *LLVM_function = "LLVMfunction";
 static const char *LLVM_type = "LLVMtype";
 static const char *LLVM_value = "LLVMvalue";
@@ -175,9 +175,9 @@ static const char *LLVM_instruction = "LLVMinstruction";
 #define check_LLVM_constant(L, idx)                                            \
   ((ConstantHolder *)l_checkudata(L, idx, LLVM_constant))
 
-#define test_LLVM_instruction(L, idx)                                             \
+#define test_LLVM_instruction(L, idx)                                          \
   ((InstructionHolder *)l_testudata(L, idx, LLVM_instruction))
-#define check_LLVM_instruction(L, idx)                                            \
+#define check_LLVM_instruction(L, idx)                                         \
   ((InstructionHolder *)l_checkudata(L, idx, LLVM_instruction))
 
 struct ContextHolder {
@@ -233,8 +233,7 @@ struct InstructionHolder {
 };
 
 static int alloc_LLVM_irbuilder(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   IRBuilderHolder *builder =
       (IRBuilderHolder *)lua_newuserdata(L, sizeof(IRBuilderHolder));
   builder->builder = new llvm::IRBuilder<>(jit->context());
@@ -320,7 +319,7 @@ static void alloc_LLVM_constant(lua_State *L, llvm::Constant *f) {
 
 static void alloc_LLVM_instruction(lua_State *L, llvm::Instruction *i) {
   InstructionHolder *h =
-    (InstructionHolder *)lua_newuserdata(L, sizeof(InstructionHolder));
+      (InstructionHolder *)lua_newuserdata(L, sizeof(InstructionHolder));
   l_getmetatable(L, LLVM_instruction);
   lua_setmetatable(L, -2);
   h->i = i;
@@ -359,14 +358,13 @@ static void alloc_LLVM_basicblock(lua_State *L, llvm::BasicBlock *b) {
   lua_setmetatable(L, -2);
   h->b = b;
 }
-    
+
 /*
  Create a new struct type
  structtype(name)
 */
 static int new_struct_type(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   const char *name = luaL_checkstring(L, 1);
   alloc_LLVM_structtype(L, jit, llvm::StructType::create(jit->context(), name));
   return 1;
@@ -377,13 +375,12 @@ static int new_struct_type(lua_State *L) {
  pointertype(type)
 */
 static int new_pointer_type(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   StructTypeHolder *sth = nullptr;
   PointerTypeHolder *ph = nullptr;
   TypeHolder *th = nullptr;
   FunctionTypeHolder *fth = nullptr;
-  
+
   sth = test_LLVM_structtype(L, 1);
   if (sth) {
     alloc_LLVM_pointertype(L, jit, llvm::PointerType::get(sth->type, 0));
@@ -414,8 +411,7 @@ done:
  Get pre-defined types
 */
 static int get_standard_types(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
 
   lua_newtable(L);
   alloc_LLVM_type(L, jit, jit->types()->C_intT);
@@ -455,8 +451,7 @@ static int get_standard_types(lua_State *L) {
 }
 
 static int get_llvm_context(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   alloc_LLVM_context(L, jit, &jit->context());
   return 1;
 }
@@ -471,7 +466,7 @@ static int dump_content(lua_State *L) {
   FunctionTypeHolder *fh = nullptr;
   FunctionHolder *f = nullptr;
   InstructionHolder *ii = nullptr;
-  
+
   th = test_LLVM_type(L, 1);
   if (th) {
     th->type->dump();
@@ -593,8 +588,7 @@ static int new_function_type(lua_State *L) {
 }
 
 static int new_lua_CFunction(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   const char *name = luaL_checkstring(L, 1);
   FunctionHolder *h =
       alloc_LLVM_function(L, jit, jit->types()->lua_CFunctionT, name);
@@ -605,8 +599,7 @@ static int new_lua_CFunction(lua_State *L) {
 }
 
 static int new_basicblock(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   const char *name = luaL_checkstring(L, 1);
   alloc_LLVM_basicblock(L, llvm::BasicBlock::Create(jit->context(), name));
   return 1;
@@ -627,8 +620,7 @@ static int set_current_block(lua_State *L) {
 }
 
 static int intconstant(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   int i = (int)luaL_checkinteger(L, 1);
   alloc_LLVM_value(L, jit, llvm::ConstantInt::get(jit->types()->C_intT, i));
   return 1;
@@ -660,7 +652,8 @@ static int condbranch(lua_State *L) {
   BasicBlockHolder *true_br = check_LLVM_basicblock(L, 3);
   BasicBlockHolder *false_br = check_LLVM_basicblock(L, 4);
 
-  llvm::Instruction *i = builder->builder->CreateCondBr(cond->value, true_br->b, false_br->b);
+  llvm::Instruction *i =
+      builder->builder->CreateCondBr(cond->value, true_br->b, false_br->b);
   alloc_LLVM_instruction(L, i);
   return 1;
 }
@@ -689,8 +682,9 @@ typedef struct {
 #define decl_func1_(name, ret, arg1, vararg)                                   \
   static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
                          ravi::RaviJITFunctionImpl *f) {                       \
-    std::vector<llvm::Type *> args;                                            \
-    args.push_back(jit->types()->arg1);                                        \
+    llvm::Type *args[] = {                                                     \
+        jit->types()->arg1,                                                    \
+    };                                                                         \
     llvm::FunctionType *type =                                                 \
         llvm::FunctionType::get(jit->types()->ret, args, vararg);              \
     llvm::Function *extfunc = f->addExternFunction(                            \
@@ -705,9 +699,9 @@ typedef struct {
 #define decl_func2_(name, ret, arg1, arg2, vararg)                             \
   static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
                          ravi::RaviJITFunctionImpl *f) {                       \
-    std::vector<llvm::Type *> args;                                            \
-    args.push_back(jit->types()->arg1);                                        \
-    args.push_back(jit->types()->arg2);                                        \
+    llvm::Type *args[] = {                                                     \
+        jit->types()->arg1, jit->types()->arg2,                                \
+    };                                                                         \
     llvm::FunctionType *type =                                                 \
         llvm::FunctionType::get(jit->types()->ret, args, vararg);              \
     llvm::Function *extfunc = f->addExternFunction(                            \
@@ -724,10 +718,9 @@ typedef struct {
 #define decl_func3(name, ret, arg1, arg2, arg3)                                \
   static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
                          ravi::RaviJITFunctionImpl *f) {                       \
-    std::vector<llvm::Type *> args;                                            \
-    args.push_back(jit->types()->arg1);                                        \
-    args.push_back(jit->types()->arg2);                                        \
-    args.push_back(jit->types()->arg3);                                        \
+    llvm::Type *args[] = {                                                     \
+        jit->types()->arg1, jit->types()->arg2, jit->types()->arg3,            \
+    };                                                                         \
     llvm::FunctionType *type =                                                 \
         llvm::FunctionType::get(jit->types()->ret, args, false);               \
     llvm::Function *extfunc = f->addExternFunction(                            \
@@ -739,11 +732,10 @@ typedef struct {
 #define decl_func4(name, ret, arg1, arg2, arg3, arg4)                          \
   static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
                          ravi::RaviJITFunctionImpl *f) {                       \
-    std::vector<llvm::Type *> args;                                            \
-    args.push_back(jit->types()->arg1);                                        \
-    args.push_back(jit->types()->arg2);                                        \
-    args.push_back(jit->types()->arg3);                                        \
-    args.push_back(jit->types()->arg4);                                        \
+    llvm::Type *args[] = {                                                     \
+        jit->types()->arg1, jit->types()->arg2, jit->types()->arg3,            \
+        jit->types()->arg4,                                                    \
+    };                                                                         \
     llvm::FunctionType *type =                                                 \
         llvm::FunctionType::get(jit->types()->ret, args, false);               \
     llvm::Function *extfunc = f->addExternFunction(                            \
@@ -755,8 +747,9 @@ typedef struct {
 #define decl_voidfunc1(name, arg1)                                             \
   static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
                          ravi::RaviJITFunctionImpl *f) {                       \
-    std::vector<llvm::Type *> args;                                            \
-    args.push_back(jit->types()->arg1);                                        \
+    llvm::Type *args[] = {                                                     \
+        jit->types()->arg1,                                                    \
+    };                                                                         \
     llvm::FunctionType *type =                                                 \
         llvm::FunctionType::get(jit->types()->C_voidT, args, false);           \
     llvm::Function *extfunc = f->addExternFunction(                            \
@@ -768,9 +761,9 @@ typedef struct {
 #define decl_voidfunc2(name, arg1, arg2)                                       \
   static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
                          ravi::RaviJITFunctionImpl *f) {                       \
-    std::vector<llvm::Type *> args;                                            \
-    args.push_back(jit->types()->arg1);                                        \
-    args.push_back(jit->types()->arg2);                                        \
+    llvm::Type *args[] = {                                                     \
+        jit->types()->arg1, jit->types()->arg2,                                \
+    };                                                                         \
     llvm::FunctionType *type =                                                 \
         llvm::FunctionType::get(jit->types()->C_voidT, args, false);           \
     llvm::Function *extfunc = f->addExternFunction(                            \
@@ -782,10 +775,9 @@ typedef struct {
 #define decl_voidfunc3(name, arg1, arg2, arg3)                                 \
   static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
                          ravi::RaviJITFunctionImpl *f) {                       \
-    std::vector<llvm::Type *> args;                                            \
-    args.push_back(jit->types()->arg1);                                        \
-    args.push_back(jit->types()->arg2);                                        \
-    args.push_back(jit->types()->arg3);                                        \
+    llvm::Type *args[] = {                                                     \
+        jit->types()->arg1, jit->types()->arg2, jit->types()->arg3,            \
+    };                                                                         \
     llvm::FunctionType *type =                                                 \
         llvm::FunctionType::get(jit->types()->C_voidT, args, false);           \
     llvm::Function *extfunc = f->addExternFunction(                            \
@@ -925,8 +917,7 @@ static FunctionDeclaration builtin_functions[] = {
  functions
 */
 static int addextern(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   FunctionHolder *f = check_LLVM_function(L, 1);
   const char *name = luaL_checkstring(L, 2);
   luaL_argcheck(L, f->compiled_func == nullptr, 1, "function already compiled");
@@ -947,8 +938,7 @@ static int addextern(lua_State *L) {
 }
 
 static int stringconstant(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   const char *string = luaL_checkstring(L, 2);
   alloc_LLVM_value(L, jit, builder->builder->CreateGlobalStringPtr(string));
@@ -956,8 +946,7 @@ static int stringconstant(lua_State *L) {
 }
 
 static int nullconstant(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   PointerTypeHolder *th = check_LLVM_pointertype(L, 1);
   alloc_LLVM_value(L, jit, llvm::ConstantPointerNull::get(th->type));
   return 1;
@@ -967,8 +956,7 @@ static int nullconstant(lua_State *L) {
   Get argument of the function
 */
 static int arg(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   FunctionHolder *th = check_LLVM_function(L, 1);
   int argn = luaL_checkinteger(L, 2);
   int results = 1;
@@ -992,8 +980,7 @@ static int arg(lua_State *L) {
 }
 
 static int externcall(lua_State *L) {
-  global_State *G = G(L);
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
+  auto jit = RaviJIT(L);
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   ExternFuncHolder *f = test_LLVM_externfunc(L, 2);
   ConstantHolder *c = nullptr;
