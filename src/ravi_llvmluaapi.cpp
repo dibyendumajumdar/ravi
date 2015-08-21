@@ -111,7 +111,7 @@ bool l_table_get_bool(lua_State *L, int idx, const char *key, bool *result,
 // We need fixed pointer values for metatable keys
 static const char *LLVM_context = "LLVMcontext";
 static const char *LLVM_irbuilder = "LLVMirbuilder";
-static const char *LLVM_module = "LLVMmodule";
+//static const char *LLVM_module = "LLVMmodule";
 static const char *LLVM_function = "LLVMfunction";
 static const char *LLVM_type = "LLVMtype";
 static const char *LLVM_value = "LLVMvalue";
@@ -234,13 +234,7 @@ struct InstructionHolder {
 
 static int alloc_LLVM_irbuilder(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   IRBuilderHolder *builder =
       (IRBuilderHolder *)lua_newuserdata(L, sizeof(IRBuilderHolder));
   builder->builder = new llvm::IRBuilder<>(jit->context());
@@ -250,14 +244,6 @@ static int alloc_LLVM_irbuilder(lua_State *L) {
 }
 
 static int collect_LLVM_irbuilder(lua_State *L) {
-  global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   if (builder->builder) {
     delete builder->builder;
@@ -356,23 +342,7 @@ static FunctionHolder *alloc_LLVM_function(lua_State *L,
   return h;
 }
 
-static void alloc_LLVM_basicblock(lua_State *L, llvm::BasicBlock *b) {
-  BasicBlockHolder *h =
-      (BasicBlockHolder *)lua_newuserdata(L, sizeof(BasicBlockHolder));
-  l_getmetatable(L, LLVM_basicblock);
-  lua_setmetatable(L, -2);
-  h->b = b;
-}
-
 static int collect_LLVM_function(lua_State *L) {
-  global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   FunctionHolder *builder = check_LLVM_function(L, 1);
   if (builder->func) {
     delete builder->func;
@@ -382,27 +352,21 @@ static int collect_LLVM_function(lua_State *L) {
   return 0;
 }
 
-static void alloc_LLVM_intconstant(lua_State *L, ravi::RaviJITStateImpl *jit,
-                                   llvm::Value *v) {
-  ValueHolder *h = (ValueHolder *)lua_newuserdata(L, sizeof(ValueHolder));
-  l_getmetatable(L, LLVM_value);
+static void alloc_LLVM_basicblock(lua_State *L, llvm::BasicBlock *b) {
+  BasicBlockHolder *h =
+      (BasicBlockHolder *)lua_newuserdata(L, sizeof(BasicBlockHolder));
+  l_getmetatable(L, LLVM_basicblock);
   lua_setmetatable(L, -2);
-  h->value = v;
+  h->b = b;
 }
-
+    
 /*
  Create a new struct type
  structtype(name)
 */
 static int new_struct_type(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   const char *name = luaL_checkstring(L, 1);
   alloc_LLVM_structtype(L, jit, llvm::StructType::create(jit->context(), name));
   return 1;
@@ -414,29 +378,28 @@ static int new_struct_type(lua_State *L) {
 */
 static int new_pointer_type(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
-  StructTypeHolder *sth = test_LLVM_structtype(L, 1);
+  StructTypeHolder *sth = nullptr;
+  PointerTypeHolder *ph = nullptr;
+  TypeHolder *th = nullptr;
+  FunctionTypeHolder *fth = nullptr;
+  
+  sth = test_LLVM_structtype(L, 1);
   if (sth) {
     alloc_LLVM_pointertype(L, jit, llvm::PointerType::get(sth->type, 0));
     goto done;
   }
-  PointerTypeHolder *ph = test_LLVM_pointertype(L, 1);
+  ph = test_LLVM_pointertype(L, 1);
   if (ph) {
     alloc_LLVM_pointertype(L, jit, llvm::PointerType::get(ph->type, 0));
     goto done;
   }
-  TypeHolder *th = test_LLVM_type(L, 1);
+  th = test_LLVM_type(L, 1);
   if (th) {
     alloc_LLVM_pointertype(L, jit, llvm::PointerType::get(th->type, 0));
     goto done;
   }
-  FunctionTypeHolder *fth = test_LLVM_functiontype(L, 1);
+  fth = test_LLVM_functiontype(L, 1);
   if (fth) {
     alloc_LLVM_pointertype(L, jit, llvm::PointerType::get(fth->type, 0));
     goto done;
@@ -452,12 +415,7 @@ done:
 */
 static int get_standard_types(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
 
   lua_newtable(L);
   alloc_LLVM_type(L, jit, jit->types()->C_intT);
@@ -498,13 +456,7 @@ static int get_standard_types(lua_State *L) {
 
 static int get_llvm_context(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   alloc_LLVM_context(L, jit, &jit->context());
   return 1;
 }
@@ -513,32 +465,39 @@ static int get_llvm_context(lua_State *L) {
  Dump an LLVM object
 */
 static int dump_content(lua_State *L) {
-  TypeHolder *th = test_LLVM_type(L, 1);
+  TypeHolder *th = nullptr;
+  StructTypeHolder *sth = nullptr;
+  PointerTypeHolder *ph = nullptr;
+  FunctionTypeHolder *fh = nullptr;
+  FunctionHolder *f = nullptr;
+  InstructionHolder *ii = nullptr;
+  
+  th = test_LLVM_type(L, 1);
   if (th) {
     th->type->dump();
     goto done;
   }
-  StructTypeHolder *sth = test_LLVM_structtype(L, 1);
+  sth = test_LLVM_structtype(L, 1);
   if (sth) {
     sth->type->dump();
     goto done;
   }
-  PointerTypeHolder *ph = test_LLVM_pointertype(L, 1);
+  ph = test_LLVM_pointertype(L, 1);
   if (ph) {
     ph->type->dump();
     goto done;
   }
-  FunctionTypeHolder *fh = test_LLVM_functiontype(L, 1);
+  fh = test_LLVM_functiontype(L, 1);
   if (fh) {
     fh->type->dump();
     goto done;
   }
-  FunctionHolder *f = test_LLVM_function(L, 1);
+  f = test_LLVM_function(L, 1);
   if (f) {
     f->func->dump();
     goto done;
   }
-  InstructionHolder *ii = test_LLVM_instruction(L, 1);
+  ii = test_LLVM_instruction(L, 1);
   if (ii) {
     ii->i->dump();
     goto done;
@@ -559,17 +518,19 @@ static int add_members(lua_State *L) {
   std::vector<llvm::Type *> elements;
   for (int i = 1; i <= len; i++) {
     lua_rawgeti(L, 2, i);
+    TypeHolder *th = nullptr;
+    StructTypeHolder *sth = nullptr;
     PointerTypeHolder *ph = test_LLVM_pointertype(L, -1);
     if (ph) {
       elements.push_back(ph->type);
       goto done;
     }
-    TypeHolder *th = test_LLVM_type(L, -1);
+    th = test_LLVM_type(L, -1);
     if (th) {
       elements.push_back(th->type);
       goto done;
     }
-    StructTypeHolder *sth = test_LLVM_structtype(L, -1);
+    sth = test_LLVM_structtype(L, -1);
     if (sth) {
       elements.push_back(sth->type);
       goto done;
@@ -612,14 +573,6 @@ static llvm::Type *arg_type(lua_State *L, int idx) {
   functiontype(rettype, { argtypes } [, { vararg=true })
 */
 static int new_function_type(lua_State *L) {
-  global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   llvm::Type *typeret = return_type(L, 1);
   luaL_argcheck(L, lua_istable(L, 2), 2, "table expected");
   int len = luaL_len(L, 2);
@@ -641,15 +594,8 @@ static int new_function_type(lua_State *L) {
 
 static int new_lua_CFunction(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   const char *name = luaL_checkstring(L, 1);
-
   FunctionHolder *h =
       alloc_LLVM_function(L, jit, jit->types()->lua_CFunctionT, name);
   /* set L arg */
@@ -660,74 +606,35 @@ static int new_lua_CFunction(lua_State *L) {
 
 static int new_basicblock(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   const char *name = luaL_checkstring(L, 1);
-
   alloc_LLVM_basicblock(L, llvm::BasicBlock::Create(jit->context(), name));
   return 1;
 }
 
 static int append_basicblock(lua_State *L) {
-  global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   FunctionHolder *f = check_LLVM_function(L, 1);
   BasicBlockHolder *b = check_LLVM_basicblock(L, 2);
-
   f->func->function()->getBasicBlockList().push_back(b->b);
   return 0;
 }
 
 static int set_current_block(lua_State *L) {
-  global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   BasicBlockHolder *b = check_LLVM_basicblock(L, 2);
   builder->builder->SetInsertPoint(b->b);
-
   return 0;
 }
 
 static int intconstant(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   int i = (int)luaL_checkinteger(L, 1);
   alloc_LLVM_value(L, jit, llvm::ConstantInt::get(jit->types()->C_intT, i));
   return 1;
 }
 
 static int retval(lua_State *L) {
-  global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   ValueHolder *v = test_LLVM_value(L, 2);
   llvm::Instruction *i;
@@ -740,14 +647,6 @@ static int retval(lua_State *L) {
 }
 
 static int branch(lua_State *L) {
-  global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   BasicBlockHolder *b = check_LLVM_basicblock(L, 2);
   llvm::Instruction *i = builder->builder->CreateBr(b->b);
@@ -756,14 +655,6 @@ static int branch(lua_State *L) {
 }
 
 static int condbranch(lua_State *L) {
-  global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   ValueHolder *cond = check_LLVM_value(L, 2);
   BasicBlockHolder *true_br = check_LLVM_basicblock(L, 3);
@@ -775,25 +666,14 @@ static int condbranch(lua_State *L) {
 }
 
 static int compile(lua_State *L) {
-  global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
-  ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   FunctionHolder *f = check_LLVM_function(L, 1);
   if (!f->compiled_func) {
     f->compiled_func = (lua_CFunction)f->func->compile();
   }
-
   if (!f->compiled_func)
     return 0;
-
   lua_pushvalue(L, 1);
   lua_pushcclosure(L, f->compiled_func, 1);
-
   return 1;
 }
 
@@ -1046,13 +926,7 @@ static FunctionDeclaration builtin_functions[] = {
 */
 static int addextern(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   FunctionHolder *f = check_LLVM_function(L, 1);
   const char *name = luaL_checkstring(L, 2);
   luaL_argcheck(L, f->compiled_func == nullptr, 1, "function already compiled");
@@ -1074,31 +948,17 @@ static int addextern(lua_State *L) {
 
 static int stringconstant(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   const char *string = luaL_checkstring(L, 2);
-
   alloc_LLVM_value(L, jit, builder->builder->CreateGlobalStringPtr(string));
   return 1;
 }
 
 static int nullconstant(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   PointerTypeHolder *th = check_LLVM_pointertype(L, 1);
-
   alloc_LLVM_value(L, jit, llvm::ConstantPointerNull::get(th->type));
   return 1;
 }
@@ -1108,13 +968,7 @@ static int nullconstant(lua_State *L) {
 */
 static int arg(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   FunctionHolder *th = check_LLVM_function(L, 1);
   int argn = luaL_checkinteger(L, 2);
   int results = 1;
@@ -1139,19 +993,12 @@ static int arg(lua_State *L) {
 
 static int externcall(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-
   ravi::RaviJITStateImpl *jit = (ravi::RaviJITStateImpl *)G->ravi_state->jit;
-  if (!jit)
-    return 0;
-
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   ExternFuncHolder *f = test_LLVM_externfunc(L, 2);
   ConstantHolder *c = nullptr;
-  if (f == nullptr) {
+  if (f == nullptr)
     c = check_LLVM_constant(L, 2);
-  }
   luaL_argcheck(L, lua_istable(L, 3), 3, "table expected");
   int len = luaL_len(L, 3);
   std::vector<llvm::Value *> elements;
