@@ -538,6 +538,8 @@ assert(T.upvalue(f, 2) == "xuxu")
 
 
 -- large closures
+if not ravi then
+  -- Need to modify below to match the reduced upvalue limit in Ravi
 do
   local A = "checkstack 300 msg;" ..
             string.rep("pushnum 10;", 255) ..
@@ -549,7 +551,7 @@ do
   assert(A("isnull U256; return 1"))
   assert(not A("isnil U256; return 1"))
 end
-
+end
 
 
 -- testing get/setuservalue

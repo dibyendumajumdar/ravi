@@ -1054,7 +1054,7 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   lua_setfield(L, -2, "type");
   lua_pushvalue(L, -1);           /* push metatable */
   lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
-  luaL_openlib(L, NULL, context_methods, 0);
+  luaL_setfuncs(L, context_methods, 0);
   lua_pop(L, 1);
 
   l_newmetatable(L, LLVM_irbuilder);
@@ -1064,7 +1064,7 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   lua_setfield(L, -2, "__gc");
   lua_pushvalue(L, -1);           /* push metatable */
   lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
-  luaL_openlib(L, NULL, irbuilder_methods, 0);
+  luaL_setfuncs(L, irbuilder_methods, 0);
   lua_pop(L, 1);
 
   l_newmetatable(L, LLVM_function);
@@ -1074,7 +1074,7 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   lua_setfield(L, -2, "__gc");
   lua_pushvalue(L, -1);           /* push metatable */
   lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
-  luaL_openlib(L, NULL, function_methods, 0);
+  luaL_setfuncs(L, function_methods, 0);
   lua_pop(L, 1);
 
   l_newmetatable(L, LLVM_type);
@@ -1092,7 +1092,7 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   lua_setfield(L, -2, "type");
   lua_pushvalue(L, -1);           /* push metatable */
   lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
-  luaL_openlib(L, NULL, structtype_methods, 0);
+  luaL_setfuncs(L, structtype_methods, 0);
   lua_pop(L, 1);
 
   l_newmetatable(L, LLVM_pointertype);

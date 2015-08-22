@@ -96,8 +96,6 @@
 #endif				/* } */
 
 
-
-
 static lua_State *globalL = NULL;
 
 static const char *progname = LUA_PROGNAME;
@@ -592,7 +590,6 @@ static int pmain (lua_State *L) {
   lua_pushboolean(L, 1);  /* signal no errors */
   return 1;
 }
-
 
 int main (int argc, char **argv) {
   int status, result;
