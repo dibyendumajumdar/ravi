@@ -1025,12 +1025,40 @@ static const luaL_Reg llvmlib[] = {{"types", get_standard_types},
                                    {"condbr", condbranch},
                                    {NULL, NULL}};
 
+static const luaL_Reg function_methods[] = {{"appendblock", append_basicblock},
+                                            {"compile", compile},
+                                            {"extern", addextern},
+                                            {"arg", arg},
+                                            {NULL, NULL}};
+#if 0
+static const luaL_Reg context_methods[] = {{"irbuilder", alloc_LLVM_irbuilder},
+                                           {"structtype", new_struct_type},
+                                           {"functiontype", new_function_type},
+                                           {"lua_CFunction", new_lua_CFunction},
+                                           {"basicblock", new_basicblock},
+                                           {"intconstant", intconstant},
+                                           {"nullconstant", nullconstant},
+                                           {NULL, NULL}};
+#endif
+
+static const luaL_Reg irbuilder_methods[] = {
+    {"setinsertpoint", set_current_block},
+    {"ret", retval},
+    {"stringconstant", stringconstant},
+    {"call", externcall},
+    {"br", branch},
+    {"condbr", condbranch},
+    {NULL, NULL}};
+
 LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   l_newmetatable(L, LLVM_irbuilder);
   lua_pushstring(L, LLVM_irbuilder);
   lua_setfield(L, -2, "type");
   lua_pushcfunction(L, collect_LLVM_irbuilder);
   lua_setfield(L, -2, "__gc");
+  lua_pushvalue(L, -1);           /* push metatable */
+  lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
+  luaL_openlib(L, NULL, irbuilder_methods, 0);
   lua_pop(L, 1);
 
   l_newmetatable(L, LLVM_function);
@@ -1038,6 +1066,9 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   lua_setfield(L, -2, "type");
   lua_pushcfunction(L, collect_LLVM_function);
   lua_setfield(L, -2, "__gc");
+  lua_pushvalue(L, -1);           /* push metatable */
+  lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
+  luaL_openlib(L, NULL, function_methods, 0);
   lua_pop(L, 1);
 
   l_newmetatable(L, LLVM_type);

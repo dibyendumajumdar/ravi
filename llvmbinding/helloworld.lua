@@ -26,28 +26,28 @@ irbuilder = llvm.irbuilder()
 -- Create a basic block
 block = llvm.basicblock("entry")
 -- Add it to the end of the function
-llvm.appendblock(myfunc, block)
+myfunc:appendblock(block)
 -- Set this as the next instruction point
-llvm.setinsertpoint(irbuilder, block)
+irbuilder:setinsertpoint(block)
 
 -- get declaration for luaL_checklstring
-luaL_checklstring = llvm.extern(myfunc, "luaL_checklstring")
+luaL_checklstring = myfunc:extern("luaL_checklstring")
 
 -- Get the L parameter of myfunc
-L = llvm.arg(myfunc, 1)
+L = myfunc:arg(1)
 
 -- get the first argument as a string
-str = llvm.call(irbuilder, luaL_checklstring, {L, llvm.intconstant(1), llvm.nullconstant(types.psize_t)} )
+str = irbuilder:call(luaL_checklstring, {L, llvm.intconstant(1), llvm.nullconstant(types.psize_t)} )
 
 -- declare puts
 puts_type = llvm.functiontype(types.int, {types.pchar})
-puts = llvm.extern(myfunc, "puts", puts_type);
+puts = myfunc:extern("puts", puts_type);
 
 -- Call puts
-llvm.call(irbuilder, puts, {str})
+irbuilder:call(puts, {str})
 
 -- add CreateRet(0)
-llvm.ret(irbuilder, llvm.intconstant(0))
+irbuilder:ret(llvm.intconstant(0))
 -- **************************************************/
 
 -- what did we get?
@@ -55,7 +55,7 @@ llvm.dump(myfunc)
 
 -- JIT compile the function
 -- returns a C Closure
-runnable = llvm.compile(myfunc)
+runnable = myfunc:compile()
 
 assert(not runnable('hello world\n'))
 
