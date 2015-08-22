@@ -757,47 +757,10 @@ typedef struct {
     return 1;                                                                  \
   }
 
-#define decl_voidfunc1(name, arg1)                                             \
-  static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
-                         ravi::RaviJITFunctionImpl *f) {                       \
-    llvm::Type *args[] = {                                                     \
-        jit->types()->arg1,                                                    \
-    };                                                                         \
-    llvm::FunctionType *type =                                                 \
-        llvm::FunctionType::get(jit->types()->C_voidT, args, false);           \
-    llvm::Function *extfunc = f->addExternFunction(                            \
-        type, reinterpret_cast<void *>(&name), str(name));                     \
-    alloc_LLVM_externfunc(L, extfunc);                                         \
-    return 1;                                                                  \
-  }
-
-#define decl_voidfunc2(name, arg1, arg2)                                       \
-  static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
-                         ravi::RaviJITFunctionImpl *f) {                       \
-    llvm::Type *args[] = {                                                     \
-        jit->types()->arg1, jit->types()->arg2,                                \
-    };                                                                         \
-    llvm::FunctionType *type =                                                 \
-        llvm::FunctionType::get(jit->types()->C_voidT, args, false);           \
-    llvm::Function *extfunc = f->addExternFunction(                            \
-        type, reinterpret_cast<void *>(&name), str(name));                     \
-    alloc_LLVM_externfunc(L, extfunc);                                         \
-    return 1;                                                                  \
-  }
-
+#define decl_voidfunc1(name, arg1) decl_func1(name, C_voidT, arg1)
+#define decl_voidfunc2(name, arg1, arg2) decl_func2(name, C_voidT, arg1, arg2)
 #define decl_voidfunc3(name, arg1, arg2, arg3)                                 \
-  static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
-                         ravi::RaviJITFunctionImpl *f) {                       \
-    llvm::Type *args[] = {                                                     \
-        jit->types()->arg1, jit->types()->arg2, jit->types()->arg3,            \
-    };                                                                         \
-    llvm::FunctionType *type =                                                 \
-        llvm::FunctionType::get(jit->types()->C_voidT, args, false);           \
-    llvm::Function *extfunc = f->addExternFunction(                            \
-        type, reinterpret_cast<void *>(&name), str(name));                     \
-    alloc_LLVM_externfunc(L, extfunc);                                         \
-    return 1;                                                                  \
-  }
+  decl_func3(name, C_voidT, arg1, arg2, arg3)
 
 decl_func1v(printf, C_intT, C_pcharT);
 decl_func2(lua_absindex, C_intT, plua_StateT, C_intT);
@@ -1010,6 +973,77 @@ static int irbuilder_externcall(lua_State *L) {
   return 1;
 }
 
+#define irbuilder_binop(L, op)                                                 \
+  static int irbuilder_##op(lua_State *L) {                                    \
+    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);                     \
+    ValueHolder *lhs = test_LLVM_value(L, 2);                                  \
+    ValueHolder *rhs = test_LLVM_value(L, 3);                                  \
+    llvm::Value *result =                                                      \
+        builder->builder->Create##op(lhs->value, rhs->value);                  \
+    alloc_LLVM_value(L, result);                                               \
+    return 1;                                                                  \
+  }
+
+#define irbuilder_unop(L, op)                                                  \
+  static int irbuilder_##op(lua_State *L) {                                    \
+    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);                     \
+    ValueHolder *lhs = test_LLVM_value(L, 2);                                  \
+    llvm::Value *result = builder->builder->Create##op(lhs->value);            \
+    alloc_LLVM_value(L, result);                                               \
+    return 1;                                                                  \
+  }
+
+irbuilder_binop(L, ICmpEQ);
+irbuilder_binop(L, ICmpNE);
+irbuilder_binop(L, ICmpUGT);
+irbuilder_binop(L, ICmpUGE);
+irbuilder_binop(L, ICmpULT);
+irbuilder_binop(L, ICmpULE);
+irbuilder_binop(L, ICmpSGT);
+irbuilder_binop(L, ICmpSGE);
+irbuilder_binop(L, ICmpSLT);
+irbuilder_binop(L, ICmpSLE);
+irbuilder_binop(L, FCmpOEQ);
+irbuilder_binop(L, FCmpOGT);
+irbuilder_binop(L, FCmpOGE);
+irbuilder_binop(L, FCmpOLT);
+irbuilder_binop(L, FCmpOLE);
+irbuilder_binop(L, FCmpONE);
+irbuilder_binop(L, FCmpORD);
+irbuilder_binop(L, FCmpUNO);
+irbuilder_binop(L, FCmpUEQ);
+irbuilder_binop(L, FCmpUGT);
+irbuilder_binop(L, FCmpUGE);
+irbuilder_binop(L, FCmpULT);
+irbuilder_binop(L, FCmpULE);
+irbuilder_binop(L, FCmpUNE);
+
+irbuilder_binop(L, NSWAdd);
+irbuilder_binop(L, NUWAdd);
+irbuilder_binop(L, NSWSub);
+irbuilder_binop(L, NUWSub);
+irbuilder_binop(L, UDiv);
+irbuilder_binop(L, ExactUDiv);
+irbuilder_binop(L, SDiv);
+irbuilder_binop(L, ExactSDiv);
+irbuilder_binop(L, URem);
+irbuilder_binop(L, SRem);
+
+irbuilder_binop(L, And);
+irbuilder_binop(L, Or);
+irbuilder_binop(L, Xor);
+
+irbuilder_binop(L, FAdd);
+irbuilder_binop(L, FSub);
+irbuilder_binop(L, FMul);
+irbuilder_binop(L, FDiv);
+irbuilder_binop(L, FRem);
+
+irbuilder_unop(L, Not);
+irbuilder_unop(L, Neg);
+irbuilder_unop(L, FNeg);
+
+
 static const luaL_Reg llvmlib[] = {
     {"context", get_llvm_context}, {"dump", dump_content}, {NULL, NULL}};
 
@@ -1041,6 +1075,51 @@ static const luaL_Reg irbuilder_methods[] = {
     {"call", irbuilder_externcall},
     {"br", irbuilder_branch},
     {"condbr", irbuilder_condbranch},
+    {"icmpeq", irbuilder_ICmpEQ},
+    {"icmpne", irbuilder_ICmpNE},
+    {"icmpugt", irbuilder_ICmpUGT},
+    {"icmpuge", irbuilder_ICmpUGE},
+    {"icmpult", irbuilder_ICmpULT},
+    {"icmpule", irbuilder_ICmpULE},
+    {"icmpsgt", irbuilder_ICmpSGT},
+    {"icmpsge", irbuilder_ICmpSGE},
+    {"icmpslt", irbuilder_ICmpSLT},
+    {"icmpsle", irbuilder_ICmpSLE},
+    {"fcmpoeq", irbuilder_FCmpOEQ},
+    {"fcmpogt", irbuilder_FCmpOGT},
+    {"fcmpoge", irbuilder_FCmpOGE},
+    {"fcmpolt", irbuilder_FCmpOLT},
+    {"fcmpole", irbuilder_FCmpOLE},
+    {"fcmpone", irbuilder_FCmpONE},
+    {"fcmpord", irbuilder_FCmpORD},
+    {"fcmpuno", irbuilder_FCmpUNO},
+    {"fcmpueq", irbuilder_FCmpUEQ},
+    {"fcmpugt", irbuilder_FCmpUGT},
+    {"fcmpuge", irbuilder_FCmpUGE},
+    {"fcmpult", irbuilder_FCmpULT},
+    {"fcmpule", irbuilder_FCmpULE},
+    {"fcmpune", irbuilder_FCmpUNE},
+    {"nswadd", irbuilder_NSWAdd},
+    {"nuwadd", irbuilder_NUWAdd},
+    {"nswsub", irbuilder_NSWSub},
+    {"nuwsub", irbuilder_NUWSub},
+    {"udiv", irbuilder_UDiv},
+    {"exactudiv", irbuilder_ExactUDiv},
+    {"sdiv", irbuilder_SDiv},
+    {"exactsdiv", irbuilder_ExactSDiv},
+    {"neg", irbuilder_Neg},
+    {"urem", irbuilder_URem},
+    {"srem", irbuilder_SRem},
+    {"and", irbuilder_And},
+    {"or", irbuilder_Or},
+    {"xor", irbuilder_Xor},
+    {"not", irbuilder_Not},
+    {"fadd", irbuilder_FAdd},
+    {"fsub", irbuilder_FSub},
+    {"fmul", irbuilder_FMul},
+    {"fdiv", irbuilder_FDiv},
+    {"frem", irbuilder_FRem},
+    {"fneg", irbuilder_FNeg},
     {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
