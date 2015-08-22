@@ -233,17 +233,13 @@
 
 #if defined(LUA_CORE) || defined(LUA_LIB)	/* { */
 #define LUA_API __declspec(dllexport)
-#define LUA_DEXPORT LUA_API extern
-#define EXPORTING
 #else						/* }{ */
 #define LUA_API __declspec(dllimport)
-#define LUA_DEXPORT LUA_API
 #endif						/* } */
 
 #else				/* }{ */
 
 #define LUA_API		extern
-#define LUA_DEXPORT LUA_API
 
 #endif				/* } */
 
