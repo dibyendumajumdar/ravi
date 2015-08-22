@@ -9,7 +9,7 @@ assert(getmetatable(context).type == "LLVMcontext")
 -- The bindings provide a number of predefined types that
 -- are Lua specific plus some standard C types such as 'int',
 -- 'double', 'int64_t', etc.
-types = llvm.types()
+types = context:types()
 print 'Listing types'
 for k,v in pairs(types) do
 	print('\t', k, getmetatable(v).type)
@@ -20,16 +20,16 @@ end
 -- Test creating a struct type
 -- Just as an exercise create a struct type
 -- Initially we have an opaque struct
-gcobject = llvm.structtype("GCObject")
+gcobject = context:structtype("GCObject")
 assert(getmetatable(gcobject).type == "LLVMstructtype")
 
 -- Create pointer to GCObject
-gcobject_p = llvm.pointertype(gcobject)
+gcobject_p = context:pointertype(gcobject)
 assert(getmetatable(gcobject_p).type == "LLVMpointertype")
 
 -- Add the members of the struct
 -- Following demonstrates the use of predefined Lua types 
-llvm.setbody(gcobject, {gcobject_p, types.lu_byte, types.lu_byte})
+gcobject:setbody {gcobject_p, types.lu_byte, types.lu_byte}
 
 -- Display structure of gcobject
 llvm.dump(gcobject)
@@ -42,55 +42,56 @@ llvm.dump(gcobject)
 -- Create a lua_CFunction instance
 -- At this stage the function will get a module and 
 -- execution engine but no body
-myfunc = llvm.lua_CFunction("myfunc")
+myfunc = context:lua_CFunction("myfunc")
 assert(getmetatable(myfunc).type == "LLVMfunction")
 
 -- Get a new IRBuilder intance
 -- this will be garbage collected by Lua
-irbuilder = llvm.irbuilder()
+irbuilder = context:irbuilder()
 assert(getmetatable(irbuilder).type == "LLVMirbuilder")
 
 -- Create a basic block
-block = llvm.basicblock("entry")
+block = context:basicblock("entry")
 -- Add it to the end of the function
-llvm.appendblock(myfunc, block)
+myfunc:appendblock(block)
 -- Set this as the next instruction point
-llvm.setinsertpoint(irbuilder, block)
+irbuilder:setinsertpoint(block)
 
 -----------------------------------------------
 -- Test calling a predefined extern function
 -- Get printf decl
 -----------------------------------------------
-printf = llvm.extern(myfunc, "printf")
+printf = myfunc:extern("printf")
 assert(getmetatable(printf).type == "LLVMexternfunc")
 
-luaL_checklstring = llvm.extern(myfunc, "luaL_checklstring")
+luaL_checklstring = myfunc:extern("luaL_checklstring")
 assert(getmetatable(luaL_checklstring).type == "LLVMexternfunc")
 
-hellostr = llvm.stringconstant(irbuilder, "hello world!\n")
-llvm.call(irbuilder, printf, { hellostr })
+hellostr = irbuilder:stringconstant("hello world!\n")
+irbuilder:call(printf, { hellostr })
 
 -------------------------------------------------
 -- Test calling a random function
 ------------------------------------------------- 
-puts_type = llvm.functiontype(types.int, {types.pchar}, {vararg=false})
+puts_type = context:functiontype(types.int, {types.pchar}, {vararg=false})
 assert(getmetatable(puts_type).type == "LLVMfunctiontype")
 
 -- Declare extern puts()
-puts = llvm.extern(myfunc, "puts", puts_type);
+puts = myfunc:extern("puts", puts_type);
 assert(getmetatable(puts).type == "LLVMconstant")
 
 -- Get the L parameter of myfunc
-L = llvm.arg(myfunc, 1)
+L = myfunc:arg(1)
 
 -- get the first argument as a string
-str = llvm.call(irbuilder, luaL_checklstring, {L, llvm.intconstant(1), llvm.nullconstant(types.psize_t)} )
+str = irbuilder:call(luaL_checklstring, {L, context:intconstant(1), 
+	                 context:nullconstant(types.psize_t)} )
 
 -- Call puts
-llvm.call(irbuilder, puts, { str })
+irbuilder:call(puts, { str })
 
 -- add CreateRet(0)
-inst = llvm.ret(irbuilder, llvm.intconstant(0))
+inst = irbuilder:ret(context:intconstant(0))
 assert(getmetatable(inst).type == "LLVMinstruction")
 -- **************************************************/
 
@@ -99,7 +100,7 @@ llvm.dump(myfunc)
 
 -- JIT compile the function
 -- returns a C Closure
-runnable = llvm.compile(myfunc)
+runnable = myfunc:compile()
 
 print('Type of compiled function is', type(runnable))
 assert(not runnable('ok\n'))

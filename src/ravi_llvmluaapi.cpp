@@ -181,7 +181,12 @@ static const char *LLVM_instruction = "LLVMinstruction";
   ((InstructionHolder *)l_checkudata(L, idx, LLVM_instruction))
 
 struct ContextHolder {
-  llvm::LLVMContext *context;
+  /* Each Ravi instance (Lua instance) has its own
+   * LLVM context
+   * Lifetime of this is tied to the Lua instance so
+   * no need to garbage collect
+   */
+  ravi::RaviJITStateImpl *jitState;
 };
 
 /* garbage collected */
@@ -233,10 +238,10 @@ struct InstructionHolder {
 };
 
 static int alloc_LLVM_irbuilder(lua_State *L) {
-  auto jit = RaviJIT(L);
+  ContextHolder *context = check_LLVM_context(L, 1);
   IRBuilderHolder *builder =
       (IRBuilderHolder *)lua_newuserdata(L, sizeof(IRBuilderHolder));
-  builder->builder = new llvm::IRBuilder<>(jit->context());
+  builder->builder = new llvm::IRBuilder<>(context->jitState->context());
   l_getmetatable(L, LLVM_irbuilder);
   lua_setmetatable(L, -2);
   return 1;
@@ -259,16 +264,14 @@ static void alloc_LLVM_type(lua_State *L, ravi::RaviJITStateImpl *jit,
   tt->type = t;
 }
 
-static void alloc_LLVM_context(lua_State *L, ravi::RaviJITStateImpl *jit,
-                               llvm::LLVMContext *c) {
+static void alloc_LLVM_context(lua_State *L, ravi::RaviJITStateImpl *jit) {
   ContextHolder *h = (ContextHolder *)lua_newuserdata(L, sizeof(ContextHolder));
   l_getmetatable(L, LLVM_context);
   lua_setmetatable(L, -2);
-  h->context = c;
+  h->jitState = jit;
 }
 
-static void alloc_LLVM_value(lua_State *L, ravi::RaviJITStateImpl *jit,
-                             llvm::Value *v) {
+static void alloc_LLVM_value(lua_State *L, llvm::Value *v) {
   ValueHolder *h = (ValueHolder *)lua_newuserdata(L, sizeof(ValueHolder));
   l_getmetatable(L, LLVM_value);
   lua_setmetatable(L, -2);
@@ -364,9 +367,11 @@ static void alloc_LLVM_basicblock(lua_State *L, llvm::BasicBlock *b) {
  structtype(name)
 */
 static int new_struct_type(lua_State *L) {
-  auto jit = RaviJIT(L);
-  const char *name = luaL_checkstring(L, 1);
-  alloc_LLVM_structtype(L, jit, llvm::StructType::create(jit->context(), name));
+  ContextHolder *context = check_LLVM_context(L, 1);
+  const char *name = luaL_checkstring(L, 2);
+  alloc_LLVM_structtype(
+      L, context->jitState,
+      llvm::StructType::create(context->jitState->context(), name));
   return 1;
 }
 
@@ -375,33 +380,38 @@ static int new_struct_type(lua_State *L) {
  pointertype(type)
 */
 static int new_pointer_type(lua_State *L) {
-  auto jit = RaviJIT(L);
+  ContextHolder *context = check_LLVM_context(L, 1);
+
   StructTypeHolder *sth = nullptr;
   PointerTypeHolder *ph = nullptr;
   TypeHolder *th = nullptr;
   FunctionTypeHolder *fth = nullptr;
 
-  sth = test_LLVM_structtype(L, 1);
+  sth = test_LLVM_structtype(L, 2);
   if (sth) {
-    alloc_LLVM_pointertype(L, jit, llvm::PointerType::get(sth->type, 0));
+    alloc_LLVM_pointertype(L, context->jitState,
+                           llvm::PointerType::get(sth->type, 0));
     goto done;
   }
-  ph = test_LLVM_pointertype(L, 1);
+  ph = test_LLVM_pointertype(L, 2);
   if (ph) {
-    alloc_LLVM_pointertype(L, jit, llvm::PointerType::get(ph->type, 0));
+    alloc_LLVM_pointertype(L, context->jitState,
+                           llvm::PointerType::get(ph->type, 0));
     goto done;
   }
-  th = test_LLVM_type(L, 1);
+  th = test_LLVM_type(L, 2);
   if (th) {
-    alloc_LLVM_pointertype(L, jit, llvm::PointerType::get(th->type, 0));
+    alloc_LLVM_pointertype(L, context->jitState,
+                           llvm::PointerType::get(th->type, 0));
     goto done;
   }
-  fth = test_LLVM_functiontype(L, 1);
+  fth = test_LLVM_functiontype(L, 2);
   if (fth) {
-    alloc_LLVM_pointertype(L, jit, llvm::PointerType::get(fth->type, 0));
+    alloc_LLVM_pointertype(L, context->jitState,
+                           llvm::PointerType::get(fth->type, 0));
     goto done;
   }
-  luaL_argerror(L, 1, "invalid argument");
+  luaL_argerror(L, 2, "invalid argument");
   return 0;
 done:
   return 1;
@@ -411,7 +421,8 @@ done:
  Get pre-defined types
 */
 static int get_standard_types(lua_State *L) {
-  auto jit = RaviJIT(L);
+  ContextHolder *context = check_LLVM_context(L, 1);
+  auto jit = context->jitState;
 
   lua_newtable(L);
   alloc_LLVM_type(L, jit, jit->types()->C_intT);
@@ -452,7 +463,7 @@ static int get_standard_types(lua_State *L) {
 
 static int get_llvm_context(lua_State *L) {
   auto jit = RaviJIT(L);
-  alloc_LLVM_context(L, jit, &jit->context());
+  alloc_LLVM_context(L, jit);
   return 1;
 }
 
@@ -565,33 +576,34 @@ static llvm::Type *arg_type(lua_State *L, int idx) {
 }
 
 /*
-  functiontype(rettype, { argtypes } [, { vararg=true })
+  functiontype(context, rettype, { argtypes } [, { vararg=true })
 */
 static int new_function_type(lua_State *L) {
-  llvm::Type *typeret = return_type(L, 1);
-  luaL_argcheck(L, lua_istable(L, 2), 2, "table expected");
-  int len = luaL_len(L, 2);
+  ContextHolder *context = check_LLVM_context(L, 1);
+  llvm::Type *typeret = return_type(L, 2);
+  luaL_argcheck(L, lua_istable(L, 3), 3, "table expected");
+  int len = luaL_len(L, 3);
   std::vector<llvm::Type *> elements;
   for (int i = 1; i <= len; i++) {
-    lua_rawgeti(L, 2, i);
+    lua_rawgeti(L, 3, i);
     llvm::Type *t = arg_type(L, -1);
     if (t)
       elements.push_back(t);
     lua_pop(L, 1);
   }
   bool vararg = false;
-  if (lua_istable(L, 3))
-    l_table_get_bool(L, 3, "vararg", &vararg, false);
+  if (lua_istable(L, 4))
+    l_table_get_bool(L, 4, "vararg", &vararg, false);
   alloc_LLVM_functiontype(L,
                           llvm::FunctionType::get(typeret, elements, vararg));
   return 1;
 }
 
 static int new_lua_CFunction(lua_State *L) {
-  auto jit = RaviJIT(L);
-  const char *name = luaL_checkstring(L, 1);
-  FunctionHolder *h =
-      alloc_LLVM_function(L, jit, jit->types()->lua_CFunctionT, name);
+  ContextHolder *context = check_LLVM_context(L, 1);
+  const char *name = luaL_checkstring(L, 2);
+  FunctionHolder *h = alloc_LLVM_function(
+      L, context->jitState, context->jitState->types()->lua_CFunctionT, name);
   /* set L arg */
   h->arg1 = h->func->function()->arg_begin();
   h->arg1->setName("L");
@@ -599,9 +611,10 @@ static int new_lua_CFunction(lua_State *L) {
 }
 
 static int new_basicblock(lua_State *L) {
-  auto jit = RaviJIT(L);
-  const char *name = luaL_checkstring(L, 1);
-  alloc_LLVM_basicblock(L, llvm::BasicBlock::Create(jit->context(), name));
+  ContextHolder *context = check_LLVM_context(L, 1);
+  const char *name = luaL_checkstring(L, 2);
+  alloc_LLVM_basicblock(
+      L, llvm::BasicBlock::Create(context->jitState->context(), name));
   return 1;
 }
 
@@ -620,9 +633,10 @@ static int set_current_block(lua_State *L) {
 }
 
 static int intconstant(lua_State *L) {
-  auto jit = RaviJIT(L);
-  int i = (int)luaL_checkinteger(L, 1);
-  alloc_LLVM_value(L, jit, llvm::ConstantInt::get(jit->types()->C_intT, i));
+  ContextHolder *context = check_LLVM_context(L, 1);
+  auto jit = context->jitState;
+  int i = (int)luaL_checkinteger(L, 2);
+  alloc_LLVM_value(L, llvm::ConstantInt::get(jit->types()->C_intT, i));
   return 1;
 }
 
@@ -941,14 +955,15 @@ static int stringconstant(lua_State *L) {
   auto jit = RaviJIT(L);
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   const char *string = luaL_checkstring(L, 2);
-  alloc_LLVM_value(L, jit, builder->builder->CreateGlobalStringPtr(string));
+  alloc_LLVM_value(L, builder->builder->CreateGlobalStringPtr(string));
   return 1;
 }
 
 static int nullconstant(lua_State *L) {
-  auto jit = RaviJIT(L);
-  PointerTypeHolder *th = check_LLVM_pointertype(L, 1);
-  alloc_LLVM_value(L, jit, llvm::ConstantPointerNull::get(th->type));
+  ContextHolder *context = check_LLVM_context(L, 1);
+  PointerTypeHolder *th = check_LLVM_pointertype(L, 2);
+  auto jit = context->jitState;
+  alloc_LLVM_value(L, llvm::ConstantPointerNull::get(th->type));
   return 1;
 }
 
@@ -956,19 +971,19 @@ static int nullconstant(lua_State *L) {
   Get argument of the function
 */
 static int arg(lua_State *L) {
-  auto jit = RaviJIT(L);
   FunctionHolder *th = check_LLVM_function(L, 1);
+  auto jit = (ravi::RaviJITStateImpl *)th->func->owner();
   int argn = luaL_checkinteger(L, 2);
   int results = 1;
   if (argn == 1 && th->arg1) {
-    alloc_LLVM_value(L, jit, th->arg1);
+    alloc_LLVM_value(L, th->arg1);
   } else {
     if (argn <= th->func->function()->arg_size()) {
       auto B = th->func->function()->arg_begin();
       auto E = th->func->function()->arg_end();
       for (int i = 1; B != E; B++, i++) {
         if (i == argn) {
-          alloc_LLVM_value(L, jit, B);
+          alloc_LLVM_value(L, B);
           break;
         }
       }
@@ -997,49 +1012,32 @@ static int externcall(lua_State *L) {
   }
   llvm::Value *result = builder->builder->CreateCall(
       f != nullptr ? f->function : c->constant, elements);
-  alloc_LLVM_value(L, jit, result);
+  alloc_LLVM_value(L, result);
   return 1;
 }
 
-static const luaL_Reg llvmlib[] = {{"types", get_standard_types},
-                                   {"context", get_llvm_context},
-                                   {"irbuilder", alloc_LLVM_irbuilder},
-                                   {"structtype", new_struct_type},
-                                   {"dump", dump_content},
-                                   {"pointertype", new_pointer_type},
-                                   {"setbody", add_members},
-                                   {"functiontype", new_function_type},
-                                   {"lua_CFunction", new_lua_CFunction},
-                                   {"basicblock", new_basicblock},
-                                   {"appendblock", append_basicblock},
-                                   {"setinsertpoint", set_current_block},
-                                   {"ret", retval},
-                                   {"compile", compile},
-                                   {"extern", addextern},
-                                   {"intconstant", intconstant},
-                                   {"stringconstant", stringconstant},
-                                   {"nullconstant", nullconstant},
-                                   {"call", externcall},
-                                   {"arg", arg},
-                                   {"br", branch},
-                                   {"condbr", condbranch},
-                                   {NULL, NULL}};
+static const luaL_Reg llvmlib[] = {
+    {"context", get_llvm_context}, {"dump", dump_content}, {NULL, NULL}};
+
+static const luaL_Reg structtype_methods[] = {{"setbody", add_members},
+                                              {NULL, NULL}};
 
 static const luaL_Reg function_methods[] = {{"appendblock", append_basicblock},
                                             {"compile", compile},
                                             {"extern", addextern},
                                             {"arg", arg},
                                             {NULL, NULL}};
-#if 0
+
 static const luaL_Reg context_methods[] = {{"irbuilder", alloc_LLVM_irbuilder},
+                                           {"types", get_standard_types},
                                            {"structtype", new_struct_type},
+                                           {"pointertype", new_pointer_type},
                                            {"functiontype", new_function_type},
                                            {"lua_CFunction", new_lua_CFunction},
                                            {"basicblock", new_basicblock},
                                            {"intconstant", intconstant},
                                            {"nullconstant", nullconstant},
                                            {NULL, NULL}};
-#endif
 
 static const luaL_Reg irbuilder_methods[] = {
     {"setinsertpoint", set_current_block},
@@ -1051,6 +1049,14 @@ static const luaL_Reg irbuilder_methods[] = {
     {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
+  l_newmetatable(L, LLVM_context);
+  lua_pushstring(L, LLVM_context);
+  lua_setfield(L, -2, "type");
+  lua_pushvalue(L, -1);           /* push metatable */
+  lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
+  luaL_openlib(L, NULL, context_methods, 0);
+  lua_pop(L, 1);
+
   l_newmetatable(L, LLVM_irbuilder);
   lua_pushstring(L, LLVM_irbuilder);
   lua_setfield(L, -2, "type");
@@ -1076,11 +1082,6 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   lua_setfield(L, -2, "type");
   lua_pop(L, 1);
 
-  l_newmetatable(L, LLVM_context);
-  lua_pushstring(L, LLVM_context);
-  lua_setfield(L, -2, "type");
-  lua_pop(L, 1);
-
   l_newmetatable(L, LLVM_value);
   lua_pushstring(L, LLVM_value);
   lua_setfield(L, -2, "type");
@@ -1089,6 +1090,9 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   l_newmetatable(L, LLVM_structtype);
   lua_pushstring(L, LLVM_structtype);
   lua_setfield(L, -2, "type");
+  lua_pushvalue(L, -1);           /* push metatable */
+  lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
+  luaL_openlib(L, NULL, structtype_methods, 0);
   lua_pop(L, 1);
 
   l_newmetatable(L, LLVM_pointertype);

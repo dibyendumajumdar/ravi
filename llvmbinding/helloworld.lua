@@ -12,19 +12,19 @@ context = llvm.context()
 -- The bindings provide a number of predefined types that
 -- are Lua specific plus some standard C types such as 'int',
 -- 'double', 'int64_t', etc.
-types = llvm.types()
+types = context:types()
 
 -- Create a lua_CFunction instance
 -- At this stage the function will get a module and 
 -- execution engine but no body
-myfunc = llvm.lua_CFunction("myfunc")
+myfunc = context:lua_CFunction("myfunc")
 
 -- Get a new IRBuilder intance
 -- this will be garbage collected by Lua
-irbuilder = llvm.irbuilder()
+irbuilder = context:irbuilder()
 
 -- Create a basic block
-block = llvm.basicblock("entry")
+block = context:basicblock("entry")
 -- Add it to the end of the function
 myfunc:appendblock(block)
 -- Set this as the next instruction point
@@ -37,17 +37,19 @@ luaL_checklstring = myfunc:extern("luaL_checklstring")
 L = myfunc:arg(1)
 
 -- get the first argument as a string
-str = irbuilder:call(luaL_checklstring, {L, llvm.intconstant(1), llvm.nullconstant(types.psize_t)} )
+str = irbuilder:call(luaL_checklstring, 
+	                 {L, context:intconstant(1), 
+	                 context:nullconstant(types.psize_t)})
 
 -- declare puts
-puts_type = llvm.functiontype(types.int, {types.pchar})
+puts_type = context:functiontype(types.int, {types.pchar})
 puts = myfunc:extern("puts", puts_type);
 
 -- Call puts
 irbuilder:call(puts, {str})
 
 -- add CreateRet(0)
-irbuilder:ret(llvm.intconstant(0))
+irbuilder:ret(context:intconstant(0))
 -- **************************************************/
 
 -- what did we get?
