@@ -973,6 +973,33 @@ static int irbuilder_externcall(lua_State *L) {
   return 1;
 }
 
+static llvm::Type *get_type(lua_State *L, int idx) {
+  TypeHolder *th = test_LLVM_type(L, idx);
+  if (th) 
+    return th->type;
+  PointerTypeHolder *ph = test_LLVM_pointertype(L, idx);
+  if (ph) 
+    return ph->type;
+  StructTypeHolder *sh = test_LLVM_structtype(L, idx);
+  if (sh)
+    return sh->type;
+  FunctionTypeHolder *fh = test_LLVM_functiontype(L, idx);
+  if (fh)
+    return fh->type;
+  luaL_argerror(L, idx, "unrecognized type");
+  return nullptr;
+}
+
+static int irbuilder_alloca(lua_State *L) {
+  IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
+  llvm::Type *ty = get_type(L, 2);
+  ValueHolder *vh = test_LLVM_value(L, 3);
+  llvm::Value *array_size = vh ? vh->value : nullptr;
+  llvm::Instruction *inst = builder->builder->CreateAlloca(ty, array_size);
+  alloc_LLVM_instruction(L, inst);
+  return 1;
+}
+
 #define irbuilder_binop(L, op)                                                 \
   static int irbuilder_##op(lua_State *L) {                                    \
     IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);                     \
@@ -1120,6 +1147,7 @@ static const luaL_Reg irbuilder_methods[] = {
     {"fdiv", irbuilder_FDiv},
     {"frem", irbuilder_FRem},
     {"fneg", irbuilder_FNeg},
+    {"alloca", irbuilder_alloca},
     {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
