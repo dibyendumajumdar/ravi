@@ -579,7 +579,6 @@ static llvm::Type *arg_type(lua_State *L, int idx) {
   functiontype(context, rettype, { argtypes } [, { vararg=true })
 */
 static int context_new_function_type(lua_State *L) {
-  ContextHolder *context = check_LLVM_context(L, 1);
   llvm::Type *typeret = return_type(L, 2);
   luaL_argcheck(L, lua_istable(L, 3), 3, "table expected");
   int len = luaL_len(L, 3);
@@ -952,7 +951,6 @@ static int func_addextern(lua_State *L) {
 }
 
 static int irbuilder_stringconstant(lua_State *L) {
-  auto jit = RaviJIT(L);
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   const char *string = luaL_checkstring(L, 2);
   alloc_LLVM_value(L, builder->builder->CreateGlobalStringPtr(string));
@@ -960,9 +958,7 @@ static int irbuilder_stringconstant(lua_State *L) {
 }
 
 static int context_nullconstant(lua_State *L) {
-  ContextHolder *context = check_LLVM_context(L, 1);
   PointerTypeHolder *th = check_LLVM_pointertype(L, 2);
-  auto jit = context->jitState;
   alloc_LLVM_value(L, llvm::ConstantPointerNull::get(th->type));
   return 1;
 }
@@ -972,7 +968,6 @@ static int context_nullconstant(lua_State *L) {
 */
 static int func_getarg(lua_State *L) {
   FunctionHolder *th = check_LLVM_function(L, 1);
-  auto jit = (ravi::RaviJITStateImpl *)th->func->owner();
   int argn = luaL_checkinteger(L, 2);
   int results = 1;
   if (argn == 1 && th->arg1) {
@@ -995,7 +990,6 @@ static int func_getarg(lua_State *L) {
 }
 
 static int irbuilder_externcall(lua_State *L) {
-  auto jit = RaviJIT(L);
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   ExternFuncHolder *f = test_LLVM_externfunc(L, 2);
   ConstantHolder *c = nullptr;

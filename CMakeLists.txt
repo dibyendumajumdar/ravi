@@ -106,8 +106,8 @@ endif()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
 add_definitions(-DLUA_COMPAT_MODULE)
-if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
-  message("Enabling ltests")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+  message(STATUS "Enabling Lua extended test harness 'ltests'")
   add_definitions(-DLUA_USER_H="ltests.h")
 endif()
 

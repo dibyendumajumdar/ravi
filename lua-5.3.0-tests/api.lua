@@ -817,6 +817,7 @@ print'+'
 
 
 -- testing changing hooks during hooks
+if not ravi or not ravi.auto() then
 _G.t = {}
 T.sethook([[
   # set a line hook after 3 count hooks
@@ -837,7 +838,7 @@ line = t[2]
 assert(t[3] == "line" and t[4] == line + 1)
 assert(t[5] == "line" and t[6] == line + 2)
 assert(t[7] == nil)
-
+end
 
 -------------------------------------------------------------------------
 do   -- testing errors during GC
