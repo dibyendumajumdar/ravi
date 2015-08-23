@@ -43,7 +43,7 @@ llvm.dump(gcobject)
 -- At this stage the function will get a module and 
 -- execution engine but no body
 myfunc = context:lua_CFunction("myfunc")
-assert(getmetatable(myfunc).type == "LLVMfunction")
+assert(getmetatable(myfunc).type == "LLVMmainfunction")
 
 -- Get a new IRBuilder intance
 -- this will be garbage collected by Lua
@@ -62,10 +62,10 @@ irbuilder:setinsertpoint(block)
 -- Get printf decl
 -----------------------------------------------
 printf = myfunc:extern("printf")
-assert(getmetatable(printf).type == "LLVMexternfunc")
+assert(getmetatable(printf).type == "LLVMconstant")
 
 luaL_checklstring = myfunc:extern("luaL_checklstring")
-assert(getmetatable(luaL_checklstring).type == "LLVMexternfunc")
+assert(getmetatable(luaL_checklstring).type == "LLVMconstant")
 
 hellostr = irbuilder:stringconstant("hello world!\n")
 irbuilder:call(printf, { hellostr })
