@@ -394,8 +394,6 @@ static int context_new_struct_type(lua_State *L) {
  pointertype(type)
 */
 static int context_new_pointer_type(lua_State *L) {
-  ContextHolder *context = check_LLVM_context(L, 1);
-
   StructTypeHolder *sth = nullptr;
   PointerTypeHolder *ph = nullptr;
   TypeHolder *th = nullptr;
