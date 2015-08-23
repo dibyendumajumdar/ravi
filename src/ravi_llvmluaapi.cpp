@@ -194,12 +194,12 @@ struct IRBuilderHolder {
   llvm::IRBuilder<> *builder;
 };
 
-struct TypeHolder {
-  llvm::Type *type;
-};
-
 struct ValueHolder {
   llvm::Value *value;
+};
+
+struct TypeHolder {
+  llvm::Type *type;
 };
 
 struct StructTypeHolder {
@@ -247,6 +247,7 @@ static int context_new_LLVM_irbuilder(lua_State *L) {
   return 1;
 }
 
+/* __gc function for IRBuilderHolder */
 static int collect_LLVM_irbuilder(lua_State *L) {
   IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
   if (builder->builder) {
@@ -256,8 +257,7 @@ static int collect_LLVM_irbuilder(lua_State *L) {
   return 0;
 }
 
-static void alloc_LLVM_type(lua_State *L, ravi::RaviJITStateImpl *jit,
-                            llvm::Type *t) {
+static void alloc_LLVM_type(lua_State *L, llvm::Type *t) {
   TypeHolder *tt = (TypeHolder *)lua_newuserdata(L, sizeof(TypeHolder));
   l_getmetatable(L, LLVM_type);
   lua_setmetatable(L, -2);
@@ -278,8 +278,7 @@ static void alloc_LLVM_value(lua_State *L, llvm::Value *v) {
   h->value = v;
 }
 
-static void alloc_LLVM_structtype(lua_State *L, ravi::RaviJITStateImpl *jit,
-                                  llvm::StructType *type) {
+static void alloc_LLVM_structtype(lua_State *L, llvm::StructType *type) {
   StructTypeHolder *h =
       (StructTypeHolder *)lua_newuserdata(L, sizeof(StructTypeHolder));
   l_getmetatable(L, LLVM_structtype);
@@ -287,8 +286,7 @@ static void alloc_LLVM_structtype(lua_State *L, ravi::RaviJITStateImpl *jit,
   h->type = type;
 }
 
-static void alloc_LLVM_pointertype(lua_State *L, ravi::RaviJITStateImpl *jit,
-                                   llvm::PointerType *type) {
+static void alloc_LLVM_pointertype(lua_State *L, llvm::PointerType *type) {
   PointerTypeHolder *h =
       (PointerTypeHolder *)lua_newuserdata(L, sizeof(PointerTypeHolder));
   l_getmetatable(L, LLVM_pointertype);
@@ -344,6 +342,7 @@ static FunctionHolder *alloc_LLVM_function(lua_State *L,
   return h;
 }
 
+/* __gc for FunctionHolder */
 static int collect_LLVM_function(lua_State *L) {
   FunctionHolder *builder = check_LLVM_function(L, 1);
   if (builder->func) {
@@ -370,8 +369,7 @@ static int context_new_struct_type(lua_State *L) {
   ContextHolder *context = check_LLVM_context(L, 1);
   const char *name = luaL_checkstring(L, 2);
   alloc_LLVM_structtype(
-      L, context->jitState,
-      llvm::StructType::create(context->jitState->context(), name));
+      L, llvm::StructType::create(context->jitState->context(), name));
   return 1;
 }
 
@@ -389,26 +387,22 @@ static int context_new_pointer_type(lua_State *L) {
 
   sth = test_LLVM_structtype(L, 2);
   if (sth) {
-    alloc_LLVM_pointertype(L, context->jitState,
-                           llvm::PointerType::get(sth->type, 0));
+    alloc_LLVM_pointertype(L, llvm::PointerType::get(sth->type, 0));
     goto done;
   }
   ph = test_LLVM_pointertype(L, 2);
   if (ph) {
-    alloc_LLVM_pointertype(L, context->jitState,
-                           llvm::PointerType::get(ph->type, 0));
+    alloc_LLVM_pointertype(L, llvm::PointerType::get(ph->type, 0));
     goto done;
   }
   th = test_LLVM_type(L, 2);
   if (th) {
-    alloc_LLVM_pointertype(L, context->jitState,
-                           llvm::PointerType::get(th->type, 0));
+    alloc_LLVM_pointertype(L, llvm::PointerType::get(th->type, 0));
     goto done;
   }
   fth = test_LLVM_functiontype(L, 2);
   if (fth) {
-    alloc_LLVM_pointertype(L, context->jitState,
-                           llvm::PointerType::get(fth->type, 0));
+    alloc_LLVM_pointertype(L, llvm::PointerType::get(fth->type, 0));
     goto done;
   }
   luaL_argerror(L, 2, "invalid argument");
@@ -425,35 +419,35 @@ static int context_get_types(lua_State *L) {
   auto jit = context->jitState;
 
   lua_newtable(L);
-  alloc_LLVM_type(L, jit, jit->types()->C_intT);
+  alloc_LLVM_type(L, jit->types()->C_intT);
   lua_setfield(L, -2, "int");
-  alloc_LLVM_type(L, jit, jit->types()->lua_NumberT);
+  alloc_LLVM_type(L, jit->types()->lua_NumberT);
   lua_setfield(L, -2, "lua_Number");
-  alloc_LLVM_type(L, jit, jit->types()->lua_IntegerT);
+  alloc_LLVM_type(L, jit->types()->lua_IntegerT);
   lua_setfield(L, -2, "lua_Integer");
-  alloc_LLVM_type(L, jit, jit->types()->lu_byteT);
+  alloc_LLVM_type(L, jit->types()->lu_byteT);
   lua_setfield(L, -2, "lu_byte");
-  alloc_LLVM_pointertype(L, jit, jit->types()->C_pcharT);
+  alloc_LLVM_pointertype(L, jit->types()->C_pcharT);
   lua_setfield(L, -2, "pchar");
-  alloc_LLVM_type(L, jit, jit->types()->C_doubleT);
+  alloc_LLVM_type(L, jit->types()->C_doubleT);
   lua_setfield(L, -2, "double");
-  alloc_LLVM_type(L, jit, jit->types()->C_int64_t);
+  alloc_LLVM_type(L, jit->types()->C_int64_t);
   lua_setfield(L, -2, "int64_t");
-  alloc_LLVM_type(L, jit, jit->types()->C_intptr_t);
+  alloc_LLVM_type(L, jit->types()->C_intptr_t);
   lua_setfield(L, -2, "intptr_t");
-  alloc_LLVM_pointertype(L, jit, jit->types()->C_pintT);
+  alloc_LLVM_pointertype(L, jit->types()->C_pintT);
   lua_setfield(L, -2, "pint");
-  alloc_LLVM_type(L, jit, jit->types()->C_ptrdiff_t);
+  alloc_LLVM_type(L, jit->types()->C_ptrdiff_t);
   lua_setfield(L, -2, "ptrdiff_t");
-  alloc_LLVM_type(L, jit, jit->types()->C_shortT);
+  alloc_LLVM_type(L, jit->types()->C_shortT);
   lua_setfield(L, -2, "short");
-  alloc_LLVM_type(L, jit, jit->types()->C_size_t);
+  alloc_LLVM_type(L, jit->types()->C_size_t);
   lua_setfield(L, -2, "size_t");
-  alloc_LLVM_pointertype(L, jit, jit->types()->C_psize_t);
+  alloc_LLVM_pointertype(L, jit->types()->C_psize_t);
   lua_setfield(L, -2, "psize_t");
-  alloc_LLVM_type(L, jit, jit->types()->lua_UnsignedT);
+  alloc_LLVM_type(L, jit->types()->lua_UnsignedT);
   lua_setfield(L, -2, "lua_Unsigned");
-  alloc_LLVM_type(L, jit, llvm::Type::getVoidTy(jit->context()));
+  alloc_LLVM_type(L, jit->types()->C_voidT);
   lua_setfield(L, -2, "void");
   alloc_LLVM_functiontype(L, jit->types()->lua_CFunctionT);
   lua_setfield(L, -2, "lua_CFunction");
@@ -617,7 +611,7 @@ static int context_new_basicblock(lua_State *L) {
   return 1;
 }
 
-static int append_basicblock(lua_State *L) {
+static int func_append_basicblock(lua_State *L) {
   FunctionHolder *f = check_LLVM_function(L, 1);
   BasicBlockHolder *b = check_LLVM_basicblock(L, 2);
   f->func->function()->getBasicBlockList().push_back(b->b);
@@ -975,10 +969,10 @@ static int irbuilder_externcall(lua_State *L) {
 
 static llvm::Type *get_type(lua_State *L, int idx) {
   TypeHolder *th = test_LLVM_type(L, idx);
-  if (th) 
+  if (th)
     return th->type;
   PointerTypeHolder *ph = test_LLVM_pointertype(L, idx);
-  if (ph) 
+  if (ph)
     return ph->type;
   StructTypeHolder *sh = test_LLVM_structtype(L, idx);
   if (sh)
@@ -1000,7 +994,26 @@ static int irbuilder_alloca(lua_State *L) {
   return 1;
 }
 
-#define irbuilder_binop(L, op)                                                 \
+/* ops that take a value and value array as arguments */
+#define irbuilder_vva(op)                                                      \
+  static int irbuilder_##op(lua_State *L) {                                    \
+    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);                     \
+    ValueHolder *c = check_LLVM_value(L, 2);                                   \
+    luaL_argcheck(L, lua_istable(L, 3), 3, "table expected");                  \
+    int len = luaL_len(L, 3);                                                  \
+    std::vector<llvm::Value *> elements;                                       \
+    for (int i = 1; i <= len; i++) {                                           \
+      lua_rawgeti(L, 3, i);                                                    \
+      ValueHolder *vh = check_LLVM_value(L, -1);                               \
+      elements.push_back(vh->value);                                           \
+      lua_pop(L, 1);                                                           \
+    }                                                                          \
+    llvm::Value *result = builder->builder->Create##op(c->value, elements);    \
+    alloc_LLVM_value(L, result);                                               \
+    return 1;                                                                  \
+  }
+
+#define irbuilder_binop(op)                                                    \
   static int irbuilder_##op(lua_State *L) {                                    \
     IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);                     \
     ValueHolder *lhs = test_LLVM_value(L, 2);                                  \
@@ -1011,7 +1024,7 @@ static int irbuilder_alloca(lua_State *L) {
     return 1;                                                                  \
   }
 
-#define irbuilder_unop(L, op)                                                  \
+#define irbuilder_unop(op)                                                     \
   static int irbuilder_##op(lua_State *L) {                                    \
     IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);                     \
     ValueHolder *lhs = test_LLVM_value(L, 2);                                  \
@@ -1020,56 +1033,88 @@ static int irbuilder_alloca(lua_State *L) {
     return 1;                                                                  \
   }
 
-irbuilder_binop(L, ICmpEQ);
-irbuilder_binop(L, ICmpNE);
-irbuilder_binop(L, ICmpUGT);
-irbuilder_binop(L, ICmpUGE);
-irbuilder_binop(L, ICmpULT);
-irbuilder_binop(L, ICmpULE);
-irbuilder_binop(L, ICmpSGT);
-irbuilder_binop(L, ICmpSGE);
-irbuilder_binop(L, ICmpSLT);
-irbuilder_binop(L, ICmpSLE);
-irbuilder_binop(L, FCmpOEQ);
-irbuilder_binop(L, FCmpOGT);
-irbuilder_binop(L, FCmpOGE);
-irbuilder_binop(L, FCmpOLT);
-irbuilder_binop(L, FCmpOLE);
-irbuilder_binop(L, FCmpONE);
-irbuilder_binop(L, FCmpORD);
-irbuilder_binop(L, FCmpUNO);
-irbuilder_binop(L, FCmpUEQ);
-irbuilder_binop(L, FCmpUGT);
-irbuilder_binop(L, FCmpUGE);
-irbuilder_binop(L, FCmpULT);
-irbuilder_binop(L, FCmpULE);
-irbuilder_binop(L, FCmpUNE);
+#define irbuilder_convert(op)                                                  \
+  static int irbuilder_##op(lua_State *L) {                                    \
+    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);                     \
+    ValueHolder *lhs = test_LLVM_value(L, 2);                                  \
+    llvm::Type *rhs = get_type(L, 3);                                          \
+    llvm::Value *result = builder->builder->Create##op(lhs->value, rhs);       \
+    alloc_LLVM_value(L, result);                                               \
+    return 1;                                                                  \
+  }
 
-irbuilder_binop(L, NSWAdd);
-irbuilder_binop(L, NUWAdd);
-irbuilder_binop(L, NSWSub);
-irbuilder_binop(L, NUWSub);
-irbuilder_binop(L, UDiv);
-irbuilder_binop(L, ExactUDiv);
-irbuilder_binop(L, SDiv);
-irbuilder_binop(L, ExactSDiv);
-irbuilder_binop(L, URem);
-irbuilder_binop(L, SRem);
+irbuilder_vva(InBoundsGEP);
+irbuilder_vva(GEP);
 
-irbuilder_binop(L, And);
-irbuilder_binop(L, Or);
-irbuilder_binop(L, Xor);
+irbuilder_binop(ICmpEQ);
+irbuilder_binop(ICmpNE);
+irbuilder_binop(ICmpUGT);
+irbuilder_binop(ICmpUGE);
+irbuilder_binop(ICmpULT);
+irbuilder_binop(ICmpULE);
+irbuilder_binop(ICmpSGT);
+irbuilder_binop(ICmpSGE);
+irbuilder_binop(ICmpSLT);
+irbuilder_binop(ICmpSLE);
+irbuilder_binop(FCmpOEQ);
+irbuilder_binop(FCmpOGT);
+irbuilder_binop(FCmpOGE);
+irbuilder_binop(FCmpOLT);
+irbuilder_binop(FCmpOLE);
+irbuilder_binop(FCmpONE);
+irbuilder_binop(FCmpORD);
+irbuilder_binop(FCmpUNO);
+irbuilder_binop(FCmpUEQ);
+irbuilder_binop(FCmpUGT);
+irbuilder_binop(FCmpUGE);
+irbuilder_binop(FCmpULT);
+irbuilder_binop(FCmpULE);
+irbuilder_binop(FCmpUNE);
 
-irbuilder_binop(L, FAdd);
-irbuilder_binop(L, FSub);
-irbuilder_binop(L, FMul);
-irbuilder_binop(L, FDiv);
-irbuilder_binop(L, FRem);
+irbuilder_binop(NSWAdd);
+irbuilder_binop(NUWAdd);
+irbuilder_binop(NSWSub);
+irbuilder_binop(NUWSub);
+irbuilder_binop(UDiv);
+irbuilder_binop(ExactUDiv);
+irbuilder_binop(SDiv);
+irbuilder_binop(ExactSDiv);
+irbuilder_binop(URem);
+irbuilder_binop(SRem);
 
-irbuilder_unop(L, Not);
-irbuilder_unop(L, Neg);
-irbuilder_unop(L, FNeg);
+irbuilder_binop(And);
+irbuilder_binop(Or);
+irbuilder_binop(Xor);
 
+irbuilder_binop(FAdd);
+irbuilder_binop(FSub);
+irbuilder_binop(FMul);
+irbuilder_binop(FDiv);
+irbuilder_binop(FRem);
+
+irbuilder_unop(Not);
+irbuilder_unop(Neg);
+irbuilder_unop(FNeg);
+
+irbuilder_convert(Trunc);
+irbuilder_convert(ZExt);
+irbuilder_convert(SExt);
+irbuilder_convert(ZExtOrTrunc);
+irbuilder_convert(SExtOrTrunc);
+irbuilder_convert(FPToUI);
+irbuilder_convert(FPToSI);
+irbuilder_convert(UIToFP);
+irbuilder_convert(SIToFP);
+irbuilder_convert(FPTrunc);
+irbuilder_convert(FPExt);
+irbuilder_convert(PtrToInt);
+irbuilder_convert(IntToPtr);
+irbuilder_convert(BitCast);
+irbuilder_convert(SExtOrBitCast);
+irbuilder_convert(ZExtOrBitCast);
+irbuilder_convert(TruncOrBitCast);
+irbuilder_convert(PointerCast);
+irbuilder_convert(FPCast);
 
 static const luaL_Reg llvmlib[] = {
     {"context", get_llvm_context}, {"dump", dump_content}, {NULL, NULL}};
@@ -1077,11 +1122,12 @@ static const luaL_Reg llvmlib[] = {
 static const luaL_Reg structtype_methods[] = {{"setbody", struct_add_members},
                                               {NULL, NULL}};
 
-static const luaL_Reg function_methods[] = {{"appendblock", append_basicblock},
-                                            {"compile", func_compile},
-                                            {"extern", func_addextern},
-                                            {"arg", func_getarg},
-                                            {NULL, NULL}};
+static const luaL_Reg function_methods[] = {
+    {"appendblock", func_append_basicblock},
+    {"compile", func_compile},
+    {"extern", func_addextern},
+    {"arg", func_getarg},
+    {NULL, NULL}};
 
 static const luaL_Reg context_methods[] = {
     {"irbuilder", context_new_LLVM_irbuilder},
@@ -1147,6 +1193,27 @@ static const luaL_Reg irbuilder_methods[] = {
     {"fdiv", irbuilder_FDiv},
     {"frem", irbuilder_FRem},
     {"fneg", irbuilder_FNeg},
+    {"gep", irbuilder_GEP},
+    {"inboundsgep", irbuilder_InBoundsGEP},
+    {"trunc", irbuilder_Trunc},
+    {"zext", irbuilder_ZExt},
+    {"sext", irbuilder_SExt},
+    {"zextortrunc", irbuilder_ZExtOrTrunc},
+    {"sextortrunc", irbuilder_SExtOrTrunc},
+    {"fptoui", irbuilder_FPToUI},
+    {"fptosi", irbuilder_FPToSI},
+    {"uitofp", irbuilder_UIToFP},
+    {"sitofp", irbuilder_SIToFP},
+    {"fptrunc", irbuilder_FPTrunc},
+    {"fpext", irbuilder_FPExt},
+    {"ptrtoint", irbuilder_PtrToInt},
+    {"inttoptr", irbuilder_IntToPtr},
+    {"bitcast", irbuilder_BitCast},
+    {"sextorbitcast", irbuilder_SExtOrBitCast},
+    {"zextorbitcast", irbuilder_ZExtOrBitCast},
+    {"truncorbitcast", irbuilder_TruncOrBitCast},
+    {"pointercast", irbuilder_PointerCast},
+    {"fpcast", irbuilder_FPCast},
     {"alloca", irbuilder_alloca},
     {NULL, NULL}};
 
