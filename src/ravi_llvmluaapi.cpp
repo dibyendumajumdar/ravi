@@ -890,6 +890,13 @@ decl_voidfunc3(lua_rawseti, plua_StateT, C_intT, lua_IntegerT);
 decl_voidfunc3(lua_rawsetp, plua_StateT, C_intT, C_pcharT);
 decl_func2(lua_setmetatable, C_intT, plua_StateT, C_intT);
 decl_voidfunc2(lua_setuservalue, plua_StateT, C_intT);
+decl_func3(lua_gc, C_intT, plua_StateT, C_intT, C_intT);
+decl_func1(lua_error, C_intT, plua_StateT);
+decl_func2(lua_next, C_intT, plua_StateT, C_intT);
+decl_voidfunc2(lua_concat, plua_StateT, C_intT);
+decl_voidfunc2(lua_len, plua_StateT, C_intT);
+decl_func2(lua_stringtonumber, C_size_t, plua_StateT, C_pcharT);
+
 decl_func3(luaL_checklstring, C_pcharT, plua_StateT, C_intT, C_psize_t);
 decl_func2(luaL_checkinteger, lua_IntegerT, plua_StateT, C_intT);
 
@@ -953,6 +960,13 @@ static FunctionDeclaration builtin_functions[] = {
     {"lua_rawsetp", lua_rawsetp_decl},
     {"lua_setmetatable", lua_setmetatable_decl},
     {"lua_setuservalue", lua_setuservalue_decl},
+    {"lua_gc", lua_gc_decl},
+    {"lua_error", lua_error_decl},
+    {"lua_next", lua_next_decl},
+    {"lua_concat", lua_concat_decl},
+    {"lua_len", lua_len_decl},
+    {"lua_stringtonumber", lua_stringtonumber_decl},
+
     {"luaL_checklstring", luaL_checklstring_decl},
     {"luaL_checkinteger", luaL_checkinteger_decl},
     {"printf", printf_decl},
@@ -1071,6 +1085,23 @@ static int irbuilder_alloca(lua_State *L) {
   if (lua_gettop(L) >= 3)
     arraysize = get_value(L, 3);
   llvm::Instruction *inst = builder->builder->CreateAlloca(ty, arraysize);
+  alloc_LLVM_instruction(L, inst);
+  return 1;
+}
+
+static int irbuilder_load(lua_State *L) {
+  IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
+  llvm::Value *ptr = get_value(L, 2);
+  llvm::Instruction *inst = builder->builder->CreateLoad(ptr);
+  alloc_LLVM_instruction(L, inst);
+  return 1;
+}
+
+static int irbuilder_store(lua_State *L) {
+  IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
+  llvm::Value *value = get_value(L, 2);
+  llvm::Value *ptr = get_value(L, 3);
+  llvm::Instruction *inst = builder->builder->CreateStore(value, ptr);
   alloc_LLVM_instruction(L, inst);
   return 1;
 }
@@ -1305,6 +1336,8 @@ static const luaL_Reg irbuilder_methods[] = {
     {"pointercast", irbuilder_PointerCast},
     {"fpcast", irbuilder_FPCast},
     {"alloca", irbuilder_alloca},
+    {"load", irbuilder_load},
+    {"store", irbuilder_store},
     {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
