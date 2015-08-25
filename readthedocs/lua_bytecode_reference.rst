@@ -100,6 +100,9 @@ If B is 0, the function parameters range from R(A+1) to the top of the stack. Th
 number of parameters to pass is set by the previous VM instruction, which has to be one of '``OP_CALL``' or
 '``OP_VARARG``'. 
 
+Examples
+--------
+
 Example of '``OP_VARARG``' followed by '``OP_CALL``'::
 
   function y(...) print(...) end
@@ -157,6 +160,35 @@ Like '``OP_CALL``', register R(A) holds the reference to the function object to 
 
 C isn’t used by TAILCALL, since all return results are significant. In any case, Lua always generates a 0 for C, to denote multiple return results.
 
+Examples
+--------
+An '``OP_TAILCALL``' is used only for one specific return style, described above. Multiple return results are always produced by a tail call. Here is an example:
+
+
+::
+
+  > function y() return x('foo', 'bar') end
+  > ravi.dumplua(y)
+
+  function <stdin:1,1> (6 instructions at 000000C3C24DE4A0)
+  0 params, 3 slots, 1 upvalue, 0 locals, 3 constants, 0 functions
+    1       [1]     GETTABUP        0 0 -1  ; _ENV "x"
+    2       [1]     LOADK           1 -2    ; "foo"
+    3       [1]     LOADK           2 -3    ; "bar"
+    4       [1]     TAILCALL        0 3 0
+    5       [1]     RETURN          0 0
+    6       [1]     RETURN          0 1
+  constants (3) for 000000C3C24DE4A0:
+    1       "x"
+    2       "foo"
+    3       "bar"
+  locals (0) for 000000C3C24DE4A0:
+  upvalues (1) for 000000C3C24DE4A0:
+    0       _ENV    0       0
+
+
+Arguments for a tail call are handled in exactly the same way as arguments for a normal call, so in line [4], the tail call has a field B value of 3, signifying 2 parameters. Field C is 0, for multiple returns; this due to the constant LUA_MULTRET in lua.h. In practice, field C is not used by the virtual machine (except as an assert) since the syntax guarantees multiple return results.
+Line [5] is a '``OP_RETURN``' instruction specifying multiple return results. This is required when the function called by '``OP_TAILCALL`` is a C function. In the case of a C function, execution continues to line [5] upon return, thus the RETURN is necessary. Line [6] is redundant. When Lua functions are tailcalled, the virtual machine does not return to line [5] at all.
 
 '``OP_RETURN``' instruction
 ===========================
@@ -188,6 +220,9 @@ If B > 0 then the number of values to be returned is simply B-1.
 If '``OP_RETURN``' is returning to a Lua function and if the number of return values expected was indeterminate - i.e. '``OP_CALL``' had operand C = 0, then ``L->top`` is left where ``luaD_poscall()`` placed it - just beyond the top of the result list. This allows the '``OP_CALL``' instruction to figure out how many results were returned. If however '``OP_CALL``' had invoked with a value of C > 0 then the expected number of results is known, and in that case, ``L->top`` is reset to  the calling function's ``C->top``.
 
 If ``luaV_execute()`` was called externally then '``OP_RETURN``' leaves ``L->top`` unchanged - so it will continue to be just past the top of the results list. This is because luaV_execute() does not have a way of informing callers how many values were returned; so the caller can determine the number of results by inspecting ``L->top``.
+
+Examples
+--------
 
 Example of '``OP_VARARG``' followed by '``OP_RETURN``'::
 
@@ -235,6 +270,9 @@ Performs an unconditional jump, with sBx as a signed displacement. sBx is added 
 E.g., if sBx is 0, the VM will proceed to the next instruction.
 
 '``OP_JMP``' is used in loops, conditional statements, and in expressions when a boolean true/false need to be generated.
+
+Examples
+--------
 
 For example, since a relational test instruction makes conditional jumps rather than generate a boolean result, a JMP is used in the code sequence for loading either a true or a false::
 
