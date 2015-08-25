@@ -91,6 +91,9 @@ Syntax
 
   CALL A B C    R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1))
 
+Description
+-----------
+
 Performs a function call, with register R(A) holding the reference to the function object to be called. Parameters to the function are placed in the registers following R(A). If B is 1, the function has no parameters. If B is 2 or more, there are (B-1) parameters. If B >= 2, then upon entry to the called function, R(A+1) will become the ``base``. 
 
 If B is 0, the function parameters range from R(A+1) to the top of the stack. This form is used when the 
@@ -135,6 +138,26 @@ Results returned by the function call are placed in a range of registers startin
 * For Lua functions, the the results are saved by the called function's '``OP_RETURN``' instruction.
 
 
+'``OP_TAILCALL``' instruction
+=============================
+
+Syntax
+------
+
+::
+
+  TAILCALL  A B C return R(A)(R(A+1), ... ,R(A+B-1))
+
+Description
+-----------
+
+Performs a tail call, which happens when a return statement has a single function call as the expression, e.g. return foo(bar). A tail call results in the function being interpreted within the same call frame as the caller - the stack is replaced and then a 'goto' executed to start at the entry point in the VM. Only Lua functions can be tailcalled. Tailcalls allow infinite recursion without growing the stack.
+
+Like '``OP_CALL``', register R(A) holds the reference to the function object to be called. B encodes the number of parameters in the same manner as a '``OP_CALL``' instruction.
+
+C isn’t used by TAILCALL, since all return results are significant. In any case, Lua always generates a 0 for C, to denote multiple return results.
+
+
 '``OP_RETURN``' instruction
 ===========================
 
@@ -144,6 +167,9 @@ Syntax
 ::
 
   RETURN  A B return R(A), ... ,R(A+B-2)
+
+Description
+-----------
 
 Returns to the calling function, with optional return values. 
 
@@ -201,6 +227,9 @@ Syntax
 ::
 
   JMP sBx PC += sBx
+
+Description
+-----------
 
 Performs an unconditional jump, with sBx as a signed displacement. sBx is added to the program counter (PC), which points to the next instruction to be executed. 
 E.g., if sBx is 0, the VM will proceed to the next instruction.
