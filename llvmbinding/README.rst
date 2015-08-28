@@ -32,8 +32,6 @@ Above creates an ``lvvm::Function`` instance within a new module. An EE is
 automatically attached. You can get hold of the module as shown below::
 
   -- Get hold of the module
-  -- as we will create the fib function as an 
-  -- iternal function
   local module = mainfunc:module()
 
 Other native functions may be created within the same module as normal. However
@@ -42,4 +40,9 @@ module are possible.
 
 The model I recommend when using this feature is to create one exported
 Lua C function in the module, with several private 'internal' supporting functions within the module.
+
+Creating Modules and Execution Engines
+--------------------------------------
+The LLVM api for these functions are not exposed yet. 
+
 
