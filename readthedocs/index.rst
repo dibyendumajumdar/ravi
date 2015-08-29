@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    ravi-overview
+   lua_bytecode_reference.rst
    lua-parser
    ravi-internals
    llvm-notes
