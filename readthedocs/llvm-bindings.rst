@@ -72,7 +72,7 @@ The following table lists the Lua LLVM api functions available.
 +===================================================+==========================================+
 | llvm.context() -> LLVMcontext                     | Returns global llvm::Context             |
 +---------------------------------------------------+------------------------------------------+
-| LLVMcontext methods                                                                          |
+| **LLVMcontext methods**                                                                      |
 +---------------------------------------------------+------------------------------------------+
 | lua_CFunction(name) -> LLVMmainfunction           | Creates an llvm::Function within a new   |
 |                                                   | llvm::Module; and associates an          |
