@@ -188,14 +188,17 @@ The following table lists the Lua LLVM api functions available.
 | * ``frem``                                                                                   |
 |                                                                                              |
 | Unary Operators                                                                              |
+|                                                                                              |
 | * ``not``                                                                                    |
 | * ``fneg``                                                                                   |
 |                                                                                              |
 | GEP Operators                                                                                |
+|                                                                                              |
 | * ``gep``                                                                                    |
 | * ``inboundsgep``                                                                            |
 |                                                                                              |
 | Conversion Operators                                                                         |
+|                                                                                              |
 | * ``trunc``                                                                                  |
 | * ``zext``                                                                                   |
 | * ``sext``                                                                                   |
@@ -217,6 +220,7 @@ The following table lists the Lua LLVM api functions available.
 | * ``fpcast``                                                                                 |
 |                                                                                              |
 | Memory Operators                                                                             |
+|                                                                                              |
 | * ``alloca``                                                                                 |
 | * ``load``                                                                                   |
 | * ``store``                                                                                  |
