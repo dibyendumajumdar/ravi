@@ -67,63 +67,56 @@ Available Bindings
 ------------------
 The following table lists the Lua LLVM api functions available.
 
-+---------------------------------------------------+------------------------------------------+
-| Lua Api                                           | Notes                                    |
-+===================================================+==========================================+
++----------------------------------------------------------------------------------------------+
+| Lua LLVM API                                                                                 |
++==============================================================================================+
 | ``llvm.context() -> LLVMcontext``                                                            |
 |   Returns global llvm::Context                                                               |
-+---------------------------------------------------+------------------------------------------+
++----------------------------------------------------------------------------------------------+
 | **LLVMcontext methods**                                                                      |
-+---------------------------------------------------+------------------------------------------+
++----------------------------------------------------------------------------------------------+
 | ``lua_CFunction(name) -> LLVMmainfunction``                                                  |
 |   Creates an llvm::Function within a new llvm::Module; and associates an                     |
 |   llvm::ExecutionEngine with the module                                                      |
 | ``types() -> table of predefined type bindings``                                             |
 |   Returns a table of predefined LLVM type bindings                                           |
-+---------------------------------------------------+------------------------------------------+
-| structtype(name) -> LLVMstructtype                | Opaque struct type; body can be added    |
-+---------------------------------------------------+------------------------------------------+
-| pointertype(type) -> LLVMpointertype              | Given a type returns a pointertype       |
-+---------------------------------------------------+------------------------------------------+
-| functiontype(return_type, {argtypes}, {options})  | Creates a function type with specified   |
-| -> LLVMfunctiontype                               | return type, argument types. Takes the   |
-|                                                   | option 'vararg' which is false by        |
-|                                                   | default.                                 |
-+---------------------------------------------------+------------------------------------------+
-| basicblock(name) -> LLVMbasicblock                | Create a basic block                     |
-+---------------------------------------------------+------------------------------------------+
-| intconstant(intgervalue) -> LLVMvalue             | Returns an integer constant value        |
-+---------------------------------------------------+------------------------------------------+
-| nullconstant(pointertype) -> LLVMvalue            | Returns a NULL constant of specified     |
-|                                                   | pointertype                              |
-+---------------------------------------------------+------------------------------------------+
+| ``structtype(name) -> LLVMstructtype``                                                       |
+|   Opaque struct type; body can be added                                                      |
+| ``pointertype(type) -> LLVMpointertype``                                                     | 
+|   Given a type returns a pointertype                                                         |
+| ``functiontype(return_type, {argtypes}, {options}) -> LLVMfunctiontype``                     |
+|   Creates a function type with specified return type, argument types. Takes the option       |
+|   'vararg' which is false by default.                                                        |
+| ``basicblock(name) -> LLVMbasicblock``                                                       | 
+|   Create a basic block                                                                       |
+| ``intconstant(intgervalue) -> LLVMvalue``                                                    | 
+|   Returns an integer constant value                                                          |
+| ``nullconstant(pointertype) -> LLVMvalue``                                                   | 
+|   Returns a NULL constant of specified pointertype                                           |
++----------------------------------------------------------------------------------------------+
 | **LLVMstructtype methods**                                                                   |
-+---------------------------------------------------+------------------------------------------+
-| setbody({types})                                  | Adds members to the struct type          |
-+---------------------------------------------------+------------------------------------------+
++----------------------------------------------------------------------------------------------+
+| ``setbody({types})``                                                                         | 
+|   Adds members to the struct type                                                            |
++----------------------------------------------------------------------------------------------+
 | **LLVMmainfunction methods**                                                                 |
-+---------------------------------------------------+------------------------------------------+
-| appendblock(LLVMbasicblock)                       | Adds a basic block to the end            |
-+---------------------------------------------------+------------------------------------------+
-| compile()                                         | Compiles the module and returns a        |
-|                                                   | reference to the C Closure               |
-+---------------------------------------------------+------------------------------------------+
-| arg(position) -> LLVMvalue                        | Returns the argument at position;        |
-|                                                   | position >= 1; returns ``nil`` if        |
-|                                                   | argument not available                   |
-+---------------------------------------------------+------------------------------------------+
-| module() -> LLVMmodule                            | Returns the module associated with the   |
-|                                                   | function                                 |
-+---------------------------------------------------+------------------------------------------+
-| extern(name[, functiontype]) -> LLVMconstant      | Returns an extern declaration;           |
-|                                                   | A number of Lua Api functions are        |
-|                                                   | predefined.                              |
-+---------------------------------------------------+------------------------------------------+
++----------------------------------------------------------------------------------------------+
+| ``appendblock(LLVMbasicblock)``                                                              | 
+|   Adds a basic block to the end                                                              |
+| ``compile()``                                                                                | 
+|   Compiles the module and returns a reference to the C Closure                               |
+| ``arg(position) -> LLVMvalue``                                                               | 
+|   Returns the argument at position; position >= 1; returns ``nil`` if argument not available |
+| ``module() -> LLVMmodule``                                                                   | 
+|   Returns the module associated with the function                                            |
+| ``extern(name[, functiontype]) -> LLVMconstant``                                             | 
+|   Returns an extern declaration; A number of Lua Api functions are predefined.               |
++----------------------------------------------------------------------------------------------+
 | **LLVMmodule methods**                                                                       |
-+---------------------------------------------------+------------------------------------------+
-| newfunction(name, functiontype)                   | Returns an internal linkage function     |
-|                                                   | within the module                        |
-+---------------------------------------------------+------------------------------------------+
-| dump()                                            | Dumps the module                         |
-+---------------------------------------------------+------------------------------------------+
++----------------------------------------------------------------------------------------------+
+| ``newfunction(name, functiontype) -> LLVMfunction``                                          | 
+|   Returns an internal linkage function within the module                                     |
+| ``dump()``                                                                                   | 
+|   Dumps the module                                                                           |
++----------------------------------------------------------------------------------------------+
 
