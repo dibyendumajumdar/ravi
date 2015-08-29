@@ -21,6 +21,7 @@ Contents:
    ravi-jit-compilation-hook
    ravi-lua-types
    llvm-tbaa
+   llvm-bindings
    ravi-benchmarks
    ravi-jit-status
    ravi-jit-libgccjit

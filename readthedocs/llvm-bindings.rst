@@ -100,5 +100,30 @@ The following table lists the Lua LLVM api functions available.
 | **LLVMstructtype methods**                                                                   |
 +---------------------------------------------------+------------------------------------------+
 | setbody({types})                                  | Adds members to the struct type          |
-+---------------------------------------------------+------------------------------------------+             
++---------------------------------------------------+------------------------------------------+
+| **LLVMmainfunction methods**                                                                 |
++---------------------------------------------------+------------------------------------------+
+| appendblock(LLVMbasicblock)                       | Adds a basic block to the end            |
++---------------------------------------------------+------------------------------------------+
+| compile()                                         | Compiles the module and returns a        |
+|                                                   | reference to the C Closure               |
++---------------------------------------------------+------------------------------------------+
+| arg(position) -> LLVMvalue                        | Returns the argument at position;        |
+|                                                   | position >= 1; returns ``nil`` if        |
+|                                                   | argument not available                   |
++---------------------------------------------------+------------------------------------------+
+| module() -> LLVMmodule                            | Returns the module associated with the   |
+|                                                   | function                                 |
++---------------------------------------------------+------------------------------------------+
+| extern(name[, functiontype]) -> LLVMconstant      | Returns an extern declaration;           |
+|                                                   | A number of Lua Api functions are        |
+|                                                   | predefined.                              |
++---------------------------------------------------+------------------------------------------+
+| **LLVMmodule methods**                                                                       |
++---------------------------------------------------+------------------------------------------+
+| newfunction(name, functiontype)                   | Returns an internal linkage function     |
+|                                                   | within the module                        |
++---------------------------------------------------+------------------------------------------+
+| dump()                                            | Dumps the module                         |
++---------------------------------------------------+------------------------------------------+
 
