@@ -5,8 +5,11 @@ enable_language(CXX)
 enable_language(C)
 enable_testing()
 
+# Get access to CMake helpers
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
+# By default LLVM JIT is ON, and GCC JIT is OFF
+# Only one can be ON, and at last one of them must be ON
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled" ON)
 option(GCC_JIT "Controls whether GCC JIT compilation will be enabled" OFF)
 
@@ -57,7 +60,7 @@ if (MSVC)
   SET(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "/DEBUG /RELEASE /INCREMENTAL:NO /STACK:10000000")
   SET(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "/RELEASE /INCREMENTAL:NO /STACK:10000000")
 
-  SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${TCMALLOC_LINK_FLAGS}")
+  SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
   SET(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG}")
   SET(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
   SET(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO}")
@@ -80,15 +83,17 @@ endif()
 
 if (CMAKE_COMPILER_IS_GNUCXX)
   if (NOT WIN32)
+    # assume Linux
     set(CXX_OPTIONS  -DLUA_USE_LINUX)
   endif()
   # -fsanitize=bounds -fsanitize=alignment -fsanitize=object-size
-  set(CMAKE_C_FLAGS_DEBUG "-Werror -std=c99 -O0 -g3 -fsanitize=address -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+  set(SANITIZER_FLAGS "-fsanitize=address")
+  set(CMAKE_C_FLAGS_DEBUG "${SANITIZER_FLAGS} -Werror -std=c99 -O0 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
   set(CMAKE_C_FLAGS_RELEASE "-Werror -std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-  set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Werror -std=c99 -O1 -g3 -fsanitize=address -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+  set(CMAKE_C_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -Werror -std=c99 -O1 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
   set(CMAKE_CXX_FLAGS_RELEASE "-Werror -fno-rtti -O3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-  set(CMAKE_CXX_FLAGS_DEBUG "-Werror -fno-rtti -O0 -fsanitize=address -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Werror -fno-rtti -O1 -g3 -fsanitize=address -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+  set(CMAKE_CXX_FLAGS_DEBUG "${SANITIZER_FLAGS} -Werror -fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -Werror -fno-rtti -O1 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
   # In case we are using gcc 5.1 set ABI version
   add_definitions("-D_GLIBCXX_USE_CXX11_ABI=0")
 endif()
