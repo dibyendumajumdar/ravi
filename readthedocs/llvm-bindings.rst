@@ -142,6 +142,7 @@ The following table lists the Lua LLVM api functions available.
 |   Emit a conditional branch                                                                  |
 |                                                                                              |
 | Binary Operators                                                                             |
+|                                                                                              |
 | * ``icmpeq``                                                                                 |
 | * ``icmpne``                                                                                 |
 | * ``icmpugt``                                                                                |
