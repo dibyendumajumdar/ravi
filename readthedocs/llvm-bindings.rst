@@ -119,4 +119,109 @@ The following table lists the Lua LLVM api functions available.
 | ``dump()``                                                                                   | 
 |   Dumps the module                                                                           |
 +----------------------------------------------------------------------------------------------+
-
+| **LLVMfunction methods**                                                                     |
++----------------------------------------------------------------------------------------------+
+| ``appendblock(LLVMbasicblock)``                                                              | 
+|   Adds a basic block to the end                                                              |
+| ``arg(position) -> LLVMvalue``                                                               | 
+|   Returns the argument at position; position >= 1; returns ``nil`` if argument not available |
++----------------------------------------------------------------------------------------------+
+| **LLVMirbuilder methods**                                                                    |
++----------------------------------------------------------------------------------------------+
+| ``setinsertpoint(basicblock)``                                                               |
+|   Set current basicblock                                                                     |
+| ``ret([value])``                                                                             |
+|   Emit return instruction                                                                    |
+| ``stringconstant(string) -> LLVMvalue``                                                      |
+|   Create a global string constant                                                            |
+| ``call({args}, {options}) -> LLVMinstruction``                                               |
+|   Emit call instruction; 'tailcall' option is false by default                               | 
+| ``br(basicblock) -> LLVMinstruction``                                                        |
+|   Emit a branch instruction                                                                  |
+| ``condbr(vavlue, true_block, false_block) -> LLVMinstruction``                               |
+|   Emit a conditional branch                                                                  |
+|                                                                                              |
+| Binary Operators                                                                             |
+| ----------------                                                                             |
+| * ``icmpeq``                                                                                 |
+| * ``icmpne``                                                                                 |
+| * ``icmpugt``                                                                                |
+| * ``icmpuge``                                                                                |
+| * ``icmpult``                                                                                |
+| * ``icmpule``                                                                                |
+| * ``icmpsgt``                                                                                |
+| * ``icmpsge``                                                                                |
+| * ``icmpslt``                                                                                |
+| * ``icmpsle``                                                                                |
+| * ``fcmpoeq``                                                                                |
+| * ``fcmpogt``                                                                                |
+| * ``fcmpoge``                                                                                |
+| * ``fcmpolt``                                                                                |
+| * ``fcmpole``                                                                                |
+| * ``fcmpone``                                                                                |
+| * ``fcmpord``                                                                                |
+| * ``fcmpun``                                                                                 |
+| * ``fcmpueq``                                                                                |
+| * ``fcmpugt``                                                                                |
+| * ``fcmpuge``                                                                                |
+| * ``fcmpult``                                                                                |
+| * ``fcmpule``                                                                                |
+| * ``fcmpune``                                                                                |
+| * ``nswadd``                                                                                 |
+| * ``nuwadd``                                                                                 |
+| * ``nswsub``                                                                                 |
+| * ``nuwsub``                                                                                 |
+| * ``udiv``                                                                                   |
+| * ``exactudiv``                                                                              |
+| * ``sdiv``                                                                                   |
+| * ``exactsdiv``                                                                              |
+| * ``neg``                                                                                    |
+| * ``urem``                                                                                   |
+| * ``srem``                                                                                   |
+| * ``and``                                                                                    |
+| * ``or``                                                                                     |
+| * ``xor``                                                                                    |
+| * ``fadd``                                                                                   |
+| * ``fsub``                                                                                   |
+| * ``fmul``                                                                                   |
+| * ``fdiv``                                                                                   |
+| * ``frem``                                                                                   |
+|                                                                                              |
+| Unary Operators                                                                              |
+| ---------------                                                                              |
+| * ``not``                                                                                    |
+| * ``fneg``                                                                                   |
+|                                                                                              |
+| GEP Operators                                                                                |
+| -------------                                                                                |
+| * ``gep``                                                                                    |
+| * ``inboundsgep``                                                                            |
+|                                                                                              |
+| Conversion Operators                                                                         |
+| --------------------                                                                         |
+| * ``trunc``                                                                                  |
+| * ``zext``                                                                                   |
+| * ``sext``                                                                                   |
+| * ``zextortrunc``                                                                            |
+| * ``sextortrunc``                                                                            |
+| * ``fptoui``                                                                                 |
+| * ``fptosi``                                                                                 |
+| * ``uitofp``                                                                                 |
+| * ``sitofp``                                                                                 |
+| * ``fptrunc``                                                                                |
+| * ``fpext``                                                                                  |
+| * ``ptrtoint``                                                                               |
+| * ``inttoptr``                                                                               |
+| * ``bitcast``                                                                                |
+| * ``sextorbitcast``                                                                          |
+| * ``zextorbitcast``                                                                          |
+| * ``truncorbitcast``                                                                         |
+| * ``pointercast``                                                                            |
+| * ``fpcast``                                                                                 |
+|                                                                                              |
+| Memory Operators                                                                             |
+| ----------------                                                                             |
+| * ``alloca``                                                                                 |
+| * ``load``                                                                                   |
+| * ``store``                                                                                  |
++----------------------------------------------------------------------------------------------+
