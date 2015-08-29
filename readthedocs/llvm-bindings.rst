@@ -44,3 +44,38 @@ Creating Modules and Execution Engines
 --------------------------------------
 The LLVM api for these functions are not exposed yet. 
 
+Type Hierarchy
+--------------
+The bindings provide a number of Lua types::
+
+  + LLVMcontext
+  + LLVMfunction
+    + LLVMmainfunction
+  + LLVMmodule
+  + LLVMtype
+    + LLVMstructtype
+    + LLVMpointertype
+    + LLVMfunctiontype
+  + LLVMvalue
+    + LLVMinstruction
+    + LLVMconstant
+  + LLVMirbuilder
+  + LLVMbasicblock  
+
+
+Available Bindings
+------------------
+The following table lists the Lua LLVM api functions available.
+
++---------------------------------------------------+------------------------------------------+
+| Lua Api                                           | Notes                                    |
++===================================================+==========================================+
+| llvm.context() -> LLVMcontext                     | Returns global llvm::Context             |
++---------------------------------------------------+------------------------------------------+
+| LLVMcontext methods                                                                          |
++----------------------------------------------------------------------------------------------+
+| lua_CFunction(name) -> LLVMmainfunction           | Creates an llvm::Function within a new   |
+|                                                   | llvm::Module; and associates an          |
+|                                                   | llvm::ExecutionEngine with the module    |
++---------------------------------------------------+------------------------------------------+
+
