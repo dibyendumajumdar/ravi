@@ -91,5 +91,14 @@ The following table lists the Lua LLVM api functions available.
 |                                                   | default.                                 |
 +---------------------------------------------------+------------------------------------------+
 | basicblock(name) -> LLVMbasicblock                | Create a basic block                     |
++---------------------------------------------------+------------------------------------------+
+| intconstant(intgervalue) -> LLVMvalue             | Returns an integer constant value        |
++---------------------------------------------------+------------------------------------------+
+| nullconstant(pointertype) -> LLVMvalue            | Returns a NULL constant of specified     |
+|                                                   | pointertype                              |
++---------------------------------------------------+------------------------------------------+
+| **LLVMstructtype methods**                                                                   |
++---------------------------------------------------+------------------------------------------+
+| setbody({types})                                  | Adds members to the struct type          |
 +---------------------------------------------------+------------------------------------------+             
 
