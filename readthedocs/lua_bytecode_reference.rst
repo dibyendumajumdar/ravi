@@ -140,6 +140,93 @@ Results returned by the function call are placed in a range of registers startin
   this is used (see the value of ``n`` passed to `luaD_poscall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_poscall>`_ in `luaD_precall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_precall>`_)
 * For Lua functions, the the results are saved by the called function's '``OP_RETURN``' instruction.
 
+More examples
+-------------
+
+::
+
+  x=function() y() end
+
+  function <stdin:1,1> (3 instructions at 000000CECB2BE040)
+  0 params, 2 slots, 1 upvalue, 0 locals, 1 constant, 0 functions
+    1       [1]     GETTABUP        0 0 -1  ; _ENV "y"
+    2       [1]     CALL            0 1 1
+    3       [1]     RETURN          0 1
+  constants (1) for 000000CECB2BE040:
+    1       "y"
+  locals (0) for 000000CECB2BE040:
+  upvalues (1) for 000000CECB2BE040:
+    0       _ENV    0       0
+
+In line [2], the call has zero parameters (field B is 1), zero results are retained (field C is 1), while register 0 temporarily holds the reference to the function object from global y. Next we see a function call with multiple parameters or arguments::
+
+  x=function() z(1,2,3) end
+
+  function <stdin:1,1> (6 instructions at 000000CECB2D7BC0)
+  0 params, 4 slots, 1 upvalue, 0 locals, 4 constants, 0 functions
+    1       [1]     GETTABUP        0 0 -1  ; _ENV "z"
+    2       [1]     LOADK           1 -2    ; 1
+    3       [1]     LOADK           2 -3    ; 2
+    4       [1]     LOADK           3 -4    ; 3
+    5       [1]     CALL            0 4 1
+    6       [1]     RETURN          0 1
+  constants (4) for 000000CECB2D7BC0:
+    1       "z"
+    2       1
+    3       2
+    4       3
+  locals (0) for 000000CECB2D7BC0:
+  upvalues (1) for 000000CECB2D7BC0:
+    0       _ENV    0       0
+
+
+Lines [1] to [4] loads the function reference and the arguments in order, then line [5] makes the call with an operand B value of 4, which means there are 3 parameters. Since the call statement is not assigned to anything, no return results need to be retained, hence field C is 1. Here is an example that uses multiple parameters and multiple return values::
+
+
+  x=function() local p,q,r,s = z(y()) end
+
+  function <stdin:1,1> (5 instructions at 000000CECB2D6CC0)
+  0 params, 4 slots, 1 upvalue, 4 locals, 2 constants, 0 functions
+    1       [1]     GETTABUP        0 0 -1  ; _ENV "z"
+    2       [1]     GETTABUP        1 0 -2  ; _ENV "y"
+    3       [1]     CALL            1 1 0
+    4       [1]     CALL            0 0 5
+    5       [1]     RETURN          0 1
+  constants (2) for 000000CECB2D6CC0:
+    1       "z"
+    2       "y"
+  locals (4) for 000000CECB2D6CC0:
+    0       p       5       6
+    1       q       5       6
+    2       r       5       6
+    3       s       5       6
+  upvalues (1) for 000000CECB2D6CC0:
+    0       _ENV    0       0
+
+First, the function references are retrieved (lines [1] and [2]), then function y is called first (temporary register 1). The CALL
+has a field C of 0, meaning multiple return values are accepted. These return values become the parameters to function z, and so in line [4], field B of the CALL instruction is 0, signifying multiple parameters. After the call to function z, 4 results are retained, so field C in line [4] is 5. Finally, here is an example with calls to standard library functions::
+
+  x=function() print(string.char(64)) end
+
+  function <stdin:1,1> (7 instructions at 000000CECB2D6220)
+  0 params, 3 slots, 1 upvalue, 0 locals, 4 constants, 0 functions
+    1       [1]     GETTABUP        0 0 -1  ; _ENV "print"
+    2       [1]     GETTABUP        1 0 -2  ; _ENV "string"
+    3       [1]     GETTABLE        1 1 -3  ; "char"
+    4       [1]     LOADK           2 -4    ; 64
+    5       [1]     CALL            1 2 0
+    6       [1]     CALL            0 0 1
+    7       [1]     RETURN          0 1
+  constants (4) for 000000CECB2D6220:
+    1       "print"
+    2       "string"
+    3       "char"
+    4       64
+  locals (0) for 000000CECB2D6220:
+  upvalues (1) for 000000CECB2D6220:
+    0       _ENV    0       0
+
+When a function call is the last parameter to another function call, the former can pass multiple return values, while the latter can accept multiple parameters.
 
 '``OP_TAILCALL``' instruction
 =============================
@@ -295,3 +382,4 @@ Generates::
     1       n       2       8
   upvalues (0) for 00000034D2ABE340:
 
+Line[2] performs the relational test. In line [3], the JMP skips over the false path (line [4]) to the true path (line [5]). The result is placed into temporary local 2, and returned to the caller by RETURN in line [6].
