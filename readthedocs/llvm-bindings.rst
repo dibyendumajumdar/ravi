@@ -78,4 +78,18 @@ The following table lists the Lua LLVM api functions available.
 |                                                   | llvm::Module; and associates an          |
 |                                                   | llvm::ExecutionEngine with the module    |
 +---------------------------------------------------+------------------------------------------+
+| types() -> table of predefined type bindings      | Returns a table of predefined LLVM type  |
+|                                                   | bindings                                 |
++---------------------------------------------------+------------------------------------------+
+| structtype(name) -> LLVMstructtype                | Opaque struct type; body can be added    |
++---------------------------------------------------+------------------------------------------+
+| pointertype(type) -> LLVMpointertype              | Given a type returns a pointertype       |
++---------------------------------------------------+------------------------------------------+
+| functiontype(return_type, {argtypes}, {options})  | Creates a function type with specified   |
+| -> LLVMfunctiontype                               | return type, argument types. Takes the   |
+|                                                   | option 'vararg' which is false by        |
+|                                                   | default.                                 |
++---------------------------------------------------+------------------------------------------+
+| basicblock(name) -> LLVMbasicblock                | Create a basic block                     |
++---------------------------------------------------+------------------------------------------+             
 
