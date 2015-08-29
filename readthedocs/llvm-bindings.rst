@@ -75,12 +75,11 @@ The following table lists the Lua LLVM api functions available.
 +---------------------------------------------------+------------------------------------------+
 | **LLVMcontext methods**                                                                      |
 +---------------------------------------------------+------------------------------------------+
-| lua_CFunction(name) -> LLVMmainfunction           | Creates an llvm::Function within a new   |
-|                                                   | llvm::Module; and associates an          |
-|                                                   | llvm::ExecutionEngine with the module    |
-+---------------------------------------------------+------------------------------------------+
-| types() -> table of predefined type bindings      | Returns a table of predefined LLVM type  |
-|                                                   | bindings                                 |
+| ``lua_CFunction(name) -> LLVMmainfunction``                                                  |
+|   Creates an llvm::Function within a new llvm::Module; and associates an                     |
+|   llvm::ExecutionEngine with the module                                                      |
+| ``types() -> table of predefined type bindings``                                             |
+|   Returns a table of predefined LLVM type bindings                                           |
 +---------------------------------------------------+------------------------------------------+
 | structtype(name) -> LLVMstructtype                | Opaque struct type; body can be added    |
 +---------------------------------------------------+------------------------------------------+
