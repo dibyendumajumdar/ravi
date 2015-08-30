@@ -30,6 +30,8 @@ JIT Implementation
 ++++++++++++++++++
 The LLVM JIT compiler is mostly functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
+Ravi also provides an `LLVM binding <http://the-ravi-programming-language.readthedocs.org/en/latest/llvm-bindings.html>`_; this is still work in progress so please check documentation for the latest status.
+
 As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is also functional but some byte codes are not yet compiled. 
 
 Performance Benchmarks
@@ -304,19 +306,13 @@ From a performance point of view the only types that seem worth specializing are
 * array of integers
 * array of numbers
 
-Everything else will just be dynamic type as in Lua. However in future I may enhance Ravi to recognise following types to make the language more user friendly:
+Everything else will just be dynamic type as in Lua. Ravi currently has syntactic support for following additional type declarations to make the language more user friendly, but the type checking is not yet implemented for these:
 
 * string
 * table 
 * function
-* nil
 * boolean
-
-I may also allow following types depending on whether they help in the goals set for Ravi:
-
-* array of booleans
-* array of strings
-* array of functions
+* userdata
 
 Implementation Strategy
 -----------------------
