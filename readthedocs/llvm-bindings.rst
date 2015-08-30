@@ -141,7 +141,7 @@ The following table lists the Lua LLVM api functions available.
 | ``condbr(vavlue, true_block, false_block) -> LLVMinstruction``                               |
 |   Emit a conditional branch                                                                  |
 |                                                                                              |
-| Binary Operators                                                                             |
+| Binary Operators of the form ``op(value1, value2) -> value``.                                |
 |                                                                                              |
 | * ``icmpeq``                                                                                 |
 | * ``icmpne``                                                                                 |
@@ -175,7 +175,6 @@ The following table lists the Lua LLVM api functions available.
 | * ``exactudiv``                                                                              |
 | * ``sdiv``                                                                                   |
 | * ``exactsdiv``                                                                              |
-| * ``neg``                                                                                    |
 | * ``urem``                                                                                   |
 | * ``srem``                                                                                   |
 | * ``and``                                                                                    |
@@ -187,9 +186,10 @@ The following table lists the Lua LLVM api functions available.
 | * ``fdiv``                                                                                   |
 | * ``frem``                                                                                   |
 |                                                                                              |
-| Unary Operators                                                                              |
+| Unary Operators of the form ``op(value) -> value``.                                          |
 |                                                                                              |
 | * ``not``                                                                                    |
+| * ``neg``                                                                                    |
 | * ``fneg``                                                                                   |
 |                                                                                              |
 | GEP Operators                                                                                |
