@@ -44,6 +44,10 @@ Creating Modules and Execution Engines
 --------------------------------------
 The LLVM api for these functions are not exposed yet. 
 
+Examples
+--------
+For examples that illustrate the bindings please visit the `llvmbindings folder <https://github.com/dibyendumajumdar/ravi/tree/master/llvmbinding>`_ in the repository.
+
 Type Hierarchy
 --------------
 The bindings provide a number of Lua types::
