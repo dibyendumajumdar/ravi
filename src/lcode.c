@@ -884,6 +884,16 @@ void luaK_indexed (FuncState *fs, expdesc *t, expdesc *k) {
   t->u.ind.vt = (t->k == VUPVAL) ? VUPVAL
                                  : check_exp(vkisinreg(t->k), VLOCAL);
   t->k = VINDEXED;
+  /*
+  RAVI - when parsing something like (10)[3] - t->ravi_type is RAVI_TNUMINT
+  which is wrong so we need to check for this situation. Problem is that 
+  because of metatables the index [] operator can even be applied to numeric 
+  values (see for example Lua test events.lua line 1114). It feels wrong to 
+  have to change it here ... needs to investigated further as there may be
+  a defect elsewhere.
+  */
+  if (t->ravi_type != RAVI_TTABLE && t->ravi_type != RAVI_TARRAYFLT && t->ravi_type != RAVI_TARRAYINT)
+    t->ravi_type = RAVI_TANY;
 }
 
 

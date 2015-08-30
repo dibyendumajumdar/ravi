@@ -390,7 +390,7 @@ typedef union UUdata {
 **/
 typedef enum {
   RAVI_TANY = -1,      /* Lua dynamic type */
-  RAVI_TNUMINT,        /* integer number */
+  RAVI_TNUMINT = 1,        /* integer number */
   RAVI_TNUMFLT,        /* floating point number */
   RAVI_TARRAYINT,      /* array of ints */
   RAVI_TARRAYFLT,      /* array of doubles */
