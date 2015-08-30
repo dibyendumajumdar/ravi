@@ -143,21 +143,21 @@ The following table lists the Lua LLVM api functions available.
 | ``condbr(vavlue, true_block, false_block) -> LLVMinstruction``                               |
 |   Emit a conditional branch                                                                  |
 |                                                                                              |
-| **GEP Operators**                                                                            |
+| GEP Operators                                                                                |
 |                                                                                              |
 | ``gep(value, {offsets}) -> LLVMvalue``                                                       |
 |   getelementptr to obtain ptr to an array or struct element                                  |
 | ``inboundsgep(value, {offsets}) -> LLVMvalue``                                               |
 |   inbounds version of getelementptr                                                          |
 |                                                                                              |
-| **Memory Operators**                                                                         |
+| Memory Operators                                                                             |
 |                                                                                              |
 | ``load(ptr) -> LLVMinstruction``                                                             |
 |   Loads the value at ptr                                                                     |
 | ``store(value, ptr) -> LLVMinstruction``                                                     |
 |   Stores the value to ptr                                                                    |
 |                                                                                              |
-| **Binary Operators of the form ``op(value1, value2) -> LLVMvalue``**                         |
+| Binary Operators of the form ``op(value1, value2) -> LLVMvalue``                             |
 |                                                                                              |
 | * ``icmpeq``                                                                                 |
 | * ``icmpne``                                                                                 |
@@ -202,13 +202,13 @@ The following table lists the Lua LLVM api functions available.
 | * ``fdiv``                                                                                   |
 | * ``frem``                                                                                   |
 |                                                                                              |
-| **Unary Operators of the form ``op(value) -> LLVMvalue``**                                   |
+| Unary Operators of the form ``op(value) -> LLVMvalue``                                       |
 |                                                                                              |
 | * ``not``                                                                                    |
 | * ``neg``                                                                                    |
 | * ``fneg``                                                                                   |
 |                                                                                              |
-| **Conversion Operators of the form ``op(value,type) -> LLVMvalue``**                         |
+| Conversion Operators of the form ``op(value,type) -> LLVMvalue``                             |
 |                                                                                              |
 | * ``trunc``                                                                                  |
 | * ``zext``                                                                                   |
