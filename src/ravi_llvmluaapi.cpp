@@ -1078,13 +1078,19 @@ static llvm::Type *get_type(lua_State *L, int idx) {
   return nullptr;
 }
 
-static int irbuilder_alloca(lua_State *L) {
-  IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
+static int func_alloca(lua_State *L) {
+  llvm::Function *func = get_function(L, 1);
   llvm::Type *ty = get_type(L, 2);
   llvm::Value *arraysize = nullptr;
+  const char *name = nullptr;
   if (lua_gettop(L) >= 3)
-    arraysize = get_value(L, 3);
-  llvm::Instruction *inst = builder->builder->CreateAlloca(ty, arraysize);
+    name = luaL_checkstring(L, 3);
+  if (lua_gettop(L) >= 4)
+    arraysize = get_value(L, 4);
+  llvm::BasicBlock *block = func->getBasicBlockList().begin();
+  luaL_argcheck(L, block != nullptr, 1, "No basic block in function");
+  llvm::IRBuilder<> builder(block, block->begin());
+  llvm::Instruction *inst = builder.CreateAlloca(ty, arraysize, name);
   alloc_LLVM_instruction(L, inst);
   return 1;
 }
@@ -1243,11 +1249,13 @@ static const luaL_Reg main_function_methods[] = {
     {"extern", func_addextern},
     {"arg", func_getarg},
     {"module", func_getmodule},
+    {"alloca", func_alloca },
     {NULL, NULL}};
 
 static const luaL_Reg function_methods[] = {
     {"appendblock", func_append_basicblock},
     {"arg", func_getarg},
+    {"alloca", func_alloca },
     {NULL, NULL}};
 
 static const luaL_Reg context_methods[] = {
@@ -1335,7 +1343,6 @@ static const luaL_Reg irbuilder_methods[] = {
     {"truncorbitcast", irbuilder_TruncOrBitCast},
     {"pointercast", irbuilder_PointerCast},
     {"fpcast", irbuilder_FPCast},
-    {"alloca", irbuilder_alloca},
     {"load", irbuilder_load},
     {"store", irbuilder_store},
     {NULL, NULL}};

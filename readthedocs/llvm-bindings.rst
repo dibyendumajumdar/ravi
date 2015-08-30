@@ -125,6 +125,8 @@ The following table lists the Lua LLVM api functions available.
 |   Adds a basic block to the end                                                              |
 | ``arg(position) -> LLVMvalue``                                                               | 
 |   Returns the argument at position; position >= 1; returns ``nil`` if argument not available |
+| ``alloca(type[, name [,arraysize]]) -> LLVMinstruction``                                     |
+|   Creates a variable in the first block of the function                                      |
 +----------------------------------------------------------------------------------------------+
 | **LLVMirbuilder methods**                                                                    |
 +----------------------------------------------------------------------------------------------+
@@ -141,7 +143,21 @@ The following table lists the Lua LLVM api functions available.
 | ``condbr(vavlue, true_block, false_block) -> LLVMinstruction``                               |
 |   Emit a conditional branch                                                                  |
 |                                                                                              |
-| Binary Operators of the form ``op(value1, value2) -> value``.                                |
+| **GEP Operators**                                                                            |
+|                                                                                              |
+| ``gep(value, {offsets}) -> LLVMvalue``                                                       |
+|   getelementptr to obtain ptr to an array or struct element                                  |
+| ``inboundsgep(value, {offsets}) -> LLVMvalue``                                               |
+|   inbounds version of getelementptr                                                          |
+|                                                                                              |
+| **Memory Operators**                                                                         |
+|                                                                                              |
+| ``load(ptr) -> LLVMinstruction``                                                             |
+|   Loads the value at ptr                                                                     |
+| ``store(value, ptr) -> LLVMinstruction``                                                     |
+|   Stores the value to ptr                                                                    |
+|                                                                                              |
+| **Binary Operators of the form ``op(value1, value2) -> LLVMvalue``**                         |
 |                                                                                              |
 | * ``icmpeq``                                                                                 |
 | * ``icmpne``                                                                                 |
@@ -186,18 +202,13 @@ The following table lists the Lua LLVM api functions available.
 | * ``fdiv``                                                                                   |
 | * ``frem``                                                                                   |
 |                                                                                              |
-| Unary Operators of the form ``op(value) -> value``.                                          |
+| **Unary Operators of the form ``op(value) -> LLVMvalue``**                                   |
 |                                                                                              |
 | * ``not``                                                                                    |
 | * ``neg``                                                                                    |
 | * ``fneg``                                                                                   |
 |                                                                                              |
-| GEP Operators                                                                                |
-|                                                                                              |
-| * ``gep``                                                                                    |
-| * ``inboundsgep``                                                                            |
-|                                                                                              |
-| Conversion Operators                                                                         |
+| **Conversion Operators of the form ``op(value,type) -> LLVMvalue``**                         |
 |                                                                                              |
 | * ``trunc``                                                                                  |
 | * ``zext``                                                                                   |
@@ -218,10 +229,4 @@ The following table lists the Lua LLVM api functions available.
 | * ``truncorbitcast``                                                                         |
 | * ``pointercast``                                                                            |
 | * ``fpcast``                                                                                 |
-|                                                                                              |
-| Memory Operators                                                                             |
-|                                                                                              |
-| * ``alloca``                                                                                 |
-| * ``load``                                                                                   |
-| * ``store``                                                                                  |
 +----------------------------------------------------------------------------------------------+
