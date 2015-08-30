@@ -1127,7 +1127,7 @@ static ravitype_t declare_localvar(LexState *ls) {
       tt = RAVI_TNUMINT;
     else if (strcmp(str, "number") == 0)
       tt = RAVI_TNUMFLT;
-    else if (strcmp(str, "function") == 0)
+    else if (strcmp(str, "closure") == 0)
       tt = RAVI_TFUNCTION;
     else if (strcmp(str, "userdata") == 0)
       tt = RAVI_TUSERDATA;

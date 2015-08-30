@@ -310,7 +310,7 @@ Everything else will just be dynamic type as in Lua. Ravi currently has syntacti
 
 * string
 * table 
-* function
+* closure
 * boolean
 * userdata
 
