@@ -390,15 +390,16 @@ typedef union UUdata {
 **/
 typedef enum {
   RAVI_TANY = -1,      /* Lua dynamic type */
-  RAVI_TNUMINT,   /* integer number */
-  RAVI_TNUMFLT,   /* floating point number */
-  RAVI_TARRAYINT, /* array of ints */
-  RAVI_TARRAYFLT,  /* array of doubles */
-  RAVI_TFUNCTION,
-  RAVI_TTABLE,
-  RAVI_TSTRING,
-  RAVI_TNIL,
-  RAVI_TBOOLEAN
+  RAVI_TNUMINT,        /* integer number */
+  RAVI_TNUMFLT,        /* floating point number */
+  RAVI_TARRAYINT,      /* array of ints */
+  RAVI_TARRAYFLT,      /* array of doubles */
+  RAVI_TFUNCTION,      /* Lua or C Function */
+  RAVI_TTABLE,         /* Lua table */
+  RAVI_TSTRING,        /* string */
+  RAVI_TNIL,           /* NIL */
+  RAVI_TBOOLEAN,       /* boolean */
+  RAVI_TUSERDATA       /* userdata or lightuserdata */
 } ravitype_t;
 
 /*

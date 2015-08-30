@@ -79,6 +79,10 @@ static const char *get_typename(ravitype_t tt) {
     return "[I";
   case RAVI_TARRAYFLT:
     return "[F";
+  case RAVI_TUSERDATA:
+    return "U";
+  case RAVI_TTABLE:
+    return "T";
   default:
     return "?";
   }
@@ -365,17 +369,17 @@ static void new_localvar (LexState *ls, TString *name, ravitype_t tt) {
   DEBUG_VARS(raviY_printf(fs, "new_localvar -> ls->dyd->actvar.n set to %d\n", dyd->actvar.n));
 }
 
-/* create a new local variable from a C string - registering a Lua String
+/* create a new local variable 
  */
 static void new_localvarliteral_ (LexState *ls, const char *name, size_t sz) {
   /* RAVI change - add type */
   new_localvar(ls, luaX_newstring(ls, name, sz), RAVI_TANY);
 }
 
-/* create a new local variable from a C char array - registering a Lua String
+/* create a new local variable 
 */
-#define new_localvarliteral(ls,v) \
-	new_localvarliteral_(ls, "" v, (sizeof(v)/sizeof(char))-1)
+#define new_localvarliteral(ls,name) \
+	new_localvarliteral_(ls, "" name, (sizeof(name)/sizeof(char))-1)
 
 /* obtain the details of a local variable given the local register
  * where the variable is stored
@@ -562,7 +566,16 @@ static void ravi_code_typecoersion(LexState *ls, int reg, ravitype_t ravi_type) 
     luaK_codeABC(ls->fs, ravi_type == RAVI_TARRAYINT ? OP_RAVI_TOARRAYI
                                                      : OP_RAVI_TOARRAYF,
                  reg, 0, 0);
+  // TODO handle table, string, function, userdata, boolean types
 }
+
+/* RAVI code an instruction to initialize a typed value */
+static void ravi_code_setzero(FuncState *fs, int reg, ravitype_t ravi_type) {
+  if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
+    /* code an instruction to convert in place */
+    luaK_codeABC(fs, ravi_type == RAVI_TNUMFLT ? OP_RAVI_LOADFZ : OP_RAVI_LOADIZ, reg, 0, 0);
+}
+
 
 /* Generate instructions for converting types 
  * This is needed post a function call to handle
@@ -608,9 +621,7 @@ static void ravi_setzero(FuncState *fs, int from, int n) {
     int idx = register_to_locvar_index(fs, i);
     ravitype_t ravi_type = fs->f->locvars[idx].ravi_type;  /* get variable's type */
     /* do we need to convert ? */
-    if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
-      /* code an instruction to convert in place */
-      luaK_codeABC(fs, ravi_type == RAVI_TNUMFLT ? OP_RAVI_LOADFZ : OP_RAVI_LOADIZ, i, 0, 0);
+    ravi_code_setzero(fs, i, ravi_type);
   }
 }
 
@@ -1116,6 +1127,16 @@ static ravitype_t declare_localvar(LexState *ls) {
       tt = RAVI_TNUMINT;
     else if (strcmp(str, "number") == 0)
       tt = RAVI_TNUMFLT;
+    else if (strcmp(str, "function") == 0)
+      tt = RAVI_TFUNCTION;
+    else if (strcmp(str, "userdata") == 0)
+      tt = RAVI_TUSERDATA;
+    else if (strcmp(str, "table") == 0)
+      tt = RAVI_TTABLE;
+    else if (strcmp(str, "string") == 0)
+      tt = RAVI_TSTRING;
+    else if (strcmp(str, "boolean") == 0)
+      tt = RAVI_TBOOLEAN;
     if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
       /* if we see [] then it is an array type */
       if (testnext(ls, '[')) {
