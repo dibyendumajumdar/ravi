@@ -73,7 +73,7 @@ typedef LUAI_UACNUMBER l_uacNumber;
 typedef LUAI_UACINT l_uacInt;
 
 #ifndef lua_assert
-#undef NDEBUG
+//#undef NDEBUG
 #include <assert.h>
 
 #define lua_assert assert

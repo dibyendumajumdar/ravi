@@ -948,7 +948,11 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_DIV)); }
     } break;
-    case OP_RAVI_BAND_II:
+    case OP_RAVI_BAND_II: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      setivalue(ra, intop(&, ivalue(rb), ivalue(rc)));
+    } break;
     case OP_BAND: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -958,7 +962,11 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BAND)); }
     } break;
-    case OP_RAVI_BOR_II:
+    case OP_RAVI_BOR_II: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      setivalue(ra, intop(|, ivalue(rb), ivalue(rc)));
+    } break;
     case OP_BOR: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -968,7 +976,11 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BOR)); }
     } break;
-    case OP_RAVI_BXOR_II:
+    case OP_RAVI_BXOR_II: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      setivalue(ra, intop(^, ivalue(rb), ivalue(rc)));
+    } break;
     case OP_BXOR: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -978,7 +990,11 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BXOR)); }
     } break;
-    case OP_RAVI_SHL_II:
+    case OP_RAVI_SHL_II: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      setivalue(ra, luaV_shiftl(ivalue(rb), ivalue(rc)));
+    } break;
     case OP_SHL: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -988,7 +1004,12 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SHL)); }
     } break;
-    case OP_RAVI_SHR_II:
+    case OP_RAVI_SHR_II: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      lua_Integer ic = ivalue(rc);
+      setivalue(ra, luaV_shiftl(ivalue(rb), -ic));
+    } break;
     case OP_SHR: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -1049,7 +1070,11 @@ newframe:  /* reentry point when frame changes (call/return) */
           Protect(luaT_trybinTM(L, rb, rb, ra, TM_UNM));
         }
     } break;
-    case OP_RAVI_BNOT_I:
+    case OP_RAVI_BNOT_I: {
+      TValue *rb = RB(i);
+      lua_Integer ib = ivalue(rb);
+      setivalue(ra, intop(^, ~l_castS2U(0), ib));
+    } break;
     case OP_BNOT: {
         TValue *rb = RB(i);
         lua_Integer ib;
@@ -1083,8 +1108,24 @@ newframe:  /* reentry point when frame changes (call/return) */
     case OP_JMP: {
         dojump(ci, i, 0);
     } break;
-    case OP_RAVI_EQ_II:
-    case OP_RAVI_EQ_FF:
+    case OP_RAVI_EQ_II: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      int equals = (ivalue(rb) == ivalue(rc));
+      if (equals != GETARG_A(i))
+        ci->u.l.savedpc++;
+      else
+        donextjump(ci);
+    } break;
+    case OP_RAVI_EQ_FF: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      int equals = (fltvalue(rb) == fltvalue(rc));
+      if (equals != GETARG_A(i))
+        ci->u.l.savedpc++;
+      else
+        donextjump(ci);
+    } break;
     case OP_EQ: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -1095,8 +1136,24 @@ newframe:  /* reentry point when frame changes (call/return) */
             donextjump(ci);
         )
     } break;
-    case OP_RAVI_LT_II:
-    case OP_RAVI_LT_FF:
+    case OP_RAVI_LT_II: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      int lessthan = (ivalue(rb) < ivalue(rc));
+      if (lessthan != GETARG_A(i))
+        ci->u.l.savedpc++;
+      else
+        donextjump(ci);
+    } break;
+    case OP_RAVI_LT_FF: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      int lessthan = (fltvalue(rb) < fltvalue(rc));
+      if (lessthan != GETARG_A(i))
+        ci->u.l.savedpc++;
+      else
+        donextjump(ci);
+    } break;
     case OP_LT: {
         Protect(
           if (luaV_lessthan(L, RKB(i), RKC(i)) != GETARG_A(i))
@@ -1105,8 +1162,24 @@ newframe:  /* reentry point when frame changes (call/return) */
             donextjump(ci);
         )
     } break;
-    case OP_RAVI_LE_II:
-    case OP_RAVI_LE_FF:
+    case OP_RAVI_LE_II: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      int lessequals = (ivalue(rb) <= ivalue(rc));
+      if (lessequals != GETARG_A(i))
+        ci->u.l.savedpc++;
+      else
+        donextjump(ci);
+    } break;
+    case OP_RAVI_LE_FF: {
+      TValue *rb = RKB(i);
+      TValue *rc = RKC(i);
+      int lessequals = (fltvalue(rb) <= fltvalue(rc));
+      if (lessequals != GETARG_A(i))
+        ci->u.l.savedpc++;
+      else
+        donextjump(ci);
+    } break;
     case OP_LE: {
         Protect(
           if (luaV_lessequal(L, RKB(i), RKC(i)) != GETARG_A(i))
