@@ -290,7 +290,7 @@ static void checkLclosure (global_State *g, LClosure *cl) {
 
 
 static int lua_checkpc (lua_State *L, CallInfo *ci) {
-  if (!isLua(ci)) return 1;
+  if (!isLua(ci) || isJITed(ci)) return 1;
   else {
     /* if function yielded (inside a hook), real 'func' is in 'extra' field */
     StkId f = (L->status != LUA_YIELD || ci != L->ci)
