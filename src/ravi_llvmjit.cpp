@@ -43,7 +43,8 @@ RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
 // in the context of the JIT State
 RaviJITStateImpl::RaviJITStateImpl()
     : context_(llvm::getGlobalContext()), auto_(false), enabled_(true),
-      opt_level_(2), size_level_(0), min_code_size_(150), min_exec_count_(50) {
+      opt_level_(2), size_level_(0), min_code_size_(150), min_exec_count_(50),
+      gc_step_(200) {
   // LLVM needs to be initialized else
   // ExecutionEngine cannot be created
   // This should ideally be an atomic check but because LLVM docs
@@ -562,3 +563,17 @@ int raviV_getsizelevel(lua_State *L) {
     return 0;
   return G->ravi_state->jit->get_sizelevel();
 }
+
+void raviV_setgcstep(lua_State *L, int value) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return;
+  G->ravi_state->jit->set_gcstep(value);
+}
+int raviV_getgcstep(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+  return G->ravi_state->jit->get_gcstep();
+}
+

@@ -241,3 +241,12 @@ int raviV_getsizelevel(lua_State *L) {
   (void)L;
   return 0;
 }
+
+void raviV_setgcstep(lua_State *L, int value) {
+  (void)L;
+  (void)value;
+}
+int raviV_getgcstep(lua_State *L) {
+  (void)L;
+  return 0;
+}

@@ -82,6 +82,10 @@ int raviV_getmincodesize(struct lua_State *L);
 void raviV_setminexeccount(struct lua_State *L, int minexecccount);
 int raviV_getminexeccount(struct lua_State *L);
 
+/* Enable GC Collection at every JIT compile */
+void raviV_setgcstep(struct lua_State *L, int stepsize);
+int raviV_getgcstep(struct lua_State *L);
+
 /* Dumps the IR if available */
 void raviV_dumpIR(struct lua_State *L, struct Proto *p);
 

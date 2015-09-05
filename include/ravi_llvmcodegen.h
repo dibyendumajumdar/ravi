@@ -400,6 +400,9 @@ class RAVI_API RaviJITStateImpl : public RaviJITState {
   // min execution count for compilation
   int min_exec_count_;
 
+  // gc step size; defaults to 200
+  int gc_step_;
+
 public:
   RaviJITStateImpl();
   virtual ~RaviJITStateImpl();
@@ -441,6 +444,10 @@ public:
   int get_minexeccount() const { return min_exec_count_; }
   void set_minexeccount(int value) {
     min_exec_count_ = value > 0 ? value : min_exec_count_;
+  }
+  int get_gcstep() const { return gc_step_; }
+  void set_gcstep(int value) {
+    gc_step_ = value > 0 ? value : gc_step_;
   }
 };
 

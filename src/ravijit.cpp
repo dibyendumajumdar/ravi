@@ -178,6 +178,19 @@ static int ravi_sizelevel(lua_State *L) {
   return 1;
 }
 
+// Set GC step when JIT compiling
+static int ravi_gcstep(lua_State *L) {
+  int n = lua_gettop(L);
+  int oldvalue = raviV_getgcstep(L);
+  if (n == 1) {
+    int value = lua_tointeger(L, 1);
+    raviV_setgcstep(L, value);
+  }
+  lua_pushinteger(L, oldvalue);
+  return 1;
+}
+
+
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"compile", ravi_compile},
                                    {"dumplua", ravi_dump_luacode},
@@ -189,6 +202,7 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"jit", ravi_jitenable},
                                    {"optlevel", ravi_optlevel},
                                    {"sizelevel", ravi_sizelevel},
+                                   {"gcstep", ravi_gcstep},
                                    {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmjit(lua_State *L) {

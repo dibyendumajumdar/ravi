@@ -142,6 +142,8 @@ public:
   virtual void set_mincodesize(int) = 0;
   virtual int get_minexeccount() const = 0;
   virtual void set_minexeccount(int) = 0;
+  virtual int get_gcstep() const = 0;
+  virtual void set_gcstep(int) = 0;
 
 protected:
   RaviJITState() {}
