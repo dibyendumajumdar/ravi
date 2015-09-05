@@ -63,6 +63,7 @@ The bindings provide a number of Lua types::
   + LLVMvalue
     + LLVMinstruction
     + LLVMconstant
+    + LLVMphinode
   + LLVMirbuilder
   + LLVMbasicblock  
 
@@ -144,8 +145,10 @@ The following table lists the Lua LLVM api functions available.
 |   Emit call instruction; 'tailcall' option is false by default                               | 
 | ``br(basicblock) -> LLVMinstruction``                                                        |
 |   Emit a branch instruction                                                                  |
-| ``condbr(vavlue, true_block, false_block) -> LLVMinstruction``                               |
+| ``condbr(value, true_block, false_block) -> LLVMinstruction``                                |
 |   Emit a conditional branch                                                                  |
+| ``phi(type, num_values[, name]) -> LLVMphinode``                                             |
+|   Generate a PHINode                                                                         |
 |                                                                                              |
 | GEP Operators                                                                                |
 |                                                                                              |
@@ -233,4 +236,9 @@ The following table lists the Lua LLVM api functions available.
 | * ``truncorbitcast``                                                                         |
 | * ``pointercast``                                                                            |
 | * ``fpcast``                                                                                 |
++----------------------------------------------------------------------------------------------+
+| **LLVMphinode methods**                                                                      |
++----------------------------------------------------------------------------------------------+
+| ``addincoming(value, basicblock)``                                                           |
+|   Adds incoming edge                                                                         |
 +----------------------------------------------------------------------------------------------+

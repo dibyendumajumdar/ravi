@@ -122,6 +122,7 @@ static const char *LLVM_functiontype = "LLVMfunctiontype";
 static const char *LLVM_basicblock = "LLVMbasicblock";
 static const char *LLVM_constant = "LLVMconstant";
 static const char *LLVM_instruction = "LLVMinstruction";
+static const char *LLVM_phinode = "LLVMphinode";
 
 #define test_LLVM_irbuilder(L, idx)                                            \
   ((IRBuilderHolder *)l_testudata(L, idx, LLVM_irbuilder))
@@ -185,6 +186,11 @@ static const char *LLVM_instruction = "LLVMinstruction";
 #define check_LLVM_module(L, idx)                                              \
   ((ModuleHolder *)l_checkudata(L, idx, LLVM_module))
 
+#define test_LLVM_phinode(L, idx)                                              \
+  ((PhiNodeHolder *)l_testudata(L, idx, LLVM_phinode))
+#define check_LLVM_phinode(L, idx)                                             \
+  ((PhiNodeHolder *)l_checkudata(L, idx, LLVM_phinode))
+
 struct ContextHolder {
   /* Each Ravi instance (Lua instance) has its own
    * LLVM context
@@ -244,6 +250,10 @@ struct InstructionHolder {
 
 struct ModuleHolder {
   llvm::Module *M;
+};
+
+struct PhiNodeHolder {
+  llvm::PHINode *phi;
 };
 
 static int context_new_LLVM_irbuilder(lua_State *L) {
@@ -340,6 +350,13 @@ static void alloc_LLVM_instruction(lua_State *L, llvm::Instruction *i) {
   l_getmetatable(L, LLVM_instruction);
   lua_setmetatable(L, -2);
   h->i = i;
+}
+
+static void alloc_LLVM_phinode(lua_State *L, llvm::PHINode *phi) {
+  PhiNodeHolder *h = (PhiNodeHolder *)lua_newuserdata(L, sizeof(PhiNodeHolder));
+  l_getmetatable(L, LLVM_phinode);
+  lua_setmetatable(L, -2);
+  h->phi = phi;
 }
 
 static MainFunctionHolder *alloc_LLVM_mainfunction(lua_State *L,
@@ -496,6 +513,10 @@ static llvm::Value *get_value(lua_State *L, int idx) {
   if (f) {
     return f->function;
   }
+  PhiNodeHolder *phi = test_LLVM_phinode(L, idx);
+  if (phi) {
+    return phi->phi;
+  }
   luaL_argerror(L, idx, "Value expected");
   return nullptr;
 }
@@ -511,6 +532,7 @@ static int dump_content(lua_State *L) {
   MainFunctionHolder *f = nullptr;
   InstructionHolder *ii = nullptr;
   ModuleHolder *m = nullptr;
+  PhiNodeHolder *phi = nullptr;
 
   th = test_LLVM_type(L, 1);
   if (th) {
@@ -545,6 +567,11 @@ static int dump_content(lua_State *L) {
   m = test_LLVM_module(L, 1);
   if (m) {
     m->M->dump();
+    return 0;
+  }
+  phi = test_LLVM_phinode(L, 1);
+  if (phi) {
+    phi->phi->dump();
     return 0;
   }
   return 0;
@@ -1112,6 +1139,28 @@ static int irbuilder_store(lua_State *L) {
   return 1;
 }
 
+static int irbuilder_phi(lua_State *L) {
+  IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);
+  llvm::Type *ty = get_type(L, 2);
+  unsigned int num_values = (unsigned int)luaL_checkinteger(L, 3);
+  const char *name = nullptr;
+  if (lua_gettop(L) >= 4) {
+    name = luaL_checkstring(L, 4);
+  }
+  llvm::PHINode *phi = builder->builder->CreatePHI(ty, num_values, name);
+  alloc_LLVM_phinode(L, phi);
+  return 1;
+}
+
+static int phi_addincoming(lua_State *L) {
+  PhiNodeHolder *phi = check_LLVM_phinode(L, 1);
+  llvm::Value *value = get_value(L, 2);
+  BasicBlockHolder *block = check_LLVM_basicblock(L, 3);
+  phi->phi->addIncoming(value, block->b);
+  lua_pushinteger(L, phi->phi->getNumOperands());
+  return 1;
+}
+
 /* ops that take a value and value array as arguments */
 #define irbuilder_vva(op)                                                      \
   static int irbuilder_##op(lua_State *L) {                                    \
@@ -1239,9 +1288,8 @@ static const luaL_Reg llvmlib[] = {
 static const luaL_Reg structtype_methods[] = {{"setbody", struct_add_members},
                                               {NULL, NULL}};
 
-static const luaL_Reg module_methods[] = {{"newfunction", module_newfunction},
-                                          {"dump", dump_content},
-                                          {NULL, NULL}};
+static const luaL_Reg module_methods[] = {
+    {"newfunction", module_newfunction}, {"dump", dump_content}, {NULL, NULL}};
 
 static const luaL_Reg main_function_methods[] = {
     {"appendblock", func_append_basicblock},
@@ -1249,13 +1297,13 @@ static const luaL_Reg main_function_methods[] = {
     {"extern", func_addextern},
     {"arg", func_getarg},
     {"module", func_getmodule},
-    {"alloca", func_alloca },
+    {"alloca", func_alloca},
     {NULL, NULL}};
 
 static const luaL_Reg function_methods[] = {
     {"appendblock", func_append_basicblock},
     {"arg", func_getarg},
-    {"alloca", func_alloca },
+    {"alloca", func_alloca},
     {NULL, NULL}};
 
 static const luaL_Reg context_methods[] = {
@@ -1269,6 +1317,9 @@ static const luaL_Reg context_methods[] = {
     {"intconstant", context_intconstant},
     {"nullconstant", context_nullconstant},
     {NULL, NULL}};
+
+static const luaL_Reg phi_methods[] = {{"addincoming", phi_addincoming},
+                                       {NULL, NULL}};
 
 static const luaL_Reg irbuilder_methods[] = {
     {"setinsertpoint", irbuilder_set_current_block},
@@ -1345,6 +1396,7 @@ static const luaL_Reg irbuilder_methods[] = {
     {"fpcast", irbuilder_FPCast},
     {"load", irbuilder_load},
     {"store", irbuilder_store},
+    {"phi", irbuilder_phi},
     {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
@@ -1433,6 +1485,14 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   l_newmetatable(L, LLVM_instruction);
   lua_pushstring(L, LLVM_instruction);
   lua_setfield(L, -2, "type");
+  lua_pop(L, 1);
+
+  l_newmetatable(L, LLVM_phinode);
+  lua_pushstring(L, LLVM_phinode);
+  lua_setfield(L, -2, "type");
+  lua_pushvalue(L, -1);           /* push metatable */
+  lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
+  luaL_setfuncs(L, phi_methods, 0);
   lua_pop(L, 1);
 
   luaL_newlib(L, llvmlib);
