@@ -231,15 +231,15 @@ Note that if you perform a Release build of LLVM then you will also need to do a
 Building LLVM on Ubuntu
 -----------------------
 On Ubuntu I found that the official LLVM distributions don't work with CMake. The CMake config files appear to be broken.
-So I ended up downloading and building LLVM 3.6.1 from source and that worked. The approach is similar to that described for MAC OS X below.
+So I ended up downloading and building LLVM 3.7.0 from source and that worked. The approach is similar to that described for MAC OS X below.
 
 Building LLVM on MAC OS X
 -------------------------
 I am using Max OSX Yosemite. Pre-requisites are XCode 6.1 and CMake.
 Ensure cmake is on the path.
-Assuming that LLVM source has been extracted to ``$HOME/llvm-3.6.0.src`` I follow these steps::
+Assuming that LLVM source has been extracted to ``$HOME/llvm-3.7.0.src`` I follow these steps::
 
-  cd llvm-3.6.0.src
+  cd llvm-3.7.0.src
   mkdir build
   cd build
   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/LLVM -DLLVM_TARGETS_TO_BUILD="X86" ..
