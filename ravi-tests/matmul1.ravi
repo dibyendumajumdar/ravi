@@ -31,6 +31,8 @@ function matrix.cols(m)
   return m[2]
 end 
 
+-- Matrix transpose
+-- This version uses slices
 function matrix.T(a)
   local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
@@ -54,6 +56,8 @@ function matrix.T(a)
   return x;
 end
 
+-- Matrix transpose
+-- Does not use slices
 function matrix.T2(a)
   local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
@@ -75,7 +79,8 @@ function matrix.T2(a)
   return x;
 end
 
-
+-- Matrix multiply
+-- Uses slices
 function matrix.mul(a, b)
   local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
@@ -98,6 +103,7 @@ function matrix.mul(a, b)
   return x;
 end
 
+-- Matrix multiply
 -- this version avoids using slices - we operate on the 
 -- one dimensional array
 function matrix.mul2(a, b)
@@ -130,10 +136,10 @@ function matrix.mul2(a, b)
   return x;
 end
 
-function matrix.gen(arg)
+-- Generate the matrix - uses slices
+function matrix.gen(n: integer)
   local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
-  local n: integer = cast(arg, "integer")
   local a = mnew(n, n)
   local tmp: number = 1.0 / n / n;
   for i = 1, n do
@@ -147,10 +153,10 @@ function matrix.gen(arg)
   return a;
 end
 
-function matrix.gen2(arg)
+-- Generate the matrix - this version does not use slices
+function matrix.gen2(n: integer)
   local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
-  local n: integer = cast(arg, "integer")
   local a = mnew(n, n)
   local data: number[] = mdata(a)
   local tmp: number = 1.0 / n / n;
@@ -182,7 +188,7 @@ if ravi.jit() then
   assert(ravi.compile(cast))
   assert(ravi.compile(matrix.gen))
   assert(ravi.compile(matrix.gen2))
-  assert(ravi.compile(matrix.mul))
+  assert(ravi.compile(matrix.mul, {omitArrayGetRangeCheck=1}))
   assert(ravi.compile(matrix.mul2, {omitArrayGetRangeCheck=1}))
   assert(ravi.compile(matrix.T))
   assert(ravi.compile(matrix.T2))
