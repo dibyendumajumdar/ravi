@@ -27,7 +27,7 @@ illustrates::
   -- execution engine but no body
   local mainfunc = context:lua_CFunction("demo")
 
-Above creates an ``lvvm::Function`` instance within a new module. An EE is 
+Above creates an ``llvm::Function`` instance within a new module. An EE is 
 automatically attached. You can get hold of the module as shown below::
 
   -- Get hold of the module
