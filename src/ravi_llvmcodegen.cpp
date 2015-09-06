@@ -1084,8 +1084,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
   // RaviFunctionDef *def = &definition;
 
   int gcstep = this->jitState_->get_gcstep();
-  if (gcstep > 0 && (id_ % gcstep) == 0)
+  if (gcstep > 0 && (id_ % gcstep) == 0) {
+    lua_unlock(L);
     lua_gc(L, LUA_GCCOLLECT, 0);
+    lua_lock(L);
+  }
 
   // printf("compiling function\n");
   auto f = create_function(builder, def);
