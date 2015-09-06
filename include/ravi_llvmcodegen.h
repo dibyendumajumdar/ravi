@@ -374,7 +374,7 @@ class RAVI_API RaviJITStateImpl : public RaviJITState {
   // map of names to functions
   std::map<std::string, RaviJITFunction *> functions_;
 
-  llvm::LLVMContext &context_;
+  llvm::LLVMContext *context_;
 
   // The triple represents the host target
   std::string triple_;
@@ -420,7 +420,7 @@ public:
   void addGlobalSymbol(const std::string &name, void *address);
 
   virtual void dump();
-  virtual llvm::LLVMContext &context() { return context_; }
+  virtual llvm::LLVMContext &context() { return *context_; }
   LuaLLVMTypes *types() const { return types_; }
   const std::string &triple() const { return triple_; }
   bool is_auto() const { return auto_; }

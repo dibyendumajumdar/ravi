@@ -42,7 +42,7 @@ RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
 // lua_State - all compilation activity happens
 // in the context of the JIT State
 RaviJITStateImpl::RaviJITStateImpl()
-    : context_(llvm::getGlobalContext()), auto_(false), enabled_(true),
+    : auto_(false), enabled_(true),
       opt_level_(2), size_level_(0), min_code_size_(150), min_exec_count_(50),
       gc_step_(200) {
   // LLVM needs to be initialized else
@@ -64,7 +64,8 @@ RaviJITStateImpl::RaviJITStateImpl()
   // format; LLVM 3.7 onwards COEFF is supported
   triple_ += "-elf";
 #endif
-  types_ = new LuaLLVMTypes(context_);
+  context_ = new llvm::LLVMContext();
+  types_ = new LuaLLVMTypes(*context_);
 }
 
 // Destroy the JIT state freeing up any
@@ -79,6 +80,7 @@ RaviJITStateImpl::~RaviJITStateImpl() {
     delete todelete[i];
   }
   delete types_;
+  delete context_;
 }
 
 void RaviJITStateImpl::addGlobalSymbol(const std::string &name, void *address) {
