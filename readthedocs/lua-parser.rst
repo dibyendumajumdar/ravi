@@ -493,3 +493,5 @@ Links
 * `(MP6) Register VM and sliding stack window <http://lua-users.org/lists/lua-l/2005-01/msg00628.html>`_
 * `(SO1) Sven Olsen's notes on registers <http://lua-users.org/files/wiki_insecure/power_patches/5.2/svenshacks-5.2.2.patch>`_ from `Sven Olsen's Lua Users Wiki page <http://lua-users.org/wiki/SvenOlsen>`_
 * `(KHM) No Frills Introduction to Lua 5.1 VM Instructions <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_
+* `(MP7) LuaJIT Roadmap 2008 <http://lua-users.org/lists/lua-l/2008-02/msg00051.html>`_
+* `(MP8) LuaJIT Roadmap 2011 <http://lua-users.org/lists/lua-l/2011-01/msg01238.html>`_
