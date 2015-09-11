@@ -1574,6 +1574,18 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
     /* read sub-expression with higher priority */
     nextop = subexpr(ls, &v2, priority[op].right);
     DEBUG_EXPR(raviY_printf(ls->fs, "subexpr-> %e binop(%d) %e\n", v, (int)op, &v2));
+    /* 
+    The bool 'and' and 'or' operators preserve the type of the
+    expression that gets selected, so if these are both integer or number types
+    then we know result will be integer or number, else the result is
+    unpredictable so we set both expressions to RAVI_TANY
+    */
+    if (op == OPR_AND || op == OPR_OR) {
+      if (v->ravi_type != v2.ravi_type || (v->ravi_type != RAVI_TNUMINT && v->ravi_type != RAVI_TNUMFLT)) {
+        v->ravi_type = RAVI_TANY;
+        v2.ravi_type = RAVI_TANY;
+      }
+    }
     luaK_posfix(ls->fs, op, v, &v2, line);
     DEBUG_EXPR(raviY_printf(ls->fs, "subexpr-> after posfix %e\n", v));
     op = nextop;
