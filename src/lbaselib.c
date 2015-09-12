@@ -207,6 +207,14 @@ static int luaB_type (lua_State *L) {
   return 1;
 }
 
+/*
+** TODO make type names upvalues
+*/
+static int luaB_ravitype(lua_State *L) {
+  luaL_checkany(L, 1);
+  lua_pushstring(L, ravi_typename(L, 1));
+  return 1;
+}
 
 static int pairsmeta (lua_State *L, const char *method, int iszero,
                       lua_CFunction iter) {
@@ -491,6 +499,7 @@ static const luaL_Reg base_funcs[] = {
   {"tonumber", luaB_tonumber},
   {"tostring", luaB_tostring},
   {"xpcall", luaB_xpcall},
+  {"ravitype", luaB_ravitype},
   /* placeholders */
   {"type", NULL},
   {"_G", NULL},

@@ -260,6 +260,35 @@ LUA_API const char *lua_typename (lua_State *L, int t) {
   return ttypename(t);
 }
 
+/* 
+Ravi extension
+*/
+LUA_API const char *ravi_typename(lua_State *L, int idx) {
+  StkId o = index2addr(L, idx);
+  switch (rttype(o)) {
+  case LUA_TNIL: return "nil";
+  case LUA_TBOOLEAN: return "boolean";
+  case LUA_TNUMFLT: return "number";
+  case LUA_TNUMINT: return "integer";
+  case ctb(LUA_TLNGSTR): return "string";
+  case ctb(LUA_TSHRSTR): return "string";
+  case ctb(LUA_TUSERDATA): return "userdata";
+  case LUA_TLIGHTUSERDATA: return "lightuserdata";
+  case LUA_TLCF: return "lightCfunction";
+  case ctb(LUA_TCCL): return "Cclosure";
+  case ctb(LUA_TLCL): return "closure";
+  case ctb(LUA_TTHREAD): return "thread";
+  case ctb(LUA_TTABLE): {
+    Table *h = hvalue(o);
+    switch (h->ravi_array.array_type) {
+    case RAVI_TARRAYFLT: return "number[]";
+    case RAVI_TARRAYINT: return "integer[]";
+    default: return "table";
+    }
+  }
+  default: return "unknown";
+  }
+}
 
 LUA_API int lua_iscfunction (lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
