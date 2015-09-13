@@ -13,11 +13,13 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled" ON)
 option(GCC_JIT "Controls whether GCC JIT compilation will be enabled" OFF)
 
+# We cannot link to both LLVM and GCC JIT
 if (LLVM_JIT AND GCC_JIT)
   message(FATAL_ERROR
           "Both LLVM_JIT and GCC_JIT cannot be set to ON at the same time")
 endif()
 
+# At least one JIT option is required
 if (NOT LLVM_JIT AND NOT GCC_JIT)
   message(FATAL_ERROR
           "One of LLVM_JIT and GCC_JIT must be set to ON")
@@ -142,6 +144,7 @@ set (LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/
      src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
 
 file(GLOB RAVI_HEADERS "${PROJECT_SOURCE_DIR}/include/*.h")
+set (LUA_HEADERS include/lua.h include/luaconf.h include/lualib.h include/lauxlib.h)
 
 if (MSVC OR APPLE)
   source_group("Ravi Headers" FILES ${RAVI_HEADERS})
@@ -197,6 +200,7 @@ add_library(ravi SHARED ${RAVI_HEADERS}
                         ${LLVM_JIT_SRCS}
                         ${GCC_JIT_SRCS})
 if (WIN32)
+  # enable DLL export
   set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
 endif()
 target_link_libraries(ravi ${EXTRA_LIBRARIES} ${llvm_libs} ${GCCJIT_LIBRARIES})
@@ -224,3 +228,8 @@ if (LLVM_JIT)
 endif()
 add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
+
+install(FILES ${LUA_HEADERS} 
+        DESTINATION include/ravi)
+install(TARGETS ravi lua 
+        DESTINATION bin)
