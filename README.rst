@@ -231,18 +231,18 @@ Note that if you perform a Release build of LLVM then you will also need to do a
 Building LLVM on Ubuntu
 -----------------------
 On Ubuntu I found that the official LLVM distributions don't work with CMake. The CMake config files appear to be broken.
-So I ended up downloading and building LLVM 3.6.1 from source and that worked. The approach is similar to that described for MAC OS X below.
+So I ended up downloading and building LLVM 3.7.0 from source and that worked. The approach is similar to that described for MAC OS X below.
 
 Building LLVM on MAC OS X
 -------------------------
 I am using Max OSX Yosemite. Pre-requisites are XCode 6.1 and CMake.
 Ensure cmake is on the path.
-Assuming that LLVM source has been extracted to ``$HOME/llvm-3.6.0.src`` I follow these steps::
+Assuming that LLVM source has been extracted to ``$HOME/llvm-3.7.0.src`` I follow these steps::
 
-  cd llvm-3.6.0.src
+  cd llvm-3.7.0.src
   mkdir build
   cd build
-  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/LLVM -DLLVM_TARGETS_TO_BUILD="X86" ..
+  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/LLVM -DLLVM_TARGETS_TO_BUILD="X86" ..
   make install
 
 Building Ravi
@@ -252,20 +252,20 @@ I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 6
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
   cd build
-  cmake -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 14 Win64" ..
+  cmake -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 14 Win64" ..
 
 I then open the solution in VS2015 and do a build from there.
 
 On Ubuntu I use::
 
   cd build
-  cmake -DLLVM_DIR=~/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
+  cmake -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
   make
 
 On MAC OS X I use::
 
   cd build
-  cmake -DLLVM_DIR=~/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
+  cmake -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
 
 I open the generated project in Xcode and do a build from there.
 
