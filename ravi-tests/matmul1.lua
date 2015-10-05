@@ -39,7 +39,13 @@ function matgen(n)
 	return a;
 end
 
-local n = arg[1] or 100;
+if arg[2] and ravi then
+	ravi.compile(matrix.T)
+	ravi.compile(matrix.mul)
+	ravi.compile(matgen)
+end
+
+local n = arg[1] or 1000;
 n = math.floor(n/2) * 2;
 local t1 = os.clock()
 local a = matrix.mul(matgen(n), matgen(n));
