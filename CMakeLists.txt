@@ -230,6 +230,6 @@ add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
 
 install(FILES ${LUA_HEADERS} 
-        DESTINATION include/ravi)
+        DESTINATION include)
 install(TARGETS ravi lua 
         DESTINATION bin)
