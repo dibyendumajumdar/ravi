@@ -383,3 +383,129 @@ Generates::
   upvalues (0) for 00000034D2ABE340:
 
 Line[2] performs the relational test. In line [3], the JMP skips over the false path (line [4]) to the true path (line [5]). The result is placed into temporary local 2, and returned to the caller by RETURN in line [6].
+
+'``OP_VARARG``' instruction
+===========================
+
+Syntax
+------
+
+  VARARG  A B R(A), R(A+1), ..., R(A+B-1) = vararg
+
+Description
+-----------
+
+``VARARG`` implements the vararg operator ``...`` in expressions. ``VARARG`` copies B-1 parameters into a number of registers starting from R(A), padding with nils if there aren’t enough values. If B is 0, ``VARARG`` copies as many values as it can based on the number of parameters passed. If a fixed number of values is required, B is a value greater than 1. If any number of values is required, B is 0.
+
+
+Examples
+--------
+
+The use of VARARG will become clear with the help of a few examples::
+
+  local a,b,c = ...
+
+Generates::
+
+  main <(string):0,0> (2 instructions at 00000029D9FA8310)
+  0+ params, 3 slots, 1 upvalue, 3 locals, 0 constants, 0 functions
+        1       [1]     VARARG          0 4
+        2       [1]     RETURN          0 1
+  constants (0) for 00000029D9FA8310:
+  locals (3) for 00000029D9FA8310:
+        0       a       2       3
+        1       b       2       3
+        2       c       2       3
+  upvalues (1) for 00000029D9FA8310:
+        0       _ENV    1       0  
+
+Note that the main or top-level chunk is a vararg function. In this example, the left hand side of the assignment statement needs three values (or objects.) So in instruction [1], the operand B of the ``VARARG`` instruction is (3+1), or 4. ``VARARG`` will copy three values into a, b and c. If there are less than three values available, nils will be used to fill up the empty places.
+
+::
+
+  local a = function(...) local a,b,c = ... end
+
+This gives::
+
+  main <(string):0,0> (2 instructions at 00000029D9FA72D0)
+  0+ params, 2 slots, 1 upvalue, 1 local, 0 constants, 1 function
+        1       [1]     CLOSURE         0 0     ; 00000029D9FA86D0
+        2       [1]     RETURN          0 1
+  constants (0) for 00000029D9FA72D0:
+  locals (1) for 00000029D9FA72D0:
+        0       a       2       3
+  upvalues (1) for 00000029D9FA72D0:
+        0       _ENV    1       0
+
+  function <(string):1,1> (2 instructions at 00000029D9FA86D0)
+  0+ params, 3 slots, 0 upvalues, 3 locals, 0 constants, 0 functions
+        1       [1]     VARARG          0 4
+        2       [1]     RETURN          0 1
+  constants (0) for 00000029D9FA86D0:
+  locals (3) for 00000029D9FA86D0:
+        0       a       2       3
+        1       b       2       3
+        2       c       2       3
+  upvalues (0) for 00000029D9FA86D0:
+
+
+Here is an alternate version where a function is instantiated and assigned to local a. The old-style arg is retained for compatibility purposes, but is unused in the above example.
+
+::
+
+  local a; a(...)
+
+Leads to::
+
+  main <(string):0,0> (5 instructions at 00000029D9FA6D30)
+  0+ params, 3 slots, 1 upvalue, 1 local, 0 constants, 0 functions
+        1       [1]     LOADNIL         0 0
+        2       [1]     MOVE            1 0
+        3       [1]     VARARG          2 0
+        4       [1]     CALL            1 0 1
+        5       [1]     RETURN          0 1
+  constants (0) for 00000029D9FA6D30:
+  locals (1) for 00000029D9FA6D30:
+        0       a       2       6
+  upvalues (1) for 00000029D9FA6D30:
+        0       _ENV    1       0
+
+When a function is called with ``...`` as the argument, the function will accept a variable number of parameters or arguments. On instruction [3], a ``VARARG`` with a B field of 0 is used. The ``VARARG`` will copy all the parameters passed on to the main chunk to register 2 onwards, so that the ``CALL`` in the next line can utilize them as parameters of function ``a``. The function call is set to accept a multiple number of parameters and returns zero results.
+
+::
+
+  local a = {...}
+
+Produces::
+
+  main <(string):0,0> (4 instructions at 00000029D9FA8130)
+  0+ params, 2 slots, 1 upvalue, 1 local, 0 constants, 0 functions
+        1       [1]     NEWTABLE        0 0 0
+        2       [1]     VARARG          1 0
+        3       [1]     SETLIST         0 0 1   ; 1
+        4       [1]     RETURN          0 1
+  constants (0) for 00000029D9FA8130:
+  locals (1) for 00000029D9FA8130:
+        0       a       4       5
+  upvalues (1) for 00000029D9FA8130:
+        0       _ENV    1       0
+
+And::
+
+  return ...
+
+Produces::
+
+  main <(string):0,0> (3 instructions at 00000029D9FA8270)
+  0+ params, 2 slots, 1 upvalue, 0 locals, 0 constants, 0 functions
+        1       [1]     VARARG          0 0
+        2       [1]     RETURN          0 0
+        3       [1]     RETURN          0 1
+  constants (0) for 00000029D9FA8270:
+  locals (0) for 00000029D9FA8270:
+  upvalues (1) for 00000029D9FA8270:
+        0       _ENV    1       0
+
+Above are two other cases where ``VARARG`` needs to copy all passed parameters over to a set of registers in order for the next operation to proceed. Both the above forms of table creation and return accepts a variable number of values or objects.
+
+
