@@ -508,6 +508,181 @@ Produces::
   upvalues (1) for 00000029D9FA8270:
         0       _ENV    1       0
 
-Above are two other cases where ``VARARG`` needs to copy all passed parameters over to a set of registers in order for the next operation to proceed. Both the above forms of table creation and return accepts a variable number of values or objects.
+Above are two other cases where ``VARARG`` needs to copy all passed parameters 
+over to a set of registers in order for the next operation to proceed. Both the above forms of 
+table creation and return accepts a variable number of values or objects.
 
+Relational And logic Instructions
+=================================
 
+Relational and logic instructions are used in conjunction with other instructions to implement control 
+structures or expressions. Instead of generating boolean results, these instructions conditionally perform 
+a jump over the next instruction; the emphasis is on implementing control blocks. Instructions are arranged 
+so that there are two paths to follow based on the relational test.
+
+::
+
+  EQ  A B C if ((RK(B) == RK(C)) ~= A) then PC++
+  LT  A B C if ((RK(B) <  RK(C)) ~= A) then PC++
+  LE  A B C if ((RK(B) <= RK(C)) ~= A) then PC++
+
+Description
+-----------
+
+Compares RK(B) and RK(C), which may be registers or constants. If the boolean result is not A, 
+then skip the next instruction. Conversely, if the boolean result equals A, continue with the 
+next instruction.
+
+``EQ`` is for equality. ``LT`` is for “less than” comparison. ``LE`` is for “less than or equal to” 
+comparison. The boolean A field allows the full set of relational comparison operations to be 
+synthesized from these three instructions. The Lua code generator produces either 0 or 1 for the boolean A.
+
+For the fall-through case, a ``JMP`` is always expected, in order to optimize execution in the 
+virtual machine. In effect, ``EQ``, ``LT`` and ``LE`` must always be paired with a following ``JMP`` 
+instruction.
+
+Examples
+--------
+By comparing the result of the relational operation with A, the sense of the comparison can 
+be reversed. Obviously the alternative is to reverse the paths taken by the instruction, but that 
+will probably complicate code generation some more. The conditional jump is performed if the comparison 
+result is not A, whereas execution continues normally if the comparison result matches A. 
+Due to the way code is generated and the way the virtual machine works, a ``JMP`` instruction is 
+always expected to follow an ``EQ``, ``LT`` or ``LE``. The following ``JMP`` is optimized by 
+executing it in conjunction with ``EQ``, ``LT`` or ``LE``.
+
+::
+
+  local x,y; return x ~= y
+
+Generates::
+
+  main <(string):0,0> (7 instructions at 0000001BC48FD390)
+  0+ params, 3 slots, 1 upvalue, 2 locals, 0 constants, 0 functions
+        1       [1]     LOADNIL         0 1
+        2       [1]     EQ              0 0 1
+        3       [1]     JMP             0 1     ; to 5
+        4       [1]     LOADBOOL        2 0 1
+        5       [1]     LOADBOOL        2 1 0
+        6       [1]     RETURN          2 2
+        7       [1]     RETURN          0 1
+  constants (0) for 0000001BC48FD390:
+  locals (2) for 0000001BC48FD390:
+        0       x       2       8
+        1       y       2       8
+  upvalues (1) for 0000001BC48FD390:
+        0       _ENV    1       0
+
+In the above example, the equality test is performed in instruction [2]. However, since the 
+comparison need to be returned as a result, ``LOADBOOL`` instructions are used to set a 
+register with the correct boolean value. This is the usual code pattern generated if the expression 
+requires a boolean value to be generated and stored in a register as an intermediate value or 
+a final result.
+
+It is easier to visualize the disassembled code as::
+
+  if x ~= y then
+    return true
+  else
+    return false
+  end
+
+The true result path (when the comparison result matches A) goes like this::
+
+  1  [1] LOADNIL    0   1      
+  2  [1] EQ         0   0   1    ; to 4 if true    (x ~= y)
+  3  [1] JMP        1            ; to 5
+  5  [1] LOADBOOL   2   1   0    ; true            (true path)
+  6  [1] RETURN     2   2      
+
+While the false result path (when the comparison result does not match A) goes like this::
+
+  1  [1] LOADNIL    0   1      
+  2  [1] EQ         0   0   1    ; to 4 if true    (x ~= y)
+  4  [1] LOADBOOL   2   0   1    ; false, to 6     (false path)
+  6  [1] RETURN     2   2      
+
+Comments following the ``EQ`` in line [2] lets the user know when the conditional jump 
+is taken. The jump is taken when “the value in register 0 equals to the value in register 1” 
+(the comparison) is not false (the value of operand A). If the comparison is x == y, 
+everything will be the same except that the A operand in the ``EQ`` instruction will be 1, 
+thus reversing the sense of the comparison. Anyway, these are just the Lua code generator’s 
+conventions; there are other ways to code x ~= y in terms of Lua virtual machine instructions.
+
+For conditional statements, there is no need to set boolean results. Lua is optimized for 
+coding the more common conditional statements rather than conditional expressions.
+
+::
+
+  local x,y; if x ~= y then return "foo" else return "bar" end
+
+Results in::
+
+  main <(string):0,0> (9 instructions at 0000001BC4914D50)
+  0+ params, 3 slots, 1 upvalue, 2 locals, 2 constants, 0 functions
+        1       [1]     LOADNIL         0 1
+        2       [1]     EQ              1 0 1   ; to 4 if false    (x ~= y)
+        3       [1]     JMP             0 3     ; to 7
+        4       [1]     LOADK           2 -1    ; "foo"            (true block)
+        5       [1]     RETURN          2 2
+        6       [1]     JMP             0 2     ; to 9
+        7       [1]     LOADK           2 -2    ; "bar"            (false block)
+        8       [1]     RETURN          2 2
+        9       [1]     RETURN          0 1
+  constants (2) for 0000001BC4914D50:
+        1       "foo"
+        2       "bar"
+  locals (2) for 0000001BC4914D50:
+        0       x       2       10
+        1       y       2       10
+  upvalues (1) for 0000001BC4914D50:
+        0       _ENV    1       0
+
+In the above conditional statement, the same inequality operator is used in the source, 
+but the sense of the ``EQ`` instruction in line [2] is now reversed. Since the ``EQ`` 
+conditional jump can only skip the next instruction, additional ``JMP`` instructions 
+are needed to allow large blocks of code to be placed in both true and false paths. 
+In contrast, in the previous example, only a single instruction is needed to set a 
+boolean value. For ``if`` statements, the true block comes first followed by the false 
+block in code generated by the code generator. To reverse the positions of the true and 
+false paths, the value of operand A is changed.
+
+The true path (when ``x ~= y`` is true) goes from [2] to [4]–[6] and on to [9]. Since 
+there is a ``RETURN`` in line [5], the ``JMP`` in line [6] and the ``RETURN`` in [9] 
+are never executed at all; they are redundant but does not adversely affect performance 
+in any way. The false path is from [2] to [3] to [7]–[9] onwards. So in a disassembly 
+listing, you should see the true and false code blocks in the same order as in the 
+Lua source.
+
+The following is another example, this time with an ``elseif``::
+
+  if 8 > 9 then return 8 elseif 5 >= 4 then return 5 else return 9 end
+
+Generates::
+
+  main <(string):0,0> (13 instructions at 0000001BC4913770)
+  0+ params, 2 slots, 1 upvalue, 0 locals, 4 constants, 0 functions
+        1       [1]     LT              0 -2 -1 ; 9 8
+        2       [1]     JMP             0 3     ; to 6
+        3       [1]     LOADK           0 -1    ; 8
+        4       [1]     RETURN          0 2
+        5       [1]     JMP             0 7     ; to 13
+        6       [1]     LE              0 -4 -3 ; 4 5
+        7       [1]     JMP             0 3     ; to 11
+        8       [1]     LOADK           0 -3    ; 5
+        9       [1]     RETURN          0 2
+        10      [1]     JMP             0 2     ; to 13
+        11      [1]     LOADK           0 -2    ; 9
+        12      [1]     RETURN          0 2
+        13      [1]     RETURN          0 1
+  constants (4) for 0000001BC4913770:
+        1       8
+        2       9
+        3       5
+        4       4
+  locals (0) for 0000001BC4913770:
+  upvalues (1) for 0000001BC4913770:
+        0       _ENV    1       0
+
+This example is a little more complex, but the blocks are structured in the same order 
+as the Lua source, so interpreting the disassembled code should not be too hard.
