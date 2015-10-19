@@ -1029,6 +1029,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
   tbaa_CallInfo_topT =
       mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 4);
+  tbaa_CallInfo_savedpcT =
+      mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_pointerT, 20);
   tbaa_CallInfo_callstatusT =
       mdbuilder.createTBAAStructTagNode(tbaa_CallInfoT, tbaa_charT, 42);
   tbaa_CallInfo_jitstatusT =
@@ -1118,6 +1120,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       mdbuilder.createTBAAStructTagNode(tbaa_ProtoT, tbaa_pointerT, 44);
   tbaa_Proto_sizepT =
       mdbuilder.createTBAAStructTagNode(tbaa_ProtoT, tbaa_intT, 28);
+  tbaa_Proto_codeT =
+      mdbuilder.createTBAAStructTagNode(tbaa_ProtoT, tbaa_pointerT, 48);
 
   nodes.clear();
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 0));

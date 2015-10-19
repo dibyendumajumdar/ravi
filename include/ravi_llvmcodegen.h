@@ -289,12 +289,14 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_CallInfo_topT;
   llvm::MDNode *tbaa_CallInfo_jitstatusT;
   llvm::MDNode *tbaa_CallInfo_callstatusT;
+  llvm::MDNode *tbaa_CallInfo_savedpcT;
   llvm::MDNode *tbaa_LClosureT;
   llvm::MDNode *tbaa_LClosure_pT;
   llvm::MDNode *tbaa_LClosure_upvalsT;
   llvm::MDNode *tbaa_ProtoT;
   llvm::MDNode *tbaa_Proto_kT;
   llvm::MDNode *tbaa_Proto_sizepT;
+  llvm::MDNode *tbaa_Proto_codeT;
   llvm::MDNode *tbaa_TValueT;
   llvm::MDNode *tbaa_TValue_nT;
   llvm::MDNode *tbaa_TValue_hT;
@@ -446,9 +448,7 @@ public:
     min_exec_count_ = value > 0 ? value : min_exec_count_;
   }
   int get_gcstep() const { return gc_step_; }
-  void set_gcstep(int value) {
-    gc_step_ = value > 0 ? value : gc_step_;
-  }
+  void set_gcstep(int value) { gc_step_ = value > 0 ? value : gc_step_; }
 };
 
 // To optimise fornum loops

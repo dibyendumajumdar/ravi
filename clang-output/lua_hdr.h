@@ -213,7 +213,7 @@ typedef void (*lua_Hook)(struct lua_State *L, struct lua_Debug *ar);
 
 struct CallInfoL {     /* only for Lua functions */
   struct TValue *base; /* base for this function */
-  const unsigned int *savedpc;
+  unsigned int *savedpc;
   ptrdiff_t dummy;
 };
 
