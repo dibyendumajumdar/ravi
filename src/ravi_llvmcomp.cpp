@@ -102,6 +102,7 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
   } break;
 
   default:
+    emit_update_savedpc(def, pc);
     // Call luaV_equalobj with register B and C
     result = CreateCall3(def->builder, callee, def->L, regB, regC);
   }

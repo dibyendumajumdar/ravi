@@ -213,6 +213,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
+  emit_update_savedpc(def, pc);
   CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
               def->types->kInt[tms]);
   def->builder->CreateBr(done_block);
@@ -408,6 +409,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
+  emit_update_savedpc(def, pc);
   CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
               def->types->kInt[TM_MOD]);
   def->builder->CreateBr(done_block);
@@ -571,8 +573,9 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
+  emit_update_savedpc(def, pc);
   CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
-              def->types->kInt[TM_MOD]);
+              def->types->kInt[TM_IDIV]);
   def->builder->CreateBr(done_block);
 
   def->f->getBasicBlockList().push_back(done_block);
@@ -701,6 +704,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
+  emit_update_savedpc(def, pc);
   CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
               def->types->kInt[TM_POW]);
   def->builder->CreateBr(done_block);
@@ -813,6 +817,7 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, int A, int B, int pc) {
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
+  emit_update_savedpc(def, pc);
   CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rb, ra,
               def->types->kInt[TM_UNM]);
   def->builder->CreateBr(done_block);

@@ -311,10 +311,12 @@ void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
 
     switch (op) {
     case OP_SHL:
+      emit_update_savedpc(def, pc);
     case OP_RAVI_SHL_II:
       CreateCall4(def->builder, def->raviV_op_shlF, def->L, ra, rb, rc);
       break;
     case OP_SHR:
+      emit_update_savedpc(def, pc);
     case OP_RAVI_SHR_II:
       CreateCall4(def->builder, def->raviV_op_shrF, def->L, ra, rb, rc);
       break;

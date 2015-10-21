@@ -27,6 +27,7 @@ namespace ravi {
 void RaviCodeGenerator::emit_CONCAT(RaviFunctionDef *def, int A, int B, int C,
                                     int pc) {
   emit_debug_trace(def, OP_CONCAT, pc);
+  emit_update_savedpc(def, pc);
   CreateCall5(def->builder, def->raviV_op_concatF, def->L, def->ci_val,
               llvm::ConstantInt::get(def->types->C_intT, A),
               llvm::ConstantInt::get(def->types->C_intT, B),

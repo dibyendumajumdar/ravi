@@ -31,6 +31,7 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, int A, int B, int C,
   // setobjs2s(L, ra + 1, rb);
   // Protect(luaV_gettable(L, rb, RKC(i), ra));
   emit_debug_trace(def, OP_SELF, pc);
+  emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register(def, B);
   llvm::Value *ra1 = emit_gep_register(def, A + 1);
@@ -44,6 +45,7 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, int A, int B, int C,
 void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B, int pc) {
   // Protect(luaV_objlen(L, ra, RB(i)));
   emit_debug_trace(def, OP_LEN, pc);
+  emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -55,6 +57,7 @@ void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C,
                                       int pc) {
   // Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
   emit_debug_trace(def, OP_SETTABLE, pc);
+  emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -67,6 +70,7 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
                                       int pc) {
   // Protect(luaV_gettable(L, RB(i), RKC(i), ra));
   emit_debug_trace(def, OP_GETTABLE, pc);
+  emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -389,6 +393,7 @@ void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C,
   // int b = GETARG_B(i);
   // Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
   emit_debug_trace(def, OP_GETTABUP, pc);
+  emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
@@ -407,6 +412,7 @@ void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C,
   // Protect(luaV_settable(L, cl->upvals[a]->v, RKB(i), RKC(i)));
 
   emit_debug_trace(def, OP_SETTABUP, pc);
+  emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
