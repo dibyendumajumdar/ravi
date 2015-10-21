@@ -597,6 +597,9 @@ public:
   std::unique_ptr<RaviJITFunctionImpl>
   create_function(llvm::IRBuilder<> &builder, RaviFunctionDef *def);
 
+  // Save proto->code[pc] into savedpc 
+  void emit_update_savedpc(RaviFunctionDef *def, int pc);
+
   llvm::CallInst *CreateCall1(llvm::IRBuilder<> *builder, llvm::Value *func,
                               llvm::Value *arg1);
   llvm::CallInst *CreateCall2(llvm::IRBuilder<> *builder, llvm::Value *func,

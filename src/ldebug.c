@@ -248,6 +248,10 @@ static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
         break;
       }
       case 'l': {
+        //TODO - savedpc fixes
+        //if (ci && isLua(ci) && ci->u.l.savedpc > ci_func(ci)->p->code)
+        //  ar->currentline = currentline(ci);
+        //else
         ar->currentline = (ci && isLua(ci) && !isJITed(ci)) ? currentline(ci) : -1;
         break;
       }

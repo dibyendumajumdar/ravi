@@ -1115,7 +1115,6 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_LClosure_upvalsT =
       mdbuilder.createTBAAStructTagNode(tbaa_LClosureT, tbaa_pointerT, 16);
 
-  //!19 = metadata !{metadata !20, metadata !3, i64 44}
   tbaa_Proto_kT =
       mdbuilder.createTBAAStructTagNode(tbaa_ProtoT, tbaa_pointerT, 44);
   tbaa_Proto_sizepT =
