@@ -1851,17 +1851,31 @@ void ravi_dump_stacktop(lua_State *L, const char *s) {
          top, ci_top);
 }
 
+/*
+** This function is called from JIT compiled code when JIT trace is
+** enabled; the function needs to update the savedpc and
+** call luaG_traceexec() if necessary
+*/
 void ravi_debug_trace(lua_State *L, int opCode, int pc) {
-  char buf[100];
-  CallInfo *ci = L->ci;
-  int funcpos = (int)(ci->func - L->stack);
-  int top = (int)(L->top - L->stack);
-  int ci_top = (int)(ci->top - L->stack);
-  int base = (int)(ci->u.l.base - L->stack);
-  raviP_instruction_to_str(buf, sizeof buf, clvalue(L->ci->func)->l.p->code[pc]);
-  printf("Stack dump %s (%s) function %d, pc=%d, L->top = %d, ci->top = %d\n",
-         luaP_opnames[opCode], buf, funcpos, pc, (top-base), (ci_top-base));
-  lua_assert(L->ci->u.l.base <= L->top && L->top < L->stack + L->stacksize);
+  RAVI_DEBUG_STACK(
+      char buf[100]; CallInfo *ci = L->ci;
+      int funcpos = (int)(ci->func - L->stack);
+      int top = (int)(L->top - L->stack);
+      int ci_top = (int)(ci->top - L->stack);
+      int base = (int)(ci->u.l.base - L->stack); raviP_instruction_to_str(
+          buf, sizeof buf, clvalue(L->ci->func)->l.p->code[pc]);
+      printf(
+          "Stack dump %s (%s) function %d, pc=%d, L->top = %d, ci->top = %d\n",
+          luaP_opnames[opCode], buf, funcpos, pc, (top - base),
+          (ci_top - base));
+      lua_assert(L->ci->u.l.base <= L->top &&
+                 L->top < L->stack + L->stacksize);)
+  LClosure *closure = clLvalue(L->ci->func);
+  L->ci->u.l.savedpc = &closure->p->code[pc + 1];
+  if ((L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT)) &&
+      (--L->hookcount == 0 || L->hookmask & LUA_MASKLINE)) {
+    luaG_traceexec(L);
+  }
 }
 
 void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra) {

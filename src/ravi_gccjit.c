@@ -250,3 +250,13 @@ int raviV_getgcstep(lua_State *L) {
   (void)L;
   return 0;
 }
+
+// Turn on/off the JIT compiler
+void raviV_settraceenabled(lua_State *L, int value) {
+  (void)L;
+  (void)value;
+}
+int raviV_gettraceenabled(lua_State *L) {
+  (void)L;
+  return 0;
+}

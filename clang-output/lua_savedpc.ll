@@ -65,23 +65,58 @@ entry:
   %l = getelementptr inbounds %struct.CallInfoLua, %struct.CallInfoLua* %14, i32 0, i32 4
   %savedpc = getelementptr inbounds %struct.CallInfoL, %struct.CallInfoL* %l, i32 0, i32 1
   store i32* %arrayidx, i32** %savedpc, align 4, !tbaa !20
-  %15 = bitcast %struct.Proto** %p to i8*
-  call void @llvm.lifetime.end(i64 4, i8* %15) #1
-  %16 = bitcast %struct.LClosure** %cl to i8*
-  call void @llvm.lifetime.end(i64 4, i8* %16) #1
-  %17 = bitcast %struct.CallInfoLua** %ci to i8*
-  call void @llvm.lifetime.end(i64 4, i8* %17) #1
+  %15 = load %struct.lua_State*, %struct.lua_State** %L.addr, align 4, !tbaa !1
+  %hookmask = getelementptr inbounds %struct.lua_State, %struct.lua_State* %15, i32 0, i32 22
+  %16 = load i8, i8* %hookmask, align 1, !tbaa !21
+  %conv = zext i8 %16 to i32
+  %and = and i32 %conv, 12
+  %tobool = icmp ne i32 %and, 0
+  br i1 %tobool, label %land.lhs.true, label %if.end
+
+land.lhs.true:                                    ; preds = %entry
+  %17 = load %struct.lua_State*, %struct.lua_State** %L.addr, align 4, !tbaa !1
+  %hookcount = getelementptr inbounds %struct.lua_State, %struct.lua_State* %17, i32 0, i32 19
+  %18 = load i32, i32* %hookcount, align 4, !tbaa !22
+  %dec = add nsw i32 %18, -1
+  store i32 %dec, i32* %hookcount, align 4, !tbaa !22
+  %cmp = icmp eq i32 %dec, 0
+  br i1 %cmp, label %if.then, label %lor.lhs.false
+
+lor.lhs.false:                                    ; preds = %land.lhs.true
+  %19 = load %struct.lua_State*, %struct.lua_State** %L.addr, align 4, !tbaa !1
+  %hookmask4 = getelementptr inbounds %struct.lua_State, %struct.lua_State* %19, i32 0, i32 22
+  %20 = load i8, i8* %hookmask4, align 1, !tbaa !21
+  %conv5 = zext i8 %20 to i32
+  %and6 = and i32 %conv5, 4
+  %tobool7 = icmp ne i32 %and6, 0
+  br i1 %tobool7, label %if.then, label %if.end
+
+if.then:                                          ; preds = %lor.lhs.false, %land.lhs.true
+  %21 = load %struct.lua_State*, %struct.lua_State** %L.addr, align 4, !tbaa !1
+  call void @luaG_traceexec(%struct.lua_State* %21)
+  br label %if.end
+
+if.end:                                           ; preds = %if.then, %lor.lhs.false, %entry
+  %22 = bitcast %struct.Proto** %p to i8*
+  call void @llvm.lifetime.end(i64 4, i8* %22) #1
+  %23 = bitcast %struct.LClosure** %cl to i8*
+  call void @llvm.lifetime.end(i64 4, i8* %23) #1
+  %24 = bitcast %struct.CallInfoLua** %ci to i8*
+  call void @llvm.lifetime.end(i64 4, i8* %24) #1
   ret void
 }
 
 ; Function Attrs: nounwind
 declare void @llvm.lifetime.start(i64, i8* nocapture) #1
 
+declare void @luaG_traceexec(%struct.lua_State*) #2
+
 ; Function Attrs: nounwind
 declare void @llvm.lifetime.end(i64, i8* nocapture) #1
 
 attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-realign-stack" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind }
+attributes #2 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-realign-stack" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.ident = !{!0}
 
@@ -106,3 +141,5 @@ attributes #1 = { nounwind }
 !18 = !{!"Proto", !2, i64 0, !3, i64 4, !3, i64 5, !3, i64 6, !3, i64 7, !3, i64 8, !6, i64 12, !6, i64 16, !6, i64 20, !6, i64 24, !6, i64 28, !6, i64 32, !6, i64 36, !6, i64 40, !2, i64 44, !2, i64 48, !2, i64 52, !2, i64 56, !2, i64 60, !2, i64 64, !2, i64 68, !2, i64 72, !2, i64 76, !19, i64 80}
 !19 = !{!"RaviJITProto", !3, i64 0, !2, i64 4, !2, i64 8}
 !20 = !{!13, !2, i64 20}
+!21 = !{!8, !3, i64 136}
+!22 = !{!8, !6, i64 128}

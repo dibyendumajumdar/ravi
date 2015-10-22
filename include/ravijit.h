@@ -86,6 +86,10 @@ int raviV_getminexeccount(struct lua_State *L);
 void raviV_setgcstep(struct lua_State *L, int stepsize);
 int raviV_getgcstep(struct lua_State *L);
 
+/* Enable or disable trace hook */
+void raviV_settraceenabled(struct lua_State *L, int enabled);
+int raviV_gettraceenabled(struct lua_State *L);
+
 /* Dumps the IR if available */
 void raviV_dumpIR(struct lua_State *L, struct Proto *p);
 

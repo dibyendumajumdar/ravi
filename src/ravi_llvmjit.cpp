@@ -44,7 +44,7 @@ RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
 RaviJITStateImpl::RaviJITStateImpl()
     : auto_(false), enabled_(true),
       opt_level_(2), size_level_(0), min_code_size_(150), min_exec_count_(50),
-      gc_step_(200) {
+      gc_step_(200), tracehook_enabled_(false) {
   // LLVM needs to be initialized else
   // ExecutionEngine cannot be created
   // This should ideally be an atomic check but because LLVM docs
@@ -579,3 +579,16 @@ int raviV_getgcstep(lua_State *L) {
   return G->ravi_state->jit->get_gcstep();
 }
 
+// Turn on/off the JIT compiler
+void raviV_settraceenabled(lua_State *L, int value) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return;
+  G->ravi_state->jit->set_tracehook_enabled(value != 0);
+}
+int raviV_gettraceenabled(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state)
+    return 0;
+  return G->ravi_state->jit->is_tracehook_enabled();
+}

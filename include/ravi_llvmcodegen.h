@@ -405,6 +405,10 @@ class RAVI_API RaviJITStateImpl : public RaviJITState {
   // gc step size; defaults to 200
   int gc_step_;
 
+  // enable calls to luaG_traceexec() at every bytecode
+  // instruction; this is expensive!
+  bool tracehook_enabled_;
+
 public:
   RaviJITStateImpl();
   virtual ~RaviJITStateImpl();
@@ -449,6 +453,8 @@ public:
   }
   int get_gcstep() const { return gc_step_; }
   void set_gcstep(int value) { gc_step_ = value > 0 ? value : gc_step_; }
+  bool is_tracehook_enabled() const { return tracehook_enabled_; }
+  void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
 };
 
 // To optimise fornum loops
