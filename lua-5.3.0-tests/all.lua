@@ -151,9 +151,9 @@ report"gc.lua"
 local f = assert(loadfile('gc.lua'))
 f()
 
-if not ravi or not ravi.auto() then
-  dofile('db.lua')
-end
+--if not ravi or not ravi.auto() then
+dofile('db.lua')
+--end
 assert(dofile('calls.lua') == deep and deep)
 olddofile('strings.lua')
 olddofile('literals.lua')

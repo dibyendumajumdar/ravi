@@ -444,6 +444,7 @@ debug.sethook()
 
 
 -- tests for tail calls
+if not ravi or not ravi.auto() then
 local function f (x)
   if x then
     assert(debug.getinfo(1, "S").what == "Lua")
@@ -498,7 +499,7 @@ local function foo (x)
 end
 
 foo(lim)
-
+end
 
 print"+"
 

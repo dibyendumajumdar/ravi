@@ -37,6 +37,9 @@
 /* Active Lua function (given call info) */
 #define ci_func(ci)		(clLvalue((ci)->func))
 
+/* TODO - remove this altogether */
+#undef isJITed
+#define isJITed(x) 0
 
 static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name);
 
@@ -472,10 +475,15 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
 static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
   TMS tm = (TMS)0;  /* to avoid warnings */
   Proto *p = ci_func(ci)->p;  /* calling function */
+  
+#if 0
+  /* TODO remove altogether */
   if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) {
     *name = "?";
     return "compiled";
   }
+#endif
+  
   int pc = currentpc(ci);  /* calling instruction index */
   Instruction i = p->code[pc];  /* calling instruction */
   if (ci->callstatus & CIST_HOOKED) {  /* was it called inside a hook? */
