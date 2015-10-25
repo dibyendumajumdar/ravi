@@ -142,7 +142,7 @@ void RaviCodeGenerator::emit_update_savedpc(RaviFunctionDef *def, int pc) {
   llvm::Value *proto_code_ptr = emit_gep(def, "code", def->proto_ptr, 0, 15);
   llvm::Instruction *code_ptr = def->builder->CreateLoad(proto_code_ptr);
   code_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Proto_codeT);
-  llvm::Value *code_offset_ptr = emit_array_get(def, code_ptr, pc);
+  llvm::Value *code_offset_ptr = emit_array_get(def, code_ptr, pc+1);
   llvm::Value *savedpc_ptr = emit_gep(def, "savedpc", def->ci_val, 0, 4, 1);
   llvm::Instruction *ins = def->builder->CreateStore(code_offset_ptr, savedpc_ptr);
   ins->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_CallInfo_savedpcT);
