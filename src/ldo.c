@@ -384,7 +384,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
          */
         if (++L->nCcalls >= LUAI_MAXCCALLS) {
           if (L->nCcalls == LUAI_MAXCCALLS)
-            luaG_runerror(L, "C stack overflow");
+            luaG_runerror(L, "stack overflow");
           else if (L->nCcalls >= (LUAI_MAXCCALLS + (LUAI_MAXCCALLS >> 3)))
             luaD_throw(L, LUA_ERRERR); /* error while handing stack error */
         }
