@@ -137,11 +137,24 @@ RaviCodeGenerator::emit_load_proto_sizep(RaviFunctionDef *def) {
   return psize;
 }
 
+// Updates the savedpc pointer in the call frame
+// The savedpc is unimportant for the JIT but it is relied upon
+// by the debug interface. So we need to set this in order for the
+// debug api to work. Rather than setting it on every bytecode instruction
+// we have a dual approach. By default the JIT code only sets this prior to
+// function calls - this enables better stack traces for example, and ad-hoc
+// calls to debug api. An optional setting in the JIT compiler also
+// enables this to be updated per bytecode instruction - this is only
+// required if someone wishes to set a line hook. The second option
+// is very expensive and will inhibit optimizations, hence it is optional
+// See issue #15 
 void RaviCodeGenerator::emit_update_savedpc(RaviFunctionDef *def, int pc) {
   // Get proto->code
   llvm::Value *proto_code_ptr = emit_gep(def, "code", def->proto_ptr, 0, 15);
   llvm::Instruction *code_ptr = def->builder->CreateLoad(proto_code_ptr);
   code_ptr->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Proto_codeT);
+  // Need to set savedpc to the next instruction rather than current as that is
+  // what the VM does in interpreted mode
   llvm::Value *code_offset_ptr = emit_array_get(def, code_ptr, pc+1);
   llvm::Value *savedpc_ptr = emit_gep(def, "savedpc", def->ci_val, 0, 4, 1);
   llvm::Instruction *ins = def->builder->CreateStore(code_offset_ptr, savedpc_ptr);

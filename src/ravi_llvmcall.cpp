@@ -87,7 +87,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C,
   //   if (b) L->top = ci->top;
   // }
   emit_debug_trace(def, OP_CALL, pc);
-  emit_update_savedpc(def, pc + 1);
+  emit_update_savedpc(def, pc);
   emit_load_base(def);
 
   // int nresults = c - 1;

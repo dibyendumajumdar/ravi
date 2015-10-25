@@ -1870,6 +1870,22 @@ void ravi_debug_trace(lua_State *L, int opCode, int pc) {
           (ci_top - base));
       lua_assert(L->ci->u.l.base <= L->top &&
                  L->top < L->stack + L->stacksize);)
+
+  // Updates the savedpc pointer in the call frame
+  // The savedpc is unimportant for the JIT but it is relied upon
+  // by the debug interface. So we need to set this in order for the
+  // debug api to work. Rather than setting it on every bytecode instruction
+  // we have a dual approach. By default the JIT code only sets this prior to
+  // function calls - this enables better stack traces for example, and ad-hoc
+  // calls to debug api.
+  // See void RaviCodeGenerator::emit_update_savedpc(RaviFunctionDef * def,
+  // int pc) which is used for this purpose.
+  // An optional setting in the JIT compiler also
+  // enables this to be updated per bytecode instruction - this is only
+  // required if someone wishes to set a line hook. The second option
+  // is very expensive and will inhibit optimizations, hence it is optional.
+  // This is the setting that is done below - and then the hook is invoked
+  // See issue #15
   LClosure *closure = clLvalue(L->ci->func);
   L->ci->u.l.savedpc = &closure->p->code[pc + 1];
   if ((L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT)) &&
