@@ -37,15 +37,11 @@
 /* Active Lua function (given call info) */
 #define ci_func(ci)		(clLvalue((ci)->func))
 
-/* TODO - remove this altogether */
-#undef isJITed
-#define isJITed(x) 0
-
 static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name);
 
 
 static int currentpc (CallInfo *ci) {
-  lua_assert(isLua(ci) && !isJITed(ci));
+  lua_assert(isLua(ci));
   return pcRel(ci->u.l.savedpc, ci_func(ci)->p);
 }
 
@@ -79,7 +75,7 @@ LUA_API void lua_sethook (lua_State *L, lua_Hook func, int mask, int count) {
     mask = 0;
     func = NULL;
   }
-  if (isLua(L->ci) && !isJITed(L->ci))
+  if (isLua(L->ci))
     L->oldpc = L->ci->u.l.savedpc;
   L->hook = func;
   L->basehookcount = count;
@@ -139,15 +135,16 @@ static const char *findvararg (CallInfo *ci, int n, StkId *pos) {
 
 
 static const char *findlocal (lua_State *L, CallInfo *ci, int n,
-                              StkId *pos) {
+                              StkId *pos, ravitype_t *type) {
   const char *name = NULL;
   StkId base;
-  if (isLua(ci) && !isJITed(ci)) {
+  *type = RAVI_TANY;
+  if (isLua(ci)) {
     if (n < 0)  /* access to vararg values? */
       return findvararg(ci, -n, pos);
     else {
       base = ci->u.l.base;
-      name = luaF_getlocalname(ci_func(ci)->p, n, currentpc(ci));
+      name = luaF_getlocalname(ci_func(ci)->p, n, currentpc(ci), type);
     }
   }
   else
@@ -166,17 +163,18 @@ static const char *findlocal (lua_State *L, CallInfo *ci, int n,
 
 LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
   const char *name;
+  ravitype_t type;
   lua_lock(L);
   swapextra(L);
   if (ar == NULL) {  /* information about non-active function? */
     if (!isLfunction(L->top - 1))  /* not a Lua function? */
       name = NULL;
     else  /* consider live variables at function start (parameters) */
-      name = luaF_getlocalname(clLvalue(L->top - 1)->p, n, 0);
+      name = luaF_getlocalname(clLvalue(L->top - 1)->p, n, 0, &type);
   }
   else {  /* active function; get information through 'ar' */
     StkId pos = NULL;  /* to avoid warnings */
-    name = findlocal(L, ar->i_ci, n, &pos);
+    name = findlocal(L, ar->i_ci, n, &pos, &type);
     if (name) {
       setobj2s(L, L->top, pos);
       api_incr_top(L);
@@ -187,16 +185,33 @@ LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
   return name;
 }
 
-
 LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
   StkId pos = NULL;  /* to avoid warnings */
   const char *name;
+  ravitype_t type;
+  int compatible = 1;
   lua_lock(L);
   swapextra(L);
-  name = findlocal(L, ar->i_ci, n, &pos);
+  name = findlocal(L, ar->i_ci, n, &pos, &type);
   if (name) {
-    setobjs2s(L, pos, L->top - 1);
-    L->top--;  /* pop value */
+    /* RAVI extension
+    ** We need to ensure that this function does
+    ** not subvert the types of local variables
+    */
+    if (type != RAVI_TANY) {
+      StkId input = L->top - 1;
+      compatible = (type == RAVI_TNUMFLT && ttisfloat(input))
+        || (type == RAVI_TNUMINT && ttisinteger(input))
+        || (type == RAVI_TARRAYFLT && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TARRAYFLT)
+        || (type == RAVI_TARRAYINT && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TARRAYINT)
+        ;
+    }
+    if (compatible) {
+      setobjs2s(L, pos, L->top - 1);
+      L->top--;  /* pop value */
+    }
+    else
+      name = NULL;
   }
   swapextra(L);
   lua_unlock(L);
@@ -251,11 +266,7 @@ static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
         break;
       }
       case 'l': {
-        //TODO - savedpc fixes
-        //if (ci && isLua(ci) && ci->u.l.savedpc > ci_func(ci)->p->code)
-        //  ar->currentline = currentline(ci);
-        //else
-        ar->currentline = (ci && isLua(ci) && !isJITed(ci)) ? currentline(ci) : -1;
+        ar->currentline = (ci && isLua(ci)) ? currentline(ci) : -1;
         break;
       }
       case 'u': {
@@ -421,7 +432,8 @@ static int findsetreg (Proto *p, int lastpc, int reg) {
 static const char *getobjname (Proto *p, int lastpc, int reg,
                                const char **name) {
   int pc;
-  *name = luaF_getlocalname(p, reg + 1, lastpc);
+  ravitype_t type;
+  *name = luaF_getlocalname(p, reg + 1, lastpc, &type);
   if (*name)  /* is a local? */
     return "local";
   /* else try symbolic execution */
@@ -447,7 +459,7 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
         int k = GETARG_C(i);  /* key index */
         int t = GETARG_B(i);  /* table index */
         const char *vn = (op != OP_GETTABUP)  /* name of indexed variable */
-                         ? luaF_getlocalname(p, t + 1, pc)  /* t+1 is the local variable number */
+                         ? luaF_getlocalname(p, t + 1, pc, &type)  /* t+1 is the local variable number */
                          : upvalname(p, t);
         kname(p, pc, k, name);
         return (vn && strcmp(vn, LUA_ENV) == 0) ? "global" : "field";
@@ -480,16 +492,7 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
 
 static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
   TMS tm = (TMS)0;  /* to avoid warnings */
-  Proto *p = ci_func(ci)->p;  /* calling function */
-  
-#if 0
-  /* TODO remove altogether */
-  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) {
-    *name = "?";
-    return "compiled";
-  }
-#endif
-  
+  Proto *p = ci_func(ci)->p;  /* calling function */  
   int pc = currentpc(ci);  /* calling instruction index */
   Instruction i = p->code[pc];  /* calling instruction */
   if (ci->callstatus & CIST_HOOKED) {  /* was it called inside a hook? */
@@ -569,7 +572,7 @@ static const char *varinfo (lua_State *L, const TValue *o) {
   const char *name = NULL;  /* to avoid warnings */
   CallInfo *ci = L->ci;
   const char *kind = NULL;
-  if (isLua(ci) && !isJITed(ci)) {
+  if (isLua(ci)) {
     kind = getupvalname(ci, o, &name);  /* check whether 'o' is an upvalue */
     if (!kind && isinstack(ci, o))  /* no? try a register */
       kind = getobjname(ci_func(ci)->p, currentpc(ci),
@@ -653,7 +656,7 @@ l_noret luaG_runerror (lua_State *L, const char *fmt, ...) {
   va_start(argp, fmt);
   msg = luaO_pushvfstring(L, fmt, argp);  /* format message */
   va_end(argp);
-  if (isLua(ci) && !isJITed(ci))  /* if Lua function, add source:line information */
+  if (isLua(ci))  /* if Lua function, add source:line information */
     luaG_addinfo(L, msg, ci_func(ci)->p->source, currentline(ci));
   luaG_errormsg(L);
 }
