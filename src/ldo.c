@@ -378,6 +378,13 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
         /* compiled */
         lua_assert(p->ravi_jit.jit_function != NULL);
         ci->jitstatus = 1;
+        /* Since the JITed function does not update savedpc
+         * other than for calls by default - the stack trace error
+         * message below will be unable to find the line info
+         * as savedpc is not set correctly - so we set this here
+         * prior to the call
+         */
+        ci->u.l.savedpc++;
         /* As JITed function is like a C function
          * employ the same restrictions on recursive
          * calls as for C functions

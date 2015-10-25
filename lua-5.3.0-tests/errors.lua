@@ -359,10 +359,7 @@ if not _soft then
   end
   local i=1
   while stack[i] ~= l1 do
-    -- RAVI bug
-    if not ravi or ravi.auto() and i > 1 then
     assert(stack[i] == l)
-    end
     i = i+1
   end
   assert(i > 15)
