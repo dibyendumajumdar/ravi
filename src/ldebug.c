@@ -198,7 +198,7 @@ LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
     ** We need to ensure that this function does
     ** not subvert the types of local variables
     */
-    if (type != RAVI_TANY) {
+    if (type == RAVI_TNUMFLT || type == RAVI_TNUMINT || type == RAVI_TARRAYFLT || type == RAVI_TARRAYINT) {
       StkId input = L->top - 1;
       compatible = (type == RAVI_TNUMFLT && ttisfloat(input))
         || (type == RAVI_TNUMINT && ttisinteger(input))
