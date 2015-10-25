@@ -430,18 +430,24 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
     Instruction i = p->code[pc];
     OpCode op = GET_OPCODE(i);
     switch (op) {
+      case OP_RAVI_MOVEI:
+      case OP_RAVI_MOVEF:
+      case OP_RAVI_MOVEAF:
+      case OP_RAVI_MOVEAI:
       case OP_MOVE: {
         int b = GETARG_B(i);  /* move from 'b' to 'a' */
         if (b < GETARG_A(i))
           return getobjname(p, pc, b, name);  /* get name for 'b' */
         break;
       }
+      case OP_RAVI_GETTABLE_AI:
+      case OP_RAVI_GETTABLE_AF:
       case OP_GETTABUP:
       case OP_GETTABLE: {
         int k = GETARG_C(i);  /* key index */
         int t = GETARG_B(i);  /* table index */
-        const char *vn = (op == OP_GETTABLE)  /* name of indexed variable */
-                         ? luaF_getlocalname(p, t + 1, pc)
+        const char *vn = (op != OP_GETTABUP)  /* name of indexed variable */
+                         ? luaF_getlocalname(p, t + 1, pc)  /* t+1 is the local variable number */
                          : upvalname(p, t);
         kname(p, pc, k, name);
         return (vn && strcmp(vn, LUA_ENV) == 0) ? "global" : "field";
