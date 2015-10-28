@@ -306,9 +306,13 @@ void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
     lua_Integer y = def->p->k[INDEXK(C)].value_.i;
     emit_bitwise_shiftl(def, ra, B, -y);
   } else {
+    // RHS is not a constant
     llvm::Value *rc = emit_gep_register_or_constant(def, C);
     llvm::Value *rb = emit_gep_register_or_constant(def, B);
 
+    // Since the Lua OP_SHL and OP_SHR bytecodes
+    // could invoke metamethods we need to set
+    // 'savedpc'
     switch (op) {
     case OP_SHL:
       emit_update_savedpc(def, pc);
@@ -327,6 +331,7 @@ void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
   }
 }
 
+//	R(A) := ~R(B); known integer operand
 void RaviCodeGenerator::emit_BNOT_I(RaviFunctionDef *def, int A, int B,
                                     int pc) {
   emit_debug_trace(def, OP_RAVI_BNOT_I, pc);
