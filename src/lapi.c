@@ -1426,7 +1426,8 @@ LUA_API void *lua_newuserdata (lua_State *L, size_t size) {
 
 
 static const char *aux_upvalue (StkId fi, int n, TValue **val,
-                                CClosure **owner, UpVal **uv) {
+                                CClosure **owner, UpVal **uv, ravitype_t *type) {
+  *type = RAVI_TANY;
   switch (ttype(fi)) {
     case LUA_TCCL: {  /* C closure */
       CClosure *f = clCvalue(fi);
@@ -1443,6 +1444,7 @@ static const char *aux_upvalue (StkId fi, int n, TValue **val,
       *val = f->upvals[n-1]->v;
       if (uv) *uv = f->upvals[n - 1];
       name = p->upvalues[n-1].name;
+      *type = p->upvalues[n - 1].type;
       return (name == NULL) ? "(*no name)" : getstr(name);
     }
     default: return NULL;  /* not a closure */
@@ -1452,9 +1454,10 @@ static const char *aux_upvalue (StkId fi, int n, TValue **val,
 
 LUA_API const char *lua_getupvalue (lua_State *L, int funcindex, int n) {
   const char *name;
+  ravitype_t type;
   TValue *val = NULL;  /* to avoid warnings */
   lua_lock(L);
-  name = aux_upvalue(index2addr(L, funcindex), n, &val, NULL, NULL);
+  name = aux_upvalue(index2addr(L, funcindex), n, &val, NULL, NULL, &type);
   if (name) {
     setobj2s(L, L->top, val);
     api_incr_top(L);
@@ -1470,10 +1473,27 @@ LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
   CClosure *owner = NULL;
   UpVal *uv = NULL;
   StkId fi;
+  ravitype_t type; /* RAVI upvalue type will be obtained if possible */
   lua_lock(L);
   fi = index2addr(L, funcindex);
   api_checknelems(L, 1);
-  name = aux_upvalue(fi, n, &val, &owner, &uv);
+  name = aux_upvalue(fi, n, &val, &owner, &uv, &type);
+  if (name) {
+    /* RAVI extension
+    ** We need to ensure that this function does
+    ** not subvert the types of local variables
+    */
+    if (type == RAVI_TNUMFLT || type == RAVI_TNUMINT || type == RAVI_TARRAYFLT || type == RAVI_TARRAYINT) {
+      StkId input = L->top - 1;
+      int compatible = (type == RAVI_TNUMFLT && ttisfloat(input))
+        || (type == RAVI_TNUMINT && ttisinteger(input))
+        || (type == RAVI_TARRAYFLT && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TARRAYFLT)
+        || (type == RAVI_TARRAYINT && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TARRAYINT)
+        ;
+      if (!compatible)
+        name = NULL;
+    }
+  }
   if (name) {
     L->top--;
     setobj(L, val, L->top);

@@ -745,7 +745,6 @@ assert(next(t) == nil)    -- active lines are empty
 
 -- dump/load a function without debug info
 f = load(string.dump(f))
-
 t = debug.getinfo(f)
 assert(t.name == nil and t.linedefined > 0 and
        t.lastlinedefined == t.linedefined and
