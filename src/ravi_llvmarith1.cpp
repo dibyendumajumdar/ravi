@@ -293,7 +293,7 @@ void RaviCodeGenerator::emit_bitwise_shiftl(RaviFunctionDef *def,
 
 void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
                                               int A, int B, int C, int pc) {
-  emit_debug_trace(def, op, pc);
+  bool traced = emit_debug_trace(def, op, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
 
@@ -315,12 +315,12 @@ void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
     // 'savedpc'
     switch (op) {
     case OP_SHL:
-      emit_update_savedpc(def, pc);
+      if (!traced) emit_update_savedpc(def, pc);
     case OP_RAVI_SHL_II:
       CreateCall4(def->builder, def->raviV_op_shlF, def->L, ra, rb, rc);
       break;
     case OP_SHR:
-      emit_update_savedpc(def, pc);
+      if (!traced) emit_update_savedpc(def, pc);
     case OP_RAVI_SHR_II:
       CreateCall4(def->builder, def->raviV_op_shrF, def->L, ra, rb, rc);
       break;

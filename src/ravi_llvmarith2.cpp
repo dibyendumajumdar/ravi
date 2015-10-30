@@ -46,7 +46,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
   llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
-  emit_debug_trace(def, op, pc);
+  bool traced = emit_debug_trace(def, op, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -213,7 +213,8 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
-  emit_update_savedpc(def, pc);
+  // Before invoking metamethod set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
   CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
               def->types->kInt[tms]);
   def->builder->CreateBr(done_block);
@@ -244,7 +245,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C,
   llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
-  emit_debug_trace(def, OP_MOD, pc);
+  bool traced = emit_debug_trace(def, OP_MOD, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -409,7 +410,8 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
-  emit_update_savedpc(def, pc);
+  // before invoking metamethod set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
   CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
               def->types->kInt[TM_MOD]);
   def->builder->CreateBr(done_block);
@@ -438,7 +440,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C,
   llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
-  emit_debug_trace(def, OP_IDIV, pc);
+  bool traced = emit_debug_trace(def, OP_IDIV, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -573,7 +575,8 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
-  emit_update_savedpc(def, pc);
+  // before invoking metamethod set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
   CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
               def->types->kInt[TM_IDIV]);
   def->builder->CreateBr(done_block);
@@ -598,7 +601,7 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C,
   llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
   llvm::Value *nc = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nc");
 
-  emit_debug_trace(def, OP_POW, pc);
+  bool traced = emit_debug_trace(def, OP_POW, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -704,7 +707,8 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C,
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
-  emit_update_savedpc(def, pc);
+  // Before invoking metamethod set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
   CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rc, ra,
               def->types->kInt[TM_POW]);
   def->builder->CreateBr(done_block);
@@ -731,7 +735,7 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, int A, int B, int pc) {
   llvm::IRBuilder<> TmpB(def->entry, def->entry->begin());
   llvm::Value *nb = TmpB.CreateAlloca(def->types->lua_NumberT, nullptr, "nb");
 
-  emit_debug_trace(def, OP_UNM, pc);
+  bool traced = emit_debug_trace(def, OP_UNM, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -817,7 +821,8 @@ void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, int A, int B, int pc) {
   def->f->getBasicBlockList().push_back(try_meta);
   def->builder->SetInsertPoint(try_meta);
 
-  emit_update_savedpc(def, pc);
+  // before invoking metamethod set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
   CreateCall5(def->builder, def->luaT_trybinTMF, def->L, rb, rb, ra,
               def->types->kInt[TM_UNM]);
   def->builder->CreateBr(done_block);

@@ -86,8 +86,9 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C,
   //   int b = luaV_execute(L);
   //   if (b) L->top = ci->top;
   // }
-  emit_debug_trace(def, OP_CALL, pc);
-  emit_update_savedpc(def, pc);
+  bool traced = emit_debug_trace(def, OP_CALL, pc);
+  // Set savedpc before the call
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
 
   // int nresults = c - 1;

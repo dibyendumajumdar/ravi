@@ -40,7 +40,7 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
   //    )
   //  } break;
 
-  emit_debug_trace(def, opCode, pc);
+  bool traced = emit_debug_trace(def, opCode, pc);
 
   // Load pointer to base
   emit_load_base(def);
@@ -102,7 +102,8 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
   } break;
 
   default:
-    emit_update_savedpc(def, pc);
+    // As below may invoke metamethod we need to set savedpc
+    if (!traced) emit_update_savedpc(def, pc);
     // Call luaV_equalobj with register B and C
     result = CreateCall3(def->builder, callee, def->L, regB, regC);
   }

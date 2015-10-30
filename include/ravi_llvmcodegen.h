@@ -813,7 +813,7 @@ public:
 
   void emit_dump_stack(RaviFunctionDef *def, const char *str);
   void emit_dump_stacktop(RaviFunctionDef *def, const char *str);
-  void emit_debug_trace(RaviFunctionDef *def, int opCode, int pc);
+  bool emit_debug_trace(RaviFunctionDef *def, int opCode, int pc);
 
   // Look for Lua bytecodes that are jump targets and allocate
   // a BasicBlock for each such target in def->jump_targets.

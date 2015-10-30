@@ -48,8 +48,9 @@ void RaviCodeGenerator::emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C,
   //    }
   //  } break;
 
-  emit_debug_trace(def, OP_TFORCALL, pc);
-  emit_update_savedpc(def, pc);
+  bool traced = emit_debug_trace(def, OP_TFORCALL, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced)emit_update_savedpc(def, pc);
   // Load pointer to base
   emit_load_base(def);
 

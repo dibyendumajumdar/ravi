@@ -30,8 +30,9 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, int A, int B, int C,
   // StkId rb = RB(i);
   // setobjs2s(L, ra + 1, rb);
   // Protect(luaV_gettable(L, rb, RKC(i), ra));
-  emit_debug_trace(def, OP_SELF, pc);
-  emit_update_savedpc(def, pc);
+  bool traced = emit_debug_trace(def, OP_SELF, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register(def, B);
   llvm::Value *ra1 = emit_gep_register(def, A + 1);
@@ -44,8 +45,9 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, int A, int B, int C,
 // R(A) := length of R(B)
 void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B, int pc) {
   // Protect(luaV_objlen(L, ra, RB(i)));
-  emit_debug_trace(def, OP_LEN, pc);
-  emit_update_savedpc(def, pc);
+  bool traced = emit_debug_trace(def, OP_LEN, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -56,8 +58,9 @@ void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B, int pc) {
 void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C,
                                       int pc) {
   // Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
-  emit_debug_trace(def, OP_SETTABLE, pc);
-  emit_update_savedpc(def, pc);
+  bool traced = emit_debug_trace(def, OP_SETTABLE, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -69,8 +72,9 @@ void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C,
 void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
                                       int pc) {
   // Protect(luaV_gettable(L, RB(i), RKC(i), ra));
-  emit_debug_trace(def, OP_GETTABLE, pc);
-  emit_update_savedpc(def, pc);
+  bool traced = emit_debug_trace(def, OP_GETTABLE, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -392,8 +396,9 @@ void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C,
                                       int pc) {
   // int b = GETARG_B(i);
   // Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
-  emit_debug_trace(def, OP_GETTABUP, pc);
-  emit_update_savedpc(def, pc);
+  bool traced = emit_debug_trace(def, OP_GETTABUP, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
@@ -411,8 +416,8 @@ void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C,
   // int a = GETARG_A(i);
   // Protect(luaV_settable(L, cl->upvals[a]->v, RKB(i), RKC(i)));
 
-  emit_debug_trace(def, OP_SETTABUP, pc);
-  emit_update_savedpc(def, pc);
+  bool traced = emit_debug_trace(def, OP_SETTABUP, pc);
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
