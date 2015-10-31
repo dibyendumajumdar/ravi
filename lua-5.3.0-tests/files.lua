@@ -420,7 +420,7 @@ testloadfile("\xEF\xBB\xBF", nil)   -- empty file with a BOM
 
 
 -- checking line numbers in files with initial comments
-if not ravi or not ravi.auto() then
+if not ravi or not ravi.auto() or ravi.tracehook() then
   testloadfile("# a comment\nreturn require'debug'.getinfo(1).currentline", 2)
 end
 

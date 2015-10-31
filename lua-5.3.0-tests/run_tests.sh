@@ -12,6 +12,13 @@ then
   exit 1
 fi
 
+$LUA -e"_port=true; ravi.auto(true,1)" all.lua
+if [ $? != 0 ] 
+then
+  echo "all.lua compiled failed"
+  exit 1
+fi
+
 $LUA -e"_port=true; ravi.tracehook(true); ravi.auto(true,1)" all.lua
 if [ $? != 0 ] 
 then

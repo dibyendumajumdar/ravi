@@ -33,11 +33,11 @@ local function lexstring (x, y, n)
   local f = assert(load('return ' .. x ..
             ', require"debug".getinfo(1).currentline', ''))
   local s, l = f()
-  if not ravi or not ravi.auto() then
+  --if not ravi or not ravi.auto() then
     assert(s == y and l == n)
-  else
-    assert(s == y)
-  end
+  --else
+  --  assert(s == y)
+  --end
 end
 
 lexstring("'abc\\z  \n   efg'", "abcefg", 2)
@@ -205,7 +205,7 @@ b = nil
 
 
 -- testing line ends
-if not ravi or not ravi.auto() then
+--if not ravi or not ravi.auto() then
 prog = [[
 a = 1        -- a comment
 b = 2
@@ -225,7 +225,7 @@ for _, n in pairs{"\n", "\r", "\n\r", "\r\n"} do
   assert(dostring(prog) == nn)
   assert(_G.x == "hi\n" and _G.y == "\nhello\r\n\n")
 end
-end
+--end
 
 -- testing comments and strings with long brackets
 a = [==[]=]==]

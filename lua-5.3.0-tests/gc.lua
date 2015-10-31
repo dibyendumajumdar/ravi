@@ -455,7 +455,7 @@ if not _soft then
   collectgarbage()
 end
 
-if not ravi or not ravi.auto() then
+-- if not ravi or not ravi.auto() then
 -- create many threads with self-references and open upvalues
 print("self-referenced threads")
 local thread_id = 0
@@ -571,9 +571,10 @@ if T then
   T.checkmemory()
   collectgarbage("restart")
 end
-else 
-  collectgarbage("restart")
-end
+-- Ravi
+-- else 
+--  collectgarbage("restart")
+-- end
 
 if T then
   print("emergency collections")
