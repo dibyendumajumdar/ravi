@@ -1,7 +1,7 @@
 #!../lua
 -- $Id: all.lua,v 1.93 2015/05/15 12:28:08 roberto Exp $
 
-local version = "Lua 5.3"
+local version = "Ravi 5.3"
 if _VERSION ~= version then
   io.stderr:write("\nThis test suite is for ", version, ", not for ", _VERSION,
     "\nExiting tests\n")

@@ -188,12 +188,12 @@ static void LoadDebug (LoadState *S, Proto *f) {
     f->locvars[i].varname = LoadString(S);
     f->locvars[i].startpc = LoadInt(S);
     f->locvars[i].endpc = LoadInt(S);
-    f->locvars[i].ravi_type = RAVI_TANY; /* FIXME */
+    f->locvars[i].ravi_type = (ravitype_t) LoadByte(S);
   }
   n = LoadInt(S);
   for (i = 0; i < n; i++) {
     f->upvalues[i].name = LoadString(S);
-    f->upvalues[i].type = RAVI_TANY; /* FIXME */
+    f->upvalues[i].type = (ravitype_t) LoadByte(S);
   }
 }
 

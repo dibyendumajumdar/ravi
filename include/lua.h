@@ -21,14 +21,14 @@
 #define LUA_VERSION_NUM		503
 #define LUA_VERSION_RELEASE	"1"
 
-#define LUA_VERSION	"Lua " LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
+#define LUA_VERSION	"Ravi " LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
 #define LUA_RELEASE	LUA_VERSION "." LUA_VERSION_RELEASE
-#define LUA_COPYRIGHT	LUA_RELEASE "  Copyright (C) 1994-2015 Lua.org, PUC-Rio"
-#define LUA_AUTHORS	"R. Ierusalimschy, L. H. de Figueiredo, W. Celes"
+#define LUA_COPYRIGHT	LUA_RELEASE "\nCopyright (C) 1994-2015 Lua.org, PUC-Rio\nPortions Copyright (C) 2015 Dibyendu Majumdar"
+#define LUA_AUTHORS	"R. Ierusalimschy, L. H. de Figueiredo, W. Celes, Dibyendu Majumdar"
 
 
 /* mark for precompiled code ('<esc>Lua') */
-#define LUA_SIGNATURE	"\x1bLua"
+#define LUA_SIGNATURE	"\x1bRavi"
 
 /* option for multiple returns in 'lua_pcall' and 'lua_call' */
 #define LUA_MULTRET	(-1)
