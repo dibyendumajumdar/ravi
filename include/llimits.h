@@ -72,7 +72,7 @@ typedef union { double u; void *s; lua_Integer i; long l; } L_Umaxalign;
 typedef LUAI_UACNUMBER l_uacNumber;
 typedef LUAI_UACINT l_uacInt;
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && !defined(lua_assert)
 #include <assert.h>
 #define lua_assert assert
 #endif

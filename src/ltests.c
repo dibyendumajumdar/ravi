@@ -546,10 +546,11 @@ static int listlocals (lua_State *L) {
   int pc = cast_int(luaL_checkinteger(L, 2)) - 1;
   int i = 0;
   const char *name;
+  ravitype_t tt;
   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
                  1, "Lua function expected");
   p = getproto(obj_at(L, 1));
-  while ((name = luaF_getlocalname(p, ++i, pc)) != NULL)
+  while ((name = luaF_getlocalname(p, ++i, pc, &tt)) != NULL)
     lua_pushstring(L, name);
   return i-1;
 }
