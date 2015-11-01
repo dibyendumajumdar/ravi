@@ -197,12 +197,11 @@ A JIT api is available with following functions:
 
 Compatibility with Lua
 ----------------------
-Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT compilation is enabled some things will not work:
+Ravi should be able to run all Lua 5.3 programs in interpreted mode, but there are some differences: 
 
-* You cannot yield from a compiled function as compiled code does not support coroutines (issue 14); as a workaround Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
-* Ravi supports optional typing and enhanced types such as arrays (described above). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions - there are some restrictions on arrays as described above. Values crossing from Lua to Ravi will be subjected to typechecks.
-* In JITed code tailcalls are implemented as regular calls so unlike Lua VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue 17)
-* Upvalues cannot subvert the static typing of local variables since release 0.4 but more testing is needed (issue 26)
+* Ravi supports optional typing and enhanced types such as arrays (described above). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions; operations on Ravi arrays within Lua code will be subject to restrictions as described in the section above on arrays. 
+* Values crossing from Lua to Ravi will be subjected to typechecks should these values be assigned to typed variables.
+* Upvalues cannot subvert the static typing of local variables (issue #26)
 * Certain Lua limits are reduced due to changed byte code structure. These are described below.
 
 +-----------------+-------------+-------------+
@@ -216,6 +215,11 @@ Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT co
 +-----------------+-------------+-------------+
 | MAXVARS         | 200         | 125         |
 +-----------------+-------------+-------------+
+
+When JIT compilation is enabled some things will not work:
+
+* You cannot yield from a compiled function as compiled code does not support coroutines (issue 14); as a workaround Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
+* In JITed code tailcalls are implemented as regular calls so unlike Lua VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue #17)
 
 Build Dependencies - LLVM version
 ---------------------------------
