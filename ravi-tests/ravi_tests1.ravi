@@ -722,3 +722,16 @@ assert(not pcall(f))
 print("test 40 OK")
 
 
+-- test 41
+local t = {}
+t.__idiv = function(...) return 'idiv' end
+local t1=setmetatable({1,2,3}, t)
+local t2=setmetatable({4,5,6}, t)
+local x= function() return t1//t2 end
+local s1=x()
+assert(s1 == 'idiv')
+assert(ravi.compile(t.__idiv))
+assert(ravi.compile(x))
+local s2=x()
+assert(s1 == s2)
+print'test 41 OK'
