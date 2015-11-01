@@ -192,7 +192,7 @@ A JIT api is available with following functions:
   sets LLVM size level (0, 1, 2); defaults to 0
 ``ravi.tracehook([b])``
   Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT
-  a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when 
+  as a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when 
   you want to use the debug api to step through code line by line
 
 Compatibility with Lua
