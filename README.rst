@@ -30,11 +30,11 @@ The project was kicked off in January 2015.
 
 JIT Implementation
 ++++++++++++++++++
-The LLVM JIT compiler is mostly functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
+The LLVM JIT compiler functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
 Ravi also provides an `LLVM binding <http://the-ravi-programming-language.readthedocs.org/en/latest/llvm-bindings.html>`_; this is still work in progress so please check documentation for the latest status.
 
-As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is also functional but some byte codes are not yet compiled. 
+As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is also functional but some byte codes are not yet compiled, and featurewise this implementation is somewhat behind the LLVM based implementation. 
 
 Performance Benchmarks
 ++++++++++++++++++++++
@@ -82,9 +82,7 @@ The array types are specializations of Lua table with some additional special be
 * ``pairs()`` and ``ipairs()`` work on arrays as normal
 * There is no way to delete an array element.
 
-Array Slices
-++++++++++++
-Since release 0.6 Ravi supports array slices. An array slice allows a portion of a Ravi array to be treated as if it is an array - this allows efficient access to the underlying array elements. Following new functions are available:
+Following library functions allow creation of array types of defined length.
 
 ``table.intarray(num_elements, initial_value)``
   creates an integer array of specified size, and initializes with initial value. The return type is integer[]
@@ -92,13 +90,22 @@ Since release 0.6 Ravi supports array slices. An array slice allows a portion of
 ``table.numarray(num_elements, initial_value)``
   creates an number array of specified size, and initializes with initial value. The return type is number[]
 
+Array Slices
+++++++++++++
+Since release 0.6 Ravi supports array slices. An array slice allows a portion of a Ravi array to be treated as if it is an array - this allows efficient access to the underlying array elements. Following new functions are available:
+
 ``table.slice(array, start_index, num_elements)``
   creates a slice from an existing array - allowing efficient access to the underlying array elements.
 
-The functions are currently part of the table module but this may change in future.
-For an example use of these functions please see the `matmul1.ravi <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/matmul1.ravi>`_ benchmark program in the repository. Note that this feature is highly experimental and not very well tested.
+Slices access the memory of the underlying array; hence as soon as a slice is created, the underlying array becomes fixed in size. This ensures that the array memory cannot be reallocated while a slice is referring to it. Note that once the array becomes fixed size it cannot go back to being dynamic as Ravi does not track the slices that refer to arrays. 
 
-Array slices do not support automatic extension - i.e. the size of the slice cannot be changed once it is created.
+Slices cannot extend the array size for the same reasons above.
+
+The type of a slice is the same as that of the underlying array - hence slices get the same optimized JIT operations for array access.
+
+Finally each slice holds an internal reference to the underlying array to ensure that the garbage collector does not reclaim the array while there are slices pointing to it.
+
+For an example use of slices please see the `matmul1.ravi <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/matmul1.ravi>`_ benchmark program in the repository. Note that this feature is highly experimental and not very well tested.
   
 Examples
 ++++++++
@@ -183,19 +190,19 @@ A JIT api is available with following functions:
   sets LLVM optimization level (0, 1, 2, 3); defaults to 2
 ``ravi.sizelevel([n])``
   sets LLVM size level (0, 1, 2); defaults to 0
+``ravi.tracehook([b])``
+  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT
+  a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when 
+  you want to use the debug api to step through code line by line
 
 Compatibility with Lua
 ----------------------
 Ravi should be able to run all Lua 5.3 programs in interpreted mode. When JIT compilation is enabled some things will not work:
 
 * You cannot yield from a compiled function as compiled code does not support coroutines (issue 14); as a workaround Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
-* The debugger will not provide certain information when JIT compilation is turned on as information it requires is not available; the debugger also does not support Ravi's extended opcodes (issue 15)
-* Functions using bit-wise operations may not be JIT compiled always (issue 27)
 * Ravi supports optional typing and enhanced types such as arrays (described above). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions - there are some restrictions on arrays as described above. Values crossing from Lua to Ravi will be subjected to typechecks.
 * In JITed code tailcalls are implemented as regular calls so unlike Lua VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue 17)
-* ``pairs()`` and ``ipairs()`` work on Ravi arrays since release 0.4 but more testing needed (issues 24 and 25)
 * Upvalues cannot subvert the static typing of local variables since release 0.4 but more testing is needed (issue 26)
-* Lua C API may not work correctly for Ravi arrays, although some initial work has been done in this area (issue 9)
 * Certain Lua limits are reduced due to changed byte code structure. These are described below.
 
 +-----------------+-------------+-------------+
@@ -214,7 +221,7 @@ Build Dependencies - LLVM version
 ---------------------------------
 
 * CMake
-* LLVM 3.6 or 3.7
+* LLVM 3.7 
 
 The build is CMake based.
 
@@ -307,14 +314,6 @@ From a performance point of view the only types that seem worth specializing are
 * number (double)
 * array of integers
 * array of numbers
-
-Everything else will just be dynamic type as in Lua. Ravi currently has syntactic support for following additional type declarations to make the language more user friendly, but the type checking is not yet implemented for these:
-
-* string
-* table 
-* closure
-* boolean
-* userdata
 
 Implementation Strategy
 -----------------------
