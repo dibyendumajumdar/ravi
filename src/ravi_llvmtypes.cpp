@@ -51,6 +51,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   C_intptr_t = llvm::Type::getIntNTy(context, sizeof(intptr_t) * 8);
   C_size_t = llvm::Type::getIntNTy(context, sizeof(size_t) * 8);
+  C_psize_t = llvm::PointerType::get(C_size_t, 0);
   C_ptrdiff_t = llvm::Type::getIntNTy(context, sizeof(ptrdiff_t) * 8);
   C_int64_t = llvm::Type::getIntNTy(context, sizeof(int64_t) * 8);
   C_intT = llvm::Type::getIntNTy(context, sizeof(int) * 8);
@@ -69,12 +70,15 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   static_assert(sizeof(L_Umaxalign) == sizeof(double),
                 "L_Umaxalign is not same size as double");
-  L_UmaxalignT = llvm::Type::getDoubleTy(context);
+  L_UmaxalignT = C_doubleT;
 
+  static_assert(sizeof(lu_byte) == sizeof(char),
+                "lu_byte is not same size as char");
   lu_byteT = llvm::Type::getInt8Ty(context);
   C_pcharT = llvm::Type::getInt8PtrTy(context);
-  C_psize_t = llvm::PointerType::get(C_size_t, 0);
 
+  static_assert(sizeof(Instruction) == sizeof(int),
+                "Instruction is not same size as int");
   InstructionT = C_intT;
   pInstructionT = llvm::PointerType::get(InstructionT, 0);
 

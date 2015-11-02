@@ -68,6 +68,14 @@ extern "C" {
 
 namespace ravi {
 
+/*
+** Lua typecode have certain bits that are used to 
+** indicate variants or subtypes, or whether the type
+** is collectible. The enumerated values below 
+** reflect the way these type codes get set within
+** Lua values - these are the codes the JIT code must
+** use.
+*/
 enum LuaTypeCode {
   LUA__TNIL = LUA_TNIL,
   LUA__TBOOLEAN = LUA_TBOOLEAN,
@@ -93,15 +101,20 @@ struct LuaLLVMTypes {
   LuaLLVMTypes(llvm::LLVMContext &context);
   void dump();
 
-  llvm::Type *C_voidT;
-
+  // Following are standard C types
+  // Must ensure that these types match
+  // between JIT and the C compiler
+  llvm::Type *C_voidT; 
   llvm::Type *C_doubleT;
   llvm::Type *C_intptr_t;
   llvm::Type *C_size_t;
-  llvm::PointerType *C_psize_t;
+  llvm::PointerType *C_psize_t; /* pointer to size_t */
   llvm::Type *C_ptrdiff_t;
   llvm::Type *C_int64_t;
   llvm::Type *C_shortT;
+  llvm::Type *C_intT;
+  llvm::PointerType *C_pintT; /* pointer to int */
+  llvm::PointerType *C_pcharT; /* pointer to char */
 
   llvm::Type *lua_NumberT;
   llvm::PointerType *plua_NumberT;
@@ -133,10 +146,6 @@ struct LuaLLVMTypes {
 
   llvm::Type *lu_byteT;
   llvm::Type *L_UmaxalignT;
-  llvm::PointerType *C_pcharT;
-
-  llvm::Type *C_intT;
-  llvm::PointerType *C_pintT;
 
   llvm::StructType *lua_StateT;
   llvm::PointerType *plua_StateT;
