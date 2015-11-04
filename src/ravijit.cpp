@@ -32,6 +32,11 @@ extern "C" {
 #include "lobject.h"
 #include "lstate.h"
 #include "lauxlib.h"
+#include "lapi.h"
+#include "lopcodes.h"
+#include "lfunc.h"
+
+#include <string.h>
 
 // Test if the given function is compiled
 static int ravi_is_compiled(lua_State *L) {
@@ -202,6 +207,11 @@ static int ravi_traceenable(lua_State *L) {
   return 1;
 }
 
+static int ravi_listcode(lua_State *L) {
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
+    1, "Lua function expected");
+  return ravi_list_code(L);
+}
 
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"compile", ravi_compile},
@@ -216,6 +226,8 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"sizelevel", ravi_sizelevel},
                                    {"gcstep", ravi_gcstep},
                                    {"tracehook", ravi_traceenable},
+                                   {"listcode", ravi_listcode},
+                                   {"limits", ravi_get_limits},
                                    {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmjit(lua_State *L) {

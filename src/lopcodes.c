@@ -308,6 +308,30 @@ const char* raviP_instruction_to_str(char *buf, size_t n, Instruction i) {
   return buf;
 }
 
+static char *buildop(Proto *p, int pc, char *buff) {
+  Instruction i = p->code[pc];
+  OpCode o = GET_OPCODE(i);
+  const char *name = luaP_opnames[o];
+  int line = getfuncline(p, pc);
+  sprintf(buff, "(%4d) %4d - ", line, pc);
+  switch (getOpMode(o)) {
+  case iABC:
+    sprintf(buff + strlen(buff), "%-12s%4d %4d %4d", name,
+      GETARG_A(i), GETARG_B(i), GETARG_C(i));
+    break;
+  case iABx:
+    sprintf(buff + strlen(buff), "%-12s%4d %4d", name, GETARG_A(i), GETARG_Bx(i));
+    break;
+  case iAsBx:
+    sprintf(buff + strlen(buff), "%-12s%4d %4d", name, GETARG_A(i), GETARG_sBx(i));
+    break;
+  case iAx:
+    sprintf(buff + strlen(buff), "%-12s%4d", name, GETARG_Ax(i));
+    break;
+  }
+  return buff;
+}
+
 static void PrintString(const TString* ts)
 {
  const char* s=getstr(ts);
@@ -576,4 +600,54 @@ void ravi_dump_function(lua_State *L)
   Proto* f;
   f = toproto(L, -1);
   ravi_print_function(f, 1);
+}
+
+static void setnameval(lua_State *L, const char *name, int val) {
+  lua_pushstring(L, name);
+  lua_pushinteger(L, val);
+  lua_settable(L, -3);
+}
+
+#define obj_at(L,k)	(L->ci->func + (k))
+#define getfuncline(f,pc)	(((f)->lineinfo) ? (f)->lineinfo[pc] : -1)
+
+static void pushobject(lua_State *L, const TValue *o) {
+  setobj2s(L, L->top, o);
+  api_incr_top(L);
+}
+
+static char *buildop2(Proto *p, int pc, char *buff, size_t len) {
+  Instruction i = p->code[pc];
+  int line = getfuncline(p, pc);
+  snprintf(buff, len, "(%4d) %4d - ", line, pc);
+  raviP_instruction_to_str(buff + strlen(buff), len - strlen(buff), p->code[pc]);
+  return buff;
+}
+
+int ravi_list_code(lua_State *L) {
+  int pc;
+  Proto *p;
+  p = getproto(obj_at(L, 1));
+  lua_newtable(L);
+  setnameval(L, "maxstack", p->maxstacksize);
+  setnameval(L, "numparams", p->numparams);
+  for (pc = 0; pc<p->sizecode; pc++) {
+    char buff[100];
+    lua_pushinteger(L, pc + 1);
+    lua_pushstring(L, buildop2(p, pc, buff, sizeof buff));
+    lua_settable(L, -3);
+  }
+  return 1;
+}
+
+int ravi_get_limits(lua_State *L) {
+  lua_createtable(L, 0, 5);
+  setnameval(L, "BITS_INT", LUAI_BITSINT);
+  setnameval(L, "MAXARG_Ax", MAXARG_Ax);
+  setnameval(L, "MAXARG_Bx", MAXARG_Bx);
+  setnameval(L, "MAXARG_sBx", MAXARG_sBx);
+  setnameval(L, "BITS_INT", LUAI_BITSINT);
+  setnameval(L, "LFPF", LFIELDS_PER_FLUSH);
+  setnameval(L, "NUM_OPCODES", NUM_OPCODES);
+  return 1;
 }

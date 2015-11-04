@@ -514,6 +514,8 @@ LUA_API void ravi_dump_stacktop(lua_State *L, const char *s);
 LUA_API void ravi_debug_trace(lua_State *L, int opCode, int pc);
 LUA_API void ravi_print_function(const struct Proto *f, int full);
 LUA_API void ravi_dump_function(lua_State *L);
+LUA_API int ravi_list_code(lua_State *L);
+LUA_API int ravi_get_limits(lua_State *L);
 
 LUAI_DDEC int ravi_parser_debug;
 LUA_API void ravi_set_debuglevel(int level);
