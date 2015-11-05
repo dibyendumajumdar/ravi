@@ -871,6 +871,8 @@ newframe:  /* reentry point when frame changes (call/return) */
         int b = GETARG_B(i);
         Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
     } break;
+    case OP_RAVI_GETTABLEI:
+    case OP_RAVI_GETTABLES:
     case OP_GETTABLE: {
         Protect(luaV_gettable(L, RB(i), RKC(i), ra));
     } break;
@@ -883,6 +885,8 @@ newframe:  /* reentry point when frame changes (call/return) */
         setobj(L, uv->v, ra);
         luaC_upvalbarrier(L, uv);
     } break;
+    case OP_RAVI_SETTABLEI:
+    case OP_RAVI_SETTABLES:
     case OP_SETTABLE: {
         Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
     } break;
@@ -1601,6 +1605,10 @@ newframe:  /* reentry point when frame changes (call/return) */
         luaG_runerror(L, "MOVEF: number expected");
     } break;
 
+    case OP_RAVI_TOTAB: {
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.array_type != RAVI_TTABLE)
+         luaG_runerror(L, "table expected");
+    } break;
     case OP_RAVI_TOARRAYI: {
       if (!ttistable(ra) || hvalue(ra)->ravi_array.array_type != RAVI_TARRAYINT)
         luaG_runerror(L, "integer[] expected");
@@ -1622,6 +1630,13 @@ newframe:  /* reentry point when frame changes (call/return) */
         setobjs2s(L, ra, rb);
       } else
         luaG_runerror(L, "number[] expected");
+    } break;
+    case OP_RAVI_MOVETAB: {
+      TValue *rb = RB(i);
+      if (ttistable(rb) && hvalue(rb)->ravi_array.array_type == RAVI_TTABLE) {
+        setobjs2s(L, ra, rb);
+      } else
+        luaG_runerror(L, "table expected");
     } break;
     case OP_RAVI_GETTABLE_AI: {
       TValue *rb = RB(i);

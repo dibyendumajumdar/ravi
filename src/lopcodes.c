@@ -142,6 +142,13 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "LT_FF",  /*	A B C	if ((RK(B) <  RK(C)) ~= A) then pc++		*/
   "LE_II",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   "LE_FF",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
+  
+  "GETTABLEI", /*	A B C	R(A) := R(B)[RK(C)], integer key	*/
+  "GETTABLES", /*	A B C	R(A) := R(B)[RK(C)], string key   */
+  "SETTABLEI", /*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
+  "SETTABLES", /*	A B C	R(A)[RK(B)] := RK(C), string key  */
+  "TOTAB",     /* A R(A) := to_table(R(A)) */
+  "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
 
   NULL
 };
@@ -267,6 +274,14 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_II */
  ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_FF */
 
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLEI */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLES */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLEI */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLES */
+  
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOTAB A R(A) := check_table(R(A)) */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVETAB A B R(A) := R(B), check R(B) is a table */
+  
 };
 
 
@@ -306,30 +321,6 @@ const char* raviP_instruction_to_str(char *buf, size_t n, Instruction i) {
     break;
   }
   return buf;
-}
-
-static char *buildop(Proto *p, int pc, char *buff) {
-  Instruction i = p->code[pc];
-  OpCode o = GET_OPCODE(i);
-  const char *name = luaP_opnames[o];
-  int line = getfuncline(p, pc);
-  sprintf(buff, "(%4d) %4d - ", line, pc);
-  switch (getOpMode(o)) {
-  case iABC:
-    sprintf(buff + strlen(buff), "%-12s%4d %4d %4d", name,
-      GETARG_A(i), GETARG_B(i), GETARG_C(i));
-    break;
-  case iABx:
-    sprintf(buff + strlen(buff), "%-12s%4d %4d", name, GETARG_A(i), GETARG_Bx(i));
-    break;
-  case iAsBx:
-    sprintf(buff + strlen(buff), "%-12s%4d %4d", name, GETARG_A(i), GETARG_sBx(i));
-    break;
-  case iAx:
-    sprintf(buff + strlen(buff), "%-12s%4d", name, GETARG_Ax(i));
-    break;
-  }
-  return buff;
 }
 
 static void PrintString(const TString* ts)
@@ -611,13 +602,7 @@ static void setnameval(lua_State *L, const char *name, int val) {
 #define obj_at(L,k)	(L->ci->func + (k))
 #define getfuncline(f,pc)	(((f)->lineinfo) ? (f)->lineinfo[pc] : -1)
 
-static void pushobject(lua_State *L, const TValue *o) {
-  setobj2s(L, L->top, o);
-  api_incr_top(L);
-}
-
 static char *buildop2(Proto *p, int pc, char *buff, size_t len) {
-  Instruction i = p->code[pc];
   int line = getfuncline(p, pc);
   snprintf(buff, len, "(%4d) %4d - ", line, pc);
   raviP_instruction_to_str(buff + strlen(buff), len - strlen(buff), p->code[pc]);
