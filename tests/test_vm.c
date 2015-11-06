@@ -124,7 +124,8 @@ static int test_luacompexec1(const char *code, int expected)
 int main() 
 {
     int failures = 0;
-    //  
+    //
+    failures += test_luacomp1("function x() local t : table = {}; t.name = 'd'; end");
     failures += test_luacompexec1("function test(); local x: integer = 1; return function (j) x = j; return x; end; end; fn = test(); return fn('55')", 55);
     failures += test_luacompexec1("ravi.auto(true); function arrayaccess (); local x: integer[] = {5}; return x[1]; end; assert(ravi.compile(arrayaccess)); return arrayaccess()", 5);
     failures += test_luacompexec1("ravi.auto(true); function cannotload (msg, a,b); assert(not a and string.find(b, msg)); end; ravi.compile(cannotload); return 1", 1);

@@ -442,11 +442,19 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
           op = OP_RAVI_GETTABLE_AF;
         else if (e->ravi_type == RAVI_TARRAYINT && e->u.ind.key_type == RAVI_TNUMINT)
           op = OP_RAVI_GETTABLE_AI;
-        else
-          op = OP_GETTABLE;
+        else {
+          if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TSTRING)
+            op = OP_RAVI_GETTABLES;
+          else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TNUMINT)
+            op = OP_RAVI_GETTABLEI;
+          else
+            op = OP_GETTABLE;
+        }
         if (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT)
           /* set the type of resulting expression */
           e->ravi_type = e->ravi_type == RAVI_TARRAYFLT ? RAVI_TNUMFLT : RAVI_TNUMINT;
+        else
+          e->ravi_type = RAVI_TANY;
       }
       e->u.info = luaK_codeABC(fs, op, 0, e->u.ind.t, e->u.ind.idx);
       e->k = VRELOCABLE;
@@ -515,6 +523,9 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
           break;
         case RAVI_TARRAYFLT:
           luaK_codeABC(fs, OP_RAVI_MOVEAF, reg, e->u.info, 0);
+          break;
+        case RAVI_TTABLE:
+          luaK_codeABC(fs, OP_RAVI_MOVETAB, reg, e->u.info, 0);
           break;
         default:
           luaK_codeABC(fs, OP_MOVE, reg, e->u.info, 0);
@@ -638,7 +649,12 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
 
 static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
   /* VNONRELOC means we have fixed register and do we know the type? */
-  if (ex->k == VNONRELOC && (var->ravi_type == RAVI_TNUMFLT || var->ravi_type == RAVI_TNUMINT || var->ravi_type == RAVI_TARRAYFLT || var->ravi_type == RAVI_TARRAYINT)) {
+  if (ex->k == VNONRELOC &&
+      (var->ravi_type == RAVI_TNUMFLT ||
+       var->ravi_type == RAVI_TNUMINT ||
+       var->ravi_type == RAVI_TARRAYFLT ||
+       var->ravi_type == RAVI_TARRAYINT ||
+       var->ravi_type == RAVI_TTABLE)) {
     /* handled by MOVEI, MOVEF, MOVEAI, MOVEAF at runtime */
     return;
   }
@@ -668,7 +684,9 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       var->ravi_type,
       ex->ravi_type));
   }
-  else if (var->ravi_type == RAVI_TARRAYFLT || var->ravi_type == RAVI_TARRAYINT) {
+  else if (var->ravi_type == RAVI_TARRAYFLT ||
+           var->ravi_type == RAVI_TARRAYINT ||
+           var->ravi_type == RAVI_TTABLE) {
     if (ex->ravi_type == var->ravi_type)
       return;
     luaX_syntaxerror(
@@ -739,6 +757,12 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
           else
             /* input value is known to be integer */
             op = OP_RAVI_SETTABLE_AII;
+        } else if (var->ravi_type == RAVI_TTABLE && var->u.ind.key_type == RAVI_TNUMINT) {
+          /* table with integer key */
+          op = OP_RAVI_SETTABLEI;
+        } else if (var->ravi_type == RAVI_TTABLE && var->u.ind.key_type == RAVI_TSTRING) {
+          /* table with string key */
+          op = OP_RAVI_SETTABLES;
         }
       }
       int e = luaK_exp2RK(fs, ex);

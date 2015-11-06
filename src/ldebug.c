@@ -446,12 +446,15 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
       case OP_RAVI_MOVEF:
       case OP_RAVI_MOVEAF:
       case OP_RAVI_MOVEAI:
+      case OP_RAVI_MOVETAB:
       case OP_MOVE: {
         int b = GETARG_B(i);  /* move from 'b' to 'a' */
         if (b < GETARG_A(i))
           return getobjname(p, pc, b, name);  /* get name for 'b' */
         break;
       }
+      case OP_RAVI_GETTABLEI:
+      case OP_RAVI_GETTABLES:
       case OP_RAVI_GETTABLE_AI:
       case OP_RAVI_GETTABLE_AF:
       case OP_GETTABUP:
