@@ -1741,6 +1741,13 @@ newframe:  /* reentry point when frame changes (call/return) */
       setobj(L, uv->v, ra);
       luaC_upvalbarrier(L, uv);
     } break;
+    case OP_RAVI_SETUPVALT: {
+      if (!ttistable(ra) || hvalue(ra)->ravi_array.array_type != RAVI_TTABLE)
+        luaG_runerror(L, "upvalue of table type, cannot be set to non table value");
+      UpVal *uv = cl->upvals[GETARG_B(i)];
+      setobj(L, uv->v, ra);
+      luaC_upvalbarrier(L, uv);
+    } break;
 
     }
   }

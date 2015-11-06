@@ -149,7 +149,7 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "SETTABLES", /*	A B C	R(A)[RK(B)] := RK(C), string key  */
   "TOTAB",     /* A R(A) := to_table(R(A)) */
   "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
-
+  "SETUPVALT", /*	A B	UpValue[B] := to_table(R(A))			*/
   NULL
 };
 
@@ -281,6 +281,7 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
   
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOTAB A R(A) := check_table(R(A)) */
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVETAB A B R(A) := R(B), check R(B) is a table */
+ ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALT */
   
 };
 

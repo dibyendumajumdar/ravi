@@ -702,7 +702,8 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
 static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex) {
   OpCode op = OP_SETUPVAL;
   if ((var->ravi_type == RAVI_TNUMINT || var->ravi_type == RAVI_TNUMFLT ||
-       var->ravi_type == RAVI_TARRAYFLT || var->ravi_type == RAVI_TARRAYINT) &&
+       var->ravi_type == RAVI_TARRAYFLT || var->ravi_type == RAVI_TARRAYINT ||
+       var->ravi_type == RAVI_TTABLE) &&
       var->ravi_type != ex->ravi_type) {
     if (var->ravi_type == RAVI_TNUMINT)
       op = OP_RAVI_SETUPVALI;
@@ -712,6 +713,8 @@ static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex) {
       op = OP_RAVI_SETUPVALAI;
     else if (var->ravi_type == RAVI_TARRAYFLT)
       op = OP_RAVI_SETUPVALAF;
+    else if (var->ravi_type == RAVI_TTABLE)
+      op = OP_RAVI_SETUPVALT;
     else
       luaX_syntaxerror(fs->ls,
                        luaO_pushfstring(fs->ls->L, "Invalid assignment of "
