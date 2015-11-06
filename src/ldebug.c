@@ -204,6 +204,7 @@ LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
         || (type == RAVI_TNUMINT && ttisinteger(input))
         || (type == RAVI_TARRAYFLT && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TARRAYFLT)
         || (type == RAVI_TARRAYINT && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TARRAYINT)
+        || (type == RAVI_TTABLE && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TTABLE)
         ;
     }
     if (compatible) {
