@@ -177,7 +177,6 @@ local z,x,y
 
 -- test 1 
 z = function(a)
-  print(a)
   return a+1
 end
 x = function(f)
@@ -185,27 +184,14 @@ x = function(f)
   j = f(j)
   return j
 end
-
-assert(ravi.compile(x))
-assert(x(z) == 6)
-print("test 1 OK")
-
--- test 2
-z = function (a,p)
-  p(a)
-  return 6
-end
-
-x = function (yy,p)
-  local j = 5
-  j = yy(j,p)
-  return j
-end
-
+check(x, 'LOADK', 'MOVE', 'MOVE', 'CALL',
+  'MOVE', 'RETURN', 'RETURN')
+check(z, 'ADD', 'RETURN', 'RETURN')
+y = x(z)
 assert(ravi.compile(z))
 assert(ravi.compile(x))
-assert(x(z,print) == 6)
-print("test 2 OK")
+assert(x(z) == 6 and y == 6)
+print("test 1 OK")
 
 -- test 3
 x = function () 
@@ -216,7 +202,9 @@ x = function ()
   end
   return j
 end
-
+check(x, 'LOADNIL', 'LOADIZ', 'LOADK', 'LOADK',
+  'LOADK', 'LOADK', 'FORPREP_I1', 'ADDII', 'FORLOOP_I1',
+  'RETURN', 'RETURN')
 assert(ravi.compile(x))
 assert(x() == 1000000000)
 print("test 3 OK")
@@ -229,7 +217,9 @@ x = function ()
   end
   return j
 end
-
+check(x, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
+  'LOADK', 'FORPREP_I1', 'ADDFI', 'FORLOOP_I1',
+  'RETURN', 'RETURN')
 assert(ravi.compile(x))
 assert(x() == 1000000000.0)
 print("test 4 OK")
@@ -242,7 +232,9 @@ x = function ()
   end
   return j
 end
-
+check(x, 'LOADK', 'LOADK',
+  'LOADK', 'LOADK', 'FORPREP_IP', 'MOVE', 'FORLOOP_IP',
+  'RETURN', 'RETURN')
 assert(ravi.compile(x))
 assert(x() == 5)
 print("test 5 OK")
