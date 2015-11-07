@@ -3,16 +3,12 @@ ravi.auto(true)
 print "testing code generation and optimizations"
 T = ravi
 
--- this code gave an error for the code checker
-do
-  local function f (a)
-  for k,v,w in a do end
-  end
-end
-
+-- ================================================================
+-- Following section is an extract from the code.lua test 
+-- These functions test bytecode generation, and also provide
+-- helper routines that we use later on in other test cases
 
 -- testing opcodes
-
 function check (f, ...)
   local arg = {...}
   local c = T.listcode(f)
@@ -173,9 +169,8 @@ function (a) while a < 10 do a = a + 1 end end,
 function (a) while true do if not(a < 10) then break end; a = a + 1; end end
 )
 
-print 'OK'
-
-
+print 'Tested Lua bytecodes OK'
+-- ================================================================
 
 
 local z,x,y
@@ -901,24 +896,72 @@ print("test 40 OK")
 
 
 -- test 41
-local t = {}
-t.__idiv = function(...) return 'idiv' end
-local t1=setmetatable({1,2,3}, t)
-local t2=setmetatable({4,5,6}, t)
-local x= function() return t1//t2 end
-check(x, 'GETUPVAL', 'GETUPVAL', 'IDIV', 'RETURN', 'RETURN')
-local s1=x()
-assert(s1 == 'idiv')
-assert(ravi.compile(t.__idiv))
-assert(ravi.compile(x))
-local s2=x()
-assert(s1 == s2)
-local x= function(t1: number, t2: number) return t1//t2 end
-check(x, 'TOFLT', 'TOFLT', 'IDIV', 'RETURN', 'RETURN')
-local s1=x(4.1,2.0)
-assert(s1 == 2)
-assert(ravi.compile(x))
-local s2=x(4.1,2.0)
-assert(s1 == s2)
+function test_idiv() 
+  local t = {}
+  t.__idiv = function(...) return 'idiv' end
+  local t1=setmetatable({1,2,3}, t)
+  local t2=setmetatable({4,5,6}, t)
+  local x= function() return t1//t2 end
+  check(x, 'GETUPVAL', 'GETUPVAL', 'IDIV', 'RETURN', 'RETURN')
+  local s1=x()
+  assert(s1 == 'idiv')
+  assert(ravi.compile(t.__idiv))
+  assert(ravi.compile(x))
+  local s2=x()
+  assert(s1 == s2)
+  local x= function(t1: number, t2: number) return t1//t2 end
+  check(x, 'TOFLT', 'TOFLT', 'IDIV', 'RETURN', 'RETURN')
+  local s1=x(4.1,2.0)
+  assert(s1 == 2)
+  assert(ravi.compile(x))
+  local s2=x(4.1,2.0)
+  assert(s1 == s2)
+  print'test 41 (IDIV) OK'
+end
 
-print'test 41 (IDIV) OK'
+assert(ravi.compile(test_idiv))
+test_idiv()
+
+function test_tableaccess()
+  -- Test specialised version of GETTABLE and SETTABLE
+  -- when local variable is known to be of table type
+  -- and key is a string
+  local f = function() 
+    local t : table = {}
+    t.name = 'dibyendu'
+    t.data = {}
+    t.data.city = 'london'
+    return t.name, t.data.city
+  end
+  check(f, 'NEWTABLE', 'SETTABLES', 'NEWTABLE',
+    'SETTABLES', 'GETTABLES', 'SETTABLE', 
+    'GETTABLES', 'GETTABLES' , 'GETTABLE',
+    'RETURN', 'RETURN')
+  local a,b = f()
+  assert(a == 'dibyendu')
+  assert(b == 'london')
+
+  -- Test specialised version of GETTABLE and SETTABLE
+  -- when local variable is known to be of table type
+  -- and key is a integer
+  f = function() 
+    local t : table = {}
+    t[1] = 'dibyendu'
+    t[2] = {}
+    t[2][1] = 'london'
+    return t[1], t[2][1]
+  end
+  check(f, 'NEWTABLE', 'SETTABLEI', 'NEWTABLE',
+    'SETTABLEI', 'GETTABLEI', 'SETTABLE', 
+    'GETTABLEI', 'GETTABLEI' , 'GETTABLE',
+    'RETURN', 'RETURN')
+  local a,b = f()
+  assert(a == 'dibyendu')
+  assert(b == 'london')
+  print 'test tableaccess OK'
+end
+
+test_tableaccess()
+
+
+
