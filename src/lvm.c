@@ -871,8 +871,25 @@ newframe:  /* reentry point when frame changes (call/return) */
         int b = GETARG_B(i);
         Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
     } break;
+    case OP_RAVI_GETTABLES: /* {
+      if (ISK(GETARG_C(i))) {
+        TValue *kv = k + INDEXK(GETARG_C(i));
+        TString *key = tsvalue(kv);
+        if (key->tt == LUA_TSHRSTR) {
+          Table *h = hvalue(RB(i));
+          int position = lmod(key->hash, sizenode(h));
+          Node *n = &h->node[position];
+          const TValue *k = cast(const TValue*, (&(n)->i_key.tvk));
+          if (ttisshrstring(k) && eqshrstr(tsvalue(k), key)) {
+            printf("hit\n");
+          }
+          else {
+            printf("miss\n");
+          }
+        }
+      }
+    } */
     case OP_RAVI_GETTABLEI:
-    case OP_RAVI_GETTABLES:
     case OP_GETTABLE: {
         Protect(luaV_gettable(L, RB(i), RKC(i), ra));
     } break;
