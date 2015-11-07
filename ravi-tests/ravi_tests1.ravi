@@ -193,7 +193,7 @@ assert(ravi.compile(x))
 assert(x(z) == 6 and y == 6)
 print("test 1 OK")
 
--- test 3
+-- test 2
 x = function () 
   local i, j:integer
   j=0
@@ -207,9 +207,9 @@ check(x, 'LOADNIL', 'LOADIZ', 'LOADK', 'LOADK',
   'RETURN', 'RETURN')
 assert(ravi.compile(x))
 assert(x() == 1000000000)
-print("test 3 OK")
+print("test 2 OK")
 
--- test 4
+-- test 3
 x = function ()
   local j:number
   for i=1,1000000000 do
@@ -222,9 +222,9 @@ check(x, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
   'RETURN', 'RETURN')
 assert(ravi.compile(x))
 assert(x() == 1000000000.0)
-print("test 4 OK")
+print("test 3 OK")
 
--- test 5
+-- test 4
 x = function ()
   local j = 0
   for i=2,6,3 do
@@ -237,60 +237,88 @@ check(x, 'LOADK', 'LOADK',
   'RETURN', 'RETURN')
 assert(ravi.compile(x))
 assert(x() == 5)
-print("test 5 OK")
+print("test 4 OK")
 
--- test 7
-x = function ()
-  local a=5
-  return 1004,2
-end
-
-assert(ravi.compile(x))
-assert(x() == 1004)
-print("test 7 OK")
-
--- test 8
+-- test 5
 x = function ()
   if 1 == 2 then
     return 5.0
   end
   return 1.0
 end
-
+check(x, 'EQ_II', 'JMP', 'LOADK',
+  'RETURN', 'LOADK', 'RETURN', 'RETURN')
 assert(ravi.compile(x))
 assert(x() == 1.0)
-print("test 8 OK")
+print("test 5 OK")
 
--- test 9
-x = function (y)
-  if y == 1 then
+-- test 6
+x = function (a: integer, b: integer)
+  if a == b then
+    return 5.0
+  end
+  return 1.0
+end
+check(x, 'TOINT', 'TOINT', 'EQ_II', 'JMP', 'LOADK',
+  'RETURN', 'LOADK', 'RETURN', 'RETURN')
+assert(ravi.compile(x))
+assert(x(1,2) == 1.0)
+print("test 6 OK")
+
+-- test 7
+x = function (y: integer)
+  if y < 1 then
     return 1.0
-  elseif y == 5 then
+  elseif y >= 5 then
     return 2.0
   else
     return 3.0
   end
 end
+check(x, 'TOINT', 'LT_II', 'JMP', 'LOADK',
+  'RETURN', 'JMP', 'LE_II', 'JMP', 'LOADK',
+  'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
 assert(ravi.compile(x))
 assert(x(5) == 2.0)
 assert(x(4) == 3.0)
-print("test 9 OK")
+print("test 7 OK")
+
+-- test 8
+x = function (y: number)
+  if y < 1.0 then
+    return 1.0
+  elseif y >= 5.0 then
+    return 2.0
+  else
+    return 3.0
+  end
+end
+check(x, 'TOFLT', 'LT_FF', 'JMP', 'LOADK',
+  'RETURN', 'JMP', 'LE_FF', 'JMP', 'LOADK',
+  'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
+assert(ravi.compile(x))
+assert(x(5.1) == 2.0)
+assert(x(4.0) == 3.0)
+print("test 8 OK")
 
 -- test 10
-x = function (y,z)
+x = function (y: integer, z)
   if y == 1 then
     if z == 1 then
       return 99.0
     else
       return z
     end
-  elseif y == 5 then
+  elseif y >= 5 then
     return 2.0
   else
     return 3.0
   end
 end
-
+check(x, 'TOINT', 'EQ_II', 'JMP', 'EQ',
+  'JMP', 'LOADK', 'RETURN', 'JMP', 'RETURN', 'JMP',
+  'LE_II', 'JMP', 'LOADK',
+  'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
 assert(ravi.compile(x))
 assert(x(1,1) == 99.0)
 assert(x(1,2) == 2)
@@ -300,13 +328,22 @@ assert(x(4) == 3.0)
 print("test 10 OK")
 
 -- test 11
-function tryme()
-  local i,j = 5,6
-  return i,j
+x = function() 
+  local function tryme()
+    local i,j = 5,6
+    return i,j
+  end
+  assert(ravi.compile(tryme))
+  local i:integer, j:integer = tryme()
+  assert(i+j == 11)
+  print("test 11 OK")
 end
-assert(ravi.compile(tryme))
-local i:integer, j:integer = tryme(); assert(i+j == 11)
-print("test 11 OK")
+assert(ravi.compile(x))
+check(x, 'CLOSURE', 'GETTABUP', 'GETTABUP', 'GETTABLE',
+  'MOVE', 'CALL', 'CALL', 'MOVE', 'CALL', 'TOINT', 'TOINT',
+  'GETTABUP', 'ADDII', 'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL',
+  'CALL', 'GETTABUP', 'LOADK', 'CALL', 'RETURN')
+x()
 
 -- test 12
 function tryme()
