@@ -871,7 +871,28 @@ newframe:  /* reentry point when frame changes (call/return) */
         int b = GETARG_B(i);
         Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
     } break;
-    case OP_RAVI_GETTABLES: /* {
+    case OP_RAVI_GETTABLEI: {
+      TValue *rb = RB(i);
+      TValue *rc = RKC(i);
+      lua_Integer idx = ivalue(rc);
+      Table *t = hvalue(rb);
+      const TValue *v = luaH_getint(t, idx);
+      setobj2s(L, ra, v);
+      break;
+    }
+    case OP_RAVI_GETTABLES: {
+      if (ISK(GETARG_C(i))) {
+        TValue *kv = k + INDEXK(GETARG_C(i));
+        TString *key = tsvalue(kv);
+        if (key->tt == LUA_TSHRSTR) {
+          const TValue *v = luaH_getstr(hvalue(RB(i)), key);
+          setobj2s(L, ra, v);
+        }
+        else
+          goto l_gettable;
+      } else
+        goto l_gettable;
+      /*
       if (ISK(GETARG_C(i))) {
         TValue *kv = k + INDEXK(GETARG_C(i));
         TString *key = tsvalue(kv);
@@ -888,9 +909,10 @@ newframe:  /* reentry point when frame changes (call/return) */
           }
         }
       }
-    } */
-    case OP_RAVI_GETTABLEI:
+     */
+    } break;
     case OP_GETTABLE: {
+        l_gettable:
         Protect(luaV_gettable(L, RB(i), RKC(i), ra));
     } break;
     case OP_SETTABUP: {
