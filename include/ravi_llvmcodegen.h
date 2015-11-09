@@ -960,7 +960,7 @@ public:
   void emit_TOINT(RaviFunctionDef *def, int A, int pc);
 
   void emit_TOFLT(RaviFunctionDef *def, int A, int pc);
-
+  
   void emit_LEN(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
@@ -1040,6 +1040,8 @@ public:
   void emit_MOVEAI(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_MOVEAF(RaviFunctionDef *def, int A, int B, int pc);
+  
+  void emit_MOVETAB(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_TOARRAY(RaviFunctionDef *def, int A, int array_type_expected,
                     const char *errmsg, int pc);

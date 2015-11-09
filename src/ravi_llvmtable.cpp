@@ -647,13 +647,16 @@ void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
                                      int array_type_expected,
                                      const char *errmsg, int pc) {
 
-  // if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
-  //  luaG_runerror(L, "integer[] expected");
-
-  emit_debug_trace(def,
-                   array_type_expected == RAVI_TARRAYINT ? OP_RAVI_TOARRAYI
-                                                         : OP_RAVI_TOARRAYF,
-                   pc);
+  OpCode op = OP_RAVI_TOTAB;
+  switch (array_type_expected) {
+    case RAVI_TARRAYINT: op = OP_RAVI_TOARRAYI; break;
+    case RAVI_TARRAYFLT: op = OP_RAVI_TOARRAYF; break;
+    case RAVI_TTABLE:
+    default:
+      break;
+  }
+  
+  emit_debug_trace(def, op, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Instruction *type = emit_load_type(def, ra);
@@ -711,4 +714,15 @@ void RaviCodeGenerator::emit_MOVEAF(RaviFunctionDef *def, int A, int B,
   llvm::Value *dest = emit_gep_register(def, A);
   emit_assign(def, dest, src);
 }
+  
+  void RaviCodeGenerator::emit_MOVETAB(RaviFunctionDef *def, int A, int B,
+                                      int pc) {
+    emit_debug_trace(def, OP_RAVI_MOVETAB, pc);
+    emit_TOARRAY(def, B, RAVI_TTABLE, "table expected", pc);
+    llvm::Value *src = emit_gep_register(def, B);
+    llvm::Value *dest = emit_gep_register(def, A);
+    emit_assign(def, dest, src);
+  }
+
+  
 }

@@ -875,6 +875,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_GETTABLE_S:
     case OP_RAVI_SETTABLE_I:
     case OP_RAVI_SETTABLE_S:
+    case OP_RAVI_TOTAB:
+    case OP_RAVI_MOVETAB:
       break;
     default:
       return false;
@@ -1592,6 +1594,9 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
       int C = GETARG_C(i);
       emit_SETTABLE_AF(def, A, B, C, op == OP_RAVI_SETTABLE_AFF, pc);
     } break;
+    case OP_RAVI_TOTAB: {
+      emit_TOARRAY(def, A, RAVI_TTABLE, "table expected", pc);
+    } break;
     case OP_RAVI_TOARRAYI: {
       emit_TOARRAY(def, A, RAVI_TARRAYINT, "integer[] expected", pc);
     } break;
@@ -1605,6 +1610,10 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
     case OP_RAVI_MOVEAF: {
       int B = GETARG_B(i);
       emit_MOVEAF(def, A, B, pc);
+    } break;
+    case OP_RAVI_MOVETAB: {
+      int B = GETARG_B(i);
+      emit_MOVETAB(def, A, B, pc);
     } break;
 
     case OP_GETTABUP: {
