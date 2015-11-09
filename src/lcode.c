@@ -4,6 +4,10 @@
 ** See Copyright Notice in lua.h
 */
 
+/*
+** Portions Copyright (C) 2015 Dibyendu Majumdar
+*/
+
 #define lcode_c
 #define LUA_CORE
 
@@ -444,9 +448,9 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
           op = OP_RAVI_GETTABLE_AI;
         else {
           if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TSTRING)
-            op = OP_RAVI_GETTABLES;
+            op = OP_RAVI_GETTABLE_S;
           else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TNUMINT)
-            op = OP_RAVI_GETTABLEI;
+            op = OP_RAVI_GETTABLE_I;
           else
             op = OP_GETTABLE;
         }
@@ -762,10 +766,10 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
             op = OP_RAVI_SETTABLE_AII;
         } else if (var->ravi_type == RAVI_TTABLE && var->u.ind.key_type == RAVI_TNUMINT) {
           /* table with integer key */
-          op = OP_RAVI_SETTABLEI;
+          op = OP_RAVI_SETTABLE_I;
         } else if (var->ravi_type == RAVI_TTABLE && var->u.ind.key_type == RAVI_TSTRING) {
           /* table with string key */
-          op = OP_RAVI_SETTABLES;
+          op = OP_RAVI_SETTABLE_S;
         }
       }
       int e = luaK_exp2RK(fs, ex);

@@ -4,6 +4,11 @@
 ** See Copyright Notice in lua.h
 */
 
+/*
+** Portions Copyright (C) 2015 Dibyendu Majumdar
+*/
+
+
 #define lvm_c
 #define LUA_CORE
 
@@ -871,7 +876,7 @@ newframe:  /* reentry point when frame changes (call/return) */
         int b = GETARG_B(i);
         Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
     } break;
-    case OP_RAVI_GETTABLEI: {
+    case OP_RAVI_GETTABLE_I: {
       TValue *rb = RB(i);
       TValue *rc = RKC(i);
       lua_Integer idx = ivalue(rc);
@@ -880,7 +885,7 @@ newframe:  /* reentry point when frame changes (call/return) */
       setobj2s(L, ra, v);
       break;
     }
-    case OP_RAVI_GETTABLES: {
+    case OP_RAVI_GETTABLE_S: {
       if (ISK(GETARG_C(i))) {
         TValue *kv = k + INDEXK(GETARG_C(i));
         TString *key = tsvalue(kv);
@@ -924,8 +929,8 @@ newframe:  /* reentry point when frame changes (call/return) */
         setobj(L, uv->v, ra);
         luaC_upvalbarrier(L, uv);
     } break;
-    case OP_RAVI_SETTABLEI:
-    case OP_RAVI_SETTABLES:
+    case OP_RAVI_SETTABLE_I:
+    case OP_RAVI_SETTABLE_S:
     case OP_SETTABLE: {
         Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
     } break;

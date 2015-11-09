@@ -4,6 +4,11 @@
 ** See Copyright Notice in lua.h
 */
 
+/*
+** Portions Copyright (C) 2015 Dibyendu Majumdar
+*/
+
+
 #define lopcodes_c
 #define LUA_CORE
 
@@ -143,10 +148,10 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "LE_II",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   "LE_FF",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   
-  "GETTABLEI", /*	A B C	R(A) := R(B)[RK(C)], integer key	*/
-  "GETTABLES", /*	A B C	R(A) := R(B)[RK(C)], string key   */
-  "SETTABLEI", /*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
-  "SETTABLES", /*	A B C	R(A)[RK(B)] := RK(C), string key  */
+  "GETTABLE_I", /*	A B C	R(A) := R(B)[RK(C)], integer key	*/
+  "GETTABLE_S", /*	A B C	R(A) := R(B)[RK(C)], string key   */
+  "SETTABLE_I", /*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
+  "SETTABLE_S", /*	A B C	R(A)[RK(B)] := RK(C), string key  */
   "TOTAB",     /* A R(A) := to_table(R(A)) */
   "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
   "SETUPVALT", /*	A B	UpValue[B] := to_table(R(A))			*/
@@ -274,10 +279,10 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_II */
  ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_FF */
 
- ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLEI */
- ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLES */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLEI */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLES */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_I */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_S */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_I */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_S */
   
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOTAB A R(A) := check_table(R(A)) */
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVETAB A B R(A) := R(B), check R(B) is a table */
@@ -430,6 +435,7 @@ static void PrintCode(const Proto* f)
    case OP_RAVI_SETUPVALF:
    case OP_RAVI_SETUPVALAI:
    case OP_RAVI_SETUPVALAF:
+   case OP_RAVI_SETUPVALT:
    case OP_SETUPVAL:
     printf("\t; %s",UPVALNAME(b));
     break;
@@ -443,12 +449,16 @@ static void PrintCode(const Proto* f)
     if (ISK(c)) { printf(" "); PrintConstant(f,INDEXK(c)); }
     break;
    case OP_GETTABLE:
+   case OP_RAVI_GETTABLE_I:
+   case OP_RAVI_GETTABLE_S:
    case OP_RAVI_GETTABLE_AF:
    case OP_RAVI_GETTABLE_AI:
    case OP_SELF:
     if (ISK(c)) { printf("\t; "); PrintConstant(f,INDEXK(c)); }
     break;
    case OP_SETTABLE:
+   case OP_RAVI_SETTABLE_I:
+   case OP_RAVI_SETTABLE_S:
    case OP_RAVI_SETTABLE_AF:
    case OP_RAVI_SETTABLE_AFF:
    case OP_RAVI_SETTABLE_AI:

@@ -32,7 +32,8 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, int A, int B, int C,
   // Protect(luaV_gettable(L, rb, RKC(i), ra));
   bool traced = emit_debug_trace(def, OP_SELF, pc);
   // Below may invoke metamethod so we set savedpc
-  if (!traced) emit_update_savedpc(def, pc);
+  if (!traced)
+    emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register(def, B);
   llvm::Value *ra1 = emit_gep_register(def, A + 1);
@@ -47,7 +48,8 @@ void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B, int pc) {
   // Protect(luaV_objlen(L, ra, RB(i)));
   bool traced = emit_debug_trace(def, OP_LEN, pc);
   // Below may invoke metamethod so we set savedpc
-  if (!traced) emit_update_savedpc(def, pc);
+  if (!traced)
+    emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -60,7 +62,8 @@ void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C,
   // Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
   bool traced = emit_debug_trace(def, OP_SETTABLE, pc);
   // Below may invoke metamethod so we set savedpc
-  if (!traced) emit_update_savedpc(def, pc);
+  if (!traced)
+    emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -74,12 +77,133 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
   // Protect(luaV_gettable(L, RB(i), RKC(i), ra));
   bool traced = emit_debug_trace(def, OP_GETTABLE, pc);
   // Below may invoke metamethod so we set savedpc
-  if (!traced) emit_update_savedpc(def, pc);
+  if (!traced)
+    emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
   CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
+}
+
+// Emit inline code for accessing a table element using a string key
+// We try to access the element using the hash part but if the
+// key is not in the main position then we fall back on luaH_getstr().
+// IMPORTANT - this emitter should only be called when key is known to
+// to be short string
+void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
+                                        int C, int pc, TString *key) {
+
+  // The code we want to generate is this:
+  //   struct Node *n = hashstr(t, key);
+  //   const struct TValue *k = gkey(n);
+  //   if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
+  //     return gval(n);
+  //   return luaH_getstr(t, key);
+
+  // A number of macros are involved above do the
+  // the generated code is somewhat more complex
+
+  // we don't need to refresh base here as the lua_State is not being touched
+  emit_debug_trace(def, OP_RAVI_GETTABLE_S, pc);
+
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register(def, B);
+
+  // Fortunately as we are dealing with a string constant we already
+  // know the hash code of the key
+  //unsigned int hash = key->hash;
+  // Get the hash table
+  llvm::Instruction *t = emit_load_reg_h(def, rb);
+
+  // Obtain the lsizenode  of the hash table
+  //llvm::Value *lsizenode_ptr = emit_gep(def, "lsizenode", t, 0, 4);
+  //llvm::Instruction *lsizenode = def->builder->CreateLoad(lsizenode_ptr);
+  //lsizenode->setMetadata(llvm::LLVMContext::MD_tbaa,
+  //                       def->types->tbaa_Table_lsizenode);
+  //// convert to integer (lsizenode is a byte)
+  //llvm::Value *intsize =
+  //    def->builder->CreateZExt(lsizenode, def->types->C_intT);
+  //// #define twoto(x)        (1<<(x))
+  //// #define sizenode(t)     (twoto((t)->lsizenode))
+  //llvm::Value *size = def->builder->CreateShl(def->types->kInt[1], intsize);
+  // #define lmod(s,size) (cast(int, (s) & ((size)-1)))
+  //llvm::Value *sizeminusone =
+  //    def->builder->CreateNSWSub(size, def->types->kInt[1]);
+  //llvm::Value *offset = def->builder->CreateAnd(
+  //    llvm::ConstantInt::get(def->types->C_intT, hash), sizeminusone);
+  llvm::Value *offset = emit_table_get_hashstr(def, t, key);
+
+  // Get access to the node array
+  //llvm::Value *node_ptr = emit_gep(def, "node", t, 0, 7);
+  //llvm::Instruction *node = def->builder->CreateLoad(node_ptr);
+  //node->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Table_node);
+  llvm::Value *node = emit_table_get_nodearray(def, t);
+
+  // Now we need to get to the right element in the node array
+  // and retrieve the type information which is held there
+  //llvm::Value *ktype_ptr = emit_gep(def, "keytype", node, offset, 1, 1);
+  //llvm::Instruction *ktype = def->builder->CreateLoad(ktype_ptr);
+  //ktype->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
+  llvm::Value *ktype = emit_table_get_keytype(def, node, offset);
+
+  // We need to check that the key type is also short string
+  llvm::Value *is_shortstring =
+      emit_is_value_of_type(def, ktype, LUA__TSHRSTR, "is_shortstring");
+  llvm::BasicBlock *testkey =
+      llvm::BasicBlock::Create(def->jitState->context(), "testkey");
+  llvm::BasicBlock *testok =
+      llvm::BasicBlock::Create(def->jitState->context(), "testok");
+  llvm::BasicBlock *testfail =
+      llvm::BasicBlock::Create(def->jitState->context(), "testfail");
+  llvm::BasicBlock *testend =
+      llvm::BasicBlock::Create(def->jitState->context(), "testend");
+  def->builder->CreateCondBr(is_shortstring, testkey, testfail);
+
+  // Now we need to compare the keys
+  def->f->getBasicBlockList().push_back(testkey);
+  def->builder->SetInsertPoint(testkey);
+
+  // Get the key from the node
+  //llvm::Value *value_ptr = emit_gep(def, "keyvalue", node, offset, 1, 0);
+  //llvm::Value *sptr =
+  //    def->builder->CreateBitCast(value_ptr, def->types->ppTStringT);
+  //llvm::Instruction *keyvalue = def->builder->CreateLoad(sptr);
+  //keyvalue->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_ppointerT);
+  llvm::Value *keyvalue = emit_table_get_strkey(def, node, offset);
+
+  // Cast the pointer to a intptr so we can compare
+  llvm::Value *intptr =
+      def->builder->CreatePtrToInt(keyvalue, def->types->C_intptr_t);
+  llvm::Value *ourptr =
+      llvm::ConstantInt::get(def->types->C_intptr_t, (intptr_t)key);
+  // Compare the two pointers
+  // If they match then we found the element
+  llvm::Value *same = def->builder->CreateICmpEQ(intptr, ourptr);
+  def->builder->CreateCondBr(same, testok, testfail);
+
+  // If key found return the value
+  def->f->getBasicBlockList().push_back(testok);
+  def->builder->SetInsertPoint(testok);
+  //llvm::Value *value1 = emit_gep(def, "nodeval", node, offset, 0);
+  llvm::Value *value1 = emit_table_get_value(def, node, offset);
+  def->builder->CreateBr(testend);
+
+  // Not found so call luaH_getstr
+  def->f->getBasicBlockList().push_back(testfail);
+  def->builder->SetInsertPoint(testfail);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  llvm::Value *value2 =
+      CreateCall2(def->builder, def->luaH_getstrF, t, emit_load_reg_s(def, rc));
+  def->builder->CreateBr(testend);
+
+  // merge
+  def->f->getBasicBlockList().push_back(testend);
+  def->builder->SetInsertPoint(testend);
+  llvm::PHINode *phi = def->builder->CreatePHI(def->types->pTValueT, 2);
+  phi->addIncoming(value1, testok);
+  phi->addIncoming(value2, testfail);
+  emit_assign(def, ra, phi);
 }
 
 void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
@@ -398,7 +522,8 @@ void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C,
   // Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
   bool traced = emit_debug_trace(def, OP_GETTABUP, pc);
   // Below may invoke metamethod so we set savedpc
-  if (!traced) emit_update_savedpc(def, pc);
+  if (!traced)
+    emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
@@ -417,7 +542,8 @@ void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C,
   // Protect(luaV_settable(L, cl->upvals[a]->v, RKB(i), RKC(i)));
 
   bool traced = emit_debug_trace(def, OP_SETTABUP, pc);
-  if (!traced) emit_update_savedpc(def, pc);
+  if (!traced)
+    emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);

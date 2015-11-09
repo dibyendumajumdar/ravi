@@ -69,9 +69,9 @@ extern "C" {
 namespace ravi {
 
 /*
-** Lua typecode have certain bits that are used to 
+** Lua typecode have certain bits that are used to
 ** indicate variants or subtypes, or whether the type
-** is collectible. The enumerated values below 
+** is collectible. The enumerated values below
 ** reflect the way these type codes get set within
 ** Lua values - these are the codes the JIT code must
 ** use.
@@ -104,7 +104,7 @@ struct LuaLLVMTypes {
   // Following are standard C types
   // Must ensure that these types match
   // between JIT and the C compiler
-  llvm::Type *C_voidT; 
+  llvm::Type *C_voidT;
   llvm::Type *C_doubleT;
   llvm::Type *C_intptr_t;
   llvm::Type *C_size_t;
@@ -113,7 +113,7 @@ struct LuaLLVMTypes {
   llvm::Type *C_int64_t;
   llvm::Type *C_shortT;
   llvm::Type *C_intT;
-  llvm::PointerType *C_pintT; /* pointer to int */
+  llvm::PointerType *C_pintT;  /* pointer to int */
   llvm::PointerType *C_pcharT; /* pointer to char */
 
   llvm::Type *lua_NumberT;
@@ -242,6 +242,9 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_executeT;
   llvm::FunctionType *luaV_gettableT;
   llvm::FunctionType *luaV_settableT;
+  llvm::FunctionType *luaH_getintT;
+  llvm::FunctionType *luaH_setintT;
+  llvm::FunctionType *luaH_getstrT;
 
   // Following are functions that handle specific bytecodes
   // We cheat for these bytecodes by calling the function that
@@ -318,6 +321,10 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_RaviArray_typeT;
   llvm::MDNode *tbaa_RaviArray_dataT;
   llvm::MDNode *tbaa_RaviArray_lenT;
+  llvm::MDNode *tbaa_TString_hash;
+  llvm::MDNode *tbaa_Table_lsizenode;
+  llvm::MDNode *tbaa_Table_array;
+  llvm::MDNode *tbaa_Table_node;
 };
 
 class RAVI_API RaviJITStateImpl;
@@ -532,6 +539,9 @@ struct RaviFunctionDef {
   llvm::Function *luaV_divF;
   llvm::Function *luaV_objlenF;
   llvm::Function *luaC_upvalbarrierF;
+  llvm::Function *luaH_getstrF;
+  llvm::Function *luaH_getintF;
+  llvm::Function *luaH_setintF;
 
   // Some cheats - these correspond to OPCODEs that
   // are not inlined as of now
@@ -612,7 +622,7 @@ public:
   std::unique_ptr<RaviJITFunctionImpl>
   create_function(llvm::IRBuilder<> &builder, RaviFunctionDef *def);
 
-  // Save proto->code[pc] into savedpc 
+  // Save proto->code[pc] into savedpc
   void emit_update_savedpc(RaviFunctionDef *def, int pc);
 
   llvm::CallInst *CreateCall1(llvm::IRBuilder<> *builder, llvm::Value *func,
@@ -681,6 +691,10 @@ public:
 
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
                         int arg1, int arg2, int arg3);
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name,
+                        llvm::Value *ptr, llvm::Value *arg1, int arg2, int arg3);
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name,
+                        llvm::Value *ptr, llvm::Value *arg1, int arg2);
 
   // emit code for &ptr[offset]
   llvm::Value *emit_array_get(RaviFunctionDef *def, llvm::Value *ptr,
@@ -728,6 +742,22 @@ public:
 
   // emit code to load the table value from register
   llvm::Instruction *emit_load_reg_h(RaviFunctionDef *def, llvm::Value *ra);
+
+  // Gets the size of the hash table 
+  llvm::Value *emit_table_get_hashsize(RaviFunctionDef *def, llvm::Value *table);
+
+  // Gets the location of the hash node for given key and table size
+  llvm::Value *emit_table_get_hashstr(RaviFunctionDef *def, llvm::Value *table, TString *key);
+
+  llvm::Value *emit_table_get_nodearray(RaviFunctionDef *def, llvm::Value *table);
+
+  llvm::Value *emit_table_get_keytype(RaviFunctionDef *def, llvm::Value *node, llvm::Value *index);
+
+  llvm::Value *emit_table_get_strkey(RaviFunctionDef *def, llvm::Value *node, llvm::Value *index);
+
+  llvm::Value *emit_table_get_value(RaviFunctionDef *def, llvm::Value *node, llvm::Value *index);
+
+  llvm::Instruction *emit_load_reg_s(RaviFunctionDef *def, llvm::Value *rb);
 
   // emit code to load pointer to int array
   llvm::Instruction *emit_load_reg_h_intarray(RaviFunctionDef *def,
@@ -931,6 +961,9 @@ public:
   void emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
+
+  void emit_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, int pc,
+                       TString *key);
 
   void emit_SELF(RaviFunctionDef *def, int A, int B, int C, int pc);
 

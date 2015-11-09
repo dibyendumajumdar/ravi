@@ -4,6 +4,10 @@
 ** See Copyright Notice in lua.h
 */
 
+/*
+** Portions Copyright (C) 2015 Dibyendu Majumdar
+*/
+
 #define lundump_c
 #define LUA_CORE
 

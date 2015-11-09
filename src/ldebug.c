@@ -454,8 +454,8 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
           return getobjname(p, pc, b, name);  /* get name for 'b' */
         break;
       }
-      case OP_RAVI_GETTABLEI:
-      case OP_RAVI_GETTABLES:
+      case OP_RAVI_GETTABLE_I:
+      case OP_RAVI_GETTABLE_S:
       case OP_RAVI_GETTABLE_AI:
       case OP_RAVI_GETTABLE_AF:
       case OP_GETTABUP:

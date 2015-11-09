@@ -299,10 +299,10 @@ OP_RAVI_LT_FF,/*	A B C	if ((RK(B) <  RK(C)) ~= A) then pc++		*/
 OP_RAVI_LE_II,/*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
 OP_RAVI_LE_FF,/*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   
-OP_RAVI_GETTABLEI,/*	A B C	R(A) := R(B)[RK(C)], integer key	*/
-OP_RAVI_GETTABLES,/*	A B C	R(A) := R(B)[RK(C)], string key   */
-OP_RAVI_SETTABLEI,/*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
-OP_RAVI_SETTABLES,/*	A B C	R(A)[RK(B)] := RK(C), string key  */
+OP_RAVI_GETTABLE_I,/*	A B C	R(A) := R(B)[RK(C)], integer key	*/
+OP_RAVI_GETTABLE_S,/*	A B C	R(A) := R(B)[RK(C)], string key   */
+OP_RAVI_SETTABLE_I,/*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
+OP_RAVI_SETTABLE_S,/*	A B C	R(A)[RK(B)] := RK(C), string key  */
 OP_RAVI_TOTAB,    /* A R(A) := to_table(R(A)) */
 OP_RAVI_MOVETAB,  /* A B R(A) := R(B), check R(B) is a table */
 OP_RAVI_SETUPVALT,/*	A B	UpValue[B] := to_table(R(A))			*/

@@ -4,6 +4,11 @@
 ** See Copyright Notice in lua.h
 */
 
+/*
+** Portions Copyright (C) 2015 Dibyendu Majumdar
+*/
+
+
 #define lapi_c
 #define LUA_CORE
 

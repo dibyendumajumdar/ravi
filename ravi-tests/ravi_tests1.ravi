@@ -947,7 +947,6 @@ function test_idiv()
   assert(s1 == s2)
   print'test 41 (IDIV) OK'
 end
-
 assert(ravi.compile(test_idiv))
 test_idiv()
 
@@ -962,11 +961,15 @@ function test_tableaccess()
     t.data.city = 'london'
     return t.name, t.data.city
   end
-  check(f, 'NEWTABLE', 'SETTABLES', 'NEWTABLE',
-    'SETTABLES', 'GETTABLES', 'SETTABLE', 
-    'GETTABLES', 'GETTABLES' , 'GETTABLE',
+  check(f, 'NEWTABLE', 'SETTABLE_S', 'NEWTABLE',
+    'SETTABLE_S', 'GETTABLE_S', 'SETTABLE', 
+    'GETTABLE_S', 'GETTABLE_S' , 'GETTABLE',
     'RETURN', 'RETURN')
   local a,b = f()
+  assert(a == 'dibyendu')
+  assert(b == 'london')
+  assert(ravi.compile(f))
+  a,b = f()
   assert(a == 'dibyendu')
   assert(b == 'london')
 
@@ -980,16 +983,19 @@ function test_tableaccess()
     t[2][1] = 'london'
     return t[1], t[2][1]
   end
-  check(f, 'NEWTABLE', 'SETTABLEI', 'NEWTABLE',
-    'SETTABLEI', 'GETTABLEI', 'SETTABLE', 
-    'GETTABLEI', 'GETTABLEI' , 'GETTABLE',
+  check(f, 'NEWTABLE', 'SETTABLE_I', 'NEWTABLE',
+    'SETTABLE_I', 'GETTABLE_I', 'SETTABLE', 
+    'GETTABLE_I', 'GETTABLE_I' , 'GETTABLE',
     'RETURN', 'RETURN')
   local a,b = f()
   assert(a == 'dibyendu')
   assert(b == 'london')
+  assert(ravi.compile(f))
+  a,b = f()
+  assert(a == 'dibyendu')
+  assert(b == 'london')
   print 'test tableaccess OK'
 end
-
 test_tableaccess()
 
 

@@ -4,6 +4,10 @@
 ** See Copyright Notice in lua.h
 */
 
+/*
+** Portions Copyright (C) 2015 Dibyendu Majumdar 
+*/
+
 #define lparser_c
 #define LUA_CORE
 
@@ -304,16 +308,16 @@ static TString *str_checkname (LexState *ls) {
  * expression kind in e->k, e->u.info may have a register 
  * or bytecode 
  */
-static void init_exp (expdesc *e, expkind k, int i, ravitype_t tt) {
+static void init_exp (expdesc *e, expkind k, int info, ravitype_t tt) {
   e->f = e->t = NO_JUMP;
   e->k = k;
-  e->u.info = i;
+  e->u.info = info;
   /* RAVI change; added type */
   e->ravi_type = tt;
 }
 
 /* create a string constant expression, constant's location stored in
- * e->u.info, e->ravi_type = LUA_STRING
+ * e->u.info, e->ravi_type = RAVI_TSTRING
  */
 static void codestring (LexState *ls, expdesc *e, TString *s) {
   init_exp(e, VK, luaK_stringK(ls->fs, s), RAVI_TSTRING);
