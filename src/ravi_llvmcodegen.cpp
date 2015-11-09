@@ -350,6 +350,23 @@ llvm::Value *RaviCodeGenerator::emit_table_get_value(RaviFunctionDef *def, llvm:
     return emit_gep(def, "nodeval", node, index, 0);
 }
 
+llvm::Value *RaviCodeGenerator::emit_table_get_arraysize(RaviFunctionDef *def, llvm::Value *table) {
+  // Obtain the lsizenode  of the hash table
+  llvm::Value *sizearray_ptr = emit_gep(def, "sizearray", table, 0, 5);
+  llvm::Instruction *sizearray = def->builder->CreateLoad(sizearray_ptr);
+  sizearray->setMetadata(llvm::LLVMContext::MD_tbaa,
+    def->types->tbaa_Table_sizearray);
+  return sizearray;
+}
+
+llvm::Value *RaviCodeGenerator::emit_table_get_array(RaviFunctionDef *def, llvm::Value *table) {
+  // Get access to the node array
+  llvm::Value *array_ptr = emit_gep(def, "array", table, 0, 6);
+  llvm::Instruction *arry = def->builder->CreateLoad(array_ptr);
+  arry->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Table_array);
+  return arry;
+}
+
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_s(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
   llvm::Value *rb_s = def->builder->CreateBitCast(rb, def->types->ppTStringT);

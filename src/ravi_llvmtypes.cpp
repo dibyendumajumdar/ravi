@@ -1207,6 +1207,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_RaviArray_typeT =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 44);
   tbaa_Table_lsizenode = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 7);
+  tbaa_Table_sizearray = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 8);
   tbaa_Table_array = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 12);
   tbaa_Table_node = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 16);
 }

@@ -57,8 +57,26 @@ void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B, int pc) {
 }
 
 // R(A)[RK(B)] := RK(C)
-void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C,
+// This is a more optimized version that calls
+// luaH_setint() instead of luaV_settable(). 
+// This relies on two things:
+// a) we know we have a table
+// b) we know the key is an integer
+void RaviCodeGenerator::emit_SETTABLE_I(RaviFunctionDef *def, int A, int B, int C,
                                       int pc) {
+  emit_debug_trace(def, OP_RAVI_SETTABLE_I, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  llvm::Instruction *t = emit_load_reg_h(def, ra);
+  llvm::Instruction *key = emit_load_reg_i(def, rb);
+  CreateCall3(def->builder, def->luaH_setintF, t, key, rc);
+}
+
+// R(A)[RK(B)] := RK(C)
+void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C,
+  int pc) {
   // Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
   bool traced = emit_debug_trace(def, OP_SETTABLE, pc);
   // Below may invoke metamethod so we set savedpc
@@ -86,6 +104,59 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
   CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
 }
 
+// R(A) := R(B)[RK(C)]
+// This is a more optimized version that attempts to do an inline
+// array get first and only if that fails it fals back on calling
+// luaH_getint(). This relies on two things:
+// a) we know we have a table
+// b) we know the key is an integer
+void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C,
+  int pc) {
+  emit_debug_trace(def, OP_RAVI_GETTABLE_I, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  llvm::Instruction *key = emit_load_reg_i(def, rc);
+  llvm::Instruction *t = emit_load_reg_h(def, rb);
+  llvm::Value *data = emit_table_get_array(def, t);
+  llvm::Value *len = emit_table_get_arraysize(def, t);
+  llvm::Value *key_minus_1 =
+    def->builder->CreateSub(key, def->types->kluaInteger[1]);
+  llvm::Value *ukey =
+    def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
+
+  llvm::Value *cmp = def->builder->CreateICmpULT(ukey, len);
+  llvm::BasicBlock *then_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);
+  llvm::BasicBlock *else_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
+  llvm::BasicBlock *end_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+  def->builder->CreateCondBr(cmp, then_block, else_block);
+  def->builder->SetInsertPoint(then_block);
+
+  // Key is in range so array access possible
+  llvm::Value *value1 = def->builder->CreateGEP(data, ukey);
+  def->builder->CreateBr(end_block);
+
+  // Out of range so fall back to luaH_getint()
+  def->f->getBasicBlockList().push_back(else_block);
+  def->builder->SetInsertPoint(else_block);
+  llvm::Value *value2 =
+    CreateCall2(def->builder, def->luaH_getintF, t, key);
+  def->builder->CreateBr(end_block);
+
+  // Merge results from the two branches above
+  def->f->getBasicBlockList().push_back(end_block);
+  def->builder->SetInsertPoint(end_block);
+  llvm::PHINode *phi = def->builder->CreatePHI(def->types->pTValueT, 2);
+  phi->addIncoming(value1, then_block);
+  phi->addIncoming(value2, else_block);
+  emit_assign(def, ra, phi);
+}
+
+// R(A) := R(B)[RK(C)]
 // Emit inline code for accessing a table element using a string key
 // We try to access the element using the hash part but if the
 // key is not in the main position then we fall back on luaH_getstr().
@@ -104,8 +175,8 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
   // A number of macros are involved above do the
   // the generated code is somewhat more complex
 
-  // we don't need to refresh base here as the lua_State is not being touched
   emit_debug_trace(def, OP_RAVI_GETTABLE_S, pc);
+  emit_load_base(def);
 
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
