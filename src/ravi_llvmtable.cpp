@@ -110,41 +110,17 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
 
-  // Fortunately as we are dealing with a string constant we already
-  // know the hash code of the key
-  //unsigned int hash = key->hash;
   // Get the hash table
   llvm::Instruction *t = emit_load_reg_h(def, rb);
 
-  // Obtain the lsizenode  of the hash table
-  //llvm::Value *lsizenode_ptr = emit_gep(def, "lsizenode", t, 0, 4);
-  //llvm::Instruction *lsizenode = def->builder->CreateLoad(lsizenode_ptr);
-  //lsizenode->setMetadata(llvm::LLVMContext::MD_tbaa,
-  //                       def->types->tbaa_Table_lsizenode);
-  //// convert to integer (lsizenode is a byte)
-  //llvm::Value *intsize =
-  //    def->builder->CreateZExt(lsizenode, def->types->C_intT);
-  //// #define twoto(x)        (1<<(x))
-  //// #define sizenode(t)     (twoto((t)->lsizenode))
-  //llvm::Value *size = def->builder->CreateShl(def->types->kInt[1], intsize);
-  // #define lmod(s,size) (cast(int, (s) & ((size)-1)))
-  //llvm::Value *sizeminusone =
-  //    def->builder->CreateNSWSub(size, def->types->kInt[1]);
-  //llvm::Value *offset = def->builder->CreateAnd(
-  //    llvm::ConstantInt::get(def->types->C_intT, hash), sizeminusone);
+  // Obtain the offset where the key should be
   llvm::Value *offset = emit_table_get_hashstr(def, t, key);
 
   // Get access to the node array
-  //llvm::Value *node_ptr = emit_gep(def, "node", t, 0, 7);
-  //llvm::Instruction *node = def->builder->CreateLoad(node_ptr);
-  //node->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Table_node);
   llvm::Value *node = emit_table_get_nodearray(def, t);
 
   // Now we need to get to the right element in the node array
   // and retrieve the type information which is held there
-  //llvm::Value *ktype_ptr = emit_gep(def, "keytype", node, offset, 1, 1);
-  //llvm::Instruction *ktype = def->builder->CreateLoad(ktype_ptr);
-  //ktype->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
   llvm::Value *ktype = emit_table_get_keytype(def, node, offset);
 
   // We need to check that the key type is also short string
@@ -165,11 +141,6 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
   def->builder->SetInsertPoint(testkey);
 
   // Get the key from the node
-  //llvm::Value *value_ptr = emit_gep(def, "keyvalue", node, offset, 1, 0);
-  //llvm::Value *sptr =
-  //    def->builder->CreateBitCast(value_ptr, def->types->ppTStringT);
-  //llvm::Instruction *keyvalue = def->builder->CreateLoad(sptr);
-  //keyvalue->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_ppointerT);
   llvm::Value *keyvalue = emit_table_get_strkey(def, node, offset);
 
   // Cast the pointer to a intptr so we can compare
@@ -185,7 +156,7 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
   // If key found return the value
   def->f->getBasicBlockList().push_back(testok);
   def->builder->SetInsertPoint(testok);
-  //llvm::Value *value1 = emit_gep(def, "nodeval", node, offset, 0);
+  // Get the value
   llvm::Value *value1 = emit_table_get_value(def, node, offset);
   def->builder->CreateBr(testend);
 
