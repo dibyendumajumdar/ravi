@@ -16,9 +16,7 @@ end
 
 local function checkmessage (prog, msg)
   local m = doit(prog)
-  --if (not string.find(m, msg, 1, true)) then
-  --  print(m)
-  --end
+  --print(m)
   assert(string.find(m, msg, 1, true))
 end
 
@@ -54,6 +52,21 @@ checkmessage('local t: integer[] = {}; local t2: table = { data={} }; t=t2.data'
 checkmessage('local t: integer[] = {}; local f=function() t = 1 end; f()', 'upvalue of integer[] type, cannot be set to non integer[] value')
 checkmessage('local t: integer[] = {}; local x=function() return 0 end; local f=function() t = x() end; f()', 'upvalue of integer[] type, cannot be set to non integer[] value')
 checkmessage('local t: integer[] = {}; local x=function() t[1] = 1; local f=function() t = 1 end; f(); end; x()', 'upvalue of integer[] type, cannot be set to non integer[] value')
-
+checkmessage('local t: integer[] = {false}', 'value cannot be converted to integer')
+checkmessage('local x=function() return "hi" end; local t: integer[] = {x()}', 'value cannot be converted to integer')
+checkmessage('local x=function() return "hi" end; local t: integer[]; t[1] = x()', 'integer expected')
 
 checkmessage('local t: number[] = {}; local t2: number[] = {1.0}; t=t2[1]', 'Invalid assignment: number[] expected')
+checkmessage('local t: number[] = {}; t=1', 'Invalid assignment: number[] expected')
+checkmessage('local t: number[] = {}; t=function() end', 'number[] expected')
+checkmessage('local t: number[] = {}; local t2: integer[] = {}; t=t2', 'Invalid assignment: number[] expected')
+checkmessage('local t: number[] = {}; local t2: table = {}; t=t2', 'Invalid assignment: number[] expected')
+checkmessage('local t: number[] = {}; local t2: table = {true}; t[1]=t2[1]', 'number expected')
+checkmessage('local t: number[] = {}; local t2: table = {"hi"}; t[1]=t2[1]', 'number expected')
+checkmessage('local t: number[] = {}; local t2: table = { data={} }; t=t2.data', 'Invalid assignment: number[] expected')
+checkmessage('local t: number[] = {}; local f=function() t = 1 end; f()', 'upvalue of number[] type, cannot be set to non number[] value')
+checkmessage('local t: number[] = {}; local x=function() return 0 end; local f=function() t = x() end; f()', 'upvalue of number[] type, cannot be set to non number[] value')
+checkmessage('local t: number[] = {}; local x=function() t[1] = 1; local f=function() t = 1 end; f(); end; x()', 'upvalue of number[] type, cannot be set to non number[] value')
+checkmessage('local t: number[] = {false}', 'value cannot be converted to number')
+checkmessage('local x=function() return "hi" end; local t: number[] = {x()}', 'value cannot be converted to number')
+checkmessage('local x=function() return "hi" end; local t: number[]; t[1] = x()', 'number expected')

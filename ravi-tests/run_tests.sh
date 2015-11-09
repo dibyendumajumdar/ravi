@@ -67,3 +67,17 @@ then
   echo "bitwise failed"
   exit 1
 fi
+
+$LUA ravi_errors.ravi
+if [ $? != 0 ] 
+then
+  echo "ravi_errors failed"
+  exit 1
+fi
+
+$LUA -e"ravi.auto(true,1)" ravi_errors.ravi
+if [ $? != 0 ] 
+then
+  echo "ravi_errors failed"
+  exit 1
+fi
