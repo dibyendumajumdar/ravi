@@ -581,6 +581,10 @@ static void ravi_code_setzero(FuncState *fs, int reg, ravitype_t ravi_type) {
   if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
     /* code an instruction to convert in place */
     luaK_codeABC(fs, ravi_type == RAVI_TNUMFLT ? OP_RAVI_LOADFZ : OP_RAVI_LOADIZ, reg, 0, 0);
+  else if (ravi_type == RAVI_TARRAYFLT)
+    luaX_syntaxerror(fs->ls, "uninitialized number[] local variable");
+  else if (ravi_type == RAVI_TARRAYINT)
+    luaX_syntaxerror(fs->ls, "uninitialized integer[] local variable");
 }
 
 
