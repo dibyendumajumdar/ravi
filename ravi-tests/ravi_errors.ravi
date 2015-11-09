@@ -40,6 +40,7 @@ checkmessage('local t: table = {}; local t2: table = { data={} }; t=t2.data', 'I
 checkmessage('local t: table = {}; local f=function() t = 1 end; f()', 'upvalue of table type, cannot be set to non table value')
 checkmessage('local t: table = {}; local x=function() return 0 end; local f=function() t = x() end; f()', 'upvalue of table type, cannot be set to non table value')
 checkmessage('local t: table = {}; local x=function() t[1] = 1; local f=function() t = 1 end; f(); end; x()', 'upvalue of table type, cannot be set to non table value')
+checkmessage('local i: integer, t: table, j: number', 'uninitialized table in local variable')
 
 checkmessage('local t: integer[] = {}; local t2: integer[] = {1}; t=t2[1]', 'Invalid assignment: integer[] expected')
 checkmessage('local t: integer[] = {}; t=1', 'Invalid assignment: integer[] expected')
@@ -55,7 +56,7 @@ checkmessage('local t: integer[] = {}; local x=function() t[1] = 1; local f=func
 checkmessage('local t: integer[] = {false}', 'value cannot be converted to integer')
 checkmessage('local x=function() return "hi" end; local t: integer[] = {x()}', 'value cannot be converted to integer')
 checkmessage('local x=function() return "hi" end; local t: integer[] = {}; t[1] = x()', 'integer expected')
-checkmessage('local i: integer, t: integer[], j: number', 'uninitialized integer[] local variable')
+checkmessage('local i: integer, t: integer[], j: number', 'uninitialized integer[] in local variable')
 
 checkmessage('local t: number[] = {}; local t2: number[] = {1.0}; t=t2[1]', 'Invalid assignment: number[] expected')
 checkmessage('local t: number[] = {}; t=1', 'Invalid assignment: number[] expected')
@@ -71,4 +72,4 @@ checkmessage('local t: number[] = {}; local x=function() t[1] = 1; local f=funct
 checkmessage('local t: number[] = {false}', 'value cannot be converted to number')
 checkmessage('local x=function() return "hi" end; local t: number[] = {x()}', 'value cannot be converted to number')
 checkmessage('local x=function() return "hi" end; local t: number[] = {}; t[1] = x()', 'number expected')
-checkmessage('local i: integer, t: number[], j: number', 'uninitialized number[] local variable')
+checkmessage('local i: integer, t: number[], j: number', 'uninitialized number[] in local variable')
