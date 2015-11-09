@@ -693,7 +693,8 @@ public:
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
                         int arg1, int arg2, int arg3);
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name,
-                        llvm::Value *ptr, llvm::Value *arg1, int arg2, int arg3);
+                        llvm::Value *ptr, llvm::Value *arg1, int arg2,
+                        int arg3);
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name,
                         llvm::Value *ptr, llvm::Value *arg1, int arg2);
 
@@ -744,21 +745,28 @@ public:
   // emit code to load the table value from register
   llvm::Instruction *emit_load_reg_h(RaviFunctionDef *def, llvm::Value *ra);
 
-  // Gets the size of the hash table 
-  llvm::Value *emit_table_get_hashsize(RaviFunctionDef *def, llvm::Value *table);
+  // Gets the size of the hash table
+  llvm::Value *emit_table_get_hashsize(RaviFunctionDef *def,
+                                       llvm::Value *table);
 
   // Gets the location of the hash node for given key and table size
-  llvm::Value *emit_table_get_hashstr(RaviFunctionDef *def, llvm::Value *table, TString *key);
+  llvm::Value *emit_table_get_hashstr(RaviFunctionDef *def, llvm::Value *table,
+                                      TString *key);
 
-  llvm::Value *emit_table_get_nodearray(RaviFunctionDef *def, llvm::Value *table);
+  llvm::Value *emit_table_get_nodearray(RaviFunctionDef *def,
+                                        llvm::Value *table);
 
-  llvm::Value *emit_table_get_keytype(RaviFunctionDef *def, llvm::Value *node, llvm::Value *index);
+  llvm::Value *emit_table_get_keytype(RaviFunctionDef *def, llvm::Value *node,
+                                      llvm::Value *index);
 
-  llvm::Value *emit_table_get_strkey(RaviFunctionDef *def, llvm::Value *node, llvm::Value *index);
+  llvm::Value *emit_table_get_strkey(RaviFunctionDef *def, llvm::Value *node,
+                                     llvm::Value *index);
 
-  llvm::Value *emit_table_get_value(RaviFunctionDef *def, llvm::Value *node, llvm::Value *index);
+  llvm::Value *emit_table_get_value(RaviFunctionDef *def, llvm::Value *node,
+                                    llvm::Value *index);
 
-  llvm::Value *emit_table_get_arraysize(RaviFunctionDef *def, llvm::Value *table);
+  llvm::Value *emit_table_get_arraysize(RaviFunctionDef *def,
+                                        llvm::Value *table);
 
   llvm::Value *emit_table_get_array(RaviFunctionDef *def, llvm::Value *table);
 
@@ -960,7 +968,7 @@ public:
   void emit_TOINT(RaviFunctionDef *def, int A, int pc);
 
   void emit_TOFLT(RaviFunctionDef *def, int A, int pc);
-  
+
   void emit_LEN(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
@@ -1040,7 +1048,7 @@ public:
   void emit_MOVEAI(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_MOVEAF(RaviFunctionDef *def, int A, int B, int pc);
-  
+
   void emit_MOVETAB(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_TOARRAY(RaviFunctionDef *def, int A, int array_type_expected,

@@ -58,12 +58,12 @@ void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B, int pc) {
 
 // R(A)[RK(B)] := RK(C)
 // This is a more optimized version that calls
-// luaH_setint() instead of luaV_settable(). 
+// luaH_setint() instead of luaV_settable().
 // This relies on two things:
 // a) we know we have a table
 // b) we know the key is an integer
-void RaviCodeGenerator::emit_SETTABLE_I(RaviFunctionDef *def, int A, int B, int C,
-                                      int pc) {
+void RaviCodeGenerator::emit_SETTABLE_I(RaviFunctionDef *def, int A, int B,
+                                        int C, int pc) {
   emit_debug_trace(def, OP_RAVI_SETTABLE_I, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -76,7 +76,7 @@ void RaviCodeGenerator::emit_SETTABLE_I(RaviFunctionDef *def, int A, int B, int 
 
 // R(A)[RK(B)] := RK(C)
 void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C,
-  int pc) {
+                                      int pc) {
   // Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
   bool traced = emit_debug_trace(def, OP_SETTABLE, pc);
   // Below may invoke metamethod so we set savedpc
@@ -110,8 +110,8 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
 // luaH_getint(). This relies on two things:
 // a) we know we have a table
 // b) we know the key is an integer
-void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C,
-  int pc) {
+void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B,
+                                        int C, int pc) {
   emit_debug_trace(def, OP_RAVI_GETTABLE_I, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -123,18 +123,18 @@ void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int 
   llvm::Value *len = emit_table_get_arraysize(def, t);
   // As Lua arrays are 1 based we need to subtract by 1
   llvm::Value *key_minus_1 =
-    def->builder->CreateSub(key, def->types->kluaInteger[1]);
+      def->builder->CreateSub(key, def->types->kluaInteger[1]);
   // As len is unsigned int we need to truncate
   llvm::Value *ukey =
-    def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
+      def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
   // Do an unsigned comparison with length
   llvm::Value *cmp = def->builder->CreateICmpULT(ukey, len);
   llvm::BasicBlock *then_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);
+      llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);
   llvm::BasicBlock *else_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
   llvm::BasicBlock *end_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.end");
   def->builder->CreateCondBr(cmp, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
 
@@ -145,8 +145,7 @@ void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int 
   // Out of range so fall back to luaH_getint()
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
-  llvm::Value *value2 =
-    CreateCall2(def->builder, def->luaH_getintF, t, key);
+  llvm::Value *value2 = CreateCall2(def->builder, def->luaH_getintF, t, key);
   def->builder->CreateBr(end_block);
 
   // Merge results from the two branches above
@@ -649,13 +648,17 @@ void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
 
   OpCode op = OP_RAVI_TOTAB;
   switch (array_type_expected) {
-    case RAVI_TARRAYINT: op = OP_RAVI_TOARRAYI; break;
-    case RAVI_TARRAYFLT: op = OP_RAVI_TOARRAYF; break;
-    case RAVI_TTABLE:
-    default:
-      break;
+  case RAVI_TARRAYINT:
+    op = OP_RAVI_TOARRAYI;
+    break;
+  case RAVI_TARRAYFLT:
+    op = OP_RAVI_TOARRAYF;
+    break;
+  case RAVI_TTABLE:
+  default:
+    break;
   }
-  
+
   emit_debug_trace(def, op, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -714,15 +717,13 @@ void RaviCodeGenerator::emit_MOVEAF(RaviFunctionDef *def, int A, int B,
   llvm::Value *dest = emit_gep_register(def, A);
   emit_assign(def, dest, src);
 }
-  
-  void RaviCodeGenerator::emit_MOVETAB(RaviFunctionDef *def, int A, int B,
-                                      int pc) {
-    emit_debug_trace(def, OP_RAVI_MOVETAB, pc);
-    emit_TOARRAY(def, B, RAVI_TTABLE, "table expected", pc);
-    llvm::Value *src = emit_gep_register(def, B);
-    llvm::Value *dest = emit_gep_register(def, A);
-    emit_assign(def, dest, src);
-  }
 
-  
+void RaviCodeGenerator::emit_MOVETAB(RaviFunctionDef *def, int A, int B,
+                                     int pc) {
+  emit_debug_trace(def, OP_RAVI_MOVETAB, pc);
+  emit_TOARRAY(def, B, RAVI_TTABLE, "table expected", pc);
+  llvm::Value *src = emit_gep_register(def, B);
+  llvm::Value *dest = emit_gep_register(def, A);
+  emit_assign(def, dest, src);
+}
 }

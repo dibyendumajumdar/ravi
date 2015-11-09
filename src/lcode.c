@@ -671,9 +671,7 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
-      "Invalid assignment of type: var type %d, expression type %d",
-      var->ravi_type,
-      ex->ravi_type));
+      "Invalid assignment: number expected"));
   }
   else if (var->ravi_type == RAVI_TNUMINT) {
     if (ex->ravi_type == RAVI_TNUMINT)
@@ -684,22 +682,21 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
-      "Invalid assignment of type: var type %d, expression type %d",
+      "Invalid assignment: integer expected",
       var->ravi_type,
       ex->ravi_type));
   }
   else if (var->ravi_type == RAVI_TARRAYFLT ||
            var->ravi_type == RAVI_TARRAYINT ||
            var->ravi_type == RAVI_TTABLE) {
-    if (ex->ravi_type == var->ravi_type)
+    if (ex->ravi_type == var->ravi_type && ex->k != VINDEXED)
       return;
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
-      "Invalid assignment of type: var type %d, expression type %d",
-      var->ravi_type,
-      ex->ravi_type));
+      "Invalid assignment: %s expected",
+      var->ravi_type == RAVI_TTABLE ? "table" : (var->ravi_type == RAVI_TARRAYFLT ? "number[]" : "integer[]")));
   }
 }
 
