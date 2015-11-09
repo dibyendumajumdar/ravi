@@ -71,7 +71,7 @@ void RaviCodeGenerator::emit_SETTABLE_I(RaviFunctionDef *def, int A, int B, int 
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
   llvm::Instruction *t = emit_load_reg_h(def, ra);
   llvm::Instruction *key = emit_load_reg_i(def, rb);
-  CreateCall3(def->builder, def->luaH_setintF, t, key, rc);
+  CreateCall4(def->builder, def->luaH_setintF, def->L, t, key, rc);
 }
 
 // R(A)[RK(B)] := RK(C)
@@ -121,11 +121,13 @@ void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int 
   llvm::Instruction *t = emit_load_reg_h(def, rb);
   llvm::Value *data = emit_table_get_array(def, t);
   llvm::Value *len = emit_table_get_arraysize(def, t);
+  // As Lua arrays are 1 based we need to subtract by 1
   llvm::Value *key_minus_1 =
     def->builder->CreateSub(key, def->types->kluaInteger[1]);
+  // As len is unsigned int we need to truncate
   llvm::Value *ukey =
     def->builder->CreateTrunc(key_minus_1, def->types->C_intT);
-
+  // Do an unsigned comparison with length
   llvm::Value *cmp = def->builder->CreateICmpULT(ukey, len);
   llvm::BasicBlock *then_block =
     llvm::BasicBlock::Create(def->jitState->context(), "if.in.range", def->f);

@@ -346,20 +346,24 @@ llvm::Value *RaviCodeGenerator::emit_table_get_strkey(RaviFunctionDef *def,
   return keyvalue;
 }
 
-llvm::Value *RaviCodeGenerator::emit_table_get_value(RaviFunctionDef *def, llvm::Value *node, llvm::Value *index) {
-    return emit_gep(def, "nodeval", node, index, 0);
+llvm::Value *RaviCodeGenerator::emit_table_get_value(RaviFunctionDef *def,
+                                                     llvm::Value *node,
+                                                     llvm::Value *index) {
+  return emit_gep(def, "nodeval", node, index, 0);
 }
 
-llvm::Value *RaviCodeGenerator::emit_table_get_arraysize(RaviFunctionDef *def, llvm::Value *table) {
+llvm::Value *RaviCodeGenerator::emit_table_get_arraysize(RaviFunctionDef *def,
+                                                         llvm::Value *table) {
   // Obtain the lsizenode  of the hash table
   llvm::Value *sizearray_ptr = emit_gep(def, "sizearray", table, 0, 5);
   llvm::Instruction *sizearray = def->builder->CreateLoad(sizearray_ptr);
   sizearray->setMetadata(llvm::LLVMContext::MD_tbaa,
-    def->types->tbaa_Table_sizearray);
+                         def->types->tbaa_Table_sizearray);
   return sizearray;
 }
 
-llvm::Value *RaviCodeGenerator::emit_table_get_array(RaviFunctionDef *def, llvm::Value *table) {
+llvm::Value *RaviCodeGenerator::emit_table_get_array(RaviFunctionDef *def,
+                                                     llvm::Value *table) {
   // Get access to the node array
   llvm::Value *array_ptr = emit_gep(def, "array", table, 0, 6);
   llvm::Instruction *arry = def->builder->CreateLoad(array_ptr);
@@ -1530,7 +1534,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
       emit_CALL(def, A, B, C, pc);
     } break;
 
-    case OP_RAVI_SETTABLE_I:
+    case OP_RAVI_SETTABLE_I: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_SETTABLE_I(def, A, B, C, pc);
+    } break;
     case OP_RAVI_SETTABLE_S:
     case OP_SETTABLE: {
       int B = GETARG_B(i);
@@ -1552,7 +1560,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_GETTABLE(def, A, B, C, pc);
       }
     } break;
-    case OP_RAVI_GETTABLE_I:
+    case OP_RAVI_GETTABLE_I: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_GETTABLE_I(def, A, B, C, pc);
+    } break;
     case OP_GETTABLE: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
