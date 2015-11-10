@@ -79,6 +79,7 @@ typedef LUAI_UACINT l_uacInt;
 
 /* internal assertions for in-house debugging */
 #if defined(lua_assert)
+#warning lua_assert has been defined
 #define check_exp(c,e)		(lua_assert(c), (e))
 /* to avoid problems with conditions too long */
 #define lua_longassert(c)	{ if (!(c)) lua_assert(0); }
