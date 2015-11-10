@@ -446,14 +446,12 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
           op = OP_RAVI_GETTABLE_AF;
         else if (e->ravi_type == RAVI_TARRAYINT && e->u.ind.key_type == RAVI_TNUMINT)
           op = OP_RAVI_GETTABLE_AI;
-        else {
-          if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TSTRING)
-            op = OP_RAVI_GETTABLE_S;
-          else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TNUMINT)
-            op = OP_RAVI_GETTABLE_I;
-          else
-            op = OP_GETTABLE;
-        }
+        else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TSTRING)
+          op = OP_RAVI_GETTABLE_S;
+        else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TNUMINT)
+          op = OP_RAVI_GETTABLE_I;
+        else
+          op = OP_GETTABLE;
         if (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT)
           /* set the type of resulting expression */
           e->ravi_type = e->ravi_type == RAVI_TARRAYFLT ? RAVI_TNUMFLT : RAVI_TNUMINT;
@@ -720,8 +718,8 @@ static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex) {
       luaX_syntaxerror(fs->ls,
                        luaO_pushfstring(fs->ls->L, "Invalid assignment of "
                                                    "upvalue: upvalue type "
-                                                   "%d, expression type %d",
-                                        var->ravi_type, ex->ravi_type));
+                                                   "%s, expression type %s",
+                                        raviY_typename(var->ravi_type), raviY_typename(ex->ravi_type)));
   }
   return op;
 }
@@ -919,8 +917,9 @@ void luaK_indexed (FuncState *fs, expdesc *t, expdesc *k) {
   values (see for example Lua test events.lua) so we can't raise an error
   here.
   */
-  if (t->ravi_type != RAVI_TTABLE && t->ravi_type != RAVI_TARRAYFLT && t->ravi_type != RAVI_TARRAYINT)
+  if (t->ravi_type != RAVI_TTABLE && t->ravi_type != RAVI_TARRAYFLT && t->ravi_type != RAVI_TARRAYINT) {
     t->ravi_type = RAVI_TANY;
+  }
 }
 
 

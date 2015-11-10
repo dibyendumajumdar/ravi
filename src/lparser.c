@@ -65,28 +65,28 @@ typedef struct BlockCnt {
 void ravi_set_debuglevel(int level) { ravi_parser_debug = level; }
 
 /* RAVI - return the type name */
-static const char *get_typename(ravitype_t tt) {
+const char *raviY_typename(ravitype_t tt) {
   switch (tt) {
   case RAVI_TNIL:
     return "nil";
   case RAVI_TBOOLEAN:
-    return "B";
+    return "boolean";
   case RAVI_TNUMFLT:
-    return "D";
+    return "number";
   case RAVI_TNUMINT:
-    return "I";
+    return "integr";
   case RAVI_TSTRING:
-    return "S";
+    return "string";
   case RAVI_TFUNCTION:
-    return "F";
+    return "function";
   case RAVI_TARRAYINT:
-    return "[I";
+    return "integer[]";
   case RAVI_TARRAYFLT:
-    return "[F";
+    return "number[]";
   case RAVI_TUSERDATA:
-    return "U";
+    return "userdata";
   case RAVI_TTABLE:
-    return "T";
+    return "table";
   default:
     return "?";
   }
@@ -97,73 +97,73 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
   char buf[80] = {0};
   switch (e->k) {
   case VVOID:
-    fprintf(fp, "{p=%p, k=VVOID, type=%s}", e, get_typename(e->ravi_type));
+    fprintf(fp, "{p=%p, k=VVOID, type=%s}", e, raviY_typename(e->ravi_type));
     break;
   case VNIL:
-    fprintf(fp, "{p=%p, k=VNIL, type=%s}", e, get_typename(e->ravi_type));
+    fprintf(fp, "{p=%p, k=VNIL, type=%s}", e, raviY_typename(e->ravi_type));
     break;
   case VTRUE:
-    fprintf(fp, "{p=%p, k=VTRUE, type=%s}", e, get_typename(e->ravi_type));
+    fprintf(fp, "{p=%p, k=VTRUE, type=%s}", e, raviY_typename(e->ravi_type));
     break;
   case VFALSE:
-    fprintf(fp, "{p=%p, k=VFALSE, type=%s}", e, get_typename(e->ravi_type));
+    fprintf(fp, "{p=%p, k=VFALSE, type=%s}", e, raviY_typename(e->ravi_type));
     break;
   case VK:
     fprintf(fp, "{p=%p, k=VK, Kst=%d, type=%s}", e, e->u.info,
-            get_typename(e->ravi_type));
+            raviY_typename(e->ravi_type));
     break;
   case VKFLT:
     fprintf(fp, "{p=%p, k=VKFLT, n=%f, type=%s}", e, e->u.nval,
-            get_typename(e->ravi_type));
+            raviY_typename(e->ravi_type));
     break;
   case VKINT:
     fprintf(fp, "{p=%p, k=VKINT, n=%lld, type=%s}", e, e->u.ival,
-            get_typename(e->ravi_type));
+            raviY_typename(e->ravi_type));
     break;
   case VNONRELOC:
     fprintf(fp, "{p=%p, k=VNONRELOC, register=%d %s, type=%s}", e, e->u.info,
-            get_typename(raviY_get_register_typeinfo(fs, e->u.info)),
-            get_typename(e->ravi_type));
+            raviY_typename(raviY_get_register_typeinfo(fs, e->u.info)),
+            raviY_typename(e->ravi_type));
     break;
   case VLOCAL:
     fprintf(fp, "{p=%p, k=VLOCAL, register=%d, type=%s}", e, e->u.info,
-            get_typename(e->ravi_type));
+            raviY_typename(e->ravi_type));
     break;
   case VUPVAL:
     fprintf(fp, "{p=%p, k=VUPVAL, idx=%d, type=%s}", e, e->u.info,
-            get_typename(e->ravi_type));
+            raviY_typename(e->ravi_type));
     break;
   case VINDEXED:
     fprintf(fp,
             "{p=%p, k=VINDEXED, tablereg=%d, indexreg=%d, vtype=%s, type=%s}",
             e, e->u.ind.t, e->u.ind.idx,
             (e->u.ind.vt == VLOCAL) ? "VLOCAL" : "VUPVAL",
-            get_typename(e->ravi_type));
+            raviY_typename(e->ravi_type));
     break;
   case VJMP:
     fprintf(fp, "{p=%p, k=VJMP, pc=%d, instruction=(%s), type=%s}", e,
             e->u.info,
             raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
-            get_typename(e->ravi_type));
+            raviY_typename(e->ravi_type));
     break;
   case VRELOCABLE:
     fprintf(fp, "{p=%p, k=VRELOCABLE, pc=%d, instruction=(%s), type=%s}", e,
             e->u.info,
             raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
-            get_typename(e->ravi_type));
+            raviY_typename(e->ravi_type));
     break;
   case VCALL:
     fprintf(
         fp, "{p=%p, k=VCALL, pc=%d, instruction=(%s %s), type=%s}", e,
         e->u.info, raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
-        get_typename(raviY_get_register_typeinfo(fs, GETARG_A(getcode(fs, e)))),
-        get_typename(e->ravi_type));
+        raviY_typename(raviY_get_register_typeinfo(fs, GETARG_A(getcode(fs, e)))),
+        raviY_typename(e->ravi_type));
     break;
   case VVARARG:
     fprintf(fp, "{p=%p, k=VVARARG, pc=%d, instruction=(%s), type=%s}", e,
             e->u.info,
             raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
-            get_typename(e->ravi_type));
+            raviY_typename(e->ravi_type));
     break;
   }
 }
@@ -185,7 +185,7 @@ void raviY_printf(FuncState *fs, const char *format, ...) {
       v = va_arg(ap, LocVar *);
       const char *s = getstr(v->varname);
       printf("var={%s startpc=%d endpc=%d, type=%s}", s, v->startpc, v->endpc,
-             get_typename(v->ravi_type));
+             raviY_typename(v->ravi_type));
       cp++;
     } else if (cp[0] == '%' && cp[1] == 'o') {
       Instruction i;
@@ -211,7 +211,7 @@ void raviY_printf(FuncState *fs, const char *format, ...) {
     } else if (cp[0] == '%' && cp[1] == 't') {
       ravitype_t i;
       i = va_arg(ap, ravitype_t);
-      fputs(get_typename(i), stdout);
+      fputs(raviY_typename(i), stdout);
       cp++;
     } else {
       fputc(*cp, stdout);
@@ -317,7 +317,7 @@ static void init_exp (expdesc *e, expkind k, int info, ravitype_t tt) {
 }
 
 /* create a string constant expression, constant's location stored in
- * e->u.info, e->ravi_type = RAVI_TSTRING
+ * e->u.info, e->ravi_type = RAVI_TSTRING, e->k = VK
  */
 static void codestring (LexState *ls, expdesc *e, TString *s) {
   init_exp(e, VK, luaK_stringK(ls->fs, s), RAVI_TSTRING);
@@ -576,7 +576,10 @@ static void ravi_code_typecoersion(LexState *ls, int reg, ravitype_t ravi_type) 
   // TODO handle string, function, userdata, boolean types
 }
 
-/* RAVI code an instruction to initialize a typed value */
+/* RAVI code an instruction to initialize a scalar typed value
+   For array and table types however raise an error as uninitialized value
+   would cause a null pointer and therefore memory fault
+ */
 static void ravi_code_setzero(FuncState *fs, int reg, ravitype_t ravi_type) {
   if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
     /* code an instruction to convert in place */

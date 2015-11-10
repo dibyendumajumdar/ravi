@@ -23,7 +23,7 @@ typedef enum {
   VFALSE,
   VK,		/* info = index of constant in 'k' */
   VKFLT,	/* nval = numerical float value */
-  VKINT,	/* nval = numerical integer value */
+  VKINT,	/* ival = numerical integer value */
   VNONRELOC,	/* info = result register */
   VLOCAL,	/* info = local register */
   VUPVAL,       /* info = index of upvalue in 'upvalues' */
@@ -128,13 +128,11 @@ struct BlockCnt;  /* defined in lparser.c */
    When a function is the topmost function being parsed, the 
    registers between LexState->dyd.actvar.arr[nactvar] 
    and LexState->dyd.actvar.arr[freereg-1] 
-   are used by the parser for evaluating expressions - 
-   i.e. these are part of the local registers available to 
-   the function 
+   are used by the parser for evaluating expressions.
    Note that function parameters are handled in the
    same way as local variables. 
   
-   example of what all this means: 
+   Example of what all this means:
   
    Let's say we are parsing following chunk of code
    function testfunc()
@@ -226,6 +224,8 @@ typedef struct FuncState {
 LUAI_FUNC LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
                                  Dyndata *dyd, const char *name, int firstchar);
 
+
+LUAI_FUNC const char *raviY_typename(ravitype_t tt);
 
 /* Special printf that recognises following conversions:
  * %e - expdesc *

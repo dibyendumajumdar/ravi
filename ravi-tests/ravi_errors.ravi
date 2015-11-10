@@ -16,7 +16,7 @@ end
 
 local function checkmessage (prog, msg)
   local m = doit(prog)
-  --print(m)
+  -- print(m)
   assert(string.find(m, msg, 1, true))
 end
 
@@ -83,3 +83,7 @@ checkmessage('local t: number = function() return "hell" end', 'Invalid local as
 checkmessage('local function j() return "hell" end; local t: number = j()', 'number expected')
 checkmessage('local t: number = 5.5; local x=function() return "string" end; local f=function() t = x() end; f()', 'upvalue of number type, cannot be set to non number value')
 checkmessage('local t: number = 5', 'Invalid local assignment')
+
+checkmessage('for i=1,10 do i="a" end', 'Invalid assignment: integer expected')
+checkmessage('for i=1,10 do local f = function() i="a" end; f(); end', 'upvalue of integer type, cannot be set to non integer value')
+
