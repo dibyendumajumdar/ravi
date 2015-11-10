@@ -1558,6 +1558,7 @@ int luaB_opentests (lua_State *L) {
   lua_assert(ud == cast(void *, &l_memcontrol));
   lua_setallocf(L, lua_getallocf(L, NULL), ud);
   luaL_newlib(L, tests_funcs);
+  printf("Lua Test Library enabled")
   return 1;
 }
 

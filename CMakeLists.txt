@@ -19,12 +19,6 @@ if (LLVM_JIT AND GCC_JIT)
             "Both LLVM_JIT and GCC_JIT cannot be set to ON at the same time")
 endif ()
 
-# At least one JIT option is required
-if (NOT LLVM_JIT AND NOT GCC_JIT)
-    message(FATAL_ERROR
-            "One of LLVM_JIT and GCC_JIT must be set to ON")
-endif ()
-
 if (LLVM_JIT)
     find_package(LLVM REQUIRED CONFIG)
 
@@ -134,6 +128,9 @@ if (GCC_JIT)
             src/ravi_gccarith1.c src/ravi_gcccall.c src/ravi_gcctable.c
             src/ravi_gccarith2.c src/ravi_gcctforcall.c src/ravi_gccrest.c)
 endif ()
+if (NOT LLVM_JIT AND NOT GCC_JIT)
+    set(NO_JIT_SRCS src/ravi_nojit.c)
+endif()
 # define the lua core source files
 set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
         src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
@@ -195,10 +192,13 @@ if (LLVM_JIT)
 endif ()
 
 #Main library
-add_library(ravi SHARED ${RAVI_HEADERS}
-        ${LUA_LIB_SRCS} ${LUA_CORE_SRCS}
+add_library(ravi SHARED 
+        ${RAVI_HEADERS}
+        ${LUA_LIB_SRCS} 
+        ${LUA_CORE_SRCS}
         ${LLVM_JIT_SRCS}
-        ${GCC_JIT_SRCS})
+        ${GCC_JIT_SRCS}
+        ${NO_JIT_SRCS})
 if (WIN32)
     # enable DLL export
     set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
