@@ -422,6 +422,18 @@ void luaK_setoneret (FuncState *fs, expdesc *e) {
   }
 }
 
+/**
+ * Is the operand a reference to a short string constant?
+ */
+static int isshortstr(FuncState *fs, int kk) {
+  if (ISK(kk)) {
+    Proto *f = fs->f;
+    kk = INDEXK(kk);
+    lua_assert(kk >= 0 && kk < f->sizek);
+    return ttisshrstring(&f->k[kk]);
+  }
+  return 0;
+}
 
 void luaK_dischargevars (FuncState *fs, expdesc *e) {
   switch (e->k) {
@@ -441,12 +453,14 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
       freereg(fs, e->u.ind.idx);
       if (e->u.ind.vt == VLOCAL) {  /* 't' is in a register? */
         freereg(fs, e->u.ind.t);
+        /* TODO we should do this for upvalues too */
         /* table access - set specialized op codes if array types are detected */
         if (e->ravi_type == RAVI_TARRAYFLT && e->u.ind.key_type == RAVI_TNUMINT)
           op = OP_RAVI_GETTABLE_AF;
         else if (e->ravi_type == RAVI_TARRAYINT && e->u.ind.key_type == RAVI_TNUMINT)
           op = OP_RAVI_GETTABLE_AI;
-        else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TSTRING)
+        /* Check that we have a short string constant */
+        else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
           op = OP_RAVI_GETTABLE_S;
         else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TNUMINT)
           op = OP_RAVI_GETTABLE_I;

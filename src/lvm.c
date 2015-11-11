@@ -886,17 +886,10 @@ newframe:  /* reentry point when frame changes (call/return) */
       break;
     }
     case OP_RAVI_GETTABLE_S: {
-      if (ISK(GETARG_C(i))) {
-        TValue *kv = k + INDEXK(GETARG_C(i));
-        TString *key = tsvalue(kv);
-        if (key->tt == LUA_TSHRSTR) {
-          const TValue *v = luaH_getstr(hvalue(RB(i)), key);
-          setobj2s(L, ra, v);
-        }
-        else
-          goto l_gettable;
-      } else
-        goto l_gettable;
+      TValue *kv = k + INDEXK(GETARG_C(i));
+      TString *key = tsvalue(kv);
+      const TValue *v = luaH_getstr(hvalue(RB(i)), key);
+      setobj2s(L, ra, v);
       /*
       if (ISK(GETARG_C(i))) {
         TValue *kv = k + INDEXK(GETARG_C(i));
