@@ -3,6 +3,124 @@ ravi.auto(true)
 print "testing code generation and optimizations"
 T = ravi
 
+local opcodes_coverage = {}
+opcodes_coverage.MOVE = 0
+opcodes_coverage.LOADK = 0
+opcodes_coverage.LOADKX = 0
+opcodes_coverage.LOADBOOL = 0
+opcodes_coverage.LOADNIL = 0
+opcodes_coverage.GETUPVAL = 0
+opcodes_coverage.GETTABUP = 0
+opcodes_coverage.GETTABLE = 0
+opcodes_coverage.SETTABUP = 0
+opcodes_coverage.SETUPVAL = 0
+opcodes_coverage.SETTABLE = 0
+opcodes_coverage.NEWTABLE = 0
+opcodes_coverage.SELF = 0
+opcodes_coverage.ADD = 0
+opcodes_coverage.SUB = 0
+opcodes_coverage.MUL = 0
+opcodes_coverage.MOD = 0
+opcodes_coverage.POW = 0
+opcodes_coverage.DIV = 0
+opcodes_coverage.IDIV = 0
+opcodes_coverage.BAND = 0
+opcodes_coverage.BOR = 0
+opcodes_coverage.BXOR = 0
+opcodes_coverage.SHL = 0
+opcodes_coverage.SHR = 0
+opcodes_coverage.UNM = 0
+opcodes_coverage.BNOT = 0
+opcodes_coverage.NOT = 0
+opcodes_coverage.LEN = 0
+opcodes_coverage.CONCAT = 0
+opcodes_coverage.JMP = 0
+opcodes_coverage.EQ = 0
+opcodes_coverage.LT = 0
+opcodes_coverage.LE = 0
+opcodes_coverage.TEST = 0
+opcodes_coverage.TESTSET = 0
+opcodes_coverage.CALL = 0
+opcodes_coverage.TAILCALL = 0
+opcodes_coverage.RETURN = 0
+opcodes_coverage.FORLOOP = 0
+opcodes_coverage.FORPREP = 0
+opcodes_coverage.TFORCALL = 0
+opcodes_coverage.TFORLOOP = 0
+opcodes_coverage.SETLIST = 0
+opcodes_coverage.CLOSURE = 0
+opcodes_coverage.VARARG = 0
+opcodes_coverage.EXTRAARG = 0
+opcodes_coverage.NEWARRAYI = 0
+opcodes_coverage.NEWARRAYF = 0
+opcodes_coverage.LOADIZ = 0
+opcodes_coverage.LOADFZ = 0
+opcodes_coverage.UNMF = 0
+opcodes_coverage.UNMI = 0
+opcodes_coverage.ADDFF = 0
+opcodes_coverage.ADDFI = 0
+opcodes_coverage.ADDII = 0
+opcodes_coverage.SUBFF = 0
+opcodes_coverage.SUBFI = 0
+opcodes_coverage.SUBIF = 0
+opcodes_coverage.SUBII = 0
+opcodes_coverage.MULFF = 0
+opcodes_coverage.MULFI = 0
+opcodes_coverage.MULII = 0
+opcodes_coverage.DIVFF = 0
+opcodes_coverage.DIVFI = 0
+opcodes_coverage.DIVIF = 0
+opcodes_coverage.DIVII = 0
+opcodes_coverage.TOINT = 0
+opcodes_coverage.TOFLT = 0
+opcodes_coverage.TOARRAYI = 0
+opcodes_coverage.TOARRAYF = 0
+opcodes_coverage.MOVEI = 0
+opcodes_coverage.MOVEF = 0
+opcodes_coverage.MOVEAI = 0
+opcodes_coverage.MOVEAF = 0
+opcodes_coverage.GETTABLE_AI = 0
+opcodes_coverage.GETTABLE_AF = 0
+opcodes_coverage.SETTABLE_AI = 0
+opcodes_coverage.SETTABLE_AF = 0
+opcodes_coverage.FORLOOP_IP = 0
+opcodes_coverage.FORLOOP_I1 = 0
+opcodes_coverage.FORPREP_IP = 0
+opcodes_coverage.FORPREP_I1 = 0
+opcodes_coverage.SETUPVALI = 0
+opcodes_coverage.SETUPVALF = 0
+opcodes_coverage.SETUPVALAI = 0
+opcodes_coverage.SETUPVALAF = 0
+opcodes_coverage.SETTABLE_AII = 0
+opcodes_coverage.SETTABLE_AFF = 0
+opcodes_coverage.BAND_II = 0
+opcodes_coverage.BOR_II = 0
+opcodes_coverage.BXOR_II = 0
+opcodes_coverage.SHL_II = 0
+opcodes_coverage.SHR_II = 0
+opcodes_coverage.BNOT_I = 0
+opcodes_coverage.EQ_II = 0
+opcodes_coverage.EQ_FF = 0
+opcodes_coverage.LT_II = 0
+opcodes_coverage.LT_FF = 0
+opcodes_coverage.LE_II = 0
+opcodes_coverage.LE_FF = 0
+opcodes_coverage.GETTABLE_I = 0
+opcodes_coverage.GETTABLE_S = 0
+opcodes_coverage.SETTABLE_I = 0
+opcodes_coverage.SETTABLE_S = 0
+opcodes_coverage.TOTAB = 0
+opcodes_coverage.MOVETAB = 0
+opcodes_coverage.SETUPVALT = 0
+
+
+local compile = function(f)
+  if ravi.jit() then
+    assert(ravi.compile(f))
+  end
+  return true
+end
+
 -- ================================================================
 -- Following section is an extract from the code.lua test 
 -- These functions test bytecode generation, and also provide
@@ -13,7 +131,8 @@ function check (f, ...)
   local arg = {...}
   local c = T.listcode(f)
   for i=1, #arg do
-    -- print(arg[i], c[i])
+    --print(arg[i], c[i])
+    opcodes_coverage[arg[i]] = opcodes_coverage[arg[i]]+1
     assert(string.find(c[i], '- '..arg[i]..' *[AB][xs]?=%d'))
   end
   assert(c[#arg+2] == nil)
@@ -188,8 +307,8 @@ check(x, 'LOADK', 'MOVE', 'MOVE', 'CALL',
   'MOVE', 'RETURN', 'RETURN')
 check(z, 'ADD', 'RETURN', 'RETURN')
 y = x(z)
-assert(ravi.compile(z))
-assert(ravi.compile(x))
+compile(z)
+compile(x)
 assert(x(z) == 6 and y == 6)
 print("test 1 OK")
 
@@ -205,7 +324,7 @@ end
 check(x, 'LOADNIL', 'LOADIZ', 'LOADK', 'LOADK',
   'LOADK', 'LOADK', 'FORPREP_I1', 'ADDII', 'FORLOOP_I1',
   'RETURN', 'RETURN')
-assert(ravi.compile(x))
+compile(x)
 assert(x() == 1000000000)
 print("test 2 OK")
 
@@ -220,7 +339,7 @@ end
 check(x, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
   'LOADK', 'FORPREP_I1', 'ADDFI', 'FORLOOP_I1',
   'RETURN', 'RETURN')
-assert(ravi.compile(x))
+compile(x)
 assert(x() == 1000000000.0)
 print("test 3 OK")
 
@@ -235,7 +354,7 @@ end
 check(x, 'LOADK', 'LOADK',
   'LOADK', 'LOADK', 'FORPREP_IP', 'MOVE', 'FORLOOP_IP',
   'RETURN', 'RETURN')
-assert(ravi.compile(x))
+compile(x)
 assert(x() == 5)
 print("test 4 OK")
 
@@ -248,7 +367,7 @@ x = function ()
 end
 check(x, 'EQ_II', 'JMP', 'LOADK',
   'RETURN', 'LOADK', 'RETURN', 'RETURN')
-assert(ravi.compile(x))
+compile(x)
 assert(x() == 1.0)
 print("test 5 OK")
 
@@ -261,7 +380,7 @@ x = function (a: integer, b: integer)
 end
 check(x, 'TOINT', 'TOINT', 'EQ_II', 'JMP', 'LOADK',
   'RETURN', 'LOADK', 'RETURN', 'RETURN')
-assert(ravi.compile(x))
+compile(x)
 assert(x(1,2) == 1.0)
 print("test 6 OK")
 
@@ -278,7 +397,7 @@ end
 check(x, 'TOINT', 'LT_II', 'JMP', 'LOADK',
   'RETURN', 'JMP', 'LE_II', 'JMP', 'LOADK',
   'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
-assert(ravi.compile(x))
+compile(x)
 assert(x(5) == 2.0)
 assert(x(4) == 3.0)
 print("test 7 OK")
@@ -296,7 +415,7 @@ end
 check(x, 'TOFLT', 'LT_FF', 'JMP', 'LOADK',
   'RETURN', 'JMP', 'LE_FF', 'JMP', 'LOADK',
   'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
-assert(ravi.compile(x))
+compile(x)
 assert(x(5.1) == 2.0)
 assert(x(4.0) == 3.0)
 print("test 8 OK")
@@ -319,7 +438,7 @@ check(x, 'TOINT', 'EQ_II', 'JMP', 'EQ',
   'JMP', 'LOADK', 'RETURN', 'JMP', 'RETURN', 'JMP',
   'LE_II', 'JMP', 'LOADK',
   'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
-assert(ravi.compile(x))
+assert(compile(x))
 assert(x(1,1) == 99.0)
 assert(x(1,2) == 2)
 assert(x(1,5.3) == 5.3)
@@ -333,20 +452,20 @@ x = function()
     local i,j = 5,6
     return i,j
   end
-  assert(ravi.compile(tryme))
+  assert(compile(tryme))
   local i:integer, j:integer = tryme()
   assert(i+j == 11)
   print("test 11 OK")
 end
-assert(ravi.compile(x))
-check(x, 'CLOSURE', 'GETTABUP', 'GETTABUP', 'GETTABLE',
+compile(x)
+check(x, 'CLOSURE', 'GETTABUP', 'GETUPVAL',
   'MOVE', 'CALL', 'CALL', 'MOVE', 'CALL', 'TOINT', 'TOINT',
   'GETTABUP', 'ADDII', 'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL',
   'CALL', 'GETTABUP', 'LOADK', 'CALL', 'RETURN')
 x()
 
 -- test 12
-function tryme()
+function x()
   local a : number[], j:number = {}
   for i=1,10 do
     a[i] = i
@@ -354,10 +473,13 @@ function tryme()
   end
   return j
 end
-if (not ravi.compile(tryme)) then
-  print("test 12 FAILED to compile")
-end
-assert(tryme() == 55.0)
+assert(x() == 55.0)
+check(x, 'NEWARRAYF', 'LOADNIL', 'LOADFZ',
+  'LOADK', 'LOADK', 'LOADK', 'FORPREP_I1',
+  'SETTABLE_AF', 'GETTABLE_AF', 'ADDFF',
+  'FORLOOP_I1', 'RETURN', 'RETURN')
+compile(x)
+assert(x() == 55.0)
 print("test 12 OK")
 
 -- test 13
@@ -371,26 +493,18 @@ function pisum()
     end
     return sum
 end
-assert(ravi.compile(pisum))
+assert(math.abs(pisum()-1.644834071848065) < 1e-12)
+check(pisum, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
+  'LOADK', 'FORPREP_I1', 'LOADK', 'LOADK',
+  'LOADK', 'LOADK', 'FORPREP_I1', 'MULII',
+  'DIVFI', 'ADDFF', 'FORLOOP_I1', 'FORLOOP_I1',
+  'RETURN', 'RETURN')
+assert(compile(pisum))
 assert(math.abs(pisum()-1.644834071848065) < 1e-12)
 print("test 13 OK")
 
--- test 14
-function tryme()
-  local i,j = 5,6
-  return i,j
-end
-function x(f)
-  local i:integer, j:integer = f()
-  return i+j
-end
-assert(ravi.compile(tryme))
-assert(ravi.compile(x))
-assert(x(tryme) == 11)
-print("test 14 OK")
-
 -- test 15
-function tryme()
+function y()
   local i,j = 5.1,"6.2"
   return i,j
 end
@@ -398,11 +512,12 @@ function x(f)
   local i:number, j:number = f()
   return i+j
 end
---ravi.dumplua(tryme)
---ravi.dumplua(x)
-assert(ravi.compile(tryme))
-assert(ravi.compile(x))
-assert(x(tryme) == 11.3)
+assert(x(y) == 11.3)
+check(x, 'MOVE', 'CALL', 'TOFLT',
+  'TOFLT', 'ADDFF', 'RETURN', 'RETURN')
+assert(compile(y))
+assert(compile(x))
+assert(x(y) == 11.3)
 print("test 15 OK")
 
 -- test 16
@@ -413,8 +528,12 @@ function tryme(x,y)
     return 0
   end
 end
---ravi.dumplua(tryme)
-assert(ravi.compile(tryme))
+check(tryme, 'LT', 'JMP', 'LOADK',
+  'RETURN', 'JMP', 'LOADK', 'RETURN',
+  'RETURN')
+assert(tryme(1,2) == 1)
+assert(tryme(2,1) == 0)
+compile(tryme)
 assert(tryme(1,2) == 1)
 assert(tryme(2,1) == 0)
 print("test 16 OK")
@@ -423,8 +542,10 @@ print("test 16 OK")
 function tryme(x,y)
   return x < y
 end
---ravi.dumplua(tryme)
-assert(ravi.compile(tryme))
+check(tryme, 'LT', 'JMP', 'LOADBOOL',
+  'LOADBOOL', 'RETURN', 'RETURN')
+assert(tryme(1,2))
+compile(tryme)
 assert(tryme(1,2))
 assert(not tryme(2,1))
 print("test 17 OK")
@@ -435,7 +556,7 @@ function tabtest(x)
   return x[1]
 end
 --ravi.dumplua(tabtest)
-assert(ravi.compile(tabtest))
+assert(compile(tabtest))
 --ravi.dumpllvm(tabtest)
 assert(tabtest({}) == 5)
 print("test 18 OK")
@@ -447,7 +568,7 @@ function optest()
   return c
 end
 -- ravi.dumplua(optest)
-assert(ravi.compile(optest))
+assert(compile(optest))
 -- ravi.dumpllvm(optest)
 assert(optest() == 5)
 print("test 19 OK")
@@ -459,7 +580,7 @@ function optest()
   return c
 end
 -- ravi.dumplua(optest)
-assert(ravi.compile(optest))
+assert(compile(optest))
 -- ravi.dumpllvm(optest)
 assert(optest() == 1)
 print("test 20 OK")
@@ -473,7 +594,7 @@ function optest()
   return a
 end
 -- ravi.dumplua(optest)
-assert(ravi.compile(optest))
+assert(compile(optest))
 -- ravi.dumpllvm(optest)
 assert(optest() == 5)
 print("test 21 OK")
@@ -487,7 +608,7 @@ function optest()
   return a
 end
 -- ravi.dumplua(optest)
-assert(ravi.compile(optest))
+assert(compile(optest))
 -- ravi.dumpllvm(optest)
 assert(optest() == 5)
 print("test 22 OK")
@@ -497,7 +618,7 @@ x=function()
   local j:number[] = {}
   return j
 end
-assert(ravi.compile(x))
+assert(compile(x))
 y=x()
 y[1] = 99.67
 assert(y[1], 99.67)
@@ -514,7 +635,7 @@ x = function()
   end
   return t
 end
-assert(ravi.compile(x))
+assert(compile(x))
 assert(x() == "Saturday")
 print("test 30 OK")
 
@@ -525,8 +646,8 @@ end
 y = function(a)
   return a
 end
-assert(ravi.compile(x))
-assert(ravi.compile(y))
+assert(compile(x))
+assert(compile(y))
 assert(y(x()))
 assert(y(x(false)))
 assert(not y(x(true)))
@@ -537,7 +658,7 @@ x=function()
   local t={1,2,3,4,5}
   return #t
 end
-assert(ravi.compile(x))
+assert(compile(x))
 assert(x() == 5)
 print("test 34 OK")
 
@@ -549,8 +670,8 @@ end
 function z(t)
   return t:name()
 end
-assert(ravi.compile(t.name))
-assert(ravi.compile(z))
+assert(compile(t.name))
+assert(compile(z))
 assert(z(t) == "ravi")
 print("test 36 OK")
 
@@ -565,7 +686,7 @@ function f()
 
   return y
 end
-assert(ravi.compile(f))
+assert(compile(f))
 assert(f() == 6)
 print("test 38 OK")
 
@@ -576,7 +697,7 @@ function f()
   return x[3]
 end
 --ravi.dumplua(f)
-assert(ravi.compile(f))
+assert(compile(f))
 assert(math.abs(f()-11.1) < 1e-12)
 print("test 39 OK")
 
@@ -594,7 +715,7 @@ x = function()
   assert(nums[0] == 558)
   return t
 end
-assert(ravi.compile(x))
+assert(compile(x))
 assert(x() == 28)
 print("test 41 OK")
 
@@ -612,7 +733,7 @@ x = function()
   assert(nums[0] == 558)
   return t
 end
-assert(ravi.compile(x))
+assert(compile(x))
 assert(x() == 28)
 print("test 42 OK")
 
@@ -636,7 +757,7 @@ x = function()
   y[1] = 115
   return ones[10] == 115
 end
-assert(ravi.compile(x))
+assert(compile(x))
 assert(x() == true)
 print("test 43 OK")
 
@@ -681,10 +802,10 @@ x = function()
   return n
 end
 
-assert(ravi.compile(matrix.new))
-assert(ravi.compile(matrix.getcol))
-assert(ravi.compile(matrix.getdata))
-assert(ravi.compile(x))
+assert(compile(matrix.new))
+assert(compile(matrix.getcol))
+assert(compile(matrix.getdata))
+assert(compile(x))
 assert(x() == 65)
 print("test 44 OK")
 
@@ -692,7 +813,7 @@ print("test 44 OK")
 function testadd(a,b)
   return a+b
 end
-assert(ravi.compile(testadd))
+assert(compile(testadd))
 assert(testadd(1,1) == 2)
 assert(testadd(1.5,1.6) == 3.1)
 assert(testadd("1.5",1.6) == 3.1)
@@ -703,7 +824,7 @@ print("test 23 OK")
 function testsub(a,b)
   return a-b
 end
-assert(ravi.compile(testsub))
+assert(compile(testsub))
 assert(testsub(1,1) == 0)
 assert(math.abs(testsub(1.5,1.6)-(-0.1)) < 1e-12)
 assert(math.abs(testsub("1.5",1.6)-(-0.1)) < 1e-12)
@@ -714,7 +835,7 @@ print("test 24 OK")
 function testmul(a,b)
   return a*b
 end
-assert(ravi.compile(testmul))
+assert(compile(testmul))
 assert(testmul(2,2) == 4)
 assert(math.abs(testmul(1.5,1.6)-2.4) < 1e-12)
 assert(math.abs(testmul("1.5",1.6)-2.4) < 1e-12)
@@ -726,7 +847,7 @@ print("test 25 OK")
 function testdiv(a,b)
   return a/b
 end
-assert(ravi.compile(testdiv))
+assert(compile(testdiv))
 assert(testdiv(2,2) == 1.0)
 assert(math.abs(testdiv(1.5,1.6)-0.9375) < 1e-12)
 assert(math.abs(testdiv("1.5",1.6)-0.9375) < 1e-12)
@@ -748,11 +869,11 @@ function f()
   end
   return a
 end
-assert(ravi.compile(f))
+assert(compile(f))
 t = f()
 assert(#t == 2)
-assert(ravi.compile(t[1]))
-assert(ravi.compile(t[2]))
+assert(compile(t[1]))
+assert(compile(t[2]))
 assert(t[1]() == 10)
 assert(t[2]() == 10)
 assert(t[1]() == 20)
@@ -768,11 +889,11 @@ local y=function()
   local f = function()
                return x
             end
-  ravi.compile(f)
+  compile(f)
   return f
 end
 --ravi.dumplua(y)
---ravi.compile(y)
+--compile(y)
 local f = y()
 assert(ravi.iscompiled(f))
 --ravi.dumplua(f)
@@ -789,11 +910,11 @@ local y=function()
   local f = function()
                return x1
             end
-  ravi.compile(f)
+  compile(f)
   return f
 end
 --ravi.dumplua(y)
---ravi.compile(y)
+--compile(y)
 local f = y()
 assert(ravi.iscompiled(f))
 --ravi.dumplua(f)
@@ -813,7 +934,7 @@ function x()
   return f
 end
 f=x()
-assert(ravi.compile(f))
+assert(compile(f))
 assert(f() == 2)
 assert(f() == 3)
 print("test 35 OK")
@@ -824,9 +945,9 @@ function x()
   return function(x) a=a+x; return a; end
 end
 -- ravi.dumplua(x)
-ravi.compile(x)
+compile(x)
 y=x()
-ravi.compile(y)
+compile(y)
 assert(y(2) == 2)
 assert(y(2) == 4)
 assert(y(3) == 7)
@@ -836,7 +957,7 @@ print('test SETUPVAL and GETUPVAL Ok')
 x=function(a,b) 
   return a%b
 end
-assert(ravi.compile(x))
+assert(compile(x))
 assert(x(5,2) == 1)
 assert(math.abs(x(5.1,2.1)-0.9) < 1e-12)
 print("test 32 OK")
@@ -845,7 +966,7 @@ print("test 32 OK")
 x=function(a,b) 
   return a//b
 end
-assert(ravi.compile(x))
+assert(compile(x))
 assert(x(5,2) == 2)
 assert(math.abs(x(5.5,2.1)-2.0) < 1e-12)
 print("test 33 OK")
@@ -859,7 +980,7 @@ x = function ()
   return j
 end
 
-if (not ravi.compile(x)) then
+if (not compile(x)) then
   print("test 6 FAILED to compile")
 end
 assert(x() == 5.1)
@@ -873,7 +994,7 @@ x = function (a: integer, b: number)
 end
 --ravi.dumplua(x)
 assert(x(1,5.5) == 6.5)
-ravi.compile(x)
+compile(x)
 assert(x(1,5.5) == 6.5)
 print'test params int,num OK'
 
@@ -887,8 +1008,8 @@ function y()
 end
 
 assert(y() == 4.2)
-ravi.compile(x)
-ravi.compile(y)
+compile(x)
+compile(y)
 assert(y() == 4.2)
 print'test params num[],int OK'
 
@@ -900,8 +1021,8 @@ function f()
   tt = x(tt)
   ss = x(ss)
 end
-assert(ravi.compile(x))
-assert(ravi.compile(f))
+assert(compile(x))
+assert(compile(f))
 assert(pcall(f))
 function f()
   local tt: integer[] = {1}
@@ -909,7 +1030,7 @@ function f()
 end
 --ravi.dumplua(f)
 print'+'
-assert(ravi.compile(f))
+assert(compile(f))
 assert(not pcall(f))
 print'+'
 function f()
@@ -918,7 +1039,7 @@ function f()
   ss = x(tt)
 end
 print'+'
-assert(ravi.compile(f))
+assert(compile(f))
 assert(not pcall(f))
 
 print("test 40 OK")
@@ -934,20 +1055,20 @@ function test_idiv()
   check(x, 'GETUPVAL', 'GETUPVAL', 'IDIV', 'RETURN', 'RETURN')
   local s1=x()
   assert(s1 == 'idiv')
-  assert(ravi.compile(t.__idiv))
-  assert(ravi.compile(x))
+  assert(compile(t.__idiv))
+  assert(compile(x))
   local s2=x()
   assert(s1 == s2)
   local x= function(t1: number, t2: number) return t1//t2 end
   check(x, 'TOFLT', 'TOFLT', 'IDIV', 'RETURN', 'RETURN')
   local s1=x(4.1,2.0)
   assert(s1 == 2)
-  assert(ravi.compile(x))
+  assert(compile(x))
   local s2=x(4.1,2.0)
   assert(s1 == s2)
   print'test 41 (IDIV) OK'
 end
-assert(ravi.compile(test_idiv))
+assert(compile(test_idiv))
 test_idiv()
 
 function test_tableaccess()
@@ -968,7 +1089,7 @@ function test_tableaccess()
   local a,b = f()
   assert(a == 'dibyendu')
   assert(b == 'london')
-  assert(ravi.compile(f))
+  assert(compile(f))
   a,b = f()
   assert(a == 'dibyendu')
   assert(b == 'london')
@@ -990,7 +1111,7 @@ function test_tableaccess()
   local a,b = f()
   assert(a == 'dibyendu')
   assert(b == 'london')
-  assert(ravi.compile(f))
+  assert(compile(f))
   a,b = f()
   assert(a == 'dibyendu')
   assert(b == 'london')
@@ -999,4 +1120,7 @@ end
 test_tableaccess()
 
 
-
+for k,v in pairs(opcodes_coverage)
+do
+  print(k, v)
+end
