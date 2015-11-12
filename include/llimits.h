@@ -72,14 +72,15 @@ typedef union { double u; void *s; lua_Integer i; long l; } L_Umaxalign;
 typedef LUAI_UACNUMBER l_uacNumber;
 typedef LUAI_UACINT l_uacInt;
 
-#if !defined(NDEBUG) && !defined(lua_assert)
-#include <assert.h>
-#define lua_assert assert
-#endif
 
 /* internal assertions for in-house debugging */
 #if defined(lua_assert)
-#warning lua_assert has been defined
+#if !defined(RAVI_OPTION_STRING1)
+#define RAVI_OPTION_STRING1 " assertions"
+#endif
+#if !defined(RAVI_OPTION_STRING2)
+#define RAVI_OPTION_STRING2
+#endif
 #define check_exp(c,e)		(lua_assert(c), (e))
 /* to avoid problems with conditions too long */
 #define lua_longassert(c)	{ if (!(c)) lua_assert(0); }
@@ -87,6 +88,8 @@ typedef LUAI_UACINT l_uacInt;
 #define lua_assert(c)		((void)0)
 #define check_exp(c,e)		(e)
 #define lua_longassert(c)	((void)0)
+#define RAVI_OPTION_STRING1
+#define RAVI_OPTION_STRING2
 #endif
 
 /*

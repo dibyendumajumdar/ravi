@@ -40,6 +40,15 @@
 #define LUA_INITVARVERSION  \
 	LUA_INIT_VAR "_" LUA_VERSION_MAJOR "_" LUA_VERSION_MINOR
 
+#ifdef USE_LLVM
+#define RAVI_OPTION_STRING3 " LLVM"
+#elif USE_GCCJIT
+#define RAVI_OPTION_STRING3 " gccjit"
+#else
+#define RAVI_OPTION_STRING3 " nojit"
+#endif
+
+#define RAVI_OPTIONS "\nOptions" RAVI_OPTION_STRING1 RAVI_OPTION_STRING2 RAVI_OPTION_STRING3
 
 /*
 ** lua_stdin_is_tty detects whether the standard input is a 'tty' (that
@@ -207,6 +216,7 @@ static int docall (lua_State *L, int narg, int nres) {
 
 static void print_version (void) {
   lua_writestring(LUA_COPYRIGHT, strlen(LUA_COPYRIGHT));
+  lua_writestring(RAVI_OPTIONS, strlen(RAVI_OPTIONS));
   lua_writeline();
 }
 

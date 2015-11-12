@@ -910,7 +910,6 @@ newframe:  /* reentry point when frame changes (call/return) */
      */
     } break;
     case OP_GETTABLE: {
-        l_gettable:
         Protect(luaV_gettable(L, RB(i), RKC(i), ra));
     } break;
     case OP_SETTABUP: {
