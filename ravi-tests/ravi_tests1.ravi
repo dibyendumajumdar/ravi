@@ -892,12 +892,8 @@ local y=function()
   compile(f)
   return f
 end
---ravi.dumplua(y)
---compile(y)
+compile(y)
 local f = y()
-assert(ravi.iscompiled(f))
---ravi.dumplua(f)
---ravi.dumpllvm(f)
 assert(f() == 1)
 x=5
 assert(f() == 5)
@@ -914,9 +910,9 @@ local y=function()
   return f
 end
 --ravi.dumplua(y)
---compile(y)
+compile(y)
 local f = y()
-assert(ravi.iscompiled(f))
+--assert(ravi.iscompiled(f))
 --ravi.dumplua(f)
 --ravi.dumpllvm(f)
 assert(f() == 3)

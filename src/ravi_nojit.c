@@ -28,6 +28,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
   (void)L;
   (void)p;
   (void)options;
+  return 0;
 }
 
 void raviV_freeproto(struct lua_State *L, struct Proto *p) {
