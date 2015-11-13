@@ -21,6 +21,7 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 #include <ravi_gccjit.h>
+#include <assert.h>
 
 void ravi_emit_iFORPREP(ravi_function_def_t *def, int A, int pc, int step_one) {
   ravi_branch_def_t *forloop_target = def->jmp_targets[pc];

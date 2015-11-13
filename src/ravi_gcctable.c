@@ -22,6 +22,7 @@
 ******************************************************************************/
 
 #include <ravi_gccjit.h>
+#include <assert.h>
 
 // R(A+1) := R(B); R(A) := R(B)[RK(C)]
 void ravi_emit_SELF(ravi_function_def_t *def, int A, int B, int C, int pc) {

@@ -22,6 +22,7 @@
 ******************************************************************************/
 
 #include <ravi_gccjit.h>
+#include <assert.h>
 
 // OP_JMP
 void ravi_emit_JMP(ravi_function_def_t *def, int A, int j, int pc) {

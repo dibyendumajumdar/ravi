@@ -22,6 +22,7 @@
 ******************************************************************************/
 
 #include <ravi_gccjit.h>
+#include <assert.h>
 
 // implements EQ, LE and LT - by using the supplied lua function to call.
 void ravi_emit_EQ_LE_LT(ravi_function_def_t *def, int A, int B, int C, int j,

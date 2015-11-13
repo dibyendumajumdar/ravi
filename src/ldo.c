@@ -342,7 +342,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
       return 1;
     }
     case LUA_TLCL: {  /* Lua function: prepare its call */
-      CallInfo *prevci = L->ci; /* RAVI - for validation */
+      /* CallInfo *prevci = L->ci; */ /* RAVI - for validation */
       StkId base;
       Proto *p = clLvalue(func)->p;
       n = cast_int(L->top - func) - 1;  /* number of real arguments */

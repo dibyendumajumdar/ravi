@@ -172,7 +172,7 @@ int luaV_forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
 void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val) {
   int loop;  /* counter to avoid infinite loops */
   for (loop = 0; loop < MAXTAGLOOP; loop++) {
-    const TValue *tm;
+    const TValue *tm = NULL;
     if (ttistable(t)) {  /* 't' is a table? */
       Table *h = hvalue(t);
       switch (h->ravi_array.array_type) {
@@ -218,7 +218,7 @@ void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val) {
 void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
   int loop;  /* counter to avoid infinite loops */
   for (loop = 0; loop < MAXTAGLOOP; loop++) {
-    const TValue *tm;
+    const TValue *tm = NULL;
     if (ttistable(t)) {  /* 't' is a table? */
       Table *h = hvalue(t);
       switch (h->ravi_array.array_type) {

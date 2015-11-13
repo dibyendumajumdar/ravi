@@ -23,6 +23,7 @@
 
 #include <ravi_gccjit.h>
 #include <ravijit.h>
+#include <assert.h>
 
 // Create a unique function name in the context
 // of this generator
