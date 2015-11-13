@@ -555,8 +555,9 @@ function tabtest(x)
   x[1] = 5
   return x[1]
 end
---ravi.dumplua(tabtest)
-assert(compile(tabtest))
+assert(tabtest({}) == 5)
+check(tabtest, 'SETTABLE', 'GETTABLE', 'RETURN', 'RETURN')
+compile(tabtest)
 assert(tabtest({}) == 5)
 print("test 16 OK")
 
@@ -566,9 +567,10 @@ function optest()
   c = a and b
   return c
 end
--- ravi.dumplua(optest)
-assert(compile(optest))
--- ravi.dumpllvm(optest)
+check(optest, 'LOADK', 'LOADK', 'LOADNIL',
+  'TESTSET', 'JMP', 'MOVE', 'RETURN', 'RETURN')
+assert(optest() == 5)
+compile(optest)
 assert(optest() == 5)
 print("test 17 OK")
 
@@ -578,9 +580,10 @@ function optest()
   c = a or b
   return c
 end
--- ravi.dumplua(optest)
-assert(compile(optest))
--- ravi.dumpllvm(optest)
+check(optest, 'LOADK', 'LOADK', 'LOADNIL',
+  'TESTSET', 'JMP', 'MOVE', 'RETURN', 'RETURN')
+assert(optest() == 1)
+compile(optest)
 assert(optest() == 1)
 print("test 18 OK")
 
@@ -592,9 +595,10 @@ function optest()
   end
   return a
 end
--- ravi.dumplua(optest)
-assert(compile(optest))
--- ravi.dumpllvm(optest)
+check(optest, 'LOADK', 'LOADK', 'TEST', 'JMP',
+  'TEST', 'JMP', 'RETURN', 'RETURN', 'RETURN')
+assert(optest() == 5)
+compile(optest)
 assert(optest() == 5)
 print("test 19 OK")
 
@@ -606,36 +610,63 @@ function optest()
   end
   return a
 end
--- ravi.dumplua(optest)
-assert(compile(optest))
--- ravi.dumpllvm(optest)
+check(optest, 'LOADNIL', 'LOADK', 'TEST', 'JMP',
+  'TEST', 'JMP', 'RETURN', 'RETURN', 'RETURN')
+assert(optest() == 5)
+compile(optest)
 assert(optest() == 5)
 print("test 20 OK")
 
 -- test 29
-x=function()
-  local j:number[] = {}
-  return j
+z = function()
+  local x=function()
+    local j:number[] = {}
+    return j
+  end
+  compile(x)
+  y=x()
+  y[1] = 99.67
+  assert(y[1], 99.67)
+  assert(#y == 1)
 end
-assert(compile(x))
-y=x()
-y[1] = 99.67
-assert(y[1], 99.67)
-assert(#y == 1)
+check(z, 'CLOSURE', 'GETUPVAL', 'MOVE', 'CALL',
+  'MOVE', 'CALL', 'SETUPVAL', 'SETTABUP', 'GETTABUP', 'GETTABUP',
+  'LOADK', 'CALL', 'GETTABUP', 'GETUPVAL', 'LEN', 'EQ_II',
+  'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
+z()
+compile(z)
+z()
 print("test 21 OK")
 
 -- test 30
-days = {"Sunday", "Monday", "Tuesday", "Wednesday",
-            "Thursday", "Friday", "Saturday"}
-x = function() 
-  local t
-  for k,v in pairs(days) do
-    t = v
+z = function()
+  local days: table = {"Sunday", "Monday", "Tuesday", "Wednesday",
+            "Thursday", "Friday", "Saturda"}
+  assert(days[1] == 'Sunday')
+  assert(#days == 7)
+  assert(days[3] == 'Tuesday')
+  days[7] = days[7] .. 'y'
+  x = function() 
+    local t = ''
+    for k,v in pairs(days) do
+      t = t .. v
+    end
+    return t
   end
-  return t
+  assert(compile(x))
+  assert(x() == "SundayMondayTuesdayWednesdayThursdayFridaySaturday")
 end
-assert(compile(x))
-assert(x() == "Saturday")
+check(z, 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK', 'LOADK',
+  'LOADK', 'LOADK', 'LOADK', 'SETLIST', 'GETTABUP', 'GETTABLE_I',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP', 'LEN',
+  'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP', 'GETTABLE_I',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABLE_I', 'LOADK',
+  'CONCAT', 'SETTABLE_I', 'CLOSURE', 'SETUPVAL', 'GETTABUP', 'GETUPVAL',
+  'GETUPVAL', 'CALL', 'CALL', 'GETTABUP', 'GETUPVAL', 'CALL', 'EQ',
+  'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
+z()
+compile(z)
+z()
 print("test 22 OK")
 
 -- test 31
@@ -651,15 +682,6 @@ assert(y(x()))
 assert(y(x(false)))
 assert(not y(x(true)))
 print("test 23 OK")
-
--- test 34
-x=function()
-  local t={1,2,3,4,5}
-  return #t
-end
-assert(compile(x))
-assert(x() == 5)
-print("test 24 OK")
 
 -- test 36
 t = { name_ = "ravi" }
