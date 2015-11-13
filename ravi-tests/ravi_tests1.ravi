@@ -288,11 +288,11 @@ function (a) while a < 10 do a = a + 1 end end,
 function (a) while true do if not(a < 10) then break end; a = a + 1; end end
 )
 
-print 'Tested Lua bytecodes OK'
+print 'Lua bytecode tests OK'
 -- ================================================================
 
 
-local z,x,y
+local z,x,y,tryme
 
 -- test 1 
 z = function(a)
@@ -444,7 +444,7 @@ assert(x(1,2) == 2)
 assert(x(1,5.3) == 5.3)
 assert(x(5) == 2.0)
 assert(x(4) == 3.0)
-print("test 10 OK")
+print("test 9 OK")
 
 -- test 11
 x = function() 
@@ -455,14 +455,14 @@ x = function()
   assert(compile(tryme))
   local i:integer, j:integer = tryme()
   assert(i+j == 11)
-  print("test 11 OK")
 end
 compile(x)
 check(x, 'CLOSURE', 'GETTABUP', 'GETUPVAL',
   'MOVE', 'CALL', 'CALL', 'MOVE', 'CALL', 'TOINT', 'TOINT',
   'GETTABUP', 'ADDII', 'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL',
-  'CALL', 'GETTABUP', 'LOADK', 'CALL', 'RETURN')
+  'CALL', 'RETURN')
 x()
+print("test 10 OK")
 
 -- test 12
 function x()
@@ -480,7 +480,7 @@ check(x, 'NEWARRAYF', 'LOADNIL', 'LOADFZ',
   'FORLOOP_I1', 'RETURN', 'RETURN')
 compile(x)
 assert(x() == 55.0)
-print("test 12 OK")
+print("test 11 OK")
 
 -- test 13
 function pisum()
@@ -501,7 +501,7 @@ check(pisum, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
   'RETURN', 'RETURN')
 assert(compile(pisum))
 assert(math.abs(pisum()-1.644834071848065) < 1e-12)
-print("test 13 OK")
+print("test 12 OK")
 
 -- test 15
 function y()
@@ -518,7 +518,7 @@ check(x, 'MOVE', 'CALL', 'TOFLT',
 assert(compile(y))
 assert(compile(x))
 assert(x(y) == 11.3)
-print("test 15 OK")
+print("test 13 OK")
 
 -- test 16
 function tryme(x,y)
@@ -536,7 +536,7 @@ assert(tryme(2,1) == 0)
 compile(tryme)
 assert(tryme(1,2) == 1)
 assert(tryme(2,1) == 0)
-print("test 16 OK")
+print("test 14 OK")
 
 -- test 17
 function tryme(x,y)
@@ -548,7 +548,7 @@ assert(tryme(1,2))
 compile(tryme)
 assert(tryme(1,2))
 assert(not tryme(2,1))
-print("test 17 OK")
+print("test 15 OK")
 
 -- test 18
 function tabtest(x)
@@ -557,9 +557,8 @@ function tabtest(x)
 end
 --ravi.dumplua(tabtest)
 assert(compile(tabtest))
---ravi.dumpllvm(tabtest)
 assert(tabtest({}) == 5)
-print("test 18 OK")
+print("test 16 OK")
 
 -- test 19
 function optest()
@@ -571,7 +570,7 @@ end
 assert(compile(optest))
 -- ravi.dumpllvm(optest)
 assert(optest() == 5)
-print("test 19 OK")
+print("test 17 OK")
 
 -- test 20
 function optest()
@@ -583,7 +582,7 @@ end
 assert(compile(optest))
 -- ravi.dumpllvm(optest)
 assert(optest() == 1)
-print("test 20 OK")
+print("test 18 OK")
 
 -- test 21
 function optest()
@@ -597,7 +596,7 @@ end
 assert(compile(optest))
 -- ravi.dumpllvm(optest)
 assert(optest() == 5)
-print("test 21 OK")
+print("test 19 OK")
 
 -- test 22
 function optest()
@@ -611,7 +610,7 @@ end
 assert(compile(optest))
 -- ravi.dumpllvm(optest)
 assert(optest() == 5)
-print("test 22 OK")
+print("test 20 OK")
 
 -- test 29
 x=function()
@@ -623,7 +622,7 @@ y=x()
 y[1] = 99.67
 assert(y[1], 99.67)
 assert(#y == 1)
-print("test 29 OK")
+print("test 21 OK")
 
 -- test 30
 days = {"Sunday", "Monday", "Tuesday", "Wednesday",
@@ -637,7 +636,7 @@ x = function()
 end
 assert(compile(x))
 assert(x() == "Saturday")
-print("test 30 OK")
+print("test 22 OK")
 
 -- test 31
 x = function(a)
@@ -651,7 +650,7 @@ assert(compile(y))
 assert(y(x()))
 assert(y(x(false)))
 assert(not y(x(true)))
-print("test 31 OK")
+print("test 23 OK")
 
 -- test 34
 x=function()
@@ -660,7 +659,7 @@ x=function()
 end
 assert(compile(x))
 assert(x() == 5)
-print("test 34 OK")
+print("test 24 OK")
 
 -- test 36
 t = { name_ = "ravi" }
@@ -673,7 +672,7 @@ end
 assert(compile(t.name))
 assert(compile(z))
 assert(z(t) == "ravi")
-print("test 36 OK")
+print("test 25 OK")
 
 -- test 38
 -- test ravi integer array
@@ -688,7 +687,7 @@ function f()
 end
 assert(compile(f))
 assert(f() == 6)
-print("test 38 OK")
+print("test 26 OK")
 
 -- test 39
 function f()
@@ -699,7 +698,7 @@ end
 --ravi.dumplua(f)
 assert(compile(f))
 assert(math.abs(f()-11.1) < 1e-12)
-print("test 39 OK")
+print("test 27 OK")
 
 -- test 41
 -- Ravi arrays support for ipairs()
@@ -717,7 +716,7 @@ x = function()
 end
 assert(compile(x))
 assert(x() == 28)
-print("test 41 OK")
+print("test 28 OK")
 
 -- test 42
 -- Ravi arrays support for pairs()
@@ -735,7 +734,7 @@ x = function()
 end
 assert(compile(x))
 assert(x() == 28)
-print("test 42 OK")
+print("test 29 OK")
 
 -- test 43
 -- test creation of arrays and slice
@@ -759,7 +758,7 @@ x = function()
 end
 assert(compile(x))
 assert(x() == true)
-print("test 43 OK")
+print("test 30 OK")
 
 -- test 44
 matrix = {}
@@ -807,7 +806,7 @@ assert(compile(matrix.getcol))
 assert(compile(matrix.getdata))
 assert(compile(x))
 assert(x() == 65)
-print("test 44 OK")
+print("test 31 OK")
 
 -- test 23
 function testadd(a,b)
@@ -818,7 +817,7 @@ assert(testadd(1,1) == 2)
 assert(testadd(1.5,1.6) == 3.1)
 assert(testadd("1.5",1.6) == 3.1)
 assert(testadd("1.5","1.6") == 3.1)
-print("test 23 OK")
+print("test 32 OK")
 
 -- test 24
 function testsub(a,b)
@@ -829,7 +828,7 @@ assert(testsub(1,1) == 0)
 assert(math.abs(testsub(1.5,1.6)-(-0.1)) < 1e-12)
 assert(math.abs(testsub("1.5",1.6)-(-0.1)) < 1e-12)
 assert(math.abs(testsub("1.5","1.6")-(-0.1)) < 1e-12)
-print("test 24 OK")
+print("test 33 OK")
 
 -- test 25
 function testmul(a,b)
@@ -840,7 +839,7 @@ assert(testmul(2,2) == 4)
 assert(math.abs(testmul(1.5,1.6)-2.4) < 1e-12)
 assert(math.abs(testmul("1.5",1.6)-2.4) < 1e-12)
 assert(math.abs(testmul("1.5","1.6")-2.4) < 1e-12)
-print("test 25 OK")
+print("test 34 OK")
 
 
 -- test 26
@@ -852,7 +851,7 @@ assert(testdiv(2,2) == 1.0)
 assert(math.abs(testdiv(1.5,1.6)-0.9375) < 1e-12)
 assert(math.abs(testdiv("1.5",1.6)-0.9375) < 1e-12)
 assert(math.abs(testdiv("1.5","1.6")-0.9375) < 1e-12)
-print("test 26 OK")
+print("test 35 OK")
 
 
 -- test 37
@@ -878,7 +877,7 @@ assert(t[1]() == 10)
 assert(t[2]() == 10)
 assert(t[1]() == 20)
 assert(t[2]() == 20)
-print("test 37 OK")
+print("test 36 OK")
 
 
 
@@ -897,7 +896,7 @@ local f = y()
 assert(f() == 1)
 x=5
 assert(f() == 5)
-print("test 27 OK")
+print("test 37 OK")
 
 -- test 28
 -- upvalues
@@ -918,7 +917,7 @@ local f = y()
 assert(f() == 3)
 x1=5
 assert(f() == 5)
-print("test 28 OK")
+print("test 38 OK")
 
 -- test 35
 function x()
@@ -933,7 +932,7 @@ f=x()
 assert(compile(f))
 assert(f() == 2)
 assert(f() == 3)
-print("test 35 OK")
+print("test 39 OK")
 
 -- test setupval, getupval
 function x() 
@@ -947,7 +946,7 @@ compile(y)
 assert(y(2) == 2)
 assert(y(2) == 4)
 assert(y(3) == 7)
-print('test SETUPVAL and GETUPVAL Ok')
+print('test 40 Ok')
 
 -- test 32
 x=function(a,b) 
@@ -956,7 +955,7 @@ end
 assert(compile(x))
 assert(x(5,2) == 1)
 assert(math.abs(x(5.1,2.1)-0.9) < 1e-12)
-print("test 32 OK")
+print("test 41 OK")
 
 -- test 33
 x=function(a,b) 
@@ -965,7 +964,7 @@ end
 assert(compile(x))
 assert(x(5,2) == 2)
 assert(math.abs(x(5.5,2.1)-2.0) < 1e-12)
-print("test 33 OK")
+print("test 42 OK")
 
 -- test 6
 x = function ()
@@ -980,7 +979,7 @@ if (not compile(x)) then
   print("test 6 FAILED to compile")
 end
 assert(x() == 5.1)
-print("test 6 OK")
+print("test 43 OK")
 
 -- test parameter types
 x = function (a: integer, b: number)
@@ -992,7 +991,7 @@ end
 assert(x(1,5.5) == 6.5)
 compile(x)
 assert(x(1,5.5) == 6.5)
-print'test params int,num OK'
+print'test 44 OK'
 
 x=function (a:number[], b:integer)
   local j: number = a[b]
@@ -1007,7 +1006,7 @@ assert(y() == 4.2)
 compile(x)
 compile(y)
 assert(y() == 4.2)
-print'test params num[],int OK'
+print'test 45 OK'
 
 -- test 40
 function x(t) return t; end
@@ -1038,7 +1037,7 @@ print'+'
 assert(compile(f))
 assert(not pcall(f))
 
-print("test 40 OK")
+print("test 46 OK")
 
 
 -- test 41
@@ -1062,10 +1061,10 @@ function test_idiv()
   assert(compile(x))
   local s2=x(4.1,2.0)
   assert(s1 == s2)
-  print'test 41 (IDIV) OK'
 end
 assert(compile(test_idiv))
 test_idiv()
+print'test 47 (IDIV) OK'
 
 function test_tableaccess()
   -- Test specialised version of GETTABLE and SETTABLE
@@ -1111,9 +1110,9 @@ function test_tableaccess()
   a,b = f()
   assert(a == 'dibyendu')
   assert(b == 'london')
-  print 'test tableaccess OK'
 end
 test_tableaccess()
+print 'Test 48 OK'
 
 
 for k,v in pairs(opcodes_coverage)
