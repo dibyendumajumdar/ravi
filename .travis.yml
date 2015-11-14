@@ -4,7 +4,7 @@ os:
 env:
  - ARCH="x86_64"
 compiler:
-  - gcc
+ - clang
 addons:
   apt:
     sources:
@@ -16,13 +16,13 @@ addons:
       - gcc-5
 install:
  - cd /tmp && wget --no-check-certificate https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.tar.gz
- - cd /tmp && tar xvfz cmake-3.4.0-Linux-x86_64.tar.gz 2>/tmp/err1
+ - cd /tmp && tar -xf cmake-3.4.0-Linux-x86_64.tar.gz
  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
  - if [ "$CXX" = "clang++" ]; then export CXX="clang++-3.7" CC="clang-3.7"; fi
  - wget http://www.llvm.org/releases/3.7.0/llvm-3.7.0.src.tar.xz 
- - tar -xvf llvm-3.7.0.src.tar.xz 2>/tmp/err2
+ - tar -xf llvm-3.7.0.src.tar.xz
  - cd llvm-3.7.0.src && mkdir build && cd build && /tmp/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/LLVM37 -DLLVM_TARGETS_TO_BUILD="X86" .. && make install
 script:
  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
  - if [ "$CXX" = "clang++" ]; then export CXX="clang++-3.7" CC="clang-3.7"; fi
- - mkdir build && cd build && /tmp/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON .. && make && cd ../lua-5.3.1-tests && sh run_tests.sh ../build/lua	
+ - mkdir build && cd build && /tmp/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON .. && make && cd ../lua-5.3.1-tests && sh run_tests.sh ../build/lua
