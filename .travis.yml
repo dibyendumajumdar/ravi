@@ -3,9 +3,25 @@ os:
  - linux
 env:
  - ARCH="x86_64"
+compiler:
+  - gcc
+addons:
+  apt:
+    sources:
+      - llvm-toolchain-precise
+      - ubuntu-toolchain-r-test
+    packages:
+      - clang-3.7
+      - g++-5
+      - gcc-5
+      - cmake
 install:
+ - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
+ - if [ "$CXX" = "clang++" ]; then export CXX="clang++-3.7" CC="clang-3.7"; fi
  - wget http://www.llvm.org/releases/3.7.0/llvm-3.7.0.src.tar.xz 
  - tar -xvf llvm-3.7.0.src.tar.xz
  - cd llvm-3.7.0.src && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/LLVM37 -DLLVM_TARGETS_TO_BUILD="X86" .. && make install
 script:
+ - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
+ - if [ "$CXX" = "clang++" ]; then export CXX="clang++-3.7" CC="clang-3.7"; fi
  - mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON .. && make && cd ../lua-5.3.1-tests && sh run_tests.sh ../build/lua	
