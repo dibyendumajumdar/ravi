@@ -1,7 +1,7 @@
 Ravi Programming Language
 =========================
 
-Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and an `LLVM <http://www.llvm.org/>`_ based JIT compiler. The name Ravi comes from the Sanskrit word for the Sun.
+Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and an `LLVM <http://www.llvm.org/>`_ powered JIT compiler. The name Ravi comes from the Sanskrit word for the Sun.
 
 Lua is perfect as a small embeddable dynamic language so why a derivative? Ravi extends Lua with static typing for greater performance under JIT compilation. However, the static typing is optional and therefore Lua programs are also valid Ravi programs.
 
@@ -14,7 +14,7 @@ Goals
 * Optional static typing for Lua 
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
-* `LLVM <http://www.llvm.org/>`_ based JIT compiler
+* `LLVM <http://www.llvm.org/>`_ powered JIT compiler
 * Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available.
 
 Documentation
@@ -30,11 +30,11 @@ The project was kicked off in January 2015.
 
 JIT Implementation
 ++++++++++++++++++
-The LLVM JIT compiler functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
+The LLVM JIT compiler is functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
 Ravi also provides an `LLVM binding <http://the-ravi-programming-language.readthedocs.org/en/latest/llvm-bindings.html>`_; this is still work in progress so please check documentation for the latest status.
 
-As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is also functional but some byte codes are not yet compiled, and featurewise this implementation is somewhat behind the LLVM based implementation. 
+As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is also functional but some byte codes are not yet compiled, and featurewise this implementation is somewhat lagging behind the LLVM based implementation. 
 
 Performance Benchmarks
 ++++++++++++++++++++++
@@ -55,32 +55,100 @@ Ravi allows you to annotate ``local`` variables and function parameters with sta
   denotes an array of integers
 ``number[]``
   denotes an array of numbers
+``table``
+  a Lua table
 
 Declaring the types of ``local`` variables and function parameters has following advantages.
 
-* Local variables declared with above types are automatically initialized to 0
-* Arithmetic operations trigger type specific bytecodes which leads to more efficient JIT compilation
-* Specialised operators to get/set from arrays are implemented which makes array access more efficient in JIT mode as the access can be inlined
-* Values assigned to typed variables are checked statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime (i.e. value is cast to the expected type)
+* ``integer`` and ``number`` types are automatically initialized to zero
+* Arithmetic operations on numeric types make use of type specific bytecodes which leads to more efficient JIT compilation
+* Specialised operators to get/set from array types are implemented; this makes array access more efficient in JIT mode as the access can be inlined
+* Declared tables allow specialized opcodes for usages involving integer and short literal string keys; these opcodes result in more efficient JIT code
+* Values assigned to typed variables are checked statically when possible; if the values are results from a function call then runtime type checking is performed
 * The standard table operations on arrays are checked to ensure that the type is not subverted
 * Even if a typed variable is captured in a closure its type must be respected
 * When function parameters are decorated with types, Ravi performs an implicit coersion of those parameters to the required types. If the coersion fails a runtime error occurs.
 
-The array types are specializations of Lua table with some additional special behaviour:
+The array types (``number[]`` and ``integer[]``) are specializations of Lua table with some additional special behaviour:
 
-* Indices >= 1 should be used (note that Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible under ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot)  
-* Array elements are set to 0 not nil as default value
-* An array will grow automatically if user sets the element just past the array length
+* Array types are not compatible with declared table variables, i.e. following is not allowed::
+  
+    local t: table = {}
+    local t2: number[] = t  -- error!
+
+    local t3: number[] = {}
+    local t4: table = t3    -- error!
+
+  But following is okay::
+
+    local t5: number[] = {}
+    local t6 = t5           -- t6 treated as table
+
+  The reason for this discrepancy is that declared table types generate optimized JIT code which assumes that the keys are integers
+  or literal short strings. The generated code would be incorrect if this expectation was not met.
+
+* Indices >= 1 should be used when accessing array elements. Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible under ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot.   
+* Arrays must always be initialized:: 
+
+    local t: number[] = {} -- okay
+    local t2: number[]     -- error!
+
+  This restriction is placed as otherwise the JIT code would need to insert tests to validate that the variable is not nil.
+
+* An array will grow automatically if user sets the element just past the array length::
+
+    local t: number[] = {}
+    t[1] = 4.2             -- okay, array grows by 1
+    t[5] = 2.4             -- error! as attempt to set value 
+
 * It is an error to attempt to set an element that is beyond len+1 
 * The current used length of the array is recorded and returned by len operations
 * The array only permits the right type of value to be assigned (this is also checked at runtime to allow compatibility with Lua)
 * Accessing out of bounds elements will cause an error, except for setting the len+1 element
-* It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time. 
-* Arrays returned from functions can be stored into appropriately typed local variables - there is validation that the types match.
+* It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside 
+  those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time::
+
+    local function f(a, b: integer[], c)
+      -- Here a is dynamic type
+      -- b is declared as integer[]
+      -- c is also a dynamic type
+      b[1] = a[1] -- Okay only if a is actually also integer[]
+      b[1] = c[1] -- Will fail if c[1] cannot be converted to an integer
+    end
+
+    local a : integer[] = {1}
+    local b : integer[] = {}
+    local c = {1}
+
+    f(a,b,c)        -- ok as c[1] is integer
+    f(a,b, {'hi'})  -- error!
+
+* Arrays returned from functions can be stored into appropriately typed local variables - there is validation that the types match::
+
+    local t: number[] = f() -- type will be checked at runtime
+
 * Operations on array types can be optimised to special bytecode and JIT only when the array type is statically known. Otherwise regular table access will be used subject to runtime checks.
-* Array types may not have meta methods - this will be enforced at runtime (TODO)
+* Array types may not have meta methods - this will be enforced at runtime (TODO). 
 * ``pairs()`` and ``ipairs()`` work on arrays as normal
 * There is no way to delete an array element.
+* The array data is stored in contiguous memory just like native C arrays; morever the garbage collector does not scan the array data
+
+A declared table (as shown below) has some additional nuances::
+
+    local t: table = {}
+
+* Like array types, a variable of ``table`` type must be initialized
+* Array types are not compatible with declared table variables, i.e. following is not allowed::
+   
+    local t: table = {}
+    local t2: number[] = t -- error!
+
+* When short string literals are used to access a table element, specialized bytecodes are generated that are more efficiently JIT compiled::
+
+    local t: table = { name='dibyendu'}
+    print(t.name) -- The GETTABLE opcode is specialized in this case
+
+* As with array types, specialized bytecodes are generated when integer keys are used
 
 Following library functions allow creation of array types of defined length.
 
@@ -103,7 +171,7 @@ Slices cannot extend the array size for the same reasons above.
 
 The type of a slice is the same as that of the underlying array - hence slices get the same optimized JIT operations for array access.
 
-Finally each slice holds an internal reference to the underlying array to ensure that the garbage collector does not reclaim the array while there are slices pointing to it.
+Each slice holds an internal reference to the underlying array to ensure that the garbage collector does not reclaim the array while there are slices pointing to it.
 
 For an example use of slices please see the `matmul1.ravi <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/matmul1.ravi>`_ benchmark program in the repository. Note that this feature is highly experimental and not very well tested.
   
@@ -191,9 +259,8 @@ A JIT api is available with following functions:
 ``ravi.sizelevel([n])``
   sets LLVM size level (0, 1, 2); defaults to 0
 ``ravi.tracehook([b])``
-  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT
-  as a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when 
-  you want to use the debug api to step through code line by line
+  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode 
+  boundary; use this option only when you want to use the debug api to step through code line by line
 
 Compatibility with Lua
 ----------------------
@@ -265,20 +332,20 @@ I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 6
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 14 Win64" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 14 Win64" ..
 
 I then open the solution in VS2015 and do a build from there.
 
 On Ubuntu I use::
 
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
   make
 
 On MAC OS X I use::
 
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
 
 I open the generated project in Xcode and do a build from there.
 
@@ -301,8 +368,13 @@ Work Plan
 ---------
 * Feb-Jun 2015 - implement JIT compilation using LLVM
 * Jun-Jul 2015 - libgccjit based alternative JIT
-* Jun-Nov 2015 - testing and create libraries 
+* Jun-Nov 2015 - testing  
 * Dec 2015 - beta release
+* 2016 - Focus on creating numeric library bindings - in particular.
+
+  * BLAS and LAPACK
+  * GNU Scientific library
+  * symengine
 
 License
 -------
