@@ -12,5 +12,5 @@ install:
 script:
 	- mkdir build 
 	- cd build && cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON ..
-    - cd build && make
-    - cd lua-5.3.1-tests && sh run_tests.sh ../build/lua	
+	- cd build && make
+	- cd lua-5.3.1-tests && sh run_tests.sh ../build/lua	
