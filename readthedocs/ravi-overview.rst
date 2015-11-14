@@ -73,8 +73,8 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 
 * Array types are not compatible with declared table variables, i.e. following is not allowed::
   
-  local t: table = {}
-  local t2: number = t
+    local t: table = {}
+    local t2: number = t
 
 * Indices >= 1 should be used (note that Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible under ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot)  
 * Arrays must always be initialized:: 
