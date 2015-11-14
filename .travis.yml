@@ -14,8 +14,10 @@ addons:
       - clang-3.7
       - g++-5
       - gcc-5
-      - cmake
 install:
+ - wget https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.tar.gz
+ - tar xvfz cmake-3.4.0-Linux-x86_64.tar.gz
+ - export PATH=$PWD/make-3.4.0-Linux-x86_64/bin:$PATH
  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
  - if [ "$CXX" = "clang++" ]; then export CXX="clang++-3.7" CC="clang-3.7"; fi
  - wget http://www.llvm.org/releases/3.7.0/llvm-3.7.0.src.tar.xz 
@@ -24,4 +26,5 @@ install:
 script:
  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
  - if [ "$CXX" = "clang++" ]; then export CXX="clang++-3.7" CC="clang-3.7"; fi
+ - export PATH=$PWD/make-3.4.0-Linux-x86_64/bin:$PATH
  - mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON .. && make && cd ../lua-5.3.1-tests && sh run_tests.sh ../build/lua	
