@@ -349,6 +349,10 @@ On MAC OS X I use::
 
 I open the generated project in Xcode and do a build from there.
 
+Building without JIT
+--------------------
+You can omit ``-DLLVM_JIT=ON`` option above to build Ravi with a null JIT implementation.
+
 Build Artifacts
 ---------------
 The Ravi build creates a shared library, the Lua executable and some test programs.
