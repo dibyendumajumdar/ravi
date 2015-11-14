@@ -105,35 +105,35 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 * The current used length of the array is recorded and returned by len operations
 * The array only permits the right type of value to be assigned (this is also checked at runtime to allow compatibility with Lua)
 * Accessing out of bounds elements will cause an error, except for setting the len+1 element
-* It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time::
+* It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside 
+  those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time::
 
-  local function f(a, b: integer[], c)
-    -- Here a is dynamic type
-    -- b is declared as integer[]
-    -- c is also a dynamic type
-    b[1] = a[1] -- Okay only if a is actually also integer[]
-    b[1] = c[1] -- Will fail if c[1] cannot be converted to an integer
-  end
+    local function f(a, b: integer[], c)
+      -- Here a is dynamic type
+      -- b is declared as integer[]
+      -- c is also a dynamic type
+      b[1] = a[1] -- Okay only if a is actually also integer[]
+      b[1] = c[1] -- Will fail if c[1] cannot be converted to an integer
+    end
 
-  local a : integer[] = {1}
-  local b : integer[] = {}
-  local c = {1}
+    local a : integer[] = {1}
+    local b : integer[] = {}
+    local c = {1}
 
-  f(a,b,c)        -- ok as c[1] is integer
-  f(a,b, {'hi'})  -- error!
-
+    f(a,b,c)        -- ok as c[1] is integer
+    f(a,b, {'hi'})  -- error!
 
 * Arrays returned from functions can be stored into appropriately typed local variables - there is validation that the types match::
 
     local t: number[] = f() -- type will be checked at runtime
 
 * Operations on array types can be optimised to special bytecode and JIT only when the array type is statically known. Otherwise regular table access will be used subject to runtime checks.
-* Array types may not have meta methods - this will be enforced at runtime (TODO)
+* Array types may not have meta methods - this will be enforced at runtime (TODO). 
 * ``pairs()`` and ``ipairs()`` work on arrays as normal
 * There is no way to delete an array element.
 * The array data is stored in contiguous memory just like native C arrays; morever the garbage collector does not scan the array data
 
-A declared table (as shown below) has some nuances::
+A declared table (as shown below) has some additional nuances::
 
     local t: table = {}
 
@@ -329,8 +329,6 @@ Building Ravi
 -------------
 I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X.
 
-
-
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
   cd build
@@ -372,7 +370,7 @@ Work Plan
 * Jun-Jul 2015 - libgccjit based alternative JIT
 * Jun-Nov 2015 - testing  
 * Dec 2015 - beta release
-* 2016 - Focus on creating numeric library bindings - in particular:
+* 2016 - Focus on creating numeric library bindings - in particular.
   * BLAS and LAPACK
   * GNU Scientific library
   * symengine
