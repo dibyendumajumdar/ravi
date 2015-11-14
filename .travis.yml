@@ -15,14 +15,19 @@ addons:
       - g++-5
       - gcc-5
 install:
- - cd /tmp && wget --no-check-certificate https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.tar.gz
- - cd /tmp && tar -xf cmake-3.4.0-Linux-x86_64.tar.gz
  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
  - if [ "$CXX" = "clang++" ]; then export CXX="clang++-3.7" CC="clang-3.7"; fi
+ - wget --no-check-certificate https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.tar.gz
+ - tar -xf cmake-3.4.0-Linux-x86_64.tar.gz
  - wget http://www.llvm.org/releases/3.7.0/llvm-3.7.0.src.tar.xz 
  - tar -xf llvm-3.7.0.src.tar.xz
- - cd llvm-3.7.0.src && mkdir build && cd build && /tmp/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/LLVM37 -DLLVM_TARGETS_TO_BUILD="X86" .. && make install
+ - mkdir $TRAVIS_BUILD_DIR/llvm-3.7.0.src/build
+ - cd $TRAVIS_BUILD_DIR/llvm-3.7.0.src/build && $TRAVIS_BUILD_DIR/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/LLVM37 -DLLVM_TARGETS_TO_BUILD="X86" ..
+ - cd $TRAVIS_BUILD_DIR/llvm-3.7.0.src/build && make install
 script:
  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
  - if [ "$CXX" = "clang++" ]; then export CXX="clang++-3.7" CC="clang-3.7"; fi
- - mkdir build && cd build && /tmp/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON .. && make && cd ../lua-5.3.1-tests && sh run_tests.sh ../build/lua
+ - mkdir $TRAVIS_BUILD_DIR/build
+ - cd $TRAVIS_BUILD_DIR/build && $TRAVIS_BUILD_DIR/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON ..
+ - cd $TRAVIS_BUILD_DIR/build && make
+ - cd $TRAVIS_BUILD_DIR/lua-5.3.1-tests && sh ./run_tests.sh $TRAVIS_BUILD_DIR/build/lua
