@@ -55,32 +55,65 @@ Ravi allows you to annotate ``local`` variables and function parameters with sta
   denotes an array of integers
 ``number[]``
   denotes an array of numbers
+``table``
+  a Lua table
 
 Declaring the types of ``local`` variables and function parameters has following advantages.
 
-* Local variables declared with above types are automatically initialized to 0
-* Arithmetic operations trigger type specific bytecodes which leads to more efficient JIT compilation
-* Specialised operators to get/set from arrays are implemented which makes array access more efficient in JIT mode as the access can be inlined
-* Values assigned to typed variables are checked statically unless the values are results from a function call in which case the there is an attempt to convert values at runtime (i.e. value is cast to the expected type)
+* ``integer`` and ``number`` types are automatically initialized to zero
+* Arithmetic operations on numeric types make use of type specific bytecodes which leads to more efficient JIT compilation
+* Specialised operators to get/set from array types are implemented; this makes array access more efficient in JIT mode as the access can be inlined
+* Declared tables allow specialized opcodes for usages involving integer and short string (literal only) keys; these opcodes result in more efficient JIT code
+* Values assigned to typed variables are checked statically when possible; if the values are results from a function call then there runtime type checking is performed
 * The standard table operations on arrays are checked to ensure that the type is not subverted
 * Even if a typed variable is captured in a closure its type must be respected
 * When function parameters are decorated with types, Ravi performs an implicit coersion of those parameters to the required types. If the coersion fails a runtime error occurs.
 
-The array types are specializations of Lua table with some additional special behaviour:
+The array types (``number[]`` and ``integer[]``) are specializations of Lua table with some additional special behaviour:
+
+* Array types are not compatible with declared table variables, i.e. following is not allowed::
+  
+  local t: table = {}
+  local t2: number = t
 
 * Indices >= 1 should be used (note that Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible under ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot)  
-* Array elements are set to 0 not nil as default value
+* Arrays must always be initialized:: 
+
+  local t: number[] = {} -- okay
+  local t2: number[]     -- error!
+
 * An array will grow automatically if user sets the element just past the array length
 * It is an error to attempt to set an element that is beyond len+1 
 * The current used length of the array is recorded and returned by len operations
 * The array only permits the right type of value to be assigned (this is also checked at runtime to allow compatibility with Lua)
 * Accessing out of bounds elements will cause an error, except for setting the len+1 element
 * It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time. 
-* Arrays returned from functions can be stored into appropriately typed local variables - there is validation that the types match.
+* Arrays returned from functions can be stored into appropriately typed local variables - there is validation that the types match::
+
+  local t: number[] = f() -- type will be checked at runtime
+
 * Operations on array types can be optimised to special bytecode and JIT only when the array type is statically known. Otherwise regular table access will be used subject to runtime checks.
 * Array types may not have meta methods - this will be enforced at runtime (TODO)
 * ``pairs()`` and ``ipairs()`` work on arrays as normal
 * There is no way to delete an array element.
+* The array data is stored in contiguous memory just like native C arrays; morever the garbage collector does not scan the array data
+
+A declared table (as shown below) has some nuances::
+
+  local t: table = {}
+
+* Like array types, a variable of ``table`` type must be initialized
+* Array types are not compatible with declared table variables, i.e. following is not allowed::
+  
+  local t: table = {}
+  local t2: number = t
+
+* When short string literals are used to access a table element, specialized bytecodes are generated that are more efficiently JIT compiled::
+
+  local t: table = { name='dibyendu'}
+  print(t.name) -- The GETTABLE opcode is specialized in this cases
+
+* As with array types, specialized bytecodes are generated when integer keys are used
 
 Following library functions allow creation of array types of defined length.
 
@@ -103,7 +136,7 @@ Slices cannot extend the array size for the same reasons above.
 
 The type of a slice is the same as that of the underlying array - hence slices get the same optimized JIT operations for array access.
 
-Finally each slice holds an internal reference to the underlying array to ensure that the garbage collector does not reclaim the array while there are slices pointing to it.
+Each slice holds an internal reference to the underlying array to ensure that the garbage collector does not reclaim the array while there are slices pointing to it.
 
 For an example use of slices please see the `matmul1.ravi <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/matmul1.ravi>`_ benchmark program in the repository. Note that this feature is highly experimental and not very well tested.
   
@@ -191,9 +224,8 @@ A JIT api is available with following functions:
 ``ravi.sizelevel([n])``
   sets LLVM size level (0, 1, 2); defaults to 0
 ``ravi.tracehook([b])``
-  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT
-  as a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when 
-  you want to use the debug api to step through code line by line
+  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode 
+  boundary; use this option only when you want to use the debug api to step through code line by line
 
 Compatibility with Lua
 ----------------------
