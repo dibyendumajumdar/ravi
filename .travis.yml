@@ -4,7 +4,7 @@ os:
 env:
  - ARCH="x86_64"
 compiler:
- - clang
+ - gcc
 addons:
   apt:
     sources:
