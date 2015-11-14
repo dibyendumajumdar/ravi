@@ -1111,6 +1111,22 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
     } break;
     case OP_RAVI_BNOT_I: {
+      /* On Win32 the following code generates a test failure
+       * at line 29 of bitwise.lua test. Specifically following fails:
+       * function x()
+       *   local a= 0xF0000000
+       *   local b=~a
+       *   local c=~b
+       *   local d=~~a
+       *   print(a,b,c,d)
+       *   print(~~a)
+       * end
+       * Inserting a prinf statement following the assignment to ib appears
+       * to cause the problem to go away so this is a case of incorrect 
+       * optimization / code generation?
+       * To work around this issue, for now we can disable the type 
+       * inference for OP_BNOT in line 1129 of lcode.c (codeexpval function)
+       */
       TValue *rb = RB(i);
       lua_Integer ib = ivalue(rb);
       setivalue(ra, intop(^, ~l_castS2U(0), ib));
