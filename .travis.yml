@@ -1,16 +1,16 @@
 language: cpp
 os:
-	- linux
+ - linux
 env:
-	- ARCH="x86_64"
+ - ARCH="x86_64"
 install:
-	- wget http://www.llvm.org/releases/3.7.0/llvm-3.7.0.src.tar.xz 
-	- tar -xvf llvm-3.7.0.src.tar.xz
-	- cd llvm-3.7.0.src && mkdir build
-	- cd llvm-3.7.0.src/build && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/LLVM37 -DLLVM_TARGETS_TO_BUILD="X86" ..
-	- cd llvm-3.7.0.src/build && make install
+ - wget http://www.llvm.org/releases/3.7.0/llvm-3.7.0.src.tar.xz 
+ - tar -xvf llvm-3.7.0.src.tar.xz
+ - cd llvm-3.7.0.src && mkdir build
+ - cd llvm-3.7.0.src/build && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/LLVM37 -DLLVM_TARGETS_TO_BUILD="X86" ..
+ - cd llvm-3.7.0.src/build && make install
 script:
-	- mkdir build 
-	- cd build && cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON ..
-	- cd build && make
-	- cd lua-5.3.1-tests && sh run_tests.sh ../build/lua	
+ - mkdir build 
+ - cd build && cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON ..
+ - cd build && make
+ - cd lua-5.3.1-tests && sh run_tests.sh ../build/lua	
