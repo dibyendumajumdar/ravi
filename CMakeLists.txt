@@ -10,7 +10,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 # By default LLVM JIT is ON, and GCC JIT is OFF
 # Only one can be ON, and at last one of them must be ON
-option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled" ON)
+option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled" OFF)
 option(GCC_JIT "Controls whether GCC JIT compilation will be enabled" OFF)
 
 # We cannot link to both LLVM and GCC JIT
@@ -38,6 +38,10 @@ if (GCC_JIT)
     include_directories(${GCCJIT_INCLUDE_DIRS})
     add_definitions(-DUSE_GCCJIT)
 endif ()
+
+if (NOT LLVM_JIT AND NOT GCC_JIT)
+    message(WARNING "Neither LLVM nor gccjit will be enabled; specify -DLLVM_JIT or -DGCC_JIT to enable")
+endif()
 
 if (MSVC)
     set(CMAKE_C_FLAGS_DEBUG "/Od /D_DEBUG /MDd /Zi /RTC1 /EHsc")

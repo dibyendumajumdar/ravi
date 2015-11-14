@@ -74,7 +74,7 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 * Array types are not compatible with declared table variables, i.e. following is not allowed::
   
     local t: table = {}
-    local t2: number = t
+    local t2: number[] = t  -- error!
 
 * Indices >= 1 should be used (note that Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible under ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot)  
 * Arrays must always be initialized:: 
@@ -106,12 +106,12 @@ A declared table (as shown below) has some nuances::
 * Array types are not compatible with declared table variables, i.e. following is not allowed::
    
     local t: table = {}
-    local t2: number = t
+    local t2: number[] = t -- error!
 
 * When short string literals are used to access a table element, specialized bytecodes are generated that are more efficiently JIT compiled::
 
     local t: table = { name='dibyendu'}
-    print(t.name) -- The GETTABLE opcode is specialized in this cases
+    print(t.name) -- The GETTABLE opcode is specialized in this case
 
 * As with array types, specialized bytecodes are generated when integer keys are used
 
