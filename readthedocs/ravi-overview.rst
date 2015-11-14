@@ -1,7 +1,7 @@
 Ravi Programming Language
 =========================
 
-Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and an `LLVM <http://www.llvm.org/>`_ based JIT compiler. The name Ravi comes from the Sanskrit word for the Sun.
+Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and an `LLVM <http://www.llvm.org/>`_ powered JIT compiler. The name Ravi comes from the Sanskrit word for the Sun.
 
 Lua is perfect as a small embeddable dynamic language so why a derivative? Ravi extends Lua with static typing for greater performance under JIT compilation. However, the static typing is optional and therefore Lua programs are also valid Ravi programs.
 
@@ -14,7 +14,7 @@ Goals
 * Optional static typing for Lua 
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
-* `LLVM <http://www.llvm.org/>`_ based JIT compiler
+* `LLVM <http://www.llvm.org/>`_ powered JIT compiler
 * Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available.
 
 Documentation
@@ -34,7 +34,7 @@ The LLVM JIT compiler is functional. The Lua and Ravi bytecodes currently implem
 
 Ravi also provides an `LLVM binding <http://the-ravi-programming-language.readthedocs.org/en/latest/llvm-bindings.html>`_; this is still work in progress so please check documentation for the latest status.
 
-As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is also functional but some byte codes are not yet compiled, and featurewise this implementation is somewhat behind the LLVM based implementation. 
+As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is also functional but some byte codes are not yet compiled, and featurewise this implementation is somewhat lagging behind the LLVM based implementation. 
 
 Performance Benchmarks
 ++++++++++++++++++++++
@@ -63,8 +63,8 @@ Declaring the types of ``local`` variables and function parameters has following
 * ``integer`` and ``number`` types are automatically initialized to zero
 * Arithmetic operations on numeric types make use of type specific bytecodes which leads to more efficient JIT compilation
 * Specialised operators to get/set from array types are implemented; this makes array access more efficient in JIT mode as the access can be inlined
-* Declared tables allow specialized opcodes for usages involving integer and short string (literal only) keys; these opcodes result in more efficient JIT code
-* Values assigned to typed variables are checked statically when possible; if the values are results from a function call then there runtime type checking is performed
+* Declared tables allow specialized opcodes for usages involving integer and short literal string keys; these opcodes result in more efficient JIT code
+* Values assigned to typed variables are checked statically when possible; if the values are results from a function call then runtime type checking is performed
 * The standard table operations on arrays are checked to ensure that the type is not subverted
 * Even if a typed variable is captured in a closure its type must be respected
 * When function parameters are decorated with types, Ravi performs an implicit coersion of those parameters to the required types. If the coersion fails a runtime error occurs.
@@ -76,18 +76,53 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
     local t: table = {}
     local t2: number[] = t  -- error!
 
-* Indices >= 1 should be used (note that Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible under ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot)  
+    local t3: number[] = {}
+    local t4: table = t3    -- error!
+
+  But following is okay::
+
+    local t5: number[] = {}
+    local t6 = t5           -- t6 treated as table
+
+  The reason for this discrepancy is that declared table types generate optimized JIT code which assumes that the keys are integers
+  or literal short strings. The generated code would be incorrect if this expectation was not met.
+
+* Indices >= 1 should be used when accessing array elements. Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible under ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot.   
 * Arrays must always be initialized:: 
 
     local t: number[] = {} -- okay
     local t2: number[]     -- error!
 
-* An array will grow automatically if user sets the element just past the array length
+  This restriction is placed as otherwise the JIT code would need to insert tests to validate that the variable is not nil.
+
+* An array will grow automatically if user sets the element just past the array length::
+
+    local t: number[] = {}
+    t[1] = 4.2             -- okay, array grows by 1
+    t[5] = 2.4             -- error! as attempt to set value 
+
 * It is an error to attempt to set an element that is beyond len+1 
 * The current used length of the array is recorded and returned by len operations
 * The array only permits the right type of value to be assigned (this is also checked at runtime to allow compatibility with Lua)
 * Accessing out of bounds elements will cause an error, except for setting the len+1 element
-* It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time. 
+* It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time::
+
+  local function f(a, b: integer[], c)
+    -- Here a is dynamic type
+    -- b is declared as integer[]
+    -- c is also a dynamic type
+    b[1] = a[1] -- Okay only if a is actually also integer[]
+    b[1] = c[1] -- Will fail if c[1] cannot be converted to an integer
+  end
+
+  local a : integer[] = {1}
+  local b : integer[] = {}
+  local c = {1}
+
+  f(a,b,c)        -- ok as c[1] is integer
+  f(a,b, {'hi'})  -- error!
+
+
 * Arrays returned from functions can be stored into appropriately typed local variables - there is validation that the types match::
 
     local t: number[] = f() -- type will be checked at runtime
