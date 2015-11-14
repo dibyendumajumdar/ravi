@@ -57,13 +57,14 @@ RaviJITStateImpl::RaviJITStateImpl()
     init++;
   }
   triple_ = llvm::sys::getProcessTriple();
-#if defined(_WIN32) && LLVM_VERSION_MINOR < 7
+#if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MINOR < 7)
   // On Windows we get compilation error saying incompatible object format
   // Reading posts on mailing lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set -elf as the object
   // format; LLVM 3.7 onwards COEFF is supported
   triple_ += "-elf";
 #endif
+
   context_ = new llvm::LLVMContext();
   types_ = new LuaLLVMTypes(*context_);
 }
@@ -123,7 +124,7 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
   // module per function
   std::string moduleName = "ravi_module_" + name;
   module_ = new llvm::Module(moduleName, owner->context());
-#if defined(_WIN32) && LLVM_VERSION_MINOR < 7
+#if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MINOR < 7)
   // On Windows we get error saying incompatible object format
   // Reading posts on mailing lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set
