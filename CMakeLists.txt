@@ -81,7 +81,7 @@ if (MSVC)
 endif ()
 
 
-if (CMAKE_COMPILER_IS_GNUCXX)
+if (CMAKE_COMPILER_IS_GNUCXX AND NOT APPLE)
     if (NOT WIN32)
         # assume Linux
         set(CXX_OPTIONS -DLUA_USE_LINUX)
