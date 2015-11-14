@@ -79,8 +79,8 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 * Indices >= 1 should be used (note that Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible under ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot)  
 * Arrays must always be initialized:: 
 
-  local t: number[] = {} -- okay
-  local t2: number[]     -- error!
+    local t: number[] = {} -- okay
+    local t2: number[]     -- error!
 
 * An array will grow automatically if user sets the element just past the array length
 * It is an error to attempt to set an element that is beyond len+1 
@@ -90,7 +90,7 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 * It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time. 
 * Arrays returned from functions can be stored into appropriately typed local variables - there is validation that the types match::
 
-  local t: number[] = f() -- type will be checked at runtime
+    local t: number[] = f() -- type will be checked at runtime
 
 * Operations on array types can be optimised to special bytecode and JIT only when the array type is statically known. Otherwise regular table access will be used subject to runtime checks.
 * Array types may not have meta methods - this will be enforced at runtime (TODO)
@@ -100,18 +100,18 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 
 A declared table (as shown below) has some nuances::
 
-  local t: table = {}
+    local t: table = {}
 
 * Like array types, a variable of ``table`` type must be initialized
 * Array types are not compatible with declared table variables, i.e. following is not allowed::
-  
-  local t: table = {}
-  local t2: number = t
+   
+    local t: table = {}
+    local t2: number = t
 
 * When short string literals are used to access a table element, specialized bytecodes are generated that are more efficiently JIT compiled::
 
-  local t: table = { name='dibyendu'}
-  print(t.name) -- The GETTABLE opcode is specialized in this cases
+    local t: table = { name='dibyendu'}
+    print(t.name) -- The GETTABLE opcode is specialized in this cases
 
 * As with array types, specialized bytecodes are generated when integer keys are used
 
