@@ -705,7 +705,7 @@ static int ravi_resize_array(lua_State *L, Table *t, unsigned int new_size,
     return 0;
   }
   /* NOTE - relies upon lua_Number and lua_Integer being the same size */
-  lua_assert(sizeof(lua_Integer) == sizeof(lua_Number));
+  static_assert(sizeof(lua_Integer) == sizeof(lua_Number), "sizeof lua_Integer not same as sizeof lua_Number");
   unsigned int size =
       new_size < t->ravi_array.size + 10 ? t->ravi_array.size + 10 : new_size;
   t->ravi_array.data = (char *)luaM_reallocv(
