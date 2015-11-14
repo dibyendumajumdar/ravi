@@ -294,23 +294,25 @@ Building Ravi
 -------------
 I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X.
 
+
+
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 14 Win64" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 14 Win64" ..
 
 I then open the solution in VS2015 and do a build from there.
 
 On Ubuntu I use::
 
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
   make
 
 On MAC OS X I use::
 
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
 
 I open the generated project in Xcode and do a build from there.
 
@@ -333,8 +335,12 @@ Work Plan
 ---------
 * Feb-Jun 2015 - implement JIT compilation using LLVM
 * Jun-Jul 2015 - libgccjit based alternative JIT
-* Jun-Nov 2015 - testing and create libraries 
+* Jun-Nov 2015 - testing  
 * Dec 2015 - beta release
+* 2016 - Focus on creating numeric library bindings - in particular:
+  * BLAS and LAPACK
+  * GNU Scientific library
+  * symengine
 
 License
 -------
