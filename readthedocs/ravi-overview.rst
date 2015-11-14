@@ -372,9 +372,9 @@ Work Plan
 * Dec 2015 - beta release
 * 2016 - Focus on creating numeric library bindings - in particular.
 
-    * BLAS and LAPACK
-    * GNU Scientific library
-    * symengine
+  * BLAS and LAPACK
+  * GNU Scientific library
+  * symengine
 
 License
 -------
