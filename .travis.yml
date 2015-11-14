@@ -15,7 +15,7 @@ addons:
       - g++-5
       - gcc-5
 install:
- - wget https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.tar.gz
+ - wget --no-check-certificate https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.tar.gz
  - tar xvfz cmake-3.4.0-Linux-x86_64.tar.gz
  - export PATH=$PWD/make-3.4.0-Linux-x86_64/bin:$PATH
  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; fi
