@@ -517,6 +517,17 @@ void RaviCodeGenerator::emit_GETUPVAL(RaviFunctionDef *def, int A, int B,
 }
 
 // UpValue[B] := R(A)
+void RaviCodeGenerator::emit_SETUPVAL_Specific(RaviFunctionDef *def, int A,
+                                               int B, int pc, OpCode op,
+                                               llvm::Function *f) {
+  emit_debug_trace(def, op, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  CreateCall4(def->builder, f, def->L, def->p_LClosure, ra,
+              llvm::ConstantInt::get(def->types->C_intT, B));
+}
+
+// UpValue[B] := R(A)
 void RaviCodeGenerator::emit_SETUPVAL(RaviFunctionDef *def, int A, int B,
                                       int pc) {
 

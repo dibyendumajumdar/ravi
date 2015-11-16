@@ -42,7 +42,7 @@ int test1() {
   llvm::Module *module = theModule.get();
   llvm::IRBuilder<> builder(context);
 
-#ifdef _WIN32
+#if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MINOR < 7)
   // On Windows we get error saying incompatible object format
   // Reading posts on mailining lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set -elf as the object

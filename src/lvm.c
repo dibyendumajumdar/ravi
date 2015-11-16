@@ -2106,8 +2106,49 @@ void raviV_op_loadnil(CallInfo *ci, int a, int b) {
   } while (b--);
 }
 
+void raviV_op_setupvali(lua_State *L, LClosure *cl, TValue *ra, int b) {
+  lua_Integer ia;
+  if (tointeger(ra, &ia)) {
+    UpVal *uv = cl->upvals[b];
+    setivalue(uv->v, ia);
+    luaC_upvalbarrier(L, uv);
+  } else
+    luaG_runerror(
+        L, "upvalue of integer type, cannot be set to non integer value");
+}
 
-void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b) {
+void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b) {
+  lua_Number na;
+  if (tonumber(ra, &na)) {
+    UpVal *uv = cl->upvals[b];
+    setfltvalue(uv->v, na);
+    luaC_upvalbarrier(L, uv);
+  } else
+    luaG_runerror(L,
+                  "upvalue of number type, cannot be set to non number value");
+}
+
+void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b) {
+  if (!ttistable(ra) || hvalue(ra)->ravi_array.array_type != RAVI_TARRAYINT)
+    luaG_runerror(
+        L, "upvalue of integer[] type, cannot be set to non integer[] value");
+  UpVal *uv = cl->upvals[b];
+  setobj(L, uv->v, ra);
+  luaC_upvalbarrier(L, uv);
+}
+
+void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b) {
+  if (!ttistable(ra) || hvalue(ra)->ravi_array.array_type != RAVI_TARRAYFLT)
+    luaG_runerror(
+        L, "upvalue of number[] type, cannot be set to non number[] value");
+  UpVal *uv = cl->upvals[b];
+  setobj(L, uv->v, ra);
+  luaC_upvalbarrier(L, uv);
+}
+
+void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b) {
+  if (!ttistable(ra) || hvalue(ra)->ravi_array.array_type != RAVI_TTABLE)
+    luaG_runerror(L, "upvalue of table type, cannot be set to non table value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
   luaC_upvalbarrier(L, uv);

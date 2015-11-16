@@ -259,6 +259,11 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_op_varargT;
   llvm::FunctionType *raviV_op_shrT;
   llvm::FunctionType *raviV_op_shlT;
+  llvm::FunctionType *raviV_op_setupvaliT;
+  llvm::FunctionType *raviV_op_setupvalfT;
+  llvm::FunctionType *raviV_op_setupvalaiT;
+  llvm::FunctionType *raviV_op_setupvalafT;
+  llvm::FunctionType *raviV_op_setupvaltT;
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -556,6 +561,11 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_varargF;
   llvm::Function *raviV_op_shrF;
   llvm::Function *raviV_op_shlF;
+  llvm::Function *raviV_op_setupvaliF;
+  llvm::Function *raviV_op_setupvalfF;
+  llvm::Function *raviV_op_setupvalaiF;
+  llvm::Function *raviV_op_setupvalafF;
+  llvm::Function *raviV_op_setupvaltF;
 
   // array setters
   llvm::Function *raviH_set_intF;
@@ -987,6 +997,8 @@ public:
   void emit_GETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_SETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
+
+  void emit_SETUPVAL_Specific(RaviFunctionDef *def, int A, int B, int pc, OpCode op, llvm::Function *f);
 
   void emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C, int pc);
 

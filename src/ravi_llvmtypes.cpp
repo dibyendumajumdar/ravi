@@ -856,6 +856,29 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviV_op_varargT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  // void raviV_op_setupvali(lua_State *L, LClosure *cl, TValue *ra, int b);
+  // void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b);
+  // void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b);
+  // void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b);
+  // void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);
+  elements.clear();
+  elements.push_back(plua_StateT);
+  elements.push_back(pLClosureT);
+  elements.push_back(pTValueT);
+  elements.push_back(C_intT);
+  raviV_op_setupvaliT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  raviV_op_setupvalfT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  raviV_op_setupvalaiT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  raviV_op_setupvalafT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  raviV_op_setupvaltT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
+  // void raviV_op_shl(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
+  // void raviV_op_shr(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTValueT);

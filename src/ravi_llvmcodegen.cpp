@@ -877,6 +877,11 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_SETTABLE_S:
     case OP_RAVI_TOTAB:
     case OP_RAVI_MOVETAB:
+    case OP_RAVI_SETUPVALI:
+    case OP_RAVI_SETUPVALF:
+    case OP_RAVI_SETUPVALAI:
+    case OP_RAVI_SETUPVALAF:
+    case OP_RAVI_SETUPVALT:
       break;
     default:
       return false;
@@ -1086,6 +1091,21 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_shrF = def->raviF->addExternFunction(
       def->types->raviV_op_shrT, reinterpret_cast<void *>(&raviV_op_shr),
       "raviV_op_shr");
+  def->raviV_op_setupvaliF = def->raviF->addExternFunction(
+      def->types->raviV_op_setupvaliT,
+      reinterpret_cast<void *>(&raviV_op_setupvali), "raviV_op_setupvali");
+  def->raviV_op_setupvalfF = def->raviF->addExternFunction(
+      def->types->raviV_op_setupvalfT,
+      reinterpret_cast<void *>(&raviV_op_setupvalf), "raviV_op_setupvalf");
+  def->raviV_op_setupvalaiF = def->raviF->addExternFunction(
+      def->types->raviV_op_setupvalaiT,
+      reinterpret_cast<void *>(&raviV_op_setupvalai), "raviV_op_setupvalai");
+  def->raviV_op_setupvalafF = def->raviF->addExternFunction(
+      def->types->raviV_op_setupvalafT,
+      reinterpret_cast<void *>(&raviV_op_setupvalaf), "raviV_op_setupvalaf");
+  def->raviV_op_setupvaltF = def->raviF->addExternFunction(
+      def->types->raviV_op_setupvaltT,
+      reinterpret_cast<void *>(&raviV_op_setupvalt), "raviV_op_setupvalt");
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(
       def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
@@ -1627,6 +1647,32 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
     case OP_SETUPVAL: {
       int B = GETARG_B(i);
       emit_SETUPVAL(def, A, B, pc);
+    } break;
+
+    case OP_RAVI_SETUPVALI: {
+      int B = GETARG_B(i);
+      emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVALI,
+                             def->raviV_op_setupvaliF);
+    } break;
+    case OP_RAVI_SETUPVALF: {
+      int B = GETARG_B(i);
+      emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVALF,
+                             def->raviV_op_setupvalfF);
+    } break;
+    case OP_RAVI_SETUPVALAI: {
+      int B = GETARG_B(i);
+      emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVALAI,
+                             def->raviV_op_setupvalaiF);
+    } break;
+    case OP_RAVI_SETUPVALAF: {
+      int B = GETARG_B(i);
+      emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVALAF,
+                             def->raviV_op_setupvalafF);
+    } break;
+    case OP_RAVI_SETUPVALT: {
+      int B = GETARG_B(i);
+      emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVALT,
+                             def->raviV_op_setupvaltF);
     } break;
 
     case OP_RAVI_BXOR_II:

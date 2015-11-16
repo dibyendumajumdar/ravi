@@ -104,9 +104,9 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_BXOR                 | NO       | R(A) := RK(B) ~ RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SHL                  | NO       | R(A) := RK(B) << RK(C)                           |
+| OP_SHL                  | YES      | R(A) := RK(B) << RK(C)                           |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SHR                  | NO       | R(A) := RK(B) >> RK(C)                           |
+| OP_SHR                  | YES      | R(A) := RK(B) >> RK(C)                           |
 +-------------------------+----------+--------------------------------------------------+
 | OP_UNM                  | YES      | R(A) := -R(B)                                    |
 +-------------------------+----------+--------------------------------------------------+
@@ -272,7 +272,20 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_LE_FF           | YES      | if ((RK(B) <= RK(C)) ~= A) then pc++             |
 +-------------------------+----------+--------------------------------------------------+
-
+| OP_RAVI_GETTABLE_I      | YES      | R(A) := R(B)[RK(C)], integer key	                |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_GETTABLE_S      | YES      | R(A) := R(B)[RK(C)], string key                  |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SETTABLE_I      | YES      | R(A)[RK(B)] := RK(C), integer key                |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SETTABLE_S      | YES      | R(A)[RK(B)] := RK(C), string key                 |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_TOTAB           | YES      | R(A) := to_table(R(A))                           |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_MOVETAB         | YES      | R(A) := R(B), check R(B) is a table              |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SETUPVALT       | NO       | UpValue[B] := to_table(R(A))                     |
++-------------------------+----------+--------------------------------------------------+
 
 Ravi's LLVM JIT compiler source
 -------------------------------
@@ -281,8 +294,9 @@ The LLVM JIT implementation is in following sources:
 * ravillvm.h - includes LLVM headers and defines the generic JIT State and Function interfaces
 * ravijit.h - defines the JIT API
 * ravi_llvmcodegen.h - defines the types used by the code generator
+* ravijit.cpp - Non implementation specific JIT API functions
 
-* ravijit.cpp - basic LLVM infrastructure and Ravi API definition
+* ravi_llvmjit.cpp - basic LLVM infrastructure and Ravi API definition
 * ravi_llvmtypes.cpp - contains LLVM type definitions for Lua objects 
 * ravi_llvmcodegen.cpp - LLVM JIT compiler - main driver for compiling Lua bytecodes into LLVM IR
 * ravi_llvmload.cpp - implements OP_LOADK and OP_MOVE, and related operations, also OP_LOADBOOL

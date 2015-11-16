@@ -62,7 +62,8 @@ checkmessage('local t: integer = function() return "hell" end', 'Invalid local a
 checkmessage('local function j() return "hell" end; local t: integer = j()', 'integer expected')
 checkmessage('local t: integer = 5; local x=function() return "string" end; local f=function() t = x() end; f()', 'upvalue of integer type, cannot be set to non integer value')
 checkmessage('local t: integer = 5.5', 'Invalid local assignment')
-checkmessage('local function f() local t: number[] = {}; t[1] = 4.2; t[5] = 2.4; end; f()', 'array out of bounds')
+checkmessage('local function f() local t: integer[] = {}; t[1] = 4; t[5] = 2; end; f()', 'array out of bounds')
+checkmessage('local function f() local t: integer[] = {}; t[1] = 4; t[-5] = 2; end; f()', 'array out of bounds')
 
 checkmessage('local t: number[] = {}; local t2: number[] = {1.0}; t=t2[1]', 'Invalid assignment: number[] expected')
 checkmessage('local t: number[] = {}; t=1', 'Invalid assignment: number[] expected')
@@ -84,6 +85,8 @@ checkmessage('local t: number = function() return "hell" end', 'Invalid local as
 checkmessage('local function j() return "hell" end; local t: number = j()', 'number expected')
 checkmessage('local t: number = 5.5; local x=function() return "string" end; local f=function() t = x() end; f()', 'upvalue of number type, cannot be set to non number value')
 checkmessage('local t: number = 5', 'Invalid local assignment')
+checkmessage('local function f() local t: number[] = {}; t[1] = 4.2; t[5] = 2.4; end; f()', 'array out of bounds')
+checkmessage('local function f() local t: number[] = {}; t[1] = 4.2; t[-5] = 2.4; end; f()', 'array out of bounds')
 
 checkmessage('for i=1,10 do i="a" end', 'Invalid assignment: integer expected')
 checkmessage('for i=1,10 do local f = function() i="a" end; f(); end', 'upvalue of integer type, cannot be set to non integer value')
