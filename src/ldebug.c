@@ -482,6 +482,7 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
         }
         break;
       }
+      case OP_RAVI_SELF_S:
       case OP_SELF: {
         int k = GETARG_C(i);  /* key index */
         kname(p, pc, k, name);

@@ -306,11 +306,12 @@ OP_RAVI_SETTABLE_S,/*	A B C	R(A)[RK(B)] := RK(C), string key  */
 OP_RAVI_TOTAB,    /* A R(A) := to_table(R(A)) */
 OP_RAVI_MOVETAB,  /* A B R(A) := R(B), check R(B) is a table */
 OP_RAVI_SETUPVALT,/*	A B	UpValue[B] := to_table(R(A))			*/
+OP_RAVI_SELF_S,/*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
   
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_RAVI_SETUPVALT) + 1)
+#define NUM_OPCODES	(cast(int, OP_RAVI_SELF_S) + 1)
 
 /*===========================================================================
   Notes:

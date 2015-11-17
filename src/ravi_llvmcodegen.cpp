@@ -882,6 +882,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     case OP_RAVI_SETUPVALAI:
     case OP_RAVI_SETUPVALAF:
     case OP_RAVI_SETUPVALT:
+    case OP_RAVI_SELF_S:
       break;
     default:
       return false;
@@ -1576,6 +1577,15 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
       lua_assert(key->tt == LUA_TSHRSTR);
       emit_GETTABLE_S(def, A, B, C, pc, key);
     } break;
+    case OP_RAVI_SELF_S: {
+      int C = GETARG_C(i);
+      int B = GETARG_B(i);
+      lua_assert(ISK(C));
+      TValue *kv = k + INDEXK(C);
+      TString *key = tsvalue(kv);
+      lua_assert(key->tt == LUA_TSHRSTR);
+      emit_SELF_S(def, A, B, C, pc, key);
+    } break;
     case OP_RAVI_GETTABLE_I: {
       int B = GETARG_B(i);
       int C = GETARG_C(i);
@@ -1824,7 +1834,6 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
   } else {
     p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
   }
-  // printf("compiled function\n");
 }
 
 void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {

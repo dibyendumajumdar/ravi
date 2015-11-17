@@ -935,6 +935,14 @@ newframe:  /* reentry point when frame changes (call/return) */
           luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
         checkGC(L, ra + 1);
     } break;
+    case OP_RAVI_SELF_S: {
+        StkId rb = RB(i);
+        setobjs2s(L, ra + 1, rb);
+        TValue *kv = k + INDEXK(GETARG_C(i));
+        TString *key = tsvalue(kv);
+        const TValue *v = luaH_getstr(hvalue(rb), key);
+        setobj2s(L, ra, v);
+    } break;
     case OP_SELF: {
         StkId rb = RB(i);
         setobjs2s(L, ra+1, rb);

@@ -43,6 +43,23 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, int A, int B, int C,
   CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
 }
 
+// R(A+1) := R(B); R(A) := R(B)[RK(C)]
+void RaviCodeGenerator::emit_SELF_S(RaviFunctionDef *def, int A, int B, int C,
+  int pc, TString *key) {
+  //StkId rb = RB(i);
+  //setobjs2s(L, ra + 1, rb);
+  //TValue *kv = k + INDEXK(GETARG_C(i));
+  //TString *key = tsvalue(kv);
+  //const TValue *v = luaH_getstr(hvalue(rb), key);
+  //setobj2s(L, ra, v);
+  emit_debug_trace(def, OP_RAVI_SELF_S, pc);
+  emit_load_base(def);
+  llvm::Value *rb = emit_gep_register(def, B);
+  llvm::Value *ra1 = emit_gep_register(def, A + 1);
+  emit_assign(def, ra1, rb);
+  emit_common_GETTABLE_S(def, A, B, C, key);
+}
+
 // R(A) := length of R(B)
 void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B, int pc) {
   // Protect(luaV_objlen(L, ra, RB(i)));
@@ -163,8 +180,8 @@ void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B,
 // key is not in the main position then we fall back on luaH_getstr().
 // IMPORTANT - this emitter should only be called when key is known to
 // to be short string
-void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
-                                        int C, int pc, TString *key) {
+void RaviCodeGenerator::emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int B,
+  int C, TString *key) {
 
   // The code we want to generate is this:
   //   struct Node *n = hashstr(t, key);
@@ -175,9 +192,6 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
 
   // A number of macros are involved above do the
   // the generated code is somewhat more complex
-
-  emit_debug_trace(def, OP_RAVI_GETTABLE_S, pc);
-  emit_load_base(def);
 
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -197,15 +211,15 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
 
   // We need to check that the key type is also short string
   llvm::Value *is_shortstring =
-      emit_is_value_of_type(def, ktype, LUA__TSHRSTR, "is_shortstring");
+    emit_is_value_of_type(def, ktype, LUA__TSHRSTR, "is_shortstring");
   llvm::BasicBlock *testkey =
-      llvm::BasicBlock::Create(def->jitState->context(), "testkey");
+    llvm::BasicBlock::Create(def->jitState->context(), "testkey");
   llvm::BasicBlock *testok =
-      llvm::BasicBlock::Create(def->jitState->context(), "testok");
+    llvm::BasicBlock::Create(def->jitState->context(), "testok");
   llvm::BasicBlock *testfail =
-      llvm::BasicBlock::Create(def->jitState->context(), "testfail");
+    llvm::BasicBlock::Create(def->jitState->context(), "testfail");
   llvm::BasicBlock *testend =
-      llvm::BasicBlock::Create(def->jitState->context(), "testend");
+    llvm::BasicBlock::Create(def->jitState->context(), "testend");
   def->builder->CreateCondBr(is_shortstring, testkey, testfail);
 
   // Now we need to compare the keys
@@ -217,9 +231,9 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
 
   // Cast the pointer to a intptr so we can compare
   llvm::Value *intptr =
-      def->builder->CreatePtrToInt(keyvalue, def->types->C_intptr_t);
+    def->builder->CreatePtrToInt(keyvalue, def->types->C_intptr_t);
   llvm::Value *ourptr =
-      llvm::ConstantInt::get(def->types->C_intptr_t, (intptr_t)key);
+    llvm::ConstantInt::get(def->types->C_intptr_t, (intptr_t)key);
   // Compare the two pointers
   // If they match then we found the element
   llvm::Value *same = def->builder->CreateICmpEQ(intptr, ourptr);
@@ -237,7 +251,7 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
   def->builder->SetInsertPoint(testfail);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
   llvm::Value *value2 =
-      CreateCall2(def->builder, def->luaH_getstrF, t, emit_load_reg_s(def, rc));
+    CreateCall2(def->builder, def->luaH_getstrF, t, emit_load_reg_s(def, rc));
   def->builder->CreateBr(testend);
 
   // merge
@@ -247,6 +261,27 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
   phi->addIncoming(value1, testok);
   phi->addIncoming(value2, testfail);
   emit_assign(def, ra, phi);
+}
+
+// R(A) := R(B)[RK(C)]
+// Emit inline code for accessing a table element using a string key
+// We try to access the element using the hash part but if the
+// key is not in the main position then we fall back on luaH_getstr().
+// IMPORTANT - this emitter should only be called when key is known to
+// to be short string
+void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
+                                        int C, int pc, TString *key) {
+
+  // The code we want to generate is this:
+  //   struct Node *n = hashstr(t, key);
+  //   const struct TValue *k = gkey(n);
+  //   if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
+  //     return gval(n);
+  //   return luaH_getstr(t, key);
+
+  emit_debug_trace(def, OP_RAVI_GETTABLE_S, pc);
+  emit_load_base(def);
+  emit_common_GETTABLE_S(def, A, B, C, key);
 }
 
 void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,

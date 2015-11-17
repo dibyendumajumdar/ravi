@@ -796,13 +796,17 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
 
 void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
   int ereg;
+  int table_and_string = e->ravi_type == RAVI_TTABLE &&
+    key->k == VK &&
+    key->ravi_type == RAVI_TSTRING &&
+    isshortstr(fs, RKASK(key->u.info));
   luaK_exp2anyreg(fs, e);
   ereg = e->u.info;  /* register where 'e' was placed */
   freeexp(fs, e);
   e->u.info = fs->freereg;  /* base register for op_self */
   e->k = VNONRELOC;
   luaK_reserveregs(fs, 2);  /* function and 'self' produced by op_self */
-  luaK_codeABC(fs, OP_SELF, e->u.info, ereg, luaK_exp2RK(fs, key));
+  luaK_codeABC(fs, table_and_string ? OP_RAVI_SELF_S : OP_SELF, e->u.info, ereg, luaK_exp2RK(fs, key));
   freeexp(fs, key);
 }
 

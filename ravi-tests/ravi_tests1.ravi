@@ -112,6 +112,7 @@ opcodes_coverage.SETTABLE_S = 0
 opcodes_coverage.TOTAB = 0
 opcodes_coverage.MOVETAB = 0
 opcodes_coverage.SETUPVALT = 0
+opcodes_coverage.SELF_S = 0
 
 
 local compile = function(f)
@@ -1084,7 +1085,7 @@ function test_idiv()
   local s2=x(4.1,2.0)
   assert(s1 == s2)
 end
-assert(compile(test_idiv))
+compile(test_idiv)
 test_idiv()
 print'test 47 (IDIV) OK'
 
@@ -1136,6 +1137,20 @@ end
 test_tableaccess()
 print 'Test 48 OK'
 
+function test_self_s()
+  local t : table = {}
+  t.name_ = 'dibyendu majumdar'
+  t.name = function (t:table) return t.name_ end
+  print(t:name())
+  return t:name()
+end  
+check(test_self_s, 'NEWTABLE', 'SETTABLE_S', 'CLOSURE',
+  'SETTABLE_S', 'GETTABUP', 'SELF_S', 'CALL', 'CALL', 'SELF_S', 'TAILCALL',
+  'RETURN')
+assert(test_self_s() == 'dibyendu majumdar')
+compile(test_self_s)
+assert(test_self_s() == 'dibyendu majumdar')
+print 'Test 49 OK'
 
 for k,v in pairs(opcodes_coverage)
 do

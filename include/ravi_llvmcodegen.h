@@ -994,6 +994,10 @@ public:
 
   void emit_SELF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
+  void emit_SELF_S(RaviFunctionDef *def, int A, int B, int C, int pc, TString *key);
+
+  void emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, TString *key);
+
   void emit_GETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_SETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
