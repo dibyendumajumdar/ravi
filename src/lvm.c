@@ -881,33 +881,28 @@ newframe:  /* reentry point when frame changes (call/return) */
       TValue *rc = RKC(i);
       lua_Integer idx = ivalue(rc);
       Table *t = hvalue(rb);
-      const TValue *v = luaH_getint(t, idx);
+      const TValue *v;
+      if (l_castS2U(idx - 1) < t->sizearray)
+        v = &t->array[idx - 1];
+      else
+        v = luaH_getint(t, idx);
       setobj2s(L, ra, v);
       break;
     }
     case OP_RAVI_GETTABLE_S: {
+      StkId rb = RB(i);
       TValue *kv = k + INDEXK(GETARG_C(i));
       TString *key = tsvalue(kv);
-      const TValue *v = luaH_getstr(hvalue(RB(i)), key);
+      Table *h = hvalue(rb);
+      int position = lmod(key->hash, sizenode(h));
+      Node *n = &h->node[position];
+      const TValue *k = cast(const TValue*, (&(n)->i_key.tvk));
+      const TValue *v;
+      if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
+        v = gval(n);
+      else
+        v = luaH_getstr(h, key);
       setobj2s(L, ra, v);
-      /*
-      if (ISK(GETARG_C(i))) {
-        TValue *kv = k + INDEXK(GETARG_C(i));
-        TString *key = tsvalue(kv);
-        if (key->tt == LUA_TSHRSTR) {
-          Table *h = hvalue(RB(i));
-          int position = lmod(key->hash, sizenode(h));
-          Node *n = &h->node[position];
-          const TValue *k = cast(const TValue*, (&(n)->i_key.tvk));
-          if (ttisshrstring(k) && eqshrstr(tsvalue(k), key)) {
-            printf("hit\n");
-          }
-          else {
-            printf("miss\n");
-          }
-        }
-      }
-     */
     } break;
     case OP_GETTABLE: {
         Protect(luaV_gettable(L, RB(i), RKC(i), ra));
@@ -940,7 +935,15 @@ newframe:  /* reentry point when frame changes (call/return) */
         setobjs2s(L, ra + 1, rb);
         TValue *kv = k + INDEXK(GETARG_C(i));
         TString *key = tsvalue(kv);
-        const TValue *v = luaH_getstr(hvalue(rb), key);
+        Table *h = hvalue(rb);
+        int position = lmod(key->hash, sizenode(h));
+        Node *n = &h->node[position];
+        const TValue *k = cast(const TValue*, (&(n)->i_key.tvk));
+        const TValue *v;
+        if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
+          v = gval(n);
+        else
+          v = luaH_getstr(h, key);
         setobj2s(L, ra, v);
     } break;
     case OP_SELF: {
