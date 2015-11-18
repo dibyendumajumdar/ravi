@@ -802,7 +802,10 @@ void luaV_finishOp (lua_State *L) {
 /* for test instructions, execute the jump instruction that follows it */
 #define donextjump(ci)	{ i = *ci->u.l.savedpc; dojump(ci, i, 1); }
 
-
+/* when executing code that could potentially reallocate the stack
+ * and thereby invalidate the cached value of 'base' then it needs to 
+ * be restored - the Protect macros achieves that
+ */
 #define Protect(x)	{ {x;}; base = ci->u.l.base; }
 
 #define checkGC_(L,c)  \
@@ -877,32 +880,53 @@ newframe:  /* reentry point when frame changes (call/return) */
         Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
     } break;
     case OP_RAVI_GETTABLE_I: {
-      TValue *rb = RB(i);
-      TValue *rc = RKC(i);
-      lua_Integer idx = ivalue(rc);
-      Table *t = hvalue(rb);
-      const TValue *v;
-      if (l_castS2U(idx - 1) < t->sizearray)
-        v = &t->array[idx - 1];
-      else
-        v = luaH_getint(t, idx);
-      setobj2s(L, ra, v);
-      break;
-    }
-    case OP_RAVI_GETTABLE_S: {
+        TValue *rb = RB(i);
+        TValue *rc = RKC(i);
+        lua_Integer idx = ivalue(rc);
+        Table *t = hvalue(rb);
+        const TValue *v;
+        if (l_castS2U(idx - 1) < t->sizearray)
+          v = &t->array[idx - 1];
+        else
+          v = luaH_getint(t, idx);
+        setobj2s(L, ra, v);
+    } break;
+    case OP_RAVI_SELF_S: {
       StkId rb = RB(i);
-      TValue *kv = k + INDEXK(GETARG_C(i));
-      TString *key = tsvalue(kv);
-      Table *h = hvalue(rb);
-      int position = lmod(key->hash, sizenode(h));
-      Node *n = &h->node[position];
-      const TValue *k = cast(const TValue*, (&(n)->i_key.tvk));
-      const TValue *v;
-      if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
-        v = gval(n);
-      else
-        v = luaH_getstr(h, key);
-      setobj2s(L, ra, v);
+      setobjs2s(L, ra + 1, rb);
+      goto l_gettable_s;
+    } break;
+    case OP_RAVI_GETTABLE_S: {
+      /* Following is an inline version of luaH_getstr() - this is
+       * not ideal as there is code duplication; should be changed to a common
+       * macro which can be used in bothe places
+       */
+      l_gettable_s: {
+        StkId rb = RB(i);
+        TValue *kv = k + INDEXK(GETARG_C(i));
+        TString *key = tsvalue(kv);
+        lua_assert(key->tt == LUA_TSHRSTR);
+        Table *h = hvalue(rb);
+        int position = lmod(key->hash, sizenode(h));
+        Node *n = &h->node[position];
+        const TValue *v;
+        for (;;) {  /* check whether 'key' is somewhere in the chain */
+          const TValue *k = gkey(n);
+          if (ttisshrstring(k) && eqshrstr(tsvalue(k), key)) {
+            v = gval(n);  /* that's it */
+            break;
+          }
+          else {
+            int nx = gnext(n);
+            if (nx == 0) {
+              v = luaO_nilobject;
+              break;
+            }
+            n += nx;
+          }
+        }
+        setobj2s(L, ra, v);
+      }
     } break;
     case OP_GETTABLE: {
         Protect(luaV_gettable(L, RB(i), RKC(i), ra));
@@ -916,7 +940,13 @@ newframe:  /* reentry point when frame changes (call/return) */
         setobj(L, uv->v, ra);
         luaC_upvalbarrier(L, uv);
     } break;
-    case OP_RAVI_SETTABLE_I:
+    case OP_RAVI_SETTABLE_I: {
+        TValue *rb = RKB(i);
+        TValue *rc = RKC(i);
+        lua_Integer idx = ivalue(rb);
+        Table *t = hvalue(ra);
+        luaH_setint(L, t, idx, rc);
+    } break;
     case OP_RAVI_SETTABLE_S:
     case OP_SETTABLE: {
         Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
@@ -929,22 +959,6 @@ newframe:  /* reentry point when frame changes (call/return) */
         if (b != 0 || c != 0)
           luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
         checkGC(L, ra + 1);
-    } break;
-    case OP_RAVI_SELF_S: {
-        StkId rb = RB(i);
-        setobjs2s(L, ra + 1, rb);
-        TValue *kv = k + INDEXK(GETARG_C(i));
-        TString *key = tsvalue(kv);
-        Table *h = hvalue(rb);
-        int position = lmod(key->hash, sizenode(h));
-        Node *n = &h->node[position];
-        const TValue *k = cast(const TValue*, (&(n)->i_key.tvk));
-        const TValue *v;
-        if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
-          v = gval(n);
-        else
-          v = luaH_getstr(h, key);
-        setobj2s(L, ra, v);
     } break;
     case OP_SELF: {
         StkId rb = RB(i);
