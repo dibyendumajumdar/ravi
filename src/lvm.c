@@ -166,6 +166,77 @@ int luaV_forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
 
 
 /*
+** Complete a table access: if 't' is a table, 'tm' has its metamethod;
+** otherwise, 'tm' is NULL.
+*/
+void luaV_finishget (lua_State *L, const TValue *t, TValue *key, StkId val,
+                      const TValue *tm) {
+  int loop;  /* counter to avoid infinite loops */
+  lua_assert(tm != NULL || !ttistable(t));
+  for (loop = 0; loop < MAXTAGLOOP; loop++) {
+    if (tm == NULL) {  /* no metamethod (from a table)? */
+      if (ttisnil(tm = luaT_gettmbyobj(L, t, TM_INDEX)))
+        luaG_typeerror(L, t, "index");  /* no metamethod */
+    }
+    if (ttisfunction(tm)) {  /* metamethod is a function */
+      luaT_callTM(L, tm, t, key, val, 1);  /* call it */
+      return;
+    }
+    t = tm;  /* else repeat access over 'tm' */
+    if (luaV_fastget(L,t,key,tm,luaH_get)) {  /* try fast track */
+      setobj2s(L, val, tm);  /* done */
+      return;
+    }
+    /* else repeat */
+  }
+  luaG_runerror(L, "gettable chain too long; possible loop");
+}
+
+
+/*
+** Main function for table assignment (invoking metamethods if needed).
+** Compute 't[key] = val'
+*/
+void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
+                     StkId val, const TValue *oldval) {
+  int loop;  /* counter to avoid infinite loops */
+  for (loop = 0; loop < MAXTAGLOOP; loop++) {
+    const TValue *tm;
+    if (oldval != NULL) {
+      lua_assert(ttistable(t) && ttisnil(oldval));
+      /* must check the metamethod */
+      if ((tm = fasttm(L, hvalue(t)->metatable, TM_NEWINDEX)) == NULL &&
+         /* no metamethod; is there a previous entry in the table? */
+         (oldval != luaO_nilobject ||
+         /* no previous entry; must create one. (The next test is
+            always true; we only need the assignment.) */
+         (oldval = luaH_newkey(L, hvalue(t), key), 1))) {
+        /* no metamethod and (now) there is an entry with given key */
+        setobj2t(L, cast(TValue *, oldval), val);
+        invalidateTMcache(hvalue(t));
+        luaC_barrierback(L, hvalue(t), val);
+        return;
+      }
+      /* else will try the metamethod */
+    }
+    else {  /* not a table; check metamethod */
+      if (ttisnil(tm = luaT_gettmbyobj(L, t, TM_NEWINDEX)))
+        luaG_typeerror(L, t, "index");
+    }
+    /* try the metamethod */
+    if (ttisfunction(tm)) {
+      luaT_callTM(L, tm, t, key, val, 0);
+      return;
+    }
+    t = tm;  /* else repeat assignment over 'tm' */
+    if (luaV_fastset(L, t, key, oldval, luaH_get, val))
+      return;  /* done */
+    /* else loop */
+  }
+  luaG_runerror(L, "settable chain too long; possible loop");
+}
+
+/*
 ** Main function for table access (invoking metamethods if needed).
 ** Compute 'val = t[key]'
 */
@@ -787,11 +858,6 @@ void luaV_finishOp (lua_State *L) {
 	ISK(GETARG_B(i)) ? k+INDEXK(GETARG_B(i)) : base+GETARG_B(i))
 #define RKC(i)	check_exp(getCMode(GET_OPCODE(i)) == OpArgK, \
 	ISK(GETARG_C(i)) ? k+INDEXK(GETARG_C(i)) : base+GETARG_C(i))
-#define KBx(i)  \
-  (k + (GETARG_Bx(i) != 0 ? GETARG_Bx(i) - 1 : GETARG_Ax(*ci->u.l.savedpc++)))
-/* RAVI */
-#define KB(i)	check_exp(getBMode(GET_OPCODE(i)) == OpArgK, k+INDEXK(GETARG_B(i)))
-#define KC(i)	check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k+INDEXK(GETARG_C(i)))
 
 /* execute a jump instruction */
 #define dojump(ci,i,e) \
@@ -808,14 +874,15 @@ void luaV_finishOp (lua_State *L) {
  */
 #define Protect(x)	{ {x;}; base = ci->u.l.base; }
 
-#define checkGC_(L,c)  \
-         { luaC_condGC(L,{L->top = (c);  /* limit of live values */ \
-                          luaC_step(L); \
-                          L->top = ci->top;})  /* restore top */ \
+#define checkGC(L,c)  \
+	{ luaC_condGC(L, L->top = (c),  /* limit of live values */ \
+                         Protect(L->top = ci->top));  /* restore top */ \
            luai_threadyield(L); }
 
-#define checkGC(L,c)  \
-  Protect( checkGC_(L,c) )
+#define checkGC_(L,c)  \
+    { luaC_condGC(L, L->top = (c),  /* limit of live values */ \
+                     L->top = ci->top);  /* restore top */ \
+      luai_threadyield(L); }
 
 
 #define vmdispatch(o)	switch(o)

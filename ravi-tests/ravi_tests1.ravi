@@ -1152,7 +1152,25 @@ compile(test_self_s)
 assert(test_self_s() == 'dibyendu majumdar')
 print 'Test 49 OK'
 
+-- issue #73
+function bug_index_event()
+  local t1 = { name='dibyendu' }
+  local t2 = { surname='majumdar' }
+  t2.__index = t2
+  setmetatable(t1, t2)
+  assert(t1.name == 'dibyendu')
+  assert(t1.surname == 'majumdar') -- index event
+
+  local t3: table = { name='dibyendu' }
+  setmetatable(t3, t2)
+  assert(t3.name == 'dibyendu')
+  assert(t3.surname == 'majumdar') -- index event
+end
+bug_index_event()
+print 'Test 50 OK'
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)
 end
+

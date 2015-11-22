@@ -48,6 +48,52 @@
 #define luaV_rawequalobj(t1,t2)		luaV_equalobj(NULL,t1,t2)
 
 
+/*
+** fast track for 'gettable': 1 means 'aux' points to resulted value;
+** 0 means 'aux' is metamethod (if 't' is a table) or NULL. 'f' is
+** the raw get function to use.
+*/
+#define luaV_fastget(L,t,k,aux,f) \
+  (!ttistable(t)  \
+   ? (aux = NULL, 0)  /* not a table; 'aux' is NULL and result is 0 */  \
+   : (aux = f(hvalue(t), k),  /* else, do raw access */  \
+      !ttisnil(aux) ? 1  /* result not nil? 'aux' has it */  \
+      : (aux = fasttm(L, hvalue(t)->metatable, TM_INDEX),  /* get metamethod */\
+         aux != NULL  ? 0  /* has metamethod? must call it */  \
+         : (aux = luaO_nilobject, 1))))  /* else, final result is nil */
+
+/*
+** standard implementation for 'gettable'
+*/
+#define luaV_fastgettable(L,t,k,v) { const TValue *aux; \
+  if (luaV_fastget(L,t,k,aux,luaH_get)) { setobj2s(L, v, aux); } \
+  else luaV_finishget(L,t,k,v,aux); }
+
+
+/*
+** Fast track for set table. If 't' is a table and 't[k]' is not nil,
+** call GC barrier, do a raw 't[k]=v', and return true; otherwise,
+** return false with 'slot' equal to NULL (if 't' is not a table) or
+** 'nil'. (This is needed by 'luaV_finishget'.) Note that, if the macro
+** returns true, there is no need to 'invalidateTMcache', because the
+** call is not creating a new entry.
+*/
+#define luaV_fastset(L,t,k,slot,f,v) \
+  (!ttistable(t) \
+   ? (slot = NULL, 0) \
+   : (slot = f(hvalue(t), k), \
+     ttisnil(slot) ? 0 \
+     : (luaC_barrierback(L, hvalue(t), v), \
+        setobj2t(L, cast(TValue *,slot), v), \
+        1)))
+
+
+#define luaV_fastsettable(L,t,k,v) { const TValue *slot; \
+  if (!luaV_fastset(L,t,k,slot,luaH_get,v)) \
+    luaV_finishset(L,t,k,v,slot); }
+  
+
+
 LUAI_FUNC int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2);
 LUAI_FUNC int luaV_lessthan (lua_State *L, const TValue *l, const TValue *r);
 LUAI_FUNC int luaV_lessequal (lua_State *L, const TValue *l, const TValue *r);
@@ -58,6 +104,10 @@ LUAI_FUNC void luaV_gettable (lua_State *L, const TValue *t, TValue *key,
                                             StkId val);
 LUAI_FUNC void luaV_settable (lua_State *L, const TValue *t, TValue *key,
                                             StkId val);
+LUAI_FUNC void luaV_finishget (lua_State *L, const TValue *t, TValue *key,
+                               StkId val, const TValue *tm);
+LUAI_FUNC void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
+                               StkId val, const TValue *oldval);
 LUAI_FUNC void luaV_finishOp (lua_State *L);
 LUAI_FUNC int luaV_execute (lua_State *L);
 LUAI_FUNC void luaV_concat (lua_State *L, int total);

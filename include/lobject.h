@@ -19,8 +19,8 @@
 /*
 ** Extra tags for non-values
 */
-#define LUA_TPROTO	LUA_NUMTAGS
-#define LUA_TDEADKEY	(LUA_NUMTAGS+1)
+#define LUA_TPROTO	LUA_NUMTAGS		/* function prototypes */
+#define LUA_TDEADKEY	(LUA_NUMTAGS+1)		/* removed keys in tables */
 
 /*
 ** number of all possible tags (including LUA_TNONE but excluding DEADKEY)
@@ -264,12 +264,12 @@ typedef struct lua_TValue TValue;
 #define setptvalue2s	setptvalue
 /* from table to same table */
 #define setobjt2t	setobj
-/* to table */
-#define setobj2t	setobj
 /* to new object */
 #define setobj2n	setobj
 #define setsvalue2n	setsvalue
 
+/* to table (define it as an expression to be used in macros) */
+#define setobj2t(L,o1,o2)  ((void)L, *(o1)=*(o2), checkliveness(G(L),(o1)))
 
 
 /*

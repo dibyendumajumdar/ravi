@@ -312,10 +312,10 @@ typedef unsigned long Instruction;
 #endif
 
 #if !defined(HARDMEMTESTS)
-#define condchangemem(L)	condmovestack(L)
+#define condchangemem(L,pre,pos)	((void)0)
 #else
-#define condchangemem(L)  \
-	((void)(!(G(L)->gcrunning) || (luaC_fullgc(L, 0), 1)))
+#define condchangemem(L,pre,pos)  \
+	{ if (G(L)->gcrunning) { pre; luaC_fullgc(L, 0); pos; } }
 #endif
 
 #endif
