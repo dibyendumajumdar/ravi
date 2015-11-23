@@ -971,15 +971,11 @@ newframe:  /* reentry point when frame changes (call/return) */
           v = &t->array[idx - 1];
         else
           v = luaH_getint(t, idx);
-        if (!ttisnil(v)) {
+        if (!ttisnil(v) || metamethod_absent(t->metatable, TM_INDEX)) {
           setobj2s(L, ra, v);
         }
         else {
-          const TValue *tm = fasttm(L, t->metatable, TM_INDEX);
-          if (tm != NULL)
-            luaV_finishget(L, rb, rc, ra, tm);
-          else
-            setobj2s(L, ra, v);
+          Protect(raviV_finishget(L, rb, rc, ra));
         }
     } break;
     case OP_RAVI_SELF_S: {
@@ -1016,15 +1012,11 @@ newframe:  /* reentry point when frame changes (call/return) */
             n += nx;
           }
         }
-        if (!ttisnil(v)) {
+        if (!ttisnil(v) || metamethod_absent(h->metatable, TM_INDEX)) {
           setobj2s(L, ra, v);
         }
         else {
-          const TValue *tm = fasttm(L, h->metatable, TM_INDEX);
-          if (tm != NULL)
-            luaV_finishget(L, rb, kv, ra, tm);
-          else
-            setobj2s(L, ra, v);
+          Protect(raviV_finishget(L, rb, kv, ra));
         }
       }
     } break;
@@ -1040,13 +1032,13 @@ newframe:  /* reentry point when frame changes (call/return) */
         setobj(L, uv->v, ra);
         luaC_upvalbarrier(L, uv);
     } break;
-    case OP_RAVI_SETTABLE_I: {
+    case OP_RAVI_SETTABLE_I: /* {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rb);
         Table *t = hvalue(ra);
         luaH_setint(L, t, idx, rc);
-    } break;
+    } break; */
     case OP_RAVI_SETTABLE_S:
     case OP_SETTABLE: {
         Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
@@ -2298,6 +2290,29 @@ void raviV_op_shr(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
     luaT_trybinTM(L, rb, rc, ra, TM_SHR);
   }
 }
+
+void raviV_finishget(lua_State *L, const TValue *t, TValue *key, StkId val) {
+  int loop;  /* counter to avoid infinite loops */
+  const TValue *tm = luaT_gettm(hvalue(t), TM_INDEX, G(L)->tmname[TM_INDEX]);
+  for (loop = 0; loop < MAXTAGLOOP; loop++) {
+    if (tm == NULL) {  /* no metamethod (from a table)? */
+      if (ttisnil(tm = luaT_gettmbyobj(L, t, TM_INDEX)))
+        luaG_typeerror(L, t, "index");  /* no metamethod */
+    }
+    if (ttisfunction(tm)) {  /* metamethod is a function */
+      luaT_callTM(L, tm, t, key, val, 1);  /* call it */
+      return;
+    }
+    t = tm;  /* else repeat access over 'tm' */
+    if (luaV_fastget(L, t, key, tm, luaH_get)) {  /* try fast track */
+      setobj2s(L, val, tm);  /* done */
+      return;
+    }
+    /* else repeat */
+  }
+  luaG_runerror(L, "gettable chain too long; possible loop");
+}
+
 
 /* }================================================================== */
 

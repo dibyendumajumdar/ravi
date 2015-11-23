@@ -1160,10 +1160,12 @@ function bug_index_event()
   setmetatable(t1, t2)
   assert(t1.name == 'dibyendu')
   assert(t1.surname == 'majumdar') -- index event
+  assert(t1.surname == 'majumdar') -- index event
 
   local t3: table = { name='dibyendu' }
   setmetatable(t3, t2)
   assert(t3.name == 'dibyendu')
+  assert(t3.surname == 'majumdar') -- index event
   assert(t3.surname == 'majumdar') -- index event
 
   t1 = { [1]='dibyendu' }
@@ -1172,10 +1174,12 @@ function bug_index_event()
   setmetatable(t1, t2)
   assert(t1[1] == 'dibyendu')
   assert(t1[2] == 'majumdar') -- index event
+  assert(t1[2] == 'majumdar') -- index event
 
   local t3: table = { [1]='dibyendu' }
   setmetatable(t3, t2)
   assert(t3[1] == 'dibyendu')
+  assert(t3[2] == 'majumdar') -- index event
   assert(t3[2] == 'majumdar') -- index event
 end
 bug_index_event()
