@@ -1165,9 +1165,25 @@ function bug_index_event()
   setmetatable(t3, t2)
   assert(t3.name == 'dibyendu')
   assert(t3.surname == 'majumdar') -- index event
+
+  t1 = { [1]='dibyendu' }
+  t2 = { [2]='majumdar' }
+  t2.__index = t2
+  setmetatable(t1, t2)
+  assert(t1[1] == 'dibyendu')
+  assert(t1[2] == 'majumdar') -- index event
+
+  local t3: table = { [1]='dibyendu' }
+  setmetatable(t3, t2)
+  assert(t3[1] == 'dibyendu')
+  assert(t3[2] == 'majumdar') -- index event
 end
 bug_index_event()
+compile(bug_index_event)
+bug_index_event()
+
 print 'Test 50 OK'
+
 
 for k,v in pairs(opcodes_coverage)
 do

@@ -889,6 +889,21 @@ void luaV_finishOp (lua_State *L) {
 #define vmcase(l,b)	case l: {b}  break;
 #define vmcasenb(l,b)	case l: {b}		/* nb = no break */
 
+/*
+** copy of 'luaV_gettable', but protecting call to potential metamethod
+** (which can reallocate the stack)
+*/
+#define gettableProtected(L,t,k,v)  { const TValue *aux; \
+  if (luaV_fastget(L,t,k,aux,luaH_get)) { setobj2s(L, v, aux); } \
+  else Protect(luaV_finishget(L,t,k,v,aux)); }
+
+
+/* same for 'luaV_settable' */
+#define settableProtected(L,t,k,v) { const TValue *slot; \
+  if (!luaV_fastset(L,t,k,slot,luaH_get,v)) \
+    Protect(luaV_finishset(L,t,k,v,slot)); }
+
+
 
 int luaV_execute (lua_State *L) {
   CallInfo *ci = L->ci;
@@ -956,7 +971,16 @@ newframe:  /* reentry point when frame changes (call/return) */
           v = &t->array[idx - 1];
         else
           v = luaH_getint(t, idx);
-        setobj2s(L, ra, v);
+        if (!ttisnil(v)) {
+          setobj2s(L, ra, v);
+        }
+        else {
+          const TValue *tm = fasttm(L, t->metatable, TM_INDEX);
+          if (tm != NULL)
+            luaV_finishget(L, rb, rc, ra, tm);
+          else
+            setobj2s(L, ra, v);
+        }
     } break;
     case OP_RAVI_SELF_S: {
       StkId rb = RB(i);
@@ -992,7 +1016,16 @@ newframe:  /* reentry point when frame changes (call/return) */
             n += nx;
           }
         }
-        setobj2s(L, ra, v);
+        if (!ttisnil(v)) {
+          setobj2s(L, ra, v);
+        }
+        else {
+          const TValue *tm = fasttm(L, h->metatable, TM_INDEX);
+          if (tm != NULL)
+            luaV_finishget(L, rb, kv, ra, tm);
+          else
+            setobj2s(L, ra, v);
+        }
       }
     } break;
     case OP_GETTABLE: {
