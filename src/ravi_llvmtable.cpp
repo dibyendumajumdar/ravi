@@ -123,12 +123,29 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
 
 // R(A) := R(B)[RK(C)]
 // This is a more optimized version that attempts to do an inline
-// array get first and only if that fails it fals back on calling
+// array get first and only if that fails it falls back on calling
 // luaH_getint(). This relies on two things:
 // a) we know we have a table
 // b) we know the key is an integer
 void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B,
                                         int C, int pc) {
+
+  //TValue *rb = RB(i);
+  //TValue *rc = RKC(i);
+  //lua_Integer idx = ivalue(rc);
+  //Table *t = hvalue(rb);
+  //const TValue *v;
+  //if (l_castS2U(idx - 1) < t->sizearray)
+  //  v = &t->array[idx - 1];
+  //else
+  //  v = luaH_getint(t, idx);
+  //if (!ttisnil(v) || metamethod_absent(t->metatable, TM_INDEX)) {
+  //  setobj2s(L, ra, v);
+  //}
+  //else {
+  //  Protect(raviV_finishget(L, rb, rc, ra));
+  //}
+
   emit_debug_trace(def, OP_RAVI_GETTABLE_I, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -173,6 +190,9 @@ void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B,
   phi->addIncoming(value2, else_block);
 
   // We need to test if value is nil
+  // TODO we should really also check if
+  // table has metatable and if the metatable cached flags
+  // indicate no metamethod 
   llvm::Value *value_type = emit_load_type(def, phi);
   llvm::Value *isnil = emit_is_value_of_type(def, value_type, LUA__TNIL);
 
@@ -184,11 +204,15 @@ void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B,
     llvm::BasicBlock::Create(def->jitState->context(), "if.nil.end");
   def->builder->CreateCondBr(isnil, if_nil_block, if_not_nil_block);
   def->builder->SetInsertPoint(if_nil_block);
-  // Slow path
+  
+  // If value is nil Lua requires that an index event be 
+  // generated - so we fall back on slow path for that
   CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
   def->builder->CreateBr(if_nil_end_block);
 
-  // Fast path
+  // Fast path when valus is not nil
+  // TODO or table has no metatable
+  // TODO or table's metatable flags indicate no index metamethod
   def->f->getBasicBlockList().push_back(if_not_nil_block);
   def->builder->SetInsertPoint(if_not_nil_block);
   emit_assign(def, ra, phi);
@@ -211,9 +235,17 @@ void RaviCodeGenerator::emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int 
   // The code we want to generate is this:
   //   struct Node *n = hashstr(t, key);
   //   const struct TValue *k = gkey(n);
+  //   TValue *v;
   //   if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
-  //     return gval(n);
-  //   return luaH_getstr(t, key);
+  //     v = gval(n);
+  //   else
+  //     v = luaH_getstr(t, key);
+  //   if (!ttisnil(v) || metamethod_absent(t->metatable, TM_INDEX)) {
+  //     setobj2s(L, ra, v);
+  //   }
+  //   else {
+  //     Protect(raviV_finishget(L, rb, rc, ra));
+  //   }
 
   // A number of macros are involved above do the
   // the generated code is somewhat more complex
@@ -287,6 +319,9 @@ void RaviCodeGenerator::emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int 
   phi->addIncoming(value2, testfail);
 
   // We need to test if value is nil
+  // TODO we should really also check if
+  // table has metatable and if the metatable cached flags
+  // indicate no metamethod 
   llvm::Value *value_type = emit_load_type(def, phi);
   llvm::Value *isnil = emit_is_value_of_type(def, value_type, LUA__TNIL);
 
@@ -298,7 +333,9 @@ void RaviCodeGenerator::emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int 
     llvm::BasicBlock::Create(def->jitState->context(), "if.nil.end");
   def->builder->CreateCondBr(isnil, if_nil_block, if_not_nil_block);
   def->builder->SetInsertPoint(if_nil_block);
-  // Slow path
+
+  // If value is nil Lua requires that an index event be 
+  // generated - so we fall back on slow path for that
   CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
   def->builder->CreateBr(if_nil_end_block);
 
