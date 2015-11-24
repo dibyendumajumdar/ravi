@@ -1584,11 +1584,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
       emit_CALL(def, A, B, C, pc);
     } break;
 
-    case OP_RAVI_SETTABLE_I: {
+    case OP_RAVI_SETTABLE_I: /*{
       int B = GETARG_B(i);
       int C = GETARG_C(i);
       emit_SETTABLE_I(def, A, B, C, pc);
-    } break;
+    } break; */
     case OP_RAVI_SETTABLE_S:
     case OP_SETTABLE: {
       int B = GETARG_B(i);

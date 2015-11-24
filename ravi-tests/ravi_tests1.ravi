@@ -1184,7 +1184,7 @@ function bug_index_event()
 end
 bug_index_event()
 compile(bug_index_event)
-bug_index_event()
+--bug_index_event()
 
 print 'Test 50 OK'
 

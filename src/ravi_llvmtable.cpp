@@ -171,7 +171,32 @@ void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B,
   llvm::PHINode *phi = def->builder->CreatePHI(def->types->pTValueT, 2);
   phi->addIncoming(value1, then_block);
   phi->addIncoming(value2, else_block);
+
+  // We need to test if value is nil
+  llvm::Value *value_type = emit_load_type(def, phi);
+  llvm::Value *isnil = emit_is_value_of_type(def, value_type, LUA__TNIL);
+
+  llvm::BasicBlock *if_nil_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.nil", def->f);
+  llvm::BasicBlock *if_not_nil_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.not.nil");
+  llvm::BasicBlock *if_nil_end_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.nil.end");
+  def->builder->CreateCondBr(isnil, if_nil_block, if_not_nil_block);
+  def->builder->SetInsertPoint(if_nil_block);
+  // Slow path
+  CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
+  def->builder->CreateBr(if_nil_end_block);
+
+  // Fast path
+  def->f->getBasicBlockList().push_back(if_not_nil_block);
+  def->builder->SetInsertPoint(if_not_nil_block);
   emit_assign(def, ra, phi);
+  def->builder->CreateBr(if_nil_end_block);
+
+  // Merge results from the two branches above
+  def->f->getBasicBlockList().push_back(if_nil_end_block);
+  def->builder->SetInsertPoint(if_nil_end_block);
 }
 
 // R(A) := R(B)[RK(C)]
@@ -260,7 +285,32 @@ void RaviCodeGenerator::emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int 
   llvm::PHINode *phi = def->builder->CreatePHI(def->types->pTValueT, 2);
   phi->addIncoming(value1, testok);
   phi->addIncoming(value2, testfail);
+
+  // We need to test if value is nil
+  llvm::Value *value_type = emit_load_type(def, phi);
+  llvm::Value *isnil = emit_is_value_of_type(def, value_type, LUA__TNIL);
+
+  llvm::BasicBlock *if_nil_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.nil", def->f);
+  llvm::BasicBlock *if_not_nil_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.not.nil");
+  llvm::BasicBlock *if_nil_end_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.nil.end");
+  def->builder->CreateCondBr(isnil, if_nil_block, if_not_nil_block);
+  def->builder->SetInsertPoint(if_nil_block);
+  // Slow path
+  CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
+  def->builder->CreateBr(if_nil_end_block);
+
+  // Fast path
+  def->f->getBasicBlockList().push_back(if_not_nil_block);
+  def->builder->SetInsertPoint(if_not_nil_block);
   emit_assign(def, ra, phi);
+  def->builder->CreateBr(if_nil_end_block);
+
+  // Merge results from the two branches above
+  def->f->getBasicBlockList().push_back(if_nil_end_block);
+  def->builder->SetInsertPoint(if_nil_end_block);
 }
 
 // R(A) := R(B)[RK(C)]
