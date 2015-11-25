@@ -526,6 +526,28 @@ RaviCodeGenerator::emit_load_ravi_arraylength(RaviFunctionDef *def,
   return tt;
 }
 
+// Tests following:
+// ((t) == NULL) || ((t)->flags & (1u<<e)) != 0)
+llvm::Value *RaviCodeGenerator::emit_table_no_metamethod(RaviFunctionDef *def, llvm::Value *table, TMS event) {
+  // Is metatable NULL? 
+  llvm::Value *metatable_ptr = emit_gep(def, "table.metatable_ptr", table, 0, 9);
+  llvm::Instruction *metatable = def->builder->CreateLoad(metatable_ptr, "table.metatable");
+  metatable->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Table_metatable);
+  llvm::Value *null_constant = llvm::ConstantPointerNull::get(def->types->pTableT);
+  llvm::Value *is_null = def->builder->CreateICmpEQ(def->builder->CreatePtrToInt(null_constant, def->types->C_intptr_t),
+    def->builder->CreatePtrToInt(metatable, def->types->C_intptr_t));
+
+  // Is metatable->flags & (1<<event) set?
+  llvm::Value *flags_ptr = emit_gep(def, "table.flags_ptr", metatable, 0, 3);
+  llvm::Instruction *flags = def->builder->CreateLoad(flags_ptr, "table.flags");
+  flags->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Table_flags);
+  llvm::Value *no_event = def->builder->CreateICmpNE(def->builder->CreateAnd(flags, llvm::ConstantInt::get(def->types->lu_byteT, 1u << event)),
+    llvm::ConstantInt::get(def->types->lu_byteT, 0));
+
+  llvm::Value *metaabsent = def->builder->CreateOr(is_null, no_event, "metatable.isnull.or.no.event");
+  return metaabsent;
+}
+
 // Store lua_Number or lua_Integer
 llvm::Instruction *RaviCodeGenerator::emit_store_local_n(RaviFunctionDef *def,
                                                          llvm::Value *src,
@@ -1129,6 +1151,9 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_setupvaltF = def->raviF->addExternFunction(
       def->types->raviV_op_setupvaltT,
       reinterpret_cast<void *>(&raviV_op_setupvalt), "raviV_op_setupvalt");
+  def->raviV_finishgetF = def->raviF->addExternFunction(
+    def->types->raviV_finishgetT, reinterpret_cast<void *>(&raviV_finishget),
+    "raviV_finishget");
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(
       def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),

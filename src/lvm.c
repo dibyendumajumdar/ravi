@@ -990,8 +990,8 @@ newframe:  /* reentry point when frame changes (call/return) */
        */
       l_gettable_s: {
         StkId rb = RB(i);
-        TValue *kv = k + INDEXK(GETARG_C(i));
-        TString *key = tsvalue(kv);
+        TValue *rc = k + INDEXK(GETARG_C(i));
+        TString *key = tsvalue(rc);
         lua_assert(key->tt == LUA_TSHRSTR);
         Table *h = hvalue(rb);
         int position = lmod(key->hash, sizenode(h));
@@ -1016,7 +1016,7 @@ newframe:  /* reentry point when frame changes (call/return) */
           setobj2s(L, ra, v);
         }
         else {
-          Protect(raviV_finishget(L, rb, kv, ra));
+          Protect(raviV_finishget(L, rb, rc, ra));
         }
       }
     } break;

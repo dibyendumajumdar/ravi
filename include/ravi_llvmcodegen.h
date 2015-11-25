@@ -264,6 +264,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_op_setupvalaiT;
   llvm::FunctionType *raviV_op_setupvalafT;
   llvm::FunctionType *raviV_op_setupvaltT;
+  llvm::FunctionType *raviV_finishgetT;
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -331,6 +332,8 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_Table_node;
   llvm::MDNode *tbaa_Table_sizearray;
   llvm::MDNode *tbaa_Table_array;
+  llvm::MDNode *tbaa_Table_flags;
+  llvm::MDNode *tbaa_Table_metatable;
 };
 
 class RAVI_API RaviJITStateImpl;
@@ -566,6 +569,7 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_setupvalaiF;
   llvm::Function *raviV_op_setupvalafF;
   llvm::Function *raviV_op_setupvaltF;
+  llvm::Function *raviV_finishgetF;
 
   // array setters
   llvm::Function *raviH_set_intF;
@@ -780,6 +784,8 @@ public:
 
   llvm::Value *emit_table_get_array(RaviFunctionDef *def, llvm::Value *table);
 
+  llvm::Value *emit_table_no_metamethod(RaviFunctionDef *def, llvm::Value *table, TMS event);
+
   llvm::Instruction *emit_load_reg_s(RaviFunctionDef *def, llvm::Value *rb);
 
   // emit code to load pointer to int array
@@ -991,6 +997,8 @@ public:
                        TString *key);
 
   void emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
+
+  void emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *phi, llvm::Value *t, llvm::Value *ra, llvm::Value *rb, llvm::Value *rc);
 
   void emit_SELF(RaviFunctionDef *def, int A, int B, int C, int pc);
 

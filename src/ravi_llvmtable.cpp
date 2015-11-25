@@ -188,39 +188,42 @@ void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B,
   llvm::PHINode *phi = def->builder->CreatePHI(def->types->pTValueT, 2);
   phi->addIncoming(value1, then_block);
   phi->addIncoming(value2, else_block);
+  emit_finish_GETTABLE(def, phi, t, ra, rb, rc);
+}
 
-  // We need to test if value is nil
-  // TODO we should really also check if
-  // table has metatable and if the metatable cached flags
-  // indicate no metamethod 
+void RaviCodeGenerator::emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *phi, llvm::Value *t, llvm::Value *ra, llvm::Value *rb, llvm::Value *rc) {
+  // We need to test if value is not nil
+  // or table has no metatable 
+  // or if the metatable cached flags indicate metamethod absent 
   llvm::Value *value_type = emit_load_type(def, phi);
-  llvm::Value *isnil = emit_is_value_of_type(def, value_type, LUA__TNIL);
+  llvm::Value *isnotnil = emit_is_not_value_of_type(def, value_type, LUA__TNIL);
+  llvm::Value *metamethod_absent = emit_table_no_metamethod(def, t, TM_INDEX);
+  llvm::Value *cond = def->builder->CreateOr(isnotnil, metamethod_absent);
 
-  llvm::BasicBlock *if_nil_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.nil", def->f);
-  llvm::BasicBlock *if_not_nil_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.not.nil");
-  llvm::BasicBlock *if_nil_end_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.nil.end");
-  def->builder->CreateCondBr(isnil, if_nil_block, if_not_nil_block);
-  def->builder->SetInsertPoint(if_nil_block);
-  
+  llvm::BasicBlock *if_true_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.not.nil.or.metamethod.absent", def->f);
+  llvm::BasicBlock *if_false_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.try.metamethod");
+  llvm::BasicBlock *if_end_block =
+    llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+  def->builder->CreateCondBr(cond, if_true_block, if_false_block);
+  def->builder->SetInsertPoint(if_true_block);
+
+  // Fast path
+  emit_assign(def, ra, phi);
+  def->builder->CreateBr(if_end_block);
+
+  def->f->getBasicBlockList().push_back(if_false_block);
+  def->builder->SetInsertPoint(if_false_block);
+
   // If value is nil Lua requires that an index event be 
   // generated - so we fall back on slow path for that
-  CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
-  def->builder->CreateBr(if_nil_end_block);
-
-  // Fast path when valus is not nil
-  // TODO or table has no metatable
-  // TODO or table's metatable flags indicate no index metamethod
-  def->f->getBasicBlockList().push_back(if_not_nil_block);
-  def->builder->SetInsertPoint(if_not_nil_block);
-  emit_assign(def, ra, phi);
-  def->builder->CreateBr(if_nil_end_block);
+  CreateCall4(def->builder, def->raviV_finishgetF, def->L, rb, rc, ra);
+  def->builder->CreateBr(if_end_block);
 
   // Merge results from the two branches above
-  def->f->getBasicBlockList().push_back(if_nil_end_block);
-  def->builder->SetInsertPoint(if_nil_end_block);
+  def->f->getBasicBlockList().push_back(if_end_block);
+  def->builder->SetInsertPoint(if_end_block);
 }
 
 // R(A) := R(B)[RK(C)]
@@ -317,37 +320,7 @@ void RaviCodeGenerator::emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int 
   llvm::PHINode *phi = def->builder->CreatePHI(def->types->pTValueT, 2);
   phi->addIncoming(value1, testok);
   phi->addIncoming(value2, testfail);
-
-  // We need to test if value is nil
-  // TODO we should really also check if
-  // table has metatable and if the metatable cached flags
-  // indicate no metamethod 
-  llvm::Value *value_type = emit_load_type(def, phi);
-  llvm::Value *isnil = emit_is_value_of_type(def, value_type, LUA__TNIL);
-
-  llvm::BasicBlock *if_nil_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.nil", def->f);
-  llvm::BasicBlock *if_not_nil_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.not.nil");
-  llvm::BasicBlock *if_nil_end_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.nil.end");
-  def->builder->CreateCondBr(isnil, if_nil_block, if_not_nil_block);
-  def->builder->SetInsertPoint(if_nil_block);
-
-  // If value is nil Lua requires that an index event be 
-  // generated - so we fall back on slow path for that
-  CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
-  def->builder->CreateBr(if_nil_end_block);
-
-  // Fast path
-  def->f->getBasicBlockList().push_back(if_not_nil_block);
-  def->builder->SetInsertPoint(if_not_nil_block);
-  emit_assign(def, ra, phi);
-  def->builder->CreateBr(if_nil_end_block);
-
-  // Merge results from the two branches above
-  def->f->getBasicBlockList().push_back(if_nil_end_block);
-  def->builder->SetInsertPoint(if_nil_end_block);
+  emit_finish_GETTABLE(def, phi, t, ra, rb, rc);
 }
 
 // R(A) := R(B)[RK(C)]

@@ -781,6 +781,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   // void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val)
   luaV_settableT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  // void raviV_finishget(lua_State *L, const TValue *t, TValue *key, StkId val);
+  raviV_finishgetT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   // void luaT_trybinTM (lua_State *L, const TValue *p1, const TValue *p2,
   //                     StkId res, TMS event);
@@ -1223,16 +1226,18 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_RaviArrayT, 32));  /* ravi_array */
   tbaa_TableT = mdbuilder.createTBAAStructTypeNode("Table", nodes);
 
-  tbaa_RaviArray_dataT =
-      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 32);
-  tbaa_RaviArray_lenT =
-      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 36);
-  tbaa_RaviArray_typeT =
-      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 44);
+  tbaa_Table_flags = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 6);
   tbaa_Table_lsizenode = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 7);
   tbaa_Table_sizearray = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 8);
   tbaa_Table_array = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 12);
   tbaa_Table_node = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 16);
+  tbaa_Table_metatable = mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 24);
+  tbaa_RaviArray_dataT =
+    mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 32);
+  tbaa_RaviArray_lenT =
+    mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 36);
+  tbaa_RaviArray_typeT =
+    mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 44);
 }
 
 void LuaLLVMTypes::dump() {
