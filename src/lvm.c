@@ -1478,7 +1478,16 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
     }
     case OP_RAVI_FORLOOP_IP:
-    case OP_RAVI_FORLOOP_I1:
+    case OP_RAVI_FORLOOP_I1: {
+      lua_Integer step = op == OP_RAVI_FORLOOP_I1 ? 1 : ivalue(ra + 2);
+      lua_Integer idx = ivalue(ra) + step; /* increment index */
+      lua_Integer limit = ivalue(ra + 1);
+      if (idx <= limit) {
+        ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
+        chgivalue(ra, idx);  /* update internal index... */
+        setivalue(ra + 3, idx);  /* ...and external index */
+      }
+    } break;
     case OP_FORLOOP: {
         if (ttisinteger(ra)) {  /* integer loop? */
           lua_Integer step = ivalue(ra + 2);
@@ -1503,7 +1512,17 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
     } break;
     case OP_RAVI_FORPREP_IP:
-    case OP_RAVI_FORPREP_I1:
+    case OP_RAVI_FORPREP_I1: {
+      TValue *pinit = ra;
+      TValue *plimit = ra + 1;
+      TValue *pstep = (op == OP_RAVI_FORPREP_I1) ? NULL : ra + 2;
+      lua_Integer ilimit = ivalue(plimit);
+      lua_Integer initv = ivalue(pinit);
+      lua_Integer istep = (op == OP_RAVI_FORPREP_I1) ? 1 : ivalue(pstep);
+      setivalue(plimit, ilimit);
+      setivalue(pinit, initv - istep);
+      ci->u.l.savedpc += GETARG_sBx(i);
+    } break;
     case OP_FORPREP: {
         TValue *init = ra;
         TValue *plimit = ra + 1;
