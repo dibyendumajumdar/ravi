@@ -236,49 +236,131 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
   luaG_runerror(L, "settable chain too long; possible loop");
 }
 
+#define GETTABLE_INLINE(L, t, key, val) \
+  int loop = 0;  /* counter to avoid infinite loops */ \
+  do { \
+    const TValue *tm = NULL; \
+    if (ttistable(t)) {  /* 't' is a table? */ \
+      Table *h = hvalue(t); \
+      switch (h->ravi_array.array_type) { \
+      case RAVI_TTABLE: { \
+        const TValue *res = luaH_get(h, key); /* do a primitive get */ \
+        if (!ttisnil(res) ||  /* result is not nil? */ \
+          (tm = fasttm(L, h->metatable, TM_INDEX)) == NULL) { /* or no TM? */ \
+          setobj2s(L, val, res);  /* result is the raw get */ \
+          goto l_gettable_done; \
+        } \
+      } break; \
+      case RAVI_TARRAYINT: { \
+        if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
+        raviH_get_int_inline(L, h, ivalue(key), val); \
+        goto l_gettable_done; \
+      } break; \
+      case RAVI_TARRAYFLT: { \
+        if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
+        raviH_get_float_inline(L, h, ivalue(key), val); \
+        goto l_gettable_done; \
+      } break; \
+      default: \
+        lua_assert(0); \
+      } \
+      /* else will try metamethod */ \
+    } \
+    else if (ttisnil(tm = luaT_gettmbyobj(L, t, TM_INDEX))) \
+      luaG_typeerror(L, t, "index");  /* no metamethod */ \
+    if (ttisfunction(tm)) {  /* metamethod is a function */ \
+      luaT_callTM(L, tm, t, key, val, 1); \
+      goto l_gettable_done; \
+    } \
+    t = tm;  /* else repeat access over 'tm' */ \
+  } while (loop++ < MAXTAGLOOP); \
+  luaG_runerror(L, "gettable chain too long; possible loop"); \
+  l_gettable_done: 
+
+#define SETTABLE_INLINE(L, t, key, val) \
+  int loop = 0;  /* counter to avoid infinite loops */ \
+  do { \
+    const TValue *tm = NULL; \
+    if (ttistable(t)) {  /* 't' is a table? */ \
+      Table *h = hvalue(t); \
+      switch (h->ravi_array.array_type) { \
+      case RAVI_TTABLE: { \
+        TValue *oldval = cast(TValue *, luaH_get(h, key)); \
+        /* if previous value is not nil, there must be a previous entry \
+        in the table; a metamethod has no relevance */ \
+        if (!ttisnil(oldval) || \
+          /* previous value is nil; must check the metamethod */ \
+          ((tm = fasttm(L, h->metatable, TM_NEWINDEX)) == NULL && \
+            /* no metamethod; is there a previous entry in the table? */ \
+            (oldval != luaO_nilobject || \
+              /* no previous entry; must create one. (The next test is \
+              always true; we only need the assignment.) */ \
+              (oldval = luaH_newkey(L, h, key), 1)))) { \
+          /* no metamethod and (now) there is an entry with given key */ \
+          setobj2t(L, oldval, val);  /* assign new value to that entry */ \
+          invalidateTMcache(h); \
+          luaC_barrierback(L, h, val); \
+          goto l_settable_done; \
+        } \
+      } break; \
+      case RAVI_TARRAYINT: { \
+        if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
+        if (ttisinteger(val)) { \
+          raviH_set_int_inline(L, h, ivalue(key), ivalue(val)); \
+        } \
+        else { \
+          lua_Integer i = 0; \
+          if (luaV_tointeger_(val, &i)) { \
+            raviH_set_int_inline(L, h, ivalue(key), i); \
+          } \
+          else \
+            luaG_runerror(L, "value cannot be converted to integer"); \
+        } \
+        goto l_settable_done; \
+      } break; \
+      case RAVI_TARRAYFLT: { \
+        if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
+        if (ttisfloat(val)) { \
+          raviH_set_float_inline(L, h, ivalue(key), fltvalue(val)); \
+        } \
+        else if (ttisinteger(val)) { \
+          raviH_set_float_inline(L, h, ivalue(key), (lua_Number)(ivalue(val))); \
+        } \
+        else { \
+          lua_Number d = 0.0; \
+          if (luaV_tonumber_(val, &d)) { \
+            raviH_set_float_inline(L, h, ivalue(key), d); \
+          } \
+          else \
+            luaG_runerror(L, "value cannot be converted to number"); \
+        } \
+        goto l_settable_done; \
+      } break; \
+      default: \
+        lua_assert(0); \
+      } \
+      /* else will try the metamethod */ \
+    } \
+    else  /* not a table; check metamethod */ \
+      if (ttisnil(tm = luaT_gettmbyobj(L, t, TM_NEWINDEX))) \
+        luaG_typeerror(L, t, "index"); \
+    /* try the metamethod */ \
+    if (ttisfunction(tm)) { \
+      luaT_callTM(L, tm, t, key, val, 0); \
+      goto l_settable_done; \
+    } \
+    t = tm;  /* else repeat assignment over 'tm' */ \
+  } while (loop++ < MAXTAGLOOP); \
+  luaG_runerror(L, "settable chain too long; possible loop"); \
+  l_settable_done:
+
+
 /*
 ** Main function for table access (invoking metamethods if needed).
 ** Compute 'val = t[key]'
 */
 void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val) {
-  int loop;  /* counter to avoid infinite loops */
-  for (loop = 0; loop < MAXTAGLOOP; loop++) {
-    const TValue *tm = NULL;
-    if (ttistable(t)) {  /* 't' is a table? */
-      Table *h = hvalue(t);
-      switch (h->ravi_array.array_type) {
-      case RAVI_TTABLE: {
-        const TValue *res = luaH_get(h, key); /* do a primitive get */
-        if (!ttisnil(res) ||  /* result is not nil? */
-          (tm = fasttm(L, h->metatable, TM_INDEX)) == NULL) { /* or no TM? */
-          setobj2s(L, val, res);  /* result is the raw get */
-          return;
-        }
-      } break;
-      case RAVI_TARRAYINT: {
-        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
-        raviH_get_int_inline(L, h, ivalue(key), val);
-        return;
-      } break;
-      case RAVI_TARRAYFLT: {
-        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
-        raviH_get_float_inline(L, h, ivalue(key), val);
-        return;
-      } break;
-      default:
-        lua_assert(0);
-      } 
-      /* else will try metamethod */
-    }
-    else if (ttisnil(tm = luaT_gettmbyobj(L, t, TM_INDEX)))
-      luaG_typeerror(L, t, "index");  /* no metamethod */
-    if (ttisfunction(tm)) {  /* metamethod is a function */
-      luaT_callTM(L, tm, t, key, val, 1);
-      return;
-    }
-    t = tm;  /* else repeat access over 'tm' */
-  }
-  luaG_runerror(L, "gettable chain too long; possible loop");
+  GETTABLE_INLINE(L, t, key, val);
 }
 
 
@@ -287,80 +369,7 @@ void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val) {
 ** Compute 't[key] = val'
 */
 void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
-  int loop;  /* counter to avoid infinite loops */
-  for (loop = 0; loop < MAXTAGLOOP; loop++) {
-    const TValue *tm = NULL;
-    if (ttistable(t)) {  /* 't' is a table? */
-      Table *h = hvalue(t);
-      switch (h->ravi_array.array_type) {
-      case RAVI_TTABLE: {
-        TValue *oldval = cast(TValue *, luaH_get(h, key));
-        /* if previous value is not nil, there must be a previous entry
-        in the table; a metamethod has no relevance */
-        if (!ttisnil(oldval) ||
-          /* previous value is nil; must check the metamethod */
-          ((tm = fasttm(L, h->metatable, TM_NEWINDEX)) == NULL &&
-          /* no metamethod; is there a previous entry in the table? */
-          (oldval != luaO_nilobject ||
-          /* no previous entry; must create one. (The next test is
-          always true; we only need the assignment.) */
-          (oldval = luaH_newkey(L, h, key), 1)))) {
-          /* no metamethod and (now) there is an entry with given key */
-          setobj2t(L, oldval, val);  /* assign new value to that entry */
-          invalidateTMcache(h);
-          luaC_barrierback(L, h, val);
-          return;
-        }
-      } break;
-      case RAVI_TARRAYINT: {
-        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
-        if (ttisinteger(val)) {
-          raviH_set_int_inline(L, h, ivalue(key), ivalue(val));
-        }
-        else {
-          lua_Integer i = 0;
-          if (luaV_tointeger_(val, &i)) {
-            raviH_set_int_inline(L, h, ivalue(key), i);
-          }
-          else
-            luaG_runerror(L, "value cannot be converted to integer");
-        }
-        return;
-      } break;
-      case RAVI_TARRAYFLT: {
-        if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
-        if (ttisfloat(val)) {
-          raviH_set_float_inline(L, h, ivalue(key), fltvalue(val));
-        }
-        else if (ttisinteger(val)) {
-          raviH_set_float_inline(L, h, ivalue(key), (lua_Number)(ivalue(val)));
-        }
-        else {
-          lua_Number d = 0.0;
-          if (luaV_tonumber_(val, &d)) {
-            raviH_set_float_inline(L, h, ivalue(key), d);
-          }
-          else
-            luaG_runerror(L, "value cannot be converted to number");
-        }
-        return;
-      } break;
-      default:
-        lua_assert(0);
-      }
-      /* else will try the metamethod */
-    }
-    else  /* not a table; check metamethod */
-      if (ttisnil(tm = luaT_gettmbyobj(L, t, TM_NEWINDEX)))
-        luaG_typeerror(L, t, "index");
-    /* try the metamethod */
-    if (ttisfunction(tm)) {
-      luaT_callTM(L, tm, t, key, val, 0);
-      return;
-    }
-    t = tm;  /* else repeat assignment over 'tm' */
-  }
-  luaG_runerror(L, "settable chain too long; possible loop");
+  SETTABLE_INLINE(L, t, key, val);
 }
 
 
@@ -957,10 +966,6 @@ newframe:  /* reentry point when frame changes (call/return) */
         int b = GETARG_B(i);
         setobj2s(L, ra, cl->upvals[b]->v);
     } break;
-    case OP_GETTABUP: {
-        int b = GETARG_B(i);
-        Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
-    } break;
     case OP_RAVI_GETTABLE_I: {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
@@ -978,18 +983,17 @@ newframe:  /* reentry point when frame changes (call/return) */
           Protect(raviV_finishget(L, rb, rc, ra));
         }
     } break;
-    case OP_RAVI_SELF_S: {
-      StkId rb = RB(i);
-      setobjs2s(L, ra + 1, rb);
-      goto l_gettable_s;
-    } break;
+    case OP_RAVI_SELF_S:
     case OP_RAVI_GETTABLE_S: {
       /* Following is an inline version of luaH_getstr() - this is
        * not ideal as there is code duplication; should be changed to a common
        * macro which can be used in bothe places
        */
-      l_gettable_s: {
-        StkId rb = RB(i);
+      StkId rb = RB(i);
+      if (op == OP_RAVI_SELF_S) {
+        setobjs2s(L, ra + 1, rb);
+      }
+      {
         TValue *rc = k + INDEXK(GETARG_C(i));
         TString *key = tsvalue(rc);
         lua_assert(key->tt == LUA_TSHRSTR);
@@ -1020,29 +1024,37 @@ newframe:  /* reentry point when frame changes (call/return) */
         }
       }
     } break;
-    case OP_GETTABLE: {
-        Protect(luaV_gettable(L, RB(i), RKC(i), ra));
+  
+    case OP_GETTABUP:
+    case OP_GETTABLE:
+    case OP_SELF: {
+      TValue *key = RKC(i);  /* key */
+      const TValue *t = (op == OP_GETTABUP) ? cl->upvals[GETARG_B(i)]->v : RB(i); /* table */
+      TValue *val = ra; /* value */
+      if (op == OP_SELF) {
+        setobjs2s(L, ra + 1, t);
+      }
+      GETTABLE_INLINE(L, t, key, val);
+      base = ci->u.l.base;
     } break;
-    case OP_SETTABUP: {
-        int a = GETARG_A(i);
-        Protect(luaV_settable(L, cl->upvals[a]->v, RKB(i), RKC(i)));
-    } break;
+
     case OP_SETUPVAL: {
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
         luaC_upvalbarrier(L, uv);
     } break;
-    case OP_RAVI_SETTABLE_I: /* {
-        TValue *rb = RKB(i);
-        TValue *rc = RKC(i);
-        lua_Integer idx = ivalue(rb);
-        Table *t = hvalue(ra);
-        luaH_setint(L, t, idx, rc);
-    } break; */
+
     case OP_RAVI_SETTABLE_S:
-    case OP_SETTABLE: {
-        Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
+    case OP_RAVI_SETTABLE_I:
+    case OP_SETTABLE:
+    case OP_SETTABUP: {
+      TValue *key = RKB(i);
+      const TValue *t = op == OP_SETTABUP ? cl->upvals[GETARG_A(i)]->v : ra;
+      TValue *val = RKC(i);
+      SETTABLE_INLINE(L, t, key, val);
+      base = ci->u.l.base;
     } break;
+
     case OP_NEWTABLE: {
         int b = GETARG_B(i);
         int c = GETARG_C(i);
@@ -1051,11 +1063,6 @@ newframe:  /* reentry point when frame changes (call/return) */
         if (b != 0 || c != 0)
           luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
         checkGC(L, ra + 1);
-    } break;
-    case OP_SELF: {
-        StkId rb = RB(i);
-        setobjs2s(L, ra+1, rb);
-        Protect(luaV_gettable(L, rb, RKC(i), ra));
     } break;
     case OP_ADD: {
         TValue *rb = RKB(i);
