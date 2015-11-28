@@ -83,7 +83,7 @@ typedef LUAI_UACINT l_uacInt;
 #endif
 #define check_exp(c,e)		(lua_assert(c), (e))
 /* to avoid problems with conditions too long */
-#define lua_longassert(c)	{ if (!(c)) lua_assert(0); }
+#define lua_longassert(c)	((c) ? (void)0 : lua_assert(0))
 #else
 #define lua_assert(c)		((void)0)
 #define check_exp(c,e)		(e)
