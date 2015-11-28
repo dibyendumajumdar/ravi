@@ -222,12 +222,16 @@ struct LuaLLVMTypes {
 
   llvm::FunctionType *jitFunctionT;
 
+  llvm::FunctionType *luaC_upvalbarrierT;
   llvm::FunctionType *luaD_poscallT;
   llvm::FunctionType *luaD_precallT;
   llvm::FunctionType *luaD_callT;
   llvm::FunctionType *luaF_closeT;
-  llvm::FunctionType *luaT_trybinTMT;
   llvm::FunctionType *luaG_runerrorT;
+  llvm::FunctionType *luaH_getintT;
+  llvm::FunctionType *luaH_setintT;
+  llvm::FunctionType *luaH_getstrT;
+  llvm::FunctionType *luaT_trybinTMT;
   llvm::FunctionType *luaV_equalobjT;
   llvm::FunctionType *luaV_lessthanT;
   llvm::FunctionType *luaV_lessequalT;
@@ -237,14 +241,9 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_modT;
   llvm::FunctionType *luaV_objlenT;
   llvm::FunctionType *luaV_divT;
-  llvm::FunctionType *luaC_upvalbarrierT;
-
   llvm::FunctionType *luaV_executeT;
   llvm::FunctionType *luaV_gettableT;
   llvm::FunctionType *luaV_settableT;
-  llvm::FunctionType *luaH_getintT;
-  llvm::FunctionType *luaH_setintT;
-  llvm::FunctionType *luaH_getstrT;
 
   // Following are functions that handle specific bytecodes
   // We cheat for these bytecodes by calling the function that
