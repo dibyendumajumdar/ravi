@@ -1,5 +1,5 @@
 /*
-** $Id: lstate.h,v 2.122 2015/06/01 16:34:37 roberto Exp $
+** $Id: lstate.h,v 2.128 2015/11/13 12:16:51 roberto Exp $
 ** Global State
 ** See Copyright Notice in lua.h
 */
@@ -90,8 +90,8 @@ typedef struct CallInfo {
 #define CIST_OAH	(1<<0)	/* original value of 'allowhook' */
 #define CIST_LUA	(1<<1)	/* call is running a Lua function */
 #define CIST_HOOKED	(1<<2)	/* call is running a debug hook */
-#define CIST_REENTRY	(1<<3)	/* call is running on same invocation of
-                                   luaV_execute of previous call */
+#define CIST_FRESH	(1<<3)	/* call is running on a fresh invocation
+                                   of luaV_execute */
 #define CIST_YPCALL	(1<<4)	/* call is a yieldable protected call */
 #define CIST_TAIL	(1<<5)	/* call was tail called */
 #define CIST_HOOKYIELD	(1<<6)	/* last hook called yielded */
@@ -112,7 +112,7 @@ typedef struct ravi_State ravi_State;
 typedef struct global_State {
   lua_Alloc frealloc;  /* function to reallocate memory */
   void *ud;         /* auxiliary data to 'frealloc' */
-  lu_mem totalbytes;  /* number of bytes currently allocated - GCdebt */
+  l_mem totalbytes;  /* number of bytes currently allocated - GCdebt */
   l_mem GCdebt;  /* bytes allocated not yet compensated by the collector */
   lu_mem GCmemtrav;  /* memory traversed by the GC */
   lu_mem GCestimate;  /* an estimate of the non-garbage memory in use */
@@ -134,7 +134,6 @@ typedef struct global_State {
   GCObject *tobefnz;  /* list of userdata to be GC */
   GCObject *fixedgc;  /* list of objects not to be collected */
   struct lua_State *twups;  /* list of threads with open upvalues */
-  Mbuffer buff;  /* temporary buffer for string concatenation */
   unsigned int gcfinnum;  /* number of finalizers to call in each GC step */
   int gcpause;  /* size of pause between successive GCs */
   int gcstepmul;  /* GC 'granularity' */
@@ -144,7 +143,7 @@ typedef struct global_State {
   TString *memerrmsg;  /* memory-error message */
   TString *tmname[TM_N];  /* array with tag-method names */
   struct Table *mt[LUA_NUMTAGS];  /* metatables for basic types */
-  TString *strcache[STRCACHE_SIZE][1];  /* cache for strings in API */
+  TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */
   /* RAVI */
   ravi_State *ravi_state;
 } global_State;
@@ -176,6 +175,7 @@ struct lua_State {
   unsigned short nCcalls;  /* number of nested C calls */
   lu_byte hookmask;
   lu_byte allowhook;
+  unsigned short nci;  /* number of items in 'ci' list */
 };
 
 
@@ -217,7 +217,7 @@ union GCUnion {
 
 
 /* actual number of total bytes allocated */
-#define gettotalbytes(g)	((g)->totalbytes + (g)->GCdebt)
+#define gettotalbytes(g)	cast(lu_mem, (g)->totalbytes + (g)->GCdebt)
 
 LUAI_FUNC void luaE_setdebt (global_State *g, l_mem debt);
 LUAI_FUNC void luaE_freethread (lua_State *L, lua_State *L1);

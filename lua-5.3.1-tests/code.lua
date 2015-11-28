@@ -66,6 +66,7 @@ check(function ()
   (function () end){f()}
 end, 'CLOSURE', 'NEWTABLE', 'GETTABUP', 'CALL', 'SETLIST', 'CALL', 'RETURN')
 
+
 -- sequence of LOADNILs
 check(function ()
   local a,b,c
@@ -88,6 +89,7 @@ end
 
 -- single return
 check (function (a,b,c) return a end, 'RETURN')
+
 
 -- infinite loops
 check(function () while true do local a = -1 end end,
@@ -120,6 +122,7 @@ end,
   'MUL',
   'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETTABLE', 'POW',
     'UNM', 'SETTABLE', 'SETTABLE', 'RETURN')
+
 
 -- direct access to constants
 check(function ()
@@ -183,6 +186,7 @@ end,
   'MOVE', 'MOVE', 'MOVE',
   -- no code for a = a
   'RETURN')
+
 
 -- x == nil , x ~= nil
 checkequal(function () if (a==nil) then a=1 end; if a~=nil then a=1 end end,

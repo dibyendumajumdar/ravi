@@ -636,6 +636,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  unsigned short nCcalls;  /* number of nested C calls */
   //  lu_byte hookmask;
   //  lu_byte allowhook;
+  //  unsigned short nci;  /* number of items in 'ci' list */
   //};
   elements.clear();
   elements.push_back(pGCObjectT);
@@ -662,6 +663,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(llvm::Type::getInt16Ty(context)); /* nCcalls */
   elements.push_back(lu_byteT);                        /* hookmask */
   elements.push_back(lu_byteT);                        /* allowhook */
+  elements.push_back(C_shortT);
   lua_StateT->setBody(elements);
 
   // struct UpVal {
@@ -681,9 +683,10 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(TValueT);
   UpValT->setBody(elements);
 
-  // int luaD_poscall (lua_State *L, StkId firstResult, int nres);
+  // int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);
   elements.clear();
   elements.push_back(plua_StateT);
+  elements.push_back(pCallInfoT);
   elements.push_back(StkIdT);
   elements.push_back(C_intT);
   luaD_poscallT = llvm::FunctionType::get(C_intT, elements, false);
@@ -703,12 +706,10 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_intT);
   luaD_precallT = llvm::FunctionType::get(C_intT, elements, false);
 
-  // void luaD_call (lua_State *L, StkId func, int nResults,
-  //                 int allowyield);
+  // void luaD_call (lua_State *L, StkId func, int nResults);
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(StkIdT);
-  elements.push_back(C_intT);
   elements.push_back(C_intT);
   luaD_callT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
@@ -1070,6 +1071,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_shortT, 116));
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 118));
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 119));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_shortT, 120));
   tbaa_luaStateT = mdbuilder.createTBAAStructTypeNode("lua_State", nodes);
 
   tbaa_luaState_ciT =

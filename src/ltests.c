@@ -316,7 +316,7 @@ static void checkstack (global_State *g, lua_State *L1) {
   }
   if (L1->stack) {  /* complete thread? */
     for (o = L1->stack; o < L1->stack_last + EXTRA_STACK; o++)
-      checkliveness(g, o);  /* entire stack must have valid values */
+      checkliveness(L1, o);  /* entire stack must have valid values */
   }
   else lua_assert(L1->stacksize == 0);
 }
@@ -915,7 +915,7 @@ static int doremote (lua_State *L) {
 static int int2fb_aux (lua_State *L) {
   int b = luaO_int2fb((unsigned int)luaL_checkinteger(L, 1));
   lua_pushinteger(L, b);
-  lua_pushinteger(L, luaO_fb2int(b));
+  lua_pushinteger(L, (unsigned int) luaO_fb2int(b));
   return 2;
 }
 
@@ -1002,6 +1002,11 @@ static int getnum_aux (lua_State *L, lua_State *L1, const char **pc) {
   if (**pc == '.') {
     res = cast_int(lua_tointeger(L1, -1));
     lua_pop(L1, 1);
+    (*pc)++;
+    return res;
+  }
+  else if (**pc == '*') {
+    res = lua_gettop(L1);
     (*pc)++;
     return res;
   }
@@ -1354,7 +1359,7 @@ static struct X { int x; } x;
     else if EQ("tostring") {
       const char *s = lua_tostring(L1, getindex);
       const char *s1 = lua_pushstring(L1, s);
-      lua_assert((s == NULL && s1 == NULL) || strcmp(s, s1) == 0);
+      lua_longassert((s == NULL && s1 == NULL) || strcmp(s, s1) == 0);
     }
     else if EQ("type") {
       lua_pushstring(L1, luaL_typename(L1, getnum));

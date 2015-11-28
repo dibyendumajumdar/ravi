@@ -50,14 +50,14 @@ static void cannot(const char* what)
 static void usage(const char* message)
 {
  if (*message=='-')
-  fprintf(stderr,"%s: unrecognized option " LUA_QS "\n",progname,message);
+  fprintf(stderr,"%s: unrecognized option '%s'\n",progname,message);
  else
   fprintf(stderr,"%s: %s\n",progname,message);
  fprintf(stderr,
   "usage: %s [options] [filenames]\n"
   "Available options are:\n"
   "  -l       list (use -l -l for full listing)\n"
-  "  -o name  output to file " LUA_QL("name") " (default is \"%s\")\n"
+  "  -o name  output to file 'name' (default is \"%s\")\n"
   "  -p       parse only\n"
   "  -s       strip debug information\n"
   "  -v       show version information\n"
@@ -206,7 +206,7 @@ int main(int argc, char* argv[])
 }
 
 /*
-** $Id: print.c,v 1.74 2014/07/21 01:41:45 lhf Exp $
+** $Id: luac.c,v 1.75 2015/03/12 01:58:27 lhf Exp $
 ** print bytecodes
 ** See Copyright Notice in lua.h
 */

@@ -1,5 +1,5 @@
 /*
-** $Id: llimits.h,v 1.135 2015/06/09 14:21:00 roberto Exp $
+** $Id: llimits.h,v 1.141 2015/11/19 19:16:22 roberto Exp $
 ** Limits, basic types, and some other 'installation-dependent' definitions
 ** See Copyright Notice in lua.h
 */
@@ -10,6 +10,7 @@
 
 #include <limits.h>
 #include <stddef.h>
+
 
 #include "lua.h"
 
@@ -63,7 +64,13 @@ typedef unsigned char lu_byte;
 #if defined(LUAI_USER_ALIGNMENT_T)
 typedef LUAI_USER_ALIGNMENT_T L_Umaxalign;
 #else
-typedef union { double u; void *s; lua_Integer i; long l; } L_Umaxalign;
+typedef union {
+  lua_Number n;
+  double u;
+  void *s;
+  lua_Integer i;
+  long l;
+} L_Umaxalign;
 #endif
 
 
@@ -192,10 +199,13 @@ typedef unsigned long Instruction;
 
 
 /*
-** Size of cache for strings in the API (better be a prime)
+** Size of cache for strings in the API. 'N' is the number of
+** sets (better be a prime) and "M" is the size of each set (M == 1
+** makes a direct cache.)
 */
-#if !defined(STRCACHE_SIZE)
-#define STRCACHE_SIZE		127
+#if !defined(STRCACHE_N)
+#define STRCACHE_N		53
+#define STRCACHE_M		2
 #endif
 
 
@@ -206,7 +216,7 @@ typedef unsigned long Instruction;
 
 
 /*
-** macros that are executed whenether program enters the Lua core
+** macros that are executed whenever program enters the Lua core
 ** ('lua_lock') and leaves the core ('lua_unlock')
 */
 #if !defined(lua_lock)
@@ -305,10 +315,11 @@ typedef unsigned long Instruction;
 ** macro to control inclusion of some hard tests on stack reallocation
 */
 #if !defined(HARDSTACKTESTS)
-#define condmovestack(L)	((void)0)
+#define condmovestack(L,pre,pos)	((void)0)
 #else
 /* realloc stack keeping its size */
-#define condmovestack(L)	luaD_reallocstack((L), (L)->stacksize)
+#define condmovestack(L,pre,pos)  \
+	{ int sz_ = (L)->stacksize; pre; luaD_reallocstack((L), sz_); pos; }
 #endif
 
 #if !defined(HARDMEMTESTS)

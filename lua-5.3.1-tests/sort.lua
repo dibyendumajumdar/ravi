@@ -1,4 +1,4 @@
--- $Id: sort.lua,v 1.32 2015/03/04 13:09:38 roberto Exp $
+-- $Id: sort.lua,v 1.36 2015/11/23 16:42:56 roberto Exp $
 
 print "testing (parts of) table library"
 
@@ -89,6 +89,9 @@ assert(a[1] == nil and a.n == 4)
 
 -- testing move
 do
+
+  checkerror("table expected", table.move, 1, 2, 3, 4)
+
   local function eqT (a, b)
     for k, v in pairs(a) do assert(b[k] == v) end 
     for k, v in pairs(b) do assert(a[k] == v) end 
@@ -97,18 +100,23 @@ do
   local a = table.move({10,20,30}, 1, 3, 2)  -- move forward
   eqT(a, {10,10,20,30})
 
+  -- move forward with overlap of 1
+  a = table.move({10, 20, 30}, 1, 3, 3)
+  eqT(a, {10, 20, 10, 20, 30})
+
   a = table.move({10,20,30}, 2, 3, 1)   -- move backward
   eqT(a, {20,30,30})
 
-  a = table.move({10,20,30}, 1, 3, 1, {})   -- move
+  a = table.move({10,20,30}, 1, 3, 1, {})   -- move to new table
   eqT(a, {10,20,30})
 
-  a = table.move({10,20,30}, 1, 0, 3, {})   -- do not move
+  a = table.move({10,20,30}, 1, 0, 3, {})   -- empty move (no move)
   eqT(a, {})
 
   a = table.move({10,20,30}, 1, 10, 1)   -- move to the same place
   eqT(a, {10,20,30})
 
+  -- moving on the fringes
   a = table.move({[maxI - 2] = 1, [maxI - 1] = 2, [maxI] = 3},
                  maxI - 2, maxI, -10, {})
   eqT(a, {[-10] = 1, [-9] = 2, [-8] = 3})
@@ -157,8 +165,10 @@ do
   end
   checkmove(1, maxI, 0, 1, 0)
   checkmove(0, maxI - 1, 1, maxI - 1, maxI)
-  checkmove(minI, -2, 0, -2, maxI - 1)
-  checkmove(minI + 1, -1, 1, -1, maxI)
+  checkmove(minI, -2, -5, -2, maxI - 6)
+  checkmove(minI + 1, -1, -2, -1, maxI - 3)
+  checkmove(minI, -2, 0, minI, 0)  -- non overlapping
+  checkmove(minI + 1, -1, 1, minI + 1, 1)  -- non overlapping
 end
 
 checkerror("too many", table.move, {}, 0, maxI, 1)
@@ -172,6 +182,13 @@ checkerror("wrap around", table.move, {}, minI, -2, 2)
 
 print"testing sort"
 
+
+-- strange lengths
+local a = setmetatable({}, {__len = function () return -1 end})
+assert(#a == -1)
+table.sort(a, error)    -- should not compare anything
+a = setmetatable({}, {__len = function () return maxI end})
+checkerror("too big", table.sort, a)
 
 -- test checks for invalid order functions
 local function check (t)
@@ -223,7 +240,16 @@ perm{1,2,3,3,5}
 perm{1,2,3,4,5,6}
 perm{2,2,3,3,5,6}
 
-limit = 30000
+function timesort (a, n, func, msg, pre)
+  local x = os.clock()
+  table.sort(a, func)
+  x = (os.clock() - x) * 1000
+  pre = pre or ""
+  print(string.format("%ssorting %d %s elements in %.2f msec.", pre, n, msg, x))
+  check(a, func)
+end
+
+limit = 50000
 if _soft then limit = 5000 end
 
 a = {}
@@ -231,15 +257,9 @@ for i=1,limit do
   a[i] = math.random()
 end
 
-local x = os.clock()
-table.sort(a)
-print(string.format("Sorting %d elements in %.2f sec.", limit, os.clock()-x))
-check(a)
+timesort(a, limit, nil, "random")
 
-x = os.clock()
-table.sort(a)
-print(string.format("Re-sorting %d elements in %.2f sec.", limit, os.clock()-x))
-check(a)
+timesort(a, limit, nil, "sorted", "re-")
 
 a = {}
 for i=1,limit do
@@ -248,19 +268,18 @@ end
 
 x = os.clock(); i=0
 table.sort(a, function(x,y) i=i+1; return y<x end)
-print(string.format("Invert-sorting other %d elements in %.2f sec., with %i comparisons",
-      limit, os.clock()-x, i))
+x = (os.clock() - x) * 1000
+print(string.format("Invert-sorting other %d elements in %.2f msec., with %i comparisons",
+      limit, x, i))
 check(a, function(x,y) return y<x end)
 
 
 table.sort{}  -- empty array
 
 for i=1,limit do a[i] = false end
-x = os.clock();
-table.sort(a, function(x,y) return nil end)
-print(string.format("Sorting %d equal elements in %.2f sec.", limit, os.clock()-x))
-check(a, function(x,y) return nil end)
-for i,v in pairs(a) do assert(not v or i=='n' and v==limit) end
+timesort(a, limit,  function(x,y) return nil end, "equal")
+
+for i,v in pairs(a) do assert(v == false) end
 
 A = {"álo", "\0first :-)", "alo", "then this one", "45", "and a new"}
 table.sort(A)

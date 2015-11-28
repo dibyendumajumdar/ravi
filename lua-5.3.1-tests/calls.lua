@@ -1,4 +1,4 @@
--- $Id: calls.lua,v 1.57 2015/03/04 13:09:38 roberto Exp $
+-- $Id: calls.lua,v 1.59 2015/11/13 13:46:31 roberto Exp $
 
 print("testing functions and calls")
 
@@ -17,6 +17,7 @@ assert(type(nil) == 'nil'
 assert(type(assert) == type(print))
 function f (x) return a:x (x) end
 assert(type(f) == 'function')
+assert(not pcall(type))
 
 
 do    -- test error in 'print' too...
@@ -343,6 +344,16 @@ do
   end
   assert(f() == 10 * nup)
 end
+
+-- test for long method names
+do
+  local t = {x = 1}
+  function t:_012345678901234567890123456789012345678901234567890123456789 ()
+    return self.x
+  end
+  assert(t:_012345678901234567890123456789012345678901234567890123456789() == 1)
+end
+
 
 -- test for bug in parameter adjustment
 assert((function () return nil end)(4) == nil)

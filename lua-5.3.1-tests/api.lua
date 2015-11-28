@@ -1,4 +1,4 @@
--- $Id: api.lua,v 1.141 2015/05/15 12:25:38 roberto Exp $
+-- $Id: api.lua,v 1.145 2015/11/13 13:45:58 roberto Exp $
 
 if T==nil then
   (Message or print)('\n >>> testC not active: skipping API tests <<<\n')
@@ -57,34 +57,34 @@ assert(a==false and b==true and c==false)
 a,b,c = T.testC("gettop; return 2", 10, 20, 30, 40)
 assert(a == 40 and b == 5 and not c)
 
-t = pack(T.testC("settop 5; gettop; return .", 2, 3))
+t = pack(T.testC("settop 5; return *", 2, 3))
 tcheck(t, {n=4,2,3})
 
 t = pack(T.testC("settop 0; settop 15; return 10", 3, 1, 23))
 assert(t.n == 10 and t[1] == nil and t[10] == nil)
 
-t = pack(T.testC("remove -2; gettop; return .", 2, 3, 4))
+t = pack(T.testC("remove -2; return *", 2, 3, 4))
 tcheck(t, {n=2,2,4})
 
-t = pack(T.testC("insert -1; gettop; return .", 2, 3))
+t = pack(T.testC("insert -1; return *", 2, 3))
 tcheck(t, {n=2,2,3})
 
-t = pack(T.testC("insert 3; gettop; return .", 2, 3, 4, 5))
+t = pack(T.testC("insert 3; return *", 2, 3, 4, 5))
 tcheck(t, {n=4,2,5,3,4})
 
-t = pack(T.testC("replace 2; gettop; return .", 2, 3, 4, 5))
+t = pack(T.testC("replace 2; return *", 2, 3, 4, 5))
 tcheck(t, {n=3,5,3,4})
 
-t = pack(T.testC("replace -2; gettop; return .", 2, 3, 4, 5))
+t = pack(T.testC("replace -2; return *", 2, 3, 4, 5))
 tcheck(t, {n=3,2,3,5})
 
-t = pack(T.testC("remove 3; gettop; return .", 2, 3, 4, 5))
+t = pack(T.testC("remove 3; return *", 2, 3, 4, 5))
 tcheck(t, {n=3,2,4,5})
 
-t = pack(T.testC("copy 3 4; gettop; return .", 2, 3, 4, 5))
+t = pack(T.testC("copy 3 4; return *", 2, 3, 4, 5))
 tcheck(t, {n=4,2,3,3,5})
 
-t = pack(T.testC("copy -3 -1; gettop; return .", 2, 3, 4, 5))
+t = pack(T.testC("copy -3 -1; return *", 2, 3, 4, 5))
 tcheck(t, {n=4,2,3,4,3})
 
 do   -- testing 'rotate'
@@ -96,17 +96,17 @@ do   -- testing 'rotate'
     table.insert(t, 1, table.remove(t))
   end
 
-  t = pack(T.testC("rotate -2 1; gettop; return .", 10, 20, 30, 40))
+  t = pack(T.testC("rotate -2 1; return *", 10, 20, 30, 40))
   tcheck(t, {10, 20, 40, 30})
-  t = pack(T.testC("rotate -2 -1; gettop; return .", 10, 20, 30, 40))
+  t = pack(T.testC("rotate -2 -1; return *", 10, 20, 30, 40))
   tcheck(t, {10, 20, 40, 30})
 
   -- some corner cases
-  t = pack(T.testC("rotate -1 0; gettop; return .", 10, 20, 30, 40))
+  t = pack(T.testC("rotate -1 0; return *", 10, 20, 30, 40))
   tcheck(t, {10, 20, 30, 40})
-  t = pack(T.testC("rotate -1 1; gettop; return .", 10, 20, 30, 40))
+  t = pack(T.testC("rotate -1 1; return *", 10, 20, 30, 40))
   tcheck(t, {10, 20, 30, 40})
-  t = pack(T.testC("rotate 5 -1; gettop; return .", 10, 20, 30, 40))
+  t = pack(T.testC("rotate 5 -1; return *", 10, 20, 30, 40))
   tcheck(t, {10, 20, 30, 40})
 end
 
@@ -132,15 +132,15 @@ end
 
 t = pack(T.testC("insert 3; pushvalue 3; remove 3; pushvalue 2; remove 2; \
                   insert 2; pushvalue 1; remove 1; insert 1; \
-      insert -2; pushvalue -2; remove -3; gettop; return .",
+      insert -2; pushvalue -2; remove -3; return *",
       2, 3, 4, 5, 10, 40, 90))
 tcheck(t, {n=7,2,3,4,5,10,40,90})
 
-t = pack(T.testC("concat 5; gettop; return .", "alo", 2, 3, "joao", 12))
+t = pack(T.testC("concat 5; return *", "alo", 2, 3, "joao", 12))
 tcheck(t, {n=1,"alo23joao12"})
 
 -- testing MULTRET
-t = pack(T.testC("call 2,-1; gettop; return .",
+t = pack(T.testC("call 2,-1; return *",
      function (a,b) return 1,2,3,4,a,b end, "alo", "joao"))
 tcheck(t, {n=6,1,2,3,4,"alo", "joao"})
 
@@ -160,8 +160,7 @@ local a = {T.testC[[
   getglobal b;
   getglobal b;
   setglobal a;
-  gettop;
-  return .
+  return *
 ]]}
 assert(a[2] == 14 and a[3] == "a31" and a[4] == nil and _G.a == "a31")
 
@@ -322,6 +321,8 @@ function to (s, x, n)
   return T.testC(string.format("%s %d; return 1", s, n), x)
 end
 
+local hfunc = string.gmatch("", "")    -- a "heavy C function" (with upvalues)
+assert(debug.getupvalue(hfunc, 1))
 assert(to("tostring", {}) == nil)
 assert(to("tostring", "alo") == "alo")
 assert(to("tostring", 12) == "12")
@@ -341,12 +342,13 @@ assert(to("topointer", 10) == 0)
 assert(to("topointer", true) == 0)
 assert(to("topointer", T.pushuserdata(20)) == 20)
 assert(to("topointer", io.read) ~= 0)           -- light C function
-assert(to("topointer", type) ~= 0)        -- "heavy" C function
+assert(to("topointer", hfunc) ~= 0)        -- "heavy" C function
 assert(to("topointer", function () end) ~= 0)   -- Lua function
+assert(to("topointer", io.stdin) ~= 0)   -- full userdata
 assert(to("func2num", 20) == 0)
 assert(to("func2num", T.pushuserdata(10)) == 0)
 assert(to("func2num", io.read) ~= 0)     -- light C function
-assert(to("func2num", type) ~= 0)  -- "heavy" C function (with upvalue)
+assert(to("func2num", hfunc) ~= 0)  -- "heavy" C function (with upvalue)
 a = to("tocfunction", math.deg)
 assert(a(3) == math.deg(3) and a == math.deg)
 
@@ -437,9 +439,9 @@ function check3(p, ...)
   assert(#arg == 3)
   assert(string.find(arg[3], p))
 end
-check3(":1:", T.testC("loadstring 2; gettop; return .", "x="))
-check3("%.", T.testC("loadfile 2; gettop; return .", "."))
-check3("xxxx", T.testC("loadfile 2; gettop; return .", "xxxx"))
+check3(":1:", T.testC("loadstring 2; return *", "x="))
+check3("%.", T.testC("loadfile 2; return *", "."))
+check3("xxxx", T.testC("loadfile 2; return *", "xxxx"))
 
 -- test errors in non protected threads
 function checkerrnopro (code, msg)
@@ -482,6 +484,8 @@ b = setmetatable({p = a}, {})
 getmetatable(b).__index = function (t, i) return t.p[i] end
 k, x = T.testC("gettable 3, return 2", 4, b, 20, 35, "x")
 assert(x == 15 and k == 35)
+k = T.testC("getfield 2 y, return 1", b)
+assert(k == 12)
 getmetatable(b).__index = function (t, i) return a[i] end
 getmetatable(b).__newindex = function (t, i,v ) a[i] = v end
 y = T.testC("insert 2; gettable -5; return 1", 2, 3, 4, "y", b)
@@ -494,14 +498,30 @@ assert(y == 'xuxu')
 T.testC("settable 2", b, 19)
 assert(a[b] == 19)
 
+--
+do   -- testing getfield/setfield with long keys
+  local t = {_012345678901234567890123456789012345678901234567890123456789 = 32}
+  local a = T.testC([[
+    getfield 2 _012345678901234567890123456789012345678901234567890123456789
+    return 1
+  ]], t)
+  assert(a == 32)
+  local a = T.testC([[
+    pushnum 33
+    setglobal _012345678901234567890123456789012345678901234567890123456789
+  ]])
+  assert(_012345678901234567890123456789012345678901234567890123456789 == 33)
+  _012345678901234567890123456789012345678901234567890123456789 = nil
+end
+
 -- testing next
 a = {}
-t = pack(T.testC("next; gettop; return .", a, nil))
+t = pack(T.testC("next; return *", a, nil))
 tcheck(t, {n=1,a})
 a = {a=3}
-t = pack(T.testC("next; gettop; return .", a, nil))
+t = pack(T.testC("next; return *", a, nil))
 tcheck(t, {n=3,a,'a',3})
-t = pack(T.testC("next; pop 1; next; gettop; return .", a, nil))
+t = pack(T.testC("next; pop 1; next; return *", a, nil))
 tcheck(t, {n=1,a})
 
 
@@ -1076,6 +1096,14 @@ testamem("coroutines", function ()
   assert(string.len(a()) == 10)
   return a()
 end)
+
+do   -- auxiliary buffer
+  local lim = 100
+  local a = {}; for i = 1, lim do a[i] = "01234567890123456789" end
+  testamem("auxiliary buffer", function ()
+    return (#table.concat(a, ",") == 20*lim + lim - 1)
+  end)
+end
 
 print'+'
 

@@ -1,6 +1,12 @@
--- $Id: nextvar.lua,v 1.77 2015/04/06 21:12:51 roberto Exp $
+-- $Id: nextvar.lua,v 1.78 2015/09/08 17:21:27 roberto Exp $
 
 print('testing tables, next, and for')
+
+local function checkerror (msg, f, ...)
+  local s, err = pcall(f, ...)
+  assert(not s and string.find(err, msg))
+end
+
 
 local a = {}
 
@@ -220,11 +226,11 @@ _G["xxx"] = 1
 assert(xxx==find("xxx"))
 
 -- invalid key to 'next'
-assert(string.find(select(2, pcall(next, {10,20}, 3)), "invalid key"))
+checkerror("invalid key", next, {10,20}, 3)
 
 -- both 'pairs' and 'ipairs' need an argument
-assert(string.find(select(2, pcall(pairs)), "bad argument"))
-assert(string.find(select(2, pcall(ipairs)), "bad argument"))
+checkerror("bad argument", pairs)
+checkerror("bad argument", ipairs)
 
 print('+')
 
@@ -425,34 +431,43 @@ do   -- testing table library with metamethods
 
 end
 
-do
-  -- Test to ensure that, when there are no metamethods,
-  -- library uses raw access.
-  -- (tricky: assumes undocumented behavior that test for presence of
-  --  metamethods is done before getting the length of the table)
-  local t = setmetatable({}, {
-    -- once 'len' is called, only raw access will work
-    __len = function (t)
-              getmetatable(t).__index = error
-              getmetatable(t).__newindex = error
-              return 10
-            end
-  })
-  table.insert(t, 1, 10)  -- work
-  assert(rawget(t, 1) == 10)
-  assert(not pcall(table.insert, t, 20))  -- does not work any more
 
-  -- still does not work
-  assert(not pcall(table.sort, t, function (_,_) return false end))
-  -- reset access
-  getmetatable(t).__index = nil
-  getmetatable(t).__newindex = nil
-  -- now it works again
-  assert(pcall(table.sort, t, function (_,_) return false end))
-  -- not any more
-  assert(not pcall(table.sort, t, function (_,_) return false end))
-end
-      
+if not T then
+  (Message or print)
+    ('\n >>> testC not active: skipping tests for table library on non-tables <<<\n')
+else --[
+  local debug = require'debug'
+  local tab = {10, 20, 30}
+  local mt = {}
+  local u = T.newuserdata(0)
+  checkerror("table expected", table.insert, u, 40)
+  checkerror("table expected", table.remove, u)
+  debug.setmetatable(u, mt)
+  checkerror("table expected", table.insert, u, 40)
+  checkerror("table expected", table.remove, u)
+  mt.__index = tab
+  checkerror("table expected", table.insert, u, 40)
+  checkerror("table expected", table.remove, u)
+  mt.__newindex = tab
+  checkerror("table expected", table.insert, u, 40)
+  checkerror("table expected", table.remove, u)
+  mt.__len = function () return #tab end
+  table.insert(u, 40)
+  assert(#u == 4 and #tab == 4 and u[4] == 40 and tab[4] == 40)
+  assert(table.remove(u) == 40)
+  table.insert(u, 1, 50)
+  assert(#u == 4 and #tab == 4 and u[4] == 30 and tab[1] == 50)
+
+  mt.__newindex = nil
+  mt.__len = nil
+  local tab2 = {}
+  local u2 = T.newuserdata(0) 
+  debug.setmetatable(u2, {__newindex = function (_, k, v) tab2[k] = v end})
+  table.move(u, 1, 4, 1, u2)
+  assert(#tab2 == 4 and tab2[1] == tab[1] and tab2[4] == tab[4])
+
+end -- ]
+
 print('+')
 
 a = {}

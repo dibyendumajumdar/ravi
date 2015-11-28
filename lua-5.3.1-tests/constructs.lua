@@ -1,8 +1,13 @@
--- $Id: constructs.lua,v 1.39 2015/03/04 13:09:38 roberto Exp $
+-- $Id: constructs.lua,v 1.40 2015/10/08 15:58:10 roberto Exp $
 
 ;;print "testing syntax";;
 
 local debug = require "debug"
+
+
+local function checkload (s, msg)
+  assert(string.find(select(2, load(s)), msg))
+end
 
 -- testing semicollons
 do ;;; end
@@ -294,7 +299,14 @@ end
 ------------------------------------------------------------------
 
 -- testing some syntax errors (chosen through 'gcov')
-assert(string.find(select(2, load("for x do")), "expected"))
-assert(string.find(select(2, load("x:call")), "expected"))
+checkload("for x do", "expected")
+checkload("x:call", "expected")
+
+if not _soft then
+  -- control structure too long
+  local s = string.rep("a = a + 1\n", 2^18)
+  s = "while true do " .. s .. "end"
+  checkload(s, "too long")
+end
 
 print'OK'

@@ -1,4 +1,4 @@
--- $Id: coroutine.lua,v 1.39 2015/04/14 18:05:03 roberto Exp $
+-- $Id: coroutine.lua,v 1.40 2015/10/12 16:38:57 roberto Exp $
 
 print "testing coroutines"
 
@@ -475,8 +475,7 @@ else
     pushnum 5       # arg (noise)
     resume 1 1      # after coroutine ends, previous stack is back
     pushstatus
-    gettop
-    return .
+    return *
   ]]))
   assert(t.n == 4 and t[2] == 'XX' and t[3] == 'CC' and t[4] == 'OK')
   assert(T.doremote(state, "return T") == '2')
@@ -698,7 +697,7 @@ local a = {apico(
   pcallk 1 0 2;
   invalid command (should not arrive here)
 ]],
-[[gettop; return .]],
+[[return *]],
 "stackmark",
 error
 )()}
@@ -712,7 +711,7 @@ local co = apico(
   "pushvalue 2; pushnum 10; pcallk 1 2 3; invalid command;",
   coroutine.yield,
   "getglobal status; getglobal ctx; pushvalue 2; pushstring a; pcallk 1 0 4; invalid command",
-  "getglobal status; getglobal ctx; gettop; return .")
+  "getglobal status; getglobal ctx; return *")
 
 assert(co() == 10)
 assert(co(20, 30) == 'a')
@@ -743,8 +742,7 @@ f = T.makeCfunc([[
 [[      # continuation
 	pushvalue U3   # accessing upvalues inside a continuation
         pushvalue U4
-	gettop
-	return .
+	return *
 ]], 23, "huu")
 
 x = coroutine.wrap(f)
@@ -777,8 +775,7 @@ f = T.makeCfunc([[
 [[
   # continuation program
   pushnum 34	# return value
-  gettop
-  return .     # return all results
+  return *     # return all results
 ]],
 function ()     -- selection function
   count = count - 1
@@ -821,8 +818,7 @@ co = coroutine.wrap(function (...) return
           cannot be here!
        ]],
        [[  # 4th (and last) continuation
-         gettop
-         return .
+         return *
        ]],
        -- function called by 3th continuation
        function (a,b) x=a; y=b; error("errmsg") end,

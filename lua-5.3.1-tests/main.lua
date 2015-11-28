@@ -1,5 +1,5 @@
 # testing special comment on first line
--- $Id: main.lua,v 1.62 2015/05/15 12:28:08 roberto Exp $
+-- $Id: main.lua,v 1.63 2015/09/08 17:16:34 roberto Exp $
 
 -- most (all?) tests here assume a reasonable "Unix-like" shell
 if _port then return end
@@ -357,9 +357,9 @@ do
   assert(f:close())
   print("done")
 
-  -- Lua script in a looooog unbreakable search
+  -- Lua script in a long unbreakable search
   local f, pid = runback[[
-    print(15); string.find(string.rep('a', 1000), '.*.*.*.*.*b')]]
+    print(15); string.find(string.rep('a', 100000), '.*b')]]
   -- wait (so script can reach the loop)
   assert(f:read() == "15")
   assert(os.execute("sleep 1"))

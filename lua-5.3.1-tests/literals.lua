@@ -221,6 +221,7 @@ for _, n in pairs{"\n", "\r", "\n\r", "\r\n"} do
   assert(_G.x == "hi\n" and _G.y == "\nhello\r\n\n")
 end
 
+
 -- testing comments and strings with long brackets
 a = [==[]=]==]
 assert(a == "]=")

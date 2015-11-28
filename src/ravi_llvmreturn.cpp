@@ -91,7 +91,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B,
     nresults = emit_num_stack_elements(def, ra_ptr);
 
   llvm::Value *b =
-      CreateCall3(def->builder, def->luaD_poscallF, def->L, ra_ptr, nresults);
+      CreateCall4(def->builder, def->luaD_poscallF, def->L, def->ci_val, ra_ptr, nresults);
   def->builder->CreateRet(b);
 }
 }

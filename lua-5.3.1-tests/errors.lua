@@ -1,4 +1,4 @@
--- $Id: errors.lua,v 1.90 2015/04/30 14:16:36 roberto Exp $
+-- $Id: errors.lua,v 1.91 2015/10/12 16:39:56 roberto Exp $
 
 print("testing errors")
 
@@ -470,23 +470,23 @@ end
 local maxClevel = ravi and 127 or 200 -- LUAI_MAXCCALLS (in llimits.h)
 
 local function testrep (init, rep, close, repc)
-  local s = "local a; "..init .. string.rep(rep, maxClevel - 10) .. close ..
+  local s = init .. string.rep(rep, maxClevel - 10) .. close ..
                string.rep(repc, maxClevel - 10)
   assert(load(s))   -- 190 levels is OK
-  s = "local a; "..init .. string.rep(rep, maxClevel + 1)
+  s = init .. string.rep(rep, maxClevel + 1)
   checkmessage(s, "too many C levels")
 end
 
-testrep("a", ",a", "= 1", ",1")    -- multiple assignment
-testrep("a=", "{", "0", "}")
-testrep("a=", "(", "2", ")")
-testrep("", "a(", "2", ")")
+testrep("local a; a", ",a", "= 1", ",1")    -- multiple assignment
+testrep("local a; a=", "{", "0", "}")
+testrep("local a; a=", "(", "2", ")")
+testrep("local a; ", "a(", "2", ")")
 testrep("", "do ", "", " end")
 testrep("", "while a do ", "", " end")
-testrep("", "if a then else ", "", " end")
+testrep("local a; ", "if a then else ", "", " end")
 testrep("", "function foo () ", "", " end")
-testrep("a=", "a..", "a", "")
-testrep("a=", "a^", "a", "")
+testrep("local a; a=", "a..", "a", "")
+testrep("local a; a=", "a^", "a", "")
 
 checkmessage("a = f(x" .. string.rep(",x", 260) .. ")", "too many registers")
 

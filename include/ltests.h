@@ -118,5 +118,8 @@ LUA_API Memcontrol* luaB_getmemcontrol(void);
 #define LUAI_USER_ALIGNMENT_T   union { char b[sizeof(void*) * 8]; }
 #endif
 
+#define STRCACHE_N	23
+#define STRCACHE_M	5
+
 #endif
 

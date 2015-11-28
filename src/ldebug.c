@@ -1,5 +1,5 @@
 /*
-** $Id: ldebug.c,v 2.115 2015/05/22 17:45:56 roberto Exp $
+** $Id: ldebug.c,v 2.117 2015/11/02 18:48:07 roberto Exp $
 ** Debug Interface
 ** See Copyright Notice in lua.h
 */
@@ -36,6 +36,7 @@
 
 /* Active Lua function (given call info) */
 #define ci_func(ci)		(clLvalue((ci)->func))
+
 
 static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name);
 
@@ -497,7 +498,7 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
 
 static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
   TMS tm = (TMS)0;  /* to avoid warnings */
-  Proto *p = ci_func(ci)->p;  /* calling function */  
+  Proto *p = ci_func(ci)->p;  /* calling function */
   int pc = currentpc(ci);  /* calling instruction index */
   Instruction i = p->code[pc];  /* calling instruction */
   if (ci->callstatus & CIST_HOOKED) {  /* was it called inside a hook? */
@@ -648,7 +649,7 @@ l_noret luaG_errormsg (lua_State *L) {
     setobjs2s(L, L->top, L->top - 1);  /* move argument */
     setobjs2s(L, L->top - 1, errfunc);  /* push function */
     L->top++;  /* assume EXTRA_STACK */
-    luaD_call(L, L->top - 2, 1, 0);  /* call it */
+    luaD_callnoyield(L, L->top - 2, 1);  /* call it */
   }
   luaD_throw(L, LUA_ERRRUN);
 }
@@ -666,12 +667,15 @@ l_noret luaG_runerror (lua_State *L, const char *fmt, ...) {
   luaG_errormsg(L);
 }
 
+
 void luaG_traceexec (lua_State *L) {
   CallInfo *ci = L->ci;
   lu_byte mask = L->hookmask;
-  int counthook = ((mask & LUA_MASKCOUNT) && L->hookcount == 0);
+  int counthook = (--L->hookcount == 0 && (mask & LUA_MASKCOUNT));
   if (counthook)
     resethookcount(L);  /* reset count */
+  else if (!(mask & LUA_MASKLINE))
+    return;  /* no line hook and count != 0; nothing to be done */
   if (ci->callstatus & CIST_HOOKYIELD) {  /* called hook last time? */
     ci->callstatus &= ~CIST_HOOKYIELD;  /* erase mark */
     return;  /* do not call hook again (VM yielded, so it did not move) */

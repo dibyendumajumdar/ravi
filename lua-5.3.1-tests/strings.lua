@@ -1,4 +1,4 @@
--- $Id: strings.lua,v 1.79 2015/02/05 17:52:25 roberto Exp $
+-- $Id: strings.lua,v 1.81 2015/11/25 16:56:54 roberto Exp $
 
 print('testing strings and string library')
 
@@ -110,8 +110,8 @@ assert(string.rep('teste', 0, 'xuxu') == '')
 assert(string.rep('teste', 1, 'xuxu') == 'teste')
 assert(string.rep('\1\0\1', 2, '\0\0') == '\1\0\1\0\0\1\0\1')
 assert(string.rep('', 10, '.') == string.rep('.', 9))
-assert(not pcall(string.rep, "aa", maxi // 2))
-assert(not pcall(string.rep, "", maxi // 2, "aa"))
+assert(not pcall(string.rep, "aa", maxi // 2 + 10))
+assert(not pcall(string.rep, "", maxi // 2 + 10, "aa"))
 
 assert(string.reverse"" == "")
 assert(string.reverse"\0\1\2\3" == "\3\2\1\0")
@@ -171,6 +171,9 @@ assert(string.format("-%.20s.20s", string.rep("%", 2000)) ==
 assert(string.format('"-%20s.20s"', string.rep("%", 2000)) ==
        string.format("%q", "-"..string.rep("%", 2000)..".20s"))
 
+assert(string.format("\0%s\0", "\0\0\1") == "\0\0\0\1\0")
+checkerror("contains zeros", string.format, "%10s", "\0")
+
 -- format x tostring
 assert(string.format("%s %s", nil, true) == "nil true")
 assert(string.format("%s %.4s", false, true) == "false true")
@@ -194,7 +197,9 @@ do    -- longest number that can be formatted
     if 10^m < math.huge then i = m else j = m end
   end
   assert(10^i < math.huge and 10^j == math.huge)
-  assert(string.len(string.format('%.99f', -(10^i))) > i)
+  local s = string.format('%.99f', -(10^i))
+  assert(string.len(s) >= i + 101)
+  assert(tonumber(s) == -(10^i))
 end
 
 
@@ -278,6 +283,7 @@ check("%d %d", "no value")
 assert(load("return 1\n--comment without ending EOL")() == 1)
 
 
+checkerror("table expected", table.concat, 3)
 assert(table.concat{} == "")
 assert(table.concat({}, 'x') == "")
 assert(table.concat({'\0', '\0\1', '\0\1\2'}, '.\0.') == "\0.\0.\0\1.\0.\0\1\2")

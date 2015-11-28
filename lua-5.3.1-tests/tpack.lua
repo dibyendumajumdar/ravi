@@ -1,4 +1,4 @@
--- $Id: tpack.lua,v 1.10 2014/12/26 17:20:53 roberto Exp $
+-- $Id: tpack.lua,v 1.11 2015/11/13 13:49:37 roberto Exp $
 
 local pack = string.pack
 local packsize = string.packsize
@@ -223,8 +223,11 @@ do
   assert(pack("<! c3", "abc") == "abc")
   assert(packsize("<! c3") == 3)
   assert(pack(">!4 c6", "abcdef") == "abcdef")
-  checkerror("wrong length", pack, "c3", "ab")
-  checkerror("2", pack, "c5", "123456")
+  assert(pack("c3", "123456") == "123")
+  assert(pack("c0", "123456") == "")
+  assert(pack("c8", "123456") == "123456\0\0")
+  assert(pack("c88", "") == string.rep("\0", 88))
+  assert(pack("c188", "ab") == "ab" .. string.rep("\0", 188 - 2))
   local a, b, c = unpack("!4 z c3", "abcdefghi\0xyz")
   assert(a == "abcdefghi" and b == "xyz" and c == 14)
 end

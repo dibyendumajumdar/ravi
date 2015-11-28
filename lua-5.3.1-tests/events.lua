@@ -1,4 +1,4 @@
--- $Id: events.lua,v 1.41 2014/12/26 17:20:53 roberto Exp $
+-- $Id: events.lua,v 1.42 2015/10/08 15:58:34 roberto Exp $
 
 print('testing metatables')
 
@@ -179,6 +179,10 @@ assert(rawlen"abc" == 3)
 assert(not pcall(rawlen, io.stdin))
 assert(not pcall(rawlen, 34))
 assert(not pcall(rawlen))
+
+-- rawlen for long strings
+assert(rawlen(string.rep('a', 1000)) == 1000)
+
 
 t = {}
 t.__lt = function (a,b,c)

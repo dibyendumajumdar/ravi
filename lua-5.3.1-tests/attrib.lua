@@ -1,4 +1,4 @@
--- $Id: attrib.lua,v 1.62 2015/04/30 14:15:57 roberto Exp $
+-- $Id: attrib.lua,v 1.63 2015/10/08 15:57:22 roberto Exp $
 
 print "testing require"
 
@@ -91,13 +91,14 @@ end
 local files = {
   ["names.lua"] = "do return {...} end\n",
   ["err.lua"] = "B = 15; a = a + 1;",
+  ["synerr.lua"] = "B =",
   ["A.lua"] = "",
   ["B.lua"] = "assert(...=='B');require 'A'",
   ["A.lc"] = "",
   ["A"] = "",
   ["L"] = "",
   ["XXxX"] = "",
-  ["C.lua"] = "package.loaded[...] = 25; require'C'"
+  ["C.lua"] = "package.loaded[...] = 25; require'C'",
 }
 
 AA = nil
@@ -132,8 +133,10 @@ a = require"names"
 assert(a[1] == "names" and a[2] == D"names.lua")
 
 _G.a = nil
-assert(not pcall(require, "err"))
-assert(B == 15)
+local st, msg = pcall(require, "err")
+assert(not st and string.find(msg, "arithmetic") and B == 15)
+st, msg = pcall(require, "synerr")
+assert(not st and string.find(msg, "error loading module"))
 
 assert(package.searchpath("C", package.path) == D"C.lua")
 assert(require"C" == 25)
