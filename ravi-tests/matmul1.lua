@@ -47,8 +47,13 @@ end
 
 local n = arg[1] or 1000;
 n = math.floor(n/2) * 2;
+-- warmup
+if jit then
+  -- luajit
+  matrix.mul(matgen(n), matgen(n))
+end
 local t1 = os.clock()
-local a = matrix.mul(matgen(n), matgen(n));
+local a = matrix.mul(matgen(n), matgen(n))
 local t2 = os.clock()
 print("time taken ", t2-t1)
 print(a[n/2+1][n/2+1]);
