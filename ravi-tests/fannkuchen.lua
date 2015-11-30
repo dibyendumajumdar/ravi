@@ -69,6 +69,10 @@ local n = tonumber(arg and arg[1]) or 1
 if ravi then
   ravi.compile(fannkuch)
 end
+if jit then
+  -- luajit - warmup 
+  fannkuch(n)
+end
 local t1 = os.clock()
 local sum, flips = fannkuch(n)
 local t2 = os.clock()
