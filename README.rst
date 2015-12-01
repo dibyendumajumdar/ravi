@@ -84,10 +84,11 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
     local t5: number[] = {}
     local t6 = t5           -- t6 treated as table
 
-  The reason for this discrepancy is that declared table types generate optimized JIT code which assumes that the keys are integers
-  or literal short strings. The generated code would be incorrect if this expectation was not met.
+  The reason for these restrictions is that declared table types generate optimized JIT code which assumes that the keys are integers
+  or literal short strings. Similarly declared array types result in specialized JIT code that assume integer keys and numeric values. 
+  The generated JIT code would be incorrect if the types were not as expected.
 
-* Indices >= 1 should be used when accessing array elements. Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible under ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot.   
+* Indices >= 1 should be used when accessing array elements. Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible in ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot.   
 * Arrays must always be initialized:: 
 
     local t: number[] = {} -- okay
@@ -128,7 +129,8 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
     local t: number[] = f() -- type will be checked at runtime
 
 * Operations on array types can be optimised to special bytecode and JIT only when the array type is statically known. Otherwise regular table access will be used subject to runtime checks.
-* Array types may not have meta methods - this will be enforced at runtime (TODO). 
+* Array types ignore ``__index``, ``__newindex`` and ``__len`` metamethods.
+* Array types cannot be set as metatables for other values. 
 * ``pairs()`` and ``ipairs()`` work on arrays as normal
 * There is no way to delete an array element.
 * The array data is stored in contiguous memory just like native C arrays; morever the garbage collector does not scan the array data
@@ -282,6 +284,8 @@ Ravi should be able to run all Lua 5.3 programs in interpreted mode, but there a
 +-----------------+-------------+-------------+
 | MAXVARS         | 200         | 125         |
 +-----------------+-------------+-------------+
+| MAXARGLINE      | 250         | 120         |
++-----------------+-------------+-------------+
 
 When JIT compilation is enabled some things will not work:
 
@@ -348,6 +352,10 @@ On MAC OS X I use::
   cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
 
 I open the generated project in Xcode and do a build from there.
+
+Building without JIT
+--------------------
+You can omit ``-DLLVM_JIT=ON`` option above to build Ravi with a null JIT implementation.
 
 Build Artifacts
 ---------------
