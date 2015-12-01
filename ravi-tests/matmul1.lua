@@ -39,7 +39,7 @@ function matgen(n)
 	return a;
 end
 
-if arg[2] and ravi then
+if ravi and ravi.jit() then
 	ravi.compile(matrix.T)
 	ravi.compile(matrix.mul)
 	ravi.compile(matgen)
