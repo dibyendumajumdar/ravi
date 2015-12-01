@@ -44,6 +44,12 @@ end
 
 local n = tonumber(arg[1]) or 100
 n = math.floor(n/2) * 2
+
+if jit then
+  -- LuaJIT - warmup
+  matrix.mul(matgen(n), matgen(n), n)
+end
+
 local t1 = os.clock()
 local a = matrix.mul(matgen(n), matgen(n), n)
 local t2 = os.clock()

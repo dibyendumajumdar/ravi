@@ -6,9 +6,11 @@ local function x()
   return j
 end
 if ravi then
-  ravi.optlevel(2)
-  assert(ravi.compile(x))
-  -- ravi.dumpllvmasm(x)
+  ravi.compile(x)
+end
+if jit then
+  -- LuaJIT - warmup
+  x()
 end
 
 local t1 = os.clock()

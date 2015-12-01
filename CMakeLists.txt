@@ -164,7 +164,7 @@ endif ()
 # Enable minimal required LLVM components so that the
 # the size of the resulting binary is manageable
 if (LLVM_JIT)
-    llvm_map_components_to_libnames(llvm_libs
+    llvm_map_components_to_libnames(LLVM_LIBS
             Analysis
             Core
             CodeGen
@@ -192,7 +192,7 @@ if (LLVM_JIT)
             X86Info
             X86Utils
             )
-    message(STATUS "llvm_libs ${llvm_libs}")
+    message(STATUS "LLVM_LIBS ${LLVM_LIBS}")
 endif ()
 
 #Main library
@@ -207,13 +207,11 @@ if (WIN32)
     # enable DLL export
     set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
 endif ()
-target_link_libraries(ravi ${EXTRA_LIBRARIES} ${llvm_libs} ${GCCJIT_LIBRARIES})
+target_link_libraries(ravi ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
 
-add_executable(lua src/lua.c)
-target_link_libraries(lua ravi)
-
-#add_executable(luac src/luac.c)
-#target_link_libraries(luac ravis)
+add_executable(ravi-bin src/lua.c)
+set_target_properties(ravi-bin PROPERTIES OUTPUT_NAME ravi)
+target_link_libraries(ravi-bin ravi)
 
 #VM test
 add_executable(test_vm tests/test_vm.c)
@@ -234,6 +232,8 @@ add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
 
 install(FILES ${LUA_HEADERS}
-        DESTINATION include)
-install(TARGETS ravi lua
-        DESTINATION bin)
+        DESTINATION include/ravi)
+install(TARGETS ravi ravi-bin
+        RUNTIME DESTINATION bin
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib)

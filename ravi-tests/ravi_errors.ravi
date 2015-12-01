@@ -16,7 +16,7 @@ end
 
 local function checkmessage (prog, msg)
   local m = doit(prog)
-  -- print(m)
+  --print(m)
   assert(string.find(m, msg, 1, true))
 end
 
@@ -64,6 +64,9 @@ checkmessage('local t: integer = 5; local x=function() return "string" end; loca
 checkmessage('local t: integer = 5.5', 'Invalid local assignment')
 checkmessage('local function f() local t: integer[] = {}; t[1] = 4; t[5] = 2; end; f()', 'array out of bounds')
 checkmessage('local function f() local t: integer[] = {}; t[1] = 4; t[-5] = 2; end; f()', 'array out of bounds')
+checkmessage('local mt: integer[] = {}; local t = {}; setmetatable(t, mt)', 'Lua table expected')
+checkmessage('local mt: integer[] = {}; local t: table = {}; setmetatable(t, mt)', 'Lua table expected')
+
 
 checkmessage('local t: number[] = {}; local t2: number[] = {1.0}; t=t2[1]', 'Invalid assignment: number[] expected')
 checkmessage('local t: number[] = {}; t=1', 'Invalid assignment: number[] expected')
@@ -87,6 +90,8 @@ checkmessage('local t: number = 5.5; local x=function() return "string" end; loc
 checkmessage('local t: number = 5', 'Invalid local assignment')
 checkmessage('local function f() local t: number[] = {}; t[1] = 4.2; t[5] = 2.4; end; f()', 'array out of bounds')
 checkmessage('local function f() local t: number[] = {}; t[1] = 4.2; t[-5] = 2.4; end; f()', 'array out of bounds')
+checkmessage('local mt: number[] = {}; local t = {}; setmetatable(t, mt)', 'Lua table expected')
+checkmessage('local mt: number[] = {}; local t: table = {}; setmetatable(t, mt)', 'Lua table expected')
 
 checkmessage('for i=1,10 do i="a" end', 'Invalid assignment: integer expected')
 checkmessage('for i=1,10 do local f = function() i="a" end; f(); end', 'upvalue of integer type, cannot be set to non integer value')

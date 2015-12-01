@@ -1177,6 +1177,8 @@ LUA_API int lua_setmetatable (lua_State *L, int objindex) {
   else {
     api_check(L, ttistable(L->top - 1), "table expected");
     mt = hvalue(L->top - 1);
+    if (mt->ravi_array.array_type != RAVI_TTABLE) 
+      luaG_runerror(L, "Lua table expected");
   }
   switch (ttnov(obj)) {
     case LUA_TTABLE: {

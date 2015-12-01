@@ -44,11 +44,9 @@ local function domandel(pfunc)
   end
 end
 
-local function dummy(x) 
+if ravi.jit() then
+  assert(ravi.compile(domandel))
 end
-
---ravi.dumplua(domandel)
-assert(ravi.compile(domandel))
 
 t1 = os.clock()
 domandel(print)

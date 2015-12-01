@@ -44,11 +44,12 @@ local function domandel(pfunc)
   end
 end
 
-local function dummy(x) 
-end
-
 if ravi then
-  assert(ravi.compile(domandel))
+  ravi.compile(domandel)
+end
+if jit then
+  -- LuaJIT warmup
+  domandel(print)  
 end
 
 t1 = os.clock()

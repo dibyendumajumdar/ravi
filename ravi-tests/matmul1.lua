@@ -47,9 +47,8 @@ end
 
 local n = arg[1] or 1000;
 n = math.floor(n/2) * 2;
--- warmup
 if jit then
-  -- luajit
+  -- luajit warmup
   matrix.mul(matgen(n), matgen(n))
 end
 local t1 = os.clock()
