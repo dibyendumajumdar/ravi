@@ -33,7 +33,7 @@ Following points are worth bearing in mind when looking at above benchmarks.
 2. The benchmarks were run on Windows 10 64-bit. LLVM version 3.7 was used.
    Ravi and Lua 5.3.2 were compiled using Visual C++ 2015.
 
-3. The Ravi benchmarks are based on code that uses optional static types;
+3. Some of the Ravi benchmarks are based on code that uses optional static types;
    additionally for the matmul benchmark a setting was used to disable
    array bounds checks for array read operations.
 
