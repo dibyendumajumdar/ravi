@@ -133,6 +133,7 @@ LUAI_FUNC void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b)
 LUAI_FUNC void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b);
 LUAI_FUNC void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b);
 LUAI_FUNC void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);
+LUAI_FUNC void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b);
 LUAI_FUNC void raviV_op_shl(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
 LUAI_FUNC void raviV_op_shr(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
 LUAI_FUNC void raviV_finishget(lua_State *L, const TValue *t, TValue *key, StkId val);

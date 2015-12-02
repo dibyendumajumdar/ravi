@@ -66,16 +66,14 @@ void ravi_emit_TFORCALL(ravi_function_def_t *def, int A, int B, int C, int j,
   // L->top = cb + 3;  /* func. + 2 args (state and index) */
   ravi_emit_set_L_top_toreg(def, A + 6);
 
-  // Protect(luaD_call(L, cb, GETARG_C(i), 1));
+  // Protect(luaD_call(L, cb, GETARG_C(i)));
   gcc_jit_block_add_eval(
       def->current_block, NULL,
-      ravi_function_call4_rvalue(
+      ravi_function_call3_rvalue(
           def, def->ravi->types->luaD_callT, gcc_jit_param_as_rvalue(def->L),
           gcc_jit_lvalue_get_address(cb, NULL),
           gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->C_intT, C),
-          gcc_jit_context_new_rvalue_from_int(def->function_context,
-                                              def->ravi->types->C_intT, 1)));
+                                              def->ravi->types->C_intT, C)));
   // reload base
   ravi_emit_load_base(def);
   // L->top = ci->top;
