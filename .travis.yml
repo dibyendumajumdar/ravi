@@ -30,4 +30,4 @@ script:
  - mkdir $TRAVIS_BUILD_DIR/build
  - cd $TRAVIS_BUILD_DIR/build && $TRAVIS_BUILD_DIR/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON ..
  - cd $TRAVIS_BUILD_DIR/build && make
- - cd $TRAVIS_BUILD_DIR/lua-5.3.1-tests && sh ./run_tests.sh $TRAVIS_BUILD_DIR/build/lua
+ - cd $TRAVIS_BUILD_DIR/lua-5.3.1-tests && sh ./run_tests.sh $TRAVIS_BUILD_DIR/build/ravi
