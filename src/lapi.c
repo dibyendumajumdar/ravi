@@ -431,10 +431,8 @@ LUA_API size_t lua_rawlen (lua_State *L, int idx) {
     case LUA_TUSERDATA: return uvalue(o)->len;
     case LUA_TTABLE: {
       Table *h = hvalue(o);
-      switch (h->ravi_array.array_type) {
-        case RAVI_TTABLE: return luaH_getn(h);
-        default: return raviH_getn(h);
-      }
+      if (h->ravi_array.array_type == RAVI_TTABLE) return luaH_getn(h);
+      else return raviH_getn(h);
     }
     default: return 0;
   }
@@ -670,37 +668,7 @@ LUA_API int lua_geti(lua_State *L, int idx, lua_Integer n) {
   const TValue *aux;
   lua_lock(L);
   t = index2addr(L, idx);
-  if (ttistable(t)) {
-    Table *h = hvalue(t);
-    switch (h->ravi_array.array_type) {
-      case RAVI_TARRAYINT: {
-        if (n <= raviH_getn(h)) { raviH_get_int_inline(L, h, n, L->top); }
-        else {
-          setnilvalue(L->top);
-        }
-        api_incr_top(L);
-      } break;
-      case RAVI_TARRAYFLT: {
-        if (n <= raviH_getn(h)) { raviH_get_float_inline(L, h, n, L->top); }
-        else {
-          setnilvalue(L->top);
-        }
-        api_incr_top(L);
-      } break;
-      default: {
-        if (luaV_fastget(L, t, n, aux, luaH_getint)) {
-          setobj2s(L, L->top, aux);
-          api_incr_top(L);
-        }
-        else {
-          setivalue(L->top, n);
-          api_incr_top(L);
-          luaV_finishget(L, t, L->top - 1, L->top - 1, aux);
-        }
-      }
-    }
-  }
-  else {
+  if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) {
     if (luaV_fastget(L, t, n, aux, luaH_getint)) {
       setobj2s(L, L->top, aux);
       api_incr_top(L);
@@ -710,6 +678,22 @@ LUA_API int lua_geti(lua_State *L, int idx, lua_Integer n) {
       api_incr_top(L);
       luaV_finishget(L, t, L->top - 1, L->top - 1, aux);
     }
+  }
+  else {
+    Table *h = hvalue(t);
+    if (h->ravi_array.array_type == RAVI_TARRAYFLT) {
+      if (n <= raviH_getn(h)) { raviH_get_float_inline(L, h, n, L->top); }
+      else {
+        setnilvalue(L->top);
+      }
+    }
+    else {
+      if (n <= raviH_getn(h)) { raviH_get_int_inline(L, h, n, L->top); }
+      else {
+        setnilvalue(L->top);
+      }
+    }
+    api_incr_top(L);
   }
   lua_unlock(L);
   return ttnov(L->top - 1);
@@ -722,36 +706,36 @@ LUA_API int lua_rawget(lua_State *L, int idx) {
   t = index2addr(L, idx);
   api_check(L, ttistable(t), "table expected");
   h = hvalue(t);
-  switch (h->ravi_array.array_type) {
-    case RAVI_TARRAYINT: {
-      TValue *key = L->top - 1;
-      api_check(L, ttisinteger(key), "key must be integer");
-      if (ttisinteger(key)) {
-        lua_Integer n = ivalue(key);
-        if (n <= raviH_getn(h)) { raviH_get_int_inline(L, h, n, key); }
-        else {
-          setnilvalue(key);
-        }
-      }
+  if (h->ravi_array.array_type == RAVI_TTABLE) {
+    setobj2s(L, L->top - 1, luaH_get(hvalue(t), L->top - 1));
+  }
+  else if (h->ravi_array.array_type == RAVI_TARRAYFLT) {
+    TValue *key = L->top - 1;
+    api_check(L, ttisinteger(key), "key must be integer");
+    if (ttisinteger(key)) {
+      lua_Integer n = ivalue(key);
+      if (n <= raviH_getn(h)) { raviH_get_float_inline(L, h, n, key); }
       else {
         setnilvalue(key);
       }
-    } break;
-    case RAVI_TARRAYFLT: {
-      TValue *key = L->top - 1;
-      api_check(L, ttisinteger(key), "key must be integer");
-      if (ttisinteger(key)) {
-        lua_Integer n = ivalue(key);
-        if (n <= raviH_getn(h)) { raviH_get_float_inline(L, h, n, key); }
-        else {
-          setnilvalue(key);
-        }
-      }
+    }
+    else {
+      setnilvalue(key);
+    }
+  }
+  else {
+    TValue *key = L->top - 1;
+    api_check(L, ttisinteger(key), "key must be integer");
+    if (ttisinteger(key)) {
+      lua_Integer n = ivalue(key);
+      if (n <= raviH_getn(h)) { raviH_get_int_inline(L, h, n, key); }
       else {
         setnilvalue(key);
       }
-    } break;
-    default: setobj2s(L, L->top - 1, luaH_get(hvalue(t), L->top - 1)); break;
+    }
+    else {
+      setnilvalue(key);
+    }
   }
   lua_unlock(L);
   return ttnov(L->top - 1);
@@ -764,20 +748,20 @@ LUA_API int lua_rawgeti(lua_State *L, int idx, lua_Integer n) {
   t = index2addr(L, idx);
   api_check(L, ttistable(t), "table expected");
   h = hvalue(t);
-  switch (h->ravi_array.array_type) {
-    case RAVI_TARRAYINT: {
-      if (n <= raviH_getn(h)) { raviH_get_int_inline(L, h, n, L->top); }
-      else {
-        setnilvalue(L->top);
-      }
-    } break;
-    case RAVI_TARRAYFLT: {
-      if (n <= raviH_getn(h)) { raviH_get_float_inline(L, h, n, L->top); }
-      else {
-        setnilvalue(L->top);
-      }
-    } break;
-    default: setobj2s(L, L->top, luaH_getint(hvalue(t), n)); break;
+  if (h->ravi_array.array_type == RAVI_TTABLE) {
+    setobj2s(L, L->top, luaH_getint(hvalue(t), n));
+  }
+  else if (h->ravi_array.array_type == RAVI_TARRAYFLT) {
+    if (n <= raviH_getn(h)) { raviH_get_float_inline(L, h, n, L->top); }
+    else {
+      setnilvalue(L->top);
+    }
+  }
+  else {
+    if (n <= raviH_getn(h)) { raviH_get_int_inline(L, h, n, L->top); }
+    else {
+      setnilvalue(L->top);
+    }
   }
   api_incr_top(L);
   lua_unlock(L);
@@ -1004,47 +988,7 @@ LUA_API void lua_seti(lua_State *L, int idx, lua_Integer n) {
   lua_lock(L);
   api_checknelems(L, 1);
   t = index2addr(L, idx);
-  if (ttistable(t)) {
-    Table *h = hvalue(t);
-    switch (h->ravi_array.array_type) {
-      case RAVI_TARRAYINT: {
-        TValue *val = L->top - 1;
-        if (ttisinteger(val)) { raviH_set_int_inline(L, h, n, ivalue(val)); }
-        else {
-          lua_Integer i = 0;
-          if (luaV_tointeger_(val, &i)) { raviH_set_int_inline(L, h, n, i); }
-          else
-            luaG_runerror(L, "value cannot be converted to integer");
-        }
-        L->top--;
-      } break;
-      case RAVI_TARRAYFLT: {
-        TValue *val = L->top - 1;
-        if (ttisfloat(val)) { raviH_set_float_inline(L, h, n, fltvalue(val)); }
-        else if (ttisinteger(val)) {
-          raviH_set_float_inline(L, h, n, (lua_Number)(ivalue(val)));
-        }
-        else {
-          lua_Number d = 0.0;
-          if (luaV_tonumber_(val, &d)) { raviH_set_float_inline(L, h, n, d); }
-          else
-            luaG_runerror(L, "value cannot be converted to number");
-        }
-        L->top--;
-      } break;
-      default: {
-        if (luaV_fastset(L, t, n, aux, luaH_getint, L->top - 1))
-          L->top--; /* pop value */
-        else {
-          setivalue(L->top, n);
-          api_incr_top(L);
-          luaV_finishset(L, t, L->top - 1, L->top - 2, aux);
-          L->top -= 2; /* pop value and key */
-        }
-      }
-    }
-  }
-  else {
+  if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) {
     if (luaV_fastset(L, t, n, aux, luaH_getint, L->top - 1))
       L->top--; /* pop value */
     else {
@@ -1053,6 +997,33 @@ LUA_API void lua_seti(lua_State *L, int idx, lua_Integer n) {
       luaV_finishset(L, t, L->top - 1, L->top - 2, aux);
       L->top -= 2; /* pop value and key */
     }
+  }
+  else {
+    Table *h = hvalue(t);
+    if (h->ravi_array.array_type == RAVI_TARRAYFLT) {
+      TValue *val = L->top - 1;
+      if (ttisfloat(val)) { raviH_set_float_inline(L, h, n, fltvalue(val)); }
+      else if (ttisinteger(val)) {
+        raviH_set_float_inline(L, h, n, (lua_Number)(ivalue(val)));
+      }
+      else {
+        lua_Number d = 0.0;
+        if (luaV_tonumber_(val, &d)) { raviH_set_float_inline(L, h, n, d); }
+        else
+          luaG_runerror(L, "value cannot be converted to number");
+      }
+    } 
+    else {
+      TValue *val = L->top - 1;
+      if (ttisinteger(val)) { raviH_set_int_inline(L, h, n, ivalue(val)); }
+      else {
+        lua_Integer i = 0;
+        if (luaV_tointeger_(val, &i)) { raviH_set_int_inline(L, h, n, i); }
+        else
+          luaG_runerror(L, "value cannot be converted to integer");
+      }
+    }
+    L->top--;
   }
   lua_unlock(L);
 }
@@ -1065,46 +1036,46 @@ LUA_API void lua_rawset(lua_State *L, int idx) {
   o = index2addr(L, idx);
   api_check(L, ttistable(o), "table expected");
   t = hvalue(o);
-  switch (t->ravi_array.array_type) {
-    case RAVI_TARRAYINT: {
-      TValue *key = L->top - 2;
-      TValue *val = L->top - 1;
-      if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
-      if (ttisinteger(val)) {
-        raviH_set_int_inline(L, t, ivalue(key), ivalue(val));
-      }
-      else {
-        lua_Integer i = 0;
-        if (luaV_tointeger_(val, &i)) {
-          raviH_set_int_inline(L, t, ivalue(key), i);
-        }
-        else
-          luaG_runerror(L, "value cannot be converted to integer");
-      }
-    } break;
-    case RAVI_TARRAYFLT: {
-      TValue *key = L->top - 2;
-      TValue *val = L->top - 1;
-      if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
-      if (ttisfloat(val)) {
-        raviH_set_float_inline(L, t, ivalue(key), fltvalue(val));
-      }
-      else if (ttisinteger(val)) {
-        raviH_set_float_inline(L, t, ivalue(key), (lua_Number)(ivalue(val)));
-      }
-      else {
-        lua_Number d = 0.0;
-        if (luaV_tonumber_(val, &d)) {
-          raviH_set_float_inline(L, t, ivalue(key), d);
-        }
-        else
-          luaG_runerror(L, "value cannot be converted to number");
-      }
-    } break;
-    default: setobj2t(L, luaH_set(L, t, L->top - 2), L->top - 1); break;
+  if (t->ravi_array.array_type == RAVI_TTABLE) {
+    setobj2t(L, luaH_set(L, t, L->top - 2), L->top - 1);
+    invalidateTMcache(t);
+    luaC_barrierback(L, t, L->top - 1);
   }
-  invalidateTMcache(t);
-  luaC_barrierback(L, t, L->top - 1);
+  else if (t->ravi_array.array_type == RAVI_TARRAYFLT) {
+    TValue *key = L->top - 2;
+    TValue *val = L->top - 1;
+    if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+    if (ttisfloat(val)) {
+      raviH_set_float_inline(L, t, ivalue(key), fltvalue(val));
+    }
+    else if (ttisinteger(val)) {
+      raviH_set_float_inline(L, t, ivalue(key), (lua_Number)(ivalue(val)));
+    }
+    else {
+      lua_Number d = 0.0;
+      if (luaV_tonumber_(val, &d)) {
+        raviH_set_float_inline(L, t, ivalue(key), d);
+      }
+      else
+        luaG_runerror(L, "value cannot be converted to number");
+    }
+  }
+  else {
+    TValue *key = L->top - 2;
+    TValue *val = L->top - 1;
+    if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+    if (ttisinteger(val)) {
+      raviH_set_int_inline(L, t, ivalue(key), ivalue(val));
+    }
+    else {
+      lua_Integer i = 0;
+      if (luaV_tointeger_(val, &i)) {
+        raviH_set_int_inline(L, t, ivalue(key), i);
+      }
+      else
+        luaG_runerror(L, "value cannot be converted to integer");
+    }
+  }
   L->top -= 2;
   lua_unlock(L);
 }
@@ -1117,33 +1088,33 @@ LUA_API void lua_rawseti(lua_State *L, int idx, lua_Integer n) {
   o = index2addr(L, idx);
   api_check(L, ttistable(o), "table expected");
   t = hvalue(o);
-  switch (t->ravi_array.array_type) {
-    case RAVI_TARRAYINT: {
-      TValue *val = L->top - 1;
-      if (ttisinteger(val)) { raviH_set_int_inline(L, t, n, ivalue(val)); }
-      else {
-        lua_Integer i = 0;
-        if (luaV_tointeger_(val, &i)) { raviH_set_int_inline(L, t, n, i); }
-        else
-          luaG_runerror(L, "value cannot be converted to integer");
-      }
-    } break;
-    case RAVI_TARRAYFLT: {
-      TValue *val = L->top - 1;
-      if (ttisfloat(val)) { raviH_set_float_inline(L, t, n, fltvalue(val)); }
-      else if (ttisinteger(val)) {
-        raviH_set_float_inline(L, t, n, (lua_Number)(ivalue(val)));
-      }
-      else {
-        lua_Number d = 0.0;
-        if (luaV_tonumber_(val, &d)) { raviH_set_float_inline(L, t, n, d); }
-        else
-          luaG_runerror(L, "value cannot be converted to number");
-      }
-    } break;
-    default: luaH_setint(L, t, n, L->top - 1); break;
+  if (t->ravi_array.array_type == RAVI_TTABLE) {
+    luaH_setint(L, t, n, L->top - 1);
+    luaC_barrierback(L, t, L->top - 1);
   }
-  luaC_barrierback(L, t, L->top - 1);
+  else if (t->ravi_array.array_type == RAVI_TARRAYFLT) {
+    TValue *val = L->top - 1;
+    if (ttisfloat(val)) { raviH_set_float_inline(L, t, n, fltvalue(val)); }
+    else if (ttisinteger(val)) {
+      raviH_set_float_inline(L, t, n, (lua_Number)(ivalue(val)));
+    }
+    else {
+      lua_Number d = 0.0;
+      if (luaV_tonumber_(val, &d)) { raviH_set_float_inline(L, t, n, d); }
+      else
+        luaG_runerror(L, "value cannot be converted to number");
+    }
+  }
+  else {
+    TValue *val = L->top - 1;
+    if (ttisinteger(val)) { raviH_set_int_inline(L, t, n, ivalue(val)); }
+    else {
+      lua_Integer i = 0;
+      if (luaV_tointeger_(val, &i)) { raviH_set_int_inline(L, t, n, i); }
+      else
+        luaG_runerror(L, "value cannot be converted to integer");
+    }
+  }
   L->top--;
   lua_unlock(L);
 }
@@ -1577,13 +1548,20 @@ LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
     ** We need to ensure that this function does
     ** not subvert the types of local variables
     */
-    if (type == RAVI_TNUMFLT || type == RAVI_TNUMINT || type == RAVI_TARRAYFLT || type == RAVI_TARRAYINT) {
+    if (type == RAVI_TNUMFLT 
+       || type == RAVI_TNUMINT 
+       || type == RAVI_TARRAYFLT 
+       || type == RAVI_TARRAYINT) {
       StkId input = L->top - 1;
       int compatible = (type == RAVI_TNUMFLT && ttisfloat(input))
-        || (type == RAVI_TNUMINT && ttisinteger(input))
-        || (type == RAVI_TARRAYFLT && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TARRAYFLT)
-        || (type == RAVI_TARRAYINT && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TARRAYINT)
-        || (type == RAVI_TTABLE && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TTABLE)
+        || (type == RAVI_TNUMINT 
+            && ttisinteger(input))
+        || (type == RAVI_TARRAYFLT && ttistable(input) 
+            && hvalue(input)->ravi_array.array_type == RAVI_TARRAYFLT)
+        || (type == RAVI_TARRAYINT && ttistable(input) 
+            && hvalue(input)->ravi_array.array_type == RAVI_TARRAYINT)
+        || (type == RAVI_TTABLE && ttistable(input) 
+            && hvalue(input)->ravi_array.array_type == RAVI_TTABLE)
         ;
       if (!compatible)
         name = NULL;

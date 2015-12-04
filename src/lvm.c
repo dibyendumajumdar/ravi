@@ -237,77 +237,64 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
 }
 
 #define GETTABLE_INLINE(L, t, key, val) \
-    if (ttistable(t)) {  /* 't' is a table? */ \
-      Table *h = hvalue(t); \
-      switch (h->ravi_array.array_type) { \
-        case RAVI_TARRAYINT: { \
-          if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-          raviH_get_int_inline(L, h, ivalue(key), val); \
-        } break; \
-        case RAVI_TARRAYFLT: { \
-          if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-          raviH_get_float_inline(L, h, ivalue(key), val); \
-        } break; \
-        default: { \
-          const TValue *aux; \
-          if (luaV_fastget(L,t,key,aux,luaH_get)) { setobj2s(L, val, aux); } \
-          else luaV_finishget(L,t,key,val,aux); \
-        } \
-      } \
+  if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) { \
+    const TValue *aux; \
+    if (luaV_fastget(L,t,key,aux,luaH_get)) { setobj2s(L, val, aux); } \
+    else luaV_finishget(L,t,key,val,aux); \
+  } \
+  else { \
+    Table *h = hvalue(t); \
+    if (h->ravi_array.array_type == RAVI_TARRAYFLT) { \
+      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
+      raviH_get_float_inline(L, h, ivalue(key), val); \
     } \
     else { \
-      const TValue *aux; \
-      if (luaV_fastget(L,t,key,aux,luaH_get)) { setobj2s(L, val, aux); } \
-      else luaV_finishget(L,t,key,val,aux); \
-    }
+      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
+      raviH_get_int_inline(L, h, ivalue(key), val); \
+    } \
+  }
+
 
 #define SETTABLE_INLINE(L, t, key, val) \
-    if (ttistable(t)) {  /* 't' is a table? */ \
-      Table *h = hvalue(t); \
-      switch (h->ravi_array.array_type) { \
-        case RAVI_TARRAYINT: { \
-          if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-          if (ttisinteger(val)) { \
-            raviH_set_int_inline(L, h, ivalue(key), ivalue(val)); \
-          } \
-          else { \
-            lua_Integer i = 0; \
-            if (luaV_tointeger_(val, &i)) { \
-              raviH_set_int_inline(L, h, ivalue(key), i); \
-            } \
-            else \
-              luaG_runerror(L, "value cannot be converted to integer"); \
-          } \
-        } break; \
-        case RAVI_TARRAYFLT: { \
-          if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-          if (ttisfloat(val)) { \
-            raviH_set_float_inline(L, h, ivalue(key), fltvalue(val)); \
-          } \
-          else if (ttisinteger(val)) { \
-            raviH_set_float_inline(L, h, ivalue(key), (lua_Number)(ivalue(val))); \
-          } \
-          else { \
-            lua_Number d = 0.0; \
-            if (luaV_tonumber_(val, &d)) { \
-              raviH_set_float_inline(L, h, ivalue(key), d); \
-            } \
-            else \
-              luaG_runerror(L, "value cannot be converted to number"); \
-          } \
-        } break; \
-        default: { \
-          const TValue *slot; \
-          if (!luaV_fastset(L, t, key, slot, luaH_get, val)) \
-            luaV_finishset(L, t, key, val, slot); \
+  if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) { \
+    const TValue *slot; \
+    if (!luaV_fastset(L, t, key, slot, luaH_get, val)) \
+      luaV_finishset(L, t, key, val, slot); \
+  } \
+  else { \
+    Table *h = hvalue(t); \
+    if (h->ravi_array.array_type == RAVI_TARRAYFLT) { \
+      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
+      if (ttisfloat(val)) { \
+        raviH_set_float_inline(L, h, ivalue(key), fltvalue(val)); \
+      } \
+      else if (ttisinteger(val)) { \
+        raviH_set_float_inline(L, h, ivalue(key), (lua_Number)(ivalue(val))); \
+      } \
+      else { \
+        lua_Number d = 0.0; \
+        if (luaV_tonumber_(val, &d)) { \
+          raviH_set_float_inline(L, h, ivalue(key), d); \
         } \
+        else \
+          luaG_runerror(L, "value cannot be converted to number"); \
       } \
     } \
     else { \
-      const TValue *slot; \
-      if (!luaV_fastset(L, t, key, slot, luaH_get, val)) \
-        luaV_finishset(L, t, key, val, slot); \
-    } 
+      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
+      if (ttisinteger(val)) { \
+        raviH_set_int_inline(L, h, ivalue(key), ivalue(val)); \
+      } \
+      else { \
+        lua_Integer i = 0; \
+        if (luaV_tointeger_(val, &i)) { \
+          raviH_set_int_inline(L, h, ivalue(key), i); \
+        } \
+        else \
+          luaG_runerror(L, "value cannot be converted to integer"); \
+      } \
+    } \
+  }
 
 /*
 ** Main function for table access (invoking metamethods if needed).
