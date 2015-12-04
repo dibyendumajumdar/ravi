@@ -43,8 +43,8 @@ typedef enum {
   TM_N		/* number of elements in the enum */
 } TMS;
 
-/* The macro metamethod absent tests whether it is known that a table
- * lacks a metamethod. This is true if a) table is NULL, or b) the bit
+/* The macro metamethod absent tests whether it is known that a metatable
+ * lacks a metamethod. This is true if a) metatable is NULL, or b) the bit
  * related to the metamethod is set in t->flags
  */
 #define metamethod_absent(t, e) (((t) == NULL) || ((t)->flags & (1u<<e)))
