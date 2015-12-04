@@ -886,8 +886,9 @@ LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
                                unsigned int len) {
   TValue *parent;
   Table *slice;
-  lua_lock(L);
   const char *errmsg = NULL;
+  lua_lock(L);
+  luaC_checkGC(L);
   /* The do-while loop here is just for error handling */
   parent = index2addr(L, idx);
   if (!ttistable(parent)) {
@@ -903,7 +904,6 @@ LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
     errmsg = "cannot create a slice of given bounds";
     goto done;
   }
-  luaC_checkGC(L);
   slice = raviH_new_slice(L, parent, start, len);
   sethvalue(L, L->top, slice);
   api_incr_top(L);
