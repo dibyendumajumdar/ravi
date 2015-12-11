@@ -1177,6 +1177,60 @@ static void codecomp (FuncState *fs, OpCode op, int cond, expdesc *e1,
   e1->ravi_type = RAVI_TANY;
 }
 
+static void codecast(FuncState *fs, UnOpr op, expdesc *e, int line) {
+  luaK_dischargevars(fs, e);
+  switch (e->k) {
+    case VKFLT: {
+      if (op == OPR_TO_NUMBER) {
+        e->ravi_type = RAVI_TNUMFLT; /* RAVI TODO*/
+        return;
+      }
+      break;
+    }
+    case VKINT: {
+      if (op == OPR_TO_INTEGER) {
+        e->ravi_type = RAVI_TNUMINT; /* RAVI TODO*/
+        return;
+      }
+      break;
+    }
+    case VRELOCABLE:
+    case VNONRELOC: {
+      discharge2anyreg(fs, e);
+      freeexp(fs, e);
+      OpCode opcode;
+      ravitype_t tt;
+      if (op == OPR_TO_NUMBER && e->ravi_type != RAVI_TNUMFLT) {
+        opcode = OP_RAVI_TOFLT;
+        tt = RAVI_TNUMFLT;
+      }
+      else if (op == OPR_TO_INTEGER && e->ravi_type != RAVI_TNUMINT) {
+        opcode = OP_RAVI_TOINT;
+        tt = RAVI_TNUMINT;
+      }
+      else if (op == OPR_TO_INTARRAY && e->ravi_type != RAVI_TARRAYINT) {
+        opcode = OP_RAVI_TOARRAYI;
+        tt = RAVI_TARRAYINT;
+      }
+      else if (op == OPR_TO_NUMARRAY && e->ravi_type != RAVI_TARRAYFLT) {
+        opcode = OP_RAVI_TOARRAYF;
+        tt = RAVI_TARRAYFLT;
+      }
+      else if (op == OPR_TO_TABLE  && e->ravi_type != RAVI_TTABLE) {
+        opcode = OP_RAVI_TOTAB;
+        tt = RAVI_TTABLE;
+      }
+      else {
+        /* noting to do*/
+        return;
+      }
+      luaK_codeABC(fs, opcode, e->u.info, 0, 0);
+      e->ravi_type = tt; /* RAVI TODO */
+      return;
+    }
+  }
+  luaX_syntaxerror(fs->ls, "invalid type assertion");  /* cannot happen */
+}
 
 void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
   expdesc e2;
@@ -1187,6 +1241,9 @@ void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
       codeexpval(fs, cast(OpCode, (op - OPR_MINUS) + OP_UNM), e, &e2, line);
       break;
     }
+    case OPR_TO_INTEGER: case OPR_TO_NUMBER: case OPR_TO_INTARRAY:
+    case OPR_TO_NUMARRAY: case OPR_TO_TABLE: 
+      codecast(fs, op, e, line); break;
     case OPR_NOT: codenot(fs, e); break;
     default: lua_assert(0);
   }

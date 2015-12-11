@@ -44,7 +44,9 @@ static const char *const luaX_tokens [] = {
     "return", "then", "true", "until", "while",
     "//", "..", "...", "==", ">=", "<=", "~=",
     "<<", ">>", "::", "<eof>",
-    "<number>", "<integer>", "<name>", "<string>"
+    "<number>", "<integer>", "<name>", "<string>",
+    "@integer", "@number", "@intarray", "@numarray",
+    "@table"
 };
 
 
@@ -206,6 +208,18 @@ static int check_next2 (LexState *ls, const char *set) {
   else return 0;
 }
 
+/*
+** Check whether current char is in set 'set' (with three chars) and
+** saves it
+*/
+static int check_next3(LexState *ls, const char *set) {
+  lua_assert(set[3] == '\0');
+  if (ls->current == set[0] || ls->current == set[1] || ls->current == set[2]) {
+    save_and_next(ls);
+    return 1;
+  }
+  else return 0;
+}
 
 /*
 ** change all characters 'from' in buffer to 'to'
@@ -550,6 +564,36 @@ static int llex (LexState *ls, SemInfo *seminfo) {
       }
       case EOZ: {
         return TK_EOS;
+      }
+      case '@': {
+        next(ls);
+        if (check_next3(ls, "int")) {
+          char temp[10];
+          int n, n1;
+          while (lislalnum(ls->current)) {
+            save_and_next(ls);
+          }
+          n = luaZ_bufflen(ls->buff);
+          n1 = n > ((sizeof temp)-1) ? ((sizeof temp)-1) : n;
+          strncpy(temp, luaZ_buffer(ls->buff), n1+1);
+          luaZ_buffremove(ls->buff, n);
+          if (strncmp(temp, "integer", n1) == 0)
+            return TK_TO_INTEGER;
+          else if (strncmp(temp, "number", n1) == 0)
+            return TK_TO_NUMBER;
+          else if (strncmp(temp, "numarray", n1) == 0)
+            return TK_TO_NUMARRAY;
+          else if (strncmp(temp, "intarray", n1) == 0)
+            return TK_TO_INTARRAY;
+          else if (strncmp(temp, "table", n1) == 0)
+            return TK_TO_TABLE;
+          else {
+            return '@';
+          }
+        }
+        else {
+          return '@';
+        }
       }
       default: {
         if (lislalpha(ls->current)) {  /* identifier or reserved word? */

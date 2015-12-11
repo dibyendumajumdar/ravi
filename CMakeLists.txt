@@ -196,7 +196,7 @@ if (LLVM_JIT)
 endif ()
 
 #Main library
-add_library(ravi SHARED 
+add_library(libravi SHARED 
         ${RAVI_HEADERS}
         ${LUA_LIB_SRCS} 
         ${LUA_CORE_SRCS}
@@ -205,22 +205,21 @@ add_library(ravi SHARED
         ${NO_JIT_SRCS})
 if (WIN32)
     # enable DLL export
-    set_target_properties(ravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+    set_target_properties(libravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
 endif ()
 target_link_libraries(ravi ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
 
-add_executable(ravi-bin src/lua.c)
-set_target_properties(ravi-bin PROPERTIES OUTPUT_NAME ravi)
-target_link_libraries(ravi-bin ravi)
+add_executable(ravi src/lua.c)
+target_link_libraries(ravi libravi)
 
 #VM test
 add_executable(test_vm tests/test_vm.c)
-target_link_libraries(test_vm ravi)
+target_link_libraries(test_vm libravi)
 
 if (LLVM_JIT)
     #LLVM playground
     add_executable(test_llvm tests/test_llvm.cpp)
-    target_link_libraries(test_llvm ravi)
+    target_link_libraries(test_llvm libravi)
 endif ()
 
 add_executable(test_misc tests/test_misc.c)
@@ -233,7 +232,7 @@ add_test(TestMisc test_misc)
 
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
-install(TARGETS ravi ravi-bin
+install(TARGETS libravi ravi
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)

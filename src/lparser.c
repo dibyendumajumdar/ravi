@@ -173,6 +173,7 @@ void raviY_printf(FuncState *fs, const char *format, ...) {
   char buf[80] = {0};
   va_list ap;
   const char *cp;
+  printf("%s(%d) ", getstr(fs->ls->source), fs->ls->lastline);
   va_start(ap, format);
   for (cp = format; *cp; cp++) {
     if (cp[0] == '%' && cp[1] == 'e') {
@@ -1511,6 +1512,11 @@ static UnOpr getunopr (int op) {
     case '-': return OPR_MINUS;
     case '~': return OPR_BNOT;
     case '#': return OPR_LEN;
+    case TK_TO_INTEGER: return OPR_TO_INTEGER;
+    case TK_TO_NUMBER: return OPR_TO_NUMBER;
+    case TK_TO_INTARRAY: return OPR_TO_INTARRAY;
+    case TK_TO_NUMARRAY: return OPR_TO_NUMARRAY;
+    case TK_TO_TABLE: return OPR_TO_TABLE;
     default: return OPR_NOUNOPR;
   }
 }
