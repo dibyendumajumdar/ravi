@@ -207,7 +207,7 @@ if (WIN32)
     # enable DLL export
     set_target_properties(libravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
 endif ()
-target_link_libraries(ravi ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
+target_link_libraries(libravi ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
 
 add_executable(ravi src/lua.c)
 target_link_libraries(ravi libravi)

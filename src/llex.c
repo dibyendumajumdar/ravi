@@ -566,34 +566,47 @@ static int llex (LexState *ls, SemInfo *seminfo) {
         return TK_EOS;
       }
       case '@': {
+        /* RAVI change: @ introduces a type assertion operator */
+        /* skip @ */
         next(ls);
+        /* the first letter can be one of 'i', 'n' or 't' */
         if (check_next3(ls, "int")) {
-          char temp[10];
-          int n, n1;
+          const char *s;
+          size_t n;
           while (lislalnum(ls->current)) {
             save_and_next(ls);
           }
           n = luaZ_bufflen(ls->buff);
-          n1 = n > ((sizeof temp)-1) ? ((sizeof temp)-1) : n;
-          strncpy(temp, luaZ_buffer(ls->buff), n1+1);
-          luaZ_buffremove(ls->buff, n);
-          if (strncmp(temp, "integer", n1) == 0)
+          s = luaZ_buffer(ls->buff);
+          luaZ_buffremove(ls->buff, n); /* rewind but buffer still holds the saved characters */
+          /* @integer or @integer[] */
+          if (memcmp(s, "integer", n) == 0) {
+            if (check_next1(ls, '[')) {
+              if (check_next1(ls, ']'))
+                return TK_TO_INTARRAY;
+              else
+                return '@'; /* should result in error */
+            }
             return TK_TO_INTEGER;
-          else if (strncmp(temp, "number", n1) == 0)
-            return TK_TO_NUMBER;
-          else if (strncmp(temp, "numarray", n1) == 0)
-            return TK_TO_NUMARRAY;
-          else if (strncmp(temp, "intarray", n1) == 0)
-            return TK_TO_INTARRAY;
-          else if (strncmp(temp, "table", n1) == 0)
-            return TK_TO_TABLE;
-          else {
-            return '@';
           }
+          /* @number or @number[] */
+          else if (memcmp(s, "number", n) == 0) {
+            if (check_next1(ls, '[')) {
+              if (check_next1(ls, ']'))
+                return TK_TO_NUMARRAY;
+              else
+                return '@'; /* should result in error */
+            }
+            return TK_TO_NUMBER;
+          }
+          /* @table */
+          else if (memcmp(s, "table", n) == 0)
+            return TK_TO_TABLE;
+          else
+            return '@'; /* should result in error */
         }
-        else {
-          return '@';
-        }
+        else
+          return '@'; /* should result in error */
       }
       default: {
         if (lislalpha(ls->current)) {  /* identifier or reserved word? */

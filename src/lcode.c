@@ -1177,7 +1177,7 @@ static void codecomp (FuncState *fs, OpCode op, int cond, expdesc *e1,
   e1->ravi_type = RAVI_TANY;
 }
 
-static void codecast(FuncState *fs, UnOpr op, expdesc *e, int line) {
+static void codecast(FuncState *fs, UnOpr op, expdesc *e) {
   luaK_dischargevars(fs, e);
   switch (e->k) {
     case VKFLT: {
@@ -1228,6 +1228,7 @@ static void codecast(FuncState *fs, UnOpr op, expdesc *e, int line) {
       e->ravi_type = tt; /* RAVI TODO */
       return;
     }
+    default: break;
   }
   luaX_syntaxerror(fs->ls, "invalid type assertion");  /* cannot happen */
 }
@@ -1243,7 +1244,7 @@ void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
     }
     case OPR_TO_INTEGER: case OPR_TO_NUMBER: case OPR_TO_INTARRAY:
     case OPR_TO_NUMARRAY: case OPR_TO_TABLE: 
-      codecast(fs, op, e, line); break;
+      codecast(fs, op, e); break;
     case OPR_NOT: codenot(fs, e); break;
     default: lua_assert(0);
   }
