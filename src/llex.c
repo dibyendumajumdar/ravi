@@ -45,7 +45,7 @@ static const char *const luaX_tokens [] = {
     "//", "..", "...", "==", ">=", "<=", "~=",
     "<<", ">>", "::", "<eof>",
     "<number>", "<integer>", "<name>", "<string>",
-    "@integer", "@number", "@intarray", "@numarray",
+    "@integer", "@number", "@integer[]", "@number[]",
     "@table"
 };
 
@@ -195,6 +195,16 @@ static int check_next1 (LexState *ls, int c) {
 }
 
 
+static int check_save_next1(LexState *ls, int c) {
+  if (ls->current == c) {
+    save_and_next(ls);
+    return 1;
+  }
+  else return 0;
+}
+
+
+
 /*
 ** Check whether current char is in set 'set' (with two chars) and
 ** saves it
@@ -208,18 +218,6 @@ static int check_next2 (LexState *ls, const char *set) {
   else return 0;
 }
 
-/*
-** Check whether current char is in set 'set' (with three chars) and
-** saves it
-*/
-static int check_next3(LexState *ls, const char *set) {
-  lua_assert(set[3] == '\0');
-  if (ls->current == set[0] || ls->current == set[1] || ls->current == set[2]) {
-    save_and_next(ls);
-    return 1;
-  }
-  else return 0;
-}
 
 /*
 ** change all characters 'from' in buffer to 'to'
@@ -470,6 +468,36 @@ static void read_string (LexState *ls, int del, SemInfo *seminfo) {
                                    luaZ_bufflen(ls->buff) - 2);
 }
 
+/* 
+** RAVI extension: generate a token for the cast operators -
+** @number, @number[], @integer, @integer[], @table
+*/
+static int casttoken(LexState *ls, SemInfo *seminfo) {
+  size_t n = luaZ_bufflen(ls->buff);
+  const char *s = luaZ_buffer(ls->buff);
+  int tok;
+
+  /* @integer or @integer[] */
+  if (memcmp(s, "@integer", n) == 0) 
+    tok = TK_TO_INTEGER;
+  else if (memcmp(s, "@integer[]", n) == 0)
+    tok = TK_TO_INTARRAY;
+  /* @number or @number[] */
+  else if (memcmp(s, "@number", n) == 0)
+    tok = TK_TO_NUMBER;
+  else if (memcmp(s, "@number[]", n) == 0)
+    tok = TK_TO_NUMARRAY;
+  /* @table */
+  else if (memcmp(s, "@table", n) == 0)
+    tok = TK_TO_TABLE;
+  else {
+    seminfo->ts = luaX_newstring(ls, s, n);
+    tok = '@';
+  }
+  luaZ_buffremove(ls->buff, n); /* rewind but buffer still holds the saved characters */
+  return tok;
+}
+
 
 static int llex (LexState *ls, SemInfo *seminfo) {
   luaZ_resetbuffer(ls->buff);
@@ -567,46 +595,13 @@ static int llex (LexState *ls, SemInfo *seminfo) {
       }
       case '@': {
         /* RAVI change: @ introduces a type assertion operator */
-        /* skip @ */
-        next(ls);
-        /* the first letter can be one of 'i', 'n' or 't' */
-        if (check_next3(ls, "int")) {
-          const char *s;
-          size_t n;
-          while (lislalnum(ls->current)) {
-            save_and_next(ls);
-          }
-          n = luaZ_bufflen(ls->buff);
-          s = luaZ_buffer(ls->buff);
-          luaZ_buffremove(ls->buff, n); /* rewind but buffer still holds the saved characters */
-          /* @integer or @integer[] */
-          if (memcmp(s, "integer", n) == 0) {
-            if (check_next1(ls, '[')) {
-              if (check_next1(ls, ']'))
-                return TK_TO_INTARRAY;
-              else
-                return '@'; /* should result in error */
-            }
-            return TK_TO_INTEGER;
-          }
-          /* @number or @number[] */
-          else if (memcmp(s, "number", n) == 0) {
-            if (check_next1(ls, '[')) {
-              if (check_next1(ls, ']'))
-                return TK_TO_NUMARRAY;
-              else
-                return '@'; /* should result in error */
-            }
-            return TK_TO_NUMBER;
-          }
-          /* @table */
-          else if (memcmp(s, "table", n) == 0)
-            return TK_TO_TABLE;
-          else
-            return '@'; /* should result in error */
+        save_and_next(ls);
+        while (lislalnum(ls->current)) {
+          save_and_next(ls);
         }
-        else
-          return '@'; /* should result in error */
+        check_save_next1(ls, '[');
+        check_save_next1(ls, ']');
+        return casttoken(ls, seminfo);
       }
       default: {
         if (lislalpha(ls->current)) {  /* identifier or reserved word? */
