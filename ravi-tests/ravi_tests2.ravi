@@ -1,0 +1,172 @@
+-- Test the type assertion operators
+
+ravi.auto(true)
+
+print "testing type assertions"
+T = ravi
+
+local opcodes_coverage = {}
+opcodes_coverage.MOVE = 0
+opcodes_coverage.LOADK = 0
+opcodes_coverage.LOADKX = 0
+opcodes_coverage.LOADBOOL = 0
+opcodes_coverage.LOADNIL = 0
+opcodes_coverage.GETUPVAL = 0
+opcodes_coverage.GETTABUP = 0
+opcodes_coverage.GETTABLE = 0
+opcodes_coverage.SETTABUP = 0
+opcodes_coverage.SETUPVAL = 0
+opcodes_coverage.SETTABLE = 0
+opcodes_coverage.NEWTABLE = 0
+opcodes_coverage.SELF = 0
+opcodes_coverage.ADD = 0
+opcodes_coverage.SUB = 0
+opcodes_coverage.MUL = 0
+opcodes_coverage.MOD = 0
+opcodes_coverage.POW = 0
+opcodes_coverage.DIV = 0
+opcodes_coverage.IDIV = 0
+opcodes_coverage.BAND = 0
+opcodes_coverage.BOR = 0
+opcodes_coverage.BXOR = 0
+opcodes_coverage.SHL = 0
+opcodes_coverage.SHR = 0
+opcodes_coverage.UNM = 0
+opcodes_coverage.BNOT = 0
+opcodes_coverage.NOT = 0
+opcodes_coverage.LEN = 0
+opcodes_coverage.CONCAT = 0
+opcodes_coverage.JMP = 0
+opcodes_coverage.EQ = 0
+opcodes_coverage.LT = 0
+opcodes_coverage.LE = 0
+opcodes_coverage.TEST = 0
+opcodes_coverage.TESTSET = 0
+opcodes_coverage.CALL = 0
+opcodes_coverage.TAILCALL = 0
+opcodes_coverage.RETURN = 0
+opcodes_coverage.FORLOOP = 0
+opcodes_coverage.FORPREP = 0
+opcodes_coverage.TFORCALL = 0
+opcodes_coverage.TFORLOOP = 0
+opcodes_coverage.SETLIST = 0
+opcodes_coverage.CLOSURE = 0
+opcodes_coverage.VARARG = 0
+opcodes_coverage.EXTRAARG = 0
+opcodes_coverage.NEWARRAYI = 0
+opcodes_coverage.NEWARRAYF = 0
+opcodes_coverage.LOADIZ = 0
+opcodes_coverage.LOADFZ = 0
+opcodes_coverage.UNMF = 0
+opcodes_coverage.UNMI = 0
+opcodes_coverage.ADDFF = 0
+opcodes_coverage.ADDFI = 0
+opcodes_coverage.ADDII = 0
+opcodes_coverage.SUBFF = 0
+opcodes_coverage.SUBFI = 0
+opcodes_coverage.SUBIF = 0
+opcodes_coverage.SUBII = 0
+opcodes_coverage.MULFF = 0
+opcodes_coverage.MULFI = 0
+opcodes_coverage.MULII = 0
+opcodes_coverage.DIVFF = 0
+opcodes_coverage.DIVFI = 0
+opcodes_coverage.DIVIF = 0
+opcodes_coverage.DIVII = 0
+opcodes_coverage.TOINT = 0
+opcodes_coverage.TOFLT = 0
+opcodes_coverage.TOARRAYI = 0
+opcodes_coverage.TOARRAYF = 0
+opcodes_coverage.MOVEI = 0
+opcodes_coverage.MOVEF = 0
+opcodes_coverage.MOVEAI = 0
+opcodes_coverage.MOVEAF = 0
+opcodes_coverage.GETTABLE_AI = 0
+opcodes_coverage.GETTABLE_AF = 0
+opcodes_coverage.SETTABLE_AI = 0
+opcodes_coverage.SETTABLE_AF = 0
+opcodes_coverage.FORLOOP_IP = 0
+opcodes_coverage.FORLOOP_I1 = 0
+opcodes_coverage.FORPREP_IP = 0
+opcodes_coverage.FORPREP_I1 = 0
+opcodes_coverage.SETUPVALI = 0
+opcodes_coverage.SETUPVALF = 0
+opcodes_coverage.SETUPVALAI = 0
+opcodes_coverage.SETUPVALAF = 0
+opcodes_coverage.SETTABLE_AII = 0
+opcodes_coverage.SETTABLE_AFF = 0
+opcodes_coverage.BAND_II = 0
+opcodes_coverage.BOR_II = 0
+opcodes_coverage.BXOR_II = 0
+opcodes_coverage.SHL_II = 0
+opcodes_coverage.SHR_II = 0
+opcodes_coverage.BNOT_I = 0
+opcodes_coverage.EQ_II = 0
+opcodes_coverage.EQ_FF = 0
+opcodes_coverage.LT_II = 0
+opcodes_coverage.LT_FF = 0
+opcodes_coverage.LE_II = 0
+opcodes_coverage.LE_FF = 0
+opcodes_coverage.GETTABLE_I = 0
+opcodes_coverage.GETTABLE_S = 0
+opcodes_coverage.SETTABLE_I = 0
+opcodes_coverage.SETTABLE_S = 0
+opcodes_coverage.TOTAB = 0
+opcodes_coverage.MOVETAB = 0
+opcodes_coverage.SETUPVALT = 0
+opcodes_coverage.SELF_S = 0
+
+
+local compile = function(f)
+  if ravi.jit() then
+    assert(ravi.compile(f))
+  end
+  return true
+end
+
+-- ================================================================
+-- Following section is an extract from the code.lua test 
+-- These functions test bytecode generation, and also provide
+-- helper routines that we use later on in other test cases
+
+-- testing opcodes
+function check (f, ...)
+  local arg = {...}
+  local c = T.listcode(f)
+  for i=1, #arg do
+    --print(arg[i], c[i])
+    opcodes_coverage[arg[i]] = opcodes_coverage[arg[i]]+1
+    assert(string.find(c[i], '- '..arg[i]..' *[AB][xs]?=%d'))
+  end
+  assert(c[#arg+2] == nil)
+end
+
+
+function checkequal (a, b)
+  a = T.listcode(a)
+  b = T.listcode(b)
+  for i = 1, #a do
+    a[i] = string.gsub(a[i], '%b()', '')   -- remove line number
+    b[i] = string.gsub(b[i], '%b()', '')   -- remove line number
+    assert(a[i] == b[i])
+  end
+end
+
+
+local x,y,z
+
+x = function()
+  local i: integer = @integer 1
+  local n: number = @number 1.2
+  assert(i == 1 and n == 1.2)
+  local j = { 1, 2, 3, 4.2, 5 }
+  i = @integer( @integer (j[2]) )
+  n = @number( @number (j[4]) )
+  assert(i == 2)
+  assert(n == 4.2)
+end
+
+-- ravi.dumplua(x)
+x()
+compile(x)
+x()  

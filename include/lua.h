@@ -501,6 +501,7 @@ LUA_API int ravi_is_integer_array(lua_State *L, int idx);
  */
 LUA_API lua_Number *ravi_get_number_array_rawdata(lua_State *l, int idx);
 
+
 /////////////////////////////////////////////////////////////////////////////
 /*
  Bunch of useful functions for debugging
@@ -521,6 +522,10 @@ LUAI_DDEC int ravi_parser_debug;
 LUA_API void ravi_set_debuglevel(int level);
 
 #define RAVI_DEBUG_STACK(p) if ((ravi_parser_debug & 8) != 0) {p;} else {}
+
+#define RAVI_ENABLED 1
+
+
 
 /******************************************************************************
 * Copyright (C) 1994-2015 Lua.org, PUC-Rio.

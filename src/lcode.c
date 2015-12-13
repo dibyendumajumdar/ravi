@@ -1178,7 +1178,9 @@ static void codecomp (FuncState *fs, OpCode op, int cond, expdesc *e1,
 }
 
 static void codecast(FuncState *fs, UnOpr op, expdesc *e) {
+  DEBUG_CODEGEN(raviY_printf(fs, "codecast entry: %e\n", e);)
   luaK_dischargevars(fs, e);
+  DEBUG_CODEGEN(raviY_printf(fs, "codecast post dischargevars: %e\n", e);)
   switch (e->k) {
     case VKFLT: {
       if (op == OPR_TO_NUMBER) {
@@ -1197,7 +1199,8 @@ static void codecast(FuncState *fs, UnOpr op, expdesc *e) {
     case VRELOCABLE:
     case VNONRELOC: {
       discharge2anyreg(fs, e);
-      freeexp(fs, e);
+      DEBUG_CODEGEN(raviY_printf(fs, "codecast post discharge2anyreg: %e\n", e);)
+      //freeexp(fs, e);
       OpCode opcode;
       ravitype_t tt;
       if (op == OPR_TO_NUMBER && e->ravi_type != RAVI_TNUMFLT) {
@@ -1221,11 +1224,12 @@ static void codecast(FuncState *fs, UnOpr op, expdesc *e) {
         tt = RAVI_TTABLE;
       }
       else {
-        /* noting to do*/
+        /* nothing to do*/
         return;
       }
       luaK_codeABC(fs, opcode, e->u.info, 0, 0);
-      e->ravi_type = tt; /* RAVI TODO */
+      e->ravi_type = tt;
+      e->k = VNONRELOC;
       return;
     }
     default: break;
