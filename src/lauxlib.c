@@ -1053,7 +1053,6 @@ LUALIB_API void raviU_getmetatable(lua_State *L, const char *meta_key) {
 LUALIB_API void *raviU_testudata(lua_State *L, int arg_index,
                               const char *meta_key) {
   void *p = lua_touserdata(L, arg_index);
-  int n = lua_gettop(L);
   if (p != NULL) {                                // value is a userdata?
     if (lua_getmetatable(L, arg_index)) {         // does it have a metatable?
       lua_pushlightuserdata(L, (void *)meta_key); // meta_key
@@ -1065,7 +1064,6 @@ LUALIB_API void *raviU_testudata(lua_State *L, int arg_index,
       lua_pop(L, 2); // remove both metatables
     }
   }
-  lua_assert(n == lua_gettop(L));
   return p; /* to avoid warnings */
 }
 
