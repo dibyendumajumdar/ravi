@@ -59,6 +59,7 @@ typedef struct expdesc {
   int t;  /* patch list of 'exit when true' */
   int f;  /* patch list of 'exit when false' */
   ravitype_t ravi_type; /* RAVI change: type of the expression if known, else RAVI_TANY */
+  int reloc_pc;         /* The last VRELOCABLE instruction counter prior to VNONRELOC */
 } expdesc;
 
 

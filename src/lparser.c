@@ -315,6 +315,7 @@ static void init_exp (expdesc *e, expkind k, int info, ravitype_t tt) {
   e->u.info = info;
   /* RAVI change; added type */
   e->ravi_type = tt;
+  e->reloc_pc = -1;
 }
 
 /* create a string constant expression, constant's location stored in
@@ -1265,6 +1266,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars,
           continue;
         op =
             (vartype == RAVI_TARRAYINT) ? OP_RAVI_NEWARRAYI : OP_RAVI_NEWARRAYF;
+        lua_assert(v->reloc_pc == i);
         SET_OPCODE(*pc, op); /* modify opcode */
         DEBUG_CODEGEN(
             raviY_printf(ls->fs, "[%d]* %o ; modify opcode\n", i, *pc));
