@@ -1177,10 +1177,14 @@ static void codecomp (FuncState *fs, OpCode op, int cond, expdesc *e1,
   e1->ravi_type = RAVI_TANY;
 }
 
-static void codecast(FuncState *fs, UnOpr op, expdesc *e) {
-  DEBUG_CODEGEN(raviY_printf(fs, "codecast entry: %e\n", e);)
+/*
+** This is a Ravi extension to implement the type
+** assertion operators. A type assertion operator is a Unary 
+** operator that takes one operand - a register location - and
+** asserts that the register contains a value of the required type.
+ */
+static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e) {
   luaK_dischargevars(fs, e);
-  DEBUG_CODEGEN(raviY_printf(fs, "codecast post dischargevars: %e\n", e);)
   switch (e->k) {
     case VKFLT: {
       if (op == OPR_TO_NUMBER) {
@@ -1199,8 +1203,6 @@ static void codecast(FuncState *fs, UnOpr op, expdesc *e) {
     case VRELOCABLE:
     case VNONRELOC: {
       discharge2anyreg(fs, e);
-      DEBUG_CODEGEN(raviY_printf(fs, "codecast post discharge2anyreg: %e\n", e);)
-      //freeexp(fs, e);
       OpCode opcode;
       ravitype_t tt;
       if (op == OPR_TO_NUMBER && e->ravi_type != RAVI_TNUMFLT) {
@@ -1234,7 +1236,7 @@ static void codecast(FuncState *fs, UnOpr op, expdesc *e) {
     }
     default: break;
   }
-  luaX_syntaxerror(fs->ls, "invalid type assertion");  /* cannot happen */
+  luaX_syntaxerror(fs->ls, "invalid type assertion");  
 }
 
 void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
@@ -1248,7 +1250,7 @@ void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
     }
     case OPR_TO_INTEGER: case OPR_TO_NUMBER: case OPR_TO_INTARRAY:
     case OPR_TO_NUMARRAY: case OPR_TO_TABLE: 
-      codecast(fs, op, e); break;
+      code_type_assertion(fs, op, e); break;
     case OPR_NOT: codenot(fs, e); break;
     default: lua_assert(0);
   }
