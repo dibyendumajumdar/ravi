@@ -130,8 +130,7 @@ end
 -- helper routines that we use later on in other test cases
 
 -- testing opcodes
-function check (f, ...)
-  local arg = {...}
+function check (f, arg: table)
   local c = T.listcode(f)
   for i=1, #arg do
     --print(arg[i], c[i])
@@ -165,8 +164,50 @@ x = function()
   assert(i == 2)
   assert(n == 4.2)
 end
-
--- ravi.dumplua(x)
+check(x, {'LOADK', 'LOADK', 'GETTABUP', 'EQ_II',
+  'JMP', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
+  'CALL', 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK',
+  'LOADK', 'LOADK', 'SETLIST', 'GETTABLE', 'TOINT',
+  'MOVEI', 'GETTABLE', 'TOFLT', 'MOVEF', 'GETTABUP',
+  'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'GETTABUP', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
+  'CALL', 'RETURN'})
 x()
 compile(x)
 x()  
+
+function x()
+   local a,b = 1,2
+   local c: integer,d: integer = @integer a, @integer b
+   assert(c == a and b == d)
+end
+check(x, {'LOADK', 'LOADK', 'TOINT', 'MOVE',
+  'TOINT', 'MOVE', 'GETTABUP', 'EQ', 'JMP',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'RETURN'})
+x()
+compile(x)
+x()
+
+g = { 1, 5.5 }
+local h = { 10, 4.2 }
+function x() 
+  local a: integer = 11
+  local b: number = 6.5
+  local c = 6
+  a = @integer( g[1] ) + @integer( h[1] ) * @integer( c )
+  c = 3.2
+  b = @number( g[2] ) * @number( h[2] ) - @number( c )
+  return a,b
+end
+y,z = x()
+assert(y == 61 and math.abs(z - 19.9) < 1e-10)
+compile(x)
+y,z = x()
+assert(y == 61 and math.abs(z - 19.9) < 1e-10)
+check(x, {'LOADK', 'LOADK', 'LOADK', 'GETTABUP',
+  'GETTABLE', 'TOINT', 'GETTABUP', 'TOINT', 'TOINT',
+  'MULII', 'ADDII', 'LOADK', 'GETTABUP', 'GETTABLE',
+  'TOFLT', 'GETTABUP', 'TOFLT', 'MULFF', 'TOFLT',
+  'SUBFF', 'MOVE', 'MOVE', 'RETURN', 'RETURN'})
+
