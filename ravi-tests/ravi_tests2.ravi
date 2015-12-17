@@ -211,3 +211,21 @@ check(x, {'LOADK', 'LOADK', 'LOADK', 'GETTABUP',
   'TOFLT', 'GETTABUP', 'TOFLT', 'MULFF', 'TOFLT',
   'SUBFF', 'MOVE', 'MOVE', 'RETURN', 'RETURN'})
 
+x=load 'local t: number[] = {}'
+check(x, {'NEWARRAYF', 'RETURN'})
+
+x=load 'local t = @number[] {}'
+check(x, {'NEWARRAYF', 'RETURN'})
+
+x=load 'local t = @number[] ( @number[] {} )'
+check(x, {'NEWARRAYF', 'RETURN'})
+
+function x()
+  return { @integer[] {1,2}, @number[] {42} }
+end
+check(x, {'NEWTABLE', 'NEWARRAYI', 'LOADK', 'LOADK',
+  'SETLIST', 'NEWARRAYF', 'LOADK', 'SETLIST',
+  'SETLIST', 'RETURN', 'RETURN'})
+y = x()
+assert(ravitype(y[1]) == 'integer[]')
+assert(ravitype(y[2]) == 'number[]')
