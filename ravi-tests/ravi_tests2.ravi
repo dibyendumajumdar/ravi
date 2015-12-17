@@ -229,3 +229,24 @@ check(x, {'NEWTABLE', 'NEWARRAYI', 'LOADK', 'LOADK',
 y = x()
 assert(ravitype(y[1]) == 'integer[]')
 assert(ravitype(y[2]) == 'number[]')
+
+function x()
+  return @integer[] @integer[] @integer[]{1}
+end
+check(x, {'NEWARRAYI', 'LOADK', 'SETLIST', 'RETURN', 'RETURN'})
+assert(ravitype(x()) == 'integer[]')
+
+function x()
+  return nil or @integer[] {1}
+end
+assert(ravitype(x()) == 'integer[]')
+check(x, {'NEWARRAYI', 'LOADK', 'SETLIST', 'RETURN', 'RETURN'})
+
+function x()
+  return @number[]( @integer[] {1} and @number[] {42} )
+end
+assert(ravitype(x()) == 'number[]')
+assert(x()[1] == 42.0)
+check(x, {'NEWARRAYI', 'LOADK', 'SETLIST', 'TEST',
+  'JMP', 'NEWARRAYF', 'LOADK', 'SETLIST', 'TOARRAYF',
+  'RETURN', 'RETURN'})
