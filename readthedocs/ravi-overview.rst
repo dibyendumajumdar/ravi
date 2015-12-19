@@ -63,7 +63,7 @@ Declaring the types of ``local`` variables and function parameters has following
 * ``integer`` and ``number`` types are automatically initialized to zero
 * Arithmetic operations on numeric types make use of type specific bytecodes which leads to more efficient JIT compilation
 * Specialised operators to get/set from array types are implemented; this makes array access more efficient in JIT mode as the access can be inlined
-* Declared tables allow specialized opcodes for usages involving integer and short literal string keys; these opcodes result in more efficient JIT code
+* Declared tables allow specialized opcodes for table gets involving integer and short literal string keys; these opcodes result in more efficient JIT code
 * Values assigned to typed variables are checked statically when possible; if the values are results from a function call then runtime type checking is performed
 * The standard table operations on arrays are checked to ensure that the type is not subverted
 * Even if a typed variable is captured in a closure its type must be respected
@@ -179,6 +179,7 @@ The type assertion operator is a unary operator and binds to the expression foll
   local a1: number[] = @number[]( t[1] )
   local a2: integer[] = @integer[]( t[2] )
 
+For a real example of how type assertions can be used, please have a look at the test program `gaussian2.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/gaussian2.lua>`_ 
 
 Array Slices
 ++++++++++++
