@@ -5,7 +5,7 @@ Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited op
 
 Lua is perfect as a small embeddable dynamic language so why a derivative? Ravi extends Lua with static typing for greater performance under JIT compilation. However, the static typing is optional and therefore Lua programs are also valid Ravi programs.
 
-There are other attempts to add static typing to Lua (e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. The Typed Lua effort is very similar to the approach taken by Typescript in the JavaScript world. The static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
+There are other attempts to add static typing to Lua - e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. The Typed Lua effort is very similar to the approach taken by Typescript in the JavaScript world. The static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
 My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. Type information can be exploited by JIT compilation technology to improve performance.
 
@@ -167,10 +167,10 @@ Ravi does not support defining new types, or structured types based on tables. T
   local t = { 1,2,3 }
   local i: integer = t[1] -- generates an error
 
-Above code generates an error as the compiler does not know that the value in ``t[1]`` is an integer. However often we as programmers know the type that is expected and it would be nice to be able to tell the compiler what the expected type oif ``t[1]`` is above. To enable this Ravi supports type assertion operators. A type assertion is introduced by the '``@``' symbol, which must be followed by the type name. So we can rewrite the above example as::
+Above code generates an error as the compiler does not know that the value in ``t[1]`` is an integer. However often we as programmers know the type that is expected and it would be nice to be able to tell the compiler what the expected type of ``t[1]`` is above. To enable this Ravi supports type assertion operators. A type assertion is introduced by the '``@``' symbol, which must be followed by the type name. So we can rewrite the above example as::
 
   local t = { 1,2,3 }
-  local iL integer = @integer( t[1] )
+  local i: integer = @integer( t[1] )
 
 The type assertion operator is a unary operator and binds to the expression following the operator. We use the parenthesis above to enure that the type assertion is applied to ``t[1]`` rather than ``t``. More examples are shown below::
 
