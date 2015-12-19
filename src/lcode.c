@@ -411,7 +411,6 @@ void luaK_setreturns (FuncState *fs, expdesc *e, int nresults) {
 void luaK_setoneret (FuncState *fs, expdesc *e) {
   if (e->k == VCALL) {  /* expression is an open function call? */
     e->k = VNONRELOC;
-    e->reloc_pc = -1;
     e->u.info = GETARG_A(getcode(fs, e));
     DEBUG_EXPR(raviY_printf(fs, "luaK_setoneret (VCALL->VNONRELOC) %e\n", e));
   }
@@ -440,7 +439,6 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
   switch (e->k) {
     case VLOCAL: {
       e->k = VNONRELOC;
-      e->reloc_pc = -1;
       DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VLOCAL->VNONRELOC) %e\n", e));
       break;
     }
@@ -557,8 +555,6 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
       return;  /* nothing to do... */
     }
   }
-  if (e->k == VRELOCABLE && e->reloc_pc != e->u.info)
-    e->reloc_pc = e->u.info;
   e->u.info = reg;
   e->k = VNONRELOC;
 }
@@ -590,8 +586,6 @@ static void exp2reg (FuncState *fs, expdesc *e, int reg) {
     patchlistaux(fs, e->f, final, reg, p_f);
     patchlistaux(fs, e->t, final, reg, p_t);
   }
-  if (e->k == VRELOCABLE && e->reloc_pc != e->u.info)
-    e->reloc_pc = e->u.info;
   e->f = e->t = NO_JUMP;
   e->u.info = reg;
   e->k = VNONRELOC;
@@ -809,7 +803,6 @@ void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
   luaK_exp2anyreg(fs, e);
   ereg = e->u.info;  /* register where 'e' was placed */
   freeexp(fs, e);
-  e->reloc_pc = -1;
   e->u.info = fs->freereg;  /* base register for op_self */
   e->k = VNONRELOC;
   luaK_reserveregs(fs, 2);  /* function and 'self' produced by op_self */
@@ -1221,10 +1214,12 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e) {
         tt = RAVI_TNUMINT;
       }
       else if (op == OPR_TO_INTARRAY && e->ravi_type != RAVI_TARRAYINT) {
-        if (e->ravi_type == RAVI_TTABLE && e->reloc_pc >= 0) {
-          Instruction *i = &fs->f->code[e->reloc_pc];
+        if (e->ravi_type == RAVI_TTABLE && e->pc >= 0) {
+          Instruction *i = &fs->f->code[e->pc];
           if (GET_OPCODE(*i) == OP_NEWTABLE) {
             SET_OPCODE(*i, OP_RAVI_NEWARRAYI);
+            e->ravi_type = RAVI_TARRAYINT;
+            DEBUG_EXPR(raviY_printf(fs, "code_type_assertion (OP_NEWTABLE to OP_RAVI_NEWARRAYI) %e\n", e));
           }
           return;
         }
@@ -1232,10 +1227,12 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e) {
         tt = RAVI_TARRAYINT;
       }
       else if (op == OPR_TO_NUMARRAY && e->ravi_type != RAVI_TARRAYFLT) {
-        if (e->ravi_type == RAVI_TTABLE && e->reloc_pc >= 0) {
-          Instruction *i = &fs->f->code[e->reloc_pc];
+        if (e->ravi_type == RAVI_TTABLE && e->pc >= 0) {
+          Instruction *i = &fs->f->code[e->pc];
           if (GET_OPCODE(*i) == OP_NEWTABLE) {
             SET_OPCODE(*i, OP_RAVI_NEWARRAYF);
+            e->ravi_type = RAVI_TARRAYFLT;
+            DEBUG_EXPR(raviY_printf(fs, "code_type_assertion (OP_NEWTABLE to OP_RAVI_NEWARRAYI) %e\n", e));
           }
           return;
         }
@@ -1252,7 +1249,6 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e) {
       }
       /* Must already be NONRELOC */
       luaK_codeABC(fs, opcode, e->u.info, 0, 0);
-      e->reloc_pc = -1;
       e->ravi_type = tt;
       e->k = VNONRELOC; 
       return;
@@ -1263,9 +1259,12 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e) {
 }
 
 void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
-  expdesc e2;
-  e2.ravi_type = RAVI_TANY;
-  e2.t = e2.f = NO_JUMP; e2.k = VKINT; e2.u.ival = 0;
+  expdesc e2 = {.ravi_type = RAVI_TANY,
+                .pc = -1,
+                .t = NO_JUMP,
+                .f = NO_JUMP,
+                .k = VKINT,
+                .u.ival = 0};
   switch (op) {
     case OPR_MINUS: case OPR_BNOT: case OPR_LEN: {
       codeexpval(fs, cast(OpCode, (op - OPR_MINUS) + OP_UNM), e, &e2, line);

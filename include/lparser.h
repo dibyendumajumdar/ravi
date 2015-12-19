@@ -59,7 +59,7 @@ typedef struct expdesc {
   int t;  /* patch list of 'exit when true' */
   int f;  /* patch list of 'exit when false' */
   ravitype_t ravi_type; /* RAVI change: type of the expression if known, else RAVI_TANY */
-  int reloc_pc;         /* The last VRELOCABLE instruction counter prior to VNONRELOC */
+  int pc;         /* RAVI change: holds the program counter for OP_NEWTABLE instruction when a constructor expression is parsed */
 } expdesc;
 
 

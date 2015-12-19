@@ -217,7 +217,7 @@ check(x, {'NEWARRAYF', 'RETURN'})
 x=load 'local t = @number[] {}'
 check(x, {'NEWARRAYF', 'RETURN'})
 
-x=load 'local t = @number[] ( @number[] {} )'
+x=load 'local t: number[] = @number[] ( @number[] {} )'
 check(x, {'NEWARRAYF', 'RETURN'})
 
 function x()

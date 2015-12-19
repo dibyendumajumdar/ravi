@@ -121,9 +121,10 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
             raviY_typename(e->ravi_type));
     break;
   case VNONRELOC:
-    fprintf(fp, "{p=%p, k=VNONRELOC, register=%d %s, type=%s}", e, e->u.info,
+    fprintf(fp, "{p=%p, k=VNONRELOC, register=%d %s, type=%s, pc=%d}", e, e->u.info,
             raviY_typename(raviY_get_register_typeinfo(fs, e->u.info)),
-            raviY_typename(e->ravi_type));
+            raviY_typename(e->ravi_type),
+            e->pc);
     break;
   case VLOCAL:
     fprintf(fp, "{p=%p, k=VLOCAL, register=%d, type=%s}", e, e->u.info,
@@ -147,10 +148,11 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
             raviY_typename(e->ravi_type));
     break;
   case VRELOCABLE:
-    fprintf(fp, "{p=%p, k=VRELOCABLE, pc=%d, instruction=(%s), type=%s}", e,
+    fprintf(fp, "{p=%p, k=VRELOCABLE, pc=%d, instruction=(%s), type=%s, pc=%d}", e,
             e->u.info,
             raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
-            raviY_typename(e->ravi_type));
+            raviY_typename(e->ravi_type),
+            e->pc);
     break;
   case VCALL:
     fprintf(
@@ -315,7 +317,7 @@ static void init_exp (expdesc *e, expkind k, int info, ravitype_t tt) {
   e->u.info = info;
   /* RAVI change; added type */
   e->ravi_type = tt;
-  e->reloc_pc = -1;
+  e->pc = -1;
 }
 
 /* create a string constant expression, constant's location stored in
@@ -481,7 +483,6 @@ static int newupvalue (FuncState *fs, TString *name, expdesc *v) {
   f->upvalues[fs->nups].instack = (v->k == VLOCAL);
   f->upvalues[fs->nups].idx = cast_byte(v->u.info);
   f->upvalues[fs->nups].name = name;
-  //raviY_printf(fs, "Creating upvalue for local variable exp %e\n", v);
   f->upvalues[fs->nups].type = v->ravi_type;
   luaC_objbarrier(fs->ls->L, f, name);
   return fs->nups++;
@@ -550,9 +551,8 @@ static void singlevar (LexState *ls, expdesc *var) {
   TString *varname = str_checkname(ls);
   FuncState *fs = ls->fs;
   if (singlevaraux(fs, varname, var, 1) == VVOID) {  /* global name? */
-    expdesc key;
-    key.ravi_type = RAVI_TANY;
-    singlevaraux(fs, ls->envn, var, 1);  /* get environment variable */
+    expdesc key = {.ravi_type = RAVI_TANY, .pc = -1};
+    singlevaraux(fs, ls->envn, var, 1); /* get environment variable */
     lua_assert(var->k == VLOCAL || var->k == VUPVAL);
     codestring(ls, &key, varname);  /* key is variable name */
     luaK_indexed(fs, var, &key);  /* env[varname] */
@@ -981,8 +981,7 @@ static void statlist (LexState *ls) {
 static void fieldsel (LexState *ls, expdesc *v) {
   /* fieldsel -> ['.' | ':'] NAME */
   FuncState *fs = ls->fs;
-  expdesc key;
-  key.ravi_type = RAVI_TANY;
+  expdesc key = {.ravi_type = RAVI_TANY, .pc = -1};
   luaK_exp2anyregup(fs, v);
   luaX_next(ls);  /* skip the dot or colon */
   checkname(ls, &key);
@@ -1019,9 +1018,8 @@ static void recfield (LexState *ls, struct ConsControl *cc) {
   /* recfield -> (NAME | '['exp1']') = exp1 */
   FuncState *fs = ls->fs;
   int reg = ls->fs->freereg;
-  expdesc key, val;
-  key.ravi_type = RAVI_TANY;
-  val.ravi_type = RAVI_TANY;
+  expdesc key = {.ravi_type = RAVI_TANY, .pc = -1},
+          val = {.ravi_type = RAVI_TANY, .pc = -1};
   int rkkey;
   if (ls->t.token == TK_NAME) {
     checklimit(fs, cc->nh, MAX_INT, "items in a constructor");
@@ -1105,6 +1103,7 @@ static void constructor (LexState *ls, expdesc *t) {
   cc.na = cc.nh = cc.tostore = 0;
   cc.t = t;
   init_exp(t, VRELOCABLE, pc, RAVI_TTABLE); /* RAVI TODO - set table of type */
+  t->pc = pc; /* RAVI save pc of OP_NEWTABLE instruction */
   init_exp(&cc.v, VVOID, 0, RAVI_TANY);  /* no value (yet) */
   luaK_exp2nextreg(ls->fs, t);  /* fix it at stack top */
   checknext(ls, '{');
@@ -1118,6 +1117,7 @@ static void constructor (LexState *ls, expdesc *t) {
   lastlistfield(fs, &cc);
   SETARG_B(fs->f->code[pc], luaO_int2fb(cc.na)); /* set initial array size */
   SETARG_C(fs->f->code[pc], luaO_int2fb(cc.nh));  /* set initial table size */
+  DEBUG_EXPR(raviY_printf(ls->fs, "constructor (OP_NEWTABLE pc = %d) %e\n", pc, t);)
 }
 
 /* }====================================================================== */
@@ -1266,7 +1266,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars,
           continue;
         op =
             (vartype == RAVI_TARRAYINT) ? OP_RAVI_NEWARRAYI : OP_RAVI_NEWARRAYF;
-        lua_assert(v->reloc_pc == i);
+        lua_assert(v->pc == i);
         SET_OPCODE(*pc, op); /* modify opcode */
         DEBUG_CODEGEN(
             raviY_printf(ls->fs, "[%d]* %o ; modify opcode\n", i, *pc));
@@ -1337,9 +1337,8 @@ static int localvar_explist(LexState *ls, expdesc *v, int *vars, int nvars) {
 /* parse function arguments */
 static void funcargs (LexState *ls, expdesc *f, int line) {
   FuncState *fs = ls->fs;
-  expdesc args;
+  expdesc args = {.ravi_type = RAVI_TANY, .pc = -1};
   int base, nparams;
-  args.ravi_type = RAVI_TANY;
   switch (ls->t.token) {
     case '(': {  /* funcargs -> '(' [ explist ] ')' */
       luaX_next(ls);
@@ -1425,16 +1424,14 @@ static void suffixedexp (LexState *ls, expdesc *v) {
         break;
       }
       case '[': {  /* '[' exp1 ']' */
-        expdesc key;
-        key.ravi_type = RAVI_TANY;
+        expdesc key = {.ravi_type = RAVI_TANY, .pc = -1};
         luaK_exp2anyregup(fs, v);
         yindex(ls, &key);
         luaK_indexed(fs, v, &key);
         break;
       }
       case ':': {  /* ':' NAME funcargs */
-        expdesc key;
-        key.ravi_type = RAVI_TANY;
+        expdesc key = {.ravi_type = RAVI_TANY, .pc = -1};
         luaX_next(ls);
         checkname(ls, &key);
         luaK_self(fs, v, &key);
@@ -1593,8 +1590,7 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
   /* expand while operators have priorities higher than 'limit' */
   op = getbinopr(ls->t.token);
   while (op != OPR_NOBINOPR && priority[op].left > limit) {
-    expdesc v2;
-    v2.ravi_type = RAVI_TANY;
+    expdesc v2 = {.ravi_type = RAVI_TANY, .pc = -1};
     BinOpr nextop;
     int line = ls->linenumber;
     luaX_next(ls);
@@ -1696,12 +1692,12 @@ static void check_conflict (LexState *ls, struct LHS_assign *lh, expdesc *v) {
  * The final recursive call parses the rhs.
  */
 static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
-  expdesc e;
-  e.ravi_type = RAVI_TANY;
+  expdesc e = {.ravi_type = RAVI_TANY, .pc = -1};
   check_condition(ls, vkisvar(lh->v.k), "syntax error");
   if (testnext(ls, ',')) {  /* assignment -> ',' suffixedexp assignment */
     struct LHS_assign nv;
     nv.v.ravi_type = RAVI_TANY;
+    nv.v.pc = -1;
     nv.prev = lh;
     suffixedexp(ls, &nv.v);
     DEBUG_EXPR(raviY_printf(ls->fs, "assignment -> suffixedexp %e\n", &nv.v));
@@ -1738,9 +1734,8 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
  */
 static int cond (LexState *ls) {
   /* cond -> exp */
-  expdesc v;
-  v.ravi_type = RAVI_TANY;
-  expr(ls, &v);  /* read condition */
+  expdesc v = {.ravi_type = RAVI_TANY, .pc = -1};
+  expr(ls, &v);                   /* read condition */
   if (v.k == VNIL) v.k = VFALSE;  /* 'falses' are all equal here */
   luaK_goiftrue(ls->fs, &v);
   return v.f;
@@ -1858,9 +1853,8 @@ static int exp1 (LexState *ls, Fornuminfo *info) {
    * type - also the loop is already optimised so no point trying to
    * optimise the iteration variable
    */
-  expdesc e;
+  expdesc e = {.ravi_type = RAVI_TANY, .pc = -1};
   int reg;
-  e.ravi_type = RAVI_TANY;
   expr(ls, &e);
   DEBUG_EXPR(raviY_printf(ls->fs, "fornum exp -> %e\n", &e));
   info->is_constant = (e.k == VKINT);
@@ -1973,11 +1967,10 @@ static void fornum (LexState *ls, TString *varname, int line) {
 static void forlist (LexState *ls, TString *indexname) {
   /* forlist -> NAME {,NAME} IN explist forbody */
   FuncState *fs = ls->fs;
-  expdesc e;
-  int nvars = 4;  /* gen, state, control, plus at least one declared var */
+  expdesc e = {.ravi_type = RAVI_TANY, .pc = -1};
+  int nvars = 4; /* gen, state, control, plus at least one declared var */
   int line;
-  int base = fs->freereg;
-  e.ravi_type = RAVI_TANY;
+  int base = fs->freereg;  
   /* create control variables */
   new_localvarliteral(ls, "(for generator)");
   new_localvarliteral(ls, "(for state)");
@@ -2020,9 +2013,8 @@ static void test_then_block (LexState *ls, int *escapelist) {
   /* test_then_block -> [IF | ELSEIF] cond THEN block */
   BlockCnt bl;
   FuncState *fs = ls->fs;
-  expdesc v;
-  int jf;  /* instruction to skip 'then' code (if condition is false) */
-  v.ravi_type = RAVI_TANY;
+  expdesc v = {.ravi_type = RAVI_TANY, .pc = -1};
+  int jf;         /* instruction to skip 'then' code (if condition is false) */
   luaX_next(ls);  /* skip IF or ELSEIF */
   expr(ls, &v);  /* read condition */
   checknext(ls, TK_THEN);
@@ -2067,9 +2059,8 @@ static void ifstat (LexState *ls, int line) {
 
 /* parse a local function statement - called from statement() */
 static void localfunc (LexState *ls) {
-  expdesc b;
+  expdesc b = {.ravi_type = RAVI_TANY, .pc = -1};
   FuncState *fs = ls->fs;
-  b.ravi_type = RAVI_TANY;
   /* RAVI change - add type */
   new_localvar(ls, str_checkname(ls), RAVI_TFUNCTION);  /* new local variable */
   adjustlocalvars(ls, 1);  /* enter its scope */
@@ -2083,8 +2074,7 @@ static void localstat (LexState *ls) {
   /* stat -> LOCAL NAME {',' NAME} ['=' explist] */
   int nvars = 0;
   int nexps;
-  expdesc e;
-  e.ravi_type = RAVI_TANY;
+  expdesc e = { .ravi_type = RAVI_TANY,.pc = -1 };
   /* RAVI while declaring locals we need to gather the types
    * so that we can check any assignments later on.
    * TODO we may be able to use register_typeinfo() here
@@ -2131,10 +2121,9 @@ static int funcname (LexState *ls, expdesc *v) {
 static void funcstat (LexState *ls, int line) {
   /* funcstat -> FUNCTION funcname body */
   int ismethod;
-  expdesc v, b;
-  v.ravi_type = RAVI_TANY;
-  b.ravi_type = RAVI_TANY;
-  luaX_next(ls);  /* skip FUNCTION */
+  expdesc v = {.ravi_type = RAVI_TANY, .pc = -1},
+          b = {.ravi_type = RAVI_TANY, .pc = -1};
+  luaX_next(ls); /* skip FUNCTION */
   ismethod = funcname(ls, &v);
   DEBUG_VARS(raviY_printf(ls->fs, "funcstat -> declaring function %e\n", &v));
   body(ls, &b, ismethod, line);
@@ -2163,9 +2152,8 @@ static void exprstat (LexState *ls) {
 static void retstat (LexState *ls) {
   /* stat -> RETURN [explist] [';'] */
   FuncState *fs = ls->fs;
-  expdesc e;
-  e.ravi_type = RAVI_TANY;
-  int first, nret;  /* registers with returned values */
+  expdesc e = {.ravi_type = RAVI_TANY, .pc = -1};
+  int first, nret; /* registers with returned values */
   if (block_follow(ls, 1) || ls->t.token == ';')
     first = nret = 0;  /* return no values */
   else {
@@ -2271,8 +2259,7 @@ static void statement (LexState *ls) {
 */
 static void mainfunc (LexState *ls, FuncState *fs) {
   BlockCnt bl;
-  expdesc v;
-  v.ravi_type = RAVI_TANY;
+  expdesc v = {.ravi_type = RAVI_TANY, .pc = -1};
   open_func(ls, fs, &bl);
   fs->f->is_vararg = 2;  /* main function is always declared vararg */
   init_exp(&v, VLOCAL, 0, RAVI_TANY);  /* create and... - RAVI TODO var arg is unknown type */
