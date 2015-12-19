@@ -1,11 +1,11 @@
 Ravi Programming Language
 =========================
 
-Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and an `LLVM <http://www.llvm.org/>`_ powered JIT compiler. The name Ravi comes from the Sanskrit word for the Sun.
+Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and an `LLVM <http://www.llvm.org/>`_ powered JIT compiler. The name Ravi comes from the Sanskrit word for the Sun. Interestingly a precursor to Lua was `Sol <http://www.lua.org/history.html>`_ which had support for static types; Sol means the Sun in Portugese.
 
 Lua is perfect as a small embeddable dynamic language so why a derivative? Ravi extends Lua with static typing for greater performance under JIT compilation. However, the static typing is optional and therefore Lua programs are also valid Ravi programs.
 
-There are other attempts to add static typing to Lua (e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. So the static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
+There are other attempts to add static typing to Lua (e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. The Typed Lua effort is very similar to the approach taken by Typescript in the JavaScript world. The static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
 My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. Type information can be exploited by JIT compilation technology to improve performance.
 
@@ -155,19 +155,39 @@ A declared table (as shown below) has some additional nuances::
 Following library functions allow creation of array types of defined length.
 
 ``table.intarray(num_elements, initial_value)``
-  creates an integer array of specified size, and initializes with initial value. The return type is integer[]
+  creates an integer array of specified size, and initializes with initial value. The return type is integer[]. The size of the array cannot be changed dynamically, i.e. it is fixed to the initial specified size. This allows slices to be created on such arrays.
 
 ``table.numarray(num_elements, initial_value)``
-  creates an number array of specified size, and initializes with initial value. The return type is number[]
+  creates an number array of specified size, and initializes with initial value. The return type is number[]. The size of the array cannot be changed dynamically, i.e. it is fixed to the initial specified size. This allows slices to be created on such arrays.
+
+Type Assertions
++++++++++++++++
+Ravi does not support defining new types, or structured types based on tables. This creates some practical issues when dynamic types are mixed with static types. For example::
+
+  local t = { 1,2,3 }
+  local i: integer = t[1] -- generates an error
+
+Above code generates an error as the compiler does not know that the value in ``t[1]`` is an integer. However often we as programmers know the type that is expected and it would be nice to be able to tell the compiler what the expected type oif ``t[1]`` is above. To enable this Ravi supports type assertion operators. A type assertion is introduced by the '``@``' symbol, which must be followed by the type name. So we can rewrite the above example as::
+
+  local t = { 1,2,3 }
+  local iL integer = @integer( t[1] )
+
+The type assertion operator is a unary operator and binds to the expression following the operator. We use the parenthesis above to enure that the type assertion is applied to ``t[1]`` rather than ``t``. More examples are shown below::
+
+  local a: number[] = @number[] { 1,2,3 }
+  local t = { @number[] { 4,5,6 }, @integer[] { 6,7,8 } }
+  local a1: number[] = @number[]( t[1] )
+  local a2: integer[] = @integer[]( t[2] )
+
 
 Array Slices
 ++++++++++++
 Since release 0.6 Ravi supports array slices. An array slice allows a portion of a Ravi array to be treated as if it is an array - this allows efficient access to the underlying array elements. Following new functions are available:
 
 ``table.slice(array, start_index, num_elements)``
-  creates a slice from an existing array - allowing efficient access to the underlying array elements.
+  creates a slice from an existing *fixed size* array - allowing efficient access to the underlying array elements.
 
-Slices access the memory of the underlying array; hence as soon as a slice is created, the underlying array becomes fixed in size. This ensures that the array memory cannot be reallocated while a slice is referring to it. Note that once the array becomes fixed size it cannot go back to being dynamic as Ravi does not track the slices that refer to arrays. 
+Slices access the memory of the underlying array; hence a slice can only be created on fixed size arrays (constructed by ``table.numarray()`` or ``table.intarray()``). This ensures that the array memory cannot be reallocated while a slice is referring to it. Ravi does not track the slices that refer to arrays - slices get garbage collected as normal. 
 
 Slices cannot extend the array size for the same reasons above.
 
