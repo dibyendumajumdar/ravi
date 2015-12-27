@@ -2,19 +2,60 @@
 
 typedef enum {
 
-	TNil
+	/* Literals */
+	TNil,
+	TDots,
+	TTrue,
+	TFalse,
+	TNumber,
+	TStringLiteral,
+
+	/* */
+	TName,
+	TNameList,
+	TFunction,
+	TLocalFunction,
+	TReturn,
+
+	/* */
+	TExpList,
+	TUnaryExp,
+	TBinaryExp
 
 } TreeType;
 
+typedef struct RaviTree RaviTree;
+#define RaviTree_CommonFields \
+	TreeType type; /* The type of value in the tree */ \
+	RaviTree *parent; /* Parent node */ \
+	RaviTree *first; /* First child */ \
+	RaviTree *last; /* Last child */ \
+	RaviTree *next /* Next sibling */ 
 
 
+struct RaviTree {
+	RaviTree_CommonFields;
+};
 
-typedef struct RaviTree {
+/* funcbody ::= ‘(’ [parlist] ‘)’ block end */
+typedef struct RaviFunctionTree {
+	RaviTree_CommonFields;
 
-	TreeType type; /* The type of value in the tree */
+	/* parlist ::= namelist [‘,’ ‘...’] | ‘...’ */
+	RaviTree *namelist;
+	RaviTree *dots;
 
+	RaviTree *block;
 
-} RaviTree;
+} RaviFunctionTree;
+
+/* retstat ::= return [explist] [‘;’] */
+typedef struct RaviReturnStatementTree {
+	RaviTree_CommonFields;
+
+	RaviTree *explist;
+
+} RaviReturnStatementTree;
 
 
 typedef struct LoadS {
@@ -22,6 +63,18 @@ typedef struct LoadS {
   size_t size;
 } LoadS;
 
+/*
+** Execute a protected parser.
+*/
+#if 0
+struct SParser {  /* data to 'f_parser' */
+  ZIO *z;
+  Mbuffer buff;  /* dynamic structure used by the scanner */
+  Dyndata dyd;  /* dynamic structures used by the parser */
+  const char *mode;
+  const char *name;
+};
+#endif
 
 static const char *getS (lua_State *L, void *ud, size_t *size) {
   LoadS *ls = (LoadS *)ud;
@@ -45,12 +98,15 @@ LUALIB_API int raviL_loadbufferx (lua_State *L, const char *buff, size_t size,
 ** Experimental (wip) implementation of new
 ** parser and code generator 
 */
-LUA_API int (ravi_load) (lua_State *L, lua_Reader reader, void *dt,
+LUA_API int (ravi_load) (lua_State *L, lua_Reader reader, void *data,
                           const char *chunkname, const char *mode) {
-  (void) reader;
-  (void) dt;
-  (void) chunkname;
   (void) mode;
+  ZIO z;
+//  int status;
+  lua_lock(L);
+  if (!chunkname) chunkname = "?";
+  luaZ_init(L, &z, reader, data);
+
   lua_pushnil(L);
   return 0;
 }
@@ -59,5 +115,6 @@ LUALIB_API int (raviL_dumpast) (lua_State *L) {
   (void) L;
   return 0;
 }
+
 
 
