@@ -502,6 +502,14 @@ LUA_API int ravi_is_integer_array(lua_State *L, int idx);
 LUA_API lua_Number *ravi_get_number_array_rawdata(lua_State *l, int idx);
 
 
+/* 
+** Experimental (wip) implementation of new
+** parser and code generator 
+*/
+LUA_API int (ravi_load) (lua_State *L, lua_Reader reader, void *dt,
+                          const char *chunkname, const char *mode);
+
+
 /////////////////////////////////////////////////////////////////////////////
 /*
  Bunch of useful functions for debugging

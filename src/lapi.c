@@ -1308,6 +1308,35 @@ LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
   return status;
 }
 
+/* 
+** Experimental (wip) implementation of new
+** parser and code generator 
+*/
+LUA_API int (ravi_load) (lua_State *L, lua_Reader reader, void *data,
+                          const char *chunkname, const char *mode) {
+  (void) mode;
+  ZIO z;
+  int status;
+  lua_lock(L);
+  if (!chunkname) chunkname = "?";
+  luaZ_init(L, &z, reader, data);
+  status = raviD_protectedparser(L, &z, chunkname, mode);
+  if (status == LUA_OK) {  /* no errors? */
+    LClosure *f = clLvalue(L->top - 1);  /* get newly created function */
+    if (f->nupvalues >= 1) {  /* does it have an upvalue? */
+      /* get global table from registry */
+      Table *reg = hvalue(&G(L)->l_registry);
+      const TValue *gt = luaH_getint(reg, LUA_RIDX_GLOBALS);
+      /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
+      setobj(L, f->upvals[0]->v, gt);
+      luaC_upvalbarrier(L, f->upvals[0]);
+    }
+  }
+  lua_pushnil(L);
+  lua_unlock(L);
+  return 0;
+}
+
 
 LUA_API int lua_dump (lua_State *L, lua_Writer writer, void *data, int strip) {
   int status;

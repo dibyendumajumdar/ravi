@@ -746,6 +746,13 @@ LUALIB_API int luaL_loadbufferx (lua_State *L, const char *buff, size_t size,
   return lua_load(L, getS, &ls, name, mode);
 }
 
+LUALIB_API int raviL_loadbufferx (lua_State *L, const char *buff, size_t size,
+                                 const char *name, const char *mode) {
+  LoadS ls;
+  ls.s = buff;
+  ls.size = size;
+  return ravi_load(L, getS, &ls, name, mode);
+}
 
 LUALIB_API int luaL_loadstring (lua_State *L, const char *s) {
   return luaL_loadbuffer(L, s, strlen(s), s);
@@ -1016,6 +1023,12 @@ LUALIB_API void luaL_checkversion_ (lua_State *L, lua_Number ver, size_t sz) {
   else if (*v != ver)
     luaL_error(L, "version mismatch: app. needs %f, Lua core provides %f",
                   ver, *v);
+}
+
+
+LUALIB_API int (raviL_dumpast) (lua_State *L) {
+  (void) L;
+  return 0;
 }
 
 // The normal Lua metatable functions in C use string

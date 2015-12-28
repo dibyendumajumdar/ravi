@@ -271,6 +271,11 @@ LUALIB_API void *raviU_testudata(lua_State *L, int arg_index, const char *meta_k
 LUALIB_API void *raviU_checkudata(lua_State *L, int arg_index, const char *meta_key);
 
 
+LUALIB_API int (raviL_loadbufferx) (lua_State *L, const char *buff, size_t size,
+                                 const char *name, const char *mode);
+
+LUALIB_API int (raviL_dumpast) (lua_State *L);
+
 #endif
 
 
