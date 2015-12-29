@@ -68,13 +68,21 @@ local function dump_matrix(columns: table, m: integer, n: integer, nrow: integer
   end
 end
 
-local function dump_array(s, pivots: number[], n: integer)
+local function dump_2darray(s, pivots: number[], n: integer)
   write(s, "\n")
   for i = 1,n do
     for j = 1,n do
       write(pivots[(j-1)*n+i], ' ')
     end
     write("\n")
+  end
+end
+
+local function dump_1darray(s, pivots)
+  write(s, "\n")
+  local n: integer = #pivots
+  for i = 1,n do
+    write(pivots[i], '\n')
   end
 end
 
@@ -177,7 +185,7 @@ local function gaussian_solve_LU_decomp(A: number[], b: number[], m: integer, n:
     error("no unique solution exists")
   end
 
-  return back_substitution(n, columns, b, nrow), pivots, A
+  return back_substitution(n, columns, b, nrow), pivots, A, nrow
 
   -- Now we do the back substitution
 --  local x: number[] = numarray(n, 0.0)
@@ -299,49 +307,52 @@ end
 
 local A: number[] = { 4,8,-4; 2,5,1; 1,5,10 }
 local b: number[] = { 3,8,5 }
-local L: number[], U: number[] = {}, {}
 
 -- control (LAPACK solve)
 local expectedx: number[] = { 1,-1,1 }
-local x:number[], L, U = gaussian_solve_LU_decomp(A, b, 3, 3)
+local x:number[], L: number[], U: number[], rows: integer[] = gaussian_solve_LU_decomp(A, b, 3, 3)
 
 print('expected ', table.unpack(expectedx))
 print('got      ', table.unpack(x))
 assert(comp(x, expectedx))
-dump_array('L', L, 3)
-dump_array('U', U, 3)
+dump_2darray('L', L, 3)
+dump_2darray('U', U, 3)
+dump_1darray('rows', rows)
 
 A = @number[] { 2,6,4; 1,-1,3; -1,-9,1 }
 b = @number[] { 3,7,5 }
 
 expectedx = @number[] { 0,2,-1 }
-x, L, U = gaussian_solve_LU_decomp(A, b, 3, 3)
+x, L, U, rows = gaussian_solve_LU_decomp(A, b, 3, 3)
 
 print('expected ', table.unpack(expectedx))
 print('got      ', table.unpack(x))
 assert(comp(x, expectedx))
-dump_array('L', L, 3)
-dump_array('U', U, 3)
+dump_2darray('L', L, 3)
+dump_2darray('U', U, 3)
+dump_1darray('rows', rows)
 
 A = @number[] { 0,1,2,1; 1,1,2,2; 1,2,4,1; 1,1,0,1 }
 b = @number[] { 1,-1,-1,2 }
 
 expectedx = @number[] { -1.25, 2.25, -0.75, -0.5 }
-x, L, U = gaussian_solve_LU_decomp(A, b, 4, 4)
+x, L, U, rows = gaussian_solve_LU_decomp(A, b, 4, 4)
 
 print('expected ', table.unpack(expectedx))
 print('got      ', table.unpack(x))
 assert(comp(x, expectedx))
-dump_array('L', L, 3)
-dump_array('U', U, 3)
+dump_2darray('L', L, 4)
+dump_2darray('U', U, 4)
+dump_1darray('rows', rows)
 
 A = @number[] { 3, -6, 12; -4, 14, -34, -1, 1, 9 }
 b = @number[] { 7, -6, -16 }
 
-x, L, U = gaussian_solve_LU_decomp(A, b, 3, 3, true)
+x, L, U, rows = gaussian_solve_LU_decomp(A, b, 3, 3, true)
 print('got      ', table.unpack(x))
-dump_array('L', L, 3)
-dump_array('U', U, 3)
+dump_2darray('L', L, 3)
+dump_2darray('U', U, 3)
+dump_1darray('rows', rows)
 
 print 'Ok'
 --ravi.dumplua(gaussian_solve)
