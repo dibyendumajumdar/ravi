@@ -116,6 +116,7 @@ local function back_substitution(n: integer, columns: table, b: number[], nrow: 
   return x
 end
 
+-- FIXME The U returned is not correct
 local function gaussian_solve_LU_decomp(A: number[], b: number[], m: integer, n: integer, omit_row_exchanges)
 
   -- make copies
