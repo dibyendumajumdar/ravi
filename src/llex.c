@@ -478,17 +478,17 @@ static int casttoken(LexState *ls, SemInfo *seminfo) {
   int tok;
 
   /* @integer or @integer[] */
-  if (memcmp(s, "@integer", n) == 0) 
+  if (strncmp(s, "@integer", n) == 0) 
     tok = TK_TO_INTEGER;
-  else if (memcmp(s, "@integer[]", n) == 0)
+  else if (strncmp(s, "@integer[]", n) == 0)
     tok = TK_TO_INTARRAY;
   /* @number or @number[] */
-  else if (memcmp(s, "@number", n) == 0)
+  else if (strncmp(s, "@number", n) == 0)
     tok = TK_TO_NUMBER;
-  else if (memcmp(s, "@number[]", n) == 0)
+  else if (strncmp(s, "@number[]", n) == 0)
     tok = TK_TO_NUMARRAY;
   /* @table */
-  else if (memcmp(s, "@table", n) == 0)
+  else if (strncmp(s, "@table", n) == 0)
     tok = TK_TO_TABLE;
   else {
     seminfo->ts = luaX_newstring(ls, s, n);
