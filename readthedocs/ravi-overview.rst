@@ -323,7 +323,7 @@ The build is CMake based.
 
 Building LLVM on Windows
 ------------------------
-I built LLVM 3.7.0 from source. I used the following sequence from the VS2015 command window::
+I built LLVM 3.7 from source. I used the following sequence from the VS2015 command window::
 
   cd \github\llvm
   mkdir build
@@ -336,7 +336,7 @@ Note that if you perform a Release build of LLVM then you will also need to do a
 Building LLVM on Ubuntu
 -----------------------
 On Ubuntu I found that the official LLVM distributions don't work with CMake. The CMake config files appear to be broken.
-So I ended up downloading and building LLVM 3.7.0 from source and that worked. The approach is similar to that described for MAC OS X below.
+So I ended up downloading and building LLVM 3.7 from source and that worked. The approach is similar to that described for MAC OS X below.
 
 Building LLVM on MAC OS X
 -------------------------
@@ -366,6 +366,12 @@ On Ubuntu I use::
   cd build
   cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
   make
+
+Note that on a clean install of Ubuntu 15.10 I had to install following packages:
+
+* cmake
+* git
+* libreadline-dev
 
 On MAC OS X I use::
 
