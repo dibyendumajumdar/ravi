@@ -122,8 +122,8 @@ if (LLVM_JIT)
             src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
             src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
             src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
-            src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
-            # src/ravi_llvmluaapi.cpp)
+            src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp
+            src/ravi_llvmluaapi.cpp)
 endif ()
 if (GCC_JIT)
     set(GCC_JIT_SRCS src/ravi_gccjit.c src/ravi_gcctypes.c

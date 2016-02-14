@@ -392,9 +392,8 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
         /* not compiled */
         raviV_compile(L, p, NULL);
       }
-      if (L == G(L)->mainthread && p->ravi_jit.jit_status == RAVI_JIT_COMPILED) {
+      if (L == G(L)->mainthread && p->ravi_jit.jit_function) {
         /* compiled */
-        lua_assert(p->ravi_jit.jit_function != NULL);
         ci->jitstatus = 1;
         /* Since the JITed function does not update savedpc
          * other than for calls by default - the stack trace error

@@ -66,71 +66,74 @@ static const char *LLVM_constant = "LLVMconstant";
 static const char *LLVM_instruction = "LLVMinstruction";
 static const char *LLVM_phinode = "LLVMphinode";
 
-#define test_LLVM_irbuilder(L, idx)                                            \
+#define test_LLVM_irbuilder(L, idx) \
   ((IRBuilderHolder *)raviU_testudata(L, idx, LLVM_irbuilder))
-#define check_LLVM_irbuilder(L, idx)                                           \
+#define check_LLVM_irbuilder(L, idx) \
   ((IRBuilderHolder *)raviU_checkudata(L, idx, LLVM_irbuilder))
 
-#define test_LLVM_type(L, idx) ((TypeHolder *)raviU_testudata(L, idx, LLVM_type))
-#define check_LLVM_type(L, idx) ((TypeHolder *)raviU_checkudata(L, idx, LLVM_type))
+#define test_LLVM_type(L, idx) \
+  ((TypeHolder *)raviU_testudata(L, idx, LLVM_type))
+#define check_LLVM_type(L, idx) \
+  ((TypeHolder *)raviU_checkudata(L, idx, LLVM_type))
 
-#define test_LLVM_context(L, idx)                                              \
+#define test_LLVM_context(L, idx) \
   ((ContextHolder *)raviU_testudata(L, idx, LLVM_context))
-#define check_LLVM_context(L, idx)                                             \
+#define check_LLVM_context(L, idx) \
   ((ContextHolder *)raviU_checkudata(L, idx, LLVM_context))
 
-#define test_LLVM_structtype(L, idx)                                           \
+#define test_LLVM_structtype(L, idx) \
   ((StructTypeHolder *)raviU_testudata(L, idx, LLVM_structtype))
-#define check_LLVM_structtype(L, idx)                                          \
+#define check_LLVM_structtype(L, idx) \
   ((StructTypeHolder *)raviU_checkudata(L, idx, LLVM_structtype))
 
-#define test_LLVM_pointertype(L, idx)                                          \
+#define test_LLVM_pointertype(L, idx) \
   ((PointerTypeHolder *)raviU_testudata(L, idx, LLVM_pointertype))
-#define check_LLVM_pointertype(L, idx)                                         \
+#define check_LLVM_pointertype(L, idx) \
   ((PointerTypeHolder *)raviU_checkudata(L, idx, LLVM_pointertype))
 
-#define test_LLVM_functiontype(L, idx)                                         \
+#define test_LLVM_functiontype(L, idx) \
   ((FunctionTypeHolder *)raviU_testudata(L, idx, LLVM_functiontype))
-#define check_LLVM_functiontype(L, idx)                                        \
+#define check_LLVM_functiontype(L, idx) \
   ((FunctionTypeHolder *)raviU_checkudata(L, idx, LLVM_functiontype))
 
-#define test_LLVM_mainfunction(L, idx)                                         \
+#define test_LLVM_mainfunction(L, idx) \
   ((MainFunctionHolder *)raviU_testudata(L, idx, LLVM_mainfunction))
-#define check_LLVM_mainfunction(L, idx)                                        \
+#define check_LLVM_mainfunction(L, idx) \
   ((MainFunctionHolder *)raviU_checkudata(L, idx, LLVM_mainfunction))
 
-#define test_LLVM_function(L, idx)                                             \
+#define test_LLVM_function(L, idx) \
   ((FunctionHolder *)raviU_testudata(L, idx, LLVM_function))
-#define check_LLVM_function(L, idx)                                            \
+#define check_LLVM_function(L, idx) \
   ((FunctionHolder *)raviU_checkudata(L, idx, LLVM_function))
 
-#define test_LLVM_basicblock(L, idx)                                           \
+#define test_LLVM_basicblock(L, idx) \
   ((BasicBlockHolder *)raviU_testudata(L, idx, LLVM_basicblock))
-#define check_LLVM_basicblock(L, idx)                                          \
+#define check_LLVM_basicblock(L, idx) \
   ((BasicBlockHolder *)raviU_checkudata(L, idx, LLVM_basicblock))
 
-#define test_LLVM_value(L, idx) ((ValueHolder *)raviU_testudata(L, idx, LLVM_value))
-#define check_LLVM_value(L, idx)                                               \
+#define test_LLVM_value(L, idx) \
+  ((ValueHolder *)raviU_testudata(L, idx, LLVM_value))
+#define check_LLVM_value(L, idx) \
   ((ValueHolder *)raviU_checkudata(L, idx, LLVM_value))
 
-#define test_LLVM_constant(L, idx)                                             \
+#define test_LLVM_constant(L, idx) \
   ((ConstantHolder *)raviU_testudata(L, idx, LLVM_constant))
-#define check_LLVM_constant(L, idx)                                            \
+#define check_LLVM_constant(L, idx) \
   ((ConstantHolder *)raviU_checkudata(L, idx, LLVM_constant))
 
-#define test_LLVM_instruction(L, idx)                                          \
+#define test_LLVM_instruction(L, idx) \
   ((InstructionHolder *)raviU_testudata(L, idx, LLVM_instruction))
-#define check_LLVM_instruction(L, idx)                                         \
+#define check_LLVM_instruction(L, idx) \
   ((InstructionHolder *)raviU_checkudata(L, idx, LLVM_instruction))
 
-#define test_LLVM_module(L, idx)                                               \
+#define test_LLVM_module(L, idx) \
   ((ModuleHolder *)raviU_testudata(L, idx, LLVM_module))
-#define check_LLVM_module(L, idx)                                              \
+#define check_LLVM_module(L, idx) \
   ((ModuleHolder *)raviU_checkudata(L, idx, LLVM_module))
 
-#define test_LLVM_phinode(L, idx)                                              \
+#define test_LLVM_phinode(L, idx) \
   ((PhiNodeHolder *)raviU_testudata(L, idx, LLVM_phinode))
-#define check_LLVM_phinode(L, idx)                                             \
+#define check_LLVM_phinode(L, idx) \
   ((PhiNodeHolder *)raviU_checkudata(L, idx, LLVM_phinode))
 
 struct ContextHolder {
@@ -312,8 +315,9 @@ static MainFunctionHolder *alloc_LLVM_mainfunction(lua_State *L,
   h->arg1 = nullptr;
   raviU_getmetatable(L, LLVM_mainfunction);
   lua_setmetatable(L, -2);
-  h->func = (ravi::RaviJITFunction *)jit->createFunction(
-      type, llvm::Function::ExternalLinkage, name);
+  auto module = std::make_shared<ravi::RaviJITModule>(G(L)->ravi_state->jit);
+  h->func = new ravi::RaviJITFunction(&h->compiled_func, module, type,
+                                      llvm::Function::ExternalLinkage, name);
   return h;
 }
 
@@ -436,29 +440,17 @@ static int get_llvm_context(lua_State *L) {
 
 static llvm::Value *get_value(lua_State *L, int idx) {
   InstructionHolder *ii = test_LLVM_instruction(L, idx);
-  if (ii) {
-    return ii->i;
-  }
+  if (ii) { return ii->i; }
   ValueHolder *v = test_LLVM_value(L, idx);
-  if (v) {
-    return v->value;
-  }
+  if (v) { return v->value; }
   ConstantHolder *c = test_LLVM_constant(L, idx);
-  if (c) {
-    return c->constant;
-  }
+  if (c) { return c->constant; }
   MainFunctionHolder *m = test_LLVM_mainfunction(L, idx);
-  if (m) {
-    return m->func->function();
-  }
+  if (m) { return m->func->function(); }
   FunctionHolder *f = test_LLVM_function(L, idx);
-  if (f) {
-    return f->function;
-  }
+  if (f) { return f->function; }
   PhiNodeHolder *phi = test_LLVM_phinode(L, idx);
-  if (phi) {
-    return phi->phi;
-  }
+  if (phi) { return phi->phi; }
   luaL_argerror(L, idx, "Value expected");
   return nullptr;
 }
@@ -557,26 +549,18 @@ static int struct_add_members(lua_State *L) {
 
 static llvm::Type *return_type(lua_State *L, int idx) {
   TypeHolder *th = test_LLVM_type(L, idx);
-  if (th) {
-    return th->type;
-  }
+  if (th) { return th->type; }
   PointerTypeHolder *ph = test_LLVM_pointertype(L, idx);
-  if (ph) {
-    return ph->type;
-  }
+  if (ph) { return ph->type; }
   luaL_argerror(L, idx, "unsupported function return type");
   return nullptr;
 }
 
 static llvm::Type *arg_type(lua_State *L, int idx) {
   TypeHolder *th = test_LLVM_type(L, idx);
-  if (th) {
-    return th->type;
-  }
+  if (th) { return th->type; }
   PointerTypeHolder *ph = test_LLVM_pointertype(L, idx);
-  if (ph) {
-    return ph->type;
-  }
+  if (ph) { return ph->type; }
   luaL_argerror(L, idx, "unsupported function argument type");
   return nullptr;
 }
@@ -592,13 +576,11 @@ static int context_new_function_type(lua_State *L) {
   for (int i = 1; i <= len; i++) {
     lua_rawgeti(L, 3, i);
     llvm::Type *t = arg_type(L, -1);
-    if (t)
-      elements.push_back(t);
+    if (t) elements.push_back(t);
     lua_pop(L, 1);
   }
   bool vararg = false;
-  if (lua_istable(L, 4))
-    l_table_get_bool(L, 4, "vararg", &vararg, false);
+  if (lua_istable(L, 4)) l_table_get_bool(L, 4, "vararg", &vararg, false);
   alloc_LLVM_functiontype(L,
                           llvm::FunctionType::get(typeret, elements, vararg));
   return 1;
@@ -712,10 +694,10 @@ static int irbuilder_condbranch(lua_State *L) {
 static int func_compile(lua_State *L) {
   MainFunctionHolder *f = check_LLVM_mainfunction(L, 1);
   if (!f->compiled_func) {
-    f->compiled_func = (lua_CFunction)f->func->compile();
+    f->func->raviModule()->runpasses();
+    f->func->raviModule()->finalize();
   }
-  if (!f->compiled_func)
-    return 0;
+  if (!f->compiled_func) return 0;
   lua_pushvalue(L, 1);
   lua_pushcclosure(L, f->compiled_func, 1);
   return 1;
@@ -730,74 +712,74 @@ typedef struct {
 
 #define str(s) #s
 
-#define decl_func1_(name, ret, arg1, vararg)                                   \
-  static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
-                         ravi::RaviJITFunctionImpl *f) {                       \
-    llvm::Type *args[] = {                                                     \
-        jit->types()->arg1,                                                    \
-    };                                                                         \
-    llvm::FunctionType *type =                                                 \
-        llvm::FunctionType::get(jit->types()->ret, args, vararg);              \
-    llvm::Function *extfunc = f->addExternFunction(                            \
-        type, reinterpret_cast<void *>(&name), str(name));                     \
-    alloc_LLVM_constant(L, extfunc);                                           \
-    return 1;                                                                  \
+#define decl_func1_(name, ret, arg1, vararg)                      \
+  static int name##_decl(lua_State *L, ravi::RaviJITState *jit,   \
+                         ravi::RaviJITFunction *f) {              \
+    llvm::Type *args[] = {                                        \
+        jit->types()->arg1,                                       \
+    };                                                            \
+    llvm::FunctionType *type =                                    \
+        llvm::FunctionType::get(jit->types()->ret, args, vararg); \
+    llvm::Function *extfunc = f->addExternFunction(               \
+        type, reinterpret_cast<void *>(&name), str(name));        \
+    alloc_LLVM_constant(L, extfunc);                              \
+    return 1;                                                     \
   }
 
 #define decl_func1v(name, ret, arg1) decl_func1_(name, ret, arg1, true)
 #define decl_func1(name, ret, arg1) decl_func1_(name, ret, arg1, false)
 
-#define decl_func2_(name, ret, arg1, arg2, vararg)                             \
-  static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
-                         ravi::RaviJITFunctionImpl *f) {                       \
-    llvm::Type *args[] = {                                                     \
-        jit->types()->arg1, jit->types()->arg2,                                \
-    };                                                                         \
-    llvm::FunctionType *type =                                                 \
-        llvm::FunctionType::get(jit->types()->ret, args, vararg);              \
-    llvm::Function *extfunc = f->addExternFunction(                            \
-        type, reinterpret_cast<void *>(&name), str(name));                     \
-    alloc_LLVM_constant(L, extfunc);                                           \
-    return 1;                                                                  \
+#define decl_func2_(name, ret, arg1, arg2, vararg)                \
+  static int name##_decl(lua_State *L, ravi::RaviJITState *jit,   \
+                         ravi::RaviJITFunction *f) {              \
+    llvm::Type *args[] = {                                        \
+        jit->types()->arg1, jit->types()->arg2,                   \
+    };                                                            \
+    llvm::FunctionType *type =                                    \
+        llvm::FunctionType::get(jit->types()->ret, args, vararg); \
+    llvm::Function *extfunc = f->addExternFunction(               \
+        type, reinterpret_cast<void *>(&name), str(name));        \
+    alloc_LLVM_constant(L, extfunc);                              \
+    return 1;                                                     \
   }
 
-#define decl_func2v(name, ret, arg1, arg2)                                     \
+#define decl_func2v(name, ret, arg1, arg2) \
   decl_func2_(name, ret, arg1, arg2, true)
-#define decl_func2(name, ret, arg1, arg2)                                      \
+#define decl_func2(name, ret, arg1, arg2) \
   decl_func2_(name, ret, arg1, arg2, false)
 
-#define decl_func3(name, ret, arg1, arg2, arg3)                                \
-  static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
-                         ravi::RaviJITFunctionImpl *f) {                       \
-    llvm::Type *args[] = {                                                     \
-        jit->types()->arg1, jit->types()->arg2, jit->types()->arg3,            \
-    };                                                                         \
-    llvm::FunctionType *type =                                                 \
-        llvm::FunctionType::get(jit->types()->ret, args, false);               \
-    llvm::Function *extfunc = f->addExternFunction(                            \
-        type, reinterpret_cast<void *>(&name), str(name));                     \
-    alloc_LLVM_constant(L, extfunc);                                           \
-    return 1;                                                                  \
+#define decl_func3(name, ret, arg1, arg2, arg3)                     \
+  static int name##_decl(lua_State *L, ravi::RaviJITState *jit,     \
+                         ravi::RaviJITFunction *f) {                \
+    llvm::Type *args[] = {                                          \
+        jit->types()->arg1, jit->types()->arg2, jit->types()->arg3, \
+    };                                                              \
+    llvm::FunctionType *type =                                      \
+        llvm::FunctionType::get(jit->types()->ret, args, false);    \
+    llvm::Function *extfunc = f->addExternFunction(                 \
+        type, reinterpret_cast<void *>(&name), str(name));          \
+    alloc_LLVM_constant(L, extfunc);                                \
+    return 1;                                                       \
   }
 
-#define decl_func4(name, ret, arg1, arg2, arg3, arg4)                          \
-  static int name##_decl(lua_State *L, ravi::RaviJITStateImpl *jit,            \
-                         ravi::RaviJITFunctionImpl *f) {                       \
-    llvm::Type *args[] = {                                                     \
-        jit->types()->arg1, jit->types()->arg2, jit->types()->arg3,            \
-        jit->types()->arg4,                                                    \
-    };                                                                         \
-    llvm::FunctionType *type =                                                 \
-        llvm::FunctionType::get(jit->types()->ret, args, false);               \
-    llvm::Function *extfunc = f->addExternFunction(                            \
-        type, reinterpret_cast<void *>(&name), str(name));                     \
-    alloc_LLVM_constant(L, extfunc);                                           \
-    return 1;                                                                  \
+#define decl_func4(name, ret, arg1, arg2, arg3, arg4)               \
+  static int name##_decl(lua_State *L, ravi::RaviJITState *jit,     \
+                         ravi::RaviJITFunction *f) {                \
+    llvm::Type *args[] = {                                          \
+        jit->types()->arg1, jit->types()->arg2, jit->types()->arg3, \
+        jit->types()->arg4,                                         \
+    };                                                              \
+    llvm::FunctionType *type =                                      \
+        llvm::FunctionType::get(jit->types()->ret, args, false);    \
+    llvm::Function *extfunc = f->addExternFunction(                 \
+        type, reinterpret_cast<void *>(&name), str(name));          \
+    alloc_LLVM_constant(L, extfunc);                                \
+    return 1;                                                       \
   }
 
 #define decl_voidfunc1(name, arg1) decl_func1(name, C_voidT, arg1)
 #define decl_voidfunc2(name, arg1, arg2) decl_func2(name, C_voidT, arg1, arg2)
-#define decl_voidfunc3(name, arg1, arg2, arg3)                                 \
+#define decl_voidfunc3(name, arg1, arg2, arg3) \
   decl_func3(name, C_voidT, arg1, arg2, arg3)
 
 decl_func1v(printf, C_intT, C_pcharT);
@@ -956,7 +938,8 @@ static int func_addextern(lua_State *L) {
     llvm::Constant *c = f->func->module()->getOrInsertFunction(name, tt->type);
     alloc_LLVM_constant(L, c);
     return 1;
-  } else {
+  }
+  else {
     /* TODO binary search */
     for (int i = 0; builtin_functions[i].name != nullptr; i++) {
       if (strcmp(name, builtin_functions[i].name) == 0) {
@@ -996,7 +979,8 @@ static int func_getarg(lua_State *L) {
         break;
       }
     }
-  } else {
+  }
+  else {
     results = 0;
   }
   return results;
@@ -1021,28 +1005,22 @@ static int irbuilder_call(lua_State *L) {
     lua_pop(L, 1);
   }
   bool tailcall = false;
-  if (lua_istable(L, 4))
-    l_table_get_bool(L, 4, "tailcall", &tailcall, false);
+  if (lua_istable(L, 4)) l_table_get_bool(L, 4, "tailcall", &tailcall, false);
   llvm::CallInst *inst = builder->builder->CreateCall(func, elements);
-  if (tailcall)
-    inst->setTailCall();
+  if (tailcall) inst->setTailCall();
   alloc_LLVM_instruction(L, inst);
   return 1;
 }
 
 static llvm::Type *get_type(lua_State *L, int idx) {
   TypeHolder *th = test_LLVM_type(L, idx);
-  if (th)
-    return th->type;
+  if (th) return th->type;
   PointerTypeHolder *ph = test_LLVM_pointertype(L, idx);
-  if (ph)
-    return ph->type;
+  if (ph) return ph->type;
   StructTypeHolder *sh = test_LLVM_structtype(L, idx);
-  if (sh)
-    return sh->type;
+  if (sh) return sh->type;
   FunctionTypeHolder *fh = test_LLVM_functiontype(L, idx);
-  if (fh)
-    return fh->type;
+  if (fh) return fh->type;
   luaL_argerror(L, idx, "unrecognized type");
   return nullptr;
 }
@@ -1052,10 +1030,8 @@ static int func_alloca(lua_State *L) {
   llvm::Type *ty = get_type(L, 2);
   llvm::Value *arraysize = nullptr;
   const char *name = nullptr;
-  if (lua_gettop(L) >= 3)
-    name = luaL_checkstring(L, 3);
-  if (lua_gettop(L) >= 4)
-    arraysize = get_value(L, 4);
+  if (lua_gettop(L) >= 3) name = luaL_checkstring(L, 3);
+  if (lua_gettop(L) >= 4) arraysize = get_value(L, 4);
   llvm::BasicBlock *block = func->getBasicBlockList().begin();
   luaL_argcheck(L, block != nullptr, 1, "No basic block in function");
   llvm::IRBuilder<> builder(block, block->begin());
@@ -1086,9 +1062,7 @@ static int irbuilder_phi(lua_State *L) {
   llvm::Type *ty = get_type(L, 2);
   unsigned int num_values = (unsigned int)luaL_checkinteger(L, 3);
   const char *name = nullptr;
-  if (lua_gettop(L) >= 4) {
-    name = luaL_checkstring(L, 4);
-  }
+  if (lua_gettop(L) >= 4) { name = luaL_checkstring(L, 4); }
   llvm::PHINode *phi = builder->builder->CreatePHI(ty, num_values, name);
   alloc_LLVM_phinode(L, phi);
   return 1;
@@ -1104,51 +1078,51 @@ static int phi_addincoming(lua_State *L) {
 }
 
 /* ops that take a value and value array as arguments */
-#define irbuilder_vva(op)                                                      \
-  static int irbuilder_##op(lua_State *L) {                                    \
-    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);                     \
-    llvm::Value *c = get_value(L, 2);                                          \
-    luaL_argcheck(L, lua_istable(L, 3), 3, "table expected");                  \
-    int len = luaL_len(L, 3);                                                  \
-    std::vector<llvm::Value *> elements;                                       \
-    for (int i = 1; i <= len; i++) {                                           \
-      lua_rawgeti(L, 3, i);                                                    \
-      llvm::Value *v = get_value(L, -1);                                       \
-      elements.push_back(v);                                                   \
-      lua_pop(L, 1);                                                           \
-    }                                                                          \
-    llvm::Value *result = builder->builder->Create##op(c, elements);           \
-    alloc_LLVM_value(L, result);                                               \
-    return 1;                                                                  \
+#define irbuilder_vva(op)                                            \
+  static int irbuilder_##op(lua_State *L) {                          \
+    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);           \
+    llvm::Value *c = get_value(L, 2);                                \
+    luaL_argcheck(L, lua_istable(L, 3), 3, "table expected");        \
+    int len = luaL_len(L, 3);                                        \
+    std::vector<llvm::Value *> elements;                             \
+    for (int i = 1; i <= len; i++) {                                 \
+      lua_rawgeti(L, 3, i);                                          \
+      llvm::Value *v = get_value(L, -1);                             \
+      elements.push_back(v);                                         \
+      lua_pop(L, 1);                                                 \
+    }                                                                \
+    llvm::Value *result = builder->builder->Create##op(c, elements); \
+    alloc_LLVM_value(L, result);                                     \
+    return 1;                                                        \
   }
 
-#define irbuilder_binop(op)                                                    \
-  static int irbuilder_##op(lua_State *L) {                                    \
-    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);                     \
-    llvm::Value *lhs = get_value(L, 2);                                        \
-    llvm::Value *rhs = get_value(L, 3);                                        \
-    llvm::Value *result = builder->builder->Create##op(lhs, rhs);              \
-    alloc_LLVM_value(L, result);                                               \
-    return 1;                                                                  \
+#define irbuilder_binop(op)                                       \
+  static int irbuilder_##op(lua_State *L) {                       \
+    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);        \
+    llvm::Value *lhs = get_value(L, 2);                           \
+    llvm::Value *rhs = get_value(L, 3);                           \
+    llvm::Value *result = builder->builder->Create##op(lhs, rhs); \
+    alloc_LLVM_value(L, result);                                  \
+    return 1;                                                     \
   }
 
-#define irbuilder_unop(op)                                                     \
-  static int irbuilder_##op(lua_State *L) {                                    \
-    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);                     \
-    llvm::Value *lhs = get_value(L, 2);                                        \
-    llvm::Value *result = builder->builder->Create##op(lhs);                   \
-    alloc_LLVM_value(L, result);                                               \
-    return 1;                                                                  \
+#define irbuilder_unop(op)                                   \
+  static int irbuilder_##op(lua_State *L) {                  \
+    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);   \
+    llvm::Value *lhs = get_value(L, 2);                      \
+    llvm::Value *result = builder->builder->Create##op(lhs); \
+    alloc_LLVM_value(L, result);                             \
+    return 1;                                                \
   }
 
-#define irbuilder_convert(op)                                                  \
-  static int irbuilder_##op(lua_State *L) {                                    \
-    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);                     \
-    llvm::Value *lhs = get_value(L, 2);                                        \
-    llvm::Type *rhs = get_type(L, 3);                                          \
-    llvm::Value *result = builder->builder->Create##op(lhs, rhs);              \
-    alloc_LLVM_value(L, result);                                               \
-    return 1;                                                                  \
+#define irbuilder_convert(op)                                     \
+  static int irbuilder_##op(lua_State *L) {                       \
+    IRBuilderHolder *builder = check_LLVM_irbuilder(L, 1);        \
+    llvm::Value *lhs = get_value(L, 2);                           \
+    llvm::Type *rhs = get_type(L, 3);                             \
+    llvm::Value *result = builder->builder->Create##op(lhs, rhs); \
+    alloc_LLVM_value(L, result);                                  \
+    return 1;                                                     \
   }
 
 irbuilder_vva(InBoundsGEP);

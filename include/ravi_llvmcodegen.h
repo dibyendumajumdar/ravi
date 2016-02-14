@@ -342,7 +342,7 @@ struct LuaLLVMTypes {
 // The hierarchy of objects
 // used to represent LLVM artifacts is as
 // follows
-  
+
 // RaviJITState          - Root, held in Lua state; wraps llvm::Context
 // +- RaviJITModule      - wraps llvm::Module
 //    +- RaviJITFunction - wraps llvm::Function
@@ -353,13 +353,13 @@ struct LuaLLVMTypes {
 // holds a reference to the owning RaviJITModule
 // via a shared_ptr. This ensures that RaviJITModule gets
 // released when no longer referenced.
-  
+
 class RAVI_API RaviJITState;
 class RAVI_API RaviJITModule;
 class RAVI_API RaviJITFunction;
 
 class RAVI_API RaviJITStateFactory {
-public:
+ public:
   static std::unique_ptr<RaviJITState> newJITState();
 };
 
@@ -400,7 +400,7 @@ class RAVI_API RaviJITModule {
   // This calls f->getId() to get the
   // functions location in the array
   void removeFunction(RaviJITFunction *f);
-  
+
   // Runs LLVM code generation and optimization passes
   // The reason for separting this from the
   // finalization is that this method is also
@@ -414,7 +414,7 @@ class RAVI_API RaviJITModule {
   // loaded dynamically - i.e., is part of the the executable
   // and therefore not visible at runtime by name
   llvm::Function *addExternFunction(llvm::FunctionType *type, void *address,
-    const std::string &name);
+                                    const std::string &name);
 };
 
 // Represents a JITed or JITable function
@@ -441,17 +441,21 @@ class RAVI_API RaviJITFunction {
   // Pointer to compiled function
   void *ptr_;
 
-  // The Lua Proto associated with this function
-  Proto *proto_;
+  // A location provided by the caller where the
+  // compiled function will be saved
+  lua_CFunction *func_ptrptr_;
 
  public:
-  RaviJITFunction(Proto *prototype, std::shared_ptr<RaviJITModule> module,
-                  llvm::FunctionType *type,llvm::GlobalValue::LinkageTypes linkage, const std::string &name);
+  RaviJITFunction(lua_CFunction *p, std::shared_ptr<RaviJITModule> module,
+                  llvm::FunctionType *type,
+                  llvm::GlobalValue::LinkageTypes linkage,
+                  const std::string &name);
   ~RaviJITFunction();
 
   const std::string &name() const { return name_; }
   llvm::Function *function() const { return function_; }
   llvm::Module *module() const { return module_->module(); }
+  RaviJITModule *raviModule() const { return module_.get(); }
   llvm::ExecutionEngine *engine() const { return module_->engine(); }
   RaviJITState *owner() const { return module_->owner(); }
   // This method retrieves the JITed function from the
@@ -464,10 +468,9 @@ class RAVI_API RaviJITFunction {
   int getId() const { return id_; }
   void setId(int id) { id_ = id; }
   llvm::Function *addExternFunction(llvm::FunctionType *type, void *address,
-    const std::string &name) {
+                                    const std::string &name) {
     return module_->addExternFunction(type, address, name);
   }
-
 };
 
 // Ravi's LLVM JIT State
@@ -681,7 +684,8 @@ class RaviCodeGenerator {
   // The p->ravi_jit structure will be updated
   // Note that if a function fails to compile then
   // a flag is set so that it doesn't get compiled again
-  bool compile(lua_State *L, Proto *p, std::shared_ptr<RaviJITModule> module, ravi_compile_options_t *options);
+  bool compile(lua_State *L, Proto *p, std::shared_ptr<RaviJITModule> module,
+               ravi_compile_options_t *options);
 
   // We can only compile a subset of op codes
   // and not all features are supported
@@ -695,8 +699,9 @@ class RaviCodeGenerator {
   // Argument will be named L
   // Initial BasicBlock will be created
   // int func(lua_State *L) {
-  std::unique_ptr<RaviJITFunction> create_function(Proto *p, std::shared_ptr<RaviJITModule> module, llvm::IRBuilder<> &builder,
-                                                   RaviFunctionDef *def);
+  std::unique_ptr<RaviJITFunction> create_function(
+      Proto *p, std::shared_ptr<RaviJITModule> module,
+      llvm::IRBuilder<> &builder, RaviFunctionDef *def);
 
   // Save proto->code[pc] into savedpc
   void emit_update_savedpc(RaviFunctionDef *def, int pc);
