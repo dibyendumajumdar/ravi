@@ -343,7 +343,10 @@ public:
   static std::unique_ptr<RaviJITState> newJITState();
 };
 
+// A wrapper for LLVM Module
+// Maintains a dedicated ExecutionEngine for the module
 class RAVI_API RaviJITModule {
+  // The Context that owns this module
   RaviJITState *owner_;
 
   // The execution engine responsible for compiling the
@@ -368,10 +371,17 @@ class RAVI_API RaviJITModule {
   void dump();
   void dumpAssembly();
 
+  // Add the function to this module, the function will be
+  // saved in the functions_ array.
   int addFunction(RaviJITFunction *f);
+  // Remove a function from the array
   void removeFunction(RaviJITFunction *f);
+  
+  // Rus optimzation passes
   void runpasses(bool dumpAsm = false);
-  void compileFunctions(bool doDump = false);
+  // finalize the module, and assign each function
+  // its pointer
+  void finalize(bool doDump = false);
 
   // Add declaration for an extern function that is not
   // loaded dynamically - i.e., is part of the the executable
@@ -422,9 +432,10 @@ class RAVI_API RaviJITFunction {
 
 };
 
-// Ravi's JIT State
+// Ravi's LLVM JIT State
 // All of the JIT information is held here
 class RAVI_API RaviJITState {
+  // The LLVM Context
   llvm::LLVMContext *context_;
 
   // The triple represents the host target
@@ -464,8 +475,8 @@ class RAVI_API RaviJITState {
 
   void addGlobalSymbol(const std::string &name, void *address);
 
-  virtual void dump();
-  virtual llvm::LLVMContext &context() { return *context_; }
+  void dump();
+  llvm::LLVMContext &context() { return *context_; }
   LuaLLVMTypes *types() const { return types_; }
   const std::string &triple() const { return triple_; }
   bool is_auto() const { return auto_; }

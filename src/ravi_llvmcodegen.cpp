@@ -1295,7 +1295,6 @@ RaviCodeGenerator::emit_gep_upval_value(RaviFunctionDef *def,
 bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
                                 std::shared_ptr<RaviJITModule> module,
                                 ravi_compile_options_t *options) {
-  bool doDump = options ? options->dump_level != 0 : 0;
   bool doVerify = options ? options->verification_level != 0 : 0;
   bool omitArrayGetRangeCheck =
       options ? options->omit_array_get_range_check != 0 : 0;
@@ -1306,9 +1305,6 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
   llvm::LLVMContext &context = jitState_->context();
   llvm::IRBuilder<> builder(context);
 
-//  std::unique_ptr<RaviFunctionDef> definition =
-//      std::unique_ptr<RaviFunctionDef>(new RaviFunctionDef());
-//  RaviFunctionDef *def = definition.get();
   RaviFunctionDef definition = {0};
   RaviFunctionDef *def = &definition;
 

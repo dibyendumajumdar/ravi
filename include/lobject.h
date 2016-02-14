@@ -435,7 +435,7 @@ typedef enum {
 } ravi_jit_flag_t;
 
 typedef struct RaviJITProto {
-  lu_byte jit_status; /* 0=not compiled, 1=can't compile, 2=compiled, 3=freed */
+  lu_byte jit_status; /* 0=not compiled, 1=can't compile, 2=IR generated, 3=compiled, 4=freed */
   lu_byte jit_flags; 
   unsigned short execution_count;   /* how many times has function been executed */
   void *jit_data;

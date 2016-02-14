@@ -27,6 +27,7 @@
  * Implementation Notes:
  * Each Lua function is compiled into an LLVM Module/Function
  * This strategy allows functions to be garbage collected as normal by Lua
+ * See issue #78 for changes to this (wip)
  */
 
 namespace ravi {
@@ -45,9 +46,8 @@ RaviJITState::RaviJITState()
       gc_step_(200), tracehook_enabled_(false) {
   // LLVM needs to be initialized else
   // ExecutionEngine cannot be created
-  // This should ideally be an atomic check but because LLVM docs
-  // say that it is okay to call these functions more than once we
-  // do not bother
+  // This needs to be an atomic check although LLVM docs
+  // say that it is okay to call these functions more than once
   if (init == 0) {
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
@@ -81,7 +81,7 @@ void RaviJITState::dump() {
   types_->dump();
 }
 
-static std::atomic_int module_id = 1;
+static std::atomic_int module_id;
 
 RaviJITModule::RaviJITModule(RaviJITState *owner) : owner_(owner), engine_(nullptr), module_(nullptr) {
   int myid = module_id++;
@@ -110,6 +110,7 @@ RaviJITModule::RaviJITModule(RaviJITState *owner) : owner_(owner), engine_(nullp
   engine_ = builder.create();
   if (!engine_) {
     fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
+    // FIXME we need to handle this error somehow
     return;
   }
 }
@@ -132,13 +133,14 @@ RaviJITModule::addFunction(RaviJITFunction *f) {
 
 void
 RaviJITModule::removeFunction(RaviJITFunction *f) {
+  lua_assert(functions_[f->getId()] == f);
   functions_[f->getId()] = nullptr;
 }
 
 RaviJITFunction::RaviJITFunction(
     Proto *p, std::shared_ptr<RaviJITModule> module, llvm::FunctionType *type,
     llvm::GlobalValue::LinkageTypes linkage, const std::string &name)
-    : proto_(p), module_(module), name_(name), function_(nullptr), ptr_(nullptr) {
+    : module_(module), name_(name), function_(nullptr), ptr_(nullptr), proto_(p) {
   function_ = llvm::Function::Create(type, linkage, name, module_->module());
   id_ = module_->addFunction(this);
 }
@@ -241,7 +243,7 @@ void RaviJITModule::runpasses(bool dumpAsm) {
     llvm::errs() << codestr << "\n";
 }
 
-void RaviJITModule::compileFunctions(bool doDump) {
+void RaviJITModule::finalize(bool doDump) {
   // Following will generate very verbose dump when machine code is
   // produced below
   llvm::TargetMachine *TM = engine_->getTargetMachine();
@@ -270,7 +272,7 @@ RaviJITFunction::setFunctionPtr() {
   lua_assert(proto_ != nullptr);
   ptr_ = engine()->getPointerToFunction(function_);
   proto_->ravi_jit.jit_function = (lua_CFunction)ptr_;
-  lua_assert(proto->ravi_jit.jit_function);
+  lua_assert(proto_->ravi_jit.jit_function);
   if (proto_->ravi_jit.jit_function == nullptr) {
     proto_->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE; // can't compile
   }
@@ -371,9 +373,10 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
   }
   if (doCompile) {
     auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
-    G->ravi_state->code_generator->compile(L, p, module, options);
-    module->runpasses();
-    module->compileFunctions();
+    if (G->ravi_state->code_generator->compile(L, p, module, options)) {
+      module->runpasses();
+      module->finalize(options ? options->dump_level != 0 : 0);
+    }
   }
   return p->ravi_jit.jit_status == RAVI_JIT_COMPILED;
 }
