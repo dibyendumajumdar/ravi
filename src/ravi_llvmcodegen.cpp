@@ -30,7 +30,7 @@ RaviBranchDef::RaviBranchDef()
       ilimit(nullptr), istep(nullptr), iidx(nullptr), flimit(nullptr),
       fstep(nullptr), fidx(nullptr) {}
 
-RaviCodeGenerator::RaviCodeGenerator(RaviJITStateImpl *jitState)
+RaviCodeGenerator::RaviCodeGenerator(RaviJITState *jitState)
     : jitState_(jitState), id_(1) {
   temp_[0] = 0;
 }
@@ -935,16 +935,16 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
   return true;
 }
 
-std::unique_ptr<RaviJITFunctionImpl>
-RaviCodeGenerator::create_function(llvm::IRBuilder<> &builder,
+std::unique_ptr<RaviJITFunction>
+RaviCodeGenerator::create_function(Proto *p, std::shared_ptr<RaviJITModule> module,
+                                   llvm::IRBuilder<> &builder,
                                    RaviFunctionDef *def) {
   LuaLLVMTypes *types = jitState_->types();
 
-  std::unique_ptr<ravi::RaviJITFunctionImpl> func =
-      std::unique_ptr<RaviJITFunctionImpl>(
-          (RaviJITFunctionImpl *)jitState_->createFunction(
-              types->jitFunctionT, llvm::Function::ExternalLinkage,
-              unique_function_name()));
+  std::unique_ptr<ravi::RaviJITFunction> func =
+      std::unique_ptr<RaviJITFunction>(
+        new RaviJITFunction(p, module, types->jitFunctionT, llvm::Function::ExternalLinkage,
+          unique_function_name()));
   if (!func)
     return func;
 
@@ -1292,7 +1292,8 @@ RaviCodeGenerator::emit_gep_upval_value(RaviFunctionDef *def,
   return emit_gep(def, "value", pupval, 0, 2);
 }
 
-void RaviCodeGenerator::compile(lua_State *L, Proto *p,
+bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
+                                std::shared_ptr<RaviJITModule> module,
                                 ravi_compile_options_t *options) {
   bool doDump = options ? options->dump_level != 0 : 0;
   bool doVerify = options ? options->verification_level != 0 : 0;
@@ -1300,7 +1301,7 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
       options ? options->omit_array_get_range_check != 0 : 0;
 
   if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED || !canCompile(p))
-    return;
+    return false;
 
   llvm::LLVMContext &context = jitState_->context();
   llvm::IRBuilder<> builder(context);
@@ -1327,10 +1328,10 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
     lua_lock(L);
   }
 
-  auto f = create_function(builder, def);
+  auto f = create_function(p, module, builder, def);
   if (!f) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE; // can't compile
-    return;
+    return false;
   }
   
   // The functions constants
@@ -1875,17 +1876,11 @@ void RaviCodeGenerator::compile(lua_State *L, Proto *p,
 
   if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs()))
     abort();
-  ravi::RaviJITFunctionImpl *llvm_func = f.release();
+  ravi::RaviJITFunction *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
-  p->ravi_jit.jit_function = (lua_CFunction)llvm_func->compile(doDump);
-  lua_assert(p->ravi_jit.jit_function);
-  if (p->ravi_jit.jit_function == nullptr) {
-    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE; // can't compile
-    delete llvm_func;
-    p->ravi_jit.jit_data = NULL;
-  } else {
-    p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
-  }
+  p->ravi_jit.jit_function = nullptr;
+  p->ravi_jit.jit_status = RAVI_JIT_IR_GENERATED;
+  return llvm_func != nullptr;
 }
 
 void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {

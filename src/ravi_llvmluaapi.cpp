@@ -139,7 +139,7 @@ struct ContextHolder {
    * Lifetime of this is tied to the Lua instance so
    * no need to garbage collect
    */
-  ravi::RaviJITStateImpl *jitState;
+  ravi::RaviJITState *jitState;
 };
 
 /* garbage collected */
@@ -169,7 +169,7 @@ struct FunctionTypeHolder {
 
 /* garbage collected */
 struct MainFunctionHolder {
-  ravi::RaviJITFunctionImpl *func;
+  ravi::RaviJITFunction *func;
   lua_CFunction compiled_func;
   llvm::Value *arg1;
 };
@@ -232,7 +232,7 @@ static void alloc_LLVM_type(lua_State *L, llvm::Type *t) {
   tt->type = t;
 }
 
-static void alloc_LLVM_context(lua_State *L, ravi::RaviJITStateImpl *jit) {
+static void alloc_LLVM_context(lua_State *L, ravi::RaviJITState *jit) {
   ContextHolder *h = (ContextHolder *)lua_newuserdata(L, sizeof(ContextHolder));
   raviU_getmetatable(L, LLVM_context);
   lua_setmetatable(L, -2);
@@ -302,7 +302,7 @@ static void alloc_LLVM_phinode(lua_State *L, llvm::PHINode *phi) {
 }
 
 static MainFunctionHolder *alloc_LLVM_mainfunction(lua_State *L,
-                                                   ravi::RaviJITStateImpl *jit,
+                                                   ravi::RaviJITState *jit,
                                                    llvm::FunctionType *type,
                                                    const char *name) {
   MainFunctionHolder *h =
@@ -312,7 +312,7 @@ static MainFunctionHolder *alloc_LLVM_mainfunction(lua_State *L,
   h->arg1 = nullptr;
   raviU_getmetatable(L, LLVM_mainfunction);
   lua_setmetatable(L, -2);
-  h->func = (ravi::RaviJITFunctionImpl *)jit->createFunction(
+  h->func = (ravi::RaviJITFunction *)jit->createFunction(
       type, llvm::Function::ExternalLinkage, name);
   return h;
 }
@@ -721,8 +721,8 @@ static int func_compile(lua_State *L) {
   return 1;
 }
 
-typedef int (*decl_func)(lua_State *L, ravi::RaviJITStateImpl *jit,
-                         ravi::RaviJITFunctionImpl *f);
+typedef int (*decl_func)(lua_State *L, ravi::RaviJITState *jit,
+                         ravi::RaviJITFunction *f);
 typedef struct {
   const char *name;
   decl_func f;

@@ -163,6 +163,7 @@ extern "C" int mytest(RaviGCObject *obj) {
   return obj->b1;
 }
 
+#if 0
 // This version of the test calls mytest() rather than
 // printf() as in test1(). Also we use RaviJITState and related
 // infrastructure
@@ -240,6 +241,7 @@ int test2() {
   printf("The answer is %d\n", ans);
   return ans == 42 ? 0 : 1;
 }
+#endif
 
 int main() {
 
@@ -251,7 +253,7 @@ int main() {
 
   int failure_count = 0;
   failure_count += test1();
-  failure_count += test2();
+//  failure_count += test2();
 
   return failure_count != 0 ? 1 : 0;
 }

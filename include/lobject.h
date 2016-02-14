@@ -424,8 +424,9 @@ typedef struct LocVar {
 typedef enum {
   RAVI_JIT_NOT_COMPILED = 0,
   RAVI_JIT_CANT_COMPILE = 1,
-  RAVI_JIT_COMPILED = 2,
-  RAVI_JIT_FREED = 3
+  RAVI_JIT_IR_GENERATED = 2,
+  RAVI_JIT_COMPILED = 3,
+  RAVI_JIT_FREED = 4
 } ravi_jit_status_t;
 
 typedef enum {
