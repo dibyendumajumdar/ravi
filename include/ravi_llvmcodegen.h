@@ -95,7 +95,8 @@ enum LuaTypeCode {
   LUA__TNUMINT = LUA_TNUMINT
 };
 
-// All Lua types are gathered here
+// All LLVM definitions for
+// Lua types are gathered here
 struct LuaLLVMTypes {
   LuaLLVMTypes(llvm::LLVMContext &context);
   void dump();
@@ -119,10 +120,14 @@ struct LuaLLVMTypes {
   llvm::PointerType *plua_NumberT;
   llvm::PointerType *pplua_NumberT;
 
+  // WARNING: We currently assume that lua_Integer is
+  // 64-bit
   llvm::Type *lua_IntegerT;
   llvm::PointerType *plua_IntegerT;
   llvm::PointerType *pplua_IntegerT;
 
+  // WARNING: We currently assume that lua_Unsigned is
+  // 64-bit
   llvm::Type *lua_UnsignedT;
   llvm::Type *lua_KContextT;
 
@@ -334,6 +339,21 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_Table_metatable;
 };
 
+// The hierarchy of objects
+// used to represent LLVM artifacts is as
+// follows
+  
+// RaviJITState          - Root, held in Lua state; wraps llvm::Context
+// +- RaviJITModule      - wraps llvm::Module
+//    +- RaviJITFunction - wraps llvm::Function
+
+// The RaviJITFunction is held within the
+// Lua Proto structure - and garbage collected along
+// with the Lua function. Each RaviJITFunction
+// holds a reference to the owning RaviJITModule
+// via a shared_ptr. This ensures that RaviJITModule gets
+// released when no longer referenced.
+  
 class RAVI_API RaviJITState;
 class RAVI_API RaviJITModule;
 class RAVI_API RaviJITFunction;
@@ -372,15 +392,22 @@ class RAVI_API RaviJITModule {
   void dumpAssembly();
 
   // Add the function to this module, the function will be
-  // saved in the functions_ array.
+  // saved in the functions_ array. The location of the
+  // function is returned which must be returned by
+  // f->getId()
   int addFunction(RaviJITFunction *f);
   // Remove a function from the array
+  // This calls f->getId() to get the
+  // functions location in the array
   void removeFunction(RaviJITFunction *f);
   
-  // Rus optimzation passes
+  // Runs LLVM code generation and optimization passes
+  // The reason for separting this from the
+  // finalization is that this method is also
+  // used to dump the generated assembly code
   void runpasses(bool dumpAsm = false);
   // finalize the module, and assign each function
-  // its pointer
+  // its function pointer
   void finalize(bool doDump = false);
 
   // Add declaration for an extern function that is not
@@ -391,14 +418,21 @@ class RAVI_API RaviJITModule {
 };
 
 // Represents a JITed or JITable function
+// This object is stored in the Lua Proto structure
+// and gets destroyed when the Lua function is
+// garbage collected
 class RAVI_API RaviJITFunction {
   // The Module in which this function lives
+  // We hold a shared_ptr to the module so that
+  // the module will be destroyed when the
+  // last associated RaviJITFunction is collected
   std::shared_ptr<RaviJITModule> module_;
 
   // Unique name for the function
   std::string name_;
 
   // ID allocated by the module to this function
+  // This must be returned via getId()
   int id_;
 
   // The llvm Function definition
@@ -420,6 +454,10 @@ class RAVI_API RaviJITFunction {
   llvm::Module *module() const { return module_->module(); }
   llvm::ExecutionEngine *engine() const { return module_->engine(); }
   RaviJITState *owner() const { return module_->owner(); }
+  // This method retrieves the JITed function from the
+  // execution engine and sets ptr_ member
+  // It must be called after the module has run the
+  // code generation and optimization passes
   void setFunctionPtr();
   void dump() { module_->dump(); }
   void dumpAssembly() { module_->dumpAssembly(); }

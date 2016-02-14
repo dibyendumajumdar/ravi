@@ -266,10 +266,15 @@ void RaviJITModule::finalize(bool doDump) {
   }
 }
 
+// Retrieve the JITed function from the
+// execution engine and store it in ptr_
+// Also associate the JITed function with the
+// Lua Proto structure
 void
 RaviJITFunction::setFunctionPtr() {
   lua_assert(ptr_ == nullptr);
   lua_assert(proto_ != nullptr);
+  lua_assert(proto_->ravi_jit.jit_data == (void*) this);
   ptr_ = engine()->getPointerToFunction(function_);
   proto_->ravi_jit.jit_function = (lua_CFunction)ptr_;
   lua_assert(proto_->ravi_jit.jit_function);
@@ -384,16 +389,14 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
 // Free the JIT compiled function
 // Note that this is called by the garbage collector
 void raviV_freeproto(struct lua_State *L, struct Proto *p) {
-  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) /* compiled */ {
-    ravi::RaviJITFunction *f =
+  ravi::RaviJITFunction *f =
         reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
-    if (f)
-      delete f;
-    p->ravi_jit.jit_status = RAVI_JIT_FREED;
-    p->ravi_jit.jit_function = NULL;
-    p->ravi_jit.jit_data = NULL;
-    p->ravi_jit.execution_count = 0;
-  }
+  if (f)
+    delete f;
+  p->ravi_jit.jit_status = RAVI_JIT_FREED;
+  p->ravi_jit.jit_function = NULL;
+  p->ravi_jit.jit_data = NULL;
+  p->ravi_jit.execution_count = 0;
 }
 
 // Dump the LLVM IR
