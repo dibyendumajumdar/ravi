@@ -276,7 +276,6 @@ void RaviJITFunction::setFunctionPtr() {
   lua_assert(ptr_ == nullptr);
   ptr_ = engine()->getPointerToFunction(function_);
   *func_ptrptr_ = (lua_CFunction)ptr_;
-  lua_assert(proto_->ravi_jit.jit_function);
 }
 
 llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,
