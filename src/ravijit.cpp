@@ -28,13 +28,13 @@ extern "C" {
 
 #define LUA_CORE
 
-#include "lua.h"
-#include "lobject.h"
-#include "lstate.h"
-#include "lauxlib.h"
 #include "lapi.h"
-#include "lopcodes.h"
+#include "lauxlib.h"
 #include "lfunc.h"
+#include "lobject.h"
+#include "lopcodes.h"
+#include "lstate.h"
+#include "lua.h"
 
 #include <string.h>
 
@@ -94,6 +94,47 @@ static int ravi_compile(lua_State *L) {
   return 1;
 }
 
+static int ravi_compile_n(lua_State *L) {
+  enum { MAX_COMPILES = 100 };
+  Proto *functions[MAX_COMPILES];
+  int n = 0;
+  if (lua_istable(L, 1)) {
+    lua_pushnil(L);  // push first key
+    while (lua_next(L, 1)) {
+      if (n < MAX_COMPILES && lua_isfunction(L, -1) &&
+          !lua_iscfunction(L, -1)) {
+        void *p = (void *)lua_topointer(L, -1);
+        LClosure *l = reinterpret_cast<LClosure *>(p);
+        if (!l->p->ravi_jit.jit_function) functions[n++] = l->p;
+      }
+      lua_pop(L, 1);  // pop value, but keep key
+    }
+  }
+  else {
+    luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
+                  "argument must be a Lua function");
+    void *p = (void *)lua_topointer(L, 1);
+    LClosure *l = reinterpret_cast<LClosure *>(p);
+    functions[n++] = l->p;
+  }
+  ravi_compile_options_t options = {0};
+  options.manual_request = 1;
+  if (lua_istable(L, 2)) {
+    lua_Integer do_dump, do_verify, omit_arrayget_rangecheck;
+    l_table_get_integer(L, 2, "dump", &do_dump, 0);
+    l_table_get_integer(L, 2, "verify", &do_verify, 0);
+    l_table_get_integer(L, 2, "omitArrayGetRangeCheck",
+                        &omit_arrayget_rangecheck, 0);
+    options.omit_array_get_range_check = (int)omit_arrayget_rangecheck;
+    options.dump_level = (int)do_dump;
+    options.verification_level = (int)do_verify;
+  }
+  int result = 0;
+  if (n > 0) { result = raviV_compile_n(L, functions, n, &options); }
+  lua_pushboolean(L, result);
+  return 1;
+}
+
 // Dump Lua bytecode of the supplied function
 static int ravi_dump_luacode(lua_State *L) {
   int n = lua_gettop(L);
@@ -136,14 +177,11 @@ static int ravi_auto(lua_State *L) {
   lua_pushboolean(L, raviV_getauto(L));
   lua_pushinteger(L, raviV_getmincodesize(L));
   lua_pushinteger(L, raviV_getminexeccount(L));
-  if (n >= 1)
-    raviV_setauto(L, lua_toboolean(L, 1));
+  if (n >= 1) raviV_setauto(L, lua_toboolean(L, 1));
   int min_code_size = (n >= 2) ? (int)(lua_tointeger(L, 2)) : -1;
   int min_exec_count = (n == 3) ? (int)(lua_tointeger(L, 3)) : -1;
-  if (min_code_size >= 1)
-    raviV_setmincodesize(L, min_code_size);
-  if (min_exec_count >= 1)
-    raviV_setminexeccount(L, min_exec_count);
+  if (min_code_size >= 1) raviV_setmincodesize(L, min_code_size);
+  if (min_exec_count >= 1) raviV_setminexeccount(L, min_exec_count);
   return 3;
 }
 
@@ -208,13 +246,14 @@ static int ravi_traceenable(lua_State *L) {
 }
 
 static int ravi_listcode(lua_State *L) {
-  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
-    1, "Lua function expected");
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
+                "Lua function expected");
   return ravi_list_code(L);
 }
 
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"compile", ravi_compile},
+                                   {"compilen", ravi_compile_n},
                                    {"dumplua", ravi_dump_luacode},
                                    {"dumpllvm", ravi_dump_ir},
                                    {"dumpir", ravi_dump_ir},

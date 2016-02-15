@@ -381,6 +381,9 @@ class RAVI_API RaviJITModule {
   // post compilation
   std::vector<RaviJITFunction *> functions_;
 
+  // Keep track of external symbols added
+  std::map<std::string, llvm::Function *> external_symbols_;
+
  public:
   RaviJITModule(RaviJITState *owner);
   ~RaviJITModule();

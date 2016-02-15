@@ -282,6 +282,9 @@ void RaviJITFunction::setFunctionPtr() {
 llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,
                                                  void *address,
                                                  const std::string &name) {
+  auto fn = external_symbols_.find(name);
+  if (fn != external_symbols_.end())
+    return fn->second;
   llvm::Function *f = llvm::Function::Create(
       type, llvm::Function::ExternalLinkage, name, module_);
   f->setDoesNotThrow();
@@ -291,6 +294,7 @@ llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,
   // See bug report http://llvm.org/bugs/show_bug.cgi?id=20656
   // following will call DynamicLibrary::AddSymbol
   owner_->addGlobalSymbol(name, address);
+  external_symbols_[name] = f;
   return f;
 }
 
@@ -371,6 +375,25 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
     }
   }
   return p->ravi_jit.jit_function != nullptr;
+}
+
+// Compile a bunch of Lua functions
+// And put them all in one module
+// Returns true if compilation was successful
+int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
+  ravi_compile_options_t *options) {
+  global_State *G = G(L);
+  int count = 0;
+  auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
+  for (int i = 0; i < n; i++) {
+    if (G->ravi_state->code_generator->compile(L, p[i], module, options))
+      count++;
+  }
+  if (count) {
+    module->runpasses();
+    module->finalize(options ? options->dump_level != 0 : 0);
+  }
+  return count > 0;
 }
 
 // Free the JIT compiled function

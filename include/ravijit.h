@@ -53,6 +53,9 @@ void raviV_close(struct lua_State *L);
 /* Compile the given function if possible */
 int raviV_compile(struct lua_State *L, struct Proto *p,
                   ravi_compile_options_t *options);
+/* Compile an array of functions */
+int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
+                    ravi_compile_options_t *options);
 int raviV_iscompiled(struct lua_State *L, struct Proto *p);
 
 /* Free the JIT structures associated with the prototype */
