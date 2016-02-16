@@ -915,8 +915,12 @@ static void init_def(ravi_function_def_t *def, ravi_gcc_context_t *ravi,
 
 int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
   ravi_compile_options_t *options) {
-  // FIXME implement
-  return 0;
+  int count = 0;
+  for (int i = 0; i < n; i++) {
+    if (raviV_compile(L, p[i], options)) 
+      count++;
+  }
+  return count > 0;
 }
 
 // Compile a Lua function

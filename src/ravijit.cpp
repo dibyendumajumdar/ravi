@@ -67,33 +67,6 @@ static bool l_table_get_integer(lua_State *L, int tab, const char *key,
   return rc;
 }
 
-// Try to JIT compile the given function
-// Optional boolean (second) parameter specifies whether
-// to dump the code generation
-static int ravi_compile(lua_State *L) {
-  int n = lua_gettop(L);
-  luaL_argcheck(L, n >= 1, 1, "1 or 2 arguments expected");
-  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
-                "argument must be a Lua function");
-  void *p = (void *)lua_topointer(L, 1);
-  LClosure *l = reinterpret_cast<LClosure *>(p);
-  ravi_compile_options_t options = {0};
-  options.manual_request = 1;
-  if (lua_istable(L, 2)) {
-    lua_Integer do_dump, do_verify, omit_arrayget_rangecheck;
-    l_table_get_integer(L, 2, "dump", &do_dump, 0);
-    l_table_get_integer(L, 2, "verify", &do_verify, 0);
-    l_table_get_integer(L, 2, "omitArrayGetRangeCheck",
-                        &omit_arrayget_rangecheck, 0);
-    options.omit_array_get_range_check = (int)omit_arrayget_rangecheck;
-    options.dump_level = (int)do_dump;
-    options.verification_level = (int)do_verify;
-  }
-  int result = raviV_compile(L, l->p, &options);
-  lua_pushboolean(L, result);
-  return 1;
-}
-
 static int ravi_compile_n(lua_State *L) {
   enum { MAX_COMPILES = 100 };
   Proto *functions[MAX_COMPILES];
