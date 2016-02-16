@@ -252,8 +252,7 @@ static int ravi_listcode(lua_State *L) {
 }
 
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
-                                   {"compile", ravi_compile},
-                                   {"compilen", ravi_compile_n},
+                                   {"compile", ravi_compile_n},
                                    {"dumplua", ravi_dump_luacode},
                                    {"dumpllvm", ravi_dump_ir},
                                    {"dumpir", ravi_dump_ir},

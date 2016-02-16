@@ -186,7 +186,7 @@ end
 
 if ravi.jit() then
   assert(ravi.compile(cast))
-  assert(ravi.compilen(matrix, {omitArrayGetRangeCheck=1}))
+  assert(ravi.compile(matrix, {omitArrayGetRangeCheck=1}))
   --ravi.dumpir(matrix.new)
 end
 
