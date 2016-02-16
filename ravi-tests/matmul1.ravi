@@ -186,17 +186,8 @@ end
 
 if ravi.jit() then
   assert(ravi.compile(cast))
-  assert(ravi.compile(matrix.gen))
-  assert(ravi.compile(matrix.gen2))
-  assert(ravi.compile(matrix.mul, {omitArrayGetRangeCheck=1}))
-  assert(ravi.compile(matrix.mul2, {omitArrayGetRangeCheck=1}))
-  assert(ravi.compile(matrix.T))
-  assert(ravi.compile(matrix.T2))
-  assert(ravi.compile(matrix.cols))
-  assert(ravi.compile(matrix.rows))
-  assert(ravi.compile(matrix.getdata))
-  assert(ravi.compile(matrix.getrow))
-  assert(ravi.compile(matrix.new))
+  assert(ravi.compilen(matrix, {omitArrayGetRangeCheck=1}))
+  --ravi.dumpir(matrix.new)
 end
 
 local n = arg[1] or 1000;
