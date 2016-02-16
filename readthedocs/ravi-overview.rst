@@ -7,7 +7,7 @@ Lua is perfect as a small embeddable dynamic language so why a derivative? Ravi 
 
 There are other attempts to add static typing to Lua - e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. The Typed Lua effort is very similar to the approach taken by Typescript in the JavaScript world. The static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
-My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. Type information can be exploited by JIT compilation technology to improve performance.
+My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. Type information can be exploited by JIT compilation technology to improve performance. At the same time, I want to keep the language safe and therefore usable by non-expert programmers. 
 
 Goals
 -----
@@ -267,8 +267,8 @@ A JIT api is available with following functions:
   returns enabled setting of JIT compiler; also enables/disables the JIT compiler; defaults to true
 ``ravi.auto([b [, min_size [, min_executions]]])``
   returns setting of auto compilation and compilation thresholds; also sets the new settings if values are supplied; defaults are false, 150, 50.
-``ravi.compile(func[, options])``
-  compiles a Lua function if possible, returns ``true`` if compilation was successful. ``options`` is an optional table with compilation options - in particular ``omitArrayGetRangeCheck`` - which disables range checks in array get operations to improve performance in some cases. 
+``ravi.compile(func_or_table[, options])``
+  compiles a Lua function (or functions if a table is supplied) if possible, returns ``true`` if compilation was successful for at least one function. ``options`` is an optional table with compilation options - in particular ``omitArrayGetRangeCheck`` - which disables range checks in array get operations to improve performance in some cases. Note that at present if the first argument is a table of functions and has more than 100 functions then only the first 100 will be compiled. You can invoke compile() repeatedly on the table until it returns false. Each invocation leads to a new module being created; any functions already compiled are skipped.
 ``ravi.iscompiled(func)``
   returns the JIT status of a function
 ``ravi.dumplua(func)``
