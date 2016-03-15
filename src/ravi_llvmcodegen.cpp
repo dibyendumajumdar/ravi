@@ -962,7 +962,7 @@ std::unique_ptr<RaviJITFunction> RaviCodeGenerator::create_function(
   builder.SetInsertPoint(entry);
 
   auto argiter = mainFunc->arg_begin();
-  llvm::Value *arg1 = argiter++;
+  llvm::Value *arg1 = &(*argiter);
   arg1->setName("L");
 
   def->jitState = jitState_;

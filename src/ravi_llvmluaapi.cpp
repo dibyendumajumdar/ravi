@@ -604,7 +604,7 @@ static int context_new_lua_CFunction(lua_State *L) {
   MainFunctionHolder *h = alloc_LLVM_mainfunction(
       L, context->jitState, context->jitState->types()->lua_CFunctionT, name);
   /* set L arg */
-  h->arg1 = h->func->function()->arg_begin();
+  h->arg1 = &(*h->func->function()->arg_begin());
   h->arg1->setName("L");
   return 1;
 }
@@ -975,7 +975,7 @@ static int func_getarg(lua_State *L) {
     auto E = func->arg_end();
     for (int i = 1; B != E; B++, i++) {
       if (i == argn) {
-        alloc_LLVM_value(L, B);
+        alloc_LLVM_value(L, &(*B));
         break;
       }
     }
@@ -1032,7 +1032,7 @@ static int func_alloca(lua_State *L) {
   const char *name = nullptr;
   if (lua_gettop(L) >= 3) name = luaL_checkstring(L, 3);
   if (lua_gettop(L) >= 4) arraysize = get_value(L, 4);
-  llvm::BasicBlock *block = func->getBasicBlockList().begin();
+  llvm::BasicBlock *block = &(*func->getBasicBlockList().begin());
   luaL_argcheck(L, block != nullptr, 1, "No basic block in function");
   llvm::IRBuilder<> builder(block, block->begin());
   llvm::Instruction *inst = builder.CreateAlloca(ty, arraysize, name);

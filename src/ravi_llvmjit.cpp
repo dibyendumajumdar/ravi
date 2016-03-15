@@ -243,7 +243,9 @@ void RaviJITModule::runpasses(bool dumpAsm) {
     MPM->run(*module_);
 
     // Note that in 3.7 this flus appears to have no effect
+#if LLVM_VERSION_MINOR <= 7
     formatted_stream.flush();
+#endif
   }
   if (dumpAsm && codestr.length() > 0) llvm::errs() << codestr << "\n";
 }

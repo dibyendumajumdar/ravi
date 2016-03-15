@@ -89,7 +89,7 @@ int test1() {
 
   // Get the first argument which is RaviGCObject *
   auto argiter = mainFunc->arg_begin();
-  llvm::Value *arg1 = argiter++;
+  llvm::Value *arg1 = &(*argiter);
   arg1->setName("obj");
 
   // Now we need a GEP for the second field in RaviGCObject

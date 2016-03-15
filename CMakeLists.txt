@@ -164,6 +164,9 @@ endif ()
 # Enable minimal required LLVM components so that the
 # the size of the resulting binary is manageable
 if (LLVM_JIT)
+    if (${LLVM_PACKAGE_VERSION} VERSION_LESS "3.8")
+        set(LLVM_EXTRA_LIBS ipa)
+    endif()
     llvm_map_components_to_libnames(LLVM_LIBS
             Analysis
             Core
@@ -173,7 +176,7 @@ if (LLVM_JIT)
             BitReader
             ExecutionEngine
             InstCombine
-            ipa
+            ${LLVM_EXTRA_LIBS}
             ipo
             MC
             MCJIT
