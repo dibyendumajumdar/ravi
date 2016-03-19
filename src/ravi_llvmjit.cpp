@@ -24,8 +24,12 @@
 #include "ravi_llvmcodegen.h"
 
 static int allocated_modules = 0;
-extern "C" LUA_API int ravi_get_modulecount() {
+extern "C" {
+
+LUA_API int ravi_get_modulecount() {
   return allocated_modules;
+}
+
 }
 
 /*
