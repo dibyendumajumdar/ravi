@@ -598,6 +598,7 @@ static int pmain (lua_State *L) {
   return 1;
 }
 
+LUA_API int ravi_get_modulecount();
 
 int main (int argc, char **argv) {
   int status, result;
@@ -624,6 +625,7 @@ int main (int argc, char **argv) {
   result = lua_toboolean(L, -1);  /* get result */
   report(L, status);
   lua_close(L);
+  fprintf(stderr, "NUM %d\n", ravi_get_modulecount());
   return (result && status == LUA_OK) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

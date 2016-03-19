@@ -1300,12 +1300,17 @@ llvm::Value *RaviCodeGenerator::emit_gep_upval_value(
 bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
                                 std::shared_ptr<RaviJITModule> module,
                                 ravi_compile_options_t *options) {
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED)
+    return true;
+
   bool doVerify = options ? options->verification_level != 0 : 0;
   bool omitArrayGetRangeCheck =
       options ? options->omit_array_get_range_check != 0 : 0;
 
-  if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED || !canCompile(p))
+  if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED || !canCompile(p)) {
+    fprintf(stderr, "failed to compile!\n");
     return false;
+  }
 
   llvm::LLVMContext &context = jitState_->context();
   llvm::IRBuilder<> builder(context);
@@ -1878,6 +1883,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
   ravi::RaviJITFunction *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = nullptr;
+  p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
   return llvm_func != nullptr;
 }
 

@@ -23,6 +23,11 @@
 #include <ravijit.h>
 #include "ravi_llvmcodegen.h"
 
+static int allocated_modules = 0;
+extern "C" LUA_API int ravi_get_modulecount() {
+  return allocated_modules;
+}
+
 /*
  * Implementation Notes:
  * Each Lua function is compiled into an LLVM Module/Function
@@ -86,6 +91,7 @@ void RaviJITState::dump() { types_->dump(); }
 
 static std::atomic_int module_id;
 
+
 RaviJITModule::RaviJITModule(RaviJITState *owner)
     : owner_(owner), engine_(nullptr), module_(nullptr) {
   int myid = module_id++;
@@ -112,6 +118,7 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   std::string errStr;
   builder.setErrorStr(&errStr);
   engine_ = builder.create();
+  allocated_modules++;
   if (!engine_) {
     fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
     // FIXME we need to handle this error somehow
@@ -126,6 +133,8 @@ RaviJITModule::~RaviJITModule() {
     // if engine was created then we don't need to delete the
     // module as it would have been deleted by the engine
     delete module_;
+  allocated_modules--;
+  //fprintf(stderr, "module destroyed\n");
 }
 
 int RaviJITModule::addFunction(RaviJITFunction *f) {
@@ -155,6 +164,7 @@ RaviJITFunction::RaviJITFunction(lua_CFunction *p,
 
 RaviJITFunction::~RaviJITFunction() {
   // Remove this function from parent
+  //fprintf(stderr, "function destroyed\n");
   module_->removeFunction(this);
 }
 
@@ -411,7 +421,7 @@ void raviV_freeproto(struct lua_State *L, struct Proto *p) {
 
 // Dump the LLVM IR
 void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
-  if (p->ravi_jit.jit_function) /* compiled */ {
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) /* compiled */ {
     ravi::RaviJITFunction *f =
         reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
     if (f) f->dump();
@@ -420,7 +430,7 @@ void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
 
 // Dump the LLVM ASM
 void raviV_dumpASM(struct lua_State *L, struct Proto *p) {
-  if (p->ravi_jit.jit_function) /* compiled */ {
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) /* compiled */ {
     ravi::RaviJITFunction *f =
         reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
     if (f) f->dumpAssembly();

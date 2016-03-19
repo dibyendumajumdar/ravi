@@ -424,6 +424,7 @@ typedef struct LocVar {
 typedef enum {
   RAVI_JIT_NOT_COMPILED = 0,
   RAVI_JIT_CANT_COMPILE = 1,
+  RAVI_JIT_COMPILED = 2 /* But actual function pointer must be checked */
 } ravi_jit_status_t;
 
 typedef enum {

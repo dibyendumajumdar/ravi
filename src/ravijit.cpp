@@ -46,7 +46,7 @@ static int ravi_is_compiled(lua_State *L) {
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = reinterpret_cast<LClosure *>(p);
-  lua_pushboolean(L, l->p->ravi_jit.jit_status == 2);
+  lua_pushboolean(L, l->p->ravi_jit.jit_status == RAVI_JIT_COMPILED);
   return 1;
 }
 
