@@ -598,7 +598,10 @@ static int pmain (lua_State *L) {
   return 1;
 }
 
+#if 0
+// For debugging
 LUA_API int ravi_get_modulecount();
+#endif
 
 int main (int argc, char **argv) {
   int status, result;
@@ -625,7 +628,10 @@ int main (int argc, char **argv) {
   result = lua_toboolean(L, -1);  /* get result */
   report(L, status);
   lua_close(L);
-  fprintf(stderr, "NUM %d\n", ravi_get_modulecount());
+#if 0
+  // For debugging - should be 0
+  fprintf(stderr, "Modules at exit %d\n", ravi_get_modulecount());
+#endif
   return (result && status == LUA_OK) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

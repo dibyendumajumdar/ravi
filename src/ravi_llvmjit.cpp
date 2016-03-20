@@ -23,6 +23,8 @@
 #include <ravijit.h>
 #include "ravi_llvmcodegen.h"
 
+#if 0
+// For debugging
 static int allocated_modules = 0;
 extern "C" {
 
@@ -31,6 +33,7 @@ LUA_API int ravi_get_modulecount() {
 }
 
 }
+#endif
 
 /*
  * Implementation Notes:
@@ -122,7 +125,9 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   std::string errStr;
   builder.setErrorStr(&errStr);
   engine_ = builder.create();
+#if 0
   allocated_modules++;
+#endif
   if (!engine_) {
     fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
     // FIXME we need to handle this error somehow
@@ -137,8 +142,10 @@ RaviJITModule::~RaviJITModule() {
     // if engine was created then we don't need to delete the
     // module as it would have been deleted by the engine
     delete module_;
+#if 0
   allocated_modules--;
   //fprintf(stderr, "module destroyed\n");
+#endif
 }
 
 int RaviJITModule::addFunction(RaviJITFunction *f) {
