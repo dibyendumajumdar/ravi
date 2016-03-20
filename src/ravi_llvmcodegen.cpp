@@ -1308,7 +1308,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       options ? options->omit_array_get_range_check != 0 : 0;
 
   if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED || !canCompile(p)) {
-    fprintf(stderr, "failed to compile!\n");
+    //fprintf(stderr, "failed to compile!\n");
     return false;
   }
 
