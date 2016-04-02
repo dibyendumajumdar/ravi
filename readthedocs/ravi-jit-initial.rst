@@ -1,7 +1,7 @@
 LLVM First Steps
 ================
 
-Note that the discussion below is for LVM 3.5.1. 
+Note that the discussion below is for LLVM 3.5.1. 
 
 Although there appears to be a lot of documentation in the LLVM site surprisingly some basic information is hard to find.
 The main source of guidance for creating a JIT is in the example toy language 
