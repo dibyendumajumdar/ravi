@@ -176,6 +176,15 @@ static int vscode_parse_intarg_request(json_value *js, ProtocolMessage *msg, int
   return msgtype;
 }
 
+static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg, int msgtype, FILE *log) {
+  json_value *args = get_object_value(js, "arguments", log);
+  if (args == NULL) return VSCODE_UNKNOWN_REQUEST;
+  int found = 0;
+  msg->u.Request.u.LaunchRequest.noDebug = get_boolean_value(args, "noDebug", log, &found);
+  msg->u.Request.request_type = msgtype;
+  return msgtype;
+}
+
 static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
                                 FILE *log) {
   const char *cmd = get_string_value(js, "command", log);
@@ -189,8 +198,7 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
   case VSCODE_INITIALIZE_REQUEST:
     return vscode_parse_initialize_request(js, msg, log);
   case VSCODE_DISCONNECT_REQUEST:
-    msg->u.Request.request_type = cmdtype;
-    break;
+  case VSCODE_ATTACH_REQUEST:
   case VSCODE_CONFIGURATION_DONE_REQUEST:
     msg->u.Request.request_type = cmdtype;
     break;
@@ -202,6 +210,8 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
     return vscode_parse_intarg_request(js, msg, cmdtype, "threadId", log);
   case VSCODE_SCOPES_REQUEST:
     return vscode_parse_intarg_request(js, msg, cmdtype, "frameId", log);
+  case VSCODE_LAUNCH_REQUEST:
+    return vscode_parse_launch_request(js, msg, cmdtype, log);
   case VSCODE_UNKNOWN_REQUEST:
     break;
   default:
@@ -256,7 +266,7 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
     res->seq, res->u.Response.command, res->u.Response.success ? "true" : "false");
   cp = temp + strlen(temp);
   if (res->u.Response.message[0]) {
-    snprintf(cp, sizeof temp - strlen(temp), ",\"message\":\"%s\"",
+    snprintf(cp, sizeof temp - strlen(temp), ",\"error\":\"%s\"",
       res->u.Response.message);
     cp = temp + strlen(temp);
   }
