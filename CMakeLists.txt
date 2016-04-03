@@ -214,8 +214,34 @@ else()
 endif ()
 target_link_libraries(libravi ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
 
+#Static library
+if (NOT LLVM_JIT)
+  add_library(libravistatic 
+        ${RAVI_HEADERS}
+        ${LUA_LIB_SRCS} 
+        ${LUA_CORE_SRCS}
+        ${LLVM_JIT_SRCS}
+        ${GCC_JIT_SRCS}
+        ${NO_JIT_SRCS})
+  if (WIN32)
+    # enable DLL export
+    set_target_properties(libravistatic PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+  else()
+    set_target_properties(libravistatic PROPERTIES PREFIX "")
+  endif ()
+  target_link_libraries(libravistatic ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
+
+  add_executable(testravidebug vscode-debugger/testravidebug.c vscode-debugger/json.c vscode-debugger/protocol.c)
+  target_link_libraries(testravidebug libravistatic)
+
+  add_test(TestRaviDebug testravidebug)
+endif()
+
 add_executable(ravi src/lua.c)
 target_link_libraries(ravi libravi)
+
+#add_executable(ravidebug vscode-debugger/ravidebug.c vscode-debugger/json.c vscode-debugger/protocol.c)
+#target_link_libraries(ravidebug libravistatic)
 
 #VM test
 add_executable(test_vm tests/test_vm.c)
