@@ -1,8 +1,8 @@
 #ifndef RAVI_VSCODE_PROTOCOL_H
 #define RAVI_VSCODE_PROTOCOL_H
 
-#include "json.h"
 #include <stdio.h>
+#include "json.h"
 
 enum {
   VSCODE_REQUEST = 1,
@@ -125,11 +125,9 @@ typedef struct {
 typedef struct {
   int line;
   int column;
-} SourceBreakpoint ;
+} SourceBreakpoint;
 
-typedef struct {
-  char name[NAME_LEN];
-} FunctionBreakpoint;
+typedef struct { char name[NAME_LEN]; } FunctionBreakpoint;
 
 typedef struct {
   int id;
@@ -147,14 +145,14 @@ typedef struct {
   int supportsEvaluateForHovers;
 } Capabilities;
 
-/* See https://github.com/Microsoft/vscode-debugadapter-node/blob/master/protocol/src/debugProtocol.ts */
+/* See
+ * https://github.com/Microsoft/vscode-debugadapter-node/blob/master/protocol/src/debugProtocol.ts
+ */
 typedef struct {
-
   int type;
   int seq;
 
   union {
-
     struct {
       int event_type;
       char event[EVENT_LEN];
@@ -198,7 +196,6 @@ typedef struct {
       char command[COMMAND_LEN];
 
       union {
-      
         struct {
           char adapterID[NAME_LEN];
           int linesStartAt1;
@@ -333,9 +330,13 @@ typedef struct {
 } ProtocolMessage;
 
 extern int vscode_parse_message(char *buf, size_t len, ProtocolMessage *msg,
-  FILE *log);
-extern void vscode_make_error_response(ProtocolMessage *req, ProtocolMessage *res, int restype, const char *errormsg);
-extern void vscode_make_success_response(ProtocolMessage *req, ProtocolMessage *res, int restype);
-extern void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res);
+                                FILE *log);
+extern void vscode_make_error_response(ProtocolMessage *req,
+                                       ProtocolMessage *res, int restype,
+                                       const char *errormsg);
+extern void vscode_make_success_response(ProtocolMessage *req,
+                                         ProtocolMessage *res, int restype);
+extern void vscode_serialize_response(char *buf, size_t buflen,
+                                      ProtocolMessage *res);
 
 #endif
