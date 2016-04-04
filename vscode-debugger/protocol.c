@@ -256,14 +256,33 @@ void vscode_make_success_response(ProtocolMessage *req, ProtocolMessage *res, in
   res->u.Response.success = 1;
 }
 
+void vscode_make_initialized_event(ProtocolMessage *res) {
+  memset(res, 0, sizeof(ProtocolMessage));
+  res->seq = seq++;
+  res->type = VSCODE_EVENT;
+  strncpy(res->u.Event.event, "initialized", sizeof res->u.Event.event);
+  res->u.Event.event_type = VSCODE_INITIALIZED_EVENT;
+}
+
+void vscode_make_output_event(ProtocolMessage *res, const char *msg) {
+  memset(res, 0, sizeof(ProtocolMessage));
+  res->seq = seq++;
+  res->type = VSCODE_EVENT;
+  strncpy(res->u.Event.event, "output", sizeof res->u.Event.event);
+  strncpy(res->u.Event.u.OutputEvent.output, msg, sizeof res->u.Event.u.OutputEvent.output);
+  res->u.Event.event_type = VSCODE_OUTPUT_EVENT;
+}
+
+
 void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
   char temp[1024] = { 0 };
   char *cp = temp;
   buf[0] = 0;
   if (res->type != VSCODE_RESPONSE)
     return;
-  snprintf(cp, sizeof temp - strlen(temp), "{\"type\":\"response\",\"seq\":%d,\"command\":\"%s\",\"success\":%s",
-    res->seq, res->u.Response.command, res->u.Response.success ? "true" : "false");
+  snprintf(cp, sizeof temp - strlen(temp), "{\"type\":\"response\",\"seq\":%d,\"command\":\"%s\",\"request_seq\":%d,\"success\":%s",
+    res->seq, res->u.Response.command, res->u.Response.request_seq, 
+    res->u.Response.success ? "true" : "false");
   cp = temp + strlen(temp);
   if (res->u.Response.message[0]) {
     snprintf(cp, sizeof temp - strlen(temp), ",\"error\":\"%s\"",
@@ -277,6 +296,26 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
       res->u.Response.u.InitializeResponse.body.supportsConditionalBreakpoints ? "true" : "false",
       res->u.Response.u.InitializeResponse.body.supportsEvaluateForHovers ? "true" : "false"
       );
+    cp = temp + strlen(temp);
+  }
+  snprintf(cp, sizeof temp - strlen(temp), "}");
+  cp = temp + strlen(temp);
+  snprintf(buf, buflen, "Content-Length: %d\r\n\r\n%s", (int)strlen(temp), temp);
+  //printf(buf);
+}
+
+void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
+  char temp[1024] = { 0 };
+  char *cp = temp;
+  buf[0] = 0;
+  if (res->type != VSCODE_EVENT)
+    return;
+  snprintf(cp, sizeof temp - strlen(temp), "{\"type\":\"event\",\"seq\":%d,\"event\":\"%s\"",
+    res->seq, res->u.Event.event);
+  cp = temp + strlen(temp);
+  if (res->u.Event.event_type == VSCODE_OUTPUT_EVENT) {
+    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"output\":\"%s\"}",
+      res->u.Event.u.OutputEvent.output);
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");

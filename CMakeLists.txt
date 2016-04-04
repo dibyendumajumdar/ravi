@@ -235,13 +235,14 @@ if (NOT LLVM_JIT)
   target_link_libraries(testravidebug libravistatic)
 
   add_test(TestRaviDebug testravidebug)
+
+  add_executable(ravidebug vscode-debugger/ravidebug.c vscode-debugger/json.c vscode-debugger/protocol.c)
+  target_link_libraries(ravidebug libravistatic)
 endif()
 
 add_executable(ravi src/lua.c)
 target_link_libraries(ravi libravi)
 
-#add_executable(ravidebug vscode-debugger/ravidebug.c vscode-debugger/json.c vscode-debugger/protocol.c)
-#target_link_libraries(ravidebug libravistatic)
 
 #VM test
 add_executable(test_vm tests/test_vm.c)

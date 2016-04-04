@@ -29,14 +29,14 @@ int test_initreq() {
   vscode_serialize_response(buf, sizeof buf, &res);
   const char *expected =
       "Content-Length: "
-      "97\r\n\r\n{\"type\":\"response\",\"seq\":1,\"command\":\"initialize\","
+      "113\r\n\r\n{\"type\":\"response\",\"seq\":1,\"command\":\"initialize\",\"request_seq\":1,"
       "\"success\":false,\"error\":\"unable to initialize\"}";
   if (strcmp(expected, buf) != 0) return 1;
   vscode_make_success_response(&msg, &res, VSCODE_INITIALIZE_RESPONSE);
   vscode_serialize_response(buf, sizeof buf, &res);
   const char *expected2 =
       "Content-Length: "
-      "224\r\n\r\n{\"type\":\"response\",\"seq\":2,\"command\":\"initialize\","
+    "240\r\n\r\n{\"type\":\"response\",\"seq\":2,\"command\":\"initialize\",\"request_seq\":1,"
       "\"success\":true,\"body\":{\"supportsConfigurationDoneRequest\":false,"
       "\"supportsFunctionBreakpoints\":false,"
       "\"supportsConditionalBreakpoints\":false,\"supportsEvaluateForHovers\":"
