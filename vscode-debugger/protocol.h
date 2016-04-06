@@ -205,6 +205,8 @@ typedef struct {
 
         struct {
           int noDebug;
+          char program[TEXT_LEN];
+          int stopOnEntry;
         } LaunchRequest;
 
         struct {

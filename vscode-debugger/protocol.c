@@ -1,6 +1,6 @@
-#include "protocol.h"
 #include <stdio.h>
 #include <string.h>
+#include "protocol.h"
 
 static int vscode_message_type(json_value *js, FILE *log) {
   if (js->type != json_object) {
@@ -106,6 +106,14 @@ static json_value *get_object_value(json_value *js, const char *key,
   return NULL;
 }
 
+static void dump_keys(json_value *js, FILE *log) {
+  if (js->type != json_object) return;
+  for (int i = 0; i < js->u.object.length; i++) {
+    json_object_entry *value = &js->u.object.values[i];
+    fprintf(log, "key '%s'\n", value->name);
+  }
+}
+
 typedef struct {
   const char *cmdname;
   int code;
@@ -135,52 +143,65 @@ static CommandMapping commands[] = {
 
 static int get_cmdtype(const char *cmd) {
   for (int i = 0; commands[i].cmdname != NULL; i++) {
-    if (strcmp(cmd, commands[i].cmdname) == 0)
-      return commands[i].code;
+    if (strcmp(cmd, commands[i].cmdname) == 0) return commands[i].code;
   }
   return VSCODE_UNKNOWN_REQUEST;
 }
 
 static int vscode_parse_initialize_request(json_value *js, ProtocolMessage *msg,
-  FILE *log) {
+                                           FILE *log) {
   // {"type":"request","seq":1,"command":"initialize","arguments":{"adapterID":"lua","pathFormat":"path","linesStartAt1":true,"columnsStartAt1":true}}
   json_value *args = get_object_value(js, "arguments", log);
   if (args == NULL) return VSCODE_UNKNOWN_REQUEST;
   const char *adapterID = get_string_value(args, "adapterID", log);
   if (adapterID == NULL || strcmp(adapterID, "lua") != 0) {
-    fprintf(log, "Unknown adapterID '%s' in initialize command\n", adapterID != NULL ? adapterID : "null");
+    fprintf(log, "Unknown adapterID '%s' in initialize command\n",
+            adapterID != NULL ? adapterID : "null");
     return VSCODE_UNKNOWN_REQUEST;
   }
-  strncpy(msg->u.Request.u.InitializeRequest.adapterID, adapterID, sizeof msg->u.Request.u.InitializeRequest.adapterID);
+  strncpy(msg->u.Request.u.InitializeRequest.adapterID, adapterID,
+          sizeof msg->u.Request.u.InitializeRequest.adapterID);
   const char *pathFormat = get_string_value(args, "pathFormat", log);
   if (pathFormat != NULL && strcmp(pathFormat, "path") != 0) {
-    fprintf(log, "Unsupported pathFormat '%s' in initialize command\n", pathFormat != NULL ? pathFormat : "null");
+    fprintf(log, "Unsupported pathFormat '%s' in initialize command\n",
+            pathFormat != NULL ? pathFormat : "null");
     return VSCODE_UNKNOWN_REQUEST;
   }
   if (pathFormat)
-    strncpy(msg->u.Request.u.InitializeRequest.pathFormat, pathFormat, sizeof msg->u.Request.u.InitializeRequest.pathFormat);
+    strncpy(msg->u.Request.u.InitializeRequest.pathFormat, pathFormat,
+            sizeof msg->u.Request.u.InitializeRequest.pathFormat);
   int found = 0;
-  msg->u.Request.u.InitializeRequest.columnsStartAt1 = get_boolean_value(args, "columnsStartAt1", log, &found);
-  msg->u.Request.u.InitializeRequest.linesStartAt1 = get_boolean_value(args, "linesStartAt1", log, &found);
+  msg->u.Request.u.InitializeRequest.columnsStartAt1 =
+      get_boolean_value(args, "columnsStartAt1", log, &found);
+  msg->u.Request.u.InitializeRequest.linesStartAt1 =
+      get_boolean_value(args, "linesStartAt1", log, &found);
   msg->u.Request.request_type = VSCODE_INITIALIZE_REQUEST;
   return VSCODE_INITIALIZE_REQUEST;
 }
 
-static int vscode_parse_intarg_request(json_value *js, ProtocolMessage *msg, int msgtype, const char *key,
-  FILE *log) {
+static int vscode_parse_intarg_request(json_value *js, ProtocolMessage *msg,
+                                       int msgtype, const char *key,
+                                       FILE *log) {
   json_value *args = get_object_value(js, "arguments", log);
   if (args == NULL) return VSCODE_UNKNOWN_REQUEST;
   int found = 0;
-  msg->u.Request.u.CommonIntRequest.integer = get_int_value(args, key, log, &found);
+  msg->u.Request.u.CommonIntRequest.integer =
+      get_int_value(args, key, log, &found);
   msg->u.Request.request_type = msgtype;
   return msgtype;
 }
 
-static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg, int msgtype, FILE *log) {
+static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg,
+                                       int msgtype, FILE *log) {
   json_value *args = get_object_value(js, "arguments", log);
   if (args == NULL) return VSCODE_UNKNOWN_REQUEST;
   int found = 0;
-  msg->u.Request.u.LaunchRequest.noDebug = get_boolean_value(args, "noDebug", log, &found);
+  msg->u.Request.u.LaunchRequest.noDebug =
+      get_boolean_value(args, "noDebug", log, &found);
+  msg->u.Request.u.LaunchRequest.stopOnEntry = get_boolean_value(args, "stopOnEntry", log, &found);
+  const char *prog = get_string_value(args, "program", log);
+  if (prog == NULL) return VSCODE_UNKNOWN_REQUEST;
+  strncpy(msg->u.Request.u.LaunchRequest.program, prog, sizeof msg->u.Request.u.LaunchRequest.program);
   msg->u.Request.request_type = msgtype;
   return msgtype;
 }
@@ -193,29 +214,28 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
   msg->type = VSCODE_REQUEST;
   msg->seq = get_int_value(js, "seq", log, &found);
   strncpy(msg->u.Request.command, cmd, sizeof msg->u.Request.command);
+  fprintf(log, "Request --> '%s'", cmd);
   int cmdtype = get_cmdtype(msg->u.Request.command);
   switch (cmdtype) {
-  case VSCODE_INITIALIZE_REQUEST:
-    return vscode_parse_initialize_request(js, msg, log);
-  case VSCODE_DISCONNECT_REQUEST:
-  case VSCODE_ATTACH_REQUEST:
-  case VSCODE_CONFIGURATION_DONE_REQUEST:
-    msg->u.Request.request_type = cmdtype;
-    break;
-  case VSCODE_CONTINUE_REQUEST:
-  case VSCODE_NEXT_REQUEST:
-  case VSCODE_STEPIN_REQUEST:
-  case VSCODE_STEPOUT_REQUEST:
-  case VSCODE_PAUSE_REQUEST:
-    return vscode_parse_intarg_request(js, msg, cmdtype, "threadId", log);
-  case VSCODE_SCOPES_REQUEST:
-    return vscode_parse_intarg_request(js, msg, cmdtype, "frameId", log);
-  case VSCODE_LAUNCH_REQUEST:
-    return vscode_parse_launch_request(js, msg, cmdtype, log);
-  case VSCODE_UNKNOWN_REQUEST:
-    break;
-  default:
-    msg->u.Request.request_type = cmdtype;
+    case VSCODE_INITIALIZE_REQUEST:
+      return vscode_parse_initialize_request(js, msg, log);
+    case VSCODE_DISCONNECT_REQUEST:
+    case VSCODE_ATTACH_REQUEST:
+    case VSCODE_CONFIGURATION_DONE_REQUEST:
+      msg->u.Request.request_type = cmdtype;
+      break;
+    case VSCODE_CONTINUE_REQUEST:
+    case VSCODE_NEXT_REQUEST:
+    case VSCODE_STEPIN_REQUEST:
+    case VSCODE_STEPOUT_REQUEST:
+    case VSCODE_PAUSE_REQUEST:
+      return vscode_parse_intarg_request(js, msg, cmdtype, "threadId", log);
+    case VSCODE_SCOPES_REQUEST:
+      return vscode_parse_intarg_request(js, msg, cmdtype, "frameId", log);
+    case VSCODE_LAUNCH_REQUEST:
+      return vscode_parse_launch_request(js, msg, cmdtype, log);
+    case VSCODE_UNKNOWN_REQUEST: break;
+    default: msg->u.Request.request_type = cmdtype;
   }
   return cmdtype;
 }
@@ -227,30 +247,33 @@ int vscode_parse_message(char *buf, size_t len, ProtocolMessage *msg,
   if (js == NULL) return VSCODE_UNKNOWN;
 
   int msgtype = vscode_message_type(js, log);
-  if (msgtype == VSCODE_REQUEST) 
-    msgtype = vscode_parse_request(js, msg, log);
+  if (msgtype == VSCODE_REQUEST) msgtype = vscode_parse_request(js, msg, log);
   json_value_free(js);
   return msgtype;
 }
 
 static int seq = 1;
 
-void vscode_make_error_response(ProtocolMessage *req, ProtocolMessage *res, int restype, const char *errormsg) {
+void vscode_make_error_response(ProtocolMessage *req, ProtocolMessage *res,
+                                int restype, const char *errormsg) {
   memset(res, 0, sizeof(ProtocolMessage));
   res->seq = seq++;
   res->type = VSCODE_RESPONSE;
-  strncpy(res->u.Response.command, req->u.Request.command, sizeof res->u.Response.command);
+  strncpy(res->u.Response.command, req->u.Request.command,
+          sizeof res->u.Response.command);
   res->u.Response.request_seq = req->seq;
   res->u.Response.response_type = restype;
   strncpy(res->u.Response.message, errormsg, sizeof res->u.Response.message);
   res->u.Response.success = 0;
 }
 
-void vscode_make_success_response(ProtocolMessage *req, ProtocolMessage *res, int restype) {
+void vscode_make_success_response(ProtocolMessage *req, ProtocolMessage *res,
+                                  int restype) {
   memset(res, 0, sizeof(ProtocolMessage));
   res->seq = seq++;
   res->type = VSCODE_RESPONSE;
-  strncpy(res->u.Response.command, req->u.Request.command, sizeof res->u.Response.command);
+  strncpy(res->u.Response.command, req->u.Request.command,
+          sizeof res->u.Response.command);
   res->u.Response.request_seq = req->seq;
   res->u.Response.response_type = restype;
   res->u.Response.success = 1;
@@ -269,56 +292,72 @@ void vscode_make_output_event(ProtocolMessage *res, const char *msg) {
   res->seq = seq++;
   res->type = VSCODE_EVENT;
   strncpy(res->u.Event.event, "output", sizeof res->u.Event.event);
-  strncpy(res->u.Event.u.OutputEvent.output, msg, sizeof res->u.Event.u.OutputEvent.output);
+  strncpy(res->u.Event.u.OutputEvent.output, msg,
+          sizeof res->u.Event.u.OutputEvent.output);
   res->u.Event.event_type = VSCODE_OUTPUT_EVENT;
 }
 
-
 void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
-  char temp[1024] = { 0 };
+  char temp[1024] = {0};
   char *cp = temp;
   buf[0] = 0;
-  if (res->type != VSCODE_RESPONSE)
-    return;
-  snprintf(cp, sizeof temp - strlen(temp), "{\"type\":\"response\",\"seq\":%d,\"command\":\"%s\",\"request_seq\":%d,\"success\":%s",
-    res->seq, res->u.Response.command, res->u.Response.request_seq, 
-    res->u.Response.success ? "true" : "false");
+  if (res->type != VSCODE_RESPONSE) return;
+  snprintf(cp, sizeof temp - strlen(temp),
+           "{\"type\":\"response\",\"seq\":%d,\"command\":\"%s\",\"request_"
+           "seq\":%d,\"success\":%s",
+           res->seq, res->u.Response.command, res->u.Response.request_seq,
+           res->u.Response.success ? "true" : "false");
   cp = temp + strlen(temp);
   if (res->u.Response.message[0]) {
-    snprintf(cp, sizeof temp - strlen(temp), ",\"error\":\"%s\"",
-      res->u.Response.message);
+    snprintf(cp, sizeof temp - strlen(temp), ",\"message\":\"%s\"",
+             res->u.Response.message);
     cp = temp + strlen(temp);
   }
-  if (res->u.Response.response_type == VSCODE_INITIALIZE_RESPONSE && res->u.Response.success) {
-    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"supportsConfigurationDoneRequest\":%s,\"supportsFunctionBreakpoints\":%s,\"supportsConditionalBreakpoints\":%s,\"supportsEvaluateForHovers\":%s}",
-      res->u.Response.u.InitializeResponse.body.supportsConfigurationDoneRequest ? "true" : "false",
-      res->u.Response.u.InitializeResponse.body.supportsFunctionBreakpoints ? "true" : "false",
-      res->u.Response.u.InitializeResponse.body.supportsConditionalBreakpoints ? "true" : "false",
-      res->u.Response.u.InitializeResponse.body.supportsEvaluateForHovers ? "true" : "false"
-      );
+  if (res->u.Response.response_type == VSCODE_INITIALIZE_RESPONSE &&
+      res->u.Response.success) {
+    snprintf(
+        cp, sizeof temp - strlen(temp),
+        ",\"body\":{\"supportsConfigurationDoneRequest\":%s,"
+        "\"supportsFunctionBreakpoints\":%s,\"supportsConditionalBreakpoints\":"
+        "%s,\"supportsEvaluateForHovers\":%s}",
+        res->u.Response.u.InitializeResponse.body
+                .supportsConfigurationDoneRequest
+            ? "true"
+            : "false",
+        res->u.Response.u.InitializeResponse.body.supportsFunctionBreakpoints
+            ? "true"
+            : "false",
+        res->u.Response.u.InitializeResponse.body.supportsConditionalBreakpoints
+            ? "true"
+            : "false",
+        res->u.Response.u.InitializeResponse.body.supportsEvaluateForHovers
+            ? "true"
+            : "false");
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");
   cp = temp + strlen(temp);
-  snprintf(buf, buflen, "Content-Length: %d\r\n\r\n%s", (int)strlen(temp), temp);
-  //printf(buf);
+  snprintf(buf, buflen, "Content-Length: %d\r\n\r\n%s", (int)strlen(temp),
+           temp);
+  // printf(buf);
 }
 
 void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
-  char temp[1024] = { 0 };
+  char temp[1024] = {0};
   char *cp = temp;
   buf[0] = 0;
-  if (res->type != VSCODE_EVENT)
-    return;
-  snprintf(cp, sizeof temp - strlen(temp), "{\"type\":\"event\",\"seq\":%d,\"event\":\"%s\"",
-    res->seq, res->u.Event.event);
+  if (res->type != VSCODE_EVENT) return;
+  snprintf(cp, sizeof temp - strlen(temp),
+           "{\"type\":\"event\",\"seq\":%d,\"event\":\"%s\"", res->seq,
+           res->u.Event.event);
   cp = temp + strlen(temp);
   if (res->u.Event.event_type == VSCODE_OUTPUT_EVENT) {
     snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"output\":\"%s\"}",
-      res->u.Event.u.OutputEvent.output);
+             res->u.Event.u.OutputEvent.output);
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");
   cp = temp + strlen(temp);
-  snprintf(buf, buflen, "Content-Length: %d\r\n\r\n%s", (int)strlen(temp), temp);
+  snprintf(buf, buflen, "Content-Length: %d\r\n\r\n%s", (int)strlen(temp),
+           temp);
 }
