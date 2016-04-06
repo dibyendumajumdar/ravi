@@ -43,6 +43,21 @@ static void send_success_response(ProtocolMessage *req, ProtocolMessage *res,
   fprintf(out, buf);
 }
 
+static void handle_initialize_request(ProtocolMessage *req,
+                                      ProtocolMessage *res, FILE *out) {
+  char buf[1024];
+  vscode_make_success_response(req, res, VSCODE_INITIALIZE_RESPONSE);
+  res->u.Response.u.InitializeResponse.body.supportsConfigurationDoneRequest =
+      1;
+  vscode_serialize_response(buf, sizeof buf, res);
+  fprintf(log, "%s\n", buf);
+  fprintf(out, buf);
+  vscode_make_initialized_event(res);
+  vscode_serialize_event(buf, sizeof buf, res);
+  fprintf(log, "%s\n", buf);
+  fprintf(out, buf);
+}
+
 /**
  * Called via Lua Hook or via main
  * If called from main then init is true and ar = NULL
@@ -74,17 +89,7 @@ static void debugger(lua_State *L, int init, lua_Debug *ar, FILE *in,
       switch (command) {
         case VSCODE_INITIALIZE_REQUEST: {
           if (init) {
-            vscode_make_success_response(&req, &res,
-                                         VSCODE_INITIALIZE_RESPONSE);
-            res.u.Response.u.InitializeResponse.body
-                .supportsConfigurationDoneRequest = 1;
-            vscode_serialize_response(buf, sizeof buf, &res);
-            fprintf(log, "%s\n", buf);
-            fprintf(out, buf);
-            vscode_make_initialized_event(&res);
-            vscode_serialize_event(buf, sizeof buf, &res);
-            fprintf(log, "%s\n", buf);
-            fprintf(out, buf);
+            handle_initialize_request(&req, &res, out);
             send_output_event(&res, "Debugger initialized", out);
           }
           break;
@@ -124,7 +129,13 @@ static void debugger(lua_State *L, int init, lua_Debug *ar, FILE *in,
   }
 }
 
-void ravi_debughook(lua_State *L, lua_Debug *ar) {}
+void ravi_debughook(lua_State *L, lua_Debug *ar) {
+  int event = ar->event;
+  if (event == LUA_HOOKLINE) {
+
+  }
+
+}
 
 int main(int argc, const char *argv[]) {
   log = fopen("\\temp\\out1.txt", "w");
