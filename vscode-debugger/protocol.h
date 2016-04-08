@@ -340,7 +340,11 @@ extern void vscode_make_success_response(ProtocolMessage *req,
                                          ProtocolMessage *res, int restype);
 extern void vscode_serialize_response(char *buf, size_t buflen,
                                       ProtocolMessage *res);
-extern void vscode_make_initialized_event(ProtocolMessage *res);
 extern void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res);
+extern void vscode_make_initialized_event(ProtocolMessage *res);
+extern void vscode_make_output_event(ProtocolMessage *res, const char *msg);
+extern void vscode_make_stopped_event(ProtocolMessage *res, const char *reason);
+extern void vscode_make_stopped_event(ProtocolMessage *res, const char *reason);
+extern void vscode_make_thread_event(ProtocolMessage *res, int started);
 
 #endif

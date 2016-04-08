@@ -16,6 +16,24 @@
 
 static FILE *log = NULL;
 
+static void send_stopped_event(ProtocolMessage *res, const char *msg,
+  FILE *out) {
+  char buf[1024];
+  vscode_make_stopped_event(res, msg);
+  vscode_serialize_event(buf, sizeof buf, res);
+  fprintf(log, "%s\n", buf);
+  fprintf(out, buf);
+}
+
+static void send_thread_event(ProtocolMessage *res, int started,
+  FILE *out) {
+  char buf[1024];
+  vscode_make_thread_event(res, started);
+  vscode_serialize_event(buf, sizeof buf, res);
+  fprintf(log, "%s\n", buf);
+  fprintf(out, buf);
+}
+
 static void send_output_event(ProtocolMessage *res, const char *msg,
                               FILE *out) {
   char buf[1024];
@@ -58,6 +76,19 @@ static void handle_initialize_request(ProtocolMessage *req,
   fprintf(out, buf);
 }
 
+static void handle_thread_request(ProtocolMessage *req,
+  ProtocolMessage *res, FILE *out) {
+  char buf[1024];
+  vscode_make_success_response(req, res, VSCODE_THREAD_RESPONSE);
+  res->u.Response.u.ThreadResponse.threads[0].id = 1;
+  strncpy(res->u.Response.u.ThreadResponse.threads[0].name, "<Lua Thread>", sizeof res->u.Response.u.ThreadResponse.threads[0].name);
+  vscode_serialize_response(buf, sizeof buf, res);
+  fprintf(log, "%s\n", buf);
+  fprintf(out, buf);
+}
+
+static int thread_event_sent = 0;
+
 /**
  * Called via Lua Hook or via main
  * If called from main then init is true and ar = NULL
@@ -66,6 +97,14 @@ static void debugger(lua_State *L, int init, lua_Debug *ar, FILE *in,
                      FILE *out) {
   char buf[4096] = {0};
   ProtocolMessage req, res;
+  if (!init) {
+    if (!thread_event_sent) {
+      /* thread started */
+      thread_event_sent = 0;
+      send_thread_event(&res, 1, out);
+    }
+    send_stopped_event(&res, "step", out);
+  }
   while (fgets(buf, sizeof buf, in) != NULL) {
     buf[sizeof buf - 1] = 0;
     if (strncmp(buf, "Content-Length: ", 16) == 0) {
@@ -118,6 +157,10 @@ static void debugger(lua_State *L, int init, lua_Debug *ar, FILE *in,
           send_success_response(&req, &res, VSCODE_DISCONNECT_RESPONSE, out);
           break;
         }
+        case VSCODE_THREAD_REQUEST: {
+          handle_thread_request(&req, &res, out);
+          break;
+        }
         default:
           send_error_response(&req, &res, command, "not yet implemented", out);
           break;
@@ -127,14 +170,16 @@ static void debugger(lua_State *L, int init, lua_Debug *ar, FILE *in,
       fprintf(log, "Unexpected: %s\n", buf);
     }
   }
+  if (init) {
+    send_thread_event(&res, 0, stdout);
+  }
 }
 
 void ravi_debughook(lua_State *L, lua_Debug *ar) {
   int event = ar->event;
   if (event == LUA_HOOKLINE) {
-
+    debugger(L, 0, ar, stdin, stdout);
   }
-
 }
 
 int main(int argc, const char *argv[]) {

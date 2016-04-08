@@ -222,6 +222,7 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
     case VSCODE_DISCONNECT_REQUEST:
     case VSCODE_ATTACH_REQUEST:
     case VSCODE_CONFIGURATION_DONE_REQUEST:
+    case VSCODE_THREAD_REQUEST:
       msg->u.Request.request_type = cmdtype;
       break;
     case VSCODE_CONTINUE_REQUEST:
@@ -297,6 +298,26 @@ void vscode_make_output_event(ProtocolMessage *res, const char *msg) {
   res->u.Event.event_type = VSCODE_OUTPUT_EVENT;
 }
 
+void vscode_make_stopped_event(ProtocolMessage *res, const char *reason) {
+  memset(res, 0, sizeof(ProtocolMessage));
+  res->seq = seq++;
+  res->type = VSCODE_EVENT;
+  strncpy(res->u.Event.event, "stopped", sizeof res->u.Event.event);
+  res->u.Event.u.StoppedEvent.threadId = 1;
+  strncpy(res->u.Event.u.StoppedEvent.reason, reason, sizeof res->u.Event.u.StoppedEvent.reason);
+  res->u.Event.event_type = VSCODE_STOPPED_EVENT;
+}
+
+void vscode_make_thread_event(ProtocolMessage *res, int started) {
+  memset(res, 0, sizeof(ProtocolMessage));
+  res->seq = seq++;
+  res->type = VSCODE_EVENT;
+  strncpy(res->u.Event.event, "thread", sizeof res->u.Event.event);
+  res->u.Event.u.ThreadEvent.threadId = 1;
+  strncpy(res->u.Event.u.ThreadEvent.reason, started ? "started" : "exited", sizeof res->u.Event.u.ThreadEvent.reason);
+  res->u.Event.event_type = VSCODE_THREAD_EVENT;
+}
+
 void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
   char temp[1024] = {0};
   char *cp = temp;
@@ -335,6 +356,15 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
             : "false");
     cp = temp + strlen(temp);
   }
+  else if (res->u.Response.response_type == VSCODE_THREAD_RESPONSE && 
+    res->u.Response.success) {
+    snprintf(
+      cp, sizeof temp - strlen(temp),
+      ",\"body\":{[{\"name\":%s,\"id\":%d}]}",
+      res->u.Response.u.ThreadResponse.threads[0].name,
+      res->u.Response.u.ThreadResponse.threads[0].id);
+    cp = temp + strlen(temp);
+  }
   snprintf(cp, sizeof temp - strlen(temp), "}");
   cp = temp + strlen(temp);
   snprintf(buf, buflen, "Content-Length: %d\r\n\r\n%s", (int)strlen(temp),
@@ -354,6 +384,16 @@ void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
   if (res->u.Event.event_type == VSCODE_OUTPUT_EVENT) {
     snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"output\":\"%s\"}",
              res->u.Event.u.OutputEvent.output);
+    cp = temp + strlen(temp);
+  }
+  else if (res->u.Event.event_type == VSCODE_THREAD_EVENT) {
+    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"reason\":\"%s\",\"threadId\":%d}",
+      res->u.Event.u.ThreadEvent.reason, res->u.Event.u.ThreadEvent.threadId);
+    cp = temp + strlen(temp);
+  }
+  else if (res->u.Event.event_type == VSCODE_STOPPED_EVENT) {
+    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"reason\":\"%s\",\"threadId\":%d}",
+      res->u.Event.u.StoppedEvent.reason, res->u.Event.u.StoppedEvent.threadId);
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");
