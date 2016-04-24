@@ -2,6 +2,8 @@
 #define RAVI_VSCODE_PROTOCOL_H
 
 #include <stdio.h>
+#include <stdbool.h>
+
 #include "json.h"
 
 enum {
@@ -345,6 +347,6 @@ extern void vscode_make_initialized_event(ProtocolMessage *res);
 extern void vscode_make_output_event(ProtocolMessage *res, const char *msg);
 extern void vscode_make_stopped_event(ProtocolMessage *res, const char *reason);
 extern void vscode_make_stopped_event(ProtocolMessage *res, const char *reason);
-extern void vscode_make_thread_event(ProtocolMessage *res, int started);
+extern void vscode_make_thread_event(ProtocolMessage *res, bool started);
 
 #endif

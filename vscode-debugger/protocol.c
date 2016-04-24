@@ -1,6 +1,8 @@
+#include "protocol.h"
+
 #include <stdio.h>
 #include <string.h>
-#include "protocol.h"
+#include <stdbool.h>
 
 static int vscode_message_type(json_value *js, FILE *log) {
   if (js->type != json_object) {
@@ -202,9 +204,23 @@ static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg,
   const char *prog = get_string_value(args, "program", log);
   if (prog == NULL) return VSCODE_UNKNOWN_REQUEST;
   strncpy(msg->u.Request.u.LaunchRequest.program, prog, sizeof msg->u.Request.u.LaunchRequest.program);
+  fprintf(log, "LAUNCH %s\n", prog);
   msg->u.Request.request_type = msgtype;
   return msgtype;
 }
+
+static int vscode_parse_stack_trace_request(json_value *js, ProtocolMessage *msg,
+  int msgtype, FILE *log) {
+  json_value *args = get_object_value(js, "arguments", log);
+  if (args == NULL) return VSCODE_UNKNOWN_REQUEST;
+  int found = 0;
+  msg->u.Request.u.StackTraceRequest.threadId = get_int_value(args, "threadId", log, &found);
+  msg->u.Request.u.StackTraceRequest.levels = get_int_value(args, "levels", log, &found);
+  msg->u.Request.u.StackTraceRequest.startFrame = get_int_value(args, "startFrame", log, &found);
+  msg->u.Request.request_type = msgtype;
+  return msgtype;
+}
+
 
 static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
                                 FILE *log) {
@@ -235,6 +251,8 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
       return vscode_parse_intarg_request(js, msg, cmdtype, "frameId", log);
     case VSCODE_LAUNCH_REQUEST:
       return vscode_parse_launch_request(js, msg, cmdtype, log);
+    case VSCODE_STACK_TRACE_REQUEST:
+      return vscode_parse_stack_trace_request(js, msg, cmdtype, log);
     case VSCODE_UNKNOWN_REQUEST: break;
     default: msg->u.Request.request_type = cmdtype;
   }
@@ -298,24 +316,30 @@ void vscode_make_output_event(ProtocolMessage *res, const char *msg) {
   res->u.Event.event_type = VSCODE_OUTPUT_EVENT;
 }
 
+/*
+* Build a StoppedEvent {event, reason, threadId}
+*/
 void vscode_make_stopped_event(ProtocolMessage *res, const char *reason) {
   memset(res, 0, sizeof(ProtocolMessage));
   res->seq = seq++;
   res->type = VSCODE_EVENT;
-  strncpy(res->u.Event.event, "stopped", sizeof res->u.Event.event);
-  res->u.Event.u.StoppedEvent.threadId = 1;
-  strncpy(res->u.Event.u.StoppedEvent.reason, reason, sizeof res->u.Event.u.StoppedEvent.reason);
   res->u.Event.event_type = VSCODE_STOPPED_EVENT;
+  strncpy(res->u.Event.event, "stopped", sizeof res->u.Event.event);
+  res->u.Event.u.StoppedEvent.threadId = 1; /* dummy thread id - always 1 */
+  strncpy(res->u.Event.u.StoppedEvent.reason, reason, sizeof res->u.Event.u.StoppedEvent.reason);
 }
 
-void vscode_make_thread_event(ProtocolMessage *res, int started) {
+/*
+* Build a ThreadEvent  {event, reason, threadid}
+*/
+void vscode_make_thread_event(ProtocolMessage *res, bool started) {
   memset(res, 0, sizeof(ProtocolMessage));
   res->seq = seq++;
   res->type = VSCODE_EVENT;
-  strncpy(res->u.Event.event, "thread", sizeof res->u.Event.event);
-  res->u.Event.u.ThreadEvent.threadId = 1;
-  strncpy(res->u.Event.u.ThreadEvent.reason, started ? "started" : "exited", sizeof res->u.Event.u.ThreadEvent.reason);
   res->u.Event.event_type = VSCODE_THREAD_EVENT;
+  strncpy(res->u.Event.event, "thread", sizeof res->u.Event.event);
+  res->u.Event.u.ThreadEvent.threadId = 1; /* dummy thread id - always 1 */
+  strncpy(res->u.Event.u.ThreadEvent.reason, started ? "started" : "exited", sizeof res->u.Event.u.ThreadEvent.reason);
 }
 
 void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
@@ -360,9 +384,43 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
     res->u.Response.success) {
     snprintf(
       cp, sizeof temp - strlen(temp),
-      ",\"body\":{[{\"name\":%s,\"id\":%d}]}",
+      ",\"body\":{\"threads\":[{\"name\":\"%s\",\"id\":%d}]}",
       res->u.Response.u.ThreadResponse.threads[0].name,
       res->u.Response.u.ThreadResponse.threads[0].id);
+    cp = temp + strlen(temp);
+  }
+  else if (res->u.Response.response_type == VSCODE_STACK_TRACE_RESPONSE && res->u.Response.success) {
+    snprintf(
+      cp, sizeof temp - strlen(temp),
+      ",\"body\":{\"totalFrames\":%d,\"stackFrames\":[",
+      res->u.Response.u.StackTraceResponse.totalFrames);
+    cp = temp + strlen(temp);
+    int d = 0;
+    for (; d < res->u.Response.u.StackTraceResponse.totalFrames; d++) {
+      if (d) {
+        snprintf(
+          cp, sizeof temp - strlen(temp),
+          ",");
+        cp = temp + strlen(temp);
+      }
+//      snprintf(
+//        cp, sizeof temp - strlen(temp),
+//        "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":{\"name\":\"%s\",\"path\":\"%s\"}}", 
+//        d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
+//        res->u.Response.u.StackTraceResponse.stackFrames[d].line, 
+//        res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
+//        res->u.Response.u.StackTraceResponse.stackFrames[d].source.path);
+//      cp = temp + strlen(temp);
+      snprintf(
+        cp, sizeof temp - strlen(temp),
+        "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d}",
+        d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
+        res->u.Response.u.StackTraceResponse.stackFrames[d].line);
+      cp = temp + strlen(temp);
+    }
+    snprintf(
+      cp, sizeof temp - strlen(temp),
+      "]}");
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");
@@ -372,6 +430,10 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
   // printf(buf);
 }
 
+/*
+* Create a serialized form of the event in VSCode
+* wire protocol format (see protocol.h)
+*/
 void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
   char temp[1024] = {0};
   char *cp = temp;
