@@ -249,6 +249,8 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
       return vscode_parse_intarg_request(js, msg, cmdtype, "threadId", log);
     case VSCODE_SCOPES_REQUEST:
       return vscode_parse_intarg_request(js, msg, cmdtype, "frameId", log);
+    case VSCODE_VARIABLES_REQUEST:
+      return vscode_parse_intarg_request(js, msg, cmdtype, "variablesReference", log);
     case VSCODE_LAUNCH_REQUEST:
       return vscode_parse_launch_request(js, msg, cmdtype, log);
     case VSCODE_STACK_TRACE_REQUEST:
@@ -410,6 +412,33 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
         res->u.Response.u.StackTraceResponse.stackFrames[d].line, 
         res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
         res->u.Response.u.StackTraceResponse.stackFrames[d].source.path);
+      cp = temp + strlen(temp);
+    }
+    snprintf(
+      cp, sizeof temp - strlen(temp),
+      "]}");
+    cp = temp + strlen(temp);
+  }
+  else if (res->u.Response.response_type == VSCODE_SCOPES_RESPONSE && res->u.Response.success) {
+    snprintf(
+      cp, sizeof temp - strlen(temp),
+      ",\"body\":{\"scopes\":[");
+    cp = temp + strlen(temp);
+    for (int d = 0; d < MAX_SCOPES; d++) {
+      if (!res->u.Response.u.ScopesResponse.scopes[d].name[0])
+        break;
+      if (d) {
+        snprintf(
+          cp, sizeof temp - strlen(temp),
+          ",");
+        cp = temp + strlen(temp);
+      }
+      snprintf(
+        cp, sizeof temp - strlen(temp),
+        "{\"name\":\"%s\",\"variablesReference\":%d,\"expensive\":%s}",
+        res->u.Response.u.ScopesResponse.scopes[d].name,
+        res->u.Response.u.ScopesResponse.scopes[d].variablesReference,
+        res->u.Response.u.ScopesResponse.scopes[d].expensive ? "true" : "false");
       cp = temp + strlen(temp);
     }
     snprintf(

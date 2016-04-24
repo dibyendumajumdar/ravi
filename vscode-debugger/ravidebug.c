@@ -152,6 +152,41 @@ static void handle_stack_trace_request(ProtocolMessage *req,
   fprintf(out, buf);
 }
 
+/*
+* Handle ScopeRequest
+*/
+static void handle_scopes_request(ProtocolMessage *req,
+  ProtocolMessage *res, lua_State *L, FILE *out) {
+  char buf[1024];
+  lua_Debug entry;
+  int depth = 0;
+  vscode_make_success_response(req, res, VSCODE_SCOPES_RESPONSE);
+  depth = req->u.Request.u.ScopesRequest.frameId;
+  if (lua_getstack(L, depth, &entry))
+  {
+    int status = lua_getinfo(L, "u", &entry);
+    assert(status);
+    int i = 0;
+    strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Locals", sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
+    res->u.Response.u.ScopesResponse.scopes[i].variablesReference = 1000000 + depth;
+    res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
+    if (entry.nups > 0) {
+      strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Up Values", sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
+      res->u.Response.u.ScopesResponse.scopes[i].variablesReference = 2000000 + depth;
+      res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
+    }
+    strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Globals", sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
+    res->u.Response.u.ScopesResponse.scopes[i].variablesReference = 9999999;
+    res->u.Response.u.ScopesResponse.scopes[i].expensive = 1;
+  }
+  else {
+    vscode_make_error_response(req, res, VSCODE_SCOPES_RESPONSE, "Error retrieving stack frame");
+  }
+  vscode_serialize_response(buf, sizeof buf, res);
+  fprintf(log, "%s\n", buf);
+  fprintf(out, buf);
+}
+
 
 static int thread_event_sent = 0;
 static int stopping = 1;
@@ -244,6 +279,10 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
         }
         case VSCODE_STACK_TRACE_REQUEST: {
           handle_stack_trace_request(&req, &res, L, out);
+          break;
+        }
+        case VSCODE_SCOPES_REQUEST: {
+          handle_scopes_request(&req, &res, L, out);
           break;
         }
         case VSCODE_DISCONNECT_REQUEST: {
