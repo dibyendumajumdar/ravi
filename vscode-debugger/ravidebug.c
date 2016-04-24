@@ -126,15 +126,18 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     char path[1024];
     char name[256];
     if (last_path_delim) {
-      int pathlen = last_path_delim - src;
-      memcpy(path, src, pathlen);
-      path[pathlen] = 0;
+//      int pathlen = last_path_delim - src;
+//      memcpy(path, src, pathlen);
+//      path[pathlen] = 0;
+      strncpy(path, src, sizeof path);
       strncpy(name, last_path_delim + 1, sizeof name);
     }
     else {
       strncpy(name, src, sizeof name);
       path[0] = 0;
     }
+    for (char *p = path; *p != 0; p++)
+      if (*p == '\\') *p = '/';
     res->u.Response.u.StackTraceResponse.stackFrames[depth].id = depth;
     strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path, path, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path);
     strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name, name, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name);

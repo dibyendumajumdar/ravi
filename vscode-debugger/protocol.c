@@ -343,7 +343,7 @@ void vscode_make_thread_event(ProtocolMessage *res, bool started) {
 }
 
 void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
-  char temp[1024] = {0};
+  char temp[1024*8] = {0};
   char *cp = temp;
   buf[0] = 0;
   if (res->type != VSCODE_RESPONSE) return;
@@ -403,19 +403,13 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
           ",");
         cp = temp + strlen(temp);
       }
-//      snprintf(
-//        cp, sizeof temp - strlen(temp),
-//        "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":{\"name\":\"%s\",\"path\":\"%s\"}}", 
-//        d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
-//        res->u.Response.u.StackTraceResponse.stackFrames[d].line, 
-//        res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
-//        res->u.Response.u.StackTraceResponse.stackFrames[d].source.path);
-//      cp = temp + strlen(temp);
       snprintf(
         cp, sizeof temp - strlen(temp),
-        "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d}",
+        "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":{\"name\":\"%s\",\"path\":\"%s\",\"sourceReference\":0}}", 
         d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
-        res->u.Response.u.StackTraceResponse.stackFrames[d].line);
+        res->u.Response.u.StackTraceResponse.stackFrames[d].line, 
+        res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
+        res->u.Response.u.StackTraceResponse.stackFrames[d].source.path);
       cp = temp + strlen(temp);
     }
     snprintf(
