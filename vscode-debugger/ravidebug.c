@@ -79,7 +79,7 @@ static void handle_initialize_request(ProtocolMessage *req,
   char buf[1024];
   vscode_make_success_response(req, res, VSCODE_INITIALIZE_RESPONSE);
   res->u.Response.u.InitializeResponse.body.supportsConfigurationDoneRequest =
-      1;
+      0;
   vscode_serialize_response(buf, sizeof buf, res);
   fprintf(log, "%s\n", buf);
   fprintf(out, buf);
@@ -126,16 +126,12 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     char path[1024];
     char name[256];
     if (last_path_delim) {
-//      int pathlen = last_path_delim - src;
-//      memcpy(path, src, pathlen);
-//      path[pathlen] = 0;
-      strncpy(path, src, sizeof path);
       strncpy(name, last_path_delim + 1, sizeof name);
     }
     else {
       strncpy(name, src, sizeof name);
-      path[0] = 0;
     }
+    strncpy(path, src, sizeof path);
     for (char *p = path; *p != 0; p++)
       if (*p == '\\') *p = '/';
     res->u.Response.u.StackTraceResponse.stackFrames[depth].id = depth;
@@ -176,11 +172,55 @@ static void handle_scopes_request(ProtocolMessage *req,
       res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
     }
     strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Globals", sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-    res->u.Response.u.ScopesResponse.scopes[i].variablesReference = 9999999;
+    res->u.Response.u.ScopesResponse.scopes[i].variablesReference = 3000000 + depth;
     res->u.Response.u.ScopesResponse.scopes[i].expensive = 1;
   }
   else {
     vscode_make_error_response(req, res, VSCODE_SCOPES_RESPONSE, "Error retrieving stack frame");
+  }
+  vscode_serialize_response(buf, sizeof buf, res);
+  fprintf(log, "%s\n", buf);
+  fprintf(out, buf);
+}
+
+/*
+* Handle ScopeRequest
+*/
+static void handle_variables_request(ProtocolMessage *req,
+  ProtocolMessage *res, lua_State *L, FILE *out) {
+  char buf[1024];
+  lua_Debug entry;
+  vscode_make_success_response(req, res, VSCODE_VARIABLES_RESPONSE);
+  int varRef = req->u.Request.u.VariablesRequest.variablesReference;
+  int depth = 0;
+  char type = 0;
+  if (varRef >= 3000000) {
+    type = 'g';
+    depth = varRef - 3000000;
+  }
+  else if (varRef >= 2000000) {
+    type = 'u';
+    depth = varRef - 2000000;
+  }
+  else {
+    type = 'l';
+    depth = varRef - 1000000;
+  }
+  if (lua_getstack(L, depth, &entry)) {
+    int x = 0;
+    for (int n = 1; n < MAX_VARIABLES; n++) {
+      const char *name = lua_getlocal(L, &entry, n);
+      if (name) {
+        strncpy(res->u.Response.u.VariablesResponse.variables[x].name, name, sizeof res->u.Response.u.VariablesResponse.variables[x].name);
+        lua_pop(L, 1);
+      }
+      else {
+        break;
+      }
+    }
+  }
+  else {
+    vscode_make_error_response(req, res, VSCODE_VARIABLES_RESPONSE, "Error retrieving variables");
   }
   vscode_serialize_response(buf, sizeof buf, res);
   fprintf(log, "%s\n", buf);
@@ -244,6 +284,7 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
       }
       buf[len] = 0;
       fprintf(log, "Content-Length: %d\r\n\r\n%s", len, buf);
+      fflush(log);
 
       /* Parse the VSCode request */
       int command = vscode_parse_message(buf, sizeof buf, &req, log);
@@ -268,6 +309,9 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
                                   "Launch failed", out);
               lua_pop(L, 1);
             }
+            else {
+              send_success_response(&req, &res, VSCODE_LAUNCH_RESPONSE, out);
+            }
             if (status == LUA_OK) {
               if (lua_pcall(L, 0, 0, 0)) {
                 send_output_event(&res, "Program terminated with error\n", out);
@@ -276,6 +320,7 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
               }
             }
           }
+          break;
         }
         case VSCODE_STACK_TRACE_REQUEST: {
           handle_stack_trace_request(&req, &res, L, out);
@@ -285,22 +330,39 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
           handle_scopes_request(&req, &res, L, out);
           break;
         }
+        case VSCODE_VARIABLES_REQUEST: {
+          handle_variables_request(&req, &res, L, out);
+          break;
+        }
         case VSCODE_DISCONNECT_REQUEST: {
           send_success_response(&req, &res, VSCODE_DISCONNECT_RESPONSE, out);
           exit(0);
+        }
+        case VSCODE_SET_EXCEPTION_BREAKPOINTS_REQUEST: {
+          send_success_response(&req, &res, VSCODE_SET_EXCEPTION_BREAKPOINTS_RESPONSE, out);
+          break;
+        }
+        case VSCODE_CONFIGURATION_DONE_REQUEST: {
+          send_success_response(&req, &res, VSCODE_CONFIGURATION_DONE_RESPONSE, out);
+          break;
         }
         case VSCODE_THREAD_REQUEST: {
           handle_thread_request(&req, &res, out);
           break;
         }
-        default:
-          send_error_response(&req, &res, command, "not yet implemented", out);
+        default: {
+          char msg[100];
+          snprintf(msg, sizeof msg, "%s not yet implemented", req.u.Request.command);
+          fprintf(log, "%s\n", msg);
+          send_error_response(&req, &res, command, msg, out);
           break;
+        }
       }
     }
     else {
       fprintf(log, "Unexpected: %s\n", buf);
     }
+    fprintf(log, "Waiting for command\n");
   }
 }
 
@@ -311,6 +373,7 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
 void ravi_debughook(lua_State *L, lua_Debug *ar) {
   int event = ar->event;
   if (event == LUA_HOOKLINE) {
+    fprintf(log, "In line hook\n");
     debugger(L, false, ar, stdin, stdout);
   }
 }

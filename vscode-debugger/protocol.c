@@ -255,6 +255,9 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
       return vscode_parse_launch_request(js, msg, cmdtype, log);
     case VSCODE_STACK_TRACE_REQUEST:
       return vscode_parse_stack_trace_request(js, msg, cmdtype, log);
+    case VSCODE_SET_EXCEPTION_BREAKPOINTS_REQUEST:
+      msg->u.Request.request_type = cmdtype;
+      break;
     case VSCODE_UNKNOWN_REQUEST: break;
     default: msg->u.Request.request_type = cmdtype;
   }
@@ -439,6 +442,31 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
         res->u.Response.u.ScopesResponse.scopes[d].name,
         res->u.Response.u.ScopesResponse.scopes[d].variablesReference,
         res->u.Response.u.ScopesResponse.scopes[d].expensive ? "true" : "false");
+      cp = temp + strlen(temp);
+    }
+    snprintf(
+      cp, sizeof temp - strlen(temp),
+      "]}");
+    cp = temp + strlen(temp);
+  }
+  else if (res->u.Response.response_type == VSCODE_VARIABLES_RESPONSE && res->u.Response.success) {
+    snprintf(
+      cp, sizeof temp - strlen(temp),
+      ",\"body\":{\"variables\":[");
+    cp = temp + strlen(temp);
+    for (int d = 0; d < MAX_VARIABLES; d++) {
+      if (!res->u.Response.u.VariablesResponse.variables[d].name[0])
+        break;
+      if (d) {
+        snprintf(
+          cp, sizeof temp - strlen(temp),
+          ",");
+        cp = temp + strlen(temp);
+      }
+      snprintf(
+        cp, sizeof temp - strlen(temp),
+        "{\"name\":\"%s\",\"variablesReference\":0,\"value\":\"\"}",
+        res->u.Response.u.VariablesResponse.variables[d].name);
       cp = temp + strlen(temp);
     }
     snprintf(
