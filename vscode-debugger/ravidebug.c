@@ -15,7 +15,20 @@
 
 #include "protocol.h"
 
+enum {
+  DEBUGGER_BIRTH = 1,
+  DEBUGGER_INITIALIZED = 2,
+  DEBUGGER_PROGRAM_LAUNCHED = 3,
+  DEBUGGER_PROGRAM_RUNNING = 4,
+  DEBUGGER_PROGRAM_STOPPED = 5,
+  DEBUGGER_PROGRAM_TERMINATED = 6
+};
+
+
 static FILE *log = NULL;
+static int thread_event_sent = 0;
+static int debugger_state = DEBUGGER_BIRTH;
+
 
 /*
 * Send VSCode a StoppedEvent
@@ -42,6 +55,18 @@ static void send_thread_event(ProtocolMessage *res, bool started,
   fprintf(log, "%s\n", buf);
   fprintf(out, buf);
 }
+
+/*
+* Send VSCode a TerminatedEvent
+*/
+static void send_terminated_event(ProtocolMessage *res, FILE *out) {
+  char buf[1024];
+  vscode_make_terminated_event(res);
+  vscode_serialize_event(buf, sizeof buf, res);
+  fprintf(log, "%s\n", buf);
+  fprintf(out, buf);
+}
+
 
 static void send_output_event(ProtocolMessage *res, const char *msg,
                               FILE *out) {
@@ -77,16 +102,27 @@ static void send_success_response(ProtocolMessage *req, ProtocolMessage *res,
 static void handle_initialize_request(ProtocolMessage *req,
                                       ProtocolMessage *res, FILE *out) {
   char buf[1024];
-  vscode_make_success_response(req, res, VSCODE_INITIALIZE_RESPONSE);
-  res->u.Response.u.InitializeResponse.body.supportsConfigurationDoneRequest =
-      0;
-  vscode_serialize_response(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
+  if (debugger_state >= DEBUGGER_INITIALIZED) {
+    send_error_response(req, res, VSCODE_INITIALIZE_RESPONSE, "already initialized", out);
+    return;
+  }
+  /* Send InitializedEvent */
   vscode_make_initialized_event(res);
   vscode_serialize_event(buf, sizeof buf, res);
   fprintf(log, "%s\n", buf);
   fprintf(out, buf);
+
+  /* Send InitializeResponse */
+  vscode_make_success_response(req, res, VSCODE_INITIALIZE_RESPONSE);
+  res->u.Response.u.InitializeResponse.body.supportsConfigurationDoneRequest =
+      1;
+  vscode_serialize_response(buf, sizeof buf, res);
+  fprintf(log, "%s\n", buf);
+  fprintf(out, buf);
+
+  /* Send notification */
+  send_output_event(res, "Debugger initialized", out);
+  debugger_state = DEBUGGER_INITIALIZED;
 }
 
 /*
@@ -118,11 +154,7 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     assert(status);
     const char *src = entry.source;
     if (*src == '@') src++;
-    const char *last_path_delim1 = strrchr(src, '/');
-    const char *last_path_delim2 = strrchr(src, '\\');
-    const char *last_path_delim = last_path_delim1;
-    if (last_path_delim2 && last_path_delim2 > last_path_delim1)
-      last_path_delim = last_path_delim2;
+    const char *last_path_delim = strrchr(src, '/');
     char path[1024];
     char name[256];
     if (last_path_delim) {
@@ -132,8 +164,6 @@ static void handle_stack_trace_request(ProtocolMessage *req,
       strncpy(name, src, sizeof name);
     }
     strncpy(path, src, sizeof path);
-    for (char *p = path; *p != 0; p++)
-      if (*p == '\\') *p = '/';
     res->u.Response.u.StackTraceResponse.stackFrames[depth].id = depth;
     strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path, path, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path);
     strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name, name, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name);
@@ -206,7 +236,7 @@ static void handle_variables_request(ProtocolMessage *req,
     type = 'l';
     depth = varRef - 1000000;
   }
-  if (lua_getstack(L, depth, &entry)) {
+  if (type == 'l' && lua_getstack(L, depth, &entry)) {
     int x = 0;
     for (int n = 1; n < MAX_VARIABLES; n++) {
       const char *name = lua_getlocal(L, &entry, n);
@@ -227,9 +257,38 @@ static void handle_variables_request(ProtocolMessage *req,
   fprintf(out, buf);
 }
 
+static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
+                                  lua_State *L, FILE *out) {
+  if (debugger_state != DEBUGGER_INITIALIZED) {
+    send_error_response(req, res, VSCODE_LAUNCH_RESPONSE,
+                               "not initialized or unexpected state", out);
+    return;
+  }
 
-static int thread_event_sent = 0;
-static int stopping = 1;
+  const char *progname = req->u.Request.u.LaunchRequest.program;
+  fprintf(log, "\n--> Launching '%s'\n", progname);
+  int status = luaL_loadfile(L, progname);
+  if (status != LUA_OK) {
+    char temp[1024];
+    snprintf(temp, sizeof temp, "Failed to launch %s due to error: %s",
+             progname, lua_tostring(L, -1));
+    send_output_event(res, temp, out);
+    send_error_response(req, res, VSCODE_LAUNCH_RESPONSE, "Launch failed", out);
+    lua_pop(L, 1);
+    return;
+  }
+  else {
+    send_success_response(req, res, VSCODE_LAUNCH_RESPONSE, out);
+  }
+  debugger_state = DEBUGGER_PROGRAM_RUNNING;
+  if (lua_pcall(L, 0, 0, 0)) {
+    send_output_event(res, "Program terminated with error", out);
+    send_output_event(res, lua_tostring(L, -1), out);
+    lua_pop(L, 1);
+  }
+  send_terminated_event(res, out);
+  debugger_state = DEBUGGER_PROGRAM_TERMINATED;
+}
 
 /**
  * Called via Lua Hook or via main
@@ -239,7 +298,10 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
                      FILE *out) {
   char buf[4096] = {0};
   ProtocolMessage req, res;
-  if (!init) {
+  if (debugger_state == DEBUGGER_PROGRAM_TERMINATED) {
+    return;
+  }
+  if (debugger_state == DEBUGGER_PROGRAM_RUNNING) {
     /* running within Lua at line change */
     if (!thread_event_sent) {
       /* thread started - only sent once in the debug session */
@@ -252,7 +314,9 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
       /* Inform VSCode we have stopped */
       send_stopped_event(&res, "step", out);
     }
+    debugger_state = DEBUGGER_PROGRAM_STOPPED;
   }
+  bool get_command = true;
   /* Get command from VSCode 
    * VSCode commands begin with the sequence:
    * 'Content-Length: nnn\r\n\r\n'
@@ -261,7 +325,7 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
    * We currently don't bother checking the
    * \r\n\r\n sequence for incoming messages 
    */
-  while (fgets(buf, sizeof buf, in) != NULL) {
+  while (get_command && fgets(buf, sizeof buf, in) != NULL) {
     buf[sizeof buf - 1] = 0; /* NULL terminate - just in case */
     const char *bufp = strstr(buf, "Content-Length: ");
     if (bufp != NULL) {
@@ -290,36 +354,11 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
       int command = vscode_parse_message(buf, sizeof buf, &req, log);
       switch (command) {
         case VSCODE_INITIALIZE_REQUEST: {
-          if (init) {
-            handle_initialize_request(&req, &res, out);
-            send_output_event(&res, "Debugger initialized\n", out);
-          }
+          handle_initialize_request(&req, &res, out);
           break;
         }
         case VSCODE_LAUNCH_REQUEST: {
-          if (init) {
-            const char *progname = req.u.Request.u.LaunchRequest.program;
-            fprintf(log, "Launching '%s'\n", progname);
-            int status = luaL_loadfile(L, progname);
-            if (status != LUA_OK) {
-              char temp[1024];
-              snprintf(temp, sizeof temp, "Failed to launch %s due to error: %s\n", progname, lua_tostring(L, -1));
-              send_output_event(&res, temp, out);
-              send_error_response(&req, &res, VSCODE_LAUNCH_RESPONSE,
-                                  "Launch failed", out);
-              lua_pop(L, 1);
-            }
-            else {
-              send_success_response(&req, &res, VSCODE_LAUNCH_RESPONSE, out);
-            }
-            if (status == LUA_OK) {
-              if (lua_pcall(L, 0, 0, 0)) {
-                send_output_event(&res, "Program terminated with error\n", out);
-                send_output_event(&res, lua_tostring(L, -1), out);
-                lua_pop(L, 1);
-              }
-            }
-          }
+          handle_launch_request(&req, &res, L, out);
           break;
         }
         case VSCODE_STACK_TRACE_REQUEST: {
@@ -350,6 +389,21 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
           handle_thread_request(&req, &res, out);
           break;
         }
+        case VSCODE_STEPIN_REQUEST: {
+          send_success_response(&req, &res, VSCODE_STEPIN_RESPONSE, out);
+          get_command = false;
+          break;
+        }
+        case VSCODE_STEPOUT_REQUEST: {
+          send_success_response(&req, &res, VSCODE_STEPOUT_RESPONSE, out);
+          get_command = false;
+          break;
+        }
+        case VSCODE_NEXT_REQUEST: {
+          send_success_response(&req, &res, VSCODE_NEXT_RESPONSE, out);
+          get_command = false;
+          break;
+        }
         default: {
           char msg[100];
           snprintf(msg, sizeof msg, "%s not yet implemented", req.u.Request.command);
@@ -360,10 +414,11 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
       }
     }
     else {
-      fprintf(log, "Unexpected: %s\n", buf);
+      fprintf(log, "\nUnexpected: %s\n", buf);
     }
-    fprintf(log, "Waiting for command\n");
+    fprintf(log, "\nWaiting for command\n");
   }
+  debugger_state = DEBUGGER_PROGRAM_RUNNING;
 }
 
 /* 
@@ -373,7 +428,6 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
 void ravi_debughook(lua_State *L, lua_Debug *ar) {
   int event = ar->event;
   if (event == LUA_HOOKLINE) {
-    fprintf(log, "In line hook\n");
     debugger(L, false, ar, stdin, stdout);
   }
 }
@@ -399,6 +453,7 @@ int main(int argc, const char *argv[]) {
   /* TODO need to redirect the stdin/stdout used by Lua */
   luaL_openlibs(L);     /* open standard libraries */
   lua_sethook(L, ravi_debughook, LUA_MASKCALL | LUA_MASKLINE | LUA_MASKRET, 0);
+  debugger_state = DEBUGGER_BIRTH;
   debugger(L, true, NULL, stdin, stdout);
   lua_close(L);
   fclose(log);

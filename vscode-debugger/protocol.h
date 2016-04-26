@@ -1,10 +1,10 @@
 #ifndef RAVI_VSCODE_PROTOCOL_H
 #define RAVI_VSCODE_PROTOCOL_H
 
-#include <stdio.h>
-#include <stdbool.h>
-
 #include "json.h"
+
+#include <stdbool.h>
+#include <stdio.h>
 
 enum {
   VSCODE_REQUEST = 1,
@@ -43,11 +43,11 @@ enum {
   VSCODE_STEPOUT_REQUEST = 12,
   VSCODE_PAUSE_REQUEST = 13,
   VSCODE_STACK_TRACE_REQUEST = 14,
-  VSCODE_SCOPES_REQUEST = 16,
-  VSCODE_VARIABLES_REQUEST = 17,
-  VSCODE_SOURCE_REQUEST = 18,
-  VSCODE_THREAD_REQUEST = 19,
-  VSCODE_EVALUATE_REQUEST = 20,
+  VSCODE_SCOPES_REQUEST = 15,
+  VSCODE_VARIABLES_REQUEST = 16,
+  VSCODE_SOURCE_REQUEST = 17,
+  VSCODE_THREAD_REQUEST = 18,
+  VSCODE_EVALUATE_REQUEST = 19,
 };
 
 enum {
@@ -65,11 +65,11 @@ enum {
   VSCODE_STEPOUT_RESPONSE = 12,
   VSCODE_PAUSE_RESPONSE = 13,
   VSCODE_STACK_TRACE_RESPONSE = 14,
-  VSCODE_SCOPES_RESPONSE = 16,
-  VSCODE_VARIABLES_RESPONSE = 17,
-  VSCODE_SOURCE_RESPONSE = 18,
-  VSCODE_THREAD_RESPONSE = 19,
-  VSCODE_EVALUATE_RESPONSE = 20,
+  VSCODE_SCOPES_RESPONSE = 15,
+  VSCODE_VARIABLES_RESPONSE = 16,
+  VSCODE_SOURCE_RESPONSE = 17,
+  VSCODE_THREAD_RESPONSE = 18,
+  VSCODE_EVALUATE_RESPONSE = 19,
 };
 
 enum {
@@ -342,11 +342,12 @@ extern void vscode_make_success_response(ProtocolMessage *req,
                                          ProtocolMessage *res, int restype);
 extern void vscode_serialize_response(char *buf, size_t buflen,
                                       ProtocolMessage *res);
-extern void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res);
+extern void vscode_serialize_event(char *buf, size_t buflen,
+                                   ProtocolMessage *res);
 extern void vscode_make_initialized_event(ProtocolMessage *res);
 extern void vscode_make_output_event(ProtocolMessage *res, const char *msg);
 extern void vscode_make_stopped_event(ProtocolMessage *res, const char *reason);
-extern void vscode_make_stopped_event(ProtocolMessage *res, const char *reason);
 extern void vscode_make_thread_event(ProtocolMessage *res, bool started);
+extern void vscode_make_terminated_event(ProtocolMessage *res);
 
 #endif

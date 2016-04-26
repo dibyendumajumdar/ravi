@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdbool.h>
 
+/* Parse a VSCode JSON message type
+ */
 static int vscode_message_type(json_value *js, FILE *log) {
   if (js->type != json_object) {
     fprintf(log, "Bad JSON message - expected object\n");
@@ -181,6 +183,8 @@ static int vscode_parse_initialize_request(json_value *js, ProtocolMessage *msg,
   return VSCODE_INITIALIZE_REQUEST;
 }
 
+/* Parse VSCode request message which has an integer parameter
+ */
 static int vscode_parse_intarg_request(json_value *js, ProtocolMessage *msg,
                                        int msgtype, const char *key,
                                        FILE *log) {
@@ -193,6 +197,8 @@ static int vscode_parse_intarg_request(json_value *js, ProtocolMessage *msg,
   return msgtype;
 }
 
+/* Parse launch request
+ */
 static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg,
                                        int msgtype, FILE *log) {
   json_value *args = get_object_value(js, "arguments", log);
@@ -204,6 +210,12 @@ static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg,
   const char *prog = get_string_value(args, "program", log);
   if (prog == NULL) return VSCODE_UNKNOWN_REQUEST;
   strncpy(msg->u.Request.u.LaunchRequest.program, prog, sizeof msg->u.Request.u.LaunchRequest.program);
+  for (char *cp = msg->u.Request.u.LaunchRequest.program; *cp; cp++) {
+    /* replace back slashes with front slash as the VSCode front end doesn't like
+     * back slashes even though it sends them!
+     */
+    if (*cp == '\\') *cp = '/';
+  }
   fprintf(log, "LAUNCH %s\n", prog);
   msg->u.Request.request_type = msgtype;
   return msgtype;
@@ -221,7 +233,7 @@ static int vscode_parse_stack_trace_request(json_value *js, ProtocolMessage *msg
   return msgtype;
 }
 
-
+/* Parse a VSCode request */
 static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
                                 FILE *log) {
   const char *cmd = get_string_value(js, "command", log);
@@ -230,7 +242,7 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
   msg->type = VSCODE_REQUEST;
   msg->seq = get_int_value(js, "seq", log, &found);
   strncpy(msg->u.Request.command, cmd, sizeof msg->u.Request.command);
-  fprintf(log, "Request --> '%s'", cmd);
+  fprintf(log, "\nRequest --> '%s'\n", cmd);
   int cmdtype = get_cmdtype(msg->u.Request.command);
   switch (cmdtype) {
     case VSCODE_INITIALIZE_REQUEST:
@@ -332,6 +344,18 @@ void vscode_make_stopped_event(ProtocolMessage *res, const char *reason) {
   strncpy(res->u.Event.event, "stopped", sizeof res->u.Event.event);
   res->u.Event.u.StoppedEvent.threadId = 1; /* dummy thread id - always 1 */
   strncpy(res->u.Event.u.StoppedEvent.reason, reason, sizeof res->u.Event.u.StoppedEvent.reason);
+}
+
+/*
+* Build a TerminatedEvent
+*/
+void vscode_make_terminated_event(ProtocolMessage *res) {
+  memset(res, 0, sizeof(ProtocolMessage));
+  res->seq = seq++;
+  res->type = VSCODE_EVENT;
+  res->u.Event.event_type = VSCODE_TERMINATED_EVENT;
+  strncpy(res->u.Event.event, "terminated", sizeof res->u.Event.event);
+  res->u.Event.u.TerminatedEvent.restart = 0;
 }
 
 /*
@@ -465,8 +489,9 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
       }
       snprintf(
         cp, sizeof temp - strlen(temp),
-        "{\"name\":\"%s\",\"variablesReference\":0,\"value\":\"\"}",
-        res->u.Response.u.VariablesResponse.variables[d].name);
+        "{\"name\":\"%s\",\"variablesReference\":0,\"value\":\"%s\"}",
+        res->u.Response.u.VariablesResponse.variables[d].name,
+        res->u.Response.u.VariablesResponse.variables[d].value);
       cp = temp + strlen(temp);
     }
     snprintf(
@@ -507,6 +532,11 @@ void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
   else if (res->u.Event.event_type == VSCODE_STOPPED_EVENT) {
     snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"reason\":\"%s\",\"threadId\":%d}",
       res->u.Event.u.StoppedEvent.reason, res->u.Event.u.StoppedEvent.threadId);
+    cp = temp + strlen(temp);
+  }
+  else if (res->u.Event.event_type == VSCODE_TERMINATED_EVENT) {
+    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"restart\":%s}",
+      res->u.Event.u.TerminatedEvent.restart ? "true" : "false");
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");
