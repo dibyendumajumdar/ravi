@@ -1,8 +1,13 @@
+/**
+ * Standalone Lua/Ravi interpreter that is meant to be used as 
+ * a debugger in the VSCode IDE.
+ */
+
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -19,81 +24,15 @@ enum {
   DEBUGGER_BIRTH = 1,
   DEBUGGER_INITIALIZED = 2,
   DEBUGGER_PROGRAM_LAUNCHED = 3,
-  DEBUGGER_PROGRAM_RUNNING = 4,
-  DEBUGGER_PROGRAM_STOPPED = 5,
-  DEBUGGER_PROGRAM_TERMINATED = 6
+  DEBUGGER_PROGRAM_STEPPING = 4,
+  DEBUGGER_PROGRAM_RUNNING = 5,
+  DEBUGGER_PROGRAM_STOPPED = 6,
+  DEBUGGER_PROGRAM_TERMINATED = 7
 };
-
 
 static FILE *log = NULL;
 static int thread_event_sent = 0;
 static int debugger_state = DEBUGGER_BIRTH;
-
-
-/*
-* Send VSCode a StoppedEvent
-* The event indicates that the execution of the debuggee has stopped due to some condition.
-* This can be caused by a break point previously set, a stepping action has completed, by executing a debugger statement etc.
-*/
-static void send_stopped_event(ProtocolMessage *res, const char *msg,
-  FILE *out) {
-  char buf[1024];
-  vscode_make_stopped_event(res, msg);
-  vscode_serialize_event(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
-}
-
-/*
-* Send VSCode a ThreadEvent
-*/
-static void send_thread_event(ProtocolMessage *res, bool started,
-  FILE *out) {
-  char buf[1024];
-  vscode_make_thread_event(res, started);
-  vscode_serialize_event(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
-}
-
-/*
-* Send VSCode a TerminatedEvent
-*/
-static void send_terminated_event(ProtocolMessage *res, FILE *out) {
-  char buf[1024];
-  vscode_make_terminated_event(res);
-  vscode_serialize_event(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
-}
-
-
-static void send_output_event(ProtocolMessage *res, const char *msg,
-                              FILE *out) {
-  char buf[1024];
-  vscode_make_output_event(res, msg);
-  vscode_serialize_event(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
-}
-
-static void send_error_response(ProtocolMessage *req, ProtocolMessage *res,
-                                int responseType, const char *msg, FILE *out) {
-  char buf[1024];
-  vscode_make_error_response(req, res, responseType, msg);
-  vscode_serialize_response(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
-}
-
-static void send_success_response(ProtocolMessage *req, ProtocolMessage *res,
-                                  int responseType, FILE *out) {
-  char buf[1024];
-  vscode_make_success_response(req, res, responseType);
-  vscode_serialize_response(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
-}
 
 /*
 * Generate response to InitializeRequest
@@ -103,53 +42,50 @@ static void handle_initialize_request(ProtocolMessage *req,
                                       ProtocolMessage *res, FILE *out) {
   char buf[1024];
   if (debugger_state >= DEBUGGER_INITIALIZED) {
-    send_error_response(req, res, VSCODE_INITIALIZE_RESPONSE, "already initialized", out);
+    vscode_send_error_response(req, res, VSCODE_INITIALIZE_RESPONSE,
+                               "already initialized", out, log);
     return;
   }
   /* Send InitializedEvent */
   vscode_make_initialized_event(res);
-  vscode_serialize_event(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
+  vscode_send(res, out, log);
 
   /* Send InitializeResponse */
   vscode_make_success_response(req, res, VSCODE_INITIALIZE_RESPONSE);
   res->u.Response.u.InitializeResponse.body.supportsConfigurationDoneRequest =
       1;
-  vscode_serialize_response(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
+  vscode_send(res, out, log);
 
   /* Send notification */
-  send_output_event(res, "Debugger initialized", out);
+  vscode_send_output_event(res, "Debugger initialized", out, log);
   debugger_state = DEBUGGER_INITIALIZED;
 }
 
 /*
 * Generate response to ThreadRequest
 */
-static void handle_thread_request(ProtocolMessage *req,
-  ProtocolMessage *res, FILE *out) {
-  char buf[1024];
+static void handle_thread_request(ProtocolMessage *req, ProtocolMessage *res,
+                                  FILE *out) {
   vscode_make_success_response(req, res, VSCODE_THREAD_RESPONSE);
   res->u.Response.u.ThreadResponse.threads[0].id = 1;
-  strncpy(res->u.Response.u.ThreadResponse.threads[0].name, "Lua Thread", sizeof res->u.Response.u.ThreadResponse.threads[0].name);
-  vscode_serialize_response(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
+  strncpy(res->u.Response.u.ThreadResponse.threads[0].name, "RaviThread",
+          sizeof res->u.Response.u.ThreadResponse.threads[0].name);
+  vscode_send(res, out, log);
 }
 
 /*
 * Handle StackTraceRequest
 */
 static void handle_stack_trace_request(ProtocolMessage *req,
-  ProtocolMessage *res, lua_State *L, FILE *out) {
+                                       ProtocolMessage *res, lua_State *L,
+                                       FILE *out) {
   char buf[1024];
   lua_Debug entry;
   int depth = 0;
   vscode_make_success_response(req, res, VSCODE_STACK_TRACE_RESPONSE);
-  while (lua_getstack(L, depth, &entry) && depth < req->u.Request.u.StackTraceRequest.levels && depth < MAX_STACK_FRAMES)
-  {
+  while (lua_getstack(L, depth, &entry) &&
+         depth < req->u.Request.u.StackTraceRequest.levels &&
+         depth < MAX_STACK_FRAMES) {
     int status = lua_getinfo(L, "Sln", &entry);
     assert(status);
     const char *src = entry.source;
@@ -157,68 +93,134 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     const char *last_path_delim = strrchr(src, '/');
     char path[1024];
     char name[256];
-    if (last_path_delim) {
-      strncpy(name, last_path_delim + 1, sizeof name);
-    }
+    if (last_path_delim) { strncpy(name, last_path_delim + 1, sizeof name); }
     else {
       strncpy(name, src, sizeof name);
     }
     strncpy(path, src, sizeof path);
     res->u.Response.u.StackTraceResponse.stackFrames[depth].id = depth;
-    strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path, path, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path);
-    strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name, name, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name);
-    res->u.Response.u.StackTraceResponse.stackFrames[depth].line = entry.currentline;
+    strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path,
+            path, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
+                      .source.path);
+    strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
+            name, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
+                      .source.name);
+    res->u.Response.u.StackTraceResponse.stackFrames[depth].line =
+        entry.currentline;
     const char *funcname = entry.name ? entry.name : "?";
-    strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].name, funcname, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth].name);
+    strncpy(
+        res->u.Response.u.StackTraceResponse.stackFrames[depth].name, funcname,
+        sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth].name);
     depth++;
   }
   res->u.Response.u.StackTraceResponse.totalFrames = depth;
-  vscode_serialize_response(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
+  vscode_send(res, out, log);
 }
 
 /*
 * Handle ScopeRequest
 */
-static void handle_scopes_request(ProtocolMessage *req,
-  ProtocolMessage *res, lua_State *L, FILE *out) {
+static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
+                                  lua_State *L, FILE *out) {
   char buf[1024];
   lua_Debug entry;
   int depth = 0;
   vscode_make_success_response(req, res, VSCODE_SCOPES_RESPONSE);
   depth = req->u.Request.u.ScopesRequest.frameId;
-  if (lua_getstack(L, depth, &entry))
-  {
+  if (lua_getstack(L, depth, &entry)) {
     int status = lua_getinfo(L, "u", &entry);
     assert(status);
     int i = 0;
-    strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Locals", sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-    res->u.Response.u.ScopesResponse.scopes[i].variablesReference = 1000000 + depth;
+    strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Locals",
+            sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
+    res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
+        1000000 + depth;
     res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
     if (entry.nups > 0) {
-      strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Up Values", sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-      res->u.Response.u.ScopesResponse.scopes[i].variablesReference = 2000000 + depth;
+      strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Up Values",
+              sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
+      res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
+          2000000 + depth;
       res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
     }
-    strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Globals", sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-    res->u.Response.u.ScopesResponse.scopes[i].variablesReference = 3000000 + depth;
+    strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Globals",
+            sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
+    res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
+        3000000 + depth;
     res->u.Response.u.ScopesResponse.scopes[i].expensive = 1;
   }
   else {
-    vscode_make_error_response(req, res, VSCODE_SCOPES_RESPONSE, "Error retrieving stack frame");
+    vscode_make_error_response(req, res, VSCODE_SCOPES_RESPONSE,
+                               "Error retrieving stack frame");
   }
-  vscode_serialize_response(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
+  vscode_send(res, out, log);
+}
+
+static void get_table_info(lua_State *L, int stack_idx, char *buf, size_t len) {
+  int num = luaL_len(L, stack_idx);
+  const void *ptr = lua_topointer(L, stack_idx);
+  snprintf(buf, len, "%p (%d items)", ptr, num);
+}
+
+static void get_userdata(lua_State *L, int stack_idx, char *buf, size_t len) {
+  void *udata = lua_touserdata(L, stack_idx);
+  snprintf(buf, len, "%p", udata);
+}
+
+static void get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
+  int l_type = lua_type(L, stack_idx);
+  *buf = 0;
+  switch (l_type) {
+    case LUA_TNIL: {
+      snprintf(buf, len, "nil");
+      break;
+    }
+    case LUA_TBOOLEAN: {
+      snprintf(buf, len, "%s",
+               (lua_toboolean(L, stack_idx) != 0) ? "true" : "false");
+      break;
+    }
+    case LUA_TLIGHTUSERDATA: {
+      get_userdata(L, stack_idx, buf, len);
+      break;
+    }
+    case LUA_TNUMBER: {
+      double num = lua_tonumber(L, stack_idx);
+
+      if ((long)num == num)
+        snprintf(buf, len, "%ld (0x%lx)", (long)num, (unsigned long)num);
+      else
+        snprintf(buf, len, "%g", num);
+      break;
+    }
+    case LUA_TSTRING: {
+      snprintf(buf, len, "%.*s", (int)(len - 1), lua_tostring(L, stack_idx));
+      break;
+    }
+    case LUA_TTABLE: {
+      get_table_info(L, stack_idx, buf, len);
+      break;
+    }
+    case LUA_TFUNCTION: {
+      snprintf(buf, len, "%p", lua_topointer(L, stack_idx));
+      break;
+    }
+    case LUA_TUSERDATA: {
+      get_userdata(L, stack_idx, buf, len);
+      break;
+    }
+    case LUA_TTHREAD: {
+      snprintf(buf, len, "%p", lua_topointer(L, stack_idx));
+      break;
+    }
+  }
 }
 
 /*
 * Handle ScopeRequest
 */
-static void handle_variables_request(ProtocolMessage *req,
-  ProtocolMessage *res, lua_State *L, FILE *out) {
-  char buf[1024];
+static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
+                                     lua_State *L, FILE *out) {
   lua_Debug entry;
   vscode_make_success_response(req, res, VSCODE_VARIABLES_RESPONSE);
   int varRef = req->u.Request.u.VariablesRequest.variablesReference;
@@ -236,32 +238,41 @@ static void handle_variables_request(ProtocolMessage *req,
     type = 'l';
     depth = varRef - 1000000;
   }
-  if (type == 'l' && lua_getstack(L, depth, &entry)) {
-    int x = 0;
-    for (int n = 1; n < MAX_VARIABLES; n++) {
-      const char *name = lua_getlocal(L, &entry, n);
-      if (name) {
-        strncpy(res->u.Response.u.VariablesResponse.variables[x].name, name, sizeof res->u.Response.u.VariablesResponse.variables[x].name);
-        lua_pop(L, 1);
-      }
-      else {
-        break;
+  if (lua_getstack(L, depth, &entry)) {
+    if (type == 'l') {
+      for (int n = 1, v = 0; v <= MAX_VARIABLES; n++) {
+        const char *name = lua_getlocal(L, &entry, n);
+        if (name) {
+          if (*name != '(') {
+            strncpy(
+                res->u.Response.u.VariablesResponse.variables[v].name, name,
+                sizeof res->u.Response.u.VariablesResponse.variables[0].name);
+            get_value(
+                L, lua_gettop(L),
+                res->u.Response.u.VariablesResponse.variables[v].value,
+                sizeof res->u.Response.u.VariablesResponse.variables[0].value);
+            v++;
+          }
+          lua_pop(L, 1); /* pop the value */
+        }
+        else {
+          break;
+        }
       }
     }
   }
   else {
-    vscode_make_error_response(req, res, VSCODE_VARIABLES_RESPONSE, "Error retrieving variables");
+    vscode_make_error_response(req, res, VSCODE_VARIABLES_RESPONSE,
+                               "Error retrieving variables");
   }
-  vscode_serialize_response(buf, sizeof buf, res);
-  fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
+  vscode_send(res, out, log);
 }
 
 static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
   if (debugger_state != DEBUGGER_INITIALIZED) {
-    send_error_response(req, res, VSCODE_LAUNCH_RESPONSE,
-                               "not initialized or unexpected state", out);
+    vscode_send_error_response(req, res, VSCODE_LAUNCH_RESPONSE,
+                               "not initialized or unexpected state", out, log);
     return;
   }
 
@@ -272,21 +283,25 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
     char temp[1024];
     snprintf(temp, sizeof temp, "Failed to launch %s due to error: %s",
              progname, lua_tostring(L, -1));
-    send_output_event(res, temp, out);
-    send_error_response(req, res, VSCODE_LAUNCH_RESPONSE, "Launch failed", out);
+    vscode_send_output_event(res, temp, out, log);
+    vscode_send_error_response(req, res, VSCODE_LAUNCH_RESPONSE,
+                               "Launch failed", out, log);
     lua_pop(L, 1);
     return;
   }
   else {
-    send_success_response(req, res, VSCODE_LAUNCH_RESPONSE, out);
+    vscode_send_success_response(req, res, VSCODE_LAUNCH_RESPONSE, out, log);
   }
-  debugger_state = DEBUGGER_PROGRAM_RUNNING;
+  if (req->u.Request.u.LaunchRequest.stopOnEntry)
+    debugger_state = DEBUGGER_PROGRAM_STEPPING;
+  else
+    debugger_state = DEBUGGER_PROGRAM_RUNNING;
   if (lua_pcall(L, 0, 0, 0)) {
-    send_output_event(res, "Program terminated with error", out);
-    send_output_event(res, lua_tostring(L, -1), out);
+    vscode_send_output_event(res, "Program terminated with error", out, log);
+    vscode_send_output_event(res, lua_tostring(L, -1), out, log);
     lua_pop(L, 1);
   }
-  send_terminated_event(res, out);
+  vscode_send_terminated_event(res, out, log);
   debugger_state = DEBUGGER_PROGRAM_TERMINATED;
 }
 
@@ -298,138 +313,118 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
                      FILE *out) {
   char buf[4096] = {0};
   ProtocolMessage req, res;
-  if (debugger_state == DEBUGGER_PROGRAM_TERMINATED) {
+  if (debugger_state == DEBUGGER_PROGRAM_TERMINATED ||
+      debugger_state == DEBUGGER_PROGRAM_RUNNING) {
     return;
   }
-  if (debugger_state == DEBUGGER_PROGRAM_RUNNING) {
+  if (debugger_state == DEBUGGER_PROGRAM_STEPPING) {
     /* running within Lua at line change */
     if (!thread_event_sent) {
       /* thread started - only sent once in the debug session */
       thread_event_sent = 1;
-      send_thread_event(&res, true, out);
+      vscode_send_thread_event(&res, true, out, log);
       /* Inform VSCode we have stopped */
-      send_stopped_event(&res, "entry", out);
+      vscode_send_stopped_event(&res, "entry", out, log);
     }
     else {
       /* Inform VSCode we have stopped */
-      send_stopped_event(&res, "step", out);
+      vscode_send_stopped_event(&res, "step", out, log);
     }
     debugger_state = DEBUGGER_PROGRAM_STOPPED;
   }
   bool get_command = true;
-  /* Get command from VSCode 
-   * VSCode commands begin with the sequence:
-   * 'Content-Length: nnn\r\n\r\n'
-   * This is followed by nnn bytes which has a JSON
-   * format request message
-   * We currently don't bother checking the
-   * \r\n\r\n sequence for incoming messages 
-   */
-  while (get_command && fgets(buf, sizeof buf, in) != NULL) {
-    buf[sizeof buf - 1] = 0; /* NULL terminate - just in case */
-    const char *bufp = strstr(buf, "Content-Length: ");
-    if (bufp != NULL) {
-      bufp += 16;
-      /* get the message length */
-      int len = atoi(bufp);
-      if (len >= sizeof buf) {
-        /* FIXME */
-        fprintf(log, "FATAL ERROR - Content-Length = %d is greater than bufsize\n", len);
-        exit(1);
+  int command = VSCODE_UNKNOWN_REQUEST;
+  while (get_command &&
+         (command = vscode_get_request(in, &req, log)) != VSCODE_EOF) {
+    switch (command) {
+      case VSCODE_INITIALIZE_REQUEST: {
+        handle_initialize_request(&req, &res, out);
+        break;
       }
-      buf[0] = 0;
-      /* skip blank line - actually \r\n */
-      if (fgets(buf, sizeof buf, stdin) == NULL) break;
-      /* Now read exact number of characters */
-      buf[0] = 0;
-      if (fread(buf, len, 1, stdin) != 1) {
-        fprintf(log, "FATAL ERROR - cannot read %d bytes\n", len);
-        exit(1);
+      case VSCODE_LAUNCH_REQUEST: {
+        handle_launch_request(&req, &res, L, out);
+        break;
       }
-      buf[len] = 0;
-      fprintf(log, "Content-Length: %d\r\n\r\n%s", len, buf);
-      fflush(log);
-
-      /* Parse the VSCode request */
-      int command = vscode_parse_message(buf, sizeof buf, &req, log);
-      switch (command) {
-        case VSCODE_INITIALIZE_REQUEST: {
-          handle_initialize_request(&req, &res, out);
-          break;
-        }
-        case VSCODE_LAUNCH_REQUEST: {
-          handle_launch_request(&req, &res, L, out);
-          break;
-        }
-        case VSCODE_STACK_TRACE_REQUEST: {
-          handle_stack_trace_request(&req, &res, L, out);
-          break;
-        }
-        case VSCODE_SCOPES_REQUEST: {
-          handle_scopes_request(&req, &res, L, out);
-          break;
-        }
-        case VSCODE_VARIABLES_REQUEST: {
-          handle_variables_request(&req, &res, L, out);
-          break;
-        }
-        case VSCODE_DISCONNECT_REQUEST: {
-          send_success_response(&req, &res, VSCODE_DISCONNECT_RESPONSE, out);
-          exit(0);
-        }
-        case VSCODE_SET_EXCEPTION_BREAKPOINTS_REQUEST: {
-          send_success_response(&req, &res, VSCODE_SET_EXCEPTION_BREAKPOINTS_RESPONSE, out);
-          break;
-        }
-        case VSCODE_CONFIGURATION_DONE_REQUEST: {
-          send_success_response(&req, &res, VSCODE_CONFIGURATION_DONE_RESPONSE, out);
-          break;
-        }
-        case VSCODE_THREAD_REQUEST: {
-          handle_thread_request(&req, &res, out);
-          break;
-        }
-        case VSCODE_STEPIN_REQUEST: {
-          send_success_response(&req, &res, VSCODE_STEPIN_RESPONSE, out);
-          get_command = false;
-          break;
-        }
-        case VSCODE_STEPOUT_REQUEST: {
-          send_success_response(&req, &res, VSCODE_STEPOUT_RESPONSE, out);
-          get_command = false;
-          break;
-        }
-        case VSCODE_NEXT_REQUEST: {
-          send_success_response(&req, &res, VSCODE_NEXT_RESPONSE, out);
-          get_command = false;
-          break;
-        }
-        default: {
-          char msg[100];
-          snprintf(msg, sizeof msg, "%s not yet implemented", req.u.Request.command);
-          fprintf(log, "%s\n", msg);
-          send_error_response(&req, &res, command, msg, out);
-          break;
-        }
+      case VSCODE_STACK_TRACE_REQUEST: {
+        handle_stack_trace_request(&req, &res, L, out);
+        break;
+      }
+      case VSCODE_SCOPES_REQUEST: {
+        handle_scopes_request(&req, &res, L, out);
+        break;
+      }
+      case VSCODE_VARIABLES_REQUEST: {
+        handle_variables_request(&req, &res, L, out);
+        break;
+      }
+      case VSCODE_DISCONNECT_REQUEST: {
+        vscode_send_terminated_event(&res, out, log);
+        debugger_state = DEBUGGER_PROGRAM_TERMINATED;
+        vscode_send_success_response(&req, &res, VSCODE_DISCONNECT_RESPONSE,
+                                     out, log);
+        exit(0);
+      }
+      case VSCODE_SET_EXCEPTION_BREAKPOINTS_REQUEST: {
+        vscode_send_success_response(
+            &req, &res, VSCODE_SET_EXCEPTION_BREAKPOINTS_RESPONSE, out, log);
+        break;
+      }
+      case VSCODE_CONFIGURATION_DONE_REQUEST: {
+        vscode_send_success_response(
+            &req, &res, VSCODE_CONFIGURATION_DONE_RESPONSE, out, log);
+        break;
+      }
+      case VSCODE_THREAD_REQUEST: {
+        handle_thread_request(&req, &res, out);
+        break;
+      }
+      case VSCODE_STEPIN_REQUEST: {
+        vscode_send_success_response(&req, &res, VSCODE_STEPIN_RESPONSE, out,
+                                     log);
+        debugger_state = DEBUGGER_PROGRAM_STEPPING;
+        get_command = false;
+        break;
+      }
+      case VSCODE_STEPOUT_REQUEST: {
+        vscode_send_success_response(&req, &res, VSCODE_STEPOUT_RESPONSE, out,
+                                     log);
+        debugger_state = DEBUGGER_PROGRAM_STEPPING;
+        get_command = false;
+        break;
+      }
+      case VSCODE_NEXT_REQUEST: {
+        vscode_send_success_response(&req, &res, VSCODE_NEXT_RESPONSE, out,
+                                     log);
+        debugger_state = DEBUGGER_PROGRAM_STEPPING;
+        get_command = false;
+        break;
+      }
+      case VSCODE_CONTINUE_REQUEST: {
+        debugger_state = DEBUGGER_PROGRAM_RUNNING;
+        vscode_send_success_response(&req, &res, VSCODE_CONTINUE_RESPONSE, out,
+                                     log);
+        get_command = false;
+        break;
+      }
+      default: {
+        char msg[100];
+        snprintf(msg, sizeof msg, "%s not yet implemented",
+                 req.u.Request.command);
+        fprintf(log, "%s\n", msg);
+        vscode_send_error_response(&req, &res, command, msg, out, log);
+        break;
       }
     }
-    else {
-      fprintf(log, "\nUnexpected: %s\n", buf);
-    }
-    fprintf(log, "\nWaiting for command\n");
   }
-  debugger_state = DEBUGGER_PROGRAM_RUNNING;
 }
 
-/* 
-* Lua Hook used by the debugger 
+/*
+* Lua Hook used by the debugger
 * Setup to intercept at every line change
 */
 void ravi_debughook(lua_State *L, lua_Debug *ar) {
   int event = ar->event;
-  if (event == LUA_HOOKLINE) {
-    debugger(L, false, ar, stdin, stdout);
-  }
+  if (event == LUA_HOOKLINE) { debugger(L, false, ar, stdin, stdout); }
 }
 
 /*
@@ -451,7 +446,7 @@ int main(int argc, const char *argv[]) {
   if (L == NULL) { return EXIT_FAILURE; }
   luaL_checkversion(L); /* check that interpreter has correct version */
   /* TODO need to redirect the stdin/stdout used by Lua */
-  luaL_openlibs(L);     /* open standard libraries */
+  luaL_openlibs(L); /* open standard libraries */
   lua_sethook(L, ravi_debughook, LUA_MASKCALL | LUA_MASKLINE | LUA_MASKRET, 0);
   debugger_state = DEBUGGER_BIRTH;
   debugger(L, true, NULL, stdin, stdout);
