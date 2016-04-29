@@ -31,7 +31,13 @@
 			"label": "Ravi Debugger",
 			"enableBreakpointsFor": { "languageIds": ["lua"] },
 			"program": "./bin/ravidebug.exe",
-			"initialConfigurations": [
+            "osx": {
+                "program": "/bin/ravidebug"
+            },
+            "linux": {
+                "program": "/bin/ravidebug"
+            },
+			"initialConfigurations":[
 				{
 					"name": "Ravi Debugger",
 					"type": "lua",
