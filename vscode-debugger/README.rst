@@ -17,21 +17,24 @@ Status
 This is work in progress but the basic debugger is working with following features.
 
 * Launch a Ravi/Lua program and stop on entry
-* Step through code
+* Step through code (stepin, stepout, next all behave as stepin)
 * Set breakpoints at line/source level
+* Only local variables are shown in the Variables window
+* No expansion of aggregate structures such as tables yet
+* Only source files that are available on disk can be debugged 
 
-Only source files that are available on disk can be debugged 
 Only tested on Windows 10 so far.
+Please note that this is not yet ready for use so try at your own risk!
 
 Installation
 ------------
 To install first build Ravi. 
-You should see a binary named `ravidebug.exe` built.
+You should see an executable named `ravidebug` in the build directory.
 
 Install the debugger extension as follows:
 
-1. Create a directory named `.vscode/extensions/dibyendumajumdar.ravi-debug-0.0.1/bin` under the home directory.
-2. Copy the `ravidebug` executable to the bin folder.
+1. Create a directory named `.vscode/extensions/dibyendumajumdar.ravi-debug-0.0.1/bin` under the home directory. On Windows 10 this is under /Users/<username>.
+2. Copy the `ravidebug` executable to the bin folder created above.
 3. Copy the file `vscode-debugger/vscode/extensions/dibyendumajumdar.ravi-debug-0.0.1/package.json` to the directory `.vscode/extensions/dibyendumajumdar.ravi-debug-0.0.1`.
 
 Now when you open a directory containing Lua programs VSCode should allow you to launch a debug session. You will need to change the launch parameters as required but note that right now `LUA_PATH` and `LUA_CPATH` are not passed on to the debugger.
