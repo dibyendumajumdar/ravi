@@ -493,7 +493,7 @@ void ravi_debughook(lua_State *L, lua_Debug *ar) {
 * The protocol used is described in protocol.h.
 */
 int main(int argc, const char *argv[]) {
-  log = fopen("\\temp\\out1.txt", "w");
+  log = stderr; //fopen("\\temp\\out1.txt", "w");
   if (log == NULL) exit(1);
 #ifdef _WIN32
   /* The VSCode debug protocol requires binary IO */
