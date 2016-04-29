@@ -263,6 +263,7 @@ static int vscode_parse_set_breakpoints_request(json_value *js, ProtocolMessage 
     if (element->type != json_object)
       return VSCODE_UNKNOWN_REQUEST;
     int line = get_int_value(element, "line", log, &found);
+    fprintf(log, "Set breakpoint line = %d\n", line);
     msg->u.Request.u.SetBreakpointsRequest.breakpoints[i].line = found ? line: -1;
   }
   msg->u.Request.request_type = msgtype;

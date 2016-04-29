@@ -35,3 +35,10 @@ Install the debugger extension as follows:
 3. Copy the file `vscode-debugger/vscode/extensions/dibyendumajumdar.ravi-debug-0.0.1/package.json` to the directory `.vscode/extensions/dibyendumajumdar.ravi-debug-0.0.1`.
 
 Now when you open a directory containing Lua programs VSCode should allow you to launch a debug session. You will need to change the launch parameters as required but note that right now `LUA_PATH` and `LUA_CPATH` are not passed on to the debugger.
+
+Screenshots
+-----------
+
+.. figure:: ../readthedocs/debugger-screenshot1.jpg
+   :alt: Ravi Debugger screenshot
+
