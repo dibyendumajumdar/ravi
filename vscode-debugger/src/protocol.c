@@ -110,6 +110,22 @@ static json_value *get_object_value(json_value *js, const char *key,
   return NULL;
 }
 
+static json_value *get_array_value(json_value *js, const char *key,
+  FILE *log) {
+  if (js->type != json_object) { return NULL; }
+  for (int i = 0; i < js->u.object.length; i++) {
+    json_object_entry *value = &js->u.object.values[i];
+    if (strncmp(value->name, key, value->name_length) == 0) {
+      if (value->value->type == json_array) { return value->value; }
+      else {
+        return NULL;
+      }
+    }
+  }
+  return NULL;
+}
+
+
 static void dump_keys(json_value *js, FILE *log) {
   if (js->type != json_object) return;
   for (int i = 0; i < js->u.object.length; i++) {
@@ -224,6 +240,35 @@ static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg,
   return msgtype;
 }
 
+static int vscode_parse_set_breakpoints_request(json_value *js, ProtocolMessage *msg,
+  int msgtype, FILE *log) {
+  int found = 0;
+  json_value *args = get_object_value(js, "arguments", log);
+  if (args == NULL) return VSCODE_UNKNOWN_REQUEST;
+  json_value *source = get_object_value(args, "source", log);
+  if (source == NULL) return VSCODE_UNKNOWN_REQUEST;
+  const char *prog = get_string_value(source, "path", log);
+  if (prog == NULL) return VSCODE_UNKNOWN_REQUEST;
+  strncpy(msg->u.Request.u.SetBreakpointsRequest.source.path, prog,
+    sizeof msg->u.Request.u.SetBreakpointsRequest.source.path);
+  for (char *cp = msg->u.Request.u.SetBreakpointsRequest.source.path; *cp; cp++) {
+    if (*cp == '\\') 
+      *cp = '/';
+  }
+  json_value *breakpoints = get_array_value(args, "breakpoints", log);
+  if (breakpoints == NULL || breakpoints->type != json_array)
+    return VSCODE_UNKNOWN_REQUEST;
+  for (int i = 0; i < breakpoints->u.array.length && i < MAX_BREAKPOINTS; i++) {
+    json_value *element = breakpoints->u.array.values[i];
+    if (element->type != json_object)
+      return VSCODE_UNKNOWN_REQUEST;
+    int line = get_int_value(element, "line", log, &found);
+    msg->u.Request.u.SetBreakpointsRequest.breakpoints[i].line = found ? line: -1;
+  }
+  msg->u.Request.request_type = msgtype;
+  return msgtype;
+}
+
 static int vscode_parse_stack_trace_request(json_value *js,
                                             ProtocolMessage *msg, int msgtype,
                                             FILE *log) {
@@ -276,6 +321,8 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
     case VSCODE_SET_EXCEPTION_BREAKPOINTS_REQUEST:
       msg->u.Request.request_type = cmdtype;
       break;
+    case VSCODE_SET_BREAKPOINTS_REQUEST:
+      return vscode_parse_set_breakpoints_request(js, msg, cmdtype, log);
     case VSCODE_UNKNOWN_REQUEST: break;
     default: msg->u.Request.request_type = cmdtype;
   }
@@ -489,6 +536,26 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
     snprintf(cp, sizeof temp - strlen(temp), "]}");
     cp = temp + strlen(temp);
   }
+  else if (res->u.Response.response_type == VSCODE_SET_BREAKPOINTS_RESPONSE &&
+    res->u.Response.success) {
+    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"breakpoints\":[");
+    cp = temp + strlen(temp);
+    for (int d = 0; d < MAX_BREAKPOINTS; d++) {
+      if (!res->u.Response.u.SetBreakpointsResponse.breakpoints[d].source.path[0]) break;
+      if (d) {
+        snprintf(cp, sizeof temp - strlen(temp), ",");
+        cp = temp + strlen(temp);
+      }
+      snprintf(cp, sizeof temp - strlen(temp),
+        "{\"verified\":%s,\"source\":{\"path\":\"%s\"},\"line\":%d}",
+        res->u.Response.u.SetBreakpointsResponse.breakpoints[d].verified ? "true" : "false",
+        res->u.Response.u.SetBreakpointsResponse.breakpoints[d].source.path,
+        res->u.Response.u.SetBreakpointsResponse.breakpoints[d].line);
+      cp = temp + strlen(temp);
+    }
+    snprintf(cp, sizeof temp - strlen(temp), "]}");
+    cp = temp + strlen(temp);
+  }
   snprintf(cp, sizeof temp - strlen(temp), "}");
   cp = temp + strlen(temp);
   snprintf(buf, buflen, "Content-Length: %d\r\n\r\n%s", (int)strlen(temp),
@@ -600,7 +667,7 @@ void vscode_send_success_response(ProtocolMessage *req, ProtocolMessage *res,
   vscode_send(res, out, log);
 }
 
-/* 
+/*
 * Get command from VSCode
 * VSCode commands begin with the sequence:
 * 'Content-Length: nnn\r\n\r\n'

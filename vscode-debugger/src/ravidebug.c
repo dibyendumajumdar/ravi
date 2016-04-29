@@ -1,5 +1,5 @@
 /**
- * Standalone Lua/Ravi interpreter that is meant to be used as 
+ * Standalone Lua/Ravi interpreter that is meant to be used as
  * a debugger in the VSCode IDE.
  */
 
@@ -33,6 +33,8 @@ enum {
 static FILE *log = NULL;
 static int thread_event_sent = 0;
 static int debugger_state = DEBUGGER_BIRTH;
+static Breakpoint breakpoints[20];
+static int num_breakpoints;
 
 /*
 * Generate response to InitializeRequest
@@ -116,6 +118,44 @@ static void handle_stack_trace_request(ProtocolMessage *req,
   res->u.Response.u.StackTraceResponse.totalFrames = depth;
   vscode_send(res, out, log);
 }
+
+/*
+* Handle StackTraceRequest
+*/
+static void handle_set_breakpoints_request(ProtocolMessage *req,
+  ProtocolMessage *res, FILE *out, FILE *log) {
+  vscode_make_success_response(req, res, VSCODE_SET_BREAKPOINTS_RESPONSE);
+  int j = 0, k = 0;
+  for (int i = 0; i < MAX_BREAKPOINTS; i++) {
+    if (req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line > 0) {
+      while (j < 20) {
+        int y = j++;
+        if (breakpoints[y].source.path[0] == 0 || strcmp(breakpoints[y].source.path, req->u.Request.u.SetBreakpointsRequest.source.path) == 0) {
+          strncpy(breakpoints[y].source.path, req->u.Request.u.SetBreakpointsRequest.source.path, sizeof breakpoints[0].source.path);
+          breakpoints[y].line = req->u.Request.u.SetBreakpointsRequest.breakpoints[y].line;
+          fprintf(log, "Saving breakpoint j=%d, k=%d, i=%d\n", y, k, i);
+          if (k < MAX_BREAKPOINTS) {
+            res->u.Response.u.SetBreakpointsResponse.breakpoints[k].line = req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line;
+            res->u.Response.u.SetBreakpointsResponse.breakpoints[k].verified = false;
+            strncpy(res->u.Response.u.SetBreakpointsResponse.breakpoints[k].source.path, breakpoints[y].source.path,
+              sizeof res->u.Response.u.SetBreakpointsResponse.breakpoints[k].source.path);
+            k++;
+          }
+          break;
+        }
+      }
+      if (j == 20 || k == MAX_BREAKPOINTS) break;
+    }
+  }
+  for (j++; j < 20; j++) {
+    if (strcmp(breakpoints[j].source.path, req->u.Request.u.SetBreakpointsRequest.source.path) == 0) {
+      breakpoints[j].source.path[0] = 0;
+      breakpoints[j].line = 0;
+    }
+  }
+  vscode_send(res, out, log);
+}
+
 
 /*
 * Handle ScopeRequest
@@ -313,9 +353,24 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
                      FILE *out) {
   char buf[4096] = {0};
   ProtocolMessage req, res;
-  if (debugger_state == DEBUGGER_PROGRAM_TERMINATED ||
-      debugger_state == DEBUGGER_PROGRAM_RUNNING) {
+  if (debugger_state == DEBUGGER_PROGRAM_TERMINATED) {
     return;
+  }
+  if (debugger_state == DEBUGGER_PROGRAM_RUNNING) {
+    int status = lua_getinfo(L, "S", ar);
+    if (status && ar->source[0] == '@') {
+      for (int j = 0; j < 20; j++) {
+        if (!breakpoints[j].source.path[0])
+          break;
+        fprintf(log, "Breakpoint[%d] check %s vs ar.source=%s, %d vs ar.line=%d\n", j, breakpoints[j].source.path, ar->source, breakpoints[j].line, ar->currentline);
+        if (ar->currentline == breakpoints[j].line && strcmp(breakpoints[j].source.path, ar->source+1) == 0) {
+          debugger_state = DEBUGGER_PROGRAM_STEPPING;
+          break;
+        }
+      }
+    }
+    if (debugger_state == DEBUGGER_PROGRAM_RUNNING)
+      return;
   }
   if (debugger_state == DEBUGGER_PROGRAM_STEPPING) {
     /* running within Lua at line change */
@@ -367,6 +422,11 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
       case VSCODE_SET_EXCEPTION_BREAKPOINTS_REQUEST: {
         vscode_send_success_response(
             &req, &res, VSCODE_SET_EXCEPTION_BREAKPOINTS_RESPONSE, out, log);
+        break;
+      }
+      case VSCODE_SET_BREAKPOINTS_REQUEST: {
+        handle_set_breakpoints_request(
+          &req, &res, out, log);
         break;
       }
       case VSCODE_CONFIGURATION_DONE_REQUEST: {

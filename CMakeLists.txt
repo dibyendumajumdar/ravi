@@ -214,7 +214,7 @@ else()
 endif ()
 target_link_libraries(libravi ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
 
-#Static library
+#Static library for the debugger 
 if (NOT LLVM_JIT)
   add_library(libravistatic 
         ${RAVI_HEADERS}
@@ -231,18 +231,18 @@ if (NOT LLVM_JIT)
   endif ()
   target_link_libraries(libravistatic ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
 
-  add_executable(testravidebug vscode-debugger/testravidebug.c vscode-debugger/json.c vscode-debugger/protocol.c)
+  add_executable(testravidebug vscode-debugger/src/testravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
   target_link_libraries(testravidebug libravistatic)
 
   add_test(TestRaviDebug testravidebug)
 
-  add_executable(ravidebug vscode-debugger/ravidebug.c vscode-debugger/json.c vscode-debugger/protocol.c)
+  # Ravi VSCode Debug adapter
+  add_executable(ravidebug vscode-debugger/src/ravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
   target_link_libraries(ravidebug libravistatic)
 endif()
 
 add_executable(ravi src/lua.c)
 target_link_libraries(ravi libravi)
-
 
 #VM test
 add_executable(test_vm tests/test_vm.c)

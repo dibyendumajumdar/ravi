@@ -352,16 +352,19 @@ extern void vscode_make_thread_event(ProtocolMessage *res, bool started);
 extern void vscode_make_terminated_event(ProtocolMessage *res);
 extern void vscode_send(ProtocolMessage *msg, FILE *out, FILE *log);
 extern void vscode_send_stopped_event(ProtocolMessage *res, const char *msg,
-  FILE *out, FILE *log);
+                                      FILE *out, FILE *log);
 extern void vscode_send_thread_event(ProtocolMessage *res, bool started,
-  FILE *out, FILE *log);
-extern void vscode_send_terminated_event(ProtocolMessage *res, FILE *out, FILE *log);
+                                     FILE *out, FILE *log);
+extern void vscode_send_terminated_event(ProtocolMessage *res, FILE *out,
+                                         FILE *log);
 extern void vscode_send_output_event(ProtocolMessage *res, const char *msg,
-  FILE *out, FILE *log);
-extern void vscode_send_error_response(ProtocolMessage *req, ProtocolMessage *res,
-  int responseType, const char *msg, FILE *out, FILE *log);
-extern void vscode_send_success_response(ProtocolMessage *req, ProtocolMessage *res,
-  int responseType, FILE *out, FILE *log);
+                                     FILE *out, FILE *log);
+extern void vscode_send_error_response(ProtocolMessage *req,
+                                       ProtocolMessage *res, int responseType,
+                                       const char *msg, FILE *out, FILE *log);
+extern void vscode_send_success_response(ProtocolMessage *req,
+                                         ProtocolMessage *res, int responseType,
+                                         FILE *out, FILE *log);
 extern int vscode_get_request(FILE *in, ProtocolMessage *req, FILE *log);
 
 #endif
