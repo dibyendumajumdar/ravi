@@ -45,8 +45,22 @@ LUA_API int ravi_get_modulecount() {
 namespace ravi {
 
 // This is just to avoid initializing LLVM repeatedly -
-// see below
-static std::atomic_int init;
+// LLVM needs to be initialized else
+// ExecutionEngine cannot be created
+// This needs to be an atomic check although LLVM docs
+// say that it is okay to call these functions more than once
+struct Ravi_LLVM_Initializer
+{
+    bool llvm_already_initialized;
+    Ravi_LLVM_Initializer()
+    {
+        llvm::InitializeNativeTarget();
+        llvm::InitializeNativeTargetAsmPrinter();
+        llvm::InitializeNativeTargetAsmParser();
+        llvm_already_initialized = true;
+    }
+};
+static Ravi_LLVM_Initializer ravi_llvm_initializer;
 
 // Construct the JIT compiler state
 // The JIT compiler state will be attached to the
@@ -61,16 +75,6 @@ RaviJITState::RaviJITState()
       min_exec_count_(50),
       gc_step_(200),
       tracehook_enabled_(false) {
-  // LLVM needs to be initialized else
-  // ExecutionEngine cannot be created
-  // This needs to be an atomic check although LLVM docs
-  // say that it is okay to call these functions more than once
-  if (init == 0) {
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
-    llvm::InitializeNativeTargetAsmParser();
-    init++;
-  }
   triple_ = llvm::sys::getProcessTriple();
 #if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MINOR < 7)
   // On Windows we get compilation error saying incompatible object format
@@ -96,14 +100,10 @@ void RaviJITState::addGlobalSymbol(const std::string &name, void *address) {
 
 void RaviJITState::dump() { types_->dump(); }
 
-static std::atomic_int module_id;
-
-
 RaviJITModule::RaviJITModule(RaviJITState *owner)
     : owner_(owner), engine_(nullptr), module_(nullptr) {
-  int myid = module_id++;
   char buf[40];
-  snprintf(buf, sizeof buf, "ravi_module_%d", myid);
+  snprintf(buf, sizeof buf, "ravi_module_%p", this);
   std::string moduleName(buf);
   module_ = new llvm::Module(moduleName, owner->context());
 #if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MINOR < 7)

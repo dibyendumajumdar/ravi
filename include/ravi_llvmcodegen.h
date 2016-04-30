@@ -62,7 +62,6 @@ extern "C" {
 #endif
 
 #include <array>
-#include <atomic>
 #include <iterator>
 #include <type_traits>
 

@@ -98,7 +98,7 @@ if (CMAKE_COMPILER_IS_GNUCXX AND NOT APPLE)
     # add_definitions("-D_GLIBCXX_USE_CXX11_ABI=0")
 endif ()
 
-if (APPLE)
+if (APPLE OR (LLVM_JIT AND (NOT CMAKE_COMPILER_IS_GNUCXX) AND (NOT MSVC)))
     set(CMAKE_C_FLAGS "-std=c99 -O1 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
     set(CMAKE_C_FLAGS_DEBUG "-std=c99 -O0 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
     set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
@@ -167,6 +167,27 @@ if (LLVM_JIT)
     if (${LLVM_PACKAGE_VERSION} VERSION_LESS "3.8")
         set(LLVM_EXTRA_LIBS ipa)
     endif()
+    message(STATUS "SYSTEM_PROCESSOR ${CMAKE_SYSTEM_PROCESSOR}")
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+	set(LLVM_LIBS_PROCESSOR
+		X86CodeGen
+		X86AsmParser
+		X86Disassembler
+		X86AsmPrinter
+		X86Desc
+		X86Info
+		X86Utils
+	    )
+    elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+	set(LLVM_LIBS_PROCESSOR
+		ARMCodeGen
+		ARMAsmParser
+		ARMDisassembler
+		ARMAsmPrinter
+		ARMDesc
+		ARMInfo
+	    )
+    endif()
     llvm_map_components_to_libnames(LLVM_LIBS
             Analysis
             Core
@@ -187,13 +208,7 @@ if (LLVM_JIT)
             Support
             Target
             TransformUtils
-            X86CodeGen
-            X86AsmParser
-            X86Disassembler
-            X86AsmPrinter
-            X86Desc
-            X86Info
-            X86Utils
+	    ${LLVM_LIBS_PROCESSOR}
             )
     message(STATUS "LLVM_LIBS ${LLVM_LIBS}")
 endif ()
