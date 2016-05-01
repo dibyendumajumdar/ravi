@@ -53,6 +53,11 @@ enum {
 #define EXTRACT_C(x) ( ((x)>>16) & MASK )
 #define EXTRACT_D(x) ( ((x)>>24) & MASK )
 
+/*
+ * These statics are temporary - eventually they will be moved to
+ * the Lua global state; but right now while things are 
+ * evolving this is easier to work with.
+ */
 static FILE *log = NULL;
 static int thread_event_sent = 0;
 static int debugger_state = DEBUGGER_BIRTH;
@@ -80,7 +85,7 @@ static void handle_initialize_request(ProtocolMessage *req,
   vscode_send(res, out, log);
 
   /* Send notification */
-  vscode_send_output_event(res, "Debugger initialized", out, log);
+  vscode_send_output_event(res, "Debugger initialized\\n", out, log);
   debugger_state = DEBUGGER_INITIALIZED;
 }
 
@@ -281,26 +286,38 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
   lua_Debug entry;
   vscode_make_success_response(req, res, VSCODE_VARIABLES_RESPONSE);
   int varRef = req->u.Request.u.VariablesRequest.variablesReference;
+  /*
+   * The variable reference is encoded such that it contains:
+   * type - the scope type 
+   * depth - the stack frame
+   * var - the index of the variable as provided to lua_getlocal()
+   */
   int type = EXTRACT_T(varRef);
   int depth = EXTRACT_A(varRef);
   int var = EXTRACT_B(varRef);
   if (lua_getstack(L, depth, &entry)) {
     if (type == VAR_TYPE_LOCALS) { // locals
       if (var == 0) {
-        for (int n = 1, v = 0; v <= MAX_VARIABLES; n++) {
+        /*
+         * A top level request - i.e. from the scope
+         */
+        for (int n = 1, v = 0; v < MAX_VARIABLES; n++) {
           const char *name = lua_getlocal(L, &entry, n);
           if (name) {
+            /* Temporary variables have names that start with (. 
+             * Skip such variables
+             */
             if (*name != '(') {
               strncpy(
                   res->u.Response.u.VariablesResponse.variables[v].name, name,
                   sizeof res->u.Response.u.VariablesResponse.variables[0].name);
-              var = get_value(
+              int is_table = get_value(
                   L, lua_gettop(L),
                   res->u.Response.u.VariablesResponse.variables[v].value,
                   sizeof res->u.Response.u.VariablesResponse.variables[0].value);
-              /* If the variable has a structure then we pass pack a reference
+              /* If the variable is a table then we pass pack a reference
                  that is used by the front end to drill down */
-              res->u.Response.u.VariablesResponse.variables[v].variablesReference = var ?
+              res->u.Response.u.VariablesResponse.variables[v].variablesReference = is_table ?
                 MAKENUM(type, depth, n, 0, 0) : 0;
               v++;
             }
@@ -312,8 +329,43 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
         }
       }
       else {
-        /* TODO extract variable */
+        /*
+         * We support one level of drill down
+         * FIXME - the number of items is limited to MAX_VARIABLES
+         * but user is not shown any warning if values are truncated
+         */
         fprintf(log, "\n--> Request to extract local variable %d of type %d at depth %d\n", var, type, depth);
+        const char *name = lua_getlocal(L, &entry, var);
+        if (name) {
+          int stack_idx = lua_gettop(L);
+          int l_type = lua_type(L, stack_idx);
+          if (l_type == LUA_TTABLE) {
+            lua_pushnil(L);  // push first key
+            int v = 0;
+            while (lua_next(L, stack_idx) && v < MAX_VARIABLES) {
+              // stack now contains: -1 => value; -2 => key
+              // copy the key so that lua_tostring does not modify the original
+              lua_pushvalue(L, -2);
+              // stack now contains: -1 => key; -2 => value; -3 => key
+              get_value(
+                        L, -1,
+                        res->u.Response.u.VariablesResponse.variables[v].name,
+                        sizeof res->u.Response.u.VariablesResponse.variables[0].name);
+              get_value(
+                        L, -2,
+                        res->u.Response.u.VariablesResponse.variables[v].value,
+                        sizeof res->u.Response.u.VariablesResponse.variables[0].value);
+              /*
+               * Right now we do not support further drill down
+               */
+              res->u.Response.u.VariablesResponse.variables[v].variablesReference = 0;
+              v++;
+              // pop value + copy of key, leaving original key
+              lua_pop(L, 2);
+            }
+          }
+          lua_pop(L, 1);
+        }
       }
     }
   }
