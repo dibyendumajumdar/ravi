@@ -114,6 +114,34 @@ static json_value *get_object_value(json_value *js, const char *key,
   return NULL;
 }
 
+void vscode_json_stringify(const char *src, char *dest, size_t len) {
+  char *p = dest;
+  char *end = dest + len - 1;
+  for (int i = 0; i < strlen(src) && p < end; i++) {
+    char ch = 0;
+    switch (src[i]) {
+    case '"':  ch = '"'; goto l_escape;
+    case '\\': ch = '\\'; goto l_escape;
+    case '\b': ch = 'b'; goto l_escape;
+    case '\f': ch = 'f'; goto l_escape;
+    case '\n': ch = 'n'; goto l_escape;
+    case '\r': ch = 'r'; goto l_escape;
+    case '\t': {
+      ch = 't';
+l_escape:
+      if (p + 2 > end)
+        goto l_done;
+      *p++ = '\\';
+      *p++ = ch;
+    } break;
+    default:
+      *p++ = src[i];
+    }
+  }
+l_done:
+  *p = 0;
+}
+
 static json_value *get_array_value(json_value *js, const char *key,
   FILE *log) {
   (void)log;
@@ -566,10 +594,7 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");
-  cp = temp + strlen(temp);
-  snprintf(buf, buflen, "Content-Length: %d\r\n\r\n%s", (int)strlen(temp),
-           temp);
-  // printf(buf);
+  snprintf(buf, buflen, temp);
 }
 
 /*
@@ -610,21 +635,22 @@ void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");
-  cp = temp + strlen(temp);
-  snprintf(buf, buflen, "Content-Length: %d\r\n\r\n%s", (int)strlen(temp),
-           temp);
+  snprintf(buf, buflen, temp);
 }
 
 void vscode_send(ProtocolMessage *msg, FILE *out, FILE *log) {
   char buf[4096];
+  char json_buf[sizeof buf + 30];
   if (msg->type == VSCODE_EVENT)
     vscode_serialize_event(buf, sizeof buf, msg);
   else if (msg->type == VSCODE_RESPONSE)
     vscode_serialize_response(buf, sizeof buf, msg);
   else
     return;
-  fprintf(log, "%s\n", buf);
-  fprintf(out, "%s", buf);
+  snprintf(json_buf, sizeof json_buf, "Content-Length: %d\r\n\r\n%s", (int)strlen(buf),
+    buf);
+  fprintf(log, "%s\n", json_buf);
+  fprintf(out, "%s", json_buf);
 }
 
 /*

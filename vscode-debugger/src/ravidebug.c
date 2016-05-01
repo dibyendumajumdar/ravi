@@ -229,6 +229,7 @@ static void get_userdata(lua_State *L, int stack_idx, char *buf, size_t len) {
 }
 
 static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
+  int rc = 0;
   int l_type = lua_type(L, stack_idx);
   *buf = 0;
   switch (l_type) {
@@ -255,12 +256,15 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
       break;
     }
     case LUA_TSTRING: {
-      snprintf(buf, len, "%.*s", (int)(len - 1), lua_tostring(L, stack_idx));
+      char tbuf[1024];
+      snprintf(tbuf, sizeof tbuf, "%.*s", (int)(sizeof tbuf) - 1, lua_tostring(L, stack_idx));
+      vscode_json_stringify(tbuf, buf, len);
       break;
     }
     case LUA_TTABLE: {
       get_table_info(L, stack_idx, buf, len);
-      return 1;
+      rc = 1;
+      break;
     }
     case LUA_TFUNCTION: {
       snprintf(buf, len, "%p", lua_topointer(L, stack_idx));
@@ -275,7 +279,8 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
       break;
     }
   }
-  return 0;
+
+  return rc;
 }
 
 /*

@@ -366,5 +366,6 @@ extern void vscode_send_success_response(ProtocolMessage *req,
                                          ProtocolMessage *res, int responseType,
                                          FILE *out, FILE *log);
 extern int vscode_get_request(FILE *in, ProtocolMessage *req, FILE *log);
+extern void vscode_json_stringify(const char *src, char *dest, size_t len);
 
 #endif
