@@ -8,23 +8,27 @@ Implementation Notes
 --------------------
 The approach is to create a standalone executable that can be invoked by VSCode. VSCode communicates 
 with the adapter via stdin/stdout. This means that Lua cannot use stdin/stdout - but for now nothing is done
-to prevent Lua access to these. 
+to prevent Lua access to these. Eventually any Lua output to stdout/stderr will be captured and sent
+to the debugger front-end.
 
-VSCode communicates with the adapter using a JSON wire protocol.
+VSCode communicates with the adapter using a JSON wire protocol. For a sample session look at
+[Example JSON Protocol Messages](https://github.com/dibyendumajumdar/ravi/blob/master/vscode-debugger/docs/example-protocol-messages.txt).
 
 Status
 ------
-This is work in progress but the basic debugger is working with following features.
+This is work in progress. The basic debugger is working with following features and limitations.
 
-* Launch a Ravi/Lua program and stop on entry
+* Launch a Ravi/Lua program (only programs on disk can be debugged) and stop on entry
 * Step through code (stepin, stepout, next all behave as stepin)
+* Continue works
 * Set breakpoints at line/source level
-* Only local variables are shown in the Variables window
-* No expansion of aggregate structures such as tables yet
-* Only source files that are available on disk can be debugged 
+* Only local variables are shown in the Variables window right now; number of variables displayed is limited to 120.
+* Tables are expanded to one level only - expansion limited to 120 elements
+* No recognition of Ravi specific type infrmation yet
+* Source generated on the fly are not tested and may not be debuggable 
+* Has been tested briefly on Windows 10 and OSX so far.
 
-Only tested on Windows 10 so far.
-Please note that this is not yet ready for use so try at your own risk!
+Note: This is very early days and the debugger not yet ready for real use so try at your own risk!
 
 Installation
 ------------
