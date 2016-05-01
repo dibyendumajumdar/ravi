@@ -15,7 +15,7 @@ Goals
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
-* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available.
+* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available
 
 Documentation
 --------------
@@ -403,10 +403,8 @@ Work Plan
 ---------
 * Feb-Jun 2015 - implement JIT compilation using LLVM
 * Jun-Jul 2015 - libgccjit based alternative JIT
-* Jun-Nov 2015 - testing  
-* Dec 2015 - beta release
-* 2016 - Focus on creating numeric library bindings - in particular.
-
+* 2016 priorties
+  * `IDE support (Visual Studio Code) <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
   * BLAS and LAPACK
   * GNU Scientific library
   * symengine
