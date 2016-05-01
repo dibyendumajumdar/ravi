@@ -404,6 +404,7 @@ Work Plan
 * Feb-Jun 2015 - implement JIT compilation using LLVM
 * Jun-Jul 2015 - libgccjit based alternative JIT
 * 2016 priorties
+
   * `IDE support (Visual Studio Code) <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
   * BLAS and LAPACK
   * GNU Scientific library
