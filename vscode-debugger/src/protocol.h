@@ -87,6 +87,7 @@ enum {
   MAX_SCOPES = 3,
   MAX_VARIABLES = 120,
   MAX_THREADS = 10,
+  SOURCE_LEN = 8196
 };
 
 typedef struct {
@@ -314,7 +315,7 @@ typedef struct {
         } VariablesResponse;
 
         struct {
-          char content[TEXT_LEN];
+          char content[SOURCE_LEN];
         } SourceResponse;
 
         struct {

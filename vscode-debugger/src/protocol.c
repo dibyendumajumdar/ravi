@@ -350,6 +350,9 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
     case VSCODE_VARIABLES_REQUEST:
       return vscode_parse_intarg_request(js, msg, cmdtype, "variablesReference",
                                          log);
+    case VSCODE_SOURCE_REQUEST:
+      return vscode_parse_intarg_request(js, msg, cmdtype, "sourceReference",
+        log);
     case VSCODE_LAUNCH_REQUEST:
       return vscode_parse_launch_request(js, msg, cmdtype, log);
     case VSCODE_STACK_TRACE_REQUEST:
@@ -520,14 +523,26 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
         snprintf(cp, sizeof temp - strlen(temp), ",");
         cp = temp + strlen(temp);
       }
-      snprintf(cp, sizeof temp - strlen(temp),
-               "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":"
-               "{\"name\":\"%s\",\"path\":\"%s\",\"sourceReference\":0}}",
-               d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
-               res->u.Response.u.StackTraceResponse.stackFrames[d].line,
-               res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
-               res->u.Response.u.StackTraceResponse.stackFrames[d].source.path);
-      cp = temp + strlen(temp);
+      if (res->u.Response.u.StackTraceResponse.stackFrames[d].source.sourceReference == 0) {
+        snprintf(cp, sizeof temp - strlen(temp),
+          "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":"
+          "{\"name\":\"%s\",\"path\":\"%s\",\"sourceReference\":0}}",
+          d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
+          res->u.Response.u.StackTraceResponse.stackFrames[d].line,
+          res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
+          res->u.Response.u.StackTraceResponse.stackFrames[d].source.path);
+        cp = temp + strlen(temp);
+      }
+      else {
+        snprintf(cp, sizeof temp - strlen(temp),
+          "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":"
+          "{\"name\":\"%s\",\"sourceReference\":%d}}",
+          d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
+          res->u.Response.u.StackTraceResponse.stackFrames[d].line,
+          res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
+          res->u.Response.u.StackTraceResponse.stackFrames[d].source.sourceReference);
+        cp = temp + strlen(temp);
+      }
     }
     snprintf(cp, sizeof temp - strlen(temp), "]}");
     cp = temp + strlen(temp);
@@ -591,6 +606,13 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
       cp = temp + strlen(temp);
     }
     snprintf(cp, sizeof temp - strlen(temp), "]}");
+    cp = temp + strlen(temp);
+  }
+  else if (res->u.Response.response_type == VSCODE_SOURCE_RESPONSE &&
+    res->u.Response.success) {
+    char buf[SOURCE_LEN * 2];
+    vscode_json_stringify(res->u.Response.u.SourceResponse.content, buf, sizeof buf);
+    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"content\":\"%s\"}", buf);
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");

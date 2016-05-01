@@ -116,22 +116,32 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     int status = lua_getinfo(L, "Sln", &entry);
     assert(status);
     const char *src = entry.source;
-    if (*src == '@') src++;
-    const char *last_path_delim = strrchr(src, '/');
-    char path[1024];
-    char name[256];
-    if (last_path_delim) { strncpy(name, last_path_delim + 1, sizeof name); }
-    else {
-      strncpy(name, src, sizeof name);
+    if (*src == '@') {
+      /* Source is a file */
+      src++;
+      const char *last_path_delim = strrchr(src, '/');
+      char path[1024];
+      char name[256];
+      if (last_path_delim) { strncpy(name, last_path_delim + 1, sizeof name); }
+      else {
+        strncpy(name, src, sizeof name);
+      }
+      strncpy(path, src, sizeof path);
+      strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path,
+        path, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
+        .source.path);
+      strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
+        name, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
+        .source.name);
     }
-    strncpy(path, src, sizeof path);
+    else {
+      /* Source is a string - send a reference to the stack frame */
+      res->u.Response.u.StackTraceResponse.stackFrames[depth].source.sourceReference = depth + 1;
+      strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
+        "<dynamic function>", sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
+        .source.name);
+    }
     res->u.Response.u.StackTraceResponse.stackFrames[depth].id = depth;
-    strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path,
-            path, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
-                      .source.path);
-    strncpy(res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
-            name, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
-                      .source.name);
     res->u.Response.u.StackTraceResponse.stackFrames[depth].line =
         entry.currentline;
     const char *funcname = entry.name ? entry.name : "?";
@@ -143,6 +153,31 @@ static void handle_stack_trace_request(ProtocolMessage *req,
   res->u.Response.u.StackTraceResponse.totalFrames = depth;
   vscode_send(res, out, log);
 }
+
+static void handle_source_request(ProtocolMessage *req,
+  ProtocolMessage *res, lua_State *L,
+  FILE *out) {
+  lua_Debug entry;
+  int depth = req->u.Request.u.SourceRequest.sourceReference - 1;
+  vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
+  if (lua_getstack(L, depth, &entry)) {
+    int status = lua_getinfo(L, "Sln", &entry);
+    const char *src = entry.source;
+    if (*src != '@') {
+      /* Source is a string */
+      strncpy(res->u.Response.u.SourceResponse.content, src, sizeof res->u.Response.u.SourceResponse.content);
+      res->u.Response.u.SourceResponse.content[sizeof res->u.Response.u.SourceResponse.content - 1] = 0; // just in case
+    }
+    else {
+      vscode_make_error_response(req, res, VSCODE_SOURCE_RESPONSE, "Source is in a file");
+    }
+  }
+  else {
+    vscode_make_error_response(req, res, VSCODE_SOURCE_RESPONSE, "Source is in a file");
+  }
+  vscode_send(res, out, log);
+}
+
 
 /*
 * Handle StackTraceRequest
@@ -482,6 +517,10 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in,
       }
       case VSCODE_VARIABLES_REQUEST: {
         handle_variables_request(&req, &res, L, out);
+        break;
+      }
+      case VSCODE_SOURCE_REQUEST: {
+        handle_source_request(&req, &res, L, out);
         break;
       }
       case VSCODE_DISCONNECT_REQUEST: {
