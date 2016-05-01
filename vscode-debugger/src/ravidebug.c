@@ -3,6 +3,7 @@
  * a debugger in the VSCode IDE.
  */
 
+#include <assert.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -30,11 +31,32 @@ enum {
   DEBUGGER_PROGRAM_TERMINATED = 7
 };
 
+enum {
+  VAR_TYPE_LOCALS = 1,
+  VAR_TYPE_UPVALUES = 2,
+  VAR_TYPE_GLOBALS = 3
+};
+
+#define MASK0 0x3F
+#define MASK  0xFF
+#define MASK1 0x3
+
+#define MAKENUM(t,a,b,c,d) \
+(( ((t)&MASK1) | (((a)&MASK0) << 2) ) | \
+ ( ((b)&MASK) << 8 ) | \
+ ( ((c)&MASK) << 16 ) | \
+ ( ((d)&MASK) << 24 ))
+
+#define EXTRACT_T(x) ( (x)&MASK1 )
+#define EXTRACT_A(x) ( ((x)>>2) & MASK0 )
+#define EXTRACT_B(x) ( ((x)>>8) & MASK )
+#define EXTRACT_C(x) ( ((x)>>16) & MASK )
+#define EXTRACT_D(x) ( ((x)>>24) & MASK )
+
 static FILE *log = NULL;
 static int thread_event_sent = 0;
 static int debugger_state = DEBUGGER_BIRTH;
 static Breakpoint breakpoints[20];
-static int num_breakpoints;
 
 /*
 * Generate response to InitializeRequest
@@ -42,7 +64,6 @@ static int num_breakpoints;
 */
 static void handle_initialize_request(ProtocolMessage *req,
                                       ProtocolMessage *res, FILE *out) {
-  char buf[1024];
   if (debugger_state >= DEBUGGER_INITIALIZED) {
     vscode_send_error_response(req, res, VSCODE_INITIALIZE_RESPONSE,
                                "already initialized", out, log);
@@ -81,7 +102,6 @@ static void handle_thread_request(ProtocolMessage *req, ProtocolMessage *res,
 static void handle_stack_trace_request(ProtocolMessage *req,
                                        ProtocolMessage *res, lua_State *L,
                                        FILE *out) {
-  char buf[1024];
   lua_Debug entry;
   int depth = 0;
   vscode_make_success_response(req, res, VSCODE_STACK_TRACE_RESPONSE);
@@ -162,7 +182,6 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
 */
 static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
-  char buf[1024];
   lua_Debug entry;
   int depth = 0;
   vscode_make_success_response(req, res, VSCODE_SCOPES_RESPONSE);
@@ -173,20 +192,17 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
     int i = 0;
     strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Locals",
             sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-    res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
-        1000000 + depth;
+    res->u.Response.u.ScopesResponse.scopes[i].variablesReference = MAKENUM(VAR_TYPE_LOCALS, depth, 0, 0, 0);
     res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
     if (entry.nups > 0) {
       strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Up Values",
               sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-      res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
-          2000000 + depth;
+      res->u.Response.u.ScopesResponse.scopes[i].variablesReference = MAKENUM(VAR_TYPE_UPVALUES, depth, 0, 0, 0);
       res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
     }
     strncpy(res->u.Response.u.ScopesResponse.scopes[i].name, "Globals",
             sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-    res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
-        3000000 + depth;
+    res->u.Response.u.ScopesResponse.scopes[i].variablesReference = MAKENUM(VAR_TYPE_GLOBALS, depth, 0, 0, 0);
     res->u.Response.u.ScopesResponse.scopes[i].expensive = 1;
   }
   else {
@@ -207,7 +223,7 @@ static void get_userdata(lua_State *L, int stack_idx, char *buf, size_t len) {
   snprintf(buf, len, "%p", udata);
 }
 
-static void get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
+static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
   int l_type = lua_type(L, stack_idx);
   *buf = 0;
   switch (l_type) {
@@ -239,7 +255,7 @@ static void get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
     }
     case LUA_TTABLE: {
       get_table_info(L, stack_idx, buf, len);
-      break;
+      return 1;
     }
     case LUA_TFUNCTION: {
       snprintf(buf, len, "%p", lua_topointer(L, stack_idx));
@@ -254,6 +270,7 @@ static void get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
       break;
     }
   }
+  return 0;
 }
 
 /*
@@ -264,40 +281,39 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
   lua_Debug entry;
   vscode_make_success_response(req, res, VSCODE_VARIABLES_RESPONSE);
   int varRef = req->u.Request.u.VariablesRequest.variablesReference;
-  int depth = 0;
-  char type = 0;
-  if (varRef >= 3000000) {
-    type = 'g';
-    depth = varRef - 3000000;
-  }
-  else if (varRef >= 2000000) {
-    type = 'u';
-    depth = varRef - 2000000;
-  }
-  else {
-    type = 'l';
-    depth = varRef - 1000000;
-  }
+  int type = EXTRACT_T(varRef);
+  int depth = EXTRACT_A(varRef);
+  int var = EXTRACT_B(varRef);
   if (lua_getstack(L, depth, &entry)) {
-    if (type == 'l') {
-      for (int n = 1, v = 0; v <= MAX_VARIABLES; n++) {
-        const char *name = lua_getlocal(L, &entry, n);
-        if (name) {
-          if (*name != '(') {
-            strncpy(
-                res->u.Response.u.VariablesResponse.variables[v].name, name,
-                sizeof res->u.Response.u.VariablesResponse.variables[0].name);
-            get_value(
-                L, lua_gettop(L),
-                res->u.Response.u.VariablesResponse.variables[v].value,
-                sizeof res->u.Response.u.VariablesResponse.variables[0].value);
-            v++;
+    if (type == VAR_TYPE_LOCALS) { // locals
+      if (var == 0) {
+        for (int n = 1, v = 0; v <= MAX_VARIABLES; n++) {
+          const char *name = lua_getlocal(L, &entry, n);
+          if (name) {
+            if (*name != '(') {
+              strncpy(
+                  res->u.Response.u.VariablesResponse.variables[v].name, name,
+                  sizeof res->u.Response.u.VariablesResponse.variables[0].name);
+              var = get_value(
+                  L, lua_gettop(L),
+                  res->u.Response.u.VariablesResponse.variables[v].value,
+                  sizeof res->u.Response.u.VariablesResponse.variables[0].value);
+              /* If the variable has a structure then we pass pack a reference
+                 that is used by the front end to drill down */
+              res->u.Response.u.VariablesResponse.variables[v].variablesReference = var ?
+                MAKENUM(type, depth, n, 0, 0) : 0;
+              v++;
+            }
+            lua_pop(L, 1); /* pop the value */
           }
-          lua_pop(L, 1); /* pop the value */
+          else {
+            break;
+          }
         }
-        else {
-          break;
-        }
+      }
+      else {
+        /* TODO extract variable */
+        fprintf(log, "\n--> Request to extract local variable %d of type %d at depth %d\n", var, type, depth);
       }
     }
   }
@@ -349,9 +365,8 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
  * Called via Lua Hook or via main
  * If called from main then init is true and ar == NULL
  */
-static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
+static void debugger(lua_State *L, lua_Debug *ar, FILE *in,
                      FILE *out) {
-  char buf[4096] = {0};
   ProtocolMessage req, res;
   if (debugger_state == DEBUGGER_PROGRAM_TERMINATED) {
     return;
@@ -484,7 +499,7 @@ static void debugger(lua_State *L, bool init, lua_Debug *ar, FILE *in,
 */
 void ravi_debughook(lua_State *L, lua_Debug *ar) {
   int event = ar->event;
-  if (event == LUA_HOOKLINE) { debugger(L, false, ar, stdin, stdout); }
+  if (event == LUA_HOOKLINE) { debugger(L, ar, stdin, stdout); }
 }
 
 /*
@@ -492,9 +507,14 @@ void ravi_debughook(lua_State *L, lua_Debug *ar) {
 * The debugger will use stdin/stdout to interact with VSCode
 * The protocol used is described in protocol.h.
 */
-int main(int argc, const char *argv[]) {
-  log = stderr; //fopen("\\temp\\out1.txt", "w");
-  if (log == NULL) exit(1);
+int main(void) {
+#ifdef _WIN32
+  log = fopen("/temp/out1.txt", "w");
+#else
+  log = fopen("/tmp/out1.txt", "w");
+#endif
+  if (log == NULL)
+    log = stderr;
 #ifdef _WIN32
   /* The VSCode debug protocol requires binary IO */
   _setmode(_fileno(stdout), _O_BINARY);
@@ -509,7 +529,7 @@ int main(int argc, const char *argv[]) {
   luaL_openlibs(L); /* open standard libraries */
   lua_sethook(L, ravi_debughook, LUA_MASKCALL | LUA_MASKLINE | LUA_MASKRET, 0);
   debugger_state = DEBUGGER_BIRTH;
-  debugger(L, true, NULL, stdin, stdout);
+  debugger(L, NULL, stdin, stdout);
   lua_close(L);
   fclose(log);
   return 0;

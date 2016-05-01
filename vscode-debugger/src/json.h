@@ -112,14 +112,14 @@ typedef struct _json_value
 
       struct
       {
-         unsigned int length;
+         int length;
          json_char * ptr; /* null terminated */
 
       } string;
 
       struct
       {
-         unsigned int length;
+         int length;
 
          json_object_entry * values;
 
@@ -136,7 +136,7 @@ typedef struct _json_value
 
       struct
       {
-         unsigned int length;
+         int length;
          struct _json_value ** values;
 
          #if defined(__cplusplus) && __cplusplus >= 201103L

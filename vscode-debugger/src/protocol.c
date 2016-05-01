@@ -42,6 +42,7 @@ static int vscode_message_type(json_value *js, FILE *log) {
 
 static const char *get_string_value(json_value *js, const char *key,
                                     FILE *log) {
+  (void)log;
   if (js->type != json_object) { return NULL; }
   for (int i = 0; i < js->u.object.length; i++) {
     json_object_entry *value = &js->u.object.values[i];
@@ -59,6 +60,7 @@ static const char *get_string_value(json_value *js, const char *key,
 
 static int get_int_value(json_value *js, const char *key, FILE *log,
                          int *found) {
+  (void)log;
   *found = 0;
   if (js->type != json_object) { return 0; }
   for (int i = 0; i < js->u.object.length; i++) {
@@ -78,6 +80,7 @@ static int get_int_value(json_value *js, const char *key, FILE *log,
 
 static int get_boolean_value(json_value *js, const char *key, FILE *log,
                              int *found) {
+  (void)log;
   *found = 0;
   if (js->type != json_object) { return 0; }
   for (int i = 0; i < js->u.object.length; i++) {
@@ -97,6 +100,7 @@ static int get_boolean_value(json_value *js, const char *key, FILE *log,
 
 static json_value *get_object_value(json_value *js, const char *key,
                                     FILE *log) {
+  (void)log;
   if (js->type != json_object) { return NULL; }
   for (int i = 0; i < js->u.object.length; i++) {
     json_object_entry *value = &js->u.object.values[i];
@@ -112,6 +116,7 @@ static json_value *get_object_value(json_value *js, const char *key,
 
 static json_value *get_array_value(json_value *js, const char *key,
   FILE *log) {
+  (void)log;
   if (js->type != json_object) { return NULL; }
   for (int i = 0; i < js->u.object.length; i++) {
     json_object_entry *value = &js->u.object.values[i];
@@ -125,14 +130,16 @@ static json_value *get_array_value(json_value *js, const char *key,
   return NULL;
 }
 
-
+#if 0
 static void dump_keys(json_value *js, FILE *log) {
+  (void)log;
   if (js->type != json_object) return;
   for (int i = 0; i < js->u.object.length; i++) {
     json_object_entry *value = &js->u.object.values[i];
     fprintf(log, "key '%s'\n", value->name);
   }
 }
+#endif
 
 typedef struct {
   const char *cmdname;
@@ -529,8 +536,9 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
         cp = temp + strlen(temp);
       }
       snprintf(cp, sizeof temp - strlen(temp),
-               "{\"name\":\"%s\",\"variablesReference\":0,\"value\":\"%s\"}",
+               "{\"name\":\"%s\",\"variablesReference\":%d,\"value\":\"%s\"}",
                res->u.Response.u.VariablesResponse.variables[d].name,
+               res->u.Response.u.VariablesResponse.variables[d].variablesReference,
                res->u.Response.u.VariablesResponse.variables[d].value);
       cp = temp + strlen(temp);
     }
@@ -616,7 +624,7 @@ void vscode_send(ProtocolMessage *msg, FILE *out, FILE *log) {
   else
     return;
   fprintf(log, "%s\n", buf);
-  fprintf(out, buf);
+  fprintf(out, "%s", buf);
 }
 
 /*
@@ -686,7 +694,7 @@ int vscode_get_request(FILE *in, ProtocolMessage *req, FILE *log) {
       bufp += 16;
       /* get the message length */
       int len = atoi(bufp);
-      if (len >= sizeof buf) {
+      if (len >= (int)(sizeof buf)) {
         /* FIXME */
         fprintf(log,
                 "FATAL ERROR - Content-Length = %d is greater than bufsize\n",

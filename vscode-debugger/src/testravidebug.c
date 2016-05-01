@@ -27,7 +27,7 @@ int test_initreq() {
                              "unable to initialize");
   char buf[1024];
   vscode_serialize_response(buf, sizeof buf, &res);
-  printf(buf);
+  //printf(buf);
   const char *expected =
       "Content-Length: "
       "115\r\n\r\n{\"type\":\"response\",\"seq\":1,\"command\":\"initialize\",\"request_seq\":1,"
@@ -57,10 +57,38 @@ int test_initreq() {
   return 0;
 }
 
-int main(int argc, const char *argv[]) {
+void experiment() {
+  uint32_t i = 0;
+  uint32_t MASK0 = 0x7F;
+  uint32_t MASK = 0xFF;
+  uint32_t MASK1 = 0x1;
+  
+#define MAKENUM(t,a,b,c,d) \
+  ( ((t)&MASK1) | (((a)&MASK0) << 1) ) | \
+  ( ((b)&MASK) << 8 ) | \
+  ( ((c)&MASK) << 16 ) | \
+  ( ((d)&MASK) << 24 )
+  
+  i = MAKENUM(1, 1, 1, 1, 1);
+  printf("NUM = %d\n", i);
+  
+#define EXTRACT_T(x) ( (x)&MASK1 )
+#define EXTRACT_A(x) ( ((x)>>1) & MASK0 )
+#define EXTRACT_B(x) ( ((x)>>8) & MASK )
+#define EXTRACT_C(x) ( ((x)>>16) & MASK )
+#define EXTRACT_D(x) ( ((x)>>24) & MASK )
+  
+  printf("%d,%d,%d,%d,%d\n", EXTRACT_T(i), EXTRACT_A(i), EXTRACT_B(i),
+         EXTRACT_C(i), EXTRACT_D(i));
+
+}
+
+
+int main(void) {
   setbuf(stdout, NULL);
   int rc = 0;
   rc += test_initreq();
+  experiment();
   if (rc == 0) printf("OK\n");
   return rc == 0 ? 0 : 1;
 }
