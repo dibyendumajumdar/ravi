@@ -12,7 +12,7 @@ to prevent Lua access to these. Eventually any Lua output to stdout/stderr will 
 to the debugger front-end.
 
 VSCode communicates with the adapter using a JSON wire protocol. For a sample session look at
-[Example JSON Protocol Messages](https://github.com/dibyendumajumdar/ravi/blob/master/vscode-debugger/docs/example-protocol-messages.txt).
+`Example JSON Protocol Messages <https://github.com/dibyendumajumdar/ravi/blob/master/vscode-debugger/docs/example-protocol-messages.txt>`_.
 
 Status
 ------
