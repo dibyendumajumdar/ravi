@@ -123,7 +123,9 @@ typedef int (*lua_Writer) (lua_State *L, const void *p, size_t sz, void *ud);
 */
 typedef void * (*lua_Alloc) (void *ud, void *ptr, size_t osize, size_t nsize);
 
-
+typedef void(*ravi_Writestring)(const char *s, size_t len);
+typedef void(*ravi_Writeline)(void);
+typedef void(*ravi_Writestringerror)(const char *fmt, const char *p);
 
 /*
 ** generic extra include file
@@ -499,7 +501,16 @@ LUA_API int ravi_is_integer_array(lua_State *L, int idx);
  * Note that Ravi arrays have an extra element at offset 0 - this
  * function returns a pointer to &data[0] - bear in mind that
  */
-LUA_API lua_Number *ravi_get_number_array_rawdata(lua_State *l, int idx);
+LUA_API lua_Number *ravi_get_number_array_rawdata(lua_State *L, int idx);
+
+/* API to set the output functions used by Lua / Ravi
+ * This allows the default implementations to be overridden
+ */
+LUA_API void ravi_set_writefuncs(lua_State *L, ravi_Writestring writestr, ravi_Writeline writeln, ravi_Writestringerror writestringerr);
+
+LUA_API void ravi_writestring(lua_State *L, const char *s, size_t len);
+LUA_API void ravi_writeline(lua_State *L);
+LUA_API void ravi_writestringerror(lua_State *L, const char *fmt, const char *p);
 
 
 /////////////////////////////////////////////////////////////////////////////

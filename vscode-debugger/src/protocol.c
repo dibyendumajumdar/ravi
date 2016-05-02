@@ -415,13 +415,13 @@ void vscode_make_initialized_event(ProtocolMessage *res) {
   res->u.Event.event_type = VSCODE_INITIALIZED_EVENT;
 }
 
-void vscode_make_output_event(ProtocolMessage *res, const char *msg) {
+static void vscode_make_output_event(ProtocolMessage *res, const char *category, const char *msg) {
   memset(res, 0, sizeof(ProtocolMessage));
   res->seq = seq++;
   res->type = VSCODE_EVENT;
   strncpy(res->u.Event.event, "output", sizeof res->u.Event.event);
-  strncpy(res->u.Event.u.OutputEvent.output, msg,
-          sizeof res->u.Event.u.OutputEvent.output);
+  strncpy(res->u.Event.u.OutputEvent.category, category, sizeof res->u.Event.u.OutputEvent.category);
+  vscode_json_stringify(msg, res->u.Event.u.OutputEvent.output, sizeof res->u.Event.u.OutputEvent.output);
   res->u.Event.event_type = VSCODE_OUTPUT_EVENT;
 }
 
@@ -633,7 +633,8 @@ void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
            res->u.Event.event);
   cp = temp + strlen(temp);
   if (res->u.Event.event_type == VSCODE_OUTPUT_EVENT) {
-    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"output\":\"%s\"}",
+    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"category\":\"%s\",\"output\":\"%s\"}",
+             res->u.Event.u.OutputEvent.category,
              res->u.Event.u.OutputEvent.output);
     cp = temp + strlen(temp);
   }
@@ -705,9 +706,9 @@ void vscode_send_terminated_event(ProtocolMessage *res, FILE *out, FILE *log) {
   vscode_send(res, out, log);
 }
 
-void vscode_send_output_event(ProtocolMessage *res, const char *msg, FILE *out,
+void vscode_send_output_event(ProtocolMessage *res, const char *category, const char *msg, FILE *out,
                               FILE *log) {
-  vscode_make_output_event(res, msg);
+  vscode_make_output_event(res, category, msg);
   vscode_send(res, out, log);
 }
 

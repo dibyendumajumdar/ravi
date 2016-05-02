@@ -62,6 +62,7 @@ static FILE *log = NULL;
 static int thread_event_sent = 0;
 static int debugger_state = DEBUGGER_BIRTH;
 static Breakpoint breakpoints[20];
+static ProtocolMessage output_response;
 
 /*
 * Generate response to InitializeRequest
@@ -85,7 +86,7 @@ static void handle_initialize_request(ProtocolMessage *req,
   vscode_send(res, out, log);
 
   /* Send notification */
-  vscode_send_output_event(res, "Debugger initialized\\n", out, log);
+  vscode_send_output_event(res, "console", "Debugger initialized\n", out, log);
   debugger_state = DEBUGGER_INITIALIZED;
 }
 
@@ -429,9 +430,9 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
   int status = luaL_loadfile(L, progname);
   if (status != LUA_OK) {
     char temp[1024];
-    snprintf(temp, sizeof temp, "Failed to launch %s due to error: %s",
+    snprintf(temp, sizeof temp, "Failed to launch %s due to error: %s\n",
              progname, lua_tostring(L, -1));
-    vscode_send_output_event(res, temp, out, log);
+    vscode_send_output_event(res, "console", temp, out, log);
     vscode_send_error_response(req, res, VSCODE_LAUNCH_RESPONSE,
                                "Launch failed", out, log);
     lua_pop(L, 1);
@@ -445,8 +446,10 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
   else
     debugger_state = DEBUGGER_PROGRAM_RUNNING;
   if (lua_pcall(L, 0, 0, 0)) {
-    vscode_send_output_event(res, "Program terminated with error", out, log);
-    vscode_send_output_event(res, lua_tostring(L, -1), out, log);
+    char temp[1024];
+    snprintf(temp, sizeof temp, "Program terminated with error: %s\n",
+      lua_tostring(L, -1));
+    vscode_send_output_event(res, "console", temp, out, log);
     lua_pop(L, 1);
   }
   vscode_send_terminated_event(res, out, log);
@@ -598,6 +601,27 @@ void ravi_debughook(lua_State *L, lua_Debug *ar) {
   if (event == LUA_HOOKLINE) { debugger(L, ar, stdin, stdout); }
 }
 
+/* TODO following should probably not live here*/
+void ravi_debug_writestring(const char *s, size_t l) {
+  char temp[256];
+  if (l >= sizeof temp)
+    l = sizeof temp-1;
+  strncpy(temp, s, l+1);
+  temp[l] = 0;
+  vscode_send_output_event(&output_response, "stdout", temp, stdout, log);
+}
+
+void ravi_debug_writeline(void) {
+  vscode_send_output_event(&output_response, "stdout", "\n", stdout, log);
+}
+
+void ravi_debug_writestringerror(const char *fmt, const char *p) {
+  char temp[256];
+  snprintf(temp, sizeof temp, fmt, p);
+  temp[sizeof temp - 1] = 0;
+  vscode_send_output_event(&output_response, "stderr", temp, stdout, log);
+}
+
 /*
 * Entry point for the debugger
 * The debugger will use stdin/stdout to interact with VSCode
@@ -620,6 +644,7 @@ int main(void) {
   setbuf(stdout, NULL);
   lua_State *L = luaL_newstate(); /* create Lua state */
   if (L == NULL) { return EXIT_FAILURE; }
+  ravi_set_writefuncs(L, ravi_debug_writestring, ravi_debug_writeline, ravi_debug_writestringerror);
   luaL_checkversion(L); /* check that interpreter has correct version */
   /* TODO need to redirect the stdin/stdout used by Lua */
   luaL_openlibs(L); /* open standard libraries */

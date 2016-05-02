@@ -146,6 +146,9 @@ typedef struct global_State {
   TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */
   /* RAVI */
   ravi_State *ravi_state;
+  ravi_Writeline ravi_writeline;
+  ravi_Writestring ravi_writestring;
+  ravi_Writestringerror ravi_writestringerror;
 } global_State;
 
 
@@ -224,6 +227,10 @@ LUAI_FUNC void luaE_freethread (lua_State *L, lua_State *L1);
 LUAI_FUNC CallInfo *luaE_extendCI (lua_State *L);
 LUAI_FUNC void luaE_freeCI (lua_State *L);
 LUAI_FUNC void luaE_shrinkCI (lua_State *L);
+
+LUAI_FUNC void ravi_default_writestring(const char *s, size_t l);
+LUAI_FUNC void ravi_default_writeline(void);
+LUAI_FUNC void ravi_default_writestringerror(const char *fmt, const char *p);
 
 
 #endif

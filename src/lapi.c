@@ -1620,4 +1620,32 @@ LUA_API void lua_upvaluejoin (lua_State *L, int fidx1, int n1,
   luaC_upvalbarrier(L, *up1);
 }
 
+/* API to set the output functions used by Lua / Ravi
+* This allows the default implementations to be overridden
+*/
+LUA_API void ravi_set_writefuncs(lua_State *L, ravi_Writestring writestr, ravi_Writeline writeln, ravi_Writestringerror writestringerr) {
+  global_State *g = G(L);
+  g->ravi_writestring = writestr;
+  g->ravi_writeline = writeln;
+  g->ravi_writestringerror = writestringerr;
+}
 
+LUA_API void ravi_writestring(lua_State *L, const char *s, size_t len) {
+  global_State *g = G(L);
+  g->ravi_writestring(s, len);
+}
+
+LUA_API void ravi_writeline(lua_State *L) {
+  global_State *g = G(L);
+  g->ravi_writeline();
+}
+
+LUA_API void ravi_writestringerror(lua_State *L, const char *fmt, const char *p) {
+  if (L != NULL) {
+    global_State *g = G(L);
+    g->ravi_writestringerror(fmt, p);
+  }
+  else {
+    ravi_default_writestringerror(fmt, p);
+  }
+}
