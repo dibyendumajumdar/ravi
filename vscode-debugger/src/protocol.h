@@ -87,7 +87,8 @@ enum {
   MAX_SCOPES = 3,
   MAX_VARIABLES = 120,
   MAX_THREADS = 10,
-  SOURCE_LEN = 8196
+  SOURCE_LEN = 8196,
+  MAX_TOTAL_BREAKPOINTS = 20
 };
 
 typedef struct {
