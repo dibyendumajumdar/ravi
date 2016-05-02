@@ -20,13 +20,16 @@ This is work in progress. The basic debugger is working with following features 
 
 * Launch a Ravi/Lua program and stop on entry
 * Step through code (stepin, stepout, next all behave as stepin)
-* Continue works, but pause doesn't. Note that the execution is slow under the debugger.
+* Continue works, but pause doesn't. Note that the execution is very slow under the debugger.
 * Set breakpoints at line/source level
 * Only local variables are shown in the Variables window right now; number of variables displayed is limited to 120.
 * Tables are expanded to one level only - expansion limited to 120 elements
+* Lua stdout and stderr are redirected to the debugger
+* The debugger can step into dynamically generated Lua code
 * No recognition of Ravi specific type information yet
 * Has been tested briefly on Windows 10 and OSX so far
 * Various hard coded limits - e.g. number of breakpoints limited to 20
+* Expect lots of bugs!
 
 Note: This is very early days and the debugger not yet ready for real use so try at your own risk!
 
