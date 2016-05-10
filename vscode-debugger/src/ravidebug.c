@@ -61,7 +61,7 @@ enum {
 static FILE *my_logger = NULL;
 static int thread_event_sent = 0;
 static int debugger_state = DEBUGGER_BIRTH;
-static Breakpoint breakpoints[20];
+static Breakpoint breakpoints[MAX_TOTAL_BREAKPOINTS];
 static ProtocolMessage output_response;
 
 /*
@@ -163,14 +163,19 @@ static void handle_source_request(ProtocolMessage *req,
   vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
   if (lua_getstack(L, depth, &entry)) {
     int status = lua_getinfo(L, "Sln", &entry);
-    const char *src = entry.source;
-    if (*src != '@') {
-      /* Source is a string */
-      strncpy(res->u.Response.u.SourceResponse.content, src, sizeof res->u.Response.u.SourceResponse.content);
-      res->u.Response.u.SourceResponse.content[sizeof res->u.Response.u.SourceResponse.content - 1] = 0; // just in case
+    if (status == 0) {
+      const char *src = entry.source;
+      if (*src != '@') {
+        /* Source is a string */
+        strncpy(res->u.Response.u.SourceResponse.content, src, sizeof res->u.Response.u.SourceResponse.content);
+        res->u.Response.u.SourceResponse.content[sizeof res->u.Response.u.SourceResponse.content - 1] = 0; // just in case
+      }
+      else {
+        vscode_make_error_response(req, res, VSCODE_SOURCE_RESPONSE, "Source is in a file");
+      }
     }
     else {
-      vscode_make_error_response(req, res, VSCODE_SOURCE_RESPONSE, "Source is in a file");
+      vscode_make_error_response(req, res, VSCODE_SOURCE_RESPONSE, "Unable to get information from Lua");
     }
   }
   else {
@@ -188,8 +193,9 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
   vscode_make_success_response(req, res, VSCODE_SET_BREAKPOINTS_RESPONSE);
   int j = 0, k = 0;
   for (int i = 0; i < MAX_BREAKPOINTS; i++) {
-    if (req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line > 0) {
-      while (j < 20) {
+    /* Make sure that the breakpoint is in a source file - disallow breakpoints  in dynamic code */
+    if (req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line > 0 && req->u.Request.u.SetBreakpointsRequest.source.sourceReference == 0) {
+      while (j < MAX_TOTAL_BREAKPOINTS) {
         int y = j++;
         if (breakpoints[y].source.path[0] == 0 || strcmp(breakpoints[y].source.path, req->u.Request.u.SetBreakpointsRequest.source.path) == 0) {
           strncpy(breakpoints[y].source.path, req->u.Request.u.SetBreakpointsRequest.source.path, sizeof breakpoints[0].source.path);
@@ -205,10 +211,11 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
           break;
         }
       }
-      if (j == 20 || k == MAX_BREAKPOINTS) break;
+      if (j == MAX_TOTAL_BREAKPOINTS || k == MAX_BREAKPOINTS) break;
     }
   }
-  for (j++; j < 20; j++) {
+  /* Clear any other breakpoints within the same source file */
+  for (; j < MAX_TOTAL_BREAKPOINTS; j++) {
     if (strcmp(breakpoints[j].source.path, req->u.Request.u.SetBreakpointsRequest.source.path) == 0) {
       breakpoints[j].source.path[0] = 0;
       breakpoints[j].line = 0;
@@ -609,7 +616,6 @@ void ravi_debughook(lua_State *L, lua_Debug *ar) {
   if (event == LUA_HOOKLINE) { debugger(L, ar, stdin, stdout); }
 }
 
-/* TODO following should probably not live here*/
 void ravi_debug_writestring(const char *s, size_t l) {
   char temp[256];
   if (l >= sizeof temp)
@@ -652,9 +658,9 @@ int main(void) {
   setbuf(stdout, NULL);
   lua_State *L = luaL_newstate(); /* create Lua state */
   if (L == NULL) { return EXIT_FAILURE; }
+  /* redirect Lua's stdout and stderr */
   ravi_set_writefuncs(L, ravi_debug_writestring, ravi_debug_writeline, ravi_debug_writestringerror);
   luaL_checkversion(L); /* check that interpreter has correct version */
-  /* TODO need to redirect the stdin/stdout used by Lua */
   luaL_openlibs(L); /* open standard libraries */
   lua_sethook(L, ravi_debughook, LUA_MASKCALL | LUA_MASKLINE | LUA_MASKRET, 0);
   debugger_state = DEBUGGER_BIRTH;

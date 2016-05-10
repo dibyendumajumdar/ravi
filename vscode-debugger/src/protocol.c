@@ -114,10 +114,16 @@ static json_value *get_object_value(json_value *js, const char *key,
   return NULL;
 }
 
+/*
+ * Escape certain control characters to match JSON string 
+ * requirements. 'src' should be 0 terminated, 'len' is the
+ * size of 'dest' buffer. If the 'dest' buffer is smaller than 
+ * required then the string will be silently truncated
+ */
 void vscode_json_stringify(const char *src, char *dest, size_t len) {
   char *p = dest;
   char *end = dest + len - 1;
-  for (int i = 0; i < strlen(src) && p < end; i++) {
+  for (int i = 0; i < (int)strlen(src) && p < end; i++) {
     char ch = 0;
     switch (src[i]) {
     case '"':  ch = '"'; goto l_escape;
