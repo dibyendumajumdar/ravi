@@ -58,7 +58,7 @@ enum {
  * the Lua global state; but right now while things are 
  * evolving this is easier to work with.
  */
-static FILE *log = NULL;
+static FILE *my_logger = NULL;
 static int thread_event_sent = 0;
 static int debugger_state = DEBUGGER_BIRTH;
 static Breakpoint breakpoints[20];
@@ -72,21 +72,21 @@ static void handle_initialize_request(ProtocolMessage *req,
                                       ProtocolMessage *res, FILE *out) {
   if (debugger_state >= DEBUGGER_INITIALIZED) {
     vscode_send_error_response(req, res, VSCODE_INITIALIZE_RESPONSE,
-                               "already initialized", out, log);
+                               "already initialized", out, my_logger);
     return;
   }
   /* Send InitializedEvent */
   vscode_make_initialized_event(res);
-  vscode_send(res, out, log);
+  vscode_send(res, out, my_logger);
 
   /* Send InitializeResponse */
   vscode_make_success_response(req, res, VSCODE_INITIALIZE_RESPONSE);
   res->u.Response.u.InitializeResponse.body.supportsConfigurationDoneRequest =
       1;
-  vscode_send(res, out, log);
+  vscode_send(res, out, my_logger);
 
   /* Send notification */
-  vscode_send_output_event(res, "console", "Debugger initialized\n", out, log);
+  vscode_send_output_event(res, "console", "Debugger initialized\n", out, my_logger);
   debugger_state = DEBUGGER_INITIALIZED;
 }
 
@@ -99,7 +99,7 @@ static void handle_thread_request(ProtocolMessage *req, ProtocolMessage *res,
   res->u.Response.u.ThreadResponse.threads[0].id = 1;
   strncpy(res->u.Response.u.ThreadResponse.threads[0].name, "RaviThread",
           sizeof res->u.Response.u.ThreadResponse.threads[0].name);
-  vscode_send(res, out, log);
+  vscode_send(res, out, my_logger);
 }
 
 /*
@@ -152,7 +152,7 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     depth++;
   }
   res->u.Response.u.StackTraceResponse.totalFrames = depth;
-  vscode_send(res, out, log);
+  vscode_send(res, out, my_logger);
 }
 
 static void handle_source_request(ProtocolMessage *req,
@@ -176,7 +176,7 @@ static void handle_source_request(ProtocolMessage *req,
   else {
     vscode_make_error_response(req, res, VSCODE_SOURCE_RESPONSE, "Source is in a file");
   }
-  vscode_send(res, out, log);
+  vscode_send(res, out, my_logger);
 }
 
 
@@ -184,7 +184,7 @@ static void handle_source_request(ProtocolMessage *req,
 * Handle StackTraceRequest
 */
 static void handle_set_breakpoints_request(ProtocolMessage *req,
-  ProtocolMessage *res, FILE *out, FILE *log) {
+  ProtocolMessage *res, FILE *out, FILE *my_logger) {
   vscode_make_success_response(req, res, VSCODE_SET_BREAKPOINTS_RESPONSE);
   int j = 0, k = 0;
   for (int i = 0; i < MAX_BREAKPOINTS; i++) {
@@ -194,7 +194,7 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
         if (breakpoints[y].source.path[0] == 0 || strcmp(breakpoints[y].source.path, req->u.Request.u.SetBreakpointsRequest.source.path) == 0) {
           strncpy(breakpoints[y].source.path, req->u.Request.u.SetBreakpointsRequest.source.path, sizeof breakpoints[0].source.path);
           breakpoints[y].line = req->u.Request.u.SetBreakpointsRequest.breakpoints[y].line;
-          fprintf(log, "Saving breakpoint j=%d, k=%d, i=%d\n", y, k, i);
+          fprintf(my_logger, "Saving breakpoint j=%d, k=%d, i=%d\n", y, k, i);
           if (k < MAX_BREAKPOINTS) {
             res->u.Response.u.SetBreakpointsResponse.breakpoints[k].line = req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line;
             res->u.Response.u.SetBreakpointsResponse.breakpoints[k].verified = false;
@@ -214,7 +214,7 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
       breakpoints[j].line = 0;
     }
   }
-  vscode_send(res, out, log);
+  vscode_send(res, out, my_logger);
 }
 
 
@@ -250,7 +250,7 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
     vscode_make_error_response(req, res, VSCODE_SCOPES_RESPONSE,
                                "Error retrieving stack frame");
   }
-  vscode_send(res, out, log);
+  vscode_send(res, out, my_logger);
 }
 
 static void get_table_info(lua_State *L, int stack_idx, char *buf, size_t len) {
@@ -375,7 +375,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
          * FIXME - the number of items is limited to MAX_VARIABLES
          * but user is not shown any warning if values are truncated
          */
-        fprintf(log, "\n--> Request to extract local variable %d of type %d at depth %d\n", var, type, depth);
+        fprintf(my_logger, "\n--> Request to extract local variable %d of type %d at depth %d\n", var, type, depth);
         const char *name = lua_getlocal(L, &entry, var);
         if (name) {
           int stack_idx = lua_gettop(L);
@@ -414,32 +414,32 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
     vscode_make_error_response(req, res, VSCODE_VARIABLES_RESPONSE,
                                "Error retrieving variables");
   }
-  vscode_send(res, out, log);
+  vscode_send(res, out, my_logger);
 }
 
 static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
   if (debugger_state != DEBUGGER_INITIALIZED) {
     vscode_send_error_response(req, res, VSCODE_LAUNCH_RESPONSE,
-                               "not initialized or unexpected state", out, log);
+                               "not initialized or unexpected state", out, my_logger);
     return;
   }
 
   const char *progname = req->u.Request.u.LaunchRequest.program;
-  fprintf(log, "\n--> Launching '%s'\n", progname);
+  fprintf(my_logger, "\n--> Launching '%s'\n", progname);
   int status = luaL_loadfile(L, progname);
   if (status != LUA_OK) {
     char temp[1024];
     snprintf(temp, sizeof temp, "Failed to launch %s due to error: %s\n",
              progname, lua_tostring(L, -1));
-    vscode_send_output_event(res, "console", temp, out, log);
+    vscode_send_output_event(res, "console", temp, out, my_logger);
     vscode_send_error_response(req, res, VSCODE_LAUNCH_RESPONSE,
-                               "Launch failed", out, log);
+                               "Launch failed", out, my_logger);
     lua_pop(L, 1);
     return;
   }
   else {
-    vscode_send_success_response(req, res, VSCODE_LAUNCH_RESPONSE, out, log);
+    vscode_send_success_response(req, res, VSCODE_LAUNCH_RESPONSE, out, my_logger);
   }
   if (req->u.Request.u.LaunchRequest.stopOnEntry)
     debugger_state = DEBUGGER_PROGRAM_STEPPING;
@@ -449,10 +449,10 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
     char temp[1024];
     snprintf(temp, sizeof temp, "Program terminated with error: %s\n",
       lua_tostring(L, -1));
-    vscode_send_output_event(res, "console", temp, out, log);
+    vscode_send_output_event(res, "console", temp, out, my_logger);
     lua_pop(L, 1);
   }
-  vscode_send_terminated_event(res, out, log);
+  vscode_send_terminated_event(res, out, my_logger);
   debugger_state = DEBUGGER_PROGRAM_TERMINATED;
 }
 
@@ -467,40 +467,48 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in,
     return;
   }
   if (debugger_state == DEBUGGER_PROGRAM_RUNNING) {
-    int status = lua_getinfo(L, "S", ar);
-    if (status && ar->source[0] == '@') {
-      for (int j = 0; j < 20; j++) {
-        if (!breakpoints[j].source.path[0])
-          break;
-        fprintf(log, "Breakpoint[%d] check %s vs ar.source=%s, %d vs ar.line=%d\n", j, breakpoints[j].source.path, ar->source, breakpoints[j].line, ar->currentline);
-        if (ar->currentline == breakpoints[j].line && strcmp(breakpoints[j].source.path, ar->source+1) == 0) {
+    int initialized = 0;
+    for (int j = 0; j < 20; j++) {
+      /* fast check */
+      if (!breakpoints[j].source.path[0] ||
+          ar->currentline != breakpoints[j].line)
+        continue;
+      /* potential match */
+      if (!initialized) initialized = lua_getinfo(L, "S", ar);
+      if (!initialized) break;
+      if (ar->source[0] == '@') {
+        /* Only support breakpoints on disk based code */
+        fprintf(my_logger,
+                "Breakpoint[%d] check %s vs ar.source=%s, %d vs ar.line=%d\n",
+                j, breakpoints[j].source.path, ar->source, breakpoints[j].line,
+                ar->currentline);
+        if (strcmp(breakpoints[j].source.path, ar->source + 1) == 0) {
           debugger_state = DEBUGGER_PROGRAM_STEPPING;
           break;
         }
       }
     }
-    if (debugger_state == DEBUGGER_PROGRAM_RUNNING)
-      return;
+    if (debugger_state == DEBUGGER_PROGRAM_RUNNING) return;
   }
   if (debugger_state == DEBUGGER_PROGRAM_STEPPING) {
     /* running within Lua at line change */
     if (!thread_event_sent) {
       /* thread started - only sent once in the debug session */
       thread_event_sent = 1;
-      vscode_send_thread_event(&res, true, out, log);
+      vscode_send_thread_event(&res, true, out, my_logger);
       /* Inform VSCode we have stopped */
-      vscode_send_stopped_event(&res, "entry", out, log);
+      vscode_send_stopped_event(&res, "entry", out, my_logger);
     }
     else {
       /* Inform VSCode we have stopped */
-      vscode_send_stopped_event(&res, "step", out, log);
+      vscode_send_stopped_event(&res, "step", out, my_logger);
     }
     debugger_state = DEBUGGER_PROGRAM_STOPPED;
   }
   bool get_command = true;
   int command = VSCODE_UNKNOWN_REQUEST;
   while (get_command &&
-         (command = vscode_get_request(in, &req, log)) != VSCODE_EOF) {
+         (command = vscode_get_request(in, &req, my_logger)) != VSCODE_EOF) {
     switch (command) {
       case VSCODE_INITIALIZE_REQUEST: {
         handle_initialize_request(&req, &res, out);
@@ -527,25 +535,25 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in,
         break;
       }
       case VSCODE_DISCONNECT_REQUEST: {
-        vscode_send_terminated_event(&res, out, log);
+        vscode_send_terminated_event(&res, out, my_logger);
         debugger_state = DEBUGGER_PROGRAM_TERMINATED;
         vscode_send_success_response(&req, &res, VSCODE_DISCONNECT_RESPONSE,
-                                     out, log);
+                                     out, my_logger);
         exit(0);
       }
       case VSCODE_SET_EXCEPTION_BREAKPOINTS_REQUEST: {
         vscode_send_success_response(
-            &req, &res, VSCODE_SET_EXCEPTION_BREAKPOINTS_RESPONSE, out, log);
+            &req, &res, VSCODE_SET_EXCEPTION_BREAKPOINTS_RESPONSE, out, my_logger);
         break;
       }
       case VSCODE_SET_BREAKPOINTS_REQUEST: {
         handle_set_breakpoints_request(
-          &req, &res, out, log);
+          &req, &res, out, my_logger);
         break;
       }
       case VSCODE_CONFIGURATION_DONE_REQUEST: {
         vscode_send_success_response(
-            &req, &res, VSCODE_CONFIGURATION_DONE_RESPONSE, out, log);
+            &req, &res, VSCODE_CONFIGURATION_DONE_RESPONSE, out, my_logger);
         break;
       }
       case VSCODE_THREAD_REQUEST: {
@@ -554,21 +562,21 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in,
       }
       case VSCODE_STEPIN_REQUEST: {
         vscode_send_success_response(&req, &res, VSCODE_STEPIN_RESPONSE, out,
-                                     log);
+                                     my_logger);
         debugger_state = DEBUGGER_PROGRAM_STEPPING;
         get_command = false;
         break;
       }
       case VSCODE_STEPOUT_REQUEST: {
         vscode_send_success_response(&req, &res, VSCODE_STEPOUT_RESPONSE, out,
-                                     log);
+                                     my_logger);
         debugger_state = DEBUGGER_PROGRAM_STEPPING;
         get_command = false;
         break;
       }
       case VSCODE_NEXT_REQUEST: {
         vscode_send_success_response(&req, &res, VSCODE_NEXT_RESPONSE, out,
-                                     log);
+                                     my_logger);
         debugger_state = DEBUGGER_PROGRAM_STEPPING;
         get_command = false;
         break;
@@ -576,7 +584,7 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in,
       case VSCODE_CONTINUE_REQUEST: {
         debugger_state = DEBUGGER_PROGRAM_RUNNING;
         vscode_send_success_response(&req, &res, VSCODE_CONTINUE_RESPONSE, out,
-                                     log);
+                                     my_logger);
         get_command = false;
         break;
       }
@@ -584,8 +592,8 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in,
         char msg[100];
         snprintf(msg, sizeof msg, "%s not yet implemented",
                  req.u.Request.command);
-        fprintf(log, "%s\n", msg);
-        vscode_send_error_response(&req, &res, command, msg, out, log);
+        fprintf(my_logger, "%s\n", msg);
+        vscode_send_error_response(&req, &res, command, msg, out, my_logger);
         break;
       }
     }
@@ -608,18 +616,18 @@ void ravi_debug_writestring(const char *s, size_t l) {
     l = sizeof temp-1;
   strncpy(temp, s, l+1);
   temp[l] = 0;
-  vscode_send_output_event(&output_response, "stdout", temp, stdout, log);
+  vscode_send_output_event(&output_response, "stdout", temp, stdout, my_logger);
 }
 
 void ravi_debug_writeline(void) {
-  vscode_send_output_event(&output_response, "stdout", "\n", stdout, log);
+  vscode_send_output_event(&output_response, "stdout", "\n", stdout, my_logger);
 }
 
 void ravi_debug_writestringerror(const char *fmt, const char *p) {
   char temp[256];
   snprintf(temp, sizeof temp, fmt, p);
   temp[sizeof temp - 1] = 0;
-  vscode_send_output_event(&output_response, "stderr", temp, stdout, log);
+  vscode_send_output_event(&output_response, "stderr", temp, stdout, my_logger);
 }
 
 /*
@@ -629,18 +637,18 @@ void ravi_debug_writestringerror(const char *fmt, const char *p) {
 */
 int main(void) {
 #ifdef _WIN32
-  log = fopen("/temp/out1.txt", "w");
+  my_logger = fopen("/temp/out1.txt", "w");
 #else
-  log = fopen("/tmp/out1.txt", "w");
+  my_logger = fopen("/tmp/out1.txt", "w");
 #endif
-  if (log == NULL)
-    log = stderr;
+  if (my_logger == NULL)
+    my_logger = stderr;
 #ifdef _WIN32
   /* The VSCode debug protocol requires binary IO */
   _setmode(_fileno(stdout), _O_BINARY);
 #endif
   /* switch off buffering */
-  setbuf(log, NULL);
+  setbuf(my_logger, NULL);
   setbuf(stdout, NULL);
   lua_State *L = luaL_newstate(); /* create Lua state */
   if (L == NULL) { return EXIT_FAILURE; }
@@ -652,6 +660,6 @@ int main(void) {
   debugger_state = DEBUGGER_BIRTH;
   debugger(L, NULL, stdin, stdout);
   lua_close(L);
-  fclose(log);
+  fclose(my_logger);
   return 0;
 }

@@ -229,33 +229,6 @@ else()
 endif ()
 target_link_libraries(libravi ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
 
-#Static library for the debugger 
-if (NOT LLVM_JIT)
-  add_library(libravistatic 
-        ${RAVI_HEADERS}
-        ${LUA_LIB_SRCS} 
-        ${LUA_CORE_SRCS}
-        ${LLVM_JIT_SRCS}
-        ${GCC_JIT_SRCS}
-        ${NO_JIT_SRCS})
-  if (WIN32)
-    # enable DLL export
-    set_target_properties(libravistatic PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-  else()
-    set_target_properties(libravistatic PROPERTIES PREFIX "")
-  endif ()
-  target_link_libraries(libravistatic ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
-
-  add_executable(testravidebug vscode-debugger/src/testravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
-  target_link_libraries(testravidebug libravistatic)
-
-  add_test(TestRaviDebug testravidebug)
-
-  # Ravi VSCode Debug adapter
-  add_executable(ravidebug vscode-debugger/src/ravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
-  target_link_libraries(ravidebug libravistatic)
-endif()
-
 add_executable(ravi src/lua.c)
 target_link_libraries(ravi libravi)
 
@@ -277,9 +250,36 @@ endif ()
 add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
 
+if (NOT LLVM_JIT AND NOT GCC_JIT)
+  #Static library for the debugger 
+  add_library(libravistatic 
+        ${RAVI_HEADERS}
+        ${LUA_LIB_SRCS} 
+        ${LUA_CORE_SRCS}
+        src/ravi_nojit.c)
+  if (WIN32)
+    # enable DLL export
+    set_target_properties(libravistatic PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+  else()
+    set_target_properties(libravistatic PROPERTIES PREFIX "")
+  endif ()
+  target_link_libraries(libravistatic ${EXTRA_LIBRARIES})
+
+  add_executable(testravidebug vscode-debugger/src/testravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
+  target_link_libraries(testravidebug libravistatic)
+
+  add_test(TestRaviDebug testravidebug)
+
+  # Ravi VSCode Debug adapter
+  add_executable(ravidebug vscode-debugger/src/ravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
+  target_link_libraries(ravidebug libravistatic)
+
+  set(RAVI_DEBUGGER_TARGET ravidebug)
+endif()
+
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
-install(TARGETS libravi ravi
+install(TARGETS libravi ravi ${RAVI_DEBUGGER_TARGET}
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
