@@ -512,6 +512,9 @@ LUA_API void ravi_writestring(lua_State *L, const char *s, size_t len);
 LUA_API void ravi_writeline(lua_State *L);
 LUA_API void ravi_writestringerror(lua_State *L, const char *fmt, const char *p);
 
+/* The debugger can set some data - but only once */
+LUA_API void ravi_set_debugger_data(lua_State *L, void *data);
+LUA_API void *ravi_get_debugger_data(lua_State *L);
 
 /////////////////////////////////////////////////////////////////////////////
 /*

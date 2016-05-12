@@ -1630,6 +1630,18 @@ LUA_API void ravi_set_writefuncs(lua_State *L, ravi_Writestring writestr, ravi_W
   g->ravi_writestringerror = writestringerr;
 }
 
+LUA_API void ravi_set_debugger_data(lua_State *L, void *data) {
+  global_State *g = G(L);
+  /* we only allow this to be set once */
+  if (g->ravi_debugger_data == NULL)
+    g->ravi_debugger_data = data;
+}
+
+LUA_API void *ravi_get_debugger_data(lua_State *L) {
+  global_State *g = G(L);
+  return g->ravi_debugger_data;
+}
+
 LUA_API void ravi_writestring(lua_State *L, const char *s, size_t len) {
   global_State *g = G(L);
   g->ravi_writestring(s, len);

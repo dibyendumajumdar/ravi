@@ -347,6 +347,9 @@ static char *unmakemask (int mask, char *smask) {
 static int db_sethook (lua_State *L) {
   int arg, mask, count;
   lua_Hook func;
+  /* Ravi change - disallow when debugging via VSCode */
+  if (ravi_get_debugger_data(L) != NULL)
+    return 0;
   lua_State *L1 = getthread(L, &arg);
   if (lua_isnoneornil(L, arg+1)) {  /* no hook? */
     lua_settop(L, arg+1);
@@ -400,6 +403,9 @@ static int db_gethook (lua_State *L) {
 
 
 static int db_debug (lua_State *L) {
+  /* Ravi change - disallow when debugging via VSCode */
+  if (ravi_get_debugger_data(L) != NULL)
+    return 0;
   for (;;) {
     char buffer[250];
     lua_writestringerror("%s", "lua_debug> ");

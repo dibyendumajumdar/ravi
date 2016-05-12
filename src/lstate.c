@@ -323,6 +323,7 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   g->ravi_writeline = ravi_default_writeline;
   g->ravi_writestring = ravi_default_writestring;
   g->ravi_writestringerror = ravi_default_writestringerror;
+  g->ravi_debugger_data = NULL;
   L->next = NULL;
   L->tt = LUA_TTHREAD;
   g->currentwhite = bitmask(WHITE0BIT);

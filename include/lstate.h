@@ -149,6 +149,7 @@ typedef struct global_State {
   ravi_Writeline ravi_writeline;
   ravi_Writestring ravi_writestring;
   ravi_Writestringerror ravi_writestringerror;
+  void * ravi_debugger_data;
 } global_State;
 
 

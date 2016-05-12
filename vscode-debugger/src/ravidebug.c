@@ -664,6 +664,7 @@ int main(void) {
   luaL_openlibs(L); /* open standard libraries */
   lua_sethook(L, ravi_debughook, LUA_MASKCALL | LUA_MASKLINE | LUA_MASKRET, 0);
   debugger_state = DEBUGGER_BIRTH;
+  ravi_set_debugger_data(L, &debugger_state); /* This is useless data right now but it ensures that the hook cannot be removed */
   debugger(L, NULL, stdin, stdout);
   lua_close(L);
   fclose(my_logger);

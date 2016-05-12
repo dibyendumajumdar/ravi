@@ -72,6 +72,10 @@ static void swapextra (lua_State *L) {
 ** this function can be called asynchronous (e.g. during a signal)
 */
 LUA_API void lua_sethook (lua_State *L, lua_Hook func, int mask, int count) {
+  /* Ravi change - disable setting of hook if debugger is running the Lua instance */
+  global_State *G = G(L);
+  if (L->hook != NULL && G->ravi_debugger_data != NULL)
+    return;
   if (func == NULL || mask == 0) {  /* turn off hooks? */
     mask = 0;
     func = NULL;
