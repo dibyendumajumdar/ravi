@@ -19,8 +19,6 @@
 #include <unistd.h>
 #endif
 
-
-
 #include <lauxlib.h>
 #include <lua.h>
 #include <lualib.h>
@@ -70,6 +68,7 @@ static Breakpoint breakpoints[MAX_TOTAL_BREAKPOINTS];
 static ProtocolMessage output_response;
 static char LUA_PATH[1024];
 static char LUA_CPATH[1024];
+static char workingdir[1024];
 
 /*
 * Generate response to InitializeRequest
@@ -133,11 +132,22 @@ static void handle_stack_trace_request(ProtocolMessage *req,
       char name[256];
       if (last_path_delim) {
         ravi_string_copy(name, last_path_delim + 1, sizeof name);
+        ravi_string_copy(path, src, sizeof path);
       }
       else {
+        /* prepend the working directory to the name */
         ravi_string_copy(name, src, sizeof name);
+        if (workingdir[0]) {
+          size_t n = strlen(workingdir);
+          if (workingdir[n - 1] == '/')
+            snprintf(path, sizeof path, "%s%s", workingdir, src);
+          else 
+            snprintf(path, sizeof path, "%s/%s", workingdir, src);
+        }
+        else {
+          ravi_string_copy(path, src, sizeof path);
+        }
       }
-      ravi_string_copy(path, src, sizeof path);
       ravi_string_copy(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path,
           path, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
@@ -147,10 +157,20 @@ static void handle_stack_trace_request(ProtocolMessage *req,
           name, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
                     .source.name);
     }
+    else if (memcmp(src, "=[C]", 4) == 0) {
+      /* Source is a string - send a reference to the stack frame */
+      res->u.Response.u.StackTraceResponse.stackFrames[depth]
+        .source.sourceReference = ((depth + 1) & 0xFF) | ((int)(((intptr_t)src) << 8) & 0xFFFFFF00);
+      ravi_string_copy(
+        res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
+        "<C function>",
+        sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
+        .source.name);
+    }
     else {
       /* Source is a string - send a reference to the stack frame */
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
-          .source.sourceReference = depth + 1;
+          .source.sourceReference = ((depth + 1) & 0xFF) | ((int)(((intptr_t)src) << 8) & 0xFFFFFF00) ;
       ravi_string_copy(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
           "<dynamic function>",
@@ -173,33 +193,30 @@ static void handle_stack_trace_request(ProtocolMessage *req,
 static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
   lua_Debug entry;
-  int depth = req->u.Request.u.SourceRequest.sourceReference - 1;
+  int depth = (req->u.Request.u.SourceRequest.sourceReference & 0xFF) - 1;
   vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
   if (lua_getstack(L, depth, &entry)) {
     int status = lua_getinfo(L, "Sln", &entry);
-    if (status == 0) {
+    if (status) {
       const char *src = entry.source;
-      if (*src != '@') {
+      if (*src != '@' && *src != '=') {
         /* Source is a string */
         ravi_string_copy(res->u.Response.u.SourceResponse.content, src,
                          sizeof res->u.Response.u.SourceResponse.content);
-        res->u.Response.u.SourceResponse
-            .content[sizeof res->u.Response.u.SourceResponse.content - 1] =
-            0;  // just in case
       }
       else {
-        vscode_make_error_response(req, res, VSCODE_SOURCE_RESPONSE,
-                                   "Source is in a file");
+        ravi_string_copy(res->u.Response.u.SourceResponse.content, "Source not available",
+          sizeof res->u.Response.u.SourceResponse.content);
       }
     }
     else {
-      vscode_make_error_response(req, res, VSCODE_SOURCE_RESPONSE,
-                                 "Unable to get information from Lua");
+      ravi_string_copy(res->u.Response.u.SourceResponse.content, "Source not available",
+        sizeof res->u.Response.u.SourceResponse.content);
     }
   }
   else {
-    vscode_make_error_response(req, res, VSCODE_SOURCE_RESPONSE,
-                               "Source is in a file");
+    ravi_string_copy(res->u.Response.u.SourceResponse.content, "Source not available",
+      sizeof res->u.Response.u.SourceResponse.content);
   }
   vscode_send(res, out, my_logger);
 }
@@ -497,6 +514,9 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
         "Launch failed", out, my_logger);
       return;
     }
+    else {
+      ravi_string_copy(workingdir, req->u.Request.u.LaunchRequest.cwd, sizeof workingdir);
+    }
   }
   const char *progname = req->u.Request.u.LaunchRequest.program;
   fprintf(my_logger, "\n--> Launching '%s'\n", progname);
@@ -682,9 +702,9 @@ void ravi_debughook(lua_State *L, lua_Debug *ar) {
 
 void ravi_debug_writestring(const char *s, size_t l) {
   char temp[256];
-  if (l >= sizeof temp) l = sizeof temp - 1;
-  ravi_string_copy(temp, s, l + 1);
-  temp[l] = 0;
+  if (l >= sizeof temp) 
+    l = sizeof temp - 1;
+  ravi_string_copy(temp, s, l+1);
   vscode_send_output_event(&output_response, "stdout", temp, stdout, my_logger);
 }
 
@@ -695,8 +715,27 @@ void ravi_debug_writeline(void) {
 void ravi_debug_writestringerror(const char *fmt, const char *p) {
   char temp[256];
   snprintf(temp, sizeof temp, fmt, p);
-  temp[sizeof temp - 1] = 0;
   vscode_send_output_event(&output_response, "stderr", temp, stdout, my_logger);
+}
+
+/*
+** Create the 'arg' table, which stores all arguments from the
+** command line ('argv'). It should be aligned so that, at index 0,
+** it has 'argv[script]', which is the script name. The arguments
+** to the script (everything after 'script') go to positive indices;
+** other arguments (before the script name) go to negative indices.
+** If there is no script name, assume interpreter's name as base.
+*/
+static void createargtable(lua_State *L, char **argv, int argc, int script) {
+  int i, narg;
+  if (script == argc) script = 0;  /* no script name? */
+  narg = argc - (script + 1);  /* number of positive indices */
+  lua_createtable(L, narg, script + 1);
+  for (i = 0; i < argc; i++) {
+    lua_pushstring(L, argv[i]);
+    lua_rawseti(L, -2, i - script);
+  }
+  lua_setglobal(L, "arg");
 }
 
 /*
@@ -704,7 +743,7 @@ void ravi_debug_writestringerror(const char *fmt, const char *p) {
 * The debugger will use stdin/stdout to interact with VSCode
 * The protocol used is described in protocol.h.
 */
-int main(void) {
+int main(int argc, char **argv) {
 #ifdef _WIN32
   my_logger = fopen("/temp/out1.txt", "w");
 #else
@@ -725,6 +764,7 @@ int main(void) {
                       ravi_debug_writestringerror);
   luaL_checkversion(L); /* check that interpreter has correct version */
   luaL_openlibs(L);     /* open standard libraries */
+  createargtable(L, argv, argc, 0);
   lua_sethook(L, ravi_debughook, LUA_MASKCALL | LUA_MASKLINE | LUA_MASKRET, 0);
   debugger_state = DEBUGGER_BIRTH;
   ravi_set_debugger_data(

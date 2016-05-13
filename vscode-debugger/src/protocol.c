@@ -290,6 +290,13 @@ static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg,
   const char *cwd = get_string_value(args, "cwd", log);
   if (cwd != NULL) ravi_string_copy(msg->u.Request.u.LaunchRequest.cwd, cwd,
     sizeof msg->u.Request.u.LaunchRequest.cwd);
+  for (char *cp = msg->u.Request.u.LaunchRequest.cwd; *cp; cp++) {
+    /* replace back slashes with front slash as the VSCode front end doesn't
+    * like
+    * back slashes even though it sends them!
+    */
+    if (*cp == '\\') *cp = '/';
+  }
   msg->u.Request.request_type = msgtype;
   return msgtype;
 }
@@ -804,8 +811,11 @@ int vscode_get_request(FILE *in, ProtocolMessage *req, FILE *log) {
       buf[len] = 0;
       fprintf(log, "Content-Length: %d\r\n\r\n%s", len, buf);
       fflush(log);
+      return vscode_parse_message(buf, sizeof buf, req, log);
     }
-    return vscode_parse_message(buf, sizeof buf, req, log);
+    else {
+      return VSCODE_EOF;
+    }
   }
   else {
     return VSCODE_EOF;
