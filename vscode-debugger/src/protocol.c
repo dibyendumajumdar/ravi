@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 /* Parse a VSCode JSON message type
  */
@@ -115,41 +116,44 @@ static json_value *get_object_value(json_value *js, const char *key,
 }
 
 /*
- * Escape certain control characters to match JSON string 
+ * Escape certain control characters to match JSON string
  * requirements. 'src' should be 0 terminated, 'len' is the
- * size of 'dest' buffer. If the 'dest' buffer is smaller than 
+ * size of 'dest' buffer. If the 'dest' buffer is smaller than
  * required then the string will be silently truncated
  */
 void vscode_json_stringify(const char *src, char *dest, size_t len) {
   char *p = dest;
   char *end = dest + len - 1;
-  for (int i = 0; i < (int)strlen(src) && p < end; i++) {
+  int n = (int) strlen(src);
+  for (int i = 0; i < n && p < end; i++) {
     char ch = 0;
     switch (src[i]) {
-    case '"':  ch = '"'; goto l_escape;
-    case '\\': ch = '\\'; goto l_escape;
-    case '\b': ch = 'b'; goto l_escape;
-    case '\f': ch = 'f'; goto l_escape;
-    case '\n': ch = 'n'; goto l_escape;
-    case '\r': ch = 'r'; goto l_escape;
-    case '\t': {
-      ch = 't';
-l_escape:
-      if (p + 2 > end)
-        goto l_done;
-      *p++ = '\\';
-      *p++ = ch;
-    } break;
-    default:
-      *p++ = src[i];
+      case '"': ch = '"'; goto l_escape;
+      case '\\': ch = '\\'; goto l_escape;
+      case '\b': ch = 'b'; goto l_escape;
+      case '\f': ch = 'f'; goto l_escape;
+      case '\n': ch = 'n'; goto l_escape;
+      case '\r': ch = 'r'; goto l_escape;
+      case '\t': {
+        ch = 't';
+      l_escape:
+        if (p + 2 > end) goto l_done;
+        *p++ = '\\';
+        *p++ = ch;
+      } break;
+      default: {
+        if (isprint(src[i]))
+          *p++ = src[i];
+        else
+          goto l_done;
+      }
     }
   }
 l_done:
   *p = 0;
 }
 
-static json_value *get_array_value(json_value *js, const char *key,
-  FILE *log) {
+static json_value *get_array_value(json_value *js, const char *key, FILE *log) {
   (void)log;
   if (js->type != json_object) { return NULL; }
   for (int i = 0; i < js->u.object.length; i++) {
@@ -220,8 +224,8 @@ static int vscode_parse_initialize_request(json_value *js, ProtocolMessage *msg,
             adapterID != NULL ? adapterID : "null");
     return VSCODE_UNKNOWN_REQUEST;
   }
-  strncpy(msg->u.Request.u.InitializeRequest.adapterID, adapterID,
-          sizeof msg->u.Request.u.InitializeRequest.adapterID);
+  ravi_string_copy(msg->u.Request.u.InitializeRequest.adapterID, adapterID,
+                   sizeof msg->u.Request.u.InitializeRequest.adapterID);
   const char *pathFormat = get_string_value(args, "pathFormat", log);
   if (pathFormat != NULL && strcmp(pathFormat, "path") != 0) {
     fprintf(log, "Unsupported pathFormat '%s' in initialize command\n",
@@ -229,8 +233,8 @@ static int vscode_parse_initialize_request(json_value *js, ProtocolMessage *msg,
     return VSCODE_UNKNOWN_REQUEST;
   }
   if (pathFormat)
-    strncpy(msg->u.Request.u.InitializeRequest.pathFormat, pathFormat,
-            sizeof msg->u.Request.u.InitializeRequest.pathFormat);
+    ravi_string_copy(msg->u.Request.u.InitializeRequest.pathFormat, pathFormat,
+                     sizeof msg->u.Request.u.InitializeRequest.pathFormat);
   int found = 0;
   msg->u.Request.u.InitializeRequest.columnsStartAt1 =
       get_boolean_value(args, "columnsStartAt1", log, &found);
@@ -267,8 +271,8 @@ static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg,
       get_boolean_value(args, "stopOnEntry", log, &found);
   const char *prog = get_string_value(args, "program", log);
   if (prog == NULL) return VSCODE_UNKNOWN_REQUEST;
-  strncpy(msg->u.Request.u.LaunchRequest.program, prog,
-          sizeof msg->u.Request.u.LaunchRequest.program);
+  ravi_string_copy(msg->u.Request.u.LaunchRequest.program, prog,
+                   sizeof msg->u.Request.u.LaunchRequest.program);
   for (char *cp = msg->u.Request.u.LaunchRequest.program; *cp; cp++) {
     /* replace back slashes with front slash as the VSCode front end doesn't
      * like
@@ -277,12 +281,22 @@ static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg,
     if (*cp == '\\') *cp = '/';
   }
   fprintf(log, "LAUNCH %s\n", prog);
+  const char *lua_path = get_string_value(args, "LUA_PATH", log);
+  if (lua_path != NULL) ravi_string_copy(msg->u.Request.u.LaunchRequest.lua_path, lua_path,
+    sizeof msg->u.Request.u.LaunchRequest.lua_path);
+  const char *lua_cpath = get_string_value(args, "LUA_CPATH", log);
+  if (lua_cpath != NULL) ravi_string_copy(msg->u.Request.u.LaunchRequest.lua_cpath, lua_cpath,
+    sizeof msg->u.Request.u.LaunchRequest.lua_cpath);
+  const char *cwd = get_string_value(args, "cwd", log);
+  if (cwd != NULL) ravi_string_copy(msg->u.Request.u.LaunchRequest.cwd, cwd,
+    sizeof msg->u.Request.u.LaunchRequest.cwd);
   msg->u.Request.request_type = msgtype;
   return msgtype;
 }
 
-static int vscode_parse_set_breakpoints_request(json_value *js, ProtocolMessage *msg,
-  int msgtype, FILE *log) {
+static int vscode_parse_set_breakpoints_request(json_value *js,
+                                                ProtocolMessage *msg,
+                                                int msgtype, FILE *log) {
   int found = 0;
   json_value *args = get_object_value(js, "arguments", log);
   if (args == NULL) return VSCODE_UNKNOWN_REQUEST;
@@ -290,22 +304,22 @@ static int vscode_parse_set_breakpoints_request(json_value *js, ProtocolMessage 
   if (source == NULL) return VSCODE_UNKNOWN_REQUEST;
   const char *prog = get_string_value(source, "path", log);
   if (prog == NULL) return VSCODE_UNKNOWN_REQUEST;
-  strncpy(msg->u.Request.u.SetBreakpointsRequest.source.path, prog,
-    sizeof msg->u.Request.u.SetBreakpointsRequest.source.path);
-  for (char *cp = msg->u.Request.u.SetBreakpointsRequest.source.path; *cp; cp++) {
-    if (*cp == '\\') 
-      *cp = '/';
+  ravi_string_copy(msg->u.Request.u.SetBreakpointsRequest.source.path, prog,
+                   sizeof msg->u.Request.u.SetBreakpointsRequest.source.path);
+  for (char *cp = msg->u.Request.u.SetBreakpointsRequest.source.path; *cp;
+       cp++) {
+    if (*cp == '\\') *cp = '/';
   }
   json_value *breakpoints = get_array_value(args, "breakpoints", log);
   if (breakpoints == NULL || breakpoints->type != json_array)
     return VSCODE_UNKNOWN_REQUEST;
   for (int i = 0; i < breakpoints->u.array.length && i < MAX_BREAKPOINTS; i++) {
     json_value *element = breakpoints->u.array.values[i];
-    if (element->type != json_object)
-      return VSCODE_UNKNOWN_REQUEST;
+    if (element->type != json_object) return VSCODE_UNKNOWN_REQUEST;
     int line = get_int_value(element, "line", log, &found);
     fprintf(log, "Set breakpoint line = %d\n", line);
-    msg->u.Request.u.SetBreakpointsRequest.breakpoints[i].line = found ? line: -1;
+    msg->u.Request.u.SetBreakpointsRequest.breakpoints[i].line =
+        found ? line : -1;
   }
   msg->u.Request.request_type = msgtype;
   return msgtype;
@@ -335,7 +349,7 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
   if (cmd == NULL) return VSCODE_UNKNOWN_REQUEST;
   msg->type = VSCODE_REQUEST;
   msg->seq = get_int_value(js, "seq", log, &found);
-  strncpy(msg->u.Request.command, cmd, sizeof msg->u.Request.command);
+  ravi_string_copy(msg->u.Request.command, cmd, sizeof msg->u.Request.command);
   fprintf(log, "\nRequest --> '%s'\n", cmd);
   int cmdtype = get_cmdtype(msg->u.Request.command);
   switch (cmdtype) {
@@ -358,7 +372,7 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
                                          log);
     case VSCODE_SOURCE_REQUEST:
       return vscode_parse_intarg_request(js, msg, cmdtype, "sourceReference",
-        log);
+                                         log);
     case VSCODE_LAUNCH_REQUEST:
       return vscode_parse_launch_request(js, msg, cmdtype, log);
     case VSCODE_STACK_TRACE_REQUEST:
@@ -393,11 +407,12 @@ void vscode_make_error_response(ProtocolMessage *req, ProtocolMessage *res,
   memset(res, 0, sizeof(ProtocolMessage));
   res->seq = seq++;
   res->type = VSCODE_RESPONSE;
-  strncpy(res->u.Response.command, req->u.Request.command,
-          sizeof res->u.Response.command);
+  ravi_string_copy(res->u.Response.command, req->u.Request.command,
+                   sizeof res->u.Response.command);
   res->u.Response.request_seq = req->seq;
   res->u.Response.response_type = restype;
-  strncpy(res->u.Response.message, errormsg, sizeof res->u.Response.message);
+  ravi_string_copy(res->u.Response.message, errormsg,
+                   sizeof res->u.Response.message);
   res->u.Response.success = 0;
 }
 
@@ -406,8 +421,8 @@ void vscode_make_success_response(ProtocolMessage *req, ProtocolMessage *res,
   memset(res, 0, sizeof(ProtocolMessage));
   res->seq = seq++;
   res->type = VSCODE_RESPONSE;
-  strncpy(res->u.Response.command, req->u.Request.command,
-          sizeof res->u.Response.command);
+  ravi_string_copy(res->u.Response.command, req->u.Request.command,
+                   sizeof res->u.Response.command);
   res->u.Response.request_seq = req->seq;
   res->u.Response.response_type = restype;
   res->u.Response.success = 1;
@@ -417,17 +432,21 @@ void vscode_make_initialized_event(ProtocolMessage *res) {
   memset(res, 0, sizeof(ProtocolMessage));
   res->seq = seq++;
   res->type = VSCODE_EVENT;
-  strncpy(res->u.Event.event, "initialized", sizeof res->u.Event.event);
+  ravi_string_copy(res->u.Event.event, "initialized",
+                   sizeof res->u.Event.event);
   res->u.Event.event_type = VSCODE_INITIALIZED_EVENT;
 }
 
-static void vscode_make_output_event(ProtocolMessage *res, const char *category, const char *msg) {
+static void vscode_make_output_event(ProtocolMessage *res, const char *category,
+                                     const char *msg) {
   memset(res, 0, sizeof(ProtocolMessage));
   res->seq = seq++;
   res->type = VSCODE_EVENT;
-  strncpy(res->u.Event.event, "output", sizeof res->u.Event.event);
-  strncpy(res->u.Event.u.OutputEvent.category, category, sizeof res->u.Event.u.OutputEvent.category);
-  vscode_json_stringify(msg, res->u.Event.u.OutputEvent.output, sizeof res->u.Event.u.OutputEvent.output);
+  ravi_string_copy(res->u.Event.event, "output", sizeof res->u.Event.event);
+  ravi_string_copy(res->u.Event.u.OutputEvent.category, category,
+                   sizeof res->u.Event.u.OutputEvent.category);
+  vscode_json_stringify(msg, res->u.Event.u.OutputEvent.output,
+                        sizeof res->u.Event.u.OutputEvent.output);
   res->u.Event.event_type = VSCODE_OUTPUT_EVENT;
 }
 
@@ -439,10 +458,10 @@ void vscode_make_stopped_event(ProtocolMessage *res, const char *reason) {
   res->seq = seq++;
   res->type = VSCODE_EVENT;
   res->u.Event.event_type = VSCODE_STOPPED_EVENT;
-  strncpy(res->u.Event.event, "stopped", sizeof res->u.Event.event);
+  ravi_string_copy(res->u.Event.event, "stopped", sizeof res->u.Event.event);
   res->u.Event.u.StoppedEvent.threadId = 1; /* dummy thread id - always 1 */
-  strncpy(res->u.Event.u.StoppedEvent.reason, reason,
-          sizeof res->u.Event.u.StoppedEvent.reason);
+  ravi_string_copy(res->u.Event.u.StoppedEvent.reason, reason,
+                   sizeof res->u.Event.u.StoppedEvent.reason);
 }
 
 /*
@@ -453,7 +472,7 @@ void vscode_make_terminated_event(ProtocolMessage *res) {
   res->seq = seq++;
   res->type = VSCODE_EVENT;
   res->u.Event.event_type = VSCODE_TERMINATED_EVENT;
-  strncpy(res->u.Event.event, "terminated", sizeof res->u.Event.event);
+  ravi_string_copy(res->u.Event.event, "terminated", sizeof res->u.Event.event);
   res->u.Event.u.TerminatedEvent.restart = 0;
 }
 
@@ -465,10 +484,11 @@ void vscode_make_thread_event(ProtocolMessage *res, bool started) {
   res->seq = seq++;
   res->type = VSCODE_EVENT;
   res->u.Event.event_type = VSCODE_THREAD_EVENT;
-  strncpy(res->u.Event.event, "thread", sizeof res->u.Event.event);
+  ravi_string_copy(res->u.Event.event, "thread", sizeof res->u.Event.event);
   res->u.Event.u.ThreadEvent.threadId = 1; /* dummy thread id - always 1 */
-  strncpy(res->u.Event.u.ThreadEvent.reason, started ? "started" : "exited",
-          sizeof res->u.Event.u.ThreadEvent.reason);
+  ravi_string_copy(res->u.Event.u.ThreadEvent.reason,
+                   started ? "started" : "exited",
+                   sizeof res->u.Event.u.ThreadEvent.reason);
 }
 
 void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
@@ -529,24 +549,28 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
         snprintf(cp, sizeof temp - strlen(temp), ",");
         cp = temp + strlen(temp);
       }
-      if (res->u.Response.u.StackTraceResponse.stackFrames[d].source.sourceReference == 0) {
-        snprintf(cp, sizeof temp - strlen(temp),
-          "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":"
-          "{\"name\":\"%s\",\"path\":\"%s\",\"sourceReference\":0}}",
-          d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
-          res->u.Response.u.StackTraceResponse.stackFrames[d].line,
-          res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
-          res->u.Response.u.StackTraceResponse.stackFrames[d].source.path);
+      if (res->u.Response.u.StackTraceResponse.stackFrames[d]
+              .source.sourceReference == 0) {
+        snprintf(
+            cp, sizeof temp - strlen(temp),
+            "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":"
+            "{\"name\":\"%s\",\"path\":\"%s\",\"sourceReference\":0}}",
+            d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
+            res->u.Response.u.StackTraceResponse.stackFrames[d].line,
+            res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
+            res->u.Response.u.StackTraceResponse.stackFrames[d].source.path);
         cp = temp + strlen(temp);
       }
       else {
-        snprintf(cp, sizeof temp - strlen(temp),
-          "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":"
-          "{\"name\":\"%s\",\"sourceReference\":%d}}",
-          d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
-          res->u.Response.u.StackTraceResponse.stackFrames[d].line,
-          res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
-          res->u.Response.u.StackTraceResponse.stackFrames[d].source.sourceReference);
+        snprintf(
+            cp, sizeof temp - strlen(temp),
+            "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":"
+            "{\"name\":\"%s\",\"sourceReference\":%d}}",
+            d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
+            res->u.Response.u.StackTraceResponse.stackFrames[d].line,
+            res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
+            res->u.Response.u.StackTraceResponse.stackFrames[d]
+                .source.sourceReference);
         cp = temp + strlen(temp);
       }
     }
@@ -584,41 +608,49 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
         snprintf(cp, sizeof temp - strlen(temp), ",");
         cp = temp + strlen(temp);
       }
-      snprintf(cp, sizeof temp - strlen(temp),
-               "{\"name\":\"%s\",\"variablesReference\":%d,\"value\":\"%s\"}",
-               res->u.Response.u.VariablesResponse.variables[d].name,
-               res->u.Response.u.VariablesResponse.variables[d].variablesReference,
-               res->u.Response.u.VariablesResponse.variables[d].value);
+      snprintf(
+          cp, sizeof temp - strlen(temp),
+          "{\"name\":\"%s\",\"variablesReference\":%d,\"value\":\"%s\"}",
+          res->u.Response.u.VariablesResponse.variables[d].name,
+          res->u.Response.u.VariablesResponse.variables[d].variablesReference,
+          res->u.Response.u.VariablesResponse.variables[d].value);
       cp = temp + strlen(temp);
     }
     snprintf(cp, sizeof temp - strlen(temp), "]}");
     cp = temp + strlen(temp);
   }
   else if (res->u.Response.response_type == VSCODE_SET_BREAKPOINTS_RESPONSE &&
-    res->u.Response.success) {
+           res->u.Response.success) {
     snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"breakpoints\":[");
     cp = temp + strlen(temp);
     for (int d = 0; d < MAX_BREAKPOINTS; d++) {
-      if (!res->u.Response.u.SetBreakpointsResponse.breakpoints[d].source.path[0]) break;
+      if (!res->u.Response.u.SetBreakpointsResponse.breakpoints[d]
+               .source.path[0])
+        break;
       if (d) {
         snprintf(cp, sizeof temp - strlen(temp), ",");
         cp = temp + strlen(temp);
       }
-      snprintf(cp, sizeof temp - strlen(temp),
-        "{\"verified\":%s,\"source\":{\"path\":\"%s\"},\"line\":%d}",
-        res->u.Response.u.SetBreakpointsResponse.breakpoints[d].verified ? "true" : "false",
-        res->u.Response.u.SetBreakpointsResponse.breakpoints[d].source.path,
-        res->u.Response.u.SetBreakpointsResponse.breakpoints[d].line);
+      snprintf(
+          cp, sizeof temp - strlen(temp),
+          "{\"verified\":%s,\"source\":{\"path\":\"%s\"},\"line\":%d}",
+          res->u.Response.u.SetBreakpointsResponse.breakpoints[d].verified
+              ? "true"
+              : "false",
+          res->u.Response.u.SetBreakpointsResponse.breakpoints[d].source.path,
+          res->u.Response.u.SetBreakpointsResponse.breakpoints[d].line);
       cp = temp + strlen(temp);
     }
     snprintf(cp, sizeof temp - strlen(temp), "]}");
     cp = temp + strlen(temp);
   }
   else if (res->u.Response.response_type == VSCODE_SOURCE_RESPONSE &&
-    res->u.Response.success) {
+           res->u.Response.success) {
     char buf[SOURCE_LEN * 2];
-    vscode_json_stringify(res->u.Response.u.SourceResponse.content, buf, sizeof buf);
-    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"content\":\"%s\"}", buf);
+    vscode_json_stringify(res->u.Response.u.SourceResponse.content, buf,
+                          sizeof buf);
+    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"content\":\"%s\"}",
+             buf);
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");
@@ -639,7 +671,8 @@ void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
            res->u.Event.event);
   cp = temp + strlen(temp);
   if (res->u.Event.event_type == VSCODE_OUTPUT_EVENT) {
-    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"category\":\"%s\",\"output\":\"%s\"}",
+    snprintf(cp, sizeof temp - strlen(temp),
+             ",\"body\":{\"category\":\"%s\",\"output\":\"%s\"}",
              res->u.Event.u.OutputEvent.category,
              res->u.Event.u.OutputEvent.output);
     cp = temp + strlen(temp);
@@ -676,8 +709,8 @@ void vscode_send(ProtocolMessage *msg, FILE *out, FILE *log) {
     vscode_serialize_response(buf, sizeof buf, msg);
   else
     return;
-  snprintf(json_buf, sizeof json_buf, "Content-Length: %d\r\n\r\n%s", (int)strlen(buf),
-    buf);
+  snprintf(json_buf, sizeof json_buf, "Content-Length: %d\r\n\r\n%s",
+           (int)strlen(buf), buf);
   fprintf(log, "%s\n", json_buf);
   fprintf(out, "%s", json_buf);
 }
@@ -712,8 +745,8 @@ void vscode_send_terminated_event(ProtocolMessage *res, FILE *out, FILE *log) {
   vscode_send(res, out, log);
 }
 
-void vscode_send_output_event(ProtocolMessage *res, const char *category, const char *msg, FILE *out,
-                              FILE *log) {
+void vscode_send_output_event(ProtocolMessage *res, const char *category,
+                              const char *msg, FILE *out, FILE *log) {
   vscode_make_output_event(res, category, msg);
   vscode_send(res, out, log);
 }
@@ -777,4 +810,9 @@ int vscode_get_request(FILE *in, ProtocolMessage *req, FILE *log) {
   else {
     return VSCODE_EOF;
   }
+}
+
+void ravi_string_copy(char *buf, const char *src, size_t buflen) {
+  strncpy(buf, src, buflen);
+  buf[buflen - 1] = 0;
 }

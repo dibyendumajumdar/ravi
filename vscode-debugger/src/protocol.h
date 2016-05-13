@@ -212,6 +212,9 @@ typedef struct {
           int noDebug;
           char program[TEXT_LEN];
           int stopOnEntry;
+          char lua_path[PATH_LEN];
+          char lua_cpath[PATH_LEN];
+          char cwd[PATH_LEN];
         } LaunchRequest;
 
         struct {
@@ -368,5 +371,8 @@ extern void vscode_send_success_response(ProtocolMessage *req,
                                          FILE *out, FILE *log);
 extern int vscode_get_request(FILE *in, ProtocolMessage *req, FILE *log);
 extern void vscode_json_stringify(const char *src, char *dest, size_t len);
+
+/* guaranteed null termination */
+extern void ravi_string_copy(char *buf, const char *src, size_t buflen);
 
 #endif
