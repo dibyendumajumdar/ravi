@@ -36,6 +36,7 @@ enum {
   DEBUGGER_PROGRAM_TERMINATED = 7
 };
 
+/* Following must fir into 2 bits and 0 is not a valid value */
 enum { VAR_TYPE_LOCALS = 1, VAR_TYPE_UPVALUES = 2, VAR_TYPE_GLOBALS = 3 };
 
 /* Some utilities to allow packing of 5 components into a 32-bit integer value
@@ -65,6 +66,7 @@ static FILE *my_logger = NULL;
 static int thread_event_sent = 0;
 static int debugger_state = DEBUGGER_BIRTH;
 static Breakpoint breakpoints[MAX_TOTAL_BREAKPOINTS];
+static ProtocolMessage req, res;
 static ProtocolMessage output_response;
 static char LUA_PATH[1024];
 static char LUA_CPATH[1024];
@@ -415,8 +417,13 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
 }
 
 /*
-* Handle ScopeRequest
-*/
+ * The VSCode front-end sends a variables request when it wants to
+ * display variables. Unfortunately a limitation is that only a numberic
+ * reference field is available named 'variableReference' to identify the variable.
+ * We need to know various bits about the variable - such as its stack frame
+ * location, the variable's location. Therefore we have to encode various pieces
+ * of information in the numeric value.
+ */
 static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
                                      lua_State *L, FILE *out) {
   lua_Debug entry;
@@ -424,9 +431,12 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
   int varRef = req->u.Request.u.VariablesRequest.variablesReference;
   /*
    * The variable reference is encoded such that it contains:
-   * type - the scope type
-   * depth - the stack frame
-   * var - the index of the variable as provided to lua_getlocal()
+   * type (2 bits) - the scope type
+   * depth (6 bits) - the stack frame
+   * var (8 bits) - the index of the variable as provided to lua_getlocal()
+   *              - These are negative for varargs values
+   * unused (8 bits)
+   * isvararg (8 bits) - this is a flag to indicate request for varargs
    */
   int type = EXTRACT_T(varRef);
   int depth = EXTRACT_A(varRef);
@@ -501,25 +511,34 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
             lua_pushnil(L);  // push first key
             int v = 0;
             while (lua_next(L, stack_idx) && v < MAX_VARIABLES) {
-              // stack now contains: -1 => value; -2 => key
-              // copy the key so that lua_tostring does not modify the original
-              lua_pushvalue(L, -2);
-              // stack now contains: -1 => key; -2 => value; -3 => key
-              get_value(
-                  L, -1, res->u.Response.u.VariablesResponse.variables[v].name,
+              if (v == MAX_VARIABLES) {
+                ravi_string_copy(res->u.Response.u.VariablesResponse.variables[v].name, "...",
                   sizeof res->u.Response.u.VariablesResponse.variables[0].name);
-              get_value(L, -2,
-                        res->u.Response.u.VariablesResponse.variables[v].value,
-                        sizeof res->u.Response.u.VariablesResponse.variables[0]
-                            .value);
-              /*
-               * Right now we do not support further drill down
-               */
-              res->u.Response.u.VariablesResponse.variables[v]
-                  .variablesReference = 0;
+                ravi_string_copy(res->u.Response.u.VariablesResponse.variables[v].value, "truncated",
+                        sizeof res->u.Response.u.VariablesResponse.variables[0].value);
+                lua_pop(L, 1);
+              }
+              else {
+                // stack now contains: -1 => value; -2 => key
+                // copy the key so that lua_tostring does not modify the original
+                lua_pushvalue(L, -2);
+                // stack now contains: -1 => key; -2 => value; -3 => key
+                get_value(
+                    L, -1, res->u.Response.u.VariablesResponse.variables[v].name,
+                    sizeof res->u.Response.u.VariablesResponse.variables[0].name);
+                get_value(L, -2,
+                          res->u.Response.u.VariablesResponse.variables[v].value,
+                          sizeof res->u.Response.u.VariablesResponse.variables[0]
+                              .value);
+                /*
+                 * Right now we do not support further drill down
+                 */
+                res->u.Response.u.VariablesResponse.variables[v]
+                    .variablesReference = 0;
+                // pop value + copy of key, leaving original key
+                lua_pop(L, 2);
+              }
               v++;
-              // pop value + copy of key, leaving original key
-              lua_pop(L, 2);
             }
           }
           lua_pop(L, 1);
@@ -541,6 +560,11 @@ static void set_package_var(lua_State *L, const char *key, const char *value) {
   lua_pop(L, 1);
 }
 
+/**
+ * The VSCode front-end sends a Launch request when the user
+ * starts a debug session. This is where the actual Lua code
+ * is executed
+ */
 static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
   if (debugger_state != DEBUGGER_INITIALIZED) {
@@ -591,6 +615,7 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
     debugger_state = DEBUGGER_PROGRAM_STEPPING;
   else
     debugger_state = DEBUGGER_PROGRAM_RUNNING;
+  /* Start the Lua code! */
   if (lua_pcall(L, 0, 0, 0)) {
     char temp[1024];
     snprintf(temp, sizeof temp, "Program terminated with error: %s\n",
@@ -607,7 +632,6 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
  * If called from main then init is true and ar == NULL
  */
 static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
-  ProtocolMessage req, res;
   if (debugger_state == DEBUGGER_PROGRAM_TERMINATED) { return; }
   if (debugger_state == DEBUGGER_PROGRAM_RUNNING) {
     int initialized = 0;
@@ -621,10 +645,10 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
       if (!initialized) break;
       if (ar->source[0] == '@') {
         /* Only support breakpoints on disk based code */
-        fprintf(my_logger,
-                "Breakpoint[%d] check %s vs ar.source=%s, %d vs ar.line=%d\n",
-                j, breakpoints[j].source.path, ar->source, breakpoints[j].line,
-                ar->currentline);
+//        fprintf(my_logger,
+//                "Breakpoint[%d] check %s vs ar.source=%s, %d vs ar.line=%d\n",
+//                j, breakpoints[j].source.path, ar->source, breakpoints[j].line,
+//                ar->currentline);
         if (strcmp(breakpoints[j].source.path, ar->source + 1) == 0) {
           debugger_state = DEBUGGER_PROGRAM_STEPPING;
           break;
@@ -795,6 +819,7 @@ static void createargtable(lua_State *L, char **argv, int argc, int script) {
 * The protocol used is described in protocol.h.
 */
 int main(int argc, char **argv) {
+  /* For debugging purposes we log the interaction */
 #ifdef _WIN32
   my_logger = fopen("/temp/out1.txt", "w");
 #else
@@ -815,7 +840,7 @@ int main(int argc, char **argv) {
                       ravi_debug_writestringerror);
   luaL_checkversion(L); /* check that interpreter has correct version */
   luaL_openlibs(L);     /* open standard libraries */
-  createargtable(L, argv, argc, 0);
+  createargtable(L, argv, argc, 0); /* Create a the args global in Lua */
   lua_sethook(L, ravi_debughook, LUA_MASKCALL | LUA_MASKLINE | LUA_MASKRET, 0);
   debugger_state = DEBUGGER_BIRTH;
   ravi_set_debugger_data(

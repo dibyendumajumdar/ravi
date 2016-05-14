@@ -83,10 +83,10 @@ enum {
   CATEGORY_LEN = 30,
   TEXT_LEN = 256,
   MAX_BREAKPOINTS = 5,
-  MAX_STACK_FRAMES = 30,
+  MAX_STACK_FRAMES = 50,
   MAX_SCOPES = 4,
   MAX_VARIABLES = 120,
-  MAX_THREADS = 10,
+  MAX_THREADS = 1,
   SOURCE_LEN = 8196,
   MAX_TOTAL_BREAKPOINTS = 20
 };
@@ -315,7 +315,7 @@ typedef struct {
         } ScopesResponse;
 
         struct {
-          Variable variables[MAX_VARIABLES];
+          Variable variables[MAX_VARIABLES+1];
         } VariablesResponse;
 
         struct {
