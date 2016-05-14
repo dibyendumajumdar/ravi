@@ -11,9 +11,9 @@
 #include <string.h>
 
 #ifdef _WIN32
+#include <direct.h>
 #include <fcntl.h>
 #include <io.h>
-#include <direct.h>
 #define chdir _chdir
 #else
 #include <unistd.h>
@@ -39,7 +39,7 @@ enum {
 enum { VAR_TYPE_LOCALS = 1, VAR_TYPE_UPVALUES = 2, VAR_TYPE_GLOBALS = 3 };
 
 /* Some utilities to allow packing of 5 components into a 32-bit integer value
- * This is used to encode the stack frame, variable reference 
+ * This is used to encode the stack frame, variable reference
  */
 #define MASK0 0x3F
 #define MASK 0xFF
@@ -69,6 +69,7 @@ static ProtocolMessage output_response;
 static char LUA_PATH[1024];
 static char LUA_CPATH[1024];
 static char workingdir[1024];
+static char source_references[MAX_STACK_FRAMES];
 
 /*
 * Generate response to InitializeRequest
@@ -141,7 +142,7 @@ static void handle_stack_trace_request(ProtocolMessage *req,
           size_t n = strlen(workingdir);
           if (workingdir[n - 1] == '/')
             snprintf(path, sizeof path, "%s%s", workingdir, src);
-          else 
+          else
             snprintf(path, sizeof path, "%s/%s", workingdir, src);
         }
         else {
@@ -159,18 +160,24 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     }
     else if (memcmp(src, "=[C]", 4) == 0) {
       /* Source is a string - send a reference to the stack frame */
+      //      res->u.Response.u.StackTraceResponse.stackFrames[depth]
+      //        .source.sourceReference = ((depth + 1) & 0xFF) |
+      //        ((int)(((intptr_t)src) << 8) & 0xFFFFFF00);
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
-        .source.sourceReference = ((depth + 1) & 0xFF) | ((int)(((intptr_t)src) << 8) & 0xFFFFFF00);
+          .source.sourceReference = depth + 1;
       ravi_string_copy(
-        res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
-        "<C function>",
-        sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
-        .source.name);
+          res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
+          "<C function>",
+          sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
+              .source.name);
     }
     else {
       /* Source is a string - send a reference to the stack frame */
+      //      res->u.Response.u.StackTraceResponse.stackFrames[depth]
+      //          .source.sourceReference = ((depth + 1) & 0xFF) |
+      //          ((int)(((intptr_t)src) << 8) & 0xFFFFFF00) ;
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
-          .source.sourceReference = ((depth + 1) & 0xFF) | ((int)(((intptr_t)src) << 8) & 0xFFFFFF00) ;
+          .source.sourceReference = depth + 1;
       ravi_string_copy(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
           "<dynamic function>",
@@ -187,13 +194,29 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     depth++;
   }
   res->u.Response.u.StackTraceResponse.totalFrames = depth;
+  for (int i = depth - 1, j = 0; i >= 0; i--, j++) {
+    if (res->u.Response.u.StackTraceResponse.stackFrames[i]
+            .source.sourceReference != 0) {
+      /* swap depth */
+      source_references[j] = res->u.Response.u.StackTraceResponse.stackFrames[i]
+                                 .source.sourceReference -
+                             1;
+      res->u.Response.u.StackTraceResponse.stackFrames[i]
+          .source.sourceReference = j;
+    }
+    else {
+      source_references[j] = 0;
+    }
+  }
   vscode_send(res, out, my_logger);
 }
 
 static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
   lua_Debug entry;
-  int depth = (req->u.Request.u.SourceRequest.sourceReference & 0xFF) - 1;
+  //  int depth = (req->u.Request.u.SourceRequest.sourceReference & 0xFF) - 1;
+  int i = req->u.Request.u.SourceRequest.sourceReference;
+  int depth = i >= 0 && i < MAX_STACK_FRAMES ? source_references[i] : -1;
   vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
   if (lua_getstack(L, depth, &entry)) {
     int status = lua_getinfo(L, "Sln", &entry);
@@ -205,18 +228,21 @@ static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
                          sizeof res->u.Response.u.SourceResponse.content);
       }
       else {
-        ravi_string_copy(res->u.Response.u.SourceResponse.content, "Source not available",
-          sizeof res->u.Response.u.SourceResponse.content);
+        ravi_string_copy(res->u.Response.u.SourceResponse.content,
+                         "Source not available",
+                         sizeof res->u.Response.u.SourceResponse.content);
       }
     }
     else {
-      ravi_string_copy(res->u.Response.u.SourceResponse.content, "Source not available",
-        sizeof res->u.Response.u.SourceResponse.content);
+      ravi_string_copy(res->u.Response.u.SourceResponse.content,
+                       "Source not available",
+                       sizeof res->u.Response.u.SourceResponse.content);
     }
   }
   else {
-    ravi_string_copy(res->u.Response.u.SourceResponse.content, "Source not available",
-      sizeof res->u.Response.u.SourceResponse.content);
+    ravi_string_copy(res->u.Response.u.SourceResponse.content,
+                     "Source not available",
+                     sizeof res->u.Response.u.SourceResponse.content);
   }
   vscode_send(res, out, my_logger);
 }
@@ -293,6 +319,14 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
     res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
         MAKENUM(VAR_TYPE_LOCALS, depth, 0, 0, 0);
     res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
+    if (entry.isvararg) {
+      ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
+                       "Var Args",
+                       sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
+      res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
+          MAKENUM(VAR_TYPE_LOCALS, depth, 0, 0, 1);
+      res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
+    }
     if (entry.nups > 0) {
       ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
                        "Up Values",
@@ -396,7 +430,9 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
    */
   int type = EXTRACT_T(varRef);
   int depth = EXTRACT_A(varRef);
-  int var = EXTRACT_B(varRef);
+  int var = (char)(EXTRACT_B(varRef)); /* the cast is to get the signed value */
+  int isvararg = EXTRACT_D(varRef);
+  fprintf(my_logger, "Var Request --> %d isvararg=%d\n", type, isvararg);
   if (lua_getstack(L, depth, &entry)) {
     if (type == VAR_TYPE_LOCALS) {  // locals
       if (var == 0) {
@@ -404,15 +440,26 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
          * A top level request - i.e. from the scope
          */
         for (int n = 1, v = 0; v < MAX_VARIABLES; n++) {
-          const char *name = lua_getlocal(L, &entry, n);
+          const char *name = lua_getlocal(L, &entry, isvararg ? -n : n);
           if (name) {
-            /* Temporary variables have names that start with (.
+            /* Temporary variables have names that start with (*temporary).
              * Skip such variables
              */
-            if (*name != '(') {
-              ravi_string_copy(
-                  res->u.Response.u.VariablesResponse.variables[v].name, name,
-                  sizeof res->u.Response.u.VariablesResponse.variables[0].name);
+            if (*name != '(' || strcmp(name, "(*vararg)") == 0) {
+              if (*name == '(') {
+                char temp[80];
+                snprintf(temp, sizeof temp, "vararg[%d]", n);
+                ravi_string_copy(
+                    res->u.Response.u.VariablesResponse.variables[v].name, temp,
+                    sizeof res->u.Response.u.VariablesResponse.variables[0]
+                        .name);
+              }
+              else {
+                ravi_string_copy(
+                    res->u.Response.u.VariablesResponse.variables[v].name, name,
+                    sizeof res->u.Response.u.VariablesResponse.variables[0]
+                        .name);
+              }
               int is_table = get_value(
                   L, lua_gettop(L),
                   res->u.Response.u.VariablesResponse.variables[v].value,
@@ -421,8 +468,12 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
               /* If the variable is a table then we pass pack a reference
                  that is used by the front end to drill down */
               res->u.Response.u.VariablesResponse.variables[v]
-                  .variablesReference =
-                  is_table ? MAKENUM(type, depth, n, 0, 0) : 0;
+                  .variablesReference = is_table
+                                            ? MAKENUM(type, depth,
+                                                      isvararg ? ((char)-n) : n,
+                                                      0, isvararg)
+                                            : 0; /* cast is to ensure that we
+                                                    save a signed char value */
               v++;
             }
             lua_pop(L, 1); /* pop the value */
@@ -508,14 +559,15 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
     if (chdir(req->u.Request.u.LaunchRequest.cwd) != 0) {
       char temp[1024];
       snprintf(temp, sizeof temp, "Unable to change directory to %s\n",
-        req->u.Request.u.LaunchRequest.cwd);
+               req->u.Request.u.LaunchRequest.cwd);
       vscode_send_output_event(res, "console", temp, out, my_logger);
       vscode_send_error_response(req, res, VSCODE_LAUNCH_RESPONSE,
-        "Launch failed", out, my_logger);
+                                 "Launch failed", out, my_logger);
       return;
     }
     else {
-      ravi_string_copy(workingdir, req->u.Request.u.LaunchRequest.cwd, sizeof workingdir);
+      ravi_string_copy(workingdir, req->u.Request.u.LaunchRequest.cwd,
+                       sizeof workingdir);
     }
   }
   const char *progname = req->u.Request.u.LaunchRequest.program;
@@ -702,9 +754,8 @@ void ravi_debughook(lua_State *L, lua_Debug *ar) {
 
 void ravi_debug_writestring(const char *s, size_t l) {
   char temp[256];
-  if (l >= sizeof temp) 
-    l = sizeof temp - 1;
-  ravi_string_copy(temp, s, l+1);
+  if (l >= sizeof temp) l = sizeof temp - 1;
+  ravi_string_copy(temp, s, l + 1);
   vscode_send_output_event(&output_response, "stdout", temp, stdout, my_logger);
 }
 
@@ -728,8 +779,8 @@ void ravi_debug_writestringerror(const char *fmt, const char *p) {
 */
 static void createargtable(lua_State *L, char **argv, int argc, int script) {
   int i, narg;
-  if (script == argc) script = 0;  /* no script name? */
-  narg = argc - (script + 1);  /* number of positive indices */
+  if (script == argc) script = 0; /* no script name? */
+  narg = argc - (script + 1);     /* number of positive indices */
   lua_createtable(L, narg, script + 1);
   for (i = 0; i < argc; i++) {
     lua_pushstring(L, argv[i]);
@@ -768,9 +819,8 @@ int main(int argc, char **argv) {
   lua_sethook(L, ravi_debughook, LUA_MASKCALL | LUA_MASKLINE | LUA_MASKRET, 0);
   debugger_state = DEBUGGER_BIRTH;
   ravi_set_debugger_data(
-      L,
-      &debugger_state); /* This is useless data right now but it ensures that
-                           the hook cannot be removed */
+      L, &debugger_state); /* This is useless data right now but it ensures that
+                              the hook cannot be removed */
   debugger(L, NULL, stdin, stdout);
   lua_close(L);
   fclose(my_logger);
