@@ -180,11 +180,11 @@ static void handle_stack_trace_request(ProtocolMessage *req,
       //          ((int)(((intptr_t)src) << 8) & 0xFFFFFF00) ;
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
           .source.sourceReference = depth + 1;
-      ravi_string_copy(
+      snprintf(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
-          "<dynamic function>",
           sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
-              .source.name);
+              .source.name,
+          "<dynamic function %p>", src);
     }
     res->u.Response.u.StackTraceResponse.stackFrames[depth].id = depth;
     res->u.Response.u.StackTraceResponse.stackFrames[depth].line =
@@ -196,29 +196,31 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     depth++;
   }
   res->u.Response.u.StackTraceResponse.totalFrames = depth;
-  for (int i = depth - 1, j = 0; i >= 0; i--, j++) {
-    if (res->u.Response.u.StackTraceResponse.stackFrames[i]
-            .source.sourceReference != 0) {
-      /* swap depth */
-      source_references[j] = res->u.Response.u.StackTraceResponse.stackFrames[i]
-                                 .source.sourceReference -
-                             1;
-      res->u.Response.u.StackTraceResponse.stackFrames[i]
-          .source.sourceReference = j;
-    }
-    else {
-      source_references[j] = 0;
-    }
-  }
+  //  for (int i = depth - 1, j = 0; i >= 0; i--, j++) {
+  //    if (res->u.Response.u.StackTraceResponse.stackFrames[i]
+  //            .source.sourceReference != 0) {
+  //      /* swap depth */
+  //      source_references[j] =
+  //      res->u.Response.u.StackTraceResponse.stackFrames[i]
+  //                                 .source.sourceReference -
+  //                             1;
+  //      res->u.Response.u.StackTraceResponse.stackFrames[i]
+  //          .source.sourceReference = j;
+  //    }
+  //    else {
+  //      source_references[j] = 0;
+  //    }
+  //  }
   vscode_send(res, out, my_logger);
 }
 
 static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
   lua_Debug entry;
-  //  int depth = (req->u.Request.u.SourceRequest.sourceReference & 0xFF) - 1;
-  int i = req->u.Request.u.SourceRequest.sourceReference;
-  int depth = i >= 0 && i < MAX_STACK_FRAMES ? source_references[i] : -1;
+  // int depth = (req->u.Request.u.SourceRequest.sourceReference & 0xFF) - 1;
+  int depth = req->u.Request.u.SourceRequest.sourceReference - 1;
+  // int i = req->u.Request.u.SourceRequest.sourceReference;
+  // int depth = i >= 0 && i < MAX_STACK_FRAMES ? source_references[i] : -1;
   vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
   if (lua_getstack(L, depth, &entry)) {
     int status = lua_getinfo(L, "Sln", &entry);
@@ -419,7 +421,8 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
 /*
  * The VSCode front-end sends a variables request when it wants to
  * display variables. Unfortunately a limitation is that only a numberic
- * reference field is available named 'variableReference' to identify the variable.
+ * reference field is available named 'variableReference' to identify the
+ * variable.
  * We need to know various bits about the variable - such as its stack frame
  * location, the variable's location. Therefore we have to encode various pieces
  * of information in the numeric value.
@@ -478,12 +481,11 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
               /* If the variable is a table then we pass pack a reference
                  that is used by the front end to drill down */
               res->u.Response.u.VariablesResponse.variables[v]
-                  .variablesReference = is_table
-                                            ? MAKENUM(type, depth,
-                                                      isvararg ? ((char)-n) : n,
-                                                      0, isvararg)
-                                            : 0; /* cast is to ensure that we
-                                                    save a signed char value */
+                  .variablesReference =
+                  is_table ? MAKENUM(type, depth, isvararg ? ((char)-n) : n, 0,
+                                     isvararg)
+                           : 0; /* cast is to ensure that we
+                                   save a signed char value */
               v++;
             }
             lua_pop(L, 1); /* pop the value */
@@ -512,24 +514,34 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
             int v = 0;
             while (lua_next(L, stack_idx) && v < MAX_VARIABLES) {
               if (v == MAX_VARIABLES) {
-                ravi_string_copy(res->u.Response.u.VariablesResponse.variables[v].name, "...",
-                  sizeof res->u.Response.u.VariablesResponse.variables[0].name);
-                ravi_string_copy(res->u.Response.u.VariablesResponse.variables[v].value, "truncated",
-                        sizeof res->u.Response.u.VariablesResponse.variables[0].value);
+                ravi_string_copy(
+                    res->u.Response.u.VariablesResponse.variables[v].name,
+                    "...",
+                    sizeof res->u.Response.u.VariablesResponse.variables[0]
+                        .name);
+                ravi_string_copy(
+                    res->u.Response.u.VariablesResponse.variables[v].value,
+                    "truncated",
+                    sizeof res->u.Response.u.VariablesResponse.variables[0]
+                        .value);
                 lua_pop(L, 1);
               }
               else {
                 // stack now contains: -1 => value; -2 => key
-                // copy the key so that lua_tostring does not modify the original
+                // copy the key so that lua_tostring does not modify the
+                // original
                 lua_pushvalue(L, -2);
                 // stack now contains: -1 => key; -2 => value; -3 => key
                 get_value(
-                    L, -1, res->u.Response.u.VariablesResponse.variables[v].name,
-                    sizeof res->u.Response.u.VariablesResponse.variables[0].name);
-                get_value(L, -2,
-                          res->u.Response.u.VariablesResponse.variables[v].value,
-                          sizeof res->u.Response.u.VariablesResponse.variables[0]
-                              .value);
+                    L, -1,
+                    res->u.Response.u.VariablesResponse.variables[v].name,
+                    sizeof res->u.Response.u.VariablesResponse.variables[0]
+                        .name);
+                get_value(
+                    L, -2,
+                    res->u.Response.u.VariablesResponse.variables[v].value,
+                    sizeof res->u.Response.u.VariablesResponse.variables[0]
+                        .value);
                 /*
                  * Right now we do not support further drill down
                  */
@@ -645,10 +657,12 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
       if (!initialized) break;
       if (ar->source[0] == '@') {
         /* Only support breakpoints on disk based code */
-//        fprintf(my_logger,
-//                "Breakpoint[%d] check %s vs ar.source=%s, %d vs ar.line=%d\n",
-//                j, breakpoints[j].source.path, ar->source, breakpoints[j].line,
-//                ar->currentline);
+        //        fprintf(my_logger,
+        //                "Breakpoint[%d] check %s vs ar.source=%s, %d vs
+        //                ar.line=%d\n",
+        //                j, breakpoints[j].source.path, ar->source,
+        //                breakpoints[j].line,
+        //                ar->currentline);
         if (strcmp(breakpoints[j].source.path, ar->source + 1) == 0) {
           debugger_state = DEBUGGER_PROGRAM_STEPPING;
           break;
@@ -819,7 +833,7 @@ static void createargtable(lua_State *L, char **argv, int argc, int script) {
 * The protocol used is described in protocol.h.
 */
 int main(int argc, char **argv) {
-  /* For debugging purposes we log the interaction */
+/* For debugging purposes we log the interaction */
 #ifdef _WIN32
   my_logger = fopen("/temp/out1.txt", "w");
 #else

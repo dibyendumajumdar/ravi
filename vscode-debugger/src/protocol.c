@@ -1,9 +1,9 @@
 #include "protocol.h"
 
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 
 /* Parse a VSCode JSON message type
  */
@@ -124,7 +124,7 @@ static json_value *get_object_value(json_value *js, const char *key,
 void vscode_json_stringify(const char *src, char *dest, size_t len) {
   char *p = dest;
   char *end = dest + len - 1;
-  int n = (int) strlen(src);
+  int n = (int)strlen(src);
   for (int i = 0; i < n && p < end; i++) {
     char ch = 0;
     switch (src[i]) {
@@ -258,6 +258,13 @@ static int vscode_parse_intarg_request(json_value *js, ProtocolMessage *msg,
   return msgtype;
 }
 
+/* replace back slashes with front slash
+ */
+static void fix_path(char *buf) {
+  for (char *cp = buf; *cp; cp++)
+    if (*cp == '\\') *cp = '/';
+}
+
 /* Parse launch request
  */
 static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg,
@@ -273,30 +280,23 @@ static int vscode_parse_launch_request(json_value *js, ProtocolMessage *msg,
   if (prog == NULL) return VSCODE_UNKNOWN_REQUEST;
   ravi_string_copy(msg->u.Request.u.LaunchRequest.program, prog,
                    sizeof msg->u.Request.u.LaunchRequest.program);
-  for (char *cp = msg->u.Request.u.LaunchRequest.program; *cp; cp++) {
-    /* replace back slashes with front slash as the VSCode front end doesn't
-     * like
-     * back slashes even though it sends them!
-     */
-    if (*cp == '\\') *cp = '/';
-  }
+  fix_path(msg->u.Request.u.LaunchRequest.program);
   fprintf(log, "LAUNCH %s\n", prog);
   const char *lua_path = get_string_value(args, "LUA_PATH", log);
-  if (lua_path != NULL) ravi_string_copy(msg->u.Request.u.LaunchRequest.lua_path, lua_path,
-    sizeof msg->u.Request.u.LaunchRequest.lua_path);
+  if (lua_path != NULL)
+    ravi_string_copy(msg->u.Request.u.LaunchRequest.lua_path, lua_path,
+                     sizeof msg->u.Request.u.LaunchRequest.lua_path);
+  fix_path(msg->u.Request.u.LaunchRequest.lua_path);
   const char *lua_cpath = get_string_value(args, "LUA_CPATH", log);
-  if (lua_cpath != NULL) ravi_string_copy(msg->u.Request.u.LaunchRequest.lua_cpath, lua_cpath,
-    sizeof msg->u.Request.u.LaunchRequest.lua_cpath);
+  if (lua_cpath != NULL)
+    ravi_string_copy(msg->u.Request.u.LaunchRequest.lua_cpath, lua_cpath,
+                     sizeof msg->u.Request.u.LaunchRequest.lua_cpath);
+  fix_path(msg->u.Request.u.LaunchRequest.lua_cpath);
   const char *cwd = get_string_value(args, "cwd", log);
-  if (cwd != NULL) ravi_string_copy(msg->u.Request.u.LaunchRequest.cwd, cwd,
-    sizeof msg->u.Request.u.LaunchRequest.cwd);
-  for (char *cp = msg->u.Request.u.LaunchRequest.cwd; *cp; cp++) {
-    /* replace back slashes with front slash as the VSCode front end doesn't
-    * like
-    * back slashes even though it sends them!
-    */
-    if (*cp == '\\') *cp = '/';
-  }
+  if (cwd != NULL)
+    ravi_string_copy(msg->u.Request.u.LaunchRequest.cwd, cwd,
+                     sizeof msg->u.Request.u.LaunchRequest.cwd);
+  fix_path(msg->u.Request.u.LaunchRequest.cwd);
   msg->u.Request.request_type = msgtype;
   return msgtype;
 }
@@ -313,10 +313,7 @@ static int vscode_parse_set_breakpoints_request(json_value *js,
   if (prog == NULL) return VSCODE_UNKNOWN_REQUEST;
   ravi_string_copy(msg->u.Request.u.SetBreakpointsRequest.source.path, prog,
                    sizeof msg->u.Request.u.SetBreakpointsRequest.source.path);
-  for (char *cp = msg->u.Request.u.SetBreakpointsRequest.source.path; *cp;
-       cp++) {
-    if (*cp == '\\') *cp = '/';
-  }
+  fix_path(msg->u.Request.u.SetBreakpointsRequest.source.path);
   json_value *breakpoints = get_array_value(args, "breakpoints", log);
   if (breakpoints == NULL || breakpoints->type != json_array)
     return VSCODE_UNKNOWN_REQUEST;
