@@ -71,7 +71,6 @@ static ProtocolMessage output_response;
 static char LUA_PATH[1024];
 static char LUA_CPATH[1024];
 static char workingdir[1024];
-static char source_references[MAX_STACK_FRAMES];
 
 /*
 * Generate response to InitializeRequest
@@ -162,9 +161,6 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     }
     else if (memcmp(src, "=[C]", 4) == 0) {
       /* Source is a string - send a reference to the stack frame */
-      //      res->u.Response.u.StackTraceResponse.stackFrames[depth]
-      //        .source.sourceReference = ((depth + 1) & 0xFF) |
-      //        ((int)(((intptr_t)src) << 8) & 0xFFFFFF00);
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
           .source.sourceReference = depth + 1;
       ravi_string_copy(
@@ -175,11 +171,10 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     }
     else {
       /* Source is a string - send a reference to the stack frame */
-      //      res->u.Response.u.StackTraceResponse.stackFrames[depth]
-      //          .source.sourceReference = ((depth + 1) & 0xFF) |
-      //          ((int)(((intptr_t)src) << 8) & 0xFFFFFF00) ;
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
           .source.sourceReference = depth + 1;
+      /* name must be uniquely associated with the source else
+       * VSCode gets confused */
       snprintf(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
           sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
@@ -196,31 +191,13 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     depth++;
   }
   res->u.Response.u.StackTraceResponse.totalFrames = depth;
-  //  for (int i = depth - 1, j = 0; i >= 0; i--, j++) {
-  //    if (res->u.Response.u.StackTraceResponse.stackFrames[i]
-  //            .source.sourceReference != 0) {
-  //      /* swap depth */
-  //      source_references[j] =
-  //      res->u.Response.u.StackTraceResponse.stackFrames[i]
-  //                                 .source.sourceReference -
-  //                             1;
-  //      res->u.Response.u.StackTraceResponse.stackFrames[i]
-  //          .source.sourceReference = j;
-  //    }
-  //    else {
-  //      source_references[j] = 0;
-  //    }
-  //  }
   vscode_send(res, out, my_logger);
 }
 
 static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
   lua_Debug entry;
-  // int depth = (req->u.Request.u.SourceRequest.sourceReference & 0xFF) - 1;
   int depth = req->u.Request.u.SourceRequest.sourceReference - 1;
-  // int i = req->u.Request.u.SourceRequest.sourceReference;
-  // int depth = i >= 0 && i < MAX_STACK_FRAMES ? source_references[i] : -1;
   vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
   if (lua_getstack(L, depth, &entry)) {
     int status = lua_getinfo(L, "Sln", &entry);
