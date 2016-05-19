@@ -59,7 +59,7 @@ static const char *get_string_value(json_value *js, const char *key,
   return NULL;
 }
 
-static int get_int_value(json_value *js, const char *key, FILE *log,
+static json_int_t get_int_value(json_value *js, const char *key, FILE *log,
                          int *found) {
   (void)log;
   *found = 0;
@@ -252,8 +252,22 @@ static int vscode_parse_intarg_request(json_value *js, ProtocolMessage *msg,
   json_value *args = get_object_value(js, "arguments", log);
   if (args == NULL) return VSCODE_UNKNOWN_REQUEST;
   int found = 0;
-  msg->u.Request.u.CommonIntRequest.integer =
+  msg->u.Request.u.CommonIntRequest.integer = (int)
       get_int_value(args, key, log, &found);
+  msg->u.Request.request_type = msgtype;
+  return msgtype;
+}
+
+/* Parse VSCode request message which has an integer parameter
+ */
+static int vscode_parse_int64arg_request(json_value *js, ProtocolMessage *msg,
+                                       int msgtype, const char *key,
+                                       FILE *log) {
+  json_value *args = get_object_value(js, "arguments", log);
+  if (args == NULL) return VSCODE_UNKNOWN_REQUEST;
+  int found = 0;
+  msg->u.Request.u.CommonInt64Request.integer64 =
+  get_int_value(args, key, log, &found);
   msg->u.Request.request_type = msgtype;
   return msgtype;
 }
@@ -320,7 +334,7 @@ static int vscode_parse_set_breakpoints_request(json_value *js,
   for (int i = 0; i < breakpoints->u.array.length && i < MAX_BREAKPOINTS; i++) {
     json_value *element = breakpoints->u.array.values[i];
     if (element->type != json_object) return VSCODE_UNKNOWN_REQUEST;
-    int line = get_int_value(element, "line", log, &found);
+    int line = (int) get_int_value(element, "line", log, &found);
     fprintf(log, "Set breakpoint line = %d\n", line);
     msg->u.Request.u.SetBreakpointsRequest.breakpoints[i].line =
         found ? line : -1;
@@ -335,11 +349,11 @@ static int vscode_parse_stack_trace_request(json_value *js,
   json_value *args = get_object_value(js, "arguments", log);
   if (args == NULL) return VSCODE_UNKNOWN_REQUEST;
   int found = 0;
-  msg->u.Request.u.StackTraceRequest.threadId =
+  msg->u.Request.u.StackTraceRequest.threadId = (int)
       get_int_value(args, "threadId", log, &found);
-  msg->u.Request.u.StackTraceRequest.levels =
+  msg->u.Request.u.StackTraceRequest.levels = (int)
       get_int_value(args, "levels", log, &found);
-  msg->u.Request.u.StackTraceRequest.startFrame =
+  msg->u.Request.u.StackTraceRequest.startFrame = (int)
       get_int_value(args, "startFrame", log, &found);
   msg->u.Request.request_type = msgtype;
   return msgtype;
@@ -375,7 +389,7 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
       return vscode_parse_intarg_request(js, msg, cmdtype, "variablesReference",
                                          log);
     case VSCODE_SOURCE_REQUEST:
-      return vscode_parse_intarg_request(js, msg, cmdtype, "sourceReference",
+      return vscode_parse_int64arg_request(js, msg, cmdtype, "sourceReference",
                                          log);
     case VSCODE_LAUNCH_REQUEST:
       return vscode_parse_launch_request(js, msg, cmdtype, log);
@@ -404,7 +418,7 @@ int vscode_parse_message(char *buf, size_t len, ProtocolMessage *msg,
   return msgtype;
 }
 
-static int seq = 1;
+static int64_t seq = 1;
 
 void vscode_make_error_response(ProtocolMessage *req, ProtocolMessage *res,
                                 int restype, const char *errormsg) {
@@ -501,8 +515,8 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
   buf[0] = 0;
   if (res->type != VSCODE_RESPONSE) return;
   snprintf(cp, sizeof temp - strlen(temp),
-           "{\"type\":\"response\",\"seq\":%d,\"command\":\"%s\",\"request_"
-           "seq\":%d,\"success\":%s",
+           "{\"type\":\"response\",\"seq\":%lld,\"command\":\"%s\",\"request_"
+           "seq\":%lld,\"success\":%s",
            res->seq, res->u.Response.command, res->u.Response.request_seq,
            res->u.Response.success ? "true" : "false");
   cp = temp + strlen(temp);
@@ -569,7 +583,7 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
         snprintf(
             cp, sizeof temp - strlen(temp),
             "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":"
-            "{\"name\":\"%s\",\"sourceReference\":%d}}",
+            "{\"name\":\"%s\",\"sourceReference\":%lld}}",
             d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
             res->u.Response.u.StackTraceResponse.stackFrames[d].line,
             res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
@@ -658,7 +672,7 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");
-  snprintf(buf, buflen, temp);
+  ravi_string_copy(buf, temp, buflen);
 }
 
 /*
@@ -671,7 +685,7 @@ void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
   buf[0] = 0;
   if (res->type != VSCODE_EVENT) return;
   snprintf(cp, sizeof temp - strlen(temp),
-           "{\"type\":\"event\",\"seq\":%d,\"event\":\"%s\"", res->seq,
+           "{\"type\":\"event\",\"seq\":%lld,\"event\":\"%s\"", res->seq,
            res->u.Event.event);
   cp = temp + strlen(temp);
   if (res->u.Event.event_type == VSCODE_OUTPUT_EVENT) {
@@ -701,7 +715,7 @@ void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
     cp = temp + strlen(temp);
   }
   snprintf(cp, sizeof temp - strlen(temp), "}");
-  snprintf(buf, buflen, temp);
+  ravi_string_copy(buf, temp, buflen);
 }
 
 void vscode_send(ProtocolMessage *msg, FILE *out, FILE *log) {

@@ -57,6 +57,11 @@ enum { VAR_TYPE_LOCALS = 1, VAR_TYPE_UPVALUES = 2, VAR_TYPE_GLOBALS = 3 };
 #define EXTRACT_C(x) (((x) >> 16) & MASK)
 #define EXTRACT_D(x) (((x) >> 24) & MASK)
 
+typedef struct {
+  int depth;
+  int64_t sourceReference;
+} SourceOnStack;
+
 /*
  * These statics are temporary - eventually they will be moved to
  * the Lua global state; but right now while things are
@@ -68,9 +73,9 @@ static int debugger_state = DEBUGGER_BIRTH;
 static Breakpoint breakpoints[MAX_TOTAL_BREAKPOINTS];
 static ProtocolMessage req, res;
 static ProtocolMessage output_response;
-static char LUA_PATH[1024];
-static char LUA_CPATH[1024];
 static char workingdir[1024];
+static SourceOnStack sourceOnStack[MAX_STACK_FRAMES];
+static int sourceOnStackCount = 0;
 
 /*
 * Generate response to InitializeRequest
@@ -120,6 +125,7 @@ static void handle_stack_trace_request(ProtocolMessage *req,
   lua_Debug entry;
   int depth = 0;
   vscode_make_success_response(req, res, VSCODE_STACK_TRACE_RESPONSE);
+  sourceOnStackCount = 0;
   while (lua_getstack(L, depth, &entry) &&
          depth < req->u.Request.u.StackTraceRequest.levels &&
          depth < MAX_STACK_FRAMES) {
@@ -162,7 +168,7 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     else if (memcmp(src, "=[C]", 4) == 0) {
       /* Source is a string - send a reference to the stack frame */
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
-          .source.sourceReference = depth + 1;
+          .source.sourceReference = -1;
       ravi_string_copy(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
           "<C function>",
@@ -171,8 +177,16 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     }
     else {
       /* Source is a string - send a reference to the stack frame */
+      /* Currently (as ov VSCode 1.1 the sourceReference must be unique within
+       * a debug session. A cheap way of making this unique is to use the
+       * pointer to the source itself.
+       */
+      int64_t sourceReference = (intptr_t)src;
+      /* following not range checked as already checked */
+      sourceOnStack[sourceOnStackCount].depth = depth;
+      sourceOnStack[sourceOnStackCount++].sourceReference = sourceReference;
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
-          .source.sourceReference = depth + 1;
+          .source.sourceReference = sourceReference;
       /* name must be uniquely associated with the source else
        * VSCode gets confused */
       snprintf(
@@ -197,7 +211,15 @@ static void handle_stack_trace_request(ProtocolMessage *req,
 static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
   lua_Debug entry;
-  int depth = req->u.Request.u.SourceRequest.sourceReference - 1;
+  int64_t sourceReference = req->u.Request.u.SourceRequest.sourceReference;
+  int depth = -1;
+  for (int i = 0; i < sourceOnStackCount; i++) {
+    if (sourceOnStack[i].sourceReference == sourceReference) {
+      depth = sourceOnStack[i].depth;
+      break;
+    }
+  }
+  fprintf(my_logger, "SEARCHING FOR sourceReference=%lld, found depth = %d\n", sourceReference, depth);
   vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
   if (lua_getstack(L, depth, &entry)) {
     int status = lua_getinfo(L, "Sln", &entry);

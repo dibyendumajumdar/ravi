@@ -104,7 +104,7 @@ typedef struct {
 typedef struct {
   char name[NAME_LEN];
   char path[PATH_LEN];
-  int sourceReference;
+  int64_t sourceReference;
 } Source;
 
 typedef struct {
@@ -155,7 +155,7 @@ typedef struct {
  */
 typedef struct {
   int type;
-  int seq;
+  int64_t seq;
 
   union {
     struct {
@@ -235,6 +235,10 @@ typedef struct {
         } CommonIntRequest;
 
         struct {
+          int64_t integer64;
+        } CommonInt64Request;
+        
+        struct {
           int threadId;
         } ContinueRequest;
 
@@ -269,7 +273,7 @@ typedef struct {
         } VariablesRequest;
 
         struct {
-          int sourceReference;
+          int64_t sourceReference;
         } SourceRequest;
 
         struct {
@@ -283,7 +287,7 @@ typedef struct {
 
     struct {
       int response_type;
-      int request_seq;
+      int64_t request_seq;
       int success;
       char command[COMMAND_LEN];
       char message[TEXT_LEN];
