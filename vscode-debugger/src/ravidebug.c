@@ -272,7 +272,7 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
                            req->u.Request.u.SetBreakpointsRequest.source.path,
                            sizeof breakpoints[0].source.path);
           breakpoints[y].line =
-              req->u.Request.u.SetBreakpointsRequest.breakpoints[y].line;
+              req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line;
           fprintf(my_logger, "Saving breakpoint j=%d, k=%d, i=%d\n", y, k, i);
           if (k < MAX_BREAKPOINTS) {
             res->u.Response.u.SetBreakpointsResponse.breakpoints[k].line =
@@ -646,7 +646,7 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
   if (debugger_state == DEBUGGER_PROGRAM_TERMINATED) { return; }
   if (debugger_state == DEBUGGER_PROGRAM_RUNNING) {
     int initialized = 0;
-    for (int j = 0; j < 20; j++) {
+    for (int j = 0; j < MAX_BREAKPOINTS; j++) {
       /* fast check */
       if (!breakpoints[j].source.path[0] ||
           ar->currentline != breakpoints[j].line)
@@ -656,15 +656,17 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
       if (!initialized) break;
       if (ar->source[0] == '@') {
         /* Only support breakpoints on disk based code */
-        //        fprintf(my_logger,
-        //                "Breakpoint[%d] check %s vs ar.source=%s, %d vs
-        //                ar.line=%d\n",
-        //                j, breakpoints[j].source.path, ar->source,
-        //                breakpoints[j].line,
-        //                ar->currentline);
         if (strcmp(breakpoints[j].source.path, ar->source + 1) == 0) {
           debugger_state = DEBUGGER_PROGRAM_STEPPING;
           break;
+        }
+        else {
+/*          fprintf(my_logger,
+            "Breakpoint[%d] check %s vs ar.source=%s, %d vs ar.line=%d\n",
+            j, breakpoints[j].source.path, ar->source,
+            breakpoints[j].line,
+            ar->currentline);
+*/
         }
       }
     }
