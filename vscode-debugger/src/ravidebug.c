@@ -219,7 +219,8 @@ static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
       break;
     }
   }
-  fprintf(my_logger, "SEARCHING FOR sourceReference=%lld, found depth = %d\n", sourceReference, depth);
+  fprintf(my_logger, "SEARCHING FOR sourceReference=%lld, found depth = %d\n",
+          sourceReference, depth);
   vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
   if (lua_getstack(L, depth, &entry)) {
     int status = lua_getinfo(L, "Sln", &entry);
@@ -330,14 +331,14 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
           MAKENUM(VAR_TYPE_LOCALS, depth, 0, 0, 1);
       res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
     }
-    if (entry.nups > 0) {
-      ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
-                       "Up Values",
-                       sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-      res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
-          MAKENUM(VAR_TYPE_UPVALUES, depth, 0, 0, 0);
-      res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
-    }
+//    if (entry.nups > 0) {
+//      ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
+//                       "Up Values",
+//                       sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
+//      res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
+//          MAKENUM(VAR_TYPE_UPVALUES, depth, 0, 0, 0);
+//      res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
+//    }
     ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name, "Globals",
                      sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
     res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
@@ -418,6 +419,53 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
 }
 
 /*
+ * Get a table's values into the response
+ */
+static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx, int varType, int depth, int var) {
+  lua_pushnil(L);  // push first key
+  int v = 0;
+  while (lua_next(L, stack_idx) && v < MAX_VARIABLES) {
+    if (v == MAX_VARIABLES) {
+      ravi_string_copy(
+        res->u.Response.u.VariablesResponse.variables[v].name,
+        "...",
+        sizeof res->u.Response.u.VariablesResponse.variables[0]
+        .name);
+      ravi_string_copy(
+        res->u.Response.u.VariablesResponse.variables[v].value,
+        "truncated",
+        sizeof res->u.Response.u.VariablesResponse.variables[0]
+        .value);
+      lua_pop(L, 1);
+    }
+    else {
+      // stack now contains: -1 => value; -2 => key
+      // copy the key so that lua_tostring does not modify the
+      // original
+      lua_pushvalue(L, -2);
+      // stack now contains: -1 => key; -2 => value; -3 => key
+      get_value(
+        L, -1,
+        res->u.Response.u.VariablesResponse.variables[v].name,
+        sizeof res->u.Response.u.VariablesResponse.variables[0]
+        .name);
+      int is_table = get_value(
+        L, -2,
+        res->u.Response.u.VariablesResponse.variables[v].value,
+        sizeof res->u.Response.u.VariablesResponse.variables[0]
+        .value);
+      /*
+      * Right now we do not support further drill down
+      */
+      res->u.Response.u.VariablesResponse.variables[v]
+        .variablesReference = (is_table && var == 0) ? MAKENUM(varType, depth, v+1, 0, 0) : 0;
+      // pop value + copy of key, leaving original key
+      lua_pop(L, 2);
+    }
+    v++;
+  }
+}
+/*
  * The VSCode front-end sends a variables request when it wants to
  * display variables. Unfortunately a limitation is that only a numberic
  * reference field is available named 'variableReference' to identify the
@@ -446,7 +494,18 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
   int isvararg = EXTRACT_D(varRef);
   fprintf(my_logger, "Var Request --> %d isvararg=%d\n", type, isvararg);
   if (lua_getstack(L, depth, &entry)) {
-    if (type == VAR_TYPE_LOCALS) {  // locals
+    if (type == VAR_TYPE_GLOBALS) {
+      if (var == 0) {
+        lua_pushglobaltable(L);
+        int stack_idx = lua_gettop(L);
+        get_table_values(res, L, stack_idx, VAR_TYPE_GLOBALS, depth, 0);
+        lua_pop(L, 1);
+      }
+      else {
+        /* TODO */
+      }
+    }
+    else if (type == VAR_TYPE_LOCALS) {  // locals
       if (var == 0) {
         /*
          * A top level request - i.e. from the scope
@@ -509,48 +568,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
           int stack_idx = lua_gettop(L);
           int l_type = lua_type(L, stack_idx);
           if (l_type == LUA_TTABLE) {
-            lua_pushnil(L);  // push first key
-            int v = 0;
-            while (lua_next(L, stack_idx) && v < MAX_VARIABLES) {
-              if (v == MAX_VARIABLES) {
-                ravi_string_copy(
-                    res->u.Response.u.VariablesResponse.variables[v].name,
-                    "...",
-                    sizeof res->u.Response.u.VariablesResponse.variables[0]
-                        .name);
-                ravi_string_copy(
-                    res->u.Response.u.VariablesResponse.variables[v].value,
-                    "truncated",
-                    sizeof res->u.Response.u.VariablesResponse.variables[0]
-                        .value);
-                lua_pop(L, 1);
-              }
-              else {
-                // stack now contains: -1 => value; -2 => key
-                // copy the key so that lua_tostring does not modify the
-                // original
-                lua_pushvalue(L, -2);
-                // stack now contains: -1 => key; -2 => value; -3 => key
-                get_value(
-                    L, -1,
-                    res->u.Response.u.VariablesResponse.variables[v].name,
-                    sizeof res->u.Response.u.VariablesResponse.variables[0]
-                        .name);
-                get_value(
-                    L, -2,
-                    res->u.Response.u.VariablesResponse.variables[v].value,
-                    sizeof res->u.Response.u.VariablesResponse.variables[0]
-                        .value);
-                /*
-                 * Right now we do not support further drill down
-                 */
-                res->u.Response.u.VariablesResponse.variables[v]
-                    .variablesReference = 0;
-                // pop value + copy of key, leaving original key
-                lua_pop(L, 2);
-              }
-              v++;
-            }
+            get_table_values(res, L, stack_idx, VAR_TYPE_LOCALS, depth, 0);
           }
           lua_pop(L, 1);
         }
@@ -661,12 +679,13 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
           break;
         }
         else {
-/*          fprintf(my_logger,
-            "Breakpoint[%d] check %s vs ar.source=%s, %d vs ar.line=%d\n",
-            j, breakpoints[j].source.path, ar->source,
-            breakpoints[j].line,
-            ar->currentline);
-*/
+          /*          fprintf(my_logger,
+                      "Breakpoint[%d] check %s vs ar.source=%s, %d vs
+             ar.line=%d\n",
+                      j, breakpoints[j].source.path, ar->source,
+                      breakpoints[j].line,
+                      ar->currentline);
+          */
         }
       }
     }
