@@ -252,6 +252,7 @@ void luaD_hook (lua_State *L, int event, int line) {
     ar.event = event;
     ar.currentline = line;
     ar.i_ci = ci;
+    ar.stacklevel = ci->stacklevel;
     luaD_checkstack(L, LUA_MINSTACK);  /* ensure minimum stack size */
     ci->top = L->top + LUA_MINSTACK;
     lua_assert(ci->top <= L->stack_last);

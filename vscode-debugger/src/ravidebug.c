@@ -36,6 +36,13 @@ enum {
   DEBUGGER_PROGRAM_TERMINATED = 7
 };
 
+/* sub states of DEBUGGER_PROGRAM_STEPPING */
+enum {
+  DEBUGGER_STEPPING_IN = 1,
+  DEBUGGER_STEPPING_OVER = 2, /* next */
+  DEBUGGER_STEPPING_OUT = 3
+};
+
 /* Following must fir into 2 bits and 0 is not a valid value */
 enum { VAR_TYPE_LOCALS = 1, VAR_TYPE_UPVALUES = 2, VAR_TYPE_GLOBALS = 3 };
 
@@ -74,8 +81,13 @@ static Breakpoint breakpoints[MAX_TOTAL_BREAKPOINTS];
 static ProtocolMessage req, res;
 static ProtocolMessage output_response;
 static char workingdir[1024];
+/* Following is for tracking the dynamically generated sources */
 static SourceOnStack sourceOnStack[MAX_STACK_FRAMES];
 static int sourceOnStackCount = 0;
+/* Following three are for the three differet stepping modes */
+static int stepping_mode = DEBUGGER_STEPPING_IN; /* default */
+static int stepping_stacklevel = -1;
+static lua_State *stepping_lua_State = NULL;
 
 /*
 * Generate response to InitializeRequest
@@ -115,6 +127,18 @@ static void handle_thread_request(ProtocolMessage *req, ProtocolMessage *res,
           sizeof res->u.Response.u.ThreadResponse.threads[0].name);
   vscode_send(res, out, my_logger);
 }
+
+/* FIXME handle Big Endian */
+typedef union {
+  double d;
+  intptr_t i;
+  struct {
+    /* Following is Little endian */
+    unsigned long long mant : 52;
+    unsigned int expo : 11;
+    unsigned int sign : 1;
+  };
+} doublebits;
 
 /*
 * Handle StackTraceRequest
@@ -179,9 +203,20 @@ static void handle_stack_trace_request(ProtocolMessage *req,
       /* Source is a string - send a reference to the stack frame */
       /* Currently (as ov VSCode 1.1 the sourceReference must be unique within
        * a debug session. A cheap way of making this unique is to use the
-       * pointer to the source itself.
+       * pointer to the source itself. However as we are passing this to
+       * a JavaScript number (double) - we have to be careful how we encode
+       * the reference. Following ensures that we encode the pointer value in
+       * the mantissa bits.
        */
       int64_t sourceReference = (intptr_t)src;
+      int64_t orig = sourceReference;
+      doublebits bits;
+      bits.mant = sourceReference;
+      bits.expo = 0;            /* cleanup */
+      bits.sign = 0;            /* cleanup */
+      sourceReference = bits.i; /* extract mantissa */
+      fprintf(my_logger, "Source Reference WAS %lld NOW %lld\n", orig,
+              sourceReference);
       /* following not range checked as already checked */
       sourceOnStack[sourceOnStackCount].depth = depth;
       sourceOnStack[sourceOnStackCount++].sourceReference = sourceReference;
@@ -331,14 +366,15 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
           MAKENUM(VAR_TYPE_LOCALS, depth, 0, 0, 1);
       res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
     }
-//    if (entry.nups > 0) {
-//      ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
-//                       "Up Values",
-//                       sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-//      res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
-//          MAKENUM(VAR_TYPE_UPVALUES, depth, 0, 0, 0);
-//      res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
-//    }
+    //    if (entry.nups > 0) {
+    //      ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
+    //                       "Up Values",
+    //                       sizeof
+    //                       res->u.Response.u.ScopesResponse.scopes[0].name);
+    //      res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
+    //          MAKENUM(VAR_TYPE_UPVALUES, depth, 0, 0, 0);
+    //      res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
+    //    }
     ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name, "Globals",
                      sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
     res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
@@ -421,21 +457,18 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
 /*
  * Get a table's values into the response
  */
-static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx, int varType, int depth, int var) {
+static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
+                             int varType, int depth, int var) {
   lua_pushnil(L);  // push first key
   int v = 0;
   while (lua_next(L, stack_idx) && v < MAX_VARIABLES) {
     if (v == MAX_VARIABLES) {
       ravi_string_copy(
-        res->u.Response.u.VariablesResponse.variables[v].name,
-        "...",
-        sizeof res->u.Response.u.VariablesResponse.variables[0]
-        .name);
+          res->u.Response.u.VariablesResponse.variables[v].name, "...",
+          sizeof res->u.Response.u.VariablesResponse.variables[0].name);
       ravi_string_copy(
-        res->u.Response.u.VariablesResponse.variables[v].value,
-        "truncated",
-        sizeof res->u.Response.u.VariablesResponse.variables[0]
-        .value);
+          res->u.Response.u.VariablesResponse.variables[v].value, "truncated",
+          sizeof res->u.Response.u.VariablesResponse.variables[0].value);
       lua_pop(L, 1);
     }
     else {
@@ -444,21 +477,16 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx, 
       // original
       lua_pushvalue(L, -2);
       // stack now contains: -1 => key; -2 => value; -3 => key
-      get_value(
-        L, -1,
-        res->u.Response.u.VariablesResponse.variables[v].name,
-        sizeof res->u.Response.u.VariablesResponse.variables[0]
-        .name);
+      get_value(L, -1, res->u.Response.u.VariablesResponse.variables[v].name,
+                sizeof res->u.Response.u.VariablesResponse.variables[0].name);
       int is_table = get_value(
-        L, -2,
-        res->u.Response.u.VariablesResponse.variables[v].value,
-        sizeof res->u.Response.u.VariablesResponse.variables[0]
-        .value);
+          L, -2, res->u.Response.u.VariablesResponse.variables[v].value,
+          sizeof res->u.Response.u.VariablesResponse.variables[0].value);
       /*
       * Right now we do not support further drill down
       */
-      res->u.Response.u.VariablesResponse.variables[v]
-        .variablesReference = (is_table && var == 0) ? MAKENUM(varType, depth, v+1, 0, 0) : 0;
+      res->u.Response.u.VariablesResponse.variables[v].variablesReference =
+          (is_table && var == 0) ? MAKENUM(varType, depth, v, 0, 0) : 0;
       // pop value + copy of key, leaving original key
       lua_pop(L, 2);
     }
@@ -568,7 +596,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
           int stack_idx = lua_gettop(L);
           int l_type = lua_type(L, stack_idx);
           if (l_type == LUA_TTABLE) {
-            get_table_values(res, L, stack_idx, VAR_TYPE_LOCALS, depth, 0);
+            get_table_values(res, L, stack_idx, VAR_TYPE_LOCALS, depth, var);
           }
           lua_pop(L, 1);
         }
@@ -662,7 +690,10 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
  */
 static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
   if (debugger_state == DEBUGGER_PROGRAM_TERMINATED) { return; }
-  if (debugger_state == DEBUGGER_PROGRAM_RUNNING) {
+  if (debugger_state == DEBUGGER_PROGRAM_RUNNING ||
+      (debugger_state == DEBUGGER_PROGRAM_STEPPING &&
+       (stepping_mode == DEBUGGER_STEPPING_OUT ||
+        stepping_mode == DEBUGGER_STEPPING_OVER))) {
     int initialized = 0;
     for (int j = 0; j < MAX_BREAKPOINTS; j++) {
       /* fast check */
@@ -676,6 +707,9 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
         /* Only support breakpoints on disk based code */
         if (strcmp(breakpoints[j].source.path, ar->source + 1) == 0) {
           debugger_state = DEBUGGER_PROGRAM_STEPPING;
+          stepping_mode = DEBUGGER_STEPPING_IN;
+          stepping_stacklevel = -1;
+          stepping_lua_State = NULL;
           break;
         }
         else {
@@ -692,6 +726,12 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
     if (debugger_state == DEBUGGER_PROGRAM_RUNNING) return;
   }
   if (debugger_state == DEBUGGER_PROGRAM_STEPPING) {
+    if (stepping_mode == DEBUGGER_STEPPING_OVER && L == stepping_lua_State &&
+        ar->stacklevel > stepping_stacklevel)
+      return; /* we are deeper into the stack */
+    else if (stepping_mode == DEBUGGER_STEPPING_OUT && L == stepping_lua_State &&
+             ar->stacklevel >= stepping_stacklevel)
+      return; /* we are still in current function or deeper */
     /* running within Lua at line change */
     if (!thread_event_sent) {
       /* thread started - only sent once in the debug session */
@@ -706,6 +746,11 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
     }
     debugger_state = DEBUGGER_PROGRAM_STOPPED;
   }
+  /* Reset stepping mode */
+  stepping_mode = DEBUGGER_STEPPING_IN;
+  stepping_stacklevel = -1;
+
+  /* Wait for debugger command */
   bool get_command = true;
   int command = VSCODE_UNKNOWN_REQUEST;
   while (get_command &&
@@ -772,6 +817,9 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
         vscode_send_success_response(&req, &res, VSCODE_STEPOUT_RESPONSE, out,
                                      my_logger);
         debugger_state = DEBUGGER_PROGRAM_STEPPING;
+        stepping_stacklevel = ar->stacklevel;
+        stepping_mode = DEBUGGER_STEPPING_OUT;
+        stepping_lua_State = L;
         get_command = false;
         break;
       }
@@ -779,6 +827,9 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
         vscode_send_success_response(&req, &res, VSCODE_NEXT_RESPONSE, out,
                                      my_logger);
         debugger_state = DEBUGGER_PROGRAM_STEPPING;
+        stepping_stacklevel = ar->stacklevel;
+        stepping_mode = DEBUGGER_STEPPING_OVER;
+        stepping_lua_State = L;
         get_command = false;
         break;
       }

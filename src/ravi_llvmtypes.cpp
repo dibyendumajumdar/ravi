@@ -556,7 +556,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_ptrdiff_t);                     /* extra */
   elements.push_back(llvm::Type::getInt16Ty(context)); /* nresults */
   elements.push_back(lu_byteT);                        /* callstatus */
-  elements.push_back(lu_byteT); /* jitstatus RAVI extension*/
+  elements.push_back(lu_byteT);  /* jitstatus RAVI extension*/
+  elements.push_back(C_shortT);  /* stacklevel RAVI extension */
   CallInfoT->setBody(elements);
 
   // typedef struct ravi_State ravi_State;
@@ -1029,7 +1030,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 42)); // callstatus
   nodes.push_back(
       std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 43)); // jitstatus
-  tbaa_CallInfoT = mdbuilder.createTBAAStructTypeNode("CallInfo", nodes);
+  nodes.push_back(
+    std::pair<llvm::MDNode *, uint64_t>(tbaa_shortT, 44)); // stacklevel
+    tbaa_CallInfoT = mdbuilder.createTBAAStructTypeNode("CallInfo", nodes);
 
   //!7 = metadata !{metadata !"lua_State",
   //                metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5,

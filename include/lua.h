@@ -455,6 +455,7 @@ struct lua_Debug {
   char isvararg;        /* (u) */
   char istailcall;	/* (t) */
   char short_src[LUA_IDSIZE]; /* (S) */
+  short stacklevel; /* Current stack level within the Lua State - base level is 0 */
   /* private part */
   struct CallInfo *i_ci;  /* active function */
 };

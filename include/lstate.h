@@ -81,6 +81,7 @@ typedef struct CallInfo {
   short nresults;  /* expected number of results from this function */
   lu_byte callstatus;
   lu_byte jitstatus; /* Only valid if Lua function - if 1 means JITed - RAVI extension */
+  short stacklevel; /* Ravi extension - stack level, bootom level is 0 */
 } CallInfo;
 
 

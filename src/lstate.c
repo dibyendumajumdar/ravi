@@ -110,6 +110,7 @@ void luaE_setdebt (global_State *g, l_mem debt) {
 CallInfo *luaE_extendCI (lua_State *L) {
   CallInfo *ci = luaM_new(L, CallInfo);
   ci->jitstatus = 0;
+  ci->stacklevel = L->ci->stacklevel+1;
   lua_assert(L->ci->next == NULL);
   L->ci->next = ci;
   ci->previous = L->ci;
@@ -240,6 +241,7 @@ static void preinit_thread (lua_State *L, global_State *g) {
   L->nny = 1;
   L->status = LUA_OK;
   L->errfunc = 0;
+  L->base_ci.stacklevel = 0; /* RAVI base stack level */
 }
 
 
