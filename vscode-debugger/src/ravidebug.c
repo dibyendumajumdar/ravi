@@ -100,17 +100,20 @@ static void handle_initialize_request(ProtocolMessage *req,
                                "already initialized", out, my_logger);
     return;
   }
-  /* Send InitializedEvent */
-  vscode_make_initialized_event(res);
-  vscode_send(res, out, my_logger);
-
   /* Send InitializeResponse */
   vscode_make_success_response(req, res, VSCODE_INITIALIZE_RESPONSE);
   res->u.Response.u.InitializeResponse.body.supportsConfigurationDoneRequest =
       1;
   vscode_send(res, out, my_logger);
 
+  /* Send InitializedEvent */
+  /* From VSCode Adapter comment: InitializedEvent must not be sent before
+   * InitializeRequest has returned its result */
+  vscode_make_initialized_event(res);
+  vscode_send(res, out, my_logger);
+
   /* Send notification */
+  /* This is just for display by the front end */
   vscode_send_output_event(res, "console", "Debugger initialized\n", out,
                            my_logger);
   debugger_state = DEBUGGER_INITIALIZED;
@@ -118,6 +121,8 @@ static void handle_initialize_request(ProtocolMessage *req,
 
 /*
 * Generate response to ThreadRequest
+* We treat all Lua Threads as part of the same OS thread
+* so we always returned a fixed thread identifier
 */
 static void handle_thread_request(ProtocolMessage *req, ProtocolMessage *res,
                                   FILE *out) {
@@ -140,16 +145,39 @@ typedef union {
   };
 } doublebits;
 
+/* Takes an intptr_t value and makes sure that it will
+ * fit into the mantisaa (52 bits) of a double.
+ * This is so that we can assign and send this value as a JSON
+ * number which I understand is represented as a double.
+ * Any excess bits will be discarded but from what I can see on
+ * a 64-bit intel chip the pointer values are anyway less than
+ * 52 bits in size.
+ */
+static intptr_t ensure_value_fits_in_mantissa(intptr_t sourceReference) {
+  int64_t orig = sourceReference;
+  doublebits bits;
+  bits.mant = sourceReference;
+  bits.expo = 0;            /* cleanup */
+  bits.sign = 0;            /* cleanup */
+  sourceReference = bits.i; /* extract mantissa */
+  fprintf(my_logger, "Source Reference WAS %lld NOW %lld\n", orig,
+          sourceReference);
+  return sourceReference;
+}
+
 /*
 * Handle StackTraceRequest
+* FIXME - does not handle the paging concept
+* truncates the stack trace to MAX_STACK_FRAMES
 */
 static void handle_stack_trace_request(ProtocolMessage *req,
                                        ProtocolMessage *res, lua_State *L,
                                        FILE *out) {
   lua_Debug entry;
-  int depth = 0;
+  int depth = 0; /* TODO we ignore startFrame in the request */
   vscode_make_success_response(req, res, VSCODE_STACK_TRACE_RESPONSE);
-  sourceOnStackCount = 0;
+  sourceOnStackCount =
+      0; /* for tracking functions that have a dynamic source */
   while (lua_getstack(L, depth, &entry) &&
          depth < req->u.Request.u.StackTraceRequest.levels &&
          depth < MAX_STACK_FRAMES) {
@@ -159,10 +187,17 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     if (*src == '@') {
       /* Source is a file */
       src++;
+      /* If the source does not include a path then
+         we prefix the source with the path to the
+         working directrory so that it can be reliably
+         found, else we assume that either the path to the
+         source is absolue or it is relative to the working
+         directory */
       const char *last_path_delim = strrchr(src, '/');
       char path[1024];
       char name[256];
       if (last_path_delim) {
+        /* source includes a path */
         ravi_string_copy(name, last_path_delim + 1, sizeof name);
         ravi_string_copy(path, src, sizeof path);
       }
@@ -190,7 +225,7 @@ static void handle_stack_trace_request(ProtocolMessage *req,
                     .source.name);
     }
     else if (memcmp(src, "=[C]", 4) == 0) {
-      /* Source is a string - send a reference to the stack frame */
+      /* C Function so source is not available */
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
           .source.sourceReference = -1;
       ravi_string_copy(
@@ -209,21 +244,17 @@ static void handle_stack_trace_request(ProtocolMessage *req,
        * the mantissa bits.
        */
       int64_t sourceReference = (intptr_t)src;
-      int64_t orig = sourceReference;
-      doublebits bits;
-      bits.mant = sourceReference;
-      bits.expo = 0;            /* cleanup */
-      bits.sign = 0;            /* cleanup */
-      sourceReference = bits.i; /* extract mantissa */
-      fprintf(my_logger, "Source Reference WAS %lld NOW %lld\n", orig,
-              sourceReference);
+      sourceReference = ensure_value_fits_in_mantissa(sourceReference);
+      /* Record the depth -> source mapping so that we can later on
+         determine the correct depth from the source reference */
       /* following not range checked as already checked */
       sourceOnStack[sourceOnStackCount].depth = depth;
       sourceOnStack[sourceOnStackCount++].sourceReference = sourceReference;
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
           .source.sourceReference = sourceReference;
       /* name must be uniquely associated with the source else
-       * VSCode gets confused */
+       * VSCode gets confused (see
+       * https://github.com/Microsoft/vscode/issues/6360) */
       snprintf(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
           sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
@@ -243,18 +274,26 @@ static void handle_stack_trace_request(ProtocolMessage *req,
   vscode_send(res, out, my_logger);
 }
 
+/*
+ * Handle the request to provide the source given a source reference
+ * Previously in the stack request response we have encoded a mapping between
+ * each source reference to the stack depth so we can now lookup in the
+ * mapping and obtain the appropriate source from the Lua VM
+ */
 static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
   lua_Debug entry;
   int64_t sourceReference = req->u.Request.u.SourceRequest.sourceReference;
   int depth = -1;
+  /* search for the source reference */
   for (int i = 0; i < sourceOnStackCount; i++) {
     if (sourceOnStack[i].sourceReference == sourceReference) {
       depth = sourceOnStack[i].depth;
       break;
     }
   }
-  fprintf(my_logger, "SEARCHING FOR sourceReference=%lld, found depth = %d\n",
+  fprintf(my_logger,
+          "SEARCHED FOR sourceReference=%lld, found at stack depth = %d\n",
           sourceReference, depth);
   vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
   if (lua_getstack(L, depth, &entry)) {
@@ -266,19 +305,14 @@ static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
         ravi_string_copy(res->u.Response.u.SourceResponse.content, src,
                          sizeof res->u.Response.u.SourceResponse.content);
       }
-      else {
-        ravi_string_copy(res->u.Response.u.SourceResponse.content,
-                         "Source not available",
-                         sizeof res->u.Response.u.SourceResponse.content);
-      }
+      else
+        goto l_nosource;
     }
-    else {
-      ravi_string_copy(res->u.Response.u.SourceResponse.content,
-                       "Source not available",
-                       sizeof res->u.Response.u.SourceResponse.content);
-    }
+    else
+      goto l_nosource;
   }
   else {
+  l_nosource:
     ravi_string_copy(res->u.Response.u.SourceResponse.content,
                      "Source not available",
                      sizeof res->u.Response.u.SourceResponse.content);
@@ -287,13 +321,19 @@ static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
 }
 
 /*
-* Handle StackTraceRequest
+* Handle SetBreakpointsRequest
+* A list of all breakpoints is maintained globally - this
+* is simply a linear array of breakpoints. We search and overwrite
+* all breakpoints associated with the given source.
+* Note that breakpoints against dynamic source is not handled
 */
 static void handle_set_breakpoints_request(ProtocolMessage *req,
                                            ProtocolMessage *res, FILE *out,
                                            FILE *my_logger) {
   vscode_make_success_response(req, res, VSCODE_SET_BREAKPOINTS_RESPONSE);
-  int j = 0, k = 0;
+  int j = 0, k = 0; /* j tracks the position in our global breakpoints,
+                    k tracks the breakpoint position in the response,
+                    i tracks the breakpoint position in the request */
   for (int i = 0; i < MAX_BREAKPOINTS; i++) {
     /* Make sure that the breakpoint is in a source file - disallow breakpoints
      * in dynamic code */
@@ -301,6 +341,8 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
         req->u.Request.u.SetBreakpointsRequest.source.sourceReference == 0) {
       while (j < MAX_TOTAL_BREAKPOINTS) {
         int y = j++;
+        /* as we overwrite any previously set breakpoints we do not need
+           to match the line number */
         if (breakpoints[y].source.path[0] == 0 ||
             strcmp(breakpoints[y].source.path,
                    req->u.Request.u.SetBreakpointsRequest.source.path) == 0) {
@@ -341,7 +383,10 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
 }
 
 /*
-* Handle ScopeRequest
+* Handle ScopesRequest
+* Since VSCode requires us to send a numeric references we need
+* to encode the stack depth and the scope within a numeric value.
+* We do this by packing the values into an int32_t value.
 */
 static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
@@ -388,17 +433,43 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
   vscode_send(res, out, my_logger);
 }
 
+// count number of entries in a Lua table
+// The standard luaL_len() only works for sequences
+static int count_table_entries(lua_State *L, int stack_index) {
+  int count = 0;
+  int oldt = lua_gettop(L);
+  // Push another reference to the table on top of the stack (so we know
+  // where it is, and this function can work for negative, positive and
+  // pseudo indices
+  lua_pushvalue(L, stack_index);
+  // stack now contains: -1 => table
+  lua_pushnil(L);  // push first key
+  // stack now contains: -1 => nil; -2 => table
+  while (lua_next(L, -2)) {
+    // stack now contains: -1 => value; -2 => key; -3 => table
+    count++;
+    lua_pop(L, 1);  // pop value, but keep key
+  }
+  // pop the table
+  lua_pop(L, 1);
+  assert(lua_gettop(L) == oldt);
+  return count;
+}
+
+// Get information regarding a Lua table
 static void get_table_info(lua_State *L, int stack_idx, char *buf, size_t len) {
-  int num = luaL_len(L, stack_idx);
+  int num = count_table_entries(L, stack_idx);
   const void *ptr = lua_topointer(L, stack_idx);
   snprintf(buf, len, "%p (%d items)", ptr, num);
 }
 
+// Get information regarding a Lua userdata value
 static void get_userdata(lua_State *L, int stack_idx, char *buf, size_t len) {
   void *udata = lua_touserdata(L, stack_idx);
   snprintf(buf, len, "%p", udata);
 }
 
+// Get information regarding a Lua value
 static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
   int rc = 0;
   int l_type = lua_type(L, stack_idx);
@@ -419,7 +490,6 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
     }
     case LUA_TNUMBER: {
       double num = lua_tonumber(L, stack_idx);
-
       if ((long)num == num)
         snprintf(buf, len, "%ld (0x%lx)", (long)num, (unsigned long)num);
       else
@@ -428,6 +498,8 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
     }
     case LUA_TSTRING: {
       char tbuf[1024];
+      // We assume here that the value at stack index is safe to convert 
+      // to a string
       snprintf(tbuf, sizeof tbuf, "%s", lua_tostring(L, stack_idx));
       vscode_json_stringify(tbuf, buf, len);
       break;
@@ -446,11 +518,10 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
       break;
     }
     case LUA_TTHREAD: {
-      snprintf(buf, len, "%p", lua_topointer(L, stack_idx));
+      snprintf(buf, len, "Thread %p", lua_topointer(L, stack_idx));
       break;
     }
   }
-
   return rc;
 }
 
@@ -459,20 +530,27 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
  */
 static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
                              int varType, int depth, int var) {
+  // Push another reference to the table on top of the stack (so we know
+  // where it is, and this function can work for negative, positive and
+  // pseudo indices  
+  lua_pushvalue(L, stack_idx);
+  // stack now contains: -1 => table
   lua_pushnil(L);  // push first key
+  // stack now contains: -1 => nil (key); -2 => table
   int v = 0;
-  while (lua_next(L, stack_idx) && v < MAX_VARIABLES) {
-    if (v == MAX_VARIABLES) {
+  while (lua_next(L, -2) && v < MAX_VARIABLES) {
+    // stack now contains: -1 => value; -2 => key; -3 => table
+    if (v+1 == MAX_VARIABLES) {
       ravi_string_copy(
           res->u.Response.u.VariablesResponse.variables[v].name, "...",
           sizeof res->u.Response.u.VariablesResponse.variables[0].name);
       ravi_string_copy(
           res->u.Response.u.VariablesResponse.variables[v].value, "truncated",
           sizeof res->u.Response.u.VariablesResponse.variables[0].value);
-      lua_pop(L, 1);
+      lua_pop(L, 1); /* pop value */
     }
     else {
-      // stack now contains: -1 => value; -2 => key
+      // stack now contains: -1 => value; -2 => key; -3 => table
       // copy the key so that lua_tostring does not modify the
       // original
       lua_pushvalue(L, -2);
@@ -492,6 +570,7 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
     }
     v++;
   }
+  lua_pop(L, 1); /* pop the table */
 }
 /*
  * The VSCode front-end sends a variables request when it wants to
@@ -712,15 +791,6 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
           stepping_lua_State = NULL;
           break;
         }
-        else {
-          /*          fprintf(my_logger,
-                      "Breakpoint[%d] check %s vs ar.source=%s, %d vs
-             ar.line=%d\n",
-                      j, breakpoints[j].source.path, ar->source,
-                      breakpoints[j].line,
-                      ar->currentline);
-          */
-        }
       }
     }
     if (debugger_state == DEBUGGER_PROGRAM_RUNNING) return;
@@ -729,8 +799,8 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
     if (stepping_mode == DEBUGGER_STEPPING_OVER && L == stepping_lua_State &&
         ar->stacklevel > stepping_stacklevel)
       return; /* we are deeper into the stack */
-    else if (stepping_mode == DEBUGGER_STEPPING_OUT && L == stepping_lua_State &&
-             ar->stacklevel >= stepping_stacklevel)
+    else if (stepping_mode == DEBUGGER_STEPPING_OUT &&
+             L == stepping_lua_State && ar->stacklevel >= stepping_stacklevel)
       return; /* we are still in current function or deeper */
     /* running within Lua at line change */
     if (!thread_event_sent) {
