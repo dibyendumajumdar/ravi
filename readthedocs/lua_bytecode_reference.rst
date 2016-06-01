@@ -158,7 +158,7 @@ More examples
   upvalues (1) for 000000CECB2BE040:
     0       _ENV    0       0
 
-In line [2], the call has zero parameters (field B is 1), zero results are retained (field C is 1), while register 0 temporarily holds the reference to the function object from global y. Next we see a function call with multiple parameters or arguments::
+In line [2], the call has zero parameters (field B is 1), zero results are retained (field C is 1), while register A temporarily holds the reference to the function object from global y. Next we see a function call with multiple parameters or arguments::
 
   x=function() z(1,2,3) end
 
