@@ -1,11 +1,11 @@
 /*
-** $Id: lparser.c,v 2.149 2015/11/02 16:09:30 roberto Exp $
+** $Id: lparser.c,v 2.153 2016/05/13 19:10:16 roberto Exp $
 ** Lua Parser
 ** See Copyright Notice in lua.h
 */
 
 /*
-** Portions Copyright (C) 2015 Dibyendu Majumdar 
+** Portions Copyright (C) 2015-2016 Dibyendu Majumdar 
 */
 
 #define lparser_c
@@ -144,27 +144,27 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
   case VJMP:
     fprintf(fp, "{p=%p, k=VJMP, pc=%d, instruction=(%s), type=%s}", e,
             e->u.info,
-            raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
+            raviP_instruction_to_str(buf, sizeof buf, getinstruction(fs, e)),
             raviY_typename(e->ravi_type));
     break;
   case VRELOCABLE:
     fprintf(fp, "{p=%p, k=VRELOCABLE, pc=%d, instruction=(%s), type=%s, pc=%d}", e,
             e->u.info,
-            raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
+            raviP_instruction_to_str(buf, sizeof buf, getinstruction(fs, e)),
             raviY_typename(e->ravi_type),
             e->pc);
     break;
   case VCALL:
     fprintf(
         fp, "{p=%p, k=VCALL, pc=%d, instruction=(%s %s), type=%s}", e,
-        e->u.info, raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
-        raviY_typename(raviY_get_register_typeinfo(fs, GETARG_A(getcode(fs, e)))),
+        e->u.info, raviP_instruction_to_str(buf, sizeof buf, getinstruction(fs, e)),
+        raviY_typename(raviY_get_register_typeinfo(fs, GETARG_A(getinstruction(fs, e)))),
         raviY_typename(e->ravi_type));
     break;
   case VVARARG:
     fprintf(fp, "{p=%p, k=VVARARG, pc=%d, instruction=(%s), type=%s}", e,
             e->u.info,
-            raviP_instruction_to_str(buf, sizeof buf, getcode(fs, e)),
+            raviP_instruction_to_str(buf, sizeof buf, getinstruction(fs, e)),
             raviY_typename(e->ravi_type));
     break;
   }
@@ -507,7 +507,8 @@ static int searchvar (FuncState *fs, TString *n) {
 */
 static void markupval (FuncState *fs, int level) {
   BlockCnt *bl = fs->bl;
-  while (bl->nactvar > level) bl = bl->previous;
+  while (bl->nactvar > level)
+    bl = bl->previous;
   bl->upval = 1;
 }
 
@@ -516,9 +517,9 @@ static void markupval (FuncState *fs, int level) {
   Find variable with given name 'n'. If it is an upvalue, add this
   upvalue into all intermediate functions.
 */
-static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
+static void singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
   if (fs == NULL)  /* no more levels? */
-    return VVOID;  /* default is global */
+    init_exp(var, VVOID, 0, RAVI_TANY);  /* default is global */
   else {
     int v = searchvar(fs, n);  /* look up locals at current level */
     if (v >= 0) {  /* found? */
@@ -527,18 +528,17 @@ static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
       init_exp(var, VLOCAL, v, tt);  /* variable is local, RAVI set type */
       if (!base)
         markupval(fs, v);  /* local will be used as an upval */
-      return VLOCAL;
     }
     else {  /* not found as local at current level; try upvalues */
       int idx = searchupvalue(fs, n);  /* try existing upvalues */
       if (idx < 0) {  /* not found? */
-        if (singlevaraux(fs->prev, n, var, 0) == VVOID) /* try upper levels */
-          return VVOID;  /* not found; is a global */
+        singlevaraux(fs->prev, n, var, 0);  /* try upper levels */
+        if (var->k == VVOID)  /* not found? */
+          return;  /* it is a global */
         /* else was LOCAL or UPVAL */
         idx  = newupvalue(fs, n, var);  /* will be a new upvalue */
       }
       init_exp(var, VUPVAL, idx, fs->f->upvalues[idx].type); /* RAVI : set upvalue type */
-      return VUPVAL;
     }
   }
 }
@@ -550,10 +550,11 @@ static int singlevaraux (FuncState *fs, TString *n, expdesc *var, int base) {
 static void singlevar (LexState *ls, expdesc *var) {
   TString *varname = str_checkname(ls);
   FuncState *fs = ls->fs;
-  if (singlevaraux(fs, varname, var, 1) == VVOID) {  /* global name? */
+  singlevaraux(fs, varname, var, 1);
+  if (var->k == VVOID) {  /* global name? */
     expdesc key = {.ravi_type = RAVI_TANY, .pc = -1};
     singlevaraux(fs, ls->envn, var, 1); /* get environment variable */
-    lua_assert(var->k == VLOCAL || var->k == VUPVAL);
+    lua_assert(var->k != VVOID);
     codestring(ls, &key, varname);  /* key is variable name */
     luaK_indexed(fs, var, &key);  /* env[varname] */
   }
@@ -609,7 +610,7 @@ static void ravi_coercetype(LexState *ls, expdesc *v, int n)
   * and above so that no separate OP_MOVE instruction is necessary. So that means that
   * we need to coerce the return values in situ.
   */
-  Instruction *pc = &getcode(ls->fs, v); /* Obtain the instruction for OP_CALL */
+  Instruction *pc = &getinstruction(ls->fs, v); /* Obtain the instruction for OP_CALL */
   lua_assert(GET_OPCODE(*pc) == OP_CALL);
   int a = GETARG_A(*pc); /* function return values will be placed from register pointed by A and upwards */
   /* all return values that are going to be assigned to typed local vars must be converted to the correct type */
@@ -874,7 +875,8 @@ static Proto *addprototype (LexState *ls) {
   if (fs->np >= f->sizep) {
     int oldsize = f->sizep;
     luaM_growvector(L, f->p, fs->np, f->sizep, Proto *, MAXARG_Bx, "functions");
-    while (oldsize < f->sizep) f->p[oldsize++] = NULL;
+    while (oldsize < f->sizep)
+      f->p[oldsize++] = NULL;
   }
   f->p[fs->np++] = clp = luaF_newproto(L);
   luaC_objbarrier(L, f, clp);
@@ -1309,7 +1311,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars,
        * in situ.
        */
       Instruction *pc =
-          &getcode(ls->fs, v); /* Obtain the instruction for OP_CALL */
+          &getinstruction(ls->fs, v); /* Obtain the instruction for OP_CALL */
       lua_assert(GET_OPCODE(*pc) == OP_CALL);
       int a = GETARG_A(*pc); /* function return values will be placed from
                                 register pointed by A and upwards */
@@ -2164,7 +2166,7 @@ static void exprstat (LexState *ls) {
   }
   else {  /* stat -> func */
     check_condition(ls, v.v.k == VCALL, "syntax error");
-    SETARG_C(getcode(fs, &v.v), 1);  /* call statement uses no results */
+    SETARG_C(getinstruction(fs, &v.v), 1);  /* call statement uses no results */
   }
 }
 
@@ -2181,8 +2183,8 @@ static void retstat (LexState *ls) {
     if (hasmultret(e.k)) {
       luaK_setmultret(fs, &e);
       if (e.k == VCALL && nret == 1) {  /* tail call? */
-        SET_OPCODE(getcode(fs,&e), OP_TAILCALL);
-        lua_assert(GETARG_A(getcode(fs,&e)) == fs->nactvar);
+        SET_OPCODE(getinstruction(fs,&e), OP_TAILCALL);
+        lua_assert(GETARG_A(getinstruction(fs,&e)) == fs->nactvar);
       }
       first = fs->nactvar;
       nret = LUA_MULTRET;  /* return all values */

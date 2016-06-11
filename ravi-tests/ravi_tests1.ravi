@@ -228,7 +228,7 @@ end,
 
 
 -- no foldings
-check(function () return -0.0 end, 'LOADK', 'UNM', 'RETURN')
+check(function () return -0.0 end, 'LOADK', 'UNM', 'RETURN')--
 --check(function () return 3/0 end, 'DIV', 'RETURN')
 check(function () return 0%0 end, 'MOD', 'RETURN')
 check(function () return -4//0 end, 'IDIV', 'RETURN')
