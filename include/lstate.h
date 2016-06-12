@@ -239,9 +239,8 @@ LUAI_FUNC CallInfo *luaE_extendCI (lua_State *L);
 LUAI_FUNC void luaE_freeCI (lua_State *L);
 LUAI_FUNC void luaE_shrinkCI (lua_State *L);
 
-LUAI_FUNC void ravi_default_writestring(const char *s, size_t l);
-LUAI_FUNC void ravi_default_writeline(void);
-LUAI_FUNC void ravi_default_writestringerror(const char *fmt, const char *p);
+/* Ravi addition - this is the default implementation behind writing to stderr */
+LUAI_FUNC void raviE_default_writestringerror(const char *fmt, const char *p);
 
 
 #endif
