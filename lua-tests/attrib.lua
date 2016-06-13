@@ -1,4 +1,4 @@
--- $Id: attrib.lua,v 1.64 2016/01/07 16:46:37 roberto Exp $
+-- $Id: attrib.lua,v 1.63 2015/10/08 15:57:22 roberto Exp $
 
 print "testing require"
 
@@ -360,10 +360,6 @@ assert(not not a == true)
 assert(not not (6 or nil) == true)
 assert(not not (nil and 56) == false)
 assert(not not (nil and true) == false)
-assert(not 10 == false)
-assert(not {} == false)
-assert(not 0.5 == false)
-assert(not "x" == false)
 
 assert({} ~= {})
 print('+')

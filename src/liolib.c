@@ -1,5 +1,5 @@
 /*
-** $Id: liolib.c,v 2.149 2016/05/02 14:03:19 roberto Exp $
+** $Id: liolib.c,v 2.148 2015/11/23 11:36:11 roberto Exp $
 ** Standard I/O (and system) library
 ** See Copyright Notice in lua.h
 */
@@ -376,17 +376,14 @@ static int io_lines (lua_State *L) {
 
 
 /* maximum length of a numeral */
-#if !defined (L_MAXLENNUM)
-#define L_MAXLENNUM     200
-#endif
-
+#define MAXRN		200
 
 /* auxiliary structure used by 'read_number' */
 typedef struct {
   FILE *f;  /* file being read */
   int c;  /* current character (look ahead) */
   int n;  /* number of elements in buffer 'buff' */
-  char buff[L_MAXLENNUM + 1];  /* +1 for ending '\0' */
+  char buff[MAXRN + 1];  /* +1 for ending '\0' */
 } RN;
 
 
@@ -394,7 +391,7 @@ typedef struct {
 ** Add current char to buffer (if not out of space) and read next one
 */
 static int nextc (RN *rn) {
-  if (rn->n >= L_MAXLENNUM) {  /* buffer overflow? */
+  if (rn->n >= MAXRN) {  /* buffer overflow? */
     rn->buff[0] = '\0';  /* invalidate result */
     return 0;  /* fail */
   }
@@ -407,10 +404,10 @@ static int nextc (RN *rn) {
 
 
 /*
-** Accept current char if it is in 'set' (of size 2)
+** Accept current char if it is in 'set' (of size 1 or 2)
 */
 static int test2 (RN *rn, const char *set) {
-  if (rn->c == set[0] || rn->c == set[1])
+  if (rn->c == set[0] || (rn->c == set[1] && rn->c != '\0'))
     return nextc(rn);
   else return 0;
 }
@@ -439,11 +436,11 @@ static int read_number (lua_State *L, FILE *f) {
   char decp[2];
   rn.f = f; rn.n = 0;
   decp[0] = lua_getlocaledecpoint();  /* get decimal point from locale */
-  decp[1] = '.';  /* always accept a dot */
+  decp[1] = '\0';
   l_lockfile(rn.f);
   do { rn.c = l_getc(rn.f); } while (isspace(rn.c));  /* skip spaces */
   test2(&rn, "-+");  /* optional signal */
-  if (test2(&rn, "00")) {
+  if (test2(&rn, "0")) {
     if (test2(&rn, "xX")) hex = 1;  /* numeral is hexadecimal */
     else count = 1;  /* count initial '0' as a valid digit */
   }

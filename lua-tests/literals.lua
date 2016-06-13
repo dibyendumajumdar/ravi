@@ -1,4 +1,4 @@
--- $Id: literals.lua,v 1.35 2016/05/03 15:35:29 roberto Exp $
+-- $Id: literals.lua,v 1.34 2015/03/04 13:09:38 roberto Exp $
 
 print('testing scanner')
 
@@ -262,24 +262,14 @@ end
 
 -- testing decimal point locale
 if os.setlocale("pt_BR") or os.setlocale("ptb") then
-  assert(tonumber("3,4") == 3.4 and tonumber"3.4" == 3.4)
-  assert(tonumber("  -.4  ") == -0.4)
-  assert(tonumber("  +0x.41  ") == 0X0.41)
   assert(not load("a = (3,4)"))
+  assert(tonumber("3,4") == 3.4 and tonumber"3.4" == nil)
   assert(assert(load("return 3.4"))() == 3.4)
   assert(assert(load("return .4,3"))() == .4)
   assert(assert(load("return 4."))() == 4.)
   assert(assert(load("return 4.+.5"))() == 4.5)
-
-  assert(" 0x.1 " + " 0x,1" + "-0X.1\t" == 0x0.1)
-
-  assert(tonumber"inf" == nil and tonumber"NAN" == nil)
-
-  assert(assert(load(string.format("return %q", 4.51)))() == 4.51)
-
   local a,b = load("return 4.5.")
   assert(string.find(b, "'4%.5%.'"))
-
   assert(os.setlocale("C"))
 else
   (Message or print)(

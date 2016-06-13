@@ -1,4 +1,4 @@
--- $Id: goto.lua,v 1.12 2016/03/07 19:26:18 roberto Exp $
+-- $Id: goto.lua,v 1.11 2014/12/26 17:20:53 roberto Exp $
 
 collectgarbage()
 
@@ -112,20 +112,6 @@ end
 ::l6:: foo()
 
 
-do   -- bug in 5.2 -> 5.3.2
-  local x
-  ::L1::
-  local y             -- cannot join this SETNIL with previous one
-  assert(y == nil)
-  y = true
-  if x == nil then
-    x = 1
-    goto L1
-  else
-    x = x + 1
-  end
-  assert(x == 2 and y == true)
-end
 
 --------------------------------------------------------------------------------
 -- testing closing of upvalues

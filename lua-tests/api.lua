@@ -1,4 +1,4 @@
--- $Id: api.lua,v 1.146 2016/01/07 16:45:45 roberto Exp $
+-- $Id: api.lua,v 1.145 2015/11/13 13:45:58 roberto Exp $
 
 if T==nil then
   (Message or print)('\n >>> testC not active: skipping API tests <<<\n')
@@ -395,7 +395,7 @@ if not _soft then
   -- too deep (with no message)
   checkerr("^stack overflow$", T.testC, "checkstack 1000023 ''")
   local s = string.rep("pushnil;checkstack 1 XX;", 1000000)
-  checkerr("overflow", T.testC, s)
+  checkerr("XX", T.testC, s)
   collectgarbage("restart")
   print'+'
 end

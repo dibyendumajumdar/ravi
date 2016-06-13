@@ -1,4 +1,4 @@
--- $Id: sort.lua,v 1.37 2016/03/07 19:27:51 roberto Exp $
+-- $Id: sort.lua,v 1.36 2015/11/23 16:42:56 roberto Exp $
 
 print "testing (parts of) table library"
 
@@ -104,20 +104,13 @@ do
   a = table.move({10, 20, 30}, 1, 3, 3)
   eqT(a, {10, 20, 10, 20, 30})
 
-  -- moving to the same table (not being explicit about it)
-  a = {10, 20, 30, 40}
-  table.move(a, 1, 4, 2, a)
-  eqT(a, {10, 10, 20, 30, 40})
-
   a = table.move({10,20,30}, 2, 3, 1)   -- move backward
   eqT(a, {20,30,30})
 
-  a = {}   -- move to new table
-  assert(table.move({10,20,30}, 1, 3, 1, a) == a)
+  a = table.move({10,20,30}, 1, 3, 1, {})   -- move to new table
   eqT(a, {10,20,30})
 
-  a = {}
-  assert(table.move({10,20,30}, 1, 0, 3, a) == a)  -- empty move (no move)
+  a = table.move({10,20,30}, 1, 0, 3, {})   -- empty move (no move)
   eqT(a, {})
 
   a = table.move({10,20,30}, 1, 10, 1)   -- move to the same place

@@ -1,5 +1,5 @@
 /*
-** $Id: loslib.c,v 1.64 2016/04/18 13:06:55 roberto Exp $
+** $Id: loslib.c,v 1.60 2015/11/19 19:16:22 roberto Exp $
 ** Standard Operating System library
 ** See Copyright Notice in lua.h
 */
@@ -24,29 +24,18 @@
 
 /*
 ** {==================================================================
-** List of valid conversion specifiers for the 'strftime' function;
-** options are grouped by length; group of length 2 start with '||'.
+** list of valid conversion specifiers for the 'strftime' function
 ** ===================================================================
 */
 #if !defined(LUA_STRFTIMEOPTIONS)	/* { */
 
-/* options for ANSI C 89 */
-#define L_STRFTIMEC89		"aAbBcdHIjmMpSUwWxXyYZ%"
-
-/* options for ISO C 99 and POSIX */
-#define L_STRFTIMEC99 "aAbBcCdDeFgGhHIjmMnprRStTuUVwWxXyYzZ%" \
-	"||" "EcECExEXEyEY" "OdOeOHOIOmOMOSOuOUOVOwOWOy"
-
-/* options for Windows */
-#define L_STRFTIMEWIN "aAbBcdHIjmMpSUwWxXyYzZ%" \
-	"||" "#c#x#d#H#I#j#m#M#S#U#w#W#y#Y"
-
-#if defined(LUA_USE_WINDOWS)
-#define LUA_STRFTIMEOPTIONS	L_STRFTIMEWIN
-#elif defined(LUA_USE_C89)
-#define LUA_STRFTIMEOPTIONS	L_STRFTIMEC89
+#if defined(LUA_USE_C89)
+#define LUA_STRFTIMEOPTIONS	{ "aAbBcdHIjmMpSUwWxXyYz%", "" }
 #else  /* C99 specification */
-#define LUA_STRFTIMEOPTIONS	L_STRFTIMEC99
+#define LUA_STRFTIMEOPTIONS \
+	{ "aAbBcCdDeFgGhHIjmMnprRStTuUVwWxXyYzZ%", "", \
+	  "E", "cCxXyY",  \
+	  "O", "deHImMSuUVwWy" }
 #endif
 
 #endif					/* } */
@@ -206,23 +195,6 @@ static void setboolfield (lua_State *L, const char *key, int value) {
   lua_setfield(L, -2, key);
 }
 
-
-/*
-** Set all fields from structure 'tm' in the table on top of the stack
-*/
-static void setallfields (lua_State *L, struct tm *stm) {
-  setfield(L, "sec", stm->tm_sec);
-  setfield(L, "min", stm->tm_min);
-  setfield(L, "hour", stm->tm_hour);
-  setfield(L, "day", stm->tm_mday);
-  setfield(L, "month", stm->tm_mon + 1);
-  setfield(L, "year", stm->tm_year + 1900);
-  setfield(L, "wday", stm->tm_wday + 1);
-  setfield(L, "yday", stm->tm_yday + 1);
-  setboolfield(L, "isdst", stm->tm_isdst);
-}
-
-
 static int getboolfield (lua_State *L, const char *key) {
   int res;
   res = (lua_getfield(L, -1, key) == LUA_TNIL) ? -1 : lua_toboolean(L, -1);
@@ -238,18 +210,18 @@ static int getboolfield (lua_State *L, const char *key) {
 
 static int getfield (lua_State *L, const char *key, int d, int delta) {
   int isnum;
-  int t = lua_getfield(L, -1, key);  /* get field and its type */
+  int t = lua_getfield(L, -1, key);
   lua_Integer res = lua_tointegerx(L, -1, &isnum);
-  if (!isnum) {  /* field is not an integer? */
+  if (!isnum) {  /* field is not a number? */
     if (t != LUA_TNIL)  /* some other value? */
-      return luaL_error(L, "field '%s' is not an integer", key);
+      return luaL_error(L, "field '%s' not an integer", key);
     else if (d < 0)  /* absent field; no default? */
       return luaL_error(L, "field '%s' missing in date table", key);
     res = d;
   }
   else {
     if (!(-L_MAXDATEFIELD <= res && res <= L_MAXDATEFIELD))
-      return luaL_error(L, "field '%s' is out-of-bound", key);
+      return luaL_error(L, "field '%s' out-of-bounds", key);
     res -= delta;
   }
   lua_pop(L, 1);
@@ -258,15 +230,21 @@ static int getfield (lua_State *L, const char *key, int d, int delta) {
 
 
 static const char *checkoption (lua_State *L, const char *conv, char *buff) {
-  const char *option;
-  int oplen = 1;
-  for (option = LUA_STRFTIMEOPTIONS; *option != '\0'; option += oplen) {
-    if (*option == '|')  /* next block? */
-      oplen++;  /* next length */
-    else if (memcmp(conv, option, oplen) == 0) {  /* match? */
-      memcpy(buff, conv, oplen);  /* copy valid option to buffer */
-      buff[oplen] = '\0';
-      return conv + oplen;  /* return next item */
+  static const char *const options[] = LUA_STRFTIMEOPTIONS;
+  unsigned int i;
+  for (i = 0; i < sizeof(options)/sizeof(options[0]); i += 2) {
+    if (*conv != '\0' && strchr(options[i], *conv) != NULL) {
+      buff[1] = *conv;
+      if (*options[i + 1] == '\0') {  /* one-char conversion specifier? */
+        buff[2] = '\0';  /* end buffer */
+        return conv + 1;
+      }
+      else if (*(conv + 1) != '\0' &&
+               strchr(options[i + 1], *(conv + 1)) != NULL) {
+        buff[2] = *(conv + 1);  /* valid two-char conversion specifier */
+        buff[3] = '\0';  /* end buffer */
+        return conv + 2;
+      }
     }
   }
   luaL_argerror(L, 1,
@@ -293,10 +271,18 @@ static int os_date (lua_State *L) {
     luaL_error(L, "time result cannot be represented in this installation");
   if (strcmp(s, "*t") == 0) {
     lua_createtable(L, 0, 9);  /* 9 = number of fields */
-    setallfields(L, stm);
+    setfield(L, "sec", stm->tm_sec);
+    setfield(L, "min", stm->tm_min);
+    setfield(L, "hour", stm->tm_hour);
+    setfield(L, "day", stm->tm_mday);
+    setfield(L, "month", stm->tm_mon+1);
+    setfield(L, "year", stm->tm_year+1900);
+    setfield(L, "wday", stm->tm_wday+1);
+    setfield(L, "yday", stm->tm_yday+1);
+    setboolfield(L, "isdst", stm->tm_isdst);
   }
   else {
-    char cc[4];  /* buffer for individual conversion specifiers */
+    char cc[4];
     luaL_Buffer b;
     cc[0] = '%';
     luaL_buffinit(L, &b);
@@ -306,7 +292,7 @@ static int os_date (lua_State *L) {
       else {
         size_t reslen;
         char *buff = luaL_prepbuffsize(&b, SIZETIMEFMT);
-        s = checkoption(L, s + 1, cc + 1);  /* copy specifier to 'cc' */
+        s = checkoption(L, s + 1, cc);
         reslen = strftime(buff, SIZETIMEFMT, cc, stm);
         luaL_addsize(&b, reslen);
       }
@@ -333,7 +319,6 @@ static int os_time (lua_State *L) {
     ts.tm_year = getfield(L, "year", -1, 1900);
     ts.tm_isdst = getboolfield(L, "isdst");
     t = mktime(&ts);
-    setallfields(L, &ts);  /* update fields with normalized values */
   }
   if (t != (time_t)(l_timet)t || t == (time_t)(-1))
     luaL_error(L, "time result cannot be represented in this installation");

@@ -212,21 +212,18 @@ LUALIB_API void (luaL_openlib) (lua_State *L, const char *libname,
 
 /* print a string */
 #if !defined(lua_writestring)
-/* This is a Ravi change to support debug adapter */
-/* #define lua_writestring(s,l)   fwrite((s), sizeof(char), (l), stdout) */
+//#define lua_writestring(s,l)   fwrite((s), sizeof(char), (l), stdout)
 #define lua_writestring(s,l)   ravi_writestring(L, s, l)
 #endif
 
 /* print a newline and flush the output */
 #if !defined(lua_writeline)
-/* This is a Ravi change to support debug adapter */
-/*#define lua_writeline()        (lua_writestring("\n", 1), fflush(stdout)) */
+//#define lua_writeline()        (lua_writestring("\n", 1), fflush(stdout))
 #define lua_writeline()        ravi_writeline(L)
 #endif
 
 /* print an error message */
 #if !defined(lua_writestringerror)
-/* This is a Ravi change to support debug adapter */
 /*
 #define lua_writestringerror(s,p) \
         (fprintf(stderr, (s), (p)), fflush(stderr))
@@ -259,31 +256,25 @@ LUALIB_API void (luaL_openlib) (lua_State *L, const char *libname,
 #endif
 /* }============================================================ */
 
-/*
- The normal Lua metatable functions in C use string
- keys - these are expensive as the key needs to be
- converted to Lua string, hash code computed etc.
- Following implementations are taken from a post in
- Lua mailing list (http://lua-users.org/lists/lua-l/2010-11/msg00151.html)
- They use lightuserdata instead of strings to speed
- things up
- meta_key is the key assigned to the meta table of the userdata
-*/
+// The normal Lua metatable functions in C use string
+// keys - these are expensive as the key needs to be
+// converted to Lua string, hash code computed etc.
+// Following implementations are taken from a post in
+// Lua mailing list (http://lua-users.org/lists/lua-l/2010-11/msg00151.html)
+// They use lightuserdata instead of strings to speed
+// things up
+// meta_key is the key assigned to the meta table of the userdata
 LUALIB_API int raviU_newmetatable(lua_State *L, const char *meta_key);
 
-/* meta_key is the key assigned to the meta table of the userdata */
+// meta_key is the key assigned to the meta table of the userdata
 LUALIB_API void raviU_getmetatable(lua_State *L, const char *meta_key);
 
-/*
- arg_index is the position of userdata argument on the stack
- meta_key is the key assigned to the meta table of the userdata
-*/
+// arg_index is the position of userdata argument on the stack
+// meta_key is the key assigned to the meta table of the userdata
 LUALIB_API void *raviU_testudata(lua_State *L, int arg_index, const char *meta_key);
 
-/* 
- arg_index is the position of userdata argument on the stack
- meta_key is the key assigned to the meta table of the userdata
-*/
+// arg_index is the position of userdata argument on the stack
+// meta_key is the key assigned to the meta table of the userdata
 LUALIB_API void *raviU_checkudata(lua_State *L, int arg_index, const char *meta_key);
 
 

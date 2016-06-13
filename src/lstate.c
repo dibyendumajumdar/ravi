@@ -300,16 +300,16 @@ void luaE_freethread (lua_State *L, lua_State *L1) {
 
 /* TODO following should probably not live here*/
 
-static void raviE_default_writestring(const char *s, size_t l) {
+void ravi_default_writestring(const char *s, size_t l) {
   fwrite(s, sizeof(char), l, stdout);
 }
 
-static void raviE_default_writeline(void) {
+void ravi_default_writeline(void) {
   fwrite("\n", sizeof(char), 1, stdout);
   fflush(stdout);
 }
 
-void raviE_default_writestringerror(const char *fmt, const char *p) {
+void ravi_default_writestringerror(const char *fmt, const char *p) {
   fprintf(stderr, fmt, p);
   fflush(stderr);
 }
@@ -322,9 +322,9 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   if (l == NULL) return NULL;
   L = &l->l.l;
   g = &l->g;
-  g->ravi_writeline = raviE_default_writeline;
-  g->ravi_writestring = raviE_default_writestring;
-  g->ravi_writestringerror = raviE_default_writestringerror;
+  g->ravi_writeline = ravi_default_writeline;
+  g->ravi_writestring = ravi_default_writestring;
+  g->ravi_writestringerror = ravi_default_writestringerror;
   g->ravi_debugger_data = NULL;
   L->next = NULL;
   L->tt = LUA_TTHREAD;

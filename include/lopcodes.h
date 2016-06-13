@@ -8,7 +8,7 @@
 #define lopcodes_h
 
 #include "llimits.h"
-
+#include <stdio.h>
 
 /*===========================================================================
   We assume that instructions are unsigned numbers.
