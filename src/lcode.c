@@ -398,6 +398,7 @@ void luaK_reserveregs (FuncState *fs, int n) {
 static void freereg (FuncState *fs, int reg) {
   if (!ISK(reg) && reg >= fs->nactvar) {
     fs->freereg--;
+	  /* if (reg != fs->freereg) luaX_syntaxerror(fs->ls, "unexpected error"); DEBUG Lua 5.3.3 merge issue math.lua 551 */
     lua_assert(reg == fs->freereg);
   }
 }
@@ -1152,7 +1153,9 @@ static int validop (int op, TValue *v1, TValue *v2) {
     }
     case LUA_OPDIV: case LUA_OPIDIV: case LUA_OPMOD:  /* division by 0 */
       return (nvalue(v2) != 0);
-    default: return 1;  /* everything else is valid */
+    default: {
+      return op >= LUA_OPADD ? 1 : 0;  /* everything else is valid - guard against RAVI operators */
+    }
   }
 }
 
@@ -1207,8 +1210,8 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
 */
 static void codebinexpval (FuncState *fs, OpCode op,
                            expdesc *e1, expdesc *e2, int line) {
-  int rk1 = luaK_exp2RK(fs, e1);  /* both operands are "RK" */
   int rk2 = luaK_exp2RK(fs, e2);
+  int rk1 = luaK_exp2RK(fs, e1);  /* both operands are "RK" */
   freeexps(fs, e1, e2);
   if (op == OP_ADD && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
     e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFF, 0, rk1, rk2);
