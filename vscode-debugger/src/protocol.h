@@ -378,6 +378,6 @@ extern int vscode_get_request(FILE *in, ProtocolMessage *req, FILE *log);
 extern void vscode_json_stringify(const char *src, char *dest, size_t len);
 
 /* guaranteed null termination */
-extern void ravi_string_copy(char *buf, const char *src, size_t buflen);
+extern void vscode_string_copy(char *buf, const char *src, size_t buflen);
 
 #endif
