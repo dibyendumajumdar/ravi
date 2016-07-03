@@ -51,6 +51,10 @@
 #define LUA_USE_WINDOWS  /* enable goodies for regular Windows */
 #endif
 
+#if ( __WORDSIZE == 32 )	//Auto-activate 32-bit mode when compiling for 32-bit systems
+#define LUA_32BITS
+#pragma message("32-bit")
+#endif
 
 #if defined(LUA_USE_WINDOWS)
 #define LUA_DL_DLL	/* enable support for DLL */

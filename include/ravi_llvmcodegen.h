@@ -106,6 +106,7 @@ struct LuaLLVMTypes {
   // between JIT and the C compiler
   llvm::Type *C_voidT;
   llvm::Type *C_doubleT;
+  llvm::Type *C_floatT;
   llvm::Type *C_intptr_t;
   llvm::Type *C_size_t;
   llvm::PointerType *C_psize_t; /* pointer to size_t */

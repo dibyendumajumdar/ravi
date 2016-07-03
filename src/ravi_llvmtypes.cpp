@@ -22,6 +22,7 @@
 ******************************************************************************/
 #include "ravi_llvmcodegen.h"
 #include <limits.h>
+#include "luaconf.h"
 
 namespace ravi {
 
@@ -29,7 +30,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   C_voidT = llvm::Type::getVoidTy(context);
 
-#if ( __WORDSIZE == 64 )
+#ifndef LUA_32BITS
   static_assert(std::is_floating_point<lua_Number>::value &&
                     sizeof(lua_Number) == sizeof(double),
                 "lua_Number is not a double");
@@ -45,7 +46,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   plua_NumberT = llvm::PointerType::get(lua_NumberT, 0);
   pplua_NumberT = llvm::PointerType::get(plua_NumberT, 0);
 
-#if ( __WORDSIZE == 64 )
+#ifndef LUA_32BITS
   static_assert(sizeof(lua_Integer) == sizeof(lua_Number) &&
                     sizeof(lua_Integer) == sizeof(int64_t),
                 "Only 64-bit int supported on 64-bit systems");
@@ -85,13 +86,13 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   tmsT = C_intT;
 
-#if ( __WORDSIZE == 64 )
-  static_assert(sizeof(L_Umaxalign) == sizeof(double),
-                "L_Umaxalign is not same size as double");
+#ifndef LUA_32BITS
+//  static_assert(sizeof(L_Umaxalign) == sizeof(double),
+//                "L_Umaxalign is not same size as double");
   L_UmaxalignT = C_doubleT;
 #else
-  static_assert(sizeof(L_Umaxalign) == sizeof(float),
-                "L_Umaxalign is not same size as float");
+//  static_assert(sizeof(L_Umaxalign) == sizeof(float),
+//                "L_Umaxalign is not same size as float");
   L_UmaxalignT = C_floatT;
 #endif
 
