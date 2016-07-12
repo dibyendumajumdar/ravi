@@ -79,6 +79,40 @@ void luaK_nil (FuncState *fs, int from, int n) {
   luaK_codeABC(fs, OP_LOADNIL, from, n - 1, 0);  /* else no optimization */
 }
 
+static int getjump (FuncState *fs, int pc) {
+  int offset = GETARG_sBx(fs->f->code[pc]);
+  if (offset == NO_JUMP)  /* point to itself represents end of list */
+    return NO_JUMP;  /* end of list */
+  else
+    return (pc+1)+offset;  /* turn offset into absolute position */
+}
+
+/* Patch jump instruction to target. */
+static void fixjump (FuncState *fs, int pc, int dest) {
+  Instruction *jmp = &fs->f->code[pc];
+  int offset = dest-(pc+1);
+  lua_assert(dest != NO_JUMP);
+  if (abs(offset) > MAXARG_sBx)
+    luaX_syntaxerror(fs->ls, "control structure too long");
+  SETARG_sBx(*jmp, offset);
+  DEBUG_CODEGEN(raviY_printf(fs, "[%d]* %o ; set sBx to %d\n", pc, *jmp, offset));
+}
+
+
+void luaK_concat (FuncState *fs, int *l1, int l2) {
+  if (l2 == NO_JUMP) return;
+  else if (*l1 == NO_JUMP)
+    *l1 = l2;
+  else {
+    int list = *l1;
+    int next;
+    while ((next = getjump(fs, list)) != NO_JUMP)  /* find last element */
+      list = next;
+    fixjump(fs, list, l2);
+  }
+}
+
+
 /* Emit unconditional branch. */
 int luaK_jump (FuncState *fs) {
   int jpc = fs->jpc;  /* save list of jumps to here */
@@ -100,17 +134,6 @@ static int condjump (FuncState *fs, OpCode op, int A, int B, int C) {
   return luaK_jump(fs);
 }
 
-/* Patch jump instruction to target. */
-static void fixjump (FuncState *fs, int pc, int dest) {
-  Instruction *jmp = &fs->f->code[pc];
-  int offset = dest-(pc+1);
-  lua_assert(dest != NO_JUMP);
-  if (abs(offset) > MAXARG_sBx)
-    luaX_syntaxerror(fs->ls, "control structure too long");
-  SETARG_sBx(*jmp, offset);
-  DEBUG_CODEGEN(raviY_printf(fs, "[%d]* %o ; set sBx to %d\n", pc, *jmp, offset));
-}
-
 
 /*
 ** returns current 'pc' and marks it as a jump target (to avoid wrong
@@ -122,15 +145,6 @@ int luaK_getlabel (FuncState *fs) {
 }
 
 
-static int getjump (FuncState *fs, int pc) {
-  int offset = GETARG_sBx(fs->f->code[pc]);
-  if (offset == NO_JUMP)  /* point to itself represents end of list */
-    return NO_JUMP;  /* end of list */
-  else
-    return (pc+1)+offset;  /* turn offset into absolute position */
-}
-
-
 static Instruction *getjumpcontrol (FuncState *fs, int pc) {
   Instruction *pi = &fs->f->code[pc];
   if (pc >= 1 && testTMode(GET_OPCODE(*(pi-1))))
@@ -139,18 +153,6 @@ static Instruction *getjumpcontrol (FuncState *fs, int pc) {
     return pi;
 }
 
-
-/*
-** check whether list has any jump that do not produce a value
-** (or produce an inverted value)
-*/
-static int need_value (FuncState *fs, int list) {
-  for (; list != NO_JUMP; list = getjump(fs, list)) {
-    Instruction i = *getjumpcontrol(fs, list);
-    if (GET_OPCODE(i) != OP_TESTSET) return 1;
-  }
-  return 0;  /* not found */
-}
 
 /* Patch register of test instructions. */
 static int patchtestreg (FuncState *fs, int node, int reg) {
@@ -194,6 +196,11 @@ static void dischargejpc (FuncState *fs) {
   fs->jpc = NO_JUMP;
 }
 
+void luaK_patchtohere (FuncState *fs, int list) {
+  luaK_getlabel(fs);
+  luaK_concat(fs, &fs->jpc, list);
+}
+
 
 void luaK_patchlist (FuncState *fs, int list, int target) {
   if (target == fs->pc)
@@ -215,26 +222,6 @@ void luaK_patchclose (FuncState *fs, int list, int level) {
     SETARG_A(fs->f->code[list], level);
     DEBUG_CODEGEN(raviY_printf(fs, "[?]* %o ; set A to %d\n", fs->f->code[list], level));
     list = next;
-  }
-}
-
-
-void luaK_patchtohere (FuncState *fs, int list) {
-  luaK_getlabel(fs);
-  luaK_concat(fs, &fs->jpc, list);
-}
-
-
-void luaK_concat (FuncState *fs, int *l1, int l2) {
-  if (l2 == NO_JUMP) return;
-  else if (*l1 == NO_JUMP)
-    *l1 = l2;
-  else {
-    int list = *l1;
-    int next;
-    while ((next = getjump(fs, list)) != NO_JUMP)  /* find last element */
-      list = next;
-    fixjump(fs, list, l2);
   }
 }
 
@@ -487,12 +474,6 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
 }
 
 
-static int code_label (FuncState *fs, int A, int b, int jump) {
-  luaK_getlabel(fs);  /* those instructions may be jump targets */
-  return luaK_codeABC(fs, OP_LOADBOOL, A, b, jump);
-}
-
-
 static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
   luaK_dischargevars(fs, e);
   switch (e->k) {
@@ -566,6 +547,26 @@ static void discharge2anyreg (FuncState *fs, expdesc *e) {
     discharge2reg(fs, e, fs->freereg-1);
   }
 }
+
+
+static int code_label (FuncState *fs, int A, int b, int jump) {
+  luaK_getlabel(fs);  /* those instructions may be jump targets */
+  return luaK_codeABC(fs, OP_LOADBOOL, A, b, jump);
+}
+
+
+/*
+** check whether list has any jump that do not produce a value
+** (or produce an inverted value)
+*/
+static int need_value (FuncState *fs, int list) {
+  for (; list != NO_JUMP; list = getjump(fs, list)) {
+    Instruction i = *getjumpcontrol(fs, list);
+    if (GET_OPCODE(i) != OP_TESTSET) return 1;
+  }
+  return 0;  /* not found */
+}
+
 
 /* Discharge an expression to a specific register. */
 static void exp2reg (FuncState *fs, expdesc *e, int reg) {
