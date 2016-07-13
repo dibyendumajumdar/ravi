@@ -235,7 +235,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       return;  /* done */
     /* else loop */
   }
-  luaG_runerror(L, "settable chain too long; possible loop");
+  luaG_runerror(L, "'__newindex' chain too long; possible loop");
 }
 
 #define GETTABLE_INLINE(L, t, key, val) \

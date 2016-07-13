@@ -1658,6 +1658,6 @@ LUA_API void ravi_writestringerror(lua_State *L, const char *fmt, const char *p)
     g->ravi_writestringerror(fmt, p);
   }
   else {
-    ravi_default_writestringerror(fmt, p);
+    raviE_default_writestringerror(fmt, p);
   }
 }
