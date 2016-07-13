@@ -1,4 +1,4 @@
--- $Id: events.lua,v 1.42 2015/10/08 15:58:34 roberto Exp $
+-- $Id: events.lua,v 1.43 2016/01/14 16:27:25 roberto Exp $
 
 print('testing metatables')
 
@@ -56,6 +56,14 @@ setmetatable(t, t)   -- causes a bug in 5.1 !
 t.__newindex = f
 a[1] = 30; a.x = "101"; a[5] = 200
 assert(a[1] == 27 and a.x == 98 and a[5] == 197)
+
+do    -- bug in Lua 5.3.2
+  local mt = {}
+  mt.__newindex = mt
+  local t = setmetatable({}, mt)
+  t[1] = 10     -- will segfault on some machines
+  assert(mt[1] == 10)
+end
 
 
 local c = {}

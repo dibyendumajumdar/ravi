@@ -1,4 +1,4 @@
--- $Id: math.lua,v 1.72 2015/06/09 15:55:13 roberto Exp $
+-- $Id: math.lua,v 1.76 2016/05/30 15:55:38 roberto Exp $
 
 print("testing numbers and math lib")
 
@@ -19,6 +19,11 @@ do
     p = p * 2.0
     floatbits = floatbits + 1
   end
+end
+
+local function isNaN (x)
+  return (x ~= x)
+  -- return true 
 end
 
 
@@ -93,7 +98,7 @@ do   -- tests for 'modf'
   a,b = math.modf(1/0)   -- inf
   assert(a == 1/0 and b == 0.0)
   a,b = math.modf(0/0)   -- NaN
-  assert(a ~= a and b ~= b)
+  assert(isNaN(a) and isNaN(b))
   a,b = math.modf(3)  -- integer argument
   assert(eqT(a, 3) and eqT(b, 0.0))
   a,b = math.modf(minint)
@@ -314,12 +319,48 @@ assert(" -2 " + 1 == -1)
 assert(" -0xa " + 1 == -9)
 
 
+-- Literal integer Overflows (new behavior in 5.3.3)
+do
+  -- no overflows
+  assert(eqT(tonumber(tostring(maxint)), maxint))
+  assert(eqT(tonumber(tostring(minint)), minint))
+
+  -- add 1 to last digit as a string (it cannot be 9...)
+  local function incd (n)
+    local s = string.format("%d", n)
+    s = string.gsub(s, "%d$", function (d)
+          assert(d ~= '9')
+          return string.char(string.byte(d) + 1)
+        end)
+    return s
+  end
+
+  -- 'tonumber' with overflow by 1
+  assert(eqT(tonumber(incd(maxint)), maxint + 1.0))
+  assert(eqT(tonumber(incd(minint)), minint - 1.0))
+
+  -- large numbers
+  assert(eqT(tonumber("1"..string.rep("0", 30)), 1e30))
+  assert(eqT(tonumber("-1"..string.rep("0", 30)), -1e30))
+
+  -- hexa format still wraps around
+  assert(eqT(tonumber("0x1"..string.rep("0", 30)), 0))
+
+  -- lexer in the limits
+  assert(minint == load("return " .. minint)())
+  assert(eqT(maxint, load("return " .. maxint)()))
+
+  assert(eqT(10000000000000000000000.0, 10000000000000000000000))
+  assert(eqT(-10000000000000000000000.0, -10000000000000000000000))
+end
+
+
 -- testing 'tonumber'
 
 -- 'tonumber' with numbers
 assert(tonumber(3.4) == 3.4)
-assert(tonumber(3) == 3 and math.type(tonumber(3)) == "integer")
-assert(tonumber(maxint) == maxint and tonumber(minint) == minint)
+assert(eqT(tonumber(3), 3))
+assert(eqT(tonumber(maxint), maxint) and eqT(tonumber(minint), minint))
 assert(tonumber(1/0) == 1/0)
 
 -- 'tonumber' with strings
@@ -457,10 +498,9 @@ assert(0Xabcdef.0 == 0x.ABCDEFp+24)
 
 assert(1.1 == 1.+.1)
 assert(100.0 == 1E2 and .01 == 1e-2)
-assert(1111111111111111-1111111111111110== 1000.00e-03)
---     1234567890123456
+assert(1111111111 - 1111111110 == 1000.00e-03)
 assert(1.1 == '1.'+'.1')
-assert(tonumber'1111111111111111'-tonumber'1111111111111110' ==
+assert(tonumber'1111111111' - tonumber'1111111110' ==
        tonumber"  +0.001e+3 \n\t")
 
 assert(0.1e-30 > 0.9E-31 and 0.9E30 < 0.1e31)
@@ -501,7 +541,7 @@ assert(maxint % -2 == -1)
 -- non-portable tests because Windows C library cannot compute 
 -- fmod(1, huge) correctly
 if not _port then
-  local function anan (x) assert(x ~= x) end   -- assert Not a Number
+  local function anan (x) assert(isNaN(x)) end   -- assert Not a Number
   anan(0.0 % 0)
   anan(1.3 % 0)
   anan(math.huge % 1)

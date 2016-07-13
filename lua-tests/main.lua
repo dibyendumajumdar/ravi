@@ -1,5 +1,5 @@
 # testing special comment on first line
--- $Id: main.lua,v 1.63 2015/09/08 17:16:34 roberto Exp $
+-- $Id: main.lua,v 1.64 2016/04/13 16:25:59 roberto Exp $
 
 -- most (all?) tests here assume a reasonable "Unix-like" shell
 if _port then return end
@@ -132,7 +132,7 @@ RUN('env LUA_INIT="@%s" lua %s > %s', prog, prog, out)
 checkout("10\n11\n")
 
 -- test errors in LUA_INIT
-NoRun('LUA_INIT:1: 10', 'env LUA_INIT="error(10)" lua')
+NoRun('LUA_INIT:1: msg', 'env LUA_INIT="error(\'msg\')" lua')
 
 -- test option '-E'
 local defaultpath, defaultCpath
