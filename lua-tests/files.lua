@@ -1,4 +1,4 @@
--- $Id: files.lua,v 1.91 2015/10/08 15:58:59 roberto Exp $
+-- $Id: files.lua,v 1.93 2016/04/13 16:25:31 roberto Exp $
 
 local debug = require "debug"
 
@@ -710,9 +710,9 @@ if not _port then
   -- test out-of-range dates (at least for Unix)
   if maxint >= 2^62 then  -- cannot do these tests in Small Lua
     -- no arith overflows
-    checkerr("out-of-bounds", os.time, {year = -maxint, month = 1, day = 1})
+    checkerr("out-of-bound", os.time, {year = -maxint, month = 1, day = 1})
     if string.packsize("i") == 4 then   -- 4-byte ints
-      if testerr("out-of-bounds", os.date, "%Y", 2^40) then
+      if testerr("out-of-bound", os.date, "%Y", 2^40) then
         -- time_t has 4 bytes and therefore cannot represent year 4000
         print("  4-byte time_t")
         checkerr("cannot be represented", os.time, {year=4000, month=1, day=1})
@@ -769,14 +769,23 @@ local t1 = os.time{year=2000, month=10, day=1, hour=23, min=12}
 local t2 = os.time{year=2000, month=10, day=1, hour=23, min=10, sec=19}
 assert(os.difftime(t1,t2) == 60*2-19)
 
+-- since 5.3.3, 'os.time' normalizes table fields
+t1 = {year = 2005, month = 1, day = 1, hour = 1, min = 0, sec = -3602}
+os.time(t1)
+assert(t1.day == 31 and t1.month == 12 and t1.year == 2004 and
+       t1.hour == 23 and t1.min == 59 and t1.sec == 58 and
+       t1.yday == 366)
+
 io.output(io.stdout)
-local d = tonumber(os.date('%d'))
-local m = tonumber(os.date('%m'))
-local a = tonumber(os.date('%Y'))
-local ds = tonumber(os.date('%w')) + 1
-local h = tonumber(os.date('%H'))
-local min = tonumber(os.date('%M'))
-local s = tonumber(os.date('%S'))
+local t = os.date('%d %m %Y %H %M %S')
+local d, m, a, h, min, s = string.match(t,
+                             "(%d+) (%d+) (%d+) (%d+) (%d+) (%d+)")
+d = tonumber(d)
+m = tonumber(m)
+a = tonumber(a)
+h = tonumber(h)
+min = tonumber(min)
+s = tonumber(s)
 io.write(string.format('test done on %2.2d/%2.2d/%d', d, m, a))
 io.write(string.format(', at %2.2d:%2.2d:%2.2d\n', h, min, s))
 io.write(string.format('%s\n', _VERSION))

@@ -59,7 +59,7 @@ RaviJITState::RaviJITState()
       size_level_(0),
       min_code_size_(150),
       min_exec_count_(50),
-      gc_step_(200),
+      gc_step_(300),
       tracehook_enabled_(false) {
   // LLVM needs to be initialized else
   // ExecutionEngine cannot be created

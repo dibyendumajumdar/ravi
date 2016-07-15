@@ -554,6 +554,8 @@ assert(t.isvararg == true and t.nparams == 0 and t.nups == 1 and
        debug.getupvalue(t.func, 1) == "_ENV")
 
 
+
+
 -- testing debugging of coroutines
 
 local function checktraceback (co, p, level)

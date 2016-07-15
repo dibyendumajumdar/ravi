@@ -364,7 +364,7 @@ LUA_API void      (lua_setallocf) (lua_State *L, lua_Alloc f, void *ud);
 #define lua_pushliteral(L, s)	lua_pushstring(L, "" s)
 
 #define lua_pushglobaltable(L)  \
-	lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS)
+	((void)lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS))
 
 #define lua_tostring(L,i)	lua_tolstring(L, (i), NULL)
 
@@ -455,7 +455,7 @@ struct lua_Debug {
   char isvararg;        /* (u) */
   char istailcall;	/* (t) */
   char short_src[LUA_IDSIZE]; /* (S) */
-  short stacklevel; /* Current stack level within the Lua State - base level is 0 */
+  short stacklevel; /* Ravi: Current stack level within the Lua State - base level is 0 */
   /* private part */
   struct CallInfo *i_ci;  /* active function */
 };
@@ -509,6 +509,7 @@ LUA_API lua_Number *ravi_get_number_array_rawdata(lua_State *L, int idx);
  */
 LUA_API void ravi_set_writefuncs(lua_State *L, ravi_Writestring writestr, ravi_Writeline writeln, ravi_Writestringerror writestringerr);
 
+/* Following are the default implementations */
 LUA_API void ravi_writestring(lua_State *L, const char *s, size_t len);
 LUA_API void ravi_writeline(lua_State *L);
 LUA_API void ravi_writestringerror(lua_State *L, const char *fmt, const char *p);
