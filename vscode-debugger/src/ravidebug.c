@@ -27,23 +27,23 @@
 
 /* debugger state */
 enum {
-  DEBUGGER_BIRTH = 1,
-  DEBUGGER_INITIALIZED = 2,
-  DEBUGGER_PROGRAM_LAUNCHED = 3,
-  DEBUGGER_PROGRAM_STEPPING = 4,
-  DEBUGGER_PROGRAM_RUNNING = 5,
-  DEBUGGER_PROGRAM_STOPPED = 6,
-  DEBUGGER_PROGRAM_TERMINATED = 7
+  DEBUGGER_BIRTH = 1, /* Initial state */
+  DEBUGGER_INITIALIZED = 2, /* Have processed VSCode initialize request */
+  DEBUGGER_PROGRAM_LAUNCHED = 3, /* Have processed VSCode launch request - Lua program running */
+  DEBUGGER_PROGRAM_STEPPING = 4, /* In stepping mode */
+  DEBUGGER_PROGRAM_RUNNING = 5, /* In continue mode - will stop at breakpoint */
+  DEBUGGER_PROGRAM_STOPPED = 6, /* Have hit a break point */
+  DEBUGGER_PROGRAM_TERMINATED = 7 /* Program completed */
 };
 
 /* sub states of DEBUGGER_PROGRAM_STEPPING */
 enum {
-  DEBUGGER_STEPPING_IN = 1,
-  DEBUGGER_STEPPING_OVER = 2, /* next */
-  DEBUGGER_STEPPING_OUT = 3
+  DEBUGGER_STEPPING_IN = 1, /* Step into */
+  DEBUGGER_STEPPING_OVER = 2, /* Step over */
+  DEBUGGER_STEPPING_OUT = 3 /* Step out of the current function */
 };
 
-/* Following must fir into 2 bits and 0 is not a valid value */
+/* Following values must fit into 2 bits and 0 is not a valid value */
 enum { VAR_TYPE_LOCALS = 1, VAR_TYPE_UPVALUES = 2, VAR_TYPE_GLOBALS = 3 };
 
 /* Some utilities to allow packing of 5 components into a 32-bit integer value
@@ -75,8 +75,8 @@ typedef struct {
  * evolving this is easier to work with.
  */
 static FILE *my_logger = NULL;
-static int thread_event_sent = 0;
-static int debugger_state = DEBUGGER_BIRTH;
+static int thread_event_sent = 0; /* Set to 1 once we have sent a thread event to VSCode */
+static int debugger_state = DEBUGGER_BIRTH; /* Debugger's state is tracked in this variable */
 static Breakpoint breakpoints[MAX_TOTAL_BREAKPOINTS];
 static ProtocolMessage req, res;
 static ProtocolMessage output_response;
@@ -86,8 +86,8 @@ static SourceOnStack sourceOnStack[MAX_STACK_FRAMES];
 static int sourceOnStackCount = 0;
 /* Following three are for the three differet stepping modes */
 static int stepping_mode = DEBUGGER_STEPPING_IN; /* default */
-static int stepping_stacklevel = -1;
-static lua_State *stepping_lua_State = NULL;
+static int stepping_stacklevel = -1; /* This tracks the stack level from where a step over or step out was requested */
+static lua_State *stepping_lua_State = NULL; /* Tracks the Lua State that requested a step over or step out */
 
 /*
 * Generate response to InitializeRequest
@@ -154,14 +154,15 @@ typedef union {
  * 52 bits in size.
  */
 static intptr_t ensure_value_fits_in_mantissa(intptr_t sourceReference) {
+  /* FIXME - big endian support */
   int64_t orig = sourceReference;
   doublebits bits;
   bits.mant = sourceReference;
   bits.expo = 0;            /* cleanup */
   bits.sign = 0;            /* cleanup */
   sourceReference = bits.i; /* extract mantissa */
-  fprintf(my_logger, "Source Reference WAS %lld NOW %lld\n", orig,
-          sourceReference);
+  fprintf(my_logger, "Source Reference WAS %lld NOW %lld\n", (int64_t)orig,
+          (int64_t)sourceReference);
   return sourceReference;
 }
 
@@ -198,12 +199,12 @@ static void handle_stack_trace_request(ProtocolMessage *req,
       char name[256];
       if (last_path_delim) {
         /* source includes a path */
-        ravi_string_copy(name, last_path_delim + 1, sizeof name);
-        ravi_string_copy(path, src, sizeof path);
+        vscode_string_copy(name, last_path_delim + 1, sizeof name);
+        vscode_string_copy(path, src, sizeof path);
       }
       else {
         /* prepend the working directory to the name */
-        ravi_string_copy(name, src, sizeof name);
+        vscode_string_copy(name, src, sizeof name);
         if (workingdir[0]) {
           size_t n = strlen(workingdir);
           if (workingdir[n - 1] == '/')
@@ -212,14 +213,14 @@ static void handle_stack_trace_request(ProtocolMessage *req,
             snprintf(path, sizeof path, "%s/%s", workingdir, src);
         }
         else {
-          ravi_string_copy(path, src, sizeof path);
+          vscode_string_copy(path, src, sizeof path);
         }
       }
-      ravi_string_copy(
+      vscode_string_copy(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path,
           path, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
                     .source.path);
-      ravi_string_copy(
+      vscode_string_copy(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
           name, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
                     .source.name);
@@ -228,7 +229,7 @@ static void handle_stack_trace_request(ProtocolMessage *req,
       /* C Function so source is not available */
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
           .source.sourceReference = -1;
-      ravi_string_copy(
+      vscode_string_copy(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
           "<C function>",
           sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
@@ -265,7 +266,7 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     res->u.Response.u.StackTraceResponse.stackFrames[depth].line =
         entry.currentline;
     const char *funcname = entry.name ? entry.name : "?";
-    ravi_string_copy(
+    vscode_string_copy(
         res->u.Response.u.StackTraceResponse.stackFrames[depth].name, funcname,
         sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth].name);
     depth++;
@@ -302,7 +303,7 @@ static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
       const char *src = entry.source;
       if (*src != '@' && *src != '=') {
         /* Source is a string */
-        ravi_string_copy(res->u.Response.u.SourceResponse.content, src,
+        vscode_string_copy(res->u.Response.u.SourceResponse.content, src,
                          sizeof res->u.Response.u.SourceResponse.content);
       }
       else
@@ -313,7 +314,7 @@ static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
   }
   else {
   l_nosource:
-    ravi_string_copy(res->u.Response.u.SourceResponse.content,
+    vscode_string_copy(res->u.Response.u.SourceResponse.content,
                      "Source not available",
                      sizeof res->u.Response.u.SourceResponse.content);
   }
@@ -346,7 +347,7 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
         if (breakpoints[y].source.path[0] == 0 ||
             strcmp(breakpoints[y].source.path,
                    req->u.Request.u.SetBreakpointsRequest.source.path) == 0) {
-          ravi_string_copy(breakpoints[y].source.path,
+          vscode_string_copy(breakpoints[y].source.path,
                            req->u.Request.u.SetBreakpointsRequest.source.path,
                            sizeof breakpoints[0].source.path);
           breakpoints[y].line =
@@ -357,7 +358,7 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
                 req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line;
             res->u.Response.u.SetBreakpointsResponse.breakpoints[k].verified =
                 false;
-            ravi_string_copy(
+            vscode_string_copy(
                 res->u.Response.u.SetBreakpointsResponse.breakpoints[k]
                     .source.path,
                 breakpoints[y].source.path,
@@ -398,29 +399,20 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
     int status = lua_getinfo(L, "u", &entry);
     assert(status);
     int i = 0;
-    ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name, "Locals",
+    vscode_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name, "Locals",
                      sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
     res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
         MAKENUM(VAR_TYPE_LOCALS, depth, 0, 0, 0);
     res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
     if (entry.isvararg) {
-      ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
+      vscode_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
                        "Var Args",
                        sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
       res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
           MAKENUM(VAR_TYPE_LOCALS, depth, 0, 0, 1);
       res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
     }
-    //    if (entry.nups > 0) {
-    //      ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
-    //                       "Up Values",
-    //                       sizeof
-    //                       res->u.Response.u.ScopesResponse.scopes[0].name);
-    //      res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
-    //          MAKENUM(VAR_TYPE_UPVALUES, depth, 0, 0, 0);
-    //      res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
-    //    }
-    ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name, "Globals",
+    vscode_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name, "Globals",
                      sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
     res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
         MAKENUM(VAR_TYPE_GLOBALS, depth, 0, 0, 0);
@@ -541,10 +533,10 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
   while (lua_next(L, -2) && v < MAX_VARIABLES) {
     // stack now contains: -1 => value; -2 => key; -3 => table
     if (v+1 == MAX_VARIABLES) {
-      ravi_string_copy(
+      vscode_string_copy(
           res->u.Response.u.VariablesResponse.variables[v].name, "...",
           sizeof res->u.Response.u.VariablesResponse.variables[0].name);
-      ravi_string_copy(
+      vscode_string_copy(
           res->u.Response.u.VariablesResponse.variables[v].value, "truncated",
           sizeof res->u.Response.u.VariablesResponse.variables[0].value);
       lua_pop(L, 1); /* pop value */
@@ -627,13 +619,13 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
               if (*name == '(') {
                 char temp[80];
                 snprintf(temp, sizeof temp, "vararg[%d]", n);
-                ravi_string_copy(
+                vscode_string_copy(
                     res->u.Response.u.VariablesResponse.variables[v].name, temp,
                     sizeof res->u.Response.u.VariablesResponse.variables[0]
                         .name);
               }
               else {
-                ravi_string_copy(
+                vscode_string_copy(
                     res->u.Response.u.VariablesResponse.variables[v].name, name,
                     sizeof res->u.Response.u.VariablesResponse.variables[0]
                         .name);
@@ -689,6 +681,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
   vscode_send(res, out, my_logger);
 }
 
+/* Sets values in the Lua global package table such as 'path' and 'cpath' */
 static void set_package_var(lua_State *L, const char *key, const char *value) {
   lua_getglobal(L, "package");
   lua_pushstring(L, value);
@@ -726,7 +719,7 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
       return;
     }
     else {
-      ravi_string_copy(workingdir, req->u.Request.u.LaunchRequest.cwd,
+      vscode_string_copy(workingdir, req->u.Request.u.LaunchRequest.cwd,
                        sizeof workingdir);
     }
   }
@@ -752,6 +745,9 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
   else
     debugger_state = DEBUGGER_PROGRAM_RUNNING;
   /* Start the Lua code! */
+  /* From here on the debugger will get control inside the debugger function
+     which is setup as a Lua hook whenever Lua steps across a new line of 
+     code */
   if (lua_pcall(L, 0, 0, 0)) {
     char temp[1024];
     snprintf(temp, sizeof temp, "Program terminated with error: %s\n",
@@ -775,15 +771,15 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
         stepping_mode == DEBUGGER_STEPPING_OVER))) {
     int initialized = 0;
     for (int j = 0; j < MAX_BREAKPOINTS; j++) {
-      /* fast check */
+      /* fast check - are we on a brekpoint line number */
       if (!breakpoints[j].source.path[0] ||
           ar->currentline != breakpoints[j].line)
         continue;
-      /* potential match */
+      /* potential match of breakpoint line - we need to check the source name */
       if (!initialized) initialized = lua_getinfo(L, "S", ar);
       if (!initialized) break;
       if (ar->source[0] == '@') {
-        /* Only support breakpoints on disk based code */
+        /* Only support breakpoints on source files */
         if (strcmp(breakpoints[j].source.path, ar->source + 1) == 0) {
           debugger_state = DEBUGGER_PROGRAM_STEPPING;
           stepping_mode = DEBUGGER_STEPPING_IN;
@@ -934,7 +930,7 @@ void ravi_debughook(lua_State *L, lua_Debug *ar) {
 void ravi_debug_writestring(const char *s, size_t l) {
   char temp[256];
   if (l >= sizeof temp) l = sizeof temp - 1;
-  ravi_string_copy(temp, s, l + 1);
+  vscode_string_copy(temp, s, l + 1);
   vscode_send_output_event(&output_response, "stdout", temp, stdout, my_logger);
 }
 
