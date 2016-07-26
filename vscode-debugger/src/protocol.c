@@ -509,9 +509,16 @@ void vscode_make_thread_event(ProtocolMessage *res, bool started) {
                    sizeof res->u.Event.u.ThreadEvent.reason);
 }
 
+/* Convert the response to JSON format. This is really pretty hard-coded
+  and crude but there is not much point in adding more sophistication. It would be
+  nice though if we have a 'buffer' that allowed us to build the message 
+  incrementally and dynamically growed the buffer. We do a very crude construction
+  using snprintf and like. */
 void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
-  char temp[1024 * 8] = {0};
-  char *cp = temp;
+  /* The JSON message is created in temp buffer first and then copied into
+     supplied buf */
+  char temp[1024 * 8] = {0}; /* We assume message will fit in 8k */
+  char *cp = temp; /* cp tracks current position in the buffer */
   buf[0] = 0;
   if (res->type != VSCODE_RESPONSE) return;
   snprintf(cp, sizeof temp - strlen(temp),

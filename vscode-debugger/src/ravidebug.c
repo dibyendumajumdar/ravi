@@ -425,7 +425,7 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
   vscode_send(res, out, my_logger);
 }
 
-// count number of entries in a Lua table
+// Count number of entries in a Lua table
 // The standard luaL_len() only works for sequences
 static int count_table_entries(lua_State *L, int stack_index) {
   int count = 0;
@@ -692,7 +692,7 @@ static void set_package_var(lua_State *L, const char *key, const char *value) {
 /**
  * The VSCode front-end sends a Launch request when the user
  * starts a debug session. This is where the actual Lua code
- * is executed
+ * execution begins
  */
 static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
                                   lua_State *L, FILE *out) {
@@ -702,12 +702,14 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
                                my_logger);
     return;
   }
+  /* We allow the user to set LUA_PATH and LUA_CPATH */
   if (req->u.Request.u.LaunchRequest.lua_path[0]) {
     set_package_var(L, "path", req->u.Request.u.LaunchRequest.lua_path);
   }
   if (req->u.Request.u.LaunchRequest.lua_cpath[0]) {
     set_package_var(L, "cpath", req->u.Request.u.LaunchRequest.lua_cpath);
   }
+  /* We allow the user to change current directory */
   if (req->u.Request.u.LaunchRequest.cwd[0]) {
     if (chdir(req->u.Request.u.LaunchRequest.cwd) != 0) {
       char temp[1024];
@@ -719,6 +721,8 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
       return;
     }
     else {
+      /* Make a note of the working directory so that we can work out the
+        path name of any source files */
       vscode_string_copy(workingdir, req->u.Request.u.LaunchRequest.cwd,
                        sizeof workingdir);
     }
@@ -737,6 +741,8 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
     return;
   }
   else {
+    /* Lua program successfully compiled. Although we have not yet
+      launched, we tell VSCode that we have at this stage */
     vscode_send_success_response(req, res, VSCODE_LAUNCH_RESPONSE, out,
                                  my_logger);
   }
@@ -745,9 +751,9 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
   else
     debugger_state = DEBUGGER_PROGRAM_RUNNING;
   /* Start the Lua code! */
-  /* From here on the debugger will get control inside the debugger function
-     which is setup as a Lua hook whenever Lua steps across a new line of 
-     code */
+  /* From here on the debugger will get control inside the debugger() function
+     below which is setup as a Lua hook whenever Lua steps across a new line of
+     code. When control gets back here it means the program finished executing */
   if (lua_pcall(L, 0, 0, 0)) {
     char temp[1024];
     snprintf(temp, sizeof temp, "Program terminated with error: %s\n",
@@ -760,18 +766,21 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
 }
 
 /**
- * Called via Lua Hook or via main
- * If called from main then init is true and ar == NULL
+ * Called via Lua Hook or from main()
+ * If called from main then debugger_state == DEBUGGER_BIRTH and ar == NULL
  */
 static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
   if (debugger_state == DEBUGGER_PROGRAM_TERMINATED) { return; }
+  
+  /* If the program is running or stepping over/out 
+     then check if we hit a breakpoint. */
   if (debugger_state == DEBUGGER_PROGRAM_RUNNING ||
       (debugger_state == DEBUGGER_PROGRAM_STEPPING &&
        (stepping_mode == DEBUGGER_STEPPING_OUT ||
         stepping_mode == DEBUGGER_STEPPING_OVER))) {
     int initialized = 0;
     for (int j = 0; j < MAX_BREAKPOINTS; j++) {
-      /* fast check - are we on a brekpoint line number */
+      /* fast check - are we on a breakpoint line number */
       if (!breakpoints[j].source.path[0] ||
           ar->currentline != breakpoints[j].line)
         continue;
@@ -781,6 +790,7 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
       if (ar->source[0] == '@') {
         /* Only support breakpoints on source files */
         if (strcmp(breakpoints[j].source.path, ar->source + 1) == 0) {
+          /* hit breakpoint */
           debugger_state = DEBUGGER_PROGRAM_STEPPING;
           stepping_mode = DEBUGGER_STEPPING_IN;
           stepping_stacklevel = -1;
@@ -792,12 +802,15 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
     if (debugger_state == DEBUGGER_PROGRAM_RUNNING) return;
   }
   if (debugger_state == DEBUGGER_PROGRAM_STEPPING) {
+    /* First check stepping over/out conditions and continue
+       execution if not satisfied */
     if (stepping_mode == DEBUGGER_STEPPING_OVER && L == stepping_lua_State &&
         ar->stacklevel > stepping_stacklevel)
-      return; /* we are deeper into the stack */
+      return; /* we are deeper into the stack, so continue execution */
     else if (stepping_mode == DEBUGGER_STEPPING_OUT &&
              L == stepping_lua_State && ar->stacklevel >= stepping_stacklevel)
-      return; /* we are still in current function or deeper */
+      return; /* we are still in current function or deeper so continue execution */
+    /* OK so we are going to be stopping */
     /* running within Lua at line change */
     if (!thread_event_sent) {
       /* thread started - only sent once in the debug session */
@@ -890,6 +903,7 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
         break;
       }
       case VSCODE_NEXT_REQUEST: {
+        /* Step Over */
         vscode_send_success_response(&req, &res, VSCODE_NEXT_RESPONSE, out,
                                      my_logger);
         debugger_state = DEBUGGER_PROGRAM_STEPPING;
