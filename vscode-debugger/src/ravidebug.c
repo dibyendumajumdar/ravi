@@ -978,12 +978,21 @@ static void createargtable(lua_State *L, char **argv, int argc, int script) {
   lua_setglobal(L, "arg");
 }
 
+static inline bool is_bigendian() {
+  static const int i = 1;
+  return (*((char *)&i)) == 0;
+}
+
 /*
 * Entry point for the debugger
 * The debugger will use stdin/stdout to interact with VSCode
 * The protocol used is described in protocol.h.
 */
 int main(int argc, char **argv) {
+  if (is_bigendian()) {
+    fprintf(stderr, "Big endian architecture not supported\n");
+    exit(1);
+  }
 /* For debugging purposes we log the interaction */
 #ifdef _WIN32
   my_logger = fopen("/temp/out1.txt", "w");

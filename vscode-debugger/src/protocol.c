@@ -4,6 +4,61 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
+void membuff_init(membuff_t *mb, size_t initial_size) {
+  if (initial_size > 0) {
+    mb->buf = (char *)calloc(1, initial_size);
+    if (mb->buf == NULL) {
+      fprintf(stderr, "out of memory\n");
+      exit(1);
+    }
+  }
+  else
+    mb->buf = NULL;
+  mb->pos = 0;
+  mb->allocated_size = initial_size;
+}
+void membuff_rewindpos(membuff_t *mb) {
+  mb->pos = 0;
+}
+void membuff_resize(membuff_t *mb, size_t new_size) {
+  if (new_size <= mb->allocated_size)
+    return;
+  char *newmem = (char *)realloc(mb->buf, new_size);
+  if (newmem == NULL) {
+    fprintf(stderr, "out of memory\n");
+    exit(1);
+  }
+  mb->buf = newmem;
+  mb->allocated_size = new_size;
+}
+void membuff_free(membuff_t *mb) {
+  free(mb->buf);
+}
+void membuff_add_string(membuff_t *mb, const char *str) {
+  size_t len = strlen(str);
+  size_t required_size = mb->pos + len + 1; /* extra byte for NULL terminator */
+  membuff_resize(mb, required_size);
+  vscode_string_copy(&mb->buf[mb->pos], str, mb->allocated_size-mb->pos);
+  mb->pos += len;
+}
+void membuff_add_bool(membuff_t *mb, bool value) {
+  if (value)
+    membuff_add_string(mb, "true");
+  else
+    membuff_add_string(mb, "false");
+}
+void membuff_add_int(membuff_t *mb, int value) {
+  char temp[100];
+  snprintf(temp, sizeof temp, "%d", value);
+  membuff_add_string(mb, temp);
+}
+void membuff_add_longlong(membuff_t *mb, long long value) {
+  char temp[100];
+  snprintf(temp, sizeof temp, "%lld", value);
+  membuff_add_string(mb, temp);
+}
 
 /* Parse a VSCode JSON message type
  */

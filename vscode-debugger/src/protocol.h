@@ -344,6 +344,22 @@ typedef struct {
 
 } ProtocolMessage;
 
+
+typedef struct {
+  char *buf;
+  size_t allocated_size;
+  size_t pos;
+} membuff_t;
+
+extern void membuff_init(membuff_t *mb, size_t initial_size);
+extern void membuff_rewindpos(membuff_t *mb);
+extern void membuff_resize(membuff_t *mb, size_t new_size);
+extern void membuff_free(membuff_t *mb);
+extern void membuff_add_string(membuff_t *mb, const char *str);
+extern void membuff_add_bool(membuff_t *mb, bool value);
+extern void membuff_add_int(membuff_t *mb, int value);
+extern void membuff_add_longlong(membuff_t *mb, long long value);
+
 extern int vscode_parse_message(char *buf, size_t len, ProtocolMessage *msg,
                                 FILE *log);
 extern void vscode_make_error_response(ProtocolMessage *req,
