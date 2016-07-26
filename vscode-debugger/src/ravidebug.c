@@ -997,7 +997,7 @@ int main(int argc, char **argv) {
   membuff_init(&readbuf, 0);
 /* For debugging purposes we log the interaction */
 #ifdef _WIN32
-  my_logger = fopen("/d/temp/out1.txt", "w");
+  my_logger = fopen("/temp/out1.txt", "w");
 #else
   my_logger = fopen("/tmp/out1.txt", "w");
 #endif
