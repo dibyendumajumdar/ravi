@@ -88,6 +88,7 @@ static int sourceOnStackCount = 0;
 static int stepping_mode = DEBUGGER_STEPPING_IN; /* default */
 static int stepping_stacklevel = -1; /* This tracks the stack level from where a step over or step out was requested */
 static lua_State *stepping_lua_State = NULL; /* Tracks the Lua State that requested a step over or step out */
+static membuff_t readbuf;
 
 /*
 * Generate response to InitializeRequest
@@ -833,7 +834,7 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
   bool get_command = true;
   int command = VSCODE_UNKNOWN_REQUEST;
   while (get_command &&
-         (command = vscode_get_request(in, &req, my_logger)) != VSCODE_EOF) {
+         (command = vscode_get_request(in, &readbuf, &req, my_logger)) != VSCODE_EOF) {
     switch (command) {
       case VSCODE_INITIALIZE_REQUEST: {
         handle_initialize_request(&req, &res, out);
@@ -993,9 +994,10 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Big endian architecture not supported\n");
     exit(1);
   }
+  membuff_init(&readbuf, 0);
 /* For debugging purposes we log the interaction */
 #ifdef _WIN32
-  my_logger = fopen("/temp/out1.txt", "w");
+  my_logger = fopen("/d/temp/out1.txt", "w");
 #else
   my_logger = fopen("/tmp/out1.txt", "w");
 #endif
@@ -1023,5 +1025,6 @@ int main(int argc, char **argv) {
   debugger(L, NULL, stdin, stdout);
   lua_close(L);
   fclose(my_logger);
+  membuff_free(&readbuf);
   return 0;
 }

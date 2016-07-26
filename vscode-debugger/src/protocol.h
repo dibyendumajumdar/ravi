@@ -369,6 +369,7 @@ extern void vscode_make_success_response(ProtocolMessage *req,
                                          ProtocolMessage *res, int restype);
 extern void vscode_serialize_response(char *buf, size_t buflen,
                                       ProtocolMessage *res);
+extern void vscode_serialize_response_new(membuff_t *mb, ProtocolMessage *res);
 extern void vscode_serialize_event(char *buf, size_t buflen,
                                    ProtocolMessage *res);
 extern void vscode_make_initialized_event(ProtocolMessage *res);
@@ -390,7 +391,7 @@ extern void vscode_send_error_response(ProtocolMessage *req,
 extern void vscode_send_success_response(ProtocolMessage *req,
                                          ProtocolMessage *res, int responseType,
                                          FILE *out, FILE *log);
-extern int vscode_get_request(FILE *in, ProtocolMessage *req, FILE *log);
+extern int vscode_get_request(FILE *in, membuff_t *mb, ProtocolMessage *req, FILE *log);
 extern void vscode_json_stringify(const char *src, char *dest, size_t len);
 
 /* guaranteed null termination */
