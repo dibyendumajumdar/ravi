@@ -20,12 +20,9 @@ void membuff_init(membuff_t *mb, size_t initial_size) {
   mb->pos = 0;
   mb->allocated_size = initial_size;
 }
-void membuff_rewindpos(membuff_t *mb) {
-  mb->pos = 0;
-}
+void membuff_rewindpos(membuff_t *mb) { mb->pos = 0; }
 void membuff_resize(membuff_t *mb, size_t new_size) {
-  if (new_size <= mb->allocated_size)
-    return;
+  if (new_size <= mb->allocated_size) return;
   char *newmem = (char *)realloc(mb->buf, new_size);
   if (newmem == NULL) {
     fprintf(stderr, "out of memory\n");
@@ -34,15 +31,13 @@ void membuff_resize(membuff_t *mb, size_t new_size) {
   mb->buf = newmem;
   mb->allocated_size = new_size;
 }
-void membuff_free(membuff_t *mb) {
-  free(mb->buf);
-}
+void membuff_free(membuff_t *mb) { free(mb->buf); }
 void membuff_add_string(membuff_t *mb, const char *str) {
   size_t len = strlen(str);
   size_t required_size = mb->pos + len + 1; /* extra byte for NULL terminator */
   membuff_resize(mb, required_size);
   assert(mb->allocated_size - mb->pos > len);
-  vscode_string_copy(&mb->buf[mb->pos], str, mb->allocated_size-mb->pos);
+  vscode_string_copy(&mb->buf[mb->pos], str, mb->allocated_size - mb->pos);
   mb->pos += len;
 }
 void membuff_add_bool(membuff_t *mb, bool value) {
@@ -740,148 +735,168 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
 }
 
 void vscode_serialize_response_new(membuff_t *mb, ProtocolMessage *res) {
-	membuff_rewindpos(mb);
-	membuff_resize(mb, 1);
-	mb->buf[0] = 0;
-	if (res->type != VSCODE_RESPONSE) return;
-	membuff_add_string(mb, "{\"type\":\"response\",\"seq\":");
-	membuff_add_longlong(mb, res->seq);
-	membuff_add_string(mb, ",\"command\":\"");
-	membuff_add_string(mb, res->u.Response.command);
-	membuff_add_string(mb, "\",\"request_seq\":");
-	membuff_add_longlong(mb, res->u.Response.request_seq);
-	membuff_add_string(mb, ",\"success\":");
-	membuff_add_bool(mb, res->u.Response.success);
-	if (res->u.Response.message[0]) {
-		membuff_add_string(mb, ",\"message\":\"");
-		membuff_add_string(mb, res->u.Response.message);
-		membuff_add_string(mb, "\"");
-	}
-	if (!res->u.Response.success) {
-		membuff_add_string(mb, "}");
-		return;
-	}
-	switch (res->u.Response.response_type) {
-		case VSCODE_INITIALIZE_RESPONSE: {
-			membuff_add_string(mb, ",\"body\":{\"supportsConfigurationDoneRequest\":");
-			membuff_add_bool(mb, res->u.Response.u.InitializeResponse.body.supportsConfigurationDoneRequest);
-			membuff_add_string(mb, ",\"supportsFunctionBreakpoints\":");
-			membuff_add_bool(mb, res->u.Response.u.InitializeResponse.body.supportsFunctionBreakpoints);
-			membuff_add_string(mb, ",\"supportsConditionalBreakpoints\":");
-			membuff_add_bool(mb, res->u.Response.u.InitializeResponse.body.supportsConditionalBreakpoints);
-			membuff_add_string(mb, ",\"supportsEvaluateForHovers\":");
-			membuff_add_bool(mb, res->u.Response.u.InitializeResponse.body.supportsEvaluateForHovers);
-			membuff_add_string(mb, "}");
-		} break;
-		case VSCODE_THREAD_RESPONSE: {
-			membuff_add_string(mb, ",\"body\":{\"threads\":[{\"name\":\"");
-			membuff_add_string(mb, res->u.Response.u.ThreadResponse.threads[0].name);
-			membuff_add_string(mb, "\",\"id\":");
-			membuff_add_int(mb, res->u.Response.u.ThreadResponse.threads[0].id);
-			membuff_add_string(mb, "}]}");
-		} break;
-		case VSCODE_STACK_TRACE_RESPONSE: {
-			membuff_add_string(mb, ",\"body\":{\"totalFrames\":");
-			membuff_add_int(mb, res->u.Response.u.StackTraceResponse.totalFrames);
-			membuff_add_string(mb, ",\"stackFrames\":[");
-			int d = 0;
-			for (; d < res->u.Response.u.StackTraceResponse.totalFrames; d++) {
-				if (d) {
-					membuff_add_string(mb, ",");
-				}
-				if (res->u.Response.u.StackTraceResponse.stackFrames[d]
-					.source.sourceReference == 0) {
-					membuff_add_string(mb, "{\"id\":");
-					membuff_add_int(mb, d);
-					membuff_add_string(mb, ",\"name\":\"");
-					membuff_add_string(mb, res->u.Response.u.StackTraceResponse.stackFrames[d].name);
-					membuff_add_string(mb, "\",\"column\":1,\"line\":");
-					membuff_add_int(mb, res->u.Response.u.StackTraceResponse.stackFrames[d].line);
-					membuff_add_string(mb, ",\"source\":{\"name\":\"");
-					membuff_add_string(mb, res->u.Response.u.StackTraceResponse.stackFrames[d].source.name);
-					membuff_add_string(mb, "\",\"path\":\"");
-					membuff_add_string(mb, res->u.Response.u.StackTraceResponse.stackFrames[d].source.path);
-					membuff_add_string(mb, "\",\"sourceReference\":0}}");
-				}
-				else {
-					membuff_add_string(mb, "{\"id\":");
-					membuff_add_int(mb, d);
-					membuff_add_string(mb, ",\"name\":\"");
-					membuff_add_string(mb, res->u.Response.u.StackTraceResponse.stackFrames[d].name);
-					membuff_add_string(mb, "\",\"column\":1,\"line\":");
-					membuff_add_int(mb, res->u.Response.u.StackTraceResponse.stackFrames[d].line);
-					membuff_add_string(mb, ",\"source\":{\"name\":\"");
-					membuff_add_string(mb, res->u.Response.u.StackTraceResponse.stackFrames[d].source.name);
-					membuff_add_string(mb, "\",\"sourceReference\":");
-					membuff_add_longlong(mb, res->u.Response.u.StackTraceResponse.stackFrames[d].source.sourceReference);
-					membuff_add_string(mb, "}}");
-				}
-			}
-			membuff_add_string(mb, "]}");
-		} break;
-		case VSCODE_SCOPES_RESPONSE: {
-			membuff_add_string(mb, ",\"body\":{\"scopes\":[");
-			for (int d = 0; d < MAX_SCOPES; d++) {
-				if (!res->u.Response.u.ScopesResponse.scopes[d].name[0]) break;
-				if (d) {
-					membuff_add_string(mb, ",");
-				}
-				membuff_add_string(mb, "{\"name\":\"");
-				membuff_add_string(mb, res->u.Response.u.ScopesResponse.scopes[d].name);
-				membuff_add_string(mb, "\",\"variablesReference\":");
-				membuff_add_int(mb, res->u.Response.u.ScopesResponse.scopes[d].variablesReference);
-				membuff_add_string(mb, ",\"expensive\":");
-				membuff_add_bool(mb, res->u.Response.u.ScopesResponse.scopes[d].expensive);
-				membuff_add_string(mb, "}");
-			}
-			membuff_add_string(mb, "]}");
-		} break;
-		case VSCODE_VARIABLES_RESPONSE: {
-			membuff_add_string(mb, ",\"body\":{\"variables\":[");
-			for (int d = 0; d < MAX_VARIABLES; d++) {
-				if (!res->u.Response.u.VariablesResponse.variables[d].name[0]) break;
-				if (d) {
-					membuff_add_string(mb, ",");
-				}
-				membuff_add_string(mb, "{\"name\":\"");
-				membuff_add_string(mb, res->u.Response.u.VariablesResponse.variables[d].name);
-				membuff_add_string(mb, "\",\"variablesReference\":");
-				membuff_add_int(mb, res->u.Response.u.VariablesResponse.variables[d].variablesReference);
-				membuff_add_string(mb, ",\"value\":\"");
-				membuff_add_string(mb, res->u.Response.u.VariablesResponse.variables[d].value);
-				membuff_add_string(mb, "\"}");
-			}
-			membuff_add_string(mb, "]}");
-		} break;
-		case VSCODE_SET_BREAKPOINTS_RESPONSE: {
-			membuff_add_string(mb, ",\"body\":{\"breakpoints\":[");
-			for (int d = 0; d < MAX_BREAKPOINTS; d++) {
-				if (!res->u.Response.u.SetBreakpointsResponse.breakpoints[d]
-					.source.path[0])
-					break;
-				if (d) {
-					membuff_add_string(mb, ",");
-				}
-				membuff_add_string(mb, "{\"verified\":");
-				membuff_add_bool(mb, res->u.Response.u.SetBreakpointsResponse.breakpoints[d].verified);
-				membuff_add_string(mb, ",\"source\":{\"path\":\"");
-				membuff_add_string(mb, res->u.Response.u.SetBreakpointsResponse.breakpoints[d].source.path);
-				membuff_add_string(mb, "\"},\"line\":");
-				membuff_add_int(mb, res->u.Response.u.SetBreakpointsResponse.breakpoints[d].line);
-				membuff_add_string(mb, "}");
-			}
-			membuff_add_string(mb, "]}");
-		} break;
-		case VSCODE_SOURCE_RESPONSE: {
-			char buf[SOURCE_LEN * 2];
-			vscode_json_stringify(res->u.Response.u.SourceResponse.content, buf,
-				sizeof buf);
-			membuff_add_string(mb, ",\"body\":{\"content\":\"");
-			membuff_add_string(mb, buf);
-			membuff_add_string(mb, "\"}");
-		} break;
-	}
-	membuff_add_string(mb, "}");
+  membuff_rewindpos(mb);
+  membuff_resize(mb, 1);
+  mb->buf[0] = 0;
+  if (res->type != VSCODE_RESPONSE) return;
+  membuff_add_string(mb, "{\"type\":\"response\",\"seq\":");
+  membuff_add_longlong(mb, res->seq);
+  membuff_add_string(mb, ",\"command\":\"");
+  membuff_add_string(mb, res->u.Response.command);
+  membuff_add_string(mb, "\",\"request_seq\":");
+  membuff_add_longlong(mb, res->u.Response.request_seq);
+  membuff_add_string(mb, ",\"success\":");
+  membuff_add_bool(mb, res->u.Response.success);
+  if (res->u.Response.message[0]) {
+    membuff_add_string(mb, ",\"message\":\"");
+    membuff_add_string(mb, res->u.Response.message);
+    membuff_add_string(mb, "\"");
+  }
+  if (!res->u.Response.success) {
+    membuff_add_string(mb, "}");
+    return;
+  }
+  switch (res->u.Response.response_type) {
+    case VSCODE_INITIALIZE_RESPONSE: {
+      membuff_add_string(mb,
+                         ",\"body\":{\"supportsConfigurationDoneRequest\":");
+      membuff_add_bool(mb, res->u.Response.u.InitializeResponse.body
+                               .supportsConfigurationDoneRequest);
+      membuff_add_string(mb, ",\"supportsFunctionBreakpoints\":");
+      membuff_add_bool(mb, res->u.Response.u.InitializeResponse.body
+                               .supportsFunctionBreakpoints);
+      membuff_add_string(mb, ",\"supportsConditionalBreakpoints\":");
+      membuff_add_bool(mb, res->u.Response.u.InitializeResponse.body
+                               .supportsConditionalBreakpoints);
+      membuff_add_string(mb, ",\"supportsEvaluateForHovers\":");
+      membuff_add_bool(
+          mb,
+          res->u.Response.u.InitializeResponse.body.supportsEvaluateForHovers);
+      membuff_add_string(mb, "}");
+    } break;
+    case VSCODE_THREAD_RESPONSE: {
+      membuff_add_string(mb, ",\"body\":{\"threads\":[{\"name\":\"");
+      membuff_add_string(mb, res->u.Response.u.ThreadResponse.threads[0].name);
+      membuff_add_string(mb, "\",\"id\":");
+      membuff_add_int(mb, res->u.Response.u.ThreadResponse.threads[0].id);
+      membuff_add_string(mb, "}]}");
+    } break;
+    case VSCODE_STACK_TRACE_RESPONSE: {
+      membuff_add_string(mb, ",\"body\":{\"totalFrames\":");
+      membuff_add_int(mb, res->u.Response.u.StackTraceResponse.totalFrames);
+      membuff_add_string(mb, ",\"stackFrames\":[");
+      int d = 0;
+      for (; d < res->u.Response.u.StackTraceResponse.totalFrames; d++) {
+        if (d) { membuff_add_string(mb, ","); }
+        if (res->u.Response.u.StackTraceResponse.stackFrames[d]
+                .source.sourceReference == 0) {
+          membuff_add_string(mb, "{\"id\":");
+          membuff_add_int(mb, d);
+          membuff_add_string(mb, ",\"name\":\"");
+          membuff_add_string(
+              mb, res->u.Response.u.StackTraceResponse.stackFrames[d].name);
+          membuff_add_string(mb, "\",\"column\":1,\"line\":");
+          membuff_add_int(
+              mb, res->u.Response.u.StackTraceResponse.stackFrames[d].line);
+          membuff_add_string(mb, ",\"source\":{\"name\":\"");
+          membuff_add_string(
+              mb,
+              res->u.Response.u.StackTraceResponse.stackFrames[d].source.name);
+          membuff_add_string(mb, "\",\"path\":\"");
+          membuff_add_string(
+              mb,
+              res->u.Response.u.StackTraceResponse.stackFrames[d].source.path);
+          membuff_add_string(mb, "\",\"sourceReference\":0}}");
+        }
+        else {
+          membuff_add_string(mb, "{\"id\":");
+          membuff_add_int(mb, d);
+          membuff_add_string(mb, ",\"name\":\"");
+          membuff_add_string(
+              mb, res->u.Response.u.StackTraceResponse.stackFrames[d].name);
+          membuff_add_string(mb, "\",\"column\":1,\"line\":");
+          membuff_add_int(
+              mb, res->u.Response.u.StackTraceResponse.stackFrames[d].line);
+          membuff_add_string(mb, ",\"source\":{\"name\":\"");
+          membuff_add_string(
+              mb,
+              res->u.Response.u.StackTraceResponse.stackFrames[d].source.name);
+          membuff_add_string(mb, "\",\"sourceReference\":");
+          membuff_add_longlong(
+              mb, res->u.Response.u.StackTraceResponse.stackFrames[d]
+                      .source.sourceReference);
+          membuff_add_string(mb, "}}");
+        }
+      }
+      membuff_add_string(mb, "]}");
+    } break;
+    case VSCODE_SCOPES_RESPONSE: {
+      membuff_add_string(mb, ",\"body\":{\"scopes\":[");
+      for (int d = 0; d < MAX_SCOPES; d++) {
+        if (!res->u.Response.u.ScopesResponse.scopes[d].name[0]) break;
+        if (d) { membuff_add_string(mb, ","); }
+        membuff_add_string(mb, "{\"name\":\"");
+        membuff_add_string(mb, res->u.Response.u.ScopesResponse.scopes[d].name);
+        membuff_add_string(mb, "\",\"variablesReference\":");
+        membuff_add_int(
+            mb, res->u.Response.u.ScopesResponse.scopes[d].variablesReference);
+        membuff_add_string(mb, ",\"expensive\":");
+        membuff_add_bool(mb,
+                         res->u.Response.u.ScopesResponse.scopes[d].expensive);
+        membuff_add_string(mb, "}");
+      }
+      membuff_add_string(mb, "]}");
+    } break;
+    case VSCODE_VARIABLES_RESPONSE: {
+      membuff_add_string(mb, ",\"body\":{\"variables\":[");
+      for (int d = 0; d < MAX_VARIABLES; d++) {
+        if (!res->u.Response.u.VariablesResponse.variables[d].name[0]) break;
+        if (d) { membuff_add_string(mb, ","); }
+        membuff_add_string(mb, "{\"name\":\"");
+        membuff_add_string(
+            mb, res->u.Response.u.VariablesResponse.variables[d].name);
+        membuff_add_string(mb, "\",\"variablesReference\":");
+        membuff_add_int(mb, res->u.Response.u.VariablesResponse.variables[d]
+                                .variablesReference);
+        membuff_add_string(mb, ",\"value\":\"");
+        membuff_add_string(
+            mb, res->u.Response.u.VariablesResponse.variables[d].value);
+        membuff_add_string(mb, "\"}");
+      }
+      membuff_add_string(mb, "]}");
+    } break;
+    case VSCODE_SET_BREAKPOINTS_RESPONSE: {
+      membuff_add_string(mb, ",\"body\":{\"breakpoints\":[");
+      for (int d = 0; d < MAX_BREAKPOINTS; d++) {
+        if (!res->u.Response.u.SetBreakpointsResponse.breakpoints[d]
+                 .source.path[0])
+          break;
+        if (d) { membuff_add_string(mb, ","); }
+        membuff_add_string(mb, "{\"verified\":");
+        membuff_add_bool(
+            mb,
+            res->u.Response.u.SetBreakpointsResponse.breakpoints[d].verified);
+        membuff_add_string(mb, ",\"source\":{\"path\":\"");
+        membuff_add_string(
+            mb, res->u.Response.u.SetBreakpointsResponse.breakpoints[d]
+                    .source.path);
+        membuff_add_string(mb, "\"},\"line\":");
+        membuff_add_int(
+            mb, res->u.Response.u.SetBreakpointsResponse.breakpoints[d].line);
+        membuff_add_string(mb, "}");
+      }
+      membuff_add_string(mb, "]}");
+    } break;
+    case VSCODE_SOURCE_RESPONSE: {
+      char buf[SOURCE_LEN * 2];
+      vscode_json_stringify(res->u.Response.u.SourceResponse.content, buf,
+                            sizeof buf);
+      membuff_add_string(mb, ",\"body\":{\"content\":\"");
+      membuff_add_string(mb, buf);
+      membuff_add_string(mb, "\"}");
+    } break;
+  }
+  membuff_add_string(mb, "}");
 }
 
 /*
@@ -932,44 +947,43 @@ void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
 * wire protocol format (see protocol.h)
 */
 void vscode_serialize_event_new(membuff_t *mb, ProtocolMessage *res) {
-	membuff_rewindpos(mb);
-	membuff_resize(mb, 1);
-	mb->buf[0] = 0;
-	if (res->type != VSCODE_EVENT) return;
-	membuff_add_string(mb, "{\"type\":\"event\",\"seq\":");
-	membuff_add_longlong(mb, res->seq);
-	membuff_add_string(mb, ",\"event\":\"");
-	membuff_add_string(mb, res->u.Event.event);
-	membuff_add_string(mb, "\"");
-	if (res->u.Event.event_type == VSCODE_OUTPUT_EVENT) {
-		membuff_add_string(mb, ",\"body\":{\"category\":\"");
-		membuff_add_string(mb, res->u.Event.u.OutputEvent.category);
-		membuff_add_string(mb, "\",\"output\":\"");
-		membuff_add_string(mb, res->u.Event.u.OutputEvent.output);
-		membuff_add_string(mb, "\"}");
-	}
-	else if (res->u.Event.event_type == VSCODE_THREAD_EVENT) {
-		membuff_add_string(mb, ",\"body\":{\"reason\":\"");
-		membuff_add_string(mb, res->u.Event.u.ThreadEvent.reason);
-		membuff_add_string(mb, "\",\"threadId\":");
-		membuff_add_int(mb, res->u.Event.u.ThreadEvent.threadId);
-		membuff_add_string(mb, "}");
-	}
-	else if (res->u.Event.event_type == VSCODE_STOPPED_EVENT) {
-		membuff_add_string(mb, ",\"body\":{\"reason\":\"");
-		membuff_add_string(mb, res->u.Event.u.StoppedEvent.reason);
-		membuff_add_string(mb, "\",\"threadId\":");
-		membuff_add_int(mb, res->u.Event.u.StoppedEvent.threadId);
-		membuff_add_string(mb, "}");
-	}
-	else if (res->u.Event.event_type == VSCODE_TERMINATED_EVENT) {
-		membuff_add_string(mb, ",\"body\":{\"restart\":");
-		membuff_add_bool(mb, res->u.Event.u.TerminatedEvent.restart);
-		membuff_add_string(mb, "}");
-	}
-	membuff_add_string(mb, "}");
+  membuff_rewindpos(mb);
+  membuff_resize(mb, 1);
+  mb->buf[0] = 0;
+  if (res->type != VSCODE_EVENT) return;
+  membuff_add_string(mb, "{\"type\":\"event\",\"seq\":");
+  membuff_add_longlong(mb, res->seq);
+  membuff_add_string(mb, ",\"event\":\"");
+  membuff_add_string(mb, res->u.Event.event);
+  membuff_add_string(mb, "\"");
+  if (res->u.Event.event_type == VSCODE_OUTPUT_EVENT) {
+    membuff_add_string(mb, ",\"body\":{\"category\":\"");
+    membuff_add_string(mb, res->u.Event.u.OutputEvent.category);
+    membuff_add_string(mb, "\",\"output\":\"");
+    membuff_add_string(mb, res->u.Event.u.OutputEvent.output);
+    membuff_add_string(mb, "\"}");
+  }
+  else if (res->u.Event.event_type == VSCODE_THREAD_EVENT) {
+    membuff_add_string(mb, ",\"body\":{\"reason\":\"");
+    membuff_add_string(mb, res->u.Event.u.ThreadEvent.reason);
+    membuff_add_string(mb, "\",\"threadId\":");
+    membuff_add_int(mb, res->u.Event.u.ThreadEvent.threadId);
+    membuff_add_string(mb, "}");
+  }
+  else if (res->u.Event.event_type == VSCODE_STOPPED_EVENT) {
+    membuff_add_string(mb, ",\"body\":{\"reason\":\"");
+    membuff_add_string(mb, res->u.Event.u.StoppedEvent.reason);
+    membuff_add_string(mb, "\",\"threadId\":");
+    membuff_add_int(mb, res->u.Event.u.StoppedEvent.threadId);
+    membuff_add_string(mb, "}");
+  }
+  else if (res->u.Event.event_type == VSCODE_TERMINATED_EVENT) {
+    membuff_add_string(mb, ",\"body\":{\"restart\":");
+    membuff_add_bool(mb, res->u.Event.u.TerminatedEvent.restart);
+    membuff_add_string(mb, "}");
+  }
+  membuff_add_string(mb, "}");
 }
-
 
 void vscode_send_old(ProtocolMessage *msg, FILE *out, FILE *log) {
   char buf[4096];

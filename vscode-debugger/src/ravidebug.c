@@ -611,6 +611,17 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
          * A top level request - i.e. from the scope
          */
         for (int n = 1, v = 0; v < MAX_VARIABLES; n++) {
+          if (v + 1 == MAX_VARIABLES) {
+            /* Let the user know that we are not displaying all the variables */
+            vscode_string_copy(
+                res->u.Response.u.VariablesResponse.variables[v].name, "...",
+                sizeof res->u.Response.u.VariablesResponse.variables[0].name);
+            vscode_string_copy(
+                res->u.Response.u.VariablesResponse.variables[v].value,
+                "truncated",
+                sizeof res->u.Response.u.VariablesResponse.variables[0].value);
+            break;
+          }
           const char *name = lua_getlocal(L, &entry, isvararg ? -n : n);
           if (name) {
             /* Temporary variables have names that start with (*temporary).
