@@ -162,8 +162,8 @@ static intptr_t ensure_value_fits_in_mantissa(intptr_t sourceReference) {
   bits.expo = 0;            /* cleanup */
   bits.sign = 0;            /* cleanup */
   sourceReference = bits.i; /* extract mantissa */
-  fprintf(my_logger, "Source Reference WAS %lld NOW %lld\n", (int64_t)orig,
-          (int64_t)sourceReference);
+  fprintf(my_logger, "Source Reference WAS %lld NOW %lld\n", (long long)orig,
+          (long long)sourceReference);
   return sourceReference;
 }
 
@@ -296,7 +296,7 @@ static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
   }
   fprintf(my_logger,
           "SEARCHED FOR sourceReference=%lld, found at stack depth = %d\n",
-          sourceReference, depth);
+          (long long)sourceReference, depth);
   vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
   if (lua_getstack(L, depth, &entry)) {
     int status = lua_getinfo(L, "Sln", &entry);
