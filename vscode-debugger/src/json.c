@@ -893,7 +893,7 @@ json_value * json_parse_ex (json_settings * settings,
                };
             }
 
-            if ( (++ top->parent->u.array.length) > state.uint_max)
+            if ( (++ top->parent->u.array.length) > (int)state.uint_max)
                goto e_overflow;
 
             top = top->parent;

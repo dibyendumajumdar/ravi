@@ -1079,7 +1079,7 @@ int vscode_get_request(FILE *in, membuff_t *mb, ProtocolMessage *req, FILE *log)
       }
       /* skip blank line - actually \r\n */
       if (fgets(tbuf, sizeof tbuf, stdin) == NULL) {
-        fprintf(log, "FATAL ERROR - error reading second newline after Content-Length:\n", len);
+        fprintf(log, "FATAL ERROR - error reading second newline after Content-Length:\n");
         exit(1);
       }
       /* Now read exact number of characters */
