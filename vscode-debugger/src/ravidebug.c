@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <io.h>
 #define chdir _chdir
+//#include <windows.h>
 #else
 #include <unistd.h>
 #endif
@@ -844,6 +845,7 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
   /* Wait for debugger command */
   bool get_command = true;
   int command = VSCODE_UNKNOWN_REQUEST;
+  //Sleep(60 * 1000);
   while (get_command &&
          (command = vscode_get_request(in, &readbuf, &req, my_logger)) != VSCODE_EOF) {
     switch (command) {
