@@ -107,7 +107,7 @@ int test_intpacking() {
   int64_t i1 = 9007199254740991;
   double d = (double) i1;
   int64_t i2 = (int64_t) d;
-  fprintf(stderr, "%lld, %0.15f, %lld\n", i1, d, i2);
+  //fprintf(stderr, "%lld, %0.15f, %lld\n", i1, d, i2);
   if (i1 != i2)
     return 1;
   PackedInteger pi;
@@ -121,7 +121,7 @@ int test_intpacking() {
   int64_t i3 = vscode_pack(&pi);
   d = (double) i3;
   i2 = (int64_t) d;
-  fprintf(stderr, "%lld, %0.15f, %lld\n", i3, d, i2);
+  //fprintf(stderr, "%lld, %0.15f, %lld\n", i3, d, i2);
   if (i3 != ix)
     return 1;
   PackedInteger p2;
@@ -140,7 +140,7 @@ int test_intpacking() {
   i3 = vscode_pack(&pi);
   d = (double)i3;
   i2 = (int64_t)d;
-  fprintf(stderr, "%lld, %0.15f, %lld\n", i3, d, i2);
+  //fprintf(stderr, "%lld, %0.15f, %lld\n", i3, d, i2);
   if (i3 != i2)
     return 1;
   vscode_unpack(i3, &p2);
