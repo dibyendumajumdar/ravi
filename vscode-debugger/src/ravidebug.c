@@ -573,7 +573,7 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
   // stack now contains: -1 => table
   lua_pushnil(L);  // push first key
   /* stack now contains: -1 => nil (key); -2 => table */
-  int v = 0; /* v is the position of key in table from iterator point of view */
+  int v = 1; /* v is the position of key in table from iterator point of view */
   int j = 0; /* j is the index in response */
   while (lua_next(L, -2) && j < MAX_VARIABLES) {
     // stack now contains: -1 => value; -2 => key; -3 => table
@@ -605,7 +605,7 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
           memset(&pi, 0, sizeof pi);
           pi.g4 = varType;
           pi.f8 = depth;
-          pi.e8 = v;
+          pi.e8 = v; /* cannot be zero based !*/
           res->u.Response.u.VariablesResponse.variables[j].variablesReference = vscode_pack(&pi);
         }
         else {
@@ -668,7 +668,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
         /* stack now contains: -1 => table */
         lua_pushnil(L);  /* push first key */
                          /* stack now contains: -1 => nil (key); -2 => table */
-        int v = 0; /* v is the position of key in table from iterator point of view */
+        int v = 1; /* v is the position of key in table from iterator point of view */
         while (lua_next(L, -2)) {
           if (v == var) {
             /* We found the value we need to expand - we know already this is a table */
