@@ -1,6 +1,10 @@
-/**
+/*
+ ** See LICENSE Notice in lua.h
+ ** Copyright (C) 2015-2016 Dibyendu Majumdar
+ *
  * Standalone Lua/Ravi interpreter that is meant to be used as
- * a debugger in the VSCode IDE.
+ * a debugger in the Visual Studio Code IDE.
+ * See https://marketplace.visualstudio.com/items?itemName=ravilang.ravi-debug
  */
 
 #include <assert.h>
@@ -50,6 +54,7 @@ enum {
 /* Following values must fit into 2 bits and 0 is not a valid value */
 enum { VAR_TYPE_LOCALS = 1, VAR_TYPE_VARARGS = 2, VAR_TYPE_UPVALUES = 3, VAR_TYPE_GLOBALS = 4, VAR_LUA_GLOBALS = 5 };
 
+/* Lua globals names - we use this to split globals into two lists */
 static const char *lua_globals[] = {
   "ipairs",
   "error",
@@ -88,6 +93,7 @@ static const char *lua_globals[] = {
   "assert",
   "type",
   "pairs",
+  "bit32",
   NULL
 };
 
@@ -166,8 +172,39 @@ static void handle_thread_request(ProtocolMessage *req, ProtocolMessage *res,
  * number in JSON and JavaScript. 
  */
 static inline intptr_t ensure_value_fits_in_mantissa(intptr_t sourceReference) {
+  /* pointer values are less than 53 bits anyway so nothing to do, but we assert just in case */
   assert(sourceReference <= 9007199254740991);
   return sourceReference;
+}
+
+static void get_path_and_name(char *path, size_t pathlen, char *name, size_t namelen, const char *input_name, const char *workingdir) {
+  /* If the source does not include a path then
+   we prefix the source with the path to the
+   working directrory so that it can be reliably
+   found, else we assume that either the path to the
+   source is absolue or it is relative to the working
+   directory */
+  const char *last_path_delim = strrchr(input_name, '/');
+  if (last_path_delim) {
+    /* source includes a path */
+    vscode_string_copy(name, last_path_delim + 1, namelen);
+    vscode_string_copy(path, input_name, pathlen);
+  }
+  else {
+    /* prepend the working directory to the name */
+    vscode_string_copy(name, input_name, namelen);
+    if (workingdir[0]) {
+      size_t n = strlen(workingdir);
+      if (workingdir[n - 1] == '/')
+        snprintf(path, pathlen, "%s%s", workingdir, input_name);
+      else
+        snprintf(path, pathlen, "%s/%s", workingdir, input_name);
+    }
+    else {
+      /* no working directory */
+      vscode_string_copy(path, input_name, pathlen);
+    }
+  }
 }
 
 /*
@@ -192,34 +229,9 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     if (*src == '@') {
       /* Source is a file */
       src++;
-      /* If the source does not include a path then
-         we prefix the source with the path to the
-         working directrory so that it can be reliably
-         found, else we assume that either the path to the
-         source is absolue or it is relative to the working
-         directory */
-      const char *last_path_delim = strrchr(src, '/');
       char path[1024];
       char name[256];
-      if (last_path_delim) {
-        /* source includes a path */
-        vscode_string_copy(name, last_path_delim + 1, sizeof name);
-        vscode_string_copy(path, src, sizeof path);
-      }
-      else {
-        /* prepend the working directory to the name */
-        vscode_string_copy(name, src, sizeof name);
-        if (workingdir[0]) {
-          size_t n = strlen(workingdir);
-          if (workingdir[n - 1] == '/')
-            snprintf(path, sizeof path, "%s%s", workingdir, src);
-          else
-            snprintf(path, sizeof path, "%s/%s", workingdir, src);
-        }
-        else {
-          vscode_string_copy(path, src, sizeof path);
-        }
-      }
+      get_path_and_name(path, sizeof path, name, sizeof name, src, workingdir);
       vscode_string_copy(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path,
           path, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
@@ -297,9 +309,11 @@ static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
       break;
     }
   }
+  /*
   fprintf(my_logger,
           "SEARCHED FOR sourceReference=%" PRId64 ", found at stack depth = %d\n",
           sourceReference, depth);
+  */
   vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
   if (lua_getstack(L, depth, &entry)) {
     int status = lua_getinfo(L, "Sln", &entry);
@@ -356,7 +370,7 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
                            sizeof breakpoints[0].source.path);
           breakpoints[y].line =
               req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line;
-          fprintf(my_logger, "Saving breakpoint j=%d, k=%d, i=%d\n", y, k, i);
+          /* fprintf(my_logger, "Saving breakpoint j=%d, k=%d, i=%d\n", y, k, i); */
           if (k < MAX_BREAKPOINTS) {
             res->u.Response.u.SetBreakpointsResponse.breakpoints[k].line =
                 req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line;
@@ -607,6 +621,7 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
   }
   lua_pop(L, 1); /* pop the table */
 }
+
 /*
  * The VSCode front-end sends a variables request when it wants to
  * display variables. Unfortunately a limitation is that only a numeric
@@ -646,8 +661,9 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
         lua_pop(L, 1);
       }
       else {
-        int checktop = lua_gettop(L);
+        /* The request is to expand an entry in the global table */
         /* var is the position of key in global table */
+        int checktop = lua_gettop(L);
         lua_pushglobaltable(L);
         /* stack now contains: -1 => table */
         lua_pushnil(L);  /* push first key */
@@ -657,7 +673,12 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
           if (v == var) {
             /* We found the value we need to expand - we know already this is a table */
             int current_top = lua_gettop(L);
-            get_table_values(res, L, current_top, type, depth, var, NULL);
+            int l_type = lua_type(L, current_top);
+            /* We know this should be a table but we check for safety */
+            assert(l_type == LUA_TTABLE);
+            if (l_type == LUA_TTABLE) {
+              get_table_values(res, L, current_top, type, depth, var, NULL);
+            }
             /* TODO we can break the loop here */
           }
           v++;
@@ -667,7 +688,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
         assert(lua_gettop(L) == checktop);
       }
     }
-    else if (type == VAR_TYPE_LOCALS || type == VAR_TYPE_VARARGS) {  // locals
+    else if (type == VAR_TYPE_LOCALS || type == VAR_TYPE_VARARGS) {  /* locals */
       if (var == 0) {
         /*
          * A top level request - i.e. from the scope
@@ -721,6 +742,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
                   .variablesReference = vscode_pack(&newref);
               }
               else {
+                /* not a table */
                 res->u.Response.u.VariablesResponse.variables[v]
                   .variablesReference = 0;
               }
@@ -736,13 +758,11 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
       else {
         /*
          * We support one level of drill down
-         * FIXME - the number of items is limited to MAX_VARIABLES
-         * but user is not shown any warning if values are truncated
          */
-        fprintf(my_logger,
+        /* fprintf(my_logger,
                 "\n--> Request to extract local variable %d of type %d at "
                 "depth %d\n",
-                var, type, depth);
+                var, type, depth); */
         const char *name = lua_getlocal(L, &entry, type == VAR_TYPE_VARARGS ? -var : var);
         if (name) {
           int stack_idx = lua_gettop(L);

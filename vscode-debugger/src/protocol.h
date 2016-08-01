@@ -1,3 +1,7 @@
+/*
+ ** See LICENSE Notice in lua.h
+ ** Copyright (C) 2015-2016 Dibyendu Majumdar
+ */
 #ifndef RAVI_VSCODE_PROTOCOL_H
 #define RAVI_VSCODE_PROTOCOL_H
 
@@ -86,7 +90,7 @@ enum {
   MAX_BREAKPOINTS = 5,
   MAX_STACK_FRAMES = 50,
   MAX_SCOPES = 4,
-  MAX_VARIABLES = 120,
+  MAX_VARIABLES = 250,
   MAX_THREADS = 1,
   SOURCE_LEN = 8196,
   MAX_TOTAL_BREAKPOINTS = 20

@@ -1,3 +1,7 @@
+/*
+ ** See LICENSE Notice in lua.h
+ ** Copyright (C) 2015-2016 Dibyendu Majumdar
+ */
 #include "protocol.h"
 
 #include <assert.h>

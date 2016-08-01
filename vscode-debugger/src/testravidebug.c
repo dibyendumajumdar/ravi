@@ -124,7 +124,8 @@ int test_intpacking() {
   fprintf(stderr, "%lld, %0.15f, %lld\n", i3, d, i2);
   if (i3 != ix)
     return 1;
-  PackedInteger p2 = { 0 };
+  PackedInteger p2;
+  memset(&p2, 0, sizeof p2);
   vscode_unpack(i3, &p2);
   if (memcmp(&pi, &p2, sizeof(PackedInteger)) != 0)
     return 1;
