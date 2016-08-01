@@ -437,7 +437,7 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
     varRef.g4 = (unsigned int)VAR_LUA_GLOBALS;
     varRef.f8 = (unsigned int)depth;
     res->u.Response.u.ScopesResponse.scopes[i].variablesReference = vscode_pack(&varRef);
-    res->u.Response.u.ScopesResponse.scopes[i].expensive = 1;
+    res->u.Response.u.ScopesResponse.scopes[i].expensive = 0;
   }
   else {
     vscode_make_error_response(req, res, VSCODE_SCOPES_RESPONSE,
@@ -646,7 +646,25 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
         lua_pop(L, 1);
       }
       else {
-        /* TODO */
+        int checktop = lua_gettop(L);
+        /* var is the position of key in global table */
+        lua_pushglobaltable(L);
+        /* stack now contains: -1 => table */
+        lua_pushnil(L);  /* push first key */
+                         /* stack now contains: -1 => nil (key); -2 => table */
+        int v = 0; /* v is the position of key in table from iterator point of view */
+        while (lua_next(L, -2)) {
+          if (v == var) {
+            /* We found the value we need to expand - we know already this is a table */
+            int current_top = lua_gettop(L);
+            get_table_values(res, L, current_top, type, depth, var, NULL);
+            /* TODO we can break the loop here */
+          }
+          v++;
+          lua_pop(L, 1); /* pop value */
+        }
+        lua_pop(L, 1); /* pop global table */
+        assert(lua_gettop(L) == checktop);
       }
     }
     else if (type == VAR_TYPE_LOCALS || type == VAR_TYPE_VARARGS) {  // locals
