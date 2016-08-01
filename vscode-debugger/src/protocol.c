@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 void membuff_init(membuff_t *mb, size_t initial_size) {
   if (initial_size > 0) {
@@ -51,9 +52,9 @@ void membuff_add_int(membuff_t *mb, int value) {
   snprintf(temp, sizeof temp, "%d", value);
   membuff_add_string(mb, temp);
 }
-void membuff_add_longlong(membuff_t *mb, long long value) {
+void membuff_add_longlong(membuff_t *mb, int64_t value) {
   char temp[100];
-  snprintf(temp, sizeof temp, "%lld", value);
+  snprintf(temp, sizeof temp, "%" PRId64 "", value);
   membuff_add_string(mb, temp);
 }
 
@@ -438,7 +439,7 @@ static int vscode_parse_request(json_value *js, ProtocolMessage *msg,
     case VSCODE_SCOPES_REQUEST:
       return vscode_parse_intarg_request(js, msg, cmdtype, "frameId", log);
     case VSCODE_VARIABLES_REQUEST:
-      return vscode_parse_intarg_request(js, msg, cmdtype, "variablesReference",
+      return vscode_parse_int64arg_request(js, msg, cmdtype, "variablesReference",
                                          log);
     case VSCODE_SOURCE_REQUEST:
       return vscode_parse_int64arg_request(js, msg, cmdtype, "sourceReference",
@@ -574,8 +575,8 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
   buf[0] = 0;
   if (res->type != VSCODE_RESPONSE) return;
   snprintf(cp, sizeof temp - strlen(temp),
-           "{\"type\":\"response\",\"seq\":%lld,\"command\":\"%s\",\"request_"
-           "seq\":%lld,\"success\":%s",
+           "{\"type\":\"response\",\"seq\":%" PRId64 ",\"command\":\"%s\",\"request_"
+           "seq\":%" PRId64 ",\"success\":%s",
            res->seq, res->u.Response.command, res->u.Response.request_seq,
            res->u.Response.success ? "true" : "false");
   cp = temp + strlen(temp);
@@ -642,7 +643,7 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
         snprintf(
             cp, sizeof temp - strlen(temp),
             "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":"
-            "{\"name\":\"%s\",\"sourceReference\":%lld}}",
+            "{\"name\":\"%s\",\"sourceReference\":%" PRId64 "}}",
             d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
             res->u.Response.u.StackTraceResponse.stackFrames[d].line,
             res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
@@ -665,7 +666,7 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
         cp = temp + strlen(temp);
       }
       snprintf(cp, sizeof temp - strlen(temp),
-               "{\"name\":\"%s\",\"variablesReference\":%d,\"expensive\":%s}",
+               "{\"name\":\"%s\",\"variablesReference\":%" PRId64 ",\"expensive\":%s}",
                res->u.Response.u.ScopesResponse.scopes[d].name,
                res->u.Response.u.ScopesResponse.scopes[d].variablesReference,
                res->u.Response.u.ScopesResponse.scopes[d].expensive ? "true"
@@ -687,7 +688,7 @@ void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
       }
       snprintf(
           cp, sizeof temp - strlen(temp),
-          "{\"name\":\"%s\",\"variablesReference\":%d,\"value\":\"%s\"}",
+          "{\"name\":\"%s\",\"variablesReference\":%" PRId64 ",\"value\":\"%s\"}",
           res->u.Response.u.VariablesResponse.variables[d].name,
           res->u.Response.u.VariablesResponse.variables[d].variablesReference,
           res->u.Response.u.VariablesResponse.variables[d].value);
@@ -838,7 +839,7 @@ void vscode_serialize_response_new(membuff_t *mb, ProtocolMessage *res) {
         membuff_add_string(mb, "{\"name\":\"");
         membuff_add_string(mb, res->u.Response.u.ScopesResponse.scopes[d].name);
         membuff_add_string(mb, "\",\"variablesReference\":");
-        membuff_add_int(
+        membuff_add_longlong(
             mb, res->u.Response.u.ScopesResponse.scopes[d].variablesReference);
         membuff_add_string(mb, ",\"expensive\":");
         membuff_add_bool(mb,
@@ -856,7 +857,7 @@ void vscode_serialize_response_new(membuff_t *mb, ProtocolMessage *res) {
         membuff_add_string(
             mb, res->u.Response.u.VariablesResponse.variables[d].name);
         membuff_add_string(mb, "\",\"variablesReference\":");
-        membuff_add_int(mb, res->u.Response.u.VariablesResponse.variables[d]
+        membuff_add_longlong(mb, res->u.Response.u.VariablesResponse.variables[d]
                                 .variablesReference);
         membuff_add_string(mb, ",\"value\":\"");
         membuff_add_string(
@@ -909,7 +910,7 @@ void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
   buf[0] = 0;
   if (res->type != VSCODE_EVENT) return;
   snprintf(cp, sizeof temp - strlen(temp),
-           "{\"type\":\"event\",\"seq\":%lld,\"event\":\"%s\"", res->seq,
+           "{\"type\":\"event\",\"seq\":%" PRId64 ",\"event\":\"%s\"", res->seq,
            res->u.Event.event);
   cp = temp + strlen(temp);
   if (res->u.Event.event_type == VSCODE_OUTPUT_EVENT) {

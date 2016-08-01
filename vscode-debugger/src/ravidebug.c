@@ -9,13 +9,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #ifdef _WIN32
 #include <direct.h>
 #include <fcntl.h>
 #include <io.h>
 #define chdir _chdir
-//#include <windows.h>
+/*  When debugging 
+    #include <windows.h>
+*/
 #else
 #include <unistd.h>
 #endif
@@ -45,25 +48,48 @@ enum {
 };
 
 /* Following values must fit into 2 bits and 0 is not a valid value */
-enum { VAR_TYPE_LOCALS = 1, VAR_TYPE_UPVALUES = 2, VAR_TYPE_GLOBALS = 3 };
+enum { VAR_TYPE_LOCALS = 1, VAR_TYPE_VARARGS = 2, VAR_TYPE_UPVALUES = 3, VAR_TYPE_GLOBALS = 4, VAR_LUA_GLOBALS = 5 };
 
-/* Some utilities to allow packing of 5 components into a 32-bit integer value
- * This is used to encode the stack frame, variable reference
- */
-#define MASK0 0x3F
-#define MASK 0xFF
-#define MASK1 0x3
-
-#define MAKENUM(t, a, b, c, d)                                                 \
-  \
-((((t)&MASK1) | (((a)&MASK0) << 2)) | (((b)&MASK) << 8) | (((c)&MASK) << 16) | \
-      (((d)&MASK) << 24))
-
-#define EXTRACT_T(x) ((x)&MASK1)
-#define EXTRACT_A(x) (((x) >> 2) & MASK0)
-#define EXTRACT_B(x) (((x) >> 8) & MASK)
-#define EXTRACT_C(x) (((x) >> 16) & MASK)
-#define EXTRACT_D(x) (((x) >> 24) & MASK)
+static const char *lua_globals[] = {
+  "ipairs",
+  "error",
+  "utf8",
+  "rawset",
+  "tostring",
+  "select",
+  "tonumber",
+  "_VERSION",
+  "loadfile",
+  "xpcall",
+  "string",
+  "rawlen",
+  "ravitype",
+  "print",
+  "rawequal",
+  "setmetatable",
+  "require",
+  "getmetatable",
+  "next",
+  "package",
+  "coroutine",
+  "io",
+  "_G",
+  "math",
+  "collectgarbage",
+  "os",
+  "table",
+  "ravi",
+  "dofile",
+  "pcall",
+  "load",
+  "module",
+  "rawget",
+  "debug",
+  "assert",
+  "type",
+  "pairs",
+  NULL
+};
 
 typedef struct {
   int depth;
@@ -135,36 +161,12 @@ static void handle_thread_request(ProtocolMessage *req, ProtocolMessage *res,
   vscode_send(res, out, my_logger);
 }
 
-/* FIXME handle Big Endian */
-typedef union {
-  double d;
-  intptr_t i;
-  struct {
-    /* Following is Little endian */
-    unsigned long long mant : 52;
-    unsigned int expo : 11;
-    unsigned int sign : 1;
-  };
-} doublebits;
-
-/* Takes an intptr_t value and makes sure that it will
- * fit into the mantisaa (52 bits) of a double.
- * This is so that we can assign and send this value as a JSON
- * number which I understand is represented as a double.
- * Any excess bits will be discarded but from what I can see on
- * a 64-bit intel chip the pointer values are anyway less than
- * 52 bits in size.
+/* Takes an intptr_t value and make sure that it will
+ * fit into a double without loss - which is what is used to represent a
+ * number in JSON and JavaScript. 
  */
-static intptr_t ensure_value_fits_in_mantissa(intptr_t sourceReference) {
-  /* FIXME - big endian support */
-  int64_t orig = sourceReference;
-  doublebits bits;
-  bits.mant = sourceReference;
-  bits.expo = 0;            /* cleanup */
-  bits.sign = 0;            /* cleanup */
-  sourceReference = bits.i; /* extract mantissa */
-  fprintf(my_logger, "Source Reference WAS %lld NOW %lld\n", (long long)orig,
-          (long long)sourceReference);
+static inline intptr_t ensure_value_fits_in_mantissa(intptr_t sourceReference) {
+  assert(sourceReference <= 9007199254740991);
   return sourceReference;
 }
 
@@ -296,8 +298,8 @@ static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
     }
   }
   fprintf(my_logger,
-          "SEARCHED FOR sourceReference=%lld, found at stack depth = %d\n",
-          (long long)sourceReference, depth);
+          "SEARCHED FOR sourceReference=%" PRId64 ", found at stack depth = %d\n",
+          sourceReference, depth);
   vscode_make_success_response(req, res, VSCODE_SOURCE_RESPONSE);
   if (lua_getstack(L, depth, &entry)) {
     int status = lua_getinfo(L, "Sln", &entry);
@@ -403,21 +405,38 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
     int i = 0;
     vscode_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name, "Locals",
                      sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-    res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
-        MAKENUM(VAR_TYPE_LOCALS, depth, 0, 0, 0);
-    res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
+    PackedInteger varRef;
+    memset(&varRef, 0, sizeof(PackedInteger));
+    varRef.g4 = (unsigned int) VAR_TYPE_LOCALS;
+    varRef.f8 = (unsigned int) depth;
+    res->u.Response.u.ScopesResponse.scopes[i].variablesReference = vscode_pack(&varRef);
+    res->u.Response.u.ScopesResponse.scopes[i].expensive = 0;
+    i++;
     if (entry.isvararg) {
       vscode_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
                        "Var Args",
                        sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-      res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
-          MAKENUM(VAR_TYPE_LOCALS, depth, 0, 0, 1);
-      res->u.Response.u.ScopesResponse.scopes[i++].expensive = 0;
+      memset(&varRef, 0, sizeof(PackedInteger));
+      varRef.g4 = (unsigned int)VAR_TYPE_VARARGS;
+      varRef.f8 = (unsigned int)depth;
+      res->u.Response.u.ScopesResponse.scopes[i].variablesReference = vscode_pack(&varRef);
+      res->u.Response.u.ScopesResponse.scopes[i].expensive = 0;
+      i++;
     }
     vscode_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name, "Globals",
                      sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
-    res->u.Response.u.ScopesResponse.scopes[i].variablesReference =
-        MAKENUM(VAR_TYPE_GLOBALS, depth, 0, 0, 0);
+    memset(&varRef, 0, sizeof(PackedInteger));
+    varRef.g4 = (unsigned int)VAR_TYPE_GLOBALS;
+    varRef.f8 = (unsigned int)depth;
+    res->u.Response.u.ScopesResponse.scopes[i].variablesReference = vscode_pack(&varRef);
+    res->u.Response.u.ScopesResponse.scopes[i].expensive = 0;
+    i++;
+    vscode_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name, "Lua Globals",
+      sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
+    memset(&varRef, 0, sizeof(PackedInteger));
+    varRef.g4 = (unsigned int)VAR_LUA_GLOBALS;
+    varRef.f8 = (unsigned int)depth;
+    res->u.Response.u.ScopesResponse.scopes[i].variablesReference = vscode_pack(&varRef);
     res->u.Response.u.ScopesResponse.scopes[i].expensive = 1;
   }
   else {
@@ -519,27 +538,37 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
   return rc;
 }
 
+static int search_for_name(const char *name, const char **filter) {
+  if (filter == NULL)
+    return 0;
+  for (int i = 0; filter[i] != NULL; i++)
+    if (strcmp(name, filter[i]) == 0)
+      return 1;
+  return 0;
+}
+
 /*
  * Get a table's values into the response
  */
 static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
-                             int varType, int depth, int var) {
+                             int varType, int depth, int var, const char **filter) {
   // Push another reference to the table on top of the stack (so we know
   // where it is, and this function can work for negative, positive and
   // pseudo indices  
   lua_pushvalue(L, stack_idx);
   // stack now contains: -1 => table
   lua_pushnil(L);  // push first key
-  // stack now contains: -1 => nil (key); -2 => table
-  int v = 0;
-  while (lua_next(L, -2) && v < MAX_VARIABLES) {
+  /* stack now contains: -1 => nil (key); -2 => table */
+  int v = 0; /* v is the position of key in table from iterator point of view */
+  int j = 0; /* j is the index in response */
+  while (lua_next(L, -2) && j < MAX_VARIABLES) {
     // stack now contains: -1 => value; -2 => key; -3 => table
-    if (v+1 == MAX_VARIABLES) {
+    if (j+1 == MAX_VARIABLES) {
       vscode_string_copy(
-          res->u.Response.u.VariablesResponse.variables[v].name, "...",
+          res->u.Response.u.VariablesResponse.variables[j].name, "...",
           sizeof res->u.Response.u.VariablesResponse.variables[0].name);
       vscode_string_copy(
-          res->u.Response.u.VariablesResponse.variables[v].value, "truncated",
+          res->u.Response.u.VariablesResponse.variables[j].value, "",
           sizeof res->u.Response.u.VariablesResponse.variables[0].value);
       lua_pop(L, 1); /* pop value */
     }
@@ -549,16 +578,28 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
       // original
       lua_pushvalue(L, -2);
       // stack now contains: -1 => key; -2 => value; -3 => key
-      get_value(L, -1, res->u.Response.u.VariablesResponse.variables[v].name,
-                sizeof res->u.Response.u.VariablesResponse.variables[0].name);
-      int is_table = get_value(
-          L, -2, res->u.Response.u.VariablesResponse.variables[v].value,
+      char key[sizeof res->u.Response.u.VariablesResponse.variables[0].name];
+      get_value(L, -1, key, sizeof key);
+      if (!search_for_name(key, filter)) {
+        vscode_string_copy(res->u.Response.u.VariablesResponse.variables[j].name, key,
+          sizeof res->u.Response.u.VariablesResponse.variables[0].name);
+        int is_table = get_value(
+          L, -2, res->u.Response.u.VariablesResponse.variables[j].value,
           sizeof res->u.Response.u.VariablesResponse.variables[0].value);
-      /*
-      * Right now we do not support further drill down
-      */
-      res->u.Response.u.VariablesResponse.variables[v].variablesReference =
-          (is_table && var == 0) ? MAKENUM(varType, depth, v, 0, 0) : 0;
+        if (is_table && var == 0) {
+          PackedInteger pi;
+          memset(&pi, 0, sizeof pi);
+          pi.g4 = varType;
+          pi.f8 = depth;
+          pi.e8 = v;
+          res->u.Response.u.VariablesResponse.variables[j].variablesReference = vscode_pack(&pi);
+        }
+        else {
+          /* Right now we do not support further drill down */
+          res->u.Response.u.VariablesResponse.variables[j].variablesReference = 0;
+        }
+        j++;
+      }
       // pop value + copy of key, leaving original key
       lua_pop(L, 2);
     }
@@ -568,7 +609,7 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
 }
 /*
  * The VSCode front-end sends a variables request when it wants to
- * display variables. Unfortunately a limitation is that only a numberic
+ * display variables. Unfortunately a limitation is that only a numeric
  * reference field is available named 'variableReference' to identify the
  * variable.
  * We need to know various bits about the variable - such as its stack frame
@@ -579,34 +620,36 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
                                      lua_State *L, FILE *out) {
   lua_Debug entry;
   vscode_make_success_response(req, res, VSCODE_VARIABLES_RESPONSE);
-  int varRef = req->u.Request.u.VariablesRequest.variablesReference;
+  int64_t varRef = req->u.Request.u.VariablesRequest.variablesReference;
+  PackedInteger pi;
+  memset(&pi, 0, sizeof pi);
+  vscode_unpack(varRef, &pi);
   /*
    * The variable reference is encoded such that it contains:
-   * type (2 bits) - the scope type
-   * depth (6 bits) - the stack frame
-   * var (8 bits) - the index of the variable as provided to lua_getlocal()
-   *              - These are negative for varargs values
-   * unused (8 bits)
-   * isvararg (8 bits) - this is a flag to indicate request for varargs
+   * type (4 bits)  - the scope type
+   * depth (8 bits) - the stack frame
+   * var (8 bits)   - the index of the variable as provided to lua_getlocal()
+   *                - These are negative for varargs values
    */
-  int type = EXTRACT_T(varRef);
-  int depth = EXTRACT_A(varRef);
-  int var = (char)(EXTRACT_B(varRef)); /* the cast is to get the signed value */
-  int isvararg = EXTRACT_D(varRef);
-  fprintf(my_logger, "Var Request --> %d isvararg=%d\n", type, isvararg);
+  int type = pi.g4;
+  int depth = pi.f8;
+  int var = pi.e8; 
+  int isvararg = type == VAR_TYPE_VARARGS;
+  //fprintf(my_logger, "Var Request --> %d isvararg=%d\n", type, isvararg);
   if (lua_getstack(L, depth, &entry)) {
-    if (type == VAR_TYPE_GLOBALS) {
+    if (type == VAR_TYPE_GLOBALS || type == VAR_LUA_GLOBALS) {
       if (var == 0) {
+        /* top level */
         lua_pushglobaltable(L);
         int stack_idx = lua_gettop(L);
-        get_table_values(res, L, stack_idx, VAR_TYPE_GLOBALS, depth, 0);
+        get_table_values(res, L, stack_idx, type, depth, 0, type == VAR_TYPE_GLOBALS ? lua_globals: NULL);
         lua_pop(L, 1);
       }
       else {
         /* TODO */
       }
     }
-    else if (type == VAR_TYPE_LOCALS) {  // locals
+    else if (type == VAR_TYPE_LOCALS || type == VAR_TYPE_VARARGS) {  // locals
       if (var == 0) {
         /*
          * A top level request - i.e. from the scope
@@ -619,7 +662,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
                 sizeof res->u.Response.u.VariablesResponse.variables[0].name);
             vscode_string_copy(
                 res->u.Response.u.VariablesResponse.variables[v].value,
-                "truncated",
+                "",
                 sizeof res->u.Response.u.VariablesResponse.variables[0].value);
             break;
           }
@@ -631,7 +674,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
             if (*name != '(' || strcmp(name, "(*vararg)") == 0) {
               if (*name == '(') {
                 char temp[80];
-                snprintf(temp, sizeof temp, "vararg[%d]", n);
+                snprintf(temp, sizeof temp, "[%d]", n);
                 vscode_string_copy(
                     res->u.Response.u.VariablesResponse.variables[v].name, temp,
                     sizeof res->u.Response.u.VariablesResponse.variables[0]
@@ -648,14 +691,21 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
                   res->u.Response.u.VariablesResponse.variables[v].value,
                   sizeof res->u.Response.u.VariablesResponse.variables[0]
                       .value);
-              /* If the variable is a table then we pass pack a reference
-                 that is used by the front end to drill down */
-              res->u.Response.u.VariablesResponse.variables[v]
-                  .variablesReference =
-                  is_table ? MAKENUM(type, depth, isvararg ? ((char)-n) : n, 0,
-                                     isvararg)
-                           : 0; /* cast is to ensure that we
-                                   save a signed char value */
+              if (is_table) {
+                /* If the variable is a table then we pass pack a reference
+                that is used by the front end to drill down */
+                PackedInteger newref;
+                memset(&newref, 0, sizeof newref);
+                newref.g4 = type;
+                newref.f8 = depth;
+                newref.e8 = n;
+                res->u.Response.u.VariablesResponse.variables[v]
+                  .variablesReference = vscode_pack(&newref);
+              }
+              else {
+                res->u.Response.u.VariablesResponse.variables[v]
+                  .variablesReference = 0;
+              }
               v++;
             }
             lua_pop(L, 1); /* pop the value */
@@ -675,12 +725,12 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
                 "\n--> Request to extract local variable %d of type %d at "
                 "depth %d\n",
                 var, type, depth);
-        const char *name = lua_getlocal(L, &entry, var);
+        const char *name = lua_getlocal(L, &entry, type == VAR_TYPE_VARARGS ? -var : var);
         if (name) {
           int stack_idx = lua_gettop(L);
           int l_type = lua_type(L, stack_idx);
           if (l_type == LUA_TTABLE) {
-            get_table_values(res, L, stack_idx, VAR_TYPE_LOCALS, depth, var);
+            get_table_values(res, L, stack_idx, type, depth, var, NULL);
           }
           lua_pop(L, 1);
         }

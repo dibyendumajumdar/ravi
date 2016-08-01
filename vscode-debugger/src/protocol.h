@@ -121,7 +121,7 @@ typedef struct {
 typedef struct {
   char name[NAME_LEN];
   char path[PATH_LEN];
-  long long sourceReference;
+  int64_t sourceReference;
 } Source;
 
 typedef struct {
@@ -134,14 +134,14 @@ typedef struct {
 
 typedef struct {
   char name[NAME_LEN];
-  int variablesReference;
+  int64_t variablesReference;
   int expensive;
 } Scope;
 
 typedef struct {
   char name[NAME_LEN];
   char value[VALUE_LEN];
-  int variablesReference;
+  int64_t variablesReference;
 } Variable;
 
 typedef struct {
@@ -172,7 +172,7 @@ typedef struct {
  */
 typedef struct {
   int type;
-  long long seq;
+  int64_t seq;
 
   union {
     struct {
@@ -252,7 +252,7 @@ typedef struct {
         } CommonIntRequest;
 
         struct {
-          long long integer64;
+          int64_t integer64;
         } CommonInt64Request;
         
         struct {
@@ -286,11 +286,11 @@ typedef struct {
         } ScopesRequest;
 
         struct {
-          int variablesReference;
+          int64_t variablesReference;
         } VariablesRequest;
 
         struct {
-          long long sourceReference;
+          int64_t sourceReference;
         } SourceRequest;
 
         struct {
@@ -304,7 +304,7 @@ typedef struct {
 
     struct {
       int response_type;
-      long long request_seq;
+      int64_t request_seq;
       int success;
       char command[COMMAND_LEN];
       char message[TEXT_LEN];
@@ -349,7 +349,7 @@ typedef struct {
 
         struct {
           char result[TEXT_LEN];
-          int variablesReference;
+          int64_t variablesReference;
         } EvaluateResponse;
 
       } u;
@@ -374,7 +374,7 @@ extern void membuff_free(membuff_t *mb);
 extern void membuff_add_string(membuff_t *mb, const char *str);
 extern void membuff_add_bool(membuff_t *mb, bool value);
 extern void membuff_add_int(membuff_t *mb, int value);
-extern void membuff_add_longlong(membuff_t *mb, long long value);
+extern void membuff_add_longlong(membuff_t *mb, int64_t value);
 
 extern int vscode_parse_message(char *buf, size_t len, ProtocolMessage *msg,
                                 FILE *log);
