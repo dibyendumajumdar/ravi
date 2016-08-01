@@ -90,7 +90,7 @@ enum {
   MAX_BREAKPOINTS = 5,
   MAX_STACK_FRAMES = 50,
   MAX_SCOPES = 4,
-  MAX_VARIABLES = 250,
+  MAX_VARIABLES = 251,
   MAX_THREADS = 1,
   SOURCE_LEN = 8196,
   MAX_TOTAL_BREAKPOINTS = 20
@@ -387,11 +387,8 @@ extern void vscode_make_error_response(ProtocolMessage *req,
                                        const char *errormsg);
 extern void vscode_make_success_response(ProtocolMessage *req,
                                          ProtocolMessage *res, int restype);
-extern void vscode_serialize_response(char *buf, size_t buflen,
-                                      ProtocolMessage *res);
 extern void vscode_serialize_response_new(membuff_t *mb, ProtocolMessage *res);
-extern void vscode_serialize_event(char *buf, size_t buflen,
-                                   ProtocolMessage *res);
+extern void vscode_serialize_event_new(membuff_t *mb, ProtocolMessage *res);
 extern void vscode_make_initialized_event(ProtocolMessage *res);
 extern void vscode_make_stopped_event(ProtocolMessage *res, const char *reason);
 extern void vscode_make_thread_event(ProtocolMessage *res, bool started);

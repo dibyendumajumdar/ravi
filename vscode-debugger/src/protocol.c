@@ -567,178 +567,7 @@ void vscode_make_thread_event(ProtocolMessage *res, bool started) {
 }
 
 /* Convert the response to JSON format. This is really pretty hard-coded
-  and crude but there is not much point in adding more sophistication. It would be
-  nice though if we have a 'buffer' that allowed us to build the message 
-  incrementally and dynamically growed the buffer. We do a very crude construction
-  using snprintf and like. */
-void vscode_serialize_response(char *buf, size_t buflen, ProtocolMessage *res) {
-  /* The JSON message is created in temp buffer first and then copied into
-     supplied buf */
-  char temp[1024 * 8] = {0}; /* We assume message will fit in 8k */
-  char *cp = temp; /* cp tracks current position in the buffer */
-  buf[0] = 0;
-  if (res->type != VSCODE_RESPONSE) return;
-  snprintf(cp, sizeof temp - strlen(temp),
-           "{\"type\":\"response\",\"seq\":%" PRId64 ",\"command\":\"%s\",\"request_"
-           "seq\":%" PRId64 ",\"success\":%s",
-           res->seq, res->u.Response.command, res->u.Response.request_seq,
-           res->u.Response.success ? "true" : "false");
-  cp = temp + strlen(temp);
-  if (res->u.Response.message[0]) {
-    snprintf(cp, sizeof temp - strlen(temp), ",\"message\":\"%s\"",
-             res->u.Response.message);
-    cp = temp + strlen(temp);
-  }
-  if (res->u.Response.response_type == VSCODE_INITIALIZE_RESPONSE &&
-      res->u.Response.success) {
-    snprintf(
-        cp, sizeof temp - strlen(temp),
-        ",\"body\":{\"supportsConfigurationDoneRequest\":%s,"
-        "\"supportsFunctionBreakpoints\":%s,\"supportsConditionalBreakpoints\":"
-        "%s,\"supportsEvaluateForHovers\":%s}",
-        res->u.Response.u.InitializeResponse.body
-                .supportsConfigurationDoneRequest
-            ? "true"
-            : "false",
-        res->u.Response.u.InitializeResponse.body.supportsFunctionBreakpoints
-            ? "true"
-            : "false",
-        res->u.Response.u.InitializeResponse.body.supportsConditionalBreakpoints
-            ? "true"
-            : "false",
-        res->u.Response.u.InitializeResponse.body.supportsEvaluateForHovers
-            ? "true"
-            : "false");
-    cp = temp + strlen(temp);
-  }
-  else if (res->u.Response.response_type == VSCODE_THREAD_RESPONSE &&
-           res->u.Response.success) {
-    snprintf(cp, sizeof temp - strlen(temp),
-             ",\"body\":{\"threads\":[{\"name\":\"%s\",\"id\":%d}]}",
-             res->u.Response.u.ThreadResponse.threads[0].name,
-             res->u.Response.u.ThreadResponse.threads[0].id);
-    cp = temp + strlen(temp);
-  }
-  else if (res->u.Response.response_type == VSCODE_STACK_TRACE_RESPONSE &&
-           res->u.Response.success) {
-    snprintf(cp, sizeof temp - strlen(temp),
-             ",\"body\":{\"totalFrames\":%d,\"stackFrames\":[",
-             res->u.Response.u.StackTraceResponse.totalFrames);
-    cp = temp + strlen(temp);
-    int d = 0;
-    for (; d < res->u.Response.u.StackTraceResponse.totalFrames; d++) {
-      if (d) {
-        snprintf(cp, sizeof temp - strlen(temp), ",");
-        cp = temp + strlen(temp);
-      }
-      if (res->u.Response.u.StackTraceResponse.stackFrames[d]
-              .source.sourceReference == 0) {
-        snprintf(
-            cp, sizeof temp - strlen(temp),
-            "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":"
-            "{\"name\":\"%s\",\"path\":\"%s\",\"sourceReference\":0}}",
-            d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
-            res->u.Response.u.StackTraceResponse.stackFrames[d].line,
-            res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
-            res->u.Response.u.StackTraceResponse.stackFrames[d].source.path);
-        cp = temp + strlen(temp);
-      }
-      else {
-        snprintf(
-            cp, sizeof temp - strlen(temp),
-            "{\"id\":%d,\"name\":\"%s\",\"column\":1,\"line\":%d,\"source\":"
-            "{\"name\":\"%s\",\"sourceReference\":%" PRId64 "}}",
-            d, res->u.Response.u.StackTraceResponse.stackFrames[d].name,
-            res->u.Response.u.StackTraceResponse.stackFrames[d].line,
-            res->u.Response.u.StackTraceResponse.stackFrames[d].source.name,
-            res->u.Response.u.StackTraceResponse.stackFrames[d]
-                .source.sourceReference);
-        cp = temp + strlen(temp);
-      }
-    }
-    snprintf(cp, sizeof temp - strlen(temp), "]}");
-    cp = temp + strlen(temp);
-  }
-  else if (res->u.Response.response_type == VSCODE_SCOPES_RESPONSE &&
-           res->u.Response.success) {
-    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"scopes\":[");
-    cp = temp + strlen(temp);
-    for (int d = 0; d < MAX_SCOPES; d++) {
-      if (!res->u.Response.u.ScopesResponse.scopes[d].name[0]) break;
-      if (d) {
-        snprintf(cp, sizeof temp - strlen(temp), ",");
-        cp = temp + strlen(temp);
-      }
-      snprintf(cp, sizeof temp - strlen(temp),
-               "{\"name\":\"%s\",\"variablesReference\":%" PRId64 ",\"expensive\":%s}",
-               res->u.Response.u.ScopesResponse.scopes[d].name,
-               res->u.Response.u.ScopesResponse.scopes[d].variablesReference,
-               res->u.Response.u.ScopesResponse.scopes[d].expensive ? "true"
-                                                                    : "false");
-      cp = temp + strlen(temp);
-    }
-    snprintf(cp, sizeof temp - strlen(temp), "]}");
-    cp = temp + strlen(temp);
-  }
-  else if (res->u.Response.response_type == VSCODE_VARIABLES_RESPONSE &&
-           res->u.Response.success) {
-    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"variables\":[");
-    cp = temp + strlen(temp);
-    for (int d = 0; d < MAX_VARIABLES; d++) {
-      if (!res->u.Response.u.VariablesResponse.variables[d].name[0]) break;
-      if (d) {
-        snprintf(cp, sizeof temp - strlen(temp), ",");
-        cp = temp + strlen(temp);
-      }
-      snprintf(
-          cp, sizeof temp - strlen(temp),
-          "{\"name\":\"%s\",\"variablesReference\":%" PRId64 ",\"value\":\"%s\"}",
-          res->u.Response.u.VariablesResponse.variables[d].name,
-          res->u.Response.u.VariablesResponse.variables[d].variablesReference,
-          res->u.Response.u.VariablesResponse.variables[d].value);
-      cp = temp + strlen(temp);
-    }
-    snprintf(cp, sizeof temp - strlen(temp), "]}");
-    cp = temp + strlen(temp);
-  }
-  else if (res->u.Response.response_type == VSCODE_SET_BREAKPOINTS_RESPONSE &&
-           res->u.Response.success) {
-    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"breakpoints\":[");
-    cp = temp + strlen(temp);
-    for (int d = 0; d < MAX_BREAKPOINTS; d++) {
-      if (!res->u.Response.u.SetBreakpointsResponse.breakpoints[d]
-               .source.path[0])
-        break;
-      if (d) {
-        snprintf(cp, sizeof temp - strlen(temp), ",");
-        cp = temp + strlen(temp);
-      }
-      snprintf(
-          cp, sizeof temp - strlen(temp),
-          "{\"verified\":%s,\"source\":{\"path\":\"%s\"},\"line\":%d}",
-          res->u.Response.u.SetBreakpointsResponse.breakpoints[d].verified
-              ? "true"
-              : "false",
-          res->u.Response.u.SetBreakpointsResponse.breakpoints[d].source.path,
-          res->u.Response.u.SetBreakpointsResponse.breakpoints[d].line);
-      cp = temp + strlen(temp);
-    }
-    snprintf(cp, sizeof temp - strlen(temp), "]}");
-    cp = temp + strlen(temp);
-  }
-  else if (res->u.Response.response_type == VSCODE_SOURCE_RESPONSE &&
-           res->u.Response.success) {
-    char buf[SOURCE_LEN * 2];
-    vscode_json_stringify(res->u.Response.u.SourceResponse.content, buf,
-                          sizeof buf);
-    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"content\":\"%s\"}",
-             buf);
-    cp = temp + strlen(temp);
-  }
-  snprintf(cp, sizeof temp - strlen(temp), "}");
-  vscode_string_copy(buf, temp, buflen);
-}
-
+  and crude but there is not much point in adding more sophistication. */
 void vscode_serialize_response_new(membuff_t *mb, ProtocolMessage *res) {
   membuff_rewindpos(mb);
   membuff_resize(mb, 1);
@@ -908,49 +737,6 @@ void vscode_serialize_response_new(membuff_t *mb, ProtocolMessage *res) {
 * Create a serialized form of the event in VSCode
 * wire protocol format (see protocol.h)
 */
-void vscode_serialize_event(char *buf, size_t buflen, ProtocolMessage *res) {
-  char temp[1024] = {0};
-  char *cp = temp;
-  buf[0] = 0;
-  if (res->type != VSCODE_EVENT) return;
-  snprintf(cp, sizeof temp - strlen(temp),
-           "{\"type\":\"event\",\"seq\":%" PRId64 ",\"event\":\"%s\"", res->seq,
-           res->u.Event.event);
-  cp = temp + strlen(temp);
-  if (res->u.Event.event_type == VSCODE_OUTPUT_EVENT) {
-    snprintf(cp, sizeof temp - strlen(temp),
-             ",\"body\":{\"category\":\"%s\",\"output\":\"%s\"}",
-             res->u.Event.u.OutputEvent.category,
-             res->u.Event.u.OutputEvent.output);
-    cp = temp + strlen(temp);
-  }
-  else if (res->u.Event.event_type == VSCODE_THREAD_EVENT) {
-    snprintf(cp, sizeof temp - strlen(temp),
-             ",\"body\":{\"reason\":\"%s\",\"threadId\":%d}",
-             res->u.Event.u.ThreadEvent.reason,
-             res->u.Event.u.ThreadEvent.threadId);
-    cp = temp + strlen(temp);
-  }
-  else if (res->u.Event.event_type == VSCODE_STOPPED_EVENT) {
-    snprintf(cp, sizeof temp - strlen(temp),
-             ",\"body\":{\"reason\":\"%s\",\"threadId\":%d}",
-             res->u.Event.u.StoppedEvent.reason,
-             res->u.Event.u.StoppedEvent.threadId);
-    cp = temp + strlen(temp);
-  }
-  else if (res->u.Event.event_type == VSCODE_TERMINATED_EVENT) {
-    snprintf(cp, sizeof temp - strlen(temp), ",\"body\":{\"restart\":%s}",
-             res->u.Event.u.TerminatedEvent.restart ? "true" : "false");
-    cp = temp + strlen(temp);
-  }
-  snprintf(cp, sizeof temp - strlen(temp), "}");
-  vscode_string_copy(buf, temp, buflen);
-}
-
-/*
-* Create a serialized form of the event in VSCode
-* wire protocol format (see protocol.h)
-*/
 void vscode_serialize_event_new(membuff_t *mb, ProtocolMessage *res) {
   membuff_rewindpos(mb);
   membuff_resize(mb, 1);
@@ -990,21 +776,6 @@ void vscode_serialize_event_new(membuff_t *mb, ProtocolMessage *res) {
   membuff_add_string(mb, "}");
 }
 
-void vscode_send_old(ProtocolMessage *msg, FILE *out, FILE *log) {
-  char buf[4096];
-  char json_buf[sizeof buf + 30];
-  if (msg->type == VSCODE_EVENT)
-    vscode_serialize_event(buf, sizeof buf, msg);
-  else if (msg->type == VSCODE_RESPONSE)
-    vscode_serialize_response(buf, sizeof buf, msg);
-  else
-    return;
-  snprintf(json_buf, sizeof json_buf, "Content-Length: %d\r\n\r\n%s",
-           (int)strlen(buf), buf);
-  fprintf(log, "%s\n", json_buf);
-  fprintf(out, "%s", json_buf);
-}
-
 void vscode_send(ProtocolMessage *msg, FILE *out, FILE *log) {
 	membuff_t mb;
 	membuff_init(&mb, 8 * 1024);
@@ -1013,13 +784,14 @@ void vscode_send(ProtocolMessage *msg, FILE *out, FILE *log) {
 		vscode_serialize_event_new(&mb, msg);
 	else if (msg->type == VSCODE_RESPONSE)
 		vscode_serialize_response_new(&mb, msg);
-	else
-		return;
+	else 
+		goto l_done;
 	assert(mb.pos == strlen(mb.buf));
 	snprintf(json_buf, sizeof json_buf, "Content-Length: %d\r\n\r\n",
 		(int)strlen(mb.buf));
 	fprintf(log, "%s%s\n", json_buf, mb.buf);
 	fprintf(out, "%s%s", json_buf, mb.buf);
+l_done:
 	membuff_free(&mb);
 }
 
