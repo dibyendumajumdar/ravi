@@ -92,6 +92,22 @@ enum {
   MAX_TOTAL_BREAKPOINTS = 20
 };
 
+/*
+The max integer that can be transferred to a Javascript number (and hence JSON
+number) is 2^53-1 which is equal to 9007199254740991. This takes up 53 bits.
+The integer 4503599627370495 takes up 52 bits - so that means 6 8-bit values and 1
+4-bit value can be accomodated.
+*/
+typedef struct {
+  unsigned int a8;
+  unsigned int b8;
+  unsigned int c8;
+  unsigned int d8;
+  unsigned int e8;
+  unsigned int f8;
+  unsigned int g4;
+} PackedInteger;
+
 typedef struct {
   int id;
   char format[TEXT_LEN];
@@ -396,5 +412,7 @@ extern void vscode_json_stringify(const char *src, char *dest, size_t len);
 
 /* guaranteed null termination */
 extern void vscode_string_copy(char *buf, const char *src, size_t buflen);
+extern int64_t vscode_pack(PackedInteger *pi);
+extern void vscode_unpack(int64_t i, PackedInteger *pi);
 
 #endif

@@ -1122,3 +1122,34 @@ void vscode_string_copy(char *buf, const char *src, size_t buflen) {
   strncpy(buf, src, buflen);
   buf[buflen - 1] = 0;
 }
+
+int64_t vscode_pack(PackedInteger *pi) {
+  int64_t i = 0;
+  assert(pi->a8 <= 0xFF);
+  assert(pi->b8 <= 0xFF);
+  assert(pi->c8 <= 0xFF);
+  assert(pi->d8 <= 0xFF);
+  assert(pi->e8 <= 0xFF);
+  assert(pi->f8 <= 0xFF);
+  assert(pi->g4 <= 0x0F);
+  i |= (pi->a8 & 0xFF);
+  i |= ((int64_t)(pi->b8 & 0xFF) << 8);
+  i |= ((int64_t)(pi->c8 & 0xFF) << 16);
+  i |= ((int64_t)(pi->d8 & 0xFF) << 24);
+  i |= ((int64_t)(pi->e8 & 0xFF) << 32);
+  i |= ((int64_t)(pi->f8 & 0xFF) << 40);
+  i |= ((int64_t)(pi->g4 & 0x0F) << 48);
+  return i;
+}
+
+void vscode_unpack(int64_t i, PackedInteger *pi) {
+  int64_t mask = 0xFF;
+  pi->a8 = (unsigned int)(i & mask); mask <<= 8;
+  pi->b8 = (unsigned int)((i & mask) >> 8); mask <<= 8;
+  pi->c8 = (unsigned int)((i & mask) >> 16); mask <<= 8;
+  pi->d8 = (unsigned int)((i & mask) >> 24); mask <<= 8;
+  pi->e8 = (unsigned int)((i & mask) >> 32); mask <<= 8;
+  pi->f8 = (unsigned int)((i & mask) >> 40); mask <<= 8;
+  pi->g4 = (unsigned int)(((i & mask) >> 48) & 0x0F);
+}
+

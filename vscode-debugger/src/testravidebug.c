@@ -102,9 +102,57 @@ int test_membuff() {
 	return 0;
 }
 
+int test_intpacking() {
+  int64_t ix = 4503599627370495;
+  int64_t i1 = 9007199254740991;
+  double d = (double) i1;
+  int64_t i2 = (int64_t) d;
+  fprintf(stderr, "%lld, %0.15f, %lld\n", i1, d, i2);
+  if (i1 != i2)
+    return 1;
+  PackedInteger pi;
+  pi.a8 = 0xFF;
+  pi.b8 = 0xFF;
+  pi.c8 = 0xFF;
+  pi.d8 = 0xFF;
+  pi.e8 = 0xFF;
+  pi.f8 = 0xFF;
+  pi.g4 = 0x0F;
+  int64_t i3 = vscode_pack(&pi);
+  d = (double) i3;
+  i2 = (int64_t) d;
+  fprintf(stderr, "%lld, %0.15f, %lld\n", i3, d, i2);
+  if (i3 != ix)
+    return 1;
+  PackedInteger p2 = { 0 };
+  vscode_unpack(i3, &p2);
+  if (memcmp(&pi, &p2, sizeof(PackedInteger)) != 0)
+    return 1;
+  fprintf(stderr, "%x %x %x %x %x %x %x\n", p2.a8, p2.b8, p2.c8, p2.d8, p2.e8, p2.f8, p2.g4);
+  pi.a8 = 127;
+  pi.b8 = 212;
+  pi.c8 = 13;
+  pi.d8 = 55;
+  pi.e8 = 220;
+  pi.f8 = 0;
+  pi.g4 = 15;
+  i3 = vscode_pack(&pi);
+  d = (double)i3;
+  i2 = (int64_t)d;
+  fprintf(stderr, "%lld, %0.15f, %lld\n", i3, d, i2);
+  if (i3 != i2)
+    return 1;
+  vscode_unpack(i3, &p2);
+  fprintf(stderr, "%u %u %u %u %u %u %u\n", p2.a8, p2.b8, p2.c8, p2.d8, p2.e8, p2.f8, p2.g4);
+  if (memcmp(&pi, &p2, sizeof(PackedInteger)) != 0)
+    return 1;
+  return 0;
+}
+
 int main(void) {
   setbuf(stdout, NULL);
   int rc = 0;
+  rc += test_intpacking();
   rc += test_initreq();
   rc += test_json_stringify();
   rc += test_membuff();
