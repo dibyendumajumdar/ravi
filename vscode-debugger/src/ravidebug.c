@@ -565,7 +565,7 @@ static int search_for_name(const char *name, const char **filter) {
  * Get a table's values into the response
  */
 static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
-                             int varType, int depth, int var, const char **filter) {
+                             int varType, int depth, int add_var_reference, const char **filter) {
   // Push another reference to the table on top of the stack (so we know
   // where it is, and this function can work for negative, positive and
   // pseudo indices  
@@ -600,7 +600,7 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
         int is_table = get_value(
           L, -2, res->u.Response.u.VariablesResponse.variables[j].value,
           sizeof res->u.Response.u.VariablesResponse.variables[0].value);
-        if (is_table && var == 0) {
+        if (is_table && add_var_reference) {
           PackedInteger pi;
           memset(&pi, 0, sizeof pi);
           pi.g4 = varType;
@@ -657,7 +657,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
         /* top level */
         lua_pushglobaltable(L);
         int stack_idx = lua_gettop(L);
-        get_table_values(res, L, stack_idx, type, depth, 0, type == VAR_TYPE_GLOBALS ? lua_globals: NULL);
+        get_table_values(res, L, stack_idx, type, depth, true, type == VAR_TYPE_GLOBALS ? lua_globals: NULL);
         lua_pop(L, 1);
       }
       else {
@@ -677,7 +677,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
             /* We know this should be a table but we check for safety */
             assert(l_type == LUA_TTABLE);
             if (l_type == LUA_TTABLE) {
-              get_table_values(res, L, current_top, type, depth, var, NULL);
+              get_table_values(res, L, current_top, type, depth, false, NULL);
             }
             /* TODO we can break the loop here */
           }
@@ -768,7 +768,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
           int stack_idx = lua_gettop(L);
           int l_type = lua_type(L, stack_idx);
           if (l_type == LUA_TTABLE) {
-            get_table_values(res, L, stack_idx, type, depth, var, NULL);
+            get_table_values(res, L, stack_idx, type, depth, false, NULL);
           }
           lua_pop(L, 1);
         }
