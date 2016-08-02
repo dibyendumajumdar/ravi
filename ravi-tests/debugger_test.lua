@@ -70,5 +70,47 @@ s, a = coroutine.resume(f, "xuxu")
 assert(not s and string.find(a, "dead") and coroutine.status(f) == "dead")
 
 
+-- pcall tests
+-- =================== start copy from Lua testsuite ===============
+local function checkerr (msg, f, ...)
+  local st, err = pcall(f, ...)
+  assert(not st and string.find(err, msg))
+end
+
+local function doit (s)
+  local f, msg = load(s)
+  if f == nil then return msg end
+  local cond, msg = pcall(f)
+  return (not cond) and msg
+end
+
+local function checkmessage (prog, msg)
+  local m = doit(prog)
+  --print(m)
+  assert(string.find(m, msg, 1, true))
+end
+
+local function checksyntax (prog, extra, token, line)
+  local msg = doit(prog)
+  if not string.find(token, "^<%a") and not string.find(token, "^char%(")
+    then token = "'"..token.."'" end
+  token = string.gsub(token, "(%p)", "%%%1")
+  local pt = string.format([[^%%[string ".*"%%]:%d: .- near %s$]],
+                           line, token)
+  assert(string.find(msg, pt))
+  assert(string.find(msg, msg, 1, true))
+end
+-- =================== end copy from Lua testsuite ===============
+
+checkmessage('local t: table = {}; local t2: table = {}; t=t2[1]', 'Invalid assignment: table expected')
+checkmessage('local t: table = {}; t=1', 'Invalid assignment: table expected')
+checkmessage('local t: table = {}; t=function() end', 'table expected')
+checkmessage('local t: table = {}; local t2: number[] = {}; t=t2', 'Invalid assignment: table expected')
+checkmessage('local t: table = {}; local t2: table = { data={} }; t=t2.data', 'Invalid assignment: table expected')
+checkmessage('local t: table = {}; local f=function() t = 1 end; f()', 'upvalue of table type, cannot be set to non table value')
+checkmessage('local t: table = {}; local x=function() return 0 end; local f=function() t = x() end; f()', 'upvalue of table type, cannot be set to non table value')
+checkmessage('local t: table = {}; local x=function() t[1] = 1; local f=function() t = 1 end; f(); end; x()', 'upvalue of table type, cannot be set to non table value')
+checkmessage('local i: integer, t: table, j: number', 'uninitialized table in local variable')
+
 
 print('Done')
