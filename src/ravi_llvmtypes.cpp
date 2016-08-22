@@ -21,6 +21,8 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 #include "ravi_llvmcodegen.h"
+#include <limits.h>
+#include "luaconf.h"
 
 namespace ravi {
 
@@ -28,19 +30,35 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   C_voidT = llvm::Type::getVoidTy(context);
 
+#ifndef LUA_32BITS
   static_assert(std::is_floating_point<lua_Number>::value &&
                     sizeof(lua_Number) == sizeof(double),
                 "lua_Number is not a double");
   C_doubleT = llvm::Type::getDoubleTy(context);
   lua_NumberT = C_doubleT;
+#else
+  static_assert(std::is_floating_point<lua_Number>::value &&
+                    sizeof(lua_Number) == sizeof(float),
+                "lua_Number is not a double");
+  C_floatT = llvm::Type::getFloatTy(context);
+  lua_NumberT = C_floatT;
+#endif
   plua_NumberT = llvm::PointerType::get(lua_NumberT, 0);
   pplua_NumberT = llvm::PointerType::get(plua_NumberT, 0);
 
+#ifndef LUA_32BITS
   static_assert(sizeof(lua_Integer) == sizeof(lua_Number) &&
                     sizeof(lua_Integer) == sizeof(int64_t),
-                "Only 64-bit int supported");
+                "Only 64-bit int supported on 64-bit systems");
   static_assert(std::is_integral<lua_Integer>::value,
                 "lua_Integer is not an integer type");
+#else
+  static_assert(sizeof(lua_Integer) == sizeof(lua_Number) &&
+                    sizeof(lua_Integer) == sizeof(int32_t),
+                "Only 32-bit int supported on 32-bit systems");
+  static_assert(std::is_integral<lua_Integer>::value,
+                "lua_Integer is not an integer type");
+#endif
   lua_IntegerT = llvm::Type::getIntNTy(context, sizeof(lua_Integer) * 8);
   plua_IntegerT = llvm::PointerType::get(lua_IntegerT, 0);
   pplua_IntegerT = llvm::PointerType::get(plua_IntegerT, 0);
@@ -68,9 +86,15 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   tmsT = C_intT;
 
-  static_assert(sizeof(L_Umaxalign) == sizeof(double),
-                "L_Umaxalign is not same size as double");
+#ifndef LUA_32BITS
+//  static_assert(sizeof(L_Umaxalign) == sizeof(double),
+//                "L_Umaxalign is not same size as double");
   L_UmaxalignT = C_doubleT;
+#else
+//  static_assert(sizeof(L_Umaxalign) == sizeof(float),
+//                "L_Umaxalign is not same size as float");
+  L_UmaxalignT = C_floatT;
+#endif
 
   static_assert(sizeof(lu_byte) == sizeof(char),
                 "lu_byte is not same size as char");
