@@ -853,7 +853,7 @@ LUA_API int ravi_is_integer_array(lua_State *L, int idx) {
 LUA_API lua_Number* ravi_get_number_array_rawdata(lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
   lua_assert(ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYFLT);
-  double *startp, *endp;
+  lua_Number *startp, *endp;
   raviH_get_number_array_rawdata(L, hvalue(o), &startp, &endp);
   return startp;
 }

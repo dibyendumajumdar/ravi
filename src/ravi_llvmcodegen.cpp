@@ -868,8 +868,8 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
       case OP_DIV:
       case OP_MOD:
       case OP_IDIV:
-      case OP_UNM:
       case OP_POW:
+      case OP_UNM:
       case OP_LEN:
       case OP_VARARG:
       case OP_CONCAT:
@@ -1186,22 +1186,34 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
 
   // stdc fmod declaration
   args.clear();
-  args.push_back(def->types->C_doubleT);
-  args.push_back(def->types->C_doubleT);
+  args.push_back(def->types->lua_NumberT);
+  args.push_back(def->types->lua_NumberT);
   llvm::FunctionType *fmodType =
-      llvm::FunctionType::get(def->types->C_doubleT, args, false);
+      llvm::FunctionType::get(def->types->lua_NumberT, args, false);
+#ifdef LUA_32BITS
+  def->fmodFunc = def->raviF->module()->getOrInsertFunction("fmodf", fmodType);
+#else
   def->fmodFunc = def->raviF->module()->getOrInsertFunction("fmod", fmodType);
+#endif
   llvm::FunctionType *powType =
-      llvm::FunctionType::get(def->types->C_doubleT, args, false);
+      llvm::FunctionType::get(def->types->lua_NumberT, args, false);
+#ifdef LUA_32BITS
+  def->powFunc = def->raviF->module()->getOrInsertFunction("powf", powType);
+#else
   def->powFunc = def->raviF->module()->getOrInsertFunction("pow", powType);
-
+#endif
   // stdc floor declaration
   args.clear();
-  args.push_back(def->types->C_doubleT);
+  args.push_back(def->types->lua_NumberT);
   llvm::FunctionType *floorType =
-      llvm::FunctionType::get(def->types->C_doubleT, args, false);
+      llvm::FunctionType::get(def->types->lua_NumberT, args, false);
+#ifdef LUA_32BITS
+  def->floorFunc =
+    def->raviF->module()->getOrInsertFunction("floorf", floorType);
+#else
   def->floorFunc =
       def->raviF->module()->getOrInsertFunction("floor", floorType);
+#endif
 }
 
 #define RA(i) (base + GETARG_A(i))

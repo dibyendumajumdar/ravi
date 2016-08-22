@@ -1948,7 +1948,7 @@ void ravi_dump_value(lua_State *L, const TValue *stack_ptr) {
   else if (ttisfloat(stack_ptr))
     printf("%.6f\n", fltvalue(stack_ptr));
   else if (ttisinteger(stack_ptr))
-    printf("%lld\n", ivalue(stack_ptr));
+    printf("%lld\n", (long long)ivalue(stack_ptr));
   else if (ttislightuserdata(stack_ptr))
     printf("light user data\n");
   else if (ttisfulluserdata(stack_ptr))
@@ -2006,7 +2006,7 @@ static void ravi_dump_ci(lua_State *L, CallInfo *ci) {
     else if (ttisfloat(stack_ptr))
       printf("%.6f\n", fltvalue(stack_ptr));
     else if (ttisinteger(stack_ptr))
-      printf("%lld\n", ivalue(stack_ptr));
+      printf("%lld\n", (long long)ivalue(stack_ptr));
     else if (ttislightuserdata(stack_ptr))
       printf("light user data\n");
     else if (ttisfulluserdata(stack_ptr))

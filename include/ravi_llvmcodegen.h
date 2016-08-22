@@ -105,6 +105,7 @@ struct LuaLLVMTypes {
   // Must ensure that these types match
   // between JIT and the C compiler
   llvm::Type *C_voidT;
+  llvm::Type *C_floatT;
   llvm::Type *C_doubleT;
   llvm::Type *C_intptr_t;
   llvm::Type *C_size_t;

@@ -201,7 +201,7 @@ function x()
   return a,b
 end
 y,z = x()
-assert(y == 61 and math.abs(z - 19.9) < 1e-10)
+assert(y == 61 and math.abs(z - 19.9) < 1e-5)
 compile(x)
 y,z = x()
 assert(y == 61 and math.abs(z - 19.9) < 1e-10)

@@ -117,7 +117,7 @@ static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
             raviY_typename(e->ravi_type));
     break;
   case VKINT:
-    fprintf(fp, "{p=%p, k=VKINT, n=%lld, type=%s}", e, e->u.ival,
+    fprintf(fp, "{p=%p, k=VKINT, n=%lld, type=%s}", e, (long long)e->u.ival,
             raviY_typename(e->ravi_type));
     break;
   case VNONRELOC:
