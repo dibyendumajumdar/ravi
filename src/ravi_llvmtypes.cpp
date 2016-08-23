@@ -28,17 +28,31 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   C_voidT = llvm::Type::getVoidTy(context);
 
-  static_assert(std::is_floating_point<lua_Number>::value &&
-                    sizeof(lua_Number) == sizeof(double),
-                "lua_Number is not a double");
+  C_floatT = llvm::Type::getFloatTy(context);
   C_doubleT = llvm::Type::getDoubleTy(context);
+
+#ifdef LUA_32BITS
+  // issue #93 add support for 32-bit Lua
+  lua_NumberT = C_floatT;
+  static_assert(std::is_floating_point<lua_Number>::value &&
+    sizeof(lua_Number) == sizeof(float),
+    "lua_Number is not a float");
+  static_assert(sizeof(lua_Integer) == sizeof(lua_Number) &&
+    sizeof(lua_Integer) == sizeof(int32_t),
+    "lua_Integer size (32-bit) does not match lua_Number");
+#else
   lua_NumberT = C_doubleT;
+  static_assert(std::is_floating_point<lua_Number>::value &&
+    sizeof(lua_Number) == sizeof(double),
+    "lua_Number is not a double");
+  static_assert(sizeof(lua_Integer) == sizeof(lua_Number) &&
+    sizeof(lua_Integer) == sizeof(int64_t),
+    "lua_Integer size (64-bit) does not match lua_Number");
+#endif
+
   plua_NumberT = llvm::PointerType::get(lua_NumberT, 0);
   pplua_NumberT = llvm::PointerType::get(plua_NumberT, 0);
 
-  static_assert(sizeof(lua_Integer) == sizeof(lua_Number) &&
-                    sizeof(lua_Integer) == sizeof(int64_t),
-                "Only 64-bit int supported");
   static_assert(std::is_integral<lua_Integer>::value,
                 "lua_Integer is not an integer type");
   lua_IntegerT = llvm::Type::getIntNTy(context, sizeof(lua_Integer) * 8);
@@ -69,7 +83,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tmsT = C_intT;
 
   static_assert(sizeof(L_Umaxalign) == sizeof(double),
-                "L_Umaxalign is not same size as double");
+    "L_Umaxalign is not same size as double");
   L_UmaxalignT = C_doubleT;
 
   static_assert(sizeof(lu_byte) == sizeof(char),
@@ -556,7 +570,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_ptrdiff_t);                     /* extra */
   elements.push_back(llvm::Type::getInt16Ty(context)); /* nresults */
   elements.push_back(lu_byteT);                        /* callstatus */
-  elements.push_back(lu_byteT); /* jitstatus RAVI extension*/
+  elements.push_back(lu_byteT);  /* jitstatus RAVI extension*/
+  elements.push_back(C_shortT);  /* stacklevel RAVI extension */
   CallInfoT->setBody(elements);
 
   // typedef struct ravi_State ravi_State;
@@ -1029,7 +1044,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 42)); // callstatus
   nodes.push_back(
       std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 43)); // jitstatus
-  tbaa_CallInfoT = mdbuilder.createTBAAStructTypeNode("CallInfo", nodes);
+  nodes.push_back(
+    std::pair<llvm::MDNode *, uint64_t>(tbaa_shortT, 44)); // stacklevel
+    tbaa_CallInfoT = mdbuilder.createTBAAStructTypeNode("CallInfo", nodes);
 
   //!7 = metadata !{metadata !"lua_State",
   //                metadata !3, i64 0, metadata !4, i64 4, metadata !4, i64 5,

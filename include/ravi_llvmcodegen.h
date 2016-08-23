@@ -26,8 +26,8 @@
 
 #ifdef USE_LLVM
 
-#include "ravijit.h"
 #include "ravi_llvm.h"
+#include "ravijit.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,9 +62,9 @@ extern "C" {
 #endif
 
 #include <array>
+#include <atomic>
 #include <iterator>
 #include <type_traits>
-#include <atomic>
 
 namespace ravi {
 
@@ -95,9 +95,9 @@ enum LuaTypeCode {
   LUA__TNUMINT = LUA_TNUMINT
 };
 
-// All Lua types are gathered here
+// All LLVM definitions for
+// Lua types are gathered here
 struct LuaLLVMTypes {
-
   LuaLLVMTypes(llvm::LLVMContext &context);
   void dump();
 
@@ -105,6 +105,7 @@ struct LuaLLVMTypes {
   // Must ensure that these types match
   // between JIT and the C compiler
   llvm::Type *C_voidT;
+  llvm::Type *C_floatT;
   llvm::Type *C_doubleT;
   llvm::Type *C_intptr_t;
   llvm::Type *C_size_t;
@@ -120,10 +121,14 @@ struct LuaLLVMTypes {
   llvm::PointerType *plua_NumberT;
   llvm::PointerType *pplua_NumberT;
 
+  // WARNING: We currently assume that lua_Integer is
+  // 64-bit
   llvm::Type *lua_IntegerT;
   llvm::PointerType *plua_IntegerT;
   llvm::PointerType *pplua_IntegerT;
 
+  // WARNING: We currently assume that lua_Unsigned is
+  // 64-bit
   llvm::Type *lua_UnsignedT;
   llvm::Type *lua_KContextT;
 
@@ -335,71 +340,147 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_Table_metatable;
 };
 
-class RAVI_API RaviJITStateImpl;
+// The hierarchy of objects
+// used to represent LLVM artifacts is as
+// follows
 
-// Represents a JITed or JITable function
-// Each function gets its own module and execution engine - this
-// may change in future
-// The advantage is that we can drop the function when the corresponding
-// Lua object is garbage collected - with MCJIT this is not possible
-// to do at function level
-class RAVI_API RaviJITFunctionImpl : public RaviJITFunction {
+// RaviJITState          - Root, held in Lua state; wraps llvm::Context
+// +- RaviJITModule      - wraps llvm::Module
+//    +- RaviJITFunction - wraps llvm::Function
 
-  // The function is tracked by RaviJITState so we need to
-  // tell RaviJITState when this function dies
-  RaviJITStateImpl *owner_;
+// The RaviJITFunction is held within the
+// Lua Proto structure - and garbage collected along
+// with the Lua function. Each RaviJITFunction
+// holds a reference to the owning RaviJITModule
+// via a shared_ptr. This ensures that RaviJITModule gets
+// released when no longer referenced.
 
-  // Unique name for the function
-  std::string name_;
+class RAVI_API RaviJITState;
+class RAVI_API RaviJITModule;
+class RAVI_API RaviJITFunction;
+
+class RAVI_API RaviJITStateFactory {
+ public:
+  static std::unique_ptr<RaviJITState> newJITState();
+};
+
+// A wrapper for LLVM Module
+// Maintains a dedicated ExecutionEngine for the module
+class RAVI_API RaviJITModule {
+  // The Context that owns this module
+  RaviJITState *owner_;
 
   // The execution engine responsible for compiling the
   // module
   llvm::ExecutionEngine *engine_;
 
-  // Module within which the function will be defined
+  // The LLVM Module within which the functions will be defined
   llvm::Module *module_;
 
-  // The llvm Function definition
-  llvm::Function *function_;
+  // List of JIT functions in this module
+  // We need this so that we can update the functions
+  // post compilation
+  std::vector<RaviJITFunction *> functions_;
 
-  // Pointer to compiled function - this is only set when
-  // the function
-  void *ptr_;
+  // Keep track of external symbols added
+  std::map<std::string, llvm::Function *> external_symbols_;
 
-public:
-  RaviJITFunctionImpl(RaviJITStateImpl *owner, llvm::FunctionType *type,
-                      llvm::GlobalValue::LinkageTypes linkage,
-                      const std::string &name);
-  virtual ~RaviJITFunctionImpl();
+ public:
+  RaviJITModule(RaviJITState *owner);
+  ~RaviJITModule();
 
-  // Compile the function if not already compiled and
-  // return pointer to function
-  virtual void *compile(bool doDump = false);
+  llvm::Module *module() const { return module_; }
+  llvm::ExecutionEngine *engine() const { return engine_; }
+  RaviJITState *owner() const { return owner_; }
+  void dump();
+  void dumpAssembly();
+
+  // Add the function to this module, the function will be
+  // saved in the functions_ array. The location of the
+  // function is returned which must be returned by
+  // f->getId()
+  int addFunction(RaviJITFunction *f);
+  // Remove a function from the array
+  // This calls f->getId() to get the
+  // functions location in the array
+  void removeFunction(RaviJITFunction *f);
+
+  // Runs LLVM code generation and optimization passes
+  // The reason for separting this from the
+  // finalization is that this method is also
+  // used to dump the generated assembly code
+  void runpasses(bool dumpAsm = false);
+  // finalize the module, and assign each function
+  // its function pointer
+  void finalize(bool doDump = false);
 
   // Add declaration for an extern function that is not
   // loaded dynamically - i.e., is part of the the executable
   // and therefore not visible at runtime by name
-  virtual llvm::Function *addExternFunction(llvm::FunctionType *type,
-                                            void *address,
-                                            const std::string &name);
-
-  virtual const std::string &name() const { return name_; }
-  virtual llvm::Function *function() const { return function_; }
-  virtual llvm::Module *module() const { return module_; }
-  virtual llvm::ExecutionEngine *engine() const { return engine_; }
-  virtual RaviJITState *owner() const;
-  virtual void dump();
-  virtual void dumpAssembly();
-  void runpasses(bool dumpAsm = false);
+  llvm::Function *addExternFunction(llvm::FunctionType *type, void *address,
+                                    const std::string &name);
 };
 
-// Ravi's JIT State
+// Represents a JITed or JITable function
+// This object is stored in the Lua Proto structure
+// and gets destroyed when the Lua function is
+// garbage collected
+class RAVI_API RaviJITFunction {
+  // The Module in which this function lives
+  // We hold a shared_ptr to the module so that
+  // the module will be destroyed when the
+  // last associated RaviJITFunction is collected
+  std::shared_ptr<RaviJITModule> module_;
+
+  // Unique name for the function
+  std::string name_;
+
+  // ID allocated by the module to this function
+  // This must be returned via getId()
+  int id_;
+
+  // The llvm Function definition
+  llvm::Function *function_;
+
+  // Pointer to compiled function
+  void *ptr_;
+
+  // A location provided by the caller where the
+  // compiled function will be saved
+  lua_CFunction *func_ptrptr_;
+
+ public:
+  RaviJITFunction(lua_CFunction *p, std::shared_ptr<RaviJITModule> module,
+                  llvm::FunctionType *type,
+                  llvm::GlobalValue::LinkageTypes linkage,
+                  const std::string &name);
+  ~RaviJITFunction();
+
+  const std::string &name() const { return name_; }
+  llvm::Function *function() const { return function_; }
+  llvm::Module *module() const { return module_->module(); }
+  RaviJITModule *raviModule() const { return module_.get(); }
+  llvm::ExecutionEngine *engine() const { return module_->engine(); }
+  RaviJITState *owner() const { return module_->owner(); }
+  // This method retrieves the JITed function from the
+  // execution engine and sets ptr_ member
+  // It must be called after the module has run the
+  // code generation and optimization passes
+  void setFunctionPtr();
+  void dump() { module_->dump(); }
+  void dumpAssembly() { module_->dumpAssembly(); }
+  int getId() const { return id_; }
+  void setId(int id) { id_ = id; }
+  llvm::Function *addExternFunction(llvm::FunctionType *type, void *address,
+                                    const std::string &name) {
+    return module_->addExternFunction(type, address, name);
+  }
+};
+
+// Ravi's LLVM JIT State
 // All of the JIT information is held here
-class RAVI_API RaviJITStateImpl : public RaviJITState {
-
-  // map of names to functions
-  std::map<std::string, RaviJITFunction *> functions_;
-
+class RAVI_API RaviJITState {
+  // The LLVM Context
   llvm::LLVMContext *context_;
 
   // The triple represents the host target
@@ -433,24 +514,14 @@ class RAVI_API RaviJITStateImpl : public RaviJITState {
   // instruction; this is expensive!
   bool tracehook_enabled_;
 
-public:
-  RaviJITStateImpl();
-  virtual ~RaviJITStateImpl();
-
-  // Create a function of specified type and linkage
-  virtual RaviJITFunction *
-  createFunction(llvm::FunctionType *type,
-                 llvm::GlobalValue::LinkageTypes linkage,
-                 const std::string &name);
-
-  // Stop tracking the named function - note that
-  // the function is assumed to be destroyed by the user
-  void deleteFunction(const std::string &name);
+ public:
+  RaviJITState();
+  ~RaviJITState();
 
   void addGlobalSymbol(const std::string &name, void *address);
 
-  virtual void dump();
-  virtual llvm::LLVMContext &context() { return *context_; }
+  void dump();
+  llvm::LLVMContext &context() { return *context_; }
   LuaLLVMTypes *types() const { return types_; }
   const std::string &triple() const { return triple_; }
   bool is_auto() const { return auto_; }
@@ -459,13 +530,11 @@ public:
   void set_enabled(bool value) { enabled_ = value; }
   int get_optlevel() const { return opt_level_; }
   void set_optlevel(int value) {
-    if (value >= 0 && value <= 3)
-      opt_level_ = value;
+    if (value >= 0 && value <= 3) opt_level_ = value;
   }
   int get_sizelevel() const { return size_level_; }
   void set_sizelevel(int value) {
-    if (value >= 0 && value <= 2)
-      size_level_ = value;
+    if (value >= 0 && value <= 2) size_level_ = value;
   }
   int get_mincodesize() const { return min_code_size_; }
   void set_mincodesize(int value) {
@@ -518,8 +587,8 @@ struct RaviBranchDef {
 // This structure holds stuff we need when compiling a single
 // function
 struct RaviFunctionDef {
-  RaviJITStateImpl *jitState;
-  RaviJITFunctionImpl *raviF;
+  RaviJITState *jitState;
+  RaviJITFunction *raviF;
   llvm::Function *f;
   llvm::BasicBlock *entry;
   llvm::Value *L;
@@ -589,7 +658,7 @@ struct RaviFunctionDef {
   std::vector<RaviBranchDef> jmp_targets;
 
   // Load pointer to proto
-  llvm::Value *proto; // gep
+  llvm::Value *proto;  // gep
   llvm::Instruction *proto_ptr;
 
   // Obtain pointer to Proto->k
@@ -598,11 +667,11 @@ struct RaviFunctionDef {
   llvm::Instruction *k_ptr;
 
   // Load L->ci
-  llvm::Value *L_ci; // This is the GEP for L->ci
+  llvm::Value *L_ci;  // This is the GEP for L->ci
   llvm::Instruction *ci_val;
 
   // Pointer to ci->u.l.base
-  llvm::Value *Ci_base; // This is the GEP for ci->u.l.base
+  llvm::Value *Ci_base;  // This is the GEP for ci->u.l.base
   llvm::Instruction *base_ptr;
 
   // Pointer to LClosure
@@ -612,14 +681,15 @@ struct RaviFunctionDef {
 // This class is responsible for compiling Lua byte code
 // to LLVM IR
 class RaviCodeGenerator {
-public:
-  RaviCodeGenerator(RaviJITStateImpl *jitState);
+ public:
+  RaviCodeGenerator(RaviJITState *jitState);
 
   // Compile given function if possible
   // The p->ravi_jit structure will be updated
   // Note that if a function fails to compile then
   // a flag is set so that it doesn't get compiled again
-  void compile(lua_State *L, Proto *p, ravi_compile_options_t *options);
+  bool compile(lua_State *L, Proto *p, std::shared_ptr<RaviJITModule> module,
+               ravi_compile_options_t *options);
 
   // We can only compile a subset of op codes
   // and not all features are supported
@@ -633,8 +703,9 @@ public:
   // Argument will be named L
   // Initial BasicBlock will be created
   // int func(lua_State *L) {
-  std::unique_ptr<RaviJITFunctionImpl>
-  create_function(llvm::IRBuilder<> &builder, RaviFunctionDef *def);
+  std::unique_ptr<RaviJITFunction> create_function(
+      Proto *p, std::shared_ptr<RaviJITModule> module,
+      llvm::IRBuilder<> &builder, RaviFunctionDef *def);
 
   // Save proto->code[pc] into savedpc
   void emit_update_savedpc(RaviFunctionDef *def, int pc);
@@ -692,10 +763,9 @@ public:
   // The Lua typecode to check must be in lua_typecode
   // The return value is a boolean type as a result of
   // integer comparison result which is i1 in LLVM
-  llvm::Value *
-  emit_is_not_value_of_type(RaviFunctionDef *def, llvm::Value *value_type,
-                            LuaTypeCode lua_typecode,
-                            const char *varname = "value.not.typeof");
+  llvm::Value *emit_is_not_value_of_type(
+      RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
+      const char *varname = "value.not.typeof");
 
   // emit code for (LClosure *)ci->func->value_.gc
   llvm::Instruction *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def);
@@ -783,7 +853,8 @@ public:
 
   llvm::Value *emit_table_get_array(RaviFunctionDef *def, llvm::Value *table);
 
-  llvm::Value *emit_table_no_metamethod(RaviFunctionDef *def, llvm::Value *table, TMS event);
+  llvm::Value *emit_table_no_metamethod(RaviFunctionDef *def,
+                                        llvm::Value *table, TMS event);
 
   llvm::Instruction *emit_load_reg_s(RaviFunctionDef *def, llvm::Value *rb);
 
@@ -997,19 +1068,24 @@ public:
 
   void emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *phi, llvm::Value *t, llvm::Value *ra, llvm::Value *rb, llvm::Value *rc);
+  void emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *phi,
+                            llvm::Value *t, llvm::Value *ra, llvm::Value *rb,
+                            llvm::Value *rc);
 
   void emit_SELF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SELF_S(RaviFunctionDef *def, int A, int B, int C, int pc, TString *key);
+  void emit_SELF_S(RaviFunctionDef *def, int A, int B, int C, int pc,
+                   TString *key);
 
-  void emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, TString *key);
+  void emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C,
+                              TString *key);
 
   void emit_GETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_SETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_SETUPVAL_Specific(RaviFunctionDef *def, int A, int B, int pc, OpCode op, llvm::Function *f);
+  void emit_SETUPVAL_Specific(RaviFunctionDef *def, int A, int B, int pc,
+                              OpCode op, llvm::Function *f);
 
   void emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C, int pc);
 
@@ -1088,10 +1164,10 @@ public:
   void emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B,
                            lua_Integer y);
 
-private:
-  RaviJITStateImpl *jitState_;
-  char temp_[31]; // for name
-  int id_;        // for name
+ private:
+  RaviJITState *jitState_;
+  char temp_[31];  // for name
+  int id_;         // for name
 };
 }
 
@@ -1100,7 +1176,7 @@ struct ravi_State {
   ravi::RaviCodeGenerator *code_generator;
 };
 
-#define RaviJIT(L) ((ravi::RaviJITStateImpl *)G(L)->ravi_state->jit)
+#define RaviJIT(L) ((ravi::RaviJITState *)G(L)->ravi_state->jit)
 
 #define RAVI_CODEGEN_FORPREP2 0
 

@@ -1,5 +1,5 @@
 /*
-** $Id: lstate.h,v 2.128 2015/11/13 12:16:51 roberto Exp $
+** $Id: lstate.h,v 2.130 2015/12/16 16:39:38 roberto Exp $
 ** Global State
 ** See Copyright Notice in lua.h
 */
@@ -32,6 +32,15 @@
 
 struct lua_longjmp;  /* defined in ldo.c */
 
+
+/*
+** Atomic type (relative to signals) to better ensure that 'lua_sethook' 
+** is thread safe
+*/
+#if !defined(l_signalT)
+#include <signal.h>
+#define l_signalT	sig_atomic_t
+#endif
 
 
 /* extra stack space to handle TM calls and some other extras */
@@ -81,6 +90,7 @@ typedef struct CallInfo {
   short nresults;  /* expected number of results from this function */
   lu_byte callstatus;
   lu_byte jitstatus; /* Only valid if Lua function - if 1 means JITed - RAVI extension */
+  short stacklevel; /* Ravi extension - stack level, bootom level is 0 */
 } CallInfo;
 
 
@@ -146,6 +156,10 @@ typedef struct global_State {
   TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */
   /* RAVI */
   ravi_State *ravi_state;
+  ravi_Writeline ravi_writeline;
+  ravi_Writestring ravi_writestring;
+  ravi_Writestringerror ravi_writestringerror;
+  void * ravi_debugger_data;
 } global_State;
 
 
@@ -166,7 +180,7 @@ struct lua_State {
   struct lua_State *twups;  /* list of threads with open upvalues */
   struct lua_longjmp *errorJmp;  /* current error recover point */
   CallInfo base_ci;  /* CallInfo for first level (C calling Lua) */
-  lua_Hook hook;
+  volatile lua_Hook hook;
   ptrdiff_t errfunc;  /* current error handling function (stack index) */
   int stacksize;
   int basehookcount;
@@ -224,6 +238,9 @@ LUAI_FUNC void luaE_freethread (lua_State *L, lua_State *L1);
 LUAI_FUNC CallInfo *luaE_extendCI (lua_State *L);
 LUAI_FUNC void luaE_freeCI (lua_State *L);
 LUAI_FUNC void luaE_shrinkCI (lua_State *L);
+
+/* Ravi addition - this is the default implementation behind writing to stderr */
+LUAI_FUNC void raviE_default_writestringerror(const char *fmt, const char *p);
 
 
 #endif

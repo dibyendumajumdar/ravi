@@ -28,13 +28,13 @@ extern "C" {
 
 #define LUA_CORE
 
-#include "lua.h"
-#include "lobject.h"
-#include "lstate.h"
-#include "lauxlib.h"
 #include "lapi.h"
-#include "lopcodes.h"
+#include "lauxlib.h"
 #include "lfunc.h"
+#include "lobject.h"
+#include "lopcodes.h"
+#include "lstate.h"
+#include "lua.h"
 
 #include <string.h>
 
@@ -46,7 +46,7 @@ static int ravi_is_compiled(lua_State *L) {
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
   LClosure *l = reinterpret_cast<LClosure *>(p);
-  lua_pushboolean(L, l->p->ravi_jit.jit_status == 2);
+  lua_pushboolean(L, l->p->ravi_jit.jit_status == RAVI_JIT_COMPILED);
   return 1;
 }
 
@@ -67,16 +67,29 @@ static bool l_table_get_integer(lua_State *L, int tab, const char *key,
   return rc;
 }
 
-// Try to JIT compile the given function
-// Optional boolean (second) parameter specifies whether
-// to dump the code generation
-static int ravi_compile(lua_State *L) {
-  int n = lua_gettop(L);
-  luaL_argcheck(L, n >= 1, 1, "1 or 2 arguments expected");
-  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
-                "argument must be a Lua function");
-  void *p = (void *)lua_topointer(L, 1);
-  LClosure *l = reinterpret_cast<LClosure *>(p);
+static int ravi_compile_n(lua_State *L) {
+  enum { MAX_COMPILES = 100 };
+  Proto *functions[MAX_COMPILES];
+  int n = 0;
+  if (lua_istable(L, 1)) {
+    lua_pushnil(L);  // push first key
+    while (lua_next(L, 1)) {
+      if (n < MAX_COMPILES && lua_isfunction(L, -1) &&
+          !lua_iscfunction(L, -1)) {
+        void *p = (void *)lua_topointer(L, -1);
+        LClosure *l = reinterpret_cast<LClosure *>(p);
+        if (!l->p->ravi_jit.jit_function) functions[n++] = l->p;
+      }
+      lua_pop(L, 1);  // pop value, but keep key
+    }
+  }
+  else {
+    luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
+                  "argument must be a Lua function");
+    void *p = (void *)lua_topointer(L, 1);
+    LClosure *l = reinterpret_cast<LClosure *>(p);
+    functions[n++] = l->p;
+  }
   ravi_compile_options_t options = {0};
   options.manual_request = 1;
   if (lua_istable(L, 2)) {
@@ -89,7 +102,8 @@ static int ravi_compile(lua_State *L) {
     options.dump_level = (int)do_dump;
     options.verification_level = (int)do_verify;
   }
-  int result = raviV_compile(L, l->p, &options);
+  int result = 0;
+  if (n > 0) { result = raviV_compile_n(L, functions, n, &options); }
   lua_pushboolean(L, result);
   return 1;
 }
@@ -136,14 +150,11 @@ static int ravi_auto(lua_State *L) {
   lua_pushboolean(L, raviV_getauto(L));
   lua_pushinteger(L, raviV_getmincodesize(L));
   lua_pushinteger(L, raviV_getminexeccount(L));
-  if (n >= 1)
-    raviV_setauto(L, lua_toboolean(L, 1));
+  if (n >= 1) raviV_setauto(L, lua_toboolean(L, 1));
   int min_code_size = (n >= 2) ? (int)(lua_tointeger(L, 2)) : -1;
   int min_exec_count = (n == 3) ? (int)(lua_tointeger(L, 3)) : -1;
-  if (min_code_size >= 1)
-    raviV_setmincodesize(L, min_code_size);
-  if (min_exec_count >= 1)
-    raviV_setminexeccount(L, min_exec_count);
+  if (min_code_size >= 1) raviV_setmincodesize(L, min_code_size);
+  if (min_exec_count >= 1) raviV_setminexeccount(L, min_exec_count);
   return 3;
 }
 
@@ -208,13 +219,13 @@ static int ravi_traceenable(lua_State *L) {
 }
 
 static int ravi_listcode(lua_State *L) {
-  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
-    1, "Lua function expected");
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
+                "Lua function expected");
   return ravi_list_code(L);
 }
 
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
-                                   {"compile", ravi_compile},
+                                   {"compile", ravi_compile_n},
                                    {"dumplua", ravi_dump_luacode},
                                    {"dumpllvm", ravi_dump_ir},
                                    {"dumpir", ravi_dump_ir},

@@ -96,6 +96,8 @@ then
   exit 1
 fi
 
+echo "======================================="
+
 $LUA gaussian2.lua
 if [ $? != 0 ] 
 then

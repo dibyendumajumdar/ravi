@@ -12,6 +12,7 @@
 
 #include <stddef.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "lua.h"
 
@@ -109,6 +110,7 @@ void luaE_setdebt (global_State *g, l_mem debt) {
 CallInfo *luaE_extendCI (lua_State *L) {
   CallInfo *ci = luaM_new(L, CallInfo);
   ci->jitstatus = 0;
+  ci->stacklevel = L->ci->stacklevel+1;
   lua_assert(L->ci->next == NULL);
   L->ci->next = ci;
   ci->previous = L->ci;
@@ -239,6 +241,7 @@ static void preinit_thread (lua_State *L, global_State *g) {
   L->nny = 1;
   L->status = LUA_OK;
   L->errfunc = 0;
+  L->base_ci.stacklevel = 0; /* RAVI base stack level */
 }
 
 
@@ -295,6 +298,21 @@ void luaE_freethread (lua_State *L, lua_State *L1) {
   luaM_free(L, l);
 }
 
+/* TODO following should probably not live here*/
+
+static void raviE_default_writestring(const char *s, size_t l) {
+  fwrite(s, sizeof(char), l, stdout);
+}
+
+static void raviE_default_writeline(void) {
+  fwrite("\n", sizeof(char), 1, stdout);
+  fflush(stdout);
+}
+
+void raviE_default_writestringerror(const char *fmt, const char *p) {
+  fprintf(stderr, fmt, p);
+  fflush(stderr);
+}
 
 LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   int i;
@@ -304,6 +322,10 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   if (l == NULL) return NULL;
   L = &l->l.l;
   g = &l->g;
+  g->ravi_writeline = raviE_default_writeline;
+  g->ravi_writestring = raviE_default_writestring;
+  g->ravi_writestringerror = raviE_default_writestringerror;
+  g->ravi_debugger_data = NULL;
   L->next = NULL;
   L->tt = LUA_TTHREAD;
   g->currentwhite = bitmask(WHITE0BIT);

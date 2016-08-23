@@ -29,6 +29,10 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   if (!ravi->types)
     return false;
 
+#ifdef LUA_32BITS
+#error 32-bit number is not supported for gcc jit 
+#endif
+
   ravi_gcc_types_t *t = ravi->types;
 
   t->C_boolT = gcc_jit_context_get_type(ravi->context, GCC_JIT_TYPE_BOOL);

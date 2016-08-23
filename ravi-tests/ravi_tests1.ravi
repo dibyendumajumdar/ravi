@@ -228,7 +228,7 @@ end,
 
 
 -- no foldings
-check(function () return -0.0 end, 'LOADK', 'UNM', 'RETURN')
+check(function () return -0.0 end, 'LOADK', 'UNM', 'RETURN')--
 --check(function () return 3/0 end, 'DIV', 'RETURN')
 check(function () return 0%0 end, 'MOD', 'RETURN')
 check(function () return -4//0 end, 'IDIV', 'RETURN')
@@ -332,7 +332,7 @@ print("test 2 OK")
 -- test 3
 x = function ()
   local j:number
-  for i=1,1000000000 do
+  for i=1,10000000 do
     j = j+1
   end
   return j
@@ -341,7 +341,7 @@ check(x, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
   'LOADK', 'FORPREP_I1', 'ADDFI', 'FORLOOP_I1',
   'RETURN', 'RETURN')
 compile(x)
-assert(x() == 1000000000.0)
+assert(x() == 10000000.0)
 print("test 3 OK")
 
 -- test 4
@@ -513,12 +513,12 @@ function x(f)
   local i:number, j:number = f()
   return i+j
 end
-assert(x(y) == 11.3)
+assert(math.abs(x(y) - 11.3) < 0.0001)
 check(x, 'MOVE', 'CALL', 'TOFLT',
   'TOFLT', 'ADDFF', 'RETURN', 'RETURN')
 assert(compile(y))
 assert(compile(x))
-assert(x(y) == 11.3)
+assert(math.abs(x(y) - 11.3) < 0.0001)
 print("test 13 OK")
 
 -- test 16
@@ -848,9 +848,9 @@ function testsub(a,b)
 end
 assert(compile(testsub))
 assert(testsub(1,1) == 0)
-assert(math.abs(testsub(1.5,1.6)-(-0.1)) < 1e-12)
-assert(math.abs(testsub("1.5",1.6)-(-0.1)) < 1e-12)
-assert(math.abs(testsub("1.5","1.6")-(-0.1)) < 1e-12)
+assert(math.abs(testsub(1.5,1.6)-(-0.1)) < 1e-6)
+assert(math.abs(testsub("1.5",1.6)-(-0.1)) < 1e-6)
+assert(math.abs(testsub("1.5","1.6")-(-0.1)) < 1e-6)
 print("test 33 OK")
 
 -- test 25
@@ -976,8 +976,10 @@ x=function(a,b)
   return a%b
 end
 assert(compile(x))
+-- When using 32-bit numbers we don't jit mod
+-- if ravi.jit() then ravi.compile(x) end 
 assert(x(5,2) == 1)
-assert(math.abs(x(5.1,2.1)-0.9) < 1e-12)
+assert(math.abs(x(5.1,2.1)-0.9) < 1e-6)
 print("test 41 OK")
 
 -- test 33
@@ -985,8 +987,10 @@ x=function(a,b)
   return a//b
 end
 assert(compile(x))
+-- When using 32-bit numbers we don't jit idiv
+-- if ravi.jit() then ravi.compile(x) end 
 assert(x(5,2) == 2)
-assert(math.abs(x(5.5,2.1)-2.0) < 1e-12)
+assert(math.abs(x(5.5,2.1)-2.0) < 1e-6)
 print("test 42 OK")
 
 -- test 6

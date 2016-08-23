@@ -31,6 +31,15 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
   return 0;
 }
 
+int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
+  ravi_compile_options_t *options) {
+  (void)L;
+  (void)p;
+  (void)n;
+  (void)options;
+  return 0;
+}
+
 void raviV_freeproto(struct lua_State *L, struct Proto *p) {
   (void)L;
   (void)p;

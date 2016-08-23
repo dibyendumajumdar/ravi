@@ -1,0 +1,317 @@
+Content-Length: 145
+
+
+
+{"type":"request","seq":1,"command":"initialize","arguments":{"adapterID":"lua","pathFormat":"path","linesStartAt1":true,"columnsStartAt1":true}}
+Content-Length: 46
+
+
+
+{"type":"event","seq":1,"event":"initialized"}
+Content-Length: 239
+
+
+
+{"type":"response","seq":2,"command":"initialize","request_seq":1,"success":true,"body":{"supportsConfigurationDoneRequest":true,"supportsFunctionBreakpoints":false,"supportsConditionalBreakpoints":false,"supportsEvaluateForHovers":false}}
+Content-Length: 82
+
+
+
+{"type":"event","seq":3,"event":"output","body":{"output":"Debugger initialized"}}
+Content-Length: 180
+
+
+
+{"type":"request","seq":2,"command":"setBreakpoints","arguments":{"source":{"path":"c:\\github\\ravi\\ravi-tests\\simple.lua"},"lines":[6,2],"breakpoints":[{"line":6},{"line":2}]}}
+Content-Length: 280
+
+
+
+{"type":"response","seq":4,"command":"setBreakpoints","request_seq":2,"success":true,"body":{"breakpoints":[{"verified":false,"source":{"path":"c:/github/ravi/ravi-tests/simple.lua"},"line":6},{"verified":false,"source":{"path":"c:/github/ravi/ravi-tests/simple.lua"},"line":2}]}}
+Content-Length: 204
+
+
+
+{"type":"request","seq":3,"command":"launch","arguments":{"name":"Debug Lua script","type":"lua","request":"launch","program":"c:\\github\\ravi\\ravi-tests/simple.lua","stopOnEntry":true,"noDebug":false}}
+LAUNCH c:\github\ravi\ravi-tests/simple.lua
+
+Content-Length: 77
+
+
+
+{"type":"response","seq":5,"command":"launch","request_seq":3,"success":true}
+Content-Length: 82
+
+
+
+{"type":"event","seq":6,"event":"thread","body":{"reason":"started","threadId":1}}
+Content-Length: 81
+
+
+
+{"type":"event","seq":7,"event":"stopped","body":{"reason":"entry","threadId":1}}
+Content-Length: 89
+
+
+
+{"type":"request","seq":4,"command":"setExceptionBreakpoints","arguments":{"filters":[]}}
+Content-Length: 94
+
+
+
+{"type":"response","seq":8,"command":"setExceptionBreakpoints","request_seq":4,"success":true}
+Content-Length: 46
+
+
+
+{"type":"request","seq":5,"command":"threads"}
+Content-Length: 128
+
+
+
+{"type":"response","seq":9,"command":"threads","request_seq":5,"success":true,"body":{"threads":[{"name":"RaviThread","id":1}]}}
+Content-Length: 46
+
+
+
+{"type":"request","seq":6,"command":"threads"}
+Content-Length: 129
+
+
+
+{"type":"response","seq":10,"command":"threads","request_seq":6,"success":true,"body":{"threads":[{"name":"RaviThread","id":1}]}}
+Content-Length: 56
+
+
+
+{"type":"request","seq":7,"command":"configurationDone"}
+Content-Length: 89
+
+
+
+{"type":"response","seq":11,"command":"configurationDone","request_seq":7,"success":true}
+Content-Length: 88
+
+
+
+{"type":"request","seq":8,"command":"stackTrace","arguments":{"threadId":1,"levels":20}}
+Content-Length: 260
+
+
+
+{"type":"response","seq":12,"command":"stackTrace","request_seq":8,"success":true,"body":{"totalFrames":1,"stackFrames":[{"id":0,"name":"?","column":1,"line":3,"source":{"name":"simple.lua","path":"c:/github/ravi/ravi-tests/simple.lua","sourceReference":0}}]}}
+Content-Length: 71
+
+
+
+{"type":"request","seq":9,"command":"scopes","arguments":{"frameId":0}}
+Content-Length: 296
+
+
+
+{"type":"response","seq":13,"command":"scopes","request_seq":9,"success":true,"body":{"scopes":[{"name":"Locals","variablesReference":1000000,"expensive":false},{"name":"Up Values","variablesReference":2000000,"expensive":false},{"name":"Globals","variablesReference":3000000,"expensive":true}]}}
+Content-Length: 92
+
+
+
+{"type":"request","seq":10,"command":"variables","arguments":{"variablesReference":1000000}}
+Content-Length: 106
+
+
+
+{"type":"response","seq":14,"command":"variables","request_seq":10,"success":true,"body":{"variables":[]}}
+Content-Length: 71
+
+
+
+{"type":"request","seq":11,"command":"next","arguments":{"threadId":1}}
+Content-Length: 77
+
+
+
+{"type":"response","seq":15,"command":"next","request_seq":11,"success":true}
+Content-Length: 81
+
+
+
+{"type":"event","seq":16,"event":"stopped","body":{"reason":"step","threadId":1}}
+Content-Length: 89
+
+
+
+{"type":"request","seq":12,"command":"stackTrace","arguments":{"threadId":1,"levels":20}}
+Content-Length: 261
+
+
+
+{"type":"response","seq":17,"command":"stackTrace","request_seq":12,"success":true,"body":{"totalFrames":1,"stackFrames":[{"id":0,"name":"?","column":1,"line":1,"source":{"name":"simple.lua","path":"c:/github/ravi/ravi-tests/simple.lua","sourceReference":0}}]}}
+Content-Length: 72
+
+
+
+{"type":"request","seq":13,"command":"scopes","arguments":{"frameId":0}}
+Content-Length: 297
+
+
+
+{"type":"response","seq":18,"command":"scopes","request_seq":13,"success":true,"body":{"scopes":[{"name":"Locals","variablesReference":1000000,"expensive":false},{"name":"Up Values","variablesReference":2000000,"expensive":false},{"name":"Globals","variablesReference":3000000,"expensive":true}]}}
+Content-Length: 92
+
+
+
+{"type":"request","seq":14,"command":"variables","arguments":{"variablesReference":1000000}}
+Content-Length: 106
+
+
+
+{"type":"response","seq":19,"command":"variables","request_seq":14,"success":true,"body":{"variables":[]}}
+Content-Length: 71
+
+
+
+{"type":"request","seq":15,"command":"next","arguments":{"threadId":1}}
+Content-Length: 77
+
+
+
+{"type":"response","seq":20,"command":"next","request_seq":15,"success":true}
+Content-Length: 81
+
+
+
+{"type":"event","seq":21,"event":"stopped","body":{"reason":"step","threadId":1}}
+Content-Length: 89
+
+
+
+{"type":"request","seq":16,"command":"stackTrace","arguments":{"threadId":1,"levels":20}}
+Content-Length: 261
+
+
+
+{"type":"response","seq":22,"command":"stackTrace","request_seq":16,"success":true,"body":{"totalFrames":1,"stackFrames":[{"id":0,"name":"?","column":1,"line":5,"source":{"name":"simple.lua","path":"c:/github/ravi/ravi-tests/simple.lua","sourceReference":0}}]}}
+Content-Length: 72
+
+
+
+{"type":"request","seq":17,"command":"scopes","arguments":{"frameId":0}}
+Content-Length: 297
+
+
+
+{"type":"response","seq":23,"command":"scopes","request_seq":17,"success":true,"body":{"scopes":[{"name":"Locals","variablesReference":1000000,"expensive":false},{"name":"Up Values","variablesReference":2000000,"expensive":false},{"name":"Globals","variablesReference":3000000,"expensive":true}]}}
+Content-Length: 92
+
+
+
+{"type":"request","seq":18,"command":"variables","arguments":{"variablesReference":1000000}}
+Content-Length: 106
+
+
+
+{"type":"response","seq":24,"command":"variables","request_seq":18,"success":true,"body":{"variables":[]}}
+Content-Length: 71
+
+
+
+{"type":"request","seq":19,"command":"next","arguments":{"threadId":1}}
+Content-Length: 77
+
+
+
+{"type":"response","seq":25,"command":"next","request_seq":19,"success":true}
+Content-Length: 81
+
+
+
+{"type":"event","seq":26,"event":"stopped","body":{"reason":"step","threadId":1}}
+Content-Length: 89
+
+
+
+{"type":"request","seq":20,"command":"stackTrace","arguments":{"threadId":1,"levels":20}}
+Content-Length: 261
+
+
+
+{"type":"response","seq":27,"command":"stackTrace","request_seq":20,"success":true,"body":{"totalFrames":1,"stackFrames":[{"id":0,"name":"?","column":1,"line":6,"source":{"name":"simple.lua","path":"c:/github/ravi/ravi-tests/simple.lua","sourceReference":0}}]}}
+Content-Length: 72
+
+
+
+{"type":"request","seq":21,"command":"scopes","arguments":{"frameId":0}}
+Content-Length: 297
+
+
+
+{"type":"response","seq":28,"command":"scopes","request_seq":21,"success":true,"body":{"scopes":[{"name":"Locals","variablesReference":1000000,"expensive":false},{"name":"Up Values","variablesReference":2000000,"expensive":false},{"name":"Globals","variablesReference":3000000,"expensive":true}]}}
+Content-Length: 92
+
+
+
+{"type":"request","seq":22,"command":"variables","arguments":{"variablesReference":1000000}}
+Content-Length: 159
+
+
+
+{"type":"response","seq":29,"command":"variables","request_seq":22,"success":true,"body":{"variables":[{"name":"i","variablesReference":0,"value":"1 (0x1)"}]}}
+Content-Length: 71
+
+
+
+{"type":"request","seq":23,"command":"next","arguments":{"threadId":1}}
+Content-Length: 77
+
+
+
+{"type":"response","seq":30,"command":"next","request_seq":23,"success":true}
+Content-Length: 81
+
+
+
+{"type":"event","seq":31,"event":"stopped","body":{"reason":"step","threadId":1}}
+Content-Length: 89
+
+
+
+{"type":"request","seq":24,"command":"stackTrace","arguments":{"threadId":1,"levels":20}}
+Content-Length: 405
+
+
+
+{"type":"response","seq":32,"command":"stackTrace","request_seq":24,"success":true,"body":{"totalFrames":2,"stackFrames":[{"id":0,"name":"sayhello","column":1,"line":2,"source":{"name":"simple.lua","path":"c:/github/ravi/ravi-tests/simple.lua","sourceReference":0}},{"id":1,"name":"?","column":1,"line":6,"source":{"name":"simple.lua","path":"c:/github/ravi/ravi-tests/simple.lua","sourceReference":0}}]}}
+Content-Length: 72
+
+
+
+{"type":"request","seq":25,"command":"scopes","arguments":{"frameId":0}}
+Content-Length: 297
+
+
+
+{"type":"response","seq":33,"command":"scopes","request_seq":25,"success":true,"body":{"scopes":[{"name":"Locals","variablesReference":1000000,"expensive":false},{"name":"Up Values","variablesReference":2000000,"expensive":false},{"name":"Globals","variablesReference":3000000,"expensive":true}]}}
+Content-Length: 92
+
+
+
+{"type":"request","seq":26,"command":"variables","arguments":{"variablesReference":1000000}}
+Content-Length: 217
+
+
+
+{"type":"response","seq":34,"command":"variables","request_seq":26,"success":true,"body":{"variables":[{"name":"name","variablesReference":0,"value":"dibyendu"},{"name":"i","variablesReference":0,"value":"1 (0x1)"}]}}
+Content-Length: 80
+
+
+
+{"type":"request","seq":27,"command":"disconnect","arguments":{"restart":false}}
+Content-Length: 71
+
+
+
+{"type":"event","seq":35,"event":"terminated","body":{"restart":false}}
+Content-Length: 83
+
+
+
+{"type":"response","seq":36,"command":"disconnect","request_seq":27,"success":true}

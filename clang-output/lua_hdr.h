@@ -1,21 +1,37 @@
 #ifndef HEADER
 #define HEADER
 
+struct lua_State;
+typedef unsigned char lu_byte;
+typedef int (*lua_CFunction) (struct lua_State *L);
+
+#if 1 /* 64bit */
+typedef long long lua_Integer;
+typedef unsigned long long lua_Unsigned;
+typedef double lua_Number;
+typedef unsigned long long size_t;
+typedef unsigned int Instruction;
+typedef long long ptrdiff_t;
+typedef size_t lu_mem;
+typedef ptrdiff_t l_mem;
+typedef ptrdiff_t intptr_t;
+#else
+
+#endif
+
 struct GCObject {
   struct GCObject *next;
-  unsigned char tt;
-  unsigned char marked;
+  lu_byte tt;
+  lu_byte marked;
 };
 
-struct lua_State;
-
 union Value {
-  struct GCObject *gc;
-  void *p;
-  int b;
-  int (*f)(struct lua_State *);
-  long long i;
-  double n;
+  struct GCObject *gc; /* collectable objects */
+  void *p;             /* light userdata */
+  int b;               /* booleans */
+  lua_CFunction f;     /* light C functions */
+  lua_Integer i;       /* integer numbers */
+  lua_Number n;        /* float numbers */
 };
 
 struct TValue {
@@ -25,36 +41,37 @@ struct TValue {
 
 struct TString {
   struct GCObject *next;
-  unsigned char tt;
-  unsigned char marked;
-  unsigned char extra;
-  unsigned char shrlen;
+  lu_byte tt;
+  lu_byte marked;
+  lu_byte extra;       /* reserved words for short strings; "has hash" for longs */
+  lu_byte shrlen;      /* length for short strings */
   unsigned int hash;
   union {
-    unsigned long long len;
-    struct TString *hnext;
+    size_t lnglen;     /* length for long strings */
+    struct TString *hnext;  /* linked list for hash table */
   } u;
 };
 
 union MaxAlign {
+  lua_Number n;
   double u;
   void *s;
-  long long i;
+  lua_Integer i;
   long l;
 };
 
 union UTString {
-  union MaxAlign dummy;
+  union MaxAlign dummy;  /* ensures maximum alignment for strings */
   struct TString tsv;
 };
 
 struct Udata {
   struct GCObject *next;
-  unsigned char tt;
-  unsigned char marked;
-  unsigned char ttuv_; /* user value's tag */
+  lu_byte tt;
+  lu_byte marked;
+  lu_byte ttuv_; /* user value's tag */
   struct Table *metatable;
-  unsigned long long len; /* number of bytes */
+  size_t len; /* number of bytes */
   union Value user_;      /* user value */
 };
 
@@ -79,21 +96,19 @@ enum ravitype_t {
 struct Upvaldesc {
   struct TString *name;  /* upvalue name (for debug information) */
   enum ravitype_t type; /* RAVI type of upvalue */
-  unsigned char instack; /* whether it is in stack */
-  unsigned char
-      idx; /* index of upvalue (in stack or in outer function's list) */
+  lu_byte instack; /* whether it is in stack */
+  lu_byte idx; /* index of upvalue (in stack or in outer function's list) */
 };
 
 struct LocVar {
   struct TString *varname;
   int startpc; /* first point where variable is active */
   int endpc;   /* first point where variable is dead */
-  enum ravitype_t
-      ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
+  enum ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
 };
 
 struct RaviJITProto {
-  unsigned char jit_status; // 0=not compiled, 1=can't compile, 2=compiled, 3=freed
+  lu_byte jit_status; // 0=not compiled, 1=can't compile, 2=compiled, 3=freed
   void *jit_data;
   int (*jit_function) (struct lua_State *);
 };
@@ -101,21 +116,21 @@ struct RaviJITProto {
 
 struct Proto {
   struct GCObject *next;
-  unsigned char tt;
-  unsigned char marked;
-  unsigned char numparams; /* number of fixed parameters */
-  unsigned char is_vararg;
-  unsigned char maxstacksize; /* maximum stack used by this function */
+  lu_byte tt;
+  lu_byte marked;
+  lu_byte numparams; /* number of fixed parameters */
+  lu_byte is_vararg; /* 2: declared vararg; 1: uses vararg */
+  lu_byte maxstacksize; /* maximum stack used by this function */
   int sizeupvalues;           /* size of 'upvalues' */
   int sizek;                  /* size of 'k' */
   int sizecode;
   int sizelineinfo;
   int sizep; /* size of 'p' */
   int sizelocvars;
-  int linedefined;
-  int lastlinedefined;
+  int linedefined;  /* debug information  */
+  int lastlinedefined;  /* debug information  */
   struct TValue *k; /* constants used by the function */
-  unsigned int *code;
+  Instruction *code;  /* opcodes */
   struct Proto **p; /* functions defined inside the function */
   int *lineinfo;    /* map from opcodes to source lines (debug information) */
   struct LocVar *
@@ -131,19 +146,19 @@ struct UpVal;
 
 struct CClosure {
   struct GCObject *next;
-  unsigned char tt;
-  unsigned char marked;
-  unsigned char nupvalues;
+  lu_byte tt;
+  lu_byte marked;
+  lu_byte nupvalues;
   struct GCObject *gclist;
-  int (*f)(struct lua_State *);
+  lua_CFunction f;
   struct TValue upvalue[1]; /* list of upvalues */
 };
 
 struct LClosure {
   struct GCObject *next;
-  unsigned char tt;
-  unsigned char marked;
-  unsigned char nupvalues;
+  lu_byte tt;
+  lu_byte marked;
+  lu_byte nupvalues;
   struct GCObject *gclist;
   struct Proto *p;
   struct UpVal *upvals[1]; /* list of upvalues */
@@ -178,10 +193,10 @@ struct RaviArray {
 
 struct Table {
   struct GCObject *next;
-  unsigned char tt;
-  unsigned char marked;
-  unsigned char flags;     /* 1<<p means tagmethod(p) is not present */
-  unsigned char lsizenode; /* log2 of size of 'node' array */
+  lu_byte tt;
+  lu_byte marked;
+  lu_byte flags;     /* 1<<p means tagmethod(p) is not present */
+  lu_byte lsizenode; /* log2 of size of 'node' array */
   unsigned int sizearray;  /* size of 'array' array */
   struct TValue *array;    /* array part */
   struct Node *node;
@@ -191,12 +206,14 @@ struct Table {
   struct RaviArray ravi_array;
 };
 
+/* lzio.h */
 struct Mbuffer {
   char *buffer;
-  unsigned long long n;
-  unsigned long long buffsize;
+  size_t n;
+  size_t buffsize;
 };
 
+/* lstate.h */
 struct stringtable {
   struct TString **hash;
   int nuse; /* number of elements */
@@ -204,17 +221,16 @@ struct stringtable {
 };
 
 struct lua_Debug;
-typedef long long ptrdiff_t;
-typedef ptrdiff_t lua_KContext;
+typedef intptr_t lua_KContext;
 typedef int (*lua_KFunction)(struct lua_State *L, int status, lua_KContext ctx);
-typedef void *(*lua_Alloc)(void *ud, void *ptr, unsigned long long osize,
-                           unsigned long long nsize);
+typedef void *(*lua_Alloc)(void *ud, void *ptr, size_t osize,
+                           size_t nsize);
 typedef void (*lua_Hook)(struct lua_State *L, struct lua_Debug *ar);
 
 struct CallInfoL {     /* only for Lua functions */
   struct TValue *base; /* base for this function */
-  unsigned int *savedpc;
-  ptrdiff_t dummy;
+  const Instruction *savedpc;
+  ptrdiff_t dummy;     /* not present but for padding to match CallInfoC */
 };
 
 struct CallInfoC { /* only for C functions */
@@ -233,8 +249,8 @@ struct CallInfo {
   } u;
   ptrdiff_t extra;
   short nresults; /* expected number of results from this function */
-  unsigned char callstatus;
-  unsigned char jitstatus;
+  lu_byte callstatus;
+  lu_byte jitstatus;
 };
 
 struct CallInfoLua {
@@ -244,8 +260,9 @@ struct CallInfoLua {
   struct CallInfoL l;
   ptrdiff_t extra;
   short nresults; /* expected number of results from this function */
-  unsigned char callstatus;
-  unsigned char jitstatus;
+  lu_byte callstatus;
+  lu_byte jitstatus;  /* Only valid if Lua function - if 1 means JITed - RAVI extension */
+  short stacklevel;   /* Ravi extension - stack level, bootom level is 0 */
 };
 
 struct global_State;
@@ -256,13 +273,13 @@ struct lua_longjmp;
 */
 struct lua_State {
   struct GCObject *next;
-  unsigned char tt;
-  unsigned char marked;
-  unsigned char status;
+  lu_byte tt;
+  lu_byte marked;
+  lu_byte status;
   struct TValue *top; /* first free slot in the stack */
   struct global_State *l_G;
   struct CallInfoLua *ci;    /* call info for current function */
-  const unsigned int *oldpc; /* last pc traced */
+  const Instruction *oldpc; /* last pc traced */
   struct TValue *stack_last; /* last free slot in the stack */
   struct TValue *stack;      /* stack base */
   struct UpVal *openupval;   /* list of open upvalues in this stack */
@@ -270,20 +287,22 @@ struct lua_State {
   struct lua_State *twups;      /* list of threads with open upvalues */
   struct lua_longjmp *errorJmp; /* current error recover point */
   struct CallInfo base_ci;      /* CallInfo for first level (C calling Lua) */
-  lua_Hook hook;
+  volatile lua_Hook hook;
   ptrdiff_t errfunc; /* current error handling function (stack index) */
   int stacksize;
   int basehookcount;
   int hookcount;
   unsigned short nny;     /* number of non-yieldable calls in stack */
   unsigned short nCcalls; /* number of nested C calls */
-  unsigned char hookmask;
-  unsigned char allowhook;
+  lu_byte hookmask;       /* Lua 5.3 uses l_signalT */
+  lu_byte allowhook;
+  unsigned short nci;     /* number of items in 'ci' list  (different position than Lua 5.3) */
 };
 
+/* lfunc.h */
 struct UpVal {
   struct TValue *v;  /* points to stack or to its own value */
-  unsigned long long refcount;  /* reference counter */
+  lu_mem refcount;  /* reference counter */
   union {
     struct {  /* (when open) */
       struct UpVal *next;  /* linked list */

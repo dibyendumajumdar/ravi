@@ -7,7 +7,7 @@ Lua is perfect as a small embeddable dynamic language so why a derivative? Ravi 
 
 There are other attempts to add static typing to Lua - e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but these efforts are mostly about adding static type checks in the language while leaving the VM unmodified. The Typed Lua effort is very similar to the approach taken by Typescript in the JavaScript world. The static typing is to aid programming in the large - the code is eventually translated to standard Lua and executed in the unmodified Lua VM.
 
-My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. Type information can be exploited by JIT compilation technology to improve performance.
+My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. Type information can be exploited by JIT compilation technology to improve performance. At the same time, I want to keep the language safe and therefore usable by non-expert programmers. 
 
 Goals
 -----
@@ -15,7 +15,7 @@ Goals
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
-* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available.
+* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available
 
 Documentation
 --------------
@@ -267,8 +267,8 @@ A JIT api is available with following functions:
   returns enabled setting of JIT compiler; also enables/disables the JIT compiler; defaults to true
 ``ravi.auto([b [, min_size [, min_executions]]])``
   returns setting of auto compilation and compilation thresholds; also sets the new settings if values are supplied; defaults are false, 150, 50.
-``ravi.compile(func[, options])``
-  compiles a Lua function if possible, returns ``true`` if compilation was successful. ``options`` is an optional table with compilation options - in particular ``omitArrayGetRangeCheck`` - which disables range checks in array get operations to improve performance in some cases. 
+``ravi.compile(func_or_table[, options])``
+  compiles a Lua function (or functions if a table is supplied) if possible, returns ``true`` if compilation was successful for at least one function. ``options`` is an optional table with compilation options - in particular ``omitArrayGetRangeCheck`` - which disables range checks in array get operations to improve performance in some cases. Note that at present if the first argument is a table of functions and has more than 100 functions then only the first 100 will be compiled. You can invoke compile() repeatedly on the table until it returns false. Each invocation leads to a new module being created; any functions already compiled are skipped.
 ``ravi.iscompiled(func)``
   returns the JIT status of a function
 ``ravi.dumplua(func)``
@@ -323,7 +323,7 @@ The build is CMake based.
 
 Building LLVM on Windows
 ------------------------
-I built LLVM 3.7.0 from source. I used the following sequence from the VS2015 command window::
+I built LLVM 3.7 from source. I used the following sequence from the VS2015 command window::
 
   cd \github\llvm
   mkdir build
@@ -336,7 +336,7 @@ Note that if you perform a Release build of LLVM then you will also need to do a
 Building LLVM on Ubuntu
 -----------------------
 On Ubuntu I found that the official LLVM distributions don't work with CMake. The CMake config files appear to be broken.
-So I ended up downloading and building LLVM 3.7.0 from source and that worked. The approach is similar to that described for MAC OS X below.
+So I ended up downloading and building LLVM 3.7 from source and that worked. The approach is similar to that described for MAC OS X below.
 
 Building LLVM on MAC OS X
 -------------------------
@@ -366,6 +366,12 @@ On Ubuntu I use::
   cd build
   cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
   make
+
+Note that on a clean install of Ubuntu 15.10 I had to install following packages:
+
+* cmake
+* git
+* libreadline-dev
 
 On MAC OS X I use::
 
@@ -397,10 +403,9 @@ Work Plan
 ---------
 * Feb-Jun 2015 - implement JIT compilation using LLVM
 * Jun-Jul 2015 - libgccjit based alternative JIT
-* Jun-Nov 2015 - testing  
-* Dec 2015 - beta release
-* 2016 - Focus on creating numeric library bindings - in particular.
+* 2016 priorties
 
+  * `IDE support (Visual Studio Code) <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
   * BLAS and LAPACK
   * GNU Scientific library
   * symengine

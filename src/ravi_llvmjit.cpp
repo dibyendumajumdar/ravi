@@ -23,10 +23,23 @@
 #include <ravijit.h>
 #include "ravi_llvmcodegen.h"
 
+#if 0
+// For debugging
+static int allocated_modules = 0;
+extern "C" {
+
+LUA_API int ravi_get_modulecount() {
+  return allocated_modules;
+}
+
+}
+#endif
+
 /*
  * Implementation Notes:
  * Each Lua function is compiled into an LLVM Module/Function
  * This strategy allows functions to be garbage collected as normal by Lua
+ * See issue #78 for changes to this (wip)
  */
 
 namespace ravi {
@@ -35,21 +48,23 @@ namespace ravi {
 // see below
 static std::atomic_int init;
 
-RaviJITState *RaviJITFunctionImpl::owner() const { return owner_; }
-
 // Construct the JIT compiler state
 // The JIT compiler state will be attached to the
 // lua_State - all compilation activity happens
 // in the context of the JIT State
-RaviJITStateImpl::RaviJITStateImpl()
-    : auto_(false), enabled_(true),
-      opt_level_(2), size_level_(0), min_code_size_(150), min_exec_count_(50),
-      gc_step_(200), tracehook_enabled_(false) {
+RaviJITState::RaviJITState()
+    : auto_(false),
+      enabled_(true),
+      opt_level_(2),
+      size_level_(0),
+      min_code_size_(150),
+      min_exec_count_(50),
+      gc_step_(300),
+      tracehook_enabled_(false) {
   // LLVM needs to be initialized else
   // ExecutionEngine cannot be created
-  // This should ideally be an atomic check but because LLVM docs
-  // say that it is okay to call these functions more than once we
-  // do not bother
+  // This needs to be an atomic check although LLVM docs
+  // say that it is okay to call these functions more than once
   if (init == 0) {
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
@@ -64,65 +79,32 @@ RaviJITStateImpl::RaviJITStateImpl()
   // format; LLVM 3.7 onwards COEFF is supported
   triple_ += "-elf";
 #endif
-
   context_ = new llvm::LLVMContext();
   types_ = new LuaLLVMTypes(*context_);
 }
 
 // Destroy the JIT state freeing up any
 // functions that were compiled
-RaviJITStateImpl::~RaviJITStateImpl() {
-  std::vector<RaviJITFunction *> todelete;
-  for (auto f = std::begin(functions_); f != std::end(functions_); f++) {
-    todelete.push_back(f->second);
-  }
-  // delete all the compiled objects
-  for (int i = 0; i < todelete.size(); i++) {
-    delete todelete[i];
-  }
+RaviJITState::~RaviJITState() {
   delete types_;
   delete context_;
 }
 
-void RaviJITStateImpl::addGlobalSymbol(const std::string &name, void *address) {
+void RaviJITState::addGlobalSymbol(const std::string &name, void *address) {
   llvm::sys::DynamicLibrary::AddSymbol(name, address);
 }
 
-void RaviJITStateImpl::dump() {
-  types_->dump();
-  for (auto f : functions_) {
-    f.second->dump();
-  }
-}
+void RaviJITState::dump() { types_->dump(); }
 
-// Allocate a JIT Function of specified type
-// and linkage - note at this stage the function has no
-// implementation
-RaviJITFunction *
-RaviJITStateImpl::createFunction(llvm::FunctionType *type,
-                                 llvm::GlobalValue::LinkageTypes linkage,
-                                 const std::string &name) {
-  RaviJITFunction *f = new RaviJITFunctionImpl(this, type, linkage, name);
-  functions_[name] = f;
-  return f;
-}
+static std::atomic_int module_id;
 
-// Unregister a function - to be used when a function is
-// destroyed by the Lua garbage collector
-void RaviJITStateImpl::deleteFunction(const std::string &name) {
-  functions_.erase(name);
-  // This is called when RaviJITFunction is deleted
-}
 
-RaviJITFunctionImpl::RaviJITFunctionImpl(
-    RaviJITStateImpl *owner, llvm::FunctionType *type,
-    llvm::GlobalValue::LinkageTypes linkage, const std::string &name)
-    : owner_(owner), name_(name), engine_(nullptr), module_(nullptr),
-      function_(nullptr), ptr_(nullptr) {
-  // MCJIT treats each module as a compilation unit
-  // To enable function level life cycle we create a
-  // module per function
-  std::string moduleName = "ravi_module_" + name;
+RaviJITModule::RaviJITModule(RaviJITState *owner)
+    : owner_(owner), engine_(nullptr), module_(nullptr) {
+  int myid = module_id++;
+  char buf[40];
+  snprintf(buf, sizeof buf, "ravi_module_%d", myid);
+  std::string moduleName(buf);
   module_ = new llvm::Module(moduleName, owner->context());
 #if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MINOR < 7)
   // On Windows we get error saying incompatible object format
@@ -131,23 +113,6 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
   // -elf as the object format; LLVM 3.7 onwards COEFF is supported
   module_->setTargetTriple(owner->triple());
 #endif
-
-  function_ = llvm::Function::Create(type, linkage, name, module_);
-
-// TODO add stack checks as debug more
-// function_->addFnAttr(llvm::Attribute::StackProtectReq);
-
-#if defined(_WIN32)
-// TODO On 32-bit Windows we need to force
-// 16-byte alignment
-// llvm::AttrBuilder attr;
-// attr.addStackAlignmentAttr(16);
-// function_->addAttributes(
-//   llvm::AttributeSet::FunctionIndex,
-//   llvm::AttributeSet::get(owner_->context(),
-//                         llvm::AttributeSet::FunctionIndex, attr));
-#endif
-
 #if LLVM_VERSION_MINOR > 5
   // LLVM 3.6.0 change
   std::unique_ptr<llvm::Module> module(module_);
@@ -160,67 +125,61 @@ RaviJITFunctionImpl::RaviJITFunctionImpl(
   std::string errStr;
   builder.setErrorStr(&errStr);
   engine_ = builder.create();
+#if 0
+  allocated_modules++;
+#endif
   if (!engine_) {
     fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
+    // FIXME we need to handle this error somehow
     return;
   }
 }
 
-RaviJITFunctionImpl::~RaviJITFunctionImpl() {
-  // Remove this function from parent
-  owner_->deleteFunction(name_);
+RaviJITModule::~RaviJITModule() {
   if (engine_)
     delete engine_;
   else if (module_)
     // if engine was created then we don't need to delete the
     // module as it would have been deleted by the engine
     delete module_;
-}
-
 #if 0
-static void addAdditionalRaviPasses(const llvm::PassManagerBuilder &Builder,
-  llvm::PassManagerBase &PM) {
-  PM.add(llvm::createLICMPass());
-  PM.add(llvm::createLoopUnswitchPass());
-  PM.add(llvm::createLICMPass());
-  PM.add(llvm::createLoopUnswitchPass());
-}
-
-static void addAdditionalRaviPasses2(const llvm::PassManagerBuilder &Builder,
-  llvm::PassManagerBase &PM) {
-  PM.add(llvm::createInductiveRangeCheckEliminationPass());
-}
+  allocated_modules--;
+  //fprintf(stderr, "module destroyed\n");
 #endif
-
-#if 0
-// TODO
-// Following two functions based upon similar in Clang
-static void addAddressSanitizerPasses(const llvm::PassManagerBuilder &Builder,
-                                      llvm::PassManagerBase &PM) {
-  PM.add(llvm::createAddressSanitizerFunctionPass());
-  PM.add(llvm::createAddressSanitizerModulePass());
 }
 
-static void addMemorySanitizerPass(const llvm::PassManagerBuilder &Builder,
-                                   llvm::PassManagerBase &PM) {
-  PM.add(llvm::createMemorySanitizerPass());
-
-  // MemorySanitizer inserts complex instrumentation that mostly follows
-  // the logic of the original code, but operates on "shadow" values.
-  // It can benefit from re-running some general purpose optimization passes.
-  if (Builder.OptLevel > 0) {
-    PM.add(llvm::createEarlyCSEPass());
-    PM.add(llvm::createReassociatePass());
-    PM.add(llvm::createLICMPass());
-    PM.add(llvm::createGVNPass());
-    PM.add(llvm::createInstructionCombiningPass());
-    PM.add(llvm::createDeadStoreEliminationPass());
-  }
+int RaviJITModule::addFunction(RaviJITFunction *f) {
+  int id = functions_.size();
+  functions_.push_back(f);
+  return id;
 }
-#endif
 
-void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
+void RaviJITModule::removeFunction(RaviJITFunction *f) {
+  lua_assert(functions_[f->getId()] == f);
+  functions_[f->getId()] = nullptr;
+}
 
+RaviJITFunction::RaviJITFunction(lua_CFunction *p,
+                                 std::shared_ptr<RaviJITModule> module,
+                                 llvm::FunctionType *type,
+                                 llvm::GlobalValue::LinkageTypes linkage,
+                                 const std::string &name)
+    : module_(module),
+      name_(name),
+      function_(nullptr),
+      ptr_(nullptr),
+      func_ptrptr_(p) {
+  function_ = llvm::Function::Create(type, linkage, name, module_->module());
+  id_ = module_->addFunction(this);
+}
+
+RaviJITFunction::~RaviJITFunction() {
+  // Remove this function from parent
+  //fprintf(stderr, "function destroyed\n");
+  module_->removeFunction(this);
+}
+
+void RaviJITModule::runpasses(bool dumpAsm) {
 #if LLVM_VERSION_MINOR >= 7
   using llvm::legacy::FunctionPassManager;
   using llvm::legacy::PassManager;
@@ -238,27 +197,7 @@ void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
   llvm::PassManagerBuilder pmb;
   pmb.OptLevel = owner_->get_optlevel();
   pmb.SizeLevel = owner_->get_sizelevel();
-#if 0
-  pmb.addExtension(llvm::PassManagerBuilder::EP_LoopOptimizerEnd,
-    addAdditionalRaviPasses);
-  pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
-    addAdditionalRaviPasses2);
-#endif
 
-#if 0
-    // TODO - we want to allow instrumentation of JITed code
-    // TODO - it should be controlled via a flag
-    // Note that following appears to require linking to some
-    // additional LLVM libraries
-    pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
-                     addAddressSanitizerPasses);
-    pmb.addExtension(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                     addAddressSanitizerPasses);
-    pmb.addExtension(llvm::PassManagerBuilder::EP_OptimizerLast,
-                     addMemorySanitizerPass);
-    pmb.addExtension(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                     addMemorySanitizerPass);
-#endif
   {
     // Create a function pass manager for this engine
     std::unique_ptr<FunctionPassManager> FPM(new FunctionPassManager(module_));
@@ -281,7 +220,10 @@ void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
 #endif
     pmb.populateFunctionPassManager(*FPM);
     FPM->doInitialization();
-    FPM->run(*function_);
+    for (int i = 0; i < functions_.size(); i++) {
+      if (functions_[i] == nullptr) continue;
+      FPM->run(*functions_[i]->function());
+    }
   }
 
   std::string codestr;
@@ -322,30 +264,19 @@ void RaviJITFunctionImpl::runpasses(bool dumpAsm) {
     MPM->run(*module_);
 
     // Note that in 3.7 this flus appears to have no effect
+#if LLVM_VERSION_MINOR <= 7
     formatted_stream.flush();
+#endif
   }
-  if (dumpAsm && codestr.length() > 0)
-    llvm::errs() << codestr << "\n";
+  if (dumpAsm && codestr.length() > 0) llvm::errs() << codestr << "\n";
 }
 
-void *RaviJITFunctionImpl::compile(bool doDump) {
-  if (ptr_)
-    // Already compiled
-    return ptr_;
-
-  if (!function_ || !engine_)
-    // Invalid - something went wrong
-    return NULL;
-
-  runpasses();
-
+void RaviJITModule::finalize(bool doDump) {
   // Following will generate very verbose dump when machine code is
   // produced below
   llvm::TargetMachine *TM = engine_->getTargetMachine();
   // TM->setOptLevel(llvm::CodeGenOpt::None);
-  if (doDump) {
-    TM->Options.PrintMachineCode = 1;
-  }
+  if (doDump) { TM->Options.PrintMachineCode = 1; }
 
   // Upon creation, MCJIT holds a pointer to the Module object
   // that it received from EngineBuilder but it does not immediately
@@ -354,13 +285,28 @@ void *RaviJITFunctionImpl::compile(bool doDump) {
   // explicitly or a function such as MCJIT::getPointerToFunction
   // is called which requires the code to have been generated.
   engine_->finalizeObject();
-  ptr_ = engine_->getPointerToFunction(function_);
-  return ptr_;
+  for (int i = 0; i < functions_.size(); i++) {
+    if (functions_[i] == nullptr) continue;
+    functions_[i]->setFunctionPtr();
+  }
 }
 
-llvm::Function *
-RaviJITFunctionImpl::addExternFunction(llvm::FunctionType *type, void *address,
-                                       const std::string &name) {
+// Retrieve the JITed function from the
+// execution engine and store it in ptr_
+// Also associate the JITed function with the
+// Lua Proto structure
+void RaviJITFunction::setFunctionPtr() {
+  lua_assert(ptr_ == nullptr);
+  ptr_ = engine()->getPointerToFunction(function_);
+  *func_ptrptr_ = (lua_CFunction)ptr_;
+}
+
+llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,
+                                                 void *address,
+                                                 const std::string &name) {
+  auto fn = external_symbols_.find(name);
+  if (fn != external_symbols_.end())
+    return fn->second;
   llvm::Function *f = llvm::Function::Create(
       type, llvm::Function::ExternalLinkage, name, module_);
   f->setDoesNotThrow();
@@ -370,20 +316,21 @@ RaviJITFunctionImpl::addExternFunction(llvm::FunctionType *type, void *address,
   // See bug report http://llvm.org/bugs/show_bug.cgi?id=20656
   // following will call DynamicLibrary::AddSymbol
   owner_->addGlobalSymbol(name, address);
+  external_symbols_[name] = f;
   return f;
 }
 
-void RaviJITFunctionImpl::dump() { module_->dump(); }
+void RaviJITModule::dump() { module_->dump(); }
 
 // Dumps the machine code
 // Will execute the passes as required by currently set
 // optimzation level; this may or may not match the actual
 // JITed code which would have used the optimzation level set at the
 // time of compilation
-void RaviJITFunctionImpl::dumpAssembly() { runpasses(true); }
+void RaviJITModule::dumpAssembly() { runpasses(true); }
 
 std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
-  return std::unique_ptr<RaviJITState>(new RaviJITStateImpl());
+  return std::unique_ptr<RaviJITState>(new RaviJITState());
 }
 }
 
@@ -393,12 +340,11 @@ std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
 // will return -1
 int raviV_initjit(struct lua_State *L) {
   global_State *G = G(L);
-  if (G->ravi_state != NULL)
-    return -1;
+  if (G->ravi_state != NULL) return -1;
   ravi_State *jit = (ravi_State *)calloc(1, sizeof(ravi_State));
-  jit->jit = new ravi::RaviJITStateImpl();
+  jit->jit = new ravi::RaviJITState();
   jit->code_generator =
-      new ravi::RaviCodeGenerator((ravi::RaviJITStateImpl *)jit->jit);
+      new ravi::RaviCodeGenerator((ravi::RaviJITState *)jit->jit);
   G->ravi_state = jit;
   return 0;
 }
@@ -406,8 +352,7 @@ int raviV_initjit(struct lua_State *L) {
 // Free up the JIT State
 void raviV_close(struct lua_State *L) {
   global_State *G = G(L);
-  if (G->ravi_state == NULL)
-    return;
+  if (G->ravi_state == NULL) return;
   delete G->ravi_state->code_generator;
   delete G->ravi_state->jit;
   free(G->ravi_state);
@@ -421,14 +366,10 @@ void raviV_close(struct lua_State *L) {
 // Returns true if compilation was successful
 int raviV_compile(struct lua_State *L, struct Proto *p,
                   ravi_compile_options_t *options) {
-  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED)
-    return true;
+  if (p->ravi_jit.jit_function) return true;
   global_State *G = G(L);
-  if (G->ravi_state == NULL)
-    return 0;
-  if (!G->ravi_state->jit->is_enabled()) {
-    return 0;
-  }
+  if (G->ravi_state == NULL) return 0;
+  if (!G->ravi_state->jit->is_enabled()) { return 0; }
   bool doCompile = (bool)(options && options->manual_request != 0);
   if (!doCompile && G->ravi_state->jit->is_auto()) {
     if (p->ravi_jit.jit_flags ==
@@ -448,24 +389,45 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
         doCompile = true;
     }
   }
-  if (doCompile)
-    G->ravi_state->code_generator->compile(L, p, options);
-  return p->ravi_jit.jit_status == RAVI_JIT_COMPILED;
+  if (doCompile) {
+    auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
+    if (G->ravi_state->code_generator->compile(L, p, module, options)) {
+      module->runpasses();
+      module->finalize(options ? options->dump_level != 0 : 0);
+    }
+  }
+  return p->ravi_jit.jit_function != nullptr;
+}
+
+// Compile a bunch of Lua functions
+// And put them all in one module
+// Returns true if compilation was successful
+int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
+  ravi_compile_options_t *options) {
+  global_State *G = G(L);
+  int count = 0;
+  auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
+  for (int i = 0; i < n; i++) {
+    if (G->ravi_state->code_generator->compile(L, p[i], module, options))
+      count++;
+  }
+  if (count) {
+    module->runpasses();
+    module->finalize(options ? options->dump_level != 0 : 0);
+  }
+  return count > 0;
 }
 
 // Free the JIT compiled function
 // Note that this is called by the garbage collector
 void raviV_freeproto(struct lua_State *L, struct Proto *p) {
-  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) /* compiled */ {
-    ravi::RaviJITFunction *f =
-        reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
-    if (f)
-      delete f;
-    p->ravi_jit.jit_status = RAVI_JIT_FREED;
-    p->ravi_jit.jit_function = NULL;
-    p->ravi_jit.jit_data = NULL;
-    p->ravi_jit.execution_count = 0;
-  }
+  ravi::RaviJITFunction *f =
+      reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
+  if (f) delete f;
+  p->ravi_jit.jit_status = RAVI_JIT_NOT_COMPILED;
+  p->ravi_jit.jit_function = NULL;
+  p->ravi_jit.jit_data = NULL;
+  p->ravi_jit.execution_count = 0;
 }
 
 // Dump the LLVM IR
@@ -473,8 +435,7 @@ void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
   if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) /* compiled */ {
     ravi::RaviJITFunction *f =
         reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
-    if (f)
-      f->dump();
+    if (f) f->dump();
   }
 }
 
@@ -483,113 +444,96 @@ void raviV_dumpASM(struct lua_State *L, struct Proto *p) {
   if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) /* compiled */ {
     ravi::RaviJITFunction *f =
         reinterpret_cast<ravi::RaviJITFunction *>(p->ravi_jit.jit_data);
-    if (f)
-      f->dumpAssembly();
+    if (f) f->dumpAssembly();
   }
 }
 
 void raviV_setminexeccount(lua_State *L, int value) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return;
+  if (!G->ravi_state) return;
   G->ravi_state->jit->set_minexeccount(value);
 }
 int raviV_getminexeccount(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
+  if (!G->ravi_state) return 0;
   return G->ravi_state->jit->get_minexeccount();
 }
 
 void raviV_setmincodesize(lua_State *L, int value) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return;
+  if (!G->ravi_state) return;
   G->ravi_state->jit->set_mincodesize(value);
 }
 int raviV_getmincodesize(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
+  if (!G->ravi_state) return 0;
   return G->ravi_state->jit->get_mincodesize();
 }
 
 void raviV_setauto(lua_State *L, int value) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return;
+  if (!G->ravi_state) return;
   G->ravi_state->jit->set_auto(value != 0);
 }
 int raviV_getauto(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
+  if (!G->ravi_state) return 0;
   return G->ravi_state->jit->is_auto();
 }
 
 // Turn on/off the JIT compiler
 void raviV_setjitenabled(lua_State *L, int value) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return;
+  if (!G->ravi_state) return;
   G->ravi_state->jit->set_enabled(value != 0);
 }
 int raviV_getjitenabled(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
+  if (!G->ravi_state) return 0;
   return G->ravi_state->jit->is_enabled();
 }
 
 void raviV_setoptlevel(lua_State *L, int value) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return;
+  if (!G->ravi_state) return;
   G->ravi_state->jit->set_optlevel(value);
 }
 int raviV_getoptlevel(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
+  if (!G->ravi_state) return 0;
   return G->ravi_state->jit->get_optlevel();
 }
 
 void raviV_setsizelevel(lua_State *L, int value) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return;
+  if (!G->ravi_state) return;
   G->ravi_state->jit->set_sizelevel(value);
 }
 int raviV_getsizelevel(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
+  if (!G->ravi_state) return 0;
   return G->ravi_state->jit->get_sizelevel();
 }
 
 void raviV_setgcstep(lua_State *L, int value) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return;
+  if (!G->ravi_state) return;
   G->ravi_state->jit->set_gcstep(value);
 }
 int raviV_getgcstep(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
+  if (!G->ravi_state) return 0;
   return G->ravi_state->jit->get_gcstep();
 }
 
 // Turn on/off the JIT compiler
 void raviV_settraceenabled(lua_State *L, int value) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return;
+  if (!G->ravi_state) return;
   G->ravi_state->jit->set_tracehook_enabled(value != 0);
 }
 int raviV_gettraceenabled(lua_State *L) {
   global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
+  if (!G->ravi_state) return 0;
   return G->ravi_state->jit->is_tracehook_enabled();
 }

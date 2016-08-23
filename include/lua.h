@@ -1,5 +1,5 @@
 /*
-** $Id: lua.h,v 1.329 2015/11/13 17:18:42 roberto Exp $
+** $Id: lua.h,v 1.331 2016/05/30 15:53:28 roberto Exp $
 ** Lua - A Scripting Language
 ** Lua.org, PUC-Rio, Brazil (http://www.lua.org)
 ** See Copyright Notice at the end of this file
@@ -19,11 +19,11 @@
 #define LUA_VERSION_MAJOR	"5"
 #define LUA_VERSION_MINOR	"3"
 #define LUA_VERSION_NUM		503
-#define LUA_VERSION_RELEASE	"2"
+#define LUA_VERSION_RELEASE	"3"
 
 #define LUA_VERSION	"Ravi " LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
 #define LUA_RELEASE	LUA_VERSION "." LUA_VERSION_RELEASE
-#define LUA_COPYRIGHT	LUA_RELEASE "\nCopyright (C) 1994-2015 Lua.org, PUC-Rio\nPortions Copyright (C) 2015 Dibyendu Majumdar"
+#define LUA_COPYRIGHT	LUA_RELEASE "\nCopyright (C) 1994-2016 Lua.org, PUC-Rio\nPortions Copyright (C) 2015-2016 Dibyendu Majumdar"
 #define LUA_AUTHORS	"R. Ierusalimschy, L. H. de Figueiredo, W. Celes, Dibyendu Majumdar"
 
 
@@ -123,7 +123,9 @@ typedef int (*lua_Writer) (lua_State *L, const void *p, size_t sz, void *ud);
 */
 typedef void * (*lua_Alloc) (void *ud, void *ptr, size_t osize, size_t nsize);
 
-
+typedef void(*ravi_Writestring)(const char *s, size_t len);
+typedef void(*ravi_Writeline)(void);
+typedef void(*ravi_Writestringerror)(const char *fmt, const char *p);
 
 /*
 ** generic extra include file
@@ -362,7 +364,7 @@ LUA_API void      (lua_setallocf) (lua_State *L, lua_Alloc f, void *ud);
 #define lua_pushliteral(L, s)	lua_pushstring(L, "" s)
 
 #define lua_pushglobaltable(L)  \
-	lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS)
+	((void)lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS))
 
 #define lua_tostring(L,i)	lua_tolstring(L, (i), NULL)
 
@@ -453,6 +455,7 @@ struct lua_Debug {
   char isvararg;        /* (u) */
   char istailcall;	/* (t) */
   char short_src[LUA_IDSIZE]; /* (S) */
+  short stacklevel; /* Ravi: Current stack level within the Lua State - base level is 0 */
   /* private part */
   struct CallInfo *i_ci;  /* active function */
 };
@@ -499,8 +502,21 @@ LUA_API int ravi_is_integer_array(lua_State *L, int idx);
  * Note that Ravi arrays have an extra element at offset 0 - this
  * function returns a pointer to &data[0] - bear in mind that
  */
-LUA_API lua_Number *ravi_get_number_array_rawdata(lua_State *l, int idx);
+LUA_API lua_Number *ravi_get_number_array_rawdata(lua_State *L, int idx);
 
+/* API to set the output functions used by Lua / Ravi
+ * This allows the default implementations to be overridden
+ */
+LUA_API void ravi_set_writefuncs(lua_State *L, ravi_Writestring writestr, ravi_Writeline writeln, ravi_Writestringerror writestringerr);
+
+/* Following are the default implementations */
+LUA_API void ravi_writestring(lua_State *L, const char *s, size_t len);
+LUA_API void ravi_writeline(lua_State *L);
+LUA_API void ravi_writestringerror(lua_State *L, const char *fmt, const char *p);
+
+/* The debugger can set some data - but only once */
+LUA_API void ravi_set_debugger_data(lua_State *L, void *data);
+LUA_API void *ravi_get_debugger_data(lua_State *L);
 
 /* 
 ** Experimental (wip) implementation of new
@@ -536,7 +552,7 @@ LUA_API void ravi_set_debuglevel(int level);
 
 
 /******************************************************************************
-* Copyright (C) 1994-2015 Lua.org, PUC-Rio.
+* Copyright (C) 1994-2016 Lua.org, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the

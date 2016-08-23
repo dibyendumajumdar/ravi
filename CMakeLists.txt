@@ -78,6 +78,7 @@ if (MSVC)
     add_definitions("/wd4996")
     add_definitions("/wd4291")
     add_definitions("/wd4624")
+    add_definitions("/DLUA_COMPAT_5_2")
 endif ()
 
 
@@ -88,14 +89,14 @@ if (CMAKE_COMPILER_IS_GNUCXX AND NOT APPLE)
     endif ()
     # -fsanitize=bounds -fsanitize=alignment -fsanitize=object-size
     set(SANITIZER_FLAGS "-fsanitize=address")
-    set(CMAKE_C_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -Werror -std=c99 -O0 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_C_FLAGS_RELEASE "-Werror -std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_C_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -Werror -std=c99 -O1 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_CXX_FLAGS_RELEASE "-Werror -fno-rtti -O3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_CXX_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -Werror -fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -Werror -fno-rtti -O1 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+    set(CMAKE_C_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -std=c99 -O0 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+    set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -std=c99 -O1 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+    set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -O3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+    set(CMAKE_CXX_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -fno-rtti -O1 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
     # In case we are using gcc 5.1 set ABI version
-    add_definitions("-D_GLIBCXX_USE_CXX11_ABI=0")
+    # add_definitions("-D_GLIBCXX_USE_CXX11_ABI=0")
 endif ()
 
 if (APPLE)
@@ -164,6 +165,30 @@ endif ()
 # Enable minimal required LLVM components so that the
 # the size of the resulting binary is manageable
 if (LLVM_JIT)
+    if (${LLVM_PACKAGE_VERSION} VERSION_LESS "3.8")
+        set(LLVM_EXTRA_LIBS ipa)
+    endif()
+    message(STATUS "SYSTEM_PROCESSOR ${CMAKE_SYSTEM_PROCESSOR}")
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+	set(LLVM_LIBS_PROCESSOR
+		X86CodeGen
+		X86AsmParser
+		X86Disassembler
+		X86AsmPrinter
+		X86Desc
+		X86Info
+		X86Utils
+	    )
+    elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+	set(LLVM_LIBS_PROCESSOR
+		ARMCodeGen
+		ARMAsmParser
+		ARMDisassembler
+		ARMAsmPrinter
+		ARMDesc
+		ARMInfo
+	    )
+    endif()
     llvm_map_components_to_libnames(LLVM_LIBS
             Analysis
             Core
@@ -173,7 +198,7 @@ if (LLVM_JIT)
             BitReader
             ExecutionEngine
             InstCombine
-            ipa
+            ${LLVM_EXTRA_LIBS}
             ipo
             MC
             MCJIT
@@ -184,13 +209,7 @@ if (LLVM_JIT)
             Support
             Target
             TransformUtils
-            X86CodeGen
-            X86AsmParser
-            X86Disassembler
-            X86AsmPrinter
-            X86Desc
-            X86Info
-            X86Utils
+	    ${LLVM_LIBS_PROCESSOR}
             )
     message(STATUS "LLVM_LIBS ${LLVM_LIBS}")
 endif ()
@@ -237,9 +256,36 @@ add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
 add_test(TestAST test_ast)
 
+if (NOT LLVM_JIT AND NOT GCC_JIT)
+  #Static library for the debugger 
+  add_library(libravistatic 
+        ${RAVI_HEADERS}
+        ${LUA_LIB_SRCS} 
+        ${LUA_CORE_SRCS}
+        src/ravi_nojit.c)
+  if (WIN32)
+    # enable DLL export
+    set_target_properties(libravistatic PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+  else()
+    set_target_properties(libravistatic PROPERTIES PREFIX "")
+  endif ()
+  target_link_libraries(libravistatic ${EXTRA_LIBRARIES})
+
+  add_executable(testravidebug vscode-debugger/src/testravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
+  target_link_libraries(testravidebug libravistatic)
+
+  add_test(TestRaviDebug testravidebug)
+
+  # Ravi VSCode Debug adapter
+  add_executable(ravidebug vscode-debugger/src/ravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
+  target_link_libraries(ravidebug libravistatic)
+
+  set(RAVI_DEBUGGER_TARGET ravidebug)
+endif()
+
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
-install(TARGETS libravi ravi
+install(TARGETS libravi ravi ${RAVI_DEBUGGER_TARGET}
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)

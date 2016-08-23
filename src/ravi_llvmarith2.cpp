@@ -376,7 +376,7 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C,
 
   // If m*b < 0
   cmp1 = def->builder->CreateFCmpOLT(
-      mb, llvm::ConstantFP::get(def->types->C_doubleT, 0.0));
+      mb, llvm::ConstantFP::get(def->types->lua_NumberT, 0.0));
   llvm::BasicBlock *mb_lt0_then =
       llvm::BasicBlock::Create(def->jitState->context(), "mb.lt.zero", def->f);
   llvm::BasicBlock *mb_lt0_else =

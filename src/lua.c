@@ -19,6 +19,7 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+
 #if !defined(LUA_PROMPT)
 #define LUA_PROMPT		"> "
 #define LUA_PROMPT2		">> "
@@ -133,7 +134,7 @@ static void laction (int i) {
 }
 
 
-static void print_usage (const char *badoption) {
+static void print_usage (lua_State *L, const char *badoption) {
   lua_writestringerror("%s: ", progname);
   if (badoption[1] == 'e' || badoption[1] == 'l')
     lua_writestringerror("'%s' needs argument\n", badoption);
@@ -158,7 +159,7 @@ static void print_usage (const char *badoption) {
 ** Prints an error message, adding the program name in front of it
 ** (if present)
 */
-static void l_message (const char *pname, const char *msg) {
+static void l_message (lua_State *L, const char *pname, const char *msg) {
   if (pname) lua_writestringerror("%s: ", pname);
   lua_writestringerror("%s\n", msg);
 }
@@ -172,7 +173,7 @@ static void l_message (const char *pname, const char *msg) {
 static int report (lua_State *L, int status) {
   if (status != LUA_OK) {
     const char *msg = lua_tostring(L, -1);
-    l_message(progname, msg);
+    l_message(L, progname, msg);
     lua_pop(L, 1);  /* remove message */
   }
   return status;
@@ -215,7 +216,7 @@ static int docall (lua_State *L, int narg, int nres) {
 }
 
 
-static void print_version (void) {
+static void print_version (lua_State *L) {
   lua_writestring(LUA_COPYRIGHT, strlen(LUA_COPYRIGHT));
   lua_writestring(RAVI_OPTIONS, strlen(RAVI_OPTIONS));
   lua_writeline();
@@ -399,7 +400,7 @@ static void l_print (lua_State *L) {
     lua_getglobal(L, "print");
     lua_insert(L, 1);
     if (lua_pcall(L, n, 0, 0) != LUA_OK)
-      l_message(progname, lua_pushfstring(L, "error calling 'print' (%s)",
+      l_message(L, progname, lua_pushfstring(L, "error calling 'print' (%s)",
                                              lua_tostring(L, -1)));
   }
 }
@@ -565,11 +566,11 @@ static int pmain (lua_State *L) {
   luaL_checkversion(L);  /* check that interpreter has correct version */
   if (argv[0] && argv[0][0]) progname = argv[0];
   if (args == has_error) {  /* bad arg? */
-    print_usage(argv[script]);  /* 'script' has index of bad arg. */
+    print_usage(L, argv[script]);  /* 'script' has index of bad arg. */
     return 0;
   }
   if (args & has_v)  /* option '-v'? */
-    print_version();
+    print_version(L);
   if (args & has_E) {  /* option '-E'? */
     lua_pushboolean(L, 1);  /* signal for libraries to ignore env. vars. */
     lua_setfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
@@ -589,7 +590,7 @@ static int pmain (lua_State *L) {
     doREPL(L);  /* do read-eval-print loop */
   else if (script == argc && !(args & (has_e | has_v))) {  /* no arguments? */
     if (lua_stdin_is_tty()) {  /* running in interactive mode? */
-      print_version();
+      print_version(L);
       doREPL(L);  /* do read-eval-print loop */
     }
     else dofile(L, NULL);  /* executes stdin as a file */
@@ -598,12 +599,16 @@ static int pmain (lua_State *L) {
   return 1;
 }
 
+#if 0
+// For debugging
+LUA_API int ravi_get_modulecount();
+#endif
 
 int main (int argc, char **argv) {
   int status, result;
   lua_State *L = luaL_newstate();  /* create state */
   if (L == NULL) {
-    l_message(argv[0], "cannot create state: not enough memory");
+    l_message(L, argv[0], "cannot create state: not enough memory");
     return EXIT_FAILURE;
   }
   int level = 0;
@@ -624,6 +629,10 @@ int main (int argc, char **argv) {
   result = lua_toboolean(L, -1);  /* get result */
   report(L, status);
   lua_close(L);
+#if 0
+  // For debugging - should be 0
+  fprintf(stderr, "Modules at exit %d\n", ravi_get_modulecount());
+#endif
   return (result && status == LUA_OK) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

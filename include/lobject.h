@@ -424,8 +424,7 @@ typedef struct LocVar {
 typedef enum {
   RAVI_JIT_NOT_COMPILED = 0,
   RAVI_JIT_CANT_COMPILE = 1,
-  RAVI_JIT_COMPILED = 2,
-  RAVI_JIT_FREED = 3
+  RAVI_JIT_COMPILED = 2 /* But actual function pointer must be checked */
 } ravi_jit_status_t;
 
 typedef enum {
@@ -434,7 +433,7 @@ typedef enum {
 } ravi_jit_flag_t;
 
 typedef struct RaviJITProto {
-  lu_byte jit_status; /* 0=not compiled, 1=can't compile, 2=compiled, 3=freed */
+  lu_byte jit_status; /* 0=not compiled, 1=can't compile */
   lu_byte jit_flags; 
   unsigned short execution_count;   /* how many times has function been executed */
   void *jit_data;
