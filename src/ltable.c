@@ -716,17 +716,27 @@ int raviH_getn(Table *t) {
 static int ravi_resize_array(lua_State *L, Table *t, unsigned int new_size,
                              int initialize) {
   if (t->ravi_array.array_modifier) {
+    /* cannot resize */
     return 0;
   }
-  /* NOTE - relies upon lua_Number and lua_Integer being the same size */
-  lua_assert(sizeof(lua_Integer) == sizeof(lua_Number));
+  int number_array = RAVI_TARRAYFLT == t->ravi_array.array_type;
   unsigned int size =
       new_size < t->ravi_array.size + 10 ? t->ravi_array.size + 10 : new_size;
-  t->ravi_array.data = (char *)luaM_reallocv(
+  if (number_array) {
+    t->ravi_array.data = (char *)luaM_reallocv(
       L, t->ravi_array.data, t->ravi_array.size, size, sizeof(lua_Number));
-  if (initialize) {
-    lua_Number *data = (lua_Number *)t->ravi_array.data;
-    memset(&data[t->ravi_array.len], 0, size - t->ravi_array.size);
+    if (initialize) {
+      lua_Number *data = (lua_Number *)t->ravi_array.data;
+      memset(&data[t->ravi_array.len], 0, (size - t->ravi_array.size) * sizeof(lua_Number));
+    }
+  }
+  else {
+    t->ravi_array.data = (char *)luaM_reallocv(
+      L, t->ravi_array.data, t->ravi_array.size, size, sizeof(lua_Integer));
+    if (initialize) {
+      lua_Integer *data = (lua_Integer *)t->ravi_array.data;
+      memset(&data[t->ravi_array.len], 0, (size - t->ravi_array.size) * sizeof(lua_Integer));
+    }
   }
   t->ravi_array.size = size;
   return 1;
@@ -824,6 +834,14 @@ void raviH_get_number_array_rawdata(lua_State *L, Table *t, lua_Number **startp,
   (void)L;
   lua_assert(t->ravi_array.array_type == RAVI_TARRAYFLT);
   lua_Number *data = (lua_Number *)t->ravi_array.data;
+  *startp = data;
+  *endp = data + t->ravi_array.len + 1;
+}
+
+void raviH_get_integer_array_rawdata(lua_State *L, Table *t, lua_Integer **startp, lua_Integer **endp) {
+  (void)L;
+  lua_assert(t->ravi_array.array_type == RAVI_TARRAYINT);
+  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
   *startp = data;
   *endp = data + t->ravi_array.len + 1;
 }

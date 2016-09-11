@@ -277,7 +277,7 @@ LUA_API const char *ravi_typename(lua_State *L, int idx) {
     case LUA_TNUMINT: return "integer";
     case ctb(LUA_TLNGSTR): return "string";
     case ctb(LUA_TSHRSTR): return "string";
-    case ctb(LUA_TUSERDATA): return "userdata";
+    case ctb(LUA_TUSERDATA): return luaT_objtypename(L, o);
     case LUA_TLIGHTUSERDATA: return "lightuserdata";
     case LUA_TLCF: return "lightCfunction";
     case ctb(LUA_TCCL): return "Cclosure";
@@ -288,7 +288,7 @@ LUA_API const char *ravi_typename(lua_State *L, int idx) {
       switch (h->ravi_array.array_type) {
         case RAVI_TARRAYFLT: return "number[]";
         case RAVI_TARRAYINT: return "integer[]";
-        default: return "table";
+        default: return luaT_objtypename(L, o);
       }
     }
     default: return "unknown";
@@ -850,11 +850,25 @@ LUA_API int ravi_is_integer_array(lua_State *L, int idx) {
  * Note that Ravi arrays have an extra element at offset 0 - this
  * function returns a pointer to &data[0] - bear in mind that
  */
-LUA_API lua_Number* ravi_get_number_array_rawdata(lua_State *L, int idx) {
+LUA_API lua_Number* ravi_get_number_array_rawdata(lua_State *L, int idx, size_t *len) {
   StkId o = index2addr(L, idx);
   lua_assert(ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYFLT);
   lua_Number *startp, *endp;
   raviH_get_number_array_rawdata(L, hvalue(o), &startp, &endp);
+  *len = (endp - startp);
+  return startp;
+}
+
+/* Get the raw data associated with the number array at idx.
+* Note that Ravi arrays have an extra element at offset 0 - this
+* function returns a pointer to &data[0] - bear in mind that
+*/
+LUA_API lua_Integer* ravi_get_integer_array_rawdata(lua_State *L, int idx, size_t *len) {
+  StkId o = index2addr(L, idx);
+  lua_assert(ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYINT);
+  lua_Integer *startp, *endp;
+  raviH_get_integer_array_rawdata(L, hvalue(o), &startp, &endp);
+  *len = (endp - startp);
   return startp;
 }
 

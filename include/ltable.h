@@ -135,6 +135,7 @@ LUAI_FUNC const TValue *raviH_slice_parent(lua_State *L, TValue *slice);
   }
 
 LUAI_FUNC void raviH_get_number_array_rawdata(lua_State *L, Table *t, lua_Number **startp, lua_Number **endp);
+LUAI_FUNC void raviH_get_integer_array_rawdata(lua_State *L, Table *t, lua_Integer **startp, lua_Integer **endp);
 
 #if defined(LUA_DEBUG)
 LUAI_FUNC Node *luaH_mainposition (const Table *t, const TValue *key);
