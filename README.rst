@@ -317,9 +317,10 @@ Build Dependencies - LLVM version
 ---------------------------------
 
 * CMake
-* LLVM 3.7 
+* LLVM 3.7 or 3.8 or 3.9
 
 The build is CMake based.
+Unless otherwise noted the instructions below should work for LLVM 3.7 or above.
 
 Building LLVM on Windows
 ------------------------
@@ -353,6 +354,8 @@ Assuming that LLVM source has been extracted to ``$HOME/llvm-3.7.0.src`` I follo
 Building Ravi
 -------------
 I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X.
+
+.. note:: Location of cmake files has moved in LLVM 3.9; the new path is ``$LLVM_INSTALL_DIR/lib/cmake/llvm``.
 
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
@@ -406,9 +409,6 @@ Work Plan
 * 2016 priorties
 
   * `IDE support (Visual Studio Code) <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
-  * BLAS and LAPACK
-  * GNU Scientific library
-  * symengine
 
 License
 -------

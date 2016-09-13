@@ -78,6 +78,7 @@ if (MSVC)
     add_definitions("/wd4996")
     add_definitions("/wd4291")
     add_definitions("/wd4624")
+    add_definitions("/wd4141")
     add_definitions("/DLUA_COMPAT_5_2")
 endif ()
 

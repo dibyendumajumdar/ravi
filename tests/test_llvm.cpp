@@ -32,15 +32,15 @@ typedef struct RaviGCObject {
 typedef int (*myfunc_t)(RaviGCObject *);
 
 int test1() {
-  // Get global context - not sure what the impact is of sharing
-  // the global context
-  llvm::LLVMContext &context = llvm::getGlobalContext();
+  // FIXME context should be deleted at the end but here we
+  // don't bother
+  llvm::LLVMContext *context = new llvm::LLVMContext();
 
   // Module is the translation unit
   std::unique_ptr<llvm::Module> theModule =
-      std::unique_ptr<llvm::Module>(new llvm::Module("ravi", context));
+      std::unique_ptr<llvm::Module>(new llvm::Module("ravi", *context));
   llvm::Module *module = theModule.get();
-  llvm::IRBuilder<> builder(context);
+  llvm::IRBuilder<> builder(*context);
 
 #if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MINOR < 7)
   // On Windows we get error saying incompatible object format
@@ -54,19 +54,19 @@ int test1() {
 
   // create a GCObject structure as defined in lobject.h
   llvm::StructType *structType =
-      llvm::StructType::create(context, "RaviGCObject");
+      llvm::StructType::create(*context, "RaviGCObject");
   llvm::PointerType *pstructType =
       llvm::PointerType::get(structType, 0); // pointer to RaviGCObject
   std::vector<llvm::Type *> elements;
   elements.push_back(pstructType);
-  elements.push_back(llvm::Type::getInt8Ty(context));
-  elements.push_back(llvm::Type::getInt8Ty(context));
+  elements.push_back(llvm::Type::getInt8Ty(*context));
+  elements.push_back(llvm::Type::getInt8Ty(*context));
   structType->setBody(elements);
   structType->dump();
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
-  args.push_back(llvm::Type::getInt8PtrTy(context));
+  args.push_back(llvm::Type::getInt8PtrTy(*context));
   // accepts a char*, is vararg, and returns int
   llvm::FunctionType *printfType =
       llvm::FunctionType::get(builder.getInt32Ty(), args, true);
@@ -81,7 +81,7 @@ int test1() {
   llvm::Function *mainFunc = llvm::Function::Create(
       funcType, llvm::Function::ExternalLinkage, "testfunc", module);
   llvm::BasicBlock *entry =
-      llvm::BasicBlock::Create(context, "entrypoint", mainFunc);
+      llvm::BasicBlock::Create(*context, "entrypoint", mainFunc);
   builder.SetInsertPoint(entry);
 
   // printf format string
@@ -98,10 +98,10 @@ int test1() {
   llvm::APInt one(32, 1);
   // This is the array offset into RaviGCObject*
   values.push_back(
-      llvm::Constant::getIntegerValue(llvm::Type::getInt32Ty(context), zero));
+      llvm::Constant::getIntegerValue(llvm::Type::getInt32Ty(*context), zero));
   // This is the field offset
   values.push_back(
-      llvm::Constant::getIntegerValue(llvm::Type::getInt32Ty(context), one));
+      llvm::Constant::getIntegerValue(llvm::Type::getInt32Ty(*context), one));
 
   // Create the GEP value
   llvm::Value *arg1_a = builder.CreateGEP(arg1, values, "ptr");
@@ -110,7 +110,7 @@ int test1() {
   llvm::Value *tmp1 = builder.CreateLoad(arg1_a, "a");
   // As the retrieved value is a byte - convert to int i
   llvm::Value *tmp2 =
-      builder.CreateZExt(tmp1, llvm::Type::getInt32Ty(context), "i");
+      builder.CreateZExt(tmp1, llvm::Type::getInt32Ty(*context), "i");
 
   // Call the printf function
   values.clear();
