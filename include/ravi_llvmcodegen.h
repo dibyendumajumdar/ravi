@@ -66,6 +66,8 @@ extern "C" {
 #include <iterator>
 #include <type_traits>
 
+#define RAVI_API
+
 namespace ravi {
 
 /*
