@@ -277,11 +277,12 @@ if (NOT LLVM_JIT AND NOT GCC_JIT)
   target_link_libraries(ravidebug libravistatic)
 
   set(RAVI_DEBUGGER_TARGET ravidebug)
+  set(RAVI_STATIC_LIBRARY_TARGET libravistatic)
 endif()
 
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
-install(TARGETS libravi ravi ${RAVI_DEBUGGER_TARGET}
+install(TARGETS libravi ravi ${RAVI_DEBUGGER_TARGET} ${RAVI_STATIC_LIBRARY_TARGET}
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)

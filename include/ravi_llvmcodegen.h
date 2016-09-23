@@ -249,6 +249,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_executeT;
   llvm::FunctionType *luaV_gettableT;
   llvm::FunctionType *luaV_settableT;
+  llvm::FunctionType *luaV_finishgetT;
 
   // Following are functions that handle specific bytecodes
   // We cheat for these bytecodes by calling the function that
@@ -619,6 +620,7 @@ struct RaviFunctionDef {
   llvm::Function *luaH_getstrF;
   llvm::Function *luaH_getintF;
   llvm::Function *luaH_setintF;
+  llvm::Function *luaV_finishgetF;
 
   // Some cheats - these correspond to OPCODEs that
   // are not inlined as of now

@@ -1205,6 +1205,7 @@ function event_test()
 end
 event_test();
 compile(event_test)
+--ravi.dumpllvm(event_test)
 event_test();
 print 'Test 51 OK'
 

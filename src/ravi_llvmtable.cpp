@@ -218,7 +218,8 @@ void RaviCodeGenerator::emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *
 
   // If value is nil Lua requires that an index event be 
   // generated - so we fall back on slow path for that
-  CreateCall4(def->builder, def->raviV_finishgetF, def->L, rb, rc, ra);
+  //CreateCall4(def->builder, def->raviV_finishgetF, def->L, rb, rc, ra);
+  CreateCall5(def->builder, def->luaV_finishgetF, def->L, rb, rc, ra, phi);
   def->builder->CreateBr(if_end_block);
 
   // Merge results from the two branches above

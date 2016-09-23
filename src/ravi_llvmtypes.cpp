@@ -800,6 +800,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   // void raviV_finishget(lua_State *L, const TValue *t, TValue *key, StkId val);
   raviV_finishgetT =
     llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  // void luaV_finishget (lua_State *L, const TValue *t, TValue *key,
+  //                      StkId val, const TValue *slot);
+  elements.push_back(pTValueT);
+  luaV_finishgetT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   // void luaT_trybinTM (lua_State *L, const TValue *p1, const TValue *p2,
   //                     StkId res, TMS event);

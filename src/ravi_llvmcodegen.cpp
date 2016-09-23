@@ -1099,6 +1099,9 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaH_getstrF = def->raviF->addExternFunction(
       def->types->luaH_getstrT, reinterpret_cast<void *>(&luaH_getstr),
       "luaH_getstr");
+  def->luaV_finishgetF = def->raviF->addExternFunction(
+      def->types->luaV_finishgetT, reinterpret_cast<void *>(&luaV_finishget),
+      "luaV_finishget");
 
   def->raviV_op_loadnilF = def->raviF->addExternFunction(
       def->types->raviV_op_loadnilT,
