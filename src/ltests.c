@@ -468,6 +468,7 @@ static char *buildop (Proto *p, int pc, char *buff) {
   Instruction i = p->code[pc];
   OpCode o = GET_OPCODE(i);
   const char *name = luaP_opnames[o];
+
   int line = getfuncline(p, pc);
   sprintf(buff, "(%4d) %4d - ", line, pc);
   switch (getOpMode(o)) {

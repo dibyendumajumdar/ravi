@@ -156,9 +156,10 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
   "SETUPVALT", /*	A B	UpValue[B] := to_table(R(A))			*/
   "SELF_S",    /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
-  "GETTABLE_SK", /*	A B C	R(A) := R(B)[RK(C)], string key   */
-  "SELF_SK",    /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
-  "SETTABLE_SK", /*	A B C	R(A)[RK(B)] := RK(C), string key  */
+  // TODO temporary hack to allow existing tests to see old opcode names
+  "GETTABLE", /* _SK */ /*	A B C	R(A) := R(B)[RK(C)], string key   */
+  "SELF",    /* _SK*/ /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
+  "SETTABLE", /*_SK */ /*	A B C	R(A)[RK(B)] := RK(C), string key  */
    NULL
 };
 

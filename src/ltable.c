@@ -56,7 +56,7 @@
 */
 #define MAXHBITS	(MAXABITS - 1)
 
-
+#if !defined(RAVI_ENABLED)
 #define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
 
 #define hashstr(t,str)		hashpow2(t, (str)->hash)
@@ -72,7 +72,7 @@
 
 
 #define hashpointer(t,p)	hashmod(t, point2uint(p))
-
+#endif
 
 #define dummynode		(&dummynode_)
 
@@ -556,7 +556,7 @@ const TValue *luaH_getint (Table *t, lua_Integer key) {
   }
 }
 
-
+#if !defined(RAVI_ENABLED)
 /*
 ** search function for short strings
 */
@@ -575,7 +575,7 @@ const TValue *luaH_getshortstr (Table *t, TString *key) {
     }
   }
 }
-
+#endif
 
 /*
 ** "Generic" get version. (Not that generic: not valid for integers,

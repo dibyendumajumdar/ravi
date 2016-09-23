@@ -250,65 +250,66 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
   luaG_runerror(L, "'__newindex' chain too long; possible loop");
 }
 
-#define GETTABLE_INLINE(L, t, key, val) \
-  if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) { \
-    const TValue *aux; \
-    if (luaV_fastget(L,t,key,aux,luaH_get)) { setobj2s(L, val, aux); } \
-    else luaV_finishget(L,t,key,val,aux); \
-  } \
-  else { \
-    Table *h = hvalue(t); \
-    if (h->ravi_array.array_type == RAVI_TARRAYFLT) { \
-      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-      raviH_get_float_inline(L, h, ivalue(key), val); \
-    } \
-    else { \
-      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-      raviH_get_int_inline(L, h, ivalue(key), val); \
-    } \
+static inline void GETTABLE_INLINE(lua_State *L, const TValue *t, TValue *key, StkId val) {
+  if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) {
+    const TValue *slot;
+    if (luaV_fastget(L, t, key, slot, luaH_get)) { setobj2s(L, val, slot); }
+    else luaV_finishget(L, t, key, val, slot);
   }
-
-
-#define SETTABLE_INLINE(L, t, key, val) \
-  if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) { \
-    const TValue *slot; \
-    if (!luaV_fastset(L, t, key, slot, luaH_get, val)) \
-      luaV_finishset(L, t, key, val, slot); \
-  } \
-  else { \
-    Table *h = hvalue(t); \
-    if (h->ravi_array.array_type == RAVI_TARRAYFLT) { \
-      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-      if (ttisfloat(val)) { \
-        raviH_set_float_inline(L, h, ivalue(key), fltvalue(val)); \
-      } \
-      else if (ttisinteger(val)) { \
-        raviH_set_float_inline(L, h, ivalue(key), (lua_Number)(ivalue(val))); \
-      } \
-      else { \
-        lua_Number d = 0.0; \
-        if (luaV_tonumber_(val, &d)) { \
-          raviH_set_float_inline(L, h, ivalue(key), d); \
-        } \
-        else \
-          luaG_runerror(L, "value cannot be converted to number"); \
-      } \
-    } \
-    else { \
-      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-      if (ttisinteger(val)) { \
-        raviH_set_int_inline(L, h, ivalue(key), ivalue(val)); \
-      } \
-      else { \
-        lua_Integer i = 0; \
-        if (luaV_tointeger_(val, &i)) { \
-          raviH_set_int_inline(L, h, ivalue(key), i); \
-        } \
-        else \
-          luaG_runerror(L, "value cannot be converted to integer"); \
-      } \
-    } \
+  else {
+    Table *h = hvalue(t);
+    if (h->ravi_array.array_type == RAVI_TARRAYFLT) {
+      if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+      raviH_get_float_inline(L, h, ivalue(key), val);
+    }
+    else {
+      if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+      raviH_get_int_inline(L, h, ivalue(key), val);
+    }
   }
+}
+
+static inline void SETTABLE_INLINE(lua_State *L, const TValue *t, TValue *key, StkId val) {
+  if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) {
+    const TValue *slot;
+    if (!luaV_fastset(L, t, key, slot, luaH_get, val))
+      luaV_finishset(L, t, key, val, slot);
+  }
+  else {
+    Table *h = hvalue(t);
+    if (h->ravi_array.array_type == RAVI_TARRAYFLT) {
+      if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+      if (ttisfloat(val)) {
+        raviH_set_float_inline(L, h, ivalue(key), fltvalue(val));
+      }
+      else if (ttisinteger(val)) {
+        raviH_set_float_inline(L, h, ivalue(key), (lua_Number)(ivalue(val)));
+      }
+      else {
+        lua_Number d = 0.0;
+        if (luaV_tonumber_(val, &d)) {
+          raviH_set_float_inline(L, h, ivalue(key), d);
+        }
+        else
+          luaG_runerror(L, "value cannot be converted to number");
+      }
+    }
+    else {
+      if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
+      if (ttisinteger(val)) {
+        raviH_set_int_inline(L, h, ivalue(key), ivalue(val));
+      }
+      else {
+        lua_Integer i = 0;
+        if (luaV_tointeger_(val, &i)) {
+          raviH_set_int_inline(L, h, ivalue(key), i);
+        }
+        else
+          luaG_runerror(L, "value cannot be converted to integer");
+      }
+    }
+  }
+}
 
 /*
 ** Main function for table access (invoking metamethods if needed).
@@ -943,7 +944,9 @@ int luaV_execute (lua_State *L) {
         GETTABLE_INLINE(L, upval, rc, ra);
         Protect((void)0);
       } break;
+#if 0
       case OP_RAVI_GETTABLE_SK:
+#endif
       case OP_GETTABLE: {
         StkId rb = RB(i);                              /* table */
         TValue *rc = RKC(i);                           /* key */
@@ -1613,9 +1616,40 @@ int luaV_execute (lua_State *L) {
           setobj2s(L, ra, v);
         }
         else {
-          Protect(raviV_finishget(L, rb, rc, ra));
+          //Protect(raviV_finishget(L, rb, rc, ra));
+          Protect(luaV_finishget(L, rb, rc, ra, v));
         }
       } break;
+#if 1
+      /* This opcode is used when the key is known to be 
+         short string but the variable may or may not be 
+         a table 
+      */
+      case OP_RAVI_GETTABLE_SK: {
+        StkId rb = RB(i);                              /* variable - may not be a table */
+        lua_assert(ISK(GETARG_C(i)));
+        TValue *rc = k + INDEXK(GETARG_C(i));          /* we know that the key a short string constant */
+        if (!ttistable(rb)) {
+          GETTABLE_INLINE(L, rb, rc, ra);
+          Protect((void)0);
+        }
+        else {
+          /* table case */
+          TString *key = tsvalue(rc);
+          lua_assert(key->tt == LUA_TSHRSTR);
+          Table *h = hvalue(rb);
+          const TValue *v = luaH_getshortstr(h, key);
+          if (!ttisnil(v) || metamethod_absent(h->metatable, TM_INDEX)) {
+            setobj2s(L, ra, v);
+          }
+          else {
+            Protect(luaV_finishget(L, rb, rc, ra, v));
+            //Protect(raviV_finishget(L, rb, rc, ra));
+          }
+        }
+        break;
+      }
+#endif
       case OP_RAVI_SELF_S:
       case OP_RAVI_GETTABLE_S: {
         /* Following is an inline version of luaH_getstr() - this is
@@ -1625,10 +1659,12 @@ int luaV_execute (lua_State *L) {
         StkId rb = RB(i);
         if (op == OP_RAVI_SELF_S) { setobjs2s(L, ra + 1, rb); }
         {
+          lua_assert(ISK(GETARG_C(i)));
           TValue *rc = k + INDEXK(GETARG_C(i));
           TString *key = tsvalue(rc);
           lua_assert(key->tt == LUA_TSHRSTR);
           Table *h = hvalue(rb);
+#if 0
           int position = lmod(key->hash, sizenode(h));
           Node *n = &h->node[position];
           const TValue *v;
@@ -1647,11 +1683,15 @@ int luaV_execute (lua_State *L) {
               n += nx;
             }
           }
+#else
+          const TValue *v = luaH_getshortstr(h, key);
+#endif
           if (!ttisnil(v) || metamethod_absent(h->metatable, TM_INDEX)) {
             setobj2s(L, ra, v);
           }
           else {
-            Protect(raviV_finishget(L, rb, rc, ra));
+            //Protect(raviV_finishget(L, rb, rc, ra));
+            Protect(luaV_finishget(L, rb, rc, ra, v));
           }
         }
       } break;

@@ -31,11 +31,51 @@
 #define keyfromval(v) \
   (gkey(cast(Node *, cast(char *, (v)) - offsetof(Node, i_val))))
 
+#if defined(RAVI_ENABLED)
+#define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
+
+#define hashstr(t,str)		hashpow2(t, (str)->hash)
+#define hashboolean(t,p)	hashpow2(t, p)
+#define hashint(t,i)		hashpow2(t, i)
+
+
+/*
+** for some types, it is better to avoid modulus by power of 2, as
+** they tend to have many 2 factors.
+*/
+#define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1)|1))))
+
+
+#define hashpointer(t,p)	hashmod(t, point2uint(p))
+#endif
+
+
 
 LUAI_FUNC const TValue *luaH_getint (Table *t, lua_Integer key);
 LUAI_FUNC void luaH_setint (lua_State *L, Table *t, lua_Integer key,
                                                     TValue *value);
+#if defined(RAVI_ENABLED)
+/*
+** search function for short strings
+*/
+static inline const TValue *luaH_getshortstr(Table *t, TString *key) {
+  Node *n = hashstr(t, key);
+  lua_assert(key->tt == LUA_TSHRSTR);
+  for (;;) {  /* check whether 'key' is somewhere in the chain */
+    const TValue *k = gkey(n);
+    if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
+      return gval(n);  /* that's it */
+    else {
+      int nx = gnext(n);
+      if (nx == 0)
+        return luaO_nilobject;  /* not found */
+      n += nx;
+    }
+  }
+}
+#else
 LUAI_FUNC const TValue *luaH_getshortstr (Table *t, TString *key);
+#endif
 LUAI_FUNC const TValue *luaH_getstr (Table *t, TString *key);
 LUAI_FUNC const TValue *luaH_get (Table *t, const TValue *key);
 LUAI_FUNC TValue *luaH_newkey (lua_State *L, Table *t, const TValue *key);
