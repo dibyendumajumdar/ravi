@@ -797,9 +797,6 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   // void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val)
   luaV_settableT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
-  // void raviV_finishget(lua_State *L, const TValue *t, TValue *key, StkId val);
-  raviV_finishgetT =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
   // void luaV_finishget (lua_State *L, const TValue *t, TValue *key,
   //                      StkId val, const TValue *slot);
   elements.push_back(pTValueT);

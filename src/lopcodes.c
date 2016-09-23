@@ -157,9 +157,9 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "SETUPVALT", /*	A B	UpValue[B] := to_table(R(A))			*/
   "SELF_S",    /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
   // TODO temporary hack to allow existing tests to see old opcode names
-  "GETTABLE", /* _SK */ /*	A B C	R(A) := R(B)[RK(C)], string key   */
-  "SELF",    /* _SK*/ /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
-  "SETTABLE", /*_SK */ /*	A B C	R(A)[RK(B)] := RK(C), string key  */
+  "GETTABLE_SK", /* _SK */ /*	A B C	R(A) := R(B)[RK(C)], string key   */
+  "SELF_SK",    /* _SK*/ /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
+  "SETTABLE_SK", /*_SK */ /*	A B C	R(A)[RK(B)] := RK(C), string key  */
    NULL
 };
 
@@ -627,8 +627,20 @@ static void setnameval(lua_State *L, const char *name, int val) {
 
 static char *buildop2(Proto *p, int pc, char *buff, size_t len) {
   int line = getfuncline(p, pc);
-  snprintf(buff, len, "(%4d) %4d - ", line, pc);
-  raviP_instruction_to_str(buff + strlen(buff), len - strlen(buff), p->code[pc]);
+  char tbuf[100];
+  raviP_instruction_to_str(tbuf, sizeof tbuf, p->code[pc]);
+  /* This is a temporary hack to output old opcode names to prevent tests from breaking */
+  if (strncmp(tbuf, luaP_opnames[OP_RAVI_GETTABLE_SK], strlen(luaP_opnames[OP_RAVI_GETTABLE_SK])) == 0 ||
+    strncmp(tbuf, luaP_opnames[OP_RAVI_SELF_SK], strlen(luaP_opnames[OP_RAVI_SELF_SK])) == 0 ||
+    strncmp(tbuf, luaP_opnames[OP_RAVI_SETTABLE_SK], strlen(luaP_opnames[OP_RAVI_SETTABLE_SK])) == 0) {
+    char *cp = strstr(tbuf, "_SK ");
+    if (cp != NULL) {
+      cp[0] = ' ';
+      cp[1] = ' ';
+      cp[2] = ' ';
+    }
+  }
+  snprintf(buff, len, "(%4d) %4d - %s", line, pc, tbuf); 
   return buff;
 }
 

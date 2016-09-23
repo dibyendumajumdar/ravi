@@ -308,6 +308,9 @@ OP_RAVI_MOVETAB,  /* A B R(A) := R(B), check R(B) is a table */
 OP_RAVI_SETUPVALT,/*	A B	UpValue[B] := to_table(R(A))			*/
 OP_RAVI_SELF_S,/*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
 
+/* Following opcodes are specialized for access where the
+   key is known to be string but the variable may or may not be 
+   a table */
 OP_RAVI_GETTABLE_SK, /*	A B C	R(A) := R(B)[RK(C)], string key   */
 OP_RAVI_SELF_SK,     /*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
 OP_RAVI_SETTABLE_SK,/*	A B C	R(A)[RK(B)] := RK(C), string key  */

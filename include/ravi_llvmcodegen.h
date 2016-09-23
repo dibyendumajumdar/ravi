@@ -66,8 +66,6 @@ extern "C" {
 #include <iterator>
 #include <type_traits>
 
-#define RAVI_API
-
 namespace ravi {
 
 /*
@@ -271,7 +269,6 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_op_setupvalaiT;
   llvm::FunctionType *raviV_op_setupvalafT;
   llvm::FunctionType *raviV_op_setupvaltT;
-  llvm::FunctionType *raviV_finishgetT;
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -358,18 +355,18 @@ struct LuaLLVMTypes {
 // via a shared_ptr. This ensures that RaviJITModule gets
 // released when no longer referenced.
 
-class RAVI_API RaviJITState;
-class RAVI_API RaviJITModule;
-class RAVI_API RaviJITFunction;
+class RaviJITState;
+class RaviJITModule;
+class RaviJITFunction;
 
-class RAVI_API RaviJITStateFactory {
+class RaviJITStateFactory {
  public:
   static std::unique_ptr<RaviJITState> newJITState();
 };
 
 // A wrapper for LLVM Module
 // Maintains a dedicated ExecutionEngine for the module
-class RAVI_API RaviJITModule {
+class RaviJITModule {
   // The Context that owns this module
   RaviJITState *owner_;
 
@@ -428,7 +425,7 @@ class RAVI_API RaviJITModule {
 // This object is stored in the Lua Proto structure
 // and gets destroyed when the Lua function is
 // garbage collected
-class RAVI_API RaviJITFunction {
+class RaviJITFunction {
   // The Module in which this function lives
   // We hold a shared_ptr to the module so that
   // the module will be destroyed when the
@@ -482,7 +479,7 @@ class RAVI_API RaviJITFunction {
 
 // Ravi's LLVM JIT State
 // All of the JIT information is held here
-class RAVI_API RaviJITState {
+class RaviJITState {
   // The LLVM Context
   llvm::LLVMContext *context_;
 
@@ -641,7 +638,6 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_setupvalaiF;
   llvm::Function *raviV_op_setupvalafF;
   llvm::Function *raviV_op_setupvaltF;
-  llvm::Function *raviV_finishgetF;
 
   // array setters
   llvm::Function *raviH_set_intF;

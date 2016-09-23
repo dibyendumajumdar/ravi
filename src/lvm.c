@@ -250,7 +250,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
   luaG_runerror(L, "'__newindex' chain too long; possible loop");
 }
 
-static inline void GETTABLE_INLINE(lua_State *L, const TValue *t, TValue *key, StkId val) {
+static inline void gettable_inline(lua_State *L, const TValue *t, TValue *key, StkId val) {
   if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) {
     const TValue *slot;
     if (luaV_fastget(L, t, key, slot, luaH_get)) { setobj2s(L, val, slot); }
@@ -269,7 +269,7 @@ static inline void GETTABLE_INLINE(lua_State *L, const TValue *t, TValue *key, S
   }
 }
 
-static inline void SETTABLE_INLINE(lua_State *L, const TValue *t, TValue *key, StkId val) {
+static inline void settable_inline(lua_State *L, const TValue *t, TValue *key, StkId val) {
   if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) {
     const TValue *slot;
     if (!luaV_fastset(L, t, key, slot, luaH_get, val))
@@ -318,7 +318,7 @@ static inline void SETTABLE_INLINE(lua_State *L, const TValue *t, TValue *key, S
 ** so that JIT code can invoke it
 */
 void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val) {
-  GETTABLE_INLINE(L, t, key, val);
+  gettable_inline(L, t, key, val);
 }
 
 
@@ -329,7 +329,7 @@ void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val) {
 ** so that JIT code can invoke it
 */
 void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
-  SETTABLE_INLINE(L, t, key, val);
+  settable_inline(L, t, key, val);
 }
 
 
@@ -941,16 +941,13 @@ int luaV_execute (lua_State *L) {
       case OP_GETTABUP: {
         TValue *upval = cl->upvals[GETARG_B(i)]->v;    /* table */
         TValue *rc = RKC(i);                           /* key */
-        GETTABLE_INLINE(L, upval, rc, ra);
+        gettable_inline(L, upval, rc, ra);
         Protect((void)0);
       } break;
-#if 0
-      case OP_RAVI_GETTABLE_SK:
-#endif
       case OP_GETTABLE: {
         StkId rb = RB(i);                              /* table */
         TValue *rc = RKC(i);                           /* key */
-        GETTABLE_INLINE(L, rb, rc, ra);
+        gettable_inline(L, rb, rc, ra);
         Protect((void)0);
       } break;
 
@@ -968,7 +965,7 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *t = (op == OP_SETTABUP) ? cl->upvals[GETARG_A(i)]->v : ra;
         TValue *rc = RKC(i);
-        SETTABLE_INLINE(L, t, rb, rc);
+        settable_inline(L, t, rb, rc);
         Protect((void)0);
       } break;
 
@@ -1616,21 +1613,20 @@ int luaV_execute (lua_State *L) {
           setobj2s(L, ra, v);
         }
         else {
-          //Protect(raviV_finishget(L, rb, rc, ra));
           Protect(luaV_finishget(L, rb, rc, ra, v));
         }
       } break;
-#if 1
       /* This opcode is used when the key is known to be 
          short string but the variable may or may not be 
          a table 
       */
       case OP_RAVI_GETTABLE_SK: {
-        StkId rb = RB(i);                              /* variable - may not be a table */
+        StkId rb = RB(i); /* variable - may not be a table */
         lua_assert(ISK(GETARG_C(i)));
-        TValue *rc = k + INDEXK(GETARG_C(i));          /* we know that the key a short string constant */
+        /* we know that the key a short string constant */
+        TValue *rc = k + INDEXK(GETARG_C(i));
         if (!ttistable(rb)) {
-          GETTABLE_INLINE(L, rb, rc, ra);
+          gettable_inline(L, rb, rc, ra);
           Protect((void)0);
         }
         else {
@@ -1644,17 +1640,15 @@ int luaV_execute (lua_State *L) {
           }
           else {
             Protect(luaV_finishget(L, rb, rc, ra, v));
-            //Protect(raviV_finishget(L, rb, rc, ra));
           }
         }
         break;
       }
-#endif
       case OP_RAVI_SELF_S:
       case OP_RAVI_GETTABLE_S: {
-        /* Following is an inline version of luaH_getstr() - this is
-        * not ideal as there is code duplication; should be changed to a common
-        * macro which can be used in bothe places
+        /* This opcode is used when the key is known to be
+           short string and the variable is known to be
+           a table
         */
         StkId rb = RB(i);
         if (op == OP_RAVI_SELF_S) { setobjs2s(L, ra + 1, rb); }
@@ -1664,33 +1658,11 @@ int luaV_execute (lua_State *L) {
           TString *key = tsvalue(rc);
           lua_assert(key->tt == LUA_TSHRSTR);
           Table *h = hvalue(rb);
-#if 0
-          int position = lmod(key->hash, sizenode(h));
-          Node *n = &h->node[position];
-          const TValue *v;
-          for (;;) { /* check whether 'key' is somewhere in the chain */
-            const TValue *k = gkey(n);
-            if (ttisshrstring(k) && eqshrstr(tsvalue(k), key)) {
-              v = gval(n); /* that's it */
-              break;
-            }
-            else {
-              int nx = gnext(n);
-              if (nx == 0) {
-                v = luaO_nilobject;
-                break;
-              }
-              n += nx;
-            }
-          }
-#else
           const TValue *v = luaH_getshortstr(h, key);
-#endif
           if (!ttisnil(v) || metamethod_absent(h->metatable, TM_INDEX)) {
             setobj2s(L, ra, v);
           }
           else {
-            //Protect(raviV_finishget(L, rb, rc, ra));
             Protect(luaV_finishget(L, rb, rc, ra, v));
           }
         }
@@ -2337,27 +2309,6 @@ void raviV_op_shr(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
   }
 }
 
-void raviV_finishget(lua_State *L, const TValue *t, TValue *key, StkId val) {
-  int loop; /* counter to avoid infinite loops */
-  const TValue *tm = luaT_gettm(hvalue(t), TM_INDEX, G(L)->tmname[TM_INDEX]);
-  for (loop = 0; loop < MAXTAGLOOP; loop++) {
-    if (tm == NULL) { /* no metamethod (from a table)? */
-      if (ttisnil(tm = luaT_gettmbyobj(L, t, TM_INDEX)))
-        luaG_typeerror(L, t, "index"); /* no metamethod */
-    }
-    if (ttisfunction(tm)) {               /* metamethod is a function */
-      luaT_callTM(L, tm, t, key, val, 1); /* call it */
-      return;
-    }
-    t = tm; /* else repeat access over 'tm' */
-    if (luaV_fastget(L, t, key, tm, luaH_get)) { /* try fast track */
-      setobj2s(L, val, tm);                      /* done */
-      return;
-    }
-    /* else repeat */
-  }
-  luaG_runerror(L, "gettable chain too long; possible loop");
-}
 
 /* }================================================================== */
 

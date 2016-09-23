@@ -610,22 +610,25 @@ const TValue *luaH_getstr (Table *t, TString *key) {
 /*
 ** main search function
 */
-const TValue *luaH_get (Table *t, const TValue *key) {
-  switch (ttype(key)) {
-    case LUA_TSHRSTR: return luaH_getshortstr(t, tsvalue(key));
-    case LUA_TNUMINT: return luaH_getint(t, ivalue(key));
-    case LUA_TNIL: return luaO_nilobject;
-    case LUA_TNUMFLT: {
-      lua_Integer k;
-      if (luaV_tointeger(key, &k, 0)) /* index is int? */
-        return luaH_getint(t, k);  /* use specialized version */
-      /* else... */
-    }  /* FALLTHROUGH */
-    default:
-      return getgeneric(t, key);
+const TValue *luaH_get(Table *t, const TValue *key) {
+  int tt = ttype(key);
+  if (tt == LUA_TSHRSTR)
+    return luaH_getshortstr(t, tsvalue(key));
+  else if (tt == LUA_TNUMINT)
+    return luaH_getint(t, ivalue(key));
+  else if (tt == LUA_TNIL)
+    return luaO_nilobject;
+  else if (tt == LUA_TNUMFLT) {
+    lua_Integer k;
+    if (luaV_tointeger(key, &k, 0)) /* index is int? */
+      return luaH_getint(t, k);     /* use specialized version */
+    /* else... */
+    return getgeneric(t, key);
+  } /* FALLTHROUGH */
+  else {
+    return getgeneric(t, key);
   }
 }
-
 
 /*
 ** beware: when using this function you probably need to check a GC

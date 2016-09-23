@@ -1165,9 +1165,6 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_setupvaltF = def->raviF->addExternFunction(
       def->types->raviV_op_setupvaltT,
       reinterpret_cast<void *>(&raviV_op_setupvalt), "raviV_op_setupvalt");
-  def->raviV_finishgetF = def->raviF->addExternFunction(
-      def->types->raviV_finishgetT, reinterpret_cast<void *>(&raviV_finishget),
-      "raviV_finishget");
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(
       def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),

@@ -253,15 +253,16 @@ if (NOT STATIC_BUILD)
 endif()
 target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
 
+# Ravi executable
 add_executable(ravi src/lua.c)
 target_link_libraries(ravi ${LIBRAVI_NAME})
 
-#VM test
+# Simple VM tests
 add_executable(test_vm tests/test_vm.c)
 target_link_libraries(test_vm ${LIBRAVI_NAME})
 
 if (LLVM_JIT)
-    #LLVM playground
+    # LLVM playground
     add_executable(test_llvm tests/test_llvm.cpp)
     target_link_libraries(test_llvm ${LIBRAVI_NAME})
 endif ()
@@ -274,21 +275,8 @@ endif ()
 add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
 
+# Build VSCode Debug Adapter for Ravi  
 if (STATIC_BUILD AND NOT GCC_JIT)
-  #Static library for the debugger 
-  #add_library(libravinojit 
-  #      ${RAVI_HEADERS}
-  #      ${LUA_LIB_SRCS} 
-  #      ${LUA_CORE_SRCS}
-  #      src/ravi_nojit.c)
-  #if (WIN32)
-  #  # enable DLL export
-  #  set_target_properties(libravistatic PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-  #else()
-  #  set_target_properties(libravistatic PROPERTIES PREFIX "")
-  #endif ()
-  #target_link_libraries(libravistatic ${EXTRA_LIBRARIES})
-
   add_executable(testravidebug vscode-debugger/src/testravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
   target_link_libraries(testravidebug ${LIBRAVI_NAME})
 

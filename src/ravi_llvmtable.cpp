@@ -143,7 +143,7 @@ void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B,
   //  setobj2s(L, ra, v);
   //}
   //else {
-  //  Protect(raviV_finishget(L, rb, rc, ra));
+  //  Protect(luaV_finishget(L, rb, rc, ra, v));
   //}
 
   emit_debug_trace(def, OP_RAVI_GETTABLE_I, pc);
@@ -218,7 +218,6 @@ void RaviCodeGenerator::emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *
 
   // If value is nil Lua requires that an index event be 
   // generated - so we fall back on slow path for that
-  //CreateCall4(def->builder, def->raviV_finishgetF, def->L, rb, rc, ra);
   CreateCall5(def->builder, def->luaV_finishgetF, def->L, rb, rc, ra, phi);
   def->builder->CreateBr(if_end_block);
 
@@ -248,7 +247,7 @@ void RaviCodeGenerator::emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int 
   //     setobj2s(L, ra, v);
   //   }
   //   else {
-  //     Protect(raviV_finishget(L, rb, rc, ra));
+  //     Protect(luaV_finishget(L, rb, rc, ra, v));
   //   }
 
   // A number of macros are involved above do the

@@ -527,6 +527,7 @@ static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
        return "for iterator";
     }
     /* all other instructions can call only through metamethods */
+    /* Ravi: added GETTABLE_SK and SELF_SK because the call may be through metamethod rather than table */
     case OP_SELF: case OP_GETTABUP: case OP_GETTABLE: case OP_RAVI_GETTABLE_SK: case OP_RAVI_SELF_SK:
       tm = TM_INDEX;
       break;
