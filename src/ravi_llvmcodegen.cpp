@@ -929,8 +929,10 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
       case OP_SHL:
       case OP_RAVI_GETTABLE_I:
       case OP_RAVI_GETTABLE_S:
+      case OP_RAVI_GETTABLE_SK:
       case OP_RAVI_SETTABLE_I:
       case OP_RAVI_SETTABLE_S:
+      case OP_RAVI_SETTABLE_SK:
       case OP_RAVI_TOTAB:
       case OP_RAVI_MOVETAB:
       case OP_RAVI_SETUPVALI:
@@ -938,7 +940,9 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
       case OP_RAVI_SETUPVALAI:
       case OP_RAVI_SETUPVALAF:
       case OP_RAVI_SETUPVALT:
-      case OP_RAVI_SELF_S: break;
+      case OP_RAVI_SELF_S: 
+      case OP_RAVI_SELF_SK:
+        break;
       default: return false;
     }
   }
@@ -1473,6 +1477,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int C = GETARG_C(i);
         emit_SETLIST(def, A, B, C, pc);
       } break;
+      case OP_RAVI_SELF_SK:
       case OP_SELF: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
@@ -1633,6 +1638,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int C = GETARG_C(i);
         emit_SETTABLE_I(def, A, B, C, pc);
       } break; */
+      case OP_RAVI_SETTABLE_SK:
       case OP_RAVI_SETTABLE_S:
       case OP_SETTABLE: {
         int B = GETARG_B(i);
@@ -1662,6 +1668,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int C = GETARG_C(i);
         emit_GETTABLE_I(def, A, B, C, pc);
       } break;
+      case OP_RAVI_GETTABLE_SK:
       case OP_GETTABLE: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);

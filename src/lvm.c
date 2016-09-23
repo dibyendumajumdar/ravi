@@ -943,6 +943,7 @@ int luaV_execute (lua_State *L) {
         GETTABLE_INLINE(L, upval, rc, ra);
         Protect((void)0);
       } break;
+      case OP_RAVI_GETTABLE_SK:
       case OP_GETTABLE: {
         StkId rb = RB(i);                              /* table */
         TValue *rc = RKC(i);                           /* key */
@@ -956,6 +957,7 @@ int luaV_execute (lua_State *L) {
         luaC_upvalbarrier(L, uv);
       } break;
 
+      case OP_RAVI_SETTABLE_SK:
       case OP_RAVI_SETTABLE_S:
       case OP_RAVI_SETTABLE_I:
       case OP_SETTABUP:
@@ -976,6 +978,7 @@ int luaV_execute (lua_State *L) {
           luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
         checkGC(L, ra + 1);
       } break;
+      case OP_RAVI_SELF_SK:
       case OP_SELF: {
         const TValue *aux;
         StkId rb = RB(i);

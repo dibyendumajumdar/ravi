@@ -468,6 +468,7 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
       }
       case OP_RAVI_GETTABLE_I:
       case OP_RAVI_GETTABLE_S:
+      case OP_RAVI_GETTABLE_SK:
       case OP_RAVI_GETTABLE_AI:
       case OP_RAVI_GETTABLE_AF:
       case OP_GETTABUP:
@@ -494,6 +495,7 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
         }
         break;
       }
+      case OP_RAVI_SELF_SK:
       case OP_RAVI_SELF_S:
       case OP_SELF: {
         int k = GETARG_C(i);  /* key index */
@@ -525,10 +527,10 @@ static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
        return "for iterator";
     }
     /* all other instructions can call only through metamethods */
-    case OP_SELF: case OP_GETTABUP: case OP_GETTABLE:
+    case OP_SELF: case OP_GETTABUP: case OP_GETTABLE: case OP_RAVI_GETTABLE_SK: case OP_RAVI_SELF_SK:
       tm = TM_INDEX;
       break;
-    case OP_SETTABUP: case OP_SETTABLE:
+    case OP_SETTABUP: case OP_SETTABLE: case OP_RAVI_SETTABLE_SK:
       tm = TM_NEWINDEX;
       break;
     case OP_ADD: case OP_SUB: case OP_MUL: case OP_MOD:
