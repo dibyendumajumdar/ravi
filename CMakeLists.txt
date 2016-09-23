@@ -12,7 +12,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 # Only one can be ON, and at last one of them must be ON
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(GCC_JIT "Controls whether GCC JIT compilation will be enabled, default is OFF" OFF)
-option(STATIC_BUILD "Build static version of Ravi, default is ON" ON)
+option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 
 # We cannot link to both LLVM and GCC JIT
 if (LLVM_JIT AND GCC_JIT)
