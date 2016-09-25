@@ -1655,6 +1655,10 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         lua_assert(key->tt == LUA_TSHRSTR);
         emit_GETTABLE_S(def, A, B, C, pc, key);
       } break;
+
+#if 0
+      // There is a BUG in the code being emitted
+      // See the emit method for details
       case OP_RAVI_GETTABLE_SK: {
         int C = GETARG_C(i);
         int B = GETARG_B(i);
@@ -1664,7 +1668,10 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         lua_assert(key->tt == LUA_TSHRSTR);
         emit_GETTABLE_SK(def, A, B, C, pc, key);
       } break;
+#endif
 #if 0
+      // There is a BUG in the code being emitted
+      // Also crashes the tests so code generation is incorrect
       case OP_RAVI_GETTABUP_SK: {
         int C = GETARG_C(i);
         int B = GETARG_B(i);
@@ -1689,7 +1696,9 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int C = GETARG_C(i);
         emit_GETTABLE_I(def, A, B, C, pc);
       } break;
-      //case OP_RAVI_GETTABLE_SK:
+#if 1
+      case OP_RAVI_GETTABLE_SK:
+#endif
       case OP_GETTABLE: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);

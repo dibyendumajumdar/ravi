@@ -384,6 +384,8 @@ void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
   // else
   // do GETTABLE_S
 
+  // BUG FIXME - this check is not adequate as it 
+  // also needs to verify that we are not dealing with a Ravi array
   // type != LUA_TTABLE ?
   llvm::Value *cmp1 =
       emit_is_not_value_of_type(def, type, LUA__TTABLE, "is_not_table");
@@ -770,6 +772,8 @@ void RaviCodeGenerator::emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B,
   // else
   // do GETTABLE_S
 
+  // BUG FIXME - this check is not adequate as it 
+  // also needs to verify that we are not dealing with a Ravi array
   // type != LUA_TTABLE ?
   llvm::Value *cmp1 =
       emit_is_not_value_of_type(def, type, LUA__TTABLE, "is_not_table");
