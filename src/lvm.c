@@ -764,6 +764,7 @@ void luaV_finishOp (lua_State *L) {
     case OP_BAND: case OP_BOR: case OP_BXOR: case OP_SHL: case OP_SHR:
     case OP_MOD: case OP_POW:
     case OP_UNM: case OP_BNOT: case OP_LEN:
+    case OP_RAVI_GETTABUP_SK: case OP_RAVI_GETTABLE_SK: case OP_RAVI_SELF_SK:
     case OP_GETTABUP: case OP_GETTABLE: case OP_SELF: {
       setobjs2s(L, base + GETARG_A(inst), --L->top);
       break;
@@ -938,6 +939,7 @@ int luaV_execute (lua_State *L) {
         setobj2s(L, ra, cl->upvals[b]->v);
       } break;
 
+      /* case OP_RAVI_GETTABUP_SK: */
       case OP_GETTABUP: {
         TValue *upval = cl->upvals[GETARG_B(i)]->v;    /* table */
         TValue *rc = RKC(i);                           /* key */
@@ -1616,6 +1618,31 @@ int luaV_execute (lua_State *L) {
           Protect(luaV_finishget(L, rb, rc, ra, v));
         }
       } break;
+#if 1
+      case OP_RAVI_GETTABUP_SK: {
+        TValue *rb = cl->upvals[GETARG_B(i)]->v;    /* table */
+        lua_assert(ISK(GETARG_C(i)));
+        /* we know that the key a short string constant */
+        TValue *rc = k + INDEXK(GETARG_C(i));
+        if (!ttistable(rb)) {
+          gettable_inline(L, rb, rc, ra);
+          Protect((void)0);
+        }
+        else {
+          /* table case */
+          TString *key = tsvalue(rc);
+          lua_assert(key->tt == LUA_TSHRSTR);
+          Table *h = hvalue(rb);
+          const TValue *v = luaH_getshortstr(h, key);
+          if (!ttisnil(v) || metamethod_absent(h->metatable, TM_INDEX)) {
+            setobj2s(L, ra, v);
+          }
+          else {
+            Protect(luaV_finishget(L, rb, rc, ra, v));
+          }
+        }
+      } break;
+#endif
       /* This opcode is used when the key is known to be 
          short string but the variable may or may not be 
          a table 

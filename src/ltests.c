@@ -473,6 +473,7 @@ static char *buildop (Proto *p, int pc, char *buff) {
   if (strcmp(name, "GETTABLE_SK") == 0) name = "GETTABLE";
   else if (strcmp(name, "SELF_SK") == 0) name = "SELF";
   else if (strcmp(name, "SETTABLE_SK") == 0) name = "SETTABLE";
+  else if (strcmp(name, "GETTABUP_SK") == 0) name = "GETTABUP";
   int line = getfuncline(p, pc);
   sprintf(buff, "(%4d) %4d - ", line, pc);
   switch (getOpMode(o)) {

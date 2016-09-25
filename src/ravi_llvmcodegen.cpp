@@ -942,6 +942,7 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
       case OP_RAVI_SETUPVALT:
       case OP_RAVI_SELF_S: 
       case OP_RAVI_SELF_SK:
+      case OP_RAVI_GETTABUP_SK:
         break;
       default: return false;
     }
@@ -1663,6 +1664,17 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         lua_assert(key->tt == LUA_TSHRSTR);
         emit_GETTABLE_SK(def, A, B, C, pc, key);
       } break;
+#if 0
+      case OP_RAVI_GETTABUP_SK: {
+        int C = GETARG_C(i);
+        int B = GETARG_B(i);
+        lua_assert(ISK(C));
+        TValue *kv = k + INDEXK(C);
+        TString *key = tsvalue(kv);
+        lua_assert(key->tt == LUA_TSHRSTR);
+        emit_GETTABUP_SK(def, A, B, C, pc, key);
+      } break;
+#endif
       case OP_RAVI_SELF_S: {
         int C = GETARG_C(i);
         int B = GETARG_B(i);
@@ -1727,6 +1739,9 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_MOVETAB(def, A, B, pc);
       } break;
 
+#if 1
+      case OP_RAVI_GETTABUP_SK:
+#endif
       case OP_GETTABUP: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);

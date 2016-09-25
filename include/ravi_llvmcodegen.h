@@ -1083,6 +1083,9 @@ class RaviCodeGenerator {
   void emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C,
                               TString *key);
 
+  void emit_common_GETTABLE_S_(RaviFunctionDef *def, int A, llvm::Value *rb, int C,
+    TString *key);
+
   void emit_GETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_SETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
@@ -1091,6 +1094,9 @@ class RaviCodeGenerator {
                               OpCode op, llvm::Function *f);
 
   void emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C, int pc);
+
+  void emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B, int C, int pc,
+    TString *key);
 
   void emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C, int pc);
 

@@ -32,8 +32,7 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, int A, int B, int C,
   // Protect(luaV_gettable(L, rb, RKC(i), ra));
   bool traced = emit_debug_trace(def, OP_SELF, pc);
   // Below may invoke metamethod so we set savedpc
-  if (!traced)
-    emit_update_savedpc(def, pc);
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register(def, B);
   llvm::Value *ra1 = emit_gep_register(def, A + 1);
@@ -45,13 +44,13 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, int A, int B, int C,
 
 // R(A+1) := R(B); R(A) := R(B)[RK(C)]
 void RaviCodeGenerator::emit_SELF_S(RaviFunctionDef *def, int A, int B, int C,
-  int pc, TString *key) {
-  //StkId rb = RB(i);
-  //setobjs2s(L, ra + 1, rb);
-  //TValue *kv = k + INDEXK(GETARG_C(i));
-  //TString *key = tsvalue(kv);
-  //const TValue *v = luaH_getstr(hvalue(rb), key);
-  //setobj2s(L, ra, v);
+                                    int pc, TString *key) {
+  // StkId rb = RB(i);
+  // setobjs2s(L, ra + 1, rb);
+  // TValue *kv = k + INDEXK(GETARG_C(i));
+  // TString *key = tsvalue(kv);
+  // const TValue *v = luaH_getstr(hvalue(rb), key);
+  // setobj2s(L, ra, v);
   emit_debug_trace(def, OP_RAVI_SELF_S, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -65,8 +64,7 @@ void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B, int pc) {
   // Protect(luaV_objlen(L, ra, RB(i)));
   bool traced = emit_debug_trace(def, OP_LEN, pc);
   // Below may invoke metamethod so we set savedpc
-  if (!traced)
-    emit_update_savedpc(def, pc);
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -97,8 +95,7 @@ void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C,
   // Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
   bool traced = emit_debug_trace(def, OP_SETTABLE, pc);
   // Below may invoke metamethod so we set savedpc
-  if (!traced)
-    emit_update_savedpc(def, pc);
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -112,8 +109,7 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
   // Protect(luaV_gettable(L, RB(i), RKC(i), ra));
   bool traced = emit_debug_trace(def, OP_GETTABLE, pc);
   // Below may invoke metamethod so we set savedpc
-  if (!traced)
-    emit_update_savedpc(def, pc);
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -129,20 +125,19 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
 // b) we know the key is an integer
 void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B,
                                         int C, int pc) {
-
-  //TValue *rb = RB(i);
-  //TValue *rc = RKC(i);
-  //lua_Integer idx = ivalue(rc);
-  //Table *t = hvalue(rb);
-  //const TValue *v;
-  //if (l_castS2U(idx - 1) < t->sizearray)
+  // TValue *rb = RB(i);
+  // TValue *rc = RKC(i);
+  // lua_Integer idx = ivalue(rc);
+  // Table *t = hvalue(rb);
+  // const TValue *v;
+  // if (l_castS2U(idx - 1) < t->sizearray)
   //  v = &t->array[idx - 1];
-  //else
+  // else
   //  v = luaH_getint(t, idx);
-  //if (!ttisnil(v) || metamethod_absent(t->metatable, TM_INDEX)) {
+  // if (!ttisnil(v) || metamethod_absent(t->metatable, TM_INDEX)) {
   //  setobj2s(L, ra, v);
   //}
-  //else {
+  // else {
   //  Protect(luaV_finishget(L, rb, rc, ra, v));
   //}
 
@@ -191,21 +186,24 @@ void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B,
   emit_finish_GETTABLE(def, phi, t, ra, rb, rc);
 }
 
-void RaviCodeGenerator::emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *phi, llvm::Value *t, llvm::Value *ra, llvm::Value *rb, llvm::Value *rc) {
+void RaviCodeGenerator::emit_finish_GETTABLE(RaviFunctionDef *def,
+                                             llvm::Value *phi, llvm::Value *t,
+                                             llvm::Value *ra, llvm::Value *rb,
+                                             llvm::Value *rc) {
   // We need to test if value is not nil
-  // or table has no metatable 
-  // or if the metatable cached flags indicate metamethod absent 
+  // or table has no metatable
+  // or if the metatable cached flags indicate metamethod absent
   llvm::Value *value_type = emit_load_type(def, phi);
   llvm::Value *isnotnil = emit_is_not_value_of_type(def, value_type, LUA__TNIL);
   llvm::Value *metamethod_absent = emit_table_no_metamethod(def, t, TM_INDEX);
   llvm::Value *cond = def->builder->CreateOr(isnotnil, metamethod_absent);
 
-  llvm::BasicBlock *if_true_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.not.nil.or.metamethod.absent", def->f);
+  llvm::BasicBlock *if_true_block = llvm::BasicBlock::Create(
+      def->jitState->context(), "if.not.nil.or.metamethod.absent", def->f);
   llvm::BasicBlock *if_false_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.try.metamethod");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.try.metamethod");
   llvm::BasicBlock *if_end_block =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.end");
   def->builder->CreateCondBr(cond, if_true_block, if_false_block);
   def->builder->SetInsertPoint(if_true_block);
 
@@ -216,7 +214,7 @@ void RaviCodeGenerator::emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *
   def->f->getBasicBlockList().push_back(if_false_block);
   def->builder->SetInsertPoint(if_false_block);
 
-  // If value is nil Lua requires that an index event be 
+  // If value is nil Lua requires that an index event be
   // generated - so we fall back on slow path for that
   CreateCall5(def->builder, def->luaV_finishgetF, def->L, rb, rc, ra, phi);
   def->builder->CreateBr(if_end_block);
@@ -232,9 +230,11 @@ void RaviCodeGenerator::emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *
 // key is not in the main position then we fall back on luaH_getstr().
 // IMPORTANT - this emitter should only be called when key is known to
 // to be short string
-void RaviCodeGenerator::emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int B,
-  int C, TString *key) {
-
+// NOTE: To add support for GETTABUP_SK we now let caller supply the
+// rb register as it may be a register or an upvalue reference
+// See emit_GETTABUP_SK 
+void RaviCodeGenerator::emit_common_GETTABLE_S_(RaviFunctionDef *def, int A,
+  llvm::Value *rb, int C, TString *key) {
   // The code we want to generate is this:
   //   struct Node *n = hashstr(t, key);
   //   const struct TValue *k = gkey(n);
@@ -254,7 +254,6 @@ void RaviCodeGenerator::emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int 
   // the generated code is somewhat more complex
 
   llvm::Value *ra = emit_gep_register(def, A);
-  llvm::Value *rb = emit_gep_register(def, B);
 
   // Get the hash table
   llvm::Instruction *t = emit_load_reg_h(def, rb);
@@ -329,9 +328,38 @@ void RaviCodeGenerator::emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int 
 // key is not in the main position then we fall back on luaH_getstr().
 // IMPORTANT - this emitter should only be called when key is known to
 // to be short string
+void RaviCodeGenerator::emit_common_GETTABLE_S(RaviFunctionDef *def, int A,
+                                               int B, int C, TString *key) {
+  // The code we want to generate is this:
+  //   struct Node *n = hashstr(t, key);
+  //   const struct TValue *k = gkey(n);
+  //   TValue *v;
+  //   if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
+  //     v = gval(n);
+  //   else
+  //     v = luaH_getstr(t, key);
+  //   if (!ttisnil(v) || metamethod_absent(t->metatable, TM_INDEX)) {
+  //     setobj2s(L, ra, v);
+  //   }
+  //   else {
+  //     Protect(luaV_finishget(L, rb, rc, ra, v));
+  //   }
+
+  // A number of macros are involved above do the
+  // the generated code is somewhat more complex
+
+  llvm::Value *rb = emit_gep_register(def, B);
+  emit_common_GETTABLE_S_(def, A, rb, C, key);
+}
+
+// R(A) := R(B)[RK(C)]
+// Emit inline code for accessing a table element using a string key
+// We try to access the element using the hash part but if the
+// key is not in the main position then we fall back on luaH_getstr().
+// IMPORTANT - this emitter should only be called when key is known to
+// to be short string
 void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
                                         int C, int pc, TString *key) {
-
   // The code we want to generate is this:
   //   struct Node *n = hashstr(t, key);
   //   const struct TValue *k = gkey(n);
@@ -345,7 +373,7 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
 }
 
 void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
-  int C, int pc, TString *key) {
+                                         int C, int pc, TString *key) {
   emit_debug_trace(def, OP_RAVI_GETTABLE_SK, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -358,14 +386,14 @@ void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
 
   // type != LUA_TTABLE ?
   llvm::Value *cmp1 =
-    emit_is_not_value_of_type(def, type, LUA__TTABLE, "is_not_table");
+      emit_is_not_value_of_type(def, type, LUA__TTABLE, "is_not_table");
 
   llvm::BasicBlock *not_table = llvm::BasicBlock::Create(
-    def->jitState->context(), "GETTABLE_SK_if_not_table", def->f);
-  llvm::BasicBlock *else_not_table =
-    llvm::BasicBlock::Create(def->jitState->context(), "GETTABLE_SK_if_table");
+      def->jitState->context(), "GETTABLE_SK_if_not_table", def->f);
+  llvm::BasicBlock *else_not_table = llvm::BasicBlock::Create(
+      def->jitState->context(), "GETTABLE_SK_if_table");
   llvm::BasicBlock *done =
-    llvm::BasicBlock::Create(def->jitState->context(), "GETTABLE_SK_done");
+      llvm::BasicBlock::Create(def->jitState->context(), "GETTABLE_SK_done");
   def->builder->CreateCondBr(cmp1, not_table, else_not_table);
   def->builder->SetInsertPoint(not_table);
 
@@ -385,7 +413,6 @@ void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
   def->f->getBasicBlockList().push_back(done);
   def->builder->SetInsertPoint(done);
 }
-
 
 void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
                                          int C, bool omitArrayGetRangeCheck,
@@ -453,7 +480,6 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
 void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B,
                                          int C, bool omitArrayGetRangeCheck,
                                          int pc) {
-
   //#define raviH_get_int_inline(L, t, key, v)
   //{ unsigned ukey = (unsigned)((key));
   //  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
@@ -517,7 +543,6 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B,
 
 void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B,
                                          int C, bool known_int, int pc) {
-
   //#define raviH_set_int_inline(L, t, key, value)
   //{ unsigned ukey = (unsigned)((key));
   //  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
@@ -578,7 +603,6 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B,
 
 void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B,
                                          int C, bool known_float, int pc) {
-
   //#define raviH_set_float_inline(L, t, key, value)
   //{ unsigned ukey = (unsigned)((key));
   //  lua_Number *data = (lua_Number *)t->ravi_array.data;
@@ -668,7 +692,6 @@ void RaviCodeGenerator::emit_SETUPVAL_Specific(RaviFunctionDef *def, int A,
 // UpValue[B] := R(A)
 void RaviCodeGenerator::emit_SETUPVAL(RaviFunctionDef *def, int A, int B,
                                       int pc) {
-
   // UpVal *uv = cl->upvals[GETARG_B(i)];
   // setobj(L, uv->v, ra);
   // luaC_upvalbarrier(L, uv);
@@ -714,8 +737,7 @@ void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C,
   // Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
   bool traced = emit_debug_trace(def, OP_GETTABUP, pc);
   // Below may invoke metamethod so we set savedpc
-  if (!traced)
-    emit_update_savedpc(def, pc);
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
@@ -726,16 +748,66 @@ void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C,
   CreateCall4(def->builder, def->luaV_gettableF, def->L, v, rc, ra);
 }
 
+// R(A) := UpValue[B][RK(C)]
+void RaviCodeGenerator::emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B,
+                                         int C, int pc, TString *key) {
+  // int b = GETARG_B(i);
+  // Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
+  bool traced = emit_debug_trace(def, OP_RAVI_GETTABUP_SK, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
+  emit_load_base(def);
+
+  // cl->upvals[b]->v
+  llvm::Value *upval_ptr = emit_gep_upvals(def, B);
+  llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
+  llvm::Value *rb = emit_load_upval_v(def, upval);
+  // rb = cl->upvals[b]->v
+  llvm::Instruction *type = emit_load_type(def, rb);
+
+  // if not table
+  // call luaV_gettable
+  // else
+  // do GETTABLE_S
+
+  // type != LUA_TTABLE ?
+  llvm::Value *cmp1 =
+      emit_is_not_value_of_type(def, type, LUA__TTABLE, "is_not_table");
+
+  llvm::BasicBlock *not_table = llvm::BasicBlock::Create(
+      def->jitState->context(), "GETTABUP_SK_if_not_table", def->f);
+  llvm::BasicBlock *else_not_table = llvm::BasicBlock::Create(
+      def->jitState->context(), "GETTABUP_SK_if_table");
+  llvm::BasicBlock *done =
+      llvm::BasicBlock::Create(def->jitState->context(), "GETTABUP_SK_done");
+  def->builder->CreateCondBr(cmp1, not_table, else_not_table);
+  def->builder->SetInsertPoint(not_table);
+
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
+
+  def->builder->CreateBr(done);
+
+  def->f->getBasicBlockList().push_back(else_not_table);
+  def->builder->SetInsertPoint(else_not_table);
+
+  emit_common_GETTABLE_S_(def, A, rb, C, key);
+
+  def->builder->CreateBr(done);
+
+  def->f->getBasicBlockList().push_back(done);
+  def->builder->SetInsertPoint(done);
+}
+
 // UpValue[A][RK(B)] := RK(C)
 void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C,
                                       int pc) {
-
   // int a = GETARG_A(i);
   // Protect(luaV_settable(L, cl->upvals[a]->v, RKB(i), RKC(i)));
 
   bool traced = emit_debug_trace(def, OP_SETTABUP, pc);
-  if (!traced)
-    emit_update_savedpc(def, pc);
+  if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
@@ -794,18 +866,12 @@ void RaviCodeGenerator::emit_SETLIST(RaviFunctionDef *def, int A, int B, int C,
 void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
                                      int array_type_expected,
                                      const char *errmsg, int pc) {
-
   OpCode op = OP_RAVI_TOTAB;
   switch (array_type_expected) {
-  case RAVI_TARRAYINT:
-    op = OP_RAVI_TOARRAYI;
-    break;
-  case RAVI_TARRAYFLT:
-    op = OP_RAVI_TOARRAYF;
-    break;
-  case RAVI_TTABLE:
-  default:
-    break;
+    case RAVI_TARRAYINT: op = OP_RAVI_TOARRAYI; break;
+    case RAVI_TARRAYFLT: op = OP_RAVI_TOARRAYF; break;
+    case RAVI_TTABLE:
+    default: break;
   }
 
   emit_debug_trace(def, op, pc);

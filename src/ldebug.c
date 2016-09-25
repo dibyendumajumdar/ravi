@@ -472,10 +472,11 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
       case OP_RAVI_GETTABLE_AI:
       case OP_RAVI_GETTABLE_AF:
       case OP_GETTABUP:
+      case OP_RAVI_GETTABUP_SK:
       case OP_GETTABLE: {
         int k = GETARG_C(i);  /* key index */
         int t = GETARG_B(i);  /* table index */
-        const char *vn = (op != OP_GETTABUP)  /* name of indexed variable */
+        const char *vn = (op != OP_GETTABUP && op != OP_RAVI_GETTABUP_SK)  /* name of indexed variable */
                          ? luaF_getlocalname(p, t + 1, pc, &type)  /* t+1 is the local variable number */
                          : upvalname(p, t);
         kname(p, pc, k, name);
@@ -528,7 +529,8 @@ static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
     }
     /* all other instructions can call only through metamethods */
     /* Ravi: added GETTABLE_SK and SELF_SK because the call may be through metamethod rather than table */
-    case OP_SELF: case OP_GETTABUP: case OP_GETTABLE: case OP_RAVI_GETTABLE_SK: case OP_RAVI_SELF_SK:
+    case OP_SELF: case OP_GETTABUP: case OP_GETTABLE: 
+    case OP_RAVI_SELF_SK: case OP_RAVI_GETTABUP_SK: case OP_RAVI_GETTABLE_SK:
       tm = TM_INDEX;
       break;
     case OP_SETTABUP: case OP_SETTABLE: case OP_RAVI_SETTABLE_SK:
