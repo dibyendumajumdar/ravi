@@ -103,6 +103,21 @@ void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C,
   CreateCall4(def->builder, def->luaV_settableF, def->L, ra, rb, rc);
 }
 
+// R(A)[RK(B)] := RK(C)
+void RaviCodeGenerator::emit_SETTABLE_SK(RaviFunctionDef *def, int A, int B, int C,
+  int pc) {
+  // Protect(luaV_settable(L, ra, RKB(i), RKC(i)));
+  bool traced = emit_debug_trace(def, OP_RAVI_SETTABLE_SK, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  CreateCall4(def->builder, def->raviV_settable_sskeyF, def->L, ra, rb, rc);
+}
+
+
 // R(A) := R(B)[RK(C)]
 void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
                                       int pc) {
@@ -116,6 +131,21 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
   CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
 }
+
+// R(A) := R(B)[RK(C)]
+void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C,
+  int pc) {
+  // Protect(luaV_gettable(L, RB(i), RKC(i), ra));
+  bool traced = emit_debug_trace(def, OP_RAVI_GETTABLE_SK, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  CreateCall4(def->builder, def->raviV_gettable_sskeyF, def->L, rb, rc, ra);
+}
+
 
 // R(A) := R(B)[RK(C)]
 // This is a more optimized version that attempts to do an inline
@@ -372,6 +402,7 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
   emit_common_GETTABLE_S(def, A, B, C, key);
 }
 
+#if 0
 void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
                                          int C, int pc, TString *key) {
   emit_debug_trace(def, OP_RAVI_GETTABLE_SK, pc);
@@ -415,6 +446,7 @@ void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
   def->f->getBasicBlockList().push_back(done);
   def->builder->SetInsertPoint(done);
 }
+#endif
 
 void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
                                          int C, bool omitArrayGetRangeCheck,
@@ -751,6 +783,26 @@ void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // R(A) := UpValue[B][RK(C)]
+void RaviCodeGenerator::emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B, int C,
+  int pc) {
+  // int b = GETARG_B(i);
+  // Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
+  bool traced = emit_debug_trace(def, OP_RAVI_GETTABUP_SK, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+
+  llvm::Value *upval_ptr = emit_gep_upvals(def, B);
+  llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
+  llvm::Value *v = emit_load_upval_v(def, upval);
+  CreateCall4(def->builder, def->raviV_gettable_sskeyF, def->L, v, rc, ra);
+}
+
+
+#if 0
+// R(A) := UpValue[B][RK(C)]
 void RaviCodeGenerator::emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B,
                                          int C, int pc, TString *key) {
   // int b = GETARG_B(i);
@@ -803,6 +855,7 @@ void RaviCodeGenerator::emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B,
   def->f->getBasicBlockList().push_back(done);
   def->builder->SetInsertPoint(done);
 }
+#endif
 
 // UpValue[A][RK(B)] := RK(C)
 void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C,
@@ -820,6 +873,24 @@ void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C,
   llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
   llvm::Value *v = emit_load_upval_v(def, upval);
   CreateCall4(def->builder, def->luaV_settableF, def->L, v, rb, rc);
+}
+
+// UpValue[A][RK(B)] := RK(C)
+void RaviCodeGenerator::emit_SETTABUP_SK(RaviFunctionDef *def, int A, int B, int C,
+  int pc) {
+  // int a = GETARG_A(i);
+  // Protect(luaV_settable(L, cl->upvals[a]->v, RKB(i), RKC(i)));
+
+  bool traced = emit_debug_trace(def, OP_RAVI_SETTABLE_SK, pc);
+  if (!traced) emit_update_savedpc(def, pc);
+  emit_load_base(def);
+  llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+
+  llvm::Value *upval_ptr = emit_gep_upvals(def, A);
+  llvm::Instruction *upval = emit_load_pupval(def, upval_ptr);
+  llvm::Value *v = emit_load_upval_v(def, upval);
+  CreateCall4(def->builder, def->raviV_settable_sskeyF, def->L, v, rb, rc);
 }
 
 void RaviCodeGenerator::emit_NEWARRAYINT(RaviFunctionDef *def, int A, int pc) {

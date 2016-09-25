@@ -269,6 +269,8 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_op_setupvalaiT;
   llvm::FunctionType *raviV_op_setupvalafT;
   llvm::FunctionType *raviV_op_setupvaltT;
+  llvm::FunctionType *raviV_gettable_sskeyT;
+  llvm::FunctionType *raviV_settable_sskeyT;
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -638,6 +640,8 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_setupvalaiF;
   llvm::Function *raviV_op_setupvalafF;
   llvm::Function *raviV_op_setupvaltF;
+  llvm::Function *raviV_gettable_sskeyF;
+  llvm::Function *raviV_settable_sskeyF;
 
   // array setters
   llvm::Function *raviH_set_intF;
@@ -1061,13 +1065,14 @@ class RaviCodeGenerator {
 
   void emit_SETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
 
+  void emit_SETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
+
   void emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, int pc,
                        TString *key);
 
-  void emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc,
-    TString *key);
+  void emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
 
@@ -1095,10 +1100,11 @@ class RaviCodeGenerator {
 
   void emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B, int C, int pc,
-    TString *key);
+  void emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C, int pc);
+
+  void emit_SETTABUP_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_NEWARRAYINT(RaviFunctionDef *def, int A, int pc);
 

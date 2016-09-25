@@ -20,8 +20,8 @@
 * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
-#include <ravijit.h>
 #include "ravi_llvmcodegen.h"
+#include <ravijit.h>
 
 namespace ravi {
 
@@ -940,10 +940,9 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
       case OP_RAVI_SETUPVALAI:
       case OP_RAVI_SETUPVALAF:
       case OP_RAVI_SETUPVALT:
-      case OP_RAVI_SELF_S: 
+      case OP_RAVI_SELF_S:
       case OP_RAVI_SELF_SK:
-      case OP_RAVI_GETTABUP_SK:
-        break;
+      case OP_RAVI_GETTABUP_SK: break;
       default: return false;
     }
   }
@@ -1166,6 +1165,12 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_setupvaltF = def->raviF->addExternFunction(
       def->types->raviV_op_setupvaltT,
       reinterpret_cast<void *>(&raviV_op_setupvalt), "raviV_op_setupvalt");
+  def->raviV_settable_sskeyF = def->raviF->addExternFunction(
+      def->types->raviV_settable_sskeyT,
+      reinterpret_cast<void *>(&raviV_settable_sskey), "raviV_settable_sskey");
+  def->raviV_gettable_sskeyF = def->raviF->addExternFunction(
+      def->types->raviV_gettable_sskeyT,
+      reinterpret_cast<void *>(&raviV_gettable_sskey), "raviV_gettable_sskey");
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(
       def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
@@ -1214,7 +1219,7 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       llvm::FunctionType::get(def->types->lua_NumberT, args, false);
 #ifdef LUA_32BITS
   def->floorFunc =
-    def->raviF->module()->getOrInsertFunction("floorf", floorType);
+      def->raviF->module()->getOrInsertFunction("floorf", floorType);
 #else
   def->floorFunc =
       def->raviF->module()->getOrInsertFunction("floor", floorType);
@@ -1317,15 +1322,14 @@ llvm::Value *RaviCodeGenerator::emit_gep_upval_value(
 bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
                                 std::shared_ptr<RaviJITModule> module,
                                 ravi_compile_options_t *options) {
-  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED)
-    return true;
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) return true;
 
   bool doVerify = options ? options->verification_level != 0 : 0;
   bool omitArrayGetRangeCheck =
       options ? options->omit_array_get_range_check != 0 : 0;
 
   if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED || !canCompile(p)) {
-    //fprintf(stderr, "failed to compile!\n");
+    // fprintf(stderr, "failed to compile!\n");
     return false;
   }
 
@@ -1634,13 +1638,18 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_CALL(def, A, B, C, pc);
       } break;
 
+      case OP_RAVI_SETTABLE_SK:
+      case OP_RAVI_SETTABLE_S: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_SETTABLE_SK(def, A, B, C, pc);
+      } break;
+
       case OP_RAVI_SETTABLE_I: /*{
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         emit_SETTABLE_I(def, A, B, C, pc);
       } break; */
-      case OP_RAVI_SETTABLE_SK:
-      case OP_RAVI_SETTABLE_S:
       case OP_SETTABLE: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
@@ -1656,32 +1665,6 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_GETTABLE_S(def, A, B, C, pc, key);
       } break;
 
-#if 0
-      // There is a BUG in the code being emitted
-      // See the emit method for details
-      case OP_RAVI_GETTABLE_SK: {
-        int C = GETARG_C(i);
-        int B = GETARG_B(i);
-        lua_assert(ISK(C));
-        TValue *kv = k + INDEXK(C);
-        TString *key = tsvalue(kv);
-        lua_assert(key->tt == LUA_TSHRSTR);
-        emit_GETTABLE_SK(def, A, B, C, pc, key);
-      } break;
-#endif
-#if 0
-      // There is a BUG in the code being emitted
-      // Also crashes the tests so code generation is incorrect
-      case OP_RAVI_GETTABUP_SK: {
-        int C = GETARG_C(i);
-        int B = GETARG_B(i);
-        lua_assert(ISK(C));
-        TValue *kv = k + INDEXK(C);
-        TString *key = tsvalue(kv);
-        lua_assert(key->tt == LUA_TSHRSTR);
-        emit_GETTABUP_SK(def, A, B, C, pc, key);
-      } break;
-#endif
       case OP_RAVI_SELF_S: {
         int C = GETARG_C(i);
         int B = GETARG_B(i);
@@ -1696,9 +1679,24 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int C = GETARG_C(i);
         emit_GETTABLE_I(def, A, B, C, pc);
       } break;
-#if 1
-      case OP_RAVI_GETTABLE_SK:
+#if 0
+        // There is a BUG in the code being emitted
+        // See the emit method for details
+      case OP_RAVI_GETTABLE_SK: {
+        int C = GETARG_C(i);
+        int B = GETARG_B(i);
+        lua_assert(ISK(C));
+        TValue *kv = k + INDEXK(C);
+        TString *key = tsvalue(kv);
+        lua_assert(key->tt == LUA_TSHRSTR);
+        emit_GETTABLE_SK(def, A, B, C, pc, key);
+      } break;
 #endif
+      case OP_RAVI_GETTABLE_SK: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_GETTABLE_SK(def, A, B, C, pc);
+      } break;
       case OP_GETTABLE: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
@@ -1748,9 +1746,24 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_MOVETAB(def, A, B, pc);
       } break;
 
-#if 1
-      case OP_RAVI_GETTABUP_SK:
+#if 0
+        // There is a BUG in the code being emitted
+        // Also crashes the tests so code generation is incorrect
+      case OP_RAVI_GETTABUP_SK: {
+        int C = GETARG_C(i);
+        int B = GETARG_B(i);
+        lua_assert(ISK(C));
+        TValue *kv = k + INDEXK(C);
+        TString *key = tsvalue(kv);
+        lua_assert(key->tt == LUA_TSHRSTR);
+        emit_GETTABUP_SK(def, A, B, C, pc, key);
+      } break;
 #endif
+      case OP_RAVI_GETTABUP_SK: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_GETTABUP_SK(def, A, B, C, pc);
+      } break;
       case OP_GETTABUP: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
