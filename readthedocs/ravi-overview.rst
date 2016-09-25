@@ -339,7 +339,7 @@ So I ended up downloading and building LLVM from source and that worked. The app
 
 Building LLVM on MAC OS X
 -------------------------
-I am using Max OSX Yosemite. Pre-requisites are XCode 6.1 and CMake.
+I am using Max OSX El Capitan. Pre-requisites are XCode 7.x and CMake.
 Ensure cmake is on the path.
 Assuming that LLVM source has been extracted to ``$HOME/llvm-3.7.0.src`` I follow these steps::
 
@@ -403,6 +403,12 @@ The ``ravi`` command recognizes following environment variables. Note that these
   if set this triggers a dump of local variables construction and destruction
 
 Also see section above on available API for dumping either Lua bytecode or LLVM IR for compiled code.
+
+Testing
+-------
+I test the build by running a modified version of Lua 5.3.3 test suite. These tests are located in the ``lua-tests`` folder. Additionally I have ravi specific tests in the ``ravi-tests`` folder. There is a also a travis build that occurs upon commits - this build runs the tests as well.
+
+.. note:: To thoroughly test changes, you need to invoke CMake with ``-DCMAKE_BUILD_TYPE=Debug`` option. This turns on assertions, memory checking, and also enables an internal module used by Lua tests.
 
 Work Plan
 ---------
