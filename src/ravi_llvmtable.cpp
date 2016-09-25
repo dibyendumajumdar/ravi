@@ -344,6 +344,49 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
   emit_common_GETTABLE_S(def, A, B, C, key);
 }
 
+void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
+  int C, int pc, TString *key) {
+  emit_debug_trace(def, OP_RAVI_GETTABLE_SK, pc);
+  emit_load_base(def);
+  llvm::Value *rb = emit_gep_register(def, B);
+  llvm::Instruction *type = emit_load_type(def, rb);
+
+  // if not table
+  // call luaV_gettable
+  // else
+  // do GETTABLE_S
+
+  // type != LUA_TTABLE ?
+  llvm::Value *cmp1 =
+    emit_is_not_value_of_type(def, type, LUA__TTABLE, "is_not_table");
+
+  llvm::BasicBlock *not_table = llvm::BasicBlock::Create(
+    def->jitState->context(), "GETTABLE_SK_if_not_table", def->f);
+  llvm::BasicBlock *else_not_table =
+    llvm::BasicBlock::Create(def->jitState->context(), "GETTABLE_SK_if_table");
+  llvm::BasicBlock *done =
+    llvm::BasicBlock::Create(def->jitState->context(), "GETTABLE_SK_done");
+  def->builder->CreateCondBr(cmp1, not_table, else_not_table);
+  def->builder->SetInsertPoint(not_table);
+
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  CreateCall4(def->builder, def->luaV_gettableF, def->L, rb, rc, ra);
+
+  def->builder->CreateBr(done);
+
+  def->f->getBasicBlockList().push_back(else_not_table);
+  def->builder->SetInsertPoint(else_not_table);
+
+  emit_common_GETTABLE_S(def, A, B, C, key);
+
+  def->builder->CreateBr(done);
+
+  def->f->getBasicBlockList().push_back(done);
+  def->builder->SetInsertPoint(done);
+}
+
+
 void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
                                          int C, bool omitArrayGetRangeCheck,
                                          int pc) {

@@ -1066,6 +1066,9 @@ class RaviCodeGenerator {
   void emit_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, int pc,
                        TString *key);
 
+  void emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc,
+    TString *key);
+
   void emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *phi,
