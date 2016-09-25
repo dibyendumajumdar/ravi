@@ -24,10 +24,6 @@ As more stuff is built I will keep updating the documentation so please revisit 
 
 Also see the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
 
-Status
-------
-The project was kicked off in January 2015. 
-
 JIT Implementation
 ++++++++++++++++++
 The LLVM JIT compiler is functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
@@ -318,26 +314,28 @@ Build Dependencies - LLVM version
 
 * CMake
 * LLVM 3.7 or 3.8 or 3.9
+* LLVM 3.5 and 3.6 should also work but have not been recently tested
 
 The build is CMake based.
 Unless otherwise noted the instructions below should work for LLVM 3.7 or above.
 
 Building LLVM on Windows
 ------------------------
-I built LLVM 3.7 from source. I used the following sequence from the VS2015 command window::
+I built LLVM from source. I used the following sequence from the VS2015 command window::
 
   cd \github\llvm
   mkdir build
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM37 -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 14 Win64" ..  
+  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 14 Win64" ..  
 
-I then opened the generated solution in VS2015 and performed a INSTALL build from there. 
-Note that if you perform a Release build of LLVM then you will also need to do a Release build of Ravi otherwise you will get link errors.
+I then opened the generated solution in VS2015 and performed a INSTALL build from there. Above will build the 64-bit version of LLVM libraries. To build a 32-bit version omit the ``Win64`` parameter. 
+
+.. note:: Note that if you perform a Release build of LLVM then you will also need to do a Release build of Ravi otherwise you will get link errors.
 
 Building LLVM on Ubuntu
 -----------------------
 On Ubuntu I found that the official LLVM distributions don't work with CMake. The CMake config files appear to be broken.
-So I ended up downloading and building LLVM 3.7 from source and that worked. The approach is similar to that described for MAC OS X below.
+So I ended up downloading and building LLVM from source and that worked. The approach is similar to that described for MAC OS X below.
 
 Building LLVM on MAC OS X
 -------------------------
@@ -353,7 +351,7 @@ Assuming that LLVM source has been extracted to ``$HOME/llvm-3.7.0.src`` I follo
 
 Building Ravi
 -------------
-I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X.
+I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X. I was also able to successfully build a Ubuntu version on Windows 10 using the newly released Ubuntu/Linux sub-system for Windows 10.
 
 .. note:: Location of cmake files has moved in LLVM 3.9; the new path is ``$LLVM_INSTALL_DIR/lib/cmake/llvm``.
 
@@ -381,17 +379,21 @@ On MAC OS X I use::
   cd build
   cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
 
-I open the generated project in Xcode and do a build from there.
+I open the generated project in Xcode and do a build from there. You can also use the command line build tools if you wish - generate the make files in the same way as for Linux.
 
 Building without JIT
 --------------------
 You can omit ``-DLLVM_JIT=ON`` option above to build Ravi with a null JIT implementation.
 
+Static Libraries
+----------------
+By default the build generates a shared library for Ravi. You can choose to create a static library and statically linked executables by supplying the argument ``-DSTATIC_BUILD=ON`` to CMake.
+
 Build Artifacts
 ---------------
-The Ravi build creates a shared library, the Lua executable and some test programs.
+The Ravi build creates a shared or static depending upon options supplied to CMake, the Ravi executable and some test programs. Additionally when JIT compilation is switched off, the ``ravidebug`` executable is generated which is the `debug adapter for use by Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_. 
 
-The ``lua`` command recognizes following environment variables. Note that these are only for internal debugging purposes.
+The ``ravi`` command recognizes following environment variables. Note that these are only for internal debugging purposes.
 
 ``RAVI_DEBUG_EXPR``
   if set to a value this triggers debug output of expression parsing
