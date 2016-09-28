@@ -58,6 +58,9 @@
 #define LUA_TNUMFLT	(LUA_TNUMBER | (0 << 4))  /* float numbers */
 #define LUA_TNUMINT	(LUA_TNUMBER | (1 << 4))  /* integer numbers */
 
+#define RAVI_TIARRAY (LUA_TTABLE | (1 << 4))  /* Ravi int array */
+#define RAVI_TFARRAY (LUA_TTABLE | (2 << 4))  /* Ravi float array */
+
 
 /* Bit mark for collectable types */
 #define BIT_ISCOLLECTABLE	(1 << 6)
@@ -148,7 +151,10 @@ typedef struct lua_TValue {
 #define ttisstring(o)		checktype((o), LUA_TSTRING)
 #define ttisshrstring(o)	checktag((o), ctb(LUA_TSHRSTR))
 #define ttislngstring(o)	checktag((o), ctb(LUA_TLNGSTR))
-#define ttistable(o)		checktag((o), ctb(LUA_TTABLE))
+#define ttistable(o)		checktype((o), LUA_TTABLE)
+#define ttisiarray(o)    checktag((o), ctb(RAVI_TIARRAY))
+#define ttisfarray(o)    checktag((o), ctb(RAVI_TFARRAY))
+#define ttisLtable(o)    checktag((o), ctb(LUA_TTABLE))
 #define ttisfunction(o)		checktype(o, LUA_TFUNCTION)
 #define ttisclosure(o)		((rttype(o) & 0x1F) == LUA_TFUNCTION)
 #define ttisCclosure(o)		checktag((o), ctb(LUA_TCCL))
@@ -251,6 +257,17 @@ typedef struct lua_TValue {
   { TValue *io = (obj); Table *x_ = (x); \
     val_(io).gc = obj2gco(x_); settt_(io, ctb(LUA_TTABLE)); \
     checkliveness(L,io); }
+
+#define setiarrayvalue(L,obj,x) \
+  { TValue *io = (obj); Table *x_ = (x); \
+    val_(io).gc = obj2gco(x_); settt_(io, ctb(RAVI_TIARRAY)); \
+    checkliveness(L,io); }
+
+#define setfarrayvalue(L,obj,x) \
+  { TValue *io = (obj); Table *x_ = (x); \
+    val_(io).gc = obj2gco(x_); settt_(io, ctb(RAVI_TFARRAY)); \
+    checkliveness(L,io); }
+
 
 #define setdeadvalue(obj)	settt_(obj, LUA_TDEADKEY)
 
