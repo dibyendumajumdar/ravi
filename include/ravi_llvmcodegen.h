@@ -771,6 +771,16 @@ class RaviCodeGenerator {
       RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
       const char *varname = "value.not.typeof");
 
+  // Test if value type is NOT of specific Lua type class
+  // i.e. variants are ignore
+  // Value_type should have been obtained by emit_load_type()
+  // The Lua typecode to check must be in lua_typecode
+  // The return value is a boolean type as a result of
+  // integer comparison result which is i1 in LLVM
+  llvm::Value *emit_is_not_value_of_type_class(
+    RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
+    const char *varname = "value.not.typeof");
+
   // emit code for (LClosure *)ci->func->value_.gc
   llvm::Instruction *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def);
 

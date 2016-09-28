@@ -956,7 +956,7 @@ void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
 
   // type != LUA_TTABLE ?
   llvm::Value *cmp1 =
-      emit_is_not_value_of_type(def, type, LUA__TTABLE, "is.not.table");
+      emit_is_not_value_of_type_class(def, type, LUA__TTABLE, "is.not.table");
 
   llvm::BasicBlock *raise_error = llvm::BasicBlock::Create(
       def->jitState->context(), "if.not.table", def->f);

@@ -514,6 +514,15 @@ llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type(
                                     varname);
 }
 
+llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type_class(
+  RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_type,
+  const char *varname) {
+  llvm::Value *novariant_type = def->builder->CreateAnd(value_type, def->types->kInt[0x0F]);
+  return def->builder->CreateICmpNE(novariant_type, def->types->kInt[int(lua_type)],
+    varname);
+}
+
+
 llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(
     RaviFunctionDef *def, llvm::Value *value) {
   llvm::Value *tt_ptr = emit_gep(def, "raviarray.type_ptr", value, 0, 11, 3);
