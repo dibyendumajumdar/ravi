@@ -220,7 +220,7 @@ union GCUnion {
 #define gco2ccl(o)  check_exp((o)->tt == LUA_TCCL, &((cast_u(o))->cl.c))
 #define gco2cl(o)  \
 	check_exp(novariant((o)->tt) == LUA_TFUNCTION, &((cast_u(o))->cl))
-#define gco2t(o)  check_exp((o)->tt == LUA_TTABLE, &((cast_u(o))->h))
+#define gco2t(o)  check_exp(novariant((o)->tt) == LUA_TTABLE, &((cast_u(o))->h))
 #define gco2p(o)  check_exp((o)->tt == LUA_TPROTO, &((cast_u(o))->p))
 #define gco2th(o)  check_exp((o)->tt == LUA_TTHREAD, &((cast_u(o))->th))
 

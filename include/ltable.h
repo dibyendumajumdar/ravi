@@ -93,7 +93,7 @@ LUAI_FUNC int luaH_getn (Table *t);
 /* Creates a specialized version of Lua Table to support Ravi's
  * integer[] and number[] arrays.
  */
-LUAI_FUNC Table *raviH_new(lua_State *L, ravitype_t array_type);
+LUAI_FUNC Table *raviH_new(lua_State *L, ravitype_t array_type, int is_slice);
 
 LUAI_FUNC Table *raviH_new_integer_array(lua_State *L, unsigned int len,
                                          lua_Integer init_value);

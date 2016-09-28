@@ -419,7 +419,7 @@ void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
   // also needs to verify that we are not dealing with a Ravi array
   // type != LUA_TTABLE ?
   llvm::Value *cmp1 =
-      emit_is_not_value_of_type(def, type, LUA__TTABLE, "is_not_table");
+      emit_is_not_value_of_type_class(def, type, LUA__TTABLE, "is_not_table");
 
   llvm::BasicBlock *not_table = llvm::BasicBlock::Create(
       def->jitState->context(), "GETTABLE_SK_if_not_table", def->f);
@@ -828,7 +828,7 @@ void RaviCodeGenerator::emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B,
   // also needs to verify that we are not dealing with a Ravi array
   // type != LUA_TTABLE ?
   llvm::Value *cmp1 =
-      emit_is_not_value_of_type(def, type, LUA__TTABLE, "is_not_table");
+      emit_is_not_value_of_type_class(def, type, LUA__TTABLE, "is_not_table");
 
   llvm::BasicBlock *not_table = llvm::BasicBlock::Create(
       def->jitState->context(), "GETTABUP_SK_if_not_table", def->f);

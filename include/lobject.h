@@ -151,6 +151,13 @@ typedef struct lua_TValue {
 #define ttisstring(o)		checktype((o), LUA_TSTRING)
 #define ttisshrstring(o)	checktag((o), ctb(LUA_TSHRSTR))
 #define ttislngstring(o)	checktag((o), ctb(LUA_TLNGSTR))
+/* Ravi change: we support two sub types of table type
+   and hence need to distinguish between the types.
+   ttistable() returns true for all table types
+   ttisLtable() only returns true if the value is a Lua table 
+   ttisiarray() only returns true if the value is a Ravi subtype integer[]
+   ttisfarray() only returns true if the value is a Ravi subtype number[]
+ */
 #define ttistable(o)		checktype((o), LUA_TTABLE)
 #define ttisiarray(o)    checktag((o), ctb(RAVI_TIARRAY))
 #define ttisfarray(o)    checktag((o), ctb(RAVI_TFARRAY))

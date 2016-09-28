@@ -283,14 +283,9 @@ LUA_API const char *ravi_typename(lua_State *L, int idx) {
     case ctb(LUA_TCCL): return "Cclosure";
     case ctb(LUA_TLCL): return "closure";
     case ctb(LUA_TTHREAD): return "thread";
-    case ctb(LUA_TTABLE): {
-      Table *h = hvalue(o);
-      switch (h->ravi_array.array_type) {
-        case RAVI_TARRAYFLT: return "number[]";
-        case RAVI_TARRAYINT: return "integer[]";
-        default: return luaT_objtypename(L, o);
-      }
-    }
+    case ctb(RAVI_TIARRAY): return "integer[]";
+    case ctb(RAVI_TFARRAY): return "number[]";
+    case ctb(LUA_TTABLE): return luaT_objtypename(L, o);
     default: return "unknown";
   }
 }
@@ -429,10 +424,14 @@ LUA_API size_t lua_rawlen (lua_State *L, int idx) {
     case LUA_TSHRSTR: return tsvalue(o)->shrlen;
     case LUA_TLNGSTR: return tsvalue(o)->u.lnglen;
     case LUA_TUSERDATA: return uvalue(o)->len;
+    case RAVI_TIARRAY:
+    case RAVI_TFARRAY: {
+      Table *h = hvalue(o);
+      return raviH_getn(h);
+    }
     case LUA_TTABLE: {
       Table *h = hvalue(o);
-      if (h->ravi_array.array_type == RAVI_TTABLE) return luaH_getn(h);
-      else return raviH_getn(h);
+      return luaH_getn(h);
     }
     default: return 0;
   }
@@ -467,6 +466,7 @@ LUA_API lua_State *lua_tothread (lua_State *L, int idx) {
 LUA_API const void *lua_topointer (lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
   switch (ttype(o)) {
+    case RAVI_TIARRAY: case RAVI_TFARRAY:
     case LUA_TTABLE: return hvalue(o);
     case LUA_TLCL: return clLvalue(o);
     case LUA_TCCL: return clCvalue(o);
@@ -669,7 +669,7 @@ LUA_API int lua_geti (lua_State *L, int idx, lua_Integer n) {
   const TValue *slot;
   lua_lock(L);
   t = index2addr(L, idx);
-  if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) {
+  if (ttisLtable(t) || !ttistable(t)) {
     if (luaV_fastget(L, t, n, slot, luaH_getint)) {
       setobj2s(L, L->top, slot);
       api_incr_top(L);
@@ -682,7 +682,7 @@ LUA_API int lua_geti (lua_State *L, int idx, lua_Integer n) {
   }
   else {
     Table *h = hvalue(t);
-    if (h->ravi_array.array_type == RAVI_TARRAYFLT) {
+    if (ttisfarray(t)) {
       if (n <= raviH_getn(h)) { raviH_get_float_inline(L, h, n, L->top); }
       else {
         setnilvalue(L->top);
@@ -707,10 +707,10 @@ LUA_API int lua_rawget(lua_State *L, int idx) {
   t = index2addr(L, idx);
   api_check(L, ttistable(t), "table expected");
   h = hvalue(t);
-  if (h->ravi_array.array_type == RAVI_TTABLE) {
+  if (ttisLtable(t)) {
     setobj2s(L, L->top - 1, luaH_get(hvalue(t), L->top - 1));
   }
-  else if (h->ravi_array.array_type == RAVI_TARRAYFLT) {
+  else if (ttisfarray(t)) {
     TValue *key = L->top - 1;
     api_check(L, ttisinteger(key), "key must be integer");
     if (ttisinteger(key)) {
@@ -750,10 +750,10 @@ LUA_API int lua_rawgeti (lua_State *L, int idx, lua_Integer n) {
   t = index2addr(L, idx);
   api_check(L, ttistable(t), "table expected");
   h = hvalue(t);
-  if (h->ravi_array.array_type == RAVI_TTABLE) {
+  if (ttisLtable(t)) {
     setobj2s(L, L->top, luaH_getint(hvalue(t), n));
   }
-  else if (h->ravi_array.array_type == RAVI_TARRAYFLT) {
+  else if (ttisfarray(t)) {
     if (n <= raviH_getn(h)) { raviH_get_float_inline(L, h, n, L->top); }
     else {
       setnilvalue(L->top);
@@ -777,9 +777,8 @@ LUA_API int lua_rawgetp (lua_State *L, int idx, const void *p) {
   Table *h;
   lua_lock(L);
   t = index2addr(L, idx);
-  api_check(L, ttistable(t), "table expected");
+  api_check(L, ttisLtable(t), "Lua table expected");
   h = hvalue(t);
-  api_check(L, h->ravi_array.array_type == RAVI_TTABLE, "Lua table expected");
   setpvalue(&k, cast(void *, p));
   setobj2s(L, L->top, luaH_get(h, &k));
   api_incr_top(L);
@@ -808,7 +807,7 @@ LUA_API void ravi_create_integer_array(lua_State *L, int narray,
   Table *t;
   lua_lock(L);
   t = raviH_new_integer_array(L, (unsigned int)narray, initial_value);
-  sethvalue(L, L->top, t);
+  setiarrayvalue(L, L->top, t);
   api_incr_top(L);
   luaC_checkGC(L);
   lua_unlock(L);
@@ -822,7 +821,7 @@ LUA_API void ravi_create_number_array(lua_State *L, int narray,
   Table *t;
   lua_lock(L);
   t = raviH_new_number_array(L, (unsigned int)narray, initial_value);
-  sethvalue(L, L->top, t);
+  setfarrayvalue(L, L->top, t);
   api_incr_top(L);
   luaC_checkGC(L);
   lua_unlock(L);
@@ -832,18 +831,14 @@ LUA_API void ravi_create_number_array(lua_State *L, int narray,
  */
 LUA_API int ravi_is_number_array(lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
-  return (ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYFLT
-              ? 1
-              : 0);
+  return ttisfarray(o);
 }
 
 /* Tests if the argument is a integer array
 */
 LUA_API int ravi_is_integer_array(lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
-  return (ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYINT
-              ? 1
-              : 0);
+  return ttisiarray(o);
 }
 
 /* Get the raw data associated with the number array at idx.
@@ -852,7 +847,7 @@ LUA_API int ravi_is_integer_array(lua_State *L, int idx) {
  */
 LUA_API lua_Number* ravi_get_number_array_rawdata(lua_State *L, int idx, size_t *len) {
   StkId o = index2addr(L, idx);
-  lua_assert(ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYFLT);
+  lua_assert(ttisfarray(o));
   lua_Number *startp, *endp;
   raviH_get_number_array_rawdata(L, hvalue(o), &startp, &endp);
   *len = (endp - startp);
@@ -865,7 +860,7 @@ LUA_API lua_Number* ravi_get_number_array_rawdata(lua_State *L, int idx, size_t 
 */
 LUA_API lua_Integer* ravi_get_integer_array_rawdata(lua_State *L, int idx, size_t *len) {
   StkId o = index2addr(L, idx);
-  lua_assert(ttistable(o) && hvalue(o)->ravi_array.array_type == RAVI_TARRAYINT);
+  lua_assert(ttisiarray(o));
   lua_Integer *startp, *endp;
   raviH_get_integer_array_rawdata(L, hvalue(o), &startp, &endp);
   *len = (endp - startp);
@@ -895,17 +890,22 @@ LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
     errmsg = "integer[] or number[] expected";
     goto done;
   }
-  Table *orig = hvalue(parent);
-  if (orig->ravi_array.array_type == RAVI_TTABLE) {
+  if (ttisLtable(parent)) {
     errmsg = "cannot create a slice of a table, integer[] or number[] expected";
     goto done;
   }
+  Table *orig = hvalue(parent);
   if (start < 1 || start + len > orig->ravi_array.len) {
     errmsg = "cannot create a slice of given bounds";
     goto done;
   }
   slice = raviH_new_slice(L, parent, start, len);
-  sethvalue(L, L->top, slice);
+  if (ttisfarray(parent)) {
+    setfarrayvalue(L, L->top, slice);
+  }
+  else {
+    setiarrayvalue(L, L->top, slice);
+  }
   api_incr_top(L);
   luaC_checkGC(L);
 done:
@@ -1005,7 +1005,7 @@ LUA_API void lua_seti(lua_State *L, int idx, lua_Integer n) {
   lua_lock(L);
   api_checknelems(L, 1);
   t = index2addr(L, idx);
-  if (!ttistable(t) || hvalue(t)->ravi_array.array_type == RAVI_TTABLE) {
+  if (ttisLtable(t) || !ttistable(t)) {
     if (luaV_fastset(L, t, n, slot, luaH_getint, L->top - 1))
       L->top--; /* pop value */
     else {
@@ -1017,7 +1017,7 @@ LUA_API void lua_seti(lua_State *L, int idx, lua_Integer n) {
   }
   else {
     Table *h = hvalue(t);
-    if (h->ravi_array.array_type == RAVI_TARRAYFLT) {
+    if (ttisfarray(t)) {
       TValue *val = L->top - 1;
       if (ttisfloat(val)) { raviH_set_float_inline(L, h, n, fltvalue(val)); }
       else if (ttisinteger(val)) {
@@ -1054,13 +1054,13 @@ LUA_API void lua_rawset(lua_State *L, int idx) {
   o = index2addr(L, idx);
   api_check(L, ttistable(o), "table expected");
   t = hvalue(o);
-  if (t->ravi_array.array_type == RAVI_TTABLE) {
+  if (ttisLtable(o)) {
     slot = luaH_set(L, t, L->top - 2);
     setobj2t(L, slot, L->top - 1);
     invalidateTMcache(t);
     luaC_barrierback(L, t, L->top - 1);
   }
-  else if (t->ravi_array.array_type == RAVI_TARRAYFLT) {
+  else if (ttisfarray(o)) {
     TValue *key = L->top - 2;
     TValue *val = L->top - 1;
     if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
@@ -1107,11 +1107,11 @@ LUA_API void lua_rawseti(lua_State *L, int idx, lua_Integer n) {
   o = index2addr(L, idx);
   api_check(L, ttistable(o), "table expected");
   t = hvalue(o);
-  if (t->ravi_array.array_type == RAVI_TTABLE) {
+  if (ttisLtable(o)) {
     luaH_setint(L, t, n, L->top - 1);
     luaC_barrierback(L, t, L->top - 1);
   }
-  else if (t->ravi_array.array_type == RAVI_TARRAYFLT) {
+  else if (ttisfarray(o)) {
     TValue *val = L->top - 1;
     if (ttisfloat(val)) { raviH_set_float_inline(L, t, n, fltvalue(val)); }
     else if (ttisinteger(val)) {
@@ -1145,9 +1145,8 @@ LUA_API void lua_rawsetp (lua_State *L, int idx, const void *p) {
   lua_lock(L);
   api_checknelems(L, 1);
   o = index2addr(L, idx);
-  api_check(L, ttistable(o), "table expected");
+  api_check(L, ttisLtable(o), "table expected");
   t = hvalue(o);
-  api_check(L, t->ravi_array.array_type == RAVI_TTABLE, "Lua table expected");
   setpvalue(&k, cast(void *, p));
   slot = luaH_set(L, t, &k);
   setobj2t(L, slot, L->top - 1);
@@ -1167,9 +1166,9 @@ LUA_API int lua_setmetatable (lua_State *L, int objindex) {
     mt = NULL;
   else {
     api_check(L, ttistable(L->top - 1), "table expected");
-    mt = hvalue(L->top - 1);
-    if (mt->ravi_array.array_type != RAVI_TTABLE) 
+    if (!ttisLtable(L->top - 1))
       luaG_runerror(L, "Lua table expected");
+    mt = hvalue(L->top - 1);
   }
   switch (ttnov(obj)) {
     case LUA_TTABLE: {
@@ -1568,20 +1567,17 @@ LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
     ** We need to ensure that this function does
     ** not subvert the types of local variables
     */
-    if (type == RAVI_TNUMFLT 
+    if (  type == RAVI_TNUMFLT 
        || type == RAVI_TNUMINT 
        || type == RAVI_TARRAYFLT 
        || type == RAVI_TARRAYINT) {
       StkId input = L->top - 1;
-      int compatible = (type == RAVI_TNUMFLT && ttisfloat(input))
-        || (type == RAVI_TNUMINT 
-            && ttisinteger(input))
-        || (type == RAVI_TARRAYFLT && ttistable(input) 
-            && hvalue(input)->ravi_array.array_type == RAVI_TARRAYFLT)
-        || (type == RAVI_TARRAYINT && ttistable(input) 
-            && hvalue(input)->ravi_array.array_type == RAVI_TARRAYINT)
-        || (type == RAVI_TTABLE && ttistable(input) 
-            && hvalue(input)->ravi_array.array_type == RAVI_TTABLE)
+      int compatible = 
+           (type == RAVI_TNUMFLT   && ttisfloat(input))
+        || (type == RAVI_TNUMINT   && ttisinteger(input))
+        || (type == RAVI_TARRAYFLT && ttisfarray(input))
+        || (type == RAVI_TARRAYINT && ttisiarray(input))
+        || (type == RAVI_TTABLE    && ttisLtable(input))
         ;
       if (!compatible)
         name = NULL;
