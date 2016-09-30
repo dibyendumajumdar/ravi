@@ -1743,7 +1743,7 @@ int luaV_execute (lua_State *L) {
           lua_assert(key->tt == LUA_TSHRSTR);
           Table *h = hvalue(rb);
           const TValue *v = luaH_getshortstr(h, key);
-          if (!ttisnil(v) || metamethod_absent(h->metatable, TM_INDEX)) {
+          if (!ttisnil(v) /* || metamethod_absent(h->metatable, TM_INDEX) */) {
             setobj2s(L, ra, v);
           }
           else {

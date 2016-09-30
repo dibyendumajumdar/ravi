@@ -225,8 +225,9 @@ void RaviCodeGenerator::emit_finish_GETTABLE(RaviFunctionDef *def,
   // or if the metatable cached flags indicate metamethod absent
   llvm::Value *value_type = emit_load_type(def, phi);
   llvm::Value *isnotnil = emit_is_not_value_of_type(def, value_type, LUA__TNIL);
-  llvm::Value *metamethod_absent = emit_table_no_metamethod(def, t, TM_INDEX);
-  llvm::Value *cond = def->builder->CreateOr(isnotnil, metamethod_absent);
+  //llvm::Value *metamethod_absent = emit_table_no_metamethod(def, t, TM_INDEX);
+  //llvm::Value *cond = def->builder->CreateOr(isnotnil, metamethod_absent);
+  llvm::Value *cond = isnotnil;
 
   llvm::BasicBlock *if_true_block = llvm::BasicBlock::Create(
       def->jitState->context(), "if.not.nil.or.metamethod.absent", def->f);
