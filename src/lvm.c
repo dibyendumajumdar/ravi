@@ -274,13 +274,21 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
 #define GETTABLE_INLINE(L, t, key, val) GETTABLE_INLINE_(L, t, key, val, Unprotect)
 #define GETTABLE_INLINE_PROTECTED(L, t, key, val) GETTABLE_INLINE_(L, t, key, val, Protect)
 
-#define GETTABLE_INLINE_SSKEY_(L, t, key, val, protect) \
-  { \
-    const TValue *aux; \
-    if (luaV_fastget(L,t,tsvalue(key),aux,luaH_getshortstr)) { setobj2s(L, val, aux); } \
-    else protect(luaV_finishget(L,t,key,val,aux)); \
+#define GETTABLE_INLINE_SSKEY_(L, t, key, val, protect)            \
+  if (ttisLtable(t)) {                                             \
+    const TValue *aux = luaH_getshortstr(hvalue(t), tsvalue(key)); \
+    if (!ttisnil(aux)) { setobj2s(L, val, aux); }                  \
+    else                                                           \
+      protect(luaV_finishget(L, t, key, val, aux));                \
+  }                                                                \
+  else {                                                           \
+    protect(luaV_finishget(L, t, key, val, NULL));                 \
   }
-
+//  { \
+//    const TValue *aux; \
+//    if (luaV_fastget(L,t,tsvalue(key),aux,luaH_getshortstr)) { setobj2s(L, val, aux); } \
+//    else protect(luaV_finishget(L,t,key,val,aux)); \
+//  }
 
 #define GETTABLE_INLINE_SSKEY_PROTECTED(L, t, key, val) GETTABLE_INLINE_SSKEY_(L, t, key, val, Protect)
 #define GETTABLE_INLINE_SSKEY(L, t, key, val) GETTABLE_INLINE_SSKEY_(L, t, key, val, Unprotect)
@@ -334,14 +342,28 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
   }
 
 #define SETTABLE_INLINE_PROTECTED(L, t, key, val) SETTABLE_INLINE_(L, t, key, val, Protect) 
-#define SETTABLE_INLINE(L, t, key, val) SETTABLE_INLINE_(L, t, key, val, Unprotect) 
+#define SETTABLE_INLINE(L, t, key, val) SETTABLE_INLINE_(L, t, key, val, Unprotect)
 
-#define SETTABLE_INLINE_SSKEY_(L, t, key, val, protect) \
-  { \
-    const TValue *slot; \
-    if (!luaV_fastset(L, t, tsvalue(key), slot, luaH_getshortstr, val)) \
-      protect(luaV_finishset(L, t, key, val, slot)); \
+#define SETTABLE_INLINE_SSKEY_(L, t, key, val, protect)             \
+  if (ttisLtable(t)) {                                              \
+    const TValue *slot = luaH_getshortstr(hvalue(t), tsvalue(key)); \
+    if (!ttisnil(slot)) {                                           \
+      luaC_barrierback(L, hvalue(t), val);                          \
+      setobj2t(L, cast(TValue *, slot), val);                       \
+    }                                                               \
+    else {                                                          \
+      protect(luaV_finishset(L, t, key, val, slot));                \
+    }                                                               \
+  }                                                                 \
+  else {                                                            \
+    protect(luaV_finishset(L, t, key, val, NULL));                  \
   }
+
+//  { \
+//    const TValue *slot; \
+//    if (!luaV_fastset(L, t, tsvalue(key), slot, luaH_getshortstr, val)) \
+//      protect(luaV_finishset(L, t, key, val, slot)); \
+//  }
 
 #define SETTABLE_INLINE_SSKEY_PROTECTED(L, t, key, val) SETTABLE_INLINE_SSKEY_(L, t, key, val, Protect)
 #define SETTABLE_INLINE_SSKEY(L, t, key, val) SETTABLE_INLINE_SSKEY_(L, t, key, val, Unprotect)

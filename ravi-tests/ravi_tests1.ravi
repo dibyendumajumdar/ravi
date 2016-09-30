@@ -1217,11 +1217,11 @@ function do_test_intarray_as_table()
   local iarray: integer[] = {1}
   test_intarray_as_table(iarray);
 end
-
 assert(not pcall(do_test_intarray_as_table));
 compile(do_test_intarray_as_table);
 compile(test_intarray_as_table);
 assert(not pcall(do_test_intarray_as_table));
+print 'Test 52 OK'
 
 
 for k,v in pairs(opcodes_coverage)
