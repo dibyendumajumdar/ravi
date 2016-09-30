@@ -281,6 +281,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     else protect(luaV_finishget(L,t,key,val,aux)); \
   }
 
+
 #define GETTABLE_INLINE_SSKEY_PROTECTED(L, t, key, val) GETTABLE_INLINE_SSKEY_(L, t, key, val, Protect)
 #define GETTABLE_INLINE_SSKEY(L, t, key, val) GETTABLE_INLINE_SSKEY_(L, t, key, val, Unprotect)
 

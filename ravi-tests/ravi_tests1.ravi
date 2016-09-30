@@ -1209,6 +1209,21 @@ compile(event_test)
 event_test();
 print 'Test 51 OK'
 
+function test_intarray_as_table(t)
+  t.a = 'a'
+  --print(ravitype(t))
+end
+function do_test_intarray_as_table()
+  local iarray: integer[] = {1}
+  test_intarray_as_table(iarray);
+end
+
+assert(not pcall(do_test_intarray_as_table));
+compile(do_test_intarray_as_table);
+compile(test_intarray_as_table);
+assert(not pcall(do_test_intarray_as_table));
+
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)

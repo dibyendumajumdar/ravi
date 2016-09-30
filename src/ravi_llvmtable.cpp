@@ -943,9 +943,16 @@ void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
                                      int array_type_expected,
                                      const char *errmsg, int pc) {
   OpCode op = OP_RAVI_TOTAB;
+  LuaTypeCode expectedType = RAVI__TLTABLE;
   switch (array_type_expected) {
-    case RAVI_TARRAYINT: op = OP_RAVI_TOARRAYI; break;
-    case RAVI_TARRAYFLT: op = OP_RAVI_TOARRAYF; break;
+    case RAVI_TARRAYINT:
+      op = OP_RAVI_TOARRAYI;
+      expectedType = RAVI__TIARRAY;
+      break;
+    case RAVI_TARRAYFLT:
+      op = OP_RAVI_TOARRAYF;
+      expectedType = RAVI__TFARRAY;
+      break;
     case RAVI_TTABLE:
     default: break;
   }
@@ -955,6 +962,24 @@ void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Instruction *type = emit_load_type(def, ra);
 
+  // type != expectedType
+  llvm::Value *cmp1 =
+      emit_is_not_value_of_type(def, type, expectedType, "is.not.expected.type");
+  llvm::BasicBlock *raise_error = llvm::BasicBlock::Create(
+              def->jitState->context(), "if.not.expected_type", def->f);
+  llvm::BasicBlock *done =
+  llvm::BasicBlock::Create(def->jitState->context(), "done");
+  def->builder->CreateCondBr(cmp1, raise_error, done);
+  def->builder->SetInsertPoint(raise_error);
+  
+  // Conversion failed, so raise error
+  emit_raise_lua_error(def, errmsg);
+  def->builder->CreateBr(done);
+  
+  def->f->getBasicBlockList().push_back(done);
+  def->builder->SetInsertPoint(done);
+  
+#if 0
   // type != LUA_TTABLE ?
   llvm::Value *cmp1 =
       emit_is_not_value_of_type_class(def, type, LUA__TTABLE, "is.not.table");
@@ -989,6 +1014,7 @@ void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
 
   def->f->getBasicBlockList().push_back(done);
   def->builder->SetInsertPoint(done);
+#endif
 }
 
 void RaviCodeGenerator::emit_MOVEAI(RaviFunctionDef *def, int A, int B,
