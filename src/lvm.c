@@ -330,21 +330,10 @@ static inline void settable_inline(lua_State *L, const TValue *t, TValue *key, S
   }
 
 #define GETTABLE_INLINE_SSKEY(L, t, key, val) \
-  if (ttisLtable(t) || !ttistable(t)) { \
+  { \
     const TValue *aux; \
     if (luaV_fastget(L,t,tsvalue(key),aux,luaH_getshortstr)) { setobj2s(L, val, aux); } \
     else luaV_finishget(L,t,key,val,aux); \
-  } \
-  else { \
-    Table *h = hvalue(t); \
-    if (ttisfarray(t)) { \
-      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-      raviH_get_float_inline(L, h, ivalue(key), val); \
-    } \
-    else { \
-      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-      raviH_get_int_inline(L, h, ivalue(key), val); \
-    } \
   }
 
 
@@ -390,44 +379,10 @@ static inline void settable_inline(lua_State *L, const TValue *t, TValue *key, S
   }
 
 #define SETTABLE_INLINE_SSKEY(L, t, key, val) \
-  if (ttisLtable(t) || !ttistable(t)) { \
+  { \
     const TValue *slot; \
     if (!luaV_fastset(L, t, tsvalue(key), slot, luaH_getshortstr, val)) \
       luaV_finishset(L, t, key, val, slot); \
-  } \
-  else { \
-    Table *h = hvalue(t); \
-    if (ttisfarray(t)) { \
-      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-      if (ttisfloat(val)) { \
-        raviH_set_float_inline(L, h, ivalue(key), fltvalue(val)); \
-      } \
-      else if (ttisinteger(val)) { \
-        raviH_set_float_inline(L, h, ivalue(key), (lua_Number)(ivalue(val))); \
-      } \
-      else { \
-        lua_Number d = 0.0; \
-        if (luaV_tonumber_(val, &d)) { \
-          raviH_set_float_inline(L, h, ivalue(key), d); \
-        } \
-        else \
-          luaG_runerror(L, "value cannot be converted to number"); \
-      } \
-    } \
-    else { \
-      if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-      if (ttisinteger(val)) { \
-        raviH_set_int_inline(L, h, ivalue(key), ivalue(val)); \
-      } \
-      else { \
-        lua_Integer i = 0; \
-        if (luaV_tointeger_(val, &i)) { \
-          raviH_set_int_inline(L, h, ivalue(key), i); \
-        } \
-        else \
-          luaG_runerror(L, "value cannot be converted to integer"); \
-      } \
-    } \
   }
 
 
