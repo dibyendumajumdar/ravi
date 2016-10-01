@@ -92,16 +92,16 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 
   This restriction is placed as otherwise the JIT code would need to insert tests to validate that the variable is not nil.
 
-* An array will grow automatically if user sets the element just past the array length::
+* An array will grow automatically (unless the array was created as fixed length using ``table.intarray()`` or ``table.numarray()``) if the user sets the element just past the array length::
 
-    local t: number[] = {}
+    local t: number[] = {} -- dynamic array
     t[1] = 4.2             -- okay, array grows by 1
     t[5] = 2.4             -- error! as attempt to set value 
 
-* It is an error to attempt to set an element that is beyond len+1 
+* It is an error to attempt to set an element that is beyond len+1 on dynamic arrays; for fixed length arrays attempting to set elements at positions greater than len will cause an error.
 * The current used length of the array is recorded and returned by len operations
 * The array only permits the right type of value to be assigned (this is also checked at runtime to allow compatibility with Lua)
-* Accessing out of bounds elements will cause an error, except for setting the len+1 element
+* Accessing out of bounds elements will cause an error, except for setting the len+1 element on dynamic arrays
 * It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside 
   those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time::
 
@@ -280,6 +280,11 @@ A JIT api is available with following functions:
 ``ravi.tracehook([b])``
   Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode 
   boundary; use this option only when you want to use the debug api to step through code line by line
+
+Performance Notes
+-----------------
+To get the best possible performance types must be annotated so that Ravi's JIT compiler can generate efficient code. 
+Additionally function calls are expensive - as the JIT compiler cannot inline function calls, all function calls go via the Lua call protocol which has a large overhead. This is true for both Lua functions and C functions. For best performance avoid function calls inside loops.
 
 Compatibility with Lua
 ----------------------
