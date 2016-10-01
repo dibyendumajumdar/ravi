@@ -283,7 +283,7 @@ A JIT api is available with following functions:
 
 Performance Notes
 -----------------
-To get the best possible performance types must be annotated so that Ravi's JIT compiler can generate efficient code. 
+To obtain the best possible performance, types must be annotated so that Ravi's JIT compiler can generate efficient code. 
 Additionally function calls are expensive - as the JIT compiler cannot inline function calls, all function calls go via the Lua call protocol which has a large overhead. This is true for both Lua functions and C functions. For best performance avoid function calls inside loops.
 
 Compatibility with Lua
