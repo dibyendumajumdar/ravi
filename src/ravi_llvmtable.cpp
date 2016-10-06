@@ -43,6 +43,24 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // R(A+1) := R(B); R(A) := R(B)[RK(C)]
+void RaviCodeGenerator::emit_SELF_SK(RaviFunctionDef *def, int A, int B, int C,
+                                  int pc) {
+  // StkId rb = RB(i);
+  // setobjs2s(L, ra + 1, rb);
+  // Protect(luaV_gettable(L, rb, RKC(i), ra));
+  bool traced = emit_debug_trace(def, OP_RAVI_SELF_SK, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
+  emit_load_base(def);
+  llvm::Value *rb = emit_gep_register(def, B);
+  llvm::Value *ra1 = emit_gep_register(def, A + 1);
+  emit_assign(def, ra1, rb);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  CreateCall4(def->builder, def->raviV_gettable_sskeyF, def->L, rb, rc, ra);
+}
+  
+// R(A+1) := R(B); R(A) := R(B)[RK(C)]
 void RaviCodeGenerator::emit_SELF_S(RaviFunctionDef *def, int A, int B, int C,
                                     int pc, TString *key) {
   // StkId rb = RB(i);

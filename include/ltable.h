@@ -9,7 +9,6 @@
 
 #include "lobject.h"
 
-
 #define gnode(t,i)	(&(t)->node[i])
 #define gval(n)		(&(n)->i_val)
 #define gnext(n)	((n)->i_key.nk.next)
