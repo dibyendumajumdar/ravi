@@ -283,9 +283,9 @@ LUA_API const char *ravi_typename(lua_State *L, int idx) {
     case ctb(LUA_TCCL): return "Cclosure";
     case ctb(LUA_TLCL): return "closure";
     case ctb(LUA_TTHREAD): return "thread";
-    case ctb(RAVI_TIARRAY): return "integer[]";
-    case ctb(RAVI_TFARRAY): return "number[]";
-    case ctb(LUA_TTABLE): return luaT_objtypename(L, o);
+    case ctb(RAVI_TIARRAY): 
+    case ctb(RAVI_TFARRAY): 
+    case ctb(LUA_TTABLE): return raviT_objtypename(L, o);
     default: return "unknown";
   }
 }

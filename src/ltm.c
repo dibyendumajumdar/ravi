@@ -98,6 +98,23 @@ const char *luaT_objtypename (lua_State *L, const TValue *o) {
   return ttypename(ttnov(o));  /* else use standard type name */
 }
 
+/*
+** Return the name of the type of an object. For tables and userdata
+** with metatable, use their '__name' metafield, if present.
+*/
+const char *raviT_objtypename(lua_State *L, const TValue *o) {
+  Table *mt;
+  if ((ttistable(o) && (mt = hvalue(o)->metatable) != NULL) ||
+    (ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != NULL)) {
+    const TValue *name = luaH_getshortstr(mt, luaS_new(L, "__name"));
+    if (ttisstring(name))  /* is '__name' a string? */
+      return getstr(tsvalue(name));  /* use it as type name */
+  }
+  if (ttisiarray(o)) return "integer[]";
+  else if (ttisfarray(o)) return "number[]";
+  else return ttypename(ttnov(o));  /* else use standard type name */
+}
+
 
 void luaT_callTM (lua_State *L, const TValue *f, const TValue *p1,
                   const TValue *p2, TValue *p3, int hasres) {
