@@ -1048,7 +1048,13 @@ int luaV_execute (lua_State *L) {
           luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
         checkGC(L, ra + 1);
       } break;
-      case OP_RAVI_SELF_SK:
+      case OP_RAVI_SELF_SK: {
+        StkId rb = RB(i); /* variable - may not be a table */
+        /* we know that the key a short string constant */
+        TValue *rc = RKC(i);
+        setobjs2s(L, ra + 1, rb);
+        GETTABLE_INLINE_SSKEY_PROTECTED(L, rb, rc, ra);
+      } break;
       case OP_SELF: {
         const TValue *aux;
         StkId rb = RB(i);

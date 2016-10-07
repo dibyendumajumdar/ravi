@@ -92,6 +92,65 @@ const char *raviY_typename(ravitype_t tt) {
   }
 }
 
+static void PrintString(FILE *fp, const TString* ts)
+{
+  const char* s = getstr(ts);
+  size_t i, n = tsslen(ts);
+  fprintf(fp, "%c", '"');
+  for (i = 0; i<n; i++)
+  {
+    int c = (int)(unsigned char)s[i];
+    switch (c)
+    {
+    case '"':  fprintf(fp, "\\\""); break;
+    case '\\': fprintf(fp, "\\\\"); break;
+    case '\a': fprintf(fp, "\\a"); break;
+    case '\b': fprintf(fp, "\\b"); break;
+    case '\f': fprintf(fp, "\\f"); break;
+    case '\n': fprintf(fp, "\\n"); break;
+    case '\r': fprintf(fp, "\\r"); break;
+    case '\t': fprintf(fp, "\\t"); break;
+    case '\v': fprintf(fp, "\\v"); break;
+    default:	if (isprint(c))
+      fprintf(fp, "%c", c);
+              else
+                fprintf(fp, "\\%03d", c);
+    }
+  }
+  fprintf(fp, "%c", '"');
+}
+
+static void PrintConstant(FILE *fp, const Proto* f, int i)
+{
+  const TValue* o = &f->k[i];
+  switch (ttype(o))
+  {
+  case LUA_TNIL:
+    fprintf(fp, "nil");
+    break;
+  case LUA_TBOOLEAN:
+    fprintf(fp, bvalue(o) ? "true" : "false");
+    break;
+  case LUA_TNUMFLT:
+  {
+    char buff[100];
+    sprintf(buff, LUA_NUMBER_FMT, fltvalue(o));
+    fprintf(fp, "%s", buff);
+    if (buff[strspn(buff, "-0123456789")] == '\0') fprintf(fp, ".0");
+    break;
+  }
+  case LUA_TNUMINT:
+    fprintf(fp, LUA_INTEGER_FMT, ivalue(o));
+    break;
+  case LUA_TSHRSTR: case LUA_TLNGSTR:
+    PrintString(fp, tsvalue(o));
+    break;
+  default:				/* cannot happen */
+    fprintf(fp, "? type=%d", ttype(o));
+    break;
+  }
+}
+
 /* RAVI - prints a Lua expression node */
 static void print_expdesc(FILE *fp, FuncState *fs, const expdesc *e) {
   char buf[80] = {0};
@@ -221,6 +280,7 @@ void raviY_printf(FuncState *fs, const char *format, ...) {
     }
   }
   va_end(ap);
+  fflush(stdout);
 }
 
 /*

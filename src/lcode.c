@@ -990,7 +990,7 @@ void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
   int is_string_constant_key =
     key->k == VK &&
     key->ravi_type == RAVI_TSTRING &&
-    isshortstr(fs, RKASK(key->u.info));
+    ttisshrstring(&fs->f->k[key->u.info]);
   int table_and_string = 
     e->ravi_type == RAVI_TTABLE &&
     is_string_constant_key;
