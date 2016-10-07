@@ -1496,12 +1496,15 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         /* key must be string */
-        if (ISK(C)) {
-          TValue *kv = k + INDEXK(C);
-          if (ttisshrstring(kv))
-            emit_SELF_SK(def, A, B, C, pc);
-          else
-            emit_SELF(def, A, B, C, pc);
+//        if (ISK(C)) {
+//          TValue *kv = k + INDEXK(C);
+//          if (ttisshrstring(kv))
+//            emit_SELF_SK(def, A, B, C, pc);
+//          else
+//            emit_SELF(def, A, B, C, pc);
+//        }
+        if (op == OP_RAVI_SELF_SK) {
+          emit_SELF_SK(def, A, B, C, pc);
         }
         else {
           emit_SELF(def, A, B, C, pc);
