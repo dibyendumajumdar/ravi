@@ -525,44 +525,39 @@ void ravi_emit_TOARRAY(ravi_function_def_t *def, int A, int array_type_expected,
 
   // if (!ttistable(ra) || hvalue(ra)->ravi_array.type != RAVI_TARRAYINT)
   //  luaG_runerror(L, "integer[] expected");
+  OpCode op = OP_RAVI_TOTAB;
+  lua_typecode_t expected_type = RAVI__TLTABLE;
+  switch (array_type_expected) {
+    case RAVI_TARRAYINT:
+      op = OP_RAVI_TOARRAYI;
+      expected_type = RAVI__TIARRAY;
+      break;
+    case RAVI_TARRAYFLT:
+      op = OP_RAVI_TOARRAYF;
+      expected_type = RAVI__TFARRAY;
+      break;
+    case RAVI_TTABLE:
+    default: break;
+  }
 
   ravi_emit_load_base(def);
   gcc_jit_lvalue *ra = ravi_emit_get_register(def, A);
   gcc_jit_lvalue *type = ravi_emit_load_type(def, ra);
 
-  // type != LUA_TTABLE ?
+  // type != expected_type ?
   gcc_jit_rvalue *cmp1 = ravi_emit_is_not_value_of_type(
-      def, gcc_jit_lvalue_as_rvalue(type), LUA__TTABLE);
+      def, gcc_jit_lvalue_as_rvalue(type), expected_type);
 
   gcc_jit_block *raise_error = gcc_jit_function_new_block(
       def->jit_function, unique_name(def, "TOARRAY_if_not_table", pc));
-  gcc_jit_block *else1 = gcc_jit_function_new_block(
-      def->jit_function, unique_name(def, "TOARRAY_test_if_array", pc));
   gcc_jit_block *done = gcc_jit_function_new_block(
       def->jit_function, unique_name(def, "TOARRAY_done", pc));
-  ravi_emit_conditional_branch(def, cmp1, raise_error, else1);
+  ravi_emit_conditional_branch(def, cmp1, raise_error, done);
   ravi_set_current_block(def, raise_error);
 
   // Conversion failed, so raise error
   ravi_emit_raise_lua_error(def, errmsg);
   ravi_emit_branch(def, done);
-
-  ravi_set_current_block(def, else1);
-
-  // Get table
-  gcc_jit_rvalue *h = ravi_emit_load_reg_h(def, ra);
-  // Get array type
-  gcc_jit_rvalue *ravi_array_type =
-      gcc_jit_lvalue_as_rvalue(ravi_emit_load_ravi_arraytype(def, h));
-
-  // array_type == RAVI_TARRAYXXX?
-  gcc_jit_rvalue *expected = gcc_jit_context_new_rvalue_from_int(
-      def->function_context, def->ravi->types->lu_byteT, array_type_expected);
-  gcc_jit_rvalue *cmp2 = ravi_emit_comparison(def, GCC_JIT_COMPARISON_EQ,
-                                              ravi_array_type, expected);
-
-  // If array then fine else raise error
-  ravi_emit_conditional_branch(def, cmp2, done, raise_error);
 
   ravi_set_current_block(def, done);
 }
