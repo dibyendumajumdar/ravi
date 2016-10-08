@@ -145,8 +145,8 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   allocated_modules++;
 #endif
   if (!engine_) {
-    fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
-    // FIXME we need to handle this error somehow
+    fprintf(stderr, "FATAL ERROR: could not create ExecutionEngine: %s\n", errStr.c_str());
+    abort();
     return;
   }
 }

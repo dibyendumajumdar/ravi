@@ -482,9 +482,14 @@ Table *raviH_new(lua_State *L, ravitype_t tt, int is_slice) {
 
 
 void luaH_free (lua_State *L, Table *t) {
-  // FIXME FIXME FIXME
-  if (t->ravi_array.array_modifier != RAVI_ARRAY_SLICE && t->ravi_array.data)
-    luaM_freemem(L, t->ravi_array.data, (t->ravi_array.size*sizeof(lua_Number)));
+  if (t->ravi_array.array_modifier != RAVI_ARRAY_SLICE && t->ravi_array.data) {
+    if (t->ravi_array.array_type == RAVI_TARRAYFLT)
+      luaM_freemem(L, t->ravi_array.data, (t->ravi_array.size*sizeof(lua_Number)));
+    else {
+      lua_assert(t->ravi_array.array_type == RAVI_TARRAYINT);
+      luaM_freemem(L, t->ravi_array.data, (t->ravi_array.size*sizeof(lua_Integer)));
+    }
+  }
   if (!isdummy(t->node))
     luaM_freearray(L, t->node, cast(size_t, sizenode(t)));
   luaM_freearray(L, t->array, t->sizearray);
