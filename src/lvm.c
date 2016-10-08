@@ -284,11 +284,6 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
   else {                                                           \
     protect(luaV_finishget(L, t, key, val, NULL));                 \
   }
-//  { \
-//    const TValue *aux; \
-//    if (luaV_fastget(L,t,tsvalue(key),aux,luaH_getshortstr)) { setobj2s(L, val, aux); } \
-//    else protect(luaV_finishget(L,t,key,val,aux)); \
-//  }
 
 #define GETTABLE_INLINE_SSKEY_PROTECTED(L, t, key, val) GETTABLE_INLINE_SSKEY_(L, t, key, val, Protect)
 #define GETTABLE_INLINE_SSKEY(L, t, key, val) GETTABLE_INLINE_SSKEY_(L, t, key, val, Unprotect)
@@ -358,12 +353,6 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
   else {                                                            \
     protect(luaV_finishset(L, t, key, val, NULL));                  \
   }
-
-//  { \
-//    const TValue *slot; \
-//    if (!luaV_fastset(L, t, tsvalue(key), slot, luaH_getshortstr, val)) \
-//      protect(luaV_finishset(L, t, key, val, slot)); \
-//  }
 
 #define SETTABLE_INLINE_SSKEY_PROTECTED(L, t, key, val) SETTABLE_INLINE_SSKEY_(L, t, key, val, Protect)
 #define SETTABLE_INLINE_SSKEY(L, t, key, val) SETTABLE_INLINE_SSKEY_(L, t, key, val, Unprotect)
@@ -829,7 +818,9 @@ void luaV_finishOp (lua_State *L) {
     case OP_BAND: case OP_BOR: case OP_BXOR: case OP_SHL: case OP_SHR:
     case OP_MOD: case OP_POW:
     case OP_UNM: case OP_BNOT: case OP_LEN:
-    case OP_RAVI_GETTABUP_SK: case OP_RAVI_GETTABLE_SK: case OP_RAVI_SELF_SK:
+    case OP_RAVI_GETTABUP_SK: 
+    case OP_RAVI_GETTABLE_SK: case OP_RAVI_GETTABLE_I: case OP_RAVI_GETTABLE_S: 
+    case OP_RAVI_SELF_SK: case OP_RAVI_SELF_S:
     case OP_GETTABUP: case OP_GETTABLE: case OP_SELF: {
       setobjs2s(L, base + GETARG_A(inst), --L->top);
       break;
@@ -871,6 +862,7 @@ void luaV_finishOp (lua_State *L) {
         L->top = ci->top;  /* adjust results */
       break;
     }
+    case OP_RAVI_SETTABLE_I: case OP_RAVI_SETTABLE_S: case OP_RAVI_SETTABLE_SK:
     case OP_TAILCALL: case OP_SETTABUP: case OP_SETTABLE:
       break;
     default: lua_assert(0);
@@ -1684,7 +1676,7 @@ int luaV_execute (lua_State *L) {
           v = &t->array[idx - 1];
         else
           v = luaH_getint(t, idx);
-        if (!ttisnil(v) || metamethod_absent(t->metatable, TM_INDEX)) {
+        if (!ttisnil(v)) {
           setobj2s(L, ra, v);
         }
         else {
@@ -2372,6 +2364,46 @@ void raviV_op_shr(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
   }
 }
 
+void raviV_op_band(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
+  lua_Integer ib;
+  lua_Integer ic;
+  if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+    setivalue(ra, intop(&, ib, ic));
+  }
+  else {
+    luaT_trybinTM(L, rb, rc, ra, TM_BAND);
+  }
+}
+
+void raviV_op_bor(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
+  lua_Integer ib;
+  lua_Integer ic;
+  if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+    setivalue(ra, intop(|, ib, ic));
+  }
+  else {
+    luaT_trybinTM(L, rb, rc, ra, TM_BOR);
+  }
+}
+
+void raviV_op_bxor(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
+  lua_Integer ib;
+  lua_Integer ic;
+  if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+    setivalue(ra, intop (^, ib, ic));
+  }
+  else {
+    luaT_trybinTM(L, rb, rc, ra, TM_BXOR);
+  }
+}
+
+void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb) {
+  lua_Integer ib;
+  if (tointeger(rb, &ib)) { setivalue(ra, intop (^, ~l_castS2U(0), ib)); }
+  else {
+    luaT_trybinTM(L, rb, rb, ra, TM_BNOT);
+  }
+}
 
 /*
 ** Main function for table access (invoking metamethods if needed).

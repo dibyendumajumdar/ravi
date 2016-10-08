@@ -267,6 +267,10 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_op_varargT;
   llvm::FunctionType *raviV_op_shrT;
   llvm::FunctionType *raviV_op_shlT;
+  llvm::FunctionType *raviV_op_borT;
+  llvm::FunctionType *raviV_op_bxorT;
+  llvm::FunctionType *raviV_op_bandT;
+  llvm::FunctionType *raviV_op_bnotT;
   llvm::FunctionType *raviV_op_setupvaliT;
   llvm::FunctionType *raviV_op_setupvalfT;
   llvm::FunctionType *raviV_op_setupvalaiT;
@@ -638,6 +642,10 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_varargF;
   llvm::Function *raviV_op_shrF;
   llvm::Function *raviV_op_shlF;
+  llvm::Function *raviV_op_borF;
+  llvm::Function *raviV_op_bxorF;
+  llvm::Function *raviV_op_bandF;
+  llvm::Function *raviV_op_bnotF;
   llvm::Function *raviV_op_setupvaliF;
   llvm::Function *raviV_op_setupvalfF;
   llvm::Function *raviV_op_setupvalaiF;
@@ -1189,6 +1197,11 @@ class RaviCodeGenerator {
                              int C, int pc);
 
   void emit_BNOT_I(RaviFunctionDef *def, int A, int B, int pc);
+
+  void emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int A, int B,
+    int C, int pc);
+
+  void emit_BNOT(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B,
                            lua_Integer y);

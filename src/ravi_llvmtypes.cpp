@@ -903,17 +903,29 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviV_op_setupvaltT =
     llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+  // void raviV_op_bor(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
+  // void raviV_op_bxor(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
+  // void raviV_op_band(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
+  // void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
   // void raviV_op_shl(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
   // void raviV_op_shr(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTValueT);
   elements.push_back(pTValueT);
+  raviV_op_bnotT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
   elements.push_back(pTValueT);
   raviV_op_shlT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
   raviV_op_shrT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  raviV_op_borT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  raviV_op_bxorT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  raviV_op_bandT =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   // const TValue *luaH_getint(Table *t, lua_Integer key);
   elements.clear();

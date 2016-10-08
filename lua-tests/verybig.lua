@@ -47,6 +47,7 @@ foo()
 foo = nil
 
 if _soft then return 10 end
+if ravi and ravi.auto() then return 10 end
 
 print "testing large programs (>64k)"
 

@@ -839,20 +839,20 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
     return false;
   }
-  const Instruction *code = p->code;
-  int pc, n = p->sizecode;
+  //const Instruction *code = p->code;
+  //int pc, n = p->sizecode;
   // Loop over the byte codes; as Lua compiler inserts
   // an extra RETURN op we need to ignore the last op
-  for (pc = 0; pc < n; pc++) {
-    Instruction i = code[pc];
-    OpCode o = GET_OPCODE(i);
-    if (o == OP_BNOT || o == OP_BAND || o == OP_BOR || o == OP_BXOR || o == OP_EXTRAARG)
-      return false;
-    else if (o == OP_RAVI_UNMF || o == OP_RAVI_UNMI) {
-      fprintf(stderr, "Unexpected bytecode %d\n", o);
-      abort();
-    }
-  }
+  //for (pc = 0; pc < n; pc++) {
+  //  Instruction i = code[pc];
+  //  OpCode o = GET_OPCODE(i);
+  //  if (o == OP_EXTRAARG)
+  //    return false;
+  //  else if (o == OP_RAVI_UNMF || o == OP_RAVI_UNMI) {
+  //    fprintf(stderr, "Unexpected bytecode %d\n", o);
+  //    abort();
+  //  }
+  //}
   return true;
 }
 
@@ -1057,6 +1057,18 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_shrF = def->raviF->addExternFunction(
       def->types->raviV_op_shrT, reinterpret_cast<void *>(&raviV_op_shr),
       "raviV_op_shr");
+  def->raviV_op_borF = def->raviF->addExternFunction(
+      def->types->raviV_op_borT, reinterpret_cast<void *>(&raviV_op_bor),
+      "raviV_op_bor");
+  def->raviV_op_bxorF = def->raviF->addExternFunction(
+      def->types->raviV_op_bxorT, reinterpret_cast<void *>(&raviV_op_bxor),
+      "raviV_op_bxor");
+  def->raviV_op_bandF = def->raviF->addExternFunction(
+      def->types->raviV_op_bandT, reinterpret_cast<void *>(&raviV_op_band),
+      "raviV_op_band");
+  def->raviV_op_bnotF = def->raviF->addExternFunction(
+      def->types->raviV_op_bnotT, reinterpret_cast<void *>(&raviV_op_bnot),
+      "raviV_op_bnot");
   def->raviV_op_setupvaliF = def->raviF->addExternFunction(
       def->types->raviV_op_setupvaliT,
       reinterpret_cast<void *>(&raviV_op_setupvali), "raviV_op_setupvali");
@@ -1387,6 +1399,12 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_SETLIST: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
+        if (C == 0) {
+          // OP_SETLIST is followed by OP_EXTRAARG
+          Instruction inst = code[++pc];
+          C = GETARG_Ax(inst);
+          lua_assert(GET_OPCODE(inst) == OP_EXTRAARG);
+        }
         emit_SETLIST(def, A, B, C, pc);
       } break;
       case OP_SELF:
@@ -1463,6 +1481,10 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_RAVI_BNOT_I: {
         int B = GETARG_B(i);
         emit_BNOT_I(def, A, B, pc);
+      } break;
+      case OP_BNOT: {
+        int B = GETARG_B(i);
+        emit_BNOT(def, A, B, pc);
       } break;
       case OP_TEST: {
         int B = GETARG_B(i);
@@ -1555,15 +1577,14 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_SETTABLE_SK(def, A, B, C, pc);
       } break;
 
+      // The SETTABLE_I code generation is broken as it
+      // doesn't handle metamethods etc. Needs to be done
+      // similar to SETTABLE_SK
       case OP_RAVI_SETTABLE_I: /* {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         emit_SETTABLE_I(def, A, B, C, pc);
       } break; */
-      /* The SETTABLE_I code generation is broken as it
-         doesn't handle metamethods etc. Needs to be done
-         similar to SETTABLE_SK
-      */
       case OP_SETTABLE: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
@@ -1703,6 +1724,14 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         emit_BITWISE_BINARY_OP(def, op, A, B, C, pc);
+      } break;
+
+      case OP_BAND:
+      case OP_BOR:
+      case OP_BXOR: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_BOR_BXOR_BAND(def, op, A, B, C, pc);
       } break;
 
       case OP_SHR:

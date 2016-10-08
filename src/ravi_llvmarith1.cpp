@@ -342,4 +342,30 @@ void RaviCodeGenerator::emit_BNOT_I(RaviFunctionDef *def, int A, int B,
   llvm::Value *result = def->builder->CreateXor(lhs, rhs, "");
   emit_store_reg_i_withtype(def, result, ra);
 }
+
+void RaviCodeGenerator::emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int A, int B,
+  int C, int pc) {
+  bool traced = emit_debug_trace(def, op, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  CreateCall4(def->builder, op == OP_BOR ? def->raviV_op_borF : 
+    (op == OP_BAND ? def->raviV_op_bandF : def->raviV_op_bxorF), 
+    def->L, ra, rb, rc);
+}
+
+void RaviCodeGenerator::emit_BNOT(RaviFunctionDef *def, int A, int B, int pc) {
+  bool traced = emit_debug_trace(def, OP_BNOT, pc);
+  // Below may invoke metamethod so we set savedpc
+  if (!traced) emit_update_savedpc(def, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register(def, B);
+  CreateCall3(def->builder, def->raviV_op_bnotF, def->L, ra, rb);
+}
+
+
 }
