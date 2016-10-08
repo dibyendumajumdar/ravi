@@ -66,7 +66,7 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_LOADBOOL             | YES      | R(A) := (Bool)B; if (C) pc++                     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_LOADNIL              | YES      | R(A), R(A+1), ..., R(A+B) := nil                 |
+| OP_LOADNIL              | YES (1)  | R(A), R(A+1), ..., R(A+B) := nil                 |
 +-------------------------+----------+--------------------------------------------------+
 | OP_GETUPVAL             | YES      | R(A) := UpValue[B]                               |
 +-------------------------+----------+--------------------------------------------------+
@@ -80,9 +80,9 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_SETTABLE             | YES      | R(A)[RK(B)] := RK(C)                             |
 +-------------------------+----------+--------------------------------------------------+
-| OP_NEWTABLE             | YES      | R(A) := {} (size = B,C)                          |
+| OP_NEWTABLE             | YES (1)  | R(A) := {} (size = B,C)                          |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SELF                 | YES      | R(A+1) := R(B); R(A) := R(B)[RK(C)]              |
+| OP_SELF                 | YES (1)  | R(A+1) := R(B); R(A) := R(B)[RK(C)]              |
 +-------------------------+----------+--------------------------------------------------+
 | OP_ADD                  | YES      | R(A) := RK(B) + RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
@@ -104,9 +104,9 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_BXOR                 | NO       | R(A) := RK(B) ~ RK(C)                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SHL                  | YES      | R(A) := RK(B) << RK(C)                           |
+| OP_SHL                  | YES (1)  | R(A) := RK(B) << RK(C)                           |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SHR                  | YES      | R(A) := RK(B) >> RK(C)                           |
+| OP_SHR                  | YES (1)  | R(A) := RK(B) >> RK(C)                           |
 +-------------------------+----------+--------------------------------------------------+
 | OP_UNM                  | YES      | R(A) := -R(B)                                    |
 +-------------------------+----------+--------------------------------------------------+
@@ -114,17 +114,17 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_NOT                  | YES      | R(A) := not R(B)                                 |
 +-------------------------+----------+--------------------------------------------------+
-| OP_LEN                  | YES      | R(A) := length of R(B)                           |
+| OP_LEN                  | YES (1)  | R(A) := length of R(B)                           |
 +-------------------------+----------+--------------------------------------------------+
-| OP_CONCAT               | YES      | R(A) := R(B).. ... ..R(C)                        |
+| OP_CONCAT               | YES (1)  | R(A) := R(B).. ... ..R(C)                        |
 +-------------------------+----------+--------------------------------------------------+
 | OP_JMP                  | YES      | c+=sBx; if (A) close all upvalues >= R(A - 1)    |
 +-------------------------+----------+--------------------------------------------------+
-| OP_EQ                   | YES      | if ((RK(B) == RK(C)) ~= A) then pc++             |
+| OP_EQ                   | YES (1)  | if ((RK(B) == RK(C)) ~= A) then pc++             |
 +-------------------------+----------+--------------------------------------------------+
-| OP_LT                   | YES      | if ((RK(B) <  RK(C)) ~= A) then pc++             |
+| OP_LT                   | YES (1)  | if ((RK(B) <  RK(C)) ~= A) then pc++             |
 +-------------------------+----------+--------------------------------------------------+
-| OP_LE                   | YES      | if ((RK(B) <= RK(C)) ~= A) then pc++             |
+| OP_LE                   | YES (1)  | if ((RK(B) <= RK(C)) ~= A) then pc++             |
 +-------------------------+----------+--------------------------------------------------+
 | OP_TEST                 | YES      | if not (R(A) <=> C) then pc++                    |
 +-------------------------+----------+--------------------------------------------------+
@@ -132,7 +132,7 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_CALL                 | YES      | R(A), .. ,R(A+C-2) := R(A)(R(A+1), .. ,R(A+B-1)) |
 +-------------------------+----------+--------------------------------------------------+
-| OP_TAILCALL             | YES      | return R(A)(R(A+1), ... ,R(A+B-1))               |
+| OP_TAILCALL             | YES (2)  | return R(A)(R(A+1), ... ,R(A+B-1))               |
 |                         |          | Compiled as OP_CALL so no tail call optimization |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RETURN               | YES      | return R(A), ... ,R(A+B-2) (see note)            |
@@ -146,11 +146,11 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_TFORLOOP             | YES      | if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx } |
 +-------------------------+----------+--------------------------------------------------+
-| OP_SETLIST              | YES      | R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B	        |
+| OP_SETLIST              | YES (1)  | R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B	        |
 +-------------------------+----------+--------------------------------------------------+
-| OP_CLOSURE              | YES      | R(A) := closure(KPROTO[Bx])                      |
+| OP_CLOSURE              | YES (1)  | R(A) := closure(KPROTO[Bx])                      |
 +-------------------------+----------+--------------------------------------------------+
-| OP_VARARG               | YES      | R(A), R(A+1), ..., R(A+B-2) = vararg             |
+| OP_VARARG               | YES (1)  | R(A), R(A+1), ..., R(A+B-2) = vararg             |
 +-------------------------+----------+--------------------------------------------------+
 | OP_EXTRAARG             | N/A      | extra (larger) argument for previous opcode      |
 +-------------------------+----------+--------------------------------------------------+
@@ -232,13 +232,13 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 | OP_RAVI_FORPREP_I1      | YES      | R(A)-=R(A+2); pc+=sBx                            |
 |                         |          | Specialization for integer step == 1             |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETUPVALI       | NO       | UpValue[B] := tointeger(R(A))                    |
+| OP_RAVI_SETUPVALI       | YES (1)  | UpValue[B] := tointeger(R(A))                    |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETUPVALF       | NO       | UpValue[B] := tonumber(R(A))                     |
+| OP_RAVI_SETUPVALF       | YES (1)  | UpValue[B] := tonumber(R(A))                     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETUPVALAI      | NO       | UpValue[B] := toarrayint(R(A))                   |
+| OP_RAVI_SETUPVALAI      | YES (1)  | UpValue[B] := toarrayint(R(A))                   |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETUPVALAF      | NO       | UpValue[B] := toarrayflt(R(A))                   |
+| OP_RAVI_SETUPVALAF      | YES (1)  | UpValue[B] := toarrayflt(R(A))                   |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SETTABLE_AII    | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of integers, and RK(C) is an int   |
@@ -254,9 +254,9 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_BXOR_II         | YES      | R(A) := RK(B) ~ RK(C), operands are int          |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SHL_II          | YES      | R(A) := RK(B) << RK(C), operands are int         |
+| OP_RAVI_SHL_II          | YES (5)  | R(A) := RK(B) << RK(C), operands are int         |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SHR_II          | YES      | R(A) := RK(B) >> RK(C), operands are int         |
+| OP_RAVI_SHR_II          | YES (5)  | R(A) := RK(B) >> RK(C), operands are int         |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_BNOT_I          | YES      | R(A) := ~R(B), int operand                       |
 +-------------------------+----------+--------------------------------------------------+
@@ -276,16 +276,32 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_GETTABLE_S      | YES      | R(A) := R(B)[RK(C)], string key                  |
 +-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_GETTABLE_SK     | YES      | R(A) := R(B)[RK(C)], string key                  |
++-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SETTABLE_I      | YES      | R(A)[RK(B)] := RK(C), integer key                |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_S      | YES      | R(A)[RK(B)] := RK(C), string key                 |
+| OP_RAVI_SETTABLE_S      | YES (3)  | R(A)[RK(B)] := RK(C), string key                 |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SETTABLE_SK     | YES      | R(A)[RK(B)] := RK(C), string key                 |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_TOTAB           | YES      | R(A) := to_table(R(A))                           |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_MOVETAB         | YES      | R(A) := R(B), check R(B) is a table              |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETUPVALT       | NO       | UpValue[B] := to_table(R(A))                     |
+| OP_RAVI_SETUPVALT       | YES (1)  | UpValue[B] := to_table(R(A))                     |
 +-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SELF_SK         | YES      | R(A+1) := R(B); R(A) := R(B)[RK(C)]              |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_SELF_S          | YES      | R(A+1) := R(B); R(A) := R(B)[RK(C)]              |
++-------------------------+----------+--------------------------------------------------+
+| OP_RAVI_GETTABUP_SK     | YES      | R(A) := UpValue[B][RK(C)]                        |
++-------------------------+----------+--------------------------------------------------+
+
+1. These bytecoes are handled via function calls rather than inline code generation
+2. Tail calls are the same as ordinary calls.
+3. The _SK variant is generated
+4. Generates generic SETTABLE 
+5. Inline code is generated only when operand is a constant integer
 
 Ravi's LLVM JIT compiler source
 -------------------------------

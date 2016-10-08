@@ -40,7 +40,38 @@ Following points are worth bearing in mind when looking at above benchmarks.
 4. Above benchmarks are primarily numerical. In real life scenarios there
    are other factors that affect performance. For instance, via FFI LuaJIT 
    is able to make efficient calls to external C functions, but Ravi does
-   not have a similar FFI interface. 
+   not have a similar FFI interface. LuaJIT can also inline Lua function calls
+   but Ravi does not have this ability and hence function calls go via the
+   Lua infrastructure and are therefore expensive. Ravi's code generation is best
+   when types are annotated as otherwise the dynamic type checks kill performance
+   as above benchmarks show. Finally LLVM is a slow compiler relative to LuaJIT's
+   JIT compiler which is very very fast.
 
 5. Performance of Lua 5.3.2 is better than 5.3.0 or 5.3.1, thanks to the 
    table optimizations in this version.
+
+In general to obtain the best performanc with Ravi, following steps are necessary.
+
+1. Annotate types as much as possible.
+
+2. Use fornum loops with integer counters.
+
+3. Avoid function calls inside loop bodies.
+
+4. Do not assume that JIT compilation is beneficial - benchmark code with and without
+   JIT compilation.
+
+5. Try to compile a set of functions (in a table) preferably at program startup.
+   This way you pay for the JIT compilation cost only once.
+
+6. Dump the generated Lua bytecode to see if specialised Ravi bytecodes are being 
+   generated or not. If not you may be missing type annotations.
+
+7. Avoid using globals.
+
+8. Note that only functions executing in the main Lua thread are run in JIT mode.
+   Coroutines in particular are always interpreted.
+
+9. Also note that tail calls are expensive in JIT mode as they are treated as 
+   normal function calls; so it is better to avoid JIT compilation of code that
+   relies upon tail calls.

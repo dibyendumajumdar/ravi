@@ -1004,7 +1004,6 @@ int luaV_execute (lua_State *L) {
         setobj2s(L, ra, cl->upvals[b]->v);
       } break;
 
-      /* case OP_RAVI_GETTABUP_SK: */
       case OP_GETTABUP: {
         TValue *upval = cl->upvals[GETARG_B(i)]->v;    /* table */
         TValue *rc = RKC(i);                           /* key */
@@ -1728,7 +1727,7 @@ int luaV_execute (lua_State *L) {
           lua_assert(key->tt == LUA_TSHRSTR);
           Table *h = hvalue(rb);
           const TValue *v = luaH_getshortstr(h, key);
-          if (!ttisnil(v) /* || metamethod_absent(h->metatable, TM_INDEX) */) {
+          if (!ttisnil(v)) {
             setobj2s(L, ra, v);
           }
           else {
@@ -1856,10 +1855,12 @@ int luaV_execute (lua_State *L) {
       } break;
 
       case OP_RAVI_UNMF: {
+        lua_assert(0);
         TValue *rb = RB(i);
         setfltvalue(ra, -fltvalue(rb));
       } break;
       case OP_RAVI_UNMI: {
+        lua_assert(0);
         TValue *rb = RB(i);
         setivalue(ra, -ivalue(rb));
       } break;

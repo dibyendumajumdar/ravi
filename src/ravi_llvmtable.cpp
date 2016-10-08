@@ -97,6 +97,9 @@ void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B, int pc) {
 // b) we know the key is an integer
 void RaviCodeGenerator::emit_SETTABLE_I(RaviFunctionDef *def, int A, int B,
                                         int C, int pc) {
+// This is broken as we need to handle meta methods etc.
+  lua_assert(false);
+#if 0
   emit_debug_trace(def, OP_RAVI_SETTABLE_I, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -105,6 +108,7 @@ void RaviCodeGenerator::emit_SETTABLE_I(RaviFunctionDef *def, int A, int B,
   llvm::Instruction *t = emit_load_reg_h(def, ra);
   llvm::Instruction *key = emit_load_reg_i(def, rb);
   CreateCall4(def->builder, def->luaH_setintF, def->L, t, key, rc);
+#endif
 }
 
 // R(A)[RK(B)] := RK(C)

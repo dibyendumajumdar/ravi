@@ -514,14 +514,15 @@ llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type(
                                     varname);
 }
 
+// Compare without variants i.e. ttnov(value_type) == lua_type
 llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type_class(
-  RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_type,
-  const char *varname) {
-  llvm::Value *novariant_type = def->builder->CreateAnd(value_type, def->types->kInt[0x0F]);
-  return def->builder->CreateICmpNE(novariant_type, def->types->kInt[int(lua_type)],
-    varname);
+    RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_type,
+    const char *varname) {
+  llvm::Value *novariant_type =
+      def->builder->CreateAnd(value_type, def->types->kInt[0x0F]);
+  return def->builder->CreateICmpNE(novariant_type,
+                                    def->types->kInt[int(lua_type)], varname);
 }
-
 
 llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(
     RaviFunctionDef *def, llvm::Value *value) {
@@ -845,114 +846,11 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
   for (pc = 0; pc < n; pc++) {
     Instruction i = code[pc];
     OpCode o = GET_OPCODE(i);
-    switch (o) {
-      case OP_LOADK:
-      case OP_LOADKX:
-      case OP_LOADNIL:
-      case OP_LOADBOOL:
-      case OP_CALL:
-      case OP_TAILCALL:
-      case OP_RETURN:
-      case OP_JMP:
-      case OP_EQ:
-      case OP_RAVI_EQ_II:
-      case OP_RAVI_EQ_FF:
-      case OP_LT:
-      case OP_RAVI_LT_II:
-      case OP_RAVI_LT_FF:
-      case OP_LE:
-      case OP_RAVI_LE_II:
-      case OP_RAVI_LE_FF:
-      case OP_NOT:
-      case OP_TEST:
-      case OP_TESTSET:
-      case OP_FORPREP:
-      case OP_FORLOOP:
-      case OP_TFORCALL:
-      case OP_TFORLOOP:
-      case OP_MOVE:
-      case OP_ADD:
-      case OP_SUB:
-      case OP_MUL:
-      case OP_DIV:
-      case OP_MOD:
-      case OP_IDIV:
-      case OP_POW:
-      case OP_UNM:
-      case OP_LEN:
-      case OP_VARARG:
-      case OP_CONCAT:
-      case OP_CLOSURE:
-      case OP_SETTABLE:
-      case OP_GETTABLE:
-      case OP_GETUPVAL:
-      case OP_SETUPVAL:
-      case OP_GETTABUP:
-      case OP_SETTABUP:
-      case OP_NEWTABLE:
-      case OP_SETLIST:
-      case OP_SELF:
-      case OP_RAVI_NEWARRAYI:
-      case OP_RAVI_NEWARRAYF:
-      case OP_RAVI_MOVEI:
-      case OP_RAVI_MOVEF:
-      case OP_RAVI_TOINT:
-      case OP_RAVI_TOFLT:
-      case OP_RAVI_LOADFZ:
-      case OP_RAVI_LOADIZ:
-      case OP_RAVI_ADDFF:
-      case OP_RAVI_ADDFI:
-      case OP_RAVI_ADDII:
-      case OP_RAVI_SUBFF:
-      case OP_RAVI_SUBFI:
-      case OP_RAVI_SUBIF:
-      case OP_RAVI_SUBII:
-      case OP_RAVI_MULFF:
-      case OP_RAVI_MULFI:
-      case OP_RAVI_MULII:
-      case OP_RAVI_DIVFF:
-      case OP_RAVI_DIVFI:
-      case OP_RAVI_DIVIF:
-      case OP_RAVI_DIVII:
-      case OP_RAVI_GETTABLE_AI:
-      case OP_RAVI_GETTABLE_AF:
-      case OP_RAVI_SETTABLE_AI:
-      case OP_RAVI_SETTABLE_AII:
-      case OP_RAVI_SETTABLE_AF:
-      case OP_RAVI_SETTABLE_AFF:
-      case OP_RAVI_TOARRAYI:
-      case OP_RAVI_TOARRAYF:
-      case OP_RAVI_MOVEAI:
-      case OP_RAVI_MOVEAF:
-      case OP_RAVI_FORLOOP_IP:
-      case OP_RAVI_FORLOOP_I1:
-      case OP_RAVI_FORPREP_IP:
-      case OP_RAVI_FORPREP_I1:
-      case OP_RAVI_BAND_II:
-      case OP_RAVI_BOR_II:
-      case OP_RAVI_BXOR_II:
-      case OP_RAVI_BNOT_I:
-      case OP_RAVI_SHL_II:
-      case OP_RAVI_SHR_II:
-      case OP_SHR:
-      case OP_SHL:
-      case OP_RAVI_GETTABLE_I:
-      case OP_RAVI_GETTABLE_S:
-      case OP_RAVI_GETTABLE_SK:
-      case OP_RAVI_SETTABLE_I:
-      case OP_RAVI_SETTABLE_S:
-      case OP_RAVI_SETTABLE_SK:
-      case OP_RAVI_TOTAB:
-      case OP_RAVI_MOVETAB:
-      case OP_RAVI_SETUPVALI:
-      case OP_RAVI_SETUPVALF:
-      case OP_RAVI_SETUPVALAI:
-      case OP_RAVI_SETUPVALAF:
-      case OP_RAVI_SETUPVALT:
-      case OP_RAVI_SELF_S:
-      case OP_RAVI_SELF_SK:
-      case OP_RAVI_GETTABUP_SK: break;
-      default: return false;
+    if (o == OP_BNOT || o == OP_BAND || o == OP_BOR || o == OP_BXOR || o == OP_EXTRAARG)
+      return false;
+    else if (o == OP_RAVI_UNMF || o == OP_RAVI_UNMI) {
+      fprintf(stderr, "Unexpected bytecode %d\n", o);
+      abort();
     }
   }
   return true;
@@ -1492,31 +1390,14 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_SETLIST(def, A, B, C, pc);
       } break;
       case OP_SELF:
-      case OP_RAVI_SELF_SK:{
+      case OP_RAVI_SELF_SK: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        /* key must be string */
-//        if (ISK(C)) {
-//          TValue *kv = k + INDEXK(C);
-//          if (ttisshrstring(kv))
-//            emit_SELF_SK(def, A, B, C, pc);
-//          else
-//            emit_SELF(def, A, B, C, pc);
-//        }
-        if (op == OP_RAVI_SELF_SK) {
-          emit_SELF_SK(def, A, B, C, pc);
-        }
+        if (op == OP_RAVI_SELF_SK) { emit_SELF_SK(def, A, B, C, pc); }
         else {
           emit_SELF(def, A, B, C, pc);
         }
       } break;
-#if 0
-      case OP_SELF: {
-        int B = GETARG_B(i);
-        int C = GETARG_C(i);
-        emit_SELF(def, A, B, C, pc);
-      } break;
-#endif
       case OP_LEN: {
         int B = GETARG_B(i);
         emit_LEN(def, A, B, pc);
@@ -1674,11 +1555,15 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_SETTABLE_SK(def, A, B, C, pc);
       } break;
 
-      case OP_RAVI_SETTABLE_I: /*{
+      case OP_RAVI_SETTABLE_I: /* {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         emit_SETTABLE_I(def, A, B, C, pc);
       } break; */
+      /* The SETTABLE_I code generation is broken as it
+         doesn't handle metamethods etc. Needs to be done
+         similar to SETTABLE_SK
+      */
       case OP_SETTABLE: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
@@ -1708,19 +1593,6 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int C = GETARG_C(i);
         emit_GETTABLE_I(def, A, B, C, pc);
       } break;
-#if 0
-        // There is a BUG in the code being emitted
-        // See the emit method for details
-      case OP_RAVI_GETTABLE_SK: {
-        int C = GETARG_C(i);
-        int B = GETARG_B(i);
-        lua_assert(ISK(C));
-        TValue *kv = k + INDEXK(C);
-        TString *key = tsvalue(kv);
-        lua_assert(key->tt == LUA_TSHRSTR);
-        emit_GETTABLE_SK(def, A, B, C, pc, key);
-      } break;
-#endif
       case OP_RAVI_GETTABLE_SK: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
@@ -1775,19 +1647,6 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_MOVETAB(def, A, B, pc);
       } break;
 
-#if 0
-        // There is a BUG in the code being emitted
-        // Also crashes the tests so code generation is incorrect
-      case OP_RAVI_GETTABUP_SK: {
-        int C = GETARG_C(i);
-        int B = GETARG_B(i);
-        lua_assert(ISK(C));
-        TValue *kv = k + INDEXK(C);
-        TString *key = tsvalue(kv);
-        lua_assert(key->tt == LUA_TSHRSTR);
-        emit_GETTABUP_SK(def, A, B, C, pc, key);
-      } break;
-#endif
       case OP_RAVI_GETTABUP_SK: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
@@ -1969,11 +1828,17 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_UNM(def, A, B, pc);
       } break;
 
-      default: break;
+      default: {
+        fprintf(stderr, "Unexpected bytecode %d\n", op);
+        abort();
+      }
     }
   }
 
-  if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs())) abort();
+  if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs())) {
+    fprintf(stderr, "LLVM Code Verification failed\n");
+    abort();
+  }
   ravi::RaviJITFunction *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = nullptr;
