@@ -278,7 +278,7 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_GETTABLE_SK     | YES      | R(A) := R(B)[RK(C)], string key                  |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_I      | YES      | R(A)[RK(B)] := RK(C), integer key                |
+| OP_RAVI_SETTABLE_I      | YES (4)  | R(A)[RK(B)] := RK(C), integer key                |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SETTABLE_S      | YES (3)  | R(A)[RK(B)] := RK(C), string key                 |
 +-------------------------+----------+--------------------------------------------------+
