@@ -265,6 +265,10 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_op_concatT;
   llvm::FunctionType *raviV_op_closureT;
   llvm::FunctionType *raviV_op_varargT;
+  llvm::FunctionType *raviV_op_addT;
+  llvm::FunctionType *raviV_op_subT;
+  llvm::FunctionType *raviV_op_mulT;
+  llvm::FunctionType *raviV_op_divT;
   llvm::FunctionType *raviV_op_shrT;
   llvm::FunctionType *raviV_op_shlT;
   llvm::FunctionType *raviV_op_borT;
@@ -640,6 +644,10 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_concatF;
   llvm::Function *raviV_op_closureF;
   llvm::Function *raviV_op_varargF;
+  llvm::Function *raviV_op_addF;
+  llvm::Function *raviV_op_subF;
+  llvm::Function *raviV_op_mulF;
+  llvm::Function *raviV_op_divF;
   llvm::Function *raviV_op_shrF;
   llvm::Function *raviV_op_shlF;
   llvm::Function *raviV_op_borF;

@@ -839,11 +839,11 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
     return false;
   }
-  //const Instruction *code = p->code;
-  //int pc, n = p->sizecode;
+  // const Instruction *code = p->code;
+  // int pc, n = p->sizecode;
   // Loop over the byte codes; as Lua compiler inserts
   // an extra RETURN op we need to ignore the last op
-  //for (pc = 0; pc < n; pc++) {
+  // for (pc = 0; pc < n; pc++) {
   //  Instruction i = code[pc];
   //  OpCode o = GET_OPCODE(i);
   //  if (o == OP_EXTRAARG)
@@ -1069,6 +1069,18 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_bnotF = def->raviF->addExternFunction(
       def->types->raviV_op_bnotT, reinterpret_cast<void *>(&raviV_op_bnot),
       "raviV_op_bnot");
+  def->raviV_op_addF = def->raviF->addExternFunction(
+      def->types->raviV_op_addT, reinterpret_cast<void *>(&raviV_op_add),
+      "raviV_op_add");
+  def->raviV_op_subF = def->raviF->addExternFunction(
+      def->types->raviV_op_subT, reinterpret_cast<void *>(&raviV_op_sub),
+      "raviV_op_sub");
+  def->raviV_op_mulF = def->raviF->addExternFunction(
+      def->types->raviV_op_mulT, reinterpret_cast<void *>(&raviV_op_mul),
+      "raviV_op_mul");
+  def->raviV_op_divF = def->raviF->addExternFunction(
+      def->types->raviV_op_divT, reinterpret_cast<void *>(&raviV_op_div),
+      "raviV_op_div");
   def->raviV_op_setupvaliF = def->raviF->addExternFunction(
       def->types->raviV_op_setupvaliT,
       reinterpret_cast<void *>(&raviV_op_setupvali), "raviV_op_setupvali");
@@ -1577,14 +1589,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_SETTABLE_SK(def, A, B, C, pc);
       } break;
 
-      // The SETTABLE_I code generation is broken as it
-      // doesn't handle metamethods etc. Needs to be done
-      // similar to SETTABLE_SK
-      case OP_RAVI_SETTABLE_I: /* {
-        int B = GETARG_B(i);
-        int C = GETARG_C(i);
-        emit_SETTABLE_I(def, A, B, C, pc);
-      } break; */
+      case OP_RAVI_SETTABLE_I:
       case OP_SETTABLE: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);

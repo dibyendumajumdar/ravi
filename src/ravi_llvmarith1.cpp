@@ -245,18 +245,18 @@ void RaviCodeGenerator::emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op,
   llvm::Value *result = NULL;
 
   switch (op) {
-  case OP_RAVI_BAND_II:
-    result = def->builder->CreateAnd(lhs, rhs, "OP_RAVI_BAND_II_result");
-    break;
-  case OP_RAVI_BOR_II:
-    result = def->builder->CreateOr(lhs, rhs, "OP_RAVI_BOR_II_result");
-    break;
-  case OP_RAVI_BXOR_II:
-    result = def->builder->CreateXor(lhs, rhs, "OP_RAVI_BXOR_II_result");
-    break;
-  default:
-    fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
-    abort();
+    case OP_RAVI_BAND_II:
+      result = def->builder->CreateAnd(lhs, rhs, "OP_RAVI_BAND_II_result");
+      break;
+    case OP_RAVI_BOR_II:
+      result = def->builder->CreateOr(lhs, rhs, "OP_RAVI_BOR_II_result");
+      break;
+    case OP_RAVI_BXOR_II:
+      result = def->builder->CreateXor(lhs, rhs, "OP_RAVI_BXOR_II_result");
+      break;
+    default:
+      fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
+      abort();
   }
   emit_store_reg_i_withtype(def, result, ra);
 }
@@ -278,7 +278,8 @@ void RaviCodeGenerator::emit_bitwise_shiftl(RaviFunctionDef *def,
           rb, llvm::ConstantInt::get(def->types->lua_IntegerT, -y));
       emit_store_reg_i_withtype(def, result, ra);
     }
-  } else {
+  }
+  else {
     if (y >= NBITS)
       emit_store_reg_i_withtype(
           def, llvm::ConstantInt::get(def->types->lua_IntegerT, 0), ra);
@@ -302,10 +303,12 @@ void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
   if (op == OP_RAVI_SHL_II && ISK(C)) {
     lua_Integer y = def->p->k[INDEXK(C)].value_.i;
     emit_bitwise_shiftl(def, ra, B, y);
-  } else if (op == OP_RAVI_SHR_II && ISK(C)) {
+  }
+  else if (op == OP_RAVI_SHR_II && ISK(C)) {
     lua_Integer y = def->p->k[INDEXK(C)].value_.i;
     emit_bitwise_shiftl(def, ra, B, -y);
-  } else {
+  }
+  else {
     // RHS is not a constant
     llvm::Value *rc = emit_gep_register_or_constant(def, C);
     llvm::Value *rb = emit_gep_register_or_constant(def, B);
@@ -314,19 +317,19 @@ void RaviCodeGenerator::emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op,
     // could invoke metamethods we need to set
     // 'savedpc'
     switch (op) {
-    case OP_SHL:
-      if (!traced) emit_update_savedpc(def, pc);
-    case OP_RAVI_SHL_II:
-      CreateCall4(def->builder, def->raviV_op_shlF, def->L, ra, rb, rc);
-      break;
-    case OP_SHR:
-      if (!traced) emit_update_savedpc(def, pc);
-    case OP_RAVI_SHR_II:
-      CreateCall4(def->builder, def->raviV_op_shrF, def->L, ra, rb, rc);
-      break;
-    default:
-      fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
-      abort();
+      case OP_SHL:
+        if (!traced) emit_update_savedpc(def, pc);
+      case OP_RAVI_SHL_II:
+        CreateCall4(def->builder, def->raviV_op_shlF, def->L, ra, rb, rc);
+        break;
+      case OP_SHR:
+        if (!traced) emit_update_savedpc(def, pc);
+      case OP_RAVI_SHR_II:
+        CreateCall4(def->builder, def->raviV_op_shrF, def->L, ra, rb, rc);
+        break;
+      default:
+        fprintf(stderr, "unexpected value of opcode %d\n", (int)op);
+        abort();
     }
   }
 }
@@ -343,8 +346,8 @@ void RaviCodeGenerator::emit_BNOT_I(RaviFunctionDef *def, int A, int B,
   emit_store_reg_i_withtype(def, result, ra);
 }
 
-void RaviCodeGenerator::emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int A, int B,
-  int C, int pc) {
+void RaviCodeGenerator::emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op,
+                                           int A, int B, int C, int pc) {
   bool traced = emit_debug_trace(def, op, pc);
   // Below may invoke metamethod so we set savedpc
   if (!traced) emit_update_savedpc(def, pc);
@@ -352,9 +355,11 @@ void RaviCodeGenerator::emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int 
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
-  CreateCall4(def->builder, op == OP_BOR ? def->raviV_op_borF : 
-    (op == OP_BAND ? def->raviV_op_bandF : def->raviV_op_bxorF), 
-    def->L, ra, rb, rc);
+  CreateCall4(def->builder,
+              op == OP_BOR
+                  ? def->raviV_op_borF
+                  : (op == OP_BAND ? def->raviV_op_bandF : def->raviV_op_bxorF),
+              def->L, ra, rb, rc);
 }
 
 void RaviCodeGenerator::emit_BNOT(RaviFunctionDef *def, int A, int B, int pc) {
@@ -366,6 +371,4 @@ void RaviCodeGenerator::emit_BNOT(RaviFunctionDef *def, int A, int B, int pc) {
   llvm::Value *rb = emit_gep_register(def, B);
   CreateCall3(def->builder, def->raviV_op_bnotF, def->L, ra, rb);
 }
-
-
 }

@@ -30,6 +30,34 @@ namespace ravi {
 void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
                                    OpCode op, TMS tms, int pc) {
 
+#if 0
+  bool traced = emit_debug_trace(def, op, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_register_or_constant(def, B);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  switch (op) {
+  case OP_ADD:
+    CreateCall4(def->builder, def->raviV_op_addF,
+      def->L, ra, rb, rc);
+    break;
+  case OP_SUB:
+    CreateCall4(def->builder, def->raviV_op_subF,
+      def->L, ra, rb, rc);
+    break;
+  case OP_MUL:
+    CreateCall4(def->builder, def->raviV_op_mulF,
+      def->L, ra, rb, rc);
+    break;
+  case OP_DIV:
+    CreateCall4(def->builder, def->raviV_op_divF,
+      def->L, ra, rb, rc);
+    break;
+  default:
+    lua_assert(0);
+  }
+
+#else
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
   // lua_Number nb; lua_Number nc;
@@ -221,6 +249,7 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
 
   def->f->getBasicBlockList().push_back(done_block);
   def->builder->SetInsertPoint(done_block);
+#endif
 }
 
 // OP_MOD
