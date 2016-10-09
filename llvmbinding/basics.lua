@@ -4,7 +4,7 @@ assert(llvm)
 -- Get the LLVM context - right now this is the
 -- global context
 context = llvm.context()
-assert(getmetatable(context).type == "LLVMcontext")
+assert(ravitype(context) == "LLVMcontext")
 
 -- The bindings provide a number of predefined types that
 -- are Lua specific plus some standard C types such as 'int',
@@ -12,7 +12,7 @@ assert(getmetatable(context).type == "LLVMcontext")
 types = context:types()
 print 'Listing types'
 for k,v in pairs(types) do
-	print('\t', k, getmetatable(v).type)
+	print('\t', k, ravitype(v))
 	llvm.dump(v)
 end
 
@@ -21,11 +21,11 @@ end
 -- Just as an exercise create a struct type
 -- Initially we have an opaque struct
 gcobject = context:structtype("GCObject")
-assert(getmetatable(gcobject).type == "LLVMstructtype")
+assert(ravitype(gcobject) == "LLVMstructtype")
 
 -- Create pointer to GCObject
 gcobject_p = context:pointertype(gcobject)
-assert(getmetatable(gcobject_p).type == "LLVMpointertype")
+assert(ravitype(gcobject_p) == "LLVMpointertype")
 
 -- Add the members of the struct
 -- Following demonstrates the use of predefined Lua types 
@@ -43,12 +43,12 @@ llvm.dump(gcobject)
 -- At this stage the function will get a module and 
 -- execution engine but no body
 myfunc = context:lua_CFunction("myfunc")
-assert(getmetatable(myfunc).type == "LLVMmainfunction")
+assert(ravitype(myfunc) == "LLVMmainfunction")
 
 -- Get a new IRBuilder intance
 -- this will be garbage collected by Lua
 irbuilder = context:irbuilder()
-assert(getmetatable(irbuilder).type == "LLVMirbuilder")
+assert(ravitype(irbuilder) == "LLVMirbuilder")
 
 -- Create a basic block
 block = context:basicblock("entry")
@@ -62,10 +62,10 @@ irbuilder:setinsertpoint(block)
 -- Get printf decl
 -----------------------------------------------
 printf = myfunc:extern("printf")
-assert(getmetatable(printf).type == "LLVMconstant")
+assert(ravitype(printf) == "LLVMconstant")
 
 luaL_checklstring = myfunc:extern("luaL_checklstring")
-assert(getmetatable(luaL_checklstring).type == "LLVMconstant")
+assert(ravitype(luaL_checklstring) == "LLVMconstant")
 
 hellostr = irbuilder:stringconstant("hello world!\n")
 irbuilder:call(printf, { hellostr })
@@ -74,11 +74,11 @@ irbuilder:call(printf, { hellostr })
 -- Test calling a random function
 ------------------------------------------------- 
 puts_type = context:functiontype(types.int, {types.pchar}, {vararg=false})
-assert(getmetatable(puts_type).type == "LLVMfunctiontype")
+assert(ravitype(puts_type) == "LLVMfunctiontype")
 
 -- Declare extern puts()
 puts = myfunc:extern("puts", puts_type);
-assert(getmetatable(puts).type == "LLVMconstant")
+assert(ravitype(puts) == "LLVMconstant")
 
 -- Get the L parameter of myfunc
 L = myfunc:arg(1)
@@ -92,7 +92,7 @@ irbuilder:call(puts, { str })
 
 -- add CreateRet(0)
 inst = irbuilder:ret(context:intconstant(0))
-assert(getmetatable(inst).type == "LLVMinstruction")
+assert(ravitype(inst) == "LLVMinstruction")
 -- **************************************************/
 
 -- what did we get?

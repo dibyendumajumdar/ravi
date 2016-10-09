@@ -214,9 +214,9 @@ LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
       StkId input = L->top - 1;
       compatible = (type == RAVI_TNUMFLT && ttisfloat(input))
         || (type == RAVI_TNUMINT && ttisinteger(input))
-        || (type == RAVI_TARRAYFLT && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TARRAYFLT)
-        || (type == RAVI_TARRAYINT && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TARRAYINT)
-        || (type == RAVI_TTABLE && ttistable(input) && hvalue(input)->ravi_array.array_type == RAVI_TTABLE)
+        || (type == RAVI_TARRAYFLT && ttisfarray(input))
+        || (type == RAVI_TARRAYINT && ttisiarray(input))
+        || (type == RAVI_TTABLE && ttisLtable(input))
         ;
     }
     if (compatible) {
@@ -468,13 +468,15 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
       }
       case OP_RAVI_GETTABLE_I:
       case OP_RAVI_GETTABLE_S:
+      case OP_RAVI_GETTABLE_SK:
       case OP_RAVI_GETTABLE_AI:
       case OP_RAVI_GETTABLE_AF:
       case OP_GETTABUP:
+      case OP_RAVI_GETTABUP_SK:
       case OP_GETTABLE: {
         int k = GETARG_C(i);  /* key index */
         int t = GETARG_B(i);  /* table index */
-        const char *vn = (op != OP_GETTABUP)  /* name of indexed variable */
+        const char *vn = (op != OP_GETTABUP && op != OP_RAVI_GETTABUP_SK)  /* name of indexed variable */
                          ? luaF_getlocalname(p, t + 1, pc, &type)  /* t+1 is the local variable number */
                          : upvalname(p, t);
         kname(p, pc, k, name);
@@ -494,6 +496,7 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
         }
         break;
       }
+      case OP_RAVI_SELF_SK:
       case OP_RAVI_SELF_S:
       case OP_SELF: {
         int k = GETARG_C(i);  /* key index */
@@ -525,10 +528,12 @@ static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
        return "for iterator";
     }
     /* all other instructions can call only through metamethods */
-    case OP_SELF: case OP_GETTABUP: case OP_GETTABLE:
+    /* Ravi: added GETTABLE_SK and SELF_SK because the call may be through metamethod rather than table */
+    case OP_SELF: case OP_GETTABUP: case OP_GETTABLE: 
+    case OP_RAVI_SELF_SK: case OP_RAVI_GETTABUP_SK: case OP_RAVI_GETTABLE_SK:
       tm = TM_INDEX;
       break;
-    case OP_SETTABUP: case OP_SETTABLE:
+    case OP_SETTABUP: case OP_SETTABLE: case OP_RAVI_SETTABLE_SK:
       tm = TM_NEWINDEX;
       break;
     case OP_ADD: case OP_SUB: case OP_MUL: case OP_MOD:

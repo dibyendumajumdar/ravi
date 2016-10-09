@@ -117,7 +117,7 @@ LUAI_FUNC lua_Integer luaV_shiftl (lua_Integer x, lua_Integer y);
 LUAI_FUNC void luaV_objlen (lua_State *L, StkId ra, const TValue *rb);
 
 /* RAVI changes for JIT */
-
+/* The following expose some of the VM opcodes for the JIT compiler */
 LUAI_FUNC int luaV_forlimit(const TValue *obj, lua_Integer *p, lua_Integer step,
   int *stopnow);
 LUAI_FUNC void raviV_op_loadnil(CallInfo *ci, int a, int b);
@@ -134,9 +134,17 @@ LUAI_FUNC void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b
 LUAI_FUNC void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b);
 LUAI_FUNC void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);
 LUAI_FUNC void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b);
+LUAI_FUNC void raviV_op_add(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
+LUAI_FUNC void raviV_op_sub(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
+LUAI_FUNC void raviV_op_mul(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
+LUAI_FUNC void raviV_op_div(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
 LUAI_FUNC void raviV_op_shl(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
 LUAI_FUNC void raviV_op_shr(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
-LUAI_FUNC void raviV_finishget(lua_State *L, const TValue *t, TValue *key, StkId val);
-
+LUAI_FUNC void raviV_op_bor(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
+LUAI_FUNC void raviV_op_bxor(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
+LUAI_FUNC void raviV_op_band(lua_State *L, TValue *ra, TValue *rb, TValue *rc);
+LUAI_FUNC void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
+LUAI_FUNC void raviV_gettable_sskey(lua_State *L, const TValue *t, TValue *key, StkId val);
+LUAI_FUNC void raviV_settable_sskey(lua_State *L, const TValue *t, TValue *key, StkId val);
 
 #endif

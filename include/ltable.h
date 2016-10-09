@@ -9,7 +9,6 @@
 
 #include "lobject.h"
 
-
 #define gnode(t,i)	(&(t)->node[i])
 #define gval(n)		(&(n)->i_val)
 #define gnext(n)	((n)->i_key.nk.next)
@@ -31,11 +30,51 @@
 #define keyfromval(v) \
   (gkey(cast(Node *, cast(char *, (v)) - offsetof(Node, i_val))))
 
+#if defined(RAVI_ENABLED)
+#define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
+
+#define hashstr(t,str)		hashpow2(t, (str)->hash)
+#define hashboolean(t,p)	hashpow2(t, p)
+#define hashint(t,i)		hashpow2(t, i)
+
+
+/*
+** for some types, it is better to avoid modulus by power of 2, as
+** they tend to have many 2 factors.
+*/
+#define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1)|1))))
+
+
+#define hashpointer(t,p)	hashmod(t, point2uint(p))
+#endif
+
+
 
 LUAI_FUNC const TValue *luaH_getint (Table *t, lua_Integer key);
 LUAI_FUNC void luaH_setint (lua_State *L, Table *t, lua_Integer key,
                                                     TValue *value);
+#if defined(RAVI_ENABLED)
+/*
+** search function for short strings
+*/
+static inline const TValue *luaH_getshortstr(Table *t, TString *key) {
+  Node *n = hashstr(t, key);
+  lua_assert(key->tt == LUA_TSHRSTR);
+  for (;;) {  /* check whether 'key' is somewhere in the chain */
+    const TValue *k = gkey(n);
+    if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
+      return gval(n);  /* that's it */
+    else {
+      int nx = gnext(n);
+      if (nx == 0)
+        return luaO_nilobject;  /* not found */
+      n += nx;
+    }
+  }
+}
+#else
 LUAI_FUNC const TValue *luaH_getshortstr (Table *t, TString *key);
+#endif
 LUAI_FUNC const TValue *luaH_getstr (Table *t, TString *key);
 LUAI_FUNC const TValue *luaH_get (Table *t, const TValue *key);
 LUAI_FUNC TValue *luaH_newkey (lua_State *L, Table *t, const TValue *key);
@@ -53,7 +92,7 @@ LUAI_FUNC int luaH_getn (Table *t);
 /* Creates a specialized version of Lua Table to support Ravi's
  * integer[] and number[] arrays.
  */
-LUAI_FUNC Table *raviH_new(lua_State *L, ravitype_t array_type);
+LUAI_FUNC Table *raviH_new(lua_State *L, ravitype_t array_type, int is_slice);
 
 LUAI_FUNC Table *raviH_new_integer_array(lua_State *L, unsigned int len,
                                          lua_Integer init_value);
@@ -135,6 +174,7 @@ LUAI_FUNC const TValue *raviH_slice_parent(lua_State *L, TValue *slice);
   }
 
 LUAI_FUNC void raviH_get_number_array_rawdata(lua_State *L, Table *t, lua_Number **startp, lua_Number **endp);
+LUAI_FUNC void raviH_get_integer_array_rawdata(lua_State *L, Table *t, lua_Integer **startp, lua_Integer **endp);
 
 #if defined(LUA_DEBUG)
 LUAI_FUNC Node *luaH_mainposition (const Table *t, const TValue *key);

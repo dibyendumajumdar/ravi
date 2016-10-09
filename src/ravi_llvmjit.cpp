@@ -106,6 +106,22 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   snprintf(buf, sizeof buf, "ravi_module_%d", myid);
   std::string moduleName(buf);
   module_ = new llvm::Module(moduleName, owner->context());
+  if (myid == 0) {
+    // Extra validation to check that the LLVM sizes match Lua sizes
+    llvm::DataLayout *layout = new llvm::DataLayout(module_);
+    //auto valueSize = layout->getTypeAllocSize(owner->types()->ValueT);
+    //auto valueSizeOf = sizeof(Value);
+    //auto TvalueSize = layout->getTypeAllocSize(owner->types()->TValueT);
+    //auto TvalueSizeOf = sizeof(TValue);
+    //printf("Value %d %d Tvalue %d %d\n", (int)valueSize, (int)valueSizeOf, (int)TvalueSize, (int)TvalueSizeOf);
+    assert(sizeof(Value) == layout->getTypeAllocSize(owner->types()->ValueT));
+    assert(sizeof(TValue) == layout->getTypeAllocSize(owner->types()->TValueT));
+    assert(sizeof(UTString) == layout->getTypeAllocSize(owner->types()->TStringT));
+    assert(sizeof(Udata) == layout->getTypeAllocSize(owner->types()->UdataT));
+    assert(sizeof(CallInfo) == layout->getTypeAllocSize(owner->types()->CallInfoT));
+    assert(sizeof(lua_State) == layout->getTypeAllocSize(owner->types()->lua_StateT));
+    delete layout;
+  }
 #if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MINOR < 7)
   // On Windows we get error saying incompatible object format
   // Reading posts on mailing lists I found that the issue is that COEFF
@@ -129,8 +145,8 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   allocated_modules++;
 #endif
   if (!engine_) {
-    fprintf(stderr, "Could not create ExecutionEngine: %s\n", errStr.c_str());
-    // FIXME we need to handle this error somehow
+    fprintf(stderr, "FATAL ERROR: could not create ExecutionEngine: %s\n", errStr.c_str());
+    abort();
     return;
   }
 }

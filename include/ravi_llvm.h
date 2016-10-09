@@ -65,16 +65,6 @@
 #include <vector>
 #include <memory>
 
-#if defined(_WIN32)
-#if defined(LUA_BUILD_AS_DLL)
-#define RAVI_API __declspec(dllexport)
-#else
-#define RAVI_API __declspec(dllimport)
-#endif
-#else
-#define RAVI_API
-#endif
-
 #endif
 
 #endif

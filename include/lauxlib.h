@@ -35,6 +35,10 @@ LUALIB_API void (luaL_checkversion_) (lua_State *L, lua_Number ver, size_t sz);
 LUALIB_API int (luaL_getmetafield) (lua_State *L, int obj, const char *e);
 LUALIB_API int (luaL_callmeta) (lua_State *L, int obj, const char *e);
 LUALIB_API const char *(luaL_tolstring) (lua_State *L, int idx, size_t *len);
+/* Following is a Ravi extension - it is similar to luaL_tolstring() except
+   that the type information is provided using Ravi's extended typename
+   api function ravi_typename() */
+LUALIB_API const char *(raviL_tolstring) (lua_State *L, int idx, size_t *len);
 LUALIB_API int (luaL_argerror) (lua_State *L, int arg, const char *extramsg);
 LUALIB_API const char *(luaL_checklstring) (lua_State *L, int arg,
                                                           size_t *l);
@@ -265,26 +269,27 @@ LUALIB_API void (luaL_openlib) (lua_State *L, const char *libname,
  converted to Lua string, hash code computed etc.
  Following implementations are taken from a post in
  Lua mailing list (http://lua-users.org/lists/lua-l/2010-11/msg00151.html)
- They use lightuserdata instead of strings to speed
- things up
  meta_key is the key assigned to the meta table of the userdata
+ IMPORTANT: Caller must ensure that supplied meta_key points to somewhere in
+ static storage as otherwise memory fault will occur.
 */
-LUALIB_API int raviU_newmetatable(lua_State *L, const char *meta_key);
+LUALIB_API int raviL_newmetatable(lua_State *L, const void *meta_key, 
+                                  const char *tname);
 
 /* meta_key is the key assigned to the meta table of the userdata */
-LUALIB_API void raviU_getmetatable(lua_State *L, const char *meta_key);
+LUALIB_API void raviL_getmetatable(lua_State *L, const void *meta_key);
 
 /*
  arg_index is the position of userdata argument on the stack
  meta_key is the key assigned to the meta table of the userdata
 */
-LUALIB_API void *raviU_testudata(lua_State *L, int arg_index, const char *meta_key);
+LUALIB_API void *raviL_testudata(lua_State *L, int arg_index, const void *meta_key);
 
 /* 
  arg_index is the position of userdata argument on the stack
  meta_key is the key assigned to the meta table of the userdata
 */
-LUALIB_API void *raviU_checkudata(lua_State *L, int arg_index, const char *meta_key);
+LUALIB_API void *raviL_checkudata(lua_State *L, int arg_index, const void *meta_key);
 
 
 LUALIB_API int (raviL_loadbufferx) (lua_State *L, const char *buff, size_t size,

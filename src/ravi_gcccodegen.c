@@ -628,6 +628,20 @@ gcc_jit_rvalue *ravi_emit_is_not_value_of_type(ravi_function_def_t *def,
 #endif
 }
 
+gcc_jit_rvalue *
+ravi_emit_is_not_value_of_type_class(ravi_function_def_t *def,
+                               gcc_jit_rvalue *value_type, int lua_type) {
+  gcc_jit_rvalue *bit_mask = ravi_int_constant(def, 0x0F);
+  gcc_jit_rvalue *novariant_type = gcc_jit_context_new_binary_op(
+      def->function_context, NULL, GCC_JIT_BINARY_OP_BITWISE_AND,
+      def->ravi->types->C_intT, value_type,
+      bit_mask);
+  return gcc_jit_context_new_unary_op(
+      def->function_context, NULL, GCC_JIT_UNARY_OP_LOGICAL_NEGATE,
+      def->ravi->types->C_boolT,
+      ravi_emit_is_value_of_type(def, novariant_type, lua_type));
+}
+
 /* Store an integer value and set type to TNUMINT */
 void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def,
                                     gcc_jit_rvalue *ivalue,

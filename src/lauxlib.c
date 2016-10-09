@@ -843,6 +843,35 @@ LUALIB_API const char *luaL_tolstring (lua_State *L, int idx, size_t *len) {
   return lua_tolstring(L, -1, len);
 }
 
+LUALIB_API const char *raviL_tolstring(lua_State *L, int idx, size_t *len) {
+  if (!luaL_callmeta(L, idx, "__tostring")) {  /* no metafield? */
+    switch (lua_type(L, idx)) {
+    case LUA_TNUMBER: {
+      if (lua_isinteger(L, idx))
+        lua_pushfstring(L, "%I", lua_tointeger(L, idx));
+      else
+        lua_pushfstring(L, "%f", lua_tonumber(L, idx));
+      break;
+    }
+    case LUA_TSTRING:
+      lua_pushvalue(L, idx);
+      break;
+    case LUA_TBOOLEAN:
+      lua_pushstring(L, (lua_toboolean(L, idx) ? "true" : "false"));
+      break;
+    case LUA_TNIL:
+      lua_pushliteral(L, "nil");
+      break;
+    default:
+      lua_pushfstring(L, "%s: %p", ravi_typename(L, idx),
+        lua_topointer(L, idx));
+      break;
+    }
+  }
+  return lua_tolstring(L, -1, len);
+}
+
+
 
 /*
 ** {======================================================
@@ -1046,60 +1075,62 @@ LUALIB_API int (raviL_dumpast) (lua_State *L) {
   return 0;
 }
 
-// The normal Lua metatable functions in C use string
-// keys - these are expensive as the key needs to be
-// converted to Lua string, hash code computed etc.
-// Following implementations are taken from a post in
-// Lua mailing list (http://lua-users.org/lists/lua-l/2010-11/msg00151.html)
-// They use lightuserdata instead of strings to speed
-// things up
-// meta_key is the key assigned to the meta
-// table of the userdata
-LUALIB_API int raviU_newmetatable(lua_State *L, const char *meta_key) {
+/* The normal Lua metatable functions in C use string
+   keys - these are expensive as the key needs to be
+   converted to Lua string, hash code computed etc.
+   Following implementations are taken from a post in
+   Lua mailing list (http://lua-users.org/lists/lua-l/2010-11/msg00151.html)
+   They use lightuserdata instead of strings to speed
+   things up
+   meta_key is the key assigned to the meta
+   table of the userdata */
+LUALIB_API int raviL_newmetatable(lua_State *L, const void *meta_key, const char *tname) {
   lua_pushlightuserdata(L, (void *)meta_key);
   lua_rawget(L, LUA_REGISTRYINDEX);
-  if (!lua_isnil(L, -1)) {// name already in use? 
-    return 0;            // leave previous value on top, but return 0
+  if (!lua_isnil(L, -1)) { /* name already in use? */ 
+    return 0;              /* leave previous value on top, but return 0 */
   }
-  lua_pop(L, 1);         // pop the nil value
-  lua_newtable(L);       // create metatable
-  lua_pushlightuserdata(L, (void *)meta_key); // meta_key
-  lua_pushvalue(L, -2);                       // table
-  lua_rawset(L, LUA_REGISTRYINDEX); // assign table to meta_key in the registry
+  lua_pop(L, 1);             /* pop the nil value */
+  lua_createtable(L, 0, 2);  /* create metatable */
+  lua_pushstring(L, tname);
+  lua_setfield(L, -2, "__name");  /* metatable.__name = tname */
+  lua_pushlightuserdata(L, (void *)meta_key); /* meta_key */
+  lua_pushvalue(L, -2);               /* table */
+  lua_rawset(L, LUA_REGISTRYINDEX);   /* assign table to meta_key in the registry */
   return 1;
 }
 
-// meta_key is the key assigned to the meta table of the userdata
-LUALIB_API void raviU_getmetatable(lua_State *L, const char *meta_key) {
-  lua_pushlightuserdata(L, (void *)meta_key); // meta_key
-  lua_rawget(L, LUA_REGISTRYINDEX); // obtain the value associated with
-                                    // meta_key from registry
+/* meta_key is the key assigned to the meta table of the userdata */
+LUALIB_API void raviL_getmetatable(lua_State *L, const void *meta_key) {
+  lua_pushlightuserdata(L, (void *)meta_key); /* meta_key */
+  lua_rawget(L, LUA_REGISTRYINDEX); /* obtain the value associated with
+                                       meta_key from registry */
 }
 
-// arg_index is the position of userdata argument on the stack
-// meta_key is the key assigned to the meta table of the userdata
-LUALIB_API void *raviU_testudata(lua_State *L, int arg_index,
-                              const char *meta_key) {
+/* arg_index is the position of userdata argument on the stack
+   meta_key is the key assigned to the meta table of the userdata */
+LUALIB_API void *raviL_testudata(lua_State *L, int arg_index,
+                              const void *meta_key) {
   void *p = lua_touserdata(L, arg_index);
-  if (p != NULL) {                                // value is a userdata?
-    if (lua_getmetatable(L, arg_index)) {         // does it have a metatable?
-      lua_pushlightuserdata(L, (void *)meta_key); // meta_key
+  if (p != NULL) {                                /* value is a userdata? */
+    if (lua_getmetatable(L, arg_index)) {         /* does it have a metatable? */
+      lua_pushlightuserdata(L, (void *)meta_key);         /* meta_key */
       lua_rawget(
           L,
-          LUA_REGISTRYINDEX); // get correct metatable associated with meta_key
-      if (!lua_rawequal(L, -1, -2)) // compare: does it have the correct mt?
+          LUA_REGISTRYINDEX); /* get correct metatable associated with meta_key */
+      if (!lua_rawequal(L, -1, -2)) /* compare: does it have the correct mt? */
         p = NULL;
-      lua_pop(L, 2); // remove both metatables
+      lua_pop(L, 2); /* remove both metatables */
     }
   }
   return p; /* to avoid warnings */
 }
 
-// arg_index is the position of userdata argument on the stack
-// meta_key is the key assigned to the meta table of the userdata
-LUALIB_API void *raviU_checkudata(lua_State *L, int arg_index,
-                               const char *meta_key) {
-  void *p = raviU_testudata(L, arg_index, meta_key);
+/* arg_index is the position of userdata argument on the stack
+   meta_key is the key assigned to the meta table of the userdata */
+LUALIB_API void *raviL_checkudata(lua_State *L, int arg_index,
+                               const void *meta_key) {
+  void *p = raviL_testudata(L, arg_index, meta_key);
   if (p == NULL)
     luaL_argerror(L, arg_index, meta_key);
   return p;

@@ -486,14 +486,17 @@ static int count_table_entries(lua_State *L, int stack_index) {
 // Get information regarding a Lua table
 static void get_table_info(lua_State *L, int stack_idx, char *buf, size_t len) {
   int num = count_table_entries(L, stack_idx);
+  const char *typename = ravi_typename(L, stack_idx);
   const void *ptr = lua_topointer(L, stack_idx);
-  snprintf(buf, len, "%p (%d items)", ptr, num);
+  snprintf(buf, len, "%s %p (%d items)", typename, ptr, num);
 }
 
 // Get information regarding a Lua userdata value
 static void get_userdata(lua_State *L, int stack_idx, char *buf, size_t len) {
-  void *udata = lua_touserdata(L, stack_idx);
-  snprintf(buf, len, "%p", udata);
+
+  const char *udata = raviL_tolstring(L, stack_idx, NULL);
+  vscode_json_stringify(udata, buf, len);
+  lua_pop(L, 1);    /* remove result from raviL_tolstring() */
 }
 
 // Get information regarding a Lua value
@@ -545,7 +548,7 @@ static int get_value(lua_State *L, int stack_idx, char *buf, size_t len) {
       break;
     }
     case LUA_TTHREAD: {
-      snprintf(buf, len, "Thread %p", lua_topointer(L, stack_idx));
+      snprintf(buf, len, "thread %p", lua_topointer(L, stack_idx));
       break;
     }
   }

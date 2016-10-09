@@ -10,14 +10,22 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 # By default LLVM JIT is ON, and GCC JIT is OFF
 # Only one can be ON, and at last one of them must be ON
-option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled" OFF)
-option(GCC_JIT "Controls whether GCC JIT compilation will be enabled" OFF)
+option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
+option(GCC_JIT "Controls whether GCC JIT compilation will be enabled, default is OFF" OFF)
+option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 
 # We cannot link to both LLVM and GCC JIT
 if (LLVM_JIT AND GCC_JIT)
     message(FATAL_ERROR
             "Both LLVM_JIT and GCC_JIT cannot be set to ON at the same time")
-endif ()
+endif()
+
+if (STATIC_BUILD)
+    message(STATUS "STATIC library build enabled")
+else()
+    message(STATUS "DYNAMIC library build enabled")
+
+endif()
 
 if (LLVM_JIT)
     find_package(LLVM REQUIRED CONFIG)
@@ -28,7 +36,7 @@ if (LLVM_JIT)
     include_directories(${LLVM_INCLUDE_DIRS})
     add_definitions(${LLVM_DEFINITIONS})
     add_definitions(-DUSE_LLVM)
-endif ()
+endif()
 
 if (GCC_JIT)
     find_package(GCCJIT REQUIRED)
@@ -37,7 +45,7 @@ if (GCC_JIT)
 
     include_directories(${GCCJIT_INCLUDE_DIRS})
     add_definitions(-DUSE_GCCJIT)
-endif ()
+endif()
 
 if (NOT LLVM_JIT AND NOT GCC_JIT)
     message(WARNING "Neither LLVM nor gccjit will be enabled; specify -DLLVM_JIT or -DGCC_JIT to enable")
@@ -55,17 +63,6 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/DNDEBUG /O2 /MD /Zi /EHsc")
     set(CMAKE_CXX_FLAGS_MINSIZEREL "/DNDEBUG /O2 /MD /EHsc")
 
-    SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "/DEBUG /STACK:10000000")
-    SET(CMAKE_EXE_LINKER_FLAGS_RELEASE "/RELEASE /INCREMENTAL:NO /STACK:10000000")
-    SET(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "/DEBUG /RELEASE /INCREMENTAL:NO /STACK:10000000")
-    SET(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "/RELEASE /INCREMENTAL:NO /STACK:10000000")
-
-    SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
-    SET(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG}")
-    SET(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
-    SET(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO}")
-    SET(CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL}")
-
     # Disable signed/unsigned int conversion warnings.
     add_definitions("/wd4018")
     # Disable warning about using struct/class for the same symobl.
@@ -78,6 +75,7 @@ if (MSVC)
     add_definitions("/wd4996")
     add_definitions("/wd4291")
     add_definitions("/wd4624")
+    add_definitions("/wd4141")
     add_definitions("/DLUA_COMPAT_5_2")
 endif ()
 
@@ -214,37 +212,52 @@ if (LLVM_JIT)
     message(STATUS "LLVM_LIBS ${LLVM_LIBS}")
 endif ()
 
+if (NOT STATIC_BUILD)
+    set(LIBRAVI_BUILD_TYPE SHARED)
+endif()
+
+if (LLVM_JIT)
+    set (LIBRAVI_NAME libravillvm)
+elseif (GCC_JIT)
+    set (LIBRAVI_NAME libravigccjit)
+else()
+    set (LIBRAVI_NAME libravinojit)
+endif()
+
 #Main library
-add_library(libravi SHARED 
+add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE} 
         ${RAVI_HEADERS}
         ${LUA_LIB_SRCS} 
         ${LUA_CORE_SRCS}
         ${LLVM_JIT_SRCS}
         ${GCC_JIT_SRCS}
         ${NO_JIT_SRCS})
-if (WIN32)
-    # enable DLL export
-    set_target_properties(libravi PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-else()
-    set_target_properties(libravi PROPERTIES PREFIX "")
-endif ()
-target_link_libraries(libravi ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
+if (NOT STATIC_BUILD)
+    if (WIN32)
+      # enable DLL export
+      set_target_properties(${LIBRAVI_NAME} PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+  else()
+      set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
+  endif ()
+endif()
+target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
 
+# Ravi executable
 add_executable(ravi src/lua.c)
-target_link_libraries(ravi libravi)
+target_link_libraries(ravi ${LIBRAVI_NAME})
 
-#VM test
+# Simple VM tests
 add_executable(test_vm tests/test_vm.c)
-target_link_libraries(test_vm libravi)
+target_link_libraries(test_vm ${LIBRAVI_NAME})
 
 #AST test
 add_executable(test_ast tests/test_ast.c)
 target_link_libraries(test_ast libravi)
 
 if (LLVM_JIT)
-    #LLVM playground
+    # LLVM playground
     add_executable(test_llvm tests/test_llvm.cpp)
-    target_link_libraries(test_llvm libravi)
+    target_link_libraries(test_llvm ${LIBRAVI_NAME})
 endif ()
 
 add_executable(test_misc tests/test_misc.c)
@@ -256,36 +269,27 @@ add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
 add_test(TestAST test_ast)
 
-if (NOT LLVM_JIT AND NOT GCC_JIT)
-  #Static library for the debugger 
-  add_library(libravistatic 
-        ${RAVI_HEADERS}
-        ${LUA_LIB_SRCS} 
-        ${LUA_CORE_SRCS}
-        src/ravi_nojit.c)
-  if (WIN32)
-    # enable DLL export
-    set_target_properties(libravistatic PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-  else()
-    set_target_properties(libravistatic PROPERTIES PREFIX "")
-  endif ()
-  target_link_libraries(libravistatic ${EXTRA_LIBRARIES})
-
+# Build VSCode Debug Adapter for Ravi  
+if (STATIC_BUILD AND NOT GCC_JIT)
   add_executable(testravidebug vscode-debugger/src/testravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
-  target_link_libraries(testravidebug libravistatic)
+  target_link_libraries(testravidebug ${LIBRAVI_NAME})
 
   add_test(TestRaviDebug testravidebug)
 
-  # Ravi VSCode Debug adapter
-  add_executable(ravidebug vscode-debugger/src/ravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
-  target_link_libraries(ravidebug libravistatic)
+  if (LLVM_JIT)
+    set(RAVI_DEBUGGER_TARGET ravidebugllvm)
+  else()  
+    set(RAVI_DEBUGGER_TARGET ravidebug)
+  endif()  
 
-  set(RAVI_DEBUGGER_TARGET ravidebug)
+  # Ravi VSCode Debug adapter
+  add_executable(${RAVI_DEBUGGER_TARGET} vscode-debugger/src/ravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
+  target_link_libraries(${RAVI_DEBUGGER_TARGET} ${LIBRAVI_NAME})
 endif()
 
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
-install(TARGETS libravi ravi ${RAVI_DEBUGGER_TARGET}
+install(TARGETS ${LIBRAVI_NAME} ravi ${RAVI_DEBUGGER_TARGET}
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)

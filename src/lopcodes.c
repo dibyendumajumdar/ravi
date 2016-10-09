@@ -156,7 +156,11 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
   "SETUPVALT", /*	A B	UpValue[B] := to_table(R(A))			*/
   "SELF_S",    /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
-  NULL
+  "GETTABLE_SK", /* _SK */ /*	A B C	R(A) := R(B)[RK(C)], string key   */
+  "SELF_SK",    /* _SK*/ /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
+  "SETTABLE_SK", /*_SK */ /*	A B C	R(A)[RK(B)] := RK(C), string key  */
+  "GETTABUP_SK",
+   NULL
 };
 
 
@@ -288,8 +292,11 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOTAB A R(A) := check_table(R(A)) */
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVETAB A B R(A) := R(B), check R(B) is a table */
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALT */
- ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_SELF */
-  
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_SELF_S */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_SK */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_SELF_SK */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_SK */
+ ,opmode(0, 1, OpArgU, OpArgK, iABC)	  /* OP_RAVI_GETTABUP_SK */
 };
 
 
@@ -441,6 +448,7 @@ static void PrintCode(const Proto* f)
    case OP_SETUPVAL:
     printf("\t; %s",UPVALNAME(b));
     break;
+   case OP_RAVI_GETTABUP_SK:
    case OP_GETTABUP:
     printf("\t; %s",UPVALNAME(b));
     if (ISK(c)) { printf(" "); PrintConstant(f,INDEXK(c)); }
@@ -456,11 +464,15 @@ static void PrintCode(const Proto* f)
    case OP_RAVI_GETTABLE_AF:
    case OP_RAVI_GETTABLE_AI:
    case OP_SELF:
+   case OP_RAVI_GETTABLE_SK:
+   case OP_RAVI_SELF_S:
+   case OP_RAVI_SELF_SK:
     if (ISK(c)) { printf("\t; "); PrintConstant(f,INDEXK(c)); }
     break;
    case OP_SETTABLE:
    case OP_RAVI_SETTABLE_I:
    case OP_RAVI_SETTABLE_S:
+   case OP_RAVI_SETTABLE_SK:
    case OP_RAVI_SETTABLE_AF:
    case OP_RAVI_SETTABLE_AFF:
    case OP_RAVI_SETTABLE_AI:
@@ -617,8 +629,21 @@ static void setnameval(lua_State *L, const char *name, int val) {
 
 static char *buildop2(Proto *p, int pc, char *buff, size_t len) {
   int line = getfuncline(p, pc);
-  snprintf(buff, len, "(%4d) %4d - ", line, pc);
-  raviP_instruction_to_str(buff + strlen(buff), len - strlen(buff), p->code[pc]);
+  char tbuf[100];
+  raviP_instruction_to_str(tbuf, sizeof tbuf, p->code[pc]);
+  /* This is a temporary hack to output old opcode names to prevent tests from breaking */
+  if (strncmp(tbuf, luaP_opnames[OP_RAVI_GETTABLE_SK], strlen(luaP_opnames[OP_RAVI_GETTABLE_SK])) == 0 ||
+    strncmp(tbuf, luaP_opnames[OP_RAVI_SELF_SK], strlen(luaP_opnames[OP_RAVI_SELF_SK])) == 0 ||
+    strncmp(tbuf, luaP_opnames[OP_RAVI_GETTABUP_SK], strlen(luaP_opnames[OP_RAVI_GETTABUP_SK])) == 0 ||
+    strncmp(tbuf, luaP_opnames[OP_RAVI_SETTABLE_SK], strlen(luaP_opnames[OP_RAVI_SETTABLE_SK])) == 0) {
+    char *cp = strstr(tbuf, "_SK ");
+    if (cp != NULL) {
+      cp[0] = ' ';
+      cp[1] = ' ';
+      cp[2] = ' ';
+    }
+  }
+  snprintf(buff, len, "(%4d) %4d - %s", line, pc, tbuf); 
   return buff;
 }
 

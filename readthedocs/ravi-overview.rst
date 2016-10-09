@@ -24,10 +24,6 @@ As more stuff is built I will keep updating the documentation so please revisit 
 
 Also see the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
 
-Status
-------
-The project was kicked off in January 2015. 
-
 JIT Implementation
 ++++++++++++++++++
 The LLVM JIT compiler is functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
@@ -96,16 +92,16 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 
   This restriction is placed as otherwise the JIT code would need to insert tests to validate that the variable is not nil.
 
-* An array will grow automatically if user sets the element just past the array length::
+* An array will grow automatically (unless the array was created as fixed length using ``table.intarray()`` or ``table.numarray()``) if the user sets the element just past the array length::
 
-    local t: number[] = {}
+    local t: number[] = {} -- dynamic array
     t[1] = 4.2             -- okay, array grows by 1
     t[5] = 2.4             -- error! as attempt to set value 
 
-* It is an error to attempt to set an element that is beyond len+1 
+* It is an error to attempt to set an element that is beyond len+1 on dynamic arrays; for fixed length arrays attempting to set elements at positions greater than len will cause an error.
 * The current used length of the array is recorded and returned by len operations
 * The array only permits the right type of value to be assigned (this is also checked at runtime to allow compatibility with Lua)
-* Accessing out of bounds elements will cause an error, except for setting the len+1 element
+* Accessing out of bounds elements will cause an error, except for setting the len+1 element on dynamic arrays
 * It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside 
   those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time::
 
@@ -285,6 +281,11 @@ A JIT api is available with following functions:
   Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode 
   boundary; use this option only when you want to use the debug api to step through code line by line
 
+Performance Notes
+-----------------
+To obtain the best possible performance, types must be annotated so that Ravi's JIT compiler can generate efficient code. 
+Additionally function calls are expensive - as the JIT compiler cannot inline function calls, all function calls go via the Lua call protocol which has a large overhead. This is true for both Lua functions and C functions. For best performance avoid function calls inside loops.
+
 Compatibility with Lua
 ----------------------
 Ravi should be able to run all Lua 5.3 programs in interpreted mode, but there are some differences: 
@@ -317,30 +318,33 @@ Build Dependencies - LLVM version
 ---------------------------------
 
 * CMake
-* LLVM 3.7 
+* LLVM 3.7 or 3.8 or 3.9
+* LLVM 3.5 and 3.6 should also work but have not been recently tested
 
 The build is CMake based.
+Unless otherwise noted the instructions below should work for LLVM 3.7 or above.
 
 Building LLVM on Windows
 ------------------------
-I built LLVM 3.7 from source. I used the following sequence from the VS2015 command window::
+I built LLVM from source. I used the following sequence from the VS2015 command window::
 
   cd \github\llvm
   mkdir build
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM37 -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 14 Win64" ..  
+  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 14 Win64" ..  
 
-I then opened the generated solution in VS2015 and performed a INSTALL build from there. 
-Note that if you perform a Release build of LLVM then you will also need to do a Release build of Ravi otherwise you will get link errors.
+I then opened the generated solution in VS2015 and performed a INSTALL build from there. Above will build the 64-bit version of LLVM libraries. To build a 32-bit version omit the ``Win64`` parameter. 
+
+.. note:: Note that if you perform a Release build of LLVM then you will also need to do a Release build of Ravi otherwise you will get link errors.
 
 Building LLVM on Ubuntu
 -----------------------
 On Ubuntu I found that the official LLVM distributions don't work with CMake. The CMake config files appear to be broken.
-So I ended up downloading and building LLVM 3.7 from source and that worked. The approach is similar to that described for MAC OS X below.
+So I ended up downloading and building LLVM from source and that worked. The approach is similar to that described for MAC OS X below.
 
 Building LLVM on MAC OS X
 -------------------------
-I am using Max OSX Yosemite. Pre-requisites are XCode 6.1 and CMake.
+I am using Max OSX El Capitan. Pre-requisites are XCode 7.x and CMake.
 Ensure cmake is on the path.
 Assuming that LLVM source has been extracted to ``$HOME/llvm-3.7.0.src`` I follow these steps::
 
@@ -352,7 +356,9 @@ Assuming that LLVM source has been extracted to ``$HOME/llvm-3.7.0.src`` I follo
 
 Building Ravi
 -------------
-I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X.
+I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X. I was also able to successfully build a Ubuntu version on Windows 10 using the newly released Ubuntu/Linux sub-system for Windows 10.
+
+.. note:: Location of cmake files has moved in LLVM 3.9; the new path is ``$LLVM_INSTALL_DIR/lib/cmake/llvm``.
 
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
@@ -378,17 +384,21 @@ On MAC OS X I use::
   cd build
   cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
 
-I open the generated project in Xcode and do a build from there.
+I open the generated project in Xcode and do a build from there. You can also use the command line build tools if you wish - generate the make files in the same way as for Linux.
 
 Building without JIT
 --------------------
 You can omit ``-DLLVM_JIT=ON`` option above to build Ravi with a null JIT implementation.
 
+Static Libraries
+----------------
+By default the build generates a shared library for Ravi. You can choose to create a static library and statically linked executables by supplying the argument ``-DSTATIC_BUILD=ON`` to CMake.
+
 Build Artifacts
 ---------------
-The Ravi build creates a shared library, the Lua executable and some test programs.
+The Ravi build creates a shared or static depending upon options supplied to CMake, the Ravi executable and some test programs. Additionally when JIT compilation is switched off, the ``ravidebug`` executable is generated which is the `debug adapter for use by Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_. 
 
-The ``lua`` command recognizes following environment variables. Note that these are only for internal debugging purposes.
+The ``ravi`` command recognizes following environment variables. Note that these are only for internal debugging purposes.
 
 ``RAVI_DEBUG_EXPR``
   if set to a value this triggers debug output of expression parsing
@@ -399,6 +409,12 @@ The ``lua`` command recognizes following environment variables. Note that these 
 
 Also see section above on available API for dumping either Lua bytecode or LLVM IR for compiled code.
 
+Testing
+-------
+I test the build by running a modified version of Lua 5.3.3 test suite. These tests are located in the ``lua-tests`` folder. Additionally I have ravi specific tests in the ``ravi-tests`` folder. There is a also a travis build that occurs upon commits - this build runs the tests as well.
+
+.. note:: To thoroughly test changes, you need to invoke CMake with ``-DCMAKE_BUILD_TYPE=Debug`` option. This turns on assertions, memory checking, and also enables an internal module used by Lua tests.
+
 Work Plan
 ---------
 * Feb-Jun 2015 - implement JIT compilation using LLVM
@@ -406,9 +422,6 @@ Work Plan
 * 2016 priorties
 
   * `IDE support (Visual Studio Code) <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
-  * BLAS and LAPACK
-  * GNU Scientific library
-  * symengine
 
 License
 -------

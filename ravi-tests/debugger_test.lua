@@ -1,3 +1,13 @@
+local t = table.numarray(10, 4.2)
+setmetatable(t, {
+  __name = 'matrix',
+  __tostring = function() return '{' .. table.concat(t, ",") .. '}' end 
+  })
+
+print(t)
+
+local atable = { t }
+
 local function func_with_varargs(...)
 	local t = { ... }
 	print(table.unpack(t))

@@ -56,7 +56,7 @@
 */
 #define MAXHBITS	(MAXABITS - 1)
 
-
+#if !defined(RAVI_ENABLED)
 #define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
 
 #define hashstr(t,str)		hashpow2(t, (str)->hash)
@@ -72,7 +72,7 @@
 
 
 #define hashpointer(t,p)	hashmod(t, point2uint(p))
-
+#endif
 
 #define dummynode		(&dummynode_)
 
@@ -453,10 +453,43 @@ Table *luaH_new (lua_State *L) {
   return t;
 }
 
+Table *raviH_new(lua_State *L, ravitype_t tt, int is_slice) {
+  lua_assert(tt == RAVI_TARRAYFLT || tt == RAVI_TARRAYINT);
+  GCObject *o = luaC_newobj(L, tt == RAVI_TARRAYFLT ? RAVI_TFARRAY : RAVI_TIARRAY, sizeof(Table));
+  Table *t = gco2t(o);
+  t->metatable = NULL;
+  t->flags = cast_byte(~0);
+  t->array = NULL;
+  t->sizearray = 0;
+  t->ravi_array.len = 0; /* RAVI */
+  t->ravi_array.array_modifier = 0;
+  t->ravi_array.data = NULL; /* data */
+  t->ravi_array.size = 0;
+  setnodevector(L, t, 0);
+  t->ravi_array.array_type = tt;
+  if (!is_slice) {
+    if (tt == RAVI_TARRAYFLT) {
+      raviH_set_float_inline(L, t, 0, 0.0);
+    }
+    else {
+      raviH_set_int_inline(L, t, 0, 0);
+    }
+  }
+  return t;
+}
+
+
+
 
 void luaH_free (lua_State *L, Table *t) {
-  if (t->ravi_array.array_modifier != RAVI_ARRAY_SLICE && t->ravi_array.data)
-    luaM_freemem(L, t->ravi_array.data, (t->ravi_array.size*sizeof(lua_Number)));
+  if (t->ravi_array.array_modifier != RAVI_ARRAY_SLICE && t->ravi_array.data) {
+    if (t->ravi_array.array_type == RAVI_TARRAYFLT)
+      luaM_freemem(L, t->ravi_array.data, (t->ravi_array.size*sizeof(lua_Number)));
+    else {
+      lua_assert(t->ravi_array.array_type == RAVI_TARRAYINT);
+      luaM_freemem(L, t->ravi_array.data, (t->ravi_array.size*sizeof(lua_Integer)));
+    }
+  }
   if (!isdummy(t->node))
     luaM_freearray(L, t->node, cast(size_t, sizenode(t)));
   luaM_freearray(L, t->array, t->sizearray);
@@ -556,7 +589,7 @@ const TValue *luaH_getint (Table *t, lua_Integer key) {
   }
 }
 
-
+#if !defined(RAVI_ENABLED)
 /*
 ** search function for short strings
 */
@@ -575,7 +608,7 @@ const TValue *luaH_getshortstr (Table *t, TString *key) {
     }
   }
 }
-
+#endif
 
 /*
 ** "Generic" get version. (Not that generic: not valid for integers,
@@ -610,22 +643,25 @@ const TValue *luaH_getstr (Table *t, TString *key) {
 /*
 ** main search function
 */
-const TValue *luaH_get (Table *t, const TValue *key) {
-  switch (ttype(key)) {
-    case LUA_TSHRSTR: return luaH_getshortstr(t, tsvalue(key));
-    case LUA_TNUMINT: return luaH_getint(t, ivalue(key));
-    case LUA_TNIL: return luaO_nilobject;
-    case LUA_TNUMFLT: {
-      lua_Integer k;
-      if (luaV_tointeger(key, &k, 0)) /* index is int? */
-        return luaH_getint(t, k);  /* use specialized version */
-      /* else... */
-    }  /* FALLTHROUGH */
-    default:
-      return getgeneric(t, key);
+const TValue *luaH_get(Table *t, const TValue *key) {
+  int tt = ttype(key);
+  if (tt == LUA_TNUMINT)
+    return luaH_getint(t, ivalue(key));
+  else if (tt == LUA_TSHRSTR)
+    return luaH_getshortstr(t, tsvalue(key));
+  else if (tt == LUA_TNIL)
+    return luaO_nilobject;
+  else if (tt == LUA_TNUMFLT) {
+    lua_Integer k;
+    if (luaV_tointeger(key, &k, 0)) /* index is int? */
+      return luaH_getint(t, k);     /* use specialized version */
+    /* else... */
+    return getgeneric(t, key);
+  } /* FALLTHROUGH */
+  else {
+    return getgeneric(t, key);
   }
 }
-
 
 /*
 ** beware: when using this function you probably need to check a GC
@@ -716,17 +752,27 @@ int raviH_getn(Table *t) {
 static int ravi_resize_array(lua_State *L, Table *t, unsigned int new_size,
                              int initialize) {
   if (t->ravi_array.array_modifier) {
+    /* cannot resize */
     return 0;
   }
-  /* NOTE - relies upon lua_Number and lua_Integer being the same size */
-  lua_assert(sizeof(lua_Integer) == sizeof(lua_Number));
+  int number_array = RAVI_TARRAYFLT == t->ravi_array.array_type;
   unsigned int size =
       new_size < t->ravi_array.size + 10 ? t->ravi_array.size + 10 : new_size;
-  t->ravi_array.data = (char *)luaM_reallocv(
+  if (number_array) {
+    t->ravi_array.data = (char *)luaM_reallocv(
       L, t->ravi_array.data, t->ravi_array.size, size, sizeof(lua_Number));
-  if (initialize) {
-    lua_Number *data = (lua_Number *)t->ravi_array.data;
-    memset(&data[t->ravi_array.len], 0, size - t->ravi_array.size);
+    if (initialize) {
+      lua_Number *data = (lua_Number *)t->ravi_array.data;
+      memset(&data[t->ravi_array.len], 0, (size - t->ravi_array.size) * sizeof(lua_Number));
+    }
+  }
+  else {
+    t->ravi_array.data = (char *)luaM_reallocv(
+      L, t->ravi_array.data, t->ravi_array.size, size, sizeof(lua_Integer));
+    if (initialize) {
+      lua_Integer *data = (lua_Integer *)t->ravi_array.data;
+      memset(&data[t->ravi_array.len], 0, (size - t->ravi_array.size) * sizeof(lua_Integer));
+    }
   }
   t->ravi_array.size = size;
   return 1;
@@ -778,22 +824,9 @@ void raviH_set_float(lua_State *L, Table *t, lua_Unsigned u1, lua_Number value) 
     luaG_runerror(L, "array out of bounds");
 }
 
-Table *raviH_new(lua_State *L, ravitype_t tt) {
-  Table *t = luaH_new(L);
-  lua_assert(tt == RAVI_TARRAYFLT || tt == RAVI_TARRAYINT);
-  t->ravi_array.array_type = tt;
-  if (tt == RAVI_TARRAYFLT) {
-    raviH_set_float_inline(L, t, 0, 0.0);
-  } else {
-    raviH_set_int_inline(L, t, 0, 0);
-  }
-  return t;
-}
-
 Table *raviH_new_integer_array(lua_State *L, unsigned int len,
                                lua_Integer init_value) {
-  Table *t = luaH_new(L);
-  t->ravi_array.array_type = RAVI_TARRAYINT;
+  Table *t = raviH_new(L, RAVI_TARRAYINT, 0);
   ravi_resize_array(L, t, len + 1, 0);
   lua_Integer *data = (lua_Integer *)t->ravi_array.data;
   data[0] = 0;
@@ -807,8 +840,7 @@ Table *raviH_new_integer_array(lua_State *L, unsigned int len,
 
 Table *raviH_new_number_array(lua_State *L, unsigned int len,
                               lua_Number init_value) {
-  Table *t = luaH_new(L);
-  t->ravi_array.array_type = RAVI_TARRAYFLT;
+  Table *t = raviH_new(L, RAVI_TARRAYFLT, 0);
   ravi_resize_array(L, t, len + 1, 0);
   lua_Number *data = (lua_Number *)t->ravi_array.data;
   data[0] = 0;
@@ -828,6 +860,14 @@ void raviH_get_number_array_rawdata(lua_State *L, Table *t, lua_Number **startp,
   *endp = data + t->ravi_array.len + 1;
 }
 
+void raviH_get_integer_array_rawdata(lua_State *L, Table *t, lua_Integer **startp, lua_Integer **endp) {
+  (void)L;
+  lua_assert(t->ravi_array.array_type == RAVI_TARRAYINT);
+  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
+  *startp = data;
+  *endp = data + t->ravi_array.len + 1;
+}
+
 static const char *key_orig_table = "Originaltable";
 
 /* Create a slice of an existing array
@@ -843,16 +883,15 @@ static const char *key_orig_table = "Originaltable";
  */
 Table *raviH_new_slice(lua_State *L, TValue *parent, unsigned int start,
                        unsigned int len) {
-  if (!ttistable(parent))
+  if (!ttistable(parent) || ttisLtable(parent))
     luaG_runerror(L, "integer[] or number[] expected");
   Table *orig = hvalue(parent);
-  if (orig->ravi_array.array_type == RAVI_TTABLE)
-    luaG_runerror(L, "integer[] or number[] expected");
   if (!orig->ravi_array.array_modifier)
     luaG_runerror(
         L, "cannot create slice from dynamic integer[] or number[] array");
   /* Create the slice table */
-  Table *t = luaH_new(L);
+  Table *t = raviH_new(L, orig->ravi_array.array_type, 1);
+  lua_assert(t->ravi_array.data == NULL);
   /* Add a reference to the parent table */
   TValue k;
   setpvalue(&k, (void *)key_orig_table);
@@ -861,8 +900,14 @@ Table *raviH_new_slice(lua_State *L, TValue *parent, unsigned int start,
   /* Initialize */
   t->ravi_array.array_type = orig->ravi_array.array_type;
   t->ravi_array.array_modifier = RAVI_ARRAY_SLICE;
-  lua_Number *data = (lua_Number *)orig->ravi_array.data;
-  t->ravi_array.data = (char *)(data + start - 1);
+  if (ttisfarray(parent)) {
+    lua_Number *data = (lua_Number *)orig->ravi_array.data;
+    t->ravi_array.data = (char *)(data + start - 1);
+  }
+  else {
+    lua_Integer *data = (lua_Integer *)orig->ravi_array.data;
+    t->ravi_array.data = (char *)(data + start - 1);
+  }
   t->ravi_array.len = len + 1;
   t->ravi_array.size = len + 1;
   return t;
@@ -870,11 +915,9 @@ Table *raviH_new_slice(lua_State *L, TValue *parent, unsigned int start,
 
 /* Obtain parent array of the slice */
 const TValue *raviH_slice_parent(lua_State *L, TValue *slice) {
-  if (!ttistable(slice))
+  if (!ttistable(slice) || ttisLtable(slice))
     luaG_runerror(L, "slice of integer[] or number[] expected");
   Table *orig = hvalue(slice);
-  if (orig->ravi_array.array_type == RAVI_TTABLE)
-    luaG_runerror(L, "slice of integer[] or number[] expected");
   if (orig->ravi_array.array_modifier != RAVI_ARRAY_SLICE)
     luaG_runerror(L, "slice of integer[] or number[] expected");
   /* Get reference to the parent table */

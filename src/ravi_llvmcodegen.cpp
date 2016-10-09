@@ -20,8 +20,8 @@
 * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
-#include <ravijit.h>
 #include "ravi_llvmcodegen.h"
+#include <ravijit.h>
 
 namespace ravi {
 
@@ -514,6 +514,16 @@ llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type(
                                     varname);
 }
 
+// Compare without variants i.e. ttnov(value_type) == lua_type
+llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type_class(
+    RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_type,
+    const char *varname) {
+  llvm::Value *novariant_type =
+      def->builder->CreateAnd(value_type, def->types->kInt[0x0F]);
+  return def->builder->CreateICmpNE(novariant_type,
+                                    def->types->kInt[int(lua_type)], varname);
+}
+
 llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(
     RaviFunctionDef *def, llvm::Value *value) {
   llvm::Value *tt_ptr = emit_gep(def, "raviarray.type_ptr", value, 0, 11, 3);
@@ -829,119 +839,20 @@ bool RaviCodeGenerator::canCompile(Proto *p) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
     return false;
   }
-  const Instruction *code = p->code;
-  int pc, n = p->sizecode;
+  // const Instruction *code = p->code;
+  // int pc, n = p->sizecode;
   // Loop over the byte codes; as Lua compiler inserts
   // an extra RETURN op we need to ignore the last op
-  for (pc = 0; pc < n; pc++) {
-    Instruction i = code[pc];
-    OpCode o = GET_OPCODE(i);
-    switch (o) {
-      case OP_LOADK:
-      case OP_LOADKX:
-      case OP_LOADNIL:
-      case OP_LOADBOOL:
-      case OP_CALL:
-      case OP_TAILCALL:
-      case OP_RETURN:
-      case OP_JMP:
-      case OP_EQ:
-      case OP_RAVI_EQ_II:
-      case OP_RAVI_EQ_FF:
-      case OP_LT:
-      case OP_RAVI_LT_II:
-      case OP_RAVI_LT_FF:
-      case OP_LE:
-      case OP_RAVI_LE_II:
-      case OP_RAVI_LE_FF:
-      case OP_NOT:
-      case OP_TEST:
-      case OP_TESTSET:
-      case OP_FORPREP:
-      case OP_FORLOOP:
-      case OP_TFORCALL:
-      case OP_TFORLOOP:
-      case OP_MOVE:
-      case OP_ADD:
-      case OP_SUB:
-      case OP_MUL:
-      case OP_DIV:
-      case OP_MOD:
-      case OP_IDIV:
-      case OP_POW:
-      case OP_UNM:
-      case OP_LEN:
-      case OP_VARARG:
-      case OP_CONCAT:
-      case OP_CLOSURE:
-      case OP_SETTABLE:
-      case OP_GETTABLE:
-      case OP_GETUPVAL:
-      case OP_SETUPVAL:
-      case OP_GETTABUP:
-      case OP_SETTABUP:
-      case OP_NEWTABLE:
-      case OP_SETLIST:
-      case OP_SELF:
-      case OP_RAVI_NEWARRAYI:
-      case OP_RAVI_NEWARRAYF:
-      case OP_RAVI_MOVEI:
-      case OP_RAVI_MOVEF:
-      case OP_RAVI_TOINT:
-      case OP_RAVI_TOFLT:
-      case OP_RAVI_LOADFZ:
-      case OP_RAVI_LOADIZ:
-      case OP_RAVI_ADDFF:
-      case OP_RAVI_ADDFI:
-      case OP_RAVI_ADDII:
-      case OP_RAVI_SUBFF:
-      case OP_RAVI_SUBFI:
-      case OP_RAVI_SUBIF:
-      case OP_RAVI_SUBII:
-      case OP_RAVI_MULFF:
-      case OP_RAVI_MULFI:
-      case OP_RAVI_MULII:
-      case OP_RAVI_DIVFF:
-      case OP_RAVI_DIVFI:
-      case OP_RAVI_DIVIF:
-      case OP_RAVI_DIVII:
-      case OP_RAVI_GETTABLE_AI:
-      case OP_RAVI_GETTABLE_AF:
-      case OP_RAVI_SETTABLE_AI:
-      case OP_RAVI_SETTABLE_AII:
-      case OP_RAVI_SETTABLE_AF:
-      case OP_RAVI_SETTABLE_AFF:
-      case OP_RAVI_TOARRAYI:
-      case OP_RAVI_TOARRAYF:
-      case OP_RAVI_MOVEAI:
-      case OP_RAVI_MOVEAF:
-      case OP_RAVI_FORLOOP_IP:
-      case OP_RAVI_FORLOOP_I1:
-      case OP_RAVI_FORPREP_IP:
-      case OP_RAVI_FORPREP_I1:
-      case OP_RAVI_BAND_II:
-      case OP_RAVI_BOR_II:
-      case OP_RAVI_BXOR_II:
-      case OP_RAVI_BNOT_I:
-      case OP_RAVI_SHL_II:
-      case OP_RAVI_SHR_II:
-      case OP_SHR:
-      case OP_SHL:
-      case OP_RAVI_GETTABLE_I:
-      case OP_RAVI_GETTABLE_S:
-      case OP_RAVI_SETTABLE_I:
-      case OP_RAVI_SETTABLE_S:
-      case OP_RAVI_TOTAB:
-      case OP_RAVI_MOVETAB:
-      case OP_RAVI_SETUPVALI:
-      case OP_RAVI_SETUPVALF:
-      case OP_RAVI_SETUPVALAI:
-      case OP_RAVI_SETUPVALAF:
-      case OP_RAVI_SETUPVALT:
-      case OP_RAVI_SELF_S: break;
-      default: return false;
-    }
-  }
+  // for (pc = 0; pc < n; pc++) {
+  //  Instruction i = code[pc];
+  //  OpCode o = GET_OPCODE(i);
+  //  if (o == OP_EXTRAARG)
+  //    return false;
+  //  else if (o == OP_RAVI_UNMF || o == OP_RAVI_UNMI) {
+  //    fprintf(stderr, "Unexpected bytecode %d\n", o);
+  //    abort();
+  //  }
+  //}
   return true;
 }
 
@@ -1095,6 +1006,9 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaH_getstrF = def->raviF->addExternFunction(
       def->types->luaH_getstrT, reinterpret_cast<void *>(&luaH_getstr),
       "luaH_getstr");
+  def->luaV_finishgetF = def->raviF->addExternFunction(
+      def->types->luaV_finishgetT, reinterpret_cast<void *>(&luaV_finishget),
+      "luaV_finishget");
 
   def->raviV_op_loadnilF = def->raviF->addExternFunction(
       def->types->raviV_op_loadnilT,
@@ -1143,6 +1057,30 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_shrF = def->raviF->addExternFunction(
       def->types->raviV_op_shrT, reinterpret_cast<void *>(&raviV_op_shr),
       "raviV_op_shr");
+  def->raviV_op_borF = def->raviF->addExternFunction(
+      def->types->raviV_op_borT, reinterpret_cast<void *>(&raviV_op_bor),
+      "raviV_op_bor");
+  def->raviV_op_bxorF = def->raviF->addExternFunction(
+      def->types->raviV_op_bxorT, reinterpret_cast<void *>(&raviV_op_bxor),
+      "raviV_op_bxor");
+  def->raviV_op_bandF = def->raviF->addExternFunction(
+      def->types->raviV_op_bandT, reinterpret_cast<void *>(&raviV_op_band),
+      "raviV_op_band");
+  def->raviV_op_bnotF = def->raviF->addExternFunction(
+      def->types->raviV_op_bnotT, reinterpret_cast<void *>(&raviV_op_bnot),
+      "raviV_op_bnot");
+  def->raviV_op_addF = def->raviF->addExternFunction(
+      def->types->raviV_op_addT, reinterpret_cast<void *>(&raviV_op_add),
+      "raviV_op_add");
+  def->raviV_op_subF = def->raviF->addExternFunction(
+      def->types->raviV_op_subT, reinterpret_cast<void *>(&raviV_op_sub),
+      "raviV_op_sub");
+  def->raviV_op_mulF = def->raviF->addExternFunction(
+      def->types->raviV_op_mulT, reinterpret_cast<void *>(&raviV_op_mul),
+      "raviV_op_mul");
+  def->raviV_op_divF = def->raviF->addExternFunction(
+      def->types->raviV_op_divT, reinterpret_cast<void *>(&raviV_op_div),
+      "raviV_op_div");
   def->raviV_op_setupvaliF = def->raviF->addExternFunction(
       def->types->raviV_op_setupvaliT,
       reinterpret_cast<void *>(&raviV_op_setupvali), "raviV_op_setupvali");
@@ -1158,9 +1096,12 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_setupvaltF = def->raviF->addExternFunction(
       def->types->raviV_op_setupvaltT,
       reinterpret_cast<void *>(&raviV_op_setupvalt), "raviV_op_setupvalt");
-  def->raviV_finishgetF = def->raviF->addExternFunction(
-      def->types->raviV_finishgetT, reinterpret_cast<void *>(&raviV_finishget),
-      "raviV_finishget");
+  def->raviV_settable_sskeyF = def->raviF->addExternFunction(
+      def->types->raviV_settable_sskeyT,
+      reinterpret_cast<void *>(&raviV_settable_sskey), "raviV_settable_sskey");
+  def->raviV_gettable_sskeyF = def->raviF->addExternFunction(
+      def->types->raviV_gettable_sskeyT,
+      reinterpret_cast<void *>(&raviV_gettable_sskey), "raviV_gettable_sskey");
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(
       def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
@@ -1209,7 +1150,7 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       llvm::FunctionType::get(def->types->lua_NumberT, args, false);
 #ifdef LUA_32BITS
   def->floorFunc =
-    def->raviF->module()->getOrInsertFunction("floorf", floorType);
+      def->raviF->module()->getOrInsertFunction("floorf", floorType);
 #else
   def->floorFunc =
       def->raviF->module()->getOrInsertFunction("floor", floorType);
@@ -1312,15 +1253,14 @@ llvm::Value *RaviCodeGenerator::emit_gep_upval_value(
 bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
                                 std::shared_ptr<RaviJITModule> module,
                                 ravi_compile_options_t *options) {
-  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED)
-    return true;
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) return true;
 
   bool doVerify = options ? options->verification_level != 0 : 0;
   bool omitArrayGetRangeCheck =
       options ? options->omit_array_get_range_check != 0 : 0;
 
   if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED || !canCompile(p)) {
-    //fprintf(stderr, "failed to compile!\n");
+    // fprintf(stderr, "failed to compile!\n");
     return false;
   }
 
@@ -1471,12 +1411,22 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_SETLIST: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
+        if (C == 0) {
+          // OP_SETLIST is followed by OP_EXTRAARG
+          Instruction inst = code[++pc];
+          C = GETARG_Ax(inst);
+          lua_assert(GET_OPCODE(inst) == OP_EXTRAARG);
+        }
         emit_SETLIST(def, A, B, C, pc);
       } break;
-      case OP_SELF: {
+      case OP_SELF:
+      case OP_RAVI_SELF_SK: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_SELF(def, A, B, C, pc);
+        if (op == OP_RAVI_SELF_SK) { emit_SELF_SK(def, A, B, C, pc); }
+        else {
+          emit_SELF(def, A, B, C, pc);
+        }
       } break;
       case OP_LEN: {
         int B = GETARG_B(i);
@@ -1543,6 +1493,10 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_RAVI_BNOT_I: {
         int B = GETARG_B(i);
         emit_BNOT_I(def, A, B, pc);
+      } break;
+      case OP_BNOT: {
+        int B = GETARG_B(i);
+        emit_BNOT(def, A, B, pc);
       } break;
       case OP_TEST: {
         int B = GETARG_B(i);
@@ -1628,12 +1582,14 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_CALL(def, A, B, C, pc);
       } break;
 
-      case OP_RAVI_SETTABLE_I: /*{
+      case OP_RAVI_SETTABLE_SK:
+      case OP_RAVI_SETTABLE_S: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_SETTABLE_I(def, A, B, C, pc);
-      } break; */
-      case OP_RAVI_SETTABLE_S:
+        emit_SETTABLE_SK(def, A, B, C, pc);
+      } break;
+
+      case OP_RAVI_SETTABLE_I:
       case OP_SETTABLE: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
@@ -1648,6 +1604,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         lua_assert(key->tt == LUA_TSHRSTR);
         emit_GETTABLE_S(def, A, B, C, pc, key);
       } break;
+
       case OP_RAVI_SELF_S: {
         int C = GETARG_C(i);
         int B = GETARG_B(i);
@@ -1661,6 +1618,11 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         emit_GETTABLE_I(def, A, B, C, pc);
+      } break;
+      case OP_RAVI_GETTABLE_SK: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_GETTABLE_SK(def, A, B, C, pc);
       } break;
       case OP_GETTABLE: {
         int B = GETARG_B(i);
@@ -1711,6 +1673,11 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_MOVETAB(def, A, B, pc);
       } break;
 
+      case OP_RAVI_GETTABUP_SK: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_GETTABUP_SK(def, A, B, C, pc);
+      } break;
       case OP_GETTABUP: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
@@ -1762,6 +1729,14 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         emit_BITWISE_BINARY_OP(def, op, A, B, C, pc);
+      } break;
+
+      case OP_BAND:
+      case OP_BOR:
+      case OP_BXOR: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_BOR_BXOR_BAND(def, op, A, B, C, pc);
       } break;
 
       case OP_SHR:
@@ -1887,11 +1862,17 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_UNM(def, A, B, pc);
       } break;
 
-      default: break;
+      default: {
+        fprintf(stderr, "Unexpected bytecode %d\n", op);
+        abort();
+      }
     }
   }
 
-  if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs())) abort();
+  if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs())) {
+    fprintf(stderr, "LLVM Code Verification failed\n");
+    abort();
+  }
   ravi::RaviJITFunction *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = nullptr;

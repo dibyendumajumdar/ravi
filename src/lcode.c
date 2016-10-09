@@ -13,7 +13,6 @@
 
 #include "lprefix.h"
 
-
 #include <math.h>
 #include <stdlib.h>
 
@@ -609,6 +608,8 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
           op = OP_RAVI_GETTABLE_S;
         else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_type == RAVI_TNUMINT)
           op = OP_RAVI_GETTABLE_I;
+        else if (e->u.ind.key_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
+          op = OP_RAVI_GETTABLE_SK;
         else
           op = OP_GETTABLE;
         if (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT)
@@ -959,9 +960,13 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
         } else if (var->ravi_type == RAVI_TTABLE && var->u.ind.key_type == RAVI_TNUMINT) {
           /* table with integer key */
           op = OP_RAVI_SETTABLE_I;
-        } else if (var->ravi_type == RAVI_TTABLE && var->u.ind.key_type == RAVI_TSTRING) {
+        } else if (var->ravi_type == RAVI_TTABLE && var->u.ind.key_type == RAVI_TSTRING && isshortstr(fs, var->u.ind.idx)) {
           /* table with string key */
           op = OP_RAVI_SETTABLE_S;
+        }
+        else if (var->u.ind.key_type == RAVI_TSTRING && isshortstr(fs, var->u.ind.idx)) {
+          /* table with string key */
+          op = OP_RAVI_SETTABLE_SK;
         }
       }
       int e = luaK_exp2RK(fs, ex);
@@ -976,17 +981,26 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
 
 void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
   int ereg;
-  int table_and_string = e->ravi_type == RAVI_TTABLE &&
+  /* Ravi extension:
+     If we only know the key is a string constant
+     we emit specialized bytecode OP_RAVI_SELF_SK
+     If we also know that the variable is a table 
+     then we emit OP_RAVI_SELF_S
+  */
+  int is_string_constant_key =
     key->k == VK &&
     key->ravi_type == RAVI_TSTRING &&
-    isshortstr(fs, RKASK(key->u.info));
+    ttisshrstring(&fs->f->k[key->u.info]);
+  int table_and_string = 
+    e->ravi_type == RAVI_TTABLE &&
+    is_string_constant_key;
   luaK_exp2anyreg(fs, e);
   ereg = e->u.info;  /* register where 'e' was placed */
   freeexp(fs, e);
   e->u.info = fs->freereg;  /* base register for op_self */
   e->k = VNONRELOC;  /* self expression has a fixed register */
   luaK_reserveregs(fs, 2);  /* function and 'self' produced by op_self */
-  luaK_codeABC(fs, table_and_string ? OP_RAVI_SELF_S : OP_SELF, e->u.info, ereg, luaK_exp2RK(fs, key));
+  luaK_codeABC(fs, table_and_string ? OP_RAVI_SELF_S : (is_string_constant_key ? OP_RAVI_SELF_SK : OP_SELF), e->u.info, ereg, luaK_exp2RK(fs, key));
   freeexp(fs, key);
 }
 

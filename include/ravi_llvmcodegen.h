@@ -82,7 +82,10 @@ enum LuaTypeCode {
   LUA__TLIGHTUSERDATA = LUA_TLIGHTUSERDATA,
   LUA__TNUMBER = LUA_TNUMBER,
   LUA__TSTRING = ctb(LUA_TSTRING),
-  LUA__TTABLE = ctb(LUA_TTABLE),
+  LUA__TTABLE = LUA_TTABLE,
+  RAVI__TLTABLE = ctb(LUA_TTABLE),
+  RAVI__TIARRAY = ctb(RAVI_TIARRAY),
+  RAVI__TFARRAY = ctb(RAVI_TFARRAY),
   LUA__TFUNCTION = ctb(LUA_TFUNCTION),
   LUA__TUSERDATA = ctb(LUA_TUSERDATA),
   LUA__TTHREAD = ctb(LUA_TTHREAD),
@@ -249,6 +252,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_executeT;
   llvm::FunctionType *luaV_gettableT;
   llvm::FunctionType *luaV_settableT;
+  llvm::FunctionType *luaV_finishgetT;
 
   // Following are functions that handle specific bytecodes
   // We cheat for these bytecodes by calling the function that
@@ -261,14 +265,23 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_op_concatT;
   llvm::FunctionType *raviV_op_closureT;
   llvm::FunctionType *raviV_op_varargT;
+  llvm::FunctionType *raviV_op_addT;
+  llvm::FunctionType *raviV_op_subT;
+  llvm::FunctionType *raviV_op_mulT;
+  llvm::FunctionType *raviV_op_divT;
   llvm::FunctionType *raviV_op_shrT;
   llvm::FunctionType *raviV_op_shlT;
+  llvm::FunctionType *raviV_op_borT;
+  llvm::FunctionType *raviV_op_bxorT;
+  llvm::FunctionType *raviV_op_bandT;
+  llvm::FunctionType *raviV_op_bnotT;
   llvm::FunctionType *raviV_op_setupvaliT;
   llvm::FunctionType *raviV_op_setupvalfT;
   llvm::FunctionType *raviV_op_setupvalaiT;
   llvm::FunctionType *raviV_op_setupvalafT;
   llvm::FunctionType *raviV_op_setupvaltT;
-  llvm::FunctionType *raviV_finishgetT;
+  llvm::FunctionType *raviV_gettable_sskeyT;
+  llvm::FunctionType *raviV_settable_sskeyT;
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -355,18 +368,18 @@ struct LuaLLVMTypes {
 // via a shared_ptr. This ensures that RaviJITModule gets
 // released when no longer referenced.
 
-class RAVI_API RaviJITState;
-class RAVI_API RaviJITModule;
-class RAVI_API RaviJITFunction;
+class RaviJITState;
+class RaviJITModule;
+class RaviJITFunction;
 
-class RAVI_API RaviJITStateFactory {
+class RaviJITStateFactory {
  public:
   static std::unique_ptr<RaviJITState> newJITState();
 };
 
 // A wrapper for LLVM Module
 // Maintains a dedicated ExecutionEngine for the module
-class RAVI_API RaviJITModule {
+class RaviJITModule {
   // The Context that owns this module
   RaviJITState *owner_;
 
@@ -425,7 +438,7 @@ class RAVI_API RaviJITModule {
 // This object is stored in the Lua Proto structure
 // and gets destroyed when the Lua function is
 // garbage collected
-class RAVI_API RaviJITFunction {
+class RaviJITFunction {
   // The Module in which this function lives
   // We hold a shared_ptr to the module so that
   // the module will be destroyed when the
@@ -479,7 +492,7 @@ class RAVI_API RaviJITFunction {
 
 // Ravi's LLVM JIT State
 // All of the JIT information is held here
-class RAVI_API RaviJITState {
+class RaviJITState {
   // The LLVM Context
   llvm::LLVMContext *context_;
 
@@ -619,6 +632,7 @@ struct RaviFunctionDef {
   llvm::Function *luaH_getstrF;
   llvm::Function *luaH_getintF;
   llvm::Function *luaH_setintF;
+  llvm::Function *luaV_finishgetF;
 
   // Some cheats - these correspond to OPCODEs that
   // are not inlined as of now
@@ -630,14 +644,23 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_concatF;
   llvm::Function *raviV_op_closureF;
   llvm::Function *raviV_op_varargF;
+  llvm::Function *raviV_op_addF;
+  llvm::Function *raviV_op_subF;
+  llvm::Function *raviV_op_mulF;
+  llvm::Function *raviV_op_divF;
   llvm::Function *raviV_op_shrF;
   llvm::Function *raviV_op_shlF;
+  llvm::Function *raviV_op_borF;
+  llvm::Function *raviV_op_bxorF;
+  llvm::Function *raviV_op_bandF;
+  llvm::Function *raviV_op_bnotF;
   llvm::Function *raviV_op_setupvaliF;
   llvm::Function *raviV_op_setupvalfF;
   llvm::Function *raviV_op_setupvalaiF;
   llvm::Function *raviV_op_setupvalafF;
   llvm::Function *raviV_op_setupvaltF;
-  llvm::Function *raviV_finishgetF;
+  llvm::Function *raviV_gettable_sskeyF;
+  llvm::Function *raviV_settable_sskeyF;
 
   // array setters
   llvm::Function *raviH_set_intF;
@@ -766,6 +789,16 @@ class RaviCodeGenerator {
   llvm::Value *emit_is_not_value_of_type(
       RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
       const char *varname = "value.not.typeof");
+
+  // Test if value type is NOT of specific Lua type class
+  // i.e. variants are ignore
+  // Value_type should have been obtained by emit_load_type()
+  // The Lua typecode to check must be in lua_typecode
+  // The return value is a boolean type as a result of
+  // integer comparison result which is i1 in LLVM
+  llvm::Value *emit_is_not_value_of_type_class(
+    RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
+    const char *varname = "value.not.typeof");
 
   // emit code for (LClosure *)ci->func->value_.gc
   llvm::Instruction *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def);
@@ -1061,10 +1094,14 @@ class RaviCodeGenerator {
 
   void emit_SETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
 
+  void emit_SETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
+
   void emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, int pc,
                        TString *key);
+
+  void emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
 
@@ -1076,9 +1113,13 @@ class RaviCodeGenerator {
 
   void emit_SELF_S(RaviFunctionDef *def, int A, int B, int C, int pc,
                    TString *key);
+  void emit_SELF_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C,
                               TString *key);
+
+  void emit_common_GETTABLE_S_(RaviFunctionDef *def, int A, llvm::Value *rb, int C,
+    TString *key);
 
   void emit_GETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
@@ -1089,7 +1130,11 @@ class RaviCodeGenerator {
 
   void emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C, int pc);
 
+  void emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
+
   void emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C, int pc);
+
+  void emit_SETTABUP_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_NEWARRAYINT(RaviFunctionDef *def, int A, int pc);
 
@@ -1160,6 +1205,11 @@ class RaviCodeGenerator {
                              int C, int pc);
 
   void emit_BNOT_I(RaviFunctionDef *def, int A, int B, int pc);
+
+  void emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int A, int B,
+    int C, int pc);
+
+  void emit_BNOT(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B,
                            lua_Integer y);

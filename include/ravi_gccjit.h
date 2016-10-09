@@ -65,6 +65,9 @@ typedef enum {
   LUA__TNUMBER = LUA_TNUMBER,
   LUA__TSTRING = ctb(LUA_TSTRING),
   LUA__TTABLE = ctb(LUA_TTABLE),
+  RAVI__TLTABLE = ctb(LUA_TTABLE),
+  RAVI__TIARRAY = ctb(RAVI_TIARRAY),
+  RAVI__TFARRAY = ctb(RAVI_TFARRAY),
   LUA__TFUNCTION = ctb(LUA_TFUNCTION),
   LUA__TUSERDATA = ctb(LUA_TUSERDATA),
   LUA__TTHREAD = ctb(LUA_TTHREAD),
@@ -511,6 +514,10 @@ extern gcc_jit_rvalue *ravi_emit_is_value_of_type(ravi_function_def_t *def,
 
 extern gcc_jit_rvalue *
 ravi_emit_is_not_value_of_type(ravi_function_def_t *def,
+                               gcc_jit_rvalue *value_type, int lua_type);
+
+extern gcc_jit_rvalue *
+ravi_emit_is_not_value_of_type_class(ravi_function_def_t *def,
                                gcc_jit_rvalue *value_type, int lua_type);
 
 extern void ravi_emit_store_reg_i_withtype(ravi_function_def_t *def,

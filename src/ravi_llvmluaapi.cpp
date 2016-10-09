@@ -67,74 +67,74 @@ static const char *LLVM_instruction = "LLVMinstruction";
 static const char *LLVM_phinode = "LLVMphinode";
 
 #define test_LLVM_irbuilder(L, idx) \
-  ((IRBuilderHolder *)raviU_testudata(L, idx, LLVM_irbuilder))
+  ((IRBuilderHolder *)raviL_testudata(L, idx, LLVM_irbuilder))
 #define check_LLVM_irbuilder(L, idx) \
-  ((IRBuilderHolder *)raviU_checkudata(L, idx, LLVM_irbuilder))
+  ((IRBuilderHolder *)raviL_checkudata(L, idx, LLVM_irbuilder))
 
 #define test_LLVM_type(L, idx) \
-  ((TypeHolder *)raviU_testudata(L, idx, LLVM_type))
+  ((TypeHolder *)raviL_testudata(L, idx, LLVM_type))
 #define check_LLVM_type(L, idx) \
-  ((TypeHolder *)raviU_checkudata(L, idx, LLVM_type))
+  ((TypeHolder *)raviL_checkudata(L, idx, LLVM_type))
 
 #define test_LLVM_context(L, idx) \
-  ((ContextHolder *)raviU_testudata(L, idx, LLVM_context))
+  ((ContextHolder *)raviL_testudata(L, idx, LLVM_context))
 #define check_LLVM_context(L, idx) \
-  ((ContextHolder *)raviU_checkudata(L, idx, LLVM_context))
+  ((ContextHolder *)raviL_checkudata(L, idx, LLVM_context))
 
 #define test_LLVM_structtype(L, idx) \
-  ((StructTypeHolder *)raviU_testudata(L, idx, LLVM_structtype))
+  ((StructTypeHolder *)raviL_testudata(L, idx, LLVM_structtype))
 #define check_LLVM_structtype(L, idx) \
-  ((StructTypeHolder *)raviU_checkudata(L, idx, LLVM_structtype))
+  ((StructTypeHolder *)raviL_checkudata(L, idx, LLVM_structtype))
 
 #define test_LLVM_pointertype(L, idx) \
-  ((PointerTypeHolder *)raviU_testudata(L, idx, LLVM_pointertype))
+  ((PointerTypeHolder *)raviL_testudata(L, idx, LLVM_pointertype))
 #define check_LLVM_pointertype(L, idx) \
-  ((PointerTypeHolder *)raviU_checkudata(L, idx, LLVM_pointertype))
+  ((PointerTypeHolder *)raviL_checkudata(L, idx, LLVM_pointertype))
 
 #define test_LLVM_functiontype(L, idx) \
-  ((FunctionTypeHolder *)raviU_testudata(L, idx, LLVM_functiontype))
+  ((FunctionTypeHolder *)raviL_testudata(L, idx, LLVM_functiontype))
 #define check_LLVM_functiontype(L, idx) \
-  ((FunctionTypeHolder *)raviU_checkudata(L, idx, LLVM_functiontype))
+  ((FunctionTypeHolder *)raviL_checkudata(L, idx, LLVM_functiontype))
 
 #define test_LLVM_mainfunction(L, idx) \
-  ((MainFunctionHolder *)raviU_testudata(L, idx, LLVM_mainfunction))
+  ((MainFunctionHolder *)raviL_testudata(L, idx, LLVM_mainfunction))
 #define check_LLVM_mainfunction(L, idx) \
-  ((MainFunctionHolder *)raviU_checkudata(L, idx, LLVM_mainfunction))
+  ((MainFunctionHolder *)raviL_checkudata(L, idx, LLVM_mainfunction))
 
 #define test_LLVM_function(L, idx) \
-  ((FunctionHolder *)raviU_testudata(L, idx, LLVM_function))
+  ((FunctionHolder *)raviL_testudata(L, idx, LLVM_function))
 #define check_LLVM_function(L, idx) \
-  ((FunctionHolder *)raviU_checkudata(L, idx, LLVM_function))
+  ((FunctionHolder *)raviL_checkudata(L, idx, LLVM_function))
 
 #define test_LLVM_basicblock(L, idx) \
-  ((BasicBlockHolder *)raviU_testudata(L, idx, LLVM_basicblock))
+  ((BasicBlockHolder *)raviL_testudata(L, idx, LLVM_basicblock))
 #define check_LLVM_basicblock(L, idx) \
-  ((BasicBlockHolder *)raviU_checkudata(L, idx, LLVM_basicblock))
+  ((BasicBlockHolder *)raviL_checkudata(L, idx, LLVM_basicblock))
 
 #define test_LLVM_value(L, idx) \
-  ((ValueHolder *)raviU_testudata(L, idx, LLVM_value))
+  ((ValueHolder *)raviL_testudata(L, idx, LLVM_value))
 #define check_LLVM_value(L, idx) \
-  ((ValueHolder *)raviU_checkudata(L, idx, LLVM_value))
+  ((ValueHolder *)raviL_checkudata(L, idx, LLVM_value))
 
 #define test_LLVM_constant(L, idx) \
-  ((ConstantHolder *)raviU_testudata(L, idx, LLVM_constant))
+  ((ConstantHolder *)raviL_testudata(L, idx, LLVM_constant))
 #define check_LLVM_constant(L, idx) \
-  ((ConstantHolder *)raviU_checkudata(L, idx, LLVM_constant))
+  ((ConstantHolder *)raviL_checkudata(L, idx, LLVM_constant))
 
 #define test_LLVM_instruction(L, idx) \
-  ((InstructionHolder *)raviU_testudata(L, idx, LLVM_instruction))
+  ((InstructionHolder *)raviL_testudata(L, idx, LLVM_instruction))
 #define check_LLVM_instruction(L, idx) \
-  ((InstructionHolder *)raviU_checkudata(L, idx, LLVM_instruction))
+  ((InstructionHolder *)raviL_checkudata(L, idx, LLVM_instruction))
 
 #define test_LLVM_module(L, idx) \
-  ((ModuleHolder *)raviU_testudata(L, idx, LLVM_module))
+  ((ModuleHolder *)raviL_testudata(L, idx, LLVM_module))
 #define check_LLVM_module(L, idx) \
-  ((ModuleHolder *)raviU_checkudata(L, idx, LLVM_module))
+  ((ModuleHolder *)raviL_checkudata(L, idx, LLVM_module))
 
 #define test_LLVM_phinode(L, idx) \
-  ((PhiNodeHolder *)raviU_testudata(L, idx, LLVM_phinode))
+  ((PhiNodeHolder *)raviL_testudata(L, idx, LLVM_phinode))
 #define check_LLVM_phinode(L, idx) \
-  ((PhiNodeHolder *)raviU_checkudata(L, idx, LLVM_phinode))
+  ((PhiNodeHolder *)raviL_checkudata(L, idx, LLVM_phinode))
 
 struct ContextHolder {
   /* Each Ravi instance (Lua instance) has its own
@@ -206,7 +206,7 @@ static int context_new_LLVM_irbuilder(lua_State *L) {
   IRBuilderHolder *builder =
       (IRBuilderHolder *)lua_newuserdata(L, sizeof(IRBuilderHolder));
   builder->builder = new llvm::IRBuilder<>(context->jitState->context());
-  raviU_getmetatable(L, LLVM_irbuilder);
+  raviL_getmetatable(L, LLVM_irbuilder);
   lua_setmetatable(L, -2);
   return 1;
 }
@@ -223,28 +223,28 @@ static int collect_LLVM_irbuilder(lua_State *L) {
 
 static void alloc_LLVM_module(lua_State *L, llvm::Module *M) {
   ModuleHolder *mh = (ModuleHolder *)lua_newuserdata(L, sizeof(ModuleHolder));
-  raviU_getmetatable(L, LLVM_module);
+  raviL_getmetatable(L, LLVM_module);
   lua_setmetatable(L, -2);
   mh->M = M;
 }
 
 static void alloc_LLVM_type(lua_State *L, llvm::Type *t) {
   TypeHolder *tt = (TypeHolder *)lua_newuserdata(L, sizeof(TypeHolder));
-  raviU_getmetatable(L, LLVM_type);
+  raviL_getmetatable(L, LLVM_type);
   lua_setmetatable(L, -2);
   tt->type = t;
 }
 
 static void alloc_LLVM_context(lua_State *L, ravi::RaviJITState *jit) {
   ContextHolder *h = (ContextHolder *)lua_newuserdata(L, sizeof(ContextHolder));
-  raviU_getmetatable(L, LLVM_context);
+  raviL_getmetatable(L, LLVM_context);
   lua_setmetatable(L, -2);
   h->jitState = jit;
 }
 
 static void alloc_LLVM_value(lua_State *L, llvm::Value *v) {
   ValueHolder *h = (ValueHolder *)lua_newuserdata(L, sizeof(ValueHolder));
-  raviU_getmetatable(L, LLVM_value);
+  raviL_getmetatable(L, LLVM_value);
   lua_setmetatable(L, -2);
   h->value = v;
 }
@@ -252,7 +252,7 @@ static void alloc_LLVM_value(lua_State *L, llvm::Value *v) {
 static void alloc_LLVM_structtype(lua_State *L, llvm::StructType *type) {
   StructTypeHolder *h =
       (StructTypeHolder *)lua_newuserdata(L, sizeof(StructTypeHolder));
-  raviU_getmetatable(L, LLVM_structtype);
+  raviL_getmetatable(L, LLVM_structtype);
   lua_setmetatable(L, -2);
   h->type = type;
 }
@@ -260,7 +260,7 @@ static void alloc_LLVM_structtype(lua_State *L, llvm::StructType *type) {
 static void alloc_LLVM_pointertype(lua_State *L, llvm::PointerType *type) {
   PointerTypeHolder *h =
       (PointerTypeHolder *)lua_newuserdata(L, sizeof(PointerTypeHolder));
-  raviU_getmetatable(L, LLVM_pointertype);
+  raviL_getmetatable(L, LLVM_pointertype);
   lua_setmetatable(L, -2);
   h->type = type;
 }
@@ -268,7 +268,7 @@ static void alloc_LLVM_pointertype(lua_State *L, llvm::PointerType *type) {
 static void alloc_LLVM_functiontype(lua_State *L, llvm::FunctionType *type) {
   FunctionTypeHolder *h =
       (FunctionTypeHolder *)lua_newuserdata(L, sizeof(FunctionTypeHolder));
-  raviU_getmetatable(L, LLVM_functiontype);
+  raviL_getmetatable(L, LLVM_functiontype);
   lua_setmetatable(L, -2);
   h->type = type;
 }
@@ -276,7 +276,7 @@ static void alloc_LLVM_functiontype(lua_State *L, llvm::FunctionType *type) {
 static void alloc_LLVM_function(lua_State *L, llvm::Function *f) {
   FunctionHolder *h =
       (FunctionHolder *)lua_newuserdata(L, sizeof(FunctionHolder));
-  raviU_getmetatable(L, LLVM_function);
+  raviL_getmetatable(L, LLVM_function);
   lua_setmetatable(L, -2);
   h->function = f;
 }
@@ -284,7 +284,7 @@ static void alloc_LLVM_function(lua_State *L, llvm::Function *f) {
 static void alloc_LLVM_constant(lua_State *L, llvm::Constant *f) {
   ConstantHolder *h =
       (ConstantHolder *)lua_newuserdata(L, sizeof(ConstantHolder));
-  raviU_getmetatable(L, LLVM_constant);
+  raviL_getmetatable(L, LLVM_constant);
   lua_setmetatable(L, -2);
   h->constant = f;
 }
@@ -292,14 +292,14 @@ static void alloc_LLVM_constant(lua_State *L, llvm::Constant *f) {
 static void alloc_LLVM_instruction(lua_State *L, llvm::Instruction *i) {
   InstructionHolder *h =
       (InstructionHolder *)lua_newuserdata(L, sizeof(InstructionHolder));
-  raviU_getmetatable(L, LLVM_instruction);
+  raviL_getmetatable(L, LLVM_instruction);
   lua_setmetatable(L, -2);
   h->i = i;
 }
 
 static void alloc_LLVM_phinode(lua_State *L, llvm::PHINode *phi) {
   PhiNodeHolder *h = (PhiNodeHolder *)lua_newuserdata(L, sizeof(PhiNodeHolder));
-  raviU_getmetatable(L, LLVM_phinode);
+  raviL_getmetatable(L, LLVM_phinode);
   lua_setmetatable(L, -2);
   h->phi = phi;
 }
@@ -313,7 +313,7 @@ static MainFunctionHolder *alloc_LLVM_mainfunction(lua_State *L,
   h->func = nullptr;
   h->compiled_func = nullptr;
   h->arg1 = nullptr;
-  raviU_getmetatable(L, LLVM_mainfunction);
+  raviL_getmetatable(L, LLVM_mainfunction);
   lua_setmetatable(L, -2);
   auto module = std::make_shared<ravi::RaviJITModule>(G(L)->ravi_state->jit);
   h->func = new ravi::RaviJITFunction(&h->compiled_func, module, type,
@@ -335,7 +335,7 @@ static int collect_LLVM_mainfunction(lua_State *L) {
 static void alloc_LLVM_basicblock(lua_State *L, llvm::BasicBlock *b) {
   BasicBlockHolder *h =
       (BasicBlockHolder *)lua_newuserdata(L, sizeof(BasicBlockHolder));
-  raviU_getmetatable(L, LLVM_basicblock);
+  raviL_getmetatable(L, LLVM_basicblock);
   lua_setmetatable(L, -2);
   h->b = b;
 }
@@ -1316,7 +1316,7 @@ static const luaL_Reg irbuilder_methods[] = {
     {NULL, NULL}};
 
 LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
-  raviU_newmetatable(L, LLVM_context);
+  raviL_newmetatable(L, LLVM_context, LLVM_context);
   lua_pushstring(L, LLVM_context);
   lua_setfield(L, -2, "type");
   lua_pushvalue(L, -1);           /* push metatable */
@@ -1324,7 +1324,7 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   luaL_setfuncs(L, context_methods, 0);
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_module);
+  raviL_newmetatable(L, LLVM_module, LLVM_module);
   lua_pushstring(L, LLVM_module);
   lua_setfield(L, -2, "type");
   lua_pushvalue(L, -1);           /* push metatable */
@@ -1332,7 +1332,7 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   luaL_setfuncs(L, module_methods, 0);
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_irbuilder);
+  raviL_newmetatable(L, LLVM_irbuilder, LLVM_irbuilder);
   lua_pushstring(L, LLVM_irbuilder);
   lua_setfield(L, -2, "type");
   lua_pushcfunction(L, collect_LLVM_irbuilder);
@@ -1342,7 +1342,7 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   luaL_setfuncs(L, irbuilder_methods, 0);
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_mainfunction);
+  raviL_newmetatable(L, LLVM_mainfunction, LLVM_mainfunction);
   lua_pushstring(L, LLVM_mainfunction);
   lua_setfield(L, -2, "type");
   lua_pushcfunction(L, collect_LLVM_mainfunction);
@@ -1352,7 +1352,7 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   luaL_setfuncs(L, main_function_methods, 0);
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_function);
+  raviL_newmetatable(L, LLVM_function, LLVM_function);
   lua_pushstring(L, LLVM_function);
   lua_setfield(L, -2, "type");
   lua_pushvalue(L, -1);           /* push metatable */
@@ -1360,17 +1360,17 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   luaL_setfuncs(L, function_methods, 0);
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_type);
+  raviL_newmetatable(L, LLVM_type, LLVM_type);
   lua_pushstring(L, LLVM_type);
   lua_setfield(L, -2, "type");
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_value);
+  raviL_newmetatable(L, LLVM_value, LLVM_value);
   lua_pushstring(L, LLVM_value);
   lua_setfield(L, -2, "type");
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_structtype);
+  raviL_newmetatable(L, LLVM_structtype, LLVM_structtype);
   lua_pushstring(L, LLVM_structtype);
   lua_setfield(L, -2, "type");
   lua_pushvalue(L, -1);           /* push metatable */
@@ -1378,32 +1378,32 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   luaL_setfuncs(L, structtype_methods, 0);
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_pointertype);
+  raviL_newmetatable(L, LLVM_pointertype, LLVM_pointertype);
   lua_pushstring(L, LLVM_pointertype);
   lua_setfield(L, -2, "type");
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_functiontype);
+  raviL_newmetatable(L, LLVM_functiontype, LLVM_functiontype);
   lua_pushstring(L, LLVM_functiontype);
   lua_setfield(L, -2, "type");
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_basicblock);
+  raviL_newmetatable(L, LLVM_basicblock, LLVM_basicblock);
   lua_pushstring(L, LLVM_basicblock);
   lua_setfield(L, -2, "type");
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_constant);
+  raviL_newmetatable(L, LLVM_constant, LLVM_constant);
   lua_pushstring(L, LLVM_constant);
   lua_setfield(L, -2, "type");
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_instruction);
+  raviL_newmetatable(L, LLVM_instruction, LLVM_instruction);
   lua_pushstring(L, LLVM_instruction);
   lua_setfield(L, -2, "type");
   lua_pop(L, 1);
 
-  raviU_newmetatable(L, LLVM_phinode);
+  raviL_newmetatable(L, LLVM_phinode, LLVM_phinode);
   lua_pushstring(L, LLVM_phinode);
   lua_setfield(L, -2, "type");
   lua_pushvalue(L, -1);           /* push metatable */

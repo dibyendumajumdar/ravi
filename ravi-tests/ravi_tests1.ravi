@@ -1192,6 +1192,76 @@ bug_index_event()
 print 'Test 50 OK'
 
 
+function event_test()
+  local a: table = {}
+  setmetatable(a, {__metatable = "xuxu",
+                    __tostring=function(x: table) return x.name end})
+  assert(getmetatable(a) == "xuxu")
+  assert(tostring(a) == nil)
+  -- cannot change a protected metatable
+  assert(pcall(setmetatable, a, {}) == false)
+  a.name = "gororoba"
+  assert(tostring(a) == "gororoba")
+end
+event_test();
+compile(event_test)
+--ravi.dumpllvm(event_test)
+event_test();
+print 'Test 51 OK'
+
+function test_intarray_as_table(t)
+  t.a = 'a'
+  --print(ravitype(t))
+end
+function do_test_intarray_as_table()
+  local iarray: integer[] = {1}
+  test_intarray_as_table(iarray);
+end
+assert(not pcall(do_test_intarray_as_table));
+compile(do_test_intarray_as_table);
+compile(test_intarray_as_table);
+assert(not pcall(do_test_intarray_as_table));
+print 'Test 52 OK'
+
+function test_numarray_meta()
+  local farray : number[] = {1.1, 2.2, 3.3}
+  setmetatable(farray, {
+    __name = 'matrix',
+    __tostring = function() return '{' .. table.concat(farray, ",") .. '}' end 
+    })
+  assert(ravitype(farray) == 'matrix')
+  assert(tostring(farray) == '{1.1,2.2,3.3}')
+end
+assert(pcall(test_numarray_meta));
+compile(test_numarray_meta);
+assert(pcall(test_numarray_meta));
+print 'Test 53 OK'
+
+
+function test_longkey()
+  local t: table = {}
+  t._01234567890123456789012345678901234567890123456789 = 4.2
+  assert(t._01234567890123456789012345678901234567890123456789 == 4.2)
+  t._01234567890 = 4.3
+  assert(t._01234567890 == 4.3)
+  t["_01234567890"] = 4.4
+  assert(t["_01234567890"] == 4.4)
+  local s = "_01234567890"
+  assert(t[s] == 4.4)
+  assert(t.s == nil) 
+end
+check(test_longkey,	'NEWTABLE', 'SETTABLE', 'GETTABUP', 'GETTABLE',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'SETTABLE_S', 'GETTABUP',
+  'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'SETTABLE_S',
+  'GETTABUP', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'LOADK', 'GETTABUP', 'GETTABLE', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'GETTABUP', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'RETURN')
+assert(pcall(test_longkey));
+compile(test_longkey);
+assert(pcall(test_longkey));
+print 'Test 53 OK'
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)
