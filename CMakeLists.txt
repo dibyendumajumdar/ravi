@@ -252,7 +252,7 @@ target_link_libraries(test_vm ${LIBRAVI_NAME})
 
 #AST test
 add_executable(test_ast tests/test_ast.c)
-target_link_libraries(test_ast libravi)
+target_link_libraries(test_ast ${LIBRAVI_NAME})
 
 if (LLVM_JIT)
     # LLVM playground

@@ -20,65 +20,10 @@
 #include "lstate.h"
 #include "lstring.h"
 #include "ltable.h"
-
 #include "ravi_ast.h"
 
-typedef enum {
-
-	/* Literals */
-	TNil,
-	TDots,
-	TTrue,
-	TFalse,
-	TNumber,
-	TStringLiteral,
-
-	/* */
-	TName,
-	TNameList,
-	TFunction,
-	TLocalFunction,
-	TReturn,
-
-	/* */
-	TExpList,
-	TUnaryExp,
-	TBinaryExp
-
-} TreeType;
-
-typedef struct RaviTree RaviTree;
-#define RaviTree_CommonFields \
-	TreeType type; /* The type of value in the tree */ \
-	RaviTree *parent; /* Parent node */ \
-	RaviTree *first; /* First child */ \
-	RaviTree *last; /* Last child */ \
-	RaviTree *next /* Next sibling */ 
-
-
-struct RaviTree {
-	RaviTree_CommonFields;
-};
-
-/* funcbody ::= ‘(’ [parlist] ‘)’ block end */
-typedef struct RaviFunctionTree {
-	RaviTree_CommonFields;
-
-	/* parlist ::= namelist [‘,’ ‘...’] | ‘...’ */
-	RaviTree *namelist;
-	RaviTree *dots;
-
-	RaviTree *block;
-
-} RaviFunctionTree;
-
-/* retstat ::= return [explist] [‘;’] */
-typedef struct RaviReturnStatementTree {
-	RaviTree_CommonFields;
-
-	RaviTree *explist;
-
-} RaviReturnStatementTree;
+// README
+// Set test_ast.c for a way to exercise this.
 
 LClosure *raviY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
                        Dyndata *dyd, const char *name, int firstchar) {

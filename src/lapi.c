@@ -1333,7 +1333,6 @@ LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
 */
 LUA_API int (ravi_load) (lua_State *L, lua_Reader reader, void *data,
                           const char *chunkname, const char *mode) {
-  (void) mode;
   ZIO z;
   int status;
   lua_lock(L);
@@ -1351,9 +1350,8 @@ LUA_API int (ravi_load) (lua_State *L, lua_Reader reader, void *data,
       luaC_upvalbarrier(L, f->upvals[0]);
     }
   }
-  lua_pushnil(L);
   lua_unlock(L);
-  return 0;
+  return status;
 }
 
 
