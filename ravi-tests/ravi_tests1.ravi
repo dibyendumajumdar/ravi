@@ -1382,6 +1382,12 @@ function test_yields_in_metamethods()
     end
     run(test)
   end
+
+  assert(run(function ()
+             local a: table = a
+             a.BB = print
+             return a.BB
+           end, {"nidx", "idx"}) == print)
 end
 assert(pcall(test_yields_in_metamethods));
 compile(test_longkey);

@@ -13,7 +13,7 @@ assert(io.output(io.stdout) == io.stdout)
 
 local function testerr (msg, f, ...)
   local stat, err = pcall(f, ...)
-  print(err)
+  -- print(err)
   return (not stat and string.find(err, msg, 1, true))
 end
 
