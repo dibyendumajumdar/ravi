@@ -293,7 +293,7 @@ assert(_G.f() == 11)
 assert(_G.f() == 12)
 
 
-if not T or ravi and ravi.auto() then
+if not T or ravi and ravi.auto() and not ravi.tracehook() then
   (Message or print)('\n >>> testC not active: skipping yield/hook tests <<<\n')
 else
   print "testing yields inside hooks"
