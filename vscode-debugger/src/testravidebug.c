@@ -111,13 +111,13 @@ int test_intpacking() {
   if (i1 != i2)
     return 1;
   PackedInteger pi;
-  pi.a8 = 0xFF;
-  pi.b8 = 0xFF;
-  pi.c8 = 0xFF;
-  pi.d8 = 0xFF;
-  pi.e8 = 0xFF;
-  pi.f8 = 0xFF;
-  pi.g4 = 0x0F;
+  pi.x8[0] = 0xFF;
+  pi.x8[1] = 0xFF;
+  pi.x8[2] = 0xFF;
+  pi.x8[3] = 0xFF;
+  pi.x8[4] = 0xFF;
+  pi.depth = 0xFF;
+  pi.vartype = 0x0F;
   int64_t i3 = vscode_pack(&pi);
   d = (double) i3;
   i2 = (int64_t) d;
@@ -129,14 +129,14 @@ int test_intpacking() {
   vscode_unpack(i3, &p2);
   if (memcmp(&pi, &p2, sizeof(PackedInteger)) != 0)
     return 1;
-  fprintf(stderr, "%x %x %x %x %x %x %x\n", p2.a8, p2.b8, p2.c8, p2.d8, p2.e8, p2.f8, p2.g4);
-  pi.a8 = 127;
-  pi.b8 = 212;
-  pi.c8 = 13;
-  pi.d8 = 55;
-  pi.e8 = 220;
-  pi.f8 = 0;
-  pi.g4 = 15;
+  fprintf(stderr, "%x %x %x %x %x %x %x\n", p2.x8[0], p2.x8[1], p2.x8[2], p2.x8[3], p2.x8[4], p2.depth, p2.vartype);
+  pi.x8[0] = 127;
+  pi.x8[1] = 212;
+  pi.x8[2] = 13;
+  pi.x8[3] = 55;
+  pi.x8[4] = 220;
+  pi.depth = 0;
+  pi.vartype = 15;
   i3 = vscode_pack(&pi);
   d = (double)i3;
   i2 = (int64_t)d;
@@ -144,7 +144,7 @@ int test_intpacking() {
   if (i3 != i2)
     return 1;
   vscode_unpack(i3, &p2);
-  fprintf(stderr, "%u %u %u %u %u %u %u\n", p2.a8, p2.b8, p2.c8, p2.d8, p2.e8, p2.f8, p2.g4);
+  fprintf(stderr, "%u %u %u %u %u %u %u\n", p2.x8[0], p2.x8[1], p2.x8[2], p2.x8[3], p2.x8[4], p2.depth, p2.vartype);
   if (memcmp(&pi, &p2, sizeof(PackedInteger)) != 0)
     return 1;
   return 0;
