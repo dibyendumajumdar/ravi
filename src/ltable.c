@@ -857,7 +857,7 @@ void raviH_get_number_array_rawdata(lua_State *L, Table *t, lua_Number **startp,
   lua_assert(t->ravi_array.array_type == RAVI_TARRAYFLT);
   lua_Number *data = (lua_Number *)t->ravi_array.data;
   *startp = data;
-  *endp = data + t->ravi_array.len + 1;
+  *endp = data + t->ravi_array.len;
 }
 
 void raviH_get_integer_array_rawdata(lua_State *L, Table *t, lua_Integer **startp, lua_Integer **endp) {
@@ -865,7 +865,7 @@ void raviH_get_integer_array_rawdata(lua_State *L, Table *t, lua_Integer **start
   lua_assert(t->ravi_array.array_type == RAVI_TARRAYINT);
   lua_Integer *data = (lua_Integer *)t->ravi_array.data;
   *startp = data;
-  *endp = data + t->ravi_array.len + 1;
+  *endp = data + t->ravi_array.len;
 }
 
 static const char *key_orig_table = "Originaltable";
