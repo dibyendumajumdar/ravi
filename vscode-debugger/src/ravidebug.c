@@ -579,16 +579,16 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
   int j = 0; /* j is the index in response */
   assert(depth <= 5);
   int var = depth == 5 ? 0 : parent->x8[depth];
-  fprintf(my_logger, "get_table_values() --> depth = %d var request = %d\n",
-          depth, var);
+  //fprintf(my_logger, "get_table_values() --> depth = %d var request = %d\n",
+  //        depth, var);
 
   while (lua_next(L, -2) && j < MAX_VARIABLES) {
     // stack now contains: -1 => value; -2 => key; -3 => table
     if (var != 0) {
       /* drill down if we are on the requested variable */
       if (v == var && lua_type(L, -1) == LUA_TTABLE && depth < 5) {
-        fprintf(my_logger,
-                "get_table_values() --> drilling down var request = %d\n", var);
+        //fprintf(my_logger,
+        //        "get_table_values() --> drilling down var request = %d\n", var);
         get_table_values(res, L, -1, parent, depth + 1, true, filter);
       }
       lua_pop(L, 1);
@@ -628,16 +628,16 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
           for (int i = 0; i < depth; i++) pi.x8[i] = parent->x8[i];
           assert(depth >= 0 && depth < 5);
           pi.x8[depth] = v; /* cannot be zero based !*/
-          fprintf(my_logger,
-                  "Encoding table index [%s] as vartype=%s depth=%u %u %u %u "
-                  "%u %d\n",
-                  key, var_type_as_string(pi.vartype), pi.depth, pi.x8[0],
-                  pi.x8[1], pi.x8[2], pi.x8[3], pi.x8[4]);
+          //fprintf(my_logger,
+          //        "Encoding table index [%s] as vartype=%s depth=%u %u %u %u "
+          //        "%u %d\n",
+          //        key, var_type_as_string(pi.vartype), pi.depth, pi.x8[0],
+          //        pi.x8[1], pi.x8[2], pi.x8[3], pi.x8[4]);
           res->u.Response.u.VariablesResponse.variables[j].variablesReference =
               vscode_pack(&pi);
-          fprintf(my_logger, "Key %s variable reference %lld\n", key,
-                  res->u.Response.u.VariablesResponse.variables[j]
-                      .variablesReference);
+          //fprintf(my_logger, "Key %s variable reference %lld\n", key,
+          //        res->u.Response.u.VariablesResponse.variables[j]
+          //            .variablesReference);
         } else {
           /* We do not support further drill down */
           res->u.Response.u.VariablesResponse.variables[j].variablesReference =
@@ -670,10 +670,10 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
   PackedInteger pi;
   memset(&pi, 0, sizeof pi);
   vscode_unpack(varRef, &pi);
-  fprintf(my_logger,
-          "Unpacked variable reference to vartype=%s depth=%u %u %u %u %u %d\n",
-          var_type_as_string(pi.vartype), pi.depth, pi.x8[0], pi.x8[1],
-          pi.x8[2], pi.x8[3], pi.x8[4]);
+  //fprintf(my_logger,
+  //        "Unpacked variable reference to vartype=%s depth=%u %u %u %u %u %d\n",
+  //        var_type_as_string(pi.vartype), pi.depth, pi.x8[0], pi.x8[1],
+  //        pi.x8[2], pi.x8[3], pi.x8[4]);
 
   /*
    * The variable reference is encoded such that it contains:
