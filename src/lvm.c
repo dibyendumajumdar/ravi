@@ -34,7 +34,7 @@
 #include "ltable.h"
 #include "ltm.h"
 #include "lvm.h"
-
+#include "ravi_profile.h"
 
 /* limit for table tag-method chains (to avoid loops) */
 #define MAXTAGLOOP	2000
@@ -952,6 +952,7 @@ int luaV_execute (lua_State *L) {
   k = cl->p->k;  /* local reference to function's constant table */
   base = ci->u.l.base;  /* local copy of function's base */
   /* main loop of interpreter */
+  OpCode prevop = -1;
   for (;;) {
     Instruction i = *(ci->u.l.savedpc++);
     StkId ra;
@@ -959,6 +960,8 @@ int luaV_execute (lua_State *L) {
       Protect(luaG_traceexec(L));
     /* WARNING: several calls may realloc the stack and invalidate 'ra' */
     OpCode op = GET_OPCODE(i);
+    if (prevop != -1) raviV_add_profiledata(prevop);
+    prevop = op;
 #if 0
     RAVI_DEBUG_STACK(
         ravi_debug_trace(L, op, (ci->u.l.savedpc - cl->p->code) - 1));
@@ -1356,6 +1359,7 @@ int luaV_execute (lua_State *L) {
              in JIT mode (see how b is handled in OP_CALL JIT implementation)
              or via luaD_precall() if a JITed function is invoked (see
              ldo.c for how luaD_precall() handles this */
+          raviV_add_profiledata(op);
           return b; /* external invocation: return */
         }
         else {  /* invocation via reentry: continue execution */
@@ -1363,6 +1367,7 @@ int luaV_execute (lua_State *L) {
           if (b) L->top = ci->top;
           lua_assert(isLua(ci));
           lua_assert(GET_OPCODE(*((ci)->u.l.savedpc - 1)) == OP_CALL);
+          raviV_add_profiledata(op);
           goto newframe;  /* restart luaV_execute over new Lua function */
         }
       }
