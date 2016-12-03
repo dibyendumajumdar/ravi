@@ -512,7 +512,7 @@ Above are two other cases where ``VARARG`` needs to copy all passed parameters
 over to a set of registers in order for the next operation to proceed. Both the above forms of 
 table creation and return accepts a variable number of values or objects.
 
-'``LOADBOOL``' instruction
+'``OP_LOADBOOL``' instruction
 =========================
 
 Syntax
@@ -557,7 +557,7 @@ Next, look at this line::
 
   f=load('local a = 5 > 2')
 
-This leadss to following bytecode::
+This leads to following bytecode::
 
   main <(string):0,0> (5 instructions at 0000020F274BAE00)
   0+ params, 2 slots, 1 upvalue, 1 local, 2 constants, 0 functions
