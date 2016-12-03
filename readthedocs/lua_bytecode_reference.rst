@@ -934,7 +934,7 @@ Short-circuit logical operators also means that the following Lua code does not 
   upvalues (1) for 0000020F274D1150:
         0       _ENV    1       0
 
-With short-circuit evaluation, ``a > c`` is never executed if ``a > b`` is false, so the logic of the Lua statement can be readily implemented using the normal conditional structure. If both ``a > b`` and ``a > c`` are true, the path followed is [2] (the ``a > b`` test) to [4] (the ``a > c`` test) and finally to [6], returning the value of ``a``. A ``TEST`` instruction is not required. This is equivalent to:
+With short-circuit evaluation, ``a > c`` is never executed if ``a > b`` is false, so the logic of the Lua statement can be readily implemented using the normal conditional structure. If both ``a > b`` and ``a > c`` are true, the path followed is [2] (the ``a > b`` test) to [4] (the ``a > c`` test) and finally to [6], returning the value of ``a``. A ``TEST`` instruction is not required. This is equivalent to::
 
   if a > b then  
     if a > c then    
