@@ -512,6 +512,98 @@ Above are two other cases where ``VARARG`` needs to copy all passed parameters
 over to a set of registers in order for the next operation to proceed. Both the above forms of 
 table creation and return accepts a variable number of values or objects.
 
+'``LOADBOOL``' instruction
+=========================
+
+Syntax
+------
+
+::
+
+  LOADBOOL A B C    R(A) := (Bool)B; if (C) pc++      
+
+Description
+-----------
+
+Loads a boolean value (true or false) into register R(A). true is usually encoded as an integer 1, false is always 0. If C is non-zero, then the next instruction is skipped (this is used when you have an assignment statement where the expression uses relational operators, e.g. M = K>5.)
+You can use any non-zero value for the boolean true in field B, but since you cannot use booleans as numbers in Lua, it’s best to stick to 1 for true.
+
+``LOADBOOL`` is used for loading a boolean value into a register. It’s also used where a boolean result is supposed to be generated, because relational test instructions, for example, do not generate boolean results – they perform conditional jumps instead. The operand C is used to optionally skip the next instruction (by incrementing PC by 1) in order to support such code. For simple assignments of boolean values, C is always 0.
+
+Examples
+--------
+
+The following line of code::
+
+  f=load('local a,b = true,false')
+
+generates::
+
+  main <(string):0,0> (3 instructions at 0000020F274C2610)
+  0+ params, 2 slots, 1 upvalue, 2 locals, 0 constants, 0 functions
+        1       [1]     LOADBOOL        0 1 0
+        2       [1]     LOADBOOL        1 0 0
+        3       [1]     RETURN          0 1
+  constants (0) for 0000020F274C2610:
+  locals (2) for 0000020F274C2610:
+        0       a       3       4
+        1       b       3       4
+  upvalues (1) for 0000020F274C2610:
+        0       _ENV    1       0
+
+This example is straightforward: Line [1] assigns true to local a (register 0) while line [2] assigns false to local b (register 1). In both cases, field C is 0, so PC is not incremented and the next instruction is not skipped.
+
+Next, look at this line::
+
+  f=load('local a = 5 > 2')
+
+This leadss to following bytecode::
+
+  main <(string):0,0> (5 instructions at 0000020F274BAE00)
+  0+ params, 2 slots, 1 upvalue, 1 local, 2 constants, 0 functions
+        1       [1]     LT              1 -2 -1 ; 2 5
+        2       [1]     JMP             0 1     ; to 4
+        3       [1]     LOADBOOL        0 0 1
+        4       [1]     LOADBOOL        0 1 0
+        5       [1]     RETURN          0 1
+  constants (2) for 0000020F274BAE00:
+        1       5
+        2       2
+  locals (1) for 0000020F274BAE00:
+        0       a       5       6
+  upvalues (1) for 0000020F274BAE00:
+        0       _ENV    1       0
+
+This is an example of an expression that gives a boolean result and is assigned to a variable. Notice that Lua does not optimize the expression into a true value; Lua does not perform compile-time constant evaluation for relational operations, but it can perform simple constant evaluation for arithmetic operations.
+
+Since the relational operator ``LT``  does not give a boolean result but performs a conditional jump, ``LOADBOOL`` uses its C operand to perform an unconditional jump in line [3] – this saves one instruction and makes things a little tidier. The reason for all this is that the instruction set is simply optimized for if...then blocks. Essentially, ``local a = 5 > 2`` is executed in the following way::
+
+  local a 
+  if 2 < 5 then  
+    a = true 
+  else  
+    a = false 
+  end
+
+In the disassembly listing, when ``LT`` tests 2 < 5, it evaluates to true and doesn’t perform a conditional jump. Line [2] jumps over the false result path, and in line [4], the local a (register 0) is assigned the boolean true by the instruction ``LOADBOOL``. If 2 and 5 were reversed, line [3] will be followed instead, setting a false, and then the true result path (line [4]) will be skipped, since ``LOADBOOL`` has its field C set to non-zero.
+
+So the true result path goes like this (additional comments in parentheses)::
+
+        1       [1]     LT              1 -2 -1 ; 2 5       (if 2 < 5)
+        2       [1]     JMP             0 1     ; to 4     
+        4       [1]     LOADBOOL        0 1 0   ;           (a = true)           
+        5       [1]     RETURN          0 1
+
+and the false result path (which never executes in this example) goes like this::
+
+        1       [1]     LT              1 -2 -1 ; 2 5       (if 2 < 5)
+        3       [1]     LOADBOOL        0 0 1               (a = false)
+        5       [1]     RETURN          0 1
+
+The true result path looks longer, but it isn’t, due to the way the virtual machine is implemented. This will be discussed further in the section on relational and logic instructions.
+
+
+
 Relational And logic Instructions
 =================================
 
@@ -686,3 +778,4 @@ Generates::
 
 This example is a little more complex, but the blocks are structured in the same order 
 as the Lua source, so interpreting the disassembled code should not be too hard.
+
