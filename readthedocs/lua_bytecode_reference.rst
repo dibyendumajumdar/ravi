@@ -779,3 +779,255 @@ Generates::
 This example is a little more complex, but the blocks are structured in the same order 
 as the Lua source, so interpreting the disassembled code should not be too hard.
 
+'``OP_TEST``' and '``OP_TESTSET``' instructions
+===============================================
+
+Syntax
+------
+
+::
+
+  TEST        A C     if not (R(A) <=> C) then pc++     
+  TESTSET     A B C   if (R(B) <=> C) then R(A) := R(B) else pc++ 
+
+Description
+-----------
+These two instructions used for performing boolean tests and implementing Lua’s logic operators.
+
+Used to implement and and or logical operators, or for testing a single register in a conditional statement.
+
+For ``TESTSET``, register R(B) is coerced into a boolean and compared to the boolean field C. If R(B) matches C, the next instruction is skipped, otherwise R(B) is assigned to R(A) and the VM continues with the next instruction. The and operator uses a C of 0 (false) while or uses a C value of 1 (true).
+
+``TEST`` is a more primitive version of ``TESTSET``. ``TEST`` is used when the assignment operation is not needed, otherwise it is the same as ``TESTSET`` except that the operand slots are different.
+
+For the fall-through case, a ``JMP`` is always expected, in order to optimize execution in the virtual machine. In effect, ``TEST`` and ``TESTSET`` must always be paired with a following ``JMP`` instruction.
+
+Examples
+--------
+
+``TEST`` and ``TESTSET`` are used in conjunction with a following ``JMP`` instruction, while ``TESTSET`` has an addditional conditional assignment. Like ``EQ``, ``LT`` and ``LE``, the following ``JMP`` instruction is compulsory, as the virtual machine will execute the ``JMP`` together with ``TEST`` or ``TESTSET``. The two instructions are used to implement short-circuit LISP-style logical operators that retains and propagates operand values instead of booleans. First, we’ll look at how and and or behaves::
+
+  f=load('local a,b,c; c = a and b')
+
+Generates::
+
+  main <(string):0,0> (5 instructions at 0000020F274CF1A0)
+  0+ params, 3 slots, 1 upvalue, 3 locals, 0 constants, 0 functions
+        1       [1]     LOADNIL         0 2
+        2       [1]     TESTSET         2 0 0   ; to 4 if true 
+        3       [1]     JMP             0 1     ; to 5
+        4       [1]     MOVE            2 1
+        5       [1]     RETURN          0 1
+  constants (0) for 0000020F274CF1A0:
+  locals (3) for 0000020F274CF1A0:
+        0       a       2       6
+        1       b       2       6
+        2       c       2       6
+  upvalues (1) for 0000020F274CF1A0:
+        0       _ENV    1       0
+
+An ``and`` sequence exits on ``false`` operands (which can be ``false`` or ``nil``) because any ``false`` operands in a string of and operations will make the whole boolean expression ``false``. If operands evaluates to ``true``, evaluation continues. When a string of ``and`` operations evaluates to ``true``, the result is the last operand value.
+
+In line [2], the first operand (the local a) is set to local c when the test is false (with a field C of 0), while the jump to [4] is made when the test is true, and then in line [4], the expression result is set to the second operand (the local b). This is equivalent to::
+
+  if a then  
+    c = b      -- executed by MOVE on line [4] 
+  else  
+    c = a      -- executed by TESTSET on line [2] 
+  end
+
+The ``c = a`` portion is done by ``TESTSET`` itself, while ``MOVE`` performs ``c = b``. Now, if the result is already set with one of the possible values, a ``TEST`` instruction is used instead::
+
+  f=load('local a,b; a = a and b')
+
+Generates::
+
+  main <(string):0,0> (5 instructions at 0000020F274D0A70)
+  0+ params, 2 slots, 1 upvalue, 2 locals, 0 constants, 0 functions
+        1       [1]     LOADNIL         0 1
+        2       [1]     TEST            0 0     ; to 4 if true 
+        3       [1]     JMP             0 1     ; to 5
+        4       [1]     MOVE            0 1
+        5       [1]     RETURN          0 1
+  constants (0) for 0000020F274D0A70:
+  locals (2) for 0000020F274D0A70:
+        0       a       2       6
+        1       b       2       6
+  upvalues (1) for 0000020F274D0A70:
+        0       _ENV    1       0
+
+The ``TEST`` instruction does not perform an assignment operation, since ``a = a`` is redundant. This makes ``TEST`` a little faster. This is equivalent to::
+
+  if a then  
+    a = b 
+  end
+
+Next, we will look at the or operator::
+
+  f=load('local a,b,c; c = a or b')
+
+Generates::
+
+  main <(string):0,0> (5 instructions at 0000020F274D1AB0)
+  0+ params, 3 slots, 1 upvalue, 3 locals, 0 constants, 0 functions
+        1       [1]     LOADNIL         0 2
+        2       [1]     TESTSET         2 0 1   ; to 4 if false 
+        3       [1]     JMP             0 1     ; to 5
+        4       [1]     MOVE            2 1
+        5       [1]     RETURN          0 1
+  constants (0) for 0000020F274D1AB0:
+  locals (3) for 0000020F274D1AB0:
+        0       a       2       6
+        1       b       2       6
+        2       c       2       6
+  upvalues (1) for 0000020F274D1AB0:
+        0       _ENV    1       0
+
+An ``or`` sequence exits on ``true`` operands, because any operands evaluating to ``true`` in a string of or operations will make the whole boolean expression ``true``. If operands evaluates to ``false``, evaluation continues. When a string of or operations evaluates to ``false``, all operands must have evaluated to ``false``.
+
+In line [2], the local ``a`` value is set to local c if it is ``true``, while the jump is made if it is ``false`` (the field C is 1). Thus in line [4], the local ``b`` value is the result of the expression if local ``a`` evaluates to ``false``. This is equivalent to::
+
+  if a then  
+    c = a      -- executed by TESTSET on line [2] 
+  else  
+    c = b      -- executed by MOVE on line [4] 
+  end
+
+Like the case of and, TEST is used when the result already has one of the possible values, saving an assignment operation::
+
+  f=load('local a,b; a = a or b')
+
+Generates::
+
+  main <(string):0,0> (5 instructions at 0000020F274D1010)
+  0+ params, 2 slots, 1 upvalue, 2 locals, 0 constants, 0 functions
+        1       [1]     LOADNIL         0 1
+        2       [1]     TEST            0 1     ; to 4 if false
+        3       [1]     JMP             0 1     ; to 5
+        4       [1]     MOVE            0 1
+        5       [1]     RETURN          0 1
+  constants (0) for 0000020F274D1010:
+  locals (2) for 0000020F274D1010:
+        0       a       2       6
+        1       b       2       6
+  upvalues (1) for 0000020F274D1010:
+        0       _ENV    1       0
+
+Short-circuit logical operators also means that the following Lua code does not require the use of a boolean operation::
+
+  f=load('local a,b,c; if a > b and a > c then return a end')
+
+  main <(string):0,0> (7 instructions at 0000020F274D1150)
+  0+ params, 3 slots, 1 upvalue, 3 locals, 0 constants, 0 functions
+        1       [1]     LOADNIL         0 2
+        2       [1]     LT              0 1 0   ; to 4 if true
+        3       [1]     JMP             0 3     ; to 7
+        4       [1]     LT              0 2 0   ; to 6 if true
+        5       [1]     JMP             0 1     ; to 7
+        6       [1]     RETURN          0 2
+        7       [1]     RETURN          0 1
+  constants (0) for 0000020F274D1150:
+  locals (3) for 0000020F274D1150:
+        0       a       2       8
+        1       b       2       8
+        2       c       2       8
+  upvalues (1) for 0000020F274D1150:
+        0       _ENV    1       0
+
+With short-circuit evaluation, ``a > c`` is never executed if ``a > b`` is false, so the logic of the Lua statement can be readily implemented using the normal conditional structure. If both ``a > b`` and ``a > c`` are true, the path followed is [2] (the ``a > b`` test) to [4] (the ``a > c`` test) and finally to [6], returning the value of ``a``. A ``TEST`` instruction is not required. This is equivalent to:
+
+  if a > b then  
+    if a > c then    
+      return a  
+    end 
+  end
+
+For a single variable used in the expression part of a conditional statement, ``TEST`` is used to boolean-test the variable::
+
+  f=load('if Done then return end')
+
+  main <(string):0,0> (5 instructions at 0000020F274D13D0)
+  0+ params, 2 slots, 1 upvalue, 0 locals, 1 constant, 0 functions
+        1       [1]     GETTABUP        0 0 -1  ; _ENV "Done"
+        2       [1]     TEST            0 0     ; to 4 if true
+        3       [1]     JMP             0 1     ; to 5
+        4       [1]     RETURN          0 1
+        5       [1]     RETURN          0 1
+  constants (1) for 0000020F274D13D0:
+        1       "Done"
+  locals (0) for 0000020F274D13D0:
+  upvalues (1) for 0000020F274D13D0:
+        0       _ENV    1       0
+
+In line [2], the ``TEST`` instruction jumps to the ``true`` block if the value in temporary register 0 (from the global ``Done``) is ``true``. The ``JMP`` at line [3] jumps over the ``true`` block, which is the code inside the if block (line [4]).
+
+If the test expression of a conditional statement consist of purely boolean operators, then a number of TEST instructions will be used in the usual short-circuit evaluation style::
+
+  f=load('if Found and Match then return end')
+
+  main <(string):0,0> (8 instructions at 0000020F274D1C90)
+  0+ params, 2 slots, 1 upvalue, 0 locals, 2 constants, 0 functions
+        1       [1]     GETTABUP        0 0 -1  ; _ENV "Found"
+        2       [1]     TEST            0 0     ; to 4 if true
+        3       [1]     JMP             0 4     ; to 8
+        4       [1]     GETTABUP        0 0 -2  ; _ENV "Match"
+        5       [1]     TEST            0 0     ; to 7 if true
+        6       [1]     JMP             0 1     ; to 8
+        7       [1]     RETURN          0 1
+        8       [1]     RETURN          0 1
+  constants (2) for 0000020F274D1C90:
+        1       "Found"
+        2       "Match"
+  locals (0) for 0000020F274D1C90:
+  upvalues (1) for 0000020F274D1C90:
+        0       _ENV    1       0
+
+In the last example, the true block of the conditional statement is executed only if both ``Found`` and ``Match`` evaluate to ``true``. The path is from [2] (test for ``Found``) to [4] to [5] (test for ``Match``) to [7] (the true block, which is an explicit ``return`` statement.)
+
+If the statement has an ``else`` section, then the ``JMP`` on line [6] will jump to the false block (the ``else`` block) while an additional ``JMP`` will be added to the true block to jump over this new block of code. If ``or`` is used instead of ``and``, the appropriate C operand will be adjusted accordingly.
+
+Finally, here is how Lua’s ternary operator (:? in C) equivalent works::
+
+  f=load('local a,b,c; a = a and b or c')
+
+  main <(string):0,0> (7 instructions at 0000020F274D1A10)
+  0+ params, 3 slots, 1 upvalue, 3 locals, 0 constants, 0 functions
+        1       [1]     LOADNIL         0 2
+        2       [1]     TEST            0 0     ; to 4 if true
+        3       [1]     JMP             0 2     ; to 6
+        4       [1]     TESTSET         0 1 1   ; to 6 if false
+        5       [1]     JMP             0 1     ; to 7
+        6       [1]     MOVE            0 2
+        7       [1]     RETURN          0 1
+  constants (0) for 0000020F274D1A10:
+  locals (3) for 0000020F274D1A10:
+        0       a       2       8
+        1       b       2       8
+        2       c       2       8
+  upvalues (1) for 0000020F274D1A10:
+        0       _ENV    1       0
+
+The ``TEST`` in line [2] is for the ``and`` operator. First, local ``a`` is tested in line [2]. If it is false, then execution continues in [3], jumping to line [6]. Line [6] assigns local ``c`` to the end result because since if ``a`` is false, then ``a and b`` is ``false``, and ``false or c`` is ``c``.
+
+If local ``a`` is ``true`` in line [2], the ``TEST`` instruction makes a jump to line [4], where there is a ``TESTSET``, for the ``or`` operator. If ``b`` evaluates to ``true``, then the end result is assigned the value of ``b``, because ``b or c`` is ``b`` if ``b`` is ``not false``. If ``b`` is also ``false``, the end result will be ``c``.
+
+For the instructions in line [2], [4] and [6], the target (in field A) is register 0, or the local ``a``, which is the location where the result of the boolean expression is assigned. The equivalent Lua code is::
+
+  if a then  
+    if b then    
+      a = b  
+    else    
+      a = c  
+    end 
+  else  
+    a = c 
+  end
+
+The two ``a = c`` assignments are actually the same piece of code, but are repeated here to avoid using a ``goto`` and a label. Normally, if we assume ``b`` is ``not false`` and ``not nil``, we end up with the more recognizable form::
+
+  if a then  
+    a = b     -- assuming b ~= false 
+  else  
+    a = c 
+  end
+
