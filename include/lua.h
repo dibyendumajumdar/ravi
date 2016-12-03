@@ -545,6 +545,7 @@ LUA_API void ravi_set_debuglevel(int level);
 #define RAVI_DEBUG_STACK(p) if ((ravi_parser_debug & 8) != 0) {p;} else {}
 
 #define RAVI_ENABLED 1
+#define RAVI_BYTECODE_PROFILING_ENABLED 0
 
 
 

@@ -960,7 +960,9 @@ int luaV_execute (lua_State *L) {
       Protect(luaG_traceexec(L));
     /* WARNING: several calls may realloc the stack and invalidate 'ra' */
     OpCode op = GET_OPCODE(i);
-    if (prevop != -1) raviV_add_profiledata(prevop);
+#if RAVI_BYTECODE_PROFILING_ENABLED
+    if (prevop != -1) raviV_add_profiledata(L, prevop);
+#endif
     prevop = op;
 #if 0
     RAVI_DEBUG_STACK(
@@ -1359,7 +1361,9 @@ int luaV_execute (lua_State *L) {
              in JIT mode (see how b is handled in OP_CALL JIT implementation)
              or via luaD_precall() if a JITed function is invoked (see
              ldo.c for how luaD_precall() handles this */
-          raviV_add_profiledata(op);
+#if RAVI_BYTECODE_PROFILING_ENABLED
+          raviV_add_profiledata(L, op);
+#endif
           return b; /* external invocation: return */
         }
         else {  /* invocation via reentry: continue execution */
@@ -1367,7 +1371,9 @@ int luaV_execute (lua_State *L) {
           if (b) L->top = ci->top;
           lua_assert(isLua(ci));
           lua_assert(GET_OPCODE(*((ci)->u.l.savedpc - 1)) == OP_CALL);
-          raviV_add_profiledata(op);
+#if RAVI_BYTECODE_PROFILING_ENABLED
+          raviV_add_profiledata(L, op);
+#endif
           goto newframe;  /* restart luaV_execute over new Lua function */
         }
       }

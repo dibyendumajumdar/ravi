@@ -160,6 +160,11 @@ typedef struct global_State {
   ravi_Writestring ravi_writestring;
   ravi_Writestringerror ravi_writestringerror;
   void * ravi_debugger_data;
+#if RAVI_BYTECODE_PROFILING_ENABLED
+  unsigned long long *ravi_profile1;
+  unsigned long long *ravi_profile2;
+  unsigned long long ravi_prev_time;
+#endif
 } global_State;
 
 
