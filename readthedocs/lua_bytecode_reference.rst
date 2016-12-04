@@ -1047,9 +1047,9 @@ Syntax
 ------
 ::
 
-  OP_FORPREP    A sBx   R(A)-=R(A+2); pc+=sBx
-  OP_FORLOOP    A sBx   R(A)+=R(A+2);
-                        if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }
+  FORPREP    A sBx   R(A)-=R(A+2); pc+=sBx
+  FORLOOP    A sBx   R(A)+=R(A+2);
+                     if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }
 
 
 Description
@@ -1141,3 +1141,71 @@ This leads to::
 
 In the second loop example above, except for a negative loop step size, the structure of the loop is identical. The body of the loop is from line [5] to line [7]. Since no additional stacks or states are used, a break translates simply to a ``JMP`` instruction (line [6]). There is nothing to clean up after a ``FORLOOP`` ends or after a ``JMP`` to exit a loop.
 
+
+'``OP_TFORCALL``' and '``OP_TFORLOOP``' instructions
+====================================================
+
+Syntax
+------
+::
+
+  TFORCALL    A C        R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2))
+  TFORLOOP    A sBx      if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }
+
+Description
+-----------
+Apart from a numeric ``for`` loop (implemented by ``FORPREP`` and ``FORLOOP``), Lua has a generic ``for`` loop, implemented by ``TFORCALL`` and ``TFORLOOP``.
+
+Performs an iteration of a generic for loop. A Lua 5-style generic ``for`` loop keeps 3 items in consecutive register locations to keep track of things. R(A) is the iterator function, which is called once per loop. R(A+1) is the state, and R(A+2) is the control variable. At the start, R(A+2) has an initial value. R(A), R(A+1) and R(A+2) are internal to the loop and cannot be accessed by the programmer; at first, they are set with an initial state.
+
+In addition to these internal loop variables, the programmer specifies one or more loop variables that are external and visible to the programmer. These loop variables reside at locations R(A+3) onwards, and their count is specified in operand C. Operand C must be at least 1. They are also local to the loop body, like the external loop index in a numerical for loop.
+
+Each time ``TFORCALL`` executes, the iterator function referenced by R(A) is called with two arguments: the state and the control variable (R(A+1) and R(A+2).) The results are returned in the local loop variables, from R(A+3) onwards, up to R(A+2+C).
+
+Next, the ``TFORLOOP`` instruction tests the first return value, R(A+3). If it is nil, the iterator loop is at an end, and the ``for`` loop block ends. Note that the state of the generic ``for`` loop does not depend on any of the external iterator variables that are visible to the programmer.
+
+If R(A+3) is not nil, there is another iteration, and R(A+3) is assigned as the new value of the control variable, R(A+2). Then the ``TFORLOOP`` instruction sends execution back to the beginning of the loop. 
+
+
+Examples
+--------
+This example has a loop with one additional result (``v``) in addition the loop enumerator (``i``)::
+
+  f=load('for i,v in pairs(t) do print(i,v) end')
+
+This produces::
+
+  main <(string):0,0> (11 instructions at 0000014DB7FD2610)
+  0+ params, 8 slots, 1 upvalue, 5 locals, 3 constants, 0 functions
+        1       [1]     GETTABUP        0 0 -1  ; _ENV "pairs"
+        2       [1]     GETTABUP        1 0 -2  ; _ENV "t"
+        3       [1]     CALL            0 2 4
+        4       [1]     JMP             0 4     ; to 9
+        5       [1]     GETTABUP        5 0 -3  ; _ENV "print"
+        6       [1]     MOVE            6 3
+        7       [1]     MOVE            7 4
+        8       [1]     CALL            5 3 1
+        9       [1]     TFORCALL        0 2
+        10      [1]     TFORLOOP        2 -6    ; to 5
+        11      [1]     RETURN          0 1
+  constants (3) for 0000014DB7FD2610:
+        1       "pairs"
+        2       "t"
+        3       "print"
+  locals (5) for 0000014DB7FD2610:
+        0       (for generator) 4       11
+        1       (for state)     4       11
+        2       (for control)   4       11
+        3       i       5       9
+        4       v       5       9
+  upvalues (1) for 0000014DB7FD2610:
+        0       _ENV    1       0
+
+
+The iterator function is located in register 0, and is named ``(for generator)`` for debugging purposes. The state is in register 1, and has the name ``(for state)``. The control variable, ``(for control)``, is contained in register 2. These correspond to locals R(A), R(A+1) and R(A+2) in the ``TFORCALL`` description. Results from the iterator function call is placed into register 3 and 4, which are locals ``i`` and ``v``, respectively. On line [9], the operand C of ``TFORCALL`` is 2, corresponding to two iterator variables (``i`` and ``v``).
+
+Lines [1]–[3] prepares the iterator state. Note that the call to the pairs standard library function has 1 parameter and 3 results. After the call in line [3], register 0 is the iterator function, register 1 is the loop state, register 2 is the initial value of the control variable. The iterator variables ``i`` and ``v`` are both invalid at the moment, because we have not entered the loop yet.
+
+Line [4] is a ``JMP`` to ``TFORCALL`` on line [9]. With the initial (or zeroth) iterator state, ``TFORCALL`` calls the iterator function, generating the first set of enumeration results in locals ``i``, ``v``. If ``i`` is not nil, the internal control variable (register 2) is set and the ``TFORLOOP`` on the next line is immediately executed, starting the first iteration of the loop body (lines [5]–[8]).
+
+The body of the generic ``for`` loop executes (``print(i,v)``) and then ``TFORCALL`` is encountered again, calling the iterator function to get the next iteration state. Finally, when the first result is a nil, the loop ends, and execution continues on line [11].
