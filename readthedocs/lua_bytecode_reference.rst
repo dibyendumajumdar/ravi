@@ -1156,20 +1156,20 @@ Description
 -----------
 Apart from a numeric ``for`` loop (implemented by ``FORPREP`` and ``FORLOOP``), Lua has a generic ``for`` loop, implemented by ``TFORCALL`` and ``TFORLOOP``.
 
-Performs an iteration of a generic for loop. A Lua 5-style generic ``for`` loop keeps 3 items in consecutive register locations to keep track of things. R(A) is the iterator function, which is called once per loop. R(A+1) is the state, and R(A+2) is the control variable. At the start, R(A+2) has an initial value. R(A), R(A+1) and R(A+2) are internal to the loop and cannot be accessed by the programmer; at first, they are set with an initial state.
+The generic ``for`` loop keeps 3 items in consecutive register locations to keep track of things. R(A) is the iterator function, which is called once per loop. R(A+1) is the state, and R(A+2) is the control variable. At the start, R(A+2) has an initial value. R(A), R(A+1) and R(A+2) are internal to the loop and cannot be accessed by the programmer.
 
 In addition to these internal loop variables, the programmer specifies one or more loop variables that are external and visible to the programmer. These loop variables reside at locations R(A+3) onwards, and their count is specified in operand C. Operand C must be at least 1. They are also local to the loop body, like the external loop index in a numerical for loop.
 
-Each time ``TFORCALL`` executes, the iterator function referenced by R(A) is called with two arguments: the state and the control variable (R(A+1) and R(A+2).) The results are returned in the local loop variables, from R(A+3) onwards, up to R(A+2+C).
+Each time ``TFORCALL`` executes, the iterator function referenced by R(A) is called with two arguments: the state and the control variable (R(A+1) and R(A+2)). The results are returned in the local loop variables, from R(A+3) onwards, up to R(A+2+C).
 
-Next, the ``TFORLOOP`` instruction tests the first return value, R(A+3). If it is nil, the iterator loop is at an end, and the ``for`` loop block ends. Note that the state of the generic ``for`` loop does not depend on any of the external iterator variables that are visible to the programmer.
+Next, the ``TFORLOOP`` instruction tests the first return value, R(A+3). If it is nil, the iterator loop is at an end, and the ``for`` loop block ends by simply moving to the next instruction.
 
-If R(A+3) is not nil, there is another iteration, and R(A+3) is assigned as the new value of the control variable, R(A+2). Then the ``TFORLOOP`` instruction sends execution back to the beginning of the loop. 
+If R(A+3) is not nil, there is another iteration, and R(A+3) is assigned as the new value of the control variable, R(A+2). Then the ``TFORLOOP`` instruction sends execution back to the beginning of the loop (the ``sBx`` operand specifies how many instructions to move to get to the start of the loop body). 
 
 
 Examples
 --------
-This example has a loop with one additional result (``v``) in addition the loop enumerator (``i``)::
+This example has a loop with one additional result (``v``) in addition to the loop enumerator (``i``)::
 
   f=load('for i,v in pairs(t) do print(i,v) end')
 
@@ -1204,8 +1204,10 @@ This produces::
 
 The iterator function is located in register 0, and is named ``(for generator)`` for debugging purposes. The state is in register 1, and has the name ``(for state)``. The control variable, ``(for control)``, is contained in register 2. These correspond to locals R(A), R(A+1) and R(A+2) in the ``TFORCALL`` description. Results from the iterator function call is placed into register 3 and 4, which are locals ``i`` and ``v``, respectively. On line [9], the operand C of ``TFORCALL`` is 2, corresponding to two iterator variables (``i`` and ``v``).
 
-Lines [1]–[3] prepares the iterator state. Note that the call to the pairs standard library function has 1 parameter and 3 results. After the call in line [3], register 0 is the iterator function, register 1 is the loop state, register 2 is the initial value of the control variable. The iterator variables ``i`` and ``v`` are both invalid at the moment, because we have not entered the loop yet.
+Lines [1]–[3] prepares the iterator state. Note that the call to the ``pairs()`` standard library function has 1 parameter and 3 results. After the call in line [3], register 0 is the iterator function (which by default is the Lua function ``next()`` unless ``__pair`` meta method has been overriden), register 1 is the loop state, register 2 is the initial value of the control variable (which is ``nil`` in the default case). The iterator variables ``i`` and ``v`` are both invalid at the moment, because we have not entered the loop yet.
 
-Line [4] is a ``JMP`` to ``TFORCALL`` on line [9]. With the initial (or zeroth) iterator state, ``TFORCALL`` calls the iterator function, generating the first set of enumeration results in locals ``i``, ``v``. If ``i`` is not nil, the internal control variable (register 2) is set and the ``TFORLOOP`` on the next line is immediately executed, starting the first iteration of the loop body (lines [5]–[8]).
+Line [4] is a ``JMP`` to ``TFORCALL`` on line [9]. The ``TFORCALL`` instruction calls the iterator function, generating the first set of enumeration results in locals ``i`` and ``v``. 
 
-The body of the generic ``for`` loop executes (``print(i,v)``) and then ``TFORCALL`` is encountered again, calling the iterator function to get the next iteration state. Finally, when the first result is a nil, the loop ends, and execution continues on line [11].
+The ``TFORLOOP`` insruction executes and checks whether ``i`` is ``nil``. If it is not ``nil``, then the internal control variable (register 2) is set to the value in ``i`` and control goes back to to the start of the loop body (lines [5]–[8]).
+
+The body of the generic ``for`` loop executes (``print(i,v)``) and then ``TFORCALL`` is encountered again, calling the iterator function to get the next iteration state. Finally, when the ``TFORLOOP`` finds that the first result from the iterator is ``nil``, the loop ends, and execution continues on line [11].
