@@ -917,6 +917,8 @@ Short-circuit logical operators also means that the following Lua code does not 
 
   f=load('local a,b,c; if a > b and a > c then return a end')
 
+Leads to::
+
   main <(string):0,0> (7 instructions at 0000020F274D1150)
   0+ params, 3 slots, 1 upvalue, 3 locals, 0 constants, 0 functions
         1       [1]     LOADNIL         0 2
@@ -946,6 +948,8 @@ For a single variable used in the expression part of a conditional statement, ``
 
   f=load('if Done then return end')
 
+Generates::
+
   main <(string):0,0> (5 instructions at 0000020F274D13D0)
   0+ params, 2 slots, 1 upvalue, 0 locals, 1 constant, 0 functions
         1       [1]     GETTABUP        0 0 -1  ; _ENV "Done"
@@ -964,6 +968,8 @@ In line [2], the ``TEST`` instruction jumps to the ``true`` block if the value i
 If the test expression of a conditional statement consist of purely boolean operators, then a number of TEST instructions will be used in the usual short-circuit evaluation style::
 
   f=load('if Found and Match then return end')
+
+Generates::
 
   main <(string):0,0> (8 instructions at 0000020F274D1C90)
   0+ params, 2 slots, 1 upvalue, 0 locals, 2 constants, 0 functions
@@ -989,6 +995,8 @@ If the statement has an ``else`` section, then the ``JMP`` on line [6] will jump
 Finally, here is how Lua’s ternary operator (:? in C) equivalent works::
 
   f=load('local a,b,c; a = a and b or c')
+
+Generates::
 
   main <(string):0,0> (7 instructions at 0000020F274D1A10)
   0+ params, 3 slots, 1 upvalue, 3 locals, 0 constants, 0 functions
