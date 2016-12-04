@@ -604,8 +604,8 @@ The true result path looks longer, but it isn’t, due to the way the virtual ma
 
 
 
-Relational And logic Instructions
-=================================
+'``OP_EQ``', '``OP_LT``' and '``OP_LE``' Instructions
+=====================================================
 
 Relational and logic instructions are used in conjunction with other instructions to implement control 
 structures or expressions. Instead of generating boolean results, these instructions conditionally perform 
