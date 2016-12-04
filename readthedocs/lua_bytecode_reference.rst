@@ -244,6 +244,8 @@ More examples
 
   x=function() y() end
 
+Produces::
+
   function <stdin:1,1> (3 instructions at 000000CECB2BE040)
   0 params, 2 slots, 1 upvalue, 0 locals, 1 constant, 0 functions
     1       [1]     GETTABUP        0 0 -1  ; _ENV "y"
@@ -258,6 +260,8 @@ More examples
 In line [2], the call has zero parameters (field B is 1), zero results are retained (field C is 1), while register 0 temporarily holds the reference to the function object from global y. Next we see a function call with multiple parameters or arguments::
 
   x=function() z(1,2,3) end
+
+Generates::
 
   function <stdin:1,1> (6 instructions at 000000CECB2D7BC0)
   0 params, 4 slots, 1 upvalue, 0 locals, 4 constants, 0 functions
@@ -282,6 +286,8 @@ Lines [1] to [4] loads the function reference and the arguments in order, then l
 
   x=function() local p,q,r,s = z(y()) end
 
+Produces::
+
   function <stdin:1,1> (5 instructions at 000000CECB2D6CC0)
   0 params, 4 slots, 1 upvalue, 4 locals, 2 constants, 0 functions
     1       [1]     GETTABUP        0 0 -1  ; _ENV "z"
@@ -304,6 +310,8 @@ First, the function references are retrieved (lines [1] and [2]), then function 
 has a field C of 0, meaning multiple return values are accepted. These return values become the parameters to function z, and so in line [4], field B of the CALL instruction is 0, signifying multiple parameters. After the call to function z, 4 results are retained, so field C in line [4] is 5. Finally, here is an example with calls to standard library functions::
 
   x=function() print(string.char(64)) end
+
+Leads to::
 
   function <stdin:1,1> (7 instructions at 000000CECB2D6220)
   0 params, 3 slots, 1 upvalue, 0 locals, 4 constants, 0 functions
@@ -351,8 +359,9 @@ An '``OP_TAILCALL``' is used only for one specific return style, described above
 
 ::
 
-  > function y() return x('foo', 'bar') end
-  > ravi.dumplua(y)
+  function y() return x('foo', 'bar') end
+
+Generates::
 
   function <stdin:1,1> (6 instructions at 000000C3C24DE4A0)
   0 params, 3 slots, 1 upvalue, 0 locals, 3 constants, 0 functions
