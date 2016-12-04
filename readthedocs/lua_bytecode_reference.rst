@@ -83,53 +83,53 @@ sBx
 Instruction Summary
 ===================
 
-Opcode | Description |
---- | --- |
-MOVE | Copy a value between registers  |
-LOADK | Load a constant into a register |
-LOADKX | Load constant into register |
-LOADBOOL | Load a boolean into a register |
-LOADNIL | Load nil values into a range of registers |
-GETUPVAL | Read an upvalue into a register |
-GETTABUP | Read a value from table in up-value into a register |
-GETTABLE | Read a table element into a register |
-SETTABUP | Write a register value into table in up-value |
-SETUPVAL | Write a register value into an upvalue |
-SETTABLE | Write a register value into a table element |
-NEWTABLE | Create a new table |
-SELF | Prepare an object method for calling |
-ADD | Addition operator |
-SUB | Subtraction operator |
-MUL | Multiplication operator |
-MOD | Modulus (remainder) operator |
-POW | Exponentation operator |
-DIV | Division operator |
-IDIV | Integer division operator |
-BAND | Bit-wise AND operator |
-BOR | Bit-wise OR operator |
-BXOR | Bit-wise Exclusive OR operator |
-SHL | Shift bits left |
-SHR | Shift bits right |
-UNM | Unary minus | 
-NOT | Logical NOT operator |
-LEN | Length operator |
-CONCAT | Concatenate a range of registers |
-JMP | Unconditional jump |
-EQ | Equality test |
-LT | Less than test | 
-LE | Less than or equal to test |
-TEST | Boolean test, with conditional jump |
-TESTSET | Boolean test, with conditional jump and assignment |
-CALL | Call a closure |
-TAILCALL | Perform a tail call |
-RETURN | Return from function call |
-FORLOOP | Iterate a numeric for loop |
-FORPREP | Initialization for a numeric for loop |
-TFORLOOP | Iterate a generic for loop |
-TFORCALL | Initialization for a generic for loop |
-SETLIST | Set a range of array elements for a table |
-CLOSURE | Create a closure of a function prototype |
-VARARG | Assign vararg function arguments to registers |
+Opcode | Description
+--- | ---
+MOVE | Copy a value between registers
+LOADK | Load a constant into a register
+LOADKX | Load constant into register
+LOADBOOL | Load a boolean into a register
+LOADNIL | Load nil values into a range of registers
+GETUPVAL | Read an upvalue into a register
+GETTABUP | Read a value from table in up-value into a register
+GETTABLE | Read a table element into a register
+SETTABUP | Write a register value into table in up-value
+SETUPVAL | Write a register value into an upvalue
+SETTABLE | Write a register value into a table element
+NEWTABLE | Create a new table
+SELF | Prepare an object method for calling
+ADD | Addition operator
+SUB | Subtraction operator
+MUL | Multiplication operator
+MOD | Modulus (remainder) operator
+POW | Exponentation operator
+DIV | Division operator
+IDIV | Integer division operator
+BAND | Bit-wise AND operator
+BOR | Bit-wise OR operator
+BXOR | Bit-wise Exclusive OR operator
+SHL | Shift bits left
+SHR | Shift bits right
+UNM | Unary minus
+NOT | Logical NOT operator
+LEN | Length operator
+CONCAT | Concatenate a range of registers
+JMP | Unconditional jump
+EQ | Equality test
+LT | Less than test 
+LE | Less than or equal to test
+TEST | Boolean test, with conditional jump
+TESTSET | Boolean test, with conditional jump and assignment
+CALL | Call a closure
+TAILCALL | Perform a tail call
+RETURN | Return from function call
+FORLOOP | Iterate a numeric for loop
+FORPREP | Initialization for a numeric for loop
+TFORLOOP | Iterate a generic for loop
+TFORCALL | Initialization for a generic for loop
+SETLIST | Set a range of array elements for a table
+CLOSURE | Create a closure of a function prototype
+VARARG | Assign vararg function arguments to registers
 
 
 '``OP_CALL``' instruction
