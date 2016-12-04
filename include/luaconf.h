@@ -1,5 +1,5 @@
 /*
-** $Id: luaconf.h,v 1.255 2016/05/01 20:06:09 roberto Exp $
+** $Id: luaconf.h,v 1.256 2016/07/18 17:55:59 roberto Exp roberto $
 ** Configuration file for Lua
 ** See Copyright Notice in lua.h
 */
@@ -157,6 +157,18 @@
 ** Configuration for Paths.
 ** ===================================================================
 */
+
+/*
+** LUA_PATH_SEP is the character that separates templates in a path.
+** LUA_PATH_MARK is the string that marks the substitution points in a
+** template.
+** LUA_EXEC_DIR in a Windows path is replaced by the executable's
+** directory.
+*/
+#define LUA_PATH_SEP            ";"
+#define LUA_PATH_MARK           "?"
+#define LUA_EXEC_DIR            "!"
+
 
 /*
 @@ LUA_PATH_DEFAULT is the default path that Lua uses to look for
@@ -728,11 +740,11 @@
 /*
 @@ LUAL_BUFFERSIZE is the buffer size used by the lauxlib buffer system.
 ** CHANGE it if it uses too much C-stack space. (For long double,
-** 'string.format("%.99f", 1e4932)' needs ~5030 bytes, so a
+** 'string.format("%.99f", -1e4932)' needs 5034 bytes, so a
 ** smaller buffer would force a memory allocation for each call to
 ** 'string.format'.)
 */
-#if defined(LUA_FLOAT_LONGDOUBLE)
+#if LUA_FLOAT_TYPE == LUA_FLOAT_LONGDOUBLE
 #define LUAL_BUFFERSIZE		8192
 #else
 #define LUAL_BUFFERSIZE   ((int)(0x80 * sizeof(void*) * sizeof(lua_Integer)))
