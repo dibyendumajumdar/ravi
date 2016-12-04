@@ -1,5 +1,5 @@
 /*
-** $Id: lcode.c,v 2.109 2016/05/13 19:09:21 roberto Exp $
+** $Id: lcode.c,v 2.110 2016/06/20 19:12:46 roberto Exp roberto $
 ** Code generator for Lua
 ** See Copyright Notice in lua.h
 */
@@ -12,6 +12,7 @@
 #define LUA_CORE
 
 #include "lprefix.h"
+
 
 #include <math.h>
 #include <stdlib.h>
@@ -44,7 +45,7 @@
 ** If expression is a numeric constant, fills 'v' with its value
 ** and returns 1. Otherwise, returns 0.
 */
-static int tonumeral(expdesc *e, TValue *v) {
+static int tonumeral(const expdesc *e, TValue *v) {
   if (hasjumps(e))
     return 0;  /* not a numeral */
   switch (e->k) {
@@ -397,7 +398,6 @@ void luaK_reserveregs (FuncState *fs, int n) {
 static void freereg (FuncState *fs, int reg) {
   if (!ISK(reg) && reg >= fs->nactvar) {
     fs->freereg--;
-	  /* if (reg != fs->freereg) luaX_syntaxerror(fs->ls, "unexpected error"); DEBUG Lua 5.3.3 merge issue math.lua 551 */
     lua_assert(reg == fs->freereg);
   }
 }
@@ -537,6 +537,7 @@ void luaK_setreturns (FuncState *fs, expdesc *e, int nresults) {
     DEBUG_CODEGEN(raviY_printf(fs, "[%d]* %o ; set A to %d\n", e->u.info, *pc, fs->freereg));
     luaK_reserveregs(fs, 1);
   }
+  else lua_assert(nresults == LUA_MULTRET);
 }
 
 
@@ -979,6 +980,9 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
 }
 
 
+/*
+** Emit SELF instruction (convert expression 'e' into 'e:key(e,').
+*/
 void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
   int ereg;
   /* Ravi extension:
@@ -1197,6 +1201,7 @@ static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
   return 1;
 }
 
+
 /*
 ** Emit code for unary expressions that "produce values"
 ** (everything but 'not').
@@ -1219,11 +1224,15 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
 ** (everything but logical operators 'and'/'or' and comparison
 ** operators).
 ** Expression to produce final result will be encoded in 'e1'.
+** Because 'luaK_exp2RK' can free registers, its calls must be
+** in "stack order" (that is, first on 'e2', which may have more
+** recent registers to be released).
 */
 static void codebinexpval (FuncState *fs, OpCode op,
                            expdesc *e1, expdesc *e2, int line) {
-  int rk2 = luaK_exp2RK(fs, e2);
-  int rk1 = luaK_exp2RK(fs, e1);  /* both operands are "RK" */
+  /* Note that the order below is important - see Lua 5.3.3 bug list*/
+  int rk2 = luaK_exp2RK(fs, e2); /* both operands are "RK" */
+  int rk1 = luaK_exp2RK(fs, e1);  
   freeexps(fs, e1, e2);
   if (op == OP_ADD && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
     e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFF, 0, rk1, rk2);
@@ -1456,6 +1465,9 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e) {
   luaX_syntaxerror(fs->ls, "invalid type assertion");  
 }
 
+/*
+** Apply prefix operation 'op' to expression 'e'.
+*/
 void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
   expdesc ef = {.ravi_type = RAVI_TANY,
                 .pc = -1,
@@ -1566,7 +1578,7 @@ void luaK_posfix (FuncState *fs, BinOpr op,
         codebinexpval(fs, cast(OpCode, op + OP_ADD), e1, e2, line);
       break;
     }
-    case OPR_EQ: case OPR_LT: case OPR_LE: 
+    case OPR_EQ: case OPR_LT: case OPR_LE:
     case OPR_NE: case OPR_GT: case OPR_GE: {
       codecomp(fs, op, e1, e2);
       break;

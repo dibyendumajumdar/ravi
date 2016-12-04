@@ -1,5 +1,5 @@
 /*
-** $Id: ldo.c,v 2.151 2015/12/16 16:40:07 roberto Exp $
+** $Id: ldo.c,v 2.155 2016/09/08 16:36:26 roberto Exp roberto $
 ** Stack and Call structure of Lua
 ** See Copyright Notice in lua.h
 */
@@ -211,9 +211,9 @@ static int stackinuse (lua_State *L) {
   CallInfo *ci;
   StkId lim = L->top;
   for (ci = L->ci; ci != NULL; ci = ci->previous) {
-    lua_assert(ci->top <= L->stack_last);
     if (lim < ci->top) lim = ci->top;
   }
+  lua_assert(lim <= L->stack_last);
   return cast_int(lim - L->stack) + 1;  /* part of stack in use */
 }
 
@@ -221,16 +221,19 @@ static int stackinuse (lua_State *L) {
 void luaD_shrinkstack (lua_State *L) {
   int inuse = stackinuse(L);
   int goodsize = inuse + (inuse / 8) + 2*EXTRA_STACK;
-  if (goodsize > LUAI_MAXSTACK) goodsize = LUAI_MAXSTACK;
-  if (L->stacksize > LUAI_MAXSTACK)  /* was handling stack overflow? */
+  if (goodsize > LUAI_MAXSTACK)
+    goodsize = LUAI_MAXSTACK;  /* respect stack limit */
+  if (L->stacksize > LUAI_MAXSTACK)  /* had been handling stack overflow? */
     luaE_freeCI(L);  /* free all CIs (list grew because of an error) */
   else
     luaE_shrinkCI(L);  /* shrink list */
-  if (inuse <= LUAI_MAXSTACK &&  /* not handling stack overflow? */
-      goodsize < L->stacksize)  /* trying to shrink? */
-    luaD_reallocstack(L, goodsize);  /* shrink it */
-  else
-    condmovestack(L,,);  /* don't change stack (change only for debugging) */
+  /* if thread is currently not handling a stack overflow and its
+     good size is smaller than current size, shrink its stack */
+  if (inuse <= (LUAI_MAXSTACK - EXTRA_STACK) &&
+      goodsize < L->stacksize)
+    luaD_reallocstack(L, goodsize);
+  else  /* don't change stack */
+    condmovestack(L,{},{});  /* (change only for debugging) */
 }
 
 
@@ -376,13 +379,13 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
       int n = cast_int(L->top - func) - 1;  /* number of real arguments */
       int fsize = p->maxstacksize;  /* frame size */
       checkstackp(L, fsize, func);
-      if (p->is_vararg != 1) {  /* do not use vararg? */
+      if (p->is_vararg)
+        base = adjust_varargs(L, p, n);
+      else {  /* non vararg function */
         for (; n < p->numparams; n++)
           setnilvalue(L->top++);  /* complete missing arguments */
         base = func + 1;
       }
-      else
-        base = adjust_varargs(L, p, n);
       ci = next_ci(L);  /* now 'enter' new function */
       ci->nresults = nresults;
       ci->func = func;
@@ -566,19 +569,17 @@ static void finishCcall (lua_State *L, int status) {
   /* error status can only happen in a protected call */
   lua_assert((ci->callstatus & CIST_YPCALL) || status == LUA_YIELD);
   if (ci->callstatus & CIST_YPCALL) {  /* was inside a pcall? */
-    ci->callstatus &= ~CIST_YPCALL;  /* finish 'lua_pcall' */
-    L->errfunc = ci->u.c.old_errfunc;
+    ci->callstatus &= ~CIST_YPCALL;  /* continuation is also inside it */
+    L->errfunc = ci->u.c.old_errfunc;  /* with the same error function */
   }
   /* finish 'lua_callk'/'lua_pcall'; CIST_YPCALL and 'errfunc' already
      handled */
   adjustresults(L, ci->nresults);
-  /* call continuation function */
   lua_unlock(L);
-  n = (*ci->u.c.k)(L, status, ci->u.c.ctx);
+  n = (*ci->u.c.k)(L, status, ci->u.c.ctx);  /* call continuation function */
   lua_lock(L);
   api_checknelems(L, n);
-  /* finish 'luaD_precall' */
-  luaD_poscall(L, ci, L->top - n, n);
+  luaD_poscall(L, ci, L->top - n, n);  /* finish 'luaD_precall' */
 }
 
 
@@ -641,15 +642,16 @@ static int recover (lua_State *L, int status) {
 
 
 /*
-** signal an error in the call to 'resume', not in the execution of the
-** coroutine itself. (Such errors should not be handled by any coroutine
-** error handler and should not kill the coroutine.)
+** Signal an error in the call to 'lua_resume', not in the execution
+** of the coroutine itself. (Such errors should not be handled by any
+** coroutine error handler and should not kill the coroutine.)
 */
-static l_noret resume_error (lua_State *L, const char *msg, StkId firstArg) {
-  L->top = firstArg;  /* remove args from the stack */
+static int resume_error (lua_State *L, const char *msg, int narg) {
+  L->top -= narg;  /* remove args from the stack */
   setsvalue2s(L, L->top, luaS_new(L, msg));  /* push error message */
   api_incr_top(L);
-  luaD_throw(L, -1);  /* jump back to 'lua_resume' */
+  lua_unlock(L);
+  return LUA_ERRRUN;
 }
 
 
@@ -661,22 +663,15 @@ static l_noret resume_error (lua_State *L, const char *msg, StkId firstArg) {
 ** coroutine.
 */
 static void resume (lua_State *L, void *ud) {
-  int nCcalls = L->nCcalls;
   int n = *(cast(int*, ud));  /* number of arguments */
   StkId firstArg = L->top - n;  /* first argument */
   CallInfo *ci = L->ci;
-  if (nCcalls >= LUAI_MAXCCALLS)
-    resume_error(L, "C stack overflow", firstArg);
-  if (L->status == LUA_OK) {  /* may be starting a coroutine */
-    if (ci != &L->base_ci)  /* not in base level? */
-      resume_error(L, "cannot resume non-suspended coroutine", firstArg);
-    /* coroutine is in base level; start running it */
+  if (L->status == LUA_OK) {  /* starting a coroutine? */
     if (!luaD_precall(L, firstArg - 1, LUA_MULTRET, 0))  /* Lua function? */
       luaV_execute(L);  /* call it */
   }
-  else if (L->status != LUA_YIELD)
-    resume_error(L, "cannot resume dead coroutine", firstArg);
   else {  /* resuming from previous yield */
+    lua_assert(L->status == LUA_YIELD);
     L->status = LUA_OK;  /* mark that it is running (again) */
     ci->func = restorestack(L, ci->extra);
     if (isLua(ci))  /* yielded inside a hook? */
@@ -693,7 +688,6 @@ static void resume (lua_State *L, void *ud) {
     }
     unroll(L, NULL);  /* run continuation */
   }
-  lua_assert(nCcalls == L->nCcalls);
 }
 
 
@@ -701,8 +695,16 @@ LUA_API int lua_resume (lua_State *L, lua_State *from, int nargs) {
   int status;
   unsigned short oldnny = L->nny;  /* save "number of non-yieldable" calls */
   lua_lock(L);
-  luai_userstateresume(L, nargs);
+  if (L->status == LUA_OK) {  /* may be starting a coroutine */
+    if (L->ci != &L->base_ci)  /* not in base level? */
+      return resume_error(L, "cannot resume non-suspended coroutine", nargs);
+  }
+  else if (L->status != LUA_YIELD)
+    return resume_error(L, "cannot resume dead coroutine", nargs);
   L->nCcalls = (from) ? from->nCcalls + 1 : 1;
+  if (L->nCcalls >= LUAI_MAXCCALLS)
+    return resume_error(L, "C stack overflow", nargs);
+  luai_userstateresume(L, nargs);
   L->nny = 0;  /* allow yields */
   api_checknelems(L, (L->status == LUA_OK) ? nargs + 1 : nargs);
   status = luaD_rawrunprotected(L, resume, &nargs);
