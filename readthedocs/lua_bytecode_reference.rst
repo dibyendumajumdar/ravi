@@ -1031,3 +1031,105 @@ The two ``a = c`` assignments are actually the same piece of code, but are repea
     a = c 
   end
 
+
+'``OP_FORPREP``' and '``OP_FORLOOP``' instructions
+==================================================
+
+Syntax
+------
+::
+
+  OP_FORPREP    A sBx   R(A)-=R(A+2); pc+=sBx
+  OP_FORLOOP    A sBx   R(A)+=R(A+2);
+                        if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }
+
+
+Description
+-----------
+Lua has dedicated instructions to implement the two types of ``for`` loops, while the other two types of loops uses traditional test-and-jump.
+
+``FORPREP`` initializes a numeric for loop, while ``FORLOOP`` performs an iteration of a numeric for loop.
+
+A numeric for loop requires 4 registers on the stack, and each register must be a number. R(A) holds the initial value and doubles as the internal loop variable (the internal index); R(A+1) is the limit; R(A+2) is the stepping value; R(A+3) is the actual loop variable (the external index) that is local to the for block.
+
+``FORPREP`` sets up a for loop. Since ``FORLOOP`` is used for initial testing of the loop condition as well as conditional testing during the loop itself, ``FORPREP`` performs a negative step and jumps unconditionally to ``FORLOOP`` so that ``FORLOOP`` is able to correctly make the initial loop test. After this initial test, ``FORLOOP`` performs a loop step as usual, restoring the initial value of the loop index so that the first iteration can start.
+
+In ``FORLOOP``, a jump is made back to the start of the loop body if the limit has not been reached or exceeded. The sense of the comparison depends on whether the stepping is negative or positive, hence the “<?=” operator. Jumps for both instructions are encoded as signed displacements in the ``sBx`` field. An empty loop has a ``FORLOOP`` ``sBx`` value of -1.
+
+``FORLOOP`` also sets R(A+3), the external loop index that is local to the loop block. This is significant if the loop index is used as an upvalue (see below.) R(A), R(A+1) and R(A+2) are not visible to the programmer.
+
+The loop variable ends with the last value before the limit is reached (unlike C) because it is not updated unless the jump is made. However, since loop variables are local to the loop itself, you should not be able to use it unless you cook up an implementation-specific hack.
+
+Examples
+--------
+For the sake of efficiency, ``FORLOOP`` contains a lot of functionality, so when a loop iterates, only one instruction, ``FORLOOP``, is needed. Here is a simple example::
+
+  f=load('local a = 0; for i = 1,100,5 do a = a + i end')
+
+Generates::
+
+  main <(string):0,0> (8 instructions at 000001E9F0DF52F0)
+  0+ params, 5 slots, 1 upvalue, 5 locals, 4 constants, 0 functions
+        1       [1]     LOADK           0 -1    ; 0
+        2       [1]     LOADK           1 -2    ; 1
+        3       [1]     LOADK           2 -3    ; 100
+        4       [1]     LOADK           3 -4    ; 5
+        5       [1]     FORPREP         1 1     ; to 7
+        6       [1]     ADD             0 0 4
+        7       [1]     FORLOOP         1 -2    ; to 6
+        8       [1]     RETURN          0 1
+  constants (4) for 000001E9F0DF52F0:
+        1       0
+        2       1
+        3       100
+        4       5
+  locals (5) for 000001E9F0DF52F0:
+        0       a       2       9
+        1       (for index)     5       8
+        2       (for limit)     5       8
+        3       (for step)      5       8
+        4       i       6       7
+  upvalues (1) for 000001E9F0DF52F0:
+        0       _ENV    1       0
+
+In the above example, notice that the ``for`` loop causes three additional local pseudo-variables (or internal variables) to be defined, apart from the external loop index, ``i``. The three pseudovariables, named ``(for index)``, ``(for limit)`` and ``(for step)`` are required to completely specify the state of the loop, and are not visible to Lua source code. They are arranged in consecutive registers, with the external loop index given by R(A+3) or register 4 in the example.
+
+The loop body is in line [6] while line [7] is the ``FORLOOP`` instruction that steps through the loop state. The ``sBx`` field of ``FORLOOP`` is negative, as it always jumps back to the beginning of the loop body.
+
+Lines [2]–[4] initialize the three register locations where the loop state will be stored. If the loop step is not specified in the Lua source, a constant 1 is added to the constant pool and a ``LOADK`` instruction is used to initialize the pseudo-variable ``(for step)`` with the loop step.
+
+``FORPREP`` in lines [5] makes a negative loop step and jumps to line [7] for the initial test. In the example, at line [5], the internal loop index (at register 1) will be (1-5) or -4. When the virtual machine arrives at the ``FORLOOP`` in line [7] for the first time, one loop step is made prior to the first test, so the initial value that is actually tested against the limit is (-4+5) or 1. Since 1 < 100, an iteration will be performed. The external loop index ``i`` is then set to 1 and a jump is made to line [6], thus starting the first iteration of the loop.
+
+The loop at line [6]–[7] repeats until the internal loop index exceeds the loop limit of 100. The conditional jump is not taken when that occurs and the loop ends. Beyond the scope of the loop body, the loop state (``(for index)``, ``(for limit)``, ``(for step)`` and ``i``) is not valid. This is determined by the parser and code generator. The range of PC values for which the loop state variables are valid is located in the locals list. 
+
+Here is another example::
+
+  f=load('for i = 10,1,-1 do if i == 5 then break end end')
+
+This leads to::
+
+  main <(string):0,0> (8 instructions at 000001E9F0DEC110)
+  0+ params, 4 slots, 1 upvalue, 4 locals, 4 constants, 0 functions
+        1       [1]     LOADK           0 -1    ; 10
+        2       [1]     LOADK           1 -2    ; 1
+        3       [1]     LOADK           2 -3    ; -1
+        4       [1]     FORPREP         0 2     ; to 7
+        5       [1]     EQ              1 3 -4  ; - 5
+        6       [1]     JMP             0 1     ; to 8
+        7       [1]     FORLOOP         0 -3    ; to 5
+        8       [1]     RETURN          0 1
+  constants (4) for 000001E9F0DEC110:
+        1       10
+        2       1
+        3       -1
+        4       5
+  locals (4) for 000001E9F0DEC110:
+        0       (for index)     4       8
+        1       (for limit)     4       8
+        2       (for step)      4       8
+        3       i       5       7
+  upvalues (1) for 000001E9F0DEC110:
+        0       _ENV    1       0
+
+In the second loop example above, except for a negative loop step size, the structure of the loop is identical. The body of the loop is from line [5] to line [7]. Since no additional stacks or states are used, a break translates simply to a ``JMP`` instruction (line [6]). There is nothing to clean up after a ``FORLOOP`` ends or after a ``JMP`` to exit a loop.
+
