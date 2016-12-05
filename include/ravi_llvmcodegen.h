@@ -800,6 +800,8 @@ class RaviCodeGenerator {
     RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
     const char *varname = "value.not.typeof");
 
+  // emit code for LClosure *cl = clLvalue(ci->func)
+  // this is same as:
   // emit code for (LClosure *)ci->func->value_.gc
   llvm::Instruction *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def);
 

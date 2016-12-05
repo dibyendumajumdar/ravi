@@ -73,7 +73,7 @@ llvm::CallInst *RaviCodeGenerator::CreateCall3(llvm::IRBuilder<> *builder,
                                                llvm::Value *arg1,
                                                llvm::Value *arg2,
                                                llvm::Value *arg3) {
-  llvm::SmallVector<llvm::Value *, 2> values;
+  llvm::SmallVector<llvm::Value *, 3> values;
   values.push_back(arg1);
   values.push_back(arg2);
   values.push_back(arg3);
@@ -83,7 +83,7 @@ llvm::CallInst *RaviCodeGenerator::CreateCall3(llvm::IRBuilder<> *builder,
 llvm::CallInst *RaviCodeGenerator::CreateCall4(
     llvm::IRBuilder<> *builder, llvm::Value *func, llvm::Value *arg1,
     llvm::Value *arg2, llvm::Value *arg3, llvm::Value *arg4) {
-  llvm::SmallVector<llvm::Value *, 2> values;
+  llvm::SmallVector<llvm::Value *, 4> values;
   values.push_back(arg1);
   values.push_back(arg2);
   values.push_back(arg3);
@@ -95,7 +95,7 @@ llvm::CallInst *RaviCodeGenerator::CreateCall5(
     llvm::IRBuilder<> *builder, llvm::Value *func, llvm::Value *arg1,
     llvm::Value *arg2, llvm::Value *arg3, llvm::Value *arg4,
     llvm::Value *arg5) {
-  llvm::SmallVector<llvm::Value *, 2> values;
+  llvm::SmallVector<llvm::Value *, 5> values;
   values.push_back(arg1);
   values.push_back(arg2);
   values.push_back(arg3);
@@ -148,10 +148,10 @@ llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def,
       ptr, llvm::ConstantInt::get(def->types->C_intT, offset));
 }
 
+// emit code for LClosure *cl = clLvalue(ci->func);
 llvm::Instruction *RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(
     RaviFunctionDef *def) {
-  // emit code for
-  // LClosure *cl = clLvalue(ci->func);
+
   // clLvalue() is a macros that expands to (LClosure *)ci->func->value_.gc
   // via a complex series of macros and unions
   // fortunately as func is at the beginning of the CallInfo
@@ -284,6 +284,7 @@ llvm::Value *RaviCodeGenerator::emit_load_register_or_constant_n(
   }
 }
 
+// emit code to load the lua_Number value from register (TValue)
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
   llvm::Value *rb_n = def->builder->CreateBitCast(rb, def->types->plua_NumberT);
@@ -293,6 +294,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
   return lhs;
 }
 
+// emit code to load the lua_Integer value from register (TValue)
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_i(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
   llvm::Value *rb_n =
