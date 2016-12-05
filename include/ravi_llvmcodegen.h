@@ -884,12 +884,19 @@ class RaviCodeGenerator {
   llvm::Value *emit_table_get_keytype(RaviFunctionDef *def, llvm::Value *node,
                                       llvm::Value *index);
 
+  // Given a pointer to table's node array (node = t->node) and
+  // the location of the hashed key (index), this method retrieves the
+  // the string value stored at the node - return value is of type TString*
   llvm::Value *emit_table_get_strkey(RaviFunctionDef *def, llvm::Value *node,
                                      llvm::Value *index);
 
+  // Given a pointer to table's node array (node = t->node) and
+  // the location of the hashed key (index), this method retrieves the
+  // the pointer to value stored at the node - return value is of type TValue*
   llvm::Value *emit_table_get_value(RaviFunctionDef *def, llvm::Value *node,
                                     llvm::Value *index);
 
+  // Gets the size of the table's array part
   llvm::Value *emit_table_get_arraysize(RaviFunctionDef *def,
                                         llvm::Value *table);
 
