@@ -304,6 +304,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_i(RaviFunctionDef *def,
   return lhs;
 }
 
+// emit code to load the boolean value from register (TValue)
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_b(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
   llvm::Value *rb_n = def->builder->CreateBitCast(rb, def->types->C_pintT);
@@ -312,6 +313,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_b(RaviFunctionDef *def,
   return lhs;
 }
 
+// emit code to load the table value from register (TValue)
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_h(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
   llvm::Value *rb_h = def->builder->CreateBitCast(rb, def->types->ppTableT);
@@ -320,6 +322,8 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_h(RaviFunctionDef *def,
   return h;
 }
 
+// Gets the size of the hash table
+// This is the sizenode() macro in lobject.h
 llvm::Value *RaviCodeGenerator::emit_table_get_hashsize(RaviFunctionDef *def,
                                                         llvm::Value *t) {
   // Obtain the lsizenode  of the hash table
@@ -336,6 +340,8 @@ llvm::Value *RaviCodeGenerator::emit_table_get_hashsize(RaviFunctionDef *def,
   return size;
 }
 
+// Gets the location of the hash node for given string key
+// return value is the offset into the node array
 llvm::Value *RaviCodeGenerator::emit_table_get_hashstr(RaviFunctionDef *def,
                                                        llvm::Value *table,
                                                        TString *key) {
@@ -349,6 +355,7 @@ llvm::Value *RaviCodeGenerator::emit_table_get_hashstr(RaviFunctionDef *def,
   return offset;
 }
 
+// Gets access to the Table's node array (t->node)
 llvm::Value *RaviCodeGenerator::emit_table_get_nodearray(RaviFunctionDef *def,
                                                          llvm::Value *table) {
   // Get access to the node array
@@ -358,6 +365,10 @@ llvm::Value *RaviCodeGenerator::emit_table_get_nodearray(RaviFunctionDef *def,
   return node;
 }
 
+// Given a pointer to table's node array (node = t->node) and
+// the location of the hashed key (index), this method retrieves the
+// type of the value stored at the node - return value is of type int
+// and is the type information stored in TValue->tt field.
 llvm::Value *RaviCodeGenerator::emit_table_get_keytype(RaviFunctionDef *def,
                                                        llvm::Value *node,
                                                        llvm::Value *index) {
