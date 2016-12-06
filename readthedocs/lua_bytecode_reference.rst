@@ -83,6 +83,28 @@ sBx
 Instruction Summary
 ===================
 
+Lua bytecode instructions are 32-bits in size. 
+All instructions have an opcode in the first 6 bits.
+Instructions can have the following fields::
+
+  'A' : 8 bits
+  'B' : 9 bits
+  'C' : 9 bits
+  'Ax' : 26 bits ('A', 'B', and 'C' together)
+  'Bx' : 18 bits ('B' and 'C' together)
+  'sBx' : signed Bx
+
+A signed argument is represented in excess K; that is, the number
+value is the unsigned value minus K. K is exactly the maximum value
+for that argument (so that -max is represented by 0, and +max is
+represented by 2*max), which is half the maximum for the corresponding  
+unsigned argument.
+
+Note that B and C operands need to have an extra bit compared to A.
+This is because B and A can reference registers or constants, and the
+extra bit is used to decide which one. But A always references registers
+so it doesn't need the extra bit.
+
 +------------+-------------------------------------------------------------+
 | Opcode     | Description                                                 |
 +============+=============================================================+
@@ -137,6 +159,8 @@ Instruction Summary
 | SHR        | Shift bits right                                            |
 +------------+-------------------------------------------------------------+
 | UNM        | Unary minus                                                 |
++------------+-------------------------------------------------------------+
+| BNOT       | Bit-wise NOT operator                                       |
 +------------+-------------------------------------------------------------+
 | NOT        | Logical NOT operator                                        |
 +------------+-------------------------------------------------------------+

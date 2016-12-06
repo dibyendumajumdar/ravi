@@ -619,7 +619,7 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
         else
           e->ravi_type = RAVI_TANY;
       }
-	  else {
+      else {
         lua_assert(e->u.ind.vt == VUPVAL);
         op = OP_GETTABUP;  /* 't' is in an upvalue */
       }
