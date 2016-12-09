@@ -2,7 +2,7 @@
 Lua 5.3 Bytecode Reference
 ==========================
 
-This is my attempt to bring up date the Lua bytecode reference.
+This is my attempt to bring up to date the Lua bytecode reference. Note that this is work in progress.
 Following copyrights are acknowledged:
 
 :: 
@@ -202,8 +202,8 @@ so it doesn't need the extra bit.
 +------------+-------------------------------------------------------------+
 
 
-'``OP_CALL``' instruction
-=========================
+OP_CALL instruction
+===================
 
 Syntax
 ------
@@ -357,8 +357,8 @@ Leads to::
 
 When a function call is the last parameter to another function call, the former can pass multiple return values, while the latter can accept multiple parameters.
 
-'``OP_TAILCALL``' instruction
-=============================
+OP_TAILCALL instruction
+=======================
 
 Syntax
 ------
@@ -407,8 +407,8 @@ Generates::
 Arguments for a tail call are handled in exactly the same way as arguments for a normal call, so in line [4], the tail call has a field B value of 3, signifying 2 parameters. Field C is 0, for multiple returns; this due to the constant LUA_MULTRET in lua.h. In practice, field C is not used by the virtual machine (except as an assert) since the syntax guarantees multiple return results.
 Line [5] is a '``OP_RETURN``' instruction specifying multiple return results. This is required when the function called by '``OP_TAILCALL`` is a C function. In the case of a C function, execution continues to line [5] upon return, thus the RETURN is necessary. Line [6] is redundant. When Lua functions are tailcalled, the virtual machine does not return to line [5] at all.
 
-'``OP_RETURN``' instruction
-===========================
+OP_RETURN instruction
+=====================
 
 Syntax
 ------
@@ -470,8 +470,8 @@ But if we call ``x(1)`` instead::
 
 Notice that this time '``OP_VARARG``' set ``L->top`` to ``base+1``.
 
-'``OP_JMP``' instruction
-========================
+OP_JMP instruction
+==================
 
 Syntax
 ------
@@ -515,8 +515,8 @@ Generates::
 
 Line[2] performs the relational test. In line [3], the JMP skips over the false path (line [4]) to the true path (line [5]). The result is placed into temporary local 2, and returned to the caller by RETURN in line [6].
 
-'``OP_VARARG``' instruction
-===========================
+OP_VARARG instruction
+=====================
 
 Syntax
 ------
@@ -643,8 +643,8 @@ Above are two other cases where ``VARARG`` needs to copy all passed parameters
 over to a set of registers in order for the next operation to proceed. Both the above forms of 
 table creation and return accepts a variable number of values or objects.
 
-'``OP_LOADBOOL``' instruction
-=========================
+OP_LOADBOOL instruction
+=======================
 
 Syntax
 ------
@@ -734,9 +734,8 @@ and the false result path (which never executes in this example) goes like this:
 The true result path looks longer, but it isn’t, due to the way the virtual machine is implemented. This will be discussed further in the section on relational and logic instructions.
 
 
-
-'``OP_EQ``', '``OP_LT``' and '``OP_LE``' Instructions
-=====================================================
+OP_EQ, OP_LT and OP_LE Instructions
+===================================
 
 Relational and logic instructions are used in conjunction with other instructions to implement control 
 structures or expressions. Instead of generating boolean results, these instructions conditionally perform 
@@ -760,7 +759,7 @@ next instruction.
 comparison. The boolean A field allows the full set of relational comparison operations to be 
 synthesized from these three instructions. The Lua code generator produces either 0 or 1 for the boolean A.
 
-For the fall-through case, a `'``OP_JMP``' instruction`_ is always expected, in order to optimize execution in the 
+For the fall-through case, a `OP_JMP instruction`_ is always expected, in order to optimize execution in the 
 virtual machine. In effect, ``EQ``, ``LT`` and ``LE`` must always be paired with a following ``JMP`` 
 instruction. 
 
@@ -910,8 +909,8 @@ Generates::
 This example is a little more complex, but the blocks are structured in the same order 
 as the Lua source, so interpreting the disassembled code should not be too hard.
 
-'``OP_TEST``' and '``OP_TESTSET``' instructions
-===============================================
+OP_TEST and OP_TESTSET instructions
+===================================
 
 Syntax
 ------
@@ -1171,8 +1170,8 @@ The two ``a = c`` assignments are actually the same piece of code, but are repea
   end
 
 
-'``OP_FORPREP``' and '``OP_FORLOOP``' instructions
-==================================================
+OP_FORPREP and OP_FORLOOP instructions
+======================================
 
 Syntax
 ------
@@ -1273,8 +1272,8 @@ This leads to::
 In the second loop example above, except for a negative loop step size, the structure of the loop is identical. The body of the loop is from line [5] to line [7]. Since no additional stacks or states are used, a break translates simply to a ``JMP`` instruction (line [6]). There is nothing to clean up after a ``FORLOOP`` ends or after a ``JMP`` to exit a loop.
 
 
-'``OP_TFORCALL``' and '``OP_TFORLOOP``' instructions
-====================================================
+OP_TFORCALL and OP_TFORLOOP instructions
+========================================
 
 Syntax
 ------
