@@ -760,7 +760,7 @@ next instruction.
 comparison. The boolean A field allows the full set of relational comparison operations to be 
 synthesized from these three instructions. The Lua code generator produces either 0 or 1 for the boolean A.
 
-For the fall-through case, a ``JMP`` instruction is always expected, in order to optimize execution in the 
+For the fall-through case, a `OP_JMP instruction`_ is always expected, in order to optimize execution in the 
 virtual machine. In effect, ``EQ``, ``LT`` and ``LE`` must always be paired with a following ``JMP`` 
 instruction. 
 
