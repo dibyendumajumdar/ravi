@@ -218,13 +218,13 @@ Description
 Performs a function call, with register R(A) holding the reference to the function object to be called. Parameters to the function are placed in the registers following R(A). If B is 1, the function has no parameters. If B is 2 or more, there are (B-1) parameters. If B >= 2, then upon entry to the called function, R(A+1) will become the ``base``. 
 
 If B is 0, the function parameters range from R(A+1) to the top of the stack. This form is used when the 
-number of parameters to pass is set by the previous VM instruction, which has to be one of '``OP_CALL``' or
-'``OP_VARARG``'. 
+number of parameters to pass is set by the previous VM instruction, which has to be one of ``OP_CALL`` or
+``OP_VARARG``. 
 
 Examples
 --------
 
-Example of '``OP_VARARG``' followed by '``OP_CALL``'::
+Example of ``OP_VARARG`` followed by ``OP_CALL``::
 
   function y(...) print(...) end
 
@@ -233,7 +233,7 @@ Example of '``OP_VARARG``' followed by '``OP_CALL``'::
   3 [1] CALL      0 0 1   ; B=0 so L->top set by previous instruction
   4 [1] RETURN    0 1
 
-Example of '``OP_CALL``' followed by '``OP_CALL``'::
+Example of ``OP_CALL`` followed by ``OP_CALL``::
 
   function z1() y(x()) end
 
@@ -259,7 +259,7 @@ Results returned by the function call are placed in a range of registers startin
 
 * A C function returns an integer value indicating number of results returned so for C function calls
   this is used (see the value of ``n`` passed to `luaD_poscall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_poscall>`_ in `luaD_precall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_precall>`_)
-* For Lua functions, the the results are saved by the called function's '``OP_RETURN``' instruction.
+* For Lua functions, the the results are saved by the called function's ``OP_RETURN`` instruction.
 
 More examples
 -------------
@@ -372,13 +372,13 @@ Description
 
 Performs a tail call, which happens when a return statement has a single function call as the expression, e.g. return foo(bar). A tail call results in the function being interpreted within the same call frame as the caller - the stack is replaced and then a 'goto' executed to start at the entry point in the VM. Only Lua functions can be tailcalled. Tailcalls allow infinite recursion without growing the stack.
 
-Like '``OP_CALL``', register R(A) holds the reference to the function object to be called. B encodes the number of parameters in the same manner as a '``OP_CALL``' instruction.
+Like ``OP_CALL``, register R(A) holds the reference to the function object to be called. B encodes the number of parameters in the same manner as a ``OP_CALL`` instruction.
 
 C isn’t used by TAILCALL, since all return results are significant. In any case, Lua always generates a 0 for C, to denote multiple return results.
 
 Examples
 --------
-An '``OP_TAILCALL``' is used only for one specific return style, described above. Multiple return results are always produced by a tail call. Here is an example:
+An ``OP_TAILCALL`` is used only for one specific return style, described above. Multiple return results are always produced by a tail call. Here is an example:
 
 
 ::
@@ -405,7 +405,7 @@ Generates::
 
 
 Arguments for a tail call are handled in exactly the same way as arguments for a normal call, so in line [4], the tail call has a field B value of 3, signifying 2 parameters. Field C is 0, for multiple returns; this due to the constant LUA_MULTRET in lua.h. In practice, field C is not used by the virtual machine (except as an assert) since the syntax guarantees multiple return results.
-Line [5] is a '``OP_RETURN``' instruction specifying multiple return results. This is required when the function called by '``OP_TAILCALL`` is a C function. In the case of a C function, execution continues to line [5] upon return, thus the RETURN is necessary. Line [6] is redundant. When Lua functions are tailcalled, the virtual machine does not return to line [5] at all.
+Line [5] is a ``OP_RETURN`` instruction specifying multiple return results. This is required when the function called by ``OP_TAILCALL`` is a C function. In the case of a C function, execution continues to line [5] upon return, thus the RETURN is necessary. Line [6] is redundant. When Lua functions are tailcalled, the virtual machine does not return to line [5] at all.
 
 OP_RETURN instruction
 =====================
@@ -422,33 +422,33 @@ Description
 
 Returns to the calling function, with optional return values. 
 
-First '``OP_RETURN``'' closes any open upvalues by calling `luaF_close() <http://www.lua.org/source/5.3/lfunc.c.html#luaF_close>`_.
+First ``OP_RETURN`` closes any open upvalues by calling `luaF_close() <http://www.lua.org/source/5.3/lfunc.c.html#luaF_close>`_.
 
 If B is 1, there are no return values. If B is 2 or more, there are (B-1) return values, located in consecutive registers from R(A) onwards. If B is 0, the set of values range from R(A) to the top of the stack. 
 
 It is assumed that if the VM is returning to a Lua function then it is within the same invocation of the ``luaV_execute()``. Else it is assumed that ``luaV_execute()`` is being invoked from a C function.
 
-If B is 0 then the previous instruction (which must be either '``OP_CALL``' or '``OP_VARARG``' ) would have set ``L->top`` to indicate how many values to return. The number of values to be returned in this case is R(A) to L->top. 
+If B is 0 then the previous instruction (which must be either ``OP_CALL`` or ``OP_VARARG`` ) would have set ``L->top`` to indicate how many values to return. The number of values to be returned in this case is R(A) to L->top. 
 
 If B > 0 then the number of values to be returned is simply B-1.
 
-'``OP_RETURN``' calls `luaD_poscall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_poscall>`_ which is responsible for copying return values to the caller - the first result is placed at the current ``closure``'s address. ``luaD_poscall()`` leaves ``L->top`` just past the last result that was copied.
+``OP_RETURN`` calls `luaD_poscall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_poscall>`_ which is responsible for copying return values to the caller - the first result is placed at the current ``closure``'s address. ``luaD_poscall()`` leaves ``L->top`` just past the last result that was copied.
 
-If '``OP_RETURN``' is returning to a Lua function and if the number of return values expected was indeterminate - i.e. '``OP_CALL``' had operand C = 0, then ``L->top`` is left where ``luaD_poscall()`` placed it - just beyond the top of the result list. This allows the '``OP_CALL``' instruction to figure out how many results were returned. If however '``OP_CALL``' had invoked with a value of C > 0 then the expected number of results is known, and in that case, ``L->top`` is reset to  the calling function's ``C->top``.
+If ``OP_RETURN`` is returning to a Lua function and if the number of return values expected was indeterminate - i.e. ``OP_CALL`` had operand C = 0, then ``L->top`` is left where ``luaD_poscall()`` placed it - just beyond the top of the result list. This allows the ``OP_CALL`` instruction to figure out how many results were returned. If however ``OP_CALL`` had invoked with a value of C > 0 then the expected number of results is known, and in that case, ``L->top`` is reset to  the calling function's ``C->top``.
 
-If ``luaV_execute()`` was called externally then '``OP_RETURN``' leaves ``L->top`` unchanged - so it will continue to be just past the top of the results list. This is because luaV_execute() does not have a way of informing callers how many values were returned; so the caller can determine the number of results by inspecting ``L->top``.
+If ``luaV_execute()`` was called externally then ``OP_RETURN`` leaves ``L->top`` unchanged - so it will continue to be just past the top of the results list. This is because luaV_execute() does not have a way of informing callers how many values were returned; so the caller can determine the number of results by inspecting ``L->top``.
 
 Examples
 --------
 
-Example of '``OP_VARARG``' followed by '``OP_RETURN``'::
+Example of ``OP_VARARG`` followed by ``OP_RETURN``::
 
   function x(...) return ... end
 
   1 [1]  VARARG          0 0
   2 [1]  RETURN          0 0
 
-Suppose we call ``x(1,2,3)``; then, observe the setting of ``L->top`` when '``OP_RETURN``' executes::
+Suppose we call ``x(1,2,3)``; then, observe the setting of ``L->top`` when ``OP_RETURN`` executes::
 
   (LOADK A=1 Bx=-2)      L->top = 4, ci->top = 4
   (LOADK A=2 Bx=-3)      L->top = 4, ci->top = 4
@@ -457,7 +457,7 @@ Suppose we call ``x(1,2,3)``; then, observe the setting of ``L->top`` when '``OP
   (VARARG A=0 B=0)       L->top = 2, ci->top = 2  ; we are in x()
   (RETURN A=0 B=0)       L->top = 3, ci->top = 2
 
-Observe that '``OP_VARARG``' set ``L->top`` to ``base+3``.
+Observe that ``OP_VARARG`` set ``L->top`` to ``base+3``.
 
 But if we call ``x(1)`` instead::
 
@@ -468,7 +468,7 @@ But if we call ``x(1)`` instead::
   (VARARG A=0 B=0)       L->top = 2, ci->top = 2 ; we are in x()
   (RETURN A=0 B=0)       L->top = 1, ci->top = 2
 
-Notice that this time '``OP_VARARG``' set ``L->top`` to ``base+1``.
+Notice that this time ``OP_VARARG`` set ``L->top`` to ``base+1``.
 
 OP_JMP instruction
 ==================
@@ -487,7 +487,7 @@ Performs an unconditional jump, with sBx as a signed displacement. sBx is added 
 
 If R(A) is not 0 then all upvalues >= R(A-1) will be closed by calling `luaF_close() <http://www.lua.org/source/5.3/lfunc.c.html#luaF_close>`_.
 
-'``OP_JMP``' is used in loops, conditional statements, and in expressions when a boolean true/false need to be generated.
+``OP_JMP`` is used in loops, conditional statements, and in expressions when a boolean true/false need to be generated.
 
 Examples
 --------
