@@ -1341,3 +1341,69 @@ Line [4] is a ``JMP`` to ``TFORCALL`` on line [9]. The ``TFORCALL`` instruction 
 The ``TFORLOOP`` insruction executes and checks whether ``i`` is ``nil``. If it is not ``nil``, then the internal control variable (register 2) is set to the value in ``i`` and control goes back to to the start of the loop body (lines [5]–[8]).
 
 The body of the generic ``for`` loop executes (``print(i,v)``) and then ``TFORCALL`` is encountered again, calling the iterator function to get the next iteration state. Finally, when the ``TFORLOOP`` finds that the first result from the iterator is ``nil``, the loop ends, and execution continues on line [11].
+
+
+GETUPVAL and SETUPVAL instructions
+==================================
+
+Syntax
+------
+::
+
+  GETUPVAL  A B     R(A) := UpValue[B]  
+  SETUPVAL  A B     UpValue[B] := R(A)
+
+Description
+-----------
+
+``GETUPVAL`` copies the value in upvalue number ``B`` into register ``R(A)``. Each Lua function may have its own upvalue list. This upvalue list is internal to the virtual machine; the list of upvalue name strings in a prototype is not mandatory.
+
+``SETUPVAL`` copies the value from register ``R(A)`` into the upvalue number ``B`` in the upvalue list for that function.
+
+Examples
+--------
+``GETUPVAL`` and ``SETUPVAL`` instructions use internally-managed upvalue lists. The list of upvalue name strings that are found in a function prototype is for debugging purposes; it is not used by the Lua virtual machine and can be stripped by ``luac``.
+During execution, upvalues are set up by a ``CLOSURE``, and maintained by the Lua virtual machine. In the following example, function ``b`` is declared inside the main chunk, and is shown in the disassembly as a function prototype within a function prototype. The indentation, which is not in the original output, helps to visually separate the two functions.
+
+::
+
+  f=load('local a; function b() a = 1 return a end')
+
+Leads to::
+
+  main <(string):0,0> (4 instructions at 000002853D5177F0)
+  0+ params, 2 slots, 1 upvalue, 1 local, 1 constant, 1 function
+        1       [1]     LOADNIL         0 0
+        2       [1]     CLOSURE         1 0     ; 000002853D517920
+        3       [1]     SETTABUP        0 -1 1  ; _ENV "b"
+        4       [1]     RETURN          0 1
+  constants (1) for 000002853D5177F0:
+        1       "b"
+  locals (1) for 000002853D5177F0:
+        0       a       2       5
+  upvalues (1) for 000002853D5177F0:
+        0       _ENV    1       0
+
+    function <(string):1,1> (5 instructions at 000002853D517920)
+    0 params, 2 slots, 1 upvalue, 0 locals, 1 constant, 0 functions
+          1       [1]     LOADK           0 -1    ; 1
+          2       [1]     SETUPVAL        0 0     ; a
+          3       [1]     GETUPVAL        0 0     ; a
+          4       [1]     RETURN          0 2
+          5       [1]     RETURN          0 1
+    constants (1) for 000002853D517920:
+          1       1
+    locals (0) for 000002853D517920:
+    upvalues (1) for 000002853D517920:
+          0       a       1       0
+
+In the main chunk, the local ``a`` starts as a ``nil``. The ``CLOSURE`` instruction in line [2] then instantiates a function closure with a single upvalue, ``a``. In line [3] the closure is assigned to global ``b`` via the ``SETTABUP`` instruction.
+
+In function ``b``, there is a single upvalue, `a`. In Pascal, a variable in an outer scope is found by traversing stack frames. However, instantiations of Lua functions are first-class values, and they may be assigned to a variable and referenced elsewhere. Moreover, a single prototype may have multiple instantiations. Managing upvalues thus becomes a little more tricky than traversing stack frames in Pascal. The Lua virtual machine solution is to provide a clean interface to access upvalues via ``GETUPVAL`` and ``SETUPVAL``, while the management of upvalues is handled by the virtual machine itself.
+
+Line [2] in function ``b`` sets upvalue a (upvalue number 0 in the upvalue table) to a number value of ``1`` (held in temporary register ``0``.) In line [3], the value in upvalue ``a`` is retrieved and placed into register ``0``, where the following ``RETURN`` instruction will use it as a return value. The ``RETURN`` in line [5] is unused.
+
+
+
+
+
