@@ -1343,8 +1343,8 @@ The ``TFORLOOP`` insruction executes and checks whether ``i`` is ``nil``. If it 
 The body of the generic ``for`` loop executes (``print(i,v)``) and then ``TFORCALL`` is encountered again, calling the iterator function to get the next iteration state. Finally, when the ``TFORLOOP`` finds that the first result from the iterator is ``nil``, the loop ends, and execution continues on line [11].
 
 
-GETUPVAL and SETUPVAL instructions
-==================================
+OP_GETUPVAL and OP_SETUPVAL instructions
+========================================
 
 Syntax
 ------
