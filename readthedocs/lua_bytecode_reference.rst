@@ -112,7 +112,7 @@ so it doesn't need the extra bit.
 +------------+-------------------------------------------------------------+
 | LOADK      | Load a constant into a register                             |
 +------------+-------------------------------------------------------------+
-| LOADKX     | Load constant into register                                 |
+| LOADKX     | Load a constant into a register                             |
 +------------+-------------------------------------------------------------+
 | LOADBOOL   | Load a boolean into a register                              |
 +------------+-------------------------------------------------------------+
@@ -170,11 +170,11 @@ so it doesn't need the extra bit.
 +------------+-------------------------------------------------------------+
 | JMP        | Unconditional jump                                          |
 +------------+-------------------------------------------------------------+
-| EQ         | Equality test                                               |
+| EQ         | Equality test, with conditional jump                        |
 +------------+-------------------------------------------------------------+
-| LT         | Less than test                                              |
+| LT         | Less than test, with conditional jump                       |
 +------------+-------------------------------------------------------------+
-| LE         | Less than or equal to test                                  |
+| LE         | Less than or equal to test, with conditional jump           |
 +------------+-------------------------------------------------------------+
 | TEST       | Boolean test, with conditional jump                         |
 +------------+-------------------------------------------------------------+
@@ -478,13 +478,14 @@ Syntax
 
 ::
 
-  JMP sBx PC += sBx
+  JMP A sBx   pc+=sBx; if (A) close all upvalues >= R(A - 1)
 
 Description
 -----------
 
-Performs an unconditional jump, with sBx as a signed displacement. sBx is added to the program counter (PC), which points to the next instruction to be executed. 
-E.g., if sBx is 0, the VM will proceed to the next instruction.
+Performs an unconditional jump, with sBx as a signed displacement. sBx is added to the program counter (PC), which points to the next instruction to be executed. If sBx is 0, the VM will proceed to the next instruction.
+
+If R(A) is not 0 then all upvalues >= R(A-1) will be closed by calling `luaF_close() <http://www.lua.org/source/5.3/lfunc.c.html#luaF_close>`_.
 
 '``OP_JMP``' is used in loops, conditional statements, and in expressions when a boolean true/false need to be generated.
 
@@ -759,9 +760,9 @@ next instruction.
 comparison. The boolean A field allows the full set of relational comparison operations to be 
 synthesized from these three instructions. The Lua code generator produces either 0 or 1 for the boolean A.
 
-For the fall-through case, a ``JMP`` is always expected, in order to optimize execution in the 
+For the fall-through case, a ``JMP`` instruction is always expected, in order to optimize execution in the 
 virtual machine. In effect, ``EQ``, ``LT`` and ``LE`` must always be paired with a following ``JMP`` 
-instruction.
+instruction. 
 
 Examples
 --------
