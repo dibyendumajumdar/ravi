@@ -1000,7 +1000,6 @@ int luaV_execute (lua_State *L) {
         int b = GETARG_B(i);
         setobj2s(L, ra, cl->upvals[b]->v);
       } break;
-
       case OP_GETTABUP: {
         TValue *upval = cl->upvals[GETARG_B(i)]->v;    /* table */
         TValue *rc = RKC(i);                           /* key */
@@ -1011,13 +1010,24 @@ int luaV_execute (lua_State *L) {
         TValue *rc = RKC(i);                           /* key */
         GETTABLE_INLINE_PROTECTED(L, rb, rc, ra);
       } break;
-
+      case OP_SETTABUP: {
+        TValue *rb = RKB(i);
+        TValue *t = cl->upvals[GETARG_A(i)]->v;
+        TValue *rc = RKC(i);
+        SETTABLE_INLINE_PROTECTED(L, t, rb, rc);
+      } break;
       case OP_SETUPVAL: {
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
         luaC_upvalbarrier(L, uv);
       } break;
-
+      case OP_RAVI_SETTABLE_I:
+      case OP_SETTABLE: {
+        TValue *rb = RKB(i);
+        TValue *t = ra;
+        TValue *rc = RKC(i);
+        SETTABLE_INLINE_PROTECTED(L, t, rb, rc);
+      } break;
       case OP_RAVI_SETTABLE_SK:
       case OP_RAVI_SETTABLE_S: {
         TValue *rb = RKB(i);
@@ -1025,16 +1035,6 @@ int luaV_execute (lua_State *L) {
         TValue *rc = RKC(i);
         SETTABLE_INLINE_SSKEY_PROTECTED(L, t, rb, rc);
       } break;
-
-      case OP_RAVI_SETTABLE_I:
-      case OP_SETTABUP:
-      case OP_SETTABLE: {
-        TValue *rb = RKB(i);
-        TValue *t = (op == OP_SETTABUP) ? cl->upvals[GETARG_A(i)]->v : ra;
-        TValue *rc = RKC(i);
-        SETTABLE_INLINE_PROTECTED(L, t, rb, rc);
-      } break;
-
       case OP_NEWTABLE: {
         int b = GETARG_B(i);
         int c = GETARG_C(i);
@@ -1066,7 +1066,10 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
-        if (ttisinteger(rb) && ttisinteger(rc)) {
+        if (ttisfloat(rb) && ttisfloat(rc)) {
+          nb = fltvalue(rb); nc = fltvalue(rc);
+          setfltvalue(ra, luai_numadd(L, nb, nc));
+        } else if (ttisinteger(rb) && ttisinteger(rc)) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(+, ib, ic));
         }
@@ -1079,7 +1082,11 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
-        if (ttisinteger(rb) && ttisinteger(rc)) {
+        if (ttisfloat(rb) && ttisfloat(rc)) {
+          nb = fltvalue(rb); nc = fltvalue(rc);
+          setfltvalue(ra, luai_numsub(L, nb, nc));
+        }
+        else if (ttisinteger(rb) && ttisinteger(rc)) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(-, ib, ic));
         }
@@ -1092,7 +1099,11 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
-        if (ttisinteger(rb) && ttisinteger(rc)) {
+        if (ttisfloat(rb) && ttisfloat(rc)) {
+          nb = fltvalue(rb); nc = fltvalue(rc);
+          setfltvalue(ra, luai_nummul(L, nb, nc));
+        }
+        else if (ttisinteger(rb) && ttisinteger(rc)) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(*, ib, ic));
         }
