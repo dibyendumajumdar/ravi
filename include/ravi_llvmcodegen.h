@@ -1015,6 +1015,10 @@ class RaviCodeGenerator {
   void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms,
                   int pc);
 
+  void emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms,
+    int pc);
+
+
   void emit_MOD(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_IDIV(RaviFunctionDef *def, int A, int B, int C, int pc);

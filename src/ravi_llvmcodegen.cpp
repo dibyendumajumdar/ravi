@@ -1869,7 +1869,8 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
     }
   }
 
-  if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs())) {
+  if (/* doVerify && */llvm::verifyFunction(*f->function(), &llvm::errs())) {
+    f->dump();
     fprintf(stderr, "LLVM Code Verification failed\n");
     abort();
   }
