@@ -356,14 +356,15 @@ void RaviCodeGenerator::emit_common_GETTABLE_S_(RaviFunctionDef *def, int A,
   def->builder->SetInsertPoint(testok);
   // Get the value
   llvm::Value *value1 = emit_table_get_value(def, node, offset);
+  llvm::Value *rc1 = emit_gep_register_or_constant(def, C);
   def->builder->CreateBr(testend);
 
   // Not found so call luaH_getstr
   def->f->getBasicBlockList().push_back(testfail);
   def->builder->SetInsertPoint(testfail);
-  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  llvm::Value *rc2 = emit_gep_register_or_constant(def, C);
   llvm::Value *value2 =
-    CreateCall2(def->builder, def->luaH_getstrF, t, emit_load_reg_s(def, rc));
+    CreateCall2(def->builder, def->luaH_getstrF, t, emit_load_reg_s(def, rc2));
   def->builder->CreateBr(testend);
 
   // merge
@@ -372,7 +373,10 @@ void RaviCodeGenerator::emit_common_GETTABLE_S_(RaviFunctionDef *def, int A,
   llvm::PHINode *phi = def->builder->CreatePHI(def->types->pTValueT, 2);
   phi->addIncoming(value1, testok);
   phi->addIncoming(value2, testfail);
-  emit_finish_GETTABLE(def, phi, t, ra, rb, rc);
+  llvm::PHINode *phi2 = def->builder->CreatePHI(def->types->pTValueT, 2);
+  phi2->addIncoming(rc1, testok);
+  phi2->addIncoming(rc2, testfail);
+  emit_finish_GETTABLE(def, phi, t, ra, rb, phi2);
 }
 
 // R(A) := R(B)[RK(C)]
