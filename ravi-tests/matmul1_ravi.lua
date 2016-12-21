@@ -45,7 +45,7 @@ end
 
 if ravi and ravi.jit() then
 	ravi.compile(matrix.T)
-	ravi.compile(matrix.mul)
+	ravi.compile(matrix.mul, {omitArrayGetRangeCheck=1})
 	ravi.compile(matgen)
 end
 
