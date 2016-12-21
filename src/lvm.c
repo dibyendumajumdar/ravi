@@ -1069,7 +1069,23 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
-        if (ttisfloat(rb)) {
+#if 1
+        if (ttisinteger(rb)) {
+          if (ttisinteger(rc)) {
+            lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
+            setivalue(ra, intop(+, ib, ic));
+          } 
+          else if (ttisfloat(rc)) {
+            nb = cast_num(ivalue(rb)); nc = fltvalue(rc);
+            setfltvalue(ra, luai_numadd(L, nb, nc));
+          }
+          else if (luaV_tonumber_(rc, &nc)) {
+            nb = cast_num(ivalue(rb));
+            setfltvalue(ra, luai_numadd(L, nb, nc));            
+          }
+          else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_ADD)); }
+        }
+        else if (ttisfloat(rb)) {
           if (ttisfloat(rc)) {
             nb = fltvalue(rb); nc = fltvalue(rc);
             setfltvalue(ra, luai_numadd(L, nb, nc));
@@ -1084,30 +1100,15 @@ int luaV_execute (lua_State *L) {
           }
           else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_ADD)); }
         }
-        else if (ttisinteger(rb)) {
-          if (ttisfloat(rc)) {
-            nb = cast_num(ivalue(rb)); nc = fltvalue(rc);
-            setfltvalue(ra, luai_numadd(L, nb, nc));
-          }
-          else if (ttisinteger(rc)) {
-            lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
-            setivalue(ra, intop(+, ib, ic));
-          } 
-          else if (luaV_tonumber_(rc, &nc)) {
-            nb = cast_num(ivalue(rb));
-            setfltvalue(ra, luai_numadd(L, nb, nc));            
-          }
-          else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_ADD)); }
-        }
-#if 0
-        if (ttisfloat(rb) && ttisfloat(rc)) {
-          nb = fltvalue(rb); nc = fltvalue(rc);
-          setfltvalue(ra, luai_numadd(L, nb, nc));
-        } else if (ttisinteger(rb) && ttisinteger(rc)) {
+#else
+        if (ttisinteger(rb) && ttisinteger(rc)) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(+, ib, ic));
         }
-
+        else if (ttisfloat(rb) && ttisfloat(rc)) {
+          nb = fltvalue(rb); nc = fltvalue(rc);
+          setfltvalue(ra, luai_numadd(L, nb, nc));
+        } 
 #endif
         else if (luaV_tonumber_(rb, &nb) && luaV_tonumber_(rc, &nc)) {
           setfltvalue(ra, luai_numadd(L, nb, nc));
@@ -1118,7 +1119,23 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
-        if (ttisfloat(rb)) {
+#if 1
+        if (ttisinteger(rb)) {
+          if (ttisinteger(rc)) {
+            lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
+            setivalue(ra, intop(-, ib, ic));
+          } 
+          else if (ttisfloat(rc)) {
+            nb = cast_num(ivalue(rb)); nc = fltvalue(rc);
+            setfltvalue(ra, luai_numsub(L, nb, nc));
+          }
+          else if (luaV_tonumber_(rc, &nc)) {
+            nb = cast_num(ivalue(rb));
+            setfltvalue(ra, luai_numsub(L, nb, nc));            
+          }
+          else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SUB)); }
+        }
+        else if (ttisfloat(rb)) {
           if (ttisfloat(rc)) {
             nb = fltvalue(rb); nc = fltvalue(rc);
             setfltvalue(ra, luai_numsub(L, nb, nc));
@@ -1133,29 +1150,14 @@ int luaV_execute (lua_State *L) {
           }
           else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SUB)); }
         }
-        else if (ttisinteger(rb)) {
-          if (ttisfloat(rc)) {
-            nb = cast_num(ivalue(rb)); nc = fltvalue(rc);
-            setfltvalue(ra, luai_numsub(L, nb, nc));
-          }
-          else if (ttisinteger(rc)) {
-            lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
-            setivalue(ra, intop(-, ib, ic));
-          } 
-          else if (luaV_tonumber_(rc, &nc)) {
-            nb = cast_num(ivalue(rb));
-            setfltvalue(ra, luai_numsub(L, nb, nc));            
-          }
-          else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SUB)); }
-        }
-#if 0
-        if (ttisfloat(rb) && ttisfloat(rc)) {
-          nb = fltvalue(rb); nc = fltvalue(rc);
-          setfltvalue(ra, luai_numsub(L, nb, nc));
-        }
-        else if (ttisinteger(rb) && ttisinteger(rc)) {
+#else
+        if (ttisinteger(rb) && ttisinteger(rc)) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(-, ib, ic));
+        }
+        else if (ttisfloat(rb) && ttisfloat(rc)) {
+          nb = fltvalue(rb); nc = fltvalue(rc);
+          setfltvalue(ra, luai_numsub(L, nb, nc));
         }
 #endif
         else if (luaV_tonumber_(rb, &nb) && luaV_tonumber_(rc, &nc)) {
@@ -1167,7 +1169,23 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
-        if (ttisfloat(rb)) {
+#if 1
+        if (ttisinteger(rb)) {
+          if (ttisinteger(rc)) {
+            lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
+            setivalue(ra, intop(*, ib, ic));
+          } 
+          else if (ttisfloat(rc)) {
+            nb = cast_num(ivalue(rb)); nc = fltvalue(rc);
+            setfltvalue(ra, luai_nummul(L, nb, nc));
+          }
+          else if (luaV_tonumber_(rc, &nc)) {
+            nb = cast_num(ivalue(rb));
+            setfltvalue(ra, luai_nummul(L, nb, nc));            
+          }
+          else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_MUL)); }
+        }
+        else if (ttisfloat(rb)) {
           if (ttisfloat(rc)) {
             nb = fltvalue(rb); nc = fltvalue(rc);
             setfltvalue(ra, luai_nummul(L, nb, nc));
@@ -1182,29 +1200,14 @@ int luaV_execute (lua_State *L) {
           }
           else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_MUL)); }
         }
-        else if (ttisinteger(rb)) {
-          if (ttisfloat(rc)) {
-            nb = cast_num(ivalue(rb)); nc = fltvalue(rc);
-            setfltvalue(ra, luai_nummul(L, nb, nc));
-          }
-          else if (ttisinteger(rc)) {
-            lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
-            setivalue(ra, intop(*, ib, ic));
-          } 
-          else if (luaV_tonumber_(rc, &nc)) {
-            nb = cast_num(ivalue(rb));
-            setfltvalue(ra, luai_nummul(L, nb, nc));            
-          }
-          else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_MUL)); }
-        }
-#if 0        
-        if (ttisfloat(rb) && ttisfloat(rc)) {
-          nb = fltvalue(rb); nc = fltvalue(rc);
-          setfltvalue(ra, luai_nummul(L, nb, nc));
-        }
-        else if (ttisinteger(rb) && ttisinteger(rc)) {
+#else      
+        if (ttisinteger(rb) && ttisinteger(rc)) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(*, ib, ic));
+        }
+        else if (ttisfloat(rb) && ttisfloat(rc)) {
+          nb = fltvalue(rb); nc = fltvalue(rc);
+          setfltvalue(ra, luai_nummul(L, nb, nc));
         }
 #endif
         else if (luaV_tonumber_(rb, &nb) && luaV_tonumber_(rc, &nc)) {
