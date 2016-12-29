@@ -644,6 +644,21 @@ const TValue *luaH_getstr (Table *t, TString *key) {
 ** main search function
 */
 const TValue *luaH_get(Table *t, const TValue *key) {
+#if 1
+  switch (ttype(key)) {
+    case LUA_TSHRSTR: return luaH_getshortstr(t, tsvalue(key));
+    case LUA_TNUMINT: return luaH_getint(t, ivalue(key));
+    case LUA_TNIL: return luaO_nilobject;
+    case LUA_TNUMFLT: {
+      lua_Integer k;
+      if (luaV_tointeger(key, &k, 0)) /* index is int? */
+        return luaH_getint(t, k);  /* use specialized version */
+      /* else... */
+    }  /* FALLTHROUGH */
+    default:
+      return getgeneric(t, key);
+  }
+#else
   int tt = ttype(key);
   if (tt == LUA_TNUMINT)
     return luaH_getint(t, ivalue(key));
@@ -661,6 +676,7 @@ const TValue *luaH_get(Table *t, const TValue *key) {
   else {
     return getgeneric(t, key);
   }
+#endif
 }
 
 /*
