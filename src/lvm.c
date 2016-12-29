@@ -76,11 +76,7 @@
 */
 int luaV_tonumber_ (const TValue *obj, lua_Number *n) {
   TValue v;
-  if (ttisfloat(obj)) {
-    *n = fltvalue(obj);
-    return 1;
-  }
-  else if (ttisinteger(obj)) {
+  if (ttisinteger(obj)) {
     *n = cast_num(ivalue(obj));
     return 1;
   }
@@ -1069,7 +1065,7 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
-#if 1
+#if 0
         if (ttisinteger(rb)) {
           if (ttisinteger(rc)) {
             lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
@@ -1105,21 +1101,17 @@ int luaV_execute (lua_State *L) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(+, ib, ic));
         }
-        else if (ttisfloat(rb) && ttisfloat(rc)) {
-          nb = fltvalue(rb); nc = fltvalue(rc);
-          setfltvalue(ra, luai_numadd(L, nb, nc));
-        } 
-#endif
-        else if (luaV_tonumber_(rb, &nb) && luaV_tonumber_(rc, &nc)) {
+        else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
           setfltvalue(ra, luai_numadd(L, nb, nc));
         }
+#endif
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_ADD)); }
       } break;
       case OP_SUB: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
-#if 1
+#if 0
         if (ttisinteger(rb)) {
           if (ttisinteger(rc)) {
             lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
@@ -1155,21 +1147,17 @@ int luaV_execute (lua_State *L) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(-, ib, ic));
         }
-        else if (ttisfloat(rb) && ttisfloat(rc)) {
-          nb = fltvalue(rb); nc = fltvalue(rc);
+        else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
           setfltvalue(ra, luai_numsub(L, nb, nc));
         }
 #endif
-        else if (luaV_tonumber_(rb, &nb) && luaV_tonumber_(rc, &nc)) {
-          setfltvalue(ra, luai_numsub(L, nb, nc));
-        }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SUB)); }
       } break;
       case OP_MUL: {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
-#if 1
+#if 0
         if (ttisinteger(rb)) {
           if (ttisinteger(rc)) {
             lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
@@ -1205,14 +1193,10 @@ int luaV_execute (lua_State *L) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(*, ib, ic));
         }
-        else if (ttisfloat(rb) && ttisfloat(rc)) {
-          nb = fltvalue(rb); nc = fltvalue(rc);
+        else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
           setfltvalue(ra, luai_nummul(L, nb, nc));
         }
 #endif
-        else if (luaV_tonumber_(rb, &nb) && luaV_tonumber_(rc, &nc)) {
-          setfltvalue(ra, luai_nummul(L, nb, nc));
-        }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_MUL)); }
       } break;
       case OP_DIV: { /* float division (always with floats) */
