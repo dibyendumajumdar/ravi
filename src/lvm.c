@@ -909,26 +909,43 @@ void luaV_finishOp (lua_State *L) {
 #define Protect(x)	{ {x;}; base = ci->u.l.base; }
 
 #define checkGC(L,c)  \
-	{ luaC_condGC(L, L->top = (c),  /* limit of live values */ \
+  { luaC_condGC(L, L->top = (c),  /* limit of live values */ \
                          Protect(L->top = ci->top));  /* restore top */ \
            luai_threadyield(L); }
 
 
 #define checkGC_(L,c)  \
-    { luaC_condGC(L, L->top = (c),  /* limit of live values */ \
-                     L->top = ci->top);  /* restore top */ \
+  { luaC_condGC(L, L->top = (c),  /* limit of live values */ \
+                   L->top = ci->top);  /* restore top */ \
            luai_threadyield(L); }
 
-
-/* fetch an instruction and prepare its execution */
-#define vmfetch()	{ \
+#if RAVI_BYTECODE_PROFILING_ENABLED
+ /* fetch an instruction and prepare its execution */
+#define vmfetch(op, prevop)	{ \
   i = *(ci->u.l.savedpc++); \
-  if (L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT)) \
+  if (RAVI_UNLIKELY(L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT))) \
     Protect(luaG_traceexec(L)); \
+  op = GET_OPCODE(i); \
+  if (prevop != -1) raviV_add_profiledata(L, prevop); \
+  prevop = op; \
   ra = RA(i); /* WARNING: any stack reallocation invalidates 'ra' */ \
   lua_assert(base == ci->u.l.base); \
   lua_assert(base <= L->top && L->top < L->stack + L->stacksize); \
 }
+
+#else
+/* fetch an instruction and prepare its execution */
+#define vmfetch(op, prevop)	{ \
+  i = *(ci->u.l.savedpc++); \
+  if (RAVI_UNLIKELY(L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT))) \
+    Protect(luaG_traceexec(L)); \
+  op = GET_OPCODE(i); \
+  ra = RA(i); /* WARNING: any stack reallocation invalidates 'ra' */ \
+  lua_assert(base == ci->u.l.base); \
+  lua_assert(base <= L->top && L->top < L->stack + L->stacksize); \
+}
+
+#endif
 
 #define vmdispatch(o)	switch(o)
 #define vmcase(l)	case l:
@@ -965,85 +982,85 @@ int luaV_execute (lua_State *L) {
   /* main loop of interpreter */
   OpCode prevop = -1;
   for (;;) {
-    Instruction i = *(ci->u.l.savedpc++);
+    Instruction i;
+    OpCode op;
     StkId ra;
-    if (RAVI_UNLIKELY(L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT)))
-      Protect(luaG_traceexec(L));
-    /* WARNING: several calls may realloc the stack and invalidate 'ra' */
-    OpCode op = GET_OPCODE(i);
-#if RAVI_BYTECODE_PROFILING_ENABLED
-    if (prevop != -1) raviV_add_profiledata(L, prevop);
-#endif
-    prevop = op;
-#if 0
-    RAVI_DEBUG_STACK(
-        ravi_debug_trace(L, op, (ci->u.l.savedpc - cl->p->code) - 1));
-#endif
-    ra = RA(i);
-    lua_assert(base == ci->u.l.base);
-    lua_assert(base <= L->top && L->top < L->stack + L->stacksize);
-    switch (op) {
-      case OP_MOVE: {
+
+    vmfetch(op, prevop);
+    vmdispatch(op) {
+      vmcase(OP_MOVE) {
         setobjs2s(L, ra, RB(i));
-      } break;
-      case OP_LOADK: {
+        vmbreak;
+      }
+      vmcase(OP_LOADK) {
         TValue *rb = k + GETARG_Bx(i);
         setobj2s(L, ra, rb);
-      } break;
-      case OP_LOADKX: {
+        vmbreak;
+      }
+      vmcase(OP_LOADKX) {
         TValue *rb;
         lua_assert(GET_OPCODE(*ci->u.l.savedpc) == OP_EXTRAARG);
         rb = k + GETARG_Ax(*ci->u.l.savedpc++);
         setobj2s(L, ra, rb);
-      } break;
-      case OP_LOADBOOL: {
+        vmbreak;
+      }
+      vmcase(OP_LOADBOOL) {
         setbvalue(ra, GETARG_B(i));
         if (GETARG_C(i)) ci->u.l.savedpc++;  /* skip next instruction (if C) */
-      } break;
-      case OP_LOADNIL: {
+        vmbreak;
+      }
+      vmcase(OP_LOADNIL) {
         int b = GETARG_B(i);
         do {
           setnilvalue(ra++);
         } while (b--);
-      } break;
-      case OP_GETUPVAL: {
+        vmbreak;
+      }
+      vmcase(OP_GETUPVAL) {
         int b = GETARG_B(i);
         setobj2s(L, ra, cl->upvals[b]->v);
-      } break;
-      case OP_GETTABUP: {
+        vmbreak;
+      }
+      vmcase(OP_GETTABUP) {
         TValue *upval = cl->upvals[GETARG_B(i)]->v;    /* table */
         TValue *rc = RKC(i);                           /* key */
         GETTABLE_INLINE_PROTECTED(L, upval, rc, ra);
-      } break;
-      case OP_GETTABLE: {
+        vmbreak;
+      }
+      vmcase(OP_GETTABLE) {
         StkId rb = RB(i);                              /* table */
         TValue *rc = RKC(i);                           /* key */
         GETTABLE_INLINE_PROTECTED(L, rb, rc, ra);
-      } break;
-      case OP_SETTABUP: {
+        vmbreak;
+      }
+      vmcase(OP_SETTABUP) {
         TValue *upval = cl->upvals[GETARG_A(i)]->v;
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         SETTABLE_INLINE_PROTECTED(L, upval, rb, rc);
-      } break;
-      case OP_SETUPVAL: {
+        vmbreak;
+      }
+      vmcase(OP_SETUPVAL) {
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
         luaC_upvalbarrier(L, uv);
-      } break;
-      case OP_RAVI_SETTABLE_I:
-      case OP_SETTABLE: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETTABLE_I)
+      vmcase(OP_SETTABLE) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         SETTABLE_INLINE_PROTECTED(L, ra, rb, rc);
-      } break;
-      case OP_RAVI_SETTABLE_SK:
-      case OP_RAVI_SETTABLE_S: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETTABLE_SK)
+      vmcase(OP_RAVI_SETTABLE_S) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         SETTABLE_INLINE_SSKEY_PROTECTED(L, ra, rb, rc);
-      } break;
-      case OP_NEWTABLE: {
+        vmbreak;
+      }
+      vmcase(OP_NEWTABLE) {
         int b = GETARG_B(i);
         int c = GETARG_C(i);
         Table *t = luaH_new(L);
@@ -1051,15 +1068,17 @@ int luaV_execute (lua_State *L) {
         if (b != 0 || c != 0)
           luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
         checkGC(L, ra + 1);
-      } break;
-      case OP_RAVI_SELF_SK: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SELF_SK) {
         StkId rb = RB(i); /* variable - may not be a table */
         /* we know that the key a short string constant */
         TValue *rc = RKC(i);
         setobjs2s(L, ra + 1, rb);
         GETTABLE_INLINE_SSKEY_PROTECTED(L, rb, rc, ra);
-      } break;
-      case OP_SELF: {
+        vmbreak;
+      }
+      vmcase(OP_SELF) {
         const TValue *aux;
         StkId rb = RB(i);
         TValue *rc = RKC(i);
@@ -1069,8 +1088,9 @@ int luaV_execute (lua_State *L) {
           setobj2s(L, ra, aux);
         }
         else Protect(luaV_finishget(L, rb, rc, ra, aux));
-      } break;
-      case OP_ADD: {
+        vmbreak;
+      }
+      vmcase(OP_ADD) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
@@ -1115,8 +1135,9 @@ int luaV_execute (lua_State *L) {
         }
 #endif
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_ADD)); }
-      } break;
-      case OP_SUB: {
+        vmbreak;
+      }
+      vmcase(OP_SUB) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
@@ -1161,8 +1182,9 @@ int luaV_execute (lua_State *L) {
         }
 #endif
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SUB)); }
-      } break;
-      case OP_MUL: {
+        vmbreak;
+      }
+      vmcase(OP_MUL) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
@@ -1207,8 +1229,9 @@ int luaV_execute (lua_State *L) {
         }
 #endif
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_MUL)); }
-      } break;
-      case OP_DIV: { /* float division (always with floats) */
+        vmbreak;
+      }
+      vmcase(OP_DIV) {  /* float division (always with floats) */
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
@@ -1216,8 +1239,9 @@ int luaV_execute (lua_State *L) {
           setfltvalue(ra, luai_numdiv(L, nb, nc));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_DIV)); }
-      } break;
-      case OP_BAND: {
+        vmbreak;
+      }
+      vmcase(OP_BAND) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer ib; lua_Integer ic;
@@ -1225,8 +1249,9 @@ int luaV_execute (lua_State *L) {
           setivalue(ra, intop(&, ib, ic));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BAND)); }
-      } break;
-      case OP_BOR: {
+        vmbreak;
+      }
+      vmcase(OP_BOR) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer ib; lua_Integer ic;
@@ -1234,8 +1259,9 @@ int luaV_execute (lua_State *L) {
           setivalue(ra, intop(|, ib, ic));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BOR)); }
-      } break;
-      case OP_BXOR: {
+        vmbreak;
+      }
+      vmcase(OP_BXOR) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer ib; lua_Integer ic;
@@ -1243,8 +1269,9 @@ int luaV_execute (lua_State *L) {
           setivalue(ra, intop(^, ib, ic));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BXOR)); }
-      } break;
-      case OP_SHL: {
+        vmbreak;
+      }
+      vmcase(OP_SHL) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer ib; lua_Integer ic;
@@ -1252,8 +1279,9 @@ int luaV_execute (lua_State *L) {
           setivalue(ra, luaV_shiftl(ib, ic));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SHL)); }
-      } break;
-      case OP_SHR: {
+        vmbreak;
+      }
+      vmcase(OP_SHR) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer ib; lua_Integer ic;
@@ -1261,8 +1289,9 @@ int luaV_execute (lua_State *L) {
           setivalue(ra, luaV_shiftl(ib, -ic));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SHR)); }
-      } break;
-      case OP_MOD: {
+        vmbreak;
+      }
+      vmcase(OP_MOD) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
@@ -1276,8 +1305,9 @@ int luaV_execute (lua_State *L) {
           setfltvalue(ra, m);
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_MOD)); }
-      } break;
-      case OP_IDIV: { /* floor division */
+        vmbreak;
+      }
+      vmcase(OP_IDIV) {  /* floor division */
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
@@ -1289,8 +1319,9 @@ int luaV_execute (lua_State *L) {
           setfltvalue(ra, luai_numidiv(L, nb, nc));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_IDIV)); }
-      } break;
-      case OP_POW: {
+        vmbreak;
+      }
+      vmcase(OP_POW) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
@@ -1298,8 +1329,9 @@ int luaV_execute (lua_State *L) {
           setfltvalue(ra, luai_numpow(L, nb, nc));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_POW)); }
-      } break;
-      case OP_UNM: {
+        vmbreak;
+      }
+      vmcase(OP_UNM) {
         TValue *rb = RB(i);
         lua_Number nb;
         if (ttisinteger(rb)) {
@@ -1312,8 +1344,9 @@ int luaV_execute (lua_State *L) {
         else {
           Protect(luaT_trybinTM(L, rb, rb, ra, TM_UNM));
         }
-      } break;
-      case OP_BNOT: {
+        vmbreak;
+      }
+      vmcase(OP_BNOT) {
         TValue *rb = RB(i);
         lua_Integer ib;
         if (tointeger(rb, &ib)) {
@@ -1322,16 +1355,19 @@ int luaV_execute (lua_State *L) {
         else {
           Protect(luaT_trybinTM(L, rb, rb, ra, TM_BNOT));
         }
-      } break;
-      case OP_NOT: {
+        vmbreak;
+      }
+      vmcase(OP_NOT) {
         TValue *rb = RB(i);
         int res = l_isfalse(rb);  /* next assignment may change this value */
         setbvalue(ra, res);
-      } break;
-      case OP_LEN: {
+        vmbreak;
+      }
+      vmcase(OP_LEN) {
         Protect(luaV_objlen(L, ra, RB(i)));
-      } break;
-      case OP_CONCAT: {
+        vmbreak;
+      }
+      vmcase(OP_CONCAT) {
         int b = GETARG_B(i);
         int c = GETARG_C(i);
         StkId rb;
@@ -1342,11 +1378,13 @@ int luaV_execute (lua_State *L) {
         setobjs2s(L, ra, rb);
         checkGC(L, (ra >= rb ? ra + 1 : rb));
         L->top = ci->top;  /* restore top */
-      } break;
-      case OP_JMP: {
+        vmbreak;
+      }
+      vmcase(OP_JMP) {
         dojump(ci, i, 0);
-      } break;
-      case OP_EQ: {
+        vmbreak;
+      }
+      vmcase(OP_EQ) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         Protect(
@@ -1355,30 +1393,34 @@ int luaV_execute (lua_State *L) {
           else
             donextjump(ci);
         )
-      } break;
-      case OP_LT: {
+        vmbreak;
+      }
+      vmcase(OP_LT) {
         Protect(
           if (luaV_lessthan(L, RKB(i), RKC(i)) != GETARG_A(i))
             ci->u.l.savedpc++;
           else
             donextjump(ci);
         )
-      } break;
-      case OP_LE: {
+        vmbreak;
+      }
+      vmcase(OP_LE) {
         Protect(
           if (luaV_lessequal(L, RKB(i), RKC(i)) != GETARG_A(i))
             ci->u.l.savedpc++;
           else
             donextjump(ci);
         )
-      } break;
-      case OP_TEST: {
+        vmbreak;
+      }
+      vmcase(OP_TEST) {
         if (GETARG_C(i) ? l_isfalse(ra) : !l_isfalse(ra))
             ci->u.l.savedpc++;
         else
           donextjump(ci);
-      } break;
-      case OP_TESTSET: {
+        vmbreak;
+      }
+      vmcase(OP_TESTSET) {
         TValue *rb = RB(i);
         if (GETARG_C(i) ? l_isfalse(rb) : !l_isfalse(rb))
           ci->u.l.savedpc++;
@@ -1386,8 +1428,9 @@ int luaV_execute (lua_State *L) {
           setobjs2s(L, ra, rb);
           donextjump(ci);
         }
-      } break;
-      case OP_CALL: {
+        vmbreak;
+      }
+      vmcase(OP_CALL) {
         int b = GETARG_B(i);
         int nresults = GETARG_C(i) - 1;
         if (b != 0) L->top = ra+b;  /* else previous instruction set top */
@@ -1413,8 +1456,9 @@ int luaV_execute (lua_State *L) {
           lua_assert(!ci->jitstatus);
           goto newframe; /* restart luaV_execute over new Lua function */
         }
-      } break;
-      case OP_TAILCALL: {
+        vmbreak;
+      }
+      vmcase(OP_TAILCALL) {
         int b = GETARG_B(i);
         if (b != 0) L->top = ra+b;  /* else previous instruction set top */
         lua_assert(GETARG_C(i) - 1 == LUA_MULTRET);
@@ -1449,8 +1493,9 @@ int luaV_execute (lua_State *L) {
           lua_assert(L->top == oci->u.l.base + getproto(ofunc)->maxstacksize);
           goto newframe;  /* restart luaV_execute over new Lua function */
         }
-      } break;
-      case OP_RETURN: {
+        vmbreak;
+      }
+      vmcase(OP_RETURN) {
         int b = GETARG_B(i);
         if (cl->p->sizep > 0) luaF_close(L, base);
         int nres = (b != 0 ? b - 1 : cast_int(L->top - ra));
@@ -1484,7 +1529,7 @@ int luaV_execute (lua_State *L) {
           goto newframe;  /* restart luaV_execute over new Lua function */
         }
       }
-      case OP_FORLOOP: {
+      vmcase(OP_FORLOOP) {
         if (RAVI_LIKELY(ttisinteger(ra))) {  /* integer loop? */
           lua_Integer step = ivalue(ra + 2);
           lua_Integer idx = intop(+, ivalue(ra), step); /* increment index */
@@ -1506,8 +1551,9 @@ int luaV_execute (lua_State *L) {
             setfltvalue(ra + 3, idx);  /* ...and external index */
           }
         }
-      } break;
-      case OP_FORPREP: {
+        vmbreak;
+      }
+      vmcase(OP_FORPREP) {
         TValue *init = ra;
         TValue *plimit = ra + 1;
         TValue *pstep = ra + 2;
@@ -1533,8 +1579,9 @@ int luaV_execute (lua_State *L) {
           setfltvalue(init, luai_numsub(L, ninit, nstep));
         }
         ci->u.l.savedpc += GETARG_sBx(i);
-      } break;
-      case OP_TFORCALL: {
+        vmbreak;
+      }
+      vmcase(OP_TFORCALL) {
         StkId cb = ra + 3;  /* call base */
         setobjs2s(L, cb+2, ra+2);
         setobjs2s(L, cb+1, ra+1);
@@ -1547,14 +1594,15 @@ int luaV_execute (lua_State *L) {
         lua_assert(GET_OPCODE(i) == OP_TFORLOOP);
         goto l_tforloop;
       }
-      case OP_TFORLOOP: {
+      vmcase(OP_TFORLOOP) {
         l_tforloop:
         if (!ttisnil(ra + 1)) {  /* continue loop? */
           setobjs2s(L, ra, ra + 1);  /* save control variable */
           ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
         }
-      } break;
-      case OP_SETLIST: {
+        vmbreak;
+      }
+      vmcase(OP_SETLIST) {
         int n = GETARG_B(i);
         int c = GETARG_C(i);
         unsigned int last;
@@ -1615,8 +1663,9 @@ int luaV_execute (lua_State *L) {
           }
         }
         L->top = ci->top; /* correct top (in case of previous open call) */
-      } break;
-      case OP_CLOSURE: {
+        vmbreak;
+      }
+      vmcase(OP_CLOSURE) {
         Proto *p = cl->p->p[GETARG_Bx(i)];
         LClosure *ncl = getcached(p, cl->upvals, base);  /* cached closure */
         if (ncl == NULL)  /* no match? */
@@ -1624,8 +1673,9 @@ int luaV_execute (lua_State *L) {
         else
           setclLvalue(L, ra, ncl);  /* push cashed closure */
         checkGC(L, ra + 1);
-      } break;
-      case OP_VARARG: {
+        vmbreak;
+      }
+      vmcase(OP_VARARG) {
         int b = GETARG_B(i) - 1;  /* required results */
         int j;
         int n = cast_int(base - ci->func) - cl->p->numparams - 1;
@@ -1641,38 +1691,44 @@ int luaV_execute (lua_State *L) {
           setobjs2s(L, ra + j, base - n + j);
         for (; j < b; j++)  /* complete required results with nil */
           setnilvalue(ra + j);
-      } break;
-      case OP_EXTRAARG: {
+        vmbreak;
+      }
+      vmcase(OP_EXTRAARG) {
         lua_assert(0);
-      } break;
-
-      case OP_RAVI_BAND_II: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_BAND_II) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setivalue(ra, intop(&, ivalue(rb), ivalue(rc)));
-      } break;
-      case OP_RAVI_BOR_II: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_BOR_II) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setivalue(ra, intop(| , ivalue(rb), ivalue(rc)));
-      } break;
-      case OP_RAVI_BXOR_II: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_BXOR_II) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setivalue(ra, intop(^, ivalue(rb), ivalue(rc)));
-      } break;
-      case OP_RAVI_SHL_II: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SHL_II) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setivalue(ra, luaV_shiftl(ivalue(rb), ivalue(rc)));
-      } break;
-      case OP_RAVI_SHR_II: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SHR_II) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer ic = ivalue(rc);
         setivalue(ra, luaV_shiftl(ivalue(rb), -ic));
-      } break;
-      case OP_RAVI_BNOT_I: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_BNOT_I) {
         /* On Win32 the following code generates a test failure
         * at line 29 of bitwise.lua test. Specifically following fails:
         * function x()
@@ -1692,9 +1748,9 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RB(i);
         lua_Integer ib = ivalue(rb);
         setivalue(ra, intop(^, ~l_castS2U(0), ib));
-      } break;
-
-      case OP_RAVI_EQ_II: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_EQ_II) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         int equals = (ivalue(rb) == ivalue(rc));
@@ -1702,8 +1758,9 @@ int luaV_execute (lua_State *L) {
           ci->u.l.savedpc++;
         else
           donextjump(ci);
-      } break;
-      case OP_RAVI_EQ_FF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_EQ_FF) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         int equals = (fltvalue(rb) == fltvalue(rc));
@@ -1711,8 +1768,9 @@ int luaV_execute (lua_State *L) {
           ci->u.l.savedpc++;
         else
           donextjump(ci);
-      } break;
-      case OP_RAVI_LT_II: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_LT_II) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         int lessthan = (ivalue(rb) < ivalue(rc));
@@ -1720,8 +1778,9 @@ int luaV_execute (lua_State *L) {
           ci->u.l.savedpc++;
         else
           donextjump(ci);
-      } break;
-      case OP_RAVI_LT_FF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_LT_FF) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         int lessthan = (fltvalue(rb) < fltvalue(rc));
@@ -1729,8 +1788,9 @@ int luaV_execute (lua_State *L) {
           ci->u.l.savedpc++;
         else
           donextjump(ci);
-      } break;
-      case OP_RAVI_LE_II: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_LE_II) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         int lessequals = (ivalue(rb) <= ivalue(rc));
@@ -1738,8 +1798,9 @@ int luaV_execute (lua_State *L) {
           ci->u.l.savedpc++;
         else
           donextjump(ci);
-      } break;
-      case OP_RAVI_LE_FF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_LE_FF) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         int lessequals = (fltvalue(rb) <= fltvalue(rc));
@@ -1747,10 +1808,10 @@ int luaV_execute (lua_State *L) {
           ci->u.l.savedpc++;
         else
           donextjump(ci);
-      } break;
-
-      case OP_RAVI_FORLOOP_IP:
-      case OP_RAVI_FORLOOP_I1: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_FORLOOP_IP)
+      vmcase(OP_RAVI_FORLOOP_I1) {
         lua_Integer step = op == OP_RAVI_FORLOOP_I1 ? 1 : ivalue(ra + 2);
         lua_Integer idx = ivalue(ra) + step; /* increment index */
         lua_Integer limit = ivalue(ra + 1);
@@ -1759,9 +1820,10 @@ int luaV_execute (lua_State *L) {
           chgivalue(ra, idx);               /* update internal index... */
           setivalue(ra + 3, idx);           /* ...and external index */
         }
-      } break;
-      case OP_RAVI_FORPREP_IP:
-      case OP_RAVI_FORPREP_I1: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_FORPREP_IP)
+      vmcase(OP_RAVI_FORPREP_I1) {
         TValue *pinit = ra;
         TValue *plimit = ra + 1;
         TValue *pstep = RAVI_LIKELY((op == OP_RAVI_FORPREP_I1)) ? NULL : ra + 2;
@@ -1771,20 +1833,21 @@ int luaV_execute (lua_State *L) {
         setivalue(plimit, ilimit);
         setivalue(pinit, initv - istep);
         ci->u.l.savedpc += GETARG_sBx(i);
-      } break;
-
-      case OP_RAVI_NEWARRAYI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_NEWARRAYI) {
         Table *t = raviH_new(L, RAVI_TARRAYINT, 0);
         setiarrayvalue(L, ra, t);
         checkGC(L, ra + 1);
-      } break;
-      case OP_RAVI_NEWARRAYF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_NEWARRAYF) {
         Table *t = raviH_new(L, RAVI_TARRAYFLT, 0);
         setfarrayvalue(L, ra, t);
         checkGC(L, ra + 1);
-      } break;
-
-      case OP_RAVI_GETTABLE_I: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_GETTABLE_I) {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rc);
@@ -1800,30 +1863,30 @@ int luaV_execute (lua_State *L) {
         else {
           Protect(luaV_finishget(L, rb, rc, ra, v));
         }
-      } break;
-
+        vmbreak;
+      }
       /* This opcode is used when the key is known to be
          short string but the variable may or may not be
          a table
       */
-      case OP_RAVI_GETTABUP_SK: {
+      vmcase(OP_RAVI_GETTABUP_SK) {
         StkId rb = cl->upvals[GETARG_B(i)]->v; /* variable - may not be a table */
         lua_assert(ISK(GETARG_C(i)));
         /* we know that the key a short string constant */
         TValue *rc = k + INDEXK(GETARG_C(i));
         GETTABLE_INLINE_SSKEY_PROTECTED(L, rb, rc, ra);
-      } break;
-
-      case OP_RAVI_GETTABLE_SK: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_GETTABLE_SK) {
         StkId rb = RB(i); /* variable - may not be a table */
         lua_assert(ISK(GETARG_C(i)));
         /* we know that the key a short string constant */
         TValue *rc = k + INDEXK(GETARG_C(i));
         GETTABLE_INLINE_SSKEY_PROTECTED(L, rb, rc, ra);
-      } break;
-
-      case OP_RAVI_SELF_S:
-      case OP_RAVI_GETTABLE_S: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SELF_S)
+      vmcase(OP_RAVI_GETTABLE_S) {
         /* This opcode is used when the key is known to be
            short string and the variable is known to be
            a table
@@ -1844,22 +1907,25 @@ int luaV_execute (lua_State *L) {
             Protect(luaV_finishget(L, rb, rc, ra, v));
           }
         }
-      } break;
-      case OP_RAVI_GETTABLE_AI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_GETTABLE_AI) {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rc);
         Table *t = hvalue(rb);
         raviH_get_int_inline(L, t, idx, ra);
-      } break;
-      case OP_RAVI_GETTABLE_AF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_GETTABLE_AF) {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rc);
         Table *t = hvalue(rb);
         raviH_get_float_inline(L, t, idx, ra);
-      } break;
-      case OP_RAVI_SETTABLE_AI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETTABLE_AI) {
         Table *t = hvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -1874,15 +1940,17 @@ int luaV_execute (lua_State *L) {
           else
             luaG_runerror(L, "integer expected");
         }
-      } break;
-      case OP_RAVI_SETTABLE_AII: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETTABLE_AII) {
         Table *t = hvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rb);
         raviH_set_int_inline(L, t, idx, ivalue(rc));
-      } break;
-      case OP_RAVI_SETTABLE_AF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETTABLE_AF) {
         Table *t = hvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -1897,16 +1965,17 @@ int luaV_execute (lua_State *L) {
           else
             luaG_runerror(L, "number expected");
         }
-      } break;
-      case OP_RAVI_SETTABLE_AFF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETTABLE_AFF) {
         Table *t = hvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rb);
         raviH_set_float_inline(L, t, idx, fltvalue(rc));
-      } break;
-
-      case OP_RAVI_SETUPVALI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETUPVALI) {
         lua_Integer ia;
         if (tointeger(ra, &ia)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
@@ -1916,8 +1985,9 @@ int luaV_execute (lua_State *L) {
         else
           luaG_runerror(
             L, "upvalue of integer type, cannot be set to non integer value");
-      } break;
-      case OP_RAVI_SETUPVALF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETUPVALF) {
         lua_Number na;
         if (tonumber(ra, &na)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
@@ -1927,9 +1997,9 @@ int luaV_execute (lua_State *L) {
         else
           luaG_runerror(
             L, "upvalue of number type, cannot be set to non number value");
-      } break;
-
-      case OP_RAVI_SETUPVALAI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETUPVALAI) {
         if (!ttisiarray(ra))
           luaG_runerror(L,
             "upvalue of integer[] type, cannot be set to non "
@@ -1937,8 +2007,9 @@ int luaV_execute (lua_State *L) {
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
         luaC_upvalbarrier(L, uv);
-      } break;
-      case OP_RAVI_SETUPVALAF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETUPVALAF) {
         if (!ttisfarray(ra))
           luaG_runerror(
             L,
@@ -1946,172 +2017,193 @@ int luaV_execute (lua_State *L) {
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
         luaC_upvalbarrier(L, uv);
-      } break;
-      case OP_RAVI_SETUPVALT: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETUPVALT) {
         if (!ttisLtable(ra))
           luaG_runerror(
             L, "upvalue of table type, cannot be set to non table value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
         luaC_upvalbarrier(L, uv);
-      } break;
-
-
-      case OP_RAVI_LOADIZ: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_LOADIZ) {
         setivalue(ra, 0);
-      } break;
-      case OP_RAVI_LOADFZ: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_LOADFZ) {
         setfltvalue(ra, 0.0);
-      } break;
-
-      case OP_RAVI_UNMF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_UNMF) {
         lua_assert(0);
         TValue *rb = RB(i);
         setfltvalue(ra, -fltvalue(rb));
-      } break;
-      case OP_RAVI_UNMI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_UNMI) {
         lua_assert(0);
         TValue *rb = RB(i);
         setivalue(ra, -ivalue(rb));
-      } break;
-
-      case OP_RAVI_ADDFF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_ADDFF) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setfltvalue(ra, fltvalue(rb) + fltvalue(rc));
-      } break;
-      case OP_RAVI_ADDFI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_ADDFI) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setfltvalue(ra, fltvalue(rb) + ivalue(rc));
-      } break;
-      case OP_RAVI_ADDII: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_ADDII) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setivalue(ra, ivalue(rb) + ivalue(rc));
-      } break;
-
-      case OP_RAVI_SUBFF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SUBFF) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setfltvalue(ra, fltvalue(rb) - fltvalue(rc));
-      } break;
-      case OP_RAVI_SUBFI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SUBFI) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setfltvalue(ra, fltvalue(rb) - ivalue(rc));
-      } break;
-      case OP_RAVI_SUBIF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SUBIF) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setfltvalue(ra, ivalue(rb) - fltvalue(rc));
-      } break;
-      case OP_RAVI_SUBII: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SUBII) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setivalue(ra, ivalue(rb) - ivalue(rc));
-      } break;
-
-      case OP_RAVI_MULFF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_MULFF) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setfltvalue(ra, fltvalue(rb) * fltvalue(rc));
-      } break;
-      case OP_RAVI_MULFI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_MULFI) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setfltvalue(ra, fltvalue(rb) * ivalue(rc));
-      } break;
-      case OP_RAVI_MULII: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_MULII) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setivalue(ra, ivalue(rb) * ivalue(rc));
-      } break;
-
-      case OP_RAVI_DIVFF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_DIVFF) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setfltvalue(ra, fltvalue(rb) / fltvalue(rc));
-      } break;
-      case OP_RAVI_DIVFI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_DIVFI) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setfltvalue(ra, fltvalue(rb) / ivalue(rc));
-      } break;
-      case OP_RAVI_DIVIF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_DIVIF) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setfltvalue(ra, ivalue(rb) / fltvalue(rc));
-      } break;
-      case OP_RAVI_DIVII: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_DIVII) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         setfltvalue(ra, (lua_Number)(ivalue(rb)) / (lua_Number)(ivalue(rc)));
-      } break;
-
-      case OP_RAVI_MOVEI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_MOVEI) {
         TValue *rb = RB(i);
         lua_Integer j;
         if (RAVI_LIKELY(tointeger(rb, &j))) { setivalue(ra, j); }
         else
           luaG_runerror(L, "MOVEI: integer expected");
-      } break;
-      case OP_RAVI_MOVEF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_MOVEF) {
         TValue *rb = RB(i);
         lua_Number j;
         if (RAVI_LIKELY(tonumber(rb, &j))) { setfltvalue(ra, j); }
         else
           luaG_runerror(L, "MOVEF: number expected");
-      } break;
-      case OP_RAVI_MOVEAI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_MOVEAI) {
         TValue *rb = RB(i);
         if (RAVI_LIKELY(ttisiarray(rb))) {
           setobjs2s(L, ra, rb);
         }
         else
           luaG_runerror(L, "integer[] expected");
-      } break;
-      case OP_RAVI_MOVEAF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_MOVEAF) {
         TValue *rb = RB(i);
         if (RAVI_LIKELY(ttisfarray(rb))) {
           setobjs2s(L, ra, rb);
         }
         else
           luaG_runerror(L, "number[] expected");
-      } break;
-      case OP_RAVI_MOVETAB: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_MOVETAB) {
         TValue *rb = RB(i);
         if (RAVI_LIKELY(ttisLtable(rb))) {
           setobjs2s(L, ra, rb);
         }
         else
           luaG_runerror(L, "table expected");
-      } break;
-
-      case OP_RAVI_TOINT: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_TOINT) {
         lua_Integer j;
         if (RAVI_LIKELY(tointeger(ra, &j))) { setivalue(ra, j); }
         else
           luaG_runerror(L, "TOINT: integer expected");
-      } break;
-      case OP_RAVI_TOFLT: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_TOFLT) {
         lua_Number j;
         if (RAVI_LIKELY(tonumber(ra, &j))) { setfltvalue(ra, j); }
         else
           luaG_runerror(L, "TOFLT: number expected");
-      } break;
-      case OP_RAVI_TOTAB: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_TOTAB) {
         if (RAVI_UNLIKELY(!ttisLtable(ra)))
           luaG_runerror(L, "table expected");
-      } break;
-      case OP_RAVI_TOARRAYI: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_TOARRAYI) {
         if (RAVI_UNLIKELY(!ttisiarray(ra)))
           luaG_runerror(L, "integer[] expected");
-      } break;
-      case OP_RAVI_TOARRAYF: {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_TOARRAYF) {
         if (RAVI_UNLIKELY(!ttisfarray(ra)))
           luaG_runerror(L, "number[] expected");
-      } break;
+        vmbreak;
+      }
     }
   }
 }
