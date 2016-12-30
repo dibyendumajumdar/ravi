@@ -5,7 +5,7 @@
 */
 
 /*
-** Portions Copyright (C) 2015-2016 Dibyendu Majumdar
+** Portions Copyright (C) 2015-2017 Dibyendu Majumdar
 */
 
 #define lcode_c
@@ -582,12 +582,12 @@ static int isshortstr(FuncState *fs, int kk) {
 
 void luaK_dischargevars (FuncState *fs, expdesc *e) {
   switch (e->k) {
-    case VLOCAL: {
-      e->k = VNONRELOC;
+    case VLOCAL: {  /* already in a register */
+      e->k = VNONRELOC;  /* becomes a non-relocatable value */
       DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VLOCAL->VNONRELOC) %e\n", e));
       break;
     }
-    case VUPVAL: {
+    case VUPVAL: {  /* move value to some (pending) register */
       e->u.info = luaK_codeABC(fs, OP_GETUPVAL, 0, e->u.info, 0);
       e->k = VRELOCABLE;
       DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VUPVAL->VRELOCABLE) %e\n", e));
@@ -827,7 +827,7 @@ void luaK_exp2val (FuncState *fs, expdesc *e) {
 ** (that is, it is either in a register or in 'k' with an index
 ** in the range of R/K indices).
 ** Returns R/K index.
-*/  
+*/
 int luaK_exp2RK (FuncState *fs, expdesc *e) {
   luaK_exp2val(fs, e);
   switch (e->k) {  /* move constants to 'k' */
@@ -1180,7 +1180,8 @@ static int validop (int op, TValue *v1, TValue *v2) {
 ** Try to "constant-fold" an operation; return 1 iff successful.
 ** (In this case, 'e1' has the final result.)
 */
-static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
+static int constfolding (FuncState *fs, int op, expdesc *e1,
+                                                const expdesc *e2) {
   TValue v1, v2, res;
   if (!tonumeral(e1, &v1) || !tonumeral(e2, &v2) || !validop(op, &v1, &v2))
     return 0;  /* non-numeric operands or not safe to fold */
@@ -1231,8 +1232,8 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
 static void codebinexpval (FuncState *fs, OpCode op,
                            expdesc *e1, expdesc *e2, int line) {
   /* Note that the order below is important - see Lua 5.3.3 bug list*/
-  int rk2 = luaK_exp2RK(fs, e2); /* both operands are "RK" */
-  int rk1 = luaK_exp2RK(fs, e1);  
+  int rk2 = luaK_exp2RK(fs, e2);  /* both operands are "RK" */
+  int rk1 = luaK_exp2RK(fs, e1);
   freeexps(fs, e1, e2);
   if (op == OP_ADD && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
     e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFF, 0, rk1, rk2);
@@ -1476,7 +1477,7 @@ void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
                 .k = VKINT,
                 .u.ival = 0};  /* fake 2nd operand */
   switch (op) {
-    case OPR_MINUS: case OPR_BNOT:
+    case OPR_MINUS: case OPR_BNOT:  /* use 'ef' as fake 2nd operand */
       if (constfolding(fs, op + LUA_OPUNM, e, &ef))
         break;
       /* FALLTHROUGH */

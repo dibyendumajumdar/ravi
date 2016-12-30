@@ -5,7 +5,7 @@
 */
 
 /*
-** Portions Copyright (C) 2015-2016 Dibyendu Majumdar 
+** Portions Copyright (C) 2015-2017 Dibyendu Majumdar 
 */
 
 #define lparser_c
@@ -613,8 +613,8 @@ static void singlevar (LexState *ls, expdesc *var) {
   singlevaraux(fs, varname, var, 1);
   if (var->k == VVOID) {  /* global name? */
     expdesc key = {.ravi_type = RAVI_TANY, .pc = -1};
-    singlevaraux(fs, ls->envn, var, 1); /* get environment variable */
-    lua_assert(var->k != VVOID);
+    singlevaraux(fs, ls->envn, var, 1);  /* get environment variable */
+    lua_assert(var->k != VVOID);  /* this one must exist */
     codestring(ls, &key, varname);  /* key is variable name */
     luaK_indexed(fs, var, &key);  /* env[varname] */
   }

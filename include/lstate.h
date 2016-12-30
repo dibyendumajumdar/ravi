@@ -23,7 +23,7 @@
 **
 ** 'allgc': all objects not marked for finalization;
 ** 'finobj': all objects marked for finalization;
-** 'tobefnz': all objects ready to be finalized; 
+** 'tobefnz': all objects ready to be finalized;
 ** 'fixedgc': all objects that are not to be collected (currently
 ** only small strings, such as reserved words).
 
@@ -34,7 +34,7 @@ struct lua_longjmp;  /* defined in ldo.c */
 
 
 /*
-** Atomic type (relative to signals) to better ensure that 'lua_sethook' 
+** Atomic type (relative to signals) to better ensure that 'lua_sethook'
 ** is thread safe
 */
 #if !defined(l_signalT)
@@ -66,7 +66,7 @@ typedef struct stringtable {
 ** Information about a call.
 ** When a thread yields, 'func' is adjusted to pretend that the
 ** top function has only the yielded values in its stack; in that
-** case, the actual 'func' value is saved in field 'extra'. 
+** case, the actual 'func' value is saved in field 'extra'.
 ** When a function calls another with a continuation, 'extra' keeps
 ** the function index so that, in case of errors, the continuation
 ** function can be called with the correct top.
@@ -106,6 +106,7 @@ typedef struct CallInfo {
 #define CIST_TAIL	(1<<5)	/* call was tail called */
 #define CIST_HOOKYIELD	(1<<6)	/* last hook called yielded */
 #define CIST_LEQ	(1<<7)  /* using __lt for __le */
+#define CIST_FIN	(1<<8)  /* call is running a finalizer */
 
 #define isLua(ci)	((ci)->callstatus & CIST_LUA)
 #define isJITed(ci) ((ci)->jitstatus)

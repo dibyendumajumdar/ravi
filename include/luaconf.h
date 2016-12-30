@@ -416,7 +416,7 @@
 
 /*
 @@ LUA_NUMBER is the floating-point type used by Lua.
-@@ LUAI_UACNUMBER is the result of an 'usual argument conversion'
+@@ LUAI_UACNUMBER is the result of a 'default argument promotion'
 @@ over a floating number.
 @@ l_mathlim(x) corrects limit name 'x' to the proper float type
 ** by prefixing it with one of FLT/DBL/LDBL.
@@ -433,7 +433,8 @@
 
 #define l_floor(x)		(l_mathop(floor)(x))
 
-#define lua_number2str(s,sz,n)	l_sprintf((s), sz, LUA_NUMBER_FMT, (n))
+#define lua_number2str(s,sz,n)  \
+	l_sprintf((s), sz, LUA_NUMBER_FMT, (LUAI_UACNUMBER)(n))
 
 /*
 @@ lua_numbertointeger converts a float number to an integer, or
@@ -510,7 +511,7 @@
 **
 @@ LUA_UNSIGNED is the unsigned version of LUA_INTEGER.
 **
-@@ LUAI_UACINT is the result of an 'usual argument conversion'
+@@ LUAI_UACINT is the result of a 'default argument promotion'
 @@ over a lUA_INTEGER.
 @@ LUA_INTEGER_FRMLEN is the length modifier for reading/writing integers.
 @@ LUA_INTEGER_FMT is the format for writing integers.
@@ -523,9 +524,11 @@
 /* The following definitions are good for most cases here */
 
 #define LUA_INTEGER_FMT		"%" LUA_INTEGER_FRMLEN "d"
-#define lua_integer2str(s,sz,n)	l_sprintf((s), sz, LUA_INTEGER_FMT, (n))
 
 #define LUAI_UACINT		LUA_INTEGER
+
+#define lua_integer2str(s,sz,n)  \
+	l_sprintf((s), sz, LUA_INTEGER_FMT, (LUAI_UACINT)(n))
 
 /*
 ** use LUAI_UACINT here to avoid problems with promotions (which
@@ -618,13 +621,14 @@
 
 
 /*
-@@ lua_number2strx converts a float to an hexadecimal numeric string. 
+@@ lua_number2strx converts a float to an hexadecimal numeric string.
 ** In C99, 'sprintf' (with format specifiers '%a'/'%A') does that.
 ** Otherwise, you can leave 'lua_number2strx' undefined and Lua will
 ** provide its own implementation.
 */
 #if !defined(LUA_USE_C89)
-#define lua_number2strx(L,b,sz,f,n)	((void)L, l_sprintf(b,sz,f,n))
+#define lua_number2strx(L,b,sz,f,n)  \
+	((void)L, l_sprintf(b,sz,f,(LUAI_UACNUMBER)(n)))
 #endif
 
 

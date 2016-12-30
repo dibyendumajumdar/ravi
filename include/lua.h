@@ -19,11 +19,11 @@
 #define LUA_VERSION_MAJOR	"5"
 #define LUA_VERSION_MINOR	"3"
 #define LUA_VERSION_NUM		503
-#define LUA_VERSION_RELEASE	"3"
+#define LUA_VERSION_RELEASE	"4"
 
 #define LUA_VERSION	"Ravi " LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
 #define LUA_RELEASE	LUA_VERSION "." LUA_VERSION_RELEASE
-#define LUA_COPYRIGHT	LUA_RELEASE "\nCopyright (C) 1994-2016 Lua.org, PUC-Rio\nPortions Copyright (C) 2015-2016 Dibyendu Majumdar"
+#define LUA_COPYRIGHT	LUA_RELEASE "\nCopyright (C) 1994-2017 Lua.org, PUC-Rio\nPortions Copyright (C) 2015-2016 Dibyendu Majumdar"
 #define LUA_AUTHORS	"R. Ierusalimschy, L. H. de Figueiredo, W. Celes, Dibyendu Majumdar"
 
 
@@ -550,7 +550,7 @@ LUA_API void ravi_set_debuglevel(int level);
 
 
 /******************************************************************************
-* Copyright (C) 1994-2016 Lua.org, PUC-Rio.
+* Copyright (C) 1994-2017 Lua.org, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the

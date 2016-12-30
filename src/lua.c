@@ -20,6 +20,9 @@
 #include "lualib.h"
 
 
+#define LUA_VERSUFFIX          "_" LUA_VERSION_MAJOR "_" LUA_VERSION_MINOR
+
+
 #if !defined(LUA_PROMPT)
 #define LUA_PROMPT		"> "
 #define LUA_PROMPT2		">> "
@@ -37,8 +40,7 @@
 #define LUA_INIT_VAR		"LUA_INIT"
 #endif
 
-#define LUA_INITVARVERSION  \
-	LUA_INIT_VAR "_" LUA_VERSION_MAJOR "_" LUA_VERSION_MINOR
+#define LUA_INITVARVERSION	LUA_INIT_VAR LUA_VERSUFFIX
 
 #ifdef USE_LLVM
 #define RAVI_OPTION_STRING3 " LLVM"
@@ -469,7 +471,7 @@ static int handle_script (lua_State *L, char **argv) {
 /*
 ** Traverses all arguments from 'argv', returning a mask with those
 ** needed before running any Lua code (or an error code if it finds
-** any invalid argument). 'first' returns the first not-handled argument 
+** any invalid argument). 'first' returns the first not-handled argument
 ** (either the script name or a bad argument in case of error).
 */
 static int collectargs (char **argv, int *first) {
@@ -493,7 +495,7 @@ static int collectargs (char **argv, int *first) {
         args |= has_E;
         break;
       case 'i':
-        args |= has_i;  /* (-i implies -v) *//* FALLTHROUGH */ 
+        args |= has_i;  /* (-i implies -v) *//* FALLTHROUGH */
       case 'v':
         if (argv[i][2] != '\0')  /* extra characters after 1st? */
           return has_error;  /* invalid option */
@@ -560,10 +562,8 @@ static int runargs (lua_State *L, char **argv, int n) {
 #define LUA_CPATH_VAR   "LUA_CPATH"
 #endif
 
-#define LUA_PATHSUFFIX          "_" LUA_VERSION_MAJOR "_" LUA_VERSION_MINOR
-
-#define LUA_PATHVARVERSION              LUA_PATH_VAR LUA_PATHSUFFIX
-#define LUA_CPATHVARVERSION             LUA_CPATH_VAR LUA_PATHSUFFIX
+#define LUA_PATHVARVERSION              LUA_PATH_VAR LUA_VERSUFFIX
+#define LUA_CPATHVARVERSION             LUA_CPATH_VAR LUA_VERSUFFIX
 
 
 #define AUXMARK         "\1"	/* auxiliary mark */

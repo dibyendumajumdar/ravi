@@ -18,10 +18,10 @@
 ** open the library, which is already linked to the application.
 ** For that, do the following code:
 **
-**  luaL_getsubtable(L, LUA_REGISTRYINDEX, "_PRELOAD");
+**  luaL_getsubtable(L, LUA_REGISTRYINDEX, LUA_PRELOAD_TABLE);
 **  lua_pushcfunction(L, luaopen_modname);
 **  lua_setfield(L, -2, modname);
-**  lua_pop(L, 1);  // remove _PRELOAD table
+**  lua_pop(L, 1);  // remove PRELOAD table
 */
 
 #include "lprefix.h"

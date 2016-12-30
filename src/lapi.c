@@ -5,7 +5,7 @@
 */
 
 /*
-** Portions Copyright (C) 2015-2016 Dibyendu Majumdar
+** Portions Copyright (C) 2015-2017 Dibyendu Majumdar
 */
 
 
@@ -999,7 +999,8 @@ LUA_API void lua_setfield (lua_State *L, int idx, const char *k) {
   auxsetstr(L, index2addr(L, idx), k);
 }
 
-LUA_API void lua_seti(lua_State *L, int idx, lua_Integer n) {
+
+LUA_API void lua_seti (lua_State *L, int idx, lua_Integer n) {
   StkId t;
   const TValue *slot;
   lua_lock(L);
@@ -1045,7 +1046,8 @@ LUA_API void lua_seti(lua_State *L, int idx, lua_Integer n) {
   lua_unlock(L);
 }
 
-LUA_API void lua_rawset(lua_State *L, int idx) {
+
+LUA_API void lua_rawset (lua_State *L, int idx) {
   StkId o;
   TValue *slot;
   Table *t;
@@ -1099,7 +1101,8 @@ LUA_API void lua_rawset(lua_State *L, int idx) {
   lua_unlock(L);
 }
 
-LUA_API void lua_rawseti(lua_State *L, int idx, lua_Integer n) {
+
+LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
   StkId o;
   Table *t;
   lua_lock(L);
@@ -1137,6 +1140,7 @@ LUA_API void lua_rawseti(lua_State *L, int idx, lua_Integer n) {
   L->top--;
   lua_unlock(L);
 }
+
 
 LUA_API void lua_rawsetp (lua_State *L, int idx, const void *p) {
   StkId o;

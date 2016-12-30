@@ -5,7 +5,7 @@
 */
 
 /*
-** Portions Copyright (C) 2015-2016 Dibyendu Majumdar
+** Portions Copyright (C) 2015-2017 Dibyendu Majumdar
 */
 
 
@@ -913,11 +913,22 @@ void luaV_finishOp (lua_State *L) {
                          Protect(L->top = ci->top));  /* restore top */ \
            luai_threadyield(L); }
 
+
 #define checkGC_(L,c)  \
     { luaC_condGC(L, L->top = (c),  /* limit of live values */ \
                      L->top = ci->top);  /* restore top */ \
            luai_threadyield(L); }
 
+
+/* fetch an instruction and prepare its execution */
+#define vmfetch()	{ \
+  i = *(ci->u.l.savedpc++); \
+  if (L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT)) \
+    Protect(luaG_traceexec(L)); \
+  ra = RA(i); /* WARNING: any stack reallocation invalidates 'ra' */ \
+  lua_assert(base == ci->u.l.base); \
+  lua_assert(base <= L->top && L->top < L->stack + L->stacksize); \
+}
 
 #define vmdispatch(o)	switch(o)
 #define vmcase(l)	case l:
@@ -1010,10 +1021,10 @@ int luaV_execute (lua_State *L) {
         GETTABLE_INLINE_PROTECTED(L, rb, rc, ra);
       } break;
       case OP_SETTABUP: {
+        TValue *upval = cl->upvals[GETARG_A(i)]->v;
         TValue *rb = RKB(i);
-        TValue *t = cl->upvals[GETARG_A(i)]->v;
         TValue *rc = RKC(i);
-        SETTABLE_INLINE_PROTECTED(L, t, rb, rc);
+        SETTABLE_INLINE_PROTECTED(L, upval, rb, rc);
       } break;
       case OP_SETUPVAL: {
         UpVal *uv = cl->upvals[GETARG_B(i)];
@@ -1023,16 +1034,14 @@ int luaV_execute (lua_State *L) {
       case OP_RAVI_SETTABLE_I:
       case OP_SETTABLE: {
         TValue *rb = RKB(i);
-        TValue *t = ra;
         TValue *rc = RKC(i);
-        SETTABLE_INLINE_PROTECTED(L, t, rb, rc);
+        SETTABLE_INLINE_PROTECTED(L, ra, rb, rc);
       } break;
       case OP_RAVI_SETTABLE_SK:
       case OP_RAVI_SETTABLE_S: {
         TValue *rb = RKB(i);
-        TValue *t = ra;
         TValue *rc = RKC(i);
-        SETTABLE_INLINE_SSKEY_PROTECTED(L, t, rb, rc);
+        SETTABLE_INLINE_SSKEY_PROTECTED(L, ra, rb, rc);
       } break;
       case OP_NEWTABLE: {
         int b = GETARG_B(i);

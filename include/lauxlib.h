@@ -16,8 +16,16 @@
 
 
 
-/* extra error code for 'luaL_load' */
+/* extra error code for 'luaL_loadfilex' */
 #define LUA_ERRFILE     (LUA_ERRERR+1)
+
+
+/* key, in the registry, for table of loaded modules */
+#define LUA_LOADED_TABLE	"_LOADED"
+
+
+/* key, in the registry, for table of preloaded loaders */
+#define LUA_PRELOAD_TABLE	"_PRELOAD"
 
 
 typedef struct luaL_Reg {

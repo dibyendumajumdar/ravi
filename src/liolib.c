@@ -620,8 +620,10 @@ static int g_write (lua_State *L, FILE *f, int arg) {
     if (lua_type(L, arg) == LUA_TNUMBER) {
       /* optimization: could be done exactly as for strings */
       int len = lua_isinteger(L, arg)
-                ? fprintf(f, LUA_INTEGER_FMT, lua_tointeger(L, arg))
-                : fprintf(f, LUA_NUMBER_FMT, lua_tonumber(L, arg));
+                ? fprintf(f, LUA_INTEGER_FMT,
+                             (LUAI_UACINT)lua_tointeger(L, arg))
+                : fprintf(f, LUA_NUMBER_FMT,
+                             (LUAI_UACNUMBER)lua_tonumber(L, arg));
       status = status && (len > 0);
     }
     else {
