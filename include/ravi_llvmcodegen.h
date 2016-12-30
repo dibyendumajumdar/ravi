@@ -834,8 +834,10 @@ class RaviCodeGenerator {
   // emit code to obtain address of constant at locatiion B
   llvm::Value *emit_gep_constant(RaviFunctionDef *def, int B);
 
+#if 0
   llvm::Value *emit_is_jit_call(RaviFunctionDef *def, llvm::Value *ci);
   llvm::Value *emit_ci_is_Lua(RaviFunctionDef *def, llvm::Value *ci);
+#endif
 
   // obtain address of L->top
   llvm::Value *emit_gep_L_top(RaviFunctionDef *def);

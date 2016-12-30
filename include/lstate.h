@@ -88,9 +88,9 @@ typedef struct CallInfo {
   } u;
   ptrdiff_t extra;
   short nresults;  /* expected number of results from this function */
-  lu_byte callstatus;
+  unsigned short callstatus;
+  unsigned short stacklevel; /* Ravi extension - stack level, bottom level is 0 */
   lu_byte jitstatus; /* Only valid if Lua function - if 1 means JITed - RAVI extension */
-  short stacklevel; /* Ravi extension - stack level, bottom level is 0 */
 } CallInfo;
 
 

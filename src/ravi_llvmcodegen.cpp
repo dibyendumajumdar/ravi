@@ -642,11 +642,12 @@ llvm::Value *RaviCodeGenerator::emit_gep_register_or_constant(
   return rb;
 }
 
-// Test if ci->jistatus is true
+#if 0
+// Test if ci->jistatus is true, ci is of type CallInfo
 llvm::Value *RaviCodeGenerator::emit_is_jit_call(RaviFunctionDef *def,
                                                  llvm::Value *ci) {
   // Get pointer to ci->jitstatus
-  llvm::Value *ci_jitstatus_ptr = emit_gep(def, "ci_jit_status_ptr", ci, 0, 8);
+  llvm::Value *ci_jitstatus_ptr = emit_gep(def, "ci_jit_status_ptr", ci, 0, 9);
 
   // Load ci->jitstatus
   llvm::Instruction *ci_jitstatus = def->builder->CreateLoad(ci_jitstatus_ptr);
@@ -672,11 +673,12 @@ llvm::Value *RaviCodeGenerator::emit_ci_is_Lua(RaviFunctionDef *def,
                              def->types->tbaa_CallInfo_callstatusT);
 
   llvm::Value *isLua = def->builder->CreateAnd(
-      ci_callstatus, llvm::ConstantInt::get(def->types->lu_byteT, CIST_LUA),
+      ci_callstatus, llvm::ConstantInt::get(def->types->C_shortT, CIST_LUA),
       "isLua");
   return def->builder->CreateICmpNE(
-      isLua, llvm::ConstantInt::get(def->types->lu_byteT, 0));
+      isLua, llvm::ConstantInt::get(def->types->C_shortT, 0));
 }
+#endif
 
 llvm::Value *RaviCodeGenerator::emit_load_ci(RaviFunctionDef *def) {
   llvm::Value *L_ci = emit_gep(def, "L_ci", def->L, 0, 6);
