@@ -57,7 +57,7 @@ LUAI_FUNC void luaH_setint (lua_State *L, Table *t, lua_Integer key,
 /*
 ** search function for short strings
 */
-static inline const TValue *luaH_getshortstr(Table *t, TString *key) {
+static RAVI_ALWAYS_INLINE const TValue *luaH_getshortstr(Table *t, TString *key) {
   Node *n = hashstr(t, key);
   lua_assert(key->tt == LUA_TSHRSTR);
   for (;;) {  /* check whether 'key' is somewhere in the chain */

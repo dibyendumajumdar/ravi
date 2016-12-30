@@ -250,34 +250,34 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
   luaG_runerror(L, "'__newindex' chain too long; possible loop");
 }
 
-#define GETTABLE_INLINE_(L, t, key, val, protect)           \
-  if (ttisLtable(t)) {                                      \
-    const TValue *aux = luaH_get(hvalue(t), key);           \
-    if (!ttisnil(aux)) { setobj2s(L, val, aux); }           \
-    else                                                    \
-      protect(luaV_finishget(L, t, key, val, aux));         \
-  }                                                         \
-  else if (ttisfarray(t)) {                                 \
-    if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-    Table *h = hvalue(t);                                   \
-    raviH_get_float_inline(L, h, ivalue(key), val);         \
-  }                                                         \
-  else if (ttisiarray(t)) {                                 \
-    if (!ttisinteger(key)) luaG_typeerror(L, key, "index"); \
-    Table *h = hvalue(t);                                   \
-    raviH_get_int_inline(L, h, ivalue(key), val);           \
-  }                                                         \
-  else {                                                    \
-    protect(luaV_finishget(L, t, key, val, NULL));          \
+#define GETTABLE_INLINE_(L, t, key, val, protect)                \
+  if (RAVI_LIKELY(ttisLtable(t))) {                              \
+    const TValue *aux = luaH_get(hvalue(t), key);                \
+    if (RAVI_LIKELY(!ttisnil(aux))) { setobj2s(L, val, aux); }   \
+    else                                                         \
+      protect(luaV_finishget(L, t, key, val, aux));              \
+  }                                                              \
+  else if (ttisfarray(t)) {                                      \
+    if (!ttisinteger(key)) luaG_typeerror(L, key, "index");      \
+    Table *h = hvalue(t);                                        \
+    raviH_get_float_inline(L, h, ivalue(key), val);              \
+  }                                                              \
+  else if (ttisiarray(t)) {                                      \
+    if (!ttisinteger(key)) luaG_typeerror(L, key, "index");      \
+    Table *h = hvalue(t);                                        \
+    raviH_get_int_inline(L, h, ivalue(key), val);                \
+  }                                                              \
+  else {                                                         \
+    protect(luaV_finishget(L, t, key, val, NULL));               \
   }
 
 #define GETTABLE_INLINE(L, t, key, val) GETTABLE_INLINE_(L, t, key, val, Unprotect)
 #define GETTABLE_INLINE_PROTECTED(L, t, key, val) GETTABLE_INLINE_(L, t, key, val, Protect)
 
 #define GETTABLE_INLINE_SSKEY_(L, t, key, val, protect)            \
-  if (ttisLtable(t)) {                                             \
+  if (RAVI_LIKELY(ttisLtable(t))) {                                \
     const TValue *aux = luaH_getshortstr(hvalue(t), tsvalue(key)); \
-    if (!ttisnil(aux)) { setobj2s(L, val, aux); }                  \
+    if (RAVI_LIKELY(!ttisnil(aux))) { setobj2s(L, val, aux); }     \
     else                                                           \
       protect(luaV_finishget(L, t, key, val, aux));                \
   }                                                                \
@@ -289,7 +289,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
 #define GETTABLE_INLINE_SSKEY(L, t, key, val) GETTABLE_INLINE_SSKEY_(L, t, key, val, Unprotect)
 
 #define SETTABLE_INLINE_(L, t, key, val, protect)                           \
-  if (ttisLtable(t)) {                                                      \
+  if (RAVI_LIKELY(ttisLtable(t))) {                                         \
     const TValue *slot = luaH_get(hvalue(t), key);                          \
     if (!ttisnil(slot)) {                                                   \
       luaC_barrierback(L, hvalue(t), val);                                  \
@@ -340,7 +340,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
 #define SETTABLE_INLINE(L, t, key, val) SETTABLE_INLINE_(L, t, key, val, Unprotect)
 
 #define SETTABLE_INLINE_SSKEY_(L, t, key, val, protect)             \
-  if (ttisLtable(t)) {                                              \
+  if (RAVI_LIKELY(ttisLtable(t))) {                                 \
     const TValue *slot = luaH_getshortstr(hvalue(t), tsvalue(key)); \
     if (!ttisnil(slot)) {                                           \
       luaC_barrierback(L, hvalue(t), val);                          \
@@ -956,7 +956,7 @@ int luaV_execute (lua_State *L) {
   for (;;) {
     Instruction i = *(ci->u.l.savedpc++);
     StkId ra;
-    if (L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT))
+    if (RAVI_UNLIKELY(L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT)))
       Protect(luaG_traceexec(L));
     /* WARNING: several calls may realloc the stack and invalidate 'ra' */
     OpCode op = GET_OPCODE(i);
@@ -1476,11 +1476,11 @@ int luaV_execute (lua_State *L) {
         }
       }
       case OP_FORLOOP: {
-        if (ttisinteger(ra)) {  /* integer loop? */
+        if (RAVI_LIKELY(ttisinteger(ra))) {  /* integer loop? */
           lua_Integer step = ivalue(ra + 2);
           lua_Integer idx = intop(+, ivalue(ra), step); /* increment index */
           lua_Integer limit = ivalue(ra + 1);
-          if ((0 < step) ? (idx <= limit) : (limit <= idx)) {
+          if (RAVI_LIKELY((0 < step)) ? (idx <= limit) : (limit <= idx)) {
             ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
             chgivalue(ra, idx);  /* update internal index... */
             setivalue(ra + 3, idx);  /* ...and external index */
@@ -1755,10 +1755,10 @@ int luaV_execute (lua_State *L) {
       case OP_RAVI_FORPREP_I1: {
         TValue *pinit = ra;
         TValue *plimit = ra + 1;
-        TValue *pstep = (op == OP_RAVI_FORPREP_I1) ? NULL : ra + 2;
+        TValue *pstep = RAVI_LIKELY((op == OP_RAVI_FORPREP_I1)) ? NULL : ra + 2;
         lua_Integer ilimit = ivalue(plimit);
         lua_Integer initv = ivalue(pinit);
-        lua_Integer istep = (op == OP_RAVI_FORPREP_I1) ? 1 : ivalue(pstep);
+        lua_Integer istep = RAVI_LIKELY((op == OP_RAVI_FORPREP_I1)) ? 1 : ivalue(pstep);
         setivalue(plimit, ilimit);
         setivalue(pinit, initv - istep);
         ci->u.l.savedpc += GETARG_sBx(i);
@@ -1781,11 +1781,11 @@ int luaV_execute (lua_State *L) {
         lua_Integer idx = ivalue(rc);
         Table *t = hvalue(rb);
         const TValue *v;
-        if (l_castS2U(idx - 1) < t->sizearray)
+        if (RAVI_LIKELY(l_castS2U(idx - 1) < t->sizearray))
           v = &t->array[idx - 1];
         else
           v = luaH_getint(t, idx);
-        if (!ttisnil(v)) {
+        if (RAVI_LIKELY(!ttisnil(v))) {
           setobj2s(L, ra, v);
         }
         else {
@@ -1828,7 +1828,7 @@ int luaV_execute (lua_State *L) {
           lua_assert(key->tt == LUA_TSHRSTR);
           Table *h = hvalue(rb);
           const TValue *v = luaH_getshortstr(h, key);
-          if (!ttisnil(v)) {
+          if (RAVI_LIKELY(!ttisnil(v))) {
             setobj2s(L, ra, v);
           }
           else {
@@ -2043,20 +2043,20 @@ int luaV_execute (lua_State *L) {
       case OP_RAVI_MOVEI: {
         TValue *rb = RB(i);
         lua_Integer j;
-        if (tointeger(rb, &j)) { setivalue(ra, j); }
+        if (RAVI_LIKELY(tointeger(rb, &j))) { setivalue(ra, j); }
         else
           luaG_runerror(L, "MOVEI: integer expected");
       } break;
       case OP_RAVI_MOVEF: {
         TValue *rb = RB(i);
         lua_Number j;
-        if (tonumber(rb, &j)) { setfltvalue(ra, j); }
+        if (RAVI_LIKELY(tonumber(rb, &j))) { setfltvalue(ra, j); }
         else
           luaG_runerror(L, "MOVEF: number expected");
       } break;
       case OP_RAVI_MOVEAI: {
         TValue *rb = RB(i);
-        if (ttisiarray(rb)) {
+        if (RAVI_LIKELY(ttisiarray(rb))) {
           setobjs2s(L, ra, rb);
         }
         else
@@ -2064,7 +2064,7 @@ int luaV_execute (lua_State *L) {
       } break;
       case OP_RAVI_MOVEAF: {
         TValue *rb = RB(i);
-        if (ttisfarray(rb)) {
+        if (RAVI_LIKELY(ttisfarray(rb))) {
           setobjs2s(L, ra, rb);
         }
         else
@@ -2072,7 +2072,7 @@ int luaV_execute (lua_State *L) {
       } break;
       case OP_RAVI_MOVETAB: {
         TValue *rb = RB(i);
-        if (ttisLtable(rb)) {
+        if (RAVI_LIKELY(ttisLtable(rb))) {
           setobjs2s(L, ra, rb);
         }
         else
@@ -2081,26 +2081,26 @@ int luaV_execute (lua_State *L) {
 
       case OP_RAVI_TOINT: {
         lua_Integer j;
-        if (tointeger(ra, &j)) { setivalue(ra, j); }
+        if (RAVI_LIKELY(tointeger(ra, &j))) { setivalue(ra, j); }
         else
           luaG_runerror(L, "TOINT: integer expected");
       } break;
       case OP_RAVI_TOFLT: {
         lua_Number j;
-        if (tonumber(ra, &j)) { setfltvalue(ra, j); }
+        if (RAVI_LIKELY(tonumber(ra, &j))) { setfltvalue(ra, j); }
         else
           luaG_runerror(L, "TOFLT: number expected");
       } break;
       case OP_RAVI_TOTAB: {
-        if (!ttisLtable(ra))
+        if (RAVI_UNLIKELY(!ttisLtable(ra)))
           luaG_runerror(L, "table expected");
       } break;
       case OP_RAVI_TOARRAYI: {
-        if (!ttisiarray(ra))
+        if (RAVI_UNLIKELY(!ttisiarray(ra)))
           luaG_runerror(L, "integer[] expected");
       } break;
       case OP_RAVI_TOARRAYF: {
-        if (!ttisfarray(ra))
+        if (RAVI_UNLIKELY(!ttisfarray(ra)))
           luaG_runerror(L, "number[] expected");
       } break;
     }

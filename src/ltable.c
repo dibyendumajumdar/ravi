@@ -660,7 +660,7 @@ const TValue *luaH_get(Table *t, const TValue *key) {
   }
 #else
   int tt = ttype(key);
-  if (tt == LUA_TNUMINT)
+  if (RAVI_LIKELY(tt == LUA_TNUMINT))
     return luaH_getint(t, ivalue(key));
   else if (tt == LUA_TSHRSTR)
     return luaH_getshortstr(t, tsvalue(key));

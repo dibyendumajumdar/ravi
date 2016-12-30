@@ -776,5 +776,40 @@
 #define snprintf _snprintf
 #endif
 
+#if defined(__GNUC__) 
+
+#define RAVI_NORETURN		__attribute__((noreturn))
+#define RAVI_INLINE			inline
+#define RAVI_ALWAYS_INLINE	inline __attribute__((always_inline))
+
+#define RAVI_LIKELY(x)		__builtin_expect(!!(x), 1)
+#define RAVI_UNLIKELY(x)	__builtin_expect(!!(x), 0)
+
+#endif
+
+#if defined(__clang__) 
+
+#define RAVI_NORETURN		__attribute__((noreturn))
+#define RAVI_INLINE			inline
+#define RAVI_ALWAYS_INLINE	inline __attribute__((always_inline))
+
+#define RAVI_LIKELY(x)		__builtin_expect(!!(x), 1)
+#define RAVI_UNLIKELY(x)	__builtin_expect(!!(x), 0)
+
+#endif
+
+
+#if defined(_MSC_VER)
+
+#define RAVI_NORETURN		__declspec(noreturn)
+#define RAVI_INLINE			__inline
+#define RAVI_ALWAYS_INLINE	__forceinline
+
+#define RAVI_LIKELY(x)		(x)
+#define RAVI_UNLIKELY(x)	(x)
+
+#endif
+
+
 #endif
 
