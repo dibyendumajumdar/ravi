@@ -23,7 +23,7 @@
 
 #define LUA_VERSION	"Ravi " LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
 #define LUA_RELEASE	LUA_VERSION "." LUA_VERSION_RELEASE
-#define LUA_COPYRIGHT	LUA_RELEASE "\nCopyright (C) 1994-2017 Lua.org, PUC-Rio\nPortions Copyright (C) 2015-2016 Dibyendu Majumdar"
+#define LUA_COPYRIGHT	LUA_RELEASE "\nCopyright (C) 1994-2017 Lua.org, PUC-Rio\nPortions Copyright (C) 2015-2017 Dibyendu Majumdar"
 #define LUA_AUTHORS	"R. Ierusalimschy, L. H. de Figueiredo, W. Celes, Dibyendu Majumdar"
 
 
