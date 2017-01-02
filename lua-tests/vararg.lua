@@ -1,4 +1,5 @@
--- $Id: vararg.lua,v 1.24 2015/06/01 16:38:36 roberto Exp $
+-- $Id: vararg.lua,v 1.25 2016/11/07 13:11:28 roberto Exp $
+-- See Copyright Notice in file all.lua
 
 print('testing vararg')
 

@@ -1,4 +1,5 @@
--- $Id: strings.lua,v 1.85 2016/05/20 14:15:57 roberto Exp $
+-- $Id: strings.lua,v 1.87 2016/12/21 19:23:02 roberto Exp $
+-- See Copyright Notice in file all.lua
 
 print('testing strings and string library')
 
@@ -195,8 +196,14 @@ checkerror("contains zeros", string.format, "%10s", "\0")
 assert(string.format("%s %s", nil, true) == "nil true")
 assert(string.format("%s %.4s", false, true) == "false true")
 assert(string.format("%.3s %.3s", false, true) == "fal tru")
-local m = setmetatable({}, {__tostring = function () return "hello" end})
+local m = setmetatable({}, {__tostring = function () return "hello" end,
+                            __name = "hi"})
 assert(string.format("%s %.10s", m, m) == "hello hello")
+getmetatable(m).__tostring = nil   -- will use '__name' from now on
+assert(string.format("%.4s", m) == "hi: ")
+
+getmetatable(m).__tostring = function () return {} end
+checkerror("'__tostring' must return a string", tostring, m)
 
 
 assert(string.format("%x", 0.0) == "0")

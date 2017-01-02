@@ -1,5 +1,5 @@
 /*
-** $Id: luaconf.h,v 1.256 2016/07/18 17:55:59 roberto Exp roberto $
+** $Id: luaconf.h,v 1.259 2016/12/22 13:08:50 roberto Exp $
 ** Configuration file for Lua
 ** See Copyright Notice in lua.h
 */
@@ -277,6 +277,7 @@
 */
 #if defined(__GNUC__) && ((__GNUC__*100 + __GNUC_MINOR__) >= 302) && \
     defined(__ELF__)		/* { */
+/** RAVI change **/
 #define LUAI_FUNC	/* __attribute__((visibility("hidden")))*/ extern
 #else				/* }{ */
 #define LUAI_FUNC	extern
@@ -775,7 +776,7 @@
 ** without modifying the main part of the file.
 */
 
-
+/** RAVI additions below **/
 #if _WIN32 && _MSC_VER < 1900
 #define snprintf _snprintf
 #endif

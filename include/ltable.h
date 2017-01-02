@@ -1,5 +1,5 @@
 /*
-** $Id: ltable.h,v 2.21 2015/11/03 15:47:30 roberto Exp $
+** $Id: ltable.h,v 2.23 2016/12/22 13:08:50 roberto Exp $
 ** Lua tables (hash)
 ** See Copyright Notice in lua.h
 */
@@ -39,30 +39,22 @@
 #define keyfromval(v) \
   (gkey(cast(Node *, cast(char *, (v)) - offsetof(Node, i_val))))
 
+
+LUAI_FUNC const TValue *luaH_getint (Table *t, lua_Integer key);
+LUAI_FUNC void luaH_setint (lua_State *L, Table *t, lua_Integer key,
+                                                    TValue *value);
+/** RAVI change start - attempt to inline some functions **/
 #if defined(RAVI_ENABLED)
 #define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
-
 #define hashstr(t,str)		hashpow2(t, (str)->hash)
 #define hashboolean(t,p)	hashpow2(t, p)
 #define hashint(t,i)		hashpow2(t, i)
-
-
 /*
 ** for some types, it is better to avoid modulus by power of 2, as
 ** they tend to have many 2 factors.
 */
 #define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1)|1))))
-
-
 #define hashpointer(t,p)	hashmod(t, point2uint(p))
-#endif
-
-
-
-LUAI_FUNC const TValue *luaH_getint (Table *t, lua_Integer key);
-LUAI_FUNC void luaH_setint (lua_State *L, Table *t, lua_Integer key,
-                                                    TValue *value);
-#if defined(RAVI_ENABLED)
 /*
 ** search function for short strings
 */

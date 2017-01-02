@@ -1,4 +1,5 @@
--- $Id: verybig.lua,v 1.24 2014/12/26 17:20:53 roberto Exp $
+-- $Id: verybig.lua,v 1.25 2016/11/07 13:11:28 roberto Exp $
+-- See Copyright Notice in file all.lua
 
 print "testing RK"
 

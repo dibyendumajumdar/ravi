@@ -36,7 +36,7 @@ typedef enum BinOpr {
   OPR_NOBINOPR
 } BinOpr;
 
-
+/** RAVI change */
 typedef enum UnOpr { OPR_MINUS, OPR_BNOT, OPR_NOT, OPR_LEN, OPR_TO_INTEGER,
   OPR_TO_NUMBER, OPR_TO_INTARRAY, OPR_TO_NUMARRAY, OPR_TO_TABLE, OPR_NOUNOPR } UnOpr;
 

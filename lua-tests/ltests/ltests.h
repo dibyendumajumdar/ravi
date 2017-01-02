@@ -1,5 +1,5 @@
 /*
-** $Id: ltests.h,v 2.49 2015/09/22 14:18:24 roberto Exp $
+** $Id: ltests.h,v 2.50 2016/07/19 17:13:00 roberto Exp $
 ** Internal Header for Debugging of the Lua Implementation
 ** See Copyright Notice in lua.h
 */
@@ -98,7 +98,9 @@ LUA_API void *debug_realloc (void *ud, void *block,
 #if defined(lua_c)
 #define luaL_newstate()		lua_newstate(debug_realloc, &l_memcontrol)
 #define luaL_openlibs(L)  \
-  { (luaL_openlibs)(L); luaL_requiref(L, "T", luaB_opentests, 1); }
+  { (luaL_openlibs)(L); \
+     luaL_requiref(L, "T", luaB_opentests, 1); \
+     lua_pop(L, 1); }
 #endif
 
 
@@ -108,6 +110,7 @@ LUA_API void *debug_realloc (void *ud, void *block,
 #undef LUAL_BUFFERSIZE
 #define LUAL_BUFFERSIZE		23
 #define MINSTRTABSIZE		2
+#define MAXINDEXRK		1
 
 
 /* make stack-overflow tests run faster */

@@ -1,5 +1,5 @@
 /*
-** $Id: lstate.h,v 2.130 2015/12/16 16:39:38 roberto Exp $
+** $Id: lstate.h,v 2.133 2016/12/22 13:08:50 roberto Exp $
 ** Global State
 ** See Copyright Notice in lua.h
 */
@@ -89,8 +89,8 @@ typedef struct CallInfo {
   ptrdiff_t extra;
   short nresults;  /* expected number of results from this function */
   unsigned short callstatus;
-  unsigned short stacklevel; /* Ravi extension - stack level, bottom level is 0 */
-  lu_byte jitstatus; /* Only valid if Lua function - if 1 means JITed - RAVI extension */
+  unsigned short stacklevel; /* RAVI extension - stack level, bottom level is 0 */
+  lu_byte jitstatus; /* RAVI extension: Only valid if Lua function - if 1 means JITed - RAVI extension */
 } CallInfo;
 
 
@@ -109,12 +109,14 @@ typedef struct CallInfo {
 #define CIST_FIN	(1<<8)  /* call is running a finalizer */
 
 #define isLua(ci)	((ci)->callstatus & CIST_LUA)
+/** RAVI extension **/
 #define isJITed(ci) ((ci)->jitstatus)
 
 /* assume that CIST_OAH has offset 0 and that 'v' is strictly 0/1 */
 #define setoah(st,v)	((st) = ((st) & ~CIST_OAH) | (v))
 #define getoah(st)	((st) & CIST_OAH)
 
+/** RAVI extension **/
 typedef struct ravi_State ravi_State;
 
 /*
@@ -155,7 +157,7 @@ typedef struct global_State {
   TString *tmname[TM_N];  /* array with tag-method names */
   struct Table *mt[LUA_NUMTAGS];  /* metatables for basic types */
   TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */
-  /* RAVI */
+  /* RAVI additions */
   ravi_State *ravi_state;
   ravi_Writeline ravi_writeline;
   ravi_Writestring ravi_writestring;
@@ -193,8 +195,16 @@ struct lua_State {
   int hookcount;
   unsigned short nny;  /* number of non-yieldable calls in stack */
   unsigned short nCcalls;  /* number of nested C calls */
+  /** RAVI difference - changing type of hookmask 
+   ** changes to JIT definitions and possibly code. This is 
+   ** pending 
+   */
   lu_byte hookmask;
   lu_byte allowhook;
+  /** RAVI difference - movig nci requires
+   ** changes to JIT definitions and possibly code. This is 
+   ** pending 
+   */  
   unsigned short nci;  /* number of items in 'ci' list */
 };
 
@@ -226,6 +236,7 @@ union GCUnion {
 #define gco2ccl(o)  check_exp((o)->tt == LUA_TCCL, &((cast_u(o))->cl.c))
 #define gco2cl(o)  \
 	check_exp(novariant((o)->tt) == LUA_TFUNCTION, &((cast_u(o))->cl))
+/** RAVI change - we have table sub types in RAVI **/
 #define gco2t(o)  check_exp(novariant((o)->tt) == LUA_TTABLE, &((cast_u(o))->h))
 #define gco2p(o)  check_exp((o)->tt == LUA_TPROTO, &((cast_u(o))->p))
 #define gco2th(o)  check_exp((o)->tt == LUA_TTHREAD, &((cast_u(o))->th))
@@ -245,7 +256,7 @@ LUAI_FUNC CallInfo *luaE_extendCI (lua_State *L);
 LUAI_FUNC void luaE_freeCI (lua_State *L);
 LUAI_FUNC void luaE_shrinkCI (lua_State *L);
 
-/* Ravi addition - this is the default implementation behind writing to stderr */
+/* RAVI addition - this is the default implementation behind writing to stderr */
 LUAI_FUNC void raviE_default_writestringerror(const char *fmt, const char *p);
 
 

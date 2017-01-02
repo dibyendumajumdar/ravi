@@ -1,5 +1,5 @@
 /*
-** $Id: lopcodes.h,v 1.148 2014/10/25 11:50:46 roberto Exp roberto $
+** $Id: lopcodes.h,v 1.149 2016/07/19 17:12:21 roberto Exp $
 ** Opcodes for Lua virtual machine
 ** See Copyright Notice in lua.h
 */
@@ -35,6 +35,7 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 /*
 ** size and position of opcode arguments.
 */
+/** RAVI changes **/
 #define SIZE_C		8
 #define SIZE_B		8
 #define SIZE_Bx		(SIZE_C + SIZE_B)

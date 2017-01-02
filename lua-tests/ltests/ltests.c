@@ -1,5 +1,5 @@
 /*
-** $Id: ltests.c,v 2.205 2015/04/02 21:10:21 roberto Exp $
+** $Id: ltests.c,v 2.211 2016/12/04 20:17:24 roberto Exp $
 ** Internal Module for Debugging of the Lua Implementation
 ** See Copyright Notice in lua.h
 */
@@ -687,8 +687,8 @@ static int table_query (lua_State *L) {
   t = hvalue(obj_at(L, 1));
   if (i == -1) {
     lua_pushinteger(L, t->sizearray);
-    lua_pushinteger(L, luaH_isdummy(t->node) ? 0 : sizenode(t));
-    lua_pushinteger(L, t->lastfree - t->node);
+    lua_pushinteger(L, allocsizenode(t));
+    lua_pushinteger(L, isdummy(t) ? 0 : t->lastfree - t->node);
   }
   else if ((unsigned int)i < t->sizearray) {
     lua_pushinteger(L, i);
@@ -869,7 +869,7 @@ static int loadlib (lua_State *L) {
   luaL_requiref(L1, "package", NULL, 1);  /* seg. fault if it reloads */
   /* ...but should return the same module */
   lua_assert(lua_compare(L1, -1, -2, LUA_OPEQ));
-  luaL_getsubtable(L1, LUA_REGISTRYINDEX, "_PRELOAD");
+  luaL_getsubtable(L1, LUA_REGISTRYINDEX, LUA_PRELOAD_TABLE);
   for (i = 0; libs[i].name; i++) {
     lua_pushcfunction(L1, libs[i].func);
     lua_setfield(L1, -2, libs[i].name);

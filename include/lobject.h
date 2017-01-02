@@ -1,5 +1,5 @@
 /*
-** $Id: lobject.h,v 2.116 2015/11/03 18:33:10 roberto Exp roberto $
+** $Id: lobject.h,v 2.117 2016/08/01 19:51:24 roberto Exp $
 ** Type definitions for Lua objects
 ** See Copyright Notice in lua.h
 */
@@ -57,7 +57,7 @@
 /* Variant tags for numbers */
 #define LUA_TNUMFLT	(LUA_TNUMBER | (0 << 4))  /* float numbers */
 #define LUA_TNUMINT	(LUA_TNUMBER | (1 << 4))  /* integer numbers */
-
+/** RAVI table sunbtypes **/
 #define RAVI_TIARRAY (LUA_TTABLE | (1 << 4))  /* Ravi int array */
 #define RAVI_TFARRAY (LUA_TTABLE | (2 << 4))  /* Ravi float array */
 
@@ -151,7 +151,7 @@ typedef struct lua_TValue {
 #define ttisstring(o)		checktype((o), LUA_TSTRING)
 #define ttisshrstring(o)	checktag((o), ctb(LUA_TSHRSTR))
 #define ttislngstring(o)	checktag((o), ctb(LUA_TLNGSTR))
-/* Ravi change: we support two sub types of table type
+/* RAVI change: we support two sub types of table type
    and hence need to distinguish between the types.
    ttistable() returns true for all table types
    ttisLtable() only returns true if the value is a Lua table 
@@ -265,16 +265,17 @@ typedef struct lua_TValue {
     val_(io).gc = obj2gco(x_); settt_(io, ctb(LUA_TTABLE)); \
     checkliveness(L,io); }
 
+/** RAVI extension **/
 #define setiarrayvalue(L,obj,x) \
   { TValue *io = (obj); Table *x_ = (x); \
     val_(io).gc = obj2gco(x_); settt_(io, ctb(RAVI_TIARRAY)); \
     checkliveness(L,io); }
 
+/** RAVI extension **/
 #define setfarrayvalue(L,obj,x) \
   { TValue *io = (obj); Table *x_ = (x); \
     val_(io).gc = obj2gco(x_); settt_(io, ctb(RAVI_TFARRAY)); \
     checkliveness(L,io); }
-
 
 #define setdeadvalue(obj)	settt_(obj, LUA_TDEADKEY)
 
@@ -403,7 +404,7 @@ typedef union UUdata {
 	  io->value_ = iu->user_; settt_(io, iu->ttuv_); \
 	  checkliveness(L,io); }
 
-/* Following are the types we will use
+/* RAVI: Following are the types we will use
 ** use in parsing. The rationale for types is
 ** performance - as of now these are the only types that
 ** we care about from a performance point of view - if any
@@ -445,6 +446,7 @@ typedef struct LocVar {
   ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
 } LocVar;
 
+/** RAVI changes start */
 typedef enum {
   RAVI_JIT_NOT_COMPILED = 0,
   RAVI_JIT_CANT_COMPILE = 1,
@@ -463,6 +465,7 @@ typedef struct RaviJITProto {
   void *jit_data;
   lua_CFunction jit_function;
 } RaviJITProto;
+/** RAVI changes end */
 
 /*
 ** Function Prototypes
@@ -489,7 +492,7 @@ typedef struct Proto {
   struct LClosure *cache;  /* last-created closure with this prototype */
   TString  *source;  /* used for debug information */
   GCObject *gclist;
-  /* RAVI */
+  /* RAVI extension */
   RaviJITProto ravi_jit;
 } Proto;
 
@@ -558,12 +561,13 @@ typedef struct Node {
   TKey i_key;
 } Node;
 
+/** RAVI extension */
 typedef enum RaviArrayModifer {
   RAVI_ARRAY_SLICE = 1,
   RAVI_ARRAY_FIXEDSIZE = 2
 } RaviArrayModifier;
 
-
+/** RAVI extension */
 typedef struct RaviArray {
   char *data;
   unsigned int len; /* RAVI len specialization */
@@ -582,6 +586,7 @@ typedef struct Table {
   Node *lastfree;  /* any free position is before this position */
   struct Table *metatable;
   GCObject *gclist;
+  /** RAVI extension */
   RaviArray ravi_array;
 } Table;
 
