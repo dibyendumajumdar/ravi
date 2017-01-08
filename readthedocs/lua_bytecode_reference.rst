@@ -2125,8 +2125,8 @@ while 'a' is the name of the global variable.
 Line [1] assigns the number 40 to global 'a'. Line [2] assigns the value in global 'a' 
 to the register 0 which is the local 'b'.
 
-CONCAT instruction
-==================
+OP_CONCAT instruction
+=====================
 
 Syntax
 ------
@@ -2203,4 +2203,478 @@ there is no string constant folding. Lines [1] through [3] loads the three
 constants in the correct order for concatenation; the ``CONCAT`` on line [4] 
 performs the concatenation itself and assigns the result to local 'a'.
 
+OP_LEN instruction
+==================
 
+Syntax
+------
+
+::
+
+  LEN A B     R(A) := length of R(B)
+
+Description
+-----------
+Returns the length of the object in R(B). For strings, the string length is 
+returned, while for tables, the table size (as defined in Lua) is returned. 
+For other objects, the metamethod is called. The result, which is a number, 
+is placed in R(A).
+
+Examples
+--------
+
+The ``LEN`` operation implements the # operator. If # operates on a constant,
+then the constant is loaded in advance using ``LOADK``. The ``LEN`` instruction 
+is currently not optimized away using compile time evaluation, even if it is 
+operating on a constant string or table::
+
+  f=load('local a,b; a = #b; a= #"foo"')
+
+Results in::
+
+  main <(string):0,0> (5 instructions at 000001DC21778C60)
+  0+ params, 3 slots, 1 upvalue, 2 locals, 1 constant, 0 functions
+        1       [1]     LOADNIL         0 1
+        2       [1]     LEN             0 1
+        3       [1]     LOADK           2 -1    ; "foo"
+        4       [1]     LEN             0 2
+        5       [1]     RETURN          0 1
+  constants (1) for 000001DC21778C60:
+        1       "foo"
+  locals (2) for 000001DC21778C60:
+        0       a       2       6
+        1       b       2       6
+  upvalues (1) for 000001DC21778C60:
+        0       _ENV    1       0
+
+In the above example, ``LEN`` operates on local b in line [2], leaving the result in 
+local a. Since ``LEN`` cannot operate directly on constants, line [3] first loads the 
+constant “foo” into a temporary local, and only then ``LEN`` is executed.
+
+OP_MOVE instruction
+===================
+
+Syntax
+------
+
+::
+
+  MOVE A B     R(A) := R(B)
+
+Description
+-----------
+Copies the value of register R(B) into register R(A). If R(B) holds a table, 
+function or userdata, then the reference to that object is copied. ``MOVE`` is often used 
+for moving values into place for the next operation.
+
+Examples
+--------
+The most straightforward use of MOVE is for assigning a local to another local::
+
+  f=load('local a,b = 10; b = a')
+
+Produces::
+
+  main <(string):0,0> (4 instructions at 000001DC217566D0)
+  0+ params, 2 slots, 1 upvalue, 2 locals, 1 constant, 0 functions
+        1       [1]     LOADK           0 -1    ; 10
+        2       [1]     LOADNIL         1 0
+        3       [1]     MOVE            1 0
+        4       [1]     RETURN          0 1
+  constants (1) for 000001DC217566D0:
+        1       10
+  locals (2) for 000001DC217566D0:
+        0       a       3       5
+        1       b       3       5
+  upvalues (1) for 000001DC217566D0:
+        0       _ENV    1       0
+
+You won’t see ``MOVE`` instructions used in arithmetic expressions 
+because they are not needed by arithmetic operators. All arithmetic operators are 
+in 2- or 3-operand style: the entire local stack frame is already visible 
+to operands R(A), R(B) and R(C) so there is no need for any extra 
+``MOVE`` instructions.
+
+Other places where you will see ``MOVE`` are:
+* When moving parameters into place for a function call.
+* When moving values into place for certain instructions where stack order 
+  is important, e.g. ``GETTABLE``, ``SETTABLE`` and ``CONCAT``.
+* When copying return values into locals after a function call.
+
+OP_LOADNIL instruction
+======================
+
+Syntax
+------
+::
+ 
+  LOADNIL A B     R(A), R(A+1), ..., R(A+B) := nil
+
+Description
+-----------
+Sets a range of registers from R(A) to R(B) to nil. If a single register is to 
+be assigned to, then R(A) = R(B). When two or more consecutive locals need to 
+be assigned nil values, only a single ``LOADNIL`` is needed.
+
+Examples
+--------
+``LOADNIL`` uses the operands A and B to mean a range of register locations. 
+The example for ``MOVE`` earlier shows ``LOADNIL`` used to set a single register to ``nil``.
+
+::
+
+  f=load('local a,b,c,d,e = nil,nil,0')
+
+Generates::
+
+  main <(string):0,0> (4 instructions at 000001DC21780390)
+  0+ params, 5 slots, 1 upvalue, 5 locals, 1 constant, 0 functions
+        1       [1]     LOADNIL         0 1
+        2       [1]     LOADK           2 -1    ; 0
+        3       [1]     LOADNIL         3 1
+        4       [1]     RETURN          0 1
+  constants (1) for 000001DC21780390:
+        1       0
+  locals (5) for 000001DC21780390:
+        0       a       4       5
+        1       b       4       5
+        2       c       4       5
+        3       d       4       5
+        4       e       4       5
+  upvalues (1) for 000001DC21780390:
+        0       _ENV    1       0
+
+Line [1] nils locals a and b.  
+Local c is explicitly initialized with the value 0. 
+Line [3] nils d and e.
+
+
+OP_LOADK instruction
+====================
+Syntax
+------
+
+::
+  LOADK A Bx    R(A) := Kst(Bx)
+
+Description
+-----------
+Loads constant number Bx into register R(A). Constants are usually numbers 
+or strings. Each function prototype has its own constant list, or pool.
+
+Examples
+--------
+``LOADK`` loads a constant from the constant list into a register or local. 
+Constants are indexed starting from 0. Some instructions, such as arithmetic 
+instructions, can use the constant list without needing a ``LOADK``. 
+Constants are pooled in the list, duplicates are eliminated. The list can 
+hold nils, booleans, numbers or strings.
+
+::
+  > f=load('local a,b,c,d = 3,"foo",3,"foo"')
+
+
+Leads to::
+
+  main <(string):0,0> (5 instructions at 000001DC21780B50)
+  0+ params, 4 slots, 1 upvalue, 4 locals, 2 constants, 0 functions
+        1       [1]     LOADK           0 -1    ; 3
+        2       [1]     LOADK           1 -2    ; "foo"
+        3       [1]     LOADK           2 -1    ; 3
+        4       [1]     LOADK           3 -2    ; "foo"
+        5       [1]     RETURN          0 1
+  constants (2) for 000001DC21780B50:
+        1       3
+        2       "foo"
+  locals (4) for 000001DC21780B50:
+        0       a       5       6
+        1       b       5       6
+        2       c       5       6
+        3       d       5       6
+  upvalues (1) for 000001DC21780B50:
+        0       _ENV    1       0
+
+The constant 3 and the constant “foo” are both written twice in the source 
+snippet, but in the constant list, each constant has a single location. 
+
+
+Binary operators
+================
+Lua 5.3 implements a bunch of binary operators for arithmetic and bitwise
+manipulation of variables. These insructions have a common form.
+
+Syntax
+------
+::
+  ADD   A B C   R(A) := RK(B) + RK(C)
+  SUB   A B C   R(A) := RK(B) - RK(C)
+  MUL   A B C   R(A) := RK(B) * RK(C)
+  MOD   A B C   R(A) := RK(B) % RK(C)
+  POW   A B C   R(A) := RK(B) ^ RK(C)
+  DIV   A B C   R(A) := RK(B) / RK(C)
+  IDIV  A B C   R(A) := RK(B) // RK(C)
+  BAND  A B C   R(A) := RK(B) & RK(C)
+  BOR   A B C   R(A) := RK(B) | RK(C)
+  BXOR  A B C   R(A) := RK(B) ~ RK(C)
+  SHL   A B C   R(A) := RK(B) << RK(C)
+  SHR   A B C   R(A) := RK(B) >> RK(C)
+
+Description
+-----------
+Binary operators (arithmetic operators and bitwise operators with two inputs.) 
+The result of the operation between RK(B) and RK(C) is placed into R(A). 
+These instructions are in the classic 3-register style. 
+
+RK(B) and RK(C) may be either registers or constants in the constant pool.
+
++------------+-------------------------------------------------------------+
+| Opcode     | Description                                                 |
++============+=============================================================+
+| ADD        | Addition operator                                           |
++------------+-------------------------------------------------------------+
+| SUB        | Subtraction operator                                        |
++------------+-------------------------------------------------------------+
+| MUL        | Multiplication operator                                     |
++------------+-------------------------------------------------------------+
+| MOD        | Modulus (remainder) operator                                |
++------------+-------------------------------------------------------------+
+| POW        | Exponentation operator                                      |
++------------+-------------------------------------------------------------+
+| DIV        | Division operator                                           |
++------------+-------------------------------------------------------------+
+| IDIV       | Integer division operator                                   |
++------------+-------------------------------------------------------------+
+| BAND       | Bit-wise AND operator                                       |
++------------+-------------------------------------------------------------+
+| BOR        | Bit-wise OR operator                                        |
++------------+-------------------------------------------------------------+
+| BXOR       | Bit-wise Exclusive OR operator                              |
++------------+-------------------------------------------------------------+
+| SHL        | Shift bits left                                             |
++------------+-------------------------------------------------------------+
+| SHR        | Shift bits right                                            |
++------------+-------------------------------------------------------------+
+
+The source operands, RK(B) and RK(C), may be constants. If a constant is out 
+of range of field B or field C, then the constant will be loaded into a 
+temporary register in advance.
+
+Examples
+--------
+::
+  f=load('local a,b = 2,4; a = a + 4 * b - a / 2 ^ b % 3')
+
+Generates::
+
+  main <(string):0,0> (9 instructions at 000001DC21781DD0)
+  0+ params, 4 slots, 1 upvalue, 2 locals, 3 constants, 0 functions
+        1       [1]     LOADK           0 -1    ; 2
+        2       [1]     LOADK           1 -2    ; 4
+        3       [1]     MUL             2 -2 1  ; 4 -      (loc2 = 4 * b)
+        4       [1]     ADD             2 0 2              (loc2 = A + loc2) 
+        5       [1]     POW             3 -1 1  ; 2 -      (loc3 = 2 ^ b) 
+        6       [1]     DIV             3 0 3              (loc3 = a / loc3) 
+        7       [1]     MOD             3 3 -3             (loc3 = loc3 % 3) 
+        8       [1]     SUB             0 2 3              (a = loc2 – loc3) 
+        9       [1]     RETURN          0 1
+  constants (3) for 000001DC21781DD0:
+        1       2
+        2       4
+        3       3
+  locals (2) for 000001DC21781DD0:
+        0       a       3       10
+        1       b       3       10
+  upvalues (1) for 000001DC21781DD0:
+        0       _ENV    1       0
+
+In the disassembly shown above, parts of the expression is shown as additional 
+comments in parentheses. Each arithmetic operator translates into a single instruction.
+This also means that while the statement ``count = count + 1`` is verbose, it translates 
+into a single instruction if count is a local. If count is a global, then two 
+extra instructions are required to read and write to the global (``GETTABUP`` and ``SETTABUP``), 
+since arithmetic operations can only be done on registers (locals) only.
+
+The Lua parser and code generator can perform limited constant expression folding 
+or evaluation. Constant folding only works for binary arithmetic operators and the unary 
+minus operator (``UNM``, which will be covered next.) There is no equivalent 
+optimization for relational, boolean or string operators.
+
+The optimization rule is simple: If both terms of a subexpression are numbers, the 
+subexpression will be evaluated at compile time. However, there are exceptions. 
+One, the code generator will not attempt to divide a number by 0 for DIV and MOD, 
+and two, if the result is evaluated as a NaN (Not a Number) then the optimization 
+will not be performed.
+
+Also, constant folding is not done if one term is in the form of a string that need 
+to be coerced. In addition, expression terms are not rearranged, so not all optimization 
+opportunities can be recognized by the code generator. This is intentional; the Lua 
+code generator is not meant to perform heavy duty optimizations, as Lua is a lightweight 
+language. Here are a few examples to illustrate how it works (additional comments 
+in parentheses)::
+
+  f=load('local a = 4 + 7 + b; a = b + 4 * 7; a = b + 4 + 7')
+
+Generates::
+
+  main <(string):0,0> (8 instructions at 000001DC21781650)
+  0+ params, 2 slots, 1 upvalue, 1 local, 5 constants, 0 functions
+        1       [1]     GETTABUP        0 0 -1  ; _ENV "b"
+        2       [1]     ADD             0 -2 0  ; 11 -            (a = 11 + b) 
+        3       [1]     GETTABUP        1 0 -1  ; _ENV "b"
+        4       [1]     ADD             0 1 -3  ; - 28            (a = b + 28) 
+        5       [1]     GETTABUP        1 0 -1  ; _ENV "b"
+        6       [1]     ADD             1 1 -4  ; - 4             (loc1 = b + 4) 
+        7       [1]     ADD             0 1 -5  ; - 7             (a = loc1 + 7) 
+        8       [1]     RETURN          0 1
+  constants (5) for 000001DC21781650:
+        1       "b"
+        2       11
+        3       28
+        4       4
+        5       7
+  locals (1) for 000001DC21781650:
+        0       a       3       9
+  upvalues (1) for 000001DC21781650:
+        0       _ENV    1       0
+
+For the first assignment statement, ``4+7`` is evaluated, thus 11 is added to b in line [2]. 
+Next, in line [3] and [4], ``b`` and ``28`` are added together and assigned to a because multiplication 
+has a higher precedence and ``4*7`` is evaluated first. Finally, on lines [5] to [7], 
+there are two addition operations. Since addition is left-associative, code is generated for 
+``b+4`` first, and only after that, ``7`` is added. So in the third example, 
+Lua performs no optimization. This can be fixed using parentheses to explicitly change the precedence 
+of a subexpression::
+
+  f=load('local a = b + (4 + 7)')
+
+And this leads to::
+
+  main <(string):0,0> (3 instructions at 000001DC21781EC0)
+  0+ params, 2 slots, 1 upvalue, 1 local, 2 constants, 0 functions
+        1       [1]     GETTABUP        0 0 -1  ; _ENV "b"
+        2       [1]     ADD             0 0 -2  ; - 11
+        3       [1]     RETURN          0 1
+  constants (2) for 000001DC21781EC0:
+        1       "b"
+        2       11
+  locals (1) for 000001DC21781EC0:
+        0       a       3       4
+  upvalues (1) for 000001DC21781EC0:
+        0       _ENV    1       0
+
+Now, the ``4+7`` subexpression can be evaluated at compile time. If the 
+statement is written as::
+
+  local a = 7 + (4 + 7)
+
+the code generator will generate a single ``LOADK`` instruction; Lua first evaluates 
+``4+7``, then ``7`` is added, giving a total of ``18``. The arithmetic expression is completely 
+evaluated in this case, thus no arithmetic instructions are generated.
+
+In order to make full use of constant folding in Lua, the user just need to remember 
+the usual order of evaluation of an expression’s elements and apply parentheses where 
+necessary. The following are two expressions which will not be evaluated at compile time::
+
+  f=load('local a = 1 / 0; local b = 1 + "1"')
+
+This produces::
+
+  main <(string):0,0> (3 instructions at 000001DC21781380)
+  0+ params, 2 slots, 1 upvalue, 2 locals, 3 constants, 0 functions
+        1       [1]     DIV             0 -2 -1 ; 1 0
+        2       [1]     ADD             1 -2 -3 ; 1 "1"
+        3       [1]     RETURN          0 1
+  constants (3) for 000001DC21781380:
+        1       0
+        2       1
+        3       "1"
+  locals (2) for 000001DC21781380:
+        0       a       2       4
+        1       b       3       4
+  upvalues (1) for 000001DC21781380:
+        0       _ENV    1       0
+
+The first is due to a divide-by-0, while the second is due to a string 
+constant that needs to be coerced into a number. In both cases, constant folding is 
+not performed, so the arithmetic instructions needed to perform the operations 
+at run time are generated instead.
+
+TODO - examples of bitwise operators.
+
+Unary operators
+===============
+Lua 5.3 implements following unary operators in addition to ``OP_LEN``.
+
+Syntax
+------
+::
+  UNM   A B     R(A) := -R(B)
+  BNOT  A B     R(A) := ~R(B)
+  NOT   A B     R(A) := not R(B)
+
+Description
+-----------
+The unary operators perform an operation on R(B) and store the result in
+R(A).
+
++------------+-------------------------------------------------------------+
+| Opcode     | Description                                                 |
++============+=============================================================+
+| UNM        | Unary minus                                                 |
++------------+-------------------------------------------------------------+
+| BNOT       | Bit-wise NOT operator                                       |
++------------+-------------------------------------------------------------+
+| NOT        | Logical NOT operator                                        |
++------------+-------------------------------------------------------------+
+
+Examples
+--------
+::
+  f=load('local p,q = 10,false; q,p = -p,not q')
+
+Results in::
+
+  main <(string):0,0> (6 instructions at 000001DC21781290)
+  0+ params, 3 slots, 1 upvalue, 2 locals, 1 constant, 0 functions
+        1       [1]     LOADK           0 -1    ; 10
+        2       [1]     LOADBOOL        1 0 0
+        3       [1]     UNM             2 0
+        4       [1]     NOT             0 1
+        5       [1]     MOVE            1 2
+        6       [1]     RETURN          0 1
+  constants (1) for 000001DC21781290:
+        1       10
+  locals (2) for 000001DC21781290:
+        0       p       3       7
+        1       q       3       7
+  upvalues (1) for 000001DC21781290:
+        0       _ENV    1       0
+
+As ``UNM`` and ``NOT`` do not accept a constant as a source operand, making the 
+``LOADK`` on line [1] and the ``LOADBOOL`` on line [2] necessary. When an unary minus 
+is applied to a constant number, the unary minus is optimized away. Similarly, when a 
+not is applied to true or false, the logical operation is optimized away.
+
+In addition to this, constant folding is performed for unary minus, if the term is 
+a number. So, the expression in the following is completely evaluated at compile time::
+
+  f=load('local a = - (7 / 4)')
+
+Results in::
+
+  main <(string):0,0> (2 instructions at 000001DC217810B0)
+  0+ params, 2 slots, 1 upvalue, 1 local, 1 constant, 0 functions
+        1       [1]     LOADK           0 -1    ; -1.75
+        2       [1]     RETURN          0 1
+  constants (1) for 000001DC217810B0:
+        1       -1.75
+  locals (1) for 000001DC217810B0:
+        0       a       2       3
+  upvalues (1) for 000001DC217810B0:
+        0       _ENV    1       0
+
+Constant folding is performed on ``7/4`` first. Then, since the unary minus 
+operator is applied to the constant ``1.75``, constant folding can be performed 
+again, and the code generated becomes a simple ``LOADK`` (on line [1]).
+
+TODO - example of ``BNOT``.
