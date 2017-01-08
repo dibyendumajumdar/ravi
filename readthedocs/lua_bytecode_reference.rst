@@ -1553,6 +1553,27 @@ not marked 'instack', which means that the reference is to an upvalue and not a 
 the parent function (in this case 'p') and the upvalue index is '1' (i.e. the 
 second upvalue in 'p').
 
+Upvalue setup by OP_CLOSURE
+---------------------------
+When the ``CLOSURE`` instruction is executed, the up-values referenced by the
+prototype are resolved. So that means the actual resolution if upvalues occurs at
+runtime. This is done in the function `pushclosure() <http://www.lua.org/source/5.3/lvm.c.html#pushclosure>`_.
+
+Caching of closures
+-------------------
+The Lua VM maintains a cache of closures within each function prototype at runtime.
+If a closure is required that has the same set of upvalues as referenced by an existing
+closure then the VM reuses the existing closure rather than creating a new one. This is
+illustrated in this contrived example::
+
+  f=load('local v; local function q() return function() return v end end; return q(), q()')
+
+When the statement ``return q(), q()`` is executed it will end up returning two closures that
+are really the same instance, as shown by the result of executing this code::
+
+  > f()
+  function: 000001E1E2F007E0      function: 000001E1E2F007E0
+
 OP_GETUPVAL and OP_SETUPVAL instructions
 ========================================
 
