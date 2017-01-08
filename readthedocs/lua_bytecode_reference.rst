@@ -1376,8 +1376,8 @@ Syntax
 
 Description
 -----------
-Creates an instance (or closure) of a function inside the parent function. The ``Bx`` parameter
-identifies the entry in the parent function Prototype's table of closure prototypes (the field ``p``
+Creates an instance (or closure) of a function prototype. The ``Bx`` parameter
+identifies the entry in the parent function's table of closure prototypes (the field ``p``
 in the struct ``Proto``). The indices start from 0, i.e., a parameter of Bx = 0 references the first
 closure prototype in the table.
 
@@ -1439,10 +1439,118 @@ named ``_ENV``::
 The first ``0`` is the index of the upvalue in the main chunk. The ``1``
 following the name is a boolean indicating that the upvalue is located on the
 stack, and the last ``0`` is identifies the register location on the stack.
-So the Lua Parser has setup the ``upvalue`` reference for ``_ENV``. We will come back
-to the handling of ``_ENV``.
+So the Lua Parser has setup the ``upvalue`` reference for ``_ENV``. However 
+note that there is no actual local in this case; the ``_ENV`` upvalue is
+special and is setup by the Lua `lua_load() <http://www.lua.org/source/5.3/lapi.c.html#lua_load>`_
+API function. 
 
-  
+Now let's look at an example that creates a local up-value::
+
+  f=load('local u,v; function p() return v end')
+
+We get following bytecodes::
+
+  main <(string):0,0> (4 instructions at 0000022149BBA3B0)
+  0+ params, 3 slots, 1 upvalue, 2 locals, 1 constant, 1 function
+        1       [1]     LOADNIL         0 1
+        2       [1]     CLOSURE         2 0     ; 0000022149BBB7B0
+        3       [1]     SETTABUP        0 -1 2  ; _ENV "p"
+        4       [1]     RETURN          0 1
+  constants (1) for 0000022149BBA3B0:
+        1       "p"
+  locals (2) for 0000022149BBA3B0:
+        0       u       2       5
+        1       v       2       5
+  upvalues (1) for 0000022149BBA3B0:
+        0       _ENV    1       0
+
+  function <(string):1,1> (3 instructions at 0000022149BBB7B0)
+  0 params, 2 slots, 1 upvalue, 0 locals, 0 constants, 0 functions
+        1       [1]     GETUPVAL        0 0     ; v
+        2       [1]     RETURN          0 2
+        3       [1]     RETURN          0 1
+  constants (0) for 0000022149BBB7B0:
+  locals (0) for 0000022149BBB7B0:
+  upvalues (1) for 0000022149BBB7B0:
+        0       v       1       1
+
+In the function 'p', which we see that the upvalue list contains::
+
+  upvalues (1) for 0000022149BBB7B0:
+        0       v       1       1
+
+This says that the up-value is in the stack (first '1') and is located at register '1' of
+the parent function. Access to this upvalue is indirectly obtained via the ``GETUPVAL``
+instruction on line 1.
+
+Now, lets look at what happens when the upvalue is not directly within the parent
+function::
+
+  f=load('local u,v; function p() u=1; local function q() return v end end')
+
+In this example, we have 1 upvalue reference in function 'p', which is 'u'. Function 'q' has
+one upvalue reference 'v'. Let's see the resulting bytecodes::
+
+  main <(string):0,0> (4 instructions at 0000022149BBFE40)
+  0+ params, 3 slots, 1 upvalue, 2 locals, 1 constant, 1 function
+        1       [1]     LOADNIL         0 1
+        2       [1]     CLOSURE         2 0     ; 0000022149BBFC60
+        3       [1]     SETTABUP        0 -1 2  ; _ENV "p"
+        4       [1]     RETURN          0 1
+  constants (1) for 0000022149BBFE40:
+        1       "p"
+  locals (2) for 0000022149BBFE40:
+        0       u       2       5
+        1       v       2       5
+  upvalues (1) for 0000022149BBFE40:
+        0       _ENV    1       0
+
+  function <(string):1,1> (4 instructions at 0000022149BBFC60)
+  0 params, 2 slots, 2 upvalues, 1 local, 1 constant, 1 function
+        1       [1]     LOADK           0 -1    ; 1
+        2       [1]     SETUPVAL        0 0     ; u
+        3       [1]     CLOSURE         0 0     ; 0000022149BC06B0
+        4       [1]     RETURN          0 1
+  constants (1) for 0000022149BBFC60:
+        1       1
+  locals (1) for 0000022149BBFC60:
+        0       q       4       5
+  upvalues (2) for 0000022149BBFC60:
+        0       u       1       0
+        1       v       1       1
+
+  function <(string):1,1> (3 instructions at 0000022149BC06B0)
+  0 params, 2 slots, 1 upvalue, 0 locals, 0 constants, 0 functions
+        1       [1]     GETUPVAL        0 0     ; v
+        2       [1]     RETURN          0 2
+        3       [1]     RETURN          0 1
+  constants (0) for 0000022149BC06B0:
+  locals (0) for 0000022149BC06B0:
+  upvalues (1) for 0000022149BC06B0:
+        0       v       0       1
+
+We see that 'p' got the upvalues 'u' as expected, but it also got the
+upvalue 'v', and both are marked as 'instack' of the parent function::
+
+  upvalues (2) for 0000022149BBFC60:
+        0       u       1       0
+        1       v       1       1
+
+The reason for this is that any upvalue references in the inmost nested
+function will also appear in the parent functions up the chain until the
+function whose stack contains the variable being referenced. So although the
+function 'p' does not directly reference 'v', but because its child function
+'q' references 'v', 'p' gets the upvalue reference to 'v' as well.
+
+Observe the upvalue list of 'q' now::
+
+  upvalues (1) for 0000022149BC06B0:
+        0       v       0       1
+
+'q' has one upvalue reference as expected, but this time the upvalue is
+not marked 'instack', so it means that the reference is to an upvalue in 
+parent function (in this case 'p') and the upvalue index is '1' (the 
+second upvalue in 'p').
 
 OP_GETUPVAL and OP_SETUPVAL instructions
 ========================================
