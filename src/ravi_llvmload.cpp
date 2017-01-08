@@ -28,9 +28,19 @@ namespace ravi {
 void RaviCodeGenerator::emit_LOADNIL(RaviFunctionDef *def, int A, int B,
                                      int pc) {
   emit_debug_trace(def, OP_LOADNIL, pc);
+#if 1
+  // Inline version, we unroll the loop
+  emit_load_base(def);
+  do {
+    llvm::Value *dest = emit_gep_register(def, A);
+    emit_store_type_(def, dest, LUA_TNIL);
+    A++;
+  } while (B--);
+#else
   CreateCall3(def->builder, def->raviV_op_loadnilF, def->ci_val,
               llvm::ConstantInt::get(def->types->C_intT, A),
               llvm::ConstantInt::get(def->types->C_intT, B));
+#endif
 }
 
 // R(A) := tonumber(0)
@@ -55,7 +65,6 @@ void RaviCodeGenerator::emit_LOADIZ(RaviFunctionDef *def, int A, int pc) {
 // R(A) := (Bool)B; if (C) pc++
 void RaviCodeGenerator::emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C,
                                       int j, int pc) {
-
   // setbvalue(ra, GETARG_B(i));
   // if (GETARG_C(i)) ci->u.l.savedpc++;  /* skip next instruction (if C) */
 
@@ -91,7 +100,6 @@ void RaviCodeGenerator::emit_MOVE(RaviFunctionDef *def, int A, int B, int pc) {
 
 // R(A) := R(B), check R(B) is int
 void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, int A, int B, int pc) {
-
   // TValue *rb = RB(i);
   // lua_Integer j;
   // if (tointeger(rb, &j)) {
@@ -160,7 +168,6 @@ void RaviCodeGenerator::emit_MOVEI(RaviFunctionDef *def, int A, int B, int pc) {
 }
 
 void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, int A, int B, int pc) {
-
   //  case OP_RAVI_MOVEF: {
   //    TValue *rb = RB(i);
   //    lua_Number j;
@@ -232,7 +239,6 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, int A, int B, int pc) {
 }
 
 void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, int A, int pc) {
-
   //  case OP_RAVI_TOINT: {
   //    lua_Integer j;
   //    if (tointeger(ra, &j)) {
@@ -296,7 +302,6 @@ void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, int A, int pc) {
 }
 
 void RaviCodeGenerator::emit_TOFLT(RaviFunctionDef *def, int A, int pc) {
-
   //  case OP_RAVI_TOFLT: {
   //    lua_Number j;
   //    if (tonumber(ra, &j)) {
@@ -375,27 +380,29 @@ void RaviCodeGenerator::emit_LOADK(RaviFunctionDef *def, int A, int Bx,
 
   TValue *Konst = &def->p->k[Bx];
   switch (Konst->tt_) {
-  case LUA_TNUMINT:
-    emit_store_reg_i_withtype(
-        def, llvm::ConstantInt::get(def->types->lua_IntegerT, Konst->value_.i),
-        dest);
-    break;
-  case LUA_TNUMFLT:
-    emit_store_reg_n_withtype(
-        def, llvm::ConstantFP::get(def->types->lua_NumberT, Konst->value_.n),
-        dest);
-    break;
-  case LUA_TBOOLEAN:
-    emit_store_reg_b_withtype(
-        def, llvm::ConstantInt::get(def->types->C_intT, Konst->value_.b), dest);
-    break;
-  default: {
-    // rb
-    llvm::Value *src = emit_gep_constant(def, Bx);
+    case LUA_TNUMINT:
+      emit_store_reg_i_withtype(
+          def,
+          llvm::ConstantInt::get(def->types->lua_IntegerT, Konst->value_.i),
+          dest);
+      break;
+    case LUA_TNUMFLT:
+      emit_store_reg_n_withtype(
+          def, llvm::ConstantFP::get(def->types->lua_NumberT, Konst->value_.n),
+          dest);
+      break;
+    case LUA_TBOOLEAN:
+      emit_store_reg_b_withtype(
+          def, llvm::ConstantInt::get(def->types->C_intT, Konst->value_.b),
+          dest);
+      break;
+    default: {
+      // rb
+      llvm::Value *src = emit_gep_constant(def, Bx);
 
-    // *ra = *rb
-    emit_assign(def, dest, src);
-  }
+      // *ra = *rb
+      emit_assign(def, dest, src);
+    }
   }
 }
 
