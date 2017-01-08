@@ -2296,9 +2296,9 @@ to operands R(A), R(B) and R(C) so there is no need for any extra
 ``MOVE`` instructions.
 
 Other places where you will see ``MOVE`` are:
+
 * When moving parameters into place for a function call.
-* When moving values into place for certain instructions where stack order 
-  is important, e.g. ``GETTABLE``, ``SETTABLE`` and ``CONCAT``.
+* When moving values into place for certain instructions where stack order is important, e.g. ``GETTABLE``, ``SETTABLE`` and ``CONCAT``.
 * When copying return values into locals after a function call.
 
 OP_LOADNIL instruction
