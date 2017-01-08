@@ -1636,5 +1636,303 @@ Line [2] in function ``b`` sets upvalue a (upvalue number 0 in the upvalue table
 
 
 
+OP_NEWTABLE instruction
+=======================
 
+Syntax
+------
+
+::
+
+  NEWTABLE A B C   R(A) := {} (size = B,C)
+
+Description
+-----------
+Creates a new empty table at register R(A). B and C are the encoded size information for the 
+array part and the hash part of the table, respectively. Appropriate values for B and C are set 
+in order to avoid rehashing when initially populating the table with array values or hash 
+key-value pairs.
+
+Operand B and C are both encoded as a 'floating point byte' (so named in lobject.c)
+which is ``eeeeexxx`` in binary, where x is the mantissa and e is the exponent. 
+The actual value is calculated as ``1xxx*2^(eeeee-1)`` if ``eeeee`` is greater than ``0`` 
+(a range of ``8`` to ``15*2^30``). If ``eeeee`` is ``0``, the actual value is ``xxx`` 
+(a range of ``0`` to ``7``.)
+
+If an empty table is created, both sizes are zero. If a table is created with a number of 
+objects, the code generator counts the number of array elements and the number of hash elements. 
+Then, each size value is rounded up and encoded in B and C using the floating point byte format.
+
+Examples
+--------
+Creating an empty table forces both array and hash sizes to be zero::
+
+  f=load('local q = {}')
+
+Leads to::
+
+  main <(string):0,0> (2 instructions at 0000022C1877A220)
+  0+ params, 2 slots, 1 upvalue, 1 local, 0 constants, 0 functions
+        1       [1]     NEWTABLE        0 0 0
+        2       [1]     RETURN          0 1
+  constants (0) for 0000022C1877A220:
+  locals (1) for 0000022C1877A220:
+        0       q       2       3
+  upvalues (1) for 0000022C1877A220:
+        0       _ENV    1       0
+
+More examples are provided in the description of ``OP_SETLIST`` instruction.
+
+
+OP_SETLIST instruction
+======================
+
+Syntax
+------
+
+::
+
+  SETLIST A B C   R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B
+
+Description
+-----------
+Sets the values for a range of array elements in a table referenced by R(A). Field B is the 
+number of elements to set. Field C encodes the block number of the table to be initialized. 
+The values used to initialize the table are located in registers R(A+1), R(A+2), and so on.
+
+The block size is denoted by FPF. FPF is 'fields per flush', defined as ``LFIELDS_PER_FLUSH`` 
+in the source file lopcodes.h, with a value of 50. For example, for array locations 1 to 20, 
+C will be 1 and B will be 20.
+
+If B is 0, the table is set with a variable number of array elements, from register R(A+1) 
+up to the top of the stack. This happens when the last element in the table constructor is 
+a function call or a vararg operator.
+
+If C is 0, the next instruction is cast as an integer, and used as the C value. This happens 
+only when operand C is unable to encode the block number, i.e. when C > 511, equivalent to an 
+array index greater than 25550.
+
+Examples
+--------
+
+We’ll start with a simple example::
+
+  f=load('local q = {1,2,3,4,5,}')
+
+This generates::
+
+  main <(string):0,0> (8 instructions at 0000022C18756E50)
+  0+ params, 6 slots, 1 upvalue, 1 local, 5 constants, 0 functions
+        1       [1]     NEWTABLE        0 5 0
+        2       [1]     LOADK           1 -1    ; 1
+        3       [1]     LOADK           2 -2    ; 2
+        4       [1]     LOADK           3 -3    ; 3
+        5       [1]     LOADK           4 -4    ; 4
+        6       [1]     LOADK           5 -5    ; 5
+        7       [1]     SETLIST         0 5 1   ; 1
+        8       [1]     RETURN          0 1
+  constants (5) for 0000022C18756E50:
+        1       1
+        2       2
+        3       3
+        4       4
+        5       5
+  locals (1) for 0000022C18756E50:
+        0       q       8       9
+  upvalues (1) for 0000022C18756E50:
+        0       _ENV    1       0
+
+A table with the reference in register 0 is created in line [1] by NEWTABLE. Since we are 
+creating a table with no hash elements, the array part of the table has a size of 5, 
+while the hash part has a size of 0.
+
+Constants are then loaded into temporary registers 1 to 5 (lines [2] to [6]) before the SETLIST 
+instruction in line [7] assigns each value to consecutive table elements. The start of the 
+block is encoded as 1 in operand C. The starting index is calculated as (1-1)*50+1 or 1. 
+Since B is 5, the range of the array elements to be set becomes 1 to 5, while the objects used 
+to set the array elements will be R(1) through R(5).
+
+Next is a larger table with 55 array elements. This will require two blocks to initialize. 
+Some lines have been removed and ellipsis (...) added to save space::
+
+> f=load('local q = {1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0, \
+>> 1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0, \
+>> 1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,}')
+
+The generated code is::
+
+  main <(string):0,0> (59 instructions at 0000022C187833C0)
+  0+ params, 51 slots, 1 upvalue, 1 local, 10 constants, 0 functions
+        1       [1]     NEWTABLE        0 30 0
+        2       [1]     LOADK           1 -1    ; 1
+        3       [1]     LOADK           2 -2    ; 2
+        4       [1]     LOADK           3 -3    ; 3
+        ...
+        51      [3]     LOADK           50 -10  ; 0
+        52      [3]     SETLIST         0 50 1  ; 1
+        53      [3]     LOADK           1 -1    ; 1
+        54      [3]     LOADK           2 -2    ; 2
+        55      [3]     LOADK           3 -3    ; 3
+        56      [3]     LOADK           4 -4    ; 4
+        57      [3]     LOADK           5 -5    ; 5
+        58      [3]     SETLIST         0 5 2   ; 2
+        59      [3]     RETURN          0 1
+  constants (10) for 0000022C187833C0:
+        1       1
+        2       2
+        3       3
+        4       4
+        5       5
+        6       6
+        7       7
+        8       8
+        9       9
+        10      0
+  locals (1) for 0000022C187833C0:
+        0       q       59      60
+  upvalues (1) for 0000022C187833C0:
+        0       _ENV    1       0        
+
+Since FPF is 50, the array will be initialized in two blocks. The first block is 
+for index 1 to 50, while the second block is for index 51 to 55. Each array block to be 
+initialized requires one ``SETLIST`` instruction. On line [1], ``NEWTABLE`` has a field 
+B value of 30, or 00011110 in binary. From the description of ``NEWTABLE``, ``xxx`` is ``1102``, 
+while ``eeeee`` is ``112``. Thus, the size of the array portion of the table is ``(1110)*2^(11-1)`` 
+or ``(14*2^2)`` or ``56``. 
+
+Lines [2] to [51] sets the values used to initialize the first block. On line [52], 
+``SETLIST`` has a B value of 50 and a C value of 1. So the block is from 1 to 50. 
+Source registers are from R(1) to R(50). 
+
+Lines [53] to [57] sets the values used to initialize the second block. On line [58], 
+``SETLIST`` has a B value of 5 and a C value of 2. So the block is from 51 to 55. 
+The start of the block is calculated as ``(2-1)*50+1`` or ``51``. Source registers are 
+from R(1) to R(5).
+
+Here is a table with hashed elements::
+
+  > f=load('local q = {a=1,b=2,c=3,d=4,e=5,f=6,g=7,h=8,}')
+
+This results in::
+
+  main <(string):0,0> (10 instructions at 0000022C18783D20)
+  0+ params, 2 slots, 1 upvalue, 1 local, 16 constants, 0 functions
+        1       [1]     NEWTABLE        0 0 8
+        2       [1]     SETTABLE        0 -1 -2 ; "a" 1
+        3       [1]     SETTABLE        0 -3 -4 ; "b" 2
+        4       [1]     SETTABLE        0 -5 -6 ; "c" 3
+        5       [1]     SETTABLE        0 -7 -8 ; "d" 4
+        6       [1]     SETTABLE        0 -9 -10        ; "e" 5
+        7       [1]     SETTABLE        0 -11 -12       ; "f" 6
+        8       [1]     SETTABLE        0 -13 -14       ; "g" 7
+        9       [1]     SETTABLE        0 -15 -16       ; "h" 8
+        10      [1]     RETURN          0 1
+  constants (16) for 0000022C18783D20:
+        1       "a"
+        2       1
+        3       "b"
+        4       2
+        5       "c"
+        6       3
+        7       "d"
+        8       4
+        9       "e"
+        10      5
+        11      "f"
+        12      6
+        13      "g"
+        14      7
+        15      "h"
+        16      8
+  locals (1) for 0000022C18783D20:
+        0       q       10      11
+  upvalues (1) for 0000022C18783D20:
+        0       _ENV    1       0
+
+In line [1], ``NEWTABLE`` is executed with an array part size of 0 and a hash part size of 8. 
+
+On lines [2] to line [9], key-value pairs are set using ``SETTABLE``. The ``SETLIST`` instruction 
+is only for initializing array elements. Using ``SETTABLE`` to initialize the key-value pairs of 
+a table in the above example is quite efficient as it can reference the constant pool directly.
+
+If there are both array elements and hash elements in a table constructor, both ``SETTABLE`` 
+and ``SETLIST`` will be used to initialize the table after the initial ``NEWTABLE``. In addition, 
+if the last element of the table constructor is a function call or a vararg operator, then the 
+B operand of ``SETLIST`` will be 0, to allow objects from R(A+1) up to the top of the stack 
+to be initialized as array elements of the table.
+
+::
+
+  > f=load('return {1,2,3,a=1,b=2,c=3,foo()}')
+
+Leads to::
+
+  main <(string):0,0> (12 instructions at 0000022C18788430)
+  0+ params, 5 slots, 1 upvalue, 0 locals, 7 constants, 0 functions
+        1       [1]     NEWTABLE        0 3 3
+        2       [1]     LOADK           1 -1    ; 1
+        3       [1]     LOADK           2 -2    ; 2
+        4       [1]     LOADK           3 -3    ; 3
+        5       [1]     SETTABLE        0 -4 -1 ; "a" 1
+        6       [1]     SETTABLE        0 -5 -2 ; "b" 2
+        7       [1]     SETTABLE        0 -6 -3 ; "c" 3
+        8       [1]     GETTABUP        4 0 -7  ; _ENV "foo"
+        9       [1]     CALL            4 1 0
+        10      [1]     SETLIST         0 0 1   ; 1
+        11      [1]     RETURN          0 2
+        12      [1]     RETURN          0 1
+  constants (7) for 0000022C18788430:
+        1       1
+        2       2
+        3       3
+        4       "a"
+        5       "b"
+        6       "c"
+        7       "foo"
+  locals (0) for 0000022C18788430:
+  upvalues (1) for 0000022C18788430:
+        0       _ENV    1       0
+
+In the above example, the table is first created in line [1] with its reference 
+in register 0, and it has both array and hash elements to be set. The size of the 
+array part is 3 while the size of the hash part is also 3.
+
+Lines [2]–[4] loads the values for the first 3 array elements. Lines [5]–[7] set 
+the 3 key-value pairs for the hash part of the table. In lines [8] and [9], 
+the call to function ``foo`` is made, and then in line [10], the ``SETLIST`` instruction sets 
+the first 3 array elements (in registers 1 to 3) plus whatever additional results 
+returned by the ``foo`` function call (from register 4 onwards). This is accomplished by 
+setting operand B in ``SETLIST`` to 0. For the first block, operand C is 1 as usual. 
+If no results are returned by the function, the top of stack is at register 3 
+and only the 3 constant array elements in the table are set.
+
+Finally::
+
+  > f=load('local a; return {a(), a(), a()}')
+
+This gives::
+
+  main <(string):0,0> (11 instructions at 0000022C18787AD0)
+  0+ params, 5 slots, 1 upvalue, 1 local, 0 constants, 0 functions
+        1       [1]     LOADNIL         0 0
+        2       [1]     NEWTABLE        1 2 0
+        3       [1]     MOVE            2 0
+        4       [1]     CALL            2 1 2
+        5       [1]     MOVE            3 0
+        6       [1]     CALL            3 1 2
+        7       [1]     MOVE            4 0
+        8       [1]     CALL            4 1 0
+        9       [1]     SETLIST         1 0 1   ; 1
+        10      [1]     RETURN          1 2
+        11      [1]     RETURN          0 1
+  constants (0) for 0000022C18787AD0:
+  locals (1) for 0000022C18787AD0:
+        0       a       2       12
+  upvalues (1) for 0000022C18787AD0:
+        0       _ENV    1       0
+
+Note that only the last function call in a table constructor retains all results. 
+Other function calls in the table constructor keep only one result. This is shown in the 
+above example. For vararg operators in table constructors, please see the discussion for the 
+``VARARG`` instruction for an example.
 
