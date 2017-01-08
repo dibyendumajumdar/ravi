@@ -504,7 +504,7 @@ void RaviCodeGenerator::emit_store_reg_b_withtype(RaviFunctionDef *def,
 void RaviCodeGenerator::emit_store_type_(RaviFunctionDef *def,
                                          llvm::Value *value, int type) {
   lua_assert(type == LUA_TNUMFLT || type == LUA_TNUMINT ||
-             type == LUA_TBOOLEAN);
+             type == LUA_TBOOLEAN || type == LUA_TNIL);
   llvm::Value *desttype = emit_gep(def, "dest.tt", value, 0, 1);
   llvm::Instruction *store =
       def->builder->CreateStore(def->types->kInt[type], desttype);
