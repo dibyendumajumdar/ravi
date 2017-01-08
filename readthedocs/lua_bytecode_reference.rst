@@ -2080,5 +2080,127 @@ must take note of any metamethods that may affect the call. The ``SELF`` in the 
 replaces the ``GETTABLE`` on line [2] and the ``GETTABUP`` on line [3]. If ``foo`` is a local variable, 
 then the equivalent code is a ``GETTABLE`` and a ``MOVE``.
 
+OP_GETTABUP and OP_SETTABUP instructions
+========================================
+
+Syntax
+------
+
+::
+
+  GETTABUP A B C   R(A) := UpValue[B][RK(C)]
+  SETTABUP A B C   UpValue[A][RK(B)] := RK(C)
+
+Description
+-----------
+``OP_GETTABUP`` and ``OP_SETTABUP`` instructions are similar to the 
+``OP_GETTABLE`` and ``OP_SETTABLE`` instructions except that the table
+is referenced as an upvalue. These instructions are used to access global
+variables, which since Lua 5.2 are accessed via the upvalue named ``_ENV``.
+
+Examples
+--------
+::
+
+  f=load('a = 40; local b = a')
+
+Results in::
+
+  main <(string):0,0> (3 instructions at 0000028D955FEBF0)
+  0+ params, 2 slots, 1 upvalue, 1 local, 2 constants, 0 functions
+        1       [1]     SETTABUP        0 -1 -2 ; _ENV "a" 40
+        2       [1]     GETTABUP        0 0 -1  ; _ENV "a"
+        3       [1]     RETURN          0 1
+  constants (2) for 0000028D955FEBF0:
+        1       "a"
+        2       40
+  locals (1) for 0000028D955FEBF0:
+        0       b       3       4
+  upvalues (1) for 0000028D955FEBF0:
+        0       _ENV    1       0
+
+From the example, we can see that 'b' is the name of the local variable 
+while 'a' is the name of the global variable. 
+
+Line [1] assigns the number 40 to global 'a'. Line [2] assigns the value in global 'a' 
+to the register 0 which is the local 'b'.
+
+CONCAT instruction
+==================
+
+Syntax
+------
+
+::
+
+  CONCAT A B C   R(A) := R(B).. ... ..R(C)
+
+Description
+-----------
+Performs concatenation of two or more strings. In a Lua source, this is equivalent 
+to one or more concatenation operators ('..') between two or more expressions. 
+The source registers must be consecutive, and C must always be greater than B. 
+The result is placed in R(A).
+
+Examples
+--------
+``CONCAT`` accepts a range of registers. Doing more than one string concatenation 
+at a time is faster and more efficient than doing them separately::
+
+  f=load('local x,y = "foo","bar"; return x..y..x..y')
+
+Generates::
+
+  main <(string):0,0> (9 instructions at 0000028D9560B290)
+  0+ params, 6 slots, 1 upvalue, 2 locals, 2 constants, 0 functions
+        1       [1]     LOADK           0 -1    ; "foo"
+        2       [1]     LOADK           1 -2    ; "bar"
+        3       [1]     MOVE            2 0
+        4       [1]     MOVE            3 1
+        5       [1]     MOVE            4 0
+        6       [1]     MOVE            5 1
+        7       [1]     CONCAT          2 2 5
+        8       [1]     RETURN          2 2
+        9       [1]     RETURN          0 1
+  constants (2) for 0000028D9560B290:
+        1       "foo"
+        2       "bar"
+  locals (2) for 0000028D9560B290:
+        0       x       3       10
+        1       y       3       10
+  upvalues (1) for 0000028D9560B290:
+        0       _ENV    1       0
+
+In this example, strings are moved into place first (lines [3] to [6]) in 
+the concatenation order before a single ``CONCAT`` instruction is executed 
+in line [7]. The result is left in temporary local 2, which is then used as 
+a return value by the ``RETURN`` instruction on line [8].
+
+::
+
+  f=load('local a = "foo".."bar".."baz"')
+
+Compiles to::
+
+  main <(string):0,0> (5 instructions at 0000028D9560EE40)
+  0+ params, 3 slots, 1 upvalue, 1 local, 3 constants, 0 functions
+        1       [1]     LOADK           0 -1    ; "foo"
+        2       [1]     LOADK           1 -2    ; "bar"
+        3       [1]     LOADK           2 -3    ; "baz"
+        4       [1]     CONCAT          0 0 2
+        5       [1]     RETURN          0 1
+  constants (3) for 0000028D9560EE40:
+        1       "foo"
+        2       "bar"
+        3       "baz"
+  locals (1) for 0000028D9560EE40:
+        0       a       5       6
+  upvalues (1) for 0000028D9560EE40:
+        0       _ENV    1       0
+
+In the second example, three strings are concatenated together. Note that 
+there is no string constant folding. Lines [1] through [3] loads the three 
+constants in the correct order for concatenation; the ``CONCAT`` on line [4] 
+performs the concatenation itself and assigns the result to local 'a'.
 
 
