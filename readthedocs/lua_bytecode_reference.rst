@@ -2306,6 +2306,7 @@ OP_LOADNIL instruction
 
 Syntax
 ------
+
 ::
  
   LOADNIL A B     R(A), R(A+1), ..., R(A+B) := nil
@@ -2355,6 +2356,7 @@ Syntax
 ------
 
 ::
+  
   LOADK A Bx    R(A) := Kst(Bx)
 
 Description
@@ -2371,7 +2373,8 @@ Constants are pooled in the list, duplicates are eliminated. The list can
 hold nils, booleans, numbers or strings.
 
 ::
-  > f=load('local a,b,c,d = 3,"foo",3,"foo"')
+  
+  f=load('local a,b,c,d = 3,"foo",3,"foo"')
 
 
 Leads to::
@@ -2405,7 +2408,9 @@ manipulation of variables. These insructions have a common form.
 
 Syntax
 ------
+
 ::
+
   ADD   A B C   R(A) := RK(B) + RK(C)
   SUB   A B C   R(A) := RK(B) - RK(C)
   MUL   A B C   R(A) := RK(B) * RK(C)
@@ -2461,7 +2466,9 @@ temporary register in advance.
 
 Examples
 --------
+
 ::
+
   f=load('local a,b = 2,4; a = a + 4 * b - a / 2 ^ b % 3')
 
 Generates::
@@ -2607,7 +2614,9 @@ Lua 5.3 implements following unary operators in addition to ``OP_LEN``.
 
 Syntax
 ------
+
 ::
+
   UNM   A B     R(A) := -R(B)
   BNOT  A B     R(A) := ~R(B)
   NOT   A B     R(A) := not R(B)
@@ -2629,7 +2638,9 @@ R(A).
 
 Examples
 --------
+
 ::
+
   f=load('local p,q = 10,false; q,p = -p,not q')
 
 Results in::
