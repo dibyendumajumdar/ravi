@@ -1474,7 +1474,7 @@ We get following bytecodes::
   upvalues (1) for 0000022149BBB7B0:
         0       v       1       1
 
-In the function 'p', which we see that the upvalue list contains::
+In the function 'p' the upvalue list contains::
 
   upvalues (1) for 0000022149BBB7B0:
         0       v       1       1
@@ -1489,7 +1489,8 @@ function::
   f=load('local u,v; function p() u=1; local function q() return v end end')
 
 In this example, we have 1 upvalue reference in function 'p', which is 'u'. Function 'q' has
-one upvalue reference 'v'. Let's see the resulting bytecodes::
+one upvalue reference 'v' but this is not a variable in 'p', but is in the grand-parent. 
+Here are the resulting bytecodes::
 
   main <(string):0,0> (4 instructions at 0000022149BBFE40)
   0+ params, 3 slots, 1 upvalue, 2 locals, 1 constant, 1 function
@@ -1529,7 +1530,7 @@ one upvalue reference 'v'. Let's see the resulting bytecodes::
   upvalues (1) for 0000022149BC06B0:
         0       v       0       1
 
-We see that 'p' got the upvalues 'u' as expected, but it also got the
+We see that 'p' got the upvalue 'u' as expected, but it also got the
 upvalue 'v', and both are marked as 'instack' of the parent function::
 
   upvalues (2) for 0000022149BBFC60:
@@ -1548,8 +1549,8 @@ Observe the upvalue list of 'q' now::
         0       v       0       1
 
 'q' has one upvalue reference as expected, but this time the upvalue is
-not marked 'instack', so it means that the reference is to an upvalue in 
-parent function (in this case 'p') and the upvalue index is '1' (the 
+not marked 'instack', which means that the reference is to an upvalue and not a local in 
+the parent function (in this case 'p') and the upvalue index is '1' (i.e. the 
 second upvalue in 'p').
 
 OP_GETUPVAL and OP_SETUPVAL instructions
