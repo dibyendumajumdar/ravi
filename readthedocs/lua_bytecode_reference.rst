@@ -215,11 +215,18 @@ Syntax
 Description
 -----------
 
-Performs a function call, with register R(A) holding the reference to the function object to be called. Parameters to the function are placed in the registers following R(A). If B is 1, the function has no parameters. If B is 2 or more, there are (B-1) parameters. If B >= 2, then upon entry to the called function, R(A+1) will become the ``base``. 
+Performs a function call, with register R(A) holding the reference to the function object to be called. 
+Parameters to the function are placed in the registers following R(A). If B is 1, the function has no 
+parameters. If B is 2 or more, there are (B-1) parameters. If B >= 2, then upon entry to the called 
+function, R(A+1) will become the ``base``. 
 
-If B is 0, the function parameters range from R(A+1) to the top of the stack. This form is used when the 
-number of parameters to pass is set by the previous VM instruction, which has to be one of ``OP_CALL`` or
-``OP_VARARG``. 
+If B is 0, then B = 'top', i.e., the function parameters range from R(A+1) to the top of the stack. 
+This form is used when the number of parameters to pass is set by the previous VM instruction, 
+which has to be one of ``OP_CALL`` or ``OP_VARARG``. 
+
+If C is 1, no return results are saved. If C is 2 or more, (C-1) return values are saved. 
+If C == 0, then 'top' is set to last_result+1, so that the next open instruction 
+(``OP_CALL``, ``OP_RETURN``, ``OP_SETLIST``) can use 'top'.
 
 Examples
 --------
@@ -255,11 +262,16 @@ Thus upon entry to a function ``base`` is always the location of the first fixed
   R(A+3)                               CI->base  [ fixed arg 1 ]   CI->base [ local 1    ]
   R(A+4)                                         [ local 1     ]
                                         
-Results returned by the function call are placed in a range of registers starting from R(A). If C is 1, no return results are saved. If C is 2 or more, (C-1) return values are saved. If C is 0, then multiple return results are saved. In this case the number of values to save is determined by one of following ways:
+Results returned by the function call are placed in a range of registers starting from R(A). 
+If C is 1, no return results are saved. If C is 2 or more, (C-1) return values are saved. 
+If C is 0, then multiple return results are saved. In this case the number of values to save is 
+determined by one of following ways:
 
 * A C function returns an integer value indicating number of results returned so for C function calls
-  this is used (see the value of ``n`` passed to `luaD_poscall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_poscall>`_ in `luaD_precall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_precall>`_)
-* For Lua functions, the the results are saved by the called function's ``OP_RETURN`` instruction.
+  this is used (see the value of ``n`` passed to 
+  `luaD_poscall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_poscall>`_ 
+  in `luaD_precall() <http://www.lua.org/source/5.3/ldo.c.html#luaD_precall>`_)
+* For Lua functions, the results are saved by the called function's ``OP_RETURN`` instruction.
 
 More examples
 -------------
@@ -281,7 +293,9 @@ Produces::
   upvalues (1) for 000000CECB2BE040:
     0       _ENV    0       0
 
-In line [2], the call has zero parameters (field B is 1), zero results are retained (field C is 1), while register 0 temporarily holds the reference to the function object from global y. Next we see a function call with multiple parameters or arguments::
+In line [2], the call has zero parameters (field B is 1), zero results are retained (field C is 1), 
+while register 0 temporarily holds the reference to the function object from global y. Next we see a 
+function call with multiple parameters or arguments::
 
   x=function() z(1,2,3) end
 
@@ -305,7 +319,10 @@ Generates::
     0       _ENV    0       0
 
 
-Lines [1] to [4] loads the function reference and the arguments in order, then line [5] makes the call with an operand B value of 4, which means there are 3 parameters. Since the call statement is not assigned to anything, no return results need to be retained, hence field C is 1. Here is an example that uses multiple parameters and multiple return values::
+Lines [1] to [4] loads the function reference and the arguments in order, then line [5] makes the 
+call with an operand B value of 4, which means there are 3 parameters. Since the call statement is 
+not assigned to anything, no return results need to be retained, hence field C is 1. Here is an 
+example that uses multiple parameters and multiple return values::
 
 
   x=function() local p,q,r,s = z(y()) end
@@ -330,8 +347,11 @@ Produces::
   upvalues (1) for 000000CECB2D6CC0:
     0       _ENV    0       0
 
-First, the function references are retrieved (lines [1] and [2]), then function y is called first (temporary register 1). The CALL
-has a field C of 0, meaning multiple return values are accepted. These return values become the parameters to function z, and so in line [4], field B of the CALL instruction is 0, signifying multiple parameters. After the call to function z, 4 results are retained, so field C in line [4] is 5. Finally, here is an example with calls to standard library functions::
+First, the function references are retrieved (lines [1] and [2]), then function y is called 
+first (temporary register 1). The CALL has a field C of 0, meaning multiple return values are accepted. 
+These return values become the parameters to function z, and so in line [4], field B of the CALL 
+instruction is 0, signifying multiple parameters. After the call to function z, 4 results are 
+retained, so field C in line [4] is 5. Finally, here is an example with calls to standard library functions::
 
   x=function() print(string.char(64)) end
 
@@ -355,7 +375,8 @@ Leads to::
   upvalues (1) for 000000CECB2D6220:
     0       _ENV    0       0
 
-When a function call is the last parameter to another function call, the former can pass multiple return values, while the latter can accept multiple parameters.
+When a function call is the last parameter to another function call, the former 
+can pass multiple return values, while the latter can accept multiple parameters.
 
 OP_TAILCALL instruction
 =======================
@@ -1342,6 +1363,86 @@ The ``TFORLOOP`` insruction executes and checks whether ``i`` is ``nil``. If it 
 
 The body of the generic ``for`` loop executes (``print(i,v)``) and then ``TFORCALL`` is encountered again, calling the iterator function to get the next iteration state. Finally, when the ``TFORLOOP`` finds that the first result from the iterator is ``nil``, the loop ends, and execution continues on line [11].
 
+
+OP_CLOSURE instruction
+======================
+
+Syntax
+------
+
+::
+
+  CLOSURE A Bx    R(A) := closure(KPROTO[Bx])
+
+Description
+-----------
+Creates an instance (or closure) of a function inside the parent function. The ``Bx`` parameter
+identifies the entry in the parent function Prototype's table of closure prototypes (the field ``p``
+in the struct ``Proto``). The indices start from 0, i.e., a parameter of Bx = 0 references the first
+closure prototype in the table.
+
+The ``OP_CLOSURE`` instruction also sets up the ``upvalues`` for the closure being defined. This
+is an involved process that is worthy of detailed discussion, and will be described through examples.
+
+Examples
+--------
+Let's start with a simple example of a Lua function::
+
+  f=load('function x() end; function y() end')
+
+Here we are creating two Lua functions/closures within the main chunk.
+The bytecodes for the chunk look this::
+
+  main <(string):0,0> (5 instructions at 0000020E8A352930)
+  0+ params, 2 slots, 1 upvalue, 0 locals, 2 constants, 2 functions
+        1       [1]     CLOSURE         0 0     ; 0000020E8A352A70
+        2       [1]     SETTABUP        0 -1 0  ; _ENV "x"
+        3       [1]     CLOSURE         0 1     ; 0000020E8A3536A0
+        4       [1]     SETTABUP        0 -2 0  ; _ENV "y"
+        5       [1]     RETURN          0 1
+  constants (2) for 0000020E8A352930:
+        1       "x"
+        2       "y"
+  locals (0) for 0000020E8A352930:
+  upvalues (1) for 0000020E8A352930:
+        0       _ENV    1       0
+
+  function <(string):1,1> (1 instruction at 0000020E8A352A70)
+  0 params, 2 slots, 0 upvalues, 0 locals, 0 constants, 0 functions
+        1       [1]     RETURN          0 1
+  constants (0) for 0000020E8A352A70:
+  locals (0) for 0000020E8A352A70:
+  upvalues (0) for 0000020E8A352A70:
+
+  function <(string):1,1> (1 instruction at 0000020E8A3536A0)
+  0 params, 2 slots, 0 upvalues, 0 locals, 0 constants, 0 functions
+        1       [1]     RETURN          0 1
+  constants (0) for 0000020E8A3536A0:
+  locals (0) for 0000020E8A3536A0:
+  upvalues (0) for 0000020E8A3536A0:
+
+What we observe is that the first ``CLOSURE`` instruction has parameter
+``Bx`` set to 0, and this is the reference to the closure 0000020E8A352A70
+which appears at position 0 in the table of closures within the main chunk's
+``Proto`` structure.
+
+Similarly the second ``CLOSURE`` instruction has parameter ``Bx`` set to 1,
+and this references the closure at position 1 in the table, which is 
+0000020E8A3536A0.
+
+Other things to notice is that the main chunk got an automatic upvalue
+named ``_ENV``::
+
+  upvalues (1) for 0000020E8A352930:
+        0       _ENV    1       0
+
+The first ``0`` is the index of the upvalue in the main chunk. The ``1``
+following the name is a boolean indicating that the upvalue is located on the
+stack, and the last ``0`` is identifies the register location on the stack.
+So the Lua Parser has setup the ``upvalue`` reference for ``_ENV``. We will come back
+to the handling of ``_ENV``.
+
+  
 
 OP_GETUPVAL and OP_SETUPVAL instructions
 ========================================
