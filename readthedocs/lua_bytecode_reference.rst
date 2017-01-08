@@ -1936,3 +1936,149 @@ Other function calls in the table constructor keep only one result. This is show
 above example. For vararg operators in table constructors, please see the discussion for the 
 ``VARARG`` instruction for an example.
 
+OP_GETTABLE and OP_SETTABLE instructions
+========================================
+
+Syntax
+------
+
+::
+
+  GETTABLE A B C   R(A) := R(B)[RK(C)]
+  SETTABLE A B C   R(A)[RK(B)] := RK(C)
+
+Description
+-----------
+``OP_GETTABLE`` copies the value from a table element into register R(A). 
+The table is referenced by register R(B), while the index to the table is given 
+by RK(C), which may be the value of register R(C) or a constant number.
+
+``OP_SETTABLE`` copies the value from register R(C) or a constant into a table element. 
+The table is referenced by register R(A), while the index to the table is given by 
+RK(B), which may be the value of register R(B) or a constant number.
+
+All 3 operand fields are used, and some of the operands can be constants. A 
+constant is specified by setting the MSB of the operand to 1. If RK(C) need to 
+refer to constant 1, the encoded value will be (256 | 1) or 257, where 256 is the 
+value of bit 8 of the operand. Allowing constants to be used directly reduces 
+considerably the need for temporary registers.
+
+Examples
+--------
+::
+
+  f=load('local p = {}; p[1] = "foo"; return p["bar"]')
+
+This compiles to::
+
+  main <(string):0,0> (5 instructions at 000001FA06FCC3F0)
+  0+ params, 2 slots, 1 upvalue, 1 local, 3 constants, 0 functions
+        1       [1]     NEWTABLE        0 0 0
+        2       [1]     SETTABLE        0 -1 -2 ; 1 "foo"
+        3       [1]     GETTABLE        1 0 -3  ; "bar"
+        4       [1]     RETURN          1 2
+        5       [1]     RETURN          0 1
+  constants (3) for 000001FA06FCC3F0:
+        1       1
+        2       "foo"
+        3       "bar"
+  locals (1) for 000001FA06FCC3F0:
+        0       p       2       6
+  upvalues (1) for 000001FA06FCC3F0:
+        0       _ENV    1       0
+
+In line [1], a new empty table is created and the reference placed in local p (register 0). 
+Creating and populating new tables is discussed in detail elsewhere.
+Table index 1 is set to 'foo' in line [2] by the ``SETTABLE`` instruction. 
+
+The R(A) value of 0 points to the new table that was defined in line [1].
+In line [3], the value of the table element indexed by the string 'bar' is copied into 
+temporary register 1, which is then used by RETURN as a return value. 
+
+OP_SELF instruction
+===================
+
+Syntax
+------
+
+::
+
+  SELF  A B C   R(A+1) := R(B); R(A) := R(B)[RK(C)]
+
+Description
+-----------
+For object-oriented programming using tables. Retrieves a function reference 
+from a table element and places it in register R(A), then a reference to the table 
+itself is placed in the next register, R(A+1). This instruction saves some messy 
+manipulation when setting up a method call.
+
+R(B) is the register holding the reference to the table with the method. 
+The method function itself is found using the table index RK(C), which may be 
+the value of register R(C) or a constant number.
+
+Examples
+--------
+A ``SELF`` instruction saves an extra instruction and speeds up the calling of 
+methods in object oriented programming. It is only generated for method calls 
+that use the colon syntax. In the following example::
+
+  f=load('foo:bar("baz")')
+
+We can see ``SELF`` being generated::
+
+  main <(string):0,0> (5 instructions at 000001FA06FA7830)
+  0+ params, 3 slots, 1 upvalue, 0 locals, 3 constants, 0 functions
+        1       [1]     GETTABUP        0 0 -1  ; _ENV "foo"
+        2       [1]     SELF            0 0 -2  ; "bar"
+        3       [1]     LOADK           2 -3    ; "baz"
+        4       [1]     CALL            0 3 1
+        5       [1]     RETURN          0 1
+  constants (3) for 000001FA06FA7830:
+        1       "foo"
+        2       "bar"
+        3       "baz"
+  locals (0) for 000001FA06FA7830:
+  upvalues (1) for 000001FA06FA7830:
+        0       _ENV    1       0
+
+The method call is equivalent to: ``foo.bar(foo, "baz")``, except that the global ``foo`` 
+is only looked up once. This is significant if metamethods have been set. The ``SELF`` in 
+line [2] is equivalent to a ``GETTABLE`` lookup (the table is in register 0 and the 
+index is constant 1) and a ``MOVE`` (copying the table reference from register 0 to 
+register 1.)
+
+Without ``SELF``, a ``GETTABLE`` will write its lookup result to register 0 (which the 
+code generator will normally do) and the table reference will be overwritten before a ``MOVE`` 
+can be done. Using ``SELF`` saves roughly one instruction and one temporary register slot.
+
+After setting up the method call using ``SELF``, the call is made with the usual ``CALL`` 
+instruction in line [4], with two parameters. The equivalent code for a method lookup is 
+compiled in the following manner::
+
+  f=load('foo.bar(foo, "baz")')
+
+And generated code::
+
+  main <(string):0,0> (6 instructions at 000001FA06FA6960)
+  0+ params, 3 slots, 1 upvalue, 0 locals, 3 constants, 0 functions
+        1       [1]     GETTABUP        0 0 -1  ; _ENV "foo"
+        2       [1]     GETTABLE        0 0 -2  ; "bar"
+        3       [1]     GETTABUP        1 0 -1  ; _ENV "foo"
+        4       [1]     LOADK           2 -3    ; "baz"
+        5       [1]     CALL            0 3 1
+        6       [1]     RETURN          0 1
+  constants (3) for 000001FA06FA6960:
+        1       "foo"
+        2       "bar"
+        3       "baz"
+  locals (0) for 000001FA06FA6960:
+  upvalues (1) for 000001FA06FA6960:
+        0       _ENV    1       0
+
+The alternative form of a method call is one instruction longer, and the user 
+must take note of any metamethods that may affect the call. The ``SELF`` in the previous example 
+replaces the ``GETTABLE`` on line [2] and the ``GETTABUP`` on line [3]. If ``foo`` is a local variable, 
+then the equivalent code is a ``GETTABLE`` and a ``MOVE``.
+
+
+
