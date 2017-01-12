@@ -44,7 +44,7 @@ function check (f, ...)
   local arg = {...}
   local c = T.listcode(f)
   for i=1, #arg do
-    --print(arg[i], c[i])
+    -- print(arg[i], c[i])
     assert(string.find(c[i], '- '..arg[i]..' *%d'))
   end
   assert(c[#arg+2] == nil)
