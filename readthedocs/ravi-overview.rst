@@ -13,8 +13,10 @@ My motivation is somewhat different - I want to enhance the VM to support more e
 Of course there is also the fantastic `LuaJIT <http://luajit.org>`_ implementation. Ravi has a different goal compared to 
 LuaJIT. Ravi prioritizes ease of maintenance and support, language safety, and compatibility with Lua 5.3, over maximum performance. For more detailed comparison please refer to the documentation links below.
 
+
 .. contents:: Table of Contents
    :depth: 1
+   :backlinks: top
 
 Features
 ========
@@ -39,10 +41,6 @@ The LLVM JIT compiler is functional. The Lua and Ravi bytecodes currently implem
 Ravi also provides an `LLVM binding <http://the-ravi-programming-language.readthedocs.org/en/latest/llvm-bindings.html>`_; this is still work in progress so please check documentation for the latest status.
 
 As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is also functional but some byte codes are not yet compiled, and featurewise this implementation is somewhat lagging behind the LLVM based implementation. 
-
-Performance Benchmarks
-======================
-For performance benchmarks please visit the `Ravi Performance Benchmarks <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-benchmarks.html>`_ page.
 
 Ravi Extensions to Lua 5.3
 ==========================
@@ -289,8 +287,10 @@ A JIT api is available with following functions:
   Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode 
   boundary; use this option only when you want to use the debug api to step through code line by line
 
-Performance Notes
-=================
+Performance
+===========
+For performance benchmarks please visit the `Ravi Performance Benchmarks <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-benchmarks.html>`_ page.
+
 To obtain the best possible performance, types must be annotated so that Ravi's JIT compiler can generate efficient code. 
 Additionally function calls are expensive - as the JIT compiler cannot inline function calls, all function calls go via the Lua call protocol which has a large overhead. This is true for both Lua functions and C functions. For best performance avoid function calls inside loops.
 
@@ -432,6 +432,7 @@ Roadmap
 * 2015 - Implemented libgccjit based alternative JIT
 * 2016 - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
 * 2017 - Main priorities are:
+
   - Add compatibility to Lua 5.1 and 5.2 as far as possible
   - Lua function inlining 
   - Improve performance of Ravi  
