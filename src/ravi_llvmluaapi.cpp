@@ -198,9 +198,9 @@ struct ModuleHolder {
 
   ModuleHolder(const std::shared_ptr<ravi::RaviJITModule> &module) {
     M = module;
-    printf("ModuleHolder created\n");
+    //printf("ModuleHolder created\n");
   }
-  ~ModuleHolder() { printf("ModuleHolder destroyed\n"); }
+  ~ModuleHolder() { /* printf("ModuleHolder destroyed\n");*/ }
 };
 
 struct PhiNodeHolder {
@@ -238,7 +238,7 @@ static void alloc_LLVM_module(lua_State *L,
 /* __gc for ModuleHolder */
 static int collect_LLVM_module(lua_State *L) {
   ModuleHolder *mh = check_LLVM_module(L, 1);
-  printf("Module released: usecount %d\n", mh->M.use_count());
+  //printf("Module released: usecount %d\n", (int)mh->M.use_count());
   mh->~ModuleHolder();
   return 0;
 }
@@ -342,7 +342,7 @@ static int collect_LLVM_mainfunction(lua_State *L) {
   if (builder->func) {
     delete builder->func;
     builder->func = nullptr;
-    printf("collected function\n");
+    //printf("collected function\n");
   }
   return 0;
 }

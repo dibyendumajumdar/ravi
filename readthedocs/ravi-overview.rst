@@ -40,7 +40,7 @@ The LLVM JIT compiler is functional. The Lua and Ravi bytecodes currently implem
 
 Ravi also provides an `LLVM binding <http://the-ravi-programming-language.readthedocs.org/en/latest/llvm-bindings.html>`_; this is still work in progress so please check documentation for the latest status.
 
-As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is also functional but some byte codes are not yet compiled, and featurewise this implementation is somewhat lagging behind the LLVM based implementation. 
+There is also a `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation but this implementation is lagging behind the LLVM based implementation. Further development of this is currently not planned.
 
 Ravi Extensions to Lua 5.3
 ==========================
@@ -254,8 +254,7 @@ To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and r
 
 JIT API
 -------
-The LLVM based JIT compiler is functional. Most bytecodes other than bit-wise operators are JIT compiled when using LLVM, but there are restrictions as described in compatibility section below. Everything described below relates to using LLVM as the JIT compiler.
- 
+The LLVM based JIT compiler is functional. 
 There are two modes of JIT compilation.
 
 auto mode
@@ -296,11 +295,11 @@ Additionally function calls are expensive - as the JIT compiler cannot inline fu
 
 Compatibility with Lua
 ======================
-Ravi should be able to run all Lua 5.3 programs in interpreted mode, but there are some differences: 
+Ravi should be able to run all Lua 5.3 programs in interpreted mode, but following should be noted: 
 
 * Ravi supports optional typing and enhanced types such as arrays (described above). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions; operations on Ravi arrays within Lua code will be subject to restrictions as described in the section above on arrays. 
 * Values crossing from Lua to Ravi will be subjected to typechecks should these values be assigned to typed variables.
-* Upvalues cannot subvert the static typing of local variables (issue #26)
+* Upvalues cannot subvert the static typing of local variables (issue #26) when types are annotated.
 * Certain Lua limits are reduced due to changed byte code structure. These are described below.
 
 +-----------------+-------------+-------------+
@@ -317,10 +316,10 @@ Ravi should be able to run all Lua 5.3 programs in interpreted mode, but there a
 | MAXARGLINE      | 250         | 120         |
 +-----------------+-------------+-------------+
 
-When JIT compilation is enabled some things will not work:
+When JIT compilation is enabled there are following additional constraints:
 
-* You cannot yield from a compiled function as compiled code does not support coroutines (issue 14); as a workaround Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
-* In JITed code tailcalls are implemented as regular calls so unlike Lua VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue #17)
+* Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
+* In JITed code tailcalls are implemented as regular calls so unlike the interpreter VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue #17)
 
 Building Ravi
 =============
@@ -329,11 +328,13 @@ Build Dependencies
 ------------------
 
 * CMake
+
+Ravi can be built with or without LLVM. Following versions of LLVM work with Ravi.
+
 * LLVM 3.7 or 3.8 or 3.9
 * LLVM 3.5 and 3.6 should also work but have not been recently tested
 
-The build is CMake based.
-Unless otherwise noted the instructions below should work for LLVM 3.7 or above.
+Unless otherwise noted the instructions below should work for LLVM 3.7 or later.
 
 Building LLVM on Windows
 ------------------------
@@ -367,7 +368,7 @@ Assuming that LLVM source has been extracted to ``$HOME/llvm-3.7.0.src`` I follo
 
 Building Ravi with JIT enabled
 ------------------------------
-I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X. I was also able to successfully build a Ubuntu version on Windows 10 using the newly released Ubuntu/Linux sub-system for Windows 10.
+I am developing Ravi using Visual Studio 2015 Community Edition on Windows 10 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X. I was also able to successfully build a Ubuntu version on Windows 10 using the newly released Ubuntu/Linux sub-system for Windows 10.
 
 .. note:: Location of cmake files has moved in LLVM 3.9; the new path is ``$LLVM_INSTALL_DIR/lib/cmake/llvm``.
 
@@ -433,9 +434,10 @@ Roadmap
 * 2016 - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
 * 2017 - Main priorities are:
 
-  - Add compatibility to Lua 5.1 and 5.2 as far as possible
+  - I would like Ravi to be backward compatible with Lua 5.1 and 5.2 as far as possible
   - Lua function inlining 
   - Improve performance of Ravi  
+  - Additional type annotations
 
 License
 =======
