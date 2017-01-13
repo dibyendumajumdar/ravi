@@ -23,18 +23,6 @@
 #include <ravijit.h>
 #include "ravi_llvmcodegen.h"
 
-#if 0
-// For debugging
-static int allocated_modules = 0;
-extern "C" {
-
-LUA_API int ravi_get_modulecount() {
-  return allocated_modules;
-}
-
-}
-#endif
-
 /*
  * Implementation Notes:
  * Each Lua function is compiled into an LLVM Module/Function
@@ -60,7 +48,8 @@ RaviJITState::RaviJITState()
       min_code_size_(150),
       min_exec_count_(50),
       gc_step_(300),
-      tracehook_enabled_(false) {
+      tracehook_enabled_(false),
+      allocated_modules_(0) {
   // LLVM needs to be initialized else
   // ExecutionEngine cannot be created
   // This needs to be an atomic check although LLVM docs
@@ -86,6 +75,7 @@ RaviJITState::RaviJITState()
 // Destroy the JIT state freeing up any
 // functions that were compiled
 RaviJITState::~RaviJITState() {
+  assert(allocated_modules_ == 0);
   delete types_;
   delete context_;
 }
@@ -98,7 +88,6 @@ void RaviJITState::dump() { types_->dump(); }
 
 static std::atomic_int module_id;
 
-
 RaviJITModule::RaviJITModule(RaviJITState *owner)
     : owner_(owner), engine_(nullptr), module_(nullptr) {
   int myid = module_id++;
@@ -109,17 +98,21 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   if (myid == 0) {
     // Extra validation to check that the LLVM sizes match Lua sizes
     llvm::DataLayout *layout = new llvm::DataLayout(module_);
-    //auto valueSize = layout->getTypeAllocSize(owner->types()->ValueT);
-    //auto valueSizeOf = sizeof(Value);
-    //auto TvalueSize = layout->getTypeAllocSize(owner->types()->TValueT);
-    //auto TvalueSizeOf = sizeof(TValue);
-    //printf("Value %d %d Tvalue %d %d\n", (int)valueSize, (int)valueSizeOf, (int)TvalueSize, (int)TvalueSizeOf);
+    // auto valueSize = layout->getTypeAllocSize(owner->types()->ValueT);
+    // auto valueSizeOf = sizeof(Value);
+    // auto TvalueSize = layout->getTypeAllocSize(owner->types()->TValueT);
+    // auto TvalueSizeOf = sizeof(TValue);
+    // printf("Value %d %d Tvalue %d %d\n", (int)valueSize, (int)valueSizeOf,
+    // (int)TvalueSize, (int)TvalueSizeOf);
     assert(sizeof(Value) == layout->getTypeAllocSize(owner->types()->ValueT));
     assert(sizeof(TValue) == layout->getTypeAllocSize(owner->types()->TValueT));
-    assert(sizeof(UTString) == layout->getTypeAllocSize(owner->types()->TStringT));
+    assert(sizeof(UTString) ==
+           layout->getTypeAllocSize(owner->types()->TStringT));
     assert(sizeof(Udata) == layout->getTypeAllocSize(owner->types()->UdataT));
-    assert(sizeof(CallInfo) == layout->getTypeAllocSize(owner->types()->CallInfoT));
-    assert(sizeof(lua_State) == layout->getTypeAllocSize(owner->types()->lua_StateT));
+    assert(sizeof(CallInfo) ==
+           layout->getTypeAllocSize(owner->types()->CallInfoT));
+    assert(sizeof(lua_State) ==
+           layout->getTypeAllocSize(owner->types()->lua_StateT));
     delete layout;
   }
 #if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MINOR < 7)
@@ -141,11 +134,10 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   std::string errStr;
   builder.setErrorStr(&errStr);
   engine_ = builder.create();
-#if 0
-  allocated_modules++;
-#endif
+  owner->incr_allocated_modules();
   if (!engine_) {
-    fprintf(stderr, "FATAL ERROR: could not create ExecutionEngine: %s\n", errStr.c_str());
+    fprintf(stderr, "FATAL ERROR: could not create ExecutionEngine: %s\n",
+            errStr.c_str());
     abort();
     return;
   }
@@ -158,8 +150,8 @@ RaviJITModule::~RaviJITModule() {
     // if engine was created then we don't need to delete the
     // module as it would have been deleted by the engine
     delete module_;
+  owner_->decr_allocated_modules();
 #if 0
-  allocated_modules--;
   //fprintf(stderr, "module destroyed\n");
 #endif
 }
@@ -191,7 +183,7 @@ RaviJITFunction::RaviJITFunction(lua_CFunction *p,
 
 RaviJITFunction::~RaviJITFunction() {
   // Remove this function from parent
-  //fprintf(stderr, "function destroyed\n");
+  // fprintf(stderr, "function destroyed\n");
   module_->removeFunction(this);
 }
 
@@ -279,7 +271,7 @@ void RaviJITModule::runpasses(bool dumpAsm) {
     }
     MPM->run(*module_);
 
-    // Note that in 3.7 this flus appears to have no effect
+// Note that in 3.7 this flus appears to have no effect
 #if LLVM_VERSION_MINOR <= 7
     formatted_stream.flush();
 #endif
@@ -321,8 +313,7 @@ llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,
                                                  void *address,
                                                  const std::string &name) {
   auto fn = external_symbols_.find(name);
-  if (fn != external_symbols_.end())
-    return fn->second;
+  if (fn != external_symbols_.end()) return fn->second;
   llvm::Function *f = llvm::Function::Create(
       type, llvm::Function::ExternalLinkage, name, module_);
   f->setDoesNotThrow();
@@ -419,7 +410,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
 // And put them all in one module
 // Returns true if compilation was successful
 int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
-  ravi_compile_options_t *options) {
+                    ravi_compile_options_t *options) {
   global_State *G = G(L);
   int count = 0;
   auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);

@@ -472,7 +472,8 @@ class RaviJITFunction {
   const std::string &name() const { return name_; }
   llvm::Function *function() const { return function_; }
   llvm::Module *module() const { return module_->module(); }
-  RaviJITModule *raviModule() const { return module_.get(); }
+  std::shared_ptr<RaviJITModule> raviModule() const { return module_; }
+
   llvm::ExecutionEngine *engine() const { return module_->engine(); }
   RaviJITState *owner() const { return module_->owner(); }
   // This method retrieves the JITed function from the
@@ -527,6 +528,10 @@ class RaviJITState {
   // instruction; this is expensive!
   bool tracehook_enabled_;
 
+  // Count of modules allocated
+  // Used to debug module deallocation
+  size_t allocated_modules_;
+
  public:
   RaviJITState();
   ~RaviJITState();
@@ -561,6 +566,9 @@ class RaviJITState {
   void set_gcstep(int value) { gc_step_ = value > 0 ? value : gc_step_; }
   bool is_tracehook_enabled() const { return tracehook_enabled_; }
   void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
+  void incr_allocated_modules() { allocated_modules_++; }
+  void decr_allocated_modules() { allocated_modules_--; }
+  size_t allocated_modules() const { return allocated_modules_; }
 };
 
 // To optimise fornum loops
