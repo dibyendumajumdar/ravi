@@ -102,6 +102,9 @@ static int stepping_stacklevel =
 static lua_State *stepping_lua_State =
     NULL; /* Tracks the Lua State that requested a step over or step out */
 static membuff_t readbuf;
+/* Since 1.8 VSCode has a bug in the way output events are handled so we 
+   try to buffer until newline */
+static char output_buffer[8 * 1024];
 
 /*
 * Generate response to InitializeRequest
@@ -1085,15 +1088,23 @@ void ravi_debughook(lua_State *L, lua_Debug *ar) {
 }
 
 void ravi_debug_writestring(const char *s, size_t l) {
-  char temp[256];
-  if (l >= sizeof temp) l = sizeof temp - 1;
-  vscode_string_copy(temp, s, l + 1);
-  vscode_send_output_event(&output_response, "stdout", temp, stdout, my_logger);
+  size_t already_used = strlen(output_buffer);
+  char *buf = output_buffer + already_used;
+  size_t buflen = sizeof output_buffer - already_used - 1;
+  int overflow = 0;
+  if (l >= buflen) {
+    l = buflen - 1;
+    overflow = 1;
+  }
+  vscode_string_copy(buf, s, l + 1);
+  if (overflow || *s == '\n') {
+    vscode_send_output_event(&output_response, "stdout", output_buffer, stdout,
+                             my_logger);
+    output_buffer[0] = 0;
+  }
 }
 
-void ravi_debug_writeline(void) {
-  vscode_send_output_event(&output_response, "stdout", "\n", stdout, my_logger);
-}
+void ravi_debug_writeline(void) { ravi_debug_writestring("\n", 1); }
 
 void ravi_debug_writestringerror(const char *fmt, const char *p) {
   char temp[256];
