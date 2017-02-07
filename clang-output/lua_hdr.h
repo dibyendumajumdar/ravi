@@ -204,6 +204,7 @@ struct Table {
   struct Table *metatable;
   struct GCObject *gclist;
   struct RaviArray ravi_array;
+  unsigned int hmask;
 };
 
 /* lzio.h */

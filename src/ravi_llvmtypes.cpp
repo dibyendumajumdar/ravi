@@ -469,6 +469,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  struct Table *metatable;
   //  GCObject *gclist;
   //  RaviArray ravi_array;
+  //  unsigned int hmask; /* Hash part mask (size of hash part - 1) */
   //} Table;
   elements.clear();
   elements.push_back(pGCObjectT);
@@ -483,6 +484,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pTableT);    /* metatable */
   elements.push_back(pGCObjectT); /* gclist */
   elements.push_back(RaviArrayT); /* RaviArray */
+  elements.push_back(C_intT);     /* hmask  */
   TableT->setBody(elements);
 
   // struct lua_longjmp;  /* defined in ldo.c */
@@ -541,8 +543,10 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  ptrdiff_t extra;
   //  short nresults;  /* expected number of results from this function */
   //  unsigned short callstatus;
-  //  unsigned short stacklevel; /* Ravi extension - stack level, bottom level is 0 */
-  //  lu_byte jitstatus; /* Only valid if Lua function - if 1 means JITed - RAVI extension */
+  //  unsigned short stacklevel; /* Ravi extension - stack level, bottom level
+  //  is 0 */
+  //  lu_byte jitstatus; /* Only valid if Lua function - if 1 means JITed - RAVI
+  //  extension */
   //} CallInfo;
 
   elements.clear();
@@ -571,8 +575,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_ptrdiff_t);                     /* extra */
   elements.push_back(llvm::Type::getInt16Ty(context)); /* nresults */
   elements.push_back(C_shortT);                        /* callstatus */
-  elements.push_back(C_shortT);                        /* stacklevel RAVI extension */
-  elements.push_back(lu_byteT);                        /* jitstatus RAVI extension*/
+  elements.push_back(C_shortT); /* stacklevel RAVI extension */
+  elements.push_back(lu_byteT); /* jitstatus RAVI extension*/
   CallInfoT->setBody(elements);
 
   // typedef struct ravi_State ravi_State;
@@ -1071,9 +1075,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   nodes.push_back(
       std::pair<llvm::MDNode *, uint64_t>(tbaa_shortT, 42));  // callstatus
   nodes.push_back(
-    std::pair<llvm::MDNode *, uint64_t>(tbaa_shortT, 44));    // stacklevel
+      std::pair<llvm::MDNode *, uint64_t>(tbaa_shortT, 44));  // stacklevel
   nodes.push_back(
-      std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 46));   // jitstatus
+      std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 46));  // jitstatus
   tbaa_CallInfoT = mdbuilder.createTBAAStructTypeNode("CallInfo", nodes);
 
   //! 7 = metadata !{metadata !"lua_State",
@@ -1283,6 +1287,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 28)); /* gclist */
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_RaviArrayT,
                                                       32)); /* ravi_array */
+  nodes.push_back(
+      std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 48)); /* hmask */
   tbaa_TableT = mdbuilder.createTBAAStructTypeNode("Table", nodes);
 
   tbaa_Table_flags =
@@ -1297,6 +1303,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 16);
   tbaa_Table_metatable =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 24);
+  tbaa_Table_hmask =
+      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 48);
   tbaa_RaviArray_dataT =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 32);
   tbaa_RaviArray_lenT =

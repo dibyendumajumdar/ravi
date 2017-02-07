@@ -56,24 +56,6 @@
 */
 #define MAXHBITS	(MAXABITS - 1)
 
-#if !defined(RAVI_ENABLED)
-#define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
-
-#define hashstr(t,str)		hashpow2(t, (str)->hash)
-#define hashboolean(t,p)	hashpow2(t, p)
-#define hashint(t,i)		hashpow2(t, i)
-
-
-/*
-** for some types, it is better to avoid modulus by power of 2, as
-** they tend to have many 2 factors.
-*/
-#define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1)|1))))
-
-
-#define hashpointer(t,p)	hashmod(t, point2uint(p))
-#endif
-
 #define dummynode		(&dummynode_)
 
 static const Node dummynode_ = {
@@ -345,6 +327,7 @@ static void setnodevector (lua_State *L, Table *t, unsigned int size) {
   if (size == 0) {  /* no elements to hash part? */
     t->node = cast(Node *, dummynode);  /* use common 'dummynode' */
     t->lsizenode = 0;
+	t->hmask = 0;
     t->lastfree = NULL;  /* signal that it is using dummy node */
   }
   else {
@@ -361,6 +344,7 @@ static void setnodevector (lua_State *L, Table *t, unsigned int size) {
       setnilvalue(gval(n));
     }
     t->lsizenode = cast_byte(lsize);
+	t->hmask = size - 1;
     t->lastfree = gnode(t, size);  /* all positions are free */
   }
 }

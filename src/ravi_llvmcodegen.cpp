@@ -20,8 +20,8 @@
 * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
-#include "ravi_llvmcodegen.h"
 #include <ravijit.h>
+#include "ravi_llvmcodegen.h"
 
 namespace ravi {
 
@@ -151,7 +151,6 @@ llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def,
 // emit code for LClosure *cl = clLvalue(ci->func);
 llvm::Instruction *RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(
     RaviFunctionDef *def) {
-
   // clLvalue() is a macros that expands to (LClosure *)ci->func->value_.gc
   // via a complex series of macros and unions
   // fortunately as func is at the beginning of the CallInfo
@@ -345,6 +344,14 @@ llvm::Value *RaviCodeGenerator::emit_table_get_hashsize(RaviFunctionDef *def,
 llvm::Value *RaviCodeGenerator::emit_table_get_hashstr(RaviFunctionDef *def,
                                                        llvm::Value *table,
                                                        TString *key) {
+#if NEW_HASH
+  unsigned int hash = key->hash;
+  llvm::Value *hmask_ptr = emit_gep(def, "hmask", table, 0, 12);
+  llvm::Instruction *hmask = def->builder->CreateLoad(hmask_ptr);
+  hmask->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Table_hmask);
+  llvm::Value *offset = def->builder->CreateAnd(
+      llvm::ConstantInt::get(def->types->C_intT, hash), hmask);
+#else
   llvm::Value *size = emit_table_get_hashsize(def, table);
   unsigned int hash = key->hash;
   // #define lmod(s,size) (cast(int, (s) & ((size)-1)))
@@ -352,6 +359,7 @@ llvm::Value *RaviCodeGenerator::emit_table_get_hashstr(RaviFunctionDef *def,
       def->builder->CreateNSWSub(size, def->types->kInt[1]);
   llvm::Value *offset = def->builder->CreateAnd(
       llvm::ConstantInt::get(def->types->C_intT, hash), sizeminusone);
+#endif
   return offset;
 }
 
@@ -1644,7 +1652,11 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_RAVI_GETTABLE_SK: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_GETTABLE_SK(def, A, B, C, pc);
+        lua_assert(ISK(C));
+        TValue *kv = k + INDEXK(C);
+        TString *key = tsvalue(kv);
+        lua_assert(key->tt == LUA_TSHRSTR);
+        emit_GETTABLE_SK(def, A, B, C, pc, key);
       } break;
       case OP_GETTABLE: {
         int B = GETARG_B(i);
@@ -1890,7 +1902,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       }
     }
   }
-
+  doVerify = true;
   if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs())) {
     f->dump();
     fprintf(stderr, "LLVM Code Verification failed\n");

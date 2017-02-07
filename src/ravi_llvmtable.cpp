@@ -44,7 +44,7 @@ void RaviCodeGenerator::emit_SELF(RaviFunctionDef *def, int A, int B, int C,
 
 // R(A+1) := R(B); R(A) := R(B)[RK(C)]
 void RaviCodeGenerator::emit_SELF_SK(RaviFunctionDef *def, int A, int B, int C,
-                                  int pc) {
+                                     int pc) {
   // StkId rb = RB(i);
   // setobjs2s(L, ra + 1, rb);
   // Protect(raviV_gettable_sskey(L, rb, RKC(i), ra));
@@ -59,7 +59,7 @@ void RaviCodeGenerator::emit_SELF_SK(RaviFunctionDef *def, int A, int B, int C,
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
   CreateCall4(def->builder, def->raviV_gettable_sskeyF, def->L, rb, rc, ra);
 }
-  
+
 // R(A+1) := R(B); R(A) := R(B)[RK(C)]
 void RaviCodeGenerator::emit_SELF_S(RaviFunctionDef *def, int A, int B, int C,
                                     int pc, TString *key) {
@@ -97,7 +97,7 @@ void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B, int pc) {
 // b) we know the key is an integer
 void RaviCodeGenerator::emit_SETTABLE_I(RaviFunctionDef *def, int A, int B,
                                         int C, int pc) {
-// This is broken as we need to handle meta methods etc.
+  // This is broken as we need to handle meta methods etc.
   lua_assert(false);
 #if 0
   emit_debug_trace(def, OP_RAVI_SETTABLE_I, pc);
@@ -126,8 +126,8 @@ void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // R(A)[RK(B)] := RK(C)
-void RaviCodeGenerator::emit_SETTABLE_SK(RaviFunctionDef *def, int A, int B, int C,
-  int pc) {
+void RaviCodeGenerator::emit_SETTABLE_SK(RaviFunctionDef *def, int A, int B,
+                                         int C, int pc) {
   // Protect(raviV_settable_sskey(L, ra, RKB(i), RKC(i)));
   bool traced = emit_debug_trace(def, OP_RAVI_SETTABLE_SK, pc);
   // Below may invoke metamethod so we set savedpc
@@ -138,7 +138,6 @@ void RaviCodeGenerator::emit_SETTABLE_SK(RaviFunctionDef *def, int A, int B, int
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
   CreateCall4(def->builder, def->raviV_settable_sskeyF, def->L, ra, rb, rc);
 }
-
 
 // R(A) := R(B)[RK(C)]
 void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
@@ -155,19 +154,50 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // R(A) := R(B)[RK(C)]
-void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C,
-  int pc) {
-  // Protect(raviV_gettable_sskey(L, RB(i), RKC(i), ra));
+void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
+                                         int C, int pc, TString *key) {
   bool traced = emit_debug_trace(def, OP_RAVI_GETTABLE_SK, pc);
   // Below may invoke metamethod so we set savedpc
   if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
-  llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
+#if 0
+  // Protect(raviV_gettable_sskey(L, RB(i), RKC(i), ra));
+  llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
   CreateCall4(def->builder, def->raviV_gettable_sskeyF, def->L, rb, rc, ra);
-}
+#else
+  llvm::Instruction *type = emit_load_type(def, rb);
 
+  // if table type try fast path
+  llvm::Value *cmp1 = emit_is_value_of_type(def, type, RAVI__TLTABLE,
+                                            "GETTABLE_SK_is_table_type");
+  llvm::BasicBlock *is_table = llvm::BasicBlock::Create(
+      def->jitState->context(), "GETTABLE_SK_is_table", def->f);
+  llvm::BasicBlock *not_table = llvm::BasicBlock::Create(
+      def->jitState->context(), "GETTABLE_SK_is_not_table");
+  llvm::BasicBlock *done =
+      llvm::BasicBlock::Create(def->jitState->context(), "GETTABLE_SK_done");
+  def->builder->CreateCondBr(cmp1, is_table, not_table);
+  def->builder->SetInsertPoint(is_table);
+
+  emit_common_GETTABLE_S_(def, A, rb, C, key);
+
+  def->builder->CreateBr(done);
+
+  def->f->getBasicBlockList().push_back(not_table);
+  def->builder->SetInsertPoint(not_table);
+
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rc = emit_gep_register_or_constant(def, C);
+  CreateCall4(def->builder, def->raviV_gettable_sskeyF, def->L, rb, rc, ra);
+
+  def->builder->CreateBr(done);
+
+  def->f->getBasicBlockList().push_back(done);
+  def->builder->SetInsertPoint(done);
+#endif
+}
 
 // R(A) := R(B)[RK(C)]
 // This is a more optimized version that attempts to do an inline
@@ -247,8 +277,9 @@ void RaviCodeGenerator::emit_finish_GETTABLE(RaviFunctionDef *def,
   // or if the metatable cached flags indicate metamethod absent
   llvm::Value *value_type = emit_load_type(def, phi);
   llvm::Value *isnotnil = emit_is_not_value_of_type(def, value_type, LUA__TNIL);
-  //llvm::Value *metamethod_absent = emit_table_no_metamethod(def, t, TM_INDEX);
-  //llvm::Value *cond = def->builder->CreateOr(isnotnil, metamethod_absent);
+  // llvm::Value *metamethod_absent = emit_table_no_metamethod(def, t,
+  // TM_INDEX);
+  // llvm::Value *cond = def->builder->CreateOr(isnotnil, metamethod_absent);
   llvm::Value *cond = isnotnil;
 
   llvm::BasicBlock *if_true_block = llvm::BasicBlock::Create(
@@ -285,9 +316,10 @@ void RaviCodeGenerator::emit_finish_GETTABLE(RaviFunctionDef *def,
 // to be short string
 // NOTE: To add support for GETTABUP_SK we now let caller supply the
 // rb register as it may be a register or an upvalue reference
-// See emit_GETTABUP_SK 
+// See emit_GETTABUP_SK
 void RaviCodeGenerator::emit_common_GETTABLE_S_(RaviFunctionDef *def, int A,
-  llvm::Value *rb, int C, TString *key) {
+                                                llvm::Value *rb, int C,
+                                                TString *key) {
   // The code we want to generate is this:
   //   struct Node *n = hashstr(t, key);
   //   const struct TValue *k = gkey(n);
@@ -323,15 +355,15 @@ void RaviCodeGenerator::emit_common_GETTABLE_S_(RaviFunctionDef *def, int A,
 
   // We need to check that the key type is also short string
   llvm::Value *is_shortstring =
-    emit_is_value_of_type(def, ktype, LUA__TSHRSTR, "is_shortstring");
+      emit_is_value_of_type(def, ktype, LUA__TSHRSTR, "is_shortstring");
   llvm::BasicBlock *testkey =
-    llvm::BasicBlock::Create(def->jitState->context(), "testkey");
+      llvm::BasicBlock::Create(def->jitState->context(), "testkey");
   llvm::BasicBlock *testok =
-    llvm::BasicBlock::Create(def->jitState->context(), "testok");
+      llvm::BasicBlock::Create(def->jitState->context(), "testok");
   llvm::BasicBlock *testfail =
-    llvm::BasicBlock::Create(def->jitState->context(), "testfail");
+      llvm::BasicBlock::Create(def->jitState->context(), "testfail");
   llvm::BasicBlock *testend =
-    llvm::BasicBlock::Create(def->jitState->context(), "testend");
+      llvm::BasicBlock::Create(def->jitState->context(), "testend");
   def->builder->CreateCondBr(is_shortstring, testkey, testfail);
 
   // Now we need to compare the keys
@@ -343,9 +375,9 @@ void RaviCodeGenerator::emit_common_GETTABLE_S_(RaviFunctionDef *def, int A,
 
   // Cast the pointer to a intptr so we can compare
   llvm::Value *intptr =
-    def->builder->CreatePtrToInt(keyvalue, def->types->C_intptr_t);
+      def->builder->CreatePtrToInt(keyvalue, def->types->C_intptr_t);
   llvm::Value *ourptr =
-    llvm::ConstantInt::get(def->types->C_intptr_t, (intptr_t)key);
+      llvm::ConstantInt::get(def->types->C_intptr_t, (intptr_t)key);
   // Compare the two pointers
   // If they match then we found the element
   llvm::Value *same = def->builder->CreateICmpEQ(intptr, ourptr);
@@ -363,8 +395,8 @@ void RaviCodeGenerator::emit_common_GETTABLE_S_(RaviFunctionDef *def, int A,
   def->f->getBasicBlockList().push_back(testfail);
   def->builder->SetInsertPoint(testfail);
   llvm::Value *rc2 = emit_gep_register_or_constant(def, C);
-  llvm::Value *value2 =
-    CreateCall2(def->builder, def->luaH_getstrF, t, emit_load_reg_s(def, rc2));
+  llvm::Value *value2 = CreateCall2(def->builder, def->luaH_getstrF, t,
+                                    emit_load_reg_s(def, rc2));
   def->builder->CreateBr(testend);
 
   // merge
@@ -764,8 +796,8 @@ void RaviCodeGenerator::emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // R(A) := UpValue[B][RK(C)]
-void RaviCodeGenerator::emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B, int C,
-  int pc) {
+void RaviCodeGenerator::emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B,
+                                         int C, int pc) {
   // int b = GETARG_B(i);
   // Protect(luaV_gettable(L, cl->upvals[b]->v, RKC(i), ra));
   bool traced = emit_debug_trace(def, OP_RAVI_GETTABUP_SK, pc);
@@ -780,7 +812,6 @@ void RaviCodeGenerator::emit_GETTABUP_SK(RaviFunctionDef *def, int A, int B, int
   llvm::Value *v = emit_load_upval_v(def, upval);
   CreateCall4(def->builder, def->raviV_gettable_sskeyF, def->L, v, rc, ra);
 }
-
 
 // UpValue[A][RK(B)] := RK(C)
 void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C,
@@ -801,8 +832,8 @@ void RaviCodeGenerator::emit_SETTABUP(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // UpValue[A][RK(B)] := RK(C)
-void RaviCodeGenerator::emit_SETTABUP_SK(RaviFunctionDef *def, int A, int B, int C,
-  int pc) {
+void RaviCodeGenerator::emit_SETTABUP_SK(RaviFunctionDef *def, int A, int B,
+                                         int C, int pc) {
   // int a = GETARG_A(i);
   // Protect(luaV_settable(L, cl->upvals[a]->v, RKB(i), RKC(i)));
 
@@ -887,19 +918,19 @@ void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
   llvm::Instruction *type = emit_load_type(def, ra);
 
   // type != expectedType
-  llvm::Value *cmp1 =
-      emit_is_not_value_of_type(def, type, expectedType, "is.not.expected.type");
+  llvm::Value *cmp1 = emit_is_not_value_of_type(def, type, expectedType,
+                                                "is.not.expected.type");
   llvm::BasicBlock *raise_error = llvm::BasicBlock::Create(
-              def->jitState->context(), "if.not.expected_type", def->f);
+      def->jitState->context(), "if.not.expected_type", def->f);
   llvm::BasicBlock *done =
-  llvm::BasicBlock::Create(def->jitState->context(), "done");
+      llvm::BasicBlock::Create(def->jitState->context(), "done");
   def->builder->CreateCondBr(cmp1, raise_error, done);
   def->builder->SetInsertPoint(raise_error);
-  
+
   // Conversion failed, so raise error
   emit_raise_lua_error(def, errmsg);
   def->builder->CreateBr(done);
-  
+
   def->f->getBasicBlockList().push_back(done);
   def->builder->SetInsertPoint(done);
 }
