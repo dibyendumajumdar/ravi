@@ -1036,6 +1036,11 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaH_getstrF = def->raviF->addExternFunction(
       def->types->luaH_getstrT, reinterpret_cast<void *>(&luaH_getstr),
       "luaH_getstr");
+  def->luaH_getstrF->addFnAttr(llvm::Attribute::AttrKind::ReadOnly);
+  def->luaH_getstrF->setDoesNotAlias(1);
+  def->luaH_getstrF->setDoesNotCapture(1);
+  def->luaH_getstrF->setDoesNotAlias(2);
+  def->luaH_getstrF->setDoesNotCapture(2);
   def->luaV_finishgetF = def->raviF->addExternFunction(
       def->types->luaV_finishgetT, reinterpret_cast<void *>(&luaV_finishget),
       "luaV_finishget");

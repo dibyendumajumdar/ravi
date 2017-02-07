@@ -505,6 +505,9 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
   def->f->getBasicBlockList().push_back(slowpath);
   def->builder->SetInsertPoint(slowpath);
 
+  // Set savedpc as following may invoke metamethod
+  if (!traced) emit_update_savedpc(def, pc);
+  
   switch (op) {
   case OP_ADD:
     CreateCall4(def->builder, def->raviV_op_addF,
