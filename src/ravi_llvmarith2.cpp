@@ -443,6 +443,7 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B,
       result = def->builder->CreateFDiv(
           def->builder->CreateSIToFP(lhs, def->types->lua_NumberT),
           def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
+	  break;
     default: lua_assert(0);
   }
 
