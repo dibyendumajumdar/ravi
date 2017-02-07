@@ -351,6 +351,7 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_Table_array;
   llvm::MDNode *tbaa_Table_flags;
   llvm::MDNode *tbaa_Table_metatable;
+  llvm::MDNode *tbaa_Table_hmask;
 };
 
 // The hierarchy of objects
@@ -756,6 +757,9 @@ class RaviCodeGenerator {
                               llvm::Value *arg3, llvm::Value *arg4,
                               llvm::Value *arg5);
 
+  void attach_branch_weights(RaviFunctionDef *def, llvm::Instruction *ins,
+                             uint32_t true_branch, uint32_t false_branch);
+
   void emit_raise_lua_error(RaviFunctionDef *def, const char *str);
 
   // Add extern declarations for Lua functions we need to call
@@ -805,8 +809,8 @@ class RaviCodeGenerator {
   // The return value is a boolean type as a result of
   // integer comparison result which is i1 in LLVM
   llvm::Value *emit_is_not_value_of_type_class(
-    RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
-    const char *varname = "value.not.typeof");
+      RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
+      const char *varname = "value.not.typeof");
 
   // emit code for LClosure *cl = clLvalue(ci->func)
   // this is same as:
@@ -1041,9 +1045,8 @@ class RaviCodeGenerator {
   void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms,
                   int pc);
 
-  void emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms,
-    int pc);
-
+  void emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C, OpCode op,
+                      TMS tms, int pc);
 
   void emit_MOD(RaviFunctionDef *def, int A, int B, int C, int pc);
 
@@ -1131,7 +1134,8 @@ class RaviCodeGenerator {
   void emit_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, int pc,
                        TString *key);
 
-  void emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
+  void emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc,
+                        TString *key);
 
   void emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
 
@@ -1148,8 +1152,8 @@ class RaviCodeGenerator {
   void emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C,
                               TString *key);
 
-  void emit_common_GETTABLE_S_(RaviFunctionDef *def, int A, llvm::Value *rb, int C,
-    TString *key);
+  void emit_common_GETTABLE_S_(RaviFunctionDef *def, int A, llvm::Value *rb,
+                               int C, TString *key);
 
   void emit_GETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
@@ -1236,8 +1240,8 @@ class RaviCodeGenerator {
 
   void emit_BNOT_I(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int A, int B,
-    int C, int pc);
+  void emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int A, int B, int C,
+                          int pc);
 
   void emit_BNOT(RaviFunctionDef *def, int A, int B, int pc);
 

@@ -588,6 +588,7 @@ typedef struct Table {
   GCObject *gclist;
   /** RAVI extension */
   RaviArray ravi_array;
+  unsigned int hmask; /* Hash part mask (size of hash part - 1) - borrowed from LuaJIT */
 } Table;
 
 

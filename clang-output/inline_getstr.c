@@ -23,7 +23,9 @@
 #define twoto(x)        (1<<(x))
 #define sizenode(t)     (twoto((t)->lsizenode))
 
-#define hashpow2(t,n)           (gnode(t, lmod((n), sizenode(t))))
+//#define hashpow2(t,n)           (gnode(t, lmod((n), sizenode(t))))
+// Following uses cached hmask which is basically precomputed lmod()
+#define hashpow2(t, h)	(gnode(t, (h & (t)->hmask)))
 #define hashstr(t,str)          hashpow2(t, (str)->hash)
 #define eqshrstr(a,b)           ((a) == (b))
 

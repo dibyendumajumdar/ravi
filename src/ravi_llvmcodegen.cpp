@@ -20,8 +20,8 @@
 * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
-#include "ravi_llvmcodegen.h"
 #include <ravijit.h>
+#include "ravi_llvmcodegen.h"
 
 namespace ravi {
 
@@ -104,6 +104,15 @@ llvm::CallInst *RaviCodeGenerator::CreateCall5(
   return builder->CreateCall(func, values);
 }
 
+void RaviCodeGenerator::attach_branch_weights(RaviFunctionDef *def,
+                                              llvm::Instruction *ins,
+                                              uint32_t true_branch,
+                                              uint32_t false_branch) {
+  ins->setMetadata(llvm::LLVMContext::MD_prof,
+                   def->jitState->types()->mdbuilder.createBranchWeights(
+                       true_branch, false_branch));
+}
+
 llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, const char *name,
                                          llvm::Value *s, int arg1, int arg2) {
   llvm::SmallVector<llvm::Value *, 2> values;
@@ -151,7 +160,6 @@ llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def,
 // emit code for LClosure *cl = clLvalue(ci->func);
 llvm::Instruction *RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(
     RaviFunctionDef *def) {
-
   // clLvalue() is a macros that expands to (LClosure *)ci->func->value_.gc
   // via a complex series of macros and unions
   // fortunately as func is at the beginning of the CallInfo
@@ -345,6 +353,14 @@ llvm::Value *RaviCodeGenerator::emit_table_get_hashsize(RaviFunctionDef *def,
 llvm::Value *RaviCodeGenerator::emit_table_get_hashstr(RaviFunctionDef *def,
                                                        llvm::Value *table,
                                                        TString *key) {
+#if NEW_HASH
+  unsigned int hash = key->hash;
+  llvm::Value *hmask_ptr = emit_gep(def, "hmask", table, 0, 12);
+  llvm::Instruction *hmask = def->builder->CreateLoad(hmask_ptr);
+  hmask->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Table_hmask);
+  llvm::Value *offset = def->builder->CreateAnd(
+      llvm::ConstantInt::get(def->types->C_intT, hash), hmask);
+#else
   llvm::Value *size = emit_table_get_hashsize(def, table);
   unsigned int hash = key->hash;
   // #define lmod(s,size) (cast(int, (s) & ((size)-1)))
@@ -352,6 +368,7 @@ llvm::Value *RaviCodeGenerator::emit_table_get_hashstr(RaviFunctionDef *def,
       def->builder->CreateNSWSub(size, def->types->kInt[1]);
   llvm::Value *offset = def->builder->CreateAnd(
       llvm::ConstantInt::get(def->types->C_intT, hash), sizeminusone);
+#endif
   return offset;
 }
 
@@ -745,7 +762,8 @@ llvm::Instruction *RaviCodeGenerator::emit_tointeger(RaviFunctionDef *def,
       def->jitState->context(), "if.conversion.failed");
 
   // If reg is integer then copy reg, else convert reg
-  def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  auto brinst1 = def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  attach_branch_weights(def, brinst1, 100, 0);
 
   // Convert RB
   def->f->getBasicBlockList().push_back(convert_reg);
@@ -800,7 +818,8 @@ llvm::Instruction *RaviCodeGenerator::emit_tofloat(RaviFunctionDef *def,
       def->jitState->context(), "if.conversion.failed");
 
   // If reg is integer then copy reg, else convert reg
-  def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  auto brinst1 = def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  attach_branch_weights(def, brinst1, 100, 0);
 
   // Convert RB
   def->f->getBasicBlockList().push_back(convert_reg);
@@ -1028,6 +1047,11 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaH_getstrF = def->raviF->addExternFunction(
       def->types->luaH_getstrT, reinterpret_cast<void *>(&luaH_getstr),
       "luaH_getstr");
+  def->luaH_getstrF->addFnAttr(llvm::Attribute::AttrKind::ReadOnly);
+  def->luaH_getstrF->setDoesNotAlias(1);
+  def->luaH_getstrF->setDoesNotCapture(1);
+  def->luaH_getstrF->setDoesNotAlias(2);
+  def->luaH_getstrF->setDoesNotCapture(2);
   def->luaV_finishgetF = def->raviF->addExternFunction(
       def->types->luaV_finishgetT, reinterpret_cast<void *>(&luaV_finishget),
       "luaV_finishget");
@@ -1644,7 +1668,11 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_RAVI_GETTABLE_SK: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_GETTABLE_SK(def, A, B, C, pc);
+        lua_assert(ISK(C));
+        TValue *kv = k + INDEXK(C);
+        TString *key = tsvalue(kv);
+        lua_assert(key->tt == LUA_TSHRSTR);
+        emit_GETTABLE_SK(def, A, B, C, pc, key);
       } break;
       case OP_GETTABLE: {
         int B = GETARG_B(i);
@@ -1773,7 +1801,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_ADD: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_ADD, TM_ADD, pc);
+        emit_ARITH_new(def, A, B, C, OP_ADD, TM_ADD, pc);
       } break;
       case OP_RAVI_ADDFF: {
         int B = GETARG_B(i);
@@ -1794,7 +1822,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_SUB: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_SUB, TM_SUB, pc);
+        emit_ARITH_new(def, A, B, C, OP_SUB, TM_SUB, pc);
       } break;
       case OP_RAVI_SUBFF: {
         int B = GETARG_B(i);
@@ -1820,7 +1848,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_MUL: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_MUL, TM_MUL, pc);
+        emit_ARITH_new(def, A, B, C, OP_MUL, TM_MUL, pc);
       } break;
       case OP_RAVI_MULFF: {
         int B = GETARG_B(i);
@@ -1841,7 +1869,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_DIV: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_DIV, TM_DIV, pc);
+        emit_ARITH_new(def, A, B, C, OP_DIV, TM_DIV, pc);
       } break;
       case OP_RAVI_DIVFF: {
         int B = GETARG_B(i);
@@ -1890,7 +1918,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       }
     }
   }
-
+  doVerify = true;
   if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs())) {
     f->dump();
     fprintf(stderr, "LLVM Code Verification failed\n");
