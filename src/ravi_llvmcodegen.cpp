@@ -1801,7 +1801,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_ADD: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_ADD, TM_ADD, pc);
+        emit_ARITH_new(def, A, B, C, OP_ADD, TM_ADD, pc);
       } break;
       case OP_RAVI_ADDFF: {
         int B = GETARG_B(i);
@@ -1822,7 +1822,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_SUB: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_SUB, TM_SUB, pc);
+        emit_ARITH_new(def, A, B, C, OP_SUB, TM_SUB, pc);
       } break;
       case OP_RAVI_SUBFF: {
         int B = GETARG_B(i);
@@ -1848,7 +1848,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_MUL: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_MUL, TM_MUL, pc);
+        emit_ARITH_new(def, A, B, C, OP_MUL, TM_MUL, pc);
       } break;
       case OP_RAVI_MULFF: {
         int B = GETARG_B(i);
@@ -1869,7 +1869,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_DIV: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_DIV, TM_DIV, pc);
+        emit_ARITH_new(def, A, B, C, OP_DIV, TM_DIV, pc);
       } break;
       case OP_RAVI_DIVFF: {
         int B = GETARG_B(i);

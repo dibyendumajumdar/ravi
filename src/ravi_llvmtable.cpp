@@ -283,13 +283,15 @@ void RaviCodeGenerator::emit_finish_GETTABLE(RaviFunctionDef *def,
   // llvm::Value *cond = def->builder->CreateOr(isnotnil, metamethod_absent);
   llvm::Value *cond = isnotnil;
 
-  llvm::BasicBlock *if_true_block = llvm::BasicBlock::Create(
-      def->jitState->context(), "if.not.nil.or.metamethod.absent", def->f);
+  llvm::BasicBlock *if_true_block =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.not.nil", def->f);
   llvm::BasicBlock *if_false_block =
       llvm::BasicBlock::Create(def->jitState->context(), "if.try.metamethod");
   llvm::BasicBlock *if_end_block =
       llvm::BasicBlock::Create(def->jitState->context(), "if.end");
-  def->builder->CreateCondBr(cond, if_true_block, if_false_block);
+  auto brinst1 =
+      def->builder->CreateCondBr(cond, if_true_block, if_false_block);
+  attach_branch_weights(def, brinst1, 100, 0);
   def->builder->SetInsertPoint(if_true_block);
 
   // Fast path
@@ -384,7 +386,7 @@ void RaviCodeGenerator::emit_common_GETTABLE_S_(RaviFunctionDef *def, int A,
   // If they match then we found the element
   llvm::Value *same = def->builder->CreateICmpEQ(intptr, ourptr);
   auto brinst2 = def->builder->CreateCondBr(same, testok, testfail);
-  attach_branch_weights(def, brinst2, 100, 0);
+  attach_branch_weights(def, brinst2, 5, 2);
 
   // If key found return the value
   def->f->getBasicBlockList().push_back(testok);

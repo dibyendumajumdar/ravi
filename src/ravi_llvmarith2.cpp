@@ -297,7 +297,9 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B,
       llvm::BasicBlock::Create(def->jitState->context(), "check.rb.is.int");
 
   // If RB is floating, check RC else check RB is int
-  def->builder->CreateCondBr(rb_is_float, check_rc_is_float, check_rb_is_int);
+  auto brinst1 = def->builder->CreateCondBr(rb_is_float, check_rc_is_float,
+                                            check_rb_is_int);
+  attach_branch_weights(def, brinst1, 5, 2);
 
   // Check if rc is float
   def->f->getBasicBlockList().push_back(check_rc_is_float);
@@ -312,7 +314,9 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B,
       def->jitState->context(), "rb.float.check.rc.int");
 
   // RB is floating - so check if RC is floating
-  def->builder->CreateCondBr(rc_is_float, float_op, rb_float_check_rc_is_int);
+  auto brinst2 = def->builder->CreateCondBr(rc_is_float, float_op,
+                                            rb_float_check_rc_is_int);
+  attach_branch_weights(def, brinst2, 10, 3);
 
   // Both rb and rc are floats
   def->f->getBasicBlockList().push_back(float_op);
@@ -346,7 +350,9 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B,
       llvm::BasicBlock::Create(def->jitState->context(), "float.int.op");
 
   // RB is floating, check if RC in int
-  def->builder->CreateCondBr(rb_float_is_rc_int, float_int_op, slowpath);
+  auto brinst3 =
+      def->builder->CreateCondBr(rb_float_is_rc_int, float_int_op, slowpath);
+  attach_branch_weights(def, brinst3, 100, 0);
 
   // RB is float - but RC is int
   def->f->getBasicBlockList().push_back(float_int_op);
@@ -395,7 +401,9 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B,
       def->jitState->context(), "rb.int.check.rc.float");
 
   // Check if RB is INT
-  def->builder->CreateCondBr(rb_is_int, rb_int_check_rc_int, slowpath);
+  auto brinst4 =
+      def->builder->CreateCondBr(rb_is_int, rb_int_check_rc_int, slowpath);
+  attach_branch_weights(def, brinst4, 100, 0);
 
   // RB is int, check if RC is also int
   def->f->getBasicBlockList().push_back(rb_int_check_rc_int);
@@ -407,9 +415,10 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B,
   llvm::BasicBlock *int_int_op =
       llvm::BasicBlock::Create(def->jitState->context(), "int.int.op");
 
-  // Check if RB is INT
-  def->builder->CreateCondBr(rb_int_is_rc_int, int_int_op,
-                             rb_int_check_rc_float);
+  // Check if RC is INT
+  auto brinst5 = def->builder->CreateCondBr(rb_int_is_rc_int, int_int_op,
+                                            rb_int_check_rc_float);
+  attach_branch_weights(def, brinst5, 10, 3);
 
   // RB is int, RC int
   def->f->getBasicBlockList().push_back(int_int_op);
@@ -455,7 +464,9 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B,
       llvm::BasicBlock::Create(def->jitState->context(), "int.float.op");
 
   // RB is int, check if RC is float
-  def->builder->CreateCondBr(rb_int_is_rc_float, int_float_op, slowpath);
+  auto brinst6 =
+      def->builder->CreateCondBr(rb_int_is_rc_float, int_float_op, slowpath);
+  attach_branch_weights(def, brinst6, 100, 0);
 
   // RB is int, RC is float
   def->f->getBasicBlockList().push_back(int_float_op);
