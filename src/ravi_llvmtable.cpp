@@ -384,7 +384,7 @@ void RaviCodeGenerator::emit_common_GETTABLE_S_(RaviFunctionDef *def, int A,
   // If they match then we found the element
   llvm::Value *same = def->builder->CreateICmpEQ(intptr, ourptr);
   auto brinst2 = def->builder->CreateCondBr(same, testok, testfail);
-  attach_branch_weights(def, brinst1, 100, 0);
+  attach_branch_weights(def, brinst2, 100, 0);
 
   // If key found return the value
   def->f->getBasicBlockList().push_back(testok);
