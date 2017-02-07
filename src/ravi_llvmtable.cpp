@@ -178,7 +178,8 @@ void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
       def->jitState->context(), "GETTABLE_SK_is_not_table");
   llvm::BasicBlock *done =
       llvm::BasicBlock::Create(def->jitState->context(), "GETTABLE_SK_done");
-  def->builder->CreateCondBr(cmp1, is_table, not_table);
+  auto brinst1 = def->builder->CreateCondBr(cmp1, is_table, not_table);
+  attach_branch_weights(def, brinst1, 100, 0);
   def->builder->SetInsertPoint(is_table);
 
   emit_common_GETTABLE_S_(def, A, rb, C, key);
@@ -364,7 +365,8 @@ void RaviCodeGenerator::emit_common_GETTABLE_S_(RaviFunctionDef *def, int A,
       llvm::BasicBlock::Create(def->jitState->context(), "testfail");
   llvm::BasicBlock *testend =
       llvm::BasicBlock::Create(def->jitState->context(), "testend");
-  def->builder->CreateCondBr(is_shortstring, testkey, testfail);
+  auto brinst1 = def->builder->CreateCondBr(is_shortstring, testkey, testfail);
+  attach_branch_weights(def, brinst1, 100, 0);
 
   // Now we need to compare the keys
   def->f->getBasicBlockList().push_back(testkey);
@@ -381,7 +383,8 @@ void RaviCodeGenerator::emit_common_GETTABLE_S_(RaviFunctionDef *def, int A,
   // Compare the two pointers
   // If they match then we found the element
   llvm::Value *same = def->builder->CreateICmpEQ(intptr, ourptr);
-  def->builder->CreateCondBr(same, testok, testfail);
+  auto brinst2 = def->builder->CreateCondBr(same, testok, testfail);
+  attach_branch_weights(def, brinst1, 100, 0);
 
   // If key found return the value
   def->f->getBasicBlockList().push_back(testok);
@@ -501,7 +504,8 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
     else_block =
         llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
     end_block = llvm::BasicBlock::Create(def->jitState->context(), "if.end");
-    def->builder->CreateCondBr(cmp, then_block, else_block);
+    auto brinst1 = def->builder->CreateCondBr(cmp, then_block, else_block);
+    attach_branch_weights(def, brinst1, 100, 0);
     def->builder->SetInsertPoint(then_block);
   }
 
@@ -565,7 +569,8 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B,
     else_block =
         llvm::BasicBlock::Create(def->jitState->context(), "if.not.in.range");
     end_block = llvm::BasicBlock::Create(def->jitState->context(), "if.end");
-    def->builder->CreateCondBr(cmp, then_block, else_block);
+    auto brinst1 = def->builder->CreateCondBr(cmp, then_block, else_block);
+    attach_branch_weights(def, brinst1, 100, 0);
     def->builder->SetInsertPoint(then_block);
   }
 
@@ -924,7 +929,8 @@ void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
       def->jitState->context(), "if.not.expected_type", def->f);
   llvm::BasicBlock *done =
       llvm::BasicBlock::Create(def->jitState->context(), "done");
-  def->builder->CreateCondBr(cmp1, raise_error, done);
+  auto brinst1 = def->builder->CreateCondBr(cmp1, raise_error, done);
+  attach_branch_weights(def, brinst1, 0, 100);
   def->builder->SetInsertPoint(raise_error);
 
   // Conversion failed, so raise error

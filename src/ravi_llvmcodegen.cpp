@@ -104,6 +104,15 @@ llvm::CallInst *RaviCodeGenerator::CreateCall5(
   return builder->CreateCall(func, values);
 }
 
+void RaviCodeGenerator::attach_branch_weights(RaviFunctionDef *def,
+                                              llvm::Instruction *ins,
+                                              uint32_t true_branch,
+                                              uint32_t false_branch) {
+  ins->setMetadata(llvm::LLVMContext::MD_prof,
+                   def->jitState->types()->mdbuilder.createBranchWeights(
+                       true_branch, false_branch));
+}
+
 llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, const char *name,
                                          llvm::Value *s, int arg1, int arg2) {
   llvm::SmallVector<llvm::Value *, 2> values;
@@ -753,7 +762,8 @@ llvm::Instruction *RaviCodeGenerator::emit_tointeger(RaviFunctionDef *def,
       def->jitState->context(), "if.conversion.failed");
 
   // If reg is integer then copy reg, else convert reg
-  def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  auto brinst1 = def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  attach_branch_weights(def, brinst1, 100, 0);
 
   // Convert RB
   def->f->getBasicBlockList().push_back(convert_reg);
@@ -808,7 +818,8 @@ llvm::Instruction *RaviCodeGenerator::emit_tofloat(RaviFunctionDef *def,
       def->jitState->context(), "if.conversion.failed");
 
   // If reg is integer then copy reg, else convert reg
-  def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  auto brinst1 = def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  attach_branch_weights(def, brinst1, 100, 0);
 
   // Convert RB
   def->f->getBasicBlockList().push_back(convert_reg);

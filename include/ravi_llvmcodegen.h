@@ -757,6 +757,9 @@ class RaviCodeGenerator {
                               llvm::Value *arg3, llvm::Value *arg4,
                               llvm::Value *arg5);
 
+  void attach_branch_weights(RaviFunctionDef *def, llvm::Instruction *ins,
+                             uint32_t true_branch, uint32_t false_branch);
+
   void emit_raise_lua_error(RaviFunctionDef *def, const char *str);
 
   // Add extern declarations for Lua functions we need to call

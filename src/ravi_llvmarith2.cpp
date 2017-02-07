@@ -29,7 +29,6 @@ namespace ravi {
 // OP_ADD, OP_SUB, OP_MUL and OP_DIV
 void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
                                    OpCode op, TMS tms, int pc) {
-
 #if 0
   bool traced = emit_debug_trace(def, op, pc);
   emit_load_base(def);
@@ -112,17 +111,16 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
 
     llvm::Value *result = nullptr;
     switch (op) {
-    case OP_ADD:
-      result = def->builder->CreateAdd(lhs, rhs, "", false, true);
-      break;
-    case OP_SUB:
-      result = def->builder->CreateSub(lhs, rhs, "", false, true);
-      break;
-    case OP_MUL:
-      result = def->builder->CreateMul(lhs, rhs, "", false, true);
-      break;
-    default:
-      lua_assert(0);
+      case OP_ADD:
+        result = def->builder->CreateAdd(lhs, rhs, "", false, true);
+        break;
+      case OP_SUB:
+        result = def->builder->CreateSub(lhs, rhs, "", false, true);
+        break;
+      case OP_MUL:
+        result = def->builder->CreateMul(lhs, rhs, "", false, true);
+        break;
+      default: lua_assert(0);
     }
 
     emit_store_reg_i_withtype(def, result, ra);
@@ -146,7 +144,8 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
       llvm::BasicBlock::Create(def->jitState->context(), "load.rb");
 
   // If RB is floating then load RB, else convert RB
-  def->builder->CreateCondBr(cmp1, load_rb, convert_rb);
+  auto brinst1 = def->builder->CreateCondBr(cmp1, load_rb, convert_rb);
+  attach_branch_weights(def, brinst1, 100, 0);
 
   // Convert RB
   def->f->getBasicBlockList().push_back(convert_rb);
@@ -184,7 +183,8 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
 
   // If RC is float load RC
   // else try to convert RC
-  def->builder->CreateCondBr(cmp1, load_rc, convert_rc);
+  auto brinst2 = def->builder->CreateCondBr(cmp1, load_rc, convert_rc);
+  attach_branch_weights(def, brinst2, 100, 0);
 
   def->f->getBasicBlockList().push_back(convert_rc);
   def->builder->SetInsertPoint(convert_rc);
@@ -217,20 +217,11 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
   llvm::Value *result = nullptr;
   // Add and set RA
   switch (op) {
-  case OP_ADD:
-    result = def->builder->CreateFAdd(lhs, rhs);
-    break;
-  case OP_SUB:
-    result = def->builder->CreateFSub(lhs, rhs);
-    break;
-  case OP_MUL:
-    result = def->builder->CreateFMul(lhs, rhs);
-    break;
-  case OP_DIV:
-    result = def->builder->CreateFDiv(lhs, rhs);
-    break;
-  default:
-    lua_assert(0);
+    case OP_ADD: result = def->builder->CreateFAdd(lhs, rhs); break;
+    case OP_SUB: result = def->builder->CreateFSub(lhs, rhs); break;
+    case OP_MUL: result = def->builder->CreateFMul(lhs, rhs); break;
+    case OP_DIV: result = def->builder->CreateFDiv(lhs, rhs); break;
+    default: lua_assert(0);
   }
 
   emit_store_reg_n_withtype(def, result, ra);
@@ -253,13 +244,12 @@ void RaviCodeGenerator::emit_ARITH(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // OP_ADD, OP_SUB, OP_MUL and OP_DIV
-void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C,
-  OpCode op, TMS tms, int pc) {
-
-  //TValue *rb = RKB(i);
-  //TValue *rc = RKC(i);
-  //lua_Number nb; lua_Number nc;
-  //if (ttisfloat(rb)) {
+void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B,
+                                       int C, OpCode op, TMS tms, int pc) {
+  // TValue *rb = RKB(i);
+  // TValue *rc = RKC(i);
+  // lua_Number nb; lua_Number nc;
+  // if (ttisfloat(rb)) {
   //  if (ttisfloat(rc)) {
   //    nb = fltvalue(rb); nc = fltvalue(rc);
   //    setfltvalue(ra, luai_numadd(L, nb, nc));
@@ -270,7 +260,7 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
   //  }
   //  else slowpath
   //}
-  //else if (ttisinteger(rb)) {
+  // else if (ttisinteger(rb)) {
   //  if (ttisfloat(rc)) {
   //    nb = cast_num(ivalue(rb)); nc = fltvalue(rc);
   //    setfltvalue(ra, luai_numadd(L, nb, nc));
@@ -280,8 +270,7 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
   //    setivalue(ra, intop(+, ib, ic));
   //  }
   //  else slowpath
-  //else slowpath
-
+  // else slowpath
 
   bool traced = emit_debug_trace(def, op, pc);
   emit_load_base(def);
@@ -295,34 +284,34 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
   // PART A - Is RB floating?
 
   llvm::Value *rb_is_float =
-    emit_is_value_of_type(def, rb_type, LUA__TNUMFLT, "rb.is.float");
+      emit_is_value_of_type(def, rb_type, LUA__TNUMFLT, "rb.is.float");
 
   llvm::BasicBlock *done =
-    llvm::BasicBlock::Create(def->jitState->context(), "done");
+      llvm::BasicBlock::Create(def->jitState->context(), "done");
   llvm::BasicBlock *slowpath =
-    llvm::BasicBlock::Create(def->jitState->context(), "slowpath");
+      llvm::BasicBlock::Create(def->jitState->context(), "slowpath");
 
   llvm::BasicBlock *check_rc_is_float =
-    llvm::BasicBlock::Create(def->jitState->context(), "check.rc.is.float");
+      llvm::BasicBlock::Create(def->jitState->context(), "check.rc.is.float");
   llvm::BasicBlock *check_rb_is_int =
-    llvm::BasicBlock::Create(def->jitState->context(), "check.rb.is.int");
+      llvm::BasicBlock::Create(def->jitState->context(), "check.rb.is.int");
 
   // If RB is floating, check RC else check RB is int
   def->builder->CreateCondBr(rb_is_float, check_rc_is_float, check_rb_is_int);
 
-  // Check if rc is float 
+  // Check if rc is float
   def->f->getBasicBlockList().push_back(check_rc_is_float);
   def->builder->SetInsertPoint(check_rc_is_float);
 
   llvm::Value *rc_is_float =
-    emit_is_value_of_type(def, rc_type, LUA__TNUMFLT, "rb.float.is.rc.float");
+      emit_is_value_of_type(def, rc_type, LUA__TNUMFLT, "rb.float.is.rc.float");
 
   llvm::BasicBlock *float_op =
-    llvm::BasicBlock::Create(def->jitState->context(), "float.op");
-  llvm::BasicBlock *rb_float_check_rc_is_int =
-    llvm::BasicBlock::Create(def->jitState->context(), "rb.float.check.rc.int");
+      llvm::BasicBlock::Create(def->jitState->context(), "float.op");
+  llvm::BasicBlock *rb_float_check_rc_is_int = llvm::BasicBlock::Create(
+      def->jitState->context(), "rb.float.check.rc.int");
 
-  // RB is floating - so check if RC is floating 
+  // RB is floating - so check if RC is floating
   def->builder->CreateCondBr(rc_is_float, float_op, rb_float_check_rc_is_int);
 
   // Both rb and rc are floats
@@ -335,20 +324,11 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
   llvm::Value *result = nullptr;
   // Add and set RA
   switch (op) {
-  case OP_ADD:
-    result = def->builder->CreateFAdd(lhs, rhs);
-    break;
-  case OP_SUB:
-    result = def->builder->CreateFSub(lhs, rhs);
-    break;
-  case OP_MUL:
-    result = def->builder->CreateFMul(lhs, rhs);
-    break;
-  case OP_DIV:
-    result = def->builder->CreateFDiv(lhs, rhs);
-    break;
-  default:
-    lua_assert(0);
+    case OP_ADD: result = def->builder->CreateFAdd(lhs, rhs); break;
+    case OP_SUB: result = def->builder->CreateFSub(lhs, rhs); break;
+    case OP_MUL: result = def->builder->CreateFMul(lhs, rhs); break;
+    case OP_DIV: result = def->builder->CreateFDiv(lhs, rhs); break;
+    default: lua_assert(0);
   }
   emit_store_reg_n_withtype(def, result, ra);
 
@@ -360,12 +340,12 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
   def->builder->SetInsertPoint(rb_float_check_rc_is_int);
 
   llvm::Value *rb_float_is_rc_int =
-    emit_is_value_of_type(def, rc_type, LUA__TNUMINT, "rb.float.is.rc.int");
+      emit_is_value_of_type(def, rc_type, LUA__TNUMINT, "rb.float.is.rc.int");
 
   llvm::BasicBlock *float_int_op =
-    llvm::BasicBlock::Create(def->jitState->context(), "float.int.op");
+      llvm::BasicBlock::Create(def->jitState->context(), "float.int.op");
 
-  // RB is floating, check if RC in int 
+  // RB is floating, check if RC in int
   def->builder->CreateCondBr(rb_float_is_rc_int, float_int_op, slowpath);
 
   // RB is float - but RC is int
@@ -378,20 +358,23 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
   result = nullptr;
   // Add and set RA
   switch (op) {
-  case OP_ADD:
-    result = def->builder->CreateFAdd(lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
-    break;
-  case OP_SUB:
-    result = def->builder->CreateFSub(lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
-    break;
-  case OP_MUL:
-    result = def->builder->CreateFMul(lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
-    break;
-  case OP_DIV:
-    result = def->builder->CreateFDiv(lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
-    break;
-  default:
-    lua_assert(0);
+    case OP_ADD:
+      result = def->builder->CreateFAdd(
+          lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
+      break;
+    case OP_SUB:
+      result = def->builder->CreateFSub(
+          lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
+      break;
+    case OP_MUL:
+      result = def->builder->CreateFMul(
+          lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
+      break;
+    case OP_DIV:
+      result = def->builder->CreateFDiv(
+          lhs, def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
+      break;
+    default: lua_assert(0);
   }
   emit_store_reg_n_withtype(def, result, ra);
 
@@ -404,12 +387,12 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
   def->builder->SetInsertPoint(check_rb_is_int);
 
   llvm::Value *rb_is_int =
-    emit_is_value_of_type(def, rb_type, LUA__TNUMINT, "rb.is.integer");
+      emit_is_value_of_type(def, rb_type, LUA__TNUMINT, "rb.is.integer");
 
-  llvm::BasicBlock *rb_int_check_rc_int = llvm::BasicBlock::Create(
-    def->jitState->context(), "rb.int.check.rc.int");
-  llvm::BasicBlock *rb_int_check_rc_float =
-    llvm::BasicBlock::Create(def->jitState->context(), "rb.int.check.rc.float");
+  llvm::BasicBlock *rb_int_check_rc_int =
+      llvm::BasicBlock::Create(def->jitState->context(), "rb.int.check.rc.int");
+  llvm::BasicBlock *rb_int_check_rc_float = llvm::BasicBlock::Create(
+      def->jitState->context(), "rb.int.check.rc.float");
 
   // Check if RB is INT
   def->builder->CreateCondBr(rb_is_int, rb_int_check_rc_int, slowpath);
@@ -419,13 +402,14 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
   def->builder->SetInsertPoint(rb_int_check_rc_int);
 
   llvm::Value *rb_int_is_rc_int =
-    emit_is_value_of_type(def, rc_type, LUA__TNUMINT, "rb.int.is.rc.int");
+      emit_is_value_of_type(def, rc_type, LUA__TNUMINT, "rb.int.is.rc.int");
 
-  llvm::BasicBlock *int_int_op = llvm::BasicBlock::Create(
-    def->jitState->context(), "int.int.op");
+  llvm::BasicBlock *int_int_op =
+      llvm::BasicBlock::Create(def->jitState->context(), "int.int.op");
 
   // Check if RB is INT
-  def->builder->CreateCondBr(rb_int_is_rc_int, int_int_op, rb_int_check_rc_float);
+  def->builder->CreateCondBr(rb_int_is_rc_int, int_int_op,
+                             rb_int_check_rc_float);
 
   // RB is int, RC int
   def->f->getBasicBlockList().push_back(int_int_op);
@@ -437,24 +421,25 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
 
   result = nullptr;
   switch (op) {
-  case OP_ADD:
-    result = def->builder->CreateAdd(lhs, rhs, "", false, true);
-    break;
-  case OP_SUB:
-    result = def->builder->CreateSub(lhs, rhs, "", false, true);
-    break;
-  case OP_MUL:
-    result = def->builder->CreateMul(lhs, rhs, "", false, true);
-    break;
-  case OP_DIV:
-    result = def->builder->CreateFDiv(def->builder->CreateSIToFP(lhs, def->types->lua_NumberT), def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
-  default:
-    lua_assert(0);
+    case OP_ADD:
+      result = def->builder->CreateAdd(lhs, rhs, "", false, true);
+      break;
+    case OP_SUB:
+      result = def->builder->CreateSub(lhs, rhs, "", false, true);
+      break;
+    case OP_MUL:
+      result = def->builder->CreateMul(lhs, rhs, "", false, true);
+      break;
+    case OP_DIV:
+      result = def->builder->CreateFDiv(
+          def->builder->CreateSIToFP(lhs, def->types->lua_NumberT),
+          def->builder->CreateSIToFP(rhs, def->types->lua_NumberT));
+    default: lua_assert(0);
   }
 
   if (op != OP_DIV)
     emit_store_reg_i_withtype(def, result, ra);
-  else 
+  else
     emit_store_reg_n_withtype(def, result, ra);
 
   def->builder->CreateBr(done);
@@ -464,12 +449,12 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
   def->builder->SetInsertPoint(rb_int_check_rc_float);
 
   llvm::Value *rb_int_is_rc_float =
-    emit_is_value_of_type(def, rc_type, LUA__TNUMFLT, "rb.int.is.rc.float");
+      emit_is_value_of_type(def, rc_type, LUA__TNUMFLT, "rb.int.is.rc.float");
 
   llvm::BasicBlock *int_float_op =
-    llvm::BasicBlock::Create(def->jitState->context(), "int.float.op");
+      llvm::BasicBlock::Create(def->jitState->context(), "int.float.op");
 
-  // RB is int, check if RC is float 
+  // RB is int, check if RC is float
   def->builder->CreateCondBr(rb_int_is_rc_float, int_float_op, slowpath);
 
   // RB is int, RC is float
@@ -482,20 +467,23 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
   result = nullptr;
   // Add and set RA
   switch (op) {
-  case OP_ADD:
-    result = def->builder->CreateFAdd(def->builder->CreateSIToFP(lhs, def->types->lua_NumberT), rhs);
-    break;
-  case OP_SUB:
-    result = def->builder->CreateFSub(def->builder->CreateSIToFP(lhs, def->types->lua_NumberT), rhs);
-    break;
-  case OP_MUL:
-    result = def->builder->CreateFMul(def->builder->CreateSIToFP(lhs, def->types->lua_NumberT), rhs);
-    break;
-  case OP_DIV:
-    result = def->builder->CreateFDiv(def->builder->CreateSIToFP(lhs, def->types->lua_NumberT), rhs);
-    break;
-  default:
-    lua_assert(0);
+    case OP_ADD:
+      result = def->builder->CreateFAdd(
+          def->builder->CreateSIToFP(lhs, def->types->lua_NumberT), rhs);
+      break;
+    case OP_SUB:
+      result = def->builder->CreateFSub(
+          def->builder->CreateSIToFP(lhs, def->types->lua_NumberT), rhs);
+      break;
+    case OP_MUL:
+      result = def->builder->CreateFMul(
+          def->builder->CreateSIToFP(lhs, def->types->lua_NumberT), rhs);
+      break;
+    case OP_DIV:
+      result = def->builder->CreateFDiv(
+          def->builder->CreateSIToFP(lhs, def->types->lua_NumberT), rhs);
+      break;
+    default: lua_assert(0);
   }
   emit_store_reg_n_withtype(def, result, ra);
 
@@ -507,26 +495,21 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
 
   // Set savedpc as following may invoke metamethod
   if (!traced) emit_update_savedpc(def, pc);
-  
+
   switch (op) {
-  case OP_ADD:
-    CreateCall4(def->builder, def->raviV_op_addF,
-      def->L, ra, rb, rc);
-    break;
-  case OP_SUB:
-    CreateCall4(def->builder, def->raviV_op_subF,
-      def->L, ra, rb, rc);
-    break;
-  case OP_MUL:
-    CreateCall4(def->builder, def->raviV_op_mulF,
-      def->L, ra, rb, rc);
-    break;
-  case OP_DIV:
-    CreateCall4(def->builder, def->raviV_op_divF,
-      def->L, ra, rb, rc);
-    break;
-  default:
-    lua_assert(0);
+    case OP_ADD:
+      CreateCall4(def->builder, def->raviV_op_addF, def->L, ra, rb, rc);
+      break;
+    case OP_SUB:
+      CreateCall4(def->builder, def->raviV_op_subF, def->L, ra, rb, rc);
+      break;
+    case OP_MUL:
+      CreateCall4(def->builder, def->raviV_op_mulF, def->L, ra, rb, rc);
+      break;
+    case OP_DIV:
+      CreateCall4(def->builder, def->raviV_op_divF, def->L, ra, rb, rc);
+      break;
+    default: lua_assert(0);
   }
 
   def->builder->CreateBr(done);
@@ -538,7 +521,6 @@ void RaviCodeGenerator::emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C
 // OP_MOD
 void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C,
                                  int pc) {
-
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
   // lua_Number nb; lua_Number nc;
@@ -735,7 +717,6 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C,
 // OP_IDIV
 void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C,
                                   int pc) {
-
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
   // lua_Number nb; lua_Number nc;
@@ -900,7 +881,6 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C,
 // OP_POW
 void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C,
                                  int pc) {
-
   // TValue *rb = RKB(i);
   // TValue *rc = RKC(i);
   // lua_Number nb; lua_Number nc;
@@ -1030,7 +1010,6 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C,
 }
 
 void RaviCodeGenerator::emit_UNM(RaviFunctionDef *def, int A, int B, int pc) {
-
   // TValue *rb = RB(i);
   // lua_Number nb;
   // if (ttisinteger(rb)) {
