@@ -331,21 +331,21 @@ Build Dependencies
 
 Ravi can be built with or without LLVM. Following versions of LLVM work with Ravi.
 
-* LLVM 3.7 or 3.8 or 3.9
+* LLVM 3.7 or 3.8 or 3.9 or 4.0
 * LLVM 3.5 and 3.6 should also work but have not been recently tested
 
 Unless otherwise noted the instructions below should work for LLVM 3.7 or later.
 
 Building LLVM on Windows
 ------------------------
-I built LLVM from source. I used the following sequence from the VS2015 command window::
+I built LLVM from source. I used the following sequence from the VS2017 command window::
 
   cd \github\llvm
   mkdir build
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 14 Win64" ..  
+  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 15 2017 Win64" ..  
 
-I then opened the generated solution in VS2015 and performed a INSTALL build from there. Above will build the 64-bit version of LLVM libraries. To build a 32-bit version omit the ``Win64`` parameter. 
+I then opened the generated solution in VS2017 and performed a INSTALL build from there. Above will build the 64-bit version of LLVM libraries. To build a 32-bit version omit the ``Win64`` parameter. 
 
 .. note:: Note that if you perform a Release build of LLVM then you will also need to do a Release build of Ravi otherwise you will get link errors.
 
@@ -368,16 +368,16 @@ Assuming that LLVM source has been extracted to ``$HOME/llvm-3.7.0.src`` I follo
 
 Building Ravi with JIT enabled
 ------------------------------
-I am developing Ravi using Visual Studio 2015 Community Edition on Windows 10 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X. I was also able to successfully build a Ubuntu version on Windows 10 using the newly released Ubuntu/Linux sub-system for Windows 10.
+I am developing Ravi using Visual Studio 2017 Community Edition on Windows 10 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X. I was also able to successfully build a Ubuntu version on Windows 10 using the newly released Ubuntu/Linux sub-system for Windows 10.
 
 .. note:: Location of cmake files has moved in LLVM 3.9; the new path is ``$LLVM_INSTALL_DIR/lib/cmake/llvm``.
 
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
   cd build
-  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 14 Win64" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 15 2017 Win64" ..
 
-I then open the solution in VS2015 and do a build from there.
+I then open the solution in VS2017 and do a build from there.
 
 On Ubuntu I use::
 
