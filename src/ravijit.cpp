@@ -92,10 +92,11 @@ static int ravi_compile_n(lua_State *L) {
   }
   ravi_compile_options_t options = {0};
   options.manual_request = 1;
+  options.verification_level = 1;
   if (lua_istable(L, 2)) {
     lua_Integer do_dump, do_verify, omit_arrayget_rangecheck;
     l_table_get_integer(L, 2, "dump", &do_dump, 0);
-    l_table_get_integer(L, 2, "verify", &do_verify, 0);
+    l_table_get_integer(L, 2, "verify", &do_verify, 1);
     l_table_get_integer(L, 2, "omitArrayGetRangeCheck",
                         &omit_arrayget_rangecheck, 0);
     options.omit_array_get_range_check = (int)omit_arrayget_rangecheck;

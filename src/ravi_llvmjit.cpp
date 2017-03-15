@@ -61,7 +61,7 @@ RaviJITState::RaviJITState()
     init++;
   }
   triple_ = llvm::sys::getProcessTriple();
-#if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MINOR < 7)
+#if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7)
   // On Windows we get compilation error saying incompatible object format
   // Reading posts on mailing lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set -elf as the object
@@ -115,14 +115,14 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
            layout->getTypeAllocSize(owner->types()->lua_StateT));
     delete layout;
   }
-#if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MINOR < 7)
+#if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7)
   // On Windows we get error saying incompatible object format
   // Reading posts on mailing lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set
   // -elf as the object format; LLVM 3.7 onwards COEFF is supported
   module_->setTargetTriple(owner->triple());
 #endif
-#if LLVM_VERSION_MINOR > 5
+#if LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 5 
   // LLVM 3.6.0 change
   std::unique_ptr<llvm::Module> module(module_);
   llvm::EngineBuilder builder(std::move(module));
@@ -188,7 +188,7 @@ RaviJITFunction::~RaviJITFunction() {
 }
 
 void RaviJITModule::runpasses(bool dumpAsm) {
-#if LLVM_VERSION_MINOR >= 7
+#if LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7
   using llvm::legacy::FunctionPassManager;
   using llvm::legacy::PassManager;
 #else
@@ -212,16 +212,16 @@ void RaviJITModule::runpasses(bool dumpAsm) {
 
 // Set up the optimizer pipeline.  Start with registering info about how the
 // target lays out data structures.
-#if LLVM_VERSION_MINOR == 6
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 6
     // LLVM 3.6.0 change
     module_->setDataLayout(engine_->getDataLayout());
     FPM->add(new llvm::DataLayoutPass());
-#elif LLVM_VERSION_MINOR == 5
+#elif LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 5
     // LLVM 3.5.0
     auto target_layout = engine_->getTargetMachine()->getDataLayout();
     module_->setDataLayout(target_layout);
     FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
-#elif LLVM_VERSION_MINOR >= 7
+#elif LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7
 // Apparently no need to set DataLayout
 #else
 #error Unsupported LLVM version
@@ -241,7 +241,7 @@ void RaviJITModule::runpasses(bool dumpAsm) {
     // flush; so we introduce a scope here to ensure destruction
     // of the stream
     llvm::raw_string_ostream ostream(codestr);
-#if LLVM_VERSION_MINOR < 7
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7
     llvm::formatted_raw_ostream formatted_stream(ostream);
 #else
     llvm::buffer_ostream formatted_stream(ostream);
@@ -250,9 +250,9 @@ void RaviJITModule::runpasses(bool dumpAsm) {
     // Also in 3.7 the pass manager seems to hold on to the stream
     // so we need to ensure that the stream outlives the pass manager
     std::unique_ptr<PassManager> MPM(new PassManager());
-#if LLVM_VERSION_MINOR == 6
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 6
     MPM->add(new llvm::DataLayoutPass());
-#elif LLVM_VERSION_MINOR == 5
+#elif LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 5
     MPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
 #endif
     pmb.populateModulePassManager(*MPM);
@@ -272,7 +272,7 @@ void RaviJITModule::runpasses(bool dumpAsm) {
     MPM->run(*module_);
 
 // Note that in 3.7 this flus appears to have no effect
-#if LLVM_VERSION_MINOR <= 7
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 7
     formatted_stream.flush();
 #endif
   }

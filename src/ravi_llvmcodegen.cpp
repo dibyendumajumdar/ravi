@@ -1355,7 +1355,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
   // This is the function's activation record / stack frame
   def->ci_val = builder.CreateLoad(def->L_ci);
   def->ci_val->setMetadata(llvm::LLVMContext::MD_tbaa,
-                           def->types->tbaa_CallInfoT);
+                           def->types->tbaa_luaState_ciT);
 
   // Get pointer to function's 'base' stack location
   // 'base' is the address relative to which all the
@@ -1918,11 +1918,10 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       }
     }
   }
-  doVerify = true;
   if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs())) {
     f->dump();
     fprintf(stderr, "LLVM Code Verification failed\n");
-    abort();
+	exit(1);
   }
   ravi::RaviJITFunction *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);

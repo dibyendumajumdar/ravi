@@ -313,9 +313,28 @@ struct UpVal {
   } u;
 };
 
+/*
+** Union of all collectable objects (only for conversions)
+*/
+union GCUnion {
+  struct GCObject gc;  /* common header */
+  struct TString ts;
+  struct Udata u;
+  union Closure cl;
+  struct Table h;
+  struct Proto p;
+  struct lua_State th;  /* thread */
+};
+
+
 #define rttype(o) ((o)->tt_)
 #define BIT_ISCOLLECTABLE (1 << 6)
 #define iscollectable(o)  (rttype(o) & BIT_ISCOLLECTABLE)
 #define upisopen(up)  ((up)->v != &(up)->u.value)
 
+#define val_(o)   ((o)->value_)
+#define cast(t, exp)  ((t)(exp))
+#define cast_u(o) cast(union GCUnion *, (o))
+#define gco2t(o)  &((cast_u(o))->h)
+#define hvalue(o) gco2t(val_(o).gc)
 #endif

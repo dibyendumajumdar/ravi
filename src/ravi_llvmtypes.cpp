@@ -1235,7 +1235,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_TValue_nT =
       mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_longlongT, 0);
   tbaa_TValue_hT =
-      mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_pointerT, 0);
+      mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
   tbaa_TValue_ttT =
       mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_intT, 8);
 
@@ -1296,7 +1296,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_Table_lsizenode =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 7);
   tbaa_Table_sizearray =
-      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 8);
+      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 8);
   tbaa_Table_array =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 12);
   tbaa_Table_node =
