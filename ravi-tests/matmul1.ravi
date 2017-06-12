@@ -34,7 +34,7 @@ end
 -- Matrix transpose
 -- This version uses slices
 function matrix.T(a)
-  local t1 = os.clock()
+  --local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local m: integer, n: integer = mrows(a), mcols(a);
   local x = mnew(n,m)
@@ -51,15 +51,15 @@ function matrix.T(a)
       data[pos] = slice[j] 
     end
   end
-  local t2 = os.clock()
-  print("T: time ", t2-t1)
+  --local t2 = os.clock()
+  --print("T: time ", t2-t1)
   return x;
 end
 
 -- Matrix transpose
 -- Does not use slices
 function matrix.T2(a)
-  local t1 = os.clock()
+  --local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local m: integer, n: integer = mrows(a), mcols(a);
   local x = mnew(n,m)
@@ -74,15 +74,15 @@ function matrix.T2(a)
       data[(j-1)*m+i] = adata[ri+j] 
     end
   end
-  local t2 = os.clock()
-  print("T2: time ", t2-t1)
+  --local t2 = os.clock()
+  --print("T2: time ", t2-t1)
   return x;
 end
 
 -- Matrix multiply
 -- Uses slices
 function matrix.mul(a, b)
-  local t1 = os.clock()
+  --local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local m: integer, n: integer, p: integer = mrows(a), mcols(a), mcols(b);
   assert(n == p)
@@ -98,8 +98,8 @@ function matrix.mul(a, b)
       xi[j] = sum;
     end
   end
-  local t2 = os.clock()
-  print("mul: time ", t2-t1)
+  --local t2 = os.clock()
+  --print("mul: time ", t2-t1)
   return x;
 end
 
@@ -107,7 +107,7 @@ end
 -- this version avoids using slices - we operate on the 
 -- one dimensional array
 function matrix.mul2(a, b)
-  local t1 = os.clock()
+  --local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T2
   local m: integer, n: integer, p: integer = mrows(a), mcols(a), mcols(b);
   assert(n == p)
@@ -131,14 +131,14 @@ function matrix.mul2(a, b)
       xdata[xi+j] = sum;
     end
   end
-  local t2 = os.clock()
-  print("mul2: time ", t2-t1)
+  --local t2 = os.clock()
+  --print("mul2: time ", t2-t1)
   return x;
 end
 
 -- Generate the matrix - uses slices
 function matrix.gen(n: integer)
-  local t1 = os.clock()
+  --local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local a = mnew(n, n)
   local tmp: number = 1.0 / n / n;
@@ -148,14 +148,14 @@ function matrix.gen(n: integer)
       row[j] = tmp * (i - j) * (i + j - 2) 
     end
   end
-  local t2 = os.clock()
-  print("gen: time ", t2-t1)
+  --local t2 = os.clock()
+  --print("gen: time ", t2-t1)
   return a;
 end
 
 -- Generate the matrix - this version does not use slices
 function matrix.gen2(n: integer)
-  local t1 = os.clock()
+  --local t1 = os.clock()
   local mrows, mcols, mnew, mdata, mrow, mtran = matrix.rows, matrix.cols, matrix.new, matrix.getdata, matrix.getrow, matrix.T
   local a = mnew(n, n)
   local data: number[] = mdata(a)
@@ -168,8 +168,8 @@ function matrix.gen2(n: integer)
       data[ri+j] = tmp * (i - j) * (i + j - 2) 
     end
   end
-  local t2 = os.clock()
-  print("gen2: time ", t2-t1)
+  --local t2 = os.clock()
+  --print("gen2: time ", t2-t1)
   return a;
 end
 
@@ -193,7 +193,7 @@ end
 local n = arg[1] or 1000;
 n = math.floor(n/2) * 2;
 local t1 = os.clock()
-local a = matrix.mul2(matrix.gen(n), matrix.gen(n));
+local a = matrix.mul2(matrix.gen2(n), matrix.gen2(n));
 local t2 = os.clock()
 print("total time taken ", t2-t1)
 

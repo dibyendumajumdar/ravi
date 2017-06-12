@@ -689,6 +689,9 @@ void vscode_serialize_response_new(membuff_t *mb, ProtocolMessage *res) {
         membuff_add_string(mb, "{\"name\":\"");
         membuff_add_string(
             mb, res->u.Response.u.VariablesResponse.variables[d].name);
+        membuff_add_string(mb, "\",\"type\":\"");
+        membuff_add_string(
+          mb, res->u.Response.u.VariablesResponse.variables[d].type);
         membuff_add_string(mb, "\",\"variablesReference\":");
         membuff_add_longlong(mb, res->u.Response.u.VariablesResponse.variables[d]
                                 .variablesReference);
@@ -902,31 +905,31 @@ void vscode_string_copy(char *buf, const char *src, size_t buflen) {
 
 int64_t vscode_pack(PackedInteger *pi) {
   int64_t i = 0;
-  assert(pi->a8 <= 0xFF);
-  assert(pi->b8 <= 0xFF);
-  assert(pi->c8 <= 0xFF);
-  assert(pi->d8 <= 0xFF);
-  assert(pi->e8 <= 0xFF);
-  assert(pi->f8 <= 0xFF);
-  assert(pi->g4 <= 0x0F);
-  i |= (pi->a8 & 0xFF);
-  i |= ((int64_t)(pi->b8 & 0xFF) << 8);
-  i |= ((int64_t)(pi->c8 & 0xFF) << 16);
-  i |= ((int64_t)(pi->d8 & 0xFF) << 24);
-  i |= ((int64_t)(pi->e8 & 0xFF) << 32);
-  i |= ((int64_t)(pi->f8 & 0xFF) << 40);
-  i |= ((int64_t)(pi->g4 & 0x0F) << 48);
+  assert(pi->x8[0] <= 0xFF);
+  assert(pi->x8[1] <= 0xFF);
+  assert(pi->x8[2] <= 0xFF);
+  assert(pi->x8[3] <= 0xFF);
+  assert(pi->x8[4] <= 0xFF);
+  assert(pi->depth <= 0xFF);
+  assert(pi->vartype <= 0x0F);
+  i |= (pi->x8[0] & 0xFF);
+  i |= ((int64_t)(pi->x8[1] & 0xFF) << 8);
+  i |= ((int64_t)(pi->x8[2] & 0xFF) << 16);
+  i |= ((int64_t)(pi->x8[3] & 0xFF) << 24);
+  i |= ((int64_t)(pi->x8[4] & 0xFF) << 32);
+  i |= ((int64_t)(pi->depth & 0xFF) << 40);
+  i |= ((int64_t)(pi->vartype & 0x0F) << 48);
   return i;
 }
 
 void vscode_unpack(int64_t i, PackedInteger *pi) {
   int64_t mask = 0xFF;
-  pi->a8 = (unsigned int)(i & mask); mask <<= 8;
-  pi->b8 = (unsigned int)((i & mask) >> 8); mask <<= 8;
-  pi->c8 = (unsigned int)((i & mask) >> 16); mask <<= 8;
-  pi->d8 = (unsigned int)((i & mask) >> 24); mask <<= 8;
-  pi->e8 = (unsigned int)((i & mask) >> 32); mask <<= 8;
-  pi->f8 = (unsigned int)((i & mask) >> 40); mask <<= 8;
-  pi->g4 = (unsigned int)(((i & mask) >> 48) & 0x0F);
+  pi->x8[0] = (unsigned int)(i & mask); mask <<= 8;
+  pi->x8[1] = (unsigned int)((i & mask) >> 8); mask <<= 8;
+  pi->x8[2] = (unsigned int)((i & mask) >> 16); mask <<= 8;
+  pi->x8[3] = (unsigned int)((i & mask) >> 24); mask <<= 8;
+  pi->x8[4] = (unsigned int)((i & mask) >> 32); mask <<= 8;
+  pi->depth = (unsigned int)((i & mask) >> 40); mask <<= 8;
+  pi->vartype = (unsigned int)(((i & mask) >> 48) & 0x0F);
 }
 

@@ -624,7 +624,9 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   //  } u;
   //  ptrdiff_t extra;
   //  short nresults;  /* expected number of results from this function */
-  //  lu_byte callstatus;
+  //  unsigned short callstatus;
+  //  unsigned short stacklevel; /* Ravi extension - stack level, bottom level is 0 */
+  //  lu_byte jitstatus; /* Only valid if Lua function - if 1 means JITed - RAVI extension */
   //} CallInfo;
 
   t->CallInfoT =
@@ -670,8 +672,13 @@ bool ravi_setup_lua_types(ravi_gcc_context_t *ravi) {
   fields[6] =
       gcc_jit_context_new_field(ravi->context, NULL, t->C_shortT, "nresults");
   fields[7] =
-      gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "callstatus");
-  gcc_jit_struct_set_fields(t->CallInfoT, NULL, 8, fields);
+      gcc_jit_context_new_field(ravi->context, NULL, t->C_shortT, "callstatus");
+  fields[8] =
+      gcc_jit_context_new_field(ravi->context, NULL, t->C_shortT, "stacklevel");
+  fields[9] =
+      gcc_jit_context_new_field(ravi->context, NULL, t->lu_byteT, "jitstatus");
+
+  gcc_jit_struct_set_fields(t->CallInfoT, NULL, 10, fields);
 
   // typedef struct ravi_State ravi_State;
   t->ravi_StateT =

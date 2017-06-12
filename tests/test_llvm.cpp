@@ -124,7 +124,7 @@ int test1() {
 
   // Lets create the MCJIT engine
   std::string errStr;
-#if LLVM_VERSION_MINOR > 5
+#if LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 5
   std::unique_ptr<llvm::Module> module_(module);
   auto engine = llvm::EngineBuilder(std::move(module_))
                     .setErrorStr(&errStr)

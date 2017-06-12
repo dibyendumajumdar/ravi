@@ -1,11 +1,11 @@
 /*
-** $Id: lparser.c,v 2.153 2016/05/13 19:10:16 roberto Exp $
+** $Id: lparser.c,v 2.155 2016/08/01 19:51:24 roberto Exp $
 ** Lua Parser
 ** See Copyright Notice in lua.h
 */
 
 /*
-** Portions Copyright (C) 2015-2016 Dibyendu Majumdar 
+** Portions Copyright (C) 2015-2017 Dibyendu Majumdar 
 */
 
 #define lparser_c
@@ -89,65 +89,6 @@ const char *raviY_typename(ravitype_t tt) {
     return "table";
   default:
     return "?";
-  }
-}
-
-static void PrintString(FILE *fp, const TString* ts)
-{
-  const char* s = getstr(ts);
-  size_t i, n = tsslen(ts);
-  fprintf(fp, "%c", '"');
-  for (i = 0; i<n; i++)
-  {
-    int c = (int)(unsigned char)s[i];
-    switch (c)
-    {
-    case '"':  fprintf(fp, "\\\""); break;
-    case '\\': fprintf(fp, "\\\\"); break;
-    case '\a': fprintf(fp, "\\a"); break;
-    case '\b': fprintf(fp, "\\b"); break;
-    case '\f': fprintf(fp, "\\f"); break;
-    case '\n': fprintf(fp, "\\n"); break;
-    case '\r': fprintf(fp, "\\r"); break;
-    case '\t': fprintf(fp, "\\t"); break;
-    case '\v': fprintf(fp, "\\v"); break;
-    default:	if (isprint(c))
-      fprintf(fp, "%c", c);
-              else
-                fprintf(fp, "\\%03d", c);
-    }
-  }
-  fprintf(fp, "%c", '"');
-}
-
-static void PrintConstant(FILE *fp, const Proto* f, int i)
-{
-  const TValue* o = &f->k[i];
-  switch (ttype(o))
-  {
-  case LUA_TNIL:
-    fprintf(fp, "nil");
-    break;
-  case LUA_TBOOLEAN:
-    fprintf(fp, bvalue(o) ? "true" : "false");
-    break;
-  case LUA_TNUMFLT:
-  {
-    char buff[100];
-    sprintf(buff, LUA_NUMBER_FMT, fltvalue(o));
-    fprintf(fp, "%s", buff);
-    if (buff[strspn(buff, "-0123456789")] == '\0') fprintf(fp, ".0");
-    break;
-  }
-  case LUA_TNUMINT:
-    fprintf(fp, LUA_INTEGER_FMT, ivalue(o));
-    break;
-  case LUA_TSHRSTR: case LUA_TLNGSTR:
-    PrintString(fp, tsvalue(o));
-    break;
-  default:				/* cannot happen */
-    fprintf(fp, "? type=%d", ttype(o));
-    break;
   }
 }
 
@@ -613,8 +554,8 @@ static void singlevar (LexState *ls, expdesc *var) {
   singlevaraux(fs, varname, var, 1);
   if (var->k == VVOID) {  /* global name? */
     expdesc key = {.ravi_type = RAVI_TANY, .pc = -1};
-    singlevaraux(fs, ls->envn, var, 1); /* get environment variable */
-    lua_assert(var->k != VVOID);
+    singlevaraux(fs, ls->envn, var, 1);  /* get environment variable */
+    lua_assert(var->k != VVOID);  /* this one must exist */
     codestring(ls, &key, varname);  /* key is variable name */
     luaK_indexed(fs, var, &key);  /* env[varname] */
   }
@@ -735,6 +676,8 @@ static void localvar_adjust_assign(LexState *ls, int nvars, int nexps, expdesc *
       ravi_setzero(fs, reg, extra);
     }
   }
+  if (nexps > nvars)
+    ls->fs->freereg -= nexps - nvars;  /* remove extra values */
 }
 
 static void adjust_assign (LexState *ls, int nvars, int nexps, expdesc *e) {
@@ -756,6 +699,8 @@ static void adjust_assign (LexState *ls, int nvars, int nexps, expdesc *e) {
       luaK_nil(fs, reg, extra);
     }
   }
+  if (nexps > nvars)
+    ls->fs->freereg -= nexps - nvars;  /* remove extra values */
 }
 
 
@@ -1246,7 +1191,7 @@ static void parlist (LexState *ls) {
         }
         case TK_DOTS: {  /* param -> '...' */
           luaX_next(ls);
-          f->is_vararg = 2;  /* declared vararg */
+          f->is_vararg = 1;  /* declared vararg */
           break;
         }
         default: luaX_syntaxerror(ls, "<name> or '...' expected");
@@ -1565,7 +1510,6 @@ static void simpleexp (LexState *ls, expdesc *v) {
       FuncState *fs = ls->fs;
       check_condition(ls, fs->f->is_vararg,
                       "cannot use '...' outside a vararg function");
-      fs->f->is_vararg = 1;  /* function actually uses vararg */
       init_exp(v, VVARARG, luaK_codeABC(fs, OP_VARARG, 0, 1, 0), RAVI_TANY);
       break;
     }
@@ -1796,8 +1740,6 @@ static void assignment (LexState *ls, struct LHS_assign *lh, int nvars) {
     DEBUG_EXPR(raviY_printf(ls->fs, "assignment -> = explist %e\n", &e));
     if (nexps != nvars) {
       adjust_assign(ls, nvars, nexps, &e);
-      if (nexps > nvars)
-        ls->fs->freereg -= nexps - nvars;  /* remove extra values */
     }
     else {
       luaK_setoneret(ls->fs, &e);  /* close last expression */
@@ -2343,7 +2285,7 @@ static void mainfunc (LexState *ls, FuncState *fs) {
   BlockCnt bl;
   expdesc v = {.ravi_type = RAVI_TANY, .pc = -1};
   open_func(ls, fs, &bl);
-  fs->f->is_vararg = 2;  /* main function is always declared vararg */
+  fs->f->is_vararg = 1;  /* main function is always declared vararg */
   init_exp(&v, VLOCAL, 0, RAVI_TANY);  /* create and... - RAVI TODO var arg is unknown type */
   newupvalue(fs, ls->envn, &v);  /* ...set environment upvalue */
   luaX_next(ls);  /* read first token */

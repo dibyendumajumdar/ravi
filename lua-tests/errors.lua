@@ -1,4 +1,5 @@
--- $Id: errors.lua,v 1.92 2016/03/07 19:27:08 roberto Exp $
+-- $Id: errors.lua,v 1.94 2016/12/21 19:23:02 roberto Exp $
+-- See Copyright Notice in file all.lua
 
 print("testing errors")
 
@@ -147,6 +148,7 @@ _G.D = nil
 do   -- named objects (field '__name')
   checkmessage("math.sin(io.input())", "(number expected, got FILE*)")
   _G.XX = setmetatable({}, {__name = "My Type"})
+  assert(string.find(tostring(XX), "^My Type"))
   checkmessage("io.input(XX)", "(FILE* expected, got My Type)")
   checkmessage("return XX + 1", "on a My Type value")
   checkmessage("return ~io.stdin", "on a FILE* value")

@@ -1,5 +1,5 @@
 /*
-** $Id: ltable.h,v 2.21 2015/11/03 15:47:30 roberto Exp $
+** $Id: ltable.h,v 2.23 2016/12/22 13:08:50 roberto Exp $
 ** Lua tables (hash)
 ** See Copyright Notice in lua.h
 */
@@ -9,12 +9,13 @@
 
 #include "lobject.h"
 
+
 #define gnode(t,i)	(&(t)->node[i])
 #define gval(n)		(&(n)->i_val)
 #define gnext(n)	((n)->i_key.nk.next)
 
 
-/* 'const' to avoid wrong writings that can mess up field 'next' */ 
+/* 'const' to avoid wrong writings that can mess up field 'next' */
 #define gkey(n)		cast(const TValue*, (&(n)->i_key.tvk))
 
 /*
@@ -26,38 +27,61 @@
 #define invalidateTMcache(t)	((t)->flags = 0)
 
 
+/* true when 't' is using 'dummynode' as its hash part */
+#define isdummy(t)		((t)->lastfree == NULL)
+
+
+/* allocated size for hash nodes */
+#define allocsizenode(t)	(isdummy(t) ? 0 : sizenode(t))
+
+
 /* returns the key, given the value of a table entry */
 #define keyfromval(v) \
   (gkey(cast(Node *, cast(char *, (v)) - offsetof(Node, i_val))))
-
-#if defined(RAVI_ENABLED)
-#define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
-
-#define hashstr(t,str)		hashpow2(t, (str)->hash)
-#define hashboolean(t,p)	hashpow2(t, p)
-#define hashint(t,i)		hashpow2(t, i)
-
-
-/*
-** for some types, it is better to avoid modulus by power of 2, as
-** they tend to have many 2 factors.
-*/
-#define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1)|1))))
-
-
-#define hashpointer(t,p)	hashmod(t, point2uint(p))
-#endif
-
 
 
 LUAI_FUNC const TValue *luaH_getint (Table *t, lua_Integer key);
 LUAI_FUNC void luaH_setint (lua_State *L, Table *t, lua_Integer key,
                                                     TValue *value);
+
+/** RAVI change start - attempt to inline some functions **/
+#define NEW_HASH 1
+
+#if NEW_HASH
+
+/* 
+Like LuaJIT we use a pre-computed hmask to minimise the number of steps
+required to get to a node in the hash table
+*/
+
+#define hashpow2(t, h)	(gnode(t, (h & (t)->hmask)))
+#define hashstr(t, str) hashpow2(t, (str)->hash)
+#define hashboolean(t, p) hashpow2(t, p)
+#define hashint(t, i) hashpow2(t, i)
+/*
+** for some types, it is better to avoid modulus by power of 2, as
+** they tend to have many 2 factors.
+*/
+#define hashmod(t, n) (gnode(t, ((n) % ((t)->hmask|1))))
+#define hashpointer(t, p) hashmod(t, point2uint(p))
+#else 
+#define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
+#define hashstr(t,str)		hashpow2(t, (str)->hash)
+#define hashboolean(t,p)	hashpow2(t, p)
+#define hashint(t,i)		hashpow2(t, i)
+/*
+** for some types, it is better to avoid modulus by power of 2, as
+** they tend to have many 2 factors.
+*/
+#define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1)|1))))
+#define hashpointer(t,p)	hashmod(t, point2uint(p))
+#endif
+
 #if defined(RAVI_ENABLED)
 /*
 ** search function for short strings
 */
-static inline const TValue *luaH_getshortstr(Table *t, TString *key) {
+static RAVI_ALWAYS_INLINE const TValue *luaH_getshortstr(Table *t, TString *key) {
   Node *n = hashstr(t, key);
   lua_assert(key->tt == LUA_TSHRSTR);
   for (;;) {  /* check whether 'key' is somewhere in the chain */
@@ -178,7 +202,7 @@ LUAI_FUNC void raviH_get_integer_array_rawdata(lua_State *L, Table *t, lua_Integ
 
 #if defined(LUA_DEBUG)
 LUAI_FUNC Node *luaH_mainposition (const Table *t, const TValue *key);
-LUAI_FUNC int luaH_isdummy (Node *n);
+LUAI_FUNC int luaH_isdummy (const Table *t);
 #endif
 
 

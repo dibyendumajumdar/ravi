@@ -35,8 +35,8 @@ extern "C" {
 #include "lauxlib.h"
 
 // Utility to extract a boolean field from a table
-bool l_table_get_bool(lua_State *L, int idx, const char *key, bool *result,
-                      bool default_value) {
+static bool l_table_get_bool(lua_State *L, int idx, const char *key,
+                             bool *result, bool default_value) {
   bool rc = false;
   lua_pushstring(L, key);
   lua_gettable(L, idx); /* get table[key] */
@@ -194,7 +194,13 @@ struct InstructionHolder {
 };
 
 struct ModuleHolder {
-  llvm::Module *M;
+  std::shared_ptr<ravi::RaviJITModule> M;
+
+  ModuleHolder(const std::shared_ptr<ravi::RaviJITModule> &module) {
+    M = module;
+    //printf("ModuleHolder created\n");
+  }
+  ~ModuleHolder() { /* printf("ModuleHolder destroyed\n");*/ }
 };
 
 struct PhiNodeHolder {
@@ -221,11 +227,20 @@ static int collect_LLVM_irbuilder(lua_State *L) {
   return 0;
 }
 
-static void alloc_LLVM_module(lua_State *L, llvm::Module *M) {
+static void alloc_LLVM_module(lua_State *L,
+                              const std::shared_ptr<ravi::RaviJITModule> &M) {
   ModuleHolder *mh = (ModuleHolder *)lua_newuserdata(L, sizeof(ModuleHolder));
   raviL_getmetatable(L, LLVM_module);
   lua_setmetatable(L, -2);
-  mh->M = M;
+  new (mh) ModuleHolder(M);
+}
+
+/* __gc for ModuleHolder */
+static int collect_LLVM_module(lua_State *L) {
+  ModuleHolder *mh = check_LLVM_module(L, 1);
+  //printf("Module released: usecount %d\n", (int)mh->M.use_count());
+  mh->~ModuleHolder();
+  return 0;
 }
 
 static void alloc_LLVM_type(lua_State *L, llvm::Type *t) {
@@ -327,7 +342,7 @@ static int collect_LLVM_mainfunction(lua_State *L) {
   if (builder->func) {
     delete builder->func;
     builder->func = nullptr;
-    printf("collected function\n");
+    //printf("collected function\n");
   }
   return 0;
 }
@@ -610,8 +625,8 @@ static int context_new_lua_CFunction(lua_State *L) {
 }
 
 static int func_getmodule(lua_State *L) {
-  llvm::Function *func = get_function(L, 1);
-  alloc_LLVM_module(L, func->getParent());
+  MainFunctionHolder *f = check_LLVM_mainfunction(L, 1);
+  alloc_LLVM_module(L, f->func->raviModule());
   return 1;
 }
 
@@ -622,10 +637,11 @@ static int module_newfunction(lua_State *L) {
   bool extern_linkage = false;
   if (lua_istable(L, 4))
     l_table_get_bool(L, 4, "extern", &extern_linkage, false);
-  llvm::Function *f = llvm::Function::Create(
-      fth->type, extern_linkage ? llvm::Function::ExternalLinkage
-                                : llvm::Function::InternalLinkage,
-      name, mh->M);
+  llvm::Function *f =
+      llvm::Function::Create(fth->type,
+                             extern_linkage ? llvm::Function::ExternalLinkage
+                                            : llvm::Function::InternalLinkage,
+                             name, mh->M->module());
   alloc_LLVM_function(L, f);
   return 1;
 }
@@ -1327,6 +1343,8 @@ LUAMOD_API int raviopen_llvmluaapi(lua_State *L) {
   raviL_newmetatable(L, LLVM_module, LLVM_module);
   lua_pushstring(L, LLVM_module);
   lua_setfield(L, -2, "type");
+  lua_pushcfunction(L, collect_LLVM_module);
+  lua_setfield(L, -2, "__gc");
   lua_pushvalue(L, -1);           /* push metatable */
   lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
   luaL_setfuncs(L, module_methods, 0);

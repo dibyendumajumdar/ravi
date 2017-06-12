@@ -1,17 +1,18 @@
 /*
-** $Id: lcode.c,v 2.109 2016/05/13 19:09:21 roberto Exp $
+** $Id: lcode.c,v 2.112 2016/12/22 13:08:50 roberto Exp $
 ** Code generator for Lua
 ** See Copyright Notice in lua.h
 */
 
 /*
-** Portions Copyright (C) 2015-2016 Dibyendu Majumdar
+** Portions Copyright (C) 2015-2017 Dibyendu Majumdar
 */
 
 #define lcode_c
 #define LUA_CORE
 
 #include "lprefix.h"
+
 
 #include <math.h>
 #include <stdlib.h>
@@ -44,7 +45,7 @@
 ** If expression is a numeric constant, fills 'v' with its value
 ** and returns 1. Otherwise, returns 0.
 */
-static int tonumeral(expdesc *e, TValue *v) {
+static int tonumeral(const expdesc *e, TValue *v) {
   if (hasjumps(e))
     return 0;  /* not a numeral */
   switch (e->k) {
@@ -92,7 +93,7 @@ void luaK_nil (FuncState *fs, int from, int n) {
 /*
 ** Gets the destination address of a jump instruction. Used to traverse
 ** a list of jumps.
-*/ 
+*/
 static int getjump (FuncState *fs, int pc) {
   int offset = GETARG_sBx(fs->f->code[pc]);
   if (offset == NO_JUMP)  /* point to itself represents end of list */
@@ -397,7 +398,6 @@ void luaK_reserveregs (FuncState *fs, int n) {
 static void freereg (FuncState *fs, int reg) {
   if (!ISK(reg) && reg >= fs->nactvar) {
     fs->freereg--;
-	  /* if (reg != fs->freereg) luaX_syntaxerror(fs->ls, "unexpected error"); DEBUG Lua 5.3.3 merge issue math.lua 551 */
     lua_assert(reg == fs->freereg);
   }
 }
@@ -537,6 +537,7 @@ void luaK_setreturns (FuncState *fs, expdesc *e, int nresults) {
     DEBUG_CODEGEN(raviY_printf(fs, "[%d]* %o ; set A to %d\n", e->u.info, *pc, fs->freereg));
     luaK_reserveregs(fs, 1);
   }
+  else lua_assert(nresults == LUA_MULTRET);
 }
 
 
@@ -581,12 +582,12 @@ static int isshortstr(FuncState *fs, int kk) {
 
 void luaK_dischargevars (FuncState *fs, expdesc *e) {
   switch (e->k) {
-    case VLOCAL: {
-      e->k = VNONRELOC;
+    case VLOCAL: {  /* already in a register */
+      e->k = VNONRELOC;  /* becomes a non-relocatable value */
       DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VLOCAL->VNONRELOC) %e\n", e));
       break;
     }
-    case VUPVAL: {
+    case VUPVAL: {  /* move value to some (pending) register */
       e->u.info = luaK_codeABC(fs, OP_GETUPVAL, 0, e->u.info, 0);
       e->k = VRELOCABLE;
       DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VUPVAL->VRELOCABLE) %e\n", e));
@@ -618,7 +619,7 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
         else
           e->ravi_type = RAVI_TANY;
       }
-	  else {
+      else {
         lua_assert(e->u.ind.vt == VUPVAL);
         op = OP_GETTABUP;  /* 't' is in an upvalue */
       }
@@ -826,7 +827,7 @@ void luaK_exp2val (FuncState *fs, expdesc *e) {
 ** (that is, it is either in a register or in 'k' with an index
 ** in the range of R/K indices).
 ** Returns R/K index.
-*/  
+*/
 int luaK_exp2RK (FuncState *fs, expdesc *e) {
   luaK_exp2val(fs, e);
   switch (e->k) {  /* move constants to 'k' */
@@ -979,6 +980,9 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
 }
 
 
+/*
+** Emit SELF instruction (convert expression 'e' into 'e:key(e,').
+*/
 void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
   int ereg;
   /* Ravi extension:
@@ -1176,7 +1180,8 @@ static int validop (int op, TValue *v1, TValue *v2) {
 ** Try to "constant-fold" an operation; return 1 iff successful.
 ** (In this case, 'e1' has the final result.)
 */
-static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
+static int constfolding (FuncState *fs, int op, expdesc *e1,
+                                                const expdesc *e2) {
   TValue v1, v2, res;
   if (!tonumeral(e1, &v1) || !tonumeral(e2, &v2) || !validop(op, &v1, &v2))
     return 0;  /* non-numeric operands or not safe to fold */
@@ -1196,6 +1201,7 @@ static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
   }
   return 1;
 }
+
 
 /*
 ** Emit code for unary expressions that "produce values"
@@ -1219,11 +1225,15 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
 ** (everything but logical operators 'and'/'or' and comparison
 ** operators).
 ** Expression to produce final result will be encoded in 'e1'.
+** Because 'luaK_exp2RK' can free registers, its calls must be
+** in "stack order" (that is, first on 'e2', which may have more
+** recent registers to be released).
 */
 static void codebinexpval (FuncState *fs, OpCode op,
                            expdesc *e1, expdesc *e2, int line) {
-  int rk2 = luaK_exp2RK(fs, e2);
-  int rk1 = luaK_exp2RK(fs, e1);  /* both operands are "RK" */
+  /* Note that the order below is important - see Lua 5.3.3 bug list*/
+  int rk2 = luaK_exp2RK(fs, e2);  /* both operands are "RK" */
+  int rk1 = luaK_exp2RK(fs, e1);
   freeexps(fs, e1, e2);
   if (op == OP_ADD && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
     e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFF, 0, rk1, rk2);
@@ -1456,6 +1466,9 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e) {
   luaX_syntaxerror(fs->ls, "invalid type assertion");  
 }
 
+/*
+** Apply prefix operation 'op' to expression 'e'.
+*/
 void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
   expdesc ef = {.ravi_type = RAVI_TANY,
                 .pc = -1,
@@ -1464,7 +1477,7 @@ void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
                 .k = VKINT,
                 .u.ival = 0};  /* fake 2nd operand */
   switch (op) {
-    case OPR_MINUS: case OPR_BNOT:
+    case OPR_MINUS: case OPR_BNOT:  /* use 'ef' as fake 2nd operand */
       if (constfolding(fs, op + LUA_OPUNM, e, &ef))
         break;
       /* FALLTHROUGH */
@@ -1566,7 +1579,7 @@ void luaK_posfix (FuncState *fs, BinOpr op,
         codebinexpval(fs, cast(OpCode, op + OP_ADD), e1, e2, line);
       break;
     }
-    case OPR_EQ: case OPR_LT: case OPR_LE: 
+    case OPR_EQ: case OPR_LT: case OPR_LE:
     case OPR_NE: case OPR_GT: case OPR_GE: {
       codecomp(fs, op, e1, e2);
       break;

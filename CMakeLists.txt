@@ -87,10 +87,12 @@ if (CMAKE_COMPILER_IS_GNUCXX AND NOT APPLE)
     endif ()
     # -fsanitize=bounds -fsanitize=alignment -fsanitize=object-size
     set(SANITIZER_FLAGS "-fsanitize=address")
+    set(CMAKE_C_FLAGS "-std=c99 -O2 -fomit-frame-pointer -Wall -Wextra -Winline -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
     set(CMAKE_C_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -std=c99 -O0 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+    set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O2 -fomit-frame-pointer -Wall -Wextra -Winline -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -std=c99 -O1 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -O3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+    set(CMAKE_CXX_FLAGS "-fno-rtti -O2 -fomit-frame-pointer -Wall -Wno-sign-compare -Winline -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
+    set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -O2 -fomit-frame-pointer -Wall -Wno-sign-compare -Winline -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
     set(CMAKE_CXX_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -fno-rtti -O1 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
     # In case we are using gcc 5.1 set ABI version
@@ -98,11 +100,11 @@ if (CMAKE_COMPILER_IS_GNUCXX AND NOT APPLE)
 endif ()
 
 if (APPLE)
-    set(CMAKE_C_FLAGS "-std=c99 -O1 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
+    set(CMAKE_C_FLAGS "-std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
     set(CMAKE_C_FLAGS_DEBUG "-std=c99 -O0 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
     set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "-std=c99 -O1 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
-    set(CMAKE_CXX_FLAGS "-O1 -g3 -Wall -fno-rtti -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
+    set(CMAKE_CXX_FLAGS "-O3 -Wall -fno-rtti -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
     set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -O3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
     set(CMAKE_CXX_FLAGS_DEBUG "-fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-fno-rtti -O1 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
@@ -138,7 +140,7 @@ endif()
 set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
         src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
         src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
-        src/lvm.c src/lzio.c src/ravijit.cpp src/ltests.c src/ravi_ast.c)
+        src/lvm.c src/lzio.c src/ravijit.cpp src/ltests.c src/ravi_profile.c src/ravi_ast.c)
 # define the lua lib source files
 set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
         src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)

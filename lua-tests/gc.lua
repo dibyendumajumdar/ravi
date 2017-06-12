@@ -1,4 +1,5 @@
--- $Id: gc.lua,v 1.71 2016/03/07 19:31:35 roberto Exp $
+-- $Id: gc.lua,v 1.72 2016/11/07 13:11:28 roberto Exp $
+-- See Copyright Notice in file all.lua
 
 print('testing garbage collection')
 

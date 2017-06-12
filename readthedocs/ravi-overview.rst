@@ -1,3 +1,4 @@
+=========================
 Ravi Programming Language
 =========================
 
@@ -9,38 +10,43 @@ There are other attempts to add static typing to Lua - e.g. `Typed Lua <https://
 
 My motivation is somewhat different - I want to enhance the VM to support more efficient operations when types are known. Type information can be exploited by JIT compilation technology to improve performance. At the same time, I want to keep the language safe and therefore usable by non-expert programmers. 
 
-Goals
------
-* Optional static typing for Lua 
+Of course there is also the fantastic `LuaJIT <http://luajit.org>`_ implementation. Ravi has a different goal compared to 
+LuaJIT. Ravi prioritizes ease of maintenance and support, language safety, and compatibility with Lua 5.3, over maximum performance. For more detailed comparison please refer to the documentation links below.
+
+
+.. contents:: Table of Contents
+   :depth: 1
+   :backlinks: top
+
+Features
+========
+* Optional static typing 
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
 * Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available
+* LLVM bindings exposed in Lua
 
 Documentation
---------------
+=============
 See `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
 As more stuff is built I will keep updating the documentation so please revisit for latest information.
 
 Also see the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
 
 JIT Implementation
-++++++++++++++++++
+==================
 The LLVM JIT compiler is functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
 Ravi also provides an `LLVM binding <http://the-ravi-programming-language.readthedocs.org/en/latest/llvm-bindings.html>`_; this is still work in progress so please check documentation for the latest status.
 
-As of July 2015 the `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation is also functional but some byte codes are not yet compiled, and featurewise this implementation is somewhat lagging behind the LLVM based implementation. 
-
-Performance Benchmarks
-++++++++++++++++++++++
-For performance benchmarks please visit the `Ravi Performance Benchmarks <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-benchmarks.html>`_ page.
+There is also a `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation but this implementation is lagging behind the LLVM based implementation. Further development of this is currently not planned.
 
 Ravi Extensions to Lua 5.3
---------------------------
+==========================
 
 Optional Static Typing
-++++++++++++++++++++++
+----------------------
 Ravi allows you to annotate ``local`` variables and function parameters with static types. The supported types and the resulting behaviour are as follows:
 
 ``integer``
@@ -157,7 +163,7 @@ Following library functions allow creation of array types of defined length.
   creates an number array of specified size, and initializes with initial value. The return type is number[]. The size of the array cannot be changed dynamically, i.e. it is fixed to the initial specified size. This allows slices to be created on such arrays.
 
 Type Assertions
-+++++++++++++++
+---------------
 Ravi does not support defining new types, or structured types based on tables. This creates some practical issues when dynamic types are mixed with static types. For example::
 
   local t = { 1,2,3 }
@@ -178,7 +184,7 @@ The type assertion operator is a unary operator and binds to the expression foll
 For a real example of how type assertions can be used, please have a look at the test program `gaussian2.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/gaussian2.lua>`_ 
 
 Array Slices
-++++++++++++
+------------
 Since release 0.6 Ravi supports array slices. An array slice allows a portion of a Ravi array to be treated as if it is an array - this allows efficient access to the underlying array elements. Following new functions are available:
 
 ``table.slice(array, start_index, num_elements)``
@@ -195,7 +201,7 @@ Each slice holds an internal reference to the underlying array to ensure that th
 For an example use of slices please see the `matmul1.ravi <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/matmul1.ravi>`_ benchmark program in the repository. Note that this feature is highly experimental and not very well tested.
   
 Examples
-++++++++
+--------
 Example of code that works - you can copy this to the command line input::
 
   function tryme()
@@ -243,13 +249,12 @@ Another example using arrays. Here the function receives a parameter ``arr`` of 
 The ``table.numarray(n, initial_value)`` creates a ``number[]`` of specified size and initializes the array with the given initial value.
 
 All type checks are at runtime
-++++++++++++++++++++++++++++++
+------------------------------
 To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectually all checks are at runtime. 
 
-JIT Compilation
----------------
-The LLVM based JIT compiler is functional. Most bytecodes other than bit-wise operators are JIT compiled when using LLVM, but there are restrictions as described in compatibility section below. Everything described below relates to using LLVM as the JIT compiler.
- 
+JIT API
+-------
+The LLVM based JIT compiler is functional. 
 There are two modes of JIT compilation.
 
 auto mode
@@ -281,18 +286,20 @@ A JIT api is available with following functions:
   Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode 
   boundary; use this option only when you want to use the debug api to step through code line by line
 
-Performance Notes
------------------
+Performance
+===========
+For performance benchmarks please visit the `Ravi Performance Benchmarks <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-benchmarks.html>`_ page.
+
 To obtain the best possible performance, types must be annotated so that Ravi's JIT compiler can generate efficient code. 
 Additionally function calls are expensive - as the JIT compiler cannot inline function calls, all function calls go via the Lua call protocol which has a large overhead. This is true for both Lua functions and C functions. For best performance avoid function calls inside loops.
 
 Compatibility with Lua
-----------------------
-Ravi should be able to run all Lua 5.3 programs in interpreted mode, but there are some differences: 
+======================
+Ravi should be able to run all Lua 5.3 programs in interpreted mode, but following should be noted: 
 
 * Ravi supports optional typing and enhanced types such as arrays (described above). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions; operations on Ravi arrays within Lua code will be subject to restrictions as described in the section above on arrays. 
 * Values crossing from Lua to Ravi will be subjected to typechecks should these values be assigned to typed variables.
-* Upvalues cannot subvert the static typing of local variables (issue #26)
+* Upvalues cannot subvert the static typing of local variables (issue #26) when types are annotated.
 * Certain Lua limits are reduced due to changed byte code structure. These are described below.
 
 +-----------------+-------------+-------------+
@@ -309,31 +316,36 @@ Ravi should be able to run all Lua 5.3 programs in interpreted mode, but there a
 | MAXARGLINE      | 250         | 120         |
 +-----------------+-------------+-------------+
 
-When JIT compilation is enabled some things will not work:
+When JIT compilation is enabled there are following additional constraints:
 
-* You cannot yield from a compiled function as compiled code does not support coroutines (issue 14); as a workaround Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
-* In JITed code tailcalls are implemented as regular calls so unlike Lua VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue #17)
+* Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
+* In JITed code tailcalls are implemented as regular calls so unlike the interpreter VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue #17)
 
-Build Dependencies - LLVM version
----------------------------------
+Building Ravi
+=============
+
+Build Dependencies
+------------------
 
 * CMake
-* LLVM 3.7 or 3.8 or 3.9
+
+Ravi can be built with or without LLVM. Following versions of LLVM work with Ravi.
+
+* LLVM 3.7 or 3.8 or 3.9 or 4.0
 * LLVM 3.5 and 3.6 should also work but have not been recently tested
 
-The build is CMake based.
-Unless otherwise noted the instructions below should work for LLVM 3.7 or above.
+Unless otherwise noted the instructions below should work for LLVM 3.7 or later.
 
 Building LLVM on Windows
 ------------------------
-I built LLVM from source. I used the following sequence from the VS2015 command window::
+I built LLVM from source. I used the following sequence from the VS2017 command window::
 
   cd \github\llvm
   mkdir build
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 14 Win64" ..  
+  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 15 2017 Win64" ..  
 
-I then opened the generated solution in VS2015 and performed a INSTALL build from there. Above will build the 64-bit version of LLVM libraries. To build a 32-bit version omit the ``Win64`` parameter. 
+I then opened the generated solution in VS2017 and performed a INSTALL build from there. Above will build the 64-bit version of LLVM libraries. To build a 32-bit version omit the ``Win64`` parameter. 
 
 .. note:: Note that if you perform a Release build of LLVM then you will also need to do a Release build of Ravi otherwise you will get link errors.
 
@@ -354,18 +366,18 @@ Assuming that LLVM source has been extracted to ``$HOME/llvm-3.7.0.src`` I follo
   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/LLVM -DLLVM_TARGETS_TO_BUILD="X86" ..
   make install
 
-Building Ravi
--------------
-I am developing Ravi using Visual Studio 2015 Community Edition on Windows 8.1 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X. I was also able to successfully build a Ubuntu version on Windows 10 using the newly released Ubuntu/Linux sub-system for Windows 10.
+Building Ravi with JIT enabled
+------------------------------
+I am developing Ravi using Visual Studio 2017 Community Edition on Windows 10 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X. I was also able to successfully build a Ubuntu version on Windows 10 using the newly released Ubuntu/Linux sub-system for Windows 10.
 
 .. note:: Location of cmake files has moved in LLVM 3.9; the new path is ``$LLVM_INSTALL_DIR/lib/cmake/llvm``.
 
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
   cd build
-  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 14 Win64" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 15 2017 Win64" ..
 
-I then open the solution in VS2015 and do a build from there.
+I then open the solution in VS2017 and do a build from there.
 
 On Ubuntu I use::
 
@@ -390,8 +402,8 @@ Building without JIT
 --------------------
 You can omit ``-DLLVM_JIT=ON`` option above to build Ravi with a null JIT implementation.
 
-Static Libraries
-----------------
+Building Static Libraries
+-------------------------
 By default the build generates a shared library for Ravi. You can choose to create a static library and statically linked executables by supplying the argument ``-DSTATIC_BUILD=ON`` to CMake.
 
 Build Artifacts
@@ -415,64 +427,19 @@ I test the build by running a modified version of Lua 5.3.3 test suite. These te
 
 .. note:: To thoroughly test changes, you need to invoke CMake with ``-DCMAKE_BUILD_TYPE=Debug`` option. This turns on assertions, memory checking, and also enables an internal module used by Lua tests.
 
-Work Plan
----------
-* Feb-Jun 2015 - implement JIT compilation using LLVM
-* Jun-Jul 2015 - libgccjit based alternative JIT
-* 2016 priorties
+Roadmap
+=======
+* 2015 - Implemented JIT compilation using LLVM
+* 2015 - Implemented libgccjit based alternative JIT
+* 2016 - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
+* 2017 - Main priorities are:
 
-  * `IDE support (Visual Studio Code) <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
+  - I would like Ravi to be backward compatible with Lua 5.1 and 5.2 as far as possible
+  - Lua function inlining 
+  - Improve performance of Ravi  
+  - Additional type annotations
 
 License
--------
+=======
 MIT License for LLVM version.
-
-Language Syntax - Future work
------------------------------
-Since the reason for introducing optional static typing is to enhance performance primarily - not all types benefit from this capability. In fact it is quite hard to extend this to generic recursive structures such as tables without encurring significant overhead. For instance - even to represent a recursive type in the parser will require dynamic memory allocation and add great overhead to the parser.
-
-From a performance point of view the only types that seem worth specializing are:
-
-* integer (64-bit int)
-* number (double)
-* array of integers
-* array of numbers
-
-Implementation Strategy
------------------------
-I want to build on existing Lua types rather than introducing completely new types to the Lua system. I quite like the minimalist nature of Lua. However, to make the execution efficient I am adding new type specific opcodes and enhancing the Lua parser/code generator to encode these opcodes only when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks. Morever, type specific instructions will lend themselves to more efficient JIT compilation.
-
-I am adding new opcodes that cover arithmetic operations, array operations, variable assignments, etc..
-
-Modifications to Lua Bytecode structure
----------------------------------------
-An immediate issue is that the Lua bytecode structure has a 6-bit opcode which is insufficient to hold the various opcodes that I will need. Simply extending the size of this is problematic as then it reduces the space available to the operands A B and C. Furthermore the way Lua bytecodes work means that B and C operands must be 1-bit larger than A - as the extra bit is used to flag whether the operand refers to a constant or a register. (Thanks to Dirk Laurie for pointing this out). 
-
-I am amending the bit mapping in the 32-bit instruction to allow 9-bits for the byte-code, 7-bits for operand A, and 8-bits for operands B and C. This means that some of the Lua limits (maximum number of variables in a function, etc.) have to be revised to be lower than the default.
-
-New OpCodes
------------
-The new instructions are specialised for types, and also for register/versus constant. So for example ``OP_RAVI_ADDFI`` means add ``number`` and ``integer``. And ``OP_RAVI_ADDFF`` means add ``number`` and ``number``. The existing Lua opcodes that these are based on define which operands are used.
-
-Example::
-
-  local i=0; i=i+1
-
-Above standard Lua code compiles to::
-
-  [0] LOADK A=0 Bx=-1
-  [1] ADD A=0 B=0 C=-2
-  [2] RETURN A=0 B=1
-
-We add type info using Ravi extensions::
-
-  local i:integer=0; i=i+1
-
-Now the code compiles to::
-
-  [0] LOADK A=0 Bx=-1
-  [1] ADDII A=0 B=0 C=-2
-  [2] RETURN A=0 B=1
-
-Above uses type specialised opcode ``OP_RAVI_ADDII``. 
 

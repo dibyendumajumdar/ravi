@@ -1,4 +1,5 @@
--- $Id: code.lua,v 1.41 2014/12/26 17:18:43 roberto Exp $
+-- $Id: code.lua,v 1.42 2016/11/07 13:04:32 roberto Exp $
+-- See Copyright Notice in file all.lua
 
 if T==nil then
   (Message or print)('\n >>> testC not active: skipping opcode tests <<<\n')
@@ -116,7 +117,7 @@ check(function () return not not 1 end, 'LOADBOOL', 'RETURN')
 check(function ()
   local a,b,c,d
   a = b*2
-  c[4], a[b] = -((a + d/-20.5 - a[b]) ^ a.x), b
+  c[2], a[b] = -((a + d/2 - a[b]) ^ a.x), b
 end,
   'LOADNIL',
   'MUL',
@@ -127,17 +128,25 @@ end,
 -- direct access to constants
 check(function ()
   local a,b
-  a.x = 0
+  a.x = 3.2
   a.x = b
-  a[b] = 'y'
+  a[b] = 'x'
+end,
+  'LOADNIL', 'SETTABLE', 'SETTABLE', 'SETTABLE', 'RETURN')
+
+check(function ()
+  local a,b
   a = 1 - a
   b = 1/a
-  b = 5+4
+  b = 5-4
+end,
+  'LOADNIL', 'SUB', 'DIV', 'LOADK', 'RETURN')
+
+check(function ()
+  local a,b
   a[true] = false
 end,
-  'LOADNIL',
-  'SETTABLE', 'SETTABLE', 'SETTABLE', 'SUB', 'DIV', 'LOADK',
-  'SETTABLE', 'RETURN')
+  'LOADNIL', 'SETTABLE', 'RETURN')
 
 
 -- constant folding
@@ -165,7 +174,7 @@ checkK(function () return ((100 << 6) << -4) >> 2 end, 100)
 
 -- no foldings
 check(function () return -0.0 end, 'LOADK', 'UNM', 'RETURN')
---check(function () return 3/0 end, 'DIV', 'RETURN')
+check(function () return 3/0 end, 'DIVII', 'RETURN')
 check(function () return 0%0 end, 'MOD', 'RETURN')
 check(function () return -4//0 end, 'IDIV', 'RETURN')
 
@@ -192,7 +201,7 @@ end,
 checkequal(function () if (a==nil) then a=1 end; if a~=nil then a=1 end end,
            function () if (a==9) then a=1 end; if a~=9 then a=1 end end)
 
-check(function () if a==nil then a=1 end end,
+check(function () if a==nil then a='a' end end,
 'GETTABUP', 'EQ', 'JMP', 'SETTABUP', 'RETURN')
 
 -- de morgan
@@ -204,11 +213,11 @@ checkequal(function (l) local a; return 0 <= a and a <= l end,
 
 
 -- if-goto optimizations
-check(function (a)
-        if a == 1 then goto l1
-        elseif a == 2 then goto l2
-        elseif a == 3 then goto l2
-        else if a == 4 then goto l3
+check(function (a, b, c, d, e)
+        if a == b then goto l1
+        elseif a == c then goto l2
+        elseif a == d then goto l2
+        else if a == e then goto l3
              else goto l3
              end
         end

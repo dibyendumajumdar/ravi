@@ -28,6 +28,6 @@ script:
  - if [ "$CXX" = "g++" ]; then export CXX="ccache g++-5" CC="ccache gcc-5"; fi
  - if [ "$CXX" = "clang++" ]; then export CXX="ccache clang++-3.7" CC="ccache clang-3.7"; fi
  - mkdir $TRAVIS_BUILD_DIR/build
- - cd $TRAVIS_BUILD_DIR/build && $TRAVIS_BUILD_DIR/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON ..
+ - cd $TRAVIS_BUILD_DIR/build && $TRAVIS_BUILD_DIR/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=/tmp/LLVM37/share/llvm/cmake -G "Unix Makefiles" -DLLVM_JIT=ON ..
  - cd $TRAVIS_BUILD_DIR/build && make
- - cd $TRAVIS_BUILD_DIR/lua-tests && sh ./run_tests.sh $TRAVIS_BUILD_DIR/build/ravi
+ - cd $TRAVIS_BUILD_DIR/lua-tests && sh ./run_travis_tests.sh $TRAVIS_BUILD_DIR/build/ravi

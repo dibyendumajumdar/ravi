@@ -1,4 +1,5 @@
--- $Id: api.lua,v 1.146 2016/01/07 16:45:45 roberto Exp $
+-- $Id: api.lua,v 1.147 2016/11/07 13:06:25 roberto Exp $
+-- See Copyright Notice in file all.lua
 
 if T==nil then
   (Message or print)('\n >>> testC not active: skipping API tests <<<\n')

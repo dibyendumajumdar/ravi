@@ -20,8 +20,8 @@
 * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
-#include "ravi_llvmcodegen.h"
 #include <ravijit.h>
+#include "ravi_llvmcodegen.h"
 
 namespace ravi {
 
@@ -73,7 +73,7 @@ llvm::CallInst *RaviCodeGenerator::CreateCall3(llvm::IRBuilder<> *builder,
                                                llvm::Value *arg1,
                                                llvm::Value *arg2,
                                                llvm::Value *arg3) {
-  llvm::SmallVector<llvm::Value *, 2> values;
+  llvm::SmallVector<llvm::Value *, 3> values;
   values.push_back(arg1);
   values.push_back(arg2);
   values.push_back(arg3);
@@ -83,7 +83,7 @@ llvm::CallInst *RaviCodeGenerator::CreateCall3(llvm::IRBuilder<> *builder,
 llvm::CallInst *RaviCodeGenerator::CreateCall4(
     llvm::IRBuilder<> *builder, llvm::Value *func, llvm::Value *arg1,
     llvm::Value *arg2, llvm::Value *arg3, llvm::Value *arg4) {
-  llvm::SmallVector<llvm::Value *, 2> values;
+  llvm::SmallVector<llvm::Value *, 4> values;
   values.push_back(arg1);
   values.push_back(arg2);
   values.push_back(arg3);
@@ -95,13 +95,22 @@ llvm::CallInst *RaviCodeGenerator::CreateCall5(
     llvm::IRBuilder<> *builder, llvm::Value *func, llvm::Value *arg1,
     llvm::Value *arg2, llvm::Value *arg3, llvm::Value *arg4,
     llvm::Value *arg5) {
-  llvm::SmallVector<llvm::Value *, 2> values;
+  llvm::SmallVector<llvm::Value *, 5> values;
   values.push_back(arg1);
   values.push_back(arg2);
   values.push_back(arg3);
   values.push_back(arg4);
   values.push_back(arg5);
   return builder->CreateCall(func, values);
+}
+
+void RaviCodeGenerator::attach_branch_weights(RaviFunctionDef *def,
+                                              llvm::Instruction *ins,
+                                              uint32_t true_branch,
+                                              uint32_t false_branch) {
+  ins->setMetadata(llvm::LLVMContext::MD_prof,
+                   def->jitState->types()->mdbuilder.createBranchWeights(
+                       true_branch, false_branch));
 }
 
 llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, const char *name,
@@ -148,10 +157,9 @@ llvm::Value *RaviCodeGenerator::emit_array_get(RaviFunctionDef *def,
       ptr, llvm::ConstantInt::get(def->types->C_intT, offset));
 }
 
+// emit code for LClosure *cl = clLvalue(ci->func);
 llvm::Instruction *RaviCodeGenerator::emit_gep_ci_func_value_gc_asLClosure(
     RaviFunctionDef *def) {
-  // emit code for
-  // LClosure *cl = clLvalue(ci->func);
   // clLvalue() is a macros that expands to (LClosure *)ci->func->value_.gc
   // via a complex series of macros and unions
   // fortunately as func is at the beginning of the CallInfo
@@ -284,6 +292,7 @@ llvm::Value *RaviCodeGenerator::emit_load_register_or_constant_n(
   }
 }
 
+// emit code to load the lua_Number value from register (TValue)
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
   llvm::Value *rb_n = def->builder->CreateBitCast(rb, def->types->plua_NumberT);
@@ -293,6 +302,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_n(RaviFunctionDef *def,
   return lhs;
 }
 
+// emit code to load the lua_Integer value from register (TValue)
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_i(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
   llvm::Value *rb_n =
@@ -302,6 +312,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_i(RaviFunctionDef *def,
   return lhs;
 }
 
+// emit code to load the boolean value from register (TValue)
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_b(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
   llvm::Value *rb_n = def->builder->CreateBitCast(rb, def->types->C_pintT);
@@ -310,6 +321,7 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_b(RaviFunctionDef *def,
   return lhs;
 }
 
+// emit code to load the table value from register (TValue)
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_h(RaviFunctionDef *def,
                                                       llvm::Value *rb) {
   llvm::Value *rb_h = def->builder->CreateBitCast(rb, def->types->ppTableT);
@@ -318,6 +330,8 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_h(RaviFunctionDef *def,
   return h;
 }
 
+// Gets the size of the hash table
+// This is the sizenode() macro in lobject.h
 llvm::Value *RaviCodeGenerator::emit_table_get_hashsize(RaviFunctionDef *def,
                                                         llvm::Value *t) {
   // Obtain the lsizenode  of the hash table
@@ -334,9 +348,19 @@ llvm::Value *RaviCodeGenerator::emit_table_get_hashsize(RaviFunctionDef *def,
   return size;
 }
 
+// Gets the location of the hash node for given string key
+// return value is the offset into the node array
 llvm::Value *RaviCodeGenerator::emit_table_get_hashstr(RaviFunctionDef *def,
                                                        llvm::Value *table,
                                                        TString *key) {
+#if NEW_HASH
+  unsigned int hash = key->hash;
+  llvm::Value *hmask_ptr = emit_gep(def, "hmask", table, 0, 12);
+  llvm::Instruction *hmask = def->builder->CreateLoad(hmask_ptr);
+  hmask->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Table_hmask);
+  llvm::Value *offset = def->builder->CreateAnd(
+      llvm::ConstantInt::get(def->types->C_intT, hash), hmask);
+#else
   llvm::Value *size = emit_table_get_hashsize(def, table);
   unsigned int hash = key->hash;
   // #define lmod(s,size) (cast(int, (s) & ((size)-1)))
@@ -344,9 +368,11 @@ llvm::Value *RaviCodeGenerator::emit_table_get_hashstr(RaviFunctionDef *def,
       def->builder->CreateNSWSub(size, def->types->kInt[1]);
   llvm::Value *offset = def->builder->CreateAnd(
       llvm::ConstantInt::get(def->types->C_intT, hash), sizeminusone);
+#endif
   return offset;
 }
 
+// Gets access to the Table's node array (t->node)
 llvm::Value *RaviCodeGenerator::emit_table_get_nodearray(RaviFunctionDef *def,
                                                          llvm::Value *table) {
   // Get access to the node array
@@ -356,6 +382,10 @@ llvm::Value *RaviCodeGenerator::emit_table_get_nodearray(RaviFunctionDef *def,
   return node;
 }
 
+// Given a pointer to table's node array (node = t->node) and
+// the location of the hashed key (index), this method retrieves the
+// type of the value stored at the node - return value is of type int
+// and is the type information stored in TValue->tt field.
 llvm::Value *RaviCodeGenerator::emit_table_get_keytype(RaviFunctionDef *def,
                                                        llvm::Value *node,
                                                        llvm::Value *index) {
@@ -365,6 +395,9 @@ llvm::Value *RaviCodeGenerator::emit_table_get_keytype(RaviFunctionDef *def,
   return ktype;
 }
 
+// Given a pointer to table's node array (node = t->node) and
+// the location of the hashed key (index), this method retrieves the
+// the string value stored at the node - return value is of type TString*
 llvm::Value *RaviCodeGenerator::emit_table_get_strkey(RaviFunctionDef *def,
                                                       llvm::Value *node,
                                                       llvm::Value *index) {
@@ -376,12 +409,16 @@ llvm::Value *RaviCodeGenerator::emit_table_get_strkey(RaviFunctionDef *def,
   return keyvalue;
 }
 
+// Given a pointer to table's node array (node = t->node) and
+// the location of the hashed key (index), this method retrieves the
+// the pointer to value stored at the node - return value is of type TValue*
 llvm::Value *RaviCodeGenerator::emit_table_get_value(RaviFunctionDef *def,
                                                      llvm::Value *node,
                                                      llvm::Value *index) {
   return emit_gep(def, "nodeval", node, index, 0);
 }
 
+// Gets the size of the table's array part
 llvm::Value *RaviCodeGenerator::emit_table_get_arraysize(RaviFunctionDef *def,
                                                          llvm::Value *table) {
   // Obtain the lsizenode  of the hash table
@@ -484,7 +521,7 @@ void RaviCodeGenerator::emit_store_reg_b_withtype(RaviFunctionDef *def,
 void RaviCodeGenerator::emit_store_type_(RaviFunctionDef *def,
                                          llvm::Value *value, int type) {
   lua_assert(type == LUA_TNUMFLT || type == LUA_TNUMINT ||
-             type == LUA_TBOOLEAN);
+             type == LUA_TBOOLEAN || type == LUA_TNIL);
   llvm::Value *desttype = emit_gep(def, "dest.tt", value, 0, 1);
   llvm::Instruction *store =
       def->builder->CreateStore(def->types->kInt[type], desttype);
@@ -622,11 +659,12 @@ llvm::Value *RaviCodeGenerator::emit_gep_register_or_constant(
   return rb;
 }
 
-// Test if ci->jistatus is true
+#if 0
+// Test if ci->jistatus is true, ci is of type CallInfo
 llvm::Value *RaviCodeGenerator::emit_is_jit_call(RaviFunctionDef *def,
                                                  llvm::Value *ci) {
   // Get pointer to ci->jitstatus
-  llvm::Value *ci_jitstatus_ptr = emit_gep(def, "ci_jit_status_ptr", ci, 0, 8);
+  llvm::Value *ci_jitstatus_ptr = emit_gep(def, "ci_jit_status_ptr", ci, 0, 9);
 
   // Load ci->jitstatus
   llvm::Instruction *ci_jitstatus = def->builder->CreateLoad(ci_jitstatus_ptr);
@@ -652,11 +690,12 @@ llvm::Value *RaviCodeGenerator::emit_ci_is_Lua(RaviFunctionDef *def,
                              def->types->tbaa_CallInfo_callstatusT);
 
   llvm::Value *isLua = def->builder->CreateAnd(
-      ci_callstatus, llvm::ConstantInt::get(def->types->lu_byteT, CIST_LUA),
+      ci_callstatus, llvm::ConstantInt::get(def->types->C_shortT, CIST_LUA),
       "isLua");
   return def->builder->CreateICmpNE(
-      isLua, llvm::ConstantInt::get(def->types->lu_byteT, 0));
+      isLua, llvm::ConstantInt::get(def->types->C_shortT, 0));
 }
+#endif
 
 llvm::Value *RaviCodeGenerator::emit_load_ci(RaviFunctionDef *def) {
   llvm::Value *L_ci = emit_gep(def, "L_ci", def->L, 0, 6);
@@ -723,7 +762,8 @@ llvm::Instruction *RaviCodeGenerator::emit_tointeger(RaviFunctionDef *def,
       def->jitState->context(), "if.conversion.failed");
 
   // If reg is integer then copy reg, else convert reg
-  def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  auto brinst1 = def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  attach_branch_weights(def, brinst1, 100, 0);
 
   // Convert RB
   def->f->getBasicBlockList().push_back(convert_reg);
@@ -778,7 +818,8 @@ llvm::Instruction *RaviCodeGenerator::emit_tofloat(RaviFunctionDef *def,
       def->jitState->context(), "if.conversion.failed");
 
   // If reg is integer then copy reg, else convert reg
-  def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  auto brinst1 = def->builder->CreateCondBr(cmp1, copy_reg, convert_reg);
+  attach_branch_weights(def, brinst1, 100, 0);
 
   // Convert RB
   def->f->getBasicBlockList().push_back(convert_reg);
@@ -1006,6 +1047,11 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->luaH_getstrF = def->raviF->addExternFunction(
       def->types->luaH_getstrT, reinterpret_cast<void *>(&luaH_getstr),
       "luaH_getstr");
+  def->luaH_getstrF->addFnAttr(llvm::Attribute::AttrKind::ReadOnly);
+  def->luaH_getstrF->setDoesNotAlias(1);
+  def->luaH_getstrF->setDoesNotCapture(1);
+  def->luaH_getstrF->setDoesNotAlias(2);
+  def->luaH_getstrF->setDoesNotCapture(2);
   def->luaV_finishgetF = def->raviF->addExternFunction(
       def->types->luaV_finishgetT, reinterpret_cast<void *>(&luaV_finishget),
       "luaV_finishget");
@@ -1309,7 +1355,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
   // This is the function's activation record / stack frame
   def->ci_val = builder.CreateLoad(def->L_ci);
   def->ci_val->setMetadata(llvm::LLVMContext::MD_tbaa,
-                           def->types->tbaa_CallInfoT);
+                           def->types->tbaa_luaState_ciT);
 
   // Get pointer to function's 'base' stack location
   // 'base' is the address relative to which all the
@@ -1622,7 +1668,11 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_RAVI_GETTABLE_SK: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_GETTABLE_SK(def, A, B, C, pc);
+        lua_assert(ISK(C));
+        TValue *kv = k + INDEXK(C);
+        TString *key = tsvalue(kv);
+        lua_assert(key->tt == LUA_TSHRSTR);
+        emit_GETTABLE_SK(def, A, B, C, pc, key);
       } break;
       case OP_GETTABLE: {
         int B = GETARG_B(i);
@@ -1751,7 +1801,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_ADD: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_ADD, TM_ADD, pc);
+        emit_ARITH_new(def, A, B, C, OP_ADD, TM_ADD, pc);
       } break;
       case OP_RAVI_ADDFF: {
         int B = GETARG_B(i);
@@ -1772,7 +1822,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_SUB: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_SUB, TM_SUB, pc);
+        emit_ARITH_new(def, A, B, C, OP_SUB, TM_SUB, pc);
       } break;
       case OP_RAVI_SUBFF: {
         int B = GETARG_B(i);
@@ -1798,7 +1848,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_MUL: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_MUL, TM_MUL, pc);
+        emit_ARITH_new(def, A, B, C, OP_MUL, TM_MUL, pc);
       } break;
       case OP_RAVI_MULFF: {
         int B = GETARG_B(i);
@@ -1819,7 +1869,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_DIV: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_ARITH(def, A, B, C, OP_DIV, TM_DIV, pc);
+        emit_ARITH_new(def, A, B, C, OP_DIV, TM_DIV, pc);
       } break;
       case OP_RAVI_DIVFF: {
         int B = GETARG_B(i);
@@ -1868,10 +1918,10 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       }
     }
   }
-
   if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs())) {
+    f->dump();
     fprintf(stderr, "LLVM Code Verification failed\n");
-    abort();
+	exit(1);
   }
   ravi::RaviJITFunction *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);

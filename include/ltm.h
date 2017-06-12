@@ -43,7 +43,7 @@ typedef enum {
   TM_N		/* number of elements in the enum */
 } TMS;
 
-/* The macro metamethod absent tests whether it is known that a metatable
+/* RAVI change: the macro metamethod absent tests whether it is known that a metatable
  * lacks a metamethod. This is true if a) metatable is NULL, or b) the bit
  * related to the metamethod is set in t->flags
  */
@@ -60,7 +60,7 @@ LUAI_DDEC const char *const luaT_typenames_[LUA_TOTALTAGS];
 
 
 LUAI_FUNC const char *luaT_objtypename (lua_State *L, const TValue *o);
-/* Extended version that distinguishes between table subtypes*/
+/* RAVI change: extended version that distinguishes between table subtypes*/
 LUAI_FUNC const char *raviT_objtypename(lua_State *L, const TValue *o);
 
 LUAI_FUNC const TValue *luaT_gettm (Table *events, TMS event, TString *ename);

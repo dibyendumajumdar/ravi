@@ -1,5 +1,5 @@
 /*
-** $Id: lvm.h,v 2.40 2016/01/05 16:07:21 roberto Exp $
+** $Id: lvm.h,v 2.41 2016/12/22 13:08:50 roberto Exp $
 ** Lua virtual machine
 ** See Copyright Notice in lua.h
 */
@@ -38,10 +38,10 @@
 
 
 #define tonumber(o,n) \
-	(ttisfloat(o) ? (*(n) = fltvalue(o), 1) : luaV_tonumber_(o,n))
+  (RAVI_LIKELY(ttisfloat(o)) ? (*(n) = fltvalue(o), 1) : luaV_tonumber_(o,n))
 
 #define tointeger(o,i) \
-    (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))
+  (RAVI_LIKELY(ttisinteger(o)) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))
 
 #define intop(op,v1,v2) l_castU2S(l_castS2U(v1) op l_castS2U(v2))
 
@@ -63,6 +63,8 @@
 
 /*
 ** standard implementation for 'gettable'
+** RAVI change - renamed as we need luaV_gettable to be 
+** an exported function
 */
 #define luaV_fastgettable(L,t,k,v) { const TValue *slot; \
   if (luaV_fastget(L,t,k,slot,luaH_get)) { setobj2s(L, v, slot); } \
@@ -86,7 +88,10 @@
         setobj2t(L, cast(TValue *,slot), v), \
         1)))
 
-
+/*
+** RAVI change - renamed as we need luaV_settable to be 
+** an exported function
+*/
 #define luaV_fastsettable(L,t,k,v) { const TValue *slot; \
   if (!luaV_fastset(L,t,k,slot,luaH_get,v)) \
     luaV_finishset(L,t,k,v,slot); }
@@ -98,17 +103,19 @@ LUAI_FUNC int luaV_lessthan (lua_State *L, const TValue *l, const TValue *r);
 LUAI_FUNC int luaV_lessequal (lua_State *L, const TValue *l, const TValue *r);
 LUAI_FUNC int luaV_tonumber_ (const TValue *obj, lua_Number *n);
 LUAI_FUNC int luaV_tointeger (const TValue *obj, lua_Integer *p, int mode);
+/** RAVI changes start **/
 LUAI_FUNC int luaV_tointeger_(const TValue *obj, lua_Integer *p);
 LUAI_FUNC void luaV_gettable (lua_State *L, const TValue *t, TValue *key,
                                             StkId val);
 LUAI_FUNC void luaV_settable (lua_State *L, const TValue *t, TValue *key,
                                             StkId val);
+/** RAVI changed end **/
 LUAI_FUNC void luaV_finishget (lua_State *L, const TValue *t, TValue *key,
                                StkId val, const TValue *slot);
 LUAI_FUNC void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
                                StkId val, const TValue *slot);
 LUAI_FUNC void luaV_finishOp (lua_State *L);
-/* The int return value is a Ravi extension */
+/* RAVI change: the int return value is a Ravi extension */
 LUAI_FUNC int luaV_execute (lua_State *L);
 LUAI_FUNC void luaV_concat (lua_State *L, int total);
 LUAI_FUNC lua_Integer luaV_div (lua_State *L, lua_Integer x, lua_Integer y);
@@ -116,7 +123,7 @@ LUAI_FUNC lua_Integer luaV_mod (lua_State *L, lua_Integer x, lua_Integer y);
 LUAI_FUNC lua_Integer luaV_shiftl (lua_Integer x, lua_Integer y);
 LUAI_FUNC void luaV_objlen (lua_State *L, StkId ra, const TValue *rb);
 
-/* RAVI changes for JIT */
+/* RAVI changes start for JIT */
 /* The following expose some of the VM opcodes for the JIT compiler */
 LUAI_FUNC int luaV_forlimit(const TValue *obj, lua_Integer *p, lua_Integer step,
   int *stopnow);

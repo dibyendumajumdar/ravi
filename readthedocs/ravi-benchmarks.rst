@@ -4,37 +4,39 @@ Ravi's reason for existence is to achieve greater performance than standard Lua 
 
 The programs used in the performance testing can be found at `Ravi Tests <https://github.com/dibyendumajumdar/ravi/tree/master/ravi-tests>`_ folder.
 
-+--------------------+-----------+----------+------------+---------------+-----------+
-| Program            | Lua5.3.2  | Ravi Int | Ravi(LLVM) | LuaJIT2.1 Int | LuaJIT2.1 |
-+====================+===========+==========+============+===============+===========+
-|fornum_test1.lua    | 8.952     | 8.327    | 0.321      | 3.516         | 0.312     |
-+--------------------+-----------+----------+------------+---------------+-----------+
-|fornum_test2.lua    | 9.195     | 9.205    | 4.73       | 3.75          | 0.922     |
-+--------------------+-----------+----------+------------+---------------+-----------+
-|fornum_test3.lua    | 52.494    | 47.367   | 4.722      | 16.74         | 7.75      |
-+--------------------+-----------+----------+------------+---------------+-----------+
-|mandel1.lua(4000)   | 20.324    | 20.436   | 8.186      | 8.469         | 1.594     |
-+--------------------+-----------+----------+------------+---------------+-----------+
-|mandel1.ravi(4000)  | n/a       | 16.67    | 1.572      | n/a           | n/a       |
-+--------------------+-----------+----------+------------+---------------+-----------+
-|fannkuchen.lua(11)  | 46.203    | 48.199   | 30.586     | 20.6          | 4.672     |
-+--------------------+-----------+----------+------------+---------------+-----------+
-|fannkuchen.ravi(11) | n/a       | 35.797   | 4.639      | n/a           | n/a       |
-+--------------------+-----------+----------+------------+---------------+-----------+
-|matmul1.lua(1000)   | 26.672    | 27.426   | 17.869     | 12.594        | 1.078     |
-+--------------------+-----------+----------+------------+---------------+-----------+
-|matmul1.ravi(1000)  | n/a       | 24.862   | 0.995      | n/a           | n/a       |
-+--------------------+-----------+----------+------------+---------------+-----------+
++-----------------------+-----------+----------+------------+---------------+-----------+
+| Program               | Lua5.3.2  | Ravi Int | Ravi(LLVM) | LuaJIT2.1 Int | LuaJIT2.1 |
++=======================+===========+==========+============+===============+===========+
+|fornum_test1.lua       | 8.94      | 8.587    | 0.309      | 3.516         | 0.312     |
++-----------------------+-----------+----------+------------+---------------+-----------+
+|fornum_test2.lua       | 9.195     | 9.243    | 4.446      | 3.75          | 0.922     |
++-----------------------+-----------+----------+------------+---------------+-----------+
+|fornum_test3.lua       | 52.494    | 48.223   | 4.748      | 16.74         | 7.75      |
++-----------------------+-----------+----------+------------+---------------+-----------+
+|mandel1.lua(4000)      | 20.324    | 19.835   | 8.056      | 8.469         | 1.594     |
++-----------------------+-----------+----------+------------+---------------+-----------+
+|mandel1.ravi(4000)     | n/a       | 16.192   | 1.571      | n/a           | n/a       |
++-----------------------+-----------+----------+------------+---------------+-----------+
+|fannkuchen.lua(11)     | 46.203    | 48.654   | 28.422     | 20.6          | 4.672     |
++-----------------------+-----------+----------+------------+---------------+-----------+
+|fannkuchen.ravi(11)    | n/a       | 34.411   | 4.634      | n/a           | n/a       |
++-----------------------+-----------+----------+------------+---------------+-----------+
+|matmul1.lua(1000)      | 26.672    | 26.51    | 16.83      | 12.594        | 1.078     |
++-----------------------+-----------+----------+------------+---------------+-----------+
+|matmul1_ravi.lua(1000) | n/a       | 20.123   | 1.137      | n/a           | n/a       |
++-----------------------+-----------+----------+------------+---------------+-----------+
+|matmul1.ravi(1000)     | n/a       | 25.387   | 1.039      | n/a           | n/a       |
++-----------------------+-----------+----------+------------+---------------+-----------+
 
 Following points are worth bearing in mind when looking at above benchmarks.
 
 1. For Ravi the timings above do not include the LLVM compilation time.
 
-2. The benchmarks were run on Windows 10 64-bit. LLVM version 3.7 was used.
+2. The benchmarks were run on Windows 10 64-bit. LLVM version 3.9 was used.
    Ravi and Lua 5.3.2 were compiled using Visual C++ 2015.
 
 3. Some of the Ravi benchmarks are based on code that uses optional static types;
-   additionally for the matmul benchmark a setting was used to disable
+   additionally for the `matmul` benchmark a setting was used to disable
    array bounds checks for array read operations.
 
 4. Above benchmarks are primarily numerical. In real life scenarios there
@@ -43,9 +45,9 @@ Following points are worth bearing in mind when looking at above benchmarks.
    not have a similar FFI interface. LuaJIT can also inline Lua function calls
    but Ravi does not have this ability and hence function calls go via the
    Lua infrastructure and are therefore expensive. Ravi's code generation is best
-   when types are annotated as otherwise the dynamic type checks kill performance
+   when types are annotated as otherwise the dynamic type checks degrade performance
    as above benchmarks show. Finally LLVM is a slow compiler relative to LuaJIT's
-   JIT compiler which is very very fast.
+   JIT compiler which is extremely fast.
 
 5. Performance of Lua 5.3.2 is better than 5.3.0 or 5.3.1, thanks to the 
    table optimizations in this version.

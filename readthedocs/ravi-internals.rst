@@ -5,6 +5,56 @@ Ravi Parsing and ByteCode Implementation Details
 This document covers the enhancements to the Lua parser and byte-code generator.
 The Ravi JIT implementation is described elsewhere.
 
+Introduction
+============
+Since the reason for introducing optional static typing is to enhance performance primarily - not all types benefit from this capability. In fact it is quite hard to extend this to generic recursive structures such as tables without encurring significant overhead. For instance - even to represent a recursive type in the parser will require dynamic memory allocation and add great overhead to the parser.
+
+From a performance point of view the only types that seem worth specializing are:
+
+* integer (64-bit int)
+* number (double)
+* array of integers
+* array of numbers
+* table
+
+Implementation Strategy
+=======================
+I want to build on existing Lua types rather than introducing completely new types to the Lua system. I quite like the minimalist nature of Lua. However, to make the execution efficient I am adding new type specific opcodes and enhancing the Lua parser/code generator to encode these opcodes only when types are known. The new opcodes will execute more efficiently as they will not need to perform type checks. Morever, type specific instructions will lend themselves to more efficient JIT compilation.
+
+I am adding new opcodes that cover arithmetic operations, array operations, variable assignments, etc..
+
+Modifications to Lua Bytecode structure
+=======================================
+An immediate issue is that the Lua bytecode structure has a 6-bit opcode which is insufficient to hold the various opcodes that I will need. Simply extending the size of this is problematic as then it reduces the space available to the operands A B and C. Furthermore the way Lua bytecodes work means that B and C operands must be 1-bit larger than A - as the extra bit is used to flag whether the operand refers to a constant or a register. (Thanks to Dirk Laurie for pointing this out). 
+
+I am amending the bit mapping in the 32-bit instruction to allow 9-bits for the byte-code, 7-bits for operand A, and 8-bits for operands B and C. This means that some of the Lua limits (maximum number of variables in a function, etc.) have to be revised to be lower than the default.
+
+New OpCodes
+===========
+The new instructions are specialised for types, and also for register/versus constant. So for example ``OP_RAVI_ADDFI`` means add ``number`` and ``integer``. And ``OP_RAVI_ADDFF`` means add ``number`` and ``number``. The existing Lua opcodes that these are based on define which operands are used.
+
+Example::
+
+  local i=0; i=i+1
+
+Above standard Lua code compiles to::
+
+  [0] LOADK A=0 Bx=-1
+  [1] ADD A=0 B=0 C=-2
+  [2] RETURN A=0 B=1
+
+We add type info using Ravi extensions::
+
+  local i:integer=0; i=i+1
+
+Now the code compiles to::
+
+  [0] LOADK A=0 Bx=-1
+  [1] ADDII A=0 B=0 C=-2
+  [2] RETURN A=0 B=1
+
+Above uses type specialised opcode ``OP_RAVI_ADDII``. 
+
 Type Information
 ================
 The basic first step is to add type information to Lua. 

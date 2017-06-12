@@ -1,5 +1,5 @@
 /*
-** $Id: lua.h,v 1.331 2016/05/30 15:53:28 roberto Exp $
+** $Id: lua.h,v 1.332 2016/12/22 15:51:20 roberto Exp $
 ** Lua - A Scripting Language
 ** Lua.org, PUC-Rio, Brazil (http://www.lua.org)
 ** See Copyright Notice at the end of this file
@@ -19,11 +19,11 @@
 #define LUA_VERSION_MAJOR	"5"
 #define LUA_VERSION_MINOR	"3"
 #define LUA_VERSION_NUM		503
-#define LUA_VERSION_RELEASE	"3"
+#define LUA_VERSION_RELEASE	"4"
 
 #define LUA_VERSION	"Ravi " LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
 #define LUA_RELEASE	LUA_VERSION "." LUA_VERSION_RELEASE
-#define LUA_COPYRIGHT	LUA_RELEASE "\nCopyright (C) 1994-2016 Lua.org, PUC-Rio\nPortions Copyright (C) 2015-2016 Dibyendu Majumdar"
+#define LUA_COPYRIGHT	LUA_RELEASE "\nCopyright (C) 1994-2017 Lua.org, PUC-Rio\nPortions Copyright (C) 2015-2017 Dibyendu Majumdar"
 #define LUA_AUTHORS	"R. Ierusalimschy, L. H. de Figueiredo, W. Celes, Dibyendu Majumdar"
 
 
@@ -123,9 +123,11 @@ typedef int (*lua_Writer) (lua_State *L, const void *p, size_t sz, void *ud);
 */
 typedef void * (*lua_Alloc) (void *ud, void *ptr, size_t osize, size_t nsize);
 
+/** RAVI change start **/
 typedef void(*ravi_Writestring)(const char *s, size_t len);
 typedef void(*ravi_Writeline)(void);
 typedef void(*ravi_Writestringerror)(const char *fmt, const char *p);
+/** RAVI change end **/
 
 /*
 ** generic extra include file
@@ -179,9 +181,11 @@ LUA_API int             (lua_isinteger) (lua_State *L, int idx);
 LUA_API int             (lua_isuserdata) (lua_State *L, int idx);
 LUA_API int             (lua_type) (lua_State *L, int idx);
 LUA_API const char     *(lua_typename) (lua_State *L, int tp);
-/* This is a Ravi extension - it is similar to lua_typename() except
-   that it provides more granular type information, and also uses
-   metamethod __name() if available for userdata and table types */
+/* RAVI change:
+** This is a Ravi extension - it is similar to lua_typename() except
+** that it provides more granular type information, and also uses
+** metamethod __name() if available for userdata and table types 
+*/
 LUA_API const char *    (ravi_typename) (lua_State *L, int idx);
 
 LUA_API lua_Number      (lua_tonumberx) (lua_State *L, int idx, int *isnum);
@@ -458,7 +462,7 @@ struct lua_Debug {
   char isvararg;        /* (u) */
   char istailcall;	/* (t) */
   char short_src[LUA_IDSIZE]; /* (S) */
-  short stacklevel; /* Ravi: Current stack level within the Lua State - base level is 0 */
+  short stacklevel; /* RAVI change: Current stack level within the Lua State - base level is 0 */
   /* private part */
   struct CallInfo *i_ci;  /* active function */
 };
@@ -553,11 +557,12 @@ LUA_API void ravi_set_debuglevel(int level);
 #define RAVI_DEBUG_STACK(p) if ((ravi_parser_debug & 8) != 0) {p;} else {}
 
 #define RAVI_ENABLED 1
+#define RAVI_BYTECODE_PROFILING_ENABLED 0
 
 
 
 /******************************************************************************
-* Copyright (C) 1994-2016 Lua.org, PUC-Rio.
+* Copyright (C) 1994-2017 Lua.org, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the

@@ -103,13 +103,9 @@ The integer 4503599627370495 takes up 52 bits - so that means 6 8-bit values and
 4-bit value can be accomodated.
 */
 typedef struct {
-  unsigned int a8;
-  unsigned int b8;
-  unsigned int c8;
-  unsigned int d8;
-  unsigned int e8;
-  unsigned int f8;
-  unsigned int g4;
+  unsigned int x8[5];
+  unsigned int depth;
+  unsigned int vartype;
 } PackedInteger;
 
 typedef struct {
@@ -144,6 +140,7 @@ typedef struct {
 
 typedef struct {
   char name[NAME_LEN];
+  char type[NAME_LEN];
   char value[VALUE_LEN];
   int64_t variablesReference;
 } Variable;

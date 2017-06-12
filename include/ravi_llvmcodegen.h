@@ -351,6 +351,7 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_Table_array;
   llvm::MDNode *tbaa_Table_flags;
   llvm::MDNode *tbaa_Table_metatable;
+  llvm::MDNode *tbaa_Table_hmask;
 };
 
 // The hierarchy of objects
@@ -472,7 +473,8 @@ class RaviJITFunction {
   const std::string &name() const { return name_; }
   llvm::Function *function() const { return function_; }
   llvm::Module *module() const { return module_->module(); }
-  RaviJITModule *raviModule() const { return module_.get(); }
+  std::shared_ptr<RaviJITModule> raviModule() const { return module_; }
+
   llvm::ExecutionEngine *engine() const { return module_->engine(); }
   RaviJITState *owner() const { return module_->owner(); }
   // This method retrieves the JITed function from the
@@ -527,6 +529,10 @@ class RaviJITState {
   // instruction; this is expensive!
   bool tracehook_enabled_;
 
+  // Count of modules allocated
+  // Used to debug module deallocation
+  size_t allocated_modules_;
+
  public:
   RaviJITState();
   ~RaviJITState();
@@ -561,6 +567,9 @@ class RaviJITState {
   void set_gcstep(int value) { gc_step_ = value > 0 ? value : gc_step_; }
   bool is_tracehook_enabled() const { return tracehook_enabled_; }
   void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
+  void incr_allocated_modules() { allocated_modules_++; }
+  void decr_allocated_modules() { allocated_modules_--; }
+  size_t allocated_modules() const { return allocated_modules_; }
 };
 
 // To optimise fornum loops
@@ -748,6 +757,9 @@ class RaviCodeGenerator {
                               llvm::Value *arg3, llvm::Value *arg4,
                               llvm::Value *arg5);
 
+  void attach_branch_weights(RaviFunctionDef *def, llvm::Instruction *ins,
+                             uint32_t true_branch, uint32_t false_branch);
+
   void emit_raise_lua_error(RaviFunctionDef *def, const char *str);
 
   // Add extern declarations for Lua functions we need to call
@@ -797,9 +809,11 @@ class RaviCodeGenerator {
   // The return value is a boolean type as a result of
   // integer comparison result which is i1 in LLVM
   llvm::Value *emit_is_not_value_of_type_class(
-    RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
-    const char *varname = "value.not.typeof");
+      RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
+      const char *varname = "value.not.typeof");
 
+  // emit code for LClosure *cl = clLvalue(ci->func)
+  // this is same as:
   // emit code for (LClosure *)ci->func->value_.gc
   llvm::Instruction *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def);
 
@@ -832,8 +846,10 @@ class RaviCodeGenerator {
   // emit code to obtain address of constant at locatiion B
   llvm::Value *emit_gep_constant(RaviFunctionDef *def, int B);
 
+#if 0
   llvm::Value *emit_is_jit_call(RaviFunctionDef *def, llvm::Value *ci);
   llvm::Value *emit_ci_is_Lua(RaviFunctionDef *def, llvm::Value *ci);
+#endif
 
   // obtain address of L->top
   llvm::Value *emit_gep_L_top(RaviFunctionDef *def);
@@ -862,25 +878,39 @@ class RaviCodeGenerator {
   llvm::Instruction *emit_load_reg_h(RaviFunctionDef *def, llvm::Value *ra);
 
   // Gets the size of the hash table
+  // This is the sizenode() macro in lobject.h
   llvm::Value *emit_table_get_hashsize(RaviFunctionDef *def,
                                        llvm::Value *table);
 
-  // Gets the location of the hash node for given key and table size
+  // Gets the location of the hash node for given string key
+  // return value is the offset into the node array
   llvm::Value *emit_table_get_hashstr(RaviFunctionDef *def, llvm::Value *table,
                                       TString *key);
 
+  // Gets access to the Table's node array (t->node)
   llvm::Value *emit_table_get_nodearray(RaviFunctionDef *def,
                                         llvm::Value *table);
 
+  // Given a pointer to table's node array (node = t->node) and
+  // the location of the hashed key (index), this method retrieves the
+  // type of the value stored at the node - return value is of type int
+  // and is the type information stored in TValue->tt field.
   llvm::Value *emit_table_get_keytype(RaviFunctionDef *def, llvm::Value *node,
                                       llvm::Value *index);
 
+  // Given a pointer to table's node array (node = t->node) and
+  // the location of the hashed key (index), this method retrieves the
+  // the string value stored at the node - return value is of type TString*
   llvm::Value *emit_table_get_strkey(RaviFunctionDef *def, llvm::Value *node,
                                      llvm::Value *index);
 
+  // Given a pointer to table's node array (node = t->node) and
+  // the location of the hashed key (index), this method retrieves the
+  // the pointer to value stored at the node - return value is of type TValue*
   llvm::Value *emit_table_get_value(RaviFunctionDef *def, llvm::Value *node,
                                     llvm::Value *index);
 
+  // Gets the size of the table's array part
   llvm::Value *emit_table_get_arraysize(RaviFunctionDef *def,
                                         llvm::Value *table);
 
@@ -1015,6 +1045,9 @@ class RaviCodeGenerator {
   void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms,
                   int pc);
 
+  void emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C, OpCode op,
+                      TMS tms, int pc);
+
   void emit_MOD(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_IDIV(RaviFunctionDef *def, int A, int B, int C, int pc);
@@ -1101,7 +1134,8 @@ class RaviCodeGenerator {
   void emit_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, int pc,
                        TString *key);
 
-  void emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
+  void emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc,
+                        TString *key);
 
   void emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
 
@@ -1118,8 +1152,8 @@ class RaviCodeGenerator {
   void emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C,
                               TString *key);
 
-  void emit_common_GETTABLE_S_(RaviFunctionDef *def, int A, llvm::Value *rb, int C,
-    TString *key);
+  void emit_common_GETTABLE_S_(RaviFunctionDef *def, int A, llvm::Value *rb,
+                               int C, TString *key);
 
   void emit_GETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
@@ -1206,8 +1240,8 @@ class RaviCodeGenerator {
 
   void emit_BNOT_I(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int A, int B,
-    int C, int pc);
+  void emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int A, int B, int C,
+                          int pc);
 
   void emit_BNOT(RaviFunctionDef *def, int A, int B, int pc);
 

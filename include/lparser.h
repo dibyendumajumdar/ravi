@@ -66,7 +66,7 @@ typedef struct expdesc {
       short idx;  /* index (R/K) */
       lu_byte t;  /* table (register or upvalue) */
       lu_byte vt;  /* whether 't' is register (VLOCAL) or upvalue (VUPVAL) */
-      ravitype_t key_type; /* key type */
+      ravitype_t key_type; /* RAVI change: key type */
     } ind;
   } u;
   int t;  /* patch list of 'exit when true' */
@@ -238,11 +238,10 @@ typedef struct FuncState {
 LUAI_FUNC LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
                                  Dyndata *dyd, const char *name, int firstchar);
 
-
 LUAI_FUNC LClosure *raviY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
                                  Dyndata *dyd, const char *name, int firstchar);
 
-
+/** RAVI extensions **/
 LUAI_FUNC const char *raviY_typename(ravitype_t tt);
 
 /* Special printf that recognises following conversions:

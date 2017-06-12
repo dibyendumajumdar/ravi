@@ -27,7 +27,7 @@
 
 #include "llvm/Config/llvm-config.h"
 
-#if (LLVM_VERSION_MAJOR != 3 || LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR < 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 5)
 #error Unsupported LLVM version
 #endif
 
@@ -46,7 +46,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/IR/Metadata.h"
-#if LLVM_VERSION_MINOR < 7
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7
 #include "llvm/PassManager.h"
 #else
 #include "llvm/IR/LegacyPassManager.h"

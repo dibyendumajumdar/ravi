@@ -82,6 +82,7 @@ typedef LUAI_UACINT l_uacInt;
 
 /* internal assertions for in-house debugging */
 #if defined(lua_assert)
+/** RAVI changes */
 #if !defined(RAVI_OPTION_STRING1)
 #define RAVI_OPTION_STRING1 " assertions"
 #endif
@@ -95,6 +96,7 @@ typedef LUAI_UACINT l_uacInt;
 #define lua_assert(c)		((void)0)
 #define check_exp(c,e)		(e)
 #define lua_longassert(c)	((void)0)
+/** RVAI changes */
 #define RAVI_OPTION_STRING1
 #define RAVI_OPTION_STRING2
 #endif

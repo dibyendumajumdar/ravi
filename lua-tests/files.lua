@@ -1,4 +1,5 @@
--- $Id: files.lua,v 1.93 2016/04/13 16:25:31 roberto Exp $
+-- $Id: files.lua,v 1.95 2016/11/07 13:11:28 roberto Exp $
+-- See Copyright Notice in file all.lua
 
 local debug = require "debug"
 
@@ -13,7 +14,7 @@ assert(io.output(io.stdout) == io.stdout)
 
 local function testerr (msg, f, ...)
   local stat, err = pcall(f, ...)
-  print(err)
+  -- print(err)
   return (not stat and string.find(err, msg, 1, true))
 end
 
@@ -677,6 +678,8 @@ print("testing date/time")
 
 assert(os.date("") == "")
 assert(os.date("!") == "")
+assert(os.date("\0\0") == "\0\0")
+assert(os.date("!\0\0") == "\0\0")
 local x = string.rep("a", 10000)
 assert(os.date(x) == x)
 local t = os.time()
@@ -700,6 +703,8 @@ checkerr("invalid conversion specifier", os.date, "%Ea")
 
 checkerr("not an integer", os.time, {year=1000, month=1, day=1, hour='x'})
 checkerr("not an integer", os.time, {year=1000, month=1, day=1, hour=1.5})
+
+checkerr("missing", os.time, {hour = 12})   -- missing date
 
 if not _port then
   -- test Posix-specific modifiers
@@ -734,11 +739,6 @@ if not _port then
 end
 
 
--- assume that time has at least 1-second precision
-assert(math.abs(os.difftime(os.time(D), t)) < 1)
-
-assert(not pcall(os.time, {hour = 12}))   -- missing date
-
 D = os.date("!*t", t)
 load(os.date([[!assert(D.year==%Y and D.month==%m and D.day==%d and
   D.hour==%H and D.min==%M and D.sec==%S and
@@ -759,11 +759,13 @@ local t1 = os.time(D)
 -- allow for leap years
 assert(math.abs(os.difftime(t,t1)/(24*3600) - 365) < 2)
 
--- should not take more than 2 second to execute these two lines
+-- should not take more than 1 second to execute these two lines
 t = os.time()
 t1 = os.time(os.date("*t"))
-t1 = os.difftime(t1,t)
-assert(0 <= t1 and t1 <= 2)
+local diff = os.difftime(t1,t)
+assert(0 <= diff and diff <= 1)
+diff = os.difftime(t,t1)
+assert(-1 <= diff and diff <= 0)
 
 local t1 = os.time{year=2000, month=10, day=1, hour=23, min=12}
 local t2 = os.time{year=2000, month=10, day=1, hour=23, min=10, sec=19}

@@ -1,5 +1,5 @@
 /*
-** $Id: lua.c,v 1.226 2015/08/14 19:11:20 roberto Exp $
+** $Id: lua.c,v 1.230 2017/01/12 17:14:26 roberto Exp $
 ** Lua stand-alone interpreter
 ** See Copyright Notice in lua.h
 */
@@ -20,6 +20,7 @@
 #include "lualib.h"
 
 
+
 #if !defined(LUA_PROMPT)
 #define LUA_PROMPT		"> "
 #define LUA_PROMPT2		">> "
@@ -37,8 +38,7 @@
 #define LUA_INIT_VAR		"LUA_INIT"
 #endif
 
-#define LUA_INITVARVERSION  \
-	LUA_INIT_VAR "_" LUA_VERSION_MAJOR "_" LUA_VERSION_MINOR
+#define LUA_INITVARVERSION	LUA_INIT_VAR LUA_VERSUFFIX
 
 #ifdef USE_LLVM
 #define RAVI_OPTION_STRING3 " LLVM"
@@ -64,6 +64,8 @@
 #elif defined(LUA_USE_WINDOWS)	/* }{ */
 
 #include <io.h>
+#include <windows.h>
+
 #define lua_stdin_is_tty()	_isatty(_fileno(stdin))
 
 #else				/* }{ */
@@ -467,7 +469,7 @@ static int handle_script (lua_State *L, char **argv) {
 /*
 ** Traverses all arguments from 'argv', returning a mask with those
 ** needed before running any Lua code (or an error code if it finds
-** any invalid argument). 'first' returns the first not-handled argument 
+** any invalid argument). 'first' returns the first not-handled argument
 ** (either the script name or a bad argument in case of error).
 */
 static int collectargs (char **argv, int *first) {
@@ -491,7 +493,7 @@ static int collectargs (char **argv, int *first) {
         args |= has_E;
         break;
       case 'i':
-        args |= has_i;  /* (-i implies -v) *//* FALLTHROUGH */ 
+        args |= has_i;  /* (-i implies -v) *//* FALLTHROUGH */
       case 'v':
         if (argv[i][2] != '\0')  /* extra characters after 1st? */
           return has_error;  /* invalid option */
@@ -537,6 +539,7 @@ static int runargs (lua_State *L, char **argv, int n) {
   }
   return 1;
 }
+
 
 
 static int handle_luainit (lua_State *L) {
@@ -599,11 +602,6 @@ static int pmain (lua_State *L) {
   return 1;
 }
 
-#if 0
-// For debugging
-LUA_API int ravi_get_modulecount();
-#endif
-
 int main (int argc, char **argv) {
   int status, result;
   lua_State *L = luaL_newstate();  /* create state */
@@ -629,10 +627,6 @@ int main (int argc, char **argv) {
   result = lua_toboolean(L, -1);  /* get result */
   report(L, status);
   lua_close(L);
-#if 0
-  // For debugging - should be 0
-  fprintf(stderr, "Modules at exit %d\n", ravi_get_modulecount());
-#endif
   return (result && status == LUA_OK) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
