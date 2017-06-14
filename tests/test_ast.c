@@ -33,5 +33,8 @@ int main(void)
     int failures = 0;
     //
     failures += test_buildast("return");
+    failures += test_buildast("return 1");
+    failures += test_buildast("return 1+2");
+
     return failures ? 1 : 0;
 }
