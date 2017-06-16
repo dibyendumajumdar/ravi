@@ -25,6 +25,7 @@
 This will hopefully eventually contain a Lua binding for LLVM.
 */
 
+#include <dmr_c_llvm.h>
 #include <ravijit.h>
 #include "ravi_llvmcodegen.h"
 
@@ -198,9 +199,10 @@ struct ModuleHolder {
 
   ModuleHolder(const std::shared_ptr<ravi::RaviJITModule> &module) {
     M = module;
-    //printf("ModuleHolder created\n");
+    // printf("ModuleHolder created\n");
   }
-  ~ModuleHolder() { /* printf("ModuleHolder destroyed\n");*/ }
+  ~ModuleHolder() { /* printf("ModuleHolder destroyed\n");*/
+  }
 };
 
 struct PhiNodeHolder {
@@ -624,6 +626,13 @@ static int context_new_lua_CFunction(lua_State *L) {
   return 1;
 }
 
+static int context_new_module(lua_State *L) {
+  ContextHolder *context = check_LLVM_context(L, 1);
+  alloc_LLVM_module(L,
+                    std::make_shared<ravi::RaviJITModule>(context->jitState));
+  return 1;
+}
+
 static int func_getmodule(lua_State *L) {
   MainFunctionHolder *f = check_LLVM_mainfunction(L, 1);
   alloc_LLVM_module(L, f->func->raviModule());
@@ -645,6 +654,28 @@ static int module_newfunction(lua_State *L) {
   alloc_LLVM_function(L, f);
   return 1;
 }
+
+static int module_compile_C(lua_State *L) {
+  ModuleHolder *mh = check_LLVM_module(L, 1);
+  const char *codebuffer = luaL_checkstring(L, 2);
+  char *argv[] = {NULL};
+  int argc = 0;
+  if (dmrC_llvmcompile(argc, argv, llvm::wrap(mh->M->module()), codebuffer)) {
+    lua_pushboolean(L, true);
+  }
+  else {
+    lua_pushboolean(L, false);
+  }
+  return 1;
+}
+
+static int module_generate_code(lua_State *L) {
+    ModuleHolder *mh = check_LLVM_module(L, 1);
+    mh->M->runpasses();
+    mh->M->finalize();
+    return 0;
+}
+
 
 static int context_new_basicblock(lua_State *L) {
   ContextHolder *context = check_LLVM_context(L, 1);
@@ -1220,8 +1251,11 @@ static const luaL_Reg llvmlib[] = {
 static const luaL_Reg structtype_methods[] = {{"setbody", struct_add_members},
                                               {NULL, NULL}};
 
-static const luaL_Reg module_methods[] = {
-    {"newfunction", module_newfunction}, {"dump", dump_content}, {NULL, NULL}};
+static const luaL_Reg module_methods[] = {{"newfunction", module_newfunction},
+                                          {"compileC", module_compile_C},
+                                          {"dump", dump_content},
+                                          {"generatecode", module_generate_code},
+                                          {NULL, NULL}};
 
 static const luaL_Reg main_function_methods[] = {
     {"appendblock", func_append_basicblock},
@@ -1248,6 +1282,7 @@ static const luaL_Reg context_methods[] = {
     {"basicblock", context_new_basicblock},
     {"intconstant", context_intconstant},
     {"nullconstant", context_nullconstant},
+    {"newmodule", context_new_module},
     {NULL, NULL}};
 
 static const luaL_Reg phi_methods[] = {{"addincoming", phi_addincoming},

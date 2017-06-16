@@ -36,6 +36,78 @@ namespace ravi {
 // see below
 static std::atomic_int init;
 
+static struct {
+  const char *name;
+  void *address;
+} global_syms[] = {{"lua_absindex", lua_absindex},
+                   {"lua_gettop", lua_gettop},
+                   {"lua_settop", lua_settop},
+                   {"lua_pushvalue", lua_pushvalue},
+                   {"lua_rotate", lua_rotate},
+                   {"lua_copy", lua_copy},
+                   {"lua_checkstack", lua_checkstack},
+                   {"lua_xmove", lua_xmove},
+                   {"lua_isnumber", lua_isnumber},
+                   {"lua_isstring", lua_isstring},
+                   {"lua_iscfunction", lua_iscfunction},
+                   {"lua_isinteger", lua_isinteger},
+                   {"lua_isuserdata", lua_isuserdata},
+                   {"lua_type", lua_type},
+                   {"lua_typename", lua_typename},
+                   {"lua_tonumberx", lua_tonumberx},
+                   {"lua_tointegerx", lua_tointegerx},
+                   {"lua_toboolean", lua_toboolean},
+                   {"lua_tolstring", lua_tolstring},
+                   {"lua_rawlen", lua_rawlen},
+                   {"lua_tocfunction", lua_tocfunction},
+                   {"lua_touserdata", lua_touserdata},
+                   {"lua_tothread", lua_tothread},
+                   {"lua_topointer", lua_topointer},
+                   {"lua_arith", lua_arith},
+                   {"lua_rawequal", lua_rawequal},
+                   {"lua_compare", lua_compare},
+                   {"lua_pushnil", lua_pushnil},
+                   {"lua_pushnumber", lua_pushnumber},
+                   {"lua_pushinteger", lua_pushinteger},
+                   {"lua_pushlstring", lua_pushlstring},
+                   {"lua_pushstring", lua_pushstring},
+                   {"lua_pushvfstring", lua_pushvfstring},
+                   {"lua_pushfstring", lua_pushfstring},
+                   {"lua_pushcclosure", lua_pushcclosure},
+                   {"lua_pushboolean", lua_pushboolean},
+                   {"lua_pushlightuserdata", lua_pushlightuserdata},
+                   {"lua_pushthread", lua_pushthread},
+                   {"lua_getglobal", lua_getglobal},
+                   {"lua_gettable", lua_gettable},
+                   {"lua_getfield", lua_getfield},
+                   {"lua_geti", lua_geti},
+                   {"lua_rawget", lua_rawget},
+                   {"lua_rawgeti", lua_rawgeti},
+                   {"lua_rawgetp", lua_rawgetp},
+                   {"lua_createtable", lua_createtable},
+                   {"lua_newuserdata", lua_newuserdata},
+                   {"lua_getmetatable", lua_getmetatable},
+                   {"lua_getuservalue", lua_getuservalue},
+                   {"lua_setglobal", lua_setglobal},
+                   {"lua_settable", lua_settable},
+                   {"lua_setfield", lua_setfield},
+                   {"lua_seti", lua_seti},
+                   {"lua_rawset", lua_rawset},
+                   {"lua_rawseti", lua_rawseti},
+                   {"lua_rawsetp", lua_rawsetp},
+                   {"lua_setmetatable", lua_setmetatable},
+                   {"lua_setuservalue", lua_setuservalue},
+                   {"lua_gc", lua_gc},
+                   {"lua_error", lua_error},
+                   {"lua_next", lua_next},
+                   {"lua_concat", lua_concat},
+                   {"lua_len", lua_len},
+                   {"lua_stringtonumber", lua_stringtonumber},
+
+                   {"printf", printf},
+                   {"puts", puts},
+                   {nullptr, nullptr}};
+
 // Construct the JIT compiler state
 // The JIT compiler state will be attached to the
 // lua_State - all compilation activity happens
@@ -58,10 +130,13 @@ RaviJITState::RaviJITState()
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
+    //TODO see email trail on resolving symbols in process
+    //llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
     init++;
   }
   triple_ = llvm::sys::getProcessTriple();
-#if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7)
+#if defined(_WIN32) && \
+    (!defined(_WIN64) || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7)
   // On Windows we get compilation error saying incompatible object format
   // Reading posts on mailing lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set -elf as the object
@@ -70,6 +145,11 @@ RaviJITState::RaviJITState()
 #endif
   context_ = new llvm::LLVMContext();
   types_ = new LuaLLVMTypes(*context_);
+
+  for (int i = 0; global_syms[i].name != nullptr; i++) {
+    llvm::sys::DynamicLibrary::AddSymbol(global_syms[i].name,
+                                         global_syms[i].address);
+  }
 }
 
 // Destroy the JIT state freeing up any
@@ -115,14 +195,15 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
            layout->getTypeAllocSize(owner->types()->lua_StateT));
     delete layout;
   }
-#if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7)
+#if defined(_WIN32) && \
+    (!defined(_WIN64) || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7)
   // On Windows we get error saying incompatible object format
   // Reading posts on mailing lists I found that the issue is that COEFF
   // format is not supported and therefore we need to set
   // -elf as the object format; LLVM 3.7 onwards COEFF is supported
   module_->setTargetTriple(owner->triple());
 #endif
-#if LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 5 
+#if LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 5
   // LLVM 3.6.0 change
   std::unique_ptr<llvm::Module> module(module_);
   llvm::EngineBuilder builder(std::move(module));
@@ -151,7 +232,7 @@ RaviJITModule::~RaviJITModule() {
     // module as it would have been deleted by the engine
     delete module_;
   owner_->decr_allocated_modules();
-#if 0
+#if 1
   //fprintf(stderr, "module destroyed\n");
 #endif
 }
@@ -221,7 +302,8 @@ void RaviJITModule::runpasses(bool dumpAsm) {
     auto target_layout = engine_->getTargetMachine()->getDataLayout();
     module_->setDataLayout(target_layout);
     FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
-#elif LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7
+#elif LLVM_VERSION_MAJOR > 3 || \
+    LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7
 // Apparently no need to set DataLayout
 #else
 #error Unsupported LLVM version
