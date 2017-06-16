@@ -13,6 +13,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(GCC_JIT "Controls whether GCC JIT compilation will be enabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
+option(EMBEDDED_C_JIT "Controls whether the embedded dmrC JIT feature should be enabled, default is OFF" OFF)
 
 # We cannot link to both LLVM and GCC JIT
 if (LLVM_JIT AND GCC_JIT)
@@ -36,6 +37,11 @@ if (LLVM_JIT)
     include_directories(${LLVM_INCLUDE_DIRS})
     add_definitions(${LLVM_DEFINITIONS})
     add_definitions(-DUSE_LLVM)
+endif()
+
+if (NOT LLVM_JIT AND EMBEDDED_C_JIT)
+    message(FATAL_ERROR
+            "LLVM_JIT must be set to ON to enable EMBEDDED_C_JIT")
 endif()
 
 if (GCC_JIT)
@@ -162,6 +168,74 @@ elseif (NOT WIN32)
     set(EXTRA_LIBRARIES m dl readline)
 endif ()
 
+if (EMBEDDED_C_JIT)
+    if (CMAKE_COMPILER_IS_GNUCC)
+        execute_process(COMMAND ${CMAKE_C_COMPILER} --print-file-name=
+            OUTPUT_VARIABLE GCC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
+        execute_process(COMMAND ${CMAKE_C_COMPILER} -print-multiarch
+            OUTPUT_VARIABLE MULTIARCH_TRIPLET ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+        add_definitions(-DGCC_BASE="${GCC_BASE}")
+        add_definitions(-DMULTIARCH_TRIPLET="${MULTIARCH_TRIPLET}")
+    endif()
+
+    message( STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
+    message( STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET} )
+
+    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
+    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
+
+    set(DMR_C_HEADERS 
+        dmr_c/src/allocate.h
+        dmr_c/src/char.h
+        dmr_c/src/dmr_c.h
+        dmr_c/src/expression.h
+        dmr_c/src/flow.h
+        dmr_c/src/ident-list.h
+        dmr_c/src/linearize.h
+        dmr_c/src/parse.h
+        dmr_c/src/port.h 
+        dmr_c/src/ptrlist.h
+        dmr_c/src/scope.h
+        dmr_c/src/symbol.h
+        dmr_c/src/target.h
+        dmr_c/src/token.h 
+        )
+
+    set(DMR_C_SRCS 
+        dmr_c/src/allocate.c
+        dmr_c/src/builtin.c
+        dmr_c/src/char.c
+        dmr_c/src/cse.c
+        dmr_c/src/dmr_c.c
+        dmr_c/src/expression.c
+        dmr_c/src/evaluate.c
+        dmr_c/src/expand.c
+        dmr_c/src/flow.c
+        dmr_c/src/inline.c
+        dmr_c/src/linearize.c
+        dmr_c/src/liveness.c
+        dmr_c/src/memops.c
+        dmr_c/src/parse.c
+        dmr_c/src/target.c
+        dmr_c/src/tokenize.c
+        dmr_c/src/pre-process.c
+        dmr_c/src/ptrlist.c
+        dmr_c/src/scope.c
+        dmr_c/src/show-parse.c
+        dmr_c/src/simplify.c
+        dmr_c/src/symbol.c
+        dmr_c/src/unssa.c
+        dmr_c/llvm-backend/sparse-llvm.c
+        )
+
+    if (MSVC OR APPLE)
+        source_group("dmrC Headers" FILES ${DMR_C_HEADERS})
+        source_group("dmrC Source Files" FILES ${DMR_C_SRCS})
+    endif()
+endif()
+
+
 # Enable minimal required LLVM components so that the
 # the size of the resulting binary is manageable
 if (LLVM_JIT)
@@ -233,7 +307,10 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${LUA_CORE_SRCS}
         ${LLVM_JIT_SRCS}
         ${GCC_JIT_SRCS}
-        ${NO_JIT_SRCS})
+        ${NO_JIT_SRCS}
+        ${DMR_C_HEADERS}
+        ${DMR_C_SRCS}
+        )
 if (NOT STATIC_BUILD)
     if (WIN32)
       # enable DLL export
