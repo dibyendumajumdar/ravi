@@ -1,0 +1,3 @@
+[submodule "dmr_c"]
+	path = dmr_c
+	url = https://github.com/dibyendumajumdar/dmr_c.git
