@@ -13,7 +13,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(GCC_JIT "Controls whether GCC JIT compilation will be enabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
-option(EMBEDDED_C_JIT "Controls whether the embedded dmrC JIT feature should be enabled, default is OFF" OFF)
+option(EMBEDDED_DMRC "Controls whether the embedded dmrC feature should be enabled, default is OFF" OFF)
 
 # We cannot link to both LLVM and GCC JIT
 if (LLVM_JIT AND GCC_JIT)
@@ -39,9 +39,8 @@ if (LLVM_JIT)
     add_definitions(-DUSE_LLVM)
 endif()
 
-if (NOT LLVM_JIT AND EMBEDDED_C_JIT)
-    message(FATAL_ERROR
-            "LLVM_JIT must be set to ON to enable EMBEDDED_C_JIT")
+if (EMBEDDED_DMRC)
+    add_definitions(-DUSE_DMR_C)
 endif()
 
 if (GCC_JIT)
@@ -168,7 +167,7 @@ elseif (NOT WIN32)
     set(EXTRA_LIBRARIES m dl readline)
 endif ()
 
-if (EMBEDDED_C_JIT)
+if (EMBEDDED_DMRC)
     if (CMAKE_COMPILER_IS_GNUCC)
         execute_process(COMMAND ${CMAKE_C_COMPILER} --print-file-name=
             OUTPUT_VARIABLE GCC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -183,7 +182,6 @@ if (EMBEDDED_C_JIT)
     message( STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET} )
 
     include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
-    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
 
     set(DMR_C_HEADERS 
         dmr_c/src/allocate.h
@@ -226,12 +224,20 @@ if (EMBEDDED_C_JIT)
         dmr_c/src/simplify.c
         dmr_c/src/symbol.c
         dmr_c/src/unssa.c
-        dmr_c/llvm-backend/sparse-llvm.c
+        src/ravi_dmrc_parsesymbols.c
         )
 
+    if (LLVM_JIT)
+        set(DMR_C_JIT_SRCS
+            dmr_c/llvm-backend/sparse-llvm.c
+            )
+
+        include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
+    endif()
+    
     if (MSVC OR APPLE)
         source_group("dmrC Headers" FILES ${DMR_C_HEADERS})
-        source_group("dmrC Source Files" FILES ${DMR_C_SRCS})
+        source_group("dmrC Source Files" FILES ${DMR_C_SRCS} ${DMR_C_JIT_SRCS})
     endif()
 endif()
 
@@ -310,6 +316,7 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${NO_JIT_SRCS}
         ${DMR_C_HEADERS}
         ${DMR_C_SRCS}
+        ${DMR_C_JIT_SRCS}
         )
 if (NOT STATIC_BUILD)
     if (WIN32)

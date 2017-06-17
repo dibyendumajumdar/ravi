@@ -660,12 +660,16 @@ static int module_compile_C(lua_State *L) {
   const char *codebuffer = luaL_checkstring(L, 2);
   char *argv[] = {NULL};
   int argc = 0;
+#if USE_LLVM
   if (dmrC_llvmcompile(argc, argv, llvm::wrap(mh->M->module()), codebuffer)) {
     lua_pushboolean(L, true);
   }
   else {
     lua_pushboolean(L, false);
   }
+#else
+  lua_pushboolean(L, false);
+#endif
   return 1;
 }
 
