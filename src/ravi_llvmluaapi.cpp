@@ -240,7 +240,7 @@ static void alloc_LLVM_module(lua_State *L,
 /* __gc for ModuleHolder */
 static int collect_LLVM_module(lua_State *L) {
   ModuleHolder *mh = check_LLVM_module(L, 1);
-  //printf("Module released: usecount %d\n", (int)mh->M.use_count());
+  // printf("Module released: usecount %d\n", (int)mh->M.use_count());
   mh->~ModuleHolder();
   return 0;
 }
@@ -321,6 +321,7 @@ static void alloc_LLVM_phinode(lua_State *L, llvm::PHINode *phi) {
   h->phi = phi;
 }
 
+// Creates a new module to hold a Lua C Function
 static MainFunctionHolder *alloc_LLVM_mainfunction(lua_State *L,
                                                    ravi::RaviJITState *jit,
                                                    llvm::FunctionType *type,
@@ -338,13 +339,28 @@ static MainFunctionHolder *alloc_LLVM_mainfunction(lua_State *L,
   return h;
 }
 
+// References an existing function in a Module
+static MainFunctionHolder *alloc_LLVM_luaCfunction(
+    lua_State *L, std::shared_ptr<ravi::RaviJITModule> module,
+    const char *name) {
+  MainFunctionHolder *h =
+      (MainFunctionHolder *)lua_newuserdata(L, sizeof(MainFunctionHolder));
+  h->func = nullptr;
+  h->compiled_func = nullptr;
+  h->arg1 = nullptr;
+  raviL_getmetatable(L, LLVM_mainfunction);
+  lua_setmetatable(L, -2);
+  h->func = new ravi::RaviJITFunction(&h->compiled_func, module, name);
+  return h;
+}
+
 /* __gc for FunctionHolder */
 static int collect_LLVM_mainfunction(lua_State *L) {
   MainFunctionHolder *builder = check_LLVM_mainfunction(L, 1);
   if (builder->func) {
     delete builder->func;
     builder->func = nullptr;
-    //printf("collected function\n");
+    // printf("collected function\n");
   }
   return 0;
 }
@@ -655,6 +671,14 @@ static int module_newfunction(lua_State *L) {
   return 1;
 }
 
+static int module_getfunction(lua_State *L) {
+  ModuleHolder *mh = check_LLVM_module(L, 1);
+  const char *name = luaL_checkstring(L, 2);
+  alloc_LLVM_luaCfunction(L, mh->M, name);
+  // TODO we should check that the function signature is correct
+  return 1;
+}
+
 static int module_compile_C(lua_State *L) {
   ModuleHolder *mh = check_LLVM_module(L, 1);
   const char *codebuffer = luaL_checkstring(L, 2);
@@ -674,12 +698,11 @@ static int module_compile_C(lua_State *L) {
 }
 
 static int module_generate_code(lua_State *L) {
-    ModuleHolder *mh = check_LLVM_module(L, 1);
-    mh->M->runpasses();
-    mh->M->finalize();
-    return 0;
+  ModuleHolder *mh = check_LLVM_module(L, 1);
+  mh->M->runpasses();
+  mh->M->finalize();
+  return 0;
 }
-
 
 static int context_new_basicblock(lua_State *L) {
   ContextHolder *context = check_LLVM_context(L, 1);
@@ -744,6 +767,7 @@ static int irbuilder_condbranch(lua_State *L) {
 
 static int func_compile(lua_State *L) {
   MainFunctionHolder *f = check_LLVM_mainfunction(L, 1);
+  if (!f->func->function()) return 0;
   if (!f->compiled_func) {
     f->func->raviModule()->runpasses();
     f->func->raviModule()->finalize();
@@ -1255,11 +1279,10 @@ static const luaL_Reg llvmlib[] = {
 static const luaL_Reg structtype_methods[] = {{"setbody", struct_add_members},
                                               {NULL, NULL}};
 
-static const luaL_Reg module_methods[] = {{"newfunction", module_newfunction},
-                                          {"compileC", module_compile_C},
-                                          {"dump", dump_content},
-                                          {"generatecode", module_generate_code},
-                                          {NULL, NULL}};
+static const luaL_Reg module_methods[] = {
+    {"newfunction", module_newfunction},    {"getfunction", module_getfunction},
+    {"compileC", module_compile_C},         {"dump", dump_content},
+    {"generatecode", module_generate_code}, {NULL, NULL}};
 
 static const luaL_Reg main_function_methods[] = {
     {"appendblock", func_append_basicblock},

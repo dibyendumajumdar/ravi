@@ -130,8 +130,8 @@ RaviJITState::RaviJITState()
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
-    //TODO see email trail on resolving symbols in process
-    //llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
+    // TODO see email trail on resolving symbols in process
+    // llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
     init++;
   }
   triple_ = llvm::sys::getProcessTriple();
@@ -233,7 +233,7 @@ RaviJITModule::~RaviJITModule() {
     delete module_;
   owner_->decr_allocated_modules();
 #if 1
-  //fprintf(stderr, "module destroyed\n");
+// fprintf(stderr, "module destroyed\n");
 #endif
 }
 
@@ -259,6 +259,14 @@ RaviJITFunction::RaviJITFunction(lua_CFunction *p,
       ptr_(nullptr),
       func_ptrptr_(p) {
   function_ = llvm::Function::Create(type, linkage, name, module_->module());
+  id_ = module_->addFunction(this);
+}
+
+RaviJITFunction::RaviJITFunction(lua_CFunction *p,
+                                 std::shared_ptr<RaviJITModule> module,
+                                 const std::string &name)
+    : module_(module), name_(name), ptr_(nullptr), func_ptrptr_(p) {
+  function_ = module_->module()->getFunction(name);
   id_ = module_->addFunction(this);
 }
 
@@ -387,8 +395,12 @@ void RaviJITModule::finalize(bool doDump) {
 // Lua Proto structure
 void RaviJITFunction::setFunctionPtr() {
   lua_assert(ptr_ == nullptr);
-  ptr_ = engine()->getPointerToFunction(function_);
-  *func_ptrptr_ = (lua_CFunction)ptr_;
+  // function_ may be nullptr if it was obtained by name from the module, so
+  // we need to check that
+  if (function_) {
+    ptr_ = engine()->getPointerToFunction(function_);
+    *func_ptrptr_ = (lua_CFunction)ptr_;
+  }
 }
 
 llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,

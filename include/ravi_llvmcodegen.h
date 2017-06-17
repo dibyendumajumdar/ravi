@@ -468,6 +468,9 @@ class RaviJITFunction {
                   llvm::FunctionType *type,
                   llvm::GlobalValue::LinkageTypes linkage,
                   const std::string &name);
+  RaviJITFunction(lua_CFunction *p, std::shared_ptr<RaviJITModule> module,      
+      const std::string &name);
+
   ~RaviJITFunction();
 
   const std::string &name() const { return name_; }
