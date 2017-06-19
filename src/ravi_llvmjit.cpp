@@ -233,7 +233,7 @@ RaviJITModule::~RaviJITModule() {
     delete module_;
   owner_->decr_allocated_modules();
 #if 1
-// fprintf(stderr, "module destroyed\n");
+  //fprintf(stderr, "module destroyed\n");
 #endif
 }
 
@@ -249,7 +249,7 @@ void RaviJITModule::removeFunction(RaviJITFunction *f) {
 }
 
 RaviJITFunction::RaviJITFunction(lua_CFunction *p,
-                                 std::shared_ptr<RaviJITModule> module,
+                                 const std::shared_ptr<RaviJITModule>& module,
                                  llvm::FunctionType *type,
                                  llvm::GlobalValue::LinkageTypes linkage,
                                  const std::string &name)
@@ -263,7 +263,7 @@ RaviJITFunction::RaviJITFunction(lua_CFunction *p,
 }
 
 RaviJITFunction::RaviJITFunction(lua_CFunction *p,
-                                 std::shared_ptr<RaviJITModule> module,
+                                 const std::shared_ptr<RaviJITModule>& module,
                                  const std::string &name)
     : module_(module), name_(name), ptr_(nullptr), func_ptrptr_(p) {
   function_ = module_->module()->getFunction(name);

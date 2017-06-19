@@ -464,11 +464,11 @@ class RaviJITFunction {
   lua_CFunction *func_ptrptr_;
 
  public:
-  RaviJITFunction(lua_CFunction *p, std::shared_ptr<RaviJITModule> module,
+  RaviJITFunction(lua_CFunction *p, const std::shared_ptr<RaviJITModule>& module,
                   llvm::FunctionType *type,
                   llvm::GlobalValue::LinkageTypes linkage,
                   const std::string &name);
-  RaviJITFunction(lua_CFunction *p, std::shared_ptr<RaviJITModule> module,      
+  RaviJITFunction(lua_CFunction *p, const std::shared_ptr<RaviJITModule>& module,      
       const std::string &name);
 
   ~RaviJITFunction();
