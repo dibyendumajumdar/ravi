@@ -346,47 +346,47 @@ static bool validate_has_luaCFunction_signature(MainFunctionHolder *h,
                                                 char *errormessage, int len) {
   auto f = h->func->function();
   if (!f) {
-    snprintf(errormessage, len, "Function was not found\n");
+    snprintf(errormessage, len, "Function was not found");
     return false;
   }
   auto ftype = f->getFunctionType();
   auto returnType = ftype->getReturnType();
   if (!returnType->isIntegerTy()) {
     snprintf(errormessage, len,
-             "Invalid return type in function: expected integer\n");
+             "Invalid return type in function: expected integer");
     return false;
   }
   if (ftype->isVarArg()) {
     // invalid
     snprintf(errormessage, len,
-             "Invalid function: cannot be variable argument type\n");
+             "Invalid function: cannot be variable argument type");
     return false;
   }
   if (ftype->getFunctionNumParams() != 1) {
     // invalid
     snprintf(errormessage, len,
-             "Invalid function: canot accept more than one argument\n");
+             "Invalid function: function must accept one argument (struct lua_State *) only");
     return false;
   }
   auto paramType = ftype->getFunctionParamType(0);
   if (!paramType->isPointerTy()) {
     // invalid
     snprintf(errormessage, len,
-             "Invalid function: argument is not a pointer type\n");
+        "Invalid function: argument is not a pointer to struct lua_State");
     return false;
   }
   auto underLying = paramType->getPointerElementType();
   if (!underLying->isStructTy()) {
     // invalid
     snprintf(errormessage, len,
-             "Invalid function: argument is not a pointer to struct\n");
+        "Invalid function: argument is not a pointer to struct lua_State");
     return false;
   }
   if (!underLying->getStructName().startswith("struct.lua_State")) {
     // invalid
     snprintf(
         errormessage, len,
-        "Invalid function: argument is not a pointer to struct lua_State\n");
+        "Invalid function: argument is not a pointer to struct lua_State");
     return false;
   }
   return true;
