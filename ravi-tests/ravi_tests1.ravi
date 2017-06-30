@@ -1454,10 +1454,66 @@ compile(test_idiv)
 assert(test_idiv(1900) == 4)
 print 'Test 56 Ok'
 
+function from_dmy1(y: integer, m: integer, d: integer)
+  if m <= 2 then
+    y = y - 1
+  end
+  local era: integer
+  if y >= 0 then
+    era = y // 400
+  else
+    era = (y-399) // 400
+  end
+  local yoe: integer = y - era * 400
+  local tmp: integer
+  if m > 2 then
+    tmp = -3
+  else
+    tmp = 9
+  end
+  local doy: integer = (153 * (m  + tmp) + 2)//5 + d-1
+  local doe: integer = yoe * 365 + yoe//4 - yoe//100 + doy
+  return era * 146097 + doe - 719468
+end
+function from_dmy2(y, m, d)
+  if m <= 2 then
+    y = y - 1
+  end
+  local era
+  if y >= 0 then
+    era = y // 400
+  else
+    era = (y-399) // 400
+  end
+  local yoe = y - era * 400
+  local tmp
+  if m > 2 then
+    tmp = -3
+  else
+    tmp = 9
+  end
+  local doy = (153 * (m  + tmp) + 2)//5 + d-1
+  local doe = yoe * 365 + yoe//4 - yoe//100 + doy
+  return era * 146097 + doe - 719468
+end
+assert(from_dmy1(1900, 1, 1) == -25567)
+assert(from_dmy1(1900, 1, 1) == from_dmy2(1900, 1, 1))
+compile(from_dmy1)
+compile(from_dmy2)
+assert(from_dmy1(1900, 1, 1) == -25567)
+assert(from_dmy1(1900, 1, 1) == from_dmy2(1900, 1, 1))
+check(from_dmy1, 'TOINT', 'TOINT', 'TOINT', 'LE_II', 'JMP',
+  'SUBII','LOADNIL','LOADIZ','LE_II','JMP','IDIV','JMP','SUBII',
+  'IDIV','MULII','SUBII','LOADNIL','LOADIZ','LT_II','JMP','LOADK',
+  'JMP','LOADK','ADDII','MULII','ADDII','IDIV','ADDII','SUBII',
+  'MULII','IDIV','ADDII','IDIV','SUBII','ADDII','MULII','ADDII',
+  'SUBII','RETURN','RETURN')
+print 'Test 57 Ok'
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)
 end
 
---ravi.dumplua(test_yields_in_metamethods)
+-- ravi.dumplua(test_yields_in_metamethods)
 
