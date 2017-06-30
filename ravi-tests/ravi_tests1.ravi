@@ -1443,6 +1443,16 @@ compile(test_upvaluejoin);
 assert(pcall(test_upvaluejoin));
 print 'Test 55 Ok'
 
+function test_idiv(y: integer)
+  local era: integer
+  era = y // 400
+  return era
+end
+check(test_idiv, 'TOINT', 'LOADNIL', 'LOADIZ', 'IDIV', 'RETURN', 'RETURN')
+assert(test_idiv(1900) == 4)
+compile(test_idiv)
+assert(test_idiv(1900) == 4)
+print 'Test 56 Ok'
 
 for k,v in pairs(opcodes_coverage)
 do
