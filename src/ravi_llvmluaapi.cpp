@@ -25,7 +25,9 @@
 This will hopefully eventually contain a Lua binding for LLVM.
 */
 
+#if USE_DMR_C
 #include <dmr_c_llvm.h>
+#endif
 #include <ravijit.h>
 #include "ravi_llvmcodegen.h"
 
@@ -795,7 +797,7 @@ static int module_compile_C(lua_State *L) {
     codebuffer = lua_tostring(L, 2);
   }
 
-#if USE_LLVM
+#if USE_DMR_C
   if (dmrC_llvmcompile(argc, argv, llvm::wrap(mh->M->module()), codebuffer)) {
     lua_pushboolean(L, true);
   }

@@ -484,7 +484,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pTableT);    /* metatable */
   elements.push_back(pGCObjectT); /* gclist */
   elements.push_back(RaviArrayT); /* RaviArray */
+#if RAVI_USE_NEWHASH
   elements.push_back(C_intT);     /* hmask  */
+#endif
   TableT->setBody(elements);
 
   // struct lua_longjmp;  /* defined in ldo.c */
@@ -1287,8 +1289,10 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 28)); /* gclist */
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_RaviArrayT,
                                                       32)); /* ravi_array */
+#if RAVI_USE_NEWHASH
   nodes.push_back(
       std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 48)); /* hmask */
+#endif
   tbaa_TableT = mdbuilder.createTBAAStructTypeNode("Table", nodes);
 
   tbaa_Table_flags =
@@ -1303,14 +1307,16 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 16);
   tbaa_Table_metatable =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 24);
-  tbaa_Table_hmask =
-      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 48);
   tbaa_RaviArray_dataT =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_pointerT, 32);
   tbaa_RaviArray_lenT =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 36);
   tbaa_RaviArray_typeT =
       mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_charT, 44);
+#if RAVI_USE_NEWHASH
+  tbaa_Table_hmask =
+      mdbuilder.createTBAAStructTagNode(tbaa_TableT, tbaa_intT, 48);
+#endif
 }
 
 void LuaLLVMTypes::dump() {

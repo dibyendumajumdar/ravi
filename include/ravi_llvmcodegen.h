@@ -351,7 +351,9 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_Table_array;
   llvm::MDNode *tbaa_Table_flags;
   llvm::MDNode *tbaa_Table_metatable;
+#if RAVI_USE_NEWHASH
   llvm::MDNode *tbaa_Table_hmask;
+#endif
 };
 
 // The hierarchy of objects
@@ -464,12 +466,14 @@ class RaviJITFunction {
   lua_CFunction *func_ptrptr_;
 
  public:
-  RaviJITFunction(lua_CFunction *p, const std::shared_ptr<RaviJITModule>& module,
+  RaviJITFunction(lua_CFunction *p,
+                  const std::shared_ptr<RaviJITModule> &module,
                   llvm::FunctionType *type,
                   llvm::GlobalValue::LinkageTypes linkage,
                   const std::string &name);
-  RaviJITFunction(lua_CFunction *p, const std::shared_ptr<RaviJITModule>& module,      
-      const std::string &name);
+  RaviJITFunction(lua_CFunction *p,
+                  const std::shared_ptr<RaviJITModule> &module,
+                  const std::string &name);
 
   ~RaviJITFunction();
 
@@ -1045,11 +1049,26 @@ class RaviCodeGenerator {
 
   void emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C, int j, int pc);
 
-  void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms,
-                  int pc);
+  // Code size priority so go via function calls
+  void emit_ARITH_calls(RaviFunctionDef *def, int A, int B, int C, OpCode op,
+                        TMS tms, int pc);
 
-  void emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C, OpCode op,
-                      TMS tms, int pc);
+  // integer arith priority over floating
+  void emit_ARITH_intpriority(RaviFunctionDef *def, int A, int B, int C,
+                              OpCode op, TMS tms, int pc);
+
+  // floating arith priority over integer
+  void emit_ARITH_floatpriority(RaviFunctionDef *def, int A, int B, int C,
+                                OpCode op, TMS tms, int pc);
+
+  inline void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op,
+                         TMS tms, int pc) {
+#if RAVI_USE_LLVM_ARITH_FLOATPRIORITY
+    emit_ARITH_floatpriority(def, A, B, C, op, tms, pc);
+#else
+    emit_ARITH_intpriority(def, A, B, C, op, tms, pc);
+#endif
+  }
 
   void emit_MOD(RaviFunctionDef *def, int A, int B, int C, int pc);
 

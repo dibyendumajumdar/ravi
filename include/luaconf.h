@@ -816,5 +816,11 @@
 #endif
 
 
+#define RAVI_USE_NEWHASH    1
+#define RAVI_USE_LLVM_BRANCH_WEIGHTS 1
+/* If following is defined as true then LLVM instructions emitted for arithmetic ops 
+   priority floating point ops, else default is to prioritise integer ops */
+#define RAVI_USE_LLVM_ARITH_FLOATPRIORITY 1
+
 #endif
 
