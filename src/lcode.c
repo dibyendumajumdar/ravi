@@ -1318,8 +1318,8 @@ static void codebinexpval (FuncState *fs, OpCode op,
     && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
     e1->ravi_type = RAVI_TNUMFLT;
   else if ((op == OP_IDIV)
-    && (e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT)
-    && (e2->ravi_type == RAVI_TNUMINT || e2->ravi_type == RAVI_TNUMFLT))
+    && (e1->ravi_type == RAVI_TNUMINT)
+    && (e2->ravi_type == RAVI_TNUMINT))
     e1->ravi_type = RAVI_TNUMINT;
   else if ((op == OP_BAND || op == OP_BOR || op == OP_BXOR || op == OP_SHL || op == OP_SHR)
     && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
