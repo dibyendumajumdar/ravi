@@ -79,6 +79,9 @@ typedef enum {
   LUA__TNUMINT = LUA_TNUMINT
 } lua_typecode_t;
 
+struct ravi_State {
+	NJXContextRef jit;
+};
 
 
 #ifdef __cplusplus

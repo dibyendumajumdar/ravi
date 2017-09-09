@@ -256,6 +256,8 @@ if (EMBEDDED_DMRC)
     if (LLVM_JIT)
         set(DMR_C_JIT_SRCS
             dmr_c/llvm-backend/sparse-llvm.c
+            )
+        set(DMR_C_JIT_HEADERS
             dmr_c/llvm-backend/dmr_c.h            
             )
 
@@ -265,6 +267,8 @@ if (EMBEDDED_DMRC)
     if (NANO_JIT)
         set(DMR_C_JIT_SRCS
             dmr_c/nanojit-backend/sparse-nanojit.c
+            )
+        set(DMR_C_JIT_HEADERS
             dmr_c/nanojit-backend/dmr_c.h            
             )
 
@@ -272,7 +276,7 @@ if (EMBEDDED_DMRC)
     endif()    
     
     if (MSVC OR APPLE)
-        source_group("dmrC Headers" FILES ${DMR_C_HEADERS})
+        source_group("dmrC Headers" FILES ${DMR_C_HEADERS} ${DMR_C_JIT_HEADERS})
         source_group("dmrC Source Files" FILES ${DMR_C_SRCS} ${DMR_C_JIT_SRCS})
     endif()
 endif()
