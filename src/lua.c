@@ -44,6 +44,8 @@
 #define RAVI_OPTION_STRING3 " LLVM"
 #elif USE_GCCJIT
 #define RAVI_OPTION_STRING3 " gccjit"
+#elif USE_NANOJIT
+#define RAVI_OPTION_STRING3 " nanojit"
 #else
 #define RAVI_OPTION_STRING3 " nojit"
 #endif

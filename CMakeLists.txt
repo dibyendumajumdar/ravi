@@ -12,6 +12,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 # Only one can be ON, and at last one of them must be ON
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(GCC_JIT "Controls whether GCC JIT compilation will be enabled, default is OFF" OFF)
+option(NANO_JIT "Controls whether NanoJIT compilation will be enabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(EMBEDDED_DMRC "Controls whether the embedded dmrC feature should be enabled, default is OFF" OFF)
 
@@ -19,6 +20,12 @@ option(EMBEDDED_DMRC "Controls whether the embedded dmrC feature should be enabl
 if (LLVM_JIT AND GCC_JIT)
     message(FATAL_ERROR
             "Both LLVM_JIT and GCC_JIT cannot be set to ON at the same time")
+elseif (LLVM_JIT AND NANO_JIT)
+    message(FATAL_ERROR
+            "Both LLVM_JIT and NANO_JIT cannot be set to ON at the same time")    
+elseif (GCC_JIT AND NANO_JIT)
+    message(FATAL_ERROR
+            "Both GCC_JIT and NANO_JIT cannot be set to ON at the same time")    
 endif()
 
 if (STATIC_BUILD)
@@ -39,6 +46,10 @@ if (LLVM_JIT)
     add_definitions(-DUSE_LLVM)
 endif()
 
+if (NANO_JIT)
+    set(EMBEDDED_DMRC ON)
+endif()
+
 if (EMBEDDED_DMRC)
     add_definitions(-DUSE_DMR_C)
 endif()
@@ -52,8 +63,14 @@ if (GCC_JIT)
     add_definitions(-DUSE_GCCJIT)
 endif()
 
-if (NOT LLVM_JIT AND NOT GCC_JIT)
-    message(WARNING "Neither LLVM nor gccjit will be enabled; specify -DLLVM_JIT or -DGCC_JIT to enable")
+if (NANO_JIT)
+    find_package(NanoJIT REQUIRED)
+    include_directories(${NANOJITEXTRA_INCLUDE_DIRS})
+    add_definitions(-DUSE_NANOJIT)
+endif()
+
+if (NOT LLVM_JIT AND NOT GCC_JIT AND NOT NANO_JIT)
+    message(WARNING "Neither LLVM, NanoJIT nor gccjit will be enabled; specify -DLLVM_JIT, -DNANO_JIT or -DGCC_JIT to enable")
 endif()
 
 if (MSVC)
@@ -138,7 +155,10 @@ if (GCC_JIT)
             src/ravi_gccarith1.c src/ravi_gcccall.c src/ravi_gcctable.c
             src/ravi_gccarith2.c src/ravi_gcctforcall.c src/ravi_gccrest.c)
 endif ()
-if (NOT LLVM_JIT AND NOT GCC_JIT)
+if (NANO_JIT)
+    set(NANO_JIT_SRCS src/ravi_nanojit.c)
+endif()
+if (NOT LLVM_JIT AND NOT GCC_JIT AND NOT NANO_JIT)
     set(NO_JIT_SRCS src/ravi_nojit.c)
 endif()
 # define the lua core source files
@@ -241,6 +261,15 @@ if (EMBEDDED_DMRC)
 
         include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
     endif()
+
+    if (NANO_JIT)
+        set(DMR_C_JIT_SRCS
+            dmr_c/nanojit-backend/sparse-nanojit.c
+            dmr_c/nanojit-backend/dmr_c.h            
+            )
+
+        include_directories("${PROJECT_SOURCE_DIR}/dmr_c/nanojit-backend")
+    endif()    
     
     if (MSVC OR APPLE)
         source_group("dmrC Headers" FILES ${DMR_C_HEADERS})
@@ -309,6 +338,8 @@ if (LLVM_JIT)
     set (LIBRAVI_NAME libravillvm)
 elseif (GCC_JIT)
     set (LIBRAVI_NAME libravigccjit)
+elseif (NANO_JIT)
+    set (LIBRAVI_NAME libravinanojit)    
 else()
     set (LIBRAVI_NAME libravinojit)
 endif()
@@ -320,6 +351,7 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${LUA_CORE_SRCS}
         ${LLVM_JIT_SRCS}
         ${GCC_JIT_SRCS}
+        ${NANO_JIT_SRCS}        
         ${NO_JIT_SRCS}
         ${DMR_C_HEADERS}
         ${DMR_C_SRCS}
@@ -333,7 +365,7 @@ if (NOT STATIC_BUILD)
       set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
   endif ()
 endif()
-target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES})
+target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES} ${NANOJITEXTRA_LIBRARIES})
 
 # Ravi executable
 add_executable(ravi src/lua.c)
@@ -358,7 +390,7 @@ add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
 
 # Build VSCode Debug Adapter for Ravi  
-if (STATIC_BUILD AND NOT GCC_JIT)
+if (STATIC_BUILD AND NOT GCC_JIT AND NOT NANO_JIT)
   add_executable(testravidebug vscode-debugger/src/testravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
   target_link_libraries(testravidebug ${LIBRAVI_NAME})
 
