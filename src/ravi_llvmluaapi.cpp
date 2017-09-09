@@ -26,7 +26,7 @@ This will hopefully eventually contain a Lua binding for LLVM.
 */
 
 #if USE_DMR_C
-#include <dmr_c_llvm.h>
+#include <dmr_c.h>
 #endif
 #include <ravijit.h>
 #include "ravi_llvmcodegen.h"

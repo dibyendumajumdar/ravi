@@ -186,18 +186,21 @@ if (EMBEDDED_DMRC)
     set(DMR_C_HEADERS 
         dmr_c/src/allocate.h
         dmr_c/src/char.h
-        dmr_c/src/dmr_c.h
         dmr_c/src/expression.h
         dmr_c/src/flow.h
         dmr_c/src/ident-list.h
         dmr_c/src/linearize.h
+        dmr_c/src/lib.h        
         dmr_c/src/parse.h
         dmr_c/src/port.h 
         dmr_c/src/ptrlist.h
+        dmr_c/src/ptrmap.h        
         dmr_c/src/scope.h
         dmr_c/src/symbol.h
         dmr_c/src/target.h
         dmr_c/src/token.h 
+        dmr_c/src/ssa.h 
+        dmr_c/src/walksymbol.h         
         )
 
     set(DMR_C_SRCS 
@@ -205,12 +208,12 @@ if (EMBEDDED_DMRC)
         dmr_c/src/builtin.c
         dmr_c/src/char.c
         dmr_c/src/cse.c
-        dmr_c/src/dmr_c.c
         dmr_c/src/expression.c
         dmr_c/src/evaluate.c
         dmr_c/src/expand.c
         dmr_c/src/flow.c
         dmr_c/src/inline.c
+        dmr_c/src/lib.c
         dmr_c/src/linearize.c
         dmr_c/src/liveness.c
         dmr_c/src/memops.c
@@ -219,17 +222,21 @@ if (EMBEDDED_DMRC)
         dmr_c/src/tokenize.c
         dmr_c/src/pre-process.c
         dmr_c/src/ptrlist.c
+        dmr_c/src/ptrmap.c
         dmr_c/src/scope.c
         dmr_c/src/show-parse.c
         dmr_c/src/simplify.c
         dmr_c/src/symbol.c
         dmr_c/src/unssa.c
+        dmr_c/src/ssa.c
+        dmr_c/src/walksymbol.c
         src/ravi_dmrc_parsesymbols.c
         )
 
     if (LLVM_JIT)
         set(DMR_C_JIT_SRCS
             dmr_c/llvm-backend/sparse-llvm.c
+            dmr_c/llvm-backend/dmr_c.h            
             )
 
         include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
