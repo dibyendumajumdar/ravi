@@ -38,8 +38,12 @@
 #include <symbol.h>
 #include <token.h>
 #include <scope.h>
+
+#define LUA_LIB
+
 #include <lua.h>
 #include <lauxlib.h>
+#include <lualib.h>
 
 struct parser_state {
     lua_State *L;
@@ -145,7 +149,7 @@ static void new_sym_node(struct parser_state *S, struct symbol *sym, const char 
 	S->idcount++;
 }
 
-static void examine_members(struct parser_state *S, struct ptr_list *list)
+static void examine_members(struct parser_state *S, struct symbol_list *list)
 {
 	struct symbol *sym;
 
@@ -348,7 +352,7 @@ static int get_stream_id (struct dmr_C *C, const char *name)
 	return -1;
 }
 
-static void examine_symbol_list(struct parser_state *S, int stream_id, struct ptr_list *list)
+static void examine_symbol_list(struct parser_state *S, int stream_id, struct symbol_list *list)
 {
 	struct symbol *sym;
 	if (!list)
@@ -361,8 +365,8 @@ static void examine_symbol_list(struct parser_state *S, int stream_id, struct pt
 
 static int dmrC_getsymbols(lua_State *L)
 {
-	struct ptr_list *symlist;
-	struct ptr_list *filelist = NULL;
+	struct symbol_list *symlist;
+	struct string_list *filelist = NULL;
 	char *file;
 
 	struct dmr_C *C = new_dmr_C();
