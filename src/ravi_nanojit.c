@@ -26,104 +26,8 @@
 #include <ravijit.h>
 #include <stddef.h>
 
-#if 0
-ravi_gcc_context_t *ravi_jit_new_context(void) {
-  ravi_gcc_context_t *ravi = NULL;
-  gcc_jit_context *gcc_ctx = gcc_jit_context_acquire();
-  if (!gcc_ctx) {
-    fprintf(stderr, "failed to allocate a GCC JIT context\n");
-    goto on_error;
-  }
-
-  ravi = (ravi_gcc_context_t *)calloc(1, sizeof(ravi_gcc_context_t));
-  if (!ravi) {
-    fprintf(stderr, "failed to allocate a Ravi JIT context\n");
-    goto on_error;
-  }
-  ravi->context = gcc_ctx;
-  ravi->auto_ = false;
-  ravi->enabled_ = true;
-  ravi->min_code_size_ = 150;
-  ravi->min_exec_count_ = 50;
-  ravi->opt_level_ = 3;
-  ravi->size_level_ = 0;
-
-  if (!ravi_setup_lua_types(ravi)) {
-    fprintf(stderr, "failed to setup types\n");
-    goto on_error;
-  }
-
-  ravi->parent_result_ = gcc_jit_context_compile(ravi->context);
-  if (gcc_jit_context_get_first_error(ravi->context)) {
-    fprintf(stderr, "aborting due to JIT error: %s\n",
-            gcc_jit_context_get_first_error(ravi->context));
-    abort();
-  }
-
-  return ravi;
-on_error:
-  if (ravi) {
-    ravi_jit_context_free(ravi);
-  } else if (gcc_ctx) {
-    gcc_jit_context_release(gcc_ctx);
-  }
-  return NULL;
-}
-
-void ravi_jit_context_free(ravi_gcc_context_t *ravi) {
-  if (ravi == NULL)
-    return;
-  if (ravi->parent_result_) {
-    gcc_jit_result_release(ravi->parent_result_);
-    ravi->parent_result_ = NULL;
-  }
-  if (ravi->context) {
-    gcc_jit_context_release(ravi->context);
-    ravi->context = NULL;
-  }
-  if (ravi->types) {
-    free(ravi->types);
-    ravi->types = NULL;
-  }
-  free(ravi);
-}
-
-ravi_gcc_codegen_t *ravi_jit_new_codegen(ravi_gcc_context_t *ravi) {
-  ravi_gcc_codegen_t *cg = NULL;
-  cg = (ravi_gcc_codegen_t *)calloc(1, sizeof(ravi_gcc_codegen_t));
-  if (cg == NULL) {
-    fprintf(stderr, "error creating a new context: out of memory\n");
-    goto on_error;
-  }
-  cg->id = 1;
-  cg->temp[0] = 0;
-  cg->ravi = ravi;
-  return cg;
-
-on_error:
-  if (cg)
-    ravi_jit_codegen_free(cg);
-  return NULL;
-}
-
-void ravi_jit_codegen_free(ravi_gcc_codegen_t *codegen) {
-  if (codegen == NULL)
-    return;
-  free(codegen);
-}
-
-bool ravi_jit_has_errored(ravi_gcc_context_t *ravi) {
-  const char *msg = gcc_jit_context_get_first_error(ravi->context);
-  if (msg) {
-    fprintf(stderr, "JIT error: %s\n", msg);
-    return true;
-  }
-  return false;
-}
-#endif
-
-// TODO we probably do not need all the headers
-// below
+// FIXME should be in ravi_State
+static int id = 0;
 
 #define LUA_CORE
 
@@ -131,6 +35,51 @@ bool ravi_jit_has_errored(ravi_gcc_context_t *ravi) {
 #include "lobject.h"
 #include "lstate.h"
 #include "lua.h"
+
+static bool register_builtin_arg1(NJXContextRef module, const char *name,
+	void *fp, enum NJXValueKind return_type,
+	enum NJXValueKind arg1)
+{
+	enum NJXValueKind args[1];
+	args[0] = arg1;
+	return NJX_register_C_function(module, name, fp, return_type, args, 1);
+}
+static bool register_builtin_arg2(NJXContextRef module, const char *name,
+	void *fp, enum NJXValueKind return_type,
+	enum NJXValueKind arg1,
+	enum NJXValueKind arg2)
+{
+	enum NJXValueKind args[2];
+	args[0] = arg1;
+	args[1] = arg2;
+	return NJX_register_C_function(module, name, fp, return_type, args, 2);
+}
+static bool register_builtin_arg3(NJXContextRef module, const char *name,
+	void *fp, enum NJXValueKind return_type,
+	enum NJXValueKind arg1,
+	enum NJXValueKind arg2,
+	enum NJXValueKind arg3)
+{
+	enum NJXValueKind args[3];
+	args[0] = arg1;
+	args[1] = arg2;
+	args[2] = arg3;
+	return NJX_register_C_function(module, name, fp, return_type, args, 3);
+}
+static bool register_builtin_arg4(NJXContextRef module, const char *name,
+	void *fp, enum NJXValueKind return_type,
+	enum NJXValueKind arg1,
+	enum NJXValueKind arg2,
+	enum NJXValueKind arg3,
+	enum NJXValueKind arg4)
+{
+	enum NJXValueKind args[4];
+	args[0] = arg1;
+	args[1] = arg2;
+	args[2] = arg3;
+	args[3] = arg4;
+	return NJX_register_C_function(module, name, fp, return_type, args, 4);
+}
 
 // Initialize the JIT State and attach it to the
 // Global Lua State
@@ -142,8 +91,12 @@ int raviV_initjit(struct lua_State *L) {
   ravi_State *jit = (ravi_State *)calloc(1, sizeof(ravi_State));
   // The parameter true means we will be dumping stuff as we compile
   jit->jit = NJX_create_context(true);
+  //extern void luaF_close (lua_State *L, StkId level);
+  register_builtin_arg2(jit->jit, "luaF_close", luaF_close, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P);
+  //extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);
+  register_builtin_arg4(jit->jit, "luaD_poscall", luaD_poscall, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
   G->ravi_state = jit;
-  return -1;
+  return 0;
 }
 
 // Free up the JIT State
@@ -722,6 +675,9 @@ static const char Lua_header[] = ""
 "#define gco2th(o)  check_exp((o)->tt == LUA_TTHREAD, &((cast_u(o))->th))\n"
 "#define obj2gco(v) \\\n"
 "	check_exp(novariant((v)->tt) < LUA_TDEADKEY, (&(cast_u(v)->gc)))\n"
+"extern void luaF_close (lua_State *L, StkId level);\n"
+"extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);\n"
+"#define RB(i) (base + i)\n"
 ;
 
 static int showparsetree(const char *buffer);
@@ -729,19 +685,18 @@ static int showparsetree(const char *buffer);
 // We can only compile a subset of op codes
 // and not all features are supported
 static bool can_compile(Proto *p) {
-	if (p->ravi_jit.jit_status == 1)
-		return false;
-	const Instruction *code = p->code;
-	int pc, n = p->sizecode;
-	// Loop over the byte codes; as Lua compiler inserts
-	// an extra RETURN op we need to ignore the last op
-	for (pc = 0; pc < n; pc++) {
-		Instruction i = code[pc];
-		OpCode o = GET_OPCODE(i);
-		switch (o) {
-		case OP_RETURN:
-		case OP_LOADK:
+  if (p->ravi_jit.jit_status == 1) return false;
+  const Instruction *code = p->code;
+  int pc, n = p->sizecode;
+  // Loop over the byte codes; as Lua compiler inserts
+  // an extra RETURN op we need to ignore the last op
+  for (pc = 0; pc < n; pc++) {
+    Instruction i = code[pc];
+    OpCode o = GET_OPCODE(i);
+    switch (o) {
+      case OP_RETURN: break;
 #if 0
+		case OP_LOADK:
 		case OP_LOADKX:
 		case OP_RAVI_FORLOOP_IP:
 		case OP_RAVI_FORLOOP_I1:
@@ -816,7 +771,6 @@ static bool can_compile(Proto *p) {
 		case OP_DIV:
 		case OP_GETUPVAL:
 		case OP_SETUPVAL:
-			break;
 		case OP_FORPREP:
 		case OP_FORLOOP:
 		case OP_MOD:
@@ -824,73 +778,115 @@ static bool can_compile(Proto *p) {
 		case OP_UNM:
 		case OP_POW:
 #endif
-		default: {
-			p->ravi_jit.jit_status = 1;
-			return false;
-		}
-		}
-	}
-	return true;
+      default: {
+        p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 struct function {
-	struct lua_State *L;
-	struct Proto *p;
-	// should be bitmap
-	// flags to mark instructions
-	unsigned char *jmps;
-	membuff_t prologue;
-	membuff_t body;
+  struct lua_State *L;
+  struct Proto *p;
+  int id;
+  char fname[30];
+  int var;
+  // should be bitmap
+  // flags to mark instructions
+  unsigned char *jmps;
+  membuff_t prologue;
+  membuff_t body;
 };
+
+static int add_local_var(struct function *fn) { return fn->var++; }
 
 // Identify Ravi bytecode instructions that are jump
 // targets - we need this so that when generating code
 // we can emit labels for gotos
-static void scan_jump_targets(struct function *fn)
-{
-	const Instruction *code = fn->p->code;
-	int pc, n = fn->p->sizecode;
-	lua_assert(fn->jmps != NULL);
-	for (pc = 0; pc < n; pc++) {
-		Instruction i = code[pc];
-		OpCode op = GET_OPCODE(i);
-		switch (op) {
-		case OP_LOADBOOL: {
-			int C = GETARG_C(i);
-			int j = pc + 2;  // jump target
-			fn->jmps[j] = 1;
-		} break;
-		case OP_JMP:
-		case OP_RAVI_FORPREP_IP:
-		case OP_RAVI_FORPREP_I1:
-		case OP_RAVI_FORLOOP_IP:
-		case OP_RAVI_FORLOOP_I1:
-		case OP_FORLOOP:
-		case OP_FORPREP:
-		case OP_TFORLOOP: {
-			int sbx = GETARG_sBx(i);
-			int j = sbx + pc + 1;
-			fn->jmps[j] = true;
-		} break;
-		default: break;
-		}
-	}
+static void scan_jump_targets(struct function *fn) {
+  const Instruction *code = fn->p->code;
+  int pc, n = fn->p->sizecode;
+  lua_assert(fn->jmps != NULL);
+  for (pc = 0; pc < n; pc++) {
+    Instruction i = code[pc];
+    OpCode op = GET_OPCODE(i);
+    switch (op) {
+      case OP_LOADBOOL: {
+        int C = GETARG_C(i);
+        int j = pc + 2;  // jump target
+        fn->jmps[j] = 1;
+      } break;
+      case OP_JMP:
+      case OP_RAVI_FORPREP_IP:
+      case OP_RAVI_FORPREP_I1:
+      case OP_RAVI_FORLOOP_IP:
+      case OP_RAVI_FORLOOP_I1:
+      case OP_FORLOOP:
+      case OP_FORPREP:
+      case OP_TFORLOOP: {
+        int sbx = GETARG_sBx(i);
+        int j = sbx + pc + 1;
+        fn->jmps[j] = true;
+      } break;
+      default: break;
+    }
+  }
 }
 
-static void initfn(struct function *fn, struct lua_State *L, struct Proto *p)
-{
-	fn->L = L;
-	fn->p = p;
-	fn->jmps = calloc(p->sizecode, sizeof fn->jmps[0]);
-	membuff_init(&fn->prologue, strlen(Lua_header) + 4096);
-	membuff_init(&fn->body, 4096);
+static void emit_jump_label(struct function *fn, int pc) {
+  if (fn->jmps[pc]) {
+    char labelstmt[80];
+    snprintf(labelstmt, sizeof labelstmt, "Lbc_%d:\n", pc);
+    membuff_add_string(&fn->body, labelstmt);
+  }
 }
 
-static void cleanup(struct function *fn)
-{
-	free(fn->jmps);
-	membuff_free(&fn->prologue);
-	membuff_free(&fn->body);
+static void emit_op_return(struct function *fn, int A, int B, int pc) {
+  membuff_add_fstring(&fn->body, "ra = RB(%d);\n", A);
+  membuff_add_string(&fn->body, "if (cl->p->sizep > 0) luaF_close(L, base);\n");
+  int var = add_local_var(fn);
+  membuff_add_fstring(&fn->prologue, "int nres_%d = 0;\n", var);
+  membuff_add_fstring(&fn->body,
+                      "nres_%d = (%d != 0 ? %d - 1 : cast_int(L->top - ra));\n",
+                      var, B, B);
+  membuff_add_fstring(&fn->body, "return luaD_poscall(L, ci, ra, nres_%d);\n",
+                      var);
+}
+
+static void emit_endf(struct function *fn) {
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void initfn(struct function *fn, struct lua_State *L, struct Proto *p) {
+  fn->L = L;
+  fn->p = p;
+  fn->id = id++;
+  fn->var = 0;
+  snprintf(fn->fname, sizeof fn->fname, "jitf%d", fn->id);
+  fn->jmps = calloc(p->sizecode, sizeof fn->jmps[0]);
+  membuff_init(&fn->prologue, strlen(Lua_header) + 4096);
+  membuff_init(&fn->body, 4096);
+  membuff_add_string(&fn->prologue, Lua_header);
+  membuff_add_fstring(&fn->prologue, "int %s(lua_State *L) {\n", fn->fname);
+  membuff_add_string(&fn->prologue, "CallInfo *ci = L->ci;\n");
+  membuff_add_string(&fn->prologue, "LClosure *cl;\n");
+  membuff_add_string(&fn->prologue, "TValue *k;\n");
+  membuff_add_string(&fn->prologue, "StkId base;\n");
+  membuff_add_string(&fn->prologue, "StkId ra;\n");
+  // TODO we never set this???
+  // ci->callstatus |= CIST_FRESH;  /* fresh invocation of 'luaV_execute" */
+  // lua_assert(ci == L->ci);
+  membuff_add_string(&fn->prologue, "cl = clLvalue(ci->func);\n");
+  membuff_add_string(&fn->prologue, "k = cl->p->k;\n");
+  membuff_add_string(&fn->prologue, "base = ci->u.l.base;\n");
+}
+
+static void cleanup(struct function *fn) {
+  free(fn->jmps);
+  membuff_free(&fn->prologue);
+  membuff_free(&fn->body);
 }
 
 #define RA(i) (base + GETARG_A(i))
@@ -919,17 +915,60 @@ static void cleanup(struct function *fn)
 // Returns true if compilation was successful
 int raviV_compile(struct lua_State *L, struct Proto *p,
                   ravi_compile_options_t *options) {
-  if (!can_compile(p)) return false;
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) return true;
+
+  if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED || !can_compile(p))
+    return false;
+
+  global_State *G = G(L);
+  if (G->ravi_state == NULL) return false;
+  NJXContextRef context = G->ravi_state->jit;
+  if (context == NULL) return false;
 
   struct function fn;
   initfn(&fn, L, p);
 
   scan_jump_targets(&fn);
 
-  showparsetree(Lua_header);
+  const Instruction *code = p->code;
+  int pc, n = p->sizecode;
+  for (pc = 0; pc < n; pc++) {
+    emit_jump_label(&fn, pc);
+    Instruction i = code[pc];
+    OpCode op = GET_OPCODE(i);
+    int A = GETARG_A(i);
+    switch (op) {
+      case OP_RETURN: {
+        int B = GETARG_B(i);
+        emit_op_return(&fn, A, B, pc);
+      } break;
+
+      default: abort();
+    }
+  }
+  emit_endf(&fn);
+
+  membuff_add_string(&fn.prologue, fn.body.buf);
+  printf(fn.prologue.buf);
+
+  showparsetree(fn.prologue.buf);
+
+  int (*fp)(lua_State * L) = NULL;
+  char *argv[] = {NULL};
+  if (!dmrC_nanocompile(0, argv, context, fn.prologue.buf)) {
+    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
+  }
+  else {
+    fp = NJX_get_function_by_name(context, fn.fname);
+    if (fp != NULL) {
+      p->ravi_jit.jit_data = NULL;
+      p->ravi_jit.jit_function = fp;
+      p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+    }
+  }
 
   cleanup(&fn);
-  return false;
+  return fp != NULL;
 }
 
 // Free the JIT compiled function

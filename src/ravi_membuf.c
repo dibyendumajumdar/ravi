@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,6 +47,16 @@ void membuff_add_string(membuff_t *mb, const char *str) {
   assert(mb->allocated_size - mb->pos > len);
   ravi_string_copy(&mb->buf[mb->pos], str, mb->allocated_size - mb->pos);
   mb->pos += len;
+}
+void membuff_add_fstring(membuff_t *mb, const char *fmt, ...) {
+  va_list args;
+  char buffer[1024];
+
+  va_start(args, fmt);
+  int n = vsnprintf(buffer, sizeof buffer, fmt, args);
+  va_end(args);
+  if (n < 0) { abort(); }
+  membuff_add_string(mb, buffer);
 }
 void membuff_add_bool(membuff_t *mb, bool value) {
   if (value)
