@@ -21,7 +21,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 
-#include "ravi_nanojit.h"
+#include <ravi_nanojit.h>
+#include <ravi_membuf.h>
 #include <ravijit.h>
 #include <stddef.h>
 
@@ -725,6 +726,191 @@ static const char Lua_header[] = ""
 
 static int showparsetree(const char *buffer);
 
+// We can only compile a subset of op codes
+// and not all features are supported
+static bool can_compile(Proto *p) {
+	if (p->ravi_jit.jit_status == 1)
+		return false;
+	const Instruction *code = p->code;
+	int pc, n = p->sizecode;
+	// Loop over the byte codes; as Lua compiler inserts
+	// an extra RETURN op we need to ignore the last op
+	for (pc = 0; pc < n; pc++) {
+		Instruction i = code[pc];
+		OpCode o = GET_OPCODE(i);
+		switch (o) {
+		case OP_RETURN:
+		case OP_LOADK:
+#if 0
+		case OP_LOADKX:
+		case OP_RAVI_FORLOOP_IP:
+		case OP_RAVI_FORLOOP_I1:
+		case OP_RAVI_FORPREP_IP:
+		case OP_RAVI_FORPREP_I1:
+		case OP_MOVE:
+		case OP_LOADNIL:
+		case OP_RAVI_LOADIZ:
+		case OP_RAVI_LOADFZ:
+		case OP_CALL:
+		case OP_TAILCALL:
+		case OP_JMP:
+		case OP_EQ:
+		case OP_RAVI_EQ_II:
+		case OP_RAVI_EQ_FF:
+		case OP_LT:
+		case OP_RAVI_LT_II:
+		case OP_RAVI_LT_FF:
+		case OP_LE:
+		case OP_RAVI_LE_II:
+		case OP_RAVI_LE_FF:
+		case OP_GETTABUP:
+		case OP_LOADBOOL:
+		case OP_NOT:
+		case OP_TEST:
+		case OP_TESTSET:
+		case OP_RAVI_MOVEI:
+		case OP_RAVI_MOVEF:
+		case OP_RAVI_TOINT:
+		case OP_RAVI_TOFLT:
+		case OP_VARARG:
+		case OP_CONCAT:
+		case OP_CLOSURE:
+		case OP_RAVI_ADDFF:
+		case OP_RAVI_ADDFI:
+		case OP_RAVI_ADDII:
+		case OP_RAVI_SUBFF:
+		case OP_RAVI_SUBFI:
+		case OP_RAVI_SUBIF:
+		case OP_RAVI_SUBII:
+		case OP_RAVI_MULFF:
+		case OP_RAVI_MULFI:
+		case OP_RAVI_MULII:
+		case OP_RAVI_DIVFF:
+		case OP_RAVI_DIVFI:
+		case OP_RAVI_DIVIF:
+		case OP_RAVI_DIVII:
+		case OP_SELF:
+		case OP_LEN:
+		case OP_SETTABLE:
+		case OP_GETTABLE:
+		case OP_NEWTABLE:
+		case OP_SETLIST:
+		case OP_TFORCALL:
+		case OP_TFORLOOP:
+		case OP_RAVI_NEWARRAYI:
+		case OP_RAVI_NEWARRAYF:
+		case OP_RAVI_GETTABLE_AI:
+		case OP_RAVI_GETTABLE_AF:
+		case OP_RAVI_TOARRAYI:
+		case OP_RAVI_TOARRAYF:
+		case OP_RAVI_MOVEAI:
+		case OP_RAVI_MOVEAF:
+		case OP_RAVI_SETTABLE_AI:
+		case OP_RAVI_SETTABLE_AII:
+		case OP_RAVI_SETTABLE_AF:
+		case OP_RAVI_SETTABLE_AFF:
+		case OP_SETTABUP:
+		case OP_ADD:
+		case OP_SUB:
+		case OP_MUL:
+		case OP_DIV:
+		case OP_GETUPVAL:
+		case OP_SETUPVAL:
+			break;
+		case OP_FORPREP:
+		case OP_FORLOOP:
+		case OP_MOD:
+		case OP_IDIV:
+		case OP_UNM:
+		case OP_POW:
+#endif
+		default: {
+			p->ravi_jit.jit_status = 1;
+			return false;
+		}
+		}
+	}
+	return true;
+}
+
+struct function {
+	struct lua_State *L;
+	struct Proto *p;
+	// should be bitmap
+	// flags to mark instructions
+	unsigned char *jmps;
+	membuff_t prologue;
+	membuff_t body;
+};
+
+// Identify Ravi bytecode instructions that are jump
+// targets - we need this so that when generating code
+// we can emit labels for gotos
+static void scan_jump_targets(struct function *fn)
+{
+	const Instruction *code = fn->p->code;
+	int pc, n = fn->p->sizecode;
+	lua_assert(fn->jmps != NULL);
+	for (pc = 0; pc < n; pc++) {
+		Instruction i = code[pc];
+		OpCode op = GET_OPCODE(i);
+		switch (op) {
+		case OP_LOADBOOL: {
+			int C = GETARG_C(i);
+			int j = pc + 2;  // jump target
+			fn->jmps[j] = 1;
+		} break;
+		case OP_JMP:
+		case OP_RAVI_FORPREP_IP:
+		case OP_RAVI_FORPREP_I1:
+		case OP_RAVI_FORLOOP_IP:
+		case OP_RAVI_FORLOOP_I1:
+		case OP_FORLOOP:
+		case OP_FORPREP:
+		case OP_TFORLOOP: {
+			int sbx = GETARG_sBx(i);
+			int j = sbx + pc + 1;
+			fn->jmps[j] = true;
+		} break;
+		default: break;
+		}
+	}
+}
+
+static void initfn(struct function *fn, struct lua_State *L, struct Proto *p)
+{
+	fn->L = L;
+	fn->p = p;
+	fn->jmps = calloc(p->sizecode, sizeof fn->jmps[0]);
+	membuff_init(&fn->prologue, strlen(Lua_header) + 4096);
+	membuff_init(&fn->body, 4096);
+}
+
+static void cleanup(struct function *fn)
+{
+	free(fn->jmps);
+	membuff_free(&fn->prologue);
+	membuff_free(&fn->body);
+}
+
+#define RA(i) (base + GETARG_A(i))
+/* to be used after possible stack reallocation */
+#define RB(i) check_exp(getBMode(GET_OPCODE(i)) == OpArgR, base + GETARG_B(i))
+#define RC(i) check_exp(getCMode(GET_OPCODE(i)) == OpArgR, base + GETARG_C(i))
+#define RKB(i)                                 \
+  check_exp(getBMode(GET_OPCODE(i)) == OpArgK, \
+            ISK(GETARG_B(i)) ? k + INDEXK(GETARG_B(i)) : base + GETARG_B(i))
+#define RKC(i)                                 \
+  check_exp(getCMode(GET_OPCODE(i)) == OpArgK, \
+            ISK(GETARG_C(i)) ? k + INDEXK(GETARG_C(i)) : base + GETARG_C(i))
+#define KBx(i) \
+  (k + (GETARG_Bx(i) != 0 ? GETARG_Bx(i) - 1 : GETARG_Ax(*ci->u.l.savedpc++)))
+/* RAVI */
+#define KB(i) \
+  check_exp(getBMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_B(i)))
+#define KC(i) \
+  check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_C(i)))
+
 // Compile a Lua function
 // If JIT is turned off then compilation is skipped
 // Compilation occurs if either auto compilation is ON (subject to some
@@ -733,7 +919,16 @@ static int showparsetree(const char *buffer);
 // Returns true if compilation was successful
 int raviV_compile(struct lua_State *L, struct Proto *p,
                   ravi_compile_options_t *options) {
+  if (!can_compile(p)) return false;
+
+  struct function fn;
+  initfn(&fn, L, p);
+
+  scan_jump_targets(&fn);
+
   showparsetree(Lua_header);
+
+  cleanup(&fn);
   return false;
 }
 

@@ -173,11 +173,11 @@ static void get_path_and_name(char *path, size_t pathlen, char *name,
   const char *last_path_delim = strrchr(input_name, '/');
   if (last_path_delim) {
     /* source includes a path */
-    vscode_string_copy(name, last_path_delim + 1, namelen);
-    vscode_string_copy(path, input_name, pathlen);
+    ravi_string_copy(name, last_path_delim + 1, namelen);
+    ravi_string_copy(path, input_name, pathlen);
   } else {
     /* prepend the working directory to the name */
-    vscode_string_copy(name, input_name, namelen);
+    ravi_string_copy(name, input_name, namelen);
     if (workingdir[0]) {
       size_t n = strlen(workingdir);
       if (workingdir[n - 1] == '/')
@@ -186,7 +186,7 @@ static void get_path_and_name(char *path, size_t pathlen, char *name,
         snprintf(path, pathlen, "%s/%s", workingdir, input_name);
     } else {
       /* no working directory */
-      vscode_string_copy(path, input_name, pathlen);
+      ravi_string_copy(path, input_name, pathlen);
     }
   }
 }
@@ -216,11 +216,11 @@ static void handle_stack_trace_request(ProtocolMessage *req,
       char path[1024];
       char name[256];
       get_path_and_name(path, sizeof path, name, sizeof name, src, workingdir);
-      vscode_string_copy(
+      ravi_string_copy(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.path,
           path, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
                     .source.path);
-      vscode_string_copy(
+      ravi_string_copy(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
           name, sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
                     .source.name);
@@ -228,7 +228,7 @@ static void handle_stack_trace_request(ProtocolMessage *req,
       /* C Function so source is not available */
       res->u.Response.u.StackTraceResponse.stackFrames[depth]
           .source.sourceReference = -1;
-      vscode_string_copy(
+      ravi_string_copy(
           res->u.Response.u.StackTraceResponse.stackFrames[depth].source.name,
           "<C function>",
           sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth]
@@ -264,7 +264,7 @@ static void handle_stack_trace_request(ProtocolMessage *req,
     res->u.Response.u.StackTraceResponse.stackFrames[depth].line =
         entry.currentline;
     const char *funcname = entry.name ? entry.name : "?";
-    vscode_string_copy(
+    ravi_string_copy(
         res->u.Response.u.StackTraceResponse.stackFrames[depth].name, funcname,
         sizeof res->u.Response.u.StackTraceResponse.stackFrames[depth].name);
     depth++;
@@ -304,7 +304,7 @@ static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
       const char *src = entry.source;
       if (*src != '@' && *src != '=') {
         /* Source is a string */
-        vscode_string_copy(res->u.Response.u.SourceResponse.content, src,
+        ravi_string_copy(res->u.Response.u.SourceResponse.content, src,
                            sizeof res->u.Response.u.SourceResponse.content);
       } else
         goto l_nosource;
@@ -312,7 +312,7 @@ static void handle_source_request(ProtocolMessage *req, ProtocolMessage *res,
       goto l_nosource;
   } else {
   l_nosource:
-    vscode_string_copy(res->u.Response.u.SourceResponse.content,
+    ravi_string_copy(res->u.Response.u.SourceResponse.content,
                        "Source not available",
                        sizeof res->u.Response.u.SourceResponse.content);
   }
@@ -345,7 +345,7 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
         if (breakpoints[y].source.path[0] == 0 ||
             strcmp(breakpoints[y].source.path,
                    req->u.Request.u.SetBreakpointsRequest.source.path) == 0) {
-          vscode_string_copy(breakpoints[y].source.path,
+          ravi_string_copy(breakpoints[y].source.path,
                              req->u.Request.u.SetBreakpointsRequest.source.path,
                              sizeof breakpoints[0].source.path);
           breakpoints[y].line =
@@ -357,7 +357,7 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
                 req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line;
             res->u.Response.u.SetBreakpointsResponse.breakpoints[k].verified =
                 false;
-            vscode_string_copy(
+            ravi_string_copy(
                 res->u.Response.u.SetBreakpointsResponse.breakpoints[k]
                     .source.path,
                 breakpoints[y].source.path,
@@ -398,7 +398,7 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
     int status = lua_getinfo(L, "u", &entry);
     assert(status);
     int i = 0;
-    vscode_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
+    ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
                        "Locals",
                        sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
     PackedInteger varRef;
@@ -410,7 +410,7 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
     res->u.Response.u.ScopesResponse.scopes[i].expensive = 0;
     i++;
     if (entry.isvararg) {
-      vscode_string_copy(
+      ravi_string_copy(
           res->u.Response.u.ScopesResponse.scopes[i].name, "Var Args",
           sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
       memset(&varRef, 0, sizeof(PackedInteger));
@@ -421,7 +421,7 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
       res->u.Response.u.ScopesResponse.scopes[i].expensive = 0;
       i++;
     }
-    vscode_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
+    ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
                        "Globals",
                        sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
     memset(&varRef, 0, sizeof(PackedInteger));
@@ -431,7 +431,7 @@ static void handle_scopes_request(ProtocolMessage *req, ProtocolMessage *res,
         vscode_pack(&varRef);
     res->u.Response.u.ScopesResponse.scopes[i].expensive = 0;
     i++;
-    vscode_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
+    ravi_string_copy(res->u.Response.u.ScopesResponse.scopes[i].name,
                        "Lua Globals",
                        sizeof res->u.Response.u.ScopesResponse.scopes[0].name);
     memset(&varRef, 0, sizeof(PackedInteger));
@@ -596,10 +596,10 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
       }
       lua_pop(L, 1);
     } else if (j + 1 == MAX_VARIABLES) {
-      vscode_string_copy(
+      ravi_string_copy(
           res->u.Response.u.VariablesResponse.variables[j].name, "...",
           sizeof res->u.Response.u.VariablesResponse.variables[0].name);
-      vscode_string_copy(
+      ravi_string_copy(
           res->u.Response.u.VariablesResponse.variables[j].value, "",
           sizeof res->u.Response.u.VariablesResponse.variables[0].value);
       lua_pop(L, 1); /* pop value */
@@ -612,10 +612,10 @@ static void get_table_values(ProtocolMessage *res, lua_State *L, int stack_idx,
       char key[sizeof res->u.Response.u.VariablesResponse.variables[0].name];
       get_value(L, -1, key, sizeof key);
       if (!search_for_name(key, filter)) {
-        vscode_string_copy(
+        ravi_string_copy(
             res->u.Response.u.VariablesResponse.variables[j].name, key,
             sizeof res->u.Response.u.VariablesResponse.variables[0].name);
-        vscode_string_copy(
+        ravi_string_copy(
             res->u.Response.u.VariablesResponse.variables[j].type,
             ravi_typename(L, -2),
             sizeof res->u.Response.u.VariablesResponse.variables[0].type);
@@ -739,10 +739,10 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
         for (int n = 1, v = 0; v < MAX_VARIABLES; n++) {
           if (v + 1 == MAX_VARIABLES) {
             /* Let the user know that we are not displaying all the variables */
-            vscode_string_copy(
+            ravi_string_copy(
                 res->u.Response.u.VariablesResponse.variables[v].name, "...",
                 sizeof res->u.Response.u.VariablesResponse.variables[0].name);
-            vscode_string_copy(
+            ravi_string_copy(
                 res->u.Response.u.VariablesResponse.variables[v].value, "",
                 sizeof res->u.Response.u.VariablesResponse.variables[0].value);
             break;
@@ -756,12 +756,12 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
               if (*name == '(') {
                 char temp[80];
                 snprintf(temp, sizeof temp, "[%d]", n);
-                vscode_string_copy(
+                ravi_string_copy(
                     res->u.Response.u.VariablesResponse.variables[v].name, temp,
                     sizeof res->u.Response.u.VariablesResponse.variables[0]
                         .name);
               } else {
-                vscode_string_copy(
+                ravi_string_copy(
                     res->u.Response.u.VariablesResponse.variables[v].name, name,
                     sizeof res->u.Response.u.VariablesResponse.variables[0]
                         .name);
@@ -771,7 +771,7 @@ static void handle_variables_request(ProtocolMessage *req, ProtocolMessage *res,
                   res->u.Response.u.VariablesResponse.variables[v].value,
                   sizeof res->u.Response.u.VariablesResponse.variables[0]
                       .value);
-              vscode_string_copy(
+              ravi_string_copy(
                   res->u.Response.u.VariablesResponse.variables[v].type,
                   ravi_typename(L, -1),
                   sizeof res->u.Response.u.VariablesResponse.variables[0].type);
@@ -862,7 +862,7 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
     } else {
       /* Make a note of the working directory so that we can work out the
         path name of any source files */
-      vscode_string_copy(workingdir, req->u.Request.u.LaunchRequest.cwd,
+      ravi_string_copy(workingdir, req->u.Request.u.LaunchRequest.cwd,
                          sizeof workingdir);
     }
   }
@@ -1096,7 +1096,7 @@ void ravi_debug_writestring(const char *s, size_t l) {
     l = buflen - 1;
     overflow = 1;
   }
-  vscode_string_copy(buf, s, l + 1);
+  ravi_string_copy(buf, s, l + 1);
   if (overflow || *s == '\n') {
     vscode_send_output_event(&output_response, "stdout", output_buffer, stdout,
                              my_logger);
