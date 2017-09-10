@@ -856,7 +856,7 @@ static void emit_op_loadk(struct function *fn, int A, int Bx, int pc) {
       membuff_add_fstring(&fn->body, "setivalue(ra, %lld);\n", Konst->value_.i);
       break;
     case LUA_TNUMFLT:
-      membuff_add_fstring(&fn->body, "setfltvalue(ra, %.16f);\n", Konst->value_.n);
+      membuff_add_fstring(&fn->body, "setfltvalue(ra, %.17g);\n", Konst->value_.n);
       break;
     case LUA_TBOOLEAN:
       membuff_add_fstring(&fn->body, "setbvalue(ra, %d);\n", Konst->value_.b);
