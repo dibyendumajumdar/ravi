@@ -1,0 +1,21 @@
+-- These tests are for new backend
+
+local x = function() end
+
+assert(ravi.compile(x))
+
+x = function() return 42 end
+
+assert(ravi.compile(x))
+assert(x() == 42)
+
+x = function() return 4.256 end
+
+assert(ravi.compile(x))
+assert(x() == 4.256)
+
+x = function() return 'hello' end
+
+assert(ravi.compile(x))
+assert(x() == 'hello')
+

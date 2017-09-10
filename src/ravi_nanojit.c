@@ -219,6 +219,7 @@ int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
 }
 
 static const char Lua_header[] = ""
+"#define NULL ((void *)0)\n"
 "typedef struct lua_State lua_State;\n"
 "#define LUA_TNONE		(-1)\n"
 "#define LUA_TNIL		0\n"
@@ -399,7 +400,9 @@ static const char Lua_header[] = ""
 "    checkliveness(L,io); }\n"
 "#define setdeadvalue(obj)	settt_(obj, LUA_TDEADKEY)\n"
 "#define setobj(L,obj1,obj2) \\\n"
-"	{ TValue *io1=(obj1); *io1 = *(obj2); \\\n"
+// NOTE we cannot use aggregate assign so following assigns by field but assumes
+// n covers all value types
+"	{ TValue *io1=(obj1); io1->tt_ = obj2->tt_; val_(io1).n = val_(obj2).n; \\\n"
 "	  (void)L; checkliveness(L,io1); }\n"
 "#define setobjs2s	setobj\n"
 "#define setobj2s	setobj\n"
@@ -677,7 +680,8 @@ static const char Lua_header[] = ""
 "	check_exp(novariant((v)->tt) < LUA_TDEADKEY, (&(cast_u(v)->gc)))\n"
 "extern void luaF_close (lua_State *L, StkId level);\n"
 "extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);\n"
-"#define RB(i) (base + i)\n"
+"#define R(i) (base + i)\n"
+"#define K(i) (k + i)\n"
 ;
 
 static int showparsetree(const char *buffer);
@@ -694,9 +698,10 @@ static bool can_compile(Proto *p) {
     Instruction i = code[pc];
     OpCode o = GET_OPCODE(i);
     switch (o) {
-      case OP_RETURN: break;
+      case OP_RETURN: 
+      case OP_LOADK:
+	      break;
 #if 0
-		case OP_LOADK:
 		case OP_LOADKX:
 		case OP_RAVI_FORLOOP_IP:
 		case OP_RAVI_FORLOOP_I1:
@@ -843,8 +848,29 @@ static void emit_jump_label(struct function *fn, int pc) {
   }
 }
 
+static void emit_op_loadk(struct function *fn, int A, int Bx, int pc) {
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  TValue *Konst = &fn->p->k[Bx];
+  switch (Konst->tt_) {
+    case LUA_TNUMINT:
+      membuff_add_fstring(&fn->body, "setivalue(ra, %lld);\n", Konst->value_.i);
+      break;
+    case LUA_TNUMFLT:
+      membuff_add_fstring(&fn->body, "setfltvalue(ra, %.16f);\n", Konst->value_.n);
+      break;
+    case LUA_TBOOLEAN:
+      membuff_add_fstring(&fn->body, "setbvalue(ra, %d);\n", Konst->value_.b);
+      break;
+    default: {
+      membuff_add_fstring(&fn->body, "rb = K(%d);\n", Bx);
+      membuff_add_fstring(&fn->body, "setobj2s(L, ra, rb);\n");
+      break;
+    }
+  }
+}
+
 static void emit_op_return(struct function *fn, int A, int B, int pc) {
-  membuff_add_fstring(&fn->body, "ra = RB(%d);\n", A);
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
   membuff_add_string(&fn->body, "if (cl->p->sizep > 0) luaF_close(L, base);\n");
   int var = add_local_var(fn);
   membuff_add_fstring(&fn->prologue, "int nres_%d = 0;\n", var);
@@ -871,16 +897,15 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p) {
   membuff_add_string(&fn->prologue, Lua_header);
   membuff_add_fstring(&fn->prologue, "int %s(lua_State *L) {\n", fn->fname);
   membuff_add_string(&fn->prologue, "CallInfo *ci = L->ci;\n");
-  membuff_add_string(&fn->prologue, "LClosure *cl;\n");
-  membuff_add_string(&fn->prologue, "TValue *k;\n");
-  membuff_add_string(&fn->prologue, "StkId base;\n");
-  membuff_add_string(&fn->prologue, "StkId ra;\n");
+  membuff_add_string(&fn->prologue, "StkId ra = NULL;\n");
+  membuff_add_string(&fn->prologue, "StkId rb = NULL;\n");
+  membuff_add_string(&fn->prologue, "StkId rc = NULL;\n");
   // TODO we never set this???
   // ci->callstatus |= CIST_FRESH;  /* fresh invocation of 'luaV_execute" */
   // lua_assert(ci == L->ci);
-  membuff_add_string(&fn->prologue, "cl = clLvalue(ci->func);\n");
-  membuff_add_string(&fn->prologue, "k = cl->p->k;\n");
-  membuff_add_string(&fn->prologue, "base = ci->u.l.base;\n");
+  membuff_add_string(&fn->prologue, "LClosure *cl = clLvalue(ci->func);\n");
+  membuff_add_string(&fn->prologue, "TValue *k = cl->p->k;\n");
+  membuff_add_string(&fn->prologue, "StkId base = ci->u.l.base;\n");
 }
 
 static void cleanup(struct function *fn) {
@@ -938,6 +963,10 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
     OpCode op = GET_OPCODE(i);
     int A = GETARG_A(i);
     switch (op) {
+      case OP_LOADK: {
+        int Bx = GETARG_Bx(i);
+        emit_op_loadk(&fn, A, Bx, pc);
+      } break;
       case OP_RETURN: {
         int B = GETARG_B(i);
         emit_op_return(&fn, A, B, pc);
