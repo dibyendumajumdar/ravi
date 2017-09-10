@@ -37,48 +37,44 @@ static int id = 0;
 #include "lua.h"
 
 static bool register_builtin_arg1(NJXContextRef module, const char *name,
-	void *fp, enum NJXValueKind return_type,
-	enum NJXValueKind arg1)
-{
-	enum NJXValueKind args[1];
-	args[0] = arg1;
-	return NJX_register_C_function(module, name, fp, return_type, args, 1);
+                                  void *fp, enum NJXValueKind return_type,
+                                  enum NJXValueKind arg1) {
+  enum NJXValueKind args[1];
+  args[0] = arg1;
+  return NJX_register_C_function(module, name, fp, return_type, args, 1);
 }
 static bool register_builtin_arg2(NJXContextRef module, const char *name,
-	void *fp, enum NJXValueKind return_type,
-	enum NJXValueKind arg1,
-	enum NJXValueKind arg2)
-{
-	enum NJXValueKind args[2];
-	args[0] = arg1;
-	args[1] = arg2;
-	return NJX_register_C_function(module, name, fp, return_type, args, 2);
+                                  void *fp, enum NJXValueKind return_type,
+                                  enum NJXValueKind arg1,
+                                  enum NJXValueKind arg2) {
+  enum NJXValueKind args[2];
+  args[0] = arg1;
+  args[1] = arg2;
+  return NJX_register_C_function(module, name, fp, return_type, args, 2);
 }
 static bool register_builtin_arg3(NJXContextRef module, const char *name,
-	void *fp, enum NJXValueKind return_type,
-	enum NJXValueKind arg1,
-	enum NJXValueKind arg2,
-	enum NJXValueKind arg3)
-{
-	enum NJXValueKind args[3];
-	args[0] = arg1;
-	args[1] = arg2;
-	args[2] = arg3;
-	return NJX_register_C_function(module, name, fp, return_type, args, 3);
+                                  void *fp, enum NJXValueKind return_type,
+                                  enum NJXValueKind arg1,
+                                  enum NJXValueKind arg2,
+                                  enum NJXValueKind arg3) {
+  enum NJXValueKind args[3];
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  return NJX_register_C_function(module, name, fp, return_type, args, 3);
 }
 static bool register_builtin_arg4(NJXContextRef module, const char *name,
-	void *fp, enum NJXValueKind return_type,
-	enum NJXValueKind arg1,
-	enum NJXValueKind arg2,
-	enum NJXValueKind arg3,
-	enum NJXValueKind arg4)
-{
-	enum NJXValueKind args[4];
-	args[0] = arg1;
-	args[1] = arg2;
-	args[2] = arg3;
-	args[3] = arg4;
-	return NJX_register_C_function(module, name, fp, return_type, args, 4);
+                                  void *fp, enum NJXValueKind return_type,
+                                  enum NJXValueKind arg1,
+                                  enum NJXValueKind arg2,
+                                  enum NJXValueKind arg3,
+                                  enum NJXValueKind arg4) {
+  enum NJXValueKind args[4];
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = arg4;
+  return NJX_register_C_function(module, name, fp, return_type, args, 4);
 }
 
 // Initialize the JIT State and attach it to the
@@ -700,15 +696,15 @@ static bool can_compile(Proto *p) {
     switch (o) {
       case OP_RETURN: 
       case OP_LOADK:
+      case OP_RAVI_FORLOOP_IP:
+      case OP_RAVI_FORLOOP_I1:
+      case OP_RAVI_FORPREP_IP:
+      case OP_RAVI_FORPREP_I1:
+      case OP_MOVE:
+      case OP_LOADNIL:
 	      break;
 #if 0
 		case OP_LOADKX:
-		case OP_RAVI_FORLOOP_IP:
-		case OP_RAVI_FORLOOP_I1:
-		case OP_RAVI_FORPREP_IP:
-		case OP_RAVI_FORPREP_I1:
-		case OP_MOVE:
-		case OP_LOADNIL:
 		case OP_RAVI_LOADIZ:
 		case OP_RAVI_LOADFZ:
 		case OP_CALL:
@@ -801,6 +797,8 @@ struct function {
   // should be bitmap
   // flags to mark instructions
   unsigned char *jmps;
+  // Flags related to locals
+  unsigned char *locals;
   membuff_t prologue;
   membuff_t body;
 };
@@ -881,6 +879,54 @@ static void emit_op_return(struct function *fn, int A, int B, int pc) {
                       var);
 }
 
+static void emit_op_move(struct function *fn, int A, int B, int pc) {
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_fstring(&fn->body, "rb = R(%d);\n", B);
+  membuff_add_fstring(&fn->body, "setobj2s(L, ra, rb);\n");
+}
+
+static void emit_op_loadnil(struct function *fn, int A, int B, int pc) {
+  int b = B;
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  do { membuff_add_fstring(&fn->body, "setnilvalue(ra++);\n"); } while (b--);
+}
+
+static void emit_op_iforloop(struct function *fn, int A, int pc, int step_one,
+                             int pc1) {
+  if (!step_one) { membuff_add_fstring(&fn->body, "i_%d += step_%d;\n", A, A); }
+  else {
+    membuff_add_fstring(&fn->body, "i_%d += 1;\n", A);
+  }
+  membuff_add_fstring(&fn->body,
+                      "if (i_%d <= limit_%d) {\n  ra = R(%d);\n  setivalue(ra, "
+                      "i_%d);\n  goto Lbc_%d;\n}\n",
+                      A, A, A + 3, A, pc);
+}
+
+static void emit_op_iforprep(struct function *fn, int A, int pc, int step_one,
+                             int pc1) {
+  if (!fn->locals[A]) {
+    fn->locals[A] =
+        1;  // Lua can reuse the same forloop vars if loop isn't nested
+    membuff_add_fstring(&fn->prologue, "int i_%d = 0;\n", A);
+    membuff_add_fstring(&fn->prologue, "int limit_%d = 0;\n", A);
+    if (!step_one) membuff_add_fstring(&fn->prologue, "int step_%d = 0;\n", A);
+  }
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_fstring(&fn->body, "i_%d = ivalue(ra);\n", A);
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A + 1);
+  membuff_add_fstring(&fn->body, "limit_%d = ivalue(ra);\n", A);
+  if (!step_one) {
+    membuff_add_fstring(&fn->body, "ra = R(%d);\n", A + 2);
+    membuff_add_fstring(&fn->body, "step_%d = ivalue(ra);\n", A);
+    membuff_add_fstring(&fn->body, "i_%d -= step_%d;\n", A, A);
+  }
+  else {
+    membuff_add_fstring(&fn->body, "i_%d -= 1;\n", A);
+  }
+  membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", pc);
+}
+
 static void emit_endf(struct function *fn) {
   membuff_add_string(&fn->body, "}\n");
 }
@@ -892,6 +938,7 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p) {
   fn->var = 0;
   snprintf(fn->fname, sizeof fn->fname, "jitf%d", fn->id);
   fn->jmps = calloc(p->sizecode, sizeof fn->jmps[0]);
+  fn->locals = calloc(p->sizelocvars, sizeof fn->locals[0]);
   membuff_init(&fn->prologue, strlen(Lua_header) + 4096);
   membuff_init(&fn->body, 4096);
   membuff_add_string(&fn->prologue, Lua_header);
@@ -910,6 +957,7 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p) {
 
 static void cleanup(struct function *fn) {
   free(fn->jmps);
+  free(fn->locals);
   membuff_free(&fn->prologue);
   membuff_free(&fn->body);
 }
@@ -967,9 +1015,29 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
         int Bx = GETARG_Bx(i);
         emit_op_loadk(&fn, A, Bx, pc);
       } break;
+      case OP_LOADNIL: {
+        int B = GETARG_B(i);
+        emit_op_loadnil(&fn, A, B, pc);
+      } break;
       case OP_RETURN: {
         int B = GETARG_B(i);
         emit_op_return(&fn, A, B, pc);
+      } break;
+      case OP_RAVI_FORPREP_I1:
+      case OP_RAVI_FORPREP_IP: {
+        int sbx = GETARG_sBx(i);
+        int j = sbx + pc + 1;
+        emit_op_iforprep(&fn, A, j, op == OP_RAVI_FORPREP_I1, pc);
+      } break;
+      case OP_RAVI_FORLOOP_I1:
+      case OP_RAVI_FORLOOP_IP: {
+        int sbx = GETARG_sBx(i);
+        int j = sbx + pc + 1;
+        emit_op_iforloop(&fn, A, j, op == OP_RAVI_FORLOOP_I1, pc);
+      } break;
+      case OP_MOVE: {
+        int B = GETARG_B(i);
+        emit_op_move(&fn, A, B, pc);
       } break;
 
       default: abort();
@@ -979,10 +1047,11 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
 
   membuff_add_string(&fn.prologue, fn.body.buf);
   printf(fn.prologue.buf);
-
-  showparsetree(fn.prologue.buf);
-
   int (*fp)(lua_State * L) = NULL;
+#if 0
+  showparsetree(fn.prologue.buf);
+#endif
+#if 1
   char *argv[] = {NULL};
   if (!dmrC_nanocompile(0, argv, context, fn.prologue.buf)) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
@@ -995,7 +1064,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
       p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
     }
   }
-
+#endif
   cleanup(&fn);
   return fp != NULL;
 }

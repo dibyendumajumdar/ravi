@@ -1,21 +1,39 @@
 -- These tests are for new backend
+local compile = function(f)
+  if ravi.jit() then
+    assert(ravi.compile(f))
+  end
+  return true
+end
 
 local x = function() end
 
-assert(ravi.compile(x))
+compile(x)
 
 x = function() return 42 end
 
-assert(ravi.compile(x))
+compile(x)
 assert(x() == 42)
 
 x = function() return 4.256 end
 
-assert(ravi.compile(x))
+compile(x)
 assert(x() == 4.256)
 
 x = function() return 'hello' end
 
-assert(ravi.compile(x))
+compile(x)
 assert(x() == 'hello')
 
+x = function() 
+		local j
+		for i=1,10 do 
+			for k = 0,5,5 do
+				j = k 
+			end 
+		end
+		return j
+	end
+
+compile(x)
+assert(x() == 5)
