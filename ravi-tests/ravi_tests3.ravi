@@ -57,4 +57,17 @@ x = function()
 compile(x)
 assert(not x())
 
+local y
+y = function()
+		return x()
+	end
+compile(y)
+assert(not y())
+
+x = function()
+		print 'Good if this prints'
+	end
+compile(x)
+x()
+
 print'Ok'

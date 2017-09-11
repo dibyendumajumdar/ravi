@@ -98,6 +98,13 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg2(jit->jit, "luaV_lessthan", luaV_lessthan, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P);
   //extern int luaV_lessequal(lua_State *L, const TValue *l, const TValue *r);\n"
   register_builtin_arg2(jit->jit, "luaV_lessequal", luaV_lessequal, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P);
+  //extern int luaV_execute(lua_State *L);
+  register_builtin_arg1(jit->jit, "luaV_execute", luaV_execute, NJXValueKind_I, NJXValueKind_P);
+  //extern void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val)
+  register_builtin_arg4(jit->jit, "luaV_gettable", luaV_gettable, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
+  //int luaD_precall (lua_State *L, StkId func, int nresults, int op_call);
+  register_builtin_arg4(jit->jit, "luaD_precall", luaD_precall, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
+
   G->ravi_state = jit;
   return 0;
 }
@@ -668,6 +675,17 @@ static const char Lua_header[] = ""
 "	struct Proto p;\n"
 "	struct lua_State th;\n"
 "};\n"
+"struct UpVal {\n"
+"	TValue *v;\n"
+"	lu_mem refcount;\n"
+"	union {\n"
+"		struct {\n"
+"			UpVal *next;\n"
+"			int touched;\n"
+"		} open;\n"
+"		TValue value;\n"
+"	} u;\n"
+"};\n"
 "#define cast_u(o)	cast(union GCUnion *, (o))\n"
 "#define gco2ts(o)  \\\n"
 "	check_exp(novariant((o)->tt) == LUA_TSTRING, &((cast_u(o))->ts))\n"
@@ -686,6 +704,9 @@ static const char Lua_header[] = ""
 "extern int luaV_equalobj(lua_State *L, const TValue *t1, const TValue *t2);\n"
 "extern int luaV_lessthan(lua_State *L, const TValue *l, const TValue *r);\n"
 "extern int luaV_lessequal(lua_State *L, const TValue *l, const TValue *r);\n"
+"extern void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val);\n"
+"extern int luaV_execute(lua_State *L);\n"
+"extern int luaD_precall (lua_State *L, StkId func, int nresults, int op_call);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 ;
@@ -723,17 +744,19 @@ static bool can_compile(Proto *p) {
       case OP_LE:
       case OP_RAVI_LE_II:
       case OP_RAVI_LE_FF:
+      case OP_TEST:
+      case OP_TESTSET:
+      case OP_CALL:
+      case OP_TAILCALL:
+      case OP_GETTABUP:
+      case OP_RAVI_GETTABUP_SK:
+      case OP_GETUPVAL:
 	      break;
 #if 0
 		case OP_LOADKX:
 		case OP_RAVI_LOADIZ:
 		case OP_RAVI_LOADFZ:
-		case OP_CALL:
-		case OP_TAILCALL:
-		case OP_GETTABUP:
 		case OP_NOT:
-		case OP_TEST:
-		case OP_TESTSET:
 		case OP_RAVI_MOVEI:
 		case OP_RAVI_MOVEF:
 		case OP_RAVI_TOINT:
@@ -780,7 +803,6 @@ static bool can_compile(Proto *p) {
 		case OP_SUB:
 		case OP_MUL:
 		case OP_DIV:
-		case OP_GETUPVAL:
 		case OP_SETUPVAL:
 		case OP_FORPREP:
 		case OP_FORLOOP:
@@ -831,7 +853,7 @@ static void scan_jump_targets(struct function *fn) {
         if (C) {
           int j = pc + 2;  // jump target
           assert(j < n);
-          fn->jmps[j] = 1;
+          fn->jmps[j] = true;
         }
       } break;
       case OP_JMP:
@@ -1014,6 +1036,44 @@ static void emit_op_loadbool(struct function *fn, int A, int B, int C, int j,
   if (C) { membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", j); }
 }
 
+static void emit_op_test(struct function *fn, int A, int B, int C, int j,
+                         int jA, int pc) {
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_string(&fn->body, "{\n");
+  if (C) { membuff_add_string(&fn->body, " int no_jump = l_isfalse(ra);\n"); }
+  else {
+    membuff_add_string(&fn->body, " int no_jump = !l_isfalse(ra);\n");
+  }
+  membuff_add_fstring(&fn->body, " if (!no_jmp) {\n", A);
+  if (jA > 0) {
+    membuff_add_fstring(&fn->body, "  ra = R(%d);\n", jA - 1);
+    membuff_add_string(&fn->body, "  luaF_close(L, ra);\n");
+  }
+  membuff_add_fstring(&fn->body, "   goto Lbc_%d;\n", j);
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_testset(struct function *fn, int A, int B, int C, int j,
+                            int jA, int pc) {
+  membuff_add_fstring(&fn->body, "rb = R(%d);\n", B);
+  membuff_add_string(&fn->body, "{\n");
+  if (C) { membuff_add_string(&fn->body, " int no_jump = l_isfalse(rb);\n"); }
+  else {
+    membuff_add_string(&fn->body, " int no_jump = !l_isfalse(rb);\n");
+  }
+  membuff_add_fstring(&fn->body, " if (!no_jmp) {\n", A);
+  membuff_add_fstring(&fn->body, "  ra = R(%d);\n", A);
+  membuff_add_string(&fn->body, "   setobjs2s(L, ra, rb);");
+  if (jA > 0) {
+    membuff_add_fstring(&fn->body, "  ra = R(%d);\n", jA - 1);
+    membuff_add_string(&fn->body, "  luaF_close(L, ra);\n");
+  }
+  membuff_add_fstring(&fn->body, "   goto Lbc_%d;\n", j);
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
 static void emit_op_iforloop(struct function *fn, int A, int pc, int step_one,
                              int pc1) {
   if (!step_one) { membuff_add_fstring(&fn->body, "i_%d += step_%d;\n", A, A); }
@@ -1079,6 +1139,49 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p) {
   membuff_add_string(&fn->prologue, "LClosure *cl = clLvalue(ci->func);\n");
   membuff_add_string(&fn->prologue, "TValue *k = cl->p->k;\n");
   membuff_add_string(&fn->prologue, "StkId base = ci->u.l.base;\n");
+}
+
+// Handle OP_CALL
+// Note that Lua assumes that functions called via OP_CALL
+// are Lua functions and secondly that once OP_CALL completes the
+// current function will continue within the same luaV_execute()
+// call. However in a JIT case each JIT function is a different call
+// so we need to take care of the behaviour differences between
+// OP_CALL and external calls
+static void emit_op_call(struct function *fn, int A, int B, int C, int pc) {
+  int nresults = C - 1;
+  if (B != 0) { membuff_add_fstring(&fn->body, "L->top = R(%d);\n", A + B); }
+  membuff_add_fstring(&fn->body, "{\n", A);
+  membuff_add_fstring(&fn->body, " ra = R(%d);\n", A);
+  membuff_add_fstring(&fn->body, " int c = luaD_precall(L, ra, %d, 1);\n",
+                      nresults);
+  membuff_add_string(&fn->body, " if (c) {\n");
+  membuff_add_fstring(&fn->body, "  if (c == 1 && %d >= 0)\n", nresults);
+  membuff_add_string(&fn->body, "   L->top = ci->top;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, " else {  /* Lua function */\n");
+  membuff_add_string(&fn->body, "  int b = luaV_execute(L);\n");
+  membuff_add_string(&fn->body, "  if (b) L->top = ci->top;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+  membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+}
+
+// R(A) := UpValue[B][RK(C)]
+static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc) {
+  // int b = GETARG_B(i);
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
+                      (ISK(C) ? INDEXK(C) : C));
+  membuff_add_fstring(&fn->body,
+                      "luaV_gettable(L, cl->upvals[%d]->v, rc, ra);\n", B);
+  membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+}
+
+// R(A) := UpValue[B]
+static void emit_op_getupval(struct function *fn, int A, int B, int pc) {
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_fstring(&fn->body, "setobjs2s(L, ra, cl->upvals[%d]->v);\n", B);
 }
 
 static void cleanup(struct function *fn) {
@@ -1193,8 +1296,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
                  : ((op == OP_LT || op == OP_RAVI_LT_II || op == OP_RAVI_LT_FF)
                         ? "luaV_lessthan"
                         : "luaV_lessequal"));
-        // OP_EQ is followed by OP_JMP - we process this
-        // along with OP_EQ
+        // OP_EQ etc is followed by OP_JMP - we process this
+        // along with OP_EQ etc
         pc++;
         i = code[pc];
         op = GET_OPCODE(i);
@@ -1205,7 +1308,50 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
         emit_comparison(&fn, A, B, C, j, GETARG_A(i), comparison_function,
                         compOperator, pc - 1);
       } break;
-
+      case OP_TEST: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        // OP_TEST is followed by OP_JMP - we process this
+        // along with OP_TEST
+        pc++;
+        i = code[pc];
+        op = GET_OPCODE(i);
+        lua_assert(op == OP_JMP);
+        int sbx = GETARG_sBx(i);
+        // j below is the jump target
+        int j = sbx + pc + 1;
+        emit_op_test(&fn, A, B, C, j, GETARG_A(i), pc - 1);
+      } break;
+      case OP_TESTSET: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        // OP_TESTSET is followed by OP_JMP - we process this
+        // along with OP_TESTSET
+        pc++;
+        i = code[pc];
+        op = GET_OPCODE(i);
+        lua_assert(op == OP_JMP);
+        int sbx = GETARG_sBx(i);
+        // j below is the jump target
+        int j = sbx + pc + 1;
+        emit_op_testset(&fn, A, B, C, j, GETARG_A(i), pc - 1);
+      } break;
+      case OP_RAVI_GETTABUP_SK:
+      case OP_GETTABUP: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_op_gettabup(&fn, A, B, C, pc);
+      } break;
+      case OP_TAILCALL:
+      case OP_CALL: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_op_call(&fn, A, B, C, pc);
+      } break;
+      case OP_GETUPVAL: {
+        int B = GETARG_B(i);
+        emit_op_getupval(&fn, A, B, pc);
+      } break;
       default: abort();
     }
   }
