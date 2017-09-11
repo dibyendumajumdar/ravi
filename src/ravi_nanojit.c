@@ -828,9 +828,11 @@ static void scan_jump_targets(struct function *fn) {
     switch (op) {
       case OP_LOADBOOL: {
         int C = GETARG_C(i);
-        int j = pc + 2;  // jump target
-	assert(j <= n);
-        fn->jmps[j] = 1;
+        if (C) {
+          int j = pc + 2;  // jump target
+          assert(j < n);
+          fn->jmps[j] = 1;
+        }
       } break;
       case OP_JMP:
       case OP_RAVI_FORPREP_IP:
@@ -842,8 +844,8 @@ static void scan_jump_targets(struct function *fn) {
       case OP_TFORLOOP: {
         int sbx = GETARG_sBx(i);
         int j = sbx + pc + 1;
-	assert(j <= n);
-	fn->jmps[j] = true;
+        assert(j < n);
+        fn->jmps[j] = true;
       } break;
       default: break;
     }
@@ -1058,7 +1060,7 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p) {
   fn->id = id++;
   fn->var = 0;
   snprintf(fn->fname, sizeof fn->fname, "jitf%d", fn->id);
-  fn->jmps = calloc(p->sizecode+1, sizeof fn->jmps[0]);
+  fn->jmps = calloc(p->sizecode, sizeof fn->jmps[0]);
   if (p->sizelocvars)
 	  fn->locals = calloc(p->sizelocvars, sizeof fn->locals[0]);
   else
