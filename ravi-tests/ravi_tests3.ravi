@@ -37,3 +37,24 @@ x = function()
 
 compile(x)
 assert(x() == 5)
+
+x = function()
+		local a,b = false, true
+		return a
+	end
+
+compile(x)
+assert(not x())
+
+x = function()
+		local a
+		if 2 < 5 then
+			a = true
+		else
+			a = false
+		end
+	end
+compile(x)
+assert(not x())
+
+print'Ok'

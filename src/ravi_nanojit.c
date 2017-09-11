@@ -25,6 +25,7 @@
 #include <ravi_membuf.h>
 #include <ravijit.h>
 #include <stddef.h>
+#include <assert.h>
 
 // FIXME should be in ravi_State
 static int id = 0;
@@ -91,6 +92,12 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg2(jit->jit, "luaF_close", luaF_close, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P);
   //extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);
   register_builtin_arg4(jit->jit, "luaD_poscall", luaD_poscall, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
+  //extern int luaV_equalobj(lua_State *L, const TValue *t1, const TValue *t2);\n"
+  register_builtin_arg2(jit->jit, "luaV_equalobj", luaV_equalobj, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P);
+  //extern int luaV_lessthan(lua_State *L, const TValue *l, const TValue *r);\n"
+  register_builtin_arg2(jit->jit, "luaV_lessthan", luaV_lessthan, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P);
+  //extern int luaV_lessequal(lua_State *L, const TValue *l, const TValue *r);\n"
+  register_builtin_arg2(jit->jit, "luaV_lessequal", luaV_lessequal, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P);
   G->ravi_state = jit;
   return 0;
 }
@@ -676,6 +683,9 @@ static const char Lua_header[] = ""
 "	check_exp(novariant((v)->tt) < LUA_TDEADKEY, (&(cast_u(v)->gc)))\n"
 "extern void luaF_close (lua_State *L, StkId level);\n"
 "extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);\n"
+"extern int luaV_equalobj(lua_State *L, const TValue *t1, const TValue *t2);\n"
+"extern int luaV_lessthan(lua_State *L, const TValue *l, const TValue *r);\n"
+"extern int luaV_lessequal(lua_State *L, const TValue *l, const TValue *r);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 ;
@@ -702,6 +712,17 @@ static bool can_compile(Proto *p) {
       case OP_RAVI_FORPREP_I1:
       case OP_MOVE:
       case OP_LOADNIL:
+      case OP_JMP:
+      case OP_LOADBOOL:
+      case OP_EQ:
+      case OP_RAVI_EQ_II:
+      case OP_RAVI_EQ_FF:
+      case OP_LT:
+      case OP_RAVI_LT_II:
+      case OP_RAVI_LT_FF:
+      case OP_LE:
+      case OP_RAVI_LE_II:
+      case OP_RAVI_LE_FF:
 	      break;
 #if 0
 		case OP_LOADKX:
@@ -709,18 +730,7 @@ static bool can_compile(Proto *p) {
 		case OP_RAVI_LOADFZ:
 		case OP_CALL:
 		case OP_TAILCALL:
-		case OP_JMP:
-		case OP_EQ:
-		case OP_RAVI_EQ_II:
-		case OP_RAVI_EQ_FF:
-		case OP_LT:
-		case OP_RAVI_LT_II:
-		case OP_RAVI_LT_FF:
-		case OP_LE:
-		case OP_RAVI_LE_II:
-		case OP_RAVI_LE_FF:
 		case OP_GETTABUP:
-		case OP_LOADBOOL:
 		case OP_NOT:
 		case OP_TEST:
 		case OP_TESTSET:
@@ -811,7 +821,7 @@ static int add_local_var(struct function *fn) { return fn->var++; }
 static void scan_jump_targets(struct function *fn) {
   const Instruction *code = fn->p->code;
   int pc, n = fn->p->sizecode;
-  lua_assert(fn->jmps != NULL);
+  assert(fn->jmps != NULL);
   for (pc = 0; pc < n; pc++) {
     Instruction i = code[pc];
     OpCode op = GET_OPCODE(i);
@@ -819,6 +829,7 @@ static void scan_jump_targets(struct function *fn) {
       case OP_LOADBOOL: {
         int C = GETARG_C(i);
         int j = pc + 2;  // jump target
+	assert(j <= n);
         fn->jmps[j] = 1;
       } break;
       case OP_JMP:
@@ -831,11 +842,105 @@ static void scan_jump_targets(struct function *fn) {
       case OP_TFORLOOP: {
         int sbx = GETARG_sBx(i);
         int j = sbx + pc + 1;
-        fn->jmps[j] = true;
+	assert(j <= n);
+	fn->jmps[j] = true;
       } break;
       default: break;
     }
   }
+}
+
+static void emit_comparison(struct function *fn, int A, int B, int C, int j,
+                            int jA, const char *compfunc, OpCode opCode,
+                            int pc) {
+  membuff_add_string(&fn->body, "{ \n");
+  const char *oper = "==";
+  switch (opCode) {
+    case OP_RAVI_LT_II: oper = "<"; goto Lemitint;
+    case OP_RAVI_LE_II: oper = "<=";
+    case OP_RAVI_EQ_II:
+    Lemitint:
+      if (ISK(B) && ISK(C)) {
+        TValue *Konst1 = &fn->p->k[INDEXK(B)];
+        TValue *Konst2 = &fn->p->k[INDEXK(C)];
+        membuff_add_fstring(&fn->body, " int result = (%lld %s %lld);\n",
+                            Konst1->value_.i, oper, Konst2->value_.i);
+      }
+      else if (ISK(B)) {
+        TValue *Konst1 = &fn->p->k[INDEXK(B)];
+        membuff_add_fstring(&fn->body, "rc = %s + %d;\n",
+                            (ISK(C) ? "k" : "base"), (ISK(C) ? INDEXK(C) : C));
+        membuff_add_fstring(&fn->body, " int result = (%lld %s ivalue(rc));\n",
+                            Konst1->value_.i, oper);
+      }
+      else if (ISK(C)) {
+        TValue *Konst2 = &fn->p->k[INDEXK(C)];
+        membuff_add_fstring(&fn->body, "rb = %s + %d;\n",
+                            (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
+        membuff_add_fstring(&fn->body, " int result = (ivalue(rb) %s %lld);\n",
+                            oper, Konst2->value_.i);
+      }
+      else {
+        membuff_add_fstring(&fn->body, "rb = %s + %d;\n",
+                            (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
+        membuff_add_fstring(&fn->body, "rc = %s + %d;\n",
+                            (ISK(C) ? "k" : "base"), (ISK(C) ? INDEXK(C) : C));
+        membuff_add_fstring(
+            &fn->body, " int result = (ivalue(rb) %s ivalue(rc));\n", oper);
+      }
+      break;
+    case OP_RAVI_LT_FF: oper = "<"; goto Lemitflt;
+    case OP_RAVI_LE_FF: oper = "<=";
+    case OP_RAVI_EQ_FF:
+    Lemitflt:
+      if (ISK(B) && ISK(C)) {
+        TValue *Konst1 = &fn->p->k[INDEXK(B)];
+        TValue *Konst2 = &fn->p->k[INDEXK(C)];
+        membuff_add_fstring(&fn->body, " int result = (%.17g %s %.17g);\n",
+                            Konst1->value_.n, oper, Konst2->value_.n);
+      }
+      else if (ISK(B)) {
+        TValue *Konst1 = &fn->p->k[INDEXK(B)];
+        membuff_add_fstring(&fn->body, "rc = %s + %d;\n",
+                            (ISK(C) ? "k" : "base"), (ISK(C) ? INDEXK(C) : C));
+        membuff_add_fstring(&fn->body,
+                            " int result = (%.17g %s fltvalue(rc));\n",
+                            Konst1->value_.n, oper);
+      }
+      else if (ISK(C)) {
+        TValue *Konst2 = &fn->p->k[INDEXK(C)];
+        membuff_add_fstring(&fn->body, "rb = %s + %d;\n",
+                            (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
+        membuff_add_fstring(&fn->body,
+                            " int result = (fltvalue(rb) %s %.17g);\n", oper,
+                            Konst2->value_.n);
+      }
+      else {
+        membuff_add_fstring(&fn->body, "rb = %s + %d;\n",
+                            (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
+        membuff_add_fstring(&fn->body, "rc = %s + %d;\n",
+                            (ISK(C) ? "k" : "base"), (ISK(C) ? INDEXK(C) : C));
+        membuff_add_fstring(
+            &fn->body, " int result = (fltvalue(rb) %s fltvalue(rc));\n", oper);
+      }
+      break;
+    default:
+      membuff_add_fstring(&fn->body, " int result = %s(L, rb, rc);\n",
+                          compfunc);
+      // Reload pointer to base as the call to luaV_equalobj() may
+      // have invoked a Lua function and as a result the stack may have
+      // been reallocated - so the previous base pointer could be stale
+      membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
+      break;
+  }
+  membuff_add_fstring(&fn->body, " if (result == %d) {\n", A);
+  if (jA > 0) {
+    membuff_add_fstring(&fn->body, "  ra = R(%d);\n", jA - 1);
+    membuff_add_string(&fn->body, "  luaF_close(L, ra);\n");
+  }
+  membuff_add_fstring(&fn->body, "   goto Lbc_%d;\n", j);
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_jump_label(struct function *fn, int pc) {
@@ -891,6 +996,22 @@ static void emit_op_loadnil(struct function *fn, int A, int B, int pc) {
   do { membuff_add_fstring(&fn->body, "setnilvalue(ra++);\n"); } while (b--);
 }
 
+static void emit_op_jmp(struct function *fn, int A, int sBx, int pc) {
+  if (A > 0) {
+    membuff_add_fstring(&fn->body, "ra = R(%d);\n", A - 1);
+    membuff_add_string(&fn->body, "luaF_close(L, ra);\n");
+  }
+  membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", sBx);
+}
+
+static void emit_op_loadbool(struct function *fn, int A, int B, int C, int j,
+                             int pc) {
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_fstring(&fn->body, "setbvalue(ra, %d);\n", B);
+
+  if (C) { membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", j); }
+}
+
 static void emit_op_iforloop(struct function *fn, int A, int pc, int step_one,
                              int pc1) {
   if (!step_one) { membuff_add_fstring(&fn->body, "i_%d += step_%d;\n", A, A); }
@@ -937,8 +1058,11 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p) {
   fn->id = id++;
   fn->var = 0;
   snprintf(fn->fname, sizeof fn->fname, "jitf%d", fn->id);
-  fn->jmps = calloc(p->sizecode, sizeof fn->jmps[0]);
-  fn->locals = calloc(p->sizelocvars, sizeof fn->locals[0]);
+  fn->jmps = calloc(p->sizecode+1, sizeof fn->jmps[0]);
+  if (p->sizelocvars)
+	  fn->locals = calloc(p->sizelocvars, sizeof fn->locals[0]);
+  else
+	  fn->locals = NULL;
   membuff_init(&fn->prologue, strlen(Lua_header) + 4096);
   membuff_init(&fn->body, 4096);
   membuff_add_string(&fn->prologue, Lua_header);
@@ -957,7 +1081,8 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p) {
 
 static void cleanup(struct function *fn) {
   free(fn->jmps);
-  free(fn->locals);
+  if (fn->locals)
+	  free(fn->locals);
   membuff_free(&fn->prologue);
   membuff_free(&fn->body);
 }
@@ -1000,7 +1125,6 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
 
   struct function fn;
   initfn(&fn, L, p);
-
   scan_jump_targets(&fn);
 
   const Instruction *code = p->code;
@@ -1039,12 +1163,51 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
         int B = GETARG_B(i);
         emit_op_move(&fn, A, B, pc);
       } break;
+      case OP_JMP: {
+        int sbx = GETARG_sBx(i);
+        int j = sbx + pc + 1;
+        emit_op_jmp(&fn, A, j, pc);
+      } break;
+      case OP_LOADBOOL: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_op_loadbool(&fn, A, B, C, pc + 2, pc);
+      } break;
+      case OP_RAVI_EQ_II:
+      case OP_RAVI_EQ_FF:
+      case OP_RAVI_LT_II:
+      case OP_RAVI_LT_FF:
+      case OP_RAVI_LE_II:
+      case OP_RAVI_LE_FF:
+      case OP_LT:
+      case OP_LE:
+      case OP_EQ: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        OpCode compOperator = op;
+        const char *comparison_function =
+            ((op == OP_EQ || op == OP_RAVI_EQ_II || op == OP_RAVI_EQ_FF)
+                 ? "luaV_equalobj"
+                 : ((op == OP_LT || op == OP_RAVI_LT_II || op == OP_RAVI_LT_FF)
+                        ? "luaV_lessthan"
+                        : "luaV_lessequal"));
+        // OP_EQ is followed by OP_JMP - we process this
+        // along with OP_EQ
+        pc++;
+        i = code[pc];
+        op = GET_OPCODE(i);
+        lua_assert(op == OP_JMP);
+        int sbx = GETARG_sBx(i);
+        // j below is the jump target
+        int j = sbx + pc + 1;
+        emit_comparison(&fn, A, B, C, j, GETARG_A(i), comparison_function,
+                        compOperator, pc - 1);
+      } break;
 
       default: abort();
     }
   }
   emit_endf(&fn);
-
   membuff_add_string(&fn.prologue, fn.body.buf);
   printf(fn.prologue.buf);
   int (*fp)(lua_State * L) = NULL;
@@ -1064,6 +1227,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
       p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
     }
   }
+#else
+  p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
 #endif
   cleanup(&fn);
   return fp != NULL;
