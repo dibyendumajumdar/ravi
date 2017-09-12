@@ -102,7 +102,7 @@ int raviV_initjit(struct lua_State *L) {
   if (G->ravi_state != NULL) return -1;
   ravi_State *jit = (ravi_State *)calloc(1, sizeof(ravi_State));
   // The parameter true means we will be dumping stuff as we compile
-  jit->jit = NJX_create_context(true);
+  jit->jit = NJX_create_context(false);
   //extern void luaF_close (lua_State *L, StkId level);
   register_builtin_arg2(jit->jit, "luaF_close", luaF_close, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P);
   //extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);
@@ -802,6 +802,20 @@ static bool can_compile(Proto *p) {
       case OP_BXOR:
       case OP_SHL:
       case OP_SHR:
+      case OP_RAVI_ADDFF:
+      case OP_RAVI_ADDFI:
+      case OP_RAVI_ADDII:
+      case OP_RAVI_SUBFF:
+      case OP_RAVI_SUBFI:
+      case OP_RAVI_SUBIF:
+      case OP_RAVI_SUBII:
+      case OP_RAVI_MULFF:
+      case OP_RAVI_MULFI:
+      case OP_RAVI_MULII:
+      case OP_RAVI_DIVFF:
+      case OP_RAVI_DIVFI:
+      case OP_RAVI_DIVIF:
+      case OP_RAVI_DIVII:
 	      break;
 #if 0
 		case OP_LOADKX:
@@ -815,20 +829,6 @@ static bool can_compile(Proto *p) {
 		case OP_VARARG:
 		case OP_CONCAT:
 		case OP_CLOSURE:
-		case OP_RAVI_ADDFF:
-		case OP_RAVI_ADDFI:
-		case OP_RAVI_ADDII:
-		case OP_RAVI_SUBFF:
-		case OP_RAVI_SUBFI:
-		case OP_RAVI_SUBIF:
-		case OP_RAVI_SUBII:
-		case OP_RAVI_MULFF:
-		case OP_RAVI_MULFI:
-		case OP_RAVI_MULII:
-		case OP_RAVI_DIVFF:
-		case OP_RAVI_DIVFI:
-		case OP_RAVI_DIVIF:
-		case OP_RAVI_DIVII:
 		case OP_SELF:
 		case OP_LEN:
 		case OP_SETLIST:
@@ -906,6 +906,15 @@ static void scan_jump_targets(struct function *fn) {
       } break;
       default: break;
     }
+  }
+}
+
+static void emit_reg(struct function *fn, const char *name, int regnum) {
+  if (ISK(regnum)) {
+    membuff_add_fstring(&fn->body, "%s = K(%d);\n", name, INDEXK(regnum));
+  }
+  else {
+    membuff_add_fstring(&fn->body, "%s = R(%d);\n", name, regnum);
   }
 }
 
@@ -1259,13 +1268,61 @@ static void emit_op_newtable(struct function *fn, int A, int B, int C, int pc) {
 // Default implementation for binary ops
 static void emit_binary_op(struct function *fn, int A, int B, int C, OpCode op,
                            int pc) {
-  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
-  membuff_add_fstring(&fn->body, "rb = %s + %d;\n", (ISK(B) ? "k" : "base"),
-                      (ISK(B) ? INDEXK(B) : B));
-  membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
-                      (ISK(C) ? INDEXK(C) : C));
+//  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+//  membuff_add_fstring(&fn->body, "rb = %s + %d;\n", (ISK(B) ? "k" : "base"),
+//                      (ISK(B) ? INDEXK(B) : B));
+//  membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
+//                      (ISK(C) ? INDEXK(C) : C));
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  emit_reg(fn, "rc", C);
   membuff_add_fstring(&fn->body, "luaO_arith(L, %d, rb, rc, ra);\n", cast_int(op-OP_ADD));
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+}
+
+void emit_ff_op(struct function *fn, int A, int B, int C, int pc,
+                const char *op) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  emit_reg(fn, "rc", C);
+  membuff_add_fstring(&fn->body,
+                      "setfltvalue(ra, fltvalue(rb) %s fltvalue(rc));\n", op);
+}
+
+static void emit_fi_op(struct function *fn, int A, int B, int C, int pc,
+                       const char *op) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  emit_reg(fn, "rc", C);
+  membuff_add_fstring(&fn->body,
+                      "setfltvalue(ra, fltvalue(rb) %s ivalue(rc));\n", op);
+}
+
+static void emit_if_op(struct function *fn, int A, int B, int C, int pc,
+                       const char *op) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  emit_reg(fn, "rc", C);
+  membuff_add_fstring(&fn->body,
+                      "setfltvalue(ra, ivalue(rb) %s fltvalue(rc));\n", op);
+}
+
+static void emit_ii_op(struct function *fn, int A, int B, int C, int pc,
+                       const char *op) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  emit_reg(fn, "rc", C);
+  membuff_add_fstring(&fn->body, "setivalue(ra, ivalue(rb) %s ivalue(rc));\n",
+                      op);
+}
+
+static void emit_op_divii(struct function *fn, int A, int B, int C, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  emit_reg(fn, "rc", C);
+  membuff_add_string(&fn->body,
+                     "setfltvalue(ra, (lua_Number)(ivalue(rb)) / "
+                     "(lua_Number)(ivalue(rc)));\n");
 }
 
 static void cleanup(struct function *fn) {
@@ -1485,12 +1542,82 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
         int C = GETARG_C(i);
         emit_binary_op(&fn, A, B, C, op, pc);
       } break;
+      case OP_RAVI_ADDFF: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_ff_op(&fn, A, B, C, pc, "+");
+      } break;
+      case OP_RAVI_ADDFI: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_fi_op(&fn, A, B, C, pc, "+");
+      } break;
+      case OP_RAVI_ADDII: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_ii_op(&fn, A, B, C, pc, "+");
+      } break;
+      case OP_RAVI_SUBFF: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_ff_op(&fn, A, B, C, pc, "-");
+      } break;
+      case OP_RAVI_SUBFI: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_fi_op(&fn, A, B, C, pc, "-");
+      } break;
+      case OP_RAVI_SUBIF: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_if_op(&fn, A, B, C, pc, "-");
+      } break;
+      case OP_RAVI_SUBII: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_ii_op(&fn, A, B, C, pc, "-");
+      } break;
+      case OP_RAVI_MULFF: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_ff_op(&fn, A, B, C, pc, "*");
+      } break;
+      case OP_RAVI_MULFI: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_fi_op(&fn, A, B, C, pc, "*");
+      } break;
+      case OP_RAVI_MULII: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_ii_op(&fn, A, B, C, pc, "*");
+      } break;
+      case OP_RAVI_DIVFF: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_ff_op(&fn, A, B, C, pc, "/");
+      } break;
+      case OP_RAVI_DIVFI: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_fi_op(&fn, A, B, C, pc, "/");
+      } break;
+      case OP_RAVI_DIVIF: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_if_op(&fn, A, B, C, pc, "/");
+      } break;
+      case OP_RAVI_DIVII: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_op_divii(&fn, A, B, C, pc);
+      } break;
       default: abort();
     }
   }
   emit_endf(&fn);
   membuff_add_string(&fn.prologue, fn.body.buf);
-  printf(fn.prologue.buf);
+  //printf(fn.prologue.buf);
   int (*fp)(lua_State * L) = NULL;
 #if 0
   showparsetree(fn.prologue.buf);
