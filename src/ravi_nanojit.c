@@ -37,6 +37,37 @@ static int id = 0;
 #include "lstate.h"
 #include "lua.h"
 
+enum errorcode {
+  Error_integer_expected,
+  Error_number_expected,
+  Error_integer_array_expected,
+  Error_number_array_expected,
+  Error_table_expected,
+  Error_upval_needs_integer,
+  Error_upval_needs_number,
+  Error_upval_needs_integer_array,
+  Error_upval_needs_number_array,
+  Error_upval_needs_table,
+};
+
+static const char *errortext[] = {
+    "integer expected",
+    "number expected",
+    "integer[] expected",
+    "number[] expected",
+    "table expected",
+    "upvalue of integer type, cannot be set to non integer value",
+    "upvalue of number type, cannot be set to non number value",
+    "upvalue of integer[] type, cannot be set to non integer[] value",
+    "upvalue of number[] type, cannot be set to non number[] value",
+    "upvalue of table type, cannot be set to non table value",
+    NULL};
+
+static void raise_error(lua_State *L, int errorcode) {
+  assert(errorcode >= 0 && errorcode <= Error_upval_needs_table);
+  luaG_runerror(L, errortext[errorcode]);
+}
+
 static bool register_builtin_arg1(NJXContextRef module, const char *name,
                                   void *fp, enum NJXValueKind return_type,
                                   enum NJXValueKind arg1) {
@@ -78,19 +109,19 @@ static bool register_builtin_arg4(NJXContextRef module, const char *name,
   return NJX_register_C_function(module, name, fp, return_type, args, 4);
 }
 static bool register_builtin_arg5(NJXContextRef module, const char *name,
-	void *fp, enum NJXValueKind return_type,
-	enum NJXValueKind arg1,
-	enum NJXValueKind arg2,
-	enum NJXValueKind arg3,
-	enum NJXValueKind arg4,
-	enum NJXValueKind arg5) {
-	enum NJXValueKind args[5];
-	args[0] = arg1;
-	args[1] = arg2;
-	args[2] = arg3;
-	args[3] = arg4;
-	args[4] = arg5;
-	return NJX_register_C_function(module, name, fp, return_type, args, 5);
+                                  void *fp, enum NJXValueKind return_type,
+                                  enum NJXValueKind arg1,
+                                  enum NJXValueKind arg2,
+                                  enum NJXValueKind arg3,
+                                  enum NJXValueKind arg4,
+                                  enum NJXValueKind arg5) {
+  enum NJXValueKind args[5];
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = arg4;
+  args[4] = arg5;
+  return NJX_register_C_function(module, name, fp, return_type, args, 5);
 }
 
 // Initialize the JIT State and attach it to the
@@ -105,6 +136,11 @@ int raviV_initjit(struct lua_State *L) {
   jit->jit = NJX_create_context(false);
   //extern void luaF_close (lua_State *L, StkId level);
   register_builtin_arg2(jit->jit, "luaF_close", luaF_close, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P);
+  register_builtin_arg2(jit->jit, "raise_error", raise_error, NJXValueKind_V, NJXValueKind_P, NJXValueKind_I);
+  //extern int luaV_tonumber_(const TValue *obj, lua_Number *n);\n"
+  register_builtin_arg2(jit->jit, "luaV_tonumber_", luaV_tonumber_, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P);
+  //extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);\n"
+  register_builtin_arg3(jit->jit, "luaV_tointeger", luaV_tointeger, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
   //extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);
   register_builtin_arg4(jit->jit, "luaD_poscall", luaD_poscall, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
   //extern int luaV_equalobj(lua_State *L, const TValue *t1, const TValue *t2);\n"
@@ -719,6 +755,13 @@ static const char Lua_header[] = ""
 "#define gco2th(o)  check_exp((o)->tt == LUA_TTHREAD, &((cast_u(o))->th))\n"
 "#define obj2gco(v) \\\n"
 "	check_exp(novariant((v)->tt) < LUA_TDEADKEY, (&(cast_u(v)->gc)))\n"
+"#define LUA_FLOORN2I		0\n"
+"#define tonumber(o,n) \\\n"
+"  (ttisfloat(o) ? (*(n) = fltvalue(o), 1) : luaV_tonumber_(o,n))\n"
+"#define tointeger(o,i) \\\n"
+"  (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))\n"
+"extern int luaV_tonumber_(const TValue *obj, lua_Number *n);\n"
+"extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);\n"
 "extern void luaF_close (lua_State *L, StkId level);\n"
 "extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);\n"
 "extern int luaV_equalobj(lua_State *L, const TValue *t1, const TValue *t2);\n"
@@ -730,6 +773,7 @@ static const char Lua_header[] = ""
 "extern int luaD_precall (lua_State *L, StkId func, int nresults, int op_call);\n"
 "extern void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);\n"
 "extern void luaO_arith (lua_State *L, int op, const TValue *p1, const TValue *p2, TValue *res);\n"
+"extern void raise_error(lua_State *L, int errorcode);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 ;
@@ -818,14 +862,20 @@ static bool can_compile(Proto *p) {
       case OP_RAVI_DIVII:
       case OP_RAVI_LOADIZ:
       case OP_RAVI_LOADFZ:
+      case OP_RAVI_MOVEI:
+      case OP_RAVI_MOVEF:
+      case OP_RAVI_MOVEAI:
+      case OP_RAVI_MOVEAF:
+      case OP_RAVI_MOVETAB:
+      case OP_RAVI_TOINT:
+      case OP_RAVI_TOFLT:
+      case OP_RAVI_TOARRAYI:
+      case OP_RAVI_TOARRAYF:
+      case OP_RAVI_TOTAB:
 	      break;
 #if 0
 		case OP_LOADKX:
 		case OP_NOT:
-		case OP_RAVI_MOVEI:
-		case OP_RAVI_MOVEF:
-		case OP_RAVI_TOINT:
-		case OP_RAVI_TOFLT:
 		case OP_VARARG:
 		case OP_CONCAT:
 		case OP_CLOSURE:
@@ -836,15 +886,10 @@ static bool can_compile(Proto *p) {
 		case OP_TFORLOOP:
 		case OP_RAVI_NEWARRAYI:
 		case OP_RAVI_NEWARRAYF:
-		case OP_RAVI_TOARRAYI:
-		case OP_RAVI_TOARRAYF:
-		case OP_RAVI_MOVEAI:
-		case OP_RAVI_MOVEAF:
 		case OP_SETUPVAL:
 		case OP_FORPREP:
 		case OP_FORLOOP:
 		case OP_UNM:
-		case OP_POW:
 #endif
       default: {
         p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
@@ -1164,6 +1209,9 @@ static void emit_op_iforprep(struct function *fn, int A, int pc, int step_one,
 }
 
 static void emit_endf(struct function *fn) {
+  membuff_add_string(&fn->body, "Lraise_error:\n");
+  membuff_add_string(&fn->body, "raise_error(L, error_code); /* does not return */\n");
+  membuff_add_string(&fn->body, "return 0;\n");
   membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1183,6 +1231,7 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p) {
   membuff_add_string(&fn->prologue, Lua_header);
   membuff_add_fstring(&fn->prologue, "extern int %s(lua_State *L);\n", fn->fname);
   membuff_add_fstring(&fn->prologue, "int %s(lua_State *L) {\n", fn->fname);
+  membuff_add_string(&fn->prologue, "int error_code = 0;\n");
   membuff_add_string(&fn->prologue, "CallInfo *ci = L->ci;\n");
   membuff_add_string(&fn->prologue, "StkId ra = NULL;\n");
   membuff_add_string(&fn->prologue, "StkId rb = NULL;\n");
@@ -1194,6 +1243,7 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p) {
   membuff_add_string(&fn->prologue, "TValue *k = cl->p->k;\n");
   membuff_add_string(&fn->prologue, "StkId base = ci->u.l.base;\n");
 }
+
 
 // Handle OP_CALL
 // Note that Lua assumes that functions called via OP_CALL
@@ -1344,10 +1394,138 @@ static void emit_op_loadiz(struct function *fn, int A, int pc) {
   membuff_add_string(&fn->body, "setivalue(ra, 0);\n");
 }
 
+static void emit_op_movei(struct function *fn, int A, int B, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  membuff_add_string(&fn->body, "{\n");
+  membuff_add_string(&fn->body, " lua_Integer j;\n");
+  membuff_add_string(&fn->body,
+                     " if (tointeger(rb, &j)) { setivalue(ra, j); }\n");
+  membuff_add_string(&fn->body, " else {\n");
+  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+                      Error_integer_expected);
+  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_movef(struct function *fn, int A, int B, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  membuff_add_string(&fn->body, "{\n");
+  membuff_add_string(&fn->body, " lua_Number j;\n");
+  membuff_add_string(&fn->body,
+                     " if (tonumber(rb, &j)) { setfltvalue(ra, j); }\n");
+  membuff_add_string(&fn->body, " else {\n");
+  membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_number_expected);
+  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_moveai(struct function *fn, int A, int B, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  membuff_add_string(&fn->body, "{\n");
+  membuff_add_string(&fn->body,
+                     " if (ttisiarray(rb)) { setobjs2s(L, ra, rb); }\n");
+  membuff_add_string(&fn->body, " else {\n");
+  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+                      Error_integer_array_expected);
+  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_moveaf(struct function *fn, int A, int B, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  membuff_add_string(&fn->body, "{\n");
+  membuff_add_string(&fn->body,
+                     " if (ttisfarray(rb)) { setobjs2s(L, ra, rb); }\n");
+  membuff_add_string(&fn->body, " else {\n");
+  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+                      Error_number_array_expected);
+  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_movetab(struct function *fn, int A, int B, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  membuff_add_string(&fn->body, "{\n");
+  membuff_add_string(&fn->body,
+                     " if (ttisLtable(rb)) { setobjs2s(L, ra, rb); }\n");
+  membuff_add_string(&fn->body, " else {\n");
+  membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_table_expected);
+  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_toint(struct function *fn, int A, int pc) {
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "{\n");
+  membuff_add_string(&fn->body, " lua_Integer j;\n");
+  membuff_add_string(&fn->body,
+                     " if (tointeger(ra, &j)) { setivalue(ra, j); }\n");
+  membuff_add_string(&fn->body, " else {\n");
+  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+                      Error_integer_expected);
+  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_toflt(struct function *fn, int A, int pc) {
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "{\n");
+  membuff_add_string(&fn->body, " lua_Number j;\n");
+  membuff_add_string(&fn->body,
+                     " if (tonumber(ra, &j)) { setfltvalue(ra, j); }\n");
+  membuff_add_string(&fn->body, " else {\n");
+  membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_number_expected);
+  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_toai(struct function *fn, int A, int pc) {
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "{\n");
+  membuff_add_string(&fn->body, " if (!ttisiarray(ra)) {\n");
+  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+                      Error_integer_array_expected);
+  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_toaf(struct function *fn, int A, int pc) {
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "{\n");
+  membuff_add_string(&fn->body, " if (!ttisfarray(ra)) {\n");
+  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+                      Error_number_array_expected);
+  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_totab(struct function *fn, int A, int pc) {
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "{\n");
+  membuff_add_string(&fn->body, " if (!ttisLtable(ra)) {\n");
+  membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_table_expected);
+  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
 static void cleanup(struct function *fn) {
   free(fn->jmps);
-  if (fn->locals)
-	  free(fn->locals);
+  if (fn->locals) free(fn->locals);
   membuff_free(&fn->prologue);
   membuff_free(&fn->body);
 }
@@ -1632,10 +1810,45 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
         emit_op_divii(&fn, A, B, C, pc);
       } break;
       case OP_RAVI_LOADFZ: {
-	      emit_op_loadfz(&fn, A, pc);
+        emit_op_loadfz(&fn, A, pc);
       } break;
       case OP_RAVI_LOADIZ: {
-	      emit_op_loadiz(&fn, A, pc);
+        emit_op_loadiz(&fn, A, pc);
+      } break;
+      case OP_RAVI_TOINT: {
+        emit_op_toint(&fn, A, pc);
+      } break;
+      case OP_RAVI_TOFLT: {
+        emit_op_toflt(&fn, A, pc);
+      } break;
+      case OP_RAVI_TOTAB: {
+        emit_op_totab(&fn, A, pc);
+      } break;
+      case OP_RAVI_TOARRAYI: {
+        emit_op_toai(&fn, A, pc);
+      } break;
+      case OP_RAVI_TOARRAYF: {
+        emit_op_toaf(&fn, A, pc);
+      } break;
+      case OP_RAVI_MOVEI: {
+        int B = GETARG_B(i);
+        emit_op_movei(&fn, A, B, pc);
+      } break;
+      case OP_RAVI_MOVEF: {
+        int B = GETARG_B(i);
+        emit_op_movef(&fn, A, B, pc);
+      } break;
+      case OP_RAVI_MOVEAI: {
+        int B = GETARG_B(i);
+        emit_op_moveai(&fn, A, B, pc);
+      } break;
+      case OP_RAVI_MOVEAF: {
+        int B = GETARG_B(i);
+        emit_op_moveaf(&fn, A, B, pc);
+      } break;
+      case OP_RAVI_MOVETAB: {
+        int B = GETARG_B(i);
+        emit_op_movetab(&fn, A, B, pc);
       } break;
 
       default: abort();
