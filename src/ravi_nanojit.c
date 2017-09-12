@@ -123,6 +123,8 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg4(jit->jit, "luaD_precall", luaD_precall, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
   //extern void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c)
   register_builtin_arg5(jit->jit, "raviV_op_newtable", raviV_op_newtable, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
+  //extern void luaO_arith (lua_State *L, int op, const TValue *p1, const TValue *p2, TValue *res);
+  register_builtin_arg5(jit->jit, "luaO_arith", luaO_arith, NJXValueKind_V, NJXValueKind_P, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
 
   G->ravi_state = jit;
   return 0;
@@ -193,8 +195,7 @@ void raviV_setjitenabled(lua_State *L, int value) {
 }
 int raviV_getjitenabled(lua_State *L) {
   global_State *G = G(L);
-  // if (!G->ravi_state)
-  return 0;
+  return G->ravi_state != NULL;
   // return G->ravi_state->jit->enabled_;
 }
 
@@ -728,6 +729,7 @@ static const char Lua_header[] = ""
 "extern int luaV_execute(lua_State *L);\n"
 "extern int luaD_precall (lua_State *L, StkId func, int nresults, int op_call);\n"
 "extern void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);\n"
+"extern void luaO_arith (lua_State *L, int op, const TValue *p1, const TValue *p2, TValue *res);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 ;
@@ -788,6 +790,18 @@ static bool can_compile(Proto *p) {
       case OP_SETTABLE:
       case OP_SETTABUP:
       case OP_NEWTABLE:
+      case OP_ADD:
+      case OP_SUB:
+      case OP_MUL:
+      case OP_MOD:
+      case OP_POW:
+      case OP_DIV:
+      case OP_IDIV:
+      case OP_BAND:
+      case OP_BOR:
+      case OP_BXOR:
+      case OP_SHL:
+      case OP_SHR:
 	      break;
 #if 0
 		case OP_LOADKX:
@@ -826,15 +840,9 @@ static bool can_compile(Proto *p) {
 		case OP_RAVI_TOARRAYF:
 		case OP_RAVI_MOVEAI:
 		case OP_RAVI_MOVEAF:
-		case OP_ADD:
-		case OP_SUB:
-		case OP_MUL:
-		case OP_DIV:
 		case OP_SETUPVAL:
 		case OP_FORPREP:
 		case OP_FORLOOP:
-		case OP_MOD:
-		case OP_IDIV:
 		case OP_UNM:
 		case OP_POW:
 #endif
@@ -1248,6 +1256,18 @@ static void emit_op_newtable(struct function *fn, int A, int B, int C, int pc) {
                       C);
 }
 
+// Default implementation for binary ops
+static void emit_binary_op(struct function *fn, int A, int B, int C, OpCode op,
+                           int pc) {
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_fstring(&fn->body, "rb = %s + %d;\n", (ISK(B) ? "k" : "base"),
+                      (ISK(B) ? INDEXK(B) : B));
+  membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
+                      (ISK(C) ? INDEXK(C) : C));
+  membuff_add_fstring(&fn->body, "luaO_arith(L, %d, rb, rc, ra);\n", cast_int(op-OP_ADD));
+  membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+}
+
 static void cleanup(struct function *fn) {
   free(fn->jmps);
   if (fn->locals)
@@ -1448,6 +1468,22 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         emit_op_newtable(&fn, A, B, C, pc);
+      } break;
+      case OP_ADD:
+      case OP_SUB:
+      case OP_MUL:
+      case OP_MOD:
+      case OP_POW:
+      case OP_DIV:
+      case OP_IDIV:
+      case OP_BAND:
+      case OP_BOR:
+      case OP_BXOR:
+      case OP_SHL:
+      case OP_SHR: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_binary_op(&fn, A, B, C, op, pc);
       } break;
       default: abort();
     }
