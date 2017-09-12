@@ -77,6 +77,21 @@ static bool register_builtin_arg4(NJXContextRef module, const char *name,
   args[3] = arg4;
   return NJX_register_C_function(module, name, fp, return_type, args, 4);
 }
+static bool register_builtin_arg5(NJXContextRef module, const char *name,
+	void *fp, enum NJXValueKind return_type,
+	enum NJXValueKind arg1,
+	enum NJXValueKind arg2,
+	enum NJXValueKind arg3,
+	enum NJXValueKind arg4,
+	enum NJXValueKind arg5) {
+	enum NJXValueKind args[5];
+	args[0] = arg1;
+	args[1] = arg2;
+	args[2] = arg3;
+	args[3] = arg4;
+	args[4] = arg5;
+	return NJX_register_C_function(module, name, fp, return_type, args, 5);
+}
 
 // Initialize the JIT State and attach it to the
 // Global Lua State
@@ -102,8 +117,12 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg1(jit->jit, "luaV_execute", luaV_execute, NJXValueKind_I, NJXValueKind_P);
   //extern void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val)
   register_builtin_arg4(jit->jit, "luaV_gettable", luaV_gettable, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
+  //extern void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val);
+  register_builtin_arg4(jit->jit, "luaV_settable", luaV_settable, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
   //int luaD_precall (lua_State *L, StkId func, int nresults, int op_call);
   register_builtin_arg4(jit->jit, "luaD_precall", luaD_precall, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
+  //extern void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c)
+  register_builtin_arg5(jit->jit, "raviV_op_newtable", raviV_op_newtable, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
 
   G->ravi_state = jit;
   return 0;
@@ -705,8 +724,10 @@ static const char Lua_header[] = ""
 "extern int luaV_lessthan(lua_State *L, const TValue *l, const TValue *r);\n"
 "extern int luaV_lessequal(lua_State *L, const TValue *l, const TValue *r);\n"
 "extern void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val);\n"
+"extern void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val);\n"
 "extern int luaV_execute(lua_State *L);\n"
 "extern int luaD_precall (lua_State *L, StkId func, int nresults, int op_call);\n"
+"extern void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 ;
@@ -751,6 +772,22 @@ static bool can_compile(Proto *p) {
       case OP_GETTABUP:
       case OP_RAVI_GETTABUP_SK:
       case OP_GETUPVAL:
+      case OP_RAVI_GETTABLE_S:
+      case OP_RAVI_GETTABLE_AI:
+      case OP_RAVI_GETTABLE_AF:
+      case OP_RAVI_GETTABLE_SK:
+      case OP_RAVI_GETTABLE_I:
+      case OP_GETTABLE:
+      case OP_RAVI_SETTABLE_SK:
+      case OP_RAVI_SETTABLE_S:
+      case OP_RAVI_SETTABLE_I:
+      case OP_RAVI_SETTABLE_AII:
+      case OP_RAVI_SETTABLE_AI:
+      case OP_RAVI_SETTABLE_AFF:
+      case OP_RAVI_SETTABLE_AF:
+      case OP_SETTABLE:
+      case OP_SETTABUP:
+      case OP_NEWTABLE:
 	      break;
 #if 0
 		case OP_LOADKX:
@@ -780,25 +817,15 @@ static bool can_compile(Proto *p) {
 		case OP_RAVI_DIVII:
 		case OP_SELF:
 		case OP_LEN:
-		case OP_SETTABLE:
-		case OP_GETTABLE:
-		case OP_NEWTABLE:
 		case OP_SETLIST:
 		case OP_TFORCALL:
 		case OP_TFORLOOP:
 		case OP_RAVI_NEWARRAYI:
 		case OP_RAVI_NEWARRAYF:
-		case OP_RAVI_GETTABLE_AI:
-		case OP_RAVI_GETTABLE_AF:
 		case OP_RAVI_TOARRAYI:
 		case OP_RAVI_TOARRAYF:
 		case OP_RAVI_MOVEAI:
 		case OP_RAVI_MOVEAF:
-		case OP_RAVI_SETTABLE_AI:
-		case OP_RAVI_SETTABLE_AII:
-		case OP_RAVI_SETTABLE_AF:
-		case OP_RAVI_SETTABLE_AFF:
-		case OP_SETTABUP:
 		case OP_ADD:
 		case OP_SUB:
 		case OP_MUL:
@@ -1169,7 +1196,6 @@ static void emit_op_call(struct function *fn, int A, int B, int C, int pc) {
 
 // R(A) := UpValue[B][RK(C)]
 static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc) {
-  // int b = GETARG_B(i);
   membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
   membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
                       (ISK(C) ? INDEXK(C) : C));
@@ -1178,10 +1204,48 @@ static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc) {
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
+// R(A) := UpValue[B][RK(C)]
+static void emit_op_settabup(struct function *fn, int A, int B, int C, int pc) {
+  membuff_add_fstring(&fn->body, "rb = %s + %d;\n", (ISK(B) ? "k" : "base"),
+                      (ISK(B) ? INDEXK(B) : B));
+  membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
+                      (ISK(C) ? INDEXK(C) : C));
+  membuff_add_fstring(&fn->body,
+                      "luaV_settable(L, cl->upvals[%d]->v, rb, rc);\n", A);
+  membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+}
+
+// R(A) := R(B)[RK(C)]
+static void emit_op_gettable(struct function *fn, int A, int B, int C, int pc) {
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_fstring(&fn->body, "rb = R(%d);\n", B);
+  membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
+                      (ISK(C) ? INDEXK(C) : C));
+  membuff_add_fstring(&fn->body, "luaV_gettable(L, rb, rc, ra);\n", B);
+  membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+}
+
+// R(A)[RK(B)] := RK(C)
+static void emit_op_settable(struct function *fn, int A, int B, int C, int pc) {
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_fstring(&fn->body, "rb = %s + %d;\n", (ISK(B) ? "k" : "base"),
+                      (ISK(B) ? INDEXK(B) : B));
+  membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
+                      (ISK(C) ? INDEXK(C) : C));
+  membuff_add_fstring(&fn->body, "luaV_settable(L, ra, rb, rc);\n", B);
+  membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+}
+
 // R(A) := UpValue[B]
 static void emit_op_getupval(struct function *fn, int A, int B, int pc) {
   membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
   membuff_add_fstring(&fn->body, "setobjs2s(L, ra, cl->upvals[%d]->v);\n", B);
+}
+
+static void emit_op_newtable(struct function *fn, int A, int B, int C, int pc) {
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_fstring(&fn->body, "raviV_op_newtable(L, ci, ra, %d, %d);\n", B,
+                      C);
 }
 
 static void cleanup(struct function *fn) {
@@ -1219,6 +1283,7 @@ static void cleanup(struct function *fn) {
 int raviV_compile(struct lua_State *L, struct Proto *p,
                   ravi_compile_options_t *options) {
   if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) return true;
+  if (options == NULL || !options->manual_request) return false;
 
   if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED || !can_compile(p))
     return false;
@@ -1336,11 +1401,38 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
         int j = sbx + pc + 1;
         emit_op_testset(&fn, A, B, C, j, GETARG_A(i), pc - 1);
       } break;
+      case OP_RAVI_GETTABLE_S:
+      case OP_RAVI_GETTABLE_AI:
+      case OP_RAVI_GETTABLE_AF:
+      case OP_RAVI_GETTABLE_SK:
+      case OP_RAVI_GETTABLE_I:
+      case OP_GETTABLE: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_op_gettable(&fn, A, B, C, pc);
+      } break;
+      case OP_RAVI_SETTABLE_SK:
+      case OP_RAVI_SETTABLE_S:
+      case OP_RAVI_SETTABLE_I:
+      case OP_RAVI_SETTABLE_AII:
+      case OP_RAVI_SETTABLE_AI:
+      case OP_RAVI_SETTABLE_AFF:
+      case OP_RAVI_SETTABLE_AF:
+      case OP_SETTABLE: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_op_settable(&fn, A, B, C, pc);
+      } break;
       case OP_RAVI_GETTABUP_SK:
       case OP_GETTABUP: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         emit_op_gettabup(&fn, A, B, C, pc);
+      } break;
+      case OP_SETTABUP: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_op_settabup(&fn, A, B, C, pc);
       } break;
       case OP_TAILCALL:
       case OP_CALL: {
@@ -1351,6 +1443,11 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
       case OP_GETUPVAL: {
         int B = GETARG_B(i);
         emit_op_getupval(&fn, A, B, pc);
+      } break;
+      case OP_NEWTABLE: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_op_newtable(&fn, A, B, C, pc);
       } break;
       default: abort();
     }
