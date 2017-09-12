@@ -108,11 +108,11 @@ int raviV_initjit(struct lua_State *L) {
   //extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);
   register_builtin_arg4(jit->jit, "luaD_poscall", luaD_poscall, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
   //extern int luaV_equalobj(lua_State *L, const TValue *t1, const TValue *t2);\n"
-  register_builtin_arg2(jit->jit, "luaV_equalobj", luaV_equalobj, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P);
+  register_builtin_arg3(jit->jit, "luaV_equalobj", luaV_equalobj, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
   //extern int luaV_lessthan(lua_State *L, const TValue *l, const TValue *r);\n"
-  register_builtin_arg2(jit->jit, "luaV_lessthan", luaV_lessthan, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P);
+  register_builtin_arg3(jit->jit, "luaV_lessthan", luaV_lessthan, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
   //extern int luaV_lessequal(lua_State *L, const TValue *l, const TValue *r);\n"
-  register_builtin_arg2(jit->jit, "luaV_lessequal", luaV_lessequal, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P);
+  register_builtin_arg3(jit->jit, "luaV_lessequal", luaV_lessequal, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
   //extern int luaV_execute(lua_State *L);
   register_builtin_arg1(jit->jit, "luaV_execute", luaV_execute, NJXValueKind_I, NJXValueKind_P);
   //extern void luaV_gettable (lua_State *L, const TValue *t, TValue *key, StkId val)
@@ -816,11 +816,11 @@ static bool can_compile(Proto *p) {
       case OP_RAVI_DIVFI:
       case OP_RAVI_DIVIF:
       case OP_RAVI_DIVII:
+      case OP_RAVI_LOADIZ:
+      case OP_RAVI_LOADFZ:
 	      break;
 #if 0
 		case OP_LOADKX:
-		case OP_RAVI_LOADIZ:
-		case OP_RAVI_LOADFZ:
 		case OP_NOT:
 		case OP_RAVI_MOVEI:
 		case OP_RAVI_MOVEF:
@@ -993,6 +993,10 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
       }
       break;
     default:
+      membuff_add_fstring(&fn->body, " rb = %s + %d;\n", (ISK(B) ? "k" : "base"),
+                          (ISK(B) ? INDEXK(B) : B));
+      membuff_add_fstring(&fn->body, " rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
+                          (ISK(C) ? INDEXK(C) : C));
       membuff_add_fstring(&fn->body, " int result = %s(L, rb, rc);\n",
                           compfunc);
       // Reload pointer to base as the call to luaV_equalobj() may
@@ -1088,7 +1092,7 @@ static void emit_op_test(struct function *fn, int A, int B, int C, int j,
   else {
     membuff_add_string(&fn->body, " int no_jump = !l_isfalse(ra);\n");
   }
-  membuff_add_fstring(&fn->body, " if (!no_jmp) {\n", A);
+  membuff_add_fstring(&fn->body, " if (!no_jump) {\n", A);
   if (jA > 0) {
     membuff_add_fstring(&fn->body, "  ra = R(%d);\n", jA - 1);
     membuff_add_string(&fn->body, "  luaF_close(L, ra);\n");
@@ -1106,7 +1110,7 @@ static void emit_op_testset(struct function *fn, int A, int B, int C, int j,
   else {
     membuff_add_string(&fn->body, " int no_jump = !l_isfalse(rb);\n");
   }
-  membuff_add_fstring(&fn->body, " if (!no_jmp) {\n", A);
+  membuff_add_fstring(&fn->body, " if (!no_jump) {\n", A);
   membuff_add_fstring(&fn->body, "  ra = R(%d);\n", A);
   membuff_add_string(&fn->body, "   setobjs2s(L, ra, rb);");
   if (jA > 0) {
@@ -1323,6 +1327,15 @@ static void emit_op_divii(struct function *fn, int A, int B, int C, int pc) {
   membuff_add_string(&fn->body,
                      "setfltvalue(ra, (lua_Number)(ivalue(rb)) / "
                      "(lua_Number)(ivalue(rc)));\n");
+}
+
+static void emit_op_loadfz(struct function *fn, int A, int pc) {
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "setfltvalue(ra, 0.0);\n");
+}
+static void emit_op_loadiz(struct function *fn, int A, int pc) {
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "setivalue(ra, 0);\n");
 }
 
 static void cleanup(struct function *fn) {
@@ -1612,6 +1625,13 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
         int C = GETARG_C(i);
         emit_op_divii(&fn, A, B, C, pc);
       } break;
+      case OP_RAVI_LOADFZ: {
+	      emit_op_loadfz(&fn, A, pc);
+      } break;
+      case OP_RAVI_LOADIZ: {
+	      emit_op_loadiz(&fn, A, pc);
+      } break;
+
       default: abort();
     }
   }
