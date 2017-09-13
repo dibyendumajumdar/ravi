@@ -986,7 +986,6 @@ static void emit_reg_or_k(struct function *fn, const char *name, int regnum) {
 static void emit_comparison(struct function *fn, int A, int B, int C, int j,
                             int jA, const char *compfunc, OpCode opCode,
                             int pc) {
-  membuff_add_string(&fn->body, "{ \n");
   const char *oper = "==";
   switch (opCode) {
     case OP_RAVI_LT_II: oper = "<"; goto Lemitint;
@@ -996,26 +995,26 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
       if (ISK(B) && ISK(C)) {
         TValue *Konst1 = &fn->p->k[INDEXK(B)];
         TValue *Konst2 = &fn->p->k[INDEXK(C)];
-        membuff_add_fstring(&fn->body, " result = (%lld %s %lld);\n",
+        membuff_add_fstring(&fn->body, "result = (%lld %s %lld);\n",
                             Konst1->value_.i, oper, Konst2->value_.i);
       }
       else if (ISK(B)) {
         TValue *Konst1 = &fn->p->k[INDEXK(B)];
         emit_reg_or_k(fn, "rc", C);
-        membuff_add_fstring(&fn->body, " result = (%lld %s ivalue(rc));\n",
+        membuff_add_fstring(&fn->body, "result = (%lld %s ivalue(rc));\n",
                             Konst1->value_.i, oper);
       }
       else if (ISK(C)) {
         TValue *Konst2 = &fn->p->k[INDEXK(C)];
         emit_reg_or_k(fn, "rb", B);
-        membuff_add_fstring(&fn->body, " result = (ivalue(rb) %s %lld);\n",
+        membuff_add_fstring(&fn->body, "result = (ivalue(rb) %s %lld);\n",
                             oper, Konst2->value_.i);
       }
       else {
         emit_reg_or_k(fn, "rb", B);
         emit_reg_or_k(fn, "rc", C);
         membuff_add_fstring(&fn->body,
-                            " result = (ivalue(rb) %s ivalue(rc));\n", oper);
+                            "result = (ivalue(rb) %s ivalue(rc));\n", oper);
       }
       break;
     case OP_RAVI_LT_FF: oper = "<"; goto Lemitflt;
@@ -1025,45 +1024,44 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
       if (ISK(B) && ISK(C)) {
         TValue *Konst1 = &fn->p->k[INDEXK(B)];
         TValue *Konst2 = &fn->p->k[INDEXK(C)];
-        membuff_add_fstring(&fn->body, " result = (%.17g %s %.17g);\n",
+        membuff_add_fstring(&fn->body, "result = (%.17g %s %.17g);\n",
                             Konst1->value_.n, oper, Konst2->value_.n);
       }
       else if (ISK(B)) {
         TValue *Konst1 = &fn->p->k[INDEXK(B)];
         emit_reg_or_k(fn, "rc", C);
-        membuff_add_fstring(&fn->body, " result = (%.17g %s fltvalue(rc));\n",
+        membuff_add_fstring(&fn->body, "result = (%.17g %s fltvalue(rc));\n",
                             Konst1->value_.n, oper);
       }
       else if (ISK(C)) {
         TValue *Konst2 = &fn->p->k[INDEXK(C)];
         emit_reg_or_k(fn, "rb", B);
-        membuff_add_fstring(&fn->body, " result = (fltvalue(rb) %s %.17g);\n",
+        membuff_add_fstring(&fn->body, "result = (fltvalue(rb) %s %.17g);\n",
                             oper, Konst2->value_.n);
       }
       else {
         emit_reg_or_k(fn, "rb", B);
         emit_reg_or_k(fn, "rc", C);
         membuff_add_fstring(
-            &fn->body, " result = (fltvalue(rb) %s fltvalue(rc));\n", oper);
+            &fn->body, "result = (fltvalue(rb) %s fltvalue(rc));\n", oper);
       }
       break;
     default:
       emit_reg_or_k(fn, "rb", B);
       emit_reg_or_k(fn, "rc", C);
-      membuff_add_fstring(&fn->body, " result = %s(L, rb, rc);\n", compfunc);
+      membuff_add_fstring(&fn->body, "result = %s(L, rb, rc);\n", compfunc);
       // Reload pointer to base as the call to luaV_equalobj() may
       // have invoked a Lua function and as a result the stack may have
       // been reallocated - so the previous base pointer could be stale
-      membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
+      membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
       break;
   }
-  membuff_add_fstring(&fn->body, " if (result == %d) {\n", A);
+  membuff_add_fstring(&fn->body, "if (result == %d) {\n", A);
   if (jA > 0) {
-    membuff_add_fstring(&fn->body, "  ra = R(%d);\n", jA - 1);
-    membuff_add_string(&fn->body, "  luaF_close(L, ra);\n");
+    membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
+    membuff_add_string(&fn->body, " luaF_close(L, ra);\n");
   }
-  membuff_add_fstring(&fn->body, "   goto Lbc_%d;\n", j);
-  membuff_add_string(&fn->body, " }\n");
+  membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1138,39 +1136,35 @@ static void emit_op_loadbool(struct function *fn, int A, int B, int C, int j,
 static void emit_op_test(struct function *fn, int A, int B, int C, int j,
                          int jA, int pc) {
   emit_reg(fn, "ra", A);
-  membuff_add_string(&fn->body, "{\n");
-  if (C) { membuff_add_string(&fn->body, " result = l_isfalse(ra);\n"); }
+  if (C) { membuff_add_string(&fn->body, "result = l_isfalse(ra);\n"); }
   else {
-    membuff_add_string(&fn->body, " result = !l_isfalse(ra);\n");
+    membuff_add_string(&fn->body, "result = !l_isfalse(ra);\n");
   }
-  membuff_add_fstring(&fn->body, " if (!result) {\n", A);
+  membuff_add_fstring(&fn->body, "if (!result) {\n", A);
   if (jA > 0) {
-    membuff_add_fstring(&fn->body, "  ra = R(%d);\n", jA - 1);
-    membuff_add_string(&fn->body, "  luaF_close(L, ra);\n");
+    membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
+    membuff_add_string(&fn->body, " luaF_close(L, ra);\n");
   }
-  membuff_add_fstring(&fn->body, "   goto Lbc_%d;\n", j);
+  membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, " }\n");
-  membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_testset(struct function *fn, int A, int B, int C, int j,
                             int jA, int pc) {
   membuff_add_fstring(&fn->body, "rb = R(%d);\n", B);
-  membuff_add_string(&fn->body, "{\n");
-  if (C) { membuff_add_string(&fn->body, " result = l_isfalse(rb);\n"); }
+  if (C) { membuff_add_string(&fn->body, "result = l_isfalse(rb);\n"); }
   else {
-    membuff_add_string(&fn->body, " result = !l_isfalse(rb);\n");
+    membuff_add_string(&fn->body, "result = !l_isfalse(rb);\n");
   }
-  membuff_add_fstring(&fn->body, " if (!result) {\n", A);
-  membuff_add_fstring(&fn->body, "  ra = R(%d);\n", A);
-  membuff_add_string(&fn->body, "   setobjs2s(L, ra, rb);");
+  membuff_add_fstring(&fn->body, "if (!result) {\n", A);
+  membuff_add_fstring(&fn->body, " ra = R(%d);\n", A);
+  membuff_add_string(&fn->body, "  setobjs2s(L, ra, rb);");
   if (jA > 0) {
-    membuff_add_fstring(&fn->body, "  ra = R(%d);\n", jA - 1);
-    membuff_add_string(&fn->body, "  luaF_close(L, ra);\n");
+    membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
+    membuff_add_string(&fn->body, " luaF_close(L, ra);\n");
   }
-  membuff_add_fstring(&fn->body, "   goto Lbc_%d;\n", j);
+  membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, " }\n");
-  membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_iforloop(struct function *fn, int A, int pc, int step_one,
@@ -1260,18 +1254,16 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p) {
 static void emit_op_call(struct function *fn, int A, int B, int C, int pc) {
   int nresults = C - 1;
   if (B != 0) { membuff_add_fstring(&fn->body, "L->top = R(%d);\n", A + B); }
-  membuff_add_fstring(&fn->body, "{\n", A);
   emit_reg(fn, "ra", A);
-  membuff_add_fstring(&fn->body, " result = luaD_precall(L, ra, %d, 1);\n",
+  membuff_add_fstring(&fn->body, "result = luaD_precall(L, ra, %d, 1);\n",
                       nresults);
-  membuff_add_string(&fn->body, " if (result) {\n");
-  membuff_add_fstring(&fn->body, "  if (result == 1 && %d >= 0)\n", nresults);
-  membuff_add_string(&fn->body, "   L->top = ci->top;\n");
-  membuff_add_string(&fn->body, " }\n");
-  membuff_add_string(&fn->body, " else {  /* Lua function */\n");
-  membuff_add_string(&fn->body, "  result = luaV_execute(L);\n");
-  membuff_add_string(&fn->body, "  if (result) L->top = ci->top;\n");
-  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "if (result) {\n");
+  membuff_add_fstring(&fn->body, " if (result == 1 && %d >= 0)\n", nresults);
+  membuff_add_string(&fn->body, "  L->top = ci->top;\n");
+  membuff_add_string(&fn->body, "}\n");
+  membuff_add_string(&fn->body, "else {  /* Lua function */\n");
+  membuff_add_string(&fn->body, " result = luaV_execute(L);\n");
+  membuff_add_string(&fn->body, " if (result) L->top = ci->top;\n");
   membuff_add_string(&fn->body, "}\n");
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
@@ -1402,133 +1394,109 @@ static void emit_op_loadiz(struct function *fn, int A, int pc) {
 static void emit_op_movei(struct function *fn, int A, int B, int pc) {
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
-  membuff_add_string(&fn->body, "{\n");
-  // membuff_add_string(&fn->body, " lua_Integer j;\n");
-  membuff_add_string(&fn->body, " i = 0;\n");
+  membuff_add_string(&fn->body, "i = 0;\n");
   membuff_add_string(&fn->body,
-                     " if (tointeger(rb, &i)) { setivalue(ra, i); }\n");
-  membuff_add_string(&fn->body, " else {\n");
-  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+                     "if (tointeger(rb, &i)) { setivalue(ra, i); }\n");
+  membuff_add_string(&fn->body, "else {\n");
+  membuff_add_fstring(&fn->body, " error_code = %d;\n",
                       Error_integer_expected);
-  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
-  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
   membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_movef(struct function *fn, int A, int B, int pc) {
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
-  membuff_add_string(&fn->body, "{\n");
-  //  membuff_add_string(&fn->body, " lua_Number j;\n");
-  membuff_add_string(&fn->body, " n = 0.0;\n");
+  membuff_add_string(&fn->body, "n = 0.0;\n");
   membuff_add_string(&fn->body,
-                     " if (tonumber(rb, &n)) { setfltvalue(ra, n); }\n");
-  membuff_add_string(&fn->body, " else {\n");
-  membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_number_expected);
-  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
-  membuff_add_string(&fn->body, " }\n");
+                     "if (tonumber(rb, &n)) { setfltvalue(ra, n); }\n");
+  membuff_add_string(&fn->body, "else {\n");
+  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_number_expected);
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
   membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_moveai(struct function *fn, int A, int B, int pc) {
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
-  membuff_add_string(&fn->body, "{\n");
   membuff_add_string(&fn->body,
-                     " if (ttisiarray(rb)) { setobjs2s(L, ra, rb); }\n");
-  membuff_add_string(&fn->body, " else {\n");
-  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+                     "if (ttisiarray(rb)) { setobjs2s(L, ra, rb); }\n");
+  membuff_add_string(&fn->body, "else {\n");
+  membuff_add_fstring(&fn->body, " error_code = %d;\n",
                       Error_integer_array_expected);
-  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
-  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
   membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_moveaf(struct function *fn, int A, int B, int pc) {
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
-  membuff_add_string(&fn->body, "{\n");
   membuff_add_string(&fn->body,
-                     " if (ttisfarray(rb)) { setobjs2s(L, ra, rb); }\n");
-  membuff_add_string(&fn->body, " else {\n");
-  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+                     "if (ttisfarray(rb)) { setobjs2s(L, ra, rb); }\n");
+  membuff_add_string(&fn->body, "else {\n");
+  membuff_add_fstring(&fn->body, " error_code = %d;\n",
                       Error_number_array_expected);
-  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
-  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
   membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_movetab(struct function *fn, int A, int B, int pc) {
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
-  membuff_add_string(&fn->body, "{\n");
   membuff_add_string(&fn->body,
-                     " if (ttisLtable(rb)) { setobjs2s(L, ra, rb); }\n");
-  membuff_add_string(&fn->body, " else {\n");
-  membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_table_expected);
-  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
-  membuff_add_string(&fn->body, " }\n");
+                     "if (ttisLtable(rb)) { setobjs2s(L, ra, rb); }\n");
+  membuff_add_string(&fn->body, "else {\n");
+  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_table_expected);
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
   membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_toint(struct function *fn, int A, int pc) {
   emit_reg(fn, "ra", A);
-  membuff_add_string(&fn->body, "{\n");
-  // membuff_add_string(&fn->body, " lua_Integer j;\n");
-  membuff_add_string(&fn->body, " i = 0;\n");
+  membuff_add_string(&fn->body, "i = 0;\n");
   membuff_add_string(&fn->body,
-                     " if (tointeger(ra, &i)) { setivalue(ra, i); }\n");
-  membuff_add_string(&fn->body, " else {\n");
-  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+                     "if (tointeger(ra, &i)) { setivalue(ra, i); }\n");
+  membuff_add_string(&fn->body, "else {\n");
+  membuff_add_fstring(&fn->body, " error_code = %d;\n",
                       Error_integer_expected);
-  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
-  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
   membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_toflt(struct function *fn, int A, int pc) {
   emit_reg(fn, "ra", A);
-  membuff_add_string(&fn->body, "{\n");
-  // membuff_add_string(&fn->body, " lua_Number j;\n");
-  membuff_add_string(&fn->body, " n = 0.0;\n");
+  membuff_add_string(&fn->body, "n = 0.0;\n");
   membuff_add_string(&fn->body,
-                     " if (tonumber(ra, &n)) { setfltvalue(ra, n); }\n");
-  membuff_add_string(&fn->body, " else {\n");
-  membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_number_expected);
-  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
-  membuff_add_string(&fn->body, " }\n");
+                     "if (tonumber(ra, &n)) { setfltvalue(ra, n); }\n");
+  membuff_add_string(&fn->body, "else {\n");
+  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_number_expected);
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
   membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_toai(struct function *fn, int A, int pc) {
   emit_reg(fn, "ra", A);
-  membuff_add_string(&fn->body, "{\n");
-  membuff_add_string(&fn->body, " if (!ttisiarray(ra)) {\n");
-  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+  membuff_add_string(&fn->body, "if (!ttisiarray(ra)) {\n");
+  membuff_add_fstring(&fn->body, " error_code = %d;\n",
                       Error_integer_array_expected);
-  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
-  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
   membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_toaf(struct function *fn, int A, int pc) {
   emit_reg(fn, "ra", A);
-  membuff_add_string(&fn->body, "{\n");
-  membuff_add_string(&fn->body, " if (!ttisfarray(ra)) {\n");
-  membuff_add_fstring(&fn->body, "  error_code = %d;\n",
+  membuff_add_string(&fn->body, "if (!ttisfarray(ra)) {\n");
+  membuff_add_fstring(&fn->body, " error_code = %d;\n",
                       Error_number_array_expected);
-  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
-  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
   membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_totab(struct function *fn, int A, int pc) {
   emit_reg(fn, "ra", A);
-  membuff_add_string(&fn->body, "{\n");
-  membuff_add_string(&fn->body, " if (!ttisLtable(ra)) {\n");
-  membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_table_expected);
-  membuff_add_string(&fn->body, "  goto Lraise_error;\n");
-  membuff_add_string(&fn->body, " }\n");
+  membuff_add_string(&fn->body, "if (!ttisLtable(ra)) {\n");
+  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_table_expected);
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
   membuff_add_string(&fn->body, "}\n");
 }
 
