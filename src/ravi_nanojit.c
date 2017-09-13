@@ -808,7 +808,7 @@ static bool can_compile(Proto *p) {
     Instruction i = code[pc];
     OpCode o = GET_OPCODE(i);
     switch (o) {
-      case OP_RETURN: 
+      case OP_RETURN:
       case OP_LOADK:
       case OP_RAVI_FORLOOP_IP:
       case OP_RAVI_FORLOOP_I1:
@@ -893,8 +893,7 @@ static bool can_compile(Proto *p) {
       case OP_VARARG:
       case OP_CONCAT:
       case OP_CLOSURE:
-      case OP_SETLIST:
-	      break;
+      case OP_SETLIST: break;
 #if 0
 		case OP_LOADKX:
 		case OP_NOT:
@@ -1002,8 +1001,7 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
       }
       else if (ISK(B)) {
         TValue *Konst1 = &fn->p->k[INDEXK(B)];
-        membuff_add_fstring(&fn->body, "rc = %s + %d;\n",
-                            (ISK(C) ? "k" : "base"), (ISK(C) ? INDEXK(C) : C));
+        emit_reg_or_k(fn, "rc", C);
         membuff_add_fstring(&fn->body, " result = (%lld %s ivalue(rc));\n",
                             Konst1->value_.i, oper);
       }
@@ -1017,8 +1015,7 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
       else {
         membuff_add_fstring(&fn->body, "rb = %s + %d;\n",
                             (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
-        membuff_add_fstring(&fn->body, "rc = %s + %d;\n",
-                            (ISK(C) ? "k" : "base"), (ISK(C) ? INDEXK(C) : C));
+        emit_reg_or_k(fn, "rc", C);
         membuff_add_fstring(&fn->body,
                             " result = (ivalue(rb) %s ivalue(rc));\n", oper);
       }
@@ -1035,8 +1032,7 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
       }
       else if (ISK(B)) {
         TValue *Konst1 = &fn->p->k[INDEXK(B)];
-        membuff_add_fstring(&fn->body, "rc = %s + %d;\n",
-                            (ISK(C) ? "k" : "base"), (ISK(C) ? INDEXK(C) : C));
+        emit_reg_or_k(fn, "rc", C);
         membuff_add_fstring(&fn->body, " result = (%.17g %s fltvalue(rc));\n",
                             Konst1->value_.n, oper);
       }
@@ -1050,8 +1046,7 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
       else {
         membuff_add_fstring(&fn->body, "rb = %s + %d;\n",
                             (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
-        membuff_add_fstring(&fn->body, "rc = %s + %d;\n",
-                            (ISK(C) ? "k" : "base"), (ISK(C) ? INDEXK(C) : C));
+        emit_reg_or_k(fn, "rc", C);
         membuff_add_fstring(
             &fn->body, " result = (fltvalue(rb) %s fltvalue(rc));\n", oper);
       }
@@ -1059,8 +1054,7 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
     default:
       membuff_add_fstring(&fn->body, " rb = %s + %d;\n",
                           (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
-      membuff_add_fstring(&fn->body, " rc = %s + %d;\n",
-                          (ISK(C) ? "k" : "base"), (ISK(C) ? INDEXK(C) : C));
+      emit_reg_or_k(fn, "rc", C);
       membuff_add_fstring(&fn->body, " result = %s(L, rb, rc);\n", compfunc);
       // Reload pointer to base as the call to luaV_equalobj() may
       // have invoked a Lua function and as a result the stack may have
@@ -1112,13 +1106,6 @@ static void emit_op_return(struct function *fn, int A, int B, int pc) {
   emit_reg(fn, "ra", A);
   membuff_add_string(&fn->body, "if (cl->p->sizep > 0) luaF_close(L, base);\n");
   int var = add_local_var(fn);
-  // membuff_add_fstring(&fn->prologue, "int nres_%d = 0;\n", var);
-  // membuff_add_fstring(&fn->body,
-  //                    "nres_%d = (%d != 0 ? %d - 1 : cast_int(L->top -
-  //                    ra));\n", var, B, B);
-  // membuff_add_fstring(&fn->body, "return luaD_poscall(L, ci, ra,
-  // nres_%d);\n",
-  //                    var);
   membuff_add_fstring(&fn->body,
                       "result = (%d != 0 ? %d - 1 : cast_int(L->top - ra));\n",
                       B, B);
@@ -1297,8 +1284,7 @@ static void emit_op_call(struct function *fn, int A, int B, int C, int pc) {
 // R(A) := UpValue[B][RK(C)]
 static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc) {
   emit_reg(fn, "ra", A);
-  membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
-                      (ISK(C) ? INDEXK(C) : C));
+  emit_reg_or_k(fn, "rc", C);
   membuff_add_fstring(&fn->body,
                       "luaV_gettable(L, cl->upvals[%d]->v, rc, ra);\n", B);
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
@@ -1308,8 +1294,7 @@ static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc) {
 static void emit_op_settabup(struct function *fn, int A, int B, int C, int pc) {
   membuff_add_fstring(&fn->body, "rb = %s + %d;\n", (ISK(B) ? "k" : "base"),
                       (ISK(B) ? INDEXK(B) : B));
-  membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
-                      (ISK(C) ? INDEXK(C) : C));
+  emit_reg_or_k(fn, "rc", C);
   membuff_add_fstring(&fn->body,
                       "luaV_settable(L, cl->upvals[%d]->v, rb, rc);\n", A);
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
@@ -1319,8 +1304,7 @@ static void emit_op_settabup(struct function *fn, int A, int B, int C, int pc) {
 static void emit_op_gettable(struct function *fn, int A, int B, int C, int pc) {
   emit_reg(fn, "ra", A);
   membuff_add_fstring(&fn->body, "rb = R(%d);\n", B);
-  membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
-                      (ISK(C) ? INDEXK(C) : C));
+  emit_reg_or_k(fn, "rc", C);
   membuff_add_fstring(&fn->body, "luaV_gettable(L, rb, rc, ra);\n", B);
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
@@ -1330,8 +1314,7 @@ static void emit_op_settable(struct function *fn, int A, int B, int C, int pc) {
   emit_reg(fn, "ra", A);
   membuff_add_fstring(&fn->body, "rb = %s + %d;\n", (ISK(B) ? "k" : "base"),
                       (ISK(B) ? INDEXK(B) : B));
-  membuff_add_fstring(&fn->body, "rc = %s + %d;\n", (ISK(C) ? "k" : "base"),
-                      (ISK(C) ? INDEXK(C) : C));
+  emit_reg_or_k(fn, "rc", C);
   membuff_add_fstring(&fn->body, "luaV_settable(L, ra, rb, rc);\n", B);
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
