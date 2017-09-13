@@ -1007,14 +1007,12 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
       }
       else if (ISK(C)) {
         TValue *Konst2 = &fn->p->k[INDEXK(C)];
-        membuff_add_fstring(&fn->body, "rb = %s + %d;\n",
-                            (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
+        emit_reg_or_k(fn, "rb", B);
         membuff_add_fstring(&fn->body, " result = (ivalue(rb) %s %lld);\n",
                             oper, Konst2->value_.i);
       }
       else {
-        membuff_add_fstring(&fn->body, "rb = %s + %d;\n",
-                            (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
+        emit_reg_or_k(fn, "rb", B);
         emit_reg_or_k(fn, "rc", C);
         membuff_add_fstring(&fn->body,
                             " result = (ivalue(rb) %s ivalue(rc));\n", oper);
@@ -1038,22 +1036,19 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
       }
       else if (ISK(C)) {
         TValue *Konst2 = &fn->p->k[INDEXK(C)];
-        membuff_add_fstring(&fn->body, "rb = %s + %d;\n",
-                            (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
+        emit_reg_or_k(fn, "rb", B);
         membuff_add_fstring(&fn->body, " result = (fltvalue(rb) %s %.17g);\n",
                             oper, Konst2->value_.n);
       }
       else {
-        membuff_add_fstring(&fn->body, "rb = %s + %d;\n",
-                            (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
+        emit_reg_or_k(fn, "rb", B);
         emit_reg_or_k(fn, "rc", C);
         membuff_add_fstring(
             &fn->body, " result = (fltvalue(rb) %s fltvalue(rc));\n", oper);
       }
       break;
     default:
-      membuff_add_fstring(&fn->body, " rb = %s + %d;\n",
-                          (ISK(B) ? "k" : "base"), (ISK(B) ? INDEXK(B) : B));
+      emit_reg_or_k(fn, "rb", B);
       emit_reg_or_k(fn, "rc", C);
       membuff_add_fstring(&fn->body, " result = %s(L, rb, rc);\n", compfunc);
       // Reload pointer to base as the call to luaV_equalobj() may
@@ -1292,8 +1287,7 @@ static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc) {
 
 // R(A) := UpValue[B][RK(C)]
 static void emit_op_settabup(struct function *fn, int A, int B, int C, int pc) {
-  membuff_add_fstring(&fn->body, "rb = %s + %d;\n", (ISK(B) ? "k" : "base"),
-                      (ISK(B) ? INDEXK(B) : B));
+  emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
   membuff_add_fstring(&fn->body,
                       "luaV_settable(L, cl->upvals[%d]->v, rb, rc);\n", A);
@@ -1312,8 +1306,7 @@ static void emit_op_gettable(struct function *fn, int A, int B, int C, int pc) {
 // R(A)[RK(B)] := RK(C)
 static void emit_op_settable(struct function *fn, int A, int B, int C, int pc) {
   emit_reg(fn, "ra", A);
-  membuff_add_fstring(&fn->body, "rb = %s + %d;\n", (ISK(B) ? "k" : "base"),
-                      (ISK(B) ? INDEXK(B) : B));
+  emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
   membuff_add_fstring(&fn->body, "luaV_settable(L, ra, rb, rc);\n", B);
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
