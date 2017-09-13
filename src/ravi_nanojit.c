@@ -137,9 +137,9 @@ int raviV_initjit(struct lua_State *L) {
   //extern void luaF_close (lua_State *L, StkId level);
   register_builtin_arg2(jit->jit, "luaF_close", luaF_close, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P);
   register_builtin_arg2(jit->jit, "raise_error", raise_error, NJXValueKind_V, NJXValueKind_P, NJXValueKind_I);
-  //extern int luaV_tonumber_(const TValue *obj, lua_Number *n);\n"
+  //extern int luaV_tonumber_(const TValue *obj, lua_Number *n);
   register_builtin_arg2(jit->jit, "luaV_tonumber_", luaV_tonumber_, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P);
-  //extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);\n"
+  //extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);
   register_builtin_arg3(jit->jit, "luaV_tointeger", luaV_tointeger, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
   //extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);
   register_builtin_arg4(jit->jit, "luaD_poscall", luaD_poscall, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
@@ -161,6 +161,18 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg5(jit->jit, "raviV_op_newtable", raviV_op_newtable, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
   //extern void luaO_arith (lua_State *L, int op, const TValue *p1, const TValue *p2, TValue *res);
   register_builtin_arg5(jit->jit, "luaO_arith", luaO_arith, NJXValueKind_V, NJXValueKind_P, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
+  //extern void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra);
+  register_builtin_arg3(jit->jit, "raviV_op_newarrayint", raviV_op_newarrayint, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
+  //extern void raviV_op_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra);
+  register_builtin_arg3(jit->jit, "raviV_op_newarrayfloat", raviV_op_newarrayfloat, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
+  //LUAI_FUNC void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);
+  register_builtin_arg5(jit->jit, "raviV_op_setlist", raviV_op_setlist, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
+  //LUAI_FUNC void raviV_op_concat(lua_State *L, CallInfo *ci, int a, int b, int c);
+  register_builtin_arg5(jit->jit, "raviV_op_concat", raviV_op_concat, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I, NJXValueKind_I);
+  //LUAI_FUNC void raviV_op_closure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx);
+  register_builtin_arg5(jit->jit, "raviV_op_closure", raviV_op_closure, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
+  //LUAI_FUNC void raviV_op_vararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);
+  register_builtin_arg5(jit->jit, "raviV_op_vararg", raviV_op_vararg, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
 
   G->ravi_state = jit;
   return 0;
@@ -772,7 +784,13 @@ static const char Lua_header[] = ""
 "extern int luaV_execute(lua_State *L);\n"
 "extern int luaD_precall (lua_State *L, StkId func, int nresults, int op_call);\n"
 "extern void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);\n"
+"extern void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra);\n"
+"extern void raviV_op_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra);\n"
 "extern void luaO_arith (lua_State *L, int op, const TValue *p1, const TValue *p2, TValue *res);\n"
+"extern void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c);\n"
+"extern void raviV_op_concat(lua_State *L, CallInfo *ci, int a, int b, int c);\n"
+"extern void raviV_op_closure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx);\n"
+"extern void raviV_op_vararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);\n"
 "extern void raise_error(lua_State *L, int errorcode);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
@@ -870,20 +888,20 @@ static bool can_compile(Proto *p) {
       case OP_RAVI_TOARRAYI:
       case OP_RAVI_TOARRAYF:
       case OP_RAVI_TOTAB:
+      case OP_RAVI_NEWARRAYI:
+      case OP_RAVI_NEWARRAYF:
+      case OP_VARARG:
+      case OP_CONCAT:
+      case OP_CLOSURE:
+      case OP_SETLIST:
 	      break;
 #if 0
 		case OP_LOADKX:
 		case OP_NOT:
-		case OP_VARARG:
-		case OP_CONCAT:
-		case OP_CLOSURE:
 		case OP_SELF:
 		case OP_LEN:
-		case OP_SETLIST:
 		case OP_TFORCALL:
 		case OP_TFORLOOP:
-		case OP_RAVI_NEWARRAYI:
-		case OP_RAVI_NEWARRAYF:
 		case OP_SETUPVAL:
 		case OP_FORPREP:
 		case OP_FORLOOP:
@@ -1330,6 +1348,16 @@ static void emit_op_newtable(struct function *fn, int A, int B, int C, int pc) {
                       C);
 }
 
+static void emit_op_newarrayint(struct function *fn, int A, int pc) {
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_string(&fn->body, "raviV_op_newarrayint(L, ci, ra);\n");
+}
+
+static void emit_op_newarrayfloat(struct function *fn, int A, int pc) {
+  membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
+  membuff_add_string(&fn->body, "raviV_op_newarrayfloat(L, ci, ra);\n");
+}
+
 // Default implementation for binary ops
 static void emit_binary_op(struct function *fn, int A, int B, int C, OpCode op,
                            int pc) {
@@ -1530,6 +1558,26 @@ static void emit_op_totab(struct function *fn, int A, int pc) {
   membuff_add_string(&fn->body, "  goto Lraise_error;\n");
   membuff_add_string(&fn->body, " }\n");
   membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_setlist(struct function *fn, int A, int B, int C, int pc) {
+  emit_reg(fn, "ra", A);
+  membuff_add_fstring(&fn->body, "raviV_op_setlist(L, ci, ra, %d, %d);\n", B,
+                      C);
+}
+
+static void emit_op_concat(struct function *fn, int A, int B, int C, int pc) {
+  membuff_add_fstring(&fn->body, "raviV_op_concat(L, ci, %d, %d, %d);\n", A, B,
+                      C);
+}
+
+static void emit_op_closure(struct function *fn, int A, int Bx, int pc) {
+  membuff_add_fstring(&fn->body, "raviV_op_closure(L, ci, cl, %d, %d);\n", A,
+                      Bx);
+}
+
+static void emit_op_vararg(struct function *fn, int A, int B, int pc) {
+  membuff_add_fstring(&fn->body, "raviV_op_vararg(L, ci, cl, %d, %d);\n", A, B);
 }
 
 static void cleanup(struct function *fn) {
@@ -1859,7 +1907,36 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
         int B = GETARG_B(i);
         emit_op_movetab(&fn, A, B, pc);
       } break;
-
+      case OP_RAVI_NEWARRAYI: {
+        emit_op_newarrayint(&fn, A, pc);
+      } break;
+      case OP_RAVI_NEWARRAYF: {
+        emit_op_newarrayfloat(&fn, A, pc);
+      } break;
+      case OP_CONCAT: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_op_concat(&fn, A, B, C, pc);
+      } break;
+      case OP_CLOSURE: {
+        int Bx = GETARG_Bx(i);
+        emit_op_closure(&fn, A, Bx, pc);
+      } break;
+      case OP_VARARG: {
+        int B = GETARG_B(i);
+        emit_op_vararg(&fn, A, B, pc);
+      } break;
+      case OP_SETLIST: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        if (C == 0) {
+          // OP_SETLIST is followed by OP_EXTRAARG
+          Instruction inst = code[++pc];
+          C = GETARG_Ax(inst);
+          lua_assert(GET_OPCODE(inst) == OP_EXTRAARG);
+        }
+        emit_op_setlist(&fn, A, B, C, pc);
+      }
       default: abort();
     }
   }
