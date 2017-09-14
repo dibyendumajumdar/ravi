@@ -173,6 +173,8 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg5(jit->jit, "raviV_op_closure", raviV_op_closure, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
   //LUAI_FUNC void raviV_op_vararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);
   register_builtin_arg5(jit->jit, "raviV_op_vararg", raviV_op_vararg, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
+  // void luaV_objlen (lua_State *L, StkId ra, const TValue *rb)
+  register_builtin_arg3(jit->jit, "luaV_objlen", luaV_objlen, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
 
   G->ravi_state = jit;
   return 0;
@@ -791,6 +793,7 @@ static const char Lua_header[] = ""
 "extern void raviV_op_concat(lua_State *L, CallInfo *ci, int a, int b, int c);\n"
 "extern void raviV_op_closure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx);\n"
 "extern void raviV_op_vararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);\n"
+"extern void luaV_objlen (lua_State *L, StkId ra, const TValue *rb);\n"
 "extern void raise_error(lua_State *L, int errorcode);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
@@ -840,6 +843,9 @@ static bool can_compile(Proto *p) {
       case OP_RAVI_GETTABLE_SK:
       case OP_RAVI_GETTABLE_I:
       case OP_GETTABLE:
+      case OP_SELF:
+      case OP_RAVI_SELF_S:
+      case OP_RAVI_SELF_SK:
       case OP_RAVI_SETTABLE_SK:
       case OP_RAVI_SETTABLE_S:
       case OP_RAVI_SETTABLE_I:
@@ -893,12 +899,11 @@ static bool can_compile(Proto *p) {
       case OP_VARARG:
       case OP_CONCAT:
       case OP_CLOSURE:
+      case OP_LEN:
       case OP_SETLIST: break;
 #if 0
 		case OP_LOADKX:
 		case OP_NOT:
-		case OP_SELF:
-		case OP_LEN:
 		case OP_TFORCALL:
 		case OP_TFORLOOP:
 		case OP_SETUPVAL:
@@ -1289,9 +1294,25 @@ static void emit_op_settabup(struct function *fn, int A, int B, int C, int pc) {
 // R(A) := R(B)[RK(C)]
 static void emit_op_gettable(struct function *fn, int A, int B, int C, int pc) {
   emit_reg(fn, "ra", A);
-  membuff_add_fstring(&fn->body, "rb = R(%d);\n", B);
+  emit_reg(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
-  membuff_add_fstring(&fn->body, "luaV_gettable(L, rb, rc, ra);\n", B);
+  membuff_add_string(&fn->body, "luaV_gettable(L, rb, rc, ra);\n");
+  membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+}
+
+static void emit_op_self(struct function *fn, int A, int B, int C, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  membuff_add_string(&fn->body, "setobjs2s(L, ra + 1, rb);\n");
+  emit_reg_or_k(fn, "rc", C);
+  membuff_add_string(&fn->body, "luaV_gettable(L, rb, rc, ra);\n");
+  membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+}
+
+static void emit_op_len(struct function *fn, int A, int B, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  membuff_add_string(&fn->body, "luaV_objlen(L, ra, rb);\n");
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
@@ -1876,7 +1897,18 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
           lua_assert(GET_OPCODE(inst) == OP_EXTRAARG);
         }
         emit_op_setlist(&fn, A, B, C, pc);
-      }
+      } break;
+      case OP_SELF:
+      case OP_RAVI_SELF_S:
+      case OP_RAVI_SELF_SK: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_op_self(&fn, A, B, C, pc);
+      } break;
+      case OP_LEN: {
+        int B = GETARG_B(i);
+        emit_op_len(&fn, A, B, pc);
+      } break;
       default: abort();
     }
   }
