@@ -183,6 +183,8 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg4(jit->jit, "raviV_op_setupvalai", raviV_op_setupvalai, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
   register_builtin_arg4(jit->jit, "raviV_op_setupvalaf", raviV_op_setupvalaf, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
   register_builtin_arg4(jit->jit, "raviV_op_setupvalt", raviV_op_setupvalt, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
+  //extern void luaD_call (lua_State *L, StkId func, int nResults);
+  register_builtin_arg3(jit->jit, "luaD_call", luaD_call, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
 
   G->ravi_state = jit;
   return 0;
@@ -358,6 +360,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
 #if 1
   char *argv[] = {NULL};
   if (!dmrC_nanocompile(0, argv, context, buf.buf)) {
+    printf("%s\n", buf.buf);
+
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
   }
   else {

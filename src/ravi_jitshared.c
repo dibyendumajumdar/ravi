@@ -567,6 +567,7 @@ static const char Lua_header[] = ""
 "extern void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b);\n"
 "extern void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);\n"
 "extern void raise_error(lua_State *L, int errorcode);\n"
+"extern void luaD_call (lua_State *L, StkId func, int nResults);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 ;
@@ -590,6 +591,8 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_FORLOOP:
 		case OP_RAVI_FORPREP_IP:
 		case OP_RAVI_FORPREP_I1:
+		case OP_TFORCALL:
+		case OP_TFORLOOP:
 		case OP_FORPREP:
 		case OP_MOVE:
 		case OP_LOADNIL:
@@ -680,12 +683,10 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_CONCAT:
 		case OP_CLOSURE:
 		case OP_LEN:
+		case OP_NOT:
 		case OP_SETLIST: break;
 #if 0
 		case OP_LOADKX:
-		case OP_NOT:
-		case OP_TFORCALL:
-		case OP_TFORLOOP:
 		case OP_UNM:
 #endif
 		default: {
@@ -1315,6 +1316,13 @@ static void emit_op_vararg(struct function *fn, int A, int B, int pc) {
 	membuff_add_fstring(&fn->body, "raviV_op_vararg(L, ci, cl, %d, %d);\n", A, B);
 }
 
+static void emit_op_not(struct function *fn, int A, int B, int pc) {
+	emit_reg(fn, "ra", A);
+	emit_reg(fn, "rb", B);
+	membuff_add_string(&fn->body, "result = l_isfalse(rb);\n");
+	membuff_add_string(&fn->body, "setbvalue(ra, result);\n");
+}
+
 static void emit_op_setupval(struct function *fn, int A, int B, int pc, const char *suffix) {
 	emit_reg(fn, "ra", A);
 	membuff_add_fstring(&fn->body, "raviV_op_setupval%s(L, cl, ra, %d);\n", suffix, B);
@@ -1374,6 +1382,39 @@ static void emit_op_forloop(struct function *fn, int A, int pc,
 	membuff_add_fstring(&fn->body,     "   ra = R(%d);\n   setfltvalue(ra, ninit_%d);\n   goto Lbc_%d;\n", A + 3, A, pc);
 	membuff_add_string(&fn->body,      "  }\n");
 	membuff_add_string(&fn->body,      "}\n");
+}
+
+static void emit_op_tforcall(struct function *fn, int A, int B, int C,
+	int j, int jA, int pc) {
+	emit_reg(fn, "ra", A);
+	membuff_add_string(&fn->body, "rb = ra + 3 + 2;\n"); /*rb = cb*/
+	membuff_add_string(&fn->body, "rc = ra + 2;\n"); /*rb = cb*/
+	membuff_add_string(&fn->body, "setobjs2s(L, rb, rc);\n");
+	membuff_add_string(&fn->body, "rb = ra + 3 + 1;\n"); /*rb = cb*/
+	membuff_add_string(&fn->body, "rc = ra + 1;\n"); /*rb = cb*/
+	membuff_add_string(&fn->body, "setobjs2s(L, rb, rc);\n");
+	membuff_add_string(&fn->body, "rb = ra + 3;\n"); /*rb = cb*/
+	membuff_add_string(&fn->body, "setobjs2s(L, rb, ra);\n");
+	membuff_add_string(&fn->body, "L->top = rb + 3;\n");
+	membuff_add_fstring(&fn->body, "luaD_call(L, rb, %d);\n", C);
+	membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+	membuff_add_string(&fn->body, "L->top = ci->top;\n");
+	emit_reg(fn, "ra", jA);
+	membuff_add_string(&fn->body, "if (!ttisnil(ra + 1)) {\n");
+	membuff_add_string(&fn->body, " rb = ra + 1;\n");
+	membuff_add_string(&fn->body, " setobjs2s(L, ra, rb);\n");
+	membuff_add_fstring(&fn->body, " goto Lbc_%d;\n", j);
+	membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_tforloop(struct function *fn, int A, int j,
+	int pc) {
+	emit_reg(fn, "ra", A);
+	membuff_add_string(&fn->body, "if (!ttisnil(ra + 1)) {\n");
+	membuff_add_string(&fn->body, " rb = ra + 1;\n");
+	membuff_add_string(&fn->body, " setobjs2s(L, ra, rb);\n");
+	membuff_add_fstring(&fn->body, " goto Lbc_%d;\n", j);
+	membuff_add_string(&fn->body, "}\n");
 }
 
 static void cleanup(struct function *fn) {
@@ -1443,6 +1484,25 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int j = sbx + pc + 1;
 			emit_op_forloop(&fn, A, j, pc);
 		} break;
+		case OP_TFORCALL: {
+			int B = GETARG_B(i);
+			int C = GETARG_C(i);
+			// OP_TFORCALL is followed by OP_TFORLOOP - we process this
+			// along with OP_TFORCALL
+			pc++;
+			i = code[pc];
+			op = GET_OPCODE(i);
+			lua_assert(op == OP_TFORLOOP);
+			int sbx = GETARG_sBx(i);
+			// j below is the jump target
+			int j = sbx + pc + 1;
+			emit_op_tforcall(&fn, A, B, C, j, GETARG_A(i), pc - 1);
+		} break;
+		case OP_TFORLOOP: {
+			int sbx = GETARG_sBx(i);
+			int j = sbx + pc + 1;
+			emit_op_tforloop(&fn, A, j, pc);
+		} break;
 		case OP_MOVE: {
 			int B = GETARG_B(i);
 			emit_op_move(&fn, A, B, pc);
@@ -1486,6 +1546,10 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int j = sbx + pc + 1;
 			emit_comparison(&fn, A, B, C, j, GETARG_A(i), comparison_function,
 				compOperator, pc - 1);
+		} break;
+		case OP_NOT: {
+			int B = GETARG_B(i);
+			emit_op_not(&fn, A, B, pc);
 		} break;
 		case OP_TEST: {
 			int B = GETARG_B(i);
