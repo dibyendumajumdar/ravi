@@ -33,6 +33,7 @@
 #include "lvm.h"
 #include "lzio.h"
 #include "ravijit.h"
+#include "ravi_jitshared.h"
 
 
 #define errorstatus(s)	((s) > LUA_YIELD)

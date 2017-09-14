@@ -23,6 +23,7 @@
 
 #include <ravi_gccjit.h>
 #include <ravijit.h>
+#include <ravi_jitshared.h>
 #include <assert.h>
 
 // Create a unique function name in the context
@@ -217,24 +218,6 @@ static void free_function_def(ravi_function_def_t *def) {
     free(def->jmp_targets);
   }
 }
-
-#define RA(i) (base + GETARG_A(i))
-/* to be used after possible stack reallocation */
-#define RB(i) check_exp(getBMode(GET_OPCODE(i)) == OpArgR, base + GETARG_B(i))
-#define RC(i) check_exp(getCMode(GET_OPCODE(i)) == OpArgR, base + GETARG_C(i))
-#define RKB(i)                                                                 \
-  check_exp(getBMode(GET_OPCODE(i)) == OpArgK,                                 \
-            ISK(GETARG_B(i)) ? k + INDEXK(GETARG_B(i)) : base + GETARG_B(i))
-#define RKC(i)                                                                 \
-  check_exp(getCMode(GET_OPCODE(i)) == OpArgK,                                 \
-            ISK(GETARG_C(i)) ? k + INDEXK(GETARG_C(i)) : base + GETARG_C(i))
-#define KBx(i)                                                                 \
-  (k + (GETARG_Bx(i) != 0 ? GETARG_Bx(i) - 1 : GETARG_Ax(*ci->u.l.savedpc++)))
-/* RAVI */
-#define KB(i)                                                                  \
-  check_exp(getBMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_B(i)))
-#define KC(i)                                                                  \
-  check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_C(i)))
 
 /* Scan the Lua bytecode to identify the jump targets and pre-create
  * basic blocks for each target. The blocks are saved in an array

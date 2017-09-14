@@ -29,20 +29,7 @@ extern "C" {
 
 struct lua_State;
 struct Proto;
-
-typedef struct {
-  /* Is this a manual request? */
-  int manual_request;
-
-  /* Should range check be omitted when compiling array access */
-  int omit_array_get_range_check;
-
-  /* Should the compiler dump generated code ? */
-  int dump_level;
-
-  /* Should the compiler validate the generated code ? */
-  int verification_level;
-} ravi_compile_options_t;
+typedef struct ravi_compile_options_t ravi_compile_options_t;
 
 /* Initialise the JIT engine */
 int raviV_initjit(struct lua_State *L);

@@ -21,7 +21,8 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 #include <ravijit.h>
-#include "ravi_llvmcodegen.h"
+#include <ravi_llvmcodegen.h>
+#include <ravi_jitshared.h>
 
 namespace ravi {
 
@@ -1209,24 +1210,6 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       def->raviF->module()->getOrInsertFunction("floor", floorType);
 #endif
 }
-
-#define RA(i) (base + GETARG_A(i))
-/* to be used after possible stack reallocation */
-#define RB(i) check_exp(getBMode(GET_OPCODE(i)) == OpArgR, base + GETARG_B(i))
-#define RC(i) check_exp(getCMode(GET_OPCODE(i)) == OpArgR, base + GETARG_C(i))
-#define RKB(i)                                 \
-  check_exp(getBMode(GET_OPCODE(i)) == OpArgK, \
-            ISK(GETARG_B(i)) ? k + INDEXK(GETARG_B(i)) : base + GETARG_B(i))
-#define RKC(i)                                 \
-  check_exp(getCMode(GET_OPCODE(i)) == OpArgK, \
-            ISK(GETARG_C(i)) ? k + INDEXK(GETARG_C(i)) : base + GETARG_C(i))
-#define KBx(i) \
-  (k + (GETARG_Bx(i) != 0 ? GETARG_Bx(i) - 1 : GETARG_Ax(*ci->u.l.savedpc++)))
-/* RAVI */
-#define KB(i) \
-  check_exp(getBMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_B(i)))
-#define KC(i) \
-  check_exp(getCMode(GET_OPCODE(i)) == OpArgK, k + INDEXK(GETARG_C(i)))
 
 void RaviCodeGenerator::link_block(RaviFunctionDef *def, int pc) {
   // If we are on a jump target then check if this is a forloop

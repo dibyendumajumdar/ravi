@@ -118,17 +118,7 @@ bool ravi_jit_has_errored(ravi_gcc_context_t *ravi) {
   return false;
 }
 
-// TODO we probably do not need all the headers
-// below
-
-#define LUA_CORE
-
-#include "lua.h"
-#include "lobject.h"
-#include "lstate.h"
-#include "lauxlib.h"
-
-#include "ravi_gccjit.h"
+#include <ravi_jitshared.h>
 
 // Initialize the JIT State and attach it to the
 // Global Lua State
