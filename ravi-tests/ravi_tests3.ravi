@@ -82,4 +82,25 @@ x = function()
 compile(x)
 assert(x() == 5)
 
+x = function()
+		local j = -99
+		for i = 10,1,-1 do
+			j = i
+		end
+		return j
+	end
+ravi.compile(x)
+assert(x() == 1)
+
+x = function()
+		local j = -9.9
+		for i = 10.5,1.5,-1.0 do
+			j = i
+		end
+		return j
+	end
+ravi.compile(x)
+assert(x() == 1.5)
+
+
 print'Ok'

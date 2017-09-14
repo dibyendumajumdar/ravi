@@ -37,6 +37,9 @@ enum errorcode {
 	Error_upval_needs_integer_array,
 	Error_upval_needs_number_array,
 	Error_upval_needs_table,
+	Error_for_limit_must_be_number,
+	Error_for_step_must_be_number,
+	Error_for_initial_value_must_be_number,
 };
 
 static const char *errortext[] = {
@@ -50,6 +53,9 @@ static const char *errortext[] = {
 	"upvalue of integer[] type, cannot be set to non integer[] value",
 	"upvalue of number[] type, cannot be set to non number[] value",
 	"upvalue of table type, cannot be set to non table value",
+	"'for' limit must be a number",
+	"'for' step must be a number",
+	"'for' initial value must be a number",
 	NULL };
 
 static void raise_error(lua_State *L, int errorcode) {
@@ -553,6 +559,7 @@ static const char Lua_header[] = ""
 "extern void raviV_op_closure(lua_State *L, CallInfo *ci, LClosure *cl, int a, int Bx);\n"
 "extern void raviV_op_vararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);\n"
 "extern void luaV_objlen (lua_State *L, StkId ra, const TValue *rb);\n"
+"extern int luaV_forlimit(const TValue *obj, lua_Integer *p, lua_Integer step, int *stopnow);\n"
 "extern void raise_error(lua_State *L, int errorcode);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
@@ -574,8 +581,10 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_LOADK:
 		case OP_RAVI_FORLOOP_IP:
 		case OP_RAVI_FORLOOP_I1:
+		case OP_FORLOOP:
 		case OP_RAVI_FORPREP_IP:
 		case OP_RAVI_FORPREP_I1:
+		case OP_FORPREP:
 		case OP_MOVE:
 		case OP_LOADNIL:
 		case OP_JMP:
@@ -666,8 +675,6 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_TFORCALL:
 		case OP_TFORLOOP:
 		case OP_SETUPVAL:
-		case OP_FORPREP:
-		case OP_FORLOOP:
 		case OP_UNM:
 #endif
 		default: {
@@ -1297,6 +1304,63 @@ static void emit_op_vararg(struct function *fn, int A, int B, int pc) {
 	membuff_add_fstring(&fn->body, "raviV_op_vararg(L, ci, cl, %d, %d);\n", A, B);
 }
 
+static void emit_op_forprep(struct function *fn, int A, int pc,
+	int pc1)
+{
+	if (!fn->locals[A]) {
+		fn->locals[A] =
+			1;  // Lua can reuse the same forloop vars if loop isn't nested
+		membuff_add_fstring(&fn->prologue, "lua_Integer init_%d = 0;\n", A);
+		membuff_add_fstring(&fn->prologue, "lua_Integer limit_%d = 0;\n", A);
+		membuff_add_fstring(&fn->prologue, "lua_Integer step_%d = 0;\n", A);
+		membuff_add_fstring(&fn->prologue, "lua_Number ninit_%d = 0.0;\n", A);
+		membuff_add_fstring(&fn->prologue, "lua_Number nlimit_%d = 0.0;\n", A);
+		membuff_add_fstring(&fn->prologue, "lua_Number nstep_%d = 0.0;\n", A);
+		membuff_add_fstring(&fn->prologue, "int intloop_%d = 0;\n", A);
+	}
+	emit_reg(fn, "ra", A); // init
+	membuff_add_string(&fn->body, "rb = ra+1; /*limit*/\n");
+	membuff_add_string(&fn->body, "rc = ra+2; /*step*/\n");
+	membuff_add_fstring(&fn->body, "if (ttisinteger(ra) && ttisinteger(rc) && luaV_forlimit(rb, &limit_%d, ivalue(rc), &result)) {\n", A);
+	membuff_add_fstring(&fn->body, " init_%d = (result ? 0 : ivalue(ra));\n", A);
+	membuff_add_fstring(&fn->body, " step_%d = ivalue(rc);\n", A);
+	membuff_add_fstring(&fn->body, " init_%d -= step_%d;\n", A, A);
+	membuff_add_fstring(&fn->body, " intloop_%d = 1;\n", A);
+	membuff_add_string(&fn->body, "}\n");
+	membuff_add_string(&fn->body, "else {\n");
+	membuff_add_fstring(&fn->body, " if (!tonumber(rb, &nlimit_%d)) {\n", A);
+	membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_limit_must_be_number);
+	membuff_add_string(&fn->body,  "  goto Lraise_error;\n");
+	membuff_add_string(&fn->body,  " }\n");
+	membuff_add_fstring(&fn->body, " if (!tonumber(rc, &nstep_%d)) {\n", A);
+	membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_step_must_be_number);
+	membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+	membuff_add_string(&fn->body, " }\n");
+	membuff_add_fstring(&fn->body, " if (!tonumber(ra, &ninit_%d)) {\n", A);
+	membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_initial_value_must_be_number);
+	membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+	membuff_add_string(&fn->body, " }\n");
+	membuff_add_fstring(&fn->body, " ninit_%d -= nstep_%d;\n", A, A);
+	membuff_add_string(&fn->body, "}\n");
+	membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", pc);
+}
+
+static void emit_op_forloop(struct function *fn, int A, int pc,
+	int pc1) {
+	membuff_add_fstring(&fn->body, "if (intloop_%d) {\n", A);
+	membuff_add_fstring(&fn->body,     " init_%d += step_%d;\n", A, A);
+	membuff_add_fstring(&fn->body,     "  if ((0 < step_%d) ? (init_%d <= limit_%d) : (limit_%d <= init_%d)) {\n", A, A, A, A, A);
+	membuff_add_fstring(&fn->body,     "   ra = R(%d);\n   setivalue(ra, init_%d);\n   goto Lbc_%d;\n", A + 3, A, pc);
+	membuff_add_string(&fn->body,      "  }\n");
+	membuff_add_string(&fn->body,      "}\n");
+	membuff_add_string(&fn->body,      "else {\n");
+	membuff_add_fstring(&fn->body,     " ninit_%d += nstep_%d;\n", A, A);
+	membuff_add_fstring(&fn->body,     "  if ((0.0 < nstep_%d) ? (ninit_%d <= nlimit_%d) : (nlimit_%d <= ninit_%d)) {\n", A, A, A, A, A);
+	membuff_add_fstring(&fn->body,     "   ra = R(%d);\n   setfltvalue(ra, ninit_%d);\n   goto Lbc_%d;\n", A + 3, A, pc);
+	membuff_add_string(&fn->body,      "  }\n");
+	membuff_add_string(&fn->body,      "}\n");
+}
+
 static void cleanup(struct function *fn) {
 	free(fn->jmps);
 	if (fn->locals) free(fn->locals);
@@ -1353,6 +1417,16 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int sbx = GETARG_sBx(i);
 			int j = sbx + pc + 1;
 			emit_op_iforloop(&fn, A, j, op == OP_RAVI_FORLOOP_I1, pc);
+		} break;
+		case OP_FORPREP: {
+			int sbx = GETARG_sBx(i);
+			int j = sbx + pc + 1;
+			emit_op_forprep(&fn, A, j, pc);
+		} break;
+		case OP_FORLOOP: {
+			int sbx = GETARG_sBx(i);
+			int j = sbx + pc + 1;
+			emit_op_forloop(&fn, A, j, pc);
 		} break;
 		case OP_MOVE: {
 			int B = GETARG_B(i);

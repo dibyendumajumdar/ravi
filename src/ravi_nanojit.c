@@ -174,6 +174,8 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg5(jit->jit, "raviV_op_vararg", raviV_op_vararg, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I, NJXValueKind_I);
   // void luaV_objlen (lua_State *L, StkId ra, const TValue *rb)
   register_builtin_arg3(jit->jit, "luaV_objlen", luaV_objlen, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
+  //int luaV_forlimit(const TValue *obj, lua_Integer *p, lua_Integer step, int *stopnow);
+  register_builtin_arg4(jit->jit, "luaV_forlimit", luaV_forlimit, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_Q, NJXValueKind_P);
 
   G->ravi_state = jit;
   return 0;
