@@ -176,6 +176,13 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg3(jit->jit, "luaV_objlen", luaV_objlen, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P);
   //int luaV_forlimit(const TValue *obj, lua_Integer *p, lua_Integer step, int *stopnow);
   register_builtin_arg4(jit->jit, "luaV_forlimit", luaV_forlimit, NJXValueKind_I, NJXValueKind_P, NJXValueKind_P, NJXValueKind_Q, NJXValueKind_P);
+  // void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b);
+  register_builtin_arg4(jit->jit, "raviV_op_setupval", raviV_op_setupval, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
+  register_builtin_arg4(jit->jit, "raviV_op_setupvali", raviV_op_setupvali, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
+  register_builtin_arg4(jit->jit, "raviV_op_setupvalf", raviV_op_setupvalf, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
+  register_builtin_arg4(jit->jit, "raviV_op_setupvalai", raviV_op_setupvalai, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
+  register_builtin_arg4(jit->jit, "raviV_op_setupvalaf", raviV_op_setupvalaf, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
+  register_builtin_arg4(jit->jit, "raviV_op_setupvalt", raviV_op_setupvalt, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
 
   G->ravi_state = jit;
   return 0;

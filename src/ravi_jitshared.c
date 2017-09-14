@@ -560,6 +560,12 @@ static const char Lua_header[] = ""
 "extern void raviV_op_vararg(lua_State *L, CallInfo *ci, LClosure *cl, int a, int b);\n"
 "extern void luaV_objlen (lua_State *L, StkId ra, const TValue *rb);\n"
 "extern int luaV_forlimit(const TValue *obj, lua_Integer *p, lua_Integer step, int *stopnow);\n"
+"extern void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b);\n"
+"extern void raviV_op_setupvali(lua_State *L, LClosure *cl, TValue *ra, int b);\n"
+"extern void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b);\n"
+"extern void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b);\n"
+"extern void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b);\n"
+"extern void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);\n"
 "extern void raise_error(lua_State *L, int errorcode);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
@@ -605,6 +611,12 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_GETTABUP:
 		case OP_RAVI_GETTABUP_SK:
 		case OP_GETUPVAL:
+		case OP_SETUPVAL:
+		case OP_RAVI_SETUPVALI:
+		case OP_RAVI_SETUPVALF:
+		case OP_RAVI_SETUPVALAI:
+		case OP_RAVI_SETUPVALAF:
+		case OP_RAVI_SETUPVALT:
 		case OP_RAVI_GETTABLE_S:
 		case OP_RAVI_GETTABLE_AI:
 		case OP_RAVI_GETTABLE_AF:
@@ -674,7 +686,6 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_NOT:
 		case OP_TFORCALL:
 		case OP_TFORLOOP:
-		case OP_SETUPVAL:
 		case OP_UNM:
 #endif
 		default: {
@@ -1304,6 +1315,10 @@ static void emit_op_vararg(struct function *fn, int A, int B, int pc) {
 	membuff_add_fstring(&fn->body, "raviV_op_vararg(L, ci, cl, %d, %d);\n", A, B);
 }
 
+static void emit_op_setupval(struct function *fn, int A, int B, int pc, const char *suffix) {
+	emit_reg(fn, "ra", A);
+	membuff_add_fstring(&fn->body, "raviV_op_setupval%s(L, cl, ra, %d);\n", suffix, B);
+}
 static void emit_op_forprep(struct function *fn, int A, int pc,
 	int pc1)
 {
@@ -1542,6 +1557,30 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		case OP_GETUPVAL: {
 			int B = GETARG_B(i);
 			emit_op_getupval(&fn, A, B, pc);
+		} break;
+		case OP_SETUPVAL: {
+			int B = GETARG_B(i);
+			emit_op_setupval(&fn, A, B, pc, "");
+		} break;
+		case OP_RAVI_SETUPVALI: {
+			int B = GETARG_B(i);
+			emit_op_setupval(&fn, A, B, pc, "i");
+		} break;
+		case OP_RAVI_SETUPVALF: {
+			int B = GETARG_B(i);
+			emit_op_setupval(&fn, A, B, pc, "f");
+		} break;
+		case OP_RAVI_SETUPVALAI: {
+			int B = GETARG_B(i);
+			emit_op_setupval(&fn, A, B, pc, "ai");
+		} break;
+		case OP_RAVI_SETUPVALAF: {
+			int B = GETARG_B(i);
+			emit_op_setupval(&fn, A, B, pc, "af");
+		} break;
+		case OP_RAVI_SETUPVALT: {
+			int B = GETARG_B(i);
+			emit_op_setupval(&fn, A, B, pc, "t");
 		} break;
 		case OP_NEWTABLE: {
 			int B = GETARG_B(i);
