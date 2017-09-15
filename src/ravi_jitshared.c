@@ -819,6 +819,27 @@ static void emit_settable_aii(struct function *fn, int A, int B,
 	membuff_add_string(&fn->body, "}\n");
 }
 
+static void emit_settable_ai(struct function *fn, int A, int B,
+	int C, bool known_int, int pc)
+{
+	emit_reg(fn, "ra", A);
+	emit_reg_or_k(fn, "rb", B);
+	emit_reg_or_k(fn, "rc", C);
+	membuff_add_string(&fn->body, "t = hvalue(ra);\n");
+	membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
+	membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->ravi_array.data;\n");
+	membuff_add_string(&fn->body, "if (!tointeger(rc, &i)) {\n");
+	membuff_add_fstring(&fn->body, " error_code = %d;\n",
+		Error_integer_expected);
+	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_string(&fn->body, "}\n");
+	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+	membuff_add_string(&fn->body, " iptr[ukey] = i;\n");
+	membuff_add_string(&fn->body, "} else {\n");
+	membuff_add_fstring(&fn->body, " raviH_set_int(L, t, ukey, i);\n");
+	membuff_add_string(&fn->body, "}\n");
+}
+
 static void emit_settable_aff(struct function *fn, int A, int B,
 	int C, bool known_int, int pc)
 {
@@ -835,6 +856,26 @@ static void emit_settable_aff(struct function *fn, int A, int B,
 	membuff_add_string(&fn->body, "}\n");
 }
 
+static void emit_settable_af(struct function *fn, int A, int B,
+	int C, bool known_int, int pc)
+{
+	emit_reg(fn, "ra", A);
+	emit_reg_or_k(fn, "rb", B);
+	emit_reg_or_k(fn, "rc", C);
+	membuff_add_string(&fn->body, "t = hvalue(ra);\n");
+	membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
+	membuff_add_string(&fn->body, "nptr = (lua_Number *)t->ravi_array.data;\n");
+	membuff_add_string(&fn->body, "if (!tonumber(rc, &n)) {\n");
+	membuff_add_fstring(&fn->body, " error_code = %d;\n",
+		Error_integer_expected);
+	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_string(&fn->body, "}\n");
+	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+	membuff_add_string(&fn->body, " nptr[ukey] = n;\n");
+	membuff_add_string(&fn->body, "} else {\n");
+	membuff_add_fstring(&fn->body, " raviH_set_float(L, t, ukey, n);\n");
+	membuff_add_string(&fn->body, "}\n");
+}
 
 static void emit_comparison(struct function *fn, int A, int B, int C, int j,
 	int jA, const char *compfunc, OpCode opCode,
@@ -1677,8 +1718,6 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		case OP_RAVI_SETTABLE_SK:
 		case OP_RAVI_SETTABLE_S:
 		case OP_RAVI_SETTABLE_I:
-		case OP_RAVI_SETTABLE_AI:
-		case OP_RAVI_SETTABLE_AF:
 		case OP_SETTABLE: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
@@ -1689,10 +1728,20 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int C = GETARG_C(i);
 			emit_settable_aii(&fn, A, B, C, true, pc);
 		} break;
+		case OP_RAVI_SETTABLE_AI: {
+			int B = GETARG_B(i);
+			int C = GETARG_C(i);
+			emit_settable_ai(&fn, A, B, C, true, pc);
+		} break;
 		case OP_RAVI_SETTABLE_AFF: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
 			emit_settable_aff(&fn, A, B, C, true, pc);
+		} break;
+		case OP_RAVI_SETTABLE_AF: {
+			int B = GETARG_B(i);
+			int C = GETARG_C(i);
+			emit_settable_af(&fn, A, B, C, true, pc);
 		} break;
 		case OP_RAVI_GETTABUP_SK:
 		case OP_GETTABUP: {

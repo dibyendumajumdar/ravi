@@ -44,9 +44,9 @@ end
 --ravi.dumplua(matgen)
 
 if ravi and ravi.jit() then
-	ravi.compile(matrix.T)
-	ravi.compile(matrix.mul, {omitArrayGetRangeCheck=1})
-	ravi.compile(matgen)
+	assert(ravi.compile(matrix.T))
+	assert(ravi.compile(matrix.mul, {omitArrayGetRangeCheck=1}))
+	assert(ravi.compile(matgen))
 end
 
 local n = arg[1] or 1000;
