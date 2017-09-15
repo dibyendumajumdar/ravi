@@ -185,6 +185,10 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg4(jit->jit, "raviV_op_setupvalt", raviV_op_setupvalt, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
   //extern void luaD_call (lua_State *L, StkId func, int nResults);
   register_builtin_arg3(jit->jit, "luaD_call", luaD_call, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_I);
+  //"extern void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer value);\n"
+  register_builtin_arg4(jit->jit, "raviH_set_int", raviH_set_int, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_Q, NJXValueKind_Q);
+  //"extern void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value);\n"
+  register_builtin_arg4(jit->jit, "raviH_set_float", raviH_set_float, NJXValueKind_V, NJXValueKind_P, NJXValueKind_P, NJXValueKind_Q, NJXValueKind_D);
 
   G->ravi_state = jit;
   return 0;
@@ -357,11 +361,11 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
 	  return false;
   }
   int (*fp)(lua_State * L) = NULL;
+  //printf("%s\n", buf.buf);
 #if 1
   char *argv[] = {NULL};
   if (!dmrC_nanocompile(0, argv, context, buf.buf)) {
     printf("%s\n", buf.buf);
-
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
   }
   else {

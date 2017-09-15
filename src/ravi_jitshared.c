@@ -40,6 +40,7 @@ enum errorcode {
 	Error_for_limit_must_be_number,
 	Error_for_step_must_be_number,
 	Error_for_initial_value_must_be_number,
+	Error_array_out_of_bounds,
 };
 
 static const char *errortext[] = {
@@ -56,6 +57,7 @@ static const char *errortext[] = {
 	"'for' limit must be a number",
 	"'for' step must be a number",
 	"'for' initial value must be a number",
+	"array out of bounds",
 	NULL };
 
 static void raise_error(lua_State *L, int errorcode) {
@@ -568,6 +570,8 @@ static const char Lua_header[] = ""
 "extern void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);\n"
 "extern void raise_error(lua_State *L, int errorcode);\n"
 "extern void luaD_call (lua_State *L, StkId func, int nResults);\n"
+"extern void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer value);\n"
+"extern void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 ;
@@ -762,6 +766,75 @@ static void emit_reg_or_k(struct function *fn, const char *name, int regnum) {
 		membuff_add_fstring(&fn->body, "%s = R(%d);\n", name, regnum);
 	}
 }
+
+static void emit_gettable_ai(struct function *fn, int A, int B,
+	int C, bool omitArrayGetRangeCheck,
+	int pc)
+{
+	emit_reg(fn, "ra", A);
+	emit_reg(fn, "rb", B);
+	emit_reg_or_k(fn, "rc", C);
+	membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rc));\n");
+	membuff_add_string(&fn->body, "t = hvalue(rb);");
+	membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->ravi_array.data;\n");
+	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+	membuff_add_string(&fn->body, " setivalue(ra, iptr[ukey]);\n");
+	membuff_add_string(&fn->body, "} else {\n");
+	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_array_out_of_bounds);
+	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_gettable_af(struct function *fn, int A, int B,
+	int C, bool omitArrayGetRangeCheck,
+	int pc)
+{
+	emit_reg(fn, "ra", A);
+	emit_reg(fn, "rb", B);
+	emit_reg_or_k(fn, "rc", C);
+	membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rc));\n");
+	membuff_add_string(&fn->body, "t = hvalue(rb);");
+	membuff_add_string(&fn->body, "nptr = (lua_Number *)t->ravi_array.data;\n");
+	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+	membuff_add_string(&fn->body, " setfltvalue(ra, nptr[ukey]);\n");
+	membuff_add_string(&fn->body, "} else {\n");
+	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_array_out_of_bounds);
+	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_settable_aii(struct function *fn, int A, int B,
+	int C, bool known_int, int pc)
+{
+	emit_reg(fn, "ra", A);
+	emit_reg_or_k(fn, "rb", B);
+	emit_reg_or_k(fn, "rc", C);
+	membuff_add_string(&fn->body, "t = hvalue(ra);\n");
+	membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
+	membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->ravi_array.data;\n");
+	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+	membuff_add_string(&fn->body, " iptr[ukey] = ivalue(rc);\n");
+	membuff_add_string(&fn->body, "} else {\n");
+	membuff_add_fstring(&fn->body, " raviH_set_int(L, t, ukey, ivalue(rc));\n");
+	membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_settable_aff(struct function *fn, int A, int B,
+	int C, bool known_int, int pc)
+{
+	emit_reg(fn, "ra", A);
+	emit_reg_or_k(fn, "rb", B);
+	emit_reg_or_k(fn, "rc", C);
+	membuff_add_string(&fn->body, "t = hvalue(ra);\n");
+	membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
+	membuff_add_string(&fn->body, "nptr = (lua_Number *)t->ravi_array.data;\n");
+	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+	membuff_add_string(&fn->body, " nptr[ukey] = fltvalue(rc);\n");
+	membuff_add_string(&fn->body, "} else {\n");
+	membuff_add_fstring(&fn->body, " raviH_set_float(L, t, ukey, fltvalue(rc));\n");
+	membuff_add_string(&fn->body, "}\n");
+}
+
 
 static void emit_comparison(struct function *fn, int A, int B, int C, int j,
 	int jA, const char *compfunc, OpCode opCode,
@@ -1012,13 +1085,17 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p, co
 	membuff_add_string(&fn->prologue, "lua_Integer i = 0;\n");
 	membuff_add_string(&fn->prologue, "lua_Number n = 0.0;\n");
 	membuff_add_string(&fn->prologue, "int result = 0;\n");
-	membuff_add_string(&fn->prologue, "CallInfo *ci = L->ci;\n");
 	membuff_add_string(&fn->prologue, "StkId ra = NULL;\n");
 	membuff_add_string(&fn->prologue, "StkId rb = NULL;\n");
 	membuff_add_string(&fn->prologue, "StkId rc = NULL;\n");
+	membuff_add_string(&fn->prologue, "lua_Unsigned ukey = 0;\n");
+	membuff_add_string(&fn->prologue, "lua_Integer *iptr = NULL;\n");
+	membuff_add_string(&fn->prologue, "lua_Number *nptr = NULL;\n");
+	membuff_add_string(&fn->prologue, "Table *t = NULL;\n");
 	// TODO we never set this???
 	// ci->callstatus |= CIST_FRESH;  /* fresh invocation of 'luaV_execute" */
 	// lua_assert(ci == L->ci);
+	membuff_add_string(&fn->prologue, "CallInfo *ci = L->ci;\n");
 	membuff_add_string(&fn->prologue, "LClosure *cl = clLvalue(ci->func);\n");
 	membuff_add_string(&fn->prologue, "TValue *k = cl->p->k;\n");
 	membuff_add_string(&fn->prologue, "StkId base = ci->u.l.base;\n");
@@ -1580,8 +1657,6 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			emit_op_testset(&fn, A, B, C, j, GETARG_A(i), pc - 1);
 		} break;
 		case OP_RAVI_GETTABLE_S:
-		case OP_RAVI_GETTABLE_AI:
-		case OP_RAVI_GETTABLE_AF:
 		case OP_RAVI_GETTABLE_SK:
 		case OP_RAVI_GETTABLE_I:
 		case OP_GETTABLE: {
@@ -1589,17 +1664,35 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int C = GETARG_C(i);
 			emit_op_gettable(&fn, A, B, C, pc);
 		} break;
+		case OP_RAVI_GETTABLE_AI: {
+			int B = GETARG_B(i);
+			int C = GETARG_C(i);
+			emit_gettable_ai(&fn, A, B, C, false, pc);
+		} break;
+		case OP_RAVI_GETTABLE_AF: {
+			int B = GETARG_B(i);
+			int C = GETARG_C(i);
+			emit_gettable_af(&fn, A, B, C, false, pc);
+		} break;
 		case OP_RAVI_SETTABLE_SK:
 		case OP_RAVI_SETTABLE_S:
 		case OP_RAVI_SETTABLE_I:
-		case OP_RAVI_SETTABLE_AII:
 		case OP_RAVI_SETTABLE_AI:
-		case OP_RAVI_SETTABLE_AFF:
 		case OP_RAVI_SETTABLE_AF:
 		case OP_SETTABLE: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
 			emit_op_settable(&fn, A, B, C, pc);
+		} break;
+		case OP_RAVI_SETTABLE_AII: {
+			int B = GETARG_B(i);
+			int C = GETARG_C(i);
+			emit_settable_aii(&fn, A, B, C, true, pc);
+		} break;
+		case OP_RAVI_SETTABLE_AFF: {
+			int B = GETARG_B(i);
+			int C = GETARG_C(i);
+			emit_settable_aff(&fn, A, B, C, true, pc);
 		} break;
 		case OP_RAVI_GETTABUP_SK:
 		case OP_GETTABUP: {
