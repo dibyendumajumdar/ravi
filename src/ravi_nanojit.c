@@ -36,19 +36,6 @@ static int id = 0;
 #include "lstate.h"
 #include "lua.h"
 
-enum errorcode {
-  Error_integer_expected,
-  Error_number_expected,
-  Error_integer_array_expected,
-  Error_number_array_expected,
-  Error_table_expected,
-  Error_upval_needs_integer,
-  Error_upval_needs_number,
-  Error_upval_needs_integer_array,
-  Error_upval_needs_number_array,
-  Error_upval_needs_table,
-};
-
 static const char *errortext[] = {
     "integer expected",
     "number expected",

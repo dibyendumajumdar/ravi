@@ -26,23 +26,6 @@
 #include <stddef.h>
 #include <assert.h>
 
-enum errorcode {
-	Error_integer_expected,
-	Error_number_expected,
-	Error_integer_array_expected,
-	Error_number_array_expected,
-	Error_table_expected,
-	Error_upval_needs_integer,
-	Error_upval_needs_number,
-	Error_upval_needs_integer_array,
-	Error_upval_needs_number_array,
-	Error_upval_needs_table,
-	Error_for_limit_must_be_number,
-	Error_for_step_must_be_number,
-	Error_for_initial_value_must_be_number,
-	Error_array_out_of_bounds,
-};
-
 static const char Lua_header[] = ""
 "#define NULL ((void *)0)\n"
 "typedef struct lua_State lua_State;\n"
@@ -758,8 +741,9 @@ static void emit_gettable_ai(struct function *fn, int A, int B,
 	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
 	membuff_add_string(&fn->body, " setivalue(ra, iptr[ukey]);\n");
 	membuff_add_string(&fn->body, "} else {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_array_out_of_bounds);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+//	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_array_out_of_bounds);
+//	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_array_out_of_bounds);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -778,8 +762,9 @@ static void emit_gettable_af(struct function *fn, int A, int B,
 	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
 	membuff_add_string(&fn->body, " setfltvalue(ra, nptr[ukey]);\n");
 	membuff_add_string(&fn->body, "} else {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_array_out_of_bounds);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_array_out_of_bounds);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_array_out_of_bounds);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -811,9 +796,10 @@ static void emit_settable_ai(struct function *fn, int A, int B,
 	membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
 	membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->ravi_array.data;\n");
 	membuff_add_string(&fn->body, "if (!tointeger(rc, &i)) {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n",
-		Error_integer_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n",
+	//	Error_integer_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_integer_expected);
 	membuff_add_string(&fn->body, "}\n");
 	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
 	membuff_add_string(&fn->body, " iptr[ukey] = i;\n");
@@ -850,9 +836,10 @@ static void emit_settable_af(struct function *fn, int A, int B,
 	membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
 	membuff_add_string(&fn->body, "nptr = (lua_Number *)t->ravi_array.data;\n");
 	membuff_add_string(&fn->body, "if (!tonumber(rc, &n)) {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n",
-		Error_integer_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n",
+	//	Error_integer_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_integer_expected);
 	membuff_add_string(&fn->body, "}\n");
 	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
 	membuff_add_string(&fn->body, " nptr[ukey] = n;\n");
@@ -1327,9 +1314,10 @@ static void emit_op_movei(struct function *fn, int A, int B, int pc) {
 	membuff_add_string(&fn->body,
 		"if (tointeger(rb, &i)) { setivalue(ra, i); }\n");
 	membuff_add_string(&fn->body, "else {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n",
-		Error_integer_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n",
+	//	Error_integer_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_integer_expected);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1341,8 +1329,9 @@ static void emit_op_movef(struct function *fn, int A, int B, int pc) {
 	membuff_add_string(&fn->body,
 		"if (tonumber(rb, &n)) { setfltvalue(ra, n); }\n");
 	membuff_add_string(&fn->body, "else {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_number_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_number_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_number_expected);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1353,9 +1342,10 @@ static void emit_op_moveai(struct function *fn, int A, int B, int pc) {
 	membuff_add_string(&fn->body,
 		"if (ttisiarray(rb)) { setobjs2s(L, ra, rb); }\n");
 	membuff_add_string(&fn->body, "else {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n",
-		Error_integer_array_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n",
+	//	Error_integer_array_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_integer_array_expected);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1366,9 +1356,10 @@ static void emit_op_moveaf(struct function *fn, int A, int B, int pc) {
 	membuff_add_string(&fn->body,
 		"if (ttisfarray(rb)) { setobjs2s(L, ra, rb); }\n");
 	membuff_add_string(&fn->body, "else {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n",
-		Error_number_array_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n",
+	//	Error_number_array_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_number_array_expected);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1379,8 +1370,9 @@ static void emit_op_movetab(struct function *fn, int A, int B, int pc) {
 	membuff_add_string(&fn->body,
 		"if (ttisLtable(rb)) { setobjs2s(L, ra, rb); }\n");
 	membuff_add_string(&fn->body, "else {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_table_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_table_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_table_expected);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1391,9 +1383,10 @@ static void emit_op_toint(struct function *fn, int A, int pc) {
 	membuff_add_string(&fn->body,
 		"if (tointeger(ra, &i)) { setivalue(ra, i); }\n");
 	membuff_add_string(&fn->body, "else {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n",
-		Error_integer_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n",
+	//	Error_integer_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_integer_expected);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1404,8 +1397,9 @@ static void emit_op_toflt(struct function *fn, int A, int pc) {
 	membuff_add_string(&fn->body,
 		"if (tonumber(ra, &n)) { setfltvalue(ra, n); }\n");
 	membuff_add_string(&fn->body, "else {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_number_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_number_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_number_expected);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1413,9 +1407,10 @@ static void emit_op_toai(struct function *fn, int A, int pc) {
   (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "if (!ttisiarray(ra)) {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n",
-		Error_integer_array_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n",
+	//	Error_integer_array_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_integer_array_expected);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1423,9 +1418,10 @@ static void emit_op_toaf(struct function *fn, int A, int pc) {
   (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "if (!ttisfarray(ra)) {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n",
-		Error_number_array_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n",
+	//	Error_number_array_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_number_array_expected);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1433,8 +1429,9 @@ static void emit_op_totab(struct function *fn, int A, int pc) {
   (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "if (!ttisLtable(ra)) {\n");
-	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_table_expected);
-	membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_table_expected);
+	//membuff_add_string(&fn->body, " goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_table_expected);
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -1501,16 +1498,19 @@ static void emit_op_forprep(struct function *fn, int A, int pc,
 	membuff_add_string(&fn->body, "}\n");
 	membuff_add_string(&fn->body, "else {\n");
 	membuff_add_fstring(&fn->body, " if (!tonumber(rb, &nlimit_%d)) {\n", A);
-	membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_limit_must_be_number);
-	membuff_add_string(&fn->body,  "  goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_limit_must_be_number);
+	//membuff_add_string(&fn->body,  "  goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_for_limit_must_be_number);
 	membuff_add_string(&fn->body,  " }\n");
 	membuff_add_fstring(&fn->body, " if (!tonumber(rc, &nstep_%d)) {\n", A);
-	membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_step_must_be_number);
-	membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_step_must_be_number);
+	//membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_for_step_must_be_number);
 	membuff_add_string(&fn->body, " }\n");
 	membuff_add_fstring(&fn->body, " if (!tonumber(ra, &ninit_%d)) {\n", A);
-	membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_initial_value_must_be_number);
-	membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+	//membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_initial_value_must_be_number);
+	//membuff_add_string(&fn->body, "  goto Lraise_error;\n");
+	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_for_initial_value_must_be_number);
 	membuff_add_string(&fn->body, " }\n");
 	membuff_add_fstring(&fn->body, " ninit_%d -= nstep_%d;\n", A, A);
 	membuff_add_string(&fn->body, "}\n");
