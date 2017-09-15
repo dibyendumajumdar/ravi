@@ -43,28 +43,6 @@ enum errorcode {
 	Error_array_out_of_bounds,
 };
 
-static const char *errortext[] = {
-	"integer expected",
-	"number expected",
-	"integer[] expected",
-	"number[] expected",
-	"table expected",
-	"upvalue of integer type, cannot be set to non integer value",
-	"upvalue of number type, cannot be set to non number value",
-	"upvalue of integer[] type, cannot be set to non integer[] value",
-	"upvalue of number[] type, cannot be set to non number[] value",
-	"upvalue of table type, cannot be set to non table value",
-	"'for' limit must be a number",
-	"'for' step must be a number",
-	"'for' initial value must be a number",
-	"array out of bounds",
-	NULL };
-
-static void raise_error(lua_State *L, int errorcode) {
-	assert(errorcode >= 0 && errorcode <= Error_upval_needs_table);
-	luaG_runerror(L, errortext[errorcode]);
-}
-
 static const char Lua_header[] = ""
 "#define NULL ((void *)0)\n"
 "typedef struct lua_State lua_State;\n"
@@ -714,8 +692,6 @@ struct function {
 	membuff_t body;
 };
 
-static int add_local_var(struct function *fn) { return fn->var++; }
-
 // Identify Ravi bytecode instructions that are jump
 // targets - we need this so that when generating code
 // we can emit labels for gotos
@@ -771,6 +747,8 @@ static void emit_gettable_ai(struct function *fn, int A, int B,
 	int C, bool omitArrayGetRangeCheck,
 	int pc)
 {
+  (void)omitArrayGetRangeCheck;
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -789,6 +767,8 @@ static void emit_gettable_af(struct function *fn, int A, int B,
 	int C, bool omitArrayGetRangeCheck,
 	int pc)
 {
+  (void)omitArrayGetRangeCheck;
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -806,6 +786,8 @@ static void emit_gettable_af(struct function *fn, int A, int B,
 static void emit_settable_aii(struct function *fn, int A, int B,
 	int C, bool known_int, int pc)
 {
+  (void)pc;
+  (void)known_int;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -822,6 +804,8 @@ static void emit_settable_aii(struct function *fn, int A, int B,
 static void emit_settable_aff(struct function *fn, int A, int B,
 	int C, bool known_int, int pc)
 {
+  (void)pc;
+  (void)known_int;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -839,6 +823,7 @@ static void emit_settable_aff(struct function *fn, int A, int B,
 static void emit_comparison(struct function *fn, int A, int B, int C, int j,
 	int jA, const char *compfunc, OpCode opCode,
 	int pc) {
+  (void)pc;
 	const char *oper = "==";
 	switch (opCode) {
 	case OP_RAVI_LT_II: oper = "<"; goto Lemitint;
@@ -928,6 +913,7 @@ static void emit_jump_label(struct function *fn, int pc) {
 
 static void emit_op_loadk(struct function *fn, int A, int Bx, int pc) {
 	emit_reg(fn, "ra", A);
+  (void)pc;
 	TValue *Konst = &fn->p->k[Bx];
 	switch (Konst->tt_) {
 	case LUA_TNUMINT:
@@ -949,9 +935,9 @@ static void emit_op_loadk(struct function *fn, int A, int Bx, int pc) {
 }
 
 static void emit_op_return(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "if (cl->p->sizep > 0) luaF_close(L, base);\n");
-	int var = add_local_var(fn);
 	membuff_add_fstring(&fn->body,
 		"result = (%d != 0 ? %d - 1 : cast_int(L->top - ra));\n",
 		B, B);
@@ -959,18 +945,21 @@ static void emit_op_return(struct function *fn, int A, int B, int pc) {
 }
 
 static void emit_op_move(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_fstring(&fn->body, "rb = R(%d);\n", B);
 	membuff_add_fstring(&fn->body, "setobj2s(L, ra, rb);\n");
 }
 
 static void emit_op_loadnil(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	int b = B;
 	emit_reg(fn, "ra", A);
 	do { membuff_add_fstring(&fn->body, "setnilvalue(ra++);\n"); } while (b--);
 }
 
 static void emit_op_jmp(struct function *fn, int A, int sBx, int pc) {
+  (void)pc;
 	if (A > 0) {
 		membuff_add_fstring(&fn->body, "ra = R(%d);\n", A - 1);
 		membuff_add_string(&fn->body, "luaF_close(L, ra);\n");
@@ -980,6 +969,7 @@ static void emit_op_jmp(struct function *fn, int A, int sBx, int pc) {
 
 static void emit_op_loadbool(struct function *fn, int A, int B, int C, int j,
 	int pc) {
+  (void)pc;
 	membuff_add_fstring(&fn->body, "ra = R(%d);\n", A);
 	membuff_add_fstring(&fn->body, "setbvalue(ra, %d);\n", B);
 
@@ -988,6 +978,8 @@ static void emit_op_loadbool(struct function *fn, int A, int B, int C, int j,
 
 static void emit_op_test(struct function *fn, int A, int B, int C, int j,
 	int jA, int pc) {
+  (void)pc;
+  (void)B;
 	emit_reg(fn, "ra", A);
 	if (C) { membuff_add_string(&fn->body, "result = l_isfalse(ra);\n"); }
 	else {
@@ -1004,6 +996,7 @@ static void emit_op_test(struct function *fn, int A, int B, int C, int j,
 
 static void emit_op_testset(struct function *fn, int A, int B, int C, int j,
 	int jA, int pc) {
+  (void)pc;
 	membuff_add_fstring(&fn->body, "rb = R(%d);\n", B);
 	if (C) { membuff_add_string(&fn->body, "result = l_isfalse(rb);\n"); }
 	else {
@@ -1022,6 +1015,7 @@ static void emit_op_testset(struct function *fn, int A, int B, int C, int j,
 
 static void emit_op_iforloop(struct function *fn, int A, int pc, int step_one,
 	int pc1) {
+  (void)pc1;
 	if (!step_one) { membuff_add_fstring(&fn->body, "i_%d += step_%d;\n", A, A); }
 	else {
 		membuff_add_fstring(&fn->body, "i_%d += 1;\n", A);
@@ -1034,6 +1028,7 @@ static void emit_op_iforloop(struct function *fn, int A, int pc, int step_one,
 
 static void emit_op_iforprep(struct function *fn, int A, int pc, int step_one,
 	int pc1) {
+  (void)pc1;
 	if (!fn->locals[A]) {
 		fn->locals[A] =
 			1;  // Lua can reuse the same forloop vars if loop isn't nested
@@ -1109,6 +1104,7 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p, co
 // so we need to take care of the behaviour differences between
 // OP_CALL and external calls
 static void emit_op_call(struct function *fn, int A, int B, int C, int pc) {
+  (void)pc;
 	int nresults = C - 1;
 	if (B != 0) { membuff_add_fstring(&fn->body, "L->top = R(%d);\n", A + B); }
 	emit_reg(fn, "ra", A);
@@ -1127,6 +1123,7 @@ static void emit_op_call(struct function *fn, int A, int B, int C, int pc) {
 
 // R(A) := UpValue[B][RK(C)]
 static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rc", C);
 	membuff_add_fstring(&fn->body,
@@ -1136,6 +1133,7 @@ static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc) {
 
 // R(A) := UpValue[B][RK(C)]
 static void emit_op_settabup(struct function *fn, int A, int B, int C, int pc) {
+  (void)pc;
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
 	membuff_add_fstring(&fn->body,
@@ -1145,6 +1143,7 @@ static void emit_op_settabup(struct function *fn, int A, int B, int C, int pc) {
 
 // R(A) := R(B)[RK(C)]
 static void emit_op_gettable(struct function *fn, int A, int B, int C, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -1153,6 +1152,7 @@ static void emit_op_gettable(struct function *fn, int A, int B, int C, int pc) {
 }
 
 static void emit_op_self(struct function *fn, int A, int B, int C, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg(fn, "rb", B);
 	membuff_add_string(&fn->body, "setobjs2s(L, ra + 1, rb);\n");
@@ -1162,6 +1162,7 @@ static void emit_op_self(struct function *fn, int A, int B, int C, int pc) {
 }
 
 static void emit_op_len(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg(fn, "rb", B);
 	membuff_add_string(&fn->body, "luaV_objlen(L, ra, rb);\n");
@@ -1170,6 +1171,7 @@ static void emit_op_len(struct function *fn, int A, int B, int pc) {
 
 // R(A)[RK(B)] := RK(C)
 static void emit_op_settable(struct function *fn, int A, int B, int C, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -1179,22 +1181,26 @@ static void emit_op_settable(struct function *fn, int A, int B, int C, int pc) {
 
 // R(A) := UpValue[B]
 static void emit_op_getupval(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_fstring(&fn->body, "setobjs2s(L, ra, cl->upvals[%d]->v);\n", B);
 }
 
 static void emit_op_newtable(struct function *fn, int A, int B, int C, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_fstring(&fn->body, "raviV_op_newtable(L, ci, ra, %d, %d);\n", B,
 		C);
 }
 
 static void emit_op_newarrayint(struct function *fn, int A, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "raviV_op_newarrayint(L, ci, ra);\n");
 }
 
 static void emit_op_newarrayfloat(struct function *fn, int A, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "raviV_op_newarrayfloat(L, ci, ra);\n");
 }
@@ -1202,6 +1208,7 @@ static void emit_op_newarrayfloat(struct function *fn, int A, int pc) {
 // Default implementation for binary ops
 static void emit_binary_op(struct function *fn, int A, int B, int C, OpCode op,
 	int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -1212,6 +1219,7 @@ static void emit_binary_op(struct function *fn, int A, int B, int C, OpCode op,
 
 void emit_ff_op(struct function *fn, int A, int B, int C, int pc,
 	const char *op) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -1221,6 +1229,7 @@ void emit_ff_op(struct function *fn, int A, int B, int C, int pc,
 
 static void emit_fi_op(struct function *fn, int A, int B, int C, int pc,
 	const char *op) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -1230,6 +1239,7 @@ static void emit_fi_op(struct function *fn, int A, int B, int C, int pc,
 
 static void emit_if_op(struct function *fn, int A, int B, int C, int pc,
 	const char *op) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -1239,6 +1249,7 @@ static void emit_if_op(struct function *fn, int A, int B, int C, int pc,
 
 static void emit_ii_op(struct function *fn, int A, int B, int C, int pc,
 	const char *op) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -1247,6 +1258,7 @@ static void emit_ii_op(struct function *fn, int A, int B, int C, int pc,
 }
 
 static void emit_op_divii(struct function *fn, int A, int B, int C, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -1256,15 +1268,18 @@ static void emit_op_divii(struct function *fn, int A, int B, int C, int pc) {
 }
 
 static void emit_op_loadfz(struct function *fn, int A, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "setfltvalue(ra, 0.0);\n");
 }
 static void emit_op_loadiz(struct function *fn, int A, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "setivalue(ra, 0);\n");
 }
 
 static void emit_op_movei(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg(fn, "rb", B);
 	membuff_add_string(&fn->body, "i = 0;\n");
@@ -1278,6 +1293,7 @@ static void emit_op_movei(struct function *fn, int A, int B, int pc) {
 }
 
 static void emit_op_movef(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg(fn, "rb", B);
 	membuff_add_string(&fn->body, "n = 0.0;\n");
@@ -1290,6 +1306,7 @@ static void emit_op_movef(struct function *fn, int A, int B, int pc) {
 }
 
 static void emit_op_moveai(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg(fn, "rb", B);
 	membuff_add_string(&fn->body,
@@ -1302,6 +1319,7 @@ static void emit_op_moveai(struct function *fn, int A, int B, int pc) {
 }
 
 static void emit_op_moveaf(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg(fn, "rb", B);
 	membuff_add_string(&fn->body,
@@ -1314,6 +1332,7 @@ static void emit_op_moveaf(struct function *fn, int A, int B, int pc) {
 }
 
 static void emit_op_movetab(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg(fn, "rb", B);
 	membuff_add_string(&fn->body,
@@ -1325,6 +1344,7 @@ static void emit_op_movetab(struct function *fn, int A, int B, int pc) {
 }
 
 static void emit_op_toint(struct function *fn, int A, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "i = 0;\n");
 	membuff_add_string(&fn->body,
@@ -1337,6 +1357,7 @@ static void emit_op_toint(struct function *fn, int A, int pc) {
 }
 
 static void emit_op_toflt(struct function *fn, int A, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "n = 0.0;\n");
 	membuff_add_string(&fn->body,
@@ -1348,6 +1369,7 @@ static void emit_op_toflt(struct function *fn, int A, int pc) {
 }
 
 static void emit_op_toai(struct function *fn, int A, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "if (!ttisiarray(ra)) {\n");
 	membuff_add_fstring(&fn->body, " error_code = %d;\n",
@@ -1357,6 +1379,7 @@ static void emit_op_toai(struct function *fn, int A, int pc) {
 }
 
 static void emit_op_toaf(struct function *fn, int A, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "if (!ttisfarray(ra)) {\n");
 	membuff_add_fstring(&fn->body, " error_code = %d;\n",
@@ -1366,6 +1389,7 @@ static void emit_op_toaf(struct function *fn, int A, int pc) {
 }
 
 static void emit_op_totab(struct function *fn, int A, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "if (!ttisLtable(ra)) {\n");
 	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_table_expected);
@@ -1374,26 +1398,31 @@ static void emit_op_totab(struct function *fn, int A, int pc) {
 }
 
 static void emit_op_setlist(struct function *fn, int A, int B, int C, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_fstring(&fn->body, "raviV_op_setlist(L, ci, ra, %d, %d);\n", B,
 		C);
 }
 
 static void emit_op_concat(struct function *fn, int A, int B, int C, int pc) {
+  (void)pc;
 	membuff_add_fstring(&fn->body, "raviV_op_concat(L, ci, %d, %d, %d);\n", A, B,
 		C);
 }
 
 static void emit_op_closure(struct function *fn, int A, int Bx, int pc) {
+  (void)pc;
 	membuff_add_fstring(&fn->body, "raviV_op_closure(L, ci, cl, %d, %d);\n", A,
 		Bx);
 }
 
 static void emit_op_vararg(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	membuff_add_fstring(&fn->body, "raviV_op_vararg(L, ci, cl, %d, %d);\n", A, B);
 }
 
 static void emit_op_not(struct function *fn, int A, int B, int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	emit_reg(fn, "rb", B);
 	membuff_add_string(&fn->body, "result = l_isfalse(rb);\n");
@@ -1401,12 +1430,14 @@ static void emit_op_not(struct function *fn, int A, int B, int pc) {
 }
 
 static void emit_op_setupval(struct function *fn, int A, int B, int pc, const char *suffix) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_fstring(&fn->body, "raviV_op_setupval%s(L, cl, ra, %d);\n", suffix, B);
 }
 static void emit_op_forprep(struct function *fn, int A, int pc,
 	int pc1)
 {
+  (void)pc1;
 	if (!fn->locals[A]) {
 		fn->locals[A] =
 			1;  // Lua can reuse the same forloop vars if loop isn't nested
@@ -1447,6 +1478,7 @@ static void emit_op_forprep(struct function *fn, int A, int pc,
 
 static void emit_op_forloop(struct function *fn, int A, int pc,
 	int pc1) {
+  (void)pc1;
 	membuff_add_fstring(&fn->body, "if (intloop_%d) {\n", A);
 	membuff_add_fstring(&fn->body,     " init_%d += step_%d;\n", A, A);
 	membuff_add_fstring(&fn->body,     "  if ((0 < step_%d) ? (init_%d <= limit_%d) : (limit_%d <= init_%d)) {\n", A, A, A, A, A);
@@ -1463,6 +1495,8 @@ static void emit_op_forloop(struct function *fn, int A, int pc,
 
 static void emit_op_tforcall(struct function *fn, int A, int B, int C,
 	int j, int jA, int pc) {
+  (void)B;
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "rb = ra + 3 + 2;\n"); /*rb = cb*/
 	membuff_add_string(&fn->body, "rc = ra + 2;\n"); /*rb = cb*/
@@ -1486,6 +1520,7 @@ static void emit_op_tforcall(struct function *fn, int A, int B, int C,
 
 static void emit_op_tforloop(struct function *fn, int A, int j,
 	int pc) {
+  (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "if (!ttisnil(ra + 1)) {\n");
 	membuff_add_string(&fn->body, " rb = ra + 1;\n");
@@ -1504,7 +1539,7 @@ static void cleanup(struct function *fn) {
 // Compile a Lua function
 // Returns true if compilation was successful
 bool raviJ_codegen(struct lua_State *L, struct Proto *p,
-	ravi_compile_options_t *options, const char *fname, membuff_t *buf) {
+	struct ravi_compile_options_t *options, const char *fname, membuff_t *buf) {
 
 	if (options->codegen_type == RAVI_CODEGEN_HEADER_ONLY) {
 		membuff_rewindpos(buf);

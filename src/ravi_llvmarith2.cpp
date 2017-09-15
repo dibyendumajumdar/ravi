@@ -30,7 +30,7 @@ namespace ravi {
 // Code size priority so go via function calls
 void RaviCodeGenerator::emit_ARITH_calls(RaviFunctionDef *def, int A, int B,
                                          int C, OpCode op, TMS tms, int pc) {
-  bool traced = emit_debug_trace(def, op, pc);
+  emit_debug_trace(def, op, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);

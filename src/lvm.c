@@ -980,7 +980,9 @@ int luaV_execute (lua_State *L) {
   k = cl->p->k;  /* local reference to function's constant table */
   base = ci->u.l.base;  /* local copy of function's base */
   /* main loop of interpreter */
+#if RAVI_BYTECODE_PROFILING_ENABLED
   OpCode prevop = -1;
+#endif
   for (;;) {
     Instruction i;
     OpCode op;

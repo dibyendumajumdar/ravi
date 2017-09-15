@@ -16,6 +16,7 @@ extern void membuff_rewindpos(membuff_t *mb);
 extern void membuff_resize(membuff_t *mb, size_t new_size);
 extern void membuff_free(membuff_t *mb);
 extern void membuff_add_string(membuff_t *mb, const char *str);
+extern void membuff_add_fstring(membuff_t *mb, const char *str, ...);
 extern void membuff_add_bool(membuff_t *mb, bool value);
 extern void membuff_add_int(membuff_t *mb, int value);
 extern void membuff_add_longlong(membuff_t *mb, int64_t value);
