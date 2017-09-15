@@ -779,7 +779,7 @@ static int collect_args(lua_State *L, int tabindex, char *argv[], int maxargs,
 }
 
 static int module_compile_C(lua_State *L) {
-  ModuleHolder *mh = check_LLVM_module(L, 1);
+  check_LLVM_module(L, 1);
   const char *codebuffer = NULL;  //  luaL_checkstring(L, 2);
   char *argv[MAX_ARGS + 1] = {NULL};
   int argc = 0;

@@ -81,7 +81,7 @@ enum ravi_codegen_type {
 	RAVI_CODEGEN_ALL = 3,
 };
 
-typedef struct ravi_compile_options_t {
+struct ravi_compile_options_t {
 	/* Is this a manual request? */
 	int manual_request;
 
@@ -95,7 +95,7 @@ typedef struct ravi_compile_options_t {
 	int verification_level;
 
 	enum ravi_codegen_type codegen_type;
-} ravi_compile_options_t;
+};
 
 LUAI_FUNC bool raviJ_cancompile(Proto *p);
 
@@ -103,7 +103,7 @@ LUAI_FUNC bool raviJ_cancompile(Proto *p);
 // Returns true if compilation was successful
 // If successful then buf will be set
 LUAI_FUNC bool raviJ_codegen(struct lua_State *L, struct Proto *p,
-	ravi_compile_options_t *options, const char *fname, membuff_t *buf);
+	struct ravi_compile_options_t *options, const char *fname, membuff_t *buf);
 
 #ifdef __cplusplus
 };
