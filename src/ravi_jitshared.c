@@ -789,6 +789,8 @@ static void emit_settable_aii(struct function *fn, int A, int B,
 static void emit_settable_ai(struct function *fn, int A, int B,
 	int C, bool known_int, int pc)
 {
+  (void)pc;
+  (void)known_int;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);
@@ -829,6 +831,8 @@ static void emit_settable_aff(struct function *fn, int A, int B,
 static void emit_settable_af(struct function *fn, int A, int B,
 	int C, bool known_int, int pc)
 {
+  (void)pc;
+  (void)known_int;
 	emit_reg(fn, "ra", A);
 	emit_reg_or_k(fn, "rb", B);
 	emit_reg_or_k(fn, "rc", C);

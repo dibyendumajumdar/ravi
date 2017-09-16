@@ -62,8 +62,9 @@ int test1() {
   elements.push_back(llvm::Type::getInt8Ty(*context));
   elements.push_back(llvm::Type::getInt8Ty(*context));
   structType->setBody(elements);
+#if defined(LLVM_ENABLE_DUMP)
   structType->dump();
-
+#endif
   // Create printf declaration
   std::vector<llvm::Type *> args;
   args.push_back(llvm::Type::getInt8PtrTy(*context));
@@ -120,7 +121,9 @@ int test1() {
 
   // return i
   builder.CreateRet(tmp2);
+#if defined(LLVM_ENABLE_DUMP)
   module->dump();
+#endif
 
   // Lets create the MCJIT engine
   std::string errStr;
@@ -187,7 +190,9 @@ int test2() {
   elements.push_back(llvm::Type::getInt8Ty(context));
   elements.push_back(llvm::Type::getInt8Ty(context));
   structType->setBody(elements);
+#if defined(LLVM_ENABLE_DUMP)
   structType->dump();
+#endif
 
   // Create declaration for mytest
   // int mytest(RaviGCObject *obj)

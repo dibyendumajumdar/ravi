@@ -422,7 +422,11 @@ llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,
   return f;
 }
 
-void RaviJITModule::dump() { module_->dump(); }
+void RaviJITModule::dump() {
+#if defined(LLVM_ENABLE_DUMP)
+  module_->dump();
+#endif
+}
 
 // Dumps the machine code
 // Will execute the passes as required by currently set
