@@ -781,7 +781,7 @@ static int collect_args(lua_State *L, int tabindex, char *argv[], int maxargs,
 }
 
 static int module_compile_C(lua_State *L) {
-  check_LLVM_module(L, 1);
+  ModuleHolder *mh = check_LLVM_module(L, 1);
   const char *codebuffer = NULL;  //  luaL_checkstring(L, 2);
   char *argv[MAX_ARGS + 1] = {NULL};
   int argc = 0;
@@ -807,6 +807,7 @@ static int module_compile_C(lua_State *L) {
     lua_pushboolean(L, false);
   }
 #else
+  (void)mh;
   lua_pushboolean(L, false);
 #endif
   return 1;
