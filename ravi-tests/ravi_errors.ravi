@@ -95,5 +95,6 @@ checkmessage('local mt: number[] = {}; local t: table = {}; setmetatable(t, mt)'
 
 checkmessage('for i=1,10 do i="a" end', 'Invalid assignment: integer expected')
 checkmessage('for i=1,10 do local f = function() i="a" end; f(); end', 'upvalue of integer type, cannot be set to non integer value')
+checkmessage('local x: number[] = {1,2}; x:try()', 'attempt to incorrectly index a table value')
 
 print 'Ok'
