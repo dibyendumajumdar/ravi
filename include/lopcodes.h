@@ -263,17 +263,21 @@ OP_RAVI_TOINT, /* A R(A) := toint(R(A)) */
 OP_RAVI_TOFLT, /* A R(A) := tofloat(R(A)) */
 OP_RAVI_TOARRAYI, /* A R(A) := to_arrayi(R(A)) */
 OP_RAVI_TOARRAYF, /* A R(A) := to_arrayf(R(A)) */
+OP_RAVI_TOTAB,    /* A R(A) := to_table(R(A)) */
 
 OP_RAVI_MOVEI, /*	A B	R(A) := R(B), check R(B) is int	*/
 OP_RAVI_MOVEF, /*	A B	R(A) := R(B), check R(B) is float */
 OP_RAVI_MOVEAI, /* A B R(A) := R(B), check R(B) is array of int */
 OP_RAVI_MOVEAF, /* A B R(A) := R(B), check R(B) is array of floats */
+OP_RAVI_MOVETAB,  /* A B R(A) := R(B), check R(B) is a table */
 
 OP_RAVI_GETTABLE_AI,/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
 OP_RAVI_GETTABLE_AF,/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
 
-OP_RAVI_SETTABLE_AI,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
-OP_RAVI_SETTABLE_AF,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+OP_RAVI_SETTABLE_AI,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints */
+OP_RAVI_SETTABLE_AF,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats */
+OP_RAVI_SETTABLE_AII,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+OP_RAVI_SETTABLE_AFF,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
 OP_RAVI_FORLOOP_IP,
 OP_RAVI_FORLOOP_I1,
@@ -284,9 +288,7 @@ OP_RAVI_SETUPVALI,  /*	A B	UpValue[B] := tointeger(R(A))			*/
 OP_RAVI_SETUPVALF,  /*	A B	UpValue[B] := tonumber(R(A))			*/
 OP_RAVI_SETUPVALAI,  /*	A B	UpValue[B] := toarrayint(R(A))			*/
 OP_RAVI_SETUPVALAF,  /*	A B	UpValue[B] := toarrayflt(R(A))			*/
-
-OP_RAVI_SETTABLE_AII,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
-OP_RAVI_SETTABLE_AFF,/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+OP_RAVI_SETUPVALT,/*	A B	UpValue[B] := to_table(R(A))			*/
 
 OP_RAVI_BAND_II,/*	A B C	R(A) := RK(B) & RK(C)				*/
 OP_RAVI_BOR_II, /*	A B C	R(A) := RK(B) | RK(C)				*/
@@ -302,22 +304,21 @@ OP_RAVI_LT_FF,/*	A B C	if ((RK(B) <  RK(C)) ~= A) then pc++		*/
 OP_RAVI_LE_II,/*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
 OP_RAVI_LE_FF,/*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   
-OP_RAVI_GETTABLE_I,/*	A B C	R(A) := R(B)[RK(C)], integer key	*/
-OP_RAVI_GETTABLE_S,/*	A B C	R(A) := R(B)[RK(C)], string key   */
-OP_RAVI_SETTABLE_I,/*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
-OP_RAVI_SETTABLE_S,/*	A B C	R(A)[RK(B)] := RK(C), string key  */
-OP_RAVI_TOTAB,    /* A R(A) := to_table(R(A)) */
-OP_RAVI_MOVETAB,  /* A B R(A) := R(B), check R(B) is a table */
-OP_RAVI_SETUPVALT,/*	A B	UpValue[B] := to_table(R(A))			*/
-OP_RAVI_SELF_S,/*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
+/* Following op codes are specialised when it is known that indexing is being
+   done on a table and the key is known type */
+OP_RAVI_GETTABLE_I,/*	A B C	R(A) := R(B)[RK(C)], integer key, known table */
+OP_RAVI_GETTABLE_S,/*	A B C	R(A) := R(B)[RK(C)], string key, known table */
+OP_RAVI_SETTABLE_I,/*	A B C	R(A)[RK(B)] := RK(C), integer key, known table */
+OP_RAVI_SETTABLE_S,/*	A B C	R(A)[RK(B)] := RK(C), string key, known table  */
+OP_RAVI_SELF_S,/*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)], string key, known table */
 
-/* Following opcodes are specialized for access where the
+/* Following opcodes are specialized for indexing where the
    key is known to be string but the variable may or may not be 
    a table */
 OP_RAVI_GETTABLE_SK, /*	A B C	R(A) := R(B)[RK(C)], string key   */
-OP_RAVI_SELF_SK,     /*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
-OP_RAVI_SETTABLE_SK, /*	A B C	R(A)[RK(B)] := RK(C), string key  */
-OP_RAVI_GETTABUP_SK, /*	A B C	R(A) := UpValue[B][RK(C)]			*/
+OP_RAVI_SELF_SK,     /*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)], string key */
+OP_RAVI_SETTABLE_SK, /*	A B C	R(A)[RK(B)] := RK(C), string key */
+OP_RAVI_GETTABUP_SK, /*	A B C	R(A) := UpValue[B][RK(C)], string key */
 
 } OpCode;
 
