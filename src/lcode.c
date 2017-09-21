@@ -621,7 +621,10 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
       }
       else {
         lua_assert(e->u.ind.vt == VUPVAL);
-        op = OP_GETTABUP;  /* 't' is in an upvalue */
+        if (e->u.ind.key_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
+          op = OP_RAVI_GETTABUP_SK;
+        else
+          op = OP_GETTABUP;  /* 't' is in an upvalue */
       }
       e->u.info = luaK_codeABC(fs, op, 0, e->u.ind.t, e->u.ind.idx);
       e->k = VRELOCABLE;
