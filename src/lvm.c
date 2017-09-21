@@ -252,7 +252,17 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
 
 #define GETTABLE_INLINE_(L, t, key, val, protect)                \
   if (RAVI_LIKELY(ttisLtable(t))) {                              \
-    const TValue *aux = luaH_get(hvalue(t), key);                \
+    const TValue *aux;                                           \
+    if (ttisinteger(key)) {                                      \
+      lua_Integer idx = ivalue(key);                             \
+      Table *h = hvalue(t);                                      \
+      if (RAVI_LIKELY(l_castS2U(idx - 1) < h->sizearray))        \
+        aux = &h->array[idx - 1];                                \
+      else                                                       \
+        aux = luaH_getint(h, idx);                               \
+    }                                                            \
+    else                                                         \
+      aux = luaH_get(hvalue(t), key);                            \
     if (RAVI_LIKELY(!ttisnil(aux))) { setobj2s(L, val, aux); }   \
     else                                                         \
       protect(luaV_finishget(L, t, key, val, aux));              \
@@ -323,7 +333,17 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
 
 #define SETTABLE_INLINE_(L, t, key, val, protect)                           \
   if (RAVI_LIKELY(ttisLtable(t))) {                                         \
-    const TValue *slot = luaH_get(hvalue(t), key);                          \
+    const TValue *slot;                                                     \
+    if (ttisinteger(key)) {                                                 \
+      lua_Integer idx = ivalue(key);                                        \
+      Table *h = hvalue(t);                                                 \
+      if (RAVI_LIKELY(l_castS2U(idx - 1) < h->sizearray))                   \
+        slot = &h->array[idx - 1];                                          \
+      else                                                                  \
+        slot = luaH_getint(h, idx);                                         \
+    }                                                                       \
+    else                                                                    \
+      slot = luaH_get(hvalue(t), key);                                      \
     if (!ttisnil(slot)) {                                                   \
       luaC_barrierback(L, hvalue(t), val);                                  \
       setobj2t(L, cast(TValue *, slot), val);                               \
