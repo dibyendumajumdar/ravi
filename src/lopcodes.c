@@ -150,12 +150,12 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "LE_II",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   "LE_FF",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   
-  "GETTABLE_I", /*	A B C	R(A) := R(B)[RK(C)], integer key	*/
   "GETTABLE_S", /*	A B C	R(A) := R(B)[RK(C)], string key   */
-  "SETTABLE_I", /*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
   "SETTABLE_S", /*	A B C	R(A)[RK(B)] := RK(C), string key  */
   "SELF_S",    /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
 
+  "GETTABLE_I", /*	A B C	R(A) := R(B)[RK(C)], integer key	*/
+  "SETTABLE_I", /*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
   "GETTABLE_SK", /* _SK */ /*	A B C	R(A) := R(B)[RK(C)], string key   */
   "SELF_SK",    /* _SK*/ /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
   "SETTABLE_SK", /*_SK */ /*	A B C	R(A)[RK(B)] := RK(C), string key  */
@@ -288,16 +288,16 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_II */
  ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_FF */
 
- ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_I */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_S */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_I */
  ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_S */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_SELF_S */
 
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_I */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_I */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_SK */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_SELF_SK */
  ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_SK */
- ,opmode(0, 1, OpArgU, OpArgK, iABC)	  /* OP_RAVI_GETTABUP_SK */
+ ,opmode(0, 1, OpArgU, OpArgK, iABC)		/* OP_RAVI_GETTABUP_SK */
 };
 
 

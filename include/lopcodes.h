@@ -306,15 +306,15 @@ OP_RAVI_LE_FF,/*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   
 /* Following op codes are specialised when it is known that indexing is being
    done on a table and the key is known type */
-OP_RAVI_GETTABLE_I,/*	A B C	R(A) := R(B)[RK(C)], integer key, known table */
 OP_RAVI_GETTABLE_S,/*	A B C	R(A) := R(B)[RK(C)], string key, known table */
-OP_RAVI_SETTABLE_I,/*	A B C	R(A)[RK(B)] := RK(C), integer key, known table */
 OP_RAVI_SETTABLE_S,/*	A B C	R(A)[RK(B)] := RK(C), string key, known table  */
 OP_RAVI_SELF_S,/*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)], string key, known table */
 
 /* Following opcodes are specialized for indexing where the
    key is known to be string but the variable may or may not be 
    a table */
+OP_RAVI_GETTABLE_I,/*	A B C	R(A) := R(B)[RK(C)], integer key, known table */
+OP_RAVI_SETTABLE_I,/*	A B C	R(A)[RK(B)] := RK(C), integer key, known table */
 OP_RAVI_GETTABLE_SK, /*	A B C	R(A) := R(B)[RK(C)], string key   */
 OP_RAVI_SELF_SK,     /*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)], string key */
 OP_RAVI_SETTABLE_SK, /*	A B C	R(A)[RK(B)] := RK(C), string key */
