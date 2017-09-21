@@ -468,12 +468,6 @@ static char *buildop (Proto *p, int pc, char *buff) {
   Instruction i = p->code[pc];
   OpCode o = GET_OPCODE(i);
   const char *name = luaP_opnames[o];
-  /* FIXME Temp hack to output old opcodes so that the tests
-     do not break */
-  if (strcmp(name, "GETTABLE_SK") == 0) name = "GETTABLE";
-  else if (strcmp(name, "SELF_SK") == 0) name = "SELF";
-  else if (strcmp(name, "SETTABLE_SK") == 0) name = "SETTABLE";
-  else if (strcmp(name, "GETTABUP_SK") == 0) name = "GETTABUP";
   int line = getfuncline(p, pc);
   sprintf(buff, "(%4d) %4d - ", line, pc);
   switch (getOpMode(o)) {

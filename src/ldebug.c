@@ -548,10 +548,10 @@ static const char *funcnamefromcode (lua_State *L, CallInfo *ci,
     /* all other instructions can call only through metamethods */
     /* Ravi: added GETTABLE_SK and SELF_SK because the call may be through metamethod rather than table */
     case OP_SELF: case OP_GETTABUP: case OP_GETTABLE: 
-    case OP_RAVI_SELF_SK: case OP_RAVI_GETTABUP_SK: case OP_RAVI_GETTABLE_SK:
+    case OP_RAVI_SELF_SK: case OP_RAVI_GETTABUP_SK: case OP_RAVI_GETTABLE_SK: case OP_RAVI_GETTABLE_I:
       tm = TM_INDEX;
       break;
-    case OP_SETTABUP: case OP_SETTABLE: case OP_RAVI_SETTABLE_SK:
+    case OP_SETTABUP: case OP_SETTABLE: case OP_RAVI_SETTABLE_SK: case OP_RAVI_SETTABLE_I:
       tm = TM_NEWINDEX;
       break;
     case OP_ADD: case OP_SUB: case OP_MUL: case OP_MOD:

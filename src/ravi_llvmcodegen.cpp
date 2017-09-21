@@ -1156,6 +1156,12 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_gettable_sskeyF = def->raviF->addExternFunction(
       def->types->raviV_gettable_sskeyT,
       reinterpret_cast<void *>(&raviV_gettable_sskey), "raviV_gettable_sskey");
+  def->raviV_settable_iF = def->raviF->addExternFunction(
+	  def->types->raviV_settable_iT,
+	  reinterpret_cast<void *>(&raviV_settable_i), "raviV_settable_i");
+  def->raviV_gettable_iF = def->raviF->addExternFunction(
+	  def->types->raviV_gettable_iT,
+	  reinterpret_cast<void *>(&raviV_gettable_i), "raviV_gettable_i");
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(
       def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
@@ -1624,8 +1630,11 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int C = GETARG_C(i);
         emit_SETTABLE_SK(def, A, B, C, pc);
       } break;
-
-      case OP_RAVI_SETTABLE_I:
+      case OP_RAVI_SETTABLE_I: {
+        int B = GETARG_B(i);
+        int C = GETARG_C(i);
+        emit_SETTABLE_I(def, A, B, C, pc);
+      } break;
       case OP_SETTABLE: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);

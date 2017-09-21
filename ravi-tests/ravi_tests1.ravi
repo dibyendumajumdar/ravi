@@ -11,8 +11,10 @@ opcodes_coverage.LOADBOOL = 0
 opcodes_coverage.LOADNIL = 0
 opcodes_coverage.GETUPVAL = 0
 opcodes_coverage.GETTABUP = 0
+opcodes_coverage.GETTABUP_SK = 0
 opcodes_coverage.GETTABLE = 0
 opcodes_coverage.SETTABUP = 0
+opcodes_coverage.SETTABUP_SK = 0
 opcodes_coverage.SETUPVAL = 0
 opcodes_coverage.SETTABLE = 0
 opcodes_coverage.NEWTABLE = 0
@@ -109,6 +111,8 @@ opcodes_coverage.GETTABLE_I = 0
 opcodes_coverage.GETTABLE_S = 0
 opcodes_coverage.SETTABLE_I = 0
 opcodes_coverage.SETTABLE_S = 0
+opcodes_coverage.SETTABLE_SK = 0
+opcodes_coverage.GETTABLE_SK = 0
 opcodes_coverage.TOTAB = 0
 opcodes_coverage.MOVETAB = 0
 opcodes_coverage.SETUPVALT = 0
@@ -154,7 +158,7 @@ end
 -- some basic instructions
 check(function ()
   (function () end){f()}
-end, 'CLOSURE', 'NEWTABLE', 'GETTABUP', 'CALL', 'SETLIST', 'CALL', 'RETURN')
+end, 'CLOSURE', 'NEWTABLE', 'GETTABUP_SK', 'CALL', 'SETLIST', 'CALL', 'RETURN')
 
 -- sequence of LOADNILs
 check(function ()
@@ -208,8 +212,8 @@ check(function ()
 end,
   'LOADNIL',
   'MUL',
-  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETTABLE', 'POW',
-    'UNM', 'SETTABLE', 'SETTABLE', 'RETURN')
+  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETTABLE_SK', 'POW',
+    'UNM', 'SETTABLE', 'SETTABLE_I', 'RETURN')
 
 -- direct access to constants
 check(function ()
@@ -223,7 +227,7 @@ check(function ()
   a[true] = false
 end,
   'LOADNIL',
-  'SETTABLE', 'SETTABLE', 'SETTABLE', 'SUB', 'DIV', 'LOADK',
+  'SETTABLE_SK', 'SETTABLE_SK', 'SETTABLE', 'SUB', 'DIV', 'LOADK',
   'SETTABLE', 'RETURN')
 
 
@@ -256,7 +260,7 @@ checkequal(function () if (a==nil) then a=1 end; if a~=nil then a=1 end end,
            function () if (a==9) then a=1 end; if a~=9 then a=1 end end)
 
 check(function () if a==nil then a=1 end end,
-'GETTABUP', 'EQ', 'JMP', 'SETTABUP', 'RETURN')
+'GETTABUP_SK', 'EQ', 'JMP', 'SETTABUP', 'RETURN')
 
 -- de morgan
 checkequal(function () local a; if not (a or b) then b=a end end,
@@ -458,9 +462,9 @@ x = function()
   assert(i+j == 11)
 end
 compile(x)
-check(x, 'CLOSURE', 'GETTABUP', 'GETUPVAL',
+check(x, 'CLOSURE', 'GETTABUP_SK', 'GETUPVAL',
   'MOVE', 'CALL', 'CALL', 'MOVE', 'CALL', 'TOINT', 'TOINT',
-  'GETTABUP', 'ADDII', 'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL',
+  'GETTABUP_SK', 'ADDII', 'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL',
   'CALL', 'RETURN')
 x()
 print("test 10 OK")
@@ -557,7 +561,7 @@ function tabtest(x)
   return x[1]
 end
 assert(tabtest({}) == 5)
-check(tabtest, 'SETTABLE', 'GETTABLE', 'RETURN', 'RETURN')
+check(tabtest, 'SETTABLE_I', 'GETTABLE_I', 'RETURN', 'RETURN')
 compile(tabtest)
 assert(tabtest({}) == 5)
 print("test 16 OK")
@@ -631,8 +635,8 @@ z = function()
   assert(#y == 1)
 end
 check(z, 'CLOSURE', 'GETUPVAL', 'MOVE', 'CALL',
-  'MOVE', 'CALL', 'SETUPVAL', 'SETTABUP', 'GETTABUP', 'GETTABUP',
-  'LOADK', 'CALL', 'GETTABUP', 'GETUPVAL', 'LEN', 'EQ_II',
+  'MOVE', 'CALL', 'SETUPVAL', 'SETTABUP', 'GETTABUP_SK', 'GETTABUP',
+  'LOADK', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'LEN', 'EQ_II',
   'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
 z()
 compile(z)
@@ -658,12 +662,12 @@ z = function()
   assert(x() == "SundayMondayTuesdayWednesdayThursdayFridaySaturday")
 end
 check(z, 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK', 'LOADK',
-  'LOADK', 'LOADK', 'LOADK', 'SETLIST', 'GETTABUP', 'GETTABLE_I',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP', 'LEN',
-  'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP', 'GETTABLE_I',
+  'LOADK', 'LOADK', 'LOADK', 'SETLIST', 'GETTABUP_SK', 'GETTABLE_I',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'LEN',
+  'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'GETTABLE_I',
   'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABLE_I', 'LOADK',
-  'CONCAT', 'SETTABLE_I', 'CLOSURE', 'SETUPVAL', 'GETTABUP', 'GETUPVAL',
-  'GETUPVAL', 'CALL', 'CALL', 'GETTABUP', 'GETUPVAL', 'CALL', 'EQ',
+  'CONCAT', 'SETTABLE_I', 'CLOSURE', 'SETUPVAL', 'GETTABUP_SK', 'GETUPVAL',
+  'GETUPVAL', 'CALL', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'CALL', 'EQ',
   'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
 z()
 compile(z)
@@ -1105,8 +1109,8 @@ function test_tableaccess()
     return t.name, t.data.city
   end
   check(f, 'NEWTABLE', 'SETTABLE_S', 'NEWTABLE',
-    'SETTABLE_S', 'GETTABLE_S', 'SETTABLE', 
-    'GETTABLE_S', 'GETTABLE_S' , 'GETTABLE',
+    'SETTABLE_S', 'GETTABLE_S', 'SETTABLE_SK', 
+    'GETTABLE_S', 'GETTABLE_S' , 'GETTABLE_SK',
     'RETURN', 'RETURN')
   local a,b = f()
   assert(a == 'dibyendu')
@@ -1127,8 +1131,8 @@ function test_tableaccess()
     return t[1], t[2][1]
   end
   check(f, 'NEWTABLE', 'SETTABLE_I', 'NEWTABLE',
-    'SETTABLE_I', 'GETTABLE_I', 'SETTABLE', 
-    'GETTABLE_I', 'GETTABLE_I' , 'GETTABLE',
+    'SETTABLE_I', 'GETTABLE_I', 'SETTABLE_I', 
+    'GETTABLE_I', 'GETTABLE_I' , 'GETTABLE_I',
     'RETURN', 'RETURN')
   local a,b = f()
   assert(a == 'dibyendu')
@@ -1149,7 +1153,7 @@ function test_self_s()
   return t:name()
 end  
 check(test_self_s, 'NEWTABLE', 'SETTABLE_S', 'CLOSURE',
-  'SETTABLE_S', 'GETTABUP', 'SELF_S', 'CALL', 'CALL', 'SELF_S', 'TAILCALL',
+  'SETTABLE_S', 'GETTABUP_SK', 'SELF_S', 'CALL', 'CALL', 'SELF_S', 'TAILCALL',
   'RETURN')
 assert(test_self_s() == 'dibyendu majumdar')
 compile(test_self_s)
@@ -1250,12 +1254,12 @@ function test_longkey()
   assert(t[s] == 4.4)
   assert(t.s == nil) 
 end
-check(test_longkey,	'NEWTABLE', 'SETTABLE', 'GETTABUP', 'GETTABLE',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'SETTABLE_S', 'GETTABUP',
+check(test_longkey,	'NEWTABLE', 'SETTABLE', 'GETTABUP_SK', 'GETTABLE',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'SETTABLE_S', 'GETTABUP_SK',
   'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'SETTABLE_S',
-  'GETTABUP', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
-  'LOADK', 'GETTABUP', 'GETTABLE', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
-  'GETTABUP', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'GETTABUP_SK', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'LOADK', 'GETTABUP_SK', 'GETTABLE', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'GETTABUP_SK', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
   'RETURN')
 assert(pcall(test_longkey));
 compile(test_longkey);

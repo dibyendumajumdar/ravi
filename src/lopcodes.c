@@ -632,19 +632,7 @@ static char *buildop2(Proto *p, int pc, char *buff, size_t len) {
   int line = getfuncline(p, pc);
   char tbuf[100];
   raviP_instruction_to_str(tbuf, sizeof tbuf, p->code[pc]);
-  /* This is a temporary hack to output old opcode names to prevent tests from breaking */
-  if (strncmp(tbuf, luaP_opnames[OP_RAVI_GETTABLE_SK], strlen(luaP_opnames[OP_RAVI_GETTABLE_SK])) == 0 ||
-    strncmp(tbuf, luaP_opnames[OP_RAVI_SELF_SK], strlen(luaP_opnames[OP_RAVI_SELF_SK])) == 0 ||
-    strncmp(tbuf, luaP_opnames[OP_RAVI_GETTABUP_SK], strlen(luaP_opnames[OP_RAVI_GETTABUP_SK])) == 0 ||
-    strncmp(tbuf, luaP_opnames[OP_RAVI_SETTABLE_SK], strlen(luaP_opnames[OP_RAVI_SETTABLE_SK])) == 0) {
-    char *cp = strstr(tbuf, "_SK ");
-    if (cp != NULL) {
-      cp[0] = ' ';
-      cp[1] = ' ';
-      cp[2] = ' ';
-    }
-  }
-  snprintf(buff, len, "(%4d) %4d - %s", line, pc, tbuf); 
+  snprintf(buff, len, "(%4d) %4d - %s", line, pc, tbuf);
   return buff;
 }
 

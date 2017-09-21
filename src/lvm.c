@@ -274,6 +274,36 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
 #define GETTABLE_INLINE(L, t, key, val) GETTABLE_INLINE_(L, t, key, val, Unprotect)
 #define GETTABLE_INLINE_PROTECTED(L, t, key, val) GETTABLE_INLINE_(L, t, key, val, Protect)
 
+#define GETTABLE_INLINE_I_(L, t, key, val, protect)              \
+  if (RAVI_LIKELY(ttisLtable(t))) {                              \
+    lua_Integer idx = ivalue(key);                               \
+    Table *h = hvalue(t);                                        \
+    const TValue *v;                                             \
+    if (RAVI_LIKELY(l_castS2U(idx - 1) < h->sizearray))          \
+      v = &h->array[idx - 1];                                    \
+    else                                                         \
+      v = luaH_getint(h, idx);                                   \
+    if (RAVI_LIKELY(!ttisnil(v))) {                              \
+      setobj2s(L, val, v);                                       \
+    }                                                            \
+    else                                                         \
+      protect(luaV_finishget(L, t, key, val, v));                \
+  }                                                              \
+  else if (ttisfarray(t)) {                                      \
+    Table *h = hvalue(t);                                        \
+    raviH_get_float_inline(L, h, ivalue(key), val);              \
+  }                                                              \
+  else if (ttisiarray(t)) {                                      \
+    Table *h = hvalue(t);                                        \
+    raviH_get_int_inline(L, h, ivalue(key), val);                \
+  }                                                              \
+  else {                                                         \
+    protect(luaV_finishget(L, t, key, val, NULL));               \
+  }
+
+#define GETTABLE_INLINE_I(L, t, key, val) GETTABLE_INLINE_I_(L, t, key, val, Unprotect)
+#define GETTABLE_INLINE_PROTECTED_I(L, t, key, val) GETTABLE_INLINE_I_(L, t, key, val, Protect)
+
 #define GETTABLE_INLINE_SSKEY_(L, t, key, val, protect)            \
   if (RAVI_LIKELY(ttisLtable(t))) {                                \
     const TValue *aux = luaH_getshortstr(hvalue(t), tsvalue(key)); \
@@ -341,6 +371,62 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
 
 #define SETTABLE_INLINE_PROTECTED(L, t, key, val) SETTABLE_INLINE_(L, t, key, val, Protect) 
 #define SETTABLE_INLINE(L, t, key, val) SETTABLE_INLINE_(L, t, key, val, Unprotect)
+
+#define SETTABLE_INLINE_I_(L, t, key, val, protect)                         \
+  if (RAVI_LIKELY(ttisLtable(t))) {                                         \
+    lua_Integer idx = ivalue(key);                                          \
+    Table *h = hvalue(t);                                                   \
+    const TValue *slot;                                                     \
+    if (RAVI_LIKELY(l_castS2U(idx - 1) < h->sizearray))                     \
+      slot = &h->array[idx - 1];                                            \
+    else                                                                    \
+      slot = luaH_getint(h, idx);                                           \
+    if (!ttisnil(slot)) {                                                   \
+      luaC_barrierback(L, h, val);                                          \
+      setobj2t(L, cast(TValue *, slot), val);                               \
+    }                                                                       \
+    else {                                                                  \
+      protect(luaV_finishset(L, t, key, val, slot));                        \
+    }                                                                       \
+  }                                                                         \
+  else if (ttisfarray(t)) {                                                 \
+    Table *h = hvalue(t);                                                   \
+    if (ttisfloat(val)) {                                                   \
+      raviH_set_float_inline(L, h, ivalue(key), fltvalue(val));             \
+    }                                                                       \
+    else if (ttisinteger(val)) {                                            \
+      raviH_set_float_inline(L, h, ivalue(key), (lua_Number)(ivalue(val))); \
+    }                                                                       \
+    else {                                                                  \
+      lua_Number d = 0.0;                                                   \
+      if (luaV_tonumber_(val, &d)) {                                        \
+        raviH_set_float_inline(L, h, ivalue(key), d);                       \
+      }                                                                     \
+      else                                                                  \
+        luaG_runerror(L, "value cannot be converted to number");            \
+    }                                                                       \
+  }                                                                         \
+  else if (ttisiarray(t)) {                                                 \
+    Table *h = hvalue(t);                                                   \
+    if (ttisinteger(val)) {                                                 \
+      raviH_set_int_inline(L, h, ivalue(key), ivalue(val));                 \
+    }                                                                       \
+    else {                                                                  \
+      lua_Integer i = 0;                                                    \
+      if (luaV_tointeger_(val, &i)) {                                       \
+        raviH_set_int_inline(L, h, ivalue(key), i);                         \
+      }                                                                     \
+      else                                                                  \
+        luaG_runerror(L, "value cannot be converted to integer");           \
+    }                                                                       \
+  }                                                                         \
+  else {                                                                    \
+    protect(luaV_finishset(L, t, key, val, NULL));                          \
+  }
+
+#define SETTABLE_INLINE_PROTECTED_I(L, t, key, val) SETTABLE_INLINE_I_(L, t, key, val, Protect) 
+#define SETTABLE_INLINE_I(L, t, key, val) SETTABLE_INLINE_I_(L, t, key, val, Unprotect)
+
 
 #define SETTABLE_INLINE_SSKEY_(L, t, key, val, protect)             \
   if (RAVI_LIKELY(ttisLtable(t))) {                                 \
@@ -1054,11 +1140,16 @@ int luaV_execute (lua_State *L) {
         luaC_upvalbarrier(L, uv);
         vmbreak;
       }
-      vmcase(OP_RAVI_SETTABLE_I)
       vmcase(OP_SETTABLE) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         SETTABLE_INLINE_PROTECTED(L, ra, rb, rc);
+        vmbreak;
+      }
+      vmcase(OP_RAVI_SETTABLE_I) {
+        TValue *rb = RKB(i);
+        TValue *rc = RKC(i);
+        SETTABLE_INLINE_PROTECTED_I(L, ra, rb, rc);
         vmbreak;
       }
       vmcase(OP_RAVI_SETTABLE_SK)
@@ -1759,20 +1850,8 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_RAVI_GETTABLE_I) {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
-        lua_Integer idx = ivalue(rc);
-        Table *t = hvalue(rb);
-        const TValue *v;
-        if (RAVI_LIKELY(l_castS2U(idx - 1) < t->sizearray))
-          v = &t->array[idx - 1];
-        else
-          v = luaH_getint(t, idx);
-        if (RAVI_LIKELY(!ttisnil(v))) {
-          setobj2s(L, ra, v);
-        }
-        else {
-          Protect(luaV_finishget(L, rb, rc, ra, v));
-        }
-        vmbreak;
+	GETTABLE_INLINE_PROTECTED_I(L, rb, rc, ra);
+	vmbreak;
       }
       /* This opcode is used when the key is known to be
          short string but the variable may or may not be
@@ -2604,6 +2683,26 @@ void raviV_settable_sskey(lua_State *L, const TValue *t, TValue *key, StkId val)
   SETTABLE_INLINE_SSKEY(L, t, key, val);
 }
 
+/*
+** Main function for table access (invoking metamethods if needed).
+** Compute 'val = t[key]'
+** In Lua 5.3.2 this function is a macro but we need it to be a function
+** so that JIT code can invoke it
+*/
+void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, StkId val) {
+  GETTABLE_INLINE_I(L, t, key, val);
+}
+
+
+/*
+** Main function for table assignment (invoking metamethods if needed).
+** Compute 't[key] = val'
+** In Lua 5.3.2 this function is a macro but we need it to be a function
+** so that JIT code can invoke it
+*/
+void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, StkId val) {
+  SETTABLE_INLINE_I(L, t, key, val);
+}
 
 /* }================================================================== */
 

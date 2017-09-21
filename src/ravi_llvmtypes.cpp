@@ -808,6 +808,10 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
   raviV_settable_sskeyT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  raviV_gettable_iT =
+	  llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+  raviV_settable_iT =
+	  llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   // void luaV_finishget (lua_State *L, const TValue *t, TValue *key,
   //                      StkId val, const TValue *slot);

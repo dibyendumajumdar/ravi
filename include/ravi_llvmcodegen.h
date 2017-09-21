@@ -282,6 +282,8 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_op_setupvaltT;
   llvm::FunctionType *raviV_gettable_sskeyT;
   llvm::FunctionType *raviV_settable_sskeyT;
+  llvm::FunctionType *raviV_gettable_iT;
+  llvm::FunctionType *raviV_settable_iT;
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -677,6 +679,8 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_setupvaltF;
   llvm::Function *raviV_gettable_sskeyF;
   llvm::Function *raviV_settable_sskeyF;
+  llvm::Function *raviV_gettable_iF;
+  llvm::Function *raviV_settable_iF;
 
   // array setters
   llvm::Function *raviH_set_intF;

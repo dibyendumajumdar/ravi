@@ -13,8 +13,10 @@ opcodes_coverage.LOADBOOL = 0
 opcodes_coverage.LOADNIL = 0
 opcodes_coverage.GETUPVAL = 0
 opcodes_coverage.GETTABUP = 0
+opcodes_coverage.GETTABUP_SK = 0
 opcodes_coverage.GETTABLE = 0
 opcodes_coverage.SETTABUP = 0
+opcodes_coverage.SETTABUP_SK = 0
 opcodes_coverage.SETUPVAL = 0
 opcodes_coverage.SETTABLE = 0
 opcodes_coverage.NEWTABLE = 0
@@ -111,6 +113,8 @@ opcodes_coverage.GETTABLE_I = 0
 opcodes_coverage.GETTABLE_S = 0
 opcodes_coverage.SETTABLE_I = 0
 opcodes_coverage.SETTABLE_S = 0
+opcodes_coverage.SETTABLE_SK = 0
+opcodes_coverage.GETTABLE_SK = 0
 opcodes_coverage.TOTAB = 0
 opcodes_coverage.MOVETAB = 0
 opcodes_coverage.SETUPVALT = 0
@@ -164,13 +168,13 @@ x = function()
   assert(i == 2)
   assert(n == 4.2)
 end
-check(x, {'LOADK', 'LOADK', 'GETTABUP', 'EQ_II',
+check(x, {'LOADK', 'LOADK', 'GETTABUP_SK', 'EQ_II',
   'JMP', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
   'CALL', 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK',
-  'LOADK', 'LOADK', 'SETLIST', 'GETTABLE', 'TOINT',
-  'MOVEI', 'GETTABLE', 'TOFLT', 'MOVEF', 'GETTABUP',
+  'LOADK', 'LOADK', 'SETLIST', 'GETTABLE_I', 'TOINT',
+  'MOVEI', 'GETTABLE_I', 'TOFLT', 'MOVEF', 'GETTABUP_SK',
   'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
-  'GETTABUP', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
+  'GETTABUP_SK', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
   'CALL', 'RETURN'})
 x()
 compile(x)
@@ -182,7 +186,7 @@ function x()
    assert(c == a and b == d)
 end
 check(x, {'LOADK', 'LOADK', 'TOINT', 'MOVE',
-  'TOINT', 'MOVE', 'GETTABUP', 'EQ', 'JMP',
+  'TOINT', 'MOVE', 'GETTABUP_SK', 'EQ', 'JMP',
   'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
   'RETURN'})
 x()
@@ -205,9 +209,9 @@ assert(y == 61 and math.abs(z - 19.9) < 1e-5)
 compile(x)
 y,z = x()
 assert(y == 61 and math.abs(z - 19.9) < 1e-10)
-check(x, {'LOADK', 'LOADK', 'LOADK', 'GETTABUP',
-  'GETTABLE', 'TOINT', 'GETTABUP', 'TOINT', 'TOINT',
-  'MULII', 'ADDII', 'LOADK', 'GETTABUP', 'GETTABLE',
+check(x, {'LOADK', 'LOADK', 'LOADK', 'GETTABUP_SK',
+  'GETTABLE_I', 'TOINT', 'GETTABUP', 'TOINT', 'TOINT',
+  'MULII', 'ADDII', 'LOADK', 'GETTABUP_SK', 'GETTABLE_I',
   'TOFLT', 'GETTABUP', 'TOFLT', 'MULFF', 'TOFLT',
   'SUBFF', 'MOVE', 'MOVE', 'RETURN', 'RETURN'})
 
