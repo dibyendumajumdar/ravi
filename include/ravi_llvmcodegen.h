@@ -1,25 +1,25 @@
 /******************************************************************************
-* Copyright (C) 2015 Dibyendu Majumdar
-*
-* Permission is hereby granted, free of charge, to any person obtaining
-* a copy of this software and associated documentation files (the
-* "Software"), to deal in the Software without restriction, including
-* without limitation the rights to use, copy, modify, merge, publish,
-* distribute, sublicense, and/or sell copies of the Software, and to
-* permit persons to whom the Software is furnished to do so, subject to
-* the following conditions:
-*
-* The above copyright notice and this permission notice shall be
-* included in all copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-******************************************************************************/
+ * Copyright (C) 2015 Dibyendu Majumdar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ ******************************************************************************/
 
 #ifndef RAVI_LLVMCODEGEN_H
 #define RAVI_LLVMCODEGEN_H
@@ -382,18 +382,131 @@ class RaviJITStateFactory {
   static std::unique_ptr<RaviJITState> newJITState();
 };
 
+// Ravi's LLVM JIT State
+// All of the JIT information is held here
+class RaviJITState {
+  friend class RaviJITModule;
+  // The LLVM Context
+  llvm::LLVMContext *context_;
+
+#if USE_ORC_JIT
+  using ObjectLayerT = llvm::orc::RTDyldObjectLinkingLayer;
+  using CompileLayerT =
+      llvm::orc::IRCompileLayer<ObjectLayerT, llvm::orc::SimpleCompiler>;
+  using OptimizeFunction = std::function<std::shared_ptr<llvm::Module>(
+      std::shared_ptr<llvm::Module>)>;
+  using OptimizerLayerT =
+      llvm::orc::IRTransformLayer<CompileLayerT, OptimizeFunction>;
+  using ModuleHandle = OptimizerLayerT::ModuleHandleT;
+
+  std::unique_ptr<llvm::TargetMachine> TM;
+  std::unique_ptr<llvm::DataLayout> DL;
+  std::unique_ptr<ObjectLayerT> ObjectLayer;
+  std::unique_ptr<CompileLayerT> CompileLayer;
+  std::unique_ptr<OptimizerLayerT> OptimizeLayer;
+
+#endif
+
+  // The triple represents the host target
+  std::string triple_;
+
+  // Lua type definitions
+  LuaLLVMTypes *types_;
+
+  // Should we auto compile what we can?
+  bool auto_;
+
+  // Is JIT enabled
+  bool enabled_;
+
+  // Optimizer level (LLVM PassManagerBuilder)
+  int opt_level_;
+
+  // Size level (LLVM PassManagerBuilder)
+  int size_level_;
+
+  // min code size for compilation
+  int min_code_size_;
+
+  // min execution count for compilation
+  int min_exec_count_;
+
+  // gc step size; defaults to 200
+  int gc_step_;
+
+  // enable calls to luaG_traceexec() at every bytecode
+  // instruction; this is expensive!
+  bool tracehook_enabled_;
+
+  // Count of modules allocated
+  // Used to debug module deallocation
+  size_t allocated_modules_;
+
+ public:
+  RaviJITState();
+  ~RaviJITState();
+
+#if USE_ORC_JIT
+  std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> M);
+  llvm::TargetMachine &getTargetMachine() { return *TM; }
+  ModuleHandle addModule(std::unique_ptr<llvm::Module> M);
+  llvm::JITSymbol findSymbol(const std::string Name);
+  void removeModule(ModuleHandle H);
+#endif
+
+  void addGlobalSymbol(const std::string &name, void *address);
+
+  void dump();
+  llvm::LLVMContext &context() { return *context_; }
+  LuaLLVMTypes *types() const { return types_; }
+  const std::string &triple() const { return triple_; }
+  bool is_auto() const { return auto_; }
+  void set_auto(bool value) { auto_ = value; }
+  bool is_enabled() const { return enabled_; }
+  void set_enabled(bool value) { enabled_ = value; }
+  int get_optlevel() const { return opt_level_; }
+  void set_optlevel(int value) {
+    if (value >= 0 && value <= 3) opt_level_ = value;
+  }
+  int get_sizelevel() const { return size_level_; }
+  void set_sizelevel(int value) {
+    if (value >= 0 && value <= 2) size_level_ = value;
+  }
+  int get_mincodesize() const { return min_code_size_; }
+  void set_mincodesize(int value) {
+    min_code_size_ = value > 0 ? value : min_code_size_;
+  }
+  int get_minexeccount() const { return min_exec_count_; }
+  void set_minexeccount(int value) {
+    min_exec_count_ = value > 0 ? value : min_exec_count_;
+  }
+  int get_gcstep() const { return gc_step_; }
+  void set_gcstep(int value) { gc_step_ = value > 0 ? value : gc_step_; }
+  bool is_tracehook_enabled() const { return tracehook_enabled_; }
+  void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
+  void incr_allocated_modules() { allocated_modules_++; }
+  void decr_allocated_modules() { allocated_modules_--; }
+  size_t allocated_modules() const { return allocated_modules_; }
+};
+
 // A wrapper for LLVM Module
 // Maintains a dedicated ExecutionEngine for the module
 class RaviJITModule {
   // The Context that owns this module
   RaviJITState *owner_;
 
+#if !USE_ORC_JIT
+  // The LLVM Module within which the functions will be defined
+  llvm::Module *module_;
+
   // The execution engine responsible for compiling the
   // module
   llvm::ExecutionEngine *engine_;
-
+#else
   // The LLVM Module within which the functions will be defined
-  llvm::Module *module_;
+  std::unique_ptr<llvm::Module> module_;
+  RaviJITState::ModuleHandle module_handle_;
+#endif
 
   // List of JIT functions in this module
   // We need this so that we can update the functions
@@ -407,8 +520,12 @@ class RaviJITModule {
   RaviJITModule(RaviJITState *owner);
   ~RaviJITModule();
 
+#ifndef USE_ORC_JIT
   llvm::Module *module() const { return module_; }
   llvm::ExecutionEngine *engine() const { return engine_; }
+#else
+  llvm::Module *module() const { return module_.get(); }
+#endif
   RaviJITState *owner() const { return owner_; }
   void dump();
   void dumpAssembly();
@@ -483,8 +600,9 @@ class RaviJITFunction {
   llvm::Function *function() const { return function_; }
   llvm::Module *module() const { return module_->module(); }
   std::shared_ptr<RaviJITModule> raviModule() const { return module_; }
-
+#ifndef USE_ORC_JIT
   llvm::ExecutionEngine *engine() const { return module_->engine(); }
+#endif
   RaviJITState *owner() const { return module_->owner(); }
   // This method retrieves the JITed function from the
   // execution engine and sets ptr_ member
@@ -499,86 +617,6 @@ class RaviJITFunction {
                                     const std::string &name) {
     return module_->addExternFunction(type, address, name);
   }
-};
-
-// Ravi's LLVM JIT State
-// All of the JIT information is held here
-class RaviJITState {
-  // The LLVM Context
-  llvm::LLVMContext *context_;
-
-  // The triple represents the host target
-  std::string triple_;
-
-  // Lua type definitions
-  LuaLLVMTypes *types_;
-
-  // Should we auto compile what we can?
-  bool auto_;
-
-  // Is JIT enabled
-  bool enabled_;
-
-  // Optimizer level (LLVM PassManagerBuilder)
-  int opt_level_;
-
-  // Size level (LLVM PassManagerBuilder)
-  int size_level_;
-
-  // min code size for compilation
-  int min_code_size_;
-
-  // min execution count for compilation
-  int min_exec_count_;
-
-  // gc step size; defaults to 200
-  int gc_step_;
-
-  // enable calls to luaG_traceexec() at every bytecode
-  // instruction; this is expensive!
-  bool tracehook_enabled_;
-
-  // Count of modules allocated
-  // Used to debug module deallocation
-  size_t allocated_modules_;
-
- public:
-  RaviJITState();
-  ~RaviJITState();
-
-  void addGlobalSymbol(const std::string &name, void *address);
-
-  void dump();
-  llvm::LLVMContext &context() { return *context_; }
-  LuaLLVMTypes *types() const { return types_; }
-  const std::string &triple() const { return triple_; }
-  bool is_auto() const { return auto_; }
-  void set_auto(bool value) { auto_ = value; }
-  bool is_enabled() const { return enabled_; }
-  void set_enabled(bool value) { enabled_ = value; }
-  int get_optlevel() const { return opt_level_; }
-  void set_optlevel(int value) {
-    if (value >= 0 && value <= 3) opt_level_ = value;
-  }
-  int get_sizelevel() const { return size_level_; }
-  void set_sizelevel(int value) {
-    if (value >= 0 && value <= 2) size_level_ = value;
-  }
-  int get_mincodesize() const { return min_code_size_; }
-  void set_mincodesize(int value) {
-    min_code_size_ = value > 0 ? value : min_code_size_;
-  }
-  int get_minexeccount() const { return min_exec_count_; }
-  void set_minexeccount(int value) {
-    min_exec_count_ = value > 0 ? value : min_exec_count_;
-  }
-  int get_gcstep() const { return gc_step_; }
-  void set_gcstep(int value) { gc_step_ = value > 0 ? value : gc_step_; }
-  bool is_tracehook_enabled() const { return tracehook_enabled_; }
-  void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
-  void incr_allocated_modules() { allocated_modules_++; }
-  void decr_allocated_modules() { allocated_modules_--; }
-  size_t allocated_modules() const { return allocated_modules_; }
 };
 
 // To optimise fornum loops
@@ -1279,7 +1317,7 @@ class RaviCodeGenerator {
   char temp_[31];  // for name
   int id_;         // for name
 };
-}
+}  // namespace ravi
 
 struct ravi_State {
   ravi::RaviJITState *jit;

@@ -60,10 +60,33 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Support/FormattedStream.h"
 
-#include <cstdio>
-#include <string>
-#include <vector>
+#define USE_ORC_JIT 1
+
+#ifdef USE_ORC_JIT
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ExecutionEngine/JITSymbol.h"
+#include "llvm/ExecutionEngine/RTDyldMemoryManager.h"
+#include "llvm/ExecutionEngine/Orc/CompileUtils.h"
+#include "llvm/ExecutionEngine/Orc/IndirectionUtils.h"
+#include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
+#include "llvm/ExecutionEngine/Orc/IRTransformLayer.h"
+#include "llvm/ExecutionEngine/Orc/LambdaResolver.h"
+#include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
+#include "llvm/ExecutionEngine/Orc/CompileOnDemandLayer.h"
+#include "llvm/ExecutionEngine/Orc/CompileUtils.h"
+#include "llvm/IR/Mangler.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Transforms/Scalar/GVN.h"
+#endif
+
+#include <algorithm>
+#include <cassert>
+#include <cstdlib>
 #include <memory>
+#include <string>
+#include <cstdio>
+#include <vector>
 
 #endif
 

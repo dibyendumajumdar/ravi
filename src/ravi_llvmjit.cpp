@@ -1,27 +1,27 @@
 /******************************************************************************
-* Copyright (C) 2015 Dibyendu Majumdar
-*
-* Permission is hereby granted, free of charge, to any person obtaining
-* a copy of this software and associated documentation files (the
-* "Software"), to deal in the Software without restriction, including
-* without limitation the rights to use, copy, modify, merge, publish,
-* distribute, sublicense, and/or sell copies of the Software, and to
-* permit persons to whom the Software is furnished to do so, subject to
-* the following conditions:
-*
-* The above copyright notice and this permission notice shall be
-* included in all copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-******************************************************************************/
-#include <ravijit.h>
+ * Copyright (C) 2015 Dibyendu Majumdar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ ******************************************************************************/
 #include <ravi_llvmcodegen.h>
+#include <ravijit.h>
 #include <ravi_jitshared.h>
 
 /*
@@ -40,74 +40,75 @@ static std::atomic_int init;
 static struct {
   const char *name;
   void *address;
-} global_syms[] = {{"lua_absindex", reinterpret_cast<void *>(lua_absindex)},
-                   {"lua_gettop", reinterpret_cast<void *>(lua_gettop)},
-                   {"lua_settop", reinterpret_cast<void *>(lua_settop)},
-                   {"lua_pushvalue", reinterpret_cast<void *>(lua_pushvalue)},
-                   {"lua_rotate", reinterpret_cast<void *>(lua_rotate)},
-                   {"lua_copy", reinterpret_cast<void *>(lua_copy)},
-                   {"lua_checkstack", reinterpret_cast<void *>(lua_checkstack)},
-                   {"lua_xmove", reinterpret_cast<void *>(lua_xmove)},
-                   {"lua_isnumber", reinterpret_cast<void *>(lua_isnumber)},
-                   {"lua_isstring", reinterpret_cast<void *>(lua_isstring)},
-                   {"lua_iscfunction", reinterpret_cast<void *>(lua_iscfunction)},
-                   {"lua_isinteger", reinterpret_cast<void *>(lua_isinteger)},
-                   {"lua_isuserdata", reinterpret_cast<void *>(lua_isuserdata)},
-                   {"lua_type", reinterpret_cast<void *>(lua_type)},
-                   {"lua_typename", reinterpret_cast<void *>(lua_typename)},
-                   {"lua_tonumberx", reinterpret_cast<void *>(lua_tonumberx)},
-                   {"lua_tointegerx", reinterpret_cast<void *>(lua_tointegerx)},
-                   {"lua_toboolean", reinterpret_cast<void *>(lua_toboolean)},
-                   {"lua_tolstring", reinterpret_cast<void *>(lua_tolstring)},
-                   {"lua_rawlen", reinterpret_cast<void *>(lua_rawlen)},
-                   {"lua_tocfunction", reinterpret_cast<void *>(lua_tocfunction)},
-                   {"lua_touserdata", reinterpret_cast<void *>(lua_touserdata)},
-                   {"lua_tothread", reinterpret_cast<void *>(lua_tothread)},
-                   {"lua_topointer", reinterpret_cast<void *>(lua_topointer)},
-                   {"lua_arith", reinterpret_cast<void *>(lua_arith)},
-                   {"lua_rawequal", reinterpret_cast<void *>(lua_rawequal)},
-                   {"lua_compare", reinterpret_cast<void *>(lua_compare)},
-                   {"lua_pushnil", reinterpret_cast<void *>(lua_pushnil)},
-                   {"lua_pushnumber", reinterpret_cast<void *>(lua_pushnumber)},
-                   {"lua_pushinteger", reinterpret_cast<void *>(lua_pushinteger)},
-                   {"lua_pushlstring", reinterpret_cast<void *>(lua_pushlstring)},
-                   {"lua_pushstring", reinterpret_cast<void *>(lua_pushstring)},
-                   {"lua_pushvfstring", reinterpret_cast<void *>(lua_pushvfstring)},
-                   {"lua_pushfstring", reinterpret_cast<void *>(lua_pushfstring)},
-                   {"lua_pushcclosure", reinterpret_cast<void *>(lua_pushcclosure)},
-                   {"lua_pushboolean", reinterpret_cast<void *>(lua_pushboolean)},
-                   {"lua_pushlightuserdata", reinterpret_cast<void *>(lua_pushlightuserdata)},
-                   {"lua_pushthread", reinterpret_cast<void *>(lua_pushthread)},
-                   {"lua_getglobal", reinterpret_cast<void *>(lua_getglobal)},
-                   {"lua_gettable", reinterpret_cast<void *>(lua_gettable)},
-                   {"lua_getfield", reinterpret_cast<void *>(lua_getfield)},
-                   {"lua_geti", reinterpret_cast<void *>(lua_geti)},
-                   {"lua_rawget", reinterpret_cast<void *>(lua_rawget)},
-                   {"lua_rawgeti", reinterpret_cast<void *>(lua_rawgeti)},
-                   {"lua_rawgetp", reinterpret_cast<void *>(lua_rawgetp)},
-                   {"lua_createtable", reinterpret_cast<void *>(lua_createtable)},
-                   {"lua_newuserdata", reinterpret_cast<void *>(lua_newuserdata)},
-                   {"lua_getmetatable", reinterpret_cast<void *>(lua_getmetatable)},
-                   {"lua_getuservalue", reinterpret_cast<void *>(lua_getuservalue)},
-                   {"lua_setglobal", reinterpret_cast<void *>(lua_setglobal)},
-                   {"lua_settable", reinterpret_cast<void *>(lua_settable)},
-                   {"lua_setfield", reinterpret_cast<void *>(lua_setfield)},
-                   {"lua_seti", reinterpret_cast<void *>(lua_seti)},
-                   {"lua_rawset", reinterpret_cast<void *>(lua_rawset)},
-                   {"lua_rawseti", reinterpret_cast<void *>(lua_rawseti)},
-                   {"lua_rawsetp", reinterpret_cast<void *>(lua_rawsetp)},
-                   {"lua_setmetatable", reinterpret_cast<void *>(lua_setmetatable)},
-                   {"lua_setuservalue", reinterpret_cast<void *>(lua_setuservalue)},
-                   {"lua_gc", reinterpret_cast<void *>(lua_gc)},
-                   {"lua_error", reinterpret_cast<void *>(lua_error)},
-                   {"lua_next", reinterpret_cast<void *>(lua_next)},
-                   {"lua_concat", reinterpret_cast<void *>(lua_concat)},
-                   {"lua_len", reinterpret_cast<void *>(lua_len)},
-                   {"lua_stringtonumber", reinterpret_cast<void *>(lua_stringtonumber)},
+} global_syms[] = {
+    {"lua_absindex", reinterpret_cast<void *>(lua_absindex)},
+    {"lua_gettop", reinterpret_cast<void *>(lua_gettop)},
+    {"lua_settop", reinterpret_cast<void *>(lua_settop)},
+    {"lua_pushvalue", reinterpret_cast<void *>(lua_pushvalue)},
+    {"lua_rotate", reinterpret_cast<void *>(lua_rotate)},
+    {"lua_copy", reinterpret_cast<void *>(lua_copy)},
+    {"lua_checkstack", reinterpret_cast<void *>(lua_checkstack)},
+    {"lua_xmove", reinterpret_cast<void *>(lua_xmove)},
+    {"lua_isnumber", reinterpret_cast<void *>(lua_isnumber)},
+    {"lua_isstring", reinterpret_cast<void *>(lua_isstring)},
+    {"lua_iscfunction", reinterpret_cast<void *>(lua_iscfunction)},
+    {"lua_isinteger", reinterpret_cast<void *>(lua_isinteger)},
+    {"lua_isuserdata", reinterpret_cast<void *>(lua_isuserdata)},
+    {"lua_type", reinterpret_cast<void *>(lua_type)},
+    {"lua_typename", reinterpret_cast<void *>(lua_typename)},
+    {"lua_tonumberx", reinterpret_cast<void *>(lua_tonumberx)},
+    {"lua_tointegerx", reinterpret_cast<void *>(lua_tointegerx)},
+    {"lua_toboolean", reinterpret_cast<void *>(lua_toboolean)},
+    {"lua_tolstring", reinterpret_cast<void *>(lua_tolstring)},
+    {"lua_rawlen", reinterpret_cast<void *>(lua_rawlen)},
+    {"lua_tocfunction", reinterpret_cast<void *>(lua_tocfunction)},
+    {"lua_touserdata", reinterpret_cast<void *>(lua_touserdata)},
+    {"lua_tothread", reinterpret_cast<void *>(lua_tothread)},
+    {"lua_topointer", reinterpret_cast<void *>(lua_topointer)},
+    {"lua_arith", reinterpret_cast<void *>(lua_arith)},
+    {"lua_rawequal", reinterpret_cast<void *>(lua_rawequal)},
+    {"lua_compare", reinterpret_cast<void *>(lua_compare)},
+    {"lua_pushnil", reinterpret_cast<void *>(lua_pushnil)},
+    {"lua_pushnumber", reinterpret_cast<void *>(lua_pushnumber)},
+    {"lua_pushinteger", reinterpret_cast<void *>(lua_pushinteger)},
+    {"lua_pushlstring", reinterpret_cast<void *>(lua_pushlstring)},
+    {"lua_pushstring", reinterpret_cast<void *>(lua_pushstring)},
+    {"lua_pushvfstring", reinterpret_cast<void *>(lua_pushvfstring)},
+    {"lua_pushfstring", reinterpret_cast<void *>(lua_pushfstring)},
+    {"lua_pushcclosure", reinterpret_cast<void *>(lua_pushcclosure)},
+    {"lua_pushboolean", reinterpret_cast<void *>(lua_pushboolean)},
+    {"lua_pushlightuserdata", reinterpret_cast<void *>(lua_pushlightuserdata)},
+    {"lua_pushthread", reinterpret_cast<void *>(lua_pushthread)},
+    {"lua_getglobal", reinterpret_cast<void *>(lua_getglobal)},
+    {"lua_gettable", reinterpret_cast<void *>(lua_gettable)},
+    {"lua_getfield", reinterpret_cast<void *>(lua_getfield)},
+    {"lua_geti", reinterpret_cast<void *>(lua_geti)},
+    {"lua_rawget", reinterpret_cast<void *>(lua_rawget)},
+    {"lua_rawgeti", reinterpret_cast<void *>(lua_rawgeti)},
+    {"lua_rawgetp", reinterpret_cast<void *>(lua_rawgetp)},
+    {"lua_createtable", reinterpret_cast<void *>(lua_createtable)},
+    {"lua_newuserdata", reinterpret_cast<void *>(lua_newuserdata)},
+    {"lua_getmetatable", reinterpret_cast<void *>(lua_getmetatable)},
+    {"lua_getuservalue", reinterpret_cast<void *>(lua_getuservalue)},
+    {"lua_setglobal", reinterpret_cast<void *>(lua_setglobal)},
+    {"lua_settable", reinterpret_cast<void *>(lua_settable)},
+    {"lua_setfield", reinterpret_cast<void *>(lua_setfield)},
+    {"lua_seti", reinterpret_cast<void *>(lua_seti)},
+    {"lua_rawset", reinterpret_cast<void *>(lua_rawset)},
+    {"lua_rawseti", reinterpret_cast<void *>(lua_rawseti)},
+    {"lua_rawsetp", reinterpret_cast<void *>(lua_rawsetp)},
+    {"lua_setmetatable", reinterpret_cast<void *>(lua_setmetatable)},
+    {"lua_setuservalue", reinterpret_cast<void *>(lua_setuservalue)},
+    {"lua_gc", reinterpret_cast<void *>(lua_gc)},
+    {"lua_error", reinterpret_cast<void *>(lua_error)},
+    {"lua_next", reinterpret_cast<void *>(lua_next)},
+    {"lua_concat", reinterpret_cast<void *>(lua_concat)},
+    {"lua_len", reinterpret_cast<void *>(lua_len)},
+    {"lua_stringtonumber", reinterpret_cast<void *>(lua_stringtonumber)},
 
-                   {"printf", reinterpret_cast<void *>(printf)},
-                   {"puts", reinterpret_cast<void *>(puts)},
-                   {nullptr, nullptr}};
+    {"printf", reinterpret_cast<void *>(printf)},
+    {"puts", reinterpret_cast<void *>(puts)},
+    {nullptr, nullptr}};
 
 // Construct the JIT compiler state
 // The JIT compiler state will be attached to the
@@ -145,6 +146,23 @@ RaviJITState::RaviJITState()
   triple_ += "-elf";
 #endif
   context_ = new llvm::LLVMContext();
+
+#if USE_ORC_JIT
+  TM = std::unique_ptr<llvm::TargetMachine>(
+      llvm::EngineBuilder().selectTarget());
+  DL = std::make_unique<llvm::DataLayout>(TM->createDataLayout());
+
+  ObjectLayer = std::make_unique<ObjectLayerT>(
+      []() { return std::make_shared<llvm::SectionMemoryManager>(); });
+  CompileLayer = std::make_unique<CompileLayerT>(
+      *ObjectLayer, llvm::orc::SimpleCompiler(*TM));
+  OptimizeLayer = std::make_unique<OptimizerLayerT>(
+      *CompileLayer,
+      [this](std::shared_ptr<llvm::Module> M) {
+        return optimizeModule(std::move(M));
+      }),
+#endif
+
   types_ = new LuaLLVMTypes(*context_);
 
   for (int i = 0; global_syms[i].name != nullptr; i++) {
@@ -161,8 +179,140 @@ RaviJITState::~RaviJITState() {
   delete context_;
 }
 
+#if USE_ORC_JIT
+std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(
+    std::shared_ptr<llvm::Module> M) {
+#if LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7
+  using llvm::legacy::FunctionPassManager;
+  using llvm::legacy::PassManager;
+#else
+  using llvm::FunctionPassManager;
+  using llvm::PassManager;
+#endif
+  bool dumpAsm = false;
+
+  // We use the PassManagerBuilder to setup optimization
+  // passes - the PassManagerBuilder allows easy configuration of
+  // typical C/C++ passes corresponding to O0, O1, O2, and O3 compiler options
+  // If dumpAsm is true then the generated assembly code will be
+  // dumped to stderr
+
+  llvm::PassManagerBuilder pmb;
+  pmb.OptLevel = get_optlevel();
+  pmb.SizeLevel = get_sizelevel();
+
+  {
+    // Create a function pass manager for this engine
+    std::unique_ptr<FunctionPassManager> FPM(new FunctionPassManager(M.get()));
+
+    // Set up the optimizer pipeline.  Start with registering info about how the
+    // target lays out data structures.
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 6
+    // LLVM 3.6.0 change
+    module_->setDataLayout(engine_->getDataLayout());
+    FPM->add(new llvm::DataLayoutPass());
+#elif LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 5
+    // LLVM 3.5.0
+    auto target_layout = engine_->getTargetMachine()->getDataLayout();
+    module_->setDataLayout(target_layout);
+    FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
+#elif LLVM_VERSION_MAJOR > 3 || \
+    LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7
+    // Apparently no need to set DataLayout
+#else
+#error Unsupported LLVM version
+#endif
+    pmb.populateFunctionPassManager(*FPM);
+    FPM->doInitialization();
+    // Run the optimizations over all functions in the module being added to
+    // the JIT.
+    for (auto &F : *M) FPM->run(F);
+  }
+
+  std::string codestr;
+  {
+    // In LLVM 3.7 for some reason the string is not saved
+    // until the stream is destroyed - even though there is a
+    // flush; so we introduce a scope here to ensure destruction
+    // of the stream
+    llvm::raw_string_ostream ostream(codestr);
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7
+    llvm::formatted_raw_ostream formatted_stream(ostream);
+#else
+    llvm::buffer_ostream formatted_stream(ostream);
+#endif
+
+    // Also in 3.7 the pass manager seems to hold on to the stream
+    // so we need to ensure that the stream outlives the pass manager
+    std::unique_ptr<PassManager> MPM(new PassManager());
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 6
+    MPM->add(new llvm::DataLayoutPass());
+#elif LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 5
+    MPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
+#endif
+    pmb.populateModulePassManager(*MPM);
+
+    for (int i = 0; dumpAsm && i < 1; i++) {
+      if (!TM) {
+        llvm::errs() << "unable to dump assembly\n";
+        break;
+      }
+      if (TM->addPassesToEmitFile(*MPM, formatted_stream,
+                                  llvm::TargetMachine::CGFT_AssemblyFile)) {
+        llvm::errs() << "unable to add passes for generating assemblyfile\n";
+        break;
+      }
+    }
+    MPM->run(*M);
+
+    // Note that in 3.7 this flus appears to have no effect
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 7
+    formatted_stream.flush();
+#endif
+  }
+  if (dumpAsm && codestr.length() > 0) llvm::errs() << codestr << "\n";
+  return M;
+}
+
+#endif
+
 void RaviJITState::addGlobalSymbol(const std::string &name, void *address) {
   llvm::sys::DynamicLibrary::AddSymbol(name, address);
+}
+
+RaviJITState::ModuleHandle RaviJITState::addModule(
+    std::unique_ptr<llvm::Module> M) {
+  // Build our symbol resolver:
+  // Lambda 1: Look back into the JIT itself to find symbols that are part of
+  //           the same "logical dylib".
+  // Lambda 2: Search for external symbols in the host process.
+  auto Resolver = llvm::orc::createLambdaResolver(
+      [&](const std::string &Name) {
+        if (auto Sym = OptimizeLayer->findSymbol(Name, false)) return Sym;
+        return llvm::JITSymbol(nullptr);
+      },
+      [](const std::string &Name) {
+        if (auto SymAddr =
+                llvm::RTDyldMemoryManager::getSymbolAddressInProcess(Name))
+          return llvm::JITSymbol(SymAddr, llvm::JITSymbolFlags::Exported);
+        return llvm::JITSymbol(nullptr);
+      });
+
+  // Add the set to the JIT with the resolver we created above and a newly
+  // created SectionMemoryManager.
+  return llvm::cantFail(
+      OptimizeLayer->addModule(std::move(M), std::move(Resolver)));
+}
+
+llvm::JITSymbol RaviJITState::findSymbol(const std::string Name) {
+  std::string MangledName;
+  llvm::raw_string_ostream MangledNameStream(MangledName);
+  llvm::Mangler::getNameWithPrefix(MangledNameStream, Name, *DL);
+  return OptimizeLayer->findSymbol(MangledNameStream.str(), true);
+}
+
+void RaviJITState::removeModule(ModuleHandle H) {
+  llvm::cantFail(OptimizeLayer->removeModule(H));
 }
 
 void RaviJITState::dump() { types_->dump(); }
@@ -170,15 +320,25 @@ void RaviJITState::dump() { types_->dump(); }
 static std::atomic_int module_id;
 
 RaviJITModule::RaviJITModule(RaviJITState *owner)
-    : owner_(owner), engine_(nullptr), module_(nullptr) {
+    : owner_(owner)
+#if !USE_ORC_JIT
+      ,
+      engine_(nullptr),
+      module_(nullptr)
+#endif
+{
   int myid = module_id++;
   char buf[40];
   snprintf(buf, sizeof buf, "ravi_module_%d", myid);
   std::string moduleName(buf);
+#if USE_ORC_JIT
+  module_ = std::make_unique<llvm::Module>(moduleName, owner->context());
+#else
   module_ = new llvm::Module(moduleName, owner->context());
+#endif
   if (myid == 0) {
     // Extra validation to check that the LLVM sizes match Lua sizes
-    llvm::DataLayout *layout = new llvm::DataLayout(module_);
+    llvm::DataLayout *layout = new llvm::DataLayout(module());
     // auto valueSize = layout->getTypeAllocSize(owner->types()->ValueT);
     // auto valueSizeOf = sizeof(Value);
     // auto TvalueSize = layout->getTypeAllocSize(owner->types()->TValueT);
@@ -196,6 +356,7 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
            layout->getTypeAllocSize(owner->types()->lua_StateT));
     delete layout;
   }
+#if !USE_ORC_JIT
 #if defined(_WIN32) && \
     (!defined(_WIN64) || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7)
   // On Windows we get error saying incompatible object format
@@ -213,28 +374,36 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   builder.setUseMCJIT(true);
 #endif
   builder.setEngineKind(llvm::EngineKind::JIT);
+  llvm::TargetOptions TO;
+  TO.EnableFastISel = true;
+  builder.setTargetOptions(TO);
   std::string errStr;
   builder.setErrorStr(&errStr);
   engine_ = builder.create();
-  owner->incr_allocated_modules();
   if (!engine_) {
     fprintf(stderr, "FATAL ERROR: could not create ExecutionEngine: %s\n",
             errStr.c_str());
     abort();
     return;
   }
+#endif
+  owner->incr_allocated_modules();
 }
 
 RaviJITModule::~RaviJITModule() {
+#if !USE_ORC_JIT
   if (engine_)
     delete engine_;
   else if (module_)
     // if engine was created then we don't need to delete the
     // module as it would have been deleted by the engine
     delete module_;
+#else
+	owner()->removeModule(module_handle_);
+#endif
   owner_->decr_allocated_modules();
 #if 1
-  //fprintf(stderr, "module destroyed\n");
+  // fprintf(stderr, "module destroyed\n");
 #endif
 }
 
@@ -250,7 +419,7 @@ void RaviJITModule::removeFunction(RaviJITFunction *f) {
 }
 
 RaviJITFunction::RaviJITFunction(lua_CFunction *p,
-                                 const std::shared_ptr<RaviJITModule>& module,
+                                 const std::shared_ptr<RaviJITModule> &module,
                                  llvm::FunctionType *type,
                                  llvm::GlobalValue::LinkageTypes linkage,
                                  const std::string &name)
@@ -264,7 +433,7 @@ RaviJITFunction::RaviJITFunction(lua_CFunction *p,
 }
 
 RaviJITFunction::RaviJITFunction(lua_CFunction *p,
-                                 const std::shared_ptr<RaviJITModule>& module,
+                                 const std::shared_ptr<RaviJITModule> &module,
                                  const std::string &name)
     : module_(module), name_(name), ptr_(nullptr), func_ptrptr_(p) {
   function_ = module_->module()->getFunction(name);
@@ -278,6 +447,7 @@ RaviJITFunction::~RaviJITFunction() {
 }
 
 void RaviJITModule::runpasses(bool dumpAsm) {
+#if !USE_ORC_JIT
 #if LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7
   using llvm::legacy::FunctionPassManager;
   using llvm::legacy::PassManager;
@@ -368,9 +538,11 @@ void RaviJITModule::runpasses(bool dumpAsm) {
 #endif
   }
   if (dumpAsm && codestr.length() > 0) llvm::errs() << codestr << "\n";
+#endif
 }
 
 void RaviJITModule::finalize(bool doDump) {
+#if !USE_ORC_JIT
   // Following will generate very verbose dump when machine code is
   // produced below
   llvm::TargetMachine *TM = engine_->getTargetMachine();
@@ -384,6 +556,9 @@ void RaviJITModule::finalize(bool doDump) {
   // explicitly or a function such as MCJIT::getPointerToFunction
   // is called which requires the code to have been generated.
   engine_->finalizeObject();
+#else
+  module_handle_ = owner()->addModule(std::move(module_));
+#endif
   for (int i = 0; i < functions_.size(); i++) {
     if (functions_[i] == nullptr) continue;
     functions_[i]->setFunctionPtr();
@@ -398,10 +573,20 @@ void RaviJITFunction::setFunctionPtr() {
   lua_assert(ptr_ == nullptr);
   // function_ may be nullptr if it was obtained by name from the module, so
   // we need to check that
+#if !USE_ORC_JIT
   if (function_) {
     ptr_ = engine()->getPointerToFunction(function_);
     *func_ptrptr_ = (lua_CFunction)ptr_;
   }
+#else
+  if (function_) {
+    auto symbol = owner()->findSymbol(name());
+    if (symbol) {
+      ptr_ = (void *)(intptr_t)llvm::cantFail(symbol.getAddress());
+      *func_ptrptr_ = (lua_CFunction)ptr_;
+    }
+  }
+#endif
 }
 
 llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,
@@ -410,7 +595,7 @@ llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,
   auto fn = external_symbols_.find(name);
   if (fn != external_symbols_.end()) return fn->second;
   llvm::Function *f = llvm::Function::Create(
-      type, llvm::Function::ExternalLinkage, name, module_);
+      type, llvm::Function::ExternalLinkage, name, module());
   f->setDoesNotThrow();
   // We should have been able to call
   // engine_->addGlobalMapping() but this doesn't work
@@ -438,7 +623,7 @@ void RaviJITModule::dumpAssembly() { runpasses(true); }
 std::unique_ptr<RaviJITState> RaviJITStateFactory::newJITState() {
   return std::unique_ptr<RaviJITState>(new RaviJITState());
 }
-}
+}  // namespace ravi
 
 // Initialize the JIT State and attach it to the
 // Global Lua State
