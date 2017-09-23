@@ -520,7 +520,7 @@ class RaviJITModule {
   RaviJITModule(RaviJITState *owner);
   ~RaviJITModule();
 
-#ifndef USE_ORC_JIT
+#if !USE_ORC_JIT
   llvm::Module *module() const { return module_; }
   llvm::ExecutionEngine *engine() const { return engine_; }
 #else
@@ -600,7 +600,7 @@ class RaviJITFunction {
   llvm::Function *function() const { return function_; }
   llvm::Module *module() const { return module_->module(); }
   std::shared_ptr<RaviJITModule> raviModule() const { return module_; }
-#ifndef USE_ORC_JIT
+#if !USE_ORC_JIT
   llvm::ExecutionEngine *engine() const { return module_->engine(); }
 #endif
   RaviJITState *owner() const { return module_->owner(); }

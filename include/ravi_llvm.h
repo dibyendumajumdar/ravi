@@ -60,7 +60,11 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Support/FormattedStream.h"
 
-#define USE_ORC_JIT 1
+#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 9 || LLVM_VERSION_MAJOR >= 4
+#define USE_ORC_JIT 0
+#else
+#define USE_ORC_JIT 0
+#endif
 
 #ifdef USE_ORC_JIT
 #include "llvm/ADT/STLExtras.h"

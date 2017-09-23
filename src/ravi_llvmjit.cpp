@@ -133,7 +133,7 @@ RaviJITState::RaviJITState()
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
     // TODO see email trail on resolving symbols in process
-    // llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
+    llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
     init++;
   }
   triple_ = llvm::sys::getProcessTriple();
@@ -148,8 +148,12 @@ RaviJITState::RaviJITState()
   context_ = new llvm::LLVMContext();
 
 #if USE_ORC_JIT
-  TM = std::unique_ptr<llvm::TargetMachine>(
-      llvm::EngineBuilder().selectTarget());
+  llvm::EngineBuilder eengineBuilder;
+  llvm::SmallVector<std::string, 1> attrs;
+  auto target = eengineBuilder.selectTarget();
+  TM = std::unique_ptr<llvm::TargetMachine>(target);
+  // TM->setFastISel(true);
+  TM->setO0WantsFastISel(true);
   DL = std::make_unique<llvm::DataLayout>(TM->createDataLayout());
 
   ObjectLayer = std::make_unique<ObjectLayerT>(
@@ -280,6 +284,7 @@ void RaviJITState::addGlobalSymbol(const std::string &name, void *address) {
   llvm::sys::DynamicLibrary::AddSymbol(name, address);
 }
 
+#if USE_ORC_JIT
 RaviJITState::ModuleHandle RaviJITState::addModule(
     std::unique_ptr<llvm::Module> M) {
   // Build our symbol resolver:
@@ -308,12 +313,15 @@ llvm::JITSymbol RaviJITState::findSymbol(const std::string Name) {
   std::string MangledName;
   llvm::raw_string_ostream MangledNameStream(MangledName);
   llvm::Mangler::getNameWithPrefix(MangledNameStream, Name, *DL);
-  return OptimizeLayer->findSymbol(MangledNameStream.str(), true);
+  // printf("Name %s Mangled Name %s\n", Name.c_str(),
+  // MangledNameStream.str().c_str());
+  return OptimizeLayer->findSymbol(MangledNameStream.str(), false);
 }
 
 void RaviJITState::removeModule(ModuleHandle H) {
   llvm::cantFail(OptimizeLayer->removeModule(H));
 }
+#endif
 
 void RaviJITState::dump() { types_->dump(); }
 
@@ -333,6 +341,7 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   std::string moduleName(buf);
 #if USE_ORC_JIT
   module_ = std::make_unique<llvm::Module>(moduleName, owner->context());
+  module_->setDataLayout(owner_->getTargetMachine().createDataLayout());
 #else
   module_ = new llvm::Module(moduleName, owner->context());
 #endif
@@ -374,9 +383,6 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   builder.setUseMCJIT(true);
 #endif
   builder.setEngineKind(llvm::EngineKind::JIT);
-  llvm::TargetOptions TO;
-  TO.EnableFastISel = true;
-  builder.setTargetOptions(TO);
   std::string errStr;
   builder.setErrorStr(&errStr);
   engine_ = builder.create();
@@ -399,7 +405,7 @@ RaviJITModule::~RaviJITModule() {
     // module as it would have been deleted by the engine
     delete module_;
 #else
-	owner()->removeModule(module_handle_);
+  owner()->removeModule(module_handle_);
 #endif
   owner_->decr_allocated_modules();
 #if 1
@@ -428,7 +434,9 @@ RaviJITFunction::RaviJITFunction(lua_CFunction *p,
       function_(nullptr),
       ptr_(nullptr),
       func_ptrptr_(p) {
-  function_ = llvm::Function::Create(type, linkage, name, module_->module());
+  auto M = module_->module();
+  lua_assert(M);
+  function_ = llvm::Function::Create(type, linkage, name, M);
   id_ = module_->addFunction(this);
 }
 
@@ -436,7 +444,9 @@ RaviJITFunction::RaviJITFunction(lua_CFunction *p,
                                  const std::shared_ptr<RaviJITModule> &module,
                                  const std::string &name)
     : module_(module), name_(name), ptr_(nullptr), func_ptrptr_(p) {
-  function_ = module_->module()->getFunction(name);
+  auto M = module_->module();
+  lua_assert(M);
+  function_ = M->getFunction(name);
   id_ = module_->addFunction(this);
 }
 
@@ -447,6 +457,7 @@ RaviJITFunction::~RaviJITFunction() {
 }
 
 void RaviJITModule::runpasses(bool dumpAsm) {
+  if (!module_) return;
 #if !USE_ORC_JIT
 #if LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7
   using llvm::legacy::FunctionPassManager;
@@ -542,6 +553,8 @@ void RaviJITModule::runpasses(bool dumpAsm) {
 }
 
 void RaviJITModule::finalize(bool doDump) {
+  lua_assert(module_);
+  if (!module_) return;
 #if !USE_ORC_JIT
   // Following will generate very verbose dump when machine code is
   // produced below
@@ -557,6 +570,7 @@ void RaviJITModule::finalize(bool doDump) {
   // is called which requires the code to have been generated.
   engine_->finalizeObject();
 #else
+  // module_->dump();
   module_handle_ = owner()->addModule(std::move(module_));
 #endif
   for (int i = 0; i < functions_.size(); i++) {
@@ -579,6 +593,7 @@ void RaviJITFunction::setFunctionPtr() {
     *func_ptrptr_ = (lua_CFunction)ptr_;
   }
 #else
+  lua_assert(module_handle_);
   if (function_) {
     auto symbol = owner()->findSymbol(name());
     if (symbol) {
@@ -609,7 +624,7 @@ llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,
 
 void RaviJITModule::dump() {
 #if defined(LLVM_ENABLE_DUMP)
-  module_->dump();
+  if (module_) module_->dump();
 #endif
 }
 
