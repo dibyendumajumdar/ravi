@@ -593,7 +593,6 @@ void RaviJITFunction::setFunctionPtr() {
     *func_ptrptr_ = (lua_CFunction)ptr_;
   }
 #else
-  lua_assert(module_handle_);
   if (function_) {
     auto symbol = owner()->findSymbol(name());
     if (symbol) {
