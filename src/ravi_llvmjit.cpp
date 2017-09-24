@@ -22,6 +22,8 @@
  ******************************************************************************/
 #include <ravi_llvmcodegen.h>
 #include <ravijit.h>
+// Important to include the C++ header files (ravi_llvmcodegen.h) before following
+// (ravi_jitshared.h) as the Lua headers define macros that mess with C++ headers
 #include <ravi_jitshared.h>
 
 /*
@@ -149,11 +151,9 @@ RaviJITState::RaviJITState()
 
 #if USE_ORC_JIT
   llvm::EngineBuilder eengineBuilder;
-  llvm::SmallVector<std::string, 1> attrs;
   auto target = eengineBuilder.selectTarget();
   TM = std::unique_ptr<llvm::TargetMachine>(target);
-  // TM->setFastISel(true);
-  TM->setO0WantsFastISel(true);
+  TM->setO0WantsFastISel(true); // enable FastISel when -O0 is used
   DL = std::make_unique<llvm::DataLayout>(TM->createDataLayout());
 
   ObjectLayer = std::make_unique<ObjectLayerT>(
@@ -313,8 +313,8 @@ llvm::JITSymbol RaviJITState::findSymbol(const std::string Name) {
   std::string MangledName;
   llvm::raw_string_ostream MangledNameStream(MangledName);
   llvm::Mangler::getNameWithPrefix(MangledNameStream, Name, *DL);
-  // printf("Name %s Mangled Name %s\n", Name.c_str(),
-  // MangledNameStream.str().c_str());
+  // Note that the LLVM tutorial uses true below but that appears to
+  // cause a failure in lookup
   return OptimizeLayer->findSymbol(MangledNameStream.str(), false);
 }
 
@@ -330,9 +330,8 @@ static std::atomic_int module_id;
 RaviJITModule::RaviJITModule(RaviJITState *owner)
     : owner_(owner)
 #if !USE_ORC_JIT
-      ,
-      engine_(nullptr),
-      module_(nullptr)
+      ,engine_(nullptr)
+      ,module_(nullptr)
 #endif
 {
   int myid = module_id++;
@@ -570,7 +569,8 @@ void RaviJITModule::finalize(bool doDump) {
   // is called which requires the code to have been generated.
   engine_->finalizeObject();
 #else
-  // module_->dump();
+  // With ORC api, the module gets compiled when it is added
+  // The optimzation passes are run via the callback
   module_handle_ = owner()->addModule(std::move(module_));
 #endif
   for (int i = 0; i < functions_.size(); i++) {

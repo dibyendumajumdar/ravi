@@ -31,6 +31,16 @@
 #error Unsupported LLVM version
 #endif
 
+#if LLVM_VERSION_MAJOR >= 5
+#define USE_ORC_JIT 1
+#else
+#define USE_ORC_JIT 0
+#endif
+
+// In lua.c we include this just to get version numbers
+// We cannot have C++ headers in that case
+#ifdef __cplusplus
+
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
@@ -60,11 +70,6 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Support/FormattedStream.h"
 
-#if LLVM_VERSION_MAJOR >= 5
-#define USE_ORC_JIT 1
-#else
-#define USE_ORC_JIT 0
-#endif
 
 #if USE_ORC_JIT
 #include "llvm/ADT/STLExtras.h"
@@ -91,6 +96,8 @@
 #include <string>
 #include <cstdio>
 #include <vector>
+
+#endif __cplusplus
 
 #endif
 

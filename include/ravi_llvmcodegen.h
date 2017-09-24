@@ -29,6 +29,11 @@
 #include "ravi_llvm.h"
 #include "ravijit.h"
 
+#include <array>
+#include <atomic>
+#include <iterator>
+#include <type_traits>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -60,11 +65,6 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
-#include <array>
-#include <atomic>
-#include <iterator>
-#include <type_traits>
 
 namespace ravi {
 
@@ -390,6 +390,17 @@ class RaviJITState {
   llvm::LLVMContext *context_;
 
 #if USE_ORC_JIT
+  // From LLVM version5 onwards we use the new ORC apis
+  // The main benefit is that memory management is tighter,
+  // all the IR in modules get released after compilation
+  // MCJIT is also likely to be removed at some time in
+  // future so we needed to migrate anyway
+  // We don't use ORC apis in earlier versions because 
+  // the apis have changed over the releases so it 
+  // is simpler to use them in 5.0 and above.
+  // The ORC usage here is heavily based upon the kaleidoscope
+  // sample, with some adjustments.
+
   using ObjectLayerT = llvm::orc::RTDyldObjectLinkingLayer;
   using CompileLayerT =
       llvm::orc::IRCompileLayer<ObjectLayerT, llvm::orc::SimpleCompiler>;
@@ -505,6 +516,10 @@ class RaviJITModule {
 #else
   // The LLVM Module within which the functions will be defined
   std::unique_ptr<llvm::Module> module_;
+
+  // With ORC, once a module is compiled (added to the JIT)
+  // then a handle is used to refer to it rather than the
+  // module, as the module may have been deleted by then
   RaviJITState::ModuleHandle module_handle_;
 #endif
 
@@ -524,6 +539,7 @@ class RaviJITModule {
   llvm::Module *module() const { return module_; }
   llvm::ExecutionEngine *engine() const { return engine_; }
 #else
+  // Note that this can return nullptr 
   llvm::Module *module() const { return module_.get(); }
 #endif
   RaviJITState *owner() const { return owner_; }
@@ -598,6 +614,7 @@ class RaviJITFunction {
 
   const std::string &name() const { return name_; }
   llvm::Function *function() const { return function_; }
+  // Note that this can return nullptr
   llvm::Module *module() const { return module_->module(); }
   std::shared_ptr<RaviJITModule> raviModule() const { return module_; }
 #if !USE_ORC_JIT
