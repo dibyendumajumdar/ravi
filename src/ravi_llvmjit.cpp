@@ -330,8 +330,8 @@ static std::atomic_int module_id;
 RaviJITModule::RaviJITModule(RaviJITState *owner)
     : owner_(owner)
 #if !USE_ORC_JIT
-      ,engine_(nullptr)
       ,module_(nullptr)
+      ,engine_(nullptr)
 #endif
 {
   int myid = module_id++;

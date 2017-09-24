@@ -97,8 +97,8 @@
 #include <cstdio>
 #include <vector>
 
-#endif __cplusplus
+#endif //__cplusplus
 
-#endif
+#endif //USE_LLVM
 
 #endif
