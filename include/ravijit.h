@@ -55,6 +55,10 @@ int raviV_getsizelevel(struct lua_State *L);
 /* Set optimizer level */
 void raviV_setoptlevel(struct lua_State *L, int optlevel);
 int raviV_getoptlevel(struct lua_State *L);
+  
+/* Set verbosity */
+void raviV_setverbosity(struct lua_State *L, int verbosity);
+int raviV_getverbosity(struct lua_State *L);
 
 /* Enable or disable JIT */
 void raviV_setjitenabled(struct lua_State *L, int enabled);

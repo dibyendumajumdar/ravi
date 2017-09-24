@@ -435,6 +435,11 @@ class RaviJITState {
 
   // Size level (LLVM PassManagerBuilder)
   int size_level_;
+  
+  // Verbosity
+  // 1 - Dump IR
+  // 2 - Dump assembly
+  int verbosity_;
 
   // min code size for compilation
   int min_code_size_;
@@ -482,6 +487,10 @@ class RaviJITState {
   int get_sizelevel() const { return size_level_; }
   void set_sizelevel(int value) {
     if (value >= 0 && value <= 2) size_level_ = value;
+  }
+  int get_verbosity() const { return verbosity_; }
+  void set_verbosity(int value) {
+    if (value >= 0) verbosity_ = value;
   }
   int get_mincodesize() const { return min_code_size_; }
   void set_mincodesize(int value) {

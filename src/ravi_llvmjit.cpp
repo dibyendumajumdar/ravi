@@ -121,6 +121,7 @@ RaviJITState::RaviJITState()
       enabled_(true),
       opt_level_(2),
       size_level_(0),
+      verbosity_(0),
       min_code_size_(150),
       min_exec_count_(50),
       gc_step_(300),
@@ -193,7 +194,15 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(
   using llvm::FunctionPassManager;
   using llvm::PassManager;
 #endif
-  bool dumpAsm = false;
+  
+#if defined(LLVM_ENABLE_DUMP)
+  if (get_verbosity() >= 1)
+    M->dump();
+#endif
+  if (get_verbosity() >= 3)
+    TM->Options.PrintMachineCode = 1;
+  else
+    TM->Options.PrintMachineCode = 0;
 
   // We use the PassManagerBuilder to setup optimization
   // passes - the PassManagerBuilder allows easy configuration of
@@ -256,7 +265,7 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(
 #endif
     pmb.populateModulePassManager(*MPM);
 
-    for (int i = 0; dumpAsm && i < 1; i++) {
+    for (int i = 0; get_verbosity() == 2 && i < 1; i++) {
       if (!TM) {
         llvm::errs() << "unable to dump assembly\n";
         break;
@@ -274,7 +283,8 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(
     formatted_stream.flush();
 #endif
   }
-  if (dumpAsm && codestr.length() > 0) llvm::errs() << codestr << "\n";
+  if (get_verbosity() == 2 && codestr.length() > 0) llvm::errs() << codestr << "\n";
+  
   return M;
 }
 
@@ -818,6 +828,17 @@ int raviV_getsizelevel(lua_State *L) {
   global_State *G = G(L);
   if (!G->ravi_state) return 0;
   return G->ravi_state->jit->get_sizelevel();
+}
+
+void raviV_setverbosity(lua_State *L, int value) {
+  global_State *G = G(L);
+  if (!G->ravi_state) return;
+  G->ravi_state->jit->set_verbosity(value);
+}
+int raviV_getverbosity(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state) return 0;
+  return G->ravi_state->jit->get_verbosity();
 }
 
 void raviV_setgcstep(lua_State *L, int value) {

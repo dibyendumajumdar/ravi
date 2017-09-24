@@ -219,6 +219,18 @@ static int ravi_traceenable(lua_State *L) {
   lua_pushboolean(L, oldvalue != 0);
   return 1;
 }
+  
+// Set verbosity
+static int ravi_verbosity(lua_State *L) {
+  int n = lua_gettop(L);
+  int oldvalue = raviV_getverbosity(L);
+  if (n == 1) {
+    int value = lua_tointeger(L, 1);
+    raviV_setverbosity(L, value);
+  }
+  lua_pushinteger(L, oldvalue);
+  return 1;
+}
 
 static int ravi_listcode(lua_State *L) {
   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
@@ -237,6 +249,7 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"jit", ravi_jitenable},
                                    {"optlevel", ravi_optlevel},
                                    {"sizelevel", ravi_sizelevel},
+                                   {"verbosity", ravi_verbosity},
                                    {"gcstep", ravi_gcstep},
                                    {"tracehook", ravi_traceenable},
                                    {"listcode", ravi_listcode},
