@@ -53,6 +53,7 @@
 struct ravi_State {
 	NJXContextRef jit;
 	unsigned long long id;	// counter to generate function names
+	int verbosity;
 };
 
 #ifdef __cplusplus

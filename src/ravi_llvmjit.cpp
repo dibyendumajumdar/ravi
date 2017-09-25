@@ -122,10 +122,10 @@ RaviJITState::RaviJITState()
       opt_level_(2),
       size_level_(0),
       verbosity_(0),
+      tracehook_enabled_(false),
+      validation_(false),
       min_code_size_(150),
       min_exec_count_(50),
-      gc_step_(300),
-      tracehook_enabled_(false),
       allocated_modules_(0) {
   // LLVM needs to be initialized else
   // ExecutionEngine cannot be created
@@ -203,6 +203,10 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(
     TM->Options.PrintMachineCode = 1;
   else
     TM->Options.PrintMachineCode = 0;
+  if (get_optlevel() == 0)
+    TM->Options.EnableFastISel = 1;
+  else
+    TM->Options.EnableFastISel = 0;
 
   // We use the PassManagerBuilder to setup optimization
   // passes - the PassManagerBuilder allows easy configuration of
@@ -639,7 +643,7 @@ void RaviJITModule::dump() {
 
 // Dumps the machine code
 // Will execute the passes as required by currently set
-// optimzation level; this may or may not match the actual
+// optimization level; this may or may not match the actual
 // JITed code which would have used the optimzation level set at the
 // time of compilation
 void RaviJITModule::dumpAssembly() { runpasses(true); }
@@ -708,7 +712,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
     auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
     if (G->ravi_state->code_generator->compile(L, p, module, options)) {
       module->runpasses();
-      module->finalize(options ? options->dump_level != 0 : 0);
+      module->finalize(G->ravi_state->jit->get_verbosity() == 3);
     }
   }
   return p->ravi_jit.jit_function != nullptr;
@@ -728,7 +732,7 @@ int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
   }
   if (count) {
     module->runpasses();
-    module->finalize(options ? options->dump_level != 0 : 0);
+    module->finalize(G->ravi_state->jit->get_verbosity() == 3);
   }
   return count > 0;
 }
@@ -841,15 +845,15 @@ int raviV_getverbosity(lua_State *L) {
   return G->ravi_state->jit->get_verbosity();
 }
 
-void raviV_setgcstep(lua_State *L, int value) {
+void raviV_setvalidation(lua_State *L, int value) {
   global_State *G = G(L);
   if (!G->ravi_state) return;
-  G->ravi_state->jit->set_gcstep(value);
+  G->ravi_state->jit->set_validation(value != 0);
 }
-int raviV_getgcstep(lua_State *L) {
+int raviV_getvalidation(lua_State *L) {
   global_State *G = G(L);
   if (!G->ravi_state) return 0;
-  return G->ravi_state->jit->get_gcstep();
+  return G->ravi_state->jit->get_validation();
 }
 
 // Turn on/off the JIT compiler

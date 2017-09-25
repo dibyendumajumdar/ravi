@@ -468,7 +468,6 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
         /* not compiled */
         ravi_compile_options_t options;
         memset(&options, 0, sizeof options);
-        options.verification_level = 1;
         raviV_compile(L, p, &options);
       }
       if (L == G(L)->mainthread && p->ravi_jit.jit_function) {

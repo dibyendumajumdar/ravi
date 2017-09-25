@@ -1297,7 +1297,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
                                 ravi_compile_options_t *options) {
   if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) return true;
 
-  bool doVerify = options ? options->verification_level != 0 : 0;
+  bool doVerify = module->owner()->get_validation() != 0;
   bool omitArrayGetRangeCheck =
       options ? options->omit_array_get_range_check != 0 : 0;
 
@@ -1311,22 +1311,6 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
 
   RaviFunctionDef definition = {0};
   RaviFunctionDef *def = &definition;
-
-  // The Lua GC doesn't know about memory allocated by the JIT
-  // compiler; this means that if lots of functions are being compiled
-  // such as in the test cases, then memory usage can grow very large
-  // as the GC is blissfully unaware of the actual memory in use
-  // To workaround this issue we provide an option that can be used to
-  // force a GC after every n compilations where n is supplied
-  // by the gcstep parameter; this is not ideal as it kills performance
-  // but appears to work for the test cases
-  // A better solution is needed
-  int gcstep = this->jitState_->get_gcstep();
-  if (gcstep > 0 && (id_ % gcstep) == 0) {
-    lua_unlock(L);
-    lua_gc(L, LUA_GCCOLLECT, 0);
-    lua_lock(L);
-  }
 
   auto f = create_function(p, module, builder, def);
   if (!f) {
@@ -1917,11 +1901,20 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       }
     }
   }
-  if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs())) {
+  if (doVerify && 
+	  llvm::verifyFunction(*f->function(), &llvm::errs())) {
     f->dump();
     fprintf(stderr, "LLVM Code Verification failed\n");
 	exit(1);
   }
+  // The Lua GC doesn't know about memory allocated by the JIT
+  // compiler; this means that if lots of functions are being compiled
+  // such as in the test cases, then memory usage can grow very large
+  // as the GC is blissfully unaware of the actual memory in use
+  // To workaround this issue we tell the GC that we increased
+  // memory usage by approximately n kbytes where n is the 
+  // number of bytecodes in the function compiled
+  lua_gc(L, LUA_GCSTEP, n);	// nKbytes?
   ravi::RaviJITFunction *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = nullptr;

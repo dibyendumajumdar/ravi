@@ -425,34 +425,33 @@ class RaviJITState {
   LuaLLVMTypes *types_;
 
   // Should we auto compile what we can?
-  bool auto_;
+  int auto_ : 1;
 
   // Is JIT enabled
-  bool enabled_;
+  int enabled_ : 1;
 
   // Optimizer level (LLVM PassManagerBuilder)
-  int opt_level_;
+  int opt_level_ : 2;
 
   // Size level (LLVM PassManagerBuilder)
-  int size_level_;
+  int size_level_ : 2;
   
   // Verbosity
-  // 1 - Dump IR
-  // 2 - Dump assembly
-  int verbosity_;
+  int verbosity_ : 3;
+
+  // enable calls to luaG_traceexec() at every bytecode
+  // instruction; this is expensive!
+  int tracehook_enabled_ : 1;
+
+  // Enable extra validation such as IR verification
+  // May slow down compilation
+  int validation_ : 1;
 
   // min code size for compilation
   int min_code_size_;
 
   // min execution count for compilation
   int min_exec_count_;
-
-  // gc step size; defaults to 200
-  int gc_step_;
-
-  // enable calls to luaG_traceexec() at every bytecode
-  // instruction; this is expensive!
-  bool tracehook_enabled_;
 
   // Count of modules allocated
   // Used to debug module deallocation
@@ -490,7 +489,7 @@ class RaviJITState {
   }
   int get_verbosity() const { return verbosity_; }
   void set_verbosity(int value) {
-    if (value >= 0) verbosity_ = value;
+    if (value >= 0 && value <= 3) verbosity_ = value;
   }
   int get_mincodesize() const { return min_code_size_; }
   void set_mincodesize(int value) {
@@ -500,8 +499,8 @@ class RaviJITState {
   void set_minexeccount(int value) {
     min_exec_count_ = value > 0 ? value : min_exec_count_;
   }
-  int get_gcstep() const { return gc_step_; }
-  void set_gcstep(int value) { gc_step_ = value > 0 ? value : gc_step_; }
+  int get_validation() const { return validation_; }
+  void set_validation(bool value) { validation_ = value; }
   bool is_tracehook_enabled() const { return tracehook_enabled_; }
   void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
   void incr_allocated_modules() { allocated_modules_++; }

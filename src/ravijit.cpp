@@ -93,16 +93,11 @@ static int ravi_compile_n(lua_State *L) {
   }
   ravi_compile_options_t options = {0};
   options.manual_request = 1;
-  options.verification_level = 1;
   if (lua_istable(L, 2)) {
     lua_Integer do_dump, do_verify, omit_arrayget_rangecheck;
-    l_table_get_integer(L, 2, "dump", &do_dump, 0);
-    l_table_get_integer(L, 2, "verify", &do_verify, 1);
     l_table_get_integer(L, 2, "omitArrayGetRangeCheck",
                         &omit_arrayget_rangecheck, 0);
     options.omit_array_get_range_check = (int)omit_arrayget_rangecheck;
-    options.dump_level = (int)do_dump;
-    options.verification_level = (int)do_verify;
   }
   int result = 0;
   if (n > 0) { result = raviV_compile_n(L, functions, n, &options); }
@@ -197,14 +192,14 @@ static int ravi_sizelevel(lua_State *L) {
 }
 
 // Set GC step when JIT compiling
-static int ravi_gcstep(lua_State *L) {
+static int ravi_validation(lua_State *L) {
   int n = lua_gettop(L);
-  int oldvalue = raviV_getgcstep(L);
+  int oldvalue = raviV_getvalidation(L);
   if (n == 1) {
     int value = lua_tointeger(L, 1);
-    raviV_setgcstep(L, value);
+    raviV_setvalidation(L, value);
   }
-  lua_pushinteger(L, oldvalue);
+  lua_pushboolean(L, oldvalue);
   return 1;
 }
 
@@ -250,7 +245,7 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"optlevel", ravi_optlevel},
                                    {"sizelevel", ravi_sizelevel},
                                    {"verbosity", ravi_verbosity},
-                                   {"gcstep", ravi_gcstep},
+                                   {"validation", ravi_validation},
                                    {"tracehook", ravi_traceenable},
                                    {"listcode", ravi_listcode},
                                    {"limits", ravi_get_limits},

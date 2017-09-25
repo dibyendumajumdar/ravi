@@ -105,12 +105,6 @@ struct ravi_compile_options_t {
   /* Should range check be omitted when compiling array access */
   int omit_array_get_range_check;
 
-  /* Should the compiler dump generated code ? */
-  int dump_level;
-
-  /* Should the compiler validate the generated code ? */
-  int verification_level;
-
   enum ravi_codegen_type codegen_type;
 };
 
