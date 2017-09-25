@@ -425,27 +425,27 @@ class RaviJITState {
   LuaLLVMTypes *types_;
 
   // Should we auto compile what we can?
-  int auto_ : 1;
+  unsigned int auto_ : 1;
 
   // Is JIT enabled
-  int enabled_ : 1;
+  unsigned int enabled_ : 1;
 
   // Optimizer level (LLVM PassManagerBuilder)
-  int opt_level_ : 2;
+  unsigned int opt_level_ : 2;
 
   // Size level (LLVM PassManagerBuilder)
-  int size_level_ : 2;
+  unsigned int size_level_ : 2;
   
   // Verbosity
-  int verbosity_ : 3;
+  unsigned int verbosity_ : 3;
 
   // enable calls to luaG_traceexec() at every bytecode
   // instruction; this is expensive!
-  int tracehook_enabled_ : 1;
+  unsigned int tracehook_enabled_ : 1;
 
   // Enable extra validation such as IR verification
   // May slow down compilation
-  int validation_ : 1;
+  unsigned int validation_ : 1;
 
   // min code size for compilation
   int min_code_size_;
