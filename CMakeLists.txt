@@ -289,6 +289,9 @@ if (LLVM_JIT)
     if (${LLVM_PACKAGE_VERSION} VERSION_LESS "3.8")
         set(LLVM_EXTRA_LIBS ipa)
     endif()
+	if (NOT ${LLVM_PACKAGE_VERSION} VERSION_LESS "5.0.0")
+		set(LLVM_EXTRA_LIBS orcjit)
+	endif()
     message(STATUS "SYSTEM_PROCESSOR ${CMAKE_SYSTEM_PROCESSOR}")
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
 	set(LLVM_LIBS_PROCESSOR
@@ -312,11 +315,11 @@ if (LLVM_JIT)
     endif()
     llvm_map_components_to_libnames(LLVM_LIBS
             Analysis
-            Core
-            CodeGen
             AsmParser
             AsmPrinter
             BitReader
+            Core
+            CodeGen
             ExecutionEngine
             InstCombine
             ${LLVM_EXTRA_LIBS}
@@ -330,7 +333,7 @@ if (LLVM_JIT)
             Support
             Target
             TransformUtils
-	    ${LLVM_LIBS_PROCESSOR}
+            ${LLVM_LIBS_PROCESSOR}
             )
     message(STATUS "LLVM_LIBS ${LLVM_LIBS}")
 endif ()

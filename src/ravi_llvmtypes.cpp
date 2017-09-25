@@ -1324,7 +1324,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 }
 
 void LuaLLVMTypes::dump() {
-#if defined(LLVM_ENABLE_DUMP)
+#if !defined(NDEBUG)
   GCObjectT->dump();
   fputs("\n", stdout);
   TValueT->dump();

@@ -195,7 +195,7 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(
   using llvm::PassManager;
 #endif
   
-#if defined(LLVM_ENABLE_DUMP)
+#if !defined(NDEBUG)
   if (get_verbosity() >= 1)
     M->dump();
 #endif
@@ -632,7 +632,7 @@ llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,
 }
 
 void RaviJITModule::dump() {
-#if defined(LLVM_ENABLE_DUMP)
+#if !defined(NDEBUG)
   if (module_) module_->dump();
 #endif
 }
