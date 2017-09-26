@@ -196,7 +196,7 @@ static int ravi_validation(lua_State *L) {
   int n = lua_gettop(L);
   int oldvalue = raviV_getvalidation(L);
   if (n == 1) {
-    int value = lua_tointeger(L, 1);
+    int value = lua_toboolean(L, 1);
     raviV_setvalidation(L, value);
   }
   lua_pushboolean(L, oldvalue);

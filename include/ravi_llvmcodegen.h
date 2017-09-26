@@ -447,9 +447,8 @@ class RaviJITState {
   // May slow down compilation
   unsigned int validation_ : 1;
   
-  // Flag to control calls to GCSTEP
-  // For some tests we need to disable these calls
-  unsigned int gcstep_ : 1;
+  // Flag to control calls to collect
+  int gcstep_;
 
   // min code size for compilation
   int min_code_size_;
@@ -509,7 +508,9 @@ class RaviJITState {
   int get_validation() const { return validation_; }
   void set_validation(bool value) { validation_ = value; }
   int get_gcstep() const { return gcstep_; }
-  void set_gcstep(bool value) { gcstep_ = value; }
+  void set_gcstep(int value) {
+    gcstep_ = value > 0 ? value : gcstep_;
+  }
   bool is_tracehook_enabled() const { return tracehook_enabled_; }
   void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
   void incr_allocated_modules() { allocated_modules_++; }

@@ -124,7 +124,7 @@ RaviJITState::RaviJITState()
       verbosity_(0),
       tracehook_enabled_(false),
       validation_(false),
-      gcstep_(true),
+      gcstep_(300),
       min_code_size_(150),
       min_exec_count_(50),
       allocated_modules_(0),
@@ -859,7 +859,7 @@ int raviV_getvalidation(lua_State *L) {
 void raviV_setgcstep(lua_State *L, int value) {
   global_State *G = G(L);
   if (!G->ravi_state) return;
-  G->ravi_state->jit->set_gcstep(value != 0);
+  G->ravi_state->jit->set_gcstep(value);
 }
 int raviV_getgcstep(lua_State *L) {
   global_State *G = G(L);
