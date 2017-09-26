@@ -191,7 +191,7 @@ static int ravi_sizelevel(lua_State *L) {
   return 1;
 }
 
-// Set GC step when JIT compiling
+// Set validation when JIT compiling
 static int ravi_validation(lua_State *L) {
   int n = lua_gettop(L);
   int oldvalue = raviV_getvalidation(L);
@@ -203,6 +203,18 @@ static int ravi_validation(lua_State *L) {
   return 1;
 }
 
+// Set GC step when JIT compiling
+static int ravi_gcstep(lua_State *L) {
+  int n = lua_gettop(L);
+  int oldvalue = raviV_getgcstep(L);
+  if (n == 1) {
+    int value = lua_tointeger(L, 1);
+    raviV_setgcstep(L, value);
+  }
+  lua_pushboolean(L, oldvalue);
+  return 1;
+}
+  
 // Turn on/off the trace hook
 static int ravi_traceenable(lua_State *L) {
   int n = lua_gettop(L);
@@ -246,6 +258,7 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"sizelevel", ravi_sizelevel},
                                    {"verbosity", ravi_verbosity},
                                    {"validation", ravi_validation},
+                                   {"gcstep", ravi_gcstep},
                                    {"tracehook", ravi_traceenable},
                                    {"listcode", ravi_listcode},
                                    {"limits", ravi_get_limits},

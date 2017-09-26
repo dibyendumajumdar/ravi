@@ -79,6 +79,10 @@ int raviV_getminexeccount(struct lua_State *L);
 /* Enable IR / codegen validations */
 void raviV_setvalidation(struct lua_State *L, int enabled);
 int raviV_getvalidation(struct lua_State *L);
+  
+/* Enable calls to GCSTEP  */
+void raviV_setgcstep(struct lua_State *L, int enabled);
+int raviV_getgcstep(struct lua_State *L);
 
 /* Enable or disable trace hook */
 void raviV_settraceenabled(struct lua_State *L, int enabled);

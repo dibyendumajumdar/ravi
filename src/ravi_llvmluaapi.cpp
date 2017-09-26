@@ -552,7 +552,7 @@ static llvm::Value *get_value(lua_State *L, int idx) {
  Dump an LLVM object
 */
 static int dump_content(lua_State *L) {
-#if !defined(NDEBUG)
+#if LLVM_VERSION_MAJOR < 5
   TypeHolder *th = nullptr;
   StructTypeHolder *sth = nullptr;
   PointerTypeHolder *ph = nullptr;

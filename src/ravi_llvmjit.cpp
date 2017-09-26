@@ -124,9 +124,11 @@ RaviJITState::RaviJITState()
       verbosity_(0),
       tracehook_enabled_(false),
       validation_(false),
+      gcstep_(true),
       min_code_size_(150),
       min_exec_count_(50),
-      allocated_modules_(0) {
+      allocated_modules_(0),
+      compiling_(false) {
   // LLVM needs to be initialized else
   // ExecutionEngine cannot be created
   // This needs to be an atomic check although LLVM docs
@@ -195,10 +197,8 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(
   using llvm::PassManager;
 #endif
   
-#if !defined(NDEBUG)
   if (get_verbosity() >= 1)
-    M->dump();
-#endif
+    M->print(&llvm::errs, NULL, false, true);
   if (get_verbosity() >= 3)
     TM->Options.PrintMachineCode = 1;
   else
@@ -636,7 +636,7 @@ llvm::Function *RaviJITModule::addExternFunction(llvm::FunctionType *type,
 }
 
 void RaviJITModule::dump() {
-#if !defined(NDEBUG)
+#if LLVM_VERSION_MAJOR < 5
   if (module_) module_->dump();
 #endif
 }
@@ -854,6 +854,17 @@ int raviV_getvalidation(lua_State *L) {
   global_State *G = G(L);
   if (!G->ravi_state) return 0;
   return G->ravi_state->jit->get_validation();
+}
+
+void raviV_setgcstep(lua_State *L, int value) {
+  global_State *G = G(L);
+  if (!G->ravi_state) return;
+  G->ravi_state->jit->set_gcstep(value != 0);
+}
+int raviV_getgcstep(lua_State *L) {
+  global_State *G = G(L);
+  if (!G->ravi_state) return 0;
+  return G->ravi_state->jit->get_gcstep();
 }
 
 // Turn on/off the JIT compiler

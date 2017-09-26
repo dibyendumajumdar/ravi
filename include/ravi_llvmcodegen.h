@@ -446,6 +446,10 @@ class RaviJITState {
   // Enable extra validation such as IR verification
   // May slow down compilation
   unsigned int validation_ : 1;
+  
+  // Flag to control calls to GCSTEP
+  // For some tests we need to disable these calls
+  unsigned int gcstep_ : 1;
 
   // min code size for compilation
   int min_code_size_;
@@ -456,6 +460,9 @@ class RaviJITState {
   // Count of modules allocated
   // Used to debug module deallocation
   size_t allocated_modules_;
+  
+  // flag to help avoid recursion
+  bool compiling_;
 
  public:
   RaviJITState();
@@ -501,11 +508,15 @@ class RaviJITState {
   }
   int get_validation() const { return validation_; }
   void set_validation(bool value) { validation_ = value; }
+  int get_gcstep() const { return gcstep_; }
+  void set_gcstep(bool value) { gcstep_ = value; }
   bool is_tracehook_enabled() const { return tracehook_enabled_; }
   void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
   void incr_allocated_modules() { allocated_modules_++; }
   void decr_allocated_modules() { allocated_modules_--; }
   size_t allocated_modules() const { return allocated_modules_; }
+  int get_compiling_flag() const { return compiling_; }
+  void set_compiling_flag(bool value) { compiling_ = value; }
 };
 
 // A wrapper for LLVM Module

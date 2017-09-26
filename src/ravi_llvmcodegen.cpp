@@ -1296,7 +1296,11 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
                                 std::shared_ptr<RaviJITModule> module,
                                 ravi_compile_options_t *options) {
   if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) return true;
-
+  
+  // Avoid recursive calls
+  if (module->owner()->get_compiling_flag())
+    return false;
+    
   bool doVerify = module->owner()->get_validation() != 0;
   bool omitArrayGetRangeCheck =
       options ? options->omit_array_get_range_check != 0 : 0;
@@ -1317,6 +1321,9 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;  // can't compile
     return false;
   }
+  
+  // Set flag so we can avoid recursive calls
+  module->owner()->set_compiling_flag(true);
 
   // The functions constants
   TValue *k = p->k;
@@ -1905,7 +1912,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
 	  llvm::verifyFunction(*f->function(), &llvm::errs())) {
     f->dump();
     fprintf(stderr, "LLVM Code Verification failed\n");
-	exit(1);
+    exit(1);
   }
   // The Lua GC doesn't know about memory allocated by the JIT
   // compiler; this means that if lots of functions are being compiled
@@ -1914,11 +1921,21 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
   // To workaround this issue we tell the GC that we increased
   // memory usage by approximately n kbytes where n is the 
   // number of bytecodes in the function compiled
-  lua_gc(L, LUA_GCSTEP, n);	// nKbytes?
+  if (module->owner()->get_gcstep()) {
+    // The unlock/lock sequence below is to satisfy ltests
+    // If the lock allowed recursion then this would not be
+    // required. In real code the locking is no-op.
+    lua_unlock(L);
+    lua_gc(L, LUA_GCSTEP, n);	// nKbytes?
+    lua_lock(L);
+  }
   ravi::RaviJITFunction *llvm_func = f.release();
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = nullptr;
   p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+  
+  module->owner()->set_compiling_flag(false);
+  
   return llvm_func != nullptr;
 }
 

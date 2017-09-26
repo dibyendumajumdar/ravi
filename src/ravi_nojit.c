@@ -156,6 +156,15 @@ int raviV_getgcstep(struct lua_State *L) {
   return 0;
 }
 
+void raviV_setvalidation(struct lua_State *L, int value) {
+  (void)L;
+  (void)value;
+}
+int raviV_getvalidation(struct lua_State *L) {
+  (void)L;
+  return 0;
+}
+
 // Turn on/off the JIT compiler
 void raviV_settraceenabled(struct lua_State *L, int value) {
   (void)L;

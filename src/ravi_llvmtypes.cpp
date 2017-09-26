@@ -1324,7 +1324,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 }
 
 void LuaLLVMTypes::dump() {
-#if !defined(NDEBUG)
+#if LLVM_VERSION_MAJOR < 5
   GCObjectT->dump();
   fputs("\n", stdout);
   TValueT->dump();

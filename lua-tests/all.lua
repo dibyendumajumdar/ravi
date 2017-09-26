@@ -150,7 +150,9 @@ end
 
 report"gc.lua"
 local f = assert(loadfile('gc.lua'))
+if ravi then ravi.gcstep(false) end
 f()
+if ravi then ravi.gcstep(true) end
 if not ravi or not ravi.auto() or ravi.tracehook() then
   -- in JIT mode we need tracehook enabled
   dofile('db.lua')
