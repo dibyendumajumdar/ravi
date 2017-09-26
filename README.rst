@@ -275,16 +275,19 @@ A JIT api is available with following functions:
 ``ravi.dumplua(func)``
   dumps the Lua bytecode of the function
 ``ravi.dumpir(func)``
-  dumps the IR of the compiled function (only if function was compiled; only LLVM version)
+  (deprecated) dumps the IR of the compiled function (only if function was compiled; only available in LLVM 4.0 and earlier)
 ``ravi.dumpasm(func)``
-  dumps the machine code using the currently set optimization level (only if function was compiled; only LLVM)
+  (deprecated) dumps the machine code using the currently set optimization level (only if function was compiled; only available in LLVM version 4.0 and earlier)
 ``ravi.optlevel([n])``
-  sets LLVM optimization level (0, 1, 2, 3); defaults to 2
+  sets LLVM optimization level (0, 1, 2, 3); defaults to 2. These levels are handled by reusing LLVMs default pass definitions which are geared towards C/C++ programs, but appear to work well here. If level is set to 0, then an attempt is made to use fast instruction selection to further speed up compilation.
 ``ravi.sizelevel([n])``
   sets LLVM size level (0, 1, 2); defaults to 0
 ``ravi.tracehook([b])``
-  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode 
-  boundary; use this option only when you want to use the debug api to step through code line by line
+  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when you want to use the debug api to step through code line by line
+``ravi.verbosity([b])``
+  Controls the amount of verbose messages generated during compilation. Currently only available for LLVM.
+``ravi.gcstep([n])``
+  Forces full GC collection after `n` compilations. The Lua GC is unaware of the memory used by JITed code hence in situations where many compilations are occurring (such as when running Lua tests) the GC can be very very slow. The default value of this is set to `300`. A value of `0` will disable this feature.
 
 Performance
 ===========
@@ -335,6 +338,8 @@ Ravi can be built with or without LLVM. Following versions of LLVM work with Rav
 * LLVM 3.5 and 3.6 should also work but have not been recently tested
 
 Unless otherwise noted the instructions below should work for LLVM 3.9 and later.
+
+Since LLVM 5.0 Ravi has begun to use the new ORC JIT apis. These apis are more memory efficient compared to the MCJIT apis because they release the Module IR as early as possible, whereas with MCJIT the Module IR hangs around as long as the compiled code is held. Because of this significant improvement, I recommend using LLVM 5.0 and above.
 
 Building LLVM on Windows
 ------------------------
