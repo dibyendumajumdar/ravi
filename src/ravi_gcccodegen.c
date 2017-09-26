@@ -933,7 +933,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
   // Note that if a function fails to compile then
   // a flag is set so that it doesn't get compiled again
   int manual_request = options ? options->manual_request : 0;
-  int dump = options ? options->dump_level : 0;
+  int dump = 0; // options ? options->dump_level : 0;
   bool omitArrayGetRangeCheck =
       options ? options->omit_array_get_range_check != 0 : false;
   if (p->ravi_jit.jit_status == 2)
