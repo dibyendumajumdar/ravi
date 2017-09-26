@@ -198,7 +198,7 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(
 #endif
   
   if (get_verbosity() >= 1)
-    M->print(&llvm::errs, NULL, false, true);
+    M->print(llvm::errs(), NULL, false, true);
   if (get_verbosity() >= 3)
     TM->Options.PrintMachineCode = 1;
   else
