@@ -24,7 +24,7 @@ Features
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
-* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available
+* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available, although this is not currently being worked on
 * LLVM bindings exposed in Lua
 
 Documentation
@@ -275,16 +275,19 @@ A JIT api is available with following functions:
 ``ravi.dumplua(func)``
   dumps the Lua bytecode of the function
 ``ravi.dumpir(func)``
-  dumps the IR of the compiled function (only if function was compiled; only LLVM version)
+  (deprecated) dumps the IR of the compiled function (only if function was compiled; only available in LLVM 4.0 and earlier)
 ``ravi.dumpasm(func)``
-  dumps the machine code using the currently set optimization level (only if function was compiled; only LLVM)
+  (deprecated) dumps the machine code using the currently set optimization level (only if function was compiled; only available in LLVM version 4.0 and earlier)
 ``ravi.optlevel([n])``
-  sets LLVM optimization level (0, 1, 2, 3); defaults to 2
+  sets LLVM optimization level (0, 1, 2, 3); defaults to 2. These levels are handled by reusing LLVMs default pass definitions which are geared towards C/C++ programs, but appear to work well here. If level is set to 0, then an attempt is made to use fast instruction selection to further speed up compilation.
 ``ravi.sizelevel([n])``
   sets LLVM size level (0, 1, 2); defaults to 0
 ``ravi.tracehook([b])``
-  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode 
-  boundary; use this option only when you want to use the debug api to step through code line by line
+  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when you want to use the debug api to step through code line by line
+``ravi.verbosity([b])``
+  Controls the amount of verbose messages generated during compilation. Currently only available for LLVM.
+``ravi.gcstep([n])``
+  Forces full GC collection after `n` compilations. The Lua GC is unaware of the memory used by JITed code hence in situations where many compilations are occurring (such as when running Lua tests) the GC can be very very slow. The default value of this is set to `300`. A value of `0` will disable this feature.
 
 Performance
 ===========
@@ -331,10 +334,12 @@ Build Dependencies
 
 Ravi can be built with or without LLVM. Following versions of LLVM work with Ravi.
 
-* LLVM 3.7 or 3.8 or 3.9 or 4.0
+* LLVM 3.7 or 3.8 or 3.9 or 4.0 or 5.0
 * LLVM 3.5 and 3.6 should also work but have not been recently tested
 
-Unless otherwise noted the instructions below should work for LLVM 3.7 or later.
+Unless otherwise noted the instructions below should work for LLVM 3.9 and later.
+
+Since LLVM 5.0 Ravi has begun to use the new ORC JIT apis. These apis are more memory efficient compared to the MCJIT apis because they release the Module IR as early as possible, whereas with MCJIT the Module IR hangs around as long as the compiled code is held. Because of this significant improvement, I recommend using LLVM 5.0 and above.
 
 Building LLVM on Windows
 ------------------------
@@ -370,19 +375,19 @@ Building Ravi with JIT enabled
 ------------------------------
 I am developing Ravi using Visual Studio 2017 Community Edition on Windows 10 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X. I was also able to successfully build a Ubuntu version on Windows 10 using the newly released Ubuntu/Linux sub-system for Windows 10.
 
-.. note:: Location of cmake files has moved in LLVM 3.9; the new path is ``$LLVM_INSTALL_DIR/lib/cmake/llvm``.
+.. note:: Location of cmake files prior to LLVM 3.9 was ``$LLVM_INSTALL_DIR/share/llvm/cmake``.
 
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
   cd build
-  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 15 2017 Win64" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM\lib\cmake\llvm -G "Visual Studio 15 2017 Win64" ..
 
 I then open the solution in VS2017 and do a build from there.
 
 On Ubuntu I use::
 
   cd build
-  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/lib/cmake/llvm -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
   make
 
 Note that on a clean install of Ubuntu 15.10 I had to install following packages:
@@ -394,7 +399,7 @@ Note that on a clean install of Ubuntu 15.10 I had to install following packages
 On MAC OS X I use::
 
   cd build
-  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/lib/cmake/llvm -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
 
 I open the generated project in Xcode and do a build from there. You can also use the command line build tools if you wish - generate the make files in the same way as for Linux.
 
@@ -434,8 +439,7 @@ Roadmap
 * 2016 - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
 * 2017 - Main priorities are:
 
-  - I would like Ravi to be backward compatible with Lua 5.1 and 5.2 as far as possible
-  - Lua function inlining 
+  - Experiment with dmrC project (C JIT compiler) and embed in Ravi
   - Improve performance of Ravi  
   - Additional type annotations
 
