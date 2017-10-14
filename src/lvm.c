@@ -2212,6 +2212,15 @@ int luaV_execute (lua_State *L) {
           luaG_runerror(L, "number[] expected");
         vmbreak;
       }
+      vmcase(OP_RAVI_TOSTRING) {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_TOCLOSURE) {
+        vmbreak;
+      }
+      vmcase(OP_RAVI_TOTYPE) {
+        vmbreak;
+      }
     }
   }
 }

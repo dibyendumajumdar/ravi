@@ -460,7 +460,7 @@ static int casttoken(LexState *ls, SemInfo *seminfo) {
   else if (strncmp(s, "@table", n) == 0)
     tok = TK_TO_TABLE;
   else {
-    seminfo->ts = luaX_newstring(ls, s, n);
+    seminfo->ts = luaX_newstring(ls, s+1, n-1); /* omit @ */
     tok = '@';
   }
   luaZ_buffremove(ls->buff, n); /* rewind but buffer still holds the saved characters */

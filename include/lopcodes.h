@@ -264,6 +264,9 @@ OP_RAVI_TOFLT, /* A R(A) := tofloat(R(A)) */
 OP_RAVI_TOARRAYI, /* A R(A) := to_arrayi(R(A)) */
 OP_RAVI_TOARRAYF, /* A R(A) := to_arrayf(R(A)) */
 OP_RAVI_TOTAB,    /* A R(A) := to_table(R(A)) */
+OP_RAVI_TOSTRING,
+OP_RAVI_TOCLOSURE,
+OP_RAVI_TOTYPE,  
 
 OP_RAVI_MOVEI, /*	A B	R(A) := R(B), check R(B) is int	*/
 OP_RAVI_MOVEF, /*	A B	R(A) := R(B), check R(B) is float */

@@ -563,7 +563,7 @@ static void singlevar (LexState *ls, expdesc *var) {
 
 /* RAVI code an instruction to coerce the type, reg is the register, 
    and ravi_type is the type we want */
-static void ravi_code_typecoersion(LexState *ls, int reg, ravitype_t ravi_type) {
+static void ravi_code_typecoersion(LexState *ls, int reg, ravitype_t ravi_type, TString *typename /* only if tt is USERDATA */) {
   /* do we need to convert ? */
   if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
     /* code an instruction to convert in place */
@@ -577,7 +577,15 @@ static void ravi_code_typecoersion(LexState *ls, int reg, ravitype_t ravi_type) 
   else if (ravi_type == RAVI_TTABLE)
     luaK_codeABC(ls->fs, OP_RAVI_TOTAB,
                  reg, 0, 0);
-  // TODO handle string, function, userdata, boolean types
+  else if (ravi_type == RAVI_TUSERDATA)
+    luaK_codeABx(ls->fs, OP_RAVI_TOTYPE,
+	    reg, luaK_stringK(ls->fs, typename));
+  else if (ravi_type == RAVI_TSTRING)
+    luaK_codeABC(ls->fs, OP_RAVI_TOSTRING,
+	    reg, 0, 0);
+  else if (ravi_type == RAVI_TFUNCTION)
+    luaK_codeABC(ls->fs, OP_RAVI_TOCLOSURE,
+	    reg, 0, 0);
 }
 
 /* RAVI code an instruction to initialize a scalar typed value
@@ -625,7 +633,7 @@ static void ravi_coercetype(LexState *ls, expdesc *v, int n)
     int idx = register_to_locvar_index(ls->fs, i);
     ravitype_t ravi_type = ls->fs->f->locvars[idx].ravi_type;  /* get variable's type */
     /* do we need to convert ? */
-    ravi_code_typecoersion(ls, i, ravi_type);
+    ravi_code_typecoersion(ls, i, ravi_type, NULL);
   }
 }
 
@@ -1134,7 +1142,7 @@ static void constructor (LexState *ls, expdesc *t) {
  *   where type is 'integer', 'integer[]',
  *                 'number', 'number[]'
  */
-static ravitype_t declare_localvar(LexState *ls) {
+static ravitype_t declare_localvar(LexState *ls, TString **userdata_name) {
   /* RAVI change - add type */
   TString *name = str_checkname(ls);
   /* assume a dynamic type */
@@ -1154,14 +1162,19 @@ static ravitype_t declare_localvar(LexState *ls) {
       tt = RAVI_TNUMFLT;
     else if (strcmp(str, "closure") == 0)
       tt = RAVI_TFUNCTION;
-    else if (strcmp(str, "userdata") == 0)
-      tt = RAVI_TUSERDATA;
     else if (strcmp(str, "table") == 0)
       tt = RAVI_TTABLE;
     else if (strcmp(str, "string") == 0)
       tt = RAVI_TSTRING;
     else if (strcmp(str, "boolean") == 0)
       tt = RAVI_TBOOLEAN;
+    else if (strcmp(str, "any") == 0)
+      tt = RAVI_TANY;
+    else {
+      /* default is a userdata type */
+      tt = RAVI_TUSERDATA;
+      *userdata_name = typename;
+    }
     if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
       /* if we see [] then it is an array type */
       if (testnext(ls, '[')) {
@@ -1179,13 +1192,16 @@ static void parlist (LexState *ls) {
   FuncState *fs = ls->fs;
   Proto *f = fs->f;
   int nparams = 0;
+  enum { N = MAXVARS + 10 };
+  int vars[N] = { 0 };
+  TString *typenames[N] = { NULL };
   f->is_vararg = 0;
   if (ls->t.token != ')') {  /* is 'parlist' not empty? */
     do {
       switch (ls->t.token) {
         case TK_NAME: {  /* param -> NAME */
           /* RAVI change - add type */
-          declare_localvar(ls);
+          vars[nparams] = declare_localvar(ls, &typenames[nparams]);
           nparams++;
           break;
         }
@@ -1205,7 +1221,7 @@ static void parlist (LexState *ls) {
     ravitype_t tt = raviY_get_register_typeinfo(fs, i);
     DEBUG_VARS(raviY_printf(fs, "Parameter [%d] = %v\n", i + 1, getlocvar(fs, i)));
     /* do we need to convert ? */
-    ravi_code_typecoersion(ls, i, tt);
+    ravi_code_typecoersion(ls, i, tt, i < nparams ? typenames[i] : NULL);
   }
 }
 
@@ -1331,7 +1347,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *vars, int nvars,
       int i;
       for (i = n; i < (n + nrets); i++)
         /* do we need to convert ? */
-        ravi_code_typecoersion(ls, a + (i - n), vars[i]);
+        ravi_code_typecoersion(ls, a + (i - n), vars[i], NULL);
     } else if ((vartype == RAVI_TNUMFLT || vartype == RAVI_TNUMINT) &&
                v->k == VINDEXED) {
       if ((vartype == RAVI_TNUMFLT && v->ravi_type != RAVI_TARRAYFLT) ||
@@ -1542,6 +1558,8 @@ static UnOpr getunopr (int op) {
     case TK_TO_INTARRAY: return OPR_TO_INTARRAY;
     case TK_TO_NUMARRAY: return OPR_TO_NUMARRAY;
     case TK_TO_TABLE: return OPR_TO_TABLE;
+    case '@': 
+	    return OPR_TO_TYPE;
     default: return OPR_NOUNOPR;
   }
 }
@@ -1605,9 +1623,10 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
   uop = getunopr(ls->t.token);
   if (uop != OPR_NOUNOPR) {
     int line = ls->linenumber;
+    TString *typename = uop == OPR_TO_TYPE ? ls->t.seminfo.ts : NULL;
     luaX_next(ls);
     subexpr(ls, v, UNARY_PRIORITY);
-    luaK_prefix(ls->fs, uop, v, line);
+    luaK_prefix(ls->fs, uop, v, line, typename);
   }
   else {
     simpleexp(ls, v);
@@ -2106,10 +2125,11 @@ static void localstat (LexState *ls) {
    */
   enum { N = MAXVARS + 10 };
   int vars[N] = { 0 };
+  TString *typenames[N] = { NULL };
   do {
     /* RAVI changes start */
     /* local name : type = value */
-    vars[nvars] = declare_localvar(ls);
+    vars[nvars] = declare_localvar(ls, &typenames[nvars]);
     /* RAVI changes end */
     nvars++;
     if (nvars >= N)

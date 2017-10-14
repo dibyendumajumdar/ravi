@@ -444,6 +444,7 @@ typedef struct LocVar {
   int startpc;  /* first point where variable is active */
   int endpc;    /* first point where variable is dead */
   ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
+  /* TODO add typename for userdata */
 } LocVar;
 
 /** RAVI changes start */

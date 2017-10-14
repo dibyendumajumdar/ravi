@@ -1398,7 +1398,7 @@ static void codecomp (FuncState *fs, BinOpr opr, expdesc *e1, expdesc *e2) {
 ** operator that takes one operand - a register location - and
 ** asserts that the register contains a value of the required type.
  */
-static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e) {
+static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *typename) {
   luaK_dischargevars(fs, e);
   switch (e->k) {
     case VKFLT: {
@@ -1454,16 +1454,32 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e) {
         opcode = OP_RAVI_TOARRAYF;
         tt = RAVI_TARRAYFLT;
       }
-      else if (op == OPR_TO_TABLE  && e->ravi_type != RAVI_TTABLE) {
+      else if (op == OPR_TO_TABLE && e->ravi_type != RAVI_TTABLE) {
         opcode = OP_RAVI_TOTAB;
         tt = RAVI_TTABLE;
+      }
+      else if (op == OPR_TO_STRING && e->ravi_type != RAVI_TSTRING) {
+        opcode = OP_RAVI_TOSTRING;
+        tt = RAVI_TSTRING;
+      }
+      else if (op == OPR_TO_CLOSURE && e->ravi_type != RAVI_TFUNCTION) {
+        opcode = OP_RAVI_TOCLOSURE;
+        tt = RAVI_TFUNCTION;
+      }
+      else if (op == OPR_TO_TYPE) {
+        opcode = OP_RAVI_TOTYPE;  
+	tt = RAVI_TUSERDATA;
       }
       else {
         /* nothing to do*/
         return;
       }
       /* Must already be NONRELOC */
-      luaK_codeABC(fs, opcode, e->u.info, 0, 0);
+      if (opcode == OP_RAVI_TOTYPE) {
+        luaK_codeABx(fs, opcode, e->u.info, luaK_stringK(fs, typename));
+      }
+      else 
+        luaK_codeABC(fs, opcode, e->u.info, 0, 0);
       e->ravi_type = tt;
       e->k = VNONRELOC; 
       return;
@@ -1476,7 +1492,7 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e) {
 /*
 ** Apply prefix operation 'op' to expression 'e'.
 */
-void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
+void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line, TString *typename) {
   expdesc ef = {.ravi_type = RAVI_TANY,
                 .pc = -1,
                 .t = NO_JUMP,
@@ -1492,8 +1508,10 @@ void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
       codeunexpval(fs, cast(OpCode, op + OP_UNM), e, line);
       break;
     case OPR_TO_INTEGER: case OPR_TO_NUMBER: case OPR_TO_INTARRAY:
-    case OPR_TO_NUMARRAY: case OPR_TO_TABLE: 
-      code_type_assertion(fs, op, e); break;
+    case OPR_TO_NUMARRAY: case OPR_TO_TABLE: case OPR_TO_STRING: case OPR_TO_CLOSURE:
+      code_type_assertion(fs, op, e, NULL); break;
+    case OPR_TO_TYPE:
+      code_type_assertion(fs, op, e, typename); break;      
     case OPR_NOT: codenot(fs, e); break;
     default: lua_assert(0);
   }
