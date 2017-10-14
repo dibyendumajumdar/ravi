@@ -261,12 +261,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  */
   //}Upvaldesc;
   UpvaldescT = llvm::StructType::create(context, "struct.Upvaldesc");
-  elements.clear();
-  elements.push_back(pTStringT);   /* name */
-  elements.push_back(ravitype_tT); /* type */
-  elements.push_back(lu_byteT);    /* instack */
-  elements.push_back(lu_byteT);    /* idx */
-  UpvaldescT->setBody(elements);
+  //elements.clear();
+  //elements.push_back(pTStringT);   /* name */
+  //elements.push_back(ravitype_tT); /* type */
+  //elements.push_back(lu_byteT);    /* instack */
+  //elements.push_back(lu_byteT);    /* idx */
+  //UpvaldescT->setBody(elements);
   pUpvaldescT = llvm::PointerType::get(UpvaldescT, 0);
 
   ///*
@@ -281,12 +281,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  */
   //} LocVar;
   LocVarT = llvm::StructType::create(context, "struct.LocVar");
-  elements.clear();
-  elements.push_back(pTStringT);   /* varname */
-  elements.push_back(C_intT);      /* startpc */
-  elements.push_back(C_intT);      /* endpc */
-  elements.push_back(ravitype_tT); /* ravi_type */
-  LocVarT->setBody(elements);
+  //elements.clear();
+  //elements.push_back(pTStringT);   /* varname */
+  //elements.push_back(C_intT);      /* startpc */
+  //elements.push_back(C_intT);      /* endpc */
+  //elements.push_back(ravitype_tT); /* ravi_type */
+  //LocVarT->setBody(elements);
   pLocVarT = llvm::PointerType::get(LocVarT, 0);
 
   LClosureT = llvm::StructType::create(context, "struct.LClosure");

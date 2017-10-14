@@ -411,8 +411,8 @@ typedef union UUdata {
 ** other types appear then they are all treated as ANY
 **/
 typedef enum {
-  RAVI_TANY = -1,      /* Lua dynamic type */
-  RAVI_TNUMINT = 1,        /* integer number */
+  RAVI_TANY = 0,      /* Lua dynamic type */
+  RAVI_TNUMINT = 1,    /* integer number */
   RAVI_TNUMFLT,        /* floating point number */
   RAVI_TARRAYINT,      /* array of ints */
   RAVI_TARRAYFLT,      /* array of doubles */
@@ -429,7 +429,7 @@ typedef enum {
 */
 typedef struct Upvaldesc {
   TString *name;  /* upvalue name (for debug information) */
-  ravitype_t type; /* RAVI type of upvalue */
+  lu_byte type; /* RAVI type of upvalue */
   lu_byte instack;  /* whether it is in stack (register) */
   lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
 } Upvaldesc;
@@ -443,8 +443,8 @@ typedef struct LocVar {
   TString *varname;
   int startpc;  /* first point where variable is active */
   int endpc;    /* first point where variable is dead */
-  ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
-  /* TODO add typename for userdata */
+  unsigned int ravi_type: 8; /* RAVI type of the variable - RAVI_TANY if unknown */
+  unsigned int user_typename_k : 24; /* constant that holds the user type name */
 } LocVar;
 
 /** RAVI changes start */

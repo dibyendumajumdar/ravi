@@ -1717,6 +1717,11 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_RAVI_TOARRAYF: {
         emit_TOARRAY(def, A, RAVI_TARRAYFLT, "number[] expected", pc);
       } break;
+      case OP_RAVI_TOSTRING:
+      case OP_RAVI_TOCLOSURE:
+      case OP_RAVI_TOTYPE:
+        // No-op for now
+        break;
       case OP_RAVI_MOVEAI: {
         int B = GETARG_B(i);
         emit_MOVEAI(def, A, B, pc);
