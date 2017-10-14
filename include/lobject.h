@@ -429,7 +429,8 @@ typedef enum {
 */
 typedef struct Upvaldesc {
   TString *name;  /* upvalue name (for debug information) */
-  lu_byte type; /* RAVI type of upvalue */
+  TString *usertype; /* RAVI extension: name of user type */
+  lu_byte ravi_type; /* RAVI type of upvalue */
   lu_byte instack;  /* whether it is in stack (register) */
   lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
 } Upvaldesc;
@@ -441,10 +442,10 @@ typedef struct Upvaldesc {
 */
 typedef struct LocVar {
   TString *varname;
+  TString *usertype; /* RAVI extension: name of user type */
   int startpc;  /* first point where variable is active */
   int endpc;    /* first point where variable is dead */
-  unsigned int ravi_type: 8; /* RAVI type of the variable - RAVI_TANY if unknown */
-  unsigned int user_typename_k : 24; /* constant that holds the user type name */
+  lu_byte ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
 } LocVar;
 
 /** RAVI changes start */

@@ -162,13 +162,15 @@ static void DumpDebug (const Proto *f, DumpState *D) {
     DumpInt(f->locvars[i].startpc, D);
     DumpInt(f->locvars[i].endpc, D);
     DumpByte(f->locvars[i].ravi_type, D);
+    DumpString(f->locvars[i].usertype, D);
   }
   /* n = (D->strip) ? 0 : f->sizeupvalues; */
   n = f->sizeupvalues;
   DumpInt(n, D);
   for (i = 0; i < n; i++) {
     DumpString((D->strip) ? NULL : f->upvalues[i].name, D);
-    DumpByte(f->upvalues[i].type, D);
+    DumpByte(f->upvalues[i].ravi_type, D);
+    DumpString(f->upvalues[i].usertype, D);
   }
 }
 

@@ -485,12 +485,16 @@ static int traverseproto (global_State *g, Proto *f) {
   markobjectN(g, f->source);
   for (i = 0; i < f->sizek; i++)  /* mark literals */
     markvalue(g, &f->k[i]);
-  for (i = 0; i < f->sizeupvalues; i++)  /* mark upvalue names */
+  for (i = 0; i < f->sizeupvalues; i++) { /* mark upvalue names */
     markobjectN(g, f->upvalues[i].name);
+    markobjectN(g, f->upvalues[i].usertype); /* RAVI change */
+  }
   for (i = 0; i < f->sizep; i++)  /* mark nested protos */
     markobjectN(g, f->p[i]);
-  for (i = 0; i < f->sizelocvars; i++)  /* mark local-variable names */
+  for (i = 0; i < f->sizelocvars; i++) { /* mark local-variable names */
     markobjectN(g, f->locvars[i].varname);
+    markobjectN(g, f->locvars[i].usertype); /* RAVI change */
+  }
   return sizeof(Proto) + sizeof(Instruction) * f->sizecode +
                          sizeof(Proto *) * f->sizep +
                          sizeof(TValue) * f->sizek +

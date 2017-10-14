@@ -1532,7 +1532,7 @@ static const char *aux_upvalue (StkId fi, int n, TValue **val,
       *val = f->upvals[n-1]->v;
       if (uv) *uv = f->upvals[n - 1];
       name = p->upvalues[n-1].name;
-      *type = p->upvalues[n - 1].type;
+      *type = p->upvalues[n - 1].ravi_type;
       return (name == NULL) ? "(*no name)" : getstr(name);
     }
     default: return NULL;  /* not a closure */
@@ -1604,7 +1604,7 @@ static UpVal **getupvalref (lua_State *L, int fidx, int n, LClosure **pf, ravity
   api_check(L, ttisLclosure(fi), "Lua function expected");
   f = clLvalue(fi);
   api_check(L, (1 <= n && n <= f->p->sizeupvalues), "invalid upvalue index");
-  if (type) *type = f->p->upvalues[n - 1].type;
+  if (type) *type = f->p->upvalues[n - 1].ravi_type;
   if (pf) *pf = f;
   return &f->upvals[n - 1];  /* get its upvalue pointer */
 }
