@@ -193,7 +193,7 @@ The scenarios where these type annotations have an impact are:
 
 * Function parameters containing these annotations lead to type assertions at runtime.
 * The type assertion operator @ can be applied to these types - leading to runtime assertions.
-* Note that currently annotation ``local`` declarations with these types does not result in any behaviour - the annotations are simply ignored.
+* Note that currently annotating ``local`` declarations with these types does not result in any behaviour - the annotations are simply ignored.
 
 ``string``
   denotes a string
