@@ -187,12 +187,13 @@ For a real example of how type assertions can be used, please have a look at the
 
 Experimental Type Annotations
 -----------------------------
-Following types have experimental support. At present these types are not statically enforced. Furthermore using these types does not affect the JIT code generation, i.e. variables annotated using these types are still treated as dynamic types. 
+Following type annotations have experimental support. At present these type annotations are not statically enforced. Furthermore using these types does not affect the JIT code generation, i.e. variables annotated using these types are still treated as dynamic types. 
 
-The only scenarios where these types have an impact are:
+The scenarios where these type annotations have an impact are:
 
 * Function parameters containing these annotations lead to type assertions at runtime.
 * The type assertion operator @ can be applied to these types - leading to runtime assertions.
+* Note that currently annotation ``local`` declarations with these types does not result in any behaviour - the annotations are simply ignored.
 
 ``string``
   denotes a string
@@ -218,14 +219,22 @@ Examples::
   -- Use the metatable name as the object's type
   function x(s: MyType) 
     local assert = assert
-    assert(@MyType s == @MyType t)
-    assert(@MyType t == t)
+    assert(@MyType(s) == @MyType(t))
+    assert(@MyType(t) == t)
   end
 
   -- Here we use the string type
   function x(s1: string, s2: string)
     return @string( s1 .. s2 )
   end
+
+  function x()
+    local s: string -- here the annotation is ignored
+    s = 1 -- will cause the type of 's' to become an integer
+    return s
+  end
+
+  print(math.type(x())) -- prints 'integer'
 
 In future these types may get static type checking similar to the other types.
 
