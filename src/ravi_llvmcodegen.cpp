@@ -1,25 +1,25 @@
 /******************************************************************************
-* Copyright (C) 2015 Dibyendu Majumdar
-*
-* Permission is hereby granted, free of charge, to any person obtaining
-* a copy of this software and associated documentation files (the
-* "Software"), to deal in the Software without restriction, including
-* without limitation the rights to use, copy, modify, merge, publish,
-* distribute, sublicense, and/or sell copies of the Software, and to
-* permit persons to whom the Software is furnished to do so, subject to
-* the following conditions:
-*
-* The above copyright notice and this permission notice shall be
-* included in all copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-******************************************************************************/
+ * Copyright (C) 2015 Dibyendu Majumdar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ ******************************************************************************/
 #include <ravijit.h>
 #include <ravi_llvmcodegen.h>
 #include <ravi_jitshared.h>
@@ -114,10 +114,10 @@ void RaviCodeGenerator::attach_branch_weights(RaviFunctionDef *def,
                    def->jitState->types()->mdbuilder.createBranchWeights(
                        true_branch, false_branch));
 #else
-    (void)def;
-    (void)ins;
-    (void)true_branch;
-    (void)false_branch;
+  (void)def;
+  (void)ins;
+  (void)true_branch;
+  (void)false_branch;
 #endif
 }
 
@@ -561,7 +561,7 @@ llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type(
 
 // Compare without variants i.e. ttnov(value_type) == lua_type
 llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type_class(
-    RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_type,
+    RaviFunctionDef *def, llvm::Value *value_type, int lua_type,
     const char *varname) {
   llvm::Value *novariant_type =
       def->builder->CreateAnd(value_type, def->types->kInt[0x0F]);
@@ -1056,10 +1056,10 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       def->types->luaH_getstrT, reinterpret_cast<void *>(&luaH_getstr),
       "luaH_getstr");
   def->luaH_getstrF->addFnAttr(llvm::Attribute::AttrKind::ReadOnly);
-  //def->luaH_getstrF->setDoesNotAlias(1);
-  //def->luaH_getstrF->setDoesNotCapture(1);
-  //def->luaH_getstrF->setDoesNotAlias(2);
-  //def->luaH_getstrF->setDoesNotCapture(2);
+  // def->luaH_getstrF->setDoesNotAlias(1);
+  // def->luaH_getstrF->setDoesNotCapture(1);
+  // def->luaH_getstrF->setDoesNotAlias(2);
+  // def->luaH_getstrF->setDoesNotCapture(2);
   def->luaV_finishgetF = def->raviF->addExternFunction(
       def->types->luaV_finishgetT, reinterpret_cast<void *>(&luaV_finishget),
       "luaV_finishget");
@@ -1157,11 +1157,14 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       def->types->raviV_gettable_sskeyT,
       reinterpret_cast<void *>(&raviV_gettable_sskey), "raviV_gettable_sskey");
   def->raviV_settable_iF = def->raviF->addExternFunction(
-	  def->types->raviV_settable_iT,
-	  reinterpret_cast<void *>(&raviV_settable_i), "raviV_settable_i");
+      def->types->raviV_settable_iT,
+      reinterpret_cast<void *>(&raviV_settable_i), "raviV_settable_i");
   def->raviV_gettable_iF = def->raviF->addExternFunction(
-	  def->types->raviV_gettable_iT,
-	  reinterpret_cast<void *>(&raviV_gettable_i), "raviV_gettable_i");
+      def->types->raviV_gettable_iT,
+      reinterpret_cast<void *>(&raviV_gettable_i), "raviV_gettable_i");
+  def->raviV_op_totypeF = def->raviF->addExternFunction(
+      def->types->raviV_op_totypeT, reinterpret_cast<void *>(&raviV_op_totype),
+      "raviV_op_totype");
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(
       def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
@@ -1296,11 +1299,10 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
                                 std::shared_ptr<RaviJITModule> module,
                                 ravi_compile_options_t *options) {
   if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) return true;
-  
+
   // Avoid recursive calls
-  if (module->owner()->get_compiling_flag())
-    return false;
-    
+  if (module->owner()->get_compiling_flag()) return false;
+
   bool doVerify = module->owner()->get_validation() != 0;
   bool omitArrayGetRangeCheck =
       options ? options->omit_array_get_range_check != 0 : 0;
@@ -1321,10 +1323,10 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;  // can't compile
     return false;
   }
-  
+
   // Set flag so we can avoid recursive calls
   module->owner()->set_compiling_flag(true);
-  
+
   // The Lua GC doesn't know about memory allocated by the JIT
   // compiler; this means that if lots of functions are being compiled
   // such as in the test cases, then memory usage can grow very large
@@ -1717,11 +1719,19 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_RAVI_TOARRAYF: {
         emit_TOARRAY(def, A, RAVI_TARRAYFLT, "number[] expected", pc);
       } break;
-      case OP_RAVI_TOSTRING:
-      case OP_RAVI_TOCLOSURE:
-      case OP_RAVI_TOTYPE:
-        // No-op for now
+      case OP_RAVI_TOSTRING: {
+        emit_TOSTRING(def, A, pc);
         break;
+      }
+      case OP_RAVI_TOCLOSURE: {
+        emit_TOCLOSURE(def, A, pc);
+        break;
+      }
+      case OP_RAVI_TOTYPE: {
+        int Bx = GETARG_Bx(i);
+        emit_TOTYPE(def, A, Bx, pc);
+        break;
+      }
       case OP_RAVI_MOVEAI: {
         int B = GETARG_B(i);
         emit_MOVEAI(def, A, B, pc);
@@ -1930,8 +1940,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       }
     }
   }
-  if (doVerify && 
-	  llvm::verifyFunction(*f->function(), &llvm::errs())) {
+  if (doVerify && llvm::verifyFunction(*f->function(), &llvm::errs())) {
     f->dump();
     fprintf(stderr, "LLVM Code Verification failed\n");
     exit(1);
@@ -1941,9 +1950,9 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
   p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
   p->ravi_jit.jit_function = nullptr;
   p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
-  
+
   module->owner()->set_compiling_flag(false);
-  
+
   return llvm_func != nullptr;
 }
 
@@ -2021,4 +2030,4 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
     }
   }
 }
-}
+}  // namespace ravi

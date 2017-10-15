@@ -155,5 +155,6 @@ LUAI_FUNC void raviV_gettable_sskey(lua_State *L, const TValue *t, TValue *key, 
 LUAI_FUNC void raviV_settable_sskey(lua_State *L, const TValue *t, TValue *key, StkId val);
 LUAI_FUNC void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, StkId val);
 LUAI_FUNC void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, StkId val);
+LUAI_FUNC void raviV_op_totype(lua_State *L, TValue *ra, TValue *rb);
 
 #endif

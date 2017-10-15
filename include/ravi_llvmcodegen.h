@@ -284,6 +284,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_settable_sskeyT;
   llvm::FunctionType *raviV_gettable_iT;
   llvm::FunctionType *raviV_settable_iT;
+  llvm::FunctionType *raviV_op_totypeT;
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -756,6 +757,7 @@ struct RaviFunctionDef {
   llvm::Function *raviV_settable_sskeyF;
   llvm::Function *raviV_gettable_iF;
   llvm::Function *raviV_settable_iF;
+  llvm::Function *raviV_op_totypeF;
 
   // array setters
   llvm::Function *raviH_set_intF;
@@ -895,7 +897,7 @@ class RaviCodeGenerator {
   // The return value is a boolean type as a result of
   // integer comparison result which is i1 in LLVM
   llvm::Value *emit_is_not_value_of_type_class(
-      RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
+      RaviFunctionDef *def, llvm::Value *value_type, int lua_typecode,
       const char *varname = "value.not.typeof");
 
   // emit code for LClosure *cl = clLvalue(ci->func)
@@ -1221,6 +1223,12 @@ class RaviCodeGenerator {
   void emit_TOINT(RaviFunctionDef *def, int A, int pc);
 
   void emit_TOFLT(RaviFunctionDef *def, int A, int pc);
+
+  void emit_TOSTRING(RaviFunctionDef *def, int A, int pc);
+
+  void emit_TOCLOSURE(RaviFunctionDef *def, int A, int pc);
+
+  void emit_TOTYPE(RaviFunctionDef *def, int A, int Bx, int pc);
 
   void emit_LEN(RaviFunctionDef *def, int A, int B, int pc);
 

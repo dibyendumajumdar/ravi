@@ -119,6 +119,9 @@ opcodes_coverage.TOTAB = 0
 opcodes_coverage.MOVETAB = 0
 opcodes_coverage.SETUPVALT = 0
 opcodes_coverage.SELF_S = 0
+opcodes_coverage.TOTYPE = 0
+opcodes_coverage.TOSTRING = 0
+opcodes_coverage.TOCLOSURE = 0
 
 
 local compile = function(f)

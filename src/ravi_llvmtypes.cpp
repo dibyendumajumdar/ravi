@@ -1,25 +1,25 @@
 /******************************************************************************
-* Copyright (C) 2015 Dibyendu Majumdar
-*
-* Permission is hereby granted, free of charge, to any person obtaining
-* a copy of this software and associated documentation files (the
-* "Software"), to deal in the Software without restriction, including
-* without limitation the rights to use, copy, modify, merge, publish,
-* distribute, sublicense, and/or sell copies of the Software, and to
-* permit persons to whom the Software is furnished to do so, subject to
-* the following conditions:
-*
-* The above copyright notice and this permission notice shall be
-* included in all copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-******************************************************************************/
+ * Copyright (C) 2015 Dibyendu Majumdar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ ******************************************************************************/
 #include "ravi_llvmcodegen.h"
 
 namespace ravi {
@@ -261,12 +261,14 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  */
   //}Upvaldesc;
   UpvaldescT = llvm::StructType::create(context, "struct.Upvaldesc");
-  //elements.clear();
-  //elements.push_back(pTStringT);   /* name */
-  //elements.push_back(ravitype_tT); /* type */
-  //elements.push_back(lu_byteT);    /* instack */
-  //elements.push_back(lu_byteT);    /* idx */
-  //UpvaldescT->setBody(elements);
+  // FIXME (issue #136) this structure is changing hence better to keep it
+  // opaque
+  // elements.clear();
+  // elements.push_back(pTStringT);   /* name */
+  // elements.push_back(ravitype_tT); /* type */
+  // elements.push_back(lu_byteT);    /* instack */
+  // elements.push_back(lu_byteT);    /* idx */
+  // UpvaldescT->setBody(elements);
   pUpvaldescT = llvm::PointerType::get(UpvaldescT, 0);
 
   ///*
@@ -281,12 +283,14 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  */
   //} LocVar;
   LocVarT = llvm::StructType::create(context, "struct.LocVar");
-  //elements.clear();
-  //elements.push_back(pTStringT);   /* varname */
-  //elements.push_back(C_intT);      /* startpc */
-  //elements.push_back(C_intT);      /* endpc */
-  //elements.push_back(ravitype_tT); /* ravi_type */
-  //LocVarT->setBody(elements);
+  // FIXME (issue #136) this structure is changing hence better to keep it
+  // opaque
+  // elements.clear();
+  // elements.push_back(pTStringT);   /* varname */
+  // elements.push_back(C_intT);      /* startpc */
+  // elements.push_back(C_intT);      /* endpc */
+  // elements.push_back(ravitype_tT); /* ravi_type */
+  // LocVarT->setBody(elements);
   pLocVarT = llvm::PointerType::get(LocVarT, 0);
 
   LClosureT = llvm::StructType::create(context, "struct.LClosure");
@@ -485,7 +489,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pGCObjectT); /* gclist */
   elements.push_back(RaviArrayT); /* RaviArray */
 #if RAVI_USE_NEWHASH
-  elements.push_back(C_intT);     /* hmask  */
+  elements.push_back(C_intT); /* hmask  */
 #endif
   TableT->setBody(elements);
 
@@ -573,7 +577,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pCallInfoT); /* next */
   elements.push_back(
       CallInfo_lT); /* u.l  - as we will typically access the lua call details
-                       */
+                     */
   elements.push_back(C_ptrdiff_t);                     /* extra */
   elements.push_back(llvm::Type::getInt16Ty(context)); /* nresults */
   elements.push_back(C_shortT);                        /* callstatus */
@@ -761,6 +765,10 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   // int luaV_lessequal (lua_State *L, const TValue *l, const TValue *r)
   luaV_lessequalT = llvm::FunctionType::get(C_intT, elements, false);
 
+  // void raviV_op_totype(lua_State *L, TValue *ra, TValue *rb);
+  raviV_op_totypeT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
   // l_noret luaG_runerror (lua_State *L, const char *fmt, ...)
   elements.clear();
   elements.push_back(plua_StateT);
@@ -809,9 +817,9 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviV_settable_sskeyT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
   raviV_gettable_iT =
-	  llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
   raviV_settable_iT =
-	  llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   // void luaV_finishget (lua_State *L, const TValue *t, TValue *key,
   //                      StkId val, const TValue *slot);
@@ -1361,4 +1369,4 @@ void LuaLLVMTypes::dump() {
   fputs("\n", stdout);
 #endif
 }
-}
+}  // namespace ravi

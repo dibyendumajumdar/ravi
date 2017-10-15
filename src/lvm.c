@@ -1079,7 +1079,7 @@ void luaV_finishOp (lua_State *L) {
     Protect(luaV_finishset(L,t,k,v,slot)); }
 
 
-int raviV_check_usertype(lua_State *L, TString *name, const TValue *o)
+int check_usertype(lua_State *L, TString *name, const TValue *o)
 {
   Table *mt;
   switch (ttnov(o)) {
@@ -2248,7 +2248,7 @@ int luaV_execute (lua_State *L) {
         if (!ttisshrstring(rb))
           luaG_runerror(L, "type name must be string");
         TString *key = tsvalue(rb);
-        if (!raviV_check_usertype(L, key, ra))
+        if (!check_usertype(L, key, ra))
           luaG_runerror(L, "type mismatch: expected %s", getstr(key));
         vmbreak;
       }
@@ -2762,6 +2762,17 @@ void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, StkId val) {
 */
 void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, StkId val) {
   SETTABLE_INLINE_I(L, t, key, val);
+}
+
+/**
+** Opcode TOTYPE validates that the register A contains a
+** type whose metatable is registered by name in constant Bx
+*/
+void raviV_op_totype(lua_State *L, TValue *ra, TValue *rb) {
+  if (!ttisshrstring(rb)) luaG_runerror(L, "type name must be string");
+  TString *key = tsvalue(rb);
+  if (!check_usertype(L, key, ra))
+    luaG_runerror(L, "type mismatch: expected %s", getstr(key));
 }
 
 /* }================================================================== */

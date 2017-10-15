@@ -1417,6 +1417,13 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *ty
       }
       break;
     }
+    case VK: {
+      if (op == OPR_TO_STRING) {
+        if (e->ravi_type == RAVI_TSTRING)
+	  return;
+      }
+      break;
+    }
     case VRELOCABLE:
     case VNONRELOC: {
       discharge2anyreg(fs, e);
