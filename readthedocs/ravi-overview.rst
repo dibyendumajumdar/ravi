@@ -60,7 +60,7 @@ Ravi allows you to annotate ``local`` variables and function parameters with sta
 ``table``
   a Lua table
 
-Additionally there is experimental support for some additional type annotations_.
+Additionally there are some `Experimental Type Annotations`_.
 
 Declaring the types of ``local`` variables and function parameters has following advantages.
 
@@ -185,8 +185,8 @@ The type assertion operator is a unary operator and binds to the expression foll
 
 For a real example of how type assertions can be used, please have a look at the test program `gaussian2.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/gaussian2.lua>`_ 
 
-.. _annotations:
-
+Experimental Type Annotations
+-----------------------------
 Following types have experimental support. At present these types are not statically enforced. Furthermore using these types does not affect the JIT code generation, i.e. variables annotated using these types are still treated as dynamic types. 
 
 The only scenarios where these types have an impact are:
