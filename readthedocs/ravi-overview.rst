@@ -60,6 +60,8 @@ Ravi allows you to annotate ``local`` variables and function parameters with sta
 ``table``
   a Lua table
 
+Additionally there is experimental support for some additional type annotations_.
+
 Declaring the types of ``local`` variables and function parameters has following advantages.
 
 * ``integer`` and ``number`` types are automatically initialized to zero
@@ -182,6 +184,50 @@ The type assertion operator is a unary operator and binds to the expression foll
   local a2: integer[] = @integer[]( t[2] )
 
 For a real example of how type assertions can be used, please have a look at the test program `gaussian2.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/gaussian2.lua>`_ 
+
+.. _annotations:
+
+Following types have experimental support. At present these types are not statically enforced. Furthermore using these types does not affect the JIT code generation, i.e. variables annotated using these types are still treated as dynamic types. 
+
+The only scenarios where these types have an impact are:
+
+* Function parameters containing these annotations lead to type assertions at runtime.
+* The type assertion operator @ can be applied to these types - leading to runtime assertions.
+
+``string``
+  denotes a string
+``closure``
+  denotes a function
+<typename>
+  Here <typename> is the name of a user defined type, i.e. the __name field in a Lua metatable.
+
+The main use case for these annotations is to help with type checking of larger Ravi programs. These type checks, particularly the one for user defined types, are executed directly by the VM and hence are more efficient than performing the checks in other ways. 
+
+Examples::
+
+  -- Create a metatable
+  local mt = { __name='MyType'}
+
+  -- Register the metatable in Lua registry
+  debug.getregistry().MyType = mt
+
+  -- Create an object and assign the metatable as its type
+  local t = {}
+  setmetatable(t, mt)
+
+  -- Use the metatable name as the object's type
+  function x(s: MyType) 
+    local assert = assert
+    assert(@MyType s == @MyType t)
+    assert(@MyType t == t)
+  end
+
+  -- Here we use the string type
+  function x(s1: string, s2: string)
+    return @string( s1 .. s2 )
+  end
+
+In future these types may get static type checking similar to the other types.
 
 Array Slices
 ------------
