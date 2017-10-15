@@ -1079,6 +1079,27 @@ void luaV_finishOp (lua_State *L) {
     Protect(luaV_finishset(L,t,k,v,slot)); }
 
 
+int raviV_check_usertype(lua_State *L, TString *name, const TValue *o)
+{
+  Table *mt;
+  switch (ttnov(o)) {
+  case LUA_TTABLE:
+    mt = hvalue(o)->metatable;
+    break;
+  case LUA_TUSERDATA:
+    mt = uvalue(o)->metatable;
+    break;
+  default:
+    mt = NULL;
+  }
+  if (mt == NULL)
+    return 0;
+  /* get global table from registry */
+  Table *reg = hvalue(&G(L)->l_registry);
+  const TValue *metatab = luaH_getshortstr(reg, name);
+  return !ttisnil(metatab) && ttisLtable(metatab) && hvalue(metatab) == mt || 0;
+}
+
 
 int luaV_execute (lua_State *L) {
   CallInfo *ci = L->ci;
@@ -2213,12 +2234,22 @@ int luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_RAVI_TOSTRING) {
+        if (RAVI_UNLIKELY(!ttisstring(ra)))
+          luaG_runerror(L, "string expected");        
         vmbreak;
       }
       vmcase(OP_RAVI_TOCLOSURE) {
+        if (RAVI_UNLIKELY(!ttisclosure(ra)))
+          luaG_runerror(L, "closure expected");
         vmbreak;
       }
       vmcase(OP_RAVI_TOTYPE) {
+        TValue *rb = k + GETARG_Bx(i);
+        if (!ttisshrstring(rb))
+          luaG_runerror(L, "type name must be string");
+        TString *key = tsvalue(rb);
+        if (!raviV_check_usertype(L, key, ra))
+          luaG_runerror(L, "type mismatch: expected %s", getstr(key));
         vmbreak;
       }
     }
