@@ -19,7 +19,7 @@ Key Features
 * Lua has integer (since 5.3) and double types that map to native C types
 * A Lua script is called a chunk - and is the unit of compilation in Lua
 * Lua functions can be yielded from and resumed later on, i.e., Lua supports coroutines
-* A special Nil value represents non-existent value
+* A special ``nil`` value represents non-existent value
 * Functions in Lua are closures - they can capture variables from outer scope and such variables live on even though the surrounding scope
   is no longer alive
 * Lua's error handling is based on C setjmp/longjmp, and errors are caught via a special function call mechanism
