@@ -13,6 +13,7 @@ Key Features
 * By default variables in Lua are global unless declared local
 * There is a single complex / aggregate type called a Table, which combines hash table/map and array features
 * Functions in Lua are values stored in variables; in particular functions do not have names
+* Globals in Lua are just values stored in a special Lua table 
 * Lua has an incremental garbage collector
 * Lua is single threaded but its VM is small and encapsulated in a single data structure - hence each OS thread can be given its own 
   Lua VM
@@ -49,6 +50,21 @@ This means that values have types but variables do not. Example::
   x = {} -- x is now an empty table
   x = function() end -- x is now a function with empty body
   
+Variables are global unless declared local
+==========================================
+In the example above, `x` is global. 
+But saying::
+
+  local x = 1 
+  
+makes `x` local, i.e. its scope and visiability is constrained to the enclosing block of code, and any nested blocks. Note that
+local variables avoid a lookup in the 'global' table and hence are more efficient. Thus it is common practice to cache values in
+local variable. For example, math.abs() is a function - and following creates a local variable that caches it::
+
+  local abs = math.abs
+  abs(5.5) -- invoked same function as math.abs
+  
+
 
 
   
