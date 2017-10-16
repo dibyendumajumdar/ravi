@@ -28,6 +28,7 @@ Key Features
 * Lua has a meta mechanism that enables a DIY class / object system with some syntactic sugar to make it look nice; however, you cannot 
   explicitly declare classes in Lua
 * Lua has some nice syntactic sugar for tables and functions 
+* Lua functions can return multiple values
 * You can create user defined types in C and make them available in Lua
 * The Lua stack is a heap allocated structure - and you can think of Lua as a library that manipulates this stack
 * Lua compiles code to bytecode before execution
