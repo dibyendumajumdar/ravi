@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    ravi-overview
+   CrashCourseInLua.rst
    lua_bytecode_reference.rst
    lua-parser
    ravi-internals
