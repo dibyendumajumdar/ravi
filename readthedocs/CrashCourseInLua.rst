@@ -23,12 +23,13 @@ Key Features
 * Functions in Lua are closures - they can capture variables from outer scope and such variables live on even though the surrounding scope
   is no longer alive
 * Lua's error handling is based on C setjmp/longjmp, and errors are caught via a special function call mechanism
-* Lua supports operator overloading via 'meta' methods
-* Lua has a meta mechanism that enables a DIY class / object system with some syntactic sugar to make it look nice; however, you cannot 
-  explicitly declare classes in Lua
 * Lua has some nice syntactic sugar for tables and functions 
+* Lua has a meta mechanism that enables a DIY class / object system with some syntactic sugar to make it look nice
 * Lua functions can return multiple values
 * You can create user defined types in C and make them available in Lua
+* Lua supports operator overloading via 'meta' methods
+* Although Lua has a boolean type any value that is not 0 and not ``nil`` is considered true
+* The result of logical ``and`` and logical ``or`` is not true or false; these operators select one of the values 
 * The Lua stack is a heap allocated structure - and you can think of Lua as a library that manipulates this stack
 * Lua compiles code to bytecode before execution
 * Lua's compiler is designed to be fast and frugal - it generates code as it parses, there is no intermediate AST construction
@@ -67,6 +68,21 @@ local variable. For example, ``math.abs()`` is a function - and following create
   local print = print -- caches global print() function
   print('hello world!') -- calls the same function as global print()
 
+The Table type
+==============
+Lua's only complex / aggregate data type is a table. Tables are used for many things in Lua, even internally within Lua.
+Here are some examples::
+
+  local a = {} -- creates an empty table
+  local b = {10,20,30} -- creates a table with three array elements at positions 1,2,3
+                       -- short cut for local b = {}
+                       --               b[1] = 10
+                       --               b[2] = 20
+                       --               b[3] = 30
+  local c = { name='Ravi' } -- creates a table with one hash map entry
+                            -- short cut for local c = {}
+                            --                     c['name'] = 'Ravi'
+                            
 
 
 
