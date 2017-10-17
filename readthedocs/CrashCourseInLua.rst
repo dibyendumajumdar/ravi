@@ -104,6 +104,6 @@ To iterate over all values write::
 
   for k,v in pairs(t) do
     print(k,v)
-  done
+  end
   
 
