@@ -87,9 +87,9 @@ Here are some examples::
 Internally the table is a composite hash table / array structure. Consecutive values starting at integer index 1 are inserted into the array, else the values go into the hash table. Hence, in the example below::
 
   local t = {}
-  t[1] = 10 -- goes into array
-  t[2] = 20 -- goes into array
-  t[100] = 30 -- goes into hash table as not consecutive
+  t[1] = 20 -- goes into array
+  t[2] = 10 -- goes into array
+  t[100] = 1 -- goes into hash table as not consecutive
   t.name = 'Ravi' -- goes into hash tabe
 
 To iterate over array values you can write::
@@ -98,7 +98,7 @@ To iterate over array values you can write::
     print(t[i])
   end
   
-Note that above will only print 10,20.
+Note that above will only print 20,10.
 
 To iterate over all values write::
 
@@ -106,4 +106,10 @@ To iterate over all values write::
     print(k,v)
   end
   
+Unfortunately you need to get a good understanding of when values will go into the array part of a table, because some Lua library functions work only on the array part. Example::
 
+  table.sort(t)
+  
+You will see that only values at indices 1 and 2 were sorted.
+Another frequent problem is that the only way to reliably know the total number of elements in a table is to count the values. 
+The ``#`` operator returns the length of the consecutive array elements starting at index 1.
