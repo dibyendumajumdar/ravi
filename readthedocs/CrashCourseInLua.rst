@@ -84,6 +84,26 @@ Here are some examples::
                             --                     c['name'] = 'Ravi'
                             
 
+Internally the table is a composite hash table / array structure. Consecutive values starting at integer index 1 are inserted into the array, else the values go into the hash table. Hence, in the example below::
 
+  local t = {}
+  t[1] = 10 -- goes into array
+  t[2] = 20 -- goes into array
+  t[100] = 30 -- goes into hash table as not consecutive
+  t.name = 'Ravi' -- goes into hash tabe
 
+To iterate over array values you can write::
+
+  for i = 1,#t do
+    print(t[i])
+  end
   
+Note that above will only print 10,20.
+
+To iterate over all values write::
+
+  for k,v in pairs(t) do
+    print(k,v)
+  done
+  
+
