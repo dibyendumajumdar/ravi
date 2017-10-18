@@ -60,7 +60,7 @@ But saying::
   
 makes ``x`` local, i.e. its scope and visiability is constrained to the enclosing block of code, and any nested blocks. Note that
 local variables avoid a lookup in the 'global' table and hence are more efficient. Thus it is common practice to cache values in
-local variable. For example, ``math.abs()`` is a function - and following creates a local variable that caches it::
+local variables. For example, ``math.abs()`` is a function - and following creates a local variable that caches it::
 
   local abs = math.abs
   abs(5.5) -- invoked same function as math.abs
