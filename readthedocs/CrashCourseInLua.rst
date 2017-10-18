@@ -14,9 +14,7 @@ Key Features
 * Functions in Lua are values stored in variables; in particular functions do not have names
 * Globals in Lua are just values stored in a special Lua table 
 * Functions in Lua are closures - they can capture variables from outer scope and such variables live on even though the surrounding scope is no longer alive
-* Lua has an incremental garbage collector
-* Lua is single threaded but its VM is small and encapsulated in a single data structure - hence each OS thread can be given its own 
-  Lua VM
+* Lua functions can return multiple values
 * Lua has integer (since 5.3) and double types that map to native C types
 * A Lua script is called a chunk - and is the unit of compilation in Lua
 * Lua functions can be yielded from and resumed later on, i.e., Lua supports coroutines
@@ -24,7 +22,6 @@ Key Features
 * Lua's error handling is based on C setjmp/longjmp, and errors are caught via a special function call mechanism
 * Lua has some nice syntactic sugar for tables and functions 
 * Lua has a meta mechanism that enables a DIY class / object system with some syntactic sugar to make it look nice
-* Lua functions can return multiple values
 * You can create user defined types in C and make them available in Lua
 * Lua supports operator overloading via 'meta' methods
 * Although Lua has a boolean type any value that is not 0 and not ``nil`` is considered true
@@ -35,6 +32,9 @@ Key Features
 * Like C, Lua comes with a very small standard library - in fact Lua's standard library is just a wrapper for C standard library
   plus some basic utilities for Lua
 * Lua provides a debug API that can be used to manipulate Lua's internals to a degree - and can be used to implement a debugger
+* Lua has an incremental garbage collector
+* Lua is single threaded but its VM is small and encapsulated in a single data structure - hence each OS thread can be given its own 
+  Lua VM
 * Lua is Open Source but has a closed development model - external contributions are not possible
 * Major Lua versions are not backward compatible
 * LuaJIT is a JIT compiler for Lua but features an optional high performance C interface mechanism that makes it incompatible with Lua
@@ -66,6 +66,8 @@ local variable. For example, ``math.abs()`` is a function - and following create
   
   local print = print -- caches global print() function
   print('hello world!') -- calls the same function as global print()
+
+There is an exception to the rule - the variables used in a ``for`` loop are implicitly local.
 
 The Table type
 ==============
