@@ -113,3 +113,48 @@ Unfortunately you need to get a good understanding of when values will go into t
 You will see that only values at indices 1 and 2 were sorted.
 Another frequent problem is that the only way to reliably know the total number of elements in a table is to count the values. 
 The ``#`` operator returns the length of the consecutive array elements starting at index 1.
+
+Functions are values stored in variables
+========================================
+You already saw that we can write::
+
+  local x = function() 
+            end
+  
+This creates a function and stores in in local variable ``x``. Ths is the same as::
+
+  local function x() 
+  end
+  
+Omitting the ``local`` keyword would create ``x`` in global scope.
+
+Functions can be defined within functions - in fact all Lua functions are defined within a 'chunk' of code, which gets wrapped into a Lua function.
+
+Internally a function has a 'prototype' that holds the compiled code and other meta data regarding the function. An instance of the
+function in created when the code executes. You can think of the 'prototype' as the 'class' of the function, and the function instance is akin to an object created from this class. 
+
+Globals are just values in a special table
+==========================================
+Globals are handled in an interesting way. Whenever a name is used that is not found in any of the enclosing scopes and is not declared ``local``, then Lua will access/create a variable in a table called ``_ENV``. Actually this is just a captured value that points to a special table in Lua state by default. This table access becomes evident when you look at the bytecode generated for some Lua code::
+
+  function hello()
+    print('hello world')
+  end
+
+Generates::
+
+  function <stdin:1,3> (4 instructions at 00000151C0AA9530)
+  0 params, 2 slots, 1 upvalue, 0 locals, 2 constants, 0 functions
+        1       [2]     GETTABUP        0 0 -1  ; _ENV "print"
+        2       [2]     LOADK           1 -2    ; "hello world"
+        3       [2]     CALL            0 2 1
+        4       [3]     RETURN          0 1
+  constants (2) for 00000151C0AA9530:
+        1       "print"
+        2       "hello world"
+  locals (0) for 00000151C0AA9530:
+  upvalues (1) for 00000151C0AA9530:
+        0       _ENV    0       0
+
+The ``GETTABUP`` instruction looks up the name 'print' in the captured variable ``_ENV``. Lua uses the term 'upvalue' for captured variables.
+
