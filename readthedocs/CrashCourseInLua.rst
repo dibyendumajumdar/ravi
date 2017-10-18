@@ -4,29 +4,29 @@ Crash Course in Lua
 
 Introduction
 ============
-Lua is a small, but powerful language that is implemented as a library in C. This crash course in meant to help you quickly become familiar with Lua. This guide assumes you know C or C++, or Java, and perhaps a scripting language like Python - it is not
+Lua is a small but powerful language that is implemented as a C library. This guide is meant to help you quickly become familiar with Lua. This guide assumes you know C, C++, or Java, and perhaps a scripting language like Python - it is not
 a beginner's guide. This is also an opinionated introduction to Lua, and WIP and incomplete.
 
 Key Features
 ============
 * Lua is dynamically typed like Python
 * By default variables in Lua are global unless declared local
-* There is a single complex / aggregate type called a Table, which combines hash table/map and array features
+* There is a single complex / aggregate type called a 'table', which combines hash table/map and array features
 * Functions in Lua are values stored in variables; in particular functions do not have names
 * Globals in Lua are just values stored in a special Lua table 
 * Functions in Lua are closures - they can capture variables from outer scope and such variables live on even though the surrounding scope is no longer alive
 * Lua functions can return multiple values
 * Lua has integer (since 5.3) and double types that map to native C types
+* A special ``nil`` value represents non-existent value
+* Although Lua has a boolean type any value that is not 0 and not ``nil`` is considered true
+* The result of logical ``and`` and logical ``or`` is not true or false; these operators select one of the values 
+* Lua has some nice syntactic sugar for tables and functions 
 * A Lua script is called a chunk - and is the unit of compilation in Lua
 * Lua functions can be yielded from and resumed later on, i.e., Lua supports coroutines
-* A special ``nil`` value represents non-existent value
 * Lua's error handling is based on C setjmp/longjmp, and errors are caught via a special function call mechanism
-* Lua has some nice syntactic sugar for tables and functions 
 * Lua has a meta mechanism that enables a DIY class / object system with some syntactic sugar to make it look nice
 * You can create user defined types in C and make them available in Lua
 * Lua supports operator overloading via 'meta' methods
-* Although Lua has a boolean type any value that is not 0 and not ``nil`` is considered true
-* The result of logical ``and`` and logical ``or`` is not true or false; these operators select one of the values 
 * The Lua stack is a heap allocated structure - and you can think of Lua as a library that manipulates this stack
 * Lua compiles code to bytecode before execution
 * Lua's compiler is designed to be fast and frugal - it generates code as it parses, there is no intermediate AST construction
@@ -60,21 +60,17 @@ But saying::
   
 makes ``x`` local, i.e. its scope and visiability is constrained to the enclosing block of code, and any nested blocks. Note that
 local variables avoid a lookup in the 'global' table and hence are more efficient. Thus it is common practice to cache values in
-local variables. For example, ``math.abs()`` is a function - and following creates a local variable that caches it::
+local variables. For example, ``print`` is a global function - and following creates a local variable that caches it::
 
-  local abs = math.abs
-  abs(5.5) -- invoked same function as math.abs
-  
   local print = print -- caches global print() function
   print('hello world!') -- calls the same function as global print()
 
-There are following exceptions to the rule:
-
+There are some exceptions to the rule:
 * the iterator variables declared in a ``for`` loop are implicitly local.
 * function parameters are local to the function 
 
-The Table type
-==============
+The 'table' type
+================
 Lua's only complex / aggregate data type is a table. Tables are used for many things in Lua, even internally within Lua.
 Here are some examples::
 
@@ -96,6 +92,7 @@ Internally the table is a composite hash table / array structure. Consecutive va
   t[2] = 10 -- goes into array
   t[100] = 1 -- goes into hash table as not consecutive
   t.name = 'Ravi' -- goes into hash tabe
+                  -- t.name is syntacti sugar for t['name']
 
 To iterate over array values you can write::
 
@@ -111,7 +108,7 @@ To iterate over all values write::
     print(k,v)
   end
   
-Unfortunately you need to get a good understanding of when values will go into the array part of a table, because some Lua library functions work only on the array part. Example::
+Unfortunately, you need to get a good understanding of when values will go into the array part of a table, because some Lua library functions work only on the array part. Example::
 
   table.sort(t)
   
@@ -126,7 +123,7 @@ You already saw that we can write::
   local x = function() 
             end
   
-This creates a function and stores in in local variable ``x``. Ths is the same as::
+This creates a function and stores in in local variable ``x``. This is the same as::
 
   local function x() 
   end
@@ -140,7 +137,7 @@ function in created when the code executes. You can think of the 'prototype' as 
 
 Globals are just values in a special table
 ==========================================
-Globals are handled in an interesting way. Whenever a name is used that is not found in any of the enclosing scopes and is not declared ``local``, then Lua will access/create a variable in a table called ``_ENV``. Actually this is just a captured value that points to a special table in Lua state by default. This table access becomes evident when you look at the bytecode generated for some Lua code::
+Globals are handled in an interesting way. Whenever a name is used that is not found in any of the enclosing scopes and is not declared ``local``, then Lua will access/create a variable in a table accessed by the name ``_ENV``. Actually this is just a captured value that points to a special table in Lua by default. This table access becomes evident when you look at the bytecode generated for some Lua code::
 
   function hello()
     print('hello world')
@@ -161,7 +158,7 @@ Generates::
   upvalues (1) for 00000151C0AA9530:
         0       _ENV    0       0
 
-The ``GETTABUP`` instruction looks up the name 'print' in the captured variable ``_ENV``. Lua uses the term 'upvalue' for captured variables.
+The ``GETTABUP`` instruction looks up the name 'print' in the captured table variable ``_ENV``. Lua uses the term 'upvalue' for captured variables.
 
 Functions in Lua are closures
 =============================
