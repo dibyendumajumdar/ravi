@@ -13,6 +13,7 @@ Key Features
 * There is a single complex / aggregate type called a Table, which combines hash table/map and array features
 * Functions in Lua are values stored in variables; in particular functions do not have names
 * Globals in Lua are just values stored in a special Lua table 
+* Functions in Lua are closures - they can capture variables from outer scope and such variables live on even though the surrounding scope is no longer alive
 * Lua has an incremental garbage collector
 * Lua is single threaded but its VM is small and encapsulated in a single data structure - hence each OS thread can be given its own 
   Lua VM
@@ -20,8 +21,6 @@ Key Features
 * A Lua script is called a chunk - and is the unit of compilation in Lua
 * Lua functions can be yielded from and resumed later on, i.e., Lua supports coroutines
 * A special ``nil`` value represents non-existent value
-* Functions in Lua are closures - they can capture variables from outer scope and such variables live on even though the surrounding scope
-  is no longer alive
 * Lua's error handling is based on C setjmp/longjmp, and errors are caught via a special function call mechanism
 * Lua has some nice syntactic sugar for tables and functions 
 * Lua has a meta mechanism that enables a DIY class / object system with some syntactic sugar to make it look nice
@@ -157,4 +156,44 @@ Generates::
         0       _ENV    0       0
 
 The ``GETTABUP`` instruction looks up the name 'print' in the captured variable ``_ENV``. Lua uses the term 'upvalue' for captured variables.
+
+Functions in Lua are closures
+=============================
+Lua functions can reference variables in out scopes - and such references can be captured by the fuction so that even if the outer scope does not exist anymore the variable still lives on::
+
+  -- x() returns two anonymous functions
+  x = function()
+    local a = 1
+    return  function(b)
+              a = a+b
+              return a
+            end,
+            function(b)
+              a = a+b
+              return a
+            end
+    end
+    
+  -- call x
+  m,n = x()
+  m(1) -- returns 2
+  n(1) -- returns 3
+
+In the example above, the local variable ``a`` in function ``x()`` is captured inside the two anonymous functions that reference it. You can see this if you dump the bytecode for ``m``::
+
+  function <stdin:1,1> (6 instructions at 00000151C0AD3AB0)
+  1 param, 2 slots, 1 upvalue, 1 local, 0 constants, 0 functions
+        1       [1]     GETUPVAL        1 0     ; a
+        2       [1]     ADD             1 1 0
+        3       [1]     SETUPVAL        1 0     ; a
+        4       [1]     GETUPVAL        1 0     ; a
+        5       [1]     RETURN          1 2
+        6       [1]     RETURN          0 1
+  constants (0) for 00000151C0AD3AB0:
+  locals (1) for 00000151C0AD3AB0:
+        0       b       1       7
+  upvalues (1) for 00000151C0AD3AB0:
+        0       a       1       0
+        
+The ``GETUPVAL`` and ``SETUPVAL`` instructions access captured variables or upvalues as they are known in Lua.
 
