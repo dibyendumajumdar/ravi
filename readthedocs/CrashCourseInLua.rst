@@ -68,7 +68,10 @@ local variable. For example, ``math.abs()`` is a function - and following create
   local print = print -- caches global print() function
   print('hello world!') -- calls the same function as global print()
 
-There is an exception to the rule - the index and key/value variables used in ``for`` loops are implicitly local.
+There is following exceptions to the rule:
+
+* the iterator variables declared in a ``for`` loop are implicitly local.
+* function parameters are implicitly local 
 
 The Table type
 ==============
