@@ -159,7 +159,7 @@ The ``GETTABUP`` instruction looks up the name 'print' in the captured variable 
 
 Functions in Lua are closures
 =============================
-Lua functions can reference variables in out scopes - and such references can be captured by the fuction so that even if the outer scope does not exist anymore the variable still lives on::
+Lua functions can reference variables in out scopes - and such references can be captured by the function so that even if the outer scope does not exist anymore the variable still lives on::
 
   -- x() returns two anonymous functions
   x = function()
@@ -172,7 +172,7 @@ Lua functions can reference variables in out scopes - and such references can be
               a = a+b
               return a
             end
-    end
+  end
     
   -- call x
   m,n = x()
