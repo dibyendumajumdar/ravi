@@ -4,7 +4,8 @@ Crash Course in Lua
 
 Introduction
 ============
-Lua is a small, but powerful language that is implemented as a library in C. This crash course in meant to help you quickly become familiar with Lua. This is also an opinionated introduction to Lua. This is also WIP and incomplete.
+Lua is a small, but powerful language that is implemented as a library in C. This crash course in meant to help you quickly become familiar with Lua. This guide assumes you know C or C++, or Java, and perhaps a scripting language like Python - it is not
+a beginner's guide. This is also an opinionated introduction to Lua, and WIP and incomplete.
 
 Key Features
 ============
