@@ -2234,22 +2234,24 @@ int luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_RAVI_TOSTRING) {
-        if (RAVI_UNLIKELY(!ttisstring(ra)))
+        if (!ttisnil(ra) && RAVI_UNLIKELY(!ttisstring(ra)))
           luaG_runerror(L, "string expected");        
         vmbreak;
       }
       vmcase(OP_RAVI_TOCLOSURE) {
-        if (RAVI_UNLIKELY(!ttisclosure(ra)))
+        if (!ttisnil(ra) && RAVI_UNLIKELY(!ttisclosure(ra)))
           luaG_runerror(L, "closure expected");
         vmbreak;
       }
       vmcase(OP_RAVI_TOTYPE) {
-        TValue *rb = k + GETARG_Bx(i);
-        if (!ttisshrstring(rb))
-          luaG_runerror(L, "type name must be string");
-        TString *key = tsvalue(rb);
-        if (!check_usertype(L, key, ra))
-          luaG_runerror(L, "type mismatch: expected %s", getstr(key));
+	if (!ttisnil(ra)) {
+          TValue *rb = k + GETARG_Bx(i);
+          if  (!ttisshrstring(rb))
+            luaG_runerror(L, "type name must be string");
+          TString *key = tsvalue(rb);
+          if (!check_usertype(L, key, ra))
+            luaG_runerror(L, "type mismatch: expected %s", getstr(key));
+	}
         vmbreak;
       }
     }
@@ -2769,6 +2771,8 @@ void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, StkId val) {
 ** type whose metatable is registered by name in constant Bx
 */
 void raviV_op_totype(lua_State *L, TValue *ra, TValue *rb) {
+  if (ttisnil(ra))
+    return;
   if (!ttisshrstring(rb)) luaG_runerror(L, "type name must be string");
   TString *key = tsvalue(rb);
   if (!check_usertype(L, key, ra))

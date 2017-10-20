@@ -1551,6 +1551,12 @@ compile(x)
 x(t)
 print 'Test 61 OK'
 
+function x()
+   local a: MyType
+   return function (b) a = b end
+end
+
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)

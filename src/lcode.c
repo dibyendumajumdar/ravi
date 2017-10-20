@@ -697,6 +697,12 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
           break;
         default:
           luaK_codeABC(fs, OP_MOVE, reg, e->u.info, 0);
+          if (ravi_type == RAVI_TSTRING)
+            luaK_codeABC(fs, OP_RAVI_TOSTRING, reg, 0, 0);
+          else if (ravi_type == RAVI_TFUNCTION)
+            luaK_codeABC(fs, OP_RAVI_TOCLOSURE, reg, 0, 0);
+          else if (ravi_type == RAVI_TUSERDATA && usertype)
+            luaK_codeABx(fs, OP_RAVI_TOTYPE, reg, luaK_stringK(fs, usertype));
           break;
         }
       }
@@ -901,11 +907,13 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
   }
 }
 
-static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex) {
+static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex,
+                                   int reg) {
   OpCode op = OP_SETUPVAL;
   if ((var->ravi_type == RAVI_TNUMINT || var->ravi_type == RAVI_TNUMFLT ||
        var->ravi_type == RAVI_TARRAYFLT || var->ravi_type == RAVI_TARRAYINT ||
-       var->ravi_type == RAVI_TTABLE) &&
+       var->ravi_type == RAVI_TTABLE || var->ravi_type == RAVI_TSTRING ||
+       var->ravi_type == RAVI_TFUNCTION || var->ravi_type == RAVI_TUSERDATA) &&
       var->ravi_type != ex->ravi_type) {
     if (var->ravi_type == RAVI_TNUMINT)
       op = OP_RAVI_SETUPVALI;
@@ -917,12 +925,21 @@ static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex) {
       op = OP_RAVI_SETUPVALAF;
     else if (var->ravi_type == RAVI_TTABLE)
       op = OP_RAVI_SETUPVALT;
+    else if (var->ravi_type == RAVI_TSTRING)
+      luaK_codeABC(fs, OP_RAVI_TOSTRING, reg, 0, 0);
+    else if (var->ravi_type == RAVI_TFUNCTION)
+      luaK_codeABC(fs, OP_RAVI_TOCLOSURE, reg, 0, 0);
+    else if (var->ravi_type == RAVI_TUSERDATA) {
+      TString *usertype = fs->f->upvalues[var->u.info].usertype;
+      luaK_codeABx(fs, OP_RAVI_TOTYPE, reg, luaK_stringK(fs, usertype));
+    }
     else
-      luaX_syntaxerror(fs->ls,
-                       luaO_pushfstring(fs->ls->L, "Invalid assignment of "
-                                                   "upvalue: upvalue type "
-                                                   "%s, expression type %s",
-                                        raviY_typename(var->ravi_type), raviY_typename(ex->ravi_type)));
+      luaX_syntaxerror(fs->ls, luaO_pushfstring(fs->ls->L,
+                                                "Invalid assignment of "
+                                                "upvalue: upvalue type "
+                                                "%s, expression type %s",
+                                                raviY_typename(var->ravi_type),
+                                                raviY_typename(ex->ravi_type)));
   }
   return op;
 }
@@ -937,8 +954,8 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
       return;
     }
     case VUPVAL: {
-      OpCode op = check_valid_setupval(fs, var, ex);
       int e = luaK_exp2anyreg(fs, ex);
+      OpCode op = check_valid_setupval(fs, var, ex, e);
       luaK_codeABC(fs, op, e, var->u.info, 0);
       break;
     }
