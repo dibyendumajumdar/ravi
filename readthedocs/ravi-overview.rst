@@ -187,13 +187,13 @@ For a real example of how type assertions can be used, please have a look at the
 
 Experimental Type Annotations
 -----------------------------
-Following type annotations have experimental support. At present these type annotations are not statically enforced. Furthermore using these types does not affect the JIT code generation, i.e. variables annotated using these types are still treated as dynamic types. 
+Following type annotations have experimental support. These type annotations are not statically enforced. Furthermore using these types does not affect the JIT code generation, i.e. variables annotated using these types are still treated as dynamic types. 
 
 The scenarios where these type annotations have an impact are:
 
 * Function parameters containing these annotations lead to type assertions at runtime.
 * The type assertion operator @ can be applied to these types - leading to runtime assertions.
-* Note that currently annotating ``local`` declarations with these types does not result in any behaviour - the annotations are simply ignored.
+* Annotating ``local`` declarations results in type assertions.
 
 ``string``
   denotes a string
@@ -227,16 +227,6 @@ Examples::
   function x(s1: string, s2: string)
     return @string( s1 .. s2 )
   end
-
-  function x()
-    local s: string -- here the annotation is ignored
-    s = 1 -- will cause the type of 's' to become an integer
-    return s
-  end
-
-  print(math.type(x())) -- prints 'integer'
-
-In future these types may get static type checking similar to the other types.
 
 Array Slices
 ------------
