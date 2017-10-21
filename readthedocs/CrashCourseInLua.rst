@@ -283,6 +283,36 @@ Finally, you can emulate an object oriented syntax using the ``:`` operator::
   
 This is one of the features that enables Lua to support object orientation.
 
+A Lua script is called a chunk - and is the unit of compilation in Lua
+======================================================================
+When you present a script to Lua, it is compiled. The script can be a file or a string. Internally the content of the script is wrapped inside a Lua function. So that means that a scipt can have ``local`` variables, as these live in the wrapping function. 
+
+It is common practise for scripts to return a table of functions - as then the script can be treated as a module. There is a library function 'require' which loads a script as a module.
+
+Suppose you have following script saved in a file ``sample.lua``::
+
+  -- sample script
+  local function foo() end
+  local function bar() end
+  
+  return { foo=foo, bar=bar } -- i.e. ['foo'] = foo, ['bar'] = bar
+  
+Above script returns a table containing two functions.
+
+Now another script can load this as follows::
+
+  local sample = require 'sample' -- Will call sample.lua script and save its table of functions
+
+The library function ``require()`` does more than what is described above, of course. For instance it ensures that the module is only loaded once, and it uses various search paths to locate the script. It can even load C modules. Anyway, now the table returned from 
+the sample script is stored in the local variable 'sample' and we can write::
+
+  sample.foo()
+  sample.bar()
+  
+
+
+
+
 
 
 
