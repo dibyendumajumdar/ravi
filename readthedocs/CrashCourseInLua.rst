@@ -4,8 +4,8 @@ Crash Course in Lua
 
 Introduction
 ============
-Lua is a small but powerful language that is implemented as a C library. This guide is meant to help you quickly become familiar with Lua. This guide assumes you know C, C++, or Java, and perhaps a scripting language like Python - it is not
-a beginner's guide. This is also an opinionated introduction to Lua, and WIP and incomplete.
+Lua is a small but powerful language that is implemented as a C library. This guide is meant to help you quickly become familiar with the main features of Lua. This guide assumes you know C, C++, or Java, and perhaps a scripting language like Python - it is not
+a beginner's guide. This is also an opinionated introduction to Lua, WIP and incomplete.
 
 Key Features
 ============
@@ -199,4 +199,36 @@ In the example above, the local variable ``a`` in function ``x()`` is captured i
         0       a       1       0
         
 The ``GETUPVAL`` and ``SETUPVAL`` instructions access captured variables or upvalues as they are known in Lua.
+
+Lua functions can return multiple values
+========================================
+An example of this already appeared above. Here is another::
+
+  function foo()
+    return 1, 'text'
+  end
+  
+  x,y = foo()
+  
+Lua has integer and double numeric types
+========================================
+Since Lua 5.3 Lua's number type has integer and double representations. This is automatically managed; however a library function is provided to tell you what Lua thinks the number type is.
+
+  x = 1  -- integer 
+  y = 4.2 -- double 
+  
+  print(math.type(x)) -- says 'integer'
+  print(math.type(y)) -- says 'float'
+  
+In Lua 5.3, there is a special division operator ``//`` that does integer division if the operands are both integer. Example::
+
+  x = 4
+  y = 3
+  
+  print(x//y) -- integer division results in 0
+  print(x/y) -- floating division results in 1.3333333333333
+  
+Having integer types has also made it natural to have support for bitwise operators in Lua 5.3.
+
+
 
