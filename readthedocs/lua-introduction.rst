@@ -1,14 +1,13 @@
 ===================
-Crash Course in Lua
+Introduction to Lua
 ===================
 
 Introduction
 ============
-Lua is a small but powerful language that is implemented as a C library. This guide is meant to help you quickly become familiar with the main features of Lua. This guide assumes you know C, C++, or Java, and perhaps a scripting language like Python - it is not
-a beginner's guide. Nor is it a tutorial for Lua. 
+`Lua <www.lua.org`_ is a small but powerful interpreted language that is implemented as a C library. This guide is meant to help you quickly become familiar with the main features of Lua. This guide assumes you know C, C++, or Java, and perhaps a scripting language like Python - it is not a beginner's guide. Nor is it a tutorial for Lua. 
 
-Key Features
-============
+Key Features of Lua
+===================
 * Lua is dynamically typed like Python
 * By default variables in Lua are global unless declared local
 * There is a single complex / aggregate type called a 'table', which combines hash table/map and array features
@@ -32,6 +31,7 @@ Key Features
 * Lua's compiler is designed to be fast and frugal - it generates code as it parses, there is no intermediate AST construction
 * Like C, Lua comes with a very small standard library - in fact Lua's standard library is just a wrapper for C standard library
   plus some basic utilities for Lua
+* Lua's standard library includes regular expressions library
 * Lua provides a debug API that can be used to manipulate Lua's internals to a degree - and can be used to implement a debugger
 * Lua has an incremental garbage collector
 * Lua is single threaded but its VM is small and encapsulated in a single data structure - hence each OS thread can be given its own 
@@ -47,7 +47,7 @@ Lua is dynamically typed
 This means that values have types but variables do not. Example::
 
   x = 1 -- x holds an integer
-  x = 5.0 -- x now holds a double
+  x = 5.0 -- x now holds a floating pont value
   x = {} -- x now holds an empty table
   x = function() end -- x now holds a function with empty body
   
@@ -92,7 +92,7 @@ Internally the table is a composite hash table / array structure. Consecutive va
   t[2] = 10 -- goes into array
   t[100] = 1 -- goes into hash table as not consecutive
   t.name = 'Ravi' -- goes into hash tabe
-                  -- t.name is syntacti sugar for t['name']
+                  -- t.name is syntactic sugar for t['name']
 
 To iterate over array values you can write::
 
@@ -130,7 +130,7 @@ This creates a function and stores in in local variable ``x``. This is the same 
   
 Omitting the ``local`` keyword would create ``x`` in global scope.
 
-Functions can be defined within functions - in fact all Lua functions are defined within a 'chunk' of code, which gets wrapped into a Lua function.
+Functions can be defined within functions - in fact all Lua functions are defined within a 'chunk' of code, which gets wrapped inside a Lua function.
 
 Internally a function has a 'prototype' that holds the compiled code and other meta data regarding the function. An instance of the
 function in created when the code executes. You can think of the 'prototype' as the 'class' of the function, and the function instance is akin to an object created from this class. 
@@ -222,7 +222,7 @@ Since Lua 5.3 Lua's number type has integer and floating point representations. 
   print(math.type(x)) -- says 'integer'
   print(math.type(y)) -- says 'float'
   
-On 64-bit architecture the integer is represented as C ``int64_t`` and floating point as ``double``. The representation of numeric type as native C type is one of the secrets of Lua's performance, as the numeric types do not require 'boxing'.
+On 64-bit architecture the integer is represented as C ``int64_t`` and floating point as ``double``. The representation of the numeric type as native C types is one of the secrets of Lua's performance, as the numeric types do not require 'boxing'.
   
 In Lua 5.3, there is a special division operator ``//`` that does integer division if the operands are both integer. Example::
 
@@ -255,19 +255,24 @@ illustrated via examples::
   nil or false -- selects false
   nil and false -- selects nil
   
-``and`` selects the first value if it evaluates to false else the second value.
-``or`` selects the first value if it evaluates to true else the second value.
+* ``and`` selects the first value if it evaluates to false else the second value.
+* ``or`` selects the first value if it evaluates to true else the second value.
 
 Lua has some nice syntactic sugar for tables and functions
 ==========================================================
 If you are calling a Lua function with a single string or table argument then the parenthesis can be omitted::
 
   print 'hello world' -- syntactic sugar for print('hello world')
-  options { verbose=true, debug=true } -- calls function in variable options
-  
+  options { verbose=true, debug=true } -- syntactic sugar for options( { ... } )
+
+Above is often used to create a DSL. For instance, see:
+
+* `Lua's bug list <https://github.com/lua/lua/blob/master/bugs>`_
+* `Premake <https://github.com/premake/premake-core/wiki/Your-First-Script`_ - a tool similar to CMake
+
 You have already seen also that::
 
-  t = { surname = 'majumdar' }
+  t = { surname = 'majumdar' } -- t.surname is sugar for t['surname']
   t.name = 'dibyendu' -- syntactic sugar for t['name'] = 'dibyendu'
   
 An useful use case for tables is as modules. Thus a standard library module like ``math`` is simply a table of functions. Here is an example::
@@ -281,7 +286,7 @@ Finally, you can emulate an object oriented syntax using the ``:`` operator::
 
   x:foo('hello') -- syntactic sugar for foo(x, 'hello')
   
-This is one of the features that enables Lua to support object orientation.
+As we shall see, this feature enables Lua to support object orientation.
 
 A Lua script is called a chunk - and is the unit of compilation in Lua
 ======================================================================
