@@ -199,10 +199,12 @@ The scenarios where these type annotations have an impact are:
   denotes a string
 ``closure``
   denotes a function
-<typename>
-  Here <typename> is the name of a user defined type, i.e. the __name field in a Lua metatable.
+Name
+  Denotes a value that has a `metatable registered under Name <https://www.lua.org/pil/28.2.html>`_ in the Lua registry. The Name must be a valid Lua name - hence periods in the name are not allowed. 
 
 The main use case for these annotations is to help with type checking of larger Ravi programs. These type checks, particularly the one for user defined types, are executed directly by the VM and hence are more efficient than performing the checks in other ways. 
+
+All three types above allow ``nil`` assignment.
 
 Examples::
 
@@ -227,6 +229,16 @@ Examples::
   function x(s1: string, s2: string)
     return @string( s1 .. s2 )
   end
+  
+  -- Following demonstrates an error caused by the type checking
+  -- Note that this error is raised at runtime
+  function x() 
+    local s: string
+    -- call a function that returns integer value
+    -- and try to assign to s
+    s = (function() return 1 end)() 
+  end
+  x() -- will fail at runtime
 
 Array Slices
 ------------
