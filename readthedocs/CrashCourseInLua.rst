@@ -230,7 +230,10 @@ In Lua 5.3, there is a special division operator ``//`` that does integer divisi
   print(x//y) -- integer division results in 0
   print(x/y) -- floating division results in 1.3333333333333
   
+Note that officially the '//' operator does floor division, hence if one or both of its operands is floating point then the result is also a floating point representing the floor of the division of its operands.
+
 Having integer types has also made it natural to have support for bitwise operators in Lua 5.3.
+
 
 
 
