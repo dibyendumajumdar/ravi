@@ -243,10 +243,10 @@ void RaviCodeGenerator::emit_TOSTRING(RaviFunctionDef *def, int A, int pc) {
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Instruction *type = emit_load_type(def, ra);
-
+  llvm::Value *isnotnil = emit_is_not_value_of_type(def, type, LUA__TNIL);
   // check if string type
-  llvm::Value *cmp1 = emit_is_not_value_of_type_class(def, type, LUA_TSTRING,
-                                                      "OP_RAVI_TOSTRING_is.not.expected.type");
+  llvm::Value *cmp1 = emit_is_not_value_of_type_class(def, type, LUA_TSTRING);
+  cmp1 = def->builder->CreateAnd(isnotnil, cmp1, "OP_RAVI_TOSTRING_is.not.expected.type");
   llvm::BasicBlock *raise_error = llvm::BasicBlock::Create(
       def->jitState->context(), "OP_RAVI_TOSTRING_if.not.expected_type", def->f);
   llvm::BasicBlock *done =
@@ -268,10 +268,11 @@ void RaviCodeGenerator::emit_TOCLOSURE(RaviFunctionDef *def, int A, int pc) {
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Instruction *type = emit_load_type(def, ra);
-
+  llvm::Value *isnotnil = emit_is_not_value_of_type(def, type, LUA__TNIL);
   // check if function type
   llvm::Value *cmp1 = emit_is_not_value_of_type_class(
-      def, type, LUA_TFUNCTION, "OP_RAVI_TOCLOSURE_is.not.expected.type");
+      def, type, LUA_TFUNCTION);
+  cmp1 = def->builder->CreateAnd(isnotnil, cmp1, "OP_RAVI_TOCLOSURE_is.not.expected.type");
   llvm::BasicBlock *raise_error = llvm::BasicBlock::Create(
       def->jitState->context(), "OP_RAVI_TOCLOSURE_if.not.expected_type",
       def->f);

@@ -102,6 +102,8 @@ checkmessage('@MyType 1', "unexpected symbol near '@'") -- FIXME bad error messa
 checkmessage('local function x(y: MyType) end x(1)', 'type mismatch: expected MyType')
 checkmessage('local function x(y: string) end x(1)', 'string expected')
 checkmessage('local function x(y: closure) end x(1)', 'closure expected')
-
+checkmessage('local function x() local s: string; s = 1 end', "Invalid assignment: string expected near 'end'")
+checkmessage('function x() local s: string; s = (function() return 1 end)() end; x()', 'string expected')
+checkmessage('function x() local s: User; s = (function() return 1 end)() end; x()', 'type mismatch: expected User')
 
 print 'Ok'
