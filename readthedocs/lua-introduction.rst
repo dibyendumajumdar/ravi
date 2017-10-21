@@ -58,7 +58,7 @@ But saying::
 
   local x = 1 
   
-makes ``x`` local, i.e. its scope and visiability is constrained to the enclosing block of code, and any nested blocks. Note that
+makes ``x`` local, i.e. its scope and visibility is constrained to the enclosing block of code, and any nested blocks. Note that
 local variables avoid a lookup in the 'global' table and hence are more efficient. Thus it is common practice to cache values in
 local variables. For example, ``print`` is a global function - and following creates a local variable that caches it::
 
@@ -92,7 +92,7 @@ Internally the table is a composite hash table / array structure. Consecutive va
   t[1] = 20 -- goes into array
   t[2] = 10 -- goes into array
   t[100] = 1 -- goes into hash table as not consecutive
-  t.name = 'Ravi' -- goes into hash tabe
+  t.name = 'Ravi' -- goes into hash table
                   -- t.name is syntactic sugar for t['name']
 
 To iterate over array values you can write::
@@ -223,7 +223,7 @@ Since Lua 5.3 Lua's number type has integer and floating point representations. 
   print(math.type(x)) -- says 'integer'
   print(math.type(y)) -- says 'float'
   
-On 64-bit architecture the integer is represented as C ``int64_t`` and floating point as ``double``. The representation of the numeric type as native C types is one of the secrets of Lua's performance, as the numeric types do not require 'boxing'.
+On 64-bit architecture by default an integer is represented as C ``int64_t`` and floating point as ``double``. The representation of the numeric type as native C types is one of the secrets of Lua's performance, as the numeric types do not require 'boxing'.
   
 In Lua 5.3, there is a special division operator ``//`` that does integer division if the operands are both integer. Example::
 
@@ -293,7 +293,7 @@ A Lua script is called a chunk - and is the unit of compilation in Lua
 ======================================================================
 When you present a script to Lua, it is compiled. The script can be a file or a string. Internally the content of the script is wrapped inside a Lua function. So that means that a scipt can have ``local`` variables, as these live in the wrapping function. 
 
-It is common practise for scripts to return a table of functions - as then the script can be treated as a module. There is a library function 'require' which loads a script as a module.
+It is common practice for scripts to return a table of functions - as then the script can be treated as a module. There is a library function 'require' which loads a script as a module.
 
 Suppose you have following script saved in a file ``sample.lua``::
 
