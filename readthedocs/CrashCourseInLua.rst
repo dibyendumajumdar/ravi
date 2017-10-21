@@ -242,4 +242,18 @@ Any value that is not ``false`` or ``nil`` is true
 ==================================================
 As mentioned above ``nil`` evaluates to false. 
 
+Logical ``and`` and logical ``or`` select one of the values
+===========================================================
+When you perform a logical ``and`` or ``or`` the result is not boolean; these operators select one of the values. This is best
+illustrated via examples::
+
+  false or 'hello' -- selects 'hello'
+  'hello' and 'world' -- selects 'world'
+  false and 'hello' -- selects false
+  nil or false -- selects false
+  nil and false -- selects nil
+  
+``and`` selects the first value if it evaluates to false else the second value.
+``or`` selects the first value if it evaluates to true else the second value.
+
 
