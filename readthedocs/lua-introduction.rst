@@ -66,6 +66,7 @@ local variables. For example, ``print`` is a global function - and following cre
   print('hello world!') -- calls the same function as global print()
 
 There are some exceptions to the rule:
+
 * the iterator variables declared in a ``for`` loop are implicitly local.
 * function parameters are local to the function 
 
