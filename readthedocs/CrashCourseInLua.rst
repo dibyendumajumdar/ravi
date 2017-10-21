@@ -18,7 +18,7 @@ Key Features
 * Lua functions can return multiple values
 * Lua has integer (since 5.3) and double types that map to native C types
 * A special ``nil`` value represents non-existent value
-* Although Lua has a boolean type any value that is not 0 and not ``nil`` is considered true
+* Any value that is not ``false`` or ``nil`` is true
 * The result of logical ``and`` and logical ``or`` is not true or false; these operators select one of the values 
 * Lua has some nice syntactic sugar for tables and functions 
 * A Lua script is called a chunk - and is the unit of compilation in Lua
@@ -234,6 +234,12 @@ Note that officially the '//' operator does floor division, hence if one or both
 
 Having integer types has also made it natural to have support for bitwise operators in Lua 5.3.
 
+A special ``nil`` value represents non-existent value
+=====================================================
+Lua has special value ``nil`` that represents no value, and evaluates to false in boolean expressions.
 
+Any value that is not ``false`` or ``nil`` is true
+==================================================
+As mentioned above ``nil`` evaluates to false. 
 
 
