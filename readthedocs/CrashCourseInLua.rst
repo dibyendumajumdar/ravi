@@ -214,6 +214,8 @@ Lua has integer and double numeric types
 ========================================
 Since Lua 5.3 Lua's number type has integer and double representations. This is automatically managed; however a library function is provided to tell you what Lua thinks the number type is.
 
+::
+
   x = 1  -- integer 
   y = 4.2 -- double 
   
