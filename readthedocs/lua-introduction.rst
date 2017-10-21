@@ -4,7 +4,7 @@ Introduction to Lua
 
 Introduction
 ============
-`Lua <www.lua.org>`_ is a small but powerful interpreted language that is implemented as a C library. This guide is meant to help you quickly become familiar with the main features of Lua. This guide assumes you know C, C++, or Java, and perhaps a scripting language like Python - it is not a beginner's guide. Nor is it a tutorial for Lua. 
+`Lua <https://www.lua.org>`_ is a small but powerful interpreted language that is implemented as a C library. This guide is meant to help you quickly become familiar with the main features of Lua. This guide assumes you know C, C++, or Java, and perhaps a scripting language like Python - it is not a beginner's guide. Nor is it a tutorial for Lua. 
 
 Key Features of Lua
 ===================
