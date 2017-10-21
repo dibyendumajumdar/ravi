@@ -256,4 +256,28 @@ illustrated via examples::
 ``and`` selects the first value if it evaluates to false else the second value.
 ``or`` selects the first value if it evaluates to true else the second value.
 
+Lua has some nice syntactic sugar for tables and functions
+==========================================================
+If you are calling a Lua function with a single string or table argument then the parenthesis can be omitted::
+
+  print 'hello world' -- syntactic sugar for print('hello world')
+  options { verbose=true, debug=true } -- calls function in variable options
+  
+You have already seen also that::
+
+  t = { surname = 'majumdar' }
+  t.name = 'dibyendu' -- syntactic sugar for t['name'] = 'dibyendu'
+  
+An useful use case for tables is as modules. Thus a standard library module like ``math`` is simply a table of functions. Here is an example::
+
+  module = { print, type } 
+  module.print('hello')
+  module.print 'hello'
+  module.type('hello')
+  
+Finally, you can emulate an object oriented syntax using the ``:`` operator but more on this in the next topic.
+
+
+
+
 
