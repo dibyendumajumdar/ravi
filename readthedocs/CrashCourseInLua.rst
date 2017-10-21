@@ -5,7 +5,7 @@ Crash Course in Lua
 Introduction
 ============
 Lua is a small but powerful language that is implemented as a C library. This guide is meant to help you quickly become familiar with the main features of Lua. This guide assumes you know C, C++, or Java, and perhaps a scripting language like Python - it is not
-a beginner's guide. This is also an opinionated introduction to Lua, WIP and incomplete.
+a beginner's guide. Nor is it a tutorial for Lua. 
 
 Key Features
 ============
@@ -16,7 +16,7 @@ Key Features
 * Globals in Lua are just values stored in a special Lua table 
 * Functions in Lua are closures - they can capture variables from outer scope and such variables live on even though the surrounding scope is no longer alive
 * Lua functions can return multiple values
-* Lua has integer (since 5.3) and double types that map to native C types
+* Lua has integer (since 5.3) and floating point types that map to native C types
 * A special ``nil`` value represents non-existent value
 * Any value that is not ``false`` or ``nil`` is true
 * The result of logical ``and`` and logical ``or`` is not true or false; these operators select one of the values 
@@ -210,9 +210,9 @@ An example of this already appeared above. Here is another::
   
   x,y = foo()
   
-Lua has integer and double numeric types
-========================================
-Since Lua 5.3 Lua's number type has integer and double representations. This is automatically managed; however a library function is provided to tell you what Lua thinks the number type is.
+Lua has integer and floating point numeric types
+================================================
+Since Lua 5.3 Lua's number type has integer and floating point representations. This is automatically managed; however a library function is provided to tell you what Lua thinks the number type is.
 
 ::
 
@@ -221,6 +221,8 @@ Since Lua 5.3 Lua's number type has integer and double representations. This is 
   
   print(math.type(x)) -- says 'integer'
   print(math.type(y)) -- says 'float'
+  
+On 64-bit architecture the integer is represented as C ``int64_t`` and floating point as ``double``. The representation of numeric type as native C type is one of the secrets of Lua's performance, as the numeric types do not require 'boxing'.
   
 In Lua 5.3, there is a special division operator ``//`` that does integer division if the operands are both integer. Example::
 
@@ -275,7 +277,11 @@ An useful use case for tables is as modules. Thus a standard library module like
   module.print 'hello'
   module.type('hello')
   
-Finally, you can emulate an object oriented syntax using the ``:`` operator but more on this in the next topic.
+Finally, you can emulate an object oriented syntax using the ``:`` operator::
+
+  x:foo('hello') -- syntactic sugar for foo(x, 'hello')
+  
+This is one of the features that enables Lua to support object orientation.
 
 
 
