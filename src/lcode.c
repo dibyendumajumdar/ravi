@@ -909,7 +909,7 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       var->ravi_type == RAVI_TTABLE ? "table" : (var->ravi_type == RAVI_TARRAYFLT ? "number[]" : "integer[]")));
   }
   else if (var->ravi_type == RAVI_TSTRING) {
-    if (ex->ravi_type == var->ravi_type && ex->k != VINDEXED)
+    if (ex->ravi_type == RAVI_TNIL || ex->ravi_type == var->ravi_type && ex->k != VINDEXED)
       return;
     luaX_syntaxerror(
       fs->ls,
@@ -918,7 +918,7 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       "Invalid assignment: string expected"));      
   }
   else if (var->ravi_type == RAVI_TFUNCTION) {
-    if (ex->ravi_type == var->ravi_type && ex->k != VINDEXED)
+    if (ex->ravi_type == RAVI_TNIL || ex->ravi_type == var->ravi_type && ex->k != VINDEXED)
       return;
     luaX_syntaxerror(
       fs->ls,
@@ -927,7 +927,8 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       "Invalid assignment: function expected"));      
   }
   else if (var->ravi_type == RAVI_TUSERDATA) {
-    if (ex->ravi_type == var->ravi_type && var->usertype && var->usertype == ex->usertype && ex->k != VINDEXED)
+    if (ex->ravi_type == RAVI_TNIL || 
+        ex->ravi_type == var->ravi_type && var->usertype && var->usertype == ex->usertype && ex->k != VINDEXED)
       return;
     luaX_syntaxerror(
       fs->ls,

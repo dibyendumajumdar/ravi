@@ -1565,6 +1565,18 @@ assert(pcall(f, nil))
 assert(not pcall(f, 'hello'))
 print 'Test 62 OK'
 
+function x()
+   local f: closure = function() end
+   f = nil
+   local f
+   f = 'a'
+   return f
+end
+assert(x() == 'a')
+ravi.compile(x)
+assert(x() == 'a')
+print 'Test 63 OK'
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)
