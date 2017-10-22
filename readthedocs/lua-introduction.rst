@@ -446,7 +446,7 @@ Keeping to the same example above, this approach requires us to populate a ``met
   -- define factory for creating new objects
   function Class:new() 
     local object = {}
-    setmetatable(object, Class)
+    setmetatable(object, self)
     return object
   end
   
