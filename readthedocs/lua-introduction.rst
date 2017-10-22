@@ -45,7 +45,7 @@ In the rest of this document I will expand on each of the features above.
 
 Lua versions
 ============
-For all practical purposes only Lua version 5.1, 5.2 and 5.3 matter. Note however that each of these is considered a major version and therefore is not backward compatible (e.g. Lua 5.3 cannot necessarily run Lua 5.1 code). 
+For all practical purposes only Lua versions 5.1, 5.2 and 5.3 matter. Note however that each of these is considered a major version and therefore is not fully backward compatible (e.g. Lua 5.3 cannot necessarily run Lua 5.1 code). 
 
 * Lua 5.2 has a new mechanism for resolving undeclared variables compared to 5.1
 * Lua 5.3 has integer subtypes and bitwise operators that did not exist in 5.1 or 5.2. 
