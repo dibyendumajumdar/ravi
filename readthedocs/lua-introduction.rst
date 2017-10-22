@@ -428,6 +428,7 @@ Above is syntactic sugar for following equivalent code::
 As the object is passed as the ``self`` argument, the method can access other properties and methods contained in the object, which is just a normal table.
 
 ::
+
     object:method('hello')                  -- calls method(object, 'hello')
 
 This mechanism is fine for Lua code but doesn't work for user defined values created in C. Lua supports another more sophisticated approach that makes use of a facility in Lua called metatables. A ``metatable`` is simply an ordinary table that you can associate with any table or user defined type created in C code. The advantage of using the ``metatable`` approach is that it also works for user defined types created in C code. Here we will look at how it can be applied to Lua code.
@@ -437,12 +438,13 @@ Keeping to the same example above, this approach requires us to populate a metat
   Class = {}                  -- our metatable
   Class.__index = Class       -- This is a meta property (see description below)
   
+  -- define method function in Class
   function Class:method(arg)
     print('method called with ', self, arg)
   end
   
+  -- define factory for creating new objects
   function Class:new() 
-    -- factory for creating objects
     local object = {}
     setmetatable(object, Class)
     return object
@@ -455,6 +457,10 @@ Notice that we set the field ``__index`` in the ``Class`` table to point to itse
 
 Lua notices that there is no ``method`` field in object. But object has a metatable assigned to it, and this has ``__index`` set, so Lua looks up ``Class.__index['method']`` and finds the method.
   
-    
+Essentially this method enables the concept of a shared type object (i.e. Class in this example) that can hold any common fields. These fields can be methods or other ordinary values - and since the metatable is shared by all objects created by the new() method, we have a simple OO system!
+
+This feature can be extended to support inheritance as well, but personally I do not find this useful, and suggest you look up Lua documentation if you want to play with inheritance. My advice is to avoid trying complex object systems in Lua. The approach above is invaluable for user defined types created in C as these types can be used in more typesafe manner by using OO notation.
+
+
     
 
