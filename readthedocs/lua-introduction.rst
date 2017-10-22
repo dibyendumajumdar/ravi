@@ -409,7 +409,7 @@ Lua has a meta mechanism that enables a DIY class / object system
 =================================================================
 Firstly simple object oriented method calls can be emulated in Lua by relying upon the ``:`` operator described earlier. Recollect that::
 
-  object:method(arg) -- is shortcut for method(object, arg)
+  object:method(arg)                        -- is syntactic sugar for method(object, arg)
   
 The next bit of syntactic sugar is shown below::
 
@@ -433,7 +433,7 @@ As the object is passed as the ``self`` argument, the method can access other pr
 
 This mechanism is fine for Lua code but doesn't work for user defined values created in C. Lua supports another more sophisticated approach that makes use of a facility in Lua called metatables. A ``metatable`` is simply an ordinary table that you can associate with any table or user defined type created in C code. The advantage of using the ``metatable`` approach is that it also works for user defined types created in C code. Here we will look at how it can be applied to Lua code.
 
-Keeping to the same example above, this approach requires us to populate a metatable with the methods. We can think of the metatable as the class of the object.::
+Keeping to the same example above, this approach requires us to populate a ``metatable`` with the methods. We can think of the ``metatable`` as the class of the object.::
 
   Class = {}                  -- our metatable
   Class.__index = Class       -- This is a meta property (see description below)
@@ -450,16 +450,16 @@ Keeping to the same example above, this approach requires us to populate a metat
     return object
   end
   
-Notice that we set the field ``__index`` in the ``Class`` table to point to itself. This is a special field that Lua recognizes and whenever you access a field in an object (table), if the field is not found in the object and if the object has a metatable with ``__index`` field set, the Lua will lookup the field you want in the metatable. Thus in the example below::
+Notice that we set the field ``__index`` in the ``Class`` table to point to itself. This is a special field that Lua recognizes and whenever you access a field in an object, if the field is not found in the object and if the object has a ``metatable`` with ``__index`` field set, the Lua will lookup the field you want in the ``metatable``. Thus in the example below::
 
   object = Class:new()
   object:method('hello')
 
-Lua notices that there is no ``method`` field in object. But object has a metatable assigned to it, and this has ``__index`` set, so Lua looks up ``Class.__index['method']`` and finds the method.
+Lua notices that there is no ``method`` field in object. But object has a ``metatable`` assigned to it, and this has ``__index`` set, so Lua looks up ``Class.__index['method']`` and finds the method.
   
-Essentially this method enables the concept of a shared type object (i.e. Class in this example) that can hold any common fields. These fields can be methods or other ordinary values - and since the metatable is shared by all objects created by the new() method, we have a simple OO system!
+Essentially this approach enables the concept of a shared class (e.g. Class in this example) that holds common fields. These fields can be methods or other ordinary values - and since the ``metatable`` is shared by all objects created using the ``Class:new()`` method, then we have a simple OO system!
 
-This feature can be extended to support inheritance as well, but personally I do not find this useful, and suggest you look up Lua documentation if you want to play with inheritance. My advice is to avoid trying complex object systems in Lua. The approach above is invaluable for user defined types created in C as these types can be used in more typesafe manner by using OO notation.
+This feature can be extended to support inheritance as well, but personally I do not find this useful, and suggest you look up Lua documentation if you want to play with inheritance. My advice is to avoid implementing complex object systems in Lua. However, the ``metatable`` approach is invaluable for user defined types created in C as these types can be used in more typesafe manner by using OO notation.
 
 
     
