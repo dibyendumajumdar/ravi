@@ -302,7 +302,7 @@ As we shall see, this feature enables Lua to support object orientation.
 
 A Lua script is called a chunk - and is the unit of compilation in Lua
 ======================================================================
-When you present a script to Lua, it is compiled. The script can be a file or a string. Internally the content of the script is wrapped inside a Lua function. So that means that a scipt can have ``local`` variables, as these live in the wrapping function. 
+When you present a script to Lua, it is compiled. The script can be a file or a string. Internally the content of the script is wrapped inside a Lua function. So that means that a script can have ``local`` variables, as these live in the wrapping function. 
 
 It is common practice for scripts to return a table of functions - as then the script can be treated as a module. There is a library function 'require' which loads a script as a module.
 
