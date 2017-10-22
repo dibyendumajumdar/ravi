@@ -8,6 +8,7 @@ Introduction
 
 Key Features of Lua
 ===================
+* Lua versions
 * Lua is dynamically typed like Python
 * By default variables in Lua are global unless declared local
 * There is a single complex / aggregate type called a 'table', which combines hash table/map and array features
@@ -41,6 +42,10 @@ Key Features of Lua
 * LuaJIT is a JIT compiler for Lua but features an optional high performance C interface mechanism that makes it incompatible with Lua
 
 In the rest of this document I will expand on each of the features above.
+
+Lua versions
+============
+For all practical purposes only Lua version 5.1, 5.2 and 5.3 matter. Note however that each of these is considered a major version and therefore is not backwardly compatible. Lua 5.2 has a new mechanism for resolving undeclared variables compared to 5.1, and 5.3 has integer subtypes that did not exist in 5.1 or 5.2. Mostly what this document covers should be applicable to all these versions, except as otherwise noted. 
 
 Lua is dynamically typed
 ========================
