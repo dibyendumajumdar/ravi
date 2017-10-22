@@ -450,7 +450,10 @@ Keeping to the same example above, this approach requires us to populate a ``met
     return object
   end
   
-Notice that we set the field ``__index`` in the ``Class`` table to point to itself. This is a special field that Lua recognizes and whenever you access a field in an object, if the field is not found in the object and if the object has a ``metatable`` with ``__index`` field set, the Lua will lookup the field you want in the ``metatable``. Thus in the example below::
+* Notice that we set the field ``__index`` in the ``Class`` table to point to itself. This is a special field that Lua recognizes and whenever you access a field in an object, if the field is not found in the object and if the object has a ``metatable`` with ``__index`` field set, the Lua will lookup the field you want in the ``metatable``. 
+* Secondly we set ``Class`` to be the ``metatable`` for the object in the new method.
+
+As a result of above, in the example below::
 
   object = Class:new()
   object:method('hello')
