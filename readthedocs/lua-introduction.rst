@@ -282,7 +282,7 @@ Above is often used to create a DSL. For instance, see:
 * `Lua's bug list <https://github.com/lua/lua/blob/master/bugs>`_
 * `Premake <https://github.com/premake/premake-core/wiki/Your-First-Script>`_ - a tool similar to CMake
 
-You have already seen also that::
+You have already seen that::
 
   t = { surname = 'majumdar' }      -- t.surname is sugar for t['surname']
   t.name = 'dibyendu'               -- syntactic sugar for t['name'] = 'dibyendu'
