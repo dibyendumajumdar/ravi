@@ -31,7 +31,7 @@ Key Features of Lua
 * Lua's compiler is designed to be fast and frugal - it generates code as it parses, there is no intermediate AST construction
 * Like C, Lua comes with a very small standard library - in fact Lua's standard library is just a wrapper for C standard library
   plus some basic utilities for Lua
-* Lua's standard library includes a basic regular expressions library
+* Lua's standard library includes pattern matching for strings in which the patterns themselves are strings, rather like regular expressions in Python or Perl, but simpler.
 * Lua provides a debug API that can be used to manipulate Lua's internals to a degree - and can be used to implement a debugger
 * Lua has an incremental garbage collector
 * Lua is single threaded but its VM is small and encapsulated in a single data structure - hence each OS thread can be given its own 
