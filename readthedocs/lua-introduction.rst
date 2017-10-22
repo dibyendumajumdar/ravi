@@ -405,5 +405,56 @@ The Lua error handling mechanism has following issues:
 * On raising an error the ``longjmp`` unwinds the stack - there is no mechanism for any intermediate objects to perform cleanup as is possible in C++ using destructors, or in Java, C++, Python using ``finally`` blocks, or as done by the ``defer`` statement in Go
 * You can setup a finalizer on Lua user types that will eventually execute when the value is garbage collected - this is typically used to free up memory used by the value - but you have no control over when the finalizer will run, hence relying upon finalizers for cleanup is problematic
 
+Lua has a meta mechanism that enables a DIY class / object system
+=================================================================
+Firstly simple object oriented method calls can be emulated in Lua by relying upon the ``:`` operator described earlier. Recollect that::
 
+  object:method(arg) -- is shortcut for method(object, arg)
+  
+The next bit of syntactic sugar is shown below::
+
+  object = {}
+  function object:method(arg) 
+    print('method called with ', self, arg) -- self is automatic parameter and is really object
+  end
+
+Above is syntactic sugar for following equivalent code::
+
+  object = {}
+  object.method = function(self, arg)
+    print('method called with ', self, arg)
+  end
+  
+As the object is passed as the ``self`` argument, the method can access other properties and methods contained in the object, which is just a normal table.
+
+::
+    object:method('hello')                  -- calls method(object, 'hello')
+
+This mechanism is fine for Lua code but doesn't work for user defined values created in C. Lua supports another more sophisticated approach that makes use of a facility in Lua called metatables. A ``metatable`` is simply an ordinary table that you can associate with any table or user defined type created in C code. The advantage of using the ``metatable`` approach is that it also works for user defined types created in C code. Here we will look at how it can be applied to Lua code.
+
+Keeping to the same example above, this approach requires us to populate a metatable with the methods. We can think of the metatable as the class of the object.::
+
+  Class = {}                  -- our metatable
+  Class.__index = Class       -- This is a meta property (see description below)
+  
+  function Class:method(arg)
+    print('method called with ', self, arg)
+  end
+  
+  function Class:new() 
+    -- factory for creating objects
+    local object = {}
+    setmetatable(object, Class)
+    return object
+  end
+  
+Notice that we set the field ``__index`` in the ``Class`` table to point to itself. This is a special field that Lua recognizes and whenever you access a field in an object (table), if the field is not found in the object and if the object has a metatable with ``__index`` field set, the Lua will lookup the field you want in the metatable. Thus in the example below::
+
+  object = Class:new()
+  object:method('hello')
+
+Lua notices that there is no ``method`` field in object. But object has a metatable assigned to it, and this has ``__index`` set, so Lua looks up ``Class.__index['method']`` and finds the method.
+  
+    
+    
 
