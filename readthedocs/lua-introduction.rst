@@ -315,7 +315,29 @@ the sample script is stored in the local variable 'sample' and we can write::
   sample.foo()
   sample.bar()
   
+Lua functions can be yielded from and resumed later
+===================================================
+Lua allows functions to be suspended and resumed. The function suspends itself by calling a library function to yield. Sometime later
+the function may be resumed by the caller or something else - when resumed, the Lua function continues from the point of suspension.
 
+When yielding you can pass values back to the caller. Similarly when resuming the caller can pass values to the function.
+
+This is perhaps the most advanced feature in Lua, and not one that can be demonstrated in a simple way. 
+
+::
+
+  function test()
+    local message = coroutine.yield('hello')
+    print(message)
+  end
+  
+  thread = coroutine.create(test)
+  status,message = coroutine.resume(thread) -- initial start
+  print(message) -- says 'hello', the value returned by yield
+  status,message = coroutine.result(thread, 'world') -- resume and send message 'world'
+  -- status above will be true
+  -- but now the coroutine has ended so further calls to resume will return status as false
+  
 
 
 
