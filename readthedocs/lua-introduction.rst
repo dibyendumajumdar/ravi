@@ -276,7 +276,7 @@ You have already seen also that::
   t = { surname = 'majumdar' } -- t.surname is sugar for t['surname']
   t.name = 'dibyendu' -- syntactic sugar for t['name'] = 'dibyendu'
   
-An useful use case for tables is as modules. Thus a standard library module like ``math`` is simply a table of functions. Here is an example::
+A useful use case for tables is as modules. Thus a standard library module like ``math`` is simply a table of functions. Here is an example::
 
   module = { print, type } 
   module.print('hello')
@@ -350,6 +350,6 @@ This is perhaps the most advanced feature in Lua, and not one that can be easily
  
 By the fact that 'hello' is printed before 'world' we can tell that the coroutine was suspended and then resumed. 
  
-In the Lua documentation, the return value from ``coroutine.create()`` is called a ``thread``. However this is misleading as Lua does not have threads. You can think of this ``thread`` as another Lua stack. Basically whenever Lua executes any code - the code operates on a Lua stack. Initially there is only one stack. When you create a coroutine, a new stack is allocated, and the all functions called from the coroutine will operate on this new stack. Since the Lua stack is a heap allocated structure - suspending the coroutine is equivalent to returning back to the caller using a ``longjmp()``. The stack is preserved, so that the function that yielded can be resumed from wherever it suspended itself.
+In the Lua documentation, the return value from ``coroutine.create()`` is called a ``thread``. However this is misleading as Lua does not have threads. You can think of this ``thread`` as another Lua stack. Basically whenever Lua executes any code - the code operates on a Lua stack. Initially there is only one stack. When you create a coroutine, a new stack is allocated, and the all functions called from the coroutine will operate on this new stack. Since the Lua stack is a heap allocated structure - suspending the coroutine is equivalent to returning back to the caller using a ``longjmp()``. The stack is preserved, so that the function that yielded can be resumed later  from wherever it suspended itself.
 
 
