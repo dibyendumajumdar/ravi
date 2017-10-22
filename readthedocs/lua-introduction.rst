@@ -45,7 +45,12 @@ In the rest of this document I will expand on each of the features above.
 
 Lua versions
 ============
-For all practical purposes only Lua version 5.1, 5.2 and 5.3 matter. Note however that each of these is considered a major version and therefore is not backwardly compatible. Lua 5.2 has a new mechanism for resolving undeclared variables compared to 5.1, and 5.3 has integer subtypes that did not exist in 5.1 or 5.2. Mostly what this document covers should be applicable to all these versions, except as otherwise noted. 
+For all practical purposes only Lua version 5.1, 5.2 and 5.3 matter. Note however that each of these is considered a major version and therefore is not backward compatible (e.g. Lua 5.3 cannot run Lua 5.1 code). 
+
+* Lua 5.2 has a new mechanism for resolving undeclared variables compared to 5.1
+* Lua 5.3 has integer subtypes and bitwise operators that did not exist in 5.1 or 5.2. 
+
+Mostly what this document covers should be applicable to all these versions, except as otherwise noted.
 
 Lua is dynamically typed
 ========================
@@ -143,7 +148,7 @@ function in created when the code executes. You can think of the 'prototype' as 
 
 Globals are just values in a special table
 ==========================================
-Globals are handled in an interesting way. Whenever a name is used that is not found in any of the enclosing scopes and is not declared ``local``, then Lua will access/create a variable in a table accessed by the name ``_ENV``. Actually this is just a captured value that points to a special table in Lua by default. This table access becomes evident when you look at the bytecode generated for some Lua code::
+Globals are handled in an interesting way. Whenever a name is used that is not found in any of the enclosing scopes and is not declared ``local``, then Lua will access/create a variable in a table accessed by the name ``_ENV`` (this applies to Lua 5.2 and above - Lua 5.1 had a different mechanism). Actually ``_ENV`` is just a captured value that points to a special table in Lua by default. This table access becomes evident when you look at the bytecode generated for some Lua code::
 
   function hello()
     print('hello world')
