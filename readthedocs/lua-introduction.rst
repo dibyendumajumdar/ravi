@@ -365,6 +365,8 @@ In the Lua documentation, the return value from ``coroutine.create()`` is called
 
 There is no automatic scheduling of Lua coroutines, a coroutine has to be explicitly resumed by the program. 
 
+Note also that Lua is single threaded - so you cannot execute the different Lua stacks in parallel in multiple OS threads; a particular Lua instance always runs in a single OS thread. At any point in time only one Lua stack can be active.
+
 Lua's error handling is based on C setjmp/longjmp
 =================================================
 You raise an error in Lua by calling library functions ``error()`` or ``assert()``. Lua library functions can also raise errors. When an error is raised Lua does a C ``longjmp`` to the nearest location in the call stack where the caller used a 'protected call'. A 'protected call' is a function calling mechanism that does a C ``setjmp``.
