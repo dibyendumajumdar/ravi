@@ -350,7 +350,9 @@ This is perhaps the most advanced feature in Lua, and not one that can be easily
  
 By the fact that 'hello' is printed before 'world' we can tell that the coroutine was suspended and then resumed. 
  
-In the Lua documentation, the return value from ``coroutine.create()`` is called a ``thread``. However this is misleading as Lua does not have threads. You can think of this ``thread`` as another Lua stack. Basically whenever Lua executes any code - the code operates on a Lua stack. Initially there is only one stack. When you create a coroutine, a new stack is allocated, and the all functions called from the coroutine will operate on this new stack. Since the Lua stack is a heap allocated structure - suspending the coroutine is equivalent to returning back to the caller using a ``longjmp()``. The stack is preserved, so that the function that yielded can be resumed later  from wherever it suspended itself.
+In the Lua documentation, the return value from ``coroutine.create()`` is called a ``thread``. However don't confuse this with threads as in C++ or Java. You can think of a Lua ``thread`` as just another Lua stack. Basically whenever Lua executes any code - the code operates on a Lua stack. Initially there is only one stack (main thread). When you create a coroutine, a new stack is allocated, and the all functions called from the coroutine will operate on this new stack. Since the Lua stack is a heap allocated structure - suspending the coroutine is equivalent to returning back to the caller using a ``longjmp()``. The stack is preserved, so that the function that yielded can be resumed later from wherever it suspended itself.
+
+There is no automatic scheduling of Lua coroutines, a coroutine has to be explicitly resumed by the program. 
 
 Lua's error handling is based on C setjmp/longjmp
 =================================================
