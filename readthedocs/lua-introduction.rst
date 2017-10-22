@@ -322,7 +322,7 @@ the function may be resumed by the caller or something else - when resumed, the 
 
 When yielding you can pass values back to the caller. Similarly when resuming the caller can pass values to the function.
 
-This is perhaps the most advanced feature in Lua, and not one that can be demonstrated in a simple way. 
+This is perhaps the most advanced feature in Lua, and not one that can be easily demonstrated in a simple way. Following is the simplest example I could think of. 
 
 ::
 
@@ -331,10 +331,19 @@ This is perhaps the most advanced feature in Lua, and not one that can be demons
     print(message)
   end
   
+  -- create a new Lua stack (thread)
   thread = coroutine.create(test)
+  
+  -- start the coroutine 
   status,message = coroutine.resume(thread) -- initial start
+  
+  -- coroutine suspended so we have got control back
+  -- the coroutine yielded message to us - lets print it
   print(message) -- says 'hello', the value returned by yield
-  status,message = coroutine.resume(thread, 'world') -- resume and send message 'world'
+  
+  -- Resume the coroutine / send it the message 'world'
+  status,message = coroutine.resume(thread, 'world') 
+ 
   -- above will print 'world' 
   -- status above will be true
   -- but now the coroutine has ended so further calls to resume will return status as false
@@ -342,9 +351,5 @@ This is perhaps the most advanced feature in Lua, and not one that can be demons
 By the fact that 'hello' is printed before 'world' we can tell that the coroutine was suspended and then resumed. 
  
 In the Lua documentation, the return value from ``coroutine.create()`` is called a ``thread``. However this is misleading as Lua does not have threads. You can think of this ``thread`` as another Lua stack. Basically whenever Lua executes any code - the code operates on a Lua stack. Initially there is only one stack. When you create a coroutine, a new stack is allocated, and the all functions called from the coroutine will operate on this new stack. Since the Lua stack is a heap allocated structure - suspending the coroutine is equivalent to returning back to the caller using a ``longjmp()``. The stack is preserved, so that the function that yielded can be resumed from wherever it suspended itself.
-
-
-
-
 
 
