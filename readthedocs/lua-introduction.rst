@@ -135,7 +135,7 @@ You already saw that we can write::
   local x = function() 
             end
   
-This creates a function and stores in in local variable ``x``. This is the same as::
+This creates a function and stores it in local variable ``x``. This is the same as::
 
   local function x() 
   end
