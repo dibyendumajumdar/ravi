@@ -45,7 +45,7 @@ In the rest of this document I will expand on each of the features above.
 
 Lua versions
 ============
-For all practical purposes only Lua version 5.1, 5.2 and 5.3 matter. Note however that each of these is considered a major version and therefore is not backward compatible (e.g. Lua 5.3 cannot run Lua 5.1 code). 
+For all practical purposes only Lua version 5.1, 5.2 and 5.3 matter. Note however that each of these is considered a major version and therefore is not backward compatible (e.g. Lua 5.3 cannot necessarily run Lua 5.1 code). 
 
 * Lua 5.2 has a new mechanism for resolving undeclared variables compared to 5.1
 * Lua 5.3 has integer subtypes and bitwise operators that did not exist in 5.1 or 5.2. 
@@ -87,15 +87,16 @@ Here are some examples::
 
   local a = {} -- creates an empty table
   local b = {10,20,30} -- creates a table with three array elements at positions 1,2,3
-                       -- short cut for local b = {}
-                       --               b[1] = 10
-                       --               b[2] = 20
-                       --               b[3] = 30
+                       -- this is short cut for:
+                       -- local b = {}
+                       -- b[1] = 10
+                       -- b[2] = 20
+                       -- b[3] = 30
   local c = { name='Ravi' } -- creates a table with one hash map entry
-                            -- short cut for local c = {}
-                            --                     c['name'] = 'Ravi'
+                            -- this is short cut for:
+                            -- local c = {}
+                            -- c['name'] = 'Ravi'
                             
-
 Internally the table is a composite hash table / array structure. Consecutive values starting at integer index 1 are inserted into the array, else the values go into the hash table. Hence, in the example below::
 
   local t = {}
@@ -243,7 +244,7 @@ In Lua 5.3, there is a special division operator ``//`` that does integer divisi
   print(x//y) -- integer division results in 0
   print(x/y) -- floating division results in 1.3333333333333
   
-Note that officially the '//' operator does floor division, hence if one or both of its operands is floating point then the result is also a floating point representing the floor of the division of its operands.
+Note that officially the ``//`` operator does floor division, hence if one or both of its operands is floating point then the result is also a floating point representing the floor of the division of its operands.
 
 Having integer types has also made it natural to have support for bitwise operators in Lua 5.3.
 
@@ -283,8 +284,8 @@ Above is often used to create a DSL. For instance, see:
 
 You have already seen also that::
 
-  t = { surname = 'majumdar' } -- t.surname is sugar for t['surname']
-  t.name = 'dibyendu' -- syntactic sugar for t['name'] = 'dibyendu'
+  t = { surname = 'majumdar' }      -- t.surname is sugar for t['surname']
+  t.name = 'dibyendu'               -- syntactic sugar for t['name'] = 'dibyendu'
   
 A useful use case for tables is as modules. Thus a standard library module like ``math`` is simply a table of functions. Here is an example::
 
@@ -295,7 +296,7 @@ A useful use case for tables is as modules. Thus a standard library module like 
   
 Finally, you can emulate an object oriented syntax using the ``:`` operator::
 
-  x:foo('hello') -- syntactic sugar for foo(x, 'hello')
+  x:foo('hello')                   -- syntactic sugar for foo(x, 'hello')
   
 As we shall see, this feature enables Lua to support object orientation.
 
@@ -311,7 +312,7 @@ Suppose you have following script saved in a file ``sample.lua``::
   local function foo() end
   local function bar() end
   
-  return { foo=foo, bar=bar } -- i.e. ['foo'] = foo, ['bar'] = bar
+  return { foo=foo, bar=bar }      -- i.e. ['foo'] = foo, ['bar'] = bar
   
 Above script returns a table containing two functions.
 
@@ -381,6 +382,7 @@ Here is how a protected call is done::
   end
   
   -- call foo('hello') in protected mode
+  -- this is done using the Lua library function pcall()
   status,returnvalue = pcall(foo, 'hello') 
   
   -- since this call should succeed, status will be true
