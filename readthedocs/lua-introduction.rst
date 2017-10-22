@@ -386,8 +386,8 @@ Here is how a protected call is done::
 
 The Lua error handling mechanism has following issues:
 
-* The code that can raise errors must be encapsulated in a function as pcall() can only call functions
-* The return values from pcall() depend upon whether the call terminated normally or due to an error - so caller needs to check the status of the call and only then proceed
+* The code that can raise errors must be encapsulated in a function as ``pcall()`` can only call functions
+* The return values from ``pcall()`` depend upon whether the call terminated normally or due to an error - so caller needs to check the status of the call and only then proceed
 * On raising an error the ``longjmp`` unwinds the stack - there is no mechanism for any intermediate objects to perform cleanup as is possible in C++ using destructors, or in Java, C++, Python using ``finally`` blocks, or as done by the ``defer`` statement in Go
 * You can setup a finalizer on Lua user types that will eventually execute when the value is garbage collected - this is typically used to free up memory used by the value - but you have no control over when the finalizer will run, hence relying upon finalizers for cleanup is problematic
 
