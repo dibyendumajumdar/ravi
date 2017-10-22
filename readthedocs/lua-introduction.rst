@@ -352,4 +352,42 @@ By the fact that 'hello' is printed before 'world' we can tell that the coroutin
  
 In the Lua documentation, the return value from ``coroutine.create()`` is called a ``thread``. However this is misleading as Lua does not have threads. You can think of this ``thread`` as another Lua stack. Basically whenever Lua executes any code - the code operates on a Lua stack. Initially there is only one stack. When you create a coroutine, a new stack is allocated, and the all functions called from the coroutine will operate on this new stack. Since the Lua stack is a heap allocated structure - suspending the coroutine is equivalent to returning back to the caller using a ``longjmp()``. The stack is preserved, so that the function that yielded can be resumed later  from wherever it suspended itself.
 
+Lua's error handling is based on C setjmp/longjmp
+=================================================
+You raise an error in Lua by calling library functions ``error()`` or ``assert()``. Lua library functions can also raise errors. When an error is raised Lua does a C ``longjmp`` to the nearest location in the call stack where the caller used a 'protected call'. A 'protected call' is a function calling mechanism that does a C ``setjmp``.
+
+Here is how a protected call is done::
+
+  function foo(message) 
+    -- raise error if message is nil
+    if not message then
+      error('message expected') 
+    else
+      print(message)
+      return 4.2
+    end
+  end
+  
+  -- call foo() in protected mode
+  status,returnvalue = pcall(foo, 'hello') -- this is like calling foo('hello')
+  -- since this call should succeed, status will be true
+  -- returnvalue should contain 4.2
+  assert(returnvalue == 4.2)
+  
+  -- call foo() again in protected mode
+  status, returnvalue = pcall(foo) -- call foo() without arguments
+  -- above will fail and status will be false
+  -- But returnvalue will now have the error message
+  
+  assert(not status)
+  print(returnvalue)
+
+The error handling mechanism works but has following issues:
+
+* The code that can raise errors must be a function as pcall() can only call functions
+* The return values from pcall() depend upon whether the call terminated normally or due to an error - so caller needs to check the status of the call and only then proceed
+* On raising an error the ``longjmp`` unwinds the stack - there is no mechanism for any intermediate objects to perform cleanup as is possible in C++ using destructors, or in Java, C++, Python using ``finally`` blocks, or as done by the ``defer`` statement in Go
+* You can setup a finalizer on Lua user types that will eventually execute when the value is garbage collected - this is typically used to free up memory used by the value - but finalizers by their nature are not guaranteed to run in a deterministic manner
+
+
 
