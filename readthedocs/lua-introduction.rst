@@ -334,11 +334,12 @@ This is perhaps the most advanced feature in Lua, and not one that can be demons
   thread = coroutine.create(test)
   status,message = coroutine.resume(thread) -- initial start
   print(message) -- says 'hello', the value returned by yield
-  status,message = coroutine.result(thread, 'world') -- resume and send message 'world'
+  status,message = coroutine.resume(thread, 'world') -- resume and send message 'world'
+  -- above will print 'world' 
   -- status above will be true
   -- but now the coroutine has ended so further calls to resume will return status as false
   
-
+In the Lua documentation, the return value from ``coroutine.create()`` is called a ``thread``. However this is misleading as Lua does not have threads. You can think of this thread as another Lua stack. Basically when Lua executes any code - the code operates on a Lua stack. Initially there is only one stack. When you create a coroutine, a new stack is allocated, and the all functions called from the coroutine will operate on this new stack. Since the Lua stack is a heap allocated structure - suspending the coroutine is equivalent to returning back to the caller using a ``longjmp()``. The stack is preserved, so that the that function that yielded can be resumed from wherever it suspended itself.
 
 
 
