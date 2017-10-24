@@ -8,7 +8,7 @@ Introduction
 
 Key Features of Lua
 ===================
-* Lua versions
+* Lua versions matter
 * Lua is dynamically typed like Python
 * By default variables in Lua are global unless declared local
 * There is a single complex / aggregate type called a 'table', which combines hash table/map and array features
@@ -23,6 +23,8 @@ Key Features of Lua
 * Lua has some nice syntactic sugar for tables and functions 
 * A Lua script is called a chunk - and is the unit of compilation in Lua
 * Lua functions can be yielded from and resumed later on, i.e., Lua supports coroutines
+* Lua is single threaded but its VM is small and encapsulated in a single data structure - hence each OS thread can be given its own 
+  Lua VM
 * Lua's error handling is based on C setjmp/longjmp, and errors are caught via a special function call mechanism
 * Lua has a meta mechanism that enables a DIY class / object system with some syntactic sugar to make it look nice
 * You can create user defined types in C and make them available in Lua
@@ -35,20 +37,19 @@ Key Features of Lua
 * Lua's standard library includes pattern matching for strings in which the patterns themselves are strings, rather like regular expressions in Python or Perl, but simpler.
 * Lua provides a debug API that can be used to manipulate Lua's internals to a degree - and can be used to implement a debugger
 * Lua has an incremental garbage collector
-* Lua is single threaded but its VM is small and encapsulated in a single data structure - hence each OS thread can be given its own 
-  Lua VM
 * Lua is Open Source but has a closed development model - external contributions are not possible
 * Major Lua versions are not backward compatible
 * LuaJIT is a JIT compiler for Lua but features an optional high performance C interface mechanism that makes it incompatible with Lua
 
 In the rest of this document I will expand on each of the features above.
 
-Lua versions
-============
-For all practical purposes only Lua versions 5.1, 5.2 and 5.3 matter. Note however that each of these is considered a major version and therefore is not fully backward compatible (e.g. Lua 5.3 cannot necessarily run Lua 5.1 code). 
+Lua versions matter
+===================
+For all practical purposes only Lua versions 5.1, 5.2 and 5.3 matter. Note however that each of these is considered a major version and therefore is not fully backward compatible (e.g. Lua 5.3 cannot necessarily run Lua 5.1 code) although there is a large common subset. 
 
 * Lua 5.2 has a new mechanism for resolving undeclared variables compared to 5.1
-* Lua 5.3 has integer subtypes and bitwise operators that did not exist in 5.1 or 5.2. 
+* Lua 5.3 has integer number subtype and bitwise operators that did not exist in 5.1 or 5.2 
+* LuaJIT is 5.1 based but supports large subset of 5.2 features with some notable exceptions such as the change mentioned above
 
 Mostly what this document covers should be applicable to all these versions, except as otherwise noted.
 
@@ -155,7 +156,7 @@ Globals are handled in an interesting way. Whenever a name is used that is not f
     print('hello world')
   end
 
-Generates::
+Generates following (in Lua 5.3)::
 
   function <stdin:1,3> (4 instructions at 00000151C0AA9530)
   0 params, 2 slots, 1 upvalue, 0 locals, 2 constants, 0 functions
@@ -194,7 +195,7 @@ Lua functions can reference variables in outer scopes - and such references can 
   m(1) -- returns 2
   n(1) -- returns 3
 
-In the example above, the local variable ``a`` in function ``x()`` is captured inside the two anonymous functions that reference it. You can see this if you dump the bytecode for ``m``::
+In the example above, the local variable ``a`` in function ``x()`` is captured inside the two anonymous functions that reference it. You can see this if you dump Lua 5.3 bytecode for ``m``::
 
   function <stdin:1,1> (6 instructions at 00000151C0AD3AB0)
   1 param, 2 slots, 1 upvalue, 1 local, 0 constants, 0 functions
@@ -465,6 +466,10 @@ Lua notices that there is no ``method`` field in object. But object has a ``meta
 Essentially this approach enables the concept of a shared class (e.g. Class in this example) that holds common fields. These fields can be methods or other ordinary values - and since the ``metatable`` is shared by all objects created using the ``Class:new()`` method, then we have a simple OO system!
 
 This feature can be extended to support inheritance as well, but personally I do not find this useful, and suggest you look up Lua documentation if you want to play with inheritance. My advice is to avoid implementing complex object systems in Lua. However, the ``metatable`` approach is invaluable for user defined types created in C as these types can be used in more typesafe manner by using OO notation.
+
+Lua is single threaded but each OS thread can be given its own Lua VM
+=====================================================================
+All of Lua's VM is encapsulated in a single data structure - the Lua State. Lua does not have global state. Thus, you can create as many Lua instances in a single process as you want. Since the VM is so small it is quite feasible to allocate a Lua VM per OS thread. 
 
 
     
