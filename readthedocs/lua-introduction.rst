@@ -49,7 +49,7 @@ For all practical purposes only Lua versions 5.1, 5.2 and 5.3 matter. Note howev
 
 * Lua 5.2 has a new mechanism for resolving undeclared variables compared to 5.1
 * Lua 5.3 has integer number subtype and bitwise operators that did not exist in 5.1 or 5.2 
-* LuaJIT is 5.1 based but supports large subset of 5.2 features with some notable exceptions such as the change mentioned above
+* LuaJIT is 5.1 based but supports a large subset of 5.2 features with some notable exceptions such as the change mentioned above
 
 Mostly what this document covers should be applicable to all these versions, except as otherwise noted.
 
