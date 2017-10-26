@@ -1033,7 +1033,7 @@ void luaV_finishOp (lua_State *L) {
 
 #if RAVI_BYTECODE_PROFILING_ENABLED
  /* fetch an instruction and prepare its execution */
-#define vmfetch(op, prevop)	{ \
+#define vmfetch	{ \
   i = *(ci->u.l.savedpc++); \
   if (RAVI_UNLIKELY(L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT))) \
     Protect(luaG_traceexec(L)); \
@@ -1047,7 +1047,7 @@ void luaV_finishOp (lua_State *L) {
 
 #else
 /* fetch an instruction and prepare its execution */
-#define vmfetch(op, prevop)	{ \
+#define vmfetch	{ \
   i = *(ci->u.l.savedpc++); \
   if (RAVI_UNLIKELY(L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT))) \
     Protect(luaG_traceexec(L)); \
@@ -1059,10 +1059,31 @@ void luaV_finishOp (lua_State *L) {
 
 #endif
 
+
+#if !RAVI_USE_COMPUTED_GOTO
+
 #define vmdispatch(o)	switch(o)
 #define vmcase(l)	case l:
 #define vmbreak		break
 
+#else
+
+#define vmlabel(l)   do_ ## l
+#define vmcase(l)   vmlabel(l):
+
+/* NOTE this is experimental. In this mode we do not allow hooks! */
+#undef vmfetch
+#define vmfetch	{ \
+i = *(ci->u.l.savedpc++); \
+op = GET_OPCODE(i); \
+ra = RA(i); /* WARNING: any stack reallocation invalidates 'ra' */ \
+goto *dispatch_table[op]; \
+}
+
+#define vmdispatch(o) vmfetch
+#define vmbreak vmfetch
+
+#endif
 
 /*
 ** copy of 'luaV_gettable', but protecting the call to potential
@@ -1079,7 +1100,7 @@ void luaV_finishOp (lua_State *L) {
     Protect(luaV_finishset(L,t,k,v,slot)); }
 
 
-int check_usertype(lua_State *L, TString *name, const TValue *o)
+static int check_usertype(lua_State *L, TString *name, const TValue *o)
 {
   Table *mt;
   switch (ttnov(o)) {
@@ -1102,6 +1123,128 @@ int check_usertype(lua_State *L, TString *name, const TValue *o)
 
 
 int luaV_execute (lua_State *L) {
+  
+#if RAVI_USE_COMPUTED_GOTO
+  static void* dispatch_table[] = {
+    &&vmlabel(OP_MOVE),
+    &&vmlabel(OP_LOADK),
+    &&vmlabel(OP_LOADKX),
+    &&vmlabel(OP_LOADBOOL),
+    &&vmlabel(OP_LOADNIL),
+    &&vmlabel(OP_GETUPVAL),
+    &&vmlabel(OP_GETTABUP),
+    &&vmlabel(OP_GETTABLE),
+    &&vmlabel(OP_SETTABUP),
+    &&vmlabel(OP_SETUPVAL),
+    &&vmlabel(OP_SETTABLE),
+    &&vmlabel(OP_NEWTABLE),
+    &&vmlabel(OP_SELF),
+    &&vmlabel(OP_ADD),
+    &&vmlabel(OP_SUB),
+    &&vmlabel(OP_MUL),
+    &&vmlabel(OP_MOD),
+    &&vmlabel(OP_POW),
+    &&vmlabel(OP_DIV),
+    &&vmlabel(OP_IDIV),
+    &&vmlabel(OP_BAND),
+    &&vmlabel(OP_BOR),
+    &&vmlabel(OP_BXOR),
+    &&vmlabel(OP_SHL),
+    &&vmlabel(OP_SHR),
+    &&vmlabel(OP_UNM),
+    &&vmlabel(OP_BNOT),
+    &&vmlabel(OP_NOT),
+    &&vmlabel(OP_LEN),
+    &&vmlabel(OP_CONCAT),
+    &&vmlabel(OP_JMP),
+    &&vmlabel(OP_EQ),
+    &&vmlabel(OP_LT),
+    &&vmlabel(OP_LE),
+    &&vmlabel(OP_TEST),
+    &&vmlabel(OP_TESTSET),
+    &&vmlabel(OP_CALL),
+    &&vmlabel(OP_TAILCALL),
+    &&vmlabel(OP_RETURN),
+    &&vmlabel(OP_FORLOOP),
+    &&vmlabel(OP_FORPREP),
+    &&vmlabel(OP_TFORCALL),
+    &&vmlabel(OP_TFORLOOP),
+    &&vmlabel(OP_SETLIST),
+    &&vmlabel(OP_CLOSURE),
+    &&vmlabel(OP_VARARG),
+    &&vmlabel(OP_EXTRAARG),
+    &&vmlabel(OP_RAVI_NEWARRAYI),
+    &&vmlabel(OP_RAVI_NEWARRAYF),
+    &&vmlabel(OP_RAVI_LOADIZ),
+    &&vmlabel(OP_RAVI_LOADFZ),
+    &&vmlabel(OP_RAVI_UNMF),
+    &&vmlabel(OP_RAVI_UNMI),
+    &&vmlabel(OP_RAVI_ADDFF),
+    &&vmlabel(OP_RAVI_ADDFI),
+    &&vmlabel(OP_RAVI_ADDII),
+    &&vmlabel(OP_RAVI_SUBFF),
+    &&vmlabel(OP_RAVI_SUBFI),
+    &&vmlabel(OP_RAVI_SUBIF),
+    &&vmlabel(OP_RAVI_SUBII),
+    &&vmlabel(OP_RAVI_MULFF),
+    &&vmlabel(OP_RAVI_MULFI),
+    &&vmlabel(OP_RAVI_MULII),
+    &&vmlabel(OP_RAVI_DIVFF),
+    &&vmlabel(OP_RAVI_DIVFI),
+    &&vmlabel(OP_RAVI_DIVIF),
+    &&vmlabel(OP_RAVI_DIVII),
+    &&vmlabel(OP_RAVI_TOINT),
+    &&vmlabel(OP_RAVI_TOFLT),
+    &&vmlabel(OP_RAVI_TOARRAYI),
+    &&vmlabel(OP_RAVI_TOARRAYF),
+    &&vmlabel(OP_RAVI_TOTAB),
+    &&vmlabel(OP_RAVI_TOSTRING),
+    &&vmlabel(OP_RAVI_TOCLOSURE),
+    &&vmlabel(OP_RAVI_TOTYPE),
+    &&vmlabel(OP_RAVI_MOVEI),
+    &&vmlabel(OP_RAVI_MOVEF),
+    &&vmlabel(OP_RAVI_MOVEAI),
+    &&vmlabel(OP_RAVI_MOVEAF),
+    &&vmlabel(OP_RAVI_MOVETAB),
+    &&vmlabel(OP_RAVI_GETTABLE_AI),
+    &&vmlabel(OP_RAVI_GETTABLE_AF),
+    &&vmlabel(OP_RAVI_SETTABLE_AI),
+    &&vmlabel(OP_RAVI_SETTABLE_AF),
+    &&vmlabel(OP_RAVI_SETTABLE_AII),
+    &&vmlabel(OP_RAVI_SETTABLE_AFF),
+    &&vmlabel(OP_RAVI_FORLOOP_IP),
+    &&vmlabel(OP_RAVI_FORLOOP_I1),
+    &&vmlabel(OP_RAVI_FORPREP_IP),
+    &&vmlabel(OP_RAVI_FORPREP_I1),
+    &&vmlabel(OP_RAVI_SETUPVALI),
+    &&vmlabel(OP_RAVI_SETUPVALF),
+    &&vmlabel(OP_RAVI_SETUPVALAI),
+    &&vmlabel(OP_RAVI_SETUPVALAF),
+    &&vmlabel(OP_RAVI_SETUPVALT),
+    &&vmlabel(OP_RAVI_BAND_II),
+    &&vmlabel(OP_RAVI_BOR_II),
+    &&vmlabel(OP_RAVI_BXOR_II),
+    &&vmlabel(OP_RAVI_SHL_II),
+    &&vmlabel(OP_RAVI_SHR_II),
+    &&vmlabel(OP_RAVI_BNOT_I),
+    &&vmlabel(OP_RAVI_EQ_II),
+    &&vmlabel(OP_RAVI_EQ_FF),
+    &&vmlabel(OP_RAVI_LT_II),
+    &&vmlabel(OP_RAVI_LT_FF),
+    &&vmlabel(OP_RAVI_LE_II),
+    &&vmlabel(OP_RAVI_LE_FF),
+    &&vmlabel(OP_RAVI_GETTABLE_S),
+    &&vmlabel(OP_RAVI_SETTABLE_S),
+    &&vmlabel(OP_RAVI_SELF_S),
+    &&vmlabel(OP_RAVI_GETTABLE_I),
+    &&vmlabel(OP_RAVI_SETTABLE_I),
+    &&vmlabel(OP_RAVI_GETTABLE_SK),
+    &&vmlabel(OP_RAVI_SELF_SK),
+    &&vmlabel(OP_RAVI_SETTABLE_SK),
+    &&vmlabel(OP_RAVI_GETTABUP_SK)
+  };
+#endif
+  
   CallInfo *ci = L->ci;
   LClosure *cl;
   TValue *k;
@@ -1121,7 +1264,7 @@ int luaV_execute (lua_State *L) {
     OpCode op;
     StkId ra;
 
-    vmfetch(op, prevop);
+    vmfetch;
     vmdispatch(op) {
       vmcase(OP_MOVE) {
         setobjs2s(L, ra, RB(i));

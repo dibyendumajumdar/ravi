@@ -606,6 +606,7 @@ static void ravi_code_typecoersion(LexState *ls, int reg, ravitype_t ravi_type, 
    would cause a null pointer and therefore memory fault
  */
 static void ravi_code_setzero(FuncState *fs, int reg, ravitype_t ravi_type, TString *usertype) {
+  (void) usertype;
   if (ravi_type == RAVI_TNUMFLT || ravi_type == RAVI_TNUMINT)
     /* code an instruction to convert in place */
     luaK_codeABC(fs, ravi_type == RAVI_TNUMFLT ? OP_RAVI_LOADFZ : OP_RAVI_LOADIZ, reg, 0, 0);
