@@ -277,7 +277,7 @@ illustrated via examples::
 =============================================================================
 For example::
 
-  print(1 ~= 1)                 -- prints 'true'
+  print(1 ~= 2)                 -- prints 'true'
   print('hello ' .. 'world!')   -- prints 'hello world!')
 
 Lua has some nice syntactic sugar for tables and functions
