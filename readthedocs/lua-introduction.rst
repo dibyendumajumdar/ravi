@@ -32,8 +32,8 @@ Key Features of Lua
 * Lua supports operator overloading via 'meta' methods
 * You can create user defined types in C and make them available in Lua
 * Lua compiles code to bytecode before execution
-* Lua bytecode is not publicly documented and changes from one Lua version to another; moreover the binary dump of the bytecodes is not 
-  portable across architectures and also can change between versions
+* Lua bytecode is not officially documented and changes from one Lua version to another; moreover the binary dump of the bytecodes is
+  not portable across architectures and also can change between versions
 * Lua's compiler is designed to be fast and frugal - it generates code as it parses, there is no intermediate AST construction
 * Like C, Lua comes with a very small standard library - in fact Lua's standard library is just a wrapper for C standard library
   plus some basic utilities for Lua
