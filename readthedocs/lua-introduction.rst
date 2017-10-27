@@ -421,6 +421,10 @@ The Lua error handling mechanism has following issues:
 * On raising an error the ``longjmp`` unwinds the stack - there is no mechanism for any intermediate objects to perform cleanup as is possible in C++ using destructors, or in Java, C++, Python using ``finally`` blocks, or as done by the ``defer`` statement in Go
 * You can setup a finalizer on Lua user types that will eventually execute when the value is garbage collected - this is typically used to free up memory used by the value - but you have no control over when the finalizer will run, hence relying upon finalizers for cleanup is problematic
 
+Lua is single threaded but each OS thread can be given its own Lua VM
+=====================================================================
+All of Lua's VM is encapsulated in a single data structure - the Lua State. Lua does not have global state. Thus, you can create as many Lua instances in a single process as you want. Since the VM is so small it is quite feasible to allocate a Lua VM per OS thread. 
+
 Lua has a meta mechanism that enables a DIY class / object system
 =================================================================
 Firstly simple object oriented method calls can be emulated in Lua by relying upon the ``:`` operator described earlier. Recollect that::
@@ -479,10 +483,6 @@ Lua notices that there is no ``method`` field in object. But object has a ``meta
 Essentially this approach enables the concept of a shared class (e.g. Class in this example) that holds common fields. These fields can be methods or other ordinary values - and since the ``metatable`` is shared by all objects created using the ``Class:new()`` method, then we have a simple OO system!
 
 This feature can be extended to support inheritance as well, but personally I do not find this useful, and suggest you look up Lua documentation if you want to play with inheritance. My advice is to avoid implementing complex object systems in Lua. However, the ``metatable`` approach is invaluable for user defined types created in C as these types can be used in more typesafe manner by using OO notation.
-
-Lua is single threaded but each OS thread can be given its own Lua VM
-=====================================================================
-All of Lua's VM is encapsulated in a single data structure - the Lua State. Lua does not have global state. Thus, you can create as many Lua instances in a single process as you want. Since the VM is so small it is quite feasible to allocate a Lua VM per OS thread. 
 
 
     
