@@ -43,7 +43,7 @@ Key Features of Lua
 * Lua is Open Source but has a closed development model - external contributions are not possible
 * LuaJIT is a JIT compiler for Lua but features an optional high performance C interface mechanism that makes it incompatible with Lua
 
-In the rest of this document I will expand on each of the features above.
+In the rest of this document I will expand on each of these aspects of Lua.
 
 Lua versions matter
 ===================
