@@ -20,17 +20,20 @@ Key Features of Lua
 * A special ``nil`` value represents non-existent value
 * Any value that is not ``false`` or ``nil`` is true
 * The result of logical ``and`` and logical ``or`` is not true or false; these operators select one of the values 
+* ``'~='`` is not equals operator and ``'..'`` is string concatenation operator
 * Lua has some nice syntactic sugar for tables and functions 
 * A Lua script is called a chunk - and is the unit of compilation in Lua
+* The Lua stack is a heap allocated structure - and you can think of Lua as a library that manipulates this stack
 * Lua functions can be yielded from and resumed later on, i.e., Lua supports coroutines
 * Lua is single threaded but its VM is small and encapsulated in a single data structure - hence each OS thread can be given its own 
   Lua VM
 * Lua's error handling is based on C setjmp/longjmp, and errors are caught via a special function call mechanism
 * Lua has a meta mechanism that enables a DIY class / object system with some syntactic sugar to make it look nice
-* You can create user defined types in C and make them available in Lua
 * Lua supports operator overloading via 'meta' methods
-* The Lua stack is a heap allocated structure - and you can think of Lua as a library that manipulates this stack
+* You can create user defined types in C and make them available in Lua
 * Lua compiles code to bytecode before execution
+* Lua bytecode is not publicly documented and changes from one Lua version to another; moreover the binary dump of the bytecodes is not 
+  portable across architectures and also can change between versions
 * Lua's compiler is designed to be fast and frugal - it generates code as it parses, there is no intermediate AST construction
 * Like C, Lua comes with a very small standard library - in fact Lua's standard library is just a wrapper for C standard library
   plus some basic utilities for Lua
@@ -38,7 +41,6 @@ Key Features of Lua
 * Lua provides a debug API that can be used to manipulate Lua's internals to a degree - and can be used to implement a debugger
 * Lua has an incremental garbage collector
 * Lua is Open Source but has a closed development model - external contributions are not possible
-* Major Lua versions are not backward compatible
 * LuaJIT is a JIT compiler for Lua but features an optional high performance C interface mechanism that makes it incompatible with Lua
 
 In the rest of this document I will expand on each of the features above.
@@ -262,14 +264,21 @@ Logical ``and`` and logical ``or`` select one of the values
 When you perform a logical ``and`` or ``or`` the result is not boolean; these operators select one of the values. This is best
 illustrated via examples::
 
-  false or 'hello' -- selects 'hello'
-  'hello' and 'world' -- selects 'world'
-  false and 'hello' -- selects false
-  nil or false -- selects false
-  nil and false -- selects nil
+  false or 'hello'              -- selects 'hello'
+  'hello' and 'world'           -- selects 'world'
+  false and 'hello'             -- selects false
+  nil or false                  -- selects false
+  nil and false                 -- selects nil
   
 * ``and`` selects the first value if it evaluates to false else the second value.
 * ``or`` selects the first value if it evaluates to true else the second value.
+
+``'~='`` is not equals operator and ``'..'`` is string concatenation operator
+=============================================================================
+For example::
+
+  print(1 ~= 1)                 -- prints 'true'
+  print('hello ' .. 'world!')   -- prints 'hello world!')
 
 Lua has some nice syntactic sugar for tables and functions
 ==========================================================
@@ -326,6 +335,10 @@ the sample script is stored in the local variable 'sample' and we can write::
 
   sample.foo()
   sample.bar()
+  
+The Lua stack is a heap allocated structure
+===========================================
+Lua's code operates on heap allocated stacks, rather than the native machine stack. Since Lua is also a C library you can think of Lua as a library that manipulates the heap allocated stacks. In particular, Lua's C api exposes the Lua stack, and requires you to push/pop values on the stack; this approach is unique to Lua. 
   
 Lua functions can be yielded from and resumed later
 ===================================================
