@@ -1031,6 +1031,8 @@ void luaV_finishOp (lua_State *L) {
                    L->top = ci->top);  /* restore top */ \
            luai_threadyield(L); }
 
+#ifndef RAVI_USE_COMPUTED_GOTO
+
 #if RAVI_BYTECODE_PROFILING_ENABLED
  /* fetch an instruction and prepare its execution */
 #define vmfetch	{ \
@@ -1059,25 +1061,23 @@ void luaV_finishOp (lua_State *L) {
 
 #endif
 
-
-#if !RAVI_USE_COMPUTED_GOTO
-
 #define vmdispatch(o)	switch(o)
 #define vmcase(l)	case l:
 #define vmbreak		break
 
 #else
 
-#define vmlabel(l)   do_ ## l
+#define vmlabel(l)   L_ ## l
 #define vmcase(l)   vmlabel(l):
 
-/* NOTE this is experimental. In this mode we do not allow hooks! */
-#undef vmfetch
+/* NOTE this is experimental. Maybe in this mode we should not allow hooks! */
 #define vmfetch	{ \
-i = *(ci->u.l.savedpc++); \
-op = GET_OPCODE(i); \
-ra = RA(i); /* WARNING: any stack reallocation invalidates 'ra' */ \
-goto *dispatch_table[op]; \
+  i = *(ci->u.l.savedpc++); \
+  if (RAVI_UNLIKELY(L->hookmask & (LUA_MASKLINE | LUA_MASKCOUNT))) \
+    Protect(luaG_traceexec(L)); \
+  op = GET_OPCODE(i); \
+  ra = RA(i); /* WARNING: any stack reallocation invalidates 'ra' */ \
+  goto *dispatch_table[op]; \
 }
 
 #define vmdispatch(o) vmfetch
@@ -1124,7 +1124,7 @@ static int check_usertype(lua_State *L, TString *name, const TValue *o)
 
 int luaV_execute (lua_State *L) {
   
-#if RAVI_USE_COMPUTED_GOTO
+#ifdef RAVI_USE_COMPUTED_GOTO
   static void* dispatch_table[] = {
     &&vmlabel(OP_MOVE),
     &&vmlabel(OP_LOADK),

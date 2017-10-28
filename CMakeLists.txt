@@ -8,13 +8,13 @@ enable_testing()
 # Get access to CMake helpers
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-# By default LLVM JIT is ON, and GCC JIT is OFF
-# Only one can be ON, and at last one of them must be ON
+# By default JIT is OFF
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(GCC_JIT "Controls whether GCC JIT compilation will be enabled, default is OFF" OFF)
 option(NANO_JIT "Controls whether NanoJIT compilation will be enabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(EMBEDDED_DMRC "Controls whether the embedded dmrC feature should be enabled, default is OFF" OFF)
+option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is OFF" OFF)
 
 # We cannot link to both LLVM and GCC JIT
 if (LLVM_JIT AND GCC_JIT)
@@ -32,7 +32,6 @@ if (STATIC_BUILD)
     message(STATUS "STATIC library build enabled")
 else()
     message(STATUS "DYNAMIC library build enabled")
-
 endif()
 
 if (LLVM_JIT)
@@ -54,6 +53,11 @@ if (EMBEDDED_DMRC)
     add_definitions(-DUSE_DMR_C)
 endif()
 
+message(STATUS "Computed goto ${COMPUTED_GOTO}")
+if (COMPUTED_GOTO AND MSVC)
+    message(WARNING "Computed goto is not available with MSVC")
+endif()
+
 if (GCC_JIT)
     find_package(GCCJIT REQUIRED)
 
@@ -70,7 +74,7 @@ if (NANO_JIT)
 endif()
 
 if (NOT LLVM_JIT AND NOT GCC_JIT AND NOT NANO_JIT)
-    message(WARNING "Neither LLVM, NanoJIT nor gccjit will be enabled; specify -DLLVM_JIT, -DNANO_JIT or -DGCC_JIT to enable")
+    message(WARNING "Neither LLVM, NanoJIT nor gccjit will be enabled; specify -DLLVM_JIT=ON, -DNANO_JIT=ON or -DGCC_JIT=ON to enable")
 endif()
 
 if (MSVC)
@@ -99,41 +103,40 @@ if (MSVC)
     add_definitions("/wd4624")
     add_definitions("/wd4141")
     add_definitions("/DLUA_COMPAT_5_2")
+    add_definitions("/DLUA_COMPAT_5_1")
 endif ()
 
 
 if (CMAKE_COMPILER_IS_GNUCXX AND NOT APPLE)
     if (NOT WIN32)
         # assume Linux
-        set(CXX_OPTIONS -DLUA_USE_LINUX)
+        set(OS_FLAGS "-DLUA_USE_LINUX")
     endif ()
-    # -fsanitize=bounds -fsanitize=alignment -fsanitize=object-size
     set(SANITIZER_FLAGS "-fsanitize=address")
-    set(CMAKE_C_FLAGS "-std=c99 -O2 -fomit-frame-pointer -Wall -Wextra -Winline -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_C_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -std=c99 -O0 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O2 -fomit-frame-pointer -Wall -Wextra -Winline -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_C_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -std=c99 -O1 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_CXX_FLAGS "-fno-rtti -O2 -fomit-frame-pointer -Wall -Wno-sign-compare -Winline -std=c++14 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -O2 -fomit-frame-pointer -Wall -Wno-sign-compare -Winline -std=c++14 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_CXX_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++14 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -fno-rtti -O1 -g3 -Wall -Wno-sign-compare -std=c++14 -fno-exceptions -DLUA_COMPAT_5_2 ${CXX_OPTIONS}")
-    # In case we are using gcc 5.1 set ABI version
-    # add_definitions("-D_GLIBCXX_USE_CXX11_ABI=0")
+    set(LUA_COMPAT_FLAGS "-DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1")
+    set(CMAKE_C_FLAGS "-std=c99 -O2 -fomit-frame-pointer -Wall -Wextra -Winline ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
+    set(CMAKE_C_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -std=c99 -O0 -g3 -Wall -Wextra ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
+    set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O2 -fomit-frame-pointer -Wall -Wextra -Winline ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -std=c99 -O1 -g3 -Wall -Wextra ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
+    set(CMAKE_CXX_FLAGS "-fno-rtti -O2 -fomit-frame-pointer -Wall -Wno-sign-compare -Winline -std=c++14 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
+    set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -O2 -fomit-frame-pointer -Wall -Wno-sign-compare -Winline -std=c++14 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
+    set(CMAKE_CXX_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++14 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -fno-rtti -O1 -g3 -Wall -Wno-sign-compare -std=c++14 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
 endif ()
 
 if (APPLE)
-    set(CMAKE_C_FLAGS "-std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
-    set(CMAKE_C_FLAGS_DEBUG "-std=c99 -O0 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
-    set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
-    set(CMAKE_C_FLAGS_RELWITHDEBINFO "-std=c99 -O1 -g3 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
-    set(CMAKE_CXX_FLAGS "-O3 -Wall -fno-rtti -Wno-sign-compare -std=c++14 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
-    set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -O3 -Wall -Wno-sign-compare -std=c++14 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
-    set(CMAKE_CXX_FLAGS_DEBUG "-fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++14 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-fno-rtti -O1 -g3 -Wall -Wno-sign-compare -std=c++14 -fno-exceptions -DLUA_COMPAT_5_2 -DLUA_USE_MACOSX")
+    set(LUA_COMPAT_FLAGS "-DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1")
+    set(CMAKE_C_FLAGS "-std=c99 -O3 -Wall -Wextra ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
+    set(CMAKE_C_FLAGS_DEBUG "-std=c99 -O0 -g3 -Wall -Wextra ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
+    set(CMAKE_C_FLAGS_RELEASE "-std=c99 -O3 -Wall -Wextra ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO "-std=c99 -O1 -g3 -Wall -Wextra ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
+    set(CMAKE_CXX_FLAGS "-O3 -Wall -fno-rtti -Wno-sign-compare -std=c++14 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
+    set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -O3 -Wall -Wno-sign-compare -std=c++14 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
+    set(CMAKE_CXX_FLAGS_DEBUG "-fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++14 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-fno-rtti -O1 -g3 -Wall -Wno-sign-compare -std=c++14 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
 endif ()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
-add_definitions(-DLUA_COMPAT_MODULE)
 if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     message(STATUS "Enabling Lua extended test harness 'ltests'")
     add_definitions(-DLUA_USER_H="ltests.h")
@@ -167,6 +170,13 @@ set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src
         src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
         src/lvm.c src/lzio.c src/ravijit.cpp src/ltests.c src/ravi_profile.c src/ravi_membuf.c
         src/ravi_jitshared.c src/bit.c)
+if (COMPUTED_GOTO AND NOT MSVC)
+    if (APPLE)
+        set_source_files_properties(src/lvm.c PROPERTIES COMPILE_FLAGS -DRAVI_USE_COMPUTED_GOTO)
+    else()
+        set_source_files_properties(src/lvm.c PROPERTIES COMPILE_FLAGS "-fno-crossjumping -fno-gcse -DRAVI_USE_COMPUTED_GOTO")
+    endif()
+endif()      
 # define the lua lib source files
 set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
         src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
