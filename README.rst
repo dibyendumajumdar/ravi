@@ -384,6 +384,12 @@ When JIT compilation is enabled there are following additional constraints:
 Building Ravi
 =============
 
+Quick build without JIT
+-----------------------
+A Makefile is supplied for a simple build without the JIT. Just run ``make`` and follow instructions. You may need to customize the Makefiles. 
+
+For building Ravi with JIT options please read on.
+
 Build Dependencies
 ------------------
 
