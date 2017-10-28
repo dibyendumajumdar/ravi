@@ -44,7 +44,7 @@ BASE_O= $(CORE_O) $(LIB_O) $(MYOBJS)
 LUA_T=	ravi
 LUA_O=	lua.o
 
-ALL_O= $(BASE_O) $(LUA_O) $(LUAC_O)
+ALL_O= $(BASE_O) $(LUA_O)
 ALL_T= $(LUA_A) $(LUA_T) 
 ALL_A= $(LUA_A)
 
@@ -63,9 +63,6 @@ $(LUA_A): $(BASE_O)
 
 $(LUA_T): $(LUA_O) $(LUA_A)
 	$(CC) -o $@ $(LDFLAGS) $(LUA_O) $(LUA_A) $(LIBS)
-
-$(LUAC_T): $(LUAC_O) $(LUA_A)
-	$(CC) -o $@ $(LDFLAGS) $(LUAC_O) $(LUA_A) $(LIBS)
 
 clean:
 	$(RM) $(ALL_T) $(ALL_O)

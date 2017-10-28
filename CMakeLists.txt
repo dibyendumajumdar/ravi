@@ -14,7 +14,7 @@ option(GCC_JIT "Controls whether GCC JIT compilation will be enabled, default is
 option(NANO_JIT "Controls whether NanoJIT compilation will be enabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(EMBEDDED_DMRC "Controls whether the embedded dmrC feature should be enabled, default is OFF" OFF)
-option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is OFF" OFF)
+option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is OFF" ON)
 
 # We cannot link to both LLVM and GCC JIT
 if (LLVM_JIT AND GCC_JIT)
