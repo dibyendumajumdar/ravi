@@ -91,7 +91,7 @@ static int ravi_compile_n(lua_State *L) {
     LClosure *l = reinterpret_cast<LClosure *>(p);
     functions[n++] = l->p;
   }
-  ravi_compile_options_t options = {0};
+  ravi_compile_options_t options = {0, 0, RAVI_CODEGEN_NONE};
   options.manual_request = 1;
   if (lua_istable(L, 2)) {
     lua_Integer omit_arrayget_rangecheck;

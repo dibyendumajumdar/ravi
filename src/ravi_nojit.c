@@ -62,19 +62,17 @@ void raviV_close(struct lua_State *L) {
 
 // Dump the LLVM IR
 void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
-	membuff_t buf;
-	membuff_init(&buf, 4096);
+  membuff_t buf;
+  membuff_init(&buf, 4096);
 
-	// TODO enhance this to allow user to specify name
-	// and also whether to dump header or body or both
-	char fname[30];
-	snprintf(fname, sizeof fname, "jitfunction");
-	ravi_compile_options_t options = { 0 };
-	options.codegen_type = RAVI_CODEGEN_ALL;
-	if (raviJ_codegen(L, p, &options, fname, &buf)) {
-		printf(buf.buf);
-	}
-	membuff_free(&buf);
+  // TODO enhance this to allow user to specify name
+  // and also whether to dump header or body or both
+  char fname[30];
+  snprintf(fname, sizeof fname, "jitfunction");
+  ravi_compile_options_t options = {0};
+  options.codegen_type = RAVI_CODEGEN_ALL;
+  if (raviJ_codegen(L, p, &options, fname, &buf)) { puts(buf.buf); }
+  membuff_free(&buf);
 }
 
 // Dump the LLVM ASM

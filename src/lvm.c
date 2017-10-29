@@ -1118,7 +1118,7 @@ static int check_usertype(lua_State *L, TString *name, const TValue *o)
   /* get global table from registry */
   Table *reg = hvalue(&G(L)->l_registry);
   const TValue *metatab = luaH_getshortstr(reg, name);
-  return !ttisnil(metatab) && ttisLtable(metatab) && hvalue(metatab) == mt || 0;
+  return (!ttisnil(metatab) && ttisLtable(metatab) && hvalue(metatab) == mt) || 0;
 }
 
 
