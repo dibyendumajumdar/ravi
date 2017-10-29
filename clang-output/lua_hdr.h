@@ -95,16 +95,18 @@ enum ravitype_t {
 
 struct Upvaldesc {
   struct TString *name;  /* upvalue name (for debug information) */
-  enum ravitype_t type; /* RAVI type of upvalue */
+  struct TString *usertype; /* RAVI extension: name of user type */
+  lu_byte ravi_type; /* RAVI type of upvalue */
   lu_byte instack; /* whether it is in stack */
   lu_byte idx; /* index of upvalue (in stack or in outer function's list) */
 };
 
 struct LocVar {
   struct TString *varname;
+  struct TString *usertype; /* RAVI extension: name of user type */
   int startpc; /* first point where variable is active */
   int endpc;   /* first point where variable is dead */
-  enum ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
+  lu_byte ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
 };
 
 struct RaviJITProto {
