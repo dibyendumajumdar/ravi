@@ -31,7 +31,7 @@
 
 enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 
-
+#if 1
 /*
 ** size and position of opcode arguments.
 */
@@ -127,12 +127,90 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 			| (cast(Instruction, a)<<POS_Ax))
 
 
+
+
 /*
 ** Macros to operate RK indices
 */
 
 /* this bit 1 means constant (0 means register) */
 #define BITRK		(1 << (SIZE_B - 1))
+
+#else
+
+/* following is based on LuaJIT code */
+/* Target endianess. */
+#define RAVI_ARCH_LE	0
+#define RAVI_ARCH_BE	1
+
+#if defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
+#define RAVI_ARCH_X64 1
+#else
+#error "Unsupported architectue"
+#endif
+
+#if RAVI_ARCH_X64
+#define RAVI_ARCH_ENDIAN		RAVI_ARCH_LE
+#endif
+
+#if RAVI_ARCH_ENDIAN == RAVI_ARCH_BE
+#define RAVI_LE			0
+#define RAVI_BE			1
+#define RAVI_ENDIAN_SELECT(le, be)	be
+#define RAVI_ENDIAN_LOHI(lo, hi)		hi lo
+#else
+#define RAVI_LE			1
+#define RAVI_BE			0
+#define RAVI_ENDIAN_SELECT(le, be)	le
+#define RAVI_ENDIAN_LOHI(lo, hi)		lo hi
+#endif
+
+#define MAXARG_A 0x7f
+#define MAXARG_B 0xff
+#define MAXARG_C 0xff
+#define MAXARG_Bx 0xffff
+#define MAXARG_Ax 0xffffff
+
+#define GET_OPCODE(i)	cast(OpCode, ((i)&0xff))
+#define GETARG_A(i)	cast(int, ((i)>>8)&0x7f)
+#define GETARG_B(i)	cast(int, (i)>>24)
+#define GETARG_C(i)	cast(int, ((i)>>16)&0xff)
+#define GETARG_Bx(i)	cast(int, (i)>>16)
+#define GETARG_Ax(i)	cast(int, (i)>>8)
+#define GETARG_sBx(i)	(((int)GETARG_Bx(i))-MAXARG_sBx)
+#define MAXARG_sBx      0x8000 // (MAXARG_Bx>>1)
+
+#define setbc_byte(p, x, ofs) \
+  ((lu_byte *)(&(p)))[RAVI_ENDIAN_SELECT(ofs, 3-ofs)] = ((lu_byte)cast(Instruction, x))
+
+#define SET_OPCODE(p, x) setbc_byte(p, (x), 0)
+#define SETARG_A(p, x)   setbc_byte(p, ((x)&0x7f), 1)
+#define SETARG_B(p, x)   setbc_byte(p, (x), 3)
+#define SETARG_C(p, x)   setbc_byte(p, (x), 2)
+#define SETARG_Bx(p, x) \
+  ((unsigned short *)(&(p)))[RAVI_ENDIAN_SELECT(1, 0)] = (unsigned short)(cast(Instruction, x))
+#define SETARG_sBx(p, x) SETARG_Bx(p, cast(unsigned int, cast(Instruction, x)+MAXARG_sBx))
+#define SETARG_Ax(p, x) p = (cast(Instruction, p)&0xff | (cast(Instruction, x)<<8))
+
+
+#define CREATE_ABC(o,a,b,c)	((cast(Instruction, o)) \
+			| (cast(Instruction, a)<<8) \
+			| (cast(Instruction, b)<<24) \
+			| (cast(Instruction, c)<<16))
+
+#define CREATE_ABx(o,a,bc)	((cast(Instruction, o)) \
+			| (cast(Instruction, a)<<8) \
+			| (cast(Instruction, bc)<<16))
+
+#define CREATE_Ax(o,a)		((cast(Instruction, o)) \
+			| (cast(Instruction, a)<<8))
+
+/* this bit 1 means constant (0 means register) */
+#define BITRK		0x80
+
+#endif 
+
+
 
 /* test whether value is a constant */
 #define ISK(x)		((x) & BITRK)
