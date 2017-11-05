@@ -9,7 +9,7 @@ Goals
 
 Timescales
 ==========
-This project will proceed slowly as this is my first foray into assembly language programming. Additionally I can only spend time on this project on my free time (i.e. weekends and holidays). 
+This project will proceed slowly as this is my first foray into assembly language programming. Also I can only spend time on this project in my free time (i.e. weekends and holidays). 
 
 Acknowledgements
 ================
