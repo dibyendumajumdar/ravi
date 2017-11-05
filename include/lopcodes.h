@@ -138,32 +138,7 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 
 #else
 
-/* following is based on LuaJIT code */
-/* Target endianess. */
-#define RAVI_ARCH_LE	0
-#define RAVI_ARCH_BE	1
-
-#if defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
-#define RAVI_ARCH_X64 1
-#else
-#error "Unsupported architectue"
-#endif
-
-#if RAVI_ARCH_X64
-#define RAVI_ARCH_ENDIAN		RAVI_ARCH_LE
-#endif
-
-#if RAVI_ARCH_ENDIAN == RAVI_ARCH_BE
-#define RAVI_LE			0
-#define RAVI_BE			1
-#define RAVI_ENDIAN_SELECT(le, be)	be
-#define RAVI_ENDIAN_LOHI(lo, hi)		hi lo
-#else
-#define RAVI_LE			1
-#define RAVI_BE			0
-#define RAVI_ENDIAN_SELECT(le, be)	le
-#define RAVI_ENDIAN_LOHI(lo, hi)		lo hi
-#endif
+#include "ravi_arch.h"
 
 #define MAXARG_A 0x7f
 #define MAXARG_B 0xff
