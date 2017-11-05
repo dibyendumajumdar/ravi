@@ -16,12 +16,12 @@
 if exist minilua.exe.manifest^
   %LJMT% -manifest minilua.exe.manifest -outputresource:minilua.exe
 
-@set DASMFLAGS=-D WIN -D JIT -D FFI -D P64
+@set DASMFLAGS=-D WIN -D P64
 @set LJARCH=x64
 
 @set DASC=vm_x64.dasc
 
-minilua %DASM% -LN %DASMFLAGS% -o buildvm_arch.h %DASC%
+minilua %DASM% -MF %DASMFLAGS% -o buildvm_arch.h %DASC%
 @if errorlevel 1 goto :BAD
 
 %LJCOMPILE% /I "." /I %LUAINCDIR% /I %DASMDIR% buildvm*.c

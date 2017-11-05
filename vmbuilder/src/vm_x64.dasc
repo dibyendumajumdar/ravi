@@ -13,40 +13,42 @@
 |
 |// Fixed register assignments for the interpreter.
 |// This is very fragile and has many dependencies. Caveat emptor.
-|.define BASE,		edx		// Not C callee-save, refetched anyway.
+|// BASE caches the Lua function's base pointer (start of Lua registers)
+|// This is volatile, i.e. must be refetched after any call that can
+|// reallocate the Lua stack (typically any Lua api call)
+|// KBASE caches the Lua function proto's constant table, this does not
+|// change during the execution
+|// PC caches the program counter (current bytecode location)
+|// We need to ensure that the PC is saved before calling certain functions
+|// DISPATCH points to the dispatch table which is located in the 
+|// LG structure defined in lstate.h - this contains the computed goto
+|// destinations
+|.define BASE,		rdx		  // Not C callee-save, refetched anyway.
 |.if X64WIN
-|.define KBASE,		edi		// Must be C callee-save.
-|.define KBASEa,	rdi
-|.define PC,		esi		// Must be C callee-save.
-|.define PCa,		rsi
-|.define DISPATCH,	ebx		// Must be C callee-save.
+|.define KBASE,		rdi		  // Must be C callee-save.
+|.define PC,		rsi		    // Must be C callee-save.
+|.define DISPATCH,	rbx		// Must be C callee-save.
 |.else
-|.define KBASE,		r15d		// Must be C callee-save.
-|.define KBASEa,	r15
-|.define PC,		ebx		// Must be C callee-save.
-|.define PCa,		rbx
-|.define DISPATCH,	r14d		// Must be C callee-save.
+|.define KBASE,		r15		  // Must be C callee-save.
+|.define PC,		rbx		    // Must be C callee-save.
+|.define DISPATCH,	r14		// Must be C callee-save.
 |.endif
 |
-|.define RA,		ecx
-|.define RAH,		ch
-|.define RAL,		cl
-|.define RB,		ebp		// Must be ebp (C callee-save).
-|.define RC,		eax		// Must be eax.
-|.define RCW,		ax
-|.define RCH,		ah
-|.define RCL,		al
-|.define OP,		RB
-|.define RD,		RC
-|.define RDW,		RCW
-|.define RDL,		RCL
-|.define RAa, rcx
-|.define RBa, rbp
-|.define RCa, rax
-|.define RDa, rax
-|
 |.if X64WIN
-| // On Win64, integer arguments are passed in registers RCX, RDX, R8, and R9.
+| // On Win64, the first four integer arguments are passed in registers. Integer values are passed 
+| // (in order left to right) in RCX, RDX, R8, and R9. Arguments five and higher are passed 
+| // on the stack. All arguments are right-justified in registers. This is done so the callee 
+| // can ignore the upper bits of the register if need be and can access only the portion 
+| // of the register necessary.
+| // Floating-point and double-precision arguments are passed in XMM0 - XMM3 (up to 4) 
+| // with the integer slot (RCX, RDX, R8, and R9) that would normally be used for that cardinal 
+| // slot being ignored (see example below) and vice versa.
+| //   func3(int a, double b, int c, float d);    
+| //   a in RCX, b in XMM1, c in R8, d in XMM3
+| // For functions not fully prototyped, the caller will pass integer values as integers 
+| // and floating-point values as double precision. For floating-point values only, both 
+| // the integer register and the floating-point register will contain the float value 
+| // in case the callee expects the value in the integer registers.
 |.define CARG1,		rcx		// x64/WIN64 C call arguments.
 |.define CARG2,		rdx
 |.define CARG3,		r8
@@ -55,8 +57,6 @@
 |.define CARG2d,	edx
 |.define CARG3d,	r8d
 |.define CARG4d,	r9d
-|.define FCARG1,	CARG1d		// Upwards compatible to x86 fastcall.
-|.define FCARG2,	CARG2d
 |.else
 |.define CARG1,		rdi		// x64/POSIX C call arguments.
 |.define CARG2,		rsi
@@ -70,8 +70,6 @@
 |.define CARG4d,	ecx
 |.define CARG5d,	r8d
 |.define CARG6d,	r9d
-|.define FCARG1,	CARG1d		// Simulate x86 fastcall.
-|.define FCARG2,	CARG2d
 |.endif
 |
 |// Type definitions. Some of these are only used for documentation.
@@ -87,6 +85,18 @@
 |.macro saveregs_
 |  // The registers RBX, RBP, RDI, RSI, RSP, R12, R13, R14, and R15 are considered nonvolatile 
 |  // and must be saved and restored by a function that uses them.
+|  // There is always space to hold all parameters in the parameter area of the stack
+|  // so that each register parameter has a home address. Even if a function has less
+|  // than 4 parameters, at least 4 stack locatons is guaranteed and is owned by the
+|  // called function even if it doesn't use it 
+|  // All memory beyond the current address of RSP is considered volatile.
+|  // A frame function is a function that allocates stack space, calls other functions, 
+|  // saves nonvolatile registers, or uses exception handling. It also requires a 
+|  // function table entry. A frame function requires a prolog and an epilog.
+|  // home location for RCX is [RSP + 8]
+|  // home location for RDX is [RSP + 16]
+|  // home location for R8 is [RSP + 24]
+|  // home location for R9 is [RSP + 32]
 |  push rdi; push rsi; push rbx
 |  push r12; push r13; push r14; push r15;
 |  sub rsp, CFRAME_SPACE
@@ -99,33 +109,6 @@
 |  pop r15; pop r14; pop r13; pop r12;
 |  pop rbx; pop rsi; pop rdi; pop rbp
 |.endmacro
-|
-|.define SAVE_CFRAME,	aword [rsp+aword*13]
-|.define SAVE_PC,	dword [rsp+dword*25]
-|.define SAVE_L,	dword [rsp+dword*24]
-|.define SAVE_ERRF,	dword [rsp+dword*23]
-|.define SAVE_NRES,	dword [rsp+dword*22]
-|.define TMP2,		dword [rsp+dword*21]
-|.define TMP1,		dword [rsp+dword*20]
-|//----- 16 byte aligned, ^^^ 32 byte register save area, owned by interpreter
-|.define SAVE_RET,	aword [rsp+aword*9]	//<-- rsp entering interpreter.
-|.define SAVE_R4,	aword [rsp+aword*8]
-|.define SAVE_R3,	aword [rsp+aword*7]
-|.define SAVE_R2,	aword [rsp+aword*6]
-|.define SAVE_R1,	aword [rsp+aword*5]	//<-- rsp after register saves.
-|.define ARG5,		aword [rsp+aword*4]
-|.define CSAVE_4,	aword [rsp+aword*3]
-|.define CSAVE_3,	aword [rsp+aword*2]
-|.define CSAVE_2,	aword [rsp+aword*1]
-|.define CSAVE_1,	aword [rsp]		//<-- rsp while in interpreter.
-|//----- 16 byte aligned, ^^^ 32 byte register save area, owned by callee
-|
-|// TMPQ overlaps TMP1/TMP2. MULTRES overlaps TMP2 (and TMPQ).
-|.define TMPQ,		qword [rsp+aword*10]
-|.define MULTRES,	TMP2
-|.define TMPa,		ARG5
-|.define ARG5d,		dword [rsp+aword*4]
-|.define TMP3,		ARG5d
 |
 |//-----------------------------------------------------------------------
 |.else			// x64/POSIX stack layout
@@ -144,37 +127,6 @@
 |  pop r12; pop r13
 |  pop r14; pop r15; pop rbx; pop rbp
 |.endmacro
-|
-|//----- 16 byte aligned,
-|.if NO_UNWIND
-|.define SAVE_RET,	aword [rsp+aword*11]	//<-- rsp entering interpreter.
-|.define SAVE_R4,	aword [rsp+aword*10]
-|.define SAVE_R3,	aword [rsp+aword*9]
-|.define SAVE_R2,	aword [rsp+aword*8]
-|.define SAVE_R1,	aword [rsp+aword*7]
-|.define SAVE_RU2,	aword [rsp+aword*6]
-|.define SAVE_RU1,	aword [rsp+aword*5]	//<-- rsp after register saves.
-|.else
-|.define SAVE_RET,	aword [rsp+aword*9]	//<-- rsp entering interpreter.
-|.define SAVE_R4,	aword [rsp+aword*8]
-|.define SAVE_R3,	aword [rsp+aword*7]
-|.define SAVE_R2,	aword [rsp+aword*6]
-|.define SAVE_R1,	aword [rsp+aword*5]	//<-- rsp after register saves.
-|.endif
-|.define SAVE_CFRAME,	aword [rsp+aword*4]
-|.define SAVE_PC,	dword [rsp+dword*7]
-|.define SAVE_L,	dword [rsp+dword*6]
-|.define SAVE_ERRF,	dword [rsp+dword*5]
-|.define SAVE_NRES,	dword [rsp+dword*4]
-|.define TMPa,		aword [rsp+aword*1]
-|.define TMP2,		dword [rsp+dword*1]
-|.define TMP1,		dword [rsp]		//<-- rsp while in interpreter.
-|//----- 16 byte aligned
-|
-|// TMPQ overlaps TMP1/TMP2. MULTRES overlaps TMP2 (and TMPQ).
-|.define TMPQ,		qword [rsp]
-|.define TMP3,		dword [rsp+aword*1]
-|.define MULTRES,	TMP2
 |
 |.endif
 
