@@ -10,7 +10,9 @@ These notes are only for X86-64 architecture.
   3. The ``buildvm`` tool is run to output the VM code. The output is an object file in the case of Windows, but on UNIX machines the output is assembly code; however, this file does not contain human readable assembly code - instead the code is output as a sequence of binary values. An example of the output file is available `at the RaptorJIT project <https://github.com/raptorjit/raptorjit/blob/master/src/reusevm/lj_vm.S>`_.
 
 * The generated VM code contains assembler routines for each LuaJIT bytecode, and also a number of other library and utility functions.
-* The offsets of the byte code assembler routines are gathered and used to create the computed goto ``DISPATCH`` table. This table is stored alongside `LuaJIT global_State/lua_State structure in GG_State <https://github.com/LuaJIT/LuaJIT/blob/master/src/lj_dispatch.h>`_. The initialization of the dispatch table occurs in ``lj_dispatch_init()`` function in `lj_dipatch.c <https://github.com/LuaJIT/LuaJIT/blob/master/src/lj_dispatch.c>`_. The relevant code is shown below::
+* The offsets of the byte code assembler routines are gathered and used to create the computed goto ``DISPATCH`` table. This table is stored alongside `LuaJIT global_State/lua_State structure in GG_State <https://github.com/LuaJIT/LuaJIT/blob/master/src/lj_dispatch.h>`_. The initialization of the dispatch table occurs in ``lj_dispatch_init()`` function in `lj_dipatch.c <https://github.com/LuaJIT/LuaJIT/blob/master/src/lj_dispatch.c>`_. The relevant code is shown below.
+
+::
 
   /* Initialize instruction dispatch table and hot counters. */
   void lj_dispatch_init(GG_State *GG)
