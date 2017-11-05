@@ -5,11 +5,11 @@ Goals
 * Create a new Lua/Ravi interpreter that is coded mostly in assembly
 * Initial work will focus on X86-64 architecture only
 * The VM will support the extended bytecode set of Ravi
-* An equally important gaol is to document the effort so that it is easier for others to understand how the VM is implemented
+* An equally important goal is to document the effort so that it is easier for others to understand how the VM is implemented
 
 Timescales
 ==========
-This project will proceed slowly as this is my first foray into assembly language programming. Additionally I can only spend time on this project on my free time (i.e. weekends and holidays). 
+This project will proceed slowly as this is my first foray into assembly language programming. Also I can only spend time on this project in my free time (i.e. weekends and holidays). 
 
 Acknowledgements
 ================
