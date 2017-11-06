@@ -27,4 +27,4 @@ On Windows 64-bit calling sequence requires caller to reserve 32 bytes (for 4 re
 References
 ==========
 * `X86-64 Calling conventions <https://en.wikipedia.org/wiki/X86_calling_conventions#x86-64_calling_conventions>`_
-* `Windows X86-64 Conventions https://docs.microsoft.com/en-us/cpp/build/x64-software-conventions`_
+* `Windows X86-64 Conventions <https://docs.microsoft.com/en-us/cpp/build/x64-software-conventions>`_
