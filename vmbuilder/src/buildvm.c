@@ -15,8 +15,18 @@
 */
 
 #include "buildvm.h"
-#include "lopcodes.h"
 #include "lua.h"
+#include "lua.h"
+#include "ldebug.h"
+#include "ldo.h"
+#include "lfunc.h"
+#include "lgc.h"
+#include "lobject.h"
+#include "lopcodes.h"
+#include "lstate.h"
+#include "lstring.h"
+#include "ltable.h"
+#include "ltm.h"
 #if defined(_WIN32)
 #include <fcntl.h>
 #include <io.h>

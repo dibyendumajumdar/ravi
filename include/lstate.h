@@ -12,7 +12,7 @@
 #include "lobject.h"
 #include "ltm.h"
 #include "lzio.h"
-
+#include "lopcodes.h"
 
 /*
 
@@ -159,6 +159,7 @@ typedef struct global_State {
   TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */
   /* RAVI additions */
   ravi_State *ravi_state;
+  ASMFunction dispatch[NUM_OPCODES];
   ravi_Writeline ravi_writeline;
   ravi_Writestring ravi_writestring;
   ravi_Writestringerror ravi_writestringerror;
@@ -170,6 +171,7 @@ typedef struct global_State {
 #endif
 } global_State;
 
+#define DISPATCH_OFFSET	((int)offsetof(global_State, dispatch))
 
 /*
 ** 'per thread' state

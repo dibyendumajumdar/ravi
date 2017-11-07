@@ -614,6 +614,9 @@ typedef struct Table {
 */
 #define luaO_nilobject		(&luaO_nilobject_)
 
+/* Internal assembler functions. Never call these directly from C. */
+typedef void(*ASMFunction)(void);
+
 
 LUAI_DDEC const TValue luaO_nilobject_;
 

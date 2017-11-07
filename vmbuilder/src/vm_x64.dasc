@@ -26,13 +26,28 @@
 |.define BASE,		rdx		  // Not C callee-save, refetched anyway.
 |.if X64WIN
 |.define KBASE,		rdi		  // Must be C callee-save.
-|.define PC,		rsi		    // Must be C callee-save.
-|.define DISPATCH,	rbx		// Must be C callee-save.
+|.define PC,		esi		    // Must be C callee-save.
+|.define PCa,   rsi
+|.define DISPATCH,	ebx		// Must be C callee-save.
 |.else
 |.define KBASE,		r15		  // Must be C callee-save.
-|.define PC,		rbx		    // Must be C callee-save.
-|.define DISPATCH,	r14		// Must be C callee-save.
+|.define PC,		ebx		    // Must be C callee-save.
+|.define PCa,   rbx
+|.define DISPATCH,	r14d	// Must be C callee-save.
 |.endif
+|
+|.define RA,  ecx
+|.define RAH, ch
+|.define RAL, cl
+|.define RAa, rcx
+|.define RC,  eax         // volatile
+|.define RCH, ah
+|.define RCL, al
+|.define RCW, ax
+|.define RCa, rax
+|.define RB,  ebp         // Must be callee-save
+|.define RBa, rbp
+|.define OP,  RB
 |
 |.if X64WIN
 | // On Win64, the first four integer arguments are passed in registers. Integer values are passed 
@@ -75,8 +90,22 @@
 |// Type definitions. Some of these are only used for documentation.
 |.type L,		lua_State
 |.type GL,		global_State
-|.type TVALUE,		TValue
+|.type TOP,   TValue        // L->top (calls/open ops).
+|.type CI,    CallInfo      // L->ci (calls, locally).
+|.type LCL,   LClosure      // func->value (calls).
 |
+|// Type definitions with local validity.
+|.type TVALUE,    TValue
+|.type VALUE,   Value
+|.type CINFO,   CallInfo
+|.type GCOBJECT,  GCObject
+|.type TSTRING,   TString
+|.type TABLE,   Table
+|.type CCLOSURE,  CClosure
+|.type PROTO,   Proto
+|.type UPVAL,   UpVal
+|.type NODE,    Node
+
 |// Stack layout while in interpreter. 
 |//-----------------------------------------------------------------------
 |.if X64WIN		// x64/Windows stack layout
@@ -130,11 +159,37 @@
 |
 |.endif
 
+// Instruction decode+dispatch 
+|.macro ins_NEXT
+|  mov RC, [PC]
+|  movzx RA, RCH
+|  movzx OP, RCL
+|  add PC, 4
+|  shr RC, 16
+|.if X64
+|  jmp aword [DISPATCH+OP*8]
+|.else
+|  jmp aword [DISPATCH+OP*4]
+|.endif
+|.endmacro
+|.define ins_next, ins_NEXT
+
+
+
 /* Generate subroutines used by opcodes and other parts of the VM. */
 /* The .code_sub section should be last to help static branch prediction. */
 static void build_subroutines(BuildCtx *ctx)
 {
   |.code_sub
+  |
+  |//-----------------------------------------------------------------------
+  |//-- VM entry point
+  |//-----------------------------------------------------------------------
+  |->luaV_interp:
+  |  saveregs
+  |  mov L:RBa, CARG1
+  |  mov DISPATCH, L:RBa->l_G
+  |  add DISPATCH, DISPATCH_OFFSET
   |
   |//-----------------------------------------------------------------------
   |//-- Return handling ----------------------------------------------------
@@ -156,8 +211,7 @@ static void build_ins(BuildCtx *ctx, OpCode op, int defop)
   /* ---------------------------------------------------------------------- */
 
   default:
-    fprintf(stderr, "Error: undefined opcode %d\n", (int)op); // luaP_opnames[op]);
-    exit(2);
+    |  ins_next
     break;
   }
 }
