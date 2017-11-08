@@ -28,12 +28,12 @@
 |.define KBASE,		rdi		  // Must be C callee-save.
 |.define PC,		esi		    // Must be C callee-save.
 |.define PCa,   rsi
-|.define DISPATCH,	ebx		// Must be C callee-save.
+|.define DISPATCH,	rbx		// Must be C callee-save.
 |.else
 |.define KBASE,		r15		  // Must be C callee-save.
 |.define PC,		ebx		    // Must be C callee-save.
 |.define PCa,   rbx
-|.define DISPATCH,	r14d	// Must be C callee-save.
+|.define DISPATCH,	r14	// Must be C callee-save.
 |.endif
 |
 |.define RA,  ecx

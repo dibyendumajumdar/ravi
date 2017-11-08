@@ -154,20 +154,6 @@ void emit_asm(BuildCtx *ctx)
   if (ctx->mode != BUILD_machasm)
     fprintf(ctx->fp, ".Lbegin:\n");
 
-#if RAVI_ARCH_HASFPU
-  fprintf(ctx->fp,
-	  ".fnstart\n"
-	  ".save {r5, r6, r7, r8, r9, r10, r11, lr}\n"
-	  ".vsave {d8-d15}\n"
-	  ".save {r4}\n"
-	  ".pad #28\n");
-#else
-  fprintf(ctx->fp,
-	  ".fnstart\n"
-	  ".save {r4, r5, r6, r7, r8, r9, r10, r11, lr}\n"
-	  ".pad #28\n");
-#endif
-
   for (i = rel = 0; i < ctx->nsym; i++) {
     int32_t ofs = ctx->sym[i].ofs;
     int32_t next = ctx->sym[i+1].ofs;
@@ -191,9 +177,6 @@ void emit_asm(BuildCtx *ctx)
   fprintf(ctx->fp, "\n");
   switch (ctx->mode) {
   case BUILD_elfasm:
-#if !(RAVI_TARGET_PS3 || RAVI_TARGET_PSVITA)
-    fprintf(ctx->fp, "\t.section .note.GNU-stack,\"\"," ELFASM_PX "progbits\n");
-#endif
     /* fallthrough */
   case BUILD_coffasm:
     fprintf(ctx->fp, "\t.ident \"%s\"\n", ctx->dasm_ident);
