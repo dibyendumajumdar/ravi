@@ -166,11 +166,7 @@
 |  movzx OP, RCL
 |  add PC, 4
 |  shr RC, 16
-|.if X64
 |  jmp aword [DISPATCH+OP*8]
-|.else
-|  jmp aword [DISPATCH+OP*4]
-|.endif
 |.endmacro
 |.define ins_next, ins_NEXT
 
