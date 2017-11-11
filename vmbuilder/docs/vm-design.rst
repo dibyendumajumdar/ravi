@@ -30,7 +30,7 @@ Register Allocations
 The VM will use a fixed set of registers mostly with some register usage varying across routines. The following table shows the
 planned usage.
 
-+====================+==================+==============================+==========================================+
++--------------------+------------------+------------------------------+------------------------------------------+
 | Windows X64 reg    | Linux X64 reg    | Assignment                   | Notes                                    |
 +====================+==================+==============================+==========================================+
 | z                  | z                | z                            | z                                        |
