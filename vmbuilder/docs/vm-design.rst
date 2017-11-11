@@ -30,15 +30,16 @@ Register Allocations
 The VM will use a fixed set of registers mostly with some register usage varying across routines. The following table shows the
 planned usage. 
 
-Nomenclature:
+Nomenclature
+
 * cs - callee saved, if we call a C function then after it returns we can rely on these registers
 * v - volatile, these registers may be overridden by a called function so do not rely on them after function call
-* (n) - used to pass arg n to funtion
+* (n) - used to pass arg n to function
 
 +--------------------+------------------+------------------------------+------------------------------------------+
 | Windows X64 reg    | Linux X64 reg    | Assignment                   | Notes                                    |
 +====================+==================+==============================+==========================================+
-| rbx (cs)           | rbx (cs)         | z                            | z                                        |
+| rbx (cs)           | rbx (cs)         | PC (ebx)                     | Lua byte code offset                     |
 +--------------------+------------------+------------------------------+------------------------------------------+
 | rbp (cs)           | rbp (cs)         | z                            | z                                        |
 +--------------------+------------------+------------------------------+------------------------------------------+
@@ -52,20 +53,25 @@ Nomenclature:
 +--------------------+------------------+------------------------------+------------------------------------------+
 | r13 (cs)           | r13 (cs)         | z                            | z                                        |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| r14 (cs)           | r14 (cs)         | z                            | z                                        |
+| r14 (cs)           | r14 (cs)         | DISPATCH                     | Ptr to Dispatch table                    |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| r15 (cs)           | r15 (cs)         | z                            | z                                        |
+| r15 (cs)           | r15 (cs)         | KBASE                        | Ptr to constants table in Proto          |
 +--------------------+------------------+------------------------------+------------------------------------------+
 | rax (v)            | rax (v)          | z                            | z                                        |
 +--------------------+------------------+------------------------------+------------------------------------------+
 | rcx (v) (1)        | rcx (v) (4)      | z                            | z                                        |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| rdx (v) (2)        | rdx (v) (3)      | z                            | z                                        |
+| rdx (v) (2)        | rdx (v) (3)      | BASE                         | Lua stack base                           |
 +--------------------+------------------+------------------------------+------------------------------------------+
 | r8 (v) (3)         | r8 (v) (5)       | z                            | z                                        |
 +--------------------+------------------+------------------------------+------------------------------------------+
 | r9 (v) (4)         | r9 (v) (6)       | z                            | z                                        |
 +--------------------+------------------+------------------------------+------------------------------------------+
 
+Stack space 
+-----------
+On Win64 every function gets a 32-byte shadow space for the 4 register arguments, which we can use. But we also need
+to provide a shadow space for function calls inside the VM. 
 
-RBX, RBP, RDI, RSI, RSP, R12, R13, R14, and R15
+We can size the stack such that we pre-allocate the 32 byte shadow space on Win64, so that we don't need to adjust the 
+stack every time we make a call to a C function. But instead of using this we use the shadow space provided by the caller.
