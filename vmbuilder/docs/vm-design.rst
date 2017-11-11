@@ -11,7 +11,7 @@ The overall approach is:
   
 Design Considerations
 ---------------------
-* We will use 64-bit pointers and operations mostly - and not try to squeeze pointers into 32-bit regisers as LuaJIT appears to do.
+* We will use 64-bit pointers and operations mostly - and not try to squeeze pointers into 32-bit registers as LuaJIT appears to do.
 * The dispatch table will be stored in global_State - it is not clear yet whether it is worth making a local stack copy of it when the
   VM starts executing.
   
