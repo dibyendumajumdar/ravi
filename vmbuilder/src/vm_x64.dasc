@@ -1,3 +1,78 @@
+/*
+Introduction
+============
+
+This is the code generator for the Lua/Ravi VM. It uses dynasm as the assembler. 
+The overall approach is:
+
+* For each bytecode create an assembler routine
+* Create a dispatch table with pointers to the assembler routines
+* Each assembler routine will fetch the next bytecode instruction and jump to the next assembler routine using the dispatch table
+* The assembler routines are not full fledged C functions - they are part of one whole program. Hence they make assumptions about
+  register usage which will be documented below. The VM as a whole will have a fixed set of register allocations so that most 
+  important information is held in registers. 
+  
+Design Considerations
+---------------------
+* We will use 64-bit pointers and operations mostly - and not try to squeeze pointers into 32-bit regisers as LuaJIT appears to do.
+* The dispatch table will be stored in global_State - it is not clear yet whether it is worth making a local stack copy of it when the
+  VM starts executing.
+
+Register Allocations
+--------------------
+The VM will use a fixed set of registers mostly with some register usage varying across routines. The following table shows the
+planned usage. 
+
+Nomenclature
+
+* cs - callee saved, if we call a C function then after it returns we can rely on these registers
+* v - volatile, these registers may be overridden by a called function so do not rely on them after function call
+* (n) - used to pass arg n to function
+
++--------------------+------------------+------------------------------+------------------------------------------+
++ Windows X64 reg    + Linux X64 reg    + Assignment                   + Notes                                    +
++====================+==================+==============================+==========================================+
++ rbx (cs)           + rbx (cs)         + PC (ebx)                     + Lua byte code offset                     +
++--------------------+------------------+------------------------------+------------------------------------------+
++ rbp (cs)           + rbp (cs)         + L                            +                                          +
++--------------------+------------------+------------------------------+------------------------------------------+
++ rdi (cs)           + rdi (v) (1)      + TMP1                         + Scratch                                  +
++--------------------+------------------+------------------------------+------------------------------------------+
++ rsi (cs)           + rsi (v) (2)      + TMP2                         + Scratch                                  +
++--------------------+------------------+------------------------------+------------------------------------------+
++ rsp (cs)           + rsp              +                              + Stack pointer                            +
++--------------------+------------------+------------------------------+------------------------------------------+
++ r12 (cs)           + r12 (cs)         + CI                           + CallInfo (Lua frame)                     +
++--------------------+------------------+------------------------------+------------------------------------------+
++ r13 (cs)           + r13 (cs)         + LCL                          + LuaClosure                               +
++--------------------+------------------+------------------------------+------------------------------------------+
++ r14 (cs)           + r14 (cs)         + DISPATCH                     + Ptr to Dispatch table                    +
++--------------------+------------------+------------------------------+------------------------------------------+
++ r15 (cs)           + r15 (cs)         + KBASE                        + Ptr to constants table in Proto          +
++--------------------+------------------+------------------------------+------------------------------------------+
++ rax (v)            + rax (v)          + RCa                          + Scratch - upon entry to subroutine eax   +
++                    +                  +                              + will have the B,C portion of bytecode    +
++--------------------+------------------+------------------------------+------------------------------------------+
++ rcx (v) (1)        + rcx (v) (4)      + RAa                          + Scratch - upon entry to subroutine ecx   +
++                    +                  +                              + will have the value of A in bytecode     +
++--------------------+------------------+------------------------------+------------------------------------------+
++ rdx (v) (2)        + rdx (v) (3)      + RBa                          + Scratch - upon entry to subroutine edx   +
++                    +                  +                              + will have the OpCode                     +
++--------------------+------------------+------------------------------+------------------------------------------+
++ r8 (v) (3)         + r8 (v) (5)       + BASE                         + Lua stack base                           +
++--------------------+------------------+------------------------------+------------------------------------------+
++ r9 (v) (4)         + r9 (v) (6)       + TMP3                         + Scratch                                  +
++--------------------+------------------+------------------------------+------------------------------------------+
+
+Stack space 
+-----------
+On Win64 every function gets a 32-byte shadow space for the 4 register arguments, which we can use. But we also need
+to provide a shadow space for function calls inside the VM. 
+
+We can size the stack such that we pre-allocate the 32 byte shadow space on Win64, so that we don't need to adjust the 
+stack every time we make a call to a C function. But instead of using this we use the shadow space provided by the caller.
+
+*/
 |.arch x64
 |.section code_op, code_sub
 |
@@ -21,20 +96,12 @@
 |// PC caches the program counter (current bytecode location)
 |// We need to ensure that the PC is saved before calling certain functions
 |// DISPATCH points to the dispatch table which is located in the 
-|// LG structure defined in lstate.h - this contains the computed goto
+|// global_State structure defined in lstate.h - this contains the computed goto
 |// destinations
-|.define BASE,		rdx		  // Not C callee-save, refetched anyway.
-|.if X64WIN
-|.define KBASE,		rdi		  // Must be C callee-save.
-|.define PC,		esi		    // Must be C callee-save.
-|.define PCa,   rsi
-|.define DISPATCH,	rbx		// Must be C callee-save.
-|.else
+|.define BASE,		r8		  // Not C callee-save, refetched anyway.
 |.define KBASE,		r15		  // Must be C callee-save.
-|.define PC,		ebx		    // Must be C callee-save.
-|.define PCa,   rbx
+|.define PC,		rbx		    // Must be C callee-save.
 |.define DISPATCH,	r14	// Must be C callee-save.
-|.endif
 |
 |.define RA,  ecx
 |.define RAH, ch
@@ -45,9 +112,15 @@
 |.define RCL, al
 |.define RCW, ax
 |.define RCa, rax
-|.define RB,  ebp         // Must be callee-save
-|.define RBa, rbp
+|.define RB,  edx
+|.define RBH, dh
+|.define RBL, dl
+|.define RBa, rdx
 |.define OP,  RB
+|
+|.define TMP1, rsi
+|.define TMP2, rdi
+|.define TMP3, r9
 |
 |.if X64WIN
 | // On Win64, the first four integer arguments are passed in registers. Integer values are passed 
@@ -88,13 +161,14 @@
 |.endif
 |
 |// Type definitions. Some of these are only used for documentation.
-|.type L,		lua_State
+|.type L,		lua_State, rbp
 |.type GL,		global_State
 |.type TOP,   TValue        // L->top (calls/open ops).
-|.type CI,    CallInfo      // L->ci (calls, locally).
-|.type LCL,   LClosure      // func->value (calls).
+|.type CI,    CallInfo, r12      // L->ci (calls, locally).
+|.type LCL,   LClosure, r13      // func->value (calls).
 |
 |// Type definitions with local validity.
+|.type LUASTATE,  lua_State
 |.type TVALUE,    TValue
 |.type VALUE,   Value
 |.type CINFO,   CallInfo
@@ -102,6 +176,7 @@
 |.type TSTRING,   TString
 |.type TABLE,   Table
 |.type CCLOSURE,  CClosure
+|.type LCLOSURE,  LClosure
 |.type PROTO,   Proto
 |.type UPVAL,   UpVal
 |.type NODE,    Node
@@ -161,12 +236,12 @@
 
 // Instruction decode+dispatch 
 |.macro ins_NEXT
-|  mov RC, [PC]
-|  movzx RA, RCH
-|  movzx OP, RCL
-|  add PC, 4
-|  shr RC, 16
-|  jmp aword [DISPATCH+OP*8]
+|  mov RC, [PC]                                 // Fetch next instruction
+|  movzx RA, RCH                                // RA = A
+|  movzx OP, RCL                                // OP = OpCode
+|  add PC, 8                                    // PC++
+|  shr RC, 16                                   // RC = RC >> 16, now contains B,C
+|  jmp aword [DISPATCH+OP*8]                    // jump to assembly routine 
 |.endmacro
 |.define ins_next, ins_NEXT
 
@@ -182,10 +257,16 @@ static void build_subroutines(BuildCtx *ctx)
   |//-- VM entry point
   |//-----------------------------------------------------------------------
   |->luaV_interp:
-  |  saveregs
-  |  mov L:RBa, CARG1
-  |  mov DISPATCH, L:RBa->l_G
-  |  add DISPATCH, DISPATCH_OFFSET
+  |  saveregs                                   // prologue, save regs and adjust stack pointer
+  |  mov L, CARG1                               // save L (arg1)
+  |  mov DISPATCH, L->l_G                       // retrieve global_State
+  |  add DISPATCH, DISPATCH_OFFSET              // retrieve the dispatch table
+  |  mov CI, L->ci                              // save L->ci
+  |  mov TVALUE:TMP1, CI->func                  // Get ci->func
+  |  mov LCL, TVALUE:TMP1->value_.gc            // LCL = (LClosure *)(ci->func->value_.gc) 
+  |  mov BASE, CI->u.l.base                     // BASE = ci->u.l.base (volatile)
+  |  mov PC, CI->u.l.savedpc                    // PC = CI->u.l.savedpc 
+  |  ins_next                                   // Fetch instruction, increment PC and go to fetched instruction's label 
   |
   |//-----------------------------------------------------------------------
   |//-- Return handling ----------------------------------------------------
