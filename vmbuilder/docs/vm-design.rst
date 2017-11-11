@@ -24,3 +24,14 @@ The implementation requires following key abilities that dynasm has:
 * Use C code to calculate various structure offets etc. 
 
 I am not sure whether this combination of features is available in other approaches such as using inline assembler in C code. 
+
+Register Allocations
+--------------------
+The VM will use a fixed set of registers mostly with some register usage varying across routines. The following table shows the
+planned usage.
+
++====================+==================+==============================+==========================================+
+| Windows X64 reg    | Linux X64 reg    | Assignment                   | Notes                                    |
++====================+==================+==============================+==========================================+
+| z                  | z                | z                            | z                                        |
++--------------------+------------------+------------------------------+------------------------------------------+
