@@ -35,7 +35,7 @@ Nomenclature
 
 * cs - callee saved, if we call a C function then after it returns we can rely on these registers
 * v - volatile, these registers may be overridden by a called function so do not rely on them after function call
-* (n) - used to pass arg n to function
+* `(n)` - used to pass arg n to function
 
 +--------------------+------------------+------------------------------+------------------------------------------+
 | Windows X64 reg    | Linux X64 reg    | Assignment                   | Notes                                    |
