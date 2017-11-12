@@ -3,6 +3,8 @@ project(Ravi)
 
 enable_language(CXX)
 enable_language(C)
+enable_language(C)
+enable_language(ASM)
 enable_testing()
 
 # Get access to CMake helpers
@@ -15,6 +17,7 @@ option(NANO_JIT "Controls whether NanoJIT compilation will be enabled, default i
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(EMBEDDED_DMRC "Controls whether the embedded dmrC feature should be enabled, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is OFF" ON)
+option(ASM_VM "Controls whether to use the new VM (not ready yet! so don't turn on)" OFF)
 
 # We cannot link to both LLVM and GCC JIT
 if (LLVM_JIT AND GCC_JIT)
@@ -162,6 +165,16 @@ if (NANO_JIT)
     set(NANO_JIT_SRCS src/ravi_nanojit.c)
 endif()
 if (NOT LLVM_JIT AND NOT GCC_JIT AND NOT NANO_JIT)
+    if (ASM_VM)
+        if (MSVC)
+            set(ASMVM_SRCS vmbuilder/src/vm.obj)
+        else()
+            set(ASMVM_SRCS vmbuilder/src/vm.s)
+        endif()
+        add_definitions(-DUSE_ASMVM)
+    else()
+        set(ASMVM_SRCS "")
+    endif()
     set(NO_JIT_SRCS src/ravi_nojit.c)
 endif()
 # define the lua core source files
@@ -374,6 +387,7 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${DMR_C_HEADERS}
         ${DMR_C_SRCS}
         ${DMR_C_JIT_SRCS}
+	${ASMVM_SRCS}
         )
 if (NOT STATIC_BUILD)
     if (WIN32)
