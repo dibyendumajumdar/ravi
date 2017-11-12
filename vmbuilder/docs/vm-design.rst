@@ -11,7 +11,7 @@ The overall approach is:
   
 Design Considerations
 ---------------------
-* We will use 64-bit pointers and operations mostly - and not try to squeeze pointers into 32-bit regisers as LuaJIT appears to do.
+* We will use 64-bit pointers and operations mostly - and not try to squeeze pointers into 32-bit registers as LuaJIT appears to do.
 * The dispatch table will be stored in global_State - it is not clear yet whether it is worth making a local stack copy of it when the
   VM starts executing.
   
@@ -35,14 +35,14 @@ Nomenclature
 
 * cs - callee saved, if we call a C function then after it returns we can rely on these registers
 * v - volatile, these registers may be overridden by a called function so do not rely on them after function call
-* (n) - used to pass arg n to function
+* `(n)` - used to pass arg n to function
 
 +--------------------+------------------+------------------------------+------------------------------------------+
 | Windows X64 reg    | Linux X64 reg    | Assignment                   | Notes                                    |
 +====================+==================+==============================+==========================================+
-| rbx (cs)           | rbx (cs)         | PC (ebx)                     | Lua byte code offset                     |
+| rbx (cs)           | rbx (cs)         | PC                           | Pointer to next bytecode                 |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| rbp (cs)           | rbp (cs)         | L                            |                                          |
+| rbp (cs)           | rbp (cs)         | L                            | Pointer to lua_State                     |
 +--------------------+------------------+------------------------------+------------------------------------------+
 | rdi (cs)           | rdi (v) (1)      | TMP1                         | Scratch                                  |
 +--------------------+------------------+------------------------------+------------------------------------------+
@@ -52,7 +52,7 @@ Nomenclature
 +--------------------+------------------+------------------------------+------------------------------------------+
 | r12 (cs)           | r12 (cs)         | CI                           | CallInfo (Lua frame)                     |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| r13 (cs)           | r13 (cs)         | LCL                          | LuaClosure                               |
+| r13 (cs)           | r13 (cs)         | LCL                          | Current function's LClosure              |
 +--------------------+------------------+------------------------------+------------------------------------------+
 | r14 (cs)           | r14 (cs)         | DISPATCH                     | Ptr to Dispatch table                    |
 +--------------------+------------------+------------------------------+------------------------------------------+
@@ -67,7 +67,7 @@ Nomenclature
 | rdx (v) (2)        | rdx (v) (3)      | RBa                          | Scratch - upon entry to subroutine edx   |
 |                    |                  |                              | will have the OpCode                     |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| r8 (v) (3)         | r8 (v) (5)       | BASE                         | Lua stack base                           |
+| r8 (v) (3)         | r8 (v) (5)       | BASE                         | Pointer to Lua stack base                |
 +--------------------+------------------+------------------------------+------------------------------------------+
 | r9 (v) (4)         | r9 (v) (6)       | TMP3                         | Scratch                                  |
 +--------------------+------------------+------------------------------+------------------------------------------+
