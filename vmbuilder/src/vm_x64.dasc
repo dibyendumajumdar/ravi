@@ -237,15 +237,30 @@ stack every time we make a call to a C function. But instead of using this we us
 // Instruction decode+dispatch 
 |.macro ins_NEXT
 |  mov RC, [PC]                                 // Fetch next instruction
-|  movzx RA, RCH                                // RA = A
 |  movzx OP, RCL                                // OP = OpCode
 |  add PC, 8                                    // PC++
-|  shr RC, 16                                   // RC = RC >> 16, now contains B,C
 |  jmp aword [DISPATCH+OP*8]                    // jump to assembly routine 
 |.endmacro
 |.define ins_next, ins_NEXT
 
-
+// Following macros decode the bytecode values A, B, C, etc.
+// They assume that RC holds the bytecode  
+|.macro ins_ABC
+|  movzx RA, RCH                                // RA = A
+|  shr RC, 16                                   // RC = RC >> 16, now contains B,C
+|  movzx RB, RCH
+|  movzx RC, RCL; 
+|.endmacro
+|.macro ins_AB_
+|  movzx RA, RCH                                // RA = A
+|  shr RC, 16                                   // RC = RC >> 16, now contains B,C
+|  movzx RB, RCH 
+|.endmacro
+|.macro ins_A_C
+|  movzx RA, RCH                                // RA = A
+|  shr RC, 16                                   // RC = RC >> 16, now contains B,C
+|  movzx RC, RCL 
+|.endmacro
 
 /* Generate subroutines used by opcodes and other parts of the VM. */
 /* The .code_sub section should be last to help static branch prediction. */
@@ -276,14 +291,42 @@ static void build_subroutines(BuildCtx *ctx)
   |  restoreregs
   |  ret
 }
+
+static void build_OP_RETURN(BuildCtx *ctx)
+{
+  |// Upon entry eax has B,C
+  |// RA ecx has A, RB edx has OpCode
+  | 
+  | mov KBASE, RCa                             // Save the bytecode into KBASE as we don't need KBASE anymore
+  | mov PROTO:TMP1, LCL->p                      // TMP1 = ci->p
+  | cmp dword PROTO:TMP1->sizep, 0             // Test ci->p->sizep == 0
+  | jle >1                                     // Skip call to luaF_close
+  |
+  | // Call luaF_close
+  | // TODO save BASE onto stack
+  | mov CARG1, L                               // arg1 = L
+  | mov CARG2, BASE                            // arg2 = base
+  | call extern luaF_close                     // call luaF_close
+  | // TODO restore BASE
+  |
+  |1: 
+  | mov RCa, KBASE
+  | ins_AB_                                    // RA = A, RB = B
+  |
+  
+  | ins_next
+}
+
 /* Generate the code for a single instruction. */
 static void build_ins(BuildCtx *ctx, OpCode op, int defop)
 {
   int vk = 0;
-  |// Note: aligning all instructions does not pay off.
   |=>defop:
 
   switch (op) {
+  case OP_RETURN:
+    build_OP_RETURN(ctx);
+    break;
 
   /* ---------------------------------------------------------------------- */
 

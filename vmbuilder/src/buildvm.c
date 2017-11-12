@@ -208,6 +208,7 @@ static int build_code(BuildCtx *ctx)
 //	   i == BC_IFORL || i == BC_IITERL || i == BC_ILOOP)) &&
 //	(RAVI_HASFFI || i != BC_KCDATA))
 //      sym_insert(ctx, ofs, LABEL_PREFIX_BC, bc_names[i]);
+    sym_insert(ctx, ofs, LABEL_PREFIX_BC, luaP_opnames[i]);
   }
 
   /* Collect the globals (named labels). */
@@ -406,3 +407,141 @@ int main(int argc, char **argv)
   return 0;
 }
 
+
+// FIXME this is a copy of the array from lopcodes.c
+LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
+  "MOVE",
+  "LOADK",
+  "LOADKX",
+  "LOADBOOL",
+  "LOADNIL",
+  "GETUPVAL",
+  "GETTABUP",
+  "GETTABLE",
+  "SETTABUP",
+  "SETUPVAL",
+  "SETTABLE",
+  "NEWTABLE",
+  "SELF",
+  "ADD",
+  "SUB",
+  "MUL",
+  "MOD",
+  "POW",
+  "DIV",
+  "IDIV",
+  "BAND",
+  "BOR",
+  "BXOR",
+  "SHL",
+  "SHR",
+  "UNM",
+  "BNOT",
+  "NOT",
+  "LEN",
+  "CONCAT",
+  "JMP",
+  "EQ",
+  "LT",
+  "LE",
+  "TEST",
+  "TESTSET",
+  "CALL",
+  "TAILCALL",
+  "RETURN",
+  "FORLOOP",
+  "FORPREP",
+  "TFORCALL",
+  "TFORLOOP",
+  "SETLIST",
+  "CLOSURE",
+  "VARARG",
+  "EXTRAARG",
+
+  "NEWARRAYI", /* A R(A) := array of int */
+  "NEWARRAYF", /* A R(A) := array of float */
+
+  "LOADIZ", /*  A R(A) := tointeger(0)    */
+  "LOADFZ", /*  A R(A) := tonumber(0)   */
+
+  "UNMF",   /*  A B R(A) := -R(B) floating point      */
+  "UNMI",   /*  A B R(A) := -R(B) integer */
+
+  "ADDFF",  /*  A B C R(A) := RK(B) + RK(C)   */
+  "ADDFI",  /*  A B C R(A) := RK(B) + RK(C)   */
+  "ADDII",  /*  A B C R(A) := RK(B) + RK(C)   */
+
+  "SUBFF",  /*  A B C R(A) := RK(B) - RK(C)   */
+  "SUBFI",  /*  A B C R(A) := RK(B) - RK(C)   */
+  "SUBIF",  /*  A B C R(A) := RK(B) - RK(C)   */
+  "SUBII",  /*  A B C R(A) := RK(B) - RK(C)   */
+
+  "MULFF",  /*  A B C R(A) := RK(B) * RK(C)   */
+  "MULFI",  /*  A B C R(A) := RK(B) * RK(C)   */
+  "MULII",  /*  A B C R(A) := RK(B) * RK(C)   */
+
+  "DIVFF",  /*  A B C R(A) := RK(B) / RK(C)   */
+  "DIVFI",  /*  A B C R(A) := RK(B) / RK(C)   */
+  "DIVIF",  /*  A B C R(A) := RK(B) / RK(C)   */
+  "DIVII",  /*  A B C R(A) := RK(B) / RK(C)   */
+
+  "TOINT", /* A R(A) := toint(R(A)) */
+  "TOFLT", /* A R(A) := tofloat(R(A)) */
+  "TOARRAYI", /* A R(A) := to_arrayi(R(A)) */
+  "TOARRAYF", /* A R(A) := to_arrayf(R(A)) */
+  "TOTAB",     /* A R(A) := to_table(R(A)) */
+  "TOSTRING",
+  "TOCLOSURE",
+  "TOTYPE",
+
+  "MOVEI",  /*  A B R(A) := R(B)          */
+  "MOVEF",  /*  A B R(A) := R(B)          */
+  "MOVEAI", /* A B R(A) := R(B), check R(B) is array of int */
+  "MOVEAF", /* A B R(A) := R(B), check R(B) is array of floats */
+  "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
+
+  "GETTABLE_AI",/*  A B C R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
+  "GETTABLE_AF",/*  A B C R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
+
+  "SETTABLE_AI",/*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+  "SETTABLE_AF",/*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+  "SETTABLE_AII",/* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+  "SETTABLE_AFF",/* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+
+  "FORLOOP_IP",
+  "FORLOOP_I1",
+  "FORPREP_IP",
+  "FORPREP_I1",
+
+  "SETUPVALI", /* A B UpValue[B] := tointeger(R(A))     */
+  "SETUPVALF", /* A B UpValue[B] := tonumber(R(A))      */
+  "SETUPVALAI",  /* A B UpValue[B] := toarrayint(R(A))      */
+  "SETUPVALAF",  /* A B UpValue[B] := toarrayflt(R(A))      */
+  "SETUPVALT", /* A B UpValue[B] := to_table(R(A))      */
+
+  "BAND_II",/*  A B C R(A) := RK(B) & RK(C)       */
+  "BOR_II", /*  A B C R(A) := RK(B) | RK(C)       */
+  "BXOR_II",/*  A B C R(A) := RK(B) ~ RK(C)       */
+  "SHL_II", /*  A B C R(A) := RK(B) << RK(C)        */
+  "SHR_II", /*  A B C R(A) := RK(B) >> RK(C)        */
+  "BNOT_I", /*  A B R(A) := ~R(B)         */
+
+  "EQ_II",  /*  A B C if ((RK(B) == RK(C)) ~= A) then pc++    */
+  "EQ_FF",  /*  A B C if ((RK(B) == RK(C)) ~= A) then pc++    */
+  "LT_II",  /*  A B C if ((RK(B) <  RK(C)) ~= A) then pc++    */
+  "LT_FF",  /*  A B C if ((RK(B) <  RK(C)) ~= A) then pc++    */
+  "LE_II",  /*  A B C if ((RK(B) <= RK(C)) ~= A) then pc++    */
+  "LE_FF",  /*  A B C if ((RK(B) <= RK(C)) ~= A) then pc++    */
+  
+  "GETTABLE_S", /*  A B C R(A) := R(B)[RK(C)], string key   */
+  "SETTABLE_S", /*  A B C R(A)[RK(B)] := RK(C), string key  */
+  "SELF_S",    /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
+
+  "GETTABLE_I", /*  A B C R(A) := R(B)[RK(C)], integer key  */
+  "SETTABLE_I", /*  A B C R(A)[RK(B)] := RK(C), integer key */
+  "GETTABLE_SK", /* _SK */ /* A B C R(A) := R(B)[RK(C)], string key   */
+  "SELF_SK",    /* _SK*/ /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
+  "SETTABLE_SK", /*_SK */ /*  A B C R(A)[RK(B)] := RK(C), string key  */
+  "GETTABUP_SK",
+   NULL
+};
