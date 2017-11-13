@@ -19,25 +19,32 @@ static size_t strtabofs;
 
 /* PE header. */
 typedef struct PEheader {
-  uint16_t arch;
-  uint16_t nsects;
-  uint32_t time;
-  uint32_t symtabofs;
-  uint32_t nsyms;
-  uint16_t opthdrsz;
-  uint16_t flags;
+  uint16_t Machine; /* The number that identifies the type of target machine */
+  uint16_t NumberOfSections; /* The number of sections. This indicates the size of the section table, 
+                                which immediately follows the headers. */
+  uint32_t TimeDateStamp; /* The low 32 bits of the number of seconds since 00:00 January 1, 1970 
+                             (a C run-time time_t value), that indicates when the file was created. */
+  uint32_t PointerToSymbolTable; /* The file offset of the COFF symbol table, or zero if no COFF symbol 
+                                    table is present. This value should be zero for an image because COFF 
+                                    debugging information is deprecated. */
+  uint32_t NumberOfSymbols; /* The number of entries in the symbol table. This data can be used to 
+                               locate the string table, which immediately follows the symbol table. 
+                               This value should be zero for an image because COFF debugging information is deprecated. */
+  uint16_t SizeOfOptionalHeader; /* The size of the optional header, which is required for executable files 
+                                    but not for object files. This value should be zero for an object file. */
+  uint16_t Characteristics; /* The flags that indicate the attributes of the file */
 } PEheader;
 
 /* PE section. */
-typedef struct PEsection {
-  char name[8];
-  uint32_t vsize;
-  uint32_t vaddr;
-  uint32_t size;
-  uint32_t ofs;
-  uint32_t relocofs;
-  uint32_t lineofs;
-  uint16_t nreloc;
+typedef struct PEsection {  
+  char name[8]; /* An 8-byte, null-padded UTF-8 encoded string. If the string is exactly 8 characters long, there is no terminating null. For longer names, this field contains a slash (/) that is followed by an ASCII representation of a decimal number that is an offset into the string table. Executable images do not use a string table and do not support section names longer than 8 characters. Long names in object files are truncated if they are emitted to an executable file. */
+  uint32_t VirtualSize; /* The total size of the section when loaded into memory. If this value is greater than SizeOfRawData, the section is zero-padded. This field is valid only for executable images and should be set to zero for object files. */
+  uint32_t VirtualAddress; /* For executable images, the address of the first byte of the section relative to the image base when the section is loaded into memory. For object files, this field is the address of the first byte before relocation is applied; for simplicity, compilers should set this to zero. Otherwise, it is an arbitrary value that is subtracted from offsets during relocation. */
+  uint32_t SizeOfRawData; /* The size of the section (for object files) or the size of the initialized data on disk (for image files). For executable images, this must be a multiple of FileAlignment from the optional header. If this is less than VirtualSize, the remainder of the section is zero-filled. Because the SizeOfRawData field is rounded but the VirtualSize field is not, it is possible for SizeOfRawData to be greater than VirtualSize as well. When a section contains only uninitialized data, this field should be zero. */
+  uint32_t PointerToRawData; /* The file pointer to the first page of the section within the COFF file. For executable images, this must be a multiple of FileAlignment from the optional header. For object files, the value should be aligned on a 4-byte boundary for best performance. When a section contains only uninitialized data, this field should be zero. */
+  uint32_t PointerToRelocations; /* The file pointer to the beginning of relocation entries for the section. This is set to zero for executable images or if there are no relocations. */
+  uint32_t PointerToLinenumbers; /* The file pointer to the beginning of line-number entries for the section. This is set to zero if there are no COFF line numbers. This value should be zero for an image because COFF debugging information is deprecated. */
+  uint16_t NumberOfRelocations;
   uint16_t nline;
   uint32_t flags;
 } PEsection;
@@ -87,7 +94,7 @@ typedef struct PEsymaux {
 #define PEOBJ_RELOC_OFS		0
 #define PEOBJ_TEXT_FLAGS	0x60500020  /* 60=r+x, 50=align16, 20=code. */
 #elif RAVI_TARGET_X64
-#define PEOBJ_ARCH_TARGET	0x8664
+#define PEOBJ_ARCH_TARGET	0x8664  /* Image file AMD64 */
 #define PEOBJ_RELOC_REL32	0x04  /* MS: REL32, GNU: DISP32. */
 #define PEOBJ_RELOC_DIR32	0x02
 #define PEOBJ_RELOC_ADDR32NB	0x03
@@ -168,8 +175,8 @@ static void emit_peobj_sym_sect(BuildCtx *ctx, PEsection *pesect, int sect)
   sym.naux = 1;
   owrite(ctx, &sym, PEOBJ_SYM_SIZE);
   memset(&aux, 0, sizeof(PEsymaux));
-  aux.size = pesect[sect].size;
-  aux.nreloc = pesect[sect].nreloc;
+  aux.size = pesect[sect].SizeOfRawData;
+  aux.nreloc = pesect[sect].NumberOfRelocations;
   owrite(ctx, &aux, PEOBJ_SYM_SIZE);
 }
 
@@ -187,51 +194,51 @@ void emit_peobj(BuildCtx *ctx)
   /* Fill in PE sections. */
   memset(&pesect, 0, PEOBJ_NSECTIONS*sizeof(PEsection));
   memcpy(pesect[PEOBJ_SECT_TEXT].name, ".text", sizeof(".text")-1);
-  pesect[PEOBJ_SECT_TEXT].ofs = sofs;
-  sofs += (pesect[PEOBJ_SECT_TEXT].size = (uint32_t)ctx->codesz);
-  pesect[PEOBJ_SECT_TEXT].relocofs = sofs;
-  sofs += (pesect[PEOBJ_SECT_TEXT].nreloc = (uint16_t)ctx->nreloc) * PEOBJ_RELOC_SIZE;
+  pesect[PEOBJ_SECT_TEXT].PointerToRawData = sofs;
+  sofs += (pesect[PEOBJ_SECT_TEXT].SizeOfRawData = (uint32_t)ctx->codesz);
+  pesect[PEOBJ_SECT_TEXT].PointerToRelocations = sofs;
+  sofs += (pesect[PEOBJ_SECT_TEXT].NumberOfRelocations = (uint16_t)ctx->nreloc) * PEOBJ_RELOC_SIZE;
   /* Flags: 60 = read+execute, 50 = align16, 20 = code. */
   pesect[PEOBJ_SECT_TEXT].flags = PEOBJ_TEXT_FLAGS;
 
 #if RAVI_TARGET_X64
   memcpy(pesect[PEOBJ_SECT_PDATA].name, ".pdata", sizeof(".pdata")-1);
-  pesect[PEOBJ_SECT_PDATA].ofs = sofs;
-  sofs += (pesect[PEOBJ_SECT_PDATA].size = 6*4);
-  pesect[PEOBJ_SECT_PDATA].relocofs = sofs;
-  sofs += (pesect[PEOBJ_SECT_PDATA].nreloc = 6) * PEOBJ_RELOC_SIZE;
+  pesect[PEOBJ_SECT_PDATA].PointerToRawData = sofs;
+  sofs += (pesect[PEOBJ_SECT_PDATA].SizeOfRawData = 6*4);
+  pesect[PEOBJ_SECT_PDATA].PointerToRelocations = sofs;
+  sofs += (pesect[PEOBJ_SECT_PDATA].NumberOfRelocations = 6) * PEOBJ_RELOC_SIZE;
   /* Flags: 40 = read, 30 = align4, 40 = initialized data. */
   pesect[PEOBJ_SECT_PDATA].flags = 0x40300040;
 
   memcpy(pesect[PEOBJ_SECT_XDATA].name, ".xdata", sizeof(".xdata")-1);
-  pesect[PEOBJ_SECT_XDATA].ofs = sofs;
-  sofs += (pesect[PEOBJ_SECT_XDATA].size = 8*2+4+6*2);  /* See below. */
-  pesect[PEOBJ_SECT_XDATA].relocofs = sofs;
-  sofs += (pesect[PEOBJ_SECT_XDATA].nreloc = 1) * PEOBJ_RELOC_SIZE;
+  pesect[PEOBJ_SECT_XDATA].PointerToRawData = sofs;
+  sofs += (pesect[PEOBJ_SECT_XDATA].SizeOfRawData = 8*2+4+6*2);  /* See below. */
+  pesect[PEOBJ_SECT_XDATA].PointerToRelocations = sofs;
+  sofs += (pesect[PEOBJ_SECT_XDATA].NumberOfRelocations = 1) * PEOBJ_RELOC_SIZE;
   /* Flags: 40 = read, 30 = align4, 40 = initialized data. */
   pesect[PEOBJ_SECT_XDATA].flags = 0x40300040;
 #elif RAVI_TARGET_X86
   memcpy(pesect[PEOBJ_SECT_SXDATA].name, ".sxdata", sizeof(".sxdata")-1);
-  pesect[PEOBJ_SECT_SXDATA].ofs = sofs;
-  sofs += (pesect[PEOBJ_SECT_SXDATA].size = 4);
-  pesect[PEOBJ_SECT_SXDATA].relocofs = sofs;
+  pesect[PEOBJ_SECT_SXDATA].PointerToRawData = sofs;
+  sofs += (pesect[PEOBJ_SECT_SXDATA].SizeOfRawData = 4);
+  pesect[PEOBJ_SECT_SXDATA].PointerToRelocations = sofs;
   /* Flags: 40 = read, 30 = align4, 02 = lnk_info, 40 = initialized data. */
   pesect[PEOBJ_SECT_SXDATA].flags = 0x40300240;
 #endif
 
   memcpy(pesect[PEOBJ_SECT_RDATA_Z].name, ".rdata$Z", sizeof(".rdata$Z")-1);
-  pesect[PEOBJ_SECT_RDATA_Z].ofs = sofs;
-  sofs += (pesect[PEOBJ_SECT_RDATA_Z].size = (uint32_t)strlen(ctx->dasm_ident)+1);
+  pesect[PEOBJ_SECT_RDATA_Z].PointerToRawData = sofs;
+  sofs += (pesect[PEOBJ_SECT_RDATA_Z].SizeOfRawData = (uint32_t)strlen(ctx->dasm_ident)+1);
   /* Flags: 40 = read, 30 = align4, 40 = initialized data. */
   pesect[PEOBJ_SECT_RDATA_Z].flags = 0x40300040;
 
   /* Fill in PE header. */
-  pehdr.arch = PEOBJ_ARCH_TARGET;
-  pehdr.nsects = PEOBJ_NSECTIONS;
-  pehdr.time = 0;  /* Timestamp is optional. */
-  pehdr.symtabofs = sofs;
-  pehdr.opthdrsz = 0;
-  pehdr.flags = 0;
+  pehdr.Machine = PEOBJ_ARCH_TARGET;
+  pehdr.NumberOfSections = PEOBJ_NSECTIONS;
+  pehdr.TimeDateStamp = 0;  /* Timestamp is optional. */
+  pehdr.PointerToSymbolTable = sofs;
+  pehdr.SizeOfOptionalHeader = 0;
+  pehdr.Characteristics = 0;
 
   /* Compute the size of the symbol table:
   ** @feat.00 + nsections*2
@@ -239,9 +246,9 @@ void emit_peobj(BuildCtx *ctx)
   ** + nrsym
   */
   nrsym = ctx->nrelocsym;
-  pehdr.nsyms = 1+PEOBJ_NSECTIONS*2 + 1+ctx->nsym + nrsym;
+  pehdr.NumberOfSymbols = 1+PEOBJ_NSECTIONS*2 + 1+ctx->nsym + nrsym;
 #if RAVI_TARGET_X64
-  pehdr.nsyms += 1;  /* Symbol for lj_err_unwind_win. */
+  pehdr.NumberOfSymbols += 1;  /* Symbol for lj_err_unwind_win. */
 #endif
 
   /* Write PE object header and all sections. */
