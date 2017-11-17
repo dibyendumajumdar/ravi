@@ -287,9 +287,9 @@ static void build_subroutines(BuildCtx *ctx)
   |//-- Return handling ----------------------------------------------------
   |//-----------------------------------------------------------------------
   |
-  |->vm_leave_unw:
-  |  restoreregs
-  |  ret
+  |//->vm_leave_unw:
+  |//  restoreregs
+  |//  ret
 }
 
 static void build_OP_RETURN(BuildCtx *ctx)
@@ -313,8 +313,8 @@ static void build_OP_RETURN(BuildCtx *ctx)
   | mov RCa, KBASE
   | ins_AB_                                    // RA = A, RB = B
   |
-  
-  | ins_next
+  | restoreregs
+  | ret
 }
 
 /* Generate the code for a single instruction. */

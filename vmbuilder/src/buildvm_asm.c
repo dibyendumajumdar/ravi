@@ -150,14 +150,14 @@ void emit_asm(BuildCtx *ctx)
   fprintf(ctx->fp, "\t.text\n");
   emit_asm_align(ctx, 4);
 
-  emit_asm_label(ctx, ctx->beginsym, 0, 0);
+  emit_asm_label(ctx, ctx->StartSymbol, 0, 0);
   if (ctx->mode != BUILD_machasm)
     fprintf(ctx->fp, ".Lbegin:\n");
 
-  for (i = rel = 0; i < ctx->nsym; i++) {
-    int32_t ofs = ctx->sym[i].ofs;
-    int32_t next = ctx->sym[i+1].ofs;
-    emit_asm_label(ctx, ctx->sym[i].name, next - ofs, 1);
+  for (i = rel = 0; i < ctx->NumberOfSymbols; i++) {
+    int32_t ofs = ctx->AllSymbols[i].ofs;
+    int32_t next = ctx->AllSymbols[i+1].ofs;
+    emit_asm_label(ctx, ctx->AllSymbols[i].name, next - ofs, 1);
     while (rel < ctx->nreloc && ctx->reloc[rel].ofs <= next) {
       BuildReloc *r = &ctx->reloc[rel];
       int n = r->ofs - ofs;

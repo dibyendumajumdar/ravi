@@ -31,7 +31,7 @@ minilua %DASM% -MF %DASMFLAGS% -o buildvm_arch.h %DASC%
 if exist buildvm.exe.manifest^
   %LJMT% -manifest buildvm.exe.manifest -outputresource:buildvm.exe
 
-buildvm -m elfasm -o vm.s
+buildvm -m peobj -o vm.obj
 @if errorlevel 1 goto :BAD
 
 @goto :END

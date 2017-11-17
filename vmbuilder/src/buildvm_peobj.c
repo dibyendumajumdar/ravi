@@ -9,7 +9,7 @@
 #include "buildvm.h"
 #include "lopcodes.h"
 
-#if RAVI_TARGET_X86ORX64 || RAVI_TARGET_PPC
+#if RAVI_TARGET_X86ORX64
 
 /* Context for PE object emitter. */
 static char *strtab;
@@ -36,7 +36,7 @@ typedef struct PEheader {
 } PEheader;
 
 /* PE section. */
-typedef struct PEsection {  
+typedef struct PESectionHeader {  
   char name[8]; /* An 8-byte, null-padded UTF-8 encoded string. If the string is exactly 8 characters long, 
                    there is no terminating null. For longer names, this field contains a slash (/) that is 
                    followed by an ASCII representation of a decimal number that is an offset into the string table. 
@@ -70,7 +70,7 @@ typedef struct PEsection {
   uint16_t NumberOfLinenumbers; /* The number of line-number entries for the section. This value should be zero for an 
                                    image because COFF debugging information is deprecated. */
   uint32_t Characteristics;
-} PEsection;
+} PESectionHeader;
 
 /* PE relocation. */
 typedef struct PEreloc {
@@ -94,9 +94,8 @@ typedef struct PEsym {
   uint8_t StorageClass; /* An enumerated value that represents storage class. */
   uint8_t NumberOfAuxSymbols; /* The number of auxiliary symbol table entries that follow this record. */
 } PEsym;
-/* Cannot use sizeof, because it pads up to the max. alignment. */
-#define PEOBJ_SYM_SIZE  (8+4+2+2+1+1)
-//assert(PEOBJ_SYM_SIZE == 18); // must be 18 bytes
+/* sizeof(PEsym) must be 18 */
+#define PEOBJ_SYM_SIZE  18  // must be 18 bytes
 /*
 Zero or more auxiliary symbol-table records immediately follow each standard symbol-table record. 
 However, typically not more than one auxiliary symbol-table record follows a standard symbol-table record 
@@ -114,8 +113,6 @@ typedef struct PEsymaux {
   uint8_t comdatsel;
   uint8_t unused[3];
 } PEsymaux;
-
-
 
 /* PE object CPU specific defines. */
 #define PEOBJ_ARCH_TARGET	0x8664  /* Image file AMD64 */
@@ -137,11 +134,11 @@ enum {
 };
 
 /* Symbol types. */
-#define PEOBJ_TYPE_NULL		0
-#define PEOBJ_TYPE_FUNC		0x20
+#define IMAGE_SYM_TYPE_NULL		0
+#define IMAGE_SYM_TYPE_FUNC		0x20
 
 /* Symbol storage class. */
-#define PEOBJ_SCL_EXTERN	2
+#define IMAGE_SYM_CLASS_EXTERNAL	2
 #define PEOBJ_SCL_STATIC	3
 
 /* -- PE object emitter --------------------------------------------------- */
@@ -175,34 +172,75 @@ static void emit_peobj_sym(BuildCtx *ctx, const char *name, uint32_t value,
 }
 
 /* Emit PE object section symbol. */
-static void emit_peobj_sym_sect(BuildCtx *ctx, PEsection *pesect, int sect)
+static void emit_peobj_sym_sect(BuildCtx *ctx, PESectionHeader *sectionHeader, int sect)
 {
   PEsym sym;
   PEsymaux aux;
   if (!strtab) return;  /* Pass 1: no output. */
-  memcpy(sym.n.ShortName, pesect[sect].name, 8);
+  memcpy(sym.n.ShortName, sectionHeader[sect].name, 8);
   sym.Value = 0;
   sym.SectionNumber = (int16_t)(sect+1);  /* 1-based section number. */
-  sym.Type = PEOBJ_TYPE_NULL;
+  sym.Type = IMAGE_SYM_TYPE_NULL;
   sym.StorageClass = PEOBJ_SCL_STATIC;
   sym.NumberOfAuxSymbols = 1;
   owrite(ctx, &sym, PEOBJ_SYM_SIZE);
   memset(&aux, 0, sizeof(PEsymaux));
-  aux.size = pesect[sect].SizeOfRawData;
-  aux.nreloc = pesect[sect].NumberOfRelocations;
+  aux.size = sectionHeader[sect].SizeOfRawData;
+  aux.nreloc = sectionHeader[sect].NumberOfRelocations;
   owrite(ctx, &aux, PEOBJ_SYM_SIZE);
 }
+
+typedef enum _UNWIND_OP_CODES {  
+    UWOP_PUSH_NONVOL = 0, /* info == register number */  
+    UWOP_ALLOC_LARGE,     /* no info, alloc size in next 2 slots */  
+    UWOP_ALLOC_SMALL,     /* info == size of allocation / 8 - 1 */  
+    UWOP_SET_FPREG,       /* no info, FP = RSP + UNWIND_INFO.FPRegOffset*16 */  
+    UWOP_SAVE_NONVOL,     /* info == register number, offset in next slot */  
+    UWOP_SAVE_NONVOL_FAR, /* info == register number, offset in next 2 slots */  
+    UWOP_SAVE_XMM128,     /* info == XMM reg number, offset in next slot */  
+    UWOP_SAVE_XMM128_FAR, /* info == XMM reg number, offset in next 2 slots */  
+    UWOP_PUSH_MACHFRAME   /* info == 0: no error-code, 1: error-code */  
+} UNWIND_CODE_OPS;  
+
+typedef union _UNWIND_CODE {  
+    struct {  
+        uint8_t CodeOffset;  
+        uint8_t UnwindOp : 4;  
+        uint8_t OpInfo   : 4;  
+    };  
+    uint16_t FrameOffset;  
+} UNWIND_CODE, *PUNWIND_CODE;  
+
+#define UNW_FLAG_EHANDLER  0x01  
+#define UNW_FLAG_UHANDLER  0x02  
+#define UNW_FLAG_CHAININFO 0x04  
+
+typedef struct _UNWIND_INFO {  
+    uint8_t Version       : 3;  
+    uint8_t Flags         : 5;  
+    uint8_t SizeOfProlog;  
+    uint8_t CountOfCodes;  
+    uint8_t FrameRegister : 4;  
+    uint8_t FrameOffset   : 4;  
+    UNWIND_CODE UnwindCode[1];  
+/*  UNWIND_CODE MoreUnwindCode[((CountOfCodes + 1) & ~1) - 1];  
+*   union {  
+*       OPTIONAL ULONG ExceptionHandler;  
+*       OPTIONAL ULONG FunctionEntry;  
+*   };  
+*   OPTIONAL ULONG ExceptionData[]; */  
+} UNWIND_INFO, *PUNWIND_INFO;
+
+
 
 /* Emit Windows PE object file. */
 void emit_peobj(BuildCtx *ctx)
 {
   PEheader pehdr;
-  PEsection pesect[PEOBJ_NSECTIONS];
-  uint32_t sofs;
+  PESectionHeader sectionHeaders[PEOBJ_NSECTIONS];
+  uint32_t offset;
   int i, nrsym;
   union { uint8_t b; uint32_t u; } host_endian;
-
-  sofs = sizeof(PEheader) + PEOBJ_NSECTIONS*sizeof(PEsection);
 
   enum {
     IMAGE_SCN_CNT_CODE = 0x00000020, /* The section contains executable code. */
@@ -214,43 +252,48 @@ void emit_peobj(BuildCtx *ctx)
     IMAGE_SCN_MEM_EXECUTE = 0x20000000, /* The section can be executed as code. */
   };
 
+  memset(&sectionHeaders, 0, sizeof sectionHeaders);
+
+  /* Set offset to end of the header and section headers */
+  offset = sizeof(PEheader) + PEOBJ_NSECTIONS*sizeof(PESectionHeader);
+
   /* Fill in PE sections. */
-  memset(&pesect, 0, PEOBJ_NSECTIONS*sizeof(PEsection));
-  memcpy(pesect[PEOBJ_SECT_TEXT].name, ".text", sizeof(".text")-1);
-  pesect[PEOBJ_SECT_TEXT].PointerToRawData = sofs;
-  sofs += (pesect[PEOBJ_SECT_TEXT].SizeOfRawData = (uint32_t)ctx->codesz);
-  pesect[PEOBJ_SECT_TEXT].PointerToRelocations = sofs;
-  sofs += (pesect[PEOBJ_SECT_TEXT].NumberOfRelocations = (uint16_t)ctx->nreloc) * PEOBJ_RELOC_SIZE;
+  memcpy(sectionHeaders[PEOBJ_SECT_TEXT].name, ".text", sizeof(".text")-1);
+  sectionHeaders[PEOBJ_SECT_TEXT].PointerToRawData = offset;
+  offset += (sectionHeaders[PEOBJ_SECT_TEXT].SizeOfRawData = (uint32_t)ctx->CodeSize);
+  sectionHeaders[PEOBJ_SECT_TEXT].PointerToRelocations = offset;
+  offset += (sectionHeaders[PEOBJ_SECT_TEXT].NumberOfRelocations = (uint16_t)ctx->nreloc) * PEOBJ_RELOC_SIZE;
   /* Flags: 60 = read+execute, 50 = align16, 20 = code. */
-  pesect[PEOBJ_SECT_TEXT].Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_ALIGN_16BYTES | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_EXECUTE; //   ;PEOBJ_TEXT_FLAGS;
+  sectionHeaders[PEOBJ_SECT_TEXT].Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_ALIGN_16BYTES | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_EXECUTE; //   ;PEOBJ_TEXT_FLAGS;
 
-  memcpy(pesect[PEOBJ_SECT_PDATA].name, ".pdata", sizeof(".pdata")-1);
-  pesect[PEOBJ_SECT_PDATA].PointerToRawData = sofs;
-  sofs += (pesect[PEOBJ_SECT_PDATA].SizeOfRawData = 6*4);
-  pesect[PEOBJ_SECT_PDATA].PointerToRelocations = sofs;
-  sofs += (pesect[PEOBJ_SECT_PDATA].NumberOfRelocations = 6) * PEOBJ_RELOC_SIZE;
+  memcpy(sectionHeaders[PEOBJ_SECT_PDATA].name, ".pdata", sizeof(".pdata")-1);
+  sectionHeaders[PEOBJ_SECT_PDATA].PointerToRawData = offset;
+  offset += (sectionHeaders[PEOBJ_SECT_PDATA].SizeOfRawData = 6*4);
+  sectionHeaders[PEOBJ_SECT_PDATA].PointerToRelocations = offset;
+  offset += (sectionHeaders[PEOBJ_SECT_PDATA].NumberOfRelocations = 6) * PEOBJ_RELOC_SIZE;
   /* Flags: 40 = read, 30 = align4, 40 = initialized data. */
-  pesect[PEOBJ_SECT_PDATA].Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_ALIGN_4BYTES | IMAGE_SCN_MEM_READ; //                0x40300040;
+  sectionHeaders[PEOBJ_SECT_PDATA].Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_ALIGN_4BYTES | IMAGE_SCN_MEM_READ; //                0x40300040;
 
-  memcpy(pesect[PEOBJ_SECT_XDATA].name, ".xdata", sizeof(".xdata")-1);
-  pesect[PEOBJ_SECT_XDATA].PointerToRawData = sofs;
-  sofs += (pesect[PEOBJ_SECT_XDATA].SizeOfRawData = 8*2+4+6*2);  /* See below. */
-  pesect[PEOBJ_SECT_XDATA].PointerToRelocations = sofs;
-  sofs += (pesect[PEOBJ_SECT_XDATA].NumberOfRelocations = 1) * PEOBJ_RELOC_SIZE;
+  memcpy(sectionHeaders[PEOBJ_SECT_XDATA].name, ".xdata", sizeof(".xdata")-1);
+  sectionHeaders[PEOBJ_SECT_XDATA].PointerToRawData = offset;
+  offset += (sectionHeaders[PEOBJ_SECT_XDATA].SizeOfRawData = 8*2+4+6*2);  /* See below. */
+  sectionHeaders[PEOBJ_SECT_XDATA].PointerToRelocations = offset;
+  offset += (sectionHeaders[PEOBJ_SECT_XDATA].NumberOfRelocations = 1) * PEOBJ_RELOC_SIZE;
   /* Flags: 40 = read, 30 = align4, 40 = initialized data. */
-  pesect[PEOBJ_SECT_XDATA].Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_ALIGN_4BYTES | IMAGE_SCN_MEM_READ;  // 0x40300040;
+  sectionHeaders[PEOBJ_SECT_XDATA].Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_ALIGN_4BYTES | IMAGE_SCN_MEM_READ;  // 0x40300040;
 
-  memcpy(pesect[PEOBJ_SECT_RDATA_Z].name, ".rdata$Z", sizeof(".rdata$Z")-1);
-  pesect[PEOBJ_SECT_RDATA_Z].PointerToRawData = sofs;
-  sofs += (pesect[PEOBJ_SECT_RDATA_Z].SizeOfRawData = (uint32_t)strlen(ctx->dasm_ident)+1);
+  /* Don't this we really need this ... */
+  memcpy(sectionHeaders[PEOBJ_SECT_RDATA_Z].name, ".rdata$Z", sizeof(".rdata$Z")-1);
+  sectionHeaders[PEOBJ_SECT_RDATA_Z].PointerToRawData = offset;
+  offset += (sectionHeaders[PEOBJ_SECT_RDATA_Z].SizeOfRawData = (uint32_t)strlen(ctx->dasm_ident)+1);
   /* Flags: 40 = read, 30 = align4, 40 = initialized data. */
-  pesect[PEOBJ_SECT_RDATA_Z].Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_ALIGN_4BYTES | IMAGE_SCN_MEM_READ;; // 0x40300040;
+  sectionHeaders[PEOBJ_SECT_RDATA_Z].Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_ALIGN_4BYTES | IMAGE_SCN_MEM_READ;; // 0x40300040;
 
   /* Fill in PE header. */
   pehdr.Machine = PEOBJ_ARCH_TARGET;
   pehdr.NumberOfSections = PEOBJ_NSECTIONS;
   pehdr.TimeDateStamp = 0;  /* Timestamp is optional. */
-  pehdr.PointerToSymbolTable = sofs;
+  pehdr.PointerToSymbolTable = offset;
   pehdr.SizeOfOptionalHeader = 0;
   pehdr.Characteristics = 0;
 
@@ -260,29 +303,20 @@ void emit_peobj(BuildCtx *ctx)
   ** + nrsym
   */
   nrsym = ctx->nrelocsym;
-  pehdr.NumberOfSymbols = 1+PEOBJ_NSECTIONS*2 + 1+ctx->nsym + nrsym;
-#if RAVI_TARGET_X64
-  pehdr.NumberOfSymbols += 1;  /* Symbol for lj_err_unwind_win. */
-#endif
+  pehdr.NumberOfSymbols = 1+PEOBJ_NSECTIONS*2 + 1+ctx->NumberOfSymbols + nrsym;
+  //pehdr.NumberOfSymbols += 1;  /* Symbol for lj_err_unwind_win. */
 
   /* Write PE object header and all sections. */
   owrite(ctx, &pehdr, sizeof(PEheader));
-  owrite(ctx, &pesect, sizeof(PEsection)*PEOBJ_NSECTIONS);
+  owrite(ctx, &sectionHeaders, sizeof(PESectionHeader)*PEOBJ_NSECTIONS);
 
   /* Write .text section. */
   host_endian.u = 1;
   if (host_endian.b != RAVI_ENDIAN_SELECT(1, 0)) {
-#if RAVI_TARGET_PPC
-    uint32_t *p = (uint32_t *)ctx->code;
-    int n = (int)(ctx->codesz >> 2);
-    for (i = 0; i < n; i++, p++)
-      *p = lj_bswap(*p);  /* Byteswap .text section. */
-#else
     fprintf(stderr, "Error: different byte order for host and target\n");
     exit(1);
-#endif
   }
-  owrite(ctx, ctx->code, ctx->codesz);
+  owrite(ctx, ctx->code, ctx->CodeSize);
   for (i = 0; i < ctx->nreloc; i++) {
     PEreloc reloc;
     reloc.vaddr = (uint32_t)ctx->reloc[i].ofs + PEOBJ_RELOC_OFS;
@@ -291,15 +325,30 @@ void emit_peobj(BuildCtx *ctx)
     owrite(ctx, &reloc, PEOBJ_RELOC_SIZE);
   }
 
-#if RAVI_TARGET_X64
   { /* Write .pdata section. */
-    uint32_t fcofs = (uint32_t)ctx->sym[ctx->nsym-1].ofs;
+    /*
+    The .pdata section contains an array of function table entries that are used for exception handling. 
+    It is pointed to by the exception table entry in the image data directory. The entries must be sorted 
+    according to the function addresses (the first field in each structure) before being emitted into the 
+    final image. The target platform determines which of the three function table entry format variations 
+    described below is used.
+    For x64 and Itanium platforms, function table entries have the following format:
+    Offset    Size     Field                      Description
+    0         4        Begin Address              The RVA of the corresponding function
+    4         4        End Address                The RVA of the end of the function.
+    8         4        Unwind Information         The RVA of the unwind information.
+    */
+    uint32_t fcofs = (uint32_t)ctx->AllSymbols[ctx->NumberOfSymbols-1].ofs;
     uint32_t pdata[3];  /* Start of .text, end of .text and .xdata. */
     PEreloc reloc;
     pdata[0] = 0; pdata[1] = fcofs; pdata[2] = 0;
     owrite(ctx, &pdata, sizeof(pdata));
-    pdata[0] = fcofs; pdata[1] = (uint32_t)ctx->codesz; pdata[2] = 20;
+    pdata[0] = fcofs; pdata[1] = (uint32_t)ctx->CodeSize; pdata[2] = 20;
     owrite(ctx, &pdata, sizeof(pdata));
+
+    /*
+    Object files contain COFF relocations, which specify how the section data should be modified when placed in the image file and subsequently loaded into memory.
+    */
     reloc.vaddr = 0; reloc.symidx = 1+2+nrsym+2+2+1;
     reloc.type = PEOBJ_RELOC_ADDR32NB;
     owrite(ctx, &reloc, PEOBJ_RELOC_SIZE);
@@ -342,20 +391,6 @@ void emit_peobj(BuildCtx *ctx)
     reloc.type = PEOBJ_RELOC_ADDR32NB;
     owrite(ctx, &reloc, PEOBJ_RELOC_SIZE);
   }
-#elif RAVI_TARGET_X86
-  /* Write .sxdata section. */
-  for (i = 0; i < nrsym; i++) {
-    if (!strcmp(ctx->relocsym[i], "_lj_err_unwind_win")) {
-      uint32_t symidx = 1+2+i;
-      owrite(ctx, &symidx, 4);
-      break;
-    }
-  }
-  if (i == nrsym) {
-    fprintf(stderr, "Error: extern lj_err_unwind_win not used\n");
-    exit(1);
-  }
-#endif
 
   /* Write .rdata$Z section. */
   owrite(ctx, ctx->dasm_ident, strlen(ctx->dasm_ident)+1);
@@ -366,29 +401,25 @@ void emit_peobj(BuildCtx *ctx)
     strtabofs = 4;
     /* Mark as SafeSEH compliant. */
     emit_peobj_sym(ctx, "@feat.00", 1,
-		   PEOBJ_SECT_ABS, PEOBJ_TYPE_NULL, PEOBJ_SCL_STATIC);
+		   PEOBJ_SECT_ABS, IMAGE_SYM_TYPE_NULL, PEOBJ_SCL_STATIC);
 
-    emit_peobj_sym_sect(ctx, pesect, PEOBJ_SECT_TEXT);
+    emit_peobj_sym_sect(ctx, sectionHeaders, PEOBJ_SECT_TEXT);
     for (i = 0; i < nrsym; i++)
       emit_peobj_sym(ctx, ctx->relocsym[i], 0,
-		     PEOBJ_SECT_UNDEF, PEOBJ_TYPE_FUNC, PEOBJ_SCL_EXTERN);
+		     PEOBJ_SECT_UNDEF, IMAGE_SYM_TYPE_FUNC, IMAGE_SYM_CLASS_EXTERNAL);
 
-#if RAVI_TARGET_X64
-    emit_peobj_sym_sect(ctx, pesect, PEOBJ_SECT_PDATA);
-    emit_peobj_sym_sect(ctx, pesect, PEOBJ_SECT_XDATA);
+    emit_peobj_sym_sect(ctx, sectionHeaders, PEOBJ_SECT_PDATA);
+    emit_peobj_sym_sect(ctx, sectionHeaders, PEOBJ_SECT_XDATA);
     emit_peobj_sym(ctx, "lj_err_unwind_win", 0,
-		   PEOBJ_SECT_UNDEF, PEOBJ_TYPE_FUNC, PEOBJ_SCL_EXTERN);
-#elif RAVI_TARGET_X86
-    emit_peobj_sym_sect(ctx, pesect, PEOBJ_SECT_SXDATA);
-#endif
+		   PEOBJ_SECT_UNDEF, IMAGE_SYM_TYPE_FUNC, IMAGE_SYM_CLASS_EXTERNAL);
 
-    emit_peobj_sym(ctx, ctx->beginsym, 0,
-		   PEOBJ_SECT_TEXT, PEOBJ_TYPE_NULL, PEOBJ_SCL_EXTERN);
-    for (i = 0; i < ctx->nsym; i++)
-      emit_peobj_sym(ctx, ctx->sym[i].name, (uint32_t)ctx->sym[i].ofs,
-		     PEOBJ_SECT_TEXT, PEOBJ_TYPE_FUNC, PEOBJ_SCL_EXTERN);
+    emit_peobj_sym(ctx, ctx->StartSymbol, 0,
+		   PEOBJ_SECT_TEXT, IMAGE_SYM_TYPE_NULL, IMAGE_SYM_CLASS_EXTERNAL);
+    for (i = 0; i < ctx->NumberOfSymbols; i++)
+      emit_peobj_sym(ctx, ctx->AllSymbols[i].name, (uint32_t)ctx->AllSymbols[i].ofs,
+		     PEOBJ_SECT_TEXT, IMAGE_SYM_TYPE_FUNC, IMAGE_SYM_CLASS_EXTERNAL);
 
-    emit_peobj_sym_sect(ctx, pesect, PEOBJ_SECT_RDATA_Z);
+    emit_peobj_sym_sect(ctx, sectionHeaders, PEOBJ_SECT_RDATA_Z);
 
     if (strtab)
       break;

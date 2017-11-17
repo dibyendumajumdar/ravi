@@ -87,7 +87,7 @@ void owrite(BuildCtx *ctx, const void *ptr, size_t sz)
 /* Emit code as raw bytes. Only used for DynASM debugging. */
 static void emit_raw(BuildCtx *ctx)
 {
-  owrite(ctx, ctx->code, ctx->codesz);
+  owrite(ctx, ctx->code, ctx->CodeSize);
 }
 
 /* -- Build machine code -------------------------------------------------- */
@@ -146,15 +146,15 @@ static int collect_reloc(BuildCtx *ctx, uint8_t *addr, int idx, int type)
 static void sym_insert(BuildCtx *ctx, int32_t ofs,
 		       const char *prefix, const char *suffix)
 {
-  ptrdiff_t i = ctx->nsym++;
+  ptrdiff_t i = ctx->NumberOfSymbols++;
   while (i > 0) {
-    if (ctx->sym[i-1].ofs <= ofs)
+    if (ctx->AllSymbols[i-1].ofs <= ofs)
       break;
-    ctx->sym[i] = ctx->sym[i-1];
+    ctx->AllSymbols[i] = ctx->AllSymbols[i-1];
     i--;
   }
-  ctx->sym[i].ofs = ofs;
-  ctx->sym[i].name = sym_decorate(ctx, prefix, suffix);
+  ctx->AllSymbols[i].ofs = ofs;
+  ctx->AllSymbols[i].name = sym_decorate(ctx, prefix, suffix);
 }
 
 /* Build the machine code. */
@@ -164,13 +164,13 @@ static int build_code(BuildCtx *ctx)
   int i;
 
   /* Initialize DynASM structures. */
-  ctx->nglob = GLOB__MAX;
-  ctx->glob = (void **)malloc(ctx->nglob*sizeof(void *));
-  memset(ctx->glob, 0, ctx->nglob*sizeof(void *));
+  ctx->NumberOfExportedSymbols = GLOB__MAX;
+  ctx->ExportedSymbols = (void **)malloc(ctx->NumberOfExportedSymbols*sizeof(void *));
+  memset(ctx->ExportedSymbols, 0, ctx->NumberOfExportedSymbols*sizeof(void *));
   ctx->nreloc = 0;
 
-  ctx->globnames = globnames;
-  ctx->extnames = extnames;
+  ctx->ExportedSymbolNames = globnames;
+  ctx->ImportedSymbolNames = extnames;
   ctx->relocsym = (const char **)malloc(NRELOCSYM*sizeof(const char *));
   ctx->nrelocsym = 0;
   for (i = 0; i < (int)NRELOCSYM; i++) relocmap[i] = -1;
@@ -179,55 +179,49 @@ static int build_code(BuildCtx *ctx)
   ctx->dasm_arch = DASM_ARCH;
 
   dasm_init(Dst, DASM_MAXSECTION);
-  dasm_setupglobal(Dst, ctx->glob, ctx->nglob);
+  dasm_setupglobal(Dst, ctx->ExportedSymbols, ctx->NumberOfExportedSymbols);
   dasm_setup(Dst, build_actionlist);
 
   /* Call arch-specific backend to emit the code. */
-  ctx->npc = build_backend(ctx);
+  ctx->SizeofDispatchTable = build_backend(ctx);
 
   /* Finalize the code. */
   (void)dasm_checkstep(Dst, -1);
-  if ((status = dasm_link(Dst, &ctx->codesz))) return status;
-  ctx->code = (uint8_t *)malloc(ctx->codesz);
+  if ((status = dasm_link(Dst, &ctx->CodeSize))) return status;
+  ctx->code = (uint8_t *)malloc(ctx->CodeSize);
   if ((status = dasm_encode(Dst, (void *)ctx->code))) return status;
 
   /* Allocate symbol table and bytecode offsets. */
-  ctx->beginsym = sym_decorate(ctx, "", LABEL_PREFIX "vm_asm_begin");
-  ctx->sym = (BuildSym *)malloc((ctx->npc+ctx->nglob+1)*sizeof(BuildSym));
-  ctx->nsym = 0;
-  ctx->bc_ofs = (int32_t *)malloc(ctx->npc*sizeof(int32_t));
+  ctx->StartSymbol = sym_decorate(ctx, "", LABEL_PREFIX "vm_asm_begin");
+  ctx->AllSymbols = (BuildSym *)malloc((ctx->SizeofDispatchTable+ctx->NumberOfExportedSymbols+1)*sizeof(BuildSym));	// Presumably +1 is for a terminating NULL
+  ctx->NumberOfSymbols = 0;
+  ctx->DispatchTableOffsets = (int32_t *)malloc(ctx->SizeofDispatchTable*sizeof(int32_t));
 
   /* Collect the opcodes (PC labels). */
-  for (i = 0; i < ctx->npc; i++) {
+  for (i = 0; i < ctx->SizeofDispatchTable; i++) {
     int32_t ofs = dasm_getpclabel(Dst, i);
     if (ofs < 0) return 0x22000000|i;
-    ctx->bc_ofs[i] = ofs;
-// Dibyendu: Not sure what this is
-//    if ((RAVI_HASJIT ||
-//	 !(i == BC_JFORI || i == BC_JFORL || i == BC_JITERL || i == BC_JLOOP ||
-//	   i == BC_IFORL || i == BC_IITERL || i == BC_ILOOP)) &&
-//	(RAVI_HASFFI || i != BC_KCDATA))
-//      sym_insert(ctx, ofs, LABEL_PREFIX_BC, bc_names[i]);
+    ctx->DispatchTableOffsets[i] = ofs;
     sym_insert(ctx, ofs, LABEL_PREFIX_BC, luaP_opnames[i]);
   }
 
   /* Collect the globals (named labels). */
-  for (i = 0; i < ctx->nglob; i++) {
+  for (i = 0; i < ctx->NumberOfExportedSymbols; i++) {
     const char *gl = globnames[i];
     int len = (int)strlen(gl);
-    if (!ctx->glob[i]) {
+    if (!ctx->ExportedSymbols[i]) {
       fprintf(stderr, "Error: undefined global %s\n", gl);
       exit(2);
     }
     /* Skip the _Z symbols. */
     if (!(len >= 2 && gl[len-2] == '_' && gl[len-1] == 'Z'))
-      sym_insert(ctx, (int32_t)((uint8_t *)(ctx->glob[i]) - ctx->code),
+      sym_insert(ctx, (int32_t)((uint8_t *)(ctx->ExportedSymbols[i]) - ctx->code),
 		 LABEL_PREFIX, globnames[i]);
   }
 
   /* Close the address range. */
-  sym_insert(ctx, (int32_t)ctx->codesz, "", "");
-  ctx->nsym--;
+  sym_insert(ctx, (int32_t)ctx->CodeSize, "", "");
+  ctx->NumberOfSymbols--;
 
   dasm_free(Dst);
 
@@ -251,10 +245,10 @@ static void emit_bcdef(BuildCtx *ctx)
   int i;
   fprintf(ctx->fp, "/* This is a generated file. DO NOT EDIT! */\n\n");
   fprintf(ctx->fp, "RAVI_DATADEF const uint16_t lj_bc_ofs[] = {\n");
-  for (i = 0; i < ctx->npc; i++) {
+  for (i = 0; i < ctx->SizeofDispatchTable; i++) {
     if (i != 0)
       fprintf(ctx->fp, ",\n");
-    fprintf(ctx->fp, "%d", ctx->bc_ofs[i]);
+    fprintf(ctx->fp, "%d", ctx->DispatchTableOffsets[i]);
   }
 }
 
