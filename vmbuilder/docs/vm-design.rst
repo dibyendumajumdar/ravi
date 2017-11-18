@@ -4,7 +4,8 @@ The overall approach is:
 
 * For each bytecode create an assembler routine
 * Create a dispatch table with pointers to the assembler routines
-* Each assembler routine will fetch the next bytecode instruction and jump to the next assembler routine using the dispatch table
+* Each assembler routine will (after completing its action) fetch the next bytecode instruction and jump to the next 
+  assembler routine using the dispatch table
 * The assembler routines are not full fledged C functions - they are part of one whole program. Hence they make assumptions about
   register usage which will be documented below. The VM as a whole will have a fixed set of register allocations so that most 
   important information is held in registers. 
@@ -19,16 +20,17 @@ Why dynasm
 ----------
 The implementation requires following key abilities that dynasm has:
 
-* Define dynamic labels using integer counter (e.g. opCode). I suppose this isn't critical as long as below is possible. 
-* Obtain the offets of the labels so that these can be gathered into a dispatch table.
+* Obtain the offets of the bytecode labels so that these can be gathered into a dispatch table.
 * Use C code to calculate various structure offets etc.
 * Macros 
 
-I am not sure whether this combination of features is available in other approaches such as using inline assembler in C code. 
+I am not sure whether this combination of features is available in other approaches such as using inline assembler in C code.
 
 Issue with dynasm
 -----------------
-On Windows 64-bit the generated code requires UNWIND information however the mechanism for this is in LuaJIT specific files (buildbm_peobj) and not fully reusable. As the implementation is not very well documented I am not sure how much effort it will be to fix it. 
+On Windows 64-bit the generated code requires UNWIND information however the mechanism for this is in LuaJIT specific files (buildbm_peobj) and not fully reusable. I have modified this to decouple from LuaJIT. This took some effort because LuaJIT's code
+has numrous magic numbers and stuff with no explanation of what they are doing. Not very helpful for anyone trying to work out what
+the code is doing unless you already know what needs doing.
 
 Register Allocations
 --------------------
