@@ -245,11 +245,19 @@ static const char *lower(char *buf, const char *s) {
 static void emit_bcdef(BuildCtx *ctx) {
   int i;
   fprintf(ctx->fp, "/* This is a generated file. DO NOT EDIT! */\n\n");
-  fprintf(ctx->fp, "RAVI_DATADEF const uint16_t lj_bc_ofs[] = {\n");
+  fprintf(ctx->fp, "/* ravi_bytecode_offsets contains offsets of OpCode implementations */\n");
+  /* Start of the ASM code. */
+  fprintf(ctx->fp, "extern char ravi_vm_asm_begin[];\n\n");
+  fprintf(ctx->fp, "/* Bytecode offsets are relative to ravi_vm_asm_begin. */\n");
+  fprintf(ctx->fp, "/* Internal assembler functions. Never call these directly from C. */\n");
+  fprintf(ctx->fp, "typedef void (*ASMFunction)(void);\n\n");
+  fprintf(ctx->fp, "#define makeasmfunc(ofs)  ((ASMFunction)(ravi_vm_asm_begin + (ofs)))\n\n");
+  fprintf(ctx->fp, "const uint16_t ravi_bytecode_offsets[] = {\n");
   for (i = 0; i < ctx->SizeofDispatchTable; i++) {
     if (i != 0) fprintf(ctx->fp, ",\n");
     fprintf(ctx->fp, "%d", ctx->DispatchTableOffsets[i]);
   }
+  fprintf(ctx->fp, "\n}\n");
 }
 
 /* -- Argument parsing ---------------------------------------------------- */
@@ -261,8 +269,8 @@ static const char *const modenames[] = {
 #undef BUILDNAME
         NULL};
 
-#define LUAJIT_VERSION "LuaJIT 2.1.0-beta3"
-#define LUAJIT_COPYRIGHT "Copyright (C) 2005-2017 Mike Pall"
+#define LUAJIT_VERSION "Ravi"
+#define LUAJIT_COPYRIGHT "Based on LuaJIT 2.1.0-beta3, Copyright (C) 2005-2017 Mike Pall"
 #define LUAJIT_URL "http://luajit.org/"
 
 /* Print usage information and exit. */

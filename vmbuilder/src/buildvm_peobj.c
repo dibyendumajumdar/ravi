@@ -1,5 +1,6 @@
 /*
 ** LuaJIT VM builder: PE object emitter.
+** Modified for Ravi - no longer compatible with LuaJIT.
 ** Copyright (C) 2005-2017 Mike Pall. See Copyright Notice in luajit.h
 **
 ** Only used for building on Windows, since we cannot assume the presence
@@ -10,6 +11,9 @@
 #include "lopcodes.h"
 
 #if RAVI_TARGET_X86ORX64
+
+/* IMPORTANT: Note that the code here depends upon Little Endian layout - i.e. 
+   it assumes the compiler is generating Little Endian code. */
 
 /* Context for PE object emitter. */
 static char *strtab;
@@ -245,10 +249,10 @@ static void emit_peobj_sym_sect(BuildCtx *ctx, PESectionHeader *sectionHeader, i
 
 static inline int start_symbol_index(int NumberOfRelocatableSymbols) {
   // Following is zero based offset of the symbol
-  // The symbol table is arranged thus:
+  // The symbol table is arranged thus (see emit_peobj()):
   // @feat.00 - 1 symbol
   // .text section header - 2 symbols
-  // Relocatable symbols
+  // NumberOfRelocatableSymbols Relocatable symbols
   // .pdata section header - 2 symbols
   // .xdata section header - 2 symbols
   // Which gives following formula to get to ravi_vm_asm_begin (StartSymbol)
@@ -257,10 +261,10 @@ static inline int start_symbol_index(int NumberOfRelocatableSymbols) {
 
 static inline int xdata_symbol_index(int NumberOfRelocatableSymbols) {
   // Following is zero based offset of the symbol
-  // The symbol table is arranged thus:
+  // The symbol table is arranged thus (see emit_peobj()):
   // @feat.00 - 1 symbol
   // .text section header - 2 symbols
-  // Relocatable symbols
+  // NumberOfRelocatableSymbols Relocatable symbols
   // .pdata section header - 2 symbols
   // .xdata section header
   return 1 + 2 + NumberOfRelocatableSymbols + 2;  // Points to .xdata
@@ -291,6 +295,9 @@ void emit_peobj(BuildCtx *ctx)
   offset = sizeof(PEheader) + PEOBJ_NSECTIONS*sizeof(PESectionHeader);
 
   /* Fill in PE sections. */
+  /* The .text section will contain all the generated machine code. Note that this contains
+     exported symbols as well as the bytecode assembly routines; any external functions
+     referenced will count as requiring relocations */
   memcpy(sectionHeaders[PEOBJ_SECT_TEXT].name, ".text", sizeof(".text")-1);
   sectionHeaders[PEOBJ_SECT_TEXT].PointerToRawData = offset;
   offset += (sectionHeaders[PEOBJ_SECT_TEXT].SizeOfRawData = (uint32_t)ctx->CodeSize);
@@ -299,6 +306,9 @@ void emit_peobj(BuildCtx *ctx)
   /* Flags: 60 = read+execute, 50 = align16, 20 = code. */
   sectionHeaders[PEOBJ_SECT_TEXT].Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_ALIGN_16BYTES | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_EXECUTE;
 
+  /* The .pdata section contains a function table. Right now we only generate a single entry in the
+     function table, pointing to our exported luaV_interp() function which is the VM entrypoint and
+     meant to be a direct replacement of luaV_execute() */
   memcpy(sectionHeaders[PEOBJ_SECT_PDATA].name, ".pdata", sizeof(".pdata")-1);
   sectionHeaders[PEOBJ_SECT_PDATA].PointerToRawData = offset;
   offset += (sectionHeaders[PEOBJ_SECT_PDATA].SizeOfRawData = 1*12);	// We need one function table entry of 12 bytes (.pdata function table entry is made up of 3 * 4 byte fields)
@@ -307,6 +317,10 @@ void emit_peobj(BuildCtx *ctx)
   /* Flags: 40 = read, 30 = align4, 40 = initialized data. */
   sectionHeaders[PEOBJ_SECT_PDATA].Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_ALIGN_4BYTES | IMAGE_SCN_MEM_READ;
 
+  /* The .xdata section contains the UNWIND_INFO structure for the exported function luaV_interp().
+     As the bytecode assembly routines are never invoked via 'call' I believe they are not treated as 
+     C functions, hence inside the VM, the only function that needs to have unwind information defined
+     is the luaV_interp() function. (This is my current understanding) */
   memcpy(sectionHeaders[PEOBJ_SECT_XDATA].name, ".xdata", sizeof(".xdata")-1);
   sectionHeaders[PEOBJ_SECT_XDATA].PointerToRawData = offset;
   offset += (sectionHeaders[PEOBJ_SECT_XDATA].SizeOfRawData = 24);  /* This is the size of the UNWIND_INFO we write below for our generated code */
@@ -315,7 +329,7 @@ void emit_peobj(BuildCtx *ctx)
   /* Flags: 40 = read, 30 = align4, 40 = initialized data. */
   sectionHeaders[PEOBJ_SECT_XDATA].Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_ALIGN_4BYTES | IMAGE_SCN_MEM_READ;
 
-  /* Don't this we really need this ... */
+  /* Don't think we really need this ... it just records dynasm version */
   memcpy(sectionHeaders[PEOBJ_SECT_RDATA_Z].name, ".rdata$Z", sizeof(".rdata$Z")-1);
   sectionHeaders[PEOBJ_SECT_RDATA_Z].PointerToRawData = offset;
   offset += (sectionHeaders[PEOBJ_SECT_RDATA_Z].SizeOfRawData = (uint32_t)strlen(ctx->dasm_ident)+1);
@@ -336,7 +350,7 @@ void emit_peobj(BuildCtx *ctx)
   ** + nrsym
   */
   NumberOfRelocatableSymbols = ctx->nrelocsym;
-  pehdr.NumberOfSymbols = 1 + PEOBJ_NSECTIONS*2 + 1 + ctx->NumberOfSymbols + NumberOfRelocatableSymbols;
+  pehdr.NumberOfSymbols = 1 + PEOBJ_NSECTIONS*2 + 1 + ctx->NumberOfSymbols + NumberOfRelocatableSymbols; // We count two symbols for each section header, 1 for @feat.00 and 1 for asm_start
 
   /* Write PE object header and all sections. */
   owrite(ctx, &pehdr, sizeof(PEheader));
@@ -348,11 +362,13 @@ void emit_peobj(BuildCtx *ctx)
     fprintf(stderr, "Error: different byte order for host and target\n");
     exit(1);
   }
+  /* emit the machine code */
   owrite(ctx, ctx->code, ctx->CodeSize);
+  /* emit all the symbols */
   for (i = 0; i < ctx->RelocSize; i++) {
     PEreloc reloc;
     reloc.VirtualAddress = (uint32_t)ctx->Reloc[i].RelativeOffset + PEOBJ_RELOC_OFS;
-    reloc.SymbolTableIndex = 1+2+ctx->Reloc[i].sym;  /* Reloc syms are after @feat.00 (1) and .text sectionheader symbols (2) in the symbol table */
+    reloc.SymbolTableIndex = 1+2+ctx->Reloc[i].sym;  /* The symbolss are after @feat.00 (1) and .text sectionheader symbols (2) in the symbol table, hence we add 3 to the symbol's offset */
     reloc.type = ctx->Reloc[i].type ? PEOBJ_RELOC_REL32 : PEOBJ_RELOC_DIR32;
     owrite(ctx, &reloc, PEOBJ_RELOC_SIZE);
   }
@@ -396,7 +412,7 @@ void emit_peobj(BuildCtx *ctx)
     reloc.type = PEOBJ_RELOC_ADDR32NB;
     owrite(ctx, &reloc, PEOBJ_RELOC_SIZE);
   }
-  { /* Write .xdata section. */
+  { /* Write .xdata section - this is the UNWIND_INFO data for luaV_interp() function */
     // We want to record following UNWIND_CODEes (see structure in #if block below) in reverse order
     // push rbp
     // push rdi; push rsi; push rbx
@@ -443,7 +459,10 @@ void emit_peobj(BuildCtx *ctx)
 		  *   OPTIONAL ULONG ExceptionData[]; */
 	  } UNWIND_INFO, *PUNWIND_INFO;
 #endif
-
+    /* Note that the registers and order below are dependent upon the order in which the
+       the registers were pushed in the prologue of luaV_interp() and are in the reverse order
+       here. This tells the OS that in case of exceptions, how to restore the registers when
+       unwinding the luaV_interp() function */
     uint16_t xdata[12];
     xdata[0] = 0x0001;  /* Ver. 1, no handler, prolog size 0. */
     xdata[1] = 0x0009;  /* Number of unwind codes, no frame pointer. */
@@ -456,7 +475,7 @@ void emit_peobj(BuildCtx *ctx)
     xdata[8] = 0x6000;  /* Push rsi. */
     xdata[9] = 0x7000;  /* Push rdi. */
     xdata[10] = 0x5000;  /* Push rbp. */
-    xdata[11] = 0;  /* Alignment - to check */
+    xdata[11] = 0;  /* Alignment - is this needed? TBC */
     owrite(ctx, &xdata, sizeof(xdata));
   }
 
@@ -464,11 +483,13 @@ void emit_peobj(BuildCtx *ctx)
   owrite(ctx, ctx->dasm_ident, strlen(ctx->dasm_ident)+1);
 
   /* Write symbol table. */
-  /* This runs in two passes - first pass collects string sizes, and second pass outputs the values */
-  /* strtab being NULL triggers first pass behaviour */
+  /* This is done in two passes - the first pass collects string sizes, and second pass outputs the values */
+  /* Note that strtab being NULL triggers first pass behaviour (this is bad code but okay because we don't care here) */
   strtab = NULL;  /* 1st pass: collect string sizes. */
   for (;;) {
     strtabofs = 4;
+    /* Note the order in which the symbols are emitted - this order is important for the
+       various indices that are computed */
     /* Mark as SafeSEH compliant. */
     emit_peobj_sym(ctx, "@feat.00", 1,
 		   PEOBJ_SECT_ABS, IMAGE_SYM_TYPE_NULL, PEOBJ_SCL_STATIC);
