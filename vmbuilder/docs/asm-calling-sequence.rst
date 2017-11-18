@@ -32,3 +32,4 @@ References
 Windows Unwind Data
 ===================
 * `Manual Stack Reconstruction <https://blogs.msdn.microsoft.com/ntdebugging/2010/05/12/x64-manual-stack-reconstruction-and-stack-walking/>`_.
+* `X84 Deep Dive <http://www.codemachine.com/article_x64deepdive.html>`_ - has useful depiction of unwind info on Win64.
