@@ -262,21 +262,21 @@ void emit_peobj(BuildCtx *ctx)
   sectionHeaders[PEOBJ_SECT_TEXT].PointerToRawData = offset;
   offset += (sectionHeaders[PEOBJ_SECT_TEXT].SizeOfRawData = (uint32_t)ctx->CodeSize);
   sectionHeaders[PEOBJ_SECT_TEXT].PointerToRelocations = offset;
-  offset += (sectionHeaders[PEOBJ_SECT_TEXT].NumberOfRelocations = (uint16_t)ctx->nreloc) * PEOBJ_RELOC_SIZE;
+  offset += (sectionHeaders[PEOBJ_SECT_TEXT].NumberOfRelocations = (uint16_t)ctx->RelocSize) * PEOBJ_RELOC_SIZE;
   /* Flags: 60 = read+execute, 50 = align16, 20 = code. */
   sectionHeaders[PEOBJ_SECT_TEXT].Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_ALIGN_16BYTES | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_EXECUTE; //   ;PEOBJ_TEXT_FLAGS;
 
   memcpy(sectionHeaders[PEOBJ_SECT_PDATA].name, ".pdata", sizeof(".pdata")-1);
   sectionHeaders[PEOBJ_SECT_PDATA].PointerToRawData = offset;
-  offset += (sectionHeaders[PEOBJ_SECT_PDATA].SizeOfRawData = 6*4);
+  offset += (sectionHeaders[PEOBJ_SECT_PDATA].SizeOfRawData = 6*4);	// FIXME what are these magic numbers
   sectionHeaders[PEOBJ_SECT_PDATA].PointerToRelocations = offset;
-  offset += (sectionHeaders[PEOBJ_SECT_PDATA].NumberOfRelocations = 6) * PEOBJ_RELOC_SIZE;
+  offset += (sectionHeaders[PEOBJ_SECT_PDATA].NumberOfRelocations = 6) * PEOBJ_RELOC_SIZE; // FIXME why 6? 
   /* Flags: 40 = read, 30 = align4, 40 = initialized data. */
   sectionHeaders[PEOBJ_SECT_PDATA].Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_ALIGN_4BYTES | IMAGE_SCN_MEM_READ; //                0x40300040;
 
   memcpy(sectionHeaders[PEOBJ_SECT_XDATA].name, ".xdata", sizeof(".xdata")-1);
   sectionHeaders[PEOBJ_SECT_XDATA].PointerToRawData = offset;
-  offset += (sectionHeaders[PEOBJ_SECT_XDATA].SizeOfRawData = 8*2+4+6*2);  /* See below. */
+  offset += (sectionHeaders[PEOBJ_SECT_XDATA].SizeOfRawData = 8*2+4+6*2);  /* FIXME See below. */
   sectionHeaders[PEOBJ_SECT_XDATA].PointerToRelocations = offset;
   offset += (sectionHeaders[PEOBJ_SECT_XDATA].NumberOfRelocations = 1) * PEOBJ_RELOC_SIZE;
   /* Flags: 40 = read, 30 = align4, 40 = initialized data. */
@@ -303,7 +303,7 @@ void emit_peobj(BuildCtx *ctx)
   ** + nrsym
   */
   nrsym = ctx->nrelocsym;
-  pehdr.NumberOfSymbols = 1+PEOBJ_NSECTIONS*2 + 1+ctx->NumberOfSymbols + nrsym;
+  pehdr.NumberOfSymbols = 1+PEOBJ_NSECTIONS*2 + 1 + ctx->NumberOfSymbols + nrsym;
   //pehdr.NumberOfSymbols += 1;  /* Symbol for lj_err_unwind_win. */
 
   /* Write PE object header and all sections. */
@@ -317,11 +317,11 @@ void emit_peobj(BuildCtx *ctx)
     exit(1);
   }
   owrite(ctx, ctx->code, ctx->CodeSize);
-  for (i = 0; i < ctx->nreloc; i++) {
+  for (i = 0; i < ctx->RelocSize; i++) {
     PEreloc reloc;
-    reloc.vaddr = (uint32_t)ctx->reloc[i].ofs + PEOBJ_RELOC_OFS;
-    reloc.symidx = 1+2+ctx->reloc[i].sym;  /* Reloc syms are after .text sym. */
-    reloc.type = ctx->reloc[i].type ? PEOBJ_RELOC_REL32 : PEOBJ_RELOC_DIR32;
+    reloc.vaddr = (uint32_t)ctx->Reloc[i].RelativeOffset + PEOBJ_RELOC_OFS;
+    reloc.symidx = 1+2+ctx->Reloc[i].sym;  /* Reloc syms are after .text sym. */
+    reloc.type = ctx->Reloc[i].type ? PEOBJ_RELOC_REL32 : PEOBJ_RELOC_DIR32;
     owrite(ctx, &reloc, PEOBJ_RELOC_SIZE);
   }
 
@@ -405,7 +405,7 @@ void emit_peobj(BuildCtx *ctx)
 
     emit_peobj_sym_sect(ctx, sectionHeaders, PEOBJ_SECT_TEXT);
     for (i = 0; i < nrsym; i++)
-      emit_peobj_sym(ctx, ctx->relocsym[i], 0,
+      emit_peobj_sym(ctx, ctx->RelocatableSymbolNames[i], 0,
 		     PEOBJ_SECT_UNDEF, IMAGE_SYM_TYPE_FUNC, IMAGE_SYM_CLASS_EXTERNAL);
 
     emit_peobj_sym_sect(ctx, sectionHeaders, PEOBJ_SECT_PDATA);

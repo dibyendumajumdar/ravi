@@ -44,8 +44,11 @@ BUILDDEF(BUILDENUM)
 
 /* Code relocation. */
 typedef struct BuildReloc {
-  int32_t ofs;
+  /* Offset of the relocatable symbol computed as (symbol - code) */
+  int32_t RelativeOffset;
+  /* index into ExportedSymbolNames array? */
   int sym;
+  /* type = 0 means absolute address, type = 1 means relative address */
   int type;
 } BuildReloc;
 
@@ -70,14 +73,15 @@ typedef struct BuildCtx {
   int SizeofDispatchTable;
   /* Number of exported functions such as luaV_interp()*/
   int NumberOfExportedSymbols;
+  /* Count of all symbols including exported symbols and dispatch table functions - should be NUM_OPCODES+1 VM function */
   int NumberOfSymbols;
-  int nreloc;
   int nrelocsym;
   /* Array of exported symbols excluding the start symbol */
   void **ExportedSymbols;
   /* Array of all symbols including exported symbols, start symbol and dispatch table entries */
   BuildSym *AllSymbols;
-  const char **relocsym;
+  /* Names of relocatable symbols - e.g. ImportedSymbols. Not sure why we need this and ImportedSymbolNames */
+  const char **RelocatableSymbolNames;
   /* Offsets of lables in the dispatch table, one of each byte code */
   int32_t *DispatchTableOffsets;
   /* This is the first symbol (ravi_vm_asm_begin) - other symbols are relative to this one in the dispatch table */
@@ -89,8 +93,10 @@ typedef struct BuildCtx {
   const char *const *ImportedSymbolNames;
   const char *dasm_ident;
   const char *dasm_arch;
-  /* Relocations. */
-  BuildReloc reloc[BUILD_MAX_RELOC];
+  /* Relocatable symbols (addresses) */
+  BuildReloc Reloc[BUILD_MAX_RELOC];
+  /* Size of above (i.e. used elements) */
+  int RelocSize;
 } BuildCtx;
 
 extern void owrite(BuildCtx *ctx, const void *ptr, size_t sz);

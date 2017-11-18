@@ -158,15 +158,15 @@ void emit_asm(BuildCtx *ctx)
     int32_t ofs = ctx->AllSymbols[i].ofs;
     int32_t next = ctx->AllSymbols[i+1].ofs;
     emit_asm_label(ctx, ctx->AllSymbols[i].name, next - ofs, 1);
-    while (rel < ctx->nreloc && ctx->reloc[rel].ofs <= next) {
-      BuildReloc *r = &ctx->reloc[rel];
-      int n = r->ofs - ofs;
+    while (rel < ctx->RelocSize && ctx->Reloc[rel].RelativeOffset <= next) {
+      BuildReloc *r = &ctx->Reloc[rel];
+      int n = r->RelativeOffset - ofs;
       if (r->type != 0 &&
 	  (ctx->mode == BUILD_elfasm || ctx->mode == BUILD_machasm)) {
-	emit_asm_reloc_text(ctx, ctx->code+ofs, n, ctx->relocsym[r->sym]);
+	emit_asm_reloc_text(ctx, ctx->code+ofs, n, ctx->RelocatableSymbolNames[r->sym]);
       } else {
 	emit_asm_bytes(ctx, ctx->code+ofs, n);
-	emit_asm_reloc(ctx, r->type, ctx->relocsym[r->sym]);
+	emit_asm_reloc(ctx, r->type, ctx->RelocatableSymbolNames[r->sym]);
       }
       ofs += n+4;
       rel++;

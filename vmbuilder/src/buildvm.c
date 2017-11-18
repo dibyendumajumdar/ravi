@@ -35,23 +35,22 @@
 /* ------------------------------------------------------------------------ */
 
 /* DynASM glue definitions. */
-#define Dst		ctx
-#define Dst_DECL	BuildCtx *ctx
-#define Dst_REF		(ctx->D)
-#define DASM_CHECKS	1
+#define Dst ctx
+#define Dst_DECL BuildCtx *ctx
+#define Dst_REF (ctx->D)
+#define DASM_CHECKS 1
 
 #include "../dynasm/dasm_proto.h"
 
 /* Glue macros for DynASM. */
 static int collect_reloc(BuildCtx *ctx, uint8_t *addr, int idx, int type);
 
-#define DASM_EXTERN(ctx, addr, idx, type) \
-  collect_reloc(ctx, addr, idx, type)
+#define DASM_EXTERN(ctx, addr, idx, type) collect_reloc(ctx, addr, idx, type)
 
 /* ------------------------------------------------------------------------ */
 
 /* Avoid trouble if cross-compiling for an x86 target. Speed doesn't matter. */
-#define DASM_ALIGNED_WRITES	1
+#define DASM_ALIGNED_WRITES 1
 
 /* Embed architecture-specific DynASM encoder. */
 #if RAVI_TARGET_X86ORX64
@@ -73,11 +72,10 @@ static int collect_reloc(BuildCtx *ctx, uint8_t *addr, int idx, int type);
 
 /* ------------------------------------------------------------------------ */
 
-void owrite(BuildCtx *ctx, const void *ptr, size_t sz)
-{
+void owrite(BuildCtx *ctx, const void *ptr, size_t sz) {
   if (fwrite(ptr, 1, sz, ctx->fp) != sz) {
     fprintf(stderr, "Error: cannot write to output file: %s\n",
-	    strerror(errno));
+            strerror(errno));
     exit(1);
   }
 }
@@ -85,16 +83,12 @@ void owrite(BuildCtx *ctx, const void *ptr, size_t sz)
 /* ------------------------------------------------------------------------ */
 
 /* Emit code as raw bytes. Only used for DynASM debugging. */
-static void emit_raw(BuildCtx *ctx)
-{
-  owrite(ctx, ctx->code, ctx->CodeSize);
-}
+static void emit_raw(BuildCtx *ctx) { owrite(ctx, ctx->code, ctx->CodeSize); }
 
 /* -- Build machine code -------------------------------------------------- */
 
-static const char *sym_decorate(BuildCtx *ctx,
-				const char *prefix, const char *suffix)
-{
+static const char *sym_decorate(BuildCtx *ctx, const char *prefix,
+                                const char *suffix) {
   char name[256];
   char *p;
 #if RAVI_64
@@ -107,50 +101,52 @@ static const char *sym_decorate(BuildCtx *ctx,
   if (p) {
 #if RAVI_TARGET_X86ORX64
     if (!RAVI_64 && (ctx->mode == BUILD_coffasm || ctx->mode == BUILD_peobj))
-      name[0] = name[1] == 'R' ? '_' : '@';  /* Just for _RtlUnwind@16. */
+      name[0] = name[1] == 'R' ? '_' : '@'; /* Just for _RtlUnwind@16. */
     else
       *p = '\0';
 #else
     *p = '\0';
 #endif
   }
-  p = (char *)malloc(strlen(name)+1);  /* MSVC doesn't like strdup. */
+  p = (char *)malloc(strlen(name) + 1); /* MSVC doesn't like strdup. */
   strcpy(p, name);
   return p;
 }
 
-#define NRELOCSYM	(sizeof(extnames)/sizeof(extnames[0])-1)
+#define NRELOCSYM (sizeof(extnames) / sizeof(extnames[0]) - 1)
 
-static int relocmap[NRELOCSYM+1]; // Dibyendu: add +1 to allow no extnames
+static int relocmap[NRELOCSYM + 1];  // Dibyendu: add +1 to allow no extnames
 
-/* Collect external relocations. */
-static int collect_reloc(BuildCtx *ctx, uint8_t *addr, int idx, int type)
-{
-  if (ctx->nreloc >= BUILD_MAX_RELOC) {
+/* 
+Collect external relocations
+addr is the address of the external symbol
+idx is offset into ExportedSymbolNames as per dynasm unofficial docs
+type = 0 means absolute address, type = 1 means relative address 
+*/
+static int collect_reloc(BuildCtx *ctx, uint8_t *addr, int idx, int type) {
+  if (ctx->RelocSize >= BUILD_MAX_RELOC) {
     fprintf(stderr, "Error: too many relocations, increase BUILD_MAX_RELOC.\n");
     exit(1);
   }
   if (relocmap[idx] < 0) {
     relocmap[idx] = ctx->nrelocsym;
-    ctx->relocsym[ctx->nrelocsym] = sym_decorate(ctx, "", extnames[idx]);
+    ctx->RelocatableSymbolNames[ctx->nrelocsym] = sym_decorate(ctx, "", extnames[idx]);
     ctx->nrelocsym++;
   }
-  ctx->reloc[ctx->nreloc].ofs = (int32_t)(addr - ctx->code);
-  ctx->reloc[ctx->nreloc].sym = relocmap[idx];
-  ctx->reloc[ctx->nreloc].type = type;
-  ctx->nreloc++;
-  return 0;  /* Encode symbol offset of 0. */
+  ctx->Reloc[ctx->RelocSize].RelativeOffset = (int32_t)(addr - ctx->code);
+  ctx->Reloc[ctx->RelocSize].sym = relocmap[idx];
+  ctx->Reloc[ctx->RelocSize].type = type;
+  ctx->RelocSize++;
+  return 0; /* Encode symbol offset of 0. */
 }
 
 /* Naive insertion sort. Performance doesn't matter here. */
-static void sym_insert(BuildCtx *ctx, int32_t ofs,
-		       const char *prefix, const char *suffix)
-{
+static void sym_insert(BuildCtx *ctx, int32_t ofs, const char *prefix,
+                       const char *suffix) {
   ptrdiff_t i = ctx->NumberOfSymbols++;
   while (i > 0) {
-    if (ctx->AllSymbols[i-1].ofs <= ofs)
-      break;
-    ctx->AllSymbols[i] = ctx->AllSymbols[i-1];
+    if (ctx->AllSymbols[i - 1].ofs <= ofs) break;
+    ctx->AllSymbols[i] = ctx->AllSymbols[i - 1];
     i--;
   }
   ctx->AllSymbols[i].ofs = ofs;
@@ -158,20 +154,21 @@ static void sym_insert(BuildCtx *ctx, int32_t ofs,
 }
 
 /* Build the machine code. */
-static int build_code(BuildCtx *ctx)
-{
+static int build_code(BuildCtx *ctx) {
   int status;
   int i;
 
   /* Initialize DynASM structures. */
   ctx->NumberOfExportedSymbols = GLOB__MAX;
-  ctx->ExportedSymbols = (void **)malloc(ctx->NumberOfExportedSymbols*sizeof(void *));
-  memset(ctx->ExportedSymbols, 0, ctx->NumberOfExportedSymbols*sizeof(void *));
-  ctx->nreloc = 0;
+  ctx->ExportedSymbols =
+      (void **)malloc(ctx->NumberOfExportedSymbols * sizeof(void *));
+  memset(ctx->ExportedSymbols, 0,
+         ctx->NumberOfExportedSymbols * sizeof(void *));
+  ctx->RelocSize = 0;
 
   ctx->ExportedSymbolNames = globnames;
   ctx->ImportedSymbolNames = extnames;
-  ctx->relocsym = (const char **)malloc(NRELOCSYM*sizeof(const char *));
+  ctx->RelocatableSymbolNames = (const char **)malloc(NRELOCSYM * sizeof(const char *));
   ctx->nrelocsym = 0;
   for (i = 0; i < (int)NRELOCSYM; i++) relocmap[i] = -1;
 
@@ -193,14 +190,17 @@ static int build_code(BuildCtx *ctx)
 
   /* Allocate symbol table and bytecode offsets. */
   ctx->StartSymbol = sym_decorate(ctx, "", LABEL_PREFIX "vm_asm_begin");
-  ctx->AllSymbols = (BuildSym *)malloc((ctx->SizeofDispatchTable+ctx->NumberOfExportedSymbols+1)*sizeof(BuildSym));	// Presumably +1 is for a terminating NULL
+  ctx->AllSymbols = (BuildSym *)malloc(
+      (ctx->SizeofDispatchTable + ctx->NumberOfExportedSymbols + 1) *
+      sizeof(BuildSym));  // Presumably +1 is for a terminating NULL
   ctx->NumberOfSymbols = 0;
-  ctx->DispatchTableOffsets = (int32_t *)malloc(ctx->SizeofDispatchTable*sizeof(int32_t));
+  ctx->DispatchTableOffsets =
+      (int32_t *)malloc(ctx->SizeofDispatchTable * sizeof(int32_t));
 
   /* Collect the opcodes (PC labels). */
   for (i = 0; i < ctx->SizeofDispatchTable; i++) {
     int32_t ofs = dasm_getpclabel(Dst, i);
-    if (ofs < 0) return 0x22000000|i;
+    if (ofs < 0) return 0x22000000 | i;
     ctx->DispatchTableOffsets[i] = ofs;
     sym_insert(ctx, ofs, LABEL_PREFIX_BC, luaP_opnames[i]);
   }
@@ -214,9 +214,12 @@ static int build_code(BuildCtx *ctx)
       exit(2);
     }
     /* Skip the _Z symbols. */
-    if (!(len >= 2 && gl[len-2] == '_' && gl[len-1] == 'Z'))
-      sym_insert(ctx, (int32_t)((uint8_t *)(ctx->ExportedSymbols[i]) - ctx->code),
-		 LABEL_PREFIX, globnames[i]);
+    if (!(len >= 2 && gl[len - 2] == '_' && gl[len - 1] == 'Z'))
+      // Enter the relative offset of the exported symbol, relative to the start
+      // of the code
+      sym_insert(ctx,
+                 (int32_t)((uint8_t *)(ctx->ExportedSymbols[i]) - ctx->code),
+                 LABEL_PREFIX, globnames[i]);
   }
 
   /* Close the address range. */
@@ -228,11 +231,10 @@ static int build_code(BuildCtx *ctx)
   return 0;
 }
 
-static const char *lower(char *buf, const char *s)
-{
+static const char *lower(char *buf, const char *s) {
   char *p = buf;
   while (*s) {
-    *p++ = (*s >= 'A' && *s <= 'Z') ? *s+0x20 : *s;
+    *p++ = (*s >= 'A' && *s <= 'Z') ? *s + 0x20 : *s;
     s++;
   }
   *p = '\0';
@@ -240,14 +242,12 @@ static const char *lower(char *buf, const char *s)
 }
 
 /* Emit C source code for bytecode-related definitions. */
-static void emit_bcdef(BuildCtx *ctx)
-{
+static void emit_bcdef(BuildCtx *ctx) {
   int i;
   fprintf(ctx->fp, "/* This is a generated file. DO NOT EDIT! */\n\n");
   fprintf(ctx->fp, "RAVI_DATADEF const uint16_t lj_bc_ofs[] = {\n");
   for (i = 0; i < ctx->SizeofDispatchTable; i++) {
-    if (i != 0)
-      fprintf(ctx->fp, ",\n");
+    if (i != 0) fprintf(ctx->fp, ",\n");
     fprintf(ctx->fp, "%d", ctx->DispatchTableOffsets[i]);
   }
 }
@@ -256,87 +256,79 @@ static void emit_bcdef(BuildCtx *ctx)
 
 /* Build mode names. */
 static const char *const modenames[] = {
-#define BUILDNAME(name)		#name,
-BUILDDEF(BUILDNAME)
+#define BUILDNAME(name) #name,
+    BUILDDEF(BUILDNAME)
 #undef BUILDNAME
-  NULL
-};
+        NULL};
 
-#define LUAJIT_VERSION    "LuaJIT 2.1.0-beta3"
-#define LUAJIT_COPYRIGHT  "Copyright (C) 2005-2017 Mike Pall"
-#define LUAJIT_URL    "http://luajit.org/"
+#define LUAJIT_VERSION "LuaJIT 2.1.0-beta3"
+#define LUAJIT_COPYRIGHT "Copyright (C) 2005-2017 Mike Pall"
+#define LUAJIT_URL "http://luajit.org/"
 
 /* Print usage information and exit. */
-static void usage(void)
-{
+static void usage(void) {
   int i;
   fprintf(stderr, LUAJIT_VERSION " VM builder.\n");
   fprintf(stderr, LUAJIT_COPYRIGHT ", " LUAJIT_URL "\n");
   fprintf(stderr, "Target architecture: " RAVI_ARCH_NAME "\n\n");
   fprintf(stderr, "Usage: buildvm -m mode [-o outfile] [infiles...]\n\n");
   fprintf(stderr, "Available modes:\n");
-  for (i = 0; i < BUILD__MAX; i++)
-    fprintf(stderr, "  %s\n", modenames[i]);  
+  for (i = 0; i < BUILD__MAX; i++) fprintf(stderr, "  %s\n", modenames[i]);
   exit(1);
 }
 
 /* Parse the output mode name. */
-static BuildMode parsemode(const char *mode)
-{
+static BuildMode parsemode(const char *mode) {
   int i;
   for (i = 0; modenames[i]; i++)
-    if (!strcmp(mode, modenames[i]))
-      return (BuildMode)i;
+    if (!strcmp(mode, modenames[i])) return (BuildMode)i;
   usage();
   return (BuildMode)-1;
 }
 
 /* Parse arguments. */
-static void parseargs(BuildCtx *ctx, char **argv)
-{
+static void parseargs(BuildCtx *ctx, char **argv) {
   const char *a;
   int i;
   ctx->mode = (BuildMode)-1;
   ctx->outname = "-";
   for (i = 1; (a = argv[i]) != NULL; i++) {
-    if (a[0] != '-')
-      break;
+    if (a[0] != '-') break;
     switch (a[1]) {
-    case '-':
-      if (a[2]) goto err;
-      i++;
-      goto ok;
-    case '\0':
-      goto ok;
-    case 'm':
-      i++;
-      if (a[2] || argv[i] == NULL) goto err;
-      ctx->mode = parsemode(argv[i]);
-      break;
-    case 'o':
-      i++;
-      if (a[2] || argv[i] == NULL) goto err;
-      ctx->outname = argv[i];
-      break;
-    default: err:
-      usage();
-      break;
+      case '-':
+        if (a[2]) goto err;
+        i++;
+        goto ok;
+      case '\0': goto ok;
+      case 'm':
+        i++;
+        if (a[2] || argv[i] == NULL) goto err;
+        ctx->mode = parsemode(argv[i]);
+        break;
+      case 'o':
+        i++;
+        if (a[2] || argv[i] == NULL) goto err;
+        ctx->outname = argv[i];
+        break;
+      default:
+      err:
+        usage();
+        break;
     }
   }
 ok:
-  ctx->args = argv+i;
+  ctx->args = argv + i;
   if (ctx->mode == (BuildMode)-1) goto err;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   BuildCtx ctx_;
   BuildCtx *ctx = &ctx_;
   int status, binmode;
 
-  if (sizeof(void *) != 4*RAVI_32+8*RAVI_64) {
-    fprintf(stderr,"Error: pointer size mismatch in cross-build.\n");
-    fprintf(stderr,"Try: make HOST_CC=\"gcc -m32\" CROSS=...\n\n");
+  if (sizeof(void *) != 4 * RAVI_32 + 8 * RAVI_64) {
+    fprintf(stderr, "Error: pointer size mismatch in cross-build.\n");
+    fprintf(stderr, "Try: make HOST_CC=\"gcc -m32\" CROSS=...\n\n");
     return 1;
   }
 
@@ -344,56 +336,45 @@ int main(int argc, char **argv)
   parseargs(ctx, argv);
 
   if ((status = build_code(ctx))) {
-    fprintf(stderr,"Error: DASM error %08x\n", status);
+    fprintf(stderr, "Error: DASM error %08x\n", status);
     return 1;
   }
 
   switch (ctx->mode) {
-  case BUILD_peobj:
-  case BUILD_raw:
-    binmode = 1;
-    break;
-  default:
-    binmode = 0;
-    break;
+    case BUILD_peobj:
+    case BUILD_raw: binmode = 1; break;
+    default: binmode = 0; break;
   }
 
   if (ctx->outname[0] == '-' && ctx->outname[1] == '\0') {
     ctx->fp = stdout;
 #if defined(_WIN32)
-    if (binmode)
-      _setmode(_fileno(stdout), _O_BINARY);  /* Yuck. */
+    if (binmode) _setmode(_fileno(stdout), _O_BINARY); /* Yuck. */
 #endif
-  } else if (!(ctx->fp = fopen(ctx->outname, binmode ? "wb" : "w"))) {
-    fprintf(stderr, "Error: cannot open output file '%s': %s\n",
-	    ctx->outname, strerror(errno));
+  }
+  else if (!(ctx->fp = fopen(ctx->outname, binmode ? "wb" : "w"))) {
+    fprintf(stderr, "Error: cannot open output file '%s': %s\n", ctx->outname,
+            strerror(errno));
     exit(1);
   }
 
   switch (ctx->mode) {
-  case BUILD_elfasm:
-  case BUILD_coffasm:
-  case BUILD_machasm:
-    emit_asm(ctx);
-    //emit_asm_debug(ctx);
-    break;
-  case BUILD_peobj:
-    emit_peobj(ctx);
-    break;
-  case BUILD_raw:
-    emit_raw(ctx);
-    break;
-  case BUILD_bcdef:
-    emit_bcdef(ctx);
-    break;
-  default:
-    break;
+    case BUILD_elfasm:
+    case BUILD_coffasm:
+    case BUILD_machasm:
+      emit_asm(ctx);
+      // emit_asm_debug(ctx);
+      break;
+    case BUILD_peobj: emit_peobj(ctx); break;
+    case BUILD_raw: emit_raw(ctx); break;
+    case BUILD_bcdef: emit_bcdef(ctx); break;
+    default: break;
   }
 
   fflush(ctx->fp);
   if (ferror(ctx->fp)) {
     fprintf(stderr, "Error: cannot write to output file: %s\n",
-	    strerror(errno));
+            strerror(errno));
     exit(1);
   }
   fclose(ctx->fp);
@@ -401,141 +382,149 @@ int main(int argc, char **argv)
   return 0;
 }
 
-
 // FIXME this is a copy of the array from lopcodes.c
-LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
-  "MOVE",
-  "LOADK",
-  "LOADKX",
-  "LOADBOOL",
-  "LOADNIL",
-  "GETUPVAL",
-  "GETTABUP",
-  "GETTABLE",
-  "SETTABUP",
-  "SETUPVAL",
-  "SETTABLE",
-  "NEWTABLE",
-  "SELF",
-  "ADD",
-  "SUB",
-  "MUL",
-  "MOD",
-  "POW",
-  "DIV",
-  "IDIV",
-  "BAND",
-  "BOR",
-  "BXOR",
-  "SHL",
-  "SHR",
-  "UNM",
-  "BNOT",
-  "NOT",
-  "LEN",
-  "CONCAT",
-  "JMP",
-  "EQ",
-  "LT",
-  "LE",
-  "TEST",
-  "TESTSET",
-  "CALL",
-  "TAILCALL",
-  "RETURN",
-  "FORLOOP",
-  "FORPREP",
-  "TFORCALL",
-  "TFORLOOP",
-  "SETLIST",
-  "CLOSURE",
-  "VARARG",
-  "EXTRAARG",
+LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
+    {
+        "MOVE",
+        "LOADK",
+        "LOADKX",
+        "LOADBOOL",
+        "LOADNIL",
+        "GETUPVAL",
+        "GETTABUP",
+        "GETTABLE",
+        "SETTABUP",
+        "SETUPVAL",
+        "SETTABLE",
+        "NEWTABLE",
+        "SELF",
+        "ADD",
+        "SUB",
+        "MUL",
+        "MOD",
+        "POW",
+        "DIV",
+        "IDIV",
+        "BAND",
+        "BOR",
+        "BXOR",
+        "SHL",
+        "SHR",
+        "UNM",
+        "BNOT",
+        "NOT",
+        "LEN",
+        "CONCAT",
+        "JMP",
+        "EQ",
+        "LT",
+        "LE",
+        "TEST",
+        "TESTSET",
+        "CALL",
+        "TAILCALL",
+        "RETURN",
+        "FORLOOP",
+        "FORPREP",
+        "TFORCALL",
+        "TFORLOOP",
+        "SETLIST",
+        "CLOSURE",
+        "VARARG",
+        "EXTRAARG",
 
-  "NEWARRAYI", /* A R(A) := array of int */
-  "NEWARRAYF", /* A R(A) := array of float */
+        "NEWARRAYI", /* A R(A) := array of int */
+        "NEWARRAYF", /* A R(A) := array of float */
 
-  "LOADIZ", /*  A R(A) := tointeger(0)    */
-  "LOADFZ", /*  A R(A) := tonumber(0)   */
+        "LOADIZ", /*  A R(A) := tointeger(0)    */
+        "LOADFZ", /*  A R(A) := tonumber(0)   */
 
-  "UNMF",   /*  A B R(A) := -R(B) floating point      */
-  "UNMI",   /*  A B R(A) := -R(B) integer */
+        "UNMF", /*  A B R(A) := -R(B) floating point      */
+        "UNMI", /*  A B R(A) := -R(B) integer */
 
-  "ADDFF",  /*  A B C R(A) := RK(B) + RK(C)   */
-  "ADDFI",  /*  A B C R(A) := RK(B) + RK(C)   */
-  "ADDII",  /*  A B C R(A) := RK(B) + RK(C)   */
+        "ADDFF", /*  A B C R(A) := RK(B) + RK(C)   */
+        "ADDFI", /*  A B C R(A) := RK(B) + RK(C)   */
+        "ADDII", /*  A B C R(A) := RK(B) + RK(C)   */
 
-  "SUBFF",  /*  A B C R(A) := RK(B) - RK(C)   */
-  "SUBFI",  /*  A B C R(A) := RK(B) - RK(C)   */
-  "SUBIF",  /*  A B C R(A) := RK(B) - RK(C)   */
-  "SUBII",  /*  A B C R(A) := RK(B) - RK(C)   */
+        "SUBFF", /*  A B C R(A) := RK(B) - RK(C)   */
+        "SUBFI", /*  A B C R(A) := RK(B) - RK(C)   */
+        "SUBIF", /*  A B C R(A) := RK(B) - RK(C)   */
+        "SUBII", /*  A B C R(A) := RK(B) - RK(C)   */
 
-  "MULFF",  /*  A B C R(A) := RK(B) * RK(C)   */
-  "MULFI",  /*  A B C R(A) := RK(B) * RK(C)   */
-  "MULII",  /*  A B C R(A) := RK(B) * RK(C)   */
+        "MULFF", /*  A B C R(A) := RK(B) * RK(C)   */
+        "MULFI", /*  A B C R(A) := RK(B) * RK(C)   */
+        "MULII", /*  A B C R(A) := RK(B) * RK(C)   */
 
-  "DIVFF",  /*  A B C R(A) := RK(B) / RK(C)   */
-  "DIVFI",  /*  A B C R(A) := RK(B) / RK(C)   */
-  "DIVIF",  /*  A B C R(A) := RK(B) / RK(C)   */
-  "DIVII",  /*  A B C R(A) := RK(B) / RK(C)   */
+        "DIVFF", /*  A B C R(A) := RK(B) / RK(C)   */
+        "DIVFI", /*  A B C R(A) := RK(B) / RK(C)   */
+        "DIVIF", /*  A B C R(A) := RK(B) / RK(C)   */
+        "DIVII", /*  A B C R(A) := RK(B) / RK(C)   */
 
-  "TOINT", /* A R(A) := toint(R(A)) */
-  "TOFLT", /* A R(A) := tofloat(R(A)) */
-  "TOARRAYI", /* A R(A) := to_arrayi(R(A)) */
-  "TOARRAYF", /* A R(A) := to_arrayf(R(A)) */
-  "TOTAB",     /* A R(A) := to_table(R(A)) */
-  "TOSTRING",
-  "TOCLOSURE",
-  "TOTYPE",
+        "TOINT",    /* A R(A) := toint(R(A)) */
+        "TOFLT",    /* A R(A) := tofloat(R(A)) */
+        "TOARRAYI", /* A R(A) := to_arrayi(R(A)) */
+        "TOARRAYF", /* A R(A) := to_arrayf(R(A)) */
+        "TOTAB",    /* A R(A) := to_table(R(A)) */
+        "TOSTRING",
+        "TOCLOSURE",
+        "TOTYPE",
 
-  "MOVEI",  /*  A B R(A) := R(B)          */
-  "MOVEF",  /*  A B R(A) := R(B)          */
-  "MOVEAI", /* A B R(A) := R(B), check R(B) is array of int */
-  "MOVEAF", /* A B R(A) := R(B), check R(B) is array of floats */
-  "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
+        "MOVEI",   /*  A B R(A) := R(B)          */
+        "MOVEF",   /*  A B R(A) := R(B)          */
+        "MOVEAI",  /* A B R(A) := R(B), check R(B) is array of int */
+        "MOVEAF",  /* A B R(A) := R(B), check R(B) is array of floats */
+        "MOVETAB", /* A B R(A) := R(B), check R(B) is a table */
 
-  "GETTABLE_AI",/*  A B C R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
-  "GETTABLE_AF",/*  A B C R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
+        "GETTABLE_AI", /*  A B C R(A) := R(B)[RK(C)] where R(B) is array of
+                          integers and RK(C) is int */
+        "GETTABLE_AF", /*  A B C R(A) := R(B)[RK(C)] where R(B) is array of
+                          floats and RK(C) is int */
 
-  "SETTABLE_AI",/*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
-  "SETTABLE_AF",/*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
-  "SETTABLE_AII",/* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
-  "SETTABLE_AFF",/* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+        "SETTABLE_AI",  /*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+                           R(A) is array of ints, and RK(C) is an int */
+        "SETTABLE_AF",  /*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+                           R(A) is array of floats, and RK(C) is an float */
+        "SETTABLE_AII", /* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+                           R(A) is array of ints, and RK(C) is an int */
+        "SETTABLE_AFF", /* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+                           R(A) is array of floats, and RK(C) is an float */
 
-  "FORLOOP_IP",
-  "FORLOOP_I1",
-  "FORPREP_IP",
-  "FORPREP_I1",
+        "FORLOOP_IP",
+        "FORLOOP_I1",
+        "FORPREP_IP",
+        "FORPREP_I1",
 
-  "SETUPVALI", /* A B UpValue[B] := tointeger(R(A))     */
-  "SETUPVALF", /* A B UpValue[B] := tonumber(R(A))      */
-  "SETUPVALAI",  /* A B UpValue[B] := toarrayint(R(A))      */
-  "SETUPVALAF",  /* A B UpValue[B] := toarrayflt(R(A))      */
-  "SETUPVALT", /* A B UpValue[B] := to_table(R(A))      */
+        "SETUPVALI",  /* A B UpValue[B] := tointeger(R(A))     */
+        "SETUPVALF",  /* A B UpValue[B] := tonumber(R(A))      */
+        "SETUPVALAI", /* A B UpValue[B] := toarrayint(R(A))      */
+        "SETUPVALAF", /* A B UpValue[B] := toarrayflt(R(A))      */
+        "SETUPVALT",  /* A B UpValue[B] := to_table(R(A))      */
 
-  "BAND_II",/*  A B C R(A) := RK(B) & RK(C)       */
-  "BOR_II", /*  A B C R(A) := RK(B) | RK(C)       */
-  "BXOR_II",/*  A B C R(A) := RK(B) ~ RK(C)       */
-  "SHL_II", /*  A B C R(A) := RK(B) << RK(C)        */
-  "SHR_II", /*  A B C R(A) := RK(B) >> RK(C)        */
-  "BNOT_I", /*  A B R(A) := ~R(B)         */
+        "BAND_II", /*  A B C R(A) := RK(B) & RK(C)       */
+        "BOR_II",  /*  A B C R(A) := RK(B) | RK(C)       */
+        "BXOR_II", /*  A B C R(A) := RK(B) ~ RK(C)       */
+        "SHL_II",  /*  A B C R(A) := RK(B) << RK(C)        */
+        "SHR_II",  /*  A B C R(A) := RK(B) >> RK(C)        */
+        "BNOT_I",  /*  A B R(A) := ~R(B)         */
 
-  "EQ_II",  /*  A B C if ((RK(B) == RK(C)) ~= A) then pc++    */
-  "EQ_FF",  /*  A B C if ((RK(B) == RK(C)) ~= A) then pc++    */
-  "LT_II",  /*  A B C if ((RK(B) <  RK(C)) ~= A) then pc++    */
-  "LT_FF",  /*  A B C if ((RK(B) <  RK(C)) ~= A) then pc++    */
-  "LE_II",  /*  A B C if ((RK(B) <= RK(C)) ~= A) then pc++    */
-  "LE_FF",  /*  A B C if ((RK(B) <= RK(C)) ~= A) then pc++    */
-  
-  "GETTABLE_S", /*  A B C R(A) := R(B)[RK(C)], string key   */
-  "SETTABLE_S", /*  A B C R(A)[RK(B)] := RK(C), string key  */
-  "SELF_S",    /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
+        "EQ_II", /*  A B C if ((RK(B) == RK(C)) ~= A) then pc++    */
+        "EQ_FF", /*  A B C if ((RK(B) == RK(C)) ~= A) then pc++    */
+        "LT_II", /*  A B C if ((RK(B) <  RK(C)) ~= A) then pc++    */
+        "LT_FF", /*  A B C if ((RK(B) <  RK(C)) ~= A) then pc++    */
+        "LE_II", /*  A B C if ((RK(B) <= RK(C)) ~= A) then pc++    */
+        "LE_FF", /*  A B C if ((RK(B) <= RK(C)) ~= A) then pc++    */
 
-  "GETTABLE_I", /*  A B C R(A) := R(B)[RK(C)], integer key  */
-  "SETTABLE_I", /*  A B C R(A)[RK(B)] := RK(C), integer key */
-  "GETTABLE_SK", /* _SK */ /* A B C R(A) := R(B)[RK(C)], string key   */
-  "SELF_SK",    /* _SK*/ /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
-  "SETTABLE_SK", /*_SK */ /*  A B C R(A)[RK(B)] := RK(C), string key  */
-  "GETTABUP_SK",
-   NULL
-};
+        "GETTABLE_S", /*  A B C R(A) := R(B)[RK(C)], string key   */
+        "SETTABLE_S", /*  A B C R(A)[RK(B)] := RK(C), string key  */
+        "SELF_S",     /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
+
+        "GETTABLE_I", /*  A B C R(A) := R(B)[RK(C)], integer key  */
+        "SETTABLE_I", /*  A B C R(A)[RK(B)] := RK(C), integer key */
+        "GETTABLE_SK",
+        /* _SK */ /* A B C R(A) := R(B)[RK(C)], string key   */
+        "SELF_SK",
+        /* _SK*/ /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
+        "SETTABLE_SK",
+        /*_SK */ /*  A B C R(A)[RK(B)] := RK(C), string key  */
+        "GETTABUP_SK",
+        NULL};
