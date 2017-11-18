@@ -28,3 +28,7 @@ References
 ==========
 * `X86-64 Calling conventions <https://en.wikipedia.org/wiki/X86_calling_conventions#x86-64_calling_conventions>`_
 * `Windows X86-64 Conventions <https://docs.microsoft.com/en-us/cpp/build/x64-software-conventions>`_
+
+Windows Unwind Data
+===================
+* `Manual Stack Reconstruction <https://blogs.msdn.microsoft.com/ntdebugging/2010/05/12/x64-manual-stack-reconstruction-and-stack-walking/>`_.
