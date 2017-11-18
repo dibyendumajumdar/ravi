@@ -26,13 +26,13 @@ The implementation requires following key abilities that dynasm has:
 
 I am not sure whether this combination of features is available in other approaches such as using inline assembler in C code. I have briefly looked at:
 
-* Inline assembly in gcc / clang - too ugly syntactically to wor with
-* Inline assembly in D - nearly okay - no macros however so simple stuff like creating aliases for registers requires ugly mixin templates. Also the generated code appears to lack enough controls (such as disabling the frame pointer register, and ensuring correct unwind data on Win64).
+* Inline assembly in gcc / clang - too ugly syntactically to work with
+* Inline assembly in D - almost okay - no macros however so simple stuff like creating aliases for registers requires ugly mixin templates. Also the generated code appears to lack enough controls (such as disabling the frame pointer register, and ensuring correct unwind data on Win64).
 
 Issue with dynasm
 -----------------
 On Windows 64-bit the generated code requires UNWIND information however the mechanism for this is in LuaJIT specific files (buildbm_peobj) and not fully reusable. I have modified this to decouple from LuaJIT. This took some effort because LuaJIT's code
-has numrous magic numbers and stuff with no explanation of what they are doing. Not very helpful for anyone trying to work out what
+has numrous magic numbers and stuff with no explanation of what the code is doing. Not very helpful for anyone trying to work out what
 the code is doing unless you already know what needs doing.
 
 Register Allocations
@@ -88,3 +88,4 @@ to provide a shadow space for function calls inside the VM.
 
 We can size the stack such that we pre-allocate the 32 byte shadow space on Win64, so that we don't need to adjust the 
 stack every time we make a call to a C function. But instead of using this we use the shadow space provided by the caller.
+
