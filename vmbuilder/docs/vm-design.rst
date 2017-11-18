@@ -24,7 +24,10 @@ The implementation requires following key abilities that dynasm has:
 * Use C code to calculate various structure offets etc.
 * Macros 
 
-I am not sure whether this combination of features is available in other approaches such as using inline assembler in C code.
+I am not sure whether this combination of features is available in other approaches such as using inline assembler in C code. I have briefly looked at:
+
+* Inline assembly in gcc / clang - too ugly syntactically to wor with
+* Inline assembly in D - nearly okay - no macros however so simple stuff like creating aliases for registers requires ugly mixin templates. Also the generated code appears to lack enough controls (such as disabling the frame pointer register, and ensuring correct unwind data on Win64).
 
 Issue with dynasm
 -----------------
