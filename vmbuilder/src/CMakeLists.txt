@@ -61,3 +61,5 @@ set(SRCS
 # Buildvm
 add_executable ( buildvm ${SRCS} ${HEADERS} ${DASM_T} )
 
+install(TARGETS buildvm
+        DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/../bin)

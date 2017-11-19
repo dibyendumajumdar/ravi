@@ -145,6 +145,41 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     add_definitions(-DLUA_USER_H="ltests.h")
 endif ()
 
+if (ASM_VM)
+    add_definitions(-DRAVI_USE_ASMVM)
+    set ( ASMVM_DEFS ${PROJECT_SOURCE_DIR}/include/ravi_asmvm_defs.h )
+    if (WIN32 AND NOT CYGWIN)
+        set(VMMODE peobj)
+    elseif (APPLE)
+        set(VMMODE machasm)
+    else()
+        set(VMMODE elfasm)
+    endif()      
+  
+    macro(add_buildvm_target _target _mode)
+        add_custom_command(OUTPUT ${_target}
+            COMMAND ${PROJECT_SOURCE_DIR}/vmbuilder/bin/buildvm ARGS -m ${_mode} -o ${_target} ${ARGN}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            DEPENDS ${PROJECT_SOURCE_DIR}/vmbuilder/bin/buildvm ${ARGN}
+        )
+    endmacro(add_buildvm_target)
+
+    if ( WIN32 AND NOT CYGWIN )
+        add_buildvm_target ( ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.obj ${VMMODE} )
+        set (ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.obj)
+    else ()
+        add_buildvm_target ( ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.s ${VMMODE} )
+        set (ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravo_asmvm.s)
+    endif ()
+
+    add_buildvm_target ( ${ASMVM_DEFS}  bcdef  ${LJLIB_C} )
+
+    SET (ASMVM_DEPS
+        ${ASMVM_SRC}
+        ${ASMVM_DEFS}
+    )
+endif()
+
 # define LLVM JIT compiler sources
 if (LLVM_JIT)
     set(LLVM_JIT_SRCS src/ravi_llvmjit.cpp src/ravi_llvmtypes.cpp
@@ -165,16 +200,6 @@ if (NANO_JIT)
     set(NANO_JIT_SRCS src/ravi_nanojit.c)
 endif()
 if (NOT LLVM_JIT AND NOT GCC_JIT AND NOT NANO_JIT)
-    if (ASM_VM)
-        if (MSVC)
-            set(ASMVM_SRCS vmbuilder/src/vm.obj)
-        else()
-            set(ASMVM_SRCS vmbuilder/src/vm.s)
-        endif()
-        add_definitions(-DUSE_ASMVM)
-    else()
-        set(ASMVM_SRCS "")
-    endif()
     set(NO_JIT_SRCS src/ravi_nojit.c)
 endif()
 # define the lua core source files
@@ -387,7 +412,7 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${DMR_C_HEADERS}
         ${DMR_C_SRCS}
         ${DMR_C_JIT_SRCS}
-	${ASMVM_SRCS}
+        ${ASMVM_DEPS}
         )
 if (NOT STATIC_BUILD)
     if (WIN32)

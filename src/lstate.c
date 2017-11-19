@@ -28,6 +28,10 @@
 #include "ltable.h"
 #include "ltm.h"
 
+#ifdef RAVI_USE_ASMVM
+#include "ravi_asmvm_defs.h"
+#endif
+
 #include "ravijit.h"
 #include "ravi_profile.h"
 
@@ -315,6 +319,23 @@ void raviE_default_writestringerror(const char *fmt, const char *p) {
   fflush(stderr);
 }
 
+#ifdef RAVI_USE_ASMVM
+/* Initialize dispatch table used by the ASM VM */
+static void dispatch_init(global_State *G) {
+  uint32_t i;
+  ASMFunction *disp = G->dispatch;
+  for (int i = 0; i < NUM_OPCODES; i++) {
+    /*
+    Following computes an offset for the assembly routine for the given OpCode.
+    The offset is relative to the global symbol ravi_vm_asm_begin that is
+    generated as part of the VMBuilder code generation. All the bytecode
+    routines are at some offset to this global symbol.
+    */
+    disp[i] = makeasmfunc(ravi_bytecode_offsets[i]);
+  }
+}
+#endif
+
 LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   int i;
   lua_State *L;
@@ -364,6 +385,10 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
     close_state(L);
     L = NULL;
   }
+#ifdef RAVI_USE_ASMVM
+  /* setup dispatch table*/
+  dispatch_init(g);
+#endif
 #if RAVI_BYTECODE_PROFILING_ENABLED
   raviV_init_profiledata(L);
 #endif
