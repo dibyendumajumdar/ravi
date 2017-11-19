@@ -298,7 +298,7 @@ static void build_OP_RETURN(BuildCtx *ctx)
   |// RA ecx has A, RB edx has OpCode
   | 
   | mov KBASE, RCa                             // Save the bytecode into KBASE as we don't need KBASE anymore
-  | mov PROTO:TMP1, LCL->p                      // TMP1 = ci->p
+  | mov PROTO:TMP1, LCL->p                     // TMP1 = ci->p
   | cmp dword PROTO:TMP1->sizep, 0             // Test ci->p->sizep == 0
   | jle >1                                     // Skip call to luaF_close
   |
@@ -313,6 +313,8 @@ static void build_OP_RETURN(BuildCtx *ctx)
   | mov RCa, KBASE
   | ins_AB_                                    // RA = A, RB = B
   |
+  | // temporary hack - return
+  | mov rax, 0
   | restoreregs
   | ret
 }

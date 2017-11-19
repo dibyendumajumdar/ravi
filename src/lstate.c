@@ -322,15 +322,15 @@ void raviE_default_writestringerror(const char *fmt, const char *p) {
 #ifdef RAVI_USE_ASMVM
 /* Initialize dispatch table used by the ASM VM */
 static void dispatch_init(global_State *G) {
-  uint32_t i;
   ASMFunction *disp = G->dispatch;
-  for (int i = 0; i < NUM_OPCODES; i++) {
+  for (uint32_t i = 0; i < NUM_OPCODES; i++) {
     /*
     Following computes an offset for the assembly routine for the given OpCode.
     The offset is relative to the global symbol ravi_vm_asm_begin that is
     generated as part of the VMBuilder code generation. All the bytecode
     routines are at some offset to this global symbol.
     */
+    /* NOTE: enabling ltests.h modifies the global_State and breaks the assumptions abou the location of the dispatch table */
     disp[i] = makeasmfunc(ravi_bytecode_offsets[i]);
   }
 }
@@ -386,7 +386,7 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
     L = NULL;
   }
 #ifdef RAVI_USE_ASMVM
-  /* setup dispatch table*/
+  /* setup dispatch table - this is only used by the new ASM VM - see vmbuilder */
   dispatch_init(g);
 #endif
 #if RAVI_BYTECODE_PROFILING_ENABLED

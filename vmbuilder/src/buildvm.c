@@ -14,9 +14,19 @@
 ** It's a one-shot tool -- any effort fixing this would be wasted.
 */
 
-#include "buildvm.h"
+#define LUA_CORE
+
+#include "lprefix.h"
+
+#include <float.h>
+#include <limits.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "lua.h"
-#include "lua.h"
+
 #include "ldebug.h"
 #include "ldo.h"
 #include "lfunc.h"
@@ -27,6 +37,11 @@
 #include "lstring.h"
 #include "ltable.h"
 #include "ltm.h"
+#include "lvm.h"
+#include "ravi_profile.h"
+
+#include "buildvm.h"
+
 #if defined(_WIN32)
 #include <fcntl.h>
 #include <io.h>
@@ -387,7 +402,6 @@ int main(int argc, char **argv) {
     exit(1);
   }
   fclose(ctx->fp);
-
   return 0;
 }
 

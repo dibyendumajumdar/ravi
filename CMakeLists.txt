@@ -140,12 +140,16 @@ if (APPLE)
 endif ()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
-if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG" AND NOT ASM_VM)
+    # Note that enabling ltests.h messes with global_State and thus interferes with ASM_VM
     message(STATUS "Enabling Lua extended test harness 'ltests'")
     add_definitions(-DLUA_USER_H="ltests.h")
 endif ()
 
 if (ASM_VM)
+	# For now we switch to static build 
+	# TODO A fix is needed to ensure that in shared library the asm functions are resolved
+	set(STATIC_BUILD ON)
     add_definitions(-DRAVI_USE_ASMVM)
     set ( ASMVM_DEFS ${PROJECT_SOURCE_DIR}/include/ravi_asmvm_defs.h )
     if (WIN32 AND NOT CYGWIN)
@@ -156,6 +160,7 @@ if (ASM_VM)
         set(VMMODE elfasm)
     endif()      
   
+	# This macro runs the buildvm command to generate the VM code
     macro(add_buildvm_target _target _mode)
         add_custom_command(OUTPUT ${_target}
             COMMAND ${PROJECT_SOURCE_DIR}/vmbuilder/bin/buildvm ARGS -m ${_mode} -o ${_target} ${ARGN}
@@ -164,6 +169,7 @@ if (ASM_VM)
         )
     endmacro(add_buildvm_target)
 
+	# Generate ravi_asmvm.obj / ravi_asmvm.s (obj on Windows)
     if ( WIN32 AND NOT CYGWIN )
         add_buildvm_target ( ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.obj ${VMMODE} )
         set (ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.obj)
@@ -172,6 +178,7 @@ if (ASM_VM)
         set (ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravo_asmvm.s)
     endif ()
 
+	# Generate the ravi_bcdef.h header file
     add_buildvm_target ( ${ASMVM_DEFS}  bcdef  ${LJLIB_C} )
 
     SET (ASMVM_DEPS
@@ -470,4 +477,3 @@ install(TARGETS ${LIBRAVI_NAME} ravi ${RAVI_DEBUGGER_TARGET}
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
-

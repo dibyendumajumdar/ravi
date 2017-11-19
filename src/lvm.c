@@ -1268,6 +1268,13 @@ int luaV_execute (lua_State *L) {
  newframe:  /* reentry point when frame changes (call/return) */
   lua_assert(ci == L->ci);
   cl = clLvalue(ci->func);  /* local reference to function's closure */
+#ifdef RAVI_USE_ASMVM
+  // This is a temporary hack to test the under development ASM VM.
+  if (cl->p->sizecode == 1) { /* single bytecode means only OP_RETURN */
+    extern int ravi_luaV_interp(lua_State *L);
+    return ravi_luaV_interp(L);
+  }
+#endif
   k = cl->p->k;  /* local reference to function's constant table */
   updatemask(L);
   base = ci->u.l.base;  /* local copy of function's base */
