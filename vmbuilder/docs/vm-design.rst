@@ -20,7 +20,7 @@ Why dynasm
 ----------
 The implementation requires following key abilities that dynasm has:
 
-* Obtain the offets of the bytecode labels so that these can be gathered into a dispatch table.
+* Obtain the offsets of the bytecode labels so that these can be gathered into a dispatch table.
 * Use C code to calculate various structure offsets etc.
 * Macros to create aliases for registers, and generate common sequences.
 
@@ -69,14 +69,14 @@ Nomenclature
 +--------------------+------------------+------------------------------+------------------------------------------+
 | r15 (cs)           | r15 (cs)         | KBASE                        | Ptr to constants table in Proto          |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| rax (v)            | rax (v)          | RCa                          | Scratch - upon entry to subroutine eax   |
-|                    |                  |                              | will have the B,C portion of bytecode    |
+| rax (v)            | rax (v)          | RCa                          | Scratch - also eax used for              |
+|                    |                  |                              | the B,C portion of bytecode              |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| rcx (v) (1)        | rcx (v) (4)      | RAa                          | Scratch - upon entry to subroutine ecx   |
-|                    |                  |                              | will have the value of A in bytecode     |
+| rcx (v) (1)        | rcx (v) (4)      | RAa                          | Scratch - also ecx used for              |
+|                    |                  |                              | the value of A in bytecode               |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| rdx (v) (2)        | rdx (v) (3)      | RBa                          | Scratch - upon entry to subroutine edx   |
-|                    |                  |                              | will have the OpCode                     |
+| rdx (v) (2)        | rdx (v) (3)      | RBa                          | Scratch - also edx used for              |
+|                    |                  |                              | the OpCode                               |
 +--------------------+------------------+------------------------------+------------------------------------------+
 | r8 (v) (3)         | r8 (v) (5)       | BASE                         | Pointer to Lua stack base                |
 +--------------------+------------------+------------------------------+------------------------------------------+
@@ -145,7 +145,7 @@ address of each assembly routine by adding the offset to the 'ravi_vm_asm_begin'
 Current Issues
 --------------
 * Some additional work may be necessary to link the ASM routines when shared library builds are on - at least on Windows where
-  I noticed that the ASM functions were not properly being invoked. Have switch to static builds for now.
+  I noticed that the ASM functions were not properly being invoked. Have switched to static builds for now.
 
 Exported Symbols
 ----------------
@@ -169,7 +169,8 @@ Currently this occurs in `lstate.c <https://github.com/dibyendumajumdar/ravi/blo
       generated as part of the VMBuilder code generation. All the bytecode
       routines are at some offset to this global symbol.
       */
-      /* NOTE: enabling ltests.h modifies the global_State and breaks the assumptions abou the location of the dispatch table */
+      /* NOTE: enabling ltests.h modifies the global_State and breaks the assumptions about
+         the location of the dispatch table */
       disp[i] = makeasmfunc(ravi_bytecode_offsets[i]);
     }
   }
@@ -212,7 +213,7 @@ The way we handle this now is by generating following in the object file::
         0x00: UOP_PushNonVol RDI
         0x00: UOP_PushNonVol RBP
         
-Basically above tells Windows what the function epilogue looks so that Windows can correctly restore the registers when 
+Basically above tells Windows what the function epilogue (stack) looks like so that Windows can correctly restore the registers when 
 unwinding the stack. Note that the unwind information applies to the entire generated code and not a specific function. In particular
 the assumption is that there is only one entry point in the code and that needs to have a prologue that is the exact inverse of the
 epilogue described above.
@@ -244,4 +245,5 @@ And the epilogue::
      6a0:	5d 	popq	%rbp
      6a1:	c3 	retq
      
-As yu can see the unwind information basically tells Windows what the epilogue is supposed to be.
+As you can see the unwind information basically tells Windows what the epilogue is supposed to be, and where to find the saved
+values of the registers.
