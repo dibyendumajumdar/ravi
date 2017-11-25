@@ -5,17 +5,20 @@ Introduction
 This is the code generator for the Lua/Ravi VM. It uses dynasm as the assembler. 
 The overall approach is:
 
+The overall approach is:
+
 * For each bytecode create an assembler routine
-* Create a dispatch table with pointers to the assembler routines
-* Each assembler routine will fetch the next bytecode instruction and jump to the next assembler routine using the dispatch table
+* Create a dispatch table with pointers to the assembler routines; the dispatch table is stored in the Lua global_State structure
+  but this could change in future
+* Each assembler routine will (after completing its action) fetch the next bytecode instruction and jump to the next 
+  assembler routine using the dispatch table
 * The assembler routines are not full fledged C functions - they are part of one whole program. Hence they make assumptions about
   register usage which will be documented below. The VM as a whole will have a fixed set of register allocations so that most 
   important information is held in registers. 
   
-Design Considerations
----------------------
-* We will use 64-bit pointers and operations mostly - and not try to squeeze pointers into 32-bit regisers as LuaJIT appears to do.
-* The dispatch table will be stored in global_State - it is not clear yet whether it is worth making a local stack copy of it when the
+Implementation Considerations
+-----------------------------
+* The dispatch table is stored in global_State - it is not clear yet whether it is worth making a local stack copy of it when the
   VM starts executing.
 
 Register Allocations
@@ -27,51 +30,49 @@ Nomenclature
 
 * cs - callee saved, if we call a C function then after it returns we can rely on these registers
 * v - volatile, these registers may be overridden by a called function so do not rely on them after function call
-* (n) - used to pass arg n to function
+* `(n)` - used to pass arg n to function
 
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ Windows X64 reg    + Linux X64 reg    + Assignment                   + Notes                                    +
++ Windows X64 reg    | Linux X64 reg    | Assignment                   | Notes                                    |
 +====================+==================+==============================+==========================================+
-+ rbx (cs)           + rbx (cs)         + PC (ebx)                     + Lua byte code offset                     +
++ rbx (cs)           | rbx (cs)         | PC                           | Pointer to next bytecode                 |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ rbp (cs)           + rbp (cs)         + L                            +                                          +
++ rbp (cs)           | rbp (cs)         | L                            | Pointer to lua_State                     |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ rdi (cs)           + rdi (v) (1)      + TMP1                         + Scratch                                  +
++ rdi (cs)           | rdi (v) (1)      | TMP1                         | Scratch                                  |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ rsi (cs)           + rsi (v) (2)      + TMP2                         + Scratch                                  +
++ rsi (cs)           | rsi (v) (2)      | TMP2                         | Scratch                                  |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ rsp (cs)           + rsp              +                              + Stack pointer                            +
++ rsp (cs)           | rsp              |                              | Stack pointer                            |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ r12 (cs)           + r12 (cs)         + CI                           + CallInfo (Lua frame)                     +
++ r12 (cs)           | r12 (cs)         | CI                           | CallInfo (Lua frame)                     |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ r13 (cs)           + r13 (cs)         + LCL                          + LuaClosure                               +
++ r13 (cs)           | r13 (cs)         | LCL                          | Current function's LClosure              |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ r14 (cs)           + r14 (cs)         + DISPATCH                     + Ptr to Dispatch table                    +
++ r14 (cs)           | r14 (cs)         | DISPATCH                     | Ptr to Dispatch table                    |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ r15 (cs)           + r15 (cs)         + KBASE                        + Ptr to constants table in Proto          +
++ r15 (cs)           | r15 (cs)         | KBASE                        | Ptr to constants table in Proto          |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ rax (v)            + rax (v)          + RCa                          + Scratch - upon entry to subroutine eax   +
-+                    +                  +                              + will have the B,C portion of bytecode    +
++ rax (v)            | rax (v)          | RCa                          | Scratch - upon entry to subroutine eax   |
++                    |                  |                              | will have the B,C portion of bytecode    |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ rcx (v) (1)        + rcx (v) (4)      + RAa                          + Scratch - upon entry to subroutine ecx   +
-+                    +                  +                              + will have the value of A in bytecode     +
++ rcx (v) (1)        | rcx (v) (4)      | RAa                          | Scratch - upon entry to subroutine ecx   |
++                    |                  |                              | will have the value of A in bytecode     |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ rdx (v) (2)        + rdx (v) (3)      + RBa                          + Scratch - upon entry to subroutine edx   +
-+                    +                  +                              + will have the OpCode                     +
++ rdx (v) (2)        | rdx (v) (3)      | RBa                          | Scratch - upon entry to subroutine edx   |
++                    |                  |                              | will have the OpCode                     |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ r8 (v) (3)         + r8 (v) (5)       + BASE                         + Lua stack base                           +
++ r8 (v) (3)         | r8 (v) (5)       | BASE                         | Pointer to Lua stack base                |
 +--------------------+------------------+------------------------------+------------------------------------------+
-+ r9 (v) (4)         + r9 (v) (6)       + TMP3                         + Scratch                                  +
++ r9 (v) (4)         | r9 (v) (6)       | TMP3                         | Scratch                                  |
 +--------------------+------------------+------------------------------+------------------------------------------+
+
 
 Stack space 
 -----------
 On Win64 every function gets a 32-byte shadow space for the 4 register arguments, which we can use. But we also need
-to provide a shadow space for function calls inside the VM. 
-
-We can size the stack such that we pre-allocate the 32 byte shadow space on Win64, so that we don't need to adjust the 
-stack every time we make a call to a C function. But instead of using this we use the shadow space provided by the caller.
-
+to provide a shadow space for function calls inside the VM. Basically these 4 stack positions cancel out if we make use 
+of the slots provided by the caller.
 */
 |.arch x64
 |.section code_op, code_sub
@@ -87,22 +88,27 @@ stack every time we make a call to a C function. But instead of using this we us
 |.endif
 |
 |// Fixed register assignments for the interpreter.
-|// This is very fragile and has many dependencies. Caveat emptor.
+|//
 |// BASE caches the Lua function's base pointer (start of Lua registers)
 |// This is volatile, i.e. must be refetched after any call that can
 |// reallocate the Lua stack (typically any Lua api call)
+|//
 |// KBASE caches the Lua function proto's constant table, this does not
 |// change during the execution
+|//
 |// PC caches the program counter (current bytecode location)
-|// We need to ensure that the PC is saved before calling certain functions
+|// We need to ensure that the PC is saved to CI->u.l.savedpc before calling certain functions
+|//
 |// DISPATCH points to the dispatch table which is located in the 
 |// global_State structure defined in lstate.h - this contains the computed goto
 |// destinations
-|.define BASE,		r8		  // Not C callee-save, refetched anyway.
-|.define KBASE,		r15		  // Must be C callee-save.
-|.define PC,		rbx		    // Must be C callee-save.
-|.define DISPATCH,	r14	// Must be C callee-save.
+|//
+|.define BASE, r8       // Not C callee-save, refetched anyway.
+|.define KBASE, r15		  // Must be C callee-save.
+|.define PC, rbx		    // Must be C callee-save.
+|.define DISPATCH, r14	// Must be C callee-save.
 |
+|// TODO following is based on what LuaJIT does but could change 
 |.define RA,  ecx
 |.define RAH, ch
 |.define RAL, cl
@@ -113,6 +119,7 @@ stack every time we make a call to a C function. But instead of using this we us
 |.define RCW, ax
 |.define RCa, rax
 |.define RB,  edx
+|.define RBW, dx
 |.define RBH, dh
 |.define RBL, dl
 |.define RBa, rdx
@@ -122,7 +129,10 @@ stack every time we make a call to a C function. But instead of using this we us
 |.define TMP2, rdi
 |.define TMP3, r9
 |
+|.define CIST_FRESH, 8 // Must match Lua definition
+|
 |.if X64WIN
+|
 | // On Win64, the first four integer arguments are passed in registers. Integer values are passed 
 | // (in order left to right) in RCX, RDX, R8, and R9. Arguments five and higher are passed 
 | // on the stack. All arguments are right-justified in registers. This is done so the callee 
@@ -137,6 +147,7 @@ stack every time we make a call to a C function. But instead of using this we us
 | // and floating-point values as double precision. For floating-point values only, both 
 | // the integer register and the floating-point register will contain the float value 
 | // in case the callee expects the value in the integer registers.
+| 
 |.define CARG1,		rcx		// x64/WIN64 C call arguments.
 |.define CARG2,		rdx
 |.define CARG3,		r8
@@ -160,33 +171,40 @@ stack every time we make a call to a C function. But instead of using this we us
 |.define CARG6d,	r9d
 |.endif
 |
-|// Type definitions. Some of these are only used for documentation.
-|.type L,		lua_State, rbp
-|.type GL,		global_State
-|.type TOP,   TValue        // L->top (calls/open ops).
-|.type CI,    CallInfo, r12      // L->ci (calls, locally).
-|.type LCL,   LClosure, r13      // func->value (calls).
+|// Type definitions. Some of these are only used for documentation
+|// We associate a default register with some of the types
+|.type L, lua_State, rbp
+|.type GL, global_State
+|.type TOP, TValue             // L->top (calls/open ops).
+|.type CI, CallInfo, r12       // L->ci (calls, locally).
+|.type LCL, LClosure, r13      // func->value (calls).
 |
 |// Type definitions with local validity.
 |.type LUASTATE,  lua_State
-|.type TVALUE,    TValue
-|.type VALUE,   Value
-|.type CINFO,   CallInfo
+|.type TVALUE,   TValue
+|.type VALUE,  Value
+|.type CINFO,  CallInfo
 |.type GCOBJECT,  GCObject
-|.type TSTRING,   TString
-|.type TABLE,   Table
+|.type TSTRING,  TString
+|.type TABLE,  Table
 |.type CCLOSURE,  CClosure
 |.type LCLOSURE,  LClosure
-|.type PROTO,   Proto
-|.type UPVAL,   UpVal
-|.type NODE,    Node
-
+|.type PROTO,  Proto
+|.type UPVAL,  UpVal
+|.type NODE,  Node
+|
 |// Stack layout while in interpreter. 
 |//-----------------------------------------------------------------------
 |.if X64WIN		// x64/Windows stack layout
 |
+|// CFRAME_SPACE defines how much space we allocate on the stack.
+|// Note that on windows this includes the shadow space of 32 bytes we need
+|// to provide when calling functions; but since we were also given 32 bytes
+|// it all cancels out and we can keep stack allocation size the same
+|// across Windows and Linux.
+|
 |.define CFRAME_SPACE,	aword*5			// Delta for rsp (see <--).
-|.macro saveregs_
+|.macro saveregs
 |  // The registers RBX, RBP, RDI, RSI, RSP, R12, R13, R14, and R15 are considered nonvolatile 
 |  // and must be saved and restored by a function that uses them.
 |  // There is always space to hold all parameters in the parameter area of the stack
@@ -201,12 +219,9 @@ stack every time we make a call to a C function. But instead of using this we us
 |  // home location for RDX is [RSP + 16]
 |  // home location for R8 is [RSP + 24]
 |  // home location for R9 is [RSP + 32]
-|  push rdi; push rsi; push rbx
+|  push rbp; push rdi; push rsi; push rbx
 |  push r12; push r13; push r14; push r15;
 |  sub rsp, CFRAME_SPACE
-|.endmacro
-|.macro saveregs
-|  push rbp; saveregs_
 |.endmacro
 |.macro restoreregs
 |  add rsp, CFRAME_SPACE
@@ -214,17 +229,19 @@ stack every time we make a call to a C function. But instead of using this we us
 |  pop rbx; pop rsi; pop rdi; pop rbp
 |.endmacro
 |
+|// IMPORTANT: On Win64 the prologue above must be recorded in an UNWIND_INFO
+|// structure in the object file - this is done in buildvm_peobj.c. Therefore any change
+|// to the prologue or stack allocation needs to be kept consistent between above and
+|// the UNWIND_INFO structure. 
+|
 |//-----------------------------------------------------------------------
 |.else			// x64/POSIX stack layout
 |
 |.define CFRAME_SPACE,	aword*5			// Delta for rsp (see <--).
-|.macro saveregs_
-|  push rbp; push rbx; push r15; push r14; 
+|.macro saveregs
+|  push rbp; push rbx; push r15; push r14 
 |  push r13; push r12
 |  sub rsp, CFRAME_SPACE
-|.endmacro
-|.macro saveregs
-|  push rbp; saveregs_
 |.endmacro
 |.macro restoreregs
 |  add rsp, CFRAME_SPACE
@@ -277,6 +294,7 @@ static void build_subroutines(BuildCtx *ctx)
   |  mov DISPATCH, L->l_G                       // retrieve global_State
   |  add DISPATCH, DISPATCH_OFFSET              // retrieve the dispatch table
   |  mov CI, L->ci                              // save L->ci
+  |->new_frame:                                 // OP_RETURN jumps to here after returning from Lua function
   |  mov TVALUE:TMP1, CI->func                  // Get ci->func
   |  mov LCL, TVALUE:TMP1->value_.gc            // LCL = (LClosure *)(ci->func->value_.gc) 
   |  mov BASE, CI->u.l.base                     // BASE = ci->u.l.base (volatile)
@@ -287,36 +305,73 @@ static void build_subroutines(BuildCtx *ctx)
   |//-- Return handling ----------------------------------------------------
   |//-----------------------------------------------------------------------
   |
-  |//->vm_leave_unw:
-  |//  restoreregs
-  |//  ret
+  |->vm_return:
+  | restoreregs
+  | ret
 }
 
 static void build_OP_RETURN(BuildCtx *ctx)
 {
-  |// Upon entry eax has B,C
-  |// RA ecx has A, RB edx has OpCode
+  |// Our goal is to generate following
+  |//
+  |//    vmcase(OP_RETURN) {
+  |//      int b = GETARG_B(i);
+  |//      if (cl->p->sizep > 0) luaF_close(L, base);
+  |//      savepc(L);
+  |//      int nres = (b != 0 ? b - 1 : cast_int(L->top - ra));
+  |//      b = luaD_poscall(L, ci, ra, nres);
+  |//      if (ci->callstatus & CIST_FRESH) {
+  |//        return b; 
+  |//      }
+  |//      else {  
+  |//        ci = L->ci;
+  |//        if (b) L->top = ci->top;
+  |//        goto newframe;  /* restart luaV_execute over new Lua function */
+  |//      }
+  |//    }
+  |
+  |// Upon entry RC has bytecode and OP has opcode
   | 
   | mov KBASE, RCa                             // Save the bytecode into KBASE as we don't need KBASE anymore
   | mov PROTO:TMP1, LCL->p                     // TMP1 = ci->p
   | cmp dword PROTO:TMP1->sizep, 0             // Test ci->p->sizep == 0
-  | jle >1                                     // Skip call to luaF_close
+  | jz >1                                      // Skip call to luaF_close
   |
   | // Call luaF_close
-  | // TODO save BASE onto stack
+  | mov LCL, BASE                              // Don't need LCL anymore so use it to save BASE
   | mov CARG1, L                               // arg1 = L
   | mov CARG2, BASE                            // arg2 = base
   | call extern luaF_close                     // call luaF_close
-  | // TODO restore BASE
+  | mov BASE, LCL                              // restore BASE
   |
   |1: 
-  | mov RCa, KBASE
-  | ins_AB_                                    // RA = A, RB = B
+  | mov CI->u.l.savedpc, PC                    // CI->u.l.savedpc = PC  i.e. savepc(L) 
+  | mov RCa, KBASE                             // Restore bytecode to RC
+  | ins_AB_                                    // Decode bytecode, RA = A, RB = B
+  | mov CARG3, [BASE+RA*8]                     // CARG3 = R(A), use macro?
+  | test RB, RB                                // To test if RB (b) is zero
+  | je >2                                      // If b == 0 then jump to 2
+  | dec RB                                     // RB = b - 1
+  | movzx CARG4, RBW                           // zero extend as b cannot be negative, and b is byte size              
+  | jmp >3                                       
+  |2:
+  | mov CARG4, L->top                          // CARG4 = L->top
+  | sub CARG4, CARG3                           // CARG4 = L->top - R(A)
+  | shr CARG4, 4                               // Divide by 16 as sizeof(TValue) = 16, use macro here?
+  |3:
+  | mov CARG1, L                               // CARG1 = L
+  | mov CARG2, CI                              // CARG2 = CI
+  | call extern luaD_poscall
+  | test dword CI->callstatus, CIST_FRESH
+  | jne ->vm_return                            // CI->callstatus & CIST_FRESH so return RAX which has b
+  | mov CI, L->ci
+  | test eax, eax                              // Is b == 0?
+  | je >4                                      // Yes, so skip next step
+  | mov LCL, CI->top                           // Using LCL as a temp register here as we don't need LCL anymore
+  | mov L->top, LCL                            // b != 0 therefore L->top = ci->top
+  |4:
+  | jmp ->new_frame                            // Resume the function (L and CI set)
   |
-  | // temporary hack - return
-  | mov rax, 0
-  | restoreregs
-  | ret
 }
 
 /* Generate the code for a single instruction. */
