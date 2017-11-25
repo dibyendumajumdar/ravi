@@ -216,3 +216,32 @@ Basically above tells Windows what the function epilogue looks so that Windows c
 unwinding the stack. Note that the unwind information applies to the entire generated code and not a specific function. In particular
 the assumption is that there is only one entry point in the code and that needs to have a prologue that is the exact inverse of the
 epilogue described above.
+
+Here is the function prologue::
+
+  ravi_luaV_interp:
+     651:	55 	pushq	%rbp
+     652:	57 	pushq	%rdi
+     653:	56 	pushq	%rsi
+     654:	53 	pushq	%rbx
+     655:	41 54 	pushq	%r12
+     657:	41 55 	pushq	%r13
+     659:	41 56 	pushq	%r14
+     65b:	41 57 	pushq	%r15
+     65d:	48 83 ec 28 	subq	$40, %rsp
+     
+And the epilogue::
+
+  ravi_vm_return:
+     691:	48 83 c4 28 	addq	$40, %rsp
+     695:	41 5f 	popq	%r15
+     697:	41 5e 	popq	%r14
+     699:	41 5d 	popq	%r13
+     69b:	41 5c 	popq	%r12
+     69d:	5b 	popq	%rbx
+     69e:	5e 	popq	%rsi
+     69f:	5f 	popq	%rdi
+     6a0:	5d 	popq	%rbp
+     6a1:	c3 	retq
+     
+As yu can see the unwind information basically tells Windows what the epilogue is supposed to be.
