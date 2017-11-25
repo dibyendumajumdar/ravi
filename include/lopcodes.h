@@ -31,7 +31,7 @@
 
 enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 
-#if 1
+#ifndef RAVI_USE_ASMVM
 /*
 ** size and position of opcode arguments.
 */
