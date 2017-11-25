@@ -147,6 +147,13 @@ Current Issues
 * Some additional work may be necessary to link the ASM routines when shared library builds are on - at least on Windows where
   I noticed that the ASM functions were not properly being invoked. Have switch to static builds for now.
 
+Exported Symbols
+----------------
+The main public symbols that are accessed externally are:
+
+* ravi_vm_asm_begin - this is the start of the generated code, and all the assembly routines are at offets relative to the address of this symbol.
+* ravi_luaV_interp - this is the entry point - and equivalent to luaV_execute().
+
 Setup of dispatch table
 -----------------------
 Currently this occurs in `lstate.c <https://github.com/dibyendumajumdar/ravi/blob/master/src/lstate.c>`_ in function ``dispatch_init()`` which is shown below::
@@ -175,3 +182,37 @@ The only op codes implemented so far are:
 * OP_RETURN
 
 Here is a `link to the generated assembly code on Windows X64 <https://github.com/dibyendumajumdar/ravi/blob/master/vmbuilder/asm/vm-win64.asm>`_.
+
+Windows X64 Specifics
+---------------------
+On Windows the VMBuilder tool generates object code rather than an assembly source file. Win64 also requires some special data 
+for stack unwinding in case of exceptions. I believe even longjmps trigger this functionality. 
+
+The way we handle this now is by generating following in the object file::
+
+  Unwind info:
+
+  Function Table:
+    Start Address: ravi_vm_asm_begin
+    End Address: ravi_vm_asm_begin + 0x06a2
+    Unwind Info Address: .xdata
+      Version: 1
+      Flags: 0
+      Size of prolog: 0
+      Number of Codes: 9
+      No frame pointer used
+      Unwind Codes:
+        0x00: UOP_AllocSmall 40
+        0x00: UOP_PushNonVol R15
+        0x00: UOP_PushNonVol R14
+        0x00: UOP_PushNonVol R13
+        0x00: UOP_PushNonVol R12
+        0x00: UOP_PushNonVol RBX
+        0x00: UOP_PushNonVol RSI
+        0x00: UOP_PushNonVol RDI
+        0x00: UOP_PushNonVol RBP
+        
+Basically above tells Windows what the function epilogue looks so that Windows can correctly restore the registers when 
+unwinding the stack. Note that the unwind information applies to the entire generated code and not a specific function. In particular
+the assumption is that there is only one entry point in the code and that needs to have a prologue that is the exact inverse of the
+epilogue described above.
