@@ -389,7 +389,11 @@ static void build_OP_RETURN(BuildCtx *ctx)
   | mov CI->u.l.savedpc, PC                    // CI->u.l.savedpc = PC  i.e. savepc(L) 
   | mov RCa, KBASE                             // Restore bytecode to RC
   | ins_AB_                                    // Decode bytecode, RA = A, RB = B
-  | mov CARG3, [BASE+RA*8]                     // CARG3 = R(A), use macro?
+  | shl RA, 4                                  // Multiply by 16
+  | //mov CARG3, BASE                            // 
+  | //add CARG3, RA                              // CARG3 = R(A), use macro?
+  | lea CARG3, [BASE+RA]
+  | //lea CARG3, [BASE+RA*16]                    // CARG3 = R(A), is above sequence better
   | test RB, RB                                // To test if RB (b) is zero
   | je >2                                      // If b == 0 then jump to 2
   | dec RB                                     // RB = b - 1
