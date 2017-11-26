@@ -250,8 +250,49 @@ of the slots provided by the caller.
 |.endmacro
 |
 |.endif
-
-// Instruction decode+dispatch 
+|
+|// Stack layout - total size is 16-byte aligned
+|// All locations are relative to rsp
+|.if X64WIN
+|//Following MEM* is stack space provided by caller as shadow space for register args
+|.define MEM5, aword [rsp+aword*17] // Caller provided shadow space, we can use
+|.define MEM4, aword [rsp+aword*16] // Caller provided shadow space, we can use
+|.define MEM3, aword [rsp+aword*15] // Caller provided shadow space, we can use
+|.define MEM2, aword [rsp+aword*14] // Caller provided shadow space, we can use
+|.define SAVE_RET, aword [rsp+aword*13] // return address, <-- rsp when we intered ravi_luaV_interp(), before prologue
+|.define SAVE_R8, aword [rsp+aword*12] // pushed register
+|.define SAVE_R7, aword [rsp+aword*11] // Pushed regsiter 
+|.define SAVE_R6, aword [rsp+aword*10] // pushed register
+|.define SAVE_R5, aword [rsp+aword*9] // Pushed regsiter 
+|.define SAVE_R4, aword [rsp+aword*8] // Pushed register (prologue)
+|.define SAVE_R3, aword [rsp+aword*7] // pushed register
+|.define SAVE_R2, aword [rsp+aword*6] // Pushed regsiter 
+|.define SAVE_R1, aword [rsp+aword*5] // Pushed register (prologue)
+|.define MEM1, aword [rsp+aword*4] // First stack location we can use (8 bytes)
+|// Following four stack locations are the 32-byte shadow space for function calls
+|// These stack locations may be over-written by any C function we call
+|.define SHADOW4, aword [rsp+aword*3] //Shadow register arg
+|.define SHADOW3, aword [rsp+aword*2] //Shadow register arg
+|.define SHADOW2, aword [rsp+aword*1] //Shadow register arg
+|.define SHADOW1, aword [rsp] //Shadow register arg, not to be used by VM, <-- rsp after interpreter prologue
+|.else
+|.define SAVE_RET, aword [rsp+aword*13] // return address, <-- rsp when we intered ravi_luaV_interp(), before prologue
+|.define SAVE_R8, aword [rsp+aword*12] // pushed register
+|.define SAVE_R7, aword [rsp+aword*11] // Pushed regsiter 
+|.define SAVE_R6, aword [rsp+aword*10] // pushed register
+|.define SAVE_R5, aword [rsp+aword*9] // Pushed regsiter 
+|.define SAVE_R4, aword [rsp+aword*8] // Pushed register (prologue)
+|.define SAVE_R3, aword [rsp+aword*7] // pushed register
+|.define SAVE_R2, aword [rsp+aword*6] // Pushed regsiter 
+|.define SAVE_R1, aword [rsp+aword*5] // Pushed register (prologue)
+|.define MEM5, aword [rsp+aword*4] // Stack space we can use
+|.define MEM4, aword [rsp+aword*3] // Stack space we can use
+|.define MEM3, aword [rsp+aword*2] // Stack space we can use
+|.define MEM2, aword [rsp+aword*1] // Stack space we can use
+|.define MEM1, aword [rsp] // First stack location we can use (8 bytes), <-- rsp after interpreter prologue
+|.endif
+|
+|// Instruction decode+dispatch 
 |.macro ins_NEXT
 |  mov RC, [PC]                                 // Fetch next instruction
 |  movzx OP, RCL                                // OP = OpCode
@@ -259,9 +300,9 @@ of the slots provided by the caller.
 |  jmp aword [DISPATCH+OP*8]                    // jump to assembly routine 
 |.endmacro
 |.define ins_next, ins_NEXT
-
-// Following macros decode the bytecode values A, B, C, etc.
-// They assume that RC holds the bytecode  
+|
+|// Following macros decode the bytecode values A, B, C, etc.
+|// They assume that RC holds the bytecode  
 |.macro ins_ABC
 |  movzx RA, RCH                                // RA = A
 |  shr RC, 16                                   // RC = RC >> 16, now contains B,C
