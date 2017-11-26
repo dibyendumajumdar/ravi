@@ -215,7 +215,7 @@ The way we handle this now is by generating following in the object file::
         
 Basically above tells Windows what the function epilogue (stack) looks like so that Windows can correctly restore the registers when 
 unwinding the stack. Note that the unwind information applies to the entire generated code and not a specific function. In particular
-the assumption is that there is only one entry point in the code and that needs to have a prologue that is the exact inverse of the
+the assumption is that there any entry point in the code needs to have a prologue that is the exact inverse of the
 epilogue described above.
 
 Here is the function prologue::
