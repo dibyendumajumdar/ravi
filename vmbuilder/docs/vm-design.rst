@@ -33,7 +33,7 @@ Using an assembler like yasm has the problem of computing offsets of C structure
 
 Issue with dynasm
 -----------------
-On Windows 64-bit the generated code requires UNWIND information however the mechanism for this is in LuaJIT specific files (buildbm_peobj) and not fully reusable. I have modified this to decouple from LuaJIT. This took some effort because LuaJIT's code
+On Windows 64-bit the generated code requires UNWIND information however the mechanism for this is in LuaJIT specific files (buildvm_peobj) and not fully reusable. I have modified this to decouple from LuaJIT. This took some effort because LuaJIT's code
 has numerous magic numbers with no explanation of what the code is doing. Not very helpful for anyone trying to work out what
 the code is doing unless you already know what needs doing.
 
