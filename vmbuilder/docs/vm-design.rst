@@ -69,13 +69,13 @@ Nomenclature
 +--------------------+------------------+------------------------------+------------------------------------------+
 | r15 (cs)           | r15 (cs)         | KBASE                        | Ptr to constants table in Proto          |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| rax (v)            | rax (v)          | RCa                          | Scratch - also eax used for              |
+| rax (v)            | rax (v)          | RCa = rbx, RC = ebx          | Scratch - also eax used for              |
 |                    |                  |                              | the B,C portion of bytecode              |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| rcx (v) (1)        | rcx (v) (4)      | RAa                          | Scratch - also ecx used for              |
+| rcx (v) (1)        | rcx (v) (4)      | RAa = rcx, RA = ecx          | Scratch - also ecx used for              |
 |                    |                  |                              | the value of A in bytecode               |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| rdx (v) (2)        | rdx (v) (3)      | RBa                          | Scratch - also edx used for              |
+| rdx (v) (2)        | rdx (v) (3)      | RBa = rdx, OP = edx          | Scratch - also edx used for              |
 |                    |                  |                              | the OpCode                               |
 +--------------------+------------------+------------------------------+------------------------------------------+
 | r8 (v) (3)         | r8 (v) (5)       | BASE                         | Pointer to Lua stack base                |
