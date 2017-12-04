@@ -104,9 +104,9 @@ of the slots provided by the caller.
 |// destinations
 |//
 |.define BASE, r8       // Not C callee-save, refetched anyway.
-|.define KBASE, r15		  // Must be C callee-save.
-|.define PC, rbx		    // Must be C callee-save.
-|.define DISPATCH, r14	// Must be C callee-save.
+|.define KBASE, r15		  // C callee-save.
+|.define PC, rbx		    // C callee-save.
+|.define DISPATCH, r14	// C callee-save.
 |
 |// TODO following is based on what LuaJIT does but could change 
 |.define RA,  ecx
@@ -128,8 +128,7 @@ of the slots provided by the caller.
 |.define TMP1, rsi
 |.define TMP2, rdi
 |.define TMP3, r9
-|
-|.define CIST_FRESH, 8 // Must match Lua definition
+|.define TMP3d, r9d
 |
 |.if X64WIN
 |
@@ -171,7 +170,7 @@ of the slots provided by the caller.
 |.define CARG6d,	r9d
 |.endif
 |
-|// Type definitions. Some of these are only used for documentation
+|// Type definitions. 
 |// We associate a default register with some of the types
 |.type L, lua_State, rbp
 |.type GL, global_State
@@ -292,11 +291,15 @@ of the slots provided by the caller.
 |.define MEM1, aword [rsp] // First stack location we can use (8 bytes), <-- rsp after interpreter prologue
 |.endif
 |
+|.define OPSIZE, 4                               // sizeof(Instruction) 
+|.define PTRSIZE, 8                              // sizeof(void *)
+|.define VALUESIZE, 16                           // sizeof(TValue)
+|
 |// Instruction decode+dispatch 
 |.macro ins_NEXT
 |  mov RC, [PC]                                 // Fetch next instruction
 |  movzx OP, RCL                                // OP = OpCode
-|  add PC, 8                                    // PC++
+|  add PC, OPSIZE                               // PC++
 |  jmp aword [DISPATCH+OP*8]                    // jump to assembly routine 
 |.endmacro
 |.define ins_next, ins_NEXT
@@ -308,6 +311,11 @@ of the slots provided by the caller.
 |  shr RC, 16                                   // RC = RC >> 16, now contains B,C
 |  movzx RB, RCH
 |  movzx RC, RCL; 
+|.endmacro
+|.macro ins_ABx
+|  movzx RA, RCH                                // RA = A
+|  shr RC, 16                                   // RC = RC >> 16, now contains B,C
+|  movzx RB, RCW
 |.endmacro
 |.macro ins_AB_
 |  movzx RA, RCH                                // RA = A
@@ -322,10 +330,21 @@ of the slots provided by the caller.
 |
 |// Load effective address of BASE[reg*16] into luareg
 |.macro luareg, dest, reg
-|  shl reg, 4                                   // Multiply by 16
+|  shl reg, 4                                   // Multiply by 16, 2^4 = 16
 |  lea dest, [BASE+reg]                             
 |.endmacro
-
+|.macro luaKonst, dest, reg
+|  shl reg, 4                                   // Multiply by 16, 2^4 = 16
+|  lea dest, [KBASE+reg]                             
+|.endmacro
+|.macro copyValue, dst, src, tmp1, tmp2
+|  mov tmp1, TVALUE:src->value_.gc
+|  mov tmp2, TVALUE:src->tt_
+|  mov TVALUE:dst->value_.gc, tmp1
+|  mov TVALUE:dst->tt_, tmp2 
+|.endmacro
+|
+|
 /* Generate subroutines used by opcodes and other parts of the VM. */
 /* The .code_sub section should be last to help static branch prediction. */
 static void build_subroutines(BuildCtx *ctx)
@@ -345,7 +364,7 @@ static void build_subroutines(BuildCtx *ctx)
   |  mov TVALUE:TMP1, CI->func                  // Get ci->func
   |  mov LCL, TVALUE:TMP1->value_.gc            // LCL = (LClosure *)(ci->func->value_.gc) 
   |  mov BASE, CI->u.l.base                     // BASE = ci->u.l.base (volatile)
-  |  mov PC, CI->u.l.savedpc                    // PC = CI->u.l.savedpc 
+  |  mov PC, CI->u.l.savedpc                    // PC = CI->u.l.savedpc, type is Instruction*
   |  ins_next                                   // Fetch instruction, increment PC and go to fetched instruction's label 
   |
   |//-----------------------------------------------------------------------
@@ -395,15 +414,11 @@ static void build_OP_RETURN(BuildCtx *ctx)
   | mov CI->u.l.savedpc, PC                    // CI->u.l.savedpc = PC  i.e. savepc(L) 
   | mov RCa, KBASE                             // Restore bytecode to RC
   | ins_AB_                                    // Decode bytecode, RA = A, RB = B
-  | //shl RA, 4                                  // Multiply by 16
-  | //mov CARG3, BASE                            // 
-  | //add CARG3, RA                              
-  | //lea CARG3, [BASE+RA]                       // CARG3 = R(A), use macro?
-  | luareg CARG3, RA
+  | luareg CARG3, RA                           // CARG3 = ptr to Lua reg A
   | test RB, RB                                // To test if RB (b) is zero
   | je >2                                      // If b == 0 then jump to 2
   | dec RB                                     // RB = b - 1
-  | movzx CARG4, RBW                           // zero extend as b cannot be negative, and b is byte size              
+  | mov CARG4d, RB                             // CARG4 will be zero extended as RB=b is 32-bit operand, b cannnot be < 0              
   | jmp >3                                       
   |2:
   | mov CARG4, L->top                          // CARG4 = L->top
@@ -413,7 +428,7 @@ static void build_OP_RETURN(BuildCtx *ctx)
   | mov CARG1, L                               // CARG1 = L
   | mov CARG2, CI                              // CARG2 = CI
   | call extern luaD_poscall
-  | test dword CI->callstatus, CIST_FRESH
+  | test dword CI->callstatus, CIST_FRESH      // callstatus == CIT_FRESH?
   | jne ->vm_return                            // CI->callstatus & CIST_FRESH so return RAX which has b
   | mov CI, L->ci
   | test eax, eax                              // Is b == 0?
@@ -425,6 +440,18 @@ static void build_OP_RETURN(BuildCtx *ctx)
   |
 }
 
+static void build_OP_LOADK(BuildCtx *ctx)
+{
+  |// TValue *rb = k + GETARG_Bx(i);
+  |// setobj2s(L, ra, rb);
+  |
+  | ins_ABx                                    // RA = A, RB = Bx
+  | luaKonst TMP1, RB                          // TMP1 = ptr to K[RB]
+  | luareg TMP2, RA                            // TMP2 = ptr to BASE[RA]
+  | copyValue TMP2, TMP1, RCa, TMP3d           // Copy value at TMP1 to TMP2, using RCa, TMP3d as temp registers    
+  | ins_next
+}
+
 /* Generate the code for a single instruction. */
 static void build_ins(BuildCtx *ctx, OpCode op, int defop)
 {
@@ -434,6 +461,9 @@ static void build_ins(BuildCtx *ctx, OpCode op, int defop)
   switch (op) {
   case OP_RETURN:
     build_OP_RETURN(ctx);
+    break;
+  case OP_LOADK:
+    build_OP_LOADK(ctx);
     break;
 
   /* ---------------------------------------------------------------------- */
