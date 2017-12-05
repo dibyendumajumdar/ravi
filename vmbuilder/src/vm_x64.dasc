@@ -258,7 +258,7 @@ of the slots provided by the caller.
 |.define MEM4, aword [rsp+aword*16] // Caller provided shadow space, we can use
 |.define MEM3, aword [rsp+aword*15] // Caller provided shadow space, we can use
 |.define MEM2, aword [rsp+aword*14] // Caller provided shadow space, we can use
-|.define SAVE_RET, aword [rsp+aword*13] // return address, <-- rsp when we intered ravi_luaV_interp(), before prologue
+|.define SAVE_RET, aword [rsp+aword*13] // return address, <-- rsp when we entered ravi_luaV_interp(), before prologue
 |.define SAVE_R8, aword [rsp+aword*12] // pushed register
 |.define SAVE_R7, aword [rsp+aword*11] // Pushed regsiter 
 |.define SAVE_R6, aword [rsp+aword*10] // pushed register
@@ -275,7 +275,7 @@ of the slots provided by the caller.
 |.define SHADOW2, aword [rsp+aword*1] //Shadow register arg
 |.define SHADOW1, aword [rsp] //Shadow register arg, not to be used by VM, <-- rsp after interpreter prologue
 |.else
-|.define SAVE_RET, aword [rsp+aword*13] // return address, <-- rsp when we intered ravi_luaV_interp(), before prologue
+|.define SAVE_RET, aword [rsp+aword*13] // return address, <-- rsp when we entered ravi_luaV_interp(), before prologue
 |.define SAVE_R8, aword [rsp+aword*12] // pushed register
 |.define SAVE_R7, aword [rsp+aword*11] // Pushed regsiter 
 |.define SAVE_R6, aword [rsp+aword*10] // pushed register
