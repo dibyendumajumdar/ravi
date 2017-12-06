@@ -180,9 +180,15 @@ Progress
 --------
 The only op codes implemented so far are:
 
-* OP_RETURN
+* OP_RETURN (some testing done; more to be done)
+* OP_LOADK (to be tested)
 
 Here is a `link to the generated assembly code on Windows X64 <https://github.com/dibyendumajumdar/ravi/blob/master/vmbuilder/asm/vm-win64.asm>`_.
+
+It seems hard to test and validate the assembly code. I have to step through the code instruction by instruction - which is why
+I do all the development in Visual Studio 2017. I think it might be useful to create a test harness that mocks the Lua structures
+and functions so that each bytecode instruction can be tested in isolation. This will need some work however, so not yet sure.
+The other alternative is to check by running Lua scripts which is how we test Ravi normally.
 
 Windows X64 Specifics
 ---------------------
