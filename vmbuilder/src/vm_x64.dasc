@@ -103,17 +103,17 @@ of the slots provided by the caller.
 |// global_State structure defined in lstate.h - this contains the computed goto
 |// destinations
 |//
-|.define BASE, r8       // Not C callee-save, refetched anyway.
-|.define KBASE, r15		  // C callee-save.
-|.define PC, rbx		    // C callee-save.
-|.define DISPATCH, r14	// C callee-save.
+|.define BASE, r8            // Not C callee-save, refetched anyway.
+|.define KBASE, r15	         // C callee-save.
+|.define PC, rbx             // C callee-save.
+|.define DISPATCH, r14       // C callee-save.
 |
 |// TODO following is based on what LuaJIT does but could change 
 |.define RA,  ecx
 |.define RAH, ch
 |.define RAL, cl
 |.define RAa, rcx
-|.define RC,  eax         // volatile
+|.define RC,  eax            // volatile
 |.define RCH, ah
 |.define RCL, al
 |.define RCW, ax
@@ -252,8 +252,9 @@ of the slots provided by the caller.
 |
 |// Stack layout - total size is 16-byte aligned
 |// All locations are relative to rsp
+|// MEM1 to MEM5 are 8 byte stack slots we can use (40 bytes)
+|// SAVE_* represent the locations of saved registers by function prologue
 |.if X64WIN
-|//Following MEM* is stack space provided by caller as shadow space for register args
 |.define MEM5, aword [rsp+aword*17] // Caller provided shadow space, we can use
 |.define MEM4, aword [rsp+aword*16] // Caller provided shadow space, we can use
 |.define MEM3, aword [rsp+aword*15] // Caller provided shadow space, we can use
@@ -296,16 +297,17 @@ of the slots provided by the caller.
 |.define VALUESIZE, 16                           // sizeof(TValue)
 |
 |// Instruction decode+dispatch 
-|.macro ins_NEXT
+|.macro dispatchNext
 |  mov RC, [PC]                                 // Fetch next instruction
 |  movzx OP, RCL                                // OP = OpCode
 |  add PC, OPSIZE                               // PC++
 |  jmp aword [DISPATCH+OP*8]                    // jump to assembly routine 
 |.endmacro
-|.define ins_next, ins_NEXT
 |
 |// Following macros decode the bytecode values A, B, C, etc.
 |// They assume that RC holds the bytecode  
+|// Note that below we expect the bytecode layout to be like LuaJIT's
+|// and ot Lua's - see lopcodes.h for details. 
 |.macro ins_ABC
 |  movzx RA, RCH                                // RA = A
 |  shr RC, 16                                   // RC = RC >> 16, now contains B,C
@@ -314,34 +316,36 @@ of the slots provided by the caller.
 |.endmacro
 |.macro ins_ABx
 |  movzx RA, RCH                                // RA = A
-|  shr RC, 16                                   // RC = RC >> 16, now contains B,C
+|  shr RC, 16                                   // RC = RC >> 16, now contains Bx
 |  movzx RB, RCW
 |.endmacro
 |.macro ins_AB_
 |  movzx RA, RCH                                // RA = A
-|  shr RC, 16                                   // RC = RC >> 16, now contains B,C
+|  shr RC, 16                                   // RC = RC >> 16, now contains B,-
 |  movzx RB, RCH 
 |.endmacro
 |.macro ins_A_C
 |  movzx RA, RCH                                // RA = A
-|  shr RC, 16                                   // RC = RC >> 16, now contains B,C
+|  shr RC, 16                                   // RC = RC >> 16, now contains -,C
 |  movzx RC, RCL 
 |.endmacro
 |
-|// Load effective address of BASE[reg*16] into luareg
-|.macro luareg, dest, reg
+|// Load effective address of BASE[reg*16] into dest
+|.macro loadRegPtr, dest, reg
 |  shl reg, 4                                   // Multiply by 16, 2^4 = 16
 |  lea dest, [BASE+reg]                             
 |.endmacro
-|.macro luaKonst, dest, reg
+|// Load effective address of K[reg*16] into dest
+|.macro loadKonstPtr, dest, reg
 |  shl reg, 4                                   // Multiply by 16, 2^4 = 16
 |  lea dest, [KBASE+reg]                             
 |.endmacro
-|.macro copyValue, dst, src, tmp1, tmp2
-|  mov tmp1, TVALUE:src->value_.gc
-|  mov tmp2, TVALUE:src->tt_
-|  mov TVALUE:dst->value_.gc, tmp1
-|  mov TVALUE:dst->tt_, tmp2 
+|// Copy value from src to dst, using tmpq (64-bit) and tmpd (32-bit) registers as temporaries
+|.macro copyValue, dst, src, tmpq, tmpd
+|  mov tmpq, TVALUE:src->value_.gc
+|  mov tmpd, TVALUE:src->tt_
+|  mov TVALUE:dst->value_.gc, tmpq
+|  mov TVALUE:dst->tt_, tmpd 
 |.endmacro
 |
 |
@@ -355,17 +359,17 @@ static void build_subroutines(BuildCtx *ctx)
   |//-- VM entry point
   |//-----------------------------------------------------------------------
   |->luaV_interp:
-  |  saveregs                                   // prologue, save regs and adjust stack pointer
-  |  mov L, CARG1                               // save L (arg1)
-  |  mov DISPATCH, L->l_G                       // retrieve global_State
-  |  add DISPATCH, DISPATCH_OFFSET              // retrieve the dispatch table
-  |  mov CI, L->ci                              // save L->ci
-  |->new_frame:                                 // OP_RETURN jumps to here after returning from Lua function
-  |  mov TVALUE:TMP1, CI->func                  // Get ci->func
-  |  mov LCL, TVALUE:TMP1->value_.gc            // LCL = (LClosure *)(ci->func->value_.gc) 
-  |  mov BASE, CI->u.l.base                     // BASE = ci->u.l.base (volatile)
-  |  mov PC, CI->u.l.savedpc                    // PC = CI->u.l.savedpc, type is Instruction*
-  |  ins_next                                   // Fetch instruction, increment PC and go to fetched instruction's label 
+  | saveregs                                   // prologue, save regs and adjust stack pointer
+  | mov L, CARG1                               // save L (arg1)
+  | mov DISPATCH, L->l_G                       // retrieve global_State
+  | add DISPATCH, DISPATCH_OFFSET              // retrieve the dispatch table
+  | mov CI, L->ci                              // save L->ci
+  |->new_frame:                                // OP_RETURN jumps to here after returning from Lua function
+  | mov TVALUE:TMP1, CI->func                  // Get ci->func
+  | mov LCL, TVALUE:TMP1->value_.gc            // LCL = (LClosure *)(ci->func->value_.gc) 
+  | mov BASE, CI->u.l.base                     // BASE = ci->u.l.base (volatile)
+  | mov PC, CI->u.l.savedpc                    // PC = CI->u.l.savedpc, type is Instruction*
+  | dispatchNext                               // Fetch instruction, increment PC and go to fetched instruction's label 
   |
   |//-----------------------------------------------------------------------
   |//-- Return handling ----------------------------------------------------
@@ -380,21 +384,21 @@ static void build_OP_RETURN(BuildCtx *ctx)
 {
   |// Our goal is to generate following
   |//
-  |//    vmcase(OP_RETURN) {
-  |//      int b = GETARG_B(i);
-  |//      if (cl->p->sizep > 0) luaF_close(L, base);
-  |//      savepc(L);
-  |//      int nres = (b != 0 ? b - 1 : cast_int(L->top - ra));
-  |//      b = luaD_poscall(L, ci, ra, nres);
-  |//      if (ci->callstatus & CIST_FRESH) {
-  |//        return b; 
-  |//      }
-  |//      else {  
-  |//        ci = L->ci;
-  |//        if (b) L->top = ci->top;
-  |//        goto newframe;  /* restart luaV_execute over new Lua function */
-  |//      }
+  |// vmcase(OP_RETURN) {
+  |//    int b = GETARG_B(i);
+  |//    if (cl->p->sizep > 0) luaF_close(L, base);
+  |//    savepc(L);
+  |//    int nres = (b != 0 ? b - 1 : cast_int(L->top - ra));
+  |//    b = luaD_poscall(L, ci, ra, nres);
+  |//    if (ci->callstatus & CIST_FRESH) {
+  |//       return b; 
   |//    }
+  |//    else {  
+  |//       ci = L->ci;
+  |//       if (b) L->top = ci->top;
+  |//       goto newframe;  /* restart luaV_execute over new Lua function */
+  |//    }
+  |// }
   |
   |// Upon entry RC has bytecode and OP has opcode
   | 
@@ -414,7 +418,7 @@ static void build_OP_RETURN(BuildCtx *ctx)
   | mov CI->u.l.savedpc, PC                    // CI->u.l.savedpc = PC  i.e. savepc(L) 
   | mov RCa, KBASE                             // Restore bytecode to RC
   | ins_AB_                                    // Decode bytecode, RA = A, RB = B
-  | luareg CARG3, RA                           // CARG3 = ptr to Lua reg A
+  | loadRegPtr CARG3, RA                           // CARG3 = ptr to Lua reg A
   | test RB, RB                                // To test if RB (b) is zero
   | je >2                                      // If b == 0 then jump to 2
   | dec RB                                     // RB = b - 1
@@ -446,10 +450,10 @@ static void build_OP_LOADK(BuildCtx *ctx)
   |// setobj2s(L, ra, rb);
   |
   | ins_ABx                                    // RA = A, RB = Bx
-  | luaKonst TMP1, RB                          // TMP1 = ptr to K[RB]
-  | luareg TMP2, RA                            // TMP2 = ptr to BASE[RA]
+  | loadKonstPtr TMP1, RB                      // TMP1 = ptr to K[RB]
+  | loadRegPtr TMP2, RA                        // TMP2 = ptr to BASE[RA]
   | copyValue TMP2, TMP1, RCa, TMP3d           // Copy value at TMP1 to TMP2, using RCa, TMP3d as temp registers    
-  | ins_next
+  | dispatchNext
 }
 
 /* Generate the code for a single instruction. */
@@ -469,7 +473,7 @@ static void build_ins(BuildCtx *ctx, OpCode op, int defop)
   /* ---------------------------------------------------------------------- */
 
   default:
-    |  ins_next
+    | dispatchNext
     break;
   }
 }
