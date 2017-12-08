@@ -27,7 +27,7 @@ The implementation requires following key abilities that dynasm has:
 I am not sure whether this combination of features is available in other approaches such as using inline assembler in C code. I have briefly looked at:
 
 * Inline assembly in gcc / clang - too ugly syntactically to work with
-* Inline assembly in D - almost okay - no macros however so simple stuff like creating aliases for registers requires ugly mixin templates. Also the generated code appears to lack enough controls (such as disabling the frame pointer register, and ensuring correct unwind data on Win64).
+* Inline assembly in D - almost okay - no macros however so simple stuff like creating aliases for registers requires ugly mixin templates. Also the generated code appears to lack enough controls (such as disabling the frame pointer register, and ensuring correct unwind data on Win64). Also do not know how to get the offsets from generated code.
 
 Using an assembler like yasm has the problem of computing offsets of C structures.
 
@@ -181,7 +181,7 @@ Progress
 The only op codes implemented so far are:
 
 * OP_RETURN (some testing done; more to be done)
-* OP_LOADK (to be tested)
+* OP_LOADK 
 
 Here is a `link to the generated assembly code on Windows X64 <https://github.com/dibyendumajumdar/ravi/blob/master/vmbuilder/asm/vm-win64.asm>`_.
 
@@ -253,3 +253,10 @@ And the epilogue::
      
 As you can see the unwind information basically tells Windows what the epilogue is supposed to be, and where to find the saved
 values of the registers.
+
+Building Ravi With New VM
+-------------------------
+This is only for the brave who want to hack with the code.
+
+To enable the new VM first build and install VMBuilder as described above.
+Then build Ravi using the cmake flags ``-DSTATIC_BUILD=ON`` and ``-DASM_VM=ON`` enabled. Don't enable JIT.
