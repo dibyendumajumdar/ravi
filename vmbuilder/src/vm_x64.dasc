@@ -368,6 +368,8 @@ static void build_subroutines(BuildCtx *ctx)
   | mov TVALUE:TMP1, CI->func                  // Get ci->func
   | mov LCL, TVALUE:TMP1->value_.gc            // LCL = (LClosure *)(ci->func->value_.gc) 
   | mov BASE, CI->u.l.base                     // BASE = ci->u.l.base (volatile)
+  | mov PC, LCL->p                             // KBASE = LCL->p->k
+  | mov KBASE, PROTO:PC->k                     //
   | mov PC, CI->u.l.savedpc                    // PC = CI->u.l.savedpc, type is Instruction*
   | dispatchNext                               // Fetch instruction, increment PC and go to fetched instruction's label 
   |

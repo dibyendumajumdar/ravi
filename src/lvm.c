@@ -1134,6 +1134,19 @@ static int check_usertype(lua_State *L, TString *name, const TValue *o)
   return (!ttisnil(metatab) && ttisLtable(metatab) && hvalue(metatab) == mt) || 0;
 }
 
+#ifdef RAVI_USE_ASMVM
+/* following is a temporary solution to decide whether we can use ASM VM */
+extern int ravi_luaV_interp(lua_State * L);
+int asvm_compatible(Proto *p) {
+  static unsigned char opcodes_supported[NUM_OPCODES] = {[OP_RETURN] = 1,
+                                                         [OP_LOADK] = 1};
+  for (int i = 0; i < p->sizecode; i++) {
+    int op = GET_OPCODE(p->code[i]);
+    if (!opcodes_supported[op]) return 0;
+  }
+  return 1;
+}
+#endif
 
 int luaV_execute (lua_State *L) {
   
@@ -1270,8 +1283,8 @@ int luaV_execute (lua_State *L) {
   cl = clLvalue(ci->func);  /* local reference to function's closure */
 #ifdef RAVI_USE_ASMVM
   // This is a temporary hack to test the under development ASM VM.
-  if (cl->p->sizecode == 1) { /* single bytecode means only OP_RETURN */
-    extern int ravi_luaV_interp(lua_State *L);
+  if (cl->p->sizecode <= 5 &&
+      asvm_compatible(cl->p)) { /* single bytecode means only OP_RETURN */
     return ravi_luaV_interp(L);
   }
 #endif
