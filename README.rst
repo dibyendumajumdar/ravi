@@ -27,12 +27,22 @@ Features
 * Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available, although this is not currently being worked on
 * LLVM bindings exposed in Lua
 
+Recent Work
+===========
+* `Experimental Type Annotations`_ for user defined types was implemented in Oct 2017.
+* A new `X86-64 VM written in assembler <https://github.com/dibyendumajumdar/ravi/tree/master/vmbuilder>`_ using `dynasm <https://luajit.org/dynasm.html>`_ tool is under development currently.
+
 Documentation
 =============
 See `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
 As more stuff is built I will keep updating the documentation so please revisit for latest information.
 
 Also see the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
+
+Lua Goodies
+===========
+* `An Introduction to Lua <http://the-ravi-programming-language.readthedocs.io/en/latest/lua-introduction.html>`_ attempts to provide a quick overview of Lua for folks coming from other languages.
+* `Lua 5.3 Bytecode Reference <http://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html>`_ is my attempt to bring up to date the `Lua 5.1 Bytecode Reference <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_. 
 
 JIT Implementation
 ==================
