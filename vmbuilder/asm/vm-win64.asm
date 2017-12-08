@@ -270,7 +270,7 @@ ravi_BC_RETURN:
      262:	4c 89 e2 	movq	%r12, %rdx
      265:	e8 00 00 00 00 	callq	0 <ravi_BC_RETURN+0x57>
      26a:	41 f7 44 24 42 08 00 00 00 	testl	$8, 66(%r12)
-     273:	0f 85 3f 04 00 00 	jne	1087 <ravi_vm_return>
+     273:	0f 85 47 04 00 00 	jne	1095 <ravi_vm_return>
      279:	4c 8b 65 20 	movq	32(%rbp), %r12
      27d:	85 c0 	testl	%eax, %eax
      27f:	74 09 	je	9 <ravi_BC_RETURN+0x77>
@@ -759,27 +759,29 @@ ravi_new_frame:
      69a:	49 8b 34 24 	movq	(%r12), %rsi
      69e:	4c 8b 2e 	movq	(%rsi), %r13
      6a1:	4d 8b 44 24 20 	movq	32(%r12), %r8
-     6a6:	49 8b 5c 24 28 	movq	40(%r12), %rbx
-     6ab:	8b 03 	movl	(%rbx), %eax
-     6ad:	0f b6 d0 	movzbl	%al, %edx
-     6b0:	48 83 c3 04 	addq	$4, %rbx
-     6b4:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     6a6:	49 8b 5d 18 	movq	24(%r13), %rbx
+     6aa:	4c 8b 7b 30 	movq	48(%rbx), %r15
+     6ae:	49 8b 5c 24 28 	movq	40(%r12), %rbx
+     6b3:	8b 03 	movl	(%rbx), %eax
+     6b5:	0f b6 d0 	movzbl	%al, %edx
+     6b8:	48 83 c3 04 	addq	$4, %rbx
+     6bc:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_vm_return:
-     6b8:	48 83 c4 28 	addq	$40, %rsp
-     6bc:	41 5f 	popq	%r15
-     6be:	41 5e 	popq	%r14
-     6c0:	41 5d 	popq	%r13
-     6c2:	41 5c 	popq	%r12
-     6c4:	5b 	popq	%rbx
-     6c5:	5e 	popq	%rsi
-     6c6:	5f 	popq	%rdi
-     6c7:	5d 	popq	%rbp
-     6c8:	c3 	retq
+     6c0:	48 83 c4 28 	addq	$40, %rsp
+     6c4:	41 5f 	popq	%r15
+     6c6:	41 5e 	popq	%r14
+     6c8:	41 5d 	popq	%r13
+     6ca:	41 5c 	popq	%r12
+     6cc:	5b 	popq	%rbx
+     6cd:	5e 	popq	%rsi
+     6ce:	5f 	popq	%rdi
+     6cf:	5d 	popq	%rbp
+     6d0:	c3 	retq
 SYMBOL TABLE:
 [ 0](sec -1)(fl 0x00)(ty   0)(scl   3) (nx 0) 0x00000001 @feat.00
 [ 1](sec  1)(fl 0x00)(ty   0)(scl   3) (nx 1) 0x00000000 .text
-AUX scnlen 0x6c9 nreloc 2 nlnno 0 checksum 0x0 assoc 0 comdat 0
+AUX scnlen 0x6d1 nreloc 2 nlnno 0 checksum 0x0 assoc 0 comdat 0
 [ 3](sec  0)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000000 luaF_close
 [ 4](sec  0)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000000 luaD_poscall
 [ 5](sec  2)(fl 0x00)(ty   0)(scl   3) (nx 1) 0x00000000 .pdata
@@ -905,14 +907,14 @@ AUX scnlen 0x18 nreloc 0 nlnno 0 checksum 0x0 assoc 0 comdat 0
 [125](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000066b ravi_BC_GETTABUP_SK
 [126](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000678 ravi_luaV_interp
 [127](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000069a ravi_new_frame
-[128](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000006b8 ravi_vm_return
+[128](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000006c0 ravi_vm_return
 [129](sec  4)(fl 0x00)(ty   0)(scl   3) (nx 1) 0x00000000 .rdata$Z
 AUX scnlen 0xd nreloc 0 nlnno 0 checksum 0x0 assoc 0 comdat 0
 Unwind info:
 
 Function Table:
   Start Address: ravi_vm_asm_begin
-  End Address: ravi_vm_asm_begin + 0x06c9
+  End Address: ravi_vm_asm_begin + 0x06d1
   Unwind Info Address: .xdata
     Version: 1
     Flags: 0
