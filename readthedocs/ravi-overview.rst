@@ -34,7 +34,7 @@ Recent Work
 
 Documentation
 =============
-See `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/eX86-64 n/latest/index.html>`_.
+See `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
 As more stuff is built I will keep updating the documentation so pleas revisit for latest information.
 
 Also see the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
