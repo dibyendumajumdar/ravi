@@ -176,6 +176,20 @@ Currently this occurs in `lstate.c <https://github.com/dibyendumajumdar/ravi/blo
   }
   #endif
  
+OpCode structure
+----------------
+The OpCode is stored in LuaJIT inspired format when the ASM VM is enabled. This is showns below::
+
+  +---+---+---+----+
+  | B | C | A | Op |
+  +---+---+---+----+
+  | Bx    | A | Op |
+  +-------+---+----+
+  | Ax        | Op |
+  +-----------+----+
+
+Note that the bytecode decoding assumes above and will break if Lua style encoding is used. 
+
 Progress
 --------
 The only op codes implemented so far are:
