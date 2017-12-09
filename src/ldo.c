@@ -536,6 +536,19 @@ static void stackerror (lua_State *L) {
     luaD_throw(L, LUA_ERRERR);  /* error while handing stack error */
 }
 
+#ifdef RAVI_USE_ASMVM
+/* following is a temporary solution to decide whether we can use ASM VM */
+extern int ravi_luaV_interp(lua_State * L);
+int asvm_compatible(Proto *p) {
+  static unsigned char opcodes_supported[NUM_OPCODES] = {[OP_RETURN] = 1,
+                                                         [OP_LOADK] = 1};
+  for (int i = 0; i < p->sizecode; i++) {
+    int op = GET_OPCODE(p->code[i]);
+    if (!opcodes_supported[op]) return 0;
+  }
+  return 1;
+}
+#endif
 
 /*
 ** Call a function (C or Lua). The function to be called is at *func.
@@ -546,8 +559,23 @@ static void stackerror (lua_State *L) {
 void luaD_call (lua_State *L, StkId func, int nResults) {
   if (++L->nCcalls >= LUAI_MAXCCALLS)
     stackerror(L);
-  if (!luaD_precall(L, func, nResults, 0))  /* is a Lua function? */
+  if (!luaD_precall(L, func, nResults, 0))  /* is a Lua function? */ {
+#ifdef RAVI_USE_ASMVM
+    // This is a temporary hack to test the under development ASM VM.
+    CallInfo *ci = L->ci;
+    LClosure *cl = clLvalue(ci->func);  /* local reference to function's closure */
+    if (cl->p->sizecode <= 5 &&
+        asvm_compatible(cl->p)) {
+      fprintf(stderr, "Involking asmvm\n");
+      ravi_luaV_interp(L);
+    }
+    else {
+      luaV_execute(L);  /* call it */
+    }
+#else
     luaV_execute(L);  /* call it */
+#endif
+  }
   L->nCcalls--;
 }
 

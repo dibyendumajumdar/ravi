@@ -364,6 +364,7 @@ static void build_subroutines(BuildCtx *ctx)
   | mov DISPATCH, L->l_G                       // retrieve global_State
   | add DISPATCH, DISPATCH_OFFSET              // retrieve the dispatch table
   | mov CI, L->ci                              // save L->ci
+  | or word CI->callstatus, CIST_FRESH         // ci->callstatus |= CIST_FRESH
   |->new_frame:                                // OP_RETURN jumps to here after returning from Lua function
   | mov TVALUE:TMP1, CI->func                  // Get ci->func
   | mov LCL, TVALUE:TMP1->value_.gc            // LCL = (LClosure *)(ci->func->value_.gc) 
@@ -434,7 +435,7 @@ static void build_OP_RETURN(BuildCtx *ctx)
   | mov CARG1, L                               // CARG1 = L
   | mov CARG2, CI                              // CARG2 = CI
   | call extern luaD_poscall
-  | test dword CI->callstatus, CIST_FRESH      // callstatus == CIT_FRESH?
+  | test word CI->callstatus, CIST_FRESH       // callstatus & CIT_FRESH?
   | jne ->vm_return                            // CI->callstatus & CIST_FRESH so return RAX which has b
   | mov CI, L->ci
   | test eax, eax                              // Is b == 0?
