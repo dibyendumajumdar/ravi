@@ -296,6 +296,20 @@ of the slots provided by the caller.
 |.define PTRSIZE, 8                              // sizeof(void *)
 |.define VALUESIZE, 16                           // sizeof(TValue)
 |
+|//The bytecode layout here uses LuaJIT inspired format.
+|//
+|//+---+---+---+----+
+|//+ B | C | A | Op |
+|//+---+---+---+----+
+|//+ Bx    | A | Op |
+|//+-------+---+----+
+|//+ Ax        | Op |
+|//+-----------+----+
+|//
+|// Thus we can directly access Op and A using AL and AH registers
+|// Then we shift the value >> 16 which allows direct access to B, and C using AH, AL
+|// or Bx using AX
+|
 |// Instruction decode+dispatch 
 |.macro dispatchNext
 |  mov RC, [PC]                                 // Fetch next instruction
@@ -311,7 +325,7 @@ of the slots provided by the caller.
 |.macro ins_ABC
 |  movzx RA, RCH                                // RA = A
 |  shr RC, 16                                   // RC = RC >> 16, now contains B,C
-|  movzx RB, RCH
+|  movzx RB, RCH                                
 |  movzx RC, RCL; 
 |.endmacro
 |.macro ins_ABx
@@ -459,6 +473,17 @@ static void build_OP_LOADK(BuildCtx *ctx)
   | dispatchNext
 }
 
+static void build_OP_MOVE(BuildCtx *ctx)
+{
+  |// setobjs2s(L, ra, RB(i));
+  |
+  | ins_AB_                                    // RA = A, RB = B
+  | loadRegPtr TMP1, RB                        // TMP1 = ptr to BASE[RB]
+  | loadRegPtr TMP2, RA                        // TMP2 = ptr to BASE[RA]
+  | copyValue TMP2, TMP1, RCa, TMP3d           // Copy value at TMP1 to TMP2, using RCa, TMP3d as temp registers
+  | dispatchNext
+}
+
 /* Generate the code for a single instruction. */
 static void build_ins(BuildCtx *ctx, OpCode op, int defop)
 {
@@ -471,6 +496,9 @@ static void build_ins(BuildCtx *ctx, OpCode op, int defop)
     break;
   case OP_LOADK:
     build_OP_LOADK(ctx);
+    break;
+  case OP_MOVE:
+    build_OP_MOVE(ctx);
     break;
 
   /* ---------------------------------------------------------------------- */

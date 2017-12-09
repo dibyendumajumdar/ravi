@@ -540,8 +540,8 @@ static void stackerror (lua_State *L) {
 /* following is a temporary solution to decide whether we can use ASM VM */
 extern int ravi_luaV_interp(lua_State * L);
 int asvm_compatible(Proto *p) {
-  static unsigned char opcodes_supported[NUM_OPCODES] = {[OP_RETURN] = 1,
-                                                         [OP_LOADK] = 1};
+  static unsigned char opcodes_supported[NUM_OPCODES] = {
+      [OP_RETURN] = 1, [OP_LOADK] = 1, [OP_MOVE] = 1};
   for (int i = 0; i < p->sizecode; i++) {
     int op = GET_OPCODE(p->code[i]);
     if (!opcodes_supported[op]) return 0;
@@ -564,9 +564,9 @@ void luaD_call (lua_State *L, StkId func, int nResults) {
     // This is a temporary hack to test the under development ASM VM.
     CallInfo *ci = L->ci;
     LClosure *cl = clLvalue(ci->func);  /* local reference to function's closure */
-    if (cl->p->sizecode <= 5 &&
+    if (cl->p->sizecode <= 10 &&
         asvm_compatible(cl->p)) {
-      fprintf(stderr, "Involking asmvm\n");
+      fprintf(stderr, "Invoking ASM VM\n");
       ravi_luaV_interp(L);
     }
     else {

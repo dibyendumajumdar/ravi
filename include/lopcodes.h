@@ -140,6 +140,20 @@ enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
 
 #include "ravi_arch.h"
 
+/*
+
+The bytecode layout here uses LuaJIT inspired format.
+
++---+---+---+----+
+| B | C | A | Op |
++---+---+---+----+
+| Bx    | A | Op |
++-------+---+----+
+| Ax        | Op |
++-----------+----+
+
+*/
+
 #define MAXARG_A 0x7f
 #define MAXARG_B 0xff
 #define MAXARG_C 0xff

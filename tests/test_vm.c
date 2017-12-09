@@ -186,7 +186,7 @@ static int do_asmvm_test(const char *code, int nparams, struct MyValue *params, 
 			}
 			lua_Integer num = lua_tointeger(L, j);
 			if (num != expected[i].u.i) {
-				fprintf(stderr, "Result %d was expected to be %d, but got %d\n", i + 1, (int)expected[i].u.i, num);
+				fprintf(stderr, "Result %d was expected to be %d, but got %d\n", i + 1, (int)expected[i].u.i, (int)num);
 				rc = 1;
 				goto Lerror;
 			}
@@ -238,6 +238,10 @@ static int test_asmvm()
 	struct MyValue args[3];
 	struct MyValue results[3];
 
+	args[0].type = RAVI_TNUMINT; args[0].u.i = 42;
+	args[1].type = RAVI_TNUMFLT; args[1].u.n = -4.2;
+	args[2].type = RAVI_TSTRING; args[2].u.s = "hello";
+
 	results[0].type = RAVI_TNUMINT; results[0].u.i = 42;
 	results[1].type = RAVI_TNUMFLT; results[1].u.n = -4.2;
 	results[2].type = RAVI_TSTRING; results[2].u.s = "hello";
@@ -246,6 +250,8 @@ static int test_asmvm()
 	failures += do_asmvm_test("return function() return 42 end", 0, NULL, 1, results); // OP_LOADK, OP_RETURN
 	failures += do_asmvm_test("return function() return 42, -4.2 end", 0, NULL, 2, results); // OP_LOADK, OP_RETURN
 	failures += do_asmvm_test("return function() return 42, -4.2, 'hello' end", 0, NULL, 3, results); // OP_LOADK, OP_RETURN
+	failures += do_asmvm_test("return function(a) local b = a; return b end", 1, args, 1, results); // OP_MOVE, OP_RETURN
+	failures += do_asmvm_test("return function(a,c) local b,d = a,c; return b,d end", 2, args, 2, results); // OP_MOVE, OP_RETURN
 
 	return failures;
 }
