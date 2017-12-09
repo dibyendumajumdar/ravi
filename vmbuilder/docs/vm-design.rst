@@ -194,8 +194,9 @@ Progress
 --------
 The only op codes implemented so far are:
 
-* OP_RETURN (some testing done; more to be done)
+* OP_RETURN (some scenarios to be tested, e.g. upvalues)
 * OP_LOADK 
+* OP_MOVE
 
 Here is a `link to the generated assembly code on Windows X64 <https://github.com/dibyendumajumdar/ravi/blob/master/vmbuilder/asm/vm-win64.asm>`_.
 
