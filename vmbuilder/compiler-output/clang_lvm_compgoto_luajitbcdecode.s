@@ -5907,7 +5907,7 @@ LBB18_10:                               ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1305 9                ## /Users/dylan/github/ravi/src/lvm.c:1305:9
+	.loc	1 1305 9                ## /Users/dylan/github/ravi/src/lvm.c:1305:9    OP_MOVE
 	shrl	$24, %r13d
 	shlq	$4, %r13
 	movq	(%r9,%r13), %rax
@@ -5941,7 +5941,7 @@ LBB18_11:                               ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1309 26               ## /Users/dylan/github/ravi/src/lvm.c:1309:26
+	.loc	1 1309 26               ## /Users/dylan/github/ravi/src/lvm.c:1309:26   OP_LOADK
 	shrl	$16, %r13d
 	.loc	1 1309 24 is_stmt 0     ## /Users/dylan/github/ravi/src/lvm.c:1309:24
 	shlq	$4, %r13
@@ -5978,7 +5978,7 @@ LBB18_12:                               ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1316 18               ## /Users/dylan/github/ravi/src/lvm.c:1316:18
+	.loc	1 1316 18               ## /Users/dylan/github/ravi/src/lvm.c:1316:18   OP_LOADKX
 	movl	(%r11), %eax
 	shrl	$8, %eax
 	.loc	1 1316 16 is_stmt 0     ## /Users/dylan/github/ravi/src/lvm.c:1316:16
@@ -6016,7 +6016,7 @@ LBB18_13:                               ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1321 9                ## /Users/dylan/github/ravi/src/lvm.c:1321:9
+	.loc	1 1321 9                ## /Users/dylan/github/ravi/src/lvm.c:1321:9   OP_LOADBOOL
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, (%r15)
@@ -6059,7 +6059,7 @@ LBB18_14:                               ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1326 17               ## /Users/dylan/github/ravi/src/lvm.c:1326:17
+	.loc	1 1326 17               ## /Users/dylan/github/ravi/src/lvm.c:1326:17   OP_LOADNIL
 	movl	%r13d, %eax
 	shrl	$24, %eax
 Ltmp917:
@@ -6169,7 +6169,7 @@ LBB18_21:                               ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1333 17               ## /Users/dylan/github/ravi/src/lvm.c:1333:17
+	.loc	1 1333 17               ## /Users/dylan/github/ravi/src/lvm.c:1333:17    OP_GETUPVAL
 	shrl	$24, %r13d
 Ltmp931:
 	##DEBUG_VALUE: b <- %R13D
@@ -6212,7 +6212,7 @@ LBB18_22:                               ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %rdx
 Ltmp939:
 	##DEBUG_VALUE: luaV_execute:k <- %RDX
-	.loc	1 1338 36               ## /Users/dylan/github/ravi/src/lvm.c:1338:36
+	.loc	1 1338 36               ## /Users/dylan/github/ravi/src/lvm.c:1338:36    OP_GETTABUP
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	.loc	1 1338 25 is_stmt 0     ## /Users/dylan/github/ravi/src/lvm.c:1338:25
@@ -6652,7 +6652,7 @@ LBB18_43:                               ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %rdx
 Ltmp1026:
 	##DEBUG_VALUE: luaV_execute:k <- %RDX
-	.loc	1 1344 20               ## /Users/dylan/github/ravi/src/lvm.c:1344:20
+	.loc	1 1344 20               ## /Users/dylan/github/ravi/src/lvm.c:1344:20    OP_GETTABLE
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	shlq	$4, %rax
@@ -7087,7 +7087,7 @@ LBB18_62:                               ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1350 36               ## /Users/dylan/github/ravi/src/lvm.c:1350:36
+	.loc	1 1350 36               ## /Users/dylan/github/ravi/src/lvm.c:1350:36 OP_SETTABUP
 	movl	%r13d, %eax
 	shrl	$8, %eax
 	andl	$127, %eax
@@ -8250,7 +8250,7 @@ LBB18_123:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1357 32               ## /Users/dylan/github/ravi/src/lvm.c:1357:32
+	.loc	1 1357 32               ## /Users/dylan/github/ravi/src/lvm.c:1357:32  OP_SETUPVAL
 	shrl	$24, %r13d
 	.loc	1 1357 21 is_stmt 0     ## /Users/dylan/github/ravi/src/lvm.c:1357:21
 	movq	-104(%rbp), %rax        ## 8-byte Reload
@@ -8336,7 +8336,7 @@ LBB18_127:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1363 22               ## /Users/dylan/github/ravi/src/lvm.c:1363:22
+	.loc	1 1363 22               ## /Users/dylan/github/ravi/src/lvm.c:1363:22   OP_SETTABLE
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -9491,7 +9491,7 @@ LBB18_186:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1369 22               ## /Users/dylan/github/ravi/src/lvm.c:1369:22
+	.loc	1 1369 22               ## /Users/dylan/github/ravi/src/lvm.c:1369:22   OP_RAVI_SETTABLE_I
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -10619,7 +10619,7 @@ LBB18_241:                              ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %rsi
 Ltmp1756:
 	##DEBUG_VALUE: luaV_execute:k <- %RSI
-	.loc	1 1376 22               ## /Users/dylan/github/ravi/src/lvm.c:1376:22
+	.loc	1 1376 22               ## /Users/dylan/github/ravi/src/lvm.c:1376:22   OP_RAVI_SETTABLE_SK
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -10953,7 +10953,7 @@ LBB18_256:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	movq	%r9, -112(%rbp)         ## 8-byte Spill
-	.loc	1 1382 17               ## /Users/dylan/github/ravi/src/lvm.c:1382:17
+	.loc	1 1382 17               ## /Users/dylan/github/ravi/src/lvm.c:1382:17     OP_NEWTABLE
 Ltmp1815:
 	movq	%r11, -120(%rbp)        ## 8-byte Spill
 Ltmp1816:
@@ -11096,7 +11096,7 @@ LBB18_261:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	movq	%r8, %r14
-	.loc	1 1394 20               ## /Users/dylan/github/ravi/src/lvm.c:1394:20
+	.loc	1 1394 20               ## /Users/dylan/github/ravi/src/lvm.c:1394:20  OP_RAVI_SELF_SK
 Ltmp1840:
 	movl	%r13d, %eax
 	shrl	$24, %eax
@@ -11365,7 +11365,7 @@ LBB18_272:                              ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %rdx
 Ltmp1886:
 	##DEBUG_VALUE: luaV_execute:k <- %RDX
-	.loc	1 1403 20               ## /Users/dylan/github/ravi/src/lvm.c:1403:20
+	.loc	1 1403 20               ## /Users/dylan/github/ravi/src/lvm.c:1403:20   OP_SELF
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	shlq	$4, %rax
@@ -11927,7 +11927,7 @@ LBB18_276:                              ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %r12
 Ltmp1981:
 	##DEBUG_VALUE: luaV_execute:k <- %R12
-	.loc	1 1414 22 is_stmt 1     ## /Users/dylan/github/ravi/src/lvm.c:1414:22
+	.loc	1 1414 22 is_stmt 1     ## /Users/dylan/github/ravi/src/lvm.c:1414:22    OP_ADD
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -12416,7 +12416,7 @@ LBB18_306:                              ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %r12
 Ltmp2060:
 	##DEBUG_VALUE: luaV_execute:k <- %R12
-	.loc	1 1428 22 is_stmt 1     ## /Users/dylan/github/ravi/src/lvm.c:1428:22
+	.loc	1 1428 22 is_stmt 1     ## /Users/dylan/github/ravi/src/lvm.c:1428:22   OP_SUB
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -12905,7 +12905,7 @@ LBB18_336:                              ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %r12
 Ltmp2139:
 	##DEBUG_VALUE: luaV_execute:k <- %R12
-	.loc	1 1442 22 is_stmt 1     ## /Users/dylan/github/ravi/src/lvm.c:1442:22
+	.loc	1 1442 22 is_stmt 1     ## /Users/dylan/github/ravi/src/lvm.c:1442:22   OP_MUL
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -13355,7 +13355,7 @@ LBB18_366:                              ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %r12
 Ltmp2207:
 	##DEBUG_VALUE: luaV_execute:k <- %R12
-	.loc	1 1456 22 is_stmt 1     ## /Users/dylan/github/ravi/src/lvm.c:1456:22
+	.loc	1 1456 22 is_stmt 1     ## /Users/dylan/github/ravi/src/lvm.c:1456:22  OP_DIV
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -13469,7 +13469,7 @@ LBB18_394:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1466 22               ## /Users/dylan/github/ravi/src/lvm.c:1466:22
+	.loc	1 1466 22               ## /Users/dylan/github/ravi/src/lvm.c:1466:22    OP_BAND
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -14001,7 +14001,7 @@ LBB18_430:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1476 22               ## /Users/dylan/github/ravi/src/lvm.c:1476:22
+	.loc	1 1476 22               ## /Users/dylan/github/ravi/src/lvm.c:1476:22   OP_BOR
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -14533,7 +14533,7 @@ LBB18_466:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1486 22               ## /Users/dylan/github/ravi/src/lvm.c:1486:22
+	.loc	1 1486 22               ## /Users/dylan/github/ravi/src/lvm.c:1486:22   OP_BXOR
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -15065,7 +15065,7 @@ LBB18_502:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1496 22               ## /Users/dylan/github/ravi/src/lvm.c:1496:22
+	.loc	1 1496 22               ## /Users/dylan/github/ravi/src/lvm.c:1496:22   OP_SHL
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -15643,7 +15643,7 @@ LBB18_541:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1506 22               ## /Users/dylan/github/ravi/src/lvm.c:1506:22
+	.loc	1 1506 22               ## /Users/dylan/github/ravi/src/lvm.c:1506:22   OP_SHR
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -16523,7 +16523,7 @@ LBB18_580:                              ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %rdx
 Ltmp2644:
 	##DEBUG_VALUE: luaV_execute:k <- %RDX
-	.loc	1 1516 22               ## /Users/dylan/github/ravi/src/lvm.c:1516:22
+	.loc	1 1516 22               ## /Users/dylan/github/ravi/src/lvm.c:1516:22   OP_MOD
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -17109,7 +17109,7 @@ LBB18_616:                              ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %rdx
 Ltmp2737:
 	##DEBUG_VALUE: luaV_execute:k <- %RDX
-	.loc	1 1532 22               ## /Users/dylan/github/ravi/src/lvm.c:1532:22
+	.loc	1 1532 22               ## /Users/dylan/github/ravi/src/lvm.c:1532:22   OP_IDIV
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -17761,7 +17761,7 @@ LBB18_654:                              ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %rdx
 Ltmp2833:
 	##DEBUG_VALUE: luaV_execute:k <- %RDX
-	.loc	1 1546 22               ## /Users/dylan/github/ravi/src/lvm.c:1546:22
+	.loc	1 1546 22               ## /Users/dylan/github/ravi/src/lvm.c:1546:22   OP_POW
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -18098,7 +18098,7 @@ LBB18_684:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1556 22               ## /Users/dylan/github/ravi/src/lvm.c:1556:22
+	.loc	1 1556 22               ## /Users/dylan/github/ravi/src/lvm.c:1556:22  OP_UNM
 	shrl	$24, %r13d
 	shlq	$4, %r13
 	leaq	(%r9,%r13), %rbx
@@ -18151,7 +18151,7 @@ LBB18_698:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- [%RBP+-80]
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- [%RBP+-96]
-	.loc	1 1571 22               ## /Users/dylan/github/ravi/src/lvm.c:1571:22
+	.loc	1 1571 22               ## /Users/dylan/github/ravi/src/lvm.c:1571:22   OP_BNOT
 	shrl	$24, %r13d
 	shlq	$4, %r13
 	leaq	(%r9,%r13), %r12
@@ -18437,7 +18437,7 @@ LBB18_716:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1582 22               ## /Users/dylan/github/ravi/src/lvm.c:1582:22
+	.loc	1 1582 22               ## /Users/dylan/github/ravi/src/lvm.c:1582:22   OP_NOT
 	shrl	$24, %r13d
 	.loc	1 1583 19               ## /Users/dylan/github/ravi/src/lvm.c:1583:19
 	shlq	$4, %r13
@@ -18506,7 +18506,7 @@ LBB18_721:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	movq	-88(%rbp), %rbx         ## 8-byte Reload
-	.loc	1 1588 9                ## /Users/dylan/github/ravi/src/lvm.c:1588:9
+	.loc	1 1588 9                ## /Users/dylan/github/ravi/src/lvm.c:1588:9   OP_LEN
 Ltmp2962:
 	movq	%r11, 40(%rbx)
 	.loc	1 1588 9 is_stmt 0      ## /Users/dylan/github/ravi/src/lvm.c:1588:9
@@ -18567,7 +18567,7 @@ LBB18_722:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	##DEBUG_VALUE: luaV_execute:k <- [%RBP+-96]
-	.loc	1 1592 17               ## /Users/dylan/github/ravi/src/lvm.c:1592:17
+	.loc	1 1592 17               ## /Users/dylan/github/ravi/src/lvm.c:1592:17  OP_CONCAT
 	movl	%r13d, %r15d
 	shrl	$24, %r15d
 Ltmp2976:
@@ -18718,7 +18718,7 @@ LBB18_726:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1605 9                ## /Users/dylan/github/ravi/src/lvm.c:1605:9
+	.loc	1 1605 9                ## /Users/dylan/github/ravi/src/lvm.c:1605:9   OP_JMP
 	movl	%r13d, %eax
 	shrl	$8, %eax
 	.loc	1 1605 9 is_stmt 0      ## /Users/dylan/github/ravi/src/lvm.c:1605:9
@@ -18790,7 +18790,7 @@ LBB18_729:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1609 22               ## /Users/dylan/github/ravi/src/lvm.c:1609:22
+	.loc	1 1609 22               ## /Users/dylan/github/ravi/src/lvm.c:1609:22  OP_EQ
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -18938,7 +18938,7 @@ LBB18_735:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- [%RBP+-80]
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1620 22               ## /Users/dylan/github/ravi/src/lvm.c:1620:22
+	.loc	1 1620 22               ## /Users/dylan/github/ravi/src/lvm.c:1620:22   OP_LT
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -19158,7 +19158,7 @@ LBB18_744:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- [%RBP+-80]
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1635 22               ## /Users/dylan/github/ravi/src/lvm.c:1635:22
+	.loc	1 1635 22               ## /Users/dylan/github/ravi/src/lvm.c:1635:22  OP_LE
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -19377,7 +19377,7 @@ LBB18_753:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1650 13               ## /Users/dylan/github/ravi/src/lvm.c:1650:13
+	.loc	1 1650 13               ## /Users/dylan/github/ravi/src/lvm.c:1650:13  OP_TEST
 	testl	$16711680, %r13d        ## imm = 0xFF0000
 	.loc	1 1650 27 is_stmt 0     ## /Users/dylan/github/ravi/src/lvm.c:1650:27
 	movl	8(%r15), %eax
@@ -19540,7 +19540,7 @@ LBB18_764:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1657 22               ## /Users/dylan/github/ravi/src/lvm.c:1657:22
+	.loc	1 1657 22               ## /Users/dylan/github/ravi/src/lvm.c:1657:22  OP_TESTSET
 	movl	%r13d, %ecx
 	shrl	$24, %ecx
 	shlq	$4, %rcx
@@ -19724,7 +19724,7 @@ LBB18_775:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- [%RBP+-96]
-	.loc	1 1667 17               ## /Users/dylan/github/ravi/src/lvm.c:1667:17
+	.loc	1 1667 17               ## /Users/dylan/github/ravi/src/lvm.c:1667:17  OP_CALL
 	movl	%r13d, %eax
 	shrl	$24, %eax
 Ltmp3174:
@@ -19889,7 +19889,7 @@ LBB18_783:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	##DEBUG_VALUE: luaV_execute:k <- [%RBP+-96]
-	.loc	1 1698 17               ## /Users/dylan/github/ravi/src/lvm.c:1698:17
+	.loc	1 1698 17               ## /Users/dylan/github/ravi/src/lvm.c:1698:17  OP_TAILCALL
 	shrl	$24, %r13d
 Ltmp3205:
 	##DEBUG_VALUE: b <- %R13D
@@ -20126,7 +20126,7 @@ LBB18_792:                              ##   in Loop: Header=BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	movq	%r8, %r14
-	.loc	1 1736 17               ## /Users/dylan/github/ravi/src/lvm.c:1736:17
+	.loc	1 1736 17               ## /Users/dylan/github/ravi/src/lvm.c:1736:17   OP_RETURN
 Ltmp3244:
 	shrl	$24, %r13d
 Ltmp3245:
@@ -20212,7 +20212,7 @@ LBB18_800:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1771 13               ## /Users/dylan/github/ravi/src/lvm.c:1771:13
+	.loc	1 1771 13               ## /Users/dylan/github/ravi/src/lvm.c:1771:13   OP_FORLOOP
 	cmpl	$19, 8(%r15)
 	jne	LBB18_805
 Ltmp3258:
@@ -20760,7 +20760,7 @@ LBB18_810:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1796 29               ## /Users/dylan/github/ravi/src/lvm.c:1796:29
+	.loc	1 1796 29               ## /Users/dylan/github/ravi/src/lvm.c:1796:29   OP_FORPREP
 	leaq	16(%r15), %rbx
 Ltmp3339:
 	##DEBUG_VALUE: plimit <- %RBX
@@ -20971,7 +20971,7 @@ LBB18_857:                              ##   in Loop: Header=BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	##DEBUG_VALUE: io1 <- %RSI
 	##DEBUG_VALUE: cb <- %RSI
-	.loc	1 1825 9                ## /Users/dylan/github/ravi/src/lvm.c:1825:9
+	.loc	1 1825 9                ## /Users/dylan/github/ravi/src/lvm.c:1825:9   OP_TFORCALL
 	movq	32(%r15), %rax
 	movq	40(%r15), %rcx
 	movq	%rcx, 88(%r15)
@@ -21055,7 +21055,7 @@ LBB18_858:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	##DEBUG_VALUE: io1 <- %R15
-	.loc	1 1838 14               ## /Users/dylan/github/ravi/src/lvm.c:1838:14
+	.loc	1 1838 14               ## /Users/dylan/github/ravi/src/lvm.c:1838:14  OP_TFORLOOP
 	cmpl	$0, 24(%r15)
 	je	LBB18_860
 Ltmp3393:
@@ -21108,7 +21108,7 @@ LBB18_861:                              ##   Parent Loop BB18_1 Depth=1
                                         ##       Child Loop BB18_871 Depth 3
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
-	.loc	1 1845 17               ## /Users/dylan/github/ravi/src/lvm.c:1845:17
+	.loc	1 1845 17               ## /Users/dylan/github/ravi/src/lvm.c:1845:17   OP_SETLIST
 	movl	%r13d, %ebx
 	shrl	$24, %ebx
 Ltmp3401:
@@ -21818,7 +21818,7 @@ LBB18_924:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- [%RBP+-80]
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- [%RBP+-96]
-	.loc	1 1909 29               ## /Users/dylan/github/ravi/src/lvm.c:1909:29
+	.loc	1 1909 29               ## /Users/dylan/github/ravi/src/lvm.c:1909:29  OP_CLOSURE
 	shrl	$16, %r13d
 	.loc	1 1909 24 is_stmt 0     ## /Users/dylan/github/ravi/src/lvm.c:1909:24
 	movq	-104(%rbp), %rax        ## 8-byte Reload
@@ -22253,7 +22253,7 @@ LBB18_946:                              ##   Parent Loop BB18_1 Depth=1
 	movq	%r12, %r10
 Ltmp3539:
 	##DEBUG_VALUE: luaV_execute:L <- %R10
-	.loc	1 1921 17               ## /Users/dylan/github/ravi/src/lvm.c:1921:17
+	.loc	1 1921 17               ## /Users/dylan/github/ravi/src/lvm.c:1921:17   OP_VARARG
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	.loc	1 1923 17               ## /Users/dylan/github/ravi/src/lvm.c:1923:17
@@ -22566,7 +22566,7 @@ LBB18_963:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	##DEBUG_VALUE: luaV_execute:pc <- %R11
-	.loc	1 1940 9                ## /Users/dylan/github/ravi/src/lvm.c:1940:9
+	.loc	1 1940 9                ## /Users/dylan/github/ravi/src/lvm.c:1940:9  OP_EXTRARG
 	movl	(%r11), %r13d
 	addq	$4, %r11
 Ltmp3578:
@@ -22591,7 +22591,7 @@ LBB18_964:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1943 22               ## /Users/dylan/github/ravi/src/lvm.c:1943:22
+	.loc	1 1943 22               ## /Users/dylan/github/ravi/src/lvm.c:1943:22  OP_RAVI_BAND_II
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -22651,7 +22651,7 @@ LBB18_965:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1949 22               ## /Users/dylan/github/ravi/src/lvm.c:1949:22
+	.loc	1 1949 22               ## /Users/dylan/github/ravi/src/lvm.c:1949:22  OP_RAVI_BOR_II
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -22711,7 +22711,7 @@ LBB18_966:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1955 22               ## /Users/dylan/github/ravi/src/lvm.c:1955:22
+	.loc	1 1955 22               ## /Users/dylan/github/ravi/src/lvm.c:1955:22  OP_RAVI_BXOR_II
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -22771,7 +22771,7 @@ LBB18_967:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1961 22               ## /Users/dylan/github/ravi/src/lvm.c:1961:22
+	.loc	1 1961 22               ## /Users/dylan/github/ravi/src/lvm.c:1961:22  OP_RAVI_SHL_II
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -22884,7 +22884,7 @@ LBB18_971:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1967 22               ## /Users/dylan/github/ravi/src/lvm.c:1967:22
+	.loc	1 1967 22               ## /Users/dylan/github/ravi/src/lvm.c:1967:22  OP_RAVI_SHR_II
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -23002,7 +23002,7 @@ LBB18_975:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1990 22               ## /Users/dylan/github/ravi/src/lvm.c:1990:22
+	.loc	1 1990 22               ## /Users/dylan/github/ravi/src/lvm.c:1990:22  OP_RAVI_BNOT_I
 	shrl	$24, %r13d
 	.loc	1 1991 26               ## /Users/dylan/github/ravi/src/lvm.c:1991:26
 	shlq	$4, %r13
@@ -23041,7 +23041,7 @@ LBB18_976:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 1996 22               ## /Users/dylan/github/ravi/src/lvm.c:1996:22
+	.loc	1 1996 22               ## /Users/dylan/github/ravi/src/lvm.c:1996:22  OP_RAVI_EQ_II
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -23191,7 +23191,7 @@ LBB18_981:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2006 22               ## /Users/dylan/github/ravi/src/lvm.c:2006:22
+	.loc	1 2006 22               ## /Users/dylan/github/ravi/src/lvm.c:2006:22  OP_RAVI_EQ_FF
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -23341,7 +23341,7 @@ LBB18_986:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2016 22               ## /Users/dylan/github/ravi/src/lvm.c:2016:22
+	.loc	1 2016 22               ## /Users/dylan/github/ravi/src/lvm.c:2016:22  OP_RAVI_LT_II
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -23491,7 +23491,7 @@ LBB18_991:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2026 22               ## /Users/dylan/github/ravi/src/lvm.c:2026:22
+	.loc	1 2026 22               ## /Users/dylan/github/ravi/src/lvm.c:2026:22  OP_RAVI_LT_FF
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -23641,7 +23641,7 @@ LBB18_996:                              ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2036 22               ## /Users/dylan/github/ravi/src/lvm.c:2036:22
+	.loc	1 2036 22               ## /Users/dylan/github/ravi/src/lvm.c:2036:22  OP_RAVI_LE_II
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -23791,7 +23791,7 @@ LBB18_1001:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2046 22               ## /Users/dylan/github/ravi/src/lvm.c:2046:22
+	.loc	1 2046 22               ## /Users/dylan/github/ravi/src/lvm.c:2046:22  OP_RAVI_LE_FF
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -23942,7 +23942,7 @@ LBB18_1006:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	movl	$1, %ecx
-	.loc	1 2057 31               ## /Users/dylan/github/ravi/src/lvm.c:2057:31
+	.loc	1 2057 31               ## /Users/dylan/github/ravi/src/lvm.c:2057:31  OP_RAVI_FORLOOP_IP
 Ltmp3794:
 	cmpl	$87, %eax
 	je	LBB18_1008
@@ -24024,7 +24024,7 @@ LBB18_1011:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2071 25               ## /Users/dylan/github/ravi/src/lvm.c:2071:25
+	.loc	1 2071 25               ## /Users/dylan/github/ravi/src/lvm.c:2071:25  OP_RAVI_FORPREP_IP
 	cmpl	$89, %eax
 	.loc	1 2073 29               ## /Users/dylan/github/ravi/src/lvm.c:2073:29
 	movq	(%r15), %rax
@@ -24082,7 +24082,7 @@ LBB18_1014:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	##DEBUG_VALUE: luaV_execute:k <- [%RBP+-96]
 	movq	-88(%rbp), %rbx         ## 8-byte Reload
-	.loc	1 2082 9                ## /Users/dylan/github/ravi/src/lvm.c:2082:9
+	.loc	1 2082 9                ## /Users/dylan/github/ravi/src/lvm.c:2082:9  OP_RAVI_NEWARRAYI
 Ltmp3820:
 	movq	%r11, 40(%rbx)
 	.loc	1 2083 13               ## /Users/dylan/github/ravi/src/lvm.c:2083:13
@@ -24177,7 +24177,7 @@ LBB18_1017:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	##DEBUG_VALUE: luaV_execute:k <- [%RBP+-96]
 	movq	-88(%rbp), %rbx         ## 8-byte Reload
-	.loc	1 2090 9                ## /Users/dylan/github/ravi/src/lvm.c:2090:9
+	.loc	1 2090 9                ## /Users/dylan/github/ravi/src/lvm.c:2090:9  OP_RAVI_NEWARRAYF
 Ltmp3839:
 	movq	%r11, 40(%rbx)
 	.loc	1 2091 13               ## /Users/dylan/github/ravi/src/lvm.c:2091:13
@@ -24274,7 +24274,7 @@ LBB18_1020:                             ##   Parent Loop BB18_1 Depth=1
 Ltmp3858:
 	##DEBUG_VALUE: luaV_execute:k <- %RDX
 	movq	%r8, %r12
-	.loc	1 2097 22               ## /Users/dylan/github/ravi/src/lvm.c:2097:22
+	.loc	1 2097 22               ## /Users/dylan/github/ravi/src/lvm.c:2097:22  OP_RAVI_GETTABLE_I
 Ltmp3859:
 	movl	%r13d, %eax
 	shrl	$24, %eax
@@ -24653,7 +24653,7 @@ LBB18_1035:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	movq	%r8, %r14
-	.loc	1 2107 31               ## /Users/dylan/github/ravi/src/lvm.c:2107:31
+	.loc	1 2107 31               ## /Users/dylan/github/ravi/src/lvm.c:2107:31  OP_RAVI_GETTABUP_SK
 Ltmp3936:
 	movl	%r13d, %eax
 	shrl	$24, %eax
@@ -24914,7 +24914,7 @@ LBB18_1046:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	movq	%r8, %r14
-	.loc	1 2115 20               ## /Users/dylan/github/ravi/src/lvm.c:2115:20
+	.loc	1 2115 20               ## /Users/dylan/github/ravi/src/lvm.c:2115:20  OP_RAVI_GETTABLE_SK
 Ltmp3981:
 	movl	%r13d, %eax
 	shrl	$24, %eax
@@ -25172,7 +25172,7 @@ LBB18_1057:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
 	movq	%r8, %r14
-	.loc	1 2128 20               ## /Users/dylan/github/ravi/src/lvm.c:2128:20
+	.loc	1 2128 20               ## /Users/dylan/github/ravi/src/lvm.c:2128:20  OP_RAVI_SELF_S
 Ltmp4026:
 	movl	%r13d, %esi
 	shrl	$24, %esi
@@ -25379,7 +25379,7 @@ LBB18_1067:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2147 22               ## /Users/dylan/github/ravi/src/lvm.c:2147:22
+	.loc	1 2147 22               ## /Users/dylan/github/ravi/src/lvm.c:2147:22  OP_RAVI_GETTABLE_AI
 	movl	%r13d, %ecx
 	shrl	$24, %ecx
 	.loc	1 2148 22               ## /Users/dylan/github/ravi/src/lvm.c:2148:22
@@ -25454,7 +25454,7 @@ LBB18_1069:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2155 22               ## /Users/dylan/github/ravi/src/lvm.c:2155:22
+	.loc	1 2155 22               ## /Users/dylan/github/ravi/src/lvm.c:2155:22  OP_RAVI_GETTABLE_AF
 	movl	%r13d, %ecx
 	shrl	$24, %ecx
 	.loc	1 2156 22               ## /Users/dylan/github/ravi/src/lvm.c:2156:22
@@ -25530,7 +25530,7 @@ LBB18_1071:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2163 20               ## /Users/dylan/github/ravi/src/lvm.c:2163:20
+	.loc	1 2163 20               ## /Users/dylan/github/ravi/src/lvm.c:2163:20  OP_RAVI_SETTABLE_AI
 	movq	(%r15), %rsi
 Ltmp4086:
 	##DEBUG_VALUE: t <- %RSI
@@ -26049,7 +26049,7 @@ LBB18_1097:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2180 20               ## /Users/dylan/github/ravi/src/lvm.c:2180:20
+	.loc	1 2180 20               ## /Users/dylan/github/ravi/src/lvm.c:2180:20   OP_RAVI_SETTABLE_AII
 	movq	(%r15), %rsi
 Ltmp4178:
 	##DEBUG_VALUE: t <- %RSI
@@ -26190,7 +26190,7 @@ LBB18_1100:                             ##   Parent Loop BB18_1 Depth=1
 	movq	%r10, %rsi
 Ltmp4202:
 	##DEBUG_VALUE: luaV_execute:k <- %RSI
-	.loc	1 2188 20               ## /Users/dylan/github/ravi/src/lvm.c:2188:20
+	.loc	1 2188 20               ## /Users/dylan/github/ravi/src/lvm.c:2188:20   OP_RAVI_SETTABLE_AF
 	movq	(%r15), %r14
 Ltmp4203:
 	##DEBUG_VALUE: t <- %R14
@@ -26641,7 +26641,7 @@ LBB18_1120:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2205 20               ## /Users/dylan/github/ravi/src/lvm.c:2205:20
+	.loc	1 2205 20               ## /Users/dylan/github/ravi/src/lvm.c:2205:20  OP_RAVI_SETTABLE_AFF
 	movq	(%r15), %rsi
 Ltmp4286:
 	##DEBUG_VALUE: t <- %RSI
@@ -26969,7 +26969,7 @@ LBB18_1123:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2214 13               ## /Users/dylan/github/ravi/src/lvm.c:2214:13
+	.loc	1 2214 13               ## /Users/dylan/github/ravi/src/lvm.c:2214:13    OP_RAVI_SETUPVALI
 	movl	8(%r15), %eax
 Ltmp4338:
 	.loc	1 2214 13 is_stmt 0     ## /Users/dylan/github/ravi/src/lvm.c:2214:13
@@ -27149,7 +27149,7 @@ LBB18_1142:                             ##   Parent Loop BB18_1 Depth=1
 	.loc	1 79 7                  ## /Users/dylan/github/ravi/src/lvm.c:79:7
 	movl	8(%r15), %eax
 Ltmp4365:
-	.loc	1 2226 13               ## /Users/dylan/github/ravi/src/lvm.c:2226:13
+	.loc	1 2226 13               ## /Users/dylan/github/ravi/src/lvm.c:2226:13   OP_RAVI_SETUPVALF
 	cmpl	$3, %eax
 	jne	LBB18_1144
 Ltmp4366:
@@ -27205,7 +27205,7 @@ LBB18_1157:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2237 14               ## /Users/dylan/github/ravi/src/lvm.c:2237:14
+	.loc	1 2237 14               ## /Users/dylan/github/ravi/src/lvm.c:2237:14   OP_RAVI_SETUPVALAI
 	cmpl	$85, 8(%r15)
 	jne	LBB18_1158
 Ltmp4377:
@@ -27298,7 +27298,7 @@ LBB18_1163:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2247 14               ## /Users/dylan/github/ravi/src/lvm.c:2247:14
+	.loc	1 2247 14               ## /Users/dylan/github/ravi/src/lvm.c:2247:14   OP_RAVI_SETUPVALAF
 	cmpl	$101, 8(%r15)
 	jne	LBB18_1164
 Ltmp4392:
@@ -27391,7 +27391,7 @@ LBB18_1169:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2257 14               ## /Users/dylan/github/ravi/src/lvm.c:2257:14
+	.loc	1 2257 14               ## /Users/dylan/github/ravi/src/lvm.c:2257:14  OP_RAVI_SETUPVALT
 	cmpl	$69, 8(%r15)
 	jne	LBB18_1170
 Ltmp4407:
@@ -27484,7 +27484,7 @@ LBB18_1175:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2266 9                ## /Users/dylan/github/ravi/src/lvm.c:2266:9
+	.loc	1 2266 9                ## /Users/dylan/github/ravi/src/lvm.c:2266:9  OP_RAVI_LOADIZ
 	movq	$0, (%r15)
 	movl	$19, 8(%r15)
 Ltmp4422:
@@ -27514,7 +27514,7 @@ LBB18_1176:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2270 9                ## /Users/dylan/github/ravi/src/lvm.c:2270:9
+	.loc	1 2270 9                ## /Users/dylan/github/ravi/src/lvm.c:2270:9 OP_RAVI_LOADFZ
 	movq	$0, (%r15)
 	movl	$3, 8(%r15)
 Ltmp4428:
@@ -27544,7 +27544,7 @@ LBB18_1177:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2275 22               ## /Users/dylan/github/ravi/src/lvm.c:2275:22
+	.loc	1 2275 22               ## /Users/dylan/github/ravi/src/lvm.c:2275:22  OP_RAVI_UNMF
 	shrl	$24, %r13d
 	.loc	1 2276 9                ## /Users/dylan/github/ravi/src/lvm.c:2276:9
 Ltmp4434:
@@ -27580,7 +27580,7 @@ LBB18_1178:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2281 22               ## /Users/dylan/github/ravi/src/lvm.c:2281:22
+	.loc	1 2281 22               ## /Users/dylan/github/ravi/src/lvm.c:2281:22  OP_RAVI_UNMI
 	shrl	$24, %r13d
 	.loc	1 2282 9                ## /Users/dylan/github/ravi/src/lvm.c:2282:9
 Ltmp4441:
@@ -27616,7 +27616,7 @@ LBB18_1179:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2286 22               ## /Users/dylan/github/ravi/src/lvm.c:2286:22
+	.loc	1 2286 22               ## /Users/dylan/github/ravi/src/lvm.c:2286:22  OP_RAVI_ADDFF
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -27676,7 +27676,7 @@ LBB18_1180:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2292 22               ## /Users/dylan/github/ravi/src/lvm.c:2292:22
+	.loc	1 2292 22               ## /Users/dylan/github/ravi/src/lvm.c:2292:22   OP_RAVI_ADDFI
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -27736,7 +27736,7 @@ LBB18_1181:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2298 22               ## /Users/dylan/github/ravi/src/lvm.c:2298:22
+	.loc	1 2298 22               ## /Users/dylan/github/ravi/src/lvm.c:2298:22  OP_RAVI_ADDII
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -27796,7 +27796,7 @@ LBB18_1182:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2304 22               ## /Users/dylan/github/ravi/src/lvm.c:2304:22
+	.loc	1 2304 22               ## /Users/dylan/github/ravi/src/lvm.c:2304:22  OP_RAVI_SUBFF
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -27856,7 +27856,7 @@ LBB18_1183:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2310 22               ## /Users/dylan/github/ravi/src/lvm.c:2310:22
+	.loc	1 2310 22               ## /Users/dylan/github/ravi/src/lvm.c:2310:22   OP_RAVI_SUBFI
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -27917,7 +27917,7 @@ LBB18_1184:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2316 22               ## /Users/dylan/github/ravi/src/lvm.c:2316:22
+	.loc	1 2316 22               ## /Users/dylan/github/ravi/src/lvm.c:2316:22  OP_RAVI_SUBIF
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -27977,7 +27977,7 @@ LBB18_1185:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2322 22               ## /Users/dylan/github/ravi/src/lvm.c:2322:22
+	.loc	1 2322 22               ## /Users/dylan/github/ravi/src/lvm.c:2322:22  OP_RAVI_SUBII
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -28037,7 +28037,7 @@ LBB18_1186:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2328 22               ## /Users/dylan/github/ravi/src/lvm.c:2328:22
+	.loc	1 2328 22               ## /Users/dylan/github/ravi/src/lvm.c:2328:22  OP_RAVI_MULFF
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -28097,7 +28097,7 @@ LBB18_1187:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2334 22               ## /Users/dylan/github/ravi/src/lvm.c:2334:22
+	.loc	1 2334 22               ## /Users/dylan/github/ravi/src/lvm.c:2334:22  OP_RAVI_MULFI
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -28157,7 +28157,7 @@ LBB18_1188:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2340 22               ## /Users/dylan/github/ravi/src/lvm.c:2340:22
+	.loc	1 2340 22               ## /Users/dylan/github/ravi/src/lvm.c:2340:22   OP_RAVI_MULII
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -28217,7 +28217,7 @@ LBB18_1189:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2346 22               ## /Users/dylan/github/ravi/src/lvm.c:2346:22
+	.loc	1 2346 22               ## /Users/dylan/github/ravi/src/lvm.c:2346:22   OP_RAVI_DIVFF
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -28277,7 +28277,7 @@ LBB18_1190:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2352 22               ## /Users/dylan/github/ravi/src/lvm.c:2352:22
+	.loc	1 2352 22               ## /Users/dylan/github/ravi/src/lvm.c:2352:22   OP_RAVI_DIVFI
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -28338,7 +28338,7 @@ LBB18_1191:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2358 22               ## /Users/dylan/github/ravi/src/lvm.c:2358:22
+	.loc	1 2358 22               ## /Users/dylan/github/ravi/src/lvm.c:2358:22   OP_RAVI_DIVIF
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -28398,7 +28398,7 @@ LBB18_1192:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2364 22               ## /Users/dylan/github/ravi/src/lvm.c:2364:22
+	.loc	1 2364 22               ## /Users/dylan/github/ravi/src/lvm.c:2364:22   OP_RAVI_DIVII
 	movl	%r13d, %eax
 	shrl	$24, %eax
 	movl	%eax, %ecx
@@ -28629,7 +28629,7 @@ LBB18_1193:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2370 22               ## /Users/dylan/github/ravi/src/lvm.c:2370:22
+	.loc	1 2370 22               ## /Users/dylan/github/ravi/src/lvm.c:2370:22   OP_RAVI_MOVEI
 	shrl	$24, %r13d
 	shlq	$4, %r13
 	leaq	(%r9,%r13), %rbx
@@ -28811,7 +28811,7 @@ LBB18_1211:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2378 22               ## /Users/dylan/github/ravi/src/lvm.c:2378:22
+	.loc	1 2378 22               ## /Users/dylan/github/ravi/src/lvm.c:2378:22  OP_RAVI_MOVEF
 	shrl	$24, %r13d
 	shlq	$4, %r13
 	leaq	(%r9,%r13), %rbx
@@ -28867,7 +28867,7 @@ LBB18_1226:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2386 22               ## /Users/dylan/github/ravi/src/lvm.c:2386:22
+	.loc	1 2386 22               ## /Users/dylan/github/ravi/src/lvm.c:2386:22  OP_RAVI_MOVEAI
 	shrl	$24, %r13d
 	.loc	1 2387 13               ## /Users/dylan/github/ravi/src/lvm.c:2387:13
 Ltmp4635:
@@ -28913,7 +28913,7 @@ LBB18_1228:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2395 22               ## /Users/dylan/github/ravi/src/lvm.c:2395:22
+	.loc	1 2395 22               ## /Users/dylan/github/ravi/src/lvm.c:2395:22  OP_RAVI_MOVEAF
 	shrl	$24, %r13d
 	.loc	1 2396 13               ## /Users/dylan/github/ravi/src/lvm.c:2396:13
 Ltmp4644:
@@ -28959,7 +28959,7 @@ LBB18_1230:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2404 22               ## /Users/dylan/github/ravi/src/lvm.c:2404:22
+	.loc	1 2404 22               ## /Users/dylan/github/ravi/src/lvm.c:2404:22  OP_RAVI_MOVETAB
 	shrl	$24, %r13d
 	.loc	1 2405 13               ## /Users/dylan/github/ravi/src/lvm.c:2405:13
 Ltmp4653:
@@ -29183,7 +29183,7 @@ LBB18_1232:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2414 13               ## /Users/dylan/github/ravi/src/lvm.c:2414:13
+	.loc	1 2414 13               ## /Users/dylan/github/ravi/src/lvm.c:2414:13  OP_RAVI_TOINT
 	movl	8(%r15), %eax
 	cmpl	$19, %eax
 	jne	LBB18_1234
@@ -29352,7 +29352,7 @@ LBB18_1251:                             ##   Parent Loop BB18_1 Depth=1
 	.loc	1 79 7                  ## /Users/dylan/github/ravi/src/lvm.c:79:7
 	movl	8(%r15), %eax
 Ltmp4709:
-	.loc	1 2421 13               ## /Users/dylan/github/ravi/src/lvm.c:2421:13
+	.loc	1 2421 13               ## /Users/dylan/github/ravi/src/lvm.c:2421:13  OP_RAVI_TOFLT
 	cmpl	$3, %eax
 	jne	LBB18_1253
 Ltmp4710:
@@ -29397,7 +29397,7 @@ LBB18_1266:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2427 13               ## /Users/dylan/github/ravi/src/lvm.c:2427:13
+	.loc	1 2427 13               ## /Users/dylan/github/ravi/src/lvm.c:2427:13   OP_RAVI_TOTAB
 	cmpl	$69, 8(%r15)
 	jne	LBB18_1267
 Ltmp4718:
@@ -29431,7 +29431,7 @@ LBB18_1269:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2432 13               ## /Users/dylan/github/ravi/src/lvm.c:2432:13
+	.loc	1 2432 13               ## /Users/dylan/github/ravi/src/lvm.c:2432:13 OP_RAVI_TOARRAYI
 	cmpl	$85, 8(%r15)
 	jne	LBB18_1270
 Ltmp4724:
@@ -29465,7 +29465,7 @@ LBB18_1272:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2437 13               ## /Users/dylan/github/ravi/src/lvm.c:2437:13
+	.loc	1 2437 13               ## /Users/dylan/github/ravi/src/lvm.c:2437:13   OP_RAVI_TOARRAYF
 	cmpl	$101, 8(%r15)
 	jne	LBB18_1273
 Ltmp4730:
@@ -29499,7 +29499,7 @@ LBB18_1275:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2442 14               ## /Users/dylan/github/ravi/src/lvm.c:2442:14
+	.loc	1 2442 14               ## /Users/dylan/github/ravi/src/lvm.c:2442:14  OP_RAVI_TOSTRING
 	movl	8(%r15), %eax
 	testl	%eax, %eax
 	je	LBB18_1278
@@ -29543,7 +29543,7 @@ LBB18_1279:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2447 14               ## /Users/dylan/github/ravi/src/lvm.c:2447:14
+	.loc	1 2447 14               ## /Users/dylan/github/ravi/src/lvm.c:2447:14  OP_RAVI_TOCLOSURE
 	movl	8(%r15), %eax
 	testl	%eax, %eax
 	je	LBB18_1282
@@ -29588,7 +29588,7 @@ LBB18_1283:                             ##   Parent Loop BB18_1 Depth=1
 	##DEBUG_VALUE: luaV_execute:L <- %R12
 	##DEBUG_VALUE: luaV_execute:cl <- [%RBP+-104]
 	##DEBUG_VALUE: luaV_execute:k <- %R10
-	.loc	1 2452 14               ## /Users/dylan/github/ravi/src/lvm.c:2452:14
+	.loc	1 2452 14               ## /Users/dylan/github/ravi/src/lvm.c:2452:14  OP_RAVI_TOTYPE
 	movl	8(%r15), %eax
 	testl	%eax, %eax
 	movabsq	$4294967296, %rbx       ## imm = 0x100000000
