@@ -197,6 +197,8 @@ The only op codes implemented so far are:
 * OP_RETURN (some scenarios to be tested, e.g. upvalues)
 * OP_LOADK 
 * OP_MOVE
+* OP_RAVI_FORPREP_IP and OP_RAVI_FORPREP_I1
+* OP_RAVI_FORLOOP_I1 and OP_RAVI_FORLOOP_I1
 
 Here is a `link to the generated assembly code on Windows X64 <https://github.com/dibyendumajumdar/ravi/blob/master/vmbuilder/asm/vm-win64.asm>`_.
 
@@ -275,3 +277,5 @@ This is only for the brave who want to hack with the code.
 
 To enable the new VM first build and install VMBuilder as described above.
 Then build Ravi using the cmake flags ``-DSTATIC_BUILD=ON`` and ``-DASM_VM=ON`` enabled. Don't enable JIT.
+
+Right now the ASM VM is exercised via the test_vm sub project. The ASM VM is only invoked in special cases, i.e. a function has small number of instructions and only contains supported instructions, and additionally as OP_CALL is not yet implemented, you can only call the new VM via the Lua C api (see test_asmvm() in test_vm.c). 
