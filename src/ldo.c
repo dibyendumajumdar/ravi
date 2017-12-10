@@ -541,7 +541,13 @@ static void stackerror (lua_State *L) {
 extern int ravi_luaV_interp(lua_State * L);
 int asvm_compatible(Proto *p) {
   static unsigned char opcodes_supported[NUM_OPCODES] = {
-      [OP_RETURN] = 1, [OP_LOADK] = 1, [OP_MOVE] = 1};
+      [OP_RETURN] = 1,
+      [OP_LOADK] = 1,
+      [OP_MOVE] = 1,
+      [OP_RAVI_FORLOOP_IP] = 1,
+      [OP_RAVI_FORLOOP_I1] = 1,
+      [OP_RAVI_FORPREP_I1] = 1,
+      [OP_RAVI_FORPREP_IP] = 1};
   for (int i = 0; i < p->sizecode; i++) {
     int op = GET_OPCODE(p->code[i]);
     if (!opcodes_supported[op]) return 0;

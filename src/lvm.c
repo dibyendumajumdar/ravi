@@ -2046,12 +2046,12 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_RAVI_FORPREP_IP)
       vmcase(OP_RAVI_FORPREP_I1) {
         TValue *pinit = ra;
-        TValue *plimit = ra + 1;
+        //TValue *plimit = ra + 1;
         TValue *pstep = RAVI_LIKELY((op == OP_RAVI_FORPREP_I1)) ? NULL : ra + 2;
-        lua_Integer ilimit = ivalue(plimit);
+        //lua_Integer ilimit = ivalue(plimit);
         lua_Integer initv = ivalue(pinit);
         lua_Integer istep = RAVI_LIKELY((op == OP_RAVI_FORPREP_I1)) ? 1 : ivalue(pstep);
-        setivalue(plimit, ilimit);
+        //setivalue(plimit, ilimit);
         setivalue(pinit, initv - istep);
         pc += GETARG_sBx(i);
         vmbreak;

@@ -113,17 +113,17 @@ of the slots provided by the caller.
 |.define RAH, ch
 |.define RAL, cl
 |.define RAa, rcx
-|.define RC,  eax            // volatile
-|.define RCH, ah
-|.define RCL, al
-|.define RCW, ax
-|.define RCa, rax
 |.define RB,  edx
 |.define RBW, dx
 |.define RBH, dh
 |.define RBL, dl
 |.define RBa, rdx
 |.define OP,  RB
+|.define RC,  eax            // volatile
+|.define RCH, ah
+|.define RCL, al
+|.define RCW, ax
+|.define RCa, rax
 |
 |.define TMP1, rsi
 |.define TMP2, rdi
@@ -343,6 +343,13 @@ of the slots provided by the caller.
 |  shr RC, 16                                   // RC = RC >> 16, now contains -,C
 |  movzx RC, RCL 
 |.endmacro
+|.macro ins_A__
+|  movzx RA, RCH                                // RA = A
+|.endmacro
+|.macro ins_Bx
+|  shr RC, 16                                   // RC = RC >> 16, now contains Bx
+|  movzx RB, RCW
+|.endmacro
 |
 |// Load effective address of BASE[reg*16] into dest
 |.macro loadRegPtr, dest, reg
@@ -361,7 +368,10 @@ of the slots provided by the caller.
 |  mov TVALUE:dst->value_.gc, tmpq
 |  mov TVALUE:dst->tt_, tmpd 
 |.endmacro
-|
+|// Computes signed shift to the PC
+|.macro branchPC, reg
+|  lea PC, [PC+reg*4-131072]    // 131072 = MAXARG_sBx*4, somehow using latter results in 131068 
+|.endmacro
 |
 /* Generate subroutines used by opcodes and other parts of the VM. */
 /* The .code_sub section should be last to help static branch prediction. */
@@ -484,6 +494,70 @@ static void build_OP_MOVE(BuildCtx *ctx)
   | dispatchNext
 }
 
+static void build_OP_FORPREP_IP(BuildCtx *ctx, OpCode op) 
+{
+  |//   vmcase(OP_RAVI_FORPREP_IP)
+  |//   vmcase(OP_RAVI_FORPREP_I1) {
+  |//      TValue *pinit = ra;
+  |//      TValue *pstep = RAVI_LIKELY((op == OP_RAVI_FORPREP_I1)) ? NULL : ra + 2;
+  |//      lua_Integer initv = ivalue(pinit);
+  |//      lua_Integer istep = RAVI_LIKELY((op == OP_RAVI_FORPREP_I1)) ? 1 : ivalue(pstep);
+  |//      setivalue(pinit, initv - istep);
+  |//      pc += GETARG_sBx(i);
+  |//      vmbreak;
+  |//    }
+  |
+  | ins_ABx                                    // RA = A, RB = Bx
+  | loadRegPtr RCa, RA                         // RCa is now pinit, we don't need RA anymore
+  | mov TMP1, TVALUE:RCa->value_.i             // Load ivalue(pinit), TMP1 is now initv
+  if (op == OP_RAVI_FORPREP_I1) {
+    | dec TMP1                                 // step is 1 
+  }
+  else {
+	| sub TMP1, [RCa+32]                       // idx = idx - ivalue(pstep), we rely upon TValue having data first
+  }
+  | mov TVALUE:RCa->value_.i, TMP1             // setivalue(pinit, initv - istep)
+  | branchPC RBa                               // pc += sBx
+  | dispatchNext                               // jump to next instruction
+}
+
+static void build_OP_FORLOOP_IP(BuildCtx *ctx, OpCode op)
+{
+  |//    vmcase(OP_RAVI_FORLOOP_IP)
+  |//    vmcase(OP_RAVI_FORLOOP_I1) {
+  |//      lua_Integer step = op == OP_RAVI_FORLOOP_I1 ? 1 : ivalue(ra + 2);
+  |//      lua_Integer idx = ivalue(ra) + step; /* increment index */
+  |//      lua_Integer limit = ivalue(ra + 1);
+  |//      if (idx <= limit) {
+  |//        pc += GETARG_sBx(i); /* jump back */
+  |//        chgivalue(ra, idx);               /* update internal index... */
+  |//        setivalue(ra + 3, idx);           /* ...and external index */
+  |//      }
+  |//      vmbreak;
+  |//    }
+  |
+  |// RC holds the instruction
+  | ins_A__                                    // RA = A, RCa still needed for later
+  | loadRegPtr TMP3, RA                        // TMP3 now points to RA (idx)
+  | mov TMP1, TVALUE:TMP3->value_.i            // Load ivalue(pinit), TMP1 is now idx
+  if (op == OP_RAVI_FORLOOP_I1) {
+    | inc TMP1                                 // step is 1 
+  }
+  else {
+	| add TMP1, [TMP3+32]                      // Add step which is at ra+2, 32 = 2*sizeof(TValue); we rely on TValue having data first
+  }
+  | cmp TMP1, [TMP3+16]                        // compare idx with limit (ra+1), 16 = 1*sizeof(TValue); we rely on TValue having data first
+  | jg >1                                      // Our index has crossed the limit so we are done looping
+  | mov TVALUE:TMP3->value_.i, TMP1            // update index for internal var
+  | lea TMP2, [TMP3+48]                        // TMP2 now points to ra+3, 48 = 3*sizeof(TValue)
+  | mov TVALUE:TMP2->value_.i, TMP1            // External idx
+  | mov word TVALUE:TMP2->tt_, LUA_TNUMINT     // Set type of external idx                        
+  | ins_Bx                                     // RB = Bx, RCa used here
+  | branchPC RBa                               // PC += sBx
+  |1:
+  | dispatchNext
+}
+
 /* Generate the code for a single instruction. */
 static void build_ins(BuildCtx *ctx, OpCode op, int defop)
 {
@@ -499,6 +573,14 @@ static void build_ins(BuildCtx *ctx, OpCode op, int defop)
     break;
   case OP_MOVE:
     build_OP_MOVE(ctx);
+    break;
+  case OP_RAVI_FORLOOP_IP:
+  case OP_RAVI_FORLOOP_I1:
+    build_OP_FORLOOP_IP(ctx, op);
+    break;
+  case OP_RAVI_FORPREP_I1:
+  case OP_RAVI_FORPREP_IP:
+    build_OP_FORPREP_IP(ctx, op);
     break;
 
   /* ---------------------------------------------------------------------- */

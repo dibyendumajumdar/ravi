@@ -253,6 +253,10 @@ static int test_asmvm()
 	failures += do_asmvm_test("return function(a) local b = a; return b end", 1, args, 1, results); // OP_MOVE, OP_RETURN
 	failures += do_asmvm_test("return function(a,c) local b,d = a,c; return b,d end", 2, args, 2, results); // OP_MOVE, OP_RETURN
 
+	results[0].u.i = 5;
+	failures += do_asmvm_test("return function (a) for i=1,5 do a=i; end return a end", 0, NULL, 1, results); // OP_LOADK, OP_MOVE, OP_RETURN, OP_RAVI_FOPREP_I1, OP_RAVI_FORLOOP_I1
+	results[0].u.i = 3;
+	failures += do_asmvm_test("return function (a) for i=1,4,2 do a=i; end return a end", 0, NULL, 1, results); // OP_LOADK, OP_MOVE, OP_RETURN, OP_RAVI_FOPREP_IP, OP_RAVI_FORLOOP_IP
 	return failures;
 }
 
@@ -334,5 +338,9 @@ int main()
 	int failures = 0;
 	failures += test_asmvm();
 	// failures += test_vm();
+	if (failures)
+		printf("FAILED\n");
+	else
+		printf("OK\n");
     return failures ? 1 : 0;
 }

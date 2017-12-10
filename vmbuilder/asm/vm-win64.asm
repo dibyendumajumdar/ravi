@@ -281,13 +281,13 @@ ravi_BC_RETURN:
      287:	4c 89 e2 	movq	%r12, %rdx
      28a:	e8 00 00 00 00 	callq	0 <ravi_BC_RETURN+0x57>
      28f:	66 41 f7 44 24 42 08 00 	testw	$8, 66(%r12)
-     297:	0f 85 4e 04 00 00 	jne	1102 <ravi_vm_return>
+     297:	0f 85 fa 04 00 00 	jne	1274 <ravi_vm_return>
      29d:	4c 8b 65 20 	movq	32(%rbp), %r12
      2a1:	85 c0 	testl	%eax, %eax
      2a3:	74 09 	je	9 <ravi_BC_RETURN+0x76>
      2a5:	4d 8b 6c 24 08 	movq	8(%r12), %r13
      2aa:	4c 89 6d 10 	movq	%r13, 16(%rbp)
-     2ae:	e9 12 04 00 00 	jmp	1042 <ravi_new_frame>
+     2ae:	e9 be 04 00 00 	jmp	1214 <ravi_new_frame>
 
 ravi_BC_FORLOOP:
      2b3:	8b 03 	movl	(%rbx), %eax
@@ -572,228 +572,274 @@ ravi_BC_SETTABLE_AFF:
      512:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_FORLOOP_IP:
-     516:	8b 03 	movl	(%rbx), %eax
-     518:	0f b6 d0 	movzbl	%al, %edx
-     51b:	48 83 c3 04 	addq	$4, %rbx
-     51f:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     516:	0f b6 cc 	movzbl	%ah, %ecx
+     519:	c1 e1 04 	shll	$4, %ecx
+     51c:	4d 8d 0c 08 	leaq	(%r8,%rcx), %r9
+     520:	49 8b 31 	movq	(%r9), %rsi
+     523:	49 03 71 20 	addq	32(%r9), %rsi
+     527:	49 3b 71 10 	cmpq	16(%r9), %rsi
+     52b:	7f 1e 	jg	30 <ravi_BC_FORLOOP_IP+0x35>
+     52d:	49 89 31 	movq	%rsi, (%r9)
+     530:	49 8d 79 30 	leaq	48(%r9), %rdi
+     534:	48 89 37 	movq	%rsi, (%rdi)
+     537:	66 c7 47 08 13 00 	movw	$19, 8(%rdi)
+     53d:	c1 e8 10 	shrl	$16, %eax
+     540:	0f b7 d0 	movzwl	%ax, %edx
+     543:	48 8d 9c 93 00 00 fe ff 	leaq	-131072(%rbx,%rdx,4), %rbx
+     54b:	8b 03 	movl	(%rbx), %eax
+     54d:	0f b6 d0 	movzbl	%al, %edx
+     550:	48 83 c3 04 	addq	$4, %rbx
+     554:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_FORLOOP_I1:
-     523:	8b 03 	movl	(%rbx), %eax
-     525:	0f b6 d0 	movzbl	%al, %edx
-     528:	48 83 c3 04 	addq	$4, %rbx
-     52c:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     558:	0f b6 cc 	movzbl	%ah, %ecx
+     55b:	c1 e1 04 	shll	$4, %ecx
+     55e:	4d 8d 0c 08 	leaq	(%r8,%rcx), %r9
+     562:	49 8b 31 	movq	(%r9), %rsi
+     565:	48 ff c6 	incq	%rsi
+     568:	49 3b 71 10 	cmpq	16(%r9), %rsi
+     56c:	7f 1e 	jg	30 <ravi_BC_FORLOOP_I1+0x34>
+     56e:	49 89 31 	movq	%rsi, (%r9)
+     571:	49 8d 79 30 	leaq	48(%r9), %rdi
+     575:	48 89 37 	movq	%rsi, (%rdi)
+     578:	66 c7 47 08 13 00 	movw	$19, 8(%rdi)
+     57e:	c1 e8 10 	shrl	$16, %eax
+     581:	0f b7 d0 	movzwl	%ax, %edx
+     584:	48 8d 9c 93 00 00 fe ff 	leaq	-131072(%rbx,%rdx,4), %rbx
+     58c:	8b 03 	movl	(%rbx), %eax
+     58e:	0f b6 d0 	movzbl	%al, %edx
+     591:	48 83 c3 04 	addq	$4, %rbx
+     595:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_FORPREP_IP:
-     530:	8b 03 	movl	(%rbx), %eax
-     532:	0f b6 d0 	movzbl	%al, %edx
-     535:	48 83 c3 04 	addq	$4, %rbx
-     539:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     599:	0f b6 cc 	movzbl	%ah, %ecx
+     59c:	c1 e8 10 	shrl	$16, %eax
+     59f:	0f b7 d0 	movzwl	%ax, %edx
+     5a2:	c1 e1 04 	shll	$4, %ecx
+     5a5:	49 8d 04 08 	leaq	(%r8,%rcx), %rax
+     5a9:	48 8b 30 	movq	(%rax), %rsi
+     5ac:	48 2b 70 20 	subq	32(%rax), %rsi
+     5b0:	48 89 30 	movq	%rsi, (%rax)
+     5b3:	48 8d 9c 93 00 00 fe ff 	leaq	-131072(%rbx,%rdx,4), %rbx
+     5bb:	8b 03 	movl	(%rbx), %eax
+     5bd:	0f b6 d0 	movzbl	%al, %edx
+     5c0:	48 83 c3 04 	addq	$4, %rbx
+     5c4:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_FORPREP_I1:
-     53d:	8b 03 	movl	(%rbx), %eax
-     53f:	0f b6 d0 	movzbl	%al, %edx
-     542:	48 83 c3 04 	addq	$4, %rbx
-     546:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     5c8:	0f b6 cc 	movzbl	%ah, %ecx
+     5cb:	c1 e8 10 	shrl	$16, %eax
+     5ce:	0f b7 d0 	movzwl	%ax, %edx
+     5d1:	c1 e1 04 	shll	$4, %ecx
+     5d4:	49 8d 04 08 	leaq	(%r8,%rcx), %rax
+     5d8:	48 8b 30 	movq	(%rax), %rsi
+     5db:	48 ff ce 	decq	%rsi
+     5de:	48 89 30 	movq	%rsi, (%rax)
+     5e1:	48 8d 9c 93 00 00 fe ff 	leaq	-131072(%rbx,%rdx,4), %rbx
+     5e9:	8b 03 	movl	(%rbx), %eax
+     5eb:	0f b6 d0 	movzbl	%al, %edx
+     5ee:	48 83 c3 04 	addq	$4, %rbx
+     5f2:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SETUPVALI:
-     54a:	8b 03 	movl	(%rbx), %eax
-     54c:	0f b6 d0 	movzbl	%al, %edx
-     54f:	48 83 c3 04 	addq	$4, %rbx
-     553:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     5f6:	8b 03 	movl	(%rbx), %eax
+     5f8:	0f b6 d0 	movzbl	%al, %edx
+     5fb:	48 83 c3 04 	addq	$4, %rbx
+     5ff:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SETUPVALF:
-     557:	8b 03 	movl	(%rbx), %eax
-     559:	0f b6 d0 	movzbl	%al, %edx
-     55c:	48 83 c3 04 	addq	$4, %rbx
-     560:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     603:	8b 03 	movl	(%rbx), %eax
+     605:	0f b6 d0 	movzbl	%al, %edx
+     608:	48 83 c3 04 	addq	$4, %rbx
+     60c:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SETUPVALAI:
-     564:	8b 03 	movl	(%rbx), %eax
-     566:	0f b6 d0 	movzbl	%al, %edx
-     569:	48 83 c3 04 	addq	$4, %rbx
-     56d:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     610:	8b 03 	movl	(%rbx), %eax
+     612:	0f b6 d0 	movzbl	%al, %edx
+     615:	48 83 c3 04 	addq	$4, %rbx
+     619:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SETUPVALAF:
-     571:	8b 03 	movl	(%rbx), %eax
-     573:	0f b6 d0 	movzbl	%al, %edx
-     576:	48 83 c3 04 	addq	$4, %rbx
-     57a:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     61d:	8b 03 	movl	(%rbx), %eax
+     61f:	0f b6 d0 	movzbl	%al, %edx
+     622:	48 83 c3 04 	addq	$4, %rbx
+     626:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SETUPVALT:
-     57e:	8b 03 	movl	(%rbx), %eax
-     580:	0f b6 d0 	movzbl	%al, %edx
-     583:	48 83 c3 04 	addq	$4, %rbx
-     587:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     62a:	8b 03 	movl	(%rbx), %eax
+     62c:	0f b6 d0 	movzbl	%al, %edx
+     62f:	48 83 c3 04 	addq	$4, %rbx
+     633:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_BAND_II:
-     58b:	8b 03 	movl	(%rbx), %eax
-     58d:	0f b6 d0 	movzbl	%al, %edx
-     590:	48 83 c3 04 	addq	$4, %rbx
-     594:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     637:	8b 03 	movl	(%rbx), %eax
+     639:	0f b6 d0 	movzbl	%al, %edx
+     63c:	48 83 c3 04 	addq	$4, %rbx
+     640:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_BOR_II:
-     598:	8b 03 	movl	(%rbx), %eax
-     59a:	0f b6 d0 	movzbl	%al, %edx
-     59d:	48 83 c3 04 	addq	$4, %rbx
-     5a1:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     644:	8b 03 	movl	(%rbx), %eax
+     646:	0f b6 d0 	movzbl	%al, %edx
+     649:	48 83 c3 04 	addq	$4, %rbx
+     64d:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_BXOR_II:
-     5a5:	8b 03 	movl	(%rbx), %eax
-     5a7:	0f b6 d0 	movzbl	%al, %edx
-     5aa:	48 83 c3 04 	addq	$4, %rbx
-     5ae:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     651:	8b 03 	movl	(%rbx), %eax
+     653:	0f b6 d0 	movzbl	%al, %edx
+     656:	48 83 c3 04 	addq	$4, %rbx
+     65a:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SHL_II:
-     5b2:	8b 03 	movl	(%rbx), %eax
-     5b4:	0f b6 d0 	movzbl	%al, %edx
-     5b7:	48 83 c3 04 	addq	$4, %rbx
-     5bb:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     65e:	8b 03 	movl	(%rbx), %eax
+     660:	0f b6 d0 	movzbl	%al, %edx
+     663:	48 83 c3 04 	addq	$4, %rbx
+     667:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SHR_II:
-     5bf:	8b 03 	movl	(%rbx), %eax
-     5c1:	0f b6 d0 	movzbl	%al, %edx
-     5c4:	48 83 c3 04 	addq	$4, %rbx
-     5c8:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     66b:	8b 03 	movl	(%rbx), %eax
+     66d:	0f b6 d0 	movzbl	%al, %edx
+     670:	48 83 c3 04 	addq	$4, %rbx
+     674:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_BNOT_I:
-     5cc:	8b 03 	movl	(%rbx), %eax
-     5ce:	0f b6 d0 	movzbl	%al, %edx
-     5d1:	48 83 c3 04 	addq	$4, %rbx
-     5d5:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     678:	8b 03 	movl	(%rbx), %eax
+     67a:	0f b6 d0 	movzbl	%al, %edx
+     67d:	48 83 c3 04 	addq	$4, %rbx
+     681:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_EQ_II:
-     5d9:	8b 03 	movl	(%rbx), %eax
-     5db:	0f b6 d0 	movzbl	%al, %edx
-     5de:	48 83 c3 04 	addq	$4, %rbx
-     5e2:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     685:	8b 03 	movl	(%rbx), %eax
+     687:	0f b6 d0 	movzbl	%al, %edx
+     68a:	48 83 c3 04 	addq	$4, %rbx
+     68e:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_EQ_FF:
-     5e6:	8b 03 	movl	(%rbx), %eax
-     5e8:	0f b6 d0 	movzbl	%al, %edx
-     5eb:	48 83 c3 04 	addq	$4, %rbx
-     5ef:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     692:	8b 03 	movl	(%rbx), %eax
+     694:	0f b6 d0 	movzbl	%al, %edx
+     697:	48 83 c3 04 	addq	$4, %rbx
+     69b:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_LT_II:
-     5f3:	8b 03 	movl	(%rbx), %eax
-     5f5:	0f b6 d0 	movzbl	%al, %edx
-     5f8:	48 83 c3 04 	addq	$4, %rbx
-     5fc:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     69f:	8b 03 	movl	(%rbx), %eax
+     6a1:	0f b6 d0 	movzbl	%al, %edx
+     6a4:	48 83 c3 04 	addq	$4, %rbx
+     6a8:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_LT_FF:
-     600:	8b 03 	movl	(%rbx), %eax
-     602:	0f b6 d0 	movzbl	%al, %edx
-     605:	48 83 c3 04 	addq	$4, %rbx
-     609:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     6ac:	8b 03 	movl	(%rbx), %eax
+     6ae:	0f b6 d0 	movzbl	%al, %edx
+     6b1:	48 83 c3 04 	addq	$4, %rbx
+     6b5:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_LE_II:
-     60d:	8b 03 	movl	(%rbx), %eax
-     60f:	0f b6 d0 	movzbl	%al, %edx
-     612:	48 83 c3 04 	addq	$4, %rbx
-     616:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     6b9:	8b 03 	movl	(%rbx), %eax
+     6bb:	0f b6 d0 	movzbl	%al, %edx
+     6be:	48 83 c3 04 	addq	$4, %rbx
+     6c2:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_LE_FF:
-     61a:	8b 03 	movl	(%rbx), %eax
-     61c:	0f b6 d0 	movzbl	%al, %edx
-     61f:	48 83 c3 04 	addq	$4, %rbx
-     623:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     6c6:	8b 03 	movl	(%rbx), %eax
+     6c8:	0f b6 d0 	movzbl	%al, %edx
+     6cb:	48 83 c3 04 	addq	$4, %rbx
+     6cf:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_GETTABLE_S:
-     627:	8b 03 	movl	(%rbx), %eax
-     629:	0f b6 d0 	movzbl	%al, %edx
-     62c:	48 83 c3 04 	addq	$4, %rbx
-     630:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     6d3:	8b 03 	movl	(%rbx), %eax
+     6d5:	0f b6 d0 	movzbl	%al, %edx
+     6d8:	48 83 c3 04 	addq	$4, %rbx
+     6dc:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SETTABLE_S:
-     634:	8b 03 	movl	(%rbx), %eax
-     636:	0f b6 d0 	movzbl	%al, %edx
-     639:	48 83 c3 04 	addq	$4, %rbx
-     63d:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     6e0:	8b 03 	movl	(%rbx), %eax
+     6e2:	0f b6 d0 	movzbl	%al, %edx
+     6e5:	48 83 c3 04 	addq	$4, %rbx
+     6e9:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SELF_S:
-     641:	8b 03 	movl	(%rbx), %eax
-     643:	0f b6 d0 	movzbl	%al, %edx
-     646:	48 83 c3 04 	addq	$4, %rbx
-     64a:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     6ed:	8b 03 	movl	(%rbx), %eax
+     6ef:	0f b6 d0 	movzbl	%al, %edx
+     6f2:	48 83 c3 04 	addq	$4, %rbx
+     6f6:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_GETTABLE_I:
-     64e:	8b 03 	movl	(%rbx), %eax
-     650:	0f b6 d0 	movzbl	%al, %edx
-     653:	48 83 c3 04 	addq	$4, %rbx
-     657:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     6fa:	8b 03 	movl	(%rbx), %eax
+     6fc:	0f b6 d0 	movzbl	%al, %edx
+     6ff:	48 83 c3 04 	addq	$4, %rbx
+     703:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SETTABLE_I:
-     65b:	8b 03 	movl	(%rbx), %eax
-     65d:	0f b6 d0 	movzbl	%al, %edx
-     660:	48 83 c3 04 	addq	$4, %rbx
-     664:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     707:	8b 03 	movl	(%rbx), %eax
+     709:	0f b6 d0 	movzbl	%al, %edx
+     70c:	48 83 c3 04 	addq	$4, %rbx
+     710:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_GETTABLE_SK:
-     668:	8b 03 	movl	(%rbx), %eax
-     66a:	0f b6 d0 	movzbl	%al, %edx
-     66d:	48 83 c3 04 	addq	$4, %rbx
-     671:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     714:	8b 03 	movl	(%rbx), %eax
+     716:	0f b6 d0 	movzbl	%al, %edx
+     719:	48 83 c3 04 	addq	$4, %rbx
+     71d:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SELF_SK:
-     675:	8b 03 	movl	(%rbx), %eax
-     677:	0f b6 d0 	movzbl	%al, %edx
-     67a:	48 83 c3 04 	addq	$4, %rbx
-     67e:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     721:	8b 03 	movl	(%rbx), %eax
+     723:	0f b6 d0 	movzbl	%al, %edx
+     726:	48 83 c3 04 	addq	$4, %rbx
+     72a:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_SETTABLE_SK:
-     682:	8b 03 	movl	(%rbx), %eax
-     684:	0f b6 d0 	movzbl	%al, %edx
-     687:	48 83 c3 04 	addq	$4, %rbx
-     68b:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     72e:	8b 03 	movl	(%rbx), %eax
+     730:	0f b6 d0 	movzbl	%al, %edx
+     733:	48 83 c3 04 	addq	$4, %rbx
+     737:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_BC_GETTABUP_SK:
-     68f:	8b 03 	movl	(%rbx), %eax
-     691:	0f b6 d0 	movzbl	%al, %edx
-     694:	48 83 c3 04 	addq	$4, %rbx
-     698:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     73b:	8b 03 	movl	(%rbx), %eax
+     73d:	0f b6 d0 	movzbl	%al, %edx
+     740:	48 83 c3 04 	addq	$4, %rbx
+     744:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_luaV_interp:
-     69c:	55 	pushq	%rbp
-     69d:	57 	pushq	%rdi
-     69e:	56 	pushq	%rsi
-     69f:	53 	pushq	%rbx
-     6a0:	41 54 	pushq	%r12
-     6a2:	41 55 	pushq	%r13
-     6a4:	41 56 	pushq	%r14
-     6a6:	41 57 	pushq	%r15
-     6a8:	48 83 ec 28 	subq	$40, %rsp
-     6ac:	48 89 cd 	movq	%rcx, %rbp
-     6af:	4c 8b 75 18 	movq	24(%rbp), %r14
-     6b3:	49 81 c6 40 05 00 00 	addq	$1344, %r14
-     6ba:	4c 8b 65 20 	movq	32(%rbp), %r12
-     6be:	66 41 83 4c 24 42 08 	orw	$8, 66(%r12)
+     748:	55 	pushq	%rbp
+     749:	57 	pushq	%rdi
+     74a:	56 	pushq	%rsi
+     74b:	53 	pushq	%rbx
+     74c:	41 54 	pushq	%r12
+     74e:	41 55 	pushq	%r13
+     750:	41 56 	pushq	%r14
+     752:	41 57 	pushq	%r15
+     754:	48 83 ec 28 	subq	$40, %rsp
+     758:	48 89 cd 	movq	%rcx, %rbp
+     75b:	4c 8b 75 18 	movq	24(%rbp), %r14
+     75f:	49 81 c6 40 05 00 00 	addq	$1344, %r14
+     766:	4c 8b 65 20 	movq	32(%rbp), %r12
+     76a:	66 41 83 4c 24 42 08 	orw	$8, 66(%r12)
 
 ravi_new_frame:
-     6c5:	49 8b 34 24 	movq	(%r12), %rsi
-     6c9:	4c 8b 2e 	movq	(%rsi), %r13
-     6cc:	4d 8b 44 24 20 	movq	32(%r12), %r8
-     6d1:	49 8b 5d 18 	movq	24(%r13), %rbx
-     6d5:	4c 8b 7b 30 	movq	48(%rbx), %r15
-     6d9:	49 8b 5c 24 28 	movq	40(%r12), %rbx
-     6de:	8b 03 	movl	(%rbx), %eax
-     6e0:	0f b6 d0 	movzbl	%al, %edx
-     6e3:	48 83 c3 04 	addq	$4, %rbx
-     6e7:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
+     771:	49 8b 34 24 	movq	(%r12), %rsi
+     775:	4c 8b 2e 	movq	(%rsi), %r13
+     778:	4d 8b 44 24 20 	movq	32(%r12), %r8
+     77d:	49 8b 5d 18 	movq	24(%r13), %rbx
+     781:	4c 8b 7b 30 	movq	48(%rbx), %r15
+     785:	49 8b 5c 24 28 	movq	40(%r12), %rbx
+     78a:	8b 03 	movl	(%rbx), %eax
+     78c:	0f b6 d0 	movzbl	%al, %edx
+     78f:	48 83 c3 04 	addq	$4, %rbx
+     793:	41 ff 24 d6 	jmpq	*(%r14,%rdx,8)
 
 ravi_vm_return:
-     6eb:	48 83 c4 28 	addq	$40, %rsp
-     6ef:	41 5f 	popq	%r15
-     6f1:	41 5e 	popq	%r14
-     6f3:	41 5d 	popq	%r13
-     6f5:	41 5c 	popq	%r12
-     6f7:	5b 	popq	%rbx
-     6f8:	5e 	popq	%rsi
-     6f9:	5f 	popq	%rdi
-     6fa:	5d 	popq	%rbp
-     6fb:	c3 	retq
+     797:	48 83 c4 28 	addq	$40, %rsp
+     79b:	41 5f 	popq	%r15
+     79d:	41 5e 	popq	%r14
+     79f:	41 5d 	popq	%r13
+     7a1:	41 5c 	popq	%r12
+     7a3:	5b 	popq	%rbx
+     7a4:	5e 	popq	%rsi
+     7a5:	5f 	popq	%rdi
+     7a6:	5d 	popq	%rbp
+     7a7:	c3 	retq
 SYMBOL TABLE:
 [ 0](sec -1)(fl 0x00)(ty   0)(scl   3) (nx 0) 0x00000001 @feat.00
 [ 1](sec  1)(fl 0x00)(ty   0)(scl   3) (nx 1) 0x00000000 .text
-AUX scnlen 0x6fc nreloc 2 nlnno 0 checksum 0x0 assoc 0 comdat 0
+AUX scnlen 0x7a8 nreloc 2 nlnno 0 checksum 0x0 assoc 0 comdat 0
 [ 3](sec  0)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000000 luaF_close
 [ 4](sec  0)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000000 luaD_poscall
 [ 5](sec  2)(fl 0x00)(ty   0)(scl   3) (nx 1) 0x00000000 .pdata
@@ -888,45 +934,45 @@ AUX scnlen 0x18 nreloc 0 nlnno 0 checksum 0x0 assoc 0 comdat 0
 [94](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000004fc ravi_BC_SETTABLE_AII
 [95](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000509 ravi_BC_SETTABLE_AFF
 [96](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000516 ravi_BC_FORLOOP_IP
-[97](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000523 ravi_BC_FORLOOP_I1
-[98](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000530 ravi_BC_FORPREP_IP
-[99](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000053d ravi_BC_FORPREP_I1
-[100](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000054a ravi_BC_SETUPVALI
-[101](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000557 ravi_BC_SETUPVALF
-[102](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000564 ravi_BC_SETUPVALAI
-[103](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000571 ravi_BC_SETUPVALAF
-[104](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000057e ravi_BC_SETUPVALT
-[105](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000058b ravi_BC_BAND_II
-[106](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000598 ravi_BC_BOR_II
-[107](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000005a5 ravi_BC_BXOR_II
-[108](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000005b2 ravi_BC_SHL_II
-[109](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000005bf ravi_BC_SHR_II
-[110](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000005cc ravi_BC_BNOT_I
-[111](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000005d9 ravi_BC_EQ_II
-[112](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000005e6 ravi_BC_EQ_FF
-[113](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000005f3 ravi_BC_LT_II
-[114](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000600 ravi_BC_LT_FF
-[115](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000060d ravi_BC_LE_II
-[116](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000061a ravi_BC_LE_FF
-[117](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000627 ravi_BC_GETTABLE_S
-[118](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000634 ravi_BC_SETTABLE_S
-[119](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000641 ravi_BC_SELF_S
-[120](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000064e ravi_BC_GETTABLE_I
-[121](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000065b ravi_BC_SETTABLE_I
-[122](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000668 ravi_BC_GETTABLE_SK
-[123](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000675 ravi_BC_SELF_SK
-[124](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000682 ravi_BC_SETTABLE_SK
-[125](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000068f ravi_BC_GETTABUP_SK
-[126](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000069c ravi_luaV_interp
-[127](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000006c5 ravi_new_frame
-[128](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000006eb ravi_vm_return
+[97](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000558 ravi_BC_FORLOOP_I1
+[98](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000599 ravi_BC_FORPREP_IP
+[99](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000005c8 ravi_BC_FORPREP_I1
+[100](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000005f6 ravi_BC_SETUPVALI
+[101](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000603 ravi_BC_SETUPVALF
+[102](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000610 ravi_BC_SETUPVALAI
+[103](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000061d ravi_BC_SETUPVALAF
+[104](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000062a ravi_BC_SETUPVALT
+[105](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000637 ravi_BC_BAND_II
+[106](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000644 ravi_BC_BOR_II
+[107](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000651 ravi_BC_BXOR_II
+[108](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000065e ravi_BC_SHL_II
+[109](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000066b ravi_BC_SHR_II
+[110](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000678 ravi_BC_BNOT_I
+[111](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000685 ravi_BC_EQ_II
+[112](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000692 ravi_BC_EQ_FF
+[113](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000069f ravi_BC_LT_II
+[114](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000006ac ravi_BC_LT_FF
+[115](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000006b9 ravi_BC_LE_II
+[116](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000006c6 ravi_BC_LE_FF
+[117](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000006d3 ravi_BC_GETTABLE_S
+[118](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000006e0 ravi_BC_SETTABLE_S
+[119](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000006ed ravi_BC_SELF_S
+[120](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x000006fa ravi_BC_GETTABLE_I
+[121](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000707 ravi_BC_SETTABLE_I
+[122](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000714 ravi_BC_GETTABLE_SK
+[123](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000721 ravi_BC_SELF_SK
+[124](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000072e ravi_BC_SETTABLE_SK
+[125](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x0000073b ravi_BC_GETTABUP_SK
+[126](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000748 ravi_luaV_interp
+[127](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000771 ravi_new_frame
+[128](sec  1)(fl 0x00)(ty  20)(scl   2) (nx 0) 0x00000797 ravi_vm_return
 [129](sec  4)(fl 0x00)(ty   0)(scl   3) (nx 1) 0x00000000 .rdata$Z
 AUX scnlen 0xd nreloc 0 nlnno 0 checksum 0x0 assoc 0 comdat 0
 Unwind info:
 
 Function Table:
   Start Address: ravi_vm_asm_begin
-  End Address: ravi_vm_asm_begin + 0x06fc
+  End Address: ravi_vm_asm_begin + 0x07a8
   Unwind Info Address: .xdata
     Version: 1
     Flags: 0
