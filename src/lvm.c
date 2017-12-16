@@ -1086,6 +1086,8 @@ void luaV_finishOp (lua_State *L) {
 /* NOTE this is experimental. Maybe in this mode we should not allow hooks! */
 #define vmfetch	{ \
   i = *(pc++); \
+  if (RAVI_UNLIKELY(mask)) \
+    Protect(luaG_traceexec(L)); \
   op = GET_OPCODE(i); \
   ra = RA(i); /* WARNING: any stack reallocation invalidates 'ra' */ \
   goto *dispatch_table[op]; \
