@@ -12,15 +12,17 @@
 
 /*===========================================================================
   We assume that instructions are unsigned numbers.
-  All instructions have an opcode in the first 6 bits.
+  All instructions have an opcode in the first 8 bits.
   Instructions can have the following fields:
-	'A' : 8 bits
-	'B' : 9 bits
-	'C' : 9 bits
-	'Ax' : 26 bits ('A', 'B', and 'C' together)
-	'Bx' : 18 bits ('B' and 'C' together)
+	'A' : 8 bits (7 bits used)
+	'B' : 8 bits
+	'C' : 8 bits
+	'Ax' : 24 bits ('A', 'B', and 'C' together)
+	'Bx' : 16 bits ('B' and 'C' together)
 	'sBx' : signed Bx
 
+  Above is based on LuaJIT scheme but unlike LuaJIT A is actually
+  represented in 7 bits.
   A signed argument is represented in excess K; that is, the number
   value is the unsigned value minus K. K is exactly the maximum value
   for that argument (so that -max is represented by 0, and +max is
@@ -30,113 +32,6 @@
 
 
 enum OpMode {iABC, iABx, iAsBx, iAx};  /* basic instruction format */
-
-#ifndef RAVI_USE_ASMVM
-/*
-** size and position of opcode arguments.
-*/
-/** RAVI changes **/
-#define SIZE_C		8
-#define SIZE_B		8
-#define SIZE_Bx		(SIZE_C + SIZE_B)
-#define SIZE_A		7
-#define SIZE_Ax		(SIZE_C + SIZE_B + SIZE_A)
-
-#define SIZE_OP		9
-
-#define POS_OP		0
-#define POS_A		(POS_OP + SIZE_OP)
-#define POS_C		(POS_A + SIZE_A)
-#define POS_B		(POS_C + SIZE_C)
-#define POS_Bx		POS_C
-#define POS_Ax		POS_A
-
-
-/*
-** limits for opcode arguments.
-** we use (signed) int to manipulate most arguments,
-** so they must fit in LUAI_BITSINT-1 bits (-1 for sign)
-*/
-#if SIZE_Bx < LUAI_BITSINT-1
-#define MAXARG_Bx        ((1<<SIZE_Bx)-1)
-#define MAXARG_sBx        (MAXARG_Bx>>1)         /* 'sBx' is signed */
-#else
-#define MAXARG_Bx        MAX_INT
-#define MAXARG_sBx        MAX_INT
-#endif
-
-#if SIZE_Ax < LUAI_BITSINT-1
-#define MAXARG_Ax	((1<<SIZE_Ax)-1)
-#else
-#define MAXARG_Ax	MAX_INT
-#endif
-
-
-#define MAXARG_A        ((1<<SIZE_A)-1)
-#define MAXARG_B        ((1<<SIZE_B)-1)
-#define MAXARG_C        ((1<<SIZE_C)-1)
-
-
-/* creates a mask with 'n' 1 bits at position 'p' */
-#define MASK1(n,p)	((~((~(Instruction)0)<<(n)))<<(p))
-
-/* creates a mask with 'n' 0 bits at position 'p' */
-#define MASK0(n,p)	(~MASK1(n,p))
-
-/*
-** the following macros help to manipulate instructions
-*/
-
-#define GET_OPCODE(i)	(cast(OpCode, ((i)>>POS_OP) & MASK1(SIZE_OP,0)))
-#define SET_OPCODE(i,o)	((i) = (((i)&MASK0(SIZE_OP,POS_OP)) | \
-		((cast(Instruction, o)<<POS_OP)&MASK1(SIZE_OP,POS_OP))))
-
-#define getarg(i,pos,size)	(cast(int, ((i)>>pos) & MASK1(size,0)))
-#define setarg(i,v,pos,size)	((i) = (((i)&MASK0(size,pos)) | \
-                ((cast(Instruction, v)<<pos)&MASK1(size,pos))))
-
-#define GETARG_A(i)	getarg(i, POS_A, SIZE_A)
-#define SETARG_A(i,v)	setarg(i, v, POS_A, SIZE_A)
-
-#define GETARG_B(i)	getarg(i, POS_B, SIZE_B)
-#define SETARG_B(i,v)	setarg(i, v, POS_B, SIZE_B)
-
-#define GETARG_C(i)	getarg(i, POS_C, SIZE_C)
-#define SETARG_C(i,v)	setarg(i, v, POS_C, SIZE_C)
-
-#define GETARG_Bx(i)	getarg(i, POS_Bx, SIZE_Bx)
-#define SETARG_Bx(i,v)	setarg(i, v, POS_Bx, SIZE_Bx)
-
-#define GETARG_Ax(i)	getarg(i, POS_Ax, SIZE_Ax)
-#define SETARG_Ax(i,v)	setarg(i, v, POS_Ax, SIZE_Ax)
-
-#define GETARG_sBx(i)	(GETARG_Bx(i)-MAXARG_sBx)
-#define SETARG_sBx(i,b)	SETARG_Bx((i),cast(unsigned int, (b)+MAXARG_sBx))
-
-
-#define CREATE_ABC(o,a,b,c)	((cast(Instruction, o)<<POS_OP) \
-			| (cast(Instruction, a)<<POS_A) \
-			| (cast(Instruction, b)<<POS_B) \
-			| (cast(Instruction, c)<<POS_C))
-
-#define CREATE_ABx(o,a,bc)	((cast(Instruction, o)<<POS_OP) \
-			| (cast(Instruction, a)<<POS_A) \
-			| (cast(Instruction, bc)<<POS_Bx))
-
-#define CREATE_Ax(o,a)		((cast(Instruction, o)<<POS_OP) \
-			| (cast(Instruction, a)<<POS_Ax))
-
-
-
-
-/*
-** Macros to operate RK indices
-*/
-
-/* this bit 1 means constant (0 means register) */
-#define BITRK		(1 << (SIZE_B - 1))
-
-#else
 
 #include "ravi_arch.h"
 
@@ -167,7 +62,7 @@ The bytecode layout here uses LuaJIT inspired format.
 #define GETARG_Bx(i)	cast(int, (i)>>16)
 #define GETARG_Ax(i)	cast(int, (i)>>8)
 #define GETARG_sBx(i)	(((int)GETARG_Bx(i))-MAXARG_sBx)
-#define MAXARG_sBx      0x8000 // (MAXARG_Bx>>1)
+#define MAXARG_sBx      0x8000
 
 #define setbc_byte(p, x, ofs) \
   ((lu_byte *)(&(p)))[RAVI_ENDIAN_SELECT(ofs, 3-ofs)] = ((lu_byte)cast(Instruction, x))
@@ -196,10 +91,6 @@ The bytecode layout here uses LuaJIT inspired format.
 
 /* this bit 1 means constant (0 means register) */
 #define BITRK		0x80
-
-#endif 
-
-
 
 /* test whether value is a constant */
 #define ISK(x)		((x) & BITRK)
