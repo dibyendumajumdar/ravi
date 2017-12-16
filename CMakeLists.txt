@@ -31,6 +31,12 @@ elseif (GCC_JIT AND NANO_JIT)
             "Both GCC_JIT and NANO_JIT cannot be set to ON at the same time")    
 endif()
 
+if (ASM_VM)
+    # For now we switch to static build 
+    # TODO A fix is needed to ensure that in shared library the asm functions are resolved
+    set(STATIC_BUILD ON)
+endif()
+
 if (STATIC_BUILD)
     message(STATUS "STATIC library build enabled")
 else()
