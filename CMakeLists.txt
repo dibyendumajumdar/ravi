@@ -116,12 +116,12 @@ if (MSVC)
 endif ()
 
 
-if (CMAKE_COMPILER_IS_GNUCXX AND NOT APPLE)
+if ((CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang") AND NOT APPLE)
     if (NOT WIN32)
         # assume Linux
         set(OS_FLAGS "-DLUA_USE_LINUX")
     endif ()
-    set(SANITIZER_FLAGS "-fsanitize=address")
+    # set(SANITIZER_FLAGS "-fsanitize=address")
     set(LUA_COMPAT_FLAGS "-DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1")
     set(CMAKE_C_FLAGS "-std=c99 -O2 -fomit-frame-pointer -Wall -Wextra -Winline ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
     set(CMAKE_C_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -std=c99 -O0 -g3 -Wall -Wextra ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
@@ -181,7 +181,7 @@ if (ASM_VM)
         set (ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.obj)
     else ()
         add_buildvm_target ( ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.s ${VMMODE} )
-        set (ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravo_asmvm.s)
+        set (ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.s)
     endif ()
 
 	# Generate the ravi_bcdef.h header file
@@ -222,9 +222,9 @@ set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src
         src/lvm.c src/lzio.c src/ravijit.cpp src/ltests.c src/ravi_profile.c src/ravi_membuf.c
         src/ravi_jitshared.c src/bit.c)
 if (COMPUTED_GOTO AND NOT MSVC)
-    if (APPLE)
+    if (CMAKE_C_COMPILER_ID MATCHES "Clang")
         set_source_files_properties(src/lvm.c PROPERTIES COMPILE_FLAGS -DRAVI_USE_COMPUTED_GOTO)
-    else()
+    elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
         set_source_files_properties(src/lvm.c PROPERTIES COMPILE_FLAGS "-fno-crossjumping -fno-gcse -DRAVI_USE_COMPUTED_GOTO")
     endif()
 endif()      
