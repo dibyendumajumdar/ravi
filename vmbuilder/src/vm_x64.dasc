@@ -370,7 +370,7 @@ of the slots provided by the caller.
 |.endmacro
 |// Computes signed shift to the PC
 |.macro branchPC, reg
-|  lea PC, [PC+reg*4-131072]    // 131072 = MAXARG_sBx*4, somehow using latter results in 131068 
+|  lea PC, [PC+reg*4-MAXARG_sBx*4]              // 131072 = MAXARG_sBx*4 
 |.endmacro
 |
 /* Generate subroutines used by opcodes and other parts of the VM. */
@@ -445,13 +445,14 @@ static void build_OP_RETURN(BuildCtx *ctx)
   | mov CI->u.l.savedpc, PC                    // CI->u.l.savedpc = PC  i.e. savepc(L) 
   | mov RCa, KBASE                             // Restore bytecode to RC
   | ins_AB_                                    // Decode bytecode, RA = A, RB = B
-  | loadRegPtr CARG3, RA                           // CARG3 = ptr to Lua reg A
   | test RB, RB                                // To test if RB (b) is zero
   | je >2                                      // If b == 0 then jump to 2
   | dec RB                                     // RB = b - 1
   | mov CARG4d, RB                             // CARG4 will be zero extended as RB=b is 32-bit operand, b cannnot be < 0              
+  | loadRegPtr CARG3, RA                       // CARG3 = ptr to Lua reg A, CARG3 conflicts with RB on Linux
   | jmp >3                                       
   |2:
+  | loadRegPtr CARG3, RA                       // CARG3 = ptr to Lua reg A, CARG3 conflicts with RB on Linux
   | mov CARG4, L->top                          // CARG4 = L->top
   | sub CARG4, CARG3                           // CARG4 = L->top - R(A)
   | shr CARG4, 4                               // Divide by 16 as sizeof(TValue) = 16, use macro here?
