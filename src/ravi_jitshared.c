@@ -862,6 +862,7 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
 	switch (opCode) {
 	case OP_RAVI_LT_II: oper = "<"; goto Lemitint;
 	case OP_RAVI_LE_II: oper = "<=";
+	/* no break */
 	case OP_RAVI_EQ_II:
 	Lemitint:
 		if (ISK(B) && ISK(C)) {
@@ -891,6 +892,7 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j,
 		break;
 	case OP_RAVI_LT_FF: oper = "<"; goto Lemitflt;
 	case OP_RAVI_LE_FF: oper = "<=";
+	/* no break */
 	case OP_RAVI_EQ_FF:
 	Lemitflt:
 		if (ISK(B) && ISK(C)) {

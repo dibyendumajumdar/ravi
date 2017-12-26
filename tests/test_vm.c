@@ -153,7 +153,6 @@ static int do_asmvm_test(const char *code, int nparams, struct MyValue *params, 
 		fprintf(stderr, "Script did not return a function\n");
 		goto Lerror;
 	}
-	int fpos = lua_gettop(L);
 	for (int i = 0; i < nparams; i++) {
 		switch (params[i].type) {
 		case RAVI_TNUMINT: 
