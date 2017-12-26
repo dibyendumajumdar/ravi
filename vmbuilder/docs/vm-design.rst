@@ -209,7 +209,7 @@ The only op codes implemented so far are:
 
 Here is a `link to the generated assembly code on Windows X64 <https://github.com/dibyendumajumdar/ravi/blob/master/vmbuilder/asm/vm-win64.asm>`_.
 
-The equivalent `Linux assembly code is <https://github.com/dibyendumajumdar/ravi/blob/master/vmbuilder/asm/vm-linux.s>`_.
+The equivalent `Linux assembly code is <https://github.com/dibyendumajumdar/ravi/blob/master/vmbuilder/asm/vm-linux64.s>`_.
 
 It seems hard to test and validate the assembly code. I have to step through the code instruction by instruction.
 
