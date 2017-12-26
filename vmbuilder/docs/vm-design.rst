@@ -7,7 +7,7 @@ The overall approach is:
   but this could change in future
 * Each assembler routine will (after completing its action) fetch the next bytecode instruction and jump to the next 
   assembler routine using the dispatch table
-* The assembler routines are not full fledged C functions - they are part of one whole program. Hence they make assumptions about
+* The assembler routines are C functions - they are part of one whole program. Hence they make assumptions about
   register usage which will be documented below. The VM as a whole will have a fixed set of register allocations so that most 
   important information is held in registers. 
   
@@ -27,15 +27,18 @@ The implementation requires following key abilities that dynasm has:
 I am not sure whether this combination of features is available in other approaches such as using inline assembler in C code. I have briefly looked at:
 
 * Inline assembly in gcc / clang - too ugly syntactically to work with
-* Inline assembly in D - almost okay - no macros however so simple stuff like creating aliases for registers requires ugly mixin templates. Also the generated code appears to lack enough controls (such as disabling the frame pointer register, and ensuring correct unwind data on Win64). Also do not know how to get the offsets from generated code.
+* Inline assembly in D - almost okay - no macros however so simple stuff like creating aliases for registers requires ugly mixin templates. The generated code appears to lack enough controls (such as disabling the frame pointer register, and ensuring correct unwind data on Win64). Also do not know how to get the offsets from generated code.
 
 Using an assembler like yasm has the problem of computing offsets of C structures.
 
-Issue with dynasm
------------------
-On Windows 64-bit the generated code requires UNWIND information however the mechanism for this is in LuaJIT specific files (buildvm_peobj) and not fully reusable. I have modified this to decouple from LuaJIT. This took some effort because LuaJIT's code
+Issues with dynasm
+------------------
+On Windows 64-bit the generated code requires UNWIND information however the mechanism for this was in LuaJIT specific files (buildvm_peobj) and not fully reusable. I have modified this to decouple from LuaJIT. This took some effort because LuaJIT's code
 has numerous magic numbers with no explanation of what the code is doing. Not very helpful for anyone trying to work out what
 the code is doing unless you already know what needs doing.
+
+I wish dynasm could generate annotated assembly source file that is human readable. This would allow debuggers to display the
+source code and would make debugging the assembly instructions much easier.
 
 Register Allocations
 --------------------
@@ -69,7 +72,7 @@ Nomenclature
 +--------------------+------------------+------------------------------+------------------------------------------+
 | r15 (cs)           | r15 (cs)         | KBASE                        | Ptr to constants table in Proto          |
 +--------------------+------------------+------------------------------+------------------------------------------+
-| rax (v)            | rax (v)          | RCa = rbx, RC = ebx          | Scratch - also eax used for              |
+| rax (v)            | rax (v)          | RCa = rax, RC = eax          | Scratch - also eax used for              |
 |                    |                  |                              | the B,C portion of bytecode              |
 +--------------------+------------------+------------------------------+------------------------------------------+
 | rcx (v) (1)        | rcx (v) (4)      | RAa = rcx, RA = ecx          | Scratch - also ecx used for              |
@@ -156,7 +159,7 @@ Exported Symbols
 The main public symbols that are accessed externally are:
 
 * ravi_vm_asm_begin - this is the start of the generated code, and all the assembly routines are at offets relative to the address of this symbol.
-* ravi_luaV_interp - this is the entry point - and equivalent to luaV_execute().
+* ravi_luaV_interp - this is the entry VM point, equivalent to luaV_execute().
 
 Setup of dispatch table
 -----------------------
@@ -206,8 +209,17 @@ The only op codes implemented so far are:
 
 Here is a `link to the generated assembly code on Windows X64 <https://github.com/dibyendumajumdar/ravi/blob/master/vmbuilder/asm/vm-win64.asm>`_.
 
-It seems hard to test and validate the assembly code. I have to step through the code instruction by instruction - which is why
-I do all the development in Visual Studio 2017. I think it might be useful to create a test harness that mocks the Lua structures
+The equivalent Linux assembly code is <https://github.com/dibyendumajumdar/ravi/blob/master/vmbuilder/asm/vm-linux.s>`_.
+
+It seems hard to test and validate the assembly code. I have to step through the code instruction by instruction.
+
+On Windows I debug in Visual Studio 2017. 
+
+On Linux I use Eclipse CDT to debug the code. I use the instruction step mode.
+
+On Mac OSX I use Xcode. 
+
+I think it might be useful to create a test harness that mocks the Lua structures
 and functions so that each bytecode instruction can be tested in isolation. This will need some work however, so not yet sure.
 The other alternative is to check by running Lua scripts which is how we test Ravi normally.
 
@@ -282,4 +294,5 @@ This is only for the brave who want to hack with the code.
 To enable the new VM first build and install VMBuilder as described above.
 Then build Ravi using the cmake flags ``-DSTATIC_BUILD=ON`` and ``-DASM_VM=ON`` enabled. Don't enable JIT.
 
-Right now the ASM VM is exercised via the test_vm sub project. The ASM VM is only invoked in special cases, i.e. a function has small number of instructions and only contains supported instructions, and additionally as OP_CALL is not yet implemented, you can only call the new VM via the Lua C api (see test_asmvm() in test_vm.c). 
+Right now the ASM VM is exercised via the ``test_vm`` sub project. The ASM VM is only invoked in special cases, i.e. a function has small number of instructions and only contains supported instructions, and additionally as OP_CALL is not yet implemented, you can only call the new VM via the Lua C api (see test_asmvm() in test_vm.c).
+
