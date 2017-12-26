@@ -130,6 +130,7 @@ of the slots provided by the caller.
 |.define RCa, rax
 |
 |.define TMP1, r10
+|.define TMP1d, r10d
 |.define TMP2, r11
 |.define TMP3, r9
 |.define TMP3d, r9d
@@ -433,30 +434,31 @@ static void build_OP_RETURN(BuildCtx *ctx)
   |
   |// Upon entry RC has bytecode and OP has opcode
   | 
-  | mov KBASE, RCa                             // Save the bytecode into KBASE as we don't need KBASE anymore
   | mov PROTO:TMP1, LCL->p                     // TMP1 = ci->p
   | cmp dword PROTO:TMP1->sizep, 0             // Test ci->p->sizep == 0
   | jz >1                                      // Skip call to luaF_close
   |
   | // Call luaF_close
+  | mov KBASE, RCa                             // Save the bytecode into KBASE as we don't need KBASE anymore
   | mov LCL, BASE                              // Don't need LCL anymore so use it to save BASE
   | mov CARG1, L                               // arg1 = L
   | mov CARG2, BASE                            // arg2 = base
   | call extern luaF_close                     // call luaF_close
   | mov BASE, LCL                              // restore BASE
+  | mov RCa, KBASE                             // Restore bytecode to RC
   |
   |1: 
   | mov CI->u.l.savedpc, PC                    // CI->u.l.savedpc = PC  i.e. savepc(L) 
-  | mov RCa, KBASE                             // Restore bytecode to RC
   | ins_AB_                                    // Decode bytecode, RA = A, RB = B
+  | mov TMP1d, RA                              // save RA, as CARG4 conflicts with RA on Linux (we could do this conditionally)
   | test RB, RB                                // To test if RB (b) is zero
   | je >2                                      // If b == 0 then jump to 2
   | dec RB                                     // RB = b - 1
-  | mov CARG4d, RB                             // CARG4 will be zero extended as RB=b is 32-bit operand, b cannnot be < 0              
-  | loadRegPtr CARG3, RA                       // CARG3 = ptr to Lua reg A, CARG3 conflicts with RB on Linux
+  | mov CARG4d, RB                             // CARG4 will be zero extended as RB=b is 32-bit operand, b cannnot be < 0
+  | loadRegPtr CARG3, TMP1d                    // CARG3 = ptr to Lua reg A, CARG3 conflicts with RB on Linux, TMP1 = RA here
   | jmp >3                                       
   |2:
-  | loadRegPtr CARG3, RA                       // CARG3 = ptr to Lua reg A, CARG3 conflicts with RB on Linux
+  | loadRegPtr CARG3, TMP1d                    // CARG3 = ptr to Lua reg A, CARG3 conflicts with RB on Linux, TMP1 = RA here
   | mov CARG4, L->top                          // CARG4 = L->top
   | sub CARG4, CARG3                           // CARG4 = L->top - R(A)
   | shr CARG4, 4                               // Divide by 16 as sizeof(TValue) = 16, use macro here?
