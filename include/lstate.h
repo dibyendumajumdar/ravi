@@ -26,6 +26,25 @@
 ** 'tobefnz': all objects ready to be finalized;
 ** 'fixedgc': all objects that are not to be collected (currently
 ** only small strings, such as reserved words).
+**
+** Moreover, there is another set of lists that control gray objects.
+** These lists are linked by fields 'gclist'. (All objects that
+** can become gray have such a field. The field is not the same
+** in all objects, but it always has this name.)  Any gray object
+** must belong to one of these lists, and all objects in these lists
+** must be gray:
+**
+** 'gray': regular gray objects, still waiting to be visited.
+** 'grayagain': objects that must be revisited at the atomic phase.
+**   That includes
+**   - black objects got in a write barrier;
+**   - all kinds of weak tables during propagation phase;
+**   - all threads.
+** 'weak': tables with weak values to be cleared;
+** 'ephemeron': ephemeron tables with white->white entries;
+** 'allweak': tables with weak keys and/or weak values to be cleared.
+** There is also a list 'protogray' for prototypes that need to have
+** their caches cleared.
 
 */
 
