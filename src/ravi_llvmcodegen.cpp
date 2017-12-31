@@ -705,6 +705,56 @@ llvm::Value *RaviCodeGenerator::emit_ci_is_Lua(RaviFunctionDef *def,
 }
 #endif
 
+void RaviCodeGenerator::emit_GC_upvalbarrier(RaviFunctionDef *def,
+                                             llvm::Instruction *upval,
+                                             llvm::Value *v) {
+  // Parameters:
+  // UpVal *upval = cl->upvals[GETARG_B(i)];
+  // v = uv->v;
+  //
+  // Goal is to generate:
+  // #define upisopen(up)	((up)->v != &(up)->u.value)
+  // #define luaC_upvalbarrier(L,uv) ( \
+	//	(iscollectable((uv)->v) && !upisopen(uv)) ? \
+	//	 luaC_upvalbarrier_(L,uv) : cast_void(0))
+  //
+  // is uv->v collectible?
+  llvm::Value *type = emit_load_type(def, v);
+  llvm::Value *is_collectible =
+      def->builder->CreateAnd(type, def->types->kInt[BIT_ISCOLLECTABLE]);
+
+  // Is uv->v != uv->u.value?
+  llvm::Value *value = emit_gep_upval_value(def, upval);  // get uv->u.value
+  llvm::Value *cmp = def->builder->CreateICmpNE(v, value, "v.ne.value");
+
+  // What we do here is:
+  // if (!collectible(v) || upisopen(uv)) {
+  //    goto end;
+  // }
+  // else {
+  //    luaC_upvalbarrier_(L,uv);
+  // }
+  // end:
+  llvm::Value *tobool = def->builder->CreateICmpEQ(
+      is_collectible, def->types->kInt[0], "not.collectible");
+  llvm::Value *orcond =
+      def->builder->CreateOr(cmp, tobool, "v.ne.value.or.not.collectible");
+
+  llvm::BasicBlock *then =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
+  llvm::BasicBlock *end =
+      llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+
+  def->builder->CreateCondBr(orcond, end, then);
+  def->builder->SetInsertPoint(then);
+
+  CreateCall2(def->builder, def->luaC_upvalbarrierF, def->L, upval);
+  def->builder->CreateBr(end);
+
+  def->f->getBasicBlockList().push_back(end);
+  def->builder->SetInsertPoint(end);
+}
+
 llvm::Value *RaviCodeGenerator::emit_load_ci(RaviFunctionDef *def) {
   llvm::Value *L_ci = emit_gep(def, "L_ci", def->L, 0, 6);
 

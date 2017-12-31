@@ -764,30 +764,7 @@ void RaviCodeGenerator::emit_SETUPVAL(RaviFunctionDef *def, int A, int B,
   llvm::Value *v = emit_load_upval_v(def, upval);
   emit_assign(def, v, ra);
 
-  llvm::Value *type = emit_load_type(def, v);
-  llvm::Value *is_collectible =
-      def->builder->CreateAnd(type, def->types->kInt[BIT_ISCOLLECTABLE]);
-
-  llvm::Value *value = emit_gep_upval_value(def, upval);
-  llvm::Value *cmp = def->builder->CreateICmpNE(v, value, "v.ne.value");
-  llvm::Value *tobool = def->builder->CreateICmpEQ(
-      is_collectible, def->types->kInt[0], "not.collectible");
-  llvm::Value *orcond =
-      def->builder->CreateOr(cmp, tobool, "v.ne.value.or.not.collectible");
-
-  llvm::BasicBlock *then =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
-  llvm::BasicBlock *end =
-      llvm::BasicBlock::Create(def->jitState->context(), "if.end");
-
-  def->builder->CreateCondBr(orcond, end, then);
-  def->builder->SetInsertPoint(then);
-
-  CreateCall2(def->builder, def->luaC_upvalbarrierF, def->L, upval);
-  def->builder->CreateBr(end);
-
-  def->f->getBasicBlockList().push_back(end);
-  def->builder->SetInsertPoint(end);
+  emit_GC_upvalbarrier(def, upval, v);
 }
 
 // R(A) := UpValue[B][RK(C)]

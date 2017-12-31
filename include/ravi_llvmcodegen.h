@@ -1268,6 +1268,8 @@ class RaviCodeGenerator {
 
   void emit_SETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
+  void emit_GC_upvalbarrier(RaviFunctionDef *def, llvm::Instruction *upval, llvm::Value *v);
+
   void emit_SETUPVAL_Specific(RaviFunctionDef *def, int A, int B, int pc,
                               OpCode op, llvm::Function *f);
 
