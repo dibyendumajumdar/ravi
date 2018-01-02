@@ -3,6 +3,7 @@
 
 struct lua_State;
 typedef unsigned char lu_byte;
+typedef signed char ls_byte;
 typedef int (*lua_CFunction) (struct lua_State *L);
 
 #if 1 /* 64bit */
@@ -36,7 +37,7 @@ union Value {
 
 struct TValue {
   union Value value_;
-  int tt_;
+  lu_byte tt_;
 };
 
 struct TString {
@@ -141,6 +142,7 @@ struct Proto {
   struct LClosure *cache;     /* last created closure with this prototype */
   struct TString *source;     /* used for debug information */
   struct GCObject *gclist;
+  lu_byte cachemiss;
   struct RaviJITProto ravi_jit;
 };
 
@@ -171,18 +173,15 @@ union Closure {
   struct LClosure l;
 };
 
-union TKey {
-  struct {
+union Node {
+  struct NodeKey {
     union Value value_;
-    int tt_;
-    int next; /* for chaining (offset for next node) */
-  } nk;
-  struct TValue tvk;
-};
-
-struct Node {
-  struct TValue i_val;
-  union TKey i_key;
+    lu_byte tt_;
+    lu_byte key_tt;  /* key type */
+    int next;  /* for chaining */
+    union Value key_val;  /* key value */
+  } u;
+  struct TValue i_val;  /* direct access to node's value as a proper 'TValue' */
 };
 
 struct RaviArray {
@@ -192,7 +191,6 @@ struct RaviArray {
   unsigned int size; /* amount of memory allocated */
 };
 
-
 struct Table {
   struct GCObject *next;
   lu_byte tt;
@@ -201,8 +199,8 @@ struct Table {
   lu_byte lsizenode; /* log2 of size of 'node' array */
   unsigned int sizearray;  /* size of 'array' array */
   struct TValue *array;    /* array part */
-  struct Node *node;
-  struct Node *lastfree; /* any free position is before this position */
+  union Node *node;
+  union Node *lastfree; /* any free position is before this position */
   struct Table *metatable;
   struct GCObject *gclist;
   struct RaviArray ravi_array;
@@ -304,12 +302,14 @@ struct lua_State {
 
 /* lfunc.h */
 struct UpVal {
+  struct GCObject *next;
+  lu_byte tt;
+  lu_byte marked;
   struct TValue *v;  /* points to stack or to its own value */
-  lu_mem refcount;  /* reference counter */
   union {
     struct {  /* (when open) */
       struct UpVal *next;  /* linked list */
-      int touched;  /* mark to avoid cycles with dead threads */
+      struct UpVal **previous;
     } open;
     struct TValue value;  /* the value (when closed) */
   } u;
@@ -332,11 +332,26 @@ union GCUnion {
 #define rttype(o) ((o)->tt_)
 #define BIT_ISCOLLECTABLE (1 << 6)
 #define iscollectable(o)  (rttype(o) & BIT_ISCOLLECTABLE)
-#define upisopen(up)  ((up)->v != &(up)->u.value)
+
+#define bitmask(b)    (1<<(b))
+#define bit2mask(b1,b2)   (bitmask(b1) | bitmask(b2))
+#define testbits(x,m)   ((x) & (m))
+#define testbit(x,b)    testbits(x, bitmask(b))
+
+#define WHITE0BIT 3  /* object is white (type 0) */
+#define WHITE1BIT 4  /* object is white (type 1) */
+#define BLACKBIT  5  /* object is black */
+#define FINALIZEDBIT  6  /* object has been marked for finalization */
+#define TESTGRAYBIT 7  /* used by tests (luaL_checkmemory) */
+#define WHITEBITS bit2mask(WHITE0BIT, WHITE1BIT)
+
+#define isblack(x)      testbit((x)->marked, BLACKBIT)
+#define iswhite(x)      testbits((x)->marked, WHITEBITS)
 
 #define val_(o)   ((o)->value_)
 #define cast(t, exp)  ((t)(exp))
 #define cast_u(o) cast(union GCUnion *, (o))
 #define gco2t(o)  &((cast_u(o))->h)
 #define hvalue(o) gco2t(val_(o).gc)
+#define gcvalue(o)  (val_(o).gc)
 #endif

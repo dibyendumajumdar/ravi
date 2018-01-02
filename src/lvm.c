@@ -196,7 +196,7 @@ void luaV_finishget (lua_State *L, const TValue *t, TValue *key, StkId val,
       return;
     }
     t = tm;  /* else try to access 'tm[key]' */
-    if (luaV_fastget(L,t,key,slot,luaH_get)) {  /* fast track? */
+    if (luaV_fastget(L, t, key, slot, luaH_get)) {  /* fast track? */
       setobj2s(L, val, slot);  /* done */
       return;
     }
@@ -210,11 +210,11 @@ void luaV_finishget (lua_State *L, const TValue *t, TValue *key, StkId val,
 ** Finish a table assignment 't[key] = val'.
 ** If 'slot' is NULL, 't' is not a table.  Otherwise, 'slot' points
 ** to the entry 't[key]', or to 'luaO_nilobject' if there is no such
-** entry.  (The value at 'slot' must be nil, otherwise 'luaV_fastset'
+** entry.  (The value at 'slot' must be nil, otherwise 'luaV_fastget'
 ** would have done the job.)
 */
 void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
-                     StkId val, const TValue *slot) {
+                     TValue *val, const TValue *slot) {
   int loop;  /* counter to avoid infinite loops */
   for (loop = 0; loop < MAXTAGLOOP; loop++) {
     const TValue *tm;  /* '__newindex' metamethod */
@@ -243,9 +243,11 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       return;
     }
     t = tm;  /* else repeat assignment over 'tm' */
-    if (luaV_fastset(L, t, key, slot, luaH_get, val))
+    if (luaV_fastget(L, t, key, slot, luaH_get)) {
+      luaV_finishfastset(L, t, slot, val);
       return;  /* done */
-    /* else loop */
+    }
+    /* else 'return luaV_finishset(L, t, key, val, slot)' (loop) */
   }
   luaG_runerror(L, "'__newindex' chain too long; possible loop");
 }
@@ -885,6 +887,7 @@ static LClosure *getcached (Proto *p, UpVal **encup, StkId base) {
       if (c->upvals[i]->v != v)
         return NULL;  /* wrong upvalue; cannot reuse closure */
     }
+    p->cachemiss = 0;  /* got a hit */
   }
   return c;  /* return cached closure (or NULL if no cached closure) */
 }
@@ -892,9 +895,7 @@ static LClosure *getcached (Proto *p, UpVal **encup, StkId base) {
 
 /*
 ** create a new Lua closure, push it in the stack, and initialize
-** its upvalues. Note that the closure is not cached if prototype is
-** already black (which means that 'cache' was already cleared by the
-** GC).
+** its upvalues. ???
 */
 static void pushclosure (lua_State *L, Proto *p, UpVal **encup, StkId base,
                          StkId ra) {
@@ -903,17 +904,21 @@ static void pushclosure (lua_State *L, Proto *p, UpVal **encup, StkId base,
   int i;
   LClosure *ncl = luaF_newLclosure(L, nup);
   ncl->p = p;
-  setclLvalue(L, ra, ncl);  /* anchor new closure in stack */
+  setclLvalue2s(L, ra, ncl);  /* anchor new closure in stack */
   for (i = 0; i < nup; i++) {  /* fill in its upvalues */
     if (uv[i].instack)  /* upvalue refers to local variable? */
       ncl->upvals[i] = luaF_findupval(L, base + uv[i].idx);
     else  /* get upvalue from enclosing function */
       ncl->upvals[i] = encup[uv[i].idx];
-    ncl->upvals[i]->refcount++;
     /* new closure is white, so we do not need a barrier here */
   }
-  if (!isblack(p))  /* cache will not break GC invariant? */
+  if (p->cachemiss >= MAXMISS)  /* too many missings? */
+    p->cache = NULL;  /* give up cache */
+  else {
     p->cache = ncl;  /* save it on cache for reuse */
+    luaC_protobarrier(L, p, ncl);
+    p->cachemiss++;
+  }
 }
 
 
@@ -954,13 +959,13 @@ void luaV_finishOp (lua_State *L) {
       StkId top = L->top - 1;  /* top when 'luaT_trybinTM' was called */
       int b = GETARG_B(inst);      /* first element to concatenate */
       int total = cast_int(top - 1 - (base + b));  /* yet to concatenate */
-      setobj2s(L, top - 2, top);  /* put TM result in proper position */
+      setobjs2s(L, top - 2, top);  /* put TM result in proper position */
       if (total > 1) {  /* are there elements to concat? */
         L->top = top - 1;  /* top is one after last element (at top-2) */
         luaV_concat(L, total);  /* concat them (may yield again) */
       }
       /* move final result to final position */
-      setobj2s(L, ci->u.l.base + GETARG_A(inst), L->top - 1);
+      setobjs2s(L, ci->u.l.base + GETARG_A(inst), L->top - 1);
       L->top = ci->top;  /* restore top */
       break;
     }
@@ -1047,6 +1052,7 @@ void luaV_finishOp (lua_State *L) {
   { luaC_condGC(L, L->top = (c),  /* limit of live values */ \
                    L->top = ci->top);  /* restore top */ \
            luai_threadyield(L); }
+
 
 #ifndef RAVI_USE_COMPUTED_GOTO
 
@@ -1315,6 +1321,12 @@ int luaV_execute (lua_State *L) {
         setobj2s(L, ra, cl->upvals[b]->v);
         vmbreak;
       }
+      vmcase(OP_SETUPVAL) {
+        UpVal *uv = cl->upvals[GETARG_B(i)];
+        setobj(L, uv->v, ra);
+        luaC_barrier(L, uv, ra);
+        vmbreak;
+      }
       vmcase(OP_GETTABUP) {
         TValue *upval = cl->upvals[GETARG_B(i)]->v;    /* table */
         TValue *rc = RKC(i);                           /* key */
@@ -1332,12 +1344,6 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         SETTABLE_INLINE_PROTECTED(L, upval, rb, rc);
-        vmbreak;
-      }
-      vmcase(OP_SETUPVAL) {
-        UpVal *uv = cl->upvals[GETARG_B(i)];
-        setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
         vmbreak;
       }
       vmcase(OP_SETTABLE) {
@@ -2077,8 +2083,8 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_RAVI_GETTABLE_I) {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
-	GETTABLE_INLINE_PROTECTED_I(L, rb, rc, ra);
-	vmbreak;
+        GETTABLE_INLINE_PROTECTED_I(L, rb, rc, ra);
+        vmbreak;
       }
       /* This opcode is used when the key is known to be
          short string but the variable may or may not be
@@ -2195,7 +2201,7 @@ int luaV_execute (lua_State *L) {
         if (tointeger(ra, &ia)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
           setivalue(uv->v, ia);
-          luaC_upvalbarrier(L, uv);
+          luaC_barrier(L, uv, ra);
         }
         else
           luaG_runerror(
@@ -2207,7 +2213,7 @@ int luaV_execute (lua_State *L) {
         if (tonumber(ra, &na)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
           setfltvalue(uv->v, na);
-          luaC_upvalbarrier(L, uv);
+          luaC_barrier(L, uv, ra);
         }
         else
           luaG_runerror(
@@ -2221,7 +2227,7 @@ int luaV_execute (lua_State *L) {
             "integer[] value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_barrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_SETUPVALAF) {
@@ -2231,7 +2237,7 @@ int luaV_execute (lua_State *L) {
             "upvalue of number[] type, cannot be set to non number[] value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_barrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_SETUPVALT) {
@@ -2240,7 +2246,7 @@ int luaV_execute (lua_State *L) {
             L, "upvalue of table type, cannot be set to non table value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_barrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_LOADIZ) {
@@ -2737,7 +2743,7 @@ void raviV_op_setupvali(lua_State *L, LClosure *cl, TValue *ra, int b) {
   if (tointeger(ra, &ia)) {
     UpVal *uv = cl->upvals[b];
     setivalue(uv->v, ia);
-    luaC_upvalbarrier(L, uv);
+    luaC_barrier(L, uv, ra);
   }
   else
     luaG_runerror(
@@ -2749,7 +2755,7 @@ void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b) {
   if (tonumber(ra, &na)) {
     UpVal *uv = cl->upvals[b];
     setfltvalue(uv->v, na);
-    luaC_upvalbarrier(L, uv);
+    luaC_barrier(L, uv, ra);
   }
   else
     luaG_runerror(L,
@@ -2762,7 +2768,7 @@ void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b) {
         L, "upvalue of integer[] type, cannot be set to non integer[] value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_barrier(L, uv, ra);
 }
 
 void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b) {
@@ -2771,7 +2777,7 @@ void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b) {
         L, "upvalue of number[] type, cannot be set to non number[] value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_barrier(L, uv, ra);
 }
 
 void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b) {
@@ -2779,13 +2785,13 @@ void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b) {
     luaG_runerror(L, "upvalue of table type, cannot be set to non table value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_barrier(L, uv, ra);
 }
 
 void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b) {
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_barrier(L, uv, ra);
 }
 
 void raviV_op_add(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {

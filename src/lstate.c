@@ -35,13 +35,6 @@
 #include "ravijit.h"
 #include "ravi_profile.h"
 
-#if !defined(LUAI_GCPAUSE)
-#define LUAI_GCPAUSE	200  /* 200% */
-#endif
-
-#if !defined(LUAI_GCMUL)
-#define LUAI_GCMUL	200 /* GC runs 'twice the speed' of memory allocation */
-#endif
 
 
 /*
@@ -219,6 +212,7 @@ static void f_luaopen (lua_State *L, void *ud) {
   luaT_init(L);
   luaX_init(L);
   g->gcrunning = 1;  /* allow gc */
+  g->gcemergency = 0;
   g->version = lua_version(NULL);
   luai_userstateopen(L);
 }
@@ -340,7 +334,6 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   int i;
   lua_State *L;
   global_State *g;
-
   LG *l = cast(LG *, (*f)(ud, NULL, LUA_TTHREAD, sizeof(LG)));
   if (l == NULL) return NULL;
   L = &l->l.l;
@@ -349,35 +342,36 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   g->ravi_writestring = raviE_default_writestring;
   g->ravi_writestringerror = raviE_default_writestringerror;
   g->ravi_debugger_data = NULL;
-  L->next = NULL;
   L->tt = LUA_TTHREAD;
   g->currentwhite = bitmask(WHITE0BIT);
   L->marked = luaC_white(g);
   preinit_thread(L, g);
+  g->allgc = obj2gco(L);  /* by now, only object is the main thread */
+  L->next = NULL;
   g->frealloc = f;
   g->ud = ud;
   g->mainthread = L;
   g->seed = makeseed(L);
   g->gcrunning = 0;  /* no GC while building state */
-  g->GCestimate = 0;
   g->strt.size = g->strt.nuse = 0;
   g->strt.hash = NULL;
   setnilvalue(&g->l_registry);
   g->panic = NULL;
   g->version = NULL;
   g->gcstate = GCSpause;
-  g->gckind = KGC_NORMAL;
-  g->allgc = g->finobj = g->tobefnz = g->fixedgc = NULL;
+  g->gckind = KGC_INC;
+  g->finobj = g->tobefnz = g->fixedgc = NULL;
+  g->survival = g->old = g->reallyold = NULL;
+  g->finobjsur = g->finobjold = g->finobjrold = NULL;
   g->sweepgc = NULL;
   g->gray = g->grayagain = NULL;
-  g->weak = g->ephemeron = g->allweak = NULL;
+  g->weak = g->ephemeron = g->allweak = g->protogray = NULL;
   g->twups = NULL;
   g->totalbytes = sizeof(LG);
   g->GCdebt = 0;
-  g->gcfinnum = 0;
   g->gcpause = LUAI_GCPAUSE;
   g->gcstepmul = LUAI_GCMUL;
-  g->ravi_state = NULL;
+  g->gcstepsize = LUAI_GCSTEPSIZE;
   for (i=0; i < LUA_NUMTAGS; i++) g->mt[i] = NULL;
   raviV_initjit(L);
   if (luaD_rawrunprotected(L, f_luaopen, NULL) != LUA_OK) {

@@ -12,17 +12,8 @@
 
 #define gnode(t,i)	(&(t)->node[i])
 #define gval(n)		(&(n)->i_val)
-#define gnext(n)	((n)->i_key.nk.next)
+#define gnext(n)	((n)->u.next)
 
-
-/* 'const' to avoid wrong writings that can mess up field 'next' */
-#define gkey(n)		cast(const TValue*, (&(n)->i_key.tvk))
-
-/*
-** writable version of 'gkey'; allows updates to individual fields,
-** but not to the whole (which has incompatible type)
-*/
-#define wgkey(n)		(&(n)->i_key.nk)
 
 #define invalidateTMcache(t)	((t)->flags = 0)
 
@@ -35,9 +26,8 @@
 #define allocsizenode(t)	(isdummy(t) ? 0 : sizenode(t))
 
 
-/* returns the key, given the value of a table entry */
-#define keyfromval(v) \
-  (gkey(cast(Node *, cast(char *, (v)) - offsetof(Node, i_val))))
+/* returns the Node, given the value of a table entry */
+#define nodefromval(v) 	cast(Node *, (v))
 
 
 LUAI_FUNC const TValue *luaH_getint (Table *t, lua_Integer key);
@@ -65,40 +55,22 @@ required to get to a node in the hash table
 #else 
 
 #define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
+
 #define hashstr(t,str)		hashpow2(t, (str)->hash)
 #define hashboolean(t,p)	hashpow2(t, p)
 #define hashint(t,i)		hashpow2(t, i)
+
 /*
 ** for some types, it is better to avoid modulus by power of 2, as
 ** they tend to have many 2 factors.
 */
 #define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1)|1))))
+
 #define hashpointer(t,p)	hashmod(t, point2uint(p))
 
 #endif
 
-#if defined(RAVI_ENABLED)
-/*
-** search function for short strings
-*/
-static RAVI_ALWAYS_INLINE const TValue *luaH_getshortstr(Table *t, TString *key) {
-  Node *n = hashstr(t, key);
-  lua_assert(key->tt == LUA_TSHRSTR);
-  for (;;) {  /* check whether 'key' is somewhere in the chain */
-    const TValue *k = gkey(n);
-    if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
-      return gval(n);  /* that's it */
-    else {
-      int nx = gnext(n);
-      if (nx == 0)
-        return luaO_nilobject;  /* not found */
-      n += nx;
-    }
-  }
-}
-#else
 LUAI_FUNC const TValue *luaH_getshortstr (Table *t, TString *key);
-#endif
 LUAI_FUNC const TValue *luaH_getstr (Table *t, TString *key);
 LUAI_FUNC const TValue *luaH_get (Table *t, const TValue *key);
 LUAI_FUNC TValue *luaH_newkey (lua_State *L, Table *t, const TValue *key);
@@ -109,7 +81,7 @@ LUAI_FUNC void luaH_resize (lua_State *L, Table *t, unsigned int nasize,
 LUAI_FUNC void luaH_resizearray (lua_State *L, Table *t, unsigned int nasize);
 LUAI_FUNC void luaH_free (lua_State *L, Table *t);
 LUAI_FUNC int luaH_next (lua_State *L, Table *t, StkId key);
-LUAI_FUNC int luaH_getn (Table *t);
+LUAI_FUNC lua_Unsigned luaH_getn (Table *t);
 
 /* RAVI array specialization */
 

@@ -30,7 +30,7 @@ LUAI_DDEF const char *const luaT_typenames_[LUA_TOTALTAGS] = {
   "no value",
   "nil", "boolean", udatatypename, "number",
   "string", "table", "function", udatatypename, "thread",
-  "proto" /* this last case is used for tests only */
+  "upvalue", "proto" /* these last cases are used for tests only */
 };
 
 

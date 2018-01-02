@@ -764,7 +764,7 @@ void RaviCodeGenerator::emit_SETUPVAL(RaviFunctionDef *def, int A, int B,
   llvm::Value *v = emit_load_upval_v(def, upval);
   emit_assign(def, v, ra);
 
-  emit_GC_upvalbarrier(def, upval, v);
+  emit_GC_barrier(def, upval, ra);
 }
 
 // R(A) := UpValue[B][RK(C)]

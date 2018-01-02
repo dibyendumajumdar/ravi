@@ -168,6 +168,7 @@ struct LuaLLVMTypes {
   llvm::PointerType *pGCObjectT;
 
   llvm::StructType *ValueT;
+  llvm::StructType *ValueGCT;
   llvm::StructType *TValueT;
   llvm::PointerType *pTValueT;
   llvm::StructType *TStringT;
@@ -206,9 +207,6 @@ struct LuaLLVMTypes {
   llvm::StructType *CClosureT;
   llvm::PointerType *pCClosureT;
 
-  llvm::StructType *TKeyT;
-  llvm::PointerType *pTKeyT;
-
   llvm::StructType *NodeT;
   llvm::PointerType *pNodeT;
 
@@ -230,7 +228,7 @@ struct LuaLLVMTypes {
 
   llvm::FunctionType *jitFunctionT;
 
-  llvm::FunctionType *luaC_upvalbarrierT;
+  llvm::FunctionType *luaC_barrierT;
   llvm::FunctionType *luaD_poscallT;
   llvm::FunctionType *luaD_precallT;
   llvm::FunctionType *luaD_callT;
@@ -722,7 +720,7 @@ struct RaviFunctionDef {
   llvm::Function *luaV_modF;
   llvm::Function *luaV_divF;
   llvm::Function *luaV_objlenF;
-  llvm::Function *luaC_upvalbarrierF;
+  llvm::Function *luaC_barrierF;
   llvm::Function *luaH_getstrF;
   llvm::Function *luaH_getintF;
   llvm::Function *luaH_setintF;
@@ -1067,10 +1065,6 @@ class RaviCodeGenerator {
   llvm::Instruction *emit_load_upval_v(RaviFunctionDef *def,
                                        llvm::Instruction *pupval);
 
-  // Get &upval->value -> result is TValue *
-  llvm::Value *emit_gep_upval_value(RaviFunctionDef *def,
-                                    llvm::Instruction *pupval);
-
   // isnil(reg) || isboolean(reg) && reg.value == 0
   // !(isnil(reg) || isboolean(reg) && reg.value == 0)
   llvm::Value *emit_boolean_testfalse(RaviFunctionDef *def, llvm::Value *reg,
@@ -1268,7 +1262,7 @@ class RaviCodeGenerator {
 
   void emit_SETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_GC_upvalbarrier(RaviFunctionDef *def, llvm::Instruction *upval, llvm::Value *v);
+  void emit_GC_barrier(RaviFunctionDef *def, llvm::Value *upval, llvm::Value *v);
 
   void emit_SETUPVAL_Specific(RaviFunctionDef *def, int A, int B, int pc,
                               OpCode op, llvm::Function *f);

@@ -70,8 +70,8 @@ struct lua_longjmp;  /* defined in ldo.c */
 
 
 /* kinds of Garbage Collection */
-#define KGC_NORMAL	0
-#define KGC_EMERGENCY	1	/* gc was forced by an allocation failure */
+#define KGC_INC		0	/* incremental gc */
+#define KGC_GEN		1	/* generational gc */
 
 
 typedef struct stringtable {
@@ -146,7 +146,6 @@ typedef struct global_State {
   void *ud;         /* auxiliary data to 'frealloc' */
   l_mem totalbytes;  /* number of bytes currently allocated - GCdebt */
   l_mem GCdebt;  /* bytes allocated not yet compensated by the collector */
-  lu_mem GCmemtrav;  /* memory traversed by the GC */
   lu_mem GCestimate;  /* an estimate of the non-garbage memory in use */
   stringtable strt;  /* hash table for strings */
   TValue l_registry;
@@ -154,7 +153,13 @@ typedef struct global_State {
   lu_byte currentwhite;
   lu_byte gcstate;  /* state of garbage collector */
   lu_byte gckind;  /* kind of GC running */
+  lu_byte genminormul;  /* control for minor generational collections */
+  lu_byte genmajormul;  /* control for major generational collections */
   lu_byte gcrunning;  /* true if GC is running */
+  lu_byte gcemergency;  /* true if this is an emergency collection */
+  lu_byte gcpause;  /* size of pause between successive GCs */
+  lu_byte gcstepmul;  /* GC "speed" */
+  lu_byte gcstepsize;  /* (log2 of) GC granularity */
   GCObject *allgc;  /* list of all collectable objects */
   GCObject **sweepgc;  /* current position of sweep in list */
   GCObject *finobj;  /* list of collectable objects with finalizers */
@@ -163,12 +168,17 @@ typedef struct global_State {
   GCObject *weak;  /* list of tables with weak values */
   GCObject *ephemeron;  /* list of ephemeron tables (weak keys) */
   GCObject *allweak;  /* list of all-weak tables */
+  GCObject *protogray;  /* list of prototypes with "new" caches */
   GCObject *tobefnz;  /* list of userdata to be GC */
   GCObject *fixedgc;  /* list of objects not to be collected */
+  /* fields for generational collector */
+  GCObject *survival;  /* start of objects that survived one GC cycle */
+  GCObject *old;  /* start of old objects */
+  GCObject *reallyold;  /* old objects with more than one cycle */
+  GCObject *finobjsur;  /* list of survival objects with finalizers */
+  GCObject *finobjold;  /* list of old objects with finalizers */
+  GCObject *finobjrold;  /* list of really old objects with finalizers */
   struct lua_State *twups;  /* list of threads with open upvalues */
-  unsigned int gcfinnum;  /* number of finalizers to call in each GC step */
-  int gcpause;  /* size of pause between successive GCs */
-  int gcstepmul;  /* GC 'granularity' */
   lua_CFunction panic;  /* to be called in unprotected errors */
   struct lua_State *mainthread;
   const lua_Number *version;  /* pointer to version number */
@@ -244,6 +254,7 @@ union GCUnion {
   struct Table h;
   struct Proto p;
   struct lua_State th;  /* thread */
+  struct UpVal upv;
 };
 
 
@@ -261,11 +272,11 @@ union GCUnion {
 #define gco2t(o)  check_exp(novariant((o)->tt) == LUA_TTABLE, &((cast_u(o))->h))
 #define gco2p(o)  check_exp((o)->tt == LUA_TPROTO, &((cast_u(o))->p))
 #define gco2th(o)  check_exp((o)->tt == LUA_TTHREAD, &((cast_u(o))->th))
+#define gco2upv(o)  check_exp((o)->tt == LUA_TUPVAL, &((cast_u(o))->upv))
 
 
 /* macro to convert a Lua object into a GCObject */
-#define obj2gco(v) \
-	check_exp(novariant((v)->tt) < LUA_TDEADKEY, (&(cast_u(v)->gc)))
+#define obj2gco(v)	(&(cast_u(v)->gc))
 
 
 /* actual number of total bytes allocated */

@@ -33,6 +33,7 @@ typedef long l_mem;
 
 /* chars used as small naturals (so that 'char' is reserved for characters) */
 typedef unsigned char lu_byte;
+typedef signed char ls_byte;
 
 
 /* maximum value for size_t */
@@ -49,6 +50,13 @@ typedef unsigned char lu_byte;
 
 
 #define MAX_INT		INT_MAX  /* maximum value of an int */
+
+
+/*
+** floor of the log2 of the maximum signed value for integral type 't'.
+** (That is, maximum 'n' such that '2^n' fits in the given signed type.)
+*/
+#define log2maxs(t)	(sizeof(t) * 8 - 2)
 
 
 /*

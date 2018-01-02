@@ -19,11 +19,11 @@
 /*
 ** Extra tags for non-values
 */
-#define LUA_TPROTO	LUA_NUMTAGS		/* function prototypes */
-#define LUA_TDEADKEY	(LUA_NUMTAGS+1)		/* removed keys in tables */
+#define LUA_TUPVAL	LUA_NUMTAGS  /* upvalues */
+#define LUA_TPROTO	(LUA_NUMTAGS+1)  /* function prototypes */
 
 /*
-** number of all possible tags (including LUA_TNONE but excluding DEADKEY)
+** number of all possible tags (including LUA_TNONE)
 */
 #define LUA_TOTALTAGS	(LUA_TPROTO + 2)
 
@@ -124,6 +124,7 @@ typedef struct lua_TValue {
 
 
 #define val_(o)		((o)->value_)
+#define valraw(o)	(&val_(o))
 
 
 /* raw type tag of a TValue */
@@ -133,7 +134,8 @@ typedef struct lua_TValue {
 #define novariant(x)	((x) & 0x0F)
 
 /* type tag of a TValue (bits 0-3 for tags + variant bits 4-5) */
-#define ttype(o)	(rttype(o) & 0x3F)
+#define ttyperaw(t)	((t) & 0x3F)
+#define ttype(o)	ttyperaw(rttype(o))
 
 /* type tag of a TValue with no variants (bits 0-3) */
 #define ttnov(o)	(novariant(rttype(o)))
@@ -169,7 +171,19 @@ typedef struct lua_TValue {
 #define ttislcf(o)		checktag((o), LUA_TLCF)
 #define ttisfulluserdata(o)	checktag((o), ctb(LUA_TUSERDATA))
 #define ttisthread(o)		checktag((o), ctb(LUA_TTHREAD))
-#define ttisdeadkey(o)		checktag((o), LUA_TDEADKEY)
+
+
+/*
+** Macros to access unstructured values (may come both from
+** 'TValue's and table keys)
+*/
+#define ivalueraw(v)	((v).i)
+#define fltvalueraw(v)	((v).n)
+#define gcvalueraw(v)	((v).gc)
+#define pvalueraw(v)	((v).p)
+#define tsvalueraw(v)	(gco2ts((v).gc))
+#define fvalueraw(v)	((v).f)
+#define bvalueraw(v)	((v).b)
 
 
 /* Macros to access values */
@@ -188,13 +202,17 @@ typedef struct lua_TValue {
 #define hvalue(o)	check_exp(ttistable(o), gco2t(val_(o).gc))
 #define bvalue(o)	check_exp(ttisboolean(o), val_(o).b)
 #define thvalue(o)	check_exp(ttisthread(o), gco2th(val_(o).gc))
-/* a dead value may get the 'gc' field, but cannot access its contents */
-#define deadvalue(o)	check_exp(ttisdeadkey(o), cast(void *, val_(o).gc))
 
 #define l_isfalse(o)	(ttisnil(o) || (ttisboolean(o) && bvalue(o) == 0))
 
 
 #define iscollectable(o)	(rttype(o) & BIT_ISCOLLECTABLE)
+
+
+/*
+** Protected access to objects in values
+*/
+#define gcvalueN(o)	(iscollectable(o) ? gcvalue(o) : NULL)
 
 
 /* Macros for internal tests */
@@ -277,12 +295,9 @@ typedef struct lua_TValue {
     val_(io).gc = obj2gco(x_); settt_(io, ctb(RAVI_TFARRAY)); \
     checkliveness(L,io); }
 
-#define setdeadvalue(obj)	settt_(obj, LUA_TDEADKEY)
-
-
-
 #define setobj(L,obj1,obj2) \
-	{ TValue *io1=(obj1); *io1 = *(obj2); \
+	{ TValue *io1=(obj1); const TValue *io2=(obj2); \
+          io1->value_ = io2->value_; io1->tt_ = io2->tt_; \
 	  (void)L; checkliveness(L,io1); }
 
 
@@ -296,15 +311,16 @@ typedef struct lua_TValue {
 #define setobj2s	setobj
 #define setsvalue2s	setsvalue
 #define sethvalue2s	sethvalue
+#define setthvalue2s    setthvalue
 #define setptvalue2s	setptvalue
+#define setclLvalue2s   setclLvalue
 /* from table to same table */
 #define setobjt2t	setobj
 /* to new object */
 #define setobj2n	setobj
 #define setsvalue2n	setsvalue
-
-/* to table (define it as an expression to be used in macros) */
-#define setobj2t(L,o1,o2)  ((void)L, *(o1)=*(o2), checkliveness(L,(o1)))
+/* to table */
+#define setobj2t	setobj
 
 
 
@@ -494,6 +510,7 @@ typedef struct Proto {
   struct LClosure *cache;  /* last-created closure with this prototype */
   TString  *source;  /* used for debug information */
   GCObject *gclist;
+  lu_byte cachemiss;  /* count for successive misses for 'cache' field */
   /* RAVI extension */
   RaviJITProto ravi_jit;
 } Proto;
@@ -501,9 +518,20 @@ typedef struct Proto {
 
 
 /*
-** Lua Upvalues
+** Upvalues for Lua closures
 */
-typedef struct UpVal UpVal;
+typedef struct UpVal {
+  CommonHeader;
+  TValue *v;  /* points to stack or to its own value */
+  union {
+    struct {  /* (when open) */
+      struct UpVal *next;  /* linked list */
+      struct UpVal **previous;
+    } open;
+    TValue value;  /* the value (when closed) */
+  } u;
+} UpVal;
+
 
 
 /*
@@ -542,26 +570,38 @@ typedef union Closure {
 ** Tables
 */
 
-typedef union TKey {
-  struct {
-    TValuefields;
-    int next;  /* for chaining (offset for next node) */
-  } nk;
-  TValue tvk;
-} TKey;
+
+/*
+** Nodes for Hash tables. A pack of two TValue's (key-value pairs)
+** plus a 'next' field to link colliding entries. The distribuition
+** of the key's fields ('key_tt' and 'key_val') not forming a proper
+** 'TValue' allows for a smaller size for 'Node' both in 4-byte
+** and 8-byte alignments.
+*/
+typedef union Node {
+  struct NodeKey {
+    TValuefields;  /* fields for value */
+    lu_byte key_tt;  /* key type */
+    int next;  /* for chaining */
+    Value key_val;  /* key value */
+  } u;
+  TValue i_val;  /* direct access to node's value as a proper 'TValue' */
+} Node;
 
 
-/* copy a value into a key without messing up field 'next' */
-#define setnodekey(L,key,obj) \
-	{ TKey *k_=(key); const TValue *io_=(obj); \
-	  k_->nk.value_ = io_->value_; k_->nk.tt_ = io_->tt_; \
+/* copy a value into a key */
+#define setnodekey(L,node,obj) \
+	{ Node *n_=(node); const TValue *io_=(obj); \
+	  n_->u.key_val = io_->value_; n_->u.key_tt = io_->tt_; \
 	  (void)L; checkliveness(L,io_); }
 
 
-typedef struct Node {
-  TValue i_val;
-  TKey i_key;
-} Node;
+/* copy a value from a key */
+#define getnodekey(L,obj,node) \
+	{ TValue *io_=(obj); const Node *n_=(node); \
+	  io_->value_ = n_->u.key_val; io_->tt_ = n_->u.key_tt; \
+	  (void)L; checkliveness(L,io_); }
+
 
 /** RAVI extension */
 typedef enum RaviArrayModifer {
@@ -595,6 +635,36 @@ typedef struct Table {
   unsigned int hmask; /* Hash part mask (size of hash part - 1) - borrowed from LuaJIT */
 #endif
 } Table;
+
+
+/*
+** Macros to manipulate keys inserted in nodes
+*/
+#define keytt(node)		((node)->u.key_tt)
+#define keyval(node)		((node)->u.key_val)
+
+#define keyisnil(node)		(keytt(node) == LUA_TNIL)
+#define keyisinteger(node)	(keytt(node) == LUA_TNUMINT)
+#define keyival(node)		(keyval(node).i)
+#define keyisshrstr(node)	(keytt(node) == ctb(LUA_TSHRSTR))
+#define keystrval(node)		(gco2ts(keyval(node).gc))
+
+#define setnilkey(node)		(keytt(node) = LUA_TNIL)
+
+#define keyiscollectable(n)	(keytt(n) & BIT_ISCOLLECTABLE)
+
+#define gckey(n)	(keyval(n).gc)
+#define gckeyN(n)	(keyiscollectable(n) ? gckey(n) : NULL)
+
+
+/*
+** Use a "nil table" to mark dead keys in a table. Those keys serve
+** only to keep space for removed entries, which may still be part of
+** chains. Note that the 'keytt' does not have the BIT_ISCOLLECTABLE
+** set, so these values are considered not collectable and are different
+** from any valid value.
+*/
+#define setdeadkey(n)	(keytt(n) = LUA_TTABLE, gckey(n) = NULL)
 
 
 

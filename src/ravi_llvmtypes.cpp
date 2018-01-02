@@ -168,15 +168,20 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(lua_NumberT);
   ValueT->setBody(elements);
 
-  // NOTE: Following structure changes when NaN tagging is enabled
+  // Create a synonym type with gc member
+  ValueGCT = llvm::StructType::create(context, "union.ValueGC");
+  elements.clear();
+  elements.push_back(pGCObjectT);
+  ValueGCT->setBody(elements);
+
   // struct TValue {
   //   union Value value_;
-  //   int tt_;
+  //   lu_byte tt_;
   // };
   TValueT = llvm::StructType::create(context, "struct.TValue");
   elements.clear();
   elements.push_back(ValueT);
-  elements.push_back(C_intT);
+  elements.push_back(lu_byteT);
   TValueT->setBody(elements);
   pTValueT = llvm::PointerType::get(TValueT, 0);
 
@@ -253,44 +258,14 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   ///*
   //** Description of an upvalue for function prototypes
   //*/
-  // typedef struct Upvaldesc {
-  //  TString *name;  /* upvalue name (for debug information) */
-  //  ravitype_t type;
-  //  lu_byte instack;  /* whether it is in stack */
-  //  lu_byte idx;  /* index of upvalue (in stack or in outer function's list)
-  //  */
-  //}Upvaldesc;
   UpvaldescT = llvm::StructType::create(context, "struct.Upvaldesc");
-  // FIXME (issue #136) this structure is changing hence better to keep it
-  // opaque
-  // elements.clear();
-  // elements.push_back(pTStringT);   /* name */
-  // elements.push_back(ravitype_tT); /* type */
-  // elements.push_back(lu_byteT);    /* instack */
-  // elements.push_back(lu_byteT);    /* idx */
-  // UpvaldescT->setBody(elements);
   pUpvaldescT = llvm::PointerType::get(UpvaldescT, 0);
 
   ///*
   //** Description of a local variable for function prototypes
   //** (used for debug information)
   //*/
-  // typedef struct LocVar {
-  //  TString *varname;
-  //  int startpc;  /* first point where variable is active */
-  //  int endpc;    /* first point where variable is dead */
-  //  ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown
-  //  */
-  //} LocVar;
   LocVarT = llvm::StructType::create(context, "struct.LocVar");
-  // FIXME (issue #136) this structure is changing hence better to keep it
-  // opaque
-  // elements.clear();
-  // elements.push_back(pTStringT);   /* varname */
-  // elements.push_back(C_intT);      /* startpc */
-  // elements.push_back(C_intT);      /* endpc */
-  // elements.push_back(ravitype_tT); /* ravi_type */
-  // LocVarT->setBody(elements);
   pLocVarT = llvm::PointerType::get(LocVarT, 0);
 
   LClosureT = llvm::StructType::create(context, "struct.LClosure");
@@ -333,6 +308,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  struct LClosure *cache;  /* last created closure with this prototype */
   //  TString  *source;  /* used for debug information */
   //  GCObject *gclist;
+  //  lu_byte cachemiss;  /* count for successive misses for 'cache' field */
   //  /* RAVI */
   //  RaviJITProto ravi_jit;
   //} Proto;
@@ -364,6 +340,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(pLClosureT);                        /* cache */
   elements.push_back(pTStringT);                         /* source */
   elements.push_back(pGCObjectT);                        /* gclist */
+  elements.push_back(lu_byteT);                          /* cachemiss */
   elements.push_back(RaviJITProtoT);                     /* ravi_jit */
   ProtoT->setBody(elements);
 
@@ -417,31 +394,20 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //** Tables
   //*/
 
-  // NOTE following structure changes when NaN Tagging is enabled
-
-  // typedef union TKey {
-  //  struct {
-  //    TValuefields;
-  //    int next;  /* for chaining (offset for next node) */
-  //  } nk;
-  //  TValue tvk;
-  //} TKey;
-  TKeyT = llvm::StructType::create(context, "struct.TKey");
-  elements.clear();
-  elements.push_back(ValueT);
-  elements.push_back(C_intT);
-  elements.push_back(C_intT); /* next */
-  TKeyT->setBody(elements);
-  pTKeyT = llvm::PointerType::get(TKeyT, 0);
-
-  // typedef struct Node {
-  // TValue i_val;
-  // TKey i_key;
-  //} Node;
+  // We ignore the union in Node definition
+  //struct NodeKey {
+  //	  TValuefields;  /* fields for value */
+  //	  lu_byte key_tt;  /* key type */
+  //	  int next;  /* for chaining */
+  //	  Value key_val;  /* key value */
+  //};
   NodeT = llvm::StructType::create(context, "struct.Node");
   elements.clear();
-  elements.push_back(TValueT); /* i_val */
-  elements.push_back(TKeyT);   /* i_key */
+  elements.push_back(ValueT);   /* Value fields */
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT); /* key_tt */
+  elements.push_back(C_intT);   /* next */
+  elements.push_back(ValueT);   /* key_val */
   NodeT->setBody(elements);
   pNodeT = llvm::PointerType::get(NodeT, 0);
 
@@ -692,20 +658,22 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_shortT);
   lua_StateT->setBody(elements);
 
-  // struct UpVal {
-  //  struct TValue *v;  /* points to stack or to its own value */
-  //  unsigned long long refcount;  /* reference counter */
-  //  union {
-  //    struct {  /* (when open) */
-  //      struct UpVal *next;  /* linked list */
-  //      int touched;  /* mark to avoid cycles with dead threads */
-  //    } open;
-  //    struct TValue value;  /* the value (when closed) */
-  //  } u;
-  //};
+  //typedef struct UpVal {
+  //	  CommonHeader;
+  //	  TValue *v;  /* points to stack or to its own value */
+  //	  union {
+  //		  struct {  /* (when open) */
+  //			  struct UpVal *next;  /* linked list */
+  //			  struct UpVal **previous;
+  //		  } open;
+  //		  TValue value;  /* the value (when closed) */
+  //	  } u;
+  //} UpVal;
   elements.clear();
+  elements.push_back(pGCObjectT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT);
   elements.push_back(pTValueT);
-  elements.push_back(C_size_t);
   elements.push_back(TValueT);
   UpValT->setBody(elements);
 
@@ -717,11 +685,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_intT);
   luaD_poscallT = llvm::FunctionType::get(C_intT, elements, false);
 
-  // void luaC_upvalbarrier_ (lua_State *L, UpVal *uv)
+  // void luaC_barrier_ (lua_State *L, GCObject *o, GCObject *v);
   elements.clear();
   elements.push_back(plua_StateT);
-  elements.push_back(pUpValT);
-  luaC_upvalbarrierT =
+  elements.push_back(pGCObjectT);
+  elements.push_back(pGCObjectT);
+  luaC_barrierT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
   // int luaD_precall (lua_State *L, StkId func, int nresults, int op_call);
@@ -1243,7 +1212,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   nodes.clear();
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 0));
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 8));
   tbaa_TValueT = mdbuilder.createTBAAStructTypeNode("TValue", nodes);
 
   tbaa_TValue_nT =
@@ -1251,18 +1220,20 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_TValue_hT =
       mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
   tbaa_TValue_ttT =
-      mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_intT, 8);
+      mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_charT, 8);
 
   tbaa_luaState_topT =
       mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_pointerT, 8);
 
   nodes.clear();
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 8));
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_TValueT, 16));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 9));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 16));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_TValueT, 24));
   tbaa_UpValT = mdbuilder.createTBAAStructTypeNode("UpVal", nodes);
   tbaa_UpVal_vT =
-      mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_pointerT, 0);
+	  mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_pointerT, 16);
 
   // RaviArray
   nodes.clear();
