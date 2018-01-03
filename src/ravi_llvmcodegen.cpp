@@ -122,6 +122,13 @@ void RaviCodeGenerator::attach_branch_weights(RaviFunctionDef *def,
 }
 
 llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, const char *name,
+	llvm::Value *s, int arg1) {
+	llvm::SmallVector<llvm::Value *, 1> values;
+	values.push_back(def->types->kInt[arg1]);
+	return def->builder->CreateInBoundsGEP(s, values, name);
+}
+
+llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, const char *name,
                                          llvm::Value *s, int arg1, int arg2) {
   llvm::SmallVector<llvm::Value *, 2> values;
   values.push_back(def->types->kInt[arg1]);
@@ -397,7 +404,7 @@ llvm::Value *RaviCodeGenerator::emit_table_get_nodearray(RaviFunctionDef *def,
 llvm::Value *RaviCodeGenerator::emit_table_get_keytype(RaviFunctionDef *def,
                                                        llvm::Value *node,
                                                        llvm::Value *index) {
-  llvm::Value *ktype_ptr = emit_gep(def, "keytype", node, index, 0, 2);
+  llvm::Value *ktype_ptr = emit_gep(def, "keytype", node, index, 2);
   llvm::Instruction *ktype = def->builder->CreateLoad(ktype_ptr);
   ktype->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
   return ktype;
@@ -409,7 +416,7 @@ llvm::Value *RaviCodeGenerator::emit_table_get_keytype(RaviFunctionDef *def,
 llvm::Value *RaviCodeGenerator::emit_table_get_strkey(RaviFunctionDef *def,
                                                       llvm::Value *node,
                                                       llvm::Value *index) {
-  llvm::Value *value_ptr = emit_gep(def, "keyvalue", node, index, 1, 4);
+  llvm::Value *value_ptr = emit_gep(def, "keyvalue", node, index, 4);
   llvm::Value *sptr =
       def->builder->CreateBitCast(value_ptr, def->types->ppTStringT);
   llvm::Instruction *keyvalue = def->builder->CreateLoad(sptr);
@@ -535,7 +542,7 @@ void RaviCodeGenerator::emit_store_type_(RaviFunctionDef *def,
              type == LUA_TBOOLEAN || type == LUA_TNIL);
   llvm::Value *desttype = emit_gep(def, "dest.tt", value, 0, 1);
   llvm::Instruction *store =
-      def->builder->CreateStore(def->types->kInt[type], desttype);
+      def->builder->CreateStore(def->types->kByte[type], desttype);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
 }
 
@@ -551,14 +558,14 @@ llvm::Value *RaviCodeGenerator::emit_is_value_of_type(RaviFunctionDef *def,
                                                       llvm::Value *value_type,
                                                       LuaTypeCode lua_type,
                                                       const char *varname) {
-  return def->builder->CreateICmpEQ(value_type, def->types->kInt[int(lua_type)],
+  return def->builder->CreateICmpEQ(value_type, def->types->kByte[int(lua_type)],
                                     varname);
 }
 
 llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type(
     RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_type,
     const char *varname) {
-  return def->builder->CreateICmpNE(value_type, def->types->kInt[int(lua_type)],
+  return def->builder->CreateICmpNE(value_type, def->types->kByte[int(lua_type)],
                                     varname);
 }
 
@@ -567,9 +574,9 @@ llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type_class(
     RaviFunctionDef *def, llvm::Value *value_type, int lua_type,
     const char *varname) {
   llvm::Value *novariant_type =
-      def->builder->CreateAnd(value_type, def->types->kInt[0x0F]);
+      def->builder->CreateAnd(value_type, def->types->kByte[0x0F]);
   return def->builder->CreateICmpNE(novariant_type,
-                                    def->types->kInt[int(lua_type)], varname);
+                                    def->types->kByte[int(lua_type)], varname);
 }
 
 llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(
@@ -720,28 +727,29 @@ void RaviCodeGenerator::emit_GC_barrier(RaviFunctionDef *def,
   // is ra collectible?
   llvm::Value *type = emit_load_type(def, ra);
   llvm::Value *is_collectible =
-      def->builder->CreateAnd(type, def->types->kInt[BIT_ISCOLLECTABLE]);
+      def->builder->CreateAnd(type, def->types->kByte[BIT_ISCOLLECTABLE]);
 
   llvm::Value *upval_marked_ptr = emit_gep(def, "o_marked_ptr", upval, 0, 2);
   llvm::Value *upval_marked =
       def->builder->CreateLoad(upval_marked_ptr, "o_marked");
   llvm::Value *is_black = def->builder->CreateAnd(
-      upval_marked, def->types->kInt[bitmask(BLACKBIT)]);
+      upval_marked, def->types->kByte[bitmask(BLACKBIT)]);
 
-  llvm::Value *gcobj_ptr = emit_gep(def, "v_gcobj_ptr", ra, 0, 0, 0);
+  llvm::Value *valuegc = def->builder->CreateBitCast(ra, def->types->pTValueGCT, "value_gc");
+  llvm::Value *gcobj_ptr = emit_gep(def, "v_gcobj_ptr", valuegc, 0, 0);
   llvm::Value *gcobj = def->builder->CreateLoad(gcobj_ptr, "v_gcobj");
   llvm::Value *marked3_ptr = emit_gep(def, "marked3", gcobj, 0, 2);
   llvm::Value *marked3 = def->builder->CreateLoad(marked3_ptr, "marked3");
   llvm::Value *is_white =
-      def->builder->CreateAnd(marked3, def->types->kInt[WHITEBITS]);
+      def->builder->CreateAnd(marked3, def->types->kByte[WHITEBITS]);
 
   llvm::Value *cmp1 = def->builder->CreateICmpNE(
-      is_collectible, def->types->kInt[0], "tobool1");
+      is_collectible, def->types->kByte[0], "tobool1");
   llvm::Value *cmp2 =
-      def->builder->CreateICmpNE(is_black, def->types->kInt[0], "tobool2");
+      def->builder->CreateICmpNE(is_black, def->types->kByte[0], "tobool2");
   llvm::Value *and1 = def->builder->CreateAnd(cmp1, cmp2);
   llvm::Value *cmp3 =
-      def->builder->CreateICmpNE(is_white, def->types->kInt[0], "tobool3");
+      def->builder->CreateICmpNE(is_white, def->types->kByte[0], "tobool3");
   llvm::Value *and2 = def->builder->CreateAnd(and1, cmp3);
 
   llvm::BasicBlock *then =

@@ -168,7 +168,8 @@ struct LuaLLVMTypes {
   llvm::PointerType *pGCObjectT;
 
   llvm::StructType *ValueT;
-  llvm::StructType *ValueGCT;
+  llvm::StructType *TValueGCT;
+  llvm::PointerType *pTValueGCT;
   llvm::StructType *TValueT;
   llvm::PointerType *pTValueT;
   llvm::StructType *TStringT;
@@ -294,7 +295,7 @@ struct LuaLLVMTypes {
 
   std::array<llvm::Constant *, 256> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
-  std::array<llvm::Constant *, 10> kByte;
+  std::array<llvm::Constant *, 256> kByte;
 
   llvm::Constant *kFalse;
 
@@ -394,8 +395,8 @@ class RaviJITState {
   // all the IR in modules get released after compilation
   // MCJIT is also likely to be removed at some time in
   // future so we needed to migrate anyway
-  // We don't use ORC apis in earlier versions because 
-  // the apis have changed over the releases so it 
+  // We don't use ORC apis in earlier versions because
+  // the apis have changed over the releases so it
   // is simpler to use them in 5.0 and above.
   // The ORC usage here is heavily based upon the kaleidoscope
   // sample, with some adjustments.
@@ -434,7 +435,7 @@ class RaviJITState {
 
   // Size level (LLVM PassManagerBuilder)
   unsigned int size_level_ : 2;
-  
+
   // Verbosity
   unsigned int verbosity_ : 3;
 
@@ -445,7 +446,7 @@ class RaviJITState {
   // Enable extra validation such as IR verification
   // May slow down compilation
   unsigned int validation_ : 1;
-  
+
   // Flag to control calls to collect
   int gcstep_;
 
@@ -458,7 +459,7 @@ class RaviJITState {
   // Count of modules allocated
   // Used to debug module deallocation
   size_t allocated_modules_;
-  
+
   // flag to help avoid recursion
   bool compiling_;
 
@@ -507,9 +508,7 @@ class RaviJITState {
   int get_validation() const { return validation_; }
   void set_validation(bool value) { validation_ = value; }
   int get_gcstep() const { return gcstep_; }
-  void set_gcstep(int value) {
-    gcstep_ = value > 0 ? value : gcstep_;
-  }
+  void set_gcstep(int value) { gcstep_ = value > 0 ? value : gcstep_; }
   bool is_tracehook_enabled() const { return tracehook_enabled_; }
   void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
   void incr_allocated_modules() { allocated_modules_++; }
@@ -558,7 +557,7 @@ class RaviJITModule {
   llvm::Module *module() const { return module_; }
   llvm::ExecutionEngine *engine() const { return engine_; }
 #else
-  // Note that this can return nullptr 
+  // Note that this can return nullptr
   llvm::Module *module() const { return module_.get(); }
 #endif
   RaviJITState *owner() const { return owner_; }
@@ -904,8 +903,9 @@ class RaviCodeGenerator {
   llvm::Instruction *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def);
 
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
+                        int arg1);
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
                         int arg1, int arg2);
-
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
                         int arg1, int arg2, int arg3);
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name,
@@ -1262,7 +1262,8 @@ class RaviCodeGenerator {
 
   void emit_SETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_GC_barrier(RaviFunctionDef *def, llvm::Value *upval, llvm::Value *v);
+  void emit_GC_barrier(RaviFunctionDef *def, llvm::Value *upval,
+                       llvm::Value *v);
 
   void emit_SETUPVAL_Specific(RaviFunctionDef *def, int A, int B, int pc,
                               OpCode op, llvm::Function *f);

@@ -169,10 +169,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   ValueT->setBody(elements);
 
   // Create a synonym type with gc member
-  ValueGCT = llvm::StructType::create(context, "union.ValueGC");
+  TValueGCT = llvm::StructType::create(context, "union.ValueGC");
   elements.clear();
   elements.push_back(pGCObjectT);
-  ValueGCT->setBody(elements);
+  TValueGCT->setBody(elements);
+  pTValueGCT = llvm::PointerType::get(TValueGCT, 0);
 
   // struct TValue {
   //   union Value value_;
