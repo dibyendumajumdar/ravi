@@ -46,18 +46,19 @@ entry:
   %tobool6 = icmp ne i8 %4, 0
   %or.cond = and i1 %tobool, %tobool6
   %tobool8 = icmp ne i8 %7, 0
-  %or.cond9 = and i1 %or.cond, %tobool8
-  br i1 %or.cond9, label %if.then, label %if.end
+  %or.cond11 = and i1 %or.cond, %tobool8
+  br i1 %or.cond11, label %if.then, label %if.end
 
 if.then:                                          ; preds = %entry
-  tail call void @luaC_upvalbarrier_(%struct.lua_State* %L, %struct.UpVal* %0) #2
+  %8 = bitcast %struct.UpVal* %0 to %struct.GCObject*
+  tail call void @luaC_upvalbarrier_(%struct.lua_State* %L, %struct.GCObject* %8, %struct.GCObject* %5) #2
   br label %if.end
 
 if.end:                                           ; preds = %if.then, %entry
   ret void
 }
 
-declare void @luaC_upvalbarrier_(%struct.lua_State*, %struct.UpVal*) local_unnamed_addr #1
+declare void @luaC_upvalbarrier_(%struct.lua_State*, %struct.GCObject*, %struct.GCObject*) local_unnamed_addr #1
 
 attributes #0 = { nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-features"="+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-features"="+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }

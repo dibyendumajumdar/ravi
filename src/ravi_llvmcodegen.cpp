@@ -425,8 +425,7 @@ llvm::Value *RaviCodeGenerator::emit_table_get_value(RaviFunctionDef *def,
                                                      llvm::Value *index) {
   llvm::Value *value = emit_gep(def, "nodeval", node, index, 0);
   // We need to cast it to TValue *
-  llvm::Value *ptr =
-	  def->builder->CreateBitCast(value, def->types->pTValueT);
+  llvm::Value *ptr = def->builder->CreateBitCast(value, def->types->pTValueT);
   return ptr;
 }
 
@@ -711,46 +710,52 @@ llvm::Value *RaviCodeGenerator::emit_ci_is_Lua(RaviFunctionDef *def,
 
 // FIXME below is broken
 void RaviCodeGenerator::emit_GC_barrier(RaviFunctionDef *def,
-                                             llvm::Value *upval,
-                                             llvm::Value *ra) {
- //Goal is to generate:
- //int ra_iscollectable = iscollectable(ra);
- //int uv_isblack = isblack(uv);
- //int rav_iswhite = iswhite(gcvalue(ra));
- //if (ra_iscollectable && uv_isblack && rav_iswhite)
- //  luaC_barrier_(L, uv, ra);
+                                        llvm::Value *upval, llvm::Value *ra) {
+  // int ra_iscollectable = iscollectable(ra);
+  // int uv_isblack = isblack(uv);
+  // int rav_iswhite = iswhite(gcvalue(ra));
+  // if (ra_iscollectable && uv_isblack && rav_iswhite)
+  //  luaC_barrier_(L, (GCObject *)uv, ra->value_.gc);
 
- // is ra collectible?
+  // is ra collectible?
   llvm::Value *type = emit_load_type(def, ra);
   llvm::Value *is_collectible =
-   def->builder->CreateAnd(type, def->types->kInt[BIT_ISCOLLECTABLE]);
+      def->builder->CreateAnd(type, def->types->kInt[BIT_ISCOLLECTABLE]);
 
   llvm::Value *upval_marked_ptr = emit_gep(def, "o_marked_ptr", upval, 0, 2);
-  llvm::Value *upval_marked = def->builder->CreateLoad(upval_marked_ptr, "o_marked");
-  llvm::Value *is_black = def->builder->CreateAnd(upval_marked, def->types->kInt[bitmask(BLACKBIT)]);
+  llvm::Value *upval_marked =
+      def->builder->CreateLoad(upval_marked_ptr, "o_marked");
+  llvm::Value *is_black = def->builder->CreateAnd(
+      upval_marked, def->types->kInt[bitmask(BLACKBIT)]);
 
   llvm::Value *gcobj_ptr = emit_gep(def, "v_gcobj_ptr", ra, 0, 0, 0);
   llvm::Value *gcobj = def->builder->CreateLoad(gcobj_ptr, "v_gcobj");
   llvm::Value *marked3_ptr = emit_gep(def, "marked3", gcobj, 0, 2);
   llvm::Value *marked3 = def->builder->CreateLoad(marked3_ptr, "marked3");
-  llvm::Value *is_white = def->builder->CreateAnd(marked3, def->types->kInt[WHITEBITS]);
+  llvm::Value *is_white =
+      def->builder->CreateAnd(marked3, def->types->kInt[WHITEBITS]);
 
-  llvm::Value *cmp1 = def->builder->CreateICmpNE(is_collectible, def->types->kInt[0], "tobool1");
-  llvm::Value *cmp2 = def->builder->CreateICmpNE(is_black, def->types->kInt[0], "tobool2");
+  llvm::Value *cmp1 = def->builder->CreateICmpNE(
+      is_collectible, def->types->kInt[0], "tobool1");
+  llvm::Value *cmp2 =
+      def->builder->CreateICmpNE(is_black, def->types->kInt[0], "tobool2");
   llvm::Value *and1 = def->builder->CreateAnd(cmp1, cmp2);
-  llvm::Value *cmp3 = def->builder->CreateICmpNE(is_white, def->types->kInt[0], "tobool3");
+  llvm::Value *cmp3 =
+      def->builder->CreateICmpNE(is_white, def->types->kInt[0], "tobool3");
   llvm::Value *and2 = def->builder->CreateAnd(and1, cmp3);
 
   llvm::BasicBlock *then =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
+      llvm::BasicBlock::Create(def->jitState->context(), "if.then", def->f);
   llvm::BasicBlock *end =
-    llvm::BasicBlock::Create(def->jitState->context(), "if.end");
+      llvm::BasicBlock::Create(def->jitState->context(), "if.end");
 
   def->builder->CreateCondBr(and2, then, end);
   def->builder->SetInsertPoint(then);
 
   // FIXME
-  CreateCall3(def->builder, def->luaC_barrierF, def->L, def->builder->CreateBitCast(upval, def->types->pGCObjectT), gcobj_ptr);
+  CreateCall3(def->builder, def->luaC_barrierF, def->L,
+              def->builder->CreateBitCast(upval, def->types->pGCObjectT),
+              gcobj);
   def->builder->CreateBr(end);
 
   def->f->getBasicBlockList().push_back(end);
@@ -1140,8 +1145,8 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       def->types->luaV_objlenT, reinterpret_cast<void *>(&luaV_objlen),
       "luaV_objlen");
   def->luaC_barrierF = def->raviF->addExternFunction(
-      def->types->luaC_barrierT,
-      reinterpret_cast<void *>(&luaC_barrier_), "luaC_barrier_");
+      def->types->luaC_barrierT, reinterpret_cast<void *>(&luaC_barrier_),
+      "luaC_barrier_");
   def->raviV_op_concatF = def->raviF->addExternFunction(
       def->types->raviV_op_concatT, reinterpret_cast<void *>(&raviV_op_concat),
       "raviV_op_concat");
