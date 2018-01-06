@@ -91,6 +91,7 @@ typedef struct CallInfo {
   unsigned short callstatus;
   unsigned short stacklevel; /* RAVI extension - stack level, bottom level is 0 */
   lu_byte jitstatus; /* RAVI extension: Only valid if Lua function - if 1 means JITed - RAVI extension */
+  lu_byte magic;
 } CallInfo;
 
 
@@ -208,6 +209,7 @@ struct lua_State {
    ** pending 
    */  
   unsigned short nci;  /* number of items in 'ci' list */
+  lu_byte magic;
 };
 
 

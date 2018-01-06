@@ -377,6 +377,8 @@ static int moveresults (lua_State *L, const TValue *firstResult, StkId res,
 */
 int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres) {
   StkId res;
+  lua_assert(L->magic == 42);
+  lua_assert(ci->magic == 42);
   int wanted = ci->nresults;
   if (L->hookmask & (LUA_MASKRET | LUA_MASKLINE)) {
     if (L->hookmask & LUA_MASKRET) {
