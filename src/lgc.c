@@ -692,10 +692,10 @@ static void clearkeys (global_State *g, GCObject *l) {
     Table *h = gco2t(l);
     Node *n, *limit = gnodelast(h);
     for (n = gnode(h, 0); n < limit; n++) {
-      if (!ttisnil(gval(n)) && (iscleared(g, gckeyN(n)))) {
-        setnilvalue(gval(n));  /* remove value ... */
-        removeentry(n);  /* and remove entry from table */
-      }
+      if (!ttisnil(gval(n)) && (iscleared(g, gckeyN(n))))  /* unmarked key? */
+        setnilvalue(gval(n));  /* clear value */
+      if (ttisnil(gval(n)))  /* is entry empty? */
+        removeentry(n);  /* remove it from table */
     }
   }
 }
@@ -716,10 +716,10 @@ static void clearvalues (global_State *g, GCObject *l, GCObject *f) {
         setnilvalue(o);  /* remove value */
     }
     for (n = gnode(h, 0); n < limit; n++) {
-      if (iscleared(g, gcvalueN(gval(n)))) {
-        setnilvalue(gval(n));  /* remove value ... */
-        removeentry(n);  /* and remove entry from table */
-      }
+      if (iscleared(g, gcvalueN(gval(n))))  /* unmarked value? */
+        setnilvalue(gval(n));  /* clear value */
+      if (ttisnil(gval(n)))  /* is entry empty? */
+        removeentry(n);  /* remove it from table */
     }
   }
 }
