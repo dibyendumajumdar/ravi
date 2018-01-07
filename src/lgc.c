@@ -1508,12 +1508,12 @@ static void incstep (lua_State *L, global_State *g) {
 */
 void luaC_step (lua_State *L) {
   global_State *g = G(L);
-  if (!g->gcrunning)  /* not running? */
-    luaE_setdebt(g, -MAX_LMEM);  /* avoid being called without need */
-  else if (g->gckind == KGC_INC)
-    incstep(L, g);
-  else
-    genstep(L, g);
+  if (g->gcrunning) {  /* running? */
+    if (g->gckind == KGC_INC)
+      incstep(L, g);
+    else
+      genstep(L, g);
+  }
 }
 
 
