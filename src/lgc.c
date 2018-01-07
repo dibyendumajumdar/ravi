@@ -1075,6 +1075,8 @@ static GCObject **correctgraylist (GCObject **p) {
   GCObject *curr;
   while ((curr = *p) != NULL) {
     switch (curr->tt) {
+      case RAVI_TIARRAY:
+      case RAVI_TFARRAY:
       case LUA_TTABLE: {
         Table *h = gco2t(curr);
         if (getage(h) == G_TOUCHED1) {  /* touched in this cycle? */
