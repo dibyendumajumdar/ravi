@@ -119,10 +119,20 @@
 
 /* Default Values for GC parameters */
 #define LUAI_GENMAJORMUL         100
-#define LUAI_GENMINORMUL         5
+#define LUAI_GENMINORMUL         12
 
-#define LUAI_GCPAUSE    100     /* 100% */
-#define LUAI_GCMUL      10
+/* wait memory to double before starting new cycle */
+#define LUAI_GCPAUSE    200     /* 200% */
+
+/*
+** gc parameters ae stored divided by 4 to allow a maximum value larger
+** than 1000 in an 'lu_byte'.
+*/
+
+#define getgcparam(p)	((p) * 4)
+#define setgcparam(p,v)	((p) = (v) / 4)
+
+#define LUAI_GCMUL      100
 /* how much to allocate before next GC step (log2) */
 #define LUAI_GCSTEPSIZE 13      /* 8 KB */
 

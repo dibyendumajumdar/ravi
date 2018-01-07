@@ -369,9 +369,11 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   g->twups = NULL;
   g->totalbytes = sizeof(LG);
   g->GCdebt = 0;
-  g->gcpause = LUAI_GCPAUSE;
-  g->gcstepmul = LUAI_GCMUL;
+  setgcparam(g->gcpause, LUAI_GCPAUSE);
+  setgcparam(g->gcstepmul, LUAI_GCMUL);
   g->gcstepsize = LUAI_GCSTEPSIZE;
+  setgcparam(g->genmajormul, LUAI_GENMAJORMUL);
+  g->genminormul = LUAI_GENMINORMUL;
   g->ravi_state = NULL;
   for (i=0; i < LUA_NUMTAGS; i++) g->mt[i] = NULL;
   raviV_initjit(L);
