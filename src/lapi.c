@@ -1656,8 +1656,10 @@ LUA_API void lua_upvaluejoin (lua_State *L, int fidx1, int n1,
   ravitype_t t1, t2;
   UpVal **up1 = getupvalref(L, fidx1, n1, &f1, &t1);
   UpVal **up2 = getupvalref(L, fidx2, n2, NULL, &t2);
-  *up1 = *up2;
-  luaC_objbarrier(L, f1, *up1);
+  if (t1 == t2) {
+    *up1 = *up2;
+    luaC_objbarrier(L, f1, *up1);
+  }
 }
 
 /* API to set the output functions used by Lua / Ravi
