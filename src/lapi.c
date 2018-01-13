@@ -194,6 +194,8 @@ LUA_API void lua_settop (lua_State *L, int idx) {
 /*
 ** Reverse the stack segment from 'from' to 'to'
 ** (auxiliary to 'lua_rotate')
+** Note that we move(copy) only the value inside the stack.
+** (We do not move additional fields that may exist.)
 */
 static void reverse (lua_State *L, StkId from, StkId to) {
   for (; from < to; from++, to--) {
@@ -571,6 +573,7 @@ LUA_API void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n) {
   lua_lock(L);
   if (n == 0) {
     setfvalue(L->top, fn);
+    api_incr_top(L);
   }
   else {
     CClosure *cl;
@@ -586,9 +589,9 @@ LUA_API void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n) {
       /* does not need barrier because closure is white */
     }
     setclCvalue(L, L->top, cl);
+    api_incr_top(L);
+    luaC_checkGC(L);
   }
-  api_incr_top(L);
-  luaC_checkGC(L);
   lua_unlock(L);
 }
 
@@ -1541,7 +1544,7 @@ LUA_API void *lua_newuserdata (lua_State *L, size_t size) {
 
 
 static const char *aux_upvalue (StkId fi, int n, TValue **val,
-                                GCObject **owner, UpVal **uv, ravitype_t *type) {
+                                GCObject **owner, ravitype_t *type) {
   *type = RAVI_TANY;
   switch (ttype(fi)) {
     case LUA_TCCL: {  /* C closure */
@@ -1572,7 +1575,7 @@ LUA_API const char *lua_getupvalue (lua_State *L, int funcindex, int n) {
   ravitype_t type;
   TValue *val = NULL;  /* to avoid warnings */
   lua_lock(L);
-  name = aux_upvalue(index2addr(L, funcindex), n, &val, NULL, NULL, &type);
+  name = aux_upvalue(index2addr(L, funcindex), n, &val, NULL, &type);
   if (name) {
     setobj2s(L, L->top, val);
     api_incr_top(L);
@@ -1586,13 +1589,12 @@ LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
   const char *name;
   TValue *val = NULL;  /* to avoid warnings */
   GCObject *owner = NULL;  /* to avoid warnings */
-  UpVal *uv = NULL;
   StkId fi;
   ravitype_t type; /* RAVI upvalue type will be obtained if possible */
   lua_lock(L);
   fi = index2addr(L, funcindex);
   api_checknelems(L, 1);
-  name = aux_upvalue(fi, n, &val, &owner, &uv, &type);
+  name = aux_upvalue(fi, n, &val, &owner, &type);
   if (name) {
     /* RAVI extension
     ** We need to ensure that this function does

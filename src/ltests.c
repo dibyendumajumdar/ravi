@@ -105,7 +105,7 @@ typedef union Header {
 
 
 static Memcontrol l_memcontrol =
-  {0L, 0L, 0L, 0L, {0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L}};
+  {0L, 0L, 0L, 0L, (~0L), {0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L}};
 
 LUA_API Memcontrol* luaB_getmemcontrol(void) {
   return &l_memcontrol;
@@ -147,7 +147,12 @@ LUA_API void *debug_realloc (void *ud, void *b, size_t oldsize, size_t size) {
     freeblock(mc, block);
     return NULL;
   }
-  else if (size > oldsize && mc->total+size-oldsize > mc->memlimit)
+  if (mc->countlimit != ~0UL && size > 0) {  /* count limit in use? */
+    if (mc->countlimit == 0)
+      return NULL;  /* fake a memory allocation error */
+    mc->countlimit--;
+  }
+  if (size > oldsize && mc->total+size-oldsize > mc->memlimit)
     return NULL;  /* fake a memory allocation error */
   else {
     Header *newblock;
@@ -598,6 +603,22 @@ static int listcode (lua_State *L) {
 }
 
 
+static int printcode (lua_State *L) {
+  int pc;
+  Proto *p;
+  luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
+                 1, "Lua function expected");
+  p = getproto(obj_at(L, 1));
+  printf("maxstack: %d\n", p->maxstacksize);
+  printf("numparams: %d\n", p->numparams);
+  for (pc=0; pc<p->sizecode; pc++) {
+    char buff[100];
+    printf("%d\t%s\n", pc + 1, buildop(p, pc, buff));
+  }
+  return 0;
+}
+
+
 static int listk (lua_State *L) {
   Proto *p;
   int i;
@@ -681,6 +702,15 @@ static int mem_query (lua_State *L) {
   }
 }
 
+
+static int alloc_count (lua_State *L) {
+  if (lua_isnone(L, 1))
+    l_memcontrol.countlimit = ~0L;
+  else
+    l_memcontrol.countlimit = luaL_checkinteger(L, 1);
+  return 0;
+}
+  
 
 static int settrick (lua_State *L) {
   if (ttisnil(obj_at(L, 1)))
@@ -786,8 +816,10 @@ static int stacklevel (lua_State *L) {
   unsigned long a = 0;
   lua_pushinteger(L, (L->top - L->stack));
   lua_pushinteger(L, (L->stack_last - L->stack));
-  lua_pushinteger(L, (intptr_t)&a);
-  return 3;
+  lua_pushinteger(L, L->nCcalls);
+  lua_pushinteger(L, L->nci);
+  lua_pushinteger(L, (unsigned long)&a);
+  return 5;
 }
 
 
@@ -972,6 +1004,7 @@ static int loadlib (lua_State *L) {
     {"math", luaopen_math},
     {"string", luaopen_string},
     {"table", luaopen_table},
+    {"T", luaB_opentests},
     {NULL, NULL}
   };
   lua_State *L1 = getstate(L);
@@ -1226,6 +1259,10 @@ static int runC (lua_State *L, lua_State *L1, const char *pc) {
         msg = NULL;  /* to test 'luaL_checkstack' with no message */
       luaL_checkstack(L1, sz, msg);
     }
+    else if EQ("rawcheckstack") {
+      int sz = getnum;
+      lua_pushboolean(L1, lua_checkstack(L1, sz));
+    }
     else if EQ("compare") {
       const char *opt = getstring;  /* EQ, LT, or LE */
       int op = (opt[0] == 'E') ? LUA_OPEQ
@@ -1343,13 +1380,17 @@ static int runC (lua_State *L, lua_State *L1, const char *pc) {
     else if EQ("pop") {
       lua_pop(L1, getnum);
     }
-    else if EQ("print") {
+    else if EQ("printstack") {
       int n = getnum;
       if (n != 0) {
         printf("%s\n", luaL_tolstring(L1, n, NULL));
         lua_pop(L1, 1);
       }
       else printstack(L1);
+    }
+    else if EQ("print") {
+      const char *msg = getstring;
+      printf("%s\n", msg);
     }
     else if EQ("pushbool") {
       lua_pushboolean(L1, getnum);
@@ -1404,8 +1445,17 @@ static int runC (lua_State *L, lua_State *L1, const char *pc) {
       int n = getnum;
       if (L1 != L) {
         int i;
-        for (i = 0; i < n; i++)
-          lua_pushstring(L, lua_tostring(L1, -(n - i)));
+        for (i = 0; i < n; i++) {
+          int idx = -(n - i);
+          switch (lua_type(L1, idx)) {
+            case LUA_TBOOLEAN:
+              lua_pushboolean(L, lua_toboolean(L1, idx));
+              break;
+            default:
+              lua_pushstring(L, lua_tostring(L1, idx));
+              break;
+          }
+        }
       }
       return n;
     }
@@ -1638,6 +1688,7 @@ static const struct luaL_Reg tests_funcs[] = {
   {"log2", log2_aux},
   {"limits", get_limits},
   {"listcode", listcode},
+  {"printcode", printcode},
   {"listk", listk},
   {"listlocals", listlocals},
   {"loadlib", loadlib},
@@ -1656,6 +1707,7 @@ static const struct luaL_Reg tests_funcs[] = {
   {"testC", testC},
   {"makeCfunc", makeCfunc},
   {"totalmem", mem_query},
+  {"alloccount", alloc_count},
   {"trick", settrick},
   {"udataval", udataval},
   {"unref", unref},

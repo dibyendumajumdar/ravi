@@ -8,6 +8,7 @@
 #define ltests_h
 
 
+#include <stdio.h>
 #include <stdlib.h>
 
 /* test Lua with no compatibility code */
@@ -31,6 +32,7 @@
 #undef NDEBUG
 #include <assert.h>
 #define lua_assert(c)           assert(c)
+
 
 #if !defined(RAVI_OPTION_STRING1)
 #define RAVI_OPTION_STRING1 " assertions"
@@ -57,6 +59,7 @@ typedef struct Memcontrol {
   unsigned long total;
   unsigned long maxmem;
   unsigned long memlimit;
+  unsigned long countlimit;
   unsigned long objcount[LUA_NUMTAGS];
 } Memcontrol;
 

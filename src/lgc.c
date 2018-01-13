@@ -9,7 +9,7 @@
 
 #include "lprefix.h"
 
-
+#include <stdio.h>
 #include <string.h>
 
 #include "lua.h"
@@ -47,9 +47,9 @@
 
 /*
 ** The equivalent, in bytes, of one unit of "work" (visiting a slot,
-** sweeping an object, etc.) * 10 (for scaling)
+** sweeping an object, etc.)
 */
-#define WORK2MEM	(sizeof(TValue) * 10)
+#define WORK2MEM	sizeof(TValue)
 
 
 /*
@@ -117,7 +117,8 @@ static lu_mem atomic (lua_State *L);
 
 
 /*
-** If key is not marked, mark its entry as dead. This allows the
+** Clear keys for empty entries in tables. If entry is empty
+** and its key is not marked, mark its entry as dead. This allows the
 ** collection of the key, but keeps its entry in the table (its removal
 ** could break a chain). Other places never manipulate dead keys,
 ** because its associated nil value is enough to signal that the entry
@@ -508,7 +509,7 @@ static lu_mem traversetable (global_State *g, Table *h) {
 ** mode, check the generational invariant. If the cache is old,
 ** everything is ok. If the prototype is 'old0', everything
 ** is ok too. (It will naturally be visited again.) If the
-** prototype is older than 'old0', then its cache (whith is new)
+** prototype is older than 'old0', then its cache (which is new)
 ** must be visited again in the next collection, so the prototype
 ** goes to the 'protogray' list. (If the prototype has a cache,
 ** it is already immutable and does not need other barriers;
@@ -570,6 +571,11 @@ static int traverseLclosure (global_State *g, LClosure *cl) {
 }
 
 
+/*
+** Traverse a thread, marking the elements in the stack up to its top
+** and cleaning the rest of the stack in the final traversal.
+** That ensures that the entire stack have valid (non-dead) objects.
+*/
 static int traversethread (global_State *g, lua_State *th) {
   StkId o = th->stack;
   if (o == NULL)
@@ -820,14 +826,14 @@ static GCObject **sweeptolive (lua_State *L, GCObject **p) {
 */
 
 /*
-** If possible, shrink string table
+** If possible, shrink string table.
 */
 static void checkSizes (lua_State *L, global_State *g) {
   if (!g->gcemergency) {
     l_mem olddebt = g->GCdebt;
     if (g->strt.nuse < g->strt.size / 4)  /* string table too big? */
-      luaS_resize(L, g->strt.size / 2);  /* shrink it a little */
-    g->GCestimate += g->GCdebt - olddebt;  /* update estimate */
+      luaS_resize(L, g->strt.size / 2);
+    g->GCestimate += g->GCdebt - olddebt;  /* correct estimate */
   }
 }
 
@@ -1201,7 +1207,7 @@ static void entergen (lua_State *L, global_State *g) {
   luaC_runtilstate(L, bitmask(GCSpause));  /* prepare to start a new cycle */
   luaC_runtilstate(L, bitmask(GCSpropagate));  /* start new cycle */
   atomic(L);
-  /* sweep all ellements making them old */
+  /* sweep all elements making them old */
   sweep2old(L, &g->allgc);
   /* everything alive now is old */
   g->reallyold = g->old = g->survival = g->allgc;
@@ -1276,7 +1282,7 @@ static void genstep (lua_State *L, global_State *g) {
     lu_mem mem;
     youngcollection(L, g);
     mem = gettotalbytes(g);
-    luaE_setdebt(g, -((mem / 100) * g->genminormul));
+    luaE_setdebt(g, -(cast(l_mem, (mem / 100)) * g->genminormul));
     g->GCestimate = majorbase;  /* preserve base value */
   }
 }
@@ -1293,7 +1299,7 @@ static void genstep (lua_State *L, global_State *g) {
 
 /*
 ** Set the "time" to wait before starting a new GC cycle; cycle will
-** start when memory use hits the threshold of ('estimate' * gcpause /
+** start when memory use hits the threshold of ('estimate' * pause /
 ** PAUSEADJ). (Division by 'estimate' should be OK: it cannot be zero,
 ** because Lua cannot even start with less than PAUSEADJ bytes).
 */
@@ -1490,9 +1496,8 @@ static void incstep (lua_State *L, global_State *g) {
   int stepmul = (getgcparam(g->gcstepmul) | 1);  /* avoid division by 0 */
   l_mem debt = (g->GCdebt / WORK2MEM) * stepmul;
   l_mem stepsize = (g->gcstepsize <= log2maxs(l_mem))
-                   ? ((cast(l_mem, 1) << g->gcstepsize) / WORK2MEM) * stepmul
-                   : MAX_LMEM;  /* overflow; keep maximum value */
-  stepsize = -((stepsize / WORK2MEM) * stepmul);
+                 ? ((cast(l_mem, 1) << g->gcstepsize) / WORK2MEM) * stepmul
+                 : MAX_LMEM;  /* overflow; keep maximum value */
   do {  /* repeat until pause or enough "credit" (negative debt) */
     lu_mem work = singlestep(L);  /* perform one single step */
     debt -= work;
