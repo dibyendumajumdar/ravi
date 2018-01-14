@@ -461,7 +461,7 @@ class RaviJITState {
   size_t allocated_modules_;
 
   // flag to help avoid recursion
-  bool compiling_;
+  int compiling_;
 
  public:
   RaviJITState();
@@ -514,8 +514,13 @@ class RaviJITState {
   void incr_allocated_modules() { allocated_modules_++; }
   void decr_allocated_modules() { allocated_modules_--; }
   size_t allocated_modules() const { return allocated_modules_; }
-  int get_compiling_flag() const { return compiling_; }
-  void set_compiling_flag(bool value) { compiling_ = value; }
+  int get_compiling_flag() const { return compiling_ > 0; }
+  void set_compiling_flag(bool value) { 
+    if (value) 
+      compiling_++;
+    else
+      compiling_--; 
+  }
 };
 
 // A wrapper for LLVM Module

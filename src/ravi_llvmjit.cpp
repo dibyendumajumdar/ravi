@@ -157,17 +157,17 @@ RaviJITState::RaviJITState()
   auto target = eengineBuilder.selectTarget();
   TM = std::unique_ptr<llvm::TargetMachine>(target);
   TM->setO0WantsFastISel(true); // enable FastISel when -O0 is used
-  DL = std::make_unique<llvm::DataLayout>(TM->createDataLayout());
+  DL = std::unique_ptr<llvm::DataLayout>(new llvm::DataLayout(TM->createDataLayout()));
 
-  ObjectLayer = std::make_unique<ObjectLayerT>(
-      []() { return std::make_shared<llvm::SectionMemoryManager>(); });
-  CompileLayer = std::make_unique<CompileLayerT>(
-      *ObjectLayer, llvm::orc::SimpleCompiler(*TM));
-  OptimizeLayer = std::make_unique<OptimizerLayerT>(
+  ObjectLayer = std::unique_ptr<ObjectLayerT>(new ObjectLayerT(
+      []() { return std::make_shared<llvm::SectionMemoryManager>(); }));
+  CompileLayer = std::unique_ptr<CompileLayerT>(new CompileLayerT(
+      *ObjectLayer, llvm::orc::SimpleCompiler(*TM)));
+  OptimizeLayer = std::unique_ptr<OptimizerLayerT>(new OptimizerLayerT(
       *CompileLayer,
       [this](std::shared_ptr<llvm::Module> M) {
         return optimizeModule(std::move(M));
-      }),
+      })),
 #endif
 
   types_ = new LuaLLVMTypes(*context_);
@@ -353,7 +353,7 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   snprintf(buf, sizeof buf, "ravi_module_%d", myid);
   std::string moduleName(buf);
 #if USE_ORC_JIT
-  module_ = std::make_unique<llvm::Module>(moduleName, owner->context());
+  module_ = std::unique_ptr<llvm::Module>(new llvm::Module(moduleName, owner->context()));
   module_->setDataLayout(owner_->getTargetMachine().createDataLayout());
 #else
   module_ = new llvm::Module(moduleName, owner->context());
