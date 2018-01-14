@@ -1386,23 +1386,6 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
   // Set flag so we can avoid recursive calls
   module->owner()->set_compiling_flag(true);
 
-  // The Lua GC doesn't know about memory allocated by the JIT
-  // compiler; this means that if lots of functions are being compiled
-  // such as in the test cases, then memory usage can grow very large
-  // as the GC is blissfully unaware of the actual memory in use
-  // To workaround this issue we tell the GC that we increased
-  // memory usage by approximately n kbytes where n is the
-  // number of bytecodes in the function compiled
-  int gcstep = this->jitState_->get_gcstep();
-  if (gcstep > 0 && (id_ % gcstep) == 0) {
-    // The unlock/lock sequence below is to satisfy ltests
-    // If the lock allowed recursion then this would not be
-    // required. In real code the locking is no-op.
-    lua_unlock(L);
-    lua_gc(L, LUA_GCCOLLECT, 0);
-    lua_lock(L);
-  }
-
   // The functions constants
   TValue *k = p->k;
 
