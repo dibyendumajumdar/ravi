@@ -113,6 +113,7 @@ CallInfo *luaE_extendCI (lua_State *L) {
   L->ci->next = ci;
   ci->previous = L->ci;
   ci->next = NULL;
+  ci->magic = 42;
   L->nci++;
   return ci;
 }
@@ -164,6 +165,7 @@ static void stack_init (lua_State *L1, lua_State *L) {
   ci->next = ci->previous = NULL;
   ci->callstatus = 0;
   ci->jitstatus = 0; /* RAVI extension */
+  ci->magic = 42; /* RAVI extension */
   ci->func = L1->top;
   setnilvalue(L1->top++);  /* 'function' entry for this 'ci' */
   ci->top = L1->top + LUA_MINSTACK;
@@ -241,6 +243,8 @@ static void preinit_thread (lua_State *L, global_State *g) {
   L->status = LUA_OK;
   L->errfunc = 0;
   L->base_ci.stacklevel = 0; /* RAVI base stack level */
+  L->base_ci.magic = 42;
+  L->magic = 42; /* RAVI extension */
 }
 
 
