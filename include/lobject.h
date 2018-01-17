@@ -110,7 +110,7 @@ typedef union Value {
 } Value;
 
 
-#define TValuefields	Value value_; int tt_
+#define TValuefields	Value value_; lu_byte tt_
 
 
 typedef struct lua_TValue {
@@ -573,7 +573,7 @@ typedef union Closure {
 
 /*
 ** Nodes for Hash tables. A pack of two TValue's (key-value pairs)
-** plus a 'next' field to link colliding entries. The distribuition
+** plus a 'next' field to link colliding entries. The distribution
 ** of the key's fields ('key_tt' and 'key_val') not forming a proper
 ** 'TValue' allows for a smaller size for 'Node' both in 4-byte
 ** and 8-byte alignments.
