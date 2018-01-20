@@ -25,7 +25,6 @@ Contents:
    llvm-bindings
    ravi-benchmarks
    ravi-jit-status
-   ravi-jit-libgccjit
 
 
 Indices and tables

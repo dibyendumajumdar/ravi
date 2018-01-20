@@ -24,7 +24,7 @@ Features
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
-* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available, although this is not currently being worked on
+* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available (on a branch), although this is not currently being worked on
 * LLVM bindings exposed in Lua
 
 Recent Work
@@ -49,8 +49,6 @@ JIT Implementation
 The LLVM JIT compiler is functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
 Ravi also provides an `LLVM binding <http://the-ravi-programming-language.readthedocs.org/en/latest/llvm-bindings.html>`_; this is still work in progress so please check documentation for the latest status.
-
-There is also a `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation but this implementation is lagging behind the LLVM based implementation. Further development of this is currently not planned.
 
 Ravi Extensions to Lua 5.3
 ==========================
@@ -508,7 +506,7 @@ I test the build by running a modified version of Lua 5.3.3 test suite. These te
 Roadmap
 =======
 * 2015 - Implemented JIT compilation using LLVM
-* 2015 - Implemented libgccjit based alternative JIT
+* 2015 - Implemented libgccjit based alternative JIT (now discontinued)
 * 2016 - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
 * 2017 - Main priorities are:
 
