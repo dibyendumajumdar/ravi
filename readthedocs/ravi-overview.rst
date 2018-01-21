@@ -503,9 +503,12 @@ I test the build by running a modified version of Lua 5.3.3 test suite. These te
 
 Roadmap
 =======
-* 2015 - Implemented JIT compilation using LLVM
-* 2015 - Implemented libgccjit based alternative JIT (now discontinued)
-* 2016 - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
+* 2015 
+       - Implemented JIT compilation using LLVM
+* 2015 
+       - Implemented libgccjit based alternative JIT (now discontinued)
+* 2016 
+       - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
 * 2017 
        - Embedded C compiler using dmrC project (C JIT compiler) 
        - Additional type annotations
