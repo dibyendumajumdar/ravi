@@ -195,7 +195,7 @@ For a real example of how type assertions can be used, please have a look at the
 
 Experimental Type Annotations
 -----------------------------
-Following type annotations have experimental support. These type annotations are not statically enforced. Furthermore using these types does not affect the JIT code generation, i.e. variables annotated using these types are still treated as dynamic types. 
+Following type annotations have experimental support. These type annotations are not always statically enforced. Furthermore using these types does not affect the JIT code generation, i.e. variables annotated using these types are still treated as dynamic types. 
 
 The scenarios where these type annotations have an impact are:
 
@@ -351,8 +351,6 @@ A JIT api is available with following functions:
   Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when you want to use the debug api to step through code line by line
 ``ravi.verbosity([b])``
   Controls the amount of verbose messages generated during compilation. Currently only available for LLVM.
-``ravi.gcstep([n])``
-  Forces full GC collection after `n` compilations. The Lua GC is unaware of the memory used by JITed code hence in situations where many compilations are occurring (such as when running Lua tests) the GC can be very very slow. The default value of this is set to `300`. A value of `0` will disable this feature.
 
 Performance
 ===========
@@ -505,14 +503,19 @@ I test the build by running a modified version of Lua 5.3.3 test suite. These te
 
 Roadmap
 =======
-* 2015 - Implemented JIT compilation using LLVM
-* 2015 - Implemented libgccjit based alternative JIT (now discontinued)
-* 2016 - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
-* 2017 - Main priorities are:
-
-  - Experiment with dmrC project (C JIT compiler) and embed in Ravi
-  - Improve performance of Ravi  
-  - Additional type annotations
+* 2015 
+       - Implemented JIT compilation using LLVM
+       - Implemented libgccjit based alternative JIT (now discontinued)
+* 2016 
+       - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
+* 2017 
+       - Embedded C compiler using dmrC project (C JIT compiler) 
+       - Additional type annotations
+* 2018 
+       - 1.0 release of Ravi
+       - More testing and test cases
+       - ASM VM for X86-64 platform 
+       - Better support for earlier Lua versions (5.1 especially)
 
 License
 =======
