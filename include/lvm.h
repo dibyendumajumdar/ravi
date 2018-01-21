@@ -50,10 +50,10 @@
 
 /*
 ** fast track for 'gettable': if 't' is a table and 't[k]' is not nil,
-** return 1 with 'slot' pointing to 't[k]' (final result).  Otherwise,
-** return 0 (meaning it will have to check metamethod) with 'slot'
-** pointing to a nil 't[k]' (if 't' is a table) or NULL (otherwise).
-** 'f' is the raw get function to use.
+** return 1 with 'slot' pointing to 't[k]' (position of final result).
+** Otherwise, return 0 (meaning it will have to check metamethod)
+** with 'slot' pointing to a nil 't[k]' (if 't' is a table) or NULL
+** (otherwise). 'f' is the raw get function to use.
 */
 #define luaV_fastget(L,t,k,slot,f) \
   (!ttistable(t)  \
@@ -61,41 +61,28 @@
    : (slot = f(hvalue(t), k),  /* else, do raw access */  \
       !ttisnil(slot)))  /* result not nil? */
 
+
 /*
-** standard implementation for 'gettable'
-** RAVI change - renamed as we need luaV_gettable to be 
-** an exported function
+** Special case of 'luaV_fastget' for integers, inlining the fast case
+** of 'luaH_getint'.
 */
-#define luaV_fastgettable(L,t,k,v) { const TValue *slot; \
-  if (luaV_fastget(L,t,k,slot,luaH_get)) { setobj2s(L, v, slot); } \
-  else luaV_finishget(L,t,k,v,slot); }
+#define luaV_fastgeti(L,t,k,slot) \
+  (!ttistable(t)  \
+   ? (slot = NULL, 0)  /* not a table; 'slot' is NULL and result is 0 */  \
+   : (slot = (l_castS2U(k) - 1u < hvalue(t)->sizearray) \
+              ? &hvalue(t)->array[k - 1] : luaH_getint(hvalue(t), k), \
+      !ttisnil(slot)))  /* result not nil? */
 
 
 /*
-** Fast track for set table. If 't' is a table and 't[k]' is not nil,
-** call GC barrier, do a raw 't[k]=v', and return true; otherwise,
-** return false with 'slot' equal to NULL (if 't' is not a table) or
-** 'nil'. (This is needed by 'luaV_finishget'.) Note that, if the macro
-** returns true, there is no need to 'invalidateTMcache', because the
-** call is not creating a new entry.
+** Finish a fast set operation (when fast get succeeds). In that case,
+** 'slot' points to the place to put the value.
 */
-#define luaV_fastset(L,t,k,slot,f,v) \
-  (!ttistable(t) \
-   ? (slot = NULL, 0) \
-   : (slot = f(hvalue(t), k), \
-     ttisnil(slot) ? 0 \
-     : (luaC_barrierback(L, hvalue(t), v), \
-        setobj2t(L, cast(TValue *,slot), v), \
-        1)))
+#define luaV_finishfastset(L,t,slot,v) \
+    { setobj2t(L, cast(TValue *,slot), v); \
+      luaC_barrierback(L, hvalue(t), v); }
 
-/*
-** RAVI change - renamed as we need luaV_settable to be 
-** an exported function
-*/
-#define luaV_fastsettable(L,t,k,v) { const TValue *slot; \
-  if (!luaV_fastset(L,t,k,slot,luaH_get,v)) \
-    luaV_finishset(L,t,k,v,slot); }
-  
+
 
 
 LUAI_FUNC int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2);

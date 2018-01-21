@@ -196,7 +196,7 @@ void luaV_finishget (lua_State *L, const TValue *t, TValue *key, StkId val,
       return;
     }
     t = tm;  /* else try to access 'tm[key]' */
-    if (luaV_fastget(L,t,key,slot,luaH_get)) {  /* fast track? */
+    if (luaV_fastget(L, t, key, slot, luaH_get)) {  /* fast track? */
       setobj2s(L, val, slot);  /* done */
       return;
     }
@@ -210,7 +210,7 @@ void luaV_finishget (lua_State *L, const TValue *t, TValue *key, StkId val,
 ** Finish a table assignment 't[key] = val'.
 ** If 'slot' is NULL, 't' is not a table.  Otherwise, 'slot' points
 ** to the entry 't[key]', or to 'luaO_nilobject' if there is no such
-** entry.  (The value at 'slot' must be nil, otherwise 'luaV_fastset'
+** entry.  (The value at 'slot' must be nil, otherwise 'luaV_fastget'
 ** would have done the job.)
 */
 void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
@@ -243,9 +243,11 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       return;
     }
     t = tm;  /* else repeat assignment over 'tm' */
-    if (luaV_fastset(L, t, key, slot, luaH_get, val))
+    if (luaV_fastget(L, t, key, slot, luaH_get)) {
+      luaV_finishfastset(L, t, slot, val);
       return;  /* done */
-    /* else loop */
+    }
+    /* else 'return luaV_finishset(L, t, key, val, slot)' (loop) */
   }
   luaG_runerror(L, "'__newindex' chain too long; possible loop");
 }
@@ -345,8 +347,8 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     else                                                                    \
       slot = luaH_get(hvalue(t), key);                                      \
     if (!ttisnil(slot)) {                                                   \
-      luaC_barrierback(L, hvalue(t), val);                                  \
       setobj2t(L, cast(TValue *, slot), val);                               \
+      luaC_barrierback(L, hvalue(t), val);                                  \
     }                                                                       \
     else {                                                                  \
       protect(luaV_finishset(L, t, key, val, slot));                        \
@@ -402,8 +404,8 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     else                                                                    \
       slot = luaH_getint(h, idx);                                           \
     if (!ttisnil(slot)) {                                                   \
-      luaC_barrierback(L, h, val);                                          \
       setobj2t(L, cast(TValue *, slot), val);                               \
+      luaC_barrierback(L, h, val);                                          \
     }                                                                       \
     else {                                                                  \
       protect(luaV_finishset(L, t, key, val, slot));                        \
@@ -452,8 +454,8 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
   if (RAVI_LIKELY(ttisLtable(t))) {                                 \
     const TValue *slot = luaH_getshortstr(hvalue(t), tsvalue(key)); \
     if (!ttisnil(slot)) {                                           \
-      luaC_barrierback(L, hvalue(t), val);                          \
       setobj2t(L, cast(TValue *, slot), val);                       \
+      luaC_barrierback(L, hvalue(t), val);                          \
     }                                                               \
     else {                                                          \
       protect(luaV_finishset(L, t, key, val, slot));                \
@@ -1047,6 +1049,7 @@ void luaV_finishOp (lua_State *L) {
   { luaC_condGC(L, L->top = (c),  /* limit of live values */ \
                    L->top = ci->top);  /* restore top */ \
            luai_threadyield(L); }
+
 
 #ifndef RAVI_USE_COMPUTED_GOTO
 
@@ -2077,8 +2080,8 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_RAVI_GETTABLE_I) {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
-	GETTABLE_INLINE_PROTECTED_I(L, rb, rc, ra);
-	vmbreak;
+        GETTABLE_INLINE_PROTECTED_I(L, rb, rc, ra);
+        vmbreak;
       }
       /* This opcode is used when the key is known to be
          short string but the variable may or may not be

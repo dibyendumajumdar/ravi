@@ -670,14 +670,13 @@ LUA_API int lua_geti (lua_State *L, int idx, lua_Integer n) {
   lua_lock(L);
   t = index2addr(L, idx);
   if (ttisLtable(t) || !ttistable(t)) {
-    if (luaV_fastget(L, t, n, slot, luaH_getint)) {
+    if (luaV_fastgeti(L, t, n, slot)) {
       setobj2s(L, L->top, slot);
-      api_incr_top(L);
     }
     else {
-      setivalue(L->top, n);
-      api_incr_top(L);
-      luaV_finishget(L, t, L->top - 1, L->top - 1, slot);
+      TValue aux;
+      setivalue(&aux, n);
+      luaV_finishget(L, t, &aux, L->top, slot);
     }
   }
   else {
@@ -694,8 +693,8 @@ LUA_API int lua_geti (lua_State *L, int idx, lua_Integer n) {
         setnilvalue(L->top);
       }
     }
-    api_incr_top(L);
   }
+  api_incr_top(L);
   lua_unlock(L);
   return ttnov(L->top - 1);
 }
@@ -964,8 +963,10 @@ static void auxsetstr (lua_State *L, const TValue *t, const char *k) {
   const TValue *slot;
   TString *str = luaS_new(L, k);
   api_checknelems(L, 1);
-  if (luaV_fastset(L, t, str, slot, luaH_getstr, L->top - 1))
+  if (luaV_fastget(L, t, str, slot, luaH_getstr)) {
+    luaV_finishfastset(L, t, slot, L->top - 1);
     L->top--;  /* pop value */
+  }
   else {
     setsvalue2s(L, L->top, str);  /* push 'str' (to make it a TValue) */
     api_incr_top(L);
@@ -1007,13 +1008,13 @@ LUA_API void lua_seti (lua_State *L, int idx, lua_Integer n) {
   api_checknelems(L, 1);
   t = index2addr(L, idx);
   if (ttisLtable(t) || !ttistable(t)) {
-    if (luaV_fastset(L, t, n, slot, luaH_getint, L->top - 1))
-      L->top--; /* pop value */
+    if (luaV_fastgeti(L, t, n, slot)) {
+      luaV_finishfastset(L, t, slot, L->top - 1);
+    }
     else {
-      setivalue(L->top, n);
-      api_incr_top(L);
-      luaV_finishset(L, t, L->top - 1, L->top - 2, slot);
-      L->top -= 2; /* pop value and key */
+      TValue aux;
+      setivalue(&aux, n);
+      luaV_finishset(L, t, &aux, L->top - 1, slot);
     }
   }
   else {
@@ -1041,8 +1042,8 @@ LUA_API void lua_seti (lua_State *L, int idx, lua_Integer n) {
           luaG_runerror(L, "value cannot be converted to integer");
       }
     }
-    L->top--;
   }
+  L->top--;  /* pop value */
   lua_unlock(L);
 }
 
