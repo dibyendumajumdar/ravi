@@ -36,7 +36,7 @@ union Value {
 
 struct TValue {
   union Value value_;
-  int tt_;
+  lu_byte tt_;
 };
 
 struct TString {
@@ -330,7 +330,7 @@ union GCUnion {
 
 
 #define rttype(o) ((o)->tt_)
-#define BIT_ISCOLLECTABLE (1 << 6)
+#define BIT_ISCOLLECTABLE (1 << 7)
 #define iscollectable(o)  (rttype(o) & BIT_ISCOLLECTABLE)
 #define upisopen(up)  ((up)->v != &(up)->u.value)
 
