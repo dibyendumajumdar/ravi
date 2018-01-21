@@ -303,9 +303,9 @@ typedef struct lua_TValue {
 /* to new object */
 #define setobj2n	setobj
 #define setsvalue2n	setsvalue
-/* to table */
-#define setobj2t	setobj
 
+/* to table (define it as an expression to be used in macros) */
+#define setobj2t(L,o1,o2)  ((void)L, *(o1)=*(o2), checkliveness(L,(o1)))
 
 
 
