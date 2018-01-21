@@ -110,7 +110,7 @@ typedef union Value {
 } Value;
 
 
-#define TValuefields	Value value_; int tt_
+#define TValuefields	Value value_; lu_byte tt_
 
 
 typedef struct lua_TValue {
@@ -282,7 +282,8 @@ typedef struct lua_TValue {
 
 
 #define setobj(L,obj1,obj2) \
-	{ TValue *io1=(obj1); *io1 = *(obj2); \
+	{ TValue *io1=(obj1); const TValue *io2=(obj2); \
+          io1->value_ = io2->value_; io1->tt_ = io2->tt_; \
 	  (void)L; checkliveness(L,io1); }
 
 

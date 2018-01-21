@@ -171,12 +171,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   // NOTE: Following structure changes when NaN tagging is enabled
   // struct TValue {
   //   union Value value_;
-  //   int tt_;
+  //   lu_byte tt_;
   // };
   TValueT = llvm::StructType::create(context, "struct.TValue");
   elements.clear();
   elements.push_back(ValueT);
-  elements.push_back(C_intT);
+  elements.push_back(lu_byteT);
   TValueT->setBody(elements);
   pTValueT = llvm::PointerType::get(TValueT, 0);
 
@@ -429,7 +429,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   TKeyT = llvm::StructType::create(context, "struct.TKey");
   elements.clear();
   elements.push_back(ValueT);
-  elements.push_back(C_intT);
+  elements.push_back(lu_byteT);
   elements.push_back(C_intT); /* next */
   TKeyT->setBody(elements);
   pTKeyT = llvm::PointerType::get(TKeyT, 0);
@@ -1243,7 +1243,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   nodes.clear();
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 0));
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 8));
   tbaa_TValueT = mdbuilder.createTBAAStructTypeNode("TValue", nodes);
 
   tbaa_TValue_nT =
@@ -1251,7 +1251,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_TValue_hT =
       mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
   tbaa_TValue_ttT =
-      mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_intT, 8);
+      mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_charT, 8);
 
   tbaa_luaState_topT =
       mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_pointerT, 8);

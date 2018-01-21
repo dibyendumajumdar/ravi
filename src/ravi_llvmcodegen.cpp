@@ -122,6 +122,13 @@ void RaviCodeGenerator::attach_branch_weights(RaviFunctionDef *def,
 }
 
 llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, const char *name,
+	llvm::Value *s, int arg1) {
+	llvm::SmallVector<llvm::Value *, 1> values;
+	values.push_back(def->types->kInt[arg1]);
+	return def->builder->CreateInBoundsGEP(s, values, name);
+}
+
+llvm::Value *RaviCodeGenerator::emit_gep(RaviFunctionDef *def, const char *name,
                                          llvm::Value *s, int arg1, int arg2) {
   llvm::SmallVector<llvm::Value *, 2> values;
   values.push_back(def->types->kInt[arg1]);
@@ -532,7 +539,7 @@ void RaviCodeGenerator::emit_store_type_(RaviFunctionDef *def,
              type == LUA_TBOOLEAN || type == LUA_TNIL);
   llvm::Value *desttype = emit_gep(def, "dest.tt", value, 0, 1);
   llvm::Instruction *store =
-      def->builder->CreateStore(def->types->kInt[type], desttype);
+      def->builder->CreateStore(def->types->kByte[type], desttype);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
 }
 
@@ -548,14 +555,14 @@ llvm::Value *RaviCodeGenerator::emit_is_value_of_type(RaviFunctionDef *def,
                                                       llvm::Value *value_type,
                                                       LuaTypeCode lua_type,
                                                       const char *varname) {
-  return def->builder->CreateICmpEQ(value_type, def->types->kInt[int(lua_type)],
+  return def->builder->CreateICmpEQ(value_type, def->types->kByte[int(lua_type)],
                                     varname);
 }
 
 llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type(
     RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_type,
     const char *varname) {
-  return def->builder->CreateICmpNE(value_type, def->types->kInt[int(lua_type)],
+  return def->builder->CreateICmpNE(value_type, def->types->kByte[int(lua_type)],
                                     varname);
 }
 
@@ -564,9 +571,9 @@ llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type_class(
     RaviFunctionDef *def, llvm::Value *value_type, int lua_type,
     const char *varname) {
   llvm::Value *novariant_type =
-      def->builder->CreateAnd(value_type, def->types->kInt[0x0F]);
+      def->builder->CreateAnd(value_type, def->types->kByte[0x0F]);
   return def->builder->CreateICmpNE(novariant_type,
-                                    def->types->kInt[int(lua_type)], varname);
+                                    def->types->kByte[int(lua_type)], varname);
 }
 
 llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(

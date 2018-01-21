@@ -685,10 +685,11 @@ void raviV_close(struct lua_State *L) {
 // Returns true if compilation was successful
 int raviV_compile(struct lua_State *L, struct Proto *p,
                   ravi_compile_options_t *options) {
-  if (p->ravi_jit.jit_function) return true;
+  if (p->ravi_jit.jit_function) return 1;
   global_State *G = G(L);
   if (G->ravi_state == NULL) return 0;
   if (!G->ravi_state->jit->is_enabled()) { return 0; }
+  if (G->ravi_state->jit->get_compiling_flag()) { return 0; }
   bool doCompile = (bool)(options && options->manual_request != 0);
   if (!doCompile && G->ravi_state->jit->is_auto()) {
     if (p->ravi_jit.jit_flags ==
@@ -725,6 +726,8 @@ int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
                     ravi_compile_options_t *options) {
   global_State *G = G(L);
   int count = 0;
+  if (G->ravi_state->jit->get_compiling_flag())
+    return 0;
   auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
   for (int i = 0; i < n; i++) {
     if (G->ravi_state->code_generator->compile(L, p[i], module, options))

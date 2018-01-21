@@ -296,7 +296,7 @@ struct LuaLLVMTypes {
 
   std::array<llvm::Constant *, 256> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
-  std::array<llvm::Constant *, 10> kByte;
+  std::array<llvm::Constant *, 256> kByte;
 
   llvm::Constant *kFalse;
 
@@ -462,7 +462,7 @@ class RaviJITState {
   size_t allocated_modules_;
   
   // flag to help avoid recursion
-  bool compiling_;
+  int compiling_;
 
  public:
   RaviJITState();
@@ -517,8 +517,13 @@ class RaviJITState {
   void incr_allocated_modules() { allocated_modules_++; }
   void decr_allocated_modules() { allocated_modules_--; }
   size_t allocated_modules() const { return allocated_modules_; }
-  int get_compiling_flag() const { return compiling_; }
-  void set_compiling_flag(bool value) { compiling_ = value; }
+  int get_compiling_flag() const { return compiling_ > 0; }
+  void set_compiling_flag(bool value) { 
+    if (value) 
+      compiling_++;
+    else
+      compiling_--; 
+  }
 };
 
 // A wrapper for LLVM Module
@@ -906,8 +911,9 @@ class RaviCodeGenerator {
   llvm::Instruction *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def);
 
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
+                        int arg1);
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
                         int arg1, int arg2);
-
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
                         int arg1, int arg2, int arg3);
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name,
