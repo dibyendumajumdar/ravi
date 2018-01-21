@@ -506,9 +506,11 @@ Roadmap
 * 2015 - Implemented JIT compilation using LLVM
 * 2015 - Implemented libgccjit based alternative JIT (now discontinued)
 * 2016 - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
-* 2017 - Embedded C compiler using dmrC project (C JIT compiler) 
+* 2017 
+       - Embedded C compiler using dmrC project (C JIT compiler) 
        - Additional type annotations
-* 2018 - 1.0 release of Ravi
+* 2018 
+       - 1.0 release of Ravi
        - More testing and test cases
        - ASM VM for X86-64 platform 
        - Better support for earlier Lua versions (5.1 especially)
