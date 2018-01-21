@@ -505,7 +505,6 @@ Roadmap
 =======
 * 2015 
        - Implemented JIT compilation using LLVM
-* 2015 
        - Implemented libgccjit based alternative JIT (now discontinued)
 * 2016 
        - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
