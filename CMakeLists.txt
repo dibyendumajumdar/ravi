@@ -3,7 +3,6 @@ project(Ravi)
 
 enable_language(CXX)
 enable_language(C)
-enable_language(C)
 enable_language(ASM)
 enable_testing()
 
@@ -12,24 +11,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 # By default JIT is OFF
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
-option(GCC_JIT "Controls whether GCC JIT compilation will be enabled, default is OFF" OFF)
-option(NANO_JIT "Controls whether NanoJIT compilation will be enabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(EMBEDDED_DMRC "Controls whether the embedded dmrC feature should be enabled, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is OFF" ON)
 option(ASM_VM "Controls whether to use the new VM (not ready yet! so don't turn on)" OFF)
-
-# We cannot link to both LLVM and GCC JIT
-if (LLVM_JIT AND GCC_JIT)
-    message(FATAL_ERROR
-            "Both LLVM_JIT and GCC_JIT cannot be set to ON at the same time")
-elseif (LLVM_JIT AND NANO_JIT)
-    message(FATAL_ERROR
-            "Both LLVM_JIT and NANO_JIT cannot be set to ON at the same time")    
-elseif (GCC_JIT AND NANO_JIT)
-    message(FATAL_ERROR
-            "Both GCC_JIT and NANO_JIT cannot be set to ON at the same time")    
-endif()
 
 if (ASM_VM)
     # For now we switch to static build 
@@ -54,10 +39,6 @@ if (LLVM_JIT)
     add_definitions(-DUSE_LLVM)
 endif()
 
-if (NANO_JIT)
-    set(EMBEDDED_DMRC ON)
-endif()
-
 if (EMBEDDED_DMRC)
     add_definitions(-DUSE_DMR_C)
 endif()
@@ -67,23 +48,8 @@ if (COMPUTED_GOTO AND MSVC)
     message(WARNING "Computed goto is not available with MSVC")
 endif()
 
-if (GCC_JIT)
-    find_package(GCCJIT REQUIRED)
-
-    message(STATUS "Found GCCJIT")
-
-    include_directories(${GCCJIT_INCLUDE_DIRS})
-    add_definitions(-DUSE_GCCJIT)
-endif()
-
-if (NANO_JIT)
-    find_package(NanoJIT REQUIRED)
-    include_directories(${NANOJITEXTRA_INCLUDE_DIRS})
-    add_definitions(-DUSE_NANOJIT)
-endif()
-
-if (NOT LLVM_JIT AND NOT GCC_JIT AND NOT NANO_JIT)
-    message(WARNING "Neither LLVM, NanoJIT nor gccjit will be enabled; specify -DLLVM_JIT=ON, -DNANO_JIT=ON or -DGCC_JIT=ON to enable")
+if (NOT LLVM_JIT)
+    message(WARNING "LLVM will not be enabled; specify -DLLVM_JIT=ON to enable")
 endif()
 
 if (MSVC)
@@ -202,17 +168,7 @@ if (LLVM_JIT)
             src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp
             src/ravi_llvmluaapi.cpp)
 endif ()
-if (GCC_JIT)
-    set(GCC_JIT_SRCS src/ravi_gccjit.c src/ravi_gcctypes.c
-            src/ravi_gcccodegen.c src/ravi_gccforprep.c src/ravi_gcccomp.c
-            src/ravi_gccreturn.c src/ravi_gccload.c src/ravi_gccforloop.c
-            src/ravi_gccarith1.c src/ravi_gcccall.c src/ravi_gcctable.c
-            src/ravi_gccarith2.c src/ravi_gcctforcall.c src/ravi_gccrest.c)
-endif ()
-if (NANO_JIT)
-    set(NANO_JIT_SRCS src/ravi_nanojit.c)
-endif()
-if (NOT LLVM_JIT AND NOT GCC_JIT AND NOT NANO_JIT)
+if (NOT LLVM_JIT)
     set(NO_JIT_SRCS src/ravi_nojit.c)
 endif()
 # define the lua core source files
@@ -238,7 +194,7 @@ set(LUA_HEADERS include/lua.h include/luaconf.h include/lualib.h include/lauxlib
 if (MSVC OR APPLE)
     source_group("Ravi Headers" FILES ${RAVI_HEADERS})
     source_group("Ravi Source Files" FILES ${LUA_CORE_SRCS} ${LUA_LIB_SRCS}
-            ${LLVM_JIT_SRCS} ${GCC_JIT_SRCS})
+            ${LLVM_JIT_SRCS})
     if (APPLE)
         set(EXTRA_LIBRARIES m readline)
     endif ()
@@ -324,18 +280,7 @@ if (EMBEDDED_DMRC)
             )
 
         include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
-    endif()
-
-    if (NANO_JIT)
-        set(DMR_C_JIT_SRCS
-            dmr_c/nanojit-backend/sparse-nanojit.c
-            )
-        set(DMR_C_JIT_HEADERS
-            dmr_c/nanojit-backend/dmr_c.h            
-            )
-
-        include_directories("${PROJECT_SOURCE_DIR}/dmr_c/nanojit-backend")
-    endif()    
+    endif()  
     
     if (MSVC OR APPLE)
         source_group("dmrC Headers" FILES ${DMR_C_HEADERS} ${DMR_C_JIT_HEADERS})
@@ -404,11 +349,7 @@ if (NOT STATIC_BUILD)
 endif()
 
 if (LLVM_JIT)
-    set (LIBRAVI_NAME libravillvm)
-elseif (GCC_JIT)
-    set (LIBRAVI_NAME libravigccjit)
-elseif (NANO_JIT)
-    set (LIBRAVI_NAME libravinanojit)    
+    set (LIBRAVI_NAME libravillvm) 
 else()
     set (LIBRAVI_NAME libravinojit)
 endif()
@@ -418,9 +359,7 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${RAVI_HEADERS}
         ${LUA_LIB_SRCS} 
         ${LUA_CORE_SRCS}
-        ${LLVM_JIT_SRCS}
-        ${GCC_JIT_SRCS}
-        ${NANO_JIT_SRCS}        
+        ${LLVM_JIT_SRCS}   
         ${NO_JIT_SRCS}
         ${DMR_C_HEADERS}
         ${DMR_C_SRCS}
@@ -435,7 +374,7 @@ if (NOT STATIC_BUILD)
       set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
   endif ()
 endif()
-target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${GCCJIT_LIBRARIES} ${NANOJITEXTRA_LIBRARIES})
+target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS})
 
 # Ravi executable
 add_executable(ravi src/lua.c)
@@ -460,7 +399,7 @@ add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
 
 # Build VSCode Debug Adapter for Ravi  
-if (STATIC_BUILD AND NOT GCC_JIT AND NOT NANO_JIT)
+if (STATIC_BUILD)
   add_executable(testravidebug vscode-debugger/src/testravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
   target_link_libraries(testravidebug ${LIBRAVI_NAME})
 

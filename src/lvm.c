@@ -347,8 +347,8 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     else                                                                    \
       slot = luaH_get(hvalue(t), key);                                      \
     if (!ttisnil(slot)) {                                                   \
-      luaC_barrierback(L, hvalue(t), val);                                  \
       setobj2t(L, cast(TValue *, slot), val);                               \
+      luaC_barrierback(L, hvalue(t), val);                                  \
     }                                                                       \
     else {                                                                  \
       protect(luaV_finishset(L, t, key, val, slot));                        \
@@ -404,8 +404,8 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     else                                                                    \
       slot = luaH_getint(h, idx);                                           \
     if (!ttisnil(slot)) {                                                   \
-      luaC_barrierback(L, h, val);                                          \
       setobj2t(L, cast(TValue *, slot), val);                               \
+      luaC_barrierback(L, h, val);                                          \
     }                                                                       \
     else {                                                                  \
       protect(luaV_finishset(L, t, key, val, slot));                        \
@@ -454,8 +454,8 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
   if (RAVI_LIKELY(ttisLtable(t))) {                                 \
     const TValue *slot = luaH_getshortstr(hvalue(t), tsvalue(key)); \
     if (!ttisnil(slot)) {                                           \
-      luaC_barrierback(L, hvalue(t), val);                          \
       setobj2t(L, cast(TValue *, slot), val);                       \
+      luaC_barrierback(L, hvalue(t), val);                          \
     }                                                               \
     else {                                                          \
       protect(luaV_finishset(L, t, key, val, slot));                \

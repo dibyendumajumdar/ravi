@@ -330,7 +330,7 @@ union GCUnion {
 
 
 #define rttype(o) ((o)->tt_)
-#define BIT_ISCOLLECTABLE (1 << 6)
+#define BIT_ISCOLLECTABLE (1 << 7)
 #define iscollectable(o)  (rttype(o) & BIT_ISCOLLECTABLE)
 
 #define bitmask(b)    (1<<(b))

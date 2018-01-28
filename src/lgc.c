@@ -147,18 +147,87 @@ static int iscleared (global_State *g, const GCObject *o) {
   else return iswhite(o);
 }
 
+/* 
+Following description is taken from:
+http://wiki.luajit.org/New-Garbage-Collector#gc-algorithms_tri-color-incremental-mark-sweep
+
+Newly allocated objects are white. The mark phase starts at the GC roots. 
+Marking a reachable object means flipping the color of it from white to 
+gray and pushing it onto a gray stack (or re-chaining it onto a gray list). 
+The gray stack is iteratively processed, removing one gray object at a time. 
+A gray object is traversed and all objects reachable from it are marked, 
+like above. After an object has been traversed, it's turned from gray to 
+black. The sweep phase works just like the two-color algorithm above.
+
+This algorithm is incremental: the collector can operate in small steps, 
+processing only a couple of objects from the gray stack and then let the 
+mutator run again for a while. This spreads out the GC pauses into 
+many short intervals, which is important for highly interactive 
+workloads (e.g. games or internet servers).
+
+But there's one catch: the mutator might get in the way of the collector 
+and store a reference to a white (unprocessed) object at a black 
+(processed) object. This object would never be marked and will be 
+freed by the sweep, even though it's clearly still referenced from a 
+reachable object, i.e. it should be kept alive.
+
+To avoid this scenario, one has to preserve the tri-color invariant: 
+a black object may never hold a reference to a white object. This is 
+done with a write barrier, which has to be checked after every write. 
+If the invariant has been violated, a fixup step is needed. 
+There are two alternatives:
+
+1. Either turn the black object gray and push it back onto the gray stack. 
+This is moving the barrier "back", because the object has to be reprocessed 
+later on. This is beneficial for container objects, because they usually 
+receive several stores in succession. This avoids a barrier for the next 
+objects that are stored into it (which are likely white, too).
+
+2. Or immediately mark the white object, turning it gray and push it onto 
+the gray stack. This moves the barrier "forward", because it implicitly 
+drives the GC forward. This works best for objects that only receive 
+isolated stores.
+
+There are many optimizations to turn this into a practical algorithm. 
+Here are the most important:
+
+* Stacks should always be kept gray and re-traversed just before the 
+final sweep phase. This avoids a write barrier for stores to stack slots, 
+which are the most common kind of stores.
+
+* Objects which have no references to child objects can immediately be 
+turned from white to black and don't need to go through the gray stack.
+
+* The sweep phase can be made incremental by using two whites and 
+flipping between them just before entering the sweep phase. Objects with 
+the 'current' white need to be kept. Only objects with the 
+'other' white should be freed.
+
+In Lua, Tables use backward barriers, all other traversable objects 
+use forward barriers.
+*/
+
 
 /*
 ** barrier that moves collector forward, that is, mark the white object
 ** being pointed by a black object. (If in sweep phase, clear the black
 ** object to white [sweep it] to avoid other barrier calls for this
 ** same object.)
+**
+** Here we have a black object pointing / referencing a white object
+** So to preserve tri-color invariant the white object must
+** be marked and turned gray or black. Userdata, strings and upvalues
+** are turned black, whereas functions, threads, tables and protos are turned
+** gray.
+**
+** Example: userdata o references user value v, or
+**          function proto o references newly added constant v
 */
 void luaC_barrier_ (lua_State *L, GCObject *o, GCObject *v) {
   global_State *g = G(L);
   lua_assert(isblack(o) && iswhite(v) && !isdead(g, v) && !isdead(g, o));
-  if (keepinvariant(g)) {  /* must keep invariant? */
-    reallymarkobject(g, v);  /* restore invariant */
+  if (keepinvariant(g)) {  /* must keep invariant? (not in sweep phase) */
+    reallymarkobject(g, v);  /* restore invariant - turn white object to gray or black */
     if (isold(o)) {
       lua_assert(!isold(v));  /* white object could not be old */
       setage(v, G_OLD0);  /* restore generational invariant */
@@ -174,6 +243,10 @@ void luaC_barrier_ (lua_State *L, GCObject *o, GCObject *v) {
 /*
 ** barrier that moves collector backward, that is, mark the black object
 ** pointing to a white object as gray again.
+** 
+** Here we have a container (table) being assigned a value, so the
+** table if black must be turned to gray as black objects cannot point
+** to white objects.
 */
 void luaC_barrierback_ (lua_State *L, Table *t) {
   global_State *g = G(L);
@@ -243,8 +316,9 @@ GCObject *luaC_newobj (lua_State *L, int tt, size_t sz) {
 
 
 /*
-** Mark an object. Userdata, strings, and closed upvalues are visited
-** and turned black here. Other objects are marked gray and added
+** mark an object. Userdata, strings, and closed upvalues are visited
+** and turned black here. Other objects (functions, tables, threads, protos)
+** are marked gray and added
 ** to appropriate list to be visited (and turned black) later. (Open
 ** upvalues are already linked in 'headuv' list. They are kept gray
 ** to avoid barriers, as their values will be revisited by the thread.)
