@@ -37,7 +37,6 @@ if (LLVM_JIT)
 
     include_directories(${LLVM_INCLUDE_DIRS})
     add_definitions(${LLVM_DEFINITIONS})
-    add_definitions(-DUSE_LLVM)
 endif()
 
 if (EMBEDDED_DMRC)
@@ -375,11 +374,24 @@ if (NOT STATIC_BUILD)
       set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
   endif ()
 endif()
+if (LLVM_JIT)
+    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
+endif()
 target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS})
 
 # Ravi executable
 add_executable(ravi src/lua.c)
 target_link_libraries(ravi ${LIBRAVI_NAME})
+
+# Create a simple NoJIT version of statically linked ravi
+# This is sometimes useful in other projects 
+add_executable(ravi_s 
+        src/lua.c
+        ${RAVI_HEADERS}
+        ${LUA_LIB_SRCS} 
+        ${LUA_CORE_SRCS}
+        src/ravi_nojit.c)
+target_link_libraries(ravi_s ${EXTRA_LIBRARIES})
 
 # Simple VM tests
 add_executable(test_vm tests/test_vm.c)
@@ -388,6 +400,7 @@ target_link_libraries(test_vm ${LIBRAVI_NAME})
 if (LLVM_JIT)
     # LLVM playground
     add_executable(test_llvm tests/test_llvm.cpp)
+    set_target_properties(test_llvm PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
     target_link_libraries(test_llvm ${LIBRAVI_NAME})
 endif ()
 
@@ -419,7 +432,7 @@ endif()
 
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
-install(TARGETS ${LIBRAVI_NAME} ravi ${RAVI_DEBUGGER_TARGET}
+install(TARGETS ${LIBRAVI_NAME} ravi ${RAVI_DEBUGGER_TARGET} ravi_s
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
