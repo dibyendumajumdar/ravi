@@ -277,7 +277,6 @@ if (EMBEDDED_DMRC)
         set(DMR_C_JIT_HEADERS
             dmr_c/llvm-backend/dmr_c.h            
             )
-
         include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
     endif()  
     
@@ -423,6 +422,7 @@ add_executable(testravidebug
     vscode-debugger/src/json.c 
     vscode-debugger/src/protocol.c
     ${NOJIT_RAVI_SRCS})
+target_link_libraries(testravidebug ${EXTRA_LIBRARIES})
 
 add_test(TestRaviDebug testravidebug)
 
@@ -434,6 +434,7 @@ add_executable(${RAVI_DEBUGGER_TARGET}
     vscode-debugger/src/json.c 
     vscode-debugger/src/protocol.c
     ${NOJIT_RAVI_SRCS})
+target_link_libraries(${RAVI_DEBUGGER_TARGET} ${EXTRA_LIBRARIES})
 
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
