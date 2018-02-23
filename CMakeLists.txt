@@ -6,9 +6,6 @@ enable_language(C)
 enable_language(ASM)
 enable_testing()
 
-# Get access to CMake helpers
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
-
 # By default JIT is OFF
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
@@ -17,10 +14,15 @@ option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed 
 option(ASM_VM "Controls whether to use the new VM (not ready yet! so don't turn on)" OFF)
 option(LTESTS "Controls whether ltests are enabled in Debug mode" OFF)
 
+if (LLVM_JIT)
+    set(ASM_VM OFF)
+endif()
+
 if (ASM_VM)
     # For now we switch to static build 
     # TODO A fix is needed to ensure that in shared library the asm functions are resolved
     set(STATIC_BUILD ON)
+    set(LTESTS OFF)
 endif()
 
 if (STATIC_BUILD)
@@ -37,6 +39,10 @@ if (LLVM_JIT)
 
     include_directories(${LLVM_INCLUDE_DIRS})
     add_definitions(${LLVM_DEFINITIONS})
+
+    # We also need to define USE_LLVM when compiling code
+    # but rather than setting globally we set this when building the
+    # library 
 endif()
 
 if (EMBEDDED_DMRC)
@@ -79,10 +85,7 @@ if (MSVC)
     add_definitions("/wd4141")
     add_definitions("/DLUA_COMPAT_5_2")
     add_definitions("/DLUA_COMPAT_5_1")
-endif ()
-
-
-if ((CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang") AND NOT APPLE)
+elseif ((CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang") AND NOT APPLE)
     if (NOT WIN32)
         # assume Linux
         set(OS_FLAGS "-DLUA_USE_LINUX")
@@ -97,9 +100,7 @@ if ((CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang") A
     set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -O2 -fomit-frame-pointer -Wall -Wno-sign-compare -Winline -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
     set(CMAKE_CXX_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -fno-rtti -O1 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
-endif ()
-
-if (APPLE)
+elseif (APPLE)
     set(LUA_COMPAT_FLAGS "-DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1")
     set(CMAKE_C_FLAGS "-std=c99 -O3 -Wall -Wextra ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
     set(CMAKE_C_FLAGS_DEBUG "-std=c99 -O0 -g3 -Wall -Wextra ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
@@ -112,7 +113,7 @@ if (APPLE)
 endif ()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
-if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG" AND NOT ASM_VM AND LTESTS)
+if ((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG") AND LTESTS AND NOT ASM_VM)
     # Note that enabling ltests.h messes with global_State and thus interferes with ASM_VM
     message(STATUS "Enabling Lua extended test harness 'ltests'")
     add_definitions(-DLUA_USER_H="ltests.h")
@@ -121,7 +122,6 @@ endif ()
 if (ASM_VM)
 	# For now we switch to static build 
 	# TODO A fix is needed to ensure that in shared library the asm functions are resolved
-	set(STATIC_BUILD ON)
     add_definitions(-DRAVI_USE_ASMVM)
     set ( ASMVM_DEFS ${PROJECT_SOURCE_DIR}/include/ravi_asmvm_defs.h )
     if (WIN32 AND NOT CYGWIN)
@@ -167,8 +167,7 @@ if (LLVM_JIT)
             src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
             src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp
             src/ravi_llvmluaapi.cpp)
-endif ()
-if (NOT LLVM_JIT)
+else()    
     set(NO_JIT_SRCS src/ravi_nojit.c)
 endif()
 # define the lua core source files
@@ -383,14 +382,20 @@ target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS})
 add_executable(ravi src/lua.c)
 target_link_libraries(ravi ${LIBRAVI_NAME})
 
+set(NOJIT_RAVI_SRCS 
+    ${RAVI_HEADERS}
+    ${LUA_LIB_SRCS} 
+    ${LUA_CORE_SRCS}
+    src/ravi_nojit.c
+    )
+
 # Create a simple NoJIT version of statically linked ravi
-# This is sometimes useful in other projects 
+# This is sometimes useful in other projects that just need a Lua commandline
+# but do not care about the shared library 
 add_executable(ravi_s 
-        src/lua.c
-        ${RAVI_HEADERS}
-        ${LUA_LIB_SRCS} 
-        ${LUA_CORE_SRCS}
-        src/ravi_nojit.c)
+    src/lua.c
+    ${NOJIT_RAVI_SRCS}
+)
 target_link_libraries(ravi_s ${EXTRA_LIBRARIES})
 
 # Simple VM tests
@@ -413,22 +418,22 @@ add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
 
 # Build VSCode Debug Adapter for Ravi  
-if (STATIC_BUILD)
-  add_executable(testravidebug vscode-debugger/src/testravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
-  target_link_libraries(testravidebug ${LIBRAVI_NAME})
+add_executable(testravidebug 
+    vscode-debugger/src/testravidebug.c 
+    vscode-debugger/src/json.c 
+    vscode-debugger/src/protocol.c
+    ${NOJIT_RAVI_SRCS})
 
-  add_test(TestRaviDebug testravidebug)
+add_test(TestRaviDebug testravidebug)
 
-  if (LLVM_JIT)
-    set(RAVI_DEBUGGER_TARGET ravidebugllvm)
-  else()  
-    set(RAVI_DEBUGGER_TARGET ravidebug)
-  endif()  
+set(RAVI_DEBUGGER_TARGET ravidebug)
 
-  # Ravi VSCode Debug adapter
-  add_executable(${RAVI_DEBUGGER_TARGET} vscode-debugger/src/ravidebug.c vscode-debugger/src/json.c vscode-debugger/src/protocol.c)
-  target_link_libraries(${RAVI_DEBUGGER_TARGET} ${LIBRAVI_NAME})
-endif()
+# Ravi VSCode Debug adapter
+add_executable(${RAVI_DEBUGGER_TARGET} 
+    vscode-debugger/src/ravidebug.c 
+    vscode-debugger/src/json.c 
+    vscode-debugger/src/protocol.c
+    ${NOJIT_RAVI_SRCS})
 
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
