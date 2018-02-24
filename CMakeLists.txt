@@ -45,10 +45,6 @@ if (LLVM_JIT)
     # library 
 endif()
 
-if (EMBEDDED_DMRC)
-    add_definitions(-DUSE_DMR_C)
-endif()
-
 message(STATUS "Computed goto ${COMPUTED_GOTO}")
 if (COMPUTED_GOTO AND MSVC)
     message(WARNING "Computed goto is not available with MSVC")
@@ -233,12 +229,10 @@ if (EMBEDDED_DMRC)
         dmr_c/src/parse.h
         dmr_c/src/port.h 
         dmr_c/src/ptrlist.h
-        dmr_c/src/ptrmap.h        
         dmr_c/src/scope.h
         dmr_c/src/symbol.h
         dmr_c/src/target.h
         dmr_c/src/token.h 
-        dmr_c/src/ssa.h 
         dmr_c/src/walksymbol.h         
         )
 
@@ -261,13 +255,11 @@ if (EMBEDDED_DMRC)
         dmr_c/src/tokenize.c
         dmr_c/src/pre-process.c
         dmr_c/src/ptrlist.c
-        dmr_c/src/ptrmap.c
         dmr_c/src/scope.c
         dmr_c/src/show-parse.c
         dmr_c/src/simplify.c
         dmr_c/src/symbol.c
         dmr_c/src/unssa.c
-        dmr_c/src/ssa.c
         dmr_c/src/walksymbol.c
         src/ravi_dmrc_parsesymbols.c
         )
@@ -280,6 +272,11 @@ if (EMBEDDED_DMRC)
             dmr_c/llvm-backend/dmr_c.h            
             )
         include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
+    else()
+        set(DMR_C_JIT_HEADERS
+            dmr_c/null-backend/dmr_c.h            
+            )
+        include_directories("${PROJECT_SOURCE_DIR}/dmr_c/null-backend")    
     endif()  
     
     if (MSVC OR APPLE)
@@ -377,12 +374,18 @@ endif()
 if (LLVM_JIT)
     set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
 endif()
+if (EMBEDDED_DMRC)
+    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_DMR_C=1")
+endif()
 target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS})
 
 # Main Ravi executable
 add_executable(ravi src/lua.c)
 if (LLVM_JIT)
     set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
+endif()
+if (EMBEDDED_DMRC)
+    set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_DMR_C=1")
 endif()
 target_link_libraries(ravi ${LIBRAVI_NAME})
 
