@@ -110,6 +110,8 @@ elseif (APPLE)
     set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -O3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
     set(CMAKE_CXX_FLAGS_DEBUG "-fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-fno-rtti -O1 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
+else()
+    message(FATAL_ERROR "Unsupported platform")
 endif ()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
@@ -368,34 +370,57 @@ if (NOT STATIC_BUILD)
     if (WIN32)
       # enable DLL export
       set_target_properties(${LIBRAVI_NAME} PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-  else()
+    else()
       set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
-  endif ()
+    endif ()
 endif()
 if (LLVM_JIT)
     set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
 endif()
 target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS})
 
-# Ravi executable
+# Main Ravi executable
 add_executable(ravi src/lua.c)
+if (LLVM_JIT)
+    set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
+endif()
 target_link_libraries(ravi ${LIBRAVI_NAME})
 
+# Sources that are needed for a static NOJIT basic library
 set(NOJIT_RAVI_SRCS 
     ${RAVI_HEADERS}
     ${LUA_LIB_SRCS} 
     ${LUA_CORE_SRCS}
-    src/ravi_nojit.c
-    )
+    src/ravi_nojit.c)
+
+# We always build a static library without JIT so that
+# we can create some default executables
+add_library(libravinojit_static  
+    ${NOJIT_RAVI_SRCS})
+set_target_properties(libravinojit_static PROPERTIES PREFIX "") # As we already prefix with lib
+target_link_libraries(libravinojit_static ${EXTRA_LIBRARIES})
 
 # Create a simple NoJIT version of statically linked ravi
 # This is sometimes useful in other projects that just need a Lua commandline
 # but do not care about the shared library 
 add_executable(ravi_s 
-    src/lua.c
-    ${NOJIT_RAVI_SRCS}
-)
-target_link_libraries(ravi_s ${EXTRA_LIBRARIES})
+    src/lua.c)
+target_link_libraries(ravi_s libravinojit_static)
+
+# Ravi VSCode Debug adapter
+set(RAVI_DEBUGGER_TARGET ravidebug)
+add_executable(${RAVI_DEBUGGER_TARGET} 
+    vscode-debugger/src/ravidebug.c 
+    vscode-debugger/src/json.c 
+    vscode-debugger/src/protocol.c)
+target_link_libraries(${RAVI_DEBUGGER_TARGET} libravinojit_static)
+
+# Tests for VSCode Debug Adapter  
+add_executable(testravidebug 
+    vscode-debugger/src/testravidebug.c 
+    vscode-debugger/src/json.c 
+    vscode-debugger/src/protocol.c)
+target_link_libraries(testravidebug libravinojit_static)
 
 # Simple VM tests
 add_executable(test_vm tests/test_vm.c)
@@ -410,31 +435,13 @@ endif ()
 
 add_executable(test_misc tests/test_misc.c)
 
+add_test(TestRaviDebug testravidebug)
 if (LLVM_JIT)
     add_test(TestLLVM test_llvm)
 endif ()
 add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
 
-# Build VSCode Debug Adapter for Ravi  
-add_executable(testravidebug 
-    vscode-debugger/src/testravidebug.c 
-    vscode-debugger/src/json.c 
-    vscode-debugger/src/protocol.c
-    ${NOJIT_RAVI_SRCS})
-target_link_libraries(testravidebug ${EXTRA_LIBRARIES})
-
-add_test(TestRaviDebug testravidebug)
-
-set(RAVI_DEBUGGER_TARGET ravidebug)
-
-# Ravi VSCode Debug adapter
-add_executable(${RAVI_DEBUGGER_TARGET} 
-    vscode-debugger/src/ravidebug.c 
-    vscode-debugger/src/json.c 
-    vscode-debugger/src/protocol.c
-    ${NOJIT_RAVI_SRCS})
-target_link_libraries(${RAVI_DEBUGGER_TARGET} ${EXTRA_LIBRARIES})
 
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
