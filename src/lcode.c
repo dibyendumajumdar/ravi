@@ -1262,14 +1262,22 @@ static int constfolding (FuncState *fs, int op, expdesc *e1,
 ** Expression to produce final result will be encoded in 'e'.
 */
 static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
+  ravitype_t e_type = e->ravi_type;
   int r = luaK_exp2anyreg(fs, e);  /* opcodes operate only on registers */
   freeexp(fs, e);
   if (op == OP_BNOT && e->ravi_type == RAVI_TNUMINT) 
     op = OP_RAVI_BNOT_I;
   e->u.info = luaK_codeABC(fs, op, 0, r, 0);  /* generate opcode */
   e->k = VRELOCABLE;  /* all those operations are relocatable */
-  if (op == OP_LEN)
-    e->ravi_type = RAVI_TNUMINT;
+  if (op == OP_LEN) {
+	if (e_type == RAVI_TARRAYINT || e_type == RAVI_TARRAYFLT)
+      e->ravi_type = RAVI_TNUMINT;
+	else if (e_type == RAVI_TTABLE) {
+	  luaK_exp2anyreg(fs, e);
+	  luaK_codeABC(fs, OP_RAVI_TOINT, e->u.info, 0, 0);
+	  e->ravi_type = RAVI_TNUMINT;
+	}
+  }
   luaK_fixline(fs, line);
 }
 

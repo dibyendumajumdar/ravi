@@ -634,11 +634,11 @@ z = function()
   y=x()
   y[1] = 99.67
   assert(y[1], 99.67)
-  assert(#y == 1)
+  assert(@integer (#y) == 1)
 end
 check(z, 'CLOSURE', 'GETUPVAL', 'MOVE', 'CALL',
   'MOVE', 'CALL', 'SETUPVAL', 'SETTABUP', 'GETTABUP_SK', 'GETTABUP',
-  'LOADK', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'LEN', 'EQ_II',
+  'LOADK', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'LEN', 'TOINT', 'EQ_II',
   'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
 z()
 compile(z)
@@ -665,7 +665,7 @@ z = function()
 end
 check(z, 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK', 'LOADK',
   'LOADK', 'LOADK', 'LOADK', 'SETLIST', 'GETTABUP_SK', 'GETTABLE_I',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'LEN',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'LEN', 'TOINT',
   'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'GETTABLE_I',
   'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABLE_I', 'LOADK',
   'CONCAT', 'SETTABLE_I', 'CLOSURE', 'SETUPVAL', 'GETTABUP_SK', 'GETUPVAL',

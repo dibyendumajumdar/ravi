@@ -29,6 +29,7 @@ Features
 
 Recent Work
 ===========
+* A `distribution of Ravi/Lua 5.3 <https://github.com/dibyendumajumdar/ravi-distro>`_ is in the works - this will provide ready made binary downloads of Ravi/Lua with select high quality libraries.
 * `Experimental Type Annotations`_ for user defined types was implemented in Oct 2017.
 * A new `X86-64 VM written in assembler <https://github.com/dibyendumajumdar/ravi/tree/master/vmbuilder>`_ using `dynasm <https://luajit.org/dynasm.html>`_ tool is under development currently.
 
