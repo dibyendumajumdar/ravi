@@ -120,6 +120,7 @@ opcodes_coverage.SELF_S = 0
 opcodes_coverage.TOTYPE = 0
 opcodes_coverage.TOSTRING = 0
 opcodes_coverage.TOCLOSURE = 0
+opcodes_coverage.SELF_SK = 0
 
 local compile = function(f)
   if ravi.jit() then
@@ -634,11 +635,11 @@ z = function()
   y=x()
   y[1] = 99.67
   assert(y[1], 99.67)
-  assert(#y == 1)
+  assert(@integer (#y) == 1)
 end
 check(z, 'CLOSURE', 'GETUPVAL', 'MOVE', 'CALL',
   'MOVE', 'CALL', 'SETUPVAL', 'SETTABUP', 'GETTABUP_SK', 'GETTABUP',
-  'LOADK', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'LEN', 'EQ_II',
+  'LOADK', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'LEN', 'TOINT', 'EQ_II',
   'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
 z()
 compile(z)
@@ -665,7 +666,7 @@ z = function()
 end
 check(z, 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK', 'LOADK',
   'LOADK', 'LOADK', 'LOADK', 'SETLIST', 'GETTABUP_SK', 'GETTABLE_I',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'LEN',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'LEN', 'TOINT',
   'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'GETTABLE_I',
   'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABLE_I', 'LOADK',
   'CONCAT', 'SETTABLE_I', 'CLOSURE', 'SETUPVAL', 'GETTABUP_SK', 'GETUPVAL',
@@ -1576,6 +1577,16 @@ assert(x() == 'a')
 ravi.compile(x)
 assert(x() == 'a')
 print 'Test 63 OK'
+
+-- Codegen bug #issue 148
+function x()
+  assert(({pcall(function() comp 'x for __result' end)})[2]
+       :find'not contain __ prefix')
+end
+check(x, 'GETTABUP_SK', 'NEWTABLE', 'GETTABUP_SK', 'CLOSURE',
+  'CALL', 'SETLIST', 'GETTABLE_I', 'SELF_SK', 'LOADK', 
+  'CALL', 'CALL', 'RETURN')
+print 'Test 64 OK'
 
 for k,v in pairs(opcodes_coverage)
 do

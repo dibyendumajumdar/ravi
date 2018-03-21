@@ -13,7 +13,7 @@ function matrix.T(a: table)
 end
 
 function matrix.mul(a: table, b: table)
-	assert(#a[1] == #b);
+	assert(@integer(#a[1]) == #b);
 	local m: integer, n: integer, p: integer, x: table = #a, #a[1], #b[1], {};
 	local c: table = matrix.T(b); -- transpose for efficiency
 	for i = 1, m do

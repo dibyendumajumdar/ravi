@@ -1920,6 +1920,9 @@ static int exp1 (LexState *ls, Fornuminfo *info) {
    */
   expdesc e = {.ravi_type = RAVI_TANY, .pc = -1};
   int reg;
+  int expect_int = 0;
+  if (ls->t.token == '#')
+    expect_int = 1;
   expr(ls, &e);
   DEBUG_EXPR(raviY_printf(ls->fs, "fornum exp -> %e\n", &e));
   info->is_constant = (e.k == VKINT);
@@ -1927,7 +1930,13 @@ static int exp1 (LexState *ls, Fornuminfo *info) {
   luaK_exp2nextreg(ls->fs, &e);
   lua_assert(e.k == VNONRELOC);
   reg = e.u.info;
-  info->type = e.ravi_type;
+  if (expect_int && e.ravi_type != RAVI_TNUMINT) {
+    luaK_codeABC(ls->fs, OP_RAVI_TOINT, reg, 0, 0);
+    info->type = RAVI_TNUMINT;
+  }
+  else {
+    info->type = e.ravi_type;
+  }
   return reg;
 }
 
