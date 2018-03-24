@@ -1153,6 +1153,42 @@ static void constructor (LexState *ls, expdesc *t) {
 
 /* }====================================================================== */
 
+/*
+ * We would like to allow user defined types to contain the sequence
+ * NAME [. NAME]+
+ * The initial NAME is supplied.
+ * Returns extended name.
+ * Note that the returned string will be anchored in the Lexer and must 
+ * be anchored somewhere else by the time parsing finishes
+ */
+static TString *user_defined_type_name(LexState *ls, TString *typename) {
+	char buffer[128];
+	size_t len = 0;
+	if (testnext(ls, '.')) {
+		char buffer[128] = { 0 };
+		const char *str = getstr(typename);
+		len = strlen(str);
+		if (len >= sizeof buffer) {
+			luaX_syntaxerror(ls, "User defined type name is too long");
+			return typename;
+		}
+		snprintf(buffer, sizeof buffer, "%s", str);
+		do {
+			typename = str_checkname(ls);
+			str = getstr(typename);
+			size_t newlen = len + strlen(str) + 1;
+			if (newlen >= sizeof buffer) {
+				luaX_syntaxerror(ls, "User defined type name is too long");
+				return typename;
+			}
+			snprintf(buffer + len, sizeof buffer - len, ".%s", str);
+			len = newlen;
+		} while (testnext(ls, '.'));
+		typename = luaX_newstring(ls, buffer, strlen(buffer));
+	}
+	return typename;
+}
+
 /* RAVI Parse
  *   name : type
  *   where type is 'integer', 'integer[]',
@@ -1190,6 +1226,8 @@ static ravitype_t declare_localvar(LexState *ls, TString **pusertype) {
     else {
       /* default is a userdata type */
       tt = RAVI_TUSERDATA;
+      typename = user_defined_type_name(ls, typename);
+      str = getstr(typename);
       *pusertype = typename;
     }
     if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
@@ -1645,8 +1683,16 @@ static BinOpr subexpr (LexState *ls, expdesc *v, int limit) {
   if (uop != OPR_NOUNOPR) {
     int line = ls->linenumber;
 	// RAVI change - get usertype if @<name>
-    TString *usertype = uop == OPR_TO_TYPE ? ls->t.seminfo.ts : NULL;
-    luaX_next(ls);
+    TString *usertype = NULL;
+    if (uop == OPR_TO_TYPE) {
+      usertype = ls->t.seminfo.ts;
+      luaX_next(ls);
+      // Check and expand to extended name if necessary
+      usertype = user_defined_type_name(ls, usertype);
+    }
+    else {
+      luaX_next(ls);
+    }
     subexpr(ls, v, UNARY_PRIORITY);
     luaK_prefix(ls->fs, uop, v, line, usertype);
   }
