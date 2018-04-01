@@ -5,6 +5,7 @@
 #ifndef RAVI_VSCODE_PROTOCOL_H
 #define RAVI_VSCODE_PROTOCOL_H
 
+#include <ravi_membuf.h>
 #include "json.h"
 
 #include <stdbool.h>
@@ -362,21 +363,6 @@ typedef struct {
 } ProtocolMessage;
 
 
-typedef struct {
-  char *buf;
-  size_t allocated_size;
-  size_t pos;
-} membuff_t;
-
-extern void membuff_init(membuff_t *mb, size_t initial_size);
-extern void membuff_rewindpos(membuff_t *mb);
-extern void membuff_resize(membuff_t *mb, size_t new_size);
-extern void membuff_free(membuff_t *mb);
-extern void membuff_add_string(membuff_t *mb, const char *str);
-extern void membuff_add_bool(membuff_t *mb, bool value);
-extern void membuff_add_int(membuff_t *mb, int value);
-extern void membuff_add_longlong(membuff_t *mb, int64_t value);
-
 extern int vscode_parse_message(char *buf, size_t len, ProtocolMessage *msg,
                                 FILE *log);
 extern void vscode_make_error_response(ProtocolMessage *req,
@@ -408,8 +394,6 @@ extern void vscode_send_success_response(ProtocolMessage *req,
 extern int vscode_get_request(FILE *in, membuff_t *mb, ProtocolMessage *req, FILE *log);
 extern void vscode_json_stringify(const char *src, char *dest, size_t len);
 
-/* guaranteed null termination */
-extern void vscode_string_copy(char *buf, const char *src, size_t buflen);
 extern int64_t vscode_pack(PackedInteger *pi);
 extern void vscode_unpack(int64_t i, PackedInteger *pi);
 

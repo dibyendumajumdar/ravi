@@ -109,30 +109,35 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "TOFLT", /* A R(A) := tofloat(R(A)) */
   "TOARRAYI", /* A R(A) := to_arrayi(R(A)) */
   "TOARRAYF", /* A R(A) := to_arrayf(R(A)) */
+  "TOTAB",     /* A R(A) := to_table(R(A)) */
+  "TOSTRING",
+  "TOCLOSURE",
+  "TOTYPE",
 
   "MOVEI",  /*	A B	R(A) := R(B)					*/
   "MOVEF",  /*	A B	R(A) := R(B)					*/
   "MOVEAI", /* A B R(A) := R(B), check R(B) is array of int */
   "MOVEAF", /* A B R(A) := R(B), check R(B) is array of floats */
+  "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
 
   "GETTABLE_AI",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
   "GETTABLE_AF",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
 
   "SETTABLE_AI",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
   "SETTABLE_AF",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+  "SETTABLE_AII",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+  "SETTABLE_AFF",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
   "FORLOOP_IP",
   "FORLOOP_I1",
   "FORPREP_IP",
   "FORPREP_I1",
 
-  "SETUPVALI",
-  "SETUPVALF",
-  "SETUPVALAI",
-  "SETUPVALAF",
-
-  "SETTABLE_AII",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
-  "SETTABLE_AFF",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+  "SETUPVALI", /*	A B	UpValue[B] := tointeger(R(A))			*/
+  "SETUPVALF", /*	A B	UpValue[B] := tonumber(R(A))			*/
+  "SETUPVALAI",  /*	A B	UpValue[B] := toarrayint(R(A))			*/
+  "SETUPVALAF",  /*	A B	UpValue[B] := toarrayflt(R(A))			*/
+  "SETUPVALT", /*	A B	UpValue[B] := to_table(R(A))			*/
 
   "BAND_II",/*	A B C	R(A) := RK(B) & RK(C)				*/
   "BOR_II", /*	A B C	R(A) := RK(B) | RK(C)				*/
@@ -148,14 +153,12 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "LE_II",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   "LE_FF",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   
-  "GETTABLE_I", /*	A B C	R(A) := R(B)[RK(C)], integer key	*/
   "GETTABLE_S", /*	A B C	R(A) := R(B)[RK(C)], string key   */
-  "SETTABLE_I", /*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
   "SETTABLE_S", /*	A B C	R(A)[RK(B)] := RK(C), string key  */
-  "TOTAB",     /* A R(A) := to_table(R(A)) */
-  "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
-  "SETUPVALT", /*	A B	UpValue[B] := to_table(R(A))			*/
   "SELF_S",    /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
+
+  "GETTABLE_I", /*	A B C	R(A) := R(B)[RK(C)], integer key	*/
+  "SETTABLE_I", /*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
   "GETTABLE_SK", /* _SK */ /*	A B C	R(A) := R(B)[RK(C)], string key   */
   "SELF_SK",    /* _SK*/ /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
   "SETTABLE_SK", /*_SK */ /*	A B C	R(A)[RK(B)] := RK(C), string key  */
@@ -247,29 +250,36 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOFLT  A R(A) := tonumber(R(A)) */
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOARRAYI A R(A) := check_array_of_int(R(A)) */
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOARRAYF A R(A) := check_array_of_float(R(A)) */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOTAB A R(A) := check_table(R(A)) */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOSTRING */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOCLOSURE */
+ ,opmode(0, 1, OpArgK, OpArgN, iABx)	/* OP_RAVI_TOTYPE */
 
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))	*/
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B)) */
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEAI A B R(A) := R(B), check R(B) is array of int */
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEAF A B R(A) := R(B), check R(B) is array of floats */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVETAB A B R(A) := R(B), check R(B) is a table */
 
  ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_GETTABLE_AI A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_GETTABLE_AF A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
 
  ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AI A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
  ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AII A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AFF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_IP */
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_I1 */
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_IP */
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_I1 */
+
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALI */
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALF */
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALAI */
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALAF */
+ ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALT */
 
- ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AII A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AFF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
  ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_BAND_II */
  ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_BOR_II */
  ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_BXOR_II */
@@ -284,19 +294,16 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_II */
  ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_FF */
 
- ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_I */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_S */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_I */
  ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_S */
-  
- ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOTAB A R(A) := check_table(R(A)) */
- ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVETAB A B R(A) := R(B), check R(B) is a table */
- ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALT */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_SELF_S */
+
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_I */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_I */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_SK */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_SELF_SK */
  ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_SK */
- ,opmode(0, 1, OpArgU, OpArgK, iABC)	  /* OP_RAVI_GETTABUP_SK */
+ ,opmode(0, 1, OpArgU, OpArgK, iABC)		/* OP_RAVI_GETTABUP_SK */
 };
 
 
@@ -631,19 +638,7 @@ static char *buildop2(Proto *p, int pc, char *buff, size_t len) {
   int line = getfuncline(p, pc);
   char tbuf[100];
   raviP_instruction_to_str(tbuf, sizeof tbuf, p->code[pc]);
-  /* This is a temporary hack to output old opcode names to prevent tests from breaking */
-  if (strncmp(tbuf, luaP_opnames[OP_RAVI_GETTABLE_SK], strlen(luaP_opnames[OP_RAVI_GETTABLE_SK])) == 0 ||
-    strncmp(tbuf, luaP_opnames[OP_RAVI_SELF_SK], strlen(luaP_opnames[OP_RAVI_SELF_SK])) == 0 ||
-    strncmp(tbuf, luaP_opnames[OP_RAVI_GETTABUP_SK], strlen(luaP_opnames[OP_RAVI_GETTABUP_SK])) == 0 ||
-    strncmp(tbuf, luaP_opnames[OP_RAVI_SETTABLE_SK], strlen(luaP_opnames[OP_RAVI_SETTABLE_SK])) == 0) {
-    char *cp = strstr(tbuf, "_SK ");
-    if (cp != NULL) {
-      cp[0] = ' ';
-      cp[1] = ' ';
-      cp[2] = ' ';
-    }
-  }
-  snprintf(buff, len, "(%4d) %4d - %s", line, pc, tbuf); 
+  snprintf(buff, len, "(%4d) %4d - %s", line, pc, tbuf);
   return buff;
 }
 

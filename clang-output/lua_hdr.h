@@ -36,7 +36,7 @@ union Value {
 
 struct TValue {
   union Value value_;
-  int tt_;
+  lu_byte tt_;
 };
 
 struct TString {
@@ -95,16 +95,18 @@ enum ravitype_t {
 
 struct Upvaldesc {
   struct TString *name;  /* upvalue name (for debug information) */
-  enum ravitype_t type; /* RAVI type of upvalue */
+  struct TString *usertype; /* RAVI extension: name of user type */
+  lu_byte ravi_type; /* RAVI type of upvalue */
   lu_byte instack; /* whether it is in stack */
   lu_byte idx; /* index of upvalue (in stack or in outer function's list) */
 };
 
 struct LocVar {
   struct TString *varname;
+  struct TString *usertype; /* RAVI extension: name of user type */
   int startpc; /* first point where variable is active */
   int endpc;   /* first point where variable is dead */
-  enum ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
+  lu_byte ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
 };
 
 struct RaviJITProto {
@@ -328,7 +330,7 @@ union GCUnion {
 
 
 #define rttype(o) ((o)->tt_)
-#define BIT_ISCOLLECTABLE (1 << 6)
+#define BIT_ISCOLLECTABLE (1 << 7)
 #define iscollectable(o)  (rttype(o) & BIT_ISCOLLECTABLE)
 #define upisopen(up)  ((up)->v != &(up)->u.value)
 

@@ -25,6 +25,9 @@
 This will hopefully eventually contain a Lua binding for LLVM.
 */
 
+#if USE_DMR_C
+#include <dmr_c.h>
+#endif
 #include <ravijit.h>
 #include "ravi_llvmcodegen.h"
 
@@ -175,6 +178,7 @@ struct MainFunctionHolder {
   ravi::RaviJITFunction *func;
   lua_CFunction compiled_func;
   llvm::Value *arg1;
+  bool is_valid;
 };
 
 struct FunctionHolder {
@@ -198,9 +202,11 @@ struct ModuleHolder {
 
   ModuleHolder(const std::shared_ptr<ravi::RaviJITModule> &module) {
     M = module;
-    //printf("ModuleHolder created\n");
+    // printf("ModuleHolder created\n");
   }
-  ~ModuleHolder() { /* printf("ModuleHolder destroyed\n");*/ }
+  ~ModuleHolder() { 
+      //printf("ModuleHolder destroyed\n");
+  }
 };
 
 struct PhiNodeHolder {
@@ -238,7 +244,7 @@ static void alloc_LLVM_module(lua_State *L,
 /* __gc for ModuleHolder */
 static int collect_LLVM_module(lua_State *L) {
   ModuleHolder *mh = check_LLVM_module(L, 1);
-  //printf("Module released: usecount %d\n", (int)mh->M.use_count());
+  // printf("Module released: usecount %d\n", (int)mh->M.use_count());
   mh->~ModuleHolder();
   return 0;
 }
@@ -319,6 +325,7 @@ static void alloc_LLVM_phinode(lua_State *L, llvm::PHINode *phi) {
   h->phi = phi;
 }
 
+// Creates a new module to hold a Lua C Function
 static MainFunctionHolder *alloc_LLVM_mainfunction(lua_State *L,
                                                    ravi::RaviJITState *jit,
                                                    llvm::FunctionType *type,
@@ -333,6 +340,77 @@ static MainFunctionHolder *alloc_LLVM_mainfunction(lua_State *L,
   auto module = std::make_shared<ravi::RaviJITModule>(G(L)->ravi_state->jit);
   h->func = new ravi::RaviJITFunction(&h->compiled_func, module, type,
                                       llvm::Function::ExternalLinkage, name);
+  h->is_valid = true;
+  return h;
+}
+
+static bool validate_has_luaCFunction_signature(MainFunctionHolder *h,
+                                                char *errormessage, int len) {
+  auto f = h->func->function();
+  if (!f) {
+    snprintf(errormessage, len, "Function was not found");
+    return false;
+  }
+  auto ftype = f->getFunctionType();
+  auto returnType = ftype->getReturnType();
+  if (!returnType->isIntegerTy()) {
+    snprintf(errormessage, len,
+             "Invalid return type in function: expected integer");
+    return false;
+  }
+  if (ftype->isVarArg()) {
+    // invalid
+    snprintf(errormessage, len,
+             "Invalid function: cannot be variable argument type");
+    return false;
+  }
+  if (ftype->getFunctionNumParams() != 1) {
+    // invalid
+    snprintf(errormessage, len,
+             "Invalid function: function must accept one argument (struct lua_State *) only");
+    return false;
+  }
+  auto paramType = ftype->getFunctionParamType(0);
+  if (!paramType->isPointerTy()) {
+    // invalid
+    snprintf(errormessage, len,
+        "Invalid function: argument is not a pointer to struct lua_State");
+    return false;
+  }
+  auto underLying = paramType->getPointerElementType();
+  if (!underLying->isStructTy()) {
+    // invalid
+    snprintf(errormessage, len,
+        "Invalid function: argument is not a pointer to struct lua_State");
+    return false;
+  }
+  if (!underLying->getStructName().startswith("struct.lua_State")) {
+    // invalid
+    snprintf(
+        errormessage, len,
+        "Invalid function: argument is not a pointer to struct lua_State");
+    return false;
+  }
+  return true;
+}
+
+// References an existing function in a Module
+static MainFunctionHolder *alloc_LLVM_luaCfunction(
+    lua_State *L, const std::shared_ptr<ravi::RaviJITModule> &module,
+    const char *name) {
+    char error_message[128];
+  MainFunctionHolder *h =
+      (MainFunctionHolder *)lua_newuserdata(L, sizeof(MainFunctionHolder));
+  h->func = nullptr;
+  h->compiled_func = nullptr;
+  h->arg1 = nullptr;
+  raviL_getmetatable(L, LLVM_mainfunction);
+  lua_setmetatable(L, -2);
+  h->func = new ravi::RaviJITFunction(&h->compiled_func, module, name);
+  h->is_valid = validate_has_luaCFunction_signature(h, error_message, sizeof error_message);
+  if (!h->is_valid) {
+      luaL_argerror(L, 2, error_message);
+  }
   return h;
 }
 
@@ -342,7 +420,7 @@ static int collect_LLVM_mainfunction(lua_State *L) {
   if (builder->func) {
     delete builder->func;
     builder->func = nullptr;
-    //printf("collected function\n");
+    //printf("Collected MainFunctionHolder\n");
   }
   return 0;
 }
@@ -474,6 +552,7 @@ static llvm::Value *get_value(lua_State *L, int idx) {
  Dump an LLVM object
 */
 static int dump_content(lua_State *L) {
+#if LLVM_VERSION_MAJOR < 5
   TypeHolder *th = nullptr;
   StructTypeHolder *sth = nullptr;
   PointerTypeHolder *ph = nullptr;
@@ -523,6 +602,7 @@ static int dump_content(lua_State *L) {
     phi->phi->dump();
     return 0;
   }
+#endif
   return 0;
 }
 
@@ -624,6 +704,13 @@ static int context_new_lua_CFunction(lua_State *L) {
   return 1;
 }
 
+static int context_new_module(lua_State *L) {
+  ContextHolder *context = check_LLVM_context(L, 1);
+  alloc_LLVM_module(L,
+                    std::make_shared<ravi::RaviJITModule>(context->jitState));
+  return 1;
+}
+
 static int func_getmodule(lua_State *L) {
   MainFunctionHolder *f = check_LLVM_mainfunction(L, 1);
   alloc_LLVM_module(L, f->func->raviModule());
@@ -644,6 +731,93 @@ static int module_newfunction(lua_State *L) {
                              name, mh->M->module());
   alloc_LLVM_function(L, f);
   return 1;
+}
+
+static int module_getfunction(lua_State *L) {
+  ModuleHolder *mh = check_LLVM_module(L, 1);
+  const char *name = luaL_checkstring(L, 2);
+  alloc_LLVM_luaCfunction(L, mh->M, name);
+  // TODO we should check that the function signature is correct
+  return 1;
+}
+
+enum {
+    MAX_ARGS = 50,
+    MAX_BUFFER = 4096
+};
+
+static int collect_args(lua_State *L, int tabindex, char *argv[], int maxargs,
+                        char *buf, int buflen) {
+  char errormessage[128];
+  int len = lua_rawlen(L, tabindex);
+  if (len > maxargs) {
+    snprintf(errormessage, sizeof errormessage,
+             "Arguments exceed total count %d elements", maxargs);
+    luaL_argerror(L, 2, errormessage);
+    len = maxargs;
+  }
+  char *p = buf;
+  char *endp = buf + buflen;
+  int n = 0;
+  for (int i = 0; i < len; i++) {
+    lua_rawgeti(L, tabindex, i + 1);
+    size_t size = 0;
+    const char *argument = luaL_checklstring(L, -1, &size);
+    if (argument && size > 0) {
+      if (p + size + 1 >= endp) {
+        snprintf(errormessage, sizeof errormessage,
+                 "Arguments exceed combined size of %d bytes", buflen);
+        luaL_argerror(L, 2, errormessage);
+        break;
+      }
+      strncpy(p, argument, size + 1);
+      argv[n] = p;
+      p += (size + 1);
+      n++;
+    }
+  }
+  assert(p <= endp);
+  return n;
+}
+
+static int module_compile_C(lua_State *L) {
+  ModuleHolder *mh = check_LLVM_module(L, 1);
+  const char *codebuffer = NULL;  //  luaL_checkstring(L, 2);
+  char *argv[MAX_ARGS + 1] = {NULL};
+  int argc = 0;
+  char buf[MAX_BUFFER + 1] = {0};
+  int guard = 0xfefefefe;
+
+  if (lua_istable(L, 2)) {
+    argc = collect_args(L, 2, argv, MAX_ARGS, buf, sizeof buf);
+    assert(argc >= 0 && argc <= MAX_ARGS);
+    assert(argv[MAX_ARGS] == NULL);
+    assert(guard == 0xfefefefe);
+    if (lua_isstring(L, 3)) { codebuffer = lua_tostring(L, 3); }
+  }
+  else if (lua_isstring(L, 2)) {
+    codebuffer = lua_tostring(L, 2);
+  }
+
+#if USE_DMR_C
+  if (dmrC_llvmcompile(argc, argv, llvm::wrap(mh->M->module()), codebuffer)) {
+    lua_pushboolean(L, true);
+  }
+  else {
+    lua_pushboolean(L, false);
+  }
+#else
+  (void)mh;
+  lua_pushboolean(L, false);
+#endif
+  return 1;
+}
+
+static int module_generate_code(lua_State *L) {
+  ModuleHolder *mh = check_LLVM_module(L, 1);
+  mh->M->runpasses();
+  mh->M->finalize();
+  return 0;
 }
 
 static int context_new_basicblock(lua_State *L) {
@@ -709,6 +883,8 @@ static int irbuilder_condbranch(lua_State *L) {
 
 static int func_compile(lua_State *L) {
   MainFunctionHolder *f = check_LLVM_mainfunction(L, 1);
+  if (!f->is_valid) return 0;
+  if (!f->func->function()) return 0;
   if (!f->compiled_func) {
     f->func->raviModule()->runpasses();
     f->func->raviModule()->finalize();
@@ -1221,7 +1397,9 @@ static const luaL_Reg structtype_methods[] = {{"setbody", struct_add_members},
                                               {NULL, NULL}};
 
 static const luaL_Reg module_methods[] = {
-    {"newfunction", module_newfunction}, {"dump", dump_content}, {NULL, NULL}};
+    {"newfunction", module_newfunction},    {"getfunction", module_getfunction},
+    {"compileC", module_compile_C},         {"dump", dump_content},
+    {"generatecode", module_generate_code}, {NULL, NULL}};
 
 static const luaL_Reg main_function_methods[] = {
     {"appendblock", func_append_basicblock},
@@ -1248,6 +1426,7 @@ static const luaL_Reg context_methods[] = {
     {"basicblock", context_new_basicblock},
     {"intconstant", context_intconstant},
     {"nullconstant", context_nullconstant},
+    {"newmodule", context_new_module},
     {NULL, NULL}};
 
 static const luaL_Reg phi_methods[] = {{"addincoming", phi_addincoming},

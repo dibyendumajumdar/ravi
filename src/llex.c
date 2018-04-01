@@ -46,7 +46,7 @@ static const char *const luaX_tokens [] = {
     "<<", ">>", "::", "<eof>",
     "<number>", "<integer>", "<name>", "<string>",
     "@integer", "@number", "@integer[]", "@number[]",
-    "@table"
+    "@table", "@string", "@closure"
 };
 
 
@@ -459,8 +459,12 @@ static int casttoken(LexState *ls, SemInfo *seminfo) {
   /* @table */
   else if (strncmp(s, "@table", n) == 0)
     tok = TK_TO_TABLE;
+  else if (strncmp(s, "@string", n) == 0)
+    tok = TK_TO_STRING;
+  else if (strncmp(s, "@closure", n) == 0)
+    tok = TK_TO_CLOSURE;
   else {
-    seminfo->ts = luaX_newstring(ls, s, n);
+    seminfo->ts = luaX_newstring(ls, s+1, n-1); /* omit @ */
     tok = '@';
   }
   luaZ_buffremove(ls->buff, n); /* rewind but buffer still holds the saved characters */

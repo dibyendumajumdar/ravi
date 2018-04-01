@@ -172,11 +172,14 @@ static void LoadUpvalues (LoadState *S, Proto *f) {
   n = LoadInt(S);
   f->upvalues = luaM_newvector(S->L, n, Upvaldesc);
   f->sizeupvalues = n;
-  for (i = 0; i < n; i++)
+  for (i = 0; i < n; i++) {
     f->upvalues[i].name = NULL;
+    f->upvalues[i].usertype = NULL;
+  }
   for (i = 0; i < n; i++) {
     f->upvalues[i].instack = LoadByte(S);
     f->upvalues[i].idx = LoadByte(S);
+    // FIXME f->upvalues[i].usertype = LoadString(S);
   }
 }
 
@@ -190,18 +193,22 @@ static void LoadDebug (LoadState *S, Proto *f) {
   n = LoadInt(S);
   f->locvars = luaM_newvector(S->L, n, LocVar);
   f->sizelocvars = n;
-  for (i = 0; i < n; i++)
+  for (i = 0; i < n; i++) {
     f->locvars[i].varname = NULL;
+    f->locvars[i].usertype = NULL;
+  }
   for (i = 0; i < n; i++) {
     f->locvars[i].varname = LoadString(S);
     f->locvars[i].startpc = LoadInt(S);
     f->locvars[i].endpc = LoadInt(S);
-    f->locvars[i].ravi_type = (ravitype_t) LoadByte(S);
+    f->locvars[i].ravi_type = LoadByte(S);
+    f->locvars[i].usertype = LoadString(S);
   }
   n = LoadInt(S);
   for (i = 0; i < n; i++) {
     f->upvalues[i].name = LoadString(S);
-    f->upvalues[i].type = (ravitype_t) LoadByte(S);
+    f->upvalues[i].ravi_type = LoadByte(S);
+    f->upvalues[i].usertype = LoadString(S);
   }
 }
 

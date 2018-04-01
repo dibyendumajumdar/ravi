@@ -21,6 +21,7 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 #include <ravijit.h>
+#include <ravi_jitshared.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -90,18 +91,13 @@ static int ravi_compile_n(lua_State *L) {
     LClosure *l = reinterpret_cast<LClosure *>(p);
     functions[n++] = l->p;
   }
-  ravi_compile_options_t options = {0};
+  ravi_compile_options_t options = {0, 0, RAVI_CODEGEN_NONE};
   options.manual_request = 1;
-  options.verification_level = 1;
   if (lua_istable(L, 2)) {
-    lua_Integer do_dump, do_verify, omit_arrayget_rangecheck;
-    l_table_get_integer(L, 2, "dump", &do_dump, 0);
-    l_table_get_integer(L, 2, "verify", &do_verify, 1);
+    lua_Integer omit_arrayget_rangecheck;
     l_table_get_integer(L, 2, "omitArrayGetRangeCheck",
                         &omit_arrayget_rangecheck, 0);
     options.omit_array_get_range_check = (int)omit_arrayget_rangecheck;
-    options.dump_level = (int)do_dump;
-    options.verification_level = (int)do_verify;
   }
   int result = 0;
   if (n > 0) { result = raviV_compile_n(L, functions, n, &options); }
@@ -195,6 +191,18 @@ static int ravi_sizelevel(lua_State *L) {
   return 1;
 }
 
+// Set validation when JIT compiling
+static int ravi_validation(lua_State *L) {
+  int n = lua_gettop(L);
+  int oldvalue = raviV_getvalidation(L);
+  if (n == 1) {
+    int value = lua_toboolean(L, 1);
+    raviV_setvalidation(L, value);
+  }
+  lua_pushboolean(L, oldvalue);
+  return 1;
+}
+
 // Set GC step when JIT compiling
 static int ravi_gcstep(lua_State *L) {
   int n = lua_gettop(L);
@@ -203,10 +211,10 @@ static int ravi_gcstep(lua_State *L) {
     int value = lua_tointeger(L, 1);
     raviV_setgcstep(L, value);
   }
-  lua_pushinteger(L, oldvalue);
+  lua_pushboolean(L, oldvalue);
   return 1;
 }
-
+  
 // Turn on/off the trace hook
 static int ravi_traceenable(lua_State *L) {
   int n = lua_gettop(L);
@@ -216,6 +224,18 @@ static int ravi_traceenable(lua_State *L) {
     raviV_settraceenabled(L, value);
   }
   lua_pushboolean(L, oldvalue != 0);
+  return 1;
+}
+  
+// Set verbosity
+static int ravi_verbosity(lua_State *L) {
+  int n = lua_gettop(L);
+  int oldvalue = raviV_getverbosity(L);
+  if (n == 1) {
+    int value = lua_tointeger(L, 1);
+    raviV_setverbosity(L, value);
+  }
+  lua_pushinteger(L, oldvalue);
   return 1;
 }
 
@@ -236,6 +256,8 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"jit", ravi_jitenable},
                                    {"optlevel", ravi_optlevel},
                                    {"sizelevel", ravi_sizelevel},
+                                   {"verbosity", ravi_verbosity},
+                                   {"validation", ravi_validation},
                                    {"gcstep", ravi_gcstep},
                                    {"tracehook", ravi_traceenable},
                                    {"listcode", ravi_listcode},

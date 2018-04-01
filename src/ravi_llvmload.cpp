@@ -238,6 +238,69 @@ void RaviCodeGenerator::emit_MOVEF(RaviFunctionDef *def, int A, int B, int pc) {
   emit_store_reg_n_withtype(def, load_var, dest);
 }
 
+void RaviCodeGenerator::emit_TOSTRING(RaviFunctionDef *def, int A, int pc) {
+  emit_debug_trace(def, OP_RAVI_TOSTRING, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Instruction *type = emit_load_type(def, ra);
+  llvm::Value *isnotnil = emit_is_not_value_of_type(def, type, LUA__TNIL);
+  // check if string type
+  llvm::Value *cmp1 = emit_is_not_value_of_type_class(def, type, LUA_TSTRING);
+  cmp1 = def->builder->CreateAnd(isnotnil, cmp1, "OP_RAVI_TOSTRING_is.not.expected.type");
+  llvm::BasicBlock *raise_error = llvm::BasicBlock::Create(
+      def->jitState->context(), "OP_RAVI_TOSTRING_if.not.expected_type", def->f);
+  llvm::BasicBlock *done =
+      llvm::BasicBlock::Create(def->jitState->context(), "OP_RAVI_TOSTRING_done");
+  auto brinst1 = def->builder->CreateCondBr(cmp1, raise_error, done);
+  attach_branch_weights(def, brinst1, 0, 100);
+  def->builder->SetInsertPoint(raise_error);
+
+  // Conversion failed, so raise error
+  emit_raise_lua_error(def, "string expected");
+  def->builder->CreateBr(done);
+
+  def->f->getBasicBlockList().push_back(done);
+  def->builder->SetInsertPoint(done);
+}
+
+void RaviCodeGenerator::emit_TOCLOSURE(RaviFunctionDef *def, int A, int pc) {
+  emit_debug_trace(def, OP_RAVI_TOCLOSURE, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Instruction *type = emit_load_type(def, ra);
+  llvm::Value *isnotnil = emit_is_not_value_of_type(def, type, LUA__TNIL);
+  // check if function type
+  llvm::Value *cmp1 = emit_is_not_value_of_type_class(
+      def, type, LUA_TFUNCTION);
+  cmp1 = def->builder->CreateAnd(isnotnil, cmp1, "OP_RAVI_TOCLOSURE_is.not.expected.type");
+  llvm::BasicBlock *raise_error = llvm::BasicBlock::Create(
+      def->jitState->context(), "OP_RAVI_TOCLOSURE_if.not.expected_type",
+      def->f);
+  llvm::BasicBlock *done = llvm::BasicBlock::Create(def->jitState->context(),
+                                                    "OP_RAVI_TOCLOSURE_done");
+  auto brinst1 = def->builder->CreateCondBr(cmp1, raise_error, done);
+  attach_branch_weights(def, brinst1, 0, 100);
+  def->builder->SetInsertPoint(raise_error);
+
+  // Conversion failed, so raise error
+  emit_raise_lua_error(def, "closure expected");
+  def->builder->CreateBr(done);
+
+  def->f->getBasicBlockList().push_back(done);
+  def->builder->SetInsertPoint(done);
+}
+
+void RaviCodeGenerator::emit_TOTYPE(RaviFunctionDef *def, int A, int Bx,
+                                    int pc) {
+  emit_debug_trace(def, OP_RAVI_TOTYPE, pc);
+  // Load pointer to base
+  emit_load_base(def);
+
+  llvm::Value *ra = emit_gep_register(def, A);
+  llvm::Value *rb = emit_gep_constant(def, Bx);
+  CreateCall3(def->builder, def->raviV_op_totypeF, def->L, ra, rb);
+}
+
 void RaviCodeGenerator::emit_TOINT(RaviFunctionDef *def, int A, int pc) {
   //  case OP_RAVI_TOINT: {
   //    lua_Integer j;

@@ -44,10 +44,7 @@ LUAI_FUNC const TValue *luaH_getint (Table *t, lua_Integer key);
 LUAI_FUNC void luaH_setint (lua_State *L, Table *t, lua_Integer key,
                                                     TValue *value);
 
-/** RAVI change start - attempt to inline some functions **/
-#define NEW_HASH 1
-
-#if NEW_HASH
+#if RAVI_USE_NEWHASH
 
 /* 
 Like LuaJIT we use a pre-computed hmask to minimise the number of steps
@@ -64,7 +61,9 @@ required to get to a node in the hash table
 */
 #define hashmod(t, n) (gnode(t, ((n) % ((t)->hmask|1))))
 #define hashpointer(t, p) hashmod(t, point2uint(p))
+
 #else 
+
 #define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
 #define hashstr(t,str)		hashpow2(t, (str)->hash)
 #define hashboolean(t,p)	hashpow2(t, p)
@@ -75,6 +74,7 @@ required to get to a node in the hash table
 */
 #define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1)|1))))
 #define hashpointer(t,p)	hashmod(t, point2uint(p))
+
 #endif
 
 #if defined(RAVI_ENABLED)

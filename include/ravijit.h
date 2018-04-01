@@ -29,20 +29,7 @@ extern "C" {
 
 struct lua_State;
 struct Proto;
-
-typedef struct {
-  /* Is this a manual request? */
-  int manual_request;
-
-  /* Should range check be omitted when compiling array access */
-  int omit_array_get_range_check;
-
-  /* Should the compiler dump generated code ? */
-  int dump_level;
-
-  /* Should the compiler validate the generated code ? */
-  int verification_level;
-} ravi_compile_options_t;
+typedef struct ravi_compile_options_t ravi_compile_options_t;
 
 /* Initialise the JIT engine */
 int raviV_initjit(struct lua_State *L);
@@ -68,6 +55,10 @@ int raviV_getsizelevel(struct lua_State *L);
 /* Set optimizer level */
 void raviV_setoptlevel(struct lua_State *L, int optlevel);
 int raviV_getoptlevel(struct lua_State *L);
+  
+/* Set verbosity */
+void raviV_setverbosity(struct lua_State *L, int verbosity);
+int raviV_getverbosity(struct lua_State *L);
 
 /* Enable or disable JIT */
 void raviV_setjitenabled(struct lua_State *L, int enabled);
@@ -85,8 +76,12 @@ int raviV_getmincodesize(struct lua_State *L);
 void raviV_setminexeccount(struct lua_State *L, int minexecccount);
 int raviV_getminexeccount(struct lua_State *L);
 
-/* Enable GC Collection at every JIT compile */
-void raviV_setgcstep(struct lua_State *L, int stepsize);
+/* Enable IR / codegen validations */
+void raviV_setvalidation(struct lua_State *L, int enabled);
+int raviV_getvalidation(struct lua_State *L);
+  
+/* Enable calls to GCSTEP  */
+void raviV_setgcstep(struct lua_State *L, int value);
 int raviV_getgcstep(struct lua_State *L);
 
 /* Enable or disable trace hook */

@@ -66,12 +66,14 @@ typedef struct expdesc {
       short idx;  /* index (R/K) */
       lu_byte t;  /* table (register or upvalue) */
       lu_byte vt;  /* whether 't' is register (VLOCAL) or upvalue (VUPVAL) */
-      ravitype_t key_type; /* RAVI change: key type */
+      lu_byte key_ravi_type; /* RAVI change: key type */
+      TString *usertype; /* RAVI change: usertype name */
     } ind;
   } u;
   int t;  /* patch list of 'exit when true' */
   int f;  /* patch list of 'exit when false' */
-  ravitype_t ravi_type; /* RAVI change: type of the expression if known, else RAVI_TANY */
+  lu_byte ravi_type; /* RAVI change: type of the expression if known, else RAVI_TANY */
+  TString *usertype; /* RAVI change: usertype name */
   int pc;         /* RAVI change: holds the program counter for OP_NEWTABLE instruction when a constructor expression is parsed */
 } expdesc;
 
@@ -260,7 +262,7 @@ LUAI_FUNC void raviY_printf(FuncState *fs, const char *format, ...);
  * Else RAVI_TANY is returned. Note that this function only looks
  * at active local variables - see note on FuncState on what this means.
  */
-LUAI_FUNC ravitype_t raviY_get_register_typeinfo(FuncState *fs, int reg);
+LUAI_FUNC ravitype_t raviY_get_register_typeinfo(FuncState *fs, int reg, TString **);
 
 #define DEBUG_EXPR(p)                                                          \
   if ((ravi_parser_debug & 1) != 0) {                                          \

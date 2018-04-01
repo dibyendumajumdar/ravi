@@ -327,7 +327,9 @@ static void setnodevector (lua_State *L, Table *t, unsigned int size) {
   if (size == 0) {  /* no elements to hash part? */
     t->node = cast(Node *, dummynode);  /* use common 'dummynode' */
     t->lsizenode = 0;
-	t->hmask = 0;
+#if RAVI_USE_NEWHASH
+    t->hmask = 0;
+#endif
     t->lastfree = NULL;  /* signal that it is using dummy node */
   }
   else {
@@ -344,7 +346,9 @@ static void setnodevector (lua_State *L, Table *t, unsigned int size) {
       setnilvalue(gval(n));
     }
     t->lsizenode = cast_byte(lsize);
-	t->hmask = size - 1;
+#if RAVI_USE_NEWHASH
+    t->hmask = size - 1;
+#endif
     t->lastfree = gnode(t, size);  /* all positions are free */
   }
 }

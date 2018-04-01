@@ -63,7 +63,7 @@
 
 
 /* Bit mark for collectable types */
-#define BIT_ISCOLLECTABLE	(1 << 6)
+#define BIT_ISCOLLECTABLE	(1 << 7)
 
 /* mark a tag as collectable */
 #define ctb(t)			((t) | BIT_ISCOLLECTABLE)
@@ -110,7 +110,7 @@ typedef union Value {
 } Value;
 
 
-#define TValuefields	Value value_; int tt_
+#define TValuefields	Value value_; lu_byte tt_
 
 
 typedef struct lua_TValue {
@@ -282,7 +282,8 @@ typedef struct lua_TValue {
 
 
 #define setobj(L,obj1,obj2) \
-	{ TValue *io1=(obj1); *io1 = *(obj2); \
+	{ TValue *io1=(obj1); const TValue *io2=(obj2); \
+          io1->value_ = io2->value_; io1->tt_ = io2->tt_; \
 	  (void)L; checkliveness(L,io1); }
 
 
@@ -302,9 +303,8 @@ typedef struct lua_TValue {
 /* to new object */
 #define setobj2n	setobj
 #define setsvalue2n	setsvalue
-
-/* to table (define it as an expression to be used in macros) */
-#define setobj2t(L,o1,o2)  ((void)L, *(o1)=*(o2), checkliveness(L,(o1)))
+/* to table */
+#define setobj2t	setobj
 
 
 
@@ -411,8 +411,8 @@ typedef union UUdata {
 ** other types appear then they are all treated as ANY
 **/
 typedef enum {
-  RAVI_TANY = -1,      /* Lua dynamic type */
-  RAVI_TNUMINT = 1,        /* integer number */
+  RAVI_TANY = 0,      /* Lua dynamic type */
+  RAVI_TNUMINT = 1,    /* integer number */
   RAVI_TNUMFLT,        /* floating point number */
   RAVI_TARRAYINT,      /* array of ints */
   RAVI_TARRAYFLT,      /* array of doubles */
@@ -429,7 +429,8 @@ typedef enum {
 */
 typedef struct Upvaldesc {
   TString *name;  /* upvalue name (for debug information) */
-  ravitype_t type; /* RAVI type of upvalue */
+  TString *usertype; /* RAVI extension: name of user type */
+  lu_byte ravi_type; /* RAVI type of upvalue */
   lu_byte instack;  /* whether it is in stack (register) */
   lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
 } Upvaldesc;
@@ -441,9 +442,10 @@ typedef struct Upvaldesc {
 */
 typedef struct LocVar {
   TString *varname;
+  TString *usertype; /* RAVI extension: name of user type */
   int startpc;  /* first point where variable is active */
   int endpc;    /* first point where variable is dead */
-  ravitype_t ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
+  lu_byte ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
 } LocVar;
 
 /** RAVI changes start */
@@ -588,7 +590,10 @@ typedef struct Table {
   GCObject *gclist;
   /** RAVI extension */
   RaviArray ravi_array;
+#if RAVI_USE_NEWHASH
+  // TODO we should reorganize this structure
   unsigned int hmask; /* Hash part mask (size of hash part - 1) - borrowed from LuaJIT */
+#endif
 } Table;
 
 
@@ -608,6 +613,9 @@ typedef struct Table {
 ** (address of) a fixed nil value
 */
 #define luaO_nilobject		(&luaO_nilobject_)
+
+/* Internal assembler functions. Never call these directly from C. */
+typedef void(*ASMFunction)(void);
 
 
 LUAI_DDEC const TValue luaO_nilobject_;

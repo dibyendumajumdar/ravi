@@ -36,7 +36,7 @@ enum RESERVED {
   TK_FLT, TK_INT, TK_NAME, TK_STRING,
   /** RAVI extensions */
   TK_TO_INTEGER, TK_TO_NUMBER, TK_TO_INTARRAY, TK_TO_NUMARRAY,
-  TK_TO_TABLE
+  TK_TO_TABLE, TK_TO_STRING, TK_TO_CLOSURE
 };
 
 /* number of reserved words */

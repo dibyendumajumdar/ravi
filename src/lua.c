@@ -4,6 +4,10 @@
 ** See Copyright Notice in lua.h
 */
 
+#if USE_LLVM
+#include <ravi_llvm.h>
+#endif
+
 #define lua_c
 
 #include "lprefix.h"
@@ -41,9 +45,9 @@
 #define LUA_INITVARVERSION	LUA_INIT_VAR LUA_VERSUFFIX
 
 #ifdef USE_LLVM
-#define RAVI_OPTION_STRING3 " LLVM"
-#elif USE_GCCJIT
-#define RAVI_OPTION_STRING3 " gccjit"
+#define ravi_xstringify(s) ravi_stringify(s)
+#define ravi_stringify(s) #s
+#define RAVI_OPTION_STRING3 " LLVM-" LLVM_VERSION_STRING " ORC=" ravi_xstringify(USE_ORC_JIT)
 #else
 #define RAVI_OPTION_STRING3 " nojit"
 #endif

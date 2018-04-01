@@ -281,6 +281,11 @@ LUALIB_API void (luaL_openlib) (lua_State *L, const char *libname,
  IMPORTANT: Caller must ensure that supplied meta_key points to somewhere in
  static storage as otherwise memory fault will occur.
 */
+LUALIB_API int   (luaL_newmetatable)(lua_State *L, const char *tname);
+LUALIB_API void  (luaL_setmetatable)(lua_State *L, const char *tname);
+LUALIB_API void *(luaL_testudata)(lua_State *L, int ud, const char *tname);
+LUALIB_API void *(luaL_checkudata)(lua_State *L, int ud, const char *tname);
+#if 0
 LUALIB_API int raviL_newmetatable(lua_State *L, const void *meta_key, 
                                   const char *tname);
 
@@ -298,7 +303,12 @@ LUALIB_API void *raviL_testudata(lua_State *L, int arg_index, const void *meta_k
  meta_key is the key assigned to the meta table of the userdata
 */
 LUALIB_API void *raviL_checkudata(lua_State *L, int arg_index, const void *meta_key);
-
+#else
+#define raviL_newmetatable(L, meta_key, tname) luaL_newmetatable(L, meta_key)
+#define raviL_getmetatable(L, meta_key) luaL_getmetatable(L, meta_key)
+#define raviL_testudata(L, arg_index, meta_key) luaL_testudata(L, arg_index, meta_key)
+#define raviL_checkudata(L, arg_index, meta_key) luaL_checkudata(L, arg_index, meta_key)
+#endif
 
 LUALIB_API int (raviL_loadbufferx) (lua_State *L, const char *buff, size_t size,
                                  const char *name, const char *mode);

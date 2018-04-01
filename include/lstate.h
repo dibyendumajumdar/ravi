@@ -12,7 +12,7 @@
 #include "lobject.h"
 #include "ltm.h"
 #include "lzio.h"
-
+#include "lopcodes.h"
 
 /*
 
@@ -91,6 +91,7 @@ typedef struct CallInfo {
   unsigned short callstatus;
   unsigned short stacklevel; /* RAVI extension - stack level, bottom level is 0 */
   lu_byte jitstatus; /* RAVI extension: Only valid if Lua function - if 1 means JITed - RAVI extension */
+  lu_byte magic;
 } CallInfo;
 
 
@@ -159,6 +160,7 @@ typedef struct global_State {
   TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */
   /* RAVI additions */
   ravi_State *ravi_state;
+  ASMFunction dispatch[NUM_OPCODES];
   ravi_Writeline ravi_writeline;
   ravi_Writestring ravi_writestring;
   ravi_Writestringerror ravi_writestringerror;
@@ -170,6 +172,7 @@ typedef struct global_State {
 #endif
 } global_State;
 
+#define DISPATCH_OFFSET	((int)offsetof(global_State, dispatch))
 
 /*
 ** 'per thread' state
@@ -206,6 +209,7 @@ struct lua_State {
    ** pending 
    */  
   unsigned short nci;  /* number of items in 'ci' list */
+  lu_byte magic;
 };
 
 

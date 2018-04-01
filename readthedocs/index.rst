@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    ravi-overview
+   lua-introduction.rst
    lua_bytecode_reference.rst
    lua-parser
    ravi-internals
@@ -24,7 +25,6 @@ Contents:
    llvm-bindings
    ravi-benchmarks
    ravi-jit-status
-   ravi-jit-libgccjit
 
 
 Indices and tables

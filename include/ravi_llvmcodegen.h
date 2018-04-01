@@ -1,25 +1,25 @@
 /******************************************************************************
-* Copyright (C) 2015 Dibyendu Majumdar
-*
-* Permission is hereby granted, free of charge, to any person obtaining
-* a copy of this software and associated documentation files (the
-* "Software"), to deal in the Software without restriction, including
-* without limitation the rights to use, copy, modify, merge, publish,
-* distribute, sublicense, and/or sell copies of the Software, and to
-* permit persons to whom the Software is furnished to do so, subject to
-* the following conditions:
-*
-* The above copyright notice and this permission notice shall be
-* included in all copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-******************************************************************************/
+ * Copyright (C) 2015 Dibyendu Majumdar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ ******************************************************************************/
 
 #ifndef RAVI_LLVMCODEGEN_H
 #define RAVI_LLVMCODEGEN_H
@@ -28,6 +28,11 @@
 
 #include "ravi_llvm.h"
 #include "ravijit.h"
+
+#include <array>
+#include <atomic>
+#include <iterator>
+#include <type_traits>
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,11 +65,6 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
-#include <array>
-#include <atomic>
-#include <iterator>
-#include <type_traits>
 
 namespace ravi {
 
@@ -282,6 +282,9 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_op_setupvaltT;
   llvm::FunctionType *raviV_gettable_sskeyT;
   llvm::FunctionType *raviV_settable_sskeyT;
+  llvm::FunctionType *raviV_gettable_iT;
+  llvm::FunctionType *raviV_settable_iT;
+  llvm::FunctionType *raviV_op_totypeT;
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -293,7 +296,7 @@ struct LuaLLVMTypes {
 
   std::array<llvm::Constant *, 256> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
-  std::array<llvm::Constant *, 10> kByte;
+  std::array<llvm::Constant *, 256> kByte;
 
   llvm::Constant *kFalse;
 
@@ -351,7 +354,9 @@ struct LuaLLVMTypes {
   llvm::MDNode *tbaa_Table_array;
   llvm::MDNode *tbaa_Table_flags;
   llvm::MDNode *tbaa_Table_metatable;
+#if RAVI_USE_NEWHASH
   llvm::MDNode *tbaa_Table_hmask;
+#endif
 };
 
 // The hierarchy of objects
@@ -378,18 +383,171 @@ class RaviJITStateFactory {
   static std::unique_ptr<RaviJITState> newJITState();
 };
 
+// Ravi's LLVM JIT State
+// All of the JIT information is held here
+class RaviJITState {
+  friend class RaviJITModule;
+  // The LLVM Context
+  llvm::LLVMContext *context_;
+
+#if USE_ORC_JIT
+  // From LLVM version5 onwards we use the new ORC apis
+  // The main benefit is that memory management is tighter,
+  // all the IR in modules get released after compilation
+  // MCJIT is also likely to be removed at some time in
+  // future so we needed to migrate anyway
+  // We don't use ORC apis in earlier versions because 
+  // the apis have changed over the releases so it 
+  // is simpler to use them in 5.0 and above.
+  // The ORC usage here is heavily based upon the kaleidoscope
+  // sample, with some adjustments.
+
+  using ObjectLayerT = llvm::orc::RTDyldObjectLinkingLayer;
+  using CompileLayerT =
+      llvm::orc::IRCompileLayer<ObjectLayerT, llvm::orc::SimpleCompiler>;
+  using OptimizeFunction = std::function<std::shared_ptr<llvm::Module>(
+      std::shared_ptr<llvm::Module>)>;
+  using OptimizerLayerT =
+      llvm::orc::IRTransformLayer<CompileLayerT, OptimizeFunction>;
+  using ModuleHandle = OptimizerLayerT::ModuleHandleT;
+
+  std::unique_ptr<llvm::TargetMachine> TM;
+  std::unique_ptr<llvm::DataLayout> DL;
+  std::unique_ptr<ObjectLayerT> ObjectLayer;
+  std::unique_ptr<CompileLayerT> CompileLayer;
+  std::unique_ptr<OptimizerLayerT> OptimizeLayer;
+
+#endif
+
+  // The triple represents the host target
+  std::string triple_;
+
+  // Lua type definitions
+  LuaLLVMTypes *types_;
+
+  // Should we auto compile what we can?
+  unsigned int auto_ : 1;
+
+  // Is JIT enabled
+  unsigned int enabled_ : 1;
+
+  // Optimizer level (LLVM PassManagerBuilder)
+  unsigned int opt_level_ : 2;
+
+  // Size level (LLVM PassManagerBuilder)
+  unsigned int size_level_ : 2;
+  
+  // Verbosity
+  unsigned int verbosity_ : 3;
+
+  // enable calls to luaG_traceexec() at every bytecode
+  // instruction; this is expensive!
+  unsigned int tracehook_enabled_ : 1;
+
+  // Enable extra validation such as IR verification
+  // May slow down compilation
+  unsigned int validation_ : 1;
+  
+  // Flag to control calls to collect
+  int gcstep_;
+
+  // min code size for compilation
+  int min_code_size_;
+
+  // min execution count for compilation
+  int min_exec_count_;
+
+  // Count of modules allocated
+  // Used to debug module deallocation
+  size_t allocated_modules_;
+  
+  // flag to help avoid recursion
+  int compiling_;
+
+ public:
+  RaviJITState();
+  ~RaviJITState();
+
+#if USE_ORC_JIT
+  std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> M);
+  llvm::TargetMachine &getTargetMachine() { return *TM; }
+  ModuleHandle addModule(std::unique_ptr<llvm::Module> M);
+  llvm::JITSymbol findSymbol(const std::string Name);
+  void removeModule(ModuleHandle H);
+#endif
+
+  void addGlobalSymbol(const std::string &name, void *address);
+
+  void dump();
+  llvm::LLVMContext &context() { return *context_; }
+  LuaLLVMTypes *types() const { return types_; }
+  const std::string &triple() const { return triple_; }
+  bool is_auto() const { return auto_; }
+  void set_auto(bool value) { auto_ = value; }
+  bool is_enabled() const { return enabled_; }
+  void set_enabled(bool value) { enabled_ = value; }
+  int get_optlevel() const { return opt_level_; }
+  void set_optlevel(int value) {
+    if (value >= 0 && value <= 3) opt_level_ = value;
+  }
+  int get_sizelevel() const { return size_level_; }
+  void set_sizelevel(int value) {
+    if (value >= 0 && value <= 2) size_level_ = value;
+  }
+  int get_verbosity() const { return verbosity_; }
+  void set_verbosity(int value) {
+    if (value >= 0 && value <= 3) verbosity_ = value;
+  }
+  int get_mincodesize() const { return min_code_size_; }
+  void set_mincodesize(int value) {
+    min_code_size_ = value > 0 ? value : min_code_size_;
+  }
+  int get_minexeccount() const { return min_exec_count_; }
+  void set_minexeccount(int value) {
+    min_exec_count_ = value > 0 ? value : min_exec_count_;
+  }
+  int get_validation() const { return validation_; }
+  void set_validation(bool value) { validation_ = value; }
+  int get_gcstep() const { return gcstep_; }
+  void set_gcstep(int value) {
+    gcstep_ = value > 0 ? value : gcstep_;
+  }
+  bool is_tracehook_enabled() const { return tracehook_enabled_; }
+  void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
+  void incr_allocated_modules() { allocated_modules_++; }
+  void decr_allocated_modules() { allocated_modules_--; }
+  size_t allocated_modules() const { return allocated_modules_; }
+  int get_compiling_flag() const { return compiling_ > 0; }
+  void set_compiling_flag(bool value) { 
+    if (value) 
+      compiling_++;
+    else
+      compiling_--; 
+  }
+};
+
 // A wrapper for LLVM Module
 // Maintains a dedicated ExecutionEngine for the module
 class RaviJITModule {
   // The Context that owns this module
   RaviJITState *owner_;
 
+#if !USE_ORC_JIT
+  // The LLVM Module within which the functions will be defined
+  llvm::Module *module_;
+
   // The execution engine responsible for compiling the
   // module
   llvm::ExecutionEngine *engine_;
-
+#else
   // The LLVM Module within which the functions will be defined
-  llvm::Module *module_;
+  std::unique_ptr<llvm::Module> module_;
+
+  // With ORC, once a module is compiled (added to the JIT)
+  // then a handle is used to refer to it rather than the
+  // module, as the module may have been deleted by then
+  RaviJITState::ModuleHandle module_handle_;
+#endif
 
   // List of JIT functions in this module
   // We need this so that we can update the functions
@@ -403,8 +561,13 @@ class RaviJITModule {
   RaviJITModule(RaviJITState *owner);
   ~RaviJITModule();
 
+#if !USE_ORC_JIT
   llvm::Module *module() const { return module_; }
   llvm::ExecutionEngine *engine() const { return engine_; }
+#else
+  // Note that this can return nullptr 
+  llvm::Module *module() const { return module_.get(); }
+#endif
   RaviJITState *owner() const { return owner_; }
   void dump();
   void dumpAssembly();
@@ -464,18 +627,25 @@ class RaviJITFunction {
   lua_CFunction *func_ptrptr_;
 
  public:
-  RaviJITFunction(lua_CFunction *p, std::shared_ptr<RaviJITModule> module,
+  RaviJITFunction(lua_CFunction *p,
+                  const std::shared_ptr<RaviJITModule> &module,
                   llvm::FunctionType *type,
                   llvm::GlobalValue::LinkageTypes linkage,
                   const std::string &name);
+  RaviJITFunction(lua_CFunction *p,
+                  const std::shared_ptr<RaviJITModule> &module,
+                  const std::string &name);
+
   ~RaviJITFunction();
 
   const std::string &name() const { return name_; }
   llvm::Function *function() const { return function_; }
+  // Note that this can return nullptr
   llvm::Module *module() const { return module_->module(); }
   std::shared_ptr<RaviJITModule> raviModule() const { return module_; }
-
+#if !USE_ORC_JIT
   llvm::ExecutionEngine *engine() const { return module_->engine(); }
+#endif
   RaviJITState *owner() const { return module_->owner(); }
   // This method retrieves the JITed function from the
   // execution engine and sets ptr_ member
@@ -490,86 +660,6 @@ class RaviJITFunction {
                                     const std::string &name) {
     return module_->addExternFunction(type, address, name);
   }
-};
-
-// Ravi's LLVM JIT State
-// All of the JIT information is held here
-class RaviJITState {
-  // The LLVM Context
-  llvm::LLVMContext *context_;
-
-  // The triple represents the host target
-  std::string triple_;
-
-  // Lua type definitions
-  LuaLLVMTypes *types_;
-
-  // Should we auto compile what we can?
-  bool auto_;
-
-  // Is JIT enabled
-  bool enabled_;
-
-  // Optimizer level (LLVM PassManagerBuilder)
-  int opt_level_;
-
-  // Size level (LLVM PassManagerBuilder)
-  int size_level_;
-
-  // min code size for compilation
-  int min_code_size_;
-
-  // min execution count for compilation
-  int min_exec_count_;
-
-  // gc step size; defaults to 200
-  int gc_step_;
-
-  // enable calls to luaG_traceexec() at every bytecode
-  // instruction; this is expensive!
-  bool tracehook_enabled_;
-
-  // Count of modules allocated
-  // Used to debug module deallocation
-  size_t allocated_modules_;
-
- public:
-  RaviJITState();
-  ~RaviJITState();
-
-  void addGlobalSymbol(const std::string &name, void *address);
-
-  void dump();
-  llvm::LLVMContext &context() { return *context_; }
-  LuaLLVMTypes *types() const { return types_; }
-  const std::string &triple() const { return triple_; }
-  bool is_auto() const { return auto_; }
-  void set_auto(bool value) { auto_ = value; }
-  bool is_enabled() const { return enabled_; }
-  void set_enabled(bool value) { enabled_ = value; }
-  int get_optlevel() const { return opt_level_; }
-  void set_optlevel(int value) {
-    if (value >= 0 && value <= 3) opt_level_ = value;
-  }
-  int get_sizelevel() const { return size_level_; }
-  void set_sizelevel(int value) {
-    if (value >= 0 && value <= 2) size_level_ = value;
-  }
-  int get_mincodesize() const { return min_code_size_; }
-  void set_mincodesize(int value) {
-    min_code_size_ = value > 0 ? value : min_code_size_;
-  }
-  int get_minexeccount() const { return min_exec_count_; }
-  void set_minexeccount(int value) {
-    min_exec_count_ = value > 0 ? value : min_exec_count_;
-  }
-  int get_gcstep() const { return gc_step_; }
-  void set_gcstep(int value) { gc_step_ = value > 0 ? value : gc_step_; }
-  bool is_tracehook_enabled() const { return tracehook_enabled_; }
-  void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
-  void incr_allocated_modules() { allocated_modules_++; }
-  void decr_allocated_modules() { allocated_modules_--; }
-  size_t allocated_modules() const { return allocated_modules_; }
 };
 
 // To optimise fornum loops
@@ -670,6 +760,9 @@ struct RaviFunctionDef {
   llvm::Function *raviV_op_setupvaltF;
   llvm::Function *raviV_gettable_sskeyF;
   llvm::Function *raviV_settable_sskeyF;
+  llvm::Function *raviV_gettable_iF;
+  llvm::Function *raviV_settable_iF;
+  llvm::Function *raviV_op_totypeF;
 
   // array setters
   llvm::Function *raviH_set_intF;
@@ -809,7 +902,7 @@ class RaviCodeGenerator {
   // The return value is a boolean type as a result of
   // integer comparison result which is i1 in LLVM
   llvm::Value *emit_is_not_value_of_type_class(
-      RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
+      RaviFunctionDef *def, llvm::Value *value_type, int lua_typecode,
       const char *varname = "value.not.typeof");
 
   // emit code for LClosure *cl = clLvalue(ci->func)
@@ -818,8 +911,9 @@ class RaviCodeGenerator {
   llvm::Instruction *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def);
 
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
+                        int arg1);
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
                         int arg1, int arg2);
-
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
                         int arg1, int arg2, int arg3);
   llvm::Value *emit_gep(RaviFunctionDef *def, const char *name,
@@ -1042,11 +1136,26 @@ class RaviCodeGenerator {
 
   void emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C, int j, int pc);
 
-  void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms,
-                  int pc);
+  // Code size priority so go via function calls
+  void emit_ARITH_calls(RaviFunctionDef *def, int A, int B, int C, OpCode op,
+                        TMS tms, int pc);
 
-  void emit_ARITH_new(RaviFunctionDef *def, int A, int B, int C, OpCode op,
-                      TMS tms, int pc);
+  // integer arith priority over floating
+  void emit_ARITH_intpriority(RaviFunctionDef *def, int A, int B, int C,
+                              OpCode op, TMS tms, int pc);
+
+  // floating arith priority over integer
+  void emit_ARITH_floatpriority(RaviFunctionDef *def, int A, int B, int C,
+                                OpCode op, TMS tms, int pc);
+
+  inline void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op,
+                         TMS tms, int pc) {
+#if RAVI_USE_LLVM_ARITH_FLOATPRIORITY
+    emit_ARITH_floatpriority(def, A, B, C, op, tms, pc);
+#else
+    emit_ARITH_intpriority(def, A, B, C, op, tms, pc);
+#endif
+  }
 
   void emit_MOD(RaviFunctionDef *def, int A, int B, int C, int pc);
 
@@ -1120,6 +1229,12 @@ class RaviCodeGenerator {
   void emit_TOINT(RaviFunctionDef *def, int A, int pc);
 
   void emit_TOFLT(RaviFunctionDef *def, int A, int pc);
+
+  void emit_TOSTRING(RaviFunctionDef *def, int A, int pc);
+
+  void emit_TOCLOSURE(RaviFunctionDef *def, int A, int pc);
+
+  void emit_TOTYPE(RaviFunctionDef *def, int A, int Bx, int pc);
 
   void emit_LEN(RaviFunctionDef *def, int A, int B, int pc);
 
@@ -1253,7 +1368,7 @@ class RaviCodeGenerator {
   char temp_[31];  // for name
   int id_;         // for name
 };
-}
+}  // namespace ravi
 
 struct ravi_State {
   ravi::RaviJITState *jit;

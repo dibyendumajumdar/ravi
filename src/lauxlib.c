@@ -1077,12 +1077,12 @@ LUALIB_API void luaL_checkversion_ (lua_State *L, lua_Number ver, size_t sz) {
                   (LUAI_UACNUMBER)ver, (LUAI_UACNUMBER)*v);
 }
 
-
 LUALIB_API int (raviL_dumpast) (lua_State *L) {
   (void) L;
   return 0;
 }
 
+#if 0
 /* The normal Lua metatable functions in C use string
    keys - these are expensive as the key needs to be
    converted to Lua string, hash code computed etc.
@@ -1143,3 +1143,5 @@ LUALIB_API void *raviL_checkudata(lua_State *L, int arg_index,
     luaL_argerror(L, arg_index, meta_key);
   return p;
 }
+
+#endif

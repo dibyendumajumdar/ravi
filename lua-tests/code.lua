@@ -44,7 +44,7 @@ function check (f, ...)
   local arg = {...}
   local c = T.listcode(f)
   for i=1, #arg do
-    -- print(arg[i], c[i])
+    --print(arg[i], c[i])
     assert(string.find(c[i], '- '..arg[i]..' *%d'))
   end
   assert(c[#arg+2] == nil)
@@ -65,7 +65,7 @@ end
 -- some basic instructions
 check(function ()
   (function () end){f()}
-end, 'CLOSURE', 'NEWTABLE', 'GETTABUP', 'CALL', 'SETLIST', 'CALL', 'RETURN')
+end, 'CLOSURE', 'NEWTABLE', 'GETTABUP_SK', 'CALL', 'SETLIST', 'CALL', 'RETURN')
 
 
 -- sequence of LOADNILs
@@ -121,8 +121,8 @@ check(function ()
 end,
   'LOADNIL',
   'MUL',
-  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETTABLE', 'POW',
-    'UNM', 'SETTABLE', 'SETTABLE', 'RETURN')
+  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETTABLE_SK', 'POW',
+    'UNM', 'SETTABLE', 'SETTABLE_I', 'RETURN')
 
 
 -- direct access to constants
@@ -132,7 +132,7 @@ check(function ()
   a.x = b
   a[b] = 'x'
 end,
-  'LOADNIL', 'SETTABLE', 'SETTABLE', 'SETTABLE', 'RETURN')
+  'LOADNIL', 'SETTABLE_SK', 'SETTABLE_SK', 'SETTABLE', 'RETURN')
 
 check(function ()
   local a,b
@@ -202,7 +202,7 @@ checkequal(function () if (a==nil) then a=1 end; if a~=nil then a=1 end end,
            function () if (a==9) then a=1 end; if a~=9 then a=1 end end)
 
 check(function () if a==nil then a='a' end end,
-'GETTABUP', 'EQ', 'JMP', 'SETTABUP', 'RETURN')
+'GETTABUP_SK', 'EQ', 'JMP', 'SETTABUP', 'RETURN')
 
 -- de morgan
 checkequal(function () local a; if not (a or b) then b=a end end,

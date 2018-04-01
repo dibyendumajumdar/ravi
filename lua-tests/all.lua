@@ -22,6 +22,8 @@ _soft = rawget(_G, "_soft") or false
 _port = rawget(_G, "_port") or false
 -- Make true to avoid messages about tests not performed
 _nomsg = rawget(_G, "_nomsg") or false
+-- JIT test mode, 1 = some time consuming tests skipped, 2 = all tests
+_jit = rawget(_G, "_jit") or 1 
 
 
 local usertests = rawget(_G, "_U")

@@ -11,8 +11,10 @@ opcodes_coverage.LOADBOOL = 0
 opcodes_coverage.LOADNIL = 0
 opcodes_coverage.GETUPVAL = 0
 opcodes_coverage.GETTABUP = 0
+opcodes_coverage.GETTABUP_SK = 0
 opcodes_coverage.GETTABLE = 0
 opcodes_coverage.SETTABUP = 0
+opcodes_coverage.SETTABUP_SK = 0
 opcodes_coverage.SETUPVAL = 0
 opcodes_coverage.SETTABLE = 0
 opcodes_coverage.NEWTABLE = 0
@@ -109,11 +111,16 @@ opcodes_coverage.GETTABLE_I = 0
 opcodes_coverage.GETTABLE_S = 0
 opcodes_coverage.SETTABLE_I = 0
 opcodes_coverage.SETTABLE_S = 0
+opcodes_coverage.SETTABLE_SK = 0
+opcodes_coverage.GETTABLE_SK = 0
 opcodes_coverage.TOTAB = 0
 opcodes_coverage.MOVETAB = 0
 opcodes_coverage.SETUPVALT = 0
 opcodes_coverage.SELF_S = 0
-
+opcodes_coverage.TOTYPE = 0
+opcodes_coverage.TOSTRING = 0
+opcodes_coverage.TOCLOSURE = 0
+opcodes_coverage.SELF_SK = 0
 
 local compile = function(f)
   if ravi.jit() then
@@ -154,7 +161,7 @@ end
 -- some basic instructions
 check(function ()
   (function () end){f()}
-end, 'CLOSURE', 'NEWTABLE', 'GETTABUP', 'CALL', 'SETLIST', 'CALL', 'RETURN')
+end, 'CLOSURE', 'NEWTABLE', 'GETTABUP_SK', 'CALL', 'SETLIST', 'CALL', 'RETURN')
 
 -- sequence of LOADNILs
 check(function ()
@@ -208,8 +215,8 @@ check(function ()
 end,
   'LOADNIL',
   'MUL',
-  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETTABLE', 'POW',
-    'UNM', 'SETTABLE', 'SETTABLE', 'RETURN')
+  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETTABLE_SK', 'POW',
+    'UNM', 'SETTABLE', 'SETTABLE_I', 'RETURN')
 
 -- direct access to constants
 check(function ()
@@ -223,7 +230,7 @@ check(function ()
   a[true] = false
 end,
   'LOADNIL',
-  'SETTABLE', 'SETTABLE', 'SETTABLE', 'SUB', 'DIV', 'LOADK',
+  'SETTABLE_SK', 'SETTABLE_SK', 'SETTABLE', 'SUB', 'DIV', 'LOADK',
   'SETTABLE', 'RETURN')
 
 
@@ -256,7 +263,7 @@ checkequal(function () if (a==nil) then a=1 end; if a~=nil then a=1 end end,
            function () if (a==9) then a=1 end; if a~=9 then a=1 end end)
 
 check(function () if a==nil then a=1 end end,
-'GETTABUP', 'EQ', 'JMP', 'SETTABUP', 'RETURN')
+'GETTABUP_SK', 'EQ', 'JMP', 'SETTABUP', 'RETURN')
 
 -- de morgan
 checkequal(function () local a; if not (a or b) then b=a end end,
@@ -421,7 +428,7 @@ assert(x(5.1) == 2.0)
 assert(x(4.0) == 3.0)
 print("test 8 OK")
 
--- test 10
+-- test 9
 x = function (y: integer, z)
   if y == 1 then
     if z == 1 then
@@ -447,7 +454,7 @@ assert(x(5) == 2.0)
 assert(x(4) == 3.0)
 print("test 9 OK")
 
--- test 11
+-- test 10
 x = function() 
   local function tryme()
     local i,j = 5,6
@@ -458,14 +465,14 @@ x = function()
   assert(i+j == 11)
 end
 compile(x)
-check(x, 'CLOSURE', 'GETTABUP', 'GETUPVAL',
+check(x, 'CLOSURE', 'GETTABUP_SK', 'GETUPVAL',
   'MOVE', 'CALL', 'CALL', 'MOVE', 'CALL', 'TOINT', 'TOINT',
-  'GETTABUP', 'ADDII', 'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL',
+  'GETTABUP_SK', 'ADDII', 'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL',
   'CALL', 'RETURN')
 x()
 print("test 10 OK")
 
--- test 12
+-- test 11
 function x()
   local a : number[], j:number = {}
   for i=1,10 do
@@ -483,7 +490,7 @@ compile(x)
 assert(x() == 55.0)
 print("test 11 OK")
 
--- test 13
+-- test 12
 function pisum()
     local sum : number
     for j = 1,500 do
@@ -504,7 +511,7 @@ assert(compile(pisum))
 assert(math.abs(pisum()-1.644834071848065) < 1e-12)
 print("test 12 OK")
 
--- test 15
+-- test 13
 function y()
   local i,j = 5.1,"6.2"
   return i,j
@@ -521,7 +528,7 @@ assert(compile(x))
 assert(math.abs(x(y) - 11.3) < 0.0001)
 print("test 13 OK")
 
--- test 16
+-- test 14
 function tryme(x,y)
   if x < y then
     return 1
@@ -539,7 +546,7 @@ assert(tryme(1,2) == 1)
 assert(tryme(2,1) == 0)
 print("test 14 OK")
 
--- test 17
+-- test 15
 function tryme(x,y)
   return x < y
 end
@@ -551,18 +558,18 @@ assert(tryme(1,2))
 assert(not tryme(2,1))
 print("test 15 OK")
 
--- test 18
+-- test 16
 function tabtest(x)
   x[1] = 5
   return x[1]
 end
 assert(tabtest({}) == 5)
-check(tabtest, 'SETTABLE', 'GETTABLE', 'RETURN', 'RETURN')
+check(tabtest, 'SETTABLE_I', 'GETTABLE_I', 'RETURN', 'RETURN')
 compile(tabtest)
 assert(tabtest({}) == 5)
 print("test 16 OK")
 
--- test 19
+-- test 17
 function optest()
   local a,b,c = 1, 5
   c = a and b
@@ -575,7 +582,7 @@ compile(optest)
 assert(optest() == 5)
 print("test 17 OK")
 
--- test 20
+-- test 18
 function optest()
   local a,b,c = 1, 5
   c = a or b
@@ -588,7 +595,7 @@ compile(optest)
 assert(optest() == 1)
 print("test 18 OK")
 
--- test 21
+-- test 19
 function optest()
   local a,b = 1, 5
   if a and b then
@@ -603,7 +610,7 @@ compile(optest)
 assert(optest() == 5)
 print("test 19 OK")
 
--- test 22
+-- test 20
 function optest()
   local a,b = nil, 5
   if a or b then
@@ -618,7 +625,7 @@ compile(optest)
 assert(optest() == 5)
 print("test 20 OK")
 
--- test 29
+-- test 21
 z = function()
   local x=function()
     local j:number[] = {}
@@ -628,18 +635,18 @@ z = function()
   y=x()
   y[1] = 99.67
   assert(y[1], 99.67)
-  assert(#y == 1)
+  assert(@integer (#y) == 1)
 end
 check(z, 'CLOSURE', 'GETUPVAL', 'MOVE', 'CALL',
-  'MOVE', 'CALL', 'SETUPVAL', 'SETTABUP', 'GETTABUP', 'GETTABUP',
-  'LOADK', 'CALL', 'GETTABUP', 'GETUPVAL', 'LEN', 'EQ_II',
+  'MOVE', 'CALL', 'SETUPVAL', 'SETTABUP', 'GETTABUP_SK', 'GETTABUP',
+  'LOADK', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'LEN', 'TOINT', 'EQ_II',
   'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
 z()
 compile(z)
 z()
 print("test 21 OK")
 
--- test 30
+-- test 22
 z = function()
   local days: table = {"Sunday", "Monday", "Tuesday", "Wednesday",
             "Thursday", "Friday", "Saturda"}
@@ -658,19 +665,19 @@ z = function()
   assert(x() == "SundayMondayTuesdayWednesdayThursdayFridaySaturday")
 end
 check(z, 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK', 'LOADK',
-  'LOADK', 'LOADK', 'LOADK', 'SETLIST', 'GETTABUP', 'GETTABLE_I',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP', 'LEN',
-  'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP', 'GETTABLE_I',
+  'LOADK', 'LOADK', 'LOADK', 'SETLIST', 'GETTABUP_SK', 'GETTABLE_I',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'LEN', 'TOINT',
+  'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'GETTABLE_I',
   'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABLE_I', 'LOADK',
-  'CONCAT', 'SETTABLE_I', 'CLOSURE', 'SETUPVAL', 'GETTABUP', 'GETUPVAL',
-  'GETUPVAL', 'CALL', 'CALL', 'GETTABUP', 'GETUPVAL', 'CALL', 'EQ',
+  'CONCAT', 'SETTABLE_I', 'CLOSURE', 'SETUPVAL', 'GETTABUP_SK', 'GETUPVAL',
+  'GETUPVAL', 'CALL', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'CALL', 'EQ',
   'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
 z()
 compile(z)
 z()
 print("test 22 OK")
 
--- test 31
+-- test 23
 x = function(a)
   return not a
 end
@@ -684,7 +691,7 @@ assert(y(x(false)))
 assert(not y(x(true)))
 print("test 23 OK")
 
--- test 36
+-- test 24
 t = { name_ = "ravi" }
 function t:name() 
   return self.name_
@@ -695,9 +702,9 @@ end
 assert(compile(t.name))
 assert(compile(z))
 assert(z(t) == "ravi")
-print("test 25 OK")
+print("test 24 OK")
 
--- test 38
+-- test 25
 -- test ravi integer array
 function f()
   local x: integer[] = { 1, 5 }
@@ -710,9 +717,9 @@ function f()
 end
 assert(compile(f))
 assert(f() == 6)
-print("test 26 OK")
+print("test 25 OK")
 
--- test 39
+-- test 26
 function f()
   local x: number[] = { 5.0, 6.1 }
   x[3] = x[1] + x[2]
@@ -721,9 +728,9 @@ end
 --ravi.dumplua(f)
 assert(compile(f))
 assert(math.abs(f()-11.1) < 1e-12)
-print("test 27 OK")
+print("test 26 OK")
 
--- test 41
+-- test 27
 -- Ravi arrays support for ipairs()
 -- Plus special slot at [0]
 x = function() 
@@ -739,9 +746,9 @@ x = function()
 end
 assert(compile(x))
 assert(x() == 28)
-print("test 28 OK")
+print("test 27 OK")
 
--- test 42
+-- test 28
 -- Ravi arrays support for pairs()
 -- Plus special slot at [0]
 x = function() 
@@ -757,9 +764,9 @@ x = function()
 end
 assert(compile(x))
 assert(x() == 28)
-print("test 29 OK")
+print("test 28 OK")
 
--- test 43
+-- test 29
 -- test creation of arrays and slice
 x = function() 
   local zeros: integer[] = table.intarray(10, 0)
@@ -781,9 +788,9 @@ x = function()
 end
 assert(compile(x))
 assert(x() == true)
-print("test 30 OK")
+print("test 29 OK")
 
--- test 44
+-- test 30
 matrix = {}
 matrix.new = function (m, n) 
   local t = {m, n, table.numarray(m*n, 0)}
@@ -829,9 +836,9 @@ assert(compile(matrix.getcol))
 assert(compile(matrix.getdata))
 assert(compile(x))
 assert(x() == 65)
-print("test 31 OK")
+print("test 30 OK")
 
--- test 23
+-- test 31
 function testadd(a,b)
   return a+b
 end
@@ -840,9 +847,9 @@ assert(testadd(1,1) == 2)
 assert(testadd(1.5,1.6) == 3.1)
 assert(testadd("1.5",1.6) == 3.1)
 assert(testadd("1.5","1.6") == 3.1)
-print("test 32 OK")
+print("test 31 OK")
 
--- test 24
+-- test 32
 function testsub(a,b)
   return a-b
 end
@@ -851,9 +858,9 @@ assert(testsub(1,1) == 0)
 assert(math.abs(testsub(1.5,1.6)-(-0.1)) < 1e-6)
 assert(math.abs(testsub("1.5",1.6)-(-0.1)) < 1e-6)
 assert(math.abs(testsub("1.5","1.6")-(-0.1)) < 1e-6)
-print("test 33 OK")
+print("test 32 OK")
 
--- test 25
+-- test 33
 function testmul(a,b)
   return a*b
 end
@@ -862,10 +869,10 @@ assert(testmul(2,2) == 4)
 assert(math.abs(testmul(1.5,1.6)-2.4) < 1e-12)
 assert(math.abs(testmul("1.5",1.6)-2.4) < 1e-12)
 assert(math.abs(testmul("1.5","1.6")-2.4) < 1e-12)
-print("test 34 OK")
+print("test 33 OK")
 
 
--- test 26
+-- test 34
 function testdiv(a,b)
   return a/b
 end
@@ -874,10 +881,10 @@ assert(testdiv(2,2) == 1.0)
 assert(math.abs(testdiv(1.5,1.6)-0.9375) < 1e-12)
 assert(math.abs(testdiv("1.5",1.6)-0.9375) < 1e-12)
 assert(math.abs(testdiv("1.5","1.6")-0.9375) < 1e-12)
-print("test 35 OK")
+print("test 34 OK")
 
 
--- test 37
+-- test 35
 -- this tests that within the for loop
 -- the locals get mapped correctly to upvalues
 function f()
@@ -900,11 +907,9 @@ assert(t[1]() == 10)
 assert(t[2]() == 10)
 assert(t[1]() == 20)
 assert(t[2]() == 20)
-print("test 36 OK")
+print("test 35 OK")
 
-
-
--- test 27
+-- test 36
 -- upvalues
 local x = 1
 local y=function()
@@ -919,9 +924,9 @@ local f = y()
 assert(f() == 1)
 x=5
 assert(f() == 5)
-print("test 37 OK")
+print("test 36 OK")
 
--- test 28
+-- test 37
 -- upvalues
 x1 = 3
 local y=function()
@@ -940,9 +945,9 @@ local f = y()
 assert(f() == 3)
 x1=5
 assert(f() == 5)
-print("test 38 OK")
+print("test 37 OK")
 
--- test 35
+-- test 38
 function x()
   local x = 1
   local f = function()
@@ -955,7 +960,7 @@ f=x()
 assert(compile(f))
 assert(f() == 2)
 assert(f() == 3)
-print("test 39 OK")
+print("test 38 OK")
 
 -- test setupval, getupval
 function x() 
@@ -969,9 +974,9 @@ compile(y)
 assert(y(2) == 2)
 assert(y(2) == 4)
 assert(y(3) == 7)
-print('test 40 Ok')
+print('test 39 OK')
 
--- test 32
+-- test 40
 x=function(a,b) 
   return a%b
 end
@@ -980,9 +985,9 @@ assert(compile(x))
 -- if ravi.jit() then ravi.compile(x) end 
 assert(x(5,2) == 1)
 assert(math.abs(x(5.1,2.1)-0.9) < 1e-6)
-print("test 41 OK")
+print("test 40 OK")
 
--- test 33
+-- test 41
 x=function(a,b) 
   return a//b
 end
@@ -991,9 +996,9 @@ assert(compile(x))
 -- if ravi.jit() then ravi.compile(x) end 
 assert(x(5,2) == 2)
 assert(math.abs(x(5.5,2.1)-2.0) < 1e-6)
-print("test 42 OK")
+print("test 41 OK")
 
--- test 6
+-- test 42
 x = function ()
   local j = 0
   for i=2.0,6.0,3.1 do
@@ -1003,10 +1008,10 @@ x = function ()
 end
 
 if (not compile(x)) then
-  print("test 6 FAILED to compile")
+  print("test FAILED to compile")
 end
 assert(x() == 5.1)
-print("test 43 OK")
+print("test 42 OK")
 
 -- test parameter types
 x = function (a: integer, b: number)
@@ -1018,7 +1023,7 @@ end
 assert(x(1,5.5) == 6.5)
 compile(x)
 assert(x(1,5.5) == 6.5)
-print'test 44 OK'
+print'test 43 OK'
 
 x=function (a:number[], b:integer)
   local j: number = a[b]
@@ -1033,9 +1038,9 @@ assert(y() == 4.2)
 compile(x)
 compile(y)
 assert(y() == 4.2)
-print'test 45 OK'
+print'test 44 OK'
 
--- test 40
+-- test 45
 function x(t) return t; end
 function f()
   local tt: integer[] = {1}
@@ -1051,23 +1056,19 @@ function f()
   tt = x({})
 end
 --ravi.dumplua(f)
-print'+'
 assert(compile(f))
 assert(not pcall(f))
-print'+'
 function f()
   local tt: integer[] = {1}
   local ss: number[] = { 55.5 }
   ss = x(tt)
 end
-print'+'
 assert(compile(f))
 assert(not pcall(f))
 
-print("test 46 OK")
+print("test 45 OK")
 
-
--- test 41
+-- test 47
 function test_idiv() 
   local t = {}
   t.__idiv = function(...) return 'idiv' end
@@ -1105,8 +1106,8 @@ function test_tableaccess()
     return t.name, t.data.city
   end
   check(f, 'NEWTABLE', 'SETTABLE_S', 'NEWTABLE',
-    'SETTABLE_S', 'GETTABLE_S', 'SETTABLE', 
-    'GETTABLE_S', 'GETTABLE_S' , 'GETTABLE',
+    'SETTABLE_S', 'GETTABLE_S', 'SETTABLE_SK', 
+    'GETTABLE_S', 'GETTABLE_S' , 'GETTABLE_SK',
     'RETURN', 'RETURN')
   local a,b = f()
   assert(a == 'dibyendu')
@@ -1127,8 +1128,8 @@ function test_tableaccess()
     return t[1], t[2][1]
   end
   check(f, 'NEWTABLE', 'SETTABLE_I', 'NEWTABLE',
-    'SETTABLE_I', 'GETTABLE_I', 'SETTABLE', 
-    'GETTABLE_I', 'GETTABLE_I' , 'GETTABLE',
+    'SETTABLE_I', 'GETTABLE_I', 'SETTABLE_I', 
+    'GETTABLE_I', 'GETTABLE_I' , 'GETTABLE_I',
     'RETURN', 'RETURN')
   local a,b = f()
   assert(a == 'dibyendu')
@@ -1145,18 +1146,18 @@ function test_self_s()
   local t : table = {}
   t.name_ = 'dibyendu majumdar'
   t.name = function (t:table) return t.name_ end
-  print(t:name())
+  assert(t:name())
   return t:name()
 end  
 check(test_self_s, 'NEWTABLE', 'SETTABLE_S', 'CLOSURE',
-  'SETTABLE_S', 'GETTABUP', 'SELF_S', 'CALL', 'CALL', 'SELF_S', 'TAILCALL',
+  'SETTABLE_S', 'GETTABUP_SK', 'SELF_S', 'CALL', 'CALL', 'SELF_S', 'TAILCALL',
   'RETURN')
 assert(test_self_s() == 'dibyendu majumdar')
 compile(test_self_s)
 assert(test_self_s() == 'dibyendu majumdar')
 print 'Test 49 OK'
 
--- issue #73
+-- issue #73 
 function bug_index_event()
   local t1 = { name='dibyendu' }
   local t2 = { surname='majumdar' }
@@ -1250,21 +1251,21 @@ function test_longkey()
   assert(t[s] == 4.4)
   assert(t.s == nil) 
 end
-check(test_longkey,	'NEWTABLE', 'SETTABLE', 'GETTABUP', 'GETTABLE',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'SETTABLE_S', 'GETTABUP',
+check(test_longkey,	'NEWTABLE', 'SETTABLE', 'GETTABUP_SK', 'GETTABLE',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'SETTABLE_S', 'GETTABUP_SK',
   'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'SETTABLE_S',
-  'GETTABUP', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
-  'LOADK', 'GETTABUP', 'GETTABLE', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
-  'GETTABUP', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'GETTABUP_SK', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'LOADK', 'GETTABUP_SK', 'GETTABLE', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'GETTABUP_SK', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
   'RETURN')
 assert(pcall(test_longkey));
 compile(test_longkey);
 assert(pcall(test_longkey));
-print 'Test 53 OK'
+print 'Test 54 OK'
 
 
 function test_yields_in_metamethods()
-  print"testing yields inside metamethods"
+  --print"testing yields inside metamethods"
   local mt = {
     __eq = function(a:table,b:table) coroutine.yield(nil, "eq"); return a.x == b.x end,
     __lt = function(a:table,b:table) coroutine.yield(nil, "lt"); return a.x < b.x end,
@@ -1392,7 +1393,7 @@ end
 assert(pcall(test_yields_in_metamethods));
 compile(test_longkey);
 assert(pcall(test_yields_in_metamethods));
-print 'Test 54 Ok'
+print 'Test 55 OK'
 
 function test_upvaluejoin()
   local debug = require'debug'
@@ -1441,13 +1442,157 @@ end
 assert(pcall(test_upvaluejoin));
 compile(test_upvaluejoin);
 assert(pcall(test_upvaluejoin));
-print 'Test 55 Ok'
+print 'Test 56 OK'
 
+function test_idiv(y: integer)
+  local era: integer
+  era = y // 400
+  return era
+end
+check(test_idiv, 'TOINT', 'LOADNIL', 'LOADIZ', 'IDIV', 'RETURN', 'RETURN')
+assert(test_idiv(1900) == 4)
+compile(test_idiv)
+assert(test_idiv(1900) == 4)
+print 'Test 57 OK'
+
+function from_dmy1(y: integer, m: integer, d: integer)
+  if m <= 2 then
+    y = y - 1
+  end
+  local era: integer
+  if y >= 0 then
+    era = y // 400
+  else
+    era = (y-399) // 400
+  end
+  local yoe: integer = y - era * 400
+  local tmp: integer
+  if m > 2 then
+    tmp = -3
+  else
+    tmp = 9
+  end
+  local doy: integer = (153 * (m  + tmp) + 2)//5 + d-1
+  local doe: integer = yoe * 365 + yoe//4 - yoe//100 + doy
+  return era * 146097 + doe - 719468
+end
+function from_dmy2(y, m, d)
+  if m <= 2 then
+    y = y - 1
+  end
+  local era
+  if y >= 0 then
+    era = y // 400
+  else
+    era = (y-399) // 400
+  end
+  local yoe = y - era * 400
+  local tmp
+  if m > 2 then
+    tmp = -3
+  else
+    tmp = 9
+  end
+  local doy = (153 * (m  + tmp) + 2)//5 + d-1
+  local doe = yoe * 365 + yoe//4 - yoe//100 + doy
+  return era * 146097 + doe - 719468
+end
+assert(from_dmy1(1900, 1, 1) == -25567)
+assert(from_dmy1(1900, 1, 1) == from_dmy2(1900, 1, 1))
+compile(from_dmy1)
+compile(from_dmy2)
+assert(from_dmy1(1900, 1, 1) == -25567)
+assert(from_dmy1(1900, 1, 1) == from_dmy2(1900, 1, 1))
+check(from_dmy1, 'TOINT', 'TOINT', 'TOINT', 'LE_II', 'JMP',
+  'SUBII','LOADNIL','LOADIZ','LE_II','JMP','IDIV','JMP','SUBII',
+  'IDIV','MULII','SUBII','LOADNIL','LOADIZ','LT_II','JMP','LOADK',
+  'JMP','LOADK','ADDII','MULII','ADDII','IDIV','ADDII','SUBII',
+  'MULII','IDIV','ADDII','IDIV','SUBII','ADDII','MULII','ADDII',
+  'SUBII','RETURN','RETURN')
+print 'Test 58 OK'
+
+function x(s1: string, s2: string)
+  return @string( s1 .. s2 )
+end
+check(x, 'TOSTRING', 'TOSTRING', 'MOVE', 'MOVE', 'CONCAT', 'TOSTRING', 'RETURN', 'RETURN')
+assert(x('a', 'b') == 'ab')
+compile(x)
+assert(x('a', 'b') == 'ab')
+print 'Test 59 OK'
+
+function x(f: closure)
+  local g = @closure f
+  return g()
+end
+check(x, 'TOCLOSURE', 'MOVE', 'MOVE', 'TAILCALL', 'RETURN', 'RETURN')
+local called = 0
+function y()
+  called = called + 1
+end
+x(y)
+assert(called == 1)
+compile(x)
+compile(y)
+x(y)
+assert(called == 2) 
+print 'Test 60 OK'
+
+local mt = { __name='MyType'}
+debug.getregistry().MyType = mt
+local t = {}
+setmetatable(t, mt)
+
+function x(s: MyType) 
+  local assert = assert
+  assert(@MyType s == @MyType t)
+  assert(@MyType t == t)
+end
+x(t)
+compile(x)
+x(t)
+print 'Test 61 OK'
+
+function x()
+   local a: MyType
+   return function (b) a = b end
+end
+f = x()
+assert(pcall(f, t)) -- t is of MyType so okay
+assert(pcall(f, nil)) -- nil is okay
+assert(not pcall(f, 'hello')) -- string not okay
+ravi.compile(f)
+assert(pcall(f, t))
+assert(pcall(f, nil))
+assert(not pcall(f, 'hello'))
+print 'Test 62 OK'
+
+function x()
+   local f: closure = function() end
+   f = nil
+   local f
+   f = 'a'
+   return f
+end
+assert(x() == 'a')
+ravi.compile(x)
+assert(x() == 'a')
+print 'Test 63 OK'
+
+-- Codegen bug #issue 148
+function x()
+  assert(({pcall(function() comp 'x for __result' end)})[2]
+       :find'not contain __ prefix')
+end
+check(x, 'GETTABUP_SK', 'NEWTABLE', 'GETTABUP_SK', 'CLOSURE',
+  'CALL', 'SETLIST', 'GETTABLE_I', 'SELF_SK', 'LOADK', 
+  'CALL', 'CALL', 'RETURN')
+print 'Test 64 OK'
 
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)
 end
 
---ravi.dumplua(test_yields_in_metamethods)
+-- ravi.dumplua(test_yields_in_metamethods)
 
+print 'OK'

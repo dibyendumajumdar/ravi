@@ -24,8 +24,13 @@ Features
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
-* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available
+* Additionally a `libgccjit <https://gcc.gnu.org/wiki/JIT>`_ based alternative JIT compiler is also available (on a branch), although this is not currently being worked on
 * LLVM bindings exposed in Lua
+
+Recent Work
+===========
+* `Experimental Type Annotations`_ for user defined types was implemented in Oct 2017.
+* A new `X86-64 VM written in assembler <https://github.com/dibyendumajumdar/ravi/tree/master/vmbuilder>`_ using `dynasm <https://luajit.org/dynasm.html>`_ tool is under development currently.
 
 Documentation
 =============
@@ -34,13 +39,16 @@ As more stuff is built I will keep updating the documentation so please revisit 
 
 Also see the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
 
+Lua Goodies
+===========
+* `An Introduction to Lua <http://the-ravi-programming-language.readthedocs.io/en/latest/lua-introduction.html>`_ attempts to provide a quick overview of Lua for folks coming from other languages.
+* `Lua 5.3 Bytecode Reference <http://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html>`_ is my attempt to bring up to date the `Lua 5.1 Bytecode Reference <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_. 
+
 JIT Implementation
 ==================
 The LLVM JIT compiler is functional. The Lua and Ravi bytecodes currently implemented in LLVM are described in `JIT Status <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-status.html>`_ page.
 
 Ravi also provides an `LLVM binding <http://the-ravi-programming-language.readthedocs.org/en/latest/llvm-bindings.html>`_; this is still work in progress so please check documentation for the latest status.
-
-There is also a `libgccjit <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-jit-libgccjit.html>`_ based JIT implementation but this implementation is lagging behind the LLVM based implementation. Further development of this is currently not planned.
 
 Ravi Extensions to Lua 5.3
 ==========================
@@ -59,6 +67,8 @@ Ravi allows you to annotate ``local`` variables and function parameters with sta
   denotes an array of numbers
 ``table``
   a Lua table
+
+Additionally there are some `Experimental Type Annotations`_.
 
 Declaring the types of ``local`` variables and function parameters has following advantages.
 
@@ -183,6 +193,61 @@ The type assertion operator is a unary operator and binds to the expression foll
 
 For a real example of how type assertions can be used, please have a look at the test program `gaussian2.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/gaussian2.lua>`_ 
 
+Experimental Type Annotations
+-----------------------------
+Following type annotations have experimental support. These type annotations are not always statically enforced. Furthermore using these types does not affect the JIT code generation, i.e. variables annotated using these types are still treated as dynamic types. 
+
+The scenarios where these type annotations have an impact are:
+
+* Function parameters containing these annotations lead to type assertions at runtime.
+* The type assertion operator @ can be applied to these types - leading to runtime assertions.
+* Annotating ``local`` declarations results in type assertions.
+
+``string``
+  denotes a string
+``closure``
+  denotes a function
+Name
+  Denotes a value that has a `metatable registered under Name <https://www.lua.org/pil/28.2.html>`_ in the Lua registry. The Name must be a valid Lua name - hence periods in the name are not allowed. 
+
+The main use case for these annotations is to help with type checking of larger Ravi programs. These type checks, particularly the one for user defined types, are executed directly by the VM and hence are more efficient than performing the checks in other ways. 
+
+All three types above allow ``nil`` assignment.
+
+Examples::
+
+  -- Create a metatable
+  local mt = { __name='MyType'}
+
+  -- Register the metatable in Lua registry
+  debug.getregistry().MyType = mt
+
+  -- Create an object and assign the metatable as its type
+  local t = {}
+  setmetatable(t, mt)
+
+  -- Use the metatable name as the object's type
+  function x(s: MyType) 
+    local assert = assert
+    assert(@MyType(s) == @MyType(t))
+    assert(@MyType(t) == t)
+  end
+
+  -- Here we use the string type
+  function x(s1: string, s2: string)
+    return @string( s1 .. s2 )
+  end
+  
+  -- Following demonstrates an error caused by the type checking
+  -- Note that this error is raised at runtime
+  function x() 
+    local s: string
+    -- call a function that returns integer value
+    -- and try to assign to s
+    s = (function() return 1 end)() 
+  end
+  x() -- will fail at runtime
+
 Array Slices
 ------------
 Since release 0.6 Ravi supports array slices. An array slice allows a portion of a Ravi array to be treated as if it is an array - this allows efficient access to the underlying array elements. Following new functions are available:
@@ -275,16 +340,17 @@ A JIT api is available with following functions:
 ``ravi.dumplua(func)``
   dumps the Lua bytecode of the function
 ``ravi.dumpir(func)``
-  dumps the IR of the compiled function (only if function was compiled; only LLVM version)
+  (deprecated) dumps the IR of the compiled function (only if function was compiled; only available in LLVM 4.0 and earlier)
 ``ravi.dumpasm(func)``
-  dumps the machine code using the currently set optimization level (only if function was compiled; only LLVM)
+  (deprecated) dumps the machine code using the currently set optimization level (only if function was compiled; only available in LLVM version 4.0 and earlier)
 ``ravi.optlevel([n])``
-  sets LLVM optimization level (0, 1, 2, 3); defaults to 2
+  sets LLVM optimization level (0, 1, 2, 3); defaults to 2. These levels are handled by reusing LLVMs default pass definitions which are geared towards C/C++ programs, but appear to work well here. If level is set to 0, then an attempt is made to use fast instruction selection to further speed up compilation.
 ``ravi.sizelevel([n])``
   sets LLVM size level (0, 1, 2); defaults to 0
 ``ravi.tracehook([b])``
-  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode 
-  boundary; use this option only when you want to use the debug api to step through code line by line
+  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when you want to use the debug api to step through code line by line
+``ravi.verbosity([b])``
+  Controls the amount of verbose messages generated during compilation. Currently only available for LLVM.
 
 Performance
 ===========
@@ -324,6 +390,12 @@ When JIT compilation is enabled there are following additional constraints:
 Building Ravi
 =============
 
+Quick build without JIT
+-----------------------
+A Makefile is supplied for a simple build without the JIT. Just run ``make`` and follow instructions. You may need to customize the Makefiles. 
+
+For building Ravi with JIT options please read on.
+
 Build Dependencies
 ------------------
 
@@ -331,10 +403,12 @@ Build Dependencies
 
 Ravi can be built with or without LLVM. Following versions of LLVM work with Ravi.
 
-* LLVM 3.7 or 3.8 or 3.9 or 4.0
+* LLVM 3.7 or 3.8 or 3.9 or 4.0 or 5.0
 * LLVM 3.5 and 3.6 should also work but have not been recently tested
 
-Unless otherwise noted the instructions below should work for LLVM 3.7 or later.
+Unless otherwise noted the instructions below should work for LLVM 3.9 and later.
+
+Since LLVM 5.0 Ravi has begun to use the new ORC JIT apis. These apis are more memory efficient compared to the MCJIT apis because they release the Module IR as early as possible, whereas with MCJIT the Module IR hangs around as long as the compiled code is held. Because of this significant improvement, I recommend using LLVM 5.0 and above.
 
 Building LLVM on Windows
 ------------------------
@@ -370,19 +444,19 @@ Building Ravi with JIT enabled
 ------------------------------
 I am developing Ravi using Visual Studio 2017 Community Edition on Windows 10 64bit, gcc on Unbuntu 64-bit, and clang/Xcode on MAC OS X. I was also able to successfully build a Ubuntu version on Windows 10 using the newly released Ubuntu/Linux sub-system for Windows 10.
 
-.. note:: Location of cmake files has moved in LLVM 3.9; the new path is ``$LLVM_INSTALL_DIR/lib/cmake/llvm``.
+.. note:: Location of cmake files prior to LLVM 3.9 was ``$LLVM_INSTALL_DIR/share/llvm/cmake``.
 
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
   cd build
-  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM37\share\llvm\cmake -G "Visual Studio 15 2017 Win64" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM\lib\cmake\llvm -G "Visual Studio 15 2017 Win64" ..
 
 I then open the solution in VS2017 and do a build from there.
 
 On Ubuntu I use::
 
   cd build
-  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/lib/cmake/llvm -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
   make
 
 Note that on a clean install of Ubuntu 15.10 I had to install following packages:
@@ -394,7 +468,7 @@ Note that on a clean install of Ubuntu 15.10 I had to install following packages
 On MAC OS X I use::
 
   cd build
-  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/share/llvm/cmake -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/lib/cmake/llvm -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
 
 I open the generated project in Xcode and do a build from there. You can also use the command line build tools if you wish - generate the make files in the same way as for Linux.
 
@@ -429,15 +503,19 @@ I test the build by running a modified version of Lua 5.3.3 test suite. These te
 
 Roadmap
 =======
-* 2015 - Implemented JIT compilation using LLVM
-* 2015 - Implemented libgccjit based alternative JIT
-* 2016 - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
-* 2017 - Main priorities are:
-
-  - I would like Ravi to be backward compatible with Lua 5.1 and 5.2 as far as possible
-  - Lua function inlining 
-  - Improve performance of Ravi  
-  - Additional type annotations
+* 2015 
+       - Implemented JIT compilation using LLVM
+       - Implemented libgccjit based alternative JIT (now discontinued)
+* 2016 
+       - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
+* 2017 
+       - Embedded C compiler using dmrC project (C JIT compiler) 
+       - Additional type annotations
+* 2018 
+       - 1.0 release of Ravi
+       - More testing and test cases
+       - ASM VM for X86-64 platform 
+       - Better support for earlier Lua versions (5.1 especially)
 
 License
 =======

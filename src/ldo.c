@@ -33,6 +33,7 @@
 #include "lvm.h"
 #include "lzio.h"
 #include "ravijit.h"
+#include "ravi_jitshared.h"
 
 
 #define errorstatus(s)	((s) > LUA_YIELD)
@@ -376,6 +377,8 @@ static int moveresults (lua_State *L, const TValue *firstResult, StkId res,
 */
 int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres) {
   StkId res;
+  lua_assert(L->magic == 42);
+  lua_assert(ci->magic == 42);
   int wanted = ci->nresults;
   if (L->hookmask & (LUA_MASKRET | LUA_MASKLINE)) {
     if (L->hookmask & LUA_MASKRET) {
@@ -465,8 +468,8 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
         callhook(L, ci);
       if (L == G(L)->mainthread && p->ravi_jit.jit_status == RAVI_JIT_NOT_COMPILED) {
         /* not compiled */
-        ravi_compile_options_t options = { 0 };
-        options.verification_level = 1;
+        ravi_compile_options_t options;
+        memset(&options, 0, sizeof options);
         raviV_compile(L, p, &options);
       }
       if (L == G(L)->mainthread && p->ravi_jit.jit_function) {
@@ -535,6 +538,25 @@ static void stackerror (lua_State *L) {
     luaD_throw(L, LUA_ERRERR);  /* error while handing stack error */
 }
 
+#ifdef RAVI_USE_ASMVM
+/* following is a temporary solution to decide whether we can use ASM VM */
+extern int ravi_luaV_interp(lua_State * L);
+int asvm_compatible(Proto *p) {
+  static unsigned char opcodes_supported[NUM_OPCODES] = {
+      [OP_RETURN] = 1,
+      [OP_LOADK] = 1,
+      [OP_MOVE] = 1,
+      [OP_RAVI_FORLOOP_IP] = 1,
+      [OP_RAVI_FORLOOP_I1] = 1,
+      [OP_RAVI_FORPREP_I1] = 1,
+      [OP_RAVI_FORPREP_IP] = 1};
+  for (int i = 0; i < p->sizecode; i++) {
+    int op = GET_OPCODE(p->code[i]);
+    if (!opcodes_supported[op]) return 0;
+  }
+  return 1;
+}
+#endif
 
 /*
 ** Call a function (C or Lua). The function to be called is at *func.
@@ -545,8 +567,23 @@ static void stackerror (lua_State *L) {
 void luaD_call (lua_State *L, StkId func, int nResults) {
   if (++L->nCcalls >= LUAI_MAXCCALLS)
     stackerror(L);
-  if (!luaD_precall(L, func, nResults, 0))  /* is a Lua function? */
+  if (!luaD_precall(L, func, nResults, 0))  /* is a Lua function? */ {
+#ifdef RAVI_USE_ASMVM
+    // This is a temporary hack to test the under development ASM VM.
+    CallInfo *ci = L->ci;
+    LClosure *cl = clLvalue(ci->func);  /* local reference to function's closure */
+    if (cl->p->sizecode <= 10 &&
+        asvm_compatible(cl->p)) {
+      fprintf(stderr, "Invoking ASM VM\n");
+      ravi_luaV_interp(L);
+    }
+    else {
+      luaV_execute(L);  /* call it */
+    }
+#else
     luaV_execute(L);  /* call it */
+#endif
+  }
   L->nCcalls--;
 }
 
