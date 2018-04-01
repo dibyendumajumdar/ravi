@@ -355,7 +355,7 @@ static int luaB_load (lua_State *L) {
   return load_aux(L, status, env);
 }
 
-static int raviB_load(lua_State *L) {
+static int raviB_build_ast(lua_State *L) {
   int status;
   size_t l;
   const char *s = lua_tolstring(L, 1, &l);
@@ -371,7 +371,7 @@ static int raviB_load(lua_State *L) {
     lua_settop(L, RESERVEDSLOT);  /* create reserved slot */
     status = ravi_build_ast_from_buffer(L, generic_reader, NULL, chunkname, mode);
   }
-  return load_aux(L, status, env);
+  return status == 0 ? 1 : 0;
 }
 
 /* }====================================================== */
@@ -484,7 +484,7 @@ static const luaL_Reg base_funcs[] = {
   {"loadfile", luaB_loadfile},
   {"load", luaB_load},
   /* Entrypoint for new AST */
-  {"raviload", raviB_load},
+  {"build_ast", raviB_build_ast},
 #if defined(LUA_COMPAT_LOADSTRING)
   {"loadstring", luaB_load},
 #endif

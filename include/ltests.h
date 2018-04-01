@@ -77,7 +77,7 @@ int lua_checkmemory (lua_State *L);
 
 
 /* test for lock/unlock */
-
+#if 0
 struct L_EXTRA { int lock; int *plock; };
 #undef LUA_EXTRASPACE
 #define LUA_EXTRASPACE	sizeof(struct L_EXTRA)
@@ -92,7 +92,7 @@ struct L_EXTRA { int lock; int *plock; };
   lua_assert(getlock(l)->plock == getlock(l1)->plock)
 #define lua_lock(l)     lua_assert((*getlock(l)->plock)++ == 0)
 #define lua_unlock(l)   lua_assert(--(*getlock(l)->plock) == 0)
-
+#endif
 
 
 LUA_API int luaB_opentests (lua_State *L);

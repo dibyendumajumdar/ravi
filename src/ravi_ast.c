@@ -22,6 +22,8 @@
 #include "ltable.h"
 #include "ravi_ast.h"
 
+#include "lauxlib.h"
+
 #define MAXVARS		125 
 
 
@@ -49,69 +51,127 @@ struct allocation_blob {
   unsigned char data[];
 };
 
-struct allocator_struct {
-  struct allocation_blob *blobs;
-  /* statistics */
-  size_t allocations, total_bytes, useful_bytes;
+struct allocator {
+	const char *name_;
+	struct allocation_blob *blobs_;
+	size_t size_;
+	unsigned int alignment_;
+	unsigned int chunking_;
+	void *freelist_;
+	size_t allocations, total_bytes, useful_bytes;
 };
 
-void *blob_alloc(size_t size) {
+/*
+ * Userdata object to hold the abstract syntax tree
+ */
+struct ast_container {
+	struct allocator *ast_node_allocator;
+	struct allocator *string_allocator;
+	struct ast_node *root;
+};
+
+enum ast_node_type {
+
+};
+
+struct ast_node {
+	enum ast_node_type type;
+};
+
+static void *blob_alloc(size_t size) {
   void *ptr;
   ptr = malloc(size);
   if (ptr != NULL) memset(ptr, 0, size);
   return ptr;
 }
 
-void blob_free(void *addr, size_t size) {
+static void blob_free(void *addr, size_t size) {
   (void)size;
   free(addr);
 }
 
-void init_allocator(struct allocator_struct *desc) {
-  desc->blobs = NULL;
-  desc->allocations = desc->total_bytes = desc->useful_bytes = 0;
+static void allocator_init(struct allocator *A, const char *name, size_t size,
+	unsigned int alignment, unsigned int chunking) {
+	A->name_ = name;
+	A->blobs_ = NULL;
+	A->size_ = size;
+	A->alignment_ = alignment;
+	A->chunking_ = chunking;
+	A->freelist_ = NULL;
+	A->allocations = 0;
+	A->total_bytes = 0;
+	A->useful_bytes = 0;
 }
 
-void drop_all_allocations(struct allocator_struct *desc) {
-  struct allocation_blob *blob = desc->blobs;
-
-  desc->blobs = NULL;
-  desc->allocations = 0;
-  desc->total_bytes = 0;
-  desc->useful_bytes = 0;
-  while (blob) {
-    struct allocation_blob *next = blob->next;
-    blob_free(blob, CHUNK);
-    blob = next;
-  }
+static void drop_all_allocations(struct allocator *A) {
+	struct allocation_blob *blob = A->blobs_;
+	A->blobs_ = NULL;
+	A->allocations = 0;
+	A->total_bytes = 0;
+	A->useful_bytes = 0;
+	A->freelist_ = NULL;
+	while (blob) {
+		struct allocation_blob *next = blob->next;
+		dmrC_blob_free(blob, A->chunking_);
+		blob = next;
+	}
 }
 
-void *allocate(struct allocator_struct *desc, size_t size) {
-  struct allocation_blob *blob = desc->blobs;
-  void *retval;
-  desc->allocations++;
-  desc->useful_bytes += size;
-  size = (size + alignment - 1) & ~(alignment - 1);
-  if (!blob || blob->left < size) {
-    size_t offset, chunking = CHUNK;
-    struct allocation_blob *newblob = blob_alloc(chunking);
-    if (!newblob) { abort(); }
-    desc->total_bytes += chunking;
-    newblob->next = blob;
-    blob = newblob;
-    desc->blobs = newblob;
-    offset = offsetof(struct allocation_blob, data);
-    offset = (offset + alignment - 1) & ~(alignment - 1);
-    blob->left = chunking - offset;
-    blob->offset = offset - offsetof(struct allocation_blob, data);
-  }
-  retval = blob->data + blob->offset;
-  blob->offset += size;
-  blob->left -= size;
-  return retval;
+static void *allocator_allocate(struct allocator *A, size_t extra) {
+	size_t size = extra + A->size_;
+	size_t alignment = A->alignment_;
+	struct allocation_blob *blob = A->blobs_;
+	void *retval;
+
+	assert(size <= A->chunking_);
+	/*
+	* NOTE! The freelist only works with things that are
+	*  (a) sufficiently aligned
+	*  (b) use a constant size
+	* Don't try to free allocators that don't follow
+	* these rules.
+	*/
+	if (A->freelist_) {
+		void **p = (void **)A->freelist_;
+		retval = p;
+		A->freelist_ = *p;
+		memset(retval, 0, size);
+		return retval;
+	}
+
+	A->allocations++;
+	A->useful_bytes += size;
+	size = (size + alignment - 1) & ~(alignment - 1);
+	if (!blob || blob->left < size) {
+		size_t offset, chunking = A->chunking_;
+		struct allocation_blob *newblob =
+			(struct allocation_blob *)blob_alloc(chunking);
+		if (!newblob) {
+			fprintf(stderr, "out of memory\n");
+			abort();
+		}
+		A->total_bytes += chunking;
+		newblob->next = blob;
+		blob = newblob;
+		A->blobs_ = newblob;
+		offset = offsetof(struct allocation_blob, data);
+		offset = (offset + alignment - 1) & ~(alignment - 1);
+		blob->left = chunking - offset;
+		blob->offset = offset - offsetof(struct allocation_blob, data);
+	}
+	retval = blob->data + blob->offset;
+	blob->offset += size;
+	blob->left -= size;
+	return retval;
 }
 
-void show_allocations(struct allocator_struct *x) {
+static void allocator_free(struct allocator *A, void *entry) {
+	void **p = (void **)entry;
+	*p = A->freelist_;
+	A->freelist_ = p;
+}
+
+static void show_allocations(struct allocator *x) {
   fprintf(stderr,
           "allocator: %d allocations, %d bytes (%d total bytes, "
           "%6.2f%% usage, %6.2f average size)\n",
@@ -120,6 +180,35 @@ void show_allocations(struct allocator_struct *x) {
           (double)x->useful_bytes / x->allocations);
 }
 
+static void allocator_destroy(struct allocator *A) {
+	allocator_drop_all_allocations(A);
+	A->blobs_ = NULL;
+	A->allocations = 0;
+	A->total_bytes = 0;
+	A->useful_bytes = 0;
+	A->freelist_ = NULL;
+}
+
+static const char *AST_type = "Ravi.AST";
+
+#define test_Ravi_AST(L, idx) \
+  ((struct ast_container *)raviL_testudata(L, idx, AST_type))
+#define check_Ravi_AST(L, idx) \
+  ((struct ast_container *)raviL_checkudata(L, idx, AST_type))
+
+static struct ast_container * new_ast_container(lua_State *L) {
+	struct ast_container *container =
+		(struct ast_container *)lua_newuserdata(L, sizeof(struct ast_container));
+	raviL_getmetatable(L, AST_type);
+	lua_setmetatable(L, -2);
+	return container;
+}
+
+/* __gc function for IRBuilderHolder */
+static int collect_ast_container(lua_State *L) {
+	struct ast_container *container = check_Ravi_AST(L, 1);
+	return 0;
+}
 
 static void parse_expression(LexState *ls);
 static void parse_statement_list(LexState *ls);
@@ -1083,6 +1172,8 @@ static void parse_chunk(LexState *ls) {
 */
 int raviY_parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff, 
                        const char *name, int firstchar) {
+  StkId ctop = L->top;
+  struct ast_container *container = new_ast_container(L);
   LexState lexstate;
   lexstate.h = luaH_new(L);         /* create table for scanner */
   sethvalue(L, L->top, lexstate.h); /* anchor it */
@@ -1096,6 +1187,26 @@ int raviY_parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
   parse_chunk(&lexstate);
   L->top--; /* remove source name */
   L->top--; /* remove scanner's table */
-  // TODO Push the constructed AST
+  assert(ctop == L->top-1);
   return 0;
+}
+
+static const luaL_Reg container_methods[] = {
+	{ NULL, NULL } };
+
+static const luaL_Reg astlib[] = {
+	{ NULL, NULL } };
+
+LUAMOD_API int raviopen_ast_library(lua_State *L) {
+	raviL_newmetatable(L, AST_type, AST_type);
+	lua_pushcfunction(L, collect_ast_container);
+	lua_setfield(L, -2, "__gc");
+	lua_pushvalue(L, -1);           /* push metatable */
+	lua_setfield(L, -2, "__index"); /* metatable.__index = metatable */
+	luaL_setfuncs(L, container_methods, 0);
+	lua_pop(L, 1);
+
+	luaL_newlib(L, astlib);
+	return 1;
+	return 0;
 }
