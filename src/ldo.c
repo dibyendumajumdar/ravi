@@ -886,24 +886,15 @@ int luaD_protectedparser (lua_State *L, ZIO *z, const char *name,
   return status;
 }
 
-static void ravi_f_parser (lua_State *L, void *ud) {
+static int ravi_f_parser (lua_State *L, void *ud) {
   LClosure *cl;
   struct SParser *p = cast(struct SParser *, ud);
   int c = zgetc(p->z);  /* read first character */
-  if (c == LUA_SIGNATURE[0]) {
-    checkmode(L, p->mode, "binary");
-    cl = luaU_undump(L, p->z, p->name);
-  }
-  else {
-    checkmode(L, p->mode, "text");
-    cl = raviY_parser(L, p->z, &p->buff, &p->dyd, p->name, c);
-  }
-  lua_assert(cl->nupvalues == cl->p->sizeupvalues);
-  luaF_initupvals(L, cl);
+  checkmode(L, p->mode, "text");
+  return raviY_parse_to_ast(L, p->z, &p->buff, p->name, c);
 }
 
-
-int raviD_protectedparser (lua_State *L, ZIO *z, const char *name,
+int raviD_protected_ast_builder (lua_State *L, ZIO *z, const char *name,
                                         const char *mode) {
   struct SParser p;
   int status;

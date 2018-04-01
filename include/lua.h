@@ -531,7 +531,7 @@ LUA_API void *ravi_get_debugger_data(lua_State *L);
 ** Experimental (wip) implementation of new
 ** parser and code generator 
 */
-LUA_API int (ravi_load) (lua_State *L, lua_Reader reader, void *dt,
+LUA_API int (ravi_build_ast_from_buffer) (lua_State *L, lua_Reader reader, void *dt,
                           const char *chunkname, const char *mode);
 
 

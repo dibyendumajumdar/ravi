@@ -1333,28 +1333,23 @@ LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
 }
 
 /* 
-** Experimental (wip) implementation of new
+**
+** Builds an Abstract Syntax Tree (encapsulated in userdata type) from the given
+** input buffer. This function returns 0 if all OK
+* - On success a userdata object representing the tree, 
+*   else an error message will be pushed on to the stack
+**
+** This is part of the new experimental (wip) implementation of new
 ** parser and code generator 
 */
-LUA_API int (ravi_load) (lua_State *L, lua_Reader reader, void *data,
+LUA_API int (ravi_build_ast_from_buffer) (lua_State *L, lua_Reader reader, void *data,
                           const char *chunkname, const char *mode) {
   ZIO z;
   int status;
   lua_lock(L);
   if (!chunkname) chunkname = "?";
   luaZ_init(L, &z, reader, data);
-  status = raviD_protectedparser(L, &z, chunkname, mode);
-  if (status == LUA_OK) {  /* no errors? */
-    LClosure *f = clLvalue(L->top - 1);  /* get newly created function */
-    if (f->nupvalues >= 1) {  /* does it have an upvalue? */
-      /* get global table from registry */
-      Table *reg = hvalue(&G(L)->l_registry);
-      const TValue *gt = luaH_getint(reg, LUA_RIDX_GLOBALS);
-      /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
-      setobj(L, f->upvals[0]->v, gt);
-      luaC_upvalbarrier(L, f->upvals[0]);
-    }
-  }
+  status = raviD_protected_ast_builder(L, &z, chunkname, mode);
   lua_unlock(L);
   return status;
 }

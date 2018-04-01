@@ -1073,34 +1073,29 @@ static void parse_chunk(LexState *ls) {
     check(ls, TK_EOS);
 }
 
-LClosure *raviY_parser(lua_State *L, ZIO *z, Mbuffer *buff, Dyndata *dyd,
+/*
+** Parse the given source 'chunk' and build an abstract
+** syntax tree; return 0 on success / non-zero return code on
+** failure
+** On success will push a userdata object containing the abstract
+** syntax tree.
+** On failure push an error message.
+*/
+int raviY_parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff, 
                        const char *name, int firstchar) {
   LexState lexstate;
-  // Mbuffer mbuff;
-  // FuncState funcstate;
-  // LClosure *cl = luaF_newLclosure(L, 1);  /* create main closure */
-  // setclLvalue(L, L->top, cl);  /* anchor it (to avoid being collected) */
-  // luaD_inctop(L);
   lexstate.h = luaH_new(L);         /* create table for scanner */
   sethvalue(L, L->top, lexstate.h); /* anchor it */
   luaD_inctop(L);
   TString *src = luaS_new(L, name); /* create and anchor TString */
   setsvalue(L, L->top, src);
   luaD_inctop(L);
-  // funcstate.f = cl->p = luaF_newproto(L);
-  // funcstate.f->source = luaS_new(L, name);  /* create and anchor TString */
-  // lua_assert(iswhite(funcstate.f));  /* do not need barrier here */
   lexstate.buff = buff;
-  lexstate.dyd = dyd;
-  dyd->actvar.n = dyd->gt.n = dyd->label.n = 0;
+  lexstate.dyd = NULL; /* Unlike standard Lua parser / code generator we do not use this */
   luaX_setinput(L, &lexstate, z, src, firstchar);
-  // mainfunc(&lexstate, &funcstate);
   parse_chunk(&lexstate);
-  // lua_assert(!funcstate.prev && funcstate.nups == 1 && !lexstate.fs);
-  /* all scopes should be correctly finished */
-  lua_assert(dyd->actvar.n == 0 && dyd->gt.n == 0 && dyd->label.n == 0);
   L->top--; /* remove source name */
   L->top--; /* remove scanner's table */
-  // return cl;  /* closure is on the stack, too */
-  return luaY_parser(L, z, buff, dyd, name, firstchar);
+  // TODO Push the constructed AST
+  return 0;
 }

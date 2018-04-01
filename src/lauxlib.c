@@ -760,12 +760,18 @@ LUALIB_API int luaL_loadbufferx (lua_State *L, const char *buff, size_t size,
   return lua_load(L, getS, &ls, name, mode);
 }
 
-LUALIB_API int raviL_loadbufferx (lua_State *L, const char *buff, size_t size,
+/*
+* Builds an Abstract Syntax Tree (encapsulated in userdata type) from the given
+* input buffer. This function returns 0 if all OK
+* - On success a userdata object representing the tree, 
+*   else an error message will be pushed on to the stack
+*/
+LUALIB_API int raviL_build_ast_from_buffer (lua_State *L, const char *buff, size_t size,
                                  const char *name, const char *mode) {
   LoadS ls;
   ls.s = buff;
   ls.size = size;
-  return ravi_load(L, getS, &ls, name, mode);
+  return ravi_build_ast_from_buffer(L, getS, &ls, name, mode);
 }
 
 LUALIB_API int luaL_loadstring (lua_State *L, const char *s) {

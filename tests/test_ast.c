@@ -17,7 +17,7 @@ static int test_buildast(const char *code)
     int rc = 0;
     lua_State *L;
     L = luaL_newstate();
-    if (raviL_loadbufferx(L, code, strlen(code), "testcode", NULL) != 0) {
+    if (raviL_build_ast_from_buffer(L, code, strlen(code), "testcode", NULL) != 0) {
       rc = 1;
       fprintf(stderr, "%s\n", lua_tostring(L, -1));
       lua_pop(L, 1);  /* pop error message from the stack */

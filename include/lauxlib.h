@@ -310,7 +310,7 @@ LUALIB_API void *raviL_checkudata(lua_State *L, int arg_index, const void *meta_
 #define raviL_checkudata(L, arg_index, meta_key) luaL_checkudata(L, arg_index, meta_key)
 #endif
 
-LUALIB_API int (raviL_loadbufferx) (lua_State *L, const char *buff, size_t size,
+LUALIB_API int (raviL_build_ast_from_buffer) (lua_State *L, const char *buff, size_t size,
                                  const char *name, const char *mode);
 
 LUALIB_API int (raviL_dumpast) (lua_State *L);

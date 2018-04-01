@@ -363,13 +363,13 @@ static int raviB_load(lua_State *L) {
   int env = (!lua_isnone(L, 4) ? 4 : 0);  /* 'env' index or 0 if no 'env' */
   if (s != NULL) {  /* loading a string? */
     const char *chunkname = luaL_optstring(L, 2, s);
-    status = raviL_loadbufferx(L, s, l, chunkname, mode);
+    status = raviL_build_ast_from_buffer(L, s, l, chunkname, mode);
   }
   else {  /* loading from a reader function */
     const char *chunkname = luaL_optstring(L, 2, "=(load)");
     luaL_checktype(L, 1, LUA_TFUNCTION);
     lua_settop(L, RESERVEDSLOT);  /* create reserved slot */
-    status = ravi_load(L, generic_reader, NULL, chunkname, mode);
+    status = ravi_build_ast_from_buffer(L, generic_reader, NULL, chunkname, mode);
   }
   return load_aux(L, status, env);
 }
