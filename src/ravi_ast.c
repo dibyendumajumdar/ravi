@@ -1056,7 +1056,9 @@ struct ast_node {
 };
 
 struct parser_state {
-	LexState ls;
+	LexState *ls;
+	struct symbol *main_function; /* chunk wrapper function */
+	struct ast_container *container; 
 };
 
 static struct ast_container * new_ast_container(lua_State *L) {
@@ -2019,10 +2021,10 @@ static void parse_statement_list(LexState *ls) {
 
 
 /* mainfunc() equivalent */
-static void parse_chunk(LexState *ls) { 
-    luaX_next(ls); /* read first token */
-    parse_statement_list(ls);
-    check(ls, TK_EOS);
+static void parse_chunk(struct parser_state *parser_state) { 
+    luaX_next(parser_state->ls); /* read first token */
+    parse_statement_list(parser_state->ls);
+    check(parser_state->ls, TK_EOS);
 }
 
 /*
@@ -2047,11 +2049,14 @@ int raviY_parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
   lexstate.buff = buff;
   lexstate.dyd = NULL; /* Unlike standard Lua parser / code generator we do not use this */
   luaX_setinput(L, &lexstate, z, src, firstchar);
-  parse_chunk(&lexstate);
+  struct parser_state parser_state;
+  parser_state.ls = &lexstate;
+  parser_state.container = container;
+  parse_chunk(&parser_state);
   L->top--; /* remove source name */
   L->top--; /* remove scanner's table */
   assert(ctop == L->top-1);
-  return 0;
+  return 0; /* OK */
 }
 
 static const luaL_Reg container_methods[] = {
