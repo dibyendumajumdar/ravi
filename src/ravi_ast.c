@@ -61,22 +61,6 @@ struct allocator {
 	size_t allocations, total_bytes, useful_bytes;
 };
 
-/*
- * Userdata object to hold the abstract syntax tree
- */
-struct ast_container {
-	struct allocator *ast_node_allocator;
-	struct allocator *string_allocator;
-	struct ast_node *root;
-};
-
-enum ast_node_type {
-
-};
-
-struct ast_node {
-	enum ast_node_type type;
-};
 
 static void *blob_alloc(size_t size) {
   void *ptr;
@@ -112,7 +96,7 @@ static void drop_all_allocations(struct allocator *A) {
 	A->freelist_ = NULL;
 	while (blob) {
 		struct allocation_blob *next = blob->next;
-		dmrC_blob_free(blob, A->chunking_);
+		blob_free(blob, A->chunking_);
 		blob = next;
 	}
 }
@@ -189,12 +173,851 @@ static void allocator_destroy(struct allocator *A) {
 	A->freelist_ = NULL;
 }
 
+
+//////////////////////// PTRLIST /////////////////////////////
+
+/*
+* The ptr list data structure is like a train - with cars linked to each other.
+* Just as in a train each car has many seats, so in ptr list each "node" has
+* several entries. Unlike a train however, the ptr list is arranged as a ring,
+* i.e. the the front and back nodes are linked to each other. Hence there is no
+* such thing as a 'head' of the list - i.e. any node can be the head!
+*/
+
+#ifndef LIST_NODE_NR
+#define LIST_NODE_NR (29)
+#endif
+
+#define DECLARE_PTR_LIST(listname, type)                                       \
+	struct listname {                                                      \
+		int nr_ : 8;                                                   \
+		int rm_ : 8;                                                   \
+		struct listname *prev_;                                        \
+		struct listname *next_;                                        \
+		struct allocator *allocator_;                                  \
+		type *list_[LIST_NODE_NR];                                     \
+	}
+
+/* Each node in the list */
+DECLARE_PTR_LIST(ptr_list, void);
+
+struct ptr_list_iter {
+	struct ptr_list *__head;
+	struct ptr_list *__list;
+	int __nr;
+};
+
+/* The ptr list */
+static int ptrlist_size(const struct ptr_list *self);
+static void **ptrlist_add(struct ptr_list **self, void *ptr, struct allocator *alloc);
+static void *ptrlist_nth_entry(struct ptr_list *list, unsigned int idx);
+static void *ptrlist_first(struct ptr_list *list);
+static void *ptrlist_last(struct ptr_list *list);
+static int ptrlist_linearize(struct ptr_list *head, void **arr, int max);
+static void ptrlist_split_node(struct ptr_list *head);
+static void ptrlist_pack(struct ptr_list **self);
+static void ptrlist_remove_all(struct ptr_list **self);
+static int ptrlist_remove(struct ptr_list **self, void *entry, int count);
+static int ptrlist_replace(struct ptr_list **self, void *old_ptr, void *new_ptr,
+	int count);
+static void *ptrlist_undo_last(struct ptr_list **self);
+static void *ptrlist_delete_last(struct ptr_list **self);
+static void ptrlist_concat(struct ptr_list *a, struct ptr_list **self);
+static void ptrlist_sort(struct ptr_list **self, void *,
+	int(*cmp)(void *, const void *, const void *));
+
+/* iterator functions */
+static struct ptr_list_iter ptrlist_forward_iterator(struct ptr_list *self);
+static struct ptr_list_iter ptrlist_reverse_iterator(struct ptr_list *self);
+static void *ptrlist_iter_next(struct ptr_list_iter *self);
+static void *ptrlist_iter_prev(struct ptr_list_iter *self);
+static void ptrlist_iter_split_current(struct ptr_list_iter *self);
+static void ptrlist_iter_insert(struct ptr_list_iter *self, void *newitem);
+static void ptrlist_iter_remove(struct ptr_list_iter *self);
+static void ptrlist_iter_set(struct ptr_list_iter *self, void *ptr);
+static void ptrlist_iter_mark_deleted(struct ptr_list_iter *self);
+
+static inline void **ptrlist_iter_this_address(struct ptr_list_iter *self) {
+	return &self->__list->list_[self->__nr];
+}
+#define ptr_list_empty(x) ((x) == NULL)
+#define PTR_ENTRY_NOTAG(h,i)	((h)->list_[i])
+#define PTR_ENTRY(h,i)	(void *)(PTR_ENTRY_NOTAG(h,i))
+
+#define FOR_EACH_PTR(list, var) \
+	{ struct ptr_list_iter var##iter__ = ptrlist_forward_iterator((struct ptr_list *)list); \
+	for (var = ptrlist_iter_next(&var##iter__); var != NULL; var = ptrlist_iter_next(&var##iter__))
+#define END_FOR_EACH_PTR(var) }
+
+#define FOR_EACH_PTR_REVERSE(list, var) \
+	{ struct ptr_list_iter var##iter__ = ptrlist_reverse_iterator((struct ptr_list *)list); \
+	for (var = ptrlist_iter_prev(&var##iter__); var != NULL; var = ptrlist_iter_prev(&var##iter__))
+#define END_FOR_EACH_PTR_REVERSE(var) }
+
+#define RECURSE_PTR_REVERSE(list, var) \
+	{ struct ptr_list_iter var##iter__ = list##iter__; \
+	for (var = ptrlist_iter_prev(&var##iter__); var != NULL; var = ptrlist_iter_prev(&var##iter__))
+
+#define PREPARE_PTR_LIST(list, var)	\
+	struct ptr_list_iter var##iter__ = ptrlist_forward_iterator((struct ptr_list *)list); \
+	var = ptrlist_iter_next(&var##iter__)
+
+#define NEXT_PTR_LIST(var) \
+	var = ptrlist_iter_next(&var##iter__)
+#define FINISH_PTR_LIST(var) 
+
+#define THIS_ADDRESS(type, var) \
+	(type *)ptrlist_iter_this_address(&var##iter__)
+
+#define DELETE_CURRENT_PTR(var) \
+	ptrlist_iter_remove(&var##iter__)	
+
+#define REPLACE_CURRENT_PTR(type, var, replacement) \
+	ptrlist_iter_set(&var##iter__, replacement)
+
+#define INSERT_CURRENT(newval, var) \
+	ptrlist_iter_insert(&var##iter__, newval)	
+
+#define MARK_CURRENT_DELETED(PTR_TYPE, var) \
+	ptrlist_iter_mark_deleted(&var##iter__)
+
+/*
+* ptrlist.c
+*
+* Pointer ptrlist_t manipulation
+*
+* (C) Copyright Linus Torvalds 2003-2005
+*/
+/*
+* This version is part of the dmr_c project.
+* Copyright (C) 2017 Dibyendu Majumdar
+*/
+
+#define PARANOIA 1
+
+/* For testing we change this */
+static int N_ = LIST_NODE_NR;
+
+void ptrlist_split_node(struct ptr_list *head)
+{
+	int old = head->nr_, nr = old / 2;
+	struct allocator *alloc = head->allocator_;
+	assert(alloc);
+	struct ptr_list *newlist =
+		(struct ptr_list *)allocator_allocate(alloc, 0);
+	struct ptr_list *next = head->next_;
+	newlist->allocator_ = alloc;
+
+	old -= nr;
+	head->nr_ = old;
+	newlist->next_ = next;
+	next->prev_ = newlist;
+	newlist->prev_ = head;
+	head->next_ = newlist;
+	newlist->nr_ = nr;
+	memcpy(newlist->list_, head->list_ + old, nr * sizeof(void *));
+	memset(head->list_ + old, 0xf0, nr * sizeof(void *));
+}
+
+struct ptr_list_iter ptrlist_forward_iterator(struct ptr_list *head)
+{
+	struct ptr_list_iter iter;
+	iter.__head = iter.__list = head;
+	iter.__nr = -1;
+	return iter;
+}
+
+// Reverse iterator has to start from previous node not previous entry
+// in the given head
+struct ptr_list_iter ptrlist_reverse_iterator(struct ptr_list *head)
+{
+	struct ptr_list_iter iter;
+	iter.__head = iter.__list = head ? head->prev_ : NULL;
+	iter.__nr = iter.__head ? iter.__head->nr_ : 0;
+	return iter;
+}
+
+void *ptrlist_iter_next(struct ptr_list_iter *self)
+{
+	if (self->__head == NULL)
+		return NULL;
+	self->__nr++;
+Lretry:
+	if (self->__nr < self->__list->nr_) {
+		void *ptr = self->__list->list_[self->__nr];
+		if (self->__list->rm_ && !ptr) {
+			self->__nr++;
+			goto Lretry;
+		}
+		return ptr;
+	}
+	else if (self->__list->next_ != self->__head) {
+		self->__list = self->__list->next_;
+		self->__nr = 0;
+		goto Lretry;
+	}
+	return NULL;
+}
+
+void *ptrlist_nth_entry(struct ptr_list *list, unsigned int idx)
+{
+	struct ptr_list *head = list;
+	if (!head)
+		return NULL;
+	do {
+		unsigned int nr = list->nr_;
+		if (idx < nr)
+			return list->list_[idx];
+		else
+			idx -= nr;
+	} while ((list = list->next_) != head);
+	return NULL;
+}
+
+void *ptrlist_iter_prev(struct ptr_list_iter *self)
+{
+	if (self->__head == NULL)
+		return NULL;
+	self->__nr--;
+Lretry:
+	if (self->__nr >= 0 && self->__nr < self->__list->nr_) {
+		void *ptr = self->__list->list_[self->__nr];
+		if (self->__list->rm_ && !ptr) {
+			self->__nr--;
+			goto Lretry;
+		}
+		return ptr;
+	}
+	else if (self->__list->prev_ != self->__head) {
+		self->__list = self->__list->prev_;
+		self->__nr = self->__list->nr_ - 1;
+		goto Lretry;
+	}
+	return NULL;
+}
+
+void ptrlist_iter_split_current(struct ptr_list_iter *self)
+{
+	if (self->__list->nr_ == N_) {
+		/* full so split */
+		ptrlist_split_node(self->__list);
+		if (self->__nr >= self->__list->nr_) {
+			self->__nr -= self->__list->nr_;
+			self->__list = self->__list->next_;
+		}
+	}
+}
+
+void ptrlist_iter_insert(struct ptr_list_iter *self, void *newitem)
+{
+	assert(self->__nr >= 0);
+	ptrlist_iter_split_current(self);
+	void **__this = self->__list->list_ + self->__nr;
+	void **__last = self->__list->list_ + self->__list->nr_ - 1;
+	while (__last >= __this) {
+		__last[1] = __last[0];
+		__last--;
+	}
+	*__this = newitem;
+	self->__list->nr_++;
+}
+
+void ptrlist_iter_remove(struct ptr_list_iter *self)
+{
+	assert(self->__nr >= 0);
+	void **__this = self->__list->list_ + self->__nr;
+	void **__last = self->__list->list_ + self->__list->nr_ - 1;
+	while (__this < __last) {
+		__this[0] = __this[1];
+		__this++;
+	}
+	*__this = (void *)((uintptr_t)0xf0f0f0f0);
+	self->__list->nr_--;
+	self->__nr--;
+}
+
+void ptrlist_iter_set(struct ptr_list_iter *self, void *ptr)
+{
+	assert(self->__list && self->__nr >= 0 &&
+		self->__nr < self->__list->nr_);
+	self->__list->list_[self->__nr] = ptr;
+}
+
+void ptrlist_iter_mark_deleted(struct ptr_list_iter *self)
+{
+	ptrlist_iter_set(self, NULL);
+	self->__list->rm_++;
+}
+
+int ptrlist_size(const struct ptr_list *head) {
+	int nr = 0;
+	if (head) {
+		const struct ptr_list *list = head;
+		do {
+			nr += list->nr_ - list->rm_;
+		} while ((list = list->next_) != head);
+	}
+	return nr;
+}
+
+void **ptrlist_add(struct ptr_list **listp, void *ptr, struct allocator *alloc)
+{
+	struct ptr_list *list = *listp;
+	struct ptr_list *last = NULL;
+	void **ret;
+	int nr;
+
+	if (!list || (nr = (last = list->prev_)->nr_) >= N_) {
+		struct ptr_list *newlist =
+			(struct ptr_list *)allocator_allocate(alloc, 0);
+		newlist->allocator_ = alloc;
+		if (!list) {
+			newlist->next_ = newlist;
+			newlist->prev_ = newlist;
+			*listp = newlist;
+		}
+		else {
+			newlist->prev_ = last;
+			newlist->next_ = list;
+			list->prev_ = newlist;
+			last->next_ = newlist;
+		}
+		last = newlist;
+		nr = 0;
+	}
+	ret = last->list_ + nr;
+	*ret = ptr;
+	nr++;
+	last->nr_ = nr;
+	return ret;
+}
+
+void *ptrlist_first(struct ptr_list *list)
+{
+	if (!list)
+		return NULL;
+	return list->list_[0];
+}
+
+void *ptrlist_last(struct ptr_list *list)
+{
+	if (!list)
+		return NULL;
+	list = list->prev_;
+	return list->list_[list->nr_ - 1];
+}
+
+/*
+* Linearize the entries of a list up to a total of 'max',
+* and return the nr of entries linearized.
+*
+* The array to linearize into (second argument) should really
+* be "void *x[]", but we want to let people fill in any kind
+* of pointer array, so let's just call it "void **".
+*/
+int ptrlist_linearize(struct ptr_list *head, void **arr, int max) {
+	int nr = 0;
+	if (head && max > 0) {
+		struct ptr_list *list = head;
+
+		do {
+			int i = list->nr_;
+			if (i > max)
+				i = max;
+			memcpy(arr, list->list_, i * sizeof(void *));
+			arr += i;
+			nr += i;
+			max -= i;
+			if (!max)
+				break;
+		} while ((list = list->next_) != head);
+	}
+	return nr;
+}
+
+/*
+* When we've walked the list and deleted entries,
+* we may need to re-pack it so that we don't have
+* any empty blocks left (empty blocks upset the
+* walking code
+*/
+void ptrlist_pack(struct ptr_list **listp)
+{
+	struct ptr_list *head = *listp;
+
+	if (head) {
+		struct ptr_list *entry = head;
+		do {
+			struct ptr_list *next;
+		restart:
+			next = entry->next_;
+			if (!entry->nr_) {
+				struct ptr_list *prev;
+				if (next == entry) {
+					allocator_free(entry->allocator_, entry);
+					*listp = NULL;
+					return;
+				}
+				prev = entry->prev_;
+				prev->next_ = next;
+				next->prev_ = prev;
+				allocator_free(entry->allocator_, entry);
+				if (entry == head) {
+					*listp = next;
+					head = next;
+					entry = next;
+					goto restart;
+				}
+			}
+			entry = next;
+		} while (entry != head);
+	}
+}
+
+void ptrlist_remove_all(struct ptr_list **listp) {
+	struct ptr_list *tmp, *list = *listp;
+	if (!list)
+		return;
+	list->prev_->next_ = NULL;
+	while (list) {
+		tmp = list;
+		list = list->next_;
+		allocator_free(tmp->allocator_, tmp);
+	}
+	*listp = NULL;
+}
+
+
+int ptrlist_remove(struct ptr_list **self, void *entry, int count) {
+	struct ptr_list_iter iter = ptrlist_forward_iterator(*self);
+	for (void *ptr = ptrlist_iter_next(&iter); ptr != NULL;
+		ptr = ptrlist_iter_next(&iter)) {
+		if (ptr == entry) {
+			ptrlist_iter_remove(&iter);
+			if (!--count)
+				goto out;
+		}
+	}
+	assert(count <= 0);
+out:
+	ptrlist_pack(self);
+	return count;
+}
+
+int ptrlist_replace(struct ptr_list **self, void *old_ptr, void *new_ptr,
+	int count) {
+	struct ptr_list_iter iter = ptrlist_forward_iterator(*self);
+	for (void *ptr = ptrlist_iter_next(&iter); ptr != NULL;
+		ptr = ptrlist_iter_next(&iter)) {
+		if (ptr == old_ptr) {
+			ptrlist_iter_set(&iter, new_ptr);
+			if (!--count)
+				goto out;
+		}
+	}
+	assert(count <= 0);
+out:
+	return count;
+}
+
+/* This removes the last entry, but doesn't pack the ptr list */
+void *ptrlist_undo_last(struct ptr_list **head)
+{
+	struct ptr_list *last, *first = *head;
+
+	if (!first)
+		return NULL;
+	last = first;
+	do {
+		last = last->prev_;
+		if (last->nr_) {
+			void *ptr;
+			int nr = --last->nr_;
+			ptr = last->list_[nr];
+			last->list_[nr] = (void *)((intptr_t)0xf1f1f1f1);
+			return ptr;
+		}
+	} while (last != first);
+	return NULL;
+}
+
+
+void *ptrlist_delete_last(struct ptr_list **head)
+{
+	void *ptr = NULL;
+	struct ptr_list *last, *first = *head;
+
+	if (!first)
+		return NULL;
+	last = first->prev_;
+	if (last->nr_)
+		ptr = last->list_[--last->nr_];
+	if (last->nr_ <= 0) {
+		first->prev_ = last->prev_;
+		last->prev_->next_ = first;
+		if (last == first)
+			*head = NULL;
+		allocator_free(last->allocator_, last);
+	}
+	return ptr;
+}
+
+void ptrlist_concat(struct ptr_list *a, struct ptr_list **b) {
+	struct allocator *alloc = NULL;
+	struct ptr_list_iter iter = ptrlist_forward_iterator(a);
+	if (a)
+		alloc = a->allocator_;
+	else if (*b)
+		alloc = (*b)->allocator_;
+	else
+		return;
+	for (void *ptr = ptrlist_iter_next(&iter); ptr != NULL;
+		ptr = ptrlist_iter_next(&iter)) {
+		ptrlist_add(b, ptr, alloc);
+	}
+}
+
+/*
+* sort_list: a stable sort for lists.
+*
+* Time complexity: O(n*log n)
+*   [assuming limited zero-element fragments]
+*
+* Space complexity: O(1).
+*
+* Stable: yes.
+*/
+
+static void array_sort(void **ptr, int nr, void *userdata,
+	int(*cmp)(void *, const void *, const void *)) {
+	int i;
+	for (i = 1; i < nr; i++) {
+		void *p = ptr[i];
+		if (cmp(userdata, ptr[i - 1], p) > 0) {
+			int j = i;
+			do {
+				ptr[j] = ptr[j - 1];
+				if (!--j)
+					break;
+			} while (cmp(userdata, ptr[j - 1], p) > 0);
+			ptr[j] = p;
+		}
+	}
+}
+
+static void verify_sorted(struct ptr_list *l, int n, void *userdata,
+	int(*cmp)(void *, const void *, const void *)) {
+	int i = 0;
+	const void *a;
+	struct ptr_list *head = l;
+
+	while (l->nr_ == 0) {
+		l = l->next_;
+		if (--n == 0)
+			return;
+		assert(l != head);
+	}
+
+	a = l->list_[0];
+	while (n > 0) {
+		const void *b;
+		if (++i >= l->nr_) {
+			i = 0;
+			l = l->next_;
+			n--;
+			assert(l != head || n == 0);
+			continue;
+		}
+		b = l->list_[i];
+		assert(cmp(userdata, a, b) <= 0);
+		a = b;
+	}
+}
+
+static void flush_to(struct ptr_list *b, void **buffer, int *nbuf) {
+	int nr = b->nr_;
+	assert(*nbuf >= nr);
+	memcpy(b->list_, buffer, nr * sizeof(void *));
+	*nbuf = *nbuf - nr;
+	memmove(buffer, buffer + nr, *nbuf * sizeof(void *));
+}
+
+static void dump_to(struct ptr_list *b, void **buffer, int nbuf) {
+	assert(nbuf <= b->nr_);
+	memcpy(b->list_, buffer, nbuf * sizeof(void *));
+}
+
+// Merge two already-sorted sequences of blocks:
+//   (b1_1, ..., b1_n)  and  (b2_1, ..., b2_m)
+// Since we may be moving blocks around, we return the new head
+// of the merged list.
+static struct ptr_list *
+merge_block_seqs(struct ptr_list *b1, int n, struct ptr_list *b2,
+	int m, void *userdata, int(*cmp)(void *, const void *, const void *)) {
+	int i1 = 0, i2 = 0;
+	void *buffer[2 * LIST_NODE_NR];
+	int nbuf = 0;
+	struct ptr_list *newhead = b1;
+
+	// printf ("Merging %d blocks at %p with %d blocks at %p\n", n, b1, m, b2);
+
+	// Skip empty blocks in b2.
+	while (b2->nr_ == 0) {
+		// BEEN_THERE('F');
+		b2 = b2->next_;
+		if (--m == 0) {
+			// BEEN_THERE('G');
+			return newhead;
+		}
+	}
+
+	// Do a quick skip in case entire blocks from b1 are
+	// already less than smallest element in b2.
+	while (b1->nr_ == 0 ||
+		cmp(userdata, PTR_ENTRY(b1, b1->nr_ - 1), PTR_ENTRY(b2, 0)) < 0) {
+		// printf ("Skipping whole block.\n");
+		// BEEN_THERE('H');
+		b1 = b1->next_;
+		if (--n == 0) {
+			// BEEN_THERE('I');
+			return newhead;
+		}
+	}
+
+	while (1) {
+		void *d1 = PTR_ENTRY(b1, i1);
+		void *d2 = PTR_ENTRY(b2, i2);
+
+		assert(i1 >= 0 && i1 < b1->nr_);
+		assert(i2 >= 0 && i2 < b2->nr_);
+		assert(b1 != b2);
+		assert(n > 0);
+		assert(m > 0);
+
+		if (cmp(userdata, d1, d2) <= 0) {
+			// BEEN_THERE('J');
+			buffer[nbuf++] = d1;
+			// Element from b1 is smaller
+			if (++i1 >= b1->nr_) {
+				// BEEN_THERE('L');
+				flush_to(b1, buffer, &nbuf);
+				do {
+					b1 = b1->next_;
+					if (--n == 0) {
+						// BEEN_THERE('O');
+						while (b1 != b2) {
+							// BEEN_THERE('P');
+							flush_to(b1, buffer, &nbuf);
+							b1 = b1->next_;
+						}
+						assert(nbuf == i2);
+						dump_to(b2, buffer, nbuf);
+						return newhead;
+					}
+				} while (b1->nr_ == 0);
+				i1 = 0;
+			}
+		}
+		else {
+			// BEEN_THERE('K');
+			// Element from b2 is smaller
+			buffer[nbuf++] = d2;
+			if (++i2 >= b2->nr_) {
+				struct ptr_list *l = b2;
+				// BEEN_THERE('M');
+				// OK, we finished with b2.  Pull it out
+				// and plug it in before b1.
+
+				b2 = b2->next_;
+				b2->prev_ = l->prev_;
+				b2->prev_->next_ = b2;
+				l->next_ = b1;
+				l->prev_ = b1->prev_;
+				l->next_->prev_ = l;
+				l->prev_->next_ = l;
+
+				if (b1 == newhead) {
+					// BEEN_THERE('N');
+					newhead = l;
+				}
+
+				flush_to(l, buffer, &nbuf);
+				b2 = b2->prev_;
+				do {
+					b2 = b2->next_;
+					if (--m == 0) {
+						// BEEN_THERE('Q');
+						assert(nbuf == i1);
+						dump_to(b1, buffer, nbuf);
+						return newhead;
+					}
+				} while (b2->nr_ == 0);
+				i2 = 0;
+			}
+		}
+	}
+}
+
+void ptrlist_sort(struct ptr_list **plist, void *userdata,
+	int(*cmp)(void *, const void *, const void *)) {
+	struct ptr_list *head = *plist, *list = head;
+	int blocks = 1;
+
+	assert(N_ == LIST_NODE_NR);
+	if (!head)
+		return;
+
+	// Sort all the sub-lists
+	do {
+		array_sort(list->list_, list->nr_, userdata, cmp);
+#ifdef PARANOIA
+		verify_sorted(list, 1, userdata, cmp);
+#endif
+		list = list->next_;
+	} while (list != head);
+
+	// Merge the damn things together
+	while (1) {
+		struct ptr_list *block1 = head;
+
+		do {
+			struct ptr_list *block2 = block1;
+			struct ptr_list *next, *newhead;
+			int i;
+
+			for (i = 0; i < blocks; i++) {
+				block2 = block2->next_;
+				if (block2 == head) {
+					if (block1 == head) {
+						// BEEN_THERE('A');
+						*plist = head;
+						return;
+					}
+					// BEEN_THERE('B');
+					goto next_pass;
+				}
+			}
+
+			next = block2;
+			for (i = 0; i < blocks;) {
+				next = next->next_;
+				i++;
+				if (next == head) {
+					// BEEN_THERE('C');
+					break;
+				}
+				// BEEN_THERE('D');
+			}
+
+			newhead = merge_block_seqs(block1, blocks, block2, i, userdata, cmp);
+#ifdef PARANOIA
+			verify_sorted(newhead, blocks + i, userdata, cmp);
+#endif
+			if (block1 == head) {
+				// BEEN_THERE('E');
+				head = newhead;
+			}
+			block1 = next;
+		} while (block1 != head);
+	next_pass:
+		blocks <<= 1;
+	}
+}
+
+////////////////////////// AST 
+
 static const char *AST_type = "Ravi.AST";
 
 #define test_Ravi_AST(L, idx) \
   ((struct ast_container *)raviL_testudata(L, idx, AST_type))
 #define check_Ravi_AST(L, idx) \
   ((struct ast_container *)raviL_checkudata(L, idx, AST_type))
+
+/*
+* Userdata object to hold the abstract syntax tree
+*/
+struct ast_container {
+	struct allocator *ast_node_allocator;
+	struct allocator *string_allocator;
+	struct ast_node *root;
+};
+
+struct ast_node;
+DECLARE_PTR_LIST(ast_node_list, struct ast_node);
+
+struct var_type;
+DECLARE_PTR_LIST(var_type_list, struct var_type);
+
+DECLARE_PTR_LIST(string_list, char);
+
+struct var_type {
+	ravitype_t type;
+	const char *name;
+};
+
+struct literal {
+	ravitype_t type;
+	union {
+		lua_Integer i;
+		lua_Number n;
+		const char *str;
+		lu_byte boolean;
+	} u;
+};
+
+enum ast_node_type {
+	AST_RETURN_STMT,
+	AST_ASSIGN_STMT,
+	AST_BREAK_STMT,
+	AST_GOTO_STMT,
+	AST_LABEL_STMT,
+	AST_DO_STMT,
+	AST_LOCAL_STMT,
+	AST_FUNCTION_STMT,
+	AST_IF_STMT,
+	AST_WHILE_STMT,
+	AST_FORIN_STMT,
+	AST_FORNUM_STMT,
+	AST_REPEAT_STMT,
+	AST_EXPR_STMT,
+	AST_LITERAL_EXPR,
+};
+
+
+
+struct ast_node {
+	enum ast_node_type type;
+	union {
+		struct {
+			struct ast_node_list *exprlist;
+		} return_stmt;
+		struct {
+			const char *name;
+		} label_stmt;
+		struct {
+			const char *name;
+		} goto_stmt;
+		struct {
+			struct string_list *namelist;
+			struct var_type_list *typelist;
+			struct ast_node_list *exprlist;
+		} local_stmt;
+		struct {
+			struct literal literal;
+		} literal_expr;
+		struct {
+			ravitype_t type;
+			UnOpr unary_op;
+			struct ast_node *expr;
+		} unop_expr;
+		struct {
+			ravitype_t type;
+			BinOpr binary_op;
+			struct ast_node *exprleft;
+			struct ast_node *exprright;
+		} binop_expr;
+	};
+};
 
 static struct ast_container * new_ast_container(lua_State *L) {
 	struct ast_container *container =
