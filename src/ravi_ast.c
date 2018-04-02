@@ -952,7 +952,7 @@ DECLARE_PTR_LIST(string_list, char);
 
 struct var_type {
 	ravitype_t type;
-	const char *name;
+	const char *type_name;	/* type name */
 };
 
 struct literal {
@@ -963,6 +963,43 @@ struct literal {
 		const char *str;
 		lu_byte boolean;
 	} u;
+};
+
+struct symbol;
+DECLARE_PTR_LIST(symbol_list, struct symbol);
+
+struct block_scope;
+
+enum symbol_type {
+	SYM_FUNCTION,
+	SYM_VARIABLE,
+	SYM_UPVALUE
+};
+
+struct symbol {
+	enum symbol_type symbol_type;
+	ravitype_t value_type;
+	union {
+		struct {
+			struct symbol *parent_function; /* parent function or NULL if main chunk */
+			struct block_scope *main_block; /* the function's blocks */
+			struct symbol_list *args; /* arguments, also must be part of the function block's symbol list */
+			struct symbol_list *child_functions; /* child functions declared in this function */
+		} function;
+		struct {
+			const char *var_name; /* name of the variable */
+			struct block_scope *block;
+		} var;
+		struct {
+			struct symbol *var; /* variable reference */
+		} upvalue;
+	};
+};
+
+struct block_scope {
+	struct symbol *function; /* function owning this block */
+	struct block_scope *parent; /* parent block */
+	struct symbol_list *symbol_list; /* symbols defined in this block */
 };
 
 enum ast_node_type {
@@ -983,8 +1020,6 @@ enum ast_node_type {
 	AST_LITERAL_EXPR,
 };
 
-
-
 struct ast_node {
 	enum ast_node_type type;
 	union {
@@ -1003,6 +1038,7 @@ struct ast_node {
 			struct ast_node_list *exprlist;
 		} local_stmt;
 		struct {
+			ravitype_t type;
 			struct literal literal;
 		} literal_expr;
 		struct {
@@ -1017,6 +1053,10 @@ struct ast_node {
 			struct ast_node *exprright;
 		} binop_expr;
 	};
+};
+
+struct parser_state {
+	LexState ls;
 };
 
 static struct ast_container * new_ast_container(lua_State *L) {
