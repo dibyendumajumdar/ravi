@@ -2052,6 +2052,11 @@ static void parse_statement_list(LexState *ls) {
 	}
 }
 
+/* Starts a new scope. If the current function has no main block
+* defined then the new scoe becomes its main block. The new scope 
+* gets existing scope as parent even if that belongs to parent 
+* function.
+*/
 static struct block_scope *new_scope(struct parser_state *parser_state) {
 	struct ast_container *container = parser_state->container;
 	struct block_scope *scope = allocator_allocate(&container->block_scope_allocator, 0);
@@ -2072,7 +2077,11 @@ static void end_scope(struct parser_state *parser_state) {
 	assert(parser_state->current_scope != NULL || scope == parser_state->current_function->function_expr.main_block);
 }
 
-static struct ast_node *make_function_node(struct parser_state *parser_state) {
+/* Creates a new function AST node and starts the function scope.
+New function becomes child of current function if any, and scope is linked
+to previous scope which may be of parent function.
+*/
+static struct ast_node *new_function(struct parser_state *parser_state) {
 	struct ast_container *container = parser_state->container;
 	struct ast_node *node = allocator_allocate(&container->ast_node_allocator, 0);
 	node->type = AST_FUNCTION_EXPR;
@@ -2086,17 +2095,29 @@ static struct ast_node *make_function_node(struct parser_state *parser_state) {
 	}
 	parser_state->current_function = node;
 	parser_state->current_node = node;
-	parser_state->current_scope = NULL;
+	new_scope(parser_state); /* Start function scope */
 	return node;
+}
+
+/* Ends the function node and closes the scope for the function. The
+* function being closed becomes the current AST node, while parent function/scope
+* become current function/scope.
+*/
+static struct ast_node *end_function(struct parser_state *parser_state) {
+	assert(parser_state->current_function);
+	end_scope(parser_state);
+	struct ast_node *function = parser_state->current_function;
+	parser_state->current_node = function;
+	parser_state->current_function = function->function_expr.parent_function;
+	return function;
 }
 
 /* mainfunc() equivalent */
 static void parse_chunk(struct parser_state *parser_state) {
 	luaX_next(parser_state->ls); /* read first token */
-	parser_state->container->main_function = make_function_node(parser_state);
-	new_scope(parser_state);
+	parser_state->container->main_function = new_function(parser_state);
 	parse_statement_list(parser_state->ls);
-	end_scope(parser_state);
+	end_function(parser_state);
 	check(parser_state->ls, TK_EOS);
 }
 
@@ -2108,18 +2129,18 @@ static void parser_state_init(struct parser_state *parser_state, LexState *ls, s
 	parser_state->current_scope = NULL;
 }
 
-static void print_ast_node(struct ast_node *node)
+static void print_ast_node(struct ast_node *node, int level)
 {
 	switch (node->type) {
 	case AST_FUNCTION_EXPR:
-		printf("function\n");
+		printf("%.*sfunction()\n", level, "");
 		break;
 	default:
 		assert(0);
 	}
 }
 static void print_ast_container(struct ast_container *container) {
-	print_ast_node(container->main_function);
+	print_ast_node(container->main_function, 0);
 }
 
 /*
