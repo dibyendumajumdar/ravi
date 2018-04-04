@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "lua.h"
 
@@ -1022,6 +1023,11 @@ enum ast_node_type {
 	AST_REPEAT_STMT,
 	AST_EXPR_STMT,
 	AST_LITERAL_EXPR,
+	AST_SYMBOL_EXPR,
+	AST_INDEX_EXPR,
+	AST_NAMEIDX_EXPR,
+	AST_SUFFIXED_EXPR,
+	AST_SIMPLE_EXPR,
 	AST_UNARY_EXPR,
 	AST_BINARY_EXPR,
 	AST_FUNCTION_EXPR,
@@ -1048,6 +1054,14 @@ struct ast_node {
 			ravitype_t type;
 			struct literal literal;
 		} literal_expr;
+		struct {
+			ravitype_t type;
+			struct symbol *var;
+		} symbol_expr;
+		struct {
+			ravitype_t type;
+			struct ast_node *expr; // '[' expr ']'
+		} index_expr;
 		struct {
 			ravitype_t type;
 			UnOpr unary_op;
@@ -1108,9 +1122,9 @@ static int collect_ast_container(lua_State *L) {
 	return 0;
 }
 
-static void parse_expression(LexState *ls);
-static void parse_statement_list(LexState *ls);
-static void parse_statement(LexState *ls);
+static struct ast_node *parse_expression(struct parser_state *);
+static void parse_statement_list(struct parser_state *);
+static void parse_statement(struct parser_state *);
 
 static l_noret error_expected(LexState *ls, int token) {
 	luaX_syntaxerror(ls,
@@ -1191,37 +1205,99 @@ static TString *check_name_and_next(LexState *ls) {
 
 /* create a new local variable in function scope, and set the
 * variable type (RAVI - added type tt) */
-static void new_localvar(LexState *ls, TString *name) {
+static void new_localvar(struct parser_state *parser, TString *name) {
 }
 
 /* create a new local variable
 */
-static void new_localvarliteral_(LexState *ls, const char *name, size_t sz) {
-	new_localvar(ls, luaX_newstring(ls, name, sz));
+static void new_localvarliteral_(struct parser_state *parser, const char *name, size_t sz) {
+	new_localvar(parser, luaX_newstring(parser->ls, name, sz));
 }
 
 /* create a new local variable
 */
-#define new_localvarliteral(ls,name) \
-	new_localvarliteral_(ls, "" name, (sizeof(name)/sizeof(char))-1)
+#define new_localvarliteral(parser,name) \
+	new_localvarliteral_(parser, "" name, (sizeof(name)/sizeof(char))-1)
 
 /* moves the active variable watermark (nactvar) to cover the
 * local variables in the current declaration. Also
 * sets the starting code location (set to current instruction)
 * for nvars new local variables
 */
-static void adjustlocalvars(LexState *ls, int nvars) {
+static void adjustlocalvars(struct parser_state *parser, int nvars) {
+}
+
+struct symbol *search_for_variable_in_block(struct block_scope *scope, const char *varname) {
+	struct symbol *symbol;
+	FOR_EACH_PTR(scope->symbol_list, symbol) {
+		switch (symbol->symbol_type) {
+		case SYM_VARIABLE: {
+			if (strcmp(varname, symbol->var.var_name) == 0) {
+				return symbol;
+			}
+			break;
+		}
+		case SYM_UPVALUE: {
+			assert(symbol->upvalue.var->symbol_type == SYM_VARIABLE);
+			if (strcmp(varname, symbol->upvalue.var->var.var_name) == 0) {
+				return symbol;
+			}
+		}
+		default:
+			break;
+		}
+	} END_FOR_EACH_PTR(symbol);
+	return NULL;
+}
+
+struct symbol *search_globals(struct parser_state *parser, const char *varname) {
+	struct symbol *symbol;
+	FOR_EACH_PTR(parser->container->external_symbols, symbol) {
+		switch (symbol->symbol_type) {
+		case SYM_VARIABLE: {
+			if (strcmp(varname, symbol->var.var_name) == 0) {
+				return symbol;
+			}
+			break;
+		}
+		default:
+			assert(0); // Not expecting any other type of global symbol
+			break;
+		}
+	} END_FOR_EACH_PTR(symbol);
+	return NULL;
+}
+
+/* Searches for a variable starting from current scope, and going up the 
+* scope chain. If not found and search_globals_too is requested then
+* also searches the external symbols
+*/
+struct symbol *search_for_variable(struct parser_state *parser, const char *varname, bool search_globals_too) {
+	struct block_scope *current_scope = parser->current_scope;
+	assert(current_scope && current_scope->function == parser->current_function);
+	while (current_scope) {
+		struct symbol *symbol = search_for_variable_in_block(current_scope, varname);
+		if (symbol)
+			return symbol;
+		current_scope = current_scope->parent;
+	}
+	if (search_globals_too) {
+		return search_globals(parser, varname);
+	}
+	return NULL;
 }
 
 /* intialize var with the variable name - may be local,
 * global or upvalue - note that var->k will be set to
 * VLOCAL (local var), or VINDEXED or VUPVAL? TODO check
 */
-static void singlevar(LexState *ls) {
-	TString *varname = check_name_and_next(ls);
+static void singlevar(struct parser_state *parser) {
+	TString *varname = check_name_and_next(parser->ls);
+	const char *s_varname = getstr(varname);
 }
 
-static void adjust_assign(LexState *ls, int nvars, int nexps, expdesc *e) {
+static void adjust_assign(struct parser_state *parser, int nvars, int nexps, expdesc *e) {
+	LexState *ls = parser->ls;
 	FuncState *fs = ls->fs;
 	int extra = nvars - nexps;
 	if (hasmultret(e->k)) {
@@ -1247,14 +1323,15 @@ static void adjust_assign(LexState *ls, int nvars, int nexps, expdesc *e) {
 /*
 ** create a label named 'break' to resolve break statements
 */
-static void breaklabel(LexState *ls) {
+static void breaklabel(struct parser_state *parser) {
 }
 
 /*
 ** generates an error for an undefined 'goto'; choose appropriate
 ** message when label name is a reserved word (which can only be 'break')
 */
-static l_noret undefgoto(LexState *ls, Labeldesc *gt) {
+static l_noret undefgoto(struct parser_state *parser, Labeldesc *gt) {
+	LexState *ls = parser->ls;
 	const char *msg = isreserved(gt->name)
 		? "<%s> at line %d not inside a loop"
 		: "no visible label '%s' for <goto> at line %d";
@@ -1262,23 +1339,31 @@ static l_noret undefgoto(LexState *ls, Labeldesc *gt) {
 	semerror(ls, msg);
 }
 
-
 /*============================================================*/
 /* GRAMMAR RULES */
 /*============================================================*/
 
-static void parse_field_selector(LexState *ls) {
+static void parse_field_selector(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* fieldsel -> ['.' | ':'] NAME */
 	luaX_next(ls);  /* skip the dot or colon */
-	check_name_and_next(ls);
+	TString *ts = check_name_and_next(ls);
+
 }
 
 
-static void parse_yindex(LexState *ls) {
+static struct ast_node *parse_yindex(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* index -> '[' expr ']' */
 	luaX_next(ls);  /* skip the '[' */
-	parse_expression(ls);
+	struct ast_node *expr = parse_expression(parser);
 	checknext(ls, ']');
+
+	struct ast_node *index = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	index->type = AST_INDEX_EXPR;
+	index->index_expr.expr = expr;
+	index->index_expr.type = expr->type;
+	return index;
 }
 
 
@@ -1289,55 +1374,58 @@ static void parse_yindex(LexState *ls) {
 */
 
 
-static void parse_recfield(LexState *ls) {
+static void parse_recfield(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* recfield -> (NAME | '['exp1']') = exp1 */
 	if (ls->t.token == TK_NAME) {
 		check_name_and_next(ls);
 	}
 	else  /* ls->t.token == '[' */
-		parse_yindex(ls);
+		parse_yindex(parser);
 	checknext(ls, '=');
-	parse_expression(ls);
+	parse_expression(parser);
 }
 
 
 
-static void parse_listfield(LexState *ls) {
+static void parse_listfield(struct parser_state *parser) {
 	/* listfield -> exp */
-	parse_expression(ls);
+	parse_expression(parser);
 }
 
 
-static void parse_field(LexState *ls) {
+static void parse_field(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* field -> listfield | recfield */
 	switch (ls->t.token) {
 	case TK_NAME: {  /* may be 'listfield' or 'recfield' */
 		if (luaX_lookahead(ls) != '=')  /* expression? */
-			parse_listfield(ls);
+			parse_listfield(parser);
 		else
-			parse_recfield(ls);
+			parse_recfield(parser);
 		break;
 	}
 	case '[': {
-		parse_recfield(ls);
+		parse_recfield(parser);
 		break;
 	}
 	default: {
-		parse_listfield(ls);
+		parse_listfield(parser);
 		break;
 	}
 	}
 }
 
 
-static void parse_table_constructor(LexState *ls) {
+static void parse_table_constructor(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* constructor -> '{' [ field { sep field } [sep] ] '}'
 	sep -> ',' | ';' */
 	int line = ls->linenumber;
 	checknext(ls, '{');
 	do {
 		if (ls->t.token == '}') break;
-		parse_field(ls);
+		parse_field(parser);
 	} while (testnext(ls, ',') || testnext(ls, ';'));
 	check_match(ls, '}', '{', line);
 }
@@ -1349,7 +1437,8 @@ static void parse_table_constructor(LexState *ls) {
 *   where type is 'integer', 'integer[]',
 *                 'number', 'number[]'
 */
-static void declare_local_variable(LexState *ls) {
+static void declare_local_variable(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	TString *name = check_name_and_next(ls);
 	if (testnext(ls, ':')) {
 		TString *typename = check_name_and_next(ls); /* we expect a type name */
@@ -1376,10 +1465,11 @@ static void declare_local_variable(LexState *ls) {
 			checknext(ls, ']');
 		}
 	}
-	new_localvar(ls, name);
+	new_localvar(parser, name);
 }
 
-static void parse_parameter_list(LexState *ls) {
+static void parse_parameter_list(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* parlist -> [ param { ',' param } ] */
 	int nparams = 0;
 	int is_vararg = 0;
@@ -1388,7 +1478,7 @@ static void parse_parameter_list(LexState *ls) {
 			switch (ls->t.token) {
 			case TK_NAME: {  /* param -> NAME */
 							 /* RAVI change - add type */
-				declare_local_variable(ls);
+				declare_local_variable(parser);
 				nparams++;
 				break;
 			}
@@ -1401,37 +1491,40 @@ static void parse_parameter_list(LexState *ls) {
 			}
 		} while (!is_vararg && testnext(ls, ','));
 	}
-	adjustlocalvars(ls, nparams);
+	adjustlocalvars(parser, nparams);
 }
 
 
-static void parse_function_body(LexState *ls, int ismethod, int line) {
+static void parse_function_body(struct parser_state *parser, int ismethod, int line) {
+	LexState *ls = parser->ls;
 	/* body ->  '(' parlist ')' block END */
 	checknext(ls, '(');
 	if (ismethod) {
-		new_localvarliteral(ls, "self");  /* create 'self' parameter */
-		adjustlocalvars(ls, 1);
+		new_localvarliteral(parser, "self");  /* create 'self' parameter */
+		adjustlocalvars(parser, 1);
 	}
-	parse_parameter_list(ls);
+	parse_parameter_list(parser);
 	checknext(ls, ')');
-	parse_statement_list(ls);
+	parse_statement_list(parser);
 	check_match(ls, TK_END, TK_FUNCTION, line);
 }
 
 /* parse expression list */
-static int parse_expression_list(LexState *ls) {
+static int parse_expression_list(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* explist -> expr { ',' expr } */
 	int n = 1;  /* at least one expression */
-	parse_expression(ls);
+	parse_expression(parser);
 	while (testnext(ls, ',')) {
-		parse_expression(ls);
+		parse_expression(parser);
 		n++;
 	}
 	return n;
 }
 
 /* parse function arguments */
-static void parse_function_arguments(LexState *ls, int line) {
+static void parse_function_arguments(struct parser_state *parser, int line) {
+	LexState *ls = parser->ls;
 	int base, nparams;
 	switch (ls->t.token) {
 	case '(': {  /* funcargs -> '(' [ explist ] ')' */
@@ -1440,13 +1533,13 @@ static void parse_function_arguments(LexState *ls, int line) {
 			// args.k = VVOID;
 			;
 		else {
-			parse_expression_list(ls);
+			parse_expression_list(parser);
 		}
 		check_match(ls, ')', '(', line);
 		break;
 	}
 	case '{': {  /* funcargs -> constructor */
-		parse_table_constructor(ls);
+		parse_table_constructor(parser);
 		break;
 	}
 	case TK_STRING: {  /* funcargs -> STRING */
@@ -1469,18 +1562,19 @@ static void parse_function_arguments(LexState *ls, int line) {
 */
 
 /* primary expression - name or subexpression */
-static void parse_primary_expression(LexState *ls) {
+static void parse_primary_expression(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* primaryexp -> NAME | '(' expr ')' */
 	switch (ls->t.token) {
 	case '(': {
 		int line = ls->linenumber;
 		luaX_next(ls);
-		parse_expression(ls);
+		parse_expression(parser);
 		check_match(ls, ')', '(', line);
 		return;
 	}
 	case TK_NAME: {
-		singlevar(ls);
+		singlevar(parser);
 		return;
 	}
 	default: {
@@ -1490,29 +1584,30 @@ static void parse_primary_expression(LexState *ls) {
 }
 
 /* variable or field access or function call */
-static void parse_suffixed_expression(LexState *ls) {
+static void parse_suffixed_expression(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* suffixedexp ->
 	primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
 	int line = ls->linenumber;
-	parse_primary_expression(ls);
+	parse_primary_expression(parser);
 	for (;;) {
 		switch (ls->t.token) {
 		case '.': {  /* fieldsel */
-			parse_field_selector(ls);
+			parse_field_selector(parser);
 			break;
 		}
 		case '[': {  /* '[' exp1 ']' */
-			parse_yindex(ls);
+			parse_yindex(parser);
 			break;
 		}
 		case ':': {  /* ':' NAME funcargs */
 			luaX_next(ls);
 			check_name_and_next(ls);
-			parse_function_arguments(ls, line);
+			parse_function_arguments(parser, line);
 			break;
 		}
 		case '(': case TK_STRING: case '{': {  /* funcargs */
-			parse_function_arguments(ls, line);
+			parse_function_arguments(parser, line);
 			break;
 		}
 		default: return;
@@ -1521,7 +1616,8 @@ static void parse_suffixed_expression(LexState *ls) {
 }
 
 
-static void parse_simple_expression(LexState *ls) {
+static void parse_simple_expression(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* simpleexp -> FLT | INT | STRING | NIL | TRUE | FALSE | ... |
 	constructor | FUNCTION body | suffixedexp */
 	switch (ls->t.token) {
@@ -1547,16 +1643,16 @@ static void parse_simple_expression(LexState *ls) {
 		break;
 	}
 	case '{': {  /* constructor */
-		parse_table_constructor(ls);
+		parse_table_constructor(parser);
 		return;
 	}
 	case TK_FUNCTION: {
 		luaX_next(ls);
-		parse_function_body(ls, 0, ls->linenumber);
+		parse_function_body(parser, 0, ls->linenumber);
 		return;
 	}
 	default: {
-		parse_suffixed_expression(ls);
+		parse_suffixed_expression(parser);
 		return;
 	}
 	}
@@ -1631,7 +1727,8 @@ static const struct {
 ** subexpr -> (simpleexp | unop subexpr) { binop subexpr }
 ** where 'binop' is any binary operator with a priority higher than 'limit'
 */
-static BinOpr parse_sub_expression(LexState *ls, int limit) {
+static BinOpr parse_sub_expression(struct parser_state *parser, int limit) {
+	LexState *ls = parser->ls;
 	BinOpr op;
 	UnOpr uop;
 	enterlevel(ls);
@@ -1639,10 +1736,10 @@ static BinOpr parse_sub_expression(LexState *ls, int limit) {
 	if (uop != OPR_NOUNOPR) {
 		int line = ls->linenumber;
 		luaX_next(ls);
-		parse_sub_expression(ls, UNARY_PRIORITY);
+		parse_sub_expression(parser, UNARY_PRIORITY);
 	}
 	else {
-		parse_simple_expression(ls);
+		parse_simple_expression(parser);
 	}
 	/* expand while operators have priorities higher than 'limit' */
 	op = get_binary_opr(ls->t.token);
@@ -1651,7 +1748,7 @@ static BinOpr parse_sub_expression(LexState *ls, int limit) {
 		int line = ls->linenumber;
 		luaX_next(ls);
 		/* read sub-expression with higher priority */
-		nextop = parse_sub_expression(ls, priority[op].right);
+		nextop = parse_sub_expression(parser, priority[op].right);
 		op = nextop;
 	}
 	leavelevel(ls);
@@ -1659,8 +1756,9 @@ static BinOpr parse_sub_expression(LexState *ls, int limit) {
 }
 
 
-static void parse_expression(LexState *ls) {
-	parse_sub_expression(ls, 0);
+static struct ast_node *parse_expression(struct parser_state *parser) {
+	parse_sub_expression(parser, 0);
+	return NULL;
 }
 
 /* }==================================================================== */
@@ -1674,29 +1772,30 @@ static void parse_expression(LexState *ls) {
 */
 
 
-static void parse_block(LexState *ls) {
+static void parse_block(struct parser_state *parser) {
 	/* block -> statlist */
-	parse_statement_list(ls);
+	parse_statement_list(parser);
 }
 
 /* parse assignment (not part of local statement) - for each variable
-* on the left and side this is called recursively with increasing nvars.
+* on the left hand side this is called recursively with increasing nvars.
 * The final recursive call parses the rhs.
 */
-static void parse_assignment(LexState *ls, int nvars) {
+static void parse_assignment(struct parser_state *parser, int nvars) {
+	LexState *ls = parser->ls;
 	//check_condition(ls, vkisvar(lh->v.k), "syntax error");
 	if (testnext(ls, ',')) {  /* assignment -> ',' suffixedexp assignment */
-		parse_suffixed_expression(ls);
+		parse_suffixed_expression(parser);
 		//if (nv.v.k != VINDEXED)
 		//    check_conflict(ls, lh, &nv.v);
 		//checklimit(ls->fs, nvars + ls->L->nCcalls, LUAI_MAXCCALLS,
 		//    "C levels");
-		parse_assignment(ls, nvars + 1);
+		parse_assignment(parser, nvars + 1);
 	}
 	else {  /* assignment -> '=' explist */
 		int nexps;
 		checknext(ls, '=');
-		nexps = parse_expression_list(ls);
+		nexps = parse_expression_list(parser);
 		if (nexps != nvars) {
 			//adjust_assign(ls, nvars, nexps, &e);
 		}
@@ -1709,13 +1808,14 @@ static void parse_assignment(LexState *ls, int nvars) {
 /* parse condition in a repeat statement or an if control structure
 * called by repeatstat(), test_then_block()
 */
-static void parse_condition(LexState *ls) {
+static void parse_condition(struct parser_state *parser) {
 	/* cond -> exp */
-	parse_expression(ls);                   /* read condition */
+	parse_expression(parser);                   /* read condition */
 }
 
 
-static void parse_goto_statment(LexState *ls) {
+static void parse_goto_statment(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	int line = ls->linenumber;
 	TString *label;
 	int g;
@@ -1729,78 +1829,84 @@ static void parse_goto_statment(LexState *ls) {
 
 
 /* skip no-op statements */
-static void skip_noop_statements(LexState *ls) {
+static void skip_noop_statements(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	while (ls->t.token == ';' || ls->t.token == TK_DBCOLON)
-		parse_statement(ls);
+		parse_statement(parser);
 }
 
 
-static void parse_label_statement(LexState *ls, TString *label, int line) {
+static void parse_label_statement(struct parser_state *parser, TString *label, int line) {
+	LexState *ls = parser->ls;
 	/* label -> '::' NAME '::' */
 	checknext(ls, TK_DBCOLON);  /* skip double colon */
 								/* create new entry for this label */
-	skip_noop_statements(ls);  /* skip other no-op statements */
+	skip_noop_statements(parser);  /* skip other no-op statements */
 }
 
 /* parse a while-do control structure, body processed by block()
 * called by statement()
 */
-static void parse_while_statement(LexState *ls, int line) {
+static void parse_while_statement(struct parser_state *parser, int line) {
+	LexState *ls = parser->ls;
 	/* whilestat -> WHILE cond DO block END */
 	int whileinit;
 	int condexit;
 	luaX_next(ls);  /* skip WHILE */
-	parse_condition(ls);
+	parse_condition(parser);
 	checknext(ls, TK_DO);
-	parse_block(ls);
+	parse_block(parser);
 	check_match(ls, TK_END, TK_WHILE, line);
 }
 
 /* parse a repeat-until control structure, body parsed by statlist()
 * called by statement()
 */
-static void parse_repeat_statement(LexState *ls, int line) {
+static void parse_repeat_statement(struct parser_state *parser, int line) {
+	LexState *ls = parser->ls;
 	/* repeatstat -> REPEAT block UNTIL cond */
 	luaX_next(ls);  /* skip REPEAT */
-	parse_statement_list(ls);
+	parse_statement_list(parser);
 	check_match(ls, TK_UNTIL, TK_REPEAT, line);
-	parse_condition(ls);  /* read condition (inside scope block) */
+	parse_condition(parser);  /* read condition (inside scope block) */
 }
 
 /* parse the single expressions needed in numerical for loops
 * called by fornum()
 */
-static void parse_exp1(LexState *ls) {
+static void parse_exp1(struct parser_state *parser) {
 	/* Since the local variable in a fornum loop is local to the loop and does
 	* not use any variable in outer scope we don't need to check its
 	* type - also the loop is already optimised so no point trying to
 	* optimise the iteration variable
 	*/
-	parse_expression(ls);
+	parse_expression(parser);
 }
 
 /* parse a for loop body for both versions of the for loop
 * called by fornum(), forlist()
 */
-static void parse_forbody(LexState *ls, int line, int nvars, int isnum) {
+static void parse_forbody(struct parser_state *parser, int line, int nvars, int isnum) {
+	LexState *ls = parser->ls;
 	/* forbody -> DO block */
 	OpCode forprep_inst = OP_FORPREP, forloop_inst = OP_FORLOOP;
 	int prep, endfor;
-	adjustlocalvars(ls, 3);  /* control variables */
+	adjustlocalvars(parser, 3);  /* control variables */
 	checknext(ls, TK_DO);
-	adjustlocalvars(ls, nvars);
-	parse_block(ls);
+	adjustlocalvars(parser, nvars);
+	parse_block(parser);
 }
 
 /* parse a numerical for loop, calls forbody()
 * called from forstat()
 */
-static void parse_fornum_statement(LexState *ls, TString *varname, int line) {
+static void parse_fornum_statement(struct parser_state *parser, TString *varname, int line) {
+	LexState *ls = parser->ls;
 	/* fornum -> NAME = exp1,exp1[,exp1] forbody */
-	new_localvarliteral(ls, "(for index)");
-	new_localvarliteral(ls, "(for limit)");
-	new_localvarliteral(ls, "(for step)");
-	new_localvar(ls, varname);
+	new_localvarliteral(parser, "(for index)");
+	new_localvarliteral(parser, "(for limit)");
+	new_localvarliteral(parser, "(for step)");
+	new_localvar(parser, varname);
 	/* The fornum sets up its own variables as above.
 	These are expected to hold numeric values - but from Ravi's
 	point of view we need to know if the variable is an integer or
@@ -1810,64 +1916,67 @@ static void parse_fornum_statement(LexState *ls, TString *varname, int line) {
 	*/
 	checknext(ls, '=');
 	/* get the type of each expression */
-	parse_exp1(ls);  /* initial value */
+	parse_exp1(parser);  /* initial value */
 	checknext(ls, ',');
-	parse_exp1(ls);  /* limit */
+	parse_exp1(parser);  /* limit */
 	if (testnext(ls, ','))
-		parse_exp1(ls);  /* optional step */
+		parse_exp1(parser);  /* optional step */
 	else {  /* default step = 1 */
 	}
-	parse_forbody(ls, line, 1, 1);
+	parse_forbody(parser, line, 1, 1);
 }
 
 /* parse a generic for loop, calls forbody()
 * called from forstat()
 */
-static void parse_for_list(LexState *ls, TString *indexname) {
+static void parse_for_list(struct parser_state *parser, TString *indexname) {
+	LexState *ls = parser->ls;
 	/* forlist -> NAME {,NAME} IN explist forbody */
 	int nvars = 4; /* gen, state, control, plus at least one declared var */
 	int line;
 	/* create control variables */
-	new_localvarliteral(ls, "(for generator)");
-	new_localvarliteral(ls, "(for state)");
-	new_localvarliteral(ls, "(for control)");
+	new_localvarliteral(parser, "(for generator)");
+	new_localvarliteral(parser, "(for state)");
+	new_localvarliteral(parser, "(for control)");
 	/* create declared variables */
-	new_localvar(ls, indexname); /* RAVI TODO for name:type syntax? */
+	new_localvar(parser, indexname); /* RAVI TODO for name:type syntax? */
 	while (testnext(ls, ',')) {
-		new_localvar(ls, check_name_and_next(ls)); /* RAVI change - add type */
+		new_localvar(parser, check_name_and_next(ls)); /* RAVI change - add type */
 		nvars++;
 	}
 	checknext(ls, TK_IN);
 	line = ls->linenumber;
-	parse_forbody(ls, line, nvars - 3, 0);
+	parse_forbody(parser, line, nvars - 3, 0);
 }
 
 /* initial parsing of a for loop - calls fornum() or forlist()
 * called from statement()
 */
-static void parse_for_statement(LexState *ls, int line) {
+static void parse_for_statement(struct parser_state *parser, int line) {
+	LexState *ls = parser->ls;
 	/* forstat -> FOR (fornum | forlist) END */
 	TString *varname;
 	luaX_next(ls);  /* skip 'for' */
 	varname = check_name_and_next(ls);  /* first variable name */
 	switch (ls->t.token) {
-	case '=': parse_fornum_statement(ls, varname, line); break;
-	case ',': case TK_IN: parse_for_list(ls, varname); break;
+	case '=': parse_fornum_statement(parser, varname, line); break;
+	case ',': case TK_IN: parse_for_list(parser, varname); break;
 	default: luaX_syntaxerror(ls, "'=' or 'in' expected");
 	}
 	check_match(ls, TK_END, TK_FOR, line);
 }
 
 /* parse if cond then block - called from ifstat() */
-static void parse_if_cond_then_block(LexState *ls, int *escapelist) {
+static void parse_if_cond_then_block(struct parser_state *parser, int *escapelist) {
+	LexState *ls = parser->ls;
 	/* test_then_block -> [IF | ELSEIF] cond THEN block */
 	int jf;         /* instruction to skip 'then' code (if condition is false) */
 	luaX_next(ls);  /* skip IF or ELSEIF */
-	parse_expression(ls);  /* read condition */
+	parse_expression(parser);  /* read condition */
 	checknext(ls, TK_THEN);
 	if (ls->t.token == TK_GOTO || ls->t.token == TK_BREAK) {
-		parse_goto_statment(ls);  /* handle goto/break */
-		skip_noop_statements(ls);  /* skip other no-op statements */
+		parse_goto_statment(parser);  /* handle goto/break */
+		skip_noop_statements(parser);  /* skip other no-op statements */
 		if (block_follow(ls, 0)) {  /* 'goto' is the entire block? */
 			return;  /* and that is it */
 		}
@@ -1877,80 +1986,86 @@ static void parse_if_cond_then_block(LexState *ls, int *escapelist) {
 	else {  /* regular case (not goto/break) */
 		//jf = v.f;
 	}
-	parse_statement_list(ls);  /* 'then' part */
+	parse_statement_list(parser);  /* 'then' part */
 }
 
 /* parse an if control structure - called from statement() */
-static void parse_if_statement(LexState *ls, int line) {
+static void parse_if_statement(struct parser_state *parser, int line) {
+	LexState *ls = parser->ls;
 	/* ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END */
 	int escapelist = NO_JUMP;  /* exit list for finished parts */
-	parse_if_cond_then_block(ls, &escapelist);  /* IF cond THEN block */
+	parse_if_cond_then_block(parser, &escapelist);  /* IF cond THEN block */
 	while (ls->t.token == TK_ELSEIF)
-		parse_if_cond_then_block(ls, &escapelist);  /* ELSEIF cond THEN block */
+		parse_if_cond_then_block(parser, &escapelist);  /* ELSEIF cond THEN block */
 	if (testnext(ls, TK_ELSE))
-		parse_block(ls);  /* 'else' part */
+		parse_block(parser);  /* 'else' part */
 	check_match(ls, TK_END, TK_IF, line);
 }
 
 /* parse a local function statement - called from statement() */
-static void parse_local_function(LexState *ls) {
-	new_localvar(ls, check_name_and_next(ls));  /* new local variable */
-	adjustlocalvars(ls, 1);  /* enter its scope */
-	parse_function_body(ls, 0, ls->linenumber);  /* function created in next register */
+static void parse_local_function(struct parser_state *parser) {
+	LexState *ls = parser->ls;
+	new_localvar(parser, check_name_and_next(ls));  /* new local variable */
+	adjustlocalvars(parser, 1);  /* enter its scope */
+	parse_function_body(parser, 0, ls->linenumber);  /* function created in next register */
 }
 
 /* parse a local variable declaration statement - called from statement() */
-static void parse_local_statement(LexState *ls) {
+static void parse_local_statement(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* stat -> LOCAL NAME {',' NAME} ['=' explist] */
 	int nvars = 0;
 	int nexps;
 	do {
 		/* local name : type = value */
-		declare_local_variable(ls);
+		declare_local_variable(parser);
 		nvars++;
 		if (nvars >= MAXVARS)
 			luaX_syntaxerror(ls, "too many local variables");
 	} while (testnext(ls, ','));
 	if (testnext(ls, '='))
-		nexps = parse_expression_list(ls);
+		nexps = parse_expression_list(parser);
 	else {
 		nexps = 0;
 	}
-	adjustlocalvars(ls, nvars);
+	adjustlocalvars(parser, nvars);
 }
 
 /* parse a function name specification - called from funcstat()
 * returns boolean value - true if function is a method
 */
-static int parse_function_name(LexState *ls) {
+static int parse_function_name(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* funcname -> NAME {fieldsel} [':' NAME] */
 	int ismethod = 0;
-	singlevar(ls);
+	singlevar(parser);
 	while (ls->t.token == '.')
-		parse_field_selector(ls);
+		parse_field_selector(parser);
 	if (ls->t.token == ':') {
 		ismethod = 1;
-		parse_field_selector(ls);
+		parse_field_selector(parser);
 	}
 	return ismethod;
 }
 
 /* parse a function statement - called from statement() */
-static void parse_function_statement(LexState *ls, int line) {
+static void parse_function_statement(struct parser_state *parser, int line) {
+	LexState *ls = parser->ls;
 	/* funcstat -> FUNCTION funcname body */
 	int ismethod;
 	luaX_next(ls); /* skip FUNCTION */
-	ismethod = parse_function_name(ls);
-	parse_function_body(ls, ismethod, line);
+	ismethod = parse_function_name(parser);
+	parse_function_body(parser, ismethod, line);
 }
 
 
 /* parse function call with no returns or assignment statement - called from statement() */
-static void parse_expr_statement(LexState *ls) {
+static void parse_expr_statement(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* stat -> func | assignment */
-	parse_suffixed_expression(ls);
+	parse_suffixed_expression(parser);
 	if (ls->t.token == '=' || ls->t.token == ',') { /* stat -> assignment ? */
-		parse_assignment(ls, 1);
+		parse_assignment(parser, 1);
 	}
 	else {  /* stat -> func */
 		//check_condition(ls, v.v.k == VCALL, "syntax error");
@@ -1958,13 +2073,14 @@ static void parse_expr_statement(LexState *ls) {
 }
 
 /* parse return statement - called from statement() */
-static void parse_return_statement(LexState *ls) {
+static void parse_return_statement(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* stat -> RETURN [explist] [';'] */
 	int first, nret; /* registers with returned values */
 	if (block_follow(ls, 1) || ls->t.token == ';')
 		first = nret = 0;  /* return no values */
 	else {
-		nret = parse_expression_list(ls);  /* optional return values */
+		nret = parse_expression_list(parser);  /* optional return values */
 //        if (hasmultret(e.k)) {
 //            nret = LUA_MULTRET;  /* return all values */
  //       }
@@ -1976,7 +2092,8 @@ static void parse_return_statement(LexState *ls) {
 
 
 /* parse a statement */
-static void parse_statement(LexState *ls) {
+static void parse_statement(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	int line = ls->linenumber;  /* may be needed for error messages */
 	enterlevel(ls);
 	switch (ls->t.token) {
@@ -1985,70 +2102,71 @@ static void parse_statement(LexState *ls) {
 		break;
 	}
 	case TK_IF: {  /* stat -> ifstat */
-		parse_if_statement(ls, line);
+		parse_if_statement(parser, line);
 		break;
 	}
 	case TK_WHILE: {  /* stat -> whilestat */
-		parse_while_statement(ls, line);
+		parse_while_statement(parser, line);
 		break;
 	}
 	case TK_DO: {  /* stat -> DO block END */
 		luaX_next(ls);  /* skip DO */
-		parse_block(ls);
+		parse_block(parser);
 		check_match(ls, TK_END, TK_DO, line);
 		break;
 	}
 	case TK_FOR: {  /* stat -> forstat */
-		parse_for_statement(ls, line);
+		parse_for_statement(parser, line);
 		break;
 	}
 	case TK_REPEAT: {  /* stat -> repeatstat */
-		parse_repeat_statement(ls, line);
+		parse_repeat_statement(parser, line);
 		break;
 	}
 	case TK_FUNCTION: {  /* stat -> funcstat */
-		parse_function_statement(ls, line);
+		parse_function_statement(parser, line);
 		break;
 	}
 	case TK_LOCAL: {  /* stat -> localstat */
 		luaX_next(ls);  /* skip LOCAL */
 		if (testnext(ls, TK_FUNCTION))  /* local function? */
-			parse_local_function(ls);
+			parse_local_function(parser);
 		else
-			parse_local_statement(ls);
+			parse_local_statement(parser);
 		break;
 	}
 	case TK_DBCOLON: {  /* stat -> label */
 		luaX_next(ls);  /* skip double colon */
-		parse_label_statement(ls, check_name_and_next(ls), line);
+		parse_label_statement(parser, check_name_and_next(ls), line);
 		break;
 	}
 	case TK_RETURN: {  /* stat -> retstat */
 		luaX_next(ls);  /* skip RETURN */
-		parse_return_statement(ls);
+		parse_return_statement(parser);
 		break;
 	}
 	case TK_BREAK:   /* stat -> breakstat */
 	case TK_GOTO: {  /* stat -> 'goto' NAME */
-		parse_goto_statment(ls);
+		parse_goto_statment(parser);
 		break;
 	}
 	default: {  /* stat -> func | assignment */
-		parse_expr_statement(ls);
+		parse_expr_statement(parser);
 		break;
 	}
 	}
 	leavelevel(ls);
 }
 
-static void parse_statement_list(LexState *ls) {
+static void parse_statement_list(struct parser_state *parser) {
+	LexState *ls = parser->ls;
 	/* statlist -> { stat [';'] } */
 	while (!block_follow(ls, 1)) {
 		if (ls->t.token == TK_RETURN) {
-			parse_statement(ls);
+			parse_statement(parser);
 			return;  /* 'return' must be last statement */
 		}
-		parse_statement(ls);
+		parse_statement(parser);
 	}
 }
 
@@ -2057,45 +2175,45 @@ static void parse_statement_list(LexState *ls) {
 * gets existing scope as parent even if that belongs to parent 
 * function.
 */
-static struct block_scope *new_scope(struct parser_state *parser_state) {
-	struct ast_container *container = parser_state->container;
+static struct block_scope *new_scope(struct parser_state *parser) {
+	struct ast_container *container = parser->container;
 	struct block_scope *scope = allocator_allocate(&container->block_scope_allocator, 0);
-	scope->function = parser_state->current_function;
+	scope->function = parser->current_function;
 	assert(scope->function && scope->function->type == AST_FUNCTION_EXPR);
-	assert(parser_state->current_scope == NULL || parser_state->current_scope->function == scope->function);
-	scope->parent = parser_state->current_scope;
-	parser_state->current_scope = scope;
-	if (!parser_state->current_function->function_expr.main_block)
-		parser_state->current_function->function_expr.main_block = scope;
+	assert(parser->current_scope == NULL || parser->current_scope->function == scope->function);
+	scope->parent = parser->current_scope;
+	parser->current_scope = scope;
+	if (!parser->current_function->function_expr.main_block)
+		parser->current_function->function_expr.main_block = scope;
 	return scope;
 }
 
-static void end_scope(struct parser_state *parser_state) {
-	assert(parser_state->current_scope);
-	struct block_scope *scope = parser_state->current_scope;
-	parser_state->current_scope = scope->parent;
-	assert(parser_state->current_scope != NULL || scope == parser_state->current_function->function_expr.main_block);
+static void end_scope(struct parser_state *parser) {
+	assert(parser->current_scope);
+	struct block_scope *scope = parser->current_scope;
+	parser->current_scope = scope->parent;
+	assert(parser->current_scope != NULL || scope == parser->current_function->function_expr.main_block);
 }
 
 /* Creates a new function AST node and starts the function scope.
 New function becomes child of current function if any, and scope is linked
 to previous scope which may be of parent function.
 */
-static struct ast_node *new_function(struct parser_state *parser_state) {
-	struct ast_container *container = parser_state->container;
+static struct ast_node *new_function(struct parser_state *parser) {
+	struct ast_container *container = parser->container;
 	struct ast_node *node = allocator_allocate(&container->ast_node_allocator, 0);
 	node->type = AST_FUNCTION_EXPR;
 	node->function_expr.args = NULL;
 	node->function_expr.child_functions = NULL;
 	node->function_expr.main_block = NULL;
-	node->function_expr.parent_function = parser_state->current_function;
-	if (parser_state->current_function) {
+	node->function_expr.parent_function = parser->current_function;
+	if (parser->current_function) {
 		// Make this function a child of current function
-		add_ast_node(parser_state->container, &parser_state->current_function->function_expr.child_functions, node);
+		add_ast_node(parser->container, &parser->current_function->function_expr.child_functions, node);
 	}
-	parser_state->current_function = node;
-	parser_state->current_node = node;
-	new_scope(parser_state); /* Start function scope */
+	parser->current_function = node;
+	parser->current_node = node;
+	new_scope(parser); /* Start function scope */
 	return node;
 }
 
@@ -2103,30 +2221,30 @@ static struct ast_node *new_function(struct parser_state *parser_state) {
 * function being closed becomes the current AST node, while parent function/scope
 * become current function/scope.
 */
-static struct ast_node *end_function(struct parser_state *parser_state) {
-	assert(parser_state->current_function);
-	end_scope(parser_state);
-	struct ast_node *function = parser_state->current_function;
-	parser_state->current_node = function;
-	parser_state->current_function = function->function_expr.parent_function;
+static struct ast_node *end_function(struct parser_state *parser) {
+	assert(parser->current_function);
+	end_scope(parser);
+	struct ast_node *function = parser->current_function;
+	parser->current_node = function;
+	parser->current_function = function->function_expr.parent_function;
 	return function;
 }
 
 /* mainfunc() equivalent */
-static void parse_chunk(struct parser_state *parser_state) {
-	luaX_next(parser_state->ls); /* read first token */
-	parser_state->container->main_function = new_function(parser_state);
-	parse_statement_list(parser_state->ls);
-	end_function(parser_state);
-	check(parser_state->ls, TK_EOS);
+static void parse_chunk(struct parser_state *parser) {
+	luaX_next(parser->ls); /* read first token */
+	parser->container->main_function = new_function(parser);
+	parse_statement_list(parser);
+	end_function(parser);
+	check(parser->ls, TK_EOS);
 }
 
-static void parser_state_init(struct parser_state *parser_state, LexState *ls, struct ast_container *container) {
-	parser_state->ls = ls;
-	parser_state->container = container;
-	parser_state->current_function = NULL;
-	parser_state->current_node = NULL;
-	parser_state->current_scope = NULL;
+static void parser_state_init(struct parser_state *parser, LexState *ls, struct ast_container *container) {
+	parser->ls = ls;
+	parser->container = container;
+	parser->current_function = NULL;
+	parser->current_node = NULL;
+	parser->current_scope = NULL;
 }
 
 static void print_ast_node(struct ast_node *node, int level)
@@ -2153,12 +2271,12 @@ static void print_ast_container(struct ast_container *container) {
 */
 int raviY_parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 	const char *name, int firstchar) {
-	StkId ctop = L->top;
+	StkId cvalue = L->top; /* where ast_container will be */
 	struct ast_container *container = new_ast_container(L);
 	LexState lexstate;
 	lexstate.h = luaH_new(L);         /* create table for scanner */
-	sethvalue(L, L->top, lexstate.h); /* anchor it */
-	luaD_inctop(L);
+	sethvalue(L, L->top, lexstate.h); 
+	setuservalue(L, uvalue(cvalue), L->top); /* set the table as container's uservalue */
 	TString *src = luaS_new(L, name); /* create and anchor TString */
 	setsvalue(L, L->top, src);
 	luaD_inctop(L);
@@ -2169,8 +2287,7 @@ int raviY_parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 	parser_state_init(&parser_state, &lexstate, container);
 	parse_chunk(&parser_state);
 	L->top--; /* remove source name */
-	L->top--; /* remove scanner's table */
-	assert(ctop == L->top - 1);
+	assert(cvalue == L->top - 1);
 	print_ast_container(container);
 	return 0; /* OK */
 }
