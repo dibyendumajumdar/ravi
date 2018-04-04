@@ -1677,20 +1677,28 @@ static struct ast_node *parse_primary_expression(struct parser_state *parser) {
 }
 
 /* variable or field access or function call */
-static void parse_suffixed_expression(struct parser_state *parser) {
+static struct ast_node *parse_suffixed_expression(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* suffixedexp ->
 	primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
 	int line = ls->linenumber;
-	parse_primary_expression(parser);
+	struct ast_node *suffixed_expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	suffixed_expr->suffixed_expr.primary_expr = parse_primary_expression(parser);
+	suffixed_expr->type = AST_SUFFIXED_EXPR;
+	suffixed_expr->suffixed_expr.type = suffixed_expr->suffixed_expr.primary_expr->common_expr.type;
+	suffixed_expr->suffixed_expr.suffix_list = NULL;
 	for (;;) {
 		switch (ls->t.token) {
 		case '.': {  /* fieldsel */
-			parse_field_selector(parser);
+			struct ast_node *suffix = parse_field_selector(parser);
+			add_ast_node(parser->container, &suffixed_expr->suffixed_expr.suffix_list, suffix);
+			suffixed_expr->suffixed_expr.type = RAVI_TANY;
 			break;
 		}
 		case '[': {  /* '[' exp1 ']' */
-			parse_yindex(parser);
+			struct ast_node *suffix = parse_yindex(parser);
+			add_ast_node(parser->container, &suffixed_expr->suffixed_expr.suffix_list, suffix);
+			suffixed_expr->suffixed_expr.type = RAVI_TANY;
 			break;
 		}
 		case ':': {  /* ':' NAME funcargs */
@@ -1703,7 +1711,7 @@ static void parse_suffixed_expression(struct parser_state *parser) {
 			parse_function_arguments(parser, line);
 			break;
 		}
-		default: return;
+		default: return suffixed_expr;
 		}
 	}
 }
