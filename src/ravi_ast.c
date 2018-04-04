@@ -959,7 +959,7 @@ DECLARE_PTR_LIST(string_list, char);
 
 struct var_type {
 	ravitype_t type;
-	const char *type_name;	/* type name */
+	const TString *type_name;	/* type name */
 };
 
 struct literal {
@@ -967,7 +967,7 @@ struct literal {
 	union {
 		lua_Integer i;
 		lua_Number n;
-		const char *str;
+		const TString *s;
 		lu_byte boolean;
 	} u;
 };
@@ -988,11 +988,11 @@ struct symbol {
 	ravitype_t value_type;
 	union {
 		struct {
-			const char *var_name; /* name of the variable */
+			const TString *var_name; /* name of the variable */
 			struct block_scope *block; /* If NULL symbol is global ?? TBC */
 		} var;
 		struct {
-			const char *label_name;
+			const TString *label_name;
 			struct block_scope *block;
 		} label;
 		struct {
@@ -1024,8 +1024,9 @@ enum ast_node_type {
 	AST_EXPR_STMT,
 	AST_LITERAL_EXPR,
 	AST_SYMBOL_EXPR,
-	AST_INDEX_EXPR,
-	AST_NAMEIDX_EXPR,
+	AST_Y_INDEX_EXPR,
+	AST_FIELD_SELECTOR_EXPR,
+	AST_INDEXED_ASSIGN_EXPR,
 	AST_SUFFIXED_EXPR,
 	AST_SIMPLE_EXPR,
 	AST_UNARY_EXPR,
@@ -1041,19 +1042,21 @@ struct ast_node {
 			struct ast_node_list *exprlist;
 		} return_stmt;
 		struct {
-			const char *name;
+			const TString *name;
 		} label_stmt;
 		struct {
-			const char *name;
+			const TString *name;
 		} goto_stmt;
 		struct {
 			struct symbol_list *vars;
 			struct ast_node_list *exprlist;
 		} local_stmt;
 		struct {
-			ravitype_t type;
 			struct literal literal;
 		} literal_expr;
+		struct {
+			ravitype_t type;
+		} common_expr; // To access the type field common to all expr objects
 		struct {
 			ravitype_t type;
 			struct symbol *var;
@@ -1074,11 +1077,21 @@ struct ast_node {
 			struct ast_node *exprright;
 		} binop_expr;
 		struct {
+			ravitype_t type;
 			struct ast_node *parent_function; /* parent function or NULL if main chunk */
 			struct block_scope *main_block; /* the function's blocks */
 			struct symbol_list *args; /* arguments, also must be part of the function block's symbol list */
 			struct ast_node_list *child_functions; /* child functions declared in this function */
 		} function_expr; /* an expression whose result is a value of type function */	
+		struct {
+			ravitype_t type;
+			struct ast_node *index_expr; /* If NULL means list field with next available index, else specfies index expression */
+			struct ast_node *value_expr; 
+		} indexed_assign_expr;
+		struct {
+			ravitype_t type;
+			struct ast_node_list *expr_list;
+		} table_expr;
 	};
 };
 
@@ -1227,19 +1240,19 @@ static void new_localvarliteral_(struct parser_state *parser, const char *name, 
 static void adjustlocalvars(struct parser_state *parser, int nvars) {
 }
 
-struct symbol *search_for_variable_in_block(struct block_scope *scope, const char *varname) {
+struct symbol *search_for_variable_in_block(struct block_scope *scope, const TString *varname) {
 	struct symbol *symbol;
 	FOR_EACH_PTR(scope->symbol_list, symbol) {
 		switch (symbol->symbol_type) {
 		case SYM_VARIABLE: {
-			if (strcmp(varname, symbol->var.var_name) == 0) {
+			if (varname == symbol->var.var_name) {
 				return symbol;
 			}
 			break;
 		}
 		case SYM_UPVALUE: {
 			assert(symbol->upvalue.var->symbol_type == SYM_VARIABLE);
-			if (strcmp(varname, symbol->upvalue.var->var.var_name) == 0) {
+			if (varname == symbol->upvalue.var->var.var_name) {
 				return symbol;
 			}
 		}
@@ -1250,12 +1263,12 @@ struct symbol *search_for_variable_in_block(struct block_scope *scope, const cha
 	return NULL;
 }
 
-struct symbol *search_globals(struct parser_state *parser, const char *varname) {
+struct symbol *search_globals(struct parser_state *parser, const TString *varname) {
 	struct symbol *symbol;
 	FOR_EACH_PTR(parser->container->external_symbols, symbol) {
 		switch (symbol->symbol_type) {
 		case SYM_VARIABLE: {
-			if (strcmp(varname, symbol->var.var_name) == 0) {
+			if (varname == symbol->var.var_name) {
 				return symbol;
 			}
 			break;
@@ -1272,7 +1285,7 @@ struct symbol *search_globals(struct parser_state *parser, const char *varname) 
 * scope chain. If not found and search_globals_too is requested then
 * also searches the external symbols
 */
-struct symbol *search_for_variable(struct parser_state *parser, const char *varname, bool search_globals_too) {
+struct symbol *search_for_variable(struct parser_state *parser, const TString *varname, bool search_globals_too) {
 	struct block_scope *current_scope = parser->current_scope;
 	assert(current_scope && current_scope->function == parser->current_function);
 	while (current_scope) {
@@ -1293,7 +1306,6 @@ struct symbol *search_for_variable(struct parser_state *parser, const char *varn
 */
 static void singlevar(struct parser_state *parser) {
 	TString *varname = check_name_and_next(parser->ls);
-	const char *s_varname = getstr(varname);
 }
 
 static void adjust_assign(struct parser_state *parser, int nvars, int nexps, expdesc *e) {
@@ -1343,15 +1355,36 @@ static l_noret undefgoto(struct parser_state *parser, Labeldesc *gt) {
 /* GRAMMAR RULES */
 /*============================================================*/
 
-static void parse_field_selector(struct parser_state *parser) {
+static struct ast_node *new_string_literal(struct parser_state *parser, const TString *ts) {
+	struct ast_node *node = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	node->type = AST_LITERAL_EXPR;
+	node->literal_expr.literal.type = RAVI_TSTRING;
+	node->literal_expr.literal.u.s = ts;
+	return node;
+}
+
+static struct ast_node *new_field_selector(struct parser_state *parser, const TString *ts) {
+	struct ast_node *index = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	index->type = AST_FIELD_SELECTOR_EXPR;
+	index->index_expr.expr = new_string_literal(parser, ts);
+	index->index_expr.type = RAVI_TANY;
+	return index;
+}
+
+/*
+* Parse ['.' | ':'] NAME
+*/
+static struct ast_node *parse_field_selector(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* fieldsel -> ['.' | ':'] NAME */
 	luaX_next(ls);  /* skip the dot or colon */
 	TString *ts = check_name_and_next(ls);
-
+	return new_field_selector(parser, ts);
 }
 
-
+/*
+* Parse '[' expr '] 
+*/
 static struct ast_node *parse_yindex(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* index -> '[' expr ']' */
@@ -1360,9 +1393,9 @@ static struct ast_node *parse_yindex(struct parser_state *parser) {
 	checknext(ls, ']');
 
 	struct ast_node *index = allocator_allocate(&parser->container->ast_node_allocator, 0);
-	index->type = AST_INDEX_EXPR;
+	index->type = AST_Y_INDEX_EXPR;
 	index->index_expr.expr = expr;
-	index->index_expr.type = expr->type;
+	index->index_expr.type = RAVI_TANY;
 	return index;
 }
 
@@ -1373,61 +1406,77 @@ static struct ast_node *parse_yindex(struct parser_state *parser) {
 ** =======================================================================
 */
 
+static struct ast_node *new_indexed_assign_expr(struct parser_state *parser, struct ast_node *index_expr, struct ast_node *value_expr) {
+	struct ast_node *set = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	set->type = AST_INDEXED_ASSIGN_EXPR;
+	set->indexed_assign_expr.index_expr = index_expr;
+	set->indexed_assign_expr.value_expr = value_expr;
+	set->indexed_assign_expr.type = value_expr->common_expr.type; /* type of indexed assignment is same as the value*/
+	return set;
+}
 
-static void parse_recfield(struct parser_state *parser) {
+static struct ast_node *parse_recfield(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* recfield -> (NAME | '['exp1']') = exp1 */
+	struct ast_node *index_expr;
 	if (ls->t.token == TK_NAME) {
-		check_name_and_next(ls);
+		const TString *ts = check_name_and_next(ls);
+		index_expr = new_field_selector(parser, ts);
 	}
 	else  /* ls->t.token == '[' */
-		parse_yindex(parser);
+		index_expr = parse_yindex(parser);
 	checknext(ls, '=');
-	parse_expression(parser);
+	struct ast_node *value_expr = parse_expression(parser);
+	return new_indexed_assign_expr(parser, index_expr, value_expr);
 }
 
-
-
-static void parse_listfield(struct parser_state *parser) {
+static struct ast_node *parse_listfield(struct parser_state *parser) {
 	/* listfield -> exp */
-	parse_expression(parser);
+	struct ast_node *value_expr = parse_expression(parser);
+	return new_indexed_assign_expr(parser, NULL, value_expr);
 }
 
-
-static void parse_field(struct parser_state *parser) {
+static struct ast_node *parse_field(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* field -> listfield | recfield */
 	switch (ls->t.token) {
 	case TK_NAME: {  /* may be 'listfield' or 'recfield' */
 		if (luaX_lookahead(ls) != '=')  /* expression? */
-			parse_listfield(parser);
+			return parse_listfield(parser);
 		else
-			parse_recfield(parser);
+			return parse_recfield(parser);
 		break;
 	}
 	case '[': {
-		parse_recfield(parser);
+		return parse_recfield(parser);
 		break;
 	}
 	default: {
-		parse_listfield(parser);
+		return parse_listfield(parser);
 		break;
 	}
 	}
+	return NULL;
 }
 
 
-static void parse_table_constructor(struct parser_state *parser) {
+static struct ast_node *parse_table_constructor(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* constructor -> '{' [ field { sep field } [sep] ] '}'
 	sep -> ',' | ';' */
 	int line = ls->linenumber;
 	checknext(ls, '{');
+	struct ast_node *table_expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	table_expr->table_expr.type = RAVI_TTABLE;
+	table_expr->table_expr.expr_list = NULL;
+	table_expr->type = AST_TABLE_EXPR;
 	do {
 		if (ls->t.token == '}') break;
-		parse_field(parser);
+		struct ast_node *field_expr = parse_field(parser);
+		add_ast_node(parser->container, &table_expr->table_expr.expr_list, field_expr);
 	} while (testnext(ls, ',') || testnext(ls, ';'));
 	check_match(ls, '}', '{', line);
+	return table_expr;
 }
 
 /* }====================================================================== */
@@ -2203,6 +2252,7 @@ static struct ast_node *new_function(struct parser_state *parser) {
 	struct ast_container *container = parser->container;
 	struct ast_node *node = allocator_allocate(&container->ast_node_allocator, 0);
 	node->type = AST_FUNCTION_EXPR;
+	node->function_expr.type = RAVI_TFUNCTION;
 	node->function_expr.args = NULL;
 	node->function_expr.child_functions = NULL;
 	node->function_expr.main_block = NULL;
