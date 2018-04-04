@@ -945,6 +945,7 @@ struct ast_container {
 	struct allocator string_allocator;
 	struct allocator ptrlist_allocator;
 	struct allocator block_scope_allocator;
+	struct allocator symbol_allocator;
 	struct ast_node *main_function;
 	struct symbol_list *external_symbols; /* symbols not defined in this chunk */
 };
@@ -978,7 +979,8 @@ DECLARE_PTR_LIST(symbol_list, struct symbol);
 struct block_scope;
 
 enum symbol_type {
-	SYM_VARIABLE,
+	SYM_GLOBAL,
+	SYM_LOCAL,
 	SYM_UPVALUE,
 	SYM_LABEL
 };
@@ -989,7 +991,7 @@ struct symbol {
 	union {
 		struct {
 			const TString *var_name; /* name of the variable */
-			struct block_scope *block; /* If NULL symbol is global ?? TBC */
+			struct block_scope *block; /* NULL if global */
 		} var;
 		struct {
 			const TString *label_name;
@@ -1092,6 +1094,11 @@ struct ast_node {
 			ravitype_t type;
 			struct ast_node_list *expr_list;
 		} table_expr;
+		struct {
+			ravitype_t type;
+			struct ast_node *primary_expr;
+			struct ast_node_list *suffix_list;
+		} suffixed_expr;
 	};
 };
 
@@ -1118,6 +1125,7 @@ static struct ast_container * new_ast_container(lua_State *L) {
 	allocator_init(&container->string_allocator, "strings", 0, 0, CHUNK);
 	allocator_init(&container->ptrlist_allocator, "ptrlists", sizeof(struct ptr_list), sizeof(double), CHUNK);
 	allocator_init(&container->block_scope_allocator, "block scopes", sizeof(struct block_scope), sizeof(double), CHUNK);
+	allocator_init(&container->symbol_allocator, "symbols", sizeof(struct symbol), sizeof(double), CHUNK);
 	container->main_function = NULL;
 	container->external_symbols = NULL;
 	raviL_getmetatable(L, AST_type);
@@ -1128,6 +1136,7 @@ static struct ast_container * new_ast_container(lua_State *L) {
 /* __gc function for IRBuilderHolder */
 static int collect_ast_container(lua_State *L) {
 	struct ast_container *container = check_Ravi_AST(L, 1);
+	allocator_destroy(&container->symbol_allocator);
 	allocator_destroy(&container->block_scope_allocator);
 	allocator_destroy(&container->ast_node_allocator);
 	allocator_destroy(&container->string_allocator);
@@ -1244,14 +1253,14 @@ struct symbol *search_for_variable_in_block(struct block_scope *scope, const TSt
 	struct symbol *symbol;
 	FOR_EACH_PTR(scope->symbol_list, symbol) {
 		switch (symbol->symbol_type) {
-		case SYM_VARIABLE: {
+		case SYM_LOCAL: {
 			if (varname == symbol->var.var_name) {
 				return symbol;
 			}
 			break;
 		}
 		case SYM_UPVALUE: {
-			assert(symbol->upvalue.var->symbol_type == SYM_VARIABLE);
+			assert(symbol->upvalue.var->symbol_type == SYM_LOCAL);
 			if (varname == symbol->upvalue.var->var.var_name) {
 				return symbol;
 			}
@@ -1267,7 +1276,7 @@ struct symbol *search_globals(struct parser_state *parser, const TString *varnam
 	struct symbol *symbol;
 	FOR_EACH_PTR(parser->container->external_symbols, symbol) {
 		switch (symbol->symbol_type) {
-		case SYM_VARIABLE: {
+		case SYM_GLOBAL: {
 			if (varname == symbol->var.var_name) {
 				return symbol;
 			}
@@ -1304,8 +1313,40 @@ struct symbol *search_for_variable(struct parser_state *parser, const TString *v
 * global or upvalue - note that var->k will be set to
 * VLOCAL (local var), or VINDEXED or VUPVAL? TODO check
 */
-static void singlevar(struct parser_state *parser) {
+static struct ast_node *singlevar(struct parser_state *parser) {
 	TString *varname = check_name_and_next(parser->ls);
+	struct symbol *symbol = search_for_variable(parser, varname, false);
+	if (symbol) {
+		if (symbol->symbol_type == SYM_LOCAL) {
+			// If the symbol occurred in a parent function then we
+			// need to construct an upvalue
+			if (symbol->var.block->function != parser->current_function) {
+				// construct upvalue
+				struct symbol *upvalue = allocator_allocate(&parser->container->symbol_allocator, 0);
+				upvalue->symbol_type = SYM_UPVALUE;
+				upvalue->upvalue.var = symbol;
+				upvalue->value_type = symbol->value_type;
+				add_symbol(parser->container, &parser->current_scope->symbol_list, upvalue);
+				symbol = upvalue;
+			}
+		}
+	}
+	else {
+		// Return global symbol
+		struct symbol *global = allocator_allocate(&parser->container->symbol_allocator, 0);
+		global->symbol_type = SYM_GLOBAL;
+		global->var.var_name = varname;
+		global->var.block = NULL;
+		global->value_type = RAVI_TANY;
+		// We don't add globals to any scope so that they are 
+		// always looked up
+		symbol = global;
+	}
+	struct ast_node *symbol_expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	symbol_expr->type = AST_SYMBOL_EXPR;
+	symbol_expr->symbol_expr.type = symbol->value_type;
+	symbol_expr->symbol_expr.var = symbol;
+	return symbol_expr;
 }
 
 static void adjust_assign(struct parser_state *parser, int nvars, int nexps, expdesc *e) {
@@ -1611,25 +1652,28 @@ static void parse_function_arguments(struct parser_state *parser, int line) {
 */
 
 /* primary expression - name or subexpression */
-static void parse_primary_expression(struct parser_state *parser) {
+static struct ast_node *parse_primary_expression(struct parser_state *parser) {
 	LexState *ls = parser->ls;
+	struct ast_node *primary_expr = NULL;
 	/* primaryexp -> NAME | '(' expr ')' */
 	switch (ls->t.token) {
 	case '(': {
 		int line = ls->linenumber;
 		luaX_next(ls);
-		parse_expression(parser);
+		primary_expr = parse_expression(parser);
 		check_match(ls, ')', '(', line);
-		return;
+		break;
 	}
 	case TK_NAME: {
-		singlevar(parser);
-		return;
+		primary_expr = singlevar(parser);
+		break;
 	}
 	default: {
 		luaX_syntaxerror(ls, "unexpected symbol");
 	}
 	}
+	assert(primary_expr);
+	return primary_expr;
 }
 
 /* variable or field access or function call */
