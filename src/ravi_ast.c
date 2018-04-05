@@ -969,7 +969,6 @@ struct literal {
 		lua_Integer i;
 		lua_Number n;
 		const TString *s;
-		lu_byte boolean;
 	} u;
 };
 
@@ -1084,11 +1083,11 @@ struct ast_node {
 			struct block_scope *main_block; /* the function's blocks */
 			struct symbol_list *args; /* arguments, also must be part of the function block's symbol list */
 			struct ast_node_list *child_functions; /* child functions declared in this function */
-		} function_expr; /* an expression whose result is a value of type function */	
+		} function_expr; /* an expression whose result is a value of type function */
 		struct {
 			ravitype_t type;
 			struct ast_node *index_expr; /* If NULL means list field with next available index, else specfies index expression */
-			struct ast_node *value_expr; 
+			struct ast_node *value_expr;
 		} indexed_assign_expr;
 		struct {
 			ravitype_t type;
@@ -1290,7 +1289,7 @@ struct symbol *search_globals(struct parser_state *parser, const TString *varnam
 	return NULL;
 }
 
-/* Searches for a variable starting from current scope, and going up the 
+/* Searches for a variable starting from current scope, and going up the
 * scope chain. If not found and search_globals_too is requested then
 * also searches the external symbols
 */
@@ -1424,7 +1423,7 @@ static struct ast_node *parse_field_selector(struct parser_state *parser) {
 }
 
 /*
-* Parse '[' expr '] 
+* Parse '[' expr ']
 */
 static struct ast_node *parse_yindex(struct parser_state *parser) {
 	LexState *ls = parser->ls;
@@ -1716,48 +1715,68 @@ static struct ast_node *parse_suffixed_expression(struct parser_state *parser) {
 	}
 }
 
+static struct ast_node *new_literal_expression(struct parser_state *parser, ravitype_t type) {
+	struct ast_node *expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	expr->type = AST_LITERAL_EXPR;
+	expr->literal_expr.literal.type = type;
+	return expr;
+}
 
-static void parse_simple_expression(struct parser_state *parser) {
+static struct ast_node *parse_simple_expression(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* simpleexp -> FLT | INT | STRING | NIL | TRUE | FALSE | ... |
 	constructor | FUNCTION body | suffixedexp */
+	struct ast_node *expr = NULL;
 	switch (ls->t.token) {
 	case TK_FLT: {
+		expr = new_literal_expression(parser, RAVI_TNUMFLT);
+		expr->literal_expr.literal.u.n = ls->t.seminfo.r;
 		break;
 	}
 	case TK_INT: {
+		expr = new_literal_expression(parser, RAVI_TNUMINT);
+		expr->literal_expr.literal.u.i = ls->t.seminfo.i;
 		break;
 	}
 	case TK_STRING: {
+		expr = new_literal_expression(parser, RAVI_TSTRING);
+		expr->literal_expr.literal.u.s = ls->t.seminfo.ts;
 		break;
 	}
 	case TK_NIL: {
+		expr = new_literal_expression(parser, RAVI_TNIL);
+		expr->literal_expr.literal.u.i = -1;
 		break;
 	}
 	case TK_TRUE: {
+		expr = new_literal_expression(parser, RAVI_TBOOLEAN);
+		expr->literal_expr.literal.u.i = 1;
 		break;
 	}
 	case TK_FALSE: {
+		expr = new_literal_expression(parser, RAVI_TBOOLEAN);
+		expr->literal_expr.literal.u.i = 0;
 		break;
 	}
 	case TK_DOTS: {  /* vararg */
+		// Not handled yet
+		expr = NULL;
 		break;
 	}
 	case '{': {  /* constructor */
-		parse_table_constructor(parser);
-		return;
+		return parse_table_constructor(parser);
 	}
 	case TK_FUNCTION: {
 		luaX_next(ls);
 		parse_function_body(parser, 0, ls->linenumber);
-		return;
+		return NULL; // Not handled yet
 	}
 	default: {
-		parse_suffixed_expression(parser);
-		return;
+		return parse_suffixed_expression(parser);
 	}
 	}
 	luaX_next(ls);
+	return expr;
 }
 
 
@@ -1828,19 +1847,27 @@ static const struct {
 ** subexpr -> (simpleexp | unop subexpr) { binop subexpr }
 ** where 'binop' is any binary operator with a priority higher than 'limit'
 */
-static BinOpr parse_sub_expression(struct parser_state *parser, int limit) {
+static struct ast_node *parse_sub_expression(struct parser_state *parser, int limit, BinOpr *untreated_op) {
 	LexState *ls = parser->ls;
 	BinOpr op;
 	UnOpr uop;
 	enterlevel(ls);
+	struct ast_node *expr = NULL;
 	uop = get_unary_opr(ls->t.token);
 	if (uop != OPR_NOUNOPR) {
 		int line = ls->linenumber;
 		luaX_next(ls);
-		parse_sub_expression(parser, UNARY_PRIORITY);
+		BinOpr ignored;
+		struct ast_node *subexpr = parse_sub_expression(parser, UNARY_PRIORITY, &ignored);
+
+		expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+		expr->type = AST_UNARY_EXPR;
+		expr->unop_expr.expr = subexpr;
+		expr->unop_expr.type = subexpr->common_expr.type;
+		expr->unop_expr.unary_op = uop;
 	}
 	else {
-		parse_simple_expression(parser);
+		expr = parse_simple_expression(parser);
 	}
 	/* expand while operators have priorities higher than 'limit' */
 	op = get_binary_opr(ls->t.token);
@@ -1849,17 +1876,26 @@ static BinOpr parse_sub_expression(struct parser_state *parser, int limit) {
 		int line = ls->linenumber;
 		luaX_next(ls);
 		/* read sub-expression with higher priority */
-		nextop = parse_sub_expression(parser, priority[op].right);
+		struct ast_node *exprright = parse_sub_expression(parser, priority[op].right, &nextop);
+
+		struct ast_node *binexpr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+		binexpr->type = AST_BINARY_EXPR;
+		binexpr->binop_expr.exprleft = expr;
+		binexpr->binop_expr.exprright = exprright;
+		binexpr->binop_expr.binary_op = op;
+		binexpr->binop_expr.type = expr->common_expr.type; // FIXME - needs to be worked out
+		expr = binexpr; // Becomes the left expr for next iteration
 		op = nextop;
 	}
 	leavelevel(ls);
-	return op;  /* return first untreated operator */
+	*untreated_op = op;  /* return first untreated operator */
+	return expr;
 }
 
 
 static struct ast_node *parse_expression(struct parser_state *parser) {
-	parse_sub_expression(parser, 0);
-	return NULL;
+	BinOpr ignored;
+	return parse_sub_expression(parser, 0, &ignored);
 }
 
 /* }==================================================================== */
@@ -2272,8 +2308,8 @@ static void parse_statement_list(struct parser_state *parser) {
 }
 
 /* Starts a new scope. If the current function has no main block
-* defined then the new scoe becomes its main block. The new scope 
-* gets existing scope as parent even if that belongs to parent 
+* defined then the new scoe becomes its main block. The new scope
+* gets existing scope as parent even if that belongs to parent
 * function.
 */
 static struct block_scope *new_scope(struct parser_state *parser) {
@@ -2377,7 +2413,7 @@ int raviY_parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 	struct ast_container *container = new_ast_container(L);
 	LexState lexstate;
 	lexstate.h = luaH_new(L);         /* create table for scanner */
-	sethvalue(L, L->top, lexstate.h); 
+	sethvalue(L, L->top, lexstate.h);
 	setuservalue(L, uvalue(cvalue), L->top); /* set the table as container's uservalue */
 	TString *src = luaS_new(L, name); /* create and anchor TString */
 	setsvalue(L, L->top, src);
