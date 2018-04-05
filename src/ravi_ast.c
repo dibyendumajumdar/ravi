@@ -1599,13 +1599,15 @@ static void parse_function_body(struct parser_state *parser, int ismethod, int l
 }
 
 /* parse expression list */
-static int parse_expression_list(struct parser_state *parser) {
+static int parse_expression_list(struct parser_state *parser, struct ast_node_list **list) {
 	LexState *ls = parser->ls;
 	/* explist -> expr { ',' expr } */
 	int n = 1;  /* at least one expression */
-	parse_expression(parser);
+	struct ast_node *expr = parse_expression(parser);
+	add_ast_node(parser->container, list, expr);
 	while (testnext(ls, ',')) {
-		parse_expression(parser);
+		expr = parse_expression(parser);
+		add_ast_node(parser->container, list, expr);
 		n++;
 	}
 	return n;
@@ -1622,7 +1624,8 @@ static void parse_function_arguments(struct parser_state *parser, int line) {
 			// args.k = VVOID;
 			;
 		else {
-			parse_expression_list(parser);
+			struct ast_node_list *list = NULL;
+			parse_expression_list(parser, &list);
 		}
 		check_match(ls, ')', '(', line);
 		break;
@@ -1932,7 +1935,8 @@ static void parse_assignment(struct parser_state *parser, int nvars) {
 	else {  /* assignment -> '=' explist */
 		int nexps;
 		checknext(ls, '=');
-		nexps = parse_expression_list(parser);
+		struct ast_node_list *list = NULL;
+		nexps = parse_expression_list(parser, &list);
 		if (nexps != nvars) {
 			//adjust_assign(ls, nvars, nexps, &e);
 		}
@@ -2160,8 +2164,9 @@ static void parse_local_statement(struct parser_state *parser) {
 		if (nvars >= MAXVARS)
 			luaX_syntaxerror(ls, "too many local variables");
 	} while (testnext(ls, ','));
+	struct ast_node_list *list = NULL;
 	if (testnext(ls, '='))
-		nexps = parse_expression_list(parser);
+		nexps = parse_expression_list(parser, &list);
 	else {
 		nexps = 0;
 	}
@@ -2210,21 +2215,20 @@ static void parse_expr_statement(struct parser_state *parser) {
 }
 
 /* parse return statement - called from statement() */
-static void parse_return_statement(struct parser_state *parser) {
+static struct ast_node * parse_return_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* stat -> RETURN [explist] [';'] */
+	struct ast_node *return_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	return_stmt->type = AST_RETURN_STMT;
+	return_stmt->return_stmt.exprlist = NULL;
 	int first, nret; /* registers with returned values */
 	if (block_follow(ls, 1) || ls->t.token == ';')
 		first = nret = 0;  /* return no values */
 	else {
-		nret = parse_expression_list(parser);  /* optional return values */
-//        if (hasmultret(e.k)) {
-//            nret = LUA_MULTRET;  /* return all values */
- //       }
-//        else {
-//        }
+		nret = parse_expression_list(parser, &return_stmt->return_stmt.exprlist);  /* optional return values */
 	}
 	testnext(ls, ';');  /* skip optional semicolon */
+	return return_stmt;
 }
 
 
