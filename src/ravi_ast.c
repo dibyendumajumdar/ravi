@@ -1007,6 +1007,7 @@ struct block_scope {
 	struct ast_node *function; /* function owning this block - FUNCTION_EXPR */
 	struct block_scope *parent; /* parent block */
 	struct symbol_list *symbol_list; /* symbols defined in this block */
+	struct ast_node_list *statement_list; /* statements in this block */
 };
 
 enum ast_node_type {
@@ -2320,6 +2321,8 @@ static void parse_statement_list(struct parser_state *parser) {
 static struct block_scope *new_scope(struct parser_state *parser) {
 	struct ast_container *container = parser->container;
 	struct block_scope *scope = allocator_allocate(&container->block_scope_allocator, 0);
+	scope->symbol_list = NULL;
+	scope->statement_list = NULL;
 	scope->function = parser->current_function;
 	assert(scope->function && scope->function->type == AST_FUNCTION_EXPR);
 	assert(parser->current_scope == NULL || parser->current_scope->function == scope->function);
