@@ -1146,8 +1146,8 @@ static int collect_ast_container(lua_State *L) {
 }
 
 static struct ast_node *parse_expression(struct parser_state *);
-static void parse_statement_list(struct parser_state *);
-static void parse_statement(struct parser_state *);
+static void parse_statement_list(struct parser_state *, struct ast_node_list **list);
+static struct ast_node *parse_statement(struct parser_state *);
 
 static l_noret error_expected(LexState *ls, int token) {
 	luaX_syntaxerror(ls,
@@ -1596,7 +1596,7 @@ static void parse_function_body(struct parser_state *parser, int ismethod, int l
 	}
 	parse_parameter_list(parser);
 	checknext(ls, ')');
-	parse_statement_list(parser);
+	parse_statement_list(parser, &parser->current_scope->statement_list);
 	check_match(ls, TK_END, TK_FUNCTION, line);
 }
 
@@ -1916,7 +1916,7 @@ static struct ast_node *parse_expression(struct parser_state *parser) {
 
 static void parse_block(struct parser_state *parser) {
 	/* block -> statlist */
-	parse_statement_list(parser);
+	parse_statement_list(parser, &parser->current_scope->statement_list);
 }
 
 /* parse assignment (not part of local statement) - for each variable
@@ -2009,7 +2009,7 @@ static void parse_repeat_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* repeatstat -> REPEAT block UNTIL cond */
 	luaX_next(ls);  /* skip REPEAT */
-	parse_statement_list(parser);
+	parse_statement_list(parser, &parser->current_scope->statement_list);
 	check_match(ls, TK_UNTIL, TK_REPEAT, line);
 	parse_condition(parser);  /* read condition (inside scope block) */
 }
@@ -2129,7 +2129,7 @@ static void parse_if_cond_then_block(struct parser_state *parser, int *escapelis
 	else {  /* regular case (not goto/break) */
 		//jf = v.f;
 	}
-	parse_statement_list(parser);  /* 'then' part */
+	parse_statement_list(parser, &parser->current_scope->statement_list);  /* 'then' part */
 }
 
 /* parse an if control structure - called from statement() */
@@ -2235,10 +2235,11 @@ static struct ast_node * parse_return_statement(struct parser_state *parser) {
 
 
 /* parse a statement */
-static void parse_statement(struct parser_state *parser) {
+static struct ast_node *parse_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	int line = ls->linenumber;  /* may be needed for error messages */
 	enterlevel(ls);
+	struct ast_node *stmt = NULL;
 	switch (ls->t.token) {
 	case ';': {  /* stat -> ';' (empty statement) */
 		luaX_next(ls);  /* skip ';' */
@@ -2285,7 +2286,7 @@ static void parse_statement(struct parser_state *parser) {
 	}
 	case TK_RETURN: {  /* stat -> retstat */
 		luaX_next(ls);  /* skip RETURN */
-		parse_return_statement(parser);
+		stmt = parse_return_statement(parser);
 		break;
 	}
 	case TK_BREAK:   /* stat -> breakstat */
@@ -2299,17 +2300,23 @@ static void parse_statement(struct parser_state *parser) {
 	}
 	}
 	leavelevel(ls);
+	return stmt;
 }
 
-static void parse_statement_list(struct parser_state *parser) {
+static void parse_statement_list(struct parser_state *parser, struct ast_node_list **list) {
 	LexState *ls = parser->ls;
 	/* statlist -> { stat [';'] } */
 	while (!block_follow(ls, 1)) {
 		if (ls->t.token == TK_RETURN) {
-			parse_statement(parser);
+			struct ast_node *stmt = parse_statement(parser);
+			add_ast_node(parser->container, list, stmt);
 			return;  /* 'return' must be last statement */
 		}
-		parse_statement(parser);
+		struct ast_node *stmt = parse_statement(parser);
+		if (stmt) {
+			// This check is temporary - FIXME
+			add_ast_node(parser->container, list, stmt);
+		}
 	}
 }
 
@@ -2380,7 +2387,7 @@ static struct ast_node *end_function(struct parser_state *parser) {
 static void parse_chunk(struct parser_state *parser) {
 	luaX_next(parser->ls); /* read first token */
 	parser->container->main_function = new_function(parser);
-	parse_statement_list(parser);
+	parse_statement_list(parser, &parser->current_scope->statement_list);
 	end_function(parser);
 	check(parser->ls, TK_EOS);
 }
@@ -2393,13 +2400,141 @@ static void parser_state_init(struct parser_state *parser, LexState *ls, struct 
 	parser->current_scope = NULL;
 }
 
+static void print_ast_node(struct ast_node *node, int level);
+
+static void print_ast_node_list(struct ast_node_list *list, int level, int separatorChar) {
+	struct ast_node *node;
+	bool is_first = true;
+	FOR_EACH_PTR(list, node) {
+		if (is_first)
+			is_first = false;
+		else
+			printf("%c", separatorChar);
+		print_ast_node(node, level);
+	} END_FOR_EACH_PTR(node);
+}
+
+static void print_block_scope(struct block_scope *scope, int level) {
+	print_ast_node_list(scope->statement_list, level + 1, '\n');
+}
+
+static void print_symbol(struct symbol *sym) {
+	switch (sym->symbol_type) {
+	case SYM_GLOBAL: {
+		printf("--[global symbol] %s ", getstr(sym->var.var_name));
+		break;
+	}
+	case SYM_LOCAL: {
+		printf("--[local symbol] %s ", getstr(sym->var.var_name));
+		break;
+	}
+	case SYM_UPVALUE: {
+		assert(0);
+	}
+	default:
+		assert(0);
+	}
+}
+
+static const char* get_unary_opr_str(UnOpr op) {
+	switch (op) {
+	case OPR_NOT: return "not";
+	case OPR_MINUS: return "-";
+	case OPR_BNOT: return "~";
+	case OPR_LEN: return "#";
+	case OPR_TO_INTEGER: return "@integer";
+	case OPR_TO_NUMBER: return "@number";
+	case OPR_TO_INTARRAY: return "@integer[]";
+	case OPR_TO_NUMARRAY: return "@number[]";
+	case OPR_TO_TABLE: return "@table";
+	default: return "";
+	}
+}
+
+
+static const char *get_binary_opr_str(BinOpr op) {
+	switch (op) {
+	case OPR_ADD: return "+";
+	case OPR_SUB: return "-";
+	case OPR_MUL: return "*";
+	case OPR_MOD: return "%";
+	case OPR_POW: return "^";
+	case OPR_DIV: return "/";
+	case OPR_IDIV: return "//";
+	case OPR_BAND: return "&";
+	case OPR_BOR: return "|";
+	case OPR_BXOR: return "~";
+	case OPR_SHL: return "<<";
+	case OPR_SHR: return ">>";
+	case OPR_CONCAT: return "..";
+	case OPR_NE: return "~=";
+	case OPR_EQ: return "==";
+	case OPR_LT: return "<";
+	case OPR_LE: return "<=";
+	case OPR_GT: return ">";
+	case OPR_GE: return ">=";
+	case OPR_AND: return "and";
+	case OPR_OR: return "or";
+	default: return "";
+	}
+}
+
+
 static void print_ast_node(struct ast_node *node, int level)
 {
 	switch (node->type) {
-	case AST_FUNCTION_EXPR:
+	case AST_FUNCTION_EXPR: {
 		printf("%.*sfunction()\n", level, "");
+		print_block_scope(node->function_expr.main_block, level);
+		printf("%.*send\n", level, "");
 		break;
+	}
+	case AST_RETURN_STMT: {
+		printf("%.*return ", level, "");
+		print_ast_node_list(node->return_stmt.exprlist, level, ',');
+		printf("\n");
+		break;
+	}
+	case AST_SUFFIXED_EXPR: {
+		printf("--[primary start] ");
+		print_ast_node(node->suffixed_expr.primary_expr, level);
+		printf("--[end primary] ");
+		printf("--[suffix list start] ");
+		print_ast_node_list(node->suffixed_expr.suffix_list, level, ' ');
+		printf("--[end suffix list] ");
+		break;
+	}
+	case AST_SYMBOL_EXPR: {
+		print_symbol(node->symbol_expr.var);
+		break;
+	}
+	case AST_BINARY_EXPR: {
+		printf("--[binary op start] ");
+		print_ast_node(node->binop_expr.exprleft, level);
+		printf(" %s ", get_binary_opr_str(node->binop_expr.binary_op));
+		print_ast_node(node->binop_expr.exprright, level);
+		printf("--[binary op end] ");
+		break;
+	}
+	case AST_UNARY_EXPR: {
+		printf("--[unary op start] %s ", get_unary_opr_str(node->unop_expr.unary_op));
+		print_ast_node(node->unop_expr.expr, level);
+		printf("--[unary op end] ");
+		break;
+	}
+	case AST_LITERAL_EXPR: {
+		switch (node->literal_expr.literal.type) {
+		case RAVI_TNIL: printf(" nil "); break;
+		case RAVI_TBOOLEAN: printf(" %s ", (node->literal_expr.literal.u.i ? "true" : "false")); break;
+		case RAVI_TNUMINT: printf(" %lld ", node->literal_expr.literal.u.i); break;
+		case RAVI_TNUMFLT: printf(" %.16f ", node->literal_expr.literal.u.n); break;
+		case RAVI_TSTRING: printf(" '%s' ", getstr(node->literal_expr.literal.u.s)); break;
+		default: assert(0);
+		}
+		break;
+	}
 	default:
+		printf("Unsupported node type %d\n", node->type);
 		assert(0);
 	}
 }
