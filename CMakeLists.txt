@@ -429,10 +429,6 @@ target_link_libraries(testravidebug libravinojit_static)
 add_executable(test_vm tests/test_vm.c)
 target_link_libraries(test_vm ${LIBRAVI_NAME})
 
-#AST test
-add_executable(test_ast tests/test_ast.c)
-target_link_libraries(test_ast ${LIBRAVI_NAME})
-
 if (LLVM_JIT)
     # LLVM playground
     add_executable(test_llvm tests/test_llvm.cpp)
@@ -448,7 +444,6 @@ if (LLVM_JIT)
 endif ()
 add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
-add_test(TestAST test_ast)
 
 
 install(FILES ${LUA_HEADERS}

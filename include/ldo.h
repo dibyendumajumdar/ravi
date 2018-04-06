@@ -55,9 +55,5 @@ LUAI_FUNC void luaD_inctop (lua_State *L);
 LUAI_FUNC l_noret luaD_throw (lua_State *L, int errcode);
 LUAI_FUNC int luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud);
 
-
-LUAI_FUNC int raviD_protected_ast_builder (lua_State *L, ZIO *z, const char *name,
-                                                  const char *mode);
-
 #endif
 

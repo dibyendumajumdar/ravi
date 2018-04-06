@@ -21,6 +21,7 @@
 #include "lstate.h"
 #include "lstring.h"
 #include "ltable.h"
+#include "lzio.h"
 #include "ravi_ast.h"
 
 #include "lauxlib.h"
@@ -2411,7 +2412,7 @@ static void print_ast_container(struct ast_container *container) {
 ** syntax tree.
 ** On failure push an error message.
 */
-int raviY_parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
+static int parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 	const char *name, int firstchar) {
 	StkId cvalue = L->top; /* where ast_container will be */
 	struct ast_container *container = new_ast_container(L);
@@ -2427,17 +2428,167 @@ int raviY_parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 	luaX_setinput(L, &lexstate, z, src, firstchar);
 	struct parser_state parser_state;
 	parser_state_init(&parser_state, &lexstate, container);
+	lua_lock(L); // Workaround for ZIO (used by lexer) which assumes lua_lock()
 	parse_chunk(&parser_state);
+	lua_unlock(L);
 	L->top--; /* remove source name */
 	assert(cvalue == L->top - 1);
 	print_ast_container(container);
 	return 0; /* OK */
 }
 
+/*
+** Execute a protected parser.
+*/
+struct SParser {  /* data to 'f_parser' */
+	ZIO *z;
+	Mbuffer buff;  /* dynamic structure used by the scanner */
+	Dyndata dyd;  /* dynamic structures used by the parser */
+	const char *mode;
+	const char *name;
+};
+
+static void checkmode(lua_State *L, const char *mode, const char *x) {
+	if (mode && strchr(mode, x[0]) == NULL) {
+		luaO_pushfstring(L,
+			"attempt to load a %s chunk (mode is '%s')", x, mode);
+		luaD_throw(L, LUA_ERRSYNTAX);
+	}
+}
+
+static int ravi_f_parser(lua_State *L, void *ud) {
+	LClosure *cl;
+	struct SParser *p = cast(struct SParser *, ud);
+	lua_lock(L);  // Workaroud for zgetc() which assumes lua_lock()
+	int c = zgetc(p->z);  /* read first character */
+	lua_unlock(L);
+	checkmode(L, p->mode, "text");
+	return parse_to_ast(L, p->z, &p->buff, p->name, c);
+}
+
+static int protected_ast_builder(lua_State *L, ZIO *z, const char *name,
+	const char *mode) {
+	struct SParser p;
+	int status;
+	L->nny++;  /* cannot yield during parsing */
+	p.z = z; p.name = name; p.mode = mode;
+	p.dyd.actvar.arr = NULL; p.dyd.actvar.size = 0;
+	p.dyd.gt.arr = NULL; p.dyd.gt.size = 0;
+	p.dyd.label.arr = NULL; p.dyd.label.size = 0;
+	luaZ_initbuffer(L, &p.buff);
+	status = luaD_pcall(L, ravi_f_parser, &p, savestack(L, L->top), L->errfunc);
+	luaZ_freebuffer(L, &p.buff);
+	luaM_freearray(L, p.dyd.actvar.arr, p.dyd.actvar.size);
+	luaM_freearray(L, p.dyd.gt.arr, p.dyd.gt.size);
+	luaM_freearray(L, p.dyd.label.arr, p.dyd.label.size);
+	L->nny--;
+	return status;
+}
+
+/*
+**
+** Builds an Abstract Syntax Tree (encapsulated in userdata type) from the given
+** input buffer. This function returns 0 if all OK
+* - On success a userdata object representing the tree,
+*   else an error message will be pushed on to the stack
+**
+** This is part of the new experimental (wip) implementation of new
+** parser and code generator
+*/
+static int build_ast_from_reader(lua_State *L, lua_Reader reader, void *data,
+	const char *chunkname, const char *mode) {
+	ZIO z;
+	int status;
+	if (!chunkname) chunkname = "?";
+	luaZ_init(L, &z, reader, data);
+	status = protected_ast_builder(L, &z, chunkname, mode);
+	return status;
+}
+
+/*
+** reserved slot, above all arguments, to hold a copy of the returned
+** string to avoid it being collected while parsed. 'load' has four
+** optional arguments (chunk, source name, mode, and environment).
+*/
+#define RESERVEDSLOT	5
+
+/*
+** Reader for generic 'load' function: 'lua_load' uses the
+** stack for internal stuff, so the reader cannot change the
+** stack top. Instead, it keeps its resulting string in a
+** reserved slot inside the stack.
+*/
+static const char *generic_reader(lua_State *L, void *ud, size_t *size) {
+	(void)(ud);  /* not used */
+	luaL_checkstack(L, 2, "too many nested functions");
+	lua_pushvalue(L, 1);  /* get function */
+	lua_call(L, 0, 1);  /* call it */
+	if (lua_isnil(L, -1)) {
+		lua_pop(L, 1);  /* pop result */
+		*size = 0;
+		return NULL;
+	}
+	else if (!lua_isstring(L, -1))
+		luaL_error(L, "reader function must return a string");
+	lua_replace(L, RESERVEDSLOT);  /* save string in reserved slot */
+	return lua_tolstring(L, RESERVEDSLOT, size);
+}
+
+typedef struct LoadS {
+	const char *s;
+	size_t size;
+} LoadS;
+
+
+static const char *getS(lua_State *L, void *ud, size_t *size) {
+	LoadS *ls = (LoadS *)ud;
+	(void)L;  /* not used */
+	if (ls->size == 0) return NULL;
+	*size = ls->size;
+	ls->size = 0;
+	return ls->s;
+}
+
+/*
+* Builds an Abstract Syntax Tree (encapsulated in userdata type) from the given
+* input buffer. This function returns 0 if all OK
+* - On success a userdata object representing the tree,
+*   else an error message will be pushed on to the stack
+*/
+static int build_ast_from_buffer(lua_State *L, const char *buff, size_t size,
+	const char *name, const char *mode) {
+	LoadS ls;
+	ls.s = buff;
+	ls.size = size;
+	return build_ast_from_reader(L, getS, &ls, name, mode);
+}
+
+static int build_ast(lua_State *L) {
+	int status;
+	size_t l;
+	const char *s = lua_tolstring(L, 1, &l);
+	const char *mode = luaL_optstring(L, 3, "bt");
+	int env = (!lua_isnone(L, 4) ? 4 : 0);  /* 'env' index or 0 if no 'env' */
+	if (s != NULL) {  /* loading a string? */
+		const char *chunkname = luaL_optstring(L, 2, s);
+		status = build_ast_from_buffer(L, s, l, chunkname, mode);
+	}
+	else {  /* loading from a reader function */
+		const char *chunkname = luaL_optstring(L, 2, "=(load)");
+		luaL_checktype(L, 1, LUA_TFUNCTION);
+		lua_settop(L, RESERVEDSLOT);  /* create reserved slot */
+		status = build_ast_from_reader(L, generic_reader, NULL, chunkname, mode);
+	}
+	return status == 0 ? 1 : 0;
+}
+
+
 static const luaL_Reg container_methods[] = {
 	{ NULL, NULL } };
 
 static const luaL_Reg astlib[] = {
+	/* Entrypoint for new AST */
+	{ "parse", build_ast },
 	{ NULL, NULL } };
 
 LUAMOD_API int raviopen_ast_library(lua_State *L) {
@@ -2451,5 +2602,4 @@ LUAMOD_API int raviopen_ast_library(lua_State *L) {
 
 	luaL_newlib(L, astlib);
 	return 1;
-	return 0;
 }

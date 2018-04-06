@@ -355,24 +355,6 @@ static int luaB_load (lua_State *L) {
   return load_aux(L, status, env);
 }
 
-static int raviB_build_ast(lua_State *L) {
-  int status;
-  size_t l;
-  const char *s = lua_tolstring(L, 1, &l);
-  const char *mode = luaL_optstring(L, 3, "bt");
-  int env = (!lua_isnone(L, 4) ? 4 : 0);  /* 'env' index or 0 if no 'env' */
-  if (s != NULL) {  /* loading a string? */
-    const char *chunkname = luaL_optstring(L, 2, s);
-    status = raviL_build_ast_from_buffer(L, s, l, chunkname, mode);
-  }
-  else {  /* loading from a reader function */
-    const char *chunkname = luaL_optstring(L, 2, "=(load)");
-    luaL_checktype(L, 1, LUA_TFUNCTION);
-    lua_settop(L, RESERVEDSLOT);  /* create reserved slot */
-    status = ravi_build_ast_from_buffer(L, generic_reader, NULL, chunkname, mode);
-  }
-  return status == 0 ? 1 : 0;
-}
 
 /* }====================================================== */
 
@@ -483,8 +465,6 @@ static const luaL_Reg base_funcs[] = {
   {"ipairs", luaB_ipairs},
   {"loadfile", luaB_loadfile},
   {"load", luaB_load},
-  /* Entrypoint for new AST */
-  {"build_ast", raviB_build_ast},
 #if defined(LUA_COMPAT_LOADSTRING)
   {"loadstring", luaB_load},
 #endif

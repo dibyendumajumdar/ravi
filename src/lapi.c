@@ -1332,29 +1332,6 @@ LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
   return status;
 }
 
-/* 
-**
-** Builds an Abstract Syntax Tree (encapsulated in userdata type) from the given
-** input buffer. This function returns 0 if all OK
-* - On success a userdata object representing the tree, 
-*   else an error message will be pushed on to the stack
-**
-** This is part of the new experimental (wip) implementation of new
-** parser and code generator 
-*/
-LUA_API int (ravi_build_ast_from_buffer) (lua_State *L, lua_Reader reader, void *data,
-                          const char *chunkname, const char *mode) {
-  ZIO z;
-  int status;
-  lua_lock(L);
-  if (!chunkname) chunkname = "?";
-  luaZ_init(L, &z, reader, data);
-  status = raviD_protected_ast_builder(L, &z, chunkname, mode);
-  lua_unlock(L);
-  return status;
-}
-
-
 LUA_API int lua_dump (lua_State *L, lua_Writer writer, void *data, int strip) {
   int status;
   TValue *o;
