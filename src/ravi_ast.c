@@ -1233,16 +1233,25 @@ static TString *str_checkname(LexState *ls) {
 	return ts;
 }
 
-
 /* create a new local variable in function scope, and set the
 * variable type (RAVI - added type tt) */
-static void new_localvar(struct parser_state *parser, TString *name, ravitype_t tt, TString *usertype) {
+static struct symbol* new_local_symbol(struct parser_state *parser, TString *name, ravitype_t tt, TString *usertype) {
+	struct block_scope *scope = parser->current_scope;
+	struct symbol *symbol = allocator_allocate(&parser->container->symbol_allocator, 0);
+	symbol->value_type = tt;
+	symbol->symbol_type = SYM_LOCAL;
+	symbol->var.block = scope;
+	symbol->var.var_name;
+	add_symbol(parser->container, &scope->symbol_list, symbol); // Add to the end of the symbol list
+	// Note that Lua allows multiple local declarations of the same name
+	// so a new instance just gets added to the end
+	return symbol;
 }
 
 /* create a new local variable
 */
 static void new_localvarliteral_(struct parser_state *parser, const char *name, size_t sz) {
-	new_localvar(parser, luaX_newstring(parser->ls, name, sz), RAVI_TANY, NULL);
+	new_local_symbol(parser, luaX_newstring(parser->ls, name, sz), RAVI_TANY, NULL);
 }
 
 /* create a new local variable
@@ -1260,7 +1269,10 @@ static void adjustlocalvars(struct parser_state *parser, int nvars) {
 
 struct symbol *search_for_variable_in_block(struct block_scope *scope, const TString *varname) {
 	struct symbol *symbol;
-	FOR_EACH_PTR(scope->symbol_list, symbol) {
+	// Lookup in reverse order so that we discover the 
+	// most recently added local symbol - as Lua allows same
+	// symbol to be declared local more than once in a scope
+	FOR_EACH_PTR_REVERSE(scope->symbol_list, symbol) {
 		switch (symbol->symbol_type) {
 		case SYM_LOCAL: {
 			if (varname == symbol->var.var_name) {
@@ -1277,7 +1289,7 @@ struct symbol *search_for_variable_in_block(struct block_scope *scope, const TSt
 		default:
 			break;
 		}
-	} END_FOR_EACH_PTR(symbol);
+	} END_FOR_EACH_PTR_REVERSE(symbol);
 	return NULL;
 }
 
@@ -1572,7 +1584,7 @@ static TString *user_defined_type_name(LexState *ls, TString *typename) {
 *   where type is 'integer', 'integer[]',
 *                 'number', 'number[]'
 */
-static void declare_local_variable(struct parser_state *parser, TString **pusertype) {
+static struct symbol * declare_local_variable(struct parser_state *parser, TString **pusertype) {
 	LexState *ls = parser->ls;
 	/* assume a dynamic type */
 	ravitype_t tt = RAVI_TANY;
@@ -1612,7 +1624,7 @@ static void declare_local_variable(struct parser_state *parser, TString **pusert
 			}
 		}
 	}
-	new_localvar(parser, name, tt, *pusertype);
+	return new_local_symbol(parser, name, tt, *pusertype);
 }
 
 static void parse_parameter_list(struct parser_state *parser) {
@@ -2120,7 +2132,7 @@ static void parse_fornum_statement(struct parser_state *parser, TString *varname
 	new_localvarliteral(parser, "(for index)");
 	new_localvarliteral(parser, "(for limit)");
 	new_localvarliteral(parser, "(for step)");
-	new_localvar(parser, varname, RAVI_TANY, NULL);
+	new_local_symbol(parser, varname, RAVI_TANY, NULL);
 	/* The fornum sets up its own variables as above.
 	These are expected to hold numeric values - but from Ravi's
 	point of view we need to know if the variable is an integer or
@@ -2153,9 +2165,9 @@ static void parse_for_list(struct parser_state *parser, TString *indexname) {
 	new_localvarliteral(parser, "(for state)");
 	new_localvarliteral(parser, "(for control)");
 	/* create declared variables */
-	new_localvar(parser, indexname, RAVI_TANY, NULL); /* RAVI TODO for name:type syntax? */
+	new_local_symbol(parser, indexname, RAVI_TANY, NULL); /* RAVI TODO for name:type syntax? */
 	while (testnext(ls, ',')) {
-		new_localvar(parser, check_name_and_next(ls), RAVI_TANY, NULL); /* RAVI change - add type */
+		new_local_symbol(parser, check_name_and_next(ls), RAVI_TANY, NULL); /* RAVI change - add type */
 		nvars++;
 	}
 	checknext(ls, TK_IN);
@@ -2219,13 +2231,13 @@ static void parse_if_statement(struct parser_state *parser, int line) {
 /* parse a local function statement - called from statement() */
 static void parse_local_function(struct parser_state *parser) {
 	LexState *ls = parser->ls;
-	new_localvar(parser, check_name_and_next(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
+	new_local_symbol(parser, check_name_and_next(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
 	adjustlocalvars(parser, 1);  /* enter its scope */
 	parse_function_body(parser, 0, ls->linenumber);  /* function created in next register */
 }
 
 /* parse a local variable declaration statement - called from statement() */
-static void parse_local_statement(struct parser_state *parser) {
+static struct ast_node * parse_local_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* stat -> LOCAL NAME {',' NAME} ['=' explist] */
 	int nvars = 0;
@@ -2238,20 +2250,25 @@ static void parse_local_statement(struct parser_state *parser) {
 	enum { N = MAXVARS + 10 };
 	int vars[N] = { 0 };
 	TString *usertypes[N] = { NULL };
+	struct ast_node *node = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	node->type = AST_LOCAL_STMT;
+	node->local_stmt.vars = NULL;
+	node->local_stmt.exprlist = NULL;
 	do {
 		/* local name : type = value */
-		declare_local_variable(parser, &usertypes[nvars]);
+		struct symbol *symbol = declare_local_variable(parser, &usertypes[nvars]);
+		add_symbol(parser->container, &node->local_stmt.vars, symbol);
 		nvars++;
 		if (nvars >= MAXVARS)
 			luaX_syntaxerror(ls, "too many local variables");
 	} while (testnext(ls, ','));
-	struct ast_node_list *list = NULL;
 	if (testnext(ls, '='))
-		nexps = parse_expression_list(parser, &list);
+		nexps = parse_expression_list(parser, &node->local_stmt.exprlist);
 	else {
 		nexps = 0;
 	}
 	adjustlocalvars(parser, nvars);
+	return node;
 }
 
 /* parse a function name specification - called from funcstat()
@@ -2355,7 +2372,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		if (testnext(ls, TK_FUNCTION))  /* local function? */
 			parse_local_function(parser);
 		else
-			parse_local_statement(parser);
+			stmt = parse_local_statement(parser);
 		break;
 	}
 	case TK_DBCOLON: {  /* stat -> label */
@@ -2534,7 +2551,6 @@ static const char* get_unary_opr_str(UnOpr op) {
 	default: return "";
 	}
 }
-
 
 static const char *get_binary_opr_str(BinOpr op) {
 	switch (op) {
