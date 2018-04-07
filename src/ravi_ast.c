@@ -1027,9 +1027,9 @@ enum ast_node_type {
 	AST_EXPR_STMT,
 	AST_LITERAL_EXPR,
 	AST_SYMBOL_EXPR,
-	AST_Y_INDEX_EXPR,
-	AST_FIELD_SELECTOR_EXPR,
-	AST_INDEXED_ASSIGN_EXPR,
+	AST_Y_INDEX_EXPR, // [] op
+	AST_FIELD_SELECTOR_EXPR, // table field
+	AST_INDEXED_ASSIGN_EXPR, // table value assign in table constructor
 	AST_SUFFIXED_EXPR,
 	AST_UNARY_EXPR,
 	AST_BINARY_EXPR,
@@ -1071,13 +1071,13 @@ struct ast_node {
 			ravitype_t type;
 			UnOpr unary_op;
 			struct ast_node *expr;
-		} unop_expr;
+		} unary_expr;
 		struct {
 			ravitype_t type;
 			BinOpr binary_op;
 			struct ast_node *exprleft;
 			struct ast_node *exprright;
-		} binop_expr;
+		} binary_expr;
 		struct {
 			ravitype_t type;
 			struct ast_node *parent_function; /* parent function or NULL if main chunk */
@@ -1087,13 +1087,13 @@ struct ast_node {
 		} function_expr; /* an expression whose result is a value of type function */
 		struct {
 			ravitype_t type;
-			struct ast_node *index_expr; /* If NULL means list field with next available index, else specfies index expression */
+			struct ast_node *index_expr; /* If NULL means this is a list field with next available index, else specfies index expression */
 			struct ast_node *value_expr;
-		} indexed_assign_expr;
+		} indexed_assign_expr; /* Assign values in table constructor */
 		struct {
 			ravitype_t type;
 			struct ast_node_list *expr_list;
-		} table_expr;
+		} table_expr; /* table constructor expression */
 		struct {
 			ravitype_t type;
 			struct ast_node *primary_expr;
@@ -1224,16 +1224,25 @@ static TString *check_name_and_next(LexState *ls) {
 	return ts;
 }
 
+/* Check that current token is a name, and advance */
+static TString *str_checkname(LexState *ls) {
+	TString *ts;
+	check(ls, TK_NAME);
+	ts = ls->t.seminfo.ts;
+	luaX_next(ls);
+	return ts;
+}
+
 
 /* create a new local variable in function scope, and set the
 * variable type (RAVI - added type tt) */
-static void new_localvar(struct parser_state *parser, TString *name) {
+static void new_localvar(struct parser_state *parser, TString *name, ravitype_t tt, TString *usertype) {
 }
 
 /* create a new local variable
 */
 static void new_localvarliteral_(struct parser_state *parser, const char *name, size_t sz) {
-	new_localvar(parser, luaX_newstring(parser->ls, name, sz));
+	new_localvar(parser, luaX_newstring(parser->ls, name, sz), RAVI_TANY, NULL);
 }
 
 /* create a new local variable
@@ -1522,40 +1531,88 @@ static struct ast_node *parse_table_constructor(struct parser_state *parser) {
 
 /* }====================================================================== */
 
+/*
+* We would like to allow user defined types to contain the sequence
+* NAME [. NAME]+
+* The initial NAME is supplied.
+* Returns extended name.
+* Note that the returned string will be anchored in the Lexer and must
+* be anchored somewhere else by the time parsing finishes
+*/
+static TString *user_defined_type_name(LexState *ls, TString *typename) {
+	char buffer[128];
+	size_t len = 0;
+	if (testnext(ls, '.')) {
+		char buffer[128] = { 0 };
+		const char *str = getstr(typename);
+		len = strlen(str);
+		if (len >= sizeof buffer) {
+			luaX_syntaxerror(ls, "User defined type name is too long");
+			return typename;
+		}
+		snprintf(buffer, sizeof buffer, "%s", str);
+		do {
+			typename = str_checkname(ls);
+			str = getstr(typename);
+			size_t newlen = len + strlen(str) + 1;
+			if (newlen >= sizeof buffer) {
+				luaX_syntaxerror(ls, "User defined type name is too long");
+				return typename;
+			}
+			snprintf(buffer + len, sizeof buffer - len, ".%s", str);
+			len = newlen;
+		} while (testnext(ls, '.'));
+		typename = luaX_newstring(ls, buffer, strlen(buffer));
+	}
+	return typename;
+}
+
 /* RAVI Parse
 *   name : type
 *   where type is 'integer', 'integer[]',
 *                 'number', 'number[]'
 */
-static void declare_local_variable(struct parser_state *parser) {
+static void declare_local_variable(struct parser_state *parser, TString **pusertype) {
 	LexState *ls = parser->ls;
+	/* assume a dynamic type */
+	ravitype_t tt = RAVI_TANY;
 	TString *name = check_name_and_next(ls);
 	if (testnext(ls, ':')) {
-		TString *typename = check_name_and_next(ls); /* we expect a type name */
+		TString *typename = str_checkname(ls); /* we expect a type name */
 		const char *str = getstr(typename);
 		/* following is not very nice but easy as
 		* the lexer doesn't need to be changed
 		*/
 		if (strcmp(str, "integer") == 0)
-			;
+			tt = RAVI_TNUMINT;
 		else if (strcmp(str, "number") == 0)
-			;
+			tt = RAVI_TNUMFLT;
 		else if (strcmp(str, "closure") == 0)
-			;
-		else if (strcmp(str, "userdata") == 0)
-			;
+			tt = RAVI_TFUNCTION;
 		else if (strcmp(str, "table") == 0)
-			;
+			tt = RAVI_TTABLE;
 		else if (strcmp(str, "string") == 0)
-			;
+			tt = RAVI_TSTRING;
 		else if (strcmp(str, "boolean") == 0)
-			;
-		/* if we see [] then it is an array type */
-		if (testnext(ls, '[')) {
-			checknext(ls, ']');
+			tt = RAVI_TBOOLEAN;
+		else if (strcmp(str, "any") == 0)
+			tt = RAVI_TANY;
+		else {
+			/* default is a userdata type */
+			tt = RAVI_TUSERDATA;
+			typename = user_defined_type_name(ls, typename);
+			str = getstr(typename);
+			*pusertype = typename;
+		}
+		if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
+			/* if we see [] then it is an array type */
+			if (testnext(ls, '[')) {
+				checknext(ls, ']');
+				tt = (tt == RAVI_TNUMFLT) ? RAVI_TARRAYFLT : RAVI_TARRAYINT;
+			}
 		}
 	}
-	new_localvar(parser, name);
+	new_localvar(parser, name, tt, *pusertype);
 }
 
 static void parse_parameter_list(struct parser_state *parser) {
@@ -1563,12 +1620,15 @@ static void parse_parameter_list(struct parser_state *parser) {
 	/* parlist -> [ param { ',' param } ] */
 	int nparams = 0;
 	int is_vararg = 0;
+	enum { N = MAXVARS + 10 };
+	int vars[N] = { 0 };
+	TString *typenames[N] = { NULL };
 	if (ls->t.token != ')') {  /* is 'parlist' not empty? */
 		do {
 			switch (ls->t.token) {
 			case TK_NAME: {  /* param -> NAME */
 							 /* RAVI change - add type */
-				declare_local_variable(parser);
+				declare_local_variable(parser, &typenames[nparams]);
 				nparams++;
 				break;
 			}
@@ -1795,6 +1855,9 @@ static UnOpr get_unary_opr(int op) {
 	case TK_TO_INTARRAY: return OPR_TO_INTARRAY;
 	case TK_TO_NUMARRAY: return OPR_TO_NUMARRAY;
 	case TK_TO_TABLE: return OPR_TO_TABLE;
+	case TK_TO_STRING: return OPR_TO_STRING;
+	case TK_TO_CLOSURE: return OPR_TO_CLOSURE;
+	case '@': return OPR_TO_TYPE;
 	default: return OPR_NOUNOPR;
 	}
 }
@@ -1860,15 +1923,24 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
 	uop = get_unary_opr(ls->t.token);
 	if (uop != OPR_NOUNOPR) {
 		int line = ls->linenumber;
-		luaX_next(ls);
+		// RAVI change - get usertype if @<name>
+		TString *usertype = NULL;
+		if (uop == OPR_TO_TYPE) {
+			usertype = ls->t.seminfo.ts;
+			luaX_next(ls);
+			// Check and expand to extended name if necessary
+			usertype = user_defined_type_name(ls, usertype);
+		}
+		else {
+			luaX_next(ls);
+		}
 		BinOpr ignored;
 		struct ast_node *subexpr = parse_sub_expression(parser, UNARY_PRIORITY, &ignored);
-
 		expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
 		expr->type = AST_UNARY_EXPR;
-		expr->unop_expr.expr = subexpr;
-		expr->unop_expr.type = subexpr->common_expr.type;
-		expr->unop_expr.unary_op = uop;
+		expr->unary_expr.expr = subexpr;
+		expr->unary_expr.type = subexpr->common_expr.type;
+		expr->unary_expr.unary_op = uop;
 	}
 	else {
 		expr = parse_simple_expression(parser);
@@ -1884,10 +1956,10 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
 
 		struct ast_node *binexpr = allocator_allocate(&parser->container->ast_node_allocator, 0);
 		binexpr->type = AST_BINARY_EXPR;
-		binexpr->binop_expr.exprleft = expr;
-		binexpr->binop_expr.exprright = exprright;
-		binexpr->binop_expr.binary_op = op;
-		binexpr->binop_expr.type = expr->common_expr.type; // FIXME - needs to be worked out
+		binexpr->binary_expr.exprleft = expr;
+		binexpr->binary_expr.exprright = exprright;
+		binexpr->binary_expr.binary_op = op;
+		binexpr->binary_expr.type = expr->common_expr.type; // FIXME - needs to be worked out
 		expr = binexpr; // Becomes the left expr for next iteration
 		op = nextop;
 	}
@@ -2048,7 +2120,7 @@ static void parse_fornum_statement(struct parser_state *parser, TString *varname
 	new_localvarliteral(parser, "(for index)");
 	new_localvarliteral(parser, "(for limit)");
 	new_localvarliteral(parser, "(for step)");
-	new_localvar(parser, varname);
+	new_localvar(parser, varname, RAVI_TANY, NULL);
 	/* The fornum sets up its own variables as above.
 	These are expected to hold numeric values - but from Ravi's
 	point of view we need to know if the variable is an integer or
@@ -2081,9 +2153,9 @@ static void parse_for_list(struct parser_state *parser, TString *indexname) {
 	new_localvarliteral(parser, "(for state)");
 	new_localvarliteral(parser, "(for control)");
 	/* create declared variables */
-	new_localvar(parser, indexname); /* RAVI TODO for name:type syntax? */
+	new_localvar(parser, indexname, RAVI_TANY, NULL); /* RAVI TODO for name:type syntax? */
 	while (testnext(ls, ',')) {
-		new_localvar(parser, check_name_and_next(ls)); /* RAVI change - add type */
+		new_localvar(parser, check_name_and_next(ls), RAVI_TANY, NULL); /* RAVI change - add type */
 		nvars++;
 	}
 	checknext(ls, TK_IN);
@@ -2147,7 +2219,7 @@ static void parse_if_statement(struct parser_state *parser, int line) {
 /* parse a local function statement - called from statement() */
 static void parse_local_function(struct parser_state *parser) {
 	LexState *ls = parser->ls;
-	new_localvar(parser, check_name_and_next(ls));  /* new local variable */
+	new_localvar(parser, check_name_and_next(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
 	adjustlocalvars(parser, 1);  /* enter its scope */
 	parse_function_body(parser, 0, ls->linenumber);  /* function created in next register */
 }
@@ -2158,9 +2230,17 @@ static void parse_local_statement(struct parser_state *parser) {
 	/* stat -> LOCAL NAME {',' NAME} ['=' explist] */
 	int nvars = 0;
 	int nexps;
+	/* RAVI while declaring locals we need to gather the types
+	* so that we can check any assignments later on.
+	* TODO we may be able to use register_typeinfo() here
+	* instead.
+	*/
+	enum { N = MAXVARS + 10 };
+	int vars[N] = { 0 };
+	TString *usertypes[N] = { NULL };
 	do {
 		/* local name : type = value */
-		declare_local_variable(parser);
+		declare_local_variable(parser, &usertypes[nvars]);
 		nvars++;
 		if (nvars >= MAXVARS)
 			luaX_syntaxerror(ls, "too many local variables");
@@ -2448,6 +2528,9 @@ static const char* get_unary_opr_str(UnOpr op) {
 	case OPR_TO_INTARRAY: return "@integer[]";
 	case OPR_TO_NUMARRAY: return "@number[]";
 	case OPR_TO_TABLE: return "@table";
+	case OPR_TO_CLOSURE: return "@closure";
+	case OPR_TO_STRING: return "@string";
+	case OPR_TO_TYPE: return "@<usertype>";
 	default: return "";
 	}
 }
@@ -2511,16 +2594,16 @@ static void print_ast_node(struct ast_node *node, int level)
 	}
 	case AST_BINARY_EXPR: {
 		printf("%.*s--[binary op start]\n", level, PADDING);
-		printf("%.*s%s\n", level, PADDING, get_binary_opr_str(node->binop_expr.binary_op));
-		print_ast_node(node->binop_expr.exprleft, level+1);
-		print_ast_node(node->binop_expr.exprright, level+1);
+		printf("%.*s%s\n", level, PADDING, get_binary_opr_str(node->binary_expr.binary_op));
+		print_ast_node(node->binary_expr.exprleft, level+1);
+		print_ast_node(node->binary_expr.exprright, level+1);
 		printf("%.*s--[binary op end]\n", level, PADDING);
 		break;
 	}
 	case AST_UNARY_EXPR: {
 		printf("%.*s--[unary op start]\n", level, PADDING);
-		printf("%.*s%s\n", level, PADDING, get_unary_opr_str(node->unop_expr.unary_op));
-		print_ast_node(node->unop_expr.expr, level+1);
+		printf("%.*s%s\n", level, PADDING, get_unary_opr_str(node->unary_expr.unary_op));
+		print_ast_node(node->unary_expr.expr, level+1);
 		printf("%.*s--[unary op end]\n", level, PADDING);
 		break;
 	}
@@ -2551,9 +2634,11 @@ static void print_ast_node(struct ast_node *node, int level)
 	}
 	case AST_INDEXED_ASSIGN_EXPR: {
 		printf("%.*s--[indexed assign start]\n", level, PADDING);
-		printf("%.*s--[index start]\n", level, PADDING);
-		print_ast_node(node->indexed_assign_expr.index_expr, level + 1);
-		printf("%.*s--[index end]\n", level, PADDING);
+		if (node->indexed_assign_expr.index_expr) {
+			printf("%.*s--[index start]\n", level, PADDING);
+			print_ast_node(node->indexed_assign_expr.index_expr, level + 1);
+			printf("%.*s--[index end]\n", level, PADDING);
+		}
 		printf("%.*s--[value start]\n", level, PADDING);
 		print_ast_node(node->indexed_assign_expr.value_expr, level + 1);
 		printf("%.*s--[value end]\n", level, PADDING);
