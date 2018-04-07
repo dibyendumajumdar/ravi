@@ -1031,7 +1031,6 @@ enum ast_node_type {
 	AST_FIELD_SELECTOR_EXPR,
 	AST_INDEXED_ASSIGN_EXPR,
 	AST_SUFFIXED_EXPR,
-	AST_SIMPLE_EXPR,
 	AST_UNARY_EXPR,
 	AST_BINARY_EXPR,
 	AST_FUNCTION_EXPR,
@@ -2538,19 +2537,33 @@ static void print_ast_node(struct ast_node *node, int level)
 		printf("\n");
 		break;
 	}
-	case AST_SIMPLE_EXPR: {
-		break;
-	}
 	case AST_FIELD_SELECTOR_EXPR: {
-		break;
-	}
-	case AST_INDEXED_ASSIGN_EXPR: {
-		break;
-	}
-	case AST_TABLE_EXPR: {
+		printf("%.*s--[field selector start]\n", level, PADDING);
+		print_ast_node(node->index_expr.expr, level + 1);
+		printf("%.*s--[field selector end]\n", level, PADDING);
 		break;
 	}
 	case AST_Y_INDEX_EXPR: {
+		printf("%.*s[--[Y index start]\n", level, PADDING);
+		print_ast_node(node->index_expr.expr, level + 1);
+		printf("%.*s]--[Y index end]\n", level, PADDING);
+		break;
+	}
+	case AST_INDEXED_ASSIGN_EXPR: {
+		printf("%.*s--[indexed assign start]\n", level, PADDING);
+		printf("%.*s--[index start]\n", level, PADDING);
+		print_ast_node(node->indexed_assign_expr.index_expr, level + 1);
+		printf("%.*s--[index end]\n", level, PADDING);
+		printf("%.*s--[value start]\n", level, PADDING);
+		print_ast_node(node->indexed_assign_expr.value_expr, level + 1);
+		printf("%.*s--[value end]\n", level, PADDING);
+		printf("%.*s--[indexed assign end]\n", level, PADDING);
+		break;
+	}
+	case AST_TABLE_EXPR: {
+		printf("%.*s{ --[table constructor start]\n", level, PADDING);
+		print_ast_node_list(node->table_expr.expr_list, level + 1, ",");
+		printf("%.*s} --[table constructor end]\n", level, PADDING);
 		break;
 	}
 	default:
