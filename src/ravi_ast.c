@@ -1241,7 +1241,7 @@ static struct symbol* new_local_symbol(struct parser_state *parser, TString *nam
 	symbol->value_type = tt;
 	symbol->symbol_type = SYM_LOCAL;
 	symbol->var.block = scope;
-	symbol->var.var_name;
+	symbol->var.var_name = name;
 	add_symbol(parser->container, &scope->symbol_list, symbol); // Add to the end of the symbol list
 	// Note that Lua allows multiple local declarations of the same name
 	// so a new instance just gets added to the end
@@ -2534,6 +2534,18 @@ static void print_symbol(struct symbol *sym, int level) {
 	}
 }
 
+static void print_symbol_list(struct symbol_list *list, int level, const char *delimiter) {
+	struct symbol *node;
+	bool is_first = true;
+	FOR_EACH_PTR(list, node) {
+		if (is_first)
+			is_first = false;
+		else if (delimiter)
+			printf("%.*s%s\n", level, PADDING, delimiter);
+		print_symbol(node, level + 1);
+	} END_FOR_EACH_PTR(node);
+}
+
 static const char* get_unary_opr_str(UnOpr op) {
 	switch (op) {
 	case OPR_NOT: return "not";
@@ -2591,6 +2603,16 @@ static void print_ast_node(struct ast_node *node, int level)
 	case AST_RETURN_STMT: {
 		printf("%.*sreturn\n", level, PADDING);
 		print_ast_node_list(node->return_stmt.exprlist, level+1, ",");
+		break;
+	}
+	case AST_LOCAL_STMT: {
+		printf("%.*slocal\n", level, PADDING);
+		printf("%.*s--[symbols]\n", level, PADDING);
+		print_symbol_list(node->local_stmt.vars, level + 1, ",");
+		if (node->local_stmt.exprlist) {
+			printf("%.*s--[expressions]\n", level, PADDING);
+			print_ast_node_list(node->local_stmt.exprlist, level + 1, ",");
+		}
 		break;
 	}
 	case AST_SUFFIXED_EXPR: {
