@@ -58,6 +58,12 @@ void membuff_add_fstring(membuff_t *mb, const char *fmt, ...) {
   if (n < 0) { abort(); }
   membuff_add_string(mb, buffer);
 }
+void membuff_add_vfstring(membuff_t *mb, const char *fmt, va_list args) {
+	char buffer[1024];
+	int n = vsnprintf(buffer, sizeof buffer, fmt, args);
+	if (n < 0) { abort(); }
+	membuff_add_string(mb, buffer);
+}
 void membuff_add_bool(membuff_t *mb, bool value) {
   if (value)
     membuff_add_string(mb, "true");
