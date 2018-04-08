@@ -1054,6 +1054,12 @@ struct ast_node {
 			struct ast_node_list *exprlist;
 		} local_stmt;
 		struct {
+			struct ast_node *name; // base symbol to be looked up
+			struct ast_node_list *selectors; // Optional
+			struct ast_node *methodname; // Optional 
+			struct ast_node *function_expr; // Function's AST
+		} function_stmt;
+		struct {
 			struct literal literal;
 		} literal_expr;
 		struct {
@@ -2287,29 +2293,35 @@ static struct ast_node * parse_local_statement(struct parser_state *parser) {
 /* parse a function name specification - called from funcstat()
 * returns boolean value - true if function is a method
 */
-static int parse_function_name(struct parser_state *parser) {
+static struct ast_node * parse_function_name(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* funcname -> NAME {fieldsel} [':' NAME] */
-	int ismethod = 0;
-	singlevar(parser);
-	while (ls->t.token == '.')
-		parse_field_selector(parser);
-	if (ls->t.token == ':') {
-		ismethod = 1;
-		parse_field_selector(parser);
+	struct ast_node *function_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	function_stmt->type = AST_FUNCTION_STMT;
+	function_stmt->function_stmt.function_expr = NULL;
+	function_stmt->function_stmt.methodname = NULL;
+	function_stmt->function_stmt.selectors = NULL;
+	function_stmt->function_stmt.name = singlevar(parser);
+	while (ls->t.token == '.') {
+		add_ast_node(parser->container, &function_stmt->function_stmt.selectors, parse_field_selector(parser));
 	}
-	return ismethod;
+	if (ls->t.token == ':') {
+		function_stmt->function_stmt.methodname = parse_field_selector(parser);
+	}
+	return function_stmt;
 }
 
 /* parse a function statement - called from statement() */
-static void parse_function_statement(struct parser_state *parser, int line) {
+static struct ast_node * parse_function_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* funcstat -> FUNCTION funcname body */
-	int ismethod;
 	luaX_next(ls); /* skip FUNCTION */
-	ismethod = parse_function_name(parser);
+	struct ast_node *function_stmt = parse_function_name(parser);
+	int ismethod = function_stmt->function_stmt.methodname != NULL;
 	struct ast_node *function_ast = new_function(parser);
 	parse_function_body(parser, function_ast, ismethod, line);
+	function_stmt->function_stmt.function_expr = function_ast;
+	return function_stmt;
 }
 
 
@@ -2360,7 +2372,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		break;
 	}
 	case TK_WHILE: {  /* stat -> whilestat */
-		parse_while_statement(parser, line); 
+		parse_while_statement(parser, line);
 		break;
 	}
 	case TK_DO: {  /* stat -> DO block END */
@@ -2378,7 +2390,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		break;
 	}
 	case TK_FUNCTION: {  /* stat -> funcstat */
-		parse_function_statement(parser, line);
+		stmt = parse_function_statement(parser, line);
 		break;
 	}
 	case TK_LOCAL: {  /* stat -> localstat */
@@ -2616,7 +2628,7 @@ static void print_ast_node(struct ast_node *node, int level)
 	}
 	case AST_RETURN_STMT: {
 		printf("%.*sreturn\n", level, PADDING);
-		print_ast_node_list(node->return_stmt.exprlist, level+1, ",");
+		print_ast_node_list(node->return_stmt.exprlist, level + 1, ",");
 		break;
 	}
 	case AST_LOCAL_STMT: {
@@ -2629,33 +2641,47 @@ static void print_ast_node(struct ast_node *node, int level)
 		}
 		break;
 	}
+	case AST_FUNCTION_STMT: {
+		print_ast_node(node->function_stmt.name, level);
+		if (node->function_stmt.selectors) {
+			printf("%.*s--[selectors]\n", level + 1, PADDING);
+			print_ast_node_list(node->function_stmt.selectors, level + 2, NULL);
+		}
+		if (node->function_stmt.methodname) {
+			printf("%.*s--[method name]\n", level + 1, PADDING);
+			print_ast_node(node->function_stmt.methodname, level + 2);
+		}
+		printf("%.*s=\n", level + 1, PADDING);
+		print_ast_node(node->function_stmt.function_expr, level + 2);
+		break;
+	}
 	case AST_SUFFIXED_EXPR: {
 		printf("%.*s--[primary start]\n", level, PADDING);
-		print_ast_node(node->suffixed_expr.primary_expr, level+1);
+		print_ast_node(node->suffixed_expr.primary_expr, level + 1);
 		printf("%.*s--[end primary]\n", level, PADDING);
 		if (node->suffixed_expr.suffix_list) {
 			printf("%.*s--[suffix list start]\n", level, PADDING);
-			print_ast_node_list(node->suffixed_expr.suffix_list, level+1, NULL);
+			print_ast_node_list(node->suffixed_expr.suffix_list, level + 1, NULL);
 			printf("%.*s--[end suffix list]\n", level, PADDING);
 		}
 		break;
 	}
 	case AST_SYMBOL_EXPR: {
-		print_symbol(node->symbol_expr.var, level+1);
+		print_symbol(node->symbol_expr.var, level + 1);
 		break;
 	}
 	case AST_BINARY_EXPR: {
 		printf("%.*s--[binary op start]\n", level, PADDING);
 		printf("%.*s%s\n", level, PADDING, get_binary_opr_str(node->binary_expr.binary_op));
-		print_ast_node(node->binary_expr.exprleft, level+1);
-		print_ast_node(node->binary_expr.exprright, level+1);
+		print_ast_node(node->binary_expr.exprleft, level + 1);
+		print_ast_node(node->binary_expr.exprright, level + 1);
 		printf("%.*s--[binary op end]\n", level, PADDING);
 		break;
 	}
 	case AST_UNARY_EXPR: {
 		printf("%.*s--[unary op start]\n", level, PADDING);
 		printf("%.*s%s\n", level, PADDING, get_unary_opr_str(node->unary_expr.unary_op));
-		print_ast_node(node->unary_expr.expr, level+1);
+		print_ast_node(node->unary_expr.expr, level + 1);
 		printf("%.*s--[unary op end]\n", level, PADDING);
 		break;
 	}
