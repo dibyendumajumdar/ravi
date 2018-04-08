@@ -2234,13 +2234,19 @@ static void parse_if_statement(struct parser_state *parser, int line) {
 }
 
 /* parse a local function statement - called from statement() */
-static void parse_local_function(struct parser_state *parser) {
+static struct ast_node *parse_local_function(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	struct symbol *symbol = new_local_symbol(parser, check_name_and_next(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
 	struct ast_node *function_ast = new_function(parser);
 	adjustlocalvars(parser, 1);  /* enter its scope */
 	parse_function_body(parser, function_ast, 0, ls->linenumber);  /* function created in next register */
-	// TODO assignment
+	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	stmt->type = AST_LOCAL_STMT;
+	stmt->local_stmt.vars = NULL;
+	stmt->local_stmt.exprlist = NULL;
+	add_symbol(parser->container, &stmt->local_stmt.vars, symbol);
+	add_ast_node(parser->container, &stmt->local_stmt.exprlist, function_ast);
+	return stmt;
 }
 
 /* parse a local variable declaration statement - called from statement() */
@@ -2354,7 +2360,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		break;
 	}
 	case TK_WHILE: {  /* stat -> whilestat */
-		parse_while_statement(parser, line);
+		parse_while_statement(parser, line); 
 		break;
 	}
 	case TK_DO: {  /* stat -> DO block END */
@@ -2378,7 +2384,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 	case TK_LOCAL: {  /* stat -> localstat */
 		luaX_next(ls);  /* skip LOCAL */
 		if (testnext(ls, TK_FUNCTION))  /* local function? */
-			parse_local_function(parser);
+			stmt = parse_local_function(parser);
 		else
 			stmt = parse_local_statement(parser);
 		break;
@@ -2534,7 +2540,8 @@ static void print_symbol(struct symbol *sym, int level) {
 		break;
 	}
 	case SYM_UPVALUE: {
-		assert(0);
+		printf("%.*s%s --[up-value]\n", level, PADDING, getstr(sym->upvalue.var->var.var_name));
+		break;
 	}
 	default:
 		assert(0);
