@@ -1150,10 +1150,13 @@ static int collect_ast_container(lua_State *L) {
 	return 0;
 }
 
+/* forward declarations */
 static struct ast_node *parse_expression(struct parser_state *);
 static void parse_statement_list(struct parser_state *, struct ast_node_list **list);
 static struct ast_node *parse_statement(struct parser_state *);
 static struct ast_node *new_function(struct parser_state *parser);
+static struct block_scope *new_scope(struct parser_state *parser);
+static void end_scope(struct parser_state *parser);
 
 static l_noret error_expected(LexState *ls, int token) {
 	luaX_syntaxerror(ls,
@@ -2010,7 +2013,9 @@ static struct ast_node *parse_expression(struct parser_state *parser) {
 
 static void parse_block(struct parser_state *parser) {
 	/* block -> statlist */
+	new_scope(parser);
 	parse_statement_list(parser, &parser->current_scope->statement_list);
+	end_scope(parser);
 }
 
 /* parse assignment (not part of local statement) - for each variable
@@ -2091,9 +2096,11 @@ static void parse_while_statement(struct parser_state *parser, int line) {
 	int condexit;
 	luaX_next(ls);  /* skip WHILE */
 	parse_condition(parser);
+	new_scope(parser);
 	checknext(ls, TK_DO);
 	parse_block(parser);
 	check_match(ls, TK_END, TK_WHILE, line);
+	end_scope(parser);
 }
 
 /* parse a repeat-until control structure, body parsed by statlist()
@@ -2103,9 +2110,13 @@ static void parse_repeat_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* repeatstat -> REPEAT block UNTIL cond */
 	luaX_next(ls);  /* skip REPEAT */
+	new_scope(parser); /* loop block */
+	new_scope(parser); /* scope block */
 	parse_statement_list(parser, &parser->current_scope->statement_list);
 	check_match(ls, TK_UNTIL, TK_REPEAT, line);
 	parse_condition(parser);  /* read condition (inside scope block) */
+	end_scope(parser);
+	end_scope(parser);
 }
 
 /* parse the single expressions needed in numerical for loops
@@ -2130,8 +2141,10 @@ static void parse_forbody(struct parser_state *parser, int line, int nvars, int 
 	int prep, endfor;
 	adjustlocalvars(parser, 3);  /* control variables */
 	checknext(ls, TK_DO);
+	new_scope(parser);
 	adjustlocalvars(parser, nvars);
 	parse_block(parser);
+	end_scope(parser);
 }
 
 /* parse a numerical for loop, calls forbody()
@@ -2193,6 +2206,7 @@ static void parse_for_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* forstat -> FOR (fornum | forlist) END */
 	TString *varname;
+	new_scope(parser);
 	luaX_next(ls);  /* skip 'for' */
 	varname = check_name_and_next(ls);  /* first variable name */
 	switch (ls->t.token) {
@@ -2201,6 +2215,7 @@ static void parse_for_statement(struct parser_state *parser, int line) {
 	default: luaX_syntaxerror(ls, "'=' or 'in' expected");
 	}
 	check_match(ls, TK_END, TK_FOR, line);
+	end_scope(parser);
 }
 
 /* parse if cond then block - called from ifstat() */
@@ -2212,9 +2227,11 @@ static void parse_if_cond_then_block(struct parser_state *parser, int *escapelis
 	parse_expression(parser);  /* read condition */
 	checknext(ls, TK_THEN);
 	if (ls->t.token == TK_GOTO || ls->t.token == TK_BREAK) {
+		new_scope(parser);
 		parse_goto_statment(parser);  /* handle goto/break */
 		skip_noop_statements(parser);  /* skip other no-op statements */
 		if (block_follow(ls, 0)) {  /* 'goto' is the entire block? */
+			end_scope(parser);
 			return;  /* and that is it */
 		}
 		else  /* must skip over 'then' part if condition is false */
@@ -2222,8 +2239,10 @@ static void parse_if_cond_then_block(struct parser_state *parser, int *escapelis
 	}
 	else {  /* regular case (not goto/break) */
 		//jf = v.f;
+		new_scope(parser);
 	}
 	parse_statement_list(parser, &parser->current_scope->statement_list);  /* 'then' part */
+	end_scope(parser);
 }
 
 /* parse an if control structure - called from statement() */
