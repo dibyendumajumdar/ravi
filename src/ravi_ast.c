@@ -1147,6 +1147,7 @@ static int collect_ast_container(lua_State *L) {
 static struct ast_node *parse_expression(struct parser_state *);
 static void parse_statement_list(struct parser_state *, struct ast_node_list **list);
 static struct ast_node *parse_statement(struct parser_state *);
+static struct ast_node *new_function(struct parser_state *parser);
 
 static l_noret error_expected(LexState *ls, int token) {
 	luaX_syntaxerror(ls,
@@ -1272,6 +1273,9 @@ struct symbol *search_for_variable_in_block(struct block_scope *scope, const TSt
 	// Lookup in reverse order so that we discover the 
 	// most recently added local symbol - as Lua allows same
 	// symbol to be declared local more than once in a scope
+	// Should also work with nesting as the function when parsed
+	// will only know about vars declared in parent function until
+	// now.
 	FOR_EACH_PTR_REVERSE(scope->symbol_list, symbol) {
 		switch (symbol->symbol_type) {
 		case SYM_LOCAL: {
@@ -1657,7 +1661,7 @@ static void parse_parameter_list(struct parser_state *parser) {
 }
 
 
-static void parse_function_body(struct parser_state *parser, int ismethod, int line) {
+static void parse_function_body(struct parser_state *parser, struct ast_node *func_ast, int ismethod, int line) {
 	LexState *ls = parser->ls;
 	/* body ->  '(' parlist ')' block END */
 	checknext(ls, '(');
@@ -1844,8 +1848,9 @@ static struct ast_node *parse_simple_expression(struct parser_state *parser) {
 	}
 	case TK_FUNCTION: {
 		luaX_next(ls);
-		parse_function_body(parser, 0, ls->linenumber);
-		return NULL; // Not handled yet
+		struct ast_node *function_ast = new_function(parser);
+		parse_function_body(parser, function_ast, 0, ls->linenumber);
+		return function_ast;
 	}
 	default: {
 		return parse_suffixed_expression(parser);
@@ -2231,9 +2236,11 @@ static void parse_if_statement(struct parser_state *parser, int line) {
 /* parse a local function statement - called from statement() */
 static void parse_local_function(struct parser_state *parser) {
 	LexState *ls = parser->ls;
-	new_local_symbol(parser, check_name_and_next(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
+	struct symbol *symbol = new_local_symbol(parser, check_name_and_next(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
+	struct ast_node *function_ast = new_function(parser);
 	adjustlocalvars(parser, 1);  /* enter its scope */
-	parse_function_body(parser, 0, ls->linenumber);  /* function created in next register */
+	parse_function_body(parser, function_ast, 0, ls->linenumber);  /* function created in next register */
+	// TODO assignment
 }
 
 /* parse a local variable declaration statement - called from statement() */
@@ -2295,7 +2302,8 @@ static void parse_function_statement(struct parser_state *parser, int line) {
 	int ismethod;
 	luaX_next(ls); /* skip FUNCTION */
 	ismethod = parse_function_name(parser);
-	parse_function_body(parser, ismethod, line);
+	struct ast_node *function_ast = new_function(parser);
+	parse_function_body(parser, function_ast, ismethod, line);
 }
 
 
@@ -2428,7 +2436,6 @@ static struct block_scope *new_scope(struct parser_state *parser) {
 	scope->statement_list = NULL;
 	scope->function = parser->current_function;
 	assert(scope->function && scope->function->type == AST_FUNCTION_EXPR);
-	assert(parser->current_scope == NULL || parser->current_scope->function == scope->function);
 	scope->parent = parser->current_scope;
 	parser->current_scope = scope;
 	if (!parser->current_function->function_expr.main_block)
@@ -2597,7 +2604,7 @@ static void print_ast_node(struct ast_node *node, int level)
 	case AST_FUNCTION_EXPR: {
 		printf("%.*sfunction()\n", level, PADDING);
 		print_block_scope(node->function_expr.main_block, level);
-		printf("%.*send\n", level, "");
+		printf("%.*send\n", level, PADDING);
 		break;
 	}
 	case AST_RETURN_STMT: {
