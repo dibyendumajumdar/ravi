@@ -1088,11 +1088,13 @@ struct ast_node {
 		} binary_expr;
 		struct {
 			ravitype_t type;
+			unsigned int is_vararg : 1;
+			unsigned int is_method : 1;
 			struct ast_node *parent_function; /* parent function or NULL if main chunk */
-			struct block_scope *main_block; /* the function's blocks */
+			struct block_scope *main_block; /* the function's main block */
 			struct symbol_list *args; /* arguments, also must be part of the function block's symbol list */
 			struct ast_node_list *child_functions; /* child functions declared in this function */
-		} function_expr; /* an expression whose result is a value of type function */
+		} function_expr; /* a literal expression whose result is a value of type function */
 		struct {
 			ravitype_t type;
 			struct ast_node *index_expr; /* If NULL means this is a list field with next available index, else specfies index expression */
@@ -1683,7 +1685,9 @@ static void parse_function_body(struct parser_state *parser, struct ast_node *fu
 		add_symbol(parser->container, &func_ast->function_expr.args, symbol);
 		adjustlocalvars(parser, 1);
 	}
-	parse_parameter_list(parser, &func_ast->function_expr.args);
+	bool is_vararg = parse_parameter_list(parser, &func_ast->function_expr.args);
+	func_ast->function_expr.is_vararg = is_vararg;
+	func_ast->function_expr.is_method = ismethod;
 	checknext(ls, ')');
 	parse_statement_list(parser, &parser->current_scope->statement_list);
 	check_match(ls, TK_END, TK_FUNCTION, line);
@@ -2501,6 +2505,8 @@ static struct ast_node *new_function(struct parser_state *parser) {
 	struct ast_node *node = allocator_allocate(&container->ast_node_allocator, 0);
 	node->type = AST_FUNCTION_EXPR;
 	node->function_expr.type = RAVI_TFUNCTION;
+	node->function_expr.is_method = false;
+	node->function_expr.is_vararg = false;
 	node->function_expr.args = NULL;
 	node->function_expr.child_functions = NULL;
 	node->function_expr.main_block = NULL;
@@ -2532,6 +2538,7 @@ static struct ast_node *end_function(struct parser_state *parser) {
 static void parse_chunk(struct parser_state *parser) {
 	luaX_next(parser->ls); /* read first token */
 	parser->container->main_function = new_function(parser);
+	parser->container->main_function->function_expr.is_vararg = true;
 	parse_statement_list(parser, &parser->current_scope->statement_list);
 	end_function(parser);
 	check(parser->ls, TK_EOS);
@@ -2544,22 +2551,6 @@ static void parser_state_init(struct parser_state *parser, LexState *ls, struct 
 	parser->current_node = NULL;
 	parser->current_scope = NULL;
 }
-
-#if 0
-static void print_buf(membuff_t *buf, int level,
-	const char *fmt, ...) {
-	va_list args;
-	va_start(args, fmt);
-	if (level > 0) {
-		char tbuf[512];
-		static const char *PADDING = "                                                                                ";
-		snprintf(tbuf, sizeof tbuf, "%.*s", level, PADDING);
-		membuff_add_string(buf, tbuf);
-	}
-	membuff_add_vfstring(buf, fmt, args);
-	va_end(args);
-}
-#endif
 
 static void printf_buf(membuff_t *buf, const char *format, ...) {
 	static const char *PADDING = "                                                                                ";
@@ -2865,6 +2856,7 @@ static int parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 	LexState lexstate;
 	lexstate.h = luaH_new(L);         /* create table for scanner */
 	sethvalue(L, L->top, lexstate.h);
+	luaD_inctop(L);
 	setuservalue(L, uvalue(cvalue), L->top); /* set the table as container's uservalue */
 	TString *src = luaS_new(L, name); /* create and anchor TString */
 	setsvalue(L, L->top, src);
@@ -2875,9 +2867,10 @@ static int parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 	struct parser_state parser_state;
 	parser_state_init(&parser_state, &lexstate, container);
 	lua_lock(L); // Workaround for ZIO (used by lexer) which assumes lua_lock()
-	parse_chunk(&parser_state);
+	parse_chunk(&parser_state); // FIXME must be protected call
 	lua_unlock(L);
 	L->top--; /* remove source name */
+	L->top--; /* remove scanner table */
 	assert(cvalue == L->top - 1);
 	return 0; /* OK */
 }
