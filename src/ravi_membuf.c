@@ -80,3 +80,7 @@ void membuff_add_longlong(membuff_t *mb, int64_t value) {
   snprintf(temp, sizeof temp, "%" PRId64 "", value);
   membuff_add_string(mb, temp);
 }
+void membuff_add_char(membuff_t *mb, char c) {
+	char temp[2] = { c, '\0' };
+	membuff_add_string(mb, temp);
+}

@@ -1262,8 +1262,8 @@ static struct symbol* new_local_symbol(struct parser_state *parser, TString *nam
 
 /* create a new local variable
 */
-static void new_localvarliteral_(struct parser_state *parser, const char *name, size_t sz) {
-	new_local_symbol(parser, luaX_newstring(parser->ls, name, sz), RAVI_TANY, NULL);
+static struct symbol* new_localvarliteral_(struct parser_state *parser, const char *name, size_t sz) {
+	return new_local_symbol(parser, luaX_newstring(parser->ls, name, sz), RAVI_TANY, NULL);
 }
 
 /* create a new local variable
@@ -1642,11 +1642,11 @@ static struct symbol * declare_local_variable(struct parser_state *parser, TStri
 	return new_local_symbol(parser, name, tt, *pusertype);
 }
 
-static void parse_parameter_list(struct parser_state *parser) {
+static bool parse_parameter_list(struct parser_state *parser, struct symbol_list **list) {
 	LexState *ls = parser->ls;
 	/* parlist -> [ param { ',' param } ] */
 	int nparams = 0;
-	int is_vararg = 0;
+	bool is_vararg = false;
 	enum { N = MAXVARS + 10 };
 	int vars[N] = { 0 };
 	TString *typenames[N] = { NULL };
@@ -1655,13 +1655,14 @@ static void parse_parameter_list(struct parser_state *parser) {
 			switch (ls->t.token) {
 			case TK_NAME: {  /* param -> NAME */
 							 /* RAVI change - add type */
-				declare_local_variable(parser, &typenames[nparams]);
+				struct symbol *symbol = declare_local_variable(parser, &typenames[nparams]);
+				add_symbol(parser->container, list, symbol);
 				nparams++;
 				break;
 			}
 			case TK_DOTS: {  /* param -> '...' */
 				luaX_next(ls);
-				is_vararg = 1;  /* declared vararg */
+				is_vararg = true;  /* declared vararg */
 				break;
 			}
 			default: luaX_syntaxerror(ls, "<name> or '...' expected");
@@ -1669,6 +1670,7 @@ static void parse_parameter_list(struct parser_state *parser) {
 		} while (!is_vararg && testnext(ls, ','));
 	}
 	adjustlocalvars(parser, nparams);
+	return is_vararg;
 }
 
 
@@ -1677,10 +1679,11 @@ static void parse_function_body(struct parser_state *parser, struct ast_node *fu
 	/* body ->  '(' parlist ')' block END */
 	checknext(ls, '(');
 	if (ismethod) {
-		new_localvarliteral(parser, "self");  /* create 'self' parameter */
+		struct symbol *symbol = new_localvarliteral(parser, "self");  /* create 'self' parameter */
+		add_symbol(parser->container, &func_ast->function_expr.args, symbol);
 		adjustlocalvars(parser, 1);
 	}
-	parse_parameter_list(parser);
+	parse_parameter_list(parser, &func_ast->function_expr.args);
 	checknext(ls, ')');
 	parse_statement_list(parser, &parser->current_scope->statement_list);
 	check_match(ls, TK_END, TK_FUNCTION, line);
@@ -2542,8 +2545,8 @@ static void parser_state_init(struct parser_state *parser, LexState *ls, struct 
 	parser->current_scope = NULL;
 }
 
-
-static void print_buf(membuff_t *buf, int level, 
+#if 0
+static void print_buf(membuff_t *buf, int level,
 	const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
@@ -2556,6 +2559,64 @@ static void print_buf(membuff_t *buf, int level,
 	membuff_add_vfstring(buf, fmt, args);
 	va_end(args);
 }
+#endif
+
+static void printf_buf(membuff_t *buf, const char *format, ...) {
+	static const char *PADDING = "                                                                                ";
+	char tbuf[80] = { 0 };
+	va_list ap;
+	const char *cp;
+	va_start(ap, format);
+	for (cp = format; *cp; cp++) {
+		if (cp[0] == '%' && cp[1] == 'p') {
+			int level = va_arg(ap, int);
+			snprintf(tbuf, sizeof tbuf, "%.*s", level, PADDING);
+			membuff_add_string(buf, tbuf);
+			cp++;
+		}
+		else if (cp[0] == '%' && cp[1] == 't') {
+			const TString *ts;
+			ts = va_arg(ap, const TString *);
+			const char *s = getstr(ts);
+			membuff_add_string(buf, s);
+			cp++;
+		}
+		else if (cp[0] == '%' && cp[1] == 's') {
+			const char *s;
+			s = va_arg(ap, const char *);
+			membuff_add_string(buf, s);
+			cp++;
+		}
+		else if (cp[0] == '%' && cp[1] == 'c') {
+			const char *s;
+			s = va_arg(ap, const char *);
+			membuff_add_fstring(buf, "--[%s]", s);
+			cp++;
+		}
+		else if (cp[0] == '%' && cp[1] == 'i') {
+			lua_Integer i;
+			i = va_arg(ap, lua_Integer);
+			membuff_add_longlong(buf, i);
+			cp++;
+		}
+		else if (cp[0] == '%' && cp[1] == 'f') {
+			double d;
+			d = va_arg(ap, double);
+			membuff_add_fstring(buf, "%.16f", d);
+			cp++;
+		}
+		else if (cp[0] == '%' && cp[1] == 'b') {
+			lua_Integer i;
+			i = va_arg(ap, lua_Integer);
+			membuff_add_bool(buf, i != 0);
+			cp++;
+		}
+		else {
+			membuff_add_char(buf, *cp);
+		}
+	}
+	va_end(ap);
+}
 
 static void print_ast_node(membuff_t *buf, struct ast_node *node, int level);
 
@@ -2566,7 +2627,7 @@ static void print_ast_node_list(membuff_t *buf, struct ast_node_list *list, int 
 		if (is_first)
 			is_first = false;
 		else if (delimiter)
-			print_buf(buf, level, "%s\n", delimiter);
+			printf_buf(buf, "%p%s\n", level, delimiter);
 		print_ast_node(buf, node, level + 1);
 	} END_FOR_EACH_PTR(node);
 }
@@ -2578,15 +2639,15 @@ static void print_block_scope(membuff_t *buf, struct block_scope *scope, int lev
 static void print_symbol(membuff_t *buf, struct symbol *sym, int level) {
 	switch (sym->symbol_type) {
 	case SYM_GLOBAL: {
-		print_buf(buf, level, "%s --[global symbol]\n", getstr(sym->var.var_name));
+		printf_buf(buf, "%p%t %c\n", level, sym->var.var_name, "global symbol");
 		break;
 	}
 	case SYM_LOCAL: {
-		print_buf(buf, level, "%s --[local symbol]\n", getstr(sym->var.var_name));
+		printf_buf(buf, "%p%t %c\n", level, sym->var.var_name, "local symbol");
 		break;
 	}
 	case SYM_UPVALUE: {
-		print_buf(buf, level,  "%s --[up-value]\n", getstr(sym->upvalue.var->var.var_name));
+		printf_buf(buf, "%p%s %c\n", level, sym->upvalue.var->var.var_name, "upvalue");
 		break;
 	}
 	default:
@@ -2601,7 +2662,7 @@ static void print_symbol_list(membuff_t *buf, struct symbol_list *list, int leve
 		if (is_first)
 			is_first = false;
 		else if (delimiter)
-			print_buf(buf, level, "%s\n", delimiter);
+			printf_buf(buf, "%p%s\n", level, delimiter);
 		print_symbol(buf, node, level + 1);
 	} END_FOR_EACH_PTR(node);
 }
@@ -2655,22 +2716,29 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 {
 	switch (node->type) {
 	case AST_FUNCTION_EXPR: {
-		print_buf(buf, level, "function()\n");
+		if (node->function_expr.args) {
+			printf_buf(buf, "%pfunction(\n", level);
+			print_symbol_list(buf, node->function_expr.args, level + 1, ",");
+			printf_buf(buf, "%p)\n", level);
+		}
+		else {
+			printf_buf(buf, "%pfunction()\n", level);
+		}
 		print_block_scope(buf, node->function_expr.main_block, level);
-		print_buf(buf, level, "end\n");
+		printf_buf(buf, "%pend\n", level);
 		break;
 	}
 	case AST_RETURN_STMT: {
-		print_buf(buf, level, "return\n");
+		printf_buf(buf, "%preturn\n", level);
 		print_ast_node_list(buf, node->return_stmt.exprlist, level + 1, ",");
 		break;
 	}
 	case AST_LOCAL_STMT: {
-		print_buf(buf, level, "local\n");
-		print_buf(buf, level, "--[symbols]\n");
+		printf_buf(buf, "%plocal\n", level);
+		printf_buf(buf, "%p%c\n", level, "[symbols]");
 		print_symbol_list(buf, node->local_stmt.vars, level + 1, ",");
 		if (node->local_stmt.exprlist) {
-			print_buf(buf, level, "--[expressions]\n");
+			printf_buf(buf, "%p%c\n", level, "[expressions]");
 			print_ast_node_list(buf, node->local_stmt.exprlist, level + 1, ",");
 		}
 		break;
@@ -2678,25 +2746,25 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 	case AST_FUNCTION_STMT: {
 		print_ast_node(buf, node->function_stmt.name, level);
 		if (node->function_stmt.selectors) {
-			print_buf(buf, level+1, "--[selectors]\n");
+			printf_buf(buf, "%p%c\n", level + 1, "[selectors]");
 			print_ast_node_list(buf, node->function_stmt.selectors, level + 2, NULL);
 		}
 		if (node->function_stmt.methodname) {
-			print_buf(buf, level+1, "--[method name]\n");
+			printf_buf(buf, "%p%c\n", level + 1, "[method name]");
 			print_ast_node(buf, node->function_stmt.methodname, level + 2);
 		}
-		print_buf(buf, level+1, "=\n");
+		printf_buf(buf, "%p=\n", level + 1);
 		print_ast_node(buf, node->function_stmt.function_expr, level + 2);
 		break;
 	}
 	case AST_SUFFIXED_EXPR: {
-		print_buf(buf, level, "--[primary start]\n");
+		printf_buf(buf, "%p%c\n", level, "[primary start]");
 		print_ast_node(buf, node->suffixed_expr.primary_expr, level + 1);
-		print_buf(buf, level, "--[end primary]\n");
+		printf_buf(buf, "%p%c\n", level, "[primary end]");
 		if (node->suffixed_expr.suffix_list) {
-			print_buf(buf, level, "--[suffix list start]\n");
+			printf_buf(buf, "%p%c\n", level, "[suffix list start]");
 			print_ast_node_list(buf, node->suffixed_expr.suffix_list, level + 1, NULL);
-			print_buf(buf, level, "--[end suffix list]\n");
+			printf_buf(buf, "%p%c\n", level, "[suffix list end]");
 		}
 		break;
 	}
@@ -2705,66 +2773,69 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 		break;
 	}
 	case AST_BINARY_EXPR: {
-		print_buf(buf, level, "--[binary op start]\n");
-		print_buf(buf, level, "%s\n", get_binary_opr_str(node->binary_expr.binary_op));
+		printf_buf(buf, "%p%c\n", level, "[binary expr start]");
 		print_ast_node(buf, node->binary_expr.exprleft, level + 1);
+		printf_buf(buf, "%p%s\n", level, get_binary_opr_str(node->binary_expr.binary_op));
 		print_ast_node(buf, node->binary_expr.exprright, level + 1);
-		print_buf(buf, level, "--[binary op end]\n");
+		printf_buf(buf, "%p%c\n", level, "[binary expr end]");
 		break;
 	}
 	case AST_UNARY_EXPR: {
-		print_buf(buf, level, "--[unary op start]\n");
-		print_buf(buf, level, "%s\n", get_unary_opr_str(node->unary_expr.unary_op));
+		printf_buf(buf, "%p%c\n", level, "[unary expr start]");
+		printf_buf(buf, "%p%s\n", level, get_unary_opr_str(node->unary_expr.unary_op));
 		print_ast_node(buf, node->unary_expr.expr, level + 1);
-		print_buf(buf, level, "--[unary op end]\n");
+		printf_buf(buf, "%p%c\n", level, "[unary expr end]");
 		break;
 	}
 	case AST_LITERAL_EXPR: {
-		print_buf(buf, level, "");
+		printf_buf(buf, "%p", level);
 		switch (node->literal_expr.literal.type) {
-		case RAVI_TNIL: print_buf(buf, 0, "nil"); break;
-		case RAVI_TBOOLEAN: print_buf(buf, 0, "%s", (node->literal_expr.literal.u.i ? "true" : "false")); break;
-		case RAVI_TNUMINT: print_buf(buf, 0, "%lld", (long long)node->literal_expr.literal.u.i); break;
-		case RAVI_TNUMFLT: print_buf(buf, 0, "%.16f", node->literal_expr.literal.u.n); break;
-		case RAVI_TSTRING: print_buf(buf, 0, "'%s'", getstr(node->literal_expr.literal.u.s)); break;
+		case RAVI_TNIL: printf_buf(buf, "nil"); break;
+		case RAVI_TBOOLEAN: printf_buf(buf, "%b", node->literal_expr.literal.u.i); break;
+		case RAVI_TNUMINT: printf_buf(buf, "%i", node->literal_expr.literal.u.i); break;
+		case RAVI_TNUMFLT: printf_buf(buf, "%f", node->literal_expr.literal.u.n); break;
+		case RAVI_TSTRING: printf_buf(buf, "'%t'", node->literal_expr.literal.u.s); break;
 		default: assert(0);
 		}
-		print_buf(buf, 0, "\n");
+		printf_buf(buf, "\n");
 		break;
 	}
 	case AST_FIELD_SELECTOR_EXPR: {
-		print_buf(buf, level, "--[field selector start]\n");
-		print_ast_node(buf, node->index_expr.expr, level + 1);
-		print_buf(buf, level, "--[field selector end]\n");
+		printf_buf(buf, "%p%c\n", level, "[field selector start]");
+		printf_buf(buf, "%p.\n", level + 1);
+		print_ast_node(buf, node->index_expr.expr, level + 2);
+		printf_buf(buf, "%p%c\n", level, "[field selector end]");
 		break;
 	}
 	case AST_Y_INDEX_EXPR: {
-		print_buf(buf, level, "--[Y index start]\n");
-		print_ast_node(buf, node->index_expr.expr, level + 1);
-		print_buf(buf, level, "--[Y index end]\n");
+		printf_buf(buf, "%p%c\n", level, "[Y index start]");
+		printf_buf(buf, "%p[\n", level + 1);
+		print_ast_node(buf, node->index_expr.expr, level + 2);
+		printf_buf(buf, "%p]\n", level + 1);
+		printf_buf(buf, "%p%c\n", level, "[Y index end]");
 		break;
 	}
 	case AST_INDEXED_ASSIGN_EXPR: {
-		print_buf(buf, level, "--[indexed assign start]\n");
+		printf_buf(buf, "%p%c\n", level, "[indexed assign start]");
 		if (node->indexed_assign_expr.index_expr) {
-			print_buf(buf, level, "--[index start]\n");
+			printf_buf(buf, "%p%c\n", level, "[index start]");
 			print_ast_node(buf, node->indexed_assign_expr.index_expr, level + 1);
-			print_buf(buf, level, "--[index end]\n");
+			printf_buf(buf, "%p%c\n", level, "[index end]");
 		}
-		print_buf(buf, level, "--[value start]\n");
+		printf_buf(buf, "%p%c\n", level, "[value start]");
 		print_ast_node(buf, node->indexed_assign_expr.value_expr, level + 1);
-		print_buf(buf, level, "--[value end]\n");
-		print_buf(buf, level, "--[indexed assign end]\n");
+		printf_buf(buf, "%p%c\n", level, "[value end]");
+		printf_buf(buf, "%p%c\n", level, "[indexed assign end]");
 		break;
 	}
 	case AST_TABLE_EXPR: {
-		print_buf(buf, level, "{ --[table constructor start]\n");
+		printf_buf(buf, "%p{ %c\n", level, "[table constructor start]");
 		print_ast_node_list(buf, node->table_expr.expr_list, level + 1, ",");
-		print_buf(buf, level, "} --[table constructor end]\n");
+		printf_buf(buf, "%p} %c\n", level, "[table constructor end]");
 		break;
 	}
 	default:
-		print_buf(buf, level, "Unsupported node type %d\n", node->type);
+		printf_buf(buf, "%pUnsupported node type %d\n", level, node->type);
 		assert(0);
 	}
 }
