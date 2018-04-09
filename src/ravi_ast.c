@@ -2851,13 +2851,13 @@ static int ast_container_to_string(lua_State *L) {
 */
 static int parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 	const char *name, int firstchar) {
-	StkId cvalue = L->top; /* where ast_container will be */
 	struct ast_container *container = new_ast_container(L);
 	LexState lexstate;
 	lexstate.h = luaH_new(L);         /* create table for scanner */
 	sethvalue(L, L->top, lexstate.h);
+	setuservalue(L, 
+		uvalue(L->top-1), L->top); /* set the table as container's uservalue */
 	luaD_inctop(L);
-	setuservalue(L, uvalue(cvalue), L->top); /* set the table as container's uservalue */
 	TString *src = luaS_new(L, name); /* create and anchor TString */
 	setsvalue(L, L->top, src);
 	luaD_inctop(L);
@@ -2871,7 +2871,6 @@ static int parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 	lua_unlock(L);
 	L->top--; /* remove source name */
 	L->top--; /* remove scanner table */
-	assert(cvalue == L->top - 1);
 	return 0; /* OK */
 }
 
