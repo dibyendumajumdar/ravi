@@ -1063,6 +1063,9 @@ struct ast_node {
 			struct ast_node *function_expr; // Function's AST
 		} function_stmt;
 		struct {
+			struct block_scope *scope; // The do statement only creates a new scope
+		} do_stmt;
+		struct {
 			struct literal literal;
 		} literal_expr;
 		struct {
@@ -2073,11 +2076,12 @@ static struct ast_node *parse_expression(struct parser_state *parser) {
 */
 
 
-static void parse_block(struct parser_state *parser) {
+static struct block_scope *parse_block(struct parser_state *parser) {
 	/* block -> statlist */
-	new_scope(parser);
+	struct block_scope *scope = new_scope(parser);
 	parse_statement_list(parser, &parser->current_scope->statement_list);
 	end_scope(parser);
+	return scope;
 }
 
 /* parse assignment (not part of local statement) - for each variable
@@ -2445,6 +2449,14 @@ static struct ast_node *parse_return_statement(struct parser_state *parser) {
 	return return_stmt;
 }
 
+static struct ast_node *parse_do_statement(struct parser_state *parser, int line) {
+	luaX_next(parser->ls);  /* skip DO */
+	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	stmt->type = AST_DO_STMT;
+	stmt->do_stmt.scope = parse_block(parser);
+	check_match(parser->ls, TK_END, TK_DO, line);
+	return stmt;
+}
 
 /* parse a statement */
 static struct ast_node *parse_statement(struct parser_state *parser) {
@@ -2466,9 +2478,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		break;
 	}
 	case TK_DO: {  /* stat -> DO block END */
-		luaX_next(ls);  /* skip DO */
-		parse_block(parser);
-		check_match(ls, TK_END, TK_DO, line);
+		stmt = parse_do_statement(parser, line);
 		break;
 	}
 	case TK_FOR: {  /* stat -> forstat */
@@ -2813,11 +2823,17 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 		break;
 	}
 	case AST_LABEL_STMT: {
-		printf_buf(buf, "%p::%t::\n", level + 1, node->label_stmt.symbol->label.label_name);
+		printf_buf(buf, "%p::%t::\n", level, node->label_stmt.symbol->label.label_name);
 		break;
 	}
 	case AST_GOTO_STMT: {
-		printf_buf(buf, "%pgoto %t\n", level + 1, node->goto_stmt.name);
+		printf_buf(buf, "%pgoto %t\n", level, node->goto_stmt.name);
+		break;
+	}
+	case AST_DO_STMT: {
+		printf_buf(buf, "%pdo\n", level);
+		print_ast_node_list(buf, node->do_stmt.scope->statement_list, level + 1, NULL);
+		printf_buf(buf, "%pend\n", level);
 		break;
 	}
 	case AST_SUFFIXED_EXPR: {
