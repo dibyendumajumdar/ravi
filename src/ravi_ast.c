@@ -1046,10 +1046,11 @@ struct ast_node {
 			struct ast_node_list *exprlist;
 		} return_stmt;
 		struct {
-			const TString *name;
+			struct symbol *symbol;
 		} label_stmt;
 		struct {
-			const TString *name;
+			const TString *name; /* target label, used to resolve the goto destination */
+			struct ast_node *label_stmt; /* Initially this may be NULL for unresolved goto statements */
 		} goto_stmt;
 		struct {
 			struct symbol_list *vars;
@@ -1262,6 +1263,22 @@ static struct symbol* new_local_symbol(struct parser_state *parser, TString *nam
 	return symbol;
 }
 
+/* create a new label */
+static struct symbol* new_label(struct parser_state *parser, TString *name) {
+	struct block_scope *scope = parser->current_scope;
+	assert(scope);
+	struct symbol *symbol = allocator_allocate(&parser->container->symbol_allocator, 0);
+	symbol->value_type = RAVI_TANY;
+	symbol->symbol_type = SYM_LABEL;
+	symbol->label.block = scope;
+	symbol->label.label_name = name;
+	add_symbol(parser->container, &scope->symbol_list, symbol); // Add to the end of the symbol list
+																// Note that Lua allows multiple local declarations of the same name
+																// so a new instance just gets added to the end
+	return symbol;
+}
+
+
 /* create a new local variable
 */
 static struct symbol* new_localvarliteral_(struct parser_state *parser, const char *name, size_t sz) {
@@ -1310,6 +1327,29 @@ struct symbol *search_for_variable_in_block(struct block_scope *scope, const TSt
 	return NULL;
 }
 
+struct symbol *search_for_label_in_block(struct block_scope *scope, const TString *name) {
+	struct symbol *symbol;
+	// Lookup in reverse order so that we discover the 
+	// most recently added local symbol - as Lua allows same
+	// symbol to be declared local more than once in a scope
+	// Should also work with nesting as the function when parsed
+	// will only know about vars declared in parent function until
+	// now.
+	FOR_EACH_PTR_REVERSE(scope->symbol_list, symbol) {
+		switch (symbol->symbol_type) {
+		case SYM_LABEL: {
+			if (name == symbol->var.var_name) {
+				return symbol;
+			}
+			break;
+		}
+		default:
+			break;
+		}
+	} END_FOR_EACH_PTR_REVERSE(symbol);
+	return NULL;
+}
+
 struct symbol *search_globals(struct parser_state *parser, const TString *varname) {
 	struct symbol *symbol;
 	FOR_EACH_PTR(parser->container->external_symbols, symbol) {
@@ -1343,6 +1383,19 @@ struct symbol *search_for_variable(struct parser_state *parser, const TString *v
 	}
 	if (search_globals_too) {
 		return search_globals(parser, varname);
+	}
+	return NULL;
+}
+
+/* Searches for a label in current function
+*/
+struct symbol *search_for_label(struct parser_state *parser, const TString *name) {
+	struct block_scope *current_scope = parser->current_scope;
+	while (current_scope && current_scope->function == parser->current_function) {
+		struct symbol *symbol = search_for_label_in_block(current_scope, name);
+		if (symbol)
+			return symbol;
+		current_scope = current_scope->parent;
 	}
 	return NULL;
 }
@@ -2064,8 +2117,7 @@ static void parse_condition(struct parser_state *parser) {
 	parse_expression(parser);                   /* read condition */
 }
 
-
-static void parse_goto_statment(struct parser_state *parser) {
+static struct ast_node *parse_goto_statment(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	int line = ls->linenumber;
 	TString *label;
@@ -2076,8 +2128,13 @@ static void parse_goto_statment(struct parser_state *parser) {
 		luaX_next(ls);  /* skip break */
 		label = luaS_new(ls->L, "break");
 	}
+	// Resolve labels in the end?
+	struct ast_node *goto_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	goto_stmt->type = AST_GOTO_STMT;
+	goto_stmt->goto_stmt.name = label;
+	goto_stmt->goto_stmt.label_stmt = NULL; // unresolved
+	return goto_stmt;
 }
-
 
 /* skip no-op statements */
 static void skip_noop_statements(struct parser_state *parser) {
@@ -2087,12 +2144,17 @@ static void skip_noop_statements(struct parser_state *parser) {
 }
 
 
-static void parse_label_statement(struct parser_state *parser, TString *label, int line) {
+static struct ast_node *parse_label_statement(struct parser_state *parser, TString *label, int line) {
 	LexState *ls = parser->ls;
 	/* label -> '::' NAME '::' */
 	checknext(ls, TK_DBCOLON);  /* skip double colon */
-								/* create new entry for this label */
+	/* create new entry for this label */
+	struct symbol *symbol = new_label(parser, label);
+	struct ast_node *label_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	label_stmt->type = AST_LABEL_STMT;
+	label_stmt->label_stmt.symbol = symbol;
 	skip_noop_statements(parser);  /* skip other no-op statements */
+	return label_stmt;
 }
 
 /* parse a while-do control structure, body processed by block()
@@ -2284,7 +2346,7 @@ static struct ast_node *parse_local_function(struct parser_state *parser) {
 }
 
 /* parse a local variable declaration statement - called from statement() */
-static struct ast_node * parse_local_statement(struct parser_state *parser) {
+static struct ast_node *parse_local_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* stat -> LOCAL NAME {',' NAME} ['=' explist] */
 	int nvars = 0;
@@ -2321,7 +2383,7 @@ static struct ast_node * parse_local_statement(struct parser_state *parser) {
 /* parse a function name specification - called from funcstat()
 * returns boolean value - true if function is a method
 */
-static struct ast_node * parse_function_name(struct parser_state *parser) {
+static struct ast_node *parse_function_name(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* funcname -> NAME {fieldsel} [':' NAME] */
 	struct ast_node *function_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
@@ -2340,7 +2402,7 @@ static struct ast_node * parse_function_name(struct parser_state *parser) {
 }
 
 /* parse a function statement - called from statement() */
-static struct ast_node * parse_function_statement(struct parser_state *parser, int line) {
+static struct ast_node *parse_function_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* funcstat -> FUNCTION funcname body */
 	luaX_next(ls); /* skip FUNCTION */
@@ -2367,7 +2429,7 @@ static void parse_expr_statement(struct parser_state *parser) {
 }
 
 /* parse return statement - called from statement() */
-static struct ast_node * parse_return_statement(struct parser_state *parser) {
+static struct ast_node *parse_return_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* stat -> RETURN [explist] [';'] */
 	struct ast_node *return_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
@@ -2431,7 +2493,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 	}
 	case TK_DBCOLON: {  /* stat -> label */
 		luaX_next(ls);  /* skip double colon */
-		parse_label_statement(parser, check_name_and_next(ls), line);
+		stmt = parse_label_statement(parser, check_name_and_next(ls), line);
 		break;
 	}
 	case TK_RETURN: {  /* stat -> retstat */
@@ -2441,7 +2503,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 	}
 	case TK_BREAK:   /* stat -> breakstat */
 	case TK_GOTO: {  /* stat -> 'goto' NAME */
-		parse_goto_statment(parser);
+		stmt = parse_goto_statment(parser);
 		break;
 	}
 	default: {  /* stat -> func | assignment */
@@ -2453,9 +2515,10 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 	return stmt;
 }
 
+/* Parses a sequence of statements */
+/* statlist -> { stat [';'] } */
 static void parse_statement_list(struct parser_state *parser, struct ast_node_list **list) {
 	LexState *ls = parser->ls;
-	/* statlist -> { stat [';'] } */
 	while (!block_follow(ls, 1)) {
 		if (ls->t.token == TK_RETURN) {
 			struct ast_node *stmt = parse_statement(parser);
@@ -2534,10 +2597,11 @@ static struct ast_node *end_function(struct parser_state *parser) {
 	return function;
 }
 
-/* mainfunc() equivalent */
+/* mainfunc() equivalent - parses a Lua script, also known as chunk.
+The code is wrapped in a vararg function */
 static void parse_chunk(struct parser_state *parser) {
 	luaX_next(parser->ls); /* read first token */
-	parser->container->main_function = new_function(parser);
+	parser->container->main_function = new_function(parser); /* vararg function wrapper */
 	parser->container->main_function->function_expr.is_vararg = true;
 	parse_statement_list(parser, &parser->current_scope->statement_list);
 	end_function(parser);
@@ -2559,44 +2623,44 @@ static void printf_buf(membuff_t *buf, const char *format, ...) {
 	const char *cp;
 	va_start(ap, format);
 	for (cp = format; *cp; cp++) {
-		if (cp[0] == '%' && cp[1] == 'p') {
+		if (cp[0] == '%' && cp[1] == 'p') { /* padding */
 			int level = va_arg(ap, int);
 			snprintf(tbuf, sizeof tbuf, "%.*s", level, PADDING);
 			membuff_add_string(buf, tbuf);
 			cp++;
 		}
-		else if (cp[0] == '%' && cp[1] == 't') {
+		else if (cp[0] == '%' && cp[1] == 't') { /* TString */
 			const TString *ts;
 			ts = va_arg(ap, const TString *);
 			const char *s = getstr(ts);
 			membuff_add_string(buf, s);
 			cp++;
 		}
-		else if (cp[0] == '%' && cp[1] == 's') {
+		else if (cp[0] == '%' && cp[1] == 's') { /* const char * */
 			const char *s;
 			s = va_arg(ap, const char *);
 			membuff_add_string(buf, s);
 			cp++;
 		}
-		else if (cp[0] == '%' && cp[1] == 'c') {
+		else if (cp[0] == '%' && cp[1] == 'c') { /* comment */
 			const char *s;
 			s = va_arg(ap, const char *);
 			membuff_add_fstring(buf, "--[%s]", s);
 			cp++;
 		}
-		else if (cp[0] == '%' && cp[1] == 'i') {
+		else if (cp[0] == '%' && cp[1] == 'i') { /* integer */
 			lua_Integer i;
 			i = va_arg(ap, lua_Integer);
 			membuff_add_longlong(buf, i);
 			cp++;
 		}
-		else if (cp[0] == '%' && cp[1] == 'f') {
+		else if (cp[0] == '%' && cp[1] == 'f') { /* float */
 			double d;
 			d = va_arg(ap, double);
 			membuff_add_fstring(buf, "%.16f", d);
 			cp++;
 		}
-		else if (cp[0] == '%' && cp[1] == 'b') {
+		else if (cp[0] == '%' && cp[1] == 'b') { /* boolean */
 			lua_Integer i;
 			i = va_arg(ap, lua_Integer);
 			membuff_add_bool(buf, i != 0);
@@ -2748,6 +2812,14 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 		print_ast_node(buf, node->function_stmt.function_expr, level + 2);
 		break;
 	}
+	case AST_LABEL_STMT: {
+		printf_buf(buf, "%p::%t::\n", level + 1, node->label_stmt.symbol->label.label_name);
+		break;
+	}
+	case AST_GOTO_STMT: {
+		printf_buf(buf, "%pgoto %t\n", level + 1, node->goto_stmt.name);
+		break;
+	}
 	case AST_SUFFIXED_EXPR: {
 		printf_buf(buf, "%p%c\n", level, "[primary start]");
 		print_ast_node(buf, node->suffixed_expr.primary_expr, level + 1);
@@ -2831,6 +2903,7 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 	}
 }
 
+/* Converts the AST to a string representation */
 static int ast_container_to_string(lua_State *L) {
 	struct ast_container *container = check_Ravi_AST(L, 1);
 	membuff_t mbuf;
@@ -2855,8 +2928,8 @@ static int parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 	LexState lexstate;
 	lexstate.h = luaH_new(L);         /* create table for scanner */
 	sethvalue(L, L->top, lexstate.h);
-	setuservalue(L, 
-		uvalue(L->top-1), L->top); /* set the table as container's uservalue */
+	setuservalue(L,
+		uvalue(L->top - 1), L->top); /* set the table as container's uservalue */
 	luaD_inctop(L);
 	TString *src = luaS_new(L, name); /* create and anchor TString */
 	setsvalue(L, L->top, src);
