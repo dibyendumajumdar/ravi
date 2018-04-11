@@ -1026,7 +1026,7 @@ enum ast_node_type {
 	AST_FORIN_STMT,
 	AST_FORNUM_STMT,
 	AST_REPEAT_STMT,
-	AST_EXPR_STMT,
+	AST_EXPR_STMT, // Also handles assignment statements
 	AST_LITERAL_EXPR,
 	AST_SYMBOL_EXPR,
 	AST_Y_INDEX_EXPR, // [] op
@@ -1035,8 +1035,9 @@ enum ast_node_type {
 	AST_SUFFIXED_EXPR,
 	AST_UNARY_EXPR,
 	AST_BINARY_EXPR,
-	AST_FUNCTION_EXPR,
-	AST_TABLE_EXPR,
+	AST_FUNCTION_EXPR, // function literal
+	AST_TABLE_EXPR, // table constructor
+	AST_FUNCTION_CALL_EXPR
 };
 
 struct ast_node {
@@ -1056,6 +1057,10 @@ struct ast_node {
 			struct symbol_list *vars;
 			struct ast_node_list *exprlist;
 		} local_stmt;
+		struct {
+			struct ast_node_list *var_expr_list; // Optional var expressions, comma separated
+			struct ast_node_list *exr_list; // Comma separated expressions
+		} expression_stmt; /* Also covers assignments*/
 		struct {
 			struct ast_node *name; // base symbol to be looked up
 			struct ast_node_list *selectors; // Optional
@@ -1113,6 +1118,11 @@ struct ast_node {
 			struct ast_node *primary_expr;
 			struct ast_node_list *suffix_list;
 		} suffixed_expr;
+		struct {
+			ravitype_t type;
+			TString *methodname; // Optional methodname
+			struct ast_node_list *arg_list; // Call arguments
+		} function_call_expr;
 	};
 };
 
@@ -1165,6 +1175,7 @@ static struct ast_node *parse_statement(struct parser_state *);
 static struct ast_node *new_function(struct parser_state *parser);
 static struct block_scope *new_scope(struct parser_state *parser);
 static void end_scope(struct parser_state *parser);
+static struct ast_node *new_literal_expression(struct parser_state *parser, ravitype_t type);
 
 static l_noret error_expected(LexState *ls, int token) {
 	luaX_syntaxerror(ls,
@@ -1765,9 +1776,14 @@ static int parse_expression_list(struct parser_state *parser, struct ast_node_li
 }
 
 /* parse function arguments */
-static void parse_function_arguments(struct parser_state *parser, int line) {
+static struct ast_node *parse_function_call(struct parser_state *parser, TString *methodname, int line) {
 	LexState *ls = parser->ls;
 	int base, nparams;
+	struct ast_node *call_expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	call_expr->type = AST_FUNCTION_CALL_EXPR;
+	call_expr->function_call_expr.methodname = methodname;
+	call_expr->function_call_expr.arg_list = NULL;
+	call_expr->function_call_expr.type = RAVI_TANY;
 	switch (ls->t.token) {
 	case '(': {  /* funcargs -> '(' [ explist ] ')' */
 		luaX_next(ls);
@@ -1775,24 +1791,28 @@ static void parse_function_arguments(struct parser_state *parser, int line) {
 			// args.k = VVOID;
 			;
 		else {
-			struct ast_node_list *list = NULL;
-			parse_expression_list(parser, &list);
+			parse_expression_list(parser, &call_expr->function_call_expr.arg_list);
 		}
 		check_match(ls, ')', '(', line);
 		break;
 	}
 	case '{': {  /* funcargs -> constructor */
-		parse_table_constructor(parser);
+		struct ast_node *table_expr = parse_table_constructor(parser);
+		add_ast_node(parser->container, &call_expr->function_call_expr.arg_list, table_expr);
 		break;
 	}
 	case TK_STRING: {  /* funcargs -> STRING */
-		luaX_next(ls);  /* must use 'seminfo' before 'next' */
+		struct ast_node *string_expr = new_literal_expression(parser, RAVI_TSTRING);
+		string_expr->literal_expr.literal.u.s = ls->t.seminfo.ts;
+		add_ast_node(parser->container, &call_expr->function_call_expr.arg_list, string_expr);
+		luaX_next(ls); 
 		break;
 	}
 	default: {
 		luaX_syntaxerror(ls, "function arguments expected");
 	}
 	}
+	return call_expr;
 }
 
 
@@ -1856,12 +1876,14 @@ static struct ast_node *parse_suffixed_expression(struct parser_state *parser) {
 		}
 		case ':': {  /* ':' NAME funcargs */
 			luaX_next(ls);
-			check_name_and_next(ls);
-			parse_function_arguments(parser, line);
+			TString *methodname = check_name_and_next(ls);
+			struct ast_node *suffix = parse_function_call(parser, methodname, line);
+			add_ast_node(parser->container, &suffixed_expr->suffixed_expr.suffix_list, suffix);
 			break;
 		}
 		case '(': case TK_STRING: case '{': {  /* funcargs */
-			parse_function_arguments(parser, line);
+			struct ast_node *suffix = parse_function_call(parser, NULL, line);
+			add_ast_node(parser->container, &suffixed_expr->suffixed_expr.suffix_list, suffix);
 			break;
 		}
 		default: return suffixed_expr;
@@ -2084,34 +2106,7 @@ static struct block_scope *parse_block(struct parser_state *parser) {
 	return scope;
 }
 
-/* parse assignment (not part of local statement) - for each variable
-* on the left hand side this is called recursively with increasing nvars.
-* The final recursive call parses the rhs.
-*/
-static void parse_assignment(struct parser_state *parser, int nvars) {
-	LexState *ls = parser->ls;
-	//check_condition(ls, vkisvar(lh->v.k), "syntax error");
-	if (testnext(ls, ',')) {  /* assignment -> ',' suffixedexp assignment */
-		parse_suffixed_expression(parser);
-		//if (nv.v.k != VINDEXED)
-		//    check_conflict(ls, lh, &nv.v);
-		//checklimit(ls->fs, nvars + ls->L->nCcalls, LUAI_MAXCCALLS,
-		//    "C levels");
-		parse_assignment(parser, nvars + 1);
-	}
-	else {  /* assignment -> '=' explist */
-		int nexps;
-		checknext(ls, '=');
-		struct ast_node_list *list = NULL;
-		nexps = parse_expression_list(parser, &list);
-		if (nexps != nvars) {
-			//adjust_assign(ls, nvars, nexps, &e);
-		}
-		else {
-			return;  /* avoid default */
-		}
-	}
-}
+
 
 /* parse condition in a repeat statement or an if control structure
 * called by repeatstat(), test_then_block()
@@ -2418,18 +2413,29 @@ static struct ast_node *parse_function_statement(struct parser_state *parser, in
 	return function_stmt;
 }
 
-
 /* parse function call with no returns or assignment statement - called from statement() */
-static void parse_expr_statement(struct parser_state *parser) {
+static struct ast_node * parse_expr_statement(struct parser_state *parser) {
+	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	stmt->type = AST_EXPR_STMT;
+	stmt->expression_stmt.var_expr_list = NULL;
+	stmt->expression_stmt.exr_list = NULL;
 	LexState *ls = parser->ls;
 	/* stat -> func | assignment */
-	parse_suffixed_expression(parser);
-	if (ls->t.token == '=' || ls->t.token == ',') { /* stat -> assignment ? */
-		parse_assignment(parser, 1);
+	/* Until we see '=' we do not know if this is an assignment or expr list*/
+	struct ast_node_list *current_list = NULL;
+	add_ast_node(parser->container, &current_list, parse_suffixed_expression(parser));
+	while (testnext(ls, ',')) {  /* assignment -> ',' suffixedexp assignment */
+		add_ast_node(parser->container, &current_list, parse_suffixed_expression(parser));
 	}
-	else {  /* stat -> func */
-		//check_condition(ls, v.v.k == VCALL, "syntax error");
+	if (ls->t.token == '=') { /* stat -> assignment ? */
+		checknext(ls, '=');
+		stmt->expression_stmt.var_expr_list = current_list;
+		current_list = NULL;
+		parse_expression_list(parser, &current_list);
 	}
+	stmt->expression_stmt.exr_list = current_list;
+	// TODO Check that if not assignment then it is a function call
+	return stmt;
 }
 
 /* parse return statement - called from statement() */
@@ -2517,7 +2523,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		break;
 	}
 	default: {  /* stat -> func | assignment */
-		parse_expr_statement(parser);
+		stmt = parse_expr_statement(parser);
 		break;
 	}
 	}
@@ -2836,6 +2842,19 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 		printf_buf(buf, "%pend\n", level);
 		break;
 	}
+	case AST_EXPR_STMT: {
+		printf_buf(buf, "%p%c\n", level, "expression statement start");
+		if (node->expression_stmt.var_expr_list) {
+			printf_buf(buf, "%p%c\n", level+1, "var list start");
+			print_ast_node_list(buf, node->expression_stmt.var_expr_list, level + 2, ",");
+			printf_buf(buf, "%p= %c\n", level+1, "var list end");
+		}
+		printf_buf(buf, "%p%c\n", level + 1, "expression list start");
+		print_ast_node_list(buf, node->expression_stmt.exr_list, level + 2, ",");
+		printf_buf(buf, "%p%c\n", level + 1, "expression list end");
+		printf_buf(buf, "%p%c\n", level, "expression statement end");
+		break;
+	}
 	case AST_SUFFIXED_EXPR: {
 		printf_buf(buf, "%p%c\n", level, "[primary start]");
 		print_ast_node(buf, node->suffixed_expr.primary_expr, level + 1);
@@ -2845,6 +2864,19 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 			print_ast_node_list(buf, node->suffixed_expr.suffix_list, level + 1, NULL);
 			printf_buf(buf, "%p%c\n", level, "[suffix list end]");
 		}
+		break;
+	}
+	case AST_FUNCTION_CALL_EXPR: {
+		printf_buf(buf, "%p%c\n", level, "[function call start]");
+		if (node->function_call_expr.methodname) {
+			printf_buf(buf, "%p: %t (\n", level+1, node->function_call_expr.methodname);
+		}
+		else {
+			printf_buf(buf, "%p(\n", level+1);
+		}
+		print_ast_node_list(buf, node->function_call_expr.arg_list, level + 2, ",");
+		printf_buf(buf, "%p)\n", level + 1);
+		printf_buf(buf, "%p%c\n", level, "[function call end]");
 		break;
 	}
 	case AST_SYMBOL_EXPR: {
