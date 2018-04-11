@@ -1013,6 +1013,7 @@ struct block_scope {
 };
 
 enum ast_node_type {
+	AST_NONE, // Used when the node doesn't represent an AST such as test_then_block.
 	AST_RETURN_STMT,
 	AST_ASSIGN_STMT,
 	AST_BREAK_STMT,
@@ -1070,6 +1071,14 @@ struct ast_node {
 		struct {
 			struct block_scope *scope; // The do statement only creates a new scope
 		} do_stmt;
+		struct {
+			struct ast_node *condition;
+			struct block_scope *scope;
+		} test_then_block;
+		struct {
+			struct ast_node_list *if_condition_list; // Actually a list of test_then_blocks
+			struct block_scope *else_block;
+		} if_stmt;
 		struct {
 			struct literal literal;
 		} literal_expr;
@@ -2289,43 +2298,55 @@ static void parse_for_statement(struct parser_state *parser, int line) {
 }
 
 /* parse if cond then block - called from ifstat() */
-static void parse_if_cond_then_block(struct parser_state *parser, int *escapelist) {
+static struct ast_node *parse_if_cond_then_block(struct parser_state *parser, int *escapelist) {
 	LexState *ls = parser->ls;
 	/* test_then_block -> [IF | ELSEIF] cond THEN block */
 	int jf;         /* instruction to skip 'then' code (if condition is false) */
 	luaX_next(ls);  /* skip IF or ELSEIF */
-	parse_expression(parser);  /* read condition */
+	struct ast_node *test_then_block = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	test_then_block->type = AST_NONE; // This is not an AST node on its own
+	test_then_block->test_then_block.condition = parse_expression(parser);  /* read condition */
+	test_then_block->test_then_block.scope = NULL;
 	checknext(ls, TK_THEN);
 	if (ls->t.token == TK_GOTO || ls->t.token == TK_BREAK) {
-		new_scope(parser);
-		parse_goto_statment(parser);  /* handle goto/break */
+		test_then_block->test_then_block.scope = new_scope(parser);
+		struct ast_node *stmt = parse_goto_statment(parser);  /* handle goto/break */
+		add_ast_node(parser->container, &parser->current_scope->statement_list, stmt);
 		skip_noop_statements(parser);  /* skip other no-op statements */
 		if (block_follow(ls, 0)) {  /* 'goto' is the entire block? */
 			end_scope(parser);
-			return;  /* and that is it */
+			return test_then_block;  /* and that is it */
 		}
 		else  /* must skip over 'then' part if condition is false */
-			;//jf = luaK_jump(fs);
+			;
 	}
 	else {  /* regular case (not goto/break) */
-		//jf = v.f;
-		new_scope(parser);
+		test_then_block->test_then_block.scope = new_scope(parser);
 	}
 	parse_statement_list(parser, &parser->current_scope->statement_list);  /* 'then' part */
 	end_scope(parser);
+	return test_then_block;
 }
 
 /* parse an if control structure - called from statement() */
-static void parse_if_statement(struct parser_state *parser, int line) {
+static struct ast_node *parse_if_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END */
 	int escapelist = NO_JUMP;  /* exit list for finished parts */
-	parse_if_cond_then_block(parser, &escapelist);  /* IF cond THEN block */
-	while (ls->t.token == TK_ELSEIF)
-		parse_if_cond_then_block(parser, &escapelist);  /* ELSEIF cond THEN block */
+	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	stmt->type = AST_IF_STMT;
+	stmt->if_stmt.if_condition_list = NULL;
+	stmt->if_stmt.else_block = NULL;
+	struct ast_node *test_then_block = parse_if_cond_then_block(parser, &escapelist);  /* IF cond THEN block */
+	add_ast_node(parser->container, &stmt->if_stmt.if_condition_list, test_then_block);
+	while (ls->t.token == TK_ELSEIF) {
+		test_then_block = parse_if_cond_then_block(parser, &escapelist);  /* ELSEIF cond THEN block */
+		add_ast_node(parser->container, &stmt->if_stmt.if_condition_list, test_then_block);
+	}
 	if (testnext(ls, TK_ELSE))
-		parse_block(parser);  /* 'else' part */
+		stmt->if_stmt.else_block = parse_block(parser);  /* 'else' part */
 	check_match(ls, TK_END, TK_IF, line);
+	return stmt;
 }
 
 /* parse a local function statement - called from statement() */
