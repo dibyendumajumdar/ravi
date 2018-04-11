@@ -2497,7 +2497,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		break;
 	}
 	case TK_IF: {  /* stat -> ifstat */
-		parse_if_statement(parser, line);
+		stmt = parse_if_statement(parser, line);
 		break;
 	}
 	case TK_WHILE: {  /* stat -> whilestat */
@@ -2820,6 +2820,8 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 		printf_buf(buf, "%pend\n", level);
 		break;
 	}
+	case AST_NONE:
+		break;
 	case AST_RETURN_STMT: {
 		printf_buf(buf, "%preturn\n", level);
 		print_ast_node_list(buf, node->return_stmt.exprlist, level + 1, ",");
@@ -2874,6 +2876,27 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 		print_ast_node_list(buf, node->expression_stmt.exr_list, level + 2, ",");
 		printf_buf(buf, "%p%c\n", level + 1, "expression list end");
 		printf_buf(buf, "%p%c\n", level, "expression statement end");
+		break;
+	}
+	case AST_IF_STMT: {
+		struct ast_node *test_then_block;
+		bool is_first = true;
+		FOR_EACH_PTR(node->if_stmt.if_condition_list, test_then_block) {
+			if (is_first) {
+				is_first = false;
+				printf_buf(buf, "%pif\n", level);
+			}
+			else
+				printf_buf(buf, "%pelseif \n", level);
+			print_ast_node(buf, test_then_block->test_then_block.condition, level + 1);
+			printf_buf(buf, "%pthen\n", level);
+			print_ast_node_list(buf, test_then_block->test_then_block.scope->statement_list, level + 1, NULL);
+		} END_FOR_EACH_PTR(node);
+		if (node->if_stmt.else_block) {
+			printf_buf(buf, "%pelse\n", level);
+			print_ast_node_list(buf, node->if_stmt.else_block->statement_list, level + 1, NULL);
+		}
+		printf_buf(buf, "%pend\n", level);
 		break;
 	}
 	case AST_SUFFIXED_EXPR: {
