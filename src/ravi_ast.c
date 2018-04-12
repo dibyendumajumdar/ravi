@@ -1028,6 +1028,7 @@ enum ast_node_type {
 	AST_FORNUM_STMT,
 	AST_REPEAT_STMT,
 	AST_EXPR_STMT, // Also handles assignment statements
+	AST_BLOCK_STMT, // Not independent - part of another statement
 	AST_LITERAL_EXPR,
 	AST_SYMBOL_EXPR,
 	AST_Y_INDEX_EXPR, // [] op
@@ -1069,7 +1070,7 @@ struct ast_node {
 			struct ast_node *function_expr; // Function's AST
 		} function_stmt;
 		struct {
-			struct block_scope *scope; // The do statement only creates a new scope
+			struct block_scope *scope; // The do statement only creates a new scope, used by AST_DO_STMT and AST_BLOCK_STMT
 		} do_stmt;
 		struct {
 			struct ast_node *condition;
@@ -1081,9 +1082,15 @@ struct ast_node {
 		} if_stmt;
 		struct {
 			struct ast_node *condition;
-			struct block_scope *loop_block;
-			struct block_scope *break_scope; // This has the label "break"
+			struct block_scope *loop_body;
+			struct block_scope *loop_scope; // This has the label "break"
 		} while_or_repeat_stmt;
+		struct {
+			struct symbol_list *symbols;
+			struct ast_node_list *expressions;
+			struct block_scope *loop_scope; // This scope contains the symbols and break label
+			struct block_scope *loop_body;
+		} for_stmt;
 		struct {
 			struct literal literal;
 		} literal_expr;
@@ -2184,12 +2191,12 @@ static struct ast_node *parse_while_statement(struct parser_state *parser, int l
 	luaX_next(ls);  /* skip WHILE */
 	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_WHILE_STMT;
-	stmt->while_or_repeat_stmt.break_scope = NULL;
-	stmt->while_or_repeat_stmt.loop_block = NULL;
+	stmt->while_or_repeat_stmt.loop_scope = NULL;
+	stmt->while_or_repeat_stmt.loop_body = NULL;
 	stmt->while_or_repeat_stmt.condition = parse_condition(parser);
-	stmt->while_or_repeat_stmt.break_scope = new_scope(parser);
+	stmt->while_or_repeat_stmt.loop_scope = new_scope(parser);
 	checknext(ls, TK_DO);
-	stmt->while_or_repeat_stmt.loop_block = parse_block(parser);
+	stmt->while_or_repeat_stmt.loop_body = parse_block(parser);
 	check_match(ls, TK_END, TK_WHILE, line);
 	struct ast_node *breaklabel = generate_label(parser, luaX_newstring(ls, "break", sizeof "break"));
 	add_ast_node(parser->container, &parser->current_scope->statement_list, breaklabel);
@@ -2207,9 +2214,9 @@ static struct ast_node *parse_repeat_statement(struct parser_state *parser, int 
 	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_REPEAT_STMT;
 	stmt->while_or_repeat_stmt.condition = NULL;
-	stmt->while_or_repeat_stmt.loop_block = NULL;
-	stmt->while_or_repeat_stmt.break_scope = new_scope(parser); /* loop block */
-	stmt->while_or_repeat_stmt.loop_block = new_scope(parser); /* scope block */
+	stmt->while_or_repeat_stmt.loop_body = NULL;
+	stmt->while_or_repeat_stmt.loop_scope = new_scope(parser); /* loop block */
+	stmt->while_or_repeat_stmt.loop_body = new_scope(parser); /* scope block */
 	parse_statement_list(parser, &parser->current_scope->statement_list); // added to loop block
 	check_match(ls, TK_UNTIL, TK_REPEAT, line);
 	stmt->while_or_repeat_stmt.condition = parse_condition(parser);  /* read condition (inside scope block) */
@@ -2220,44 +2227,29 @@ static struct ast_node *parse_repeat_statement(struct parser_state *parser, int 
 	return stmt;
 }
 
-/* parse the single expressions needed in numerical for loops
-* called by fornum()
-*/
-static void parse_exp1(struct parser_state *parser) {
-	/* Since the local variable in a fornum loop is local to the loop and does
-	* not use any variable in outer scope we don't need to check its
-	* type - also the loop is already optimised so no point trying to
-	* optimise the iteration variable
-	*/
-	parse_expression(parser);
-}
-
 /* parse a for loop body for both versions of the for loop
 * called by fornum(), forlist()
 */
-static void parse_forbody(struct parser_state *parser, int line, int nvars, int isnum) {
+static void parse_forbody(struct parser_state *parser, struct ast_node* stmt, int line, int nvars, int isnum) {
 	LexState *ls = parser->ls;
 	/* forbody -> DO block */
-	OpCode forprep_inst = OP_FORPREP, forloop_inst = OP_FORLOOP;
-	int prep, endfor;
-	adjustlocalvars(parser, 3);  /* control variables */
-	checknext(ls, TK_DO);
-	new_scope(parser);
-	adjustlocalvars(parser, nvars);
-	parse_block(parser);
-	end_scope(parser);
+	checknext(ls, TK_DO);	
+	struct ast_node *blockstmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	blockstmt->type = AST_BLOCK_STMT;
+	blockstmt->do_stmt.scope = stmt->for_stmt.loop_body = parse_block(parser);
+	add_ast_node(parser->container, &parser->current_scope->statement_list, blockstmt);
 }
 
 /* parse a numerical for loop, calls forbody()
 * called from forstat()
 */
-static void parse_fornum_statement(struct parser_state *parser, TString *varname, int line) {
+static void parse_fornum_statement(struct parser_state *parser, struct ast_node *stmt, TString *varname, int line) {
 	LexState *ls = parser->ls;
 	/* fornum -> NAME = exp1,exp1[,exp1] forbody */
-	new_localvarliteral(parser, "(for index)");
-	new_localvarliteral(parser, "(for limit)");
-	new_localvarliteral(parser, "(for step)");
-	new_local_symbol(parser, varname, RAVI_TANY, NULL);
+	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for index)"));
+	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for limit)"));
+	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for step)"));
+	add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, varname, RAVI_TANY, NULL));
 	/* The fornum sets up its own variables as above.
 	These are expected to hold numeric values - but from Ravi's
 	point of view we need to know if the variable is an integer or
@@ -2267,56 +2259,72 @@ static void parse_fornum_statement(struct parser_state *parser, TString *varname
 	*/
 	checknext(ls, '=');
 	/* get the type of each expression */
-	parse_exp1(parser);  /* initial value */
+	add_ast_node(parser->container, &stmt->for_stmt.expressions, parse_expression(parser));  /* initial value */
 	checknext(ls, ',');
-	parse_exp1(parser);  /* limit */
-	if (testnext(ls, ','))
-		parse_exp1(parser);  /* optional step */
-	else {  /* default step = 1 */
+	add_ast_node(parser->container, &stmt->for_stmt.expressions, parse_expression(parser));  /* limit */
+	if (testnext(ls, ',')) {
+		add_ast_node(parser->container, &stmt->for_stmt.expressions, parse_expression(parser));  /* optional step */
 	}
-	parse_forbody(parser, line, 1, 1);
+	parse_forbody(parser, stmt, line, 1, 1);
 }
 
 /* parse a generic for loop, calls forbody()
 * called from forstat()
 */
-static void parse_for_list(struct parser_state *parser, TString *indexname) {
+static void parse_for_list(struct parser_state *parser, struct ast_node *stmt, TString *indexname) {
 	LexState *ls = parser->ls;
 	/* forlist -> NAME {,NAME} IN explist forbody */
 	int nvars = 4; /* gen, state, control, plus at least one declared var */
 	int line;
 	/* create control variables */
-	new_localvarliteral(parser, "(for generator)");
-	new_localvarliteral(parser, "(for state)");
-	new_localvarliteral(parser, "(for control)");
+	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for generator)"));
+	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for state)"));
+	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for control)"));
 	/* create declared variables */
-	new_local_symbol(parser, indexname, RAVI_TANY, NULL); /* RAVI TODO for name:type syntax? */
+	add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, indexname, RAVI_TANY, NULL)); /* RAVI TODO for name:type syntax? */
 	while (testnext(ls, ',')) {
-		new_local_symbol(parser, check_name_and_next(ls), RAVI_TANY, NULL); /* RAVI change - add type */
+		add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, check_name_and_next(ls), RAVI_TANY, NULL)); /* RAVI change - add type */
 		nvars++;
 	}
 	checknext(ls, TK_IN);
+	parse_expression_list(parser, &stmt->for_stmt.expressions);
 	line = ls->linenumber;
-	parse_forbody(parser, line, nvars - 3, 0);
+	parse_forbody(parser, stmt, line, nvars - 3, 0);
 }
 
 /* initial parsing of a for loop - calls fornum() or forlist()
 * called from statement()
 */
-static void parse_for_statement(struct parser_state *parser, int line) {
+static struct ast_node *parse_for_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* forstat -> FOR (fornum | forlist) END */
 	TString *varname;
-	new_scope(parser);
+	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	stmt->type = AST_NONE;
+	stmt->for_stmt.symbols = NULL;
+	stmt->for_stmt.expressions = NULL;
+	stmt->for_stmt.loop_scope = new_scope(parser);
+	stmt->for_stmt.loop_body = NULL;
 	luaX_next(ls);  /* skip 'for' */
 	varname = check_name_and_next(ls);  /* first variable name */
 	switch (ls->t.token) {
-	case '=': parse_fornum_statement(parser, varname, line); break;
-	case ',': case TK_IN: parse_for_list(parser, varname); break;
-	default: luaX_syntaxerror(ls, "'=' or 'in' expected");
+	case '=': 
+		stmt->type = AST_FORNUM_STMT;
+		parse_fornum_statement(parser, stmt, varname, line); 
+		break;
+	case ',': case TK_IN: 
+		stmt->type = AST_FORIN_STMT;
+		parse_for_list(parser, stmt, varname); 
+		break;
+	default: 
+		luaX_syntaxerror(ls, "'=' or 'in' expected");
 	}
 	check_match(ls, TK_END, TK_FOR, line);
+	/* add a break label */
+	struct ast_node *breaklabel = generate_label(parser, luaX_newstring(ls, "break", sizeof "break"));
+	add_ast_node(parser->container, &parser->current_scope->statement_list, breaklabel);
 	end_scope(parser);
+	return stmt;
 }
 
 /* parse if cond then block - called from ifstat() */
@@ -2531,7 +2539,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		break;
 	}
 	case TK_FOR: {  /* stat -> forstat */
-		parse_for_statement(parser, line);
+		stmt = parse_for_statement(parser, line);
 		break;
 	}
 	case TK_REPEAT: {  /* stat -> repeatstat */
@@ -2887,6 +2895,10 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 		printf_buf(buf, "%pend\n", level);
 		break;
 	}
+	case AST_BLOCK_STMT: {
+		print_ast_node_list(buf, node->do_stmt.scope->statement_list, level, NULL);
+		break;
+	}
 	case AST_EXPR_STMT: {
 		printf_buf(buf, "%p%c\n", level, "[expression statement start]");
 		if (node->expression_stmt.var_expr_list) {
@@ -2925,16 +2937,28 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 		printf_buf(buf, "%pwhile\n", level);
 		print_ast_node(buf, node->while_or_repeat_stmt.condition, level + 1);
 		printf_buf(buf, "%pdo\n", level);
-		print_ast_node_list(buf, node->while_or_repeat_stmt.loop_block->statement_list, level + 1, NULL);
+		print_ast_node_list(buf, node->while_or_repeat_stmt.loop_body->statement_list, level + 1, NULL);
 		printf_buf(buf, "%pend\n", level);
 		break;
 	}
 	case AST_REPEAT_STMT: {
 		printf_buf(buf, "%prepeat\n", level);
-		print_ast_node_list(buf, node->while_or_repeat_stmt.loop_block->statement_list, level + 1, NULL);
+		print_ast_node_list(buf, node->while_or_repeat_stmt.loop_body->statement_list, level + 1, NULL);
 		printf_buf(buf, "%puntil\n", level);
 		print_ast_node(buf, node->while_or_repeat_stmt.condition, level + 1);
 		printf_buf(buf, "%p%c\n", level, "[repeat end]");
+		break;
+	}
+	case AST_FORIN_STMT: {
+		printf_buf(buf, "%pfor\n", level);
+		print_block_scope(buf, node->for_stmt.loop_scope, level + 1);
+		printf_buf(buf, "%pend\n", level);
+		break;
+	}
+	case AST_FORNUM_STMT: {
+		printf_buf(buf, "%pfor\n", level);
+		print_block_scope(buf, node->for_stmt.loop_scope, level + 1);
+		printf_buf(buf, "%pend\n", level);
 		break;
 	}
 	case AST_SUFFIXED_EXPR: {
