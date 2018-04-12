@@ -1080,6 +1080,11 @@ struct ast_node {
 			struct block_scope *else_block;
 		} if_stmt;
 		struct {
+			struct ast_node *condition;
+			struct block_scope *loop_block;
+			struct block_scope *break_scope; // This has the label "break"
+		} while_or_repeat_stmt;
+		struct {
 			struct literal literal;
 		} literal_expr;
 		struct {
@@ -1185,6 +1190,7 @@ static struct ast_node *new_function(struct parser_state *parser);
 static struct block_scope *new_scope(struct parser_state *parser);
 static void end_scope(struct parser_state *parser);
 static struct ast_node *new_literal_expression(struct parser_state *parser, ravitype_t type);
+static struct ast_node *generate_label(struct parser_state *parser, TString *label);
 
 static l_noret error_expected(LexState *ls, int token) {
 	luaX_syntaxerror(ls,
@@ -2120,9 +2126,9 @@ static struct block_scope *parse_block(struct parser_state *parser) {
 /* parse condition in a repeat statement or an if control structure
 * called by repeatstat(), test_then_block()
 */
-static void parse_condition(struct parser_state *parser) {
+static struct ast_node *parse_condition(struct parser_state *parser) {
 	/* cond -> exp */
-	parse_expression(parser);                   /* read condition */
+	return parse_expression(parser);                   /* read condition */
 }
 
 static struct ast_node *parse_goto_statment(struct parser_state *parser) {
@@ -2134,7 +2140,7 @@ static struct ast_node *parse_goto_statment(struct parser_state *parser) {
 		label = check_name_and_next(ls);
 	else {
 		luaX_next(ls);  /* skip break */
-		label = luaS_new(ls->L, "break");
+		label = luaX_newstring(ls, "break", sizeof "break");
 	}
 	// Resolve labels in the end?
 	struct ast_node *goto_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
@@ -2151,16 +2157,20 @@ static void skip_noop_statements(struct parser_state *parser) {
 		parse_statement(parser);
 }
 
+static struct ast_node *generate_label(struct parser_state *parser, TString *label) {
+	struct symbol *symbol = new_label(parser, label);
+	struct ast_node *label_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	label_stmt->type = AST_LABEL_STMT;
+	label_stmt->label_stmt.symbol = symbol;
+	return label_stmt;
+}
 
 static struct ast_node *parse_label_statement(struct parser_state *parser, TString *label, int line) {
 	LexState *ls = parser->ls;
 	/* label -> '::' NAME '::' */
 	checknext(ls, TK_DBCOLON);  /* skip double colon */
 	/* create new entry for this label */
-	struct symbol *symbol = new_label(parser, label);
-	struct ast_node *label_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
-	label_stmt->type = AST_LABEL_STMT;
-	label_stmt->label_stmt.symbol = symbol;
+	struct ast_node *label_stmt = generate_label(parser, label);
 	skip_noop_statements(parser);  /* skip other no-op statements */
 	return label_stmt;
 }
@@ -2168,34 +2178,46 @@ static struct ast_node *parse_label_statement(struct parser_state *parser, TStri
 /* parse a while-do control structure, body processed by block()
 * called by statement()
 */
-static void parse_while_statement(struct parser_state *parser, int line) {
+static struct ast_node *parse_while_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* whilestat -> WHILE cond DO block END */
-	int whileinit;
-	int condexit;
 	luaX_next(ls);  /* skip WHILE */
-	parse_condition(parser);
-	new_scope(parser);
+	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	stmt->type = AST_WHILE_STMT;
+	stmt->while_or_repeat_stmt.break_scope = NULL;
+	stmt->while_or_repeat_stmt.loop_block = NULL;
+	stmt->while_or_repeat_stmt.condition = parse_condition(parser);
+	stmt->while_or_repeat_stmt.break_scope = new_scope(parser);
 	checknext(ls, TK_DO);
-	parse_block(parser);
+	stmt->while_or_repeat_stmt.loop_block = parse_block(parser);
 	check_match(ls, TK_END, TK_WHILE, line);
+	struct ast_node *breaklabel = generate_label(parser, luaX_newstring(ls, "break", sizeof "break"));
+	add_ast_node(parser->container, &parser->current_scope->statement_list, breaklabel);
 	end_scope(parser);
+	return stmt;
 }
 
 /* parse a repeat-until control structure, body parsed by statlist()
 * called by statement()
 */
-static void parse_repeat_statement(struct parser_state *parser, int line) {
+static struct ast_node *parse_repeat_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* repeatstat -> REPEAT block UNTIL cond */
 	luaX_next(ls);  /* skip REPEAT */
-	new_scope(parser); /* loop block */
-	new_scope(parser); /* scope block */
-	parse_statement_list(parser, &parser->current_scope->statement_list);
+	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	stmt->type = AST_REPEAT_STMT;
+	stmt->while_or_repeat_stmt.condition = NULL;
+	stmt->while_or_repeat_stmt.loop_block = NULL;
+	stmt->while_or_repeat_stmt.break_scope = new_scope(parser); /* loop block */
+	stmt->while_or_repeat_stmt.loop_block = new_scope(parser); /* scope block */
+	parse_statement_list(parser, &parser->current_scope->statement_list); // added to loop block
 	check_match(ls, TK_UNTIL, TK_REPEAT, line);
-	parse_condition(parser);  /* read condition (inside scope block) */
+	stmt->while_or_repeat_stmt.condition = parse_condition(parser);  /* read condition (inside scope block) */
 	end_scope(parser);
+	struct ast_node *breaklabel = generate_label(parser, luaX_newstring(ls, "break", sizeof "break"));
+	add_ast_node(parser->container, &parser->current_scope->statement_list, breaklabel);
 	end_scope(parser);
+	return stmt;
 }
 
 /* parse the single expressions needed in numerical for loops
