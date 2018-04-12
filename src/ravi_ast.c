@@ -2523,7 +2523,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		break;
 	}
 	case TK_WHILE: {  /* stat -> whilestat */
-		parse_while_statement(parser, line);
+		stmt = parse_while_statement(parser, line);
 		break;
 	}
 	case TK_DO: {  /* stat -> DO block END */
@@ -2535,7 +2535,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		break;
 	}
 	case TK_REPEAT: {  /* stat -> repeatstat */
-		parse_repeat_statement(parser, line);
+		stmt = parse_repeat_statement(parser, line);
 		break;
 	}
 	case TK_FUNCTION: {  /* stat -> funcstat */
@@ -2888,16 +2888,16 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 		break;
 	}
 	case AST_EXPR_STMT: {
-		printf_buf(buf, "%p%c\n", level, "expression statement start");
+		printf_buf(buf, "%p%c\n", level, "[expression statement start]");
 		if (node->expression_stmt.var_expr_list) {
-			printf_buf(buf, "%p%c\n", level+1, "var list start");
+			printf_buf(buf, "%p%c\n", level+1, "[var list start]");
 			print_ast_node_list(buf, node->expression_stmt.var_expr_list, level + 2, ",");
-			printf_buf(buf, "%p= %c\n", level+1, "var list end");
+			printf_buf(buf, "%p= %c\n", level+1, "[var list end]");
 		}
-		printf_buf(buf, "%p%c\n", level + 1, "expression list start");
+		printf_buf(buf, "%p%c\n", level + 1, "[expression list start]");
 		print_ast_node_list(buf, node->expression_stmt.exr_list, level + 2, ",");
-		printf_buf(buf, "%p%c\n", level + 1, "expression list end");
-		printf_buf(buf, "%p%c\n", level, "expression statement end");
+		printf_buf(buf, "%p%c\n", level + 1, "[expression list end]");
+		printf_buf(buf, "%p%c\n", level, "[expression statement end]");
 		break;
 	}
 	case AST_IF_STMT: {
@@ -2909,7 +2909,7 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 				printf_buf(buf, "%pif\n", level);
 			}
 			else
-				printf_buf(buf, "%pelseif \n", level);
+				printf_buf(buf, "%pelseif\n", level);
 			print_ast_node(buf, test_then_block->test_then_block.condition, level + 1);
 			printf_buf(buf, "%pthen\n", level);
 			print_ast_node_list(buf, test_then_block->test_then_block.scope->statement_list, level + 1, NULL);
@@ -2919,6 +2919,22 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 			print_ast_node_list(buf, node->if_stmt.else_block->statement_list, level + 1, NULL);
 		}
 		printf_buf(buf, "%pend\n", level);
+		break;
+	}
+	case AST_WHILE_STMT: {
+		printf_buf(buf, "%pwhile\n", level);
+		print_ast_node(buf, node->while_or_repeat_stmt.condition, level + 1);
+		printf_buf(buf, "%pdo\n", level);
+		print_ast_node_list(buf, node->while_or_repeat_stmt.loop_block->statement_list, level + 1, NULL);
+		printf_buf(buf, "%pend\n", level);
+		break;
+	}
+	case AST_REPEAT_STMT: {
+		printf_buf(buf, "%prepeat\n", level);
+		print_ast_node_list(buf, node->while_or_repeat_stmt.loop_block->statement_list, level + 1, NULL);
+		printf_buf(buf, "%puntil\n", level);
+		print_ast_node(buf, node->while_or_repeat_stmt.condition, level + 1);
+		printf_buf(buf, "%p%c\n", level, "[repeat end]");
 		break;
 	}
 	case AST_SUFFIXED_EXPR: {
