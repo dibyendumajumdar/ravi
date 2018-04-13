@@ -1028,7 +1028,6 @@ enum ast_node_type {
 	AST_FORNUM_STMT,
 	AST_REPEAT_STMT,
 	AST_EXPR_STMT, // Also handles assignment statements
-	AST_BLOCK_STMT, // Not independent - part of another statement
 	AST_LITERAL_EXPR,
 	AST_SYMBOL_EXPR,
 	AST_Y_INDEX_EXPR, // [] op
@@ -1070,7 +1069,7 @@ struct ast_node {
 			struct ast_node *function_expr; // Function's AST
 		} function_stmt;
 		struct {
-			struct block_scope *scope; // The do statement only creates a new scope, used by AST_DO_STMT and AST_BLOCK_STMT
+			struct block_scope *scope; // The do statement only creates a new scope
 		} do_stmt;
 		struct {
 			struct ast_node *condition;
@@ -1083,12 +1082,10 @@ struct ast_node {
 		struct {
 			struct ast_node *condition;
 			struct block_scope *loop_body;
-			struct block_scope *loop_scope; // This has the label "break"
 		} while_or_repeat_stmt;
 		struct {
 			struct symbol_list *symbols;
 			struct ast_node_list *expressions;
-			struct block_scope *loop_scope; // This scope contains the symbols and break label
 			struct block_scope *loop_body;
 		} for_stmt;
 		struct {
@@ -1243,17 +1240,6 @@ static int block_follow(LexState *ls, int withuntil) {
 	}
 }
 
-static void enterlevel(LexState *ls) {
-	lua_State *L = ls->L;
-	++L->nCcalls;
-	// checklimit(ls->fs, L->nCcalls, LUAI_MAXCCALLS, "C levels");
-}
-
-static inline void leavelevel(LexState *ls) {
-	ls->L->nCcalls--;
-}
-
-
 static void check_match(LexState *ls, int what, int who, int where) {
 	if (!testnext(ls, what)) {
 		if (where == ls->linenumber)
@@ -1325,14 +1311,6 @@ static struct symbol* new_localvarliteral_(struct parser_state *parser, const ch
 */
 #define new_localvarliteral(parser,name) \
 	new_localvarliteral_(parser, "" name, (sizeof(name)/sizeof(char))-1)
-
-/* moves the active variable watermark (nactvar) to cover the
-* local variables in the current declaration. Also
-* sets the starting code location (set to current instruction)
-* for nvars new local variables
-*/
-static void adjustlocalvars(struct parser_state *parser, int nvars) {
-}
 
 struct symbol *search_for_variable_in_block(struct block_scope *scope, const TString *varname) {
 	struct symbol *symbol;
@@ -1474,49 +1452,6 @@ static struct ast_node *singlevar(struct parser_state *parser) {
 	symbol_expr->symbol_expr.type = symbol->value_type;
 	symbol_expr->symbol_expr.var = symbol;
 	return symbol_expr;
-}
-
-static void adjust_assign(struct parser_state *parser, int nvars, int nexps, expdesc *e) {
-	LexState *ls = parser->ls;
-	FuncState *fs = ls->fs;
-	int extra = nvars - nexps;
-	if (hasmultret(e->k)) {
-		extra++;  /* includes call itself */
-		if (extra < 0) extra = 0;
-		/* following adjusts the C operand in the OP_CALL instruction */
-		luaK_setreturns(fs, e, extra);  /* last exp. provides the difference */
-		if (extra > 1) luaK_reserveregs(fs, extra - 1);
-	}
-	else {
-		if (e->k != VVOID) luaK_exp2nextreg(fs, e);  /* close last expression */
-		if (extra > 0) {
-			int reg = fs->freereg;
-			luaK_reserveregs(fs, extra);
-			/* RAVI TODO for typed variables we should not set to nil? */
-			luaK_nil(fs, reg, extra);
-		}
-	}
-	if (nexps > nvars)
-		ls->fs->freereg -= nexps - nvars;  /* remove extra values */
-}
-
-/*
-** create a label named 'break' to resolve break statements
-*/
-static void breaklabel(struct parser_state *parser) {
-}
-
-/*
-** generates an error for an undefined 'goto'; choose appropriate
-** message when label name is a reserved word (which can only be 'break')
-*/
-static l_noret undefgoto(struct parser_state *parser, Labeldesc *gt) {
-	LexState *ls = parser->ls;
-	const char *msg = isreserved(gt->name)
-		? "<%s> at line %d not inside a loop"
-		: "no visible label '%s' for <goto> at line %d";
-	msg = luaO_pushfstring(ls->L, msg, getstr(gt->name), gt->line);
-	semerror(ls, msg);
 }
 
 /*============================================================*/
@@ -1690,7 +1625,7 @@ static TString *user_defined_type_name(LexState *ls, TString *typename) {
 *   where type is 'integer', 'integer[]',
 *                 'number', 'number[]'
 */
-static struct symbol * declare_local_variable(struct parser_state *parser, TString **pusertype) {
+static struct symbol *declare_local_variable(struct parser_state *parser, TString **pusertype) {
 	LexState *ls = parser->ls;
 	/* assume a dynamic type */
 	ravitype_t tt = RAVI_TANY;
@@ -1760,7 +1695,6 @@ static bool parse_parameter_list(struct parser_state *parser, struct symbol_list
 			}
 		} while (!is_vararg && testnext(ls, ','));
 	}
-	adjustlocalvars(parser, nparams);
 	return is_vararg;
 }
 
@@ -1772,7 +1706,6 @@ static void parse_function_body(struct parser_state *parser, struct ast_node *fu
 	if (ismethod) {
 		struct symbol *symbol = new_localvarliteral(parser, "self");  /* create 'self' parameter */
 		add_symbol(parser->container, &func_ast->function_expr.args, symbol);
-		adjustlocalvars(parser, 1);
 	}
 	bool is_vararg = parse_parameter_list(parser, &func_ast->function_expr.args);
 	func_ast->function_expr.is_vararg = is_vararg;
@@ -2053,7 +1986,6 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
 	LexState *ls = parser->ls;
 	BinOpr op;
 	UnOpr uop;
-	enterlevel(ls);
 	struct ast_node *expr = NULL;
 	uop = get_unary_opr(ls->t.token);
 	if (uop != OPR_NOUNOPR) {
@@ -2098,7 +2030,6 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
 		expr = binexpr; // Becomes the left expr for next iteration
 		op = nextop;
 	}
-	leavelevel(ls);
 	*untreated_op = op;  /* return first untreated operator */
 	return expr;
 }
@@ -2191,15 +2122,11 @@ static struct ast_node *parse_while_statement(struct parser_state *parser, int l
 	luaX_next(ls);  /* skip WHILE */
 	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_WHILE_STMT;
-	stmt->while_or_repeat_stmt.loop_scope = NULL;
 	stmt->while_or_repeat_stmt.loop_body = NULL;
 	stmt->while_or_repeat_stmt.condition = parse_condition(parser);
-	stmt->while_or_repeat_stmt.loop_scope = new_scope(parser);
 	checknext(ls, TK_DO);
 	stmt->while_or_repeat_stmt.loop_body = parse_block(parser);
 	check_match(ls, TK_END, TK_WHILE, line);
-	struct ast_node *breaklabel = generate_label(parser, luaX_newstring(ls, "break", sizeof "break"));
-	add_ast_node(parser->container, &parser->current_scope->statement_list, breaklabel);
 	end_scope(parser);
 	return stmt;
 }
@@ -2214,15 +2141,10 @@ static struct ast_node *parse_repeat_statement(struct parser_state *parser, int 
 	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_REPEAT_STMT;
 	stmt->while_or_repeat_stmt.condition = NULL;
-	stmt->while_or_repeat_stmt.loop_body = NULL;
-	stmt->while_or_repeat_stmt.loop_scope = new_scope(parser); /* loop block */
 	stmt->while_or_repeat_stmt.loop_body = new_scope(parser); /* scope block */
-	parse_statement_list(parser, &parser->current_scope->statement_list); // added to loop block
+	parse_statement_list(parser, &parser->current_scope->statement_list);
 	check_match(ls, TK_UNTIL, TK_REPEAT, line);
 	stmt->while_or_repeat_stmt.condition = parse_condition(parser);  /* read condition (inside scope block) */
-	end_scope(parser);
-	struct ast_node *breaklabel = generate_label(parser, luaX_newstring(ls, "break", sizeof "break"));
-	add_ast_node(parser->container, &parser->current_scope->statement_list, breaklabel);
 	end_scope(parser);
 	return stmt;
 }
@@ -2234,10 +2156,7 @@ static void parse_forbody(struct parser_state *parser, struct ast_node* stmt, in
 	LexState *ls = parser->ls;
 	/* forbody -> DO block */
 	checknext(ls, TK_DO);	
-	struct ast_node *blockstmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
-	blockstmt->type = AST_BLOCK_STMT;
-	blockstmt->do_stmt.scope = stmt->for_stmt.loop_body = parse_block(parser);
-	add_ast_node(parser->container, &parser->current_scope->statement_list, blockstmt);
+	stmt->for_stmt.loop_body = parse_block(parser);
 }
 
 /* parse a numerical for loop, calls forbody()
@@ -2246,9 +2165,6 @@ static void parse_forbody(struct parser_state *parser, struct ast_node* stmt, in
 static void parse_fornum_statement(struct parser_state *parser, struct ast_node *stmt, TString *varname, int line) {
 	LexState *ls = parser->ls;
 	/* fornum -> NAME = exp1,exp1[,exp1] forbody */
-	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for index)"));
-	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for limit)"));
-	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for step)"));
 	add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, varname, RAVI_TANY, NULL));
 	/* The fornum sets up its own variables as above.
 	These are expected to hold numeric values - but from Ravi's
@@ -2276,10 +2192,6 @@ static void parse_for_list(struct parser_state *parser, struct ast_node *stmt, T
 	/* forlist -> NAME {,NAME} IN explist forbody */
 	int nvars = 4; /* gen, state, control, plus at least one declared var */
 	int line;
-	/* create control variables */
-	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for generator)"));
-	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for state)"));
-	add_symbol(parser->container, &stmt->for_stmt.symbols, new_localvarliteral(parser, "(for control)"));
 	/* create declared variables */
 	add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, indexname, RAVI_TANY, NULL)); /* RAVI TODO for name:type syntax? */
 	while (testnext(ls, ',')) {
@@ -2303,8 +2215,8 @@ static struct ast_node *parse_for_statement(struct parser_state *parser, int lin
 	stmt->type = AST_NONE;
 	stmt->for_stmt.symbols = NULL;
 	stmt->for_stmt.expressions = NULL;
-	stmt->for_stmt.loop_scope = new_scope(parser);
 	stmt->for_stmt.loop_body = NULL;
+	new_scope(parser); // For the loop variables
 	luaX_next(ls);  /* skip 'for' */
 	varname = check_name_and_next(ls);  /* first variable name */
 	switch (ls->t.token) {
@@ -2320,9 +2232,6 @@ static struct ast_node *parse_for_statement(struct parser_state *parser, int lin
 		luaX_syntaxerror(ls, "'=' or 'in' expected");
 	}
 	check_match(ls, TK_END, TK_FOR, line);
-	/* add a break label */
-	struct ast_node *breaklabel = generate_label(parser, luaX_newstring(ls, "break", sizeof "break"));
-	add_ast_node(parser->container, &parser->current_scope->statement_list, breaklabel);
 	end_scope(parser);
 	return stmt;
 }
@@ -2384,7 +2293,6 @@ static struct ast_node *parse_local_function(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	struct symbol *symbol = new_local_symbol(parser, check_name_and_next(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
 	struct ast_node *function_ast = new_function(parser);
-	adjustlocalvars(parser, 1);  /* enter its scope */
 	parse_function_body(parser, function_ast, 0, ls->linenumber);  /* function created in next register */
 	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_LOCAL_STMT;
@@ -2426,7 +2334,6 @@ static struct ast_node *parse_local_statement(struct parser_state *parser) {
 	else {
 		nexps = 0;
 	}
-	adjustlocalvars(parser, nvars);
 	return node;
 }
 
@@ -2519,7 +2426,6 @@ static struct ast_node *parse_do_statement(struct parser_state *parser, int line
 static struct ast_node *parse_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	int line = ls->linenumber;  /* may be needed for error messages */
-	enterlevel(ls);
 	struct ast_node *stmt = NULL;
 	switch (ls->t.token) {
 	case ';': {  /* stat -> ';' (empty statement) */
@@ -2578,7 +2484,6 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		break;
 	}
 	}
-	leavelevel(ls);
 	return stmt;
 }
 
@@ -2895,10 +2800,6 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 		printf_buf(buf, "%pend\n", level);
 		break;
 	}
-	case AST_BLOCK_STMT: {
-		print_ast_node_list(buf, node->do_stmt.scope->statement_list, level, NULL);
-		break;
-	}
 	case AST_EXPR_STMT: {
 		printf_buf(buf, "%p%c\n", level, "[expression statement start]");
 		if (node->expression_stmt.var_expr_list) {
@@ -2951,13 +2852,21 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 	}
 	case AST_FORIN_STMT: {
 		printf_buf(buf, "%pfor\n", level);
-		print_block_scope(buf, node->for_stmt.loop_scope, level + 1);
+		print_symbol_list(buf, node->for_stmt.symbols, level + 1, ",");
+		printf_buf(buf, "%pin\n", level);
+		print_ast_node_list(buf, node->for_stmt.expressions, level + 1, ",");
+		printf_buf(buf, "%pdo\n", level);
+		print_block_scope(buf, node->for_stmt.loop_body, level + 1);
 		printf_buf(buf, "%pend\n", level);
 		break;
 	}
 	case AST_FORNUM_STMT: {
 		printf_buf(buf, "%pfor\n", level);
-		print_block_scope(buf, node->for_stmt.loop_scope, level + 1);
+		print_symbol_list(buf, node->for_stmt.symbols, level + 1, NULL);
+		printf_buf(buf, "%p=\n", level);
+		print_ast_node_list(buf, node->for_stmt.expressions, level + 1, ",");
+		printf_buf(buf, "%pdo\n", level);
+		print_block_scope(buf, node->for_stmt.loop_body, level + 1);
 		printf_buf(buf, "%pend\n", level);
 		break;
 	}
