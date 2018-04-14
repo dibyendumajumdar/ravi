@@ -45,7 +45,7 @@
 * cannot handle smaller chunks, for example, so trying to
 * allocate blobs that aren't aligned is not going to work).
 */
-#define CHUNK 32768
+#define CHUNK 1096 // 32768
 
 static size_t alignment = sizeof(double);
 
@@ -945,7 +945,6 @@ struct symbol_list;
 */
 struct ast_container {
 	struct allocator ast_node_allocator;
-	struct allocator string_allocator;
 	struct allocator ptrlist_allocator;
 	struct allocator block_scope_allocator;
 	struct allocator symbol_allocator;
@@ -959,11 +958,9 @@ DECLARE_PTR_LIST(ast_node_list, struct ast_node);
 struct var_type;
 DECLARE_PTR_LIST(var_type_list, struct var_type);
 
-DECLARE_PTR_LIST(string_list, char);
-
 struct var_type {
 	ravitype_t type;
-	const TString *type_name;	/* type name */
+	const TString *type_name;	/* type name for user defined types; used to lookup metatable in registry */
 };
 
 struct literal {
@@ -980,20 +977,22 @@ DECLARE_PTR_LIST(symbol_list, struct symbol);
 
 struct block_scope;
 
+/* Types of symbols */
 enum symbol_type {
-	SYM_GLOBAL,
 	SYM_LOCAL,
 	SYM_UPVALUE,
+	SYM_GLOBAL, /* Global symbols are never added to a scope so they are always looked up */
 	SYM_LABEL
 };
 
+/* A symbol is a name recognised in Ravi/Lua code*/
 struct symbol {
 	enum symbol_type symbol_type;
 	ravitype_t value_type;
 	union {
 		struct {
 			const TString *var_name; /* name of the variable */
-			struct block_scope *block; /* NULL if global */
+			struct block_scope *block; /* NULL if global symbol, as globals are never added to a scope */
 		} var;
 		struct {
 			const TString *label_name;
@@ -1006,16 +1005,15 @@ struct symbol {
 };
 
 struct block_scope {
-	struct ast_node *function; /* function owning this block - FUNCTION_EXPR */
-	struct block_scope *parent; /* parent block */
+	struct ast_node *function; /* function owning this block - of type FUNCTION_EXPR */
+	struct block_scope *parent; /* parent block, may belong to parent function */
 	struct symbol_list *symbol_list; /* symbols defined in this block */
 	struct ast_node_list *statement_list; /* statements in this block */
 };
 
 enum ast_node_type {
-	AST_NONE, // Used when the node doesn't represent an AST such as test_then_block.
+	AST_NONE, /* Used when the node doesn't represent an AST such as test_then_block. */
 	AST_RETURN_STMT,
-	AST_ASSIGN_STMT,
 	AST_BREAK_STMT,
 	AST_GOTO_STMT,
 	AST_LABEL_STMT,
@@ -1027,20 +1025,24 @@ enum ast_node_type {
 	AST_FORIN_STMT,
 	AST_FORNUM_STMT,
 	AST_REPEAT_STMT,
-	AST_EXPR_STMT, // Also handles assignment statements
+	AST_EXPR_STMT, /* Also used for assignment statements */
 	AST_LITERAL_EXPR,
 	AST_SYMBOL_EXPR,
-	AST_Y_INDEX_EXPR, // [] op
-	AST_FIELD_SELECTOR_EXPR, // table field
-	AST_INDEXED_ASSIGN_EXPR, // table value assign in table constructor
+	AST_Y_INDEX_EXPR, /* [] operator */
+	AST_FIELD_SELECTOR_EXPR, /* table field access - '.' or ':' operator */
+	AST_INDEXED_ASSIGN_EXPR, /* table value assign in table constructor */
 	AST_SUFFIXED_EXPR,
 	AST_UNARY_EXPR,
 	AST_BINARY_EXPR,
-	AST_FUNCTION_EXPR, // function literal
-	AST_TABLE_EXPR, // table constructor
+	AST_FUNCTION_EXPR, /* function literal */
+	AST_TABLE_EXPR, /* table constructor */
 	AST_FUNCTION_CALL_EXPR
 };
 
+/* The parse tree is made up of ast_node objects. Some of the ast_nodes reference the appropriate block 
+scopes but not all scopes may be referenced. The tree captures Lua syntax tree - i.e. statements such as 
+while, repeat, and for are captured in the way user uses them and not the way Lua generates code. Potentially
+we can have a transformation step to convert to a tree that is more like the code generation */
 struct ast_node {
 	enum ast_node_type type;
 	union {
@@ -1052,31 +1054,31 @@ struct ast_node {
 		} label_stmt;
 		struct {
 			const TString *name; /* target label, used to resolve the goto destination */
-			struct ast_node *label_stmt; /* Initially this may be NULL for unresolved goto statements */
+			struct ast_node *label_stmt; /* Initially this will be NULL; set by a separate pass */
 		} goto_stmt;
 		struct {
 			struct symbol_list *vars;
 			struct ast_node_list *exprlist;
 		} local_stmt;
 		struct {
-			struct ast_node_list *var_expr_list; // Optional var expressions, comma separated
-			struct ast_node_list *exr_list; // Comma separated expressions
+			struct ast_node_list *var_expr_list; /* Optional var expressions, comma separated */
+			struct ast_node_list *exr_list; /* Comma separated expressions */
 		} expression_stmt; /* Also covers assignments*/
 		struct {
-			struct ast_node *name; // base symbol to be looked up
-			struct ast_node_list *selectors; // Optional
-			struct ast_node *methodname; // Optional 
-			struct ast_node *function_expr; // Function's AST
+			struct ast_node *name; /* base symbol to be looked up */
+			struct ast_node_list *selectors; /* Optional */
+			struct ast_node *methodname; /* Optional */
+			struct ast_node *function_expr; /* Function's AST */
 		} function_stmt;
 		struct {
-			struct block_scope *scope; // The do statement only creates a new scope
+			struct block_scope *scope; /* The do statement only creates a new scope */
 		} do_stmt;
 		struct {
 			struct ast_node *condition;
 			struct block_scope *scope;
-		} test_then_block;
+		} test_then_block; /* Used internally in if_stmt, not an independent AST node */
 		struct {
-			struct ast_node_list *if_condition_list; // Actually a list of test_then_blocks
+			struct ast_node_list *if_condition_list; /* Actually a list of test_then_blocks */
 			struct block_scope *else_block;
 		} if_stmt;
 		struct {
@@ -1087,20 +1089,20 @@ struct ast_node {
 			struct symbol_list *symbols;
 			struct ast_node_list *expressions;
 			struct block_scope *loop_body;
-		} for_stmt;
+		} for_stmt; /* Used for both generic and numeric for loops */
 		struct {
 			struct literal literal;
 		} literal_expr;
 		struct {
 			ravitype_t type;
-		} common_expr; // To access the type field common to all expr objects
+		} common_expr; /* To access the type field common to all expr objects */
 		struct {
 			ravitype_t type;
 			struct symbol *var;
 		} symbol_expr;
 		struct {
 			ravitype_t type;
-			struct ast_node *expr; // '[' expr ']'
+			struct ast_node *expr; /* '[' expr ']' */
 		} index_expr;
 		struct {
 			ravitype_t type;
@@ -1138,8 +1140,8 @@ struct ast_node {
 		} suffixed_expr;
 		struct {
 			ravitype_t type;
-			TString *methodname; // Optional methodname
-			struct ast_node_list *arg_list; // Call arguments
+			TString *methodname; /* Optional methodname */
+			struct ast_node_list *arg_list; /* Call arguments */
 		} function_call_expr;
 	};
 };
@@ -1148,7 +1150,6 @@ struct parser_state {
 	LexState *ls;
 	struct ast_container *container;
 	struct ast_node *current_function;
-	struct ast_node *current_node;
 	struct block_scope *current_scope;
 };
 
@@ -1164,7 +1165,6 @@ static struct ast_container * new_ast_container(lua_State *L) {
 	struct ast_container *container =
 		(struct ast_container *)lua_newuserdata(L, sizeof(struct ast_container));
 	allocator_init(&container->ast_node_allocator, "ast nodes", sizeof(struct ast_node), sizeof(double), CHUNK);
-	allocator_init(&container->string_allocator, "strings", 0, 0, CHUNK);
 	allocator_init(&container->ptrlist_allocator, "ptrlists", sizeof(struct ptr_list), sizeof(double), CHUNK);
 	allocator_init(&container->block_scope_allocator, "block scopes", sizeof(struct block_scope), sizeof(double), CHUNK);
 	allocator_init(&container->symbol_allocator, "symbols", sizeof(struct symbol), sizeof(double), CHUNK);
@@ -1181,7 +1181,6 @@ static int collect_ast_container(lua_State *L) {
 	allocator_destroy(&container->symbol_allocator);
 	allocator_destroy(&container->block_scope_allocator);
 	allocator_destroy(&container->ast_node_allocator);
-	allocator_destroy(&container->string_allocator);
 	allocator_destroy(&container->ptrlist_allocator);
 	return 0;
 }
@@ -1364,29 +1363,11 @@ struct symbol *search_for_label_in_block(struct block_scope *scope, const TStrin
 	return NULL;
 }
 
-struct symbol *search_globals(struct parser_state *parser, const TString *varname) {
-	struct symbol *symbol;
-	FOR_EACH_PTR(parser->container->external_symbols, symbol) {
-		switch (symbol->symbol_type) {
-		case SYM_GLOBAL: {
-			if (varname == symbol->var.var_name) {
-				return symbol;
-			}
-			break;
-		}
-		default:
-			assert(0); // Not expecting any other type of global symbol
-			break;
-		}
-	} END_FOR_EACH_PTR(symbol);
-	return NULL;
-}
-
 /* Searches for a variable starting from current scope, and going up the
 * scope chain. If not found and search_globals_too is requested then
 * also searches the external symbols
 */
-struct symbol *search_for_variable(struct parser_state *parser, const TString *varname, bool search_globals_too) {
+struct symbol *search_for_variable(struct parser_state *parser, const TString *varname) {
 	struct block_scope *current_scope = parser->current_scope;
 	assert(current_scope && current_scope->function == parser->current_function);
 	while (current_scope) {
@@ -1394,9 +1375,6 @@ struct symbol *search_for_variable(struct parser_state *parser, const TString *v
 		if (symbol)
 			return symbol;
 		current_scope = current_scope->parent;
-	}
-	if (search_globals_too) {
-		return search_globals(parser, varname);
 	}
 	return NULL;
 }
@@ -2337,8 +2315,7 @@ static struct ast_node *parse_local_statement(struct parser_state *parser) {
 	return node;
 }
 
-/* parse a function name specification - called from funcstat()
-* returns boolean value - true if function is a method
+/* parse a function name specification with base symbol, optional selectors and optional method name
 */
 static struct ast_node *parse_function_name(struct parser_state *parser) {
 	LexState *ls = parser->ls;
@@ -2358,7 +2335,6 @@ static struct ast_node *parse_function_name(struct parser_state *parser) {
 	return function_stmt;
 }
 
-/* parse a function statement - called from statement() */
 static struct ast_node *parse_function_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* funcstat -> FUNCTION funcname body */
@@ -2371,7 +2347,7 @@ static struct ast_node *parse_function_statement(struct parser_state *parser, in
 	return function_stmt;
 }
 
-/* parse function call with no returns or assignment statement - called from statement() */
+/* parse function call with no returns or assignment statement */
 static struct ast_node * parse_expr_statement(struct parser_state *parser) {
 	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_EXPR_STMT;
@@ -2396,7 +2372,6 @@ static struct ast_node * parse_expr_statement(struct parser_state *parser) {
 	return stmt;
 }
 
-/* parse return statement - called from statement() */
 static struct ast_node *parse_return_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* stat -> RETURN [explist] [';'] */
@@ -2551,7 +2526,6 @@ static struct ast_node *new_function(struct parser_state *parser) {
 		add_ast_node(parser->container, &parser->current_function->function_expr.child_functions, node);
 	}
 	parser->current_function = node;
-	parser->current_node = node;
 	new_scope(parser); /* Start function scope */
 	return node;
 }
@@ -2564,7 +2538,6 @@ static struct ast_node *end_function(struct parser_state *parser) {
 	assert(parser->current_function);
 	end_scope(parser);
 	struct ast_node *function = parser->current_function;
-	parser->current_node = function;
 	parser->current_function = function->function_expr.parent_function;
 	return function;
 }
@@ -2584,7 +2557,6 @@ static void parser_state_init(struct parser_state *parser, LexState *ls, struct 
 	parser->ls = ls;
 	parser->container = container;
 	parser->current_function = NULL;
-	parser->current_node = NULL;
 	parser->current_scope = NULL;
 }
 
