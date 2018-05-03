@@ -74,7 +74,7 @@ const char *raviY_typename(ravitype_t tt) {
   case RAVI_TNUMFLT:
     return "number";
   case RAVI_TNUMINT:
-    return "integr";
+    return "integer";
   case RAVI_TSTRING:
     return "string";
   case RAVI_TFUNCTION:

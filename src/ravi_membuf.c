@@ -58,6 +58,12 @@ void membuff_add_fstring(membuff_t *mb, const char *fmt, ...) {
   if (n < 0) { abort(); }
   membuff_add_string(mb, buffer);
 }
+void membuff_add_vfstring(membuff_t *mb, const char *fmt, va_list args) {
+	char buffer[1024];
+	int n = vsnprintf(buffer, sizeof buffer, fmt, args);
+	if (n < 0) { abort(); }
+	membuff_add_string(mb, buffer);
+}
 void membuff_add_bool(membuff_t *mb, bool value) {
   if (value)
     membuff_add_string(mb, "true");
@@ -73,4 +79,8 @@ void membuff_add_longlong(membuff_t *mb, int64_t value) {
   char temp[100];
   snprintf(temp, sizeof temp, "%" PRId64 "", value);
   membuff_add_string(mb, temp);
+}
+void membuff_add_char(membuff_t *mb, char c) {
+	char temp[2] = { c, '\0' };
+	membuff_add_string(mb, temp);
 }

@@ -527,6 +527,14 @@ LUA_API void ravi_writestringerror(lua_State *L, const char *fmt, const char *p)
 LUA_API void ravi_set_debugger_data(lua_State *L, void *data);
 LUA_API void *ravi_get_debugger_data(lua_State *L);
 
+/* 
+** Experimental (wip) implementation of new
+** parser and code generator 
+*/
+LUA_API int (ravi_build_ast_from_buffer) (lua_State *L, lua_Reader reader, void *dt,
+                          const char *chunkname, const char *mode);
+
+
 /////////////////////////////////////////////////////////////////////////////
 /*
  Bunch of useful functions for debugging
