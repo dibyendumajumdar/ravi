@@ -2,6 +2,7 @@
 
 #include "lprefix.h"
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
