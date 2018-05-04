@@ -34,6 +34,7 @@
 
 #include "ravijit.h"
 #include "ravi_profile.h"
+#include "ravi_alloc.h"
 
 #if !defined(LUAI_GCPAUSE)
 #define LUAI_GCPAUSE	200  /* 200% */
@@ -264,7 +265,10 @@ static void close_state (lua_State *L) {
   freestack(L);
   lua_assert(gettotalbytes(g) == sizeof(LG));
   raviV_close(L);
-  (*g->frealloc)(g->ud, fromstate(L), sizeof(LG), 0);  /* free main block */
+  if (g->frealloc == ravi_alloc_f) /* Using LuaJIt allocator? */
+    ravi_alloc_destroy(g->ud);
+  else
+    (*g->frealloc)(g->ud, fromstate(L), sizeof(LG), 0);  /* free main block */
 }
 
 
