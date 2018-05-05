@@ -1047,10 +1047,12 @@ void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
     key->k == VK &&
     key->ravi_type == RAVI_TSTRING &&
     ttisshrstring(&fs->f->k[key->u.info]);
-  int table_and_string = 
-    e->ravi_type == RAVI_TTABLE &&
-    is_string_constant_key;
   luaK_exp2anyreg(fs, e);
+  // The check below needs to be 
+  // after exp2anyreg as this can modify e->ravi_type
+  int table_and_string =
+	  e->ravi_type == RAVI_TTABLE &&
+	  is_string_constant_key;
   ereg = e->u.info;  /* register where 'e' was placed */
   freeexp(fs, e);
   e->u.info = fs->freereg;  /* base register for op_self */
