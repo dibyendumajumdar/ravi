@@ -314,6 +314,7 @@ LUALIB_API int (raviL_build_ast_from_buffer) (lua_State *L, const char *buff, si
                                  const char *name, const char *mode);
 
 LUALIB_API int (raviL_dumpast) (lua_State *L);
+LUALIB_API void *ravi_alloc_f(void *msp, void *ptr, size_t osize, size_t nsize);
 
 #endif
 

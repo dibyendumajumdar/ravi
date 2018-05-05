@@ -1052,8 +1052,9 @@ static int panic (lua_State *L) {
 
 
 LUALIB_API lua_State *luaL_newstate (void) {
-  void *ud = ravi_alloc_create();  /* Use LuaJIT's allocator */
-  lua_State *L = lua_newstate(ravi_alloc_f, ud);
+  //void *ud = create_mspace(0, 0);  /* Use Doug Lea's allocator */
+  //lua_State *L = lua_newstate(ravi_alloc_f, ud);
+  lua_State *L = lua_newstate(l_alloc, NULL);
   if (L) lua_atpanic(L, &panic);
   return L;
 }

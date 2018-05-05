@@ -254,6 +254,19 @@ static void preinit_thread (lua_State *L, global_State *g) {
   L->magic = 42; /* RAVI extension */
 }
 
+void *ravi_alloc_f(void *msp, void *ptr, size_t osize, size_t nsize)
+{
+  (void)osize;
+  if (nsize == 0) {
+    mspace_free(msp, ptr);
+    return NULL;
+  } else if (ptr == NULL) {
+    return mspace_malloc(msp, nsize);
+  } else {
+    return mspace_realloc(msp, ptr, nsize);
+  }
+}
+
 
 static void close_state (lua_State *L) {
   global_State *g = G(L);
@@ -266,7 +279,7 @@ static void close_state (lua_State *L) {
   lua_assert(gettotalbytes(g) == sizeof(LG));
   raviV_close(L);
   if (g->frealloc == ravi_alloc_f) /* Using LuaJIt allocator? */
-    ravi_alloc_destroy(g->ud);
+    destroy_mspace(g->ud);
   else
     (*g->frealloc)(g->ud, fromstate(L), sizeof(LG), 0);  /* free main block */
 }

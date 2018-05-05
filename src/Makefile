@@ -35,7 +35,7 @@ CORE_CPP_O=ravijit.o
 CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
 	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o \
 	ltm.o lundump.o lvm.o lzio.o ravi_profile.o ravi_membuf.o \
-	ravi_jitshared.o ravi_nojit.o $(CORE_CPP_O)
+	ravi_jitshared.o ravi_nojit.o ravi_ast.o ravi_alloc.o $(CORE_CPP_O)
 LIB_O=	lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o \
 	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o \
 	bit.o
