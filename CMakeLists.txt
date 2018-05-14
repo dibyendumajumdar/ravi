@@ -111,10 +111,9 @@ else()
 endif ()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
-if ((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG") AND LTESTS AND NOT ASM_VM)
+if (NOT LTESTS)
     # Note that enabling ltests.h messes with global_State and thus interferes with ASM_VM
-    message(STATUS "Enabling Lua extended test harness 'ltests'")
-else()
+    message(STATUS "Disabling Lua extended test harness 'ltests'")
     add_definitions(-DNO_LUA_DEBUG)
 endif ()
 
