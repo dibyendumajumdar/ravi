@@ -129,13 +129,89 @@ typedef void(*ravi_Writeline)(void);
 typedef void(*ravi_Writestringerror)(const char *fmt, const char *p);
 /** RAVI change end **/
 
-/*
-** generic extra include file
-*/
-#if defined(LUA_USER_H)
-#include LUA_USER_H
+/* RAVI change - always enable LTESTS in debug builds */
+#if !defined(NDEBUG) && !defined(NO_LUA_DEBUG)
+#define LUA_DEBUG
 #endif
 
+#ifdef LUA_DEBUG
+/* turn on assertions */
+#include <assert.h>
+#define lua_assert(c)           assert(c)
+
+#if !defined(RAVI_OPTION_STRING1)
+#define RAVI_OPTION_STRING1 " assertions"
+#endif
+
+#define RAVI_OPTION_STRING2 " ltests"
+
+/* to avoid warnings, and to make sure value is really unused */
+#define UNUSED(x)       (x=0, (void)(x))
+
+
+/* test for sizes in 'l_sprintf' (make sure whole buffer is available) */
+#undef l_sprintf
+#if !defined(LUA_USE_C89)
+#define l_sprintf(s,sz,f,i)	(memset(s,0xAB,sz), snprintf(s,sz,f,i))
+#else
+#define l_sprintf(s,sz,f,i)	(memset(s,0xAB,sz), sprintf(s,f,i))
+#endif
+
+
+/* memory-allocator control variables */
+typedef struct Memcontrol {
+	unsigned long numblocks;
+	unsigned long total;
+	unsigned long maxmem;
+	unsigned long memlimit;
+	unsigned long objcount[LUA_NUMTAGS];
+} Memcontrol;
+
+/*
+** generic variable for debug tricks
+*/
+extern void *l_Trick;
+
+
+/*
+** Function to traverse and check all memory used by Lua
+*/
+extern int lua_checkmemory(lua_State *L);
+
+
+/* test for lock/unlock */
+struct L_EXTRA { int lock; int *plock; };
+#undef LUA_EXTRASPACE
+#define LUA_EXTRASPACE	sizeof(struct L_EXTRA)
+#define getlock(l)	cast(struct L_EXTRA*, lua_getextraspace(l))
+#define luai_userstateopen(l)  \
+	(getlock(l)->lock = 0, getlock(l)->plock = &(getlock(l)->lock))
+#define luai_userstateclose(l)  \
+  lua_assert(getlock(l)->lock == 1 && getlock(l)->plock == &(getlock(l)->lock))
+#define luai_userstatethread(l,l1) \
+  lua_assert(getlock(l1)->plock == getlock(l)->plock)
+#define luai_userstatefree(l,l1) \
+  lua_assert(getlock(l)->plock == getlock(l1)->plock)
+#define lua_lock(l)     lua_assert((*getlock(l)->plock)++ == 0)
+#define lua_unlock(l)   lua_assert(--(*getlock(l)->plock) == 0)
+
+
+LUA_API int luaB_opentests(lua_State *L);
+
+LUA_API void *debug_realloc(void *ud, void *block,
+	size_t osize, size_t nsize);
+
+LUA_API Memcontrol* luaB_getmemcontrol(void);
+
+#if defined(lua_c)
+#define luaL_newstate()		lua_newstate(debug_realloc, luaB_getmemcontrol())
+#define luaL_openlibs(L)  \
+  { (luaL_openlibs)(L); \
+     luaL_requiref(L, "T", luaB_opentests, 1); \
+     lua_pop(L, 1); }
+#endif
+
+#endif
 
 /*
 ** RCS ident string

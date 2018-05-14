@@ -12,7 +12,7 @@ option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(EMBEDDED_DMRC "Controls whether the embedded dmrC feature should be enabled, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is OFF" ON)
 option(ASM_VM "Controls whether to use the new VM (not ready yet! so don't turn on)" OFF)
-option(LTESTS "Controls whether ltests are enabled in Debug mode" OFF)
+option(LTESTS "Controls whether ltests are enabled in Debug mode" ON)
 
 if (LLVM_JIT)
     set(ASM_VM OFF)
@@ -114,7 +114,8 @@ include_directories("${PROJECT_SOURCE_DIR}/include")
 if ((CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG") AND LTESTS AND NOT ASM_VM)
     # Note that enabling ltests.h messes with global_State and thus interferes with ASM_VM
     message(STATUS "Enabling Lua extended test harness 'ltests'")
-    add_definitions(-DLUA_USER_H="ltests.h")
+else()
+    add_definitions(-DNO_LUA_DEBUG)
 endif ()
 
 if (ASM_VM)
