@@ -9,7 +9,6 @@ enable_testing()
 # By default JIT is OFF
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
-option(EMBEDDED_DMRC "Controls whether the embedded dmrC feature should be enabled, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is OFF" ON)
 option(ASM_VM "Controls whether to use the new VM (not ready yet! so don't turn on)" OFF)
 option(LTESTS "Controls whether ltests are enabled in Debug mode" ON)
@@ -111,6 +110,8 @@ else()
 endif ()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
+include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
+
 if (NOT LTESTS)
     # Note that enabling ltests.h messes with global_State and thus interferes with ASM_VM
     message(STATUS "Disabling Lua extended test harness 'ltests'")
@@ -202,89 +203,84 @@ elseif (NOT WIN32)
     set(EXTRA_LIBRARIES m dl readline)
 endif ()
 
-if (EMBEDDED_DMRC)
-    if (CMAKE_COMPILER_IS_GNUCC)
-        execute_process(COMMAND ${CMAKE_C_COMPILER} --print-file-name=
-            OUTPUT_VARIABLE GCC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
-        execute_process(COMMAND ${CMAKE_C_COMPILER} -print-multiarch
-            OUTPUT_VARIABLE MULTIARCH_TRIPLET ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+if (CMAKE_COMPILER_IS_GNUCC)
+    execute_process(COMMAND ${CMAKE_C_COMPILER} --print-file-name=
+        OUTPUT_VARIABLE GCC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(COMMAND ${CMAKE_C_COMPILER} -print-multiarch
+        OUTPUT_VARIABLE MULTIARCH_TRIPLET ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-        add_definitions(-DGCC_BASE="${GCC_BASE}")
-        add_definitions(-DMULTIARCH_TRIPLET="${MULTIARCH_TRIPLET}")
-    endif()
-
-    message( STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
-    message( STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET} )
-
-    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
-
-    set(DMR_C_HEADERS 
-        dmr_c/src/allocate.h
-        dmr_c/src/char.h
-        dmr_c/src/expression.h
-        dmr_c/src/flow.h
-        dmr_c/src/ident-list.h
-        dmr_c/src/linearize.h
-        dmr_c/src/lib.h        
-        dmr_c/src/parse.h
-        dmr_c/src/port.h 
-        dmr_c/src/ptrlist.h
-        dmr_c/src/scope.h
-        dmr_c/src/symbol.h
-        dmr_c/src/target.h
-        dmr_c/src/token.h 
-        dmr_c/src/walksymbol.h         
-        )
-
-    set(DMR_C_SRCS 
-        dmr_c/src/allocate.c
-        dmr_c/src/builtin.c
-        dmr_c/src/char.c
-        dmr_c/src/cse.c
-        dmr_c/src/expression.c
-        dmr_c/src/evaluate.c
-        dmr_c/src/expand.c
-        dmr_c/src/flow.c
-        dmr_c/src/inline.c
-        dmr_c/src/lib.c
-        dmr_c/src/linearize.c
-        dmr_c/src/liveness.c
-        dmr_c/src/memops.c
-        dmr_c/src/parse.c
-        dmr_c/src/target.c
-        dmr_c/src/tokenize.c
-        dmr_c/src/pre-process.c
-        dmr_c/src/ptrlist.c
-        dmr_c/src/scope.c
-        dmr_c/src/show-parse.c
-        dmr_c/src/simplify.c
-        dmr_c/src/symbol.c
-        dmr_c/src/unssa.c
-        dmr_c/src/walksymbol.c
-        src/ravi_dmrc_parsesymbols.c
-        )
-
-    if (LLVM_JIT)
-        set(DMR_C_JIT_SRCS
-            dmr_c/llvm-backend/sparse-llvm.c
-            )
-        set(DMR_C_JIT_HEADERS
-            dmr_c/llvm-backend/dmr_c.h            
-            )
-        include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
-    else()
-        set(DMR_C_JIT_HEADERS
-            dmr_c/null-backend/dmr_c.h            
-            )
-        include_directories("${PROJECT_SOURCE_DIR}/dmr_c/null-backend")    
-    endif()  
-    
-    if (MSVC OR APPLE)
-        source_group("dmrC Headers" FILES ${DMR_C_HEADERS} ${DMR_C_JIT_HEADERS})
-        source_group("dmrC Source Files" FILES ${DMR_C_SRCS} ${DMR_C_JIT_SRCS})
-    endif()
+    add_definitions(-DGCC_BASE="${GCC_BASE}")
+    add_definitions(-DMULTIARCH_TRIPLET="${MULTIARCH_TRIPLET}")
 endif()
 
+message( STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
+message( STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET} )
+
+set(DMR_C_HEADERS 
+    dmr_c/src/allocate.h
+    dmr_c/src/char.h
+    dmr_c/src/expression.h
+    dmr_c/src/flow.h
+    dmr_c/src/ident-list.h
+    dmr_c/src/linearize.h
+    dmr_c/src/lib.h        
+    dmr_c/src/parse.h
+    dmr_c/src/port.h 
+    dmr_c/src/ptrlist.h
+    dmr_c/src/scope.h
+    dmr_c/src/symbol.h
+    dmr_c/src/target.h
+    dmr_c/src/token.h 
+    dmr_c/src/walksymbol.h         
+    )
+
+set(DMR_C_SRCS 
+    dmr_c/src/allocate.c
+    dmr_c/src/builtin.c
+    dmr_c/src/char.c
+    dmr_c/src/cse.c
+    dmr_c/src/expression.c
+    dmr_c/src/evaluate.c
+    dmr_c/src/expand.c
+    dmr_c/src/flow.c
+    dmr_c/src/inline.c
+    dmr_c/src/lib.c
+    dmr_c/src/linearize.c
+    dmr_c/src/liveness.c
+    dmr_c/src/memops.c
+    dmr_c/src/parse.c
+    dmr_c/src/target.c
+    dmr_c/src/tokenize.c
+    dmr_c/src/pre-process.c
+    dmr_c/src/ptrlist.c
+    dmr_c/src/scope.c
+    dmr_c/src/show-parse.c
+    dmr_c/src/simplify.c
+    dmr_c/src/symbol.c
+    dmr_c/src/unssa.c
+    dmr_c/src/walksymbol.c
+    src/ravi_dmrc_parsesymbols.c
+    )
+
+if (LLVM_JIT)
+    set(DMR_C_JIT_SRCS
+        dmr_c/llvm-backend/sparse-llvm.c
+        )
+    set(DMR_C_JIT_HEADERS
+        dmr_c/llvm-backend/dmr_c.h            
+        )
+    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
+else()
+    set(DMR_C_JIT_HEADERS
+        dmr_c/null-backend/dmr_c.h            
+        )
+    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/null-backend")    
+endif()  
+    
+if (MSVC OR APPLE)
+    source_group("dmrC Headers" FILES ${DMR_C_HEADERS} ${DMR_C_JIT_HEADERS})
+    source_group("dmrC Source Files" FILES ${DMR_C_SRCS} ${DMR_C_JIT_SRCS})
+endif()
 
 # Enable minimal required LLVM components so that the
 # the size of the resulting binary is manageable
@@ -394,6 +390,9 @@ set(NOJIT_RAVI_SRCS
     ${RAVI_HEADERS}
     ${LUA_LIB_SRCS} 
     ${LUA_CORE_SRCS}
+    ${DMR_C_HEADERS}
+    ${DMR_C_SRCS}
+    ${DMR_C_JIT_SRCS}
     src/ravi_nojit.c)
 
 # We always build a static library without JIT so that
@@ -444,7 +443,6 @@ if (LLVM_JIT)
 endif ()
 add_test(TestVM test_vm)
 add_test(TestMisc test_misc)
-
 
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)

@@ -26,909 +26,11 @@
 #include "lzio.h"
 #include "ravi_ast.h"
 #include "ravi_membuf.h"
-
 #include "lauxlib.h"
+#include "allocate.h"
+#include "ptrlist.h"
 
 #define MAXVARS		125 
-
-
-// README
-// THIS IS NOT WORKING - IT IS WORK IN PROGRESS
-// Set test_ast.c for a way to exercise this.
-// Also we enable an API raviload() to get to the entry point here
-
-// We need a simple bump allocator
-// Following is based on code from Linus Torvalds sparse project
-
-/*
-* Our "blob" allocator works on chunks that are multiples
-* of this size (the underlying allocator may be a mmap that
-* cannot handle smaller chunks, for example, so trying to
-* allocate blobs that aren't aligned is not going to work).
-*/
-#define CHUNK 1096 // 32768
-
-static size_t alignment = sizeof(double);
-
-struct allocation_blob {
-	struct allocation_blob *next;
-	size_t left, offset;
-	unsigned char data[];
-};
-
-struct allocator {
-	const char *name_;
-	struct allocation_blob *blobs_;
-	size_t size_;
-	unsigned int alignment_;
-	unsigned int chunking_;
-	void *freelist_;
-	size_t allocations, total_bytes, useful_bytes;
-};
-
-
-static void *blob_alloc(size_t size) {
-	void *ptr;
-	ptr = malloc(size);
-	if (ptr != NULL) memset(ptr, 0, size);
-	return ptr;
-}
-
-static void blob_free(void *addr, size_t size) {
-	(void)size;
-	free(addr);
-}
-
-static void allocator_init(struct allocator *A, const char *name, size_t size,
-	unsigned int alignment, unsigned int chunking) {
-	A->name_ = name;
-	A->blobs_ = NULL;
-	A->size_ = size;
-	A->alignment_ = alignment;
-	A->chunking_ = chunking;
-	A->freelist_ = NULL;
-	A->allocations = 0;
-	A->total_bytes = 0;
-	A->useful_bytes = 0;
-}
-
-static void drop_all_allocations(struct allocator *A) {
-	struct allocation_blob *blob = A->blobs_;
-	A->blobs_ = NULL;
-	A->allocations = 0;
-	A->total_bytes = 0;
-	A->useful_bytes = 0;
-	A->freelist_ = NULL;
-	while (blob) {
-		struct allocation_blob *next = blob->next;
-		blob_free(blob, A->chunking_);
-		blob = next;
-	}
-}
-
-static void *allocator_allocate(struct allocator *A, size_t extra) {
-	size_t size = extra + A->size_;
-	size_t alignment = A->alignment_;
-	struct allocation_blob *blob = A->blobs_;
-	void *retval;
-
-	assert(size <= A->chunking_);
-	/*
-	* NOTE! The freelist only works with things that are
-	*  (a) sufficiently aligned
-	*  (b) use a constant size
-	* Don't try to free allocators that don't follow
-	* these rules.
-	*/
-	if (A->freelist_) {
-		void **p = (void **)A->freelist_;
-		retval = p;
-		A->freelist_ = *p;
-		memset(retval, 0, size);
-		return retval;
-	}
-
-	A->allocations++;
-	A->useful_bytes += size;
-	size = (size + alignment - 1) & ~(alignment - 1);
-	if (!blob || blob->left < size) {
-		size_t offset, chunking = A->chunking_;
-		struct allocation_blob *newblob =
-			(struct allocation_blob *)blob_alloc(chunking);
-		if (!newblob) {
-			fprintf(stderr, "out of memory\n");
-			abort();
-		}
-		A->total_bytes += chunking;
-		newblob->next = blob;
-		blob = newblob;
-		A->blobs_ = newblob;
-		offset = offsetof(struct allocation_blob, data);
-		offset = (offset + alignment - 1) & ~(alignment - 1);
-		blob->left = chunking - offset;
-		blob->offset = offset - offsetof(struct allocation_blob, data);
-	}
-	retval = blob->data + blob->offset;
-	blob->offset += size;
-	blob->left -= size;
-	return retval;
-}
-
-static void allocator_free(struct allocator *A, void *entry) {
-	void **p = (void **)entry;
-	*p = A->freelist_;
-	A->freelist_ = p;
-}
-
-static void show_allocations(struct allocator *x) {
-	fprintf(stderr,
-		"allocator %s: %d allocations, %d bytes (%d total bytes, "
-		"%6.2f%% usage, %6.2f average size)\n", x->name_,
-		(int)x->allocations, (int)x->useful_bytes, (int)x->total_bytes,
-		100 * (double)x->useful_bytes / x->total_bytes,
-		(double)x->useful_bytes / x->allocations);
-}
-
-static void allocator_destroy(struct allocator *A) {
-	show_allocations(A);
-	drop_all_allocations(A);
-	A->blobs_ = NULL;
-	A->allocations = 0;
-	A->total_bytes = 0;
-	A->useful_bytes = 0;
-	A->freelist_ = NULL;
-}
-
-
-//////////////////////// PTRLIST /////////////////////////////
-
-/*
-* The ptr list data structure is like a train - with cars linked to each other.
-* Just as in a train each car has many seats, so in ptr list each "node" has
-* several entries. Unlike a train however, the ptr list is arranged as a ring,
-* i.e. the the front and back nodes are linked to each other. Hence there is no
-* such thing as a 'head' of the list - i.e. any node can be the head!
-*/
-
-#ifndef LIST_NODE_NR
-#define LIST_NODE_NR (29)
-#endif
-
-#define DECLARE_PTR_LIST(listname, type)                                       \
-	struct listname {                                                      \
-		int nr_ : 8;                                                   \
-		int rm_ : 8;                                                   \
-		struct listname *prev_;                                        \
-		struct listname *next_;                                        \
-		struct allocator *allocator_;                                  \
-		type *list_[LIST_NODE_NR];                                     \
-	}
-
-/* Each node in the list */
-DECLARE_PTR_LIST(ptr_list, void);
-
-struct ptr_list_iter {
-	struct ptr_list *__head;
-	struct ptr_list *__list;
-	int __nr;
-};
-
-/* The ptr list */
-static int ptrlist_size(const struct ptr_list *self);
-static void **ptrlist_add(struct ptr_list **self, void *ptr, struct allocator *alloc);
-static void *ptrlist_nth_entry(struct ptr_list *list, unsigned int idx);
-static void *ptrlist_first(struct ptr_list *list);
-static void *ptrlist_last(struct ptr_list *list);
-static int ptrlist_linearize(struct ptr_list *head, void **arr, int max);
-static void ptrlist_split_node(struct ptr_list *head);
-static void ptrlist_pack(struct ptr_list **self);
-static void ptrlist_remove_all(struct ptr_list **self);
-static int ptrlist_remove(struct ptr_list **self, void *entry, int count);
-static int ptrlist_replace(struct ptr_list **self, void *old_ptr, void *new_ptr,
-	int count);
-static void *ptrlist_undo_last(struct ptr_list **self);
-static void *ptrlist_delete_last(struct ptr_list **self);
-static void ptrlist_concat(struct ptr_list *a, struct ptr_list **self);
-static void ptrlist_sort(struct ptr_list **self, void *,
-	int(*cmp)(void *, const void *, const void *));
-
-/* iterator functions */
-static struct ptr_list_iter ptrlist_forward_iterator(struct ptr_list *self);
-static struct ptr_list_iter ptrlist_reverse_iterator(struct ptr_list *self);
-static void *ptrlist_iter_next(struct ptr_list_iter *self);
-static void *ptrlist_iter_prev(struct ptr_list_iter *self);
-static void ptrlist_iter_split_current(struct ptr_list_iter *self);
-static void ptrlist_iter_insert(struct ptr_list_iter *self, void *newitem);
-static void ptrlist_iter_remove(struct ptr_list_iter *self);
-static void ptrlist_iter_set(struct ptr_list_iter *self, void *ptr);
-static void ptrlist_iter_mark_deleted(struct ptr_list_iter *self);
-
-static inline void **ptrlist_iter_this_address(struct ptr_list_iter *self) {
-	return &self->__list->list_[self->__nr];
-}
-#define ptr_list_empty(x) ((x) == NULL)
-#define PTR_ENTRY_NOTAG(h,i)	((h)->list_[i])
-#define PTR_ENTRY(h,i)	(void *)(PTR_ENTRY_NOTAG(h,i))
-
-#define FOR_EACH_PTR(list, var) \
-	{ struct ptr_list_iter var##iter__ = ptrlist_forward_iterator((struct ptr_list *)list); \
-	for (var = ptrlist_iter_next(&var##iter__); var != NULL; var = ptrlist_iter_next(&var##iter__))
-#define END_FOR_EACH_PTR(var) }
-
-#define FOR_EACH_PTR_REVERSE(list, var) \
-	{ struct ptr_list_iter var##iter__ = ptrlist_reverse_iterator((struct ptr_list *)list); \
-	for (var = ptrlist_iter_prev(&var##iter__); var != NULL; var = ptrlist_iter_prev(&var##iter__))
-#define END_FOR_EACH_PTR_REVERSE(var) }
-
-#define RECURSE_PTR_REVERSE(list, var) \
-	{ struct ptr_list_iter var##iter__ = list##iter__; \
-	for (var = ptrlist_iter_prev(&var##iter__); var != NULL; var = ptrlist_iter_prev(&var##iter__))
-
-#define PREPARE_PTR_LIST(list, var)	\
-	struct ptr_list_iter var##iter__ = ptrlist_forward_iterator((struct ptr_list *)list); \
-	var = ptrlist_iter_next(&var##iter__)
-
-#define NEXT_PTR_LIST(var) \
-	var = ptrlist_iter_next(&var##iter__)
-#define FINISH_PTR_LIST(var) 
-
-#define THIS_ADDRESS(type, var) \
-	(type *)ptrlist_iter_this_address(&var##iter__)
-
-#define DELETE_CURRENT_PTR(var) \
-	ptrlist_iter_remove(&var##iter__)	
-
-#define REPLACE_CURRENT_PTR(type, var, replacement) \
-	ptrlist_iter_set(&var##iter__, replacement)
-
-#define INSERT_CURRENT(newval, var) \
-	ptrlist_iter_insert(&var##iter__, newval)	
-
-#define MARK_CURRENT_DELETED(PTR_TYPE, var) \
-	ptrlist_iter_mark_deleted(&var##iter__)
-
-/*
-* ptrlist.c
-*
-* Pointer ptrlist_t manipulation
-*
-* (C) Copyright Linus Torvalds 2003-2005
-*/
-/*
-* This version is part of the dmr_c project.
-* Copyright (C) 2017 Dibyendu Majumdar
-*/
-
-#define PARANOIA 1
-
-/* For testing we change this */
-static int N_ = LIST_NODE_NR;
-
-void ptrlist_split_node(struct ptr_list *head)
-{
-	int old = head->nr_, nr = old / 2;
-	struct allocator *alloc = head->allocator_;
-	assert(alloc);
-	struct ptr_list *newlist =
-		(struct ptr_list *)allocator_allocate(alloc, 0);
-	struct ptr_list *next = head->next_;
-	newlist->allocator_ = alloc;
-
-	old -= nr;
-	head->nr_ = old;
-	newlist->next_ = next;
-	next->prev_ = newlist;
-	newlist->prev_ = head;
-	head->next_ = newlist;
-	newlist->nr_ = nr;
-	memcpy(newlist->list_, head->list_ + old, nr * sizeof(void *));
-	memset(head->list_ + old, 0xf0, nr * sizeof(void *));
-}
-
-struct ptr_list_iter ptrlist_forward_iterator(struct ptr_list *head)
-{
-	struct ptr_list_iter iter;
-	iter.__head = iter.__list = head;
-	iter.__nr = -1;
-	return iter;
-}
-
-// Reverse iterator has to start from previous node not previous entry
-// in the given head
-struct ptr_list_iter ptrlist_reverse_iterator(struct ptr_list *head)
-{
-	struct ptr_list_iter iter;
-	iter.__head = iter.__list = head ? head->prev_ : NULL;
-	iter.__nr = iter.__head ? iter.__head->nr_ : 0;
-	return iter;
-}
-
-void *ptrlist_iter_next(struct ptr_list_iter *self)
-{
-	if (self->__head == NULL)
-		return NULL;
-	self->__nr++;
-Lretry:
-	if (self->__nr < self->__list->nr_) {
-		void *ptr = self->__list->list_[self->__nr];
-		if (self->__list->rm_ && !ptr) {
-			self->__nr++;
-			goto Lretry;
-		}
-		return ptr;
-	}
-	else if (self->__list->next_ != self->__head) {
-		self->__list = self->__list->next_;
-		self->__nr = 0;
-		goto Lretry;
-	}
-	return NULL;
-}
-
-void *ptrlist_nth_entry(struct ptr_list *list, unsigned int idx)
-{
-	struct ptr_list *head = list;
-	if (!head)
-		return NULL;
-	do {
-		unsigned int nr = list->nr_;
-		if (idx < nr)
-			return list->list_[idx];
-		else
-			idx -= nr;
-	} while ((list = list->next_) != head);
-	return NULL;
-}
-
-void *ptrlist_iter_prev(struct ptr_list_iter *self)
-{
-	if (self->__head == NULL)
-		return NULL;
-	self->__nr--;
-Lretry:
-	if (self->__nr >= 0 && self->__nr < self->__list->nr_) {
-		void *ptr = self->__list->list_[self->__nr];
-		if (self->__list->rm_ && !ptr) {
-			self->__nr--;
-			goto Lretry;
-		}
-		return ptr;
-	}
-	else if (self->__list->prev_ != self->__head) {
-		self->__list = self->__list->prev_;
-		self->__nr = self->__list->nr_ - 1;
-		goto Lretry;
-	}
-	return NULL;
-}
-
-void ptrlist_iter_split_current(struct ptr_list_iter *self)
-{
-	if (self->__list->nr_ == N_) {
-		/* full so split */
-		ptrlist_split_node(self->__list);
-		if (self->__nr >= self->__list->nr_) {
-			self->__nr -= self->__list->nr_;
-			self->__list = self->__list->next_;
-		}
-	}
-}
-
-void ptrlist_iter_insert(struct ptr_list_iter *self, void *newitem)
-{
-	assert(self->__nr >= 0);
-	ptrlist_iter_split_current(self);
-	void **__this = self->__list->list_ + self->__nr;
-	void **__last = self->__list->list_ + self->__list->nr_ - 1;
-	while (__last >= __this) {
-		__last[1] = __last[0];
-		__last--;
-	}
-	*__this = newitem;
-	self->__list->nr_++;
-}
-
-void ptrlist_iter_remove(struct ptr_list_iter *self)
-{
-	assert(self->__nr >= 0);
-	void **__this = self->__list->list_ + self->__nr;
-	void **__last = self->__list->list_ + self->__list->nr_ - 1;
-	while (__this < __last) {
-		__this[0] = __this[1];
-		__this++;
-	}
-	*__this = (void *)((uintptr_t)0xf0f0f0f0);
-	self->__list->nr_--;
-	self->__nr--;
-}
-
-void ptrlist_iter_set(struct ptr_list_iter *self, void *ptr)
-{
-	assert(self->__list && self->__nr >= 0 &&
-		self->__nr < self->__list->nr_);
-	self->__list->list_[self->__nr] = ptr;
-}
-
-void ptrlist_iter_mark_deleted(struct ptr_list_iter *self)
-{
-	ptrlist_iter_set(self, NULL);
-	self->__list->rm_++;
-}
-
-int ptrlist_size(const struct ptr_list *head) {
-	int nr = 0;
-	if (head) {
-		const struct ptr_list *list = head;
-		do {
-			nr += list->nr_ - list->rm_;
-		} while ((list = list->next_) != head);
-	}
-	return nr;
-}
-
-void **ptrlist_add(struct ptr_list **listp, void *ptr, struct allocator *alloc)
-{
-	struct ptr_list *list = *listp;
-	struct ptr_list *last = NULL;
-	void **ret;
-	int nr;
-
-	if (!list || (nr = (last = list->prev_)->nr_) >= N_) {
-		struct ptr_list *newlist =
-			(struct ptr_list *)allocator_allocate(alloc, 0);
-		newlist->allocator_ = alloc;
-		if (!list) {
-			newlist->next_ = newlist;
-			newlist->prev_ = newlist;
-			*listp = newlist;
-		}
-		else {
-			newlist->prev_ = last;
-			newlist->next_ = list;
-			list->prev_ = newlist;
-			last->next_ = newlist;
-		}
-		last = newlist;
-		nr = 0;
-	}
-	ret = last->list_ + nr;
-	*ret = ptr;
-	nr++;
-	last->nr_ = nr;
-	return ret;
-}
-
-void *ptrlist_first(struct ptr_list *list)
-{
-	if (!list)
-		return NULL;
-	return list->list_[0];
-}
-
-void *ptrlist_last(struct ptr_list *list)
-{
-	if (!list)
-		return NULL;
-	list = list->prev_;
-	return list->list_[list->nr_ - 1];
-}
-
-/*
-* Linearize the entries of a list up to a total of 'max',
-* and return the nr of entries linearized.
-*
-* The array to linearize into (second argument) should really
-* be "void *x[]", but we want to let people fill in any kind
-* of pointer array, so let's just call it "void **".
-*/
-int ptrlist_linearize(struct ptr_list *head, void **arr, int max) {
-	int nr = 0;
-	if (head && max > 0) {
-		struct ptr_list *list = head;
-
-		do {
-			int i = list->nr_;
-			if (i > max)
-				i = max;
-			memcpy(arr, list->list_, i * sizeof(void *));
-			arr += i;
-			nr += i;
-			max -= i;
-			if (!max)
-				break;
-		} while ((list = list->next_) != head);
-	}
-	return nr;
-}
-
-/*
-* When we've walked the list and deleted entries,
-* we may need to re-pack it so that we don't have
-* any empty blocks left (empty blocks upset the
-* walking code
-*/
-void ptrlist_pack(struct ptr_list **listp)
-{
-	struct ptr_list *head = *listp;
-
-	if (head) {
-		struct ptr_list *entry = head;
-		do {
-			struct ptr_list *next;
-		restart:
-			next = entry->next_;
-			if (!entry->nr_) {
-				struct ptr_list *prev;
-				if (next == entry) {
-					allocator_free(entry->allocator_, entry);
-					*listp = NULL;
-					return;
-				}
-				prev = entry->prev_;
-				prev->next_ = next;
-				next->prev_ = prev;
-				allocator_free(entry->allocator_, entry);
-				if (entry == head) {
-					*listp = next;
-					head = next;
-					entry = next;
-					goto restart;
-				}
-			}
-			entry = next;
-		} while (entry != head);
-	}
-}
-
-void ptrlist_remove_all(struct ptr_list **listp) {
-	struct ptr_list *tmp, *list = *listp;
-	if (!list)
-		return;
-	list->prev_->next_ = NULL;
-	while (list) {
-		tmp = list;
-		list = list->next_;
-		allocator_free(tmp->allocator_, tmp);
-	}
-	*listp = NULL;
-}
-
-
-int ptrlist_remove(struct ptr_list **self, void *entry, int count) {
-	struct ptr_list_iter iter = ptrlist_forward_iterator(*self);
-	for (void *ptr = ptrlist_iter_next(&iter); ptr != NULL;
-		ptr = ptrlist_iter_next(&iter)) {
-		if (ptr == entry) {
-			ptrlist_iter_remove(&iter);
-			if (!--count)
-				goto out;
-		}
-	}
-	assert(count <= 0);
-out:
-	ptrlist_pack(self);
-	return count;
-}
-
-int ptrlist_replace(struct ptr_list **self, void *old_ptr, void *new_ptr,
-	int count) {
-	struct ptr_list_iter iter = ptrlist_forward_iterator(*self);
-	for (void *ptr = ptrlist_iter_next(&iter); ptr != NULL;
-		ptr = ptrlist_iter_next(&iter)) {
-		if (ptr == old_ptr) {
-			ptrlist_iter_set(&iter, new_ptr);
-			if (!--count)
-				goto out;
-		}
-	}
-	assert(count <= 0);
-out:
-	return count;
-}
-
-/* This removes the last entry, but doesn't pack the ptr list */
-void *ptrlist_undo_last(struct ptr_list **head)
-{
-	struct ptr_list *last, *first = *head;
-
-	if (!first)
-		return NULL;
-	last = first;
-	do {
-		last = last->prev_;
-		if (last->nr_) {
-			void *ptr;
-			int nr = --last->nr_;
-			ptr = last->list_[nr];
-			last->list_[nr] = (void *)((intptr_t)0xf1f1f1f1);
-			return ptr;
-		}
-	} while (last != first);
-	return NULL;
-}
-
-
-void *ptrlist_delete_last(struct ptr_list **head)
-{
-	void *ptr = NULL;
-	struct ptr_list *last, *first = *head;
-
-	if (!first)
-		return NULL;
-	last = first->prev_;
-	if (last->nr_)
-		ptr = last->list_[--last->nr_];
-	if (last->nr_ <= 0) {
-		first->prev_ = last->prev_;
-		last->prev_->next_ = first;
-		if (last == first)
-			*head = NULL;
-		allocator_free(last->allocator_, last);
-	}
-	return ptr;
-}
-
-void ptrlist_concat(struct ptr_list *a, struct ptr_list **b) {
-	struct allocator *alloc = NULL;
-	struct ptr_list_iter iter = ptrlist_forward_iterator(a);
-	if (a)
-		alloc = a->allocator_;
-	else if (*b)
-		alloc = (*b)->allocator_;
-	else
-		return;
-	for (void *ptr = ptrlist_iter_next(&iter); ptr != NULL;
-		ptr = ptrlist_iter_next(&iter)) {
-		ptrlist_add(b, ptr, alloc);
-	}
-}
-
-/*
-* sort_list: a stable sort for lists.
-*
-* Time complexity: O(n*log n)
-*   [assuming limited zero-element fragments]
-*
-* Space complexity: O(1).
-*
-* Stable: yes.
-*/
-
-static void array_sort(void **ptr, int nr, void *userdata,
-	int(*cmp)(void *, const void *, const void *)) {
-	int i;
-	for (i = 1; i < nr; i++) {
-		void *p = ptr[i];
-		if (cmp(userdata, ptr[i - 1], p) > 0) {
-			int j = i;
-			do {
-				ptr[j] = ptr[j - 1];
-				if (!--j)
-					break;
-			} while (cmp(userdata, ptr[j - 1], p) > 0);
-			ptr[j] = p;
-		}
-	}
-}
-
-static void verify_sorted(struct ptr_list *l, int n, void *userdata,
-	int(*cmp)(void *, const void *, const void *)) {
-	int i = 0;
-	const void *a;
-	struct ptr_list *head = l;
-
-	while (l->nr_ == 0) {
-		l = l->next_;
-		if (--n == 0)
-			return;
-		assert(l != head);
-	}
-
-	a = l->list_[0];
-	while (n > 0) {
-		const void *b;
-		if (++i >= l->nr_) {
-			i = 0;
-			l = l->next_;
-			n--;
-			assert(l != head || n == 0);
-			continue;
-		}
-		b = l->list_[i];
-		assert(cmp(userdata, a, b) <= 0);
-		a = b;
-	}
-}
-
-static void flush_to(struct ptr_list *b, void **buffer, int *nbuf) {
-	int nr = b->nr_;
-	assert(*nbuf >= nr);
-	memcpy(b->list_, buffer, nr * sizeof(void *));
-	*nbuf = *nbuf - nr;
-	memmove(buffer, buffer + nr, *nbuf * sizeof(void *));
-}
-
-static void dump_to(struct ptr_list *b, void **buffer, int nbuf) {
-	assert(nbuf <= b->nr_);
-	memcpy(b->list_, buffer, nbuf * sizeof(void *));
-}
-
-// Merge two already-sorted sequences of blocks:
-//   (b1_1, ..., b1_n)  and  (b2_1, ..., b2_m)
-// Since we may be moving blocks around, we return the new head
-// of the merged list.
-static struct ptr_list *
-merge_block_seqs(struct ptr_list *b1, int n, struct ptr_list *b2,
-	int m, void *userdata, int(*cmp)(void *, const void *, const void *)) {
-	int i1 = 0, i2 = 0;
-	void *buffer[2 * LIST_NODE_NR];
-	int nbuf = 0;
-	struct ptr_list *newhead = b1;
-
-	// printf ("Merging %d blocks at %p with %d blocks at %p\n", n, b1, m, b2);
-
-	// Skip empty blocks in b2.
-	while (b2->nr_ == 0) {
-		// BEEN_THERE('F');
-		b2 = b2->next_;
-		if (--m == 0) {
-			// BEEN_THERE('G');
-			return newhead;
-		}
-	}
-
-	// Do a quick skip in case entire blocks from b1 are
-	// already less than smallest element in b2.
-	while (b1->nr_ == 0 ||
-		cmp(userdata, PTR_ENTRY(b1, b1->nr_ - 1), PTR_ENTRY(b2, 0)) < 0) {
-		// printf ("Skipping whole block.\n");
-		// BEEN_THERE('H');
-		b1 = b1->next_;
-		if (--n == 0) {
-			// BEEN_THERE('I');
-			return newhead;
-		}
-	}
-
-	while (1) {
-		void *d1 = PTR_ENTRY(b1, i1);
-		void *d2 = PTR_ENTRY(b2, i2);
-
-		assert(i1 >= 0 && i1 < b1->nr_);
-		assert(i2 >= 0 && i2 < b2->nr_);
-		assert(b1 != b2);
-		assert(n > 0);
-		assert(m > 0);
-
-		if (cmp(userdata, d1, d2) <= 0) {
-			// BEEN_THERE('J');
-			buffer[nbuf++] = d1;
-			// Element from b1 is smaller
-			if (++i1 >= b1->nr_) {
-				// BEEN_THERE('L');
-				flush_to(b1, buffer, &nbuf);
-				do {
-					b1 = b1->next_;
-					if (--n == 0) {
-						// BEEN_THERE('O');
-						while (b1 != b2) {
-							// BEEN_THERE('P');
-							flush_to(b1, buffer, &nbuf);
-							b1 = b1->next_;
-						}
-						assert(nbuf == i2);
-						dump_to(b2, buffer, nbuf);
-						return newhead;
-					}
-				} while (b1->nr_ == 0);
-				i1 = 0;
-			}
-		}
-		else {
-			// BEEN_THERE('K');
-			// Element from b2 is smaller
-			buffer[nbuf++] = d2;
-			if (++i2 >= b2->nr_) {
-				struct ptr_list *l = b2;
-				// BEEN_THERE('M');
-				// OK, we finished with b2.  Pull it out
-				// and plug it in before b1.
-
-				b2 = b2->next_;
-				b2->prev_ = l->prev_;
-				b2->prev_->next_ = b2;
-				l->next_ = b1;
-				l->prev_ = b1->prev_;
-				l->next_->prev_ = l;
-				l->prev_->next_ = l;
-
-				if (b1 == newhead) {
-					// BEEN_THERE('N');
-					newhead = l;
-				}
-
-				flush_to(l, buffer, &nbuf);
-				b2 = b2->prev_;
-				do {
-					b2 = b2->next_;
-					if (--m == 0) {
-						// BEEN_THERE('Q');
-						assert(nbuf == i1);
-						dump_to(b1, buffer, nbuf);
-						return newhead;
-					}
-				} while (b2->nr_ == 0);
-				i2 = 0;
-			}
-		}
-	}
-}
-
-void ptrlist_sort(struct ptr_list **plist, void *userdata,
-	int(*cmp)(void *, const void *, const void *)) {
-	struct ptr_list *head = *plist, *list = head;
-	int blocks = 1;
-
-	assert(N_ == LIST_NODE_NR);
-	if (!head)
-		return;
-
-	// Sort all the sub-lists
-	do {
-		array_sort(list->list_, list->nr_, userdata, cmp);
-#ifdef PARANOIA
-		verify_sorted(list, 1, userdata, cmp);
-#endif
-		list = list->next_;
-	} while (list != head);
-
-	// Merge the damn things together
-	while (1) {
-		struct ptr_list *block1 = head;
-
-		do {
-			struct ptr_list *block2 = block1;
-			struct ptr_list *next, *newhead;
-			int i;
-
-			for (i = 0; i < blocks; i++) {
-				block2 = block2->next_;
-				if (block2 == head) {
-					if (block1 == head) {
-						// BEEN_THERE('A');
-						*plist = head;
-						return;
-					}
-					// BEEN_THERE('B');
-					goto next_pass;
-				}
-			}
-
-			next = block2;
-			for (i = 0; i < blocks;) {
-				next = next->next_;
-				i++;
-				if (next == head) {
-					// BEEN_THERE('C');
-					break;
-				}
-				// BEEN_THERE('D');
-			}
-
-			newhead = merge_block_seqs(block1, blocks, block2, i, userdata, cmp);
-#ifdef PARANOIA
-			verify_sorted(newhead, blocks + i, userdata, cmp);
-#endif
-			if (block1 == head) {
-				// BEEN_THERE('E');
-				head = newhead;
-			}
-			block1 = next;
-		} while (block1 != head);
-	next_pass:
-		blocks <<= 1;
-	}
-}
 
 ////////////////////////// AST 
 
@@ -939,7 +41,7 @@ static const char *AST_type = "Ravi.AST";
 #define check_Ravi_AST(L, idx) \
   ((struct ast_container *)raviL_checkudata(L, idx, AST_type))
 
-struct symbol_list;
+struct lua_symbol_list;
 
 /*
 * Userdata object to hold the abstract syntax tree
@@ -950,7 +52,7 @@ struct ast_container {
 	struct allocator block_scope_allocator;
 	struct allocator symbol_allocator;
 	struct ast_node *main_function;
-	struct symbol_list *external_symbols; /* symbols not defined in this chunk */
+	struct lua_symbol_list *external_symbols; /* symbols not defined in this chunk */
 };
 
 struct ast_node;
@@ -964,8 +66,8 @@ struct var_type {
 	const TString *type_name;	/* type name for user defined types; used to lookup metatable in registry */
 };
 
-struct symbol;
-DECLARE_PTR_LIST(symbol_list, struct symbol);
+struct lua_symbol;
+DECLARE_PTR_LIST(lua_symbol_list, struct lua_symbol);
 
 struct block_scope;
 
@@ -978,7 +80,7 @@ enum symbol_type {
 };
 
 /* A symbol is a name recognised in Ravi/Lua code*/
-struct symbol {
+struct lua_symbol {
 	enum symbol_type symbol_type;
 	struct var_type value_type;
 	union {
@@ -991,7 +93,7 @@ struct symbol {
 			struct block_scope *block;
 		} label;
 		struct {
-			struct symbol *var; /* variable reference */
+			struct lua_symbol *var; /* variable reference */
 		} upvalue;
 	};
 };
@@ -999,7 +101,7 @@ struct symbol {
 struct block_scope {
 	struct ast_node *function; /* function owning this block - of type FUNCTION_EXPR */
 	struct block_scope *parent; /* parent block, may belong to parent function */
-	struct symbol_list *symbol_list; /* symbols defined in this block */
+	struct lua_symbol_list *symbol_list; /* symbols defined in this block */
 	struct ast_node_list *statement_list; /* statements in this block */
 };
 
@@ -1042,14 +144,14 @@ struct ast_node {
 			struct ast_node_list *exprlist;
 		} return_stmt;
 		struct {
-			struct symbol *symbol;
+			struct lua_symbol *symbol;
 		} label_stmt;
 		struct {
 			const TString *name; /* target label, used to resolve the goto destination */
 			struct ast_node *label_stmt; /* Initially this will be NULL; set by a separate pass */
 		} goto_stmt;
 		struct {
-			struct symbol_list *vars;
+			struct lua_symbol_list *vars;
 			struct ast_node_list *exprlist;
 		} local_stmt;
 		struct {
@@ -1078,7 +180,7 @@ struct ast_node {
 			struct block_scope *loop_body;
 		} while_or_repeat_stmt;
 		struct {
-			struct symbol_list *symbols;
+			struct lua_symbol_list *symbols;
 			struct ast_node_list *expressions;
 			struct block_scope *loop_body;
 		} for_stmt; /* Used for both generic and numeric for loops */
@@ -1095,7 +197,7 @@ struct ast_node {
 		} literal_expr;
 		struct {
 			struct var_type type;
-			struct symbol *var;
+			struct lua_symbol *var;
 		} symbol_expr;
 		struct {
 			struct var_type type;
@@ -1118,7 +220,7 @@ struct ast_node {
 			unsigned int is_method : 1;
 			struct ast_node *parent_function; /* parent function or NULL if main chunk */
 			struct block_scope *main_block; /* the function's main block */
-			struct symbol_list *args; /* arguments, also must be part of the function block's symbol list */
+			struct lua_symbol_list *args; /* arguments, also must be part of the function block's symbol list */
 			struct ast_node_list *child_functions; /* child functions declared in this function */
 		} function_expr; /* a literal expression whose result is a value of type function */
 		struct {
@@ -1155,7 +257,7 @@ struct parser_state {
 	struct block_scope *current_scope;
 };
 
-static void add_symbol(struct ast_container *container, struct symbol_list **list, struct symbol *sym) {
+static void add_symbol(struct ast_container *container, struct lua_symbol_list **list, struct lua_symbol *sym) {
 	ptrlist_add((struct ptr_list **)list, sym, &container->ptrlist_allocator);
 }
 
@@ -1166,10 +268,10 @@ static void add_ast_node(struct ast_container *container, struct ast_node_list *
 static struct ast_container * new_ast_container(lua_State *L) {
 	struct ast_container *container =
 		(struct ast_container *)lua_newuserdata(L, sizeof(struct ast_container));
-	allocator_init(&container->ast_node_allocator, "ast nodes", sizeof(struct ast_node), sizeof(double), CHUNK);
-	allocator_init(&container->ptrlist_allocator, "ptrlists", sizeof(struct ptr_list), sizeof(double), CHUNK);
-	allocator_init(&container->block_scope_allocator, "block scopes", sizeof(struct block_scope), sizeof(double), CHUNK);
-	allocator_init(&container->symbol_allocator, "symbols", sizeof(struct symbol), sizeof(double), CHUNK);
+	dmrC_allocator_init(&container->ast_node_allocator, "ast nodes", sizeof(struct ast_node), sizeof(double), CHUNK);
+	dmrC_allocator_init(&container->ptrlist_allocator, "ptrlists", sizeof(struct ptr_list), sizeof(double), CHUNK);
+	dmrC_allocator_init(&container->block_scope_allocator, "block scopes", sizeof(struct block_scope), sizeof(double), CHUNK);
+	dmrC_allocator_init(&container->symbol_allocator, "symbols", sizeof(struct lua_symbol), sizeof(double), CHUNK);
 	container->main_function = NULL;
 	container->external_symbols = NULL;
 	raviL_getmetatable(L, AST_type);
@@ -1180,10 +282,10 @@ static struct ast_container * new_ast_container(lua_State *L) {
 /* __gc function for IRBuilderHolder */
 static int collect_ast_container(lua_State *L) {
 	struct ast_container *container = check_Ravi_AST(L, 1);
-	allocator_destroy(&container->symbol_allocator);
-	allocator_destroy(&container->block_scope_allocator);
-	allocator_destroy(&container->ast_node_allocator);
-	allocator_destroy(&container->ptrlist_allocator);
+	dmrC_allocator_destroy(&container->symbol_allocator);
+	dmrC_allocator_destroy(&container->block_scope_allocator);
+	dmrC_allocator_destroy(&container->ast_node_allocator);
+	dmrC_allocator_destroy(&container->ptrlist_allocator);
 	return 0;
 }
 
@@ -1273,9 +375,9 @@ static TString *str_checkname(LexState *ls) {
 
 /* create a new local variable in function scope, and set the
 * variable type (RAVI - added type tt) */
-static struct symbol* new_local_symbol(struct parser_state *parser, TString *name, ravitype_t tt, TString *usertype) {
+static struct lua_symbol* new_local_symbol(struct parser_state *parser, TString *name, ravitype_t tt, TString *usertype) {
 	struct block_scope *scope = parser->current_scope;
-	struct symbol *symbol = allocator_allocate(&parser->container->symbol_allocator, 0);
+	struct lua_symbol *symbol = dmrC_allocator_allocate(&parser->container->symbol_allocator, 0);
 	set_typename(symbol->value_type, tt, usertype);
 	symbol->symbol_type = SYM_LOCAL;
 	symbol->var.block = scope;
@@ -1287,10 +389,10 @@ static struct symbol* new_local_symbol(struct parser_state *parser, TString *nam
 }
 
 /* create a new label */
-static struct symbol* new_label(struct parser_state *parser, TString *name) {
+static struct lua_symbol* new_label(struct parser_state *parser, TString *name) {
 	struct block_scope *scope = parser->current_scope;
 	assert(scope);
-	struct symbol *symbol = allocator_allocate(&parser->container->symbol_allocator, 0);
+	struct lua_symbol *symbol = dmrC_allocator_allocate(&parser->container->symbol_allocator, 0);
 	set_type(symbol->value_type, RAVI_TANY);
 	symbol->symbol_type = SYM_LABEL;
 	symbol->label.block = scope;
@@ -1304,7 +406,7 @@ static struct symbol* new_label(struct parser_state *parser, TString *name) {
 
 /* create a new local variable
 */
-static struct symbol* new_localvarliteral_(struct parser_state *parser, const char *name, size_t sz) {
+static struct lua_symbol* new_localvarliteral_(struct parser_state *parser, const char *name, size_t sz) {
 	return new_local_symbol(parser, luaX_newstring(parser->ls, name, sz), RAVI_TANY, NULL);
 }
 
@@ -1313,8 +415,8 @@ static struct symbol* new_localvarliteral_(struct parser_state *parser, const ch
 #define new_localvarliteral(parser,name) \
 	new_localvarliteral_(parser, "" name, (sizeof(name)/sizeof(char))-1)
 
-struct symbol *search_for_variable_in_block(struct block_scope *scope, const TString *varname) {
-	struct symbol *symbol;
+struct lua_symbol *search_for_variable_in_block(struct block_scope *scope, const TString *varname) {
+	struct lua_symbol *symbol;
 	// Lookup in reverse order so that we discover the 
 	// most recently added local symbol - as Lua allows same
 	// symbol to be declared local more than once in a scope
@@ -1342,8 +444,8 @@ struct symbol *search_for_variable_in_block(struct block_scope *scope, const TSt
 	return NULL;
 }
 
-struct symbol *search_for_label_in_block(struct block_scope *scope, const TString *name) {
-	struct symbol *symbol;
+struct lua_symbol *search_for_label_in_block(struct block_scope *scope, const TString *name) {
+	struct lua_symbol *symbol;
 	// Lookup in reverse order so that we discover the 
 	// most recently added local symbol - as Lua allows same
 	// symbol to be declared local more than once in a scope
@@ -1369,11 +471,11 @@ struct symbol *search_for_label_in_block(struct block_scope *scope, const TStrin
 * scope chain. If not found and search_globals_too is requested then
 * also searches the external symbols
 */
-struct symbol *search_for_variable(struct parser_state *parser, const TString *varname) {
+struct lua_symbol *search_for_variable(struct parser_state *parser, const TString *varname) {
 	struct block_scope *current_scope = parser->current_scope;
 	assert(current_scope && current_scope->function == parser->current_function);
 	while (current_scope) {
-		struct symbol *symbol = search_for_variable_in_block(current_scope, varname);
+		struct lua_symbol *symbol = search_for_variable_in_block(current_scope, varname);
 		if (symbol)
 			return symbol;
 		current_scope = current_scope->parent;
@@ -1383,10 +485,10 @@ struct symbol *search_for_variable(struct parser_state *parser, const TString *v
 
 /* Searches for a label in current function
 */
-struct symbol *search_for_label(struct parser_state *parser, const TString *name) {
+struct lua_symbol *search_for_label(struct parser_state *parser, const TString *name) {
 	struct block_scope *current_scope = parser->current_scope;
 	while (current_scope && current_scope->function == parser->current_function) {
-		struct symbol *symbol = search_for_label_in_block(current_scope, name);
+		struct lua_symbol *symbol = search_for_label_in_block(current_scope, name);
 		if (symbol)
 			return symbol;
 		current_scope = current_scope->parent;
@@ -1399,14 +501,14 @@ struct symbol *search_for_label(struct parser_state *parser, const TString *name
 */
 static struct ast_node *new_symbol_reference(struct parser_state *parser) {
 	TString *varname = check_name_and_next(parser->ls);
-	struct symbol *symbol = search_for_variable(parser, varname);
+	struct lua_symbol *symbol = search_for_variable(parser, varname);
 	if (symbol) {
 		if (symbol->symbol_type == SYM_LOCAL) {
 			// If the symbol occurred in a parent function then we
 			// need to construct an upvalue
 			if (symbol->var.block->function != parser->current_function) {
 				// construct upvalue
-				struct symbol *upvalue = allocator_allocate(&parser->container->symbol_allocator, 0);
+				struct lua_symbol *upvalue = dmrC_allocator_allocate(&parser->container->symbol_allocator, 0);
 				upvalue->symbol_type = SYM_UPVALUE;
 				upvalue->upvalue.var = symbol;
 				copy_type(upvalue->value_type, symbol->value_type);
@@ -1417,7 +519,7 @@ static struct ast_node *new_symbol_reference(struct parser_state *parser) {
 	}
 	else {
 		// Return global symbol
-		struct symbol *global = allocator_allocate(&parser->container->symbol_allocator, 0);
+		struct lua_symbol *global = dmrC_allocator_allocate(&parser->container->symbol_allocator, 0);
 		global->symbol_type = SYM_GLOBAL;
 		global->var.var_name = varname;
 		global->var.block = NULL;
@@ -1426,7 +528,7 @@ static struct ast_node *new_symbol_reference(struct parser_state *parser) {
 		// always looked up
 		symbol = global;
 	}
-	struct ast_node *symbol_expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *symbol_expr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	symbol_expr->type = AST_SYMBOL_EXPR;
 	symbol_expr->symbol_expr.type = symbol->value_type;
 	symbol_expr->symbol_expr.var = symbol;
@@ -1438,7 +540,7 @@ static struct ast_node *new_symbol_reference(struct parser_state *parser) {
 /*============================================================*/
 
 static struct ast_node *new_string_literal(struct parser_state *parser, const TString *ts) {
-	struct ast_node *node = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *node = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	node->type = AST_LITERAL_EXPR;
 	set_type(node->literal_expr.type, RAVI_TSTRING);
 	node->literal_expr.u.s = ts;
@@ -1446,7 +548,7 @@ static struct ast_node *new_string_literal(struct parser_state *parser, const TS
 }
 
 static struct ast_node *new_field_selector(struct parser_state *parser, const TString *ts) {
-	struct ast_node *index = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *index = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	index->type = AST_FIELD_SELECTOR_EXPR;
 	index->index_expr.expr = new_string_literal(parser, ts);
 	set_type(index->index_expr.type, RAVI_TANY);
@@ -1474,7 +576,7 @@ static struct ast_node *parse_yindex(struct parser_state *parser) {
 	struct ast_node *expr = parse_expression(parser);
 	checknext(ls, ']');
 
-	struct ast_node *index = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *index = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	index->type = AST_Y_INDEX_EXPR;
 	index->index_expr.expr = expr;
 	set_type(index->index_expr.type, RAVI_TANY);
@@ -1489,7 +591,7 @@ static struct ast_node *parse_yindex(struct parser_state *parser) {
 */
 
 static struct ast_node *new_indexed_assign_expr(struct parser_state *parser, struct ast_node *index_expr, struct ast_node *value_expr) {
-	struct ast_node *set = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *set = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	set->type = AST_INDEXED_ASSIGN_EXPR;
 	set->indexed_assign_expr.index_expr = index_expr;
 	set->indexed_assign_expr.value_expr = value_expr;
@@ -1548,7 +650,7 @@ static struct ast_node *parse_table_constructor(struct parser_state *parser) {
 	sep -> ',' | ';' */
 	int line = ls->linenumber;
 	checknext(ls, '{');
-	struct ast_node *table_expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *table_expr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	set_type(table_expr->table_expr.type, RAVI_TTABLE);
 	table_expr->table_expr.expr_list = NULL;
 	table_expr->type = AST_TABLE_EXPR;
@@ -1604,7 +706,7 @@ static TString *user_defined_type_name(LexState *ls, TString *typename) {
 *   where type is 'integer', 'integer[]',
 *                 'number', 'number[]'
 */
-static struct symbol *declare_local_variable(struct parser_state *parser, TString **pusertype) {
+static struct lua_symbol *declare_local_variable(struct parser_state *parser, TString **pusertype) {
 	LexState *ls = parser->ls;
 	/* assume a dynamic type */
 	ravitype_t tt = RAVI_TANY;
@@ -1647,7 +749,7 @@ static struct symbol *declare_local_variable(struct parser_state *parser, TStrin
 	return new_local_symbol(parser, name, tt, *pusertype);
 }
 
-static bool parse_parameter_list(struct parser_state *parser, struct symbol_list **list) {
+static bool parse_parameter_list(struct parser_state *parser, struct lua_symbol_list **list) {
 	LexState *ls = parser->ls;
 	/* parlist -> [ param { ',' param } ] */
 	int nparams = 0;
@@ -1660,7 +762,7 @@ static bool parse_parameter_list(struct parser_state *parser, struct symbol_list
 			switch (ls->t.token) {
 			case TK_NAME: {  /* param -> NAME */
 							 /* RAVI change - add type */
-				struct symbol *symbol = declare_local_variable(parser, &typenames[nparams]);
+				struct lua_symbol *symbol = declare_local_variable(parser, &typenames[nparams]);
 				add_symbol(parser->container, list, symbol);
 				nparams++;
 				break;
@@ -1683,7 +785,7 @@ static void parse_function_body(struct parser_state *parser, struct ast_node *fu
 	/* body ->  '(' parlist ')' block END */
 	checknext(ls, '(');
 	if (ismethod) {
-		struct symbol *symbol = new_localvarliteral(parser, "self");  /* create 'self' parameter */
+		struct lua_symbol *symbol = new_localvarliteral(parser, "self");  /* create 'self' parameter */
 		add_symbol(parser->container, &func_ast->function_expr.args, symbol);
 	}
 	bool is_vararg = parse_parameter_list(parser, &func_ast->function_expr.args);
@@ -1713,7 +815,7 @@ static int parse_expression_list(struct parser_state *parser, struct ast_node_li
 static struct ast_node *parse_function_call(struct parser_state *parser, TString *methodname, int line) {
 	LexState *ls = parser->ls;
 	int base, nparams;
-	struct ast_node *call_expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *call_expr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	call_expr->type = AST_FUNCTION_CALL_EXPR;
 	call_expr->function_call_expr.methodname = methodname;
 	call_expr->function_call_expr.arg_list = NULL;
@@ -1788,7 +890,7 @@ static struct ast_node *parse_suffixed_expression(struct parser_state *parser) {
 	/* suffixedexp ->
 	primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
 	int line = ls->linenumber;
-	struct ast_node *suffixed_expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *suffixed_expr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	suffixed_expr->suffixed_expr.primary_expr = parse_primary_expression(parser);
 	suffixed_expr->type = AST_SUFFIXED_EXPR;
 	suffixed_expr->suffixed_expr.type = suffixed_expr->suffixed_expr.primary_expr->common_expr.type;
@@ -1825,7 +927,7 @@ static struct ast_node *parse_suffixed_expression(struct parser_state *parser) {
 }
 
 static struct ast_node *new_literal_expression(struct parser_state *parser, ravitype_t type) {
-	struct ast_node *expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *expr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	expr->type = AST_LITERAL_EXPR;
 	set_type(expr->literal_expr.type, type);
 	expr->literal_expr.u.i = 0; /* initialize */
@@ -1982,7 +1084,7 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
 		}
 		BinOpr ignored;
 		struct ast_node *subexpr = parse_sub_expression(parser, UNARY_PRIORITY, &ignored);
-		expr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+		expr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 		expr->type = AST_UNARY_EXPR;
 		expr->unary_expr.expr = subexpr;
 		copy_type(expr->unary_expr.type, subexpr->common_expr.type); // FIXME
@@ -2000,7 +1102,7 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
 		/* read sub-expression with higher priority */
 		struct ast_node *exprright = parse_sub_expression(parser, priority[op].right, &nextop);
 
-		struct ast_node *binexpr = allocator_allocate(&parser->container->ast_node_allocator, 0);
+		struct ast_node *binexpr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 		binexpr->type = AST_BINARY_EXPR;
 		binexpr->binary_expr.exprleft = expr;
 		binexpr->binary_expr.exprright = exprright;
@@ -2060,7 +1162,7 @@ static struct ast_node *parse_goto_statment(struct parser_state *parser) {
 		label = luaX_newstring(ls, "break", sizeof "break");
 	}
 	// Resolve labels in the end?
-	struct ast_node *goto_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *goto_stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	goto_stmt->type = AST_GOTO_STMT;
 	goto_stmt->goto_stmt.name = label;
 	goto_stmt->goto_stmt.label_stmt = NULL; // unresolved
@@ -2075,8 +1177,8 @@ static void skip_noop_statements(struct parser_state *parser) {
 }
 
 static struct ast_node *generate_label(struct parser_state *parser, TString *label) {
-	struct symbol *symbol = new_label(parser, label);
-	struct ast_node *label_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct lua_symbol *symbol = new_label(parser, label);
+	struct ast_node *label_stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	label_stmt->type = AST_LABEL_STMT;
 	label_stmt->label_stmt.symbol = symbol;
 	return label_stmt;
@@ -2099,7 +1201,7 @@ static struct ast_node *parse_while_statement(struct parser_state *parser, int l
 	LexState *ls = parser->ls;
 	/* whilestat -> WHILE cond DO block END */
 	luaX_next(ls);  /* skip WHILE */
-	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_WHILE_STMT;
 	stmt->while_or_repeat_stmt.loop_body = NULL;
 	stmt->while_or_repeat_stmt.condition = parse_condition(parser);
@@ -2117,7 +1219,7 @@ static struct ast_node *parse_repeat_statement(struct parser_state *parser, int 
 	LexState *ls = parser->ls;
 	/* repeatstat -> REPEAT block UNTIL cond */
 	luaX_next(ls);  /* skip REPEAT */
-	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_REPEAT_STMT;
 	stmt->while_or_repeat_stmt.condition = NULL;
 	stmt->while_or_repeat_stmt.loop_body = new_scope(parser); /* scope block */
@@ -2190,7 +1292,7 @@ static struct ast_node *parse_for_statement(struct parser_state *parser, int lin
 	LexState *ls = parser->ls;
 	/* forstat -> FOR (fornum | forlist) END */
 	TString *varname;
-	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_NONE;
 	stmt->for_stmt.symbols = NULL;
 	stmt->for_stmt.expressions = NULL;
@@ -2221,7 +1323,7 @@ static struct ast_node *parse_if_cond_then_block(struct parser_state *parser, in
 	/* test_then_block -> [IF | ELSEIF] cond THEN block */
 	int jf;         /* instruction to skip 'then' code (if condition is false) */
 	luaX_next(ls);  /* skip IF or ELSEIF */
-	struct ast_node *test_then_block = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *test_then_block = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	test_then_block->type = AST_NONE; // This is not an AST node on its own
 	test_then_block->test_then_block.condition = parse_expression(parser);  /* read condition */
 	test_then_block->test_then_block.scope = NULL;
@@ -2251,7 +1353,7 @@ static struct ast_node *parse_if_statement(struct parser_state *parser, int line
 	LexState *ls = parser->ls;
 	/* ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END */
 	int escapelist = NO_JUMP;  /* exit list for finished parts */
-	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_IF_STMT;
 	stmt->if_stmt.if_condition_list = NULL;
 	stmt->if_stmt.else_block = NULL;
@@ -2270,10 +1372,10 @@ static struct ast_node *parse_if_statement(struct parser_state *parser, int line
 /* parse a local function statement - called from statement() */
 static struct ast_node *parse_local_function(struct parser_state *parser) {
 	LexState *ls = parser->ls;
-	struct symbol *symbol = new_local_symbol(parser, check_name_and_next(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
+	struct lua_symbol *symbol = new_local_symbol(parser, check_name_and_next(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
 	struct ast_node *function_ast = new_function(parser);
 	parse_function_body(parser, function_ast, 0, ls->linenumber);  /* function created in next register */
-	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_LOCAL_STMT;
 	stmt->local_stmt.vars = NULL;
 	stmt->local_stmt.exprlist = NULL;
@@ -2296,13 +1398,13 @@ static struct ast_node *parse_local_statement(struct parser_state *parser) {
 	enum { N = MAXVARS + 10 };
 	int vars[N] = { 0 };
 	TString *usertypes[N] = { NULL };
-	struct ast_node *node = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *node = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	node->type = AST_LOCAL_STMT;
 	node->local_stmt.vars = NULL;
 	node->local_stmt.exprlist = NULL;
 	do {
 		/* local name : type = value */
-		struct symbol *symbol = declare_local_variable(parser, &usertypes[nvars]);
+		struct lua_symbol *symbol = declare_local_variable(parser, &usertypes[nvars]);
 		add_symbol(parser->container, &node->local_stmt.vars, symbol);
 		nvars++;
 		if (nvars >= MAXVARS)
@@ -2321,7 +1423,7 @@ static struct ast_node *parse_local_statement(struct parser_state *parser) {
 static struct ast_node *parse_function_name(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* funcname -> NAME {fieldsel} [':' NAME] */
-	struct ast_node *function_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *function_stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	function_stmt->type = AST_FUNCTION_STMT;
 	function_stmt->function_stmt.function_expr = NULL;
 	function_stmt->function_stmt.methodname = NULL;
@@ -2350,7 +1452,7 @@ static struct ast_node *parse_function_statement(struct parser_state *parser, in
 
 /* parse function call with no returns or assignment statement */
 static struct ast_node * parse_expr_statement(struct parser_state *parser) {
-	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_EXPR_STMT;
 	stmt->expression_stmt.var_expr_list = NULL;
 	stmt->expression_stmt.exr_list = NULL;
@@ -2376,7 +1478,7 @@ static struct ast_node * parse_expr_statement(struct parser_state *parser) {
 static struct ast_node *parse_return_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* stat -> RETURN [explist] [';'] */
-	struct ast_node *return_stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *return_stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	return_stmt->type = AST_RETURN_STMT;
 	return_stmt->return_stmt.exprlist = NULL;
 	int first, nret; /* registers with returned values */
@@ -2391,7 +1493,7 @@ static struct ast_node *parse_return_statement(struct parser_state *parser) {
 
 static struct ast_node *parse_do_statement(struct parser_state *parser, int line) {
 	luaX_next(parser->ls);  /* skip DO */
-	struct ast_node *stmt = allocator_allocate(&parser->container->ast_node_allocator, 0);
+	struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_DO_STMT;
 	stmt->do_stmt.scope = parse_block(parser);
 	check_match(parser->ls, TK_END, TK_DO, line);
@@ -2488,7 +1590,7 @@ static void parse_statement_list(struct parser_state *parser, struct ast_node_li
 */
 static struct block_scope *new_scope(struct parser_state *parser) {
 	struct ast_container *container = parser->container;
-	struct block_scope *scope = allocator_allocate(&container->block_scope_allocator, 0);
+	struct block_scope *scope = dmrC_allocator_allocate(&container->block_scope_allocator, 0);
 	scope->symbol_list = NULL;
 	scope->statement_list = NULL;
 	scope->function = parser->current_function;
@@ -2513,7 +1615,7 @@ to previous scope which may be of parent function.
 */
 static struct ast_node *new_function(struct parser_state *parser) {
 	struct ast_container *container = parser->container;
-	struct ast_node *node = allocator_allocate(&container->ast_node_allocator, 0);
+	struct ast_node *node = dmrC_allocator_allocate(&container->ast_node_allocator, 0);
 	node->type = AST_FUNCTION_EXPR;
 	set_type(node->function_expr.type, RAVI_TFUNCTION);
 	node->function_expr.is_method = false;
@@ -2641,7 +1743,7 @@ static inline const char *get_as_str(const TString *ts)
 	return ts ? getstr(ts) : "";
 }
 
-static void print_symbol(membuff_t *buf, struct symbol *sym, int level) {
+static void print_symbol(membuff_t *buf, struct lua_symbol *sym, int level) {
 	switch (sym->symbol_type) {
 	case SYM_GLOBAL: {
 		printf_buf(buf, "%p%t %c %s %s\n", level, sym->var.var_name, "global symbol", raviY_typename(sym->value_type.type_code), get_as_str(sym->value_type.type_name));
@@ -2660,8 +1762,8 @@ static void print_symbol(membuff_t *buf, struct symbol *sym, int level) {
 	}
 }
 
-static void print_symbol_list(membuff_t *buf, struct symbol_list *list, int level, const char *delimiter) {
-	struct symbol *node;
+static void print_symbol_list(membuff_t *buf, struct lua_symbol_list *list, int level, const char *delimiter) {
+	struct lua_symbol *node;
 	bool is_first = true;
 	FOR_EACH_PTR(list, node) {
 		if (is_first)

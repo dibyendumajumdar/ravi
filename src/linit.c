@@ -34,9 +34,7 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-#if USE_DMR_C
 LUAMOD_API int raviopen_dmrcluaapi(lua_State *L);
-#endif
 
 /*
 ** these libs are loaded by lua.c and are readily available to any Lua
@@ -57,9 +55,7 @@ static const luaL_Reg loadedlibs[] = {
 #ifdef USE_LLVM
   {LUA_LLVMLIBNAME, raviopen_llvmluaapi},
 #endif
-#if USE_DMR_C
   { "dmrc", raviopen_dmrcluaapi },
-#endif
 #if defined(LUA_COMPAT_BITLIB)
   {LUA_BITLIBNAME, luaopen_bit32},
 #endif
