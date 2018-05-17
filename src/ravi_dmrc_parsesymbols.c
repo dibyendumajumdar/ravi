@@ -1,8 +1,9 @@
 /*
- * Sparse c2xml
- *
- * Dumps the parse tree as an xml document
- *
+ * The goal of this module is to extract Symbols from C code and 
+ * and present it to Ravi (Lua) code. The extracted symbols are saved into
+ * tables.
+ * 
+ * This tool is based upon Sparse c2xml
  * Copyright (C) 2007 Rob Taylor
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -69,12 +70,10 @@ static void pop_tabindex(struct parser_state *S) {
 }
 
 static void *visited(struct parser_state *S, int id) {
-  int *p = (int *)dmrC_allocator_allocate(&S->int_allocator, 0);
-  *p = id;
-  return p;
+	return (void *)(intptr_t)id;
 }
 
-static void examine_symbol(struct parser_state *S, struct symbol *sym);
+static void examine_symbol(struct parser_state *S, struct symbol *sym, const char *name);
 
 static void newProp(struct parser_state *S, const char *name,
                     const char *value) {
@@ -83,7 +82,7 @@ static void newProp(struct parser_state *S, const char *name,
   lua_settable(S->L, -3);
 }
 
-static void newNumProp(struct parser_state *S, const char *name, int value) {
+static void newNumProp(struct parser_state *S, const char *name, intptr_t value) {
   lua_pushstring(S->L, name);
   lua_pushinteger(S->L, value);
   lua_settable(S->L, -3);
@@ -123,7 +122,7 @@ static void new_sym_node(struct parser_state *S, struct symbol *sym,
 
   lua_newtable(S->L);
   push_tabindex(S);
-  newNumProp(S, "id", S->idcount);
+  newNumProp(S, "symbol_id", S->idcount);
   newProp(S, "type", name);
 
   if (sym->ident && ident) newProp(S, "ident", ident);
@@ -146,7 +145,7 @@ static void new_sym_node(struct parser_state *S, struct symbol *sym,
 static void examine_members(struct parser_state *S, struct symbol_list *list) {
   struct symbol *sym;
 
-  FOR_EACH_PTR(list, sym) { examine_symbol(S, sym); }
+  FOR_EACH_PTR(list, sym) { examine_symbol(S, sym, NULL); }
   END_FOR_EACH_PTR(sym);
 }
 
@@ -209,7 +208,8 @@ static void examine_layout(struct parser_state *S, struct symbol *sym) {
   }
 }
 
-static void examine_symbol(struct parser_state *S, struct symbol *sym) {
+static void examine_symbol(struct parser_state *S, struct symbol *sym,
+                           const char *name) {
   const char *base;
   int array_size;
 
@@ -219,7 +219,7 @@ static void examine_symbol(struct parser_state *S, struct symbol *sym) {
 
   if (sym->ident && sym->ident->reserved) return;
 
-  int savedpos = lua_gettop(S->L);
+  int savedpos = lua_gettop(S->L); // For Lua stack validation
   new_sym_node(S, sym, dmrC_get_type_name(sym->type));
   examine_modifiers(S, sym);
   examine_layout(S, sym);
@@ -227,9 +227,11 @@ static void examine_symbol(struct parser_state *S, struct symbol *sym) {
   if (sym->ctype.base_type) {
     if ((base = dmrC_builtin_typename(S->C, sym->ctype.base_type)) == NULL) {
       if (!sym->ctype.base_type->aux) {
-        examine_symbol(S, sym->ctype.base_type);
+        examine_symbol(S, sym->ctype.base_type, "basetype");
       }
-      newNumProp(S, "basetype", *((int *)sym->ctype.base_type->aux));
+      else {
+        newNumProp(S, "basetype", (intptr_t)sym->ctype.base_type->aux);
+      }
     }
     else {
       newProp(S, "builtintype", base);
@@ -243,14 +245,21 @@ static void examine_symbol(struct parser_state *S, struct symbol *sym) {
 
   switch (sym->type) {
     case SYM_STRUCT:
-    case SYM_UNION: examine_members(S, sym->symbol_list); break;
+    case SYM_UNION: {
+      int savedpos2 = lua_gettop(S->L); // For Lua stack validation
+      lua_newtable(S->L);
+      push_tabindex(S);
+      examine_members(S, sym->symbol_list);
+      popNamedTable(S, "members");
+      lua_assert(savedpos2 == lua_gettop(S->L));
+      break;
+    }
     case SYM_FN: {
-      int savedpos2 = lua_gettop(S->L);
+      int savedpos2 = lua_gettop(S->L); // For Lua stack validation
       lua_newtable(S->L);
       push_tabindex(S);
       examine_members(S, sym->arguments);
       popNamedTable(S, "arguments");
-      // examine_members(C, sym->symbol_list);
       lua_assert(savedpos2 == lua_gettop(S->L));
       break;
     }
@@ -259,7 +268,10 @@ static void examine_symbol(struct parser_state *S, struct symbol *sym) {
       break;
     default: break;
   }
-  popTable(S);
+  if (name)
+    popNamedTable(S, name);
+  else
+    popTable(S);
 
   lua_assert(savedpos == lua_gettop(S->L));
   return;
@@ -289,6 +301,7 @@ static void examine_macro(struct parser_state *S, struct symbol *sym) {
     sym->endpos = sym->pos;
 
   new_sym_node(S, sym, "macro");
+  popTable(S);
 }
 
 static void examine_namespace(struct parser_state *S, struct symbol *sym) {
@@ -298,16 +311,9 @@ static void examine_namespace(struct parser_state *S, struct symbol *sym) {
     case NS_MACRO: examine_macro(S, sym); break;
     case NS_TYPEDEF:
     case NS_STRUCT:
-    case NS_SYMBOL: examine_symbol(S, sym); break;
-    case NS_NONE:
-    case NS_LABEL:
-    case NS_ITERATOR:
-    case NS_UNDEF:
-    case NS_PREPROCESSOR:
-    case NS_KEYWORD: break;
+    case NS_SYMBOL: examine_symbol(S, sym, NULL); break;
     default:
       break;
-      // dmrC_die(S->C, "Unrecognised namespace type %d",sym->ns);
   }
 }
 
@@ -330,7 +336,7 @@ static void examine_symbol_list(struct parser_state *S, int stream_id,
                                 struct symbol_list *list) {
   struct symbol *sym;
   if (!list) return;
-  clean_up_symbols(S->C, list);
+  // clean_up_symbols(S->C, list);
   FOR_EACH_PTR(list, sym) {
     if (sym->pos.stream == stream_id) examine_namespace(S, sym);
   }
@@ -350,10 +356,10 @@ static int dmrC_getsymbols(lua_State *L) {
 
   symlist = dmrC_sparse_initialize(C, argc, argv, &filelist);
   // Simplification
-  clean_up_symbols(C, symlist);
+  // clean_up_symbols(C, symlist);
 
   struct parser_state parser_state = {
-      .L = L, .C = C, .idcount = 0, .stack = {0}, .stackpos = -1, .tabidx = 1};
+      .L = L, .C = C, .idcount = 1, .stack = {0}, .stackpos = -1, .tabidx = 1};
   dmrC_allocator_init(&parser_state.int_allocator, "integers", sizeof(int),
                       __alignof__(int), CHUNK);
 
