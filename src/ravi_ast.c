@@ -1,3 +1,14 @@
+/*
+A parser and syntax tree builder for Ravi. This is owrk in progress.
+Once ready it will be used to create a new byte code generator for Ravi.
+
+The parser wil perform following actions:
+
+a) Generate syntax tree
+b) Perform type checking (Ravi enhancement)
+
+*/
+
 #define LUA_CORE
 
 #include "lprefix.h"

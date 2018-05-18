@@ -49,7 +49,6 @@
 struct parser_state {
   lua_State *L;
   struct dmr_C *C;
-  struct allocator int_allocator;
   int idcount;
   int tabidx;
   int stack[30];
@@ -343,6 +342,12 @@ static void examine_symbol_list(struct parser_state *S, int stream_id,
   END_FOR_EACH_PTR(sym);
 }
 
+/*
+Parses supplied C code and returns the parsed symbols as a table.
+C code may contain preprocessor macros. 
+
+TODO: allow Lua/Ravi to specify additional command line parameters.
+*/
 static int dmrC_getsymbols(lua_State *L) {
   struct symbol_list *symlist;
   struct string_list *filelist = NULL;
@@ -360,8 +365,6 @@ static int dmrC_getsymbols(lua_State *L) {
 
   struct parser_state parser_state = {
       .L = L, .C = C, .idcount = 1, .stack = {0}, .stackpos = -1, .tabidx = 1};
-  dmrC_allocator_init(&parser_state.int_allocator, "integers", sizeof(int),
-                      __alignof__(int), CHUNK);
 
   lua_newtable(L);
   int luastack = lua_gettop(L);
@@ -374,7 +377,6 @@ static int dmrC_getsymbols(lua_State *L) {
   free(buffer);
 
   destroy_dmr_C(C);
-  dmrC_allocator_destroy(&parser_state.int_allocator);
 
   lua_assert(luastack == lua_gettop(L));
 
