@@ -538,8 +538,9 @@ void RaviCodeGenerator::emit_store_type_(RaviFunctionDef *def,
   lua_assert(type == LUA_TNUMFLT || type == LUA_TNUMINT ||
              type == LUA_TBOOLEAN || type == LUA_TNIL);
   llvm::Value *desttype = emit_gep(def, "dest.tt", value, 0, 1);
-  llvm::Instruction *store =
-      def->builder->CreateStore(def->types->kByte[type], desttype);
+  llvm::Instruction *store = def->builder->CreateStore(
+      llvm::ConstantInt::get(def->types->lua_LuaTypeT, type),
+      desttype);
   store->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_ttT);
 }
 
@@ -555,25 +556,28 @@ llvm::Value *RaviCodeGenerator::emit_is_value_of_type(RaviFunctionDef *def,
                                                       llvm::Value *value_type,
                                                       LuaTypeCode lua_type,
                                                       const char *varname) {
-  return def->builder->CreateICmpEQ(value_type, def->types->kByte[int(lua_type)],
-                                    varname);
+  return def->builder->CreateICmpEQ(
+      value_type, llvm::ConstantInt::get(def->types->lua_LuaTypeT, lua_type),
+      varname);
 }
 
 llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type(
     RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_type,
     const char *varname) {
-  return def->builder->CreateICmpNE(value_type, def->types->kByte[int(lua_type)],
-                                    varname);
+  return def->builder->CreateICmpNE(
+      value_type, llvm::ConstantInt::get(def->types->lua_LuaTypeT, lua_type),
+      varname);
 }
 
 // Compare without variants i.e. ttnov(value_type) == lua_type
 llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type_class(
     RaviFunctionDef *def, llvm::Value *value_type, int lua_type,
     const char *varname) {
-  llvm::Value *novariant_type =
-      def->builder->CreateAnd(value_type, def->types->kByte[0x0F]);
-  return def->builder->CreateICmpNE(novariant_type,
-                                    def->types->kByte[int(lua_type)], varname);
+  llvm::Value *novariant_type = def->builder->CreateAnd(
+      value_type, llvm::ConstantInt::get(def->types->lua_LuaTypeT, 0x000F));
+  return def->builder->CreateICmpNE(
+      novariant_type,
+      llvm::ConstantInt::get(def->types->lua_LuaTypeT, lua_type), varname);
 }
 
 llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(

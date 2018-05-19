@@ -9,6 +9,7 @@ typedef int (*lua_CFunction) (struct lua_State *L);
 typedef long long lua_Integer;
 typedef unsigned long long lua_Unsigned;
 typedef double lua_Number;
+typedef unsigned short LuaType;
 typedef unsigned long long size_t;
 typedef unsigned int Instruction;
 typedef long long ptrdiff_t;
@@ -36,7 +37,7 @@ union Value {
 
 struct TValue {
   union Value value_;
-  lu_byte tt_;
+  LuaType tt_;
 };
 
 struct TString {
@@ -69,7 +70,7 @@ struct Udata {
   struct GCObject *next;
   lu_byte tt;
   lu_byte marked;
-  lu_byte ttuv_; /* user value's tag */
+  LuaType ttuv_; /* user value's tag */
   struct Table *metatable;
   size_t len; /* number of bytes */
   union Value user_;      /* user value */
@@ -110,9 +111,11 @@ struct LocVar {
 };
 
 struct RaviJITProto {
-  lu_byte jit_status; // 0=not compiled, 1=can't compile, 2=compiled, 3=freed
+  lu_byte jit_status; /* 0=not compiled, 1=can't compile */
+  lu_byte jit_flags; 
+  unsigned short execution_count;   /* how many times has function been executed */
   void *jit_data;
-  int (*jit_function) (struct lua_State *);
+  lua_CFunction jit_function;
 };
 
 
@@ -174,7 +177,7 @@ union Closure {
 union TKey {
   struct {
     union Value value_;
-    int tt_;
+    LuaType tt_;
     int next; /* for chaining (offset for next node) */
   } nk;
   struct TValue tvk;
@@ -187,9 +190,10 @@ struct Node {
 
 struct RaviArray {
   char *data;
-  enum ravitype_t type; /* RAVI specialization */
   unsigned int len; /* RAVI len specialization */
   unsigned int size; /* amount of memory allocated */
+  lu_byte array_type; /* RAVI specialization */
+  lu_byte array_modifier; /* Flags that affect how the array is handled */
 };
 
 
@@ -252,8 +256,10 @@ struct CallInfo {
   } u;
   ptrdiff_t extra;
   short nresults; /* expected number of results from this function */
-  lu_byte callstatus;
-  lu_byte jitstatus;
+  unsigned short callstatus;
+  unsigned short stacklevel; /* RAVI extension - stack level, bottom level is 0 */
+  lu_byte jitstatus; /* RAVI extension: Only valid if Lua function - if 1 means JITed - RAVI extension */
+  lu_byte magic;
 };
 
 struct CallInfoLua {
@@ -263,9 +269,10 @@ struct CallInfoLua {
   struct CallInfoL l;
   ptrdiff_t extra;
   short nresults; /* expected number of results from this function */
-  lu_byte callstatus;
-  lu_byte jitstatus;  /* Only valid if Lua function - if 1 means JITed - RAVI extension */
-  short stacklevel;   /* Ravi extension - stack level, bootom level is 0 */
+  unsigned short callstatus;
+  unsigned short stacklevel; /* RAVI extension - stack level, bottom level is 0 */
+  lu_byte jitstatus; /* RAVI extension: Only valid if Lua function - if 1 means JITed - RAVI extension */
+  lu_byte magic;
 };
 
 struct global_State;
@@ -300,6 +307,7 @@ struct lua_State {
   lu_byte hookmask;       /* Lua 5.3 uses l_signalT */
   lu_byte allowhook;
   unsigned short nci;     /* number of items in 'ci' list  (different position than Lua 5.3) */
+  lu_byte magic;
 };
 
 /* lfunc.h */
@@ -330,7 +338,7 @@ union GCUnion {
 
 
 #define rttype(o) ((o)->tt_)
-#define BIT_ISCOLLECTABLE (1 << 7)
+#define BIT_ISCOLLECTABLE (1 << 15)
 #define iscollectable(o)  (rttype(o) & BIT_ISCOLLECTABLE)
 #define upisopen(up)  ((up)->v != &(up)->u.value)
 

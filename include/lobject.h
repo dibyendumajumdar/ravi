@@ -10,7 +10,7 @@
 
 
 #include <stdarg.h>
-
+#include <stdint.h>
 
 #include "llimits.h"
 #include "lua.h"
@@ -63,7 +63,7 @@
 
 
 /* Bit mark for collectable types */
-#define BIT_ISCOLLECTABLE	(1 << 7)
+#define BIT_ISCOLLECTABLE	(1 << 15)
 
 /* mark a tag as collectable */
 #define ctb(t)			((t) | BIT_ISCOLLECTABLE)
@@ -74,10 +74,14 @@
 */
 typedef struct GCObject GCObject;
 
+/* Extended to 16-bits so that we can hold more info */
+typedef uint16_t LuaType;
 
 /*
 ** Common Header for all collectable objects (in macro form, to be
 ** included in other objects)
+** Note that tt field is a byte - this means that a GC object's
+** type must have all information in the first byte
 */
 #define CommonHeader	GCObject *next; lu_byte tt; lu_byte marked
 
@@ -110,7 +114,7 @@ typedef union Value {
 } Value;
 
 
-#define TValuefields	Value value_; lu_byte tt_
+#define TValuefields	Value value_; LuaType tt_
 
 
 typedef struct lua_TValue {
@@ -130,10 +134,10 @@ typedef struct lua_TValue {
 #define rttype(o)	((o)->tt_)
 
 /* tag with no variants (bits 0-3) */
-#define novariant(x)	((x) & 0x0F)
+#define novariant(x)	((x) & 0x000F)
 
 /* type tag of a TValue (bits 0-3 for tags + variant bits 4-5) */
-#define ttype(o)	(rttype(o) & 0x3F)
+#define ttype(o)	(rttype(o) & 0x7FFF)
 
 /* type tag of a TValue with no variants (bits 0-3) */
 #define ttnov(o)	(novariant(rttype(o)))
@@ -370,7 +374,7 @@ typedef union UTString {
 */
 typedef struct Udata {
   CommonHeader;
-  lu_byte ttuv_;  /* user value's tag */
+  LuaType ttuv_;  /* user value's tag */
   struct Table *metatable;
   size_t len;  /* number of bytes */
   union Value user_;  /* user value */

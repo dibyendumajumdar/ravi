@@ -102,6 +102,7 @@ enum LuaTypeCode {
 // Lua types are gathered here
 struct LuaLLVMTypes {
   LuaLLVMTypes(llvm::LLVMContext &context);
+  void addCommonGCHeader(std::vector<llvm::Type *> &elements);
   void dump();
 
   // Following are standard C types
@@ -133,6 +134,8 @@ struct LuaLLVMTypes {
   // WARNING: We currently assume that lua_Unsigned is
   // 64-bit
   llvm::Type *lua_UnsignedT;
+
+  llvm::Type *lua_LuaTypeT;
   llvm::Type *lua_KContextT;
 
   llvm::FunctionType *lua_CFunctionT;
@@ -296,7 +299,6 @@ struct LuaLLVMTypes {
 
   std::array<llvm::Constant *, 256> kInt;
   std::array<llvm::Constant *, 21> kluaInteger;
-  std::array<llvm::Constant *, 256> kByte;
 
   llvm::Constant *kFalse;
 

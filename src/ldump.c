@@ -106,7 +106,9 @@ static void DumpConstants (const Proto *f, DumpState *D) {
   DumpInt(n, D);
   for (i = 0; i < n; i++) {
     const TValue *o = &f->k[i];
-    DumpByte(ttype(o), D);
+    int tt = ttype(o);
+    lua_assert(tt <= 127); /* Must fit 1 byte */
+    DumpByte(tt, D);
     switch (ttype(o)) {
     case LUA_TNIL:
       break;

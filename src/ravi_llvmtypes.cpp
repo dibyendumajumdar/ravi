@@ -24,6 +24,17 @@
 
 namespace ravi {
 
+/* Adds the bits that are defined in macro CommonHeader in lobject.h */
+void LuaLLVMTypes::addCommonGCHeader(std::vector<llvm::Type *> &elements) {
+  /* Common Header for all collectable objects (in macro form, to be
+   included in other objects)
+   #define CommonHeader	GCObject *next; lu_byte tt; lu_byte marked
+   */
+  elements.push_back(pGCObjectT);
+  elements.push_back(lu_byteT);
+  elements.push_back(lu_byteT);
+}
+
 LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   C_voidT = llvm::Type::getVoidTy(context);
 
@@ -100,6 +111,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   lua_StateT = llvm::StructType::create(context, "struct.lua_State");
   plua_StateT = llvm::PointerType::get(lua_StateT, 0);
 
+  lua_LuaTypeT = C_shortT;  // Type for Lua typecode
+
   lua_KContextT = C_ptrdiff_t;
 
   std::vector<llvm::Type *> elements;
@@ -143,9 +156,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   GCObjectT = llvm::StructType::create(context, "struct.GCObject");
   pGCObjectT = llvm::PointerType::get(GCObjectT, 0);
   elements.clear();
-  elements.push_back(pGCObjectT);
-  elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT);
+  addCommonGCHeader(elements);
   GCObjectT->setBody(elements);
 
   static_assert(sizeof(Value) == sizeof(lua_Number) &&
@@ -176,7 +187,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   TValueT = llvm::StructType::create(context, "struct.TValue");
   elements.clear();
   elements.push_back(ValueT);
-  elements.push_back(lu_byteT);
+  elements.push_back(lua_LuaTypeT);
   TValueT->setBody(elements);
   pTValueT = llvm::PointerType::get(TValueT, 0);
 
@@ -212,9 +223,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   pTStringT = llvm::PointerType::get(TStringT, 0);
   ppTStringT = llvm::PointerType::get(pTStringT, 0);
   elements.clear();
-  elements.push_back(pGCObjectT);
-  elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT);
+  addCommonGCHeader(elements);
   elements.push_back(lu_byteT); /* extra */
   elements.push_back(lu_byteT); /* shrlen */
   elements.push_back(C_intT);   /* hash */
@@ -234,17 +243,15 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  GCObject *next;
   //  lu_byte tt;
   //  lu_byte marked
-  //  lu_byte ttuv_;  /* user value's tag */
+  //  LuaType ttuv_;  /* user value's tag */
   //  struct Table *metatable;
   //  size_t len;  /* number of bytes */
   //  union Value user_;  /* user value */
   //} Udata;
   UdataT = llvm::StructType::create(context, "struct.Udata");
   elements.clear();
-  elements.push_back(pGCObjectT);
-  elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT); /* ttuv_ */
+  addCommonGCHeader(elements);
+  elements.push_back(lua_LuaTypeT); /* ttuv_ */
   elements.push_back(pTableT);  /* metatable */
   elements.push_back(C_size_t); /* len */
   elements.push_back(ValueT);   /* user_ */
@@ -341,9 +348,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   pProtoT = llvm::PointerType::get(ProtoT, 0);
   ppProtoT = llvm::PointerType::get(pProtoT, 0);
   elements.clear();
-  elements.push_back(pGCObjectT);
-  elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT);
+  addCommonGCHeader(elements);
   elements.push_back(lu_byteT);                          /* numparams */
   elements.push_back(lu_byteT);                          /* is_vararg */
   elements.push_back(lu_byteT);                          /* maxstacksize */
@@ -388,9 +393,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   CClosureT = llvm::StructType::create(context, "struct.CClosure");
   elements.clear();
-  elements.push_back(pGCObjectT);
-  elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT);
+  addCommonGCHeader(elements);
   elements.push_back(lu_byteT);        /* nupvalues */
   elements.push_back(pGCObjectT);      /* gclist */
   elements.push_back(plua_CFunctionT); /* f */
@@ -404,9 +407,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  UpVal *upvals[1];  /* list of upvalues */
   //} LClosure;
   elements.clear();
-  elements.push_back(pGCObjectT);
-  elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT);
+  addCommonGCHeader(elements);
   elements.push_back(lu_byteT);   /* nupvalues */
   elements.push_back(pGCObjectT); /* gclist */
   elements.push_back(pProtoT);    /* p */
@@ -429,7 +430,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   TKeyT = llvm::StructType::create(context, "struct.TKey");
   elements.clear();
   elements.push_back(ValueT);
-  elements.push_back(lu_byteT);
+  elements.push_back(lua_LuaTypeT);
   elements.push_back(C_intT); /* next */
   TKeyT->setBody(elements);
   pTKeyT = llvm::PointerType::get(TKeyT, 0);
@@ -476,9 +477,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  unsigned int hmask; /* Hash part mask (size of hash part - 1) */
   //} Table;
   elements.clear();
-  elements.push_back(pGCObjectT);
-  elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT);
+  addCommonGCHeader(elements);
   elements.push_back(lu_byteT);   /* flags */
   elements.push_back(lu_byteT);   /* lsizenode */
   elements.push_back(C_intT);     /* sizearray */
@@ -579,10 +578,11 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
       CallInfo_lT); /* u.l  - as we will typically access the lua call details
                      */
   elements.push_back(C_ptrdiff_t);                     /* extra */
-  elements.push_back(llvm::Type::getInt16Ty(context)); /* nresults */
-  elements.push_back(C_shortT);                        /* callstatus */
+  elements.push_back(C_shortT); /* nresults */
+  elements.push_back(C_shortT); /* callstatus */
   elements.push_back(C_shortT); /* stacklevel RAVI extension */
   elements.push_back(lu_byteT); /* jitstatus RAVI extension*/
+  elements.push_back(lu_byteT); /* magic */
   CallInfoT->setBody(elements);
 
   // typedef struct ravi_State ravi_State;
@@ -663,11 +663,10 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //  lu_byte hookmask;
   //  lu_byte allowhook;
   //  unsigned short nci;  /* number of items in 'ci' list */
+  //  lu_byte magic;
   //};
   elements.clear();
-  elements.push_back(pGCObjectT);
-  elements.push_back(lu_byteT);
-  elements.push_back(lu_byteT);
+  addCommonGCHeader(elements);
   elements.push_back(lu_byteT);                        /* status */
   elements.push_back(StkIdT);                          /* top */
   elements.push_back(pglobal_StateT);                  /* l_G */
@@ -685,11 +684,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(C_intT);                          /* stacksize */
   elements.push_back(C_intT);                          /* basehookcount */
   elements.push_back(C_intT);                          /* hookcount */
-  elements.push_back(llvm::Type::getInt16Ty(context)); /* nny */
-  elements.push_back(llvm::Type::getInt16Ty(context)); /* nCcalls */
+  elements.push_back(C_shortT);                        /* nny */
+  elements.push_back(C_shortT);                        /* nCcalls */
   elements.push_back(lu_byteT);                        /* hookmask */
   elements.push_back(lu_byteT);                        /* allowhook */
   elements.push_back(C_shortT);
+  elements.push_back(lu_byteT);
   lua_StateT->setBody(elements);
 
   // struct UpVal {
@@ -1020,8 +1020,6 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
     kInt[j] = llvm::ConstantInt::get(C_intT, j);
   for (int j = 0; j < kluaInteger.size(); j++)
     kluaInteger[j] = llvm::ConstantInt::get(lua_IntegerT, j);
-  for (int j = 0; j < kByte.size(); j++)
-    kByte[j] = llvm::ConstantInt::get(lu_byteT, j);
   kFalse = llvm::ConstantInt::getFalse(llvm::Type::getInt1Ty(context));
 
   // Do what Clang does
@@ -1243,7 +1241,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   nodes.clear();
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 0));
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_charT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_shortT, 8));
   tbaa_TValueT = mdbuilder.createTBAAStructTypeNode("TValue", nodes);
 
   tbaa_TValue_nT =
@@ -1251,7 +1249,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   tbaa_TValue_hT =
       mdbuilder.createTBAAStructTagNode(tbaa_pointerT, tbaa_pointerT, 0);
   tbaa_TValue_ttT =
-      mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_charT, 8);
+      mdbuilder.createTBAAStructTagNode(tbaa_TValueT, tbaa_shortT, 8);
 
   tbaa_luaState_topT =
       mdbuilder.createTBAAStructTagNode(tbaa_luaStateT, tbaa_pointerT, 8);

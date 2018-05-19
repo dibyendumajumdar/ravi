@@ -766,12 +766,15 @@ void RaviCodeGenerator::emit_SETUPVAL(RaviFunctionDef *def, int A, int B,
 
   llvm::Value *type = emit_load_type(def, v);
   llvm::Value *is_collectible =
-      def->builder->CreateAnd(type, def->types->kByte[BIT_ISCOLLECTABLE]);
+      def->builder->CreateAnd(type, 
+		  llvm::ConstantInt::get(def->types->lua_LuaTypeT, BIT_ISCOLLECTABLE));
 
   llvm::Value *value = emit_gep_upval_value(def, upval);
   llvm::Value *cmp = def->builder->CreateICmpNE(v, value, "v.ne.value");
   llvm::Value *tobool = def->builder->CreateICmpEQ(
-      is_collectible, def->types->kByte[0], "not.collectible");
+      is_collectible,
+      llvm::ConstantInt::get(def->types->lua_LuaTypeT, 0),
+      "not.collectible");
   llvm::Value *orcond =
       def->builder->CreateOr(cmp, tobool, "v.ne.value.or.not.collectible");
 
