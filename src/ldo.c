@@ -513,6 +513,35 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
       }
       return 0;
     }
+    case LUA_TFCF: {
+      int tt = rttype(func);
+      int nargs = L->top - func - 1;
+      int sig = tt >> 8;
+      switch (sig) {
+        case RAVI_TFCF_D_D: {
+          if (nargs == 1) {
+            TValue *arg1 = func + 1;
+            double arg;
+            if (ttisfloat(arg1))
+              arg = fltvalue(arg1);
+            else if (ttisinteger(arg1))
+              arg = (double)ivalue(arg1);
+            else
+              nargs = 0;
+            if (nargs) {
+              double (*f)(double) = fcfvalue(func);
+              double v = f(arg);
+              setfltvalue(func, v);
+              L->top = func + 1; /* top points after the last result */
+              return 1;
+            }
+          }
+          break;
+        }
+        default: { break; }
+      }
+      luaG_runerror(L, "Unsupported fastcall to C function");
+    }
     default: {  /* not a function */
       checkstackp(L, 1, func);  /* ensure space for metamethod */
       tryfuncTM(L, func);  /* try to get '__call' metamethod */

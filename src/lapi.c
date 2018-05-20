@@ -79,7 +79,7 @@ static TValue *index2addr (lua_State *L, int idx) {
   else {  /* upvalues */
     idx = LUA_REGISTRYINDEX - idx;
     api_check(L, idx <= MAXUPVAL + 1, "upvalue index too large");
-    if (ttislcf(ci->func))  /* light C function? */
+    if (ttislcf(ci->func) || ttisfcf(ci->func))  /* light C function? */
       return NONVALIDVALUE;  /* it has no upvalues */
     else {
       CClosure *func = clCvalue(ci->func);
@@ -270,29 +270,30 @@ Ravi extension
 */
 LUA_API const char *ravi_typename(lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
-  switch (rttype(o)) {
+  switch (ttype(o)) {
     case LUA_TNIL: return "nil";
     case LUA_TBOOLEAN: return "boolean";
     case LUA_TNUMFLT: return "number";
     case LUA_TNUMINT: return "integer";
-    case ctb(LUA_TLNGSTR): return "string";
-    case ctb(LUA_TSHRSTR): return "string";
-    case ctb(LUA_TUSERDATA): return luaT_objtypename(L, o);
+    case LUA_TLNGSTR: return "string";
+    case LUA_TSHRSTR: return "string";
+    case LUA_TUSERDATA: return luaT_objtypename(L, o);
     case LUA_TLIGHTUSERDATA: return "lightuserdata";
     case LUA_TLCF: return "lightCfunction";
-    case ctb(LUA_TCCL): return "Cclosure";
-    case ctb(LUA_TLCL): return "closure";
-    case ctb(LUA_TTHREAD): return "thread";
-    case ctb(RAVI_TIARRAY): 
-    case ctb(RAVI_TFARRAY): 
-    case ctb(LUA_TTABLE): return raviT_objtypename(L, o);
+    case LUA_TCCL: return "Cclosure";
+    case LUA_TLCL: return "closure";
+    case LUA_TFCF: return "fastCfunction";
+    case LUA_TTHREAD: return "thread";
+    case RAVI_TIARRAY:
+    case RAVI_TFARRAY:
+    case LUA_TTABLE: return raviT_objtypename(L, o);
     default: return "unknown";
   }
 }
 
 LUA_API int lua_iscfunction (lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
-  return (ttislcf(o) || (ttisCclosure(o)));
+  return (ttislcf(o) || (ttisCclosure(o)) || ttisfcf(o));
 }
 
 
@@ -463,14 +464,16 @@ LUA_API lua_State *lua_tothread (lua_State *L, int idx) {
 }
 
 
-LUA_API const void *lua_topointer (lua_State *L, int idx) {
+LUA_API const void *lua_topointer(lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
   switch (ttype(o)) {
-    case RAVI_TIARRAY: case RAVI_TFARRAY:
+    case RAVI_TIARRAY:
+    case RAVI_TFARRAY:
     case LUA_TTABLE: return hvalue(o);
     case LUA_TLCL: return clLvalue(o);
     case LUA_TCCL: return clCvalue(o);
     case LUA_TLCF: return cast(void *, cast(size_t, fvalue(o)));
+    case LUA_TFCF: return fcfvalue(o);
     case LUA_TTHREAD: return thvalue(o);
     case LUA_TUSERDATA: return getudatamem(uvalue(o));
     case LUA_TLIGHTUSERDATA: return pvalue(o);
@@ -566,6 +569,12 @@ LUA_API const char *lua_pushfstring (lua_State *L, const char *fmt, ...) {
   return ret;
 }
 
+LUA_API void lua_pushcfastcall(lua_State *L, void *ptr, int tag) {
+  lua_lock(L);
+  setfvalue_fastcall(L->top, ptr, tag);
+  api_incr_top(L);
+  lua_unlock(L);
+}
 
 LUA_API void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n) {
   lua_lock(L);

@@ -47,6 +47,7 @@
 #define LUA_TLCL	(LUA_TFUNCTION | (0 << 4))  /* Lua closure */
 #define LUA_TLCF	(LUA_TFUNCTION | (1 << 4))  /* light C function */
 #define LUA_TCCL	(LUA_TFUNCTION | (2 << 4))  /* C closure */
+#define LUA_TFCF	(LUA_TFUNCTION | (4 << 4))  /* fast light C function */
 
 
 /* Variant tags for strings */
@@ -57,7 +58,7 @@
 /* Variant tags for numbers */
 #define LUA_TNUMFLT	(LUA_TNUMBER | (0 << 4))  /* float numbers */
 #define LUA_TNUMINT	(LUA_TNUMBER | (1 << 4))  /* integer numbers */
-/** RAVI table sunbtypes **/
+/** RAVI table subtypes **/
 #define RAVI_TIARRAY (LUA_TTABLE | (1 << 4))  /* Ravi int array */
 #define RAVI_TFARRAY (LUA_TTABLE | (2 << 4))  /* Ravi float array */
 
@@ -134,10 +135,10 @@ typedef struct lua_TValue {
 #define rttype(o)	((o)->tt_)
 
 /* tag with no variants (bits 0-3) */
-#define novariant(x)	((x) & 0x000F)
+#define novariant(x)	((x) & 0x0F)
 
-/* type tag of a TValue (bits 0-3 for tags + variant bits 4-5) */
-#define ttype(o)	(rttype(o) & 0x7FFF)
+/* type tag of a TValue (bits 0-3 for tags + variant bits 4-6) */
+#define ttype(o)	(rttype(o) & 0x7F)
 
 /* type tag of a TValue with no variants (bits 0-3) */
 #define ttnov(o)	(novariant(rttype(o)))
@@ -171,6 +172,7 @@ typedef struct lua_TValue {
 #define ttisCclosure(o)		checktag((o), ctb(LUA_TCCL))
 #define ttisLclosure(o)		checktag((o), ctb(LUA_TLCL))
 #define ttislcf(o)		checktag((o), LUA_TLCF)
+#define ttisfcf(o)      (ttype(o) == LUA_TFCF)
 #define ttisfulluserdata(o)	checktag((o), ctb(LUA_TUSERDATA))
 #define ttisthread(o)		checktag((o), ctb(LUA_TTHREAD))
 #define ttisdeadkey(o)		checktag((o), LUA_TDEADKEY)
@@ -189,6 +191,7 @@ typedef struct lua_TValue {
 #define clLvalue(o)	check_exp(ttisLclosure(o), gco2lcl(val_(o).gc))
 #define clCvalue(o)	check_exp(ttisCclosure(o), gco2ccl(val_(o).gc))
 #define fvalue(o)	check_exp(ttislcf(o), val_(o).f)
+#define fcfvalue(o) check_exp(ttisfcf(o), val_(o).p)
 #define hvalue(o)	check_exp(ttistable(o), gco2t(val_(o).gc))
 #define bvalue(o)	check_exp(ttisboolean(o), val_(o).b)
 #define thvalue(o)	check_exp(ttisthread(o), gco2th(val_(o).gc))
@@ -228,6 +231,15 @@ typedef struct lua_TValue {
 
 #define setfvalue(obj,x) \
   { TValue *io=(obj); val_(io).f=(x); settt_(io, LUA_TLCF); }
+
+#define setfvalue_fastcall(obj, x, tag) \
+  {                       \
+    TValue *io = (obj);   \
+    lua_assert(tag >= 1 && tag < 0x80); \
+    val_(io).p = (x);     \
+    settt_(io, ((tag << 8) | LUA_TFCF)); \
+  }
+
 
 #define setpvalue(obj,x) \
   { TValue *io=(obj); val_(io).p=(x); settt_(io, LUA_TLIGHTUSERDATA); }
