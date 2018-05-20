@@ -680,7 +680,7 @@ int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2) {
     case LUA_TBOOLEAN: return bvalue(t1) == bvalue(t2);  /* true must be 1 !! */
     case LUA_TLIGHTUSERDATA: return pvalue(t1) == pvalue(t2);
     case LUA_TLCF: return fvalue(t1) == fvalue(t2);
-	case LUA_TFCF: return fcfvalue(t1) == fcfvalue(t2);
+	case RAVI_TFCF: return fcfvalue(t1) == fcfvalue(t2);
     case LUA_TSHRSTR: return eqshrstr(tsvalue(t1), tsvalue(t2));
     case LUA_TLNGSTR: return luaS_eqlngstr(tsvalue(t1), tsvalue(t2));
     case LUA_TUSERDATA: {
@@ -2492,7 +2492,7 @@ static void ravi_dump_ci(lua_State *L, CallInfo *ci) {
   StkId stack_ptr = ci->top - 1;
   int i;
   switch (func_type) {
-  case LUA_TFCF:
+  case RAVI_TFCF:
 	  printf("stack[%d] = Fast C function\n", funcpos);
 	  printf("---> called from \n");
 	  return;

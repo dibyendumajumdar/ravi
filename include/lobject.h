@@ -47,7 +47,7 @@
 #define LUA_TLCL	(LUA_TFUNCTION | (0 << 4))  /* Lua closure */
 #define LUA_TLCF	(LUA_TFUNCTION | (1 << 4))  /* light C function */
 #define LUA_TCCL	(LUA_TFUNCTION | (2 << 4))  /* C closure */
-#define LUA_TFCF	(LUA_TFUNCTION | (4 << 4))  /* fast light C function */
+#define RAVI_TFCF	(LUA_TFUNCTION | (4 << 4))  /* fast light C function */
 
 
 /* Variant tags for strings */
@@ -172,7 +172,7 @@ typedef struct lua_TValue {
 #define ttisCclosure(o)		checktag((o), ctb(LUA_TCCL))
 #define ttisLclosure(o)		checktag((o), ctb(LUA_TLCL))
 #define ttislcf(o)		checktag((o), LUA_TLCF)
-#define ttisfcf(o)      (ttype(o) == LUA_TFCF)
+#define ttisfcf(o)      (ttype(o) == RAVI_TFCF)
 #define ttisfulluserdata(o)	checktag((o), ctb(LUA_TUSERDATA))
 #define ttisthread(o)		checktag((o), ctb(LUA_TTHREAD))
 #define ttisdeadkey(o)		checktag((o), LUA_TDEADKEY)
@@ -237,7 +237,7 @@ typedef struct lua_TValue {
     TValue *io = (obj);   \
     lua_assert(tag >= 1 && tag < 0x80); \
     val_(io).p = (x);     \
-    settt_(io, ((tag << 8) | LUA_TFCF)); \
+    settt_(io, ((tag << 8) | RAVI_TFCF)); \
   }
 
 

@@ -282,7 +282,7 @@ LUA_API const char *ravi_typename(lua_State *L, int idx) {
     case LUA_TLCF: return "lightCfunction";
     case LUA_TCCL: return "Cclosure";
     case LUA_TLCL: return "closure";
-    case LUA_TFCF: return "fastCfunction";
+    case RAVI_TFCF: return "fastCfunction";
     case LUA_TTHREAD: return "thread";
     case RAVI_TIARRAY:
     case RAVI_TFARRAY:
@@ -473,7 +473,7 @@ LUA_API const void *lua_topointer(lua_State *L, int idx) {
     case LUA_TLCL: return clLvalue(o);
     case LUA_TCCL: return clCvalue(o);
     case LUA_TLCF: return cast(void *, cast(size_t, fvalue(o)));
-    case LUA_TFCF: return fcfvalue(o);
+    case RAVI_TFCF: return fcfvalue(o);
     case LUA_TTHREAD: return thvalue(o);
     case LUA_TUSERDATA: return getudatamem(uvalue(o));
     case LUA_TLIGHTUSERDATA: return pvalue(o);
@@ -569,7 +569,7 @@ LUA_API const char *lua_pushfstring (lua_State *L, const char *fmt, ...) {
   return ret;
 }
 
-LUA_API void lua_pushcfastcall(lua_State *L, void *ptr, int tag) {
+LUA_API void ravi_pushcfastcall(lua_State *L, void *ptr, int tag) {
   lua_lock(L);
   setfvalue_fastcall(L->top, ptr, tag);
   api_incr_top(L);

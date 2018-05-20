@@ -513,7 +513,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
       }
       return 0;
     }
-    case LUA_TFCF: {
+    case RAVI_TFCF: {
       int tt = rttype(func);
       int nargs = L->top - func - 1;
       int sig = tt >> 8;

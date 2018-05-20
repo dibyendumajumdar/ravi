@@ -114,7 +114,7 @@ static Node *mainposition (const Table *t, const TValue *key) {
       return hashpointer(t, pvalue(key));
     case LUA_TLCF:
       return hashpointer(t, fvalue(key));
-    case LUA_TFCF:
+    case RAVI_TFCF:
       return hashpointer(t, fcfvalue(key));
     default:
       lua_assert(!ttisdeadkey(key));
