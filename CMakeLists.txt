@@ -6,14 +6,23 @@ enable_language(C)
 enable_language(ASM)
 enable_testing()
 
+# Get access to CMake helpers
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+
 # By default JIT is OFF
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
+option(OMR_JIT "Controls whether NanoJIT compilation will be enabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is OFF" ON)
 option(ASM_VM "Controls whether to use the new VM (not ready yet! so don't turn on)" OFF)
 option(LTESTS "Controls whether ltests are enabled in Debug mode" ON)
 
-if (LLVM_JIT)
+if (LLVM_JIT AND OMR_JIT)
+    message(FATAL_ERROR
+            "Both LLVM_JIT and OMR_JIT cannot be set to ON at the same time")    
+endif()
+
+if (LLVM_JIT OR OMR_JIT)
     set(ASM_VM OFF)
 endif()
 
@@ -44,12 +53,18 @@ if (LLVM_JIT)
     # library 
 endif()
 
+if (OMR_JIT)
+    find_package(OMRJIT REQUIRED)
+    include_directories(${OMRJIT_INCLUDE_DIRS})
+    add_definitions(-DUSE_OMRJIT)
+endif()
+
 message(STATUS "Computed goto ${COMPUTED_GOTO}")
 if (COMPUTED_GOTO AND MSVC)
     message(WARNING "Computed goto is not available with MSVC")
 endif()
 
-if (NOT LLVM_JIT)
+if (NOT LLVM_JIT AND NOT OMR_JIT)
     message(WARNING "LLVM will not be enabled; specify -DLLVM_JIT=ON to enable")
 endif()
 
@@ -166,6 +181,8 @@ if (LLVM_JIT)
             src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
             src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp
             src/ravi_llvmluaapi.cpp)
+elseif (OMR_JIT)
+    set(OMR_JIT_SRCS src/ravi_omrjit.c)
 else()    
     set(NO_JIT_SRCS src/ravi_nojit.c)
 endif()
@@ -270,6 +287,14 @@ if (LLVM_JIT)
         dmr_c/llvm-backend/dmr_c.h            
         )
     include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
+elseif (OMR_JIT)
+    set(DMR_C_JIT_SRCS
+        dmr_c/omrjit-backend/sparse-omrjit.c
+        )
+    set(DMR_C_JIT_HEADERS
+        dmr_c/omrjit-backend/dmr_c.h            
+        )
+    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
 else()
     set(DMR_C_JIT_HEADERS
         dmr_c/null-backend/dmr_c.h            
@@ -343,6 +368,8 @@ endif()
 
 if (LLVM_JIT)
     set (LIBRAVI_NAME libravillvm) 
+elseif (OMR_JIT)
+    set (LIBRAVI_NAME libravilomr) 
 else()
     set (LIBRAVI_NAME libravinojit)
 endif()
@@ -353,6 +380,7 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${LUA_LIB_SRCS} 
         ${LUA_CORE_SRCS}
         ${LLVM_JIT_SRCS}   
+        ${OMR_JIT_SRCS}
         ${NO_JIT_SRCS}
         ${DMR_C_HEADERS}
         ${DMR_C_SRCS}
@@ -370,10 +398,13 @@ endif()
 if (LLVM_JIT)
     set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
 endif()
+if (OMR_JIT)
+    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_OMRJIT=1")
+endif()
 if (EMBEDDED_DMRC)
     set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_DMR_C=1")
 endif()
-target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS})
+target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${OMRJIT_LIBRARIES})
 
 # Main Ravi executable
 add_executable(ravi src/lua.c)

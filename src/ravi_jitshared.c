@@ -679,6 +679,9 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_NOT:
 		case OP_SETLIST: break;
 #if 0
+		case OP_RAVI_TOCLOSURE:
+		case OP_RAVI_TOSTRING:
+		case OP_RAVI_TOTYPE:
 		case OP_LOADKX:
 		case OP_UNM:
 #endif

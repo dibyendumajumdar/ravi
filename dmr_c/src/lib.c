@@ -973,6 +973,13 @@ static void predefined_type_size(struct dmr_C *C, const char *name, const char *
 
 static void predefined_macros(struct dmr_C *C)
 {
+#if LLVM_JIT
+	dmrC_add_pre_buffer(C, "#define __LLVM_BACKEND__ 1\n");
+#elif NANO_JIT
+	dmrC_add_pre_buffer(C, "#define __NANOJIT_BACKEND__ 1\n");
+#elif OMR_JIT
+	dmrC_add_pre_buffer(C, "#define __OMR_BACKEND__ 1\n");
+#endif
 	dmrC_add_pre_buffer(C, "#define __CHECKER__ 1\n");
 
 	predefined_sizeof(C, "SHORT", C->target->bits_in_short);

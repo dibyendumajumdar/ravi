@@ -812,7 +812,7 @@ pseudo_t dmrC_value_pseudo(struct dmr_C *C, struct symbol *type, long long val)
 	int size = type ? type->bit_size : dmrC_value_size(val);
 	pseudo_t pseudo;
 
-	assert(size <= (sizeof(long long) * 8));
+	assert(size == -1 || size <= (sizeof(long long) * 8));
 
 	FOR_EACH_PTR(*list, pseudo) {
 		if (pseudo->value == val && pseudo->size == size)
@@ -1757,12 +1757,14 @@ static pseudo_t linearize_compound_statement(struct dmr_C *C, struct entrypoint 
 
 		if (!phi_node)
 			return pseudo;
-
+#if 0
+		/* https://github.com/lucvoo/sparse/commit/1609176c9 */
 		if (dmrC_pseudo_list_size(phi_node->phi_list)==1) {
 			pseudo = dmrC_first_pseudo(phi_node->phi_list);
 			assert(pseudo->type == PSEUDO_PHI);
 			return pseudo->def->src1;
 		}
+#endif
 		return phi_node->target;
 	}
 
