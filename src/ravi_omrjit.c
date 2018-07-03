@@ -367,8 +367,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
   }
   int (*fp)(lua_State * L) = NULL;
   char *argv[] = {NULL};
+  //printf("%s\n", buf.buf);
   if (!dmrC_omrcompile(0, argv, context, buf.buf)) {
-    //printf("%s\n", buf.buf);
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
   }
   else {

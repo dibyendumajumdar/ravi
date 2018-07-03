@@ -401,6 +401,8 @@ static JIT_Type map_OMRtype(struct OMRType *type)
 		return JIT_Int64;
 	case RT_PTR:
 		return JIT_Address;
+	case RT_AGGREGATE:
+		return JIT_Aggregate;
 	default:
 		return JIT_NoType;
 	}
