@@ -416,7 +416,7 @@ static JIT_SymbolRef OMR_alloca(struct function *fn, struct OMRType *type,
 	// Instead we create a local symbol of appropriate size
 	// We treat all locals as byte arrays - the load/store 
 	// is done at specific offsets as required
-	if (!reg || omr_type == JIT_Aggregate)
+	if (/*!reg || */omr_type == JIT_Aggregate)
 		return JIT_CreateLocalByteArray(fn->injector, (uint32_t)size);
 	else
 		// phi nodes get created as temporaries
@@ -972,40 +972,48 @@ static JIT_NodeRef output_op_load(struct dmr_C *C, struct function *fn,
 				  struct instruction *insn)
 {
 	JIT_NodeRef ptr = pseudo_to_value(C, fn, insn->type, insn->src);
+	JIT_NodeRef load = NULL;
 
 	if (!ptr)
 		return NULL;
 
-	JIT_NodeRef index = JIT_ConstInt64((int64_t)insn->offset);
-	JIT_NodeRef load = NULL;
-	switch (insn->size) {
-	case 8:
-		// TODO do we need to do unsigned here?
-		load = JIT_ArrayLoad(fn->injector, ptr, index, JIT_Int8);
-		break;
-	case 16:
-		// TODO do we need to do unsigned here?
-		load = JIT_ArrayLoad(fn->injector, ptr, index, JIT_Int16);
-		break;
-	case 32:
-		if (dmrC_is_float_type(C->S, insn->type))
-			load =
-			    JIT_ArrayLoad(fn->injector, ptr, index, JIT_Float);
-		else
-			load =
-			    JIT_ArrayLoad(fn->injector, ptr, index, JIT_Int32);
-		break;
-	case 64:
-		if (dmrC_is_float_type(C->S, insn->type))
-			load =
-			    JIT_ArrayLoad(fn->injector, ptr, index, JIT_Double);
-		else if (dmrC_is_ptr_type(insn->type))
-			load = JIT_ArrayLoad(fn->injector, ptr, index,
-					     JIT_Address);
-		else
-			load =
-			    JIT_ArrayLoad(fn->injector, ptr, index, JIT_Int64);
-		break;
+	if (insn->orig_type && dmrC_is_simple_type(C->S, insn->orig_type) && !dmrC_is_ptr_type(insn->orig_type)) {
+		JIT_SymbolRef symref = insn->orig_type->priv;
+		if (symref && JIT_IsTemporary(fn->injector, symref))
+			load = JIT_LoadTemporary(fn->injector, symref);
+	}
+
+	if (!load) {
+		JIT_NodeRef index = JIT_ConstInt64((int64_t)insn->offset);
+		switch (insn->size) {
+		case 8:
+			// TODO do we need to do unsigned here?
+			load = JIT_ArrayLoad(fn->injector, ptr, index, JIT_Int8);
+			break;
+		case 16:
+			// TODO do we need to do unsigned here?
+			load = JIT_ArrayLoad(fn->injector, ptr, index, JIT_Int16);
+			break;
+		case 32:
+			if (dmrC_is_float_type(C->S, insn->type))
+				load =
+				JIT_ArrayLoad(fn->injector, ptr, index, JIT_Float);
+			else
+				load =
+				JIT_ArrayLoad(fn->injector, ptr, index, JIT_Int32);
+			break;
+		case 64:
+			if (dmrC_is_float_type(C->S, insn->type))
+				load =
+				JIT_ArrayLoad(fn->injector, ptr, index, JIT_Double);
+			else if (dmrC_is_ptr_type(insn->type))
+				load = JIT_ArrayLoad(fn->injector, ptr, index,
+					JIT_Address);
+			else
+				load =
+				JIT_ArrayLoad(fn->injector, ptr, index, JIT_Int64);
+			break;
+		}
 	}
 	if (load == NULL)
 		return NULL;
@@ -1033,18 +1041,26 @@ static JIT_NodeRef output_op_store(struct dmr_C *C, struct function *fn,
 		return NULL;
 	}
 
-	ptr = pseudo_to_value(C, fn, insn->type, insn->src);
-	if (!ptr)
-		return NULL;
-	ptr = build_cast(C, fn, ptr, &PtrType, 0);
-
 	target_in = pseudo_to_value(C, fn, insn->type, insn->target);
 	if (!target_in)
 		return NULL;
 
+	if (insn->orig_type && dmrC_is_simple_type(C->S, insn->orig_type) && !dmrC_is_ptr_type(insn->orig_type)) {
+		JIT_SymbolRef symref = insn->orig_type->priv;
+		if (symref && JIT_IsTemporary(fn->injector, symref)) {
+			JIT_StoreToTemporary(fn->injector, symref, target_in);
+			return target_in;
+		}
+	}
+
+	ptr = pseudo_to_value(C, fn, insn->type, insn->src);
+	if (!ptr)
+		return NULL;
+	ptr = build_cast(C, fn, ptr, &PtrType, 0);
 	JIT_NodeRef index = JIT_ConstInt64((int64_t)insn->offset);
+	assert(JIT_GetNodeType(ptr) == JIT_Address);
 	JIT_ArrayStore(fn->injector, ptr, index, target_in);
-	return ptr;
+	return target_in;
 }
 
 static JIT_NodeRef output_op_phisrc(struct dmr_C *C, struct function *fn,

@@ -402,9 +402,27 @@ const char *dmrC_show_instruction(struct dmr_C *C, struct instruction *insn)
 	}	
 	case OP_LOAD: case OP_LNOP:
 		buf += sprintf(buf, "%s <- %d[%s]", dmrC_show_pseudo(C, insn->target), insn->offset, dmrC_show_pseudo(C, insn->src));
+		if (insn->orig_type) {
+			struct symbol *sym = insn->orig_type;
+			if (sym->ident) {
+				buf += sprintf(buf, "; %s", dmrC_show_ident(C, sym->ident));
+			}
+			else {
+				buf += sprintf(buf, "; <anon symbol:%p>", sym);
+			}
+		}
 		break;
 	case OP_STORE: case OP_SNOP:
 		buf += sprintf(buf, "%s -> %d[%s]", dmrC_show_pseudo(C, insn->target), insn->offset, dmrC_show_pseudo(C, insn->src));
+		if (insn->orig_type) {
+			struct symbol *sym = insn->orig_type;
+			if (sym->ident) {
+				buf += sprintf(buf, "; %s", dmrC_show_ident(C, sym->ident));
+			}
+			else {
+				buf += sprintf(buf, "; <anon symbol:%p>", sym);
+			}
+		}
 		break;
 	case OP_INLINED_CALL:
 	case OP_CALL: {
@@ -965,25 +983,16 @@ static int linearize_address_gen(struct dmr_C *C, struct entrypoint *ep,
 	return 0;
 }
 
-// From Luc sssa-mini
-static inline struct symbol *simple_access(struct dmr_C *C, struct access_data *ad)
-{
-	pseudo_t addr = ad->address;
-	struct symbol *sym;
-
-	if (addr->type != PSEUDO_SYM)
-		return NULL;
-	sym = addr->sym;
-	if (!dmrC_is_simple_var(C->S, sym))
-		return NULL;
-	return sym;
-}
 static pseudo_t add_load(struct dmr_C *C, struct entrypoint *ep, struct access_data *ad)
 {
 	struct instruction *insn;
 	pseudo_t new;
 
 	insn = alloc_typed_instruction(C, OP_LOAD, ad->source_type);
+	/* save the address symbol so that backend can see what symbol we are accessing */
+	insn->orig_type = (ad->address->type == PSEUDO_SYM) ? 
+		ad->address->sym : 
+		NULL; 
 	new = dmrC_alloc_pseudo(C, insn);
 
 	insn->target = new;
@@ -999,6 +1008,10 @@ static void add_store(struct dmr_C *C, struct entrypoint *ep, struct access_data
 	if (dmrC_bb_reachable(bb)) {
 		struct instruction *store = alloc_typed_instruction(C, OP_STORE, ad->source_type);
 		store->offset = ad->offset;
+		/* save the address symbol so that backend can see what symbol we are accessing */
+		store->orig_type = (ad->address->type == PSEUDO_SYM) ?
+			ad->address->sym :
+			NULL;
 		dmrC_use_pseudo(C, store, value, &store->target);
 		dmrC_use_pseudo(C, store, ad->address, &store->src);
 		add_one_insn(C, ep, store);
