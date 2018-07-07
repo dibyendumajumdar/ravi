@@ -895,6 +895,25 @@ static void emit_settable_af(struct function *fn, int A, int B,
 	membuff_add_string(&fn->body, "}\n");
 }
 
+/* Handle OP_ADD, OP_SUB, OP_MUL */
+static void emit_op_arithslow(struct function *fn, int A, int B, int C, OpCode op, int pc,
+	const char *opchar, const char *numop, const char *tm) {
+  (void)pc;
+  emit_reg(fn, "ra", A);
+  emit_reg_or_k(fn, "rb", B);
+  emit_reg_or_k(fn, "rc", C);
+  membuff_add_string(&fn->body, "if (ttisinteger(rb) && ttisinteger(rc)) {\n");
+  membuff_add_string(&fn->body, " i = ivalue(rb);\n");
+  membuff_add_string(&fn->body, " ic = ivalue(rc);\n");
+  membuff_add_fstring(&fn->body, " setivalue(ra, intop(%s, ib, ic));\n", opchar);
+  membuff_add_string(&fn->body, "} else if (tonumber(rb, &b) && tonumber(rc, &nc)) {\n");
+  membuff_add_fstring(&fn->body, " setfltvalue(ra, %s(L, nb, nc));\n", numop);
+  membuff_add_string(&fn->body, "} else {\n");
+  membuff_add_fstring(&fn->body, " luaT_trybinTM(L, rb, rc, ra, %s);\n", tm);
+  membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
 static void emit_comparison(struct function *fn, int A, int B, int C, int j,
 	int jA, const char *compfunc, OpCode opCode,
 	int pc) {
@@ -1155,7 +1174,9 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p, co
 	membuff_add_fstring(&fn->prologue, "int %s(lua_State *L) {\n", fn->fname);
 	membuff_add_string(&fn->prologue, "int error_code = 0;\n");
 	membuff_add_string(&fn->prologue, "lua_Integer i = 0;\n");
+	membuff_add_string(&fn->prologue, "lua_Integer ic = 0;\n");
 	membuff_add_string(&fn->prologue, "lua_Number n = 0.0;\n");
+	membuff_add_string(&fn->prologue, "lua_Number nc = 0.0;\n");
 	membuff_add_string(&fn->prologue, "int result = 0;\n");
 	membuff_add_string(&fn->prologue, "StkId ra = NULL;\n");
 	membuff_add_string(&fn->prologue, "StkId rb = NULL;\n");
