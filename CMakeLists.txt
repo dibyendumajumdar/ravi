@@ -255,16 +255,16 @@ set(DMR_C_SRCS
     dmr_c/src/allocate.c
     dmr_c/src/builtin.c
     dmr_c/src/char.c
-    dmr_c/src/cse.c
+#    dmr_c/src/cse.c
     dmr_c/src/expression.c
     dmr_c/src/evaluate.c
     dmr_c/src/expand.c
-    dmr_c/src/flow.c
+#    dmr_c/src/flow.c
     dmr_c/src/inline.c
     dmr_c/src/lib.c
     dmr_c/src/linearize.c
     dmr_c/src/liveness.c
-    dmr_c/src/memops.c
+#    dmr_c/src/memops.c
     dmr_c/src/parse.c
     dmr_c/src/target.c
     dmr_c/src/tokenize.c
@@ -272,9 +272,9 @@ set(DMR_C_SRCS
     dmr_c/src/ptrlist.c
     dmr_c/src/scope.c
     dmr_c/src/show-parse.c
-    dmr_c/src/simplify.c
+#    dmr_c/src/simplify.c
     dmr_c/src/symbol.c
-    dmr_c/src/unssa.c
+#    dmr_c/src/unssa.c
     dmr_c/src/walksymbol.c
     src/ravi_dmrc_parsesymbols.c
     )

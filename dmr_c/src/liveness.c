@@ -11,7 +11,7 @@
 #include <parse.h>
 #include <expression.h>
 #include <linearize.h>
-#include <flow.h>
+//#include <flow.h>
 
 static void phi_defines(struct dmr_C *C, struct instruction * phi_node, pseudo_t target,
 	void (*defines)(struct dmr_C *C, struct basic_block *, pseudo_t))

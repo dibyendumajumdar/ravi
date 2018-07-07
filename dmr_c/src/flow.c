@@ -265,31 +265,6 @@ int dmrC_simplify_flow(struct dmr_C *C, struct entrypoint *ep)
 	return simplify_branch_nodes(C, ep);
 }
 
-static inline void concat_user_list(struct pseudo_user_list *src, struct pseudo_user_list **dst)
-{
-	ptrlist_concat((struct ptr_list *)src, (struct ptr_list **)dst);
-}
-
-void dmrC_convert_instruction_target(struct dmr_C *C, struct instruction *insn, pseudo_t src)
-{
-	pseudo_t target;
-	struct pseudo_user *pu;
-	/*
-	 * Go through the "insn->users" list and replace them all..
-	 */
-	target = insn->target;
-	if (target == src)
-		return;
-	FOR_EACH_PTR(target->users, pu) {
-		if (*pu->userp != VOID_PSEUDO(C)) {
-			assert(*pu->userp == target);
-			*pu->userp = src;
-		}
-	} END_FOR_EACH_PTR(pu);
-	if (dmrC_has_use_list(src))
-		concat_user_list(target->users, &src->users);
-	target->users = NULL;
-}
 
 void dmrC_convert_load_instruction(struct dmr_C *C, struct instruction *insn, pseudo_t src)
 {
@@ -808,72 +783,6 @@ void dmrC_simplify_symbol_usage(struct dmr_C *C, struct entrypoint *ep)
 	} END_FOR_EACH_PTR(pseudo);
 }
 
-static void mark_bb_reachable(struct basic_block *bb, unsigned long generation)
-{
-	struct basic_block *child;
-
-	if (bb->generation == generation)
-		return;
-	bb->generation = generation;
-	FOR_EACH_PTR(bb->children, child) {
-		mark_bb_reachable(child, generation);
-	} END_FOR_EACH_PTR(child);
-}
-
-static void kill_defs(struct dmr_C *C, struct instruction *insn)
-{
-	pseudo_t target = insn->target;
-
-	if (!dmrC_has_use_list(target))
-		return;
-	if (target->def != insn)
-		return;
-
-	dmrC_convert_instruction_target(C, insn, VOID_PSEUDO(C));
-}
-
-void dmrC_kill_bb(struct dmr_C *C, struct basic_block *bb)
-{
-	struct instruction *insn;
-	struct basic_block *child, *parent;
-
-	FOR_EACH_PTR(bb->insns, insn) {
-		dmrC_kill_instruction_force(C, insn);
-		kill_defs(C, insn);
-		/*
-		 * We kill unreachable instructions even if they
-		 * otherwise aren't "killable" (e.g. volatile loads)
-		 */
-	} END_FOR_EACH_PTR(insn);
-	bb->insns = NULL;
-
-	FOR_EACH_PTR(bb->children, child) {
-		dmrC_remove_bb_from_list(&child->parents, bb, 0);
-	} END_FOR_EACH_PTR(child);
-	bb->children = NULL;
-
-	FOR_EACH_PTR(bb->parents, parent) {
-		dmrC_remove_bb_from_list(&parent->children, bb, 0);
-	} END_FOR_EACH_PTR(parent);
-	bb->parents = NULL;
-}
-
-void dmrC_kill_unreachable_bbs(struct dmr_C *C, struct entrypoint *ep)
-{
-	struct basic_block *bb;
-	unsigned long generation = ++C->L->bb_generation;
-
-	mark_bb_reachable(ep->entry->bb, generation);
-	FOR_EACH_PTR(ep->bbs, bb) {
-		if (bb->generation == generation)
-			continue;
-		/* Mark it as being dead */
-		dmrC_kill_bb(C, bb);
-		bb->ep = NULL;
-		DELETE_CURRENT_PTR(bb);
-	} END_FOR_EACH_PTR(bb);
-	ptrlist_pack((struct ptr_list **) &ep->bbs);
-}
 
 static int rewrite_parent_branch(struct dmr_C *C, struct basic_block *bb, struct basic_block *old, struct basic_block *new)
 {

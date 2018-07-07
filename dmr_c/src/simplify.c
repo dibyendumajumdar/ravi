@@ -194,15 +194,6 @@ static inline void remove_usage(struct dmr_C *C, pseudo_t p, pseudo_t *usep)
 	}
 }
 
-void dmrC_kill_use(struct dmr_C *C, pseudo_t *usep)
-{
-	if (usep) {
-		pseudo_t p = *usep;
-		*usep = VOID_PSEUDO(C);
-		remove_usage(C, p, usep);
-	}
-}
-
 // From Luc: sssa-mini
 /*
  * Like kill_use() but do not recursively kill instructions
@@ -225,125 +216,6 @@ static void kill_use_list(struct dmr_C *C, struct pseudo_list *list)
 			continue;
 		dmrC_kill_use(C, THIS_ADDRESS(pseudo_t, p));
 	} END_FOR_EACH_PTR(p);
-}
-
-/*
- * kill an instruction:
- * - remove it from its bb
- * - remove the usage of all its operands
- * If forse is zero, the normal case, the function only for
- * instructions free of (possible) side-effects. Otherwise
- * the function does that unconditionally (must only be used
- * for unreachable instructions.
- */
-void dmrC_kill_insn(struct dmr_C *C, struct instruction *insn, int force)
-{
-	if (!insn || !insn->bb)
-		return;
-
-	switch (insn->opcode) {
-	case OP_SEL:
-	case OP_RANGE:
-		dmrC_kill_use(C, &insn->src3);
-		/* fall through */
-
-	case OP_ADD:
-	case OP_SUB:
-	case OP_MULU: 
-	case OP_MULS:
-	case OP_DIVU: 
-	case OP_DIVS:
-	case OP_MODU: 
-	case OP_MODS:
-	case OP_SHL:
-	case OP_LSR: 
-	case OP_ASR:
-
-		/* Logical */
-	case OP_AND:
-	case OP_OR:
-	case OP_XOR:
-	case OP_AND_BOOL:
-	case OP_OR_BOOL:
-
-	case OP_SET_EQ:
-	case OP_SET_NE:
-	case OP_SET_LE:
-	case OP_SET_GE:
-	case OP_SET_LT:
-	case OP_SET_GT:
-	case OP_SET_B:
-	case OP_SET_A:
-	case OP_SET_BE:
-	case OP_SET_AE:
-		dmrC_kill_use(C, &insn->src2);
-		/* fall through */
-
-	case OP_CAST:
-	case OP_SCAST:
-	case OP_FPCAST:
-	case OP_PTRCAST:
-	case OP_SETVAL:
-	case OP_NOT: case OP_NEG:
-	case OP_SLICE:
-		dmrC_kill_use(C, &insn->src1);
-		break;
-
-	case OP_PHI:
-		kill_use_list(C, insn->phi_list);
-		break;
-	case OP_PHISOURCE:
-		dmrC_kill_use(C, &insn->phi_src);
-		break;
-
-	case OP_SYMADDR:
-		C->L->repeat_phase |= REPEAT_SYMBOL_CLEANUP;
-		break;
-
-	case OP_CBR:
-		/* fall through */
-	case OP_COMPUTEDGOTO:
-		dmrC_kill_use(C, &insn->cond);
-		break;
-
-	case OP_CALL:
-		if (!force) {
-			/* a "pure" function can be killed too */
-			if (!(insn->func->type == PSEUDO_SYM))
-				return;
-			if (!(insn->func->sym->ctype.modifiers & MOD_PURE))
-				return;
-		}
-		kill_use_list(C, insn->arguments);
-		if (insn->func->type == PSEUDO_REG)
-			dmrC_kill_use(C, &insn->func);
-		break;
-
-	case OP_LOAD:
-		if (!force && insn->type->ctype.modifiers & MOD_VOLATILE)
-			return;
-		dmrC_kill_use(C, &insn->src);
-		break;
-
-	case OP_STORE:
-		if (!force)
-			return;
-		dmrC_kill_use(C, &insn->src);
-		dmrC_kill_use(C, &insn->target);
-		break;
-
-	case OP_ENTRY:
-		/* ignore */
-		return;
-
-	case OP_BR:
-	default:
-		break;
-	}
-
-	insn->bb = NULL;
-	C->L->repeat_phase |= REPEAT_CSE;
-	return;
 }
 
 /*
@@ -422,20 +294,6 @@ static int replace_with_pseudo(struct dmr_C *C, struct instruction *insn, pseudo
 	}
 	insn->bb = NULL;
 	return REPEAT_CSE;
-}
-
-unsigned int dmrC_value_size(long long value)
-{
-	value >>= 8;
-	if (!value)
-		return 8;
-	value >>= 8;
-	if (!value)
-		return 16;
-	value >>= 16;
-	if (!value)
-		return 32;
-	return 64;
 }
 
 /*

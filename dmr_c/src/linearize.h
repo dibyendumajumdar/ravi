@@ -467,10 +467,35 @@ const char *dmrC_show_pseudo(struct dmr_C *C, pseudo_t pseudo);
 void dmrC_show_bb(struct dmr_C *C, struct basic_block *bb);
 const char *dmrC_show_instruction(struct dmr_C *C, struct instruction *insn);
 
+void dmrC_convert_instruction_target(struct dmr_C *C, struct instruction *insn, pseudo_t src);
+void dmrC_kill_use(struct dmr_C *C, pseudo_t *usep);
+void dmrC_kill_insn(struct dmr_C *C, struct instruction *, int force);
+void dmrC_kill_unreachable_bbs(struct dmr_C *C, struct entrypoint *ep);
+void dmrC_kill_bb(struct dmr_C *C, struct basic_block *);
+
+static inline void dmrC_kill_instruction(struct dmr_C *C, struct instruction *insn)
+{
+	dmrC_kill_insn(C, insn, 0);
+}
+static inline void dmrC_kill_instruction_force(struct dmr_C *C, struct instruction *insn)
+{
+	dmrC_kill_insn(C, insn, 1);
+}
+
+void dmrC_clear_liveness(struct entrypoint *ep);
+void dmrC_track_pseudo_liveness(struct dmr_C *C, struct entrypoint *ep);
+void dmrC_track_pseudo_death(struct dmr_C *C, struct entrypoint *ep);
+void dmrC_track_phi_uses(struct dmr_C *C, struct instruction *insn);
+
 void dmrC_init_linearizer(struct dmr_C *C);
 void dmrC_destroy_linearizer(struct dmr_C *C);
 
 #define dmrC_hashval(x) ((unsigned long)(((uintptr_t)(x))))
+
+#define REPEAT_CSE		1
+#define REPEAT_SYMBOL_CLEANUP	2
+#define REPEAT_CFG_CLEANUP	3
+
 
 #ifdef __cplusplus
 }
