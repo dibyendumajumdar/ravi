@@ -500,7 +500,8 @@ static void build_store(struct dmr_C *C, struct function *fn, JIT_NodeRef v,
 		JIT_StoreToTemporary(fn->injector, symbol, v);
 	}
 	else {
-		JIT_ArrayStoreAt(fn->injector, JIT_LoadAddress(fn->injector, symbol),
+		assert(false);
+		JIT_ArrayStoreAt(fn->injector, 0, JIT_LoadAddress(fn->injector, symbol),
 			0, v);
 	}
 }
@@ -989,35 +990,41 @@ static JIT_NodeRef output_op_load(struct dmr_C *C, struct function *fn,
 	}
 
 	if (!load) {
+		//JIT_SymbolRef symref = NULL;
+		//if (insn->orig_type && !dmrC_is_simple_type(C->S, insn->orig_type)) {
+		//	symref = insn->orig_type->priv;
+		//}
+		uint64_t symref = (uint64_t)insn->orig_type;
+
 		//JIT_NodeRef index = JIT_ConstInt64((int64_t)insn->offset);
 		int64_t index = (int64_t)insn->offset;
 		switch (insn->size) {
 		case 8:
 			// TODO do we need to do unsigned here?
-			load = JIT_ArrayLoadAt(fn->injector, ptr, index, JIT_Int8);
+			load = JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Int8);
 			break;
 		case 16:
 			// TODO do we need to do unsigned here?
-			load = JIT_ArrayLoadAt(fn->injector, ptr, index, JIT_Int16);
+			load = JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Int16);
 			break;
 		case 32:
 			if (dmrC_is_float_type(C->S, insn->type))
 				load =
-				JIT_ArrayLoadAt(fn->injector, ptr, index, JIT_Float);
+				JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Float);
 			else
 				load =
-				JIT_ArrayLoadAt(fn->injector, ptr, index, JIT_Int32);
+				JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Int32);
 			break;
 		case 64:
 			if (dmrC_is_float_type(C->S, insn->type))
 				load =
-				JIT_ArrayLoadAt(fn->injector, ptr, index, JIT_Double);
+				JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Double);
 			else if (dmrC_is_ptr_type(insn->type))
-				load = JIT_ArrayLoadAt(fn->injector, ptr, index,
+				load = JIT_ArrayLoadAt(fn->injector, symref, ptr, index,
 					JIT_Address);
 			else
 				load =
-				JIT_ArrayLoadAt(fn->injector, ptr, index, JIT_Int64);
+				JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Int64);
 			break;
 		}
 	}
@@ -1066,7 +1073,12 @@ static JIT_NodeRef output_op_store(struct dmr_C *C, struct function *fn,
 	//JIT_NodeRef index = JIT_ConstInt64((int64_t)insn->offset);
 	int64_t index = (int64_t)insn->offset;
 	assert(JIT_GetNodeType(ptr) == JIT_Address);
-	JIT_ArrayStoreAt(fn->injector, ptr, index, target_in);
+	//JIT_SymbolRef symref = NULL;
+	//if (insn->orig_type && !dmrC_is_simple_type(C->S, insn->orig_type)) {
+	//	symref = insn->orig_type->priv;
+	//}
+	uint64_t symref = (uint64_t)insn->orig_type;
+	JIT_ArrayStoreAt(fn->injector, symref, ptr, index, target_in);
 	return target_in;
 }
 

@@ -999,6 +999,27 @@ static int linearize_address_gen(struct dmr_C *C, struct entrypoint *ep,
 	return 0;
 }
 
+/* Try to get the actual struct type associated with a load or store */
+static struct symbol *get_base_symbol_type(struct dmr_C *C, struct access_data *ad) {
+	struct symbol *orig_type = NULL;
+	if (ad->address->type == PSEUDO_SYM) {
+		orig_type = ad->address->sym;
+	}
+	else if (ad->address->type == PSEUDO_REG) {
+		if (ad->address->def->opcode == OP_LOAD) {
+			orig_type = ad->address->def->orig_type;
+		}
+	}
+	if (orig_type) {
+		if (orig_type->type == SYM_NODE)
+			orig_type = orig_type->ctype.base_type;
+		if (orig_type->type == SYM_PTR)
+			orig_type = orig_type->ctype.base_type;
+		//dmrC_show_type(C, orig_type);
+	}
+	return orig_type;
+}
+
 static pseudo_t add_load(struct dmr_C *C, struct entrypoint *ep, struct access_data *ad)
 {
 	struct instruction *insn;
@@ -1006,9 +1027,7 @@ static pseudo_t add_load(struct dmr_C *C, struct entrypoint *ep, struct access_d
 
 	insn = alloc_typed_instruction(C, OP_LOAD, ad->source_type);
 	/* save the address symbol so that backend can see what symbol we are accessing */
-	insn->orig_type = (ad->address->type == PSEUDO_SYM) ? 
-		ad->address->sym : 
-		NULL; 
+	insn->orig_type = get_base_symbol_type(C, ad);
 	new = dmrC_alloc_pseudo(C, insn);
 
 	insn->target = new;
@@ -1025,9 +1044,7 @@ static void add_store(struct dmr_C *C, struct entrypoint *ep, struct access_data
 		struct instruction *store = alloc_typed_instruction(C, OP_STORE, ad->source_type);
 		store->offset = ad->offset;
 		/* save the address symbol so that backend can see what symbol we are accessing */
-		store->orig_type = (ad->address->type == PSEUDO_SYM) ?
-			ad->address->sym :
-			NULL;
+		store->orig_type = get_base_symbol_type(C, ad);
 		dmrC_use_pseudo(C, store, value, &store->target);
 		dmrC_use_pseudo(C, store, ad->address, &store->src);
 		add_one_insn(C, ep, store);
