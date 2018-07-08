@@ -647,6 +647,7 @@ void ptrlist_sort(struct ptr_list **plist, void *userdata,
 }
 
 static int int_cmp(void *ud, const void *_a, const void *_b) {
+  (void) ud;
   const int *a = (const int *)_a;
   const int *b = (const int *)_b;
   return *a - *b;

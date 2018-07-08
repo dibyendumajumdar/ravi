@@ -69,6 +69,7 @@ static void pop_tabindex(struct parser_state *S) {
 }
 
 static void *visited(struct parser_state *S, int id) {
+        (void) S;
 	return (void *)(intptr_t)id;
 }
 
@@ -85,13 +86,6 @@ static void newNumProp(struct parser_state *S, const char *name, intptr_t value)
   lua_pushstring(S->L, name);
   lua_pushinteger(S->L, value);
   lua_settable(S->L, -3);
-}
-
-static void newIdProp(struct parser_state *S, const char *name,
-                      unsigned int id) {
-  char buf[256];
-  snprintf(buf, 256, "_%d", id);
-  newProp(S, name, buf);
 }
 
 static void popNamedTable(struct parser_state *S, const char *name) {
@@ -188,7 +182,7 @@ static void examine_modifiers(struct parser_state *S, struct symbol *sym) {
 
   if (sym->ns != NS_SYMBOL) return;
 
-  for (int i = 0; i < ARRAY_SIZE(mod_names); i++) {
+  for (int i = 0; i < (int)ARRAY_SIZE(mod_names); i++) {
     m = mod_names + i;
     if (sym->ctype.modifiers & m->mod) { newNumProp(S, m->name, 1); }
   }
@@ -324,12 +318,6 @@ static int get_stream_id(struct dmr_C *C, const char *name) {
   return -1;
 }
 
-static void clean_up_symbols(struct dmr_C *C, struct symbol_list *list) {
-  struct symbol *sym;
-
-  FOR_EACH_PTR(list, sym) { dmrC_expand_symbol(C, sym); }
-  END_FOR_EACH_PTR(sym);
-}
 
 static void examine_symbol_list(struct parser_state *S, int stream_id,
                                 struct symbol_list *list) {
@@ -351,7 +339,6 @@ TODO: allow Lua/Ravi to specify additional command line parameters.
 static int dmrC_getsymbols(lua_State *L) {
   struct symbol_list *symlist;
   struct string_list *filelist = NULL;
-  char *file;
 
   struct dmr_C *C = new_dmr_C();
 
@@ -360,8 +347,6 @@ static int dmrC_getsymbols(lua_State *L) {
   int argc = 0;
 
   symlist = dmrC_sparse_initialize(C, argc, argv, &filelist);
-  // Simplification
-  // clean_up_symbols(C, symlist);
 
   struct parser_state parser_state = {
       .L = L, .C = C, .idcount = 1, .stack = {0}, .stackpos = -1, .tabidx = 1};

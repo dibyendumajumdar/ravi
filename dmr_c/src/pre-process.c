@@ -1031,6 +1031,7 @@ static int token_list_different(struct dmr_C *C, struct token *list1, struct tok
 
 static inline void set_arg_count(struct dmr_C *C, struct token *token)
 {
+        (void) C;
 	dmrC_token_type(token) = TOKEN_ARG_COUNT;
 	token->count.normal = token->count.quoted =
 	token->count.str = token->count.vararg = 0;
@@ -1139,6 +1140,8 @@ static int try_arg(struct dmr_C *C, struct token *token, enum e_token_type type,
 {
 	struct ident *ident = token->ident;
 	int nr;
+        
+        (void) C;
 
 	if (!arglist || dmrC_token_type(token) != TOKEN_IDENT)
 		return 0;
@@ -1303,6 +1306,9 @@ static int do_handle_define(struct dmr_C *C, struct stream *stream, struct token
 	struct ident *name;
 	int ret;
 
+        (void) stream;
+        (void) line;
+        
 	if (dmrC_token_type(left) != TOKEN_IDENT) {
 		dmrC_sparse_error(C, token->pos, "expected identifier to 'define'");
 		return 1;
@@ -1391,6 +1397,9 @@ static int do_handle_undef(struct dmr_C *C, struct stream *stream, struct token 
 	struct token *left = token->next;
 	struct symbol *sym;
 
+        (void) stream;
+        (void) line;
+        
 	if (dmrC_token_type(left) != TOKEN_IDENT) {
 		dmrC_sparse_error(C, token->pos, "expected identifier to 'undef'");
 		return 1;
@@ -1442,6 +1451,8 @@ static int handle_ifdef(struct dmr_C *C, struct stream *stream, struct token **l
 {
 	struct token *next = token->next;
 	int arg;
+        
+        (void) line;
 	if (dmrC_token_type(next) == TOKEN_IDENT) {
 		arg = token_defined(C, next);
 	} else {
@@ -1457,6 +1468,8 @@ static int handle_ifndef(struct dmr_C *C, struct stream *stream, struct token **
 {
 	struct token *next = token->next;
 	int arg;
+        
+        (void) line;
 	if (dmrC_token_type(next) == TOKEN_IDENT) {
 		if (!stream->dirty && !stream->ifndef) {
 			if (!stream->protect) {
@@ -1545,6 +1558,8 @@ static int expression_value(struct dmr_C *C, struct token **where)
 static int handle_if(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
 	int value = 0;
+        
+        (void)line;
 	if (!C->false_nesting)
 		value = expression_value(C, &token->next);
 
@@ -1555,6 +1570,8 @@ static int handle_if(struct dmr_C *C, struct stream *stream, struct token **line
 static int handle_elif(struct dmr_C *C, struct stream * stream, struct token **line, struct token *token)
 {
 	struct token *top_if = stream->top_if;
+        
+        (void) line;
 	end_group(stream);
 
 	if (!top_if) {
@@ -1588,6 +1605,8 @@ static int handle_elif(struct dmr_C *C, struct stream * stream, struct token **l
 static int handle_else(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
 	struct token *top_if = stream->top_if;
+        
+        (void) line;
 	end_group(stream);
 
 	if (!top_if) {
@@ -1613,6 +1632,8 @@ static int handle_else(struct dmr_C *C, struct stream *stream, struct token **li
 static int handle_endif(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
 	struct token *top_if = stream->top_if;
+        
+        (void) line;
 	end_group(stream);
 	if (!top_if) {
 		nesting_error(stream);
@@ -1628,18 +1649,26 @@ static int handle_endif(struct dmr_C *C, struct stream *stream, struct token **l
 
 static int handle_warning(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
+        (void) line;
+        (void) stream;
 	dmrC_warning(C, token->pos, "%s", show_token_sequence(C, token->next, 0));
 	return 1;
 }
 
 static int handle_error(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
+        (void) line;
+        (void) stream;
+        
 	dmrC_sparse_error(C, token->pos, "%s", show_token_sequence(C, token->next, 0));
 	return 1;
 }
 
 static int handle_nostdinc(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
+        (void) token;
+        (void) line;
+        (void) stream;
 	/*
 	 * Do we have any non-system includes?
 	 * Clear them out if so..
@@ -1717,6 +1746,8 @@ static void add_path_entry(struct dmr_C *C, struct token *token, const char *pat
 
 static int handle_add_include(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
+        (void) stream;
+        (void) line;
 	for (;;) {
 		token = token->next;
 		if (dmrC_eof_token(token))
@@ -1731,6 +1762,8 @@ static int handle_add_include(struct dmr_C *C, struct stream *stream, struct tok
 
 static int handle_add_isystem(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
+        (void)line;
+        (void)stream;
 	for (;;) {
 		token = token->next;
 		if (dmrC_eof_token(token))
@@ -1745,6 +1778,8 @@ static int handle_add_isystem(struct dmr_C *C, struct stream *stream, struct tok
 
 static int handle_add_system(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
+        (void) line;
+        (void) stream;
 	for (;;) {
 		token = token->next;
 		if (dmrC_eof_token(token))
@@ -1776,6 +1811,8 @@ static void add_dirafter_entry(struct dmr_C *C, struct token *token, const char 
 
 static int handle_add_dirafter(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
+        (void) line;
+        (void) stream;
 	for (;;) {
 		token = token->next;
 		if (dmrC_eof_token(token))
@@ -1790,6 +1827,9 @@ static int handle_add_dirafter(struct dmr_C *C, struct stream *stream, struct to
 
 static int handle_split_include(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
+        (void) stream;
+        (void) line;
+        (void) token;
 	/*
 	 * -I-
 	 *  From info gcc:
@@ -1841,11 +1881,17 @@ static int handle_pragma(struct dmr_C *C, struct stream *stream, struct token **
  */
 static int handle_line(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
+        (void) stream;
+        (void) token;
+        (void)line;
+        (void) C;
 	return 1;
 }
 
 static int handle_nondirective(struct dmr_C *C, struct stream *stream, struct token **line, struct token *token)
 {
+        (void) stream;
+        (void) line;
 	dmrC_sparse_error(C, token->pos, "unrecognized preprocessor line '%s'", show_token_sequence(C, token, 0));
 	return 1;
 }
@@ -1888,13 +1934,13 @@ static void init_preprocessor(struct dmr_C *C)
 		{ "elif",	handle_elif },
 	};
 
-	for (i = 0; i < ARRAY_SIZE(normal); i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(normal); i++) {
 		struct symbol *sym;
 		sym = dmrC_create_symbol(C->S, stream, normal[i].name, SYM_PREPROCESSOR, NS_PREPROCESSOR);
 		sym->handler = normal[i].handler;
 		sym->normal = 1;
 	}
-	for (i = 0; i < ARRAY_SIZE(special); i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(special); i++) {
 		struct symbol *sym;
 		sym = dmrC_create_symbol(C->S, stream, special[i].name, SYM_PREPROCESSOR, NS_PREPROCESSOR);
 		sym->handler = special[i].handler;

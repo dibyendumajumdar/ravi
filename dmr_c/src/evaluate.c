@@ -467,6 +467,7 @@ static struct symbol *restricted_binop_type(struct dmr_C *C, int op,
 					struct symbol *ltype,
 					struct symbol *rtype)
 {
+        (void) C;
 	struct symbol *ctype = NULL;
 	if (lclass & TYPE_RESTRICT) {
 		if (rclass & TYPE_RESTRICT) {
@@ -561,6 +562,7 @@ Restr:
 
 static inline int lvalue_expression(struct dmr_C *C, struct expression *expr)
 {
+        (void) C;
 	return expr->type == EXPR_PREOP && expr->op == '*';
 }
 
@@ -800,6 +802,7 @@ static void bad_null(struct dmr_C *C, struct expression *expr)
 
 static unsigned long target_qualifiers(struct dmr_C *C, struct symbol *type)
 {
+        (void) C;
 	unsigned long mod = type->ctype.modifiers & MOD_IGN;
 	if (type->ctype.base_type && type->ctype.base_type->type == SYM_ARRAY)
 		mod = 0;
@@ -994,6 +997,7 @@ static struct symbol *evaluate_comma(struct dmr_C *C, struct expression *expr)
 
 static int modify_for_unsigned(struct dmr_C *C, int op)
 {
+        (void) C;
 	if (op == '<')
 		op = SPECIAL_UNSIGNED_LT;
 	else if (op == '>')
@@ -1591,7 +1595,7 @@ static struct symbol *convert_to_as_mod(struct dmr_C *C, struct symbol *sym, int
 {
 	/* Take the modifiers of the pointer, and apply them to the member */
 	mod |= sym->ctype.modifiers;
-	if (sym->ctype.as != as || sym->ctype.modifiers != mod) {
+	if ((int)(sym->ctype.as) != as || (int)(sym->ctype.modifiers) != mod) {
 		struct symbol *newsym = dmrC_alloc_symbol(C->S, sym->pos, SYM_NODE);
 		*newsym = *sym;
 		newsym->ctype.as = as;
@@ -2074,6 +2078,7 @@ static struct symbol *evaluate_member_dereference(struct dmr_C *C, struct expres
 
 static int is_promoted(struct dmr_C *C, struct expression *expr)
 {
+        (void) C;
 	while (1) {
 		switch (expr->type) {
 		case EXPR_BINOP:
@@ -2276,6 +2281,7 @@ static void convert_index(struct dmr_C *C, struct expression *e)
 
 static void convert_ident(struct dmr_C *C, struct expression *e)
 {
+        (void) C;
 	struct expression *child = e->ident_expression;
 	int offset = e->offset;
 
@@ -2359,7 +2365,7 @@ static struct expression *check_designators(struct dmr_C *C, struct expression *
 			type = ctype->ctype.base_type;
 			if (ctype->bit_size >= 0 && type->bit_size >= 0) {
 				unsigned offset = dmrC_array_element_offset(C->target, type->bit_size, e->idx_to);
-				if (offset >= ctype->bit_size) {
+				if (offset >= (unsigned) (ctype->bit_size)) {
 					err = "index out of bounds in";
 					break;
 				}
@@ -2425,7 +2431,7 @@ static struct expression *next_designators(struct dmr_C *C, struct expression *o
 					old->ctype, e, v);
 		if (!copy) {
 			n = old->idx_to + 1;
-			if (dmrC_array_element_offset(C->target, old->ctype->bit_size, n) == ctype->bit_size) {
+			if ((int)dmrC_array_element_offset(C->target, old->ctype->bit_size, n) == ctype->bit_size) {
 				convert_index(C, old);
 				return NULL;
 			}

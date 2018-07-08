@@ -381,6 +381,8 @@ Div:
 
 static int simplify_float_cmp(struct dmr_C *C, struct expression *expr, struct symbol *ctype)
 {
+        (void) C;
+        (void)ctype;
 	struct expression *left = expr->left, *right = expr->right;
 	long double l, r;
 
@@ -588,6 +590,7 @@ static int expand_addressof(struct dmr_C *C, struct expression *expr)
 static struct expression *constant_symbol_value(struct dmr_C *C, struct symbol *sym, int offset)
 {
 	struct expression *value;
+        (void)C;
 
 	if (sym->ctype.modifiers & (MOD_ASSIGNED | MOD_ADDRESSABLE))
 		return NULL;
@@ -602,9 +605,9 @@ static struct expression *constant_symbol_value(struct dmr_C *C, struct symbol *
 					continue;
 				return entry;
 			}
-			if (entry->init_offset < offset)
+			if ((int) entry->init_offset < offset)
 				continue;
-			if (entry->init_offset > offset)
+			if ((int) entry->init_offset > offset)
 				return NULL;
 			return entry->init_expr;
 		} END_FOR_EACH_PTR(entry);
@@ -717,6 +720,7 @@ Overflow:
 
 static int simplify_float_preop(struct dmr_C *C, struct expression *expr)
 {
+        (void) C;
 	struct expression *op = expr->unop;
 	long double v;
 
@@ -1244,6 +1248,7 @@ static int expand_statement(struct dmr_C *C, struct statement *stmt)
 
 static inline int bad_integer_constant_expression(struct dmr_C *C, struct expression *expr)
 {
+        (void) C;
 	if (!(expr->flags & Int_const_expr))
 		return 1;
 	if (expr->taint & Taint_comma)

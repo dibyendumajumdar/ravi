@@ -771,6 +771,7 @@ static struct basic_block * add_label(struct dmr_C *C, struct entrypoint *ep, st
 
 static void add_branch(struct dmr_C *C, struct entrypoint *ep, struct expression *expr, pseudo_t cond, struct basic_block *bb_true, struct basic_block *bb_false)
 {
+        (void)expr;
 	struct basic_block *bb = ep->active;
 	struct instruction *br;
 
@@ -795,15 +796,6 @@ pseudo_t dmrC_alloc_pseudo(struct dmr_C *C, struct instruction *def)
 	pseudo->nr = ++C->L->nr;
 	pseudo->def = def;
 	return pseudo;
-}
-
-static void clear_symbol_pseudos(struct entrypoint *ep)
-{
-	pseudo_t pseudo;
-
-	FOR_EACH_PTR(ep->accesses, pseudo) {
-		pseudo->sym->pseudo = NULL;
-	} END_FOR_EACH_PTR(pseudo);
 }
 
 static pseudo_t symbol_pseudo(struct dmr_C *C, struct entrypoint *ep, struct symbol *sym)
@@ -848,7 +840,7 @@ pseudo_t dmrC_value_pseudo(struct dmr_C *C, struct symbol *type, long long val)
 	int size = type ? type->bit_size : dmrC_value_size(val);
 	pseudo_t pseudo;
 
-	assert(size == -1 || size <= (sizeof(long long) * 8));
+	assert(size == -1 || size <= (int)(sizeof(long long) * 8));
 
 	FOR_EACH_PTR(*list, pseudo) {
 		if (pseudo->value == val && pseudo->size == size)
@@ -947,6 +939,8 @@ struct access_data {
 
 static void finish_address_gen(struct entrypoint *ep, struct access_data *ad)
 {
+        (void)ep;
+        (void)ad;
 }
 
 static int linearize_simple_address(struct dmr_C *C, struct entrypoint *ep,
@@ -972,6 +966,7 @@ static int linearize_simple_address(struct dmr_C *C, struct entrypoint *ep,
 
 static struct symbol *base_type(struct dmr_C *C, struct symbol *sym)
 {
+        (void)C;
 	struct symbol *base = sym;
 
 	if (sym) {
@@ -1003,6 +998,7 @@ static int linearize_address_gen(struct dmr_C *C, struct entrypoint *ep,
 
 /* Try to get the actual struct type associated with a load or store */
 static struct symbol *get_base_symbol_type(struct dmr_C *C, struct access_data *ad) {
+        (void) C;
 	struct symbol *orig_type = NULL;
 	if (ad->address->type == PSEUDO_SYM) {
 		orig_type = ad->address->sym;
@@ -1128,9 +1124,10 @@ static pseudo_t linearize_load_gen(struct dmr_C *C, struct entrypoint *ep, struc
 
 static pseudo_t linearize_access(struct dmr_C *C, struct entrypoint *ep, struct expression *expr)
 {
-	struct access_data ad = { NULL, };
+	struct access_data ad;
 	pseudo_t value;
-
+        
+        memset(&ad, 0, sizeof ad);
 	if (!linearize_address_gen(C, ep, expr, &ad))
 		return VOID_PSEUDO(C);
 	value = linearize_load_gen(C, ep, &ad);
@@ -1141,8 +1138,10 @@ static pseudo_t linearize_access(struct dmr_C *C, struct entrypoint *ep, struct 
 /* FIXME: FP */
 static pseudo_t linearize_inc_dec(struct dmr_C *C, struct entrypoint *ep, struct expression *expr, int postop)
 {
-	struct access_data ad = { NULL, };
-		pseudo_t old, new, one;
+	struct access_data ad;
+	pseudo_t old, new, one;
+        
+        memset(&ad, 0, sizeof ad);
 	int op = expr->op == SPECIAL_INCREMENT ? OP_ADD : OP_SUB;
 
 	if (!linearize_address_gen(C, ep, expr->unop, &ad))
@@ -1265,6 +1264,7 @@ static pseudo_t cast_pseudo(struct dmr_C *C, struct entrypoint *ep, pseudo_t src
 
 static int opcode_sign(struct dmr_C *C, int opcode, struct symbol *ctype)
 {
+        (void)C;
 	if (ctype && (ctype->ctype.modifiers & MOD_SIGNED)) {
 		switch(opcode) {
 		case OP_MULU: case OP_DIVU: case OP_MODU: case OP_LSR:
@@ -1295,12 +1295,13 @@ static pseudo_t linearize_expression_to_bool(struct dmr_C *C, struct entrypoint 
 }
 static pseudo_t linearize_assignment(struct dmr_C *C, struct entrypoint *ep, struct expression *expr)
 {
-	struct access_data ad = { NULL, };
+	struct access_data ad;
 	struct expression *target = expr->left;
 	struct expression *src = expr->right;
 	struct symbol *ctype;
 	pseudo_t value;
 
+        memset(&ad, 0, sizeof ad);
 	value = linearize_expression(C, ep, src);
 	if (!target || !linearize_address_gen(C, ep, target, &ad))
 		return value;
@@ -1684,8 +1685,9 @@ static pseudo_t linearize_initializer(struct dmr_C *C, struct entrypoint *ep, st
 
 static void linearize_argument(struct dmr_C *C, struct entrypoint *ep, struct symbol *arg, int nr)
 {
-	struct access_data ad = { NULL, };
+	struct access_data ad;
 
+        memset(&ad, 0, sizeof ad);
 	ad.source_type = arg;
 	ad.result_type = arg;
 	ad.address = symbol_pseudo(C, ep, arg);
@@ -1771,9 +1773,10 @@ static pseudo_t linearize_expression(struct dmr_C *C, struct entrypoint *ep, str
 
 static pseudo_t linearize_one_symbol(struct dmr_C *C, struct entrypoint *ep, struct symbol *sym)
 {
-	struct access_data ad = { NULL, };
+	struct access_data ad;
 	pseudo_t value;
-
+        
+        memset(&ad, 0, sizeof ad);
 	if (!sym || !sym->initializer || sym->initialized)
 		return VOID_PSEUDO(C);
 
@@ -1886,10 +1889,11 @@ static void add_asm_input(struct dmr_C *C, struct entrypoint *ep, struct instruc
 static void add_asm_output(struct dmr_C *C, struct entrypoint *ep, struct instruction *insn, struct expression *expr,
 	const char *constraint, const struct ident *ident)
 {
-	struct access_data ad = { NULL, };
+	struct access_data ad;
 	pseudo_t pseudo = dmrC_alloc_pseudo(C, insn);
 	struct asm_constraint *rule;
 
+        memset(&ad, 0, sizeof ad);
 	if (!expr || !linearize_address_gen(C, ep, expr, &ad))
 		return;
 	linearize_store_gen(C, ep, pseudo, &ad);
@@ -1972,6 +1976,7 @@ static pseudo_t linearize_asm_statement(struct dmr_C *C, struct entrypoint *ep, 
 
 static int multijmp_cmp(void *ud, const void *_a, const void *_b)
 {
+        (void) ud;
 	const struct multijmp *a = (const struct multijmp *)_a;
 	const struct multijmp *b = (const struct multijmp *)_b;
 
@@ -2470,6 +2475,7 @@ void dmrC_kill_unreachable_bbs(struct dmr_C *C, struct entrypoint *ep)
 
 static int delete_pseudo_user_list_entry(struct dmr_C *C, struct pseudo_user_list **list, pseudo_t *entry, int count)
 {
+        (void)C;
 	struct pseudo_user *pu;
 
 	FOR_EACH_PTR(*list, pu) {

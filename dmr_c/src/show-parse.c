@@ -156,12 +156,12 @@ const char *dmrC_modifier_string(struct dmr_C *C, unsigned long mod)
 		{MOD_PURE,		"[pure]"},
 	};
 
-	for (i = 0; i < ARRAY_SIZE(mod_names); i++) {
+	for (i = 0; i < (int) ARRAY_SIZE(mod_names); i++) {
 		m = mod_names + i;
 		if (mod & m->mod) {
 			char c;
 			const char *name = m->name;
-			while ((c = *name++) != '\0' && len + 2 < sizeof C->modifier_string_buffer)
+			while ((c = *name++) != '\0' && len + 2 < (int)(sizeof C->modifier_string_buffer))
 				C->modifier_string_buffer[len++] = c;
 			C->modifier_string_buffer[len++] = ' ';
 		}
@@ -178,6 +178,7 @@ static void show_struct_member(struct dmr_C *C, struct symbol *sym)
 
 void dmrC_show_symbol_list(struct dmr_C *C, struct symbol_list *list, const char *sep)
 {
+        (void) sep;
 	struct symbol *sym;
 	const char *prepend = "";
 
@@ -195,6 +196,7 @@ struct type_name {
 
 static void FORMAT_ATTR(3) prepend(struct dmr_C *C, struct type_name *name, const char *fmt, ...)
 {
+        (void) C;
 	static char buffer[512];
 	int n;
 
@@ -209,6 +211,7 @@ static void FORMAT_ATTR(3) prepend(struct dmr_C *C, struct type_name *name, cons
 
 static void FORMAT_ATTR(3) append(struct dmr_C *C, struct type_name *name, const char *fmt, ...)
 {
+        (void) C;
 	static char buffer[512];
 	int n;
 
@@ -785,6 +788,7 @@ static int show_address_gen(struct dmr_C *C, struct expression *expr)
 
 static int show_load_gen(int bits, struct expression *expr, int addr)
 {
+        (void) expr;
 	int news = new_pseudo();
 
 	printf("\tld.%d\t\tv%d,[v%d]\n", bits, news, addr);
@@ -793,6 +797,7 @@ static int show_load_gen(int bits, struct expression *expr, int addr)
 
 static void show_store_gen(int bits, int value, struct expression *expr, int addr)
 {
+        (void) expr;
 	/* FIXME!!! Bitfield store! */
 	printf("\tst.%d\t\tv%d,[v%d]\n", bits, value, addr);
 }
@@ -944,6 +949,7 @@ static int show_cast_expr(struct dmr_C *C, struct expression *expr)
 
 static int show_value(struct dmr_C *C, struct expression *expr)
 {
+        (void) C;
 	int news = new_pseudo();
 	unsigned long long value = expr->value;
 
@@ -953,6 +959,7 @@ static int show_value(struct dmr_C *C, struct expression *expr)
 
 static int show_fvalue(struct dmr_C *C, struct expression *expr)
 {
+        (void) C;
 	int news = new_pseudo();
 	long double value = expr->fvalue;
 

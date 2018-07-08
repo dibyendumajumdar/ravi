@@ -105,8 +105,8 @@ static struct OMRType DoubleType = {
     .type = RT_DOUBLE, .return_type = NULL, .bit_size = sizeof(double) * 8};
 static struct OMRType PtrType = {
     .type = RT_PTR, .return_type = NULL, .bit_size = sizeof(void *) * 8};
-static struct OMRType PtrIntType = {
-	.type = RT_INT64,.return_type = NULL,.bit_size = sizeof(intptr_t) * 8 };
+//static struct OMRType PtrIntType = {
+//	.type = RT_INT64,.return_type = NULL,.bit_size = sizeof(intptr_t) * 8 };
 static struct OMRType BadType = {
     .type = RT_UNSUPPORTED, .return_type = NULL, .bit_size = 0};
 
@@ -270,6 +270,8 @@ static struct OMRType *sym_struct_type(struct dmr_C *C, struct function *fn,
 					struct symbol *sym,
 					struct symbol *sym_node)
 {
+        (void)C;
+        (void)sym_node;
 	unsigned int bit_size = 0;
 	if (sym->bit_size > 0 && sym->bit_size != -1) {
 		bit_size = sym->bit_size;
@@ -281,6 +283,10 @@ static struct OMRType *sym_ptr_type(struct dmr_C *C, struct function *fn,
 				     struct symbol *sym,
 				     struct symbol *sym_node)
 {
+        (void)C;
+        (void)fn;
+        (void)sym_node;
+        (void)sym;
 	return &PtrType;
 }
 
@@ -375,6 +381,7 @@ static JIT_Type check_supported_argtype(struct dmr_C *C, struct symbol *sym)
 static struct OMRType *check_supported_returntype(struct dmr_C *C,
 						   struct OMRType *type)
 {
+        (void)C;
 	if (type->type == RT_AGGREGATE || type->type == RT_FUNCTION ||
 	    type->type == RT_INT || type->type == RT_UNSUPPORTED)
 		return &BadType;
@@ -414,6 +421,7 @@ static JIT_Type map_OMRtype(struct OMRType *type)
 static JIT_SymbolRef OMR_alloca(struct function *fn, struct OMRType *type,
 				int32_t size, bool reg)
 {
+        (void) reg;
 	JIT_Type omr_type = map_OMRtype(type);
 	// In OMR there is no explicit alloca IL I believe
 	// Instead we create a local symbol of appropriate size
@@ -431,6 +439,9 @@ static JIT_NodeRef constant_value(struct dmr_C *C, struct function *fn,
 				  struct OMRType *dtype)
 {
 	JIT_NodeRef result = NULL;
+        
+        (void)C;
+        (void)fn;
 
 	if (dtype->type == RT_INT8) {
 		result = JIT_ConstInt8((int8_t)val);
@@ -460,6 +471,8 @@ static JIT_NodeRef constant_fvalue(struct dmr_C *C, struct function *fn,
 {
 	JIT_NodeRef result = NULL;
 
+        (void)C;
+        (void) fn;
 	if (dtype->type == RT_DOUBLE) {
 		result = JIT_ConstDouble(val);
 	} else if (dtype->type == RT_FLOAT) {
@@ -499,6 +512,8 @@ static JIT_SymbolRef build_local(struct dmr_C *C, struct function *fn,
 static void build_store(struct dmr_C *C, struct function *fn, JIT_NodeRef v,
 			JIT_SymbolRef symbol)
 {
+        (void) C;
+
 	if (JIT_IsTemporary(fn->injector, symbol)) {
 		JIT_StoreToTemporary(fn->injector, symbol, v);
 	}
@@ -646,6 +661,9 @@ static JIT_SymbolRef get_sym_value(struct dmr_C *C, struct function *fn,
 static JIT_NodeRef val_to_value(struct dmr_C *C, struct function *fn,
 				long long value, struct symbol *ctype)
 {
+        (void) C;
+        (void) fn;
+        
 	switch (ctype->bit_size) {
 	case 8:
 		return JIT_ConstInt8((int8_t)value);
@@ -703,6 +721,10 @@ static JIT_NodeRef truncate_intvalue(struct dmr_C *C, struct function *fn,
 	JIT_NodeRef val, struct OMRType *dtype,
 	int unsigned_cast)
 {
+        (void) C;
+        (void) fn;
+        (void) unsigned_cast;
+        
 	if (JIT_GetNodeType(val) == JIT_Int64 && dtype->bit_size <= 64) {
 		if (dtype->bit_size == 64)
 			return val;
@@ -915,6 +937,7 @@ static JIT_NodeRef output_op_phi(struct dmr_C *C, struct function *fn,
 				 struct instruction *insn)
 {
 	JIT_SymbolRef ptr = insn->target->priv2;
+        (void) C;
 
 	if (!ptr)
 		return NULL;
@@ -1131,9 +1154,10 @@ static JIT_NodeRef get_operand(struct dmr_C *C, struct function *fn,
 			       bool ptrtoint, bool unsigned_cast)
 {
 	JIT_NodeRef target;
-
 	struct OMRType *instruction_type =
 	    get_symnode_or_basetype(C, fn, ctype);
+        (void)ptrtoint;
+        (void) unsigned_cast;
 	if (instruction_type == NULL)
 		return NULL;
 	target = pseudo_to_value(C, fn, ctype, pseudo);
@@ -1191,7 +1215,7 @@ static JIT_NodeRef output_op_cbr(struct dmr_C *C, struct function *fn,
 	// Switch to fallthrough block
 	JIT_SetCurrentBlock(fn->injector, fallthrough_blocknum);
 	// In the fallthrough block we only need a goto
-	JIT_NodeRef goto_node = JIT_Goto(fn->injector, false_block);
+	JIT_Goto(fn->injector, false_block);
 	return if_node;
 }
 
@@ -1200,6 +1224,7 @@ static JIT_NodeRef is_neq_zero(struct dmr_C *C, struct function *fn,
 {
 	JIT_NodeRef cond = NULL;
 	JIT_Type value_type = JIT_GetNodeType(value);
+        (void)C;
 	switch (value_type) {
 	case JIT_Int32:
 		cond = JIT_CreateNode2C(OP_icmpne, value,
@@ -2160,6 +2185,7 @@ static JIT_NodeRef output_op_ret(struct dmr_C *C, struct function *fn,
 static JIT_NodeRef output_op_br(struct dmr_C *C, struct function *fn,
 				struct instruction *br)
 {
+        (void) C;
 	JIT_BlockRef target_block = JIT_GetBlock(fn->injector, br->bb_true->nr);
 	return JIT_Goto(fn->injector, target_block);
 }

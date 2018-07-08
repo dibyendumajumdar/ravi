@@ -102,7 +102,7 @@ static void lay_out_union(struct global_symbols_t *S, struct symbol *sym, struct
 			info->max_align = sym->ctype.alignment;
 	}
 
-	if (sym->bit_size > info->bit_size)
+	if (sym->bit_size > (int) info->bit_size)
 		info->bit_size = sym->bit_size;
 
 	sym->offset = 0;
@@ -258,7 +258,7 @@ static struct symbol *examine_bitfield_type(struct global_symbols_t *S, struct s
 	if (!base_type)
 		return sym;
 	bit_size = base_type->bit_size;
-	if (sym->bit_size > bit_size)
+	if (sym->bit_size > (int) bit_size)
 		dmrC_warning(S->C, sym->pos, "impossible field-width, %d, for this type",  sym->bit_size);
 
 	alignment = base_type->ctype.alignment;
@@ -311,7 +311,7 @@ static int count_array_initializer(struct global_symbols_t *S, struct symbol *t,
 			count++;
 			switch (entry->type) {
 			case EXPR_INDEX:
-				if (entry->idx_to >= nr)
+				if ((int)entry->idx_to >= nr)
 					nr = entry->idx_to+1;
 				break;
 			case EXPR_PREOP: {

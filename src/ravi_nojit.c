@@ -69,7 +69,7 @@ void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
   // and also whether to dump header or body or both
   char fname[30];
   snprintf(fname, sizeof fname, "jitfunction");
-  ravi_compile_options_t options = {0};
+  ravi_compile_options_t options = {0, 0, 0};
   options.codegen_type = RAVI_CODEGEN_ALL;
   if (raviJ_codegen(L, p, &options, fname, &buf)) { puts(buf.buf); }
   membuff_free(&buf);

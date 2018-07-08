@@ -51,6 +51,7 @@ void dmrC_init_scope(struct dmr_C *C) {
 }
 
 void dmrC_destroy_all_scopes(struct dmr_C *C) {
+        (void) C;
 }
 
 void dmrC_bind_scope(struct dmr_C *C, struct symbol *sym, struct scope *scope)
@@ -106,6 +107,7 @@ void dmrC_start_function_scope(struct dmr_C *C)
 
 static void remove_symbol_scope(struct dmr_C *C, struct symbol *sym)
 {
+        (void) C;
 	struct symbol **ptr = &sym->ident->symbols;
 
 	while (*ptr != sym)

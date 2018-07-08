@@ -777,7 +777,7 @@ static void emit_gettable_ai(struct function *fn, int A, int B,
 	membuff_add_string(&fn->body, " goto Lraise_error;\n");
 #else
 	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_array_out_of_bounds);
-#endif`
+#endif
 	membuff_add_string(&fn->body, "}\n");
 }
 
@@ -899,6 +899,7 @@ static void emit_settable_af(struct function *fn, int A, int B,
 static void emit_op_arithslow(struct function *fn, int A, int B, int C, OpCode op, int pc,
 	const char *opchar, const char *numop, const char *tm) {
   (void)pc;
+  (void)op;
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);

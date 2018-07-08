@@ -198,7 +198,8 @@ void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
 
 	char fname[30];
 	snprintf(fname, sizeof fname, "%s", "jit_function");
-	ravi_compile_options_t options = { 0 };
+	ravi_compile_options_t options;
+        memset(&options, 0, sizeof options);
 	options.codegen_type = RAVI_CODEGEN_ALL;
 	if (raviJ_codegen(L, p, &options, fname, &buf)) {
 		printf("%s", buf.buf);
@@ -213,36 +214,42 @@ void raviV_dumpASM(struct lua_State *L, struct Proto *p) {
 }
 
 void raviV_setminexeccount(lua_State *L, int value) {
+  (void)value;
   global_State *G = G(L);
   if (!G->ravi_state) return;
   // G->ravi_state->jit->min_exec_count_ = value;
 }
 int raviV_getminexeccount(lua_State *L) {
-  global_State *G = G(L);
+  (void)L;
+  //global_State *G = G(L);
   // if (!G->ravi_state)
   return 0;
   // return G->ravi_state->jit->min_exec_count_;
 }
 
 void raviV_setmincodesize(lua_State *L, int value) {
+  (void)value;
   global_State *G = G(L);
   if (!G->ravi_state) return;
   // G->ravi_state->jit->min_code_size_ = value;
 }
 int raviV_getmincodesize(lua_State *L) {
-  global_State *G = G(L);
+  (void)L;
+  //global_State *G = G(L);
   // if (!G->ravi_state)
   return 0;
   // return G->ravi_state->jit->min_code_size_;
 }
 
 void raviV_setauto(lua_State *L, int value) {
+  (void)value;
   global_State *G = G(L);
   if (!G->ravi_state) return;
   // G->ravi_state->jit->auto_ = value;
 }
 int raviV_getauto(lua_State *L) {
-  global_State *G = G(L);
+  (void)L;
+  //global_State *G = G(L);
   // if (!G->ravi_state)
   return 0;
   // return G->ravi_state->jit->auto_;
@@ -250,6 +257,7 @@ int raviV_getauto(lua_State *L) {
 
 // Turn on/off the JIT compiler
 void raviV_setjitenabled(lua_State *L, int value) {
+  (void)value;
   global_State *G = G(L);
   if (!G->ravi_state) return;
   // G->ravi_state->jit->enabled_ = value;
@@ -261,12 +269,14 @@ int raviV_getjitenabled(lua_State *L) {
 }
 
 void raviV_setoptlevel(lua_State *L, int value) {
+  (void)value;
   global_State *G = G(L);
   if (!G->ravi_state) return;
   // G->ravi_state->jit->opt_level_ = value;
 }
 int raviV_getoptlevel(lua_State *L) {
-  global_State *G = G(L);
+  (void)L;
+  //global_State *G = G(L);
   // if (!G->ravi_state)
   return 0;
   // return G->ravi_state->jit->opt_level_;

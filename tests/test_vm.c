@@ -336,7 +336,7 @@ int main()
 {
 	int failures = 0;
 	failures += test_asmvm();
-	// failures += test_vm();
+	//failures += test_vm();
 	if (failures)
 		printf("FAILED\n");
 	else

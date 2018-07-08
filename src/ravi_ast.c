@@ -685,7 +685,6 @@ static struct ast_node *parse_table_constructor(struct parser_state *parser) {
 * be anchored somewhere else by the time parsing finishes
 */
 static TString *user_defined_type_name(LexState *ls, TString *typename) {
-	char buffer[128];
 	size_t len = 0;
 	if (testnext(ls, '.')) {
 		char buffer[128] = { 0 };
@@ -766,7 +765,7 @@ static bool parse_parameter_list(struct parser_state *parser, struct lua_symbol_
 	int nparams = 0;
 	bool is_vararg = false;
 	enum { N = MAXVARS + 10 };
-	int vars[N] = { 0 };
+	//int vars[N] = { 0 };
 	TString *typenames[N] = { NULL };
 	if (ls->t.token != ')') {  /* is 'parlist' not empty? */
 		do {
@@ -825,7 +824,6 @@ static int parse_expression_list(struct parser_state *parser, struct ast_node_li
 /* parse function arguments */
 static struct ast_node *parse_function_call(struct parser_state *parser, TString *methodname, int line) {
 	LexState *ls = parser->ls;
-	int base, nparams;
 	struct ast_node *call_expr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	call_expr->type = AST_FUNCTION_CALL_EXPR;
 	call_expr->function_call_expr.methodname = methodname;
@@ -1081,7 +1079,6 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
 	struct ast_node *expr = NULL;
 	uop = get_unary_opr(ls->t.token);
 	if (uop != OPR_NOUNOPR) {
-		int line = ls->linenumber;
 		// RAVI change - get usertype if @<name>
 		TString *usertype = NULL;
 		if (uop == OPR_TO_TYPE) {
@@ -1108,7 +1105,6 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
 	op = get_binary_opr(ls->t.token);
 	while (op != OPR_NOBINOPR && priority[op].left > limit) {
 		BinOpr nextop;
-		int line = ls->linenumber;
 		luaX_next(ls);
 		/* read sub-expression with higher priority */
 		struct ast_node *exprright = parse_sub_expression(parser, priority[op].right, &nextop);
@@ -1163,9 +1159,7 @@ static struct ast_node *parse_condition(struct parser_state *parser) {
 
 static struct ast_node *parse_goto_statment(struct parser_state *parser) {
 	LexState *ls = parser->ls;
-	int line = ls->linenumber;
 	TString *label;
-	int g;
 	if (testnext(ls, TK_GOTO))
 		label = check_name_and_next(ls);
 	else {
@@ -1196,6 +1190,7 @@ static struct ast_node *generate_label(struct parser_state *parser, TString *lab
 }
 
 static struct ast_node *parse_label_statement(struct parser_state *parser, TString *label, int line) {
+        (void) line;
 	LexState *ls = parser->ls;
 	/* label -> '::' NAME '::' */
 	checknext(ls, TK_DBCOLON);  /* skip double colon */
@@ -1245,6 +1240,9 @@ static struct ast_node *parse_repeat_statement(struct parser_state *parser, int 
 * called by fornum(), forlist()
 */
 static void parse_forbody(struct parser_state *parser, struct ast_node* stmt, int line, int nvars, int isnum) {
+        (void) line;
+        (void) nvars;
+        (void) isnum;
 	LexState *ls = parser->ls;
 	/* forbody -> DO block */
 	checknext(ls, TK_DO);	
@@ -1330,9 +1328,9 @@ static struct ast_node *parse_for_statement(struct parser_state *parser, int lin
 
 /* parse if cond then block - called from ifstat() */
 static struct ast_node *parse_if_cond_then_block(struct parser_state *parser, int *escapelist) {
+        (void) escapelist;
 	LexState *ls = parser->ls;
 	/* test_then_block -> [IF | ELSEIF] cond THEN block */
-	int jf;         /* instruction to skip 'then' code (if condition is false) */
 	luaX_next(ls);  /* skip IF or ELSEIF */
 	struct ast_node *test_then_block = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	test_then_block->type = AST_NONE; // This is not an AST node on its own
@@ -1407,7 +1405,7 @@ static struct ast_node *parse_local_statement(struct parser_state *parser) {
 	* instead.
 	*/
 	enum { N = MAXVARS + 10 };
-	int vars[N] = { 0 };
+	//int vars[N] = { 0 };
 	TString *usertypes[N] = { NULL };
 	struct ast_node *node = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	node->type = AST_LOCAL_STMT;
@@ -2120,14 +2118,13 @@ static void checkmode(lua_State *L, const char *mode, const char *x) {
 	}
 }
 
-static int ravi_f_parser(lua_State *L, void *ud) {
-	LClosure *cl;
+static void ravi_f_parser(lua_State *L, void *ud) {
 	struct SParser *p = cast(struct SParser *, ud);
 	lua_lock(L);  // Workaroud for zgetc() which assumes lua_lock()
 	int c = zgetc(p->z);  /* read first character */
 	lua_unlock(L);
 	checkmode(L, p->mode, "text");
-	return parse_to_ast(L, p->z, &p->buff, p->name, c);
+	parse_to_ast(L, p->z, &p->buff, p->name, c);
 }
 
 static int protected_ast_builder(lua_State *L, ZIO *z, const char *name,
@@ -2232,7 +2229,7 @@ static int build_ast(lua_State *L) {
 	size_t l;
 	const char *s = lua_tolstring(L, 1, &l);
 	const char *mode = luaL_optstring(L, 3, "bt");
-	int env = (!lua_isnone(L, 4) ? 4 : 0);  /* 'env' index or 0 if no 'env' */
+	//int env = (!lua_isnone(L, 4) ? 4 : 0);  /* 'env' index or 0 if no 'env' */
 	if (s != NULL) {  /* loading a string? */
 		const char *chunkname = luaL_optstring(L, 2, s);
 		status = build_ast_from_buffer(L, s, l, chunkname, mode);

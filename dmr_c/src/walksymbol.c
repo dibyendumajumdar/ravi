@@ -607,96 +607,99 @@ void dmrC_walk_symbol(struct dmr_C *C, struct symbol *sym,
 	visitor->end_symbol(visitor->data);
 }
 
-static void begin_symbol_default(void *data, struct symbol_info *syminfo) {}
-static void end_symbol_default(void *data) {}
-static void begin_members_default(void *data, struct symbol_info *syminfo) {}
-static void end_members_default(void *data) {}
-static void begin_arguments_default(void *data, struct symbol_info *syminfo) {}
-static void end_arguments_default(void *data) {}
-static void reference_symbol_default(void *data, uint64_t id, const char *name) {}
-static void begin_body_default(void *data, struct symbol_info *syminfo) {}
-static void end_body_default(void *data) {}
+static void begin_symbol_default(void *data, struct symbol_info *syminfo) {(void)data; (void)syminfo;}
+static void end_symbol_default(void *data) {(void)data;}
+static void begin_members_default(void *data, struct symbol_info *syminfo) {(void)data; (void)syminfo;}
+static void end_members_default(void *data) {(void)data;}
+static void begin_arguments_default(void *data, struct symbol_info *syminfo) {(void)data; (void)syminfo;}
+static void end_arguments_default(void *data) {(void)data;}
+static void reference_symbol_default(void *data, uint64_t id, const char *name) {(void)data; (void)id; (void)name;}
+static void begin_body_default(void *data, struct symbol_info *syminfo) {(void)data; (void)syminfo;}
+static void end_body_default(void *data) {(void)data;}
 static void begin_func_returntype_default(void *data,
 	struct symbol_info *syminfo)
 {
+        (void)data; (void)syminfo;
 }
 static void end_func_returntype_default(void *data)
 {
+        (void)data;
 }
-static void begin_basetype_default(void *data, struct symbol_info *syminfo) {}
-static void end_basetype_default(void *data) {}
+static void begin_basetype_default(void *data, struct symbol_info *syminfo) {(void)data; (void)syminfo;}
+static void end_basetype_default(void *data) {(void)data;}
 static void begin_initializer_default(void *data, struct symbol_info *syminfo)
 {
+        (void)data; (void)syminfo;
 }
-static void end_initializer_default(void *data) {}
-static void string_expression_default(void *data, const char *str) {}
-static void int_literal_default(void *data, long long value, int bit_size, bool is_unsigned) {}
-static void float_literal_default(void *data, long double fvalue, int bit_size) {}
-static void begin_statement_default(void *data, enum statement_type statement_type) {}
-static void end_statement_default(void *data) {}
-static void begin_expression_default(void *data, enum expression_type expr_type) {}
-static void end_expression_default(void *data) {}
-static void begin_assignment_expression_default(void *data, enum expression_type expr_type, int op) {}
-static void end_assignment_expression_default(void *data) {}
-static void begin_binop_expression_default(void *data, enum expression_type expr_type, int op) {}
-static void end_binop_expression_default(void *data) {}
+static void end_initializer_default(void *data) {(void)data;}
+static void string_expression_default(void *data, const char *str) {(void)data; (void)str;}
+static void int_literal_default(void *data, long long value, int bit_size, bool is_unsigned) {(void)data; (void)value; (void) bit_size; (void) is_unsigned;}
+static void float_literal_default(void *data, long double fvalue, int bit_size) {(void)data; (void) fvalue; (void)bit_size;}
+static void begin_statement_default(void *data, enum statement_type statement_type) {(void)data; (void)statement_type;}
+static void end_statement_default(void *data) {(void)data;}
+static void begin_expression_default(void *data, enum expression_type expr_type) {(void)data; (void)expr_type;}
+static void end_expression_default(void *data) {(void)data;}
+static void begin_assignment_expression_default(void *data, enum expression_type expr_type, int op) {(void)data; (void) expr_type; (void) op;}
+static void end_assignment_expression_default(void *data) {(void) data;}
+static void begin_binop_expression_default(void *data, enum expression_type expr_type, int op) {(void)data; (void)expr_type; (void)op;}
+static void end_binop_expression_default(void *data) {(void)data;}
 static void begin_preop_expression_default(void *data,
-	enum expression_type expr_type, int op) {}
-static void end_preop_expression_default(void *data) {}
+                                           enum expression_type expr_type, int op) {(void)data; (void)expr_type; (void)op;}
+static void end_preop_expression_default(void *data) {(void)data;}
 static void begin_postop_expression_default(void *data,
-	enum expression_type expr_type, int op) {}
-static void end_postop_expression_default(void *data) {}
+                                            enum expression_type expr_type, int op) {(void)data; (void)expr_type; (void)op;}
+static void end_postop_expression_default(void *data) {(void)data;}
 static void begin_direct_call_expression_default(void *data,
-	enum expression_type expr_type, const char *name) {}
+                                                 enum expression_type expr_type, const char *name) {(void)data; (void)expr_type; (void) name;}
 static void begin_indirect_call_expression_default(void *data,
-	enum expression_type expr_type) {}
-static void end_call_expression_default(void *data) {}
+                                                   enum expression_type expr_type) {(void)data; (void)expr_type;}
+static void end_call_expression_default(void *data) {(void)data;}
 
 static void begin_callarg_expression_default(void *data,
 	enum expression_type expr_type,
-	int argpos) {}
-static void end_callarg_expression_default(void *data) {}
+                                             int argpos) {(void)data; (void)expr_type; (void)argpos;}
+static void end_callarg_expression_default(void *data) {(void)data;}
 
 static void begin_cast_expression_default(void *data,
 	enum expression_type expr_type,
 	int oldbits, int newbits,
-	bool is_unsigned) {}
-static void end_cast_expression_default(void *data) {}
-static void begin_conditional_expression_default(void *data, enum expression_type expr_type) {}
-static void end_conditional_expression_default(void *data) {}
-static void begin_label_expression_default(void *data, enum expression_type expr_type) {}
-static void end_label_expression_default(void *data) {}
+                                          bool is_unsigned) {(void)data; (void)expr_type; (void)oldbits; (void)newbits; (void)is_unsigned;}
+static void end_cast_expression_default(void *data) {(void)data;}
+static void begin_conditional_expression_default(void *data, enum expression_type expr_type) {(void)data; (void) expr_type;}
+static void end_conditional_expression_default(void *data) {(void)data;}
+static void begin_label_expression_default(void *data, enum expression_type expr_type) {(void)data; (void)expr_type;}
+static void end_label_expression_default(void *data) {(void)data;}
 static void do_expression_identifier_default(void *data,
-	enum expression_type expr_type, const char *ident) {}
+                                             enum expression_type expr_type, const char *ident) {(void)data; (void)expr_type; (void) ident;}
 static void do_expression_index_default(void *data,
-	enum expression_type expr_type, unsigned from, unsigned to) {}
+                                        enum expression_type expr_type, unsigned from, unsigned to) {(void)data; (void)expr_type; (void) from; (void) to;}
 static void begin_expression_position_default(void *data,
-	enum expression_type expr_type, unsigned init_offset, int bit_offset, const char *ident) {}
-static void end_expression_position_default(void *data) {}
+                                              enum expression_type expr_type, unsigned init_offset, int bit_offset, const char *ident) {(void)data; (void)expr_type; (void) init_offset; (void) ident; (void)bit_offset;}
+static void end_expression_position_default(void *data) {(void)data;}
 static void begin_initialization_default(void *data,
-	enum expression_type expr_type) {}
-static void end_initialization_default(void *data) {}
-static void begin_label_default(void *data, const char *name) {}
-static void end_label_default(void *data) {}
-static void begin_iterator_prestatement_default(void *data) {}
-static void end_iterator_prestatement_default(void *data) {}
-static void begin_iterator_precondition_default(void *data) {}
-static void end_iterator_precondition_default(void *data) {}
-static void begin_iterator_statement_default(void *data) {}
-static void end_iterator_statement_default(void *data) {}
-static void begin_iterator_postcondition_default(void *data) {}
-static void end_iterator_postcondition_default(void *data) {}
-static void begin_iterator_poststatement_default(void *data) {}
-static void end_iterator_poststatement_default(void *data) {}
-static void begin_case_value_default(void *data, long long value) {}
-static void begin_case_range_default(void *data, long long from, long long to) {}
-static void begin_default_case_default(void *data) {}
-static void end_case_default(void *data) {}
+                                         enum expression_type expr_type) {(void)data; (void)expr_type;}
+static void end_initialization_default(void *data) {(void)data;}
+static void begin_label_default(void *data, const char *name) {(void)data; (void) name;}
+static void end_label_default(void *data) {(void)data;}
+static void begin_iterator_prestatement_default(void *data) {(void)data;}
+static void end_iterator_prestatement_default(void *data) {(void)data;}
+static void begin_iterator_precondition_default(void *data) {(void)data;}
+static void end_iterator_precondition_default(void *data) {(void)data;}
+static void begin_iterator_statement_default(void *data) {(void)data;}
+static void end_iterator_statement_default(void *data) {(void)data;}
+static void begin_iterator_postcondition_default(void *data) {(void)data;}
+static void end_iterator_postcondition_default(void *data) {(void)data;}
+static void begin_iterator_poststatement_default(void *data) {(void)data;}
+static void end_iterator_poststatement_default(void *data) {(void)data;}
+static void begin_case_value_default(void *data, long long value) {(void)data; (void)value;}
+static void begin_case_range_default(void *data, long long from, long long to) {(void)data; (void)from; (void)to;}
+static void begin_default_case_default(void *data) {(void)data;}
+static void end_case_default(void *data) {(void)data;}
 
-static void begin_if_then_default(void *data) {}
-static void end_if_then_default(void *data) {}
-static void begin_if_else_default(void *data) {}
-static void end_if_else_default(void *data) {}
+static void begin_if_then_default(void *data) {(void)data;}
+static void end_if_then_default(void *data) {(void)data;}
+static void begin_if_else_default(void *data) {(void)data;}
+static void end_if_else_default(void *data) {(void)data;}
 
 
 void dmrC_init_symbol_visitor(struct symbol_visitor *visitor)

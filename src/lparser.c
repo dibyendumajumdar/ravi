@@ -1162,7 +1162,6 @@ static void constructor (LexState *ls, expdesc *t) {
  * be anchored somewhere else by the time parsing finishes
  */
 static TString *user_defined_type_name(LexState *ls, TString *typename) {
-	char buffer[128];
 	size_t len = 0;
 	if (testnext(ls, '.')) {
 		char buffer[128] = { 0 };
