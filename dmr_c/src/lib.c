@@ -225,6 +225,7 @@ void dmrC_die(struct dmr_C *C, const char *fmt, ...)
 	va_list args;
 	static char buffer[512];
 
+	(void)C;
 	va_start(args, fmt);
 	vsnprintf(buffer, sizeof(buffer), fmt, args);
 	va_end(args);
@@ -665,7 +666,7 @@ static char **handle_switch_d(struct dmr_C *C, char *arg, char **next)
 
 static void handle_onoff_switch_finalize(const struct warning warnings[], int n)
 {
-	unsigned i;
+	int i;
 
 	for (i = 0; i < n; i++) {
 		if (*warnings[i].flag == WARNING_FORCE_OFF)
@@ -789,6 +790,7 @@ static char **handle_switch_f(struct dmr_C *C, char *arg, char **next)
 
 static char **handle_switch_G(struct dmr_C *C, char *arg, char **next)
 {
+  (void) C;
 	if (!strcmp(arg, "G") && *next)
 		return next + 1; // "-G 0"
 	else

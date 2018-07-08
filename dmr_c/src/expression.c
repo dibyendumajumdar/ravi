@@ -634,7 +634,7 @@ static struct token *unary_expression(struct dmr_C *C, struct token *token, stru
 				{ C->S->__sizeof_ptr___ident, EXPR_PTRSIZEOF },
 			};
 			int i;
-			for (i = 0; i < ARRAY_SIZE(type_information); i++) {
+			for (i = 0; i < (int)ARRAY_SIZE(type_information); i++) {
 				if (ident == type_information[i].id)
 					return type_info_expression(C, token, tree, type_information[i].type);
 			}
@@ -902,7 +902,7 @@ struct token *dmrC_assignment_expression(struct dmr_C *C, struct token *token, s
 			SPECIAL_SHR_ASSIGN, SPECIAL_AND_ASSIGN,
 			SPECIAL_OR_ASSIGN,  SPECIAL_XOR_ASSIGN };
 		int i, op = token->special;
-		for (i = 0; i < ARRAY_SIZE(assignments); i++)
+		for (i = 0; i < (int)ARRAY_SIZE(assignments); i++)
 			if (assignments[i] == op) {
 				struct expression * expr = dmrC_alloc_expression(C, token->pos, EXPR_ASSIGNMENT);
 				expr->left = *tree;

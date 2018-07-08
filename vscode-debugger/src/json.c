@@ -228,11 +228,13 @@ json_value * json_parse_ex (json_settings * settings,
    json_char error [json_error_max];
    const json_char * end;
    json_value * top, * root, * alloc = 0;
-   json_state state = { 0 };
+   json_state state;
    long flags;
    long num_digits = 0, num_e = 0;
    json_int_t num_fraction = 0;
 
+   memset(&state, 0, sizeof state);
+  
    /* Skip UTF-8 BOM
     */
    if (length >= 3 && ((unsigned char) json [0]) == 0xEF
@@ -893,7 +895,7 @@ json_value * json_parse_ex (json_settings * settings,
                };
             }
 
-            if ( (++ top->parent->u.array.length) > state.uint_max)
+            if ( (unsigned)(++ top->parent->u.array.length) > state.uint_max)
                goto e_overflow;
 
             top = top->parent;
@@ -950,7 +952,8 @@ e_failed:
 
 json_value * json_parse (const json_char * json, size_t length)
 {
-   json_settings settings = { 0 };
+   json_settings settings;
+   memset(&settings, 0, sizeof settings);
    return json_parse_ex (&settings, json, length, 0);
 }
 

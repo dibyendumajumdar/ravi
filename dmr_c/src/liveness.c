@@ -65,32 +65,32 @@ static void track_instruction_usage(struct dmr_C *C, struct basic_block *bb, str
 		break;
 	
 	/* Binary */
-  case OP_ADD:
-  case OP_SUB:
-  case OP_MULU:
-  case OP_MULS:
-  case OP_DIVU:
-  case OP_DIVS:
-  case OP_MODU:
-  case OP_MODS:
-  case OP_SHL:
-  case OP_LSR:
-  case OP_ASR:
-  case OP_AND:
-  case OP_OR:
-  case OP_XOR:
-  case OP_AND_BOOL:
-  case OP_OR_BOOL:
-  case OP_SET_EQ:
-  case OP_SET_NE:
-  case OP_SET_LE:
-  case OP_SET_GE:
-  case OP_SET_LT:
-  case OP_SET_GT:
-  case OP_SET_B:
-  case OP_SET_A:
-  case OP_SET_BE:
-  case OP_SET_AE:
+	case OP_ADD:
+	case OP_SUB:
+	case OP_MULU:
+	case OP_MULS:
+	case OP_DIVU:
+	case OP_DIVS:
+	case OP_MODU:
+	case OP_MODS:
+	case OP_SHL:
+	case OP_LSR:
+	case OP_ASR:
+	case OP_AND:
+	case OP_OR:
+	case OP_XOR:
+	case OP_AND_BOOL:
+	case OP_OR_BOOL:
+	case OP_SET_EQ:
+	case OP_SET_NE:
+	case OP_SET_LE:
+	case OP_SET_GE:
+	case OP_SET_LT:
+	case OP_SET_GT:
+	case OP_SET_B:
+	case OP_SET_A:
+	case OP_SET_BE:
+	case OP_SET_AE:
 		USES(src1); USES(src2); DEFINES(target);
 		break;
 
@@ -323,10 +323,15 @@ static void track_bb_phi_uses(struct dmr_C *C, struct basic_block *bb)
 
 static void death_def(struct dmr_C *C, struct basic_block *bb, pseudo_t pseudo)
 {
+	(void) C;
+	(void) bb;
+	(void) pseudo;
 }
 
 static void death_use(struct dmr_C *C, struct basic_block *bb, pseudo_t pseudo)
 {
+	(void) C;
+	(void) bb;
 	if (trackable_pseudo(pseudo) && !dmrC_pseudo_in_list(*C->L->live_list, pseudo)) {
 		dmrC_add_pseudo(C, &C->L->dead_list, pseudo);
 		dmrC_add_pseudo(C, C->L->live_list, pseudo);

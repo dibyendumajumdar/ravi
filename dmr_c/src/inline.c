@@ -304,7 +304,7 @@ static struct expression_list *copy_asm_constraints(struct dmr_C *C, struct expr
 	return out;
 }
 
-static void set_replace(struct dmr_C *C, struct symbol *old, struct symbol *news)
+static void set_replace(struct symbol *old, struct symbol *news)
 {
 	news->replace = old;
 	old->replace = news;
@@ -493,7 +493,7 @@ static struct symbol *create_copy_symbol(struct dmr_C *C, struct symbol *orig)
 		*sym = *orig;
 		sym->bb_target = NULL;
 		sym->pseudo = NULL;
-		set_replace(C, orig, sym);
+		set_replace(orig, sym);
 		orig = sym;
 	}
 	return orig;
@@ -546,7 +546,7 @@ int dmrC_inline_function(struct dmr_C *C, struct expression *expr, struct symbol
 		a->ctype.base_type = arg->ctype;
 		if (name) {
 			*a = *name;
-			set_replace(C, name, a);
+			set_replace(name, a);
 			dmrC_add_symbol(C, &fn_symbol_list, a);
 		}
 		a->initializer = arg;

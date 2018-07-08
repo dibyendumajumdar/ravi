@@ -111,6 +111,7 @@ static void replace_with_integer(struct dmr_C *C, struct token *token, unsigned 
 
 static struct symbol *lookup_macro(struct dmr_C *C, struct ident *ident)
 {
+	(void) C;
 	struct symbol *sym = dmrC_lookup_symbol(ident, (enum namespace_type) (NS_MACRO | NS_UNDEF));
 	if (sym && sym->ns != NS_MACRO)
 		sym = NULL;
@@ -177,6 +178,7 @@ static int expand_one_symbol(struct dmr_C *C, struct token **list)
 static inline struct token *scan_next(struct dmr_C *C, struct token **where)
 {
 	struct token *token = *where;
+	(void) C;
 	if (dmrC_token_type(token) != TOKEN_UNTAINT)
 		return token;
 	do {
@@ -518,10 +520,10 @@ static int merge(struct dmr_C *C, struct token *left, struct token *right)
 		left->string = right->string;
 		return 1;
 
-  case TOKEN_WIDE_CHAR_EMBEDDED_0:
-  case TOKEN_WIDE_CHAR_EMBEDDED_1:
-  case TOKEN_WIDE_CHAR_EMBEDDED_2:
-  case TOKEN_WIDE_CHAR_EMBEDDED_3:
+	case TOKEN_WIDE_CHAR_EMBEDDED_0:
+	case TOKEN_WIDE_CHAR_EMBEDDED_1:
+	case TOKEN_WIDE_CHAR_EMBEDDED_2:
+	case TOKEN_WIDE_CHAR_EMBEDDED_3:
 		dmrC_token_type(left) = res;
 		left->pos.noexpand = 0;
 		memcpy(left->embedded, right->embedded, 4);
@@ -567,6 +569,7 @@ static struct token **copy(struct dmr_C *C, struct token **where, struct token *
 static int handle_kludge(struct dmr_C *C, struct token **p, struct arg *args)
 {
 	struct token *t = (*p)->next->next;
+	(void) C;
 	while (1) {
 		struct arg *v = &args[t->argnum];
 		if (dmrC_token_type(t->next) != TOKEN_CONCAT) {
@@ -864,7 +867,8 @@ static int try_include(struct dmr_C *C, const char *path, const char *filename, 
 static int do_include_path(struct dmr_C *C, const char **pptr, struct token **list, struct token *token, const char *filename, int flen)
 {
 	const char *path;
-
+  
+	(void) token;
 	while ((path = *pptr++) != NULL) {
 		if (!try_include(C, path, filename, flen, list, pptr))
 			continue;
@@ -933,7 +937,7 @@ static int handle_include_path(struct dmr_C *C, struct stream *stream, struct to
 		return 0;
 out:
 	dmrC_error_die(C, token->pos, "unable to open '%s'", filename);
-  return 0;
+	return 0;
 }
 
 static int handle_include(struct dmr_C *C, struct stream *stream, struct token **list, struct token *token)
@@ -955,6 +959,7 @@ static int token_different(struct dmr_C *C, struct token *t1, struct token *t2)
 {
 	int different;
 
+	(void) C;
 	if (dmrC_token_type(t1) != dmrC_token_type(t2))
 		return 1;
 
@@ -979,14 +984,14 @@ static int token_different(struct dmr_C *C, struct token *t1, struct token *t2)
 	case TOKEN_STR_ARGUMENT:
 		different = t1->argnum != t2->argnum;
 		break;
-  case TOKEN_CHAR_EMBEDDED_0:
-  case TOKEN_CHAR_EMBEDDED_1:
-  case TOKEN_CHAR_EMBEDDED_2:
-  case TOKEN_CHAR_EMBEDDED_3:
-  case TOKEN_WIDE_CHAR_EMBEDDED_0:
-  case TOKEN_WIDE_CHAR_EMBEDDED_1:
-  case TOKEN_WIDE_CHAR_EMBEDDED_2:
-  case TOKEN_WIDE_CHAR_EMBEDDED_3:
+	case TOKEN_CHAR_EMBEDDED_0:
+	case TOKEN_CHAR_EMBEDDED_1:
+	case TOKEN_CHAR_EMBEDDED_2:
+	case TOKEN_CHAR_EMBEDDED_3:
+	case TOKEN_WIDE_CHAR_EMBEDDED_0:
+	case TOKEN_WIDE_CHAR_EMBEDDED_1:
+	case TOKEN_WIDE_CHAR_EMBEDDED_2:
+	case TOKEN_WIDE_CHAR_EMBEDDED_3:
 		different = memcmp(t1->embedded, t2->embedded, 4);
 		break;
 	case TOKEN_CHAR:

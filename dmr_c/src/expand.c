@@ -74,6 +74,7 @@ static long long get_longlong(struct dmr_C *C, struct expression *expr)
 	long long mask = 1ULL << (expr->ctype->bit_size - 1);
 	long long value = expr->value;
 	long long ormask, andmask;
+	(void)C;
 
 	if (!(value & mask))
 		no_expand = 1;
@@ -187,7 +188,7 @@ static int simplify_int_binop(struct dmr_C *C, struct expression *expr, struct s
 		return 0;
 	r = right->value;
 	if (expr->op == SPECIAL_LEFTSHIFT || expr->op == SPECIAL_RIGHTSHIFT) {
-		if (r >= ctype->bit_size) {
+		if ((int)r >= ctype->bit_size) {
 			if (conservative)
 				return 0;
 			r = check_shift_count(C, expr, ctype, r);
@@ -302,6 +303,7 @@ static int simplify_cmp_binop(struct dmr_C *C, struct expression *expr, struct s
 	unsigned long long l, r, mask;
 	signed long long sl, sr;
 
+	(void) C;
 	if (left->type != EXPR_VALUE || right->type != EXPR_VALUE)
 		return 0;
 	l = left->value; r = right->value;

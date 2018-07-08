@@ -194,11 +194,12 @@ left:
 
 static int same_cast_type(struct dmr_C *C, struct symbol *orig, struct symbol *news)
 {
+	(void)C;
 	return orig->bit_size == news->bit_size &&
 	       orig->bit_offset == news->bit_offset;
 }
 
-static struct symbol *base_type(struct dmr_C *C, struct symbol *node, unsigned long *modp, unsigned long *asp)
+static struct symbol *base_type(struct symbol *node, unsigned long *modp, unsigned long *asp)
 {
 	unsigned long mod, as;
 
@@ -222,8 +223,8 @@ static int is_same_type(struct dmr_C *C, struct expression *expr, struct symbol 
 	struct symbol *old = expr->ctype;
 	unsigned long oldmod, newmod, oldas, newas;
 
-	old = base_type(C, old, &oldmod, &oldas);
-	news = base_type(C, news, &newmod, &newas);
+	old = base_type(old, &oldmod, &oldas);
+	news = base_type(news, &newmod, &newas);
 
 	/* Same base type, same address space? */
 	if (old == news && oldas == newas) {
@@ -411,8 +412,9 @@ static struct symbol *bad_expr_type(struct dmr_C *C, struct expression *expr)
 	return expr->ctype = &C->S->bad_ctype;
 }
 
-static int restricted_value(struct dmr_C *C, struct expression *v, struct symbol *type)
+static int restricted_value(struct expression *v, struct symbol *type)
 {
+	(void)type;
 	if (v->type != EXPR_VALUE)
 		return 1;
 	if (v->value != 0)
@@ -420,7 +422,7 @@ static int restricted_value(struct dmr_C *C, struct expression *v, struct symbol
 	return 0;
 }
 
-static int restricted_binop(struct dmr_C *C, int op, struct symbol *type)
+static int restricted_binop(int op)
 {
 	switch (op) {
 		case '&':
@@ -453,7 +455,7 @@ static int restricted_unop(struct dmr_C *C, int op, struct symbol **type)
 }
 
 /* type should be SYM_FOULED */
-static inline struct symbol *unfoul(struct dmr_C *C, struct symbol *type)
+static inline struct symbol *unfoul(struct symbol *type)
 {
 	return type->ctype.base_type;
 }
@@ -471,24 +473,24 @@ static struct symbol *restricted_binop_type(struct dmr_C *C, int op,
 			if (ltype == rtype) {
 				ctype = ltype;
 			} else if (lclass & TYPE_FOULED) {
-				if (unfoul(C, ltype) == rtype)
+				if (unfoul(ltype) == rtype)
 					ctype = ltype;
 			} else if (rclass & TYPE_FOULED) {
-				if (unfoul(C, rtype) == ltype)
+				if (unfoul(rtype) == ltype)
 					ctype = rtype;
 			}
 		} else {
-			if (!restricted_value(C, right, ltype))
+			if (!restricted_value(right, ltype))
 				ctype = ltype;
 		}
-	} else if (!restricted_value(C, left, rtype))
+	} else if (!restricted_value(left, rtype))
 		ctype = rtype;
 
 	if (ctype) {
-		switch (restricted_binop(C, op, ctype)) {
+		switch (restricted_binop(op)) {
 		case 1:
 			if ((lclass ^ rclass) & TYPE_FOULED)
-				ctype = unfoul(C, ctype);
+				ctype = unfoul(ctype);
 			break;
 		case 3:
 			if (!(lclass & rclass & TYPE_FOULED))
@@ -508,7 +510,7 @@ static inline void unrestrict(struct dmr_C *C, struct expression *expr,
 {
 	if (klass & TYPE_RESTRICT) {
 		if (klass & TYPE_FOULED)
-			*ctype = unfoul(C, *ctype);
+			*ctype = unfoul(*ctype);
 		dmrC_warning(C, expr->pos, "%s degrades to integer",
 			dmrC_show_typename(C, *ctype));
 		*ctype = (*ctype)->ctype.base_type; /* get to arithmetic type */
@@ -1279,16 +1281,16 @@ static int evaluate_assign_op(struct dmr_C *C, struct expression *expr)
 			return 0;
 		}
 		if (tclass & TYPE_RESTRICT) {
-			if (!restricted_binop(C, op, t)) {
+			if (!restricted_binop(op)) {
 				dmrC_warning(C, expr->pos, "bad assignment (%s) to %s",
 					dmrC_show_special(C, op), dmrC_show_typename(C, t));
 				expr->right = cast_to(C, expr->right, target);
 				return 0;
 			}
 			/* allowed assignments unfoul */
-			if (sclass & TYPE_FOULED && unfoul(C, s) == t)
+			if (sclass & TYPE_FOULED && unfoul(s) == t)
 				goto Cast;
-			if (!restricted_value(C, expr->right, t))
+			if (!restricted_value(expr->right, t))
 				return 1;
 		} else if (!(sclass & TYPE_RESTRICT))
 			goto usual;
@@ -1354,9 +1356,9 @@ static int check_assignment_types(struct dmr_C *C, struct symbol *target, struct
 	if (tclass & sclass & TYPE_NUM) {
 		if (tclass & TYPE_RESTRICT) {
 			/* allowed assignments unfoul */
-			if (sclass & TYPE_FOULED && unfoul(C, s) == t)
+			if (sclass & TYPE_FOULED && unfoul(s) == t)
 				goto Cast;
-			if (!restricted_value(C, *rp, target))
+			if (!restricted_value(*rp, target))
 				return 1;
 			if (s == t)
 				return 1;
@@ -2832,10 +2834,10 @@ static struct symbol *evaluate_cast(struct dmr_C *C, struct expression *expr)
 
 	/* allowed cast unfouls */
 	if (class2 & TYPE_FOULED)
-		t2 = unfoul(C, t2);
+		t2 = unfoul(t2);
 
 	if (t1 != t2) {
-		if ((class1 & TYPE_RESTRICT) && restricted_value(C, target, t1))
+		if ((class1 & TYPE_RESTRICT) && restricted_value(target, t1))
 			dmrC_warning(C, expr->pos, "cast to %s",
 				dmrC_show_typename(C, t1));
 		if (class2 & TYPE_RESTRICT) {

@@ -157,6 +157,7 @@ static struct OMRType *sym_basetype_type(struct dmr_C *C, struct function *fn,
 					  struct symbol *sym,
 					  struct symbol *sym_node)
 {
+	(void) sym_node;
 	if (dmrC_is_float_type(C->S, sym)) {
 		switch (sym->bit_size) {
 		case 32:
@@ -248,9 +249,11 @@ static struct OMRType *sym_array_type(struct dmr_C *C, struct function *fn,
 				       struct symbol *sym_node)
 {
 	struct symbol *base_type;
+  
+	(void) C;
 	base_type = sym->ctype.base_type;
 	/* empty struct is undefined [6.7.2.1(8)] */
-	unsigned int array_bit_size = sym->bit_size;
+	int array_bit_size = sym->bit_size;
 	if (array_bit_size == 0 || array_bit_size == -1) {
 		if (sym_node != NULL)
 			array_bit_size = sym_node->bit_size;

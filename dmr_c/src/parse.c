@@ -570,7 +570,7 @@ void dmrC_init_parser(struct dmr_C *C, int stream)
 	C->P = (struct parse_state_t *) calloc(1, sizeof(struct parse_state_t));
 
 	int i;
-	for (i = 0; i < ARRAY_SIZE(keyword_table); i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(keyword_table); i++) {
 		struct init_keyword *ptr = keyword_table + i;
 		struct symbol *sym = dmrC_create_symbol(C->S, stream, ptr->name, SYM_KEYWORD, ptr->ns);
 		sym->ident->keyword = 1;
@@ -581,7 +581,7 @@ void dmrC_init_parser(struct dmr_C *C, int stream)
 		sym->op = ptr->op;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(ignored_attributes); i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(ignored_attributes); i++) {
 		const char * name = ignored_attributes[i];
 		struct symbol *sym = dmrC_create_symbol(C->S, stream, name, SYM_KEYWORD,
 						   NS_KEYWORD);

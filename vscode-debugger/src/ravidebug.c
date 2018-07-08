@@ -548,6 +548,7 @@ static int search_for_name(const char *name, const char **filter) {
   return 0;
 }
 
+#if 0
 static const char *var_type_as_string(int vtype) {
   switch (vtype) {
     case VAR_TYPE_LOCALS:
@@ -564,6 +565,7 @@ static const char *var_type_as_string(int vtype) {
       return "invalid";
   }
 }
+#endif
 
 /*
  * Get a table's values into the response

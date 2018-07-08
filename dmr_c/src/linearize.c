@@ -79,6 +79,7 @@ static struct multijmp *alloc_multijmp(struct dmr_C *C, struct basic_block *targ
 	return multijmp;
 }
 
+#if 0
 static inline int regno(pseudo_t n)
 {
 	int retval = -1;
@@ -86,6 +87,7 @@ static inline int regno(pseudo_t n)
 		retval = n->nr;
 	return retval;
 }
+#endif
 
 const char *dmrC_show_pseudo(struct dmr_C *C, pseudo_t pseudo)
 {
@@ -276,7 +278,7 @@ const char *dmrC_show_instruction(struct dmr_C *C, struct instruction *insn)
 	if (!insn->bb)
 		buf += sprintf(buf, "# ");
 
-	if (opcode < ARRAY_SIZE(opcodes)) {
+	if (opcode < (int)ARRAY_SIZE(opcodes)) {
 		const char *op = opcodes[opcode];
 		if (!op)
 			buf += sprintf(buf, "opcode:%d", opcode);

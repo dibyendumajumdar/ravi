@@ -84,6 +84,8 @@ static int evaluate_choose(struct dmr_C *C, struct expression *expr)
 static int expand_expect(struct dmr_C *C, struct expression *expr, int cost)
 {
 	struct expression *arg = dmrC_first_expression(expr->args);
+	(void)C;
+	(void)cost;
 
 	if (arg)
 		*expr = *arg;
@@ -98,6 +100,7 @@ static int expand_warning(struct dmr_C *C, struct expression *expr, int cost)
 {
 	struct expression *arg;
 	struct expression_list *arglist = expr->args;
+	(void)cost;
 
 	FOR_EACH_PTR (arglist, arg) {
 		/*
@@ -138,6 +141,7 @@ out:
 /* The arguments are constant if the cost of all of them is zero */
 static int expand_constant_p(struct dmr_C *C, struct expression *expr, int cost)
 {
+	(void) C;
 	expr->type = EXPR_VALUE;
 	expr->value = !cost;
 	expr->taint = 0;
@@ -147,6 +151,7 @@ static int expand_constant_p(struct dmr_C *C, struct expression *expr, int cost)
 /* The arguments are safe, if their cost is less than SIDE_EFFECTS */
 static int expand_safe_p(struct dmr_C *C, struct expression *expr, int cost)
 {
+	(void) C;
 	expr->type = EXPR_VALUE;
 	expr->value = (cost < SIDE_EFFECTS);
 	expr->taint = 0;
@@ -226,7 +231,7 @@ static struct sym_init {
 	{ "__builtin_bswap16", NULL, MOD_TOPLEVEL, &bswap_op },
 	{ "__builtin_bswap32", NULL, MOD_TOPLEVEL, &bswap_op },
 	{ "__builtin_bswap64", NULL, MOD_TOPLEVEL, &bswap_op },
-	{ NULL,		NULL,		0 }
+	{ NULL,		NULL,		0, NULL }
 };
 
 void dmrC_init_builtins(struct dmr_C *C, int stream)

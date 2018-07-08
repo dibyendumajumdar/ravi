@@ -26,9 +26,6 @@
 #include <stddef.h>
 #include <assert.h>
 
-// FIXME should be in ravi_State
-static int id = 0;
-
 #define LUA_CORE
 
 #include "lauxlib.h"
@@ -200,11 +197,11 @@ void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
 	membuff_init(&buf, 4096);
 
 	char fname[30];
-	snprintf(fname, sizeof fname, "jit", G->ravi_state->id++);
+	snprintf(fname, sizeof fname, "%s", "jit_function");
 	ravi_compile_options_t options = { 0 };
 	options.codegen_type = RAVI_CODEGEN_ALL;
 	if (raviJ_codegen(L, p, &options, fname, &buf)) {
-		printf(buf.buf);
+		printf("%s", buf.buf);
 	}
 	membuff_free(&buf);
 }
