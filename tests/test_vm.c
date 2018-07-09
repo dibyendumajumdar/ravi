@@ -12,6 +12,8 @@
 #include "lualib.h"
 #include "lobject.h"
 
+#ifndef RAVI_USE_ASMVM
+
 /* test supplied lua code compiles */
 static int test_luacomp1(const char *code)
 {
@@ -122,6 +124,8 @@ static int test_luacompexec1(const char *code, int expected)
   return rc;
 }
 
+#else
+
 struct MyValue {
 	int type;
 	union {
@@ -231,7 +235,7 @@ Lerror:
 	return rc;
 }
 
-static int test_asmvm()
+static int test_vm()
 {
 	int failures = 0;
 	struct MyValue args[3];
@@ -258,6 +262,9 @@ static int test_asmvm()
 	failures += do_asmvm_test("return function (a) for i=1,4,2 do a=i; end return a end", 0, NULL, 1, results); // OP_LOADK, OP_MOVE, OP_RETURN, OP_RAVI_FOPREP_IP, OP_RAVI_FORLOOP_IP
 	return failures;
 }
+#endif
+
+#ifndef RAVI_USE_ASMVM
 
 static int test_vm() 
 {
@@ -332,11 +339,12 @@ static int test_vm()
 	return failures;
 }
 
+#endif
+
 int main() 
 {
 	int failures = 0;
-	failures += test_asmvm();
-	//failures += test_vm();
+	failures += test_vm();
 	if (failures)
 		printf("FAILED\n");
 	else
