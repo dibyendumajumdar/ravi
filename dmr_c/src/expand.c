@@ -191,7 +191,7 @@ static int simplify_int_binop(struct dmr_C *C, struct expression *expr, struct s
 		if ((int)r >= ctype->bit_size) {
 			if (conservative)
 				return 0;
-			r = check_shift_count(C, expr, ctype, r);
+			r = check_shift_count(C, expr, ctype, (unsigned int)r);
 			right->value = r;
 		}
 	}
@@ -641,7 +641,7 @@ static int expand_dereference(struct dmr_C *C, struct expression *expr)
 	if (unop->type == EXPR_BINOP && unop->op == '+') {
 		struct expression *right = unop->right;
 		if (right->type == EXPR_VALUE) {
-			offset = right->value;
+			offset = (unsigned int) right->value;
 			unop = unop->left;
 		}
 	}

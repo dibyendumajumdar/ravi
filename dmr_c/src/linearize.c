@@ -955,7 +955,7 @@ static int linearize_simple_address(struct dmr_C *C, struct entrypoint *ep,
 	if (addr->type == EXPR_BINOP) {
 		if (addr->right->type == EXPR_VALUE) {
 			if (addr->op == '+') {
-				ad->offset += dmrC_get_expression_value(C, addr->right);
+				ad->offset += (unsigned int) dmrC_get_expression_value(C, addr->right);
 				return linearize_simple_address(C, ep, addr->left, ad);
 			}
 		}
@@ -1855,7 +1855,7 @@ static pseudo_t linearize_context(struct dmr_C *C, struct entrypoint *ep, struct
 	int value = 0;
 
 	if (expr->type == EXPR_VALUE)
-		value = expr->value;
+		value = (int) expr->value;
 
 	insn->increment = value;
 	insn->context_expr = stmt->context;

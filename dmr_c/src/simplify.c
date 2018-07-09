@@ -832,7 +832,7 @@ offset:
 		new = VOID_PSEUDO(C);
 		dmrC_warning(C, insn->pos, "crazy programmer");
 	}
-	insn->offset += off->value;
+	insn->offset += (int) off->value;
 	dmrC_use_pseudo(C, insn, new, &insn->src);
 	remove_usage(C, addr, &insn->src);
 	return REPEAT_CSE | REPEAT_SYMBOL_CLEANUP;

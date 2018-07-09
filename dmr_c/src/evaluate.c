@@ -2364,7 +2364,7 @@ static struct expression *check_designators(struct dmr_C *C, struct expression *
 			}
 			type = ctype->ctype.base_type;
 			if (ctype->bit_size >= 0 && type->bit_size >= 0) {
-				unsigned offset = dmrC_array_element_offset(C->target, type->bit_size, e->idx_to);
+				unsigned offset = (unsigned) dmrC_array_element_offset(C->target, type->bit_size, e->idx_to);
 				if (offset >= (unsigned) (ctype->bit_size)) {
 					err = "index out of bounds in";
 					break;

@@ -917,7 +917,7 @@ static char **handle_long_options(struct dmr_C *C, char *arg, char **next)
 	struct switches *s = cmd;
 
 	while (s->name) {
-		int optlen = strlen(s->name);
+		int optlen = (int) strlen(s->name);
 		if (!strncmp(s->name, arg, optlen + !s->prefix))
 			return s->fn(C, arg + optlen, next);
 		s++;

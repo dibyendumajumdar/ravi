@@ -228,15 +228,15 @@ static struct symbol *examine_base_type(struct global_symbols_t *S, struct symbo
 static struct symbol * examine_array_type(struct global_symbols_t *S, struct symbol *sym)
 {
 	struct symbol *base_type = examine_base_type(S, sym);
-	unsigned long bit_size = -1, alignment;
+	unsigned int bit_size = -1, alignment;
 	struct expression *array_size = sym->array_size;
 
 	if (!base_type)
 		return sym;
 
 	if (array_size) {	
-		bit_size = dmrC_array_element_offset(S->C->target, base_type->bit_size,
-						dmrC_get_expression_value_silent(S->C, array_size));
+		bit_size = (unsigned int) dmrC_array_element_offset(S->C->target, base_type->bit_size,
+						(int) dmrC_get_expression_value_silent(S->C, array_size));
 		if (array_size->type != EXPR_VALUE) {
 			if (S->C->Wvla)
 				dmrC_warning(S->C, array_size->pos, "Variable length array is used.");
@@ -393,7 +393,7 @@ static struct symbol * examine_node_type(struct global_symbols_t *S, struct symb
 			int count = count_array_initializer(S, node_type, initializer);
 
 			if (node_type && node_type->bit_size >= 0)
-				bit_size = dmrC_array_element_offset(S->C->target, node_type->bit_size, count);
+				bit_size = (int) dmrC_array_element_offset(S->C->target, node_type->bit_size, count);
 			/* Note that the bit_size will be set on parent SYM_NODE rather than here */
 			//base_type->bit_size = bit_size;
 		}

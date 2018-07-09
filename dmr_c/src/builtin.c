@@ -196,8 +196,8 @@ static int expand_bswap(struct dmr_C *C, struct expression *expr, int cost)
 	arg = dmrC_first_expression(expr->args);
 	val = dmrC_get_expression_value_silent(C, arg);
 	switch (expr->ctype->bit_size) {
-	case 16: expr->value = __builtin_bswap16(val); break;
-	case 32: expr->value = __builtin_bswap32(val); break;
+	case 16: expr->value = __builtin_bswap16((uint16_t)val); break;
+	case 32: expr->value = __builtin_bswap32((uint32_t)val); break;
 	case 64: expr->value = __builtin_bswap64(val); break;
 	default: /* impossible error */
 		return SIDE_EFFECTS;

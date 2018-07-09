@@ -70,7 +70,7 @@ static inline int dmrC_bytes_to_bits(const struct target_t *target, int bytes) {
   return bytes * target->bits_in_char;
 }
 
-static inline unsigned long dmrC_array_element_offset(const struct target_t *target, unsigned long base_bits, int idx)
+static inline unsigned long long dmrC_array_element_offset(const struct target_t *target, unsigned int base_bits, int idx)
 {
 	int fragment = base_bits % target->bits_in_char;
 	if (fragment)

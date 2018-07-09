@@ -1040,8 +1040,8 @@ static struct token *ignore_attribute(struct dmr_C *C, struct token *token, stru
 
 static struct token *attribute_packed(struct dmr_C *C, struct token *token, struct symbol *attr, struct decl_state *ctx)
 {
-        (void) C;
-        (void) attr;
+	(void) C;
+	(void) attr;
 	if (!ctx->ctype.alignment)
 		ctx->ctype.alignment = 1;
 	return token;
@@ -1049,14 +1049,14 @@ static struct token *attribute_packed(struct dmr_C *C, struct token *token, stru
 
 static struct token *attribute_aligned(struct dmr_C *C, struct token *token, struct symbol *attr, struct decl_state *ctx)
 {
-        (void) attr;
+	(void) attr;
 	int alignment = C->target->max_alignment;
 	struct expression *expr = NULL;
 
 	if (dmrC_match_op(token, '(')) {
 		token = dmrC_parens_expression(C, token, &expr, "in attribute");
 		if (expr)
-			alignment = dmrC_const_expression_value(C, expr);
+			alignment = (int) dmrC_const_expression_value(C, expr);
 	}
 	if (alignment & (alignment-1)) {
 		dmrC_warning(C, token->pos, "I don't like non-power-of-2 alignments");
@@ -1094,7 +1094,7 @@ static struct token *attribute_address_space(struct dmr_C *C, struct token *toke
 	token = dmrC_expect_token(C, token, '(', "after address_space attribute");
 	token = dmrC_conditional_expression(C, token, &expr);
 	if (expr) {
-		as = dmrC_const_expression_value(C, expr);
+		as = (int) dmrC_const_expression_value(C, expr);
 		if (C->Waddress_space && as)
 			ctx->ctype.as = as;
 	}
@@ -1194,16 +1194,16 @@ static struct token *attribute_context(struct dmr_C *C, struct token *token, str
 		dmrC_sparse_error(C, token->pos, "expected context input/output values");
 		break;
 	case 1:
-		context->in = dmrC_get_expression_value(C, args[0]);
+		context->in = (unsigned int)dmrC_get_expression_value(C, args[0]);
 		break;
 	case 2:
-		context->in = dmrC_get_expression_value(C, args[0]);
-		context->out = dmrC_get_expression_value(C, args[1]);
+		context->in = (unsigned int)dmrC_get_expression_value(C, args[0]);
+		context->out = (unsigned int)dmrC_get_expression_value(C, args[1]);
 		break;
 	case 3:
 		context->context_expr = args[0];
-		context->in = dmrC_get_expression_value(C, args[1]);
-		context->out = dmrC_get_expression_value(C, args[2]);
+		context->in = (unsigned int)dmrC_get_expression_value(C, args[1]);
+		context->out = (unsigned int)dmrC_get_expression_value(C, args[2]);
 		break;
 	}
 
@@ -1406,7 +1406,7 @@ static struct token *alignas_specifier(struct dmr_C *C, struct token *token, str
 		token = dmrC_parens_expression(C, token, &expr, "after _Alignas");
 		if (!expr)
 			return token;
-		alignment = dmrC_const_expression_value(C, expr);
+		alignment = (int) dmrC_const_expression_value(C, expr);
 	}
 
 	if (alignment < 0) {
@@ -1832,7 +1832,7 @@ static struct token *handle_bitfield(struct dmr_C *C, struct token *token, struc
 	bitfield = alloc_indirect_symbol(C, token->pos, ctype, SYM_BITFIELD);
 	token = dmrC_conditional_expression(C, token->next, &expr);
 	width = dmrC_const_expression_value(C, expr);
-	bitfield->bit_size = width;
+	bitfield->bit_size = (int) width;
 
 	if (width < 0 || width > INT_MAX) {
 		dmrC_sparse_error(C, token->pos, "invalid bitfield width, %lld.", width);
@@ -1858,7 +1858,7 @@ static struct token *handle_bitfield(struct dmr_C *C, struct token *token, struc
 			dmrC_warning(C, token->pos, "dubious bitfield without explicit `signed' or `unsigned'");
 		}
 	}
-	bitfield->bit_size = width;
+	bitfield->bit_size = (int) width;
 	bitfield->endpos = token->pos;
 	return token;
 }
@@ -2549,10 +2549,10 @@ static struct expression *index_expression(struct dmr_C *C, struct expression *f
 	int idx_from, idx_to;
 	struct expression *expr = dmrC_alloc_expression(C, from->pos, EXPR_INDEX);
 
-	idx_from = dmrC_const_expression_value(C, from);
+	idx_from = (int) dmrC_const_expression_value(C, from);
 	idx_to = idx_from;
 	if (to) {
-		idx_to = dmrC_const_expression_value(C, to);
+		idx_to = (int) dmrC_const_expression_value(C, to);
 		if (idx_to < idx_from || idx_from < 0)
 			dmrC_warning(C, from->pos, "nonsense array initializer index range");
 	}

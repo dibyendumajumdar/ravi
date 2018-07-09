@@ -92,7 +92,7 @@ static int expand(struct dmr_C *C, struct token **, struct symbol *);
 
 static void replace_with_string(struct dmr_C *C, struct token *token, const char *str)
 {
-	int size = strlen(str) + 1;
+	int size = (int) strlen(str) + 1;
 	struct string *s = (struct string *)dmrC_allocator_allocate(&C->string_allocator, size);
 
 	s->length = size;
@@ -359,7 +359,7 @@ static const char *show_token_sequence(struct dmr_C *C, struct token *token, int
 		return "<none>";
 	while (!dmrC_eof_token(token)) {
 		const char *val = quote ? dmrC_quote_token(C, token) : dmrC_show_token(C, token);
-		int len = strlen(val);
+		int len = (int) strlen(val);
 
 		if (ptr + whitespace + len >= C->preprocessor_buffer + sizeof C->preprocessor_buffer) {
 			dmrC_sparse_error(C, token->pos, "too long token expansion");
@@ -380,7 +380,7 @@ static const char *show_token_sequence(struct dmr_C *C, struct token *token, int
 static struct token *stringify(struct dmr_C *C, struct token *arg)
 {
 	const char *s = show_token_sequence(C, arg, 1);
-	int size = strlen(s)+1;
+	int size = (int) strlen(s)+1;
 	struct token *token = (struct token *)dmrC_allocator_allocate(&C->token_allocator, 0);
 	struct string *string = (struct string *)dmrC_allocator_allocate(&C->string_allocator, size);
 
@@ -449,7 +449,7 @@ static enum e_token_type combine(struct dmr_C *C, struct token *left, struct tok
 
 	strcpy(p, dmrC_show_token(C, left));
 	strcat(p, dmrC_show_token(C, right));
-	len = strlen(p);
+	len = (int) strlen(p);
 
 	if (len >= 256)
 		return TOKEN_ERROR;
@@ -743,7 +743,7 @@ static const char *token_name_sequence(struct dmr_C *C, struct token *token, int
 		const char *val = token->string->data;
 		if (dmrC_token_type(token) != TOKEN_STRING)
 			val = dmrC_show_token(C, token);
-		len = strlen(val);
+		len = (int) strlen(val);
 		memcpy(ptr, val, len);
 		ptr += len;
 		token = token->next;
