@@ -513,7 +513,7 @@ print("test 12 OK")
 
 -- test 13
 function y()
-  local i,j = 5.1,"6.2"
+  local i,j = 5.1,6.2
   return i,j
 end
 function x(f)

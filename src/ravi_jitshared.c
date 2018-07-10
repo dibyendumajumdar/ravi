@@ -4,7 +4,7 @@
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
 * "Software"), to deal in the Software without restriction, including
-* without limitation the rights to use, copy, modify, merge, publish,ftonum
+* without limitation the rights to use, copy, modify, merge, publish,
 * distribute, sublicense, and/or sell copies of the Software, and to
 * permit persons to whom the Software is furnished to do so, subject to
 * the following conditions:
@@ -836,7 +836,7 @@ static void emit_settable_ai(struct function *fn, int A, int B,
 	membuff_add_string(&fn->body, "t = hvalue(ra);\n");
 	membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
 	membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->ravi_array.data;\n");
-	membuff_add_string(&fn->body, "if (!tointeger(rc, &i)) {\n");
+	membuff_add_string(&fn->body, "if (!ttisinteger(rc)) {\n");
 #if GOTO_ON_ERROR
 	membuff_add_fstring(&fn->body, " error_code = %d;\n",
 		Error_integer_expected);
@@ -845,6 +845,7 @@ static void emit_settable_ai(struct function *fn, int A, int B,
 	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_integer_expected);
 #endif
 	membuff_add_string(&fn->body, "}\n");
+        membuff_add_string(&fn->body, "i = ivalue(rc);\n");
 	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
 	membuff_add_string(&fn->body, " iptr[ukey] = i;\n");
 	membuff_add_string(&fn->body, "} else {\n");
@@ -881,7 +882,7 @@ static void emit_settable_af(struct function *fn, int A, int B,
 	membuff_add_string(&fn->body, "t = hvalue(ra);\n");
 	membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
 	membuff_add_string(&fn->body, "nptr = (lua_Number *)t->ravi_array.data;\n");
-	membuff_add_string(&fn->body, "if (!tonumber(rc, &n)) {\n");
+	membuff_add_string(&fn->body, "if (!ttisnumber(rc)) {\n");
 #if GOTO_ON_ERROR
 	membuff_add_fstring(&fn->body, " error_code = %d;\n",
 		Error_integer_expected);
@@ -890,6 +891,7 @@ static void emit_settable_af(struct function *fn, int A, int B,
 	membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_integer_expected);
 #endif
 	membuff_add_string(&fn->body, "}\n");
+        membuff_add_string(&fn->body, "n = (ttisinteger(rc) ? (double)ivalue(rc) : fltvalue(rc));\n");
 	membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
 	membuff_add_string(&fn->body, " nptr[ukey] = n;\n");
 	membuff_add_string(&fn->body, "} else {\n");
@@ -1385,7 +1387,7 @@ static void emit_op_movei(struct function *fn, int A, int B, int pc) {
 	emit_reg(fn, "rb", B);
 	membuff_add_string(&fn->body, "i = 0;\n");
 	membuff_add_string(&fn->body,
-		"if (tointeger(rb, &i)) { setivalue(ra, i); }\n");
+		"if (ttisinteger(rb)) { i = ivalue(rb); setivalue(ra, i); }\n");
 	membuff_add_string(&fn->body, "else {\n");
 #if GOTO_ON_ERROR
 	membuff_add_fstring(&fn->body, " error_code = %d;\n",
@@ -1403,7 +1405,7 @@ static void emit_op_movef(struct function *fn, int A, int B, int pc) {
 	emit_reg(fn, "rb", B);
 	membuff_add_string(&fn->body, "n = 0.0;\n");
 	membuff_add_string(&fn->body,
-		"if (tonumber(rb, &n)) { setfltvalue(ra, n); }\n");
+		"if (ttisnumber(rb)) { n = (ttisfloat(n) ? fltvalue(ra) : (double)ivalue(ra)); setfltvalue(ra, n); }\n");
 	membuff_add_string(&fn->body, "else {\n");
 #if GOTO_ON_ERROR
 	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_number_expected);
@@ -1469,7 +1471,7 @@ static void emit_op_toint(struct function *fn, int A, int pc) {
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "i = 0;\n");
 	membuff_add_string(&fn->body,
-		"if (tointeger(ra, &i)) { setivalue(ra, i); }\n");
+		"if (ttisinteger(ra)) {i = ivalue(ra); setivalue(ra, i); }\n");
 	membuff_add_string(&fn->body, "else {\n");
 #if GOTO_ON_ERROR
 	membuff_add_fstring(&fn->body, " error_code = %d;\n",
@@ -1486,7 +1488,7 @@ static void emit_op_toflt(struct function *fn, int A, int pc) {
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "n = 0.0;\n");
 	membuff_add_string(&fn->body,
-		"if (tonumber(ra, &n)) { setfltvalue(ra, n); }\n");
+		"if (ttisnumber(ra)) { n = (ttisinteger(ra) ? (double) ivalue(ra) : fltvalue(ra)); setfltvalue(ra, n); }\n");
 	membuff_add_string(&fn->body, "else {\n");
 #if GOTO_ON_ERROR
 	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_number_expected);
