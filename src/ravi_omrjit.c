@@ -345,17 +345,32 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
     return true;
   else if (p->ravi_jit.jit_status == RAVI_JIT_CANT_COMPILE)
     return false;
-  if (options == NULL || !options->manual_request) return false;
-
-  if (!raviJ_cancompile(p)) {
-    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
-    return false;
-  }
+  if (options == NULL) return false;
 
   global_State *G = G(L);
   if (G->ravi_state == NULL) return false;
   JIT_ContextRef context = G->ravi_state->jit;
   if (context == NULL) return false;
+
+  bool doCompile = (bool)(options && options->manual_request != 0);
+  if (!doCompile && G->ravi_state->auto_) {
+    if (p->ravi_jit.jit_flags == RAVI_JIT_FLAG_HASFORLOOP) /* function has fornum loop, so compile */
+      doCompile = true;
+    else if (p->sizecode > G->ravi_state->min_code_size_) /* function is long so compile */
+      doCompile = true;
+    else {
+      if (p->ravi_jit.execution_count < G->ravi_state->min_exec_count_) /* function has been executed many
+                                                                                      times so compile */
+        p->ravi_jit.execution_count++;
+      else
+        doCompile = true;
+    }
+  }
+  if (!doCompile) { return false; }
+  if (!raviJ_cancompile(p)) {
+    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
+    return false;
+  }
 
   if (G->ravi_state->compiling_) return false;
   G->ravi_state->compiling_ = 1;
