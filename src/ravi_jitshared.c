@@ -1405,7 +1405,7 @@ static void emit_op_movef(struct function *fn, int A, int B, int pc) {
 	emit_reg(fn, "rb", B);
 	membuff_add_string(&fn->body, "n = 0.0;\n");
 	membuff_add_string(&fn->body,
-		"if (ttisnumber(rb)) { n = (ttisfloat(n) ? fltvalue(ra) : (double)ivalue(ra)); setfltvalue(ra, n); }\n");
+		"if (ttisnumber(rb)) { n = (ttisfloat(rb) ? fltvalue(rb) : (double)ivalue(rb)); setfltvalue(ra, n); }\n");
 	membuff_add_string(&fn->body, "else {\n");
 #if GOTO_ON_ERROR
 	membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_number_expected);

@@ -53,7 +53,15 @@
 struct ravi_State {
 	JIT_ContextRef jit;
 	unsigned long long id;	// counter to generate function names
-	int verbosity;
+	unsigned int verbosity_ : 3;
+	unsigned int auto_ : 1; /* Should we auto compile what we can? */
+	unsigned int enabled_ : 1; /* is JIT enabled */
+	unsigned int opt_level_ : 3; /* optimization level */
+	unsigned int tracehook_enabled_ : 1; /* enable calls to luaG_traceexec() at every bytecode, this is expensive ! */
+	unsigned int validation_ : 1; /* Enable extra validation such as IL verification */
+	unsigned int compiling_; /* flag to help avoid recursion */
+	int min_code_size_; /* min code size for compilation */
+	int min_exec_count_; /* min execution count for compilation */
 };
 
 #ifdef __cplusplus

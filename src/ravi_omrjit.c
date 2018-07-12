@@ -115,6 +115,11 @@ int raviV_initjit(struct lua_State *L) {
   global_State *G = G(L);
   if (G->ravi_state != NULL) return -1;
   ravi_State *jit = (ravi_State *)calloc(1, sizeof(ravi_State));
+  jit->auto_ = 0;
+  jit->enabled_ = 1;
+  jit->min_code_size_ = 150;
+  jit->min_exec_count_ = 50;
+  jit->opt_level_ = 1;
   // The parameter true means we will be dumping stuff as we compile
   jit->jit = JIT_CreateContext();
   //extern void luaF_close (lua_State *L, StkId level);
@@ -187,7 +192,7 @@ void raviV_close(struct lua_State *L) {
   free(G->ravi_state);
 }
 
-// Dump the IR
+// Dump the intermediate C code
 void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
 	global_State *G = G(L);
 	if (G->ravi_state == NULL) 
@@ -202,7 +207,8 @@ void raviV_dumpIR(struct lua_State *L, struct Proto *p) {
         memset(&options, 0, sizeof options);
 	options.codegen_type = RAVI_CODEGEN_ALL;
 	if (raviJ_codegen(L, p, &options, fname, &buf)) {
-		printf("%s", buf.buf);
+		ravi_writestring(L, buf.buf, strlen(buf.buf));
+		ravi_writeline(L);
 	}
 	membuff_free(&buf);
 }
@@ -214,72 +220,59 @@ void raviV_dumpASM(struct lua_State *L, struct Proto *p) {
 }
 
 void raviV_setminexeccount(lua_State *L, int value) {
-  (void)value;
   global_State *G = G(L);
   if (!G->ravi_state) return;
-  // G->ravi_state->jit->min_exec_count_ = value;
+  G->ravi_state->min_exec_count_ = value;
 }
 int raviV_getminexeccount(lua_State *L) {
-  (void)L;
-  //global_State *G = G(L);
-  // if (!G->ravi_state)
-  return 0;
-  // return G->ravi_state->jit->min_exec_count_;
+  global_State *G = G(L);
+  if (!G->ravi_state) return 0;
+  return G->ravi_state->min_exec_count_;
 }
 
 void raviV_setmincodesize(lua_State *L, int value) {
-  (void)value;
   global_State *G = G(L);
   if (!G->ravi_state) return;
-  // G->ravi_state->jit->min_code_size_ = value;
+  G->ravi_state->min_code_size_ = value;
 }
 int raviV_getmincodesize(lua_State *L) {
-  (void)L;
-  //global_State *G = G(L);
-  // if (!G->ravi_state)
-  return 0;
-  // return G->ravi_state->jit->min_code_size_;
+  global_State *G = G(L);
+  if (!G->ravi_state) return 0;
+  return G->ravi_state->min_code_size_;
 }
 
 void raviV_setauto(lua_State *L, int value) {
-  (void)value;
   global_State *G = G(L);
   if (!G->ravi_state) return;
-  // G->ravi_state->jit->auto_ = value;
+  G->ravi_state->auto_ = value;
 }
 int raviV_getauto(lua_State *L) {
-  (void)L;
-  //global_State *G = G(L);
-  // if (!G->ravi_state)
-  return 0;
-  // return G->ravi_state->jit->auto_;
+  global_State *G = G(L);
+  if (!G->ravi_state) return 0;
+  return G->ravi_state->auto_;
 }
 
 // Turn on/off the JIT compiler
 void raviV_setjitenabled(lua_State *L, int value) {
-  (void)value;
   global_State *G = G(L);
   if (!G->ravi_state) return;
-  // G->ravi_state->jit->enabled_ = value;
+  G->ravi_state->enabled_ = value;
 }
 int raviV_getjitenabled(lua_State *L) {
   global_State *G = G(L);
-  return G->ravi_state != NULL;
-  // return G->ravi_state->jit->enabled_;
+  if (!G->ravi_state) return 0;
+  return G->ravi_state->enabled_;
 }
 
 void raviV_setoptlevel(lua_State *L, int value) {
-  (void)value;
   global_State *G = G(L);
   if (!G->ravi_state) return;
-  // G->ravi_state->jit->opt_level_ = value;
+  G->ravi_state->opt_level_ = value;
 }
 int raviV_getoptlevel(lua_State *L) {
-  (void)L;
-  //global_State *G = G(L);
-  // if (!G->ravi_state)
-  return 0;
-  // return G->ravi_state->jit->opt_level_;
+  global_State *G = G(L);
+  if (!G->ravi_state) return 0;
+  return G->ravi_state->opt_level_;
 }
 
 void raviV_setsizelevel(lua_State *L, int value) {
@@ -292,21 +285,25 @@ int raviV_getsizelevel(lua_State *L) {
 }
 
 void raviV_setvalidation(lua_State *L, int value) {
-  (void)L;
-  (void)value;
+  global_State *G = G(L);
+  if (!G->ravi_state) return;
+  G->ravi_state->validation_ = value;
 }
 int raviV_getvalidation(lua_State *L) {
-  (void)L;
-  return 0;
+  global_State *G = G(L);
+  if (!G->ravi_state) return 0;
+  return G->ravi_state->validation_;
 }
 
 void raviV_setverbosity(lua_State *L, int value) {
-  (void)L;
-  (void)value;
+  global_State *G = G(L);
+  if (!G->ravi_state) return;
+  G->ravi_state->verbosity_ = value;
 }
 int raviV_getverbosity(lua_State *L) {
-  (void)L;
-  return 0;
+  global_State *G = G(L);
+  if (!G->ravi_state) return 0;
+  return G->ravi_state->verbosity_;
 }
 
 void raviV_setgcstep(lua_State *L, int value) {
@@ -337,23 +334,22 @@ int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
   return count > 0;
 }
 
-
-
 // Compile a Lua function
 // If JIT is turned off then compilation is skipped
 // Compilation occurs if either auto compilation is ON (subject to some
 // thresholds)
 // or if a manual compilation request was made
 // Returns true if compilation was successful
-int raviV_compile(struct lua_State *L, struct Proto *p,
-                  ravi_compile_options_t *options) {
-  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED) return true;
-  else if (p->ravi_jit.jit_status == RAVI_JIT_CANT_COMPILE) return false;
+int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *options) {
+  if (p->ravi_jit.jit_status == RAVI_JIT_COMPILED)
+    return true;
+  else if (p->ravi_jit.jit_status == RAVI_JIT_CANT_COMPILE)
+    return false;
   if (options == NULL || !options->manual_request) return false;
 
   if (!raviJ_cancompile(p)) {
-	  p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
-	  return false;
+    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
+    return false;
   }
 
   global_State *G = G(L);
@@ -361,22 +357,27 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
   JIT_ContextRef context = G->ravi_state->jit;
   if (context == NULL) return false;
 
+  if (G->ravi_state->compiling_) return false;
+  G->ravi_state->compiling_ = 1;
+
   membuff_t buf;
   membuff_init(&buf, 4096);
 
+  int (*fp)(lua_State * L) = NULL;
+  char *argv[] = {NULL};
   char fname[30];
   snprintf(fname, sizeof fname, "jit%lld", G->ravi_state->id++);
 
   if (!raviJ_codegen(L, p, options, fname, &buf)) {
-	  membuff_free(&buf);
-	  p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
-	  return false;
+    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
+    goto Lerror;
   }
-  int (*fp)(lua_State * L) = NULL;
-  char *argv[] = {NULL};
-  //printf("%s\n", buf.buf);
   if (!dmrC_omrcompile(0, argv, context, buf.buf)) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
+    if (G->ravi_state->verbosity_) {
+      ravi_writestring(L, buf.buf, strlen(buf.buf));
+      ravi_writeline(L);
+    }
   }
   else {
     fp = JIT_GetFunction(context, fname);
@@ -384,10 +385,11 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
       p->ravi_jit.jit_data = NULL;
       p->ravi_jit.jit_function = fp;
       p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
-	  //printf("Compiled\n");
     }
   }
+Lerror:
   membuff_free(&buf);
+  G->ravi_state->compiling_ = 0;
   return fp != NULL;
 }
 

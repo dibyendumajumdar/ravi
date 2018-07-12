@@ -123,6 +123,7 @@ opcodes_coverage.TOTYPE = 0
 opcodes_coverage.TOSTRING = 0
 opcodes_coverage.TOCLOSURE = 0
 
+ravi.verbosity(1)
 
 local compile = function(f)
   if ravi.jit() then
