@@ -23,17 +23,17 @@
  * THE SOFTWARE.
  */
 
- /*
- Define environment variable
- TR_Options=traceIlGen,traceFull,log=trtrace.log
- To obtain a nice trace of codegen
- */
+/*
+Define environment variable
+TR_Options=traceIlGen,traceFull,log=trtrace.log
+To obtain a nice trace of codegen
+*/
 
 #include <assert.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <limits.h>
 
 #include <allocate.h>
 #include <dmr_c.h>
@@ -51,16 +51,16 @@ Some Implementation Notes
 1. Local variables are modelled as byte strings - the load/store ops
    take care of extracting / storing the right type of value
 
-2. Phi values are modelled as temporaries - phisrc is implemented as store 
+2. Phi values are modelled as temporaries - phisrc is implemented as store
    to temporary while phi is a load from temporary.
 
 3. We create all the blocks at the beginning based upon the blocks in
    Sparse IR - but we have to add an extra block for every CBR instruction
    as conditional branches in OMR fall through to the next block
 
-4. Local SymRefs are stored in Sparse Symbol->priv field. 
+4. Local SymRefs are stored in Sparse Symbol->priv field.
 
-5. Pseudo SymRefs are stored in pseudo->priv2, whereas corresponding load 
+5. Pseudo SymRefs are stored in pseudo->priv2, whereas corresponding load
    is stored in pseudo->priv.
 
 */
@@ -71,7 +71,8 @@ OMR has additional vector types which we do not support
 enum OMRTypeKind {
 	RT_UNSUPPORTED = 0,
 	RT_VOID = 1,
-	RT_INT = 2, /* Sometimes Sparse IR contains int values with odd bit sizes; this type is used in that case */
+	RT_INT = 2, /* Sometimes Sparse IR contains int values with odd bit
+		       sizes; this type is used in that case */
 	RT_INT8 = 3,
 	RT_INT16 = 4,
 	RT_INT32 = 5,
@@ -89,26 +90,17 @@ struct OMRType {
 	uint32_t bit_size;
 };
 
-static struct OMRType VoidType = {
-    .type = RT_VOID, .return_type = NULL, .bit_size = 0};
-static struct OMRType Int8Type = {
-    .type = RT_INT8, .return_type = NULL, .bit_size = sizeof(int8_t) * 8};
-static struct OMRType Int16Type = {
-    .type = RT_INT16, .return_type = NULL, .bit_size = sizeof(int16_t) * 8};
-static struct OMRType Int32Type = {
-    .type = RT_INT32, .return_type = NULL, .bit_size = sizeof(int32_t) * 8};
-static struct OMRType Int64Type = {
-    .type = RT_INT64, .return_type = NULL, .bit_size = sizeof(int64_t) * 8};
-static struct OMRType FloatType = {
-    .type = RT_FLOAT, .return_type = NULL, .bit_size = sizeof(float) * 8};
-static struct OMRType DoubleType = {
-    .type = RT_DOUBLE, .return_type = NULL, .bit_size = sizeof(double) * 8};
-static struct OMRType PtrType = {
-    .type = RT_PTR, .return_type = NULL, .bit_size = sizeof(void *) * 8};
-//static struct OMRType PtrIntType = {
+static struct OMRType VoidType = {.type = RT_VOID, .return_type = NULL, .bit_size = 0};
+static struct OMRType Int8Type = {.type = RT_INT8, .return_type = NULL, .bit_size = sizeof(int8_t) * 8};
+static struct OMRType Int16Type = {.type = RT_INT16, .return_type = NULL, .bit_size = sizeof(int16_t) * 8};
+static struct OMRType Int32Type = {.type = RT_INT32, .return_type = NULL, .bit_size = sizeof(int32_t) * 8};
+static struct OMRType Int64Type = {.type = RT_INT64, .return_type = NULL, .bit_size = sizeof(int64_t) * 8};
+static struct OMRType FloatType = {.type = RT_FLOAT, .return_type = NULL, .bit_size = sizeof(float) * 8};
+static struct OMRType DoubleType = {.type = RT_DOUBLE, .return_type = NULL, .bit_size = sizeof(double) * 8};
+static struct OMRType PtrType = {.type = RT_PTR, .return_type = NULL, .bit_size = sizeof(void *) * 8};
+// static struct OMRType PtrIntType = {
 //	.type = RT_INT64,.return_type = NULL,.bit_size = sizeof(intptr_t) * 8 };
-static struct OMRType BadType = {
-    .type = RT_UNSUPPORTED, .return_type = NULL, .bit_size = 0};
+static struct OMRType BadType = {.type = RT_UNSUPPORTED, .return_type = NULL, .bit_size = 0};
 
 struct function {
 	struct dmr_C *C;
@@ -123,9 +115,7 @@ struct function {
 /* Arbitrary limit ... FIXME */
 #define JIT_MaxArgs 16
 
-static struct OMRType *alloc_OMRtype(struct function *fn,
-				       enum OMRTypeKind kind,
-				       unsigned int bit_size)
+static struct OMRType *alloc_OMRtype(struct function *fn, enum OMRTypeKind kind, unsigned int bit_size)
 {
 	struct OMRType *type = dmrC_allocator_allocate(&fn->type_allocator, 0);
 	type->type = kind;
@@ -148,16 +138,16 @@ static struct OMRType *int_type_by_size(struct function *fn, int size)
 	case 64:
 		return &Int64Type;
 	default:
-		/* Sometimes Sparse IR has non-standard bit sizes espcially in bitwise ops */
+		/* Sometimes Sparse IR has non-standard bit sizes espcially in
+		 * bitwise ops */
 		return alloc_OMRtype(fn, RT_INT, size);
 	}
 }
 
-static struct OMRType *sym_basetype_type(struct dmr_C *C, struct function *fn,
-					  struct symbol *sym,
-					  struct symbol *sym_node)
+static struct OMRType *sym_basetype_type(struct dmr_C *C, struct function *fn, struct symbol *sym,
+					 struct symbol *sym_node)
 {
-	(void) sym_node;
+	(void)sym_node;
 	if (dmrC_is_float_type(C->S, sym)) {
 		switch (sym->bit_size) {
 		case 32:
@@ -165,8 +155,7 @@ static struct OMRType *sym_basetype_type(struct dmr_C *C, struct function *fn,
 		case 64:
 			return &DoubleType;
 		default:
-			fprintf(stderr, "invalid bit size %d for type %d\n",
-				sym->bit_size, sym->type);
+			fprintf(stderr, "invalid bit size %d for type %d\n", sym->bit_size, sym->type);
 			return &BadType;
 		}
 	} else {
@@ -201,20 +190,16 @@ static int is_aggregate_type(struct symbol *sym)
 	}
 }
 
-static struct OMRType *type_to_OMRtype(struct dmr_C *C, struct function *fn,
-					 struct symbol *sym,
-					 struct symbol *sym_node);
+static struct OMRType *type_to_OMRtype(struct dmr_C *C, struct function *fn, struct symbol *sym,
+				       struct symbol *sym_node);
 
-static struct OMRType *get_symnode_type(struct dmr_C *C, struct function *fn,
-					 struct symbol *sym)
+static struct OMRType *get_symnode_type(struct dmr_C *C, struct function *fn, struct symbol *sym)
 {
 	assert(sym->type == SYM_NODE);
 	return type_to_OMRtype(C, fn, sym->ctype.base_type, sym);
 }
 
-static struct OMRType *get_symnode_or_basetype(struct dmr_C *C,
-						struct function *fn,
-						struct symbol *sym)
+static struct OMRType *get_symnode_or_basetype(struct dmr_C *C, struct function *fn, struct symbol *sym)
 {
 	if (sym->type == SYM_NODE) {
 		assert(sym->ctype.base_type->type != SYM_NODE);
@@ -223,16 +208,13 @@ static struct OMRType *get_symnode_or_basetype(struct dmr_C *C,
 	return type_to_OMRtype(C, fn, sym, NULL);
 }
 
-static struct OMRType *func_return_type(struct dmr_C *C, struct function *fn,
-					 struct symbol *sym,
-					 struct symbol *sym_node)
+static struct OMRType *func_return_type(struct dmr_C *C, struct function *fn, struct symbol *sym,
+					struct symbol *sym_node)
 {
 	return type_to_OMRtype(C, fn, sym->ctype.base_type, sym_node);
 }
 
-static struct OMRType *sym_func_type(struct dmr_C *C, struct function *fn,
-				      struct symbol *sym,
-				      struct symbol *sym_node)
+static struct OMRType *sym_func_type(struct dmr_C *C, struct function *fn, struct symbol *sym, struct symbol *sym_node)
 {
 	struct OMRType *ret_type;
 
@@ -244,13 +226,11 @@ static struct OMRType *sym_func_type(struct dmr_C *C, struct function *fn,
 	return type;
 }
 
-static struct OMRType *sym_array_type(struct dmr_C *C, struct function *fn,
-				       struct symbol *sym,
-				       struct symbol *sym_node)
+static struct OMRType *sym_array_type(struct dmr_C *C, struct function *fn, struct symbol *sym, struct symbol *sym_node)
 {
 	struct symbol *base_type;
-  
-	(void) C;
+
+	(void)C;
 	base_type = sym->ctype.base_type;
 	/* empty struct is undefined [6.7.2.1(8)] */
 	int array_bit_size = sym->bit_size;
@@ -258,20 +238,18 @@ static struct OMRType *sym_array_type(struct dmr_C *C, struct function *fn,
 		if (sym_node != NULL)
 			array_bit_size = sym_node->bit_size;
 	}
-	if (base_type->bit_size == 0 || base_type->bit_size == -1 ||
-	    array_bit_size == 0 || array_bit_size == -1) {
+	if (base_type->bit_size == 0 || base_type->bit_size == -1 || array_bit_size == 0 || array_bit_size == -1) {
 		fprintf(stderr, "array size cannot be determined\n");
 		return &BadType;
 	}
 	return alloc_OMRtype(fn, RT_AGGREGATE, array_bit_size);
 }
 
-static struct OMRType *sym_struct_type(struct dmr_C *C, struct function *fn,
-					struct symbol *sym,
-					struct symbol *sym_node)
+static struct OMRType *sym_struct_type(struct dmr_C *C, struct function *fn, struct symbol *sym,
+				       struct symbol *sym_node)
 {
-        (void)C;
-        (void)sym_node;
+	(void)C;
+	(void)sym_node;
 	unsigned int bit_size = 0;
 	if (sym->bit_size > 0 && sym->bit_size != -1) {
 		bit_size = sym->bit_size;
@@ -279,20 +257,17 @@ static struct OMRType *sym_struct_type(struct dmr_C *C, struct function *fn,
 	return alloc_OMRtype(fn, RT_AGGREGATE, bit_size);
 }
 
-static struct OMRType *sym_ptr_type(struct dmr_C *C, struct function *fn,
-				     struct symbol *sym,
-				     struct symbol *sym_node)
+static struct OMRType *sym_ptr_type(struct dmr_C *C, struct function *fn, struct symbol *sym, struct symbol *sym_node)
 {
-        (void)C;
-        (void)fn;
-        (void)sym_node;
-        (void)sym;
+	(void)C;
+	(void)fn;
+	(void)sym_node;
+	(void)sym;
 	return &PtrType;
 }
 
-static struct OMRType *type_to_OMRtype(struct dmr_C *C, struct function *fn,
-					 struct symbol *sym,
-					 struct symbol *sym_node)
+static struct OMRType *type_to_OMRtype(struct dmr_C *C, struct function *fn, struct symbol *sym,
+				       struct symbol *sym_node)
 {
 	assert(sym->type != SYM_NODE);
 	assert(sym_node == NULL || sym_node->type == SYM_NODE);
@@ -323,8 +298,7 @@ static struct OMRType *type_to_OMRtype(struct dmr_C *C, struct function *fn,
 If the instruction has a type uses that to determine the OMR type
 else returns an OMR int type that matches the instruction size.
 */
-static struct OMRType *insn_symbol_type(struct dmr_C *C, struct function *fn,
-					 struct instruction *insn)
+static struct OMRType *insn_symbol_type(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	if (insn->type) {
 		return get_symnode_or_basetype(C, fn, insn->type);
@@ -358,8 +332,7 @@ static JIT_Type check_supported_argtype(struct dmr_C *C, struct symbol *sym)
 		case 64:
 			return JIT_Int64;
 		default:
-			fprintf(stderr,
-				"Unsupported type in function argument\n");
+			fprintf(stderr, "Unsupported type in function argument\n");
 			return JIT_NoType;
 		}
 	} else {
@@ -370,26 +343,23 @@ static JIT_Type check_supported_argtype(struct dmr_C *C, struct symbol *sym)
 		case 64:
 			return JIT_Double;
 		default:
-			fprintf(stderr,
-				"Unsupported type in function argument\n");
+			fprintf(stderr, "Unsupported type in function argument\n");
 			return JIT_NoType;
 		}
 	}
 	return 0;
 }
 
-static struct OMRType *check_supported_returntype(struct dmr_C *C,
-						   struct OMRType *type)
+static struct OMRType *check_supported_returntype(struct dmr_C *C, struct OMRType *type)
 {
-        (void)C;
-	if (type->type == RT_AGGREGATE || type->type == RT_FUNCTION ||
-	    type->type == RT_INT || type->type == RT_UNSUPPORTED)
+	(void)C;
+	if (type->type == RT_AGGREGATE || type->type == RT_FUNCTION || type->type == RT_INT ||
+	    type->type == RT_UNSUPPORTED)
 		return &BadType;
 	return type;
 }
 
-static int32_t instruction_size_in_bytes(struct dmr_C *C,
-					 struct instruction *insn)
+static int32_t instruction_size_in_bytes(struct dmr_C *C, struct instruction *insn)
 {
 	return insn->size / C->target->bits_in_char;
 }
@@ -418,30 +388,27 @@ static JIT_Type map_OMRtype(struct OMRType *type)
 	}
 }
 
-static JIT_SymbolRef OMR_alloca(struct function *fn, struct OMRType *type,
-				int32_t size, bool reg)
+static JIT_SymbolRef OMR_alloca(struct function *fn, struct OMRType *type, int32_t size, bool reg)
 {
-        (void) reg;
+	(void)reg;
 	JIT_Type omr_type = map_OMRtype(type);
 	// In OMR there is no explicit alloca IL I believe
 	// Instead we create a local symbol of appropriate size
-	// We treat all locals as byte arrays - the load/store 
+	// We treat all locals as byte arrays - the load/store
 	// is done at specific offsets as required
-	if (/*!reg || */omr_type == JIT_Aggregate)
+	if (/*!reg || */ omr_type == JIT_Aggregate)
 		return JIT_CreateLocalByteArray(fn->injector, (uint32_t)size);
 	else
 		// phi nodes get created as temporaries
 		return JIT_CreateTemporary(fn->injector, omr_type);
 }
 
-static JIT_NodeRef constant_value(struct dmr_C *C, struct function *fn,
-				  unsigned long long val,
-				  struct OMRType *dtype)
+static JIT_NodeRef constant_value(struct dmr_C *C, struct function *fn, unsigned long long val, struct OMRType *dtype)
 {
 	JIT_NodeRef result = NULL;
-        
-        (void)C;
-        (void)fn;
+
+	(void)C;
+	(void)fn;
 
 	if (dtype->type == RT_INT8) {
 		result = JIT_ConstInt8((int8_t)val);
@@ -459,27 +426,24 @@ static JIT_NodeRef constant_value(struct dmr_C *C, struct function *fn,
 	} else if (dtype->type == RT_FLOAT) {
 		result = JIT_ConstFloat((float)(long long)val);
 	} else {
-		fprintf(stderr, "unsupported pseudo value kind %d\n",
-			dtype->type);
+		fprintf(stderr, "unsupported pseudo value kind %d\n", dtype->type);
 		return NULL;
 	}
 	return result;
 }
 
-static JIT_NodeRef constant_fvalue(struct dmr_C *C, struct function *fn,
-				   double val, struct OMRType *dtype)
+static JIT_NodeRef constant_fvalue(struct dmr_C *C, struct function *fn, double val, struct OMRType *dtype)
 {
 	JIT_NodeRef result = NULL;
 
-        (void)C;
-        (void) fn;
+	(void)C;
+	(void)fn;
 	if (dtype->type == RT_DOUBLE) {
 		result = JIT_ConstDouble(val);
 	} else if (dtype->type == RT_FLOAT) {
 		result = JIT_ConstFloat((float)val);
 	} else {
-		fprintf(stderr, "unsupported pseudo value kind %d\n",
-			dtype->type);
+		fprintf(stderr, "unsupported pseudo value kind %d\n", dtype->type);
 		return NULL;
 	}
 	return result;
@@ -488,44 +452,37 @@ static JIT_NodeRef constant_fvalue(struct dmr_C *C, struct function *fn,
 /*
  * We do not support globals or aggregate locals with initializers
  */
-static JIT_SymbolRef build_local(struct dmr_C *C, struct function *fn,
-				 struct symbol *sym)
+static JIT_SymbolRef build_local(struct dmr_C *C, struct function *fn, struct symbol *sym)
 {
 	const char *name = dmrC_show_ident(C, sym->ident);
 	struct OMRType *type = get_symnode_type(C, fn, sym);
 	char localname[256] = {0};
 	snprintf(localname, sizeof localname, "%s_%p.", name, sym);
-	if (dmrC_is_static(sym) || dmrC_is_extern(sym) ||
-	    dmrC_is_toplevel(sym)) {
+	if (dmrC_is_static(sym) || dmrC_is_extern(sym) || dmrC_is_toplevel(sym)) {
 		return NULL;
 	} else {
 		if (sym->initialized && is_aggregate_type(sym)) {
 			return NULL;
 		}
-		JIT_SymbolRef result = OMR_alloca(
-		    fn, type, type->bit_size / C->target->bits_in_char, false);
+		JIT_SymbolRef result = OMR_alloca(fn, type, type->bit_size / C->target->bits_in_char, false);
 		sym->priv = result;
 		return result;
 	}
 }
 
-static void build_store(struct dmr_C *C, struct function *fn, JIT_NodeRef v,
-			JIT_SymbolRef symbol)
+static void build_store(struct dmr_C *C, struct function *fn, JIT_NodeRef v, JIT_SymbolRef symbol)
 {
-        (void) C;
+	(void)C;
 
 	if (JIT_IsTemporary(fn->injector, symbol)) {
 		JIT_StoreToTemporary(fn->injector, symbol, v);
-	}
-	else {
+	} else {
 		assert(false);
-		JIT_ArrayStoreAt(fn->injector, 0, JIT_LoadAddress(fn->injector, symbol),
-			0, v);
+		JIT_ArrayStoreAt(fn->injector, 0, JIT_LoadAddress(fn->injector, symbol), 0, v);
 	}
 }
 
-static JIT_SymbolRef get_sym_value(struct dmr_C *C, struct function *fn,
-				   pseudo_t pseudo, bool do_init)
+static JIT_SymbolRef get_sym_value(struct dmr_C *C, struct function *fn, pseudo_t pseudo, bool do_init)
 {
 	JIT_SymbolRef result = NULL;
 	struct symbol *sym = pseudo->sym;
@@ -538,38 +495,29 @@ static JIT_SymbolRef get_sym_value(struct dmr_C *C, struct function *fn,
 	assert(sym->bb_target == NULL);
 
 	expr = sym->initializer;
-	if (expr &&
-	    (!sym->ident || (sym->ident && (expr->type == EXPR_VALUE ||
-					    expr->type == EXPR_FVALUE)))) {
+	if (expr && (!sym->ident || (sym->ident && (expr->type == EXPR_VALUE || expr->type == EXPR_FVALUE)))) {
 		switch (expr->type) {
 		case EXPR_STRING: {
-			dmrC_sparse_error(
-			    C, expr->pos,
-			    "unsupported string reference in initializer\n");
+			dmrC_sparse_error(C, expr->pos, "unsupported string reference in initializer\n");
 			dmrC_show_expression(C, expr);
 			return NULL;
 			break;
 		}
 		case EXPR_SYMBOL: {
-			dmrC_sparse_error(
-			    C, expr->pos,
-			    "unresolved symbol reference in initializer\n");
+			dmrC_sparse_error(C, expr->pos, "unresolved symbol reference in initializer\n");
 			dmrC_show_expression(C, expr);
 			return NULL;
 			break;
 		}
 		case EXPR_VALUE: {
 			if (dmrC_is_static(sym)) {
-				dmrC_sparse_error(
-				    C, expr->pos,
-				    "unsupported symbol reference\n");
+				dmrC_sparse_error(C, expr->pos, "unsupported symbol reference\n");
 				dmrC_show_expression(C, expr);
 				return NULL;
 			}
 			struct OMRType *symtype = get_symnode_type(C, fn, sym);
 			if (symtype == NULL) {
-				dmrC_sparse_error(C, expr->pos,
-						  "invalid symbol type\n");
+				dmrC_sparse_error(C, expr->pos, "invalid symbol type\n");
 				dmrC_show_expression(C, expr);
 				return NULL;
 			}
@@ -577,8 +525,7 @@ static JIT_SymbolRef get_sym_value(struct dmr_C *C, struct function *fn,
 			if (!result)
 				return result;
 			if (do_init) {
-				JIT_NodeRef value =
-				    constant_value(C, fn, expr->value, symtype);
+				JIT_NodeRef value = constant_value(C, fn, expr->value, symtype);
 				build_store(C, fn, value, result);
 			}
 			sym->priv = result;
@@ -586,16 +533,13 @@ static JIT_SymbolRef get_sym_value(struct dmr_C *C, struct function *fn,
 		}
 		case EXPR_FVALUE: {
 			if (dmrC_is_static(sym)) {
-				dmrC_sparse_error(
-				    C, expr->pos,
-				    "unsupported symbol reference\n");
+				dmrC_sparse_error(C, expr->pos, "unsupported symbol reference\n");
 				dmrC_show_expression(C, expr);
 				return NULL;
 			}
 			struct OMRType *symtype = get_symnode_type(C, fn, sym);
 			if (symtype == NULL) {
-				dmrC_sparse_error(C, expr->pos,
-						  "invalid symbol type\n");
+				dmrC_sparse_error(C, expr->pos, "invalid symbol type\n");
 				dmrC_show_expression(C, expr);
 				return NULL;
 			}
@@ -603,18 +547,14 @@ static JIT_SymbolRef get_sym_value(struct dmr_C *C, struct function *fn,
 			if (!result)
 				return result;
 			if (do_init) {
-				JIT_NodeRef value = constant_fvalue(
-				    C, fn, expr->fvalue, symtype);
+				JIT_NodeRef value = constant_fvalue(C, fn, expr->fvalue, symtype);
 				build_store(C, fn, value, result);
 			}
 			sym->priv = result;
 			break;
 		}
 		default:
-			dmrC_sparse_error(
-			    C, expr->pos,
-			    "unsupported expr type in initializer: %d\n",
-			    expr->type);
+			dmrC_sparse_error(C, expr->pos, "unsupported expr type in initializer: %d\n", expr->type);
 			dmrC_show_expression(C, expr);
 			return NULL;
 		}
@@ -622,23 +562,16 @@ static JIT_SymbolRef get_sym_value(struct dmr_C *C, struct function *fn,
 		const char *name = dmrC_show_ident(C, sym->ident);
 		struct OMRType *type = get_symnode_type(C, fn, sym);
 		if (type->type == RT_FUNCTION) {
-			dmrC_sparse_error(
-			    C, sym->pos,
-			    "unsupported symbol reference for '%s'\n", name);
+			dmrC_sparse_error(C, sym->pos, "unsupported symbol reference for '%s'\n", name);
 			dmrC_debug_symbol(C, sym);
 			return NULL;
 		} else if (dmrC_is_extern(sym) || dmrC_is_toplevel(sym)) {
-			dmrC_sparse_error(
-			    C, sym->pos,
-			    "unsupported symbol reference for '%s'\n", name);
+			dmrC_sparse_error(C, sym->pos, "unsupported symbol reference for '%s'\n", name);
 			dmrC_debug_symbol(C, sym);
 			return NULL;
 		} else {
 			if (dmrC_is_static(sym)) {
-				dmrC_sparse_error(
-				    C, sym->pos,
-				    "unsupported symbol reference for '%s'\n",
-				    name);
+				dmrC_sparse_error(C, sym->pos, "unsupported symbol reference for '%s'\n", name);
 				dmrC_debug_symbol(C, sym);
 				return NULL;
 			}
@@ -658,12 +591,11 @@ static JIT_SymbolRef get_sym_value(struct dmr_C *C, struct function *fn,
 	return result;
 }
 
-static JIT_NodeRef val_to_value(struct dmr_C *C, struct function *fn,
-				long long value, struct symbol *ctype)
+static JIT_NodeRef val_to_value(struct dmr_C *C, struct function *fn, long long value, struct symbol *ctype)
 {
-        (void) C;
-        (void) fn;
-        
+	(void)C;
+	(void)fn;
+
 	switch (ctype->bit_size) {
 	case 8:
 		return JIT_ConstInt8((int8_t)value);
@@ -678,8 +610,7 @@ static JIT_NodeRef val_to_value(struct dmr_C *C, struct function *fn,
 	return NULL;
 }
 
-static JIT_NodeRef pseudo_to_value(struct dmr_C *C, struct function *fn,
-				   struct symbol *ctype, pseudo_t pseudo)
+static JIT_NodeRef pseudo_to_value(struct dmr_C *C, struct function *fn, struct symbol *ctype, pseudo_t pseudo)
 {
 	JIT_NodeRef result = NULL;
 
@@ -709,43 +640,38 @@ static JIT_NodeRef pseudo_to_value(struct dmr_C *C, struct function *fn,
 	if (!result) {
 		fprintf(stderr, "error: no result for pseudo\n");
 		return NULL;
-	}
-	else if (JIT_GetNodeType(result) == JIT_NoType) {
+	} else if (JIT_GetNodeType(result) == JIT_NoType) {
 		fprintf(stderr, "error: no result for pseudo\n");
 		return NULL;
 	}
 	return result;
 }
 
-static JIT_NodeRef truncate_intvalue(struct dmr_C *C, struct function *fn,
-	JIT_NodeRef val, struct OMRType *dtype,
-	int unsigned_cast)
+static JIT_NodeRef truncate_intvalue(struct dmr_C *C, struct function *fn, JIT_NodeRef val, struct OMRType *dtype,
+				     int unsigned_cast)
 {
-        (void) C;
-        (void) fn;
-        (void) unsigned_cast;
-        
+	(void)C;
+	(void)fn;
+	(void)unsigned_cast;
+
 	if (JIT_GetNodeType(val) == JIT_Int64 && dtype->bit_size <= 64) {
 		if (dtype->bit_size == 64)
 			return val;
 		uint64_t mask = (1ULL << dtype->bit_size) - 1;
 		return JIT_CreateNode2C(OP_land, val, JIT_ConstUInt64(mask));
-	}
-	else if (JIT_GetNodeType(val) == JIT_Int32 && dtype->bit_size <= 32) {
+	} else if (JIT_GetNodeType(val) == JIT_Int32 && dtype->bit_size <= 32) {
 		if (dtype->bit_size == 32)
 			return val;
 		uint32_t mask = (1U << dtype->bit_size) - 1;
 		return JIT_CreateNode2C(OP_iand, val, JIT_ConstUInt32(mask));
-	}
-	else {
+	} else {
 		return NULL;
 	}
 }
 
-static JIT_NodeRef convert_to(struct function *fn,
-	JIT_NodeRef val, JIT_Type target_type,
-	int unsigned_cast) {
-	if (target_type == JIT_NoType) 
+static JIT_NodeRef convert_to(struct function *fn, JIT_NodeRef val, JIT_Type target_type, int unsigned_cast)
+{
+	if (target_type == JIT_NoType)
 		return NULL;
 	JIT_NodeRef node = JIT_ConvertTo(fn->injector, val, target_type, unsigned_cast);
 	if (JIT_GetNodeType(node) == JIT_NoType)
@@ -753,8 +679,7 @@ static JIT_NodeRef convert_to(struct function *fn,
 	return node;
 }
 
-static JIT_NodeRef build_cast(struct dmr_C *C, struct function *fn,
-			      JIT_NodeRef val, struct OMRType *dtype,
+static JIT_NodeRef build_cast(struct dmr_C *C, struct function *fn, JIT_NodeRef val, struct OMRType *dtype,
 			      int unsigned_cast)
 {
 #if 1
@@ -773,23 +698,17 @@ static JIT_NodeRef build_cast(struct dmr_C *C, struct function *fn,
 	case RT_INT8:
 		if (value_type == JIT_Int64) {
 			return JIT_CreateNode1C(OP_l2b, val);
-		}
-		else if (value_type == JIT_Float) {
+		} else if (value_type == JIT_Float) {
 			return JIT_CreateNode1C(OP_f2b, val);
-		}
-		else if (value_type == JIT_Double) {
+		} else if (value_type == JIT_Double) {
 			return JIT_CreateNode1C(OP_d2b, val);
-		}
-		else if (value_type == JIT_Address) {
+		} else if (value_type == JIT_Address) {
 			return JIT_CreateNode1C(OP_a2b, val);
-		}
-		else if (value_type == JIT_Int8) {
+		} else if (value_type == JIT_Int8) {
 			return val;
-		}
-		else if (value_type == JIT_Int16) {
+		} else if (value_type == JIT_Int16) {
 			return JIT_CreateNode1C(OP_s2b, val);
-		}
-		else if (value_type == JIT_Int32) {
+		} else if (value_type == JIT_Int32) {
 			return JIT_CreateNode1C(OP_i2b, val);
 		}
 		break;
@@ -797,23 +716,17 @@ static JIT_NodeRef build_cast(struct dmr_C *C, struct function *fn,
 	case RT_INT16:
 		if (value_type == JIT_Int64) {
 			return JIT_CreateNode1C(OP_l2s, val);
-		}
-		else if (value_type == JIT_Float) {
+		} else if (value_type == JIT_Float) {
 			return JIT_CreateNode1C(OP_f2s, val);
-		}
-		else if (value_type == JIT_Double) {
+		} else if (value_type == JIT_Double) {
 			return JIT_CreateNode1C(OP_d2s, val);
-		}
-		else if (value_type == JIT_Address) {
+		} else if (value_type == JIT_Address) {
 			return JIT_CreateNode1C(OP_a2s, val);
-		}
-		else if (value_type == JIT_Int16) {
+		} else if (value_type == JIT_Int16) {
 			return val;
-		}
-		else if (value_type == JIT_Int8) {
+		} else if (value_type == JIT_Int8) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_bu2s : OP_b2s, val);
-		}
-		else if (value_type == JIT_Int32) {
+		} else if (value_type == JIT_Int32) {
 			return JIT_CreateNode1C(OP_i2s, val);
 		}
 		break;
@@ -821,23 +734,17 @@ static JIT_NodeRef build_cast(struct dmr_C *C, struct function *fn,
 	case RT_INT32:
 		if (value_type == JIT_Int64) {
 			return JIT_CreateNode1C(OP_l2i, val);
-		}
-		else if (value_type == JIT_Float) {
+		} else if (value_type == JIT_Float) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_f2iu : OP_f2i, val);
-		}
-		else if (value_type == JIT_Double) {
+		} else if (value_type == JIT_Double) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_d2iu : OP_d2i, val);
-		}
-		else if (value_type == JIT_Address) {
+		} else if (value_type == JIT_Address) {
 			return JIT_CreateNode1C(OP_a2i, val);
-		}
-		else if (value_type == JIT_Int32) {
+		} else if (value_type == JIT_Int32) {
 			return val;
-		}
-		else if (value_type == JIT_Int16) {
+		} else if (value_type == JIT_Int16) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_su2i : OP_s2i, val);
-		}
-		else if (value_type == JIT_Int8) {
+		} else if (value_type == JIT_Int8) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_bu2i : OP_b2i, val);
 		}
 		break;
@@ -845,23 +752,17 @@ static JIT_NodeRef build_cast(struct dmr_C *C, struct function *fn,
 	case RT_INT64:
 		if (value_type == JIT_Int8) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_bu2l : OP_b2l, val);
-		}
-		else if (value_type == JIT_Int16) {
+		} else if (value_type == JIT_Int16) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_su2l : OP_s2l, val);
-		}
-		else if (value_type == JIT_Int32) {
+		} else if (value_type == JIT_Int32) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_iu2l : OP_i2l, val);
-		}
-		else if (value_type == JIT_Float) {
+		} else if (value_type == JIT_Float) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_f2lu : OP_f2l, val);
-		}
-		else if (value_type == JIT_Double) {
+		} else if (value_type == JIT_Double) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_d2lu : OP_d2l, val);
-		}
-		else if (value_type == JIT_Address) {
+		} else if (value_type == JIT_Address) {
 			return JIT_CreateNode1C(OP_a2l, val);
-		}
-		else if (value_type == JIT_Int64) {
+		} else if (value_type == JIT_Int64) {
 			return val;
 		}
 		break;
@@ -869,20 +770,15 @@ static JIT_NodeRef build_cast(struct dmr_C *C, struct function *fn,
 	case RT_PTR:
 		if (value_type == JIT_Int32) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_iu2a : OP_i2a, val);
-		}
-		else if (value_type == JIT_Int64) {
+		} else if (value_type == JIT_Int64) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_lu2a : OP_l2a, val);
-		}
-		else if (value_type == JIT_Int16) {
+		} else if (value_type == JIT_Int16) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_su2a : OP_s2a, val);
-		}
-		else if (value_type == JIT_Int8) {
+		} else if (value_type == JIT_Int8) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_bu2a : OP_b2a, val);
-		}
-		else if (value_type == JIT_Address) {
+		} else if (value_type == JIT_Address) {
 			return val;
-		}
-		else {
+		} else {
 			return NULL;
 		}
 		break;
@@ -890,40 +786,30 @@ static JIT_NodeRef build_cast(struct dmr_C *C, struct function *fn,
 	case RT_FLOAT:
 		if (value_type == JIT_Int32) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_iu2f : OP_i2f, val);
-		}
-		else if (value_type == JIT_Int64) {
+		} else if (value_type == JIT_Int64) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_lu2f : OP_l2f, val);
-		}
-		else if (value_type == JIT_Int16) {
+		} else if (value_type == JIT_Int16) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_su2f : OP_s2f, val);
-		}
-		else if (value_type == JIT_Int8) {
+		} else if (value_type == JIT_Int8) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_bu2f : OP_b2f, val);
-		}
-		else if (value_type == JIT_Double) {
+		} else if (value_type == JIT_Double) {
 			return JIT_CreateNode1C(OP_d2f, val);
-		}
-		else if (value_type == JIT_Float)
+		} else if (value_type == JIT_Float)
 			return val;
 		break;
 
 	case RT_DOUBLE:
 		if (value_type == JIT_Int32) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_iu2d : OP_i2d, val);
-		}
-		else if (value_type == JIT_Int64) {
+		} else if (value_type == JIT_Int64) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_lu2d : OP_l2d, val);
-		}
-		else if (value_type == JIT_Int16) {
+		} else if (value_type == JIT_Int16) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_su2d : OP_s2d, val);
-		}
-		else if (value_type == JIT_Int8) {
+		} else if (value_type == JIT_Int8) {
 			return JIT_CreateNode1C(unsigned_cast ? OP_bu2d : OP_b2d, val);
-		}
-		else if (value_type == JIT_Float) {
+		} else if (value_type == JIT_Float) {
 			return JIT_CreateNode1C(OP_f2d, val);
-		}
-		else if (value_type == JIT_Double)
+		} else if (value_type == JIT_Double)
 			return val;
 		break;
 	default:
@@ -933,15 +819,13 @@ static JIT_NodeRef build_cast(struct dmr_C *C, struct function *fn,
 #endif
 }
 
-static JIT_NodeRef output_op_phi(struct dmr_C *C, struct function *fn,
-				 struct instruction *insn)
+static JIT_NodeRef output_op_phi(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_SymbolRef ptr = insn->target->priv2;
-        (void) C;
+	(void)C;
 
 	if (!ptr)
 		return NULL;
-
 
 	// Unlike LLVM version which creates the Load instruction
 	// early on and inserts it into the IR stream here, we
@@ -994,14 +878,13 @@ static JIT_NodeRef output_op_phi(struct dmr_C *C, struct function *fn,
 #endif
 	if (load == NULL)
 		return NULL;
-	//JIT_GenerateTreeTop(fn->injector, load);
+	// JIT_GenerateTreeTop(fn->injector, load);
 	assert(JIT_GetNodeType(load) != JIT_NoType);
 	insn->target->priv = load;
 	return load;
 }
 
-static JIT_NodeRef output_op_load(struct dmr_C *C, struct function *fn,
-				  struct instruction *insn)
+static JIT_NodeRef output_op_load(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef ptr = pseudo_to_value(C, fn, insn->type, insn->src);
 	JIT_NodeRef load = NULL;
@@ -1016,13 +899,13 @@ static JIT_NodeRef output_op_load(struct dmr_C *C, struct function *fn,
 	}
 
 	if (!load) {
-		//JIT_SymbolRef symref = NULL;
-		//if (insn->orig_type && !dmrC_is_simple_type(C->S, insn->orig_type)) {
-		//	symref = insn->orig_type->priv;
+		// JIT_SymbolRef symref = NULL;
+		// if (insn->orig_type && !dmrC_is_simple_type(C->S,
+		// insn->orig_type)) { 	symref = insn->orig_type->priv;
 		//}
 		uint64_t symref = (uint64_t)insn->orig_type;
 
-		//JIT_NodeRef index = JIT_ConstInt64((int64_t)insn->offset);
+		// JIT_NodeRef index = JIT_ConstInt64((int64_t)insn->offset);
 		int64_t index = (int64_t)insn->offset;
 		switch (insn->size) {
 		case 8:
@@ -1035,22 +918,17 @@ static JIT_NodeRef output_op_load(struct dmr_C *C, struct function *fn,
 			break;
 		case 32:
 			if (dmrC_is_float_type(C->S, insn->type))
-				load =
-				JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Float);
+				load = JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Float);
 			else
-				load =
-				JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Int32);
+				load = JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Int32);
 			break;
 		case 64:
 			if (dmrC_is_float_type(C->S, insn->type))
-				load =
-				JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Double);
+				load = JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Double);
 			else if (dmrC_is_ptr_type(insn->type))
-				load = JIT_ArrayLoadAt(fn->injector, symref, ptr, index,
-					JIT_Address);
+				load = JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Address);
 			else
-				load =
-				JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Int64);
+				load = JIT_ArrayLoadAt(fn->injector, symref, ptr, index, JIT_Int64);
 			break;
 		}
 	}
@@ -1062,8 +940,7 @@ static JIT_NodeRef output_op_load(struct dmr_C *C, struct function *fn,
 	return load;
 }
 
-static JIT_NodeRef output_op_store(struct dmr_C *C, struct function *fn,
-				   struct instruction *insn)
+static JIT_NodeRef output_op_store(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef ptr, target_in;
 	int32_t off;
@@ -1096,11 +973,11 @@ static JIT_NodeRef output_op_store(struct dmr_C *C, struct function *fn,
 	if (!ptr)
 		return NULL;
 	ptr = build_cast(C, fn, ptr, &PtrType, 0);
-	//JIT_NodeRef index = JIT_ConstInt64((int64_t)insn->offset);
+	// JIT_NodeRef index = JIT_ConstInt64((int64_t)insn->offset);
 	int64_t index = (int64_t)insn->offset;
 	assert(JIT_GetNodeType(ptr) == JIT_Address);
-	//JIT_SymbolRef symref = NULL;
-	//if (insn->orig_type && !dmrC_is_simple_type(C->S, insn->orig_type)) {
+	// JIT_SymbolRef symref = NULL;
+	// if (insn->orig_type && !dmrC_is_simple_type(C->S, insn->orig_type)) {
 	//	symref = insn->orig_type->priv;
 	//}
 	uint64_t symref = (uint64_t)insn->orig_type;
@@ -1108,8 +985,7 @@ static JIT_NodeRef output_op_store(struct dmr_C *C, struct function *fn,
 	return target_in;
 }
 
-static JIT_NodeRef output_op_phisrc(struct dmr_C *C, struct function *fn,
-				    struct instruction *insn)
+static JIT_NodeRef output_op_phisrc(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef v;
 	struct instruction *phi;
@@ -1137,8 +1013,7 @@ static JIT_NodeRef output_op_phisrc(struct dmr_C *C, struct function *fn,
 		/* We do the convert below because Sparse treats pointers and
 		integers as interchangeable - but OMR doesn't - so saving to a
 		pointer can fail due to type mismatch */
-		JIT_StoreToTemporary(fn->injector, symref, 
-			convert_to(fn, v, JIT_GetSymbolType(symref), true));
+		JIT_StoreToTemporary(fn->injector, symref, convert_to(fn, v, JIT_GetSymbolType(symref), true));
 #endif
 	}
 	END_FOR_EACH_PTR(phi);
@@ -1149,25 +1024,24 @@ static JIT_NodeRef output_op_phisrc(struct dmr_C *C, struct function *fn,
  * Convert the pseudo to a value, and cast it to the expected type of the
  * instruction. If ptrtoint is true then convert pointer values to integers.
  */
-static JIT_NodeRef get_operand(struct dmr_C *C, struct function *fn,
-			       struct symbol *ctype, pseudo_t pseudo,
+static JIT_NodeRef get_operand(struct dmr_C *C, struct function *fn, struct symbol *ctype, pseudo_t pseudo,
 			       bool ptrtoint, bool unsigned_cast)
 {
 	JIT_NodeRef target;
-	struct OMRType *instruction_type =
-	    get_symnode_or_basetype(C, fn, ctype);
-        (void)ptrtoint;
-        (void) unsigned_cast;
+	struct OMRType *instruction_type = get_symnode_or_basetype(C, fn, ctype);
+	(void)ptrtoint;
+	(void)unsigned_cast;
 	if (instruction_type == NULL)
 		return NULL;
 	target = pseudo_to_value(C, fn, ctype, pseudo);
 	if (!target)
 		return NULL;
-	//if (ptrtoint && dmrC_is_ptr_type(ctype) && instruction_type->type != RT_PTR) {
-	//	target = build_cast(C, fn, target, &PtrIntType, 0);
+	// if (ptrtoint && dmrC_is_ptr_type(ctype) && instruction_type->type !=
+	// RT_PTR) { 	target = build_cast(C, fn, target, &PtrIntType, 0);
 	//}
-	//else {
-	//	target = build_cast(C, fn, target, instruction_type, unsigned_cast);
+	// else {
+	//	target = build_cast(C, fn, target, instruction_type,
+	// unsigned_cast);
 	//}
 	return target;
 }
@@ -1189,28 +1063,23 @@ static struct symbol *pseudo_type(struct dmr_C *C, pseudo_t pseudo)
 	}
 }
 
-static JIT_NodeRef output_op_cbr(struct dmr_C *C, struct function *fn,
-				 struct instruction *br)
+static JIT_NodeRef output_op_cbr(struct dmr_C *C, struct function *fn, struct instruction *br)
 {
 	JIT_NodeRef value = pseudo_to_value(C, fn, br->type, br->cond);
 	if (!value)
 		return NULL;
-	//JIT_GenerateTreeTop(fn->injector, value);
+	// JIT_GenerateTreeTop(fn->injector, value);
 	JIT_BlockRef true_block = JIT_GetBlock(fn->injector, br->bb_true->nr);
 	JIT_BlockRef false_block = JIT_GetBlock(fn->injector, br->bb_false->nr);
-	JIT_NodeRef if_node =
-	    JIT_IfNotZeroValue(fn->injector, value, true_block);
+	JIT_NodeRef if_node = JIT_IfNotZeroValue(fn->injector, value, true_block);
 	// OMR expects the code to fall through to next block here
 	// which is assumed to be the else block
 	// But we want to handle false block explicitly
 	// During the initial scan we already accounted for extra block here
-	int fallthrough_blocknum =
-	    br->bb->nr + 1; // Next block is meant to be a fallthrough block
-	JIT_BlockRef fallthrough_block =
-	    JIT_GetBlock(fn->injector, fallthrough_blocknum);
+	int fallthrough_blocknum = br->bb->nr + 1; // Next block is meant to be a fallthrough block
+	JIT_BlockRef fallthrough_block = JIT_GetBlock(fn->injector, fallthrough_blocknum);
 	// Add an edge from current block to fallthrough block
-	JIT_CFGAddEdge(fn->injector,
-		       JIT_BlockAsCFGNode(JIT_GetCurrentBlock(fn->injector)),
+	JIT_CFGAddEdge(fn->injector, JIT_BlockAsCFGNode(JIT_GetCurrentBlock(fn->injector)),
 		       JIT_BlockAsCFGNode(fallthrough_block));
 	// Switch to fallthrough block
 	JIT_SetCurrentBlock(fn->injector, fallthrough_blocknum);
@@ -1219,46 +1088,38 @@ static JIT_NodeRef output_op_cbr(struct dmr_C *C, struct function *fn,
 	return if_node;
 }
 
-static JIT_NodeRef is_neq_zero(struct dmr_C *C, struct function *fn,
-	JIT_NodeRef value)
+static JIT_NodeRef is_neq_zero(struct dmr_C *C, struct function *fn, JIT_NodeRef value)
 {
 	JIT_NodeRef cond = NULL;
 	JIT_Type value_type = JIT_GetNodeType(value);
-        (void)C;
+	(void)C;
 	switch (value_type) {
 	case JIT_Int32:
-		cond = JIT_CreateNode2C(OP_icmpne, value,
-			JIT_ZeroValue(fn->injector, JIT_Int32));
+		cond = JIT_CreateNode2C(OP_icmpne, value, JIT_ZeroValue(fn->injector, JIT_Int32));
 		break;
 
 	case JIT_Int64:
-		cond = JIT_CreateNode2C(OP_lcmpne, value,
-			JIT_ZeroValue(fn->injector, JIT_Int64));
+		cond = JIT_CreateNode2C(OP_lcmpne, value, JIT_ZeroValue(fn->injector, JIT_Int64));
 		break;
 
 	case JIT_Int16:
-		cond = JIT_CreateNode2C(OP_scmpne, value,
-			JIT_ZeroValue(fn->injector, JIT_Int16));
+		cond = JIT_CreateNode2C(OP_scmpne, value, JIT_ZeroValue(fn->injector, JIT_Int16));
 		break;
 
 	case JIT_Int8:
-		cond = JIT_CreateNode2C(OP_bcmpne, value,
-			JIT_ZeroValue(fn->injector, JIT_Int8));
+		cond = JIT_CreateNode2C(OP_bcmpne, value, JIT_ZeroValue(fn->injector, JIT_Int8));
 		break;
 
 	case JIT_Address:
-		cond = JIT_CreateNode2C(
-			OP_acmpne, value, JIT_ZeroValue(fn->injector, JIT_Address));
+		cond = JIT_CreateNode2C(OP_acmpne, value, JIT_ZeroValue(fn->injector, JIT_Address));
 		break;
 
 	case JIT_Double:
-		cond = JIT_CreateNode2C(
-			OP_dcmpne, value, JIT_ZeroValue(fn->injector, JIT_Double));
+		cond = JIT_CreateNode2C(OP_dcmpne, value, JIT_ZeroValue(fn->injector, JIT_Double));
 		break;
 
 	case JIT_Float:
-		cond = JIT_CreateNode2C(OP_fcmpne, value,
-			JIT_ZeroValue(fn->injector, JIT_Float));
+		cond = JIT_CreateNode2C(OP_fcmpne, value, JIT_ZeroValue(fn->injector, JIT_Float));
 		break;
 	default:
 		fprintf(stderr, "Cannot construct a zero object of JIT type %d\n", value_type);
@@ -1267,21 +1128,18 @@ static JIT_NodeRef is_neq_zero(struct dmr_C *C, struct function *fn,
 	return cond;
 }
 
-static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
-				     struct instruction *insn)
+static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef lhs, rhs, target = NULL;
 
 	if (insn->src1->type == PSEUDO_VAL)
-		lhs = val_to_value(C, fn, insn->src1->value,
-				   pseudo_type(C, insn->src2));
+		lhs = val_to_value(C, fn, insn->src1->value, pseudo_type(C, insn->src2));
 	else
 		lhs = pseudo_to_value(C, fn, insn->type, insn->src1);
 	if (!lhs)
 		return NULL;
 	if (insn->src2->type == PSEUDO_VAL)
-		rhs = val_to_value(C, fn, insn->src2->value,
-				   pseudo_type(C, insn->src1));
+		rhs = val_to_value(C, fn, insn->src2->value, pseudo_type(C, insn->src1));
 	else
 		rhs = pseudo_to_value(C, fn, insn->type, insn->src2);
 	if (!rhs)
@@ -1291,8 +1149,8 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
 	if (!dst_type)
 		return NULL;
 
-	//JIT_GenerateTreeTop(fn->injector, lhs);
-	//JIT_GenerateTreeTop(fn->injector, rhs);
+	// JIT_GenerateTreeTop(fn->injector, lhs);
+	// JIT_GenerateTreeTop(fn->injector, rhs);
 
 	JIT_Type op_type = JIT_GetNodeType(lhs);
 
@@ -1311,7 +1169,8 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
 		else if (op_type == JIT_Int8)
 			target = JIT_CreateNode2C(OP_bcmplt, lhs, rhs);
 		else if (op_type == JIT_Address)
-			target = JIT_CreateNode2C(OP_acmplt, convert_to(fn, lhs, JIT_Address, true), convert_to(fn, rhs, JIT_Address, true));
+			target = JIT_CreateNode2C(OP_acmplt, convert_to(fn, lhs, JIT_Address, true),
+						  convert_to(fn, rhs, JIT_Address, true));
 		break;
 	case OP_SET_B:
 		if (op_type == JIT_Double)
@@ -1327,7 +1186,8 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
 		else if (op_type == JIT_Int8)
 			target = JIT_CreateNode2C(OP_bucmplt, lhs, rhs);
 		else if (op_type == JIT_Address)
-			target = JIT_CreateNode2C(OP_acmplt, convert_to(fn, lhs, JIT_Address, true), convert_to(fn, rhs, JIT_Address, true));
+			target = JIT_CreateNode2C(OP_acmplt, convert_to(fn, lhs, JIT_Address, true),
+						  convert_to(fn, rhs, JIT_Address, true));
 		break;
 	case OP_SET_LE:
 		if (op_type == JIT_Double)
@@ -1343,7 +1203,8 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
 		else if (op_type == JIT_Int8)
 			target = JIT_CreateNode2C(OP_bcmple, lhs, rhs);
 		else if (op_type == JIT_Address)
-			target = JIT_CreateNode2C(OP_acmple, convert_to(fn, lhs, JIT_Address, true), convert_to(fn, rhs, JIT_Address, true));
+			target = JIT_CreateNode2C(OP_acmple, convert_to(fn, lhs, JIT_Address, true),
+						  convert_to(fn, rhs, JIT_Address, true));
 		break;
 	case OP_SET_BE:
 		if (op_type == JIT_Double)
@@ -1359,7 +1220,8 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
 		else if (op_type == JIT_Int8)
 			target = JIT_CreateNode2C(OP_bucmple, lhs, rhs);
 		else if (op_type == JIT_Address)
-			target = JIT_CreateNode2C(OP_acmple, convert_to(fn, lhs, JIT_Address, true), convert_to(fn, rhs, JIT_Address, true));
+			target = JIT_CreateNode2C(OP_acmple, convert_to(fn, lhs, JIT_Address, true),
+						  convert_to(fn, rhs, JIT_Address, true));
 		break;
 	case OP_SET_GT:
 		if (op_type == JIT_Double)
@@ -1375,7 +1237,8 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
 		else if (op_type == JIT_Int8)
 			target = JIT_CreateNode2C(OP_bcmpgt, lhs, rhs);
 		else if (op_type == JIT_Address)
-			target = JIT_CreateNode2C(OP_acmpgt, convert_to(fn, lhs, JIT_Address, true), convert_to(fn, rhs, JIT_Address, true));
+			target = JIT_CreateNode2C(OP_acmpgt, convert_to(fn, lhs, JIT_Address, true),
+						  convert_to(fn, rhs, JIT_Address, true));
 		break;
 	case OP_SET_A:
 		if (op_type == JIT_Double)
@@ -1391,7 +1254,8 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
 		else if (op_type == JIT_Int8)
 			target = JIT_CreateNode2C(OP_bucmpgt, lhs, rhs);
 		else if (op_type == JIT_Address)
-			target = JIT_CreateNode2C(OP_acmpgt, convert_to(fn, lhs, JIT_Address, true), convert_to(fn, rhs, JIT_Address, true));
+			target = JIT_CreateNode2C(OP_acmpgt, convert_to(fn, lhs, JIT_Address, true),
+						  convert_to(fn, rhs, JIT_Address, true));
 		break;
 	case OP_SET_GE:
 		if (op_type == JIT_Double)
@@ -1407,7 +1271,8 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
 		else if (op_type == JIT_Int8)
 			target = JIT_CreateNode2C(OP_bcmpge, lhs, rhs);
 		else if (op_type == JIT_Address)
-			target = JIT_CreateNode2C(OP_acmpge, convert_to(fn, lhs, JIT_Address, true), convert_to(fn, rhs, JIT_Address, true));
+			target = JIT_CreateNode2C(OP_acmpge, convert_to(fn, lhs, JIT_Address, true),
+						  convert_to(fn, rhs, JIT_Address, true));
 		break;
 	case OP_SET_AE:
 		if (op_type == JIT_Double)
@@ -1423,7 +1288,8 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
 		else if (op_type == JIT_Int8)
 			target = JIT_CreateNode2C(OP_bucmpge, lhs, rhs);
 		else if (op_type == JIT_Address)
-			target = JIT_CreateNode2C(OP_acmpge, convert_to(fn, lhs, JIT_Address, true), convert_to(fn, rhs, JIT_Address, true));
+			target = JIT_CreateNode2C(OP_acmpge, convert_to(fn, lhs, JIT_Address, true),
+						  convert_to(fn, rhs, JIT_Address, true));
 		break;
 	case OP_SET_EQ:
 		if (op_type == JIT_Double)
@@ -1439,7 +1305,8 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
 		else if (op_type == JIT_Int8)
 			target = JIT_CreateNode2C(OP_bcmpeq, lhs, rhs);
 		else if (op_type == JIT_Address)
-			target = JIT_CreateNode2C(OP_acmpeq, convert_to(fn, lhs, JIT_Address, true), convert_to(fn, rhs, JIT_Address, true));
+			target = JIT_CreateNode2C(OP_acmpeq, convert_to(fn, lhs, JIT_Address, true),
+						  convert_to(fn, rhs, JIT_Address, true));
 		break;
 	case OP_SET_NE:
 		if (op_type == JIT_Double)
@@ -1455,29 +1322,26 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn,
 		else if (op_type == JIT_Int8)
 			target = JIT_CreateNode2C(OP_bcmpne, lhs, rhs);
 		else if (op_type == JIT_Address)
-			target = JIT_CreateNode2C(OP_acmpne, convert_to(fn, lhs, JIT_Address, true), convert_to(fn, rhs, JIT_Address, true));
+			target = JIT_CreateNode2C(OP_acmpne, convert_to(fn, lhs, JIT_Address, true),
+						  convert_to(fn, rhs, JIT_Address, true));
 		break;
 	default:
 		break;
 	}
 
-	//if (target)
+	// if (target)
 	//	JIT_GenerateTreeTop(fn->injector, target);
 	assert(JIT_GetNodeType(target) != JIT_NoType);
 	insn->target->priv = target;
 	return target;
 }
 
-
-
-static JIT_NodeRef output_op_binary(struct dmr_C *C, struct function *fn,
-				    struct instruction *insn)
+static JIT_NodeRef output_op_binary(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef lhs, rhs, target = NULL;
 
 	// TODO is this enough or do we need special unsigned opcodes?
-	bool unsigned_op = insn->opcode == OP_MULU || insn->opcode == OP_DIVU ||
-			   insn->opcode == OP_MODU;
+	bool unsigned_op = insn->opcode == OP_MULU || insn->opcode == OP_DIVU || insn->opcode == OP_MODU;
 
 	lhs = get_operand(C, fn, insn->type, insn->src1, 1, unsigned_op);
 	if (!lhs)
@@ -1497,33 +1361,28 @@ static JIT_NodeRef output_op_binary(struct dmr_C *C, struct function *fn,
 			else {
 				if (JIT_GetNodeType(lhs) == JIT_Address) {
 					if (JIT_GetNodeType(rhs) == JIT_Int64) {
-						target = JIT_CreateNode2C(OP_aladd, lhs,
-							rhs);
+						target = JIT_CreateNode2C(OP_aladd, lhs, rhs);
+					} else if (JIT_GetNodeType(rhs) == JIT_Int32) {
+						target = JIT_CreateNode2C(OP_aiadd, lhs, rhs);
+					} else {
+						dmrC_sparse_error(C, insn->pos,
+								  "The add operand for a "
+								  "pointer value must be "
+								  "int64 or int32\n");
 					}
-					else if (JIT_GetNodeType(rhs) == JIT_Int32) {
-						target = JIT_CreateNode2C(OP_aiadd, lhs,
-							rhs);
-					}
-					else {
-						dmrC_sparse_error(C, insn->pos, "The add operand for a pointer value must be int64 or int32\n");
-					}
-				}
-				else if (JIT_GetNodeType(rhs) == JIT_Address) {
+				} else if (JIT_GetNodeType(rhs) == JIT_Address) {
 					if (JIT_GetNodeType(lhs) == JIT_Int64) {
-						target = JIT_CreateNode2C(OP_aladd, rhs,
-							lhs);
+						target = JIT_CreateNode2C(OP_aladd, rhs, lhs);
+					} else if (JIT_GetNodeType(lhs) == JIT_Int32) {
+						target = JIT_CreateNode2C(OP_aiadd, rhs, lhs);
+					} else {
+						dmrC_sparse_error(C, insn->pos,
+								  "The add operand for a "
+								  "pointer value must be "
+								  "int64 or int32\n");
 					}
-					else if (JIT_GetNodeType(lhs) == JIT_Int32) {
-						target = JIT_CreateNode2C(OP_aiadd, rhs,
-							lhs);
-					}
-					else {
-						dmrC_sparse_error(C, insn->pos, "The add operand for a pointer value must be int64 or int32\n");
-					}
-				}
-				else
-					target =
-					    JIT_CreateNode2C(OP_ladd, lhs, rhs);
+				} else
+					target = JIT_CreateNode2C(OP_ladd, lhs, rhs);
 			}
 			break;
 		case 32:
@@ -1541,46 +1400,51 @@ static JIT_NodeRef output_op_binary(struct dmr_C *C, struct function *fn,
 				target = JIT_CreateNode2C(OP_dsub, lhs, rhs);
 			else {
 				if (JIT_GetNodeType(lhs) == JIT_Address && JIT_GetNodeType(rhs) == JIT_Address) {
-					//target = JIT_CreateNode2C(OP_asub, lhs, rhs);
-					// For some reason above is returning NoType?
-					target = JIT_CreateNode2C(OP_lsub, JIT_ConvertTo(fn->injector, lhs, JIT_Int64, true), JIT_ConvertTo(fn->injector, rhs, JIT_Int64, true));
+					// target = JIT_CreateNode2C(OP_asub,
+					// lhs, rhs);
+					// For some reason above is returning
+					// NoType?
+					target =
+					    JIT_CreateNode2C(OP_lsub, JIT_ConvertTo(fn->injector, lhs, JIT_Int64, true),
+							     JIT_ConvertTo(fn->injector, rhs, JIT_Int64, true));
 					assert(JIT_GetNodeType(target) != JIT_NoType);
 				}
-				/* Since OMR only supports adding integer to a pointer,
-				but C allows integer subtraction as well - we convert the
-				op to an pointer add with negative offset. C allows the
+				/* Since OMR only supports adding integer to a
+				pointer, but C allows integer subtraction as
+				well - we convert the op to an pointer add with
+				negative offset. C allows the
 				address to lhs or rhs  - meaning is the same */
 				else if (JIT_GetNodeType(lhs) == JIT_Address) {
 					if (JIT_GetNodeType(rhs) == JIT_Int64) {
-						target = JIT_CreateNode2C(OP_aladd, lhs,
-							JIT_CreateNode1C(OP_lneg, rhs));
+						target =
+						    JIT_CreateNode2C(OP_aladd, lhs, JIT_CreateNode1C(OP_lneg, rhs));
 						assert(JIT_GetNodeType(target) != JIT_NoType);
-					}
-					else if (JIT_GetNodeType(rhs) == JIT_Int32) {
-						target = JIT_CreateNode2C(OP_aiadd, lhs,
-							JIT_CreateNode1C(OP_ineg, rhs));
+					} else if (JIT_GetNodeType(rhs) == JIT_Int32) {
+						target =
+						    JIT_CreateNode2C(OP_aiadd, lhs, JIT_CreateNode1C(OP_ineg, rhs));
 						assert(JIT_GetNodeType(target) != JIT_NoType);
+					} else {
+						dmrC_sparse_error(C, insn->pos,
+								  "The add operand for a "
+								  "pointer value must be "
+								  "int64 or int32\n");
 					}
-					else {
-						dmrC_sparse_error(C, insn->pos, "The add operand for a pointer value must be int64 or int32\n");
-					}
-				}
-				else if (JIT_GetNodeType(rhs) == JIT_Address) {
+				} else if (JIT_GetNodeType(rhs) == JIT_Address) {
 					if (JIT_GetNodeType(lhs) == JIT_Int64) {
-						target = JIT_CreateNode2C(OP_aladd, rhs,
-							JIT_CreateNode1C(OP_lneg, lhs));
+						target =
+						    JIT_CreateNode2C(OP_aladd, rhs, JIT_CreateNode1C(OP_lneg, lhs));
 						assert(JIT_GetNodeType(target) != JIT_NoType);
-					}
-					else if (JIT_GetNodeType(lhs) == JIT_Int32) {
-						target = JIT_CreateNode2C(OP_aiadd, rhs,
-							JIT_CreateNode1C(OP_ineg, lhs));
+					} else if (JIT_GetNodeType(lhs) == JIT_Int32) {
+						target =
+						    JIT_CreateNode2C(OP_aiadd, rhs, JIT_CreateNode1C(OP_ineg, lhs));
 						assert(JIT_GetNodeType(target) != JIT_NoType);
+					} else {
+						dmrC_sparse_error(C, insn->pos,
+								  "The add operand for a "
+								  "pointer value must be "
+								  "int64 or int32\n");
 					}
-					else {
-						dmrC_sparse_error(C, insn->pos, "The add operand for a pointer value must be int64 or int32\n");
-					}
-				}
-				else {
+				} else {
 					target = JIT_CreateNode2C(OP_lsub, lhs, rhs);
 					assert(JIT_GetNodeType(target) != JIT_NoType);
 				}
@@ -1646,8 +1510,7 @@ static JIT_NodeRef output_op_binary(struct dmr_C *C, struct function *fn,
 			if (JIT_GetNodeType(lhs) != JIT_Int64 || JIT_GetNodeType(rhs) != JIT_Int64) {
 				printf("%d DIV %d\n", JIT_GetNodeType(lhs), JIT_GetNodeType(rhs));
 				target = NULL;
-			}
-			else
+			} else
 				target = JIT_CreateNode2C(OP_ldiv, lhs, rhs);
 			break;
 		case 32:
@@ -1741,9 +1604,9 @@ static JIT_NodeRef output_op_binary(struct dmr_C *C, struct function *fn,
 		struct OMRType *dst_type;
 
 		lhs_nz = is_neq_zero(C, fn, lhs);
-		//JIT_GenerateTreeTop(fn->injector, lhs);
+		// JIT_GenerateTreeTop(fn->injector, lhs);
 		rhs_nz = is_neq_zero(C, fn, rhs);
-		//JIT_GenerateTreeTop(fn->injector, rhs);
+		// JIT_GenerateTreeTop(fn->injector, rhs);
 		switch (insn->size) {
 		case 64:
 			target = JIT_CreateNode2C(OP_land, lhs_nz, rhs_nz);
@@ -1755,7 +1618,7 @@ static JIT_NodeRef output_op_binary(struct dmr_C *C, struct function *fn,
 		}
 		if (!target)
 			return NULL;
-		//JIT_GenerateTreeTop(fn->injector, target);
+		// JIT_GenerateTreeTop(fn->injector, target);
 		dst_type = insn_symbol_type(C, fn, insn);
 		if (!dst_type)
 			return NULL;
@@ -1767,9 +1630,9 @@ static JIT_NodeRef output_op_binary(struct dmr_C *C, struct function *fn,
 		struct OMRType *dst_type;
 
 		lhs_nz = is_neq_zero(C, fn, lhs);
-		//JIT_GenerateTreeTop(fn->injector, lhs);
+		// JIT_GenerateTreeTop(fn->injector, lhs);
 		rhs_nz = is_neq_zero(C, fn, rhs);
-		//JIT_GenerateTreeTop(fn->injector, rhs);
+		// JIT_GenerateTreeTop(fn->injector, rhs);
 		switch (insn->size) {
 		case 64:
 			target = JIT_CreateNode2C(OP_lor, lhs_nz, rhs_nz);
@@ -1781,7 +1644,7 @@ static JIT_NodeRef output_op_binary(struct dmr_C *C, struct function *fn,
 		}
 		if (!target)
 			return NULL;
-		//JIT_GenerateTreeTop(fn->injector, target);
+		// JIT_GenerateTreeTop(fn->injector, target);
 		dst_type = insn_symbol_type(C, fn, insn);
 		if (!dst_type)
 			return NULL;
@@ -1795,8 +1658,7 @@ static JIT_NodeRef output_op_binary(struct dmr_C *C, struct function *fn,
 	return target;
 }
 
-static JIT_NodeRef output_op_setval(struct dmr_C *C, struct function *fn,
-	struct instruction *insn)
+static JIT_NodeRef output_op_setval(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	struct expression *expr = insn->val;
 	struct OMRType *const_type;
@@ -1814,9 +1676,7 @@ static JIT_NodeRef output_op_setval(struct dmr_C *C, struct function *fn,
 		target = constant_fvalue(C, fn, expr->fvalue, const_type);
 		break;
 	default:
-		dmrC_sparse_error(C, insn->pos,
-			"unsupported expression type %d in setval\n",
-			expr->type);
+		dmrC_sparse_error(C, insn->pos, "unsupported expression type %d in setval\n", expr->type);
 		dmrC_show_expression(C, expr);
 		return NULL;
 	}
@@ -1826,8 +1686,7 @@ static JIT_NodeRef output_op_setval(struct dmr_C *C, struct function *fn,
 	return target;
 }
 
-static JIT_NodeRef output_op_symaddr(struct dmr_C *C, struct function *fn,
-	struct instruction *insn)
+static JIT_NodeRef output_op_symaddr(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef res, src;
 	struct OMRType *dtype;
@@ -1847,7 +1706,6 @@ static JIT_NodeRef output_op_symaddr(struct dmr_C *C, struct function *fn,
 	return res;
 }
 
-
 static struct symbol *get_function_basetype(struct symbol *type)
 {
 	if (type->type == SYM_PTR)
@@ -1856,8 +1714,7 @@ static struct symbol *get_function_basetype(struct symbol *type)
 	return type;
 }
 
-static JIT_NodeRef output_op_call(struct dmr_C *C, struct function *fn,
-				 struct instruction *insn)
+static JIT_NodeRef output_op_call(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef target;
 	int n_arg = 0, i;
@@ -1884,21 +1741,21 @@ static JIT_NodeRef output_op_call(struct dmr_C *C, struct function *fn,
 			else {
 				struct OMRType *type = int_type_by_size(fn, arg->size);
 				if (!type) {
-					dmrC_sparse_error(C, insn->pos, "pseudo value argument[%d] = %lld has invalid size %d\n", i + 1, arg->value, arg->size);
-				}
-				else {
+					dmrC_sparse_error(C, insn->pos,
+							  "pseudo value argument[%d] = %lld "
+							  "has invalid size %d\n",
+							  i + 1, arg->value, arg->size);
+				} else {
 					value = constant_value(C, fn, arg->value, type);
 				}
 			}
-		}
-		else {
+		} else {
 			value = pseudo_to_value(C, fn, atype, arg);
 		}
 		if (!value)
 			return NULL;
 		if (atype) {
-			struct OMRType *argtype =
-			    get_symnode_type(C, fn, atype);
+			struct OMRType *argtype = get_symnode_type(C, fn, atype);
 			if (!argtype)
 				return NULL;
 			value = build_cast(C, fn, value, argtype, 0);
@@ -1925,8 +1782,7 @@ static JIT_NodeRef output_op_call(struct dmr_C *C, struct function *fn,
 	return target;
 }
 
-static JIT_NodeRef output_op_not(struct dmr_C *C, struct function *fn,
-				 struct instruction *insn)
+static JIT_NodeRef output_op_not(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef src, target;
 
@@ -1954,8 +1810,7 @@ static JIT_NodeRef output_op_not(struct dmr_C *C, struct function *fn,
 	return target;
 }
 
-static JIT_NodeRef output_op_neg(struct dmr_C *C, struct function *fn,
-				struct instruction *insn)
+static JIT_NodeRef output_op_neg(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef src, target;
 
@@ -1995,8 +1850,7 @@ static JIT_NodeRef output_op_neg(struct dmr_C *C, struct function *fn,
 	return target;
 }
 
-static JIT_NodeRef output_op_sel(struct dmr_C *C, struct function *fn,
-				struct instruction *insn)
+static JIT_NodeRef output_op_sel(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef target, src1, src2, src3;
 
@@ -2015,30 +1869,37 @@ static JIT_NodeRef output_op_sel(struct dmr_C *C, struct function *fn,
 	if (!src3)
 		return NULL;
 
-	//JIT_GenerateTreeTop(fn->injector, src2);
-	//JIT_GenerateTreeTop(fn->injector, src3);
+	// JIT_GenerateTreeTop(fn->injector, src2);
+	// JIT_GenerateTreeTop(fn->injector, src3);
 
 	struct OMRType *insntype = insn_symbol_type(C, fn, insn);
 	JIT_Type target_type = map_OMRtype(insntype);
 	JIT_NodeOpCode op_code;
 	switch (target_type) {
-	case JIT_Int32: op_code = OP_iternary; break;
-	case JIT_Int64: op_code = OP_lternary; break;
-	case JIT_Int16: op_code = OP_sternary; break;
-	case JIT_Int8: op_code = OP_bternary; break;
-	default: 
+	case JIT_Int32:
+		op_code = OP_iternary;
+		break;
+	case JIT_Int64:
+		op_code = OP_lternary;
+		break;
+	case JIT_Int16:
+		op_code = OP_sternary;
+		break;
+	case JIT_Int8:
+		op_code = OP_bternary;
+		break;
+	default:
 		// TODO error message
 		return NULL;
 	}
 	target = JIT_CreateNode3C(op_code, src1, src2, src3);
-	//JIT_GenerateTreeTop(fn->injector, target);
+	// JIT_GenerateTreeTop(fn->injector, target);
 	assert(JIT_GetNodeType(target) != JIT_NoType);
 	insn->target->priv = target;
 	return target;
 }
 
-static JIT_NodeRef output_op_fpcast(struct dmr_C *C, struct function *fn,
-				   struct instruction *insn)
+static JIT_NodeRef output_op_fpcast(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef src, target;
 	struct OMRType *dtype;
@@ -2061,8 +1922,7 @@ static JIT_NodeRef output_op_fpcast(struct dmr_C *C, struct function *fn,
 	return target;
 }
 
-static JIT_NodeRef output_op_switch(struct dmr_C *C, struct function *fn,
-	struct instruction *insn)
+static JIT_NodeRef output_op_switch(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef switch_value;
 	struct basic_block *default_bb = NULL;
@@ -2073,8 +1933,7 @@ static JIT_NodeRef output_op_switch(struct dmr_C *C, struct function *fn,
 	{
 		if (jmp->begin <= jmp->end) { /* case M..N */
 			n_jmp += (int)(jmp->end - jmp->begin) + 1;
-		}
-		else /* default case */
+		} else /* default case */
 			default_bb = jmp->target;
 	}
 	END_FOR_EACH_PTR(jmp);
@@ -2104,13 +1963,11 @@ static JIT_NodeRef output_op_switch(struct dmr_C *C, struct function *fn,
 	}
 	END_FOR_EACH_PTR(jmp);
 
-	return JIT_Switch(fn->injector, switch_value, JIT_GetBlock(fn->injector, default_bb->nr),
-		n_jmp, blocks, values);
+	return JIT_Switch(fn->injector, switch_value, JIT_GetBlock(fn->injector, default_bb->nr), n_jmp, blocks,
+			  values);
 }
 
-
-static JIT_NodeRef output_op_ptrcast(struct dmr_C *C, struct function *fn,
-				     struct instruction *insn)
+static JIT_NodeRef output_op_ptrcast(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef src, target;
 	struct OMRType *dtype;
@@ -2135,8 +1992,7 @@ static JIT_NodeRef output_op_ptrcast(struct dmr_C *C, struct function *fn,
 	return target;
 }
 
-static JIT_NodeRef output_op_cast(struct dmr_C *C, struct function *fn,
-				  struct instruction *insn, bool unsignedcast)
+static JIT_NodeRef output_op_cast(struct dmr_C *C, struct function *fn, struct instruction *insn, bool unsignedcast)
 {
 	JIT_NodeRef src, target;
 	struct OMRType *dtype;
@@ -2168,8 +2024,7 @@ static JIT_NodeRef output_op_cast(struct dmr_C *C, struct function *fn,
 	return target;
 }
 
-static JIT_NodeRef output_op_ret(struct dmr_C *C, struct function *fn,
-				 struct instruction *insn)
+static JIT_NodeRef output_op_ret(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	pseudo_t pseudo = insn->src;
 
@@ -2182,17 +2037,15 @@ static JIT_NodeRef output_op_ret(struct dmr_C *C, struct function *fn,
 		return JIT_ReturnNoValue(fn->injector);
 }
 
-static JIT_NodeRef output_op_br(struct dmr_C *C, struct function *fn,
-				struct instruction *br)
+static JIT_NodeRef output_op_br(struct dmr_C *C, struct function *fn, struct instruction *br)
 {
-        (void) C;
+	(void)C;
 	JIT_BlockRef target_block = JIT_GetBlock(fn->injector, br->bb_true->nr);
 	return JIT_Goto(fn->injector, target_block);
 }
 
 /* return 1 on success, 0 on failure */
-static int output_insn(struct dmr_C *C, struct function *fn,
-		       struct instruction *insn)
+static int output_insn(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	JIT_NodeRef v = NULL;
 	switch (insn->opcode) {
@@ -2226,8 +2079,7 @@ static int output_insn(struct dmr_C *C, struct function *fn,
 		break;
 
 	case OP_COMPUTEDGOTO:
-		dmrC_sparse_error(C, insn->pos,
-				  "computed goto is not supported\n");
+		dmrC_sparse_error(C, insn->pos, "computed goto is not supported\n");
 		return 0;
 
 	case OP_LNOP:
@@ -2314,15 +2166,12 @@ static int output_insn(struct dmr_C *C, struct function *fn,
 	}
 
 	if (v == NULL)
-		dmrC_sparse_error(C, insn->pos,
-				  "failed to output instruction %s\n",
-				  dmrC_show_instruction(C, insn));
+		dmrC_sparse_error(C, insn->pos, "failed to output instruction %s\n", dmrC_show_instruction(C, insn));
 	return v != NULL;
 }
 
 /* return 1 on success, 0 on failure */
-static int output_bb(struct dmr_C *C, struct function *fn,
-		     struct basic_block *bb)
+static int output_bb(struct dmr_C *C, struct function *fn, struct basic_block *bb)
 {
 	struct instruction *insn;
 
@@ -2333,12 +2182,11 @@ static int output_bb(struct dmr_C *C, struct function *fn,
 			continue;
 
 		// Useful for debugging
-		//fprintf(stderr, "Instruction %s\n",
+		// fprintf(stderr, "Instruction %s\n",
 		//	dmrC_show_instruction(C, insn));
 
 		if (!output_insn(C, fn, insn)) {
-			dmrC_sparse_error(C, insn->pos, "failed to output %s\n",
-					  dmrC_show_instruction(C, insn));
+			dmrC_sparse_error(C, insn->pos, "failed to output %s\n", dmrC_show_instruction(C, insn));
 			return 0;
 		}
 	}
@@ -2384,7 +2232,8 @@ static bool JIT_ILBuilderImpl(JIT_ILInjectorRef injector, void *userdata)
 		bb->nr = bbnr++;
 		if (saw_cbr)
 			bbnr++; /* Allow an extra block here because of the way
-				   OMR does conditional branching (see CBR codegen) */
+				   OMR does conditional branching (see CBR
+				   codegen) */
 	}
 	END_FOR_EACH_PTR(bb);
 
@@ -2400,11 +2249,10 @@ static bool JIT_ILBuilderImpl(JIT_ILInjectorRef injector, void *userdata)
 		{
 			if (!insn->bb || insn->opcode != OP_PHI)
 				continue;
-		
+
 			/* insert alloca into entry block */
-			JIT_SymbolRef symref =
-			    OMR_alloca(fn, insn_symbol_type(fn->C, fn, insn),
-				       instruction_size_in_bytes(fn->C, insn), true);
+			JIT_SymbolRef symref = OMR_alloca(fn, insn_symbol_type(fn->C, fn, insn),
+							  instruction_size_in_bytes(fn->C, insn), true);
 			if (!symref)
 				goto Efailed;
 
@@ -2423,9 +2271,7 @@ static bool JIT_ILBuilderImpl(JIT_ILInjectorRef injector, void *userdata)
 	FOR_EACH_PTR(ep->accesses, pseudo)
 	{
 		if (pseudo->type == PSEUDO_SYM) {
-			if (dmrC_is_extern(pseudo->sym) ||
-			    dmrC_is_static(pseudo->sym) ||
-			    dmrC_is_toplevel(pseudo->sym))
+			if (dmrC_is_extern(pseudo->sym) || dmrC_is_static(pseudo->sym) || dmrC_is_toplevel(pseudo->sym))
 				continue;
 			if (!get_sym_value(C, fn, pseudo, false))
 				goto Efailed;
@@ -2449,8 +2295,7 @@ Efailed:
 	return false;
 }
 
-static bool output_fn(struct dmr_C *C, JIT_ContextRef module,
-		      struct entrypoint *ep)
+static bool output_fn(struct dmr_C *C, JIT_ContextRef module, struct entrypoint *ep)
 {
 	bool success = false;
 	struct symbol *sym = ep->name;
@@ -2470,9 +2315,8 @@ static bool output_fn(struct dmr_C *C, JIT_ContextRef module,
 		return false;
 	}
 
-	dmrC_allocator_init(&function.type_allocator, "OMRtypes",
-			    sizeof(struct OMRType),
-			    __alignof__(struct OMRType), CHUNK);
+	dmrC_allocator_init(&function.type_allocator, "OMRtypes", sizeof(struct OMRType), __alignof__(struct OMRType),
+			    CHUNK);
 
 	JIT_Type argtypes[JIT_MaxArgs];
 
@@ -2480,12 +2324,10 @@ static bool output_fn(struct dmr_C *C, JIT_ContextRef module,
 	{
 		struct symbol *arg_base_type = arg->ctype.base_type;
 		if (nr_args >= JIT_MaxArgs) {
-			fprintf(stderr, "Only upto %d arguments supported\n",
-				JIT_MaxArgs);
+			fprintf(stderr, "Only upto %d arguments supported\n", JIT_MaxArgs);
 			goto Ereturn;
 		}
-		argtypes[nr_args] =
-		    check_supported_argtype(C, arg_base_type);
+		argtypes[nr_args] = check_supported_argtype(C, arg_base_type);
 		if (argtypes[nr_args] == JIT_NoType) // Unsupported
 			goto Ereturn;
 		nr_args++;
@@ -2494,20 +2336,17 @@ static bool output_fn(struct dmr_C *C, JIT_ContextRef module,
 
 	name = dmrC_show_ident(C, sym->ident);
 
-	struct OMRType *function_type =
-	    type_to_OMRtype(C, &function, ret_type, NULL);
+	struct OMRType *function_type = type_to_OMRtype(C, &function, ret_type, NULL);
 	function.return_type = check_supported_returntype(C, function_type);
 	if (function.return_type == &BadType) {
-		fprintf(stderr, "Function '%s' has unsupported return type\n",
-			name);
+		fprintf(stderr, "Function '%s' has unsupported return type\n", name);
 		goto Ereturn;
 	}
 
 	JIT_Type freturn = map_OMRtype(function.return_type);
 
 	function.builder =
-	    JIT_CreateFunctionBuilder(module, name, freturn, nr_args, argtypes,
-				      JIT_ILBuilderImpl, &function);
+	    JIT_CreateFunctionBuilder(module, name, freturn, nr_args, argtypes, JIT_ILBuilderImpl, &function);
 
 	void *p = JIT_Compile(function.builder);
 	if (p)
@@ -2529,8 +2368,7 @@ static int is_prototype(struct symbol *sym)
 }
 
 /* returns 1 on success, 0 on failure */
-static int compile(struct dmr_C *C, JIT_ContextRef module,
-		   struct symbol_list *list)
+static int compile(struct dmr_C *C, JIT_ContextRef module, struct symbol_list *list)
 {
 	struct symbol *sym;
 
@@ -2557,8 +2395,7 @@ static int compile(struct dmr_C *C, JIT_ContextRef module,
 	return 1;
 }
 
-bool dmrC_omrcompile(int argc, char **argv, JIT_ContextRef module,
-		     const char *inputbuffer)
+bool dmrC_omrcompile(int argc, char **argv, JIT_ContextRef module, const char *inputbuffer)
 {
 	struct string_list *filelist = NULL;
 	struct symbol_list *symlist;
@@ -2596,8 +2433,7 @@ bool dmrC_omrcompile(int argc, char **argv, JIT_ContextRef module,
 			if (!buffer)
 				rc = 1;
 			else {
-				symlist =
-				    dmrC_sparse_buffer(C, "buffer", buffer, 0);
+				symlist = dmrC_sparse_buffer(C, "buffer", buffer, 0);
 				free(buffer);
 				if (C->die_if_error) {
 					rc = 1;
