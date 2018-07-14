@@ -1,8 +1,8 @@
 /**
  * This is a backend code generator for dmr_C that uses
- * the JIT engine NanoJIT (https://github.com/dibyendumajumdar/nanojit).
+ * the JIT engine OMR JIT (https://github.com/dibyendumajumdar/nj).
  *
- * Copyright (C) 2017 Dibyendu Majumdar
+ * Copyright (C) 2018 Dibyendu Majumdar
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

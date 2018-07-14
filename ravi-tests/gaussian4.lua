@@ -1,4 +1,7 @@
 -- Gaussian elimination
+if ravi.jit then
+  ravi.auto(true,1)
+end
 
 local assert = assert
 local slice, numarray, intarray = table.slice, table.numarray, table.intarray
@@ -80,7 +83,7 @@ end
 
 local function dump_1darray(s, pivots)
   write(s, "\n")
-  local n: integer = #pivots
+  local n: integer = @integer #pivots
   for i = 1,n do
     write(pivots[i], '\n')
   end

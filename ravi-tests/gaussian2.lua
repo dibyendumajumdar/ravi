@@ -1,4 +1,7 @@
 -- Gaussian elimination
+if ravi.jit then
+  ravi.auto(true,1)
+end
 
 local assert = assert
 local slice, numarray, intarray = table.slice, table.numarray, table.intarray
