@@ -686,6 +686,7 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_RAVI_TOTYPE:
 		case OP_LOADKX:
 		case OP_UNM:
+		case OP_BNOT:
 #endif
 		default: {
 			return false;
@@ -1114,44 +1115,6 @@ static void emit_op_testset(struct function *fn, int A, int B, int C, int j,
 	membuff_add_string(&fn->body, " }\n");
 }
 
-static void emit_op_iforloop(struct function *fn, int A, int pc, int step_one,
-	int pc1) {
-  (void)pc1;
-	if (!step_one) { membuff_add_fstring(&fn->body, "i_%d += step_%d;\n", A, A); }
-	else {
-		membuff_add_fstring(&fn->body, "i_%d += 1;\n", A);
-	}
-	membuff_add_fstring(&fn->body,
-		"if (i_%d <= limit_%d) {\n  ra = R(%d);\n  setivalue(ra, "
-		"i_%d);\n  goto Lbc_%d;\n}\n",
-		A, A, A + 3, A, pc);
-}
-
-static void emit_op_iforprep(struct function *fn, int A, int pc, int step_one,
-	int pc1) {
-  (void)pc1;
-	if (!fn->locals[A]) {
-		fn->locals[A] =
-			1;  // Lua can reuse the same forloop vars if loop isn't nested
-		membuff_add_fstring(&fn->prologue, "int i_%d = 0;\n", A);
-		membuff_add_fstring(&fn->prologue, "int limit_%d = 0;\n", A);
-		if (!step_one) membuff_add_fstring(&fn->prologue, "int step_%d = 0;\n", A);
-	}
-	emit_reg(fn, "ra", A);
-	membuff_add_fstring(&fn->body, "i_%d = ivalue(ra);\n", A);
-	membuff_add_fstring(&fn->body, "ra = R(%d);\n", A + 1);
-	membuff_add_fstring(&fn->body, "limit_%d = ivalue(ra);\n", A);
-	if (!step_one) {
-		membuff_add_fstring(&fn->body, "ra = R(%d);\n", A + 2);
-		membuff_add_fstring(&fn->body, "step_%d = ivalue(ra);\n", A);
-		membuff_add_fstring(&fn->body, "i_%d -= step_%d;\n", A, A);
-	}
-	else {
-		membuff_add_fstring(&fn->body, "i_%d -= 1;\n", A);
-	}
-	membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", pc);
-}
-
 static void emit_endf(struct function *fn) {
 	membuff_add_string(&fn->body, "Lraise_error:\n");
 	membuff_add_string(&fn->body,
@@ -1294,18 +1257,21 @@ static void emit_op_newtable(struct function *fn, int A, int B, int C, int pc) {
 	emit_reg(fn, "ra", A);
 	membuff_add_fstring(&fn->body, "raviV_op_newtable(L, ci, ra, %d, %d);\n", B,
 		C);
+	membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
 static void emit_op_newarrayint(struct function *fn, int A, int pc) {
   (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "raviV_op_newarrayint(L, ci, ra);\n");
+	membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
 static void emit_op_newarrayfloat(struct function *fn, int A, int pc) {
   (void)pc;
 	emit_reg(fn, "ra", A);
 	membuff_add_string(&fn->body, "raviV_op_newarrayfloat(L, ci, ra);\n");
+	membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
 // Default implementation for binary ops
@@ -1551,17 +1517,20 @@ static void emit_op_concat(struct function *fn, int A, int B, int C, int pc) {
   (void)pc;
 	membuff_add_fstring(&fn->body, "raviV_op_concat(L, ci, %d, %d, %d);\n", A, B,
 		C);
+	membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
 static void emit_op_closure(struct function *fn, int A, int Bx, int pc) {
   (void)pc;
 	membuff_add_fstring(&fn->body, "raviV_op_closure(L, ci, cl, %d, %d);\n", A,
 		Bx);
+	membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
 static void emit_op_vararg(struct function *fn, int A, int B, int pc) {
   (void)pc;
 	membuff_add_fstring(&fn->body, "raviV_op_vararg(L, ci, cl, %d, %d);\n", A, B);
+	membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
 static void emit_op_not(struct function *fn, int A, int B, int pc) {
@@ -1577,6 +1546,39 @@ static void emit_op_setupval(struct function *fn, int A, int B, int pc, const ch
 	emit_reg(fn, "ra", A);
 	membuff_add_fstring(&fn->body, "raviV_op_setupval%s(L, cl, ra, %d);\n", suffix, B);
 }
+
+static void emit_op_iforprep(struct function *fn, int A, int pc, int step_one,
+	int pc1) {
+	(void)pc1;
+	if (!fn->locals[A]) {
+		fn->locals[A] =
+			1;  // Lua can reuse the same forloop vars if loop isn't nested
+		// Although in IFOR instructions we do not need all the vars below
+		// it can happen that the same slot is used by normal FOR loop
+		// The optimizer should get rid of unused vars anyway
+		membuff_add_fstring(&fn->prologue, "lua_Integer i_%d = 0;\n", A);
+		membuff_add_fstring(&fn->prologue, "lua_Integer limit_%d = 0;\n", A);
+		membuff_add_fstring(&fn->prologue, "lua_Integer step_%d = 0;\n", A);
+		membuff_add_fstring(&fn->prologue, "lua_Number ninit_%d = 0.0;\n", A);
+		membuff_add_fstring(&fn->prologue, "lua_Number nlimit_%d = 0.0;\n", A);
+		membuff_add_fstring(&fn->prologue, "lua_Number nstep_%d = 0.0;\n", A);
+		membuff_add_fstring(&fn->prologue, "int intloop_%d = 0;\n", A);
+	}
+	emit_reg(fn, "ra", A);
+	membuff_add_fstring(&fn->body, "i_%d = ivalue(ra);\n", A);
+	membuff_add_fstring(&fn->body, "ra = R(%d);\n", A + 1);
+	membuff_add_fstring(&fn->body, "limit_%d = ivalue(ra);\n", A);
+	if (!step_one) {
+		membuff_add_fstring(&fn->body, "ra = R(%d);\n", A + 2);
+		membuff_add_fstring(&fn->body, "step_%d = ivalue(ra);\n", A);
+		membuff_add_fstring(&fn->body, "i_%d -= step_%d;\n", A, A);
+	}
+	else {
+		membuff_add_fstring(&fn->body, "i_%d -= 1;\n", A);
+	}
+	membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", pc);
+}
+
 static void emit_op_forprep(struct function *fn, int A, int pc,
 	int pc1)
 {
@@ -1584,7 +1586,7 @@ static void emit_op_forprep(struct function *fn, int A, int pc,
 	if (!fn->locals[A]) {
 		fn->locals[A] =
 			1;  // Lua can reuse the same forloop vars if loop isn't nested
-		membuff_add_fstring(&fn->prologue, "lua_Integer init_%d = 0;\n", A);
+		membuff_add_fstring(&fn->prologue, "lua_Integer i_%d = 0;\n", A);
 		membuff_add_fstring(&fn->prologue, "lua_Integer limit_%d = 0;\n", A);
 		membuff_add_fstring(&fn->prologue, "lua_Integer step_%d = 0;\n", A);
 		membuff_add_fstring(&fn->prologue, "lua_Number ninit_%d = 0.0;\n", A);
@@ -1596,9 +1598,9 @@ static void emit_op_forprep(struct function *fn, int A, int pc,
 	membuff_add_string(&fn->body, "rb = ra+1; /*limit*/\n");
 	membuff_add_string(&fn->body, "rc = ra+2; /*step*/\n");
 	membuff_add_fstring(&fn->body, "if (ttisinteger(ra) && ttisinteger(rc) && luaV_forlimit(rb, &limit_%d, ivalue(rc), &result)) {\n", A);
-	membuff_add_fstring(&fn->body, " init_%d = (result ? 0 : ivalue(ra));\n", A);
+	membuff_add_fstring(&fn->body, " i_%d = (result ? 0 : ivalue(ra));\n", A);
 	membuff_add_fstring(&fn->body, " step_%d = ivalue(rc);\n", A);
-	membuff_add_fstring(&fn->body, " init_%d -= step_%d;\n", A, A);
+	membuff_add_fstring(&fn->body, " i_%d -= step_%d;\n", A, A);
 	membuff_add_fstring(&fn->body, " intloop_%d = 1;\n", A);
 	membuff_add_string(&fn->body, "}\n");
 	membuff_add_string(&fn->body, "else {\n");
@@ -1631,13 +1633,27 @@ static void emit_op_forprep(struct function *fn, int A, int pc,
 	membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", pc);
 }
 
+static void emit_op_iforloop(struct function *fn, int A, int pc, int step_one,
+	int pc1) {
+	(void)pc1;
+	if (!step_one) { membuff_add_fstring(&fn->body, "i_%d += step_%d;\n", A, A); }
+	else {
+		membuff_add_fstring(&fn->body, "i_%d += 1;\n", A);
+	}
+	membuff_add_fstring(&fn->body,
+		"if (i_%d <= limit_%d) {\n  ra = R(%d);\n  setivalue(ra, "
+		"i_%d);\n  goto Lbc_%d;\n}\n",
+		A, A, A + 3, A, pc);
+}
+
+
 static void emit_op_forloop(struct function *fn, int A, int pc,
 	int pc1) {
   (void)pc1;
 	membuff_add_fstring(&fn->body, "if (intloop_%d) {\n", A);
-	membuff_add_fstring(&fn->body,     " init_%d += step_%d;\n", A, A);
-	membuff_add_fstring(&fn->body,     "  if ((0 < step_%d) ? (init_%d <= limit_%d) : (limit_%d <= init_%d)) {\n", A, A, A, A, A);
-	membuff_add_fstring(&fn->body,     "   ra = R(%d);\n   setivalue(ra, init_%d);\n   goto Lbc_%d;\n", A + 3, A, pc);
+	membuff_add_fstring(&fn->body,     " i_%d += step_%d;\n", A, A);
+	membuff_add_fstring(&fn->body,     "  if ((0 < step_%d) ? (i_%d <= limit_%d) : (limit_%d <= i_%d)) {\n", A, A, A, A, A);
+	membuff_add_fstring(&fn->body,     "   ra = R(%d);\n   setivalue(ra, i_%d);\n   goto Lbc_%d;\n", A + 3, A, pc);
 	membuff_add_string(&fn->body,      "  }\n");
 	membuff_add_string(&fn->body,      "}\n");
 	membuff_add_string(&fn->body,      "else {\n");
