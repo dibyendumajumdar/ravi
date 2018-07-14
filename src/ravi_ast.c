@@ -1346,8 +1346,9 @@ static struct ast_node *parse_if_cond_then_block(struct parser_state *parser, in
 			end_scope(parser);
 			return test_then_block;  /* and that is it */
 		}
-		else  /* must skip over 'then' part if condition is false */
+		else {/* must skip over 'then' part if condition is false */
 			;
+		}
 	}
 	else {  /* regular case (not goto/break) */
 		test_then_block->test_then_block.scope = new_scope(parser);
@@ -1398,7 +1399,6 @@ static struct ast_node *parse_local_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* stat -> LOCAL NAME {',' NAME} ['=' explist] */
 	int nvars = 0;
-	int nexps;
 	/* RAVI while declaring locals we need to gather the types
 	* so that we can check any assignments later on.
 	* TODO we may be able to use register_typeinfo() here
@@ -1420,9 +1420,11 @@ static struct ast_node *parse_local_statement(struct parser_state *parser) {
 			luaX_syntaxerror(ls, "too many local variables");
 	} while (testnext(ls, ','));
 	if (testnext(ls, '='))
-		nexps = parse_expression_list(parser, &node->local_stmt.exprlist);
+		/*nexps = */
+		parse_expression_list(parser, &node->local_stmt.exprlist);
 	else {
-		nexps = 0;
+		/* nexps = 0; */
+		;
 	}
 	return node;
 }
@@ -1490,11 +1492,11 @@ static struct ast_node *parse_return_statement(struct parser_state *parser) {
 	struct ast_node *return_stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	return_stmt->type = AST_RETURN_STMT;
 	return_stmt->return_stmt.exprlist = NULL;
-	int first, nret; /* registers with returned values */
 	if (block_follow(ls, 1) || ls->t.token == ';')
-		first = nret = 0;  /* return no values */
+		/* nret = 0*/ ;  /* return no values */
 	else {
-		nret = parse_expression_list(parser, &return_stmt->return_stmt.exprlist);  /* optional return values */
+		/*nret = */
+		parse_expression_list(parser, &return_stmt->return_stmt.exprlist);  /* optional return values */
 	}
 	testnext(ls, ';');  /* skip optional semicolon */
 	return return_stmt;

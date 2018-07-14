@@ -1274,8 +1274,8 @@ static void parlist (LexState *ls) {
   for (int i = 0; i < f->numparams; i++) {
     TString *usertype = NULL;
     ravitype_t tt = raviY_get_register_typeinfo(fs, i, &usertype);
-    lua_assert(i < nparams && vars[i] == tt || 1);
-    lua_assert(i < nparams && usertype == typenames[i] || 1);
+    lua_assert((i < nparams && vars[i] == (int)tt) || 1);
+    lua_assert((i < nparams && usertype == typenames[i]) || 1);
     DEBUG_VARS(raviY_printf(fs, "Parameter [%d] = %v\n", i + 1, getlocvar(fs, i)));
     /* do we need to convert ? */
     ravi_code_typecoersion(ls, i, tt, usertype);

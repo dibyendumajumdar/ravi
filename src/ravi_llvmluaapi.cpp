@@ -808,6 +808,7 @@ static int module_compile_C(lua_State *L) {
   }
 #else
   (void)mh;
+  (void)codebuffer;
   lua_pushboolean(L, false);
 #endif
   return 1;

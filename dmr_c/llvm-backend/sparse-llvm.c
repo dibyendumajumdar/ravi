@@ -145,11 +145,11 @@ static LLVMTypeRef sym_array_type(struct dmr_C *C, LLVMModuleRef module, struct 
 	base_type = sym->ctype.base_type;
 	/* empty struct is undefined [6.7.2.1(8)] */
 	unsigned int array_bit_size = sym->bit_size;
-	if (array_bit_size == 0 || array_bit_size == -1) {
+	if (array_bit_size == 0 || (int)array_bit_size == -1) {
 		if (sym_node != NULL)
 			array_bit_size = sym_node->bit_size;
 	}
-	if (base_type->bit_size == 0 || base_type->bit_size == -1 || array_bit_size == 0 || array_bit_size == -1) {
+	if (base_type->bit_size == 0 || base_type->bit_size == -1 || array_bit_size == 0 || (int)array_bit_size == -1) {
 		fprintf(stderr, "array size can not be determined\n");
 		return NULL;
 	}
@@ -169,7 +169,7 @@ static LLVMTypeRef sym_struct_type(struct dmr_C *C, LLVMModuleRef module, struct
 	char buffer[256];
 	LLVMTypeRef ret;
 	unsigned nr = 0;
-
+	(void)sym_node;
 	snprintf(buffer, sizeof(buffer), "struct.%s", sym->ident ? sym->ident->name : "anno");
 	ret = LLVMStructCreateNamed(LLVMGetModuleContext(module), buffer);
 	/* set ->aux to avoid recursion */
@@ -199,7 +199,7 @@ static LLVMTypeRef sym_union_type(struct dmr_C *C, LLVMModuleRef module, struct 
 	LLVMTypeRef elem_types[1];
 	char buffer[256];
 	LLVMTypeRef type;
-
+	(void)C; (void)sym_node;
 	snprintf(buffer, sizeof(buffer), "union.%s", sym->ident ? sym->ident->name : "anno");
 	type = LLVMStructCreateNamed(LLVMGetModuleContext(module), buffer);
 	/* set ->aux to avoid recursion */
@@ -266,7 +266,7 @@ static LLVMTypeRef int_type_by_size(LLVMModuleRef module, int size)
 static LLVMTypeRef sym_basetype_type(struct dmr_C *C, LLVMModuleRef module, struct symbol *sym, struct symbol *sym_node)
 {
 	LLVMTypeRef ret = NULL;
-
+	(void)sym_node;
 	if (dmrC_is_float_type(C->S, sym)) {
 		switch (sym->bit_size) {
 		case 32:
@@ -366,17 +366,17 @@ static LLVMTypeRef insn_symbol_type(struct dmr_C *C, LLVMModuleRef module, struc
 
 static LLVMLinkage data_linkage(struct dmr_C *C, struct symbol *sym)
 {
+	(void)C;
 	if (sym->ctype.modifiers & MOD_STATIC)
 		return LLVMPrivateLinkage;
-
 	return LLVMExternalLinkage;
 }
 
 static LLVMLinkage function_linkage(struct dmr_C *C, struct symbol *sym)
 {
+	(void)C;
 	if (sym->ctype.modifiers & MOD_STATIC)
 		return LLVMInternalLinkage;
-
 	return LLVMExternalLinkage;
 }
 
@@ -386,7 +386,7 @@ static LLVMValueRef build_cast(struct dmr_C *C, struct function *fn, LLVMValueRe
 	LLVMTypeKind valkind = LLVMGetTypeKind(valtype);
 	LLVMTypeKind dkind = LLVMGetTypeKind(dtype);
 	LLVMOpcode op;
-
+	(void)C;
 	switch (dkind) {
 	case LLVMIntegerTypeKind: {
 		switch (valkind) {
@@ -470,6 +470,7 @@ static LLVMValueRef build_cast(struct dmr_C *C, struct function *fn, LLVMValueRe
 
 static const char * pseudo_name(struct dmr_C *C, pseudo_t pseudo, char *buf, size_t len)
 {
+	(void)C;
 	buf[0] = '\0';
 	switch (pseudo->type) {
 	case PSEUDO_REG:
@@ -1117,6 +1118,7 @@ static LLVMValueRef output_op_store(struct dmr_C *C, struct function *fn, struct
 
 static LLVMValueRef bool_value(struct dmr_C *C, struct function *fn, LLVMValueRef value)
 {
+	(void)C;
 	LLVMTypeRef type = LLVMTypeOf(value);
 	if (type != LLVMInt1TypeInContext(LLVMGetModuleContext(fn->module))) {
 		LLVMTypeKind kind = LLVMGetTypeKind(type);
@@ -1157,6 +1159,7 @@ static LLVMValueRef output_op_cbr(struct dmr_C *C, struct function *fn, struct i
 
 static LLVMValueRef output_op_br(struct dmr_C *C, struct function *fn, struct instruction *br)
 {
+	(void)C;
 	return LLVMBuildBr(fn->builder, br->bb_true->priv);
 }
 
@@ -1335,7 +1338,7 @@ static LLVMValueRef output_op_phisrc(struct dmr_C *C, struct function *fn, struc
 static LLVMValueRef output_op_phi(struct dmr_C *C, struct function *fn, struct instruction *insn)
 {
 	LLVMValueRef load = insn->target->priv;
-
+	(void)C;
 	assert(load);
 	if (!load)
 		return NULL;
