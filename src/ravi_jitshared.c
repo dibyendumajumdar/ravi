@@ -898,9 +898,11 @@ static void emit_op_arithslow(struct function *fn, int A, int B, int C, OpCode o
   membuff_add_string(&fn->body, "if (ttisinteger(rb) && ttisinteger(rc)) {\n");
   membuff_add_string(&fn->body, " i = ivalue(rb);\n");
   membuff_add_string(&fn->body, " ic = ivalue(rc);\n");
-  membuff_add_fstring(&fn->body, " setivalue(ra, intop(%s, ib, ic));\n", opchar);
-  membuff_add_string(&fn->body, "} else if (tonumber(rb, &b) && tonumber(rc, &nc)) {\n");
-  membuff_add_fstring(&fn->body, " setfltvalue(ra, %s(L, nb, nc));\n", numop);
+  membuff_add_fstring(&fn->body, " setivalue(ra, (i %s ic));\n", opchar);
+  membuff_add_string(&fn->body, "} else if (ttisfloat(rb) && ttisfloat(rc)) {\n");
+  membuff_add_string(&fn->body, " n = fltvalue(rb);\n");
+  membuff_add_string(&fn->body, " nc = fltvalue(rc);\n");
+  membuff_add_fstring(&fn->body, " setfltvalue(ra, (n %s nc));\n", opchar);
   membuff_add_string(&fn->body, "} else {\n");
   membuff_add_fstring(&fn->body, " luaT_trybinTM(L, rb, rc, ra, %s);\n", tm);
   membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
@@ -1532,14 +1534,15 @@ static void emit_op_forprep(struct function *fn, int A, int pc, int pc1) {
   membuff_add_string(&fn->body, "rb = ra+1; /*limit*/\n");
   membuff_add_string(&fn->body, "rc = ra+2; /*step*/\n");
   membuff_add_fstring(
-      &fn->body, "if (ttisinteger(ra) && ttisinteger(rc) && luaV_forlimit(rb, &limit_%d, ivalue(rc), &result)) {\n", A);
-  membuff_add_fstring(&fn->body, " i_%d = (result ? 0 : ivalue(ra));\n", A);
+      &fn->body, "if (ttisinteger(ra) && ttisinteger(rc) && ttisinteger(rb)) {\n", A);
+  membuff_add_fstring(&fn->body, " limit_%d = ivalue(rb);\n", A);
+  membuff_add_fstring(&fn->body, " i_%d = ivalue(ra);\n", A);
   membuff_add_fstring(&fn->body, " step_%d = ivalue(rc);\n", A);
   membuff_add_fstring(&fn->body, " i_%d -= step_%d;\n", A, A);
   membuff_add_fstring(&fn->body, " intloop_%d = 1;\n", A);
   membuff_add_string(&fn->body, "}\n");
   membuff_add_string(&fn->body, "else {\n");
-  membuff_add_fstring(&fn->body, " if (!tonumber(rb, &nlimit_%d)) {\n", A);
+  membuff_add_fstring(&fn->body, " if (!ttisfloat(rb)) {\n", A);
 #if GOTO_ON_ERROR
   membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_limit_must_be_number);
   membuff_add_string(&fn->body, "  goto Lraise_error;\n");
@@ -1547,7 +1550,7 @@ static void emit_op_forprep(struct function *fn, int A, int pc, int pc1) {
   membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_for_limit_must_be_number);
 #endif
   membuff_add_string(&fn->body, " }\n");
-  membuff_add_fstring(&fn->body, " if (!tonumber(rc, &nstep_%d)) {\n", A);
+  membuff_add_fstring(&fn->body, " if (!ttisnumber(rc)) {\n", A);
 #if GOTO_ON_ERROR
   membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_step_must_be_number);
   membuff_add_string(&fn->body, "  goto Lraise_error;\n");
@@ -1555,7 +1558,7 @@ static void emit_op_forprep(struct function *fn, int A, int pc, int pc1) {
   membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_for_step_must_be_number);
 #endif
   membuff_add_string(&fn->body, " }\n");
-  membuff_add_fstring(&fn->body, " if (!tonumber(ra, &ninit_%d)) {\n", A);
+  membuff_add_fstring(&fn->body, " if (!ttisfloat(ra)) {\n", A);
 #if GOTO_ON_ERROR
   membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_initial_value_must_be_number);
   membuff_add_string(&fn->body, "  goto Lraise_error;\n");
@@ -1563,7 +1566,11 @@ static void emit_op_forprep(struct function *fn, int A, int pc, int pc1) {
   membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_for_initial_value_must_be_number);
 #endif
   membuff_add_string(&fn->body, " }\n");
+  membuff_add_fstring(&fn->body, " nlimit_%d = fltvalue(rb);\n", A);
+  membuff_add_fstring(&fn->body, " ninit_%d = fltvalue(ra);\n", A);
+  membuff_add_fstring(&fn->body, " nstep_%d = ttisfloat(rc) ? fltvalue(rc) : (lua_Number)ivalue(rc);\n", A);
   membuff_add_fstring(&fn->body, " ninit_%d -= nstep_%d;\n", A, A);
+  membuff_add_fstring(&fn->body, " intloop_%d = 0;\n", A);
   membuff_add_string(&fn->body, "}\n");
   membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", pc);
 }

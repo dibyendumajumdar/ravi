@@ -33,21 +33,24 @@
 #include "lstate.h"
 #include "lua.h"
 
-static const char *errortext[] = {
-    "integer expected",
-    "number expected",
-    "integer[] expected",
-    "number[] expected",
-    "table expected",
-    "upvalue of integer type, cannot be set to non integer value",
-    "upvalue of number type, cannot be set to non number value",
-    "upvalue of integer[] type, cannot be set to non integer[] value",
-    "upvalue of number[] type, cannot be set to non number[] value",
-    "upvalue of table type, cannot be set to non table value",
-    NULL};
+static const char *errortext[] = {"integer expected",
+                                  "number expected",
+                                  "integer[] expected",
+                                  "number[] expected",
+                                  "table expected",
+                                  "upvalue of integer type, cannot be set to non integer value",
+                                  "upvalue of number type, cannot be set to non number value",
+                                  "upvalue of integer[] type, cannot be set to non integer[] value",
+                                  "upvalue of number[] type, cannot be set to non number[] value",
+                                  "upvalue of table type, cannot be set to non table value",
+                                  "for llimit must be a number",
+                                  "for step must be a number",
+                                  "for initial value must be a number",
+                                  "array index is out of bounds",
+                                  NULL};
 
 static void raise_error(lua_State *L, int errorcode) {
-  assert(errorcode >= 0 && errorcode <= Error_upval_needs_table);
+  assert(errorcode >= 0 && errorcode <= Error_array_out_of_bounds);
   luaG_runerror(L, errortext[errorcode]);
 }
 
