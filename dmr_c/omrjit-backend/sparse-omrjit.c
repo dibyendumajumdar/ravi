@@ -552,9 +552,12 @@ static JIT_SymbolRef get_sym_value(struct dmr_C *C, struct function *fn, pseudo_
 		const char *name = dmrC_show_ident(C, sym->ident);
 		struct OMRType *type = get_symnode_type(C, fn, sym);
 		if (type->type == RT_FUNCTION) {
-			dmrC_sparse_error(C, sym->pos, "unsupported symbol reference for '%s'\n", name);
-			dmrC_debug_symbol(C, sym);
-			return NULL;
+			result = JIT_GetFunctionSymbol(fn->injector, name);
+			if (!result) {
+				dmrC_sparse_error(C, sym->pos, "unsupported symbol reference for '%s'\n", name);
+				dmrC_debug_symbol(C, sym);
+				return NULL;
+			}
 		} else if (dmrC_is_extern(sym) || dmrC_is_toplevel(sym)) {
 			dmrC_sparse_error(C, sym->pos, "unsupported symbol reference for '%s'\n", name);
 			dmrC_debug_symbol(C, sym);
@@ -1544,17 +1547,24 @@ static JIT_NodeRef output_op_call(struct dmr_C *C, struct function *fn, struct i
 	}
 	END_FOR_EACH_PTR(arg);
 
-	if (insn->func->type != PSEUDO_SYM) {
-		return NULL;
+	if (insn->func->type == PSEUDO_SYM) {
+		struct symbol *sym = insn->func->sym;
+		const char *name = dmrC_show_ident(C, sym->ident);
+		struct OMRType *type = get_symnode_type(C, fn, sym);
+		if (type->type != RT_FUNCTION) {
+			return NULL;
+		}
+		target = JIT_Call(fn->injector, name, i, args);
 	}
-
-	struct symbol *sym = insn->func->sym;
-	const char *name = dmrC_show_ident(C, sym->ident);
-	struct OMRType *type = get_symnode_type(C, fn, sym);
-	if (type->type != RT_FUNCTION) {
-		return NULL;
+	else {
+		JIT_NodeRef funcptr = pseudo_to_value(C, fn, insn->type, insn->func);
+		if (funcptr == NULL || JIT_GetNodeType(funcptr) != JIT_Address) {
+			return NULL;
+		}
+		struct OMRType *function_type = type_to_OMRtype(C, fn, ftype, NULL);
+		JIT_Type jit_return_type = map_OMRtype(function_type->return_type);
+		target = JIT_IndirectCall(fn->injector, funcptr, jit_return_type, i, args);
 	}
-	target = JIT_Call(fn->injector, name, i, args);
 	if (JIT_GetNodeType(target) != JIT_NoType)
 		insn->target->priv = target;
 	return target;
@@ -2109,6 +2119,8 @@ static bool output_fn(struct dmr_C *C, JIT_ContextRef module, struct entrypoint 
 	END_FOR_EACH_PTR(arg);
 
 	name = dmrC_show_ident(C, sym->ident);
+	char function_name[128];
+	snprintf(function_name, sizeof function_name, "%s", name);
 
 	struct OMRType *function_type = type_to_OMRtype(C, &function, ret_type, NULL);
 	function.return_type = check_supported_returntype(C, function_type);
@@ -2120,7 +2132,7 @@ static bool output_fn(struct dmr_C *C, JIT_ContextRef module, struct entrypoint 
 	JIT_Type freturn = map_OMRtype(function.return_type);
 
 	function.builder =
-	    JIT_CreateFunctionBuilder(module, name, freturn, nr_args, argtypes, JIT_ILBuilderImpl, &function);
+	    JIT_CreateFunctionBuilder(module, function_name, freturn, nr_args, argtypes, JIT_ILBuilderImpl, &function);
 
 	void *p = JIT_Compile(function.builder);
 	if (p)
