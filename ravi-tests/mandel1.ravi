@@ -45,7 +45,7 @@ local function domandel(pfunc)
 end
 
 if ravi.jit() then
-  assert(ravi.compile(domandel))
+  assert(ravi.compile(domandel, {omitArrayGetRangeCheck=1}))
 end
 
 t1 = os.clock()

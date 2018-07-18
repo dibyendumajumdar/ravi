@@ -707,6 +707,7 @@ struct function {
 	unsigned char *locals;
 	membuff_t prologue;
 	membuff_t body;
+	struct ravi_compile_options_t *options;
 };
 
 // Identify Ravi bytecode instructions that are jump
@@ -761,7 +762,6 @@ static void emit_reg_or_k(struct function *fn, const char *name, int regnum) {
 }
 
 static void emit_gettable_ai(struct function *fn, int A, int B, int C, bool omitArrayGetRangeCheck, int pc) {
-  (void)omitArrayGetRangeCheck;
   (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
@@ -769,20 +769,21 @@ static void emit_gettable_ai(struct function *fn, int A, int B, int C, bool omit
   membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rc));\n");
   membuff_add_string(&fn->body, "t = hvalue(rb);");
   membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->ravi_array.data;\n");
-  membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+  if (!omitArrayGetRangeCheck) { membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n"); }
   membuff_add_string(&fn->body, " setivalue(ra, iptr[ukey]);\n");
-  membuff_add_string(&fn->body, "} else {\n");
+  if (!omitArrayGetRangeCheck) {
+    membuff_add_string(&fn->body, "} else {\n");
 #if GOTO_ON_ERROR
-  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_array_out_of_bounds);
-  membuff_add_string(&fn->body, " goto Lraise_error;\n");
+    membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_array_out_of_bounds);
+    membuff_add_string(&fn->body, " goto Lraise_error;\n");
 #else
-  membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_array_out_of_bounds);
+    membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_array_out_of_bounds);
 #endif
-  membuff_add_string(&fn->body, "}\n");
+    membuff_add_string(&fn->body, "}\n");
+  }
 }
 
 static void emit_gettable_af(struct function *fn, int A, int B, int C, bool omitArrayGetRangeCheck, int pc) {
-  (void)omitArrayGetRangeCheck;
   (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
@@ -790,16 +791,18 @@ static void emit_gettable_af(struct function *fn, int A, int B, int C, bool omit
   membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rc));\n");
   membuff_add_string(&fn->body, "t = hvalue(rb);");
   membuff_add_string(&fn->body, "nptr = (lua_Number *)t->ravi_array.data;\n");
-  membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+  if (!omitArrayGetRangeCheck) { membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n"); }
   membuff_add_string(&fn->body, " setfltvalue(ra, nptr[ukey]);\n");
-  membuff_add_string(&fn->body, "} else {\n");
+  if (!omitArrayGetRangeCheck) {
+    membuff_add_string(&fn->body, "} else {\n");
 #if GOTO_ON_ERROR
-  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_array_out_of_bounds);
-  membuff_add_string(&fn->body, " goto Lraise_error;\n");
+    membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_array_out_of_bounds);
+    membuff_add_string(&fn->body, " goto Lraise_error;\n");
 #else
-  membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_array_out_of_bounds);
+    membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_array_out_of_bounds);
 #endif
-  membuff_add_string(&fn->body, "}\n");
+    membuff_add_string(&fn->body, "}\n");
+  }
 }
 
 static void emit_settable_aii(struct function *fn, int A, int B, int C, bool known_int, int pc) {
@@ -1085,10 +1088,11 @@ static void emit_endf(struct function *fn) {
   membuff_add_string(&fn->body, "}\n");
 }
 
-static void initfn(struct function *fn, struct lua_State *L, struct Proto *p, const char *fname, bool body_only) {
+static void initfn(struct function *fn, struct lua_State *L, struct Proto *p, const char *fname, struct ravi_compile_options_t *options) {
   fn->L = L;
   fn->p = p;
   fn->var = 0;
+  fn->options = options;
   snprintf(fn->fname, sizeof fn->fname, "%s", fname);
   fn->jmps = calloc(p->sizecode, sizeof fn->jmps[0]);
   if (p->sizelocvars)
@@ -1097,7 +1101,8 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p, co
     fn->locals = NULL;
   membuff_init(&fn->prologue, strlen(Lua_header) + 4096);
   membuff_init(&fn->body, 4096);
-  if (!body_only) membuff_add_string(&fn->prologue, Lua_header);
+  if (!(options->codegen_type == RAVI_CODEGEN_FUNCTION_ONLY)) 
+	  membuff_add_string(&fn->prologue, Lua_header);
   membuff_add_fstring(&fn->prologue, "extern int %s(lua_State *L);\n", fn->fname);
   membuff_add_fstring(&fn->prologue, "int %s(lua_State *L) {\n", fn->fname);
   membuff_add_string(&fn->prologue, "int error_code = 0;\n");
@@ -1648,7 +1653,7 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		return false;
 
 	struct function fn;
-	initfn(&fn, L, p, fname, options->codegen_type == RAVI_CODEGEN_FUNCTION_ONLY);
+	initfn(&fn, L, p, fname, options);
 	scan_jump_targets(&fn);
 
 	const Instruction *code = p->code;
@@ -1799,12 +1804,12 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		case OP_RAVI_GETTABLE_AI: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_gettable_ai(&fn, A, B, C, false, pc);
+			emit_gettable_ai(&fn, A, B, C, options->omit_array_get_range_check, pc);
 		} break;
 		case OP_RAVI_GETTABLE_AF: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_gettable_af(&fn, A, B, C, false, pc);
+			emit_gettable_af(&fn, A, B, C, options->omit_array_get_range_check, pc);
 		} break;
 		case OP_RAVI_SETTABLE_SK:
 		case OP_RAVI_SETTABLE_S:
