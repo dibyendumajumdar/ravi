@@ -40,7 +40,11 @@ b) Perform type checking (Ravi enhancement)
 struct lua_symbol_list;
 
 /*
-* Userdata object to hold the abstract syntax tree
+* Userdata object to hold the abstract syntax tree;
+* All memory is held by this object. Memory is freed when 
+* the object is GC collected; or when 
+* ast_container:release() method is called
+* by user.
 */
 struct ast_container {
 	struct allocator ast_node_allocator;
@@ -49,6 +53,7 @@ struct ast_container {
 	struct allocator symbol_allocator;
 	struct ast_node *main_function;
 	struct lua_symbol_list *external_symbols; /* symbols not defined in this chunk */
+        bool killed;	/* flag to check if this is already destroyed */
 };
 
 struct ast_node;
@@ -57,9 +62,10 @@ DECLARE_PTR_LIST(ast_node_list, struct ast_node);
 struct var_type;
 DECLARE_PTR_LIST(var_type_list, struct var_type);
 
+/* Lua type info. We need to support user defined types too which are known by name */
 struct var_type {
 	ravitype_t type_code;
-	const TString *type_name;	/* type name for user defined types; used to lookup metatable in registry */
+	const TString *type_name;	/* type name for user defined types; used to lookup metatable in registry, only set when type_code is RAVI_TUSERDATA */
 };
 
 struct lua_symbol;
@@ -2216,7 +2222,7 @@ static int ast_container_to_string(lua_State *L) {
         return 1;
 }
 
-static struct ast_container * new_ast_container(lua_State *L) {
+static struct ast_container *new_ast_container(lua_State *L) {
         struct ast_container *container =
         (struct ast_container *)lua_newuserdata(L, sizeof(struct ast_container));
         dmrC_allocator_init(&container->ast_node_allocator, "ast nodes", sizeof(struct ast_node), sizeof(double), CHUNK);
@@ -2225,24 +2231,29 @@ static struct ast_container * new_ast_container(lua_State *L) {
         dmrC_allocator_init(&container->symbol_allocator, "symbols", sizeof(struct lua_symbol), sizeof(double), CHUNK);
         container->main_function = NULL;
         container->external_symbols = NULL;
+        container->killed = false;
         raviL_getmetatable(L, AST_type);
         lua_setmetatable(L, -2);
         return container;
 }
 
-/* __gc function for IRBuilderHolder */
+/* __gc function for AST */
 static int collect_ast_container(lua_State *L) {
         struct ast_container *container = check_Ravi_AST(L, 1);
-        dmrC_allocator_destroy(&container->symbol_allocator);
-        dmrC_allocator_destroy(&container->block_scope_allocator);
-        dmrC_allocator_destroy(&container->ast_node_allocator);
-        dmrC_allocator_destroy(&container->ptrlist_allocator);
+        if (!container->killed) {
+        	dmrC_allocator_destroy(&container->symbol_allocator);
+        	dmrC_allocator_destroy(&container->block_scope_allocator);
+        	dmrC_allocator_destroy(&container->ast_node_allocator);
+        	dmrC_allocator_destroy(&container->ptrlist_allocator);
+                container->killed = true;
+        }
         return 0;
 }
 
 
 static const luaL_Reg container_methods[] = {
 	{ "tostring", ast_container_to_string },
+        { "release", collect_ast_container },
 	{ NULL, NULL } };
 
 static const luaL_Reg astlib[] = {
