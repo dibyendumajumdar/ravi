@@ -1,17 +1,28 @@
 /*
-A parser and syntax tree builder for Ravi. This is owrk in progress.
+A parser and syntax tree builder for Ravi. This is work in progress.
 Once ready it will be used to create a new byte code generator for Ravi.
 
-The parser wil perform following actions:
+The parser will perform following actions:
 
 a) Generate syntax tree
 b) Perform type checking (Ravi enhancement)
-
 */
 
 #define LUA_CORE
-
 #include "lprefix.h"
+#include "lua.h"
+
+#include "lcode.h"
+#include "ldo.h"
+#include "lstring.h"
+#include "ltable.h"
+#include "lauxlib.h"
+
+#include "ravi_ast.h"
+#include "ravi_membuf.h"
+
+#include "allocate.h"
+#include "ptrlist.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -20,37 +31,11 @@ b) Perform type checking (Ravi enhancement)
 #include <string.h>
 #include <stdbool.h>
 
-#include "lua.h"
-
-#include "lcode.h"
-#include "ldebug.h"
-#include "ldo.h"
-#include "lfunc.h"
-#include "llex.h"
-#include "lmem.h"
-#include "lobject.h"
-#include "lopcodes.h"
-#include "lparser.h"
-#include "lstate.h"
-#include "lstring.h"
-#include "ltable.h"
-#include "lzio.h"
-#include "ravi_ast.h"
-#include "ravi_membuf.h"
-#include "lauxlib.h"
-#include "allocate.h"
-#include "ptrlist.h"
-
 #define MAXVARS		125 
 
-////////////////////////// AST 
+//////////////////////////
 
-static const char *AST_type = "Ravi.AST";
 
-#define test_Ravi_AST(L, idx) \
-  ((struct ast_container *)raviL_testudata(L, idx, AST_type))
-#define check_Ravi_AST(L, idx) \
-  ((struct ast_container *)raviL_checkudata(L, idx, AST_type))
 
 struct lua_symbol_list;
 
@@ -268,36 +253,13 @@ struct parser_state {
 	struct block_scope *current_scope;
 };
 
+
 static void add_symbol(struct ast_container *container, struct lua_symbol_list **list, struct lua_symbol *sym) {
 	ptrlist_add((struct ptr_list **)list, sym, &container->ptrlist_allocator);
 }
 
 static void add_ast_node(struct ast_container *container, struct ast_node_list **list, struct ast_node *node) {
 	ptrlist_add((struct ptr_list **)list, node, &container->ptrlist_allocator);
-}
-
-static struct ast_container * new_ast_container(lua_State *L) {
-	struct ast_container *container =
-		(struct ast_container *)lua_newuserdata(L, sizeof(struct ast_container));
-	dmrC_allocator_init(&container->ast_node_allocator, "ast nodes", sizeof(struct ast_node), sizeof(double), CHUNK);
-	dmrC_allocator_init(&container->ptrlist_allocator, "ptrlists", sizeof(struct ptr_list), sizeof(double), CHUNK);
-	dmrC_allocator_init(&container->block_scope_allocator, "block scopes", sizeof(struct block_scope), sizeof(double), CHUNK);
-	dmrC_allocator_init(&container->symbol_allocator, "symbols", sizeof(struct lua_symbol), sizeof(double), CHUNK);
-	container->main_function = NULL;
-	container->external_symbols = NULL;
-	raviL_getmetatable(L, AST_type);
-	lua_setmetatable(L, -2);
-	return container;
-}
-
-/* __gc function for IRBuilderHolder */
-static int collect_ast_container(lua_State *L) {
-	struct ast_container *container = check_Ravi_AST(L, 1);
-	dmrC_allocator_destroy(&container->symbol_allocator);
-	dmrC_allocator_destroy(&container->block_scope_allocator);
-	dmrC_allocator_destroy(&container->ast_node_allocator);
-	dmrC_allocator_destroy(&container->ptrlist_allocator);
-	return 0;
 }
 
 /* forward declarations */
@@ -309,6 +271,7 @@ static struct block_scope *new_scope(struct parser_state *parser);
 static void end_scope(struct parser_state *parser);
 static struct ast_node *new_literal_expression(struct parser_state *parser, ravitype_t type);
 static struct ast_node *generate_label(struct parser_state *parser, TString *label);
+static struct ast_container * new_ast_container(lua_State *L);
 
 static l_noret error_expected(LexState *ls, int token) {
 	luaX_syntaxerror(ls,
@@ -2057,17 +2020,6 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level)
 	}
 }
 
-/* Converts the AST to a string representation */
-static int ast_container_to_string(lua_State *L) {
-	struct ast_container *container = check_Ravi_AST(L, 1);
-	membuff_t mbuf;
-	membuff_init(&mbuf, 1024);
-	print_ast_node(&mbuf, container->main_function, 0);
-	lua_pushstring(L, mbuf.buf);
-	membuff_free(&mbuf);
-	return 1;
-}
-
 /*
 ** Parse the given source 'chunk' and build an abstract
 ** syntax tree; return 0 on success / non-zero return code on
@@ -2243,6 +2195,49 @@ static int build_ast(lua_State *L) {
 		status = build_ast_from_reader(L, generic_reader, NULL, chunkname, mode);
 	}
 	return status == 0 ? 1 : 0;
+}
+
+
+static const char *AST_type = "Ravi.AST";
+
+#define test_Ravi_AST(L, idx) \
+((struct ast_container *)raviL_testudata(L, idx, AST_type))
+#define check_Ravi_AST(L, idx) \
+((struct ast_container *)raviL_checkudata(L, idx, AST_type))
+
+/* Converts the AST to a string representation */
+static int ast_container_to_string(lua_State *L) {
+        struct ast_container *container = check_Ravi_AST(L, 1);
+        membuff_t mbuf;
+        membuff_init(&mbuf, 1024);
+        print_ast_node(&mbuf, container->main_function, 0);
+        lua_pushstring(L, mbuf.buf);
+        membuff_free(&mbuf);
+        return 1;
+}
+
+static struct ast_container * new_ast_container(lua_State *L) {
+        struct ast_container *container =
+        (struct ast_container *)lua_newuserdata(L, sizeof(struct ast_container));
+        dmrC_allocator_init(&container->ast_node_allocator, "ast nodes", sizeof(struct ast_node), sizeof(double), CHUNK);
+        dmrC_allocator_init(&container->ptrlist_allocator, "ptrlists", sizeof(struct ptr_list), sizeof(double), CHUNK);
+        dmrC_allocator_init(&container->block_scope_allocator, "block scopes", sizeof(struct block_scope), sizeof(double), CHUNK);
+        dmrC_allocator_init(&container->symbol_allocator, "symbols", sizeof(struct lua_symbol), sizeof(double), CHUNK);
+        container->main_function = NULL;
+        container->external_symbols = NULL;
+        raviL_getmetatable(L, AST_type);
+        lua_setmetatable(L, -2);
+        return container;
+}
+
+/* __gc function for IRBuilderHolder */
+static int collect_ast_container(lua_State *L) {
+        struct ast_container *container = check_Ravi_AST(L, 1);
+        dmrC_allocator_destroy(&container->symbol_allocator);
+        dmrC_allocator_destroy(&container->block_scope_allocator);
+        dmrC_allocator_destroy(&container->ast_node_allocator);
+        dmrC_allocator_destroy(&container->ptrlist_allocator);
+        return 0;
 }
 
 
