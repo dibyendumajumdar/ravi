@@ -563,6 +563,7 @@ static const char Lua_header[] = ""
 "extern void luaD_call (lua_State *L, StkId func, int nResults);\n"
 "extern void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer value);\n"
 "extern void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value);\n"
+"extern int raviV_check_usertype(lua_State *L, TString *name, const TValue *o);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 ;
@@ -679,11 +680,11 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_CLOSURE:
 		case OP_LEN:
 		case OP_NOT:
-		case OP_SETLIST: break;
-#if 0
+		case OP_SETLIST:
 		case OP_RAVI_TOCLOSURE:
 		case OP_RAVI_TOSTRING:
-		case OP_RAVI_TOTYPE:
+		case OP_RAVI_TOTYPE: break;
+#if 0
 		case OP_LOADKX:
 		case OP_UNM:
 		case OP_BNOT:
@@ -1450,6 +1451,48 @@ static void emit_op_totab(struct function *fn, int A, int pc) {
   membuff_add_string(&fn->body, "}\n");
 }
 
+static void emit_op_toclosure(struct function *fn, int A, int pc) {
+  (void)pc;
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "if (!ttisclosure(ra)) {\n");
+#if GOTO_ON_ERROR
+  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_closure_expected);
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
+#else
+  membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_closure_expected);
+#endif
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_tostring(struct function *fn, int A, int pc) {
+  (void)pc;
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "if (!ttisstring(ra)) {\n");
+#if GOTO_ON_ERROR
+  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_string_expected);
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
+#else
+  membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_string_expected);
+#endif
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_totype(struct function *fn, int A, int Bx, int pc) {
+  (void)pc;
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "if (!ttisnil(ra)) {\n");
+  membuff_add_fstring(&fn->body, " rb = K(%d);\n", Bx);
+  membuff_add_string(&fn->body, "  if (!ttisshrstring(rb) || !raviV_check_usertype(L, tsvalue(rb), ra)) {\n");
+#if GOTO_ON_ERROR
+  membuff_add_fstring(&fn->body, "   error_code = %d;\n", Error_type_mismatch);
+  membuff_add_string(&fn->body, "   goto Lraise_error;\n");
+#else
+  membuff_add_fstring(&fn->body, "   raise_error(L, %d);\n", Error_type_mismatch);
+#endif
+  membuff_add_string(&fn->body, "  }\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
 static void emit_op_setlist(struct function *fn, int A, int B, int C, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
@@ -2003,6 +2046,15 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		case OP_RAVI_TOARRAYF: {
 			emit_op_toaf(&fn, A, pc);
 		} break;
+		case OP_RAVI_TOSTRING: {
+			emit_op_tostring(&fn, A, pc);
+		} break;
+		case OP_RAVI_TOCLOSURE: {
+			emit_op_toclosure(&fn, A, pc);
+		} break;
+		case OP_RAVI_TOTYPE: {
+			emit_op_totype(&fn, A, GETARG_Bx(i), pc);
+		} break;  
 		case OP_RAVI_MOVEI: {
 			int B = GETARG_B(i);
 			emit_op_movei(&fn, A, B, pc);

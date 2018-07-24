@@ -143,5 +143,6 @@ LUAI_FUNC void raviV_settable_sskey(lua_State *L, const TValue *t, TValue *key, 
 LUAI_FUNC void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, StkId val);
 LUAI_FUNC void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, StkId val);
 LUAI_FUNC void raviV_op_totype(lua_State *L, TValue *ra, TValue *rb);
+LUAI_FUNC int raviV_check_usertype(lua_State *L, TString *name, const TValue *o);
 
 #endif

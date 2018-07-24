@@ -47,10 +47,13 @@ static const char *errortext[] = {"integer expected",
                                   "for step must be a number",
                                   "for initial value must be a number",
                                   "array index is out of bounds",
+                                  "string expected",
+                                  "closure expected",
+                                  "type mismatch: wrong userdata type",
                                   NULL};
 
 static void raise_error(lua_State *L, int errorcode) {
-  assert(errorcode >= 0 && errorcode <= Error_array_out_of_bounds);
+  assert(errorcode >= 0 && errorcode <= Error_type_mismatch);
   luaG_runerror(L, errortext[errorcode]);
 }
 
@@ -181,6 +184,8 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg4(jit->jit, "raviH_set_int", raviH_set_int, JIT_NoType, JIT_Address, JIT_Address, JIT_Int64, JIT_Int64);
   //"extern void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value);\n"
   register_builtin_arg4(jit->jit, "raviH_set_float", raviH_set_float, JIT_NoType, JIT_Address, JIT_Address, JIT_Int64, JIT_Double);
+  //int raviV_check_usertype(lua_State *L, TString *name, const TValue *o);
+  register_builtin_arg3(jit->jit, "raviV_check_usertype", raviV_check_usertype, JIT_Int32, JIT_Address, JIT_Address, JIT_Address);
 
   G->ravi_state = jit;
   return 0;

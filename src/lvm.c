@@ -1117,7 +1117,7 @@ void luaV_finishOp (lua_State *L) {
     Protect(luaV_finishset(L,t,k,v,slot)); }
 
 
-static int check_usertype(lua_State *L, TString *name, const TValue *o)
+int raviV_check_usertype(lua_State *L, TString *name, const TValue *o)
 {
   Table *mt;
   switch (ttnov(o)) {
@@ -2439,7 +2439,7 @@ int luaV_execute (lua_State *L) {
           if  (!ttisshrstring(rb))
             luaG_runerror(L, "type name must be string");
           TString *key = tsvalue(rb);
-          if (!check_usertype(L, key, ra))
+          if (!raviV_check_usertype(L, key, ra))
             luaG_runerror(L, "type mismatch: expected %s", getstr(key));
         }
         vmbreak;
@@ -2973,7 +2973,7 @@ void raviV_op_totype(lua_State *L, TValue *ra, TValue *rb) {
     return;
   if (!ttisshrstring(rb)) luaG_runerror(L, "type name must be string");
   TString *key = tsvalue(rb);
-  if (!check_usertype(L, key, ra))
+  if (!raviV_check_usertype(L, key, ra))
     luaG_runerror(L, "type mismatch: expected %s", getstr(key));
 }
 

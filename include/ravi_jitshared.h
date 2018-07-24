@@ -89,6 +89,9 @@ enum errorcode {
   Error_for_step_must_be_number,
   Error_for_initial_value_must_be_number,
   Error_array_out_of_bounds,
+  Error_string_expected,
+  Error_closure_expected,
+  Error_type_mismatch,
 };
 
 enum ravi_codegen_type {
