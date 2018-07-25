@@ -683,9 +683,9 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_SETLIST:
 		case OP_RAVI_TOCLOSURE:
 		case OP_RAVI_TOSTRING:
-		case OP_RAVI_TOTYPE: break;
+		case OP_RAVI_TOTYPE:
+		case OP_LOADKX: break;
 #if 0
-		case OP_LOADKX:
 		case OP_UNM:
 		case OP_BNOT:
 #endif
@@ -1718,6 +1718,12 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int Bx = GETARG_Bx(i);
 			emit_op_loadk(&fn, A, Bx, pc);
 		} break;
+		case OP_LOADKX: {
+			Instruction inst = code[++pc];
+			int Ax = GETARG_Ax(inst);
+			lua_assert(GET_OPCODE(inst) == OP_EXTRAARG);
+			emit_op_loadk(&fn, A, Ax, pc - 1);
+		} break;
 		case OP_LOADNIL: {
 			int B = GETARG_B(i);
 			emit_op_loadnil(&fn, A, B, pc);
@@ -1939,6 +1945,16 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int C = GETARG_C(i);
 			emit_op_newtable(&fn, A, B, C, pc);
 		} break;
+#if 0
+    case OP_BNOT: {
+      int B = GETARG_B(i);
+      emit_BNOT(&fn, A, B, pc);
+    } break;
+    case OP_UNM: {
+      int B = GETARG_B(i);
+      emit_UNM(&fn, A, B, pc);
+    } break;
+#endif
 		case OP_ADD:
 		case OP_SUB:
 		case OP_MUL:
