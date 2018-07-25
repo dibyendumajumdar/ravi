@@ -91,13 +91,16 @@ static int ravi_compile_n(lua_State *L) {
     LClosure *l = reinterpret_cast<LClosure *>(p);
     functions[n++] = l->p;
   }
-  ravi_compile_options_t options = {0, 0, RAVI_CODEGEN_NONE};
+  ravi_compile_options_t options = {0, 0, 0, RAVI_CODEGEN_NONE};
   options.manual_request = 1;
   if (lua_istable(L, 2)) {
-    lua_Integer omit_arrayget_rangecheck;
+    lua_Integer ival;
     l_table_get_integer(L, 2, "omitArrayGetRangeCheck",
-                        &omit_arrayget_rangecheck, 0);
-    options.omit_array_get_range_check = (int)omit_arrayget_rangecheck;
+                        &ival, 0);
+    options.omit_array_get_range_check = (int)ival ? 1 : 0;
+	l_table_get_integer(L, 2, "inlineLuaArithmeticOperators",
+		&ival, 0);
+	options.inline_lua_arithmetic_operators = (int)ival ? 1 : 0;
   }
   int result = 0;
   if (n > 0) { result = raviV_compile_n(L, functions, n, &options); }

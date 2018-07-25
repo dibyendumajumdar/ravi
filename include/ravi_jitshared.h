@@ -103,10 +103,13 @@ enum ravi_codegen_type {
 
 struct ravi_compile_options_t {
   /* Is this a manual request? */
-  int manual_request;
+  unsigned int manual_request : 1;
 
   /* Should range check be omitted when compiling array access */
-  int omit_array_get_range_check;
+  unsigned int omit_array_get_range_check : 1;
+
+  /* Should we generate inline code for Lua's arithmetc ops */
+  unsigned int inline_lua_arithmetic_operators : 1;
 
   enum ravi_codegen_type codegen_type;
 };

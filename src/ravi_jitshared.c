@@ -61,6 +61,12 @@ static const char Lua_header[] = ""
 "#define LUA_TFUNCTION		6\n"
 "#define LUA_TUSERDATA		7\n"
 "#define LUA_TTHREAD		8\n"
+"typedef enum {TM_INDEX,TM_NEWINDEX,TM_GC,\n"
+"	TM_MODE,TM_LEN,TM_EQ,TM_ADD,TM_SUB,TM_MUL,\n"
+"	TM_MOD,TM_POW,TM_DIV,TM_IDIV,TM_BAND,TM_BOR,\n"
+"	TM_BXOR,TM_SHL,TM_SHR,TM_UNM,TM_BNOT,TM_LT,\n"
+"	TM_LE,TM_CONCAT,TM_CALL,TM_N\n"
+"} TMS;\n"
 "typedef double lua_Number;\n"
 "typedef int64_t lua_Integer;\n"
 "typedef uint64_t lua_Unsigned;\n"
@@ -564,6 +570,7 @@ static const char Lua_header[] = ""
 "extern void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer value);\n"
 "extern void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value);\n"
 "extern int raviV_check_usertype(lua_State *L, TString *name, const TValue *o);\n"
+"extern void luaT_trybinTM (lua_State *L, const TValue *p1, const TValue *p2, TValue *res, TMS event);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 ;
@@ -890,7 +897,7 @@ static void emit_settable_af(struct function *fn, int A, int B, int C, bool know
 
 /* Handle OP_ADD, OP_SUB, OP_MUL */
 static void emit_op_arithslow(struct function *fn, int A, int B, int C, OpCode op, int pc, const char *opchar,
-                              const char *numop, const char *tm) {
+                              const char *tm) {
   (void)pc;
   (void)op;
   emit_reg(fn, "ra", A);
@@ -1955,9 +1962,39 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
       emit_UNM(&fn, A, B, pc);
     } break;
 #endif
-		case OP_ADD:
-		case OP_SUB:
-		case OP_MUL:
+		case OP_ADD: {
+			int B = GETARG_B(i);
+			int C = GETARG_C(i);
+			if (options->inline_lua_arithmetic_operators) {
+				emit_op_arithslow(&fn, A, B, C, op, pc, "+",
+					"TM_ADD");
+			}
+			else {
+				emit_binary_op(&fn, A, B, C, op, pc);
+			}
+		} break;
+		case OP_SUB: {
+			int B = GETARG_B(i);
+			int C = GETARG_C(i);
+			if (options->inline_lua_arithmetic_operators) {
+				emit_op_arithslow(&fn, A, B, C, op, pc, "-",
+					"TM_SUB");
+			}
+			else {
+				emit_binary_op(&fn, A, B, C, op, pc);
+			}
+		} break;
+		case OP_MUL: {
+			int B = GETARG_B(i);
+			int C = GETARG_C(i);
+			if (options->inline_lua_arithmetic_operators) {
+				emit_op_arithslow(&fn, A, B, C, op, pc, "*",
+					"TM_MUL");
+			}
+			else {
+				emit_binary_op(&fn, A, B, C, op, pc);
+			}
+		} break;
 		case OP_MOD:
 		case OP_POW:
 		case OP_DIV:

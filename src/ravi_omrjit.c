@@ -186,7 +186,8 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg4(jit->jit, "raviH_set_float", raviH_set_float, JIT_NoType, JIT_Address, JIT_Address, JIT_Int64, JIT_Double);
   //int raviV_check_usertype(lua_State *L, TString *name, const TValue *o);
   register_builtin_arg3(jit->jit, "raviV_check_usertype", raviV_check_usertype, JIT_Int32, JIT_Address, JIT_Address, JIT_Address);
-
+  // void luaT_trybinTM (lua_State *L, const TValue *p1, const TValue *p2, TValue *res, TMS event);
+  register_builtin_arg5(jit->jit, "luaT_trybinTM", luaT_trybinTM, JIT_NoType, JIT_Address, JIT_Address, JIT_Address, JIT_Address, JIT_Int32);
   G->ravi_state = jit;
   return 0;
 }
