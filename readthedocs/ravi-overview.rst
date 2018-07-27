@@ -31,22 +31,20 @@ over maximum performance. For more detailed comparison please refer to the docum
 
 Features
 ========
-* Optional static typing - for details `see the reference manual <ravi-reference.rst>`_.
+* Optional static typing - for details `see the reference manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
-* `Eclipse OMR <https://github.com/eclipse/omr>`_ powered JIT compiler
+* `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ powered JIT compiler
 * Built-in C pre-processor, parser and JIT compiler
-* A `distribution with batteries <https://github.com/dibyendumajumdar/ravi-distro>`_ is in the works - 
-  this will provide ready made binary downloads of Ravi/Lua with select high quality libraries.
+* A `distribution with batteries <https://github.com/dibyendumajumdar/ravi-distro>`_.
 
 Documentation
 =============
-* For the Lua extensions in Ravi see the `Reference Manual <ravi-reference.rst>`_.
-* `Build instructions <ravi-build-instructions.rst>`_.
+* For the Lua extensions in Ravi see the `Reference Manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
+* `Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-build-instructions.html>`_.
 * Also see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
-
-Also see the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
+* and the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
 
 Lua Goodies
 ===========
@@ -92,7 +90,7 @@ History
        - Embedded C compiler using dmrC project (C JIT compiler) 
        - Additional type annotations
 * 2018 
-       - Added Eclipse OMR JIT backend
+       - Implemented Eclipse OMR JIT backend
 
 License
 =======

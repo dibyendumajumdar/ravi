@@ -211,7 +211,7 @@ The type of a slice is the same as that of the underlying array - hence slices g
 
 Each slice holds an internal reference to the underlying array to ensure that the garbage collector does not reclaim the array while there are slices pointing to it.
 
-For an example use of slices please see the `matmul1.ravi <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/matmul1.ravi>`_ benchmark program in the repository. Note that this feature is highly experimental and not very well tested.
+For an example use of slices please see the `matmul1_ravi.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/matmul1_ravi.lua>`_ benchmark program in the repository. Note that this feature is highly experimental and not very well tested.
   
 Examples
 --------
