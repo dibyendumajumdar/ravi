@@ -1,6 +1,10 @@
 Ravi Extensions to Lua 5.3
 ==========================
 
+.. contents:: Table of Contents
+   :depth: 1
+   :backlinks: top
+
 Optional Static Typing
 ----------------------
 Ravi allows you to annotate ``local`` variables and function parameters with static types. The supported types and the resulting behaviour are as follows:
@@ -156,7 +160,8 @@ The scenarios where these type annotations have an impact are:
 ``closure``
   denotes a function
 Name
-  Denotes a value that has a `metatable registered under Name <https://www.lua.org/pil/28.2.html>`_ in the Lua registry. The Name must be a valid Lua name - hence periods in the name are not allowed. 
+  Denotes a value that has a `metatable registered under Name <https://www.lua.org/pil/28.2.html>`_ in the Lua registry. 
+  The Name must be a valid Lua name with the exception that periods are allowed in the name. 
 
 The main use case for these annotations is to help with type checking of larger Ravi programs. These type checks, particularly the one for user defined types, are executed directly by the VM and hence are more efficient than performing the checks in other ways. 
 

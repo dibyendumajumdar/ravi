@@ -3,7 +3,8 @@ Ravi Programming Language
 =========================
 
 Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and 
-an `LLVM <http://www.llvm.org/>`_ powered JIT compiler. The name Ravi comes from the Sanskrit word for the Sun. 
+features `LLVM <http://www.llvm.org/>`_ and `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ 
+powered JIT compilers. The name Ravi comes from the Sanskrit word for the Sun. 
 Interestingly a precursor to Lua was `Sol <http://www.lua.org/history.html>`_ which had support for 
 static types; Sol means the Sun in Portugese.
 
@@ -24,10 +25,6 @@ I want to keep the language safe and therefore usable by non-expert programmers.
 Of course there is also the fantastic `LuaJIT <http://luajit.org>`_ implementation. Ravi has a different goal compared to 
 LuaJIT. Ravi prioritizes ease of maintenance and support, language safety, and compatibility with Lua 5.3, 
 over maximum performance. For more detailed comparison please refer to the documentation links below.
-
-.. contents:: Table of Contents
-   :depth: 1
-   :backlinks: top
 
 Features
 ========
@@ -59,6 +56,7 @@ Ravi should be able to run all Lua 5.3 programs in interpreted mode, but followi
 * Values crossing from Lua to Ravi will be subjected to typechecks should these values be assigned to typed variables.
 * Upvalues cannot subvert the static typing of local variables (issue #26) when types are annotated.
 * Certain Lua limits are reduced due to changed byte code structure. These are described below.
+* Ravi uses an extended bytecode which means it is not compatible with Lua 5.3 bytecode. 
 
 +-----------------+-------------+-------------+
 | Limit name      | Lua value   | Ravi value  |

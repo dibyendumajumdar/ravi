@@ -97,7 +97,7 @@ I open the generated project in Xcode and do a build from there. You can also us
 
 Eclipse OMR JIT Backend
 =======================
-* Ravi uses a cut-down version of the [Eclipse OMR JIT engine](https://github.com/dibyendumajumdar/nj). First build this library and install it.
+* Ravi uses a cut-down version of the `Eclipse OMR JIT engine <https://github.com/dibyendumajumdar/nj>`_. First build this library and install it.
 * The Ravi CMake build assumes you have installed the OMR JIT library under ``\Software\omr`` on Windows and ``$HOME/Software/omr`` on Linux or Mac OSX.
 * Now you can build Ravi as follows on Linux or Mac OSX:
 
