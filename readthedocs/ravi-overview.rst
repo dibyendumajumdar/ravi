@@ -31,7 +31,7 @@ over maximum performance. For more detailed comparison please refer to the docum
 
 Features
 ========
-* Optional static typing - for details `see reference manual <ravi-reference.rst>`_.
+* Optional static typing - for details `see the reference manual <ravi-reference.rst>`_.
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
@@ -43,9 +43,8 @@ Features
 Documentation
 =============
 * For the Lua extensions in Ravi see the `Reference Manual <ravi-reference.rst>`_.
-* Build instructions
-* See `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
-As more stuff is built I will keep updating the documentation so please revisit for latest information.
+* `Build instructions <ravi-build-instructions.rst>`_.
+* Also see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
 
 Also see the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
 
