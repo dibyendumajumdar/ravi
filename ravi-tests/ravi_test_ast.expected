@@ -1,0 +1,1341 @@
+--[[return
+]]
+function()
+  return
+end
+
+--
+--[[return 1
+]]
+function()
+  return
+    1
+end
+
+--
+--[[return 42, 4.2, true, "hello"
+]]
+function()
+  return
+    42
+   ,
+    4.2000000000000002
+   ,
+    true
+   ,
+    'hello'
+end
+
+--
+--[[return a
+]]
+function()
+  return
+    --[primary start]
+      a --global symbol ? 
+    --[primary end]
+end
+
+--
+--[[return 1+2
+]]
+function()
+  return
+    --[binary expr start]
+     1
+    +
+     2
+    --[binary expr end]
+end
+
+--
+--[[return 2^3-5*4
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      2
+     ^
+      3
+     --[binary expr end]
+    -
+     --[binary expr start]
+      5
+     *
+      4
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return 0.0
+]]
+function()
+  return
+    0.0000000000000000
+end
+
+--
+--[[return 0
+]]
+function()
+  return
+    0
+end
+
+--
+--[[return -0//1
+]]
+function()
+  return
+    --[binary expr start]
+     --[unary expr start]
+     -
+      0
+     --[unary expr end]
+    //
+     1
+    --[binary expr end]
+end
+
+--
+--[[return 3^-1
+]]
+function()
+  return
+    --[binary expr start]
+     3
+    ^
+     --[unary expr start]
+     -
+      1
+     --[unary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return (1 + 1)^(50 + 50)
+]]
+function()
+  return
+    --[binary expr start]
+     --[primary start]
+      --[binary expr start]
+       1
+      +
+       1
+      --[binary expr end]
+     --[primary end]
+    ^
+     --[primary start]
+      --[binary expr start]
+       50
+      +
+       50
+      --[binary expr end]
+     --[primary end]
+    --[binary expr end]
+end
+
+--
+--[[return (-2)^(31 - 2)
+]]
+function()
+  return
+    --[binary expr start]
+     --[primary start]
+      --[unary expr start]
+      -
+       2
+      --[unary expr end]
+     --[primary end]
+    ^
+     --[primary start]
+      --[binary expr start]
+       31
+      -
+       2
+      --[binary expr end]
+     --[primary end]
+    --[binary expr end]
+end
+
+--
+--[[return (-3^0 + 5) // 3.0
+]]
+function()
+  return
+    --[binary expr start]
+     --[primary start]
+      --[binary expr start]
+       --[unary expr start]
+       -
+        --[binary expr start]
+         3
+        ^
+         0
+        --[binary expr end]
+       --[unary expr end]
+      +
+       5
+      --[binary expr end]
+     --[primary end]
+    //
+     3.0000000000000000
+    --[binary expr end]
+end
+
+--
+--[[return -3 % 5
+]]
+function()
+  return
+    --[binary expr start]
+     --[unary expr start]
+     -
+      3
+     --[unary expr end]
+    %
+     5
+    --[binary expr end]
+end
+
+--
+--[[return -((2.0^8 + -(-1)) % 8)/2 * 4 - 3
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       --[unary expr start]
+       -
+        --[primary start]
+         --[binary expr start]
+          --[primary start]
+           --[binary expr start]
+            --[binary expr start]
+             2.0000000000000000
+            ^
+             8
+            --[binary expr end]
+           +
+            --[unary expr start]
+            -
+             --[primary start]
+              --[unary expr start]
+              -
+               1
+              --[unary expr end]
+             --[primary end]
+            --[unary expr end]
+           --[binary expr end]
+          --[primary end]
+         %
+          8
+         --[binary expr end]
+        --[primary end]
+       --[unary expr end]
+      /
+       2
+      --[binary expr end]
+     *
+      4
+     --[binary expr end]
+    -
+     3
+    --[binary expr end]
+end
+
+--
+--[[return -((2^8 + -(-1)) % 8)//2 * 4 - 3
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       --[unary expr start]
+       -
+        --[primary start]
+         --[binary expr start]
+          --[primary start]
+           --[binary expr start]
+            --[binary expr start]
+             2
+            ^
+             8
+            --[binary expr end]
+           +
+            --[unary expr start]
+            -
+             --[primary start]
+              --[unary expr start]
+              -
+               1
+              --[unary expr end]
+             --[primary end]
+            --[unary expr end]
+           --[binary expr end]
+          --[primary end]
+         %
+          8
+         --[binary expr end]
+        --[primary end]
+       --[unary expr end]
+      //
+       2
+      --[binary expr end]
+     *
+      4
+     --[binary expr end]
+    -
+     3
+    --[binary expr end]
+end
+
+--
+--[[return 0xF0.0 | 0xCC.0 ~ 0xAA & 0xFD
+]]
+function()
+  return
+    --[binary expr start]
+     240.0000000000000000
+    |
+     --[binary expr start]
+      204.0000000000000000
+     ~
+      --[binary expr start]
+       170
+      &
+       253
+      --[binary expr end]
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return ~(~0xFF0 | 0xFF0)
+]]
+function()
+  return
+    --[unary expr start]
+    ~
+     --[primary start]
+      --[binary expr start]
+       --[unary expr start]
+       ~
+        4080
+       --[unary expr end]
+      |
+       4080
+      --[binary expr end]
+     --[primary end]
+    --[unary expr end]
+end
+
+--
+--[[return ~~-100024.0
+]]
+function()
+  return
+    --[unary expr start]
+    ~
+     --[unary expr start]
+     ~
+      --[unary expr start]
+      -
+       100024.0000000000000000
+      --[unary expr end]
+     --[unary expr end]
+    --[unary expr end]
+end
+
+--
+--[[return ((100 << 6) << -4) >> 2
+]]
+function()
+  return
+    --[binary expr start]
+     --[primary start]
+      --[binary expr start]
+       --[primary start]
+        --[binary expr start]
+         100
+        <<
+         6
+        --[binary expr end]
+       --[primary end]
+      <<
+       --[unary expr start]
+       -
+        4
+       --[unary expr end]
+      --[binary expr end]
+     --[primary end]
+    >>
+     2
+    --[binary expr end]
+end
+
+--
+--[[return 2^3^2 == 2^(3^2)
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      2
+     ^
+      --[binary expr start]
+       3
+      ^
+       2
+      --[binary expr end]
+     --[binary expr end]
+    ==
+     --[binary expr start]
+      2
+     ^
+      --[primary start]
+       --[binary expr start]
+        3
+       ^
+        2
+       --[binary expr end]
+      --[primary end]
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return 2^3*4 == (2^3)*4
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       2
+      ^
+       3
+      --[binary expr end]
+     *
+      4
+     --[binary expr end]
+    ==
+     --[binary expr start]
+      --[primary start]
+       --[binary expr start]
+        2
+       ^
+        3
+       --[binary expr end]
+      --[primary end]
+     *
+      4
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return 2.0^-2 == 1/4 and -2^- -2 == - - -4
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       2.0000000000000000
+      ^
+       --[unary expr start]
+       -
+        2
+       --[unary expr end]
+      --[binary expr end]
+     ==
+      --[binary expr start]
+       1
+      /
+       4
+      --[binary expr end]
+     --[binary expr end]
+    and
+     --[binary expr start]
+      --[unary expr start]
+      -
+       --[binary expr start]
+        2
+       ^
+        --[unary expr start]
+        -
+         --[unary expr start]
+         -
+          2
+         --[unary expr end]
+        --[unary expr end]
+       --[binary expr end]
+      --[unary expr end]
+     ==
+      --[unary expr start]
+      -
+       --[unary expr start]
+       -
+        --[unary expr start]
+        -
+         4
+        --[unary expr end]
+       --[unary expr end]
+      --[unary expr end]
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return not nil and 2 and not(2>3 or 3<2)
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[unary expr start]
+      not
+       nil
+      --[unary expr end]
+     and
+      2
+     --[binary expr end]
+    and
+     --[unary expr start]
+     not
+      --[primary start]
+       --[binary expr start]
+        --[binary expr start]
+         2
+        >
+         3
+        --[binary expr end]
+       or
+        --[binary expr start]
+         3
+        <
+         2
+        --[binary expr end]
+       --[binary expr end]
+      --[primary end]
+     --[unary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return -3-1-5 == 0+0-9
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       --[unary expr start]
+       -
+        3
+       --[unary expr end]
+      -
+       1
+      --[binary expr end]
+     -
+      5
+     --[binary expr end]
+    ==
+     --[binary expr start]
+      --[binary expr start]
+       0
+      +
+       0
+      --[binary expr end]
+     -
+      9
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return -2^2 == -4 and (-2)^2 == 4 and 2*2-3-1 == 0
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       --[unary expr start]
+       -
+        --[binary expr start]
+         2
+        ^
+         2
+        --[binary expr end]
+       --[unary expr end]
+      ==
+       --[unary expr start]
+       -
+        4
+       --[unary expr end]
+      --[binary expr end]
+     and
+      --[binary expr start]
+       --[binary expr start]
+        --[primary start]
+         --[unary expr start]
+         -
+          2
+         --[unary expr end]
+        --[primary end]
+       ^
+        2
+       --[binary expr end]
+      ==
+       4
+      --[binary expr end]
+     --[binary expr end]
+    and
+     --[binary expr start]
+      --[binary expr start]
+       --[binary expr start]
+        --[binary expr start]
+         2
+        *
+         2
+        --[binary expr end]
+       -
+        3
+       --[binary expr end]
+      -
+       1
+      --[binary expr end]
+     ==
+      0
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return -3%5 == 2 and -3+5 == 2
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       --[unary expr start]
+       -
+        3
+       --[unary expr end]
+      %
+       5
+      --[binary expr end]
+     ==
+      2
+     --[binary expr end]
+    and
+     --[binary expr start]
+      --[binary expr start]
+       --[unary expr start]
+       -
+        3
+       --[unary expr end]
+      +
+       5
+      --[binary expr end]
+     ==
+      2
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return 2*1+3/3 == 3 and 1+2 .. 3*1 == "33"
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       --[binary expr start]
+        2
+       *
+        1
+       --[binary expr end]
+      +
+       --[binary expr start]
+        3
+       /
+        3
+       --[binary expr end]
+      --[binary expr end]
+     ==
+      3
+     --[binary expr end]
+    and
+     --[binary expr start]
+      --[binary expr start]
+       --[binary expr start]
+        1
+       +
+        2
+       --[binary expr end]
+      ..
+       --[binary expr start]
+        3
+       *
+        1
+       --[binary expr end]
+      --[binary expr end]
+     ==
+      '33'
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return not(2+1 > 3*1) and "a".."b" > "a"
+]]
+function()
+  return
+    --[binary expr start]
+     --[unary expr start]
+     not
+      --[primary start]
+       --[binary expr start]
+        --[binary expr start]
+         2
+        +
+         1
+        --[binary expr end]
+       >
+        --[binary expr start]
+         3
+        *
+         1
+        --[binary expr end]
+       --[binary expr end]
+      --[primary end]
+     --[unary expr end]
+    and
+     --[binary expr start]
+      --[binary expr start]
+       'a'
+      ..
+       'b'
+      --[binary expr end]
+     >
+      'a'
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return "7" .. 3 << 1 == 146
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       '7'
+      ..
+       3
+      --[binary expr end]
+     <<
+      1
+     --[binary expr end]
+    ==
+     146
+    --[binary expr end]
+end
+
+--
+--[[return 10 >> 1 .. "9" == 0
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      10
+     >>
+      --[binary expr start]
+       1
+      ..
+       '9'
+      --[binary expr end]
+     --[binary expr end]
+    ==
+     0
+    --[binary expr end]
+end
+
+--
+--[[return 10 | 1 .. "9" == 27
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      10
+     |
+      --[binary expr start]
+       1
+      ..
+       '9'
+      --[binary expr end]
+     --[binary expr end]
+    ==
+     27
+    --[binary expr end]
+end
+
+--
+--[[return 0xF0 | 0xCC ~ 0xAA & 0xFD == 0xF4
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      240
+     |
+      --[binary expr start]
+       204
+      ~
+       --[binary expr start]
+        170
+       &
+        253
+       --[binary expr end]
+      --[binary expr end]
+     --[binary expr end]
+    ==
+     244
+    --[binary expr end]
+end
+
+--
+--[[return 0xFD & 0xAA ~ 0xCC | 0xF0 == 0xF4
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       --[binary expr start]
+        253
+       &
+        170
+       --[binary expr end]
+      ~
+       204
+      --[binary expr end]
+     |
+      240
+     --[binary expr end]
+    ==
+     244
+    --[binary expr end]
+end
+
+--
+--[[return 0xF0 & 0x0F + 1 == 0x10
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      240
+     &
+      --[binary expr start]
+       15
+      +
+       1
+      --[binary expr end]
+     --[binary expr end]
+    ==
+     16
+    --[binary expr end]
+end
+
+--
+--[[return 3^4//2^3//5 == 2
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       --[binary expr start]
+        3
+       ^
+        4
+       --[binary expr end]
+      //
+       --[binary expr start]
+        2
+       ^
+        3
+       --[binary expr end]
+      --[binary expr end]
+     //
+      5
+     --[binary expr end]
+    ==
+     2
+    --[binary expr end]
+end
+
+--
+--[[return -3+4*5//2^3^2//9+4%10/3 == (-3)+(((4*5)//(2^(3^2)))//9)+((4%10)/3)
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       --[unary expr start]
+       -
+        3
+       --[unary expr end]
+      +
+       --[binary expr start]
+        --[binary expr start]
+         --[binary expr start]
+          4
+         *
+          5
+         --[binary expr end]
+        //
+         --[binary expr start]
+          2
+         ^
+          --[binary expr start]
+           3
+          ^
+           2
+          --[binary expr end]
+         --[binary expr end]
+        --[binary expr end]
+       //
+        9
+       --[binary expr end]
+      --[binary expr end]
+     +
+      --[binary expr start]
+       --[binary expr start]
+        4
+       %
+        10
+       --[binary expr end]
+      /
+       3
+      --[binary expr end]
+     --[binary expr end]
+    ==
+     --[binary expr start]
+      --[binary expr start]
+       --[primary start]
+        --[unary expr start]
+        -
+         3
+        --[unary expr end]
+       --[primary end]
+      +
+       --[primary start]
+        --[binary expr start]
+         --[primary start]
+          --[binary expr start]
+           --[primary start]
+            --[binary expr start]
+             4
+            *
+             5
+            --[binary expr end]
+           --[primary end]
+          //
+           --[primary start]
+            --[binary expr start]
+             2
+            ^
+             --[primary start]
+              --[binary expr start]
+               3
+              ^
+               2
+              --[binary expr end]
+             --[primary end]
+            --[binary expr end]
+           --[primary end]
+          --[binary expr end]
+         --[primary end]
+        //
+         9
+        --[binary expr end]
+       --[primary end]
+      --[binary expr end]
+     +
+      --[primary start]
+       --[binary expr start]
+        --[primary start]
+         --[binary expr start]
+          4
+         %
+          10
+         --[binary expr end]
+        --[primary end]
+       /
+        3
+       --[binary expr end]
+      --[primary end]
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return not ((true or false) and nil)
+]]
+function()
+  return
+    --[unary expr start]
+    not
+     --[primary start]
+      --[binary expr start]
+       --[primary start]
+        --[binary expr start]
+         true
+        or
+         false
+        --[binary expr end]
+       --[primary end]
+      and
+       nil
+      --[binary expr end]
+     --[primary end]
+    --[unary expr end]
+end
+
+--
+--[[return true or false  and nil
+]]
+function()
+  return
+    --[binary expr start]
+     true
+    or
+     --[binary expr start]
+      false
+     and
+      nil
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return (((1 or false) and true) or false) == true
+]]
+function()
+  return
+    --[binary expr start]
+     --[primary start]
+      --[binary expr start]
+       --[primary start]
+        --[binary expr start]
+         --[primary start]
+          --[binary expr start]
+           1
+          or
+           false
+          --[binary expr end]
+         --[primary end]
+        and
+         true
+        --[binary expr end]
+       --[primary end]
+      or
+       false
+      --[binary expr end]
+     --[primary end]
+    ==
+     true
+    --[binary expr end]
+end
+
+--
+--[[return (((nil and true) or false) and true) == false
+]]
+function()
+  return
+    --[binary expr start]
+     --[primary start]
+      --[binary expr start]
+       --[primary start]
+        --[binary expr start]
+         --[primary start]
+          --[binary expr start]
+           nil
+          and
+           true
+          --[binary expr end]
+         --[primary end]
+        or
+         false
+        --[binary expr end]
+       --[primary end]
+      and
+       true
+      --[binary expr end]
+     --[primary end]
+    ==
+     false
+    --[binary expr end]
+end
+
+--
+--[[return -(1 or 2) == -1 and (1 and 2)+(-1.25 or -4) == 0.75
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[unary expr start]
+      -
+       --[primary start]
+        --[binary expr start]
+         1
+        or
+         2
+        --[binary expr end]
+       --[primary end]
+      --[unary expr end]
+     ==
+      --[unary expr start]
+      -
+       1
+      --[unary expr end]
+     --[binary expr end]
+    and
+     --[binary expr start]
+      --[binary expr start]
+       --[primary start]
+        --[binary expr start]
+         1
+        and
+         2
+        --[binary expr end]
+       --[primary end]
+      +
+       --[primary start]
+        --[binary expr start]
+         --[unary expr start]
+         -
+          1.2500000000000000
+         --[unary expr end]
+        or
+         --[unary expr start]
+         -
+          4
+         --[unary expr end]
+        --[binary expr end]
+       --[primary end]
+      --[binary expr end]
+     ==
+      0.7500000000000000
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return (b or a)+1 == 2 and (10 or a)+1 == 11
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[binary expr start]
+       --[primary start]
+        --[binary expr start]
+         --[primary start]
+           b --global symbol ? 
+         --[primary end]
+        or
+         --[primary start]
+           a --global symbol ? 
+         --[primary end]
+        --[binary expr end]
+       --[primary end]
+      +
+       1
+      --[binary expr end]
+     ==
+      2
+     --[binary expr end]
+    and
+     --[binary expr start]
+      --[binary expr start]
+       --[primary start]
+        --[binary expr start]
+         10
+        or
+         --[primary start]
+           a --global symbol ? 
+         --[primary end]
+        --[binary expr end]
+       --[primary end]
+      +
+       1
+      --[binary expr end]
+     ==
+      11
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return ((2<3) or 1) == true and (2<3 and 4) == 4
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[primary start]
+       --[binary expr start]
+        --[primary start]
+         --[binary expr start]
+          2
+         <
+          3
+         --[binary expr end]
+        --[primary end]
+       or
+        1
+       --[binary expr end]
+      --[primary end]
+     ==
+      true
+     --[binary expr end]
+    and
+     --[binary expr start]
+      --[primary start]
+       --[binary expr start]
+        --[binary expr start]
+         2
+        <
+         3
+        --[binary expr end]
+       and
+        4
+       --[binary expr end]
+      --[primary end]
+     ==
+      4
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return (x>y) and x or y == 2
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[primary start]
+       --[binary expr start]
+        --[primary start]
+          x --global symbol ? 
+        --[primary end]
+       >
+        --[primary start]
+          y --global symbol ? 
+        --[primary end]
+       --[binary expr end]
+      --[primary end]
+     and
+      --[primary start]
+        x --global symbol ? 
+      --[primary end]
+     --[binary expr end]
+    or
+     --[binary expr start]
+      --[primary start]
+        y --global symbol ? 
+      --[primary end]
+     ==
+      2
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[return (x>y) and x or y == 2
+]]
+function()
+  return
+    --[binary expr start]
+     --[binary expr start]
+      --[primary start]
+       --[binary expr start]
+        --[primary start]
+          x --global symbol ? 
+        --[primary end]
+       >
+        --[primary start]
+          y --global symbol ? 
+        --[primary end]
+       --[binary expr end]
+      --[primary end]
+     and
+      --[primary start]
+        x --global symbol ? 
+      --[primary end]
+     --[binary expr end]
+    or
+     --[binary expr start]
+      --[primary start]
+        y --global symbol ? 
+      --[primary end]
+     ==
+      2
+     --[binary expr end]
+    --[binary expr end]
+end
+
+--
+--[[function x() for i = 1, 10 do; print(i); end end
+]]
+function()
+   x --global symbol ? 
+   =
+    function()
+      for
+        i --local symbol ? 
+      =
+        1
+       ,
+        10
+      do
+         --[expression statement start]
+          --[expression list start]
+            --[primary start]
+              print --global symbol ? 
+            --[primary end]
+            --[suffix list start]
+              --[function call start]
+               (
+                 --[primary start]
+                   i --local symbol ? 
+                 --[primary end]
+               )
+              --[function call end]
+            --[suffix list end]
+          --[expression list end]
+         --[expression statement end]
+      end
+    end
+end
+
+--

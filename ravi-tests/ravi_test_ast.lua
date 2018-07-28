@@ -67,3 +67,4 @@ dotest 'return ((2<3) or 1) == true and (2<3 and 4) == 4'
 dotest 'return (x>y) and x or y == 2'
 dotest 'return (x>y) and x or y == 2'
 
+dotest 'function x() for i = 1, 10 do; print(i); end end'

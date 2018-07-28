@@ -685,11 +685,12 @@ static TString *user_defined_type_name(LexState *ls, TString *typename) {
 *   where type is 'integer', 'integer[]',
 *                 'number', 'number[]'
 */
-static struct lua_symbol *declare_local_variable(struct parser_state *parser, TString **pusertype) {
+static struct lua_symbol *declare_local_variable(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* assume a dynamic type */
 	ravitype_t tt = RAVI_TANY;
 	TString *name = check_name_and_next(ls);
+	TString *pusertype = NULL;
 	if (testnext(ls, ':')) {
 		TString *typename = str_checkname(ls); /* we expect a type name */
 		const char *str = getstr(typename);
@@ -715,7 +716,7 @@ static struct lua_symbol *declare_local_variable(struct parser_state *parser, TS
 			tt = RAVI_TUSERDATA;
 			typename = user_defined_type_name(ls, typename);
 			str = getstr(typename);
-			*pusertype = typename;
+			pusertype = typename;
 		}
 		if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
 			/* if we see [] then it is an array type */
@@ -725,7 +726,7 @@ static struct lua_symbol *declare_local_variable(struct parser_state *parser, TS
 			}
 		}
 	}
-	return new_local_symbol(parser, name, tt, *pusertype);
+	return new_local_symbol(parser, name, tt, pusertype);
 }
 
 static bool parse_parameter_list(struct parser_state *parser, struct lua_symbol_list **list) {
@@ -733,15 +734,12 @@ static bool parse_parameter_list(struct parser_state *parser, struct lua_symbol_
 	/* parlist -> [ param { ',' param } ] */
 	int nparams = 0;
 	bool is_vararg = false;
-	enum { N = MAXVARS + 10 };
-	//int vars[N] = { 0 };
-	TString *typenames[N] = { NULL };
 	if (ls->t.token != ')') {  /* is 'parlist' not empty? */
 		do {
 			switch (ls->t.token) {
 			case TK_NAME: {  /* param -> NAME */
 							 /* RAVI change - add type */
-				struct lua_symbol *symbol = declare_local_variable(parser, &typenames[nparams]);
+				struct lua_symbol *symbol = declare_local_variable(parser);
 				add_symbol(parser->container, list, symbol);
 				nparams++;
 				break;
@@ -1169,9 +1167,6 @@ static struct ast_node *parse_label_statement(struct parser_state *parser, TStri
 	return label_stmt;
 }
 
-/* parse a while-do control structure, body processed by block()
-* called by statement()
-*/
 static struct ast_node *parse_while_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* whilestat -> WHILE cond DO block END */
@@ -1187,9 +1182,6 @@ static struct ast_node *parse_while_statement(struct parser_state *parser, int l
 	return stmt;
 }
 
-/* parse a repeat-until control structure, body parsed by statlist()
-* called by statement()
-*/
 static struct ast_node *parse_repeat_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* repeatstat -> REPEAT block UNTIL cond */
@@ -1205,9 +1197,7 @@ static struct ast_node *parse_repeat_statement(struct parser_state *parser, int 
 	return stmt;
 }
 
-/* parse a for loop body for both versions of the for loop
-* called by fornum(), forlist()
-*/
+/* parse a for loop body for both versions of the for loop */
 static void parse_forbody(struct parser_state *parser, struct ast_node* stmt, int line, int nvars, int isnum) {
         (void) line;
         (void) nvars;
@@ -1218,20 +1208,11 @@ static void parse_forbody(struct parser_state *parser, struct ast_node* stmt, in
 	stmt->for_stmt.loop_body = parse_block(parser);
 }
 
-/* parse a numerical for loop, calls forbody()
-* called from forstat()
-*/
+/* parse a numerical for loop */
 static void parse_fornum_statement(struct parser_state *parser, struct ast_node *stmt, TString *varname, int line) {
 	LexState *ls = parser->ls;
 	/* fornum -> NAME = exp1,exp1[,exp1] forbody */
 	add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, varname, RAVI_TANY, NULL));
-	/* The fornum sets up its own variables as above.
-	These are expected to hold numeric values - but from Ravi's
-	point of view we need to know if the variable is an integer or
-	double. So we need to check if this can be determined from the
-	fornum expressions. If we can then we will set the
-	fornum variables to the type we discover.
-	*/
 	checknext(ls, '=');
 	/* get the type of each expression */
 	add_ast_node(parser->container, &stmt->for_stmt.expressions, parse_expression(parser));  /* initial value */
@@ -1243,29 +1224,24 @@ static void parse_fornum_statement(struct parser_state *parser, struct ast_node 
 	parse_forbody(parser, stmt, line, 1, 1);
 }
 
-/* parse a generic for loop, calls forbody()
-* called from forstat()
-*/
+/* parse a generic for loop */
 static void parse_for_list(struct parser_state *parser, struct ast_node *stmt, TString *indexname) {
 	LexState *ls = parser->ls;
 	/* forlist -> NAME {,NAME} IN explist forbody */
 	int nvars = 4; /* gen, state, control, plus at least one declared var */
-	int line;
 	/* create declared variables */
-	add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, indexname, RAVI_TANY, NULL)); /* RAVI TODO for name:type syntax? */
+	add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, indexname, RAVI_TANY, NULL));
 	while (testnext(ls, ',')) {
-		add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, check_name_and_next(ls), RAVI_TANY, NULL)); /* RAVI change - add type */
+		add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, check_name_and_next(ls), RAVI_TANY, NULL));
 		nvars++;
 	}
 	checknext(ls, TK_IN);
 	parse_expression_list(parser, &stmt->for_stmt.expressions);
-	line = ls->linenumber;
+	int line = ls->linenumber;
 	parse_forbody(parser, stmt, line, nvars - 3, 0);
 }
 
-/* initial parsing of a for loop - calls fornum() or forlist()
-* called from statement()
-*/
+/* initial parsing of a for loop - calls fornum() or forlist() */
 static struct ast_node *parse_for_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* forstat -> FOR (fornum | forlist) END */
@@ -1296,8 +1272,7 @@ static struct ast_node *parse_for_statement(struct parser_state *parser, int lin
 }
 
 /* parse if cond then block - called from ifstat() */
-static struct ast_node *parse_if_cond_then_block(struct parser_state *parser, int *escapelist) {
-        (void) escapelist;
+static struct ast_node *parse_if_cond_then_block(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* test_then_block -> [IF | ELSEIF] cond THEN block */
 	luaX_next(ls);  /* skip IF or ELSEIF */
@@ -1327,19 +1302,17 @@ static struct ast_node *parse_if_cond_then_block(struct parser_state *parser, in
 	return test_then_block;
 }
 
-/* parse an if control structure - called from statement() */
 static struct ast_node *parse_if_statement(struct parser_state *parser, int line) {
 	LexState *ls = parser->ls;
 	/* ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END */
-	int escapelist = NO_JUMP;  /* exit list for finished parts */
 	struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_IF_STMT;
 	stmt->if_stmt.if_condition_list = NULL;
 	stmt->if_stmt.else_block = NULL;
-	struct ast_node *test_then_block = parse_if_cond_then_block(parser, &escapelist);  /* IF cond THEN block */
+	struct ast_node *test_then_block = parse_if_cond_then_block(parser);  /* IF cond THEN block */
 	add_ast_node(parser->container, &stmt->if_stmt.if_condition_list, test_then_block);
 	while (ls->t.token == TK_ELSEIF) {
-		test_then_block = parse_if_cond_then_block(parser, &escapelist);  /* ELSEIF cond THEN block */
+		test_then_block = parse_if_cond_then_block(parser);  /* ELSEIF cond THEN block */
 		add_ast_node(parser->container, &stmt->if_stmt.if_condition_list, test_then_block);
 	}
 	if (testnext(ls, TK_ELSE))
@@ -1348,8 +1321,7 @@ static struct ast_node *parse_if_statement(struct parser_state *parser, int line
 	return stmt;
 }
 
-/* parse a local function statement - called from statement() */
-static struct ast_node *parse_local_function(struct parser_state *parser) {
+static struct ast_node *parse_local_function_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	struct lua_symbol *symbol = new_local_symbol(parser, check_name_and_next(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
 	struct ast_node *function_ast = new_function(parser);
@@ -1366,29 +1338,21 @@ static struct ast_node *parse_local_function(struct parser_state *parser) {
 static struct ast_node *parse_local_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* stat -> LOCAL NAME {',' NAME} ['=' explist] */
-	int nvars = 0;
-	/* RAVI while declaring locals we need to gather the types
-	* so that we can check any assignments later on.
-	* TODO we may be able to use register_typeinfo() here
-	* instead.
-	*/
-	enum { N = MAXVARS + 10 };
-	//int vars[N] = { 0 };
-	TString *usertypes[N] = { NULL };
 	struct ast_node *node = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	node->type = AST_LOCAL_STMT;
 	node->local_stmt.vars = NULL;
 	node->local_stmt.exprlist = NULL;
+	int nvars = 0;
 	do {
 		/* local name : type = value */
-		struct lua_symbol *symbol = declare_local_variable(parser, &usertypes[nvars]);
+		struct lua_symbol *symbol = declare_local_variable(parser);
 		add_symbol(parser->container, &node->local_stmt.vars, symbol);
 		nvars++;
 		if (nvars >= MAXVARS)
 			luaX_syntaxerror(ls, "too many local variables");
 	} while (testnext(ls, ','));
 	if (testnext(ls, '='))
-		/*nexps = */
+		/* nexps = */
 		parse_expression_list(parser, &node->local_stmt.exprlist);
 	else {
 		/* nexps = 0; */
@@ -1516,7 +1480,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 	case TK_LOCAL: {  /* stat -> localstat */
 		luaX_next(ls);  /* skip LOCAL */
 		if (testnext(ls, TK_FUNCTION))  /* local function? */
-			stmt = parse_local_function(parser);
+			stmt = parse_local_function_statement(parser);
 		else
 			stmt = parse_local_statement(parser);
 		break;
