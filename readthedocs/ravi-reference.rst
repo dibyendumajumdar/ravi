@@ -36,16 +36,18 @@ General Notes
 * Assignments to typed variables are statically checked if possible; when the assignments occur due to a function call then runtime type checking is performed
 * If function parameters are decorated with types, Ravi performs implicit type assertion checks against those parameters upon function entry. If the assertions fail then runtime errors are raised.
 * Even if a typed variable is captured in a closure its type must be respected
-* To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectually all checks are at runtime. 
+* To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectively all checks are at runtime. 
 
 Caveats
 -------
 The Lua C api allows C programmers to manipulate values on the Lua stack. This is incompatible with Ravi's type checking because the compiler doesn't know about these operations; hence if you need to do such operations from C code, please ensure that values retain their types, or else just write plain Lua code.
 
+Ravi does its best to validate operations performed via the Lua debug api; however in general, the same caveats apply.
+
 ``integer`` and ``number`` types
 --------------------------------
 * ``integer`` and ``number`` types are automatically initialized to zero rather than ``nil``
-* Arithmetic operations on numeric types make use of type specific bytecodes which leads to more efficient JIT compilation
+* Arithmetic operations on numeric types make use of type specific bytecodes that lead to more efficient JIT compilation
   
 ``integer[]`` and ``number[]`` array types
 ------------------------------------------
