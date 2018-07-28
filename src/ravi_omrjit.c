@@ -396,12 +396,12 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
     goto Lerror;
   }
+  if (options->manual_request && G->ravi_state->verbosity_) {
+    ravi_writestring(L, buf.buf, strlen(buf.buf));
+    ravi_writeline(L);
+  }
   if (!dmrC_omrcompile(0, argv, context, buf.buf)) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
-    if (G->ravi_state->verbosity_) {
-      ravi_writestring(L, buf.buf, strlen(buf.buf));
-      ravi_writeline(L);
-    }
   }
   else {
     fp = JIT_GetFunction(context, fname);
