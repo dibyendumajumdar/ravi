@@ -59,7 +59,7 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
     local t2: number[]     -- error!
 
   This restriction is placed as otherwise the JIT code would need to insert tests to validate that the variable is not ``nil``.
-* Specialised operators to get/set from array types are implemented; this makes array access more efficient in JIT mode as the access can be inlined
+* Specialised operators to get/set from array types are implemented; these makes array element access more efficient in JIT mode as the access can be inlined
 * Operations on array types can be optimised to special bytecode and JIT only when the array type is statically known. Otherwise regular table access will be used subject to runtime checks.
 * The standard table operations on arrays are checked to ensure that the type is not subverted
 * Array types are not compatible with declared table variables, i.e. following is not allowed::
@@ -75,9 +75,7 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
     local t5: number[] = {}
     local t6 = t5           -- t6 treated as table
 
-  The reason for these restrictions is that declared table types generate optimized JIT code which assumes that the keys are integers
-  or literal short strings. Similarly declared array types result in specialized JIT code that assume integer keys and numeric values. 
-  The generated JIT code would be incorrect if the types were not as expected.
+  These restrictions are applied because declared table and array types generate optimized JIT code which make assumptions about the keys and values. The generated JIT code would be incorrect if the types were not as expected.
 * Indices >= 1 should be used when accessing array elements. Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible in ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot.   
 * An array will grow automatically (unless the array was created as fixed length using ``table.intarray()`` or ``table.numarray()``) if the user sets the element just past the array length::
 
@@ -127,7 +125,7 @@ Following library functions allow creation of array types of defined length.
 
 ``table`` type
 --------------
-A declared table (as shown below) has following nuances::
+A declared table (as shown below) has following nuances.
 
 * Like array types, a variable of ``table`` type must be initialized::
 
