@@ -86,9 +86,8 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 * It is an error to attempt to set an element that is beyond ``len+1`` on dynamic arrays; for fixed length arrays attempting to set elements at positions greater than ``len`` will cause an error.
 * The current used length of the array is recorded and returned by the ``len`` operation
 * The array only permits the right type of value to be assigned (this is also checked at runtime to allow compatibility with Lua)
-* Accessing out of bounds elements will cause an error, except for setting the ``len+1`` element on dynamic arrays. There is a compiler option to mit bounds checking on reads.
-* It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside
-those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time::
+* Accessing out of bounds elements will cause an error, except for setting the ``len+1`` element on dynamic arrays. There is a compiler option to omit bounds checking on reads.
+* It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time::
 
     local function f(a, b: integer[], c)
       -- Here a is dynamic type
