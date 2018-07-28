@@ -7,7 +7,11 @@ Ravi Extensions to Lua 5.3
 
 Optional Static Typing
 ----------------------
-Ravi allows you to annotate ``local`` variables and function parameters with static types. The supported types and the resulting behaviour are as follows:
+Ravi allows you to optionally annotate ``local`` variables and function parameters with static types. 
+
+Function return types cannot be annotated because in Lua, functions are un-named values and there is no reliable way for a static analysis of a function call's return value.
+
+The supported type annotations are as follows:
 
 ``integer``
   denotes an integral value of 64-bits.
@@ -18,23 +22,44 @@ Ravi allows you to annotate ``local`` variables and function parameters with sta
 ``number[]``
   denotes an array of numbers
 ``table``
-  a Lua table
+  denotes a Lua table
+``string``
+  denotes a string
+``closure``
+  denotes a function
+``Name [. Name]+``
+  Denotes a string that has a `metatable registered under Name <https://www.lua.org/pil/28.2.html>`_ in the Lua registry. 
+  The Name must be a valid Lua name with the exception that periods are allowed in the name. 
 
-Additionally there are some `Experimental Type Annotations`_.
-
-Declaring the types of ``local`` variables and function parameters has following advantages.
-
-* ``integer`` and ``number`` types are automatically initialized to zero
-* Arithmetic operations on numeric types make use of type specific bytecodes which leads to more efficient JIT compilation
-* Specialised operators to get/set from array types are implemented; this makes array access more efficient in JIT mode as the access can be inlined
-* Declared tables allow specialized opcodes for table gets involving integer and short literal string keys; these opcodes result in more efficient JIT code
-* Values assigned to typed variables are checked statically when possible; if the values are results from a function call then runtime type checking is performed
-* The standard table operations on arrays are checked to ensure that the type is not subverted
+General Notes
+-------------
+* Assignments to typed variables are statically checked if possible; when the assignments occur due to a function call then runtime type checking is performed
+* If function parameters are decorated with types, Ravi performs implicit type assertion checks against those parameters upon function entry. If the assertions fail then runtime errors are raised.
 * Even if a typed variable is captured in a closure its type must be respected
-* When function parameters are decorated with types, Ravi performs an implicit coersion of those parameters to the required types. If the coersion fails a runtime error occurs.
+* To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectually all checks are at runtime. 
 
-The array types (``number[]`` and ``integer[]``) are specializations of Lua table with some additional special behaviour:
+Caveats
+-------
+The Lua C api allows C programmers to manipulate values on the Lua stack. This is incompatible with Ravi's type checking because the compiler doesn't know about these operations; hence if you need to do such operations from C code, please ensure that values retain their types, or else just write plain Lua code.
 
+``integer`` and ``number`` types
+--------------------------------
+* ``integer`` and ``number`` types are automatically initialized to zero rather than ``nil``
+* Arithmetic operations on numeric types make use of type specific bytecodes which leads to more efficient JIT compilation
+  
+``integer[]`` and ``number[]`` array types
+------------------------------------------
+The array types (``number[]`` and ``integer[]``) are specializations of Lua table with some additional behaviour:
+
+* Arrays must always be initialized:: 
+
+    local t: number[] = {} -- okay
+    local t2: number[]     -- error!
+
+  This restriction is placed as otherwise the JIT code would need to insert tests to validate that the variable is not ``nil``.
+* Specialised operators to get/set from array types are implemented; this makes array access more efficient in JIT mode as the access can be inlined
+* Operations on array types can be optimised to special bytecode and JIT only when the array type is statically known. Otherwise regular table access will be used subject to runtime checks.
+* The standard table operations on arrays are checked to ensure that the type is not subverted
 * Array types are not compatible with declared table variables, i.e. following is not allowed::
   
     local t: table = {}
@@ -51,15 +76,7 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
   The reason for these restrictions is that declared table types generate optimized JIT code which assumes that the keys are integers
   or literal short strings. Similarly declared array types result in specialized JIT code that assume integer keys and numeric values. 
   The generated JIT code would be incorrect if the types were not as expected.
-
 * Indices >= 1 should be used when accessing array elements. Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible in ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot.   
-* Arrays must always be initialized:: 
-
-    local t: number[] = {} -- okay
-    local t2: number[]     -- error!
-
-  This restriction is placed as otherwise the JIT code would need to insert tests to validate that the variable is not nil.
-
 * An array will grow automatically (unless the array was created as fixed length using ``table.intarray()`` or ``table.numarray()``) if the user sets the element just past the array length::
 
     local t: number[] = {} -- dynamic array
@@ -92,29 +109,11 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 
     local t: number[] = f() -- type will be checked at runtime
 
-* Operations on array types can be optimised to special bytecode and JIT only when the array type is statically known. Otherwise regular table access will be used subject to runtime checks.
 * Array types ignore ``__index``, ``__newindex`` and ``__len`` metamethods.
 * Array types cannot be set as metatables for other values. 
 * ``pairs()`` and ``ipairs()`` work on arrays as normal
 * There is no way to delete an array element.
 * The array data is stored in contiguous memory just like native C arrays; morever the garbage collector does not scan the array data
-
-A declared table (as shown below) has some additional nuances::
-
-    local t: table = {}
-
-* Like array types, a variable of ``table`` type must be initialized
-* Array types are not compatible with declared table variables, i.e. following is not allowed::
-   
-    local t: table = {}
-    local t2: number[] = t -- error!
-
-* When short string literals are used to access a table element, specialized bytecodes are generated that are more efficiently JIT compiled::
-
-    local t: table = { name='dibyendu'}
-    print(t.name) -- The GETTABLE opcode is specialized in this case
-
-* As with array types, specialized bytecodes are generated when integer keys are used
 
 Following library functions allow creation of array types of defined length.
 
@@ -124,48 +123,39 @@ Following library functions allow creation of array types of defined length.
 ``table.numarray(num_elements, initial_value)``
   creates an number array of specified size, and initializes with initial value. The return type is number[]. The size of the array cannot be changed dynamically, i.e. it is fixed to the initial specified size. This allows slices to be created on such arrays.
 
-Type Assertions
----------------
-Ravi does not support defining new types, or structured types based on tables. This creates some practical issues when dynamic types are mixed with static types. For example::
+``table`` type
+--------------
+A declared table (as shown below) has following nuances::
 
-  local t = { 1,2,3 }
-  local i: integer = t[1] -- generates an error
+* Like array types, a variable of ``table`` type must be initialized::
 
-Above code generates an error as the compiler does not know that the value in ``t[1]`` is an integer. However often we as programmers know the type that is expected and it would be nice to be able to tell the compiler what the expected type of ``t[1]`` is above. To enable this Ravi supports type assertion operators. A type assertion is introduced by the '``@``' symbol, which must be followed by the type name. So we can rewrite the above example as::
+    local t: table = {}
 
-  local t = { 1,2,3 }
-  local i: integer = @integer( t[1] )
+* Declared tables allow specialized opcodes for table gets involving integer and short literal string keys; these opcodes result in more efficient JIT code
+* Array types are not compatible with declared table variables, i.e. following is not allowed::
+   
+    local t: table = {}
+    local t2: number[] = t -- error!
 
-The type assertion operator is a unary operator and binds to the expression following the operator. We use the parenthesis above to enure that the type assertion is applied to ``t[1]`` rather than ``t``. More examples are shown below::
+* When short string literals are used to access a table element, specialized bytecodes are generated that may be more efficiently JIT compiled::
 
-  local a: number[] = @number[] { 1,2,3 }
-  local t = { @number[] { 4,5,6 }, @integer[] { 6,7,8 } }
-  local a1: number[] = @number[]( t[1] )
-  local a2: integer[] = @integer[]( t[2] )
+    local t: table = { name='dibyendu'}
+    print(t.name) -- The GETTABLE opcode is specialized in this case
 
-For a real example of how type assertions can be used, please have a look at the test program `gaussian2.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/gaussian2.lua>`_ 
+* As with array types, specialized bytecodes are generated when integer keys are used
 
-Experimental Type Annotations
------------------------------
-Following type annotations have experimental support. These type annotations are not always statically enforced. Furthermore using these types does not affect the JIT code generation, i.e. variables annotated using these types are still treated as dynamic types. 
+``string``, ``closure`` and user-defined types
+----------------------------------------------
+These type annotations have experimental support. They are not always statically enforced. Furthermore using these types does not affect the JIT code generation, i.e. variables annotated using these types are still treated as dynamic types. 
 
 The scenarios where these type annotations have an impact are:
 
 * Function parameters containing these annotations lead to type assertions at runtime.
 * The type assertion operator @ can be applied to these types - leading to runtime assertions.
 * Annotating ``local`` declarations results in type assertions.
-
-``string``
-  denotes a string
-``closure``
-  denotes a function
-Name
-  Denotes a value that has a `metatable registered under Name <https://www.lua.org/pil/28.2.html>`_ in the Lua registry. 
-  The Name must be a valid Lua name with the exception that periods are allowed in the name. 
+* All three types above allow ``nil`` assignment.
 
 The main use case for these annotations is to help with type checking of larger Ravi programs. These type checks, particularly the one for user defined types, are executed directly by the VM and hence are more efficient than performing the checks in other ways. 
-
-All three types above allow ``nil`` assignment.
 
 Examples::
 
@@ -200,6 +190,27 @@ Examples::
     s = (function() return 1 end)() 
   end
   x() -- will fail at runtime
+
+Type Assertions
+---------------
+Ravi does not support defining new types, or structured types based on tables. This creates some practical issues when dynamic types are mixed with static types. For example::
+
+  local t = { 1,2,3 }
+  local i: integer = t[1] -- generates an error
+
+Above code generates an error as the compiler does not know that the value in ``t[1]`` is an integer. However often we as programmers know the type that is expected and it would be nice to be able to tell the compiler what the expected type of ``t[1]`` is above. To enable this Ravi supports type assertion operators. A type assertion is introduced by the '``@``' symbol, which must be followed by the type name. So we can rewrite the above example as::
+
+  local t = { 1,2,3 }
+  local i: integer = @integer( t[1] )
+
+The type assertion operator is a unary operator and binds to the expression following the operator. We use the parenthesis above to enure that the type assertion is applied to ``t[1]`` rather than ``t``. More examples are shown below::
+
+  local a: number[] = @number[] { 1,2,3 }
+  local t = { @number[] { 4,5,6 }, @integer[] { 6,7,8 } }
+  local a1: number[] = @number[]( t[1] )
+  local a2: integer[] = @integer[]( t[2] )
+
+For a real example of how type assertions can be used, please have a look at the test program `gaussian2.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/gaussian2.lua>`_ 
 
 Array Slices
 ------------
@@ -265,7 +276,3 @@ Another example using arrays. Here the function receives a parameter ``arr`` of 
   print(sum(table.numarray(10, 2.0)))
 
 The ``table.numarray(n, initial_value)`` creates a ``number[]`` of specified size and initializes the array with the given initial value.
-
-All type checks are at runtime
-------------------------------
-To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectually all checks are at runtime. 
