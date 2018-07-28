@@ -86,7 +86,7 @@ History
        - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
 * 2017 
        - Embedded C compiler using dmrC project (C JIT compiler) 
-       - Additional type annotations
+       - Additional type-annotations
 * 2018 
        - Implemented Eclipse OMR JIT backend
 
