@@ -12,7 +12,8 @@ auto mode
   any Lua function call is checked to see if the bytecodes contained in it can be compiled. If this is true then 
   the function is compiled provided either a) function has a fornum loop, or b) it is largish (greater than 150 bytecodes) 
   or c) it is being executed many times (> 50). Because of the simplistic behaviour performance the benefit of JIT
-  compilation is only available if the JIT compiled functions will be executed many times so that the cost of JIT compilation can be amortized.   
+  compilation is only available if the JIT compiled functions will be executed many times so that the cost of JIT 
+  compilation can be amortized.   
 manual mode
   in this mode user must explicitly request compilation. This is the default mode. This mode is suitable for library 
   developers who can pre compile the functions in library module table.
@@ -35,7 +36,7 @@ A JIT api is available with following functions:
 ``ravi.dumplua(func)``
   dumps the Lua bytecode of the function
 ``ravi.dumpir(func)``
-  (deprecated) dumps the IR of the compiled function (only if function was compiled; only available in LLVM 4.0 and earlier)
+  dumps the IR of the compiled function (only if function was compiled; only available in LLVM 4.0 and earlier)
 ``ravi.dumpasm(func)``
   (deprecated) dumps the machine code using the currently set optimization level (only if function was compiled; only available in LLVM version 4.0 and earlier)
 ``ravi.optlevel([n])``
@@ -45,7 +46,7 @@ A JIT api is available with following functions:
 ``ravi.tracehook([b])``
   Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when you want to use the debug api to step through code line by line
 ``ravi.verbosity([b])``
-  Controls the amount of verbose messages generated during compilation. Currently only available for LLVM.
+  Controls the amount of verbose messages generated during compilation.
 
 Performance
 ===========

@@ -27,7 +27,7 @@ The supported type-annotations are as follows:
   denotes a string
 ``closure``
   denotes a function
-``Name [. Name]+``
+``Name [. Name]*``
   Denotes a string that has a `metatable registered <https://www.lua.org/pil/28.2.html>`_ in the Lua registry. This allows userdata
   types to be asserted by their registered names.
 
