@@ -34,7 +34,7 @@ The supported type annotations are as follows:
 General Notes
 -------------
 * Assignments to type annotated variables are checked at compile time if possible; when the assignments occur due to a function call,  runtime type checking is performed
-* If function parameters are decorated with types, Ravi performs implicit type assertion checks against those parameters upon function entry. If the assertions fail then runtime errors are raised.
+* If function parameters are decorated with types, Ravi performs implicit type assertion checks on those parameters upon function entry. If the assertions fail then runtime errors are raised.
 * Even if a typed variable is captured in a closure Ravi requires that the types are respected
 * To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However in Lua, compilation happens at runtime anyway so effectively all checks are at runtime. 
 
