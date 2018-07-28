@@ -8,19 +8,19 @@ Building Ravi
 
 Quick build without JIT
 =======================
-A Makefile is supplied for a simple build without the JIT. Just run ``make`` and follow instructions. You may need to customize the Makefiles. 
+A Makefile is supplied for a simple build without the JIT on Unix platforms. Just run ``make`` and follow instructions. You may need to customize the Makefiles. 
 
 For building Ravi with JIT options please read on.
 
 Build Dependencies
 ==================
 
-* CMake is required for more advanced builds
+* `CMake <https://cmake.org/>`_ is required for more advanced builds
 * On Windows you will need Visual Studio 2017 Community edition
 
 LLVM JIT Backend
 ================
-Ravi can be built with or without LLVM. Following versions of LLVM work with Ravi.
+Following versions of LLVM work with Ravi.
 
 * LLVM 3.7, 3.8, 3.9, 4.0, 5.0, 6.0
 * LLVM 3.5 and 3.6 should also work but have not been recently tested
@@ -99,7 +99,7 @@ Eclipse OMR JIT Backend
 =======================
 * Ravi uses a cut-down version of the `Eclipse OMR JIT engine <https://github.com/dibyendumajumdar/nj>`_. First build this library and install it.
 * The Ravi CMake build assumes you have installed the OMR JIT library under ``\Software\omr`` on Windows and ``$HOME/Software/omr`` on Linux or Mac OSX.
-* Now you can build Ravi as follows on Linux or Mac OSX:
+* Now you can build Ravi as follows on Linux or Mac OSX::
 
   cd build
   cmake -DOMR_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
