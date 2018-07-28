@@ -1363,7 +1363,6 @@ static struct ast_node *parse_local_function(struct parser_state *parser) {
 	return stmt;
 }
 
-/* parse a local variable declaration statement - called from statement() */
 static struct ast_node *parse_local_statement(struct parser_state *parser) {
 	LexState *ls = parser->ls;
 	/* stat -> LOCAL NAME {',' NAME} ['=' explist] */
@@ -1431,7 +1430,7 @@ static struct ast_node *parse_function_statement(struct parser_state *parser, in
 }
 
 /* parse function call with no returns or assignment statement */
-static struct ast_node * parse_expr_statement(struct parser_state *parser) {
+static struct ast_node * parse_expression_statement(struct parser_state *parser) {
 	struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
 	stmt->type = AST_EXPR_STMT;
 	stmt->expression_stmt.var_expr_list = NULL;
@@ -1538,7 +1537,7 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 		break;
 	}
 	default: {  /* stat -> func | assignment */
-		stmt = parse_expr_statement(parser);
+		stmt = parse_expression_statement(parser);
 		break;
 	}
 	}
@@ -1550,22 +1549,18 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 static void parse_statement_list(struct parser_state *parser, struct ast_node_list **list) {
 	LexState *ls = parser->ls;
 	while (!block_follow(ls, 1)) {
-		if (ls->t.token == TK_RETURN) {
-			struct ast_node *stmt = parse_statement(parser);
-			add_ast_node(parser->container, list, stmt);
-			return;  /* 'return' must be last statement */
-		}
 		struct ast_node *stmt = parse_statement(parser);
-		if (stmt) {
-			// This check is temporary - FIXME
+		if (stmt)
 			add_ast_node(parser->container, list, stmt);
+		if (ls->t.token == TK_RETURN) {
+			return;  /* 'return' must be last statement */
 		}
 	}
 }
 
 /* Starts a new scope. If the current function has no main block
-* defined then the new scoe becomes its main block. The new scope
-* gets existing scope as parent even if that belongs to parent
+* defined then the new scope becomes its main block. The new scope
+* gets existing scope as its parent even if that belongs to parent
 * function.
 */
 static struct block_scope *new_scope(struct parser_state *parser) {
@@ -1627,7 +1622,7 @@ static struct ast_node *end_function(struct parser_state *parser) {
 
 /* mainfunc() equivalent - parses a Lua script, also known as chunk.
 The code is wrapped in a vararg function */
-static void parse_chunk(struct parser_state *parser) {
+static void parse_lua_chunk(struct parser_state *parser) {
 	luaX_next(parser->ls); /* read first token */
 	parser->container->main_function = new_function(parser); /* vararg function wrapper */
 	parser->container->main_function->function_expr.is_vararg = true;
@@ -2052,7 +2047,7 @@ static int parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 	struct parser_state parser_state;
 	parser_state_init(&parser_state, &lexstate, container);
 	lua_lock(L); // Workaround for ZIO (used by lexer) which assumes lua_lock()
-	parse_chunk(&parser_state); // FIXME must be protected call
+	parse_lua_chunk(&parser_state); // FIXME must be protected call
 	lua_unlock(L);
 	L->top--; /* remove source name */
 	L->top--; /* remove scanner table */
@@ -2060,9 +2055,9 @@ static int parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff,
 }
 
 /*
-** Execute a protected parser.
+** ravi parser context
 */
-struct SParser {  /* data to 'f_parser' */
+struct parser_context {  /* data to 'f_parser' */
 	ZIO *z;
 	Mbuffer buff;  /* dynamic structure used by the scanner */
 	Dyndata dyd;  /* dynamic structures used by the parser */
@@ -2078,8 +2073,8 @@ static void checkmode(lua_State *L, const char *mode, const char *x) {
 	}
 }
 
-static void ravi_f_parser(lua_State *L, void *ud) {
-	struct SParser *p = cast(struct SParser *, ud);
+static void ravi_parser_func(lua_State *L, void *ud) {
+	struct parser_context *p = cast(struct parser_context *, ud);
 	lua_lock(L);  // Workaroud for zgetc() which assumes lua_lock()
 	int c = zgetc(p->z);  /* read first character */
 	lua_unlock(L);
@@ -2089,7 +2084,7 @@ static void ravi_f_parser(lua_State *L, void *ud) {
 
 static int protected_ast_builder(lua_State *L, ZIO *z, const char *name,
 	const char *mode) {
-	struct SParser p;
+	struct parser_context p;
 	int status;
 	L->nny++;  /* cannot yield during parsing */
 	p.z = z; p.name = name; p.mode = mode;
@@ -2097,7 +2092,7 @@ static int protected_ast_builder(lua_State *L, ZIO *z, const char *name,
 	p.dyd.gt.arr = NULL; p.dyd.gt.size = 0;
 	p.dyd.label.arr = NULL; p.dyd.label.size = 0;
 	luaZ_initbuffer(L, &p.buff);
-	status = luaD_pcall(L, ravi_f_parser, &p, savestack(L, L->top), L->errfunc);
+	status = luaD_pcall(L, ravi_parser_func, &p, savestack(L, L->top), L->errfunc);
 	luaZ_freebuffer(L, &p.buff);
 	luaM_freearray(L, p.dyd.actvar.arr, p.dyd.actvar.size);
 	luaM_freearray(L, p.dyd.gt.arr, p.dyd.gt.size);
@@ -2155,14 +2150,14 @@ static const char *generic_reader(lua_State *L, void *ud, size_t *size) {
 	return lua_tolstring(L, RESERVEDSLOT, size);
 }
 
-typedef struct LoadS {
+typedef struct string_buffer {
 	const char *s;
 	size_t size;
-} LoadS;
+} String_buffer;
 
-
-static const char *getS(lua_State *L, void *ud, size_t *size) {
-	LoadS *ls = (LoadS *)ud;
+/* lua_Reader implementation */
+static const char *string_reader(lua_State *L, void *ud, size_t *size) {
+	String_buffer *ls = (String_buffer *)ud;
 	(void)L;  /* not used */
 	if (ls->size == 0) return NULL;
 	*size = ls->size;
@@ -2178,10 +2173,10 @@ static const char *getS(lua_State *L, void *ud, size_t *size) {
 */
 static int build_ast_from_buffer(lua_State *L, const char *buff, size_t size,
 	const char *name, const char *mode) {
-	LoadS ls;
+	String_buffer ls;
 	ls.s = buff;
 	ls.size = size;
-	return build_ast_from_reader(L, getS, &ls, name, mode);
+	return build_ast_from_reader(L, string_reader, &ls, name, mode);
 }
 
 static int build_ast(lua_State *L) {
