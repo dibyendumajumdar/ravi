@@ -7,7 +7,7 @@ Ravi Extensions to Lua 5.3
 
 Optional Static Typing
 ----------------------
-Ravi allows you to optionally annotate ``local`` variables and function parameters with types. 
+Ravi allows you optionally to annotate ``local`` variables and function parameters with types. 
 
 Function return types cannot be annotated because in Lua, functions are un-named values and there is no reliable way for a static analysis of a function call's return value.
 
@@ -33,10 +33,10 @@ The supported type annotations are as follows:
 
 General Notes
 -------------
-* Assignments to type annotated variables are checked at compile time if possible; when the assignments occur due to a function call,  runtime type checking is performed
+* Assignments to type-annotated variables are checked at compile time if possible; when the assignments occur due to a function call,  runtime type-checking is performed
 * If function parameters are decorated with types, Ravi performs implicit type assertion checks on those parameters upon function entry. If the assertions fail then runtime errors are raised.
 * Even if a typed variable is captured in a closure Ravi requires that the types are respected
-* To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However in Lua, compilation happens at runtime anyway so effectively all checks are at runtime. 
+* To keep with Lua's dynamic nature Ravi uses a mix of compile type-checking and runtime type checks. However in Lua, compilation happens at runtime anyway so effectively all checks are at runtime. 
 
 Caveats
 -------
