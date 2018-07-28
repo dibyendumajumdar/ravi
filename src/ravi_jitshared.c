@@ -571,6 +571,10 @@ static const char Lua_header[] = ""
 "extern void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value);\n"
 "extern int raviV_check_usertype(lua_State *L, TString *name, const TValue *o);\n"
 "extern void luaT_trybinTM (lua_State *L, const TValue *p1, const TValue *p2, TValue *res, TMS event);\n"
+"extern void raviV_gettable_sskey(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
+"extern void raviV_settable_sskey(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
+"extern void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
+"extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 ;
@@ -1162,11 +1166,16 @@ static void emit_op_call(struct function *fn, int A, int B, int C, int pc) {
 }
 
 // R(A) := UpValue[B][RK(C)]
-static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc) {
+static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc, OpCode op) {
   (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rc", C);
-  membuff_add_fstring(&fn->body, "luaV_gettable(L, cl->upvals[%d]->v, rc, ra);\n", B);
+  if (op == OP_RAVI_GETTABUP_SK) {
+	membuff_add_fstring(&fn->body, "raviV_gettable_sskey(L, cl->upvals[%d]->v, rc, ra);\n", B);
+  }
+  else {
+    membuff_add_fstring(&fn->body, "luaV_gettable(L, cl->upvals[%d]->v, rc, ra);\n", B);
+  }
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
@@ -1180,22 +1189,33 @@ static void emit_op_settabup(struct function *fn, int A, int B, int C, int pc) {
 }
 
 // R(A) := R(B)[RK(C)]
-static void emit_op_gettable(struct function *fn, int A, int B, int C, int pc) {
+static void emit_op_gettable(struct function *fn, int A, int B, int C, int pc, OpCode op) {
   (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
-  membuff_add_string(&fn->body, "luaV_gettable(L, rb, rc, ra);\n");
+  if (op == OP_RAVI_GETTABLE_SK) { 
+    membuff_add_string(&fn->body, "raviV_gettable_sskey(L, rb, rc, ra);\n"); }
+  else if (op == OP_RAVI_GETTABLE_I) {
+    membuff_add_string(&fn->body, "raviV_gettable_i(L, rb, rc, ra);\n");
+  }
+  else {
+    membuff_add_string(&fn->body, "luaV_gettable(L, rb, rc, ra);\n");
+  }
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
-static void emit_op_self(struct function *fn, int A, int B, int C, int pc) {
+static void emit_op_self(struct function *fn, int A, int B, int C, int pc, OpCode op) {
   (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
   membuff_add_string(&fn->body, "setobjs2s(L, ra + 1, rb);\n");
   emit_reg_or_k(fn, "rc", C);
-  membuff_add_string(&fn->body, "luaV_gettable(L, rb, rc, ra);\n");
+  if (op == OP_RAVI_SELF_SK) {
+    membuff_add_string(&fn->body, "raviV_gettable_sskey(L, rb, rc, ra);\n");
+  } else {
+    membuff_add_string(&fn->body, "luaV_gettable(L, rb, rc, ra);\n");
+  }
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
@@ -1208,12 +1228,19 @@ static void emit_op_len(struct function *fn, int A, int B, int pc) {
 }
 
 // R(A)[RK(B)] := RK(C)
-static void emit_op_settable(struct function *fn, int A, int B, int C, int pc) {
+static void emit_op_settable(struct function *fn, int A, int B, int C, int pc, OpCode op) {
   (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
-  membuff_add_fstring(&fn->body, "luaV_settable(L, ra, rb, rc);\n", B);
+  if (op == OP_RAVI_SETTABLE_SK) { 
+    membuff_add_string(&fn->body, "raviV_settable_sskey(L, ra, rb, rc);\n"); }
+  else if (op == OP_RAVI_SETTABLE_I) {
+    membuff_add_string(&fn->body, "raviV_settable_i(L, ra, rb, rc);\n");
+  }
+  else {
+    membuff_add_fstring(&fn->body, "luaV_settable(L, ra, rb, rc);\n", B);
+  }
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
@@ -1862,7 +1889,7 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		case OP_GETTABLE: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_op_gettable(&fn, A, B, C, pc);
+			emit_op_gettable(&fn, A, B, C, pc, op);
 		} break;
 		case OP_RAVI_GETTABLE_AI: {
 			int B = GETARG_B(i);
@@ -1880,7 +1907,7 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		case OP_SETTABLE: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_op_settable(&fn, A, B, C, pc);
+			emit_op_settable(&fn, A, B, C, pc, op);
 		} break;
 		case OP_RAVI_SETTABLE_AII: {
 			int B = GETARG_B(i);
@@ -1906,7 +1933,7 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		case OP_GETTABUP: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_op_gettabup(&fn, A, B, C, pc);
+			emit_op_gettabup(&fn, A, B, C, pc, op);
 		} break;
 		case OP_SETTABUP: {
 			int B = GETARG_B(i);
@@ -2163,7 +2190,7 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		case OP_RAVI_SELF_SK: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_op_self(&fn, A, B, C, pc);
+			emit_op_self(&fn, A, B, C, pc, op);
 		} break;
 		case OP_LEN: {
 			int B = GETARG_B(i);

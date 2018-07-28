@@ -188,6 +188,15 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg3(jit->jit, "raviV_check_usertype", raviV_check_usertype, JIT_Int32, JIT_Address, JIT_Address, JIT_Address);
   // void luaT_trybinTM (lua_State *L, const TValue *p1, const TValue *p2, TValue *res, TMS event);
   register_builtin_arg5(jit->jit, "luaT_trybinTM", luaT_trybinTM, JIT_NoType, JIT_Address, JIT_Address, JIT_Address, JIT_Address, JIT_Int32);
+  // void raviV_gettable_sskey(lua_State *L, const TValue *t, TValue *key, StkId val);
+  register_builtin_arg4(jit->jit, "raviV_gettable_sskey", raviV_gettable_sskey, JIT_NoType, JIT_Address, JIT_Address, JIT_Address, JIT_Address);
+  // void raviV_settable_sskey(lua_State *L, const TValue *t, TValue *key, StkId val);
+  register_builtin_arg4(jit->jit, "raviV_settable_sskey", raviV_settable_sskey, JIT_NoType, JIT_Address, JIT_Address, JIT_Address, JIT_Address);
+  // void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, StkId val);
+  register_builtin_arg4(jit->jit, "raviV_gettable_i", raviV_gettable_i, JIT_NoType, JIT_Address, JIT_Address, JIT_Address, JIT_Address);
+  // void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, StkId val);
+  register_builtin_arg4(jit->jit, "raviV_settable_i", raviV_settable_i, JIT_NoType, JIT_Address, JIT_Address, JIT_Address, JIT_Address);
+
   G->ravi_state = jit;
   return 0;
 }
