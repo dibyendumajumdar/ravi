@@ -7,7 +7,7 @@ Ravi Extensions to Lua 5.3
 
 Optional Static Typing
 ----------------------
-Ravi allows you to optionally annotate ``local`` variables and function parameters with static types. 
+Ravi allows you to optionally annotate ``local`` variables and function parameters with types. 
 
 Function return types cannot be annotated because in Lua, functions are un-named values and there is no reliable way for a static analysis of a function call's return value.
 
@@ -28,15 +28,15 @@ The supported type annotations are as follows:
 ``closure``
   denotes a function
 ``Name [. Name]+``
-  Denotes a string that has a `metatable registered under Name <https://www.lua.org/pil/28.2.html>`_ in the Lua registry. 
-  The Name must be a valid Lua name with the exception that periods are allowed in the name. 
+  Denotes a string that has a `metatable registered <https://www.lua.org/pil/28.2.html>`_ in the Lua registry. This allows userdata
+  types to be asserted by their registered names.
 
 General Notes
 -------------
-* Assignments to typed variables are statically checked if possible; when the assignments occur due to a function call then runtime type checking is performed
+* Assignments to type annotated variables are checked at compile time if possible; when the assignments occur due to a function call,  runtime type checking is performed
 * If function parameters are decorated with types, Ravi performs implicit type assertion checks against those parameters upon function entry. If the assertions fail then runtime errors are raised.
-* Even if a typed variable is captured in a closure its type must be respected
-* To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However due to the dynamic nature of Lua, compilation happens at runtime anyway so effectively all checks are at runtime. 
+* Even if a typed variable is captured in a closure Ravi requires that the types are respected
+* To keep with Lua's dynamic nature Ravi uses a mix of compile type checking and runtime type checks. However in Lua, compilation happens at runtime anyway so effectively all checks are at runtime. 
 
 Caveats
 -------
@@ -47,7 +47,7 @@ Ravi does its best to validate operations performed via the Lua debug api; howev
 ``integer`` and ``number`` types
 --------------------------------
 * ``integer`` and ``number`` types are automatically initialized to zero rather than ``nil``
-* Arithmetic operations on numeric types make use of type specific bytecodes that lead to more efficient JIT compilation
+* Arithmetic operations on numeric types make use of type specialized bytecodes that lead to better code generation
   
 ``integer[]`` and ``number[]`` array types
 ------------------------------------------
@@ -60,8 +60,8 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
 
   This restriction is placed as otherwise the JIT code would need to insert tests to validate that the variable is not ``nil``.
 * Specialised operators to get/set from array types are implemented; these makes array element access more efficient in JIT mode as the access can be inlined
-* Operations on array types can be optimised to special bytecode and JIT only when the array type is statically known. Otherwise regular table access will be used subject to runtime checks.
-* The standard table operations on arrays are checked to ensure that the type is not subverted
+* Operations on array types can be optimised to specialized bytecode only when the array type is known at compile time. Otherwise regular table access will be used, subject to runtime checks.
+* The standard table operations on arrays are checked to ensure that the array type is not subverted
 * Array types are not compatible with declared table variables, i.e. following is not allowed::
   
     local t: table = {}
@@ -75,7 +75,7 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
     local t5: number[] = {}
     local t6 = t5           -- t6 treated as table
 
-  These restrictions are applied because declared table and array types generate optimized JIT code which make assumptions about the keys and values. The generated JIT code would be incorrect if the types were not as expected.
+  These restrictions are applied because declared table and array types generate optimized code that makes assumptions about keys and values. The generated code would be incorrect if the types were not as expected.
 * Indices >= 1 should be used when accessing array elements. Ravi arrays (and slices) have a hidden slot at index 0 for performance reasons, but this is not visible in ``pairs()`` or ``ipairs()``, or when initializing an array using a literal initializer; only direct access via the ``[]`` operator can see this slot.   
 * An array will grow automatically (unless the array was created as fixed length using ``table.intarray()`` or ``table.numarray()``) if the user sets the element just past the array length::
 
@@ -83,12 +83,12 @@ The array types (``number[]`` and ``integer[]``) are specializations of Lua tabl
     t[1] = 4.2             -- okay, array grows by 1
     t[5] = 2.4             -- error! as attempt to set value 
 
-* It is an error to attempt to set an element that is beyond len+1 on dynamic arrays; for fixed length arrays attempting to set elements at positions greater than len will cause an error.
-* The current used length of the array is recorded and returned by len operations
+* It is an error to attempt to set an element that is beyond ``len+1`` on dynamic arrays; for fixed length arrays attempting to set elements at positions greater than ``len`` will cause an error.
+* The current used length of the array is recorded and returned by the ``len`` operation
 * The array only permits the right type of value to be assigned (this is also checked at runtime to allow compatibility with Lua)
-* Accessing out of bounds elements will cause an error, except for setting the len+1 element on dynamic arrays
-* It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside 
-  those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time::
+* Accessing out of bounds elements will cause an error, except for setting the ``len+1`` element on dynamic arrays. There is a compiler option to mit bounds checking on reads.
+* It is possible to pass arrays to functions and return arrays from functions. Arrays passed to functions appear as Lua tables inside
+those functions if the parameters are untyped - however the tables will still be subject to restrictions as above. If the parameters are typed then the arrays will be recognized at compile time::
 
     local function f(a, b: integer[], c)
       -- Here a is dynamic type
