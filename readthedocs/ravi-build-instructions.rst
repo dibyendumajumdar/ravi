@@ -3,7 +3,7 @@ Building Ravi
 =============
 
 .. contents:: Table of Contents
-   :depth: 1
+   :depth: 2
    :backlinks: top
 
 Quick build without JIT

@@ -2,7 +2,7 @@ Ravi Extensions to Lua 5.3
 ==========================
 
 .. contents:: Table of Contents
-   :depth: 1
+   :depth: 2
    :backlinks: top
 
 Optional Static Typing
