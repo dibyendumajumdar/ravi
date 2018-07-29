@@ -2134,7 +2134,7 @@ static bool output_fn(struct dmr_C *C, JIT_ContextRef module, struct entrypoint 
 	function.builder =
 	    JIT_CreateFunctionBuilder(module, function_name, freturn, nr_args, argtypes, JIT_ILBuilderImpl, &function);
 
-	void *p = JIT_Compile(function.builder);
+	void *p = JIT_Compile(function.builder, C->optimize);
 	if (p)
 		success = true;
 
@@ -2188,7 +2188,7 @@ bool dmrC_omrcompile(int argc, char **argv, JIT_ContextRef module, const char *i
 	char *file;
 
 	struct dmr_C *C = new_dmr_C();
-	C->optimize = 0; /* Sparse simplifications result in incorrect IR */
+	C->optimize = 1; /* Default */
 	C->codegen = 1;  /* Disables macros related to vararg processing */
 	C->Wdecl = 0;
 

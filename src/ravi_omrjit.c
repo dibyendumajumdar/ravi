@@ -397,9 +397,9 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
   membuff_init(&buf, 4096);
 
   int (*fp)(lua_State * L) = NULL;
-  char *argv[] = {NULL};
   char fname[30];
   snprintf(fname, sizeof fname, "jit%lld", G->ravi_state->id++);
+  char *argv[] = { fname, "-O1", NULL };
 
   if (!raviJ_codegen(L, p, options, fname, &buf)) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
@@ -409,7 +409,12 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
     ravi_writestring(L, buf.buf, strlen(buf.buf));
     ravi_writeline(L);
   }
-  if (!dmrC_omrcompile(0, argv, context, buf.buf)) {
+  int opt_level = G->ravi_state->opt_level_;
+  if (opt_level == 0)
+	  argv[1] = "-O0";
+  else if (opt_level >= 2)
+	  argv[1] = "-O2";
+  if (!dmrC_omrcompile(2, argv, context, buf.buf)) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
   }
   else {
