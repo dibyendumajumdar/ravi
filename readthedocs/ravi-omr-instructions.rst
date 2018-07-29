@@ -24,7 +24,9 @@ The approach taken with the OMR JIT backend is somewhat different compared with 
 
 * An intermediate C compiler is used; this is based on the `dmr_C <https://github.com/dibyendumajumdar/dmr_c>`_ project. Using a C intermediate layer makes
   development of the JIT backend easier to evolve. In comparison the LLVM backed was written by hand, using the LLVM api.
-* Users can view the intermediate C code for a Lua function by simply invoking ``ravi.dumpir(function)`` on any function::
+* Users can view the intermediate C code for a Lua function by simply invoking ``ravi.dumpir(function)`` on any function:
+
+::
 
   Ravi 5.3.4
   Copyright (C) 1994-2017 Lua.org, PUC-Rio
