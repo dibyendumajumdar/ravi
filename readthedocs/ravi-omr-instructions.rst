@@ -22,7 +22,7 @@ The main advantages / disadvantages of the OMR JIT backend over LLVM are:
 
 The approach taken with the OMR JIT backend is somewhat different compared with the LLVM backend.
 
-* An intermediate C compiler is used; this is based on the `dmr_C <https://github.com/dibyendumajumdar/dmr_c>`_ project. Using a C intermediate layer Makefiles
+* An intermediate C compiler is used; this is based on the `dmr_C <https://github.com/dibyendumajumdar/dmr_c>`_ project. Using a C intermediate layer makes
   development of the JIT backend easier to evolve. In comparison the LLVM backed was written by hand, using the LLVM api.
 * Users can view the intermediate C code for a Lua function by simply invoking ``ravi.dumpir(function)`` on any function::
 
@@ -80,6 +80,12 @@ Above results in (note that only the function code is shown below)::
     raise_error(L, error_code); /* does not return */
     return 0;
   }
+
+Build Dependencies
+==================
+
+* `CMake <https://cmake.org/>`_ is required for more advanced builds
+* On Windows you will need Visual Studio 2017 Community edition
 
 Build Instructions
 ==================
