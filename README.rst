@@ -39,7 +39,8 @@ Features
 Documentation
 =============
 * For the Lua extensions in Ravi see the `Reference Manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
-* `Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-build-instructions.html>`_.
+* `OMR JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-omr-instructions.html>`_.
+* `LLVM JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-llvm-instructions.html>`_.
 * Also see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
 * and the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
 
@@ -86,7 +87,7 @@ History
        - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
 * 2017 
        - Embedded C compiler using dmrC project (C JIT compiler) 
-       - Additional type annotations
+       - Additional type-annotations
 * 2018 
        - Implemented Eclipse OMR JIT backend
 
