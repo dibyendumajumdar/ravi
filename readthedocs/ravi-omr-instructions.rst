@@ -8,7 +8,7 @@ Build Ravi with Eclipse OMR JIT
 
 Overview
 ========
-.. note:: The Eclipse OMR JIT backend is work in progress. The code generation is not yet optimal.
+.. note:: The Eclipse OMR JIT backend is work in progress. The code generation is not yet optimal. In particular several bytecodes are not yet inlined.
 
 Recently support has been added in Ravi to use the Eclipse OMR JIT backend. 
 A `trimmed down version of the Eclipse OMR JIT <https://github.com/dibyendumajumdar/nj>`_ is used to ensure that the resulting 
@@ -18,7 +18,7 @@ The main advantages / disadvantages of the OMR JIT backend over LLVM are:
 
 * The OMR JIT backend is much smaller compared to LLVM. On my iMac it takes less than 3 minutes to compile and build the library.
 * The OMR JIT engine contains an optimizing compiler, therefore the generated code is much better than say `NanoJIT <https://github.com/dibyendumajumdar/nanojit>`_, 
-  although not as good as LLVM.
+  although not perhaps as optimized as LLVM.
 
 The approach taken with the OMR JIT backend is somewhat different compared with the LLVM backend.
 
