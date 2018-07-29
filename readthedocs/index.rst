@@ -13,15 +13,12 @@ Contents:
 
    ravi-overview
    ravi-reference
-   ravi-build-instructions
-   ravi-jit-overview
+   ravi-omr-instructions
+   ravi-llvm-instructions
    lua-introduction
    lua_bytecode_reference
    lua-parser
    ravi-internals
-   llvm-notes
-   ravi-jit-initial
-   ravi-jit-infra
    ravi-jit-compilation-hook
    ravi-lua-types
    llvm-tbaa

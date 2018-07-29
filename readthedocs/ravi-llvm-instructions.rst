@@ -1,6 +1,6 @@
-=============
-Building Ravi
-=============
+===================================
+Building Ravi with LLVM JIT backend
+===================================
 
 .. contents:: Table of Contents
    :depth: 2
@@ -17,6 +17,7 @@ Build Dependencies
 
 * `CMake <https://cmake.org/>`_ is required for more advanced builds
 * On Windows you will need Visual Studio 2017 Community edition
+* LLVM versions >= 3.5
 
 LLVM JIT Backend
 ================
@@ -94,17 +95,6 @@ On MAC OS X I use::
 
 I open the generated project in Xcode and do a build from there. You can also use the command line build tools if you wish - generate the make files in the same way as for Linux.
 
-
-Eclipse OMR JIT Backend
-=======================
-* Ravi uses a cut-down version of the `Eclipse OMR JIT engine <https://github.com/dibyendumajumdar/nj>`_. First build this library and install it.
-* The Ravi CMake build assumes you have installed the OMR JIT library under ``\Software\omr`` on Windows and ``$HOME/Software/omr`` on Linux or Mac OSX.
-* Now you can build Ravi as follows on Linux or Mac OSX::
-
-  cd build
-  cmake -DOMR_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
-  make
-
 Building without JIT
 ====================
 You can omit ``-DLLVM_JIT=ON`` and ``OMR_JIT=ON`` options to build Ravi with a null JIT implementation.
@@ -113,20 +103,55 @@ Building Static Libraries
 =========================
 By default the build generates a shared library for Ravi. You can choose to create a static library and statically linked executables by supplying the argument ``-DSTATIC_BUILD=ON`` to CMake.
 
-Build Artifacts
-===============
-The Ravi build creates a shared or static depending upon options supplied to CMake, the Ravi executable and some test programs. Additionally when JIT compilation is switched off, the ``ravidebug`` executable is generated which is the `debug adapter for use by Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_. 
+JIT API
+-------
+auto mode
+  in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - 
+  any Lua function call is checked to see if the bytecodes contained in it can be compiled. If this is true then 
+  the function is compiled provided either a) function has a fornum loop, or b) it is largish (greater than 150 bytecodes) 
+  or c) it is being executed many times (> 50). Because of the simplistic behaviour performance the benefit of JIT
+  compilation is only available if the JIT compiled functions will be executed many times so that the cost of JIT 
+  compilation can be amortized.   
+manual mode
+  in this mode user must explicitly request compilation. This is the default mode. This mode is suitable for library 
+  developers who can pre compile the functions in library module table.
 
-The ``ravi`` command recognizes following environment variables. Note that these are only for internal debugging purposes.
+A JIT api is available with following functions:
 
-``RAVI_DEBUG_EXPR``
-  if set to a value this triggers debug output of expression parsing
-``RAVI_DEBUG_CODEGEN``
-  if set to a value this triggers a dump of the code being generated
-``RAVI_DEBUG_VARS``
-  if set this triggers a dump of local variables construction and destruction
+``ravi.jit([b])``
+  returns enabled setting of JIT compiler; also enables/disables the JIT compiler; defaults to true
+``ravi.auto([b [, min_size [, min_executions]]])``
+  returns setting of auto compilation and compilation thresholds; also sets the new settings if values are supplied; defaults are false, 150, 50.
+``ravi.compile(func_or_table[, options])``
+  compiles a Lua function (or functions if a table is supplied) if possible, returns ``true`` if compilation was 
+  successful for at least one function. ``options`` is an optional table with compilation options - in particular 
+  ``omitArrayGetRangeCheck`` - which disables range checks in array get operations to improve performance in some cases. 
+  Note that at present if the first argument is a table of functions and has more than 100 functions then only the
+  first 100 will be compiled. You can invoke compile() repeatedly on the table until it returns false. Each 
+  invocation leads to a new module being created; any functions already compiled are skipped.
+``ravi.iscompiled(func)``
+  returns the JIT status of a function
+``ravi.dumplua(func)``
+  dumps the Lua bytecode of the function
+``ravi.dumpir(func)``
+  dumps the IR of the compiled function (only if function was compiled; only available in LLVM 4.0 and earlier)
+``ravi.dumpasm(func)``
+  (deprecated) dumps the machine code using the currently set optimization level (only if function was compiled; only available in LLVM version 4.0 and earlier)
+``ravi.optlevel([n])``
+  sets LLVM optimization level (0, 1, 2, 3); defaults to 2. These levels are handled by reusing LLVMs default pass definitions which are geared towards C/C++ programs, but appear to work well here. If level is set to 0, then an attempt is made to use fast instruction selection to further speed up compilation.
+``ravi.sizelevel([n])``
+  sets LLVM size level (0, 1, 2); defaults to 0
+``ravi.tracehook([b])``
+  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when you want to use the debug api to step through code line by line
+``ravi.verbosity([b])``
+  Controls the amount of verbose messages generated during compilation.
 
-Also see section above on available API for dumping either Lua bytecode or LLVM IR for compiled code.
+Performance
+===========
+For performance benchmarks please visit the `Ravi Performance Benchmarks <http://the-ravi-programming-language.readthedocs.org/en/latest/ravi-benchmarks.html>`_ page.
+
+To obtain the best possible performance, types must be annotated so that Ravi's JIT compiler can generate efficient code. 
+Additionally function calls are expensive - as the JIT compiler cannot inline function calls, all function calls go via the Lua call protocol which has a large overhead. This is true for both Lua functions and C functions. For best performance avoid function calls inside loops.
 
 Testing
 =======
