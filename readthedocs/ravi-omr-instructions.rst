@@ -86,14 +86,16 @@ Above results in (note that only the function code is shown below)::
 Build Dependencies
 ==================
 
-* `CMake <https://cmake.org/>`_ is required for more advanced builds
+* `CMake <https://cmake.org/>`_ is required
 * On Windows you will need Visual Studio 2017 Community edition
 
 Build Instructions
 ==================
 * Ravi uses a cut-down version of the `Eclipse OMR JIT engine <https://github.com/dibyendumajumdar/nj>`_. First build this library and install it.
 * The Ravi CMake build assumes you have installed the OMR JIT library under ``\Software\omr`` on Windows and ``$HOME/Software/omr`` on Linux or Mac OSX.
-* Now you can build Ravi as follows on Linux or Mac OSX::
+* Now you can build Ravi as follows on Linux or Mac OSX:
+
+::
 
   cd build
   cmake -DOMR_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
