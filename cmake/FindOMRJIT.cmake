@@ -1,16 +1,15 @@
 find_path(OMRJIT_INCLUDE_DIR nj_api.h
   PATHS
-  c:/Software/omr/include/nj
-  ~/Software/omr/include/nj
+  c:/Software/ravi/include/nj
+  ~/ravi/include/nj
   NO_DEFAULT_PATH
 )
 
 find_library(OMRJIT_LIBRARY
   NAMES nj libnj libnj.dylib
-  #NAMES jitbuilder libjitbuilder libjitbuilder.dylib
   PATHS
-  c:/Software/omr/lib
-  ~/Software/omr/lib
+  c:/Software/ravi/lib
+  ~/ravi/lib
 )
 
 set( OMRJIT_INCLUDE_DIRS "${OMRJIT_INCLUDE_DIR}" )
