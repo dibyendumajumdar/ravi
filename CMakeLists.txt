@@ -362,11 +362,11 @@ if (NOT STATIC_BUILD)
 endif()
 
 if (LLVM_JIT)
-    set (LIBRAVI_NAME libravillvm) 
+    set (LIBRAVI_NAME libravi) 
 elseif (OMR_JIT)
-    set (LIBRAVI_NAME libravilomr) 
+    set (LIBRAVI_NAME libravi) 
 else()
-    set (LIBRAVI_NAME libravinojit)
+    set (LIBRAVI_NAME libravi)
 endif()
 
 #Main library
