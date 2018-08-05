@@ -25,7 +25,7 @@
 
 /*
 Define environment variable
-TR_Options=traceIlGen,traceFull,log=trtrace.log
+TR_Options=traceIlGen,traceFull,traceAliases,log=trtrace.log
 To obtain a nice trace of codegen
 */
 
@@ -780,6 +780,15 @@ static JIT_NodeRef output_op_store(struct dmr_C *C, struct function *fn, struct 
 		}
 	}
 
+	/* Following causes test failures -- To be investgated */
+	//if (insn->src->type == PSEUDO_SYM) {
+	//	JIT_SymbolRef symref = get_sym_value(C, fn, insn->src, true);
+	//	if (symref && JIT_IsTemporary(fn->injector, symref)) {
+	//		JIT_StoreToTemporary(fn->injector, symref, target_in);
+	//		return target_in;
+	//	}
+	//}
+
 	ptr = pseudo_to_value(C, fn, insn->type, insn->src);
 	if (!ptr)
 		return NULL;
@@ -1471,10 +1480,19 @@ static JIT_NodeRef output_op_symaddr(struct dmr_C *C, struct function *fn, struc
 {
 	JIT_NodeRef res, src;
 	struct OMRType *dtype;
+	JIT_SymbolRef sym;
 
 	src = pseudo_to_value(C, fn, insn->type, insn->symbol);
 	if (!src)
 		return NULL;
+
+	/* We need to tell the backend if a local var has had its
+	   address taken */
+	if (insn->symbol->type == PSEUDO_SYM) {
+		sym = get_sym_value(C, fn, insn->symbol, true);
+		if (sym)
+			JIT_SetAutoAddressTaken(fn->injector, sym);
+	}
 
 	dtype = get_symnode_or_basetype(C, fn, insn->type);
 	if (!dtype)
