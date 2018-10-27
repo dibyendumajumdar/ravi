@@ -1,5 +1,5 @@
 /*
-** $Id: lapi.c,v 2.259 2016/02/29 14:27:14 roberto Exp $
+** $Id: lapi.c,v 2.259.1.2 2017/12/06 18:35:12 roberto Exp $
 ** Lua API
 ** See Copyright Notice in lua.h
 */
@@ -580,6 +580,7 @@ LUA_API void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n) {
   lua_lock(L);
   if (n == 0) {
     setfvalue(L->top, fn);
+    api_incr_top(L);
   }
   else {
     CClosure *cl;
@@ -595,9 +596,9 @@ LUA_API void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n) {
       /* does not need barrier because closure is white */
     }
     setclCvalue(L, L->top, cl);
+    api_incr_top(L);
+    luaC_checkGC(L);
   }
-  api_incr_top(L);
-  luaC_checkGC(L);
   lua_unlock(L);
 }
 
@@ -681,11 +682,12 @@ LUA_API int lua_geti (lua_State *L, int idx, lua_Integer n) {
   if (ttisLtable(t) || !ttistable(t)) {
     if (luaV_fastgeti(L, t, n, slot)) {
       setobj2s(L, L->top, slot);
+      api_incr_top(L);
     }
     else {
-      TValue aux;
-      setivalue(&aux, n);
-      luaV_finishget(L, t, &aux, L->top, slot);
+      setivalue(L->top, n);
+      api_incr_top(L);
+      luaV_finishget(L, t, L->top - 1, L->top - 1, slot);
     }
   }
   else {
@@ -702,8 +704,8 @@ LUA_API int lua_geti (lua_State *L, int idx, lua_Integer n) {
         setnilvalue(L->top);
       }
     }
+    api_incr_top(L);
   }
-  api_incr_top(L);
   lua_unlock(L);
   return ttnov(L->top - 1);
 }
@@ -716,7 +718,7 @@ LUA_API int lua_rawget(lua_State *L, int idx) {
   api_check(L, ttistable(t), "table expected");
   h = hvalue(t);
   if (ttisLtable(t)) {
-    setobj2s(L, L->top - 1, luaH_get(hvalue(t), L->top - 1));
+    setobj2s(L, L->top - 1, luaH_get(h, L->top - 1));
   }
   else if (ttisfarray(t)) {
     TValue *key = L->top - 1;
@@ -759,7 +761,7 @@ LUA_API int lua_rawgeti (lua_State *L, int idx, lua_Integer n) {
   api_check(L, ttistable(t), "table expected");
   h = hvalue(t);
   if (ttisLtable(t)) {
-    setobj2s(L, L->top, luaH_getint(hvalue(t), n));
+    setobj2s(L, L->top, luaH_getint(h, n));
   }
   else if (ttisfarray(t)) {
     if (n <= raviH_getn(h)) { raviH_get_float_inline(L, h, n, L->top); }
@@ -782,13 +784,11 @@ LUA_API int lua_rawgeti (lua_State *L, int idx, lua_Integer n) {
 LUA_API int lua_rawgetp (lua_State *L, int idx, const void *p) {
   StkId t;
   TValue k;
-  Table *h;
   lua_lock(L);
   t = index2addr(L, idx);
   api_check(L, ttisLtable(t), "Lua table expected");
-  h = hvalue(t);
   setpvalue(&k, cast(void *, p));
-  setobj2s(L, L->top, luaH_get(h, &k));
+  setobj2s(L, L->top, luaH_get(hvalue(t), &k));
   api_incr_top(L);
   lua_unlock(L);
   return ttnov(L->top - 1);
@@ -1019,11 +1019,13 @@ LUA_API void lua_seti (lua_State *L, int idx, lua_Integer n) {
   if (ttisLtable(t) || !ttistable(t)) {
     if (luaV_fastgeti(L, t, n, slot)) {
       luaV_finishfastset(L, t, slot, L->top - 1);
+      L->top--;  /* pop value */
     }
     else {
-      TValue aux;
-      setivalue(&aux, n);
-      luaV_finishset(L, t, &aux, L->top - 1, slot);
+      setivalue(L->top, n);
+      api_incr_top(L);
+      luaV_finishset(L, t, L->top - 1, L->top - 2, slot);
+      L->top -= 2;  /* pop value and key */	  
     }
   }
   else {
@@ -1051,8 +1053,8 @@ LUA_API void lua_seti (lua_State *L, int idx, lua_Integer n) {
           luaG_runerror(L, "value cannot be converted to integer");
       }
     }
+    L->top--;  /* pop value */
   }
-  L->top--;  /* pop value */
   lua_unlock(L);
 }
 
@@ -1060,19 +1062,18 @@ LUA_API void lua_seti (lua_State *L, int idx, lua_Integer n) {
 LUA_API void lua_rawset (lua_State *L, int idx) {
   StkId o;
   TValue *slot;
-  Table *t;
   lua_lock(L);
   api_checknelems(L, 2);
   o = index2addr(L, idx);
   api_check(L, ttistable(o), "table expected");
-  t = hvalue(o);
   if (ttisLtable(o)) {
-    slot = luaH_set(L, t, L->top - 2);
+    slot = luaH_set(L, hvalue(o), L->top - 2);
     setobj2t(L, slot, L->top - 1);
-    invalidateTMcache(t);
-    luaC_barrierback(L, t, L->top - 1);
+    invalidateTMcache(hvalue(o));
+    luaC_barrierback(L, hvalue(o), L->top - 1);
   }
   else if (ttisfarray(o)) {
+    Table *t = hvalue(o); 
     TValue *key = L->top - 2;
     TValue *val = L->top - 1;
     if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
@@ -1092,6 +1093,7 @@ LUA_API void lua_rawset (lua_State *L, int idx) {
     }
   }
   else {
+    Table *t = hvalue(o); 
     TValue *key = L->top - 2;
     TValue *val = L->top - 1;
     if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
@@ -1114,17 +1116,16 @@ LUA_API void lua_rawset (lua_State *L, int idx) {
 
 LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
   StkId o;
-  Table *t;
   lua_lock(L);
   api_checknelems(L, 1);
   o = index2addr(L, idx);
   api_check(L, ttistable(o), "table expected");
-  t = hvalue(o);
   if (ttisLtable(o)) {
-    luaH_setint(L, t, n, L->top - 1);
-    luaC_barrierback(L, t, L->top - 1);
+    luaH_setint(L, hvalue(o), n, L->top - 1);
+    luaC_barrierback(L, hvalue(o), L->top - 1);
   }
   else if (ttisfarray(o)) {
+    Table *t = hvalue(o);
     TValue *val = L->top - 1;
     if (ttisfloat(val)) { raviH_set_float_inline(L, t, n, fltvalue(val)); }
     else if (ttisinteger(val)) {
@@ -1138,6 +1139,7 @@ LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
     }
   }
   else {
+    Table *t = hvalue(o);
     TValue *val = L->top - 1;
     if (ttisinteger(val)) { raviH_set_int_inline(L, t, n, ivalue(val)); }
     else {
@@ -1154,17 +1156,15 @@ LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
 
 LUA_API void lua_rawsetp (lua_State *L, int idx, const void *p) {
   StkId o;
-  Table *t;
   TValue k, *slot;
   lua_lock(L);
   api_checknelems(L, 1);
   o = index2addr(L, idx);
   api_check(L, ttisLtable(o), "table expected");
-  t = hvalue(o);
   setpvalue(&k, cast(void *, p));
-  slot = luaH_set(L, t, &k);
+  slot = luaH_set(L, hvalue(o), &k);
   setobj2t(L, slot, L->top - 1);
-  luaC_barrierback(L, t, L->top - 1);
+  luaC_barrierback(L, hvalue(o), L->top - 1);
   L->top--;
   lua_unlock(L);
 }
@@ -1340,6 +1340,7 @@ LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
   lua_unlock(L);
   return status;
 }
+
 
 LUA_API int lua_dump (lua_State *L, lua_Writer writer, void *data, int strip) {
   int status;

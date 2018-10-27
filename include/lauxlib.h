@@ -1,5 +1,5 @@
 /*
-** $Id: lauxlib.h,v 1.131 2016/12/06 14:54:31 roberto Exp $
+** $Id: lauxlib.h,v 1.131.1.1 2017/04/19 17:20:42 roberto Exp $
 ** Auxiliary functions for building Lua libraries
 ** See Copyright Notice in lua.h
 */
@@ -285,30 +285,10 @@ LUALIB_API int   (luaL_newmetatable)(lua_State *L, const char *tname);
 LUALIB_API void  (luaL_setmetatable)(lua_State *L, const char *tname);
 LUALIB_API void *(luaL_testudata)(lua_State *L, int ud, const char *tname);
 LUALIB_API void *(luaL_checkudata)(lua_State *L, int ud, const char *tname);
-#if 0
-LUALIB_API int raviL_newmetatable(lua_State *L, const void *meta_key, 
-                                  const char *tname);
-
-/* meta_key is the key assigned to the meta table of the userdata */
-LUALIB_API void raviL_getmetatable(lua_State *L, const void *meta_key);
-
-/*
- arg_index is the position of userdata argument on the stack
- meta_key is the key assigned to the meta table of the userdata
-*/
-LUALIB_API void *raviL_testudata(lua_State *L, int arg_index, const void *meta_key);
-
-/* 
- arg_index is the position of userdata argument on the stack
- meta_key is the key assigned to the meta table of the userdata
-*/
-LUALIB_API void *raviL_checkudata(lua_State *L, int arg_index, const void *meta_key);
-#else
 #define raviL_newmetatable(L, meta_key, tname) luaL_newmetatable(L, meta_key)
 #define raviL_getmetatable(L, meta_key) luaL_getmetatable(L, meta_key)
 #define raviL_testudata(L, arg_index, meta_key) luaL_testudata(L, arg_index, meta_key)
 #define raviL_checkudata(L, arg_index, meta_key) luaL_checkudata(L, arg_index, meta_key)
-#endif
 
 LUALIB_API int (raviL_build_ast_from_buffer) (lua_State *L, const char *buff, size_t size,
                                  const char *name, const char *mode);
