@@ -271,24 +271,10 @@ LUALIB_API void (luaL_openlib) (lua_State *L, const char *libname,
 #endif
 /* }============================================================ */
 
-/*
- The normal Lua metatable functions in C use string
- keys - these are expensive as the key needs to be
- converted to Lua string, hash code computed etc.
- Following implementations are taken from a post in
- Lua mailing list (http://lua-users.org/lists/lua-l/2010-11/msg00151.html)
- meta_key is the key assigned to the meta table of the userdata
- IMPORTANT: Caller must ensure that supplied meta_key points to somewhere in
- static storage as otherwise memory fault will occur.
-*/
 LUALIB_API int   (luaL_newmetatable)(lua_State *L, const char *tname);
 LUALIB_API void  (luaL_setmetatable)(lua_State *L, const char *tname);
 LUALIB_API void *(luaL_testudata)(lua_State *L, int ud, const char *tname);
 LUALIB_API void *(luaL_checkudata)(lua_State *L, int ud, const char *tname);
-#define raviL_newmetatable(L, meta_key, tname) luaL_newmetatable(L, meta_key)
-#define raviL_getmetatable(L, meta_key) luaL_getmetatable(L, meta_key)
-#define raviL_testudata(L, arg_index, meta_key) luaL_testudata(L, arg_index, meta_key)
-#define raviL_checkudata(L, arg_index, meta_key) luaL_checkudata(L, arg_index, meta_key)
 
 LUALIB_API int (raviL_build_ast_from_buffer) (lua_State *L, const char *buff, size_t size,
                                  const char *name, const char *mode);

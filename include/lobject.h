@@ -75,7 +75,14 @@
 */
 typedef struct GCObject GCObject;
 
-/* Extended to 16-bits so that we can hold more info */
+/* 
+** Value type extended to 16-bits so that we can hold more info.
+** The actual type code is still 1 byte (least significant byte)
+** and in particular all GC-able type codes must fit into 1 byte because
+** the GC CommonHeader only allows 1 byte for the type code.
+** The extra byte is for use by the type FCF (fast C function) to 
+** encode the C function's parameter and return types.
+*/
 typedef uint16_t LuaType;
 
 /*
