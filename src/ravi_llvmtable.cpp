@@ -121,10 +121,10 @@ void RaviCodeGenerator::emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // R(A)[RK(B)] := RK(C)
-void RaviCodeGenerator::emit_SETTABLE_SK(RaviFunctionDef *def, int A, int B,
+void RaviCodeGenerator::emit_SETFIELD(RaviFunctionDef *def, int A, int B,
                                          int C, int pc) {
   // Protect(raviV_settable_sskey(L, ra, RKB(i), RKC(i)));
-  bool traced = emit_debug_trace(def, OP_RAVI_SETTABLE_SK, pc);
+  bool traced = emit_debug_trace(def, OP_RAVI_SETFIELD, pc);
   // Below may invoke metamethod so we set savedpc
   if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
@@ -149,9 +149,9 @@ void RaviCodeGenerator::emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // R(A) := R(B)[RK(C)]
-void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
+void RaviCodeGenerator::emit_GETFIELD(RaviFunctionDef *def, int A, int B,
                                          int C, int pc, TString *key) {
-  bool traced = emit_debug_trace(def, OP_RAVI_GETTABLE_SK, pc);
+  bool traced = emit_debug_trace(def, OP_RAVI_GETFIELD, pc);
   // Below may invoke metamethod so we set savedpc
   if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
@@ -166,13 +166,13 @@ void RaviCodeGenerator::emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B,
 
   // if table type try fast path
   llvm::Value *cmp1 = emit_is_value_of_type(def, type, RAVI__TLTABLE,
-                                            "GETTABLE_SK_is_table_type");
+                                            "GETFIELD_is_table_type");
   llvm::BasicBlock *is_table = llvm::BasicBlock::Create(
-      def->jitState->context(), "GETTABLE_SK_is_table", def->f);
+      def->jitState->context(), "GETFIELD_is_table", def->f);
   llvm::BasicBlock *not_table = llvm::BasicBlock::Create(
-      def->jitState->context(), "GETTABLE_SK_is_not_table");
+      def->jitState->context(), "GETFIELD_is_not_table");
   llvm::BasicBlock *done =
-      llvm::BasicBlock::Create(def->jitState->context(), "GETTABLE_SK_done");
+      llvm::BasicBlock::Create(def->jitState->context(), "GETFIELD_done");
   auto brinst1 = def->builder->CreateCondBr(cmp1, is_table, not_table);
   attach_branch_weights(def, brinst1, 100, 0);
   def->builder->SetInsertPoint(is_table);
@@ -853,7 +853,7 @@ void RaviCodeGenerator::emit_SETTABUP_SK(RaviFunctionDef *def, int A, int B,
   // int a = GETARG_A(i);
   // Protect(luaV_settable(L, cl->upvals[a]->v, RKB(i), RKC(i)));
 
-  bool traced = emit_debug_trace(def, OP_RAVI_SETTABLE_SK, pc);
+  bool traced = emit_debug_trace(def, OP_RAVI_SETFIELD, pc);
   if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);

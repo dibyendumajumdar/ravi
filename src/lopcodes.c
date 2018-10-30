@@ -159,9 +159,9 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
 
   "GETTABLE_I", /*	A B C	R(A) := R(B)[RK(C)], integer key	*/
   "SETTABLE_I", /*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
-  "GETTABLE_SK", /* _SK */ /*	A B C	R(A) := R(B)[RK(C)], string key   */
+  "GETFIELD", /* _SK */ /*	A B C	R(A) := R(B)[RK(C)], string key   */
   "SELF_SK",    /* _SK*/ /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
-  "SETTABLE_SK", /*_SK */ /*	A B C	R(A)[RK(B)] := RK(C), string key  */
+  "SETFIELD", /*_SK */ /*	A B C	R(A)[RK(B)] := RK(C), string key  */
   "GETTABUP_SK",
    NULL
 };
@@ -300,9 +300,9 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_I */
  ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_I */
- ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_SK */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETFIELD */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_SELF_SK */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_SK */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETFIELD */
  ,opmode(0, 1, OpArgU, OpArgK, iABC)		/* OP_RAVI_GETTABUP_SK */
 };
 
@@ -471,7 +471,7 @@ static void PrintCode(const Proto* f)
    case OP_RAVI_GETTABLE_AF:
    case OP_RAVI_GETTABLE_AI:
    case OP_SELF:
-   case OP_RAVI_GETTABLE_SK:
+   case OP_RAVI_GETFIELD:
    case OP_RAVI_SELF_S:
    case OP_RAVI_SELF_SK:
     if (ISK(c)) { printf("\t; "); PrintConstant(f,INDEXK(c)); }
@@ -479,7 +479,7 @@ static void PrintCode(const Proto* f)
    case OP_SETTABLE:
    case OP_RAVI_SETTABLE_I:
    case OP_RAVI_SETTABLE_S:
-   case OP_RAVI_SETTABLE_SK:
+   case OP_RAVI_SETFIELD:
    case OP_RAVI_SETTABLE_AF:
    case OP_RAVI_SETTABLE_AFF:
    case OP_RAVI_SETTABLE_AI:

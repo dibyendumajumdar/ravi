@@ -1628,11 +1628,11 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_CALL(def, A, B, C, pc);
       } break;
 
-      case OP_RAVI_SETTABLE_SK:
+      case OP_RAVI_SETFIELD:
       case OP_RAVI_SETTABLE_S: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_SETTABLE_SK(def, A, B, C, pc);
+        emit_SETFIELD(def, A, B, C, pc);
       } break;
       case OP_RAVI_SETTABLE_I: {
         int B = GETARG_B(i);
@@ -1668,14 +1668,14 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int C = GETARG_C(i);
         emit_GETTABLE_I(def, A, B, C, pc);
       } break;
-      case OP_RAVI_GETTABLE_SK: {
+      case OP_RAVI_GETFIELD: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         lua_assert(ISK(C));
         TValue *kv = k + INDEXK(C);
         TString *key = tsvalue(kv);
         lua_assert(key->tt == LUA_TSHRSTR);
-        emit_GETTABLE_SK(def, A, B, C, pc, key);
+        emit_GETFIELD(def, A, B, C, pc, key);
       } break;
       case OP_GETTABLE: {
         int B = GETARG_B(i);

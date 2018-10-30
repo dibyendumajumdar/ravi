@@ -121,7 +121,7 @@ check(function ()
 end,
   'LOADNIL',
   'MUL',
-  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETTABLE_SK', 'POW',
+  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETFIELD', 'POW',
     'UNM', 'SETTABLE', 'SETTABLE_I', 'RETURN')
 
 
@@ -132,7 +132,7 @@ check(function ()
   a.x = b
   a[b] = 'x'
 end,
-  'LOADNIL', 'SETTABLE_SK', 'SETTABLE_SK', 'SETTABLE', 'RETURN')
+  'LOADNIL', 'SETFIELD', 'SETFIELD', 'SETTABLE', 'RETURN')
 
 check(function ()
   local a,b

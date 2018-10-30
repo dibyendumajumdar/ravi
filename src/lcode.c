@@ -610,7 +610,7 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
         else if (/* e->ravi_type == RAVI_TTABLE &&*/  e->u.ind.key_ravi_type == RAVI_TNUMINT)
           op = OP_RAVI_GETTABLE_I;
         else if (e->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
-          op = OP_RAVI_GETTABLE_SK;
+          op = OP_RAVI_GETFIELD;
         else
           op = OP_GETTABLE;
         if (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT)
@@ -1019,7 +1019,7 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
         }
         else if (var->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, var->u.ind.idx)) {
           /* table with string key */
-          op = OP_RAVI_SETTABLE_SK;
+          op = OP_RAVI_SETFIELD;
         }
       }
       int e = luaK_exp2RK(fs, ex);

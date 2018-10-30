@@ -1244,14 +1244,14 @@ class RaviCodeGenerator {
 
   void emit_SETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
+  void emit_SETFIELD(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, int pc,
                        TString *key);
 
-  void emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc,
+  void emit_GETFIELD(RaviFunctionDef *def, int A, int B, int C, int pc,
                         TString *key);
 
   void emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);

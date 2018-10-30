@@ -111,8 +111,8 @@ opcodes_coverage.GETTABLE_I = 0
 opcodes_coverage.GETTABLE_S = 0
 opcodes_coverage.SETTABLE_I = 0
 opcodes_coverage.SETTABLE_S = 0
-opcodes_coverage.SETTABLE_SK = 0
-opcodes_coverage.GETTABLE_SK = 0
+opcodes_coverage.SETFIELD = 0
+opcodes_coverage.GETFIELD = 0
 opcodes_coverage.TOTAB = 0
 opcodes_coverage.MOVETAB = 0
 opcodes_coverage.SETUPVALT = 0
@@ -215,7 +215,7 @@ check(function ()
 end,
   'LOADNIL',
   'MUL',
-  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETTABLE_SK', 'POW',
+  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETFIELD', 'POW',
     'UNM', 'SETTABLE', 'SETTABLE_I', 'RETURN')
 
 -- direct access to constants
@@ -230,7 +230,7 @@ check(function ()
   a[true] = false
 end,
   'LOADNIL',
-  'SETTABLE_SK', 'SETTABLE_SK', 'SETTABLE', 'SUB', 'DIV', 'LOADK',
+  'SETFIELD', 'SETFIELD', 'SETTABLE', 'SUB', 'DIV', 'LOADK',
   'SETTABLE', 'RETURN')
 
 
@@ -1106,8 +1106,8 @@ function test_tableaccess()
     return t.name, t.data.city
   end
   check(f, 'NEWTABLE', 'SETTABLE_S', 'NEWTABLE',
-    'SETTABLE_S', 'GETTABLE_S', 'SETTABLE_SK', 
-    'GETTABLE_S', 'GETTABLE_S' , 'GETTABLE_SK',
+    'SETTABLE_S', 'GETTABLE_S', 'SETFIELD', 
+    'GETTABLE_S', 'GETTABLE_S' , 'GETFIELD',
     'RETURN', 'RETURN')
   local a,b = f()
   assert(a == 'dibyendu')
