@@ -628,8 +628,8 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_RAVI_SETUPVALAF:
 		case OP_RAVI_SETUPVALT:
 		case OP_RAVI_GETTABLE_S:
-		case OP_RAVI_GETTABLE_AI:
-		case OP_RAVI_GETTABLE_AF:
+		case OP_RAVI_IARRAY_GET:
+		case OP_RAVI_FARRAY_GET:
 		case OP_RAVI_GETFIELD:
 		case OP_RAVI_GETTABLE_I:
 		case OP_GETTABLE:
@@ -639,10 +639,10 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_RAVI_SETFIELD:
 		case OP_RAVI_SETTABLE_S:
 		case OP_RAVI_SETTABLE_I:
-		case OP_RAVI_SETTABLE_AII:
-		case OP_RAVI_SETTABLE_AI:
-		case OP_RAVI_SETTABLE_AFF:
-		case OP_RAVI_SETTABLE_AF:
+		case OP_RAVI_IARRAY_SETI:
+		case OP_RAVI_IARRAY_SET:
+		case OP_RAVI_FARRAY_SETF:
+		case OP_RAVI_FARRAY_SET:
 		case OP_SETTABLE:
 		case OP_SETTABUP:
 		case OP_NEWTABLE:
@@ -773,7 +773,7 @@ static void emit_reg_or_k(struct function *fn, const char *name, int regnum) {
 	}
 }
 
-static void emit_gettable_ai(struct function *fn, int A, int B, int C, bool omitArrayGetRangeCheck, int pc) {
+static void emit_IARRAY_GET(struct function *fn, int A, int B, int C, bool omitArrayGetRangeCheck, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
@@ -795,7 +795,7 @@ static void emit_gettable_ai(struct function *fn, int A, int B, int C, bool omit
   }
 }
 
-static void emit_gettable_af(struct function *fn, int A, int B, int C, bool omitArrayGetRangeCheck, int pc) {
+static void emit_FARRAY_GET(struct function *fn, int A, int B, int C, bool omitArrayGetRangeCheck, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
@@ -817,7 +817,7 @@ static void emit_gettable_af(struct function *fn, int A, int B, int C, bool omit
   }
 }
 
-static void emit_settable_aii(struct function *fn, int A, int B, int C, bool known_int, int pc) {
+static void emit_IARRAY_SETI(struct function *fn, int A, int B, int C, bool known_int, int pc) {
   (void)pc;
   (void)known_int;
   emit_reg(fn, "ra", A);
@@ -833,7 +833,7 @@ static void emit_settable_aii(struct function *fn, int A, int B, int C, bool kno
   membuff_add_string(&fn->body, "}\n");
 }
 
-static void emit_settable_ai(struct function *fn, int A, int B, int C, bool known_int, int pc) {
+static void emit_IARRAY_SET(struct function *fn, int A, int B, int C, bool known_int, int pc) {
   (void)pc;
   (void)known_int;
   emit_reg(fn, "ra", A);
@@ -858,7 +858,7 @@ static void emit_settable_ai(struct function *fn, int A, int B, int C, bool know
   membuff_add_string(&fn->body, "}\n");
 }
 
-static void emit_settable_aff(struct function *fn, int A, int B, int C, bool known_int, int pc) {
+static void emit_FARRAY_SETF(struct function *fn, int A, int B, int C, bool known_int, int pc) {
   (void)pc;
   (void)known_int;
   emit_reg(fn, "ra", A);
@@ -874,7 +874,7 @@ static void emit_settable_aff(struct function *fn, int A, int B, int C, bool kno
   membuff_add_string(&fn->body, "}\n");
 }
 
-static void emit_settable_af(struct function *fn, int A, int B, int C, bool known_int, int pc) {
+static void emit_FARRAY_SET(struct function *fn, int A, int B, int C, bool known_int, int pc) {
   (void)pc;
   (void)known_int;
   emit_reg(fn, "ra", A);
@@ -1891,15 +1891,15 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int C = GETARG_C(i);
 			emit_op_gettable(&fn, A, B, C, pc, op);
 		} break;
-		case OP_RAVI_GETTABLE_AI: {
+		case OP_RAVI_IARRAY_GET: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_gettable_ai(&fn, A, B, C, options->omit_array_get_range_check, pc);
+			emit_IARRAY_GET(&fn, A, B, C, options->omit_array_get_range_check, pc);
 		} break;
-		case OP_RAVI_GETTABLE_AF: {
+		case OP_RAVI_FARRAY_GET: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_gettable_af(&fn, A, B, C, options->omit_array_get_range_check, pc);
+			emit_FARRAY_GET(&fn, A, B, C, options->omit_array_get_range_check, pc);
 		} break;
 		case OP_RAVI_SETFIELD:
 		case OP_RAVI_SETTABLE_S:
@@ -1909,25 +1909,25 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int C = GETARG_C(i);
 			emit_op_settable(&fn, A, B, C, pc, op);
 		} break;
-		case OP_RAVI_SETTABLE_AII: {
+		case OP_RAVI_IARRAY_SETI: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_settable_aii(&fn, A, B, C, true, pc);
+			emit_IARRAY_SETI(&fn, A, B, C, true, pc);
 		} break;
-		case OP_RAVI_SETTABLE_AI: {
+		case OP_RAVI_IARRAY_SET: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_settable_ai(&fn, A, B, C, true, pc);
+			emit_IARRAY_SET(&fn, A, B, C, true, pc);
 		} break;
-		case OP_RAVI_SETTABLE_AFF: {
+		case OP_RAVI_FARRAY_SETF: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_settable_aff(&fn, A, B, C, true, pc);
+			emit_FARRAY_SETF(&fn, A, B, C, true, pc);
 		} break;
-		case OP_RAVI_SETTABLE_AF: {
+		case OP_RAVI_FARRAY_SET: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
-			emit_settable_af(&fn, A, B, C, true, pc);
+			emit_FARRAY_SET(&fn, A, B, C, true, pc);
 		} break;
 		case OP_RAVI_GETTABUP_SK:
 		case OP_GETTABUP: {

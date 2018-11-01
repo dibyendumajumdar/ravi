@@ -1328,16 +1328,16 @@ class RaviCodeGenerator {
 
   void emit_TFORLOOP(RaviFunctionDef *def, int A, int j, int pc);
 
-  void emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B, int C,
+  void emit_FARRAY_GET(RaviFunctionDef *def, int A, int B, int C,
                         bool omitArrayGetRangeCheck, int pc);
 
-  void emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B, int C,
+  void emit_IARRAY_GET(RaviFunctionDef *def, int A, int B, int C,
                         bool omitArrayGetRangeCheck, int pc);
 
-  void emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B, int C,
+  void emit_FARRAY_SET(RaviFunctionDef *def, int A, int B, int C,
                         bool known_int, int pc);
 
-  void emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B, int C,
+  void emit_IARRAY_SET(RaviFunctionDef *def, int A, int B, int C,
                         bool known_float, int pc);
 
   void emit_MOVEAI(RaviFunctionDef *def, int A, int B, int pc);

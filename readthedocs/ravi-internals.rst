@@ -610,10 +610,10 @@ Assignment statements have to be enhanced to perform similar type checks as for 
           /* table value set - if array access then use specialized versions */
           if (var->ravi_type == RAVI_TARRAYFLT && 
               var->u.ind.key_type == RAVI_TNUMINT)
-            op = OP_RAVI_SETTABLE_AF;
+            op = OP_RAVI_FARRAY_SET;
           else if (var->ravi_type == RAVI_TARRAYINT && 
                    var->u.ind.key_type == RAVI_TNUMINT)
-            op = OP_RAVI_SETTABLE_AI;
+            op = OP_RAVI_IARRAY_SET;
         }
         int e = luaK_exp2RK(fs, ex);
         luaK_codeABC(fs, op, var->u.ind.t, var->u.ind.idx, e);
@@ -817,10 +817,10 @@ When expression reference indexed variables, i.e., tables, we need to emit speci
           /* table access - set specialized op codes if array types are detected */
           if (e->ravi_type == RAVI_TARRAYFLT && 
               e->u.ind.key_type == RAVI_TNUMINT)
-            op = OP_RAVI_GETTABLE_AF;
+            op = OP_RAVI_FARRAY_GET;
           else if (e->ravi_type == RAVI_TARRAYINT && 
                    e->u.ind.key_type == RAVI_TNUMINT)
-            op = OP_RAVI_GETTABLE_AI;
+            op = OP_RAVI_IARRAY_GET;
           else
             op = OP_GETTABLE;
           if (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT)

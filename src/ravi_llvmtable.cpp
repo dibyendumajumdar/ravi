@@ -472,7 +472,7 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
   emit_common_GETTABLE_S(def, A, B, C, key);
 }
 
-void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
+void RaviCodeGenerator::emit_FARRAY_GET(RaviFunctionDef *def, int A, int B,
                                          int C, bool omitArrayGetRangeCheck,
                                          int pc) {
   //#define raviH_get_float_inline(L, t, key, v)
@@ -490,7 +490,7 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
   // Table *t = hvalue(rb);
   // raviH_get_float_inline(L, t, idx, ra);
 
-  emit_debug_trace(def, OP_RAVI_GETTABLE_AF, pc);
+  emit_debug_trace(def, OP_RAVI_FARRAY_GET, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -536,7 +536,7 @@ void RaviCodeGenerator::emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B,
   }
 }
 
-void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B,
+void RaviCodeGenerator::emit_IARRAY_GET(RaviFunctionDef *def, int A, int B,
                                          int C, bool omitArrayGetRangeCheck,
                                          int pc) {
   //#define raviH_get_int_inline(L, t, key, v)
@@ -554,7 +554,7 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B,
   // Table *t = hvalue(rb);
   // raviH_get_int_inline(L, t, idx, ra);
 
-  emit_debug_trace(def, OP_RAVI_GETTABLE_AI, pc);
+  emit_debug_trace(def, OP_RAVI_IARRAY_GET, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register(def, B);
@@ -601,7 +601,7 @@ void RaviCodeGenerator::emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B,
   }
 }
 
-void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B,
+void RaviCodeGenerator::emit_IARRAY_SET(RaviFunctionDef *def, int A, int B,
                                          int C, bool known_int, int pc) {
   //#define raviH_set_int_inline(L, t, key, value)
   //{ unsigned ukey = (unsigned)((key));
@@ -619,7 +619,7 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B,
   // lua_Integer value = ivalue(rc);
   // raviH_set_int_inline(L, t, idx, value);
 
-  emit_debug_trace(def, known_int ? OP_RAVI_SETTABLE_AII : OP_RAVI_SETTABLE_AI,
+  emit_debug_trace(def, known_int ? OP_RAVI_IARRAY_SETI : OP_RAVI_IARRAY_SET,
                    pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -661,7 +661,7 @@ void RaviCodeGenerator::emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B,
   def->builder->SetInsertPoint(end_block);
 }
 
-void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B,
+void RaviCodeGenerator::emit_FARRAY_SET(RaviFunctionDef *def, int A, int B,
                                          int C, bool known_float, int pc) {
   //#define raviH_set_float_inline(L, t, key, value)
   //{ unsigned ukey = (unsigned)((key));
@@ -684,7 +684,7 @@ void RaviCodeGenerator::emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B,
   //}
 
   emit_debug_trace(
-      def, known_float ? OP_RAVI_SETTABLE_AFF : OP_RAVI_SETTABLE_AF, pc);
+      def, known_float ? OP_RAVI_FARRAY_SETF : OP_RAVI_FARRAY_SET, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   llvm::Value *rb = emit_gep_register_or_constant(def, B);

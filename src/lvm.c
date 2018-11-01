@@ -1222,12 +1222,12 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_MOVEAI),
     &&vmlabel(OP_RAVI_MOVEAF),
     &&vmlabel(OP_RAVI_MOVETAB),
-    &&vmlabel(OP_RAVI_GETTABLE_AI),
-    &&vmlabel(OP_RAVI_GETTABLE_AF),
-    &&vmlabel(OP_RAVI_SETTABLE_AI),
-    &&vmlabel(OP_RAVI_SETTABLE_AF),
-    &&vmlabel(OP_RAVI_SETTABLE_AII),
-    &&vmlabel(OP_RAVI_SETTABLE_AFF),
+    &&vmlabel(OP_RAVI_IARRAY_GET),
+    &&vmlabel(OP_RAVI_FARRAY_GET),
+    &&vmlabel(OP_RAVI_IARRAY_SET),
+    &&vmlabel(OP_RAVI_FARRAY_SET),
+    &&vmlabel(OP_RAVI_IARRAY_SETI),
+    &&vmlabel(OP_RAVI_FARRAY_SETF),
     &&vmlabel(OP_RAVI_FORLOOP_IP),
     &&vmlabel(OP_RAVI_FORLOOP_I1),
     &&vmlabel(OP_RAVI_FORPREP_IP),
@@ -2128,7 +2128,7 @@ int luaV_execute (lua_State *L) {
         }
         vmbreak;
       }
-      vmcase(OP_RAVI_GETTABLE_AI) {
+      vmcase(OP_RAVI_IARRAY_GET) {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rc);
@@ -2136,7 +2136,7 @@ int luaV_execute (lua_State *L) {
         raviH_get_int_inline(L, t, idx, ra);
         vmbreak;
       }
-      vmcase(OP_RAVI_GETTABLE_AF) {
+      vmcase(OP_RAVI_FARRAY_GET) {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rc);
@@ -2144,7 +2144,7 @@ int luaV_execute (lua_State *L) {
         raviH_get_float_inline(L, t, idx, ra);
         vmbreak;
       }
-      vmcase(OP_RAVI_SETTABLE_AI) {
+      vmcase(OP_RAVI_IARRAY_SET) {
         Table *t = hvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -2161,7 +2161,7 @@ int luaV_execute (lua_State *L) {
         }
         vmbreak;
       }
-      vmcase(OP_RAVI_SETTABLE_AII) {
+      vmcase(OP_RAVI_IARRAY_SETI) {
         Table *t = hvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -2169,7 +2169,7 @@ int luaV_execute (lua_State *L) {
         raviH_set_int_inline(L, t, idx, ivalue(rc));
         vmbreak;
       }
-      vmcase(OP_RAVI_SETTABLE_AF) {
+      vmcase(OP_RAVI_FARRAY_SET) {
         Table *t = hvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
@@ -2186,7 +2186,7 @@ int luaV_execute (lua_State *L) {
         }
         vmbreak;
       }
-      vmcase(OP_RAVI_SETTABLE_AFF) {
+      vmcase(OP_RAVI_FARRAY_SETF) {
         Table *t = hvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);

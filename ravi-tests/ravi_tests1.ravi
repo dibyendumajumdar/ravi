@@ -81,10 +81,10 @@ opcodes_coverage.MOVEI = 0
 opcodes_coverage.MOVEF = 0
 opcodes_coverage.MOVEAI = 0
 opcodes_coverage.MOVEAF = 0
-opcodes_coverage.GETTABLE_AI = 0
-opcodes_coverage.GETTABLE_AF = 0
-opcodes_coverage.SETTABLE_AI = 0
-opcodes_coverage.SETTABLE_AF = 0
+opcodes_coverage.IARRAY_GET = 0
+opcodes_coverage.FARRAY_GET = 0
+opcodes_coverage.IARRAY_SET = 0
+opcodes_coverage.FARRAY_SET = 0
 opcodes_coverage.FORLOOP_IP = 0
 opcodes_coverage.FORLOOP_I1 = 0
 opcodes_coverage.FORPREP_IP = 0
@@ -93,8 +93,8 @@ opcodes_coverage.SETUPVALI = 0
 opcodes_coverage.SETUPVALF = 0
 opcodes_coverage.SETUPVALAI = 0
 opcodes_coverage.SETUPVALAF = 0
-opcodes_coverage.SETTABLE_AII = 0
-opcodes_coverage.SETTABLE_AFF = 0
+opcodes_coverage.IARRAY_SETI = 0
+opcodes_coverage.FARRAY_SETF = 0
 opcodes_coverage.BAND_II = 0
 opcodes_coverage.BOR_II = 0
 opcodes_coverage.BXOR_II = 0
@@ -484,7 +484,7 @@ end
 assert(x() == 55.0)
 check(x, 'NEWARRAYF', 'LOADNIL', 'LOADFZ',
   'LOADK', 'LOADK', 'LOADK', 'FORPREP_I1',
-  'SETTABLE_AF', 'GETTABLE_AF', 'ADDFF',
+  'FARRAY_SET', 'FARRAY_GET', 'ADDFF',
   'FORLOOP_I1', 'RETURN', 'RETURN')
 compile(x)
 assert(x() == 55.0)

@@ -601,9 +601,9 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
         /* TODO we should do this for upvalues too */
         /* table access - set specialized op codes if array types are detected */
         if (e->ravi_type == RAVI_TARRAYFLT && e->u.ind.key_ravi_type == RAVI_TNUMINT)
-          op = OP_RAVI_GETTABLE_AF;
+          op = OP_RAVI_FARRAY_GET;
         else if (e->ravi_type == RAVI_TARRAYINT && e->u.ind.key_ravi_type == RAVI_TNUMINT)
-          op = OP_RAVI_GETTABLE_AI;
+          op = OP_RAVI_IARRAY_GET;
         /* Check that we have a short string constant */
         else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
           op = OP_RAVI_GETTABLE_S;
@@ -998,18 +998,18 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
             var->u.ind.key_ravi_type == RAVI_TNUMINT) {
           if (!(ex->ravi_type == RAVI_TNUMFLT || (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYFLT)))
             /* input value may need conversion */
-            op = OP_RAVI_SETTABLE_AF;
+            op = OP_RAVI_FARRAY_SET;
           else
             /* input value is known to be number */
-            op = OP_RAVI_SETTABLE_AFF;
+            op = OP_RAVI_FARRAY_SETF;
         } else if (var->ravi_type == RAVI_TARRAYINT &&
                    var->u.ind.key_ravi_type == RAVI_TNUMINT) {
           if (!(ex->ravi_type == RAVI_TNUMINT || (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYINT)))
             /* input value may need conversion */
-            op = OP_RAVI_SETTABLE_AI;          
+            op = OP_RAVI_IARRAY_SET;          
           else
             /* input value is known to be integer */
-            op = OP_RAVI_SETTABLE_AII;
+            op = OP_RAVI_IARRAY_SETI;
         } else if (/* var->ravi_type == RAVI_TTABLE &&*/ var->u.ind.key_ravi_type == RAVI_TNUMINT) {
           /* table with integer key */
           op = OP_RAVI_SETTABLE_I;

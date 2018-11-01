@@ -1682,27 +1682,27 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int C = GETARG_C(i);
         emit_GETTABLE(def, A, B, C, pc);
       } break;
-      case OP_RAVI_GETTABLE_AI: {
+      case OP_RAVI_IARRAY_GET: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_GETTABLE_AI(def, A, B, C, omitArrayGetRangeCheck, pc);
+        emit_IARRAY_GET(def, A, B, C, omitArrayGetRangeCheck, pc);
       } break;
-      case OP_RAVI_SETTABLE_AII:
-      case OP_RAVI_SETTABLE_AI: {
+      case OP_RAVI_IARRAY_SETI:
+      case OP_RAVI_IARRAY_SET: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_SETTABLE_AI(def, A, B, C, op == OP_RAVI_SETTABLE_AII, pc);
+        emit_IARRAY_SET(def, A, B, C, op == OP_RAVI_IARRAY_SETI, pc);
       } break;
-      case OP_RAVI_GETTABLE_AF: {
+      case OP_RAVI_FARRAY_GET: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_GETTABLE_AF(def, A, B, C, omitArrayGetRangeCheck, pc);
+        emit_FARRAY_GET(def, A, B, C, omitArrayGetRangeCheck, pc);
       } break;
-      case OP_RAVI_SETTABLE_AFF:
-      case OP_RAVI_SETTABLE_AF: {
+      case OP_RAVI_FARRAY_SETF:
+      case OP_RAVI_FARRAY_SET: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_SETTABLE_AF(def, A, B, C, op == OP_RAVI_SETTABLE_AFF, pc);
+        emit_FARRAY_SET(def, A, B, C, op == OP_RAVI_FARRAY_SETF, pc);
       } break;
       case OP_RAVI_TOTAB: {
         emit_TOARRAY(def, A, RAVI_TTABLE, "table expected", pc);

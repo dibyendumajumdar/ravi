@@ -498,18 +498,18 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
         "MOVEAF",  /* A B R(A) := R(B), check R(B) is array of floats */
         "MOVETAB", /* A B R(A) := R(B), check R(B) is a table */
 
-        "GETTABLE_AI", /*  A B C R(A) := R(B)[RK(C)] where R(B) is array of
+        "IARRAY_GET", /*  A B C R(A) := R(B)[RK(C)] where R(B) is array of
                           integers and RK(C) is int */
-        "GETTABLE_AF", /*  A B C R(A) := R(B)[RK(C)] where R(B) is array of
+        "FARRAY_GET", /*  A B C R(A) := R(B)[RK(C)] where R(B) is array of
                           floats and RK(C) is int */
 
-        "SETTABLE_AI",  /*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+        "IARRAY_SET",  /*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
                            R(A) is array of ints, and RK(C) is an int */
-        "SETTABLE_AF",  /*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+        "FARRAY_SET",  /*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
                            R(A) is array of floats, and RK(C) is an float */
-        "SETTABLE_AII", /* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+        "IARRAY_SETI", /* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
                            R(A) is array of ints, and RK(C) is an int */
-        "SETTABLE_AFF", /* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+        "FARRAY_SETF", /* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
                            R(A) is array of floats, and RK(C) is an float */
 
         "FORLOOP_IP",

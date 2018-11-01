@@ -120,13 +120,13 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "MOVEAF", /* A B R(A) := R(B), check R(B) is array of floats */
   "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
 
-  "GETTABLE_AI",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
-  "GETTABLE_AF",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
+  "IARRAY_GET",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
+  "FARRAY_GET",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
 
-  "SETTABLE_AI",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
-  "SETTABLE_AF",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
-  "SETTABLE_AII",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
-  "SETTABLE_AFF",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+  "IARRAY_SET",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+  "FARRAY_SET",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+  "IARRAY_SETI",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+  "FARRAY_SETF",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
   "FORLOOP_IP",
   "FORLOOP_I1",
@@ -261,13 +261,13 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEAF A B R(A) := R(B), check R(B) is array of floats */
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVETAB A B R(A) := R(B), check R(B) is a table */
 
- ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_GETTABLE_AI A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
- ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_GETTABLE_AF A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_IARRAY_GET A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_FARRAY_GET A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
 
- ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AI A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AII A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AFF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_IARRAY_SET A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_FARRAY_SET A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_IARRAY_SETI A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_FARRAY_SETF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_IP */
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_I1 */
@@ -468,8 +468,8 @@ static void PrintCode(const Proto* f)
    case OP_GETTABLE:
    case OP_RAVI_GETTABLE_I:
    case OP_RAVI_GETTABLE_S:
-   case OP_RAVI_GETTABLE_AF:
-   case OP_RAVI_GETTABLE_AI:
+   case OP_RAVI_FARRAY_GET:
+   case OP_RAVI_IARRAY_GET:
    case OP_SELF:
    case OP_RAVI_GETFIELD:
    case OP_RAVI_SELF_S:
@@ -480,10 +480,10 @@ static void PrintCode(const Proto* f)
    case OP_RAVI_SETTABLE_I:
    case OP_RAVI_SETTABLE_S:
    case OP_RAVI_SETFIELD:
-   case OP_RAVI_SETTABLE_AF:
-   case OP_RAVI_SETTABLE_AFF:
-   case OP_RAVI_SETTABLE_AI:
-   case OP_RAVI_SETTABLE_AII:
+   case OP_RAVI_FARRAY_SET:
+   case OP_RAVI_FARRAY_SETF:
+   case OP_RAVI_IARRAY_SET:
+   case OP_RAVI_IARRAY_SETI:
    case OP_ADD:
    case OP_RAVI_ADDFF:
    case OP_RAVI_ADDFI:
