@@ -584,8 +584,8 @@ static void ravi_code_typecoersion(LexState *ls, int reg, ravitype_t ravi_type, 
                  ravi_type == RAVI_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, reg,
                  0, 0);
   else if (ravi_type == RAVI_TARRAYINT || ravi_type == RAVI_TARRAYFLT)
-    luaK_codeABC(ls->fs, ravi_type == RAVI_TARRAYINT ? OP_RAVI_TOARRAYI
-                                                     : OP_RAVI_TOARRAYF,
+    luaK_codeABC(ls->fs, ravi_type == RAVI_TARRAYINT ? OP_RAVI_TOIARRAY
+                                                     : OP_RAVI_TOFARRAY,
                  reg, 0, 0);
   else if (ravi_type == RAVI_TTABLE)
     luaK_codeABC(ls->fs, OP_RAVI_TOTAB,

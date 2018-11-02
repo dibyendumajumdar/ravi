@@ -917,11 +917,11 @@ void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
   LuaTypeCode expectedType = RAVI__TLTABLE;
   switch (array_type_expected) {
     case RAVI_TARRAYINT:
-      op = OP_RAVI_TOARRAYI;
+      op = OP_RAVI_TOIARRAY;
       expectedType = RAVI__TIARRAY;
       break;
     case RAVI_TARRAYFLT:
-      op = OP_RAVI_TOARRAYF;
+      op = OP_RAVI_TOFARRAY;
       expectedType = RAVI__TFARRAY;
       break;
     case RAVI_TTABLE:

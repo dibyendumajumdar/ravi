@@ -1211,8 +1211,8 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_DIVII),
     &&vmlabel(OP_RAVI_TOINT),
     &&vmlabel(OP_RAVI_TOFLT),
-    &&vmlabel(OP_RAVI_TOARRAYI),
-    &&vmlabel(OP_RAVI_TOARRAYF),
+    &&vmlabel(OP_RAVI_TOIARRAY),
+    &&vmlabel(OP_RAVI_TOFARRAY),
     &&vmlabel(OP_RAVI_TOTAB),
     &&vmlabel(OP_RAVI_TOSTRING),
     &&vmlabel(OP_RAVI_TOCLOSURE),
@@ -2413,12 +2413,12 @@ int luaV_execute (lua_State *L) {
           luaG_runerror(L, "table expected");
         vmbreak;
       }
-      vmcase(OP_RAVI_TOARRAYI) {
+      vmcase(OP_RAVI_TOIARRAY) {
         if (RAVI_UNLIKELY(!ttisiarray(ra)))
           luaG_runerror(L, "integer[] expected");
         vmbreak;
       }
-      vmcase(OP_RAVI_TOARRAYF) {
+      vmcase(OP_RAVI_TOFARRAY) {
         if (RAVI_UNLIKELY(!ttisfarray(ra)))
           luaG_runerror(L, "number[] expected");
         vmbreak;

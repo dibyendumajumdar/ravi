@@ -219,8 +219,8 @@ OP_RAVI_DIVII,  /*	A B C	R(A) := RK(B) / RK(C)		*/
 
 OP_RAVI_TOINT, /* A R(A) := toint(R(A)) */
 OP_RAVI_TOFLT, /* A R(A) := tofloat(R(A)) */
-OP_RAVI_TOARRAYI, /* A R(A) := to_arrayi(R(A)) */
-OP_RAVI_TOARRAYF, /* A R(A) := to_arrayf(R(A)) */
+OP_RAVI_TOIARRAY, /* A R(A) := to_arrayi(R(A)) */
+OP_RAVI_TOFARRAY, /* A R(A) := to_arrayf(R(A)) */
 OP_RAVI_TOTAB,    /* A R(A) := to_table(R(A)) */
 OP_RAVI_TOSTRING,
 OP_RAVI_TOCLOSURE,

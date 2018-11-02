@@ -194,9 +194,9 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_TOFLT           | YES      | R(A) := tofloat(R(A))                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_TOARRAYI        | YES      | R(A) := to_arrayi(R(A))                          |
+| OP_RAVI_TOIARRAY        | YES      | R(A) := to_arrayi(R(A))                          |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_TOARRAYF        | YES      | R(A) := to_arrayf(R(A))                          |
+| OP_RAVI_TOFARRAY        | YES      | R(A) := to_arrayf(R(A))                          |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_MOVEI           | YES      | R(A) := R(B), check R(B) is integer              |
 +-------------------------+----------+--------------------------------------------------+

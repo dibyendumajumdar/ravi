@@ -485,8 +485,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
 
         "TOINT",    /* A R(A) := toint(R(A)) */
         "TOFLT",    /* A R(A) := tofloat(R(A)) */
-        "TOARRAYI", /* A R(A) := to_arrayi(R(A)) */
-        "TOARRAYF", /* A R(A) := to_arrayf(R(A)) */
+        "TOIARRAY", /* A R(A) := to_arrayi(R(A)) */
+        "TOFARRAY", /* A R(A) := to_arrayf(R(A)) */
         "TOTAB",    /* A R(A) := to_table(R(A)) */
         "TOSTRING",
         "TOCLOSURE",

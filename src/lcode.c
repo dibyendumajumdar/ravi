@@ -1505,7 +1505,7 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
           }
           return;
         }
-        opcode = OP_RAVI_TOARRAYI;
+        opcode = OP_RAVI_TOIARRAY;
         tt = RAVI_TARRAYINT;
       }
       else if (op == OPR_TO_NUMARRAY && e->ravi_type != RAVI_TARRAYFLT) {
@@ -1518,7 +1518,7 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
           }
           return;
         }
-        opcode = OP_RAVI_TOARRAYF;
+        opcode = OP_RAVI_TOFARRAY;
         tt = RAVI_TARRAYFLT;
       }
       else if (op == OPR_TO_TABLE && e->ravi_type != RAVI_TTABLE) {

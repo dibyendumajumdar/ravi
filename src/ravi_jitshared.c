@@ -681,8 +681,8 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_RAVI_MOVETAB:
 		case OP_RAVI_TOINT:
 		case OP_RAVI_TOFLT:
-		case OP_RAVI_TOARRAYI:
-		case OP_RAVI_TOARRAYF:
+		case OP_RAVI_TOIARRAY:
+		case OP_RAVI_TOFARRAY:
 		case OP_RAVI_TOTAB:
 		case OP_RAVI_NEW_IARRAY:
 		case OP_RAVI_NEW_FARRAY:
@@ -2120,10 +2120,10 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		case OP_RAVI_TOTAB: {
 			emit_op_totab(&fn, A, pc);
 		} break;
-		case OP_RAVI_TOARRAYI: {
+		case OP_RAVI_TOIARRAY: {
 			emit_op_toai(&fn, A, pc);
 		} break;
-		case OP_RAVI_TOARRAYF: {
+		case OP_RAVI_TOFARRAY: {
 			emit_op_toaf(&fn, A, pc);
 		} break;
 		case OP_RAVI_TOSTRING: {

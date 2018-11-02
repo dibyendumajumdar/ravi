@@ -1707,10 +1707,10 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_RAVI_TOTAB: {
         emit_TOARRAY(def, A, RAVI_TTABLE, "table expected", pc);
       } break;
-      case OP_RAVI_TOARRAYI: {
+      case OP_RAVI_TOIARRAY: {
         emit_TOARRAY(def, A, RAVI_TARRAYINT, "integer[] expected", pc);
       } break;
-      case OP_RAVI_TOARRAYF: {
+      case OP_RAVI_TOFARRAY: {
         emit_TOARRAY(def, A, RAVI_TARRAYFLT, "number[] expected", pc);
       } break;
       case OP_RAVI_TOSTRING: {

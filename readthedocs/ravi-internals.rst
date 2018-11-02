@@ -268,7 +268,7 @@ Parameter lists may have static type annotations as well, so when parsing parame
       }
       else if (tt == RAVI_TARRAYFLT || tt == RAVI_TARRAYINT) {
         /* code an instruction to convert in place */
-        luaK_codeABC(ls->fs, tt == RAVI_TARRAYFLT ? OP_RAVI_TOARRAYF : OP_RAVI_TOARRAYI, i, 0, 0);
+        luaK_codeABC(ls->fs, tt == RAVI_TARRAYFLT ? OP_RAVI_TOFARRAY : OP_RAVI_TOIARRAY, i, 0, 0);
       }
     }
   }
@@ -415,7 +415,7 @@ The main changes compared to ``explist()`` are the calls to ``ravi_typecheck()``
             /* code an instruction to convert in place */
             luaK_codeABC(ls->fs, 
                          vars[i] == RAVI_TARRAYFLT ? 
-                                    OP_RAVI_TOARRAYF : OP_RAVI_TOARRAYI, 
+                                    OP_RAVI_TOFARRAY : OP_RAVI_TOIARRAY, 
                          a + (i - n), 0, 0);
       }
       else if ((vars[n] == RAVI_TNUMFLT || vars[n] == RAVI_TNUMINT) && 
@@ -435,7 +435,7 @@ The simple case is when the type of the expression matches the variable.
 
 Secondly if the expression is a table initializer then we need to generate specialized opcodes if the target variable is supposed to be ``integer[]`` or ``number[]``. The specialized opcode sets up some information in the ``Table`` structure. The problem is that this requires us to modify ``OP_NEWTABLE`` instruction which has already been emitted. So we scan the generated instructions to find the last ``OP_NEWTABLE`` instruction that assigns to the register associated with the target variable.  
 
-Next bit of special handling is for function calls. If the assignment makes a function call then we perform type coercion on return values where these values are being assigned to variables with defined types. This means that if the target variable is ``integer`` or ``number`` we issue opcodes ``TOINT`` and ``TOFLT`` respectively. If the target variable is ``integer[]`` or ``number[]`` then we issue ``TOARRAYI`` and ``TOARRAYF`` respectively. These opcodes ensure that the values are of required type or can be cast to the required type.
+Next bit of special handling is for function calls. If the assignment makes a function call then we perform type coercion on return values where these values are being assigned to variables with defined types. This means that if the target variable is ``integer`` or ``number`` we issue opcodes ``TOINT`` and ``TOFLT`` respectively. If the target variable is ``integer[]`` or ``number[]`` then we issue ``TOIARRAY`` and ``TOFARRAY`` respectively. These opcodes ensure that the values are of required type or can be cast to the required type.
 
 Note that any left over variables that are not assigned values, are set to 0 if they are of integer or number type, else they are set to nil as per Lua's default behavior. This is handled in ``localvar_adjust_assign()`` which is described later on.
 
@@ -558,7 +558,7 @@ Note the use of ``register_to_localvar_index()`` in functions below.
                      OP_RAVI_TOFLT : OP_RAVI_TOINT, i, 0, 0);
       else if (ravi_type == RAVI_TARRAYINT || ravi_type == RAVI_TARRAYFLT)
         luaK_codeABC(ls->fs, ravi_type == RAVI_TARRAYINT ? 
-                     OP_RAVI_TOARRAYI : OP_RAVI_TOARRAYF, i, 0, 0);
+                     OP_RAVI_TOIARRAY : OP_RAVI_TOFARRAY, i, 0, 0);
     }
   }
 
