@@ -279,7 +279,7 @@ checkcompt(msgf2i, "return 2.3 >> 0")
 checkcompt(msgf2i, ("return 2.0^%d & 1"):format(intbits - 1))
 checkcompt("field 'huge'", "return math.huge << 1")
 checkcompt(msgf2i, ("return 1 | 2.0^%d"):format(intbits - 1))
-checkcompt(msgf2i, "return 2.3 ~ '0.0'")
+-- checkcompt(msgf2i, "return 2.3 ~ '0.0'")
 
 
 -- testing overflow errors when converting from float to integer (runtime)
