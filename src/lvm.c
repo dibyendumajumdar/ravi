@@ -1189,8 +1189,8 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_CLOSURE),
     &&vmlabel(OP_VARARG),
     &&vmlabel(OP_EXTRAARG),
-    &&vmlabel(OP_RAVI_NEWARRAYI),
-    &&vmlabel(OP_RAVI_NEWARRAYF),
+    &&vmlabel(OP_RAVI_NEW_IARRAY),
+    &&vmlabel(OP_RAVI_NEW_FARRAY),
     &&vmlabel(OP_RAVI_LOADIZ),
     &&vmlabel(OP_RAVI_LOADFZ),
     &&vmlabel(OP_RAVI_UNMF),
@@ -2062,7 +2062,7 @@ int luaV_execute (lua_State *L) {
         pc += GETARG_sBx(i);
         vmbreak;
       }
-      vmcase(OP_RAVI_NEWARRAYI) {
+      vmcase(OP_RAVI_NEW_IARRAY) {
         Table *t;
         savepc(L);  /* in case of allocation errors */
         t = raviH_new(L, RAVI_TARRAYINT, 0);
@@ -2070,7 +2070,7 @@ int luaV_execute (lua_State *L) {
         checkGC(L, ra + 1);
         vmbreak;
       }
-      vmcase(OP_RAVI_NEWARRAYF) {
+      vmcase(OP_RAVI_NEW_FARRAY) {
         Table *t;
         savepc(L);  /* in case of allocation errors */
         t = raviH_new(L, RAVI_TARRAYFLT, 0);

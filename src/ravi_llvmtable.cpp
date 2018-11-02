@@ -866,7 +866,7 @@ void RaviCodeGenerator::emit_SETTABUP_SK(RaviFunctionDef *def, int A, int B,
 }
 
 void RaviCodeGenerator::emit_NEWARRAYINT(RaviFunctionDef *def, int A, int pc) {
-  emit_debug_trace(def, OP_RAVI_NEWARRAYI, pc);
+  emit_debug_trace(def, OP_RAVI_NEW_IARRAY, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   CreateCall3(def->builder, def->raviV_op_newarrayintF, def->L, def->ci_val,
@@ -875,7 +875,7 @@ void RaviCodeGenerator::emit_NEWARRAYINT(RaviFunctionDef *def, int A, int pc) {
 
 void RaviCodeGenerator::emit_NEWARRAYFLOAT(RaviFunctionDef *def, int A,
                                            int pc) {
-  emit_debug_trace(def, OP_RAVI_NEWARRAYF, pc);
+  emit_debug_trace(def, OP_RAVI_NEW_FARRAY, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   CreateCall3(def->builder, def->raviV_op_newarrayfloatF, def->L, def->ci_val,

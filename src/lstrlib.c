@@ -342,6 +342,7 @@ static const luaL_Reg stringmetamethods[] = {
   {NULL, NULL}
 };
 
+
 /* }====================================================== */
 
 /*

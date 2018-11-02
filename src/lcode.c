@@ -1499,9 +1499,9 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
         if (e->ravi_type == RAVI_TTABLE && e->pc >= 0) {
           Instruction *i = &fs->f->code[e->pc];
           if (GET_OPCODE(*i) == OP_NEWTABLE) {
-            SET_OPCODE(*i, OP_RAVI_NEWARRAYI);
+            SET_OPCODE(*i, OP_RAVI_NEW_IARRAY);
             e->ravi_type = RAVI_TARRAYINT;
-            DEBUG_EXPR(raviY_printf(fs, "code_type_assertion (OP_NEWTABLE to OP_RAVI_NEWARRAYI) %e\n", e));
+            DEBUG_EXPR(raviY_printf(fs, "code_type_assertion (OP_NEWTABLE to OP_RAVI_NEW_IARRAY) %e\n", e));
           }
           return;
         }
@@ -1512,9 +1512,9 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
         if (e->ravi_type == RAVI_TTABLE && e->pc >= 0) {
           Instruction *i = &fs->f->code[e->pc];
           if (GET_OPCODE(*i) == OP_NEWTABLE) {
-            SET_OPCODE(*i, OP_RAVI_NEWARRAYF);
+            SET_OPCODE(*i, OP_RAVI_NEW_FARRAY);
             e->ravi_type = RAVI_TARRAYFLT;
-            DEBUG_EXPR(raviY_printf(fs, "code_type_assertion (OP_NEWTABLE to OP_RAVI_NEWARRAYI) %e\n", e));
+            DEBUG_EXPR(raviY_printf(fs, "code_type_assertion (OP_NEWTABLE to OP_RAVI_NEW_IARRAY) %e\n", e));
           }
           return;
         }

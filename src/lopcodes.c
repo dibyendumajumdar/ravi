@@ -78,8 +78,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "VARARG",
   "EXTRAARG",
 
-  "NEWARRAYI", /* A R(A) := array of int */
-  "NEWARRAYF", /* A R(A) := array of float */
+  "NEW_IARRAY", /* A R(A) := array of int */
+  "NEW_FARRAY", /* A R(A) := array of float */
 
   "LOADIZ", /*  A R(A) := tointeger(0)		*/
   "LOADFZ", /*  A R(A) := tonumber(0)		*/
@@ -219,8 +219,8 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgU, OpArgN, iABC)		/* OP_VARARG */
  ,opmode(0, 0, OpArgU, OpArgU, iAx)		  /* OP_EXTRAARG */
 
- ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_NEWARRAYI A R(A) := array of int */
- ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_NEWARRAYF A R(A) := array of float */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_NEW_IARRAY A R(A) := array of int */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_NEW_FARRAY A R(A) := array of float */
 
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_LOADIZ A R(A) := tointeger(0)		*/
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_LOADFZ A R(A) := tonumber(0)		*/

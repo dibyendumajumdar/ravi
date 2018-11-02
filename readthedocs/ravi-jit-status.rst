@@ -34,7 +34,7 @@ The Architecture of Ravi's JIT Compilation
 * The decision to call a JIT compiled version is made in the Lua Infrastructure (specifically in ``luaD_precall()`` function in ``ldo.c``)
 * The JIT compiler translates Lua/Ravi bytecode to LLVM IR - i.e. it does not translate Lua source code.
 * There is no inlining of Lua functions.
-* Generally the JIT compiler implements the same instructions as in ``lvm.c`` - however for some bytecodes the code calls a C function rather than generating inline IR. These opcodes are OP_LOADNIL, OP_NEWTABLE, OP_RAVI_NEWARRAYINT, OP_RAVI_NEWARRAYFLT, OP_SETLIST, OP_CONCAT, OP_CLOSURE, OP_VARARG, OP_RAVI_SHL_II, OP_RAVI_SHR_II. 
+* Generally the JIT compiler implements the same instructions as in ``lvm.c`` - however for some bytecodes the code calls a C function rather than generating inline IR. These opcodes are OP_LOADNIL, OP_NEWTABLE, OP_RAVI_NEW_IARRAYNT, OP_RAVI_NEW_FARRAYLT, OP_SETLIST, OP_CONCAT, OP_CLOSURE, OP_VARARG, OP_RAVI_SHL_II, OP_RAVI_SHR_II. 
 * Ravi represents Lua values as done by Lua 5.3 - i.e. in a 16 byte structure. 
 * Ravi compiler generates type specifc opcodes which result in simpler and higher performance LLVM IR.
 
@@ -154,9 +154,9 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_EXTRAARG             | N/A      | extra (larger) argument for previous opcode      |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_NEWARRAYI       | YES      | R(A) := array of int                             |
+| OP_RAVI_NEW_IARRAY      | YES      | R(A) := array of int                             |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_NEWARRAYF       | YES      | R(A) := array of float                           |
+| OP_RAVI_NEW_FARRAY      | YES      | R(A) := array of float                           |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_LOADIZ          | YES      | R(A) := tointeger(0)                             |
 +-------------------------+----------+--------------------------------------------------+

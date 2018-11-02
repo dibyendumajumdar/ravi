@@ -456,8 +456,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
         "VARARG",
         "EXTRAARG",
 
-        "NEWARRAYI", /* A R(A) := array of int */
-        "NEWARRAYF", /* A R(A) := array of float */
+        "NEW_IARRAY", /* A R(A) := array of int */
+        "NEW_FARRAY", /* A R(A) := array of float */
 
         "LOADIZ", /*  A R(A) := tointeger(0)    */
         "LOADFZ", /*  A R(A) := tonumber(0)   */

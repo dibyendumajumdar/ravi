@@ -53,8 +53,8 @@ opcodes_coverage.SETLIST = 0
 opcodes_coverage.CLOSURE = 0
 opcodes_coverage.VARARG = 0
 opcodes_coverage.EXTRAARG = 0
-opcodes_coverage.NEWARRAYI = 0
-opcodes_coverage.NEWARRAYF = 0
+opcodes_coverage.NEW_IARRAY = 0
+opcodes_coverage.NEW_FARRAY = 0
 opcodes_coverage.LOADIZ = 0
 opcodes_coverage.LOADFZ = 0
 opcodes_coverage.UNMF = 0
@@ -482,7 +482,7 @@ function x()
   return j
 end
 assert(x() == 55.0)
-check(x, 'NEWARRAYF', 'LOADNIL', 'LOADFZ',
+check(x, 'NEW_FARRAY', 'LOADNIL', 'LOADFZ',
   'LOADK', 'LOADK', 'LOADK', 'FORPREP_I1',
   'FARRAY_SET', 'FARRAY_GET', 'ADDFF',
   'FORLOOP_I1', 'RETURN', 'RETURN')

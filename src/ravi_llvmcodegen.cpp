@@ -1443,10 +1443,10 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_RAVI_TOFLT: {
         emit_TOFLT(def, A, pc);
       } break;
-      case OP_RAVI_NEWARRAYI: {
+      case OP_RAVI_NEW_IARRAY: {
         emit_NEWARRAYINT(def, A, pc);
       } break;
-      case OP_RAVI_NEWARRAYF: {
+      case OP_RAVI_NEW_FARRAY: {
         emit_NEWARRAYFLOAT(def, A, pc);
       } break;
       case OP_NEWTABLE: {

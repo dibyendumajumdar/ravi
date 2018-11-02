@@ -190,8 +190,8 @@ OP_CLOSURE,/*	A Bx	R(A) := closure(KPROTO[Bx])			*/
 OP_VARARG,/*	A B	R(A), R(A+1), ..., R(A+B-2) = vararg		*/
 OP_EXTRAARG,/*	Ax	extra (larger) argument for previous opcode	*/
 
-OP_RAVI_NEWARRAYI, /* A R(A) := array of int */
-OP_RAVI_NEWARRAYF, /* A R(A) := array of float */
+OP_RAVI_NEW_IARRAY, /* A R(A) := array of int */
+OP_RAVI_NEW_FARRAY, /* A R(A) := array of float */
 
 OP_RAVI_LOADIZ,  /*	A R(A) := tointeger(0)		*/
 OP_RAVI_LOADFZ,  /*	A R(A) := tonumber(0)		*/

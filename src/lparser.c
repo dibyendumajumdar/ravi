@@ -1348,8 +1348,8 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *var_types,
           int reg = GETARG_A(*pc);
           if (reg ==
               v->u.info) { /* double check that register is as expected */
-            op = (vartype == RAVI_TARRAYINT) ? OP_RAVI_NEWARRAYI
-                                             : OP_RAVI_NEWARRAYF;
+            op = (vartype == RAVI_TARRAYINT) ? OP_RAVI_NEW_IARRAY
+                                             : OP_RAVI_NEW_FARRAY;
             SET_OPCODE(*pc, op); /* modify opcode */
             DEBUG_CODEGEN(
                 raviY_printf(ls->fs, "[%d]* %o ; modify opcode\n", v->pc, *pc));
