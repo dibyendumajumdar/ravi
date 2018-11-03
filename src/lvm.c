@@ -80,7 +80,7 @@ int luaV_tonumber_ (const TValue *obj, lua_Number *n) {
     *n = cast_num(ivalue(obj));
     return 1;
   }
-  else if (cvt2num(obj) &&  /* string convertible to number? */
+  else if (cvt2num(obj) &&  /* string coercible to number? */
             luaO_str2num(svalue(obj), &v) == vslen(obj) + 1) {
     *n = nvalue(&v);  /* convert result of 'luaO_str2num' to a float */
     return 1;
@@ -91,15 +91,15 @@ int luaV_tonumber_ (const TValue *obj, lua_Number *n) {
 
 
 /*
-** try to convert a value to an integer, rounding according to 'mode':
+** try to convert a float to an integer, rounding according to 'mode':
 ** mode == 0: accepts only integral values
 ** mode == 1: takes the floor of the number
 ** mode == 2: takes the ceil of the number
 */
-int luaV_tointeger (const TValue *obj, lua_Integer *p, int mode) {
-  TValue v;
- again:
-  if (ttisfloat(obj)) {
+int luaV_flttointeger (const TValue *obj, lua_Integer *p, int mode) {
+  if (!ttisfloat(obj))
+    return 0;
+  else {
     lua_Number n = fltvalue(obj);
     lua_Number f = l_floor(n);
     if (n != f) {  /* not an integral value? */
@@ -109,16 +109,23 @@ int luaV_tointeger (const TValue *obj, lua_Integer *p, int mode) {
     }
     return lua_numbertointeger(f, p);
   }
-  else if (ttisinteger(obj)) {
+}
+
+
+/*
+** try to convert a value to an integer. ("Fast track" is handled
+** by macro 'tointeger'.)
+*/
+int luaV_tointeger (const TValue *obj, lua_Integer *p, int mode) {
+  TValue v;
+  if (cvt2num(obj) && luaO_str2num(svalue(obj), &v) == vslen(obj) + 1)
+    obj = &v;  /* change string to its corresponding number */
+  if (ttisinteger(obj)) {
     *p = ivalue(obj);
     return 1;
   }
-  else if (cvt2num(obj) &&
-            luaO_str2num(svalue(obj), &v) == vslen(obj) + 1) {
-    obj = &v;
-    goto again;  /* convert result from 'luaO_str2num' to an integer */
-  }
-  return 0;  /* conversion failed */
+  else
+    return luaV_flttointeger(obj, p, mode);
 }
 
 
@@ -148,7 +155,10 @@ int luaV_tointeger_ (const TValue *obj, lua_Integer *p) {
 int luaV_forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
                      int *stopnow) {
   *stopnow = 0;  /* usually, let loops run */
-  if (!luaV_tointeger(obj, p, (step < 0 ? 2 : 1))) {  /* not fit in integer? */
+  if (ttisinteger(obj))
+    *p = ivalue(obj);
+  else if (!luaV_tointeger(obj, p, (step < 0 ? 2 : 1))) {
+    /* not coercible to in integer */
     lua_Number n;  /* try to convert to float */
     if (!tonumber(obj, &n)) /* cannot convert to float? */
       return 0;  /* not a number */
@@ -1403,7 +1413,7 @@ int luaV_execute (lua_State *L) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(+, ib, ic));
         }
-        else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+        else if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
           setfltvalue(ra, luai_numadd(L, nb, nc));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_ADD)); }
@@ -1417,7 +1427,7 @@ int luaV_execute (lua_State *L) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(-, ib, ic));
         }
-        else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+        else if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
           setfltvalue(ra, luai_numsub(L, nb, nc));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SUB)); }
@@ -1431,7 +1441,7 @@ int luaV_execute (lua_State *L) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, intop(*, ib, ic));
         }
-        else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+        else if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
           setfltvalue(ra, luai_nummul(L, nb, nc));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_MUL)); }
@@ -1441,7 +1451,7 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
-        if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+        if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
           setfltvalue(ra, luai_numdiv(L, nb, nc));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_DIV)); }
@@ -1451,7 +1461,7 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer ib; lua_Integer ic;
-        if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+        if (tointegerns(rb, &ib) && tointegerns(rc, &ic)) {
           setivalue(ra, intop(&, ib, ic));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BAND)); }
@@ -1461,7 +1471,7 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer ib; lua_Integer ic;
-        if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+        if (tointegerns(rb, &ib) && tointegerns(rc, &ic)) {
           setivalue(ra, intop(|, ib, ic));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BOR)); }
@@ -1471,7 +1481,7 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer ib; lua_Integer ic;
-        if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+        if (tointegerns(rb, &ib) && tointegerns(rc, &ic)) {
           setivalue(ra, intop(^, ib, ic));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_BXOR)); }
@@ -1481,7 +1491,7 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer ib; lua_Integer ic;
-        if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+        if (tointegerns(rb, &ib) && tointegerns(rc, &ic)) {
           setivalue(ra, luaV_shiftl(ib, ic));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SHL)); }
@@ -1491,7 +1501,7 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer ib; lua_Integer ic;
-        if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+        if (tointegerns(rb, &ib) && tointegerns(rc, &ic)) {
           setivalue(ra, luaV_shiftl(ib, -ic));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_SHR)); }
@@ -1505,7 +1515,7 @@ int luaV_execute (lua_State *L) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, luaV_mod(L, ib, ic));
         }
-        else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+        else if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
           lua_Number m;
           luai_nummod(L, nb, nc, m);
           setfltvalue(ra, m);
@@ -1521,7 +1531,7 @@ int luaV_execute (lua_State *L) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
           setivalue(ra, luaV_div(L, ib, ic));
         }
-        else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+        else if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
           setfltvalue(ra, luai_numidiv(L, nb, nc));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_IDIV)); }
@@ -1531,7 +1541,7 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Number nb; lua_Number nc;
-        if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+        if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
           setfltvalue(ra, luai_numpow(L, nb, nc));
         }
         else { Protect(luaT_trybinTM(L, rb, rc, ra, TM_POW)); }
@@ -1544,7 +1554,7 @@ int luaV_execute (lua_State *L) {
           lua_Integer ib = ivalue(rb);
           setivalue(ra, intop(-, 0, ib));
         }
-        else if (tonumber(rb, &nb)) {
+        else if (tonumberns(rb, nb)) {
           setfltvalue(ra, luai_numunm(L, nb));
         }
         else {
@@ -1555,7 +1565,7 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_BNOT) {
         TValue *rb = RB(i);
         lua_Integer ib;
-        if (tointeger(rb, &ib)) {
+        if (tointegerns(rb, &ib)) {
           setivalue(ra, intop(^, ~l_castS2U(0), ib));
         }
         else {
