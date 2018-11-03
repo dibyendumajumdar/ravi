@@ -946,7 +946,7 @@ void luaV_finishOp (lua_State *L) {
     case OP_MOD: case OP_POW:
     case OP_UNM: case OP_BNOT: case OP_LEN:
     case OP_RAVI_GETTABUP_SK: 
-    case OP_RAVI_GETFIELD: case OP_RAVI_GETI: case OP_RAVI_GETTABLE_S: 
+    case OP_RAVI_GETFIELD: case OP_RAVI_GETI: case OP_RAVI_TABLE_GETFIELD: 
     case OP_RAVI_SELF_SK: case OP_RAVI_SELF_S:
     case OP_GETTABUP: case OP_GETTABLE: case OP_SELF: {
       setobjs2s(L, base + GETARG_A(inst), --L->top);
@@ -989,7 +989,7 @@ void luaV_finishOp (lua_State *L) {
         L->top = ci->top;  /* adjust results */
       break;
     }
-    case OP_RAVI_SETI: case OP_RAVI_SETTABLE_S: case OP_RAVI_SETFIELD:
+    case OP_RAVI_SETI: case OP_RAVI_TABLE_SETFIELD: case OP_RAVI_SETFIELD:
     case OP_TAILCALL: case OP_SETTABUP: case OP_SETTABLE:
       break;
     default: lua_assert(0);
@@ -1261,8 +1261,8 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_LT_FF),
     &&vmlabel(OP_RAVI_LE_II),
     &&vmlabel(OP_RAVI_LE_FF),
-    &&vmlabel(OP_RAVI_GETTABLE_S),
-    &&vmlabel(OP_RAVI_SETTABLE_S),
+    &&vmlabel(OP_RAVI_TABLE_GETFIELD),
+    &&vmlabel(OP_RAVI_TABLE_SETFIELD),
     &&vmlabel(OP_RAVI_SELF_S),
     &&vmlabel(OP_RAVI_GETI),
     &&vmlabel(OP_RAVI_SETI),
@@ -1369,7 +1369,7 @@ int luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_RAVI_SETFIELD)
-      vmcase(OP_RAVI_SETTABLE_S) {
+      vmcase(OP_RAVI_TABLE_SETFIELD) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         SETTABLE_INLINE_SSKEY_PROTECTED(L, ra, rb, rc);
@@ -2123,7 +2123,7 @@ int luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_RAVI_SELF_S)
-      vmcase(OP_RAVI_GETTABLE_S) {
+      vmcase(OP_RAVI_TABLE_GETFIELD) {
         /* This opcode is used when the key is known to be
            short string and the variable is known to be
            a table

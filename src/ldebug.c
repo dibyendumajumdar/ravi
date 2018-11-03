@@ -478,7 +478,7 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
         break;
       }
       case OP_RAVI_GETI:
-      case OP_RAVI_GETTABLE_S:
+      case OP_RAVI_TABLE_GETFIELD:
       case OP_RAVI_GETFIELD:
       case OP_RAVI_IARRAY_GET:
       case OP_RAVI_FARRAY_GET:

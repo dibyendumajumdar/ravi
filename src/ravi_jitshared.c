@@ -627,7 +627,7 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_RAVI_SETUPVAL_IARRAY:
 		case OP_RAVI_SETUPVAL_FARRAY:
 		case OP_RAVI_SETUPVALT:
-		case OP_RAVI_GETTABLE_S:
+		case OP_RAVI_TABLE_GETFIELD:
 		case OP_RAVI_IARRAY_GET:
 		case OP_RAVI_FARRAY_GET:
 		case OP_RAVI_GETFIELD:
@@ -637,7 +637,7 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_RAVI_SELF_S:
 		case OP_RAVI_SELF_SK:
 		case OP_RAVI_SETFIELD:
-		case OP_RAVI_SETTABLE_S:
+		case OP_RAVI_TABLE_SETFIELD:
 		case OP_RAVI_SETI:
 		case OP_RAVI_IARRAY_SETI:
 		case OP_RAVI_IARRAY_SET:
@@ -1883,7 +1883,7 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int j = sbx + pc + 1;
 			emit_op_testset(&fn, A, B, C, j, GETARG_A(i), pc - 1);
 		} break;
-		case OP_RAVI_GETTABLE_S:
+		case OP_RAVI_TABLE_GETFIELD:
 		case OP_RAVI_GETFIELD:
 		case OP_RAVI_GETI:
 		case OP_GETTABLE: {
@@ -1902,7 +1902,7 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			emit_FARRAY_GET(&fn, A, B, C, options->omit_array_get_range_check, pc);
 		} break;
 		case OP_RAVI_SETFIELD:
-		case OP_RAVI_SETTABLE_S:
+		case OP_RAVI_TABLE_SETFIELD:
 		case OP_RAVI_SETI:
 		case OP_SETTABLE: {
 			int B = GETARG_B(i);

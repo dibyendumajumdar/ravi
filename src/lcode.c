@@ -606,8 +606,8 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
           op = OP_RAVI_IARRAY_GET;
         /* Check that we have a short string constant */
         else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
-          op = OP_RAVI_GETTABLE_S;
-        else if (/* e->ravi_type == RAVI_TTABLE &&*/  e->u.ind.key_ravi_type == RAVI_TNUMINT)
+          op = OP_RAVI_TABLE_GETFIELD;
+        else if (e->u.ind.key_ravi_type == RAVI_TNUMINT)
           op = OP_RAVI_GETI;
         else if (e->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
           op = OP_RAVI_GETFIELD;
@@ -1010,15 +1010,15 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
           else
             /* input value is known to be integer */
             op = OP_RAVI_IARRAY_SETI;
-        } else if (/* var->ravi_type == RAVI_TTABLE &&*/ var->u.ind.key_ravi_type == RAVI_TNUMINT) {
-          /* table with integer key */
+        } else if (var->u.ind.key_ravi_type == RAVI_TNUMINT) {
+          /* index op with integer key, target may not be a table */
           op = OP_RAVI_SETI;
         } else if (var->ravi_type == RAVI_TTABLE && var->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, var->u.ind.idx)) {
           /* table with string key */
-          op = OP_RAVI_SETTABLE_S;
+          op = OP_RAVI_TABLE_SETFIELD;
         }
         else if (var->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, var->u.ind.idx)) {
-          /* table with string key */
+          /* index op with string key, target may not be a table */
           op = OP_RAVI_SETFIELD;
         }
       }
@@ -1058,7 +1058,9 @@ void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
   e->u.info = fs->freereg;  /* base register for op_self */
   e->k = VNONRELOC;  /* self expression has a fixed register */
   luaK_reserveregs(fs, 2);  /* function and 'self' produced by op_self */
-  luaK_codeABC(fs, table_and_string ? OP_RAVI_SELF_S : (is_string_constant_key ? OP_RAVI_SELF_SK : OP_SELF), e->u.info, ereg, luaK_exp2RK(fs, key));
+  luaK_codeABC(fs, table_and_string ? OP_RAVI_SELF_S : 
+                                      (is_string_constant_key ? OP_RAVI_SELF_SK : OP_SELF), 
+                                      e->u.info, ereg, luaK_exp2RK(fs, key));
   freeexp(fs, key);
 }
 

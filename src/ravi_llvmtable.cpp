@@ -467,7 +467,7 @@ void RaviCodeGenerator::emit_GETTABLE_S(RaviFunctionDef *def, int A, int B,
   //     return gval(n);
   //   return luaH_getstr(t, key);
 
-  emit_debug_trace(def, OP_RAVI_GETTABLE_S, pc);
+  emit_debug_trace(def, OP_RAVI_TABLE_GETFIELD, pc);
   emit_load_base(def);
   emit_common_GETTABLE_S(def, A, B, C, key);
 }

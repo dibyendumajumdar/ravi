@@ -108,9 +108,9 @@ opcodes_coverage.LT_FF = 0
 opcodes_coverage.LE_II = 0
 opcodes_coverage.LE_FF = 0
 opcodes_coverage.GETI = 0
-opcodes_coverage.GETTABLE_S = 0
+opcodes_coverage.TABLE_GETFIELD = 0
 opcodes_coverage.SETI = 0
-opcodes_coverage.SETTABLE_S = 0
+opcodes_coverage.TABLE_SETFIELD = 0
 opcodes_coverage.SETFIELD = 0
 opcodes_coverage.GETFIELD = 0
 opcodes_coverage.TOTAB = 0
@@ -1105,9 +1105,9 @@ function test_tableaccess()
     t.data.city = 'london'
     return t.name, t.data.city
   end
-  check(f, 'NEWTABLE', 'SETTABLE_S', 'NEWTABLE',
-    'SETTABLE_S', 'GETTABLE_S', 'SETFIELD', 
-    'GETTABLE_S', 'GETTABLE_S' , 'GETFIELD',
+  check(f, 'NEWTABLE', 'TABLE_SETFIELD', 'NEWTABLE',
+    'TABLE_SETFIELD', 'TABLE_GETFIELD', 'SETFIELD', 
+    'TABLE_GETFIELD', 'TABLE_GETFIELD' , 'GETFIELD',
     'RETURN', 'RETURN')
   local a,b = f()
   assert(a == 'dibyendu')
@@ -1149,8 +1149,8 @@ function test_self_s()
   assert(t:name())
   return t:name()
 end  
-check(test_self_s, 'NEWTABLE', 'SETTABLE_S', 'CLOSURE',
-  'SETTABLE_S', 'GETTABUP_SK', 'SELF_S', 'CALL', 'CALL', 'SELF_S', 'TAILCALL',
+check(test_self_s, 'NEWTABLE', 'TABLE_SETFIELD', 'CLOSURE',
+  'TABLE_SETFIELD', 'GETTABUP_SK', 'SELF_S', 'CALL', 'CALL', 'SELF_S', 'TAILCALL',
   'RETURN')
 assert(test_self_s() == 'dibyendu majumdar')
 compile(test_self_s)
@@ -1252,11 +1252,11 @@ function test_longkey()
   assert(t.s == nil) 
 end
 check(test_longkey,	'NEWTABLE', 'SETTABLE', 'GETTABUP_SK', 'GETTABLE',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'SETTABLE_S', 'GETTABUP_SK',
-  'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'SETTABLE_S',
-  'GETTABUP_SK', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'TABLE_SETFIELD', 'GETTABUP_SK',
+  'TABLE_GETFIELD', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'TABLE_SETFIELD',
+  'GETTABUP_SK', 'TABLE_GETFIELD', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
   'LOADK', 'GETTABUP_SK', 'GETTABLE', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
-  'GETTABUP_SK', 'GETTABLE_S', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'GETTABUP_SK', 'TABLE_GETFIELD', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
   'RETURN')
 assert(pcall(test_longkey));
 compile(test_longkey);

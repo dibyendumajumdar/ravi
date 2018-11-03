@@ -537,17 +537,14 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
         "LE_II", /*  A B C if ((RK(B) <= RK(C)) ~= A) then pc++    */
         "LE_FF", /*  A B C if ((RK(B) <= RK(C)) ~= A) then pc++    */
 
-        "GETTABLE_S", /*  A B C R(A) := R(B)[RK(C)], string key   */
-        "SETTABLE_S", /*  A B C R(A)[RK(B)] := RK(C), string key  */
-        "SELF_S",     /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
+        "TABLE_GETFIELD", /* A B C R(A) := R(B)[RK(C)], string key   */
+        "TABLE_SETFIELD", /* A B C R(A)[RK(B)] := RK(C), string key  */
+        "SELF_S",         /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
 
-        "GETI", /*  A B C R(A) := R(B)[RK(C)], integer key  */
-        "SETI", /*  A B C R(A)[RK(B)] := RK(C), integer key */
-        "GETFIELD",
-        /* _SK */ /* A B C R(A) := R(B)[RK(C)], string key   */
-        "SELF_SK",
-        /* _SK*/ /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
-        "SETFIELD",
-        /*_SK */ /*  A B C R(A)[RK(B)] := RK(C), string key  */
+        "GETI",           /* A B C R(A) := R(B)[RK(C)], integer key  */
+        "SETI",           /* A B C R(A)[RK(B)] := RK(C), integer key */
+        "GETFIELD",       /* A B C R(A) := R(B)[RK(C)], string key   */
+        "SELF_SK",        /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
+        "SETFIELD",       /* A B C R(A)[RK(B)] := RK(C), string key  */
         "GETTABUP_SK",
         NULL};

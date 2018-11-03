@@ -1629,7 +1629,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       } break;
 
       case OP_RAVI_SETFIELD:
-      case OP_RAVI_SETTABLE_S: {
+      case OP_RAVI_TABLE_SETFIELD: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         emit_SETFIELD(def, A, B, C, pc);
@@ -1644,7 +1644,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int C = GETARG_C(i);
         emit_SETTABLE(def, A, B, C, pc);
       } break;
-      case OP_RAVI_GETTABLE_S: {
+      case OP_RAVI_TABLE_GETFIELD: {
         int C = GETARG_C(i);
         int B = GETARG_B(i);
         lua_assert(ISK(C));
