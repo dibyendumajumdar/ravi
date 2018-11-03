@@ -274,8 +274,8 @@ OP_RAVI_SELF_S,/*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)], string key, known t
 /* Following opcodes are specialized for indexing where the
    key is known to be string but the variable may or may not be 
    a table */
-OP_RAVI_GETTABLE_I,/*	A B C	R(A) := R(B)[RK(C)], integer key, known table */
-OP_RAVI_SETTABLE_I,/*	A B C	R(A)[RK(B)] := RK(C), integer key, known table */
+OP_RAVI_GETI,/*	A B C	R(A) := R(B)[RK(C)], integer key, known table */
+OP_RAVI_SETI,/*	A B C	R(A)[RK(B)] := RK(C), integer key, known table */
 OP_RAVI_GETFIELD, /*	A B C	R(A) := R(B)[RK(C)], string key   */
 OP_RAVI_SELF_SK,     /*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)], string key */
 OP_RAVI_SETFIELD, /*	A B C	R(A)[RK(B)] := RK(C), string key */

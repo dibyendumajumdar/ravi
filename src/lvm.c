@@ -946,7 +946,7 @@ void luaV_finishOp (lua_State *L) {
     case OP_MOD: case OP_POW:
     case OP_UNM: case OP_BNOT: case OP_LEN:
     case OP_RAVI_GETTABUP_SK: 
-    case OP_RAVI_GETFIELD: case OP_RAVI_GETTABLE_I: case OP_RAVI_GETTABLE_S: 
+    case OP_RAVI_GETFIELD: case OP_RAVI_GETI: case OP_RAVI_GETTABLE_S: 
     case OP_RAVI_SELF_SK: case OP_RAVI_SELF_S:
     case OP_GETTABUP: case OP_GETTABLE: case OP_SELF: {
       setobjs2s(L, base + GETARG_A(inst), --L->top);
@@ -989,7 +989,7 @@ void luaV_finishOp (lua_State *L) {
         L->top = ci->top;  /* adjust results */
       break;
     }
-    case OP_RAVI_SETTABLE_I: case OP_RAVI_SETTABLE_S: case OP_RAVI_SETFIELD:
+    case OP_RAVI_SETI: case OP_RAVI_SETTABLE_S: case OP_RAVI_SETFIELD:
     case OP_TAILCALL: case OP_SETTABUP: case OP_SETTABLE:
       break;
     default: lua_assert(0);
@@ -1264,8 +1264,8 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_GETTABLE_S),
     &&vmlabel(OP_RAVI_SETTABLE_S),
     &&vmlabel(OP_RAVI_SELF_S),
-    &&vmlabel(OP_RAVI_GETTABLE_I),
-    &&vmlabel(OP_RAVI_SETTABLE_I),
+    &&vmlabel(OP_RAVI_GETI),
+    &&vmlabel(OP_RAVI_SETI),
     &&vmlabel(OP_RAVI_GETFIELD),
     &&vmlabel(OP_RAVI_SELF_SK),
     &&vmlabel(OP_RAVI_SETFIELD),
@@ -1362,7 +1362,7 @@ int luaV_execute (lua_State *L) {
         SETTABLE_INLINE_PROTECTED(L, ra, rb, rc);
         vmbreak;
       }
-      vmcase(OP_RAVI_SETTABLE_I) {
+      vmcase(OP_RAVI_SETI) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         SETTABLE_INLINE_PROTECTED_I(L, ra, rb, rc);
@@ -2096,7 +2096,7 @@ int luaV_execute (lua_State *L) {
         checkGC(L, ra + 1);
         vmbreak;
       }
-      vmcase(OP_RAVI_GETTABLE_I) {
+      vmcase(OP_RAVI_GETI) {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
         GETTABLE_INLINE_PROTECTED_I(L, rb, rc, ra);

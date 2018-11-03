@@ -541,8 +541,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
         "SETTABLE_S", /*  A B C R(A)[RK(B)] := RK(C), string key  */
         "SELF_S",     /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
 
-        "GETTABLE_I", /*  A B C R(A) := R(B)[RK(C)], integer key  */
-        "SETTABLE_I", /*  A B C R(A)[RK(B)] := RK(C), integer key */
+        "GETI", /*  A B C R(A) := R(B)[RK(C)], integer key  */
+        "SETI", /*  A B C R(A)[RK(B)] := RK(C), integer key */
         "GETFIELD",
         /* _SK */ /* A B C R(A) := R(B)[RK(C)], string key   */
         "SELF_SK",

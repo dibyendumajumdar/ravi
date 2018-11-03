@@ -95,9 +95,9 @@ void RaviCodeGenerator::emit_LEN(RaviFunctionDef *def, int A, int B, int pc) {
 // This relies on two things:
 // a) we know we have a table
 // b) we know the key is an integer
-void RaviCodeGenerator::emit_SETTABLE_I(RaviFunctionDef *def, int A, int B,
+void RaviCodeGenerator::emit_SETI(RaviFunctionDef *def, int A, int B,
                                         int C, int pc) {
-  bool traced = emit_debug_trace(def, OP_RAVI_SETTABLE_I, pc);
+  bool traced = emit_debug_trace(def, OP_RAVI_SETI, pc);
   if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
@@ -201,10 +201,10 @@ void RaviCodeGenerator::emit_GETFIELD(RaviFunctionDef *def, int A, int B,
 // luaH_getint(). This relies on two things:
 // a) we know we have a table
 // b) we know the key is an integer
-void RaviCodeGenerator::emit_GETTABLE_I(RaviFunctionDef *def, int A, int B,
+void RaviCodeGenerator::emit_GETI(RaviFunctionDef *def, int A, int B,
                                         int C, int pc) {
   // changed to that target may not be a table
-  bool traced = emit_debug_trace(def, OP_RAVI_GETTABLE_I, pc);
+  bool traced = emit_debug_trace(def, OP_RAVI_GETI, pc);
   if (!traced) emit_update_savedpc(def, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);

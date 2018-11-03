@@ -1242,7 +1242,7 @@ class RaviCodeGenerator {
 
   void emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
+  void emit_SETI(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_SETFIELD(RaviFunctionDef *def, int A, int B, int C, int pc);
 
@@ -1254,7 +1254,7 @@ class RaviCodeGenerator {
   void emit_GETFIELD(RaviFunctionDef *def, int A, int B, int C, int pc,
                         TString *key);
 
-  void emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
+  void emit_GETI(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *phi,
                             llvm::Value *t, llvm::Value *ra, llvm::Value *rb,

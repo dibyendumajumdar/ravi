@@ -477,7 +477,7 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
           return getobjname(p, pc, b, name);  /* get name for 'b' */
         break;
       }
-      case OP_RAVI_GETTABLE_I:
+      case OP_RAVI_GETI:
       case OP_RAVI_GETTABLE_S:
       case OP_RAVI_GETFIELD:
       case OP_RAVI_IARRAY_GET:
@@ -548,10 +548,10 @@ static const char *funcnamefromcode (lua_State *L, CallInfo *ci,
     /* all other instructions can call only through metamethods */
     /* Ravi: added GETFIELD and SELF_SK because the call may be through metamethod rather than table */
     case OP_SELF: case OP_GETTABUP: case OP_GETTABLE: 
-    case OP_RAVI_SELF_SK: case OP_RAVI_GETTABUP_SK: case OP_RAVI_GETFIELD: case OP_RAVI_GETTABLE_I:
+    case OP_RAVI_SELF_SK: case OP_RAVI_GETTABUP_SK: case OP_RAVI_GETFIELD: case OP_RAVI_GETI:
       tm = TM_INDEX;
       break;
-    case OP_SETTABUP: case OP_SETTABLE: case OP_RAVI_SETFIELD: case OP_RAVI_SETTABLE_I:
+    case OP_SETTABUP: case OP_SETTABLE: case OP_RAVI_SETFIELD: case OP_RAVI_SETI:
       tm = TM_NEWINDEX;
       break;
     case OP_ADD: case OP_SUB: case OP_MUL: case OP_MOD:

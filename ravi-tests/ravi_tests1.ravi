@@ -107,9 +107,9 @@ opcodes_coverage.LT_II = 0
 opcodes_coverage.LT_FF = 0
 opcodes_coverage.LE_II = 0
 opcodes_coverage.LE_FF = 0
-opcodes_coverage.GETTABLE_I = 0
+opcodes_coverage.GETI = 0
 opcodes_coverage.GETTABLE_S = 0
-opcodes_coverage.SETTABLE_I = 0
+opcodes_coverage.SETI = 0
 opcodes_coverage.SETTABLE_S = 0
 opcodes_coverage.SETFIELD = 0
 opcodes_coverage.GETFIELD = 0
@@ -216,7 +216,7 @@ end,
   'LOADNIL',
   'MUL',
   'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETFIELD', 'POW',
-    'UNM', 'SETTABLE', 'SETTABLE_I', 'RETURN')
+    'UNM', 'SETTABLE', 'SETI', 'RETURN')
 
 -- direct access to constants
 check(function ()
@@ -564,7 +564,7 @@ function tabtest(x)
   return x[1]
 end
 assert(tabtest({}) == 5)
-check(tabtest, 'SETTABLE_I', 'GETTABLE_I', 'RETURN', 'RETURN')
+check(tabtest, 'SETI', 'GETI', 'RETURN', 'RETURN')
 compile(tabtest)
 assert(tabtest({}) == 5)
 print("test 16 OK")
@@ -665,11 +665,11 @@ z = function()
   assert(x() == "SundayMondayTuesdayWednesdayThursdayFridaySaturday")
 end
 check(z, 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK', 'LOADK',
-  'LOADK', 'LOADK', 'LOADK', 'SETLIST', 'GETTABUP_SK', 'GETTABLE_I',
+  'LOADK', 'LOADK', 'LOADK', 'SETLIST', 'GETTABUP_SK', 'GETI',
   'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'LEN', 'TOINT',
-  'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'GETTABLE_I',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABLE_I', 'LOADK',
-  'CONCAT', 'SETTABLE_I', 'CLOSURE', 'SETUPVAL', 'GETTABUP_SK', 'GETUPVAL',
+  'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'GETI',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETI', 'LOADK',
+  'CONCAT', 'SETI', 'CLOSURE', 'SETUPVAL', 'GETTABUP_SK', 'GETUPVAL',
   'GETUPVAL', 'CALL', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'CALL', 'EQ',
   'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
 z()
@@ -1127,9 +1127,9 @@ function test_tableaccess()
     t[2][1] = 'london'
     return t[1], t[2][1]
   end
-  check(f, 'NEWTABLE', 'SETTABLE_I', 'NEWTABLE',
-    'SETTABLE_I', 'GETTABLE_I', 'SETTABLE_I', 
-    'GETTABLE_I', 'GETTABLE_I' , 'GETTABLE_I',
+  check(f, 'NEWTABLE', 'SETI', 'NEWTABLE',
+    'SETI', 'GETI', 'SETI', 
+    'GETI', 'GETI' , 'GETI',
     'RETURN', 'RETURN')
   local a,b = f()
   assert(a == 'dibyendu')
@@ -1584,7 +1584,7 @@ function x()
        :find'not contain __ prefix')
 end
 check(x, 'GETTABUP_SK', 'NEWTABLE', 'GETTABUP_SK', 'CLOSURE',
-  'CALL', 'SETLIST', 'GETTABLE_I', 'SELF_SK', 'LOADK', 
+  'CALL', 'SETLIST', 'GETI', 'SELF_SK', 'LOADK', 
   'CALL', 'CALL', 'RETURN')
 print 'Test 64 OK'
 

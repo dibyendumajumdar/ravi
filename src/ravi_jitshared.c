@@ -631,14 +631,14 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_RAVI_IARRAY_GET:
 		case OP_RAVI_FARRAY_GET:
 		case OP_RAVI_GETFIELD:
-		case OP_RAVI_GETTABLE_I:
+		case OP_RAVI_GETI:
 		case OP_GETTABLE:
 		case OP_SELF:
 		case OP_RAVI_SELF_S:
 		case OP_RAVI_SELF_SK:
 		case OP_RAVI_SETFIELD:
 		case OP_RAVI_SETTABLE_S:
-		case OP_RAVI_SETTABLE_I:
+		case OP_RAVI_SETI:
 		case OP_RAVI_IARRAY_SETI:
 		case OP_RAVI_IARRAY_SET:
 		case OP_RAVI_FARRAY_SETF:
@@ -1196,7 +1196,7 @@ static void emit_op_gettable(struct function *fn, int A, int B, int C, int pc, O
   emit_reg_or_k(fn, "rc", C);
   if (op == OP_RAVI_GETFIELD) { 
     membuff_add_string(&fn->body, "raviV_gettable_sskey(L, rb, rc, ra);\n"); }
-  else if (op == OP_RAVI_GETTABLE_I) {
+  else if (op == OP_RAVI_GETI) {
     membuff_add_string(&fn->body, "raviV_gettable_i(L, rb, rc, ra);\n");
   }
   else {
@@ -1235,7 +1235,7 @@ static void emit_op_settable(struct function *fn, int A, int B, int C, int pc, O
   emit_reg_or_k(fn, "rc", C);
   if (op == OP_RAVI_SETFIELD) { 
     membuff_add_string(&fn->body, "raviV_settable_sskey(L, ra, rb, rc);\n"); }
-  else if (op == OP_RAVI_SETTABLE_I) {
+  else if (op == OP_RAVI_SETI) {
     membuff_add_string(&fn->body, "raviV_settable_i(L, ra, rb, rc);\n");
   }
   else {
@@ -1885,7 +1885,7 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		} break;
 		case OP_RAVI_GETTABLE_S:
 		case OP_RAVI_GETFIELD:
-		case OP_RAVI_GETTABLE_I:
+		case OP_RAVI_GETI:
 		case OP_GETTABLE: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);
@@ -1903,7 +1903,7 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		} break;
 		case OP_RAVI_SETFIELD:
 		case OP_RAVI_SETTABLE_S:
-		case OP_RAVI_SETTABLE_I:
+		case OP_RAVI_SETI:
 		case OP_SETTABLE: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);

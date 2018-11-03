@@ -109,9 +109,9 @@ opcodes_coverage.LT_II = 0
 opcodes_coverage.LT_FF = 0
 opcodes_coverage.LE_II = 0
 opcodes_coverage.LE_FF = 0
-opcodes_coverage.GETTABLE_I = 0
+opcodes_coverage.GETI = 0
 opcodes_coverage.GETTABLE_S = 0
-opcodes_coverage.SETTABLE_I = 0
+opcodes_coverage.SETI = 0
 opcodes_coverage.SETTABLE_S = 0
 opcodes_coverage.SETFIELD = 0
 opcodes_coverage.GETFIELD = 0
@@ -175,8 +175,8 @@ end
 check(x, {'LOADK', 'LOADK', 'GETTABUP_SK', 'EQ_II',
   'JMP', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
   'CALL', 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK',
-  'LOADK', 'LOADK', 'SETLIST', 'GETTABLE_I', 'TOINT',
-  'MOVEI', 'GETTABLE_I', 'TOFLT', 'MOVEF', 'GETTABUP_SK',
+  'LOADK', 'LOADK', 'SETLIST', 'GETI', 'TOINT',
+  'MOVEI', 'GETI', 'TOFLT', 'MOVEF', 'GETTABUP_SK',
   'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
   'GETTABUP_SK', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
   'CALL', 'RETURN'})
@@ -214,8 +214,8 @@ compile(x)
 y,z = x()
 assert(y == 61 and math.abs(z - 19.9) < 1e-10)
 check(x, {'LOADK', 'LOADK', 'LOADK', 'GETTABUP_SK',
-  'GETTABLE_I', 'TOINT', 'GETTABUP', 'TOINT', 'TOINT',
-  'MULII', 'ADDII', 'LOADK', 'GETTABUP_SK', 'GETTABLE_I',
+  'GETI', 'TOINT', 'GETTABUP', 'TOINT', 'TOINT',
+  'MULII', 'ADDII', 'LOADK', 'GETTABUP_SK', 'GETI',
   'TOFLT', 'GETTABUP', 'TOFLT', 'MULFF', 'TOFLT',
   'SUBFF', 'MOVE', 'MOVE', 'RETURN', 'RETURN'})
 

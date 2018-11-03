@@ -122,7 +122,7 @@ end,
   'LOADNIL',
   'MUL',
   'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETFIELD', 'POW',
-    'UNM', 'SETTABLE', 'SETTABLE_I', 'RETURN')
+    'UNM', 'SETTABLE', 'SETI', 'RETURN')
 
 
 -- direct access to constants
