@@ -584,6 +584,7 @@ static int LEintfloat (lua_Integer i, lua_Number f) {
 ** Return 'l < r', for numbers.
 */
 static int LTnum (const TValue *l, const TValue *r) {
+  lua_assert(ttisnumber(l) && ttisnumber(r));
   if (ttisinteger(l)) {
     lua_Integer li = ivalue(l);
     if (ttisinteger(r))
@@ -607,6 +608,7 @@ static int LTnum (const TValue *l, const TValue *r) {
 ** Return 'l <= r', for numbers.
 */
 static int LEnum (const TValue *l, const TValue *r) {
+  lua_assert(ttisnumber(l) && ttisnumber(r));
   if (ttisinteger(l)) {
     lua_Integer li = ivalue(l);
     if (ttisinteger(r))
@@ -679,7 +681,7 @@ int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2) {
       return 0;  /* only numbers can be equal with different variants */
     else {  /* two numbers with different variants */
       lua_Integer i1, i2;  /* compare them as integers */
-      return (tointeger(t1, &i1) && tointeger(t2, &i2) && i1 == i2);
+      return (tointegerns(t1, &i1) && tointegerns(t2, &i2) && i1 == i2);
     }
   }
   /* values have same type and same variant */
@@ -1329,6 +1331,12 @@ int luaV_execute (lua_State *L) {
         setobj2s(L, ra, cl->upvals[b]->v);
         vmbreak;
       }
+      vmcase(OP_SETUPVAL) {
+        UpVal *uv = cl->upvals[GETARG_B(i)];
+        setobj(L, uv->v, ra);
+        luaC_upvalbarrier(L, uv);
+        vmbreak;
+      }
       vmcase(OP_GETTABUP) {
         TValue *upval = cl->upvals[GETARG_B(i)]->v;    /* table */
         TValue *rc = RKC(i);                           /* key */
@@ -1346,12 +1354,6 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         SETTABLE_INLINE_PROTECTED(L, upval, rb, rc);
-        vmbreak;
-      }
-      vmcase(OP_SETUPVAL) {
-        UpVal *uv = cl->upvals[GETARG_B(i)];
-        setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
         vmbreak;
       }
       vmcase(OP_SETTABLE) {
@@ -1603,12 +1605,14 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_EQ) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
+		int res;
         Protect(
-          if (luaV_equalobj(L, rb, rc) != GETARG_A(i))
-            pc++;
-          else
-            donextjump(ci);
-        )
+		  res = luaV_equalobj(L, rb, rc);
+		)
+        if (res != GETARG_A(i))
+          pc++;
+        else
+          donextjump(ci);
         vmbreak;
       }
       vmcase(OP_LT) {
@@ -1617,6 +1621,8 @@ int luaV_execute (lua_State *L) {
         int res;
         if (ttisinteger(rb) && ttisinteger(rc))
           res = (ivalue(rb) < ivalue(rc));
+        else if (ttisnumber(rb) && ttisnumber(rc))
+          res = LTnum(rb, rc);
         else Protect(
           res = luaV_lessthan(L, rb, rc);
         )
@@ -1632,6 +1638,8 @@ int luaV_execute (lua_State *L) {
         int res;
         if (ttisinteger(rb) && ttisinteger(rc))
           res = (ivalue(rb) <= ivalue(rc));
+        else if (ttisnumber(rb) && ttisnumber(rc))
+          res = LEnum(rb, rc);
         else Protect(
           res = luaV_lessequal(L, rb, rc);
         )
