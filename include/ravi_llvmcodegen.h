@@ -1340,9 +1340,9 @@ class RaviCodeGenerator {
   void emit_IARRAY_SET(RaviFunctionDef *def, int A, int B, int C,
                         bool known_float, int pc);
 
-  void emit_MOVEAI(RaviFunctionDef *def, int A, int B, int pc);
+  void emit_MOVEIARRAY(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_MOVEAF(RaviFunctionDef *def, int A, int B, int pc);
+  void emit_MOVEFARRAY(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_MOVETAB(RaviFunctionDef *def, int A, int B, int pc);
 

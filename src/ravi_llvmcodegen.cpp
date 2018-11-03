@@ -1726,13 +1726,13 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_TOTYPE(def, A, Bx, pc);
         break;
       }
-      case OP_RAVI_MOVEAI: {
+      case OP_RAVI_MOVEIARRAY: {
         int B = GETARG_B(i);
-        emit_MOVEAI(def, A, B, pc);
+        emit_MOVEIARRAY(def, A, B, pc);
       } break;
-      case OP_RAVI_MOVEAF: {
+      case OP_RAVI_MOVEFARRAY: {
         int B = GETARG_B(i);
-        emit_MOVEAF(def, A, B, pc);
+        emit_MOVEFARRAY(def, A, B, pc);
       } break;
       case OP_RAVI_MOVETAB: {
         int B = GETARG_B(i);
@@ -1773,14 +1773,14 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVALF,
                                def->raviV_op_setupvalfF);
       } break;
-      case OP_RAVI_SETUPVALAI: {
+      case OP_RAVI_SETUPVAL_IARRAY: {
         int B = GETARG_B(i);
-        emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVALAI,
+        emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVAL_IARRAY,
                                def->raviV_op_setupvalaiF);
       } break;
-      case OP_RAVI_SETUPVALAF: {
+      case OP_RAVI_SETUPVAL_FARRAY: {
         int B = GETARG_B(i);
-        emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVALAF,
+        emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVAL_FARRAY,
                                def->raviV_op_setupvalafF);
       } break;
       case OP_RAVI_SETUPVALT: {

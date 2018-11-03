@@ -624,8 +624,8 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_SETUPVAL:
 		case OP_RAVI_SETUPVALI:
 		case OP_RAVI_SETUPVALF:
-		case OP_RAVI_SETUPVALAI:
-		case OP_RAVI_SETUPVALAF:
+		case OP_RAVI_SETUPVAL_IARRAY:
+		case OP_RAVI_SETUPVAL_FARRAY:
 		case OP_RAVI_SETUPVALT:
 		case OP_RAVI_GETTABLE_S:
 		case OP_RAVI_IARRAY_GET:
@@ -676,8 +676,8 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_RAVI_LOADFZ:
 		case OP_RAVI_MOVEI:
 		case OP_RAVI_MOVEF:
-		case OP_RAVI_MOVEAI:
-		case OP_RAVI_MOVEAF:
+		case OP_RAVI_MOVEIARRAY:
+		case OP_RAVI_MOVEFARRAY:
 		case OP_RAVI_MOVETAB:
 		case OP_RAVI_TOINT:
 		case OP_RAVI_TOFLT:
@@ -1369,7 +1369,7 @@ static void emit_op_movef(struct function *fn, int A, int B, int pc) {
   membuff_add_string(&fn->body, "}\n");
 }
 
-static void emit_op_moveai(struct function *fn, int A, int B, int pc) {
+static void emit_op_MOVEIARRAY(struct function *fn, int A, int B, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
@@ -1384,7 +1384,7 @@ static void emit_op_moveai(struct function *fn, int A, int B, int pc) {
   membuff_add_string(&fn->body, "}\n");
 }
 
-static void emit_op_moveaf(struct function *fn, int A, int B, int pc) {
+static void emit_op_MOVEFARRAY(struct function *fn, int A, int B, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
@@ -1962,11 +1962,11 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int B = GETARG_B(i);
 			emit_op_setupval(&fn, A, B, pc, "f");
 		} break;
-		case OP_RAVI_SETUPVALAI: {
+		case OP_RAVI_SETUPVAL_IARRAY: {
 			int B = GETARG_B(i);
 			emit_op_setupval(&fn, A, B, pc, "ai");
 		} break;
-		case OP_RAVI_SETUPVALAF: {
+		case OP_RAVI_SETUPVAL_FARRAY: {
 			int B = GETARG_B(i);
 			emit_op_setupval(&fn, A, B, pc, "af");
 		} break;
@@ -2143,13 +2143,13 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			int B = GETARG_B(i);
 			emit_op_movef(&fn, A, B, pc);
 		} break;
-		case OP_RAVI_MOVEAI: {
+		case OP_RAVI_MOVEIARRAY: {
 			int B = GETARG_B(i);
-			emit_op_moveai(&fn, A, B, pc);
+			emit_op_MOVEIARRAY(&fn, A, B, pc);
 		} break;
-		case OP_RAVI_MOVEAF: {
+		case OP_RAVI_MOVEFARRAY: {
 			int B = GETARG_B(i);
-			emit_op_moveaf(&fn, A, B, pc);
+			emit_op_MOVEFARRAY(&fn, A, B, pc);
 		} break;
 		case OP_RAVI_MOVETAB: {
 			int B = GETARG_B(i);

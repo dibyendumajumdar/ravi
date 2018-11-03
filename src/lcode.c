@@ -687,10 +687,10 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
           luaK_codeABC(fs, OP_RAVI_MOVEF, reg, e->u.info, 0);
           break;
         case RAVI_TARRAYINT:
-          luaK_codeABC(fs, OP_RAVI_MOVEAI, reg, e->u.info, 0);
+          luaK_codeABC(fs, OP_RAVI_MOVEIARRAY, reg, e->u.info, 0);
           break;
         case RAVI_TARRAYFLT:
-          luaK_codeABC(fs, OP_RAVI_MOVEAF, reg, e->u.info, 0);
+          luaK_codeABC(fs, OP_RAVI_MOVEFARRAY, reg, e->u.info, 0);
           break;
         case RAVI_TTABLE:
           luaK_codeABC(fs, OP_RAVI_MOVETAB, reg, e->u.info, 0);
@@ -869,7 +869,7 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
        var->ravi_type == RAVI_TSTRING ||
        var->ravi_type == RAVI_TFUNCTION ||
        var->ravi_type == RAVI_TUSERDATA)) {
-    /* handled by MOVEI, MOVEF, MOVEAI, MOVEAF at runtime */
+    /* handled by MOVEI, MOVEF, MOVEIARRAY, MOVEFARRAY at runtime */
     return;
   }
   if (var->ravi_type == RAVI_TNUMFLT) {
@@ -951,9 +951,9 @@ static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex,
     else if (var->ravi_type == RAVI_TNUMFLT)
       op = OP_RAVI_SETUPVALF;
     else if (var->ravi_type == RAVI_TARRAYINT)
-      op = OP_RAVI_SETUPVALAI;
+      op = OP_RAVI_SETUPVAL_IARRAY;
     else if (var->ravi_type == RAVI_TARRAYFLT)
-      op = OP_RAVI_SETUPVALAF;
+      op = OP_RAVI_SETUPVAL_FARRAY;
     else if (var->ravi_type == RAVI_TTABLE)
       op = OP_RAVI_SETUPVALT;
     else if (var->ravi_type == RAVI_TSTRING)

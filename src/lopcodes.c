@@ -116,8 +116,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
 
   "MOVEI",  /*	A B	R(A) := R(B)					*/
   "MOVEF",  /*	A B	R(A) := R(B)					*/
-  "MOVEAI", /* A B R(A) := R(B), check R(B) is array of int */
-  "MOVEAF", /* A B R(A) := R(B), check R(B) is array of floats */
+  "MOVEIARRAY", /* A B R(A) := R(B), check R(B) is array of int */
+  "MOVEFARRAY", /* A B R(A) := R(B), check R(B) is array of floats */
   "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
 
   "IARRAY_GET",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
@@ -135,8 +135,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
 
   "SETUPVALI", /*	A B	UpValue[B] := tointeger(R(A))			*/
   "SETUPVALF", /*	A B	UpValue[B] := tonumber(R(A))			*/
-  "SETUPVALAI",  /*	A B	UpValue[B] := toarrayint(R(A))			*/
-  "SETUPVALAF",  /*	A B	UpValue[B] := toarrayflt(R(A))			*/
+  "SETUPVAL_IARRAY",  /*	A B	UpValue[B] := toarrayint(R(A))			*/
+  "SETUPVAL_FARRAY",  /*	A B	UpValue[B] := toarrayflt(R(A))			*/
   "SETUPVALT", /*	A B	UpValue[B] := to_table(R(A))			*/
 
   "BAND_II",/*	A B C	R(A) := RK(B) & RK(C)				*/
@@ -257,8 +257,8 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))	*/
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B)) */
- ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEAI A B R(A) := R(B), check R(B) is array of int */
- ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEAF A B R(A) := R(B), check R(B) is array of floats */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEIARRAY A B R(A) := R(B), check R(B) is array of int */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEFARRAY A B R(A) := R(B), check R(B) is array of floats */
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVETAB A B R(A) := R(B), check R(B) is a table */
 
  ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_IARRAY_GET A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
@@ -276,8 +276,8 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALI */
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALF */
- ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALAI */
- ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALAF */
+ ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVAL_IARRAY */
+ ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVAL_FARRAY */
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALT */
 
  ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_BAND_II */
@@ -449,8 +449,8 @@ static void PrintCode(const Proto* f)
    case OP_GETUPVAL:
    case OP_RAVI_SETUPVALI:
    case OP_RAVI_SETUPVALF:
-   case OP_RAVI_SETUPVALAI:
-   case OP_RAVI_SETUPVALAF:
+   case OP_RAVI_SETUPVAL_IARRAY:
+   case OP_RAVI_SETUPVAL_FARRAY:
    case OP_RAVI_SETUPVALT:
    case OP_SETUPVAL:
     printf("\t; %s",UPVALNAME(b));

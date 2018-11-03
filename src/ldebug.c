@@ -468,8 +468,8 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
     switch (op) {
       case OP_RAVI_MOVEI:
       case OP_RAVI_MOVEF:
-      case OP_RAVI_MOVEAF:
-      case OP_RAVI_MOVEAI:
+      case OP_RAVI_MOVEFARRAY:
+      case OP_RAVI_MOVEIARRAY:
       case OP_RAVI_MOVETAB:
       case OP_MOVE: {
         int b = GETARG_B(i);  /* move from 'b' to 'a' */

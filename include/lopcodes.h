@@ -228,8 +228,8 @@ OP_RAVI_TOTYPE,
 
 OP_RAVI_MOVEI, /*	A B	R(A) := R(B), check R(B) is int	*/
 OP_RAVI_MOVEF, /*	A B	R(A) := R(B), check R(B) is float */
-OP_RAVI_MOVEAI, /* A B R(A) := R(B), check R(B) is array of int */
-OP_RAVI_MOVEAF, /* A B R(A) := R(B), check R(B) is array of floats */
+OP_RAVI_MOVEIARRAY, /* A B R(A) := R(B), check R(B) is array of int */
+OP_RAVI_MOVEFARRAY, /* A B R(A) := R(B), check R(B) is array of floats */
 OP_RAVI_MOVETAB,  /* A B R(A) := R(B), check R(B) is a table */
 
 OP_RAVI_IARRAY_GET,/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
@@ -247,8 +247,8 @@ OP_RAVI_FORPREP_I1,
 
 OP_RAVI_SETUPVALI,  /*	A B	UpValue[B] := tointeger(R(A))			*/
 OP_RAVI_SETUPVALF,  /*	A B	UpValue[B] := tonumber(R(A))			*/
-OP_RAVI_SETUPVALAI,  /*	A B	UpValue[B] := toarrayint(R(A))			*/
-OP_RAVI_SETUPVALAF,  /*	A B	UpValue[B] := toarrayflt(R(A))			*/
+OP_RAVI_SETUPVAL_IARRAY,  /*	A B	UpValue[B] := toarrayint(R(A))			*/
+OP_RAVI_SETUPVAL_FARRAY,  /*	A B	UpValue[B] := toarrayflt(R(A))			*/
 OP_RAVI_SETUPVALT,/*	A B	UpValue[B] := to_table(R(A))			*/
 
 OP_RAVI_BAND_II,/*	A B C	R(A) := RK(B) & RK(C)				*/

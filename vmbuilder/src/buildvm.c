@@ -494,8 +494,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
 
         "MOVEI",   /*  A B R(A) := R(B)          */
         "MOVEF",   /*  A B R(A) := R(B)          */
-        "MOVEAI",  /* A B R(A) := R(B), check R(B) is array of int */
-        "MOVEAF",  /* A B R(A) := R(B), check R(B) is array of floats */
+        "MOVEIARRAY",  /* A B R(A) := R(B), check R(B) is array of int */
+        "MOVEFARRAY",  /* A B R(A) := R(B), check R(B) is array of floats */
         "MOVETAB", /* A B R(A) := R(B), check R(B) is a table */
 
         "IARRAY_GET", /*  A B C R(A) := R(B)[RK(C)] where R(B) is array of
@@ -519,8 +519,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
 
         "SETUPVALI",  /* A B UpValue[B] := tointeger(R(A))     */
         "SETUPVALF",  /* A B UpValue[B] := tonumber(R(A))      */
-        "SETUPVALAI", /* A B UpValue[B] := toarrayint(R(A))      */
-        "SETUPVALAF", /* A B UpValue[B] := toarrayflt(R(A))      */
+        "SETUPVAL_IARRAY", /* A B UpValue[B] := toarrayint(R(A))      */
+        "SETUPVAL_FARRAY", /* A B UpValue[B] := toarrayflt(R(A))      */
         "SETUPVALT",  /* A B UpValue[B] := to_table(R(A))      */
 
         "BAND_II", /*  A B C R(A) := RK(B) & RK(C)       */

@@ -679,10 +679,10 @@ Any ``MOVE`` instructions must be modified so that if the target is register tha
             luaK_codeABC(fs, OP_RAVI_MOVEF, reg, e->u.info, 0);
             break;
           case RAVI_TARRAYINT:
-            luaK_codeABC(fs, OP_RAVI_MOVEAI, reg, e->u.info, 0);
+            luaK_codeABC(fs, OP_RAVI_MOVEIARRAY, reg, e->u.info, 0);
             break;
           case RAVI_TARRAYFLT:
-            luaK_codeABC(fs, OP_RAVI_MOVEAF, reg, e->u.info, 0);
+            luaK_codeABC(fs, OP_RAVI_MOVEFARRAY, reg, e->u.info, 0);
             break;
           default:
             luaK_codeABC(fs, OP_MOVE, reg, e->u.info, 0);
@@ -1045,9 +1045,9 @@ When we need to generate assignments to an upvalue (OP_SETUPVAL) we need to use 
       else if (var->ravi_type == RAVI_TNUMFLT)
         op = OP_RAVI_SETUPVALF;
       else if (var->ravi_type == RAVI_TARRAYINT)
-        op = OP_RAVI_SETUPVALAI;
+        op = OP_RAVI_SETUPVAL_IARRAY;
       else if (var->ravi_type == RAVI_TARRAYFLT)
-        op = OP_RAVI_SETUPVALAF;
+        op = OP_RAVI_SETUPVAL_FARRAY;
       else
         luaX_syntaxerror(fs->ls,
                       luaO_pushfstring(fs->ls->L, "Invalid assignment of "

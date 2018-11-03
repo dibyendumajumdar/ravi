@@ -1219,8 +1219,8 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_TOTYPE),
     &&vmlabel(OP_RAVI_MOVEI),
     &&vmlabel(OP_RAVI_MOVEF),
-    &&vmlabel(OP_RAVI_MOVEAI),
-    &&vmlabel(OP_RAVI_MOVEAF),
+    &&vmlabel(OP_RAVI_MOVEIARRAY),
+    &&vmlabel(OP_RAVI_MOVEFARRAY),
     &&vmlabel(OP_RAVI_MOVETAB),
     &&vmlabel(OP_RAVI_IARRAY_GET),
     &&vmlabel(OP_RAVI_FARRAY_GET),
@@ -1234,8 +1234,8 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_FORPREP_I1),
     &&vmlabel(OP_RAVI_SETUPVALI),
     &&vmlabel(OP_RAVI_SETUPVALF),
-    &&vmlabel(OP_RAVI_SETUPVALAI),
-    &&vmlabel(OP_RAVI_SETUPVALAF),
+    &&vmlabel(OP_RAVI_SETUPVAL_IARRAY),
+    &&vmlabel(OP_RAVI_SETUPVAL_FARRAY),
     &&vmlabel(OP_RAVI_SETUPVALT),
     &&vmlabel(OP_RAVI_BAND_II),
     &&vmlabel(OP_RAVI_BOR_II),
@@ -2218,7 +2218,7 @@ int luaV_execute (lua_State *L) {
             L, "upvalue of number type, cannot be set to non number value");
         vmbreak;
       }
-      vmcase(OP_RAVI_SETUPVALAI) {
+      vmcase(OP_RAVI_SETUPVAL_IARRAY) {
         if (!ttisiarray(ra))
           luaG_runerror(L,
             "upvalue of integer[] type, cannot be set to non "
@@ -2228,7 +2228,7 @@ int luaV_execute (lua_State *L) {
         luaC_upvalbarrier(L, uv);
         vmbreak;
       }
-      vmcase(OP_RAVI_SETUPVALAF) {
+      vmcase(OP_RAVI_SETUPVAL_FARRAY) {
         if (!ttisfarray(ra))
           luaG_runerror(
             L,
@@ -2367,7 +2367,7 @@ int luaV_execute (lua_State *L) {
           luaG_runerror(L, "MOVEF: number expected");
         vmbreak;
       }
-      vmcase(OP_RAVI_MOVEAI) {
+      vmcase(OP_RAVI_MOVEIARRAY) {
         TValue *rb = RB(i);
         if (RAVI_LIKELY(ttisiarray(rb))) {
           setobjs2s(L, ra, rb);
@@ -2376,7 +2376,7 @@ int luaV_execute (lua_State *L) {
           luaG_runerror(L, "integer[] expected");
         vmbreak;
       }
-      vmcase(OP_RAVI_MOVEAF) {
+      vmcase(OP_RAVI_MOVEFARRAY) {
         TValue *rb = RB(i);
         if (RAVI_LIKELY(ttisfarray(rb))) {
           setobjs2s(L, ra, rb);

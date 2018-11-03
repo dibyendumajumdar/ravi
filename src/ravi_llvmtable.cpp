@@ -952,18 +952,18 @@ void RaviCodeGenerator::emit_TOARRAY(RaviFunctionDef *def, int A,
   def->builder->SetInsertPoint(done);
 }
 
-void RaviCodeGenerator::emit_MOVEAI(RaviFunctionDef *def, int A, int B,
+void RaviCodeGenerator::emit_MOVEIARRAY(RaviFunctionDef *def, int A, int B,
                                     int pc) {
-  emit_debug_trace(def, OP_RAVI_MOVEAI, pc);
+  emit_debug_trace(def, OP_RAVI_MOVEIARRAY, pc);
   emit_TOARRAY(def, B, RAVI_TARRAYINT, "integer[] expected", pc);
   llvm::Value *src = emit_gep_register(def, B);
   llvm::Value *dest = emit_gep_register(def, A);
   emit_assign(def, dest, src);
 }
 
-void RaviCodeGenerator::emit_MOVEAF(RaviFunctionDef *def, int A, int B,
+void RaviCodeGenerator::emit_MOVEFARRAY(RaviFunctionDef *def, int A, int B,
                                     int pc) {
-  emit_debug_trace(def, OP_RAVI_MOVEAF, pc);
+  emit_debug_trace(def, OP_RAVI_MOVEFARRAY, pc);
   emit_TOARRAY(def, B, RAVI_TARRAYFLT, "number[] expected", pc);
   llvm::Value *src = emit_gep_register(def, B);
   llvm::Value *dest = emit_gep_register(def, A);

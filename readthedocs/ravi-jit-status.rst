@@ -202,9 +202,9 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_MOVEF           | YES      | R(A) := R(B), check R(B) is number               |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_MOVEAI          | YES      | R(A) := R(B), check R(B) is array of integer     |
+| OP_RAVI_MOVEIARRAY      | YES      | R(A) := R(B), check R(B) is array of integer     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_MOVEAF          | YES      | R(A) := R(B), check R(B) is array of numbers     |
+| OP_RAVI_MOVEFARRAY      | YES      | R(A) := R(B), check R(B) is array of numbers     |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_IARRAY_GET      | YES      | R(A) := R(B)[RK(C)] where R(B) is array of       |
 |                         |          | integers and RK(C) is integer                    |
@@ -236,15 +236,15 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SETUPVALF       | YES (1)  | UpValue[B] := tonumber(R(A))                     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETUPVALAI      | YES (1)  | UpValue[B] := toarrayint(R(A))                   |
+| OP_RAVI_SETUPVAL_IARRAY | YES (1)  | UpValue[B] := toarrayint(R(A))                   |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETUPVALAF      | YES (1)  | UpValue[B] := toarrayflt(R(A))                   |
+| OP_RAVI_SETUPVAL_FARRAY | YES (1)  | UpValue[B] := toarrayflt(R(A))                   |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_IARRAY_SETI    | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+| OP_RAVI_IARRAY_SETI     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of integers, and RK(C) is an int   |
 |                         |          | No conversion as input is known to be int        |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_FARRAY_SETF    | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+| OP_RAVI_FARRAY_SETF     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of numbers, and RK(C) is a number  |
 |                         |          | No conversion as input is known to be float      |
 +-------------------------+----------+--------------------------------------------------+
