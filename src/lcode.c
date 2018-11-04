@@ -1041,7 +1041,7 @@ void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
      If we only know the key is a string constant
      we emit specialized bytecode OP_RAVI_SELF_SK
      If we also know that the variable is a table 
-     then we emit OP_RAVI_SELF_S
+     then we emit OP_RAVI_TABLE_SELF_SK
   */
   int is_string_constant_key =
     key->k == VK &&
@@ -1058,7 +1058,7 @@ void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
   e->u.info = fs->freereg;  /* base register for op_self */
   e->k = VNONRELOC;  /* self expression has a fixed register */
   luaK_reserveregs(fs, 2);  /* function and 'self' produced by op_self */
-  luaK_codeABC(fs, table_and_string ? OP_RAVI_SELF_S : 
+  luaK_codeABC(fs, table_and_string ? OP_RAVI_TABLE_SELF_SK : 
                                       (is_string_constant_key ? OP_RAVI_SELF_SK : OP_SELF), 
                                       e->u.info, ereg, luaK_exp2RK(fs, key));
   freeexp(fs, key);

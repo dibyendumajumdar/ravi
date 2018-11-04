@@ -61,7 +61,7 @@ void RaviCodeGenerator::emit_SELF_SK(RaviFunctionDef *def, int A, int B, int C,
 }
 
 // R(A+1) := R(B); R(A) := R(B)[RK(C)]
-void RaviCodeGenerator::emit_SELF_S(RaviFunctionDef *def, int A, int B, int C,
+void RaviCodeGenerator::emit_TABLE_SELF_SK(RaviFunctionDef *def, int A, int B, int C,
                                     int pc, TString *key) {
   // StkId rb = RB(i);
   // setobjs2s(L, ra + 1, rb);
@@ -69,7 +69,7 @@ void RaviCodeGenerator::emit_SELF_S(RaviFunctionDef *def, int A, int B, int C,
   // TString *key = tsvalue(kv);
   // const TValue *v = luaH_getstr(hvalue(rb), key);
   // setobj2s(L, ra, v);
-  emit_debug_trace(def, OP_RAVI_SELF_S, pc);
+  emit_debug_trace(def, OP_RAVI_TABLE_SELF_SK, pc);
   emit_load_base(def);
   llvm::Value *rb = emit_gep_register(def, B);
   llvm::Value *ra1 = emit_gep_register(def, A + 1);

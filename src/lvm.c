@@ -947,7 +947,7 @@ void luaV_finishOp (lua_State *L) {
     case OP_UNM: case OP_BNOT: case OP_LEN:
     case OP_RAVI_GETTABUP_SK: 
     case OP_RAVI_GETFIELD: case OP_RAVI_GETI: case OP_RAVI_TABLE_GETFIELD: 
-    case OP_RAVI_SELF_SK: case OP_RAVI_SELF_S:
+    case OP_RAVI_SELF_SK: case OP_RAVI_TABLE_SELF_SK:
     case OP_GETTABUP: case OP_GETTABLE: case OP_SELF: {
       setobjs2s(L, base + GETARG_A(inst), --L->top);
       break;
@@ -1263,7 +1263,7 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_LE_FF),
     &&vmlabel(OP_RAVI_TABLE_GETFIELD),
     &&vmlabel(OP_RAVI_TABLE_SETFIELD),
-    &&vmlabel(OP_RAVI_SELF_S),
+    &&vmlabel(OP_RAVI_TABLE_SELF_SK),
     &&vmlabel(OP_RAVI_GETI),
     &&vmlabel(OP_RAVI_SETI),
     &&vmlabel(OP_RAVI_GETFIELD),
@@ -2122,14 +2122,14 @@ int luaV_execute (lua_State *L) {
         GETTABLE_INLINE_SSKEY_PROTECTED(L, rb, rc, ra);
         vmbreak;
       }
-      vmcase(OP_RAVI_SELF_S)
+      vmcase(OP_RAVI_TABLE_SELF_SK)
       vmcase(OP_RAVI_TABLE_GETFIELD) {
         /* This opcode is used when the key is known to be
            short string and the variable is known to be
            a table
         */
         StkId rb = RB(i);
-        if (op == OP_RAVI_SELF_S) { setobjs2s(L, ra + 1, rb); }
+        if (op == OP_RAVI_TABLE_SELF_SK) { setobjs2s(L, ra + 1, rb); }
         {
           lua_assert(ISK(GETARG_C(i)));
           TValue *rc = k + INDEXK(GETARG_C(i));

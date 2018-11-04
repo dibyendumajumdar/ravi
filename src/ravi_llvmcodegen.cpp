@@ -1654,14 +1654,14 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_GETTABLE_S(def, A, B, C, pc, key);
       } break;
 
-      case OP_RAVI_SELF_S: {
+      case OP_RAVI_TABLE_SELF_SK: {
         int C = GETARG_C(i);
         int B = GETARG_B(i);
         lua_assert(ISK(C));
         TValue *kv = k + INDEXK(C);
         TString *key = tsvalue(kv);
         lua_assert(key->tt == LUA_TSHRSTR);
-        emit_SELF_S(def, A, B, C, pc, key);
+        emit_TABLE_SELF_SK(def, A, B, C, pc, key);
       } break;
       case OP_RAVI_GETI: {
         int B = GETARG_B(i);

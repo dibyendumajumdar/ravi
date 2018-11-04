@@ -116,7 +116,7 @@ opcodes_coverage.GETFIELD = 0
 opcodes_coverage.TOTAB = 0
 opcodes_coverage.MOVETAB = 0
 opcodes_coverage.SETUPVALT = 0
-opcodes_coverage.SELF_S = 0
+opcodes_coverage.TABLE_SELF_SK = 0
 opcodes_coverage.TOTYPE = 0
 opcodes_coverage.TOSTRING = 0
 opcodes_coverage.TOCLOSURE = 0
@@ -1150,7 +1150,7 @@ function test_self_s()
   return t:name()
 end  
 check(test_self_s, 'NEWTABLE', 'TABLE_SETFIELD', 'CLOSURE',
-  'TABLE_SETFIELD', 'GETTABUP_SK', 'SELF_S', 'CALL', 'CALL', 'SELF_S', 'TAILCALL',
+  'TABLE_SETFIELD', 'GETTABUP_SK', 'TABLE_SELF_SK', 'CALL', 'CALL', 'TABLE_SELF_SK', 'TAILCALL',
   'RETURN')
 assert(test_self_s() == 'dibyendu majumdar')
 compile(test_self_s)

@@ -634,7 +634,7 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_RAVI_GETI:
 		case OP_GETTABLE:
 		case OP_SELF:
-		case OP_RAVI_SELF_S:
+		case OP_RAVI_TABLE_SELF_SK:
 		case OP_RAVI_SELF_SK:
 		case OP_RAVI_SETFIELD:
 		case OP_RAVI_TABLE_SETFIELD:
@@ -2186,7 +2186,7 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 			emit_op_setlist(&fn, A, B, C, pc);
 		} break;
 		case OP_SELF:
-		case OP_RAVI_SELF_S:
+		case OP_RAVI_TABLE_SELF_SK:
 		case OP_RAVI_SELF_SK: {
 			int B = GETARG_B(i);
 			int C = GETARG_C(i);

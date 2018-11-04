@@ -1262,7 +1262,7 @@ class RaviCodeGenerator {
 
   void emit_SELF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SELF_S(RaviFunctionDef *def, int A, int B, int C, int pc,
+  void emit_TABLE_SELF_SK(RaviFunctionDef *def, int A, int B, int C, int pc,
                    TString *key);
   void emit_SELF_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
 

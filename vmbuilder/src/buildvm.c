@@ -539,7 +539,7 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
 
         "TABLE_GETFIELD", /* A B C R(A) := R(B)[RK(C)], string key   */
         "TABLE_SETFIELD", /* A B C R(A)[RK(B)] := RK(C), string key  */
-        "SELF_S",         /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
+        "TABLE_SELF_SK",         /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
 
         "GETI",           /* A B C R(A) := R(B)[RK(C)], integer key  */
         "SETI",           /* A B C R(A)[RK(B)] := RK(C), integer key */

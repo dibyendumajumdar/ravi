@@ -155,7 +155,7 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   
   "TABLE_GETFIELD", /*	A B C	R(A) := R(B)[RK(C)], string key   */
   "TABLE_SETFIELD", /*	A B C	R(A)[RK(B)] := RK(C), string key  */
-  "SELF_S",    /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
+  "TABLE_SELF_SK",    /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
 
   "GETI", /*	A B C	R(A) := R(B)[RK(C)], integer key	*/
   "SETI", /*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
@@ -296,7 +296,7 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_TABLE_GETFIELD */
  ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_TABLE_SETFIELD */
- ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_SELF_S */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_TABLE_SELF_SK */
 
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETI */
  ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETI */
@@ -472,7 +472,7 @@ static void PrintCode(const Proto* f)
    case OP_RAVI_IARRAY_GET:
    case OP_SELF:
    case OP_RAVI_GETFIELD:
-   case OP_RAVI_SELF_S:
+   case OP_RAVI_TABLE_SELF_SK:
    case OP_RAVI_SELF_SK:
     if (ISK(c)) { printf("\t; "); PrintConstant(f,INDEXK(c)); }
     break;
