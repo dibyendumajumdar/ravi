@@ -577,6 +577,9 @@ static const char Lua_header[] = ""
 "extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
+"#define tonumberns(o,n) \\\n"
+"	(ttisfloat(o) ? ((n) = fltvalue(o), 1) : \\\n"
+"	(ttisinteger(o) ? ((n) = cast_num(ivalue(o)), 1) : 0))\n"
 ;
 
 
@@ -911,9 +914,7 @@ static void emit_op_arithslow(struct function *fn, int A, int B, int C, OpCode o
   membuff_add_string(&fn->body, " i = ivalue(rb);\n");
   membuff_add_string(&fn->body, " ic = ivalue(rc);\n");
   membuff_add_fstring(&fn->body, " setivalue(ra, (i %s ic));\n", opchar);
-  membuff_add_string(&fn->body, "} else if (ttisfloat(rb) && ttisfloat(rc)) {\n");
-  membuff_add_string(&fn->body, " n = fltvalue(rb);\n");
-  membuff_add_string(&fn->body, " nc = fltvalue(rc);\n");
+  membuff_add_string(&fn->body, "} else if (tonumberns(rb, n) && tonumberns(rc, nc)) {\n");
   membuff_add_fstring(&fn->body, " setfltvalue(ra, (n %s nc));\n", opchar);
   membuff_add_string(&fn->body, "} else {\n");
   membuff_add_fstring(&fn->body, " luaT_trybinTM(L, rb, rc, ra, %s);\n", tm);
