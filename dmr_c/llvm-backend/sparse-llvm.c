@@ -2020,44 +2020,49 @@ bool dmrC_llvmcompile(int argc, char **argv, LLVMModuleRef module,
 	add_intrinsics(module);
 
 	int rc = 0; /* 0 means OK, non-zero means error */
-	if (compile(C, module, symlist)) {
-		/* need ->phi_users */
-		/* This flag enables call to dmrC_track_pseudo_death() in
-		linearize.c which sets
-		phi_users list on PHISOURCE instructions  */
-		C->dbg_dead = 1;
-		FOR_EACH_PTR(filelist, file)
-		{
-			symlist = dmrC_sparse(C, file);
-			if (C->die_if_error) {
-				rc = 1;
-				break;
+	if (!setjmp(C->jmpbuf)) {
+		if (compile(C, module, symlist)) {
+			/* need ->phi_users */
+			/* This flag enables call to dmrC_track_pseudo_death() in
+			linearize.c which sets
+			phi_users list on PHISOURCE instructions  */
+			C->dbg_dead = 1;
+			FOR_EACH_PTR(filelist, file)
+			{
+				symlist = dmrC_sparse(C, file);
+				if (C->die_if_error || !symlist) {
+					rc = 1;
+					break;
+				}
+				if (!compile(C, module, symlist)) {
+					rc = 1;
+					break;
+				}
 			}
-			if (!compile(C, module, symlist)) {
-				rc = 1;
-				break;
-			}
-		}
-		END_FOR_EACH_PTR(file);
+			END_FOR_EACH_PTR(file);
 
-		if (inputbuffer && rc == 0) {
-			char *buffer = strdup(inputbuffer);
-			if (!buffer)
-				rc = 1;
-			else {
-				symlist = dmrC_sparse_buffer(C, "buffer", buffer, 0);
-				free(buffer);
-				if (C->die_if_error) {
+			if (inputbuffer && rc == 0) {
+				char *buffer = strdup(inputbuffer);
+				if (!buffer)
 					rc = 1;
-				}
-				else if (!compile(C, module, symlist)) {
-					rc = 1;
+				else {
+					symlist = dmrC_sparse_buffer(C, "buffer", buffer, 0);
+					free(buffer);
+					if (C->die_if_error || !symlist) {
+						rc = 1;
+					}
+					else if (!compile(C, module, symlist)) {
+						rc = 1;
+					}
 				}
 			}
 		}
+		else
+			rc = 1;
 	}
-	else
+	else {
 		rc = 1;
+	}
 	char *error_message = NULL;
 	int dump_module = 0;
 	if (rc == 1) {
