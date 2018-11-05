@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <setjmp.h>
 
 #include <sys/types.h>
 
@@ -217,7 +218,7 @@ void dmrC_error_die(struct dmr_C *C, struct position pos, const char *fmt, ...)
 	va_start(args, fmt);
 	do_warn(C, "error: ", pos, fmt, args);
 	va_end(args);
-	exit(1);
+	longjmp(C->jmpbuf, 1);
 }
 
 void dmrC_die(struct dmr_C *C, const char *fmt, ...)
@@ -231,7 +232,7 @@ void dmrC_die(struct dmr_C *C, const char *fmt, ...)
 	va_end(args);
 
 	fprintf(stderr, "%s\n", buffer);
-	exit(1);
+	longjmp(C->jmpbuf, 1);
 }
 
 #define ARCH_LP32  0
@@ -1293,6 +1294,8 @@ static struct symbol_list *sparse_tokenstream(struct dmr_C *C, struct token *tok
 
 	// Preprocess the stream
 	token = dmrC_preprocess(C, token);
+	if (C->die_if_error)
+		return NULL;
 
 	if (C->dump_macro_defs && !builtin)
 		dmrC_dump_macro_definitions(C);
@@ -1452,7 +1455,8 @@ struct symbol_list * dmrC_sparse(struct dmr_C *C, char *filename)
 		C->has_error = ERROR_PREV_PHASE;
 
 	/* Evaluate the complete symbol list */
-	dmrC_evaluate_symbol_list(C, res);
+	if (res)
+		dmrC_evaluate_symbol_list(C, res);
 
 	return res;
 }
@@ -1478,7 +1482,8 @@ struct symbol_list *dmrC_sparse_buffer(struct dmr_C *C, const char *name, char *
 	}
 
 	/* Evaluate the complete symbol list */
-	dmrC_evaluate_symbol_list(C, res);
+	if (res)
+		dmrC_evaluate_symbol_list(C, res);
 
 	/* And return it */
 	return res;

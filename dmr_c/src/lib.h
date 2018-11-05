@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <time.h>
+#include <setjmp.h>
 
 /*
 * Basic helper routine descriptions for 'sparse'.
@@ -151,6 +152,8 @@ struct dmr_C {
 	int preprocess_only;
 	int codegen;
 	int has_error;
+
+	jmp_buf jmpbuf;
 
 	const char *gcc_base_dir;
 	const char *multiarch_dir;
