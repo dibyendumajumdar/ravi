@@ -776,6 +776,20 @@ static void emit_reg_or_k(struct function *fn, const char *name, int regnum) {
 	}
 }
 
+// Updates the savedpc pointer in the call frame
+// The savedpc is unimportant for the JIT but it is relied upon
+// by the debug interface. So we need to set this in order for the
+// debug api to work. Rather than setting it on every bytecode instruction
+// we only set this prior to
+// function calls - this enables better stack traces for example, and ad-hoc
+// calls to debug api.
+static void emit_update_savedpc(struct function *fn, int pc) {
+  // Need to set savedpc to the next instruction (pc+1) rather than current as
+  // that is
+  // what the VM does in interpreted mode
+  membuff_add_fstring(&fn->body, "ci->u.l.savedpc = &cl->p->code[%d+1];\n", pc);
+}
+
 static void emit_IARRAY_GET(struct function *fn, int A, int B, int C, bool omitArrayGetRangeCheck, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
@@ -905,7 +919,6 @@ static void emit_FARRAY_SET(struct function *fn, int A, int B, int C, bool known
 /* Handle OP_ADD, OP_SUB, OP_MUL */
 static void emit_op_arithslow(struct function *fn, int A, int B, int C, OpCode op, int pc, const char *opchar,
                               const char *tm) {
-  (void)pc;
   (void)op;
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
@@ -917,6 +930,7 @@ static void emit_op_arithslow(struct function *fn, int A, int B, int C, OpCode o
   membuff_add_string(&fn->body, "} else if (tonumberns(rb, n) && tonumberns(rc, nc)) {\n");
   membuff_add_fstring(&fn->body, " setfltvalue(ra, (n %s nc));\n", opchar);
   membuff_add_string(&fn->body, "} else {\n");
+  emit_update_savedpc(fn, pc);
   membuff_add_fstring(&fn->body, " luaT_trybinTM(L, rb, rc, ra, %s);\n", tm);
   membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
   membuff_add_string(&fn->body, "}\n");
@@ -924,7 +938,6 @@ static void emit_op_arithslow(struct function *fn, int A, int B, int C, OpCode o
 
 static void emit_comparison(struct function *fn, int A, int B, int C, int j, int jA, const char *compfunc,
                             OpCode opCode, int pc) {
-  (void)pc;
   const char *oper = "==";
   switch (opCode) {
     case OP_RAVI_LT_II: oper = "<"; goto Lemitint;
@@ -982,6 +995,7 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j, int
     default:
       emit_reg_or_k(fn, "rb", B);
       emit_reg_or_k(fn, "rc", C);
+      emit_update_savedpc(fn, pc);
       membuff_add_fstring(&fn->body, "result = %s(L, rb, rc);\n", compfunc);
       // Reload pointer to base as the call to luaV_equalobj() may
       // have invoked a Lua function and as a result the stack may have
@@ -1150,10 +1164,10 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p, co
 // so we need to take care of the behaviour differences between
 // OP_CALL and external calls
 static void emit_op_call(struct function *fn, int A, int B, int C, int pc) {
-  (void)pc;
   int nresults = C - 1;
   if (B != 0) { membuff_add_fstring(&fn->body, "L->top = R(%d);\n", A + B); }
   emit_reg(fn, "ra", A);
+  emit_update_savedpc(fn, pc);
   membuff_add_fstring(&fn->body, "result = luaD_precall(L, ra, %d, 1);\n", nresults);
   membuff_add_string(&fn->body, "if (result) {\n");
   membuff_add_fstring(&fn->body, " if (result == 1 && %d >= 0)\n", nresults);
@@ -1168,9 +1182,9 @@ static void emit_op_call(struct function *fn, int A, int B, int C, int pc) {
 
 // R(A) := UpValue[B][RK(C)]
 static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc, OpCode op) {
-  (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rc", C);
+  emit_update_savedpc(fn, pc);
   if (op == OP_RAVI_GETTABUP_SK) {
 	membuff_add_fstring(&fn->body, "raviV_gettable_sskey(L, cl->upvals[%d]->v, rc, ra);\n", B);
   }
@@ -1182,9 +1196,9 @@ static void emit_op_gettabup(struct function *fn, int A, int B, int C, int pc, O
 
 // R(A) := UpValue[B][RK(C)]
 static void emit_op_settabup(struct function *fn, int A, int B, int C, int pc) {
-  (void)pc;
   emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
+  emit_update_savedpc(fn, pc);
   membuff_add_fstring(&fn->body, "luaV_settable(L, cl->upvals[%d]->v, rb, rc);\n", A);
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
@@ -1195,6 +1209,7 @@ static void emit_op_gettable(struct function *fn, int A, int B, int C, int pc, O
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
+  emit_update_savedpc(fn, pc);
   if (op == OP_RAVI_GETFIELD) { 
     membuff_add_string(&fn->body, "raviV_gettable_sskey(L, rb, rc, ra);\n"); }
   else if (op == OP_RAVI_GETI) {
@@ -1207,11 +1222,11 @@ static void emit_op_gettable(struct function *fn, int A, int B, int C, int pc, O
 }
 
 static void emit_op_self(struct function *fn, int A, int B, int C, int pc, OpCode op) {
-  (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
   membuff_add_string(&fn->body, "setobjs2s(L, ra + 1, rb);\n");
   emit_reg_or_k(fn, "rc", C);
+  emit_update_savedpc(fn, pc);
   if (op == OP_RAVI_SELF_SK) {
     membuff_add_string(&fn->body, "raviV_gettable_sskey(L, rb, rc, ra);\n");
   } else {
@@ -1221,19 +1236,19 @@ static void emit_op_self(struct function *fn, int A, int B, int C, int pc, OpCod
 }
 
 static void emit_op_len(struct function *fn, int A, int B, int pc) {
-  (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
+  emit_update_savedpc(fn, pc);
   membuff_add_string(&fn->body, "luaV_objlen(L, ra, rb);\n");
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
 // R(A)[RK(B)] := RK(C)
 static void emit_op_settable(struct function *fn, int A, int B, int C, int pc, OpCode op) {
-  (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
+  emit_update_savedpc(fn, pc);
   if (op == OP_RAVI_SETFIELD) { 
     membuff_add_string(&fn->body, "raviV_settable_sskey(L, ra, rb, rc);\n"); }
   else if (op == OP_RAVI_SETI) {
@@ -1275,10 +1290,10 @@ static void emit_op_newarrayfloat(struct function *fn, int A, int pc) {
 
 // Default implementation for binary ops
 static void emit_binary_op(struct function *fn, int A, int B, int C, OpCode op, int pc) {
-  (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
+  emit_update_savedpc(fn, pc);
   membuff_add_fstring(&fn->body, "luaO_arith(L, %d, rb, rc, ra);\n", cast_int(op - OP_ADD));
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
@@ -1535,7 +1550,7 @@ static void emit_op_setlist(struct function *fn, int A, int B, int C, int pc) {
 }
 
 static void emit_op_concat(struct function *fn, int A, int B, int C, int pc) {
-  (void)pc;
+  emit_update_savedpc(fn, pc);
   membuff_add_fstring(&fn->body, "raviV_op_concat(L, ci, %d, %d, %d);\n", A, B, C);
   membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
@@ -1684,7 +1699,7 @@ static void emit_op_forloop(struct function *fn, int A, int pc, int pc1) {
 
 static void emit_op_tforcall(struct function *fn, int A, int B, int C, int j, int jA, int pc) {
   (void)B;
-  (void)pc;
+  emit_update_savedpc(fn, pc);
   emit_reg(fn, "ra", A);
   membuff_add_string(&fn->body, "rb = ra + 3 + 2;\n"); /*rb = cb*/
   membuff_add_string(&fn->body, "rc = ra + 2;\n");     /*rb = cb*/
