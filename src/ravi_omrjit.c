@@ -204,6 +204,13 @@ int raviV_initjit(struct lua_State *L) {
   // void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, StkId val);
   register_builtin_arg4(jit->jit, "raviV_settable_i", raviV_settable_i, JIT_NoType, JIT_Address, JIT_Address, JIT_Address, JIT_Address);
 
+  //LUA_API int   (lua_absindex)(lua_State *L, int idx);
+  register_builtin_arg2(jit->jit, "lua_absindex", lua_absindex, JIT_Int32, JIT_Address, JIT_Int32);
+  //LUA_API int   (lua_gettop)(lua_State *L);
+  register_builtin_arg1(jit->jit, "lua_gettop", lua_gettop, JIT_Int32, JIT_Address);
+  //LUA_API void  (lua_pushvalue)(lua_State *L, int idx);
+  register_builtin_arg2(jit->jit, "lua_pushvalue", lua_pushvalue, JIT_NoType, JIT_Address, JIT_Int32);
+
   //LUA_API int             (lua_isnumber)(lua_State *L, int idx);
   register_builtin_arg2(jit->jit, "lua_isnumber", lua_isnumber, JIT_Int32, JIT_Address, JIT_Int32);
   //LUA_API int             (lua_isstring)(lua_State *L, int idx);
@@ -265,6 +272,47 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg2(jit->jit, "lua_pushlightuserdata", lua_pushlightuserdata, JIT_NoType, JIT_Address, JIT_Address);
   //LUA_API int   (lua_pushthread)(lua_State *L);
   register_builtin_arg1(jit->jit, "lua_pushthread", lua_pushthread, JIT_Int32, JIT_Address);
+  
+  //LUA_API int (lua_getglobal)(lua_State *L, const char *name);
+  register_builtin_arg2(jit->jit, "lua_getglobal", lua_getglobal, JIT_Int32, JIT_Address, JIT_Address);
+  //LUA_API int (lua_gettable)(lua_State *L, int idx);
+  register_builtin_arg2(jit->jit, "lua_gettable", lua_gettable, JIT_Int32, JIT_Address, JIT_Int32);
+  //LUA_API int (lua_getfield)(lua_State *L, int idx, const char *k);
+  register_builtin_arg3(jit->jit, "lua_getfield", lua_getfield, JIT_Int32, JIT_Address, JIT_Int32, JIT_Address);
+  //LUA_API int (lua_geti)(lua_State *L, int idx, lua_Integer n);
+  register_builtin_arg3(jit->jit, "lua_geti", lua_geti, JIT_Int32, JIT_Address, JIT_Int32, JIT_Int64);
+  //LUA_API int (lua_rawget)(lua_State *L, int idx);
+  register_builtin_arg2(jit->jit, "lua_rawget", lua_rawget, JIT_Int32, JIT_Address, JIT_Int32);
+  //LUA_API int (lua_rawgeti)(lua_State *L, int idx, lua_Integer n);
+  register_builtin_arg3(jit->jit, "lua_rawgeti", lua_rawgeti, JIT_Int32, JIT_Address, JIT_Int32, JIT_Int64);
+  //LUA_API int (lua_rawgetp)(lua_State *L, int idx, const void *p);
+  register_builtin_arg3(jit->jit, "lua_rawgetp", lua_rawgetp, JIT_Int32, JIT_Address, JIT_Int32, JIT_Address);
+  //LUA_API void  (lua_createtable)(lua_State *L, int narr, int nrec);
+  register_builtin_arg3(jit->jit, "lua_createtable", lua_createtable, JIT_NoType, JIT_Address, JIT_Int32, JIT_Int32);
+  //LUA_API void *(lua_newuserdata)(lua_State *L, size_t sz);
+  register_builtin_arg2(jit->jit, "lua_newuserdata", lua_newuserdata, JIT_Address, JIT_Address, JIT_Int64);
+  //LUA_API int   (lua_getmetatable)(lua_State *L, int objindex);
+  register_builtin_arg2(jit->jit, "lua_getmetatable", lua_getmetatable, JIT_Int32, JIT_Address, JIT_Int32);
+  //LUA_API int  (lua_getuservalue)(lua_State *L, int idx);
+  register_builtin_arg2(jit->jit, "lua_getuservalue", lua_getuservalue, JIT_Int32, JIT_Address, JIT_Int32);
+  //LUA_API void  (lua_setglobal)(lua_State *L, const char *name);
+  register_builtin_arg2(jit->jit, "lua_setglobal", lua_setglobal, JIT_NoType, JIT_Address, JIT_Address);
+  //LUA_API void  (lua_settable)(lua_State *L, int idx);
+  register_builtin_arg2(jit->jit, "lua_settable", lua_settable, JIT_NoType, JIT_Address, JIT_Int32);
+  //LUA_API void  (lua_setfield)(lua_State *L, int idx, const char *k);
+  register_builtin_arg3(jit->jit, "lua_setfield", lua_setfield, JIT_NoType, JIT_Address, JIT_Int32, JIT_Address);
+  //LUA_API void  (lua_seti)(lua_State *L, int idx, lua_Integer n);
+  register_builtin_arg3(jit->jit, "lua_seti", lua_seti, JIT_NoType, JIT_Address, JIT_Int32, JIT_Int64);
+  //LUA_API void  (lua_rawset)(lua_State *L, int idx);
+  register_builtin_arg2(jit->jit, "lua_rawset", lua_rawset, JIT_NoType, JIT_Address, JIT_Int32);
+  //LUA_API void  (lua_rawseti)(lua_State *L, int idx, lua_Integer n);
+  register_builtin_arg3(jit->jit, "lua_rawseti", lua_rawseti, JIT_NoType, JIT_Address, JIT_Int32, JIT_Int64);
+  //LUA_API void  (lua_rawsetp)(lua_State *L, int idx, const void *p);
+  register_builtin_arg3(jit->jit, "lua_rawsetp", lua_rawsetp, JIT_NoType, JIT_Address, JIT_Int32, JIT_Address);
+  //LUA_API int   (lua_setmetatable)(lua_State *L, int objindex);
+  register_builtin_arg2(jit->jit, "lua_setmetatable", lua_setmetatable, JIT_Int32, JIT_Address, JIT_Int32);
+  //LUA_API void  (lua_setuservalue)(lua_State *L, int idx);
+  register_builtin_arg2(jit->jit, "lua_setuservalue", lua_setuservalue, JIT_NoType, JIT_Address, JIT_Int32);
 
   G->ravi_state = jit;
   return 0;
