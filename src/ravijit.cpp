@@ -272,9 +272,17 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
 LUAMOD_API int raviopen_llvmjit(lua_State *L) {
   luaL_newlib(L, ravilib);
   /* faster calls some maths functions */
+  #ifdef __cplusplus
+  ravi_pushcfastcall(L, (void *)static_cast<double(*)(double)>(std::exp), RAVI_TFCF_D_D);
+  #else
   ravi_pushcfastcall(L, (void *)exp, RAVI_TFCF_D_D);
+  #endif
   lua_setfield(L, -2, "exp");
+  #ifdef __cplusplus
+  ravi_pushcfastcall(L, (void *)static_cast<double(*)(double)>(std::log), RAVI_TFCF_D_D);
+  #else
   ravi_pushcfastcall(L, (void *)log, RAVI_TFCF_D_D);
+  #endif
   lua_setfield(L, -2, "ln");
   return 1;
 }
