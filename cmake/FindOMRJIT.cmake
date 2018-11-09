@@ -7,7 +7,6 @@ find_path(OMRJIT_INCLUDE_DIR nj_api.h
 
 find_library(OMRJIT_LIBRARY
   NAMES nj libnj libnj.dylib
-  #NAMES jitbuilder libjitbuilder libjitbuilder.dylib
   PATHS
   c:/Software/omr/lib
   ~/Software/omr/lib

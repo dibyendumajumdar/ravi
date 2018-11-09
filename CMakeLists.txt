@@ -182,7 +182,7 @@ if (LLVM_JIT)
             src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp
             src/ravi_llvmluaapi.cpp)
 elseif (OMR_JIT)
-    set(OMR_JIT_SRCS src/ravi_omrjit.c)
+    set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
 else()    
     set(NO_JIT_SRCS src/ravi_nojit.c)
 endif()

@@ -881,3 +881,7 @@ int raviV_gettraceenabled(lua_State *L) {
   if (!G->ravi_state) return 0;
   return G->ravi_state->jit->is_tracehook_enabled();
 }
+
+extern "C" int ravi_compile_C(lua_State *L) {
+  return 0;
+}

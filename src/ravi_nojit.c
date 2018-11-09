@@ -172,3 +172,7 @@ int raviV_gettraceenabled(struct lua_State *L) {
   (void)L;
   return 0;
 }
+
+int ravi_compile_C(lua_State *L) {
+  return 0;
+}
