@@ -1443,10 +1443,10 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
       case OP_RAVI_TOFLT: {
         emit_TOFLT(def, A, pc);
       } break;
-      case OP_RAVI_NEWARRAYI: {
+      case OP_RAVI_NEW_IARRAY: {
         emit_NEWARRAYINT(def, A, pc);
       } break;
-      case OP_RAVI_NEWARRAYF: {
+      case OP_RAVI_NEW_FARRAY: {
         emit_NEWARRAYFLOAT(def, A, pc);
       } break;
       case OP_NEWTABLE: {
@@ -1628,23 +1628,23 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_CALL(def, A, B, C, pc);
       } break;
 
-      case OP_RAVI_SETTABLE_SK:
-      case OP_RAVI_SETTABLE_S: {
+      case OP_RAVI_SETFIELD:
+      case OP_RAVI_TABLE_SETFIELD: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_SETTABLE_SK(def, A, B, C, pc);
+        emit_SETFIELD(def, A, B, C, pc);
       } break;
-      case OP_RAVI_SETTABLE_I: {
+      case OP_RAVI_SETI: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_SETTABLE_I(def, A, B, C, pc);
+        emit_SETI(def, A, B, C, pc);
       } break;
       case OP_SETTABLE: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         emit_SETTABLE(def, A, B, C, pc);
       } break;
-      case OP_RAVI_GETTABLE_S: {
+      case OP_RAVI_TABLE_GETFIELD: {
         int C = GETARG_C(i);
         int B = GETARG_B(i);
         lua_assert(ISK(C));
@@ -1654,63 +1654,63 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_GETTABLE_S(def, A, B, C, pc, key);
       } break;
 
-      case OP_RAVI_SELF_S: {
+      case OP_RAVI_TABLE_SELF_SK: {
         int C = GETARG_C(i);
         int B = GETARG_B(i);
         lua_assert(ISK(C));
         TValue *kv = k + INDEXK(C);
         TString *key = tsvalue(kv);
         lua_assert(key->tt == LUA_TSHRSTR);
-        emit_SELF_S(def, A, B, C, pc, key);
+        emit_TABLE_SELF_SK(def, A, B, C, pc, key);
       } break;
-      case OP_RAVI_GETTABLE_I: {
+      case OP_RAVI_GETI: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_GETTABLE_I(def, A, B, C, pc);
+        emit_GETI(def, A, B, C, pc);
       } break;
-      case OP_RAVI_GETTABLE_SK: {
+      case OP_RAVI_GETFIELD: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         lua_assert(ISK(C));
         TValue *kv = k + INDEXK(C);
         TString *key = tsvalue(kv);
         lua_assert(key->tt == LUA_TSHRSTR);
-        emit_GETTABLE_SK(def, A, B, C, pc, key);
+        emit_GETFIELD(def, A, B, C, pc, key);
       } break;
       case OP_GETTABLE: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
         emit_GETTABLE(def, A, B, C, pc);
       } break;
-      case OP_RAVI_GETTABLE_AI: {
+      case OP_RAVI_IARRAY_GET: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_GETTABLE_AI(def, A, B, C, omitArrayGetRangeCheck, pc);
+        emit_IARRAY_GET(def, A, B, C, omitArrayGetRangeCheck, pc);
       } break;
-      case OP_RAVI_SETTABLE_AII:
-      case OP_RAVI_SETTABLE_AI: {
+      case OP_RAVI_IARRAY_SETI:
+      case OP_RAVI_IARRAY_SET: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_SETTABLE_AI(def, A, B, C, op == OP_RAVI_SETTABLE_AII, pc);
+        emit_IARRAY_SET(def, A, B, C, op == OP_RAVI_IARRAY_SETI, pc);
       } break;
-      case OP_RAVI_GETTABLE_AF: {
+      case OP_RAVI_FARRAY_GET: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_GETTABLE_AF(def, A, B, C, omitArrayGetRangeCheck, pc);
+        emit_FARRAY_GET(def, A, B, C, omitArrayGetRangeCheck, pc);
       } break;
-      case OP_RAVI_SETTABLE_AFF:
-      case OP_RAVI_SETTABLE_AF: {
+      case OP_RAVI_FARRAY_SETF:
+      case OP_RAVI_FARRAY_SET: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
-        emit_SETTABLE_AF(def, A, B, C, op == OP_RAVI_SETTABLE_AFF, pc);
+        emit_FARRAY_SET(def, A, B, C, op == OP_RAVI_FARRAY_SETF, pc);
       } break;
       case OP_RAVI_TOTAB: {
         emit_TOARRAY(def, A, RAVI_TTABLE, "table expected", pc);
       } break;
-      case OP_RAVI_TOARRAYI: {
+      case OP_RAVI_TOIARRAY: {
         emit_TOARRAY(def, A, RAVI_TARRAYINT, "integer[] expected", pc);
       } break;
-      case OP_RAVI_TOARRAYF: {
+      case OP_RAVI_TOFARRAY: {
         emit_TOARRAY(def, A, RAVI_TARRAYFLT, "number[] expected", pc);
       } break;
       case OP_RAVI_TOSTRING: {
@@ -1726,13 +1726,13 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_TOTYPE(def, A, Bx, pc);
         break;
       }
-      case OP_RAVI_MOVEAI: {
+      case OP_RAVI_MOVEIARRAY: {
         int B = GETARG_B(i);
-        emit_MOVEAI(def, A, B, pc);
+        emit_MOVEIARRAY(def, A, B, pc);
       } break;
-      case OP_RAVI_MOVEAF: {
+      case OP_RAVI_MOVEFARRAY: {
         int B = GETARG_B(i);
-        emit_MOVEAF(def, A, B, pc);
+        emit_MOVEFARRAY(def, A, B, pc);
       } break;
       case OP_RAVI_MOVETAB: {
         int B = GETARG_B(i);
@@ -1773,14 +1773,14 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVALF,
                                def->raviV_op_setupvalfF);
       } break;
-      case OP_RAVI_SETUPVALAI: {
+      case OP_RAVI_SETUPVAL_IARRAY: {
         int B = GETARG_B(i);
-        emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVALAI,
+        emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVAL_IARRAY,
                                def->raviV_op_setupvalaiF);
       } break;
-      case OP_RAVI_SETUPVALAF: {
+      case OP_RAVI_SETUPVAL_FARRAY: {
         int B = GETARG_B(i);
-        emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVALAF,
+        emit_SETUPVAL_Specific(def, A, B, pc, OP_RAVI_SETUPVAL_FARRAY,
                                def->raviV_op_setupvalafF);
       } break;
       case OP_RAVI_SETUPVALT: {

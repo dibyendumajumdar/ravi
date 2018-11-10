@@ -1242,19 +1242,19 @@ class RaviCodeGenerator {
 
   void emit_SETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
+  void emit_SETI(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
+  void emit_SETFIELD(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, int pc,
                        TString *key);
 
-  void emit_GETTABLE_SK(RaviFunctionDef *def, int A, int B, int C, int pc,
+  void emit_GETFIELD(RaviFunctionDef *def, int A, int B, int C, int pc,
                         TString *key);
 
-  void emit_GETTABLE_I(RaviFunctionDef *def, int A, int B, int C, int pc);
+  void emit_GETI(RaviFunctionDef *def, int A, int B, int C, int pc);
 
   void emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *phi,
                             llvm::Value *t, llvm::Value *ra, llvm::Value *rb,
@@ -1262,7 +1262,7 @@ class RaviCodeGenerator {
 
   void emit_SELF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_SELF_S(RaviFunctionDef *def, int A, int B, int C, int pc,
+  void emit_TABLE_SELF_SK(RaviFunctionDef *def, int A, int B, int C, int pc,
                    TString *key);
   void emit_SELF_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
 
@@ -1328,21 +1328,21 @@ class RaviCodeGenerator {
 
   void emit_TFORLOOP(RaviFunctionDef *def, int A, int j, int pc);
 
-  void emit_GETTABLE_AF(RaviFunctionDef *def, int A, int B, int C,
+  void emit_FARRAY_GET(RaviFunctionDef *def, int A, int B, int C,
                         bool omitArrayGetRangeCheck, int pc);
 
-  void emit_GETTABLE_AI(RaviFunctionDef *def, int A, int B, int C,
+  void emit_IARRAY_GET(RaviFunctionDef *def, int A, int B, int C,
                         bool omitArrayGetRangeCheck, int pc);
 
-  void emit_SETTABLE_AF(RaviFunctionDef *def, int A, int B, int C,
+  void emit_FARRAY_SET(RaviFunctionDef *def, int A, int B, int C,
                         bool known_int, int pc);
 
-  void emit_SETTABLE_AI(RaviFunctionDef *def, int A, int B, int C,
+  void emit_IARRAY_SET(RaviFunctionDef *def, int A, int B, int C,
                         bool known_float, int pc);
 
-  void emit_MOVEAI(RaviFunctionDef *def, int A, int B, int pc);
+  void emit_MOVEIARRAY(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_MOVEAF(RaviFunctionDef *def, int A, int B, int pc);
+  void emit_MOVEFARRAY(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_MOVETAB(RaviFunctionDef *def, int A, int B, int pc);
 

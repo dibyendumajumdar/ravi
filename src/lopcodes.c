@@ -1,5 +1,5 @@
 /*
-** $Id: lopcodes.c,v 1.55 2015/01/05 13:48:33 roberto Exp $
+** $Id: lopcodes.c,v 1.55.1.1 2017/04/19 17:20:42 roberto Exp $
 ** Opcodes for Lua virtual machine
 ** See Copyright Notice in lua.h
 */
@@ -78,8 +78,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "VARARG",
   "EXTRAARG",
 
-  "NEWARRAYI", /* A R(A) := array of int */
-  "NEWARRAYF", /* A R(A) := array of float */
+  "NEW_IARRAY", /* A R(A) := array of int */
+  "NEW_FARRAY", /* A R(A) := array of float */
 
   "LOADIZ", /*  A R(A) := tointeger(0)		*/
   "LOADFZ", /*  A R(A) := tonumber(0)		*/
@@ -107,8 +107,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
 
   "TOINT", /* A R(A) := toint(R(A)) */
   "TOFLT", /* A R(A) := tofloat(R(A)) */
-  "TOARRAYI", /* A R(A) := to_arrayi(R(A)) */
-  "TOARRAYF", /* A R(A) := to_arrayf(R(A)) */
+  "TOIARRAY", /* A R(A) := to_arrayi(R(A)) */
+  "TOFARRAY", /* A R(A) := to_arrayf(R(A)) */
   "TOTAB",     /* A R(A) := to_table(R(A)) */
   "TOSTRING",
   "TOCLOSURE",
@@ -116,17 +116,17 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
 
   "MOVEI",  /*	A B	R(A) := R(B)					*/
   "MOVEF",  /*	A B	R(A) := R(B)					*/
-  "MOVEAI", /* A B R(A) := R(B), check R(B) is array of int */
-  "MOVEAF", /* A B R(A) := R(B), check R(B) is array of floats */
+  "MOVEIARRAY", /* A B R(A) := R(B), check R(B) is array of int */
+  "MOVEFARRAY", /* A B R(A) := R(B), check R(B) is array of floats */
   "MOVETAB",   /* A B R(A) := R(B), check R(B) is a table */
 
-  "GETTABLE_AI",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
-  "GETTABLE_AF",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
+  "IARRAY_GET",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
+  "FARRAY_GET",/*	A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
 
-  "SETTABLE_AI",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
-  "SETTABLE_AF",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
-  "SETTABLE_AII",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
-  "SETTABLE_AFF",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+  "IARRAY_SET",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+  "FARRAY_SET",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+  "IARRAY_SETI",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+  "FARRAY_SETF",/*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
   "FORLOOP_IP",
   "FORLOOP_I1",
@@ -135,8 +135,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
 
   "SETUPVALI", /*	A B	UpValue[B] := tointeger(R(A))			*/
   "SETUPVALF", /*	A B	UpValue[B] := tonumber(R(A))			*/
-  "SETUPVALAI",  /*	A B	UpValue[B] := toarrayint(R(A))			*/
-  "SETUPVALAF",  /*	A B	UpValue[B] := toarrayflt(R(A))			*/
+  "SETUPVAL_IARRAY",  /*	A B	UpValue[B] := toarrayint(R(A))			*/
+  "SETUPVAL_FARRAY",  /*	A B	UpValue[B] := toarrayflt(R(A))			*/
   "SETUPVALT", /*	A B	UpValue[B] := to_table(R(A))			*/
 
   "BAND_II",/*	A B C	R(A) := RK(B) & RK(C)				*/
@@ -153,15 +153,15 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "LE_II",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   "LE_FF",  /*	A B C	if ((RK(B) <= RK(C)) ~= A) then pc++		*/
   
-  "GETTABLE_S", /*	A B C	R(A) := R(B)[RK(C)], string key   */
-  "SETTABLE_S", /*	A B C	R(A)[RK(B)] := RK(C), string key  */
-  "SELF_S",    /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
+  "TABLE_GETFIELD", /*	A B C	R(A) := R(B)[RK(C)], string key   */
+  "TABLE_SETFIELD", /*	A B C	R(A)[RK(B)] := RK(C), string key  */
+  "TABLE_SELF_SK",    /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
 
-  "GETTABLE_I", /*	A B C	R(A) := R(B)[RK(C)], integer key	*/
-  "SETTABLE_I", /*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
-  "GETTABLE_SK", /* _SK */ /*	A B C	R(A) := R(B)[RK(C)], string key   */
+  "GETI", /*	A B C	R(A) := R(B)[RK(C)], integer key	*/
+  "SETI", /*	A B C	R(A)[RK(B)] := RK(C), integer key	*/
+  "GETFIELD", /* _SK */ /*	A B C	R(A) := R(B)[RK(C)], string key   */
   "SELF_SK",    /* _SK*/ /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
-  "SETTABLE_SK", /*_SK */ /*	A B C	R(A)[RK(B)] := RK(C), string key  */
+  "SETFIELD", /*_SK */ /*	A B C	R(A)[RK(B)] := RK(C), string key  */
   "GETTABUP_SK",
    NULL
 };
@@ -219,8 +219,8 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgU, OpArgN, iABC)		/* OP_VARARG */
  ,opmode(0, 0, OpArgU, OpArgU, iAx)		  /* OP_EXTRAARG */
 
- ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_NEWARRAYI A R(A) := array of int */
- ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_NEWARRAYF A R(A) := array of float */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_NEW_IARRAY A R(A) := array of int */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_NEW_FARRAY A R(A) := array of float */
 
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_LOADIZ A R(A) := tointeger(0)		*/
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_LOADFZ A R(A) := tonumber(0)		*/
@@ -248,8 +248,8 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOINT  A R(A) := toint(R(A)) */
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOFLT  A R(A) := tonumber(R(A)) */
- ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOARRAYI A R(A) := check_array_of_int(R(A)) */
- ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOARRAYF A R(A) := check_array_of_float(R(A)) */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOIARRAY A R(A) := check_array_of_int(R(A)) */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOFARRAY A R(A) := check_array_of_float(R(A)) */
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOTAB A R(A) := check_table(R(A)) */
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOSTRING */
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOCLOSURE */
@@ -257,17 +257,17 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))	*/
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B)) */
- ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEAI A B R(A) := R(B), check R(B) is array of int */
- ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEAF A B R(A) := R(B), check R(B) is array of floats */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEIARRAY A B R(A) := R(B), check R(B) is array of int */
+ ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEFARRAY A B R(A) := R(B), check R(B) is array of floats */
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVETAB A B R(A) := R(B), check R(B) is a table */
 
- ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_GETTABLE_AI A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
- ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_GETTABLE_AF A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_IARRAY_GET A B C	R(A) := R(B)[RK(C)] where R(B) is array of integers and RK(C) is int */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)    /* OP_RAVI_FARRAY_GET A B C	R(A) := R(B)[RK(C)] where R(B) is array of floats and RK(C) is int */
 
- ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AI A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AII A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_SETTABLE_AFF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_IARRAY_SET A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_FARRAY_SET A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_IARRAY_SETI A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of ints, and RK(C) is an int */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)    /* OP_RAVI_FARRAY_SETF A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) is array of floats, and RK(C) is an float */
 
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_IP */
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_I1 */
@@ -276,8 +276,8 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALI */
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALF */
- ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALAI */
- ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALAF */
+ ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVAL_IARRAY */
+ ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVAL_FARRAY */
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALT */
 
  ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_RAVI_BAND_II */
@@ -294,15 +294,15 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_II */
  ,opmode(1, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_LE_FF */
 
- ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_S */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_S */
- ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_SELF_S */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_TABLE_GETFIELD */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_TABLE_SETFIELD */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_TABLE_SELF_SK */
 
- ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_I */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_I */
- ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETTABLE_SK */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETI */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETI */
+ ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_GETFIELD */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_SELF_SK */
- ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETTABLE_SK */
+ ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETFIELD */
  ,opmode(0, 1, OpArgU, OpArgK, iABC)		/* OP_RAVI_GETTABUP_SK */
 };
 
@@ -449,8 +449,8 @@ static void PrintCode(const Proto* f)
    case OP_GETUPVAL:
    case OP_RAVI_SETUPVALI:
    case OP_RAVI_SETUPVALF:
-   case OP_RAVI_SETUPVALAI:
-   case OP_RAVI_SETUPVALAF:
+   case OP_RAVI_SETUPVAL_IARRAY:
+   case OP_RAVI_SETUPVAL_FARRAY:
    case OP_RAVI_SETUPVALT:
    case OP_SETUPVAL:
     printf("\t; %s",UPVALNAME(b));
@@ -466,24 +466,24 @@ static void PrintCode(const Proto* f)
     if (ISK(c)) { printf(" "); PrintConstant(f,INDEXK(c)); }
     break;
    case OP_GETTABLE:
-   case OP_RAVI_GETTABLE_I:
-   case OP_RAVI_GETTABLE_S:
-   case OP_RAVI_GETTABLE_AF:
-   case OP_RAVI_GETTABLE_AI:
+   case OP_RAVI_GETI:
+   case OP_RAVI_TABLE_GETFIELD:
+   case OP_RAVI_FARRAY_GET:
+   case OP_RAVI_IARRAY_GET:
    case OP_SELF:
-   case OP_RAVI_GETTABLE_SK:
-   case OP_RAVI_SELF_S:
+   case OP_RAVI_GETFIELD:
+   case OP_RAVI_TABLE_SELF_SK:
    case OP_RAVI_SELF_SK:
     if (ISK(c)) { printf("\t; "); PrintConstant(f,INDEXK(c)); }
     break;
    case OP_SETTABLE:
-   case OP_RAVI_SETTABLE_I:
-   case OP_RAVI_SETTABLE_S:
-   case OP_RAVI_SETTABLE_SK:
-   case OP_RAVI_SETTABLE_AF:
-   case OP_RAVI_SETTABLE_AFF:
-   case OP_RAVI_SETTABLE_AI:
-   case OP_RAVI_SETTABLE_AII:
+   case OP_RAVI_SETI:
+   case OP_RAVI_TABLE_SETFIELD:
+   case OP_RAVI_SETFIELD:
+   case OP_RAVI_FARRAY_SET:
+   case OP_RAVI_FARRAY_SETF:
+   case OP_RAVI_IARRAY_SET:
+   case OP_RAVI_IARRAY_SETI:
    case OP_ADD:
    case OP_RAVI_ADDFF:
    case OP_RAVI_ADDFI:

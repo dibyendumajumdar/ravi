@@ -340,35 +340,38 @@ static int dmrC_getsymbols(lua_State *L) {
   struct symbol_list *symlist;
   struct string_list *filelist = NULL;
 
-  struct dmr_C *C = new_dmr_C();
-
   const char *codebuffer = luaL_checkstring(L, 1);
   char *argv[] = {NULL};
   int argc = 0;
+  int retval = 0;
 
-  symlist = dmrC_sparse_initialize(C, argc, argv, &filelist);
-
-  struct parser_state parser_state = {
-      .L = L, .C = C, .idcount = 1, .stack = {0}, .stackpos = -1, .tabidx = 1};
-
-  lua_newtable(L);
-  int luastack = lua_gettop(L);
-  push_tabindex(&parser_state);
   char *buffer = strdup(codebuffer);
-  dmrC_sparse_buffer(C, "buffer", buffer, 1);
-  int fd = get_stream_id(C, "buffer");
-  examine_symbol_list(&parser_state, fd, C->file_scope->symbols);
-  examine_symbol_list(&parser_state, fd, C->global_scope->symbols);
+  struct dmr_C *C = new_dmr_C();
+  if (!setjmp(C->jmpbuf)) {
+    symlist = dmrC_sparse_initialize(C, argc, argv, &filelist);
+    struct parser_state parser_state = {.L = L, .C = C, .idcount = 1, .stack = {0}, .stackpos = -1, .tabidx = 1};
+    lua_newtable(L);
+    int luastack = lua_gettop(L);
+    push_tabindex(&parser_state);
+    dmrC_sparse_buffer(C, "buffer", buffer, 1);
+    int fd = get_stream_id(C, "buffer");
+    examine_symbol_list(&parser_state, fd, C->file_scope->symbols);
+    examine_symbol_list(&parser_state, fd, C->global_scope->symbols);
+    lua_assert(luastack == lua_gettop(L));
+    retval = 1;
+  }
+  else {
+    retval = 0;
+  }
   free(buffer);
-
   destroy_dmr_C(C);
-
-  lua_assert(luastack == lua_gettop(L));
-
-  return 1;
+  return retval;
 }
 
+extern int ravi_compile_C(lua_State *L);
+
 static const luaL_Reg dmrclib[] = {{"getsymbols", dmrC_getsymbols},
+                                   {"compileC", ravi_compile_C},
                                    {NULL, NULL}};
 
 LUAMOD_API int raviopen_dmrcluaapi(lua_State *L) {

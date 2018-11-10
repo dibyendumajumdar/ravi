@@ -1,5 +1,5 @@
 /*
-** $Id: lparser.c,v 2.155 2016/08/01 19:51:24 roberto Exp $
+** $Id: lparser.c,v 2.155.1.2 2017/04/29 18:11:40 roberto Exp $
 ** Lua Parser
 ** See Copyright Notice in lua.h
 */
@@ -584,8 +584,8 @@ static void ravi_code_typecoersion(LexState *ls, int reg, ravitype_t ravi_type, 
                  ravi_type == RAVI_TNUMFLT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, reg,
                  0, 0);
   else if (ravi_type == RAVI_TARRAYINT || ravi_type == RAVI_TARRAYFLT)
-    luaK_codeABC(ls->fs, ravi_type == RAVI_TARRAYINT ? OP_RAVI_TOARRAYI
-                                                     : OP_RAVI_TOARRAYF,
+    luaK_codeABC(ls->fs, ravi_type == RAVI_TARRAYINT ? OP_RAVI_TOIARRAY
+                                                     : OP_RAVI_TOFARRAY,
                  reg, 0, 0);
   else if (ravi_type == RAVI_TTABLE)
     luaK_codeABC(ls->fs, OP_RAVI_TOTAB,
@@ -1348,8 +1348,8 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *var_types,
           int reg = GETARG_A(*pc);
           if (reg ==
               v->u.info) { /* double check that register is as expected */
-            op = (vartype == RAVI_TARRAYINT) ? OP_RAVI_NEWARRAYI
-                                             : OP_RAVI_NEWARRAYF;
+            op = (vartype == RAVI_TARRAYINT) ? OP_RAVI_NEW_IARRAY
+                                             : OP_RAVI_NEW_FARRAY;
             SET_OPCODE(*pc, op); /* modify opcode */
             DEBUG_CODEGEN(
                 raviY_printf(ls->fs, "[%d]* %o ; modify opcode\n", v->pc, *pc));
@@ -2141,7 +2141,7 @@ static void test_then_block (LexState *ls, int *escapelist) {
     luaK_goiffalse(ls->fs, &v);  /* will jump to label if condition is true */
     enterblock(fs, &bl, 0);  /* must enter block before 'goto' */
     gotostat(ls, v.t);  /* handle goto/break */
-    skipnoopstat(ls);  /* skip other no-op statements */
+    while (testnext(ls, ';')) {}  /* skip colons */
     if (block_follow(ls, 0)) {  /* 'goto' is the entire block? */
       leaveblock(fs);
       return;  /* and that is it */

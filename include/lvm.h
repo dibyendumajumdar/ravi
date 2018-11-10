@@ -1,5 +1,5 @@
 /*
-** $Id: lvm.h,v 2.41 2016/12/22 13:08:50 roberto Exp $
+** $Id: lvm.h,v 2.41.1.1 2017/04/19 17:20:42 roberto Exp $
 ** Lua virtual machine
 ** See Copyright Notice in lua.h
 */
@@ -37,11 +37,27 @@
 #endif
 
 
+/* convert an object to a float (including string coercion) */
 #define tonumber(o,n) \
   (RAVI_LIKELY(ttisfloat(o)) ? (*(n) = fltvalue(o), 1) : luaV_tonumber_(o,n))
 
+
+/* convert an object to a float (without string coercion) */
+#define tonumberns(o,n) \
+	(ttisfloat(o) ? ((n) = fltvalue(o), 1) : \
+	(ttisinteger(o) ? ((n) = cast_num(ivalue(o)), 1) : 0))
+
+
+/* convert an object to an integer (including string coercion) */
 #define tointeger(o,i) \
   (RAVI_LIKELY(ttisinteger(o)) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))
+
+
+/* convert an object to an integer (without string coercion) */
+#define tointegerns(o,i) \
+    (ttisinteger(o) ? (*(i) = ivalue(o), 1) \
+                    : luaV_flttointeger(o,i,LUA_FLOORN2I))
+
 
 #define intop(op,v1,v2) l_castU2S(l_castS2U(v1) op l_castS2U(v2))
 
@@ -91,6 +107,7 @@ LUAI_FUNC int luaV_lessequal (lua_State *L, const TValue *l, const TValue *r);
 LUAI_FUNC int luaV_tonumber_ (const TValue *obj, lua_Number *n);
 LUAI_FUNC int luaV_tointeger (const TValue *obj, lua_Integer *p, int mode);
 /** RAVI changes start **/
+LUAI_FUNC int luaV_flttointeger (const TValue *obj, lua_Integer *p, int mode);
 LUAI_FUNC int luaV_tointeger_(const TValue *obj, lua_Integer *p);
 LUAI_FUNC void luaV_gettable (lua_State *L, const TValue *t, TValue *key,
                                             StkId val);

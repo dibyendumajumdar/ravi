@@ -1,5 +1,5 @@
 /*
-** $Id: lstrlib.c,v 1.254 2016/12/22 13:08:50 roberto Exp $
+** $Id: lstrlib.c,v 1.259 2017/11/16 13:19:06 roberto Exp roberto $
 ** Standard library for string operations and pattern-matching
 ** See Copyright Notice in lua.h
 */
@@ -199,6 +199,151 @@ static int str_dump (lua_State *L) {
 }
 
 
+
+/*
+** {======================================================
+** METAMETHODS
+** =======================================================
+*/
+
+static int tonum (lua_State *L, int arg) {
+  if (lua_type(L, arg) == LUA_TNUMBER) {  /* already a number? */
+    lua_pushvalue(L, arg);
+    return 1;
+  }
+  else {  /* check whether it is a numerical string */
+    size_t len;
+    const char *s = lua_tolstring(L, arg, &len);
+    return (s != NULL && lua_stringtonumber(L, s) == len + 1);
+  }
+}
+
+
+static int toint (lua_State *L, int arg) {
+  if (!tonum(L, arg))
+    return 0;  /* not coercible to a number */
+  else if (lua_isinteger(L, arg))
+    return 1;  /* already an integer */
+  else {  /* a float */
+    int ok;
+    lua_Integer n = lua_tointegerx(L, arg, &ok);
+    if (!ok)
+      return 0;
+    else {
+      lua_pop(L, 1);  /* remove the float */
+      lua_pushinteger(L, n);  /* push an integer */
+      return 1;
+    }
+  }
+}
+
+
+static void trymt (lua_State *L, const char *mtname) {
+  lua_settop(L, 2);  /* back to the original arguments */
+  if (lua_type(L, 2) == LUA_TSTRING || !luaL_getmetafield(L, 2, mtname))
+    luaL_error(L, "attempt to %s a '%s' with a '%s'", mtname + 2,
+                  luaL_typename(L, -2), luaL_typename(L, -1));
+  lua_insert(L, -3);  /* put metamethod before arguments */
+  lua_call(L, 2, 1);  /* call metamethod */
+}
+
+
+static int arith (lua_State *L, int op, const char *mtname) {
+  if (tonum(L, 1) && tonum(L, 2))
+    lua_arith(L, op);  /* result will be on the top */
+  else
+    trymt(L, mtname);
+  return 1;
+}
+
+
+static int bitwise (lua_State *L, int op, const char *mtname) {
+  if (toint(L, 1) && toint(L, 2))
+    lua_arith(L, op);  /* result will be on the top */
+  else
+    trymt(L, mtname);
+  return 1;
+}
+
+
+static int arith_add (lua_State *L) {
+  return arith(L, LUA_OPADD, "__add");
+}
+
+static int arith_sub (lua_State *L) {
+  return arith(L, LUA_OPSUB, "__sub");
+}
+
+static int arith_mul (lua_State *L) {
+  return arith(L, LUA_OPMUL, "__mul");
+}
+
+static int arith_mod (lua_State *L) {
+  return arith(L, LUA_OPMOD, "__mod");
+}
+
+static int arith_pow (lua_State *L) {
+  return arith(L, LUA_OPPOW, "__pow");
+}
+
+static int arith_div (lua_State *L) {
+  return arith(L, LUA_OPDIV, "__div");
+}
+
+static int arith_idiv (lua_State *L) {
+  return arith(L, LUA_OPIDIV, "__idiv");
+}
+
+static int arith_unm (lua_State *L) {
+  return arith(L, LUA_OPUNM, "__unm");
+}
+
+static int bitwise_band (lua_State *L) {
+  return bitwise(L, LUA_OPBAND, "__band");
+}
+
+static int bitwise_bor (lua_State *L) {
+  return bitwise(L, LUA_OPBOR, "__bor");
+}
+
+static int bitwise_bxor (lua_State *L) {
+  return bitwise(L, LUA_OPBXOR, "__bxor");
+}
+
+static int bitwise_shl (lua_State *L) {
+  return bitwise(L, LUA_OPSHL, "__shl");
+}
+
+static int bitwise_shr (lua_State *L) {
+  return bitwise(L, LUA_OPSHR, "__shr");
+}
+
+static int bitwise_bnot (lua_State *L) {
+  return bitwise(L, LUA_OPBNOT, "__bnot");
+}
+
+
+static const luaL_Reg stringmetamethods[] = {
+  {"__add", arith_add},
+  {"__sub", arith_sub},
+  {"__mul", arith_mul},
+  {"__mod", arith_mod},
+  {"__pow", arith_pow},
+  {"__div", arith_div},
+  {"__idiv", arith_idiv},
+  {"__unm", arith_unm},
+  {"__band", bitwise_band},
+  {"__bor", bitwise_bor},
+  {"__bxor", bitwise_bxor},
+  {"__shl", bitwise_shl},
+  {"__shr", bitwise_shr},
+  {"__bnot", bitwise_bnot},
+  {"__index", NULL},  /* placeholder */
+  {NULL, NULL}
+};
+
+
+/* }====================================================== */
 
 /*
 ** {======================================================
@@ -851,7 +996,7 @@ static int num2straux (char *buff, int sz, lua_Number x) {
     lua_Number m = l_mathop(frexp)(x, &e);  /* 'x' fraction and exponent */
     int n = 0;  /* character count */
     if (m < 0) {  /* is number negative? */
-      buff[n++] = '-';  /* add signal */
+      buff[n++] = '-';  /* add sign */
       m = -m;  /* make it positive */
     }
     buff[n++] = '0'; buff[n++] = 'x';  /* add "0x" */
@@ -879,7 +1024,7 @@ static int lua_number2strx (lua_State *L, char *buff, int sz,
       buff[i] = toupper(uchar(buff[i]));
   }
   else if (fmt[SIZELENMOD] != 'a')
-    luaL_error(L, "modifiers for format '%%a'/'%%A' not implemented");
+    return luaL_error(L, "modifiers for format '%%a'/'%%A' not implemented");
   return n;
 }
 
@@ -1199,8 +1344,8 @@ static int getnum (const char **fmt, int df) {
 static int getnumlimit (Header *h, const char **fmt, int df) {
   int sz = getnum(fmt, df);
   if (sz > MAXINTSIZE || sz <= 0)
-    luaL_error(h->L, "integral size (%d) out of limits [1,%d]",
-                     sz, MAXINTSIZE);
+    return luaL_error(h->L, "integral size (%d) out of limits [1,%d]",
+                            sz, MAXINTSIZE);
   return sz;
 }
 
@@ -1562,7 +1707,9 @@ static const luaL_Reg strlib[] = {
 
 
 static void createmetatable (lua_State *L) {
-  lua_createtable(L, 0, 1);  /* table to be metatable for strings */
+  /* table to be metatable for strings */
+  luaL_newlibtable(L, stringmetamethods);
+  luaL_setfuncs(L, stringmetamethods, 0);
   lua_pushliteral(L, "");  /* dummy string */
   lua_pushvalue(L, -2);  /* copy table */
   lua_setmetatable(L, -2);  /* set table as metatable for strings */

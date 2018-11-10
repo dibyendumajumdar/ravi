@@ -34,7 +34,7 @@ The Architecture of Ravi's JIT Compilation
 * The decision to call a JIT compiled version is made in the Lua Infrastructure (specifically in ``luaD_precall()`` function in ``ldo.c``)
 * The JIT compiler translates Lua/Ravi bytecode to LLVM IR - i.e. it does not translate Lua source code.
 * There is no inlining of Lua functions.
-* Generally the JIT compiler implements the same instructions as in ``lvm.c`` - however for some bytecodes the code calls a C function rather than generating inline IR. These opcodes are OP_LOADNIL, OP_NEWTABLE, OP_RAVI_NEWARRAYINT, OP_RAVI_NEWARRAYFLT, OP_SETLIST, OP_CONCAT, OP_CLOSURE, OP_VARARG, OP_RAVI_SHL_II, OP_RAVI_SHR_II. 
+* Generally the JIT compiler implements the same instructions as in ``lvm.c`` - however for some bytecodes the code calls a C function rather than generating inline IR. These opcodes are OP_LOADNIL, OP_NEWTABLE, OP_RAVI_NEW_IARRAYNT, OP_RAVI_NEW_FARRAYLT, OP_SETLIST, OP_CONCAT, OP_CLOSURE, OP_VARARG, OP_RAVI_SHL_II, OP_RAVI_SHR_II. 
 * Ravi represents Lua values as done by Lua 5.3 - i.e. in a 16 byte structure. 
 * Ravi compiler generates type specifc opcodes which result in simpler and higher performance LLVM IR.
 
@@ -154,9 +154,9 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_EXTRAARG             | N/A      | extra (larger) argument for previous opcode      |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_NEWARRAYI       | YES      | R(A) := array of int                             |
+| OP_RAVI_NEW_IARRAY      | YES      | R(A) := array of int                             |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_NEWARRAYF       | YES      | R(A) := array of float                           |
+| OP_RAVI_NEW_FARRAY      | YES      | R(A) := array of float                           |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_LOADIZ          | YES      | R(A) := tointeger(0)                             |
 +-------------------------+----------+--------------------------------------------------+
@@ -194,28 +194,28 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_TOFLT           | YES      | R(A) := tofloat(R(A))                            |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_TOARRAYI        | YES      | R(A) := to_arrayi(R(A))                          |
+| OP_RAVI_TOIARRAY        | YES      | R(A) := to_arrayi(R(A))                          |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_TOARRAYF        | YES      | R(A) := to_arrayf(R(A))                          |
+| OP_RAVI_TOFARRAY        | YES      | R(A) := to_arrayf(R(A))                          |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_MOVEI           | YES      | R(A) := R(B), check R(B) is integer              |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_MOVEF           | YES      | R(A) := R(B), check R(B) is number               |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_MOVEAI          | YES      | R(A) := R(B), check R(B) is array of integer     |
+| OP_RAVI_MOVEIARRAY      | YES      | R(A) := R(B), check R(B) is array of integer     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_MOVEAF          | YES      | R(A) := R(B), check R(B) is array of numbers     |
+| OP_RAVI_MOVEFARRAY      | YES      | R(A) := R(B), check R(B) is array of numbers     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_GETTABLE_AI     | YES      | R(A) := R(B)[RK(C)] where R(B) is array of       |
+| OP_RAVI_IARRAY_GET      | YES      | R(A) := R(B)[RK(C)] where R(B) is array of       |
 |                         |          | integers and RK(C) is integer                    |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_GETTABLE_AF     | YES      | R(A) := R(B)[RK(C)] where R(B) is array of       |
+| OP_RAVI_FARRAY_GET      | YES      | R(A) := R(B)[RK(C)] where R(B) is array of       |
 |                         |          | numbers and RK(C) is integer                     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_AI     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+| OP_RAVI_IARRAY_SET      | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of integers, and RK(C) is an int   |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_AF     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+| OP_RAVI_FARRAY_SET      | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of numbers, and RK(C) is a number  |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_FORLOOP_IP      | YES      | R(A)+=R(A+2);                                    |
@@ -236,15 +236,15 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SETUPVALF       | YES (1)  | UpValue[B] := tonumber(R(A))                     |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETUPVALAI      | YES (1)  | UpValue[B] := toarrayint(R(A))                   |
+| OP_RAVI_SETUPVAL_IARRAY | YES (1)  | UpValue[B] := toarrayint(R(A))                   |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETUPVALAF      | YES (1)  | UpValue[B] := toarrayflt(R(A))                   |
+| OP_RAVI_SETUPVAL_FARRAY | YES (1)  | UpValue[B] := toarrayflt(R(A))                   |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_AII    | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+| OP_RAVI_IARRAY_SETI     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of integers, and RK(C) is an int   |
 |                         |          | No conversion as input is known to be int        |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_AFF    | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
+| OP_RAVI_FARRAY_SETF     | YES      | R(A)[RK(B)] := RK(C) where RK(B) is an integer   |
 |                         |          | R(A) is array of numbers, and RK(C) is a number  |
 |                         |          | No conversion as input is known to be float      |
 +-------------------------+----------+--------------------------------------------------+
@@ -272,17 +272,17 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_LE_FF           | YES      | if ((RK(B) <= RK(C)) ~= A) then pc++             |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_GETTABLE_I      | YES      | R(A) := R(B)[RK(C)], integer key	                |
+| OP_RAVI_GETI            | YES      | R(A) := R(B)[RK(C)], integer key	                |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_GETTABLE_S      | YES      | R(A) := R(B)[RK(C)], string key                  |
+| OP_RAVI_TABLE_GETFIELD  | YES      | R(A) := R(B)[RK(C)], string key                  |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_GETTABLE_SK     | YES      | R(A) := R(B)[RK(C)], string key                  |
+| OP_RAVI_GETFIELD        | YES      | R(A) := R(B)[RK(C)], string key                  |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_I      | YES (4)  | R(A)[RK(B)] := RK(C), integer key                |
+| OP_RAVI_SETI            | YES (4)  | R(A)[RK(B)] := RK(C), integer key                |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_S      | YES (3)  | R(A)[RK(B)] := RK(C), string key                 |
+| OP_RAVI_TABLE_SETFIELD  | YES (3)  | R(A)[RK(B)] := RK(C), string key                 |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SETTABLE_SK     | YES      | R(A)[RK(B)] := RK(C), string key                 |
+| OP_RAVI_SETFIELD        | YES      | R(A)[RK(B)] := RK(C), string key                 |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_TOTAB           | YES      | R(A) := to_table(R(A))                           |
 +-------------------------+----------+--------------------------------------------------+
@@ -292,7 +292,7 @@ Note that if a Lua functions contains a bytecode that cannot be be JITed then th
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_SELF_SK         | YES      | R(A+1) := R(B); R(A) := R(B)[RK(C)]              |
 +-------------------------+----------+--------------------------------------------------+
-| OP_RAVI_SELF_S          | YES      | R(A+1) := R(B); R(A) := R(B)[RK(C)]              |
+| OP_RAVI_TABLE_SELF_SK   | YES      | R(A+1) := R(B); R(A) := R(B)[RK(C)]              |
 +-------------------------+----------+--------------------------------------------------+
 | OP_RAVI_GETTABUP_SK     | YES      | R(A) := UpValue[B][RK(C)]                        |
 +-------------------------+----------+--------------------------------------------------+

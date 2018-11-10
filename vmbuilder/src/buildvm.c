@@ -456,8 +456,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
         "VARARG",
         "EXTRAARG",
 
-        "NEWARRAYI", /* A R(A) := array of int */
-        "NEWARRAYF", /* A R(A) := array of float */
+        "NEW_IARRAY", /* A R(A) := array of int */
+        "NEW_FARRAY", /* A R(A) := array of float */
 
         "LOADIZ", /*  A R(A) := tointeger(0)    */
         "LOADFZ", /*  A R(A) := tonumber(0)   */
@@ -485,8 +485,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
 
         "TOINT",    /* A R(A) := toint(R(A)) */
         "TOFLT",    /* A R(A) := tofloat(R(A)) */
-        "TOARRAYI", /* A R(A) := to_arrayi(R(A)) */
-        "TOARRAYF", /* A R(A) := to_arrayf(R(A)) */
+        "TOIARRAY", /* A R(A) := to_arrayi(R(A)) */
+        "TOFARRAY", /* A R(A) := to_arrayf(R(A)) */
         "TOTAB",    /* A R(A) := to_table(R(A)) */
         "TOSTRING",
         "TOCLOSURE",
@@ -494,22 +494,22 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
 
         "MOVEI",   /*  A B R(A) := R(B)          */
         "MOVEF",   /*  A B R(A) := R(B)          */
-        "MOVEAI",  /* A B R(A) := R(B), check R(B) is array of int */
-        "MOVEAF",  /* A B R(A) := R(B), check R(B) is array of floats */
+        "MOVEIARRAY",  /* A B R(A) := R(B), check R(B) is array of int */
+        "MOVEFARRAY",  /* A B R(A) := R(B), check R(B) is array of floats */
         "MOVETAB", /* A B R(A) := R(B), check R(B) is a table */
 
-        "GETTABLE_AI", /*  A B C R(A) := R(B)[RK(C)] where R(B) is array of
+        "IARRAY_GET", /*  A B C R(A) := R(B)[RK(C)] where R(B) is array of
                           integers and RK(C) is int */
-        "GETTABLE_AF", /*  A B C R(A) := R(B)[RK(C)] where R(B) is array of
+        "FARRAY_GET", /*  A B C R(A) := R(B)[RK(C)] where R(B) is array of
                           floats and RK(C) is int */
 
-        "SETTABLE_AI",  /*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+        "IARRAY_SET",  /*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
                            R(A) is array of ints, and RK(C) is an int */
-        "SETTABLE_AF",  /*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+        "FARRAY_SET",  /*  A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
                            R(A) is array of floats, and RK(C) is an float */
-        "SETTABLE_AII", /* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+        "IARRAY_SETI", /* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
                            R(A) is array of ints, and RK(C) is an int */
-        "SETTABLE_AFF", /* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
+        "FARRAY_SETF", /* A B C R(A)[RK(B)] := RK(C) where RK(B) is an int,
                            R(A) is array of floats, and RK(C) is an float */
 
         "FORLOOP_IP",
@@ -519,8 +519,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
 
         "SETUPVALI",  /* A B UpValue[B] := tointeger(R(A))     */
         "SETUPVALF",  /* A B UpValue[B] := tonumber(R(A))      */
-        "SETUPVALAI", /* A B UpValue[B] := toarrayint(R(A))      */
-        "SETUPVALAF", /* A B UpValue[B] := toarrayflt(R(A))      */
+        "SETUPVAL_IARRAY", /* A B UpValue[B] := toarrayint(R(A))      */
+        "SETUPVAL_FARRAY", /* A B UpValue[B] := toarrayflt(R(A))      */
         "SETUPVALT",  /* A B UpValue[B] := to_table(R(A))      */
 
         "BAND_II", /*  A B C R(A) := RK(B) & RK(C)       */
@@ -537,17 +537,14 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES + 1] =
         "LE_II", /*  A B C if ((RK(B) <= RK(C)) ~= A) then pc++    */
         "LE_FF", /*  A B C if ((RK(B) <= RK(C)) ~= A) then pc++    */
 
-        "GETTABLE_S", /*  A B C R(A) := R(B)[RK(C)], string key   */
-        "SETTABLE_S", /*  A B C R(A)[RK(B)] := RK(C), string key  */
-        "SELF_S",     /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
+        "TABLE_GETFIELD", /* A B C R(A) := R(B)[RK(C)], string key   */
+        "TABLE_SETFIELD", /* A B C R(A)[RK(B)] := RK(C), string key  */
+        "TABLE_SELF_SK",         /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
 
-        "GETTABLE_I", /*  A B C R(A) := R(B)[RK(C)], integer key  */
-        "SETTABLE_I", /*  A B C R(A)[RK(B)] := RK(C), integer key */
-        "GETTABLE_SK",
-        /* _SK */ /* A B C R(A) := R(B)[RK(C)], string key   */
-        "SELF_SK",
-        /* _SK*/ /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
-        "SETTABLE_SK",
-        /*_SK */ /*  A B C R(A)[RK(B)] := RK(C), string key  */
+        "GETI",           /* A B C R(A) := R(B)[RK(C)], integer key  */
+        "SETI",           /* A B C R(A)[RK(B)] := RK(C), integer key */
+        "GETFIELD",       /* A B C R(A) := R(B)[RK(C)], string key   */
+        "SELF_SK",        /* A B C R(A+1) := R(B); R(A) := R(B)[RK(C)]   */
+        "SETFIELD",       /* A B C R(A)[RK(B)] := RK(C), string key  */
         "GETTABUP_SK",
         NULL};

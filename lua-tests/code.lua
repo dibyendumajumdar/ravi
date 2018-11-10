@@ -121,8 +121,8 @@ check(function ()
 end,
   'LOADNIL',
   'MUL',
-  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETTABLE_SK', 'POW',
-    'UNM', 'SETTABLE', 'SETTABLE_I', 'RETURN')
+  'DIV', 'ADD', 'GETTABLE', 'SUB', 'GETFIELD', 'POW',
+    'UNM', 'SETTABLE', 'SETI', 'RETURN')
 
 
 -- direct access to constants
@@ -132,7 +132,7 @@ check(function ()
   a.x = b
   a[b] = 'x'
 end,
-  'LOADNIL', 'SETTABLE_SK', 'SETTABLE_SK', 'SETTABLE', 'RETURN')
+  'LOADNIL', 'SETFIELD', 'SETFIELD', 'SETTABLE', 'RETURN')
 
 check(function ()
   local a,b

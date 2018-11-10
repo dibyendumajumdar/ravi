@@ -1,5 +1,7 @@
 This is a new initiative to build a VM for Ravi/Lua 5.3 using techniques similar to LuaJIT.
 
+Note: This work is temporarily on hold due to changes in bytecode encoding.
+
 Goals
 =====
 * Create a new Lua/Ravi interpreter that is coded mostly in assembly

@@ -2166,9 +2166,9 @@ static int build_ast(lua_State *L) {
 static const char *AST_type = "Ravi.AST";
 
 #define test_Ravi_AST(L, idx) \
-((struct ast_container *)raviL_testudata(L, idx, AST_type))
+((struct ast_container *)luaL_testudata(L, idx, AST_type))
 #define check_Ravi_AST(L, idx) \
-((struct ast_container *)raviL_checkudata(L, idx, AST_type))
+((struct ast_container *)luaL_checkudata(L, idx, AST_type))
 
 /* Converts the AST to a string representation */
 static int ast_container_to_string(lua_State *L) {
@@ -2191,7 +2191,7 @@ static struct ast_container *new_ast_container(lua_State *L) {
         container->main_function = NULL;
         container->external_symbols = NULL;
         container->killed = false;
-        raviL_getmetatable(L, AST_type);
+        luaL_getmetatable(L, AST_type);
         lua_setmetatable(L, -2);
         return container;
 }
@@ -2221,7 +2221,7 @@ static const luaL_Reg astlib[] = {
 	{ NULL, NULL } };
 
 LUAMOD_API int raviopen_ast_library(lua_State *L) {
-	raviL_newmetatable(L, AST_type, AST_type);
+	luaL_newmetatable(L, AST_type);
 	lua_pushcfunction(L, collect_ast_container);
 	lua_setfield(L, -2, "__gc");
 	lua_pushvalue(L, -1);           /* push metatable */

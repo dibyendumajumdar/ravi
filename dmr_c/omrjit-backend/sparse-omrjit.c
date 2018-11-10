@@ -25,7 +25,7 @@
 
 /*
 Define environment variable
-TR_Options=traceIlGen,traceFull,log=trtrace.log
+TR_Options=traceIlGen,traceFull,traceAliases,log=trtrace.log
 To obtain a nice trace of codegen
 */
 
@@ -780,6 +780,15 @@ static JIT_NodeRef output_op_store(struct dmr_C *C, struct function *fn, struct 
 		}
 	}
 
+	/* Following causes test failures -- To be investgated */
+	//if (insn->src->type == PSEUDO_SYM) {
+	//	JIT_SymbolRef symref = get_sym_value(C, fn, insn->src, true);
+	//	if (symref && JIT_IsTemporary(fn->injector, symref)) {
+	//		JIT_StoreToTemporary(fn->injector, symref, target_in);
+	//		return target_in;
+	//	}
+	//}
+
 	ptr = pseudo_to_value(C, fn, insn->type, insn->src);
 	if (!ptr)
 		return NULL;
@@ -1471,10 +1480,19 @@ static JIT_NodeRef output_op_symaddr(struct dmr_C *C, struct function *fn, struc
 {
 	JIT_NodeRef res, src;
 	struct OMRType *dtype;
+	JIT_SymbolRef sym;
 
 	src = pseudo_to_value(C, fn, insn->type, insn->symbol);
 	if (!src)
 		return NULL;
+
+	/* We need to tell the backend if a local var has had its
+	   address taken */
+	if (insn->symbol->type == PSEUDO_SYM) {
+		sym = get_sym_value(C, fn, insn->symbol, true);
+		if (sym)
+			JIT_SetAutoAddressTaken(fn->injector, sym);
+	}
 
 	dtype = get_symnode_or_basetype(C, fn, insn->type);
 	if (!dtype)
@@ -2192,45 +2210,48 @@ bool dmrC_omrcompile(int argc, char **argv, JIT_ContextRef module, const char *i
 	C->codegen = 1;  /* Disables macros related to vararg processing */
 	C->Wdecl = 0;
 
-	symlist = dmrC_sparse_initialize(C, argc, argv, &filelist);
-
 	int rc = 0;
-	if (compile(C, module, symlist)) {
-		/* We need ->phi_users */
-		/* This flag enables call to dmrC_track_pseudo_death() in
-		linearize.c which sets
-		phi_users list on PHISOURCE instructions  */
-		C->dbg_dead = 1;
-		FOR_EACH_PTR(filelist, file)
-		{
-			symlist = dmrC_sparse(C, file);
-			if (C->die_if_error) {
-				rc = 1;
-				break;
-			}
-			if (!compile(C, module, symlist)) {
-				rc = 1;
-				break;
-			}
-		}
-		END_FOR_EACH_PTR(file);
-		if (inputbuffer && rc == 0) {
-			char *buffer = strdup(inputbuffer);
-			if (!buffer)
-				rc = 1;
-			else {
-				symlist = dmrC_sparse_buffer(C, "buffer", buffer, 0);
-				free(buffer);
-				if (C->die_if_error) {
+	if (!setjmp(C->jmpbuf)) {
+		symlist = dmrC_sparse_initialize(C, argc, argv, &filelist);
+		if (compile(C, module, symlist)) {
+			/* We need ->phi_users */
+			/* This flag enables call to dmrC_track_pseudo_death() in
+			linearize.c which sets
+			phi_users list on PHISOURCE instructions  */
+			C->dbg_dead = 1;
+			FOR_EACH_PTR(filelist, file)
+			{
+				symlist = dmrC_sparse(C, file);
+				if (C->die_if_error || !symlist) {
 					rc = 1;
-				} else if (!compile(C, module, symlist)) {
+					break;
+				}
+				if (!compile(C, module, symlist)) {
 					rc = 1;
+					break;
 				}
 			}
-		}
-	} else
+			END_FOR_EACH_PTR(file);
+			if (inputbuffer && rc == 0) {
+				char *buffer = strdup(inputbuffer);
+				if (!buffer)
+					rc = 1;
+				else {
+					symlist = dmrC_sparse_buffer(C, "buffer", buffer, 0);
+					free(buffer);
+					if (C->die_if_error || !symlist) {
+						rc = 1;
+					} else if (!compile(C, module, symlist)) {
+						rc = 1;
+					}
+				}
+			}
+		} else
+			rc = 1;
+	}
+	else {
 		rc = 1;
-
+	}
 	if (rc == 1) {
 		fprintf(stderr, "Failed to compile given inputs\n");
 	}
