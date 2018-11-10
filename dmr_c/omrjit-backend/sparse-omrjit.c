@@ -2199,6 +2199,19 @@ static int compile(struct dmr_C *C, JIT_ContextRef module, struct symbol_list *l
 	return 1;
 }
 
+char *safe_strdup(const char *in) {
+	size_t len = strlen(in);
+	char *buf = calloc(1, len+1);
+	if (buf == NULL) {
+		fprintf(stderr, "Out of memory\n");
+		exit(1);
+	}
+	strncpy(buf, in, len+1);	
+	buf[len] = 0;
+	return buf;
+}
+
+
 bool dmrC_omrcompile(int argc, char **argv, JIT_ContextRef module, const char *inputbuffer)
 {
 	struct string_list *filelist = NULL;
@@ -2211,6 +2224,7 @@ bool dmrC_omrcompile(int argc, char **argv, JIT_ContextRef module, const char *i
 	C->Wdecl = 0;
 
 	int rc = 0;
+	char *buffer = NULL;
 	if (!setjmp(C->jmpbuf)) {
 		symlist = dmrC_sparse_initialize(C, argc, argv, &filelist);
 		if (compile(C, module, symlist)) {
@@ -2233,12 +2247,11 @@ bool dmrC_omrcompile(int argc, char **argv, JIT_ContextRef module, const char *i
 			}
 			END_FOR_EACH_PTR(file);
 			if (inputbuffer && rc == 0) {
-				char *buffer = strdup(inputbuffer);
+				buffer = safe_strdup(inputbuffer);
 				if (!buffer)
 					rc = 1;
 				else {
 					symlist = dmrC_sparse_buffer(C, "buffer", buffer, 0);
-					free(buffer);
 					if (C->die_if_error || !symlist) {
 						rc = 1;
 					} else if (!compile(C, module, symlist)) {
@@ -2255,6 +2268,7 @@ bool dmrC_omrcompile(int argc, char **argv, JIT_ContextRef module, const char *i
 	if (rc == 1) {
 		fprintf(stderr, "Failed to compile given inputs\n");
 	}
+	if (buffer != NULL) free(buffer);
 	destroy_dmr_C(C);
 
 	return rc == 0;

@@ -7,11 +7,11 @@
 PLAT= none
 
 #CC= gcc -std=gnu99
-CFLAGS= -O2 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1 $(SYSCFLAGS) $(MYCFLAGS) -I../include
+CFLAGS= -O2 -Wall -Wextra -DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1 $(SYSCFLAGS) $(MYCFLAGS) -I../include -I../dmr_c/src -I../dmr_c/null-backend
 CXXFLAGS=$(CFLAGS) -fno-rtti -Wno-sign-compare -std=c++14 -fno-exceptions -I../include
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS= -lm $(SYSLIBS) $(MYLIBS)
-VPATH=../include
+VPATH=../include:../dmr_c/src
 
 AR= ar rcu
 RANLIB= ranlib
@@ -33,18 +33,22 @@ PLATS= aix bsd c89 freebsd generic linux macosx mingw posix solaris
 LUA_A=	libravinojit.a
 CORE_CPP_O=ravijit.o
 CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
-	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o \
+	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o ltests.o \
 	ltm.o lundump.o lvm.o lzio.o ravi_profile.o ravi_membuf.o \
 	ravi_jitshared.o ravi_nojit.o ravi_ast.o ravi_alloc.o $(CORE_CPP_O)
 LIB_O=	lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o \
 	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o \
 	bit.o
-BASE_O= $(CORE_O) $(LIB_O) $(MYOBJS)
+DMRC_O= allocate.o builtin.o char.o expression.o evaluate.o expand.o inline.o \
+	lib.o linearize.o liveness.o parse.o target.o tokenize.o pre-process.o \
+	ptrlist.o scope.o show-parse.o symbol.o walksymbol.o \
+	ravi_dmrc_parsesymbols.o 
+BASE_O= $(CORE_O) $(LIB_O) $(DMRC_O) $(MYOBJS)
 
 LUA_T=	ravi
 LUA_O=	lua.o
 
-ALL_O= $(BASE_O) $(LUA_O)
+ALL_O= $(BASE_O) $(LUA_O) 
 ALL_T= $(LUA_A) $(LUA_T) 
 ALL_A= $(LUA_A)
 
@@ -125,6 +129,9 @@ solaris:
 
 # list targets that do not create files (but not all makes understand .PHONY)
 .PHONY: all $(PLATS) default o a clean depend echo none
+
+allocate.o: allocate.c ../dmr_c/src/allocate.h
+ptrlist.o: ptrlist.c ../dmr_c/src/ptrlist.h
 
 # DO NOT DELETE
 
