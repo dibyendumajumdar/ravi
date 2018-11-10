@@ -25,3 +25,11 @@ Some other things
 2. during code generation it will be good to know which registers are type constant - i.e. their types do not change. register allocation
    should be designed / implemented so that we try to avoid over-writing type data where possible. This will allow backend JIT 
    to generate more optimized code.
+
+
+Current Status
+--------------
+We have a parser implementation that can convert Ravi source to an abstract syntax tree (AST).
+Static type checking is not yet implemented.
+
+For examples of how to call the parser please see `ravi-tests/ravi_test_ast.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/ravi_test_ast.lua>`_.
