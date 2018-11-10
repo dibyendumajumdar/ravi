@@ -1635,7 +1635,7 @@ static void emit_op_forprep(struct function *fn, int A, int pc, int pc1) {
   membuff_add_fstring(&fn->body, " intloop_%d = 1;\n", A);
   membuff_add_string(&fn->body, "}\n");
   membuff_add_string(&fn->body, "else {\n");
-  membuff_add_fstring(&fn->body, " if (!ttisfloat(rb)) {\n", A);
+  membuff_add_fstring(&fn->body, " if (!ttisnumber(rb)) {\n", A);
 #if GOTO_ON_ERROR
   membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_limit_must_be_number);
   membuff_add_string(&fn->body, "  goto Lraise_error;\n");
@@ -1651,7 +1651,7 @@ static void emit_op_forprep(struct function *fn, int A, int pc, int pc1) {
   membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_for_step_must_be_number);
 #endif
   membuff_add_string(&fn->body, " }\n");
-  membuff_add_fstring(&fn->body, " if (!ttisfloat(ra)) {\n", A);
+  membuff_add_fstring(&fn->body, " if (!ttisnumber(ra)) {\n", A);
 #if GOTO_ON_ERROR
   membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_initial_value_must_be_number);
   membuff_add_string(&fn->body, "  goto Lraise_error;\n");
@@ -1659,9 +1659,9 @@ static void emit_op_forprep(struct function *fn, int A, int pc, int pc1) {
   membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_for_initial_value_must_be_number);
 #endif
   membuff_add_string(&fn->body, " }\n");
-  membuff_add_fstring(&fn->body, " nlimit_%d = fltvalue(rb);\n", A);
-  membuff_add_fstring(&fn->body, " ninit_%d = fltvalue(ra);\n", A);
-  membuff_add_fstring(&fn->body, " nstep_%d = ttisfloat(rc) ? fltvalue(rc) : (lua_Number)ivalue(rc);\n", A);
+  membuff_add_fstring(&fn->body, " tonumberns(rb, nlimit_%d);\n", A);
+  membuff_add_fstring(&fn->body, " tonumberns(ra, ninit_%d);\n", A);
+  membuff_add_fstring(&fn->body, " tonumberns(rc, nstep_%d);\n", A);
   membuff_add_fstring(&fn->body, " ninit_%d -= nstep_%d;\n", A, A);
   membuff_add_fstring(&fn->body, " intloop_%d = 0;\n", A);
   membuff_add_string(&fn->body, "}\n");
