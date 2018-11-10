@@ -9,7 +9,7 @@ Interestingly a precursor to Lua was `Sol <http://www.lua.org/history.html>`_ wh
 static types; Sol means the Sun in Portugese.
 
 Lua is perfect as a small embeddable dynamic language so why a derivative? Ravi extends Lua with 
-static typing for greater performance under JIT compilation. However, the static typing is 
+static typing for improved performance when JIT compilation is enabled. However, the static typing is 
 optional and therefore Lua programs are also valid Ravi programs.
 
 There are other attempts to add static typing to Lua - e.g. `Typed Lua <https://github.com/andremm/typedlua>`_ but 
@@ -22,7 +22,7 @@ My motivation is somewhat different - I want to enhance the VM to support more e
 known. Type information can be exploited by JIT compilation technology to improve performance. At the same time, 
 I want to keep the language safe and therefore usable by non-expert programmers. 
 
-Of course there is also the fantastic `LuaJIT <http://luajit.org>`_ implementation. Ravi has a different goal compared to 
+Of course there is the fantastic `LuaJIT <http://luajit.org>`_ implementation. Ravi has a different goal compared to 
 LuaJIT. Ravi prioritizes ease of maintenance and support, language safety, and compatibility with Lua 5.3, 
 over maximum performance. For more detailed comparison please refer to the documentation links below.
 
@@ -90,6 +90,7 @@ History
        - Additional type-annotations
 * 2018 
        - Implemented Eclipse OMR JIT backend
+       - Created `Ravi with batteries <https://github.com/dibyendumajumdar/ravi-distro>`_. 
 
 License
 =======
