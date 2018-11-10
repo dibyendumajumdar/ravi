@@ -318,7 +318,7 @@ y = x(z)
 compile(z)
 compile(x)
 assert(x(z) == 6 and y == 6)
-print("test 1 OK")
+print("Test 1 OK")
 
 -- test 2
 x = function () 
@@ -334,7 +334,7 @@ check(x, 'LOADNIL', 'LOADIZ', 'LOADK', 'LOADK',
   'RETURN', 'RETURN')
 compile(x)
 assert(x() == 1000000000)
-print("test 2 OK")
+print("Test 2 OK")
 
 -- test 3
 x = function ()
@@ -349,7 +349,7 @@ check(x, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
   'RETURN', 'RETURN')
 compile(x)
 assert(x() == 10000000.0)
-print("test 3 OK")
+print("Test 3 OK")
 
 -- test 4
 x = function ()
@@ -364,7 +364,7 @@ check(x, 'LOADK', 'LOADK',
   'RETURN', 'RETURN')
 compile(x)
 assert(x() == 5)
-print("test 4 OK")
+print("Test 4 OK")
 
 -- test 5
 x = function ()
@@ -377,7 +377,7 @@ check(x, 'EQ_II', 'JMP', 'LOADK',
   'RETURN', 'LOADK', 'RETURN', 'RETURN')
 compile(x)
 assert(x() == 1.0)
-print("test 5 OK")
+print("Test 5 OK")
 
 -- test 6
 x = function (a: integer, b: integer)
@@ -390,7 +390,7 @@ check(x, 'TOINT', 'TOINT', 'EQ_II', 'JMP', 'LOADK',
   'RETURN', 'LOADK', 'RETURN', 'RETURN')
 compile(x)
 assert(x(1,2) == 1.0)
-print("test 6 OK")
+print("Test 6 OK")
 
 -- test 7
 x = function (y: integer)
@@ -408,7 +408,7 @@ check(x, 'TOINT', 'LT_II', 'JMP', 'LOADK',
 compile(x)
 assert(x(5) == 2.0)
 assert(x(4) == 3.0)
-print("test 7 OK")
+print("Test 7 OK")
 
 -- test 8
 x = function (y: number)
@@ -426,7 +426,7 @@ check(x, 'TOFLT', 'LT_FF', 'JMP', 'LOADK',
 compile(x)
 assert(x(5.1) == 2.0)
 assert(x(4.0) == 3.0)
-print("test 8 OK")
+print("Test 8 OK")
 
 -- test 9
 x = function (y: integer, z)
@@ -452,7 +452,7 @@ assert(x(1,2) == 2)
 assert(x(1,5.3) == 5.3)
 assert(x(5) == 2.0)
 assert(x(4) == 3.0)
-print("test 9 OK")
+print("Test 9 OK")
 
 -- test 10
 x = function() 
@@ -470,7 +470,7 @@ check(x, 'CLOSURE', 'GETTABUP_SK', 'GETUPVAL',
   'GETTABUP_SK', 'ADDII', 'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL',
   'CALL', 'RETURN')
 x()
-print("test 10 OK")
+print("Test 10 OK")
 
 -- test 11
 function x()
@@ -488,7 +488,7 @@ check(x, 'NEW_FARRAY', 'LOADNIL', 'LOADFZ',
   'FORLOOP_I1', 'RETURN', 'RETURN')
 compile(x)
 assert(x() == 55.0)
-print("test 11 OK")
+print("Test 11 OK")
 
 -- test 12
 function pisum()
@@ -509,7 +509,7 @@ check(pisum, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
   'RETURN', 'RETURN')
 assert(compile(pisum))
 assert(math.abs(pisum()-1.644834071848065) < 1e-12)
-print("test 12 OK")
+print("Test 12 OK")
 
 -- test 13
 function y()
@@ -526,7 +526,7 @@ check(x, 'MOVE', 'CALL', 'TOFLT',
 assert(compile(y))
 assert(compile(x))
 assert(math.abs(x(y) - 11.3) < 0.0001)
-print("test 13 OK")
+print("Test 13 OK")
 
 -- test 14
 function tryme(x,y)
@@ -544,7 +544,7 @@ assert(tryme(2,1) == 0)
 compile(tryme)
 assert(tryme(1,2) == 1)
 assert(tryme(2,1) == 0)
-print("test 14 OK")
+print("Test 14 OK")
 
 -- test 15
 function tryme(x,y)
@@ -556,7 +556,7 @@ assert(tryme(1,2))
 compile(tryme)
 assert(tryme(1,2))
 assert(not tryme(2,1))
-print("test 15 OK")
+print("Test 15 OK")
 
 -- test 16
 function tabtest(x)
@@ -567,7 +567,7 @@ assert(tabtest({}) == 5)
 check(tabtest, 'SETI', 'GETI', 'RETURN', 'RETURN')
 compile(tabtest)
 assert(tabtest({}) == 5)
-print("test 16 OK")
+print("Test 16 OK")
 
 -- test 17
 function optest()
@@ -580,7 +580,7 @@ check(optest, 'LOADK', 'LOADK', 'LOADNIL',
 assert(optest() == 5)
 compile(optest)
 assert(optest() == 5)
-print("test 17 OK")
+print("Test 17 OK")
 
 -- test 18
 function optest()
@@ -593,7 +593,7 @@ check(optest, 'LOADK', 'LOADK', 'LOADNIL',
 assert(optest() == 1)
 compile(optest)
 assert(optest() == 1)
-print("test 18 OK")
+print("Test 18 OK")
 
 -- test 19
 function optest()
@@ -608,7 +608,7 @@ check(optest, 'LOADK', 'LOADK', 'TEST', 'JMP',
 assert(optest() == 5)
 compile(optest)
 assert(optest() == 5)
-print("test 19 OK")
+print("Test 19 OK")
 
 -- test 20
 function optest()
@@ -623,7 +623,7 @@ check(optest, 'LOADNIL', 'LOADK', 'TEST', 'JMP',
 assert(optest() == 5)
 compile(optest)
 assert(optest() == 5)
-print("test 20 OK")
+print("Test 20 OK")
 
 -- test 21
 z = function()
@@ -644,7 +644,7 @@ check(z, 'CLOSURE', 'GETUPVAL', 'MOVE', 'CALL',
 z()
 compile(z)
 z()
-print("test 21 OK")
+print("Test 21 OK")
 
 -- test 22
 z = function()
@@ -675,7 +675,7 @@ check(z, 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK', 'LOADK',
 z()
 compile(z)
 z()
-print("test 22 OK")
+print("Test 22 OK")
 
 -- test 23
 x = function(a)
@@ -689,7 +689,7 @@ assert(compile(y))
 assert(y(x()))
 assert(y(x(false)))
 assert(not y(x(true)))
-print("test 23 OK")
+print("Test 23 OK")
 
 -- test 24
 t = { name_ = "ravi" }
@@ -702,7 +702,7 @@ end
 assert(compile(t.name))
 assert(compile(z))
 assert(z(t) == "ravi")
-print("test 24 OK")
+print("Test 24 OK")
 
 -- test 25
 -- test ravi integer array
@@ -717,7 +717,7 @@ function f()
 end
 assert(compile(f))
 assert(f() == 6)
-print("test 25 OK")
+print("Test 25 OK")
 
 -- test 26
 function f()
@@ -728,7 +728,7 @@ end
 --ravi.dumplua(f)
 assert(compile(f))
 assert(math.abs(f()-11.1) < 1e-12)
-print("test 26 OK")
+print("Test 26 OK")
 
 -- test 27
 -- Ravi arrays support for ipairs()
@@ -746,7 +746,7 @@ x = function()
 end
 assert(compile(x))
 assert(x() == 28)
-print("test 27 OK")
+print("Test 27 OK")
 
 -- test 28
 -- Ravi arrays support for pairs()
@@ -764,7 +764,7 @@ x = function()
 end
 assert(compile(x))
 assert(x() == 28)
-print("test 28 OK")
+print("Test 28 OK")
 
 -- test 29
 -- test creation of arrays and slice
@@ -788,7 +788,7 @@ x = function()
 end
 assert(compile(x))
 assert(x() == true)
-print("test 29 OK")
+print("Test 29 OK")
 
 -- test 30
 matrix = {}
@@ -836,7 +836,7 @@ assert(compile(matrix.getcol))
 assert(compile(matrix.getdata))
 assert(compile(x))
 assert(x() == 65)
-print("test 30 OK")
+print("Test 30 OK")
 
 -- test 31
 function testadd(a,b)
@@ -847,7 +847,7 @@ assert(testadd(1,1) == 2)
 assert(testadd(1.5,1.6) == 3.1)
 assert(testadd("1.5",1.6) == 3.1)
 assert(testadd("1.5","1.6") == 3.1)
-print("test 31 OK")
+print("Test 31 OK")
 
 -- test 32
 function testsub(a,b)
@@ -858,7 +858,7 @@ assert(testsub(1,1) == 0)
 assert(math.abs(testsub(1.5,1.6)-(-0.1)) < 1e-6)
 assert(math.abs(testsub("1.5",1.6)-(-0.1)) < 1e-6)
 assert(math.abs(testsub("1.5","1.6")-(-0.1)) < 1e-6)
-print("test 32 OK")
+print("Test 32 OK")
 
 -- test 33
 function testmul(a,b)
@@ -869,7 +869,7 @@ assert(testmul(2,2) == 4)
 assert(math.abs(testmul(1.5,1.6)-2.4) < 1e-12)
 assert(math.abs(testmul("1.5",1.6)-2.4) < 1e-12)
 assert(math.abs(testmul("1.5","1.6")-2.4) < 1e-12)
-print("test 33 OK")
+print("Test 33 OK")
 
 
 -- test 34
@@ -881,7 +881,7 @@ assert(testdiv(2,2) == 1.0)
 assert(math.abs(testdiv(1.5,1.6)-0.9375) < 1e-12)
 assert(math.abs(testdiv("1.5",1.6)-0.9375) < 1e-12)
 assert(math.abs(testdiv("1.5","1.6")-0.9375) < 1e-12)
-print("test 34 OK")
+print("Test 34 OK")
 
 
 -- test 35
@@ -907,7 +907,7 @@ assert(t[1]() == 10)
 assert(t[2]() == 10)
 assert(t[1]() == 20)
 assert(t[2]() == 20)
-print("test 35 OK")
+print("Test 35 OK")
 
 -- test 36
 -- upvalues
@@ -924,7 +924,7 @@ local f = y()
 assert(f() == 1)
 x=5
 assert(f() == 5)
-print("test 36 OK")
+print("Test 36 OK")
 
 -- test 37
 -- upvalues
@@ -945,7 +945,7 @@ local f = y()
 assert(f() == 3)
 x1=5
 assert(f() == 5)
-print("test 37 OK")
+print("Test 37 OK")
 
 -- test 38
 function x()
@@ -960,7 +960,7 @@ f=x()
 assert(compile(f))
 assert(f() == 2)
 assert(f() == 3)
-print("test 38 OK")
+print("Test 38 OK")
 
 -- test setupval, getupval
 function x() 
@@ -974,7 +974,7 @@ compile(y)
 assert(y(2) == 2)
 assert(y(2) == 4)
 assert(y(3) == 7)
-print('test 39 OK')
+print('Test 39 OK')
 
 -- test 40
 x=function(a,b) 
@@ -985,7 +985,7 @@ assert(compile(x))
 -- if ravi.jit() then ravi.compile(x) end 
 assert(x(5,2) == 1)
 assert(math.abs(x(5.1,2.1)-0.9) < 1e-6)
-print("test 40 OK")
+print("Test 40 OK")
 
 -- test 41
 x=function(a,b) 
@@ -996,7 +996,7 @@ assert(compile(x))
 -- if ravi.jit() then ravi.compile(x) end 
 assert(x(5,2) == 2)
 assert(math.abs(x(5.5,2.1)-2.0) < 1e-6)
-print("test 41 OK")
+print("Test 41 OK")
 
 -- test 42
 x = function ()
@@ -1008,10 +1008,10 @@ x = function ()
 end
 
 if (not compile(x)) then
-  print("test FAILED to compile")
+  print("Test FAILED to compile")
 end
 assert(x() == 5.1)
-print("test 42 OK")
+print("Test 42 OK")
 
 -- test parameter types
 x = function (a: integer, b: number)
@@ -1023,7 +1023,7 @@ end
 assert(x(1,5.5) == 6.5)
 compile(x)
 assert(x(1,5.5) == 6.5)
-print'test 43 OK'
+print'Test 43 OK'
 
 x=function (a:number[], b:integer)
   local j: number = a[b]
@@ -1038,7 +1038,7 @@ assert(y() == 4.2)
 compile(x)
 compile(y)
 assert(y() == 4.2)
-print'test 44 OK'
+print'Test 44 OK'
 
 -- test 45
 function x(t) return t; end
@@ -1066,7 +1066,7 @@ end
 assert(compile(f))
 assert(not pcall(f))
 
-print("test 45 OK")
+print("Test 45 OK")
 
 -- test 47
 function test_idiv() 
@@ -1092,7 +1092,7 @@ function test_idiv()
 end
 compile(test_idiv)
 test_idiv()
-print'test 47 (IDIV) OK'
+print'Test 47 (IDIV) OK'
 
 function test_tableaccess()
   -- Test specialised version of GETTABLE and SETTABLE
@@ -1587,6 +1587,113 @@ check(x, 'GETTABUP_SK', 'NEWTABLE', 'GETTABUP_SK', 'CLOSURE',
   'CALL', 'SETLIST', 'GETI', 'SELF_SK', 'LOADK', 
   'CALL', 'CALL', 'RETURN')
 print 'Test 64 OK'
+
+x = function()
+  local i: integer = @integer 1
+  local n: number = @number 1.2
+  assert(i == 1 and n == 1.2)
+  local j = { 1, 2, 3, 4.2, 5 }
+  i = @integer( @integer (j[2]) )
+  n = @number( @number (j[4]) )
+  assert(i == 2)
+  assert(n == 4.2)
+end
+check(x, 'LOADK', 'LOADK', 'GETTABUP_SK', 'EQ_II',
+  'JMP', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
+  'CALL', 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK',
+  'LOADK', 'LOADK', 'SETLIST', 'GETI', 'TOINT',
+  'MOVEI', 'GETI', 'TOFLT', 'MOVEF', 'GETTABUP_SK',
+  'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'GETTABUP_SK', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
+  'CALL', 'RETURN')
+x()
+compile(x)
+x()  
+print 'Test 65 OK'
+
+function x()
+   local a,b = 1,2
+   local c: integer,d: integer = @integer a, @integer b
+   assert(c == a and b == d)
+end
+check(x, 'LOADK', 'LOADK', 'TOINT', 'MOVE',
+  'TOINT', 'MOVE', 'GETTABUP_SK', 'EQ', 'JMP',
+  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+  'RETURN')
+x()
+compile(x)
+x()
+print 'Test 66 OK'
+
+g = { 1, 5.5 }
+local h = { 10, 4.2 }
+function x() 
+  local a: integer = 11
+  local b: number = 6.5
+  local c = 6
+  a = @integer( g[1] ) + @integer( h[1] ) * @integer( c )
+  c = 3.2
+  b = @number( g[2] ) * @number( h[2] ) - @number( c )
+  return a,b
+end
+y,z = x()
+assert(y == 61 and math.abs(z - 19.9) < 1e-5)
+compile(x)
+y,z = x()
+assert(y == 61 and math.abs(z - 19.9) < 1e-10)
+check(x, 'LOADK', 'LOADK', 'LOADK', 'GETTABUP_SK',
+  'GETI', 'TOINT', 'GETTABUP', 'TOINT', 'TOINT',
+  'MULII', 'ADDII', 'LOADK', 'GETTABUP_SK', 'GETI',
+  'TOFLT', 'GETTABUP', 'TOFLT', 'MULFF', 'TOFLT',
+  'SUBFF', 'MOVE', 'MOVE', 'RETURN', 'RETURN')
+print 'Test 67 OK'
+
+x=load 'local t: number[] = {}'
+check(x, 'NEW_FARRAY', 'RETURN')
+print 'Test 68 OK'
+
+x=load 'local t = @number[] {}'
+check(x, 'NEW_FARRAY', 'RETURN')
+print 'Test 69 OK'
+
+x=load 'local t: number[] = @number[] ( @number[] {} )'
+check(x, 'NEW_FARRAY', 'RETURN')
+print 'Test 70 OK'
+
+function x()
+  return { @integer[] {1,2}, @number[] {42} }
+end
+check(x, 'NEWTABLE', 'NEW_IARRAY', 'LOADK', 'LOADK',
+  'SETLIST', 'NEW_FARRAY', 'LOADK', 'SETLIST',
+  'SETLIST', 'RETURN', 'RETURN')
+y = x()
+assert(ravitype(y[1]) == 'integer[]')
+assert(ravitype(y[2]) == 'number[]')
+print 'Test 71 OK'
+
+function x()
+  return @integer[] @integer[] @integer[]{1}
+end
+check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST', 'RETURN', 'RETURN')
+assert(ravitype(x()) == 'integer[]')
+print 'Test 72 OK'
+
+function x()
+  return nil or @integer[] {1}
+end
+assert(ravitype(x()) == 'integer[]')
+check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST', 'RETURN', 'RETURN')
+print 'Test 73 OK'
+
+function x()
+  return @number[]( @integer[] {1} and @number[] {42} )
+end
+assert(ravitype(x()) == 'number[]')
+assert(x()[1] == 42.0)
+check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST', 'TEST',
+  'JMP', 'NEW_FARRAY', 'LOADK', 'SETLIST', 'TOFARRAY',
+  'RETURN', 'RETURN')
+print 'Test 74 OK'
 
 for k,v in pairs(opcodes_coverage)
 do

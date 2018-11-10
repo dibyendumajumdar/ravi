@@ -3,7 +3,8 @@ This folder contains various performance and unit tests.
 Language tests
 --------------
 * basics.lua - some simple tests
-* ravi_tests1.ravi - contains some basic tests
+* ravi_tests1.ravi - contains most of the Ravi specific tests
+* ravi_tests3.ravi - additional tests
 * ravi_errors.ravi - contains tests for error conditions
 * bitwise_tests.lua - modified Lua 5.3 tests to exercise JIT on bitwise operations
 
@@ -20,6 +21,7 @@ Matrix multiplication test:
 
 * matmul1.lua - matrix multiplication (Lua compatible)
 * matmul1.ravi - matrix multiplication (ravi version with static typing)
+* matmul1_ravi.lua - matrix multiplication (ravi version with static typing)
 
 Following performance tests were obtained from the `The Computer Programming Language Benchmarks Game <http://benchmarksgame.alioth.debian.org/>`_. Original author is `Mike Pall <http://luajit.org/>`_.
 

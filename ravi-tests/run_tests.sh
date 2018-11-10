@@ -82,20 +82,6 @@ then
   exit 1
 fi
 
-$LUA ravi_tests2.ravi
-if [ $? != 0 ] 
-then
-  echo "ravi_tests2 failed"
-  exit 1
-fi
-
-$LUA -e"ravi.auto(true,1)" ravi_tests2.ravi
-if [ $? != 0 ] 
-then
-  echo "ravi_tests2 failed"
-  exit 1
-fi
-
 echo "======================================="
 
 $LUA gaussian2.lua
