@@ -1695,6 +1695,16 @@ check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST', 'TEST',
   'RETURN', 'RETURN')
 print 'Test 74 OK'
 
+function x()
+  assert(math.exp(2) == ravi.exp(2))
+  assert(math.log(2) == ravi.ln(2))
+  assert(math.exp(math.log(2)) == ravi.exp(ravi.ln(2)))
+end
+x()
+compile(x)
+x()
+print 'Test 75 OK'
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)
