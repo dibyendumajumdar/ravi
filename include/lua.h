@@ -549,7 +549,9 @@ struct lua_Debug {
 
 LUA_API void  (ravi_pushcfastcall)(lua_State *L, void *ptr, int tag);
 
-#define RAVI_TFCF_D_D 1
+#define RAVI_TFCF_EXP 1
+#define RAVI_TFCF_LOG 2
+#define RAVI_TFCF_D_D 3
 
 /* Create an integer array (specialization of Lua table)
  * of given size and initialize array with supplied initial value

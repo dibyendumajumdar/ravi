@@ -44,25 +44,31 @@ To obtain a nice trace of codegen
 #include <symbol.h>
 
 /*
-
 Some Implementation Notes
 =========================
 
-1. Local variables are modelled as byte strings - the load/store ops
+1. Local aggregate variables are modelled as byte strings - the load/store ops
    take care of extracting / storing the right type of value
 
-2. Phi values are modelled as temporaries - phisrc is implemented as store
+2. Local primitives are modelled as temporaries.
+
+3. Phi values are modelled as temporaries - phisrc is implemented as store
    to temporary while phi is a load from temporary.
 
-3. We create all the blocks at the beginning based upon the blocks in
+4. We create all the blocks at the beginning based upon the blocks in
    Sparse IR - but we have to add an extra block for every CBR instruction
    as conditional branches in OMR fall through to the next block
 
-4. Local SymRefs are stored in Sparse Symbol->priv field.
+5. Local SymRefs are stored in Sparse Symbol->priv field.
 
-5. Pseudo SymRefs are stored in pseudo->priv2, whereas corresponding load
+6. Pseudo SymRefs are stored in pseudo->priv2, whereas corresponding load
    is stored in pseudo->priv.
 
+7. If address of a local temporary is taken we need to let the compiler
+   backend know this as otherwise the backend may not realize that the 
+   locals could change through the pointers. Strictly speaking this is a
+   problem if the pointers escape (e.g. are passed to a function call)
+   but we don't optimize for that yet.
 */
 
 /*
@@ -576,8 +582,13 @@ static JIT_SymbolRef get_sym_value(struct dmr_C *C, struct function *fn, pseudo_
 				return NULL;
 			}
 			result = build_local(C, fn, sym);
-			if (!result)
+			if (!result) {
+				dmrC_sparse_error(C, sym->initializer->pos,
+					"unsupported initializer for "
+					"local variable because zero initialization is not yet done\n");
+				dmrC_show_expression(C, sym->initializer);
 				return result;
+			}
 			sym->priv = result;
 		}
 	}
@@ -1690,6 +1701,15 @@ static JIT_NodeRef output_op_sel(struct dmr_C *C, struct function *fn, struct in
 		break;
 	case JIT_Int8:
 		op_code = OP_bternary;
+		break;
+	case JIT_Address:
+		op_code = OP_aternary;
+		break;
+	case JIT_Float:
+		op_code = OP_fternary;
+		break;
+	case JIT_Double:
+		op_code = OP_dternary;
 		break;
 	default:
 		// TODO error message

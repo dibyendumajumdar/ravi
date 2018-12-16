@@ -13,7 +13,7 @@ The following api is under development, but is not yet fully functional, and is 
 Examples
 ========
 An example use of the C parser is `ravi-tests/dmrc_getsymbols.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/dmrc_getsymbols.lua>`_.
-For an example of invoking the C compiler with LLVM backend see `ravi-tests/dmrc_testllvm.lua`.
+For an example of invoking the C compiler with LLVM backend see `ravi-tests/dmrc_testllvm.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/dmrc_testllvm.lua>`_.
 
 Outstanding issues
 ==================

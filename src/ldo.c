@@ -13,6 +13,7 @@
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "lua.h"
 
@@ -514,10 +515,12 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
       return 0;
     }
     case RAVI_TFCF: {
-      int tt = rttype(func);
       int nargs = L->top - func - 1;
-      int sig = tt >> 8;
+      int tt = rttype(func);
+      int sig = tt >> 8; /* Extract the function signature*/
       switch (sig) {
+        case RAVI_TFCF_LOG:
+        case RAVI_TFCF_EXP:
         case RAVI_TFCF_D_D: {
           if (nargs == 1) {
             TValue *arg1 = func + 1;
@@ -529,8 +532,16 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
             else
               nargs = 0;
             if (nargs) {
-              double (*f)(double) = fcfvalue(func);
-              double v = f(arg);
+              double v;
+              switch (sig) {
+                case RAVI_TFCF_EXP: v = exp(arg); break;
+                case RAVI_TFCF_LOG: v = log(arg); break;
+                default: {
+                  double(*f)(double) = fcfvalue(func);
+                  double v = f(arg);
+                  break;
+                }
+              }
               setfltvalue(func, v);
               L->top = func + 1; /* top points after the last result */
               return 1;
