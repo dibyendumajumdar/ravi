@@ -549,6 +549,8 @@ struct lua_Debug {
 
 LUA_API void  (ravi_pushcfastcall)(lua_State *L, void *ptr, int tag);
 
+/* Allowed tags - subject to change. Max value is 128. Note that
+   each tag requires special handling in ldo.c */
 #define RAVI_TFCF_EXP 1
 #define RAVI_TFCF_LOG 2
 #define RAVI_TFCF_D_D 3

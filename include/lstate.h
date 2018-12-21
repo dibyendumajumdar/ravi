@@ -26,6 +26,24 @@
 ** 'tobefnz': all objects ready to be finalized;
 ** 'fixedgc': all objects that are not to be collected (currently
 ** only small strings, such as reserved words).
+**
+** Moreover, there is another set of lists that control gray objects.
+** These lists are linked by fields 'gclist'. (All objects that
+** can become gray have such a field. The field is not the same
+** in all objects, but it always has this name.)  Any gray object
+** must belong to one of these lists, and all objects in these lists
+** must be gray:
+**
+** 'gray': regular gray objects, still waiting to be visited.
+** 'grayagain': objects that must be revisited at the atomic phase.
+**   That includes
+**   - black objects got in a write barrier;
+**   - all kinds of weak tables during propagation phase;
+**   - all threads.
+** 'weak': tables with weak values to be cleared;
+** 'ephemeron': ephemeron tables with white->white entries;
+** 'allweak': tables with weak keys and/or weak values to be cleared.
+** The last three lists are used only during the atomic phase.
 
 */
 
@@ -160,7 +178,7 @@ typedef struct global_State {
   TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */
   /* RAVI additions */
   ravi_State *ravi_state;
-  ASMFunction dispatch[NUM_OPCODES];
+  ASMFunction dispatch[NUM_OPCODES]; /* Dispatch table for ASM VM - wip */
   ravi_Writeline ravi_writeline;
   ravi_Writestring ravi_writestring;
   ravi_Writestringerror ravi_writestringerror;
@@ -172,6 +190,7 @@ typedef struct global_State {
 #endif
 } global_State;
 
+/* Offset of the ASM VM dispatch table */
 #define DISPATCH_OFFSET	((int)offsetof(global_State, dispatch))
 
 /*
