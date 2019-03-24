@@ -68,3 +68,5 @@ dotest 'return (x>y) and x or y == 2'
 dotest 'return (x>y) and x or y == 2'
 
 dotest 'function x() for i = 1, 10 do; print(i); end end'
+
+dotest 'function x() local a=1; function y() return function() return a end end; end'
