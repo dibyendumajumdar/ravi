@@ -251,7 +251,7 @@ typedef struct lua_TValue {
     val_(io).p = (x);     \
     settt_(io, ((tag << 8) | RAVI_TFCF)); \
   }
-
+#define getfcf_tag(typecode) (typecode >> 8)
 
 #define setpvalue(obj,x) \
   { TValue *io=(obj); val_(io).p=(x); settt_(io, LUA_TLIGHTUSERDATA); }

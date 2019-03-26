@@ -517,7 +517,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
     case RAVI_TFCF: {
       int nargs = L->top - func - 1;
       int tt = rttype(func);
-      int sig = tt >> 8; /* Extract the function signature*/
+      int sig = getfcf_tag(tt); /* Extract the function signature */
       switch (sig) {
         case RAVI_TFCF_LOG:
         case RAVI_TFCF_EXP:
@@ -538,7 +538,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults, int op_call) {
                 case RAVI_TFCF_LOG: v = log(arg); break;
                 default: {
                   double(*f)(double) = fcfvalue(func);
-                  double v = f(arg);
+                  v = f(arg);
                   break;
                 }
               }
