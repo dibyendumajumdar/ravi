@@ -95,6 +95,7 @@ struct lua_symbol {
     } label;
     struct {
       struct lua_symbol *var; /* variable reference */
+      struct ast_node *function; /* Where the upvalue lives */
     } upvalue;
   };
 };
@@ -223,6 +224,7 @@ struct ast_node {
       struct block_scope *main_block;        /* the function's main block */
       struct lua_symbol_list *args;          /* arguments, also must be part of the function block's symbol list */
       struct ast_node_list *child_functions; /* child functions declared in this function */
+      struct lua_symbol_list *upvalues;        /* List of upvalues */
     } function_expr;                         /* a literal expression whose result is a value of type function */
     struct {
       struct var_type type;
@@ -397,7 +399,7 @@ static struct lua_symbol *new_localvarliteral_(struct parser_state *parser, cons
  */
 #define new_localvarliteral(parser, name) new_localvarliteral_(parser, "" name, (sizeof(name) / sizeof(char)) - 1)
 
-struct lua_symbol *search_for_variable_in_block(struct block_scope *scope, const TString *varname) {
+static struct lua_symbol *search_for_variable_in_block(struct block_scope *scope, const TString *varname) {
   struct lua_symbol *symbol;
   // Lookup in reverse order so that we discover the
   // most recently added local symbol - as Lua allows same
@@ -411,10 +413,6 @@ struct lua_symbol *search_for_variable_in_block(struct block_scope *scope, const
         if (varname == symbol->var.var_name) { return symbol; }
         break;
       }
-      case SYM_UPVALUE: {
-        assert(symbol->upvalue.var->symbol_type == SYM_LOCAL);
-        if (varname == symbol->upvalue.var->var.var_name) { return symbol; }
-      }
       default: break;
     }
   }
@@ -422,7 +420,7 @@ struct lua_symbol *search_for_variable_in_block(struct block_scope *scope, const
   return NULL;
 }
 
-struct lua_symbol *search_for_label_in_block(struct block_scope *scope, const TString *name) {
+static struct lua_symbol *search_for_label_in_block(struct block_scope *scope, const TString *name) {
   struct lua_symbol *symbol;
   // Lookup in reverse order so that we discover the
   // most recently added local symbol - as Lua allows same
@@ -443,24 +441,75 @@ struct lua_symbol *search_for_label_in_block(struct block_scope *scope, const TS
   return NULL;
 }
 
+/* Each function has a list of upvalues, searches this list for given name
+ */
+static struct lua_symbol *search_upvalue_in_function(struct ast_node *function, const TString *name) {
+  struct lua_symbol *symbol;
+  FOR_EACH_PTR(function->function_expr.upvalues, symbol) {
+      switch (symbol->symbol_type) {
+        case SYM_UPVALUE: {
+          assert(symbol->upvalue.var->symbol_type == SYM_LOCAL);
+          if (name == symbol->upvalue.var->var.var_name) { return symbol; }
+          break;
+        }
+        default: break;
+      }
+    }
+  END_FOR_EACH_PTR(symbol);
+  return NULL;
+}
+
+/* Each function has a list of upvalues, searches this list for given name, and adds it if not found.
+ * Returns true if added, false means the function already has the upvalue.
+ */
+static bool add_upvalue_in_function(struct parser_state *parser, struct ast_node *function, struct lua_symbol *sym) {
+  struct lua_symbol *symbol;
+  FOR_EACH_PTR(function->function_expr.upvalues, symbol) {
+      switch (symbol->symbol_type) {
+        case SYM_UPVALUE: {
+          assert(symbol->upvalue.var->symbol_type == SYM_LOCAL);
+          if (sym == symbol->upvalue.var) { return false; }
+          break;
+        }
+        default: break;
+      }
+    }
+  END_FOR_EACH_PTR(symbol);
+  struct lua_symbol *upvalue = dmrC_allocator_allocate(&parser->container->symbol_allocator, 0);
+  upvalue->symbol_type = SYM_UPVALUE;
+  upvalue->upvalue.var = sym;
+  upvalue->upvalue.function = function;
+  copy_type(upvalue->value_type, sym->value_type);
+  add_symbol(parser->container, &function->function_expr.upvalues, upvalue);
+  return true;
+}
+
+
 /* Searches for a variable starting from current scope, and going up the
  * scope chain. If not found and search_globals_too is requested then
  * also searches the external symbols
  */
-struct lua_symbol *search_for_variable(struct parser_state *parser, const TString *varname) {
+static struct lua_symbol *search_for_variable(struct parser_state *parser, const TString *varname) {
   struct block_scope *current_scope = parser->current_scope;
   assert(current_scope && current_scope->function == parser->current_function);
   while (current_scope) {
-    struct lua_symbol *symbol = search_for_variable_in_block(current_scope, varname);
+    struct ast_node *current_function = current_scope->function;
+    while (current_scope && current_function == current_scope->function) {
+      struct lua_symbol *symbol = search_for_variable_in_block(current_scope, varname);
+      if (symbol) return symbol;
+      current_scope = current_scope->parent;
+    }
+    // search upvalues in the function
+    struct lua_symbol *symbol = search_upvalue_in_function(current_function, varname);
     if (symbol) return symbol;
-    current_scope = current_scope->parent;
+    // try in parent function
   }
   return NULL;
 }
 
 /* Searches for a label in current function
  */
-struct lua_symbol *search_for_label(struct parser_state *parser, const TString *name) {
+static struct lua_symbol *search_for_label(struct parser_state *parser, const TString *name) {
   struct block_scope *current_scope = parser->current_scope;
   while (current_scope && current_scope->function == parser->current_function) {
     struct lua_symbol *symbol = search_for_label_in_block(current_scope, name);
@@ -470,6 +519,21 @@ struct lua_symbol *search_for_label(struct parser_state *parser, const TString *
   return NULL;
 }
 
+/* Adds an upvalue to current_function and its parents until var_function; var_function being where the symbol
+ * exists as a local. If the symbol is found in a functions upvalue list then there is no need to
+ * check parent functions.
+ */
+static void add_upvalue_in_levels_upto(struct parser_state *parser, struct ast_node *current_function, struct ast_node *var_function, struct lua_symbol *symbol) {
+  assert(current_function != var_function);
+  while (current_function && current_function != var_function) {
+    bool added = add_upvalue_in_function(parser, current_function, symbol);
+    if (!added)
+      // this function already has it so we are done
+      break;
+    current_function = current_function->function_expr.parent_function;
+  }
+}
+
 /* Creates a symbol reference to the name; the returned symbol reference
  * may be local, upvalue or global.
  */
@@ -477,18 +541,20 @@ static struct ast_node *new_symbol_reference(struct parser_state *parser) {
   TString *varname = check_name_and_next(parser->ls);
   struct lua_symbol *symbol = search_for_variable(parser, varname);
   if (symbol) {
-    if (symbol->symbol_type == SYM_LOCAL) {
-      // If the symbol occurred in a parent function then we
-      // need to construct an upvalue
-      if (symbol->var.block->function != parser->current_function) {
-        // construct upvalue
-        struct lua_symbol *upvalue = dmrC_allocator_allocate(&parser->container->symbol_allocator, 0);
-        upvalue->symbol_type = SYM_UPVALUE;
-        upvalue->upvalue.var = symbol;
-        copy_type(upvalue->value_type, symbol->value_type);
-        add_symbol(parser->container, &parser->current_scope->symbol_list, upvalue);
-        symbol = upvalue;
-      }
+    if (symbol->symbol_type == SYM_LOCAL && symbol->var.block->function != parser->current_function) {
+      // If the local symbol occurred in a parent function then we
+      // need to construct an upvalue. Lua requires that the upvalue be
+      // added to all functions in the tree upto the function where the local
+      // is defined.
+      add_upvalue_in_levels_upto(parser, parser->current_function, symbol->var.block->function, symbol);
+      // Following search could be avoided if above returned
+      symbol = search_upvalue_in_function(parser->current_function, varname);
+    }
+    else if (symbol->symbol_type == SYM_UPVALUE && symbol->upvalue.function != parser->current_function) {
+      // We found an upvalue but it is not at the same level
+      // Ensure all levels have the upvalue
+      add_upvalue_in_levels_upto(parser, parser->current_function, symbol->upvalue.function, symbol->upvalue.var);
+      symbol = search_upvalue_in_function(parser->current_function, varname);
     }
   }
   else {
@@ -1518,6 +1584,7 @@ static struct ast_node *new_function(struct parser_state *parser) {
   node->function_expr.is_vararg = false;
   node->function_expr.args = NULL;
   node->function_expr.child_functions = NULL;
+  node->function_expr.upvalues = NULL;
   node->function_expr.main_block = NULL;
   node->function_expr.parent_function = parser->current_function;
   if (parser->current_function) {
