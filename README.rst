@@ -91,6 +91,8 @@ History
 * 2018 
        - Implemented Eclipse OMR JIT backend
        - Created `Ravi with batteries <https://github.com/dibyendumajumdar/ravi-distro>`_. 
+* 2019 (Plan)
+       - Release Ravi 1.0 
 
 License
 =======
