@@ -1,6 +1,6 @@
-function x()
-
-	local a = 1
+local str = 
+[[return function()
+    local a = 1
 
 	local function y()
 		return function()
@@ -18,10 +18,14 @@ function x()
 
 	return y, z
 end
+]]
+--local y, z = x()
 
-local y, z = x()
+--print(y()())
+--print(z()())
 
-print(y()())
-print(z()())
-
-ravi.dumplua(x)
+--ravi.dumplua(x)
+local x, msg = ast.parse(str)
+if not x then print(msg) end
+print(x:tostring())
+--print(x)

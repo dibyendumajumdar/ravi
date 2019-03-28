@@ -420,26 +420,26 @@ static struct lua_symbol *search_for_variable_in_block(struct block_scope *scope
   return NULL;
 }
 
-static struct lua_symbol *search_for_label_in_block(struct block_scope *scope, const TString *name) {
-  struct lua_symbol *symbol;
-  // Lookup in reverse order so that we discover the
-  // most recently added local symbol - as Lua allows same
-  // symbol to be declared local more than once in a scope
-  // Should also work with nesting as the function when parsed
-  // will only know about vars declared in parent function until
-  // now.
-  FOR_EACH_PTR_REVERSE(scope->symbol_list, symbol) {
-    switch (symbol->symbol_type) {
-      case SYM_LABEL: {
-        if (name == symbol->var.var_name) { return symbol; }
-        break;
-      }
-      default: break;
-    }
-  }
-  END_FOR_EACH_PTR_REVERSE(symbol);
-  return NULL;
-}
+//static struct lua_symbol *search_for_label_in_block(struct block_scope *scope, const TString *name) {
+//  struct lua_symbol *symbol;
+//  // Lookup in reverse order so that we discover the
+//  // most recently added local symbol - as Lua allows same
+//  // symbol to be declared local more than once in a scope
+//  // Should also work with nesting as the function when parsed
+//  // will only know about vars declared in parent function until
+//  // now.
+//  FOR_EACH_PTR_REVERSE(scope->symbol_list, symbol) {
+//    switch (symbol->symbol_type) {
+//      case SYM_LABEL: {
+//        if (name == symbol->var.var_name) { return symbol; }
+//        break;
+//      }
+//      default: break;
+//    }
+//  }
+//  END_FOR_EACH_PTR_REVERSE(symbol);
+//  return NULL;
+//}
 
 /* Each function has a list of upvalues, searches this list for given name
  */
@@ -485,9 +485,11 @@ static bool add_upvalue_in_function(struct parser_state *parser, struct ast_node
 }
 
 
-/* Searches for a variable starting from current scope, and going up the
- * scope chain. If not found and search_globals_too is requested then
- * also searches the external symbols
+/* Searches for a variable starting from current scope, going up the
+ * scope chain within the current function. If the variable is not found in any scope of the function, then
+ * search the function's upvalue list. Repeat the exercise in parent function until either
+ * the symbol is found or we exhaust the search. NULL is returned if search was
+ * exhausted.
  */
 static struct lua_symbol *search_for_variable(struct parser_state *parser, const TString *varname) {
   struct block_scope *current_scope = parser->current_scope;
@@ -509,18 +511,18 @@ static struct lua_symbol *search_for_variable(struct parser_state *parser, const
 
 /* Searches for a label in current function
  */
-static struct lua_symbol *search_for_label(struct parser_state *parser, const TString *name) {
-  struct block_scope *current_scope = parser->current_scope;
-  while (current_scope && current_scope->function == parser->current_function) {
-    struct lua_symbol *symbol = search_for_label_in_block(current_scope, name);
-    if (symbol) return symbol;
-    current_scope = current_scope->parent;
-  }
-  return NULL;
-}
+//static struct lua_symbol *search_for_label(struct parser_state *parser, const TString *name) {
+//  struct block_scope *current_scope = parser->current_scope;
+//  while (current_scope && current_scope->function == parser->current_function) {
+//    struct lua_symbol *symbol = search_for_label_in_block(current_scope, name);
+//    if (symbol) return symbol;
+//    current_scope = current_scope->parent;
+//  }
+//  return NULL;
+//}
 
 /* Adds an upvalue to current_function and its parents until var_function; var_function being where the symbol
- * exists as a local. If the symbol is found in a functions upvalue list then there is no need to
+ * exists as a local or an upvalue. If the symbol is found in a function's upvalue list then there is no need to
  * check parent functions.
  */
 static void add_upvalue_in_levels_upto(struct parser_state *parser, struct ast_node *current_function, struct ast_node *var_function, struct lua_symbol *symbol) {
@@ -541,19 +543,21 @@ static struct ast_node *new_symbol_reference(struct parser_state *parser) {
   TString *varname = check_name_and_next(parser->ls);
   struct lua_symbol *symbol = search_for_variable(parser, varname);
   if (symbol) {
+    // we found a local or upvalue
     if (symbol->symbol_type == SYM_LOCAL && symbol->var.block->function != parser->current_function) {
       // If the local symbol occurred in a parent function then we
       // need to construct an upvalue. Lua requires that the upvalue be
-      // added to all functions in the tree upto the function where the local
+      // added to all functions in the tree up to the function where the local
       // is defined.
       add_upvalue_in_levels_upto(parser, parser->current_function, symbol->var.block->function, symbol);
-      // Following search could be avoided if above returned
+      // TODO Following search could be avoided if above returned the symbol
       symbol = search_upvalue_in_function(parser->current_function, varname);
     }
     else if (symbol->symbol_type == SYM_UPVALUE && symbol->upvalue.function != parser->current_function) {
       // We found an upvalue but it is not at the same level
       // Ensure all levels have the upvalue
       add_upvalue_in_levels_upto(parser, parser->current_function, symbol->upvalue.function, symbol->upvalue.var);
+      // TODO Following search could be avoided if above returned the symbol
       symbol = search_upvalue_in_function(parser->current_function, varname);
     }
   }
@@ -563,7 +567,7 @@ static struct ast_node *new_symbol_reference(struct parser_state *parser) {
     global->symbol_type = SYM_GLOBAL;
     global->var.var_name = varname;
     global->var.block = NULL;
-    set_type(global->value_type, RAVI_TANY);
+    set_type(global->value_type, RAVI_TANY); // Globals are always ANY type
     // We don't add globals to any scope so that they are
     // always looked up
     symbol = global;
@@ -1540,9 +1544,10 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
 static void parse_statement_list(struct parser_state *parser, struct ast_node_list **list) {
   LexState *ls = parser->ls;
   while (!block_follow(ls, 1)) {
+    bool was_return = ls->t.token == TK_RETURN;
     struct ast_node *stmt = parse_statement(parser);
     if (stmt) add_ast_node(parser->container, list, stmt);
-    if (ls->t.token == TK_RETURN) { return; /* 'return' must be last statement */ }
+    if (was_return) break; /* 'return' must be last statement */
   }
 }
 
@@ -1791,6 +1796,8 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
         printf_buf(buf, "%pfunction(\n", level);
         print_symbol_list(buf, node->function_expr.args, level + 1, ",");
         printf_buf(buf, "%p)\n", level);
+        printf_buf(buf, "%pupvalues ", level);
+        print_symbol_list(buf, node->function_expr.upvalues, level + 1, ",");
       }
       else {
         printf_buf(buf, "%pfunction()\n", level);
@@ -2181,7 +2188,12 @@ static int build_ast(lua_State *L) {
     lua_settop(L, RESERVEDSLOT); /* create reserved slot */
     status = build_ast_from_reader(L, generic_reader, NULL, chunkname, mode);
   }
-  return status == 0 ? 1 : 0;
+  if (status != 0) {
+    lua_pushnil(L);
+    lua_insert(L, -2);  /* put before error message */
+    return 2;  /* return nil plus error message */
+  }
+  return 1;
 }
 
 static const char *AST_type = "Ravi.AST";
