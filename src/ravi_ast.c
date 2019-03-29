@@ -50,7 +50,6 @@ struct ast_container {
   struct allocator block_scope_allocator;
   struct allocator symbol_allocator;
   struct ast_node *main_function;
-  struct lua_symbol_list *external_symbols; /* symbols not defined in this chunk */
   bool killed;                              /* flag to check if this is already destroyed */
 };
 
@@ -104,13 +103,12 @@ struct block_scope {
   struct ast_node *function;            /* function owning this block - of type FUNCTION_EXPR */
   struct block_scope *parent;           /* parent block, may belong to parent function */
   struct lua_symbol_list *symbol_list;  /* symbols defined in this block */
-  struct ast_node_list *statement_list; /* statements in this block */
+  //struct ast_node_list *do_statement_list; /* statements in this block */
 };
 
 enum ast_node_type {
   AST_NONE, /* Used when the node doesn't represent an AST such as test_then_block. */
   AST_RETURN_STMT,
-  AST_BREAK_STMT,
   AST_GOTO_STMT,
   AST_LABEL_STMT,
   AST_DO_STMT,
@@ -168,23 +166,28 @@ struct ast_node {
     } function_stmt;
     struct {
       struct block_scope *scope; /* The do statement only creates a new scope */
+      struct ast_node_list *do_statement_list; /* statements in this block */
     } do_stmt;
     struct {
       struct ast_node *condition;
-      struct block_scope *scope;
+      struct block_scope *test_then_scope;
+      struct ast_node_list *test_then_statement_list; /* statements in this block */
     } test_then_block; /* Used internally in if_stmt, not an independent AST node */
     struct {
       struct ast_node_list *if_condition_list; /* Actually a list of test_then_blocks */
       struct block_scope *else_block;
+      struct ast_node_list *else_statement_list; /* statements in this block */
     } if_stmt;
     struct {
       struct ast_node *condition;
-      struct block_scope *loop_body;
+      struct block_scope *loop_scope;
+      struct ast_node_list *loop_statement_list; /* statements in this block */
     } while_or_repeat_stmt;
     struct {
       struct lua_symbol_list *symbols;
       struct ast_node_list *expressions;
-      struct block_scope *loop_body;
+      struct block_scope *for_body;
+      struct ast_node_list *for_statement_list; /* statements in this block */
     } for_stmt; /* Used for both generic and numeric for loops */
     struct {
       struct var_type type;
@@ -222,6 +225,7 @@ struct ast_node {
       unsigned int is_method : 1;
       struct ast_node *parent_function;      /* parent function or NULL if main chunk */
       struct block_scope *main_block;        /* the function's main block */
+      struct ast_node_list *function_statement_list; /* statements in this block */
       struct lua_symbol_list *args;          /* arguments, also must be part of the function block's symbol list */
       struct ast_node_list *child_functions; /* child functions declared in this function */
       struct lua_symbol_list *upvalues;        /* List of upvalues */
@@ -778,7 +782,7 @@ static struct lua_symbol *declare_local_variable(struct parser_state *parser) {
       /* default is a userdata type */
       tt = RAVI_TUSERDATA;
       typename = user_defined_type_name(ls, typename);
-      str = getstr(typename);
+      //str = getstr(typename);
       pusertype = typename;
     }
     if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
@@ -831,7 +835,7 @@ static void parse_function_body(struct parser_state *parser, struct ast_node *fu
   func_ast->function_expr.is_vararg = is_vararg;
   func_ast->function_expr.is_method = ismethod;
   checknext(ls, ')');
-  parse_statement_list(parser, &parser->current_scope->statement_list);
+  parse_statement_list(parser, &func_ast->function_expr.function_statement_list);
   check_match(ls, TK_END, TK_FUNCTION, line);
 }
 
@@ -1159,10 +1163,10 @@ static struct ast_node *parse_expression(struct parser_state *parser) {
 ** =======================================================================
 */
 
-static struct block_scope *parse_block(struct parser_state *parser) {
+static struct block_scope *parse_block(struct parser_state *parser, struct ast_node_list **statement_list) {
   /* block -> statlist */
   struct block_scope *scope = new_scope(parser);
-  parse_statement_list(parser, &parser->current_scope->statement_list);
+  parse_statement_list(parser, statement_list);
   end_scope(parser);
   return scope;
 }
@@ -1223,10 +1227,11 @@ static struct ast_node *parse_while_statement(struct parser_state *parser, int l
   luaX_next(ls); /* skip WHILE */
   struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   stmt->type = AST_WHILE_STMT;
-  stmt->while_or_repeat_stmt.loop_body = NULL;
+  stmt->while_or_repeat_stmt.loop_scope = NULL;
+  stmt->while_or_repeat_stmt.loop_statement_list = NULL;
   stmt->while_or_repeat_stmt.condition = parse_condition(parser);
   checknext(ls, TK_DO);
-  stmt->while_or_repeat_stmt.loop_body = parse_block(parser);
+  stmt->while_or_repeat_stmt.loop_scope = parse_block(parser, &stmt->while_or_repeat_stmt.loop_statement_list);
   check_match(ls, TK_END, TK_WHILE, line);
   end_scope(parser);
   return stmt;
@@ -1239,8 +1244,9 @@ static struct ast_node *parse_repeat_statement(struct parser_state *parser, int 
   struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   stmt->type = AST_REPEAT_STMT;
   stmt->while_or_repeat_stmt.condition = NULL;
-  stmt->while_or_repeat_stmt.loop_body = new_scope(parser); /* scope block */
-  parse_statement_list(parser, &parser->current_scope->statement_list);
+  stmt->while_or_repeat_stmt.loop_statement_list = NULL;
+  stmt->while_or_repeat_stmt.loop_scope = new_scope(parser); /* scope block */
+  parse_statement_list(parser, &stmt->while_or_repeat_stmt.loop_statement_list);
   check_match(ls, TK_UNTIL, TK_REPEAT, line);
   stmt->while_or_repeat_stmt.condition = parse_condition(parser); /* read condition (inside scope block) */
   end_scope(parser);
@@ -1255,7 +1261,7 @@ static void parse_forbody(struct parser_state *parser, struct ast_node *stmt, in
   LexState *ls = parser->ls;
   /* forbody -> DO block */
   checknext(ls, TK_DO);
-  stmt->for_stmt.loop_body = parse_block(parser);
+  stmt->for_stmt.for_body = parse_block(parser, &stmt->for_stmt.for_statement_list);
 }
 
 /* parse a numerical for loop */
@@ -1301,7 +1307,8 @@ static struct ast_node *parse_for_statement(struct parser_state *parser, int lin
   stmt->type = AST_NONE;
   stmt->for_stmt.symbols = NULL;
   stmt->for_stmt.expressions = NULL;
-  stmt->for_stmt.loop_body = NULL;
+  stmt->for_stmt.for_body = NULL;
+  stmt->for_stmt.for_statement_list = NULL;
   new_scope(parser);                 // For the loop variables
   luaX_next(ls);                     /* skip 'for' */
   varname = check_name_and_next(ls); /* first variable name */
@@ -1322,7 +1329,7 @@ static struct ast_node *parse_for_statement(struct parser_state *parser, int lin
   return stmt;
 }
 
-/* parse if cond then block - called from ifstat() */
+/* parse if cond then block - called from parse_if_statement() */
 static struct ast_node *parse_if_cond_then_block(struct parser_state *parser) {
   LexState *ls = parser->ls;
   /* test_then_block -> [IF | ELSEIF] cond THEN block */
@@ -1330,12 +1337,13 @@ static struct ast_node *parse_if_cond_then_block(struct parser_state *parser) {
   struct ast_node *test_then_block = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   test_then_block->type = AST_NONE;                                      // This is not an AST node on its own
   test_then_block->test_then_block.condition = parse_expression(parser); /* read condition */
-  test_then_block->test_then_block.scope = NULL;
+  test_then_block->test_then_block.test_then_scope = NULL;
+  test_then_block->test_then_block.test_then_statement_list = NULL;
   checknext(ls, TK_THEN);
   if (ls->t.token == TK_GOTO || ls->t.token == TK_BREAK) {
-    test_then_block->test_then_block.scope = new_scope(parser);
+    test_then_block->test_then_block.test_then_scope = new_scope(parser);
     struct ast_node *stmt = parse_goto_statment(parser); /* handle goto/break */
-    add_ast_node(parser->container, &parser->current_scope->statement_list, stmt);
+    add_ast_node(parser->container, &test_then_block->test_then_block.test_then_statement_list, stmt);
     skip_noop_statements(parser); /* skip other no-op statements */
     if (block_follow(ls, 0)) {    /* 'goto' is the entire block? */
       end_scope(parser);
@@ -1346,9 +1354,9 @@ static struct ast_node *parse_if_cond_then_block(struct parser_state *parser) {
     }
   }
   else { /* regular case (not goto/break) */
-    test_then_block->test_then_block.scope = new_scope(parser);
+    test_then_block->test_then_block.test_then_scope = new_scope(parser);
   }
-  parse_statement_list(parser, &parser->current_scope->statement_list); /* 'then' part */
+  parse_statement_list(parser, &test_then_block->test_then_block.test_then_statement_list); /* 'then' part */
   end_scope(parser);
   return test_then_block;
 }
@@ -1360,13 +1368,14 @@ static struct ast_node *parse_if_statement(struct parser_state *parser, int line
   stmt->type = AST_IF_STMT;
   stmt->if_stmt.if_condition_list = NULL;
   stmt->if_stmt.else_block = NULL;
+  stmt->if_stmt.else_statement_list = NULL;
   struct ast_node *test_then_block = parse_if_cond_then_block(parser); /* IF cond THEN block */
   add_ast_node(parser->container, &stmt->if_stmt.if_condition_list, test_then_block);
   while (ls->t.token == TK_ELSEIF) {
     test_then_block = parse_if_cond_then_block(parser); /* ELSEIF cond THEN block */
     add_ast_node(parser->container, &stmt->if_stmt.if_condition_list, test_then_block);
   }
-  if (testnext(ls, TK_ELSE)) stmt->if_stmt.else_block = parse_block(parser); /* 'else' part */
+  if (testnext(ls, TK_ELSE)) stmt->if_stmt.else_block = parse_block(parser, &stmt->if_stmt.else_statement_list); /* 'else' part */
   check_match(ls, TK_END, TK_IF, line);
   return stmt;
 }
@@ -1485,7 +1494,8 @@ static struct ast_node *parse_do_statement(struct parser_state *parser, int line
   luaX_next(parser->ls); /* skip DO */
   struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   stmt->type = AST_DO_STMT;
-  stmt->do_stmt.scope = parse_block(parser);
+  stmt->do_stmt.do_statement_list = NULL;
+  stmt->do_stmt.scope = parse_block(parser, &stmt->do_stmt.do_statement_list);
   check_match(parser->ls, TK_END, TK_DO, line);
   return stmt;
 }
@@ -1560,7 +1570,7 @@ static struct block_scope *new_scope(struct parser_state *parser) {
   struct ast_container *container = parser->container;
   struct block_scope *scope = dmrC_allocator_allocate(&container->block_scope_allocator, 0);
   scope->symbol_list = NULL;
-  scope->statement_list = NULL;
+  //scope->do_statement_list = NULL;
   scope->function = parser->current_function;
   assert(scope->function && scope->function->type == AST_FUNCTION_EXPR);
   scope->parent = parser->current_scope;
@@ -1591,6 +1601,7 @@ static struct ast_node *new_function(struct parser_state *parser) {
   node->function_expr.child_functions = NULL;
   node->function_expr.upvalues = NULL;
   node->function_expr.main_block = NULL;
+  node->function_expr.function_statement_list = NULL;
   node->function_expr.parent_function = parser->current_function;
   if (parser->current_function) {
     // Make this function a child of current function
@@ -1619,7 +1630,7 @@ static void parse_lua_chunk(struct parser_state *parser) {
   luaX_next(parser->ls);                                   /* read first token */
   parser->container->main_function = new_function(parser); /* vararg function wrapper */
   parser->container->main_function->function_expr.is_vararg = true;
-  parse_statement_list(parser, &parser->current_scope->statement_list);
+  parse_statement_list(parser, &parser->container->main_function->function_expr.function_statement_list);
   end_function(parser);
   check(parser->ls, TK_EOS);
 }
@@ -1703,8 +1714,9 @@ static void print_ast_node_list(membuff_t *buf, struct ast_node_list *list, int 
   END_FOR_EACH_PTR(node);
 }
 
-static void print_block_scope(membuff_t *buf, struct block_scope *scope, int level) {
-  print_ast_node_list(buf, scope->statement_list, level + 1, NULL);
+static void print_statement_list(membuff_t *buf, struct ast_node_list *statement_list,
+                                 int level) {
+  print_ast_node_list(buf, statement_list, level + 1, NULL);
 }
 
 static inline const char *get_as_str(const TString *ts) { return ts ? getstr(ts) : ""; }
@@ -1802,7 +1814,7 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       else {
         printf_buf(buf, "%pfunction()\n", level);
       }
-      print_block_scope(buf, node->function_expr.main_block, level);
+      print_statement_list(buf, node->function_expr.function_statement_list, level);
       printf_buf(buf, "%pend\n", level);
       break;
     }
@@ -1846,7 +1858,7 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
     }
     case AST_DO_STMT: {
       printf_buf(buf, "%pdo\n", level);
-      print_ast_node_list(buf, node->do_stmt.scope->statement_list, level + 1, NULL);
+      print_ast_node_list(buf, node->do_stmt.do_statement_list, level + 1, NULL);
       printf_buf(buf, "%pend\n", level);
       break;
     }
@@ -1875,12 +1887,12 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
           printf_buf(buf, "%pelseif\n", level);
         print_ast_node(buf, test_then_block->test_then_block.condition, level + 1);
         printf_buf(buf, "%pthen\n", level);
-        print_ast_node_list(buf, test_then_block->test_then_block.scope->statement_list, level + 1, NULL);
+        print_ast_node_list(buf, test_then_block->test_then_block.test_then_statement_list, level + 1, NULL);
       }
       END_FOR_EACH_PTR(node);
       if (node->if_stmt.else_block) {
         printf_buf(buf, "%pelse\n", level);
-        print_ast_node_list(buf, node->if_stmt.else_block->statement_list, level + 1, NULL);
+        print_ast_node_list(buf, node->if_stmt.else_statement_list, level + 1, NULL);
       }
       printf_buf(buf, "%pend\n", level);
       break;
@@ -1889,13 +1901,13 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       printf_buf(buf, "%pwhile\n", level);
       print_ast_node(buf, node->while_or_repeat_stmt.condition, level + 1);
       printf_buf(buf, "%pdo\n", level);
-      print_ast_node_list(buf, node->while_or_repeat_stmt.loop_body->statement_list, level + 1, NULL);
+      print_ast_node_list(buf, node->while_or_repeat_stmt.loop_statement_list, level + 1, NULL);
       printf_buf(buf, "%pend\n", level);
       break;
     }
     case AST_REPEAT_STMT: {
       printf_buf(buf, "%prepeat\n", level);
-      print_ast_node_list(buf, node->while_or_repeat_stmt.loop_body->statement_list, level + 1, NULL);
+      print_ast_node_list(buf, node->while_or_repeat_stmt.loop_statement_list, level + 1, NULL);
       printf_buf(buf, "%puntil\n", level);
       print_ast_node(buf, node->while_or_repeat_stmt.condition, level + 1);
       printf_buf(buf, "%p%c\n", level, "[repeat end]");
@@ -1907,7 +1919,7 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       printf_buf(buf, "%pin\n", level);
       print_ast_node_list(buf, node->for_stmt.expressions, level + 1, ",");
       printf_buf(buf, "%pdo\n", level);
-      print_block_scope(buf, node->for_stmt.loop_body, level + 1);
+      print_statement_list(buf, node->for_stmt.for_statement_list, level + 1);
       printf_buf(buf, "%pend\n", level);
       break;
     }
@@ -1917,7 +1929,7 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       printf_buf(buf, "%p=\n", level);
       print_ast_node_list(buf, node->for_stmt.expressions, level + 1, ",");
       printf_buf(buf, "%pdo\n", level);
-      print_block_scope(buf, node->for_stmt.loop_body, level + 1);
+      print_statement_list(buf, node->for_stmt.for_statement_list, level + 1);
       printf_buf(buf, "%pend\n", level);
       break;
     }
@@ -2220,7 +2232,6 @@ static struct ast_container *new_ast_container(lua_State *L) {
                       CHUNK);
   dmrC_allocator_init(&container->symbol_allocator, "symbols", sizeof(struct lua_symbol), sizeof(double), CHUNK);
   container->main_function = NULL;
-  container->external_symbols = NULL;
   container->killed = false;
   luaL_getmetatable(L, AST_type);
   lua_setmetatable(L, -2);

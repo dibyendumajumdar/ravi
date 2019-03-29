@@ -1339,3 +1339,29 @@ function()
 end
 
 --
+--[[function x() local a=1; function y() return function() return a end end; end
+]]
+function()
+   x --global symbol ? 
+   =
+    function()
+      local
+      --[symbols]
+        a --local symbol ? 
+      --[expressions]
+        1
+       y --global symbol ? 
+       =
+        function()
+          return
+            function()
+              return
+                --[primary start]
+                  a --upvalue ? 
+                --[primary end]
+            end
+        end
+    end
+end
+
+--
