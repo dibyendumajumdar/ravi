@@ -103,7 +103,6 @@ struct block_scope {
   struct ast_node *function;            /* function owning this block - of type FUNCTION_EXPR */
   struct block_scope *parent;           /* parent block, may belong to parent function */
   struct lua_symbol_list *symbol_list;  /* symbols defined in this block */
-  //struct ast_node_list *do_statement_list; /* statements in this block */
 };
 
 enum ast_node_type {
