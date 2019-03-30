@@ -50,7 +50,7 @@ struct ast_container {
   struct allocator block_scope_allocator;
   struct allocator symbol_allocator;
   struct ast_node *main_function;
-  bool killed;                              /* flag to check if this is already destroyed */
+  bool killed; /* flag to check if this is already destroyed */
 };
 
 struct ast_node;
@@ -93,16 +93,16 @@ struct lua_symbol {
       struct block_scope *block;
     } label;
     struct {
-      struct lua_symbol *var; /* variable reference */
+      struct lua_symbol *var;    /* variable reference */
       struct ast_node *function; /* Where the upvalue lives */
     } upvalue;
   };
 };
 
 struct block_scope {
-  struct ast_node *function;            /* function owning this block - of type FUNCTION_EXPR */
-  struct block_scope *parent;           /* parent block, may belong to parent function */
-  struct lua_symbol_list *symbol_list;  /* symbols defined in this block */
+  struct ast_node *function;           /* function owning this block - of type FUNCTION_EXPR */
+  struct block_scope *parent;          /* parent block, may belong to parent function */
+  struct lua_symbol_list *symbol_list; /* symbols defined in this block */
 };
 
 enum ast_node_type {
@@ -164,14 +164,14 @@ struct ast_node {
       struct ast_node *function_expr;  /* Function's AST */
     } function_stmt;
     struct {
-      struct block_scope *scope; /* The do statement only creates a new scope */
+      struct block_scope *scope;               /* The do statement only creates a new scope */
       struct ast_node_list *do_statement_list; /* statements in this block */
     } do_stmt;
     struct {
       struct ast_node *condition;
       struct block_scope *test_then_scope;
       struct ast_node_list *test_then_statement_list; /* statements in this block */
-    } test_then_block; /* Used internally in if_stmt, not an independent AST node */
+    } test_then_block;                                /* Used internally in if_stmt, not an independent AST node */
     struct {
       struct ast_node_list *if_condition_list; /* Actually a list of test_then_blocks */
       struct block_scope *else_block;
@@ -187,7 +187,7 @@ struct ast_node {
       struct ast_node_list *expressions;
       struct block_scope *for_body;
       struct ast_node_list *for_statement_list; /* statements in this block */
-    } for_stmt; /* Used for both generic and numeric for loops */
+    } for_stmt;                                 /* Used for both generic and numeric for loops */
     struct {
       struct var_type type;
     } common_expr; /* To access the type field common to all expr objects */
@@ -222,12 +222,12 @@ struct ast_node {
       struct var_type type;
       unsigned int is_vararg : 1;
       unsigned int is_method : 1;
-      struct ast_node *parent_function;      /* parent function or NULL if main chunk */
-      struct block_scope *main_block;        /* the function's main block */
+      struct ast_node *parent_function;              /* parent function or NULL if main chunk */
+      struct block_scope *main_block;                /* the function's main block */
       struct ast_node_list *function_statement_list; /* statements in this block */
       struct lua_symbol_list *args;          /* arguments, also must be part of the function block's symbol list */
       struct ast_node_list *child_functions; /* child functions declared in this function */
-      struct lua_symbol_list *upvalues;        /* List of upvalues */
+      struct lua_symbol_list *upvalues;      /* List of upvalues */
     } function_expr;                         /* a literal expression whose result is a value of type function */
     struct {
       struct var_type type;
@@ -303,7 +303,8 @@ static int testnext(LexState *ls, int c) {
 }
 
 static void check(LexState *ls, int c) {
-  if (ls->t.token != c) error_expected(ls, c);
+  if (ls->t.token != c)
+    error_expected(ls, c);
 }
 
 static void checknext(LexState *ls, int c) {
@@ -325,9 +326,12 @@ static int block_follow(LexState *ls, int withuntil) {
     case TK_ELSE:
     case TK_ELSEIF:
     case TK_END:
-    case TK_EOS: return 1;
-    case TK_UNTIL: return withuntil;
-    default: return 0;
+    case TK_EOS:
+      return 1;
+    case TK_UNTIL:
+      return withuntil;
+    default:
+      return 0;
   }
 }
 
@@ -413,17 +417,20 @@ static struct lua_symbol *search_for_variable_in_block(struct block_scope *scope
   FOR_EACH_PTR_REVERSE(scope->symbol_list, symbol) {
     switch (symbol->symbol_type) {
       case SYM_LOCAL: {
-        if (varname == symbol->var.var_name) { return symbol; }
+        if (varname == symbol->var.var_name) {
+          return symbol;
+        }
         break;
       }
-      default: break;
+      default:
+        break;
     }
   }
   END_FOR_EACH_PTR_REVERSE(symbol);
   return NULL;
 }
 
-//static struct lua_symbol *search_for_label_in_block(struct block_scope *scope, const TString *name) {
+// static struct lua_symbol *search_for_label_in_block(struct block_scope *scope, const TString *name) {
 //  struct lua_symbol *symbol;
 //  // Lookup in reverse order so that we discover the
 //  // most recently added local symbol - as Lua allows same
@@ -449,15 +456,18 @@ static struct lua_symbol *search_for_variable_in_block(struct block_scope *scope
 static struct lua_symbol *search_upvalue_in_function(struct ast_node *function, const TString *name) {
   struct lua_symbol *symbol;
   FOR_EACH_PTR(function->function_expr.upvalues, symbol) {
-      switch (symbol->symbol_type) {
-        case SYM_UPVALUE: {
-          assert(symbol->upvalue.var->symbol_type == SYM_LOCAL);
-          if (name == symbol->upvalue.var->var.var_name) { return symbol; }
-          break;
+    switch (symbol->symbol_type) {
+      case SYM_UPVALUE: {
+        assert(symbol->upvalue.var->symbol_type == SYM_LOCAL);
+        if (name == symbol->upvalue.var->var.var_name) {
+          return symbol;
         }
-        default: break;
+        break;
       }
+      default:
+        break;
     }
+  }
   END_FOR_EACH_PTR(symbol);
   return NULL;
 }
@@ -468,15 +478,18 @@ static struct lua_symbol *search_upvalue_in_function(struct ast_node *function, 
 static bool add_upvalue_in_function(struct parser_state *parser, struct ast_node *function, struct lua_symbol *sym) {
   struct lua_symbol *symbol;
   FOR_EACH_PTR(function->function_expr.upvalues, symbol) {
-      switch (symbol->symbol_type) {
-        case SYM_UPVALUE: {
-          assert(symbol->upvalue.var->symbol_type == SYM_LOCAL);
-          if (sym == symbol->upvalue.var) { return false; }
-          break;
+    switch (symbol->symbol_type) {
+      case SYM_UPVALUE: {
+        assert(symbol->upvalue.var->symbol_type == SYM_LOCAL);
+        if (sym == symbol->upvalue.var) {
+          return false;
         }
-        default: break;
+        break;
       }
+      default:
+        break;
     }
+  }
   END_FOR_EACH_PTR(symbol);
   struct lua_symbol *upvalue = dmrC_allocator_allocate(&parser->container->symbol_allocator, 0);
   upvalue->symbol_type = SYM_UPVALUE;
@@ -486,7 +499,6 @@ static bool add_upvalue_in_function(struct parser_state *parser, struct ast_node
   add_symbol(parser->container, &function->function_expr.upvalues, upvalue);
   return true;
 }
-
 
 /* Searches for a variable starting from current scope, going up the
  * scope chain within the current function. If the variable is not found in any scope of the function, then
@@ -501,12 +513,14 @@ static struct lua_symbol *search_for_variable(struct parser_state *parser, const
     struct ast_node *current_function = current_scope->function;
     while (current_scope && current_function == current_scope->function) {
       struct lua_symbol *symbol = search_for_variable_in_block(current_scope, varname);
-      if (symbol) return symbol;
+      if (symbol)
+        return symbol;
       current_scope = current_scope->parent;
     }
     // search upvalues in the function
     struct lua_symbol *symbol = search_upvalue_in_function(current_function, varname);
-    if (symbol) return symbol;
+    if (symbol)
+      return symbol;
     // try in parent function
   }
   return NULL;
@@ -514,7 +528,7 @@ static struct lua_symbol *search_for_variable(struct parser_state *parser, const
 
 /* Searches for a label in current function
  */
-//static struct lua_symbol *search_for_label(struct parser_state *parser, const TString *name) {
+// static struct lua_symbol *search_for_label(struct parser_state *parser, const TString *name) {
 //  struct block_scope *current_scope = parser->current_scope;
 //  while (current_scope && current_scope->function == parser->current_function) {
 //    struct lua_symbol *symbol = search_for_label_in_block(current_scope, name);
@@ -528,7 +542,8 @@ static struct lua_symbol *search_for_variable(struct parser_state *parser, const
  * exists as a local or an upvalue. If the symbol is found in a function's upvalue list then there is no need to
  * check parent functions.
  */
-static void add_upvalue_in_levels_upto(struct parser_state *parser, struct ast_node *current_function, struct ast_node *var_function, struct lua_symbol *symbol) {
+static void add_upvalue_in_levels_upto(struct parser_state *parser, struct ast_node *current_function,
+                                       struct ast_node *var_function, struct lua_symbol *symbol) {
   assert(current_function != var_function);
   while (current_function && current_function != var_function) {
     bool added = add_upvalue_in_function(parser, current_function, symbol);
@@ -570,7 +585,7 @@ static struct ast_node *new_symbol_reference(struct parser_state *parser) {
     global->symbol_type = SYM_GLOBAL;
     global->var.var_name = varname;
     global->var.block = NULL;
-    set_type(global->value_type, RAVI_TANY); // Globals are always ANY type
+    set_type(global->value_type, RAVI_TANY);  // Globals are always ANY type
     // We don't add globals to any scope so that they are
     // always looked up
     symbol = global;
@@ -701,7 +716,8 @@ static struct ast_node *parse_table_constructor(struct parser_state *parser) {
   table_expr->table_expr.expr_list = NULL;
   table_expr->type = AST_TABLE_EXPR;
   do {
-    if (ls->t.token == '}') break;
+    if (ls->t.token == '}')
+      break;
     struct ast_node *field_expr = parse_field(parser);
     add_ast_node(parser->container, &table_expr->table_expr.expr_list, field_expr);
   } while (testnext(ls, ',') || testnext(ls, ';'));
@@ -781,7 +797,7 @@ static struct lua_symbol *declare_local_variable(struct parser_state *parser) {
       /* default is a userdata type */
       tt = RAVI_TUSERDATA;
       typename = user_defined_type_name(ls, typename);
-      //str = getstr(typename);
+      // str = getstr(typename);
       pusertype = typename;
     }
     if (tt == RAVI_TNUMFLT || tt == RAVI_TNUMINT) {
@@ -815,7 +831,8 @@ static bool parse_parameter_list(struct parser_state *parser, struct lua_symbol_
           is_vararg = true; /* declared vararg */
           break;
         }
-        default: luaX_syntaxerror(ls, "<name> or '...' expected");
+        default:
+          luaX_syntaxerror(ls, "<name> or '...' expected");
       }
     } while (!is_vararg && testnext(ls, ','));
   }
@@ -961,7 +978,8 @@ static struct ast_node *parse_suffixed_expression(struct parser_state *parser) {
         add_ast_node(parser->container, &suffixed_expr->suffixed_expr.suffix_list, suffix);
         break;
       }
-      default: return suffixed_expr;
+      default:
+        return suffixed_expr;
     }
   }
 }
@@ -1015,7 +1033,8 @@ static struct ast_node *parse_simple_expression(struct parser_state *parser) {
       expr = NULL;
       break;
     }
-    case '{': { /* constructor */ return parse_table_constructor(parser);
+    case '{': { /* constructor */
+      return parse_table_constructor(parser);
     }
     case TK_FUNCTION: {
       luaX_next(ls);
@@ -1033,46 +1052,81 @@ static struct ast_node *parse_simple_expression(struct parser_state *parser) {
 
 static UnOpr get_unary_opr(int op) {
   switch (op) {
-    case TK_NOT: return OPR_NOT;
-    case '-': return OPR_MINUS;
-    case '~': return OPR_BNOT;
-    case '#': return OPR_LEN;
-    case TK_TO_INTEGER: return OPR_TO_INTEGER;
-    case TK_TO_NUMBER: return OPR_TO_NUMBER;
-    case TK_TO_INTARRAY: return OPR_TO_INTARRAY;
-    case TK_TO_NUMARRAY: return OPR_TO_NUMARRAY;
-    case TK_TO_TABLE: return OPR_TO_TABLE;
-    case TK_TO_STRING: return OPR_TO_STRING;
-    case TK_TO_CLOSURE: return OPR_TO_CLOSURE;
-    case '@': return OPR_TO_TYPE;
-    default: return OPR_NOUNOPR;
+    case TK_NOT:
+      return OPR_NOT;
+    case '-':
+      return OPR_MINUS;
+    case '~':
+      return OPR_BNOT;
+    case '#':
+      return OPR_LEN;
+    case TK_TO_INTEGER:
+      return OPR_TO_INTEGER;
+    case TK_TO_NUMBER:
+      return OPR_TO_NUMBER;
+    case TK_TO_INTARRAY:
+      return OPR_TO_INTARRAY;
+    case TK_TO_NUMARRAY:
+      return OPR_TO_NUMARRAY;
+    case TK_TO_TABLE:
+      return OPR_TO_TABLE;
+    case TK_TO_STRING:
+      return OPR_TO_STRING;
+    case TK_TO_CLOSURE:
+      return OPR_TO_CLOSURE;
+    case '@':
+      return OPR_TO_TYPE;
+    default:
+      return OPR_NOUNOPR;
   }
 }
 
 static BinOpr get_binary_opr(int op) {
   switch (op) {
-    case '+': return OPR_ADD;
-    case '-': return OPR_SUB;
-    case '*': return OPR_MUL;
-    case '%': return OPR_MOD;
-    case '^': return OPR_POW;
-    case '/': return OPR_DIV;
-    case TK_IDIV: return OPR_IDIV;
-    case '&': return OPR_BAND;
-    case '|': return OPR_BOR;
-    case '~': return OPR_BXOR;
-    case TK_SHL: return OPR_SHL;
-    case TK_SHR: return OPR_SHR;
-    case TK_CONCAT: return OPR_CONCAT;
-    case TK_NE: return OPR_NE;
-    case TK_EQ: return OPR_EQ;
-    case '<': return OPR_LT;
-    case TK_LE: return OPR_LE;
-    case '>': return OPR_GT;
-    case TK_GE: return OPR_GE;
-    case TK_AND: return OPR_AND;
-    case TK_OR: return OPR_OR;
-    default: return OPR_NOBINOPR;
+    case '+':
+      return OPR_ADD;
+    case '-':
+      return OPR_SUB;
+    case '*':
+      return OPR_MUL;
+    case '%':
+      return OPR_MOD;
+    case '^':
+      return OPR_POW;
+    case '/':
+      return OPR_DIV;
+    case TK_IDIV:
+      return OPR_IDIV;
+    case '&':
+      return OPR_BAND;
+    case '|':
+      return OPR_BOR;
+    case '~':
+      return OPR_BXOR;
+    case TK_SHL:
+      return OPR_SHL;
+    case TK_SHR:
+      return OPR_SHR;
+    case TK_CONCAT:
+      return OPR_CONCAT;
+    case TK_NE:
+      return OPR_NE;
+    case TK_EQ:
+      return OPR_EQ;
+    case '<':
+      return OPR_LT;
+    case TK_LE:
+      return OPR_LE;
+    case '>':
+      return OPR_GT;
+    case TK_GE:
+      return OPR_GE;
+    case TK_AND:
+      return OPR_AND;
+    case TK_OR:
+      return OPR_OR;
+    default:
+      return OPR_NOBINOPR;
   }
 }
 
@@ -1198,7 +1252,8 @@ static struct ast_node *parse_goto_statment(struct parser_state *parser) {
 /* skip no-op statements */
 static void skip_noop_statements(struct parser_state *parser) {
   LexState *ls = parser->ls;
-  while (ls->t.token == ';' || ls->t.token == TK_DBCOLON) parse_statement(parser);
+  while (ls->t.token == ';' || ls->t.token == TK_DBCOLON)
+    parse_statement(parser);
 }
 
 static struct ast_node *generate_label(struct parser_state *parser, TString *label) {
@@ -1321,7 +1376,8 @@ static struct ast_node *parse_for_statement(struct parser_state *parser, int lin
       stmt->type = AST_FORIN_STMT;
       parse_for_list(parser, stmt, varname);
       break;
-    default: luaX_syntaxerror(ls, "'=' or 'in' expected");
+    default:
+      luaX_syntaxerror(ls, "'=' or 'in' expected");
   }
   check_match(ls, TK_END, TK_FOR, line);
   end_scope(parser);
@@ -1374,7 +1430,8 @@ static struct ast_node *parse_if_statement(struct parser_state *parser, int line
     test_then_block = parse_if_cond_then_block(parser); /* ELSEIF cond THEN block */
     add_ast_node(parser->container, &stmt->if_stmt.if_condition_list, test_then_block);
   }
-  if (testnext(ls, TK_ELSE)) stmt->if_stmt.else_block = parse_block(parser, &stmt->if_stmt.else_statement_list); /* 'else' part */
+  if (testnext(ls, TK_ELSE))
+    stmt->if_stmt.else_block = parse_block(parser, &stmt->if_stmt.else_statement_list); /* 'else' part */
   check_match(ls, TK_END, TK_IF, line);
   return stmt;
 }
@@ -1407,7 +1464,8 @@ static struct ast_node *parse_local_statement(struct parser_state *parser) {
     struct lua_symbol *symbol = declare_local_variable(parser);
     add_symbol(parser->container, &node->local_stmt.vars, symbol);
     nvars++;
-    if (nvars >= MAXVARS) luaX_syntaxerror(ls, "too many local variables");
+    if (nvars >= MAXVARS)
+      luaX_syntaxerror(ls, "too many local variables");
   } while (testnext(ls, ','));
   if (testnext(ls, '=')) /* nexps = */
     parse_expression_list(parser, &node->local_stmt.exprlist);
@@ -1432,7 +1490,9 @@ static struct ast_node *parse_function_name(struct parser_state *parser) {
   while (ls->t.token == '.') {
     add_ast_node(parser->container, &function_stmt->function_stmt.selectors, parse_field_selector(parser));
   }
-  if (ls->t.token == ':') { function_stmt->function_stmt.methodname = parse_field_selector(parser); }
+  if (ls->t.token == ':') {
+    function_stmt->function_stmt.methodname = parse_field_selector(parser);
+  }
   return function_stmt;
 }
 
@@ -1509,17 +1569,29 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
       luaX_next(ls); /* skip ';' */
       break;
     }
-    case TK_IF: { /* stat -> ifstat */ stmt = parse_if_statement(parser, line); break;
+    case TK_IF: { /* stat -> ifstat */
+      stmt = parse_if_statement(parser, line);
+      break;
     }
-    case TK_WHILE: { /* stat -> whilestat */ stmt = parse_while_statement(parser, line); break;
+    case TK_WHILE: { /* stat -> whilestat */
+      stmt = parse_while_statement(parser, line);
+      break;
     }
-    case TK_DO: { /* stat -> DO block END */ stmt = parse_do_statement(parser, line); break;
+    case TK_DO: { /* stat -> DO block END */
+      stmt = parse_do_statement(parser, line);
+      break;
     }
-    case TK_FOR: { /* stat -> forstat */ stmt = parse_for_statement(parser, line); break;
+    case TK_FOR: { /* stat -> forstat */
+      stmt = parse_for_statement(parser, line);
+      break;
     }
-    case TK_REPEAT: { /* stat -> repeatstat */ stmt = parse_repeat_statement(parser, line); break;
+    case TK_REPEAT: { /* stat -> repeatstat */
+      stmt = parse_repeat_statement(parser, line);
+      break;
     }
-    case TK_FUNCTION: { /* stat -> funcstat */ stmt = parse_function_statement(parser, line); break;
+    case TK_FUNCTION: { /* stat -> funcstat */
+      stmt = parse_function_statement(parser, line);
+      break;
     }
     case TK_LOCAL: {                 /* stat -> localstat */
       luaX_next(ls);                 /* skip LOCAL */
@@ -1539,10 +1611,14 @@ static struct ast_node *parse_statement(struct parser_state *parser) {
       stmt = parse_return_statement(parser);
       break;
     }
-    case TK_BREAK: /* stat -> breakstat */
-    case TK_GOTO: { /* stat -> 'goto' NAME */ stmt = parse_goto_statment(parser); break;
+    case TK_BREAK:  /* stat -> breakstat */
+    case TK_GOTO: { /* stat -> 'goto' NAME */
+      stmt = parse_goto_statment(parser);
+      break;
     }
-    default: { /* stat -> func | assignment */ stmt = parse_expression_statement(parser); break;
+    default: { /* stat -> func | assignment */
+      stmt = parse_expression_statement(parser);
+      break;
     }
   }
   return stmt;
@@ -1555,8 +1631,10 @@ static void parse_statement_list(struct parser_state *parser, struct ast_node_li
   while (!block_follow(ls, 1)) {
     bool was_return = ls->t.token == TK_RETURN;
     struct ast_node *stmt = parse_statement(parser);
-    if (stmt) add_ast_node(parser->container, list, stmt);
-    if (was_return) break; /* 'return' must be last statement */
+    if (stmt)
+      add_ast_node(parser->container, list, stmt);
+    if (was_return)
+      break; /* 'return' must be last statement */
   }
 }
 
@@ -1569,12 +1647,13 @@ static struct block_scope *new_scope(struct parser_state *parser) {
   struct ast_container *container = parser->container;
   struct block_scope *scope = dmrC_allocator_allocate(&container->block_scope_allocator, 0);
   scope->symbol_list = NULL;
-  //scope->do_statement_list = NULL;
+  // scope->do_statement_list = NULL;
   scope->function = parser->current_function;
   assert(scope->function && scope->function->type == AST_FUNCTION_EXPR);
   scope->parent = parser->current_scope;
   parser->current_scope = scope;
-  if (!parser->current_function->function_expr.main_block) parser->current_function->function_expr.main_block = scope;
+  if (!parser->current_function->function_expr.main_block)
+    parser->current_function->function_expr.main_block = scope;
   return scope;
 }
 
@@ -1713,8 +1792,7 @@ static void print_ast_node_list(membuff_t *buf, struct ast_node_list *list, int 
   END_FOR_EACH_PTR(node);
 }
 
-static void print_statement_list(membuff_t *buf, struct ast_node_list *statement_list,
-                                 int level) {
+static void print_statement_list(membuff_t *buf, struct ast_node_list *statement_list, int level) {
   print_ast_node_list(buf, statement_list, level + 1, NULL);
 }
 
@@ -1738,7 +1816,8 @@ static void print_symbol(membuff_t *buf, struct lua_symbol *sym, int level) {
                  get_as_str(sym->upvalue.var->value_type.type_name));
       break;
     }
-    default: assert(0);
+    default:
+      assert(0);
   }
 }
 
@@ -1757,46 +1836,81 @@ static void print_symbol_list(membuff_t *buf, struct lua_symbol_list *list, int 
 
 static const char *get_unary_opr_str(UnOpr op) {
   switch (op) {
-    case OPR_NOT: return "not";
-    case OPR_MINUS: return "-";
-    case OPR_BNOT: return "~";
-    case OPR_LEN: return "#";
-    case OPR_TO_INTEGER: return "@integer";
-    case OPR_TO_NUMBER: return "@number";
-    case OPR_TO_INTARRAY: return "@integer[]";
-    case OPR_TO_NUMARRAY: return "@number[]";
-    case OPR_TO_TABLE: return "@table";
-    case OPR_TO_CLOSURE: return "@closure";
-    case OPR_TO_STRING: return "@string";
-    case OPR_TO_TYPE: return "@<usertype>";
-    default: return "";
+    case OPR_NOT:
+      return "not";
+    case OPR_MINUS:
+      return "-";
+    case OPR_BNOT:
+      return "~";
+    case OPR_LEN:
+      return "#";
+    case OPR_TO_INTEGER:
+      return "@integer";
+    case OPR_TO_NUMBER:
+      return "@number";
+    case OPR_TO_INTARRAY:
+      return "@integer[]";
+    case OPR_TO_NUMARRAY:
+      return "@number[]";
+    case OPR_TO_TABLE:
+      return "@table";
+    case OPR_TO_CLOSURE:
+      return "@closure";
+    case OPR_TO_STRING:
+      return "@string";
+    case OPR_TO_TYPE:
+      return "@<usertype>";
+    default:
+      return "";
   }
 }
 
 static const char *get_binary_opr_str(BinOpr op) {
   switch (op) {
-    case OPR_ADD: return "+";
-    case OPR_SUB: return "-";
-    case OPR_MUL: return "*";
-    case OPR_MOD: return "%";
-    case OPR_POW: return "^";
-    case OPR_DIV: return "/";
-    case OPR_IDIV: return "//";
-    case OPR_BAND: return "&";
-    case OPR_BOR: return "|";
-    case OPR_BXOR: return "~";
-    case OPR_SHL: return "<<";
-    case OPR_SHR: return ">>";
-    case OPR_CONCAT: return "..";
-    case OPR_NE: return "~=";
-    case OPR_EQ: return "==";
-    case OPR_LT: return "<";
-    case OPR_LE: return "<=";
-    case OPR_GT: return ">";
-    case OPR_GE: return ">=";
-    case OPR_AND: return "and";
-    case OPR_OR: return "or";
-    default: return "";
+    case OPR_ADD:
+      return "+";
+    case OPR_SUB:
+      return "-";
+    case OPR_MUL:
+      return "*";
+    case OPR_MOD:
+      return "%";
+    case OPR_POW:
+      return "^";
+    case OPR_DIV:
+      return "/";
+    case OPR_IDIV:
+      return "//";
+    case OPR_BAND:
+      return "&";
+    case OPR_BOR:
+      return "|";
+    case OPR_BXOR:
+      return "~";
+    case OPR_SHL:
+      return "<<";
+    case OPR_SHR:
+      return ">>";
+    case OPR_CONCAT:
+      return "..";
+    case OPR_NE:
+      return "~=";
+    case OPR_EQ:
+      return "==";
+    case OPR_LT:
+      return "<";
+    case OPR_LE:
+      return "<=";
+    case OPR_GT:
+      return ">";
+    case OPR_GE:
+      return ">=";
+    case OPR_AND:
+      return "and";
+    case OPR_OR:
+      return "or";
+    default:
+      return "";
   }
 }
 
@@ -1817,7 +1931,8 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       printf_buf(buf, "%pend\n", level);
       break;
     }
-    case AST_NONE: break;
+    case AST_NONE:
+      break;
     case AST_RETURN_STMT: {
       printf_buf(buf, "%preturn\n", level);
       print_ast_node_list(buf, node->return_stmt.exprlist, level + 1, ",");
@@ -1978,12 +2093,23 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
     case AST_LITERAL_EXPR: {
       printf_buf(buf, "%p", level);
       switch (node->literal_expr.type.type_code) {
-        case RAVI_TNIL: printf_buf(buf, "nil"); break;
-        case RAVI_TBOOLEAN: printf_buf(buf, "%b", node->literal_expr.u.i); break;
-        case RAVI_TNUMINT: printf_buf(buf, "%i", node->literal_expr.u.i); break;
-        case RAVI_TNUMFLT: printf_buf(buf, "%f", node->literal_expr.u.n); break;
-        case RAVI_TSTRING: printf_buf(buf, "'%t'", node->literal_expr.u.s); break;
-        default: assert(0);
+        case RAVI_TNIL:
+          printf_buf(buf, "nil");
+          break;
+        case RAVI_TBOOLEAN:
+          printf_buf(buf, "%b", node->literal_expr.u.i);
+          break;
+        case RAVI_TNUMINT:
+          printf_buf(buf, "%i", node->literal_expr.u.i);
+          break;
+        case RAVI_TNUMFLT:
+          printf_buf(buf, "%f", node->literal_expr.u.n);
+          break;
+        case RAVI_TSTRING:
+          printf_buf(buf, "'%t'", node->literal_expr.u.s);
+          break;
+        default:
+          assert(0);
       }
       printf_buf(buf, "\n");
       break;
@@ -2022,7 +2148,9 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       printf_buf(buf, "%p} %c\n", level, "[table constructor end]");
       break;
     }
-    default: printf_buf(buf, "%pUnsupported node type %d\n", level, node->type); assert(0);
+    default:
+      printf_buf(buf, "%pUnsupported node type %d\n", level, node->type);
+      assert(0);
   }
 }
 
@@ -2120,7 +2248,8 @@ static int protected_ast_builder(lua_State *L, ZIO *z, const char *name, const c
 static int build_ast_from_reader(lua_State *L, lua_Reader reader, void *data, const char *chunkname, const char *mode) {
   ZIO z;
   int status;
-  if (!chunkname) chunkname = "?";
+  if (!chunkname)
+    chunkname = "?";
   luaZ_init(L, &z, reader, data);
   status = protected_ast_builder(L, &z, chunkname, mode);
   return status;
@@ -2164,7 +2293,8 @@ typedef struct string_buffer {
 static const char *string_reader(lua_State *L, void *ud, size_t *size) {
   String_buffer *ls = (String_buffer *)ud;
   (void)L; /* not used */
-  if (ls->size == 0) return NULL;
+  if (ls->size == 0)
+    return NULL;
   *size = ls->size;
   ls->size = 0;
   return ls->s;
@@ -2201,8 +2331,8 @@ static int build_ast(lua_State *L) {
   }
   if (status != 0) {
     lua_pushnil(L);
-    lua_insert(L, -2);  /* put before error message */
-    return 2;  /* return nil plus error message */
+    lua_insert(L, -2); /* put before error message */
+    return 2;          /* return nil plus error message */
   }
   return 1;
 }
