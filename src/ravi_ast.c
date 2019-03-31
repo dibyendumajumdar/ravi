@@ -283,6 +283,7 @@ static struct ast_node *parse_expression(struct parser_state *);
 static void parse_statement_list(struct parser_state *, struct ast_node_list **list);
 static struct ast_node *parse_statement(struct parser_state *);
 static struct ast_node *new_function(struct parser_state *parser);
+static struct ast_node *end_function(struct parser_state *parser);
 static struct block_scope *new_scope(struct parser_state *parser);
 static void end_scope(struct parser_state *parser);
 static struct ast_node *new_literal_expression(struct parser_state *parser, ravitype_t type);
@@ -506,15 +507,19 @@ static bool add_upvalue_in_function(struct parser_state *parser, struct ast_node
  * the symbol is found or we exhaust the search. NULL is returned if search was
  * exhausted.
  */
-static struct lua_symbol *search_for_variable(struct parser_state *parser, const TString *varname) {
+static struct lua_symbol *search_for_variable(struct parser_state *parser, const TString *varname, bool *is_local) {
+  *is_local = false;
   struct block_scope *current_scope = parser->current_scope;
+  struct ast_node *start_function = parser->current_function;
   assert(current_scope && current_scope->function == parser->current_function);
   while (current_scope) {
     struct ast_node *current_function = current_scope->function;
     while (current_scope && current_function == current_scope->function) {
       struct lua_symbol *symbol = search_for_variable_in_block(current_scope, varname);
-      if (symbol)
+      if (symbol) {
+        *is_local = (current_function == start_function);
         return symbol;
+      }
       current_scope = current_scope->parent;
     }
     // search upvalues in the function
@@ -554,15 +559,24 @@ static void add_upvalue_in_levels_upto(struct parser_state *parser, struct ast_n
   }
 }
 
+/* Is the current symbol a local function within current function?
+ */
+static bool is_local_function(struct parser_state *parser, struct lua_symbol *symbol) {
+  return symbol->symbol_type == SYM_LOCAL && symbol->value_type.type_code == RAVI_TFUNCTION &&
+         parser->current_function == symbol->var.block->function->function_expr.parent_function;
+}
+
 /* Creates a symbol reference to the name; the returned symbol reference
  * may be local, upvalue or global.
  */
 static struct ast_node *new_symbol_reference(struct parser_state *parser) {
   TString *varname = check_name_and_next(parser->ls);
-  struct lua_symbol *symbol = search_for_variable(parser, varname);
+  const char *str = getstr(varname);
+  bool is_local = false;
+  struct lua_symbol *symbol = search_for_variable(parser, varname, &is_local);
   if (symbol) {
     // we found a local or upvalue
-    if (symbol->symbol_type == SYM_LOCAL && symbol->var.block->function != parser->current_function) {
+    if (!is_local) {
       // If the local symbol occurred in a parent function then we
       // need to construct an upvalue. Lua requires that the upvalue be
       // added to all functions in the tree up to the function where the local
@@ -1040,6 +1054,7 @@ static struct ast_node *parse_simple_expression(struct parser_state *parser) {
       luaX_next(ls);
       struct ast_node *function_ast = new_function(parser);
       parse_function_body(parser, function_ast, 0, ls->linenumber);
+	  end_function(parser);
       return function_ast;
     }
     default: {
@@ -1442,6 +1457,7 @@ static struct ast_node *parse_local_function_statement(struct parser_state *pars
       new_local_symbol(parser, check_name_and_next(ls), RAVI_TFUNCTION, NULL); /* new local variable */
   struct ast_node *function_ast = new_function(parser);
   parse_function_body(parser, function_ast, 0, ls->linenumber); /* function created in next register */
+  end_function(parser);
   struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   stmt->type = AST_LOCAL_STMT;
   stmt->local_stmt.vars = NULL;
@@ -1504,6 +1520,7 @@ static struct ast_node *parse_function_statement(struct parser_state *parser, in
   int ismethod = function_stmt->function_stmt.methodname != NULL;
   struct ast_node *function_ast = new_function(parser);
   parse_function_body(parser, function_ast, ismethod, line);
+  end_function(parser);
   function_stmt->function_stmt.function_expr = function_ast;
   return function_stmt;
 }
@@ -1821,6 +1838,22 @@ static void print_symbol(membuff_t *buf, struct lua_symbol *sym, int level) {
   }
 }
 
+static void print_symbol_name(membuff_t *buf, struct lua_symbol *sym) {
+  switch (sym->symbol_type) {
+    case SYM_LOCAL:
+    case SYM_GLOBAL: {
+      printf_buf(buf, "%t", sym->var.var_name);
+      break;
+    }
+    case SYM_UPVALUE: {
+      printf_buf(buf, "%t", sym->upvalue.var->var.var_name);
+      break;
+    }
+    default:
+      assert(0);
+  }
+}
+
 static void print_symbol_list(membuff_t *buf, struct lua_symbol_list *list, int level, const char *delimiter) {
   struct lua_symbol *node;
   bool is_first = true;
@@ -1830,6 +1863,19 @@ static void print_symbol_list(membuff_t *buf, struct lua_symbol_list *list, int 
     else if (delimiter)
       printf_buf(buf, "%p%s\n", level, delimiter);
     print_symbol(buf, node, level + 1);
+  }
+  END_FOR_EACH_PTR(node);
+}
+
+static void print_symbol_names(membuff_t *buf, struct lua_symbol_list *list) {
+  struct lua_symbol *node;
+  bool is_first = true;
+  FOR_EACH_PTR(list, node) {
+    if (is_first)
+      is_first = false;
+    else
+      printf_buf(buf, ", ");
+    print_symbol_name(buf, node);
   }
   END_FOR_EACH_PTR(node);
 }
@@ -1921,11 +1967,14 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
         printf_buf(buf, "%pfunction(\n", level);
         print_symbol_list(buf, node->function_expr.args, level + 1, ",");
         printf_buf(buf, "%p)\n", level);
-        printf_buf(buf, "%pupvalues ", level);
-        print_symbol_list(buf, node->function_expr.upvalues, level + 1, ",");
       }
       else {
         printf_buf(buf, "%pfunction()\n", level);
+      }
+      if (node->function_expr.upvalues) {
+        printf_buf(buf, "%p%c ", level, "upvalues ");
+        print_symbol_names(buf, node->function_expr.upvalues);
+        printf_buf(buf, "\n");
       }
       print_statement_list(buf, node->function_expr.function_statement_list, level);
       printf_buf(buf, "%pend\n", level);

@@ -1353,8 +1353,10 @@ function()
        y --global symbol ? 
        =
         function()
+        --upvalues  a
           return
             function()
+            --upvalues  a
               return
                 --[primary start]
                   a --upvalue ? 

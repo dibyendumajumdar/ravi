@@ -1,0 +1,54 @@
+function()
+  return
+    function()
+      local
+      --[symbols]
+        a --local symbol ? 
+      --[expressions]
+        1
+      local
+      --[symbols]
+        y --local symbol function 
+      --[expressions]
+        function()
+        --upvalues  a
+          return
+            function()
+            --upvalues  a
+              return
+                --[primary start]
+                  a --upvalue ? 
+                --[primary end]
+            end
+        end
+      local
+      --[symbols]
+        a --local symbol ? 
+      --[expressions]
+        5
+      local
+      --[symbols]
+        z --local symbol function 
+      --[expressions]
+        function()
+        --upvalues  a
+          return
+            function()
+            --upvalues  a
+              return
+                --[primary start]
+                  a --upvalue ? 
+                --[primary end]
+            end
+        end
+      return
+        --[primary start]
+          y --local symbol function 
+        --[primary end]
+       ,
+        --[primary start]
+          z --local symbol function 
+        --[primary end]
+    end
+end
+
