@@ -559,13 +559,6 @@ static void add_upvalue_in_levels_upto(struct parser_state *parser, struct ast_n
   }
 }
 
-/* Is the current symbol a local function within current function?
- */
-static bool is_local_function(struct parser_state *parser, struct lua_symbol *symbol) {
-  return symbol->symbol_type == SYM_LOCAL && symbol->value_type.type_code == RAVI_TFUNCTION &&
-         parser->current_function == symbol->var.block->function->function_expr.parent_function;
-}
-
 /* Creates a symbol reference to the name; the returned symbol reference
  * may be local, upvalue or global.
  */
@@ -1054,7 +1047,7 @@ static struct ast_node *parse_simple_expression(struct parser_state *parser) {
       luaX_next(ls);
       struct ast_node *function_ast = new_function(parser);
       parse_function_body(parser, function_ast, 0, ls->linenumber);
-	  end_function(parser);
+      end_function(parser);
       return function_ast;
     }
     default: {
@@ -1727,6 +1720,8 @@ static void parse_lua_chunk(struct parser_state *parser) {
   parser->container->main_function->function_expr.is_vararg = true;
   parse_statement_list(parser, &parser->container->main_function->function_expr.function_statement_list);
   end_function(parser);
+  assert(parser->current_function == NULL);
+  assert(parser->current_scope == NULL);
   check(parser->ls, TK_EOS);
 }
 
