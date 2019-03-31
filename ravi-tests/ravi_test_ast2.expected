@@ -125,3 +125,80 @@ function()
     end
 end
 
+function()
+  return
+    function(
+      a --local symbol ? 
+    )
+      while
+       --[binary expr start]
+        --[primary start]
+          a --local symbol ? 
+        --[primary end]
+       <
+        10
+       --[binary expr end]
+      do
+        --[expression statement start]
+         --[var list start]
+           --[primary start]
+             a --local symbol ? 
+           --[primary end]
+         = --[var list end]
+         --[expression list start]
+           --[binary expr start]
+            --[primary start]
+              a --local symbol ? 
+            --[primary end]
+           +
+            1
+           --[binary expr end]
+         --[expression list end]
+        --[expression statement end]
+      end
+    end
+end
+
+function()
+  return
+    function(
+      a --local symbol ? 
+    )
+      ::L2::
+      if
+       --[unary expr start]
+       not
+        --[primary start]
+         --[binary expr start]
+          --[primary start]
+            a --local symbol ? 
+          --[primary end]
+         <
+          10
+         --[binary expr end]
+        --[primary end]
+       --[unary expr end]
+      then
+        goto L1
+      end
+      --[expression statement start]
+       --[var list start]
+         --[primary start]
+           a --local symbol ? 
+         --[primary end]
+       = --[var list end]
+       --[expression list start]
+         --[binary expr start]
+          --[primary start]
+            a --local symbol ? 
+          --[primary end]
+         +
+          1
+         --[binary expr end]
+       --[expression list end]
+      --[expression statement end]
+      goto L2
+      ::L1::
+    end
+end
+

@@ -1295,7 +1295,6 @@ static struct ast_node *parse_while_statement(struct parser_state *parser, int l
   checknext(ls, TK_DO);
   stmt->while_or_repeat_stmt.loop_scope = parse_block(parser, &stmt->while_or_repeat_stmt.loop_statement_list);
   check_match(ls, TK_END, TK_WHILE, line);
-  end_scope(parser);
   return stmt;
 }
 
