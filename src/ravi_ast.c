@@ -2341,7 +2341,7 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
 /* Type checker - WIP  */
 static void typecheck_ast_list(struct ast_node *function, struct ast_node_list *list) {
   struct ast_node *node;
-  FOR_EACH_PTR(list, node) { typecheck_statement(function, node); }
+  FOR_EACH_PTR(list, node) { typecheck_ast_node(function, node); }
   END_FOR_EACH_PTR(node);
 }
 
@@ -2355,7 +2355,6 @@ static void do_typechecks(struct ast_container *container) {
   struct ast_node *main_function = container->main_function;
   typecheck_function(main_function);
 }
-
 
 /*
 ** ravi parser context
