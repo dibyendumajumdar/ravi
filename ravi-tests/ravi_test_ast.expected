@@ -1311,6 +1311,7 @@ function()
    x --global symbol ? 
    =
     function()
+    --locals  i
       for
         i --local symbol ? 
       =
@@ -1345,6 +1346,7 @@ function()
    x --global symbol ? 
    =
     function()
+    --locals  a
       local
       --[symbols]
         a --local symbol ? 

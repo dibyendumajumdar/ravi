@@ -1,6 +1,7 @@
 function()
   return
     function()
+    --locals  a, y, a, z
       local
       --[symbols]
         a --local symbol ? 
@@ -65,6 +66,7 @@ function()
      ,
       e --local symbol ? 
     )
+    --locals  a, b, c, d, e
       if
        --[binary expr start]
         --[primary start]
@@ -130,6 +132,7 @@ function()
     function(
       a --local symbol ? 
     )
+    --locals  a
       while
        --[binary expr start]
         --[primary start]
@@ -164,6 +167,7 @@ function()
     function(
       a --local symbol ? 
     )
+    --locals  a
       ::L2::
       if
        --[unary expr start]
@@ -234,6 +238,76 @@ function()
          --[suffix list end]
        --[expression list end]
       --[expression statement end]
+    end
+end
+
+function()
+  return
+    function()
+    --locals  sum, j, k
+      local
+      --[symbols]
+        sum --local symbol ? 
+      for
+        j --local symbol ? 
+      =
+        1
+       ,
+        500
+      do
+         --[expression statement start]
+          --[var list start]
+            --[primary start]
+              sum --local symbol ? 
+            --[primary end]
+          = --[var list end]
+          --[expression list start]
+            0.0000000000000000
+          --[expression list end]
+         --[expression statement end]
+         for
+           k --local symbol ? 
+         =
+           1
+          ,
+           10000
+         do
+            --[expression statement start]
+             --[var list start]
+               --[primary start]
+                 sum --local symbol ? 
+               --[primary end]
+             = --[var list end]
+             --[expression list start]
+               --[binary expr start]
+                --[primary start]
+                  sum --local symbol ? 
+                --[primary end]
+               +
+                --[binary expr start]
+                 1.0000000000000000
+                /
+                 --[primary start]
+                  --[binary expr start]
+                   --[primary start]
+                     k --local symbol ? 
+                   --[primary end]
+                  *
+                   --[primary start]
+                     k --local symbol ? 
+                   --[primary end]
+                  --[binary expr end]
+                 --[primary end]
+                --[binary expr end]
+               --[binary expr end]
+             --[expression list end]
+            --[expression statement end]
+         end
+      end
+      return
+        --[primary start]
+          sum --local symbol ? 
+        --[primary end]
     end
 end
 

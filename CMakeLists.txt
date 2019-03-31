@@ -31,6 +31,8 @@ if (ASM_VM)
     # TODO A fix is needed to ensure that in shared library the asm functions are resolved
     set(STATIC_BUILD ON)
     set(LTESTS OFF)
+    set(LLVM_JIT OFF)
+    set(OMR_JIT OFF)
 endif()
 
 if (STATIC_BUILD)

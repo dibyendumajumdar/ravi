@@ -41,7 +41,6 @@
 /* Select native target if no target defined. */
 #ifndef RAVI__TARGET
 	#if defined(__i386) || defined(__i386__) || defined(_M_IX86)
-		#error "No support for this architecture (yet)"
 		#define RAVI__TARGET	RAVI__ARCH_X86
 	#elif defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
 		#define RAVI__TARGET	RAVI__ARCH_X64
