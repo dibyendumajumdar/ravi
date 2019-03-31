@@ -53,3 +53,10 @@ str=
                   goto L2; ::L1:: end
 ]]
 doast(str)
+
+str=
+[[return function ()
+    (function () end){f()}
+  end
+]]
+doast(str)

@@ -202,3 +202,38 @@ function()
     end
 end
 
+function()
+  return
+    function()
+      --[expression statement start]
+       --[expression list start]
+         --[primary start]
+          function()
+          end
+         --[primary end]
+         --[suffix list start]
+           --[function call start]
+            (
+              { --[table constructor start]
+                --[indexed assign start]
+                --[value start]
+                 --[primary start]
+                   f --global symbol ? 
+                 --[primary end]
+                 --[suffix list start]
+                   --[function call start]
+                    (
+                    )
+                   --[function call end]
+                 --[suffix list end]
+                --[value end]
+                --[indexed assign end]
+              } --[table constructor end]
+            )
+           --[function call end]
+         --[suffix list end]
+       --[expression list end]
+      --[expression statement end]
+    end
+end
+
