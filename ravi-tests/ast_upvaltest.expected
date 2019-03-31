@@ -52,3 +52,76 @@ function()
     end
 end
 
+function()
+  return
+    function(
+      a --local symbol ? 
+     ,
+      b --local symbol ? 
+     ,
+      c --local symbol ? 
+     ,
+      d --local symbol ? 
+     ,
+      e --local symbol ? 
+    )
+      if
+       --[binary expr start]
+        --[primary start]
+          a --local symbol ? 
+        --[primary end]
+       ==
+        --[primary start]
+          b --local symbol ? 
+        --[primary end]
+       --[binary expr end]
+      then
+        goto l1
+      elseif
+       --[binary expr start]
+        --[primary start]
+          a --local symbol ? 
+        --[primary end]
+       ==
+        --[primary start]
+          c --local symbol ? 
+        --[primary end]
+       --[binary expr end]
+      then
+        goto l2
+      elseif
+       --[binary expr start]
+        --[primary start]
+          a --local symbol ? 
+        --[primary end]
+       ==
+        --[primary start]
+          d --local symbol ? 
+        --[primary end]
+       --[binary expr end]
+      then
+        goto l2
+      else
+        if
+         --[binary expr start]
+          --[primary start]
+            a --local symbol ? 
+          --[primary end]
+         ==
+          --[primary start]
+            e --local symbol ? 
+          --[primary end]
+         --[binary expr end]
+        then
+          goto l3
+        else
+          goto l3
+        end
+      end
+      ::l1::
+      ::l2::
+      ::l3::
+      ::l4::
+    end
+end
+

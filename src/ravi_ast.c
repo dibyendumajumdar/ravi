@@ -1260,7 +1260,7 @@ static struct ast_node *parse_goto_statment(struct parser_state *parser) {
 /* skip no-op statements */
 static void skip_noop_statements(struct parser_state *parser) {
   LexState *ls = parser->ls;
-  while (ls->t.token == ';' || ls->t.token == TK_DBCOLON)
+  while (ls->t.token == ';') //  || ls->t.token == TK_DBCOLON)
     parse_statement(parser);
 }
 
