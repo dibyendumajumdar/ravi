@@ -101,7 +101,7 @@ represented by 2*max), which is half the maximum for the corresponding
 unsigned argument.
 
 Note that B and C operands need to have an extra bit compared to A.
-This is because B and A can reference registers or constants, and the
+This is because B and C can reference registers or constants, and the
 extra bit is used to decide which one. But A always references registers
 so it doesn't need the extra bit.
 
