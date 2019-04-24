@@ -253,15 +253,17 @@ struct ast_node {
   };
 };
 
+#define set_typecode(vt, t) \
+  (vt).type_code = t
 #define set_type(vt, t) \
-  (vt).type_code = t;   \
+  (vt).type_code = t,   \
   (vt).type_name = NULL
 #define set_typename(vt, t, name) \
-  (vt).type_code = t;             \
+  (vt).type_code = t,             \
   (vt).type_name = (name)
 #define is_type_same(a, b) ((a).type_code == (b).type_code && (a).type_name == (b).type_name)
 #define copy_type(a, b)          \
-  (a).type_code = (b).type_code; \
+  (a).type_code = (b).type_code, \
   (a).type_name = (b).type_name
 
 struct parser_state {
@@ -290,6 +292,7 @@ static void end_scope(struct parser_state *parser);
 static struct ast_node *new_literal_expression(struct parser_state *parser, ravitype_t type);
 static struct ast_node *generate_label(struct parser_state *parser, TString *label);
 static struct ast_container *new_ast_container(lua_State *L);
+static void do_typechecks(struct ast_container *container);
 
 static l_noret error_expected(LexState *ls, int token) {
   luaX_syntaxerror(ls, luaO_pushfstring(ls->L, "%s expected", luaX_token2str(ls, token)));
@@ -1186,8 +1189,8 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
     expr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
     expr->type = AST_UNARY_EXPR;
     expr->unary_expr.expr = subexpr;
-    copy_type(expr->unary_expr.type, subexpr->common_expr.type);  // FIXME
     expr->unary_expr.unary_op = uop;
+	expr->unary_expr.type.type_name = usertype;
   }
   else {
     expr = parse_simple_expression(parser);
@@ -1205,7 +1208,6 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
     binexpr->binary_expr.exprleft = expr;
     binexpr->binary_expr.exprright = exprright;
     binexpr->binary_expr.binary_op = op;
-    copy_type(binexpr->binary_expr.type, expr->common_expr.type);  // FIXME - needs to be worked out
     expr = binexpr;                                                // Becomes the left expr for next iteration
     op = nextop;
   }
@@ -1725,6 +1727,7 @@ static void parse_lua_chunk(struct parser_state *parser) {
   assert(parser->current_function == NULL);
   assert(parser->current_scope == NULL);
   check(parser->ls, TK_EOS);
+  do_typechecks(parser->container);
 }
 
 static void parser_state_init(struct parser_state *parser, LexState *ls, struct ast_container *container) {
@@ -1732,6 +1735,35 @@ static void parser_state_init(struct parser_state *parser, LexState *ls, struct 
   parser->container = container;
   parser->current_function = NULL;
   parser->current_scope = NULL;
+}
+
+static const char *type_name(ravitype_t tt) {
+  switch (tt) {
+    case RAVI_TANY:
+      return "any";
+    case RAVI_TNIL:
+      return "nil";
+    case RAVI_TBOOLEAN:
+      return "boolean";
+    case RAVI_TNUMFLT:
+      return "number";
+    case RAVI_TNUMINT:
+      return "integer";
+    case RAVI_TTABLE:
+      return "table";
+    case RAVI_TSTRING:
+      return "string";
+    case RAVI_TARRAYINT:
+      return "integer[]";
+    case RAVI_TARRAYFLT:
+      return "number[]";
+    case RAVI_TFUNCTION:
+      return "closure";
+    case RAVI_TUSERDATA:
+      return "";
+    default:
+      return "";
+  }
 }
 
 static void printf_buf(membuff_t *buf, const char *format, ...) {
@@ -1752,6 +1784,18 @@ static void printf_buf(membuff_t *buf, const char *format, ...) {
       ts = va_arg(ap, const TString *);
       const char *s = getstr(ts);
       membuff_add_string(buf, s);
+      cp++;
+    }
+    else if (cp[0] == '%' && cp[1] == 'T') { /* struct var_type */
+      const struct var_type *type;
+      type = va_arg(ap, const struct var_type *);
+      if (type->type_code == RAVI_TUSERDATA) {
+        const char *s = getstr(type->type_name);
+        membuff_add_string(buf, s);
+      }
+      else {
+        membuff_add_string(buf, type_name(type->type_code));
+      }
       cp++;
     }
     else if (cp[0] == '%' && cp[1] == 's') { /* const char * */
@@ -2135,7 +2179,7 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       break;
     }
     case AST_UNARY_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[unary expr start]");
+      printf_buf(buf, "%p%c %T\n", level, "[unary expr start]", &node->unary_expr.type);
       printf_buf(buf, "%p%s\n", level, get_unary_opr_str(node->unary_expr.unary_op));
       print_ast_node(buf, node->unary_expr.expr, level + 1);
       printf_buf(buf, "%p%c\n", level, "[unary expr end]");
@@ -2240,26 +2284,83 @@ static int parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff, const char *name, i
 static void typecheck_ast_node(struct ast_node *function, struct ast_node *node);
 
 /* Type checker - WIP  */
+static void typecheck_ast_list(struct ast_node *function, struct ast_node_list *list) {
+  struct ast_node *node;
+  FOR_EACH_PTR(list, node) { typecheck_ast_node(function, node); }
+  END_FOR_EACH_PTR(node);
+}
+
+/* Type checker - WIP  */
 static void typecheck_unaryop(struct ast_node *function, struct ast_node *node) {
   UnOpr op = node->unary_expr.unary_op;
   typecheck_ast_node(function, node->unary_expr.expr);
+  ravitype_t subexpr_type = node->unary_expr.expr->common_expr.type.type_code;
+  switch (op) {
+    case OPR_MINUS:
+      if (subexpr_type == RAVI_TNUMINT) {
+        set_type(node->unary_expr.type, RAVI_TNUMINT);
+      }
+      else if (subexpr_type == RAVI_TNUMFLT) {
+        set_type(node->unary_expr.type, RAVI_TNUMFLT);
+      }
+      break;
+    case OPR_LEN:
+      if (subexpr_type == RAVI_TARRAYINT || subexpr_type == RAVI_TARRAYFLT) {
+        set_type(node->unary_expr.type, RAVI_TNUMINT);
+      }
+      else if (subexpr_type == RAVI_TTABLE) {
+        // FIXME we need insert a TO_INT instruction;
+      }
+      break;
+    case OPR_TO_INTEGER:
+      set_type(node->unary_expr.type, RAVI_TNUMINT);
+      break;
+    case OPR_TO_NUMBER:
+      set_type(node->unary_expr.type, RAVI_TNUMFLT);
+      break;
+    case OPR_TO_CLOSURE:
+      set_type(node->unary_expr.type, RAVI_TFUNCTION);
+      break;
+    case OPR_TO_STRING:
+      set_type(node->unary_expr.type, RAVI_TSTRING);
+      break;
+    case OPR_TO_INTARRAY:
+      set_type(node->unary_expr.type, RAVI_TARRAYINT);
+	  // FIXME we need to change the constructor type if expr is {}
+      break;
+    case OPR_TO_NUMARRAY:
+      set_type(node->unary_expr.type, RAVI_TARRAYFLT);
+	  // FIXME we need to change the constructor type if expr is {}
+      break;
+    case OPR_TO_TABLE:
+      set_type(node->unary_expr.type, RAVI_TTABLE);
+      break;
+    case OPR_TO_TYPE:
+      lua_assert(node->unary_expr.type.type_name != NULL);  // Should already be set by the parser
+      set_typecode(node->unary_expr.type, RAVI_TUSERDATA);
+      break;
+    default:
+      break;
+  }
 }
-
 /* Type checker - WIP  */
 static void typecheck_ast_node(struct ast_node *function, struct ast_node *node) {
   switch (node->type) {
     case AST_FUNCTION_EXPR: {
+      typecheck_ast_list(function, node->function_expr.function_statement_list);
       break;
     }
     case AST_NONE:
       break;
     case AST_RETURN_STMT: {
+      typecheck_ast_list(function, node->return_stmt.exprlist);
       break;
     }
     case AST_LOCAL_STMT: {
       break;
     }
     case AST_FUNCTION_STMT: {
+      typecheck_ast_node(function, node->function_stmt.function_expr);
       break;
     }
     case AST_LABEL_STMT: {
@@ -2338,12 +2439,6 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
   }
 }
 
-/* Type checker - WIP  */
-static void typecheck_ast_list(struct ast_node *function, struct ast_node_list *list) {
-  struct ast_node *node;
-  FOR_EACH_PTR(list, node) { typecheck_ast_node(function, node); }
-  END_FOR_EACH_PTR(node);
-}
 
 /* Type checker - WIP  */
 static void typecheck_function(struct ast_node *func) {
