@@ -2309,7 +2309,7 @@ static void typecheck_unaryop(struct ast_node *function, struct ast_node *node) 
         set_type(node->unary_expr.type, RAVI_TNUMINT);
       }
       else if (subexpr_type == RAVI_TTABLE) {
-        // FIXME we need insert a TO_INT instruction;
+        // FIXME we need insert a TO_INT expression;
       }
       break;
     case OPR_TO_INTEGER:

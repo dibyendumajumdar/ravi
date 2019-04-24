@@ -170,7 +170,7 @@ function()
     --locals  a
       ::L2::
       if
-       --[unary expr start]
+       --[unary expr start] any
        not
         --[primary start]
          --[binary expr start]
@@ -218,7 +218,7 @@ function()
          --[suffix list start]
            --[function call start]
             (
-              { --[table constructor start]
+              { --[table constructor start] table
                 --[indexed assign start]
                 --[value start]
                  --[primary start]
