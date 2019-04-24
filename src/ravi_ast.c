@@ -2238,7 +2238,7 @@ static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       break;
     }
     case AST_TABLE_EXPR: {
-      printf_buf(buf, "%p{ %c\n", level, "[table constructor start]");
+      printf_buf(buf, "%p{ %c %T\n", level, "[table constructor start]", &node->table_expr.type);
       print_ast_node_list(buf, node->table_expr.expr_list, level + 1, ",");
       printf_buf(buf, "%p} %c\n", level, "[table constructor end]");
       break;
@@ -2326,11 +2326,15 @@ static void typecheck_unaryop(struct ast_node *function, struct ast_node *node) 
       break;
     case OPR_TO_INTARRAY:
       set_type(node->unary_expr.type, RAVI_TARRAYINT);
-	  // FIXME we need to change the constructor type if expr is {}
+      if (node->unary_expr.expr->type == AST_TABLE_EXPR) {
+        set_type(node->unary_expr.expr->table_expr.type, RAVI_TARRAYINT);
+      }
       break;
     case OPR_TO_NUMARRAY:
       set_type(node->unary_expr.type, RAVI_TARRAYFLT);
-	  // FIXME we need to change the constructor type if expr is {}
+      if (node->unary_expr.expr->type == AST_TABLE_EXPR) {
+        set_type(node->unary_expr.expr->table_expr.type, RAVI_TARRAYFLT);
+      }
       break;
     case OPR_TO_TABLE:
       set_type(node->unary_expr.type, RAVI_TTABLE);

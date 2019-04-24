@@ -1397,7 +1397,7 @@ function()
   return
     --[unary expr start] table
     @table
-     { --[table constructor start]
+     { --[table constructor start] table
      } --[table constructor end]
     --[unary expr end]
 end
@@ -1409,7 +1409,7 @@ function()
   return
     --[unary expr start] integer[]
     @integer[]
-     { --[table constructor start]
+     { --[table constructor start] integer[]
      } --[table constructor end]
     --[unary expr end]
 end
@@ -1421,7 +1421,7 @@ function()
   return
     --[unary expr start] number[]
     @number[]
-     { --[table constructor start]
+     { --[table constructor start] number[]
      } --[table constructor end]
     --[unary expr end]
 end
@@ -1446,6 +1446,19 @@ function()
     --[unary expr start] number
     @number
      54.3999999999999986
+    --[unary expr end]
+end
+
+--
+--[[return @User.Type a
+]]
+function()
+  return
+    --[unary expr start] User.Type
+    @<usertype>
+     --[primary start]
+       a --global symbol ? 
+     --[primary end]
     --[unary expr end]
 end
 
