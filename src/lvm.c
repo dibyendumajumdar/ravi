@@ -1605,10 +1605,10 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_EQ) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
-		int res;
+        int res;
         Protect(
-		  res = luaV_equalobj(L, rb, rc);
-		)
+          res = luaV_equalobj(L, rb, rc);
+        )
         if (res != GETARG_A(i))
           pc++;
         else
@@ -1856,7 +1856,7 @@ int luaV_execute (lua_State *L) {
         }
         h = hvalue(ra);
         last = ((c-1)*LFIELDS_PER_FLUSH) + n;
-		savepc(L);  /* in case of allocation errors */
+        savepc(L);  /* in case of allocation errors */
         if (h->ravi_array.array_type == RAVI_TTABLE) {
           if (last > h->sizearray)  /* needs more space? */
             luaH_resizearray(L, h, last);  /* pre-allocate it at once */

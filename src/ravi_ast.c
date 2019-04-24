@@ -569,7 +569,6 @@ static void add_upvalue_in_levels_upto(struct parser_state *parser, struct ast_n
  */
 static struct ast_node *new_symbol_reference(struct parser_state *parser) {
   TString *varname = check_name_and_next(parser->ls);
-  const char *str = getstr(varname);
   bool is_local = false;
   struct lua_symbol *symbol = search_for_variable(parser, varname, &is_local);
   if (symbol) {
