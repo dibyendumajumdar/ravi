@@ -223,17 +223,6 @@ I think it might be useful to create a test harness that mocks the Lua structure
 and functions so that each bytecode instruction can be tested in isolation. This will need some work however, so not yet sure.
 The other alternative is to check by running Lua scripts which is how we test Ravi normally.
 
-Building and Testing ASM VM
----------------------------
-Right now the ASM VM can only be invoked via the Lua C api. 
-Hence I am testing the VM via [a test harness](https://github.com/dibyendumajumdar/ravi/blob/master/tests/test_vm.c).
-To build Ravi with ASM VM enabled, first build VMBuilder as above.
-Then build Ravi with following options:
-
-```
--DSTATIC_BUILD=ON -DCMAKE_BUILD_TYPE=Debug -DASM_VM=ON
-```
-
 Windows X64 Specifics
 ---------------------
 On Windows the VMBuilder tool generates object code rather than an assembly source file. Win64 also requires some special data 
@@ -298,12 +287,11 @@ And the epilogue::
 As you can see the unwind information basically tells Windows what the epilogue is supposed to be, and where to find the saved
 values of the registers.
 
-Building Ravi With New VM
--------------------------
+Building Ravi With New ASM VM
+-----------------------------
 This is only for the brave who want to hack with the code.
 
 To enable the new VM first build and install VMBuilder as described above.
 Then build Ravi using the cmake flags ``-DSTATIC_BUILD=ON`` and ``-DASM_VM=ON`` enabled. Don't enable JIT.
 
-Right now the ASM VM is exercised via the ``test_vm`` sub project. The ASM VM is only invoked in special cases, i.e. a function has small number of instructions and only contains supported instructions, and additionally as OP_CALL is not yet implemented, you can only call the new VM via the Lua C api (see test_asmvm() in test_vm.c).
-
+Right now the ASM VM is exercised via the ``test_vm`` sub project. The ASM VM is only invoked in special cases, i.e. a function has small number of instructions and only contains supported instructions, and additionally as OP_CALL is not yet implemented, you can only call the new VM via the Lua C api (see [test_asmvm() in test_vm.c](https://github.com/dibyendumajumdar/ravi/blob/master/tests/test_vm.c)).
