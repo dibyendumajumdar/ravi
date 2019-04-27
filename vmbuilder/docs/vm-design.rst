@@ -223,6 +223,17 @@ I think it might be useful to create a test harness that mocks the Lua structure
 and functions so that each bytecode instruction can be tested in isolation. This will need some work however, so not yet sure.
 The other alternative is to check by running Lua scripts which is how we test Ravi normally.
 
+Building and Testing ASM VM
+---------------------------
+Right now the ASM VM can only be invoked via the Lua C api. 
+Hence I am testing the VM via [a test harness](https://github.com/dibyendumajumdar/ravi/blob/master/tests/test_vm.c).
+To build Ravi with ASM VM enabled, first build VMBuilder as above.
+Then build Ravi with following options:
+
+```
+-DSTATIC_BUILD=ON -DCMAKE_BUILD_TYPE=Debug -DASM_VM=ON
+```
+
 Windows X64 Specifics
 ---------------------
 On Windows the VMBuilder tool generates object code rather than an assembly source file. Win64 also requires some special data 
