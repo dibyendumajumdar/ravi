@@ -287,12 +287,11 @@ And the epilogue::
 As you can see the unwind information basically tells Windows what the epilogue is supposed to be, and where to find the saved
 values of the registers.
 
-Building Ravi With New VM
--------------------------
+Building Ravi With New ASM VM
+-----------------------------
 This is only for the brave who want to hack with the code.
 
 To enable the new VM first build and install VMBuilder as described above.
 Then build Ravi using the cmake flags ``-DSTATIC_BUILD=ON`` and ``-DASM_VM=ON`` enabled. Don't enable JIT.
 
-Right now the ASM VM is exercised via the ``test_vm`` sub project. The ASM VM is only invoked in special cases, i.e. a function has small number of instructions and only contains supported instructions, and additionally as OP_CALL is not yet implemented, you can only call the new VM via the Lua C api (see test_asmvm() in test_vm.c).
-
+Right now the ASM VM is exercised via the ``test_vm`` sub project. The ASM VM is only invoked in special cases, i.e. a function has small number of instructions and only contains supported instructions, and additionally as OP_CALL is not yet implemented, you can only call the new VM via the Lua C api (see `test_asmvm() in test_vm.c <https://github.com/dibyendumajumdar/ravi/blob/master/tests/test_vm.c>`_).
