@@ -1767,7 +1767,7 @@ static const char *type_name(ravitype_t tt) {
 
 static void printf_buf(membuff_t *buf, const char *format, ...) {
   static const char *PADDING = "                                                                                ";
-  char tbuf[80] = {0};
+  char tbuf[128] = {0};
   va_list ap;
   const char *cp;
   va_start(ap, format);
