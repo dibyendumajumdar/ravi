@@ -8,22 +8,14 @@ compiler:
 cache: ccache
 addons:
   apt:
-    sources:
-      - llvm-toolchain-precise
-      - ubuntu-toolchain-r-test
     packages:
-      - clang-3.7
-      - g++-5
-      - gcc-5
+      - g++
+      - gcc
       - ccache
 install:
- - if [ "$CXX" = "g++" ]; then export CXX="ccache g++-5" CC="ccache gcc-5"; fi
- - if [ "$CXX" = "clang++" ]; then export CXX="ccache clang++-3.7" CC="ccache clang-3.7"; fi
  - curl https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.tar.gz | tar -xzf -
  - curl http://releases.llvm.org/6.0.1/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-14.04.tar.xz | tar -xJf -
 script:
- - if [ "$CXX" = "g++" ]; then export CXX="ccache g++-5" CC="ccache gcc-5"; fi
- - if [ "$CXX" = "clang++" ]; then export CXX="ccache clang++-3.7" CC="ccache clang-3.7"; fi
  - mkdir $TRAVIS_BUILD_DIR/build
  - cd $TRAVIS_BUILD_DIR/build && $TRAVIS_BUILD_DIR/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=$TRAVIS_BUILD_DIR/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-14.04/lib/cmake/llvm -G "Unix Makefiles" -DLLVM_JIT=ON ..
  - cd $TRAVIS_BUILD_DIR/build && make
