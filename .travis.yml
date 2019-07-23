@@ -14,7 +14,7 @@ addons:
       - ccache
 install:
  - curl https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.tar.gz | tar -xzf -
- - curl http://releases.llvm.org/6.0.1/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-14.04.tar.xz | tar -xJf -
+ - curl http://releases.llvm.org/6.0.1/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz | tar -xJf -
 script:
  - mkdir $TRAVIS_BUILD_DIR/build
  - cd $TRAVIS_BUILD_DIR/build && $TRAVIS_BUILD_DIR/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=$TRAVIS_BUILD_DIR/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-14.04/lib/cmake/llvm -G "Unix Makefiles" -DLLVM_JIT=ON ..
