@@ -6,6 +6,7 @@ env:
 compiler:
  - gcc
 cache: ccache
+dist: xenial
 addons:
   apt:
     packages:
