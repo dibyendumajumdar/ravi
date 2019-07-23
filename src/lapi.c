@@ -851,28 +851,24 @@ LUA_API int ravi_is_integer_array(lua_State *L, int idx) {
 
 /* Get the raw data associated with the number array at idx.
  * Note that Ravi arrays have an extra element at offset 0 - this
- * function returns a pointer to &data[0] - bear in mind that
+ * function returns a pointer to &data[0]
  */
-LUA_API lua_Number* ravi_get_number_array_rawdata(lua_State *L, int idx, size_t *len) {
+LUA_API void ravi_get_number_array_rawdata(lua_State *L, int idx, Ravi_NumberArray *data) {
   StkId o = index2addr(L, idx);
-  lua_assert(ttisfarray(o));
-  lua_Number *startp, *endp;
-  raviH_get_number_array_rawdata(L, hvalue(o), &startp, &endp);
-  *len = (endp - startp);
-  return startp;
+  if (!ttisfarray(o))
+    luaG_runerror(L, "number[] required");
+  raviH_get_number_array_rawdata(L, hvalue(o), data);
 }
 
 /* Get the raw data associated with the number array at idx.
-* Note that Ravi arrays have an extra element at offset 0 - this
-* function returns a pointer to &data[0] - bear in mind that
-*/
-LUA_API lua_Integer* ravi_get_integer_array_rawdata(lua_State *L, int idx, size_t *len) {
+ * Note that Ravi arrays have an extra element at offset 0 - this
+ * function returns a pointer to &data[0]
+ */
+LUA_API void ravi_get_integer_array_rawdata(lua_State *L, int idx, Ravi_IntegerArray *data) {
   StkId o = index2addr(L, idx);
-  lua_assert(ttisiarray(o));
-  lua_Integer *startp, *endp;
-  raviH_get_integer_array_rawdata(L, hvalue(o), &startp, &endp);
-  *len = (endp - startp);
-  return startp;
+  if (!ttisiarray(o))
+    luaG_runerror(L, "integer[] required");
+  raviH_get_integer_array_rawdata(L, hvalue(o), data);
 }
 
 /* Create a slice of an existing array

@@ -77,27 +77,33 @@ required to get to a node in the hash table
 
 #endif
 
-#if defined(RAVI_ENABLED)
 /*
 ** search function for short strings
 */
+#if !RAVI_USE_INLINE_SHORTSTR_TGET
+LUAI_FUNC const TValue *luaH_getshortstr (Table *t, TString *key);
+#else
+LUAI_FUNC const TValue *luaH_getshortstr_continue(Table *t, TString *key, Node *n);
 static RAVI_ALWAYS_INLINE const TValue *luaH_getshortstr(Table *t, TString *key) {
+  /* We inline the lookup in first two slots */
   Node *n = hashstr(t, key);
   lua_assert(key->tt == LUA_TSHRSTR);
-  for (;;) {  /* check whether 'key' is somewhere in the chain */
-    const TValue *k = gkey(n);
-    if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
-      return gval(n);  /* that's it */
-    else {
-      int nx = gnext(n);
-      if (nx == 0)
-        return luaO_nilobject;  /* not found */
-      n += nx;
-    }
-  }
+  const TValue *k = gkey(n);
+  if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
+    return gval(n); /* that's it */
+  int nx = gnext(n);
+  if (nx == 0)
+    return luaO_nilobject; /* not found */
+  n += nx;
+  k = gkey(n);
+  if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
+    return gval(n); /* that's it */
+  nx = gnext(n);
+  if (nx == 0)
+    return luaO_nilobject; /* not found */
+  /* Okay continue search slowly */
+  return luaH_getshortstr_continue(t, key, n);
 }
-#else
-LUAI_FUNC const TValue *luaH_getshortstr (Table *t, TString *key);
 #endif
 LUAI_FUNC const TValue *luaH_getstr (Table *t, TString *key);
 LUAI_FUNC const TValue *luaH_get (Table *t, const TValue *key);
@@ -197,8 +203,8 @@ LUAI_FUNC const TValue *raviH_slice_parent(lua_State *L, TValue *slice);
       raviH_set_float(L, t, ukey, (value));                                    \
   }
 
-LUAI_FUNC void raviH_get_number_array_rawdata(lua_State *L, Table *t, lua_Number **startp, lua_Number **endp);
-LUAI_FUNC void raviH_get_integer_array_rawdata(lua_State *L, Table *t, lua_Integer **startp, lua_Integer **endp);
+LUAI_FUNC void raviH_get_number_array_rawdata(lua_State *L, Table *t, Ravi_NumberArray *data);
+LUAI_FUNC void raviH_get_integer_array_rawdata(lua_State *L, Table *t, Ravi_IntegerArray *data);
 
 #if defined(LUA_DEBUG)
 LUAI_FUNC Node *luaH_mainposition (const Table *t, const TValue *key);

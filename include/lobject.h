@@ -599,10 +599,10 @@ typedef enum RaviArrayModifer {
 
 /** RAVI extension */
 typedef struct RaviArray {
-  char *data;
-  unsigned int len; /* RAVI len specialization */
-  unsigned int size; /* amount of memory allocated */
-  lu_byte array_type; /* RAVI specialization */
+  char *data;             /* Note that the array data is 0-based so this holds 1+Lua length items */
+  unsigned int len;       /* RAVI len specialization, holds real length which is 1+Lua length */
+  unsigned int size;      /* amount of memory allocated */
+  lu_byte array_type;     /* RAVI specialization */
   lu_byte array_modifier; /* Flags that affect how the array is handled */
 } RaviArray;
 

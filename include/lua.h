@@ -23,7 +23,7 @@
 
 #define LUA_VERSION	"Ravi " LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
 #define LUA_RELEASE	LUA_VERSION "." LUA_VERSION_RELEASE
-#define LUA_COPYRIGHT	LUA_RELEASE "\nCopyright (C) 1994-2018 Lua.org, PUC-Rio\nPortions Copyright (C) 2015-2018 Dibyendu Majumdar"
+#define LUA_COPYRIGHT	LUA_RELEASE "\nCopyright (C) 1994-2019 Lua.org, PUC-Rio\nPortions Copyright (C) 2015-2019 Dibyendu Majumdar"
 #define LUA_AUTHORS	"R. Ierusalimschy, L. H. de Figueiredo, W. Celes, Dibyendu Majumdar"
 
 
@@ -551,9 +551,11 @@ LUA_API void  (ravi_pushcfastcall)(lua_State *L, void *ptr, int tag);
 
 /* Allowed tags - subject to change. Max value is 128. Note that
    each tag requires special handling in ldo.c */
-#define RAVI_TFCF_EXP 1
-#define RAVI_TFCF_LOG 2
-#define RAVI_TFCF_D_D 3
+enum {
+  RAVI_TFCF_EXP = 1,
+  RAVI_TFCF_LOG = 2,
+  RAVI_TFCF_D_D = 3,
+};
 
 /* Create an integer array (specialization of Lua table)
  * of given size and initialize array with supplied initial value
@@ -592,10 +594,24 @@ LUA_API int ravi_is_integer_array(lua_State *L, int idx);
 /* Get the raw data associated with the number array at idx.
  * Note that Ravi arrays have an extra element at offset 0 - this
  * function returns a pointer to &data[0]. The number of
- * array elements is returned in len.
+ * array elements is returned in length.
  */
-LUA_API lua_Number *ravi_get_number_array_rawdata(lua_State *L, int idx, size_t *len);
-LUA_API lua_Integer *ravi_get_integer_array_rawdata(lua_State *L, int idx, size_t *len);
+typedef struct {
+  lua_Number *data;
+  unsigned int length;
+} Ravi_NumberArray;
+LUA_API void ravi_get_number_array_rawdata(lua_State *L, int idx, Ravi_NumberArray *array_data);
+
+/* Get the raw data associated with the integer array at idx.
+ * Note that Ravi arrays have an extra element at offset 0 - this
+ * function returns a pointer to &data[0]. The number of
+ * array elements is returned in length.
+ */
+typedef struct {
+  lua_Integer *data;
+  unsigned int length;
+} Ravi_IntegerArray;
+LUA_API void ravi_get_integer_array_rawdata(lua_State *L, int idx, Ravi_IntegerArray *array_data);
 
 /* API to set the output functions used by Lua / Ravi
  * This allows the default implementations to be overridden
@@ -640,7 +656,6 @@ LUA_API void ravi_set_debuglevel(int level);
 
 #define RAVI_DEBUG_STACK(p) if ((ravi_parser_debug & 8) != 0) {p;} else {}
 
-#define RAVI_ENABLED 1
 #define RAVI_BYTECODE_PROFILING_ENABLED 0
 
 

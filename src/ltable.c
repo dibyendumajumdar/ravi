@@ -598,7 +598,8 @@ const TValue *luaH_getint (Table *t, lua_Integer key) {
   }
 }
 
-#if !defined(RAVI_ENABLED)
+#if !RAVI_USE_INLINE_SHORTSTR_TGET
+/* RAVI Change - we have split this into two parts - an inline part and a continue part */
 /*
 ** search function for short strings
 */
@@ -615,6 +616,19 @@ const TValue *luaH_getshortstr (Table *t, TString *key) {
         return luaO_nilobject;  /* not found */
       n += nx;
     }
+  }
+}
+#else
+/* Continue search from n */
+const TValue *luaH_getshortstr_continue(Table *t, TString *key, Node *n) {
+  for (;;) { /* check whether 'key' is somewhere in the chain starting from next node after n */
+    int nx = gnext(n);
+    if (nx == 0)
+      return luaO_nilobject; /* not found */
+    n += nx;
+    const TValue *k = gkey(n);
+    if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
+      return gval(n); /* that's it */
   }
 }
 #endif
@@ -877,20 +891,18 @@ Table *raviH_new_number_array(lua_State *L, unsigned int len,
   return t;
 }
 
-void raviH_get_number_array_rawdata(lua_State *L, Table *t, lua_Number **startp, lua_Number **endp) {
+void raviH_get_number_array_rawdata(lua_State *L, Table *t, Ravi_NumberArray *data) {
   (void)L;
   lua_assert(t->ravi_array.array_type == RAVI_TARRAYFLT);
-  lua_Number *data = (lua_Number *)t->ravi_array.data;
-  *startp = data;
-  *endp = data + t->ravi_array.len;
+  data->data = (lua_Number *)t->ravi_array.data;
+  data->length = t->ravi_array.len;
 }
 
-void raviH_get_integer_array_rawdata(lua_State *L, Table *t, lua_Integer **startp, lua_Integer **endp) {
+void raviH_get_integer_array_rawdata(lua_State *L, Table *t, Ravi_IntegerArray *data) {
   (void)L;
   lua_assert(t->ravi_array.array_type == RAVI_TARRAYINT);
-  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
-  *startp = data;
-  *endp = data + t->ravi_array.len;
+  data->data = (lua_Integer *)t->ravi_array.data;
+  data->length = t->ravi_array.len;
 }
 
 static const char *key_orig_table = "Originaltable";
