@@ -11,6 +11,7 @@ Key Features of Lua
 * Lua versions matter
 * Lua is dynamically typed like Python
 * By default variables in Lua are global unless declared local
+* Lua has no line terminators
 * There is a single complex / aggregate type called a 'table', which combines hash table/map and array features
 * Functions in Lua are values stored in variables; in particular functions do not have names
 * Globals in Lua are just values stored in a special Lua table 
@@ -82,6 +83,19 @@ There are some exceptions to the rule:
 
 * the iterator variables declared in a ``for`` loop are implicitly local.
 * function parameters are local to the function 
+
+Lua has no line terminators
+===========================
+Strictly speaking you can terminate Lua statements using ``;``. However it is not necessary except in some cases to avoid ambiguity.
+
+This design has some consequences that took me by surprise::
+
+  local x y = 5
+  
+Above creates a local variable ``x`` and sets a global ``y`` to ``5``. Because it actually parses as::
+
+  local x
+  y = 5
 
 The 'table' type
 ================
