@@ -37,6 +37,12 @@
 #define USE_ORC_JIT 0
 #endif
 
+#if LLVM_VERSION_MAJOR >= 8
+#define USE_ORCv2_JIT 0
+#else
+#define USE_ORCv2_JIT 0
+#endif
+
 // In lua.c we include this just to get version numbers
 // We cannot have C++ headers in that case
 #ifdef __cplusplus
@@ -71,7 +77,7 @@
 #include "llvm/Support/FormattedStream.h"
 
 
-#if USE_ORC_JIT
+#if USE_ORC_JIT || USE_ORCv2_JIT
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/RTDyldMemoryManager.h"
@@ -81,6 +87,7 @@
 #include "llvm/ExecutionEngine/Orc/IRTransformLayer.h"
 #include "llvm/ExecutionEngine/Orc/LambdaResolver.h"
 #include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
+#include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
 #include "llvm/ExecutionEngine/Orc/CompileOnDemandLayer.h"
 #include "llvm/ExecutionEngine/Orc/CompileUtils.h"
 #include "llvm/IR/Mangler.h"
@@ -88,8 +95,9 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 
-#if LLVM_VERSION_MAJOR >= 7
+#if LLVM_VERSION_MAJOR >= 8
 #include "llvm/ExecutionEngine/Orc/Legacy.h"
+#include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 #endif
 #endif
 

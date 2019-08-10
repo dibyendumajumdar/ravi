@@ -141,6 +141,27 @@ RaviJITState::RaviJITState()
     init++;
   }
   triple_ = llvm::sys::getProcessTriple();
+
+#if USE_ORCv2_JIT
+
+  auto JTMB = llvm::orc::JITTargetMachineBuilder::detectHost();
+  auto dataLayout = JTMB->getDefaultDataLayoutForTarget();
+
+  ES = std::unique_ptr<llvm::orc::ExecutionSession>(new llvm::orc::ExecutionSession());
+  ObjectLayer = std::unique_ptr<llvm::orc::RTDyldObjectLinkingLayer>(new llvm::orc::RTDyldObjectLinkingLayer(*ES,
+                                                                                                     []() { return llvm::make_unique<llvm::SectionMemoryManager>(); }));
+  CompileLayer = std::unique_ptr<llvm::orc::IRCompileLayer>(new llvm::orc::IRCompileLayer(*ES, *ObjectLayer, llvm::orc::ConcurrentIRCompiler(std::move(*JTMB))));
+  OptimizeLayer = std::unique_ptr<llvm::orc::IRTransformLayer>(new llvm::orc::IRTransformLayer(*ES, *CompileLayer, optimizeModule));
+  DL = std::unique_ptr<llvm::DataLayout>(new llvm::DataLayout(std::move(*dataLayout)));
+  Mangle = std::unique_ptr<llvm::orc::MangleAndInterner>(new llvm::orc::MangleAndInterner(*ES, *this->DL));
+  Ctx = std::unique_ptr<llvm::orc::ThreadSafeContext>(new llvm::orc::ThreadSafeContext(llvm::make_unique<llvm::LLVMContext>()));
+  ES->getMainJITDylib().setGenerator(
+      cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(*DL)));
+
+  types_ = new LuaLLVMTypes(*Ctx->getContext());
+
+#else
+
 #if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7)
   // On Windows we get compilation error saying incompatible object format
   // Reading posts on mailing lists I found that the issue is that COEFF
@@ -166,7 +187,9 @@ RaviJITState::RaviJITState()
   ObjectLayer =
       std::unique_ptr<ObjectLayerT>(new ObjectLayerT([]() { return std::make_shared<llvm::SectionMemoryManager>(); }));
 #endif
+
   CompileLayer = std::unique_ptr<CompileLayerT>(new CompileLayerT(*ObjectLayer, llvm::orc::SimpleCompiler(*TM)));
+
 #if LLVM_VERSION_MAJOR >= 8
   OptimizeLayer = std::unique_ptr<OptimizerLayerT>(new OptimizerLayerT(
       *CompileLayer, [this](std::unique_ptr<llvm::Module> M) { return optimizeModule(std::move(M)); }));
@@ -181,9 +204,12 @@ RaviJITState::RaviJITState()
   OptimizeLayer = std::unique_ptr<OptimizerLayerT>(new OptimizerLayerT(
       *CompileLayer, [this](std::shared_ptr<llvm::Module> M) { return optimizeModule(std::move(M)); }));
 #endif
+
 #endif
 
   types_ = new LuaLLVMTypes(*context_);
+
+#endif // USE_ORCv2_JIT
 
   for (int i = 0; global_syms[i].name != nullptr; i++) {
     llvm::sys::DynamicLibrary::AddSymbol(global_syms[i].name, global_syms[i].address);
@@ -195,23 +221,26 @@ RaviJITState::RaviJITState()
 RaviJITState::~RaviJITState() {
   assert(allocated_modules_ == 0);
   delete types_;
+#ifndef USE_ORCv2_JIT
   delete context_;
+#endif
 }
 
-#if USE_ORC_JIT
+#if USE_ORC_JIT || USE_ORCv2_JIT
+#if USE_ORCv2_JIT
+llvm::Expected<llvm::orc::ThreadSafeModule> RaviJITState::optimizeModule(llvm::orc::ThreadSafeModule TSM, const llvm::orc::MaterializationResponsibility &R) {
+#else
 #if LLVM_VERSION_MAJOR >= 8
 std::unique_ptr<llvm::Module> RaviJITState::optimizeModule(std::unique_ptr<llvm::Module> M) {
 #else
 std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm::Module> M) {
 #endif
-#if LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7
-  using llvm::legacy::FunctionPassManager;
-  using llvm::legacy::PassManager;
-#else
-  using llvm::FunctionPassManager;
-  using llvm::PassManager;
 #endif
 
+  using llvm::legacy::FunctionPassManager;
+  using llvm::legacy::PassManager;
+
+#if !USE_ORCv2_JIT
   if (get_verbosity() >= 1)
     M->print(llvm::errs(), nullptr, false, true);
   if (get_verbosity() >= 3)
@@ -222,6 +251,7 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
     TM->Options.EnableFastISel = 1;
   else
     TM->Options.EnableFastISel = 0;
+#endif
 
   // We use the PassManagerBuilder to setup optimization
   // passes - the PassManagerBuilder allows easy configuration of
@@ -230,58 +260,45 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
   // dumped to stderr
 
   llvm::PassManagerBuilder pmb;
+
+#if USE_ORCv2_JIT
+  pmb.OptLevel = 2;
+  pmb.SizeLevel = 0;
+#else
   pmb.OptLevel = get_optlevel();
   pmb.SizeLevel = get_sizelevel();
-
+#endif
   {
     // Create a function pass manager for this engine
-    std::unique_ptr<FunctionPassManager> FPM(new FunctionPassManager(M.get()));
-
-    // Set up the optimizer pipeline.  Start with registering info about how the
-    // target lays out data structures.
-#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 6
-    // LLVM 3.6.0 change
-    module_->setDataLayout(engine_->getDataLayout());
-    FPM->add(new llvm::DataLayoutPass());
-#elif LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 5
-    // LLVM 3.5.0
-    auto target_layout = engine_->getTargetMachine()->getDataLayout();
-    module_->setDataLayout(target_layout);
-    FPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
-#elif LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7
-  // Apparently no need to set DataLayout
+#if USE_ORCv2_JIT
+    auto FPM = llvm::make_unique<FunctionPassManager>(TSM.getModule());
 #else
-#error Unsupported LLVM version
+    std::unique_ptr<FunctionPassManager> FPM(new FunctionPassManager(M.get()));
 #endif
     pmb.populateFunctionPassManager(*FPM);
     FPM->doInitialization();
     // Run the optimizations over all functions in the module being added to
     // the JIT.
+#if USE_ORCv2_JIT
+    for (auto &F : *TSM.getModule())
+      FPM->run(F);
+#else
     for (auto &F : *M)
       FPM->run(F);
+#endif
   }
-
+#if USE_ORCv2_JIT
+  std::unique_ptr<PassManager> MPM(new PassManager());
+  pmb.populateModulePassManager(*MPM);
+  MPM->run(*TSM.getModule());
+  return TSM;
+#else
   std::string codestr;
   {
-    // In LLVM 3.7 for some reason the string is not saved
-    // until the stream is destroyed - even though there is a
-    // flush; so we introduce a scope here to ensure destruction
-    // of the stream
     llvm::raw_string_ostream ostream(codestr);
-#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7
-    llvm::formatted_raw_ostream formatted_stream(ostream);
-#else
     llvm::buffer_ostream formatted_stream(ostream);
-#endif
 
-    // Also in 3.7 the pass manager seems to hold on to the stream
-    // so we need to ensure that the stream outlives the pass manager
     std::unique_ptr<PassManager> MPM(new PassManager());
-#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 6
-    MPM->add(new llvm::DataLayoutPass());
-#elif LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR == 5
-    MPM->add(new llvm::DataLayoutPass(*engine_->getDataLayout()));
-#endif
     pmb.populateModulePassManager(*MPM);
 
     for (int i = 0; get_verbosity() == 2 && i < 1; i++) {
@@ -299,16 +316,12 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
       }
     }
     MPM->run(*M);
-
-    // Note that in 3.7 this flus appears to have no effect
-#if LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 7
-    formatted_stream.flush();
-#endif
   }
   if (get_verbosity() == 2 && codestr.length() > 0)
     llvm::errs() << codestr << "\n";
 
   return M;
+#endif
 }
 
 #endif
@@ -317,7 +330,12 @@ void RaviJITState::addGlobalSymbol(const std::string &name, void *address) {
   llvm::sys::DynamicLibrary::AddSymbol(name, address);
 }
 
-#if USE_ORC_JIT
+#if USE_ORCv2_JIT
+llvm::Error RaviJITState::addModule(std::unique_ptr<llvm::Module> M) {
+  return OptimizeLayer->add(ES->getMainJITDylib(),
+                           llvm::orc::ThreadSafeModule(std::move(M), *Ctx));
+}
+#elif USE_ORC_JIT
 RaviJITState::ModuleHandle RaviJITState::addModule(std::unique_ptr<llvm::Module> M) {
 #if LLVM_VERSION_MAJOR >= 8
   // Create a new VModuleKey.
@@ -399,7 +417,10 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
   char buf[40];
   snprintf(buf, sizeof buf, "ravi_module_%d", myid);
   std::string moduleName(buf);
-#if USE_ORC_JIT
+#if USE_ORCv2_JIT
+  module_ = std::unique_ptr<llvm::Module>(new llvm::Module(moduleName, owner->context()));
+  module_->setDataLayout(owner_->getDataLayout());
+#elif USE_ORC_JIT
   module_ = std::unique_ptr<llvm::Module>(new llvm::Module(moduleName, owner->context()));
   module_->setDataLayout(owner_->getTargetMachine().createDataLayout());
 #else
@@ -458,7 +479,7 @@ RaviJITModule::~RaviJITModule() {
     // if engine was created then we don't need to delete the
     // module as it would have been deleted by the engine
     delete module_;
-#else
+#elif !USE_ORCv2_JIT
   owner()->removeModule(module_handle_);
 #endif
   owner_->decr_allocated_modules();
@@ -620,10 +641,12 @@ void RaviJITModule::finalize(bool doDump) {
   // explicitly or a function such as MCJIT::getPointerToFunction
   // is called which requires the code to have been generated.
   engine_->finalizeObject();
-#else
+#elif !USE_ORCv2_JIT
   // With ORC api, the module gets compiled when it is added
   // The optimization passes are run via the callback
   module_handle_ = owner()->addModule(std::move(module_));
+#else
+  owner()->addModule(std::move(module_));
 #endif
   for (int i = 0; i < functions_.size(); i++) {
     if (functions_[i] == nullptr)
@@ -649,7 +672,11 @@ void RaviJITFunction::setFunctionPtr() {
   if (function_) {
     auto symbol = owner()->findSymbol(name());
     if (symbol) {
+#if USE_ORCv2_JIT
+      ptr_ = (void *)(intptr_t)(symbol->getAddress());
+#else
       ptr_ = (void *)(intptr_t)llvm::cantFail(symbol.getAddress());
+#endif
       *func_ptrptr_ = (lua_CFunction)ptr_;
     }
   }

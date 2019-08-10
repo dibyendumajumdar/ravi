@@ -389,10 +389,23 @@ class RaviJITStateFactory {
 // All of the JIT information is held here
 class RaviJITState {
   friend class RaviJITModule;
+
+#if USE_ORCv2_JIT
+
+  std::unique_ptr<llvm::orc::ExecutionSession> ES;
+  std::unique_ptr<llvm::orc::RTDyldObjectLinkingLayer> ObjectLayer;
+  std::unique_ptr<llvm::orc::IRCompileLayer> CompileLayer;
+  std::unique_ptr<llvm::orc::IRTransformLayer> OptimizeLayer;
+
+  std::unique_ptr<llvm::DataLayout> DL;
+  std::unique_ptr<llvm::orc::MangleAndInterner> Mangle;
+  std::unique_ptr<llvm::orc::ThreadSafeContext> Ctx;
+
+#elif USE_ORC_JIT
+
   // The LLVM Context
   llvm::LLVMContext *context_;
 
-#if USE_ORC_JIT
   // From LLVM version5 onwards we use the new ORC apis
   // The main benefit is that memory management is tighter,
   // all the IR in modules get released after compilation
@@ -432,7 +445,13 @@ class RaviJITState {
   std::unique_ptr<CODLayerT> CompileOnDemandLayer;
 #endif
 
-#endif
+#else
+
+  // Not ORC_JIT
+  // The LLVM Context
+  llvm::LLVMContext *context_;
+
+#endif // USE_ORCv2_JIT
 
   // The triple represents the host target
   std::string triple_;
@@ -483,22 +502,48 @@ class RaviJITState {
   RaviJITState();
   ~RaviJITState();
 
-#if USE_ORC_JIT
+#if USE_ORCv2_JIT
+
+  llvm::LLVMContext &context() { return *Ctx->getContext(); }
+
+  static llvm::Expected<llvm::orc::ThreadSafeModule> optimizeModule(llvm::orc::ThreadSafeModule TSM, const llvm::orc::MaterializationResponsibility &R);
+
+  llvm::Error addModule(std::unique_ptr<llvm::Module> M);
+
+  llvm::Expected<llvm::JITEvaluatedSymbol> findSymbol(llvm::StringRef Name) {
+    return ES->lookup({&ES->getMainJITDylib()}, (*Mangle)(Name.str()));
+  }
+
+  const llvm::DataLayout &getDataLayout() const { return *DL; }
+
+#elif USE_ORC_JIT
+
 #if LLVM_VERSION_MAJOR >= 8
   std::unique_ptr<llvm::Module> optimizeModule(std::unique_ptr<llvm::Module> M);
 #else
   std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> M);
 #endif
+
   llvm::TargetMachine &getTargetMachine() { return *TM; }
+
   ModuleHandle addModule(std::unique_ptr<llvm::Module> M);
+
   llvm::JITSymbol findSymbol(const std::string& Name);
+
   void removeModule(ModuleHandle H);
+
+  llvm::LLVMContext &context() { return *context_; }
+
+#else
+
+  // Not ORC JIT
+  llvm::LLVMContext &context() { return *context_; }
+
 #endif
 
   void addGlobalSymbol(const std::string &name, void *address);
 
   void dump();
-  llvm::LLVMContext &context() { return *context_; }
   LuaLLVMTypes *types() const { return types_; }
   const std::string &triple() const { return triple_; }
   bool is_auto() const { return auto_; }
@@ -548,14 +593,13 @@ class RaviJITModule {
   // The Context that owns this module
   RaviJITState *owner_;
 
-#if !USE_ORC_JIT
-  // The LLVM Module within which the functions will be defined
-  llvm::Module *module_;
+#if USE_ORCv2_JIT
 
-  // The execution engine responsible for compiling the
-  // module
-  llvm::ExecutionEngine *engine_;
-#else
+  // The LLVM Module within which the functions will be defined
+  std::unique_ptr<llvm::Module> module_;
+
+#elif USE_ORC_JIT
+
   // The LLVM Module within which the functions will be defined
   std::unique_ptr<llvm::Module> module_;
 
@@ -563,6 +607,16 @@ class RaviJITModule {
   // then a handle is used to refer to it rather than the
   // module, as the module may have been deleted by then
   RaviJITState::ModuleHandle module_handle_;
+
+#else
+
+  // The LLVM Module within which the functions will be defined
+  llvm::Module *module_;
+
+  // The execution engine responsible for compiling the
+  // module
+  llvm::ExecutionEngine *engine_;
+
 #endif
 
   // List of JIT functions in this module
@@ -577,13 +631,14 @@ class RaviJITModule {
   RaviJITModule(RaviJITState *owner);
   ~RaviJITModule();
 
-#if !USE_ORC_JIT
+#if !USE_ORC_JIT && !USE_ORCv2_JIT
   llvm::Module *module() const { return module_; }
   llvm::ExecutionEngine *engine() const { return engine_; }
 #else
   // Note that this can return nullptr
   llvm::Module *module() const { return module_.get(); }
 #endif
+
   RaviJITState *owner() const { return owner_; }
   void dump();
   void dumpAssembly();
@@ -653,7 +708,7 @@ class RaviJITFunction {
   // Note that this can return nullptr
   llvm::Module *module() const { return module_->module(); }
   std::shared_ptr<RaviJITModule> raviModule() const { return module_; }
-#if !USE_ORC_JIT
+#if !USE_ORC_JIT && !USE_ORCv2_JIT
   llvm::ExecutionEngine *engine() const { return module_->engine(); }
 #endif
   RaviJITState *owner() const { return module_->owner(); }
