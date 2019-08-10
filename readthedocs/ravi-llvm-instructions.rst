@@ -23,7 +23,7 @@ LLVM JIT Backend
 ================
 Following versions of LLVM work with Ravi.
 
-* LLVM 3.7, 3.8, 3.9, 4.0, 5.0, 6.0
+* LLVM 3.7, 3.8, 3.9, 4.0, 5.0, 6.0, 8.0.1
 * LLVM 3.5 and 3.6 should also work but have not been recently tested
 
 Unless otherwise noted the instructions below should work for LLVM 3.9 and later.
