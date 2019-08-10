@@ -146,17 +146,21 @@ RaviJITState::RaviJITState()
 
   auto JTMB = llvm::orc::JITTargetMachineBuilder::detectHost();
   auto dataLayout = JTMB->getDefaultDataLayoutForTarget();
-
+  TM = llvm::cantFail(JTMB->createTargetMachine());
   ES = std::unique_ptr<llvm::orc::ExecutionSession>(new llvm::orc::ExecutionSession());
-  ObjectLayer = std::unique_ptr<llvm::orc::RTDyldObjectLinkingLayer>(new llvm::orc::RTDyldObjectLinkingLayer(*ES,
-                                                                                                     []() { return llvm::make_unique<llvm::SectionMemoryManager>(); }));
-  CompileLayer = std::unique_ptr<llvm::orc::IRCompileLayer>(new llvm::orc::IRCompileLayer(*ES, *ObjectLayer, llvm::orc::ConcurrentIRCompiler(std::move(*JTMB))));
-  OptimizeLayer = std::unique_ptr<llvm::orc::IRTransformLayer>(new llvm::orc::IRTransformLayer(*ES, *CompileLayer, optimizeModule));
+  ObjectLayer = std::unique_ptr<llvm::orc::RTDyldObjectLinkingLayer>(
+      new llvm::orc::RTDyldObjectLinkingLayer(*ES, []() { return llvm::make_unique<llvm::SectionMemoryManager>(); }));
+  CompileLayer = std::unique_ptr<llvm::orc::IRCompileLayer>(
+      new llvm::orc::IRCompileLayer(*ES, *ObjectLayer, llvm::orc::ConcurrentIRCompiler(std::move(*JTMB))));
+  OptimizeLayer = std::unique_ptr<llvm::orc::IRTransformLayer>(new llvm::orc::IRTransformLayer(
+      *ES, *CompileLayer, [this](llvm::orc::ThreadSafeModule TSM, const llvm::orc::MaterializationResponsibility &R) {
+        return this->optimizeModule(std::move(TSM), R);
+      }));
   DL = std::unique_ptr<llvm::DataLayout>(new llvm::DataLayout(std::move(*dataLayout)));
   Mangle = std::unique_ptr<llvm::orc::MangleAndInterner>(new llvm::orc::MangleAndInterner(*ES, *this->DL));
-  Ctx = std::unique_ptr<llvm::orc::ThreadSafeContext>(new llvm::orc::ThreadSafeContext(llvm::make_unique<llvm::LLVMContext>()));
-  ES->getMainJITDylib().setGenerator(
-      cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(*DL)));
+  Ctx = std::unique_ptr<llvm::orc::ThreadSafeContext>(
+      new llvm::orc::ThreadSafeContext(llvm::make_unique<llvm::LLVMContext>()));
+  ES->getMainJITDylib().setGenerator(cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(*DL)));
 
   types_ = new LuaLLVMTypes(*Ctx->getContext());
 
@@ -193,8 +197,7 @@ RaviJITState::RaviJITState()
 #if LLVM_VERSION_MAJOR >= 8
   OptimizeLayer = std::unique_ptr<OptimizerLayerT>(new OptimizerLayerT(
       *CompileLayer, [this](std::unique_ptr<llvm::Module> M) { return optimizeModule(std::move(M)); }));
-  CompileCallbackManager =
-      cantFail(llvm::orc::createLocalCompileCallbackManager(TM->getTargetTriple(), *ES, 0));
+  CompileCallbackManager = cantFail(llvm::orc::createLocalCompileCallbackManager(TM->getTargetTriple(), *ES, 0));
   CompileOnDemandLayer = std::unique_ptr<CODLayerT>(new CODLayerT(
       *ES, *OptimizeLayer, [&](llvm::orc::VModuleKey K) { return Resolvers[K]; },
       [&](llvm::orc::VModuleKey K, std::shared_ptr<llvm::orc::SymbolResolver> R) { Resolvers[K] = std::move(R); },
@@ -209,7 +212,7 @@ RaviJITState::RaviJITState()
 
   types_ = new LuaLLVMTypes(*context_);
 
-#endif // USE_ORCv2_JIT
+#endif  // USE_ORCv2_JIT
 
   for (int i = 0; global_syms[i].name != nullptr; i++) {
     llvm::sys::DynamicLibrary::AddSymbol(global_syms[i].name, global_syms[i].address);
@@ -228,7 +231,8 @@ RaviJITState::~RaviJITState() {
 
 #if USE_ORC_JIT || USE_ORCv2_JIT
 #if USE_ORCv2_JIT
-llvm::Expected<llvm::orc::ThreadSafeModule> RaviJITState::optimizeModule(llvm::orc::ThreadSafeModule TSM, const llvm::orc::MaterializationResponsibility &R) {
+llvm::Expected<llvm::orc::ThreadSafeModule> RaviJITState::optimizeModule(
+    llvm::orc::ThreadSafeModule TSM, const llvm::orc::MaterializationResponsibility &R) {
 #else
 #if LLVM_VERSION_MAJOR >= 8
 std::unique_ptr<llvm::Module> RaviJITState::optimizeModule(std::unique_ptr<llvm::Module> M) {
@@ -236,11 +240,12 @@ std::unique_ptr<llvm::Module> RaviJITState::optimizeModule(std::unique_ptr<llvm:
 std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm::Module> M) {
 #endif
 #endif
-
   using llvm::legacy::FunctionPassManager;
   using llvm::legacy::PassManager;
 
-#if !USE_ORCv2_JIT
+#if USE_ORCv2_JIT
+  auto M = TSM.getModule();
+#endif
   if (get_verbosity() >= 1)
     M->print(llvm::errs(), nullptr, false, true);
   if (get_verbosity() >= 3)
@@ -251,7 +256,6 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
     TM->Options.EnableFastISel = 1;
   else
     TM->Options.EnableFastISel = 0;
-#endif
 
   // We use the PassManagerBuilder to setup optimization
   // passes - the PassManagerBuilder allows easy configuration of
@@ -261,13 +265,8 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
 
   llvm::PassManagerBuilder pmb;
 
-#if USE_ORCv2_JIT
-  pmb.OptLevel = 2;
-  pmb.SizeLevel = 0;
-#else
   pmb.OptLevel = get_optlevel();
   pmb.SizeLevel = get_sizelevel();
-#endif
   {
     // Create a function pass manager for this engine
 #if USE_ORCv2_JIT
@@ -287,12 +286,6 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
       FPM->run(F);
 #endif
   }
-#if USE_ORCv2_JIT
-  std::unique_ptr<PassManager> MPM(new PassManager());
-  pmb.populateModulePassManager(*MPM);
-  MPM->run(*TSM.getModule());
-  return TSM;
-#else
   std::string codestr;
   {
     llvm::raw_string_ostream ostream(codestr);
@@ -315,11 +308,18 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
         break;
       }
     }
+#if USE_ORCv2_JIT
+    MPM->run(*TSM.getModule());
+#else
     MPM->run(*M);
+#endif
   }
   if (get_verbosity() == 2 && codestr.length() > 0)
     llvm::errs() << codestr << "\n";
 
+#if USE_ORCv2_JIT
+  return TSM;
+#else
   return M;
 #endif
 }
@@ -332,8 +332,7 @@ void RaviJITState::addGlobalSymbol(const std::string &name, void *address) {
 
 #if USE_ORCv2_JIT
 llvm::Error RaviJITState::addModule(std::unique_ptr<llvm::Module> M) {
-  return OptimizeLayer->add(ES->getMainJITDylib(),
-                           llvm::orc::ThreadSafeModule(std::move(M), *Ctx));
+  return OptimizeLayer->add(ES->getMainJITDylib(), llvm::orc::ThreadSafeModule(std::move(M), *Ctx));
 }
 #elif USE_ORC_JIT
 RaviJITState::ModuleHandle RaviJITState::addModule(std::unique_ptr<llvm::Module> M) {
@@ -379,7 +378,7 @@ RaviJITState::ModuleHandle RaviJITState::addModule(std::unique_ptr<llvm::Module>
 #endif
 }
 
-llvm::JITSymbol RaviJITState::findSymbol(const std::string& Name) {
+llvm::JITSymbol RaviJITState::findSymbol(const std::string &Name) {
   std::string MangledName;
   llvm::raw_string_ostream MangledNameStream(MangledName);
   llvm::Mangler::getNameWithPrefix(MangledNameStream, Name, *DL);
