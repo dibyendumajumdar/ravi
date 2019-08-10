@@ -398,26 +398,39 @@ class RaviJITState {
   // all the IR in modules get released after compilation
   // MCJIT is also likely to be removed at some time in
   // future so we needed to migrate anyway
-  // We don't use ORC apis in earlier versions because 
-  // the apis have changed over the releases so it 
+  // We don't use ORC apis in earlier versions because
+  // the apis have changed over the releases so it
   // is simpler to use them in 5.0 and above.
   // The ORC usage here is heavily based upon the kaleidoscope
   // sample, with some adjustments.
 
+#if LLVM_VERSION_MAJOR >= 8
+  using ObjectLayerT = llvm::orc::LegacyRTDyldObjectLinkingLayer;
+  using CompileLayerT = llvm::orc::LegacyIRCompileLayer<ObjectLayerT, llvm::orc::SimpleCompiler>;
+  using OptimizeFunction = std::function<std::unique_ptr<llvm::Module>(std::unique_ptr<llvm::Module>)>;
+  using OptimizerLayerT = llvm::orc::LegacyIRTransformLayer<CompileLayerT, OptimizeFunction>;
+  using ModuleHandle = llvm::orc::VModuleKey;
+  using CODLayerT = llvm::orc::LegacyCompileOnDemandLayer<OptimizerLayerT>;
+#else
   using ObjectLayerT = llvm::orc::RTDyldObjectLinkingLayer;
-  using CompileLayerT =
-      llvm::orc::IRCompileLayer<ObjectLayerT, llvm::orc::SimpleCompiler>;
-  using OptimizeFunction = std::function<std::shared_ptr<llvm::Module>(
-      std::shared_ptr<llvm::Module>)>;
-  using OptimizerLayerT =
-      llvm::orc::IRTransformLayer<CompileLayerT, OptimizeFunction>;
+  using CompileLayerT = llvm::orc::IRCompileLayer<ObjectLayerT, llvm::orc::SimpleCompiler>;
+  using OptimizeFunction = std::function<std::shared_ptr<llvm::Module>(std::shared_ptr<llvm::Module>)>;
+  using OptimizerLayerT = llvm::orc::IRTransformLayer<CompileLayerT, OptimizeFunction>;
   using ModuleHandle = OptimizerLayerT::ModuleHandleT;
+#endif
 
   std::unique_ptr<llvm::TargetMachine> TM;
   std::unique_ptr<llvm::DataLayout> DL;
   std::unique_ptr<ObjectLayerT> ObjectLayer;
   std::unique_ptr<CompileLayerT> CompileLayer;
   std::unique_ptr<OptimizerLayerT> OptimizeLayer;
+#if LLVM_VERSION_MAJOR >= 8
+  std::map<ModuleHandle, std::shared_ptr<llvm::orc::SymbolResolver>> Resolvers;
+  std::shared_ptr<llvm::orc::SymbolStringPool> stringPool;
+  std::unique_ptr<llvm::orc::ExecutionSession> execSession;
+  std::unique_ptr<llvm::orc::JITCompileCallbackManager> CompileCallbackManager;
+  std::unique_ptr<CODLayerT> CODLayer;
+#endif
 
 #endif
 
@@ -438,7 +451,7 @@ class RaviJITState {
 
   // Size level (LLVM PassManagerBuilder)
   unsigned int size_level_ : 2;
-  
+
   // Verbosity
   unsigned int verbosity_ : 3;
 
@@ -449,7 +462,7 @@ class RaviJITState {
   // Enable extra validation such as IR verification
   // May slow down compilation
   unsigned int validation_ : 1;
-  
+
   // Flag to control calls to collect
   int gcstep_;
 
@@ -462,7 +475,7 @@ class RaviJITState {
   // Count of modules allocated
   // Used to debug module deallocation
   size_t allocated_modules_;
-  
+
   // flag to help avoid recursion
   int compiling_;
 
@@ -471,7 +484,11 @@ class RaviJITState {
   ~RaviJITState();
 
 #if USE_ORC_JIT
+#if LLVM_VERSION_MAJOR >= 8
+  std::unique_ptr<llvm::Module> optimizeModule(std::unique_ptr<llvm::Module> M);
+#else
   std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> M);
+#endif
   llvm::TargetMachine &getTargetMachine() { return *TM; }
   ModuleHandle addModule(std::unique_ptr<llvm::Module> M);
   llvm::JITSymbol findSymbol(const std::string Name);
@@ -490,41 +507,38 @@ class RaviJITState {
   void set_enabled(bool value) { enabled_ = value; }
   int get_optlevel() const { return opt_level_; }
   void set_optlevel(int value) {
-    if (value >= 0 && value <= 3) opt_level_ = value;
+    if (value >= 0 && value <= 3)
+      opt_level_ = value;
   }
   int get_sizelevel() const { return size_level_; }
   void set_sizelevel(int value) {
-    if (value >= 0 && value <= 2) size_level_ = value;
+    if (value >= 0 && value <= 2)
+      size_level_ = value;
   }
   int get_verbosity() const { return verbosity_; }
   void set_verbosity(int value) {
-    if (value >= 0 && value <= 3) verbosity_ = value;
+    if (value >= 0 && value <= 3)
+      verbosity_ = value;
   }
   int get_mincodesize() const { return min_code_size_; }
-  void set_mincodesize(int value) {
-    min_code_size_ = value > 0 ? value : min_code_size_;
-  }
+  void set_mincodesize(int value) { min_code_size_ = value > 0 ? value : min_code_size_; }
   int get_minexeccount() const { return min_exec_count_; }
-  void set_minexeccount(int value) {
-    min_exec_count_ = value > 0 ? value : min_exec_count_;
-  }
+  void set_minexeccount(int value) { min_exec_count_ = value > 0 ? value : min_exec_count_; }
   int get_validation() const { return validation_; }
   void set_validation(bool value) { validation_ = value; }
   int get_gcstep() const { return gcstep_; }
-  void set_gcstep(int value) {
-    gcstep_ = value > 0 ? value : gcstep_;
-  }
+  void set_gcstep(int value) { gcstep_ = value > 0 ? value : gcstep_; }
   bool is_tracehook_enabled() const { return tracehook_enabled_; }
   void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
   void incr_allocated_modules() { allocated_modules_++; }
   void decr_allocated_modules() { allocated_modules_--; }
   size_t allocated_modules() const { return allocated_modules_; }
   int get_compiling_flag() const { return compiling_ > 0; }
-  void set_compiling_flag(bool value) { 
-    if (value) 
+  void set_compiling_flag(bool value) {
+    if (value)
       compiling_++;
     else
-      compiling_--; 
+      compiling_--;
   }
 };
 
@@ -567,7 +581,7 @@ class RaviJITModule {
   llvm::Module *module() const { return module_; }
   llvm::ExecutionEngine *engine() const { return engine_; }
 #else
-  // Note that this can return nullptr 
+  // Note that this can return nullptr
   llvm::Module *module() const { return module_.get(); }
 #endif
   RaviJITState *owner() const { return owner_; }
@@ -596,8 +610,7 @@ class RaviJITModule {
   // Add declaration for an extern function that is not
   // loaded dynamically - i.e., is part of the the executable
   // and therefore not visible at runtime by name
-  llvm::Function *addExternFunction(llvm::FunctionType *type, void *address,
-                                    const std::string &name);
+  llvm::Function *addExternFunction(llvm::FunctionType *type, void *address, const std::string &name);
 };
 
 // Represents a JITed or JITable function
@@ -629,14 +642,9 @@ class RaviJITFunction {
   lua_CFunction *func_ptrptr_;
 
  public:
-  RaviJITFunction(lua_CFunction *p,
-                  const std::shared_ptr<RaviJITModule> &module,
-                  llvm::FunctionType *type,
-                  llvm::GlobalValue::LinkageTypes linkage,
-                  const std::string &name);
-  RaviJITFunction(lua_CFunction *p,
-                  const std::shared_ptr<RaviJITModule> &module,
-                  const std::string &name);
+  RaviJITFunction(lua_CFunction *p, const std::shared_ptr<RaviJITModule> &module, llvm::FunctionType *type,
+                  llvm::GlobalValue::LinkageTypes linkage, const std::string &name);
+  RaviJITFunction(lua_CFunction *p, const std::shared_ptr<RaviJITModule> &module, const std::string &name);
 
   ~RaviJITFunction();
 
@@ -658,8 +666,7 @@ class RaviJITFunction {
   void dumpAssembly() { module_->dumpAssembly(); }
   int getId() const { return id_; }
   void setId(int id) { id_ = id; }
-  llvm::Function *addExternFunction(llvm::FunctionType *type, void *address,
-                                    const std::string &name) {
+  llvm::Function *addExternFunction(llvm::FunctionType *type, void *address, const std::string &name) {
     return module_->addExternFunction(type, address, name);
   }
 };
@@ -815,8 +822,7 @@ class RaviCodeGenerator {
   // The p->ravi_jit structure will be updated
   // Note that if a function fails to compile then
   // a flag is set so that it doesn't get compiled again
-  bool compile(lua_State *L, Proto *p, std::shared_ptr<RaviJITModule> module,
-               ravi_compile_options_t *options);
+  bool compile(lua_State *L, Proto *p, std::shared_ptr<RaviJITModule> module, ravi_compile_options_t *options);
 
   // We can only compile a subset of op codes
   // and not all features are supported
@@ -830,30 +836,22 @@ class RaviCodeGenerator {
   // Argument will be named L
   // Initial BasicBlock will be created
   // int func(lua_State *L) {
-  std::unique_ptr<RaviJITFunction> create_function(
-      Proto *p, std::shared_ptr<RaviJITModule> module,
-      llvm::IRBuilder<> &builder, RaviFunctionDef *def);
+  std::unique_ptr<RaviJITFunction> create_function(Proto *p, std::shared_ptr<RaviJITModule> module,
+                                                   llvm::IRBuilder<> &builder, RaviFunctionDef *def);
 
   // Save proto->code[pc] into savedpc
   void emit_update_savedpc(RaviFunctionDef *def, int pc);
 
-  llvm::CallInst *CreateCall1(llvm::IRBuilder<> *builder, llvm::Value *func,
-                              llvm::Value *arg1);
-  llvm::CallInst *CreateCall2(llvm::IRBuilder<> *builder, llvm::Value *func,
-                              llvm::Value *arg1, llvm::Value *arg2);
-  llvm::CallInst *CreateCall3(llvm::IRBuilder<> *builder, llvm::Value *func,
-                              llvm::Value *arg1, llvm::Value *arg2,
+  llvm::CallInst *CreateCall1(llvm::IRBuilder<> *builder, llvm::Value *func, llvm::Value *arg1);
+  llvm::CallInst *CreateCall2(llvm::IRBuilder<> *builder, llvm::Value *func, llvm::Value *arg1, llvm::Value *arg2);
+  llvm::CallInst *CreateCall3(llvm::IRBuilder<> *builder, llvm::Value *func, llvm::Value *arg1, llvm::Value *arg2,
                               llvm::Value *arg3);
-  llvm::CallInst *CreateCall4(llvm::IRBuilder<> *builder, llvm::Value *func,
-                              llvm::Value *arg1, llvm::Value *arg2,
+  llvm::CallInst *CreateCall4(llvm::IRBuilder<> *builder, llvm::Value *func, llvm::Value *arg1, llvm::Value *arg2,
                               llvm::Value *arg3, llvm::Value *arg4);
-  llvm::CallInst *CreateCall5(llvm::IRBuilder<> *builder, llvm::Value *func,
-                              llvm::Value *arg1, llvm::Value *arg2,
-                              llvm::Value *arg3, llvm::Value *arg4,
-                              llvm::Value *arg5);
+  llvm::CallInst *CreateCall5(llvm::IRBuilder<> *builder, llvm::Value *func, llvm::Value *arg1, llvm::Value *arg2,
+                              llvm::Value *arg3, llvm::Value *arg4, llvm::Value *arg5);
 
-  void attach_branch_weights(RaviFunctionDef *def, llvm::Instruction *ins,
-                             uint32_t true_branch, uint32_t false_branch);
+  void attach_branch_weights(RaviFunctionDef *def, llvm::Instruction *ins, uint32_t true_branch, uint32_t false_branch);
 
   void emit_raise_lua_error(RaviFunctionDef *def, const char *str);
 
@@ -864,28 +862,23 @@ class RaviCodeGenerator {
   llvm::Instruction *emit_load_proto_sizep(RaviFunctionDef *def);
 
   // Store lua_Number or lua_Integer
-  llvm::Instruction *emit_store_local_n(RaviFunctionDef *def, llvm::Value *src,
-                                        llvm::Value *dest);
+  llvm::Instruction *emit_store_local_n(RaviFunctionDef *def, llvm::Value *src, llvm::Value *dest);
 
   // Load lua_Number or lua_Integer
   llvm::Instruction *emit_load_local_n(RaviFunctionDef *def, llvm::Value *src);
 
   // Store int
-  llvm::Instruction *emit_store_local_int(RaviFunctionDef *def,
-                                          llvm::Value *src, llvm::Value *dest);
+  llvm::Instruction *emit_store_local_int(RaviFunctionDef *def, llvm::Value *src, llvm::Value *dest);
 
   // Load int
-  llvm::Instruction *emit_load_local_int(RaviFunctionDef *def,
-                                         llvm::Value *src);
+  llvm::Instruction *emit_load_local_int(RaviFunctionDef *def, llvm::Value *src);
 
   // Test if value type is of specific Lua type
   // Value_type should have been obtained by emit_load_type()
   // The Lua typecode to check must be in lua_typecode
   // The return value is a boolean type as a result of
   // integer comparison result which is i1 in LLVM
-  llvm::Value *emit_is_value_of_type(RaviFunctionDef *def,
-                                     llvm::Value *value_type,
-                                     LuaTypeCode lua_typecode,
+  llvm::Value *emit_is_value_of_type(RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
                                      const char *varname = "value.typeof");
 
   // Test if value type is NOT of specific Lua type
@@ -893,9 +886,8 @@ class RaviCodeGenerator {
   // The Lua typecode to check must be in lua_typecode
   // The return value is a boolean type as a result of
   // integer comparison result which is i1 in LLVM
-  llvm::Value *emit_is_not_value_of_type(
-      RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
-      const char *varname = "value.not.typeof");
+  llvm::Value *emit_is_not_value_of_type(RaviFunctionDef *def, llvm::Value *value_type, LuaTypeCode lua_typecode,
+                                         const char *varname = "value.not.typeof");
 
   // Test if value type is NOT of specific Lua type class
   // i.e. variants are ignore
@@ -903,30 +895,23 @@ class RaviCodeGenerator {
   // The Lua typecode to check must be in lua_typecode
   // The return value is a boolean type as a result of
   // integer comparison result which is i1 in LLVM
-  llvm::Value *emit_is_not_value_of_type_class(
-      RaviFunctionDef *def, llvm::Value *value_type, int lua_typecode,
-      const char *varname = "value.not.typeof");
+  llvm::Value *emit_is_not_value_of_type_class(RaviFunctionDef *def, llvm::Value *value_type, int lua_typecode,
+                                               const char *varname = "value.not.typeof");
 
   // emit code for LClosure *cl = clLvalue(ci->func)
   // this is same as:
   // emit code for (LClosure *)ci->func->value_.gc
   llvm::Instruction *emit_gep_ci_func_value_gc_asLClosure(RaviFunctionDef *def);
 
-  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
-                        int arg1);
-  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
-                        int arg1, int arg2);
-  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s,
-                        int arg1, int arg2, int arg3);
-  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name,
-                        llvm::Value *ptr, llvm::Value *arg1, int arg2,
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s, int arg1);
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s, int arg1, int arg2);
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *s, int arg1, int arg2, int arg3);
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *ptr, llvm::Value *arg1, int arg2,
                         int arg3);
-  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name,
-                        llvm::Value *ptr, llvm::Value *arg1, int arg2);
+  llvm::Value *emit_gep(RaviFunctionDef *def, const char *name, llvm::Value *ptr, llvm::Value *arg1, int arg2);
 
   // emit code for &ptr[offset]
-  llvm::Value *emit_array_get(RaviFunctionDef *def, llvm::Value *ptr,
-                              int offset);
+  llvm::Value *emit_array_get(RaviFunctionDef *def, llvm::Value *ptr, int offset);
 
   // emit code to load pointer L->ci->u.l.base
   void emit_load_base(RaviFunctionDef *def);
@@ -975,73 +960,57 @@ class RaviCodeGenerator {
 
   // Gets the size of the hash table
   // This is the sizenode() macro in lobject.h
-  llvm::Value *emit_table_get_hashsize(RaviFunctionDef *def,
-                                       llvm::Value *table);
+  llvm::Value *emit_table_get_hashsize(RaviFunctionDef *def, llvm::Value *table);
 
   // Gets the location of the hash node for given string key
   // return value is the offset into the node array
-  llvm::Value *emit_table_get_hashstr(RaviFunctionDef *def, llvm::Value *table,
-                                      TString *key);
+  llvm::Value *emit_table_get_hashstr(RaviFunctionDef *def, llvm::Value *table, TString *key);
 
   // Gets access to the Table's node array (t->node)
-  llvm::Value *emit_table_get_nodearray(RaviFunctionDef *def,
-                                        llvm::Value *table);
+  llvm::Value *emit_table_get_nodearray(RaviFunctionDef *def, llvm::Value *table);
 
   // Given a pointer to table's node array (node = t->node) and
   // the location of the hashed key (index), this method retrieves the
   // type of the value stored at the node - return value is of type int
   // and is the type information stored in TValue->tt field.
-  llvm::Value *emit_table_get_keytype(RaviFunctionDef *def, llvm::Value *node,
-                                      llvm::Value *index);
+  llvm::Value *emit_table_get_keytype(RaviFunctionDef *def, llvm::Value *node, llvm::Value *index);
 
   // Given a pointer to table's node array (node = t->node) and
   // the location of the hashed key (index), this method retrieves the
   // the string value stored at the node - return value is of type TString*
-  llvm::Value *emit_table_get_strkey(RaviFunctionDef *def, llvm::Value *node,
-                                     llvm::Value *index);
+  llvm::Value *emit_table_get_strkey(RaviFunctionDef *def, llvm::Value *node, llvm::Value *index);
 
   // Given a pointer to table's node array (node = t->node) and
   // the location of the hashed key (index), this method retrieves the
   // the pointer to value stored at the node - return value is of type TValue*
-  llvm::Value *emit_table_get_value(RaviFunctionDef *def, llvm::Value *node,
-                                    llvm::Value *index);
+  llvm::Value *emit_table_get_value(RaviFunctionDef *def, llvm::Value *node, llvm::Value *index);
 
   // Gets the size of the table's array part
-  llvm::Value *emit_table_get_arraysize(RaviFunctionDef *def,
-                                        llvm::Value *table);
+  llvm::Value *emit_table_get_arraysize(RaviFunctionDef *def, llvm::Value *table);
 
   llvm::Value *emit_table_get_array(RaviFunctionDef *def, llvm::Value *table);
 
-  llvm::Value *emit_table_no_metamethod(RaviFunctionDef *def,
-                                        llvm::Value *table, TMS event);
+  llvm::Value *emit_table_no_metamethod(RaviFunctionDef *def, llvm::Value *table, TMS event);
 
   llvm::Instruction *emit_load_reg_s(RaviFunctionDef *def, llvm::Value *rb);
 
   // emit code to load pointer to int array
-  llvm::Instruction *emit_load_reg_h_intarray(RaviFunctionDef *def,
-                                              llvm::Instruction *ra);
+  llvm::Instruction *emit_load_reg_h_intarray(RaviFunctionDef *def, llvm::Instruction *ra);
 
   // emit code to load pointer to double array
-  llvm::Instruction *emit_load_reg_h_floatarray(RaviFunctionDef *def,
-                                                llvm::Instruction *ra);
+  llvm::Instruction *emit_load_reg_h_floatarray(RaviFunctionDef *def, llvm::Instruction *ra);
 
   // emit code to store lua_Number value into register
-  void emit_store_reg_n(RaviFunctionDef *def, llvm::Value *value,
-                        llvm::Value *dest_ptr);
-  void emit_store_reg_n_withtype(RaviFunctionDef *def, llvm::Value *value,
-                                 llvm::Value *dest_ptr);
+  void emit_store_reg_n(RaviFunctionDef *def, llvm::Value *value, llvm::Value *dest_ptr);
+  void emit_store_reg_n_withtype(RaviFunctionDef *def, llvm::Value *value, llvm::Value *dest_ptr);
 
   // emit code to store lua_Integer value into register
-  void emit_store_reg_i(RaviFunctionDef *def, llvm::Value *value,
-                        llvm::Value *dest_ptr);
-  void emit_store_reg_i_withtype(RaviFunctionDef *def, llvm::Value *value,
-                                 llvm::Value *dest_ptr);
+  void emit_store_reg_i(RaviFunctionDef *def, llvm::Value *value, llvm::Value *dest_ptr);
+  void emit_store_reg_i_withtype(RaviFunctionDef *def, llvm::Value *value, llvm::Value *dest_ptr);
 
   // emit code to store bool value into register
-  void emit_store_reg_b(RaviFunctionDef *def, llvm::Value *value,
-                        llvm::Value *dest_ptr);
-  void emit_store_reg_b_withtype(RaviFunctionDef *def, llvm::Value *value,
-                                 llvm::Value *dest_ptr);
+  void emit_store_reg_b(RaviFunctionDef *def, llvm::Value *value, llvm::Value *dest_ptr);
+  void emit_store_reg_b_withtype(RaviFunctionDef *def, llvm::Value *value, llvm::Value *dest_ptr);
 
   // emit code to set the type in the register
   void emit_store_type_(RaviFunctionDef *def, llvm::Value *value, int type);
@@ -1050,12 +1019,10 @@ class RaviCodeGenerator {
   llvm::Instruction *emit_load_type(RaviFunctionDef *def, llvm::Value *value);
 
   // emit code to load the array type
-  llvm::Instruction *emit_load_ravi_arraytype(RaviFunctionDef *def,
-                                              llvm::Value *value);
+  llvm::Instruction *emit_load_ravi_arraytype(RaviFunctionDef *def, llvm::Value *value);
 
   // emit code to load the array length
-  llvm::Instruction *emit_load_ravi_arraylength(RaviFunctionDef *def,
-                                                llvm::Value *value);
+  llvm::Instruction *emit_load_ravi_arraylength(RaviFunctionDef *def, llvm::Value *value);
 
   // TValue assign
   void emit_assign(RaviFunctionDef *def, llvm::Value *ra, llvm::Value *rb);
@@ -1064,25 +1031,20 @@ class RaviCodeGenerator {
   llvm::Value *emit_gep_upvals(RaviFunctionDef *def, int offset);
 
   // Load the &upvals[offset] -> result is UpVal*
-  llvm::Instruction *emit_load_pupval(RaviFunctionDef *def,
-                                      llvm::Value *ppupval);
+  llvm::Instruction *emit_load_pupval(RaviFunctionDef *def, llvm::Value *ppupval);
 
   // Get &upval->v
-  llvm::Value *emit_gep_upval_v(RaviFunctionDef *def,
-                                llvm::Instruction *pupval);
+  llvm::Value *emit_gep_upval_v(RaviFunctionDef *def, llvm::Instruction *pupval);
 
   // Load upval->v
-  llvm::Instruction *emit_load_upval_v(RaviFunctionDef *def,
-                                       llvm::Instruction *pupval);
+  llvm::Instruction *emit_load_upval_v(RaviFunctionDef *def, llvm::Instruction *pupval);
 
   // Get &upval->value -> result is TValue *
-  llvm::Value *emit_gep_upval_value(RaviFunctionDef *def,
-                                    llvm::Instruction *pupval);
+  llvm::Value *emit_gep_upval_value(RaviFunctionDef *def, llvm::Instruction *pupval);
 
   // isnil(reg) || isboolean(reg) && reg.value == 0
   // !(isnil(reg) || isboolean(reg) && reg.value == 0)
-  llvm::Value *emit_boolean_testfalse(RaviFunctionDef *def, llvm::Value *reg,
-                                      bool donot);
+  llvm::Value *emit_boolean_testfalse(RaviFunctionDef *def, llvm::Value *reg, bool donot);
 
   llvm::Instruction *emit_tointeger(RaviFunctionDef *def, llvm::Value *reg);
 
@@ -1099,14 +1061,12 @@ class RaviCodeGenerator {
 
   void debug_printf1(RaviFunctionDef *def, const char *str, llvm::Value *arg1);
 
-  void debug_printf2(RaviFunctionDef *def, const char *str, llvm::Value *arg1,
-                     llvm::Value *arg2);
+  void debug_printf2(RaviFunctionDef *def, const char *str, llvm::Value *arg1, llvm::Value *arg2);
 
-  void debug_printf3(RaviFunctionDef *def, const char *str, llvm::Value *arg1,
-                     llvm::Value *arg2, llvm::Value *arg3);
+  void debug_printf3(RaviFunctionDef *def, const char *str, llvm::Value *arg1, llvm::Value *arg2, llvm::Value *arg3);
 
-  void debug_printf4(RaviFunctionDef *def, const char *str, llvm::Value *arg1,
-                     llvm::Value *arg2, llvm::Value *arg3, llvm::Value *arg4);
+  void debug_printf4(RaviFunctionDef *def, const char *str, llvm::Value *arg1, llvm::Value *arg2, llvm::Value *arg3,
+                     llvm::Value *arg4);
 
   void emit_dump_stack(RaviFunctionDef *def, const char *str);
   void emit_dump_stacktop(RaviFunctionDef *def, const char *str);
@@ -1139,19 +1099,15 @@ class RaviCodeGenerator {
   void emit_LOADBOOL(RaviFunctionDef *def, int A, int B, int C, int j, int pc);
 
   // Code size priority so go via function calls
-  void emit_ARITH_calls(RaviFunctionDef *def, int A, int B, int C, OpCode op,
-                        TMS tms, int pc);
+  void emit_ARITH_calls(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms, int pc);
 
   // integer arith priority over floating
-  void emit_ARITH_intpriority(RaviFunctionDef *def, int A, int B, int C,
-                              OpCode op, TMS tms, int pc);
+  void emit_ARITH_intpriority(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms, int pc);
 
   // floating arith priority over integer
-  void emit_ARITH_floatpriority(RaviFunctionDef *def, int A, int B, int C,
-                                OpCode op, TMS tms, int pc);
+  void emit_ARITH_floatpriority(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms, int pc);
 
-  inline void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op,
-                         TMS tms, int pc) {
+  inline void emit_ARITH(RaviFunctionDef *def, int A, int B, int C, OpCode op, TMS tms, int pc) {
 #if RAVI_USE_LLVM_ARITH_FLOATPRIORITY
     emit_ARITH_floatpriority(def, A, B, C, op, tms, pc);
 #else
@@ -1207,11 +1163,9 @@ class RaviCodeGenerator {
 
   void emit_JMP(RaviFunctionDef *def, int A, int j, int pc);
 
-  void emit_iFORPREP(RaviFunctionDef *def, int A, int sBx, int step_one,
-                     int pc);
+  void emit_iFORPREP(RaviFunctionDef *def, int A, int sBx, int step_one, int pc);
 
-  void emit_iFORLOOP(RaviFunctionDef *def, int A, int sBx, RaviBranchDef &b,
-                     int step_one, int pc);
+  void emit_iFORLOOP(RaviFunctionDef *def, int A, int sBx, RaviBranchDef &b, int step_one, int pc);
 
   void emit_FORPREP(RaviFunctionDef *def, int A, int sBx, int pc);
 
@@ -1219,8 +1173,7 @@ class RaviCodeGenerator {
 
   void emit_FORPREP2(RaviFunctionDef *def, int A, int sBx, int pc);
 
-  void emit_FORLOOP2(RaviFunctionDef *def, int A, int sBx, RaviBranchDef &b,
-                     int pc);
+  void emit_FORLOOP2(RaviFunctionDef *def, int A, int sBx, RaviBranchDef &b, int pc);
 
   void emit_MOVE(RaviFunctionDef *def, int A, int B, int pc);
 
@@ -1248,36 +1201,29 @@ class RaviCodeGenerator {
 
   void emit_GETTABLE(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, int pc,
-                       TString *key);
+  void emit_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, int pc, TString *key);
 
-  void emit_GETFIELD(RaviFunctionDef *def, int A, int B, int C, int pc,
-                        TString *key);
+  void emit_GETFIELD(RaviFunctionDef *def, int A, int B, int C, int pc, TString *key);
 
   void emit_GETI(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *phi,
-                            llvm::Value *t, llvm::Value *ra, llvm::Value *rb,
+  void emit_finish_GETTABLE(RaviFunctionDef *def, llvm::Value *phi, llvm::Value *t, llvm::Value *ra, llvm::Value *rb,
                             llvm::Value *rc);
 
   void emit_SELF(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_TABLE_SELF_SK(RaviFunctionDef *def, int A, int B, int C, int pc,
-                   TString *key);
+  void emit_TABLE_SELF_SK(RaviFunctionDef *def, int A, int B, int C, int pc, TString *key);
   void emit_SELF_SK(RaviFunctionDef *def, int A, int B, int C, int pc);
 
-  void emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C,
-                              TString *key);
+  void emit_common_GETTABLE_S(RaviFunctionDef *def, int A, int B, int C, TString *key);
 
-  void emit_common_GETTABLE_S_(RaviFunctionDef *def, int A, llvm::Value *rb,
-                               int C, TString *key);
+  void emit_common_GETTABLE_S_(RaviFunctionDef *def, int A, llvm::Value *rb, int C, TString *key);
 
   void emit_GETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
   void emit_SETUPVAL(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_SETUPVAL_Specific(RaviFunctionDef *def, int A, int B, int pc,
-                              OpCode op, llvm::Function *f);
+  void emit_SETUPVAL_Specific(RaviFunctionDef *def, int A, int B, int pc, OpCode op, llvm::Function *f);
 
   void emit_GETTABUP(RaviFunctionDef *def, int A, int B, int C, int pc);
 
@@ -1304,41 +1250,33 @@ class RaviCodeGenerator {
   // A, B, C must be operands of the OP_EQ/OP_LT/OP_LE instructions
   // j must be the jump target (offset of the code to which we need to jump to)
   // jA must be the A operand of the jump instruction
-  void emit_EQ(RaviFunctionDef *def, int A, int B, int C, int j, int jA,
-               llvm::Constant *callee, OpCode opCode, int pc);
+  void emit_EQ(RaviFunctionDef *def, int A, int B, int C, int j, int jA, llvm::Constant *callee, OpCode opCode, int pc);
 
   // OP_TEST is followed by a OP_JMP instruction - both are handled
   // together
   // A, B, C must be operands of the OP_TEST instruction
   // j must be the jump target (offset of the code to which we need to jump to)
   // jA must be the A operand of the jump instruction
-  void emit_TEST(RaviFunctionDef *def, int A, int B, int C, int j, int jA,
-                 int pc);
+  void emit_TEST(RaviFunctionDef *def, int A, int B, int C, int j, int jA, int pc);
 
   // OP_TESTSET is followed by a OP_JMP instruction - both are handled
   // together
   // A, B, C must be operands of the OP_TESTSET instruction
   // j must be the jump target (offset of the code to which we need to jump to)
   // jA must be the A operand of the jump instruction
-  void emit_TESTSET(RaviFunctionDef *def, int A, int B, int C, int j, int jA,
-                    int pc);
+  void emit_TESTSET(RaviFunctionDef *def, int A, int B, int C, int j, int jA, int pc);
 
-  void emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C, int j, int jA,
-                     int pc);
+  void emit_TFORCALL(RaviFunctionDef *def, int A, int B, int C, int j, int jA, int pc);
 
   void emit_TFORLOOP(RaviFunctionDef *def, int A, int j, int pc);
 
-  void emit_FARRAY_GET(RaviFunctionDef *def, int A, int B, int C,
-                        bool omitArrayGetRangeCheck, int pc);
+  void emit_FARRAY_GET(RaviFunctionDef *def, int A, int B, int C, bool omitArrayGetRangeCheck, int pc);
 
-  void emit_IARRAY_GET(RaviFunctionDef *def, int A, int B, int C,
-                        bool omitArrayGetRangeCheck, int pc);
+  void emit_IARRAY_GET(RaviFunctionDef *def, int A, int B, int C, bool omitArrayGetRangeCheck, int pc);
 
-  void emit_FARRAY_SET(RaviFunctionDef *def, int A, int B, int C,
-                        bool known_int, int pc);
+  void emit_FARRAY_SET(RaviFunctionDef *def, int A, int B, int C, bool known_int, int pc);
 
-  void emit_IARRAY_SET(RaviFunctionDef *def, int A, int B, int C,
-                        bool known_float, int pc);
+  void emit_IARRAY_SET(RaviFunctionDef *def, int A, int B, int C, bool known_float, int pc);
 
   void emit_MOVEIARRAY(RaviFunctionDef *def, int A, int B, int pc);
 
@@ -1346,24 +1284,19 @@ class RaviCodeGenerator {
 
   void emit_MOVETAB(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_TOARRAY(RaviFunctionDef *def, int A, int array_type_expected,
-                    const char *errmsg, int pc);
+  void emit_TOARRAY(RaviFunctionDef *def, int A, int array_type_expected, const char *errmsg, int pc);
 
-  void emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op, int A, int B,
-                              int C, int pc);
+  void emit_BITWISE_BINARY_OP(RaviFunctionDef *def, OpCode op, int A, int B, int C, int pc);
 
-  void emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op, int A, int B,
-                             int C, int pc);
+  void emit_BITWISE_SHIFT_OP(RaviFunctionDef *def, OpCode op, int A, int B, int C, int pc);
 
   void emit_BNOT_I(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int A, int B, int C,
-                          int pc);
+  void emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int A, int B, int C, int pc);
 
   void emit_BNOT(RaviFunctionDef *def, int A, int B, int pc);
 
-  void emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B,
-                           lua_Integer y);
+  void emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B, lua_Integer y);
 
  private:
   RaviJITState *jitState_;

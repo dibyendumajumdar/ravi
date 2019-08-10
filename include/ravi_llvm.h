@@ -87,6 +87,10 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Scalar/GVN.h"
+
+#if LLVM_VERSION_MAJOR >= 7
+#include "llvm/ExecutionEngine/Orc/Legacy.h"
+#endif
 #endif
 
 #include <algorithm>
