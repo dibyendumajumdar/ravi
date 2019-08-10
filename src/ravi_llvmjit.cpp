@@ -168,6 +168,7 @@ RaviJITState::RaviJITState()
       std::unique_ptr<ObjectLayerT>(new ObjectLayerT([]() { return std::make_shared<llvm::SectionMemoryManager>(); }));
 #endif
   CompileLayer = std::unique_ptr<CompileLayerT>(new CompileLayerT(*ObjectLayer, llvm::orc::SimpleCompiler(*TM)));
+#if LLVM_VERSION_MAJOR >= 8
   OptimizeLayer = std::unique_ptr<OptimizerLayerT>(new OptimizerLayerT(
       *CompileLayer, [this](std::unique_ptr<llvm::Module> M) { return optimizeModule(std::move(M)); }));
   CompileCallbackManager =
@@ -178,6 +179,10 @@ RaviJITState::RaviJITState()
       [](llvm::Function &F) { return std::set<llvm::Function *>({&F}); }, *CompileCallbackManager,
       llvm::orc::createLocalIndirectStubsManagerBuilder(TM->getTargetTriple())));
   llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
+#else
+  OptimizeLayer = std::unique_ptr<OptimizerLayerT>(new OptimizerLayerT(
+      *CompileLayer, [this](std::shared_ptr<llvm::Module> M) { return optimizeModule(std::move(M)); }));
+#endif
 #endif
 
   types_ = new LuaLLVMTypes(*context_);
