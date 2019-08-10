@@ -151,16 +151,15 @@ RaviJITState::RaviJITState()
   context_ = new llvm::LLVMContext();
 
 #if USE_ORC_JIT
-  llvm::EngineBuilder eengineBuilder;
-  auto target = eengineBuilder.selectTarget();
+  auto target = llvm::EngineBuilder().selectTarget();
   TM = std::unique_ptr<llvm::TargetMachine>(target);
   TM->setO0WantsFastISel(true);  // enable FastISel when -O0 is used
   DL = std::unique_ptr<llvm::DataLayout>(new llvm::DataLayout(TM->createDataLayout()));
 
 #if LLVM_VERSION_MAJOR >= 8
-  stringPool = std::make_shared<llvm::orc::SymbolStringPool>();
-  execSession = std::unique_ptr<llvm::orc::ExecutionSession>(new llvm::orc::ExecutionSession(stringPool));
-  ObjectLayer = std::unique_ptr<ObjectLayerT>(new ObjectLayerT(*execSession, [this](llvm::orc::VModuleKey K) {
+  StringPool = std::make_shared<llvm::orc::SymbolStringPool>();
+  ES = std::unique_ptr<llvm::orc::ExecutionSession>(new llvm::orc::ExecutionSession(StringPool));
+  ObjectLayer = std::unique_ptr<ObjectLayerT>(new ObjectLayerT(*ES, [this](llvm::orc::VModuleKey K) {
     return ObjectLayerT::Resources{std::make_shared<llvm::SectionMemoryManager>(), Resolvers[K]};
   }));
 #else
@@ -172,13 +171,12 @@ RaviJITState::RaviJITState()
   OptimizeLayer = std::unique_ptr<OptimizerLayerT>(new OptimizerLayerT(
       *CompileLayer, [this](std::unique_ptr<llvm::Module> M) { return optimizeModule(std::move(M)); }));
   CompileCallbackManager =
-      cantFail(llvm::orc::createLocalCompileCallbackManager(TM->getTargetTriple(), *execSession, 0));
-  CODLayer = std::unique_ptr<CODLayerT>(new CODLayerT(
-      *execSession, *OptimizeLayer, [&](llvm::orc::VModuleKey K) { return Resolvers[K]; },
+      cantFail(llvm::orc::createLocalCompileCallbackManager(TM->getTargetTriple(), *ES, 0));
+  CompileOnDemandLayer = std::unique_ptr<CODLayerT>(new CODLayerT(
+      *ES, *OptimizeLayer, [&](llvm::orc::VModuleKey K) { return Resolvers[K]; },
       [&](llvm::orc::VModuleKey K, std::shared_ptr<llvm::orc::SymbolResolver> R) { Resolvers[K] = std::move(R); },
       [](llvm::Function &F) { return std::set<llvm::Function *>({&F}); }, *CompileCallbackManager,
       llvm::orc::createLocalIndirectStubsManagerBuilder(TM->getTargetTriple())));
-  llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 #else
   OptimizeLayer = std::unique_ptr<OptimizerLayerT>(new OptimizerLayerT(
       *CompileLayer, [this](std::shared_ptr<llvm::Module> M) { return optimizeModule(std::move(M)); }));
@@ -215,7 +213,7 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
 #endif
 
   if (get_verbosity() >= 1)
-    M->print(llvm::errs(), NULL, false, true);
+    M->print(llvm::errs(), nullptr, false, true);
   if (get_verbosity() >= 3)
     TM->Options.PrintMachineCode = 1;
   else
@@ -323,10 +321,10 @@ void RaviJITState::addGlobalSymbol(const std::string &name, void *address) {
 RaviJITState::ModuleHandle RaviJITState::addModule(std::unique_ptr<llvm::Module> M) {
 #if LLVM_VERSION_MAJOR >= 8
   // Create a new VModuleKey.
-  llvm::orc::VModuleKey K = execSession->allocateVModule();
+  llvm::orc::VModuleKey K = ES->allocateVModule();
   // Build a resolver and associate it with the new key.
   Resolvers[K] =
-      createLegacyLookupResolver(*execSession,
+      createLegacyLookupResolver(*ES,
                                  [this](const std::string &Name) -> llvm::JITSymbol {
                                    if (auto Sym = CompileLayer->findSymbol(Name, false))
                                      return Sym;
@@ -338,7 +336,7 @@ RaviJITState::ModuleHandle RaviJITState::addModule(std::unique_ptr<llvm::Module>
                                  },
                                  [](llvm::Error Err) { cantFail(std::move(Err), "lookupFlags failed"); });
   // Add the module to the JIT with the new key.
-  llvm::cantFail(CODLayer->addModule(K, std::move(M)));
+  llvm::cantFail(CompileOnDemandLayer->addModule(K, std::move(M)));
   return K;
 #else
   // Build our symbol resolver:
@@ -363,12 +361,12 @@ RaviJITState::ModuleHandle RaviJITState::addModule(std::unique_ptr<llvm::Module>
 #endif
 }
 
-llvm::JITSymbol RaviJITState::findSymbol(const std::string Name) {
+llvm::JITSymbol RaviJITState::findSymbol(const std::string& Name) {
   std::string MangledName;
   llvm::raw_string_ostream MangledNameStream(MangledName);
   llvm::Mangler::getNameWithPrefix(MangledNameStream, Name, *DL);
 #if LLVM_VERSION_MAJOR >= 8
-  return CODLayer->findSymbol(MangledNameStream.str(), false);
+  return CompileOnDemandLayer->findSymbol(MangledNameStream.str(), false);
 #else
   // Note that the LLVM tutorial uses true below but that appears to
   // cause a failure in lookup
@@ -378,7 +376,7 @@ llvm::JITSymbol RaviJITState::findSymbol(const std::string Name) {
 
 void RaviJITState::removeModule(ModuleHandle H) {
 #if LLVM_VERSION_MAJOR >= 8
-  llvm::cantFail(CODLayer->removeModule(H));
+  llvm::cantFail(CompileOnDemandLayer->removeModule(H));
 #else
   llvm::cantFail(OptimizeLayer->removeModule(H));
 #endif
@@ -409,7 +407,7 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
 #endif
   if (myid == 0) {
     // Extra validation to check that the LLVM sizes match Lua sizes
-    llvm::DataLayout *layout = new llvm::DataLayout(module());
+    auto layout = std::unique_ptr<llvm::DataLayout>(new llvm::DataLayout(module()));
     // auto valueSize = layout->getTypeAllocSize(owner->types()->ValueT);
     // auto valueSizeOf = sizeof(Value);
     // auto TvalueSize = layout->getTypeAllocSize(owner->types()->TValueT);
@@ -422,7 +420,6 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
     assert(sizeof(Udata) == layout->getTypeAllocSize(owner->types()->UdataT));
     assert(sizeof(CallInfo) == layout->getTypeAllocSize(owner->types()->CallInfoT));
     assert(sizeof(lua_State) == layout->getTypeAllocSize(owner->types()->lua_StateT));
-    delete layout;
   }
 #if !USE_ORC_JIT
 #if defined(_WIN32) && (!defined(_WIN64) || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 7)
@@ -625,7 +622,7 @@ void RaviJITModule::finalize(bool doDump) {
   engine_->finalizeObject();
 #else
   // With ORC api, the module gets compiled when it is added
-  // The optimzation passes are run via the callback
+  // The optimization passes are run via the callback
   module_handle_ = owner()->addModule(std::move(module_));
 #endif
   for (int i = 0; i < functions_.size(); i++) {

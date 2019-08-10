@@ -27,7 +27,7 @@
 
 #include "llvm/Config/llvm-config.h"
 
-#if (LLVM_VERSION_MAJOR < 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR < 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR < 5 || LLVM_VERSION_MAJOR == 7)
 #error Unsupported LLVM version
 #endif
 

@@ -26,6 +26,7 @@ if ravi.jit() then
 	ravi.optlevel(2)
 	ravi.compile(sieve, {omitArrayGetRangeCheck=1})
 end
+-- ravi.dumplua(sieve)
 -- ravi.dumpir(sieve)
 
 local t1 = os.clock()

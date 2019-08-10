@@ -426,10 +426,10 @@ class RaviJITState {
   std::unique_ptr<OptimizerLayerT> OptimizeLayer;
 #if LLVM_VERSION_MAJOR >= 8
   std::map<ModuleHandle, std::shared_ptr<llvm::orc::SymbolResolver>> Resolvers;
-  std::shared_ptr<llvm::orc::SymbolStringPool> stringPool;
-  std::unique_ptr<llvm::orc::ExecutionSession> execSession;
+  std::shared_ptr<llvm::orc::SymbolStringPool> StringPool;
+  std::unique_ptr<llvm::orc::ExecutionSession> ES;
   std::unique_ptr<llvm::orc::JITCompileCallbackManager> CompileCallbackManager;
-  std::unique_ptr<CODLayerT> CODLayer;
+  std::unique_ptr<CODLayerT> CompileOnDemandLayer;
 #endif
 
 #endif
@@ -491,7 +491,7 @@ class RaviJITState {
 #endif
   llvm::TargetMachine &getTargetMachine() { return *TM; }
   ModuleHandle addModule(std::unique_ptr<llvm::Module> M);
-  llvm::JITSymbol findSymbol(const std::string Name);
+  llvm::JITSymbol findSymbol(const std::string& Name);
   void removeModule(ModuleHandle H);
 #endif
 
