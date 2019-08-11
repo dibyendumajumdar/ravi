@@ -879,6 +879,12 @@ class RaviCodeGenerator {
   // The p->ravi_jit structure will be updated
   // Note that if a function fails to compile then
   // a flag is set so that it doesn't get compiled again
+  bool alt_compile(lua_State *L, Proto *p, std::shared_ptr<RaviJITModule> module, ravi_compile_options_t *options);
+
+  // Compile given function if possible
+  // The p->ravi_jit structure will be updated
+  // Note that if a function fails to compile then
+  // a flag is set so that it doesn't get compiled again
   bool compile(lua_State *L, Proto *p, std::shared_ptr<RaviJITModule> module, ravi_compile_options_t *options);
 
   // We can only compile a subset of op codes

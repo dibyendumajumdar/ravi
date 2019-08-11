@@ -39,6 +39,30 @@ namespace ravi {
 // see below
 static std::atomic_int init;
 
+static const char *errortext[] = {"integer expected",
+                                  "number expected",
+                                  "integer[] expected",
+                                  "number[] expected",
+                                  "table expected",
+                                  "upvalue of integer type, cannot be set to non integer value",
+                                  "upvalue of number type, cannot be set to non number value",
+                                  "upvalue of integer[] type, cannot be set to non integer[] value",
+                                  "upvalue of number[] type, cannot be set to non number[] value",
+                                  "upvalue of table type, cannot be set to non table value",
+                                  "for llimit must be a number",
+                                  "for step must be a number",
+                                  "for initial value must be a number",
+                                  "array index is out of bounds",
+                                  "string expected",
+                                  "closure expected",
+                                  "type mismatch: wrong userdata type",
+                                  NULL};
+
+static void raise_error(lua_State *L, int errorcode) {
+  assert(errorcode >= 0 && errorcode <= Error_type_mismatch);
+  luaG_runerror(L, errortext[errorcode]);
+}
+
 static struct {
   const char *name;
   void *address;
@@ -106,7 +130,43 @@ static struct {
                    {"lua_concat", reinterpret_cast<void *>(lua_concat)},
                    {"lua_len", reinterpret_cast<void *>(lua_len)},
                    {"lua_stringtonumber", reinterpret_cast<void *>(lua_stringtonumber)},
-
+                   {"luaF_close", reinterpret_cast<void *>(luaF_close)},
+                   {"raise_error", reinterpret_cast<void *>(raise_error)},
+                   {"luaV_tonumber_", reinterpret_cast<void *>(luaV_tonumber_)},
+                   {"luaV_tointeger", reinterpret_cast<void *>(luaV_tointeger)},
+                   {"luaD_poscall", reinterpret_cast<void *>(luaD_poscall)},
+                   {"luaV_equalobj", reinterpret_cast<void *>(luaV_equalobj)},
+                   {"luaV_lessthan", reinterpret_cast<void *>(luaV_lessthan)},
+                   {"luaV_lessequal", reinterpret_cast<void *>(luaV_lessequal)},
+                   {"luaV_execute", reinterpret_cast<void *>(luaV_execute)},
+                   {"luaV_gettable", reinterpret_cast<void *>(luaV_gettable)},
+                   {"luaV_settable", reinterpret_cast<void *>(luaV_settable)},
+                   {"luaD_precall", reinterpret_cast<void *>(luaD_precall)},
+                   {"raviV_op_newtable", reinterpret_cast<void *>(raviV_op_newtable)},
+                   {"luaO_arith", reinterpret_cast<void *>(luaO_arith)},
+                   {"raviV_op_newarrayint", reinterpret_cast<void *>(raviV_op_newarrayint)},
+                   {"raviV_op_newarrayfloat", reinterpret_cast<void *>(raviV_op_newarrayfloat)},
+                   {"raviV_op_setlist", reinterpret_cast<void *>(raviV_op_setlist)},
+                   {"raviV_op_concat", reinterpret_cast<void *>(raviV_op_concat)},
+                   {"raviV_op_closure", reinterpret_cast<void *>(raviV_op_closure)},
+                   {"raviV_op_vararg", reinterpret_cast<void *>(raviV_op_vararg)},
+                   {"luaV_objlen", reinterpret_cast<void *>(luaV_objlen)},
+                   {"luaV_forlimit", reinterpret_cast<void *>(luaV_forlimit)},
+                   {"raviV_op_setupval", reinterpret_cast<void *>(raviV_op_setupval)},
+                   {"raviV_op_setupvali", reinterpret_cast<void *>(raviV_op_setupvali)},
+                   {"raviV_op_setupvalf", reinterpret_cast<void *>(raviV_op_setupvalf)},
+                   {"raviV_op_setupvalai", reinterpret_cast<void *>(raviV_op_setupvalai)},
+                   {"raviV_op_setupvalaf", reinterpret_cast<void *>(raviV_op_setupvalaf)},
+                   {"raviV_op_setupvalt", reinterpret_cast<void *>(raviV_op_setupvalt)},
+                   {"luaD_call", reinterpret_cast<void *>(luaD_call)},
+                   {"raviH_set_int", reinterpret_cast<void *>(raviH_set_int)},
+                   {"raviH_set_float", reinterpret_cast<void *>(raviH_set_float)},
+                   {"raviV_check_usertype", reinterpret_cast<void *>(raviV_check_usertype)},
+                   {"luaT_trybinTM", reinterpret_cast<void *>(luaT_trybinTM)},
+                   {"raviV_gettable_sskey", reinterpret_cast<void *>(raviV_gettable_sskey)},
+                   {"raviV_settable_sskey", reinterpret_cast<void *>(raviV_settable_sskey)},
+                   {"raviV_gettable_i", reinterpret_cast<void *>(raviV_gettable_i)},
+                   {"raviV_settable_i", reinterpret_cast<void *>(raviV_settable_i)},
                    {"printf", reinterpret_cast<void *>(printf)},
                    {"puts", reinterpret_cast<void *>(puts)},
                    {nullptr, nullptr}};
