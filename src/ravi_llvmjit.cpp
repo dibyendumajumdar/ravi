@@ -208,6 +208,7 @@ RaviJITState::RaviJITState()
 #if USE_ORCv2_JIT
 
   auto JTMB = llvm::orc::JITTargetMachineBuilder::detectHost();
+  //JTMB->setCodeGenOptLevel(llvm::CodeGenOpt::Default);
   auto dataLayout = JTMB->getDefaultDataLayoutForTarget();
   TM = llvm::cantFail(JTMB->createTargetMachine());
   ES = std::unique_ptr<llvm::orc::ExecutionSession>(new llvm::orc::ExecutionSession());
@@ -332,22 +333,14 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
   pmb.SizeLevel = get_sizelevel();
   {
     // Create a function pass manager for this engine
-#if USE_ORCv2_JIT
-    auto FPM = llvm::make_unique<FunctionPassManager>(TSM.getModule());
-#else
-    std::unique_ptr<FunctionPassManager> FPM(new FunctionPassManager(M.get()));
-#endif
+    auto FPM = llvm::make_unique<FunctionPassManager>(&*M);
     pmb.populateFunctionPassManager(*FPM);
     FPM->doInitialization();
     // Run the optimizations over all functions in the module being added to
     // the JIT.
-#if USE_ORCv2_JIT
-    for (auto &F : *TSM.getModule())
-      FPM->run(F);
-#else
+    //llvm::dbgs() << "Before optimization:\n" << *M << "-->\n";
     for (auto &F : *M)
       FPM->run(F);
-#endif
   }
   std::string codestr;
   {
@@ -371,11 +364,8 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
         break;
       }
     }
-#if USE_ORCv2_JIT
-    MPM->run(*TSM.getModule());
-#else
     MPM->run(*M);
-#endif
+    //llvm::dbgs() << "After optimization:\n" << *M << "-->\n";
   }
   if (get_verbosity() == 2 && codestr.length() > 0)
     llvm::errs() << codestr << "\n";
@@ -475,7 +465,7 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
       ,
       module_(nullptr),
       engine_(nullptr)
-#else
+#elif !USE_ORCv2_JIT
       ,
       module_handle_(0)
 #endif
