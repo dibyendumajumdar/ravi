@@ -183,6 +183,7 @@ RaviJITState::RaviJITState()
       verbosity_(0),
       tracehook_enabled_(false),
       validation_(false),
+      use_dmrc_(false),
       gcstep_(300),
       min_code_size_(150),
       min_exec_count_(50),
@@ -201,6 +202,8 @@ RaviJITState::RaviJITState()
     init++;
   }
   triple_ = llvm::sys::getProcessTriple();
+  if (::getenv("RAVI_USE_DMRC_LLVM"))
+    use_dmrc_ = true;
 
 #if USE_ORCv2_JIT
 
@@ -453,7 +456,9 @@ llvm::JITSymbol RaviJITState::findSymbol(const std::string &Name) {
 
 void RaviJITState::removeModule(ModuleHandle H) {
 #if LLVM_VERSION_MAJOR >= 8
-  llvm::cantFail(CompileOnDemandLayer->removeModule(H));
+  if (H) {
+    llvm::cantFail(CompileOnDemandLayer->removeModule(H));
+  }
 #else
   llvm::cantFail(OptimizeLayer->removeModule(H));
 #endif
@@ -470,6 +475,9 @@ RaviJITModule::RaviJITModule(RaviJITState *owner)
       ,
       module_(nullptr),
       engine_(nullptr)
+#else
+      ,
+      module_handle_(0)
 #endif
 {
   int myid = module_id++;
@@ -836,7 +844,9 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
   }
   if (doCompile) {
     auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
-    if (G->ravi_state->code_generator->compile(L, p, module, options)) {
+    if (G->ravi_state->jit->is_use_dmrc() ?
+      G->ravi_state->code_generator->alt_compile(L, p, module, options) :
+        G->ravi_state->code_generator->compile(L, p, module, options)) {
       module->runpasses();
       module->finalize(G->ravi_state->jit->get_verbosity() == 3);
     }
@@ -854,7 +864,9 @@ int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n, ravi_compile_
     return 0;
   auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
   for (int i = 0; i < n; i++) {
-    if (G->ravi_state->code_generator->compile(L, p[i], module, options))
+    if (G->ravi_state->jit->is_use_dmrc() ?
+      G->ravi_state->code_generator->alt_compile(L, p[i], module, options) :
+        G->ravi_state->code_generator->compile(L, p[i], module, options))
       count++;
   }
   if (count) {

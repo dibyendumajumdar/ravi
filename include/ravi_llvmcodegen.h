@@ -483,6 +483,8 @@ class RaviJITState {
   // May slow down compilation
   unsigned int validation_ : 1;
 
+  unsigned int use_dmrc_ : 1;
+
   // Flag to control calls to collect
   int gcstep_;
 
@@ -587,6 +589,7 @@ class RaviJITState {
     else
       compiling_--;
   }
+  int is_use_dmrc() const { return use_dmrc_; }
 };
 
 // A wrapper for LLVM Module

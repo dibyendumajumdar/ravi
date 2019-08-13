@@ -1307,6 +1307,9 @@ llvm::Value *RaviCodeGenerator::emit_gep_upval_value(
   return emit_gep(def, "value", pupval, 0, 2);
 }
 
+// Alternative code generator uses dmrC based C front-end
+// That the codegen emits C code that is then JIT compiled
+// via dmrC and LLVM.
 bool RaviCodeGenerator::alt_compile(lua_State *L, Proto *p,
                          std::shared_ptr<RaviJITModule> module,
                          ravi_compile_options_t *options) {
