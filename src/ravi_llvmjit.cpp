@@ -207,20 +207,20 @@ RaviJITState::RaviJITState()
 
 #if USE_ORCv2_JIT
 
-  auto JTMB = llvm::orc::JITTargetMachineBuilder::detectHost();
-  //JTMB->setCodeGenOptLevel(llvm::CodeGenOpt::Default);
-  auto dataLayout = JTMB->getDefaultDataLayoutForTarget();
-  TM = llvm::cantFail(JTMB->createTargetMachine());
+  auto JTMB = llvm::cantFail(llvm::orc::JITTargetMachineBuilder::detectHost());
+  JTMB.setCodeGenOptLevel(llvm::CodeGenOpt::Default);
+  auto dataLayout = llvm::cantFail(JTMB.getDefaultDataLayoutForTarget());
+  TM = llvm::cantFail(JTMB.createTargetMachine());
   ES = std::unique_ptr<llvm::orc::ExecutionSession>(new llvm::orc::ExecutionSession());
   ObjectLayer = std::unique_ptr<llvm::orc::RTDyldObjectLinkingLayer>(
       new llvm::orc::RTDyldObjectLinkingLayer(*ES, []() { return llvm::make_unique<llvm::SectionMemoryManager>(); }));
   CompileLayer = std::unique_ptr<llvm::orc::IRCompileLayer>(
-      new llvm::orc::IRCompileLayer(*ES, *ObjectLayer, llvm::orc::ConcurrentIRCompiler(std::move(*JTMB))));
+      new llvm::orc::IRCompileLayer(*ES, *ObjectLayer, llvm::orc::ConcurrentIRCompiler(std::move(JTMB))));
   OptimizeLayer = std::unique_ptr<llvm::orc::IRTransformLayer>(new llvm::orc::IRTransformLayer(
       *ES, *CompileLayer, [this](llvm::orc::ThreadSafeModule TSM, const llvm::orc::MaterializationResponsibility &R) {
         return this->optimizeModule(std::move(TSM), R);
       }));
-  DL = std::unique_ptr<llvm::DataLayout>(new llvm::DataLayout(std::move(*dataLayout)));
+  DL = std::unique_ptr<llvm::DataLayout>(new llvm::DataLayout(std::move(dataLayout)));
   Mangle = std::unique_ptr<llvm::orc::MangleAndInterner>(new llvm::orc::MangleAndInterner(*ES, *this->DL));
   Ctx = std::unique_ptr<llvm::orc::ThreadSafeContext>(
       new llvm::orc::ThreadSafeContext(llvm::make_unique<llvm::LLVMContext>()));
@@ -278,9 +278,21 @@ RaviJITState::RaviJITState()
 
 #endif  // USE_ORCv2_JIT
 
+#if USE_ORCv2_JIT
+  auto &JD = ES->getMainJITDylib();
+  llvm::orc::MangleAndInterner mangle(*ES, *this->DL);
+  llvm::orc::SymbolMap Symbols;
+  for (int i = 0; global_syms[i].name != nullptr; i++) {
+    Symbols.insert( { mangle(global_syms[i].name),
+                      llvm::JITEvaluatedSymbol(llvm::pointerToJITTargetAddress(global_syms[i].address),
+                          llvm::JITSymbolFlags(llvm::JITSymbolFlags::FlagNames::Absolute)) });
+  }
+  llvm::cantFail(JD.define(llvm::orc::absoluteSymbols(Symbols)), "Failed to install extern symbols");
+#else
   for (int i = 0; global_syms[i].name != nullptr; i++) {
     llvm::sys::DynamicLibrary::AddSymbol(global_syms[i].name, global_syms[i].address);
   }
+#endif
 }
 
 // Destroy the JIT state freeing up any
@@ -703,7 +715,7 @@ void RaviJITModule::finalize(bool doDump) {
   // The optimization passes are run via the callback
   module_handle_ = owner()->addModule(std::move(module_));
 #else
-  owner()->addModule(std::move(module_));
+  llvm::cantFail(owner()->addModule(std::move(module_)));
 #endif
   for (int i = 0; i < functions_.size(); i++) {
     if (functions_[i] == nullptr)
