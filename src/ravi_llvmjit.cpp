@@ -215,7 +215,7 @@ RaviJITState::RaviJITState()
   ObjectLayer = std::unique_ptr<llvm::orc::RTDyldObjectLinkingLayer>(
       new llvm::orc::RTDyldObjectLinkingLayer(*ES, []() { return llvm::make_unique<llvm::SectionMemoryManager>(); }));
   CompileLayer = std::unique_ptr<llvm::orc::IRCompileLayer>(
-      new llvm::orc::IRCompileLayer(*ES, *ObjectLayer, llvm::orc::ConcurrentIRCompiler(std::move(JTMB))));
+      new llvm::orc::IRCompileLayer(*ES, *ObjectLayer, llvm::orc::SimpleCompiler(*TM)));
   OptimizeLayer = std::unique_ptr<llvm::orc::IRTransformLayer>(new llvm::orc::IRTransformLayer(
       *ES, *CompileLayer, [this](llvm::orc::ThreadSafeModule TSM, const llvm::orc::MaterializationResponsibility &R) {
         return this->optimizeModule(std::move(TSM), R);
