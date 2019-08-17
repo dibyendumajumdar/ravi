@@ -37,10 +37,9 @@ Building LLVM on Windows
 ------------------------
 I built LLVM from source. I used the following sequence from the VS2017 command window::
 
-  cd \github\llvm
   mkdir build
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=c:\LLVM -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 15 2017 Win64" ..  
+  cmake -DCMAKE_INSTALL_PREFIX=c:\Software\llvm -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 15 2017 Win64" ..  
 
 I then opened the generated solution in VS2017 and performed a INSTALL build from there. Above will build the 64-bit version of LLVM libraries. To build a 32-bit version omit the ``Win64`` parameter. 
 
@@ -53,14 +52,14 @@ So I ended up downloading and building LLVM from source and that worked. The app
 
 Building LLVM on MAC OS X
 -------------------------
-I am using Max OSX El Capitan. Pre-requisites are XCode 7.x and CMake.
+I am using Max OSX Mojave. Pre-requisites are XCode and CMake.
 Ensure cmake is on the path.
-Assuming that LLVM source has been extracted to ``$HOME/llvm-3.7.0.src`` I follow these steps::
+Assuming that LLVM source has been extracted to ``$HOME/llvm-8.0.1.src`` I follow these steps::
 
-  cd llvm-3.7.0.src
+  cd $HOME/llvm-8.0.1.src
   mkdir build
   cd build
-  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/LLVM -DLLVM_TARGETS_TO_BUILD="X86" ..
+  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/Software//llvm801 -DLLVM_TARGETS_TO_BUILD="X86" ..
   make install
 
 Building Ravi with LLVM JIT backend enabled
@@ -72,14 +71,14 @@ I am developing Ravi using Visual Studio 2017 Community Edition on Windows 10 64
 Assuming that LLVM has been installed as described above, then on Windows I invoke the cmake config as follows::
 
   cd build
-  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\ravi -DLLVM_DIR=c:\LLVM\lib\cmake\llvm -G "Visual Studio 15 2017 Win64" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=c:\Software\ravi -DLLVM_DIR=c:\Software\llvm\lib\cmake\llvm -G "Visual Studio 15 2017 Win64" ..
 
 I then open the solution in VS2017 and do a build from there.
 
 On Ubuntu I use::
 
   cd build
-  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/lib/cmake/llvm -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/Software/ravi -DLLVM_DIR=$HOME/Software/llvm801/lib/cmake/llvm -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" ..
   make
 
 Note that on a clean install of Ubuntu 15.10 I had to install following packages:
@@ -91,7 +90,7 @@ Note that on a clean install of Ubuntu 15.10 I had to install following packages
 On MAC OS X I use::
 
   cd build
-  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi -DLLVM_DIR=$HOME/LLVM/lib/cmake/llvm -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
+  cmake -DLLVM_JIT=ON -DCMAKE_INSTALL_PREFIX=$HOME/Software/ravi -DLLVM_DIR=$HOME/Software/llvm801/lib/cmake/llvm -DCMAKE_BUILD_TYPE=Release -G "Xcode" ..
 
 I open the generated project in Xcode and do a build from there. You can also use the command line build tools if you wish - generate the make files in the same way as for Linux.
 
