@@ -211,22 +211,20 @@ RaviJITState::RaviJITState()
   JTMB.setCodeGenOptLevel(llvm::CodeGenOpt::Default);
   auto dataLayout = llvm::cantFail(JTMB.getDefaultDataLayoutForTarget());
   TM = llvm::cantFail(JTMB.createTargetMachine());
-  ES = std::unique_ptr<llvm::orc::ExecutionSession>(new llvm::orc::ExecutionSession());
-  ObjectLayer = std::unique_ptr<llvm::orc::RTDyldObjectLinkingLayer>(
-      new llvm::orc::RTDyldObjectLinkingLayer(*ES, []() { return llvm::make_unique<llvm::SectionMemoryManager>(); }));
-  CompileLayer = std::unique_ptr<llvm::orc::IRCompileLayer>(
-      new llvm::orc::IRCompileLayer(*ES, *ObjectLayer, llvm::orc::SimpleCompiler(*TM)));
-  OptimizeLayer = std::unique_ptr<llvm::orc::IRTransformLayer>(new llvm::orc::IRTransformLayer(
+  ES = llvm::make_unique<llvm::orc::ExecutionSession>();
+  ObjectLayer = llvm::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(
+      *ES, []() { return llvm::make_unique<llvm::SectionMemoryManager>(); });
+  CompileLayer = llvm::make_unique<llvm::orc::IRCompileLayer>(*ES, *ObjectLayer, llvm::orc::SimpleCompiler(*TM));
+  OptimizeLayer = llvm::make_unique<llvm::orc::IRTransformLayer>(
       *ES, *CompileLayer, [this](llvm::orc::ThreadSafeModule TSM, const llvm::orc::MaterializationResponsibility &R) {
         return this->optimizeModule(std::move(TSM), R);
-      }));
-  DL = std::unique_ptr<llvm::DataLayout>(new llvm::DataLayout(std::move(dataLayout)));
-  Mangle = std::unique_ptr<llvm::orc::MangleAndInterner>(new llvm::orc::MangleAndInterner(*ES, *this->DL));
-  Ctx = std::unique_ptr<llvm::orc::ThreadSafeContext>(
-      new llvm::orc::ThreadSafeContext(llvm::make_unique<llvm::LLVMContext>()));
+      });
+  DL = llvm::make_unique<llvm::DataLayout>(std::move(dataLayout));
+  Mangle = llvm::make_unique<llvm::orc::MangleAndInterner>(*ES, *this->DL);
+  Ctx = llvm::make_unique<llvm::orc::ThreadSafeContext>(llvm::make_unique<llvm::LLVMContext>());
   ES->getMainJITDylib().setGenerator(cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(*DL)));
 
-  types_ = new LuaLLVMTypes(*Ctx->getContext());
+  types_ = llvm::make_unique<LuaLLVMTypes>(*Ctx->getContext());
 
 #else
 
@@ -237,7 +235,7 @@ RaviJITState::RaviJITState()
   // format; LLVM 3.7 onwards COEFF is supported
   triple_ += "-elf";
 #endif
-  context_ = new llvm::LLVMContext();
+  context_ = std::unique_ptr<llvm::LLVMContext>(new llvm::LLVMContext());
 
 #if USE_ORC_JIT
   auto target = llvm::EngineBuilder().selectTarget();
@@ -274,18 +272,19 @@ RaviJITState::RaviJITState()
 
 #endif
 
-  types_ = new LuaLLVMTypes(*context_);
+  types_ = std::unique_ptr<LuaLLVMTypes>(new LuaLLVMTypes(*context_));
 
 #endif  // USE_ORCv2_JIT
 
+  // Register global symbols
 #if USE_ORCv2_JIT
   auto &JD = ES->getMainJITDylib();
   llvm::orc::MangleAndInterner mangle(*ES, *this->DL);
   llvm::orc::SymbolMap Symbols;
   for (int i = 0; global_syms[i].name != nullptr; i++) {
-    Symbols.insert( { mangle(global_syms[i].name),
-                      llvm::JITEvaluatedSymbol(llvm::pointerToJITTargetAddress(global_syms[i].address),
-                          llvm::JITSymbolFlags(llvm::JITSymbolFlags::FlagNames::Absolute)) });
+    Symbols.insert({mangle(global_syms[i].name),
+                    llvm::JITEvaluatedSymbol(llvm::pointerToJITTargetAddress(global_syms[i].address),
+                                             llvm::JITSymbolFlags(llvm::JITSymbolFlags::FlagNames::Absolute))});
   }
   llvm::cantFail(JD.define(llvm::orc::absoluteSymbols(Symbols)), "Failed to install extern symbols");
 #else
@@ -297,13 +296,7 @@ RaviJITState::RaviJITState()
 
 // Destroy the JIT state freeing up any
 // functions that were compiled
-RaviJITState::~RaviJITState() {
-  assert(allocated_modules_ == 0);
-  delete types_;
-#ifndef USE_ORCv2_JIT
-  delete context_;
-#endif
-}
+RaviJITState::~RaviJITState() { assert(allocated_modules_ == 0); }
 
 #if USE_ORC_JIT || USE_ORCv2_JIT
 #if USE_ORCv2_JIT
@@ -350,7 +343,7 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
     FPM->doInitialization();
     // Run the optimizations over all functions in the module being added to
     // the JIT.
-    //llvm::dbgs() << "Before optimization:\n" << *M << "-->\n";
+    // llvm::dbgs() << "Before optimization:\n" << *M << "-->\n";
     for (auto &F : *M)
       FPM->run(F);
   }
@@ -377,7 +370,7 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
       }
     }
     MPM->run(*M);
-    //llvm::dbgs() << "After optimization:\n" << *M << "-->\n";
+    // llvm::dbgs() << "After optimization:\n" << *M << "-->\n";
   }
   if (get_verbosity() == 2 && codestr.length() > 0)
     llvm::errs() << codestr << "\n";
@@ -593,10 +586,13 @@ RaviJITFunction::~RaviJITFunction() {
   module_->removeFunction(this);
 }
 
+// This is noop when ORC api is enabled
+// Retained for backward compatibility
 void RaviJITModule::runpasses(bool dumpAsm) {
+#if !USE_ORC_JIT
   if (!module_)
     return;
-#if !USE_ORC_JIT
+
 #if LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7
   using llvm::legacy::FunctionPassManager;
   using llvm::legacy::PassManager;
@@ -673,7 +669,11 @@ void RaviJITModule::runpasses(bool dumpAsm) {
         llvm::errs() << "unable to dump assembly\n";
         break;
       }
-      if (TM->addPassesToEmitFile(*MPM, formatted_stream, llvm::TargetMachine::CGFT_AssemblyFile)) {
+      if (TM->addPassesToEmitFile(*MPM, formatted_stream,
+#if LLVM_VERSION_MAJOR >= 7
+                                  nullptr,  // DWO output file
+#endif
+                                  llvm::TargetMachine::CGFT_AssemblyFile)) {
         llvm::errs() << "unable to add passes for generating assemblyfile\n";
         break;
       }
@@ -846,9 +846,8 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
   }
   if (doCompile) {
     auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
-    if (G->ravi_state->jit->is_use_dmrc() ?
-      G->ravi_state->code_generator->alt_compile(L, p, module, options) :
-        G->ravi_state->code_generator->compile(L, p, module, options)) {
+    if (G->ravi_state->jit->is_use_dmrc() ? G->ravi_state->code_generator->alt_compile(L, p, module, options)
+                                          : G->ravi_state->code_generator->compile(L, p, module, options)) {
       module->runpasses();
       module->finalize(G->ravi_state->jit->get_verbosity() == 3);
     }
@@ -866,9 +865,8 @@ int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n, ravi_compile_
     return 0;
   auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
   for (int i = 0; i < n; i++) {
-    if (G->ravi_state->jit->is_use_dmrc() ?
-      G->ravi_state->code_generator->alt_compile(L, p[i], module, options) :
-        G->ravi_state->code_generator->compile(L, p[i], module, options))
+    if (G->ravi_state->jit->is_use_dmrc() ? G->ravi_state->code_generator->alt_compile(L, p[i], module, options)
+                                          : G->ravi_state->code_generator->compile(L, p[i], module, options))
       count++;
   }
   if (count) {

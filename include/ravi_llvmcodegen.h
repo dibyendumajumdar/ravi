@@ -405,7 +405,7 @@ class RaviJITState {
 #elif USE_ORC_JIT
 
   // The LLVM Context
-  llvm::LLVMContext *context_;
+  std::unique_ptr<llvm::LLVMContext> context_;
 
   // From LLVM version5 onwards we use the new ORC apis
   // The main benefit is that memory management is tighter,
@@ -450,7 +450,7 @@ class RaviJITState {
 
   // Not ORC_JIT
   // The LLVM Context
-  llvm::LLVMContext *context_;
+  std::unique_ptr<llvm::LLVMContext> context_;
 
 #endif  // USE_ORCv2_JIT
 
@@ -458,7 +458,7 @@ class RaviJITState {
   std::string triple_;
 
   // Lua type definitions
-  LuaLLVMTypes *types_;
+  std::unique_ptr<LuaLLVMTypes> types_;
 
   // Should we auto compile what we can?
   unsigned int auto_ : 1;
@@ -548,7 +548,7 @@ class RaviJITState {
   void addGlobalSymbol(const std::string &name, void *address);
 
   void dump();
-  LuaLLVMTypes *types() const { return types_; }
+  LuaLLVMTypes *types() const { return types_.get(); }
   const std::string &triple() const { return triple_; }
   bool is_auto() const { return auto_; }
   void set_auto(bool value) { auto_ = value; }
