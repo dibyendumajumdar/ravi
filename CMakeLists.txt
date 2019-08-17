@@ -30,7 +30,10 @@ if (ASM_VM)
     # For now we switch to static build 
     # TODO A fix is needed to ensure that in shared library the asm functions are resolved
     set(STATIC_BUILD ON)
+	# LTESTS messes with global state and breaks the ASMVM dispatch table
     set(LTESTS OFF)
+    set(LLVM_JIT OFF)
+    set(OMR_JIT OFF)
 endif()
 
 if (STATIC_BUILD)
@@ -421,58 +424,55 @@ set(NOJIT_RAVI_SRCS
     ${DMR_C_JIT_SRCS}
     src/ravi_nojit.c)
 
-# We always build a static library without JIT so that
-# we can create some default executables
-add_library(libravinojit_static  
-    ${NOJIT_RAVI_SRCS})
-set_target_properties(libravinojit_static PROPERTIES PREFIX "") # As we already prefix with lib
-target_link_libraries(libravinojit_static ${EXTRA_LIBRARIES})
+if (NOT ASM_VM)
+	set(RAVI_STATICEXEC_TARGET ravi_s)
 
-# Create a simple NoJIT version of statically linked ravi
-# This is sometimes useful in other projects that just need a Lua commandline
-# but do not care about the shared library 
-add_executable(ravi_s 
-    src/lua.c)
-target_link_libraries(ravi_s libravinojit_static)
+	# We always build a static library without JIT so that
+	# we can create some default executables
+	add_library(libravinojit_static  
+		${NOJIT_RAVI_SRCS})
+	set_target_properties(libravinojit_static PROPERTIES PREFIX "") # As we already prefix with lib
+	target_link_libraries(libravinojit_static ${EXTRA_LIBRARIES})
 
-# Ravi VSCode Debug adapter
-set(RAVI_DEBUGGER_TARGET ravidebug)
-add_executable(${RAVI_DEBUGGER_TARGET} 
-    vscode-debugger/src/ravidebug.c 
-    vscode-debugger/src/json.c 
-    vscode-debugger/src/protocol.c)
-target_link_libraries(${RAVI_DEBUGGER_TARGET} libravinojit_static)
+	# Create a simple NoJIT version of statically linked ravi
+	# This is sometimes useful in other projects that just need a Lua commandline
+	# but do not care about the shared library 
+	add_executable(ravi_s 
+		src/lua.c)
+	target_link_libraries(ravi_s libravinojit_static)
 
-# Tests for VSCode Debug Adapter  
-add_executable(testravidebug 
-    vscode-debugger/src/testravidebug.c 
-    vscode-debugger/src/json.c 
-    vscode-debugger/src/protocol.c)
-target_link_libraries(testravidebug libravinojit_static)
+	# Ravi VSCode Debug adapter
+	set(RAVI_DEBUGGER_TARGET ravidebug)
+	add_executable(${RAVI_DEBUGGER_TARGET} 
+		vscode-debugger/src/ravidebug.c 
+		vscode-debugger/src/json.c 
+		vscode-debugger/src/protocol.c)
+	target_link_libraries(${RAVI_DEBUGGER_TARGET} libravinojit_static)
 
-# Simple VM tests
-add_executable(test_vm tests/test_vm.c)
-target_link_libraries(test_vm ${LIBRAVI_NAME})
+	# Tests for VSCode Debug Adapter  
+	add_executable(testravidebug 
+		vscode-debugger/src/testravidebug.c 
+		vscode-debugger/src/json.c 
+		vscode-debugger/src/protocol.c)
+	target_link_libraries(testravidebug libravinojit_static)
 
-if (LLVM_JIT)
-    # LLVM playground
-    add_executable(test_llvm tests/test_llvm.cpp)
-    set_target_properties(test_llvm PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
-    target_link_libraries(test_llvm ${LIBRAVI_NAME})
-endif ()
+	add_test(TestRaviDebug testravidebug)
 
-add_executable(test_misc tests/test_misc.c)
+	add_executable(test_vm tests/test_vm.c)
+	target_link_libraries(test_vm ${LIBRAVI_NAME})
 
-add_test(TestRaviDebug testravidebug)
-if (LLVM_JIT)
-    add_test(TestLLVM test_llvm)
-endif ()
-add_test(TestVM test_vm)
-add_test(TestMisc test_misc)
+	add_test(TestVM test_vm)
+else()
+	# Simple VM tests
+	add_executable(test_asmvm tests/test_asmvm.c)
+	target_link_libraries(test_asmvm ${LIBRAVI_NAME})
+
+	add_test(TestVM test_asmvm)
+endif()
 
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
-install(TARGETS ${LIBRAVI_NAME} ravi ${RAVI_DEBUGGER_TARGET} ravi_s
+install(TARGETS ${LIBRAVI_NAME} ravi ${RAVI_DEBUGGER_TARGET} ${RAVI_STATICEXEC_TARGET}
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)

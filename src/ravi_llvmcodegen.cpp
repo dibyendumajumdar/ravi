@@ -23,6 +23,7 @@
 #include <ravijit.h>
 #include <ravi_llvmcodegen.h>
 #include <ravi_jitshared.h>
+#include <dmr_c.h>
 
 namespace ravi {
 
@@ -1304,6 +1305,67 @@ llvm::Value *RaviCodeGenerator::emit_gep_upval_v(RaviFunctionDef *def,
 llvm::Value *RaviCodeGenerator::emit_gep_upval_value(
     RaviFunctionDef *def, llvm::Instruction *pupval) {
   return emit_gep(def, "value", pupval, 0, 2);
+}
+
+// Alternative code generator uses dmrC based C front-end
+// That the codegen emits C code that is then JIT compiled
+// via dmrC and LLVM.
+bool RaviCodeGenerator::alt_compile(lua_State *L, Proto *p,
+                         std::shared_ptr<RaviJITModule> module,
+                         ravi_compile_options_t *options) {
+  if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED) {
+    return false;
+  }
+  if (module->owner()->get_compiling_flag()) return false;
+  if (!raviJ_cancompile(p)) {
+    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
+    return false;
+  }
+
+  auto M = module->module();
+  LLVMModuleRef moduleRef = llvm::wrap(M);
+
+  // Set flag so we can avoid recursive calls
+  module->owner()->set_compiling_flag(true);
+
+  membuff_t buf;
+  membuff_init(&buf, 4096);
+
+  const char *fname = unique_function_name();
+  if (!raviJ_codegen(L, p, options, fname, &buf)) {
+    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
+  }
+  else {
+    if (options->manual_request && module->owner()->get_verbosity()) {
+      ravi_writestring(L, buf.buf, strlen(buf.buf));
+      ravi_writeline(L);
+    }
+    char *argv[] = {(char *)fname, NULL};
+    if (!dmrC_llvmcompile(2, argv, moduleRef, buf.buf)) {
+      p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
+    }
+    else {
+      p->ravi_jit.jit_function = nullptr;
+      std::unique_ptr<ravi::RaviJITFunction> func =
+          std::unique_ptr<RaviJITFunction>(new RaviJITFunction(&p->ravi_jit.jit_function, module, fname));
+      if (func->function() == nullptr) {
+        fprintf(stderr, "LLVM Compilation failed\n");
+        exit(1);
+      }
+      bool doVerify = module->owner()->get_validation() != 0;
+      if (doVerify && llvm::verifyFunction(*func->function(), &llvm::errs())) {
+        func->dump();
+        fprintf(stderr, "LLVM Code Verification failed\n");
+        exit(1);
+      }
+      ravi::RaviJITFunction *llvm_func = func.release();
+      p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
+      p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+    }
+  }
+  membuff_free(&buf);
+  module->owner()->set_compiling_flag(false);
+  return p->ravi_jit.jit_status == RAVI_JIT_COMPILED;
 }
 
 bool RaviCodeGenerator::compile(lua_State *L, Proto *p,

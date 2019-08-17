@@ -34,7 +34,7 @@ Features
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
 * `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ powered JIT compiler
 * Built-in C pre-processor, parser and JIT compiler
-* A `distribution with batteries <https://github.com/dibyendumajumdar/ravi-distro>`_.
+* A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 
 Documentation
 =============
@@ -90,7 +90,10 @@ History
        - Additional type-annotations
 * 2018 
        - Implemented Eclipse OMR JIT backend
-       - Created `Ravi with batteries <https://github.com/dibyendumajumdar/ravi-distro>`_. 
+       - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
+* 2019 (Plan)
+       - New parser, type checker and code generator
+       - Release Ravi 1.0
 
 License
 =======

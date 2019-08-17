@@ -6,8 +6,8 @@ The overall approach is:
 * Create a dispatch table with pointers to the assembler routines; the dispatch table is stored in the Lua global_State structure
   but this could change in future
 * Each assembler routine will (after completing its action) fetch the next bytecode instruction and jump to the next 
-  assembler routine using the dispatch table
-* The assembler routines are C functions - they are part of one whole program. Hence they make assumptions about
+  assembler routine using the dispatch table (equivalent to computed goto)
+* The assembler routines are **not** C functions - they are part of one whole program. Hence they make assumptions about
   register usage which will be documented below. The VM as a whole will have a fixed set of register allocations so that most 
   important information is held in registers. 
   
@@ -33,7 +33,7 @@ Using an assembler like yasm has the problem of computing offsets of C structure
 
 Issues with dynasm
 ------------------
-On Windows 64-bit the generated code requires UNWIND information however the mechanism for this was in LuaJIT specific files (buildvm_peobj) and not fully reusable. I have modified this to decouple from LuaJIT. This took some effort because LuaJIT's code
+On Windows 64-bit the generated code requires UNWIND information however the mechanism for this was in LuaJIT specific files (buildvm_peobj) and not fully reusable. I have modified this to de-couple from LuaJIT. This took some effort because LuaJIT's code
 has numerous magic numbers with no explanation of what the code is doing. Not very helpful for anyone trying to work out what
 the code is doing unless you already know what needs doing.
 
@@ -287,12 +287,11 @@ And the epilogue::
 As you can see the unwind information basically tells Windows what the epilogue is supposed to be, and where to find the saved
 values of the registers.
 
-Building Ravi With New VM
--------------------------
+Building Ravi With New ASM VM
+-----------------------------
 This is only for the brave who want to hack with the code.
 
 To enable the new VM first build and install VMBuilder as described above.
 Then build Ravi using the cmake flags ``-DSTATIC_BUILD=ON`` and ``-DASM_VM=ON`` enabled. Don't enable JIT.
 
-Right now the ASM VM is exercised via the ``test_vm`` sub project. The ASM VM is only invoked in special cases, i.e. a function has small number of instructions and only contains supported instructions, and additionally as OP_CALL is not yet implemented, you can only call the new VM via the Lua C api (see test_asmvm() in test_vm.c).
-
+Right now the ASM VM is exercised via the ``test_asmvm`` sub project. The ASM VM is only invoked in special cases, i.e. a function has small number of instructions and only contains supported instructions, and additionally as OP_CALL is not yet implemented, you can only call the new VM via the Lua C api (see `test_asmvm() in test_asmvm.c <https://github.com/dibyendumajumdar/ravi/blob/master/tests/test_asmvm.c>`_).

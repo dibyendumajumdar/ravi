@@ -34,7 +34,7 @@ Features
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
 * `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ powered JIT compiler
 * Built-in C pre-processor, parser and JIT compiler
-* A `distribution with batteries <https://github.com/dibyendumajumdar/ravi-distro>`_.
+* A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 
 Documentation
 =============
@@ -47,17 +47,17 @@ Documentation
 Lua Goodies
 ===========
 * `An Introduction to Lua <http://the-ravi-programming-language.readthedocs.io/en/latest/lua-introduction.html>`_ attempts to provide a quick overview of Lua for folks coming from other languages.
-* `Lua 5.3 Bytecode Reference <http://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html>`_ is my attempt to bring up to date the `Lua 5.1 Bytecode Reference <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_. 
+* `Lua 5.3 Bytecode Reference <http://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html>`_ is my attempt to bring up to date the `Lua 5.1 Bytecode Reference <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_.
 
 Compatibility with Lua
 ======================
-Ravi should be able to run all Lua 5.3 programs in interpreted mode, but following should be noted: 
+Ravi should be able to run all Lua 5.3 programs in interpreted mode, but following should be noted:
 
-* Ravi supports optional typing and enhanced types such as arrays (described above). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions; operations on Ravi arrays within Lua code will be subject to restrictions as described in the section above on arrays. 
+* Ravi supports optional typing and enhanced types such as arrays (described above). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions; operations on Ravi arrays within Lua code will be subject to restrictions as described in the section above on arrays.
 * Values crossing from Lua to Ravi will be subjected to typechecks should these values be assigned to typed variables.
 * Upvalues cannot subvert the static typing of local variables (issue #26) when types are annotated.
 * Certain Lua limits are reduced due to changed byte code structure. These are described below.
-* Ravi uses an extended bytecode which means it is not compatible with Lua 5.3 bytecode. 
+* Ravi uses an extended bytecode which means it is not compatible with Lua 5.3 bytecode.
 
 +-----------------+-------------+-------------+
 | Limit name      | Lua value   | Ravi value  |
@@ -80,19 +80,21 @@ When JIT compilation is enabled there are following additional constraints:
 
 History
 =======
-* 2015 
+* 2015
        - Implemented JIT compilation using LLVM
        - Implemented libgccjit based alternative JIT (now discontinued)
-* 2016 
-       - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_ 
-* 2017 
-       - Embedded C compiler using dmrC project (C JIT compiler) 
+* 2016
+       - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_
+* 2017
+       - Embedded C compiler using dmrC project (C JIT compiler)
        - Additional type-annotations
-* 2018 
+* 2018
        - Implemented Eclipse OMR JIT backend
-       - Created `Ravi with batteries <https://github.com/dibyendumajumdar/ravi-distro>`_. 
+       - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
+* 2019 (Plan)
+       - New parser, type checker and code generator
+       - Release Ravi 1.0
 
 License
 =======
 MIT License for LLVM version.
-

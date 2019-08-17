@@ -1,0 +1,313 @@
+function()
+  return
+    function()
+    --locals  a, y, a, z
+      local
+      --[symbols]
+        a --local symbol ? 
+      --[expressions]
+        1
+      local
+      --[symbols]
+        y --local symbol function 
+      --[expressions]
+        function()
+        --upvalues  a
+          return
+            function()
+            --upvalues  a
+              return
+                --[primary start]
+                  a --upvalue ? 
+                --[primary end]
+            end
+        end
+      local
+      --[symbols]
+        a --local symbol ? 
+      --[expressions]
+        5
+      local
+      --[symbols]
+        z --local symbol function 
+      --[expressions]
+        function()
+        --upvalues  a
+          return
+            function()
+            --upvalues  a
+              return
+                --[primary start]
+                  a --upvalue ? 
+                --[primary end]
+            end
+        end
+      return
+        --[primary start]
+          y --local symbol function 
+        --[primary end]
+       ,
+        --[primary start]
+          z --local symbol function 
+        --[primary end]
+    end
+end
+
+function()
+  return
+    function(
+      a --local symbol ? 
+     ,
+      b --local symbol ? 
+     ,
+      c --local symbol ? 
+     ,
+      d --local symbol ? 
+     ,
+      e --local symbol ? 
+    )
+    --locals  a, b, c, d, e
+      if
+       --[binary expr start]
+        --[primary start]
+          a --local symbol ? 
+        --[primary end]
+       ==
+        --[primary start]
+          b --local symbol ? 
+        --[primary end]
+       --[binary expr end]
+      then
+        goto l1
+      elseif
+       --[binary expr start]
+        --[primary start]
+          a --local symbol ? 
+        --[primary end]
+       ==
+        --[primary start]
+          c --local symbol ? 
+        --[primary end]
+       --[binary expr end]
+      then
+        goto l2
+      elseif
+       --[binary expr start]
+        --[primary start]
+          a --local symbol ? 
+        --[primary end]
+       ==
+        --[primary start]
+          d --local symbol ? 
+        --[primary end]
+       --[binary expr end]
+      then
+        goto l2
+      else
+        if
+         --[binary expr start]
+          --[primary start]
+            a --local symbol ? 
+          --[primary end]
+         ==
+          --[primary start]
+            e --local symbol ? 
+          --[primary end]
+         --[binary expr end]
+        then
+          goto l3
+        else
+          goto l3
+        end
+      end
+      ::l1::
+      ::l2::
+      ::l3::
+      ::l4::
+    end
+end
+
+function()
+  return
+    function(
+      a --local symbol ? 
+    )
+    --locals  a
+      while
+       --[binary expr start]
+        --[primary start]
+          a --local symbol ? 
+        --[primary end]
+       <
+        10
+       --[binary expr end]
+      do
+        --[expression statement start]
+         --[var list start]
+           --[primary start]
+             a --local symbol ? 
+           --[primary end]
+         = --[var list end]
+         --[expression list start]
+           --[binary expr start]
+            --[primary start]
+              a --local symbol ? 
+            --[primary end]
+           +
+            1
+           --[binary expr end]
+         --[expression list end]
+        --[expression statement end]
+      end
+    end
+end
+
+function()
+  return
+    function(
+      a --local symbol ? 
+    )
+    --locals  a
+      ::L2::
+      if
+       --[unary expr start] any
+       not
+        --[primary start]
+         --[binary expr start]
+          --[primary start]
+            a --local symbol ? 
+          --[primary end]
+         <
+          10
+         --[binary expr end]
+        --[primary end]
+       --[unary expr end]
+      then
+        goto L1
+      end
+      --[expression statement start]
+       --[var list start]
+         --[primary start]
+           a --local symbol ? 
+         --[primary end]
+       = --[var list end]
+       --[expression list start]
+         --[binary expr start]
+          --[primary start]
+            a --local symbol ? 
+          --[primary end]
+         +
+          1
+         --[binary expr end]
+       --[expression list end]
+      --[expression statement end]
+      goto L2
+      ::L1::
+    end
+end
+
+function()
+  return
+    function()
+      --[expression statement start]
+       --[expression list start]
+         --[primary start]
+          function()
+          end
+         --[primary end]
+         --[suffix list start]
+           --[function call start]
+            (
+              { --[table constructor start] table
+                --[indexed assign start]
+                --[value start]
+                 --[primary start]
+                   f --global symbol ? 
+                 --[primary end]
+                 --[suffix list start]
+                   --[function call start]
+                    (
+                    )
+                   --[function call end]
+                 --[suffix list end]
+                --[value end]
+                --[indexed assign end]
+              } --[table constructor end]
+            )
+           --[function call end]
+         --[suffix list end]
+       --[expression list end]
+      --[expression statement end]
+    end
+end
+
+function()
+  return
+    function()
+    --locals  sum, j, k
+      local
+      --[symbols]
+        sum --local symbol ? 
+      for
+        j --local symbol ? 
+      =
+        1
+       ,
+        500
+      do
+         --[expression statement start]
+          --[var list start]
+            --[primary start]
+              sum --local symbol ? 
+            --[primary end]
+          = --[var list end]
+          --[expression list start]
+            0.0000000000000000
+          --[expression list end]
+         --[expression statement end]
+         for
+           k --local symbol ? 
+         =
+           1
+          ,
+           10000
+         do
+            --[expression statement start]
+             --[var list start]
+               --[primary start]
+                 sum --local symbol ? 
+               --[primary end]
+             = --[var list end]
+             --[expression list start]
+               --[binary expr start]
+                --[primary start]
+                  sum --local symbol ? 
+                --[primary end]
+               +
+                --[binary expr start]
+                 1.0000000000000000
+                /
+                 --[primary start]
+                  --[binary expr start]
+                   --[primary start]
+                     k --local symbol ? 
+                   --[primary end]
+                  *
+                   --[primary start]
+                     k --local symbol ? 
+                   --[primary end]
+                  --[binary expr end]
+                 --[primary end]
+                --[binary expr end]
+               --[binary expr end]
+             --[expression list end]
+            --[expression statement end]
+         end
+      end
+      return
+        --[primary start]
+          sum --local symbol ? 
+        --[primary end]
+    end
+end
+

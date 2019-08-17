@@ -41,6 +41,7 @@
 ** 0 - Lua function
 ** 1 - light C function
 ** 2 - regular C function (closure)
+** 4 - fast light C dunction (Ravi extension)
 */
 
 /* Variant tags for functions */
@@ -145,6 +146,7 @@ typedef struct lua_TValue {
 #define novariant(x)	((x) & 0x0F)
 
 /* type tag of a TValue (bits 0-3 for tags + variant bits 4-6) */
+/* 7F is 0111 1111 */
 #define ttype(o)	(rttype(o) & 0x7F)
 
 /* type tag of a TValue with no variants (bits 0-3) */
@@ -239,6 +241,9 @@ typedef struct lua_TValue {
 #define setfvalue(obj,x) \
   { TValue *io=(obj); val_(io).f=(x); settt_(io, LUA_TLCF); }
 
+/* The Fast C function call type is encoded as two
+   bytes. The Hi Byte holds a function tag. The Lo Byte
+   holds the Lua typecode */
 #define setfvalue_fastcall(obj, x, tag) \
   {                       \
     TValue *io = (obj);   \
@@ -246,7 +251,7 @@ typedef struct lua_TValue {
     val_(io).p = (x);     \
     settt_(io, ((tag << 8) | RAVI_TFCF)); \
   }
-
+#define getfcf_tag(typecode) (typecode >> 8)
 
 #define setpvalue(obj,x) \
   { TValue *io=(obj); val_(io).p=(x); settt_(io, LUA_TLIGHTUSERDATA); }
@@ -594,10 +599,10 @@ typedef enum RaviArrayModifer {
 
 /** RAVI extension */
 typedef struct RaviArray {
-  char *data;
-  unsigned int len; /* RAVI len specialization */
-  unsigned int size; /* amount of memory allocated */
-  lu_byte array_type; /* RAVI specialization */
+  char *data;             /* Note that the array data is 0-based so this holds 1+Lua length items */
+  unsigned int len;       /* RAVI len specialization, holds real length which is 1+Lua length */
+  unsigned int size;      /* amount of memory allocated */
+  lu_byte array_type;     /* RAVI specialization */
   lu_byte array_modifier; /* Flags that affect how the array is handled */
 } RaviArray;
 
@@ -637,7 +642,9 @@ typedef struct Table {
 */
 #define luaO_nilobject		(&luaO_nilobject_)
 
-/* Internal assembler functions. Never call these directly from C. */
+/* Internal assembler functions. Never call these directly from C.
+   Note that such functions do not follow calling conventions and 
+   are only used by ASM VM to implement bytecodes */
 typedef void(*ASMFunction)(void);
 
 

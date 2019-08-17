@@ -68,3 +68,14 @@ dotest 'return (x>y) and x or y == 2'
 dotest 'return (x>y) and x or y == 2'
 
 dotest 'function x() for i = 1, 10 do; print(i); end end'
+
+dotest 'function x() local a=1; function y() return function() return a end end; end'
+
+dotest 'return @integer 1'
+dotest 'return @string "hello"'
+dotest 'return @table {}'
+dotest 'return @integer[] {}'
+dotest 'return @number[] {}'
+dotest 'return @closure function() end'
+dotest 'return @number 54.4'
+dotest 'return @User.Type a'

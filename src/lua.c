@@ -47,7 +47,7 @@
 #ifdef USE_LLVM
 #define ravi_xstringify(s) ravi_stringify(s)
 #define ravi_stringify(s) #s
-#define RAVI_OPTION_STRING3 " LLVM-" LLVM_VERSION_STRING " ORC=" ravi_xstringify(USE_ORC_JIT)
+#define RAVI_OPTION_STRING3 " LLVM-" LLVM_VERSION_STRING " ORC=" ravi_xstringify(USE_ORC_JIT) " v2=" ravi_xstringify(USE_ORCv2_JIT)
 #elif USE_OMRJIT
 #define RAVI_OPTION_STRING3 " omrjit"
 #else
