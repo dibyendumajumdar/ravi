@@ -74,3 +74,23 @@ str=
 end
 ]]
 doast(str)
+
+str=
+[[local a: integer return a+3
+]]
+doast(str)
+
+str=
+[[local i: integer; return t[i/5]
+]]
+doast(str)
+
+str=
+[[local t: integer[]; return t[0][1]
+]]
+doast(str)
+
+str=
+[[return f()[1]
+]]
+doast(str)

@@ -142,6 +142,7 @@ static void typecheck_binaryop(struct ast_node *function, struct ast_node *node)
 static void typecheck_suffixedexpr(struct ast_node *function, struct ast_node *node) {
   typecheck_ast_node(function, node->suffixed_expr.primary_expr);
   if (node->suffixed_expr.suffix_list) {
+    typecheck_ast_list(function, node->suffixed_expr.suffix_list);
   }
 }
 
@@ -209,6 +210,7 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       break;
     }
     case AST_SYMBOL_EXPR: {
+      /* type should have been set when symbol was created */
       break;
     }
     case AST_BINARY_EXPR: {
@@ -224,9 +226,11 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       break;
     }
     case AST_FIELD_SELECTOR_EXPR: {
+      typecheck_ast_node(function, node->index_expr.expr);
       break;
     }
     case AST_Y_INDEX_EXPR: {
+      typecheck_ast_node(function, node->index_expr.expr);
       break;
     }
     case AST_INDEXED_ASSIGN_EXPR: {

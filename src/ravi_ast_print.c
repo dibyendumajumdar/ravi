@@ -406,14 +406,16 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       break;
     }
     case AST_SUFFIXED_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[primary start]");
-      raviA_print_ast_node(buf, node->suffixed_expr.primary_expr, level + 1);
-      printf_buf(buf, "%p%c\n", level, "[primary end]");
+      printf_buf(buf, "%p%c %T\n", level, "[suffixed expr start]", &node->suffixed_expr.type);
+      printf_buf(buf, "%p%c\n", level+1, "[primary start]");
+      raviA_print_ast_node(buf, node->suffixed_expr.primary_expr, level + 2);
+      printf_buf(buf, "%p%c\n", level+1, "[primary end]");
       if (node->suffixed_expr.suffix_list) {
-        printf_buf(buf, "%p%c\n", level, "[suffix list start]");
-        print_ast_node_list(buf, node->suffixed_expr.suffix_list, level + 1, NULL);
-        printf_buf(buf, "%p%c\n", level, "[suffix list end]");
+        printf_buf(buf, "%p%c\n", level+1, "[suffix list start]");
+        print_ast_node_list(buf, node->suffixed_expr.suffix_list, level + 2, NULL);
+        printf_buf(buf, "%p%c\n", level+1, "[suffix list end]");
       }
+      printf_buf(buf, "%p%c\n", level, "[suffixed expr end]");
       break;
     }
     case AST_FUNCTION_CALL_EXPR: {
@@ -473,14 +475,14 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       break;
     }
     case AST_FIELD_SELECTOR_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[field selector start]");
+      printf_buf(buf, "%p%c %T\n", level, "[field selector start]", &node->index_expr.type);
       printf_buf(buf, "%p.\n", level + 1);
       raviA_print_ast_node(buf, node->index_expr.expr, level + 2);
       printf_buf(buf, "%p%c\n", level, "[field selector end]");
       break;
     }
     case AST_Y_INDEX_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[Y index start]");
+      printf_buf(buf, "%p%c %T\n", level, "[Y index start]", &node->index_expr.type);
       printf_buf(buf, "%p[\n", level + 1);
       raviA_print_ast_node(buf, node->index_expr.expr, level + 2);
       printf_buf(buf, "%p]\n", level + 1);
