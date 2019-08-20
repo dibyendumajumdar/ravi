@@ -1,3 +1,4 @@
+#include <ravi_ast.h>
 #include "ravi_ast.h"
 
 static const char *type_name(ravitype_t tt) {
@@ -433,7 +434,7 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       break;
     }
     case AST_BINARY_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[binary expr start]");
+      printf_buf(buf, "%p%c %T\n", level, "[binary expr start]", &node->binary_expr.type);
       raviA_print_ast_node(buf, node->binary_expr.exprleft, level + 1);
       printf_buf(buf, "%p%s\n", level, get_binary_opr_str(node->binary_expr.binary_op));
       raviA_print_ast_node(buf, node->binary_expr.exprright, level + 1);

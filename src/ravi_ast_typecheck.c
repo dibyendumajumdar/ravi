@@ -1,3 +1,4 @@
+#include <ravi_ast.h>
 #include "ravi_ast.h"
 
 /* Type checker - WIP  */
@@ -67,6 +68,83 @@ static void typecheck_unaryop(struct ast_node *function, struct ast_node *node) 
       break;
   }
 }
+
+/* Type checker - WIP  */
+static void typecheck_binaryop(struct ast_node *function, struct ast_node *node) {
+  BinOpr op = node->binary_expr.binary_op;
+  struct ast_node *e1 = node->binary_expr.exprleft;
+  struct ast_node *e2 = node->binary_expr.exprright;
+  typecheck_ast_node(function, e1);
+  typecheck_ast_node(function, e2);
+  switch (op) {
+    case OPR_ADD:
+    case OPR_SUB:
+    case OPR_MUL:
+    case OPR_DIV:
+      if (e1->common_expr.type.type_code == RAVI_TNUMFLT && e2->common_expr.type.type_code == RAVI_TNUMFLT)
+        set_typecode(node->binary_expr.type, RAVI_TNUMFLT);
+      else if (e1->common_expr.type.type_code == RAVI_TNUMFLT && e2->common_expr.type.type_code == RAVI_TNUMINT)
+        set_typecode(node->binary_expr.type, RAVI_TNUMFLT);
+      else if (e1->common_expr.type.type_code == RAVI_TNUMINT && e2->common_expr.type.type_code == RAVI_TNUMFLT)
+        set_typecode(node->binary_expr.type, RAVI_TNUMFLT);
+      else if (op != OPR_DIV && e1->common_expr.type.type_code == RAVI_TNUMINT &&
+               e2->common_expr.type.type_code == RAVI_TNUMINT)
+        set_typecode(node->binary_expr.type, RAVI_TNUMINT);
+      else if (op == OPR_DIV && e1->common_expr.type.type_code == RAVI_TNUMINT &&
+               e2->common_expr.type.type_code == RAVI_TNUMINT)
+        set_typecode(node->binary_expr.type, RAVI_TNUMFLT);
+      break;
+    case OPR_IDIV:
+      if (e1->common_expr.type.type_code == RAVI_TNUMINT && e2->common_expr.type.type_code == RAVI_TNUMINT)
+        set_typecode(node->binary_expr.type, RAVI_TNUMINT);
+      // FIXME missing cases
+      break;
+    case OPR_BAND:
+    case OPR_BOR:
+    case OPR_BXOR:
+    case OPR_SHL:
+    case OPR_SHR:
+      if ((e1->common_expr.type.type_code == RAVI_TNUMFLT || e1->common_expr.type.type_code == RAVI_TNUMINT) &&
+          (e2->common_expr.type.type_code == RAVI_TNUMFLT || e2->common_expr.type.type_code == RAVI_TNUMINT))
+        set_typecode(node->binary_expr.type, RAVI_TNUMINT);
+      break;
+    case OPR_EQ:
+    case OPR_NE:
+    case OPR_GE:
+    case OPR_GT:
+    case OPR_LE:
+    case OPR_LT:
+      /* This case is not handled in default parser - why? */
+      if ((e1->common_expr.type.type_code == RAVI_TNUMINT || e1->common_expr.type.type_code == RAVI_TNUMFLT ||
+           e1->common_expr.type.type_code == RAVI_TBOOLEAN) &&
+          (e2->common_expr.type.type_code == RAVI_TNUMFLT || e2->common_expr.type.type_code == RAVI_TNUMINT ||
+           e2->common_expr.type.type_code == RAVI_TBOOLEAN))
+        set_typecode(node->binary_expr.type, RAVI_TBOOLEAN);
+      break;
+    case OPR_POW:
+      if ((e1->common_expr.type.type_code == RAVI_TNUMFLT || e1->common_expr.type.type_code == RAVI_TNUMINT) &&
+          (e2->common_expr.type.type_code == RAVI_TNUMFLT || e2->common_expr.type.type_code == RAVI_TNUMINT))
+        set_typecode(node->binary_expr.type, RAVI_TNUMFLT);
+      break;
+    case OPR_MOD:
+      if (e1->common_expr.type.type_code == RAVI_TNUMINT && e2->common_expr.type.type_code == RAVI_TNUMINT)
+        set_typecode(node->binary_expr.type, RAVI_TNUMINT);
+      else if ((e1->common_expr.type.type_code == RAVI_TNUMINT && e2->common_expr.type.type_code == RAVI_TNUMFLT) ||
+               (e1->common_expr.type.type_code == RAVI_TNUMFLT && e2->common_expr.type.type_code == RAVI_TNUMINT))
+        set_typecode(node->binary_expr.type, RAVI_TNUMFLT);
+      break;
+    default:
+      set_typecode(node->binary_expr.type, RAVI_TANY);
+      break;
+  }
+}
+
+static void typecheck_suffixedexpr(struct ast_node *function, struct ast_node *node) {
+  typecheck_ast_node(function, node->suffixed_expr.primary_expr);
+  if (node->suffixed_expr.suffix_list) {
+  }
+}
+
 /* Type checker - WIP  */
 static void typecheck_ast_node(struct ast_node *function, struct ast_node *node) {
   switch (node->type) {
@@ -120,8 +198,7 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       break;
     }
     case AST_SUFFIXED_EXPR: {
-      if (node->suffixed_expr.suffix_list) {
-      }
+      typecheck_suffixedexpr(function, node);
       break;
     }
     case AST_FUNCTION_CALL_EXPR: {
@@ -135,6 +212,7 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       break;
     }
     case AST_BINARY_EXPR: {
+      typecheck_binaryop(function, node);
       break;
     }
     case AST_UNARY_EXPR: {
@@ -142,6 +220,7 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       break;
     }
     case AST_LITERAL_EXPR: {
+      /* type set during parsing */
       break;
     }
     case AST_FIELD_SELECTOR_EXPR: {

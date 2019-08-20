@@ -68,7 +68,7 @@ function()
     )
     --locals  a, b, c, d, e
       if
-       --[binary expr start]
+       --[binary expr start] any
         --[primary start]
           a --local symbol ? 
         --[primary end]
@@ -80,7 +80,7 @@ function()
       then
         goto l1
       elseif
-       --[binary expr start]
+       --[binary expr start] any
         --[primary start]
           a --local symbol ? 
         --[primary end]
@@ -92,7 +92,7 @@ function()
       then
         goto l2
       elseif
-       --[binary expr start]
+       --[binary expr start] any
         --[primary start]
           a --local symbol ? 
         --[primary end]
@@ -105,7 +105,7 @@ function()
         goto l2
       else
         if
-         --[binary expr start]
+         --[binary expr start] any
           --[primary start]
             a --local symbol ? 
           --[primary end]
@@ -134,7 +134,7 @@ function()
     )
     --locals  a
       while
-       --[binary expr start]
+       --[binary expr start] any
         --[primary start]
           a --local symbol ? 
         --[primary end]
@@ -149,7 +149,7 @@ function()
            --[primary end]
          = --[var list end]
          --[expression list start]
-           --[binary expr start]
+           --[binary expr start] any
             --[primary start]
               a --local symbol ? 
             --[primary end]
@@ -173,7 +173,7 @@ function()
        --[unary expr start] any
        not
         --[primary start]
-         --[binary expr start]
+         --[binary expr start] any
           --[primary start]
             a --local symbol ? 
           --[primary end]
@@ -192,7 +192,7 @@ function()
          --[primary end]
        = --[var list end]
        --[expression list start]
-         --[binary expr start]
+         --[binary expr start] any
           --[primary start]
             a --local symbol ? 
           --[primary end]
@@ -279,16 +279,16 @@ function()
                --[primary end]
              = --[var list end]
              --[expression list start]
-               --[binary expr start]
+               --[binary expr start] any
                 --[primary start]
                   sum --local symbol ? 
                 --[primary end]
                +
-                --[binary expr start]
+                --[binary expr start] any
                  1.0000000000000000
                 /
                  --[primary start]
-                  --[binary expr start]
+                  --[binary expr start] any
                    --[primary start]
                      k --local symbol ? 
                    --[primary end]
