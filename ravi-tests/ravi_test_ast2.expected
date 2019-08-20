@@ -418,19 +418,14 @@ function()
   --[symbols]
     t --local symbol integer[] 
   return
-    --[suffixed expr start] any
+    --[suffixed expr start] integer
      --[primary start]
        t --local symbol integer[] 
      --[primary end]
      --[suffix list start]
-       --[Y index start] any
+       --[Y index start] integer
         [
          0
-        ]
-       --[Y index end]
-       --[Y index start] any
-        [
-         1
         ]
        --[Y index end]
      --[suffix list end]
@@ -448,6 +443,26 @@ function()
         (
         )
        --[function call end]
+       --[Y index start] any
+        [
+         1
+        ]
+       --[Y index end]
+     --[suffix list end]
+    --[suffixed expr end]
+end
+
+function()
+  return
+    --[suffixed expr start] any
+     --[primary start]
+       x --global symbol ? 
+     --[primary end]
+     --[suffix list start]
+       --[field selector start] any
+        .
+         'y'
+       --[field selector end]
        --[Y index start] any
         [
          1

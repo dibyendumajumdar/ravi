@@ -86,11 +86,16 @@ str=
 doast(str)
 
 str=
-[[local t: integer[]; return t[0][1]
+[[local t: integer[]; return t[0]
 ]]
 doast(str)
 
 str=
 [[return f()[1]
+]]
+doast(str)
+
+str=
+[[return x.y[1]
 ]]
 doast(str)

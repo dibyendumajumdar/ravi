@@ -139,11 +139,55 @@ static void typecheck_binaryop(struct ast_node *function, struct ast_node *node)
   }
 }
 
+static bool is_unindexable_type(struct var_type *type) {
+  switch (type->type_code) {
+    case RAVI_TNUMFLT:
+    case RAVI_TNUMINT:
+    case RAVI_TBOOLEAN:
+    case RAVI_TNIL:
+      return true;
+    default:
+      return false;
+  }
+}
+
+/*
+ * Suffixed expression examples:
+ * f()[1]
+ * x[1][2]
+ * x.y[1]
+ */
 static void typecheck_suffixedexpr(struct ast_node *function, struct ast_node *node) {
   typecheck_ast_node(function, node->suffixed_expr.primary_expr);
-  if (node->suffixed_expr.suffix_list) {
-    typecheck_ast_list(function, node->suffixed_expr.suffix_list);
+  struct ast_node *prev_node = node->suffixed_expr.primary_expr;
+  struct ast_node *this_node;
+  FOR_EACH_PTR(node->suffixed_expr.suffix_list, this_node) {
+    typecheck_ast_node(function, this_node);
+    if (this_node->type == AST_Y_INDEX_EXPR) {
+      if (prev_node->common_expr.type.type_code == RAVI_TARRAYFLT) {
+        if (this_node->index_expr.expr->common_expr.type.type_code == RAVI_TNUMINT) {
+          set_typecode(this_node->index_expr.type, RAVI_TNUMFLT);
+        }
+        else {
+          // FIXME Error
+        }
+      }
+      else if (prev_node->common_expr.type.type_code == RAVI_TARRAYINT) {
+        if (this_node->index_expr.expr->common_expr.type.type_code == RAVI_TNUMINT) {
+          set_typecode(this_node->index_expr.type, RAVI_TNUMINT);
+        }
+        else {
+          // FIXME Error
+        }
+      }
+      else if (is_unindexable_type(&prev_node->common_expr.type)) {
+        // FIXME Error
+      }
+    }
+    prev_node = this_node;
   }
+  END_FOR_EACH_PTR(node);
+  copy_type(node->suffixed_expr.type, prev_node->common_expr.type);
 }
 
 /* Type checker - WIP  */

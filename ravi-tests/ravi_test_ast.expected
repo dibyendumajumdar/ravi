@@ -121,8 +121,8 @@ end
 ]]
 function()
   return
-    --[binary expr start] any
-     --[suffixed expr start] any
+    --[binary expr start] number
+     --[suffixed expr start] integer
       --[primary start]
        --[binary expr start] integer
         1
@@ -132,7 +132,7 @@ function()
       --[primary end]
      --[suffixed expr end]
     ^
-     --[suffixed expr start] any
+     --[suffixed expr start] integer
       --[primary start]
        --[binary expr start] integer
         50
@@ -149,8 +149,8 @@ end
 ]]
 function()
   return
-    --[binary expr start] any
-     --[suffixed expr start] any
+    --[binary expr start] number
+     --[suffixed expr start] integer
       --[primary start]
        --[unary expr start] integer
        -
@@ -159,7 +159,7 @@ function()
       --[primary end]
      --[suffixed expr end]
     ^
-     --[suffixed expr start] any
+     --[suffixed expr start] integer
       --[primary start]
        --[binary expr start] integer
         31
@@ -177,7 +177,7 @@ end
 function()
   return
     --[binary expr start] any
-     --[suffixed expr start] any
+     --[suffixed expr start] number
       --[primary start]
        --[binary expr start] number
         --[unary expr start] number
@@ -218,26 +218,26 @@ end
 ]]
 function()
   return
-    --[binary expr start] any
-     --[binary expr start] any
-      --[binary expr start] any
-       --[unary expr start] any
+    --[binary expr start] number
+     --[binary expr start] number
+      --[binary expr start] number
+       --[unary expr start] number
        -
-        --[suffixed expr start] any
+        --[suffixed expr start] number
          --[primary start]
-          --[binary expr start] any
-           --[suffixed expr start] any
+          --[binary expr start] number
+           --[suffixed expr start] number
             --[primary start]
-             --[binary expr start] any
+             --[binary expr start] number
               --[binary expr start] number
                2.0000000000000000
               ^
                8
               --[binary expr end]
              +
-              --[unary expr start] any
+              --[unary expr start] integer
               -
-               --[suffixed expr start] any
+               --[suffixed expr start] integer
                 --[primary start]
                  --[unary expr start] integer
                  -
@@ -274,23 +274,23 @@ function()
     --[binary expr start] any
      --[binary expr start] any
       --[binary expr start] any
-       --[unary expr start] any
+       --[unary expr start] number
        -
-        --[suffixed expr start] any
+        --[suffixed expr start] number
          --[primary start]
-          --[binary expr start] any
-           --[suffixed expr start] any
+          --[binary expr start] number
+           --[suffixed expr start] number
             --[primary start]
-             --[binary expr start] any
+             --[binary expr start] number
               --[binary expr start] number
                2
               ^
                8
               --[binary expr end]
              +
-              --[unary expr start] any
+              --[unary expr start] integer
               -
-               --[suffixed expr start] any
+               --[suffixed expr start] integer
                 --[primary start]
                  --[unary expr start] integer
                  -
@@ -383,11 +383,11 @@ end
 ]]
 function()
   return
-    --[binary expr start] any
-     --[suffixed expr start] any
+    --[binary expr start] integer
+     --[suffixed expr start] integer
       --[primary start]
-       --[binary expr start] any
-        --[suffixed expr start] any
+       --[binary expr start] integer
+        --[suffixed expr start] integer
          --[primary start]
           --[binary expr start] integer
            100
@@ -414,7 +414,7 @@ end
 ]]
 function()
   return
-    --[binary expr start] any
+    --[binary expr start] boolean
      --[binary expr start] number
       2
      ^
@@ -425,10 +425,10 @@ function()
       --[binary expr end]
      --[binary expr end]
     ==
-     --[binary expr start] any
+     --[binary expr start] number
       2
      ^
-      --[suffixed expr start] any
+      --[suffixed expr start] number
        --[primary start]
         --[binary expr start] number
          3
@@ -446,7 +446,7 @@ end
 ]]
 function()
   return
-    --[binary expr start] any
+    --[binary expr start] boolean
      --[binary expr start] number
       --[binary expr start] number
        2
@@ -457,8 +457,8 @@ function()
       4
      --[binary expr end]
     ==
-     --[binary expr start] any
-      --[suffixed expr start] any
+     --[binary expr start] number
+      --[suffixed expr start] number
        --[primary start]
         --[binary expr start] number
          2
@@ -618,9 +618,9 @@ function()
        --[unary expr end]
       --[binary expr end]
      and
-      --[binary expr start] any
-       --[binary expr start] any
-        --[suffixed expr start] any
+      --[binary expr start] boolean
+       --[binary expr start] number
+        --[suffixed expr start] integer
          --[primary start]
           --[unary expr start] integer
           -
@@ -742,7 +742,7 @@ function()
     --[binary expr start] any
      --[unary expr start] any
      not
-      --[suffixed expr start] any
+      --[suffixed expr start] boolean
        --[primary start]
         --[binary expr start] boolean
          --[binary expr start] integer
@@ -978,7 +978,7 @@ function()
     ==
      --[binary expr start] any
       --[binary expr start] any
-       --[suffixed expr start] any
+       --[suffixed expr start] integer
         --[primary start]
          --[unary expr start] integer
          -
@@ -993,7 +993,7 @@ function()
           --[suffixed expr start] any
            --[primary start]
             --[binary expr start] any
-             --[suffixed expr start] any
+             --[suffixed expr start] integer
               --[primary start]
                --[binary expr start] integer
                 4
@@ -1003,12 +1003,12 @@ function()
               --[primary end]
              --[suffixed expr end]
             //
-             --[suffixed expr start] any
+             --[suffixed expr start] number
               --[primary start]
-               --[binary expr start] any
+               --[binary expr start] number
                 2
                ^
-                --[suffixed expr start] any
+                --[suffixed expr start] number
                  --[primary start]
                   --[binary expr start] number
                    3
@@ -1030,10 +1030,10 @@ function()
        --[suffixed expr end]
       --[binary expr end]
      +
-      --[suffixed expr start] any
+      --[suffixed expr start] number
        --[primary start]
-        --[binary expr start] any
-         --[suffixed expr start] any
+        --[binary expr start] number
+         --[suffixed expr start] integer
           --[primary start]
            --[binary expr start] integer
             4
@@ -1292,7 +1292,7 @@ function()
       --[suffixed expr start] any
        --[primary start]
         --[binary expr start] any
-         --[suffixed expr start] any
+         --[suffixed expr start] boolean
           --[primary start]
            --[binary expr start] boolean
             2
