@@ -193,7 +193,8 @@ endif()
 set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
         src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
         src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
-        src/lvm.c src/lzio.c src/ravijit.cpp src/ltests.c src/ravi_profile.c src/ravi_ast.c src/ravi_membuf.c
+        src/lvm.c src/lzio.c src/ravijit.cpp src/ltests.c src/ravi_profile.c 
+        src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c src/ravi_membuf.c
         src/ravi_jitshared.c src/bit.c src/ravi_alloc.c)
 if (COMPUTED_GOTO AND NOT MSVC)
     if (CMAKE_C_COMPILER_ID MATCHES "Clang")
@@ -365,9 +366,9 @@ if (NOT STATIC_BUILD)
 endif()
 
 if (LLVM_JIT)
-    set (LIBRAVI_NAME libravillvm) 
+    set (LIBRAVI_NAME libravillvm)
 elseif (OMR_JIT)
-    set (LIBRAVI_NAME libravilomr) 
+    set (LIBRAVI_NAME libravilomr)
 else()
     set (LIBRAVI_NAME libravinojit)
 endif()
