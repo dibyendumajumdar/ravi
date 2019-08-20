@@ -143,7 +143,7 @@ struct ast_node {
   enum ast_node_type type;
   union {
     struct {
-      struct ast_node_list *exprlist;
+      struct ast_node_list *expr_list;
     } return_stmt;
     struct {
       struct lua_symbol *symbol;
@@ -153,17 +153,17 @@ struct ast_node {
       struct ast_node *label_stmt; /* Initially this will be NULL; set by a separate pass */
     } goto_stmt;
     struct {
-      struct lua_symbol_list *vars;
-      struct ast_node_list *exprlist;
+      struct lua_symbol_list *var_list;
+      struct ast_node_list *expr_list;
     } local_stmt;
     struct {
       struct ast_node_list *var_expr_list; /* Optional var expressions, comma separated */
-      struct ast_node_list *exr_list;      /* Comma separated expressions */
+      struct ast_node_list *expr_list;      /* Comma separated expressions */
     } expression_stmt;                     /* Also covers assignments*/
     struct {
       struct ast_node *name;           /* base symbol to be looked up */
       struct ast_node_list *selectors; /* Optional */
-      struct ast_node *methodname;     /* Optional */
+      struct ast_node *method_name;     /* Optional */
       struct ast_node *function_expr;  /* Function's AST */
     } function_stmt;
     struct {
@@ -187,7 +187,7 @@ struct ast_node {
     } while_or_repeat_stmt;
     struct {
       struct lua_symbol_list *symbols;
-      struct ast_node_list *expressions;
+      struct ast_node_list *expr_list;
       struct block_scope *for_body;
       struct ast_node_list *for_statement_list; /* statements in this block */
     } for_stmt;                                 /* Used for both generic and numeric for loops */
@@ -218,8 +218,8 @@ struct ast_node {
     struct {
       struct var_type type;
       BinOpr binary_op;
-      struct ast_node *exprleft;
-      struct ast_node *exprright;
+      struct ast_node *expr_left;
+      struct ast_node *expr_right;
     } binary_expr;
     struct {
       struct var_type type;
@@ -250,7 +250,7 @@ struct ast_node {
     } suffixed_expr;
     struct {
       struct var_type type;
-      TString *methodname;            /* Optional methodname */
+      TString *method_name;            /* Optional method_name */
       struct ast_node_list *arg_list; /* Call arguments */
     } function_call_expr;
   };

@@ -293,16 +293,16 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       break;
     case AST_RETURN_STMT: {
       printf_buf(buf, "%preturn\n", level);
-      print_ast_node_list(buf, node->return_stmt.exprlist, level + 1, ",");
+      print_ast_node_list(buf, node->return_stmt.expr_list, level + 1, ",");
       break;
     }
     case AST_LOCAL_STMT: {
       printf_buf(buf, "%plocal\n", level);
       printf_buf(buf, "%p%c\n", level, "[symbols]");
-      print_symbol_list(buf, node->local_stmt.vars, level + 1, ",");
-      if (node->local_stmt.exprlist) {
+      print_symbol_list(buf, node->local_stmt.var_list, level + 1, ",");
+      if (node->local_stmt.expr_list) {
         printf_buf(buf, "%p%c\n", level, "[expressions]");
-        print_ast_node_list(buf, node->local_stmt.exprlist, level + 1, ",");
+        print_ast_node_list(buf, node->local_stmt.expr_list, level + 1, ",");
       }
       break;
     }
@@ -312,9 +312,9 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
         printf_buf(buf, "%p%c\n", level + 1, "[selectors]");
         print_ast_node_list(buf, node->function_stmt.selectors, level + 2, NULL);
       }
-      if (node->function_stmt.methodname) {
+      if (node->function_stmt.method_name) {
         printf_buf(buf, "%p%c\n", level + 1, "[method name]");
-        raviA_print_ast_node(buf, node->function_stmt.methodname, level + 2);
+        raviA_print_ast_node(buf, node->function_stmt.method_name, level + 2);
       }
       printf_buf(buf, "%p=\n", level + 1);
       raviA_print_ast_node(buf, node->function_stmt.function_expr, level + 2);
@@ -342,7 +342,7 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
         printf_buf(buf, "%p= %c\n", level + 1, "[var list end]");
       }
       printf_buf(buf, "%p%c\n", level + 1, "[expression list start]");
-      print_ast_node_list(buf, node->expression_stmt.exr_list, level + 2, ",");
+      print_ast_node_list(buf, node->expression_stmt.expr_list, level + 2, ",");
       printf_buf(buf, "%p%c\n", level + 1, "[expression list end]");
       printf_buf(buf, "%p%c\n", level, "[expression statement end]");
       break;
@@ -389,7 +389,7 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       printf_buf(buf, "%pfor\n", level);
       print_symbol_list(buf, node->for_stmt.symbols, level + 1, ",");
       printf_buf(buf, "%pin\n", level);
-      print_ast_node_list(buf, node->for_stmt.expressions, level + 1, ",");
+      print_ast_node_list(buf, node->for_stmt.expr_list, level + 1, ",");
       printf_buf(buf, "%pdo\n", level);
       print_statement_list(buf, node->for_stmt.for_statement_list, level + 1);
       printf_buf(buf, "%pend\n", level);
@@ -399,7 +399,7 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       printf_buf(buf, "%pfor\n", level);
       print_symbol_list(buf, node->for_stmt.symbols, level + 1, NULL);
       printf_buf(buf, "%p=\n", level);
-      print_ast_node_list(buf, node->for_stmt.expressions, level + 1, ",");
+      print_ast_node_list(buf, node->for_stmt.expr_list, level + 1, ",");
       printf_buf(buf, "%pdo\n", level);
       print_statement_list(buf, node->for_stmt.for_statement_list, level + 1);
       printf_buf(buf, "%pend\n", level);
@@ -420,8 +420,8 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
     }
     case AST_FUNCTION_CALL_EXPR: {
       printf_buf(buf, "%p%c\n", level, "[function call start]");
-      if (node->function_call_expr.methodname) {
-        printf_buf(buf, "%p: %t (\n", level + 1, node->function_call_expr.methodname);
+      if (node->function_call_expr.method_name) {
+        printf_buf(buf, "%p: %t (\n", level + 1, node->function_call_expr.method_name);
       }
       else {
         printf_buf(buf, "%p(\n", level + 1);
@@ -437,9 +437,9 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
     }
     case AST_BINARY_EXPR: {
       printf_buf(buf, "%p%c %T\n", level, "[binary expr start]", &node->binary_expr.type);
-      raviA_print_ast_node(buf, node->binary_expr.exprleft, level + 1);
+      raviA_print_ast_node(buf, node->binary_expr.expr_left, level + 1);
       printf_buf(buf, "%p%s\n", level, get_binary_opr_str(node->binary_expr.binary_op));
-      raviA_print_ast_node(buf, node->binary_expr.exprright, level + 1);
+      raviA_print_ast_node(buf, node->binary_expr.expr_right, level + 1);
       printf_buf(buf, "%p%c\n", level, "[binary expr end]");
       break;
     }

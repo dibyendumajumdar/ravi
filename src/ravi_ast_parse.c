@@ -622,7 +622,7 @@ static struct ast_node *parse_function_call(struct parser_state *parser, TString
   LexState *ls = parser->ls;
   struct ast_node *call_expr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   call_expr->type = AST_FUNCTION_CALL_EXPR;
-  call_expr->function_call_expr.methodname = methodname;
+  call_expr->function_call_expr.method_name = methodname;
   call_expr->function_call_expr.arg_list = NULL;
   set_type(call_expr->function_call_expr.type, RAVI_TANY);
   switch (ls->t.token) {
@@ -940,8 +940,8 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
 
     struct ast_node *binexpr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
     binexpr->type = AST_BINARY_EXPR;
-    binexpr->binary_expr.exprleft = expr;
-    binexpr->binary_expr.exprright = exprright;
+    binexpr->binary_expr.expr_left = expr;
+    binexpr->binary_expr.expr_right = exprright;
     binexpr->binary_expr.binary_op = op;
     expr = binexpr;                                                // Becomes the left expr for next iteration
     op = nextop;
@@ -1071,11 +1071,11 @@ static void parse_fornum_statement(struct parser_state *parser, struct ast_node 
   add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, varname, RAVI_TANY, NULL));
   checknext(ls, '=');
   /* get the type of each expression */
-  add_ast_node(parser->container, &stmt->for_stmt.expressions, parse_expression(parser)); /* initial value */
+  add_ast_node(parser->container, &stmt->for_stmt.expr_list, parse_expression(parser)); /* initial value */
   checknext(ls, ',');
-  add_ast_node(parser->container, &stmt->for_stmt.expressions, parse_expression(parser)); /* limit */
+  add_ast_node(parser->container, &stmt->for_stmt.expr_list, parse_expression(parser)); /* limit */
   if (testnext(ls, ',')) {
-    add_ast_node(parser->container, &stmt->for_stmt.expressions, parse_expression(parser)); /* optional step */
+    add_ast_node(parser->container, &stmt->for_stmt.expr_list, parse_expression(parser)); /* optional step */
   }
   parse_forbody(parser, stmt, line, 1, 1);
 }
@@ -1093,7 +1093,7 @@ static void parse_for_list(struct parser_state *parser, struct ast_node *stmt, T
     nvars++;
   }
   checknext(ls, TK_IN);
-  parse_expression_list(parser, &stmt->for_stmt.expressions);
+  parse_expression_list(parser, &stmt->for_stmt.expr_list);
   int line = ls->linenumber;
   parse_forbody(parser, stmt, line, nvars - 3, 0);
 }
@@ -1106,7 +1106,7 @@ static struct ast_node *parse_for_statement(struct parser_state *parser, int lin
   struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   stmt->type = AST_NONE;
   stmt->for_stmt.symbols = NULL;
-  stmt->for_stmt.expressions = NULL;
+  stmt->for_stmt.expr_list = NULL;
   stmt->for_stmt.for_body = NULL;
   stmt->for_stmt.for_statement_list = NULL;
   new_scope(parser);                 // For the loop variables
@@ -1191,10 +1191,10 @@ static struct ast_node *parse_local_function_statement(struct parser_state *pars
   end_function(parser);
   struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   stmt->type = AST_LOCAL_STMT;
-  stmt->local_stmt.vars = NULL;
-  stmt->local_stmt.exprlist = NULL;
-  add_symbol(parser->container, &stmt->local_stmt.vars, symbol);
-  add_ast_node(parser->container, &stmt->local_stmt.exprlist, function_ast);
+  stmt->local_stmt.var_list = NULL;
+  stmt->local_stmt.expr_list = NULL;
+  add_symbol(parser->container, &stmt->local_stmt.var_list, symbol);
+  add_ast_node(parser->container, &stmt->local_stmt.expr_list, function_ast);
   return stmt;
 }
 
@@ -1203,19 +1203,19 @@ static struct ast_node *parse_local_statement(struct parser_state *parser) {
   /* stat -> LOCAL NAME {',' NAME} ['=' explist] */
   struct ast_node *node = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   node->type = AST_LOCAL_STMT;
-  node->local_stmt.vars = NULL;
-  node->local_stmt.exprlist = NULL;
+  node->local_stmt.var_list = NULL;
+  node->local_stmt.expr_list = NULL;
   int nvars = 0;
   do {
     /* local name : type = value */
     struct lua_symbol *symbol = declare_local_variable(parser);
-    add_symbol(parser->container, &node->local_stmt.vars, symbol);
+    add_symbol(parser->container, &node->local_stmt.var_list, symbol);
     nvars++;
     if (nvars >= MAXVARS)
       luaX_syntaxerror(ls, "too many local variables");
   } while (testnext(ls, ','));
   if (testnext(ls, '=')) /* nexps = */
-    parse_expression_list(parser, &node->local_stmt.exprlist);
+    parse_expression_list(parser, &node->local_stmt.expr_list);
   else {
     /* nexps = 0; */
     ;
@@ -1231,14 +1231,14 @@ static struct ast_node *parse_function_name(struct parser_state *parser) {
   struct ast_node *function_stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   function_stmt->type = AST_FUNCTION_STMT;
   function_stmt->function_stmt.function_expr = NULL;
-  function_stmt->function_stmt.methodname = NULL;
+  function_stmt->function_stmt.method_name = NULL;
   function_stmt->function_stmt.selectors = NULL;
   function_stmt->function_stmt.name = new_symbol_reference(parser);
   while (ls->t.token == '.') {
     add_ast_node(parser->container, &function_stmt->function_stmt.selectors, parse_field_selector(parser));
   }
   if (ls->t.token == ':') {
-    function_stmt->function_stmt.methodname = parse_field_selector(parser);
+    function_stmt->function_stmt.method_name = parse_field_selector(parser);
   }
   return function_stmt;
 }
@@ -1248,7 +1248,7 @@ static struct ast_node *parse_function_statement(struct parser_state *parser, in
   /* funcstat -> FUNCTION funcname body */
   luaX_next(ls); /* skip FUNCTION */
   struct ast_node *function_stmt = parse_function_name(parser);
-  int ismethod = function_stmt->function_stmt.methodname != NULL;
+  int ismethod = function_stmt->function_stmt.method_name != NULL;
   struct ast_node *function_ast = new_function(parser);
   parse_function_body(parser, function_ast, ismethod, line);
   end_function(parser);
@@ -1261,7 +1261,7 @@ static struct ast_node *parse_expression_statement(struct parser_state *parser) 
   struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   stmt->type = AST_EXPR_STMT;
   stmt->expression_stmt.var_expr_list = NULL;
-  stmt->expression_stmt.exr_list = NULL;
+  stmt->expression_stmt.expr_list = NULL;
   LexState *ls = parser->ls;
   /* stat -> func | assignment */
   /* Until we see '=' we do not know if this is an assignment or expr list*/
@@ -1276,7 +1276,7 @@ static struct ast_node *parse_expression_statement(struct parser_state *parser) 
     current_list = NULL;
     parse_expression_list(parser, &current_list);
   }
-  stmt->expression_stmt.exr_list = current_list;
+  stmt->expression_stmt.expr_list = current_list;
   // TODO Check that if not assignment then it is a function call
   return stmt;
 }
@@ -1286,12 +1286,12 @@ static struct ast_node *parse_return_statement(struct parser_state *parser) {
   /* stat -> RETURN [explist] [';'] */
   struct ast_node *return_stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   return_stmt->type = AST_RETURN_STMT;
-  return_stmt->return_stmt.exprlist = NULL;
+  return_stmt->return_stmt.expr_list = NULL;
   if (block_follow(ls, 1) || ls->t.token == ';')
     /* nret = 0*/; /* return no values */
   else {
     /*nret = */
-    parse_expression_list(parser, &return_stmt->return_stmt.exprlist); /* optional return values */
+    parse_expression_list(parser, &return_stmt->return_stmt.expr_list); /* optional return values */
   }
   testnext(ls, ';'); /* skip optional semicolon */
   return return_stmt;

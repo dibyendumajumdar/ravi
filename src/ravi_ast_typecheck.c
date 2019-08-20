@@ -72,8 +72,8 @@ static void typecheck_unaryop(struct ast_node *function, struct ast_node *node) 
 /* Type checker - WIP  */
 static void typecheck_binaryop(struct ast_node *function, struct ast_node *node) {
   BinOpr op = node->binary_expr.binary_op;
-  struct ast_node *e1 = node->binary_expr.exprleft;
-  struct ast_node *e2 = node->binary_expr.exprright;
+  struct ast_node *e1 = node->binary_expr.expr_left;
+  struct ast_node *e2 = node->binary_expr.expr_right;
   typecheck_ast_node(function, e1);
   typecheck_ast_node(function, e2);
   switch (op) {
@@ -200,7 +200,7 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
     case AST_NONE:
       break;
     case AST_RETURN_STMT: {
-      typecheck_ast_list(function, node->return_stmt.exprlist);
+      typecheck_ast_list(function, node->return_stmt.expr_list);
       break;
     }
     case AST_LOCAL_STMT: {
@@ -247,7 +247,7 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       break;
     }
     case AST_FUNCTION_CALL_EXPR: {
-      if (node->function_call_expr.methodname) {
+      if (node->function_call_expr.method_name) {
       }
       else {
       }
