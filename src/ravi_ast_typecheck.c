@@ -190,6 +190,32 @@ static void typecheck_suffixedexpr(struct ast_node *function, struct ast_node *n
   copy_type(node->suffixed_expr.type, prev_node->common_expr.type);
 }
 
+static void typecheck_local_statement(struct ast_node *function, struct ast_node *node) {
+  // The local vars should already be annotated
+  // We need to typecheck the expressions to the right of =
+  // Then we need to ensure that the assignments are valid
+  // We can perhaps insert type assertions where we have a mismatch?
+
+  typecheck_ast_list(function, node->local_stmt.expr_list);
+
+  struct lua_symbol *var;
+  struct ast_node *expr;
+  PREPARE_PTR_LIST(node->local_stmt.var_list, var);
+  PREPARE_PTR_LIST(node->local_stmt.expr_list, expr);
+
+  for (;;) {
+    if (!var || !expr)
+      break;
+
+    if (var->value_type.type_code != RAVI_TANY && !is_type_same(var->value_type, expr->common_expr.type)) { // We should probably check type convertability here
+      fprintf(stderr, "Assignment to local symbol %s is not type compatible\n", getstr(var->var.var_name));
+    }
+
+    NEXT_PTR_LIST(var);
+    NEXT_PTR_LIST(expr);
+  }
+}
+
 /* Type checker - WIP  */
 static void typecheck_ast_node(struct ast_node *function, struct ast_node *node) {
   switch (node->type) {
@@ -197,13 +223,15 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       typecheck_ast_list(function, node->function_expr.function_statement_list);
       break;
     }
-    case AST_NONE:
+    case AST_NONE: {
       break;
+    }
     case AST_RETURN_STMT: {
       typecheck_ast_list(function, node->return_stmt.expr_list);
       break;
     }
     case AST_LOCAL_STMT: {
+      typecheck_local_statement(function, node);
       break;
     }
     case AST_FUNCTION_STMT: {
