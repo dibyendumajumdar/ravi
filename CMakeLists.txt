@@ -19,28 +19,29 @@ option(LTESTS "Controls whether ltests are enabled in Debug mode" ON)
 
 if (LLVM_JIT AND OMR_JIT)
     message(FATAL_ERROR
-            "Both LLVM_JIT and OMR_JIT cannot be set to ON at the same time")    
-endif()
+            "Both LLVM_JIT and OMR_JIT cannot be set to ON at the same time")
+endif ()
 
 if (LLVM_JIT OR OMR_JIT)
+    # ASM VM is in development and not compatible with anything yet
     set(ASM_VM OFF)
-endif()
+endif ()
 
 if (ASM_VM)
     # For now we switch to static build 
     # TODO A fix is needed to ensure that in shared library the asm functions are resolved
     set(STATIC_BUILD ON)
-	# LTESTS messes with global state and breaks the ASMVM dispatch table
+    # LTESTS messes with global state and breaks the ASMVM dispatch table
     set(LTESTS OFF)
     set(LLVM_JIT OFF)
     set(OMR_JIT OFF)
-endif()
+endif ()
 
 if (STATIC_BUILD)
     message(STATUS "STATIC library build enabled")
-else()
+else ()
     message(STATUS "DYNAMIC library build enabled")
-endif()
+endif ()
 
 if (LLVM_JIT)
     find_package(LLVM REQUIRED CONFIG)
@@ -54,22 +55,22 @@ if (LLVM_JIT)
     # We also need to define USE_LLVM when compiling code
     # but rather than setting globally we set this when building the
     # library 
-endif()
+endif ()
 
 if (OMR_JIT)
     find_package(OMRJIT REQUIRED)
     include_directories(${OMRJIT_INCLUDE_DIRS})
     add_definitions(-DUSE_OMRJIT)
-endif()
+endif ()
 
 message(STATUS "Computed goto ${COMPUTED_GOTO}")
 if (COMPUTED_GOTO AND MSVC)
     message(WARNING "Computed goto is not available with MSVC")
-endif()
+endif ()
 
 if (NOT LLVM_JIT AND NOT OMR_JIT)
     message(WARNING "LLVM will not be enabled; specify -DLLVM_JIT=ON to enable")
-endif()
+endif ()
 
 if (MSVC)
     set(CMAKE_C_FLAGS_DEBUG "/Od /D_DEBUG /MDd /Zi /RTC1 /EHsc")
@@ -123,7 +124,7 @@ elseif (APPLE)
     set(CMAKE_CXX_FLAGS_DEBUG "-fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
     set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -DNDEBUG -O2 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-fno-rtti -DNDEBUG -O2 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
-else()
+else ()
     message(FATAL_ERROR "Unsupported platform")
 endif ()
 
@@ -137,44 +138,44 @@ if (NOT LTESTS)
 endif ()
 
 if (ASM_VM)
-	# For now we switch to static build 
-	# TODO A fix is needed to ensure that in shared library the asm functions are resolved
+    # For now we switch to static build
+    # TODO A fix is needed to ensure that in shared library the asm functions are resolved
     add_definitions(-DRAVI_USE_ASMVM)
-    set ( ASMVM_DEFS ${PROJECT_SOURCE_DIR}/include/ravi_asmvm_defs.h )
+    set(ASMVM_DEFS ${PROJECT_SOURCE_DIR}/include/ravi_asmvm_defs.h)
     if (WIN32 AND NOT CYGWIN)
         set(VMMODE peobj)
     elseif (APPLE)
         set(VMMODE machasm)
-    else()
-        set(VMMODE elfasm)
-    endif()      
-  
-	# This macro runs the buildvm command to generate the VM code
-    macro(add_buildvm_target _target _mode)
-        add_custom_command(OUTPUT ${_target}
-            COMMAND ${PROJECT_SOURCE_DIR}/vmbuilder/bin/buildvm ARGS -m ${_mode} -o ${_target} ${ARGN}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-            DEPENDS ${PROJECT_SOURCE_DIR}/vmbuilder/bin/buildvm ${ARGN}
-        )
-    endmacro(add_buildvm_target)
-
-	# Generate ravi_asmvm.obj / ravi_asmvm.s (obj on Windows)
-    if ( WIN32 AND NOT CYGWIN )
-        add_buildvm_target ( ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.obj ${VMMODE} )
-        set (ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.obj)
     else ()
-        add_buildvm_target ( ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.s ${VMMODE} )
-        set (ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.s)
+        set(VMMODE elfasm)
     endif ()
 
-	# Generate the ravi_bcdef.h header file
-    add_buildvm_target ( ${ASMVM_DEFS}  bcdef  ${LJLIB_C} )
+    # This macro runs the buildvm command to generate the VM code
+    macro(add_buildvm_target _target _mode)
+        add_custom_command(OUTPUT ${_target}
+                COMMAND ${PROJECT_SOURCE_DIR}/vmbuilder/bin/buildvm ARGS -m ${_mode} -o ${_target} ${ARGN}
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                DEPENDS ${PROJECT_SOURCE_DIR}/vmbuilder/bin/buildvm ${ARGN}
+                )
+    endmacro(add_buildvm_target)
 
-    SET (ASMVM_DEPS
-        ${ASMVM_SRC}
-        ${ASMVM_DEFS}
-    )
-endif()
+    # Generate ravi_asmvm.obj / ravi_asmvm.s (obj on Windows)
+    if (WIN32 AND NOT CYGWIN)
+        add_buildvm_target(${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.obj ${VMMODE})
+        set(ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.obj)
+    else ()
+        add_buildvm_target(${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.s ${VMMODE})
+        set(ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.s)
+    endif ()
+
+    # Generate the ravi_bcdef.h header file
+    add_buildvm_target(${ASMVM_DEFS} bcdef ${LJLIB_C})
+
+    SET(ASMVM_DEPS
+            ${ASMVM_SRC}
+            ${ASMVM_DEFS}
+            )
+endif ()
 
 # define LLVM JIT compiler sources
 if (LLVM_JIT)
@@ -186,23 +187,23 @@ if (LLVM_JIT)
             src/ravi_llvmluaapi.cpp)
 elseif (OMR_JIT)
     set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
-else()    
+else ()
     set(NO_JIT_SRCS src/ravi_nojit.c)
-endif()
+endif ()
 # define the lua core source files
 set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
         src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
         src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
-        src/lvm.c src/lzio.c src/ravijit.cpp src/ltests.c src/ravi_profile.c 
+        src/lvm.c src/lzio.c src/ravijit.cpp src/ltests.c src/ravi_profile.c
         src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c src/ravi_membuf.c
         src/ravi_jitshared.c src/bit.c src/ravi_alloc.c)
 if (COMPUTED_GOTO AND NOT MSVC)
     if (CMAKE_C_COMPILER_ID MATCHES "Clang")
         set_source_files_properties(src/lvm.c PROPERTIES COMPILE_FLAGS -DRAVI_USE_COMPUTED_GOTO)
-    elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    elseif (CMAKE_C_COMPILER_ID MATCHES "GNU")
         set_source_files_properties(src/lvm.c PROPERTIES COMPILE_FLAGS "-fno-crossjumping -fno-gcse -DRAVI_USE_COMPUTED_GOTO")
-    endif()
-endif()      
+    endif ()
+endif ()
 # define the lua lib source files
 set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
         src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
@@ -224,118 +225,119 @@ elseif (NOT WIN32)
     set(EXTRA_LIBRARIES m dl readline)
 endif ()
 
+# Additional stuff for dmrC
 if (CMAKE_COMPILER_IS_GNUCC)
     execute_process(COMMAND ${CMAKE_C_COMPILER} --print-file-name=
-        OUTPUT_VARIABLE GCC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
+            OUTPUT_VARIABLE GCC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
     execute_process(COMMAND ${CMAKE_C_COMPILER} -print-multiarch
-        OUTPUT_VARIABLE MULTIARCH_TRIPLET ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+            OUTPUT_VARIABLE MULTIARCH_TRIPLET ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
     add_definitions(-DGCC_BASE="${GCC_BASE}")
     add_definitions(-DMULTIARCH_TRIPLET="${MULTIARCH_TRIPLET}")
-endif()
+endif ()
 
-message( STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
-message( STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET} )
+message(STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
+message(STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET})
 
-set(DMR_C_HEADERS 
-    dmr_c/src/allocate.h
-    dmr_c/src/char.h
-    dmr_c/src/expression.h
-    dmr_c/src/flow.h
-    dmr_c/src/ident-list.h
-    dmr_c/src/linearize.h
-    dmr_c/src/lib.h        
-    dmr_c/src/parse.h
-    dmr_c/src/port.h 
-    dmr_c/src/ptrlist.h
-    dmr_c/src/scope.h
-    dmr_c/src/symbol.h
-    dmr_c/src/target.h
-    dmr_c/src/token.h 
-    dmr_c/src/walksymbol.h         
-    )
+set(DMR_C_HEADERS
+        dmr_c/src/allocate.h
+        dmr_c/src/char.h
+        dmr_c/src/expression.h
+        dmr_c/src/flow.h
+        dmr_c/src/ident-list.h
+        dmr_c/src/linearize.h
+        dmr_c/src/lib.h
+        dmr_c/src/parse.h
+        dmr_c/src/port.h
+        dmr_c/src/ptrlist.h
+        dmr_c/src/scope.h
+        dmr_c/src/symbol.h
+        dmr_c/src/target.h
+        dmr_c/src/token.h
+        dmr_c/src/walksymbol.h
+        )
 
-set(DMR_C_SRCS 
-    dmr_c/src/allocate.c
-    dmr_c/src/builtin.c
-    dmr_c/src/char.c
-    dmr_c/src/expression.c
-    dmr_c/src/evaluate.c
-    dmr_c/src/expand.c
-    dmr_c/src/inline.c
-    dmr_c/src/lib.c
-    dmr_c/src/linearize.c
-    dmr_c/src/liveness.c
-    dmr_c/src/parse.c
-    dmr_c/src/target.c
-    dmr_c/src/tokenize.c
-    dmr_c/src/pre-process.c
-    dmr_c/src/ptrlist.c
-    dmr_c/src/scope.c
-    dmr_c/src/show-parse.c
-    dmr_c/src/symbol.c
-    dmr_c/src/walksymbol.c
-    src/ravi_dmrc_parsesymbols.c
-    )
+set(DMR_C_SRCS
+        dmr_c/src/allocate.c
+        dmr_c/src/builtin.c
+        dmr_c/src/char.c
+        dmr_c/src/expression.c
+        dmr_c/src/evaluate.c
+        dmr_c/src/expand.c
+        dmr_c/src/inline.c
+        dmr_c/src/lib.c
+        dmr_c/src/linearize.c
+        dmr_c/src/liveness.c
+        dmr_c/src/parse.c
+        dmr_c/src/target.c
+        dmr_c/src/tokenize.c
+        dmr_c/src/pre-process.c
+        dmr_c/src/ptrlist.c
+        dmr_c/src/scope.c
+        dmr_c/src/show-parse.c
+        dmr_c/src/symbol.c
+        dmr_c/src/walksymbol.c
+        src/ravi_dmrc_parsesymbols.c
+        )
 
 if (LLVM_JIT)
     set(DMR_C_JIT_SRCS
-        dmr_c/llvm-backend/sparse-llvm.c
-        )
+            dmr_c/llvm-backend/sparse-llvm.c
+            )
     set(DMR_C_JIT_HEADERS
-        dmr_c/llvm-backend/dmr_c.h            
-        )
+            dmr_c/llvm-backend/dmr_c.h
+            )
     include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
 elseif (OMR_JIT)
     set(DMR_C_JIT_SRCS
-        dmr_c/omrjit-backend/sparse-omrjit.c
-        )
+            dmr_c/omrjit-backend/sparse-omrjit.c
+            )
     set(DMR_C_JIT_HEADERS
-        dmr_c/omrjit-backend/dmr_c.h            
-        )
+            dmr_c/omrjit-backend/dmr_c.h
+            )
     include_directories("${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
-else()
+else ()
     set(DMR_C_JIT_HEADERS
-        dmr_c/null-backend/dmr_c.h            
-        )
-    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/null-backend")    
-endif()  
-    
+            dmr_c/null-backend/dmr_c.h
+            )
+    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/null-backend")
+endif ()
+
 if (MSVC OR APPLE)
     source_group("dmrC Headers" FILES ${DMR_C_HEADERS} ${DMR_C_JIT_HEADERS})
     source_group("dmrC Source Files" FILES ${DMR_C_SRCS} ${DMR_C_JIT_SRCS})
-endif()
+endif ()
 
 # Enable minimal required LLVM components so that the
 # the size of the resulting binary is manageable
 if (LLVM_JIT)
     if (${LLVM_PACKAGE_VERSION} VERSION_LESS "3.8")
         set(LLVM_EXTRA_LIBS ipa)
-    endif()
-	if (NOT ${LLVM_PACKAGE_VERSION} VERSION_LESS "5.0.0")
-		set(LLVM_EXTRA_LIBS orcjit)
-	endif()
+    endif ()
+    if (NOT ${LLVM_PACKAGE_VERSION} VERSION_LESS "5.0.0")
+        set(LLVM_EXTRA_LIBS orcjit)
+    endif ()
     message(STATUS "SYSTEM_PROCESSOR ${CMAKE_SYSTEM_PROCESSOR}")
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
-	set(LLVM_LIBS_PROCESSOR
-		X86CodeGen
-		X86AsmParser
-		X86Disassembler
-		X86AsmPrinter
-		X86Desc
-		X86Info
-		X86Utils
-	    )
+        set(LLVM_LIBS_PROCESSOR
+                X86CodeGen
+                X86AsmParser
+                X86Disassembler
+                X86AsmPrinter
+                X86Desc
+                X86Info
+                X86Utils
+                )
     elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
-	set(LLVM_LIBS_PROCESSOR
-		ARMCodeGen
-		ARMAsmParser
-		ARMDisassembler
-		ARMAsmPrinter
-		ARMDesc
-		ARMInfo
-	    )
-    endif()
+        set(LLVM_LIBS_PROCESSOR
+                ARMCodeGen
+                ARMAsmParser
+                ARMDisassembler
+                ARMAsmPrinter
+                ARMDesc
+                ARMInfo
+                )
+    endif ()
     llvm_map_components_to_libnames(LLVM_LIBS
             Analysis
             AsmParser
@@ -363,22 +365,22 @@ endif ()
 
 if (NOT STATIC_BUILD)
     set(LIBRAVI_BUILD_TYPE SHARED)
-endif()
+endif ()
 
 if (LLVM_JIT)
-    set (LIBRAVI_NAME libravillvm)
+    set(LIBRAVI_NAME libravillvm)
 elseif (OMR_JIT)
-    set (LIBRAVI_NAME libravilomr)
-else()
-    set (LIBRAVI_NAME libravinojit)
-endif()
+    set(LIBRAVI_NAME libravilomr)
+else ()
+    set(LIBRAVI_NAME libravinojit)
+endif ()
 
 #Main library
-add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE} 
+add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${RAVI_HEADERS}
-        ${LUA_LIB_SRCS} 
+        ${LUA_LIB_SRCS}
         ${LUA_CORE_SRCS}
-        ${LLVM_JIT_SRCS}   
+        ${LLVM_JIT_SRCS}
         ${OMR_JIT_SRCS}
         ${NO_JIT_SRCS}
         ${DMR_C_HEADERS}
@@ -388,88 +390,90 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         )
 if (NOT STATIC_BUILD)
     if (WIN32)
-      # enable DLL export
-      set_target_properties(${LIBRAVI_NAME} PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-    else()
-      set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
+        # enable DLL export
+        set_target_properties(${LIBRAVI_NAME} PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+    else ()
+        set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
     endif ()
-endif()
+else()
+    set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
+endif ()
 if (LLVM_JIT)
     set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
-endif()
+endif ()
 if (OMR_JIT)
     set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_OMRJIT=1")
-endif()
+endif ()
 if (EMBEDDED_DMRC)
     set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_DMR_C=1")
-endif()
+endif ()
 target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${OMRJIT_LIBRARIES})
 
 # Main Ravi executable
 add_executable(ravi src/lua.c)
 if (LLVM_JIT)
     set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
-endif()
+endif ()
 if (EMBEDDED_DMRC)
     set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_DMR_C=1")
-endif()
+endif ()
 target_link_libraries(ravi ${LIBRAVI_NAME})
 
 # Sources that are needed for a static NOJIT basic library
-set(NOJIT_RAVI_SRCS 
-    ${RAVI_HEADERS}
-    ${LUA_LIB_SRCS} 
-    ${LUA_CORE_SRCS}
-    ${DMR_C_HEADERS}
-    ${DMR_C_SRCS}
-    ${DMR_C_JIT_SRCS}
-    src/ravi_nojit.c)
+set(NOJIT_RAVI_SRCS
+        ${RAVI_HEADERS}
+        ${LUA_LIB_SRCS}
+        ${LUA_CORE_SRCS}
+        ${DMR_C_HEADERS}
+        ${DMR_C_SRCS}
+        ${DMR_C_JIT_SRCS}
+        src/ravi_nojit.c)
 
 if (NOT ASM_VM)
-	set(RAVI_STATICEXEC_TARGET ravi_s)
+    set(RAVI_STATICEXEC_TARGET ravi_s)
 
-	# We always build a static library without JIT so that
-	# we can create some default executables
-	add_library(libravinojit_static  
-		${NOJIT_RAVI_SRCS})
-	set_target_properties(libravinojit_static PROPERTIES PREFIX "") # As we already prefix with lib
-	target_link_libraries(libravinojit_static ${EXTRA_LIBRARIES})
+    # We always build a static library without JIT so that
+    # we can create some default executables
+    add_library(libravinojit_static
+            ${NOJIT_RAVI_SRCS})
+    set_target_properties(libravinojit_static PROPERTIES PREFIX "") # As we already prefix with lib
+    target_link_libraries(libravinojit_static ${EXTRA_LIBRARIES})
 
-	# Create a simple NoJIT version of statically linked ravi
-	# This is sometimes useful in other projects that just need a Lua commandline
-	# but do not care about the shared library 
-	add_executable(ravi_s 
-		src/lua.c)
-	target_link_libraries(ravi_s libravinojit_static)
+    # Create a simple NoJIT version of statically linked ravi
+    # This is sometimes useful in other projects that just need a Lua commandline
+    # but do not care about the shared library
+    add_executable(ravi_s
+            src/lua.c)
+    target_link_libraries(ravi_s libravinojit_static)
 
-	# Ravi VSCode Debug adapter
-	set(RAVI_DEBUGGER_TARGET ravidebug)
-	add_executable(${RAVI_DEBUGGER_TARGET} 
-		vscode-debugger/src/ravidebug.c 
-		vscode-debugger/src/json.c 
-		vscode-debugger/src/protocol.c)
-	target_link_libraries(${RAVI_DEBUGGER_TARGET} libravinojit_static)
+    # Ravi VSCode Debug adapter
+    set(RAVI_DEBUGGER_TARGET ravidebug)
+    add_executable(${RAVI_DEBUGGER_TARGET}
+            vscode-debugger/src/ravidebug.c
+            vscode-debugger/src/json.c
+            vscode-debugger/src/protocol.c)
+    target_link_libraries(${RAVI_DEBUGGER_TARGET} libravinojit_static)
 
-	# Tests for VSCode Debug Adapter  
-	add_executable(testravidebug 
-		vscode-debugger/src/testravidebug.c 
-		vscode-debugger/src/json.c 
-		vscode-debugger/src/protocol.c)
-	target_link_libraries(testravidebug libravinojit_static)
+    # Tests for VSCode Debug Adapter
+    add_executable(testravidebug
+            vscode-debugger/src/testravidebug.c
+            vscode-debugger/src/json.c
+            vscode-debugger/src/protocol.c)
+    target_link_libraries(testravidebug libravinojit_static)
 
-	add_test(TestRaviDebug testravidebug)
+    add_test(TestRaviDebug testravidebug)
 
-	add_executable(test_vm tests/test_vm.c)
-	target_link_libraries(test_vm ${LIBRAVI_NAME})
+    add_executable(test_vm tests/test_vm.c)
+    target_link_libraries(test_vm ${LIBRAVI_NAME})
 
-	add_test(TestVM test_vm)
-else()
-	# Simple VM tests
-	add_executable(test_asmvm tests/test_asmvm.c)
-	target_link_libraries(test_asmvm ${LIBRAVI_NAME})
+    add_test(TestVM test_vm)
+else ()
+    # Simple VM tests
+    add_executable(test_asmvm tests/test_asmvm.c)
+    target_link_libraries(test_asmvm ${LIBRAVI_NAME})
 
-	add_test(TestVM test_asmvm)
-endif()
+    add_test(TestVM test_asmvm)
+endif ()
 
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
