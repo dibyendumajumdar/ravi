@@ -38,7 +38,7 @@
 #endif
 
 #if LLVM_VERSION_MAJOR >= 8 && !defined(_WIN32)
-#define USE_ORCv2_JIT 1
+#define USE_ORCv2_JIT 0
 #else
 #define USE_ORCv2_JIT 0
 #endif
