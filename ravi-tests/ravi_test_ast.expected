@@ -32,7 +32,7 @@ end
 function()
   return
     --[suffixed expr start] any
-     --[primary start]
+     --[primary start] any
        a --global symbol ? 
      --[primary end]
     --[suffixed expr end]
@@ -123,7 +123,7 @@ function()
   return
     --[binary expr start] number
      --[suffixed expr start] integer
-      --[primary start]
+      --[primary start] integer
        --[binary expr start] integer
         1
        +
@@ -133,7 +133,7 @@ function()
      --[suffixed expr end]
     ^
      --[suffixed expr start] integer
-      --[primary start]
+      --[primary start] integer
        --[binary expr start] integer
         50
        +
@@ -151,7 +151,7 @@ function()
   return
     --[binary expr start] number
      --[suffixed expr start] integer
-      --[primary start]
+      --[primary start] integer
        --[unary expr start] integer
        -
         2
@@ -160,7 +160,7 @@ function()
      --[suffixed expr end]
     ^
      --[suffixed expr start] integer
-      --[primary start]
+      --[primary start] integer
        --[binary expr start] integer
         31
        -
@@ -178,7 +178,7 @@ function()
   return
     --[binary expr start] any
      --[suffixed expr start] number
-      --[primary start]
+      --[primary start] number
        --[binary expr start] number
         --[unary expr start] number
         -
@@ -224,10 +224,10 @@ function()
        --[unary expr start] number
        -
         --[suffixed expr start] number
-         --[primary start]
+         --[primary start] number
           --[binary expr start] number
            --[suffixed expr start] number
-            --[primary start]
+            --[primary start] number
              --[binary expr start] number
               --[binary expr start] number
                2.0000000000000000
@@ -238,7 +238,7 @@ function()
               --[unary expr start] integer
               -
                --[suffixed expr start] integer
-                --[primary start]
+                --[primary start] integer
                  --[unary expr start] integer
                  -
                   1
@@ -277,10 +277,10 @@ function()
        --[unary expr start] number
        -
         --[suffixed expr start] number
-         --[primary start]
+         --[primary start] number
           --[binary expr start] number
            --[suffixed expr start] number
-            --[primary start]
+            --[primary start] number
              --[binary expr start] number
               --[binary expr start] number
                2
@@ -291,7 +291,7 @@ function()
               --[unary expr start] integer
               -
                --[suffixed expr start] integer
-                --[primary start]
+                --[primary start] integer
                  --[unary expr start] integer
                  -
                   1
@@ -347,7 +347,7 @@ function()
     --[unary expr start] any
     ~
      --[suffixed expr start] any
-      --[primary start]
+      --[primary start] any
        --[binary expr start] any
         --[unary expr start] any
         ~
@@ -385,10 +385,10 @@ function()
   return
     --[binary expr start] integer
      --[suffixed expr start] integer
-      --[primary start]
+      --[primary start] integer
        --[binary expr start] integer
         --[suffixed expr start] integer
-         --[primary start]
+         --[primary start] integer
           --[binary expr start] integer
            100
           <<
@@ -429,7 +429,7 @@ function()
       2
      ^
       --[suffixed expr start] number
-       --[primary start]
+       --[primary start] number
         --[binary expr start] number
          3
         ^
@@ -459,7 +459,7 @@ function()
     ==
      --[binary expr start] number
       --[suffixed expr start] number
-       --[primary start]
+       --[primary start] number
         --[binary expr start] number
          2
         ^
@@ -544,7 +544,7 @@ function()
      --[unary expr start] any
      not
       --[suffixed expr start] any
-       --[primary start]
+       --[primary start] any
         --[binary expr start] any
          --[binary expr start] boolean
           2
@@ -621,7 +621,7 @@ function()
       --[binary expr start] boolean
        --[binary expr start] number
         --[suffixed expr start] integer
-         --[primary start]
+         --[primary start] integer
           --[unary expr start] integer
           -
            2
@@ -743,7 +743,7 @@ function()
      --[unary expr start] any
      not
       --[suffixed expr start] boolean
-       --[primary start]
+       --[primary start] boolean
         --[binary expr start] boolean
          --[binary expr start] integer
           2
@@ -979,7 +979,7 @@ function()
      --[binary expr start] any
       --[binary expr start] any
        --[suffixed expr start] integer
-        --[primary start]
+        --[primary start] integer
          --[unary expr start] integer
          -
           3
@@ -988,13 +988,13 @@ function()
        --[suffixed expr end]
       +
        --[suffixed expr start] any
-        --[primary start]
+        --[primary start] any
          --[binary expr start] any
           --[suffixed expr start] any
-           --[primary start]
+           --[primary start] any
             --[binary expr start] any
              --[suffixed expr start] integer
-              --[primary start]
+              --[primary start] integer
                --[binary expr start] integer
                 4
                *
@@ -1004,12 +1004,12 @@ function()
              --[suffixed expr end]
             //
              --[suffixed expr start] number
-              --[primary start]
+              --[primary start] number
                --[binary expr start] number
                 2
                ^
                 --[suffixed expr start] number
-                 --[primary start]
+                 --[primary start] number
                   --[binary expr start] number
                    3
                   ^
@@ -1031,10 +1031,10 @@ function()
       --[binary expr end]
      +
       --[suffixed expr start] number
-       --[primary start]
+       --[primary start] number
         --[binary expr start] number
          --[suffixed expr start] integer
-          --[primary start]
+          --[primary start] integer
            --[binary expr start] integer
             4
            %
@@ -1059,10 +1059,10 @@ function()
     --[unary expr start] any
     not
      --[suffixed expr start] any
-      --[primary start]
+      --[primary start] any
        --[binary expr start] any
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
           --[binary expr start] any
            true
           or
@@ -1101,13 +1101,13 @@ function()
   return
     --[binary expr start] any
      --[suffixed expr start] any
-      --[primary start]
+      --[primary start] any
        --[binary expr start] any
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
           --[binary expr start] any
            --[suffixed expr start] any
-            --[primary start]
+            --[primary start] any
              --[binary expr start] any
               1
              or
@@ -1137,13 +1137,13 @@ function()
   return
     --[binary expr start] any
      --[suffixed expr start] any
-      --[primary start]
+      --[primary start] any
        --[binary expr start] any
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
           --[binary expr start] any
            --[suffixed expr start] any
-            --[primary start]
+            --[primary start] any
              --[binary expr start] any
               nil
              and
@@ -1176,7 +1176,7 @@ function()
       --[unary expr start] any
       -
        --[suffixed expr start] any
-        --[primary start]
+        --[primary start] any
          --[binary expr start] any
           1
          or
@@ -1195,7 +1195,7 @@ function()
      --[binary expr start] any
       --[binary expr start] any
        --[suffixed expr start] any
-        --[primary start]
+        --[primary start] any
          --[binary expr start] any
           1
          and
@@ -1205,7 +1205,7 @@ function()
        --[suffixed expr end]
       +
        --[suffixed expr start] any
-        --[primary start]
+        --[primary start] any
          --[binary expr start] any
           --[unary expr start] number
           -
@@ -1235,16 +1235,16 @@ function()
      --[binary expr start] any
       --[binary expr start] any
        --[suffixed expr start] any
-        --[primary start]
+        --[primary start] any
          --[binary expr start] any
           --[suffixed expr start] any
-           --[primary start]
+           --[primary start] any
              b --global symbol ? 
            --[primary end]
           --[suffixed expr end]
          or
           --[suffixed expr start] any
-           --[primary start]
+           --[primary start] any
              a --global symbol ? 
            --[primary end]
           --[suffixed expr end]
@@ -1261,12 +1261,12 @@ function()
      --[binary expr start] any
       --[binary expr start] any
        --[suffixed expr start] any
-        --[primary start]
+        --[primary start] any
          --[binary expr start] any
           10
          or
           --[suffixed expr start] any
-           --[primary start]
+           --[primary start] any
              a --global symbol ? 
            --[primary end]
           --[suffixed expr end]
@@ -1290,10 +1290,10 @@ function()
     --[binary expr start] any
      --[binary expr start] any
       --[suffixed expr start] any
-       --[primary start]
+       --[primary start] any
         --[binary expr start] any
          --[suffixed expr start] boolean
-          --[primary start]
+          --[primary start] boolean
            --[binary expr start] boolean
             2
            <
@@ -1312,7 +1312,7 @@ function()
     and
      --[binary expr start] any
       --[suffixed expr start] any
-       --[primary start]
+       --[primary start] any
         --[binary expr start] any
          --[binary expr start] boolean
           2
@@ -1338,16 +1338,16 @@ function()
     --[binary expr start] any
      --[binary expr start] any
       --[suffixed expr start] any
-       --[primary start]
+       --[primary start] any
         --[binary expr start] any
          --[suffixed expr start] any
-          --[primary start]
+          --[primary start] any
             x --global symbol ? 
           --[primary end]
          --[suffixed expr end]
         >
          --[suffixed expr start] any
-          --[primary start]
+          --[primary start] any
             y --global symbol ? 
           --[primary end]
          --[suffixed expr end]
@@ -1356,7 +1356,7 @@ function()
       --[suffixed expr end]
      and
       --[suffixed expr start] any
-       --[primary start]
+       --[primary start] any
          x --global symbol ? 
        --[primary end]
       --[suffixed expr end]
@@ -1364,7 +1364,7 @@ function()
     or
      --[binary expr start] any
       --[suffixed expr start] any
-       --[primary start]
+       --[primary start] any
          y --global symbol ? 
        --[primary end]
       --[suffixed expr end]
@@ -1382,16 +1382,16 @@ function()
     --[binary expr start] any
      --[binary expr start] any
       --[suffixed expr start] any
-       --[primary start]
+       --[primary start] any
         --[binary expr start] any
          --[suffixed expr start] any
-          --[primary start]
+          --[primary start] any
             x --global symbol ? 
           --[primary end]
          --[suffixed expr end]
         >
          --[suffixed expr start] any
-          --[primary start]
+          --[primary start] any
             y --global symbol ? 
           --[primary end]
          --[suffixed expr end]
@@ -1400,7 +1400,7 @@ function()
       --[suffixed expr end]
      and
       --[suffixed expr start] any
-       --[primary start]
+       --[primary start] any
          x --global symbol ? 
        --[primary end]
       --[suffixed expr end]
@@ -1408,7 +1408,7 @@ function()
     or
      --[binary expr start] any
       --[suffixed expr start] any
-       --[primary start]
+       --[primary start] any
          y --global symbol ? 
        --[primary end]
       --[suffixed expr end]
@@ -1436,14 +1436,14 @@ function()
          --[expression statement start]
           --[expression list start]
             --[suffixed expr start] any
-             --[primary start]
+             --[primary start] any
                print --global symbol ? 
              --[primary end]
              --[suffix list start]
-               --[function call start]
+               --[function call start] any
                 (
                   --[suffixed expr start] any
-                   --[primary start]
+                   --[primary start] any
                      i --local symbol ? 
                    --[primary end]
                   --[suffixed expr end]
@@ -1479,7 +1479,7 @@ function()
             --upvalues  a
               return
                 --[suffixed expr start] any
-                 --[primary start]
+                 --[primary start] any
                    a --upvalue ? 
                  --[primary end]
                 --[suffixed expr end]
@@ -1577,7 +1577,7 @@ function()
     --[unary expr start] User.Type
     @<usertype>
      --[suffixed expr start] any
-      --[primary start]
+      --[primary start] any
         a --global symbol ? 
       --[primary end]
      --[suffixed expr end]

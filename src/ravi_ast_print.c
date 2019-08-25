@@ -407,7 +407,7 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
     }
     case AST_SUFFIXED_EXPR: {
       printf_buf(buf, "%p%c %T\n", level, "[suffixed expr start]", &node->suffixed_expr.type);
-      printf_buf(buf, "%p%c\n", level+1, "[primary start]");
+      printf_buf(buf, "%p%c %T\n", level+1, "[primary start]", &node->suffixed_expr.primary_expr->common_expr.type);
       raviA_print_ast_node(buf, node->suffixed_expr.primary_expr, level + 2);
       printf_buf(buf, "%p%c\n", level+1, "[primary end]");
       if (node->suffixed_expr.suffix_list) {
@@ -419,7 +419,7 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       break;
     }
     case AST_FUNCTION_CALL_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[function call start]");
+      printf_buf(buf, "%p%c %T\n", level, "[function call start]", &node->function_call_expr.type);
       if (node->function_call_expr.method_name) {
         printf_buf(buf, "%p: %t (\n", level + 1, node->function_call_expr.method_name);
       }
@@ -490,7 +490,7 @@ void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
       break;
     }
     case AST_INDEXED_ASSIGN_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[indexed assign start]");
+      printf_buf(buf, "%p%c %T\n", level, "[indexed assign start]", &node->indexed_assign_expr.type);
       if (node->indexed_assign_expr.index_expr) {
         printf_buf(buf, "%p%c\n", level, "[index start]");
         raviA_print_ast_node(buf, node->indexed_assign_expr.index_expr, level + 1);

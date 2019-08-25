@@ -18,7 +18,7 @@ function()
             --upvalues  a
               return
                 --[suffixed expr start] any
-                 --[primary start]
+                 --[primary start] any
                    a --upvalue ? 
                  --[primary end]
                 --[suffixed expr end]
@@ -40,7 +40,7 @@ function()
             --upvalues  a
               return
                 --[suffixed expr start] any
-                 --[primary start]
+                 --[primary start] any
                    a --upvalue ? 
                  --[primary end]
                 --[suffixed expr end]
@@ -48,13 +48,13 @@ function()
         end
       return
         --[suffixed expr start] closure
-         --[primary start]
+         --[primary start] closure
            y --local symbol function 
          --[primary end]
         --[suffixed expr end]
        ,
         --[suffixed expr start] closure
-         --[primary start]
+         --[primary start] closure
            z --local symbol function 
          --[primary end]
         --[suffixed expr end]
@@ -78,13 +78,13 @@ function()
       if
        --[binary expr start] any
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
            a --local symbol ? 
          --[primary end]
         --[suffixed expr end]
        ==
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
            b --local symbol ? 
          --[primary end]
         --[suffixed expr end]
@@ -94,13 +94,13 @@ function()
       elseif
        --[binary expr start] any
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
            a --local symbol ? 
          --[primary end]
         --[suffixed expr end]
        ==
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
            c --local symbol ? 
          --[primary end]
         --[suffixed expr end]
@@ -110,13 +110,13 @@ function()
       elseif
        --[binary expr start] any
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
            a --local symbol ? 
          --[primary end]
         --[suffixed expr end]
        ==
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
            d --local symbol ? 
          --[primary end]
         --[suffixed expr end]
@@ -127,13 +127,13 @@ function()
         if
          --[binary expr start] any
           --[suffixed expr start] any
-           --[primary start]
+           --[primary start] any
              a --local symbol ? 
            --[primary end]
           --[suffixed expr end]
          ==
           --[suffixed expr start] any
-           --[primary start]
+           --[primary start] any
              e --local symbol ? 
            --[primary end]
           --[suffixed expr end]
@@ -160,7 +160,7 @@ function()
       while
        --[binary expr start] any
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
            a --local symbol ? 
          --[primary end]
         --[suffixed expr end]
@@ -171,7 +171,7 @@ function()
         --[expression statement start]
          --[var list start]
            --[suffixed expr start] any
-            --[primary start]
+            --[primary start] any
               a --local symbol ? 
             --[primary end]
            --[suffixed expr end]
@@ -179,7 +179,7 @@ function()
          --[expression list start]
            --[binary expr start] any
             --[suffixed expr start] any
-             --[primary start]
+             --[primary start] any
                a --local symbol ? 
              --[primary end]
             --[suffixed expr end]
@@ -203,10 +203,10 @@ function()
        --[unary expr start] any
        not
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
           --[binary expr start] any
            --[suffixed expr start] any
-            --[primary start]
+            --[primary start] any
               a --local symbol ? 
             --[primary end]
            --[suffixed expr end]
@@ -222,7 +222,7 @@ function()
       --[expression statement start]
        --[var list start]
          --[suffixed expr start] any
-          --[primary start]
+          --[primary start] any
             a --local symbol ? 
           --[primary end]
          --[suffixed expr end]
@@ -230,7 +230,7 @@ function()
        --[expression list start]
          --[binary expr start] any
           --[suffixed expr start] any
-           --[primary start]
+           --[primary start] any
              a --local symbol ? 
            --[primary end]
           --[suffixed expr end]
@@ -250,22 +250,22 @@ function()
       --[expression statement start]
        --[expression list start]
          --[suffixed expr start] any
-          --[primary start]
+          --[primary start] closure
            function()
            end
           --[primary end]
           --[suffix list start]
-            --[function call start]
+            --[function call start] any
              (
                { --[table constructor start] table
-                 --[indexed assign start]
+                 --[indexed assign start] any
                  --[value start]
                   --[suffixed expr start] any
-                   --[primary start]
+                   --[primary start] any
                      f --global symbol ? 
                    --[primary end]
                    --[suffix list start]
-                     --[function call start]
+                     --[function call start] any
                       (
                       )
                      --[function call end]
@@ -300,7 +300,7 @@ function()
          --[expression statement start]
           --[var list start]
             --[suffixed expr start] any
-             --[primary start]
+             --[primary start] any
                sum --local symbol ? 
              --[primary end]
             --[suffixed expr end]
@@ -319,7 +319,7 @@ function()
             --[expression statement start]
              --[var list start]
                --[suffixed expr start] any
-                --[primary start]
+                --[primary start] any
                   sum --local symbol ? 
                 --[primary end]
                --[suffixed expr end]
@@ -327,7 +327,7 @@ function()
              --[expression list start]
                --[binary expr start] any
                 --[suffixed expr start] any
-                 --[primary start]
+                 --[primary start] any
                    sum --local symbol ? 
                  --[primary end]
                 --[suffixed expr end]
@@ -336,16 +336,16 @@ function()
                  1.0000000000000000
                 /
                  --[suffixed expr start] any
-                  --[primary start]
+                  --[primary start] any
                    --[binary expr start] any
                     --[suffixed expr start] any
-                     --[primary start]
+                     --[primary start] any
                        k --local symbol ? 
                      --[primary end]
                     --[suffixed expr end]
                    *
                     --[suffixed expr start] any
-                     --[primary start]
+                     --[primary start] any
                        k --local symbol ? 
                      --[primary end]
                     --[suffixed expr end]
@@ -360,7 +360,7 @@ function()
       end
       return
         --[suffixed expr start] any
-         --[primary start]
+         --[primary start] any
            sum --local symbol ? 
          --[primary end]
         --[suffixed expr end]
@@ -375,7 +375,7 @@ function()
   return
     --[binary expr start] integer
      --[suffixed expr start] integer
-      --[primary start]
+      --[primary start] integer
         a --local symbol integer 
       --[primary end]
      --[suffixed expr end]
@@ -391,7 +391,7 @@ function()
     i --local symbol integer 
   return
     --[suffixed expr start] any
-     --[primary start]
+     --[primary start] any
        t --global symbol ? 
      --[primary end]
      --[suffix list start]
@@ -399,7 +399,7 @@ function()
         [
          --[binary expr start] number
           --[suffixed expr start] integer
-           --[primary start]
+           --[primary start] integer
              i --local symbol integer 
            --[primary end]
           --[suffixed expr end]
@@ -419,7 +419,7 @@ function()
     t --local symbol integer[] 
   return
     --[suffixed expr start] integer
-     --[primary start]
+     --[primary start] integer[]
        t --local symbol integer[] 
      --[primary end]
      --[suffix list start]
@@ -435,11 +435,11 @@ end
 function()
   return
     --[suffixed expr start] any
-     --[primary start]
+     --[primary start] any
        f --global symbol ? 
      --[primary end]
      --[suffix list start]
-       --[function call start]
+       --[function call start] any
         (
         )
        --[function call end]
@@ -455,7 +455,7 @@ end
 function()
   return
     --[suffixed expr start] any
-     --[primary start]
+     --[primary start] any
        x --global symbol ? 
      --[primary end]
      --[suffix list start]
