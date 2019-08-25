@@ -190,6 +190,28 @@ static void typecheck_suffixedexpr(struct ast_node *function, struct ast_node *n
   copy_type(node->suffixed_expr.type, prev_node->common_expr.type);
 }
 
+static void typecheck_var_assignment(struct var_type *var_type, struct var_type *expr_type, const char *var_name) {
+  if (var_type->type_code == RAVI_TANY)
+    // Any value can be assigned to type ANY
+    return;
+
+  if (var_type->type_code == RAVI_TNUMINT || var_type->type_code == RAVI_TNUMFLT) {
+    if (expr_type->type_code == RAVI_TNUMINT || expr_type->type_code == RAVI_TNUMFLT) {
+      // Okay
+      // TODO insert a typecast?
+    }
+    else {
+      fprintf(stderr, "Assignment to local symbol %s is not type compatible\n", var_name);
+    }
+    return;
+  }
+
+  // all other types must strictly match
+  if (!is_type_same(*var_type, *expr_type)) { // We should probably check type convertability here
+    fprintf(stderr, "Assignment to local symbol %s is not type compatible\n", var_name);
+  }
+}
+
 static void typecheck_local_statement(struct ast_node *function, struct ast_node *node) {
   // The local vars should already be annotated
   // We need to typecheck the expressions to the right of =
@@ -207,14 +229,46 @@ static void typecheck_local_statement(struct ast_node *function, struct ast_node
     if (!var || !expr)
       break;
 
-    if (var->value_type.type_code != RAVI_TANY && !is_type_same(var->value_type, expr->common_expr.type)) { // We should probably check type convertability here
-      fprintf(stderr, "Assignment to local symbol %s is not type compatible\n", getstr(var->var.var_name));
-    }
+    struct var_type *var_type = &var->value_type;
+    struct var_type *expr_type = &expr->common_expr.type;
+    const char *var_name = getstr(var->var.var_name);
+
+    typecheck_var_assignment(var_type, expr_type, var_name);
 
     NEXT_PTR_LIST(var);
     NEXT_PTR_LIST(expr);
   }
 }
+
+static void typecheck_expr_statement(struct ast_node *function, struct ast_node *node) {
+
+  if (node->expression_stmt.var_expr_list)
+    typecheck_ast_list(function, node->expression_stmt.var_expr_list);
+  typecheck_ast_list(function, node->expression_stmt.expr_list);
+
+  if (!node->expression_stmt.var_expr_list)
+    return;
+
+  struct ast_node *var;
+  struct ast_node *expr;
+  PREPARE_PTR_LIST(node->expression_stmt.var_expr_list, var);
+  PREPARE_PTR_LIST(node->local_stmt.expr_list, expr);
+
+  for (;;) {
+    if (!var || !expr)
+      break;
+
+    struct var_type *var_type = &var->common_expr.type;
+    struct var_type *expr_type = &expr->common_expr.type;
+    const char *var_name = ""; // FIXME how do we get this?
+
+    typecheck_var_assignment(var_type, expr_type, var_name);
+
+    NEXT_PTR_LIST(var);
+    NEXT_PTR_LIST(expr);
+  }
+}
+
 
 /* Type checker - WIP  */
 static void typecheck_ast_node(struct ast_node *function, struct ast_node *node) {
@@ -248,6 +302,7 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       break;
     }
     case AST_EXPR_STMT: {
+      typecheck_expr_statement(function, node);
       break;
     }
     case AST_IF_STMT: {

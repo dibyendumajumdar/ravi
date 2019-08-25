@@ -155,11 +155,11 @@ struct ast_node {
     struct {
       struct lua_symbol_list *var_list;
       struct ast_node_list *expr_list;
-    } local_stmt;
+    } local_stmt; /* local declarations */
     struct {
       struct ast_node_list *var_expr_list; /* Optional var expressions, comma separated */
       struct ast_node_list *expr_list;      /* Comma separated expressions */
-    } expression_stmt;                     /* Also covers assignments*/
+    } expression_stmt;                     /* Also covers assignments */
     struct {
       struct ast_node *name;           /* base symbol to be looked up */
       struct ast_node_list *selectors; /* Optional */
@@ -194,6 +194,7 @@ struct ast_node {
     struct {
       struct var_type type;
     } common_expr; /* To access the type field common to all expr objects */
+    /* all expr types must be compatible with common_expr */
     struct {
       struct var_type type;
       union {

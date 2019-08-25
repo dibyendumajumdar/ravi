@@ -249,7 +249,7 @@ function()
     function()
       --[expression statement start]
        --[expression list start]
-         --[suffixed expr start] closure
+         --[suffixed expr start] any
           --[primary start]
            function()
            end
