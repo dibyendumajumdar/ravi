@@ -2111,6 +2111,10 @@ static bool JIT_ILBuilderImpl(JIT_ILInjectorRef injector, void *userdata)
 		}
 	}
 	END_FOR_EACH_PTR(bb);
+
+	// The following flag triggers loop optimizations at O2
+	JIT_SetMayHaveLoops(fn->injector);
+
 	return true;
 
 Efailed:
