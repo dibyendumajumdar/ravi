@@ -1705,6 +1705,28 @@ compile(x)
 x()
 print 'Test 75 OK'
 
+-- Test that % of ints results in int
+function x(a: integer, b:integer)
+    return a%b == 0
+end
+check(x, 'TOINT', 'TOINT', 'MOD',
+    'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'RETURN', 'RETURN')
+assert(x(10,5))
+compile(x)
+assert(x(10,5))
+print 'Test 76 OK'
+
+-- Test that ^ applied to numbers results in a number
+function x(a:number, b:number)
+    local c:number = a^b
+    return c
+end
+check(x, 'TOFLT', 'TOFLT', 'POW', 'RETURN', 'RETURN')
+assert(x(2,3) == 2^3)
+compile(x)
+assert(x(2,3) == 2^3)
+print 'Test 77 OK'
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)

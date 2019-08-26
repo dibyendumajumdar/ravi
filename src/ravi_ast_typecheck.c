@@ -129,9 +129,6 @@ static void typecheck_binaryop(struct ast_node *function, struct ast_node *node)
     case OPR_MOD:
       if (e1->common_expr.type.type_code == RAVI_TNUMINT && e2->common_expr.type.type_code == RAVI_TNUMINT)
         set_typecode(node->binary_expr.type, RAVI_TNUMINT);
-      else if ((e1->common_expr.type.type_code == RAVI_TNUMINT && e2->common_expr.type.type_code == RAVI_TNUMFLT) ||
-               (e1->common_expr.type.type_code == RAVI_TNUMFLT && e2->common_expr.type.type_code == RAVI_TNUMINT))
-        set_typecode(node->binary_expr.type, RAVI_TNUMFLT);
       break;
     default:
       set_typecode(node->binary_expr.type, RAVI_TANY);
