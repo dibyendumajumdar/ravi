@@ -276,32 +276,36 @@ static void typecheck_for_statment(struct ast_node *function, struct ast_node *n
   }
   /* for num case, the index variable's type */
   struct ast_node *expr;
-  ravitype_t index_type = RAVI_TNUMINT;
-  int match_count = 0; /* number of expression matching index type */
-  /* First expression decides between int / float types. We allow int or float in subsequent
-   * expressions ... TODO may need changing.
-   */
+  enum { I = 1, F = 2, A = 4 }; /* bits representing integer, number, any */
+  int index_type = 0;
   FOR_EACH_PTR(node->for_stmt.expr_list, expr) {
-    if (expr->common_expr.type.type_code == RAVI_TNUMFLT) {
-      if (index_type != RAVI_TNUMFLT) {
-        index_type = (match_count == 0) ? RAVI_TNUMFLT : RAVI_TANY;
-      }
+    switch (expr->common_expr.type.type_code) {
+      case RAVI_TNUMFLT:
+        index_type |= F;
+        break;
+      case RAVI_TNUMINT:
+        index_type |= I;
+        break;
+      default:
+        index_type |= A;
+        break;
     }
-    else if (expr->common_expr.type.type_code != RAVI_TNUMINT) {
-      index_type = RAVI_TANY;
-    }
-    if (index_type == RAVI_TANY)
+    if ((index_type & A) != 0)
       break;
-    match_count++;
   }
   END_FOR_EACH_PTR(expr);
-  if (index_type == RAVI_TNUMINT || index_type == RAVI_TNUMFLT) {
+  if ((index_type & A) == 0) { /* not any */
+    /* for I+F we use F */
+    ravitype_t symbol_type = index_type == I ? RAVI_TNUMINT : RAVI_TNUMFLT;
     struct lua_symbol_list *symbols = node->for_stmt.symbols;
     struct lua_symbol *sym;
     /* actually there will be only index variable */
     FOR_EACH_PTR(symbols, sym) {
       if (sym->symbol_type == SYM_LOCAL) {
-        set_typecode(sym->value_type, index_type);
+        set_typecode(sym->value_type, symbol_type);
+      }
+      else {
+        assert(0); /* cannot happen */
       }
     }
     END_FOR_EACH_PTR(sym);
