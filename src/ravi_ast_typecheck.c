@@ -268,13 +268,13 @@ static void typecheck_expr_statement(struct ast_node *function, struct ast_node 
   }
 }
 
-static void typecheck_for_statment(struct ast_node *function, struct ast_node *node) {
+static void typecheck_for_in_statment(struct ast_node *function, struct ast_node *node) {
   typecheck_ast_list(function, node->for_stmt.expr_list);
-  if (node->type != AST_FORNUM_STMT) {
-    typecheck_ast_list(function, node->for_stmt.for_statement_list);
-    return;
-  }
-  /* for num case, the index variable's type */
+  typecheck_ast_list(function, node->for_stmt.for_statement_list);
+}
+
+static void typecheck_for_num_statment(struct ast_node *function, struct ast_node *node) {
+  typecheck_ast_list(function, node->for_stmt.expr_list);
   struct ast_node *expr;
   enum { I = 1, F = 2, A = 4 }; /* bits representing integer, number, any */
   int index_type = 0;
@@ -363,11 +363,11 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       break;
     }
     case AST_FORIN_STMT: {
-      typecheck_for_statment(function, node);
+      typecheck_for_in_statment(function, node);
       break;
     }
     case AST_FORNUM_STMT: {
-      typecheck_for_statment(function, node);
+      typecheck_for_num_statment(function, node);
       break;
     }
     case AST_SUFFIXED_EXPR: {
