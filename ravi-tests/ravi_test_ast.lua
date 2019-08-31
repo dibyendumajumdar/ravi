@@ -79,3 +79,6 @@ dotest 'return @number[] {}'
 dotest 'return @closure function() end'
 dotest 'return @number 54.4'
 dotest 'return @User.Type a'
+
+dotest 'for i=1,10 do print(i+1) end return'
+dotest 'for i=1.0, 10.0 do print(i+4.2) end return'

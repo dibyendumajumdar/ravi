@@ -129,6 +129,9 @@ static void typecheck_binaryop(struct ast_node *function, struct ast_node *node)
     case OPR_MOD:
       if (e1->common_expr.type.type_code == RAVI_TNUMINT && e2->common_expr.type.type_code == RAVI_TNUMINT)
         set_typecode(node->binary_expr.type, RAVI_TNUMINT);
+      else if ((e1->common_expr.type.type_code == RAVI_TNUMINT && e2->common_expr.type.type_code == RAVI_TNUMFLT) ||
+               (e1->common_expr.type.type_code == RAVI_TNUMFLT && e2->common_expr.type.type_code == RAVI_TNUMINT))
+        set_typecode(node->binary_expr.type, RAVI_TNUMFLT);
       break;
     default:
       set_typecode(node->binary_expr.type, RAVI_TANY);
@@ -204,7 +207,7 @@ static void typecheck_var_assignment(struct var_type *var_type, struct var_type 
   }
 
   // all other types must strictly match
-  if (!is_type_same(*var_type, *expr_type)) { // We should probably check type convertability here
+  if (!is_type_same(*var_type, *expr_type)) {  // We should probably check type convertability here
     fprintf(stderr, "Assignment to local symbol %s is not type compatible\n", var_name);
   }
 }
@@ -238,7 +241,6 @@ static void typecheck_local_statement(struct ast_node *function, struct ast_node
 }
 
 static void typecheck_expr_statement(struct ast_node *function, struct ast_node *node) {
-
   if (node->expression_stmt.var_expr_list)
     typecheck_ast_list(function, node->expression_stmt.var_expr_list);
   typecheck_ast_list(function, node->expression_stmt.expr_list);
@@ -257,7 +259,7 @@ static void typecheck_expr_statement(struct ast_node *function, struct ast_node 
 
     struct var_type *var_type = &var->common_expr.type;
     struct var_type *expr_type = &expr->common_expr.type;
-    const char *var_name = ""; // FIXME how do we get this?
+    const char *var_name = "";  // FIXME how do we get this?
 
     typecheck_var_assignment(var_type, expr_type, var_name);
 
@@ -266,6 +268,46 @@ static void typecheck_expr_statement(struct ast_node *function, struct ast_node 
   }
 }
 
+static void typecheck_for_statment(struct ast_node *function, struct ast_node *node) {
+  typecheck_ast_list(function, node->for_stmt.expr_list);
+  if (node->type != AST_FORNUM_STMT) {
+    typecheck_ast_list(function, node->for_stmt.for_statement_list);
+    return;
+  }
+  /* for num case, the index variable's type */
+  struct ast_node *expr;
+  ravitype_t index_type = RAVI_TNUMINT;
+  int match_count = 0; /* number of expression matching index type */
+  /* First expression decides between int / float types. We allow int or float in subsequent
+   * expressions ... TODO may need changing.
+   */
+  FOR_EACH_PTR(node->for_stmt.expr_list, expr) {
+    if (expr->common_expr.type.type_code == RAVI_TNUMFLT) {
+      if (index_type != RAVI_TNUMFLT) {
+        index_type = (match_count == 0) ? RAVI_TNUMFLT : RAVI_TANY;
+      }
+    }
+    else if (expr->common_expr.type.type_code != RAVI_TNUMINT) {
+      index_type = RAVI_TANY;
+    }
+    if (index_type == RAVI_TANY)
+      break;
+    match_count++;
+  }
+  END_FOR_EACH_PTR(expr);
+  if (index_type == RAVI_TNUMINT || index_type == RAVI_TNUMFLT) {
+    struct lua_symbol_list *symbols = node->for_stmt.symbols;
+    struct lua_symbol *sym;
+    /* actually there will be only index variable */
+    FOR_EACH_PTR(symbols, sym) {
+      if (sym->symbol_type == SYM_LOCAL) {
+        set_typecode(sym->value_type, index_type);
+      }
+    }
+    END_FOR_EACH_PTR(sym);
+  }
+  typecheck_ast_list(function, node->for_stmt.for_statement_list);
+}
 
 /* Type checker - WIP  */
 static void typecheck_ast_node(struct ast_node *function, struct ast_node *node) {
@@ -317,9 +359,11 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       break;
     }
     case AST_FORIN_STMT: {
+      typecheck_for_statment(function, node);
       break;
     }
     case AST_FORNUM_STMT: {
+      typecheck_for_statment(function, node);
       break;
     }
     case AST_SUFFIXED_EXPR: {
@@ -331,10 +375,12 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       }
       else {
       }
+      typecheck_ast_list(function, node->function_call_expr.arg_list);
       break;
     }
     case AST_SYMBOL_EXPR: {
-      /* type should have been set when symbol was created */
+      /* symbol type should have been set when symbol was created */
+      copy_type(node->symbol_expr.type, node->symbol_expr.var->value_type);
       break;
     }
     case AST_BINARY_EXPR: {
@@ -369,7 +415,6 @@ static void typecheck_ast_node(struct ast_node *function, struct ast_node *node)
       assert(0);
   }
 }
-
 
 /* Type checker - WIP  */
 static void typecheck_function(struct ast_node *func) {

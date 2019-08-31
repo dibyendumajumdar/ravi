@@ -250,6 +250,10 @@ struct ast_node {
       struct ast_node_list *suffix_list;
     } suffixed_expr;
     struct {
+      /* Note that in Ravi the results from a function call must be type asserted during assignment to variables.
+       * This is not explicit in the AST but is required to ensure that function return values do not
+       * overwrite the type of the variables in an inconsistent way.
+       */
       struct var_type type;
       TString *method_name;            /* Optional method_name */
       struct ast_node_list *arg_list; /* Call arguments */

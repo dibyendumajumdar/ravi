@@ -291,7 +291,7 @@ function()
       --[symbols]
         sum --local symbol ? 
       for
-        j --local symbol ? 
+        j --local symbol integer 
       =
         1
        ,
@@ -310,7 +310,7 @@ function()
           --[expression list end]
          --[expression statement end]
          for
-           k --local symbol ? 
+           k --local symbol integer 
          =
            1
           ,
@@ -332,21 +332,21 @@ function()
                  --[primary end]
                 --[suffixed expr end]
                +
-                --[binary expr start] any
+                --[binary expr start] number
                  1.0000000000000000
                 /
-                 --[suffixed expr start] any
-                  --[primary start] any
-                   --[binary expr start] any
-                    --[suffixed expr start] any
-                     --[primary start] any
-                       k --local symbol ? 
+                 --[suffixed expr start] integer
+                  --[primary start] integer
+                   --[binary expr start] integer
+                    --[suffixed expr start] integer
+                     --[primary start] integer
+                       k --local symbol integer 
                      --[primary end]
                     --[suffixed expr end]
                    *
-                    --[suffixed expr start] any
-                     --[primary start] any
-                       k --local symbol ? 
+                    --[suffixed expr start] integer
+                     --[primary start] integer
+                       k --local symbol integer 
                      --[primary end]
                     --[suffixed expr end]
                    --[binary expr end]

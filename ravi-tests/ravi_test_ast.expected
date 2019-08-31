@@ -1427,7 +1427,7 @@ function()
     function()
     --locals  i
       for
-        i --local symbol ? 
+        i --local symbol integer 
       =
         1
        ,
@@ -1442,9 +1442,9 @@ function()
              --[suffix list start]
                --[function call start] any
                 (
-                  --[suffixed expr start] any
-                   --[primary start] any
-                     i --local symbol ? 
+                  --[suffixed expr start] integer
+                   --[primary start] integer
+                     i --local symbol integer 
                    --[primary end]
                   --[suffixed expr end]
                 )
@@ -1582,6 +1582,86 @@ function()
       --[primary end]
      --[suffixed expr end]
     --[unary expr end]
+end
+
+--
+--[[for i=1,10 do print(i+1) end return
+]]
+function()
+--locals  i
+  for
+    i --local symbol integer 
+  =
+    1
+   ,
+    10
+  do
+     --[expression statement start]
+      --[expression list start]
+        --[suffixed expr start] any
+         --[primary start] any
+           print --global symbol ? 
+         --[primary end]
+         --[suffix list start]
+           --[function call start] any
+            (
+              --[binary expr start] integer
+               --[suffixed expr start] integer
+                --[primary start] integer
+                  i --local symbol integer 
+                --[primary end]
+               --[suffixed expr end]
+              +
+               1
+              --[binary expr end]
+            )
+           --[function call end]
+         --[suffix list end]
+        --[suffixed expr end]
+      --[expression list end]
+     --[expression statement end]
+  end
+  return
+end
+
+--
+--[[for i=1.0, 10.0 do print(i+4.2) end return
+]]
+function()
+--locals  i
+  for
+    i --local symbol number 
+  =
+    1.0000000000000000
+   ,
+    10.0000000000000000
+  do
+     --[expression statement start]
+      --[expression list start]
+        --[suffixed expr start] any
+         --[primary start] any
+           print --global symbol ? 
+         --[primary end]
+         --[suffix list start]
+           --[function call start] any
+            (
+              --[binary expr start] number
+               --[suffixed expr start] number
+                --[primary start] number
+                  i --local symbol number 
+                --[primary end]
+               --[suffixed expr end]
+              +
+               4.2000000000000002
+              --[binary expr end]
+            )
+           --[function call end]
+         --[suffix list end]
+        --[suffixed expr end]
+      --[expression list end]
+     --[expression statement end]
+  end
+  return
 end
 
 --
