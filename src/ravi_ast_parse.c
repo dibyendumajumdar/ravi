@@ -925,7 +925,7 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
     expr->type = AST_UNARY_EXPR;
     expr->unary_expr.expr = subexpr;
     expr->unary_expr.unary_op = uop;
-	expr->unary_expr.type.type_name = usertype;
+    expr->unary_expr.type.type_name = usertype;
   }
   else {
     expr = parse_simple_expression(parser);
@@ -943,7 +943,7 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
     binexpr->binary_expr.expr_left = expr;
     binexpr->binary_expr.expr_right = exprright;
     binexpr->binary_expr.binary_op = op;
-    expr = binexpr;                                                // Becomes the left expr for next iteration
+    expr = binexpr;  // Becomes the left expr for next iteration
     op = nextop;
   }
   *untreated_op = op; /* return first untreated operator */

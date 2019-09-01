@@ -472,3 +472,413 @@ function()
     --[suffixed expr end]
 end
 
+function()
+--locals  t
+  local
+  --[symbols]
+    t --local symbol integer[] 
+  if
+   --[suffixed expr start] boolean
+    --[primary start] boolean
+     --[binary expr start] boolean
+      --[suffixed expr start] integer
+       --[primary start] integer[]
+         t --local symbol integer[] 
+       --[primary end]
+       --[suffix list start]
+         --[Y index start] integer
+          [
+           1
+          ]
+         --[Y index end]
+       --[suffix list end]
+      --[suffixed expr end]
+     ==
+      5
+     --[binary expr end]
+    --[primary end]
+   --[suffixed expr end]
+  then
+    return
+      true
+  end
+  return
+    false
+end
+
+function()
+   matmul --global symbol ? 
+   =
+    function(
+      a --local symbol table 
+     ,
+      b --local symbol table 
+    )
+    --locals  a, b, m, n, p, x, c, i, xi, j, sum, ai, cj, k
+      --[expression statement start]
+       --[expression list start]
+         --[suffixed expr start] any
+          --[primary start] any
+            assert --global symbol ? 
+          --[primary end]
+          --[suffix list start]
+            --[function call start] any
+             (
+               --[binary expr start] any
+                --[unary expr start] integer
+                @integer
+                 --[suffixed expr start] any
+                  --[primary start] any
+                   --[unary expr start] any
+                   #
+                    --[suffixed expr start] any
+                     --[primary start] table
+                       a --local symbol table 
+                     --[primary end]
+                     --[suffix list start]
+                       --[Y index start] any
+                        [
+                         1
+                        ]
+                       --[Y index end]
+                     --[suffix list end]
+                    --[suffixed expr end]
+                   --[unary expr end]
+                  --[primary end]
+                 --[suffixed expr end]
+                --[unary expr end]
+               ==
+                --[unary expr start] any
+                #
+                 --[suffixed expr start] table
+                  --[primary start] table
+                    b --local symbol table 
+                  --[primary end]
+                 --[suffixed expr end]
+                --[unary expr end]
+               --[binary expr end]
+             )
+            --[function call end]
+          --[suffix list end]
+         --[suffixed expr end]
+       --[expression list end]
+      --[expression statement end]
+      local
+      --[symbols]
+        m --local symbol integer 
+       ,
+        n --local symbol integer 
+       ,
+        p --local symbol integer 
+       ,
+        x --local symbol table 
+      --[expressions]
+        --[unary expr start] any
+        #
+         --[suffixed expr start] table
+          --[primary start] table
+            a --local symbol table 
+          --[primary end]
+         --[suffixed expr end]
+        --[unary expr end]
+       ,
+        --[unary expr start] any
+        #
+         --[suffixed expr start] any
+          --[primary start] table
+            a --local symbol table 
+          --[primary end]
+          --[suffix list start]
+            --[Y index start] any
+             [
+              1
+             ]
+            --[Y index end]
+          --[suffix list end]
+         --[suffixed expr end]
+        --[unary expr end]
+       ,
+        --[unary expr start] any
+        #
+         --[suffixed expr start] any
+          --[primary start] table
+            b --local symbol table 
+          --[primary end]
+          --[suffix list start]
+            --[Y index start] any
+             [
+              1
+             ]
+            --[Y index end]
+          --[suffix list end]
+         --[suffixed expr end]
+        --[unary expr end]
+       ,
+        { --[table constructor start] table
+        } --[table constructor end]
+      local
+      --[symbols]
+        c --local symbol table 
+      --[expressions]
+        --[suffixed expr start] any
+         --[primary start] any
+           matrix --global symbol ? 
+         --[primary end]
+         --[suffix list start]
+           --[field selector start] any
+            .
+             'T'
+           --[field selector end]
+           --[function call start] any
+            (
+              --[suffixed expr start] table
+               --[primary start] table
+                 b --local symbol table 
+               --[primary end]
+              --[suffixed expr end]
+            )
+           --[function call end]
+         --[suffix list end]
+        --[suffixed expr end]
+      for
+        i --local symbol integer 
+      =
+        1
+       ,
+        --[suffixed expr start] integer
+         --[primary start] integer
+           m --local symbol integer 
+         --[primary end]
+        --[suffixed expr end]
+      do
+         local
+         --[symbols]
+           xi --local symbol number[] 
+         --[expressions]
+           --[suffixed expr start] any
+            --[primary start] any
+              table --global symbol ? 
+            --[primary end]
+            --[suffix list start]
+              --[field selector start] any
+               .
+                'numarray'
+              --[field selector end]
+              --[function call start] any
+               (
+                 --[suffixed expr start] integer
+                  --[primary start] integer
+                    p --local symbol integer 
+                  --[primary end]
+                 --[suffixed expr end]
+                ,
+                 0.0000000000000000
+               )
+              --[function call end]
+            --[suffix list end]
+           --[suffixed expr end]
+         --[expression statement start]
+          --[var list start]
+            --[suffixed expr start] any
+             --[primary start] table
+               x --local symbol table 
+             --[primary end]
+             --[suffix list start]
+               --[Y index start] any
+                [
+                 --[suffixed expr start] integer
+                  --[primary start] integer
+                    i --local symbol integer 
+                  --[primary end]
+                 --[suffixed expr end]
+                ]
+               --[Y index end]
+             --[suffix list end]
+            --[suffixed expr end]
+          = --[var list end]
+          --[expression list start]
+            --[suffixed expr start] number[]
+             --[primary start] number[]
+               xi --local symbol number[] 
+             --[primary end]
+            --[suffixed expr end]
+          --[expression list end]
+         --[expression statement end]
+         for
+           j --local symbol integer 
+         =
+           1
+          ,
+           --[suffixed expr start] integer
+            --[primary start] integer
+              p --local symbol integer 
+            --[primary end]
+           --[suffixed expr end]
+         do
+            local
+            --[symbols]
+              sum --local symbol number 
+             ,
+              ai --local symbol number[] 
+             ,
+              cj --local symbol number[] 
+            --[expressions]
+              0.0000000000000000
+             ,
+              --[unary expr start] number[]
+              @number[]
+               --[suffixed expr start] any
+                --[primary start] any
+                 --[suffixed expr start] any
+                  --[primary start] table
+                    a --local symbol table 
+                  --[primary end]
+                  --[suffix list start]
+                    --[Y index start] any
+                     [
+                      --[suffixed expr start] integer
+                       --[primary start] integer
+                         i --local symbol integer 
+                       --[primary end]
+                      --[suffixed expr end]
+                     ]
+                    --[Y index end]
+                  --[suffix list end]
+                 --[suffixed expr end]
+                --[primary end]
+               --[suffixed expr end]
+              --[unary expr end]
+             ,
+              --[unary expr start] number[]
+              @number[]
+               --[suffixed expr start] any
+                --[primary start] any
+                 --[suffixed expr start] any
+                  --[primary start] table
+                    c --local symbol table 
+                  --[primary end]
+                  --[suffix list start]
+                    --[Y index start] any
+                     [
+                      --[suffixed expr start] integer
+                       --[primary start] integer
+                         j --local symbol integer 
+                       --[primary end]
+                      --[suffixed expr end]
+                     ]
+                    --[Y index end]
+                  --[suffix list end]
+                 --[suffixed expr end]
+                --[primary end]
+               --[suffixed expr end]
+              --[unary expr end]
+            for
+              k --local symbol integer 
+            =
+              1
+             ,
+              --[suffixed expr start] integer
+               --[primary start] integer
+                 n --local symbol integer 
+               --[primary end]
+              --[suffixed expr end]
+            do
+               --[expression statement start]
+                --[var list start]
+                  --[suffixed expr start] number
+                   --[primary start] number
+                     sum --local symbol number 
+                   --[primary end]
+                  --[suffixed expr end]
+                = --[var list end]
+                --[expression list start]
+                  --[binary expr start] number
+                   --[suffixed expr start] number
+                    --[primary start] number
+                      sum --local symbol number 
+                    --[primary end]
+                   --[suffixed expr end]
+                  +
+                   --[binary expr start] number
+                    --[suffixed expr start] number
+                     --[primary start] number[]
+                       ai --local symbol number[] 
+                     --[primary end]
+                     --[suffix list start]
+                       --[Y index start] number
+                        [
+                         --[suffixed expr start] integer
+                          --[primary start] integer
+                            k --local symbol integer 
+                          --[primary end]
+                         --[suffixed expr end]
+                        ]
+                       --[Y index end]
+                     --[suffix list end]
+                    --[suffixed expr end]
+                   *
+                    --[suffixed expr start] number
+                     --[primary start] number[]
+                       cj --local symbol number[] 
+                     --[primary end]
+                     --[suffix list start]
+                       --[Y index start] number
+                        [
+                         --[suffixed expr start] integer
+                          --[primary start] integer
+                            k --local symbol integer 
+                          --[primary end]
+                         --[suffixed expr end]
+                        ]
+                       --[Y index end]
+                     --[suffix list end]
+                    --[suffixed expr end]
+                   --[binary expr end]
+                  --[binary expr end]
+                --[expression list end]
+               --[expression statement end]
+            end
+            --[expression statement start]
+             --[var list start]
+               --[suffixed expr start] number
+                --[primary start] number[]
+                  xi --local symbol number[] 
+                --[primary end]
+                --[suffix list start]
+                  --[Y index start] number
+                   [
+                    --[suffixed expr start] integer
+                     --[primary start] integer
+                       j --local symbol integer 
+                     --[primary end]
+                    --[suffixed expr end]
+                   ]
+                  --[Y index end]
+                --[suffix list end]
+               --[suffixed expr end]
+             = --[var list end]
+             --[expression list start]
+               --[suffixed expr start] number
+                --[primary start] number
+                  sum --local symbol number 
+                --[primary end]
+               --[suffixed expr end]
+             --[expression list end]
+            --[expression statement end]
+         end
+      end
+      return
+        --[suffixed expr start] table
+         --[primary start] table
+           x --local symbol table 
+         --[primary end]
+        --[suffixed expr end]
+    end
+  return
+    --[suffixed expr start] any
+     --[primary start] any
+       matmul --global symbol ? 
+     --[primary end]
+    --[suffixed expr end]
+end
+
