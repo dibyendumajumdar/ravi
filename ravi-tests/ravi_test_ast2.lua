@@ -110,6 +110,20 @@ return false
 doast(str)
 
 str=
+[[local t: table
+  local len: integer = #t
+  return len
+]]
+doast(str)
+
+str=
+[[return function(t: table, i: integer)
+    i = #t
+  end
+]]
+doast(str)
+
+str=
 [[function matmul(a: table, b: table)
   	assert(@integer(#a[1]) == #b);
   	local m: integer, n: integer, p: integer, x: table = #a, #a[1], #b[1], {};

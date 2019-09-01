@@ -29,9 +29,6 @@ static void typecheck_unaryop(struct ast_container *container, struct ast_node *
       if (subexpr_type == RAVI_TARRAYINT || subexpr_type == RAVI_TARRAYFLT) {
         set_type(node->unary_expr.type, RAVI_TNUMINT);
       }
-      else if (subexpr_type == RAVI_TTABLE) {
-        // FIXME we need insert a TO_INT expression;
-      }
       break;
     case OPR_TO_INTEGER:
       set_type(node->unary_expr.type, RAVI_TNUMINT);
@@ -190,25 +187,47 @@ static void typecheck_suffixedexpr(struct ast_container *container, struct ast_n
   copy_type(node->suffixed_expr.type, prev_node->common_expr.type);
 }
 
-static void typecheck_var_assignment(struct ast_container *container, struct var_type *var_type,
-                                     struct var_type *expr_type, const char *var_name) {
+static void insert_cast(struct ast_container *container, struct ast_node *expr, UnOpr opcode, ravitype_t target_type) {
+  /* convert the node to @integer node, the original content of node goes into the subexpr */
+  struct ast_node *copy_expr = dmrC_allocator_allocate(&container->ast_node_allocator, 0);
+  *copy_expr = *expr;
+  expr->type = AST_UNARY_EXPR;
+  expr->unary_expr.expr = copy_expr;
+  expr->unary_expr.unary_op = opcode;
+  set_typecode(expr->unary_expr.type, target_type);
+}
+
+static void typecheck_var_assignment(struct ast_container *container, struct var_type *var_type, struct ast_node *expr,
+                                     const char *var_name) {
   if (var_type->type_code == RAVI_TANY)
     // Any value can be assigned to type ANY
     return;
 
-  if (var_type->type_code == RAVI_TNUMINT || var_type->type_code == RAVI_TNUMFLT) {
-    if (expr_type->type_code == RAVI_TNUMINT || expr_type->type_code == RAVI_TNUMFLT) {
-      // Okay
-      // TODO insert a typecast?
+  struct var_type *expr_type = &expr->common_expr.type;
+
+  if (var_type->type_code == RAVI_TNUMINT) {
+    /* if the expr is of type number or # operator then insert @integer operator */
+    if (expr_type->type_code == RAVI_TNUMFLT ||
+        (expr->type == AST_UNARY_EXPR && expr->unary_expr.unary_op == OPR_LEN)) {
+      insert_cast(container, expr, OPR_TO_INTEGER, RAVI_TNUMINT);
     }
-    else {
+    else if (expr_type->type_code != RAVI_TNUMINT) {
       fprintf(stderr, "Assignment to local symbol %s is not type compatible\n", var_name);
     }
     return;
   }
-
+  if (var_type->type_code == RAVI_TNUMFLT) {
+    if (expr_type->type_code == RAVI_TNUMINT) {
+      /* cast to number */
+      insert_cast(container, expr, OPR_TO_NUMBER, RAVI_TNUMFLT);
+    }
+    else if (expr_type->type_code != RAVI_TNUMFLT) {
+      fprintf(stderr, "Assignment to local symbol %s is not type compatible\n", var_name);
+    }
+    return;
+  }
   // all other types must strictly match
-  if (!is_type_same(*var_type, *expr_type)) {  // We should probably check type convertability here
+  if (!is_type_same(*var_type, *expr_type)) {  // We should probably check type convert-ability here
     fprintf(stderr, "Assignment to local symbol %s is not type compatible\n", var_name);
   }
 }
@@ -232,10 +251,9 @@ static void typecheck_local_statement(struct ast_container *container, struct as
       break;
 
     struct var_type *var_type = &var->value_type;
-    struct var_type *expr_type = &expr->common_expr.type;
     const char *var_name = getstr(var->var.var_name);
 
-    typecheck_var_assignment(container, var_type, expr_type, var_name);
+    typecheck_var_assignment(container, var_type, expr, var_name);
 
     NEXT_PTR_LIST(var);
     NEXT_PTR_LIST(expr);
@@ -261,10 +279,9 @@ static void typecheck_expr_statement(struct ast_container *container, struct ast
       break;
 
     struct var_type *var_type = &var->common_expr.type;
-    struct var_type *expr_type = &expr->common_expr.type;
     const char *var_name = "";  // FIXME how do we get this?
 
-    typecheck_var_assignment(container, var_type, expr_type, var_name);
+    typecheck_var_assignment(container, var_type, expr, var_name);
 
     NEXT_PTR_LIST(var);
     NEXT_PTR_LIST(expr);

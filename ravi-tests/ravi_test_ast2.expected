@@ -507,6 +507,67 @@ function()
 end
 
 function()
+--locals  t, len
+  local
+  --[symbols]
+    t --local symbol table 
+  local
+  --[symbols]
+    len --local symbol integer 
+  --[expressions]
+    --[unary expr start] integer
+    @integer
+     --[unary expr start] any
+     #
+      --[suffixed expr start] table
+       --[primary start] table
+         t --local symbol table 
+       --[primary end]
+      --[suffixed expr end]
+     --[unary expr end]
+    --[unary expr end]
+  return
+    --[suffixed expr start] integer
+     --[primary start] integer
+       len --local symbol integer 
+     --[primary end]
+    --[suffixed expr end]
+end
+
+function()
+  return
+    function(
+      t --local symbol table 
+     ,
+      i --local symbol integer 
+    )
+    --locals  t, i
+      --[expression statement start]
+       --[var list start]
+         --[suffixed expr start] integer
+          --[primary start] integer
+            i --local symbol integer 
+          --[primary end]
+         --[suffixed expr end]
+       = --[var list end]
+       --[expression list start]
+         --[unary expr start] integer
+         @integer
+          --[unary expr start] any
+          #
+           --[suffixed expr start] table
+            --[primary start] table
+              t --local symbol table 
+            --[primary end]
+           --[suffixed expr end]
+          --[unary expr end]
+         --[unary expr end]
+       --[expression list end]
+      --[expression statement end]
+    end
+end
+
+function()
    matmul --global symbol ? 
    =
     function(
@@ -573,45 +634,54 @@ function()
        ,
         x --local symbol table 
       --[expressions]
-        --[unary expr start] any
-        #
-         --[suffixed expr start] table
-          --[primary start] table
-            a --local symbol table 
-          --[primary end]
-         --[suffixed expr end]
+        --[unary expr start] integer
+        @integer
+         --[unary expr start] any
+         #
+          --[suffixed expr start] table
+           --[primary start] table
+             a --local symbol table 
+           --[primary end]
+          --[suffixed expr end]
+         --[unary expr end]
         --[unary expr end]
        ,
-        --[unary expr start] any
-        #
-         --[suffixed expr start] any
-          --[primary start] table
-            a --local symbol table 
-          --[primary end]
-          --[suffix list start]
-            --[Y index start] any
-             [
-              1
-             ]
-            --[Y index end]
-          --[suffix list end]
-         --[suffixed expr end]
+        --[unary expr start] integer
+        @integer
+         --[unary expr start] any
+         #
+          --[suffixed expr start] any
+           --[primary start] table
+             a --local symbol table 
+           --[primary end]
+           --[suffix list start]
+             --[Y index start] any
+              [
+               1
+              ]
+             --[Y index end]
+           --[suffix list end]
+          --[suffixed expr end]
+         --[unary expr end]
         --[unary expr end]
        ,
-        --[unary expr start] any
-        #
-         --[suffixed expr start] any
-          --[primary start] table
-            b --local symbol table 
-          --[primary end]
-          --[suffix list start]
-            --[Y index start] any
-             [
-              1
-             ]
-            --[Y index end]
-          --[suffix list end]
-         --[suffixed expr end]
+        --[unary expr start] integer
+        @integer
+         --[unary expr start] any
+         #
+          --[suffixed expr start] any
+           --[primary start] table
+             b --local symbol table 
+           --[primary end]
+           --[suffix list start]
+             --[Y index start] any
+              [
+               1
+              ]
+             --[Y index end]
+           --[suffix list end]
+          --[suffixed expr end]
+         --[unary expr end]
         --[unary expr end]
        ,
         { --[table constructor start] table
