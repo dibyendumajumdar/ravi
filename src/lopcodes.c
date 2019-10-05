@@ -163,6 +163,7 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "SELF_SK",    /* _SK*/ /* A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
   "SETFIELD", /*_SK */ /*	A B C	R(A)[RK(B)] := RK(C), string key  */
   "GETTABUP_SK",
+  "DEFER",
    NULL
 };
 
@@ -304,6 +305,9 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_RAVI_SELF_SK */
  ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_RAVI_SETFIELD */
  ,opmode(0, 1, OpArgU, OpArgK, iABC)		/* OP_RAVI_GETTABUP_SK */
+
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)		/* OP_RAVI_DEFER */
+
 };
 
 

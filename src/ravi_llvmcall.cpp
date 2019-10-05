@@ -52,7 +52,7 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int sBx, int pc) {
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, A - 1);
     // Call luaF_close
-    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
+    CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
   }
 
   // Do the actual jump

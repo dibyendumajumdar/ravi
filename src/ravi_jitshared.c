@@ -65,6 +65,7 @@ static const char Lua_header[] = ""
 "#define LUA_TFUNCTION		6\n"
 "#define LUA_TUSERDATA		7\n"
 "#define LUA_TTHREAD		8\n"
+"#define LUA_OK  0\n"
 "typedef enum {TM_INDEX,TM_NEWINDEX,TM_GC,\n"
 "	TM_MODE,TM_LEN,TM_EQ,TM_ADD,TM_SUB,TM_MUL,\n"
 "	TM_MOD,TM_POW,TM_DIV,TM_IDIV,TM_BAND,TM_BOR,\n"
@@ -515,7 +516,8 @@ static const char Lua_header[] = ""
 "};\n"
 "struct UpVal {\n"
 "	TValue *v;\n"
-"	lu_mem refcount;\n"
+"       unsigned int refcount;\n"
+"       unsigned int flags;\n"
 "	union {\n"
 "		struct {\n"
 "			UpVal *next;\n"
@@ -544,7 +546,7 @@ static const char Lua_header[] = ""
 "  (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))\n"
 "extern int luaV_tonumber_(const TValue *obj, lua_Number *n);\n"
 "extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);\n"
-"extern void luaF_close (lua_State *L, StkId level);\n"
+"extern int luaF_close (lua_State *L, StkId level, int status);\n"
 "extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);\n"
 "extern int luaV_equalobj(lua_State *L, const TValue *t1, const TValue *t2);\n"
 "extern int luaV_lessthan(lua_State *L, const TValue *l, const TValue *r);\n"
@@ -1010,7 +1012,7 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j, int
   membuff_add_fstring(&fn->body, "if (result == %d) {\n", A);
   if (jA > 0) {
     membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
-    membuff_add_string(&fn->body, " luaF_close(L, ra);\n");
+    membuff_add_string(&fn->body, " luaF_close(L, ra, LUA_OK);\n");
   }
   membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, "}\n");
@@ -1043,7 +1045,7 @@ static void emit_op_loadk(struct function *fn, int A, int Bx, int pc) {
 static void emit_op_return(struct function *fn, int A, int B, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
-  membuff_add_string(&fn->body, "if (cl->p->sizep > 0) luaF_close(L, base);\n");
+  membuff_add_string(&fn->body, "if (cl->p->sizep > 0) luaF_close(L, base, LUA_OK);\n");
   membuff_add_fstring(&fn->body, "result = (%d != 0 ? %d - 1 : cast_int(L->top - ra));\n", B, B);
   membuff_add_string(&fn->body, "return luaD_poscall(L, ci, ra, result);\n");
 }
@@ -1066,7 +1068,7 @@ static void emit_op_jmp(struct function *fn, int A, int sBx, int pc) {
   (void)pc;
   if (A > 0) {
     membuff_add_fstring(&fn->body, "ra = R(%d);\n", A - 1);
-    membuff_add_string(&fn->body, "luaF_close(L, ra);\n");
+    membuff_add_string(&fn->body, "luaF_close(L, ra, LUA_OK);\n");
   }
   membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", sBx);
 }
@@ -1090,7 +1092,7 @@ static void emit_op_test(struct function *fn, int A, int B, int C, int j, int jA
   membuff_add_fstring(&fn->body, "if (!result) {\n", A);
   if (jA > 0) {
     membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
-    membuff_add_string(&fn->body, " luaF_close(L, ra);\n");
+    membuff_add_string(&fn->body, " luaF_close(L, ra, LUA_OK);\n");
   }
   membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, " }\n");
@@ -1108,7 +1110,7 @@ static void emit_op_testset(struct function *fn, int A, int B, int C, int j, int
   membuff_add_string(&fn->body, "  setobjs2s(L, ra, rb);");
   if (jA > 0) {
     membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
-    membuff_add_string(&fn->body, " luaF_close(L, ra);\n");
+    membuff_add_string(&fn->body, " luaF_close(L, ra, LUA_OK);\n");
   }
   membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, " }\n");

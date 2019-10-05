@@ -281,10 +281,12 @@ OP_RAVI_SELF_SK,      /*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)], string key *
 OP_RAVI_SETFIELD,     /*	A B C	R(A)[RK(B)] := RK(C), string key */
 OP_RAVI_GETTABUP_SK,  /*	A B C	R(A) := UpValue[B][RK(C)], string key */
 
+OP_RAVI_DEFER,        /*        A	mark variable A "deferred"	  */
+
 } OpCode;
 
 
-#define NUM_OPCODES	(cast(int, OP_RAVI_GETTABUP_SK) + 1)
+#define NUM_OPCODES	(cast(int, OP_RAVI_DEFER) + 1)
 
 /*===========================================================================
   Notes:

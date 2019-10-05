@@ -19,6 +19,7 @@
 
 #include "lua.h"
 
+#include "ldo.h"
 #include "lfunc.h"
 #include "lgc.h"
 #include "lmem.h"
@@ -66,13 +67,15 @@ UpVal *luaF_findupval (lua_State *L, StkId level) {
   lua_assert(isintwups(L) || L->openupval == NULL);
   while (*pp != NULL && (p = *pp)->v >= level) {
     lua_assert(upisopen(p));
-    if (p->v == level)  /* found a corresponding upvalue? */
-      return p;  /* return it */
+    if (p->v == level && !p->flags)  /* found a corresponding upvalue that is not a deferred value? */ {
+      return p; /* return it */
+    }
     pp = &p->u.open.next;
   }
   /* not found: create a new upvalue */
   uv = luaM_new(L, UpVal);
   uv->refcount = 0;
+  uv->flags = 0;
   uv->u.open.next = *pp;  /* link it to list of open upvalues */
   uv->u.open.touched = 1;
   *pp = uv;
@@ -84,20 +87,49 @@ UpVal *luaF_findupval (lua_State *L, StkId level) {
   return uv;
 }
 
+static void callclose (lua_State *L, void *ud) {
+  luaD_callnoyield(L, cast(StkId, ud), 0);
+}
 
-void luaF_close (lua_State *L, StkId level) {
+static int calldeferredfunction (lua_State *L, UpVal *uv, StkId level, int status) {
+  StkId func = level + 1;  /* save slot for old error message */
+  setobj2s(L, func, uv->v);  /* will call it */
+  if (status != LUA_OK)  /* was there an error? */
+    luaD_seterrorobj(L, status, level);  /* save error message */
+  else
+    setnilvalue(level);
+  setobjs2s(L, func + 1, level);  /* error msg. as argument */
+  L->top = func + 2;  /* add function and argument */
+  if (status == LUA_OK)  /* not in "error mode"? */
+    callclose(L, func);  /* call closing method */
+  else {  /* already inside error handler; cannot raise another error */
+    int newstatus = luaD_pcall(L, callclose, func, savestack(L, level), 0);
+    if (newstatus != LUA_OK)  /* error when closing? */
+      status = newstatus;  /* this will be the new error */
+  }
+  return status;
+}
+
+int luaF_close (lua_State *L, StkId level, int status) {
   UpVal *uv;
   while (L->openupval != NULL && (uv = L->openupval)->v >= level) {
     lua_assert(upisopen(uv));
     L->openupval = uv->u.open.next;  /* remove from 'open' list */
-    if (uv->refcount == 0)  /* no references? */
-      luaM_free(L, uv);  /* free upvalue */
+    if (uv->refcount == 0) {         /* no references? */
+      if (uv->flags && ttisfunction(uv->v)) {
+        ptrdiff_t levelrel = savestack(L, level);
+        status = calldeferredfunction(L, uv, uv->v, status);
+        level = restorestack(L, levelrel);
+      }
+      luaM_free(L, uv);              /* free upvalue */
+    }
     else {
       setobj(L, &uv->u.value, uv->v);  /* move value to upvalue slot */
       uv->v = &uv->u.value;  /* now current value lives here */
       luaC_upvalbarrier(L, uv);
     }
   }
+  return status;
 }
 
 

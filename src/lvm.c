@@ -1027,7 +1027,7 @@ void luaV_finishOp (lua_State *L) {
 */
 #define dojump(ci,i,e) \
   { int a = GETARG_A(i); \
-    if (a != 0) luaF_close(L, ci->u.l.base + a - 1); \
+    if (a != 0) luaF_close(L, ci->u.l.base + a - 1, LUA_OK); \
     pc += GETARG_sBx(i) + e; updatemask(L); }
 
 /* for test instructions, execute the jump instruction that follows it */
@@ -1269,7 +1269,8 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_GETFIELD),
     &&vmlabel(OP_RAVI_SELF_SK),
     &&vmlabel(OP_RAVI_SETFIELD),
-    &&vmlabel(OP_RAVI_GETTABUP_SK)
+    &&vmlabel(OP_RAVI_GETTABUP_SK),
+    &&vmlabel(OP_RAVI_DEFER),
   };
 #endif
   
@@ -1720,7 +1721,7 @@ int luaV_execute (lua_State *L) {
           StkId lim = nci->u.l.base + getproto(nfunc)->numparams;
           int aux;
           /* close all upvalues from previous call */
-          if (cl->p->sizep > 0) luaF_close(L, oci->u.l.base);
+          if (cl->p->sizep > 0) luaF_close(L, oci->u.l.base, LUA_OK);
           /* move new frame into old one */
           for (aux = 0; nfunc + aux < lim; aux++)
             setobjs2s(L, ofunc + aux, nfunc + aux);
@@ -1737,7 +1738,7 @@ int luaV_execute (lua_State *L) {
       }
       vmcase(OP_RETURN) {
         int b = GETARG_B(i);
-        if (cl->p->sizep > 0) luaF_close(L, base);
+        if (cl->p->sizep > 0) luaF_close(L, base, LUA_OK);
         savepc(L);
         int nres = (b != 0 ? b - 1 : cast_int(L->top - ra));
         b = luaD_poscall(L, ci, ra, nres);
@@ -2460,6 +2461,12 @@ int luaV_execute (lua_State *L) {
           if (!raviV_check_usertype(L, key, ra))
             luaG_runerror(L, "type mismatch: expected %s", getstr(key));
         }
+        vmbreak;
+      }
+      vmcase(OP_RAVI_DEFER) {
+        UpVal *up = luaF_findupval(L, ra); /* create new upvalue */
+        up->flags = 1;  /* mark it as deferred */
+        setnilvalue(ra);  /* initialize it with nil */
         vmbreak;
       }
     }

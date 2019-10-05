@@ -2177,11 +2177,18 @@ static void ifstat (LexState *ls, int line) {
 }
 
 /* parse a local function statement - called from statement() */
-static void localfunc (LexState *ls) {
+static void localfunc (LexState *ls, int defer) {
   expdesc b = {.ravi_type = RAVI_TANY, .pc = -1};
   FuncState *fs = ls->fs;
-  /* RAVI change - add type */
-  new_localvar(ls, str_checkname(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
+  if (defer) {
+    static const char funcname[] = "(deferred function)";
+    new_localvar(ls, luaX_newstring(ls, funcname, sizeof funcname-1), RAVI_TFUNCTION, NULL);  /* new local variable */
+    luaK_codeABC(fs, OP_RAVI_DEFER, fs->nactvar, 0, 0);
+    markupval(fs, fs->nactvar);
+  } else {
+    /* RAVI change - add type */
+    new_localvar(ls, str_checkname(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
+  }
   adjustlocalvars(ls, 1);  /* enter its scope */
   body(ls, &b, 0, ls->linenumber);  /* function created in next register */
   /* debug information will only see the variable after this point! */
@@ -2339,9 +2346,15 @@ static void statement (LexState *ls) {
     case TK_LOCAL: {  /* stat -> localstat */
       luaX_next(ls);  /* skip LOCAL */
       if (testnext(ls, TK_FUNCTION))  /* local function? */
-        localfunc(ls);
+        localfunc(ls, 0);
       else
         localstat(ls);
+      break;
+    }
+    case TK_DEFER: {  /* stat -> deferstat */
+      luaX_next(ls);  /* skip LOCAL */
+      checknext(ls, TK_FUNCTION);
+      localfunc(ls, 1);
       break;
     }
     case TK_DBCOLON: {  /* stat -> label */

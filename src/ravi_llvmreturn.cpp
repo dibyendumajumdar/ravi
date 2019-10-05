@@ -77,7 +77,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B,
   def->builder->SetInsertPoint(then_block);
 
   // Call luaF_close
-  CreateCall2(def->builder, def->luaF_closeF, def->L, def->base_ptr);
+  CreateCall3(def->builder, def->luaF_closeF, def->L, def->base_ptr, def->types->kInt[LUA_OK]);
   def->builder->CreateBr(else_block);
 
   def->f->getBasicBlockList().push_back(else_block);
