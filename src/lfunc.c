@@ -149,14 +149,15 @@ int luaF_close (lua_State *L, StkId level, int status) {
   UpVal *uv;
   while (L->openupval != NULL && (uv = L->openupval)->v >= level) {
     lua_assert(upisopen(uv));
-    L->openupval = uv->u.open.next;  /* remove from 'open' list */
-    if (uv->refcount == 0) {         /* no references? */
-      if (uv->flags && ttisfunction(uv->v)) {
+    L->openupval = uv->u.open.next; /* remove from 'open' list */
+    if (uv->refcount == 0) {        /* no references? */
+      UpVal uv1 = *uv;              /* copy the upvalue as we will free it below */
+      luaM_free(L, uv);             /* free upvalue before invoking any deferred functions */
+      if (uv1.flags && ttisfunction(uv1.v)) {
         ptrdiff_t levelrel = savestack(L, level);
-        status = calldeferredfunction(L, uv->v, status);
+        status = calldeferredfunction(L, uv1.v, status);
         level = restorestack(L, levelrel);
       }
-      luaM_free(L, uv);              /* free upvalue */ /* FIXME leak if error occurs above */
     }
     else {
       setobj(L, &uv->u.value, uv->v);  /* move value to upvalue slot */
