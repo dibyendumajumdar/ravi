@@ -1013,6 +1013,7 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j, int
   if (jA > 0) {
     membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
     membuff_add_string(&fn->body, " luaF_close(L, ra, LUA_OK);\n");
+    membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
   }
   membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, "}\n");
@@ -1045,7 +1046,9 @@ static void emit_op_loadk(struct function *fn, int A, int Bx, int pc) {
 static void emit_op_return(struct function *fn, int A, int B, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
-  membuff_add_string(&fn->body, "if (cl->p->sizep > 0) luaF_close(L, base, LUA_OK);\n");
+  membuff_add_string(&fn->body, "if (cl->p->sizep > 0) {\n luaF_close(L, base, LUA_OK);\n");
+  membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
+  membuff_add_string(&fn->body, "}\n");
   membuff_add_fstring(&fn->body, "result = (%d != 0 ? %d - 1 : cast_int(L->top - ra));\n", B, B);
   membuff_add_string(&fn->body, "return luaD_poscall(L, ci, ra, result);\n");
 }
@@ -1069,6 +1072,7 @@ static void emit_op_jmp(struct function *fn, int A, int sBx, int pc) {
   if (A > 0) {
     membuff_add_fstring(&fn->body, "ra = R(%d);\n", A - 1);
     membuff_add_string(&fn->body, "luaF_close(L, ra, LUA_OK);\n");
+    membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
   }
   membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", sBx);
 }
@@ -1093,6 +1097,7 @@ static void emit_op_test(struct function *fn, int A, int B, int C, int j, int jA
   if (jA > 0) {
     membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
     membuff_add_string(&fn->body, " luaF_close(L, ra, LUA_OK);\n");
+    membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
   }
   membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, " }\n");
@@ -1111,6 +1116,7 @@ static void emit_op_testset(struct function *fn, int A, int B, int C, int j, int
   if (jA > 0) {
     membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
     membuff_add_string(&fn->body, " luaF_close(L, ra, LUA_OK);\n");
+    membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
   }
   membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, " }\n");

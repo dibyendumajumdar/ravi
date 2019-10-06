@@ -1027,7 +1027,7 @@ void luaV_finishOp (lua_State *L) {
 */
 #define dojump(ci,i,e) \
   { int a = GETARG_A(i); \
-    if (a != 0) luaF_close(L, ci->u.l.base + a - 1, LUA_OK); \
+    if (a != 0) Protect_base(luaF_close(L, ci->u.l.base + a - 1, LUA_OK)); \
     pc += GETARG_sBx(i) + e; updatemask(L); }
 
 /* for test instructions, execute the jump instruction that follows it */
@@ -1721,7 +1721,7 @@ int luaV_execute (lua_State *L) {
           StkId lim = nci->u.l.base + getproto(nfunc)->numparams;
           int aux;
           /* close all upvalues from previous call */
-          if (cl->p->sizep > 0) luaF_close(L, oci->u.l.base, LUA_OK);
+          if (cl->p->sizep > 0) Protect_base(luaF_close(L, oci->u.l.base, LUA_OK));
           /* move new frame into old one */
           for (aux = 0; nfunc + aux < lim; aux++)
             setobjs2s(L, ofunc + aux, nfunc + aux);
@@ -1738,7 +1738,7 @@ int luaV_execute (lua_State *L) {
       }
       vmcase(OP_RETURN) {
         int b = GETARG_B(i);
-        if (cl->p->sizep > 0) luaF_close(L, base, LUA_OK);
+        if (cl->p->sizep > 0) Protect_base(luaF_close(L, base, LUA_OK));
         savepc(L);
         int nres = (b != 0 ? b - 1 : cast_int(L->top - ra));
         b = luaD_poscall(L, ci, ra, nres);

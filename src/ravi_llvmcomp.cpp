@@ -134,6 +134,7 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
 
     // Call luaF_close
     CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
+    emit_load_base(def);
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
@@ -240,6 +241,7 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
 
     // Call luaF_close
     CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
+    emit_load_base(def);
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
@@ -312,6 +314,7 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
 
     // Call luaF_close
     CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
+    emit_load_base(def);
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);

@@ -19,6 +19,7 @@
 
 #include "lua.h"
 
+#include "ldebug.h"
 #include "ldo.h"
 #include "lfunc.h"
 #include "lgc.h"
@@ -87,25 +88,59 @@ UpVal *luaF_findupval (lua_State *L, StkId level) {
   return uv;
 }
 
-static void callclose (lua_State *L, void *ud) {
-  luaD_callnoyield(L, cast(StkId, ud), 0);
+static void calldeferred(lua_State *L, void *ud) {
+  UNUSED(ud);
+  luaD_callnoyield(L, L->top - 2, 0);
 }
 
-static int calldeferredfunction (lua_State *L, UpVal *uv, StkId level, int status) {
-  StkId func = level + 1;  /* save slot for old error message */
-  setobj2s(L, func, uv->v);  /* will call it */
-  if (status != LUA_OK)  /* was there an error? */
-    luaD_seterrorobj(L, status, level);  /* save error message */
-  else
-    setnilvalue(level);
-  setobjs2s(L, func + 1, level);  /* error msg. as argument */
-  L->top = func + 2;  /* add function and argument */
-  if (status == LUA_OK)  /* not in "error mode"? */
-    callclose(L, func);  /* call closing method */
-  else {  /* already inside error handler; cannot raise another error */
-    int newstatus = luaD_pcall(L, callclose, func, savestack(L, level), 0);
-    if (newstatus != LUA_OK)  /* error when closing? */
-      status = newstatus;  /* this will be the new error */
+/*
+** Prepare deferred function plus its arguments for object 'obj' with
+** error message 'err'. (This function assumes EXTRA_STACK.)
+*/
+static int preparetocall(lua_State *L, TValue *func, TValue *err) {
+  StkId top = L->top;
+  setobj2s(L, top, func);  /* will call deferred function */
+  if (err) {
+    setobj2s(L, top + 1, err); /* and error msg. as 1st argument */
+  }
+  else {
+    setnilvalue(top + 1);
+  }
+  L->top = top + 2;  /* add function and arguments */
+  return 1;
+}
+
+/*
+** Prepare and call a deferred function. If status is OK, code is still
+** inside the original protected call, and so any error will be handled
+** there. Otherwise, a previous error already activated the original
+** protected call, and so the call to the deferred method must be
+** protected here. (A status == -1 behaves like a previous
+** error, to also run the closing method in protected mode).
+** If status is OK, the call to the deferred method will be pushed
+** at the top of the stack. Otherwise, values are pushed after
+** the 'level' of the upvalue containing deferred function, as everything after
+** that won't be used again.
+*/
+static int calldeferredfunction(lua_State *L, StkId level, int status) {
+  TValue *uv = level; /* value being closed */
+  if (status == LUA_OK) {
+    preparetocall(L, uv, NULL); /* something to call? */
+    calldeferred(L, NULL);      /* call closing method */
+  }
+  else { /* must close the object in protected mode */
+    ptrdiff_t oldtop;
+    level++;                            /* space for error message */
+    oldtop = savestack(L, level + 1);   /* top will be after that */
+    luaD_seterrorobj(L, status, level); /* set error message */
+    preparetocall(L, uv, level);
+    int newstatus = luaD_pcall(L, calldeferred, NULL, oldtop, 0);
+    if (newstatus != LUA_OK && status == -1) /* first error? */
+      status = newstatus;                    /* this will be the new error */
+    else {
+      /* leave original error (or nil) on top */
+      L->top = restorestack(L, oldtop);
+    }
   }
   return status;
 }
@@ -118,10 +153,10 @@ int luaF_close (lua_State *L, StkId level, int status) {
     if (uv->refcount == 0) {         /* no references? */
       if (uv->flags && ttisfunction(uv->v)) {
         ptrdiff_t levelrel = savestack(L, level);
-        status = calldeferredfunction(L, uv, uv->v, status);
+        status = calldeferredfunction(L, uv->v, status);
         level = restorestack(L, levelrel);
       }
-      luaM_free(L, uv);              /* free upvalue */
+      luaM_free(L, uv);              /* free upvalue */ /* FIXME leak if error occurs above */
     }
     else {
       setobj(L, &uv->u.value, uv->v);  /* move value to upvalue slot */
