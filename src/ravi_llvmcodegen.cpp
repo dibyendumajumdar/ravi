@@ -1202,6 +1202,9 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_totypeF = def->raviF->addExternFunction(
       def->types->raviV_op_totypeT, reinterpret_cast<void *>(&raviV_op_totype),
       "raviV_op_totype");
+  def->raviV_op_deferF = def->raviF->addExternFunction(
+	  def->types->raviV_op_totypeT, reinterpret_cast<void *>(&raviV_op_defer), 
+	  "raviV_op_defer");
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(
       def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
@@ -2014,7 +2017,9 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int B = GETARG_B(i);
         emit_UNM(def, A, B, pc);
       } break;
-
+      case OP_RAVI_DEFER: {
+        emit_DEFER(def, A, pc);
+      } break;
       default: {
         fprintf(stderr, "Unexpected bytecode %d\n", op);
         abort();

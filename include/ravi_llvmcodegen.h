@@ -288,6 +288,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_gettable_iT;
   llvm::FunctionType *raviV_settable_iT;
   llvm::FunctionType *raviV_op_totypeT;
+  llvm::FunctionType *raviV_op_deferT;
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -832,6 +833,7 @@ struct RaviFunctionDef {
   llvm::Function *raviV_gettable_iF;
   llvm::Function *raviV_settable_iF;
   llvm::Function *raviV_op_totypeF;
+  llvm::Function *raviV_op_deferF;
 
   // array setters
   llvm::Function *raviH_set_intF;
@@ -1368,6 +1370,8 @@ class RaviCodeGenerator {
   void emit_BOR_BXOR_BAND(RaviFunctionDef *def, OpCode op, int A, int B, int C, int pc);
 
   void emit_BNOT(RaviFunctionDef *def, int A, int B, int pc);
+
+  void emit_DEFER(RaviFunctionDef *def, int A, int pc);
 
   void emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B, lua_Integer y);
 

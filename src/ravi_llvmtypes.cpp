@@ -759,6 +759,10 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTValueT);
+
+  // void raviV_op_defer(lua_State *L, TValue *ra);
+  raviV_op_deferT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
   elements.push_back(pTValueT);
   luaV_equalobjT = llvm::FunctionType::get(C_intT, elements, false);
 

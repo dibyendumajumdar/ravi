@@ -170,4 +170,14 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C,
   def->f->getBasicBlockList().push_back(end_block);
   def->builder->SetInsertPoint(end_block);
 }
+
+void RaviCodeGenerator::emit_DEFER(RaviFunctionDef *def, int A, int pc) {
+  bool traced = emit_debug_trace(def, OP_RAVI_DEFER, pc);
+  if (!traced)
+    emit_update_savedpc(def, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  CreateCall2(def->builder, def->raviV_op_deferF, def->L, ra);
+}
+
 }
