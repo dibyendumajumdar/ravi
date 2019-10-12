@@ -131,7 +131,8 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
 
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, jA - 1);
-
+    if (!traced)
+      emit_update_savedpc(def, pc);
     // Call luaF_close
     CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
   }
@@ -211,7 +212,7 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
   //        donextjump(ci);
   //    } break;
 
-  emit_debug_trace(def, OP_TEST, pc);
+  bool traced = emit_debug_trace(def, OP_TEST, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -237,7 +238,8 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
 
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, jA - 1);
-
+    if (!traced)
+      emit_update_savedpc(def, pc);
     // Call luaF_close
     CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
   }
@@ -279,7 +281,7 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
   //    }
   //  } break;
 
-  emit_debug_trace(def, OP_TESTSET, pc);
+  bool traced = emit_debug_trace(def, OP_TESTSET, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -309,7 +311,8 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
 
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, jA - 1);
-
+    if (!traced)
+      emit_update_savedpc(def, pc);
     // Call luaF_close
     CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
   }

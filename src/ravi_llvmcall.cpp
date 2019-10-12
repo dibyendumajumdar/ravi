@@ -44,13 +44,15 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int sBx, int pc) {
     def->builder->SetInsertPoint(jmp_block);
   }
 
-  emit_debug_trace(def, OP_JMP, pc);
+  bool traced = emit_debug_trace(def, OP_JMP, pc);
 
   // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
   if (A > 0) {
     emit_load_base(def);
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, A - 1);
+    if (!traced)
+      emit_update_savedpc(def, pc);
     // Call luaF_close
     CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
   }
@@ -172,9 +174,7 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C,
 }
 
 void RaviCodeGenerator::emit_DEFER(RaviFunctionDef *def, int A, int pc) {
-  bool traced = emit_debug_trace(def, OP_RAVI_DEFER, pc);
-  if (!traced)
-    emit_update_savedpc(def, pc);
+  emit_debug_trace(def, OP_RAVI_DEFER, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   CreateCall2(def->builder, def->raviV_op_deferF, def->L, ra);

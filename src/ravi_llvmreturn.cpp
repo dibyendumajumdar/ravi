@@ -54,7 +54,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B,
     def->builder->SetInsertPoint(return_block);
   }
 
-  emit_debug_trace(def, OP_RETURN, pc);
+  bool traced = emit_debug_trace(def, OP_RETURN, pc);
 
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Get pointer to Proto->sizep
@@ -74,6 +74,8 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B,
   emit_load_base(def);
   // Get pointer to register A
   llvm::Value *ra_ptr = emit_gep_register(def, A);
+  if (!traced)
+    emit_update_savedpc(def, pc);
   // Call luaF_close
   CreateCall3(def->builder, def->luaF_closeF, def->L, def->base_ptr, def->types->kInt[LUA_OK]);
   def->builder->CreateBr(else_block);

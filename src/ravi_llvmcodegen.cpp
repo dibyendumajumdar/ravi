@@ -1332,7 +1332,7 @@ llvm::Value *RaviCodeGenerator::emit_gep_upval_v(RaviFunctionDef *def,
 // Get &upval->value -> result is TValue *
 llvm::Value *RaviCodeGenerator::emit_gep_upval_value(
     RaviFunctionDef *def, llvm::Instruction *pupval) {
-  return emit_gep(def, "value", pupval, 0, 2);
+  return emit_gep(def, "value", pupval, 0, 3);
 }
 
 // Alternative code generator uses dmrC based C front-end
