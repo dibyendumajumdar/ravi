@@ -18,7 +18,7 @@
     { if ((nres) == LUA_MULTRET && L->ci->top < L->top) L->ci->top = L->top; }
 
 #define api_checknelems(L,n)	api_check(L, (n) < (L->top - L->ci->func), \
-				  "not enough elements in the stack")
+				  "not enough elements in the stacks")
 
 
 #endif
