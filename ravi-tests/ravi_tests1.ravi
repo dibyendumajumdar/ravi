@@ -121,6 +121,7 @@ opcodes_coverage.TOTYPE = 0
 opcodes_coverage.TOSTRING = 0
 opcodes_coverage.TOCLOSURE = 0
 opcodes_coverage.SELF_SK = 0
+opcodes_coverage.DEFER = 0
 
 local compile = function(f)
   if ravi.jit() then
@@ -1726,6 +1727,49 @@ assert(x(2,3) == 2^3)
 compile(x)
 assert(x(2,3) == 2^3)
 print 'Test 77 OK'
+
+-- Test defer statement
+y = 0
+function x()
+  defer y = y + 1 end
+  defer y = y + 1 end
+end
+check(x, 'DEFER', 'CLOSURE', 'DEFER', 'CLOSURE', 'RETURN')
+x()
+assert(y == 2)
+compile(x)
+x()
+assert(y == 4)
+print 'Test 78 OK'
+
+-- Test defer statement
+y = 0
+function x()
+  defer y = y + 1 end
+  error('raise error')
+  defer y = y + 2 end -- will not be called
+end
+pcall(x)
+assert(y == 1)
+compile(x)
+pcall(x)
+assert(y == 2)
+print 'Test 79 OK'
+
+-- Test defer statement
+y = 0
+function x()
+  defer y = y + 1 end
+  defer y = y + 2; error('err') end 
+  defer y = y + 3 end
+end
+pcall(x)
+assert(y == 6)
+compile(x)
+pcall(x)
+assert(y == 12)
+print 'Test 80 OK'
+
 
 for k,v in pairs(opcodes_coverage)
 do

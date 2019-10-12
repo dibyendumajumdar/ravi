@@ -1203,7 +1203,7 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       def->types->raviV_op_totypeT, reinterpret_cast<void *>(&raviV_op_totype),
       "raviV_op_totype");
   def->raviV_op_deferF = def->raviF->addExternFunction(
-	  def->types->raviV_op_totypeT, reinterpret_cast<void *>(&raviV_op_defer), 
+	  def->types->raviV_op_deferT, reinterpret_cast<void *>(&raviV_op_defer), 
 	  "raviV_op_defer");
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(

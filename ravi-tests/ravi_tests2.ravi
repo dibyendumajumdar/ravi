@@ -122,6 +122,7 @@ opcodes_coverage.TABLE_SELF_SK = 0
 opcodes_coverage.TOTYPE = 0
 opcodes_coverage.TOSTRING = 0
 opcodes_coverage.TOCLOSURE = 0
+opcodes_coverage.DEFER = 0
 
 --ravi.verbosity(1)
 
