@@ -34,7 +34,11 @@
  */
 
 static const char Lua_header[] = ""
-"typedef __SIZE_TYPE__ size_t;\n"
+//"#ifndef __SIZE_TYPE__\n"
+//"#define __SIZE_TYPE__ long long\n"
+//"#endif\n"
+//"typedef __SIZE_TYPE__ size_t;\n"
+"typedef long long size_t;\n"
 "typedef long long ptrdiff_t;\n"
 "typedef long long intptr_t;\n"
 "typedef long long int64_t;\n"

@@ -12,20 +12,26 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 # By default JIT is OFF
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(OMR_JIT "Controls whether NanoJIT compilation will be enabled, default is OFF" OFF)
+option(MIR_JIT "Controls whether MIR JIT compilation will be enabled, default is OFF" ON)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
 option(ASM_VM "Controls whether to use the new VM (not ready yet! so don't turn on)" OFF)
 option(LTESTS "Controls whether ltests are enabled in Debug mode" ON)
 
-if (LLVM_JIT AND OMR_JIT)
+if (LLVM_JIT AND OMR_JIT AND MIR_JIT)
     message(FATAL_ERROR
-            "Both LLVM_JIT and OMR_JIT cannot be set to ON at the same time")
+            "LLVM_JIT, OMR_JIT and MIR_IT cannot all be set to ON at the same time")
 endif ()
 
-if (LLVM_JIT OR OMR_JIT)
+if (LLVM_JIT OR OMR_JIT OR MIR_JIT)
     # ASM VM is in development and not compatible with anything yet
     set(ASM_VM OFF)
 endif ()
+
+if (MIR_JIT)
+    set(LLVM_JIT OFF)
+    set(OMR_JIT OFF)
+endif()
 
 if (ASM_VM)
     # For now we switch to static build 
@@ -35,6 +41,7 @@ if (ASM_VM)
     set(LTESTS OFF)
     set(LLVM_JIT OFF)
     set(OMR_JIT OFF)
+    set(MIR_JIT OFF)
 endif ()
 
 if (STATIC_BUILD)
@@ -61,6 +68,12 @@ if (OMR_JIT)
     find_package(OMRJIT REQUIRED)
     include_directories(${OMRJIT_INCLUDE_DIRS})
     add_definitions(-DUSE_OMRJIT)
+endif ()
+
+if (MIR_JIT)
+    find_package(MIRJIT REQUIRED)
+    include_directories(${MIRJIT_INCLUDE_DIRS})
+    add_definitions(-DUSE_MIRJIT)
 endif ()
 
 message(STATUS "Computed goto ${COMPUTED_GOTO}")
@@ -187,6 +200,8 @@ if (LLVM_JIT)
             src/ravi_llvmluaapi.cpp)
 elseif (OMR_JIT)
     set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
+elseif (MIR_JIT)
+    set(MIR_JIT_SRCS src/ravi_mirjit.c)
 else ()
     set(NO_JIT_SRCS src/ravi_nojit.c)
 endif ()
@@ -371,6 +386,9 @@ if (LLVM_JIT)
     set(LIBRAVI_NAME libravillvm)
 elseif (OMR_JIT)
     set(LIBRAVI_NAME libravilomr)
+elseif (MIR_JIT)
+    set(LIBRAVI_NAME libravimir)
+    set(LIBRAVI_BUILD_TYPE STATIC)
 else ()
     set(LIBRAVI_NAME libravinojit)
 endif ()
@@ -382,6 +400,7 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${LUA_CORE_SRCS}
         ${LLVM_JIT_SRCS}
         ${OMR_JIT_SRCS}
+        ${MIR_JIT_SRCS}
         ${NO_JIT_SRCS}
         ${DMR_C_HEADERS}
         ${DMR_C_SRCS}
@@ -404,10 +423,13 @@ endif ()
 if (OMR_JIT)
     set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_OMRJIT=1")
 endif ()
+if (MIR_JIT)
+    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_MIRJIT=1")
+endif ()
 if (EMBEDDED_DMRC)
     set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_DMR_C=1")
 endif ()
-target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${OMRJIT_LIBRARIES})
+target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${OMRJIT_LIBRARIES} ${MIRJIT_LIBRARIES})
 
 # Main Ravi executable
 add_executable(ravi src/lua.c)
