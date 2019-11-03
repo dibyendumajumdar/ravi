@@ -843,10 +843,17 @@ struct RaviFunctionDef {
   llvm::Function *ravi_debug_traceF;
 
   // standard C functions
+#if LLVM_VERSION_MAJOR >= 9
+  llvm::FunctionCallee printfFunc;
+  llvm::FunctionCallee fmodFunc;
+  llvm::FunctionCallee floorFunc;
+  llvm::FunctionCallee powFunc;
+#else
   llvm::Constant *printfFunc;
   llvm::Constant *fmodFunc;
   llvm::Constant *floorFunc;
   llvm::Constant *powFunc;
+#endif
 
   // Jump targets in the function
   std::vector<RaviBranchDef> jmp_targets;

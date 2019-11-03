@@ -57,10 +57,10 @@ LUAMOD_API int (raviopen_llvmjit)(lua_State *L);
 #define LUA_ASTLIBNAME	"ast"
 LUAMOD_API int (raviopen_ast_library)(lua_State *L);
 
-#ifdef USE_LLVM
-#define LUA_LLVMLIBNAME	"llvm"
-LUAMOD_API int (raviopen_llvmluaapi)(lua_State *L);
-#endif
+//#ifdef USE_LLVM
+//#define LUA_LLVMLIBNAME	"llvm"
+//LUAMOD_API int (raviopen_llvmluaapi)(lua_State *L);
+//#endif
 /** RAVI change end */
 /* open all previous libraries */
 LUALIB_API void (luaL_openlibs) (lua_State *L);

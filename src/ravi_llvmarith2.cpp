@@ -676,7 +676,11 @@ void RaviCodeGenerator::emit_MOD(RaviFunctionDef *def, int A, int B, int C,
   lhs = emit_load_local_n(def, nb);
   rhs = emit_load_local_n(def, nc);
 
+#if LLVM_VERSION_MAJOR >= 9
+  llvm::Value *fmod_result = CreateCall2(def->builder, def->fmodFunc.getCallee(), lhs, rhs);
+#else
   llvm::Value *fmod_result = CreateCall2(def->builder, def->fmodFunc, lhs, rhs);
+#endif
 
   // if ((m)*(b) < 0) (m) += (b);
   llvm::Value *mb = def->builder->CreateFMul(fmod_result, rhs);
@@ -1002,7 +1006,11 @@ void RaviCodeGenerator::emit_POW(RaviFunctionDef *def, int A, int B, int C,
   llvm::Instruction *lhs = emit_load_local_n(def, nb);
   llvm::Instruction *rhs = emit_load_local_n(def, nc);
 
+#if LLVM_VERSION_MAJOR >= 9
+  llvm::Value *pow_result = CreateCall2(def->builder, def->powFunc.getCallee(), lhs, rhs);
+#else
   llvm::Value *pow_result = CreateCall2(def->builder, def->powFunc, lhs, rhs);
+#endif
 
   emit_store_reg_n_withtype(def, pow_result, ra);
 

@@ -980,34 +980,59 @@ void RaviCodeGenerator::emit_raise_lua_error(RaviFunctionDef *def,
 }
 
 void RaviCodeGenerator::debug_printf(RaviFunctionDef *def, const char *str) {
+#if LLVM_VERSION_MAJOR >= 9
+	CreateCall1(def->builder, def->printfFunc.getCallee(),
+		def->builder->CreateGlobalStringPtr(str));
+#else
   CreateCall1(def->builder, def->printfFunc,
               def->builder->CreateGlobalStringPtr(str));
+#endif
 }
 
 void RaviCodeGenerator::debug_printf1(RaviFunctionDef *def, const char *str,
                                       llvm::Value *arg1) {
-  CreateCall2(def->builder, def->printfFunc,
+#if LLVM_VERSION_MAJOR >= 9
+	CreateCall2(def->builder, def->printfFunc.getCallee(),
+		def->builder->CreateGlobalStringPtr(str), arg1);
+#else
+	CreateCall2(def->builder, def->printfFunc,
               def->builder->CreateGlobalStringPtr(str), arg1);
+#endif
 }
 
 void RaviCodeGenerator::debug_printf2(RaviFunctionDef *def, const char *str,
                                       llvm::Value *arg1, llvm::Value *arg2) {
-  CreateCall3(def->builder, def->printfFunc,
+#if LLVM_VERSION_MAJOR >= 9
+	CreateCall3(def->builder, def->printfFunc.getCallee(),
+		def->builder->CreateGlobalStringPtr(str), arg1, arg2);
+#else
+	CreateCall3(def->builder, def->printfFunc,
               def->builder->CreateGlobalStringPtr(str), arg1, arg2);
+#endif
 }
 
 void RaviCodeGenerator::debug_printf3(RaviFunctionDef *def, const char *str,
                                       llvm::Value *arg1, llvm::Value *arg2,
                                       llvm::Value *arg3) {
-  CreateCall4(def->builder, def->printfFunc,
+#if LLVM_VERSION_MAJOR >= 9
+	CreateCall4(def->builder, def->printfFunc.getCallee(),
+		def->builder->CreateGlobalStringPtr(str), arg1, arg2, arg3);
+#else
+	CreateCall4(def->builder, def->printfFunc,
               def->builder->CreateGlobalStringPtr(str), arg1, arg2, arg3);
+#endif
 }
 
 void RaviCodeGenerator::debug_printf4(RaviFunctionDef *def, const char *str,
                                       llvm::Value *arg1, llvm::Value *arg2,
                                       llvm::Value *arg3, llvm::Value *arg4) {
-  CreateCall5(def->builder, def->printfFunc,
+#if LLVM_VERSION_MAJOR >= 9
+	CreateCall5(def->builder, def->printfFunc.getCallee(),
+		def->builder->CreateGlobalStringPtr(str), arg1, arg2, arg3, arg4);
+#else
+	CreateCall5(def->builder, def->printfFunc,
               def->builder->CreateGlobalStringPtr(str), arg1, arg2, arg3, arg4);
+#endif
 }
 
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
