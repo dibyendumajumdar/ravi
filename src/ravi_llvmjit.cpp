@@ -222,8 +222,11 @@ RaviJITState::RaviJITState()
   DL = llvm::make_unique<llvm::DataLayout>(std::move(dataLayout));
   Mangle = llvm::make_unique<llvm::orc::MangleAndInterner>(*ES, *this->DL);
   Ctx = llvm::make_unique<llvm::orc::ThreadSafeContext>(llvm::make_unique<llvm::LLVMContext>());
-  ES->getMainJITDylib().setGenerator(cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(*DL)));
-
+#if LLVM_VERSION_MAJOR >= 9
+  ES->getMainJITDylib().setGenerator(llvm::cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(DL->getGlobalPrefix())));
+#else
+  ES->getMainJITDylib().setGenerator(llvm::cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(*DL)));
+#endif
   types_ = llvm::make_unique<LuaLLVMTypes>(*Ctx->getContext());
 
 #else

@@ -43,6 +43,10 @@
 #define USE_ORCv2_JIT 0
 #endif
 
+#if LLVM_VERSION_MAJOR >= 9
+#define USE_ORCv2_JIT 1
+#endif
+
 // In lua.c we include this just to get version numbers
 // We cannot have C++ headers in that case
 #ifdef __cplusplus

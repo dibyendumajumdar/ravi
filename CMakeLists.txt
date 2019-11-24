@@ -196,8 +196,7 @@ if (LLVM_JIT)
             src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
             src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
             src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
-            src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp
-            src/ravi_llvmluaapi.cpp)
+            src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
 elseif (OMR_JIT)
     set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
 elseif (MIR_JIT)
@@ -338,11 +337,13 @@ if (LLVM_JIT)
                 X86CodeGen
                 X86AsmParser
                 X86Disassembler
-                X86AsmPrinter
                 X86Desc
                 X86Info
                 X86Utils
                 )
+        if (${LLVM_PACKAGE_VERSION} VERSION_LESS "9.0.0")
+            list(APPEND LLVM_LIBS_PROCESSOR X86AsmPrinter)
+        endif ()
     elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
         set(LLVM_LIBS_PROCESSOR
                 ARMCodeGen
