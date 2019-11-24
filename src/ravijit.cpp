@@ -93,6 +93,8 @@ static int ravi_compile_n(lua_State *L) {
   }
   ravi_compile_options_t options = {0, 0, 0, RAVI_CODEGEN_NONE};
   options.manual_request = 1;
+  options.inline_lua_arithmetic_operators = 1;
+  options.omit_array_get_range_check = 1;
   if (lua_istable(L, 2)) {
     lua_Integer ival;
     l_table_get_integer(L, 2, "omitArrayGetRangeCheck",

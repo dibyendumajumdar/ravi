@@ -50,6 +50,8 @@
 #define RAVI_OPTION_STRING3 " LLVM-" LLVM_VERSION_STRING " ORC=" ravi_xstringify(USE_ORC_JIT) " v2=" ravi_xstringify(USE_ORCv2_JIT)
 #elif USE_OMRJIT
 #define RAVI_OPTION_STRING3 " omrjit"
+#elif USE_MIRJIT
+#define RAVI_OPTION_STRING3 " mirjit"
 #else
 #define RAVI_OPTION_STRING3 " nojit"
 #endif
