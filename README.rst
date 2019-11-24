@@ -93,6 +93,7 @@ History
        - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * 2019 (Plan)
        - New parser, type checker and code generator
+       - New JIT backend `MIR <https://github.com/vnmakarov/mir>`_. 
        - Release Ravi 1.0
 
 License
