@@ -172,27 +172,6 @@ static struct lua_symbol *search_for_variable_in_block(struct block_scope *scope
   return NULL;
 }
 
-// static struct lua_symbol *search_for_label_in_block(struct block_scope *scope, const TString *name) {
-//  struct lua_symbol *symbol;
-//  // Lookup in reverse order so that we discover the
-//  // most recently added local symbol - as Lua allows same
-//  // symbol to be declared local more than once in a scope
-//  // Should also work with nesting as the function when parsed
-//  // will only know about vars declared in parent function until
-//  // now.
-//  FOR_EACH_PTR_REVERSE(scope->symbol_list, symbol) {
-//    switch (symbol->symbol_type) {
-//      case SYM_LABEL: {
-//        if (name == symbol->var.var_name) { return symbol; }
-//        break;
-//      }
-//      default: break;
-//    }
-//  }
-//  END_FOR_EACH_PTR_REVERSE(symbol);
-//  return NULL;
-//}
-
 /* Each function has a list of upvalues, searches this list for given name
  */
 static struct lua_symbol *search_upvalue_in_function(struct ast_node *function, const TString *name) {
@@ -271,18 +250,6 @@ static struct lua_symbol *search_for_variable(struct parser_state *parser, const
   }
   return NULL;
 }
-
-/* Searches for a label in current function
- */
-// static struct lua_symbol *search_for_label(struct parser_state *parser, const TString *name) {
-//  struct block_scope *current_scope = parser->current_scope;
-//  while (current_scope && current_scope->function == parser->current_function) {
-//    struct lua_symbol *symbol = search_for_label_in_block(current_scope, name);
-//    if (symbol) return symbol;
-//    current_scope = current_scope->parent;
-//  }
-//  return NULL;
-//}
 
 /* Adds an upvalue to current_function and its parents until var_function; var_function being where the symbol
  * exists as a local or an upvalue. If the symbol is found in a function's upvalue list then there is no need to

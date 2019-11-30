@@ -347,6 +347,14 @@ static void typecheck_if_statement(struct ast_container *container, struct ast_n
   }
 }
 
+static void typecheck_while_or_repeat_statement(struct ast_container *container, struct ast_node *function,
+                                                struct ast_node *node) {
+  typecheck_ast_node(container, function, node->while_or_repeat_stmt.condition);
+  if (node->while_or_repeat_stmt.loop_statement_list) {
+    typecheck_ast_list(container, function, node->while_or_repeat_stmt.loop_statement_list);
+  }
+}
+
 /* Type checker - WIP  */
 static void typecheck_ast_node(struct ast_container *container, struct ast_node *function, struct ast_node *node) {
   switch (node->type) {
@@ -386,10 +394,9 @@ static void typecheck_ast_node(struct ast_container *container, struct ast_node 
       typecheck_if_statement(container, function, node);
       break;
     }
-    case AST_WHILE_STMT: {
-      break;
-    }
+    case AST_WHILE_STMT:
     case AST_REPEAT_STMT: {
+      typecheck_while_or_repeat_statement(container, function, node);
       break;
     }
     case AST_FORIN_STMT: {
@@ -439,10 +446,14 @@ static void typecheck_ast_node(struct ast_container *container, struct ast_node 
     }
     case AST_INDEXED_ASSIGN_EXPR: {
       if (node->indexed_assign_expr.index_expr) {
+        typecheck_ast_node(container, function, node->indexed_assign_expr.index_expr);
       }
+      typecheck_ast_node(container, function, node->indexed_assign_expr.value_expr);
+      copy_type(node->indexed_assign_expr.type, node->indexed_assign_expr.value_expr->common_expr.type);
       break;
     }
     case AST_TABLE_EXPR: {
+      typecheck_ast_list(container, function, node->table_expr.expr_list);
       break;
     }
     default:

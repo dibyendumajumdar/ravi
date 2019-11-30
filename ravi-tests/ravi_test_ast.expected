@@ -1665,3 +1665,80 @@ function()
 end
 
 --
+--[[return {1,2,3}
+]]
+function()
+  return
+    { --[table constructor start] table
+      --[indexed assign start] integer
+      --[value start]
+       1
+      --[value end]
+      --[indexed assign end]
+     ,
+      --[indexed assign start] integer
+      --[value start]
+       2
+      --[value end]
+      --[indexed assign end]
+     ,
+      --[indexed assign start] integer
+      --[value start]
+       3
+      --[value end]
+      --[indexed assign end]
+    } --[table constructor end]
+end
+
+--
+--[[local a: integer return {1+a}
+]]
+function()
+--locals  a
+  local
+  --[symbols]
+    a --local symbol integer 
+  return
+    { --[table constructor start] table
+      --[indexed assign start] integer
+      --[value start]
+       --[binary expr start] integer
+        1
+       +
+        --[suffixed expr start] integer
+         --[primary start] integer
+           a --local symbol integer 
+         --[primary end]
+        --[suffixed expr end]
+       --[binary expr end]
+      --[value end]
+      --[indexed assign end]
+    } --[table constructor end]
+end
+
+--
+--[[return {[1] = a}
+]]
+function()
+  return
+    { --[table constructor start] table
+      --[indexed assign start] any
+      --[index start]
+       --[Y index start] any
+        [
+         1
+        ]
+       --[Y index end]
+      --[index end]
+      --[value start]
+       --[suffixed expr start] any
+        --[primary start] any
+          a --global symbol ? 
+        --[primary end]
+       --[suffixed expr end]
+      --[value end]
+      --[indexed assign end]
+    } --[table constructor end]
+end
+
+--
