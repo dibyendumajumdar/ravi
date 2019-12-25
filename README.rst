@@ -33,6 +33,7 @@ Features
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
 * `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ powered JIT compiler
+* New (wip) small JIT backend based on `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported.
 * Built-in C pre-processor, parser and JIT compiler
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 
