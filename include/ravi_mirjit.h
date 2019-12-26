@@ -51,7 +51,7 @@
 #include "c2mir.h"
 
 struct ravi_State {
-	void *jit;
+	MIR_context_t jit;
 	unsigned long long id;	// counter to generate function names
 	unsigned int verbosity_ : 3;
 	unsigned int auto_ : 1; /* Should we auto compile what we can? */

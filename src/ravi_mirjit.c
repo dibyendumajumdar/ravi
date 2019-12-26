@@ -165,8 +165,6 @@ static LuaFunc Lua_functions[] = {
     { NULL, NULL }
 };
 
-int dummyCtx = 0;
-
 // Initialize the JIT State and attach it to the
 // Global Lua State
 // If a JIT State already exists then this function
@@ -181,7 +179,7 @@ int raviV_initjit(struct lua_State *L) {
   jit->min_exec_count_ = 50;
   jit->opt_level_ = 1;
   // The parameter true means we will be dumping stuff as we compile
-  jit->jit = &dummyCtx;
+  jit->jit = MIR_init();
   // TODO create context
   G->ravi_state = jit;
   return 0;
@@ -192,7 +190,9 @@ void raviV_close(struct lua_State *L) {
   global_State *G = G(L);
   if (G->ravi_state == NULL) return;
   // All compiled functions will be deleted at this stage
-  // TODO destroy G->ravi_state->jit
+  if (G->ravi_state->jit) {
+    MIR_finish(G->ravi_state->jit);
+  }
   free(G->ravi_state);
 }
 
@@ -346,6 +346,73 @@ static void* import_resolver(const char *name) {
   return NULL;
 }
 
+/* MIR driver */
+#include "mir-gen.h"
+
+static size_t curr_char;
+static const char *code;
+static struct c2mir_options options;
+
+static int t_getc (void) {
+  int c = code[curr_char];
+
+  if (c == 0)
+    c = EOF;
+  else
+    curr_char++;
+  return c;
+}
+
+static int other_option_func (int i, int argc, char *argv[], void *data) {
+  return i;
+}
+
+static MIR_item_t find_function(MIR_module_t module, const char *func_name) {
+  MIR_item_t func, main_func = NULL;
+  for (func = DLIST_HEAD (MIR_item_t, module->items); func != NULL;
+       func = DLIST_NEXT (MIR_item_t, func)) {
+    if (func->item_type == MIR_func_item && strcmp (func->u.func->name, func_name) == 0)
+      main_func = func;
+  }
+  return main_func;
+}
+
+void *MIR_compile_C_module(MIR_context_t ctx, const char *inputbuffer, const char *func_name, void *(Import_resolver_func)(const char *name))
+{
+  int n = 0;
+  int ret_code = 0;
+  int (*fun_addr) (void *) = NULL;
+  MIR_module_t module = NULL;
+  c2mir_init(ctx);
+  code = inputbuffer;
+  curr_char = 0;
+  options.module_num++;
+  options.message_file = stderr;
+  if (!c2mir_compile(ctx, &options, t_getc, func_name, NULL)) {
+    ret_code = 1;
+  }
+  else {
+    module = DLIST_TAIL (MIR_module_t, *MIR_get_module_list (ctx));
+  }
+  if (ret_code == 0 && !module) { 
+    ret_code = 1;
+  }
+  if (ret_code == 0 && module) {
+    MIR_item_t main_func = find_function(module, func_name);
+    if (main_func == NULL) {
+      fprintf(stderr, "Error: Compiled function %s not found\n", func_name);
+      exit(1);
+    }
+    MIR_load_module (ctx, module);
+    MIR_gen_init (ctx);
+    MIR_link (ctx, MIR_set_gen_interface, Import_resolver_func);
+    fun_addr = MIR_gen (ctx, main_func);
+    MIR_gen_finish (ctx);
+  }
+  c2mir_finish (ctx);
+  return fun_addr;
+}
+
 // Compile a Lua function
 // If JIT is turned off then compilation is skipped
 // Compilation occurs if either auto compilation is ON (subject to some
@@ -361,6 +428,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
 
   global_State *G = G(L);
   if (G->ravi_state == NULL) return false;
+  if (G->ravi_state->jit == NULL) return false;
 
   bool doCompile = (bool)(options && options->manual_request != 0);
   if (!doCompile && G->ravi_state->auto_) {
@@ -401,13 +469,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
     ravi_writestring(L, buf.buf, strlen(buf.buf));
     ravi_writeline(L);
   }
-  int opt_level = G->ravi_state->opt_level_;
-  if (opt_level == 0)
-	  argv[1] = "-O0";
-  else if (opt_level >= 2)
-	  argv[1] = "-O2";
-  fp = MIR_compile_C_module(buf.buf, fname, import_resolver);
-
+  fp = MIR_compile_C_module(G->ravi_state->jit, buf.buf, fname, import_resolver);
   if (!fp) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
   }
