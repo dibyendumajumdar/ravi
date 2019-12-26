@@ -58,7 +58,7 @@ static void raise_error(lua_State *L, int errorcode) {
 }
 
 #if !RAVI_TARGET_X64
-#error OMRJIT is currently only supported on X64 architecture
+#error MIRJIT is currently only supported on X64 architecture
 #endif
 
 typedef struct LuaFunc {
@@ -180,7 +180,6 @@ int raviV_initjit(struct lua_State *L) {
   jit->opt_level_ = 1;
   // The parameter true means we will be dumping stuff as we compile
   jit->jit = MIR_init();
-  // TODO create context
   G->ravi_state = jit;
   return 0;
 }
@@ -461,8 +460,6 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
   int (*fp)(lua_State * L) = NULL;
   char fname[30];
   snprintf(fname, sizeof fname, "jit%lld", G->ravi_state->id++);
-  char *argv[] = { fname, "-O1", NULL };
-
   if (!raviJ_codegen(L, p, options, fname, &buf)) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
     goto Lerror;
