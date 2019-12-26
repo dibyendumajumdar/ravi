@@ -32,6 +32,9 @@ if (MIR_JIT)
     if (MSVC OR WIN32)
         message(FATAL_ERROR "MIR_JIT is not supported when using MSVC and/or WIN32")
     endif()
+    if (NOT (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)"))
+        message(FATAL_ERROR "MIR_JIT is only supported on X86-64 platforms")
+    endif()
     set(LLVM_JIT OFF)
     set(OMR_JIT OFF)
     set(STATIC_BUILD ON)
@@ -120,11 +123,11 @@ elseif ((CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang
     # set(SANITIZER_FLAGS "-fsanitize=address")
     set(LUA_COMPAT_FLAGS "-DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1")
     set(CMAKE_C_FLAGS "-std=c99 -DNDEBUG -O2 -fomit-frame-pointer -Wall -Wextra -Winline ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
-    set(CMAKE_C_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -std=c99 -O0 -g3 -Wall -Wextra ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
+    set(CMAKE_C_FLAGS_DEBUG "${SANITIZER_FLAGS} -UNDEBUG -fno-omit-frame-pointer -std=c99 -O0 -g3 -Wall -Wextra ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
     set(CMAKE_C_FLAGS_RELEASE "-std=c99 -DNDEBUG -O2 -fomit-frame-pointer -Wall -Wextra -Winline ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -DNDEBUG -std=c99 -O2 -g3 -Wall -Wextra ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
     set(CMAKE_CXX_FLAGS "-fno-rtti -O2 -fomit-frame-pointer -Wall -Wno-sign-compare -Winline -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
-    set(CMAKE_CXX_FLAGS_DEBUG "${SANITIZER_FLAGS} -fno-omit-frame-pointer -fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
+    set(CMAKE_CXX_FLAGS_DEBUG "${SANITIZER_FLAGS} -UNDEBUG -fno-omit-frame-pointer -fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
     set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -DNDEBUG -O2 -fomit-frame-pointer -Wall -Wno-sign-compare -Winline -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -DNDEBUG -fno-rtti -O2 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
 elseif (APPLE)
@@ -253,8 +256,40 @@ endif ()
 message(STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
 message(STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET})
 
-set(DMR_C_HEADERS
+# Common stuff we need even if we don't use dmrC.
+set(DMR_C_HEADERS_COMMON
         dmr_c/src/allocate.h
+        dmr_c/src/port.h
+        dmr_c/src/ptrlist.h
+        )
+
+set(DMR_C_SRCS_COMMON
+        dmr_c/src/allocate.c
+        dmr_c/src/ptrlist.c
+        )
+
+set(DMR_C_SRCS_
+        dmr_c/src/builtin.c
+        dmr_c/src/char.c
+        dmr_c/src/expression.c
+        dmr_c/src/evaluate.c
+        dmr_c/src/expand.c
+        dmr_c/src/inline.c
+        dmr_c/src/lib.c
+        dmr_c/src/linearize.c
+        dmr_c/src/liveness.c
+        dmr_c/src/parse.c
+        dmr_c/src/target.c
+        dmr_c/src/tokenize.c
+        dmr_c/src/pre-process.c
+        dmr_c/src/scope.c
+        dmr_c/src/show-parse.c
+        dmr_c/src/symbol.c
+        dmr_c/src/walksymbol.c
+        src/ravi_dmrc_parsesymbols.c
+        )
+
+set(DMR_C_HEADERS_
         dmr_c/src/char.h
         dmr_c/src/expression.h
         dmr_c/src/flow.h
@@ -262,8 +297,6 @@ set(DMR_C_HEADERS
         dmr_c/src/linearize.h
         dmr_c/src/lib.h
         dmr_c/src/parse.h
-        dmr_c/src/port.h
-        dmr_c/src/ptrlist.h
         dmr_c/src/scope.h
         dmr_c/src/symbol.h
         dmr_c/src/target.h
@@ -271,7 +304,7 @@ set(DMR_C_HEADERS
         dmr_c/src/walksymbol.h
         )
 
-set(DMR_C_SRCS
+set(DMR_C_SRCS_
         dmr_c/src/allocate.c
         dmr_c/src/builtin.c
         dmr_c/src/char.c
@@ -302,6 +335,8 @@ if (LLVM_JIT)
             dmr_c/llvm-backend/dmr_c.h
             )
     include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
+    set(DMR_C_HEADERS ${DMR_C_HEADERS_} ${DMR_C_HEADERS_COMMON})
+    set(DMR_C_SRCS ${DMR_C_SRCS_} ${DMR_C_SRCS_COMMON})
 elseif (OMR_JIT)
     set(DMR_C_JIT_SRCS
             dmr_c/omrjit-backend/sparse-omrjit.c
@@ -310,11 +345,11 @@ elseif (OMR_JIT)
             dmr_c/omrjit-backend/dmr_c.h
             )
     include_directories("${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
-else ()
-    set(DMR_C_JIT_HEADERS
-            dmr_c/null-backend/dmr_c.h
-            )
-    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/null-backend")
+    set(DMR_C_HEADERS ${DMR_C_HEADERS_} ${DMR_C_HEADERS_COMMON})
+    set(DMR_C_SRCS ${DMR_C_SRCS_} ${DMR_C_SRCS_COMMON})
+else()
+    set(DMR_C_HEADERS ${DMR_C_HEADERS_COMMON})
+    set(DMR_C_SRCS ${DMR_C_SRCS_COMMON})
 endif ()
 
 if (MSVC OR APPLE)

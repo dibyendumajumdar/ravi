@@ -346,27 +346,23 @@ static void* import_resolver(const char *name) {
   return NULL;
 }
 
-/* MIR driver */
-#include "mir-gen.h"
-
-static size_t curr_char;
-static const char *code;
-static struct c2mir_options options;
+/* FIXME */
+/* For now we have to use some static variables
+   due to limitations of the MIR api */
+static size_t Current_char; /* position of current character */
+static const char *Source_code; /* points to buffer containing source Source_code */
 
 static int t_getc (void) {
-  int c = code[curr_char];
+  int c = Source_code[Current_char];
 
   if (c == 0)
     c = EOF;
   else
-    curr_char++;
+    Current_char++;
   return c;
 }
 
-static int other_option_func (int i, int argc, char *argv[], void *data) {
-  return i;
-}
-
+/* Searches within a Module for a function by name */ 
 static MIR_item_t find_function(MIR_module_t module, const char *func_name) {
   MIR_item_t func, main_func = NULL;
   for (func = DLIST_HEAD (MIR_item_t, module->items); func != NULL;
@@ -377,21 +373,27 @@ static MIR_item_t find_function(MIR_module_t module, const char *func_name) {
   return main_func;
 }
 
-void *MIR_compile_C_module(MIR_context_t ctx, const char *inputbuffer, const char *func_name, void *(Import_resolver_func)(const char *name))
+void *MIR_compile_C_module(
+  struct c2mir_options *options, 
+  MIR_context_t ctx, 
+  const char *inputbuffer, /* Code to be compiled */
+  const char *func_name, /* Name of the function, must be unique */
+  void *(Import_resolver_func)(const char *name)) /* Resolve external symbols */
 {
   int n = 0;
   int ret_code = 0;
   int (*fun_addr) (void *) = NULL;
   MIR_module_t module = NULL;
   c2mir_init(ctx);
-  code = inputbuffer;
-  curr_char = 0;
-  options.module_num++;
-  options.message_file = stderr;
-  if (!c2mir_compile(ctx, &options, t_getc, func_name, NULL)) {
+  Source_code = inputbuffer;
+  Current_char = 0;
+  options->module_num++;
+  options->message_file = stderr;
+  if (!c2mir_compile(ctx, options, t_getc, func_name, NULL)) {
     ret_code = 1;
   }
   else {
+    /* The module just compiled will be at the end of the list */
     module = DLIST_TAIL (MIR_module_t, *MIR_get_module_list (ctx));
   }
   if (ret_code == 0 && !module) { 
@@ -469,7 +471,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
     ravi_writestring(L, buf.buf, strlen(buf.buf));
     ravi_writeline(L);
   }
-  fp = MIR_compile_C_module(G->ravi_state->jit, buf.buf, fname, import_resolver);
+  fp = MIR_compile_C_module(&G->ravi_state->options, G->ravi_state->jit, buf.buf, fname, import_resolver);
   if (!fp) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
   }

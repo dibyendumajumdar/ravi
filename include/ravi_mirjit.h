@@ -49,6 +49,7 @@
 
 #ifdef USE_MIRJIT
 #include "c2mir.h"
+#include "mir-gen.h"
 
 struct ravi_State {
 	MIR_context_t jit;
@@ -62,6 +63,7 @@ struct ravi_State {
 	unsigned int compiling_; /* flag to help avoid recursion */
 	int min_code_size_; /* min code size for compilation */
 	int min_exec_count_; /* min execution count for compilation */
+	struct c2mir_options options; /* MIR options */
 };
 
 #ifdef __cplusplus
