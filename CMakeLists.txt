@@ -78,8 +78,10 @@ if (OMR_JIT)
 endif ()
 
 if (MIR_JIT)
-    find_package(MIRJIT REQUIRED)
-    include_directories(${MIRJIT_INCLUDE_DIRS})
+    add_subdirectory(mir)
+    include_directories(mir)
+    include_directories(mir/c2mir)
+    set(MIRJIT_LIBRARIES c2mir)
     add_definitions(-DUSE_MIRJIT)
 endif ()
 
