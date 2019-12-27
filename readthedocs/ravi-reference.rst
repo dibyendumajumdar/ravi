@@ -228,8 +228,8 @@ Each slice holds an internal reference to the underlying array to ensure that th
 
 For an example use of slices please see the `matmul1_ravi.lua <https://github.com/dibyendumajumdar/ravi/blob/master/ravi-tests/matmul1_ravi.lua>`_ benchmark program in the repository. Note that this feature is highly experimental and not very well tested.
   
-Examples
---------
+Type Annotation Examples
+------------------------
 Example of code that works - you can copy this to the command line input::
 
   function tryme()
@@ -275,3 +275,32 @@ Another example using arrays. Here the function receives a parameter ``arr`` of 
   print(sum(table.numarray(10, 2.0)))
 
 The ``table.numarray(n, initial_value)`` creates a ``number[]`` of specified size and initializes the array with the given initial value.
+
+``defer`` statement
+-------------------
+
+A new addition to Ravi is the ``defer`` statement. The statement has the form::
+
+   defer
+     block
+   end
+
+Where ``block`` is a set of Lua statements.
+
+The ``defer`` statement creates an anonymous ``closure`` that will be invoked when the enclosing scope is exited, whether
+normally or because of an error. 
+
+Example::
+
+   y = 0
+   function x()
+     defer y = y + 1 end
+     defer y = y + 1 end
+   end
+   x()
+   assert(y == 2)
+   
+``defer`` statements are meant to be used for releasing resources in a deterministic manner. The syntax and functionality is
+inspired by the similar statement in the Go language. The implementation is based upon Lua 5.4.
+
+Note that the ``defer`` statement should be considered a beta feature not yet ready for production use as it is undergoing testing.
