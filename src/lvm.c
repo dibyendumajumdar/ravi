@@ -1917,6 +1917,14 @@ newframe:                       /* reentry point when frame changes (call/return
       vmcase(OP_SETLIST) {
         int n = GETARG_B(i);
         int c = GETARG_C(i);
+#if 1
+        if (c == 0) {
+          lua_assert(GET_OPCODE(*pc) == OP_EXTRAARG);
+          c = GETARG_Ax(*pc++);
+        }
+        savepc(L); /* in case of allocation errors */
+        raviV_op_setlist(L, ci, ra, n, c);
+#else
         unsigned int last;
         Table *h;
         if (n == 0)
@@ -1978,6 +1986,7 @@ newframe:                       /* reentry point when frame changes (call/return
           }
         }
         L->top = ci->top; /* correct top (in case of previous open call) */
+#endif
         vmbreak;
       }
       vmcase(OP_CLOSURE) {
