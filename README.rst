@@ -92,11 +92,15 @@ History
 * 2018
        - Implemented Eclipse OMR JIT backend
        - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
-* 2019 (Plan)
-       - New parser, type checker and code generator
+* 2019 
+       - New parser, type checker for Ravi - work in progress
+       - New language feature - `defer` statement
        - New JIT backend `MIR <https://github.com/vnmakarov/mir>`_. 
-       - Release Ravi 1.0
+
+* 2020 (Plan)
+       - New optimizing byte code generator based on new parser / type checker
+       - Ravi 1.0 release
 
 License
 =======
-MIT License for LLVM version.
+MIT License
