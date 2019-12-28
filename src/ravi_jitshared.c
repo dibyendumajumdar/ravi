@@ -581,6 +581,7 @@ static const char Lua_header[] = ""
 "extern void raviV_settable_sskey(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
 "extern void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
 "extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
+"extern void raviV_op_defer(lua_State *L, TValue *ra);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 "#define tonumberns(o,n) \\\n"
@@ -704,7 +705,8 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_RAVI_TOCLOSURE:
 		case OP_RAVI_TOSTRING:
 		case OP_RAVI_TOTYPE:
-		case OP_LOADKX: break;
+		case OP_LOADKX: 
+    case OP_RAVI_DEFER: break;
 #if 0
 		case OP_UNM:
 		case OP_BNOT:
@@ -1350,6 +1352,12 @@ static void emit_op_divii(struct function *fn, int A, int B, int C, int pc) {
   membuff_add_string(&fn->body,
                      "setfltvalue(ra, (lua_Number)(ivalue(rb)) / "
                      "(lua_Number)(ivalue(rc)));\n");
+}
+
+static void emit_op_defer(struct function *fn, int A, int pc) {
+  (void)pc;
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "raviV_op_defer(L, ra);\n");
 }
 
 static void emit_op_loadfz(struct function *fn, int A, int pc) {
@@ -2256,6 +2264,9 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		case OP_LEN: {
 			int B = GETARG_B(i);
 			emit_op_len(&fn, A, B, pc);
+		} break;
+		case OP_RAVI_DEFER: {
+			emit_op_defer(&fn, A, pc);
 		} break;
 		default: abort();
 		}

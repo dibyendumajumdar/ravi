@@ -313,6 +313,8 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg2(jit->jit, "lua_setmetatable", lua_setmetatable, JIT_Int32, JIT_Address, JIT_Int32);
   //LUA_API void  (lua_setuservalue)(lua_State *L, int idx);
   register_builtin_arg2(jit->jit, "lua_setuservalue", lua_setuservalue, JIT_NoType, JIT_Address, JIT_Int32);
+  //LUA_API void raviV_op_defer(lua_State *L, TValue *ra);
+  register_builtin_arg2(jit->jit, "raviV_op_defer", raviV_op_defer, JIT_NoType, JIT_Address, JIT_Address);
 
   G->ravi_state = jit;
   return 0;

@@ -104,6 +104,7 @@ static LuaFunc Lua_functions[] = {
     { "raviV_settable_sskey", raviV_settable_sskey },
     { "raviV_gettable_i", raviV_gettable_i },
     { "raviV_settable_i", raviV_settable_i },
+    { "raviV_op_defer", raviV_op_defer },
 
     { "lua_absindex", lua_absindex },
     { "lua_gettop", lua_gettop },
