@@ -16,7 +16,7 @@ option(MIR_JIT "Controls whether MIR JIT compilation will be enabled, default is
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
 option(ASM_VM "Controls whether to use the new VM (not ready yet! so don't turn on)" OFF)
-option(LTESTS "Controls whether ltests are enabled in Debug mode" ON)
+option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires Debug build" ON)
 
 if (LLVM_JIT AND OMR_JIT AND MIR_JIT)
     message(FATAL_ERROR
@@ -46,6 +46,7 @@ if (ASM_VM)
     set(STATIC_BUILD ON)
     # LTESTS messes with global state and breaks the ASMVM dispatch table
     set(LTESTS OFF)
+    # Not compatible with JIT modes
     set(LLVM_JIT OFF)
     set(OMR_JIT OFF)
     set(MIR_JIT OFF)
@@ -59,13 +60,13 @@ endif ()
 
 if (LLVM_JIT)
     find_package(LLVM REQUIRED CONFIG)
-
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
     include_directories(${LLVM_INCLUDE_DIRS})
     add_definitions(${LLVM_DEFINITIONS})
 
+    message(STATUS "LLVM enabled")
     # We also need to define USE_LLVM when compiling code
     # but rather than setting globally we set this when building the
     # library 
@@ -75,12 +76,14 @@ if (OMR_JIT)
     find_package(OMRJIT REQUIRED)
     include_directories(${OMRJIT_INCLUDE_DIRS})
     add_definitions(-DUSE_OMRJIT)
+    message(STATUS "OMRJIT enabled")
 endif ()
 
 if (MIR_JIT)
     find_package(MIRJIT REQUIRED)
     include_directories(${MIRJIT_INCLUDE_DIRS})
     add_definitions(-DUSE_MIRJIT)
+    message(STATUS "MIRJIT enabled")
 endif ()
 
 message(STATUS "Computed goto ${COMPUTED_GOTO}")
@@ -193,7 +196,7 @@ if (ASM_VM)
             )
 endif ()
 
-# define LLVM JIT compiler sources
+# define JIT compiler sources
 if (LLVM_JIT)
     set(LLVM_JIT_SRCS src/ravi_llvmjit.cpp src/ravi_llvmtypes.cpp
             src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
@@ -207,6 +210,7 @@ elseif (MIR_JIT)
 else ()
     set(NO_JIT_SRCS src/ravi_nojit.c)
 endif ()
+
 # define the lua core source files
 set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
         src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
@@ -228,6 +232,7 @@ set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/l
 file(GLOB RAVI_HEADERS "${PROJECT_SOURCE_DIR}/include/*.h")
 set(LUA_HEADERS include/lua.h include/luaconf.h include/lualib.h include/lauxlib.h)
 
+# Misc setup
 if (MSVC OR APPLE)
     source_group("Ravi Headers" FILES ${RAVI_HEADERS})
     source_group("Ravi Source Files" FILES ${LUA_CORE_SRCS} ${LUA_LIB_SRCS}
@@ -251,10 +256,10 @@ if (CMAKE_COMPILER_IS_GNUCC)
 
     add_definitions(-DGCC_BASE="${GCC_BASE}")
     add_definitions(-DMULTIARCH_TRIPLET="${MULTIARCH_TRIPLET}")
-endif ()
 
-message(STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
-message(STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET})
+    message(STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
+    message(STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET})
+endif ()
 
 # Common stuff we need even if we don't use dmrC.
 set(DMR_C_HEADERS_COMMON
@@ -268,7 +273,8 @@ set(DMR_C_SRCS_COMMON
         dmr_c/src/ptrlist.c
         )
 
-set(DMR_C_SRCS_
+# dmrC Optional sources
+set(DMR_C_SRCS_OPT
         dmr_c/src/builtin.c
         dmr_c/src/char.c
         dmr_c/src/expression.c
@@ -289,7 +295,7 @@ set(DMR_C_SRCS_
         src/ravi_dmrc_parsesymbols.c
         )
 
-set(DMR_C_HEADERS_
+set(DMR_C_HEADERS_OPT
         dmr_c/src/char.h
         dmr_c/src/expression.h
         dmr_c/src/flow.h
@@ -304,29 +310,7 @@ set(DMR_C_HEADERS_
         dmr_c/src/walksymbol.h
         )
 
-set(DMR_C_SRCS_
-        dmr_c/src/allocate.c
-        dmr_c/src/builtin.c
-        dmr_c/src/char.c
-        dmr_c/src/expression.c
-        dmr_c/src/evaluate.c
-        dmr_c/src/expand.c
-        dmr_c/src/inline.c
-        dmr_c/src/lib.c
-        dmr_c/src/linearize.c
-        dmr_c/src/liveness.c
-        dmr_c/src/parse.c
-        dmr_c/src/target.c
-        dmr_c/src/tokenize.c
-        dmr_c/src/pre-process.c
-        dmr_c/src/ptrlist.c
-        dmr_c/src/scope.c
-        dmr_c/src/show-parse.c
-        dmr_c/src/symbol.c
-        dmr_c/src/walksymbol.c
-        src/ravi_dmrc_parsesymbols.c
-        )
-
+set(EMBEDDED_DMRC ON)
 if (LLVM_JIT)
     set(DMR_C_JIT_SRCS
             dmr_c/llvm-backend/sparse-llvm.c
@@ -335,8 +319,8 @@ if (LLVM_JIT)
             dmr_c/llvm-backend/dmr_c.h
             )
     include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
-    set(DMR_C_HEADERS ${DMR_C_HEADERS_} ${DMR_C_HEADERS_COMMON})
-    set(DMR_C_SRCS ${DMR_C_SRCS_} ${DMR_C_SRCS_COMMON})
+    set(DMR_C_HEADERS ${DMR_C_HEADERS_OPT} ${DMR_C_HEADERS_COMMON})
+    set(DMR_C_SRCS ${DMR_C_SRCS_OPT} ${DMR_C_SRCS_COMMON})
 elseif (OMR_JIT)
     set(DMR_C_JIT_SRCS
             dmr_c/omrjit-backend/sparse-omrjit.c
@@ -345,13 +329,16 @@ elseif (OMR_JIT)
             dmr_c/omrjit-backend/dmr_c.h
             )
     include_directories("${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
-    set(DMR_C_HEADERS ${DMR_C_HEADERS_} ${DMR_C_HEADERS_COMMON})
-    set(DMR_C_SRCS ${DMR_C_SRCS_} ${DMR_C_SRCS_COMMON})
+    set(DMR_C_HEADERS ${DMR_C_HEADERS_OPT} ${DMR_C_HEADERS_COMMON})
+    set(DMR_C_SRCS ${DMR_C_SRCS_OPT} ${DMR_C_SRCS_COMMON})
 else()
+    # Omit all dmrC stuff except for what we need for the parser
     set(DMR_C_HEADERS ${DMR_C_HEADERS_COMMON})
     set(DMR_C_SRCS ${DMR_C_SRCS_COMMON})
+    set(EMBEDDED_DMRC OFF)
 endif ()
 
+# IDE stuff
 if (MSVC OR APPLE)
     source_group("dmrC Headers" FILES ${DMR_C_HEADERS} ${DMR_C_JIT_HEADERS})
     source_group("dmrC Source Files" FILES ${DMR_C_SRCS} ${DMR_C_JIT_SRCS})
@@ -420,6 +407,7 @@ else()
     set(LIBRAVI_BUILD_TYPE STATIC)
 endif ()
 
+# Name library differently based on JIT backend
 if (LLVM_JIT)
     set(LIBRAVI_NAME libravillvm)
 elseif (OMR_JIT)
