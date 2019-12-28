@@ -29,3 +29,26 @@ The LLVM JIT implementation is in following sources:
 * ravi_llvmcall.cpp - implements OP_CALL, OP_JMP
 * ravi_llvmtable.cpp - implements OP_GETTABLE, OP_SETTABLE and various other table operations, OP_SELF, and also upvalue operations
 * ravi_llvmrest.cpp - OP_CLOSURE, OP_VARARG, OP_CONCAT
+
+Apart from LLVM backend, we also have MIR and OMR JIT backends.
+These backends use C as the intermediate language. The common C code generator is in:
+
+* ravi_jitshared.c - this is the C code generator for a given Ravi / Lua function
+
+The MIR JIT implementation is in:
+
+* ravi_mirjit.c - defines the driver functions. The MIR backend has its own C preprocessor, parser and code generator. 
+
+The OMR JIT driver is in:
+
+* ravi_omrjit.c - defines the driver functions. The OMR JIT backend uses the dmrC project as the C preprocessor, parser and code generator.
+
+The new Ravi Parser and Code Generator implementation is in:
+
+* ravi_ast_parse.c - contains the parser that builds AST
+* ravi_ast_print.c - contains utilities for printing out the AST
+* ravi_ast_typecheck.c - contains the type checking phase of the parser
+
+Ravi also uses Doug Lea's malloc implementation. The implementation is in:
+
+* ravi_alloc.c - Doug Lea's malloc implementation, adapted for Ravi.
