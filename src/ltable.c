@@ -620,7 +620,7 @@ const TValue *luaH_getshortstr (Table *t, TString *key) {
 }
 #else
 /* Continue search from n */
-const TValue *luaH_getshortstr_continue(Table *t, TString *key, Node *n) {
+const TValue *luaH_getshortstr_continue(TString *key, Node *n) {
   for (;;) { /* check whether 'key' is somewhere in the chain starting from next node after n */
     int nx = gnext(n);
     if (nx == 0)
