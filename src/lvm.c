@@ -1425,14 +1425,6 @@ newframe:                       /* reentry point when frame changes (call/return
         checkGC(L, ra + 1);
         vmbreak;
       }
-      vmcase(OP_RAVI_SELF_SK) {
-        StkId rb = RB(i); /* variable - may not be a table */
-        /* we know that the key a short string constant */
-        TValue *rc = RKC(i);
-        setobjs2s(L, ra + 1, rb);
-        GETTABLE_INLINE_SSKEY_PROTECTED(L, rb, rc, ra);
-        vmbreak;
-      }
       vmcase(OP_SELF) {
         const TValue *aux;
         StkId rb = RB(i);
@@ -2002,6 +1994,9 @@ newframe:                       /* reentry point when frame changes (call/return
         vmbreak;
       }
       vmcase(OP_VARARG) {
+#if 1
+        Protect_base(raviV_op_vararg(L, ci, cl, GETARG_A(i), GETARG_B(i)));
+#else
         int b = GETARG_B(i) - 1; /* required results */
         int j;
         int n = cast_int(base - ci->func) - cl->p->numparams - 1;
@@ -2017,6 +2012,7 @@ newframe:                       /* reentry point when frame changes (call/return
           setobjs2s(L, ra + j, base - n + j);
         for (; j < b; j++) /* complete required results with nil */
           setnilvalue(ra + j);
+#endif
         vmbreak;
       }
       vmcase(OP_EXTRAARG) {
@@ -2185,6 +2181,25 @@ newframe:                       /* reentry point when frame changes (call/return
          short string but the variable may or may not be
          a table
       */
+#if 1
+      vmcase(OP_RAVI_SELF_SK) vmcase(OP_RAVI_GETTABUP_SK) vmcase(OP_RAVI_GETFIELD) {
+        StkId rb = (op == OP_RAVI_GETTABUP_SK) 
+            ? cl->upvals[GETARG_B(i)]->v
+            : RB(i); /* variable - may not be a table */
+        TValue* rc = RKC(i);
+        if (op == OP_RAVI_SELF_SK) setobjs2s(L, ra + 1, rb);
+        Protect(raviV_gettable_sskey(L, rb, rc, ra));
+        vmbreak;
+      }
+#else
+      vmcase(OP_RAVI_SELF_SK) {
+        StkId rb = RB(i); /* variable - may not be a table */
+        /* we know that the key a short string constant */
+        TValue *rc = RKC(i);
+        setobjs2s(L, ra + 1, rb);
+        GETTABLE_INLINE_SSKEY_PROTECTED(L, rb, rc, ra);
+        vmbreak;
+      }
       vmcase(OP_RAVI_GETTABUP_SK) {
         StkId rb = cl->upvals[GETARG_B(i)]->v; /* variable - may not be a table */
         lua_assert(ISK(GETARG_C(i)));
@@ -2201,6 +2216,7 @@ newframe:                       /* reentry point when frame changes (call/return
         GETTABLE_INLINE_SSKEY_PROTECTED(L, rb, rc, ra);
         vmbreak;
       }
+#endif
       vmcase(OP_RAVI_TABLE_SELF_SK) vmcase(OP_RAVI_TABLE_GETFIELD) {
         /* This opcode is used when the key is known to be
            short string and the variable is known to be
