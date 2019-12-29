@@ -315,6 +315,9 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg2(jit->jit, "lua_setuservalue", lua_setuservalue, JIT_NoType, JIT_Address, JIT_Int32);
   //LUA_API void raviV_op_defer(lua_State *L, TValue *ra);
   register_builtin_arg2(jit->jit, "raviV_op_defer", raviV_op_defer, JIT_NoType, JIT_Address, JIT_Address);
+  //LUAI_FUNC lua_Integer luaV_shiftl (lua_Integer x, lua_Integer y);
+  register_builtin_arg2(jit->jit, "luaV_shiftl", luaV_shiftl, JIT_Int64, JIT_Int64, JIT_Int64);
+
 
   G->ravi_state = jit;
   return 0;

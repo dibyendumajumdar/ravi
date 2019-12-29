@@ -582,11 +582,15 @@ static const char Lua_header[] = ""
 "extern void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
 "extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
 "extern void raviV_op_defer(lua_State *L, TValue *ra);\n"
+"extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);\n"
+"extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);\n"
 "#define R(i) (base + i)\n"
 "#define K(i) (k + i)\n"
 "#define tonumberns(o,n) \\\n"
 "	(ttisfloat(o) ? ((n) = fltvalue(o), 1) : \\\n"
 "	(ttisinteger(o) ? ((n) = cast_num(ivalue(o)), 1) : 0))\n"
+"#define intop(op,v1,v2) l_castU2S(l_castS2U(v1) op l_castS2U(v2))\n"
+"#define luai_numunm(L,a)        (-(a))\n"
 ;
 
 
@@ -706,12 +710,19 @@ bool raviJ_cancompile(Proto *p) {
 		case OP_RAVI_TOSTRING:
 		case OP_RAVI_TOTYPE:
 		case OP_LOADKX: 
+    case OP_RAVI_SHR_II:
+    case OP_RAVI_SHL_II:
+    case OP_RAVI_BXOR_II:
+    case OP_RAVI_BOR_II:
+    case OP_RAVI_BAND_II:
+    case OP_RAVI_BNOT_I:
+		case OP_UNM:
     case OP_RAVI_DEFER: break;
 #if 0
-		case OP_UNM:
 		case OP_BNOT:
 #endif
 		default: {
+      //fprintf(stderr, "Unsupported op code %d\n", (int)o);
 			return false;
 		}
 		}
@@ -942,6 +953,54 @@ static void emit_op_arithslow(struct function *fn, int A, int B, int C, OpCode o
   membuff_add_fstring(&fn->body, " luaT_trybinTM(L, rb, rc, ra, %s);\n", tm);
   membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
   membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_unm(struct function *fn, int A, int B, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  membuff_add_string(&fn->body, "if (ttisinteger(rb)) {\n");
+  membuff_add_string(&fn->body, " i = ivalue(rb);\n");
+  membuff_add_string(&fn->body, " setivalue(ra, intop(-, 0, i));\n");  
+  membuff_add_string(&fn->body, "} else if (tonumberns(rb, n)) {\n");
+  membuff_add_string(&fn->body, " setfltvalue(ra, luai_numunm(L, n));\n");
+  membuff_add_string(&fn->body, "} else {\n");
+  emit_update_savedpc(fn, pc);
+  membuff_add_string(&fn->body, " luaT_trybinTM(L, rb, rb, ra, TM_UNM);\n");
+  membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
+  membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_int_bitop(struct function *fn, int A, int B, int C, OpCode opCode, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg_or_k(fn, "rb", B);
+  emit_reg_or_k(fn, "rc", C);
+  switch (opCode) {
+    case OP_RAVI_BAND_II:
+      membuff_add_string(&fn->body, "setivalue(ra, intop(&, ivalue(rb), ivalue(rc)));\n");
+      break;
+    case OP_RAVI_BOR_II:
+      membuff_add_string(&fn->body, "setivalue(ra, intop(|, ivalue(rb), ivalue(rc)));\n");
+      break;
+    case OP_RAVI_BXOR_II:
+      membuff_add_string(&fn->body, "setivalue(ra, intop(^, ivalue(rb), ivalue(rc)));\n");
+      break;
+    case OP_RAVI_SHL_II:
+      membuff_add_string(&fn->body, "setivalue(ra, luaV_shiftl(ivalue(rb), ivalue(rc)));\n");
+      break;
+    case OP_RAVI_SHR_II:
+      membuff_add_string(&fn->body, "ic = ivalue(rc);\n");
+      membuff_add_string(&fn->body, "setivalue(ra, luaV_shiftl(ivalue(rb), -ic));\n");
+      break;
+    default:
+      abort();   
+  }  
+}
+
+static void emit_op_BNOT_I(struct function *fn, int A, int B, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg_or_k(fn, "rb", B);
+  membuff_add_string(&fn->body, "i = ivalue(rb);\n");
+  membuff_add_string(&fn->body, "setivalue(ra, intop (^, ~l_castS2U(0), i));\n");
 }
 
 static void emit_comparison(struct function *fn, int A, int B, int C, int j, int jA, const char *compfunc,
@@ -1682,6 +1741,7 @@ static void emit_op_forprep(struct function *fn, int A, int pc, int pc1) {
   membuff_add_string(&fn->body, "else {\n");
   membuff_add_fstring(&fn->body, " if (!ttisnumber(rb)) {\n", A);
 #if GOTO_ON_ERROR
+  //membuff_add_string(&fn->body,  "  ravi_dump_value(L, rb);\n");
   membuff_add_fstring(&fn->body, "  error_code = %d;\n", Error_for_limit_must_be_number);
   membuff_add_string(&fn->body, "  goto Lraise_error;\n");
 #else
@@ -2053,10 +2113,6 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
       int B = GETARG_B(i);
       emit_BNOT(&fn, A, B, pc);
     } break;
-    case OP_UNM: {
-      int B = GETARG_B(i);
-      emit_UNM(&fn, A, B, pc);
-    } break;
 #endif
 		case OP_ADD: {
 			int B = GETARG_B(i);
@@ -2268,6 +2324,23 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p,
 		case OP_RAVI_DEFER: {
 			emit_op_defer(&fn, A, pc);
 		} break;
+    case OP_RAVI_SHR_II:
+    case OP_RAVI_SHL_II:
+    case OP_RAVI_BXOR_II:
+    case OP_RAVI_BOR_II:
+    case OP_RAVI_BAND_II: {
+      int B = GETARG_B(i);
+      int C = GETARG_C(i);
+      emit_int_bitop(&fn, A, B, C, op, pc);
+    } break;
+    case OP_RAVI_BNOT_I: {
+      int B = GETARG_B(i);
+      emit_op_BNOT_I(&fn, A, B, pc);
+    } break;
+    case OP_UNM: {
+      int B = GETARG_B(i);
+      emit_op_unm(&fn, A, B, pc);
+    } break;
 		default: abort();
 		}
 	}

@@ -71,6 +71,7 @@ static LuaFunc Lua_functions[] = {
     { "raise_error", raise_error },
     { "luaV_tonumber_", luaV_tonumber_ },
     { "luaV_tointeger", luaV_tointeger },
+    { "luaV_shiftl", luaV_shiftl },
     { "luaD_poscall", luaD_poscall },
     { "luaV_equalobj", luaV_equalobj },
     { "luaV_lessthan", luaV_lessthan },
@@ -163,6 +164,7 @@ static LuaFunc Lua_functions[] = {
     { "lua_rawsetp", lua_rawsetp },
     { "lua_setmetatable", lua_setmetatable },
     { "lua_setuservalue", lua_setuservalue },
+    { "ravi_dump_value", ravi_dump_value },
     { NULL, NULL }
 };
 
