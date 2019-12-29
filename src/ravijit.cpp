@@ -100,9 +100,9 @@ static int ravi_compile_n(lua_State *L) {
     l_table_get_integer(L, 2, "omitArrayGetRangeCheck",
                         &ival, 0);
     options.omit_array_get_range_check = (int)ival ? 1 : 0;
-	l_table_get_integer(L, 2, "inlineLuaArithmeticOperators",
-		&ival, 0);
-	options.inline_lua_arithmetic_operators = (int)ival ? 1 : 0;
+    l_table_get_integer(L, 2, "inlineLuaArithmeticOperators",
+                        &ival, 0);
+    options.inline_lua_arithmetic_operators = (int)ival ? 1 : 0;
   }
   int result = 0;
   if (n > 0) { result = raviV_compile_n(L, functions, n, &options); }
