@@ -507,7 +507,10 @@ do
 end
 
 -- conversion
-a = 0; for i="10","1","-2" do a=a+1 end; assert(a==5)
+if not ravi.jit() then
+  -- Because we do not do some of the conversions in MIR jit
+  a = 0; for i="10","1","-2" do a=a+1 end; assert(a==5)
+end
 
 do  -- checking types
   local c
@@ -531,32 +534,33 @@ do  -- checking types
   c = 0; for i = m, m - 10, -1 do checkint(i) end
   assert(c == 11)
 
-  c = 0; for i = 1, 10.9 do checkint(i) end
-  assert(c == 10)
+  if not ravi.jit() then
+    c = 0; for i = 1, 10.9 do checkint(i) end
+    assert(c == 10)
 
-  c = 0; for i = 10, 0.001, -1 do checkint(i) end
-  assert(c == 10)
+    c = 0; for i = 10, 0.001, -1 do checkint(i) end
+    assert(c == 10)
 
-  c = 0; for i = 1, "10.8" do checkint(i) end
-  assert(c == 10)
+    c = 0; for i = 1, "10.8" do checkint(i) end
+    assert(c == 10)
 
-  c = 0; for i = 9, "3.4", -1 do checkint(i) end
-  assert(c == 6)
+    c = 0; for i = 9, "3.4", -1 do checkint(i) end
+    assert(c == 6)
 
-  c = 0; for i = 0, " -3.4  ", -1 do checkint(i) end
-  assert(c == 4)
+    c = 0; for i = 0, " -3.4  ", -1 do checkint(i) end
+    assert(c == 4)
 
-  c = 0; for i = 100, "96.3", -2 do checkint(i) end
-  assert(c == 2)
+    c = 0; for i = 100, "96.3", -2 do checkint(i) end
+    assert(c == 2)
 
-  c = 0; for i = 1, math.huge do if i > 10 then break end; checkint(i) end
-  assert(c == 10)
+    c = 0; for i = 1, math.huge do if i > 10 then break end; checkint(i) end
+    assert(c == 10)
 
-  c = 0; for i = -1, -math.huge, -1 do
-           if i < -10 then break end; checkint(i)
+    c = 0; for i = -1, -math.huge, -1 do
+             if i < -10 then break end; checkint(i)
           end
-  assert(c == 10)
-
+    assert(c == 10)
+  end
 
   for i = math.mininteger, -10e100 do assert(false) end
   for i = math.maxinteger, 10e100, -1 do assert(false) end
