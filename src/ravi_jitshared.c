@@ -596,7 +596,7 @@ static const char Lua_header[] =
 
 // We can only compile a subset of op codes
 // and not all features are supported
-bool raviJ_cancompile(Proto *p) { return true; }
+bool raviJ_cancompile(Proto *p) { (void)p; return true; }
 
 struct function {
   struct lua_State *L;
@@ -844,12 +844,14 @@ static void emit_op_unm(struct function *fn, int A, int B, int pc) {
 }
 
 static void emit_op_unmf(struct function *fn, int A, int B, int pc) {
+  (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
   membuff_add_string(&fn->body, "setfltvalue(ra, -fltvalue(rb));\n");
 }
 
 static void emit_op_unmi(struct function *fn, int A, int B, int pc) {
+  (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg(fn, "rb", B);
   membuff_add_string(&fn->body, "setivalue(ra, -ivalue(rb));\n");
@@ -864,6 +866,7 @@ static void emit_op_bnot(struct function *fn, int A, int B, int pc) {
 }
 
 static void emit_int_bitop(struct function *fn, int A, int B, int C, OpCode opCode, int pc) {
+  (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
@@ -890,6 +893,7 @@ static void emit_int_bitop(struct function *fn, int A, int B, int C, OpCode opCo
 }
 
 static void emit_op_BNOT_I(struct function *fn, int A, int B, int pc) {
+  (void)pc;
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
   membuff_add_string(&fn->body, "i = ivalue(rb);\n");
@@ -1610,30 +1614,6 @@ static void emit_op_iforprep(struct function *fn, int A, int pc, int step_one, i
   membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", pc);
 }
 
-static void emit_op_forprep_int(struct function *fn, int A, int pc, int pc1) {
-  (void)pc1;
-  if (!fn->locals[A]) {
-    fn->locals[A] = 1;  // Lua can reuse the same forloop vars if loop isn't nested
-    membuff_add_fstring(&fn->prologue, "lua_Integer i_%d = 0;\n", A);
-    membuff_add_fstring(&fn->prologue, "lua_Integer limit_%d = 0;\n", A);
-    membuff_add_fstring(&fn->prologue, "lua_Integer step_%d = 0;\n", A);
-  }
-  emit_reg(fn, "ra", A);  // init
-  membuff_add_string(&fn->body, "rb = ra+1; /*limit*/\n");
-  membuff_add_string(&fn->body, "rc = ra+2; /*step*/\n");
-  membuff_add_fstring(&fn->body, "if (ttisinteger(ra) && ttisinteger(rc) && ttisinteger(rb)) {\n", A);
-  membuff_add_fstring(&fn->body, " limit_%d = ivalue(rb);\n", A);
-  membuff_add_fstring(&fn->body, " i_%d = ivalue(ra);\n", A);
-  membuff_add_fstring(&fn->body, " step_%d = ivalue(rc);\n", A);
-  membuff_add_fstring(&fn->body, " i_%d -= step_%d;\n", A, A);
-  membuff_add_fstring(&fn->body, " goto Lbc_%d;\n", pc);
-  membuff_add_string(&fn->body, "}\n");
-  membuff_add_string(&fn->body, "else {\n");
-  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_for_limit_must_be_number);
-  membuff_add_string(&fn->body, " goto Lraise_error;\n");
-  membuff_add_string(&fn->body, "}\n");
-}
-
 static void emit_op_forprep(struct function *fn, int A, int pc, int pc1) {
   (void)pc1;
   if (!fn->locals[A]) {
@@ -1703,14 +1683,6 @@ static void emit_op_iforloop(struct function *fn, int A, int pc, int step_one, i
                       "if (i_%d <= limit_%d) {\n  ra = R(%d);\n  setivalue(ra, "
                       "i_%d);\n  goto Lbc_%d;\n}\n",
                       A, A, A + 3, A, pc);
-}
-
-static void emit_op_forloop_int(struct function *fn, int A, int pc, int pc1) {
-  (void)pc1;
-  membuff_add_fstring(&fn->body, "i_%d += step_%d;\n", A, A);
-  membuff_add_fstring(&fn->body, "if ((0 < step_%d) ? (i_%d <= limit_%d) : (limit_%d <= i_%d)) {\n", A, A, A, A, A);
-  membuff_add_fstring(&fn->body, " ra = R(%d);\n   setivalue(ra, i_%d);\n   goto Lbc_%d;\n", A + 3, A, pc);
-  membuff_add_string(&fn->body, "}\n");
 }
 
 static void emit_op_forloop(struct function *fn, int A, int pc, int pc1) {
@@ -2252,6 +2224,14 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p, struct ravi_compile_opt
       case OP_UNM: {
         int B = GETARG_B(i);
         emit_op_unm(&fn, A, B, pc);
+      } break;
+      case OP_RAVI_UNMF: {
+        int B = GETARG_B(i);
+        emit_op_unmf(&fn, A, B, pc);        
+      } break;
+      case OP_RAVI_UNMI: {
+        int B = GETARG_B(i);
+        emit_op_unmi(&fn, A, B, pc);        
       } break;
       default:
         abort();
