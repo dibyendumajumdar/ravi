@@ -596,9 +596,7 @@ static const char Lua_header[] =
 
 // We can only compile a subset of op codes
 // and not all features are supported
-bool raviJ_cancompile(Proto *p) {
-  return true;
-}
+bool raviJ_cancompile(Proto *p) { return true; }
 
 struct function {
   struct lua_State *L;
@@ -845,24 +843,24 @@ static void emit_op_unm(struct function *fn, int A, int B, int pc) {
   membuff_add_string(&fn->body, "}\n");
 }
 
-static void emit_op_unmf(struct function* fn, int A, int B, int pc) {
-    emit_reg(fn, "ra", A);
-    emit_reg(fn, "rb", B);
-    membuff_add_string(&fn->body, "setfltvalue(ra, -fltvalue(rb));\n");
+static void emit_op_unmf(struct function *fn, int A, int B, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  membuff_add_string(&fn->body, "setfltvalue(ra, -fltvalue(rb));\n");
 }
 
-static void emit_op_unmi(struct function* fn, int A, int B, int pc) {
-    emit_reg(fn, "ra", A);
-    emit_reg(fn, "rb", B);
-    membuff_add_string(&fn->body, "setivalue(ra, -ivalue(rb));\n");
+static void emit_op_unmi(struct function *fn, int A, int B, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  membuff_add_string(&fn->body, "setivalue(ra, -ivalue(rb));\n");
 }
 
-static void emit_op_bnot(struct function* fn, int A, int B, int pc) {
-    emit_reg(fn, "ra", A);
-    emit_reg(fn, "rb", B);
-    emit_update_savedpc(fn, pc);
-    membuff_add_string(&fn->body, "raviV_op_bnot(L, ra, rb);\n");
-    membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+static void emit_op_bnot(struct function *fn, int A, int B, int pc) {
+  emit_reg(fn, "ra", A);
+  emit_reg(fn, "rb", B);
+  emit_update_savedpc(fn, pc);
+  membuff_add_string(&fn->body, "raviV_op_bnot(L, ra, rb);\n");
+  membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
 static void emit_int_bitop(struct function *fn, int A, int B, int C, OpCode opCode, int pc) {
@@ -2027,10 +2025,10 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p, struct ravi_compile_opt
         int C = GETARG_C(i);
         emit_op_newtable(&fn, A, B, C, pc);
       } break;
-    case OP_BNOT: {
-      int B = GETARG_B(i);
-      emit_op_bnot(&fn, A, B, pc);
-    } break;
+      case OP_BNOT: {
+        int B = GETARG_B(i);
+        emit_op_bnot(&fn, A, B, pc);
+      } break;
       case OP_ADD: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
