@@ -350,8 +350,7 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
                              sizeof breakpoints[0].source.path);
           breakpoints[y].line =
               req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line;
-          /* fprintf(my_logger, "Saving breakpoint j=%d, k=%d, i=%d\n", y, k,
-           * i); */
+          //fprintf(my_logger, "Saving breakpoint j=%d, k=%d, i=%d\n", y, k, i);
           if (k < MAX_BREAKPOINTS) {
             res->u.Response.u.SetBreakpointsResponse.breakpoints[k].line =
                 req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line;
@@ -906,6 +905,16 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
   debugger_state = DEBUGGER_PROGRAM_TERMINATED;
 }
 
+static int compare_paths(const char* a, const char* b) {
+    /* skip any drive letters */
+    const char *p = strchr(a, ':');
+    if (p) a = p + 1;
+    p = strchr(b, ':');
+    if (p) b = p + 1;
+    /* case sensitive compare */
+    return strcmp(a, b);
+}
+
 /**
  * Called via Lua Hook or from main()
  * If called from main then debugger_state == DEBUGGER_BIRTH and ar == NULL
@@ -933,7 +942,7 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
       if (!initialized) break;
       if (ar->source[0] == '@') {
         /* Only support breakpoints on source files */
-        if (strcmp(breakpoints[j].source.path, ar->source + 1) == 0) {
+        if (compare_paths(breakpoints[j].source.path, ar->source + 1) == 0) {
           /* hit breakpoint */
           debugger_state = DEBUGGER_PROGRAM_STEPPING;
           stepping_mode = DEBUGGER_STEPPING_IN;
