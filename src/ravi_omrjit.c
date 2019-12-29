@@ -317,7 +317,8 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg2(jit->jit, "raviV_op_defer", raviV_op_defer, JIT_NoType, JIT_Address, JIT_Address);
   //LUAI_FUNC lua_Integer luaV_shiftl (lua_Integer x, lua_Integer y);
   register_builtin_arg2(jit->jit, "luaV_shiftl", luaV_shiftl, JIT_Int64, JIT_Int64, JIT_Int64);
-
+  // extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
+  register_builtin_arg3(jit->jit, "raviV_op_bnot", raviV_op_bnot, JIT_NoType, JIT_Address, JIT_Address, JIT_Address);
 
   G->ravi_state = jit;
   return 0;

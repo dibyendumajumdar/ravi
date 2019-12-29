@@ -585,6 +585,7 @@ static const char Lua_header[] =
     "extern void raviV_op_defer(lua_State *L, TValue *ra);\n"
     "extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);\n"
     "extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);\n"
+    "extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);\n"
     "#define R(i) (base + i)\n"
     "#define K(i) (k + i)\n"
     "#define tonumberns(o,n) \\\n"
@@ -596,137 +597,6 @@ static const char Lua_header[] =
 // We can only compile a subset of op codes
 // and not all features are supported
 bool raviJ_cancompile(Proto *p) {
-  const Instruction *code = p->code;
-  int pc, n = p->sizecode;
-  // Loop over the byte codes; as Lua compiler inserts
-  // an extra RETURN op we need to ignore the last op
-  for (pc = 0; pc < n; pc++) {
-    Instruction i = code[pc];
-    OpCode o = GET_OPCODE(i);
-    switch (o) {
-      case OP_RETURN:
-      case OP_LOADK:
-      case OP_RAVI_FORLOOP_IP:
-      case OP_RAVI_FORLOOP_I1:
-      case OP_FORLOOP:
-      case OP_RAVI_FORPREP_IP:
-      case OP_RAVI_FORPREP_I1:
-      case OP_TFORCALL:
-      case OP_TFORLOOP:
-      case OP_FORPREP:
-      case OP_MOVE:
-      case OP_LOADNIL:
-      case OP_JMP:
-      case OP_LOADBOOL:
-      case OP_EQ:
-      case OP_RAVI_EQ_II:
-      case OP_RAVI_EQ_FF:
-      case OP_LT:
-      case OP_RAVI_LT_II:
-      case OP_RAVI_LT_FF:
-      case OP_LE:
-      case OP_RAVI_LE_II:
-      case OP_RAVI_LE_FF:
-      case OP_TEST:
-      case OP_TESTSET:
-      case OP_CALL:
-      case OP_TAILCALL:
-      case OP_GETTABUP:
-      case OP_RAVI_GETTABUP_SK:
-      case OP_GETUPVAL:
-      case OP_SETUPVAL:
-      case OP_RAVI_SETUPVALI:
-      case OP_RAVI_SETUPVALF:
-      case OP_RAVI_SETUPVAL_IARRAY:
-      case OP_RAVI_SETUPVAL_FARRAY:
-      case OP_RAVI_SETUPVALT:
-      case OP_RAVI_TABLE_GETFIELD:
-      case OP_RAVI_IARRAY_GET:
-      case OP_RAVI_FARRAY_GET:
-      case OP_RAVI_GETFIELD:
-      case OP_RAVI_GETI:
-      case OP_GETTABLE:
-      case OP_SELF:
-      case OP_RAVI_TABLE_SELF_SK:
-      case OP_RAVI_SELF_SK:
-      case OP_RAVI_SETFIELD:
-      case OP_RAVI_TABLE_SETFIELD:
-      case OP_RAVI_SETI:
-      case OP_RAVI_IARRAY_SETI:
-      case OP_RAVI_IARRAY_SET:
-      case OP_RAVI_FARRAY_SETF:
-      case OP_RAVI_FARRAY_SET:
-      case OP_SETTABLE:
-      case OP_SETTABUP:
-      case OP_NEWTABLE:
-      case OP_ADD:
-      case OP_SUB:
-      case OP_MUL:
-      case OP_MOD:
-      case OP_POW:
-      case OP_DIV:
-      case OP_IDIV:
-      case OP_BAND:
-      case OP_BOR:
-      case OP_BXOR:
-      case OP_SHL:
-      case OP_SHR:
-      case OP_RAVI_ADDFF:
-      case OP_RAVI_ADDFI:
-      case OP_RAVI_ADDII:
-      case OP_RAVI_SUBFF:
-      case OP_RAVI_SUBFI:
-      case OP_RAVI_SUBIF:
-      case OP_RAVI_SUBII:
-      case OP_RAVI_MULFF:
-      case OP_RAVI_MULFI:
-      case OP_RAVI_MULII:
-      case OP_RAVI_DIVFF:
-      case OP_RAVI_DIVFI:
-      case OP_RAVI_DIVIF:
-      case OP_RAVI_DIVII:
-      case OP_RAVI_LOADIZ:
-      case OP_RAVI_LOADFZ:
-      case OP_RAVI_MOVEI:
-      case OP_RAVI_MOVEF:
-      case OP_RAVI_MOVEIARRAY:
-      case OP_RAVI_MOVEFARRAY:
-      case OP_RAVI_MOVETAB:
-      case OP_RAVI_TOINT:
-      case OP_RAVI_TOFLT:
-      case OP_RAVI_TOIARRAY:
-      case OP_RAVI_TOFARRAY:
-      case OP_RAVI_TOTAB:
-      case OP_RAVI_NEW_IARRAY:
-      case OP_RAVI_NEW_FARRAY:
-      case OP_VARARG:
-      case OP_CONCAT:
-      case OP_CLOSURE:
-      case OP_LEN:
-      case OP_NOT:
-      case OP_SETLIST:
-      case OP_RAVI_TOCLOSURE:
-      case OP_RAVI_TOSTRING:
-      case OP_RAVI_TOTYPE:
-      case OP_LOADKX:
-      case OP_RAVI_SHR_II:
-      case OP_RAVI_SHL_II:
-      case OP_RAVI_BXOR_II:
-      case OP_RAVI_BOR_II:
-      case OP_RAVI_BAND_II:
-      case OP_RAVI_BNOT_I:
-      case OP_UNM:
-      case OP_RAVI_DEFER:
-        break;
-#if 0
-		case OP_BNOT:
-#endif
-      default: {
-        // fprintf(stderr, "Unsupported op code %d\n", (int)o);
-        return false;
-      }
-    }
-  }
   return true;
 }
 
@@ -973,6 +843,26 @@ static void emit_op_unm(struct function *fn, int A, int B, int pc) {
   membuff_add_string(&fn->body, " luaT_trybinTM(L, rb, rb, ra, TM_UNM);\n");
   membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
   membuff_add_string(&fn->body, "}\n");
+}
+
+static void emit_op_unmf(struct function* fn, int A, int B, int pc) {
+    emit_reg(fn, "ra", A);
+    emit_reg(fn, "rb", B);
+    membuff_add_string(&fn->body, "setfltvalue(ra, -fltvalue(rb));\n");
+}
+
+static void emit_op_unmi(struct function* fn, int A, int B, int pc) {
+    emit_reg(fn, "ra", A);
+    emit_reg(fn, "rb", B);
+    membuff_add_string(&fn->body, "setivalue(ra, -ivalue(rb));\n");
+}
+
+static void emit_op_bnot(struct function* fn, int A, int B, int pc) {
+    emit_reg(fn, "ra", A);
+    emit_reg(fn, "rb", B);
+    emit_update_savedpc(fn, pc);
+    membuff_add_string(&fn->body, "raviV_op_bnot(L, ra, rb);\n");
+    membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
 }
 
 static void emit_int_bitop(struct function *fn, int A, int B, int C, OpCode opCode, int pc) {
@@ -1393,6 +1283,7 @@ static void emit_op_newarrayfloat(struct function *fn, int A, int pc) {
 }
 
 // Default implementation for binary ops
+// FIXME replace with more specialized ops
 static void emit_binary_op(struct function *fn, int A, int B, int C, OpCode op, int pc) {
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
@@ -2136,12 +2027,10 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p, struct ravi_compile_opt
         int C = GETARG_C(i);
         emit_op_newtable(&fn, A, B, C, pc);
       } break;
-#if 0
     case OP_BNOT: {
       int B = GETARG_B(i);
-      emit_BNOT(&fn, A, B, pc);
+      emit_op_bnot(&fn, A, B, pc);
     } break;
-#endif
       case OP_ADD: {
         int B = GETARG_B(i);
         int C = GETARG_C(i);
