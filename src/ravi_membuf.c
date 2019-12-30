@@ -1,3 +1,7 @@
+/*
+Copyright (C) 2018-2020 Dibyendu Majumdar
+*/
+
 #include <ravi_membuf.h>
 
 #include <assert.h>

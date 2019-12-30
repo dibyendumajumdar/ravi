@@ -6,6 +6,9 @@ The parser will perform following actions:
 
 a) Generate syntax tree
 b) Perform type checking (Ravi enhancement)
+
+Copyright (C) 2018-2020 Dibyendu Majumdar
+
 */
 
 #include "ravi_ast.h"
