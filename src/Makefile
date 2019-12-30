@@ -7,7 +7,7 @@
 PLAT= none
 
 #CC= gcc -std=gnu99
-CFLAGS= -O2 -Wall -Wextra -DNDEBUG -fomit-frame-pointer -DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1 $(SYSCFLAGS) $(MYCFLAGS) -I../include -I../dmr_c/src -I../dmr_c/null-backend
+CFLAGS= -O2 -Wall -DNDEBUG -fomit-frame-pointer -DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1 $(SYSCFLAGS) $(MYCFLAGS) -I../include -I../dmr_c/src -I../dmr_c/null-backend
 CXXFLAGS=$(CFLAGS) -fno-rtti -Wno-sign-compare -std=c++14 -fno-exceptions -I../include
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS= -lm $(SYSLIBS) $(MYLIBS)
@@ -39,10 +39,7 @@ CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
 LIB_O=	lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o \
 	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o \
 	bit.o
-DMRC_O= allocate.o builtin.o char.o expression.o evaluate.o expand.o inline.o \
-	lib.o linearize.o liveness.o parse.o target.o tokenize.o pre-process.o \
-	ptrlist.o scope.o show-parse.o symbol.o walksymbol.o \
-	ravi_dmrc_parsesymbols.o 
+DMRC_O= allocate.o ptrlist.o
 BASE_O= $(CORE_O) $(LIB_O) $(DMRC_O) $(MYOBJS)
 
 LUA_T=	ravi
