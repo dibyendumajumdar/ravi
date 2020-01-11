@@ -4,6 +4,10 @@
 ** See Copyright Notice in lua.h
 */
 
+/*
+** Portions Copyright (C) 2015-2020 Dibyendu Majumdar 
+*/
+
 #define ldo_c
 #define LUA_CORE
 

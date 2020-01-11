@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright (C) 2015-2017 Dibyendu Majumdar
+ * Copyright (C) 2015-2020 Dibyendu Majumdar
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -592,7 +592,11 @@ static const char Lua_header[] =
     "	(ttisfloat(o) ? ((n) = fltvalue(o), 1) : \\\n"
     "	(ttisinteger(o) ? ((n) = cast_num(ivalue(o)), 1) : 0))\n"
     "#define intop(op,v1,v2) l_castU2S(l_castS2U(v1) op l_castS2U(v2))\n"
+    "#define nan (0./0.)\n"
+    "#define inf (1./0.)\n"
     "#define luai_numunm(L,a)        (-(a))\n";
+
+// FIXME - 'inf' and 'nan' above need to be sorted!
 
 // We can only compile a subset of op codes
 // and not all features are supported

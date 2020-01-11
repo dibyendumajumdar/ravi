@@ -1778,6 +1778,63 @@ pcall(x)
 assert(y == 12)
 print 'Test 80 OK'
 
+-- Test defer statement in tailcalls
+y = 0
+function x (n)
+  defer y = y + 1 end
+  if n > 0 then return x(n - 1) end
+end
+pcall(x, 3)
+assert(y == 4)
+compile(x)
+pcall(x, 3)
+assert(y == 8)
+print 'Test 81 OK'
+
+-- Simulate a test of resource closure with defer
+y = 0
+z = { count = 0 }
+z.__index = z;
+function z:new()
+  local object = {}
+  setmetatable(object, z)
+  return object
+end
+function z:open(arg) 
+  if (arg) then
+    z.count = z.count + 1
+    return
+  end
+  y = 1
+  error('error opening')
+end
+function z.close()
+  z.count = z.count - 1
+end
+function x(arg) 
+  local f = z:new()
+  f:open(arg)
+  assert(z.count == 1)
+  defer f:close() end
+end
+x('filename')
+assert(y == 0)
+assert(z.count == 0)
+pcall(x, false)
+assert(z.count == 0)
+assert(y == 1)
+y = 0
+compile(x)
+compile(z.new)
+compile(z.open)
+compile(z.close)
+x('filename')
+assert(y == 0)
+assert(z.count == 0)
+pcall(x, false)
+assert(z.count == 0)
+assert(y == 1)
+print 'Test 82 OK'
 
 for k,v in pairs(opcodes_coverage)
 do

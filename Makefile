@@ -48,7 +48,7 @@ TO_LIB= libravinojit.a
 
 # Lua version and release.
 V= 5.3
-R= $V.4
+R= $V.5
 
 # Targets start here.
 all:	$(PLAT)
