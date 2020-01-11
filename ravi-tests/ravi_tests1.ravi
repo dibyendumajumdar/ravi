@@ -1,4 +1,6 @@
-ravi.auto(true)
+if ravi then
+  ravi.auto(true)
+end
 
 print "testing code generation and optimizations"
 T = ravi
@@ -124,7 +126,7 @@ opcodes_coverage.SELF_SK = 0
 opcodes_coverage.DEFER = 0
 
 local compile = function(f)
-  if ravi.jit() then
+  if ravi and ravi.jit() then
     assert(ravi.compile(f))
   end
   return true
@@ -137,6 +139,9 @@ end
 
 -- testing opcodes
 function check (f, ...)
+  if not T then
+    return true
+  end
   local arg = {...}
   local c = T.listcode(f)
   for i=1, #arg do
@@ -149,6 +154,9 @@ end
 
 
 function checkequal (a, b)
+  if not T then
+    return true
+  end
   a = T.listcode(a)
   b = T.listcode(b)
   for i = 1, #a do
