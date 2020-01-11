@@ -74,3 +74,72 @@ str=
 end
 ]]
 doast(str)
+
+str=
+[[local a: integer return a+3
+]]
+doast(str)
+
+str=
+[[local i: integer; return t[i/5]
+]]
+doast(str)
+
+str=
+[[local t: integer[]; return t[0]
+]]
+doast(str)
+
+str=
+[[return f()[1]
+]]
+doast(str)
+
+str=
+[[return x.y[1]
+]]
+doast(str)
+
+str=
+[[local t: integer[]
+if (t[1] == 5) then
+    return true
+end
+return false
+]]
+doast(str)
+
+str=
+[[local t: table
+  local len: integer = #t
+  return len
+]]
+doast(str)
+
+str=
+[[return function(t: table, i: integer)
+    i = #t
+  end
+]]
+doast(str)
+
+str=
+[[function matmul(a: table, b: table)
+  	assert(@integer(#a[1]) == #b);
+  	local m: integer, n: integer, p: integer, x: table = #a, #a[1], #b[1], {};
+  	local c: table = matrix.T(b); -- transpose for efficiency
+  	for i = 1, m do
+  		local xi: number[] = table.numarray(p, 0.0)
+  		x[i] = xi
+  		for j = 1, p do
+  			local sum: number, ai: number[], cj: number[] = 0.0, @number[](a[i]), @number[](c[j]);
+  			-- for luajit, caching c[j] or not makes no difference; lua is not so clever
+  			for k = 1, n do sum = sum + ai[k] * cj[k] end
+  			xi[j] = sum;
+  		end
+  	end
+  	return x
+  end
+return matmul
+]]
+doast(str)

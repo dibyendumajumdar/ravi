@@ -33,12 +33,14 @@ Features
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
 * `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ powered JIT compiler
+* New (wip) small JIT backend based on `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported.
 * Built-in C pre-processor, parser and JIT compiler
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 
 Documentation
 =============
 * For the Lua extensions in Ravi see the `Reference Manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
+* `MIR JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-mir-instructions.html>`_.
 * `OMR JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-omr-instructions.html>`_.
 * `LLVM JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-llvm-instructions.html>`_.
 * Also see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
@@ -48,6 +50,7 @@ Lua Goodies
 ===========
 * `An Introduction to Lua <http://the-ravi-programming-language.readthedocs.io/en/latest/lua-introduction.html>`_ attempts to provide a quick overview of Lua for folks coming from other languages.
 * `Lua 5.3 Bytecode Reference <http://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html>`_ is my attempt to bring up to date the `Lua 5.1 Bytecode Reference <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_.
+* A `patch for Lua 5.3 <http://lua-users.org/lists/lua-l/2020-01/msg00004.html>`_ implements the 'defer' statement.
 
 Compatibility with Lua
 ======================
@@ -91,10 +94,15 @@ History
 * 2018
        - Implemented Eclipse OMR JIT backend
        - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
-* 2019 (Plan)
-       - New parser, type checker and code generator
-       - Release Ravi 1.0
+* 2019 
+       - `New parser, type checker for Ravi <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-new-parser-codegenerator.html>`_ - work in progress
+       - New language feature - `defer` statement
+       - New JIT backend `MIR <https://github.com/vnmakarov/mir>`_. 
+
+* 2020 (Plan)
+       - New optimizing byte code generator based on new parser / type checker
+       - Ravi 1.0 release
 
 License
 =======
-MIT License for LLVM version.
+MIT License

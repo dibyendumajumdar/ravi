@@ -8,6 +8,10 @@ print(t)
 
 local atable = { t }
 
+defer 
+   print('deferred')
+end
+
 local function func_with_varargs(...)
 	local t = { ... }
 	print(table.unpack(t))

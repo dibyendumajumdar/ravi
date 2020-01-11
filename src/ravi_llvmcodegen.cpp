@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright (C) 2015 Dibyendu Majumdar
+ * Copyright (C) 2015-2020 Dibyendu Majumdar
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -980,34 +980,59 @@ void RaviCodeGenerator::emit_raise_lua_error(RaviFunctionDef *def,
 }
 
 void RaviCodeGenerator::debug_printf(RaviFunctionDef *def, const char *str) {
+#if LLVM_VERSION_MAJOR >= 9
+	CreateCall1(def->builder, def->printfFunc.getCallee(),
+		def->builder->CreateGlobalStringPtr(str));
+#else
   CreateCall1(def->builder, def->printfFunc,
               def->builder->CreateGlobalStringPtr(str));
+#endif
 }
 
 void RaviCodeGenerator::debug_printf1(RaviFunctionDef *def, const char *str,
                                       llvm::Value *arg1) {
-  CreateCall2(def->builder, def->printfFunc,
+#if LLVM_VERSION_MAJOR >= 9
+	CreateCall2(def->builder, def->printfFunc.getCallee(),
+		def->builder->CreateGlobalStringPtr(str), arg1);
+#else
+	CreateCall2(def->builder, def->printfFunc,
               def->builder->CreateGlobalStringPtr(str), arg1);
+#endif
 }
 
 void RaviCodeGenerator::debug_printf2(RaviFunctionDef *def, const char *str,
                                       llvm::Value *arg1, llvm::Value *arg2) {
-  CreateCall3(def->builder, def->printfFunc,
+#if LLVM_VERSION_MAJOR >= 9
+	CreateCall3(def->builder, def->printfFunc.getCallee(),
+		def->builder->CreateGlobalStringPtr(str), arg1, arg2);
+#else
+	CreateCall3(def->builder, def->printfFunc,
               def->builder->CreateGlobalStringPtr(str), arg1, arg2);
+#endif
 }
 
 void RaviCodeGenerator::debug_printf3(RaviFunctionDef *def, const char *str,
                                       llvm::Value *arg1, llvm::Value *arg2,
                                       llvm::Value *arg3) {
-  CreateCall4(def->builder, def->printfFunc,
+#if LLVM_VERSION_MAJOR >= 9
+	CreateCall4(def->builder, def->printfFunc.getCallee(),
+		def->builder->CreateGlobalStringPtr(str), arg1, arg2, arg3);
+#else
+	CreateCall4(def->builder, def->printfFunc,
               def->builder->CreateGlobalStringPtr(str), arg1, arg2, arg3);
+#endif
 }
 
 void RaviCodeGenerator::debug_printf4(RaviFunctionDef *def, const char *str,
                                       llvm::Value *arg1, llvm::Value *arg2,
                                       llvm::Value *arg3, llvm::Value *arg4) {
-  CreateCall5(def->builder, def->printfFunc,
+#if LLVM_VERSION_MAJOR >= 9
+	CreateCall5(def->builder, def->printfFunc.getCallee(),
+		def->builder->CreateGlobalStringPtr(str), arg1, arg2, arg3, arg4);
+#else
+	CreateCall5(def->builder, def->printfFunc,
               def->builder->CreateGlobalStringPtr(str), arg1, arg2, arg3, arg4);
+#endif
 }
 
 void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
@@ -1177,6 +1202,9 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_totypeF = def->raviF->addExternFunction(
       def->types->raviV_op_totypeT, reinterpret_cast<void *>(&raviV_op_totype),
       "raviV_op_totype");
+  def->raviV_op_deferF = def->raviF->addExternFunction(
+	  def->types->raviV_op_deferT, reinterpret_cast<void *>(&raviV_op_defer), 
+	  "raviV_op_defer");
 
   def->ravi_dump_valueF = def->raviF->addExternFunction(
       def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
@@ -1304,7 +1332,7 @@ llvm::Value *RaviCodeGenerator::emit_gep_upval_v(RaviFunctionDef *def,
 // Get &upval->value -> result is TValue *
 llvm::Value *RaviCodeGenerator::emit_gep_upval_value(
     RaviFunctionDef *def, llvm::Instruction *pupval) {
-  return emit_gep(def, "value", pupval, 0, 2);
+  return emit_gep(def, "value", pupval, 0, 3);
 }
 
 // Alternative code generator uses dmrC based C front-end
@@ -1989,7 +2017,9 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int B = GETARG_B(i);
         emit_UNM(def, A, B, pc);
       } break;
-
+      case OP_RAVI_DEFER: {
+        emit_DEFER(def, A, pc);
+      } break;
       default: {
         fprintf(stderr, "Unexpected bytecode %d\n", op);
         abort();

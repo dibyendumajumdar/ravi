@@ -929,11 +929,11 @@ static JIT_NodeRef is_neq_zero(struct dmr_C *C, struct function *fn, JIT_NodeRef
 		break;
 
 	case JIT_Double:
-		cond = JIT_CreateNode2C(OP_dcmpne, value, JIT_ZeroValue(fn->injector, JIT_Double));
+		cond = JIT_CreateNode2C(OP_dcmpneu, value, JIT_ZeroValue(fn->injector, JIT_Double));
 		break;
 
 	case JIT_Float:
-		cond = JIT_CreateNode2C(OP_fcmpne, value, JIT_ZeroValue(fn->injector, JIT_Float));
+		cond = JIT_CreateNode2C(OP_fcmpneu, value, JIT_ZeroValue(fn->injector, JIT_Float));
 		break;
 	default:
 		fprintf(stderr, "Cannot construct a zero object of JIT type %d\n", value_type);
@@ -1121,9 +1121,9 @@ static JIT_NodeRef output_op_compare(struct dmr_C *C, struct function *fn, struc
 		break;
 	case OP_SET_NE:
 		if (op_type == JIT_Double)
-			target = JIT_CreateNode2C(OP_dcmpne, lhs, rhs);
+			target = JIT_CreateNode2C(OP_dcmpneu, lhs, rhs);
 		else if (op_type == JIT_Float)
-			target = JIT_CreateNode2C(OP_fcmpne, lhs, rhs);
+			target = JIT_CreateNode2C(OP_fcmpneu, lhs, rhs);
 		else if (op_type == JIT_Int64)
 			target = JIT_CreateNode2C(OP_lcmpne, lhs, rhs);
 		else if (op_type == JIT_Int32)
@@ -2111,6 +2111,10 @@ static bool JIT_ILBuilderImpl(JIT_ILInjectorRef injector, void *userdata)
 		}
 	}
 	END_FOR_EACH_PTR(bb);
+
+	// The following flag triggers loop optimizations at O2
+	JIT_SetMayHaveLoops(fn->injector);
+
 	return true;
 
 Efailed:

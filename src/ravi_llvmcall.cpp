@@ -1,5 +1,5 @@
 /******************************************************************************
-* Copyright (C) 2015 Dibyendu Majumdar
+* Copyright (C) 2015-2020 Dibyendu Majumdar
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
@@ -44,15 +44,17 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int sBx, int pc) {
     def->builder->SetInsertPoint(jmp_block);
   }
 
-  emit_debug_trace(def, OP_JMP, pc);
+  bool traced = emit_debug_trace(def, OP_JMP, pc);
 
   // if (a > 0) luaF_close(L, ci->u.l.base + a - 1);
   if (A > 0) {
     emit_load_base(def);
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, A - 1);
+    if (!traced)
+      emit_update_savedpc(def, pc);
     // Call luaF_close
-    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
+    CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
   }
 
   // Do the actual jump
@@ -170,4 +172,12 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C,
   def->f->getBasicBlockList().push_back(end_block);
   def->builder->SetInsertPoint(end_block);
 }
+
+void RaviCodeGenerator::emit_DEFER(RaviFunctionDef *def, int A, int pc) {
+  emit_debug_trace(def, OP_RAVI_DEFER, pc);
+  emit_load_base(def);
+  llvm::Value *ra = emit_gep_register(def, A);
+  CreateCall2(def->builder, def->raviV_op_deferF, def->L, ra);
+}
+
 }

@@ -83,7 +83,7 @@ required to get to a node in the hash table
 #if !RAVI_USE_INLINE_SHORTSTR_TGET
 LUAI_FUNC const TValue *luaH_getshortstr (Table *t, TString *key);
 #else
-LUAI_FUNC const TValue *luaH_getshortstr_continue(Table *t, TString *key, Node *n);
+LUAI_FUNC const TValue *luaH_getshortstr_continue(TString *key, Node *n);
 static RAVI_ALWAYS_INLINE const TValue *luaH_getshortstr(Table *t, TString *key) {
   /* We inline the lookup in first two slots */
   Node *n = hashstr(t, key);
@@ -94,6 +94,7 @@ static RAVI_ALWAYS_INLINE const TValue *luaH_getshortstr(Table *t, TString *key)
   int nx = gnext(n);
   if (nx == 0)
     return luaO_nilobject; /* not found */
+#if RAVI_USE_INLINE_SHORTSTR_TGET == 2
   n += nx;
   k = gkey(n);
   if (ttisshrstring(k) && eqshrstr(tsvalue(k), key))
@@ -101,8 +102,9 @@ static RAVI_ALWAYS_INLINE const TValue *luaH_getshortstr(Table *t, TString *key)
   nx = gnext(n);
   if (nx == 0)
     return luaO_nilobject; /* not found */
+#endif
   /* Okay continue search slowly */
-  return luaH_getshortstr_continue(t, key, n);
+  return luaH_getshortstr_continue(key, n);
 }
 #endif
 LUAI_FUNC const TValue *luaH_getstr (Table *t, TString *key);

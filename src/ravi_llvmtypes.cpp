@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright (C) 2015 Dibyendu Majumdar
+ * Copyright (C) 2015-2020 Dibyendu Majumdar
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -694,7 +694,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   // struct UpVal {
   //  struct TValue *v;  /* points to stack or to its own value */
-  //  unsigned long long refcount;  /* reference counter */
+  //  unsigned int refcount;  /* reference counter */
+  //  unsigned int flags; /* Used to mark deferred values */
   //  union {
   //    struct {  /* (when open) */
   //      struct UpVal *next;  /* linked list */
@@ -705,7 +706,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //};
   elements.clear();
   elements.push_back(pTValueT);
-  elements.push_back(C_size_t);
+  elements.push_back(C_intT);
+  elements.push_back(C_intT);
   elements.push_back(TValueT);
   UpValT->setBody(elements);
 
@@ -745,17 +747,22 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(plua_StateT);
   luaV_executeT = llvm::FunctionType::get(C_intT, elements, false);
 
-  // void luaF_close (lua_State *L, StkId level)
+  // int luaF_close (lua_State *L, StkId level, int status)
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(StkIdT);
+  elements.push_back(C_intT);
   luaF_closeT =
-      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+      llvm::FunctionType::get(C_intT, elements, false);
 
   // int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2)
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTValueT);
+
+  // void raviV_op_defer(lua_State *L, TValue *ra);
+  raviV_op_deferT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+
   elements.push_back(pTValueT);
   luaV_equalobjT = llvm::FunctionType::get(C_intT, elements, false);
 
@@ -1256,10 +1263,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   nodes.clear();
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
-  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 8));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 4));
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 4));
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_TValueT, 16));
   tbaa_UpValT = mdbuilder.createTBAAStructTypeNode("UpVal", nodes);
   tbaa_UpVal_vT =
+
       mdbuilder.createTBAAStructTagNode(tbaa_UpValT, tbaa_pointerT, 0);
 
   // RaviArray

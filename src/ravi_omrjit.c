@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright (C) 2018 Dibyendu Majumdar
+ * Copyright (C) 2018-2020 Dibyendu Majumdar
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -313,6 +313,12 @@ int raviV_initjit(struct lua_State *L) {
   register_builtin_arg2(jit->jit, "lua_setmetatable", lua_setmetatable, JIT_Int32, JIT_Address, JIT_Int32);
   //LUA_API void  (lua_setuservalue)(lua_State *L, int idx);
   register_builtin_arg2(jit->jit, "lua_setuservalue", lua_setuservalue, JIT_NoType, JIT_Address, JIT_Int32);
+  //LUA_API void raviV_op_defer(lua_State *L, TValue *ra);
+  register_builtin_arg2(jit->jit, "raviV_op_defer", raviV_op_defer, JIT_NoType, JIT_Address, JIT_Address);
+  //LUAI_FUNC lua_Integer luaV_shiftl (lua_Integer x, lua_Integer y);
+  register_builtin_arg2(jit->jit, "luaV_shiftl", luaV_shiftl, JIT_Int64, JIT_Int64, JIT_Int64);
+  // extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
+  register_builtin_arg3(jit->jit, "raviV_op_bnot", raviV_op_bnot, JIT_NoType, JIT_Address, JIT_Address, JIT_Address);
 
   G->ravi_state = jit;
   return 0;

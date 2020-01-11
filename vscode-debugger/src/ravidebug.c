@@ -77,6 +77,16 @@ typedef struct {
   int64_t sourceReference;
 } SourceOnStack;
 
+enum {
+    MAX_PROG_ARGS = 5
+};
+
+typedef struct {
+    char progpath[256];
+    int argc;
+    char argv[MAX_PROG_ARGS][256];
+} Program;
+
 /*
  * These statics are temporary - eventually they will be moved to
  * the Lua global state; but right now while things are
@@ -350,8 +360,7 @@ static void handle_set_breakpoints_request(ProtocolMessage *req,
                              sizeof breakpoints[0].source.path);
           breakpoints[y].line =
               req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line;
-          /* fprintf(my_logger, "Saving breakpoint j=%d, k=%d, i=%d\n", y, k,
-           * i); */
+          //fprintf(my_logger, "Saving breakpoint j=%d, k=%d, i=%d\n", y, k, i);
           if (k < MAX_BREAKPOINTS) {
             res->u.Response.u.SetBreakpointsResponse.breakpoints[k].line =
                 req->u.Request.u.SetBreakpointsRequest.breakpoints[i].line;
@@ -831,6 +840,39 @@ static void set_package_var(lua_State *L, const char *key, const char *value) {
   lua_pop(L, 1);
 }
 
+/* Parse the launch program into command and args */
+static void parse_launch_program(Program *prog, const char *cmd) {
+  memset(prog, 0, sizeof *prog);
+  const char *cp = cmd;
+  int i = 0;
+  for (; i < sizeof prog->progpath - 1; i++) {
+    if (cmd[i] && cmd[i] != ' ') {
+      prog->progpath[i] = cmd[i];
+    }
+    else
+      break;
+  }
+  fprintf(my_logger, "Program to be debugged = %s\n", prog->progpath);
+  for (int j = 0; j < MAX_PROG_ARGS; j++) {
+    while (cmd[i] && cmd[i] == ' ')
+      i++;
+    if (!cmd[i])
+      break;
+    int k = 0;
+    for (; k < sizeof prog->argv[0] - 1; k++) {
+      if (!cmd[i] || cmd[i] == ' ')
+        break;
+      prog->argv[j][k] = cmd[i];
+      i++;
+    }
+    prog->argv[j][k] = 0;
+    prog->argc++;
+  }
+  for (int j = 0; j < prog->argc; j++) {
+    fprintf(my_logger, "Arg [%d] = %s\n", j, prog->argv[j]);
+  }
+}
+
 /**
  * The VSCode front-end sends a Launch request when the user
  * starts a debug session. This is where the actual Lua code
@@ -869,12 +911,13 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
     }
   }
   const char *progname = req->u.Request.u.LaunchRequest.program;
-  fprintf(my_logger, "\n--> Launching '%s'\n", progname);
-  int status = luaL_loadfile(L, progname);
+  Program prog;
+  parse_launch_program(&prog, progname);
+  int status = luaL_loadfile(L, prog.progpath);
   if (status != LUA_OK) {
     char temp[1024];
     snprintf(temp, sizeof temp, "Failed to launch %s due to error: %s\n",
-             progname, lua_tostring(L, -1));
+             prog.progpath, lua_tostring(L, -1));
     vscode_send_output_event(res, "console", temp, out, my_logger);
     vscode_send_error_response(req, res, VSCODE_LAUNCH_RESPONSE,
                                "Launch failed", out, my_logger);
@@ -890,6 +933,17 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
     debugger_state = DEBUGGER_PROGRAM_STEPPING;
   else
     debugger_state = DEBUGGER_PROGRAM_RUNNING;
+  /* create arg table if applicable */
+  if (prog.argc > 0) {
+    lua_createtable(L, 2, 1);
+    lua_pushstring(L, prog.progpath);
+    lua_rawseti(L, -2, 0); /* arg[0] will have program */
+    for (int i = 0; i < MAX_PROG_ARGS && i < prog.argc; i++) {
+      lua_pushstring(L, prog.argv[i]);
+      lua_rawseti(L, -2, i+1);
+    }
+    lua_setglobal(L, "arg");
+  }
   /* Start the Lua code! */
   /* From here on the debugger will get control inside the debugger() function
      below which is setup as a Lua hook whenever Lua steps across a new line of
@@ -904,6 +958,18 @@ static void handle_launch_request(ProtocolMessage *req, ProtocolMessage *res,
   }
   vscode_send_terminated_event(res, out, my_logger);
   debugger_state = DEBUGGER_PROGRAM_TERMINATED;
+}
+
+static int compare_paths(const char *a, const char *b) {
+  /* skip any drive letters */
+  const char *p = strchr(a, ':');
+  if (p)
+    a = p + 1;
+  p = strchr(b, ':');
+  if (p)
+    b = p + 1;
+  /* case sensitive compare */
+  return strcmp(a, b);
 }
 
 /**
@@ -933,7 +999,7 @@ static void debugger(lua_State *L, lua_Debug *ar, FILE *in, FILE *out) {
       if (!initialized) break;
       if (ar->source[0] == '@') {
         /* Only support breakpoints on source files */
-        if (strcmp(breakpoints[j].source.path, ar->source + 1) == 0) {
+        if (compare_paths(breakpoints[j].source.path, ar->source + 1) == 0) {
           /* hit breakpoint */
           debugger_state = DEBUGGER_PROGRAM_STEPPING;
           stepping_mode = DEBUGGER_STEPPING_IN;

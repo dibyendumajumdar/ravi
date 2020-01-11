@@ -58,10 +58,10 @@ function testbits()
 	       d == 0)
     print'+'
 
-    a = toint(2^30 - 1)
-    b = toint(2^30 - 1)
-    c = toint(2^30)
-    d = toint(2^30)
+    a = @integer math.tointeger(2^30) - 1
+    b = @integer math.tointeger(2^30) - 1
+    c = @integer math.tointeger(2^30)
+    d = @integer math.tointeger(2^30)
 	assert((a) << c == 0)
 	assert((b) >> d == 0)
     print'+'

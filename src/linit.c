@@ -52,10 +52,12 @@ static const luaL_Reg loadedlibs[] = {
   {LUA_UTF8LIBNAME, luaopen_utf8},
   {LUA_DBLIBNAME, luaopen_debug},
   {LUA_RAVILIBNAME, raviopen_llvmjit},
-#ifdef USE_LLVM
-  {LUA_LLVMLIBNAME, raviopen_llvmluaapi},
-#endif
+//#ifdef USE_LLVM
+//  {LUA_LLVMLIBNAME, raviopen_llvmluaapi},
+//#endif
+#if USE_DMR_C
   { "dmrc", raviopen_dmrcluaapi },
+#endif
 #if defined(LUA_COMPAT_BITLIB)
   {LUA_BITLIBNAME, luaopen_bit32},
 #endif

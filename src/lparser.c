@@ -5,7 +5,7 @@
 */
 
 /*
-** Portions Copyright (C) 2015-2017 Dibyendu Majumdar 
+** Portions Copyright (C) 2015-2020 Dibyendu Majumdar 
 */
 
 #define lparser_c
@@ -16,6 +16,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <lparser.h>
 
 #include "lua.h"
 
@@ -919,10 +920,17 @@ static Proto *addprototype (LexState *ls) {
 ** so that, if it invokes the GC, the GC knows which registers
 ** are in use at that time.
 */
-static void codeclosure (LexState *ls, expdesc *v) {
+static void codeclosure (LexState *ls, expdesc *v, int deferred) {
   FuncState *fs = ls->fs->prev;
+  int pc = -1;
+  if (deferred) {
+    pc = luaK_codeABC(fs, OP_RAVI_DEFER, 0, 0, 0);
+  }
   init_exp(v, VRELOCABLE, luaK_codeABx(fs, OP_CLOSURE, 0, fs->np - 1), RAVI_TFUNCTION, NULL);
   luaK_exp2nextreg(fs, v);  /* fix it at the last register */
+  if (deferred) {
+    SETARG_A(fs->f->code[pc], v->u.info);
+  }
   DEBUG_VARS(raviY_printf(ls->fs, "codeclosure -> closure created %e\n", v));
 }
 
@@ -1283,24 +1291,26 @@ static void parlist (LexState *ls) {
 }
 
 
-static void body (LexState *ls, expdesc *e, int ismethod, int line) {
+static void body (LexState *ls, expdesc *e, int ismethod, int line, int deferred) {
   /* body ->  '(' parlist ')' block END */
   FuncState new_fs;
   BlockCnt bl;
   new_fs.f = addprototype(ls);
   new_fs.f->linedefined = line;
   open_func(ls, &new_fs, &bl);
-  checknext(ls, '(');
-  if (ismethod) {
-    new_localvarliteral(ls, "self");  /* create 'self' parameter */
-    adjustlocalvars(ls, 1);
+  if (!deferred) {
+    checknext(ls, '(');
+    if (ismethod) {
+      new_localvarliteral(ls, "self");  /* create 'self' parameter */
+      adjustlocalvars(ls, 1);
+    }
+    parlist(ls);
+    checknext(ls, ')');
   }
-  parlist(ls);
-  checknext(ls, ')');
   statlist(ls);
   new_fs.f->lastlinedefined = ls->linenumber;
   check_match(ls, TK_END, TK_FUNCTION, line);
-  codeclosure(ls, e);
+  codeclosure(ls, e, deferred);
   close_func(ls);
 }
 
@@ -1592,7 +1602,7 @@ static void simpleexp (LexState *ls, expdesc *v) {
     }
     case TK_FUNCTION: {
       luaX_next(ls);
-      body(ls, v, 0, ls->linenumber);
+      body(ls, v, 0, ls->linenumber, 0);
       return;
     }
     default: {
@@ -2177,13 +2187,19 @@ static void ifstat (LexState *ls, int line) {
 }
 
 /* parse a local function statement - called from statement() */
-static void localfunc (LexState *ls) {
+static void localfunc (LexState *ls, int defer) {
   expdesc b = {.ravi_type = RAVI_TANY, .pc = -1};
   FuncState *fs = ls->fs;
-  /* RAVI change - add type */
-  new_localvar(ls, str_checkname(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
+  if (defer) {
+    static const char funcname[] = "(deferred function)";
+    new_localvar(ls, luaX_newstring(ls, funcname, sizeof funcname-1), RAVI_TFUNCTION, NULL);  /* new local variable */
+    markupval(fs, fs->nactvar);
+  } else {
+    /* RAVI change - add type */
+    new_localvar(ls, str_checkname(ls), RAVI_TFUNCTION, NULL);  /* new local variable */
+  }
   adjustlocalvars(ls, 1);  /* enter its scope */
-  body(ls, &b, 0, ls->linenumber);  /* function created in next register */
+  body(ls, &b, 0, ls->linenumber, defer);  /* function created in next register */
   /* debug information will only see the variable after this point! */
   getlocvar(fs, b.u.info)->startpc = fs->pc;
 }
@@ -2246,7 +2262,7 @@ static void funcstat (LexState *ls, int line) {
   luaX_next(ls); /* skip FUNCTION */
   ismethod = funcname(ls, &v);
   DEBUG_VARS(raviY_printf(ls->fs, "funcstat -> declaring function %e\n", &v));
-  body(ls, &b, ismethod, line);
+  body(ls, &b, ismethod, line, 0);
   luaK_storevar(ls->fs, &v, &b);
   luaK_fixline(ls->fs, line);  /* definition "happens" in the first line */
 }
@@ -2339,9 +2355,14 @@ static void statement (LexState *ls) {
     case TK_LOCAL: {  /* stat -> localstat */
       luaX_next(ls);  /* skip LOCAL */
       if (testnext(ls, TK_FUNCTION))  /* local function? */
-        localfunc(ls);
+        localfunc(ls, 0);
       else
         localstat(ls);
+      break;
+    }
+    case TK_DEFER: {  /* stat -> deferstat */
+      luaX_next(ls);  /* skip DEFER */
+      localfunc(ls, 1);
       break;
     }
     case TK_DBCOLON: {  /* stat -> label */

@@ -1,5 +1,5 @@
 /******************************************************************************
-* Copyright (C) 2015 Dibyendu Majumdar
+* Copyright (C) 2015-2020 Dibyendu Majumdar
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
@@ -93,14 +93,16 @@ static int ravi_compile_n(lua_State *L) {
   }
   ravi_compile_options_t options = {0, 0, 0, RAVI_CODEGEN_NONE};
   options.manual_request = 1;
+  options.inline_lua_arithmetic_operators = 1;
+  options.omit_array_get_range_check = 1;
   if (lua_istable(L, 2)) {
     lua_Integer ival;
     l_table_get_integer(L, 2, "omitArrayGetRangeCheck",
                         &ival, 0);
     options.omit_array_get_range_check = (int)ival ? 1 : 0;
-	l_table_get_integer(L, 2, "inlineLuaArithmeticOperators",
-		&ival, 0);
-	options.inline_lua_arithmetic_operators = (int)ival ? 1 : 0;
+    l_table_get_integer(L, 2, "inlineLuaArithmeticOperators",
+                        &ival, 0);
+    options.inline_lua_arithmetic_operators = (int)ival ? 1 : 0;
   }
   int result = 0;
   if (n > 0) { result = raviV_compile_n(L, functions, n, &options); }

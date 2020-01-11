@@ -5,7 +5,7 @@
 */
 
 /*
-** Portions Copyright (C) 2015-2017 Dibyendu Majumdar
+** Portions Copyright (C) 2015-2020 Dibyendu Majumdar
 */
 
 
@@ -1025,10 +1025,14 @@ void luaV_finishOp (lua_State *L) {
 ** Execute a jump instruction. The 'updatemask' allows signals to stop
 ** tight loops. (Without it, the local copy of 'mask' could never change.)
 */
-#define dojump(ci,i,e) \
-  { int a = GETARG_A(i); \
-    if (a != 0) luaF_close(L, ci->u.l.base + a - 1); \
-    pc += GETARG_sBx(i) + e; updatemask(L); }
+#define dojump(ci, i, e)                                         \
+  {                                                              \
+    int a = GETARG_A(i);                                         \
+    if (a != 0)                                                  \
+      Protect_base(luaF_close(L, ci->u.l.base + a - 1, LUA_OK)); \
+    pc += GETARG_sBx(i) + e;                                     \
+    updatemask(L);                                               \
+  }
 
 /* for test instructions, execute the jump instruction that follows it */
 #define donextjump(ci)	{ i = *pc; dojump(ci, i, 1); }
@@ -1269,7 +1273,8 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_GETFIELD),
     &&vmlabel(OP_RAVI_SELF_SK),
     &&vmlabel(OP_RAVI_SETFIELD),
-    &&vmlabel(OP_RAVI_GETTABUP_SK)
+    &&vmlabel(OP_RAVI_GETTABUP_SK),
+    &&vmlabel(OP_RAVI_DEFER),
   };
 #endif
   
@@ -1385,14 +1390,6 @@ int luaV_execute (lua_State *L) {
         if (b != 0 || c != 0)
           luaH_resize(L, t, luaO_fb2int(b), luaO_fb2int(c));
         checkGC(L, ra + 1);
-        vmbreak;
-      }
-      vmcase(OP_RAVI_SELF_SK) {
-        StkId rb = RB(i); /* variable - may not be a table */
-        /* we know that the key a short string constant */
-        TValue *rc = RKC(i);
-        setobjs2s(L, ra + 1, rb);
-        GETTABLE_INLINE_SSKEY_PROTECTED(L, rb, rc, ra);
         vmbreak;
       }
       vmcase(OP_SELF) {
@@ -1720,7 +1717,8 @@ int luaV_execute (lua_State *L) {
           StkId lim = nci->u.l.base + getproto(nfunc)->numparams;
           int aux;
           /* close all upvalues from previous call */
-          if (cl->p->sizep > 0) luaF_close(L, oci->u.l.base);
+          if (cl->p->sizep > 0)
+            Protect_base(luaF_close(L, oci->u.l.base, LUA_OK));
           /* move new frame into old one */
           for (aux = 0; nfunc + aux < lim; aux++)
             setobjs2s(L, ofunc + aux, nfunc + aux);
@@ -1737,7 +1735,8 @@ int luaV_execute (lua_State *L) {
       }
       vmcase(OP_RETURN) {
         int b = GETARG_B(i);
-        if (cl->p->sizep > 0) luaF_close(L, base);
+        if (cl->p->sizep > 0)
+          Protect_base(luaF_close(L, base, LUA_OK));
         savepc(L);
         int nres = (b != 0 ? b - 1 : cast_int(L->top - ra));
         b = luaD_poscall(L, ci, ra, nres);
@@ -1847,6 +1846,14 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_SETLIST) {
         int n = GETARG_B(i);
         int c = GETARG_C(i);
+#if 1
+        if (c == 0) {
+          lua_assert(GET_OPCODE(*pc) == OP_EXTRAARG);
+          c = GETARG_Ax(*pc++);
+        }
+        savepc(L); /* in case of allocation errors */
+        raviV_op_setlist(L, ci, ra, n, c);
+#else
         unsigned int last;
         Table *h;
         if (n == 0) n = cast_int(L->top - ra) - 1;
@@ -1906,6 +1913,7 @@ int luaV_execute (lua_State *L) {
           }
         }
         L->top = ci->top; /* correct top (in case of previous open call) */
+#endif
         vmbreak;
       }
       vmcase(OP_CLOSURE) {
@@ -1921,6 +1929,9 @@ int luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_VARARG) {
+#if 1
+        Protect_base(raviV_op_vararg(L, ci, cl, GETARG_A(i), GETARG_B(i)));
+#else
         int b = GETARG_B(i) - 1;  /* required results */
         int j;
         int n = cast_int(base - ci->func) - cl->p->numparams - 1;
@@ -1936,6 +1947,7 @@ int luaV_execute (lua_State *L) {
           setobjs2s(L, ra + j, base - n + j);
         for (; j < b; j++)  /* complete required results with nil */
           setnilvalue(ra + j);
+#endif
         vmbreak;
       }
       vmcase(OP_EXTRAARG) {
@@ -2106,6 +2118,25 @@ int luaV_execute (lua_State *L) {
          short string but the variable may or may not be
          a table
       */
+#if 1
+      vmcase(OP_RAVI_SELF_SK) vmcase(OP_RAVI_GETTABUP_SK) vmcase(OP_RAVI_GETFIELD) {
+        StkId rb = (op == OP_RAVI_GETTABUP_SK) 
+            ? cl->upvals[GETARG_B(i)]->v
+            : RB(i); /* variable - may not be a table */
+        TValue* rc = RKC(i);
+        if (op == OP_RAVI_SELF_SK) setobjs2s(L, ra + 1, rb);
+        Protect(raviV_gettable_sskey(L, rb, rc, ra));
+        vmbreak;
+      }
+#else
+      vmcase(OP_RAVI_SELF_SK) {
+        StkId rb = RB(i); /* variable - may not be a table */
+        /* we know that the key a short string constant */
+        TValue *rc = RKC(i);
+        setobjs2s(L, ra + 1, rb);
+        GETTABLE_INLINE_SSKEY_PROTECTED(L, rb, rc, ra);
+        vmbreak;
+      }
       vmcase(OP_RAVI_GETTABUP_SK) {
         StkId rb = cl->upvals[GETARG_B(i)]->v; /* variable - may not be a table */
         lua_assert(ISK(GETARG_C(i)));
@@ -2122,6 +2153,7 @@ int luaV_execute (lua_State *L) {
         GETTABLE_INLINE_SSKEY_PROTECTED(L, rb, rc, ra);
         vmbreak;
       }
+#endif
       vmcase(OP_RAVI_TABLE_SELF_SK)
       vmcase(OP_RAVI_TABLE_GETFIELD) {
         /* This opcode is used when the key is known to be
@@ -2460,6 +2492,12 @@ int luaV_execute (lua_State *L) {
           if (!raviV_check_usertype(L, key, ra))
             luaG_runerror(L, "type mismatch: expected %s", getstr(key));
         }
+        vmbreak;
+      }
+      vmcase(OP_RAVI_DEFER) {
+        UpVal *up = luaF_findupval(L, ra); /* create new upvalue */
+        up->flags = 1;                     /* mark it as deferred */
+        setnilvalue(ra);                   /* initialize it with nil */
         vmbreak;
       }
     }
@@ -2971,7 +3009,6 @@ void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, StkId val) {
   GETTABLE_INLINE_I(L, t, key, val);
 }
 
-
 /*
 ** Main function for table assignment (invoking metamethods if needed).
 ** Compute 't[key] = val'
@@ -2993,6 +3030,15 @@ void raviV_op_totype(lua_State *L, TValue *ra, TValue *rb) {
   TString *key = tsvalue(rb);
   if (!raviV_check_usertype(L, key, ra))
     luaG_runerror(L, "type mismatch: expected %s", getstr(key));
+}
+
+/*
+** OP_RAVI_DEFER 
+ */
+void raviV_op_defer(lua_State *L, TValue *ra) {
+  UpVal *up = luaF_findupval(L, ra); /* create new upvalue */
+  up->flags = 1;                     /* mark it as deferred */
+  setnilvalue(ra);                   /* initialize it with nil */
 }
 
 /* }================================================================== */

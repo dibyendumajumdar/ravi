@@ -1,5 +1,5 @@
 /******************************************************************************
-* Copyright (C) 2015 Dibyendu Majumdar
+* Copyright (C) 2015-2020 Dibyendu Majumdar
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
@@ -131,9 +131,10 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
 
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, jA - 1);
-
+    if (!traced)
+      emit_update_savedpc(def, pc);
     // Call luaF_close
-    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
+    CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
@@ -211,7 +212,7 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
   //        donextjump(ci);
   //    } break;
 
-  emit_debug_trace(def, OP_TEST, pc);
+  bool traced = emit_debug_trace(def, OP_TEST, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -237,9 +238,10 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
 
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, jA - 1);
-
+    if (!traced)
+      emit_update_savedpc(def, pc);
     // Call luaF_close
-    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
+    CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
@@ -279,7 +281,7 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
   //    }
   //  } break;
 
-  emit_debug_trace(def, OP_TESTSET, pc);
+  bool traced = emit_debug_trace(def, OP_TESTSET, pc);
   // Load pointer to base
   emit_load_base(def);
 
@@ -309,9 +311,10 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
 
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, jA - 1);
-
+    if (!traced)
+      emit_update_savedpc(def, pc);
     // Call luaF_close
-    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
+    CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);

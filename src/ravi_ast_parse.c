@@ -6,280 +6,12 @@ The parser will perform following actions:
 
 a) Generate syntax tree
 b) Perform type checking (Ravi enhancement)
+
+Copyright (C) 2018-2020 Dibyendu Majumdar
+
 */
 
-#define LUA_CORE
-#include "lprefix.h"
-#include "lua.h"
-
-#include "lcode.h"
-#include "ldo.h"
-#include "lstring.h"
-#include "ltable.h"
-#include "lauxlib.h"
-
 #include "ravi_ast.h"
-#include "ravi_membuf.h"
-
-#include "allocate.h"
-#include "ptrlist.h"
-
-#include <assert.h>
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
-
-#define MAXVARS 125
-
-//////////////////////////
-
-struct lua_symbol_list;
-
-/*
- * Userdata object to hold the abstract syntax tree;
- * All memory is held by this object. Memory is freed when
- * the object is GC collected; or when
- * ast_container:release() method is called
- * by user.
- */
-struct ast_container {
-  struct allocator ast_node_allocator;
-  struct allocator ptrlist_allocator;
-  struct allocator block_scope_allocator;
-  struct allocator symbol_allocator;
-  struct ast_node *main_function;
-  bool killed; /* flag to check if this is already destroyed */
-};
-
-struct ast_node;
-DECLARE_PTR_LIST(ast_node_list, struct ast_node);
-
-struct var_type;
-DECLARE_PTR_LIST(var_type_list, struct var_type);
-
-/* Lua type info. We need to support user defined types too which are known by name */
-struct var_type {
-  ravitype_t type_code;
-  const TString *type_name; /* type name for user defined types; used to lookup metatable in registry, only set when
-                               type_code is RAVI_TUSERDATA */
-};
-
-struct lua_symbol;
-DECLARE_PTR_LIST(lua_symbol_list, struct lua_symbol);
-
-struct block_scope;
-
-/* Types of symbols */
-enum symbol_type {
-  SYM_LOCAL,
-  SYM_UPVALUE,
-  SYM_GLOBAL, /* Global symbols are never added to a scope so they are always looked up */
-  SYM_LABEL
-};
-
-/* A symbol is a name recognised in Ravi/Lua code*/
-struct lua_symbol {
-  enum symbol_type symbol_type;
-  struct var_type value_type;
-  union {
-    struct {
-      const TString *var_name;   /* name of the variable */
-      struct block_scope *block; /* NULL if global symbol, as globals are never added to a scope */
-    } var;
-    struct {
-      const TString *label_name;
-      struct block_scope *block;
-    } label;
-    struct {
-      struct lua_symbol *var;    /* variable reference */
-      struct ast_node *function; /* Where the upvalue lives */
-    } upvalue;
-  };
-};
-
-struct block_scope {
-  struct ast_node *function;           /* function owning this block - of type FUNCTION_EXPR */
-  struct block_scope *parent;          /* parent block, may belong to parent function */
-  struct lua_symbol_list *symbol_list; /* symbols defined in this block */
-};
-
-enum ast_node_type {
-  AST_NONE, /* Used when the node doesn't represent an AST such as test_then_block. */
-  AST_RETURN_STMT,
-  AST_GOTO_STMT,
-  AST_LABEL_STMT,
-  AST_DO_STMT,
-  AST_LOCAL_STMT,
-  AST_FUNCTION_STMT,
-  AST_IF_STMT,
-  AST_WHILE_STMT,
-  AST_FORIN_STMT,
-  AST_FORNUM_STMT,
-  AST_REPEAT_STMT,
-  AST_EXPR_STMT, /* Also used for assignment statements */
-  AST_LITERAL_EXPR,
-  AST_SYMBOL_EXPR,
-  AST_Y_INDEX_EXPR,        /* [] operator */
-  AST_FIELD_SELECTOR_EXPR, /* table field access - '.' or ':' operator */
-  AST_INDEXED_ASSIGN_EXPR, /* table value assign in table constructor */
-  AST_SUFFIXED_EXPR,
-  AST_UNARY_EXPR,
-  AST_BINARY_EXPR,
-  AST_FUNCTION_EXPR, /* function literal */
-  AST_TABLE_EXPR,    /* table constructor */
-  AST_FUNCTION_CALL_EXPR
-};
-
-/* The parse tree is made up of ast_node objects. Some of the ast_nodes reference the appropriate block
-scopes but not all scopes may be referenced. The tree captures Lua syntax tree - i.e. statements such as
-while, repeat, and for are captured in the way user uses them and not the way Lua generates code. Potentially
-we can have a transformation step to convert to a tree that is more like the code generation */
-struct ast_node {
-  enum ast_node_type type;
-  union {
-    struct {
-      struct ast_node_list *exprlist;
-    } return_stmt;
-    struct {
-      struct lua_symbol *symbol;
-    } label_stmt;
-    struct {
-      const TString *name;         /* target label, used to resolve the goto destination */
-      struct ast_node *label_stmt; /* Initially this will be NULL; set by a separate pass */
-    } goto_stmt;
-    struct {
-      struct lua_symbol_list *vars;
-      struct ast_node_list *exprlist;
-    } local_stmt;
-    struct {
-      struct ast_node_list *var_expr_list; /* Optional var expressions, comma separated */
-      struct ast_node_list *exr_list;      /* Comma separated expressions */
-    } expression_stmt;                     /* Also covers assignments*/
-    struct {
-      struct ast_node *name;           /* base symbol to be looked up */
-      struct ast_node_list *selectors; /* Optional */
-      struct ast_node *methodname;     /* Optional */
-      struct ast_node *function_expr;  /* Function's AST */
-    } function_stmt;
-    struct {
-      struct block_scope *scope;               /* The do statement only creates a new scope */
-      struct ast_node_list *do_statement_list; /* statements in this block */
-    } do_stmt;
-    struct {
-      struct ast_node *condition;
-      struct block_scope *test_then_scope;
-      struct ast_node_list *test_then_statement_list; /* statements in this block */
-    } test_then_block;                                /* Used internally in if_stmt, not an independent AST node */
-    struct {
-      struct ast_node_list *if_condition_list; /* Actually a list of test_then_blocks */
-      struct block_scope *else_block;
-      struct ast_node_list *else_statement_list; /* statements in this block */
-    } if_stmt;
-    struct {
-      struct ast_node *condition;
-      struct block_scope *loop_scope;
-      struct ast_node_list *loop_statement_list; /* statements in this block */
-    } while_or_repeat_stmt;
-    struct {
-      struct lua_symbol_list *symbols;
-      struct ast_node_list *expressions;
-      struct block_scope *for_body;
-      struct ast_node_list *for_statement_list; /* statements in this block */
-    } for_stmt;                                 /* Used for both generic and numeric for loops */
-    struct {
-      struct var_type type;
-    } common_expr; /* To access the type field common to all expr objects */
-    struct {
-      struct var_type type;
-      union {
-        lua_Integer i;
-        lua_Number n;
-        const TString *s;
-      } u;
-    } literal_expr;
-    struct {
-      struct var_type type;
-      struct lua_symbol *var;
-    } symbol_expr;
-    struct {
-      struct var_type type;
-      struct ast_node *expr; /* '[' expr ']' */
-    } index_expr;
-    struct {
-      struct var_type type;
-      UnOpr unary_op;
-      struct ast_node *expr;
-    } unary_expr;
-    struct {
-      struct var_type type;
-      BinOpr binary_op;
-      struct ast_node *exprleft;
-      struct ast_node *exprright;
-    } binary_expr;
-    struct {
-      struct var_type type;
-      unsigned int is_vararg : 1;
-      unsigned int is_method : 1;
-      struct ast_node *parent_function;              /* parent function or NULL if main chunk */
-      struct block_scope *main_block;                /* the function's main block */
-      struct ast_node_list *function_statement_list; /* statements in this block */
-      struct lua_symbol_list *args;          /* arguments, also must be part of the function block's symbol list */
-      struct ast_node_list *child_functions; /* child functions declared in this function */
-      struct lua_symbol_list *upvalues;      /* List of upvalues */
-      struct lua_symbol_list *locals;        /* List of locals */
-    } function_expr;                         /* a literal expression whose result is a value of type function */
-    struct {
-      struct var_type type;
-      struct ast_node *
-          index_expr; /* If NULL means this is a list field with next available index, else specfies index expression */
-      struct ast_node *value_expr;
-    } indexed_assign_expr; /* Assign values in table constructor */
-    struct {
-      struct var_type type;
-      struct ast_node_list *expr_list;
-    } table_expr; /* table constructor expression */
-    struct {
-      struct var_type type;
-      struct ast_node *primary_expr;
-      struct ast_node_list *suffix_list;
-    } suffixed_expr;
-    struct {
-      struct var_type type;
-      TString *methodname;            /* Optional methodname */
-      struct ast_node_list *arg_list; /* Call arguments */
-    } function_call_expr;
-  };
-};
-
-#define set_typecode(vt, t) \
-  (vt).type_code = t
-#define set_type(vt, t) \
-  (vt).type_code = t,   \
-  (vt).type_name = NULL
-#define set_typename(vt, t, name) \
-  (vt).type_code = t,             \
-  (vt).type_name = (name)
-#define is_type_same(a, b) ((a).type_code == (b).type_code && (a).type_name == (b).type_name)
-#define copy_type(a, b)          \
-  (a).type_code = (b).type_code, \
-  (a).type_name = (b).type_name
-
-struct parser_state {
-  LexState *ls;
-  struct ast_container *container;
-  struct ast_node *current_function;
-  struct block_scope *current_scope;
-};
-
-static void add_symbol(struct ast_container *container, struct lua_symbol_list **list, struct lua_symbol *sym) {
-  ptrlist_add((struct ptr_list **)list, sym, &container->ptrlist_allocator);
-}
-
-static void add_ast_node(struct ast_container *container, struct ast_node_list **list, struct ast_node *node) {
-  ptrlist_add((struct ptr_list **)list, node, &container->ptrlist_allocator);
-}
 
 /* forward declarations */
 static struct ast_node *parse_expression(struct parser_state *);
@@ -292,7 +24,14 @@ static void end_scope(struct parser_state *parser);
 static struct ast_node *new_literal_expression(struct parser_state *parser, ravitype_t type);
 static struct ast_node *generate_label(struct parser_state *parser, TString *label);
 static struct ast_container *new_ast_container(lua_State *L);
-static void do_typechecks(struct ast_container *container);
+
+static void add_symbol(struct ast_container *container, struct lua_symbol_list **list, struct lua_symbol *sym) {
+  ptrlist_add((struct ptr_list **)list, sym, &container->ptrlist_allocator);
+}
+
+static void add_ast_node(struct ast_container *container, struct ast_node_list **list, struct ast_node *node) {
+  ptrlist_add((struct ptr_list **)list, node, &container->ptrlist_allocator);
+}
 
 static l_noret error_expected(LexState *ls, int token) {
   luaX_syntaxerror(ls, luaO_pushfstring(ls->L, "%s expected", luaX_token2str(ls, token)));
@@ -436,27 +175,6 @@ static struct lua_symbol *search_for_variable_in_block(struct block_scope *scope
   return NULL;
 }
 
-// static struct lua_symbol *search_for_label_in_block(struct block_scope *scope, const TString *name) {
-//  struct lua_symbol *symbol;
-//  // Lookup in reverse order so that we discover the
-//  // most recently added local symbol - as Lua allows same
-//  // symbol to be declared local more than once in a scope
-//  // Should also work with nesting as the function when parsed
-//  // will only know about vars declared in parent function until
-//  // now.
-//  FOR_EACH_PTR_REVERSE(scope->symbol_list, symbol) {
-//    switch (symbol->symbol_type) {
-//      case SYM_LABEL: {
-//        if (name == symbol->var.var_name) { return symbol; }
-//        break;
-//      }
-//      default: break;
-//    }
-//  }
-//  END_FOR_EACH_PTR_REVERSE(symbol);
-//  return NULL;
-//}
-
 /* Each function has a list of upvalues, searches this list for given name
  */
 static struct lua_symbol *search_upvalue_in_function(struct ast_node *function, const TString *name) {
@@ -535,18 +253,6 @@ static struct lua_symbol *search_for_variable(struct parser_state *parser, const
   }
   return NULL;
 }
-
-/* Searches for a label in current function
- */
-// static struct lua_symbol *search_for_label(struct parser_state *parser, const TString *name) {
-//  struct block_scope *current_scope = parser->current_scope;
-//  while (current_scope && current_scope->function == parser->current_function) {
-//    struct lua_symbol *symbol = search_for_label_in_block(current_scope, name);
-//    if (symbol) return symbol;
-//    current_scope = current_scope->parent;
-//  }
-//  return NULL;
-//}
 
 /* Adds an upvalue to current_function and its parents until var_function; var_function being where the symbol
  * exists as a local or an upvalue. If the symbol is found in a function's upvalue list then there is no need to
@@ -886,7 +592,7 @@ static struct ast_node *parse_function_call(struct parser_state *parser, TString
   LexState *ls = parser->ls;
   struct ast_node *call_expr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   call_expr->type = AST_FUNCTION_CALL_EXPR;
-  call_expr->function_call_expr.methodname = methodname;
+  call_expr->function_call_expr.method_name = methodname;
   call_expr->function_call_expr.arg_list = NULL;
   set_type(call_expr->function_call_expr.type, RAVI_TANY);
   switch (ls->t.token) {
@@ -1189,7 +895,7 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
     expr->type = AST_UNARY_EXPR;
     expr->unary_expr.expr = subexpr;
     expr->unary_expr.unary_op = uop;
-	expr->unary_expr.type.type_name = usertype;
+    expr->unary_expr.type.type_name = usertype;
   }
   else {
     expr = parse_simple_expression(parser);
@@ -1204,10 +910,10 @@ static struct ast_node *parse_sub_expression(struct parser_state *parser, int li
 
     struct ast_node *binexpr = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
     binexpr->type = AST_BINARY_EXPR;
-    binexpr->binary_expr.exprleft = expr;
-    binexpr->binary_expr.exprright = exprright;
+    binexpr->binary_expr.expr_left = expr;
+    binexpr->binary_expr.expr_right = exprright;
     binexpr->binary_expr.binary_op = op;
-    expr = binexpr;                                                // Becomes the left expr for next iteration
+    expr = binexpr;  // Becomes the left expr for next iteration
     op = nextop;
   }
   *untreated_op = op; /* return first untreated operator */
@@ -1335,11 +1041,11 @@ static void parse_fornum_statement(struct parser_state *parser, struct ast_node 
   add_symbol(parser->container, &stmt->for_stmt.symbols, new_local_symbol(parser, varname, RAVI_TANY, NULL));
   checknext(ls, '=');
   /* get the type of each expression */
-  add_ast_node(parser->container, &stmt->for_stmt.expressions, parse_expression(parser)); /* initial value */
+  add_ast_node(parser->container, &stmt->for_stmt.expr_list, parse_expression(parser)); /* initial value */
   checknext(ls, ',');
-  add_ast_node(parser->container, &stmt->for_stmt.expressions, parse_expression(parser)); /* limit */
+  add_ast_node(parser->container, &stmt->for_stmt.expr_list, parse_expression(parser)); /* limit */
   if (testnext(ls, ',')) {
-    add_ast_node(parser->container, &stmt->for_stmt.expressions, parse_expression(parser)); /* optional step */
+    add_ast_node(parser->container, &stmt->for_stmt.expr_list, parse_expression(parser)); /* optional step */
   }
   parse_forbody(parser, stmt, line, 1, 1);
 }
@@ -1357,7 +1063,7 @@ static void parse_for_list(struct parser_state *parser, struct ast_node *stmt, T
     nvars++;
   }
   checknext(ls, TK_IN);
-  parse_expression_list(parser, &stmt->for_stmt.expressions);
+  parse_expression_list(parser, &stmt->for_stmt.expr_list);
   int line = ls->linenumber;
   parse_forbody(parser, stmt, line, nvars - 3, 0);
 }
@@ -1370,7 +1076,7 @@ static struct ast_node *parse_for_statement(struct parser_state *parser, int lin
   struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   stmt->type = AST_NONE;
   stmt->for_stmt.symbols = NULL;
-  stmt->for_stmt.expressions = NULL;
+  stmt->for_stmt.expr_list = NULL;
   stmt->for_stmt.for_body = NULL;
   stmt->for_stmt.for_statement_list = NULL;
   new_scope(parser);                 // For the loop variables
@@ -1455,10 +1161,10 @@ static struct ast_node *parse_local_function_statement(struct parser_state *pars
   end_function(parser);
   struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   stmt->type = AST_LOCAL_STMT;
-  stmt->local_stmt.vars = NULL;
-  stmt->local_stmt.exprlist = NULL;
-  add_symbol(parser->container, &stmt->local_stmt.vars, symbol);
-  add_ast_node(parser->container, &stmt->local_stmt.exprlist, function_ast);
+  stmt->local_stmt.var_list = NULL;
+  stmt->local_stmt.expr_list = NULL;
+  add_symbol(parser->container, &stmt->local_stmt.var_list, symbol);
+  add_ast_node(parser->container, &stmt->local_stmt.expr_list, function_ast);
   return stmt;
 }
 
@@ -1467,19 +1173,19 @@ static struct ast_node *parse_local_statement(struct parser_state *parser) {
   /* stat -> LOCAL NAME {',' NAME} ['=' explist] */
   struct ast_node *node = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   node->type = AST_LOCAL_STMT;
-  node->local_stmt.vars = NULL;
-  node->local_stmt.exprlist = NULL;
+  node->local_stmt.var_list = NULL;
+  node->local_stmt.expr_list = NULL;
   int nvars = 0;
   do {
     /* local name : type = value */
     struct lua_symbol *symbol = declare_local_variable(parser);
-    add_symbol(parser->container, &node->local_stmt.vars, symbol);
+    add_symbol(parser->container, &node->local_stmt.var_list, symbol);
     nvars++;
     if (nvars >= MAXVARS)
       luaX_syntaxerror(ls, "too many local variables");
   } while (testnext(ls, ','));
   if (testnext(ls, '=')) /* nexps = */
-    parse_expression_list(parser, &node->local_stmt.exprlist);
+    parse_expression_list(parser, &node->local_stmt.expr_list);
   else {
     /* nexps = 0; */
     ;
@@ -1495,14 +1201,14 @@ static struct ast_node *parse_function_name(struct parser_state *parser) {
   struct ast_node *function_stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   function_stmt->type = AST_FUNCTION_STMT;
   function_stmt->function_stmt.function_expr = NULL;
-  function_stmt->function_stmt.methodname = NULL;
+  function_stmt->function_stmt.method_name = NULL;
   function_stmt->function_stmt.selectors = NULL;
   function_stmt->function_stmt.name = new_symbol_reference(parser);
   while (ls->t.token == '.') {
     add_ast_node(parser->container, &function_stmt->function_stmt.selectors, parse_field_selector(parser));
   }
   if (ls->t.token == ':') {
-    function_stmt->function_stmt.methodname = parse_field_selector(parser);
+    function_stmt->function_stmt.method_name = parse_field_selector(parser);
   }
   return function_stmt;
 }
@@ -1512,7 +1218,7 @@ static struct ast_node *parse_function_statement(struct parser_state *parser, in
   /* funcstat -> FUNCTION funcname body */
   luaX_next(ls); /* skip FUNCTION */
   struct ast_node *function_stmt = parse_function_name(parser);
-  int ismethod = function_stmt->function_stmt.methodname != NULL;
+  int ismethod = function_stmt->function_stmt.method_name != NULL;
   struct ast_node *function_ast = new_function(parser);
   parse_function_body(parser, function_ast, ismethod, line);
   end_function(parser);
@@ -1525,7 +1231,7 @@ static struct ast_node *parse_expression_statement(struct parser_state *parser) 
   struct ast_node *stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   stmt->type = AST_EXPR_STMT;
   stmt->expression_stmt.var_expr_list = NULL;
-  stmt->expression_stmt.exr_list = NULL;
+  stmt->expression_stmt.expr_list = NULL;
   LexState *ls = parser->ls;
   /* stat -> func | assignment */
   /* Until we see '=' we do not know if this is an assignment or expr list*/
@@ -1540,7 +1246,7 @@ static struct ast_node *parse_expression_statement(struct parser_state *parser) 
     current_list = NULL;
     parse_expression_list(parser, &current_list);
   }
-  stmt->expression_stmt.exr_list = current_list;
+  stmt->expression_stmt.expr_list = current_list;
   // TODO Check that if not assignment then it is a function call
   return stmt;
 }
@@ -1550,12 +1256,12 @@ static struct ast_node *parse_return_statement(struct parser_state *parser) {
   /* stat -> RETURN [explist] [';'] */
   struct ast_node *return_stmt = dmrC_allocator_allocate(&parser->container->ast_node_allocator, 0);
   return_stmt->type = AST_RETURN_STMT;
-  return_stmt->return_stmt.exprlist = NULL;
+  return_stmt->return_stmt.expr_list = NULL;
   if (block_follow(ls, 1) || ls->t.token == ';')
     /* nret = 0*/; /* return no values */
   else {
     /*nret = */
-    parse_expression_list(parser, &return_stmt->return_stmt.exprlist); /* optional return values */
+    parse_expression_list(parser, &return_stmt->return_stmt.expr_list); /* optional return values */
   }
   testnext(ls, ';'); /* skip optional semicolon */
   return return_stmt;
@@ -1726,7 +1432,7 @@ static void parse_lua_chunk(struct parser_state *parser) {
   assert(parser->current_function == NULL);
   assert(parser->current_scope == NULL);
   check(parser->ls, TK_EOS);
-  do_typechecks(parser->container);
+  raviA_ast_typecheck(parser->container);
 }
 
 static void parser_state_init(struct parser_state *parser, LexState *ls, struct ast_container *container) {
@@ -1734,518 +1440,6 @@ static void parser_state_init(struct parser_state *parser, LexState *ls, struct 
   parser->container = container;
   parser->current_function = NULL;
   parser->current_scope = NULL;
-}
-
-static const char *type_name(ravitype_t tt) {
-  switch (tt) {
-    case RAVI_TANY:
-      return "any";
-    case RAVI_TNIL:
-      return "nil";
-    case RAVI_TBOOLEAN:
-      return "boolean";
-    case RAVI_TNUMFLT:
-      return "number";
-    case RAVI_TNUMINT:
-      return "integer";
-    case RAVI_TTABLE:
-      return "table";
-    case RAVI_TSTRING:
-      return "string";
-    case RAVI_TARRAYINT:
-      return "integer[]";
-    case RAVI_TARRAYFLT:
-      return "number[]";
-    case RAVI_TFUNCTION:
-      return "closure";
-    case RAVI_TUSERDATA:
-      return "";
-    default:
-      return "";
-  }
-}
-
-static void printf_buf(membuff_t *buf, const char *format, ...) {
-  static const char *PADDING = "                                                                                ";
-  char tbuf[128] = {0};
-  va_list ap;
-  const char *cp;
-  va_start(ap, format);
-  for (cp = format; *cp; cp++) {
-    if (cp[0] == '%' && cp[1] == 'p') { /* padding */
-      int level = va_arg(ap, int);
-      snprintf(tbuf, sizeof tbuf, "%.*s", level, PADDING);
-      membuff_add_string(buf, tbuf);
-      cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 't') { /* TString */
-      const TString *ts;
-      ts = va_arg(ap, const TString *);
-      const char *s = getstr(ts);
-      membuff_add_string(buf, s);
-      cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 'T') { /* struct var_type */
-      const struct var_type *type;
-      type = va_arg(ap, const struct var_type *);
-      if (type->type_code == RAVI_TUSERDATA) {
-        const char *s = getstr(type->type_name);
-        membuff_add_string(buf, s);
-      }
-      else {
-        membuff_add_string(buf, type_name(type->type_code));
-      }
-      cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 's') { /* const char * */
-      const char *s;
-      s = va_arg(ap, const char *);
-      membuff_add_string(buf, s);
-      cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 'c') { /* comment */
-      const char *s;
-      s = va_arg(ap, const char *);
-      membuff_add_fstring(buf, "--%s", s);
-      cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 'i') { /* integer */
-      lua_Integer i;
-      i = va_arg(ap, lua_Integer);
-      membuff_add_longlong(buf, i);
-      cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 'f') { /* float */
-      double d;
-      d = va_arg(ap, double);
-      membuff_add_fstring(buf, "%.16f", d);
-      cp++;
-    }
-    else if (cp[0] == '%' && cp[1] == 'b') { /* boolean */
-      lua_Integer i;
-      i = va_arg(ap, lua_Integer);
-      membuff_add_bool(buf, i != 0);
-      cp++;
-    }
-    else {
-      membuff_add_char(buf, *cp);
-    }
-  }
-  va_end(ap);
-}
-
-static void print_ast_node(membuff_t *buf, struct ast_node *node, int level);
-
-static void print_ast_node_list(membuff_t *buf, struct ast_node_list *list, int level, const char *delimiter) {
-  struct ast_node *node;
-  bool is_first = true;
-  FOR_EACH_PTR(list, node) {
-    if (is_first)
-      is_first = false;
-    else if (delimiter)
-      printf_buf(buf, "%p%s\n", level, delimiter);
-    print_ast_node(buf, node, level + 1);
-  }
-  END_FOR_EACH_PTR(node);
-}
-
-static void print_statement_list(membuff_t *buf, struct ast_node_list *statement_list, int level) {
-  print_ast_node_list(buf, statement_list, level + 1, NULL);
-}
-
-static inline const char *get_as_str(const TString *ts) { return ts ? getstr(ts) : ""; }
-
-static void print_symbol(membuff_t *buf, struct lua_symbol *sym, int level) {
-  switch (sym->symbol_type) {
-    case SYM_GLOBAL: {
-      printf_buf(buf, "%p%t %c %s %s\n", level, sym->var.var_name, "global symbol",
-                 raviY_typename(sym->value_type.type_code), get_as_str(sym->value_type.type_name));
-      break;
-    }
-    case SYM_LOCAL: {
-      printf_buf(buf, "%p%t %c %s %s\n", level, sym->var.var_name, "local symbol",
-                 raviY_typename(sym->value_type.type_code), get_as_str(sym->value_type.type_name));
-      break;
-    }
-    case SYM_UPVALUE: {
-      printf_buf(buf, "%p%t %c %s %s\n", level, sym->upvalue.var->var.var_name, "upvalue",
-                 raviY_typename(sym->upvalue.var->value_type.type_code),
-                 get_as_str(sym->upvalue.var->value_type.type_name));
-      break;
-    }
-    default:
-      assert(0);
-  }
-}
-
-static void print_symbol_name(membuff_t *buf, struct lua_symbol *sym) {
-  switch (sym->symbol_type) {
-    case SYM_LOCAL:
-    case SYM_GLOBAL: {
-      printf_buf(buf, "%t", sym->var.var_name);
-      break;
-    }
-    case SYM_UPVALUE: {
-      printf_buf(buf, "%t", sym->upvalue.var->var.var_name);
-      break;
-    }
-    default:
-      assert(0);
-  }
-}
-
-static void print_symbol_list(membuff_t *buf, struct lua_symbol_list *list, int level, const char *delimiter) {
-  struct lua_symbol *node;
-  bool is_first = true;
-  FOR_EACH_PTR(list, node) {
-    if (is_first)
-      is_first = false;
-    else if (delimiter)
-      printf_buf(buf, "%p%s\n", level, delimiter);
-    print_symbol(buf, node, level + 1);
-  }
-  END_FOR_EACH_PTR(node);
-}
-
-static void print_symbol_names(membuff_t *buf, struct lua_symbol_list *list) {
-  struct lua_symbol *node;
-  bool is_first = true;
-  FOR_EACH_PTR(list, node) {
-    if (is_first)
-      is_first = false;
-    else
-      printf_buf(buf, ", ");
-    print_symbol_name(buf, node);
-  }
-  END_FOR_EACH_PTR(node);
-}
-
-static const char *get_unary_opr_str(UnOpr op) {
-  switch (op) {
-    case OPR_NOT:
-      return "not";
-    case OPR_MINUS:
-      return "-";
-    case OPR_BNOT:
-      return "~";
-    case OPR_LEN:
-      return "#";
-    case OPR_TO_INTEGER:
-      return "@integer";
-    case OPR_TO_NUMBER:
-      return "@number";
-    case OPR_TO_INTARRAY:
-      return "@integer[]";
-    case OPR_TO_NUMARRAY:
-      return "@number[]";
-    case OPR_TO_TABLE:
-      return "@table";
-    case OPR_TO_CLOSURE:
-      return "@closure";
-    case OPR_TO_STRING:
-      return "@string";
-    case OPR_TO_TYPE:
-      return "@<usertype>";
-    default:
-      return "";
-  }
-}
-
-static const char *get_binary_opr_str(BinOpr op) {
-  switch (op) {
-    case OPR_ADD:
-      return "+";
-    case OPR_SUB:
-      return "-";
-    case OPR_MUL:
-      return "*";
-    case OPR_MOD:
-      return "%";
-    case OPR_POW:
-      return "^";
-    case OPR_DIV:
-      return "/";
-    case OPR_IDIV:
-      return "//";
-    case OPR_BAND:
-      return "&";
-    case OPR_BOR:
-      return "|";
-    case OPR_BXOR:
-      return "~";
-    case OPR_SHL:
-      return "<<";
-    case OPR_SHR:
-      return ">>";
-    case OPR_CONCAT:
-      return "..";
-    case OPR_NE:
-      return "~=";
-    case OPR_EQ:
-      return "==";
-    case OPR_LT:
-      return "<";
-    case OPR_LE:
-      return "<=";
-    case OPR_GT:
-      return ">";
-    case OPR_GE:
-      return ">=";
-    case OPR_AND:
-      return "and";
-    case OPR_OR:
-      return "or";
-    default:
-      return "";
-  }
-}
-
-static void print_ast_node(membuff_t *buf, struct ast_node *node, int level) {
-  switch (node->type) {
-    case AST_FUNCTION_EXPR: {
-      if (node->function_expr.args) {
-        printf_buf(buf, "%pfunction(\n", level);
-        print_symbol_list(buf, node->function_expr.args, level + 1, ",");
-        printf_buf(buf, "%p)\n", level);
-      }
-      else {
-        printf_buf(buf, "%pfunction()\n", level);
-      }
-      if (node->function_expr.locals) {
-        printf_buf(buf, "%p%c ", level, "locals ");
-        print_symbol_names(buf, node->function_expr.locals);
-        printf_buf(buf, "\n");
-      }
-      if (node->function_expr.upvalues) {
-        printf_buf(buf, "%p%c ", level, "upvalues ");
-        print_symbol_names(buf, node->function_expr.upvalues);
-        printf_buf(buf, "\n");
-      }
-      print_statement_list(buf, node->function_expr.function_statement_list, level);
-      printf_buf(buf, "%pend\n", level);
-      break;
-    }
-    case AST_NONE:
-      break;
-    case AST_RETURN_STMT: {
-      printf_buf(buf, "%preturn\n", level);
-      print_ast_node_list(buf, node->return_stmt.exprlist, level + 1, ",");
-      break;
-    }
-    case AST_LOCAL_STMT: {
-      printf_buf(buf, "%plocal\n", level);
-      printf_buf(buf, "%p%c\n", level, "[symbols]");
-      print_symbol_list(buf, node->local_stmt.vars, level + 1, ",");
-      if (node->local_stmt.exprlist) {
-        printf_buf(buf, "%p%c\n", level, "[expressions]");
-        print_ast_node_list(buf, node->local_stmt.exprlist, level + 1, ",");
-      }
-      break;
-    }
-    case AST_FUNCTION_STMT: {
-      print_ast_node(buf, node->function_stmt.name, level);
-      if (node->function_stmt.selectors) {
-        printf_buf(buf, "%p%c\n", level + 1, "[selectors]");
-        print_ast_node_list(buf, node->function_stmt.selectors, level + 2, NULL);
-      }
-      if (node->function_stmt.methodname) {
-        printf_buf(buf, "%p%c\n", level + 1, "[method name]");
-        print_ast_node(buf, node->function_stmt.methodname, level + 2);
-      }
-      printf_buf(buf, "%p=\n", level + 1);
-      print_ast_node(buf, node->function_stmt.function_expr, level + 2);
-      break;
-    }
-    case AST_LABEL_STMT: {
-      printf_buf(buf, "%p::%t::\n", level, node->label_stmt.symbol->label.label_name);
-      break;
-    }
-    case AST_GOTO_STMT: {
-      printf_buf(buf, "%pgoto %t\n", level, node->goto_stmt.name);
-      break;
-    }
-    case AST_DO_STMT: {
-      printf_buf(buf, "%pdo\n", level);
-      print_ast_node_list(buf, node->do_stmt.do_statement_list, level + 1, NULL);
-      printf_buf(buf, "%pend\n", level);
-      break;
-    }
-    case AST_EXPR_STMT: {
-      printf_buf(buf, "%p%c\n", level, "[expression statement start]");
-      if (node->expression_stmt.var_expr_list) {
-        printf_buf(buf, "%p%c\n", level + 1, "[var list start]");
-        print_ast_node_list(buf, node->expression_stmt.var_expr_list, level + 2, ",");
-        printf_buf(buf, "%p= %c\n", level + 1, "[var list end]");
-      }
-      printf_buf(buf, "%p%c\n", level + 1, "[expression list start]");
-      print_ast_node_list(buf, node->expression_stmt.exr_list, level + 2, ",");
-      printf_buf(buf, "%p%c\n", level + 1, "[expression list end]");
-      printf_buf(buf, "%p%c\n", level, "[expression statement end]");
-      break;
-    }
-    case AST_IF_STMT: {
-      struct ast_node *test_then_block;
-      bool is_first = true;
-      FOR_EACH_PTR(node->if_stmt.if_condition_list, test_then_block) {
-        if (is_first) {
-          is_first = false;
-          printf_buf(buf, "%pif\n", level);
-        }
-        else
-          printf_buf(buf, "%pelseif\n", level);
-        print_ast_node(buf, test_then_block->test_then_block.condition, level + 1);
-        printf_buf(buf, "%pthen\n", level);
-        print_ast_node_list(buf, test_then_block->test_then_block.test_then_statement_list, level + 1, NULL);
-      }
-      END_FOR_EACH_PTR(node);
-      if (node->if_stmt.else_block) {
-        printf_buf(buf, "%pelse\n", level);
-        print_ast_node_list(buf, node->if_stmt.else_statement_list, level + 1, NULL);
-      }
-      printf_buf(buf, "%pend\n", level);
-      break;
-    }
-    case AST_WHILE_STMT: {
-      printf_buf(buf, "%pwhile\n", level);
-      print_ast_node(buf, node->while_or_repeat_stmt.condition, level + 1);
-      printf_buf(buf, "%pdo\n", level);
-      print_ast_node_list(buf, node->while_or_repeat_stmt.loop_statement_list, level + 1, NULL);
-      printf_buf(buf, "%pend\n", level);
-      break;
-    }
-    case AST_REPEAT_STMT: {
-      printf_buf(buf, "%prepeat\n", level);
-      print_ast_node_list(buf, node->while_or_repeat_stmt.loop_statement_list, level + 1, NULL);
-      printf_buf(buf, "%puntil\n", level);
-      print_ast_node(buf, node->while_or_repeat_stmt.condition, level + 1);
-      printf_buf(buf, "%p%c\n", level, "[repeat end]");
-      break;
-    }
-    case AST_FORIN_STMT: {
-      printf_buf(buf, "%pfor\n", level);
-      print_symbol_list(buf, node->for_stmt.symbols, level + 1, ",");
-      printf_buf(buf, "%pin\n", level);
-      print_ast_node_list(buf, node->for_stmt.expressions, level + 1, ",");
-      printf_buf(buf, "%pdo\n", level);
-      print_statement_list(buf, node->for_stmt.for_statement_list, level + 1);
-      printf_buf(buf, "%pend\n", level);
-      break;
-    }
-    case AST_FORNUM_STMT: {
-      printf_buf(buf, "%pfor\n", level);
-      print_symbol_list(buf, node->for_stmt.symbols, level + 1, NULL);
-      printf_buf(buf, "%p=\n", level);
-      print_ast_node_list(buf, node->for_stmt.expressions, level + 1, ",");
-      printf_buf(buf, "%pdo\n", level);
-      print_statement_list(buf, node->for_stmt.for_statement_list, level + 1);
-      printf_buf(buf, "%pend\n", level);
-      break;
-    }
-    case AST_SUFFIXED_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[primary start]");
-      print_ast_node(buf, node->suffixed_expr.primary_expr, level + 1);
-      printf_buf(buf, "%p%c\n", level, "[primary end]");
-      if (node->suffixed_expr.suffix_list) {
-        printf_buf(buf, "%p%c\n", level, "[suffix list start]");
-        print_ast_node_list(buf, node->suffixed_expr.suffix_list, level + 1, NULL);
-        printf_buf(buf, "%p%c\n", level, "[suffix list end]");
-      }
-      break;
-    }
-    case AST_FUNCTION_CALL_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[function call start]");
-      if (node->function_call_expr.methodname) {
-        printf_buf(buf, "%p: %t (\n", level + 1, node->function_call_expr.methodname);
-      }
-      else {
-        printf_buf(buf, "%p(\n", level + 1);
-      }
-      print_ast_node_list(buf, node->function_call_expr.arg_list, level + 2, ",");
-      printf_buf(buf, "%p)\n", level + 1);
-      printf_buf(buf, "%p%c\n", level, "[function call end]");
-      break;
-    }
-    case AST_SYMBOL_EXPR: {
-      print_symbol(buf, node->symbol_expr.var, level + 1);
-      break;
-    }
-    case AST_BINARY_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[binary expr start]");
-      print_ast_node(buf, node->binary_expr.exprleft, level + 1);
-      printf_buf(buf, "%p%s\n", level, get_binary_opr_str(node->binary_expr.binary_op));
-      print_ast_node(buf, node->binary_expr.exprright, level + 1);
-      printf_buf(buf, "%p%c\n", level, "[binary expr end]");
-      break;
-    }
-    case AST_UNARY_EXPR: {
-      printf_buf(buf, "%p%c %T\n", level, "[unary expr start]", &node->unary_expr.type);
-      printf_buf(buf, "%p%s\n", level, get_unary_opr_str(node->unary_expr.unary_op));
-      print_ast_node(buf, node->unary_expr.expr, level + 1);
-      printf_buf(buf, "%p%c\n", level, "[unary expr end]");
-      break;
-    }
-    case AST_LITERAL_EXPR: {
-      printf_buf(buf, "%p", level);
-      switch (node->literal_expr.type.type_code) {
-        case RAVI_TNIL:
-          printf_buf(buf, "nil");
-          break;
-        case RAVI_TBOOLEAN:
-          printf_buf(buf, "%b", node->literal_expr.u.i);
-          break;
-        case RAVI_TNUMINT:
-          printf_buf(buf, "%i", node->literal_expr.u.i);
-          break;
-        case RAVI_TNUMFLT:
-          printf_buf(buf, "%f", node->literal_expr.u.n);
-          break;
-        case RAVI_TSTRING:
-          printf_buf(buf, "'%t'", node->literal_expr.u.s);
-          break;
-        default:
-          assert(0);
-      }
-      printf_buf(buf, "\n");
-      break;
-    }
-    case AST_FIELD_SELECTOR_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[field selector start]");
-      printf_buf(buf, "%p.\n", level + 1);
-      print_ast_node(buf, node->index_expr.expr, level + 2);
-      printf_buf(buf, "%p%c\n", level, "[field selector end]");
-      break;
-    }
-    case AST_Y_INDEX_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[Y index start]");
-      printf_buf(buf, "%p[\n", level + 1);
-      print_ast_node(buf, node->index_expr.expr, level + 2);
-      printf_buf(buf, "%p]\n", level + 1);
-      printf_buf(buf, "%p%c\n", level, "[Y index end]");
-      break;
-    }
-    case AST_INDEXED_ASSIGN_EXPR: {
-      printf_buf(buf, "%p%c\n", level, "[indexed assign start]");
-      if (node->indexed_assign_expr.index_expr) {
-        printf_buf(buf, "%p%c\n", level, "[index start]");
-        print_ast_node(buf, node->indexed_assign_expr.index_expr, level + 1);
-        printf_buf(buf, "%p%c\n", level, "[index end]");
-      }
-      printf_buf(buf, "%p%c\n", level, "[value start]");
-      print_ast_node(buf, node->indexed_assign_expr.value_expr, level + 1);
-      printf_buf(buf, "%p%c\n", level, "[value end]");
-      printf_buf(buf, "%p%c\n", level, "[indexed assign end]");
-      break;
-    }
-    case AST_TABLE_EXPR: {
-      printf_buf(buf, "%p{ %c %T\n", level, "[table constructor start]", &node->table_expr.type);
-      print_ast_node_list(buf, node->table_expr.expr_list, level + 1, ",");
-      printf_buf(buf, "%p} %c\n", level, "[table constructor end]");
-      break;
-    }
-    default:
-      printf_buf(buf, "%pUnsupported node type %d\n", level, node->type);
-      assert(0);
-  }
 }
 
 /*
@@ -2277,181 +1471,6 @@ static int parse_to_ast(lua_State *L, ZIO *z, Mbuffer *buff, const char *name, i
   L->top--; /* remove source name */
   L->top--; /* remove scanner table */
   return 0; /* OK */
-}
-
-/* Type checker - WIP  */
-static void typecheck_ast_node(struct ast_node *function, struct ast_node *node);
-
-/* Type checker - WIP  */
-static void typecheck_ast_list(struct ast_node *function, struct ast_node_list *list) {
-  struct ast_node *node;
-  FOR_EACH_PTR(list, node) { typecheck_ast_node(function, node); }
-  END_FOR_EACH_PTR(node);
-}
-
-/* Type checker - WIP  */
-static void typecheck_unaryop(struct ast_node *function, struct ast_node *node) {
-  UnOpr op = node->unary_expr.unary_op;
-  typecheck_ast_node(function, node->unary_expr.expr);
-  ravitype_t subexpr_type = node->unary_expr.expr->common_expr.type.type_code;
-  switch (op) {
-    case OPR_MINUS:
-      if (subexpr_type == RAVI_TNUMINT) {
-        set_type(node->unary_expr.type, RAVI_TNUMINT);
-      }
-      else if (subexpr_type == RAVI_TNUMFLT) {
-        set_type(node->unary_expr.type, RAVI_TNUMFLT);
-      }
-      break;
-    case OPR_LEN:
-      if (subexpr_type == RAVI_TARRAYINT || subexpr_type == RAVI_TARRAYFLT) {
-        set_type(node->unary_expr.type, RAVI_TNUMINT);
-      }
-      else if (subexpr_type == RAVI_TTABLE) {
-        // FIXME we need insert a TO_INT expression;
-      }
-      break;
-    case OPR_TO_INTEGER:
-      set_type(node->unary_expr.type, RAVI_TNUMINT);
-      break;
-    case OPR_TO_NUMBER:
-      set_type(node->unary_expr.type, RAVI_TNUMFLT);
-      break;
-    case OPR_TO_CLOSURE:
-      set_type(node->unary_expr.type, RAVI_TFUNCTION);
-      break;
-    case OPR_TO_STRING:
-      set_type(node->unary_expr.type, RAVI_TSTRING);
-      break;
-    case OPR_TO_INTARRAY:
-      set_type(node->unary_expr.type, RAVI_TARRAYINT);
-      if (node->unary_expr.expr->type == AST_TABLE_EXPR) {
-        set_type(node->unary_expr.expr->table_expr.type, RAVI_TARRAYINT);
-      }
-      break;
-    case OPR_TO_NUMARRAY:
-      set_type(node->unary_expr.type, RAVI_TARRAYFLT);
-      if (node->unary_expr.expr->type == AST_TABLE_EXPR) {
-        set_type(node->unary_expr.expr->table_expr.type, RAVI_TARRAYFLT);
-      }
-      break;
-    case OPR_TO_TABLE:
-      set_type(node->unary_expr.type, RAVI_TTABLE);
-      break;
-    case OPR_TO_TYPE:
-      lua_assert(node->unary_expr.type.type_name != NULL);  // Should already be set by the parser
-      set_typecode(node->unary_expr.type, RAVI_TUSERDATA);
-      break;
-    default:
-      break;
-  }
-}
-/* Type checker - WIP  */
-static void typecheck_ast_node(struct ast_node *function, struct ast_node *node) {
-  switch (node->type) {
-    case AST_FUNCTION_EXPR: {
-      typecheck_ast_list(function, node->function_expr.function_statement_list);
-      break;
-    }
-    case AST_NONE:
-      break;
-    case AST_RETURN_STMT: {
-      typecheck_ast_list(function, node->return_stmt.exprlist);
-      break;
-    }
-    case AST_LOCAL_STMT: {
-      break;
-    }
-    case AST_FUNCTION_STMT: {
-      typecheck_ast_node(function, node->function_stmt.function_expr);
-      break;
-    }
-    case AST_LABEL_STMT: {
-      break;
-    }
-    case AST_GOTO_STMT: {
-      break;
-    }
-    case AST_DO_STMT: {
-      break;
-    }
-    case AST_EXPR_STMT: {
-      break;
-    }
-    case AST_IF_STMT: {
-      struct ast_node *test_then_block;
-      FOR_EACH_PTR(node->if_stmt.if_condition_list, test_then_block) {}
-      END_FOR_EACH_PTR(node);
-      if (node->if_stmt.else_block) {
-      }
-      break;
-    }
-    case AST_WHILE_STMT: {
-      break;
-    }
-    case AST_REPEAT_STMT: {
-      break;
-    }
-    case AST_FORIN_STMT: {
-      break;
-    }
-    case AST_FORNUM_STMT: {
-      break;
-    }
-    case AST_SUFFIXED_EXPR: {
-      if (node->suffixed_expr.suffix_list) {
-      }
-      break;
-    }
-    case AST_FUNCTION_CALL_EXPR: {
-      if (node->function_call_expr.methodname) {
-      }
-      else {
-      }
-      break;
-    }
-    case AST_SYMBOL_EXPR: {
-      break;
-    }
-    case AST_BINARY_EXPR: {
-      break;
-    }
-    case AST_UNARY_EXPR: {
-      typecheck_unaryop(function, node);
-      break;
-    }
-    case AST_LITERAL_EXPR: {
-      break;
-    }
-    case AST_FIELD_SELECTOR_EXPR: {
-      break;
-    }
-    case AST_Y_INDEX_EXPR: {
-      break;
-    }
-    case AST_INDEXED_ASSIGN_EXPR: {
-      if (node->indexed_assign_expr.index_expr) {
-      }
-      break;
-    }
-    case AST_TABLE_EXPR: {
-      break;
-    }
-    default:
-      assert(0);
-  }
-}
-
-
-/* Type checker - WIP  */
-static void typecheck_function(struct ast_node *func) {
-  typecheck_ast_list(func, func->function_expr.function_statement_list);
-}
-
-/* Type checker - WIP  */
-static void do_typechecks(struct ast_container *container) {
-  struct ast_node *main_function = container->main_function;
-  typecheck_function(main_function);
 }
 
 /*
@@ -2616,7 +1635,7 @@ static int ast_container_to_string(lua_State *L) {
   struct ast_container *container = check_Ravi_AST(L, 1);
   membuff_t mbuf;
   membuff_init(&mbuf, 1024);
-  print_ast_node(&mbuf, container->main_function, 0);
+  raviA_print_ast_node(&mbuf, container->main_function, 0);
   lua_pushstring(L, mbuf.buf);
   membuff_free(&mbuf);
   return 1;

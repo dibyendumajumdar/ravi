@@ -1,5 +1,5 @@
 /******************************************************************************
-* Copyright (C) 2015 Dibyendu Majumdar
+* Copyright (C) 2015-2020 Dibyendu Majumdar
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
@@ -54,13 +54,7 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B,
     def->builder->SetInsertPoint(return_block);
   }
 
-  emit_debug_trace(def, OP_RETURN, pc);
-
-  // Load pointer to base
-  emit_load_base(def);
-
-  // Get pointer to register A
-  llvm::Value *ra_ptr = emit_gep_register(def, A);
+  bool traced = emit_debug_trace(def, OP_RETURN, pc);
 
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Get pointer to Proto->sizep
@@ -70,18 +64,27 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B,
   llvm::Value *psize_gt_0 =
       def->builder->CreateICmpSGT(psize, def->types->kInt[0]);
   llvm::BasicBlock *then_block = llvm::BasicBlock::Create(
-      def->jitState->context(), "OP_RETURN_if_close", def->f);
+      def->jitState->context(), "OP_RETURN_if_closing", def->f);
   llvm::BasicBlock *else_block = llvm::BasicBlock::Create(
-      def->jitState->context(), "OP_RETURN_else_close");
+      def->jitState->context(), "OP_RETURN_else_closing");
   def->builder->CreateCondBr(psize_gt_0, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
 
+  // Load pointer to base
+  emit_load_base(def);
+  // Get pointer to register A
+  llvm::Value *ra_ptr = emit_gep_register(def, A);
+  if (!traced)
+    emit_update_savedpc(def, pc);
   // Call luaF_close
-  CreateCall2(def->builder, def->luaF_closeF, def->L, def->base_ptr);
+  CreateCall3(def->builder, def->luaF_closeF, def->L, def->base_ptr, def->types->kInt[LUA_OK]);
   def->builder->CreateBr(else_block);
 
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
+
+  emit_load_base(def);                 // As luaF_close() may have changed the stack
+  ra_ptr = emit_gep_register(def, A);  // load RA
 
   //*  b = luaD_poscall(L, ra, (b != 0 ? b - 1 : L->top - ra));
   llvm::Value *nresults = NULL;

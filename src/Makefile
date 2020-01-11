@@ -7,7 +7,7 @@
 PLAT= none
 
 #CC= gcc -std=gnu99
-CFLAGS= -O2 -Wall -Wextra -DNDEBUG -fomit-frame-pointer -DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1 $(SYSCFLAGS) $(MYCFLAGS) -I../include -I../dmr_c/src -I../dmr_c/null-backend
+CFLAGS= -O2 -Wall -DNDEBUG -fomit-frame-pointer -DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1 $(SYSCFLAGS) $(MYCFLAGS) -I../include -I../dmr_c/src -I../dmr_c/null-backend
 CXXFLAGS=$(CFLAGS) -fno-rtti -Wno-sign-compare -std=c++14 -fno-exceptions -I../include
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS= -lm $(SYSLIBS) $(MYLIBS)
@@ -35,14 +35,11 @@ CORE_CPP_O=ravijit.o
 CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
 	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o ltests.o \
 	ltm.o lundump.o lvm.o lzio.o ravi_profile.o ravi_membuf.o \
-	ravi_jitshared.o ravi_nojit.o ravi_ast.o ravi_alloc.o $(CORE_CPP_O)
+	ravi_jitshared.o ravi_nojit.o ravi_ast_parse.o ravi_ast_print.o ravi_ast_typecheck.o ravi_alloc.o $(CORE_CPP_O)
 LIB_O=	lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o \
 	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o \
 	bit.o
-DMRC_O= allocate.o builtin.o char.o expression.o evaluate.o expand.o inline.o \
-	lib.o linearize.o liveness.o parse.o target.o tokenize.o pre-process.o \
-	ptrlist.o scope.o show-parse.o symbol.o walksymbol.o \
-	ravi_dmrc_parsesymbols.o 
+DMRC_O= allocate.o ptrlist.o
 BASE_O= $(CORE_O) $(LIB_O) $(DMRC_O) $(MYOBJS)
 
 LUA_T=	ravi
@@ -140,13 +137,15 @@ bit.o: bit.c ../include/lua.h ../include/luaconf.h ../include/lauxlib.h \
 lapi.o: lapi.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/lapi.h ../include/llimits.h ../include/lua.h \
  ../include/lstate.h ../include/lobject.h ../include/ltm.h \
- ../include/lzio.h ../include/lmem.h ../include/ldebug.h ../include/ldo.h \
+ ../include/lzio.h ../include/lmem.h ../include/lopcodes.h \
+ ../include/ravi_arch.h ../include/ldebug.h ../include/ldo.h \
  ../include/lfunc.h ../include/lgc.h ../include/lmem.h \
  ../include/lobject.h ../include/lstate.h ../include/lstring.h \
  ../include/lgc.h ../include/ltable.h ../include/ltm.h \
  ../include/lundump.h ../include/lvm.h ../include/ldo.h
 lauxlib.o: lauxlib.c ../include/lprefix.h ../include/lua.h \
- ../include/luaconf.h ../include/lauxlib.h ../include/lua.h
+ ../include/luaconf.h ../include/lauxlib.h ../include/lua.h \
+ ../include/ravi_alloc.h
 lbaselib.o: lbaselib.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lauxlib.h ../include/lua.h \
  ../include/lualib.h
@@ -157,11 +156,11 @@ lcode.o: lcode.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lcode.h ../include/llex.h \
  ../include/lobject.h ../include/llimits.h ../include/lua.h \
  ../include/lzio.h ../include/lmem.h ../include/lopcodes.h \
- ../include/lparser.h ../include/ldebug.h ../include/lstate.h \
- ../include/ltm.h ../include/ldo.h ../include/lgc.h ../include/llex.h \
- ../include/lmem.h ../include/lobject.h ../include/lopcodes.h \
- ../include/lparser.h ../include/lstring.h ../include/lgc.h \
- ../include/ltable.h ../include/lvm.h ../include/ldo.h
+ ../include/ravi_arch.h ../include/lparser.h ../include/ldebug.h \
+ ../include/lstate.h ../include/ltm.h ../include/ldo.h ../include/lgc.h \
+ ../include/llex.h ../include/lmem.h ../include/lobject.h \
+ ../include/lopcodes.h ../include/lparser.h ../include/lstring.h \
+ ../include/lgc.h ../include/ltable.h ../include/lvm.h ../include/ldo.h
 lcorolib.o: lcorolib.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lauxlib.h ../include/lua.h \
  ../include/lualib.h
@@ -173,40 +172,42 @@ ldblib.o: ldblib.c ../include/lprefix.h ../include/lua.h \
 ldebug.o: ldebug.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lapi.h ../include/llimits.h \
  ../include/lua.h ../include/lstate.h ../include/lobject.h \
- ../include/ltm.h ../include/lzio.h ../include/lmem.h ../include/lcode.h \
- ../include/llex.h ../include/lopcodes.h ../include/lparser.h \
- ../include/ldebug.h ../include/ldo.h ../include/lfunc.h \
- ../include/lobject.h ../include/lopcodes.h ../include/lstate.h \
- ../include/lstring.h ../include/lgc.h ../include/ltable.h \
- ../include/ltm.h ../include/lvm.h ../include/ldo.h
+ ../include/ltm.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/lcode.h \
+ ../include/llex.h ../include/lparser.h ../include/ldebug.h \
+ ../include/ldo.h ../include/lfunc.h ../include/lobject.h \
+ ../include/lopcodes.h ../include/lstate.h ../include/lstring.h \
+ ../include/lgc.h ../include/ltable.h ../include/ltm.h ../include/lvm.h \
+ ../include/ldo.h
 ldo.o: ldo.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/lapi.h ../include/llimits.h ../include/lua.h \
  ../include/lstate.h ../include/lobject.h ../include/ltm.h \
- ../include/lzio.h ../include/lmem.h ../include/ldebug.h ../include/ldo.h \
+ ../include/lzio.h ../include/lmem.h ../include/lopcodes.h \
+ ../include/ravi_arch.h ../include/ldebug.h ../include/ldo.h \
  ../include/lfunc.h ../include/lgc.h ../include/lmem.h \
  ../include/lobject.h ../include/lopcodes.h ../include/lparser.h \
  ../include/lstate.h ../include/lstring.h ../include/lgc.h \
  ../include/ltable.h ../include/ltm.h ../include/lundump.h \
  ../include/lvm.h ../include/ldo.h ../include/lzio.h ../include/ravijit.h \
  ../include/ravi_jitshared.h ../include/lprefix.h ../include/lauxlib.h \
- ../include/ldebug.h ../include/lfunc.h ../include/lopcodes.h \
- ../include/lstring.h ../include/ltable.h ../include/lvm.h \
- ../include/ravi_membuf.h
+ ../include/ldebug.h ../include/lfunc.h ../include/lstring.h \
+ ../include/ltable.h ../include/lvm.h ../include/ravi_membuf.h
 ldump.o: ldump.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lobject.h ../include/llimits.h \
  ../include/lua.h ../include/lstate.h ../include/lobject.h \
  ../include/ltm.h ../include/lzio.h ../include/lmem.h \
- ../include/lundump.h
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/lundump.h
 lfunc.o: lfunc.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lfunc.h ../include/lobject.h \
  ../include/llimits.h ../include/lua.h ../include/lgc.h \
  ../include/lstate.h ../include/ltm.h ../include/lzio.h ../include/lmem.h \
- ../include/lmem.h ../include/lobject.h ../include/lstate.h \
- ../include/ravijit.h
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/lmem.h \
+ ../include/lobject.h ../include/lstate.h ../include/ravijit.h
 lgc.o: lgc.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/ldebug.h ../include/lstate.h ../include/lua.h \
  ../include/lobject.h ../include/llimits.h ../include/ltm.h \
- ../include/lzio.h ../include/lmem.h ../include/ldo.h ../include/lfunc.h \
+ ../include/lzio.h ../include/lmem.h ../include/lopcodes.h \
+ ../include/ravi_arch.h ../include/ldo.h ../include/lfunc.h \
  ../include/lgc.h ../include/lmem.h ../include/lobject.h \
  ../include/lstate.h ../include/lstring.h ../include/lgc.h \
  ../include/ltable.h ../include/ltm.h
@@ -219,7 +220,8 @@ liolib.o: liolib.c ../include/lprefix.h ../include/lua.h \
 llex.o: llex.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/lctype.h ../include/lua.h ../include/llimits.h \
  ../include/ldebug.h ../include/lstate.h ../include/lobject.h \
- ../include/ltm.h ../include/lzio.h ../include/lmem.h ../include/ldo.h \
+ ../include/ltm.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/ldo.h \
  ../include/lgc.h ../include/llex.h ../include/lobject.h \
  ../include/lparser.h ../include/lstate.h ../include/lstring.h \
  ../include/lgc.h ../include/ltable.h ../include/lzio.h
@@ -229,7 +231,8 @@ lmathlib.o: lmathlib.c ../include/lprefix.h ../include/lua.h \
 lmem.o: lmem.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/ldebug.h ../include/lstate.h ../include/lua.h \
  ../include/lobject.h ../include/llimits.h ../include/ltm.h \
- ../include/lzio.h ../include/lmem.h ../include/ldo.h ../include/lgc.h \
+ ../include/lzio.h ../include/lmem.h ../include/lopcodes.h \
+ ../include/ravi_arch.h ../include/ldo.h ../include/lgc.h \
  ../include/lmem.h ../include/lobject.h ../include/lstate.h
 loadlib.o: loadlib.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lauxlib.h ../include/lua.h \
@@ -238,13 +241,15 @@ lobject.o: lobject.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lctype.h ../include/lua.h \
  ../include/llimits.h ../include/ldebug.h ../include/lstate.h \
  ../include/lobject.h ../include/ltm.h ../include/lzio.h \
- ../include/lmem.h ../include/ldo.h ../include/lmem.h \
- ../include/lobject.h ../include/lstate.h ../include/lstring.h \
- ../include/lgc.h ../include/lvm.h ../include/ldo.h
+ ../include/lmem.h ../include/lopcodes.h ../include/ravi_arch.h \
+ ../include/ldo.h ../include/lmem.h ../include/lobject.h \
+ ../include/lstate.h ../include/lstring.h ../include/lgc.h \
+ ../include/lvm.h ../include/ldo.h
 lopcodes.o: lopcodes.c ../include/lprefix.h ../include/lopcodes.h \
  ../include/llimits.h ../include/lua.h ../include/luaconf.h \
- ../include/lobject.h ../include/lstate.h ../include/lobject.h \
- ../include/ltm.h ../include/lzio.h ../include/lmem.h ../include/ldebug.h \
+ ../include/ravi_arch.h ../include/lobject.h ../include/lstate.h \
+ ../include/lobject.h ../include/ltm.h ../include/lzio.h \
+ ../include/lmem.h ../include/lopcodes.h ../include/ldebug.h \
  ../include/lstate.h
 loslib.o: loslib.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lauxlib.h ../include/lua.h \
@@ -253,23 +258,25 @@ lparser.o: lparser.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lcode.h ../include/llex.h \
  ../include/lobject.h ../include/llimits.h ../include/lua.h \
  ../include/lzio.h ../include/lmem.h ../include/lopcodes.h \
- ../include/lparser.h ../include/ldebug.h ../include/lstate.h \
- ../include/ltm.h ../include/ldo.h ../include/lfunc.h ../include/llex.h \
- ../include/lmem.h ../include/lobject.h ../include/lopcodes.h \
- ../include/lparser.h ../include/lstate.h ../include/lstring.h \
- ../include/lgc.h ../include/ltable.h
+ ../include/ravi_arch.h ../include/lparser.h ../include/ldebug.h \
+ ../include/lstate.h ../include/ltm.h ../include/ldo.h ../include/lfunc.h \
+ ../include/llex.h ../include/lmem.h ../include/lobject.h \
+ ../include/lopcodes.h ../include/lparser.h ../include/lstate.h \
+ ../include/lstring.h ../include/lgc.h ../include/ltable.h
 lstate.o: lstate.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lapi.h ../include/llimits.h \
  ../include/lua.h ../include/lstate.h ../include/lobject.h \
- ../include/ltm.h ../include/lzio.h ../include/lmem.h ../include/ldebug.h \
+ ../include/ltm.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/ldebug.h \
  ../include/ldo.h ../include/lfunc.h ../include/lgc.h ../include/llex.h \
  ../include/lmem.h ../include/lstate.h ../include/lstring.h \
  ../include/lgc.h ../include/ltable.h ../include/ltm.h \
- ../include/ravijit.h ../include/ravi_profile.h ../include/lopcodes.h
+ ../include/ravijit.h ../include/ravi_profile.h ../include/ravi_alloc.h
 lstring.o: lstring.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/ldebug.h ../include/lstate.h \
  ../include/lua.h ../include/lobject.h ../include/llimits.h \
- ../include/ltm.h ../include/lzio.h ../include/lmem.h ../include/ldo.h \
+ ../include/ltm.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/ldo.h \
  ../include/lmem.h ../include/lobject.h ../include/lstate.h \
  ../include/lstring.h ../include/lgc.h
 lstrlib.o: lstrlib.c ../include/lprefix.h ../include/lua.h \
@@ -278,7 +285,8 @@ lstrlib.o: lstrlib.c ../include/lprefix.h ../include/lua.h \
 ltable.o: ltable.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/ldebug.h ../include/lstate.h \
  ../include/lua.h ../include/lobject.h ../include/llimits.h \
- ../include/ltm.h ../include/lzio.h ../include/lmem.h ../include/ldo.h \
+ ../include/ltm.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/ldo.h \
  ../include/lgc.h ../include/lmem.h ../include/lobject.h \
  ../include/lstate.h ../include/lstring.h ../include/lgc.h \
  ../include/ltable.h ../include/lvm.h ../include/ldo.h
@@ -289,31 +297,32 @@ ltests.o: ltests.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/lapi.h ../include/llimits.h \
  ../include/lua.h ../include/lstate.h ../include/lobject.h \
  ../include/ltm.h ../include/lzio.h ../include/lmem.h \
- ../include/lauxlib.h ../include/lcode.h ../include/llex.h \
- ../include/lopcodes.h ../include/lparser.h ../include/lctype.h \
- ../include/ldebug.h ../include/ldo.h ../include/lfunc.h \
- ../include/lmem.h ../include/lopcodes.h ../include/lstate.h \
- ../include/lstring.h ../include/lgc.h ../include/ltable.h \
- ../include/lualib.h
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/lauxlib.h \
+ ../include/lcode.h ../include/llex.h ../include/lparser.h \
+ ../include/lctype.h ../include/ldebug.h ../include/ldo.h \
+ ../include/lfunc.h ../include/lmem.h ../include/lopcodes.h \
+ ../include/lstate.h ../include/lstring.h ../include/lgc.h \
+ ../include/ltable.h ../include/lualib.h
 ltm.o: ltm.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/ldebug.h ../include/lstate.h ../include/lua.h \
  ../include/lobject.h ../include/llimits.h ../include/ltm.h \
- ../include/lzio.h ../include/lmem.h ../include/ldo.h \
- ../include/lobject.h ../include/lstate.h ../include/lstring.h \
- ../include/lgc.h ../include/ltable.h ../include/ltm.h ../include/lvm.h \
- ../include/ldo.h
+ ../include/lzio.h ../include/lmem.h ../include/lopcodes.h \
+ ../include/ravi_arch.h ../include/ldo.h ../include/lobject.h \
+ ../include/lstate.h ../include/lstring.h ../include/lgc.h \
+ ../include/ltable.h ../include/ltm.h ../include/lvm.h ../include/ldo.h
 lua.o: lua.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/lauxlib.h ../include/lua.h ../include/lualib.h
 luac.o: luac.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/lauxlib.h ../include/lua.h ../include/lobject.h \
  ../include/llimits.h ../include/lstate.h ../include/lobject.h \
  ../include/ltm.h ../include/lzio.h ../include/lmem.h \
- ../include/lundump.h ../include/ldebug.h ../include/lstate.h \
- ../include/lopcodes.h
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/lundump.h \
+ ../include/ldebug.h ../include/lstate.h ../include/lopcodes.h
 lundump.o: lundump.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/ldebug.h ../include/lstate.h \
  ../include/lua.h ../include/lobject.h ../include/llimits.h \
- ../include/ltm.h ../include/lzio.h ../include/lmem.h ../include/ldo.h \
+ ../include/ltm.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/ldo.h \
  ../include/lfunc.h ../include/lmem.h ../include/lobject.h \
  ../include/lstring.h ../include/lgc.h ../include/lundump.h \
  ../include/lzio.h
@@ -323,42 +332,101 @@ lutf8lib.o: lutf8lib.c ../include/lprefix.h ../include/lua.h \
 lvm.o: lvm.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/ldebug.h ../include/lstate.h ../include/lua.h \
  ../include/lobject.h ../include/llimits.h ../include/ltm.h \
- ../include/lzio.h ../include/lmem.h ../include/ldo.h ../include/lfunc.h \
+ ../include/lzio.h ../include/lmem.h ../include/lopcodes.h \
+ ../include/ravi_arch.h ../include/ldo.h ../include/lfunc.h \
  ../include/lgc.h ../include/lobject.h ../include/lopcodes.h \
  ../include/lstate.h ../include/lstring.h ../include/lgc.h \
  ../include/ltable.h ../include/ltm.h ../include/lvm.h ../include/ldo.h \
- ../include/ravi_profile.h ../include/lopcodes.h
+ ../include/ravi_profile.h
 lzio.o: lzio.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/llimits.h ../include/lua.h ../include/lmem.h \
  ../include/llimits.h ../include/lstate.h ../include/lobject.h \
- ../include/ltm.h ../include/lzio.h ../include/lmem.h ../include/lzio.h
+ ../include/ltm.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/lzio.h
+ravi_alloc.o: ravi_alloc.c
+ravi_ast_parse.o: ravi_ast_parse.c ../include/ravi_ast.h \
+ ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
+ ../include/lcode.h ../include/llex.h ../include/lobject.h \
+ ../include/llimits.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/lparser.h \
+ ../include/ldo.h ../include/lstate.h ../include/ltm.h \
+ ../include/lstring.h ../include/lgc.h ../include/ltable.h \
+ ../include/lauxlib.h ../include/ravi_ast.h ../include/ravi_membuf.h \
+ ../dmr_c/src/allocate.h ../dmr_c/src/port.h ../dmr_c/src/ptrlist.h
+ravi_ast_print.o: ravi_ast_print.c ../include/ravi_ast.h \
+ ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
+ ../include/lcode.h ../include/llex.h ../include/lobject.h \
+ ../include/llimits.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/lparser.h \
+ ../include/ldo.h ../include/lstate.h ../include/ltm.h \
+ ../include/lstring.h ../include/lgc.h ../include/ltable.h \
+ ../include/lauxlib.h ../include/ravi_ast.h ../include/ravi_membuf.h \
+ ../dmr_c/src/allocate.h ../dmr_c/src/port.h ../dmr_c/src/ptrlist.h
+ravi_ast_typecheck.o: ravi_ast_typecheck.c ../include/ravi_ast.h \
+ ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
+ ../include/lcode.h ../include/llex.h ../include/lobject.h \
+ ../include/llimits.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/lparser.h \
+ ../include/ldo.h ../include/lstate.h ../include/ltm.h \
+ ../include/lstring.h ../include/lgc.h ../include/ltable.h \
+ ../include/lauxlib.h ../include/ravi_ast.h ../include/ravi_membuf.h \
+ ../dmr_c/src/allocate.h ../dmr_c/src/port.h ../dmr_c/src/ptrlist.h
+ravi_dmrc_parsesymbols.o: ravi_dmrc_parsesymbols.c \
+ ../dmr_c/src/allocate.h ../dmr_c/src/port.h \
+ ../dmr_c/null-backend/dmr_c.h ../dmr_c/src/expression.h \
+ ../dmr_c/src/lib.h ../dmr_c/src/ptrlist.h ../dmr_c/src/symbol.h \
+ ../dmr_c/src/target.h ../dmr_c/src/token.h ../dmr_c/src/ident-list.h \
+ ../dmr_c/src/parse.h ../dmr_c/src/scope.h ../include/lua.h \
+ ../include/luaconf.h ../include/lauxlib.h ../include/lua.h \
+ ../include/lualib.h
 ravi_jitshared.o: ravi_jitshared.c ../include/ravi_jitshared.h \
  ../include/lprefix.h ../include/lauxlib.h ../include/lua.h \
  ../include/luaconf.h ../include/ldebug.h ../include/lstate.h \
  ../include/lobject.h ../include/llimits.h ../include/ltm.h \
- ../include/lzio.h ../include/lmem.h ../include/ldo.h ../include/lfunc.h \
- ../include/lopcodes.h ../include/lstring.h ../include/lgc.h \
- ../include/ltable.h ../include/lvm.h ../include/ravi_membuf.h
+ ../include/lzio.h ../include/lmem.h ../include/lopcodes.h \
+ ../include/ravi_arch.h ../include/ldo.h ../include/lfunc.h \
+ ../include/lstring.h ../include/lgc.h ../include/ltable.h \
+ ../include/lvm.h ../include/ravi_membuf.h
 ravi_membuf.o: ravi_membuf.c ../include/ravi_membuf.h
 ravi_nojit.o: ravi_nojit.c ../include/ravijit.h \
  ../include/ravi_jitshared.h ../include/lprefix.h ../include/lauxlib.h \
  ../include/lua.h ../include/luaconf.h ../include/ldebug.h \
  ../include/lstate.h ../include/lobject.h ../include/llimits.h \
- ../include/ltm.h ../include/lzio.h ../include/lmem.h ../include/ldo.h \
- ../include/lfunc.h ../include/lopcodes.h ../include/lstring.h \
- ../include/lgc.h ../include/ltable.h ../include/lvm.h \
- ../include/ravi_membuf.h
+ ../include/ltm.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/ldo.h \
+ ../include/lfunc.h ../include/lstring.h ../include/lgc.h \
+ ../include/ltable.h ../include/lvm.h ../include/ravi_membuf.h
+ravi_omrjitapi.o: ravi_omrjitapi.c ../include/ravi_omrjit.h \
+ ../include/ravi_jitshared.h ../include/lprefix.h ../include/lauxlib.h \
+ ../include/lua.h ../include/luaconf.h ../include/ldebug.h \
+ ../include/lstate.h ../include/lobject.h ../include/llimits.h \
+ ../include/ltm.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/ldo.h \
+ ../include/lfunc.h ../include/lstring.h ../include/lgc.h \
+ ../include/ltable.h ../include/lvm.h ../include/ravi_membuf.h \
+ ../include/ravijit.h ../include/lauxlib.h ../include/lobject.h \
+ ../include/lstate.h ../include/lua.h
+ravi_omrjit.o: ravi_omrjit.c ../include/ravi_omrjit.h \
+ ../include/ravi_jitshared.h ../include/lprefix.h ../include/lauxlib.h \
+ ../include/lua.h ../include/luaconf.h ../include/ldebug.h \
+ ../include/lstate.h ../include/lobject.h ../include/llimits.h \
+ ../include/ltm.h ../include/lzio.h ../include/lmem.h \
+ ../include/lopcodes.h ../include/ravi_arch.h ../include/ldo.h \
+ ../include/lfunc.h ../include/lstring.h ../include/lgc.h \
+ ../include/ltable.h ../include/lvm.h ../include/ravi_membuf.h \
+ ../include/ravijit.h ../include/lauxlib.h ../include/lobject.h \
+ ../include/lstate.h ../include/lua.h
 ravi_profile.o: ravi_profile.c ../include/ravi_profile.h ../include/lua.h \
  ../include/luaconf.h ../include/lopcodes.h ../include/llimits.h \
- ../include/lstate.h ../include/lobject.h ../include/ltm.h \
- ../include/lzio.h ../include/lmem.h
+ ../include/ravi_arch.h ../include/lstate.h ../include/lobject.h \
+ ../include/ltm.h ../include/lzio.h ../include/lmem.h
 ravijit.o: ravijit.cpp ../include/ravijit.h ../include/ravi_jitshared.h \
  ../include/lprefix.h ../include/lauxlib.h ../include/lua.h \
  ../include/luaconf.h ../include/ldebug.h ../include/lstate.h \
  ../include/lobject.h ../include/llimits.h ../include/ltm.h \
- ../include/lzio.h ../include/lmem.h ../include/ldo.h ../include/lfunc.h \
- ../include/lopcodes.h ../include/lstring.h ../include/lgc.h \
- ../include/ltable.h ../include/lvm.h ../include/ravi_membuf.h \
- ../include/lapi.h ../include/lauxlib.h ../include/lfunc.h \
- ../include/lobject.h ../include/lopcodes.h ../include/lstate.h \
- ../include/lua.h
+ ../include/lzio.h ../include/lmem.h ../include/lopcodes.h \
+ ../include/ravi_arch.h ../include/ldo.h ../include/lfunc.h \
+ ../include/lstring.h ../include/lgc.h ../include/ltable.h \
+ ../include/lvm.h ../include/ravi_membuf.h ../include/lapi.h \
+ ../include/lauxlib.h ../include/lfunc.h ../include/lobject.h \
+ ../include/lopcodes.h ../include/lstate.h ../include/lua.h
