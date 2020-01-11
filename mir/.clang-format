@@ -1,0 +1,20 @@
+BasedOnStyle: google
+SpaceBeforeParens: Always
+IndentCaseLabels: false
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLoopsOnASingleLine: true
+SpaceAfterCStyleCast: true
+PointerAlignment: Right
+BreakBeforeBinaryOperators: All
+ConstructorInitializerIndentWidth: 2
+ContinuationIndentWidth: 2
+ContinuationIndentWidth: 2
+PenaltyBreakBeforeFirstCallParameter: 10000
+SortIncludes: false
+BreakStringLiterals: true
+BreakBeforeTernaryOperators: true
+AllowShortCaseLabelsOnASingleLine: true
+ColumnLimit: 100
+MaxEmptyLinesToKeep: 1
+#StatementMacros: [ 'REP2', 'REP3', 'REP4', 'REP5', 'REP6', 'REP7', 'REP8' ]
+#TypenameMacros: [ 'VARR', 'DLIST', 'HTAB' ]
