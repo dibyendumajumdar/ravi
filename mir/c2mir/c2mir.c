@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <setjmp.h>
+#include <math.h>
 #include "time.h"
 
 #include "c2mir.h"
@@ -127,7 +128,8 @@ struct c2m_ctx {
   HTAB (str_t) * str_key_tab;
   str_t empty_str;
   unsigned long curr_uid;
-  int (*c_getc) (void); /* c2mir interface get function */
+  int (*c_getc) (void *); /* c2mir interface get function */
+  void *c_getc_data;
   unsigned n_errors, n_warnings;
   VARR (char) * symbol_text, *temp_string;
   VARR (token_t) * recorded_tokens, *buffered_tokens;
@@ -159,6 +161,7 @@ typedef struct c2m_ctx *c2m_ctx_t;
 #define empty_str c2m_ctx->empty_str
 #define curr_uid c2m_ctx->curr_uid
 #define c_getc c2m_ctx->c_getc
+#define c_getc_data c2m_ctx->c_getc_data
 #define n_errors c2m_ctx->n_errors
 #define n_warnings c2m_ctx->n_warnings
 #define symbol_text c2m_ctx->symbol_text
@@ -1700,8 +1703,12 @@ static token_t pptoken2token (c2m_ctx_t c2m_ctx, token_t t, int id2kw_p) {
         fprintf (options->message_file, "%s:%s:%s\n", repr, stop, &repr[last + 1]);
       error (c2m_ctx, t->pos, "wrong number: %s", t->repr);
     } else if (errno) {
-      (options->pedantic_p ? error : warning) (c2m_ctx, t->pos, "number %s is out of range",
-                                               t->repr);
+      if (float_p || double_p || ldouble_p) {
+        warning (c2m_ctx, t->pos, "number %s is out of range -- using IEEE infinity", t->repr);
+      } else {
+        (options->pedantic_p ? error : warning) (c2m_ctx, t->pos, "number %s is out of range",
+                                                 t->repr);
+      }
     }
   }
   return t;
@@ -7325,16 +7332,18 @@ static struct expr *check_assign_op (c2m_ctx_t c2m_ctx, node_t r, node_t op1, no
             e->u.i_val = e1->u.i_val * e2->u.i_val;
           else
             e->u.u_val = e1->u.u_val * e2->u.u_val;
-        } else if ((floating_type_p (&t) && e2->u.d_val == 0.0)
+        } else if ((floating_type_p (&t) && e1->u.d_val == 0.0 && e2->u.d_val == 0.0)
                    || (signed_integer_type_p (&t) && e2->u.i_val == 0)
                    || (integer_type_p (&t) && !signed_integer_type_p (&t) && e2->u.u_val == 0)) {
-          error (c2m_ctx, r->pos, "Division by zero");
-          if (floating_type_p (&t))
-            e->u.d_val = 0.0;
-          else if (signed_integer_type_p (&t))
-            e->u.i_val = 0;
-          else
-            e->u.u_val = 0;
+          if (floating_type_p (&t)) {
+            e->u.d_val = nanl (""); /* Use NaN */
+          } else {
+            if (signed_integer_type_p (&t))
+              e->u.i_val = 0;
+            else
+              e->u.u_val = 0;
+            error (c2m_ctx, r->pos, "Division by zero");
+          }
         } else if (r->code != N_MOD && floating_type_p (&t)) {
           e->u.d_val = e1->u.d_val / e2->u.d_val;
         } else if (signed_integer_type_p (&t)) {  // ??? zero
@@ -12028,12 +12037,14 @@ static void process_macro_commands (MIR_context_t ctx) {
       undefine_cmd_macro (c2m_ctx, options->macro_commands[i].name);
 }
 
-static void compile_init (MIR_context_t ctx, struct c2mir_options *ops, int (*getc_func) (void)) {
+static void compile_init (MIR_context_t ctx, struct c2mir_options *ops, int (*getc_func) (void *),
+                          void *getc_data) {
   c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
 
   options = ops;
   n_errors = n_warnings = 0;
   c_getc = getc_func;
+  c_getc_data = getc_data;
   VARR_CREATE (char, symbol_text, 128);
   VARR_CREATE (char, temp_string, 128);
   parse_init (ctx);
@@ -12080,10 +12091,10 @@ static const char *get_module_name (MIR_context_t ctx) {
   return str;
 }
 
-static int top_level_getc (c2m_ctx_t c2m_ctx) { return c_getc (); }
+static int top_level_getc (c2m_ctx_t c2m_ctx) { return c_getc (c_getc_data); }
 
-int c2mir_compile (MIR_context_t ctx, struct c2mir_options *ops, int (*getc_func) (void),
-                   const char *source_name, FILE *output_file) {
+int c2mir_compile (MIR_context_t ctx, struct c2mir_options *ops, int (*getc_func) (void *),
+                   void *getc_data, const char *source_name, FILE *output_file) {
   c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
   double start_time = real_usec_time ();
   node_t r;
@@ -12091,12 +12102,12 @@ int c2mir_compile (MIR_context_t ctx, struct c2mir_options *ops, int (*getc_func
   MIR_module_t m;
   const char *base_name;
 
-  if (c2m_ctx == NULL) return 1;
+  if (c2m_ctx == NULL) return 0;
   if (setjmp (c2m_ctx->env)) {
     compile_finish (ctx);
-    return 1;
+    return 0;
   }
-  compile_init (ctx, ops, getc_func);
+  compile_init (ctx, ops, getc_func, getc_data);
   if (options->verbose_p && options->message_file != NULL)
     fprintf (options->message_file, "C2MIR init end           -- %.0f usec\n",
              real_usec_time () - start_time);

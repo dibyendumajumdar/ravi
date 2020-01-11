@@ -349,19 +349,19 @@ static void* import_resolver(const char *name) {
   return NULL;
 }
 
-/* FIXME */
-/* For now we have to use some static variables
-   due to limitations of the MIR api */
-static size_t Current_char; /* position of current character */
-static const char *Source_code; /* points to buffer containing source Source_code */
+struct ReadBuffer {
+  size_t Current_char;     /* position of current character */
+  const char *Source_code; /* points to buffer containing source Source_code */
+};
 
-static int t_getc (void) {
-  int c = Source_code[Current_char];
+static int t_getc (void *data) {
+  struct ReadBuffer *buffer = data;
+  int c = buffer->Source_code[buffer->Current_char];
 
   if (c == 0)
     c = EOF;
   else
-    Current_char++;
+    buffer->Current_char++;
   return c;
 }
 
@@ -383,16 +383,14 @@ void *MIR_compile_C_module(
   const char *func_name, /* Name of the function, must be unique */
   void *(Import_resolver_func)(const char *name)) /* Resolve external symbols */
 {
-  int n = 0;
   int ret_code = 0;
   int (*fun_addr) (void *) = NULL;
+  struct ReadBuffer read_buffer = {.Current_char = 0, .Source_code = inputbuffer};
   MIR_module_t module = NULL;
   c2mir_init(ctx);
-  Source_code = inputbuffer;
-  Current_char = 0;
   options->module_num++;
   options->message_file = stderr;
-  if (!c2mir_compile(ctx, options, t_getc, func_name, NULL)) {
+  if (!c2mir_compile(ctx, options, t_getc, &read_buffer, func_name, NULL)) {
     ret_code = 1;
   }
   else {
