@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2018, 2019 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2018-2020 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
 #include "mir.h"
@@ -723,6 +723,25 @@ const char *MIR_type_str (MIR_context_t ctx, MIR_type_t tp) {
   return str;
 }
 
+static const char *mode_str (MIR_op_mode_t mode) {
+  switch (mode) {
+  case MIR_OP_REG: return "reg";
+  case MIR_OP_HARD_REG: return "hard_reg";
+  case MIR_OP_INT: return "int";
+  case MIR_OP_UINT: return "uint";
+  case MIR_OP_FLOAT: return "float";
+  case MIR_OP_DOUBLE: return "double";
+  case MIR_OP_LDOUBLE: return "ldouble";
+  case MIR_OP_REF: return "ref";
+  case MIR_OP_STR: return "str";
+  case MIR_OP_MEM: return "mem";
+  case MIR_OP_HARD_REG_MEM: return "hard_reg_mem";
+  case MIR_OP_LABEL: return "label";
+  case MIR_OP_BOUND: return "bound";
+  default: return "";
+  }
+}
+
 static MIR_item_t add_item (MIR_context_t ctx, MIR_item_t item) {
   int replace_p;
   MIR_item_t tab_item;
@@ -1141,7 +1160,8 @@ MIR_reg_t MIR_new_func_reg (MIR_context_t ctx, MIR_func_t func, MIR_type_t type,
   MIR_var_t var;
 
   if (type != MIR_T_I64 && type != MIR_T_F && type != MIR_T_D && type != MIR_T_LD)
-    (*error_func) (MIR_reg_type_error, "wrong type for register %s: got '%s'", name, type_str(type));
+    (*error_func) (MIR_reg_type_error, "wrong type for register %s: got '%s'", name,
+                   type_str (type));
   var.type = type;
   var.name = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).str.s;
   mir_assert (func != NULL);
@@ -1208,7 +1228,8 @@ void MIR_finish_func (MIR_context_t ctx) {
     } else if (code == MIR_RET && actual_nops != curr_func->nres) {
       curr_func = NULL;
       (*error_func) (MIR_vararg_func_error,
-                     "in instruction '%s': number of operands in return does not correspond number of function returns. Expected %d, got %d",
+                     "in instruction '%s': number of operands in return does not correspond number "
+                     "of function returns. Expected %d, got %d",
                      insn_descs[code].name, curr_func->nres, actual_nops);
     } else if (MIR_call_code_p (code))
       expr_p = FALSE;
@@ -1253,7 +1274,9 @@ void MIR_finish_func (MIR_context_t ctx) {
           mir_assert (rd != NULL && insn->ops[i].u.mem.base == rd->reg);
           if (type2mode (rd->type) != MIR_OP_INT) {
             curr_func = NULL;
-            (*error_func) (MIR_reg_type_error, "in instruction '%s': base reg of non-integer type for operand #%d", insn_descs[code].name, i+1);
+            (*error_func) (MIR_reg_type_error,
+                           "in instruction '%s': base reg of non-integer type for operand #%d",
+                           insn_descs[code].name, i + 1);
           }
         }
         if (insn->ops[i].u.mem.index != 0) {
@@ -1261,7 +1284,9 @@ void MIR_finish_func (MIR_context_t ctx) {
           mir_assert (rd != NULL && insn->ops[i].u.mem.index == rd->reg);
           if (type2mode (rd->type) != MIR_OP_INT) {
             curr_func = NULL;
-            (*error_func) (MIR_reg_type_error, "in instruction '%s': index reg of non-integer type for operand #%d", insn_descs[code].name, i+1);
+            (*error_func) (MIR_reg_type_error,
+                           "in instruction '%s': index reg of non-integer type for operand #%d",
+                           insn_descs[code].name, i + 1);
           }
         }
         mode = type2mode (insn->ops[i].u.mem.type);
@@ -1282,12 +1307,15 @@ void MIR_finish_func (MIR_context_t ctx) {
       if (expected_mode != MIR_OP_UNDEF
           && (mode == MIR_OP_UINT ? MIR_OP_INT : mode) != expected_mode) {
         curr_func = NULL;
-        (*error_func) (MIR_op_mode_error, "in instruction '%s': unexpected operand mode for operand #%d. Got '%s', expected '%s'",
-                                          insn_descs[code].name, i+1, type_str(mode), type_str(expected_mode));
+        (*error_func) (MIR_op_mode_error,
+                       "in instruction '%s': unexpected operand mode for operand #%d. Got '%s', "
+                       "expected '%s'",
+                       insn_descs[code].name, i + 1, mode_str (mode), mode_str (expected_mode));
       }
       if (out_p && !can_be_out_p) {
         curr_func = NULL;
-        (*error_func) (MIR_out_op_error, "in instruction '%s': wrong operand #%d for insn output", insn_descs[code].name, i+1);
+        (*error_func) (MIR_out_op_error, "in instruction '%s': wrong operand #%d for insn output",
+                       insn_descs[code].name, i + 1);
       }
     }
   }
@@ -1524,22 +1552,25 @@ void MIR_link (MIR_context_t ctx, void (*set_interface) (MIR_context_t ctx, MIR_
 }
 
 static const char *insn_name (MIR_insn_code_t code) {
-  return code < 0 || code >= MIR_INSN_BOUND ? "" : insn_descs[code].name;
+  return (unsigned) code >= MIR_INSN_BOUND ? "" : insn_descs[code].name;
 }
 
 const char *MIR_insn_name (MIR_context_t ctx, MIR_insn_code_t code) {
-  if (code < 0 || code >= MIR_INSN_BOUND)
+  if ((unsigned) code >= MIR_INSN_BOUND)
     (*error_func) (MIR_wrong_param_value_error, "MIR_insn_name: wrong insn code %d", (int) code);
   return insn_descs[code].name;
 }
 
 static size_t insn_code_nops (MIR_context_t ctx, MIR_insn_code_t code) { /* 0 for calls */
-  if (code < 0 || code >= MIR_INSN_BOUND)
+  if ((unsigned) code >= MIR_INSN_BOUND)
     (*error_func) (MIR_wrong_param_value_error, "insn_code_nops: wrong insn code %d", (int) code);
   return VARR_GET (size_t, insn_nops, code);
 }
 
-size_t MIR_insn_nops (MIR_context_t ctx, MIR_insn_t insn) { mir_assert (insn != NULL); return insn->nops; }
+size_t MIR_insn_nops (MIR_context_t ctx, MIR_insn_t insn) {
+  mir_assert (insn != NULL);
+  return insn->nops;
+}
 
 MIR_op_mode_t _MIR_insn_code_op_mode (MIR_context_t ctx, MIR_insn_code_t code, size_t nop,
                                       int *out_p) {
@@ -2082,9 +2113,9 @@ void MIR_output_op (MIR_context_t ctx, FILE *f, MIR_op_t op, MIR_func_t func) {
   case MIR_OP_HARD_REG: output_hard_reg (f, op.u.hard_reg); break;
   case MIR_OP_INT: fprintf (f, "%" PRId64, op.u.i); break;
   case MIR_OP_UINT: fprintf (f, "%" PRIu64, op.u.u); break;
-  case MIR_OP_FLOAT: fprintf (f, "%.*ef", FLT_DECIMAL_DIG, op.u.f); break;
-  case MIR_OP_DOUBLE: fprintf (f, "%.*e", DBL_DECIMAL_DIG, op.u.d); break;
-  case MIR_OP_LDOUBLE: fprintf (f, "%.*Le", LDBL_DECIMAL_DIG, op.u.ld); break;
+  case MIR_OP_FLOAT: fprintf (f, "%.*ef", FLT_MANT_DIG, op.u.f); break;
+  case MIR_OP_DOUBLE: fprintf (f, "%.*e", DBL_MANT_DIG, op.u.d); break;
+  case MIR_OP_LDOUBLE: fprintf (f, "%.*Le", LDBL_MANT_DIG, op.u.ld); break;
   case MIR_OP_MEM:
   case MIR_OP_HARD_REG_MEM: {
     MIR_reg_t no_reg = op.mode == MIR_OP_MEM ? 0 : MIR_NON_HARD_REG;
@@ -2175,7 +2206,7 @@ void MIR_output_item (MIR_context_t ctx, FILE *f, MIR_item_t item) {
   MIR_expr_data_t expr_data;
   size_t i, nlocals;
 
-  mir_assert(f != NULL && item != NULL);
+  mir_assert (f != NULL && item != NULL);
   if (item->item_type == MIR_export_item) {
     fprintf (f, "\texport\t%s\n", item->u.export);
     return;
@@ -2219,10 +2250,10 @@ void MIR_output_item (MIR_context_t ctx, FILE *f, MIR_item_t item) {
       case MIR_T_U32: fprintf (f, "%" PRIu32, ((uint32_t *) data->u.els)[i]); break;
       case MIR_T_I64: fprintf (f, "%" PRId64, ((int64_t *) data->u.els)[i]); break;
       case MIR_T_U64: fprintf (f, "%" PRIu64, ((uint64_t *) data->u.els)[i]); break;
-      case MIR_T_F: fprintf (f, "%.*ef", FLT_DECIMAL_DIG, ((float *) data->u.els)[i]); break;
-      case MIR_T_D: fprintf (f, "%.*e", DBL_DECIMAL_DIG, ((double *) data->u.els)[i]); break;
+      case MIR_T_F: fprintf (f, "%.*ef", FLT_MANT_DIG, ((float *) data->u.els)[i]); break;
+      case MIR_T_D: fprintf (f, "%.*e", DBL_MANT_DIG, ((double *) data->u.els)[i]); break;
       case MIR_T_LD:
-        fprintf (f, "%.*Le", LDBL_DECIMAL_DIG, ((long double *) data->u.els)[i]);
+        fprintf (f, "%.*Le", LDBL_MANT_DIG, ((long double *) data->u.els)[i]);
         break;
         /* only ptr as ref ??? */
       case MIR_T_P: fprintf (f, "0x%" PRIxPTR, ((uintptr_t *) data->u.els)[i]); break;
@@ -2265,7 +2296,7 @@ void MIR_output_item (MIR_context_t ctx, FILE *f, MIR_item_t item) {
 }
 
 void MIR_output_module (MIR_context_t ctx, FILE *f, MIR_module_t module) {
-  mir_assert(f != NULL && module != NULL);
+  mir_assert (f != NULL && module != NULL);
   fprintf (f, "%s:\tmodule\n", module->name);
   for (MIR_item_t item = DLIST_HEAD (MIR_item_t, module->items); item != NULL;
        item = DLIST_NEXT (MIR_item_t, item))
@@ -2274,7 +2305,7 @@ void MIR_output_module (MIR_context_t ctx, FILE *f, MIR_module_t module) {
 }
 
 void MIR_output (MIR_context_t ctx, FILE *f) {
-  mir_assert(f != NULL);
+  mir_assert (f != NULL);
   for (MIR_module_t module = DLIST_HEAD (MIR_module_t, all_modules); module != NULL;
        module = DLIST_NEXT (MIR_module_t, module))
     MIR_output_module (ctx, f, module);
@@ -3709,7 +3740,7 @@ static size_t reduce_writer (const void *start, size_t len, void *aux_data) {
   return n;
 }
 
-void MIR_write_module_with_func (MIR_context_t ctx, const int (*writer) (MIR_context_t, uint8_t),
+void MIR_write_module_with_func (MIR_context_t ctx, int (*const writer) (MIR_context_t, uint8_t),
                                  MIR_module_t module) {
   size_t len, str_len;
 
@@ -3750,7 +3781,7 @@ void MIR_write_module_with_func (MIR_context_t ctx, const int (*writer) (MIR_con
 #endif
 }
 
-void MIR_write_with_func (MIR_context_t ctx, const int (*writer) (MIR_context_t, uint8_t)) {
+void MIR_write_with_func (MIR_context_t ctx, int (*const writer) (MIR_context_t, uint8_t)) {
   MIR_write_module_with_func (ctx, writer, NULL);
 }
 
@@ -4090,7 +4121,7 @@ static size_t reduce_reader (void *start, size_t len, void *data) {
   return i;
 }
 
-void MIR_read_with_func (MIR_context_t ctx, const int (*reader) (MIR_context_t)) {
+void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t)) {
   int version;
   bin_tag_t tag;
   token_attr_t attr;
@@ -4432,7 +4463,7 @@ enum token_code {
 #undef REP_SEP
 
 typedef struct token {
-  enum token_code code;
+  int code; /* enum token_code and EOF */
   union {
     int64_t i;
     float f;

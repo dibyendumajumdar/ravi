@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2018, 2019 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2018-2020 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 
    File contains MIR interpreter which is an obligatory part of MIR API.
 */
@@ -731,7 +731,8 @@ static ALWAYS_INLINE int64_t get_mem_addr (MIR_val_t *bp, code_t c) { return bp[
   } while (0)
 
 #if defined(__GNUC__) && !defined(__clang__)
-#define OPTIMIZE __attribute__ ((__optimize__ ("O3")))
+#define OPTIMIZE \
+  __attribute__ ((__optimize__ ("O2"))) __attribute__ ((__optimize__ ("-fno-ipa-cp-clone")))
 #else
 #define OPTIMIZE
 #endif
