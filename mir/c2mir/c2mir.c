@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2018, 2019 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2018-2020 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
 /* C to MIR compiler.  It is a four pass compiler:
@@ -560,7 +560,7 @@ struct node {
 DEF_DLIST_CODE (node_t, op_link);
 
 struct token {
-  token_code_t code : 16;
+  int code : 16; /* token_code_t and EOF */
   int processed_p : 16;
   pos_t pos;
   node_code_t node_code;
@@ -606,12 +606,16 @@ static node_t new_node (c2m_ctx_t c2m_ctx, node_code_t nc) {
   return n;
 }
 
-static node_t copy_node (c2m_ctx_t c2m_ctx, node_t n) {
+static node_t copy_node_with_pos (c2m_ctx_t c2m_ctx, node_t n, pos_t pos) {
   node_t r = new_node (c2m_ctx, n->code);
 
-  r->pos = n->pos;
+  r->pos = pos;
   r->u = n->u;
   return r;
+}
+
+static node_t copy_node (c2m_ctx_t c2m_ctx, node_t n) {
+  return copy_node_with_pos (c2m_ctx, n, n->pos);
 }
 
 static node_t new_pos_node (c2m_ctx_t c2m_ctx, node_code_t nc, pos_t p) {
@@ -737,10 +741,10 @@ static token_t new_token (c2m_ctx_t c2m_ctx, pos_t pos, const char *repr, int to
   return token;
 }
 
-static token_t copy_token (c2m_ctx_t c2m_ctx, token_t t) {
-  token_t token = new_token (c2m_ctx, t->pos, t->repr, t->code, t->node_code);
+static token_t copy_token (c2m_ctx_t c2m_ctx, token_t t, pos_t pos) {
+  token_t token = new_token (c2m_ctx, pos, t->repr, t->code, t->node_code);
 
-  if (t->node != NULL) token->node = copy_node (c2m_ctx, t->node);
+  if (t->node != NULL) token->node = copy_node_with_pos (c2m_ctx, t->node, pos);
   return token;
 }
 
@@ -1111,13 +1115,15 @@ static token_t get_next_pptoken_1 (c2m_ctx_t c2m_ctx, int header_p) {
       case '\r':
       case '\v': break;
       case '\n':
-        cs->pos.ln_pos = 0;
         if (comment_char < 0) {
           nl_p = TRUE;
+          pos = cs->pos;
         } else if (comment_char == '/') {
           comment_char = -1;
           nl_p = TRUE;
+          pos = cs->pos;
         }
+        cs->pos.ln_pos = 0;
         break;
       case '/':
         if (comment_char >= 0) break;
@@ -1156,7 +1162,7 @@ static token_t get_next_pptoken_1 (c2m_ctx_t c2m_ctx, int header_p) {
     if (VARR_LENGTH (char, symbol_text) != 0) {
       cs_unget (c2m_ctx, curr_c);
       VARR_PUSH (char, symbol_text, '\0');
-      return new_token_wo_uniq_repr (c2m_ctx, cs->pos, VARR_ADDR (char, symbol_text),
+      return new_token_wo_uniq_repr (c2m_ctx, nl_p ? pos : cs->pos, VARR_ADDR (char, symbol_text),
                                      nl_p ? '\n' : ' ', N_IGNORE);
     }
     if (header_p && (curr_c == '<' || curr_c == '\"')) {
@@ -1739,6 +1745,7 @@ DEF_VARR (token_arr_t);
 
 typedef struct macro_call {
   macro_t macro;
+  pos_t pos;
   /* Var array of arguments, each arg is var array of tokens, NULL for args absence: */
   VARR (token_arr_t) * args;
   int repl_pos;                 /* position in macro replacement */
@@ -1851,10 +1858,11 @@ static void finish_macros (c2m_ctx_t c2m_ctx) {
   if (macro_tab != NULL) HTAB_DESTROY (macro_t, macro_tab);
 }
 
-static macro_call_t new_macro_call (macro_t m) {
+static macro_call_t new_macro_call (macro_t m, pos_t pos) {
   macro_call_t mc = malloc (sizeof (struct macro_call));
 
   mc->macro = m;
+  mc->pos = pos;
   mc->repl_pos = 0;
   mc->args = NULL;
   VARR_CREATE (token_t, mc->repl_buffer, 64);
@@ -1936,7 +1944,7 @@ static void add_include_stream (c2m_ctx_t c2m_ctx, const char *fname) {
 
   assert (fname != NULL);
   if ((f = fopen (fname, "r")) == NULL) {
-    if (options->message_file != NULL) fprintf (f, "error in opening file %s\n", fname);
+    if (options->message_file != NULL) fprintf (stderr, "error in opening file %s\n", fname);
     longjmp (c2m_ctx->env, 1);  // ???
   }
   add_stream (c2m_ctx, f, fname, NULL);
@@ -2096,7 +2104,7 @@ static void push_back (c2m_ctx_t c2m_ctx, VARR (token_t) * tokens) {
 #endif
 }
 
-static void copy_and_push_back (c2m_ctx_t c2m_ctx, VARR (token_t) * tokens) {
+static void copy_and_push_back (c2m_ctx_t c2m_ctx, VARR (token_t) * tokens, pos_t pos) {
 #ifdef C2MIR_PREPRO_DEBUG
   fprintf (stderr, "# copy & push back (macro call depth %d):",
            VARR_LENGTH (macro_call_t, macro_call_stack));
@@ -2105,7 +2113,7 @@ static void copy_and_push_back (c2m_ctx_t c2m_ctx, VARR (token_t) * tokens) {
 #ifdef C2MIR_PREPRO_DEBUG
     fprintf (stderr, " <%s>", get_token_str (VARR_GET (token_t, tokens, i)));
 #endif
-    unget_next_pptoken (c2m_ctx, copy_token (c2m_ctx, VARR_GET (token_t, tokens, i)));
+    unget_next_pptoken (c2m_ctx, copy_token (c2m_ctx, VARR_GET (token_t, tokens, i), pos));
   }
 #ifdef C2MIR_PREPRO_DEBUG
   fprintf (stderr, "\n");
@@ -2499,7 +2507,7 @@ static void process_replacement (c2m_ctx_t c2m_ctx, macro_call_t mc) {
 #ifdef C2MIR_PREPRO_DEBUG
           fprintf (stderr, "# push back <EOA> for macro %s call\n", mc->macro->id->repr);
 #endif
-          copy_and_push_back (c2m_ctx, arg);
+          copy_and_push_back (c2m_ctx, arg, mc->pos);
           unget_next_pptoken (c2m_ctx, new_token (c2m_ctx, t->pos, "", T_BOA, N_IGNORE));
 #ifdef C2MIR_PREPRO_DEBUG
           fprintf (stderr, "# push back <BOA> for macro %s call\n", mc->macro->id->repr);
@@ -2512,7 +2520,7 @@ static void process_replacement (c2m_ctx_t c2m_ctx, macro_call_t mc) {
     } else if (t->code != ' ') {
       sharp_pos = -1;
     }
-    if (copy_p) t = copy_token (c2m_ctx, t);
+    if (copy_p) t = copy_token (c2m_ctx, t, mc->pos);
     add_token (mc->repl_buffer, t);
   }
 }
@@ -2792,6 +2800,12 @@ static void process_directive (c2m_ctx_t c2m_ctx) {
     for (t1 = get_next_pptoken (c2m_ctx); t1->code != '\n'; t1 = get_next_pptoken (c2m_ctx))
       add_to_temp_string (c2m_ctx, t1->repr);
     error (c2m_ctx, t->pos, "%s", VARR_ADDR (char, temp_string));
+  } else if (!options->pedantic_p && strcmp (t->repr, "warning") == 0) {
+    VARR_TRUNC (char, temp_string, 0);
+    add_to_temp_string (c2m_ctx, "#warning");
+    for (t1 = get_next_pptoken (c2m_ctx); t1->code != '\n'; t1 = get_next_pptoken (c2m_ctx))
+      add_to_temp_string (c2m_ctx, t1->repr);
+    warning (c2m_ctx, t->pos, "%s", VARR_ADDR (char, temp_string));
   } else if (strcmp (t->repr, "pragma") == 0) {
     skip_nl (c2m_ctx, NULL, temp_buffer);
     check_pragma (c2m_ctx, t, temp_buffer);
@@ -2939,16 +2953,12 @@ static node_t parse_pre_expr (c2m_ctx_t c2m_ctx, VARR (token_t) * expr) {
   return NULL;
 }
 
-static struct val eval (c2m_ctx_t c2m_ctx, node_t tree);
-
-static struct val eval_expr (c2m_ctx_t c2m_ctx, VARR (token_t) * expr_buffer, token_t if_token) {
+static void replace_defined (c2m_ctx_t c2m_ctx, VARR (token_t) * expr_buffer) {
   int i, j, k, len;
-  token_t t, id, ppt;
+  token_t t, id;
   const char *res;
   struct macro macro_struct;
   macro_t tab_macro;
-  VARR (token_t) * temp_buffer;
-  node_t tree;
 
   for (i = 0; i < VARR_LENGTH (token_t, expr_buffer); i++) {
     /* Change defined ident and defined (ident) */
@@ -2981,6 +2991,17 @@ static struct val eval_expr (c2m_ctx_t c2m_ctx, VARR (token_t) * expr_buffer, to
       del_tokens (expr_buffer, i + 1, j - i);
     }
   }
+}
+
+static struct val eval (c2m_ctx_t c2m_ctx, node_t tree);
+
+static struct val eval_expr (c2m_ctx_t c2m_ctx, VARR (token_t) * expr_buffer, token_t if_token) {
+  int i, j;
+  token_t t, ppt;
+  VARR (token_t) * temp_buffer;
+  node_t tree;
+
+  replace_defined (c2m_ctx, expr_buffer);
   if (VARR_LENGTH (macro_call_t, macro_call_stack) != 0)
     error (c2m_ctx, if_token->pos, "#if/#elif inside a macro call");
   assert (VARR_LENGTH (token_t, output_buffer) == 0 && !no_out_p);
@@ -2989,6 +3010,7 @@ static struct val eval_expr (c2m_ctx_t c2m_ctx, VARR (token_t) * expr_buffer, to
   push_back (c2m_ctx, expr_buffer);
   no_out_p = TRUE;
   processing (c2m_ctx, TRUE);
+  replace_defined (c2m_ctx, output_buffer);
   no_out_p = FALSE;
   reverse_move_tokens (c2m_ctx, expr_buffer, output_buffer);
   VARR_CREATE (token_t, temp_buffer, VARR_LENGTH (token_t, expr_buffer));
@@ -3258,9 +3280,9 @@ static void processing (c2m_ctx_t c2m_ctx, int ignore_directive_p) {
 #ifdef C2MIR_PREPRO_DEBUG
       fprintf (stderr, "# push back <EOR>\n");
 #endif
-      mc = new_macro_call (m);
+      mc = new_macro_call (m, t->pos);
       add_tokens (mc->repl_buffer, m->replacement);
-      copy_and_push_back (c2m_ctx, do_concat (c2m_ctx, mc->repl_buffer));
+      copy_and_push_back (c2m_ctx, do_concat (c2m_ctx, mc->repl_buffer), mc->pos);
       m->ignore_p = TRUE;
       VARR_PUSH (macro_call_t, macro_call_stack, mc);
     } else { /* macro with parameters */
@@ -3280,7 +3302,7 @@ static void processing (c2m_ctx_t c2m_ctx, int ignore_directive_p) {
         out_token (c2m_ctx, t);
         continue;
       }
-      mc = new_macro_call (m);
+      mc = new_macro_call (m, t->pos);
       find_args (c2m_ctx, mc);
       VARR_PUSH (macro_call_t, macro_call_stack, mc);
       process_replacement (c2m_ctx, mc);
@@ -3768,7 +3790,8 @@ D (cond_expr) {
 D (assign_expr) { return right_op (c2m_ctx, no_err_p, T_ASSIGN, '=', cond_expr, assign_expr); }
 D (expr) { return right_op (c2m_ctx, no_err_p, ',', -1, assign_expr, expr); }
 
-/* Declarations; */
+/* Declarations: */
+D (attr_spec);
 DA (declaration_specs);
 D (sc_spec);
 DA (type_spec);
@@ -3790,10 +3813,40 @@ D (typedef_name);
 D (initializer);
 D (st_assert);
 
+D (asm_spec) {
+  node_t r;
+
+  PTN (T_ID);
+  if (strcmp (r->u.s.s, "__asm") != 0) PTFAIL (T_ID);
+  PT ('(');
+  while (! C (')')) {
+    PT (T_STR);
+  }
+  PT (')');
+  return NULL;
+}
+
+static node_t try_attr_spec (c2m_ctx_t c2m_ctx, pos_t pos) {
+  node_t r;
+
+  if ((r = TRY (attr_spec)) != err_node) {
+    if (options->pedantic_p)
+      error (c2m_ctx, pos, "GCC attributes are not implemented");
+    else
+      /*warning (c2m_ctx, pos, "GCC attributes are not implemented -- ignoring them")*/;
+  } else if ((r = TRY (asm_spec)) != err_node) {
+    if (options->pedantic_p)
+      error (c2m_ctx, pos, "asm is not implemented");
+    else
+      /*warning (c2m_ctx, pos, "asm is not implemented -- ignoring it")*/;
+  }
+  return r;
+}
+
 D (declaration) {
   int typedef_p;
   node_t op, list, decl, spec, r;
-  pos_t pos;
+  pos_t pos, last_pos;
 
   if (C (T_STATIC_ASSERT)) {
     P (st_assert);
@@ -3804,6 +3857,7 @@ D (declaration) {
   } else {
     PA (declaration_specs, curr_scope == top_scope ? (node_t) 1 : NULL);
     spec = r;
+    last_pos = spec->pos;
     list = new_node (c2m_ctx, N_LIST);
     if (C (';')) {
       op_append (list, new_node3 (c2m_ctx, N_SPEC_DECL, spec, new_node (c2m_ctx, N_IGNORE),
@@ -3815,6 +3869,7 @@ D (declaration) {
       for (;;) { /* init-declarator */
         P (declarator);
         decl = r;
+	last_pos = decl->pos;
         assert (decl->code == N_DECL);
         if (typedef_p) {
           op = NL_HEAD (decl->ops);
@@ -3831,6 +3886,7 @@ D (declaration) {
       }
     }
     r = list;
+    try_attr_spec (c2m_ctx, last_pos);
     PT (';');
   }
   return r;
@@ -3892,11 +3948,7 @@ DA (declaration_specs) {
       prev_type_spec = r;
     } else if ((r = TRY_A (type_spec, prev_type_spec)) != err_node) {
       prev_type_spec = r;
-    } else if ((r = TRY (attr_spec)) != err_node) {
-      if (options->pedantic_p)
-        error (c2m_ctx, spec_pos, "GCC attributes are not implemented");
-      else
-        warning (c2m_ctx, spec_pos, "GCC attributes are not implemented -- ignoring them");
+    } else if ((r = try_attr_spec (c2m_ctx, spec_pos)) != err_node) {
       continue;
     } else
       break;
@@ -5559,7 +5611,7 @@ static int incomplete_type_p (c2m_ctx_t c2m_ctx, struct type *type) {
   }
   case TM_FUNC:
     return ((type = type->u.func_type->ret_type) == NULL
-            || !void_type_p (type) && incomplete_type_p (c2m_ctx, type));
+            || (!void_type_p (type) && incomplete_type_p (c2m_ctx, type)));
   default: return FALSE;
   }
 }
@@ -8751,12 +8803,12 @@ static void check (c2m_ctx_t c2m_ctx, node_t r, node_t context) {
           another_e2 = another_case_expr2->attr;
           assert (another_e2->const_p && integer_type_p (another_e2->type));
           if ((signed_p
-               && (e->u.i_val <= another_e->u.i_val && another_e->u.i_val <= e2->u.i_val
-                   || e->u.i_val <= another_e2->u.i_val && another_e2->u.i_val <= e2->u.i_val))
+               && ((e->u.i_val <= another_e->u.i_val && another_e->u.i_val <= e2->u.i_val)
+                   || (e->u.i_val <= another_e2->u.i_val && another_e2->u.i_val <= e2->u.i_val)))
               || (!signed_p
-                  && (e->u.u_val <= another_e->u.u_val && another_e->u.u_val <= e2->u.u_val
-                      || e->u.u_val <= another_e2->u.u_val
-                           && another_e2->u.u_val <= e2->u.u_val))) {
+                  && ((e->u.u_val <= another_e->u.u_val && another_e->u.u_val <= e2->u.u_val)
+                      || (e->u.u_val <= another_e2->u.u_val
+                          && another_e2->u.u_val <= e2->u.u_val)))) {
             error (c2m_ctx, c->case_node->pos, "duplicate value in a range case");
             break;
           }
@@ -11720,7 +11772,7 @@ static void print_expr (MIR_context_t ctx, FILE *f, struct expr *e) {
   if (e->const_p) {
     fprintf (f, ", const = ");
     if (!integer_type_p (e->type)) {
-      fprintf (f, " %.*Lg\n", LDBL_DECIMAL_DIG, (long double) e->u.d_val);
+      fprintf (f, " %.*Lg\n", LDBL_MANT_DIG, (long double) e->u.d_val);
     } else if (signed_integer_type_p (e->type)) {
       fprintf (f, "%lld", (long long) e->u.i_val);
     } else {
@@ -11749,9 +11801,9 @@ static void print_node (MIR_context_t ctx, FILE *f, node_t n, int indent, int at
   case N_U: fprintf (f, " %lluu", (unsigned long long) n->u.ul); goto expr;
   case N_UL: fprintf (f, " %lluul", (unsigned long long) n->u.ul); goto expr;
   case N_ULL: fprintf (f, " %lluull", (unsigned long long) n->u.ull); goto expr;
-  case N_F: fprintf (f, " %.*g", FLT_DECIMAL_DIG, (double) n->u.f); goto expr;
-  case N_D: fprintf (f, " %.*g", DBL_DECIMAL_DIG, (double) n->u.d); goto expr;
-  case N_LD: fprintf (f, " %.*Lg", LDBL_DECIMAL_DIG, (long double) n->u.ld); goto expr;
+  case N_F: fprintf (f, " %.*g", FLT_MANT_DIG, (double) n->u.f); goto expr;
+  case N_D: fprintf (f, " %.*g", DBL_MANT_DIG, (double) n->u.d); goto expr;
+  case N_LD: fprintf (f, " %.*Lg", LDBL_MANT_DIG, (long double) n->u.ld); goto expr;
   case N_CH:
     fprintf (f, " '");
     print_char (f, n->u.ch);
@@ -11957,8 +12009,11 @@ static void init_include_dirs (MIR_context_t ctx) {
     str = uniq_cstr (c2m_ctx, VARR_ADDR (char, temp_string)).s;
     VARR_PUSH (char_ptr_t, system_headers, str);
   }
-#ifdef __linux__
+#if defined(__APPLE__) || defined(__unix__)
   VARR_PUSH (char_ptr_t, system_headers, "/usr/include");
+#if defined(__linux__) || defined(__x86_64__)
+  VARR_PUSH (char_ptr_t, system_headers, "/usr/include/x86_64-linux-gnu");
+#endif
 #endif
   VARR_PUSH (char_ptr_t, system_headers, NULL);
   header_dirs = (const char **) VARR_ADDR (char_ptr_t, headers);
@@ -12087,7 +12142,7 @@ static const char *get_module_name (MIR_context_t ctx) {
   c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
   static char str[50];
 
-  sprintf (str, "M%d", options->module_num);
+  sprintf (str, "M%ld", (long) options->module_num);
   return str;
 }
 

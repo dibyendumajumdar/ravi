@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-  Copyright (C) 2018, 2019 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2018-2020 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
 #ifndef MIR_REDUCE_H
@@ -123,7 +123,7 @@ static inline void _reduce_uint_write (struct reduce_data *data, uint32_t u) {
   assert (u < (1 << 7 * 4));
   for (n = 1; n <= 4 && u >= (1 << 7 * n); n++)
     ;
-  _reduce_put (data, (1 << (8 - n)) | (u >> (n - 1) * 8) & 0xff); /* tag */
+  _reduce_put (data, (1 << (8 - n)) | ((u >> (n - 1) * 8) & 0xff)); /* tag */
   for (int i = 2; i <= n; i++) _reduce_put (data, (u >> (n - i) * 8) & 0xff);
 }
 
@@ -365,7 +365,7 @@ static inline struct reduce_data *reduce_decode_start (reduce_reader_t reader, v
 static inline int reduce_decode_get (struct reduce_data *data) {
   uint8_t tag, hash_str[sizeof (uint64_t)];
   uint32_t sym_len, ref_len, ref_ind, sym_pos, pos = 0, curr_ind = 0;
-  uint64_t r;
+  int64_t r;
   struct _reduce_decode_data *decode_data = &data->u.decode;
   reduce_reader_t reader = decode_data->reader;
 
