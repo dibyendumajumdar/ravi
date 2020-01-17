@@ -573,6 +573,7 @@ static const char Lua_header[] =
     "extern void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b);\n"
     "extern void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);\n"
     "extern void raise_error(lua_State *L, int errorcode);\n"
+    "extern void raise_error_with_info(lua_State *L, int errorcode, const char *info);\n"
     "extern void luaD_call (lua_State *L, StkId func, int nResults);\n"
     "extern void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer value);\n"
     "extern void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value);\n"
@@ -1540,11 +1541,11 @@ static void emit_op_totype(struct function *fn, int A, int Bx, int pc) {
   membuff_add_string(&fn->body, "if (!ttisnil(ra)) {\n");
   membuff_add_fstring(&fn->body, " rb = K(%d);\n", Bx);
   membuff_add_string(&fn->body, "  if (!ttisshrstring(rb) || !raviV_check_usertype(L, tsvalue(rb), ra)) {\n");
-#if GOTO_ON_ERROR
+#if 0 // GOTO_ON_ERROR
   membuff_add_fstring(&fn->body, "   error_code = %d;\n", Error_type_mismatch);
   membuff_add_string(&fn->body, "   goto Lraise_error;\n");
 #else
-  membuff_add_fstring(&fn->body, "   raise_error(L, %d);\n", Error_type_mismatch);
+  membuff_add_fstring(&fn->body, "   raise_error_with_info(L, %d, tsvalue(rb));\n", Error_type_mismatch);
 #endif
   membuff_add_string(&fn->body, "  }\n");
   membuff_add_string(&fn->body, "}\n");
