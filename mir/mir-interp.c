@@ -379,6 +379,7 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
         } else if (i == 1 && imm_call_p) {
           mir_assert (ops[i].u.ref->item_type == MIR_import_item
                       || ops[i].u.ref->item_type == MIR_export_item
+                      || ops[i].u.ref->item_type == MIR_forward_item
                       || ops[i].u.ref->item_type == MIR_func_item);
           v.a = ops[i].u.ref->addr;
         } else if (code == MIR_VA_ARG && i == 2) { /* type */
@@ -755,10 +756,10 @@ static void start_insn_trace (MIR_context_t ctx, const char *name, func_desc_t f
   }
   fprintf (stderr, "\t#");
   MIR_output_insn (ctx, stderr, insn, func_desc->func_item->u.func, FALSE);
-  fprintf (stderr, "");
 }
 
-static void finish_insn_trace (MIR_context_t ctx, MIR_insn_code_t code, code_t ops, MIR_val_t *bp) {
+static void finish_insn_trace (MIR_context_t ctx, MIR_full_insn_code_t code, code_t ops,
+                               MIR_val_t *bp) {
   int out_p;
   MIR_op_mode_t op_mode = MIR_OP_UNDEF;
 
@@ -790,7 +791,7 @@ static void finish_insn_trace (MIR_context_t ctx, MIR_insn_code_t code, code_t o
   case IC_STLD: break;
   case IC_IMM_CALL: break;
   default:
-    op_mode = _MIR_insn_code_op_mode (ctx, code, 0, &out_p);
+    op_mode = _MIR_insn_code_op_mode (ctx, (MIR_insn_code_t) code, 0, &out_p);
     if (op_mode == MIR_OP_BOUND || !out_p) op_mode = MIR_OP_UNDEF;
     break;
   }
@@ -805,6 +806,7 @@ static void finish_insn_trace (MIR_context_t ctx, MIR_insn_code_t code, code_t o
   case MIR_OP_LDOUBLE:
     fprintf (stderr, "\t# res = %.*Le", LDBL_DECIMAL_DIG, bp[ops[0].i].ld);
     break;
+  default: assert (FALSE);
   }
   fprintf (stderr, "\n");
 }
@@ -845,7 +847,7 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
   MIR_full_insn_code_t trace_insn_code;
 #define START_INSN(v, nops)                          \
   do {                                               \
-    trace_insn_code = v;                             \
+    trace_insn_code = (MIR_full_insn_code_t) v;      \
     start_insn_trace (ctx, #v, func_desc, pc, nops); \
     ops = pc + 2; /* skip original insn too */       \
     pc += nops + 2;                                  \
@@ -931,7 +933,7 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
   goto * pc->a;
 #else
   for (;;) {
-    MIR_insn_code_t insn_code = pc->ic;
+    int insn_code = pc->ic;
     switch (insn_code) {
 #endif
 

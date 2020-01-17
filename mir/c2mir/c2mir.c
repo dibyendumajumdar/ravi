@@ -318,7 +318,9 @@ static void reg_memory_pop (c2m_ctx_t c2m_ctx, size_t mark) {
   while (VARR_LENGTH (void_ptr_t, reg_memory) > mark) free (VARR_POP (void_ptr_t, reg_memory));
 }
 
-static size_t reg_memory_mark (c2m_ctx_t c2m_ctx) { return VARR_LENGTH (void_ptr_t, reg_memory); }
+static size_t MIR_UNUSED reg_memory_mark (c2m_ctx_t c2m_ctx) {
+  return VARR_LENGTH (void_ptr_t, reg_memory);
+}
 static void reg_memory_finish (c2m_ctx_t c2m_ctx) {
   reg_memory_pop (c2m_ctx, 0);
   VARR_DESTROY (void_ptr_t, reg_memory);
@@ -876,8 +878,6 @@ static int str_getc (c2m_ctx_t c2m_ctx) {
 }
 
 static void add_string_stream (c2m_ctx_t c2m_ctx, const char *pos_fname, const char *str) {
-  pos_t pos;
-
   add_stream (c2m_ctx, NULL, pos_fname, str_getc);
   cs->start = cs->curr = str;
 }
@@ -1767,7 +1767,7 @@ struct pre_ctx {
   VARR (macro_call_t) * macro_call_stack;
   VARR (token_t) * pre_expr;
   token_t pre_last_token;
-  pos_t should_be_pre_pos, actual_pre_pos;
+  pos_t actual_pre_pos;
   unsigned long pptokens_num;
 };
 
@@ -1786,7 +1786,6 @@ struct pre_ctx {
 #define macro_call_stack c2m_ctx->pre_ctx->macro_call_stack
 #define pre_expr c2m_ctx->pre_ctx->pre_expr
 #define pre_last_token c2m_ctx->pre_ctx->pre_last_token
-#define should_be_pre_pos c2m_ctx->pre_ctx->should_be_pre_pos
 #define actual_pre_pos c2m_ctx->pre_ctx->actual_pre_pos
 #define pptokens_num c2m_ctx->pre_ctx->pptokens_num
 
@@ -2854,12 +2853,22 @@ static node_t pre_cond_expr (c2m_ctx_t c2m_ctx);
 
 /* Expressions: */
 static node_t pre_primary_expr (c2m_ctx_t c2m_ctx) {
-  node_t r;
+  node_t r, n;
 
-  if (pre_match (c2m_ctx, T_NUMBER, NULL, NULL, &r) || pre_match (c2m_ctx, T_CH, NULL, NULL, &r))
-    return r;
+  if (pre_match (c2m_ctx, T_CH, NULL, NULL, &r)) return r;
+  if (pre_match (c2m_ctx, T_NUMBER, NULL, NULL, &n)) {
+    if (!pre_match (c2m_ctx, '(', NULL, NULL, NULL)) return n;
+    if (!pre_match (c2m_ctx, ')', NULL, NULL, NULL)) {
+      for (;;) {
+        if ((r = pre_cond_expr (c2m_ctx)) == NULL) return NULL;
+        if (pre_match (c2m_ctx, ')', NULL, NULL, NULL)) break;
+        if (!pre_match (c2m_ctx, ',', NULL, NULL, NULL)) return NULL;
+      }
+    }
+    return new_pos_node (c2m_ctx, N_IGNORE, n->pos); /* error only during evaluation */
+  }
   if (pre_match (c2m_ctx, '(', NULL, NULL, NULL)) {
-    if ((r = pre_cond_expr (c2m_ctx)) == NULL) return r;
+    if ((r = pre_cond_expr (c2m_ctx)) == NULL) return NULL;
     if (pre_match (c2m_ctx, ')', NULL, NULL, NULL)) return r;
   }
   return NULL;
@@ -3084,6 +3093,11 @@ static struct val eval (c2m_ctx_t c2m_ctx, node_t tree) {
   } while (0)
 
   switch (tree->code) {
+  case N_IGNORE:
+    error (c2m_ctx, tree->pos, "wrong preprocessor expression");
+    res.uns_p = FALSE;
+    res.u.i_val = 0;
+    break;
   case N_CH:
     res.uns_p = !char_is_signed_p () || MIR_CHAR_MAX > MIR_INT_MAX;
     if (res.uns_p)
@@ -3172,7 +3186,10 @@ static struct val eval (c2m_ctx_t c2m_ctx, node_t tree) {
     cond = v1.uns_p ? v1.u.u_val != 0 : v1.u.i_val != 0;
     res = eval (c2m_ctx, NL_EL (tree->ops, cond ? 1 : 2));
     break;
-  default: assert (FALSE);
+  default:
+    res.uns_p = FALSE;
+    res.u.i_val = 0;
+    assert (FALSE);
   }
   return res;
 }
@@ -3318,29 +3335,29 @@ static void pre_text_out (c2m_ctx_t c2m_ctx, token_t t) { /* NULL means end of o
     fprintf (f, "\n");
     return;
   }
-  pre_last_token = t;
-  if (!t->processed_p) should_be_pre_pos = t->pos;
-  if (t->code == '\n') return;
-  if (actual_pre_pos.fname != should_be_pre_pos.fname
-      || actual_pre_pos.lno != should_be_pre_pos.lno) {
-    if (actual_pre_pos.fname == should_be_pre_pos.fname
-        && actual_pre_pos.lno < should_be_pre_pos.lno
-        && actual_pre_pos.lno + 4 >= should_be_pre_pos.lno) {
-      for (; actual_pre_pos.lno != should_be_pre_pos.lno; actual_pre_pos.lno++) fprintf (f, "\n");
+  if (t->code == '\n') {
+    pre_last_token = t;
+    return;
+  }
+  if (actual_pre_pos.fname != t->pos.fname || actual_pre_pos.lno != t->pos.lno) {
+    if (actual_pre_pos.fname == t->pos.fname && actual_pre_pos.lno < t->pos.lno
+        && actual_pre_pos.lno + 4 >= t->pos.lno) {
+      for (; actual_pre_pos.lno != t->pos.lno; actual_pre_pos.lno++) fprintf (f, "\n");
     } else {
       if (pre_last_token != NULL) fprintf (f, "\n");
-      fprintf (f, "#line %d", should_be_pre_pos.lno);
-      if (actual_pre_pos.fname != should_be_pre_pos.fname) {
+      fprintf (f, "#line %d", t->pos.lno);
+      if (actual_pre_pos.fname != t->pos.fname) {
         stringify (t->pos.fname, temp_string);
         VARR_PUSH (char, temp_string, '\0');
         fprintf (f, " %s", VARR_ADDR (char, temp_string));
       }
       fprintf (f, "\n");
     }
-    for (i = 0; i < should_be_pre_pos.ln_pos - 1; i++) fprintf (f, " ");
-    actual_pre_pos = should_be_pre_pos;
+    for (i = 0; i < t->pos.ln_pos - 1; i++) fprintf (f, " ");
+    actual_pre_pos = t->pos;
   }
   fprintf (f, "%s", t->code == ' ' ? " " : t->repr);
+  pre_last_token = t;
 }
 
 static void pre_out (c2m_ctx_t c2m_ctx, token_t t) {
@@ -3378,9 +3395,8 @@ static void common_pre_out (c2m_ctx_t c2m_ctx, token_t t) {
 static void pre (c2m_ctx_t c2m_ctx, const char *start_source_name) {
   pre_last_token = NULL;
   actual_pre_pos.fname = NULL;
-  should_be_pre_pos.fname = start_source_name;
-  should_be_pre_pos.lno = 0;
-  should_be_pre_pos.ln_pos = 0;
+  actual_pre_pos.lno = 0;
+  actual_pre_pos.ln_pos = 0;
   pre_out_token_func = common_pre_out;
   pptokens_num = 0;
   if (!options->no_prepro_p) {
@@ -3819,7 +3835,7 @@ D (asm_spec) {
   PTN (T_ID);
   if (strcmp (r->u.s.s, "__asm") != 0) PTFAIL (T_ID);
   PT ('(');
-  while (! C (')')) {
+  while (!C (')')) {
     PT (T_STR);
   }
   PT (')');
@@ -3829,6 +3845,7 @@ D (asm_spec) {
 static node_t try_attr_spec (c2m_ctx_t c2m_ctx, pos_t pos) {
   node_t r;
 
+  if (options->pedantic_p) return NULL;
   if ((r = TRY (attr_spec)) != err_node) {
     if (options->pedantic_p)
       error (c2m_ctx, pos, "GCC attributes are not implemented");
@@ -3855,6 +3872,7 @@ D (declaration) {
     if (curr_scope == top_scope && options->pedantic_p)
       warning (c2m_ctx, pos, "extra ; outside of a function");
   } else {
+    try_attr_spec (c2m_ctx, curr_token->pos);
     PA (declaration_specs, curr_scope == top_scope ? (node_t) 1 : NULL);
     spec = r;
     last_pos = spec->pos;
@@ -3869,12 +3887,13 @@ D (declaration) {
       for (;;) { /* init-declarator */
         P (declarator);
         decl = r;
-	last_pos = decl->pos;
+        last_pos = decl->pos;
         assert (decl->code == N_DECL);
         if (typedef_p) {
           op = NL_HEAD (decl->ops);
           tpname_add (op, curr_scope);
         }
+        try_attr_spec (c2m_ctx, last_pos);
         if (M ('=')) {
           P (initializer);
         } else {
@@ -3886,7 +3905,6 @@ D (declaration) {
       }
     }
     r = list;
-    try_attr_spec (c2m_ctx, last_pos);
     PT (';');
   }
   return r;
@@ -4848,7 +4866,6 @@ static void parse_init (MIR_context_t ctx) {
 #endif
 
 static void add_standard_includes (c2m_ctx_t c2m_ctx) {
-  FILE *f;
   const char *str;
 
   for (int i = 0; i < sizeof (standard_includes) / sizeof (char *); i++) {
@@ -5215,7 +5232,7 @@ struct decl {
 };
 
 static struct decl_spec *get_param_decl_spec (node_t param) {
-  node_t declarator;
+  node_t MIR_UNUSED declarator;
 
   if (param->code == N_TYPE) return param->attr;
   declarator = NL_EL (param->ops, 1);
@@ -5801,6 +5818,7 @@ static node_t process_tag (c2m_ctx_t c2m_ctx, node_t r, node_t id, node_t decl_l
   scope = curr_scope;
   while (scope != top_scope && (scope->code == N_STRUCT || scope->code == N_UNION))
     scope = ((struct node_scope *) scope->attr)->scope;
+  sym.def_node = NULL; /* to remove uninitialized warning */
   if (decl_list->code != N_IGNORE) {
     found_p = symbol_find (c2m_ctx, S_TAG, id, scope, &sym);
   } else {
@@ -5846,7 +5864,11 @@ static void def_symbol (c2m_ctx_t c2m_ctx, enum symbol_mode mode, node_t id, nod
   if (linkage == N_IGNORE) {
     if (!decl_spec.typedef_p || !tab_decl_spec.typedef_p
         || !type_eq_p (decl_spec.type, tab_decl_spec.type))
-      error (c2m_ctx, id->pos, "repeated declaration %s", id->u.s.s);
+#ifdef __APPLE__
+      /* a hack to use our definition instead of macosx for non-GNU compiler */
+      if (strcmp (id->u.s.s, "__darwin_va_list") != 0)
+#endif
+        error (c2m_ctx, id->pos, "repeated declaration %s", id->u.s.s);
   } else if (!compatible_types_p (decl_spec.type, tab_decl_spec.type, FALSE)) {
     error (c2m_ctx, id->pos, "incompatible types of %s declarations", id->u.s.s);
   }
@@ -6373,7 +6395,6 @@ static void check_labels (c2m_ctx_t c2m_ctx, node_t labels, node_t target) {
       node_t case_expr2 = l->code == N_CASE ? NL_EL (l->ops, 1) : NULL;
       case_t case_attr, tail = DLIST_TAIL (case_t, switch_attr->case_labels);
       int ok_p = FALSE, default_p = tail != NULL && tail->case_node->code == N_DEFAULT;
-      struct expr *expr;
 
       if (case_expr == NULL) {
         if (default_p) {
@@ -6863,17 +6884,19 @@ static node_t get_compound_literal (node_t n, int *addr_p) {
   }
   return NULL;
 }
+
 static void check_initializer (c2m_ctx_t c2m_ctx, decl_t member_decl, struct type **type_ptr,
                                node_t initializer, int const_only_p, int top_p) {
   struct type *type = *type_ptr;
   struct expr *cexpr;
   node_t literal, des_list, curr_des, init, str, value, size_node, temp;
-  mir_llong max_index, size_val;
+  mir_llong max_index;
+  mir_llong size_val = 0; /* to remove an uninitialized warning */
   size_t mark, len;
   symbol_t sym;
   struct expr *sexpr;
   init_object_t init_object;
-  int addr_p;
+  int addr_p = FALSE; /* to remove an uninitialized warning */
 
   literal = get_compound_literal (initializer, &addr_p);
   if (literal != NULL && !addr_p && initializer->code != N_STR) {
@@ -7052,7 +7075,8 @@ static void create_decl (c2m_ctx_t c2m_ctx, node_t scope, node_t decl_node,
                          struct decl_spec decl_spec, node_t width, node_t initializer,
                          int param_p) {
   int func_def_p = decl_node->code == N_FUNC_DEF, func_p = FALSE;
-  node_t id, list_head, declarator;
+  node_t id = NULL; /* to remove an uninitialized warning */
+  node_t list_head, declarator;
   struct type *type;
   decl_t decl = reg_malloc (c2m_ctx, sizeof (struct decl));
 
@@ -7211,7 +7235,8 @@ static void get_int_node (c2m_ctx_t c2m_ctx, node_t *op, struct expr **e, struct
 static struct expr *check_assign_op (c2m_ctx_t c2m_ctx, node_t r, node_t op1, node_t op2,
                                      struct expr *e1, struct expr *e2, struct type *t1,
                                      struct type *t2) {
-  struct expr *e, *te;
+  struct expr *e = NULL;
+  struct expr *te;
   struct type t, *tt;
 
   switch (r->code) {
@@ -7406,7 +7431,7 @@ static struct expr *check_assign_op (c2m_ctx_t c2m_ctx, node_t r, node_t op1, no
       }
     }
     break;
-  default: assert (FALSE);
+  default: e = NULL; assert (FALSE);
   }
   return e;
 }
@@ -7519,7 +7544,7 @@ static void process_func_decls_for_allocation (c2m_ctx_t c2m_ctx) {
   struct type *type;
   struct node_scope *ns, *curr_ns;
   node_t scope;
-  mir_size_t start_offset;
+  mir_size_t start_offset = 0; /* to remove an uninitialized warning */
 
   /* Exclude decls which will be in regs: */
   for (i = j = 0; i < VARR_LENGTH (decl_t, func_decls_for_allocation); i++) {
@@ -8226,7 +8251,7 @@ static void check (c2m_ctx_t c2m_ctx, node_t r, node_t context) {
     void_p = void_type_p (decl_spec->type);
     if (!void_p && !scalar_type_p (decl_spec->type)) {
       error (c2m_ctx, r->pos, "conversion to non-scalar type requested");
-    } else if (!scalar_type_p (t2)) {
+    } else if (!scalar_type_p (t2) && !void_type_p (t2)) {
       error (c2m_ctx, r->pos, "conversion of non-scalar value requested");
     } else if (t2->mode == TM_PTR && floating_type_p (decl_spec->type)) {
       error (c2m_ctx, r->pos, "conversion of a pointer to floating value requested");
@@ -8278,7 +8303,7 @@ static void check (c2m_ctx_t c2m_ctx, node_t r, node_t context) {
     break;
   }
   case N_CALL: {
-    struct func_type *func_type;
+    struct func_type *func_type = NULL; /* to remove an uninitialized warning */
     struct type *ret_type;
     node_t list, spec_list, decl, param_list, start_param, param, arg_list, arg;
     node_t saved_scope = curr_scope;
@@ -9180,7 +9205,7 @@ static MIR_type_t get_int_mir_type (size_t size) {
   return size == 1 ? MIR_T_I8 : size == 2 ? MIR_T_I16 : size == 4 ? MIR_T_I32 : MIR_T_I64;
 }
 
-static int get_int_mir_type_size (MIR_type_t t) {
+static int MIR_UNUSED get_int_mir_type_size (MIR_type_t t) {
   return (t == MIR_T_I8 || t == MIR_T_U8
             ? 1
             : t == MIR_T_I16 || t == MIR_T_U16 ? 2 : t == MIR_T_I32 || t == MIR_T_U32 ? 4 : 8);
@@ -9929,12 +9954,13 @@ static void collect_init_els (c2m_ctx_t c2m_ctx, decl_t member_decl, struct type
   struct type *type = *type_ptr;
   struct expr *cexpr;
   node_t literal, des_list, curr_des, str, init, value, size_node;
-  mir_llong size_val;
+  mir_llong MIR_UNUSED size_val = 0; /* to remove an uninitialized warning */
   size_t mark;
   symbol_t sym;
   struct expr *sexpr;
   init_el_t init_el;
-  int addr_p, found_p, ok_p;
+  int addr_p = FALSE; /* to remove an uninitialized warning */
+  int MIR_UNUSED found_p, MIR_UNUSED ok_p;
   init_object_t init_object;
 
   literal = get_compound_literal (initializer, &addr_p);
@@ -9964,6 +9990,7 @@ check_one_value:
       && type->mode == TM_ARR && char_type_p (type->u.arr_type->el_type)) {
     init_el.num = VARR_LENGTH (init_el_t, init_els);
     init_el.offset = get_object_path_offset (c2m_ctx);
+    init_el.member_decl = NULL;
     init_el.el_type = type;
     init_el.init = str;
     VARR_PUSH (init_el_t, init_els, init_el);
@@ -10439,10 +10466,10 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
                  int val_p, op_t *desirable_dest) {
   c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
   op_t res, op1, op2, var, val;
-  MIR_type_t t;
+  MIR_type_t t = MIR_T_UNDEF; /* to remove an uninitialized warning */
   MIR_insn_code_t insn_code;
   MIR_type_t mir_type;
-  struct expr *e;
+  struct expr *e = NULL; /* to remove an uninitialized warning */
   struct type *type;
   decl_t decl;
   long double ld;
@@ -10887,8 +10914,8 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
   case N_EXPR_SIZEOF: assert (FALSE); break;
   case N_CAST:
     assert (!((struct expr *) r->attr)->const_p);
-    op1 = gen (ctx, NL_EL (r->ops, 1), NULL, NULL, TRUE, NULL);
     type = ((struct expr *) r->attr)->type;
+    op1 = gen (ctx, NL_EL (r->ops, 1), NULL, NULL, !void_type_p (type), NULL);
     if (void_type_p (type)) {
       res = op1;
       res.decl = NULL;
@@ -10939,7 +10966,8 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     struct decl_spec *decl_spec;
     size_t ops_start;
     struct expr *call_expr = r->attr, *func_expr;
-    struct type *func_type, *type = call_expr->type;
+    struct type *func_type = NULL; /* to remove an uninitialized warning */
+    struct type *type = call_expr->type;
     MIR_item_t proto_item;
     mir_size_t saved_call_arg_area_offset_before_args;
     int va_arg_p = call_expr->builtin_call_p && strcmp (func->u.s.s, BUILTIN_VA_ARG) == 0;
@@ -11441,7 +11469,6 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     struct type *ret_type = func_type->u.func_type->ret_type;
     int scalar_p = scalar_type_p (ret_type);
     mir_size_t size = type_size (c2m_ctx, ret_type);
-    MIR_reg_t ret_addr_reg;
 
     assert (false_label == NULL && true_label == NULL);
     emit_label (ctx, r);
@@ -11522,7 +11549,7 @@ static int proto_eq (MIR_item_t pi1, MIR_item_t pi2) {
       || VARR_LENGTH (MIR_var_t, p1->args) != VARR_LENGTH (MIR_var_t, p2->args))
     return FALSE;
   for (uint32_t i = 0; i < p1->nres; i++)
-    if (p1->res_types[i] != p1->res_types[i]) return FALSE;
+    if (p1->res_types[i] != p2->res_types[i]) return FALSE;
 
   MIR_var_t *args1 = VARR_ADDR (MIR_var_t, p1->args), *args2 = VARR_ADDR (MIR_var_t, p2->args);
 
@@ -12010,10 +12037,16 @@ static void init_include_dirs (MIR_context_t ctx) {
     VARR_PUSH (char_ptr_t, system_headers, str);
   }
 #if defined(__APPLE__) || defined(__unix__)
-  VARR_PUSH (char_ptr_t, system_headers, "/usr/include");
-#if defined(__linux__) || defined(__x86_64__)
+  VARR_PUSH (char_ptr_t, system_headers, "/usr/local/include");
+#if defined(__APPLE__)
+  VARR_PUSH (char_ptr_t, system_headers,
+             "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/"
+             "MacOSX.sdk/usr/include");
+#endif
+#if defined(__linux__) && defined(__x86_64__)
   VARR_PUSH (char_ptr_t, system_headers, "/usr/include/x86_64-linux-gnu");
 #endif
+  VARR_PUSH (char_ptr_t, system_headers, "/usr/include");
 #endif
   VARR_PUSH (char_ptr_t, system_headers, NULL);
   header_dirs = (const char **) VARR_ADDR (char_ptr_t, headers);
@@ -12155,7 +12188,6 @@ int c2mir_compile (MIR_context_t ctx, struct c2mir_options *ops, int (*getc_func
   node_t r;
   unsigned n_error_before;
   MIR_module_t m;
-  const char *base_name;
 
   if (c2m_ctx == NULL) return 0;
   if (setjmp (c2m_ctx->env)) {
@@ -12199,7 +12231,8 @@ int c2mir_compile (MIR_context_t ctx, struct c2mir_options *ops, int (*getc_func
           } else if (output_file != NULL) {
             (options->asm_p ? MIR_output_module : MIR_write_module) (ctx, output_file, m);
             if (ferror (output_file) || fclose (output_file)) {
-              fprintf (options->message_file, "C2MIR error in writing file %s\n", base_name);
+              fprintf (options->message_file, "C2MIR error in writing mir for source file %s\n",
+                       source_name);
               n_errors++;
             }
           }
