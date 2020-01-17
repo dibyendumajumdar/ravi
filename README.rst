@@ -1,6 +1,8 @@
 =========================
 Ravi Programming Language
 =========================
+.. image:: https://travis-ci.org/dibyendumajumdar/ravi.svg?branch=master
+    :target: https://travis-ci.org/dibyendumajumdar/ravi
 
 Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and 
 features `LLVM <http://www.llvm.org/>`_ and `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ 

@@ -53,8 +53,13 @@ static const char *errortext[] = {"integer expected",
                                   NULL};
 
 static void raise_error(lua_State *L, int errorcode) {
-  assert(errorcode >= 0 && errorcode <= Error_type_mismatch);
+  assert(errorcode >= 0 && errorcode < Error_type_mismatch);
   luaG_runerror(L, errortext[errorcode]);
+}
+
+static void raise_error_with_info(lua_State *L, int errorcode, const char *info) {
+  assert(errorcode == Error_type_mismatch);
+  luaG_runerror(L, "type mismatch: expected %s", info);
 }
 
 #if !RAVI_TARGET_X64
@@ -69,6 +74,7 @@ typedef struct LuaFunc {
 static LuaFunc Lua_functions[] = {
     { "luaF_close", luaF_close },
     { "raise_error", raise_error },
+    { "raise_error_with_info", raise_error_with_info },
     { "luaV_tonumber_", luaV_tonumber_ },
     { "luaV_tointeger", luaV_tointeger },
     { "luaV_shiftl", luaV_shiftl },

@@ -13,7 +13,7 @@ then
   exit 1
 fi
 
-# Run tests in partial JIT mode, with line hook
+# Run tests in JIT mode without support for the line hook
 $LUA -e"_port=true; ravi.auto(true)" all.lua
 if [ $? != 0 ] 
 then

@@ -642,12 +642,6 @@ typedef struct Table {
 */
 #define luaO_nilobject		(&luaO_nilobject_)
 
-/* Internal assembler functions. Never call these directly from C.
-   Note that such functions do not follow calling conventions and 
-   are only used by ASM VM to implement bytecodes */
-typedef void(*ASMFunction)(void);
-
-
 LUAI_DDEC const TValue luaO_nilobject_;
 
 /* size of buffer for 'luaO_utf8esc' function */

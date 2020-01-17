@@ -53,8 +53,13 @@ static const char *errortext[] = {"integer expected",
                                   NULL};
 
 static void raise_error(lua_State *L, int errorcode) {
-  assert(errorcode >= 0 && errorcode <= Error_type_mismatch);
+  assert(errorcode >= 0 && errorcode < Error_type_mismatch);
   luaG_runerror(L, errortext[errorcode]);
+}
+
+static void raise_error_with_info(lua_State *L, int errorcode, const char *info) {
+  assert(errorcode == Error_type_mismatch);
+  luaG_runerror(L, "type mismatch: expected %s", info);
 }
 
 static void register_builtin_arg1(JIT_ContextRef module, const char *name,
@@ -138,6 +143,7 @@ int raviV_initjit(struct lua_State *L) {
   //extern void luaF_close (lua_State *L, StkId level);
   register_builtin_arg2(jit->jit, "luaF_close", luaF_close, JIT_NoType, JIT_Address, JIT_Address);
   register_builtin_arg2(jit->jit, "raise_error", raise_error, JIT_NoType, JIT_Address, JIT_Int32);
+  register_builtin_arg3(jit->jit, "raise_error_with_info", raise_error_with_info, JIT_NoType, JIT_Address, JIT_Int32, JIT_Address);
   //extern int luaV_tonumber_(const TValue *obj, lua_Number *n);
   register_builtin_arg2(jit->jit, "luaV_tonumber_", luaV_tonumber_, JIT_Int32, JIT_Address, JIT_Address);
   //extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);
