@@ -1545,7 +1545,7 @@ static void emit_op_totype(struct function *fn, int A, int Bx, int pc) {
   membuff_add_fstring(&fn->body, "   error_code = %d;\n", Error_type_mismatch);
   membuff_add_string(&fn->body, "   goto Lraise_error;\n");
 #else
-  membuff_add_fstring(&fn->body, "   raise_error_with_info(L, %d, tsvalue(rb));\n", Error_type_mismatch);
+  membuff_add_fstring(&fn->body, "   raise_error_with_info(L, %d, getstr(rb));\n", Error_type_mismatch);
 #endif
   membuff_add_string(&fn->body, "  }\n");
   membuff_add_string(&fn->body, "}\n");
