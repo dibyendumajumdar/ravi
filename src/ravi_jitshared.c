@@ -798,10 +798,10 @@ static void emit_FARRAY_SET(struct function *fn, int A, int B, int C, bool known
   membuff_add_string(&fn->body, "nptr = (lua_Number *)t->ravi_array.data;\n");
   membuff_add_string(&fn->body, "if (!ttisnumber(rc)) {\n");
 #if GOTO_ON_ERROR
-  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_integer_expected);
+  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_number_expected);
   membuff_add_string(&fn->body, " goto Lraise_error;\n");
 #else
-  membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_integer_expected);
+  membuff_add_fstring(&fn->body, " raise_error(L, %d);\n", Error_number_expected);
 #endif
   membuff_add_string(&fn->body, "}\n");
   membuff_add_string(&fn->body, "n = (ttisinteger(rc) ? (double)ivalue(rc) : fltvalue(rc));\n");
