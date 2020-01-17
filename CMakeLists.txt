@@ -534,9 +534,24 @@ else ()
     add_test(TestVM test_asmvm)
 endif ()
 
+configure_file(ravi-config.cmake.in ravi-config.cmake @ONLY)
+if (WIN32)
+    configure_file(ravi-env.bat.in ravi-env.bat @ONLY)
+    set(RAVI_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ravi-env.bat)
+elseif (APPLE)
+    configure_file(ravi-env.osx.sh.in ravi-env.sh @ONLY)
+    set(RAVI_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ravi-env.sh)
+else()
+    configure_file(ravi-env.linux.sh.in ravi-env.sh @ONLY)
+    set(RAVI_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ravi-env.sh)
+endif()
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
 install(TARGETS ${LIBRAVI_NAME} ravi ${RAVI_DEBUGGER_TARGET} ${RAVI_STATICEXEC_TARGET}
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
+install(FILES ${RAVI_SCRIPTS}
+        DESTINATION bin)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ravi-config.cmake
+        DESTINATION cmake)
