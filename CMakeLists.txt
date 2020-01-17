@@ -461,11 +461,6 @@ target_link_libraries(testravidebug libravinojit_static)
 
 add_test(TestRaviDebug testravidebug)
 
-add_executable(test_vm tests/test_vm.c)
-target_link_libraries(test_vm ${LIBRAVI_NAME})
-
-add_test(TestVM test_vm)
-
 configure_file(ravi-config.cmake.in ravi-config.cmake @ONLY)
 if (WIN32)
     configure_file(ravi-env.bat.in ravi-env.bat @ONLY)
