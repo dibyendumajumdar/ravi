@@ -461,7 +461,7 @@ target_link_libraries(testravidebug libravinojit_static)
 
 add_test(TestRaviDebug testravidebug)
 
-configure_file(ravi-config.cmake.in ravi-config.cmake @ONLY)
+configure_file(lua-config.cmake.in lua-config.cmake @ONLY)
 if (WIN32)
     configure_file(ravi-env.bat.in ravi-env.bat @ONLY)
     set(RAVI_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ravi-env.bat)
@@ -480,5 +480,5 @@ install(TARGETS ${LIBRAVI_NAME} ravi ${RAVI_DEBUGGER_TARGET} ${RAVI_STATICEXEC_T
         LIBRARY DESTINATION lib)
 install(FILES ${RAVI_SCRIPTS}
         DESTINATION bin)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ravi-config.cmake
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lua-config.cmake
         DESTINATION cmake)
