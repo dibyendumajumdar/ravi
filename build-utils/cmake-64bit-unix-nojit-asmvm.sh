@@ -1,3 +1,0 @@
-mkdir buildasmvm
-cd buildasmvm
-cmake -DSTATIC_BUILD=ON -DASM_VM=ON -DCMAKE_BUILD_TYPE=Debug -DCOMPUTED_GOTO=ON -DCMAKE_INSTALL_PREFIX=$HOME/ravi ..

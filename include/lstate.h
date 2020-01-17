@@ -178,7 +178,6 @@ typedef struct global_State {
   TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */
   /* RAVI additions */
   ravi_State *ravi_state;
-  ASMFunction dispatch[NUM_OPCODES]; /* Dispatch table for ASM VM - wip */
   ravi_Writeline ravi_writeline;
   ravi_Writestring ravi_writestring;
   ravi_Writestringerror ravi_writestringerror;
@@ -189,9 +188,6 @@ typedef struct global_State {
   unsigned long long ravi_prev_time;
 #endif
 } global_State;
-
-/* Offset of the ASM VM dispatch table */
-#define DISPATCH_OFFSET	((int)offsetof(global_State, dispatch))
 
 /*
 ** 'per thread' state

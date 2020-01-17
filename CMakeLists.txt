@@ -3,7 +3,6 @@ project(Ravi)
 
 enable_language(CXX)
 enable_language(C)
-enable_language(ASM)
 enable_testing()
 
 # Get access to CMake helpers
@@ -14,7 +13,6 @@ option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default 
 option(OMR_JIT "Controls whether NanoJIT compilation will be enabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
-option(ASM_VM "Controls whether to use the new VM (not ready yet! so don't turn on)" OFF)
 option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires Debug build" ON)
 
 if (LLVM_JIT AND OMR_JIT AND MIR_JIT)
@@ -22,12 +20,7 @@ if (LLVM_JIT AND OMR_JIT AND MIR_JIT)
             "LLVM_JIT, OMR_JIT and MIR_IT cannot all be set to ON at the same time")
 endif ()
 
-if (LLVM_JIT OR OMR_JIT OR MIR_JIT)
-    # ASM VM is in development and not compatible with anything yet
-    set(ASM_VM OFF)
-endif ()
-
-if (NOT WIN32 AND NOT LLVM_JIT AND NOT OMR_JIT AND NOT ASM_VM)
+if (NOT WIN32 AND NOT LLVM_JIT AND NOT OMR_JIT)
     set(MIR_JIT ON)
 endif ()
 
@@ -42,18 +35,6 @@ if (MIR_JIT)
     set(OMR_JIT OFF)
     set(STATIC_BUILD OFF)
 endif()
-
-if (ASM_VM)
-    # For now we switch to static build 
-    # TODO A fix is needed to ensure that in shared library the asm functions are resolved
-    set(STATIC_BUILD ON)
-    # LTESTS messes with global state and breaks the ASMVM dispatch table
-    set(LTESTS OFF)
-    # Not compatible with JIT modes
-    set(LLVM_JIT OFF)
-    set(OMR_JIT OFF)
-    set(MIR_JIT OFF)
-endif ()
 
 if (STATIC_BUILD)
     message(STATUS "STATIC library build enabled")
@@ -153,49 +134,9 @@ include_directories("${PROJECT_SOURCE_DIR}/include")
 include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
 
 if (NOT LTESTS)
-    # Note that enabling ltests.h messes with global_State and thus interferes with ASM_VM
+    # Note that enabling ltests.h messes with global_State
     message(STATUS "Disabling Lua extended test harness 'ltests'")
     add_definitions(-DNO_LUA_DEBUG)
-endif ()
-
-if (ASM_VM)
-    # For now we switch to static build
-    # TODO A fix is needed to ensure that in shared library the asm functions are resolved
-    add_definitions(-DRAVI_USE_ASMVM)
-    set(ASMVM_DEFS ${PROJECT_SOURCE_DIR}/include/ravi_asmvm_defs.h)
-    if (WIN32 AND NOT CYGWIN)
-        set(VMMODE peobj)
-    elseif (APPLE)
-        set(VMMODE machasm)
-    else ()
-        set(VMMODE elfasm)
-    endif ()
-
-    # This macro runs the buildvm command to generate the VM code
-    macro(add_buildvm_target _target _mode)
-        add_custom_command(OUTPUT ${_target}
-                COMMAND ${PROJECT_SOURCE_DIR}/vmbuilder/bin/buildvm ARGS -m ${_mode} -o ${_target} ${ARGN}
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                DEPENDS ${PROJECT_SOURCE_DIR}/vmbuilder/bin/buildvm ${ARGN}
-                )
-    endmacro(add_buildvm_target)
-
-    # Generate ravi_asmvm.obj / ravi_asmvm.s (obj on Windows)
-    if (WIN32 AND NOT CYGWIN)
-        add_buildvm_target(${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.obj ${VMMODE})
-        set(ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.obj)
-    else ()
-        add_buildvm_target(${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.s ${VMMODE})
-        set(ASMVM_SRC ${CMAKE_CURRENT_BINARY_DIR}/ravi_asmvm.s)
-    endif ()
-
-    # Generate the ravi_bcdef.h header file
-    add_buildvm_target(${ASMVM_DEFS} bcdef ${LJLIB_C})
-
-    SET(ASMVM_DEPS
-            ${ASMVM_SRC}
-            ${ASMVM_DEFS}
-            )
 endif ()
 
 # define JIT compiler sources
@@ -432,7 +373,6 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${DMR_C_HEADERS}
         ${DMR_C_SRCS}
         ${DMR_C_JIT_SRCS}
-        ${ASMVM_DEPS}
         ${MIR_HEADERS}
         ${MIR_SRCS}
         ${C2MIR_SRCS}
@@ -488,51 +428,43 @@ set(NOJIT_RAVI_SRCS
         ${DMR_C_JIT_SRCS}
         src/ravi_nojit.c)
 
-if (NOT ASM_VM)
-    set(RAVI_STATICEXEC_TARGET ravi_s)
+set(RAVI_STATICEXEC_TARGET ravi_s)
 
-    # We always build a static library without JIT so that
-    # we can create some default executables
-    add_library(libravinojit_static
-            ${NOJIT_RAVI_SRCS})
-    set_target_properties(libravinojit_static PROPERTIES PREFIX "") # As we already prefix with lib
-    target_link_libraries(libravinojit_static ${EXTRA_LIBRARIES})
+# We always build a static library without JIT so that
+# we can create some default executables
+add_library(libravinojit_static
+        ${NOJIT_RAVI_SRCS})
+set_target_properties(libravinojit_static PROPERTIES PREFIX "") # As we already prefix with lib
+target_link_libraries(libravinojit_static ${EXTRA_LIBRARIES})
 
-    # Create a simple NoJIT version of statically linked ravi
-    # This is sometimes useful in other projects that just need a Lua commandline
-    # but do not care about the shared library
-    add_executable(ravi_s
-            src/lua.c)
-    target_link_libraries(ravi_s libravinojit_static)
+# Create a simple NoJIT version of statically linked ravi
+# This is sometimes useful in other projects that just need a Lua commandline
+# but do not care about the shared library
+add_executable(ravi_s
+        src/lua.c)
+target_link_libraries(ravi_s libravinojit_static)
 
-    # Ravi VSCode Debug adapter
-    set(RAVI_DEBUGGER_TARGET ravidebug)
-    add_executable(${RAVI_DEBUGGER_TARGET}
-            vscode-debugger/src/ravidebug.c
-            vscode-debugger/src/json.c
-            vscode-debugger/src/protocol.c)
-    target_link_libraries(${RAVI_DEBUGGER_TARGET} libravinojit_static)
+# Ravi VSCode Debug adapter
+set(RAVI_DEBUGGER_TARGET ravidebug)
+add_executable(${RAVI_DEBUGGER_TARGET}
+        vscode-debugger/src/ravidebug.c
+        vscode-debugger/src/json.c
+        vscode-debugger/src/protocol.c)
+target_link_libraries(${RAVI_DEBUGGER_TARGET} libravinojit_static)
 
-    # Tests for VSCode Debug Adapter
-    add_executable(testravidebug
-            vscode-debugger/src/testravidebug.c
-            vscode-debugger/src/json.c
-            vscode-debugger/src/protocol.c)
-    target_link_libraries(testravidebug libravinojit_static)
+# Tests for VSCode Debug Adapter
+add_executable(testravidebug
+        vscode-debugger/src/testravidebug.c
+        vscode-debugger/src/json.c
+        vscode-debugger/src/protocol.c)
+target_link_libraries(testravidebug libravinojit_static)
 
-    add_test(TestRaviDebug testravidebug)
+add_test(TestRaviDebug testravidebug)
 
-    add_executable(test_vm tests/test_vm.c)
-    target_link_libraries(test_vm ${LIBRAVI_NAME})
+add_executable(test_vm tests/test_vm.c)
+target_link_libraries(test_vm ${LIBRAVI_NAME})
 
-    add_test(TestVM test_vm)
-else ()
-    # Simple VM tests
-    add_executable(test_asmvm tests/test_asmvm.c)
-    target_link_libraries(test_asmvm ${LIBRAVI_NAME})
-
-    add_test(TestVM test_asmvm)
-endif ()
+add_test(TestVM test_vm)
 
 configure_file(ravi-config.cmake.in ravi-config.cmake @ONLY)
 if (WIN32)
