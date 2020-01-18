@@ -4,7 +4,7 @@ find_path(LUA_INCLUDE_DIR lua.h
   )
 
 find_library(LUA_LIBRARIES
-    NAMES @LIBRAVI_NAME@
+    NAMES @LIBRAVI_NAME@ @LIBRAVI_NAME@.so
     PATHS
     @CMAKE_INSTALL_PREFIX@/lib
   )
