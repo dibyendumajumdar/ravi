@@ -93,6 +93,10 @@ if (LLVM_JIT)
             src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
             src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
             src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
+    if (NOT MSVC)
+        set_source_files_properties(${LLVM_JIT_SRCS} PROPERTIES
+                COMPILE_FLAGS "-fno-rtti -fno-exceptions")
+    endif()
 elseif (OMR_JIT)
     set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
 elseif (MIR_JIT)
@@ -352,6 +356,8 @@ endif ()
 if (MIR_JIT)
     set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_MIRJIT=1")
 endif ()
+set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_STANDARD 14)
+set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_EXTENSIONS OFF)
 target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${OMRJIT_LIBRARIES} ${MIRJIT_LIBRARIES})
 
 # Main Ravi executable
