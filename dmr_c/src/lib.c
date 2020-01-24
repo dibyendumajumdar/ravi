@@ -261,6 +261,9 @@ void dmrC_die(struct dmr_C *C, const char *fmt, ...)
 #define ARCH_BIG_ENDIAN 0
 #endif
 
+#define xstr(s) str(s)
+#define str(s) #s
+
 struct dmr_C *new_dmr_C()
 {
 	struct dmr_C *C = (struct dmr_C *)calloc(1, sizeof(struct dmr_C));
@@ -269,12 +272,12 @@ struct dmr_C *new_dmr_C()
 	C->arch_msize_long = 0;
 	C->arch_big_endian = ARCH_BIG_ENDIAN;
 #ifdef GCC_BASE
-	C->gcc_base_dir = GCC_BASE;
+	C->gcc_base_dir = xstr(GCC_BASE);
 #else
 	C->gcc_base_dir = NULL;
 #endif
 #ifdef MULTIARCH_TRIPLET
-	C->multiarch_dir = MULTIARCH_TRIPLET;
+	C->multiarch_dir = xstr(MULTIARCH_TRIPLET);
 #else
 	C->multiarch_dir = NULL;
 #endif
