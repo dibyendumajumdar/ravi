@@ -48,8 +48,7 @@ if (LLVM_JIT)
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
     include_directories(${LLVM_INCLUDE_DIRS})
-    add_definitions(${LLVM_DEFINITIONS})
-
+    message(STATUS "LLVM Definitions ${LLVM_DEFINITIONS}")
     message(STATUS "LLVM enabled")
     # We also need to define USE_LLVM when compiling code
     # but rather than setting globally we set this when building the
@@ -59,13 +58,11 @@ endif ()
 if (OMR_JIT)
     find_package(OMRJIT REQUIRED)
     include_directories(${OMRJIT_INCLUDE_DIRS})
-    add_definitions(-DUSE_OMRJIT)
     message(STATUS "OMRJIT enabled")
 endif ()
 
 if (MIR_JIT)
     include (cmake/mir.cmake)
-    add_definitions(-DUSE_MIRJIT)
     message(STATUS "MIRJIT enabled")
 endif ()
 
@@ -95,7 +92,7 @@ if (LLVM_JIT)
             src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
     if (NOT MSVC)
         set_source_files_properties(${LLVM_JIT_SRCS} PROPERTIES
-                COMPILE_FLAGS "-fno-rtti -fno-exceptions")
+                COMPILE_FLAGS "-fno-rtti -fno-exceptions ${LLVM_DEFINITIONS}")
     endif()
 elseif (OMR_JIT)
     set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
@@ -139,20 +136,6 @@ elseif (NOT WIN32)
     # functions like dlopen()
     # ubsan can be added to get -fsanitize=undefined
     set(EXTRA_LIBRARIES m dl readline)
-endif ()
-
-# Additional stuff for dmrC
-if (CMAKE_COMPILER_IS_GNUCC)
-    execute_process(COMMAND ${CMAKE_C_COMPILER} --print-file-name=
-            OUTPUT_VARIABLE GCC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
-    execute_process(COMMAND ${CMAKE_C_COMPILER} -print-multiarch
-            OUTPUT_VARIABLE MULTIARCH_TRIPLET ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-    add_definitions(-DGCC_BASE="${GCC_BASE}")
-    add_definitions(-DMULTIARCH_TRIPLET="${MULTIARCH_TRIPLET}")
-
-    message(STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
-    message(STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET})
 endif ()
 
 # Common stuff we need even if we don't use dmrC.
@@ -230,6 +213,19 @@ else()
     set(DMR_C_HEADERS ${DMR_C_HEADERS_COMMON})
     set(DMR_C_SRCS ${DMR_C_SRCS_COMMON})
     set(EMBEDDED_DMRC OFF)
+endif ()
+
+# Additional stuff for dmrC
+if (CMAKE_COMPILER_IS_GNUCC AND EMBEDDED_DMRC)
+    execute_process(COMMAND ${CMAKE_C_COMPILER} --print-file-name=
+            OUTPUT_VARIABLE GCC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(COMMAND ${CMAKE_C_COMPILER} -print-multiarch
+            OUTPUT_VARIABLE MULTIARCH_TRIPLET ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    set_source_files_properties(dmr_c/src/lib.c PROPERTIES COMPILE_FLAGS "-DGCC_BASE=${GCC_BASE} -DMULTIARCH_TRIPLET=${MULTIARCH_TRIPLET}")
+
+    message(STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
+    message(STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET})
 endif ()
 
 # IDE stuff
@@ -419,6 +415,7 @@ target_link_libraries(testravidebug libravinojit_static)
 
 add_test(TestRaviDebug testravidebug)
 
+include(GNUInstallDirs)
 configure_file(lua-config.cmake.in lua-config.cmake @ONLY)
 if (WIN32)
     configure_file(ravi-env.bat.in ravi-env.bat @ONLY)
@@ -430,13 +427,14 @@ else()
     configure_file(ravi-env.linux.sh.in ravi-env.sh @ONLY)
     set(RAVI_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ravi-env.sh)
 endif()
+
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
 install(TARGETS ${LIBRAVI_NAME} ravi ${RAVI_DEBUGGER_TARGET} ${RAVI_STATICEXEC_TARGET}
-        RUNTIME DESTINATION bin
-        ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib)
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT Ravi_Runtime
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Ravi_Development
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Ravi_Runtime)
 install(FILES ${RAVI_SCRIPTS}
-        DESTINATION bin)
+        DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lua-config.cmake
         DESTINATION cmake)
