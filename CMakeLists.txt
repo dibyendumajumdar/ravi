@@ -80,7 +80,7 @@ if (COMPUTED_GOTO AND MSVC)
 endif ()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
-include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
+#include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
 
 if (NOT LTESTS)
     # Note that enabling ltests.h messes with global_State
@@ -200,9 +200,16 @@ if (LLVM_JIT)
     set(DMR_C_JIT_HEADERS
             dmr_c/llvm-backend/dmr_c.h
             )
-    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
+    #include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
     set(DMR_C_HEADERS ${DMR_C_HEADERS_OPT} ${DMR_C_HEADERS_COMMON})
     set(DMR_C_SRCS ${DMR_C_SRCS_OPT} ${DMR_C_SRCS_COMMON})
+
+    set_property(SOURCE ${DMR_C_JIT_SRCS} src/ravi_llvmcodegen.cpp src/ravi_dmrc_parsesymbols.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
+    set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS} src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
 elseif (OMR_JIT)
     set(DMR_C_JIT_SRCS
             dmr_c/omrjit-backend/sparse-omrjit.c
@@ -210,15 +217,33 @@ elseif (OMR_JIT)
     set(DMR_C_JIT_HEADERS
             dmr_c/omrjit-backend/dmr_c.h
             )
-    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
+    # include_directories("${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
     set(DMR_C_HEADERS ${DMR_C_HEADERS_OPT} ${DMR_C_HEADERS_COMMON})
     set(DMR_C_SRCS ${DMR_C_SRCS_OPT} ${DMR_C_SRCS_COMMON})
+
+    set_property(SOURCE ${DMR_C_JIT_SRCS} src/ravi_dmrc_parsesymbols.c ${OMR_JIT_SRCS}
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
+    set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS} src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
 else()
     # Omit all dmrC stuff except for what we need for the parser
     set(DMR_C_HEADERS ${DMR_C_HEADERS_COMMON})
     set(DMR_C_SRCS ${DMR_C_SRCS_COMMON})
     set(EMBEDDED_DMRC OFF)
-endif ()
+
+    set_property(SOURCE ${DMR_C_SRCS_COMMON} src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
+
+    if (MIR_JIT)
+        set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
+                APPEND
+                PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir"
+                )
+    endif ()
+endif()
 
 # Additional stuff for dmrC
 if (CMAKE_COMPILER_IS_GNUCC AND EMBEDDED_DMRC)
