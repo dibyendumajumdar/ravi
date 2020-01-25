@@ -8,7 +8,6 @@ enable_testing()
 # Get access to CMake helpers
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-# By default JIT is OFF
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(OMR_JIT "Controls whether NanoJIT compilation will be enabled, default is OFF" OFF)
 option(NO_JIT "Controls whether JIT should be disabled, default is OFF" OFF)
@@ -18,7 +17,7 @@ option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires 
 
 if (LLVM_JIT AND OMR_JIT)
     message(FATAL_ERROR
-            "LLVM_JIT, OMR_JIT and MIR_IT cannot all be set to ON at the same time")
+            "LLVM_JIT and OMR_JIT cannot be set to ON at the same time")
 endif ()
 
 # By default on X86_64 non-Windows platforms we enable MIR JIT
@@ -50,46 +49,35 @@ else ()
     set(LIBRAVI_BUILD_TYPE SHARED)
 endif ()
 
+include_directories("${PROJECT_SOURCE_DIR}/include")
+
+# define the Lua core source files
+set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
+        src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
+        src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
+        src/lvm.c src/lzio.c src/ravijit.cpp src/ltests.c src/ravi_profile.c
+        src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c src/ravi_membuf.c
+        src/ravi_jitshared.c src/bit.c src/ravi_alloc.c)
+if (COMPUTED_GOTO AND NOT MSVC)
+    if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+        set_source_files_properties(src/lvm.c PROPERTIES COMPILE_FLAGS -DRAVI_USE_COMPUTED_GOTO)
+    elseif (CMAKE_C_COMPILER_ID MATCHES "GNU")
+        set_source_files_properties(src/lvm.c PROPERTIES COMPILE_FLAGS "-fno-crossjumping -fno-gcse -DRAVI_USE_COMPUTED_GOTO")
+    endif ()
+endif ()
+# define the Lua library source files
+set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
+        src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
+set(LUA_HEADERS include/lua.h include/luaconf.h include/lualib.h include/lauxlib.h)
+
 if (LLVM_JIT)
     find_package(LLVM REQUIRED CONFIG)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-    #include_directories(${LLVM_INCLUDE_DIRS})
     message(STATUS "LLVM Definitions ${LLVM_DEFINITIONS}")
     message(STATUS "LLVMJIT enabled")
-    # We also need to define USE_LLVM when compiling code
-    # but rather than setting globally we set this when building the
-    # library 
-endif ()
 
-if (OMR_JIT)
-    find_package(OMRJIT REQUIRED)
-    #include_directories(${OMRJIT_INCLUDE_DIRS})
-    message(STATUS "OMRJIT enabled")
-endif ()
-
-if (MIR_JIT)
-    include (cmake/mir.cmake)
-    message(STATUS "MIRJIT enabled")
-endif ()
-
-message(STATUS "Computed goto ${COMPUTED_GOTO}")
-if (COMPUTED_GOTO AND MSVC)
-    message(WARNING "Computed goto is not available with MSVC")
-endif ()
-
-include_directories("${PROJECT_SOURCE_DIR}/include")
-#include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
-
-if (NOT LTESTS)
-    # Note that enabling ltests.h messes with global_State
-    message(STATUS "Disabling Lua extended test harness 'ltests'")
-    add_definitions(-DNO_LUA_DEBUG)
-endif ()
-
-# define JIT compiler sources
-if (LLVM_JIT)
     set(LLVM_JIT_SRCS src/ravi_llvmjit.cpp src/ravi_llvmtypes.cpp
             src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
             src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
@@ -105,33 +93,25 @@ if (LLVM_JIT)
             PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS}
     )
 elseif (OMR_JIT)
+    find_package(OMRJIT REQUIRED)
+    message(STATUS "OMRJIT enabled")
+
     set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
 elseif (MIR_JIT)
+    include (cmake/mir.cmake)
+    message(STATUS "MIRJIT enabled")
+
     set(MIR_JIT_SRCS src/ravi_mirjit.c)
-else ()
+else()
     set(NO_JIT_SRCS src/ravi_nojit.c)
 endif ()
 
-# define the lua core source files
-set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
-        src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
-        src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
-        src/lvm.c src/lzio.c src/ravijit.cpp src/ltests.c src/ravi_profile.c
-        src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c src/ravi_membuf.c
-        src/ravi_jitshared.c src/bit.c src/ravi_alloc.c)
-if (COMPUTED_GOTO AND NOT MSVC)
-    if (CMAKE_C_COMPILER_ID MATCHES "Clang")
-        set_source_files_properties(src/lvm.c PROPERTIES COMPILE_FLAGS -DRAVI_USE_COMPUTED_GOTO)
-    elseif (CMAKE_C_COMPILER_ID MATCHES "GNU")
-        set_source_files_properties(src/lvm.c PROPERTIES COMPILE_FLAGS "-fno-crossjumping -fno-gcse -DRAVI_USE_COMPUTED_GOTO")
-    endif ()
+message(STATUS "Computed goto ${COMPUTED_GOTO}")
+if (COMPUTED_GOTO AND MSVC)
+    message(WARNING "Computed goto is not available with MSVC")
 endif ()
-# define the lua lib source files
-set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
-        src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
 
 file(GLOB RAVI_HEADERS "${PROJECT_SOURCE_DIR}/include/*.h")
-set(LUA_HEADERS include/lua.h include/luaconf.h include/lualib.h include/lauxlib.h)
 
 # Misc setup
 if (MSVC OR APPLE)
@@ -205,7 +185,6 @@ if (LLVM_JIT)
     set(DMR_C_JIT_HEADERS
             dmr_c/llvm-backend/dmr_c.h
             )
-    #include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
     set(DMR_C_HEADERS ${DMR_C_HEADERS_OPT} ${DMR_C_HEADERS_COMMON})
     set(DMR_C_SRCS ${DMR_C_SRCS_OPT} ${DMR_C_SRCS_COMMON})
 
@@ -226,7 +205,6 @@ elseif (OMR_JIT)
     set(DMR_C_JIT_HEADERS
             dmr_c/omrjit-backend/dmr_c.h
             )
-    # include_directories("${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
     set(DMR_C_HEADERS ${DMR_C_HEADERS_OPT} ${DMR_C_HEADERS_COMMON})
     set(DMR_C_SRCS ${DMR_C_SRCS_OPT} ${DMR_C_SRCS_COMMON})
 
@@ -400,24 +378,33 @@ add_executable(${RAVI_STATICEXEC_TARGET}
         src/lua.c)
 target_link_libraries(ravi_s libravinojit_static)
 
+if (NOT LTESTS)
+    # Note that enabling ltests.h messes with global_State
+    message(STATUS "Disabling Lua extended test harness 'ltests'")
+    set_property(
+            TARGET ${LIBRAVI_NAME} ravi
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS NO_LUA_DEBUG)
+    set(NO_LUA_DEBUG 1)
+endif ()
 if (LLVM_JIT)
     set_property(
             TARGET ${LIBRAVI_NAME} ravi
             APPEND
-            PROPERTY COMPILE_DEFINITIONS "USE_LLVM=1"
-    )
+            PROPERTY COMPILE_DEFINITIONS "USE_LLVM=1")
+    set(USE_LLVM 1)
 elseif (OMR_JIT)
     set_property(
             TARGET ${LIBRAVI_NAME} ravi
             APPEND
-            PROPERTY COMPILE_DEFINITIONS "USE_OMRJIT=1"
-    )
+            PROPERTY COMPILE_DEFINITIONS "USE_OMRJIT=1")
+    set(USE_OMRJIT 1)
 elseif (MIR_JIT)
     set_property(
             TARGET ${LIBRAVI_NAME} ravi
             APPEND
-            PROPERTY COMPILE_DEFINITIONS "USE_MIRJIT=1"
-    )
+            PROPERTY COMPILE_DEFINITIONS "USE_MIRJIT=1")
+    set(USE_MIRJIT 1)
 endif ()
 if (NOT STATIC_BUILD)
     if (WIN32)
@@ -425,8 +412,7 @@ if (NOT STATIC_BUILD)
         set_property(
                 TARGET ${LIBRAVI_NAME}
                 APPEND
-                PROPERTY COMPILE_DEFINITIONS LUA_BUILD_AS_DLL
-        )
+                PROPERTY COMPILE_DEFINITIONS LUA_BUILD_AS_DLL)
     else ()
         set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
     endif ()
@@ -437,8 +423,7 @@ if (EMBEDDED_DMRC)
     set_property(
             TARGET ${LIBRAVI_NAME} ravi
             APPEND
-            PROPERTY COMPILE_DEFINITIONS "USE_DMR_C=1"
-    )
+            PROPERTY COMPILE_DEFINITIONS "USE_DMR_C=1")
 endif ()
 if (APPLE)
     set_property(
@@ -453,6 +438,12 @@ elseif (UNIX)
 endif()
 set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_STANDARD 14)
 set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_EXTENSIONS OFF)
+
+include(GNUInstallDirs)
+configure_file(ravi-config.h.in ravi-config.h @ONLY)
+target_include_directories(${LIBRAVI} ravi
+        PUBLIC
+        "${PROJECT_BINARY_DIR}")
 
 # Ravi VSCode Debug adapter
 set(RAVI_DEBUGGER_TARGET ravidebug)
@@ -471,8 +462,9 @@ target_link_libraries(testravidebug libravinojit_static)
 
 add_test(TestRaviDebug testravidebug)
 
-include(GNUInstallDirs)
+
 configure_file(lua-config.cmake.in lua-config.cmake @ONLY)
+
 if (WIN32)
     configure_file(ravi-env.bat.in ravi-env.bat @ONLY)
     set(RAVI_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ravi-env.bat)
