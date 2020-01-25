@@ -21,8 +21,12 @@ if (LLVM_JIT AND OMR_JIT)
             "LLVM_JIT, OMR_JIT and MIR_IT cannot all be set to ON at the same time")
 endif ()
 
-# By default on X86_64 we enable MIR JIT on non-Windows platforms
-if (NOT WIN32 AND NOT LLVM_JIT AND NOT OMR_JIT AND NOT NO_JIT AND CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+# By default on X86_64 non-Windows platforms we enable MIR JIT
+if (NOT WIN32
+        AND NOT LLVM_JIT
+        AND NOT OMR_JIT
+        AND NOT NO_JIT
+        AND CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
     set(MIR_JIT ON)
 endif ()
 
@@ -35,13 +39,15 @@ if (MIR_JIT)
     endif()
     set(LLVM_JIT OFF)
     set(OMR_JIT OFF)
-    set(STATIC_BUILD OFF)
+    set(STATIC_BUILD OFF) # Because we need to expose the symbols in the library
 endif()
 
 if (STATIC_BUILD)
     message(STATUS "STATIC library build enabled")
+    set(LIBRAVI_BUILD_TYPE STATIC)
 else ()
     message(STATUS "DYNAMIC library build enabled")
+    set(LIBRAVI_BUILD_TYPE SHARED)
 endif ()
 
 if (LLVM_JIT)
@@ -51,7 +57,7 @@ if (LLVM_JIT)
 
     include_directories(${LLVM_INCLUDE_DIRS})
     message(STATUS "LLVM Definitions ${LLVM_DEFINITIONS}")
-    message(STATUS "LLVM enabled")
+    message(STATUS "LLVMJIT enabled")
     # We also need to define USE_LLVM when compiling code
     # but rather than setting globally we set this when building the
     # library 
@@ -73,8 +79,8 @@ if (COMPUTED_GOTO AND MSVC)
     message(WARNING "Computed goto is not available with MSVC")
 endif ()
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+#set(CMAKE_CXX_STANDARD 11)
+#set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
 include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
@@ -293,11 +299,6 @@ if (LLVM_JIT)
     message(STATUS "LLVM_LIBS ${LLVM_LIBS}")
 endif ()
 
-if (NOT STATIC_BUILD)
-    set(LIBRAVI_BUILD_TYPE SHARED)
-else()
-    set(LIBRAVI_BUILD_TYPE STATIC)
-endif ()
 
 # Name library differently based on JIT backend
 if (LLVM_JIT)
@@ -326,52 +327,39 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${MIR_SRCS}
         ${C2MIR_SRCS}
         )
-if (EMBEDDED_DMRC)
-    set(DMRC_DEF "USE_DMR_C=1")
-endif ()
-if (NOT STATIC_BUILD)
-    if (WIN32)
-        # enable DLL export
-        set_target_properties(${LIBRAVI_NAME} PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-    else ()
-        set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
-    endif ()
-else()
-    set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
-endif ()
-if (APPLE)
-    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "LUA_USE_MACOSX=1")
-elseif (UNIX)
-    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "LUA_USE_LINUX=1")
-endif()
-if (LLVM_JIT)
-    message(STATUS "Setting USE_LLVM=1")
-    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1;${DMRC_DEF}")
-endif ()
-if (OMR_JIT)
-    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_OMRJIT=1;${DMRC_DEF}")
-endif ()
-if (MIR_JIT)
-    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_MIRJIT=1")
-endif ()
-set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_STANDARD 14)
-set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_EXTENSIONS OFF)
+
+#if (EMBEDDED_DMRC)
+#    set(DMRC_DEF "USE_DMR_C=1")
+#endif ()
+#if (NOT STATIC_BUILD)
+#    if (WIN32)
+#        # enable DLL export
+#        set_target_properties(${LIBRAVI_NAME} PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+#    else ()
+#        set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
+#    endif ()
+#else()
+#    set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
+#endif ()
+#if (APPLE)
+#    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "LUA_USE_MACOSX=1")
+#elseif (UNIX)
+#    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "LUA_USE_LINUX=1")
+#endif()
+#if (LLVM_JIT)
+#    message(STATUS "Setting USE_LLVM=1")
+#    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1;${DMRC_DEF}")
+#endif ()
+#if (OMR_JIT)
+#    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_OMRJIT=1;${DMRC_DEF}")
+#endif ()
+#if (MIR_JIT)
+#    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_MIRJIT=1")
+#endif ()
 target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${OMRJIT_LIBRARIES} ${MIRJIT_LIBRARIES})
 
 # Main Ravi executable
 add_executable(ravi src/lua.c)
-if (LLVM_JIT)
-    set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
-endif ()
-if (OMR_JIT)
-    set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_OMRJIT=1")
-endif ()
-if (MIR_JIT)
-    set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_MIRJIT=1")
-endif ()
-if (EMBEDDED_DMRC)
-    set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_DMR_C=1")
-endif ()
 target_link_libraries(ravi ${LIBRAVI_NAME})
 
 # Sources that are needed for a static NOJIT basic library
@@ -383,7 +371,6 @@ set(NOJIT_RAVI_SRCS
         ${DMR_C_SRCS}
         ${DMR_C_JIT_SRCS}
         src/ravi_nojit.c)
-
 set(RAVI_STATICEXEC_TARGET ravi_s)
 
 # We always build a static library without JIT so that
@@ -396,9 +383,67 @@ target_link_libraries(libravinojit_static ${EXTRA_LIBRARIES})
 # Create a simple NoJIT version of statically linked ravi
 # This is sometimes useful in other projects that just need a Lua commandline
 # but do not care about the shared library
-add_executable(ravi_s
+add_executable(${RAVI_STATICEXEC_TARGET}
         src/lua.c)
 target_link_libraries(ravi_s libravinojit_static)
+
+if (LLVM_JIT)
+    set_property(
+            TARGET ${LIBRAVI_NAME} ravi
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "USE_LLVM=1"
+    )
+    #set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1;${DMRC_DEF}")
+elseif (OMR_JIT)
+    set_property(
+            TARGET ${LIBRAVI_NAME} ravi
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "USE_OMRJIT=1"
+    )
+    #set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_OMRJIT=1;${DMRC_DEF}")
+elseif (MIR_JIT)
+    set_property(
+            TARGET ${LIBRAVI_NAME} ravi
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "USE_MIRJIT=1"
+    )
+    #set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_MIRJIT=1")
+endif ()
+if (NOT STATIC_BUILD)
+    if (WIN32)
+        # enable DLL export
+        #set_target_properties(${LIBRAVI_NAME} PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
+        set_property(
+                TARGET ${LIBRAVI_NAME}
+                APPEND
+                PROPERTY COMPILE_DEFINITIONS LUA_BUILD_AS_DLL
+        )
+    else ()
+        set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
+    endif ()
+else()
+    set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
+endif ()
+if (EMBEDDED_DMRC)
+    set_property(
+            TARGET ${LIBRAVI_NAME} ravi
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "USE_DMR_C=1"
+    )
+endif ()
+if (APPLE)
+    set_property(
+            TARGET ${LIBRAVI_NAME} libravinojit_static
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "LUA_USE_MACOSX=1")
+elseif (UNIX)
+    set_property(
+            TARGET ${LIBRAVI_NAME} libravinojit_static
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "LUA_USE_LINUX=1")
+endif()
+set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_STANDARD 14)
+set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_EXTENSIONS OFF)
 
 # Ravi VSCode Debug adapter
 set(RAVI_DEBUGGER_TARGET ravidebug)
