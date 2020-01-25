@@ -11,16 +11,18 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 # By default JIT is OFF
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(OMR_JIT "Controls whether NanoJIT compilation will be enabled, default is OFF" OFF)
+option(NO_JIT "Controls whether JIT should be disabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
 option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires Debug build" ON)
 
-if (LLVM_JIT AND OMR_JIT AND MIR_JIT)
+if (LLVM_JIT AND OMR_JIT)
     message(FATAL_ERROR
             "LLVM_JIT, OMR_JIT and MIR_IT cannot all be set to ON at the same time")
 endif ()
 
-if (NOT WIN32 AND NOT LLVM_JIT AND NOT OMR_JIT)
+# By default on X86_64 we enable MIR JIT on non-Windows platforms
+if (NOT WIN32 AND NOT LLVM_JIT AND NOT OMR_JIT AND NOT NO_JIT AND CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
     set(MIR_JIT ON)
 endif ()
 
