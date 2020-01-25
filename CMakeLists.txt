@@ -79,9 +79,6 @@ if (COMPUTED_GOTO AND MSVC)
     message(WARNING "Computed goto is not available with MSVC")
 endif ()
 
-#set(CMAKE_CXX_STANDARD 11)
-#set(CMAKE_CXX_STANDARD_REQUIRED True)
-
 include_directories("${PROJECT_SOURCE_DIR}/include")
 include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
 
@@ -327,35 +324,6 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${MIR_SRCS}
         ${C2MIR_SRCS}
         )
-
-#if (EMBEDDED_DMRC)
-#    set(DMRC_DEF "USE_DMR_C=1")
-#endif ()
-#if (NOT STATIC_BUILD)
-#    if (WIN32)
-#        # enable DLL export
-#        set_target_properties(${LIBRAVI_NAME} PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-#    else ()
-#        set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
-#    endif ()
-#else()
-#    set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
-#endif ()
-#if (APPLE)
-#    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "LUA_USE_MACOSX=1")
-#elseif (UNIX)
-#    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "LUA_USE_LINUX=1")
-#endif()
-#if (LLVM_JIT)
-#    message(STATUS "Setting USE_LLVM=1")
-#    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1;${DMRC_DEF}")
-#endif ()
-#if (OMR_JIT)
-#    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_OMRJIT=1;${DMRC_DEF}")
-#endif ()
-#if (MIR_JIT)
-#    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_MIRJIT=1")
-#endif ()
 target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${OMRJIT_LIBRARIES} ${MIRJIT_LIBRARIES})
 
 # Main Ravi executable
@@ -393,26 +361,22 @@ if (LLVM_JIT)
             APPEND
             PROPERTY COMPILE_DEFINITIONS "USE_LLVM=1"
     )
-    #set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1;${DMRC_DEF}")
 elseif (OMR_JIT)
     set_property(
             TARGET ${LIBRAVI_NAME} ravi
             APPEND
             PROPERTY COMPILE_DEFINITIONS "USE_OMRJIT=1"
     )
-    #set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_OMRJIT=1;${DMRC_DEF}")
 elseif (MIR_JIT)
     set_property(
             TARGET ${LIBRAVI_NAME} ravi
             APPEND
             PROPERTY COMPILE_DEFINITIONS "USE_MIRJIT=1"
     )
-    #set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_MIRJIT=1")
 endif ()
 if (NOT STATIC_BUILD)
     if (WIN32)
         # enable DLL export
-        #set_target_properties(${LIBRAVI_NAME} PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
         set_property(
                 TARGET ${LIBRAVI_NAME}
                 APPEND
