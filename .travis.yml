@@ -1,12 +1,12 @@
 language: cpp
 os:
  - linux
-env:
- - ARCH="x86_64"
+arch:
+ - amd64
 compiler:
  - gcc
 cache: ccache
-dist: xenial
+dist: bionic
 addons:
   apt:
     packages:
@@ -14,14 +14,13 @@ addons:
       - gcc
       - ccache
 install:
- - curl https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.tar.gz | tar -xzf -
  - curl http://releases.llvm.org/6.0.1/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz | tar -xJf -
 script:
  - mkdir $TRAVIS_BUILD_DIR/build
- - cd $TRAVIS_BUILD_DIR/build && $TRAVIS_BUILD_DIR/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=$TRAVIS_BUILD_DIR/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04/lib/cmake/llvm -G "Unix Makefiles" -DLLVM_JIT=ON ..
+ - cd $TRAVIS_BUILD_DIR/build && cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=$TRAVIS_BUILD_DIR/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04/lib/cmake/llvm -G "Unix Makefiles" -DLLVM_JIT=ON ..
  - cd $TRAVIS_BUILD_DIR/build && make
  - cd $TRAVIS_BUILD_DIR/lua-tests && sh ./run_travis_tests.sh $TRAVIS_BUILD_DIR/build/ravi
  - mkdir $TRAVIS_BUILD_DIR/buildmir
- - cd $TRAVIS_BUILD_DIR/buildmir && $TRAVIS_BUILD_DIR/cmake-3.4.0-Linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" -DMIR_JIT=ON ..
+ - cd $TRAVIS_BUILD_DIR/buildmir && cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" -DMIR_JIT=ON ..
  - cd $TRAVIS_BUILD_DIR/buildmir && make
  - cd $TRAVIS_BUILD_DIR/lua-tests && sh ./run_travis_tests.sh $TRAVIS_BUILD_DIR/buildmir/ravi

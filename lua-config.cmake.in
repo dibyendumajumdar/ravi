@@ -6,13 +6,13 @@ find_path(LUA_INCLUDE_DIR lua.h
 find_library(LUA_LIBRARIES
     NAMES @LIBRAVI_NAME@ @LIBRAVI_NAME@.so @LIBRAVI_NAME@.dylib
     PATHS
-    @CMAKE_INSTALL_PREFIX@/lib
+    @CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_LIBDIR@
   )
 
 find_program(LUA_EXE
     NAMES ravi_s
     PATHS
-    @CMAKE_INSTALL_PREFIX@/bin
+    @CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_BINDIR@
   )
 
 # LUA_INCDIR - place where lua headers exist

@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 2.8)
-project(Ravi)
+cmake_minimum_required(VERSION 3.10)
+project(Ravi VERSION 1.0.4)
 
 enable_language(CXX)
 enable_language(C)
@@ -8,153 +8,50 @@ enable_testing()
 # Get access to CMake helpers
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-# By default JIT is OFF
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(OMR_JIT "Controls whether NanoJIT compilation will be enabled, default is OFF" OFF)
+option(NO_JIT "Controls whether JIT should be disabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
 option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires Debug build" ON)
 
-if (LLVM_JIT AND OMR_JIT AND MIR_JIT)
+if (LLVM_JIT AND OMR_JIT)
     message(FATAL_ERROR
-            "LLVM_JIT, OMR_JIT and MIR_IT cannot all be set to ON at the same time")
+            "LLVM_JIT and OMR_JIT cannot be set to ON at the same time")
 endif ()
 
-if (NOT WIN32 AND NOT LLVM_JIT AND NOT OMR_JIT)
+# By default on X86_64 non-Windows platforms we enable MIR JIT
+if (NOT WIN32
+        AND NOT LLVM_JIT
+        AND NOT OMR_JIT
+        AND NOT NO_JIT
+        AND CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
     set(MIR_JIT ON)
 endif ()
 
 if (MIR_JIT)
     if (MSVC OR WIN32)
         message(FATAL_ERROR "MIR_JIT is not supported when using MSVC and/or WIN32")
-    endif()
+    endif ()
     if (NOT (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)"))
         message(FATAL_ERROR "MIR_JIT is only supported on X86-64 platforms")
-    endif()
+    endif ()
     set(LLVM_JIT OFF)
     set(OMR_JIT OFF)
-    set(STATIC_BUILD OFF)
-endif()
+    set(STATIC_BUILD OFF) # Because we need to expose the symbols in the library
+endif ()
 
 if (STATIC_BUILD)
     message(STATUS "STATIC library build enabled")
+    set(LIBRAVI_BUILD_TYPE STATIC)
 else ()
     message(STATUS "DYNAMIC library build enabled")
-endif ()
-
-if (LLVM_JIT)
-    find_package(LLVM REQUIRED CONFIG)
-    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-    message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-
-    include_directories(${LLVM_INCLUDE_DIRS})
-    add_definitions(${LLVM_DEFINITIONS})
-
-    message(STATUS "LLVM enabled")
-    # We also need to define USE_LLVM when compiling code
-    # but rather than setting globally we set this when building the
-    # library 
-endif ()
-
-if (OMR_JIT)
-    find_package(OMRJIT REQUIRED)
-    include_directories(${OMRJIT_INCLUDE_DIRS})
-    add_definitions(-DUSE_OMRJIT)
-    message(STATUS "OMRJIT enabled")
-endif ()
-
-if (MIR_JIT)
-    include (cmake/mir.cmake)
-    add_definitions(-DUSE_MIRJIT)
-    message(STATUS "MIRJIT enabled")
-endif ()
-
-message(STATUS "Computed goto ${COMPUTED_GOTO}")
-if (COMPUTED_GOTO AND MSVC)
-    message(WARNING "Computed goto is not available with MSVC")
-endif ()
-
-if (MSVC)
-    set(CMAKE_C_FLAGS_DEBUG "/Od /D_DEBUG /MDd /Zi /RTC1 /EHsc")
-    set(CMAKE_C_FLAGS_RELEASE "/DNDEBUG /O2 /MD /EHsc")
-    set(CMAKE_C_FLAGS_RELWITHDEBINFO "/DNDEBUG /O2 /MD /Zi /EHsc")
-    set(CMAKE_C_FLAGS_MINSIZEREL "/DNDEBUG /O2 /MD /EHsc")
-
-    set(CMAKE_CXX_FLAGS "/EHsc")
-    set(CMAKE_CXX_FLAGS_DEBUG "/Od /D_DEBUG /MDd /Zi /RTC1 /EHsc")
-    set(CMAKE_CXX_FLAGS_RELEASE "/DNDEBUG /O2 /MD /EHsc")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/DNDEBUG /O2 /MD /Zi /EHsc")
-    set(CMAKE_CXX_FLAGS_MINSIZEREL "/DNDEBUG /O2 /MD /EHsc")
-
-    # Disable signed/unsigned int conversion warnings.
-    add_definitions("/wd4018")
-    # Disable warning about using struct/class for the same symobl.
-    add_definitions("/wd4099")
-    # Disable performance warning about int-to-bool conversion.
-    add_definitions("/wd4800")
-    # Disable signed/unsigned int conversion warnings.
-    add_definitions("/wd4018")
-    # Disable warning about the insecurity of using "std::copy".
-    add_definitions("/wd4996")
-    add_definitions("/wd4291")
-    add_definitions("/wd4624")
-    add_definitions("/wd4141")
-    add_definitions("/DLUA_COMPAT_5_2")
-    add_definitions("/DLUA_COMPAT_5_1")
-elseif ((CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang") AND NOT APPLE)
-    if (NOT WIN32)
-        # assume Linux
-        set(OS_FLAGS "-DLUA_USE_LINUX")
-    endif ()
-    # set(SANITIZER_FLAGS "-fsanitize=address")
-    set(LUA_COMPAT_FLAGS "-DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1")
-    set(CMAKE_C_FLAGS "-std=gnu11 -DNDEBUG -O2 -fomit-frame-pointer -Wall -Winline ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
-    set(CMAKE_C_FLAGS_DEBUG "${SANITIZER_FLAGS} -UNDEBUG -fno-omit-frame-pointer -std=gnu11 -O0 -g3 -Wall ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
-    set(CMAKE_C_FLAGS_RELEASE "-std=gnu11 -DNDEBUG -O2 -fomit-frame-pointer -Wall -Winline ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
-    set(CMAKE_C_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -DNDEBUG -std=gnu11 -O2 -g3 -Wall ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
-    set(CMAKE_CXX_FLAGS "-fno-rtti -O2 -fomit-frame-pointer -Wall -Wno-sign-compare -Winline -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
-    set(CMAKE_CXX_FLAGS_DEBUG "${SANITIZER_FLAGS} -UNDEBUG -fno-omit-frame-pointer -fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
-    set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -DNDEBUG -O2 -fomit-frame-pointer -Wall -Wno-sign-compare -Winline -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${SANITIZER_FLAGS} -DNDEBUG -fno-rtti -O2 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} ${OS_FLAGS}")
-elseif (APPLE)
-    set(LUA_COMPAT_FLAGS "-DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1")
-    set(CMAKE_C_FLAGS "-std=gnu11 -DNDEBUG -O2 -Wall ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
-    set(CMAKE_C_FLAGS_DEBUG "-std=gnu11 -O0 -g3 -Wall ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
-    set(CMAKE_C_FLAGS_RELEASE "-std=gnu11 -DNDEBUG -O2 -Wall ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
-    set(CMAKE_C_FLAGS_RELWITHDEBINFO "-std=gnu11 -DNDEBUG -O2 -g3 -Wall ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
-    set(CMAKE_CXX_FLAGS "-O3 -DNDEBUG -Wall -fno-rtti -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
-    set(CMAKE_CXX_FLAGS_DEBUG "-fno-rtti -O0 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
-    set(CMAKE_CXX_FLAGS_RELEASE "-fno-rtti -DNDEBUG -O2 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-fno-rtti -DNDEBUG -O2 -g3 -Wall -Wno-sign-compare -std=c++11 -fno-exceptions ${LUA_COMPAT_FLAGS} -DLUA_USE_MACOSX")
-else ()
-    message(FATAL_ERROR "Unsupported platform")
+    set(LIBRAVI_BUILD_TYPE SHARED)
 endif ()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
-include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
 
-if (NOT LTESTS)
-    # Note that enabling ltests.h messes with global_State
-    message(STATUS "Disabling Lua extended test harness 'ltests'")
-    add_definitions(-DNO_LUA_DEBUG)
-endif ()
-
-# define JIT compiler sources
-if (LLVM_JIT)
-    set(LLVM_JIT_SRCS src/ravi_llvmjit.cpp src/ravi_llvmtypes.cpp
-            src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
-            src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
-            src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
-            src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
-elseif (OMR_JIT)
-    set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
-elseif (MIR_JIT)
-    set(MIR_JIT_SRCS src/ravi_mirjit.c)
-else ()
-    set(NO_JIT_SRCS src/ravi_nojit.c)
-endif ()
-
-# define the lua core source files
+# define the Lua core source files
 set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
         src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
         src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
@@ -168,12 +65,53 @@ if (COMPUTED_GOTO AND NOT MSVC)
         set_source_files_properties(src/lvm.c PROPERTIES COMPILE_FLAGS "-fno-crossjumping -fno-gcse -DRAVI_USE_COMPUTED_GOTO")
     endif ()
 endif ()
-# define the lua lib source files
+# define the Lua library source files
 set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
         src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
+set(LUA_HEADERS include/lua.h include/luaconf.h include/lualib.h include/lauxlib.h)
+
+if (LLVM_JIT)
+    find_package(LLVM REQUIRED CONFIG)
+    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+    message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+    message(STATUS "LLVM Definitions ${LLVM_DEFINITIONS}")
+    message(STATUS "LLVMJIT enabled")
+
+    set(LLVM_JIT_SRCS src/ravi_llvmjit.cpp src/ravi_llvmtypes.cpp
+            src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
+            src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
+            src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
+            src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
+    if (NOT MSVC)
+        set_source_files_properties(${LLVM_JIT_SRCS} PROPERTIES
+                COMPILE_FLAGS "-fno-rtti -fno-exceptions ${LLVM_DEFINITIONS}")
+    endif ()
+    set_property(
+            SOURCE ${LLVM_JIT_SRCS}
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS}
+    )
+elseif (OMR_JIT)
+    find_package(OMRJIT REQUIRED)
+    message(STATUS "OMRJIT enabled")
+
+    set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
+elseif (MIR_JIT)
+    include(cmake/mir.cmake)
+    message(STATUS "MIRJIT enabled")
+
+    set(MIR_JIT_SRCS src/ravi_mirjit.c)
+else ()
+    set(NO_JIT_SRCS src/ravi_nojit.c)
+endif ()
+
+message(STATUS "Computed goto ${COMPUTED_GOTO}")
+if (COMPUTED_GOTO AND MSVC)
+    message(WARNING "Computed goto is not available with MSVC")
+endif ()
 
 file(GLOB RAVI_HEADERS "${PROJECT_SOURCE_DIR}/include/*.h")
-set(LUA_HEADERS include/lua.h include/luaconf.h include/lualib.h include/lauxlib.h)
 
 # Misc setup
 if (MSVC OR APPLE)
@@ -188,20 +126,6 @@ elseif (NOT WIN32)
     # functions like dlopen()
     # ubsan can be added to get -fsanitize=undefined
     set(EXTRA_LIBRARIES m dl readline)
-endif ()
-
-# Additional stuff for dmrC
-if (CMAKE_COMPILER_IS_GNUCC)
-    execute_process(COMMAND ${CMAKE_C_COMPILER} --print-file-name=
-            OUTPUT_VARIABLE GCC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
-    execute_process(COMMAND ${CMAKE_C_COMPILER} -print-multiarch
-            OUTPUT_VARIABLE MULTIARCH_TRIPLET ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-    add_definitions(-DGCC_BASE="${GCC_BASE}")
-    add_definitions(-DMULTIARCH_TRIPLET="${MULTIARCH_TRIPLET}")
-
-    message(STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
-    message(STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET})
 endif ()
 
 # Common stuff we need even if we don't use dmrC.
@@ -261,9 +185,19 @@ if (LLVM_JIT)
     set(DMR_C_JIT_HEADERS
             dmr_c/llvm-backend/dmr_c.h
             )
-    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
     set(DMR_C_HEADERS ${DMR_C_HEADERS_OPT} ${DMR_C_HEADERS_COMMON})
     set(DMR_C_SRCS ${DMR_C_SRCS_OPT} ${DMR_C_SRCS_COMMON})
+
+    set_property(SOURCE ${DMR_C_JIT_SRCS} src/ravi_llvmcodegen.cpp src/ravi_dmrc_parsesymbols.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
+    set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS} src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
+    set_property(
+            SOURCE src/ravi_dmrc_parsesymbols.c ${DMR_C_JIT_SRCS}
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS})
 elseif (OMR_JIT)
     set(DMR_C_JIT_SRCS
             dmr_c/omrjit-backend/sparse-omrjit.c
@@ -271,14 +205,48 @@ elseif (OMR_JIT)
     set(DMR_C_JIT_HEADERS
             dmr_c/omrjit-backend/dmr_c.h
             )
-    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
     set(DMR_C_HEADERS ${DMR_C_HEADERS_OPT} ${DMR_C_HEADERS_COMMON})
     set(DMR_C_SRCS ${DMR_C_SRCS_OPT} ${DMR_C_SRCS_COMMON})
-else()
+
+    set_property(SOURCE ${DMR_C_JIT_SRCS} src/ravi_dmrc_parsesymbols.c ${OMR_JIT_SRCS}
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
+    set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS} src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
+    set_property(SOURCE ${DMR_C_JIT_SRCS} ${OMR_JIT_SRCS} src/ravi_dmrc_parsesymbols.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${OMRJIT_INCLUDE_DIRS}"
+            )
+else ()
     # Omit all dmrC stuff except for what we need for the parser
     set(DMR_C_HEADERS ${DMR_C_HEADERS_COMMON})
     set(DMR_C_SRCS ${DMR_C_SRCS_COMMON})
     set(EMBEDDED_DMRC OFF)
+
+    set_property(SOURCE ${DMR_C_SRCS_COMMON} src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
+
+    if (MIR_JIT)
+        set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
+                APPEND
+                PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir"
+                )
+    endif ()
+endif ()
+
+# Additional stuff for dmrC
+if (CMAKE_COMPILER_IS_GNUCC AND EMBEDDED_DMRC)
+    execute_process(COMMAND ${CMAKE_C_COMPILER} --print-file-name=
+            OUTPUT_VARIABLE GCC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(COMMAND ${CMAKE_C_COMPILER} -print-multiarch
+            OUTPUT_VARIABLE MULTIARCH_TRIPLET ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    set_source_files_properties(dmr_c/src/lib.c PROPERTIES COMPILE_FLAGS "-DGCC_BASE=${GCC_BASE} -DMULTIARCH_TRIPLET=${MULTIARCH_TRIPLET}")
+
+    message(STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
+    message(STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET})
 endif ()
 
 # IDE stuff
@@ -344,11 +312,6 @@ if (LLVM_JIT)
     message(STATUS "LLVM_LIBS ${LLVM_LIBS}")
 endif ()
 
-if (NOT STATIC_BUILD)
-    set(LIBRAVI_BUILD_TYPE SHARED)
-else()
-    set(LIBRAVI_BUILD_TYPE STATIC)
-endif ()
 
 # Name library differently based on JIT backend
 if (LLVM_JIT)
@@ -377,46 +340,18 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${MIR_SRCS}
         ${C2MIR_SRCS}
         )
-if (EMBEDDED_DMRC)
-    set(DMRC_DEF "USE_DMR_C=1")
-endif ()
-if (NOT STATIC_BUILD)
-    if (WIN32)
-        # enable DLL export
-        set_target_properties(${LIBRAVI_NAME} PROPERTIES DEFINE_SYMBOL "LUA_BUILD_AS_DLL")
-    else ()
-        set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
-    endif ()
-else()
-    set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
-endif ()
-if (LLVM_JIT)
-    message(STATUS "Setting USE_LLVM=1")
-    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1 ${DMRC_DEF}")
-endif ()
-if (OMR_JIT)
-    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_OMRJIT=1 ${DMRC_DEF}")
-endif ()
-if (MIR_JIT)
-    set_target_properties(${LIBRAVI_NAME} PROPERTIES COMPILE_DEFINITIONS "USE_MIRJIT=1")
-endif ()
 target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${OMRJIT_LIBRARIES} ${MIRJIT_LIBRARIES})
 
 # Main Ravi executable
 add_executable(ravi src/lua.c)
-if (LLVM_JIT)
-    set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_LLVM=1")
-endif ()
-if (OMR_JIT)
-    set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_OMRJIT=1")
-endif ()
-if (MIR_JIT)
-    set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_MIRJIT=1")
-endif ()
-if (EMBEDDED_DMRC)
-    set_target_properties(ravi PROPERTIES COMPILE_DEFINITIONS "USE_DMR_C=1")
-endif ()
 target_link_libraries(ravi ${LIBRAVI_NAME})
+if (LLVM_JIT)
+    # FIXME get rid of this dependency
+    set_property(
+            SOURCE src/lua.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS})
+endif ()
 
 # Sources that are needed for a static NOJIT basic library
 set(NOJIT_RAVI_SRCS
@@ -427,7 +362,6 @@ set(NOJIT_RAVI_SRCS
         ${DMR_C_SRCS}
         ${DMR_C_JIT_SRCS}
         src/ravi_nojit.c)
-
 set(RAVI_STATICEXEC_TARGET ravi_s)
 
 # We always build a static library without JIT so that
@@ -440,9 +374,76 @@ target_link_libraries(libravinojit_static ${EXTRA_LIBRARIES})
 # Create a simple NoJIT version of statically linked ravi
 # This is sometimes useful in other projects that just need a Lua commandline
 # but do not care about the shared library
-add_executable(ravi_s
+add_executable(${RAVI_STATICEXEC_TARGET}
         src/lua.c)
 target_link_libraries(ravi_s libravinojit_static)
+
+if (NOT LTESTS)
+    # Note that enabling ltests.h messes with global_State
+    message(STATUS "Disabling Lua extended test harness 'ltests'")
+    set_property(
+            TARGET ${LIBRAVI_NAME} ravi
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS NO_LUA_DEBUG)
+    set(NO_LUA_DEBUG 1)
+endif ()
+if (LLVM_JIT)
+    set_property(
+            TARGET ${LIBRAVI_NAME} ravi
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "USE_LLVM=1")
+    set(USE_LLVM 1)
+elseif (OMR_JIT)
+    set_property(
+            TARGET ${LIBRAVI_NAME} ravi
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "USE_OMRJIT=1")
+    set(USE_OMRJIT 1)
+elseif (MIR_JIT)
+    set_property(
+            TARGET ${LIBRAVI_NAME} ravi
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "USE_MIRJIT=1")
+    set(USE_MIRJIT 1)
+endif ()
+if (NOT STATIC_BUILD)
+    if (WIN32)
+        # enable DLL export
+        set_property(
+                TARGET ${LIBRAVI_NAME}
+                APPEND
+                PROPERTY COMPILE_DEFINITIONS LUA_BUILD_AS_DLL)
+    else ()
+        set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
+    endif ()
+else ()
+    set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
+endif ()
+if (EMBEDDED_DMRC)
+    set_property(
+            TARGET ${LIBRAVI_NAME} ravi
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "USE_DMR_C=1")
+endif ()
+if (APPLE)
+    set_property(
+            TARGET ${LIBRAVI_NAME} libravinojit_static
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "LUA_USE_MACOSX=1")
+elseif (UNIX)
+    set_property(
+            TARGET ${LIBRAVI_NAME} libravinojit_static
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "LUA_USE_LINUX=1")
+endif ()
+set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_STANDARD 14)
+set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_EXTENSIONS OFF)
+
+include(GNUInstallDirs)
+configure_file(ravi-config.h.in ravi-config.h @ONLY)
+target_include_directories(${LIBRAVI} ravi
+        PUBLIC
+        "${PROJECT_BINARY_DIR}")
 
 # Ravi VSCode Debug adapter
 set(RAVI_DEBUGGER_TARGET ravidebug)
@@ -461,24 +462,27 @@ target_link_libraries(testravidebug libravinojit_static)
 
 add_test(TestRaviDebug testravidebug)
 
+
 configure_file(lua-config.cmake.in lua-config.cmake @ONLY)
+
 if (WIN32)
     configure_file(ravi-env.bat.in ravi-env.bat @ONLY)
     set(RAVI_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ravi-env.bat)
 elseif (APPLE)
     configure_file(ravi-env.osx.sh.in ravi-env.sh @ONLY)
     set(RAVI_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ravi-env.sh)
-else()
+else ()
     configure_file(ravi-env.linux.sh.in ravi-env.sh @ONLY)
     set(RAVI_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ravi-env.sh)
-endif()
+endif ()
+
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
 install(TARGETS ${LIBRAVI_NAME} ravi ${RAVI_DEBUGGER_TARGET} ${RAVI_STATICEXEC_TARGET}
-        RUNTIME DESTINATION bin
-        ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib)
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT Ravi_Runtime
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Ravi_Development
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT Ravi_Runtime)
 install(FILES ${RAVI_SCRIPTS}
-        DESTINATION bin)
+        DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lua-config.cmake
         DESTINATION cmake)
