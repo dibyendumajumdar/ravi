@@ -55,7 +55,7 @@ if (LLVM_JIT)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-    include_directories(${LLVM_INCLUDE_DIRS})
+    #include_directories(${LLVM_INCLUDE_DIRS})
     message(STATUS "LLVM Definitions ${LLVM_DEFINITIONS}")
     message(STATUS "LLVMJIT enabled")
     # We also need to define USE_LLVM when compiling code
@@ -65,7 +65,7 @@ endif ()
 
 if (OMR_JIT)
     find_package(OMRJIT REQUIRED)
-    include_directories(${OMRJIT_INCLUDE_DIRS})
+    #include_directories(${OMRJIT_INCLUDE_DIRS})
     message(STATUS "OMRJIT enabled")
 endif ()
 
@@ -99,6 +99,11 @@ if (LLVM_JIT)
         set_source_files_properties(${LLVM_JIT_SRCS} PROPERTIES
                 COMPILE_FLAGS "-fno-rtti -fno-exceptions ${LLVM_DEFINITIONS}")
     endif()
+    set_property(
+            SOURCE ${LLVM_JIT_SRCS}
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS}
+    )
 elseif (OMR_JIT)
     set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
 elseif (MIR_JIT)
@@ -210,6 +215,10 @@ if (LLVM_JIT)
     set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS} src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c
             APPEND
             PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
+    set_property(
+            SOURCE src/ravi_dmrc_parsesymbols.c ${DMR_C_JIT_SRCS}
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS})
 elseif (OMR_JIT)
     set(DMR_C_JIT_SRCS
             dmr_c/omrjit-backend/sparse-omrjit.c
@@ -227,6 +236,10 @@ elseif (OMR_JIT)
     set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS} src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c
             APPEND
             PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
+    set_property(SOURCE ${DMR_C_JIT_SRCS} ${OMR_JIT_SRCS} src/ravi_dmrc_parsesymbols.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${OMRJIT_INCLUDE_DIRS}"
+            )
 else()
     # Omit all dmrC stuff except for what we need for the parser
     set(DMR_C_HEADERS ${DMR_C_HEADERS_COMMON})
@@ -354,6 +367,13 @@ target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${OMRJIT_L
 # Main Ravi executable
 add_executable(ravi src/lua.c)
 target_link_libraries(ravi ${LIBRAVI_NAME})
+if (LLVM_JIT)
+    # FIXME get rid of this dependency
+    set_property(
+        SOURCE src/lua.c
+        APPEND
+        PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS})
+endif()
 
 # Sources that are needed for a static NOJIT basic library
 set(NOJIT_RAVI_SRCS
