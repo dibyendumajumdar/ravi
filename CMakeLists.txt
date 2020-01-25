@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Ravi VERSION 1.0.4) 
+project(Ravi VERSION 1.0.4)
 
 enable_language(CXX)
 enable_language(C)
@@ -32,14 +32,14 @@ endif ()
 if (MIR_JIT)
     if (MSVC OR WIN32)
         message(FATAL_ERROR "MIR_JIT is not supported when using MSVC and/or WIN32")
-    endif()
+    endif ()
     if (NOT (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)"))
         message(FATAL_ERROR "MIR_JIT is only supported on X86-64 platforms")
-    endif()
+    endif ()
     set(LLVM_JIT OFF)
     set(OMR_JIT OFF)
     set(STATIC_BUILD OFF) # Because we need to expose the symbols in the library
-endif()
+endif ()
 
 if (STATIC_BUILD)
     message(STATUS "STATIC library build enabled")
@@ -86,7 +86,7 @@ if (LLVM_JIT)
     if (NOT MSVC)
         set_source_files_properties(${LLVM_JIT_SRCS} PROPERTIES
                 COMPILE_FLAGS "-fno-rtti -fno-exceptions ${LLVM_DEFINITIONS}")
-    endif()
+    endif ()
     set_property(
             SOURCE ${LLVM_JIT_SRCS}
             APPEND
@@ -98,11 +98,11 @@ elseif (OMR_JIT)
 
     set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
 elseif (MIR_JIT)
-    include (cmake/mir.cmake)
+    include(cmake/mir.cmake)
     message(STATUS "MIRJIT enabled")
 
     set(MIR_JIT_SRCS src/ravi_mirjit.c)
-else()
+else ()
     set(NO_JIT_SRCS src/ravi_nojit.c)
 endif ()
 
@@ -218,7 +218,7 @@ elseif (OMR_JIT)
             APPEND
             PROPERTY INCLUDE_DIRECTORIES "${OMRJIT_INCLUDE_DIRS}"
             )
-else()
+else ()
     # Omit all dmrC stuff except for what we need for the parser
     set(DMR_C_HEADERS ${DMR_C_HEADERS_COMMON})
     set(DMR_C_SRCS ${DMR_C_SRCS_COMMON})
@@ -234,7 +234,7 @@ else()
                 PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir"
                 )
     endif ()
-endif()
+endif ()
 
 # Additional stuff for dmrC
 if (CMAKE_COMPILER_IS_GNUCC AND EMBEDDED_DMRC)
@@ -348,10 +348,10 @@ target_link_libraries(ravi ${LIBRAVI_NAME})
 if (LLVM_JIT)
     # FIXME get rid of this dependency
     set_property(
-        SOURCE src/lua.c
-        APPEND
-        PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS})
-endif()
+            SOURCE src/lua.c
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS})
+endif ()
 
 # Sources that are needed for a static NOJIT basic library
 set(NOJIT_RAVI_SRCS
@@ -416,7 +416,7 @@ if (NOT STATIC_BUILD)
     else ()
         set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
     endif ()
-else()
+else ()
     set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
 endif ()
 if (EMBEDDED_DMRC)
@@ -435,7 +435,7 @@ elseif (UNIX)
             TARGET ${LIBRAVI_NAME} libravinojit_static
             APPEND
             PROPERTY COMPILE_DEFINITIONS "LUA_USE_LINUX=1")
-endif()
+endif ()
 set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_STANDARD 14)
 set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_EXTENSIONS OFF)
 
@@ -471,10 +471,10 @@ if (WIN32)
 elseif (APPLE)
     configure_file(ravi-env.osx.sh.in ravi-env.sh @ONLY)
     set(RAVI_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ravi-env.sh)
-else()
+else ()
     configure_file(ravi-env.linux.sh.in ravi-env.sh @ONLY)
     set(RAVI_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ravi-env.sh)
-endif()
+endif ()
 
 install(FILES ${LUA_HEADERS}
         DESTINATION include/ravi)
