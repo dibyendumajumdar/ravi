@@ -1,4 +1,4 @@
 set RAVI_HOME=@CMAKE_INSTALL_PREFIX@
-set PATH=%RAVI_HOME%\bin;%PATH%
+set PATH=%RAVI_HOME%\@CMAKE_INSTALL_BINDIR@;%PATH%
 set LUA_PATH=%RAVI_HOME%\share\lua\5.3\?.lua;%RAVI_HOME%\share\lua\5.3\?\init.lua;.\?.lua;.\?\init.lua
-set LUA_CPATH=%RAVI_HOME%\bin\?.dll
+set LUA_CPATH=%RAVI_HOME%\@CMAKE_INSTALL_BINDIR@\?.dll
