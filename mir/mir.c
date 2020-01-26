@@ -141,7 +141,7 @@ struct insn_desc {
   unsigned op_modes[4];
 };
 
-#define OUTPUT_FLAG (1 << 31)
+#define OUTPUT_FLAG (1 << 30)
 
 static const struct insn_desc insn_descs[] = {
   {MIR_MOV, "mov", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
@@ -631,8 +631,87 @@ MIR_context_t MIR_init (void) {
   return ctx;
 }
 
+void MIR_remove_insn (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn) {
+  mir_assert (func_item != NULL);
+  if (func_item->item_type != MIR_func_item)
+    (*error_func) (MIR_wrong_param_value_error, "MIR_remove_insn: wrong func item");
+  DLIST_REMOVE (MIR_insn_t, func_item->u.func->insns, insn);
+  free (insn);
+}
+
+static void remove_func_insns (MIR_context_t ctx, MIR_item_t func_item,
+                               DLIST (MIR_insn_t) * insns) {
+  MIR_insn_t insn;
+
+  mir_assert (func_item->item_type == MIR_func_item);
+  while ((insn = DLIST_HEAD (MIR_insn_t, *insns)) != NULL) {
+    MIR_remove_insn (ctx, func_item, insn);
+  }
+}
+
+static void remove_item (MIR_context_t ctx, MIR_item_t item) {
+  MIR_module_t module = item->module;
+
+  switch (item->item_type) {
+  case MIR_func_item:
+    remove_func_insns (ctx, item, &item->u.func->insns);
+    remove_func_insns (ctx, item, &item->u.func->original_insns);
+    VARR_DESTROY (MIR_var_t, item->u.func->vars);
+    free (item->u.func);
+    break;
+  case MIR_proto_item:
+    VARR_DESTROY (MIR_var_t, item->u.proto->args);
+    free (item->u.proto);
+    break;
+  case MIR_import_item:
+  case MIR_export_item:
+  case MIR_forward_item: break;
+  case MIR_data_item:
+    if (item->addr != NULL && item->section_head_p) free (item->addr);
+    free (item->u.data);
+    break;
+  case MIR_ref_data_item:
+    if (item->addr != NULL && item->section_head_p) free (item->addr);
+    free (item->u.ref_data);
+    break;
+  case MIR_expr_data_item:
+    if (item->addr != NULL && item->section_head_p) free (item->addr);
+    free (item->u.expr_data);
+    break;
+  case MIR_bss_item:
+    if (item->addr != NULL && item->section_head_p) free (item->addr);
+    free (item->u.bss);
+    break;
+  default: mir_assert (FALSE);
+  }
+  if (item->data != NULL) free (item->data);
+  free (item);
+}
+
+static void remove_module (MIR_context_t ctx, MIR_module_t module, int free_module_p) {
+  MIR_item_t item;
+
+  while ((item = DLIST_HEAD (MIR_item_t, module->items)) != NULL) {
+    DLIST_REMOVE (MIR_item_t, module->items, item);
+    remove_item (ctx, item);
+  }
+  if (module->data != NULL) free (module->data);
+  if (free_module_p) free (module);
+}
+
+static void remove_all_modules (MIR_context_t ctx) {
+  MIR_module_t module;
+
+  while ((module = DLIST_HEAD (MIR_module_t, all_modules)) != NULL) {
+    DLIST_REMOVE (MIR_module_t, all_modules, module);
+    remove_module (ctx, module, TRUE);
+  }
+  remove_module (ctx, &environment_module, FALSE);
+}
+
 void MIR_finish (MIR_context_t ctx) {
   interp_finish (ctx);
+  remove_all_modules (ctx);
   HTAB_DESTROY (MIR_item_t, module_item_tab);
   VARR_DESTROY (MIR_module_t, modules_to_link);
 #if !MIR_NO_SCAN
@@ -811,6 +890,7 @@ static MIR_item_t create_item (MIR_context_t ctx, MIR_item_type_t item_type,
   item->item_type = item_type;
   item->ref_def = NULL;
   item->export_p = FALSE;
+  item->section_head_p = FALSE;
   item->addr = NULL;
   return item;
 }
@@ -1372,6 +1452,7 @@ static MIR_item_t load_bss_data_section (MIR_context_t ctx, MIR_item_t item, int
       (*error_func) (MIR_alloc_error, "Not enough memory to allocate data/bss %s",
                      name == NULL ? "" : name);
     }
+    item->section_head_p = TRUE;
   }
   /* Set up section memory: */
   for (last_item = item, curr_item = item, addr = item->addr;
@@ -1981,14 +2062,6 @@ void MIR_insert_insn_before (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t
   if (func_item->item_type != MIR_func_item)
     (*error_func) (MIR_wrong_param_value_error, "MIR_insert_insn_before: wrong func item");
   DLIST_INSERT_BEFORE (MIR_insn_t, func_item->u.func->insns, before, insn);
-}
-
-void MIR_remove_insn (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn) {
-  mir_assert (func_item != NULL);
-  if (func_item->item_type != MIR_func_item)
-    (*error_func) (MIR_wrong_param_value_error, "MIR_remove_insn: wrong func item");
-  DLIST_REMOVE (MIR_insn_t, func_item->u.func->insns, insn);
-  free (insn);
 }
 
 static void store_labels_for_duplication (MIR_context_t ctx, MIR_insn_t insn, MIR_insn_t new_insn) {
