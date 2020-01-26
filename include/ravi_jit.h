@@ -27,6 +27,10 @@
 extern "C" {
 #endif
 
+/**
+ * Definition of the API that all JIT backends must implement.
+ */
+
 struct lua_State;
 struct Proto;
 typedef struct ravi_compile_options_t ravi_compile_options_t;
@@ -43,7 +47,6 @@ int raviV_compile(struct lua_State *L, struct Proto *p,
 /* Compile an array of functions */
 int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n,
                     ravi_compile_options_t *options);
-int raviV_iscompiled(struct lua_State *L, struct Proto *p);
 
 /* Free the JIT structures associated with the prototype */
 void raviV_freeproto(struct lua_State *L, struct Proto *p);
@@ -79,10 +82,6 @@ int raviV_getminexeccount(struct lua_State *L);
 /* Enable IR / codegen validations */
 void raviV_setvalidation(struct lua_State *L, int enabled);
 int raviV_getvalidation(struct lua_State *L);
-  
-/* Enable calls to GCSTEP  */
-void raviV_setgcstep(struct lua_State *L, int value);
-int raviV_getgcstep(struct lua_State *L);
 
 /* Enable or disable trace hook */
 void raviV_settraceenabled(struct lua_State *L, int enabled);

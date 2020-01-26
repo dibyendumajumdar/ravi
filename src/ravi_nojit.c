@@ -21,7 +21,7 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 
-#include <ravijit.h>
+#include <ravi_jit.h>
 #include <ravi_jitshared.h>
 
 int raviV_compile(struct lua_State *L, struct Proto *p,
@@ -140,15 +140,6 @@ void raviV_setverbosity(lua_State *L, int value) {
   (void)value;
 }
 int raviV_getverbosity(lua_State *L) {
-  (void)L;
-  return 0;
-}
-
-void raviV_setgcstep(struct lua_State *L, int value) {
-  (void)L;
-  (void)value;
-}
-int raviV_getgcstep(struct lua_State *L) {
   (void)L;
   return 0;
 }

@@ -627,35 +627,17 @@ LUA_API void ravi_writestringerror(lua_State *L, const char *fmt, const char *p)
 LUA_API void ravi_set_debugger_data(lua_State *L, void *data);
 LUA_API void *ravi_get_debugger_data(lua_State *L);
 
-/* 
-** Experimental (wip) implementation of new
-** parser and code generator 
-*/
-LUA_API int (ravi_build_ast_from_buffer) (lua_State *L, lua_Reader reader, void *dt,
-                          const char *chunkname, const char *mode);
-
-
-/////////////////////////////////////////////////////////////////////////////
-/*
- Bunch of useful functions for debugging
-*/
-struct lua_TValue;
-struct Proto;
-
-LUA_API void ravi_dump_value(lua_State *L, const struct lua_TValue *v);
-LUA_API void ravi_dump_stack(lua_State *L, const char *s);
-LUA_API void ravi_dump_stacktop(lua_State *L, const char *s);
-LUA_API void ravi_debug_trace(lua_State *L, int opCode, int pc);
-LUA_API void ravi_print_function(const struct Proto *f, int full);
+/* Dumps the ravi Bytecode to stdout */
 LUA_API void ravi_dump_function(lua_State *L);
+/* Returns a table of lines containing Ravi bytecode */
 LUA_API int ravi_list_code(lua_State *L);
+/* Returns a table with various system limits */
 LUA_API int ravi_get_limits(lua_State *L);
 
+/* Following are for debugging purposes only */
 LUAI_DDEC int ravi_parser_debug;
 LUA_API void ravi_set_debuglevel(int level);
-
 #define RAVI_DEBUG_STACK(p) if ((ravi_parser_debug & 8) != 0) {p;} else {}
-
 #define RAVI_BYTECODE_PROFILING_ENABLED 0
 
 

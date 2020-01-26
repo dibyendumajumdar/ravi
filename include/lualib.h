@@ -52,7 +52,7 @@ LUAMOD_API int (luaopen_package) (lua_State *L);
 
 /** RAVI change start **/
 #define LUA_RAVILIBNAME	"ravi"
-LUAMOD_API int (raviopen_llvmjit)(lua_State *L);
+LUAMOD_API int (raviopen_jit)(lua_State *L);
 
 #define LUA_ASTLIBNAME	"ast"
 LUAMOD_API int (raviopen_ast_library)(lua_State *L);

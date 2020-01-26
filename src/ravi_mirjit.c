@@ -22,7 +22,7 @@
  ******************************************************************************/
 
 #include <ravi_mirjit.h>
-#include <ravijit.h>
+#include <ravi_jit.h>
 #include <stddef.h>
 #include <assert.h>
 
@@ -171,7 +171,6 @@ static LuaFunc Lua_functions[] = {
     { "lua_rawsetp", lua_rawsetp },
     { "lua_setmetatable", lua_setmetatable },
     { "lua_setuservalue", lua_setuservalue },
-    { "ravi_dump_value", ravi_dump_value },
     { NULL, NULL }
 };
 
@@ -317,15 +316,6 @@ int raviV_getverbosity(lua_State *L) {
   global_State *G = G(L);
   if (!G->ravi_state) return 0;
   return G->ravi_state->verbosity_;
-}
-
-void raviV_setgcstep(lua_State *L, int value) {
-  (void)L;
-  (void)value;
-}
-int raviV_getgcstep(lua_State *L) {
-  (void)L;
-  return 0;
 }
 
 // Turn on/off the JIT compiler

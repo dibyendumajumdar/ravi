@@ -37,7 +37,7 @@
 #include "lundump.h"
 #include "lvm.h"
 #include "lzio.h"
-#include "ravijit.h"
+#include "ravi_jit.h"
 #include "ravi_jitshared.h"
 
 
