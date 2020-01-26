@@ -28,7 +28,7 @@
 #include "ltable.h"
 #include "ltm.h"
 
-#include "ravijit.h"
+#include "ravi_jit.h"
 #include "ravi_profile.h"
 #include "ravi_alloc.h"
 

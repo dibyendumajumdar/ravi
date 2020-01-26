@@ -20,7 +20,7 @@
 * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
-#include <ravijit.h>
+#include <ravi_jit.h>
 #include <ravi_jitshared.h>
 
 #ifdef __cplusplus
@@ -46,7 +46,7 @@ static int ravi_is_compiled(lua_State *L) {
   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
-  LClosure *l = reinterpret_cast<LClosure *>(p);
+  LClosure *l = (LClosure *)(p);
   lua_pushboolean(L, l->p->ravi_jit.jit_status == RAVI_JIT_COMPILED);
   return 1;
 }
@@ -78,7 +78,7 @@ static int ravi_compile_n(lua_State *L) {
       if (n < MAX_COMPILES && lua_isfunction(L, -1) &&
           !lua_iscfunction(L, -1)) {
         void *p = (void *)lua_topointer(L, -1);
-        LClosure *l = reinterpret_cast<LClosure *>(p);
+        LClosure *l = (LClosure *)(p);
         if (!l->p->ravi_jit.jit_function) functions[n++] = l->p;
       }
       lua_pop(L, 1);  // pop value, but keep key
@@ -88,7 +88,7 @@ static int ravi_compile_n(lua_State *L) {
     luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
                   "argument must be a Lua function");
     void *p = (void *)lua_topointer(L, 1);
-    LClosure *l = reinterpret_cast<LClosure *>(p);
+    LClosure *l = (LClosure *)(p);
     functions[n++] = l->p;
   }
   ravi_compile_options_t options = {0, 0, 0, RAVI_CODEGEN_NONE};
@@ -128,7 +128,7 @@ static int ravi_dump_ir(lua_State *L) {
   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
-  LClosure *l = reinterpret_cast<LClosure *>(p);
+  LClosure *l = (LClosure *)(p);
   raviV_dumpIR(L, l->p);
   return 0;
 }
@@ -141,7 +141,7 @@ static int ravi_dump_asm(lua_State *L) {
   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
                 "argument must be a Lua function");
   void *p = (void *)lua_topointer(L, 1);
-  LClosure *l = reinterpret_cast<LClosure *>(p);
+  LClosure *l = (LClosure *)(p);
   raviV_dumpASM(L, l->p);
   return 0;
 }
@@ -208,18 +208,6 @@ static int ravi_validation(lua_State *L) {
   return 1;
 }
 
-// Set GC step when JIT compiling
-static int ravi_gcstep(lua_State *L) {
-  int n = lua_gettop(L);
-  int oldvalue = raviV_getgcstep(L);
-  if (n == 1) {
-    int value = lua_tointeger(L, 1);
-    raviV_setgcstep(L, value);
-  }
-  lua_pushboolean(L, oldvalue);
-  return 1;
-}
-  
 // Turn on/off the trace hook
 static int ravi_traceenable(lua_State *L) {
   int n = lua_gettop(L);
@@ -263,7 +251,6 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"sizelevel", ravi_sizelevel},
                                    {"verbosity", ravi_verbosity},
                                    {"validation", ravi_validation},
-                                   {"gcstep", ravi_gcstep},
                                    {"tracehook", ravi_traceenable},
                                    {"listcode", ravi_listcode},
                                    {"limits", ravi_get_limits},
@@ -271,7 +258,7 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
 
 #include <math.h> 
 
-LUAMOD_API int raviopen_llvmjit(lua_State *L) {
+LUAMOD_API int raviopen_jit(lua_State *L) {
   luaL_newlib(L, ravilib);
   /* faster calls some maths functions */
   ravi_pushcfastcall(L, NULL, RAVI_TFCF_EXP);

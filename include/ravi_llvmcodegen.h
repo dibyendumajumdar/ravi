@@ -27,7 +27,7 @@
 #ifdef USE_LLVM
 
 #include "ravi_llvm.h"
-#include "ravijit.h"
+#include "ravi_jit.h"
 
 #include <array>
 #include <atomic>

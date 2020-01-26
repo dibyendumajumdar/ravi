@@ -1,5 +1,5 @@
 #include <ravi_omrjit.h>
-#include <ravijit.h>
+#include <ravi_jit.h>
 #include <stddef.h>
 #include <assert.h>
 

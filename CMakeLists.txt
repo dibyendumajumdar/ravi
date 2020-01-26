@@ -56,7 +56,7 @@ set(RAVI_AST_SOURCES src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_type
 set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
         src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
         src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
-        src/lvm.c src/lzio.c src/ravijit.cpp src/ltests.c src/ravi_profile.c
+        src/lvm.c src/lzio.c src/ravi_jit.c src/ltests.c src/ravi_profile.c
         src/ravi_membuf.c src/ravi_jitshared.c src/bit.c src/ravi_alloc.c
         ${RAVI_AST_SOURCES})
 # define the Lua library source files

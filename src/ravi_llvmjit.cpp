@@ -21,7 +21,6 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 #include <ravi_llvmcodegen.h>
-#include <ravijit.h>
 // Important to include the C++ header files (ravi_llvmcodegen.h) before following
 // (ravi_jitshared.h) as the Lua headers define macros that mess with C++ headers
 #include <ravi_jitshared.h>
@@ -1014,18 +1013,6 @@ int raviV_getvalidation(lua_State *L) {
   return G->ravi_state->jit->get_validation();
 }
 
-void raviV_setgcstep(lua_State *L, int value) {
-  global_State *G = G(L);
-  if (!G->ravi_state)
-    return;
-  G->ravi_state->jit->set_gcstep(value);
-}
-int raviV_getgcstep(lua_State *L) {
-  global_State *G = G(L);
-  if (!G->ravi_state)
-    return 0;
-  return G->ravi_state->jit->get_gcstep();
-}
 
 // Turn on/off the JIT compiler
 void raviV_settraceenabled(lua_State *L, int value) {

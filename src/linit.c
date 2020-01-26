@@ -51,7 +51,7 @@ static const luaL_Reg loadedlibs[] = {
   {LUA_MATHLIBNAME, luaopen_math},
   {LUA_UTF8LIBNAME, luaopen_utf8},
   {LUA_DBLIBNAME, luaopen_debug},
-  {LUA_RAVILIBNAME, raviopen_llvmjit},
+  {LUA_RAVILIBNAME, raviopen_jit},
 #if USE_DMR_C
   { "dmrc", raviopen_dmrcluaapi },
 #endif

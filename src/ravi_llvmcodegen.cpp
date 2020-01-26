@@ -20,7 +20,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
-#include <ravijit.h>
+#include <ravi_jit.h>
 #include <ravi_llvmcodegen.h>
 #include <ravi_jitshared.h>
 #include <dmr_c.h>

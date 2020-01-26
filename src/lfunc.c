@@ -27,7 +27,7 @@
 #include "lobject.h"
 #include "lstate.h"
 
-#include "ravijit.h"
+#include "ravi_jit.h"
 
 CClosure *luaF_newCclosure (lua_State *L, int n) {
   GCObject *o = luaC_newobj(L, LUA_TCCL, sizeCclosure(n));
