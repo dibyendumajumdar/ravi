@@ -5,6 +5,7 @@ Ravi Extensions to Lua 5.3
    :depth: 2
    :backlinks: top
 
+----------------------
 Optional Static Typing
 ----------------------
 Ravi allows you optionally to annotate ``local`` variables and function parameters with types. 
@@ -304,3 +305,144 @@ Example::
 inspired by the similar statement in the Go language. The implementation is based upon Lua 5.4.
 
 Note that the ``defer`` statement should be considered a beta feature not yet ready for production use as it is undergoing testing.
+
+--------------------
+API Functions in Lua
+--------------------
+
+JIT API
+-------
+auto mode
+  in this mode the compiler decides when to compile a Lua function. The current implementation is very simple - 
+  any Lua function call is checked to see if the bytecodes contained in it can be compiled. If this is true then 
+  the function is compiled provided either a) function has a fornum loop, or b) it is largish (greater than 150 bytecodes) 
+  or c) it is being executed many times (> 50). Because of the simplistic behaviour performance the benefit of JIT
+  compilation is only available if the JIT compiled functions will be executed many times so that the cost of JIT 
+  compilation can be amortized.   
+manual mode
+  in this mode user must explicitly request compilation. This is the default mode. This mode is suitable for library 
+  developers who can pre compile the functions in library module table.
+
+A JIT api is available with following functions:
+
+``ravi.jit([b])``
+  returns enabled setting of JIT compiler; also enables/disables the JIT compiler; defaults to true
+``ravi.auto([b [, min_size [, min_executions]]])``
+  returns setting of auto compilation and compilation thresholds; also sets the new settings if values are supplied; defaults are false, 150, 50.
+``ravi.compile(func_or_table[, options])``
+  compiles a Lua function (or functions if a table is supplied) if possible, returns ``true`` if compilation was 
+  successful for at least one function. ``options`` is an optional table with compilation options - in particular 
+  ``omitArrayGetRangeCheck`` - which disables range checks in array get operations to improve performance in some cases. 
+  Note that at present if the first argument is a table of functions and has more than 100 functions then only the
+  first 100 will be compiled. You can invoke compile() repeatedly on the table until it returns false. Each 
+  invocation leads to a new module being created; any functions already compiled are skipped.
+``ravi.iscompiled(func)``
+  returns the JIT status of a function
+``ravi.dumplua(func)``
+  dumps the Lua bytecode of the function
+``ravi.dumpir(func)``
+  dumps the intermediate code of the compiled function; interpretation up to the JIT backend.
+``ravi.optlevel([n])``
+  sets optimization level (0, 1, 2, 3); the interpretation of this is up to the JIT backend.
+``ravi.sizelevel([n])``
+  sets LLVM size level (0, 1, 2); the interpretation of this is up to the JIT backend
+``ravi.tracehook([b])``
+  Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when you want to use the debug api to step through code line by line. Currently only supported by LLVM backend.
+``ravi.verbosity([b])``
+  Controls the amount of verbose messages generated during compilation.
+  
+----------------
+C API Extensions
+----------------
+Ravi provides following C API extensions:
+
+::
+
+   LUA_API void  (ravi_pushcfastcall)(lua_State *L, void *ptr, int tag);
+
+   /* Allowed tags - subject to change. Max value is 128. Note that
+      each tag requires special handling in ldo.c */
+   enum {
+     RAVI_TFCF_EXP = 1,
+     RAVI_TFCF_LOG = 2,
+     RAVI_TFCF_D_D = 3,
+   };
+
+   /* Create an integer array (specialization of Lua table)
+    * of given size and initialize array with supplied initial value
+    */
+   LUA_API void ravi_create_integer_array(lua_State *L, int narray,
+                                          lua_Integer initial_value);
+
+   /* Create an number array (specialization of Lua table)
+    * of given size and initialize array with supplied initial value
+    */
+   LUA_API void ravi_create_number_array(lua_State *L, int narray,
+                                         lua_Number initial_value);
+
+   /* Create a slice of an existing array
+    * The original table containing the array is inserted into the
+    * the slice as a value against special key so that
+    * the parent table is not garbage collected while this array contains a
+    * reference to it
+    * The array slice starts at start but start-1 is also accessible because of the
+    * implementation having array values starting at 0.
+    * A slice must not attempt to release the data array as this is not owned by
+    * it,
+    * and in fact may point to garbage from a memory allocater's point of view.
+    */
+   LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
+                                  unsigned int len);
+
+   /* Tests if the argument is a number array
+    */
+   LUA_API int ravi_is_number_array(lua_State *L, int idx);
+
+   /* Tests if the argument is a integer array
+   */
+   LUA_API int ravi_is_integer_array(lua_State *L, int idx);
+
+   /* Get the raw data associated with the number array at idx.
+    * Note that Ravi arrays have an extra element at offset 0 - this
+    * function returns a pointer to &data[0]. The number of
+    * array elements is returned in length.
+    */
+   typedef struct {
+     lua_Number *data;
+     unsigned int length;
+   } Ravi_NumberArray;
+   LUA_API void ravi_get_number_array_rawdata(lua_State *L, int idx, Ravi_NumberArray *array_data);
+
+   /* Get the raw data associated with the integer array at idx.
+    * Note that Ravi arrays have an extra element at offset 0 - this
+    * function returns a pointer to &data[0]. The number of
+    * array elements is returned in length.
+    */
+   typedef struct {
+     lua_Integer *data;
+     unsigned int length;
+   } Ravi_IntegerArray;
+   LUA_API void ravi_get_integer_array_rawdata(lua_State *L, int idx, Ravi_IntegerArray *array_data);
+
+   /* API to set the output functions used by Lua / Ravi
+    * This allows the default implementations to be overridden
+    */
+   LUA_API void ravi_set_writefuncs(lua_State *L, ravi_Writestring writestr, ravi_Writeline writeln, ravi_Writestringerror writestringerr);
+
+   /* Following are the default implementations */
+   LUA_API void ravi_writestring(lua_State *L, const char *s, size_t len);
+   LUA_API void ravi_writeline(lua_State *L);
+   LUA_API void ravi_writestringerror(lua_State *L, const char *fmt, const char *p);
+
+   /* The debugger can set some data - but only once */
+   LUA_API void ravi_set_debugger_data(lua_State *L, void *data);
+   LUA_API void *ravi_get_debugger_data(lua_State *L);
+
+   /* Takes a function parameter and outputs the bytecodes to stdout */
+   LUA_API void ravi_dump_function(lua_State *L);
+   /* Takes a function parameter and returns a table of lines containing bytecodes for the function */
+   LUA_API int ravi_list_code(lua_State *L);
+   /* Returns a table with various system limits */
+   LUA_API int ravi_get_limits(lua_State *L);
+
+
