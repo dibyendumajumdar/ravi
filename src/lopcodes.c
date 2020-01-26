@@ -611,7 +611,7 @@ static void PrintDebug(const Proto* f)
  }
 }
 
-void ravi_print_function(const Proto* f, int full)
+static void ravi_print_function(const Proto* f, int full)
 {
   int i, n = f->sizep;
   PrintHeader(f);

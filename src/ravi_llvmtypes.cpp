@@ -1002,6 +1002,8 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviH_set_floatT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+#if 0
+  // DEBUG tools
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTValueT);
@@ -1016,6 +1018,7 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   ravi_dump_stacktopT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
+#endif
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(C_intT);

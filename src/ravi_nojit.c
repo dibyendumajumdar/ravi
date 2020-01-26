@@ -144,15 +144,6 @@ int raviV_getverbosity(lua_State *L) {
   return 0;
 }
 
-void raviV_setgcstep(struct lua_State *L, int value) {
-  (void)L;
-  (void)value;
-}
-int raviV_getgcstep(struct lua_State *L) {
-  (void)L;
-  return 0;
-}
-
 void raviV_setvalidation(struct lua_State *L, int value) {
   (void)L;
   (void)value;

@@ -171,7 +171,6 @@ static LuaFunc Lua_functions[] = {
     { "lua_rawsetp", lua_rawsetp },
     { "lua_setmetatable", lua_setmetatable },
     { "lua_setuservalue", lua_setuservalue },
-    { "ravi_dump_value", ravi_dump_value },
     { NULL, NULL }
 };
 

@@ -293,9 +293,11 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
 
+#if 0
   llvm::FunctionType *ravi_dump_valueT;
   llvm::FunctionType *ravi_dump_stackT;
   llvm::FunctionType *ravi_dump_stacktopT;
+#endif
   llvm::FunctionType *ravi_debug_traceT;
 
   std::array<llvm::Constant *, 256> kInt;
@@ -486,9 +488,6 @@ class RaviJITState {
 
   unsigned int use_dmrc_ : 1;
 
-  // Flag to control calls to collect
-  int gcstep_;
-
   // min code size for compilation
   int min_code_size_;
 
@@ -576,8 +575,6 @@ class RaviJITState {
   void set_minexeccount(int value) { min_exec_count_ = value > 0 ? value : min_exec_count_; }
   int get_validation() const { return validation_; }
   void set_validation(bool value) { validation_ = value; }
-  int get_gcstep() const { return gcstep_; }
-  void set_gcstep(int value) { gcstep_ = value > 0 ? value : gcstep_; }
   bool is_tracehook_enabled() const { return tracehook_enabled_; }
   void set_tracehook_enabled(bool value) { tracehook_enabled_ = value; }
   void incr_allocated_modules() { allocated_modules_++; }
@@ -839,9 +836,12 @@ struct RaviFunctionDef {
   llvm::Function *raviH_set_intF;
   llvm::Function *raviH_set_floatF;
 
+#if 0
+  // DEBUG routines
   llvm::Function *ravi_dump_valueF;
   llvm::Function *ravi_dump_stackF;
   llvm::Function *ravi_dump_stacktopF;
+#endif
   llvm::Function *ravi_debug_traceF;
 
   // standard C functions
@@ -1143,8 +1143,10 @@ class RaviCodeGenerator {
   void debug_printf4(RaviFunctionDef *def, const char *str, llvm::Value *arg1, llvm::Value *arg2, llvm::Value *arg3,
                      llvm::Value *arg4);
 
+#if 0
   void emit_dump_stack(RaviFunctionDef *def, const char *str);
   void emit_dump_stacktop(RaviFunctionDef *def, const char *str);
+#endif
   bool emit_debug_trace(RaviFunctionDef *def, int opCode, int pc);
 
   // Look for Lua bytecodes that are jump targets and allocate

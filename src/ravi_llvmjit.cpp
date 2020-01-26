@@ -183,7 +183,6 @@ RaviJITState::RaviJITState()
       tracehook_enabled_(false),
       validation_(false),
       use_dmrc_(false),
-      gcstep_(300),
       min_code_size_(150),
       min_exec_count_(50),
       allocated_modules_(0),

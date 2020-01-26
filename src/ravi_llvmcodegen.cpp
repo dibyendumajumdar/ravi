@@ -948,6 +948,7 @@ std::unique_ptr<RaviJITFunction> RaviCodeGenerator::create_function(
   return func;
 }
 
+#if 0
 void RaviCodeGenerator::emit_dump_stack(RaviFunctionDef *def, const char *str) {
   CreateCall2(def->builder, def->ravi_dump_stackF, def->L,
               def->builder->CreateGlobalStringPtr(str));
@@ -958,6 +959,7 @@ void RaviCodeGenerator::emit_dump_stacktop(RaviFunctionDef *def,
   CreateCall2(def->builder, def->ravi_dump_stacktopF, def->L,
               def->builder->CreateGlobalStringPtr(str));
 }
+#endif
 
 // Emit a call to ravi_debug_trace() function.
 // This function will set savedpc and also invoke
@@ -1206,6 +1208,8 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
 	  def->types->raviV_op_deferT, reinterpret_cast<void *>(&raviV_op_defer), 
 	  "raviV_op_defer");
 
+#if 0
+  // DEBUG routines
   def->ravi_dump_valueF = def->raviF->addExternFunction(
       def->types->ravi_dump_valueT, reinterpret_cast<void *>(&ravi_dump_value),
       "ravi_dump_value");
@@ -1215,9 +1219,10 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->ravi_dump_stacktopF = def->raviF->addExternFunction(
       def->types->ravi_dump_stacktopT,
       reinterpret_cast<void *>(&ravi_dump_stacktop), "ravi_dump_stacktop");
+#endif
   def->ravi_debug_traceF = def->raviF->addExternFunction(
       def->types->ravi_debug_traceT,
-      reinterpret_cast<void *>(&ravi_debug_trace), "ravi_debug_trace");
+      reinterpret_cast<void *>(&raviV_debug_trace), "raviV_debug_trace");
 
   // Create printf declaration
   std::vector<llvm::Type *> args;
