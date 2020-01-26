@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <ravi_membuf.h>
 
 /* ORDER OP */
 
@@ -254,7 +255,7 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOTAB A R(A) := check_table(R(A)) */
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOSTRING */
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOCLOSURE */
- ,opmode(0, 1, OpArgK, OpArgN, iABx)	/* OP_RAVI_TOTYPE */
+ ,opmode(0, 1, OpArgK, OpArgN, iABx)    /* OP_RAVI_TOTYPE */
 
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEI	A B	R(A) := tointeger(R(B))	*/
  ,opmode(0, 1, OpArgR, OpArgN, iABC)    /* OP_RAVI_MOVEF	A B	R(A) := tonumber(R(B)) */
@@ -349,66 +350,66 @@ const char* raviP_instruction_to_str(char *buf, size_t n, Instruction i) {
   return buf;
 }
 
-static void PrintString(const TString* ts)
+static void PrintString(membuff_t *mb, const TString* ts)
 {
  const char* s=getstr(ts);
  size_t i,n=tsslen(ts);
- printf("%c",'"');
+ membuff_add_fstring(mb, "%c",'"');
  for (i=0; i<n; i++)
  {
   int c=(int)(unsigned char)s[i];
   switch (c)
   {
-   case '"':  printf("\\\""); break;
-   case '\\': printf("\\\\"); break;
-   case '\a': printf("\\a"); break;
-   case '\b': printf("\\b"); break;
-   case '\f': printf("\\f"); break;
-   case '\n': printf("\\n"); break;
-   case '\r': printf("\\r"); break;
-   case '\t': printf("\\t"); break;
-   case '\v': printf("\\v"); break;
+   case '"':  membuff_add_string(mb, "\\\""); break;
+   case '\\': membuff_add_string(mb, "\\\\"); break;
+   case '\a': membuff_add_string(mb, "\\a"); break;
+   case '\b': membuff_add_string(mb, "\\b"); break;
+   case '\f': membuff_add_string(mb, "\\f"); break;
+   case '\n': membuff_add_string(mb, "\\n"); break;
+   case '\r': membuff_add_string(mb, "\\r"); break;
+   case '\t': membuff_add_string(mb, "\\t"); break;
+   case '\v': membuff_add_string(mb, "\\v"); break;
    default:	if (isprint(c))
-   			printf("%c",c);
+   			membuff_add_fstring(mb, "%c",c);
 		else
-			printf("\\%03d",c);
+			membuff_add_fstring(mb, "\\%03d",c);
   }
  }
- printf("%c",'"');
+ membuff_add_fstring(mb, "%c",'"');
 }
 
-static void PrintConstant(const Proto* f, int i)
+static void PrintConstant(membuff_t *mb, const Proto* f, int i)
 {
  const TValue* o=&f->k[i];
  switch (ttype(o))
  {
   case LUA_TNIL:
-	printf("nil");
+	membuff_add_fstring(mb, "nil");
 	break;
   case LUA_TBOOLEAN:
-	printf(bvalue(o) ? "true" : "false");
+	membuff_add_fstring(mb, bvalue(o) ? "true" : "false");
 	break;
   case LUA_TNUMFLT:
 	{
 	char buff[100];
 	sprintf(buff,LUA_NUMBER_FMT,fltvalue(o));
-	printf("%s",buff);
-	if (buff[strspn(buff,"-0123456789")]=='\0') printf(".0");
+	membuff_add_fstring(mb, "%s",buff);
+	if (buff[strspn(buff,"-0123456789")]=='\0') membuff_add_string(mb, ".0");
 	break;
 	}
   case LUA_TNUMINT:
-	printf(LUA_INTEGER_FMT,ivalue(o));
+	membuff_add_fstring(mb, LUA_INTEGER_FMT,ivalue(o));
 	break;
   case LUA_TSHRSTR: case LUA_TLNGSTR:
-	PrintString(tsvalue(o));
+	PrintString(mb, tsvalue(o));
 	break;
   default:				/* cannot happen */
-	printf("? type=%d",ttype(o));
+	membuff_add_fstring(mb, "? type=%d",ttype(o));
 	break;
  }
 }
 
-static void PrintCode(const Proto* f)
+static void PrintCode(membuff_t *mb, const Proto* f)
 {
  const Instruction* code=f->code;
  int pc,n=f->sizecode;
@@ -423,32 +424,32 @@ static void PrintCode(const Proto* f)
   int bx=GETARG_Bx(i);
   int sbx=GETARG_sBx(i);
   int line=getfuncline(f,pc);
-  printf("\t%d\t",pc+1);
-  if (line>0) printf("[%d]\t",line); else printf("[-]\t");
-  printf("%-9s\t",luaP_opnames[o]);
+  membuff_add_fstring(mb, "\t%d\t",pc+1);
+  if (line>0) membuff_add_fstring(mb, "[%d]\t",line); else membuff_add_fstring(mb, "[-]\t");
+  membuff_add_fstring(mb, "%-9s\t",luaP_opnames[o]);
   switch (getOpMode(o))
   {
    case iABC:
-    printf("%d",a);
-    if (getBMode(o)!=OpArgN) printf(" %d", (getBMode(o) == OpArgK && ISK(b)) ? (MYK(INDEXK(b))) : b);
-    if (getCMode(o)!=OpArgN) printf(" %d", (getCMode(o) == OpArgK && ISK(c)) ? (MYK(INDEXK(c))) : c);
+    membuff_add_fstring(mb, "%d",a);
+    if (getBMode(o)!=OpArgN) membuff_add_fstring(mb, " %d", (getBMode(o) == OpArgK && ISK(b)) ? (MYK(INDEXK(b))) : b);
+    if (getCMode(o)!=OpArgN) membuff_add_fstring(mb, " %d", (getCMode(o) == OpArgK && ISK(c)) ? (MYK(INDEXK(c))) : c);
     break;
    case iABx:
-    printf("%d",a);
-    if (getBMode(o)==OpArgK) printf(" %d",MYK(bx));
-    if (getBMode(o)==OpArgU) printf(" %d",bx);
+    membuff_add_fstring(mb, "%d",a);
+    if (getBMode(o)==OpArgK) membuff_add_fstring(mb, " %d",MYK(bx));
+    if (getBMode(o)==OpArgU) membuff_add_fstring(mb, " %d",bx);
     break;
    case iAsBx:
-    printf("%d %d",a,sbx);
+    membuff_add_fstring(mb, "%d %d",a,sbx);
     break;
    case iAx:
-    printf("%d",MYK(ax));
+    membuff_add_fstring(mb, "%d",MYK(ax));
     break;
   }
   switch (o)
   {
    case OP_LOADK:
-    printf("\t; "); PrintConstant(f,bx);
+    membuff_add_fstring(mb, "\t; "); PrintConstant(mb, f,bx);
     break;
    case OP_GETUPVAL:
    case OP_RAVI_SETUPVALI:
@@ -457,17 +458,17 @@ static void PrintCode(const Proto* f)
    case OP_RAVI_SETUPVAL_FARRAY:
    case OP_RAVI_SETUPVALT:
    case OP_SETUPVAL:
-    printf("\t; %s",UPVALNAME(b));
+    membuff_add_fstring(mb, "\t; %s",UPVALNAME(b));
     break;
    case OP_RAVI_GETTABUP_SK:
    case OP_GETTABUP:
-    printf("\t; %s",UPVALNAME(b));
-    if (ISK(c)) { printf(" "); PrintConstant(f,INDEXK(c)); }
+    membuff_add_fstring(mb, "\t; %s",UPVALNAME(b));
+    if (ISK(c)) { membuff_add_string(mb, " "); PrintConstant(mb, f,INDEXK(c)); }
     break;
    case OP_SETTABUP:
-    printf("\t; %s",UPVALNAME(a));
-    if (ISK(b)) { printf(" "); PrintConstant(f,INDEXK(b)); }
-    if (ISK(c)) { printf(" "); PrintConstant(f,INDEXK(c)); }
+    membuff_add_fstring(mb, "\t; %s",UPVALNAME(a));
+    if (ISK(b)) { membuff_add_string(mb, " "); PrintConstant(mb, f,INDEXK(b)); }
+    if (ISK(c)) { membuff_add_string(mb, " "); PrintConstant(mb, f,INDEXK(c)); }
     break;
    case OP_GETTABLE:
    case OP_RAVI_GETI:
@@ -478,7 +479,7 @@ static void PrintCode(const Proto* f)
    case OP_RAVI_GETFIELD:
    case OP_RAVI_TABLE_SELF_SK:
    case OP_RAVI_SELF_SK:
-    if (ISK(c)) { printf("\t; "); PrintConstant(f,INDEXK(c)); }
+    if (ISK(c)) { membuff_add_fstring(mb, "\t; "); PrintConstant(mb, f,INDEXK(c)); }
     break;
    case OP_SETTABLE:
    case OP_RAVI_SETI:
@@ -529,10 +530,10 @@ static void PrintCode(const Proto* f)
    case OP_RAVI_LE_FF:
      if (ISK(b) || ISK(c))
     {
-     printf("\t; ");
-     if (ISK(b)) PrintConstant(f,INDEXK(b)); else printf("-");
-     printf(" ");
-     if (ISK(c)) PrintConstant(f,INDEXK(c)); else printf("-");
+     membuff_add_fstring(mb, "\t; ");
+     if (ISK(b)) PrintConstant(mb, f,INDEXK(b)); else membuff_add_fstring(mb, "-");
+      membuff_add_string(mb, " ");
+     if (ISK(c)) PrintConstant(mb, f,INDEXK(c)); else membuff_add_fstring(mb, "-");
     }
     break;
    case OP_JMP:
@@ -543,28 +544,28 @@ static void PrintCode(const Proto* f)
    case OP_RAVI_FORPREP_IP:
    case OP_RAVI_FORPREP_I1:
    case OP_TFORLOOP:
-    printf("\t; to %d",sbx+pc+2);
+     membuff_add_fstring(mb, "\t; to %d",sbx+pc+2);
     break;
    case OP_CLOSURE:
-    printf("\t; %p",VOID(f->p[bx]));
+     membuff_add_fstring(mb, "\t; %p",VOID(f->p[bx]));
     break;
    case OP_SETLIST:
-    if (c==0) printf("\t; %d",(int)code[++pc]); else printf("\t; %d",c);
+    if (c==0) membuff_add_fstring(mb, "\t; %d",(int)code[++pc]); else membuff_add_fstring(mb, "\t; %d",c);
     break;
    case OP_EXTRAARG:
-    printf("\t; "); PrintConstant(f,ax);
+     membuff_add_fstring(mb, "\t; "); PrintConstant(mb, f,ax);
     break;
    default:
     break;
   }
-  printf("\n");
+   membuff_add_fstring(mb, "\n");
  }
 }
 
 #define SS(x)	((x==1)?"":"s")
 #define S(x)	(int)(x),SS(x)
 
-static void PrintHeader(const Proto* f)
+static void PrintHeader(membuff_t  *mb, const Proto* f)
 {
  const char* s=f->source ? getstr(f->source) : "=?";
  if (*s=='@' || *s=='=')
@@ -573,51 +574,51 @@ static void PrintHeader(const Proto* f)
   s="(bstring)";
  else
   s="(string)";
- printf("\n%s <%s:%d,%d> (%d instruction%s at %p)\n",
+ membuff_add_fstring(mb, "\n%s <%s:%d,%d> (%d instruction%s at %p)\n",
  	(f->linedefined==0)?"main":"function",s,
 	f->linedefined,f->lastlinedefined,
 	S(f->sizecode),VOID(f));
- printf("%d%s param%s, %d slot%s, %d upvalue%s, ",
+ membuff_add_fstring(mb, "%d%s param%s, %d slot%s, %d upvalue%s, ",
 	(int)(f->numparams),f->is_vararg?"+":"",SS(f->numparams),
 	S(f->maxstacksize),S(f->sizeupvalues));
- printf("%d local%s, %d constant%s, %d function%s\n",
+ membuff_add_fstring(mb, "%d local%s, %d constant%s, %d function%s\n",
 	S(f->sizelocvars),S(f->sizek),S(f->sizep));
 }
 
-static void PrintDebug(const Proto* f)
+static void PrintDebug(membuff_t *mb, const Proto* f)
 {
  int i,n;
  n=f->sizek;
- printf("constants (%d) for %p:\n",n,VOID(f));
+ membuff_add_fstring(mb, "constants (%d) for %p:\n",n,VOID(f));
  for (i=0; i<n; i++)
  {
-  printf("\t%d\t",i+1);
-  PrintConstant(f,i);
-  printf("\n");
+  membuff_add_fstring(mb, "\t%d\t",i+1);
+  PrintConstant(mb, f,i);
+  membuff_add_fstring(mb, "\n");
  }
  n=f->sizelocvars;
- printf("locals (%d) for %p:\n",n,VOID(f));
+ membuff_add_fstring(mb, "locals (%d) for %p:\n",n,VOID(f));
  for (i=0; i<n; i++)
  {
-  printf("\t%d\t%s\t%d\t%d\n",
+  membuff_add_fstring(mb, "\t%d\t%s\t%d\t%d\n",
   i,getstr(f->locvars[i].varname),f->locvars[i].startpc+1,f->locvars[i].endpc+1);
  }
  n=f->sizeupvalues;
- printf("upvalues (%d) for %p:\n",n,VOID(f));
+ membuff_add_fstring(mb, "upvalues (%d) for %p:\n",n,VOID(f));
  for (i=0; i<n; i++)
  {
-  printf("\t%d\t%s\t%d\t%d\n",
+  membuff_add_fstring(mb, "\t%d\t%s\t%d\t%d\n",
   i,UPVALNAME(i),f->upvalues[i].instack,f->upvalues[i].idx);
  }
 }
 
-static void ravi_print_function(const Proto* f, int full)
+static void ravi_print_function(membuff_t *mb, const Proto* f, int full)
 {
   int i, n = f->sizep;
-  PrintHeader(f);
-  PrintCode(f);
-  if (full) PrintDebug(f);
-  for (i = 0; i<n; i++) ravi_print_function(f->p[i], full);
+  PrintHeader(mb, f);
+  PrintCode(mb, f);
+  if (full) PrintDebug(mb, f);
+  for (i = 0; i<n; i++) ravi_print_function(mb, f->p[i], full);
 }
 
 #define toproto(L,i) getproto(L->top+(i))
@@ -625,8 +626,13 @@ static void ravi_print_function(const Proto* f, int full)
 void ravi_dump_function(lua_State *L)
 {
   Proto* f;
+  membuff_t mb;
+
+  membuff_init(&mb, 4096);
   f = toproto(L, -1);
-  ravi_print_function(f, 1);
+  ravi_print_function(&mb, f, 1);
+  ravi_writestring(L, mb.buf, strlen(mb.buf));
+  membuff_free(&mb);
 }
 
 static void setnameval(lua_State *L, const char *name, int val) {
