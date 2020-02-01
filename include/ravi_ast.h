@@ -286,4 +286,41 @@ LUAMOD_API int raviopen_ast_library(lua_State *L);
 void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level);  /* output the AST structure recusrively */
 void raviA_ast_typecheck(struct ast_container *container);  /* Perform type checks and assign types to AST */
 
+/*
+Linearizer
+*/
+struct instruction;
+struct basic_block;
+struct edge;
+struct pseudo;
+
+DECLARE_PTR_LIST(instruction_list, struct instruction);
+DECLARE_PTR_LIST(edge_list, struct edge);
+DECLARE_PTR_LIST(pseudo_list, struct pseudo);
+
+enum opcode {
+  OP_NOP
+};
+
+struct instruction {
+  unsigned opcode:8;
+
+};
+
+struct basic_block {
+  struct edge_list *pred;
+  struct edge_list *succ;
+  struct instruction_list *insns;
+};
+
+struct linearizer {
+  struct allocator instruction_allocator;
+  struct allocator edge_allocator;
+  struct allocator pseudo_allocator;
+  struct allocator ptrlist_allocator;
+  struct ast_container *ast_container;
+};
+
+
+
 #endif

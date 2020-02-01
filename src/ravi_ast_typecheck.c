@@ -2,7 +2,6 @@
 Copyright (C) 2018-2020 Dibyendu Majumdar
 */
 #include <ravi_ast.h>
-#include "ravi_ast.h"
 
 /* Type checker - WIP  */
 static void typecheck_ast_node(struct ast_container *container, struct ast_node *function, struct ast_node *node);

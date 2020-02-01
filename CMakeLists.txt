@@ -50,9 +50,13 @@ if (COMPUTED_GOTO AND MSVC)
 endif ()
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
+if ($ENV{CLION_IDE})
+    # CLion seems unable to handle include paths set on sources
+    include_directories("${PROJECT_SOURCE_DIR}/dmr_c/src")
+endif()
 
 # define the Lua core source files
-set(RAVI_AST_SOURCES src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c)
+set(RAVI_AST_SOURCES src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c src/ravi_ast_linearize.c)
 set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
         src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
         src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
