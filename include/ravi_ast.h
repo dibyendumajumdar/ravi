@@ -33,6 +33,7 @@ b) Perform type checking (Ravi enhancement)
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #define MAXVARS 125
 
@@ -158,12 +159,12 @@ struct ast_node {
     } local_stmt; /* local declarations */
     struct {
       struct ast_node_list *var_expr_list; /* Optional var expressions, comma separated */
-      struct ast_node_list *expr_list;      /* Comma separated expressions */
+      struct ast_node_list *expr_list;     /* Comma separated expressions */
     } expression_stmt;                     /* Also covers assignments */
     struct {
       struct ast_node *name;           /* base symbol to be looked up */
       struct ast_node_list *selectors; /* Optional */
-      struct ast_node *method_name;     /* Optional */
+      struct ast_node *method_name;    /* Optional */
       struct ast_node *function_expr;  /* Function's AST */
     } function_stmt;
     struct {
@@ -255,24 +256,17 @@ struct ast_node {
        * overwrite the type of the variables in an inconsistent way.
        */
       struct var_type type;
-      TString *method_name;            /* Optional method_name */
+      TString *method_name;           /* Optional method_name */
       struct ast_node_list *arg_list; /* Call arguments */
     } function_call_expr;
   };
 };
 
-#define set_typecode(vt, t) \
-  (vt).type_code = t
-#define set_type(vt, t) \
-  (vt).type_code = t,   \
-  (vt).type_name = NULL
-#define set_typename(vt, t, name) \
-  (vt).type_code = t,             \
-  (vt).type_name = (name)
+#define set_typecode(vt, t) (vt).type_code = t
+#define set_type(vt, t) (vt).type_code = t, (vt).type_name = NULL
+#define set_typename(vt, t, name) (vt).type_code = t, (vt).type_name = (name)
 #define is_type_same(a, b) ((a).type_code == (b).type_code && (a).type_name == (b).type_name)
-#define copy_type(a, b)          \
-  (a).type_code = (b).type_code, \
-  (a).type_name = (b).type_name
+#define copy_type(a, b) (a).type_code = (b).type_code, (a).type_name = (b).type_name
 
 struct parser_state {
   LexState *ls;
@@ -283,45 +277,77 @@ struct parser_state {
 
 LUAMOD_API int raviopen_ast_library(lua_State *L);
 
-void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level);  /* output the AST structure recusrively */
-void raviA_ast_typecheck(struct ast_container *container);  /* Perform type checks and assign types to AST */
+void raviA_print_ast_node(membuff_t *buf, struct ast_node *node, int level); /* output the AST structure recusrively */
+void raviA_ast_typecheck(struct ast_container *container); /* Perform type checks and assign types to AST */
 
 /*
 Linearizer
 */
 struct instruction;
+struct node;
 struct basic_block;
 struct edge;
 struct pseudo;
+struct cfg;
+struct proc;
 
 DECLARE_PTR_LIST(instruction_list, struct instruction);
 DECLARE_PTR_LIST(edge_list, struct edge);
 DECLARE_PTR_LIST(pseudo_list, struct pseudo);
+DECLARE_PTR_LIST(proc_list, struct proc);
 
-enum opcode {
-  OP_NOP
-};
+#define container_of(ptr, type, member) ((type *)((char *)(ptr)-offsetof(type, member)))
 
+enum opcode { OP_NOP };
+
+/* pseudo represents a pseudo (virtual) register */
 struct pseudo {
-    unsigned regnum : 16;
-
+  unsigned regnum : 16;
 };
 
+/* single instruction */
 struct instruction {
-  unsigned opcode:8;
-
+  unsigned opcode : 8;
 };
 
 struct edge {
-    struct basic_block* from;
-    struct basic_block* to;
+  struct node *from;
+  struct node *to;
 };
 
+#define NODE_FIELDS       \
+  uint32_t index;         \
+  struct edge_list *pred; \
+  struct edge_list *succ
+
+struct node {
+  NODE_FIELDS;
+};
+
+/* Basic block is a specialization of node */
 struct basic_block {
-  struct edge_list *pred;
-  struct edge_list *succ;
+  NODE_FIELDS;
   struct instruction_list *insns;
 };
+
+#define CFG_FIELDS    \
+  struct node *entry; \
+  struct node *exit
+
+struct cfg {
+  CFG_FIELDS;
+};
+
+/* proc is a type of cfg */
+struct proc {
+  CFG_FIELDS;
+  struct proc_list* procs; /* procs defined in this proc */
+  struct proc* parent;     /* enclosing proc */
+};
+
+static inline struct basic_block * n2bb(struct node *n) { return (struct basic_block *)n; }
+static inline struct node * bb2n(struct basic_block *bb) { return (struct node *)bb; }
+
 
 struct linearizer {
   struct allocator instruction_allocator;
@@ -329,8 +355,7 @@ struct linearizer {
   struct allocator pseudo_allocator;
   struct allocator ptrlist_allocator;
   struct ast_container *ast_container;
+  struct proc* main_proc; /* The root of the compiled chunk of code */
 };
-
-
 
 #endif

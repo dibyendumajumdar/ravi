@@ -7,6 +7,7 @@ Copyright (C) 2018-2020 Dibyendu Majumdar
 
 #include <string.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 /* Linearizer - WIP  */
 void raviA_init_linearizer(struct linearizer *linearizer, struct ast_container *container) {
