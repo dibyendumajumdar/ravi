@@ -302,9 +302,19 @@ enum opcode {
   OP_NOP
 };
 
+struct pseudo {
+    unsigned regnum : 16;
+
+};
+
 struct instruction {
   unsigned opcode:8;
 
+};
+
+struct edge {
+    struct basic_block* from;
+    struct basic_block* to;
 };
 
 struct basic_block {
