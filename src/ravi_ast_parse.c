@@ -1433,6 +1433,8 @@ static void parse_lua_chunk(struct parser_state *parser) {
   assert(parser->current_scope == NULL);
   check(parser->ls, TK_EOS);
   raviA_ast_typecheck(parser->container);
+  struct linearizer linearizer;
+  raviA_ast_linearize(&linearizer, parser->container);
 }
 
 static void parser_state_init(struct parser_state *parser, LexState *ls, struct ast_container *container) {

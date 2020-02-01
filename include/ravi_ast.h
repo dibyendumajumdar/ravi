@@ -331,6 +331,8 @@ struct basic_block {
 };
 
 #define CFG_FIELDS    \
+  unsigned node_count; \
+  struct node **nodes; \
   struct node *entry; \
   struct node *exit
 
@@ -343,6 +345,7 @@ struct proc {
   CFG_FIELDS;
   struct proc_list* procs; /* procs defined in this proc */
   struct proc* parent;     /* enclosing proc */
+  struct ast_node* function_expr; /* function ast that we are compiling */
 };
 
 static inline struct basic_block * n2bb(struct node *n) { return (struct basic_block *)n; }
@@ -354,8 +357,14 @@ struct linearizer {
   struct allocator edge_allocator;
   struct allocator pseudo_allocator;
   struct allocator ptrlist_allocator;
+  struct allocator basic_block_allocator;
+  struct allocator proc_allocator;
   struct ast_container *ast_container;
   struct proc* main_proc; /* The root of the compiled chunk of code */
+  struct proc_list *all_procs; /* All procs allocated by the linearizer */
+  struct proc *current_proc;  /* proc being compiled */
 };
+
+void raviA_ast_linearize(struct linearizer *linearizer, struct ast_container *container);
 
 #endif
