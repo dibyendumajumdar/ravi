@@ -118,7 +118,7 @@ static struct lua_symbol *new_local_symbol(struct parser_state *parser, TString 
   symbol->symbol_type = SYM_LOCAL;
   symbol->var.block = scope;
   symbol->var.var_name = name;
-  symbol->var.backend_data = NULL;
+  symbol->var.pseudo = NULL;
   add_symbol(parser->container, &scope->symbol_list, symbol);  // Add to the end of the symbol list
   add_symbol(parser->container, &scope->function->function_expr.locals, symbol);
   // Note that Lua allows multiple local declarations of the same name

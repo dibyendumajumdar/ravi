@@ -71,6 +71,7 @@ struct var_type {
                                type_code is RAVI_TUSERDATA */
 };
 
+struct pseudo;
 struct lua_symbol;
 DECLARE_PTR_LIST(lua_symbol_list, struct lua_symbol);
 
@@ -92,7 +93,7 @@ struct lua_symbol {
     struct {
       const TString *var_name;   /* name of the variable */
       struct block_scope *block; /* NULL if global symbol, as globals are never added to a scope */
-      void *backend_data;        /* Place for backend to hold some data for the symbol */
+      struct pseudo *pseudo;     /* backend data for the symbol */
     } var;
     struct {
       const TString *label_name;
@@ -289,9 +290,9 @@ struct instruction;
 struct node;
 struct basic_block;
 struct edge;
-struct pseudo;
 struct cfg;
 struct proc;
+struct constant;
 
 DECLARE_PTR_LIST(instruction_list, struct instruction);
 DECLARE_PTR_LIST(edge_list, struct edge);
@@ -302,10 +303,15 @@ DECLARE_PTR_LIST(proc_list, struct proc);
 
 enum opcode { OP_NOP };
 
+enum pseudo_type { PSEUDO_LOCAL, PSEUDO_TEMP, PSEUDO_TEMP_INT, PSEUDO_TEMP_ANY, PSEUDO_CONSTANT };
+
 /* pseudo represents a pseudo (virtual) register */
 struct pseudo {
-  unsigned regnum : 16;
-  struct lua_symbol *symbol; /* If local var this should be set */
+  unsigned type : 4, regnum : 16;
+  union {
+    struct lua_symbol *symbol; /* If local var this should be set */
+    struct constant *constant;
+  };
 };
 
 /* single instruction */
@@ -333,11 +339,11 @@ struct basic_block {
   struct instruction_list *insns;
 };
 
-#define CFG_FIELDS    \
+#define CFG_FIELDS     \
   unsigned node_count; \
-  unsigned allocated; \
+  unsigned allocated;  \
   struct node **nodes; \
-  struct node *entry; \
+  struct node *entry;  \
   struct node *exit
 
 struct cfg {
@@ -363,21 +369,22 @@ struct constant {
 /* proc is a type of cfg */
 struct proc {
   CFG_FIELDS;
-  struct proc_list* procs; /* procs defined in this proc */
-  struct proc* parent;     /* enclosing proc */
-  struct ast_node* function_expr; /* function ast that we are compiling */
+  struct linearizer *linearizer;
+  struct proc_list *procs;        /* procs defined in this proc */
+  struct proc *parent;            /* enclosing proc */
+  struct ast_node *function_expr; /* function ast that we are compiling */
   struct block_scope *current_scope;
-  struct pseudo_generator local_pseudos; /* locals */
+  struct basic_block* current_bb;
+  struct pseudo_generator local_pseudos;    /* locals */
   struct pseudo_generator temp_int_pseudos; /* temporaries known to be integer type */
   struct pseudo_generator temp_flt_pseudos; /* temporaries known to be number type */
-  struct pseudo_generator temp_pseudos; /* All other temporaries */
+  struct pseudo_generator temp_pseudos;     /* All other temporaries */
   struct set *constants;
   unsigned num_constants;
 };
 
-static inline struct basic_block * n2bb(struct node *n) { return (struct basic_block *)n; }
-static inline struct node * bb2n(struct basic_block *bb) { return (struct node *)bb; }
-
+static inline struct basic_block *n2bb(struct node *n) { return (struct basic_block *)n; }
+static inline struct node *bb2n(struct basic_block *bb) { return (struct node *)bb; }
 
 struct linearizer {
   struct allocator instruction_allocator;
@@ -389,9 +396,9 @@ struct linearizer {
   struct allocator unsized_allocator;
   struct allocator constant_allocator;
   struct ast_container *ast_container;
-  struct proc* main_proc; /* The root of the compiled chunk of code */
+  struct proc *main_proc;      /* The root of the compiled chunk of code */
   struct proc_list *all_procs; /* All procs allocated by the linearizer */
-  struct proc *current_proc;  /* proc being compiled */
+  struct proc *current_proc;   /* proc being compiled */
 };
 
 void raviA_ast_linearize(struct linearizer *linearizer, struct ast_container *container);

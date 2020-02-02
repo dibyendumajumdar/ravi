@@ -9,7 +9,6 @@ Copyright (C) 2018-2020 Dibyendu Majumdar
 #include <string.h>
 #include <stdlib.h>
 #include <stddef.h>
-#include <ravi_ast.h>
 
 static inline unsigned alloc_reg(struct pseudo_generator *generator) {
   if (generator->free_pos > 0) {
@@ -24,7 +23,7 @@ static inline void free_reg(struct pseudo_generator *generator, unsigned reg) {
     fprintf(stderr, "Out of register space\n");
     abort();
   }
-  generator->free_regs[generator->free_pos++] = (uint8_t) reg;
+  generator->free_regs[generator->free_pos++] = (uint8_t)reg;
 }
 
 /* Linearizer - WIP  */
@@ -41,7 +40,8 @@ static void ravi_init_linearizer(struct linearizer *linearizer, struct ast_conta
                       sizeof(double), CHUNK);
   dmrC_allocator_init(&linearizer->proc_allocator, "proc_allocator", sizeof(struct proc), sizeof(double), CHUNK);
   dmrC_allocator_init(&linearizer->unsized_allocator, "unsized_allocator", 0, sizeof(double), CHUNK);
-  dmrC_allocator_init(&linearizer->constant_allocator, "constant_allocator", sizeof(struct constant), sizeof(double), CHUNK);
+  dmrC_allocator_init(&linearizer->constant_allocator, "constant_allocator", sizeof(struct constant), sizeof(double),
+                      CHUNK);
 }
 
 static void ravi_destroy_linearizer(struct linearizer *linearizer) {
@@ -49,7 +49,8 @@ static void ravi_destroy_linearizer(struct linearizer *linearizer) {
   FOR_EACH_PTR(linearizer->all_procs, proc) {
     if (proc->constants)
       set_destroy(proc->constants, NULL);
-  } END_FOR_EACH_PTR(proc);
+  }
+  END_FOR_EACH_PTR(proc);
   dmrC_allocator_destroy(&linearizer->edge_allocator);
   dmrC_allocator_destroy(&linearizer->instruction_allocator);
   dmrC_allocator_destroy(&linearizer->ptrlist_allocator);
@@ -73,11 +74,52 @@ static int compare_constants(const void *a, const void *b) {
     return c1->s == c2->s;
 }
 
-static uint32_t hash_constant(const void *c) {
-  return fnv1_hash_data(c, sizeof(struct constant));
+static uint32_t hash_constant(const void *c) { return fnv1_hash_data(c, sizeof(struct constant)); }
+
+static int allocate_constant(struct linearizer *linearizer, struct ast_node *node) {
+  assert(node->type == AST_LITERAL_EXPR);
+  struct proc *proc = linearizer->current_proc;
+  struct constant c = {.type = node->literal_expr.type.type_code};
+  if (c.type == RAVI_TNUMINT)
+    c.i = node->literal_expr.u.i;
+  else if (c.type == RAVI_TNUMFLT)
+    c.n = node->literal_expr.u.n;
+  else
+    c.s = node->literal_expr.u.s;
+  struct set_entry *entry = set_search(proc->constants, &c);
+  if (entry == NULL) {
+    int reg = proc->num_constants++;
+    struct constant *c1 = dmrC_allocator_allocate(&linearizer->constant_allocator, 0);
+    assert(c1);
+    memcpy(c1, &c, sizeof *c1);
+    c1->index = reg;
+    set_add(proc->constants, c1);
+    return reg;
+  }
+  else {
+    const struct constant *c1 = entry->key;
+    return c1->index;
+  }
 }
 
+struct pseudo *allocate_local_pseudo(struct proc *proc, struct lua_symbol *sym, unsigned reg) {
+  assert(sym->symbol_type == SYM_LOCAL);
+  assert(sym->var.pseudo == NULL);
+  struct pseudo *pseudo = dmrC_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+  pseudo->type = PSEUDO_LOCAL;
+  pseudo->symbol = sym;
+  pseudo->regnum = reg;
+  sym->var.pseudo = pseudo;
+  return pseudo;
+}
 
+struct pseudo *allocate_constant_pseudo(struct proc *proc, struct constant *constant) {
+  struct pseudo *pseudo = dmrC_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+  pseudo->type = PSEUDO_CONSTANT;
+  pseudo->constant = constant;
+  pseudo->regnum = constant->index;
+  return pseudo;
+}
 
 /**
  * Allocate a new proc. If there is a current proc, then the new proc gets added to the
@@ -93,6 +135,7 @@ static struct proc *allocate_proc(struct linearizer *linearizer, struct ast_node
     ptrlist_add((struct ptr_list **)&linearizer->current_proc->procs, proc, &linearizer->ptrlist_allocator);
   }
   proc->constants = set_create(hash_constant, compare_constants);
+  proc->linearizer = linearizer;
   return proc;
 }
 
@@ -112,8 +155,7 @@ static void linearize_function_args(struct linearizer *linearizer) {
   struct ast_node *func_expr = proc->function_expr;
   struct lua_symbol *sym;
   FOR_EACH_PTR(func_expr->function_expr.args, sym) {
-    uint8_t reg = alloc_reg(&proc->local_pseudos);
-    printf("Assigning register %d to argument %s\n", (int)reg, getstr(sym->var.var_name));
+    // printf("Assigning register %d to argument %s\n", (int)reg, getstr(sym->var.var_name));
   }
   END_FOR_EACH_PTR(sym);
 }
@@ -121,58 +163,30 @@ static void linearize_function_args(struct linearizer *linearizer) {
 static void linearize_statement(struct linearizer *linearizer, struct ast_node *node);
 static void linearize_statement_list(struct linearizer *linearizer, struct ast_node_list *list) {
   struct ast_node *node;
-  FOR_EACH_PTR(list, node) {
-    linearize_statement(linearizer, node); }
+  FOR_EACH_PTR(list, node) { linearize_statement(linearizer, node); }
   END_FOR_EACH_PTR(node);
-}
-
-static int allocate_constant(struct linearizer *linearizer, struct ast_node *node) {
-  assert(node->type == AST_LITERAL_EXPR);
-  struct proc *proc = linearizer->current_proc;
-  struct constant c;
-  c.type = node->literal_expr.type.type_code;
-  if (c.type == RAVI_TNUMINT)
-    c.i = node->literal_expr.u.i;
-  else if (c.type == RAVI_TNUMFLT)
-    c.n = node->literal_expr.u.n;
-  else
-    c.s = node->literal_expr.u.s;
-  struct set_entry* entry = set_search(proc->constants, &c);
-  if (entry == NULL) {
-    int reg = proc->num_constants++;
-    struct constant *c1 = dmrC_allocator_allocate(&linearizer->constant_allocator, 0);
-    assert(c1);
-    memcpy(c1, &c, sizeof *c1);
-    c1->index = reg;
-    set_add(proc->constants, c1);
-    return reg;
-  }
-  else {
-    const struct constant *c1 = entry->key;
-    return c1->index;
-  }
 }
 
 static void linearize_statement(struct linearizer *linearizer, struct ast_node *node) {
   switch (node->type) {
     case AST_FUNCTION_EXPR: {
       /* args need type assertions but those have no ast - i.e. code gen should do it */
-      //typecheck_ast_list(container, function, node->function_expr.function_statement_list);
+      // typecheck_ast_list(container, function, node->function_expr.function_statement_list);
       break;
     }
     case AST_NONE: {
       break;
     }
     case AST_RETURN_STMT: {
-      //typecheck_ast_list(container, function, node->return_stmt.expr_list);
+      // typecheck_ast_list(container, function, node->return_stmt.expr_list);
       break;
     }
     case AST_LOCAL_STMT: {
-      //typecheck_local_statement(container, function, node);
+      // typecheck_local_statement(container, function, node);
       break;
     }
     case AST_FUNCTION_STMT: {
-      //typecheck_ast_node(container, function, node->function_stmt.function_expr);
+      // typecheck_ast_node(container, function, node->function_stmt.function_expr);
       break;
     }
     case AST_LABEL_STMT: {
@@ -185,49 +199,49 @@ static void linearize_statement(struct linearizer *linearizer, struct ast_node *
       break;
     }
     case AST_EXPR_STMT: {
-      //typecheck_expr_statement(container, function, node);
+      // typecheck_expr_statement(container, function, node);
       break;
     }
     case AST_IF_STMT: {
-      //typecheck_if_statement(container, function, node);
+      // typecheck_if_statement(container, function, node);
       break;
     }
     case AST_WHILE_STMT:
     case AST_REPEAT_STMT: {
-      //typecheck_while_or_repeat_statement(container, function, node);
+      // typecheck_while_or_repeat_statement(container, function, node);
       break;
     }
     case AST_FORIN_STMT: {
-      //typecheck_for_in_statment(container, function, node);
+      // typecheck_for_in_statment(container, function, node);
       break;
     }
     case AST_FORNUM_STMT: {
-      //typecheck_for_num_statment(container, function, node);
+      // typecheck_for_num_statment(container, function, node);
       break;
     }
     case AST_SUFFIXED_EXPR: {
-      //typecheck_suffixedexpr(container, function, node);
+      // typecheck_suffixedexpr(container, function, node);
       break;
     }
     case AST_FUNCTION_CALL_EXPR: {
-      //if (node->function_call_expr.method_name) {
+      // if (node->function_call_expr.method_name) {
       //}
-      //else {
+      // else {
       //}
-      //typecheck_ast_list(container, function, node->function_call_expr.arg_list);
+      // typecheck_ast_list(container, function, node->function_call_expr.arg_list);
       break;
     }
     case AST_SYMBOL_EXPR: {
       /* symbol type should have been set when symbol was created */
-      //copy_type(node->symbol_expr.type, node->symbol_expr.var->value_type);
+      // copy_type(node->symbol_expr.type, node->symbol_expr.var->value_type);
       break;
     }
     case AST_BINARY_EXPR: {
-      //typecheck_binaryop(container, function, node);
+      // typecheck_binaryop(container, function, node);
       break;
     }
     case AST_UNARY_EXPR: {
-      //typecheck_unaryop(container, function, node);
+      // typecheck_unaryop(container, function, node);
       break;
     }
     case AST_LITERAL_EXPR: {
@@ -235,23 +249,23 @@ static void linearize_statement(struct linearizer *linearizer, struct ast_node *
       break;
     }
     case AST_FIELD_SELECTOR_EXPR: {
-      //typecheck_ast_node(container, function, node->index_expr.expr);
+      // typecheck_ast_node(container, function, node->index_expr.expr);
       break;
     }
     case AST_Y_INDEX_EXPR: {
-      //typecheck_ast_node(container, function, node->index_expr.expr);
+      // typecheck_ast_node(container, function, node->index_expr.expr);
       break;
     }
     case AST_INDEXED_ASSIGN_EXPR: {
-      //if (node->indexed_assign_expr.index_expr) {
+      // if (node->indexed_assign_expr.index_expr) {
       //  typecheck_ast_node(container, function, node->indexed_assign_expr.index_expr);
       //}
-      //typecheck_ast_node(container, function, node->indexed_assign_expr.value_expr);
-      //copy_type(node->indexed_assign_expr.type, node->indexed_assign_expr.value_expr->common_expr.type);
+      // typecheck_ast_node(container, function, node->indexed_assign_expr.value_expr);
+      // copy_type(node->indexed_assign_expr.type, node->indexed_assign_expr.value_expr->common_expr.type);
       break;
     }
     case AST_TABLE_EXPR: {
-      //typecheck_ast_list(container, function, node->table_expr.expr_list);
+      // typecheck_ast_list(container, function, node->table_expr.expr_list);
       break;
     }
     default:
@@ -259,28 +273,79 @@ static void linearize_statement(struct linearizer *linearizer, struct ast_node *
   }
 }
 
-static struct basic_block *allocate_basic_block(struct linearizer *linearizer) {
-  struct proc *proc = linearizer->current_proc;
+/**
+ * Creates and initializes a basic block to be an empty block. Returns the new basic block.
+ */
+static struct basic_block *create_block(struct proc *proc) {
   if (proc->node_count >= proc->allocated) {
     unsigned new_size = proc->allocated + 25;
-    struct node ** new_data = dmrC_allocator_allocate(&linearizer->unsized_allocator, new_size * sizeof(struct node *));
+    struct node **new_data = dmrC_allocator_allocate(&proc->linearizer->unsized_allocator, new_size * sizeof(struct node *));
     assert(new_data != NULL);
     if (proc->node_count > 0) {
-      memcpy(new_data, proc->nodes, proc->allocated*sizeof(struct node *));
+      memcpy(new_data, proc->nodes, proc->allocated * sizeof(struct node *));
     }
     proc->allocated = new_size;
+    proc->nodes = new_data;
   }
   assert(proc->node_count < proc->allocated);
-  struct basic_block *new_block = dmrC_allocator_allocate(&linearizer->basic_block_allocator, 0);
+  struct basic_block *new_block = dmrC_allocator_allocate(&proc->linearizer->basic_block_allocator, 0);
   proc->nodes[proc->node_count++] = bb2n(new_block);
   return new_block;
 }
 
-static void init_blocks(struct linearizer *linearizer) {
-  struct proc *proc = linearizer->current_proc;
+/**
+ * Takes a basic block as an argument and makes it the current block.
+ * All future instructions will be added to the end of this block
+ */
+static void start_block(struct proc *proc, struct basic_block *bb) {
+  proc->current_bb = bb;
+}
+
+/**
+ * Create the initial blocks entry and exit for the proc.
+ * sets current block to entry block.
+ */
+static void initialize_graph(struct proc *proc) {
   assert(proc != NULL);
-  proc->entry = bb2n(allocate_basic_block(linearizer));
-  proc->exit = bb2n(allocate_basic_block(linearizer));
+  proc->entry = bb2n(create_block(proc));
+  proc->exit = bb2n(create_block(proc));
+  start_block(proc, n2bb(proc->entry));
+}
+
+/**
+ * Makes given scope the current scope, and allocates registers for locals.
+ */
+static void start_scope(struct linearizer *linearizer, struct proc *proc, struct block_scope *scope) {
+  proc->current_scope = scope;
+  struct lua_symbol *sym;
+  FOR_EACH_PTR(scope->symbol_list, sym) {
+    if (sym->symbol_type == SYM_LOCAL) {
+      uint8_t reg = alloc_reg(&proc->local_pseudos);
+      allocate_local_pseudo(proc, sym, reg);
+      printf("Assigning register %d to local %s\n", (int)reg, getstr(sym->var.var_name));
+    }
+  }
+  END_FOR_EACH_PTR(sym);
+}
+
+/**
+ * Deallocate local registers when the scope ends, in reverse order
+ * so that we have a stack discipline, and then changes current scope to be the
+ * parent scope.
+ */
+static void end_scope(struct linearizer *linearizer, struct proc *proc) {
+  struct block_scope *scope = proc->current_scope;
+  struct lua_symbol *sym;
+  FOR_EACH_PTR_REVERSE(scope->symbol_list, sym) {
+    if (sym->symbol_type == SYM_LOCAL) {
+      struct pseudo *pseudo = sym->var.pseudo;
+      assert(pseudo && pseudo->type == PSEUDO_LOCAL && pseudo->symbol == sym);
+      printf("Free register %d for local %s\n", (int)pseudo->regnum, getstr(sym->var.var_name));
+      free_reg(&proc->local_pseudos, pseudo->regnum);
+    }
+  }
+  END_FOR_EACH_PTR_REVERSE(sym);
+  proc->current_scope = scope->parent;
 }
 
 static void linearize_function(struct linearizer *linearizer) {
@@ -288,10 +353,11 @@ static void linearize_function(struct linearizer *linearizer) {
   assert(proc != NULL);
   struct ast_node *func_expr = proc->function_expr;
   assert(func_expr->type == AST_FUNCTION_EXPR);
-  init_blocks(linearizer);
-  proc->current_scope = func_expr->function_expr.main_block;
+  initialize_graph(proc);
+  start_scope(linearizer, proc, func_expr->function_expr.main_block);
   linearize_function_args(linearizer);
   linearize_statement_list(linearizer, func_expr->function_expr.function_statement_list);
+  end_scope(linearizer, proc);
 }
 
 void raviA_ast_linearize(struct linearizer *linearizer, struct ast_container *container) {
