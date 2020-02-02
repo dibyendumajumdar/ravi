@@ -104,7 +104,7 @@ entry_is_present(const struct set_entry *entry)
 
 struct set *
 set_create(uint32_t (*hash_function)(const void *key),
-	   int key_equals_function(const void *a,
+	   int (*key_equals_function)(const void *a,
 				   const void *b))
 {
 	struct set *set;
@@ -390,6 +390,7 @@ set_next_entry(struct set *set, struct set_entry *entry)
 	return NULL;
 }
 
+#ifndef _WIN32
 struct set_entry *
 set_random_entry(struct set *set,
 		 int (*predicate)(struct set_entry *entry))
@@ -416,3 +417,4 @@ set_random_entry(struct set *set,
 
 	return NULL;
 }
+#endif

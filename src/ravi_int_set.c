@@ -328,6 +328,7 @@ int_set_next_entry(struct int_set *set, struct int_set_entry *entry)
 	return NULL;
 }
 
+#ifndef _WIN32
 struct int_set_entry *
 int_set_random_entry(struct int_set *set,
 		     int (*predicate)(struct int_set_entry *entry))
@@ -354,3 +355,4 @@ int_set_random_entry(struct int_set *set,
 
 	return NULL;
 }
+#endif

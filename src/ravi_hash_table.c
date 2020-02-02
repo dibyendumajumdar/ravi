@@ -387,6 +387,7 @@ hash_table_next_entry(struct hash_table *ht, struct hash_entry *entry)
 	return NULL;
 }
 
+#ifndef _WIN32
 /**
  * Returns a random entry from the hash table.
  *
@@ -421,3 +422,4 @@ hash_table_random_entry(struct hash_table *ht,
 
 	return NULL;
 }
+#endif

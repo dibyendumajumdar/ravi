@@ -301,7 +301,7 @@ DECLARE_PTR_LIST(proc_list, struct proc);
 
 #define container_of(ptr, type, member) ((type *)((char *)(ptr)-offsetof(type, member)))
 
-enum opcode { OP_NOP };
+enum opcode { OP_NOP, OP_RET };
 
 enum pseudo_type { PSEUDO_LOCAL, PSEUDO_TEMP, PSEUDO_TEMP_INT, PSEUDO_TEMP_ANY, PSEUDO_CONSTANT };
 
@@ -310,13 +310,18 @@ struct pseudo {
   unsigned type : 4, regnum : 16;
   union {
     struct lua_symbol *symbol; /* If local var this should be set */
-    struct constant *constant;
+    const struct constant *constant;
   };
 };
 
 /* single instruction */
 struct instruction {
   unsigned opcode : 8;
+  union {
+      struct {
+          struct pseudo_list* expr_list;
+      } ret_instruction;
+  };
 };
 
 struct edge {
