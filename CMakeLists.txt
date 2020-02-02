@@ -56,7 +56,8 @@ if ($ENV{CLION_IDE})
 endif()
 
 # define the Lua core source files
-set(RAVI_AST_SOURCES src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c src/ravi_ast_linearize.c)
+set(RAVI_AST_SOURCES src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c src/ravi_ast_linearize.c
+	src/ravi_fnv_hash.c src/ravi_hash_table.c src/ravi_set.c src/ravi_int_set.c)
 set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
         src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
         src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c

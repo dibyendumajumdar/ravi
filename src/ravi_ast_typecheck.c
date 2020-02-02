@@ -361,6 +361,7 @@ static void typecheck_while_or_repeat_statement(struct ast_container *container,
 static void typecheck_ast_node(struct ast_container *container, struct ast_node *function, struct ast_node *node) {
   switch (node->type) {
     case AST_FUNCTION_EXPR: {
+      /* args need type assertions but those have no ast - i.e. code gen should do it */
       typecheck_ast_list(container, function, node->function_expr.function_statement_list);
       break;
     }

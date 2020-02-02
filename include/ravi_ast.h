@@ -23,6 +23,7 @@ b) Perform type checking (Ravi enhancement)
 
 #include "ravi_ast.h"
 #include "ravi_membuf.h"
+#include "ravi_set.h"
 
 #include "allocate.h"
 #include "ptrlist.h"
@@ -91,6 +92,7 @@ struct lua_symbol {
     struct {
       const TString *var_name;   /* name of the variable */
       struct block_scope *block; /* NULL if global symbol, as globals are never added to a scope */
+      void *backend_data;        /* Place for backend to hold some data for the symbol */
     } var;
     struct {
       const TString *label_name;
@@ -303,6 +305,7 @@ enum opcode { OP_NOP };
 /* pseudo represents a pseudo (virtual) register */
 struct pseudo {
   unsigned regnum : 16;
+  struct lua_symbol *symbol; /* If local var this should be set */
 };
 
 /* single instruction */
@@ -332,6 +335,7 @@ struct basic_block {
 
 #define CFG_FIELDS    \
   unsigned node_count; \
+  unsigned allocated; \
   struct node **nodes; \
   struct node *entry; \
   struct node *exit
@@ -340,12 +344,35 @@ struct cfg {
   CFG_FIELDS;
 };
 
+struct pseudo_generator {
+  uint8_t next_reg;
+  int16_t free_pos;
+  uint8_t free_regs[256];
+};
+
+struct constant {
+  uint8_t type;
+  uint16_t index; /* index number starting from 0 assigned to each constant - acts like a reg num */
+  union {
+    lua_Integer i;
+    lua_Number n;
+    const TString *s;
+  };
+};
+
 /* proc is a type of cfg */
 struct proc {
   CFG_FIELDS;
   struct proc_list* procs; /* procs defined in this proc */
   struct proc* parent;     /* enclosing proc */
   struct ast_node* function_expr; /* function ast that we are compiling */
+  struct block_scope *current_scope;
+  struct pseudo_generator local_pseudos; /* locals */
+  struct pseudo_generator temp_int_pseudos; /* temporaries known to be integer type */
+  struct pseudo_generator temp_flt_pseudos; /* temporaries known to be number type */
+  struct pseudo_generator temp_pseudos; /* All other temporaries */
+  struct set *constants;
+  unsigned num_constants;
 };
 
 static inline struct basic_block * n2bb(struct node *n) { return (struct basic_block *)n; }
@@ -359,6 +386,8 @@ struct linearizer {
   struct allocator ptrlist_allocator;
   struct allocator basic_block_allocator;
   struct allocator proc_allocator;
+  struct allocator unsized_allocator;
+  struct allocator constant_allocator;
   struct ast_container *ast_container;
   struct proc* main_proc; /* The root of the compiled chunk of code */
   struct proc_list *all_procs; /* All procs allocated by the linearizer */
