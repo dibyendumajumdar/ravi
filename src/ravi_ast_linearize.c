@@ -77,7 +77,7 @@ static int compare_constants(const void *a, const void *b) {
 static uint32_t hash_constant(const void *c) {
   const struct constant *c1 = (const struct constant *)c;
   if (c1->type == RAVI_TNUMINT)
-    return c1->i;
+    return (int)c1->i;
   else if (c1->type == RAVI_TNUMFLT)
     return (int)c1->n;  // FIXME maybe use Lua's hash gen
   else
@@ -186,7 +186,11 @@ static struct pseudo *linearize_literal(struct proc *proc, struct ast_node *expr
   assert(expr->type == AST_LITERAL_EXPR);
   if (expr->literal_expr.type.type_code == RAVI_TNUMFLT || expr->literal_expr.type.type_code == RAVI_TNUMINT ||
       expr->literal_expr.type.type_code == RAVI_TSTRING) {
-    return allocate_constant_pseudo(proc, allocate_constant(proc, expr));
+    struct pseudo *pseudo = allocate_constant_pseudo(proc, allocate_constant(proc, expr));
+    struct instruction* insn = alloc_instruction(proc, op_loadk);
+    ptrlist_add((struct ptr_list**) &insn->operands, pseudo, &proc->linearizer->ptrlist_allocator);
+    ptrlist_add((struct ptr_list**) &proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+    return pseudo;
   }
   else {
     abort();
@@ -220,8 +224,9 @@ static void linearize_expr_list(struct proc *proc, struct ast_node_list *expr_li
 
 static void linearize_return(struct proc *proc, struct ast_node *node) {
   assert(node->type == AST_RETURN_STMT);
-  struct instruction *insn = alloc_instruction(proc, OP_RET);
-  linearize_expr_list(proc, node->return_stmt.expr_list, insn, &insn->ret_instruction.expr_list);
+  struct instruction *insn = alloc_instruction(proc, op_ret);
+  linearize_expr_list(proc, node->return_stmt.expr_list, insn, &insn->operands);
+  ptrlist_add((struct ptr_list**) & proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
 }
 
 static void linearize_statement(struct proc *proc, struct ast_node *node) {

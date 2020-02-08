@@ -301,7 +301,7 @@ DECLARE_PTR_LIST(proc_list, struct proc);
 
 #define container_of(ptr, type, member) ((type *)((char *)(ptr)-offsetof(type, member)))
 
-enum opcode { OP_NOP, OP_RET };
+enum opcode { op_nop, op_ret, op_loadk};
 
 enum pseudo_type { PSEUDO_LOCAL, PSEUDO_TEMP, PSEUDO_TEMP_INT, PSEUDO_TEMP_ANY, PSEUDO_CONSTANT };
 
@@ -317,11 +317,8 @@ struct pseudo {
 /* single instruction */
 struct instruction {
   unsigned opcode : 8;
-  union {
-      struct {
-          struct pseudo_list* expr_list;
-      } ret_instruction;
-  };
+  struct pseudo_list* operands;
+  struct pseudo_list* targets;
 };
 
 struct edge {
