@@ -303,7 +303,7 @@ DECLARE_PTR_LIST(proc_list, struct proc);
 
 enum opcode { op_nop, op_ret, op_loadk};
 
-enum pseudo_type { PSEUDO_LOCAL, PSEUDO_TEMP, PSEUDO_TEMP_INT, PSEUDO_TEMP_ANY, PSEUDO_CONSTANT };
+enum pseudo_type { PSEUDO_LOCAL, PSEUDO_TEMP_FLT, PSEUDO_TEMP_INT, PSEUDO_TEMP_ANY, PSEUDO_CONSTANT };
 
 /* pseudo represents a pseudo (virtual) register */
 struct pseudo {

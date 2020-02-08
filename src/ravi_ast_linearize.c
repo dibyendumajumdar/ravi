@@ -130,6 +130,31 @@ struct pseudo *allocate_constant_pseudo(struct proc *proc, const struct constant
   return pseudo;
 }
 
+struct pseudo* allocate_temp_pseudo(struct proc* proc, ravitype_t type) {
+    struct pseudo_generator* gen;
+    enum pseudo_type pseudo_type;
+    switch (type) {
+    case RAVI_TNUMFLT:
+        gen = &proc->temp_int_pseudos;
+        pseudo_type = PSEUDO_TEMP_FLT;
+        break;
+    case RAVI_TNUMINT:
+        gen = &proc->temp_flt_pseudos; 
+        pseudo_type = PSEUDO_TEMP_INT;
+        break;
+    default:
+        gen = &proc->temp_pseudos; 
+        pseudo_type = PSEUDO_TEMP_ANY;
+        break;
+    }
+    unsigned reg = alloc_reg(gen);
+    struct pseudo* pseudo = dmrC_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+    pseudo->type = pseudo_type;
+    pseudo->regnum = reg;
+    return pseudo;
+}
+
+
 /**
  * Allocate a new proc. If there is a current proc, then the new proc gets added to the
  * current procs children.
@@ -187,10 +212,12 @@ static struct pseudo *linearize_literal(struct proc *proc, struct ast_node *expr
   if (expr->literal_expr.type.type_code == RAVI_TNUMFLT || expr->literal_expr.type.type_code == RAVI_TNUMINT ||
       expr->literal_expr.type.type_code == RAVI_TSTRING) {
     struct pseudo *pseudo = allocate_constant_pseudo(proc, allocate_constant(proc, expr));
+    struct pseudo* target = allocate_temp_pseudo(proc, pseudo->constant->type);
     struct instruction* insn = alloc_instruction(proc, op_loadk);
     ptrlist_add((struct ptr_list**) &insn->operands, pseudo, &proc->linearizer->ptrlist_allocator);
+    ptrlist_add((struct ptr_list**) &insn->targets, target, &proc->linearizer->ptrlist_allocator);
     ptrlist_add((struct ptr_list**) &proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
-    return pseudo;
+    return target;
   }
   else {
     abort();
@@ -353,6 +380,7 @@ static struct basic_block *create_block(struct proc *proc) {
   }
   assert(proc->node_count < proc->allocated);
   struct basic_block *new_block = dmrC_allocator_allocate(&proc->linearizer->basic_block_allocator, 0);
+  new_block->index = proc->node_count;
   proc->nodes[proc->node_count++] = bb2n(new_block);
   return new_block;
 }
@@ -422,11 +450,92 @@ static void linearize_function(struct linearizer *linearizer) {
   end_scope(linearizer, proc);
 }
 
+void output_pseudo(struct pseudo *pseudo, membuff_t *mb)
+{
+    switch (pseudo->type) {
+    case PSEUDO_CONSTANT: {
+        const struct constant* constant = pseudo->constant;
+        if (constant->type == RAVI_TNUMFLT) {
+            membuff_add_fstring(mb, "%.12f", constant->n);
+        }
+        else if (constant->type == RAVI_TNUMINT) {
+            membuff_add_fstring(mb, "%ld", constant->i);
+        }
+        else {
+            membuff_add_fstring(mb, "'%s'", getstr(constant->s));
+        }
+        membuff_add_fstring(mb, " K(%d)", pseudo->regnum);
+    } break;
+    case PSEUDO_TEMP_INT:
+        membuff_add_fstring(mb, "Tint(%d)", pseudo->regnum);
+        break;
+    case PSEUDO_TEMP_FLT:
+        membuff_add_fstring(mb, "Tflt(%d)", pseudo->regnum);
+        break;
+    case PSEUDO_TEMP_ANY: 
+        membuff_add_fstring(mb, "T(%d)", pseudo->regnum);
+        break;
+    }
+}
+
+static const char* op_codenames[] = {
+    "NOOP",
+    "RET",
+    "LOADK"
+};
+
+void output_pseudo_list(struct pseudo_list* list, membuff_t* mb) {
+    struct pseudo* pseudo;
+    membuff_add_string(mb, " {");
+    int i = 0;
+    FOR_EACH_PTR(list, pseudo) {
+        if (i > 0) membuff_add_string(mb, ", ");
+        output_pseudo(pseudo, mb);
+        i++;
+    } END_FOR_EACH_PTR(pseudo);
+    membuff_add_string(mb, "}");
+}
+
+void output_instruction(struct instruction* insn, membuff_t* mb) {
+    membuff_add_fstring(mb, "\t%s", op_codenames[insn->opcode]);
+    if (insn->operands) {
+        output_pseudo_list(insn->operands, mb);
+    }
+    if (insn->targets) {
+        output_pseudo_list(insn->targets, mb);
+    }
+    membuff_add_string(mb, "\n");
+}
+
+void output_instructions(struct instruction_list* list, membuff_t* mb) {
+    struct instruction* insn;
+    FOR_EACH_PTR(list, insn) {
+        output_instruction(insn, mb);
+    } END_FOR_EACH_PTR(insn);
+}
+
+void output_basic_block(struct basic_block* bb, membuff_t* mb) {
+    membuff_add_fstring(mb, "L%d\n", bb->index);
+    output_instructions(bb->insns, mb);
+}
+
+void output_proc(struct proc* proc, membuff_t* mb) {
+    struct basic_block* bb;
+    for (int i = 0; i < proc->node_count; i++) {
+        bb = n2bb(proc->nodes[i]);
+        output_basic_block(bb, mb);
+    }
+}
+
 void raviA_ast_linearize(struct linearizer *linearizer, struct ast_container *container) {
   ravi_init_linearizer(linearizer, container);
   struct proc *proc = allocate_proc(linearizer, container->main_function);
   set_main_proc(linearizer, proc);
   set_current_proc(linearizer, proc);
   linearize_function(linearizer);
+  membuff_t mb;
+  membuff_init(&mb, 1024);
+  output_proc(proc, &mb);
+  printf(mb.buf);
   ravi_destroy_linearizer(linearizer);
 }
