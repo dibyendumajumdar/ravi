@@ -148,6 +148,20 @@ struct pseudo *allocate_closure_pseudo(struct linearizer *linearizer, struct pro
   return pseudo;
 }
 
+struct pseudo *allocate_nil_pseudo(struct proc *proc) {
+  struct pseudo *pseudo = dmrC_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+  pseudo->type = PSEUDO_NIL;
+  pseudo->proc = proc;
+  return pseudo;
+}
+
+struct pseudo *allocate_boolean_pseudo(struct proc *proc, bool is_true) {
+  struct pseudo *pseudo = dmrC_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+  pseudo->type = is_true ? PSEUDO_TRUE : PSEUDO_FALSE;
+  pseudo->proc = proc;
+  return pseudo;
+}
+
 struct pseudo *allocate_temp_pseudo(struct proc *proc, ravitype_t type) {
   struct pseudo_generator *gen;
   enum pseudo_type pseudo_type;
@@ -246,20 +260,36 @@ static struct instruction *alloc_instruction(struct proc *proc, enum opcode op) 
 
 static struct pseudo *linearize_literal(struct proc *proc, struct ast_node *expr) {
   assert(expr->type == AST_LITERAL_EXPR);
-  if (expr->literal_expr.type.type_code == RAVI_TNUMFLT || expr->literal_expr.type.type_code == RAVI_TNUMINT ||
-      expr->literal_expr.type.type_code == RAVI_TSTRING) {
-    struct pseudo *pseudo = allocate_constant_pseudo(proc, allocate_constant(proc, expr));
-    struct pseudo *target = allocate_temp_pseudo(proc, pseudo->constant->type);
-    struct instruction *insn = alloc_instruction(proc, op_loadk);
-    ptrlist_add((struct ptr_list **)&insn->operands, pseudo, &proc->linearizer->ptrlist_allocator);
-    ptrlist_add((struct ptr_list **)&insn->targets, target, &proc->linearizer->ptrlist_allocator);
-    ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
-    return target;
+  ravitype_t type = expr->literal_expr.type.type_code;
+  struct pseudo *pseudo = NULL;
+  struct pseudo *target = NULL;
+  enum opcode opcode;
+  switch (type) {
+    case RAVI_TNUMFLT:
+    case RAVI_TNUMINT:
+    case RAVI_TSTRING:
+      pseudo = allocate_constant_pseudo(proc, allocate_constant(proc, expr));
+      target = allocate_temp_pseudo(proc, pseudo->constant->type);
+      opcode = op_loadk;
+      break;
+    case RAVI_TNIL:
+      pseudo = allocate_nil_pseudo(proc);
+      target = allocate_temp_pseudo(proc, RAVI_TANY);
+      opcode = op_loadnil;
+      break;
+    case RAVI_TBOOLEAN:
+      pseudo = allocate_boolean_pseudo(proc, expr->literal_expr.u.i);
+      target = allocate_temp_pseudo(proc, RAVI_TBOOLEAN);
+      opcode = op_loadbool;
+      break;
+    default:
+      abort();
   }
-  else {
-    abort();
-    return NULL;
-  }
+  struct instruction *insn = alloc_instruction(proc, op_loadk);
+  ptrlist_add((struct ptr_list **)&insn->operands, pseudo, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&insn->targets, target, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+  return target;
 }
 
 static struct pseudo *linearize_unaryop(struct proc *proc, struct ast_node *node) {
@@ -531,6 +561,9 @@ static void linearize_return(struct proc *proc, struct ast_node *node) {
   struct instruction *insn = alloc_instruction(proc, op_ret);
   linearize_expr_list(proc, node->return_stmt.expr_list, insn, &insn->operands);
   ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+  // FIXME add edge to exit block
+  // FIXME terminate block
+  // FIXME free all temps
 }
 
 static void linearize_statement(struct proc *proc, struct ast_node *node) {
@@ -754,16 +787,26 @@ void output_pseudo(struct pseudo *pseudo, membuff_t *mb) {
     case PSEUDO_PROC:
       membuff_add_fstring(mb, "Proc(%p)", pseudo->proc);
       break;
+    case PSEUDO_NIL:
+      membuff_add_string(mb, "nil");
+      break;
+    case PSEUDO_FALSE:
+      membuff_add_string(mb, "false");
+      break;
+    case PSEUDO_TRUE:
+      membuff_add_string(mb, "true");
+      break;
   }
 }
 
 static const char *op_codenames[] = {
-    "NOOP",  "RET",       "LOADK",    "ADD",      "ADDff",    "ADDfi",   "ADDii",  "SUB",    "SUBff", "SUBfi",
-    "SUBif", "SUBii",     "MUL",      "MULff",    "MULfi",    "MULii",   "DIV",    "DIVff",  "DIVfi", "DIVif",
-    "DIVii", "IDIV",      "BAND",     "BANDii",   "BOR",      "BORii",   "BXOR",   "BXORii", "SHL",   "SHLii",
-    "SHR",   "SHRii",     "EQ",       "EQii",     "EQff",     "LT",      "LIii",   "LTff",   "LE",    "LEii",
-    "LEff",  "MOD",       "POW",      "CLOSURE",  "UNM",      "UNMi",    "UNMf",   "LEN",    "LENi",  "TOINT",
-    "TOFLT", "TOCLOSURE", "TOSTRING", "TOIARRAY", "TOFARRAY", "TOTABLE", "TOTYPE", "NOT",    "BNOT"};
+    "NOOP",     "RET",      "LOADK",    "LOADNIL", "LOADBOOL", "ADD",  "ADDff", "ADDfi",  "ADDii",
+    "SUB",      "SUBff",    "SUBfi",    "SUBif",   "SUBii",    "MUL",  "MULff", "MULfi",  "MULii",
+    "DIV",      "DIVff",    "DIVfi",    "DIVif",   "DIVii",    "IDIV", "BAND",  "BANDii", "BOR",
+    "BORii",    "BXOR",     "BXORii",   "SHL",     "SHLii",    "SHR",  "SHRii", "EQ",     "EQii",
+    "EQff",     "LT",       "LIii",     "LTff",    "LE",       "LEii", "LEff",  "MOD",    "POW",
+    "CLOSURE",  "UNM",      "UNMi",     "UNMf",    "LEN",      "LENi", "TOINT", "TOFLT",  "TOCLOSURE",
+    "TOSTRING", "TOIARRAY", "TOFARRAY", "TOTABLE", "TOTYPE",   "NOT",  "BNOT"};
 
 void output_pseudo_list(struct pseudo_list *list, membuff_t *mb) {
   struct pseudo *pseudo;

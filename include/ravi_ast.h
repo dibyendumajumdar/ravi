@@ -308,6 +308,8 @@ enum opcode {
   op_nop,
   op_ret,
   op_loadk,
+  op_loadnil,
+  op_loadbool,
   op_add,
   op_addff,
   op_addfi,
@@ -366,7 +368,7 @@ enum opcode {
   op_bnot,
 };
 
-enum pseudo_type { PSEUDO_LOCAL, PSEUDO_TEMP_FLT, PSEUDO_TEMP_INT, PSEUDO_TEMP_ANY, PSEUDO_CONSTANT, PSEUDO_PROC };
+enum pseudo_type { PSEUDO_LOCAL, PSEUDO_TEMP_FLT, PSEUDO_TEMP_INT, PSEUDO_TEMP_ANY, PSEUDO_CONSTANT, PSEUDO_PROC, PSEUDO_NIL, PSEUDO_TRUE, PSEUDO_FALSE };
 
 /* pseudo represents a pseudo (virtual) register */
 struct pseudo {
