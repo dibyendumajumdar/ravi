@@ -10,6 +10,8 @@ Copyright (C) 2018-2020 Dibyendu Majumdar
 #include <stdlib.h>
 #include <stddef.h>
 
+static struct pseudo *linearize_expr(struct proc *proc, struct ast_node *expr);
+
 static inline unsigned alloc_reg(struct pseudo_generator *generator) {
   if (generator->free_pos > 0) {
     return generator->free_regs[--generator->free_pos];
@@ -130,30 +132,49 @@ struct pseudo *allocate_constant_pseudo(struct proc *proc, const struct constant
   return pseudo;
 }
 
-struct pseudo* allocate_temp_pseudo(struct proc* proc, ravitype_t type) {
-    struct pseudo_generator* gen;
-    enum pseudo_type pseudo_type;
-    switch (type) {
+struct pseudo *allocate_temp_pseudo(struct proc *proc, ravitype_t type) {
+  struct pseudo_generator *gen;
+  enum pseudo_type pseudo_type;
+  switch (type) {
     case RAVI_TNUMFLT:
-        gen = &proc->temp_int_pseudos;
-        pseudo_type = PSEUDO_TEMP_FLT;
-        break;
+      gen = &proc->temp_int_pseudos;
+      pseudo_type = PSEUDO_TEMP_FLT;
+      break;
     case RAVI_TNUMINT:
-        gen = &proc->temp_flt_pseudos; 
-        pseudo_type = PSEUDO_TEMP_INT;
-        break;
+      gen = &proc->temp_flt_pseudos;
+      pseudo_type = PSEUDO_TEMP_INT;
+      break;
     default:
-        gen = &proc->temp_pseudos; 
-        pseudo_type = PSEUDO_TEMP_ANY;
-        break;
-    }
-    unsigned reg = alloc_reg(gen);
-    struct pseudo* pseudo = dmrC_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
-    pseudo->type = pseudo_type;
-    pseudo->regnum = reg;
-    return pseudo;
+      gen = &proc->temp_pseudos;
+      pseudo_type = PSEUDO_TEMP_ANY;
+      break;
+  }
+  unsigned reg = alloc_reg(gen);
+  struct pseudo *pseudo = dmrC_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+  pseudo->type = pseudo_type;
+  pseudo->regnum = reg;
+  pseudo->temp_type = type;
+  return pseudo;
 }
 
+void free_temp_pseudo(struct proc *proc, struct pseudo *pseudo) {
+  struct pseudo_generator *gen;
+  switch (pseudo->type) {
+    case PSEUDO_TEMP_FLT:
+      gen = &proc->temp_int_pseudos;
+      break;
+    case PSEUDO_TEMP_INT:
+      gen = &proc->temp_flt_pseudos;
+      break;
+    case PSEUDO_TEMP_ANY:
+      gen = &proc->temp_pseudos;
+      break;
+    default:
+      abort();
+      break;
+  }
+  free_reg(gen, pseudo->regnum);
+}
 
 /**
  * Allocate a new proc. If there is a current proc, then the new proc gets added to the
@@ -212,11 +233,11 @@ static struct pseudo *linearize_literal(struct proc *proc, struct ast_node *expr
   if (expr->literal_expr.type.type_code == RAVI_TNUMFLT || expr->literal_expr.type.type_code == RAVI_TNUMINT ||
       expr->literal_expr.type.type_code == RAVI_TSTRING) {
     struct pseudo *pseudo = allocate_constant_pseudo(proc, allocate_constant(proc, expr));
-    struct pseudo* target = allocate_temp_pseudo(proc, pseudo->constant->type);
-    struct instruction* insn = alloc_instruction(proc, op_loadk);
-    ptrlist_add((struct ptr_list**) &insn->operands, pseudo, &proc->linearizer->ptrlist_allocator);
-    ptrlist_add((struct ptr_list**) &insn->targets, target, &proc->linearizer->ptrlist_allocator);
-    ptrlist_add((struct ptr_list**) &proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+    struct pseudo *target = allocate_temp_pseudo(proc, pseudo->constant->type);
+    struct instruction *insn = alloc_instruction(proc, op_loadk);
+    ptrlist_add((struct ptr_list **)&insn->operands, pseudo, &proc->linearizer->ptrlist_allocator);
+    ptrlist_add((struct ptr_list **)&insn->targets, target, &proc->linearizer->ptrlist_allocator);
+    ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
     return target;
   }
   else {
@@ -225,11 +246,158 @@ static struct pseudo *linearize_literal(struct proc *proc, struct ast_node *expr
   }
 }
 
+/* Type checker - WIP  */
+static struct pseudo *linearize_binaryop(struct proc *proc, struct ast_node *node) {
+  BinOpr op = node->binary_expr.binary_op;
+  struct ast_node *e1 = node->binary_expr.expr_left;
+  struct ast_node *e2 = node->binary_expr.expr_right;
+  struct pseudo *operand1 = linearize_expr(proc, e1);
+  struct pseudo *operand2 = linearize_expr(proc, e2);
+
+  enum opcode targetop;
+  switch (op) {
+    case OPR_ADD:
+      targetop = op_add;
+      break;
+    case OPR_SUB:
+      targetop = op_sub;
+      break;
+    case OPR_MUL:
+      targetop = op_mul;
+      break;
+    case OPR_DIV:
+      targetop = op_div;
+      break;
+    case OPR_IDIV:
+      targetop = op_idiv;
+      break;
+    case OPR_BAND:
+      targetop = op_band;
+      break;
+    case OPR_BOR:
+      targetop = op_bor;
+      break;
+    case OPR_BXOR:
+      targetop = op_bxor;
+      break;
+    case OPR_SHL:
+      targetop = op_shl;
+      break;
+    case OPR_SHR:
+      targetop = op_shr;
+      break;
+    case OPR_EQ:
+    case OPR_NE:
+      targetop = op_eq;
+      break;
+    case OPR_LT:
+    case OPR_GT:
+      targetop = op_lt;
+      break;
+    case OPR_LE:
+    case OPR_GE:
+      targetop = op_le;
+      break;
+    case OPR_MOD:
+      targetop = op_mod;
+      break;
+    case OPR_POW:
+      targetop = op_pow;
+      break;
+    default:
+      abort();
+  }
+
+  ravitype_t t1 = e1->common_expr.type.type_code;
+  ravitype_t t2 = e2->common_expr.type.type_code;
+
+  bool swap = false;
+  switch (targetop) {
+    case op_add:
+    case op_mul:
+      swap = t1 == RAVI_TNUMINT && t2 == RAVI_TNUMFLT;
+      break;
+    case op_eq:
+    case op_lt:
+    case op_le:
+      swap = op == OPR_NE || op == OPR_GT || op == OPR_GE;
+      break;
+  }
+
+  if (swap) {
+    struct pseudo *temp;
+    struct ast_node *ntemp;
+    temp = operand1;
+    operand1 = operand2;
+    operand2 = temp;
+    ntemp = e1;
+    e1 = e2;
+    e2 = ntemp;
+    t1 = e1->common_expr.type.type_code;
+    t2 = e2->common_expr.type.type_code;
+  }
+
+  switch (targetop) {
+    case op_add:
+    case op_mul:
+      if (t1 == RAVI_TNUMFLT && t2 == RAVI_TNUMFLT)
+        targetop += 1;
+      else if (t1 == RAVI_TNUMFLT && t2 == RAVI_TNUMINT)
+        targetop += 2;
+      else if (t1 == RAVI_TNUMINT && t2 == RAVI_TNUMINT)
+        targetop += 3;
+      break;
+    case op_div:
+    case op_sub:
+      if (t1 == RAVI_TNUMFLT && t2 == RAVI_TNUMFLT)
+        targetop += 1;
+      else if (t1 == RAVI_TNUMFLT && t2 == RAVI_TNUMINT)
+        targetop += 2;
+      else if (t1 == RAVI_TNUMINT && t2 == RAVI_TNUMFLT)
+        targetop += 3;
+      else if (t1 == RAVI_TNUMINT && t2 == RAVI_TNUMINT)
+        targetop += 4;
+      break;
+    case op_band:
+    case op_bor:
+    case op_bxor:
+    case op_shl:
+    case op_shr:
+      if (t1 == RAVI_TNUMINT && t2 == RAVI_TNUMINT)
+        targetop += 1;
+      break;
+    case op_eq:
+    case op_le:
+    case op_lt:
+      if (t1 == RAVI_TNUMINT && t2 == RAVI_TNUMINT)
+        targetop += 1;
+      else if (t1 == RAVI_TNUMFLT && t2 == RAVI_TNUMFLT)
+        targetop += 2;
+      break;
+  }
+
+  ravitype_t target_type = node->binary_expr.type.type_code;
+  struct pseudo *target = allocate_temp_pseudo(proc, target_type);
+  struct instruction *insn = alloc_instruction(proc, targetop);
+  ptrlist_add((struct ptr_list **)&insn->operands, operand1, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&insn->operands, operand2, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&insn->targets, target, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+  free_temp_pseudo(proc, operand1);
+  free_temp_pseudo(proc, operand2);
+
+  return target;
+}
+
 static struct pseudo *linearize_expr(struct proc *proc, struct ast_node *expr) {
   switch (expr->type) {
     case AST_LITERAL_EXPR: {
       return linearize_literal(proc, expr);
     } break;
+    case AST_BINARY_EXPR: {
+      return linearize_binaryop(proc, expr);
+      break;
+    }
 
     default:
       abort();
@@ -253,7 +421,7 @@ static void linearize_return(struct proc *proc, struct ast_node *node) {
   assert(node->type == AST_RETURN_STMT);
   struct instruction *insn = alloc_instruction(proc, op_ret);
   linearize_expr_list(proc, node->return_stmt.expr_list, insn, &insn->operands);
-  ptrlist_add((struct ptr_list**) & proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
 }
 
 static void linearize_statement(struct proc *proc, struct ast_node *node) {
@@ -450,81 +618,81 @@ static void linearize_function(struct linearizer *linearizer) {
   end_scope(linearizer, proc);
 }
 
-void output_pseudo(struct pseudo *pseudo, membuff_t *mb)
-{
-    switch (pseudo->type) {
+void output_pseudo(struct pseudo *pseudo, membuff_t *mb) {
+  switch (pseudo->type) {
     case PSEUDO_CONSTANT: {
-        const struct constant* constant = pseudo->constant;
-        if (constant->type == RAVI_TNUMFLT) {
-            membuff_add_fstring(mb, "%.12f", constant->n);
-        }
-        else if (constant->type == RAVI_TNUMINT) {
-            membuff_add_fstring(mb, "%ld", constant->i);
-        }
-        else {
-            membuff_add_fstring(mb, "'%s'", getstr(constant->s));
-        }
-        membuff_add_fstring(mb, " K(%d)", pseudo->regnum);
+      const struct constant *constant = pseudo->constant;
+      if (constant->type == RAVI_TNUMFLT) {
+        membuff_add_fstring(mb, "%.12f", constant->n);
+      }
+      else if (constant->type == RAVI_TNUMINT) {
+        membuff_add_fstring(mb, "%ld", constant->i);
+      }
+      else {
+        membuff_add_fstring(mb, "'%s'", getstr(constant->s));
+      }
+      membuff_add_fstring(mb, " K(%d)", pseudo->regnum);
     } break;
     case PSEUDO_TEMP_INT:
-        membuff_add_fstring(mb, "Tint(%d)", pseudo->regnum);
-        break;
+      membuff_add_fstring(mb, "Tint(%d)", pseudo->regnum);
+      break;
     case PSEUDO_TEMP_FLT:
-        membuff_add_fstring(mb, "Tflt(%d)", pseudo->regnum);
-        break;
-    case PSEUDO_TEMP_ANY: 
-        membuff_add_fstring(mb, "T(%d)", pseudo->regnum);
-        break;
-    }
+      membuff_add_fstring(mb, "Tflt(%d)", pseudo->regnum);
+      break;
+    case PSEUDO_TEMP_ANY:
+      membuff_add_fstring(mb, "T(%d)", pseudo->regnum);
+      break;
+  }
 }
 
-static const char* op_codenames[] = {
-    "NOOP",
-    "RET",
-    "LOADK"
-};
+static const char *op_codenames[] = {"NOOP",   "RET",   "LOADK", "ADD",  "ADDff", "ADDfi",  "ADDii", "SUB",   "SUBff",
+                                     "SUBfi",  "SUBif", "SUBii", "MUL",  "MULff", "MULfi",  "MULii", "DIV",   "DIVff",
+                                     "DIVfi",  "DIVif", "DIVii", "IDIV", "BAND",  "BANDii", "BOR",   "BORii", "BXOR",
+                                     "BXORii", "SHL",   "SHLii", "SHR",  "SHRii", "EQ",     "EQii",  "EQff",  "LT",
+                                     "LIii",   "LTff",  "LE",    "LEii", "LEff",  "MOD",    "POW"};
 
-void output_pseudo_list(struct pseudo_list* list, membuff_t* mb) {
-    struct pseudo* pseudo;
-    membuff_add_string(mb, " {");
-    int i = 0;
-    FOR_EACH_PTR(list, pseudo) {
-        if (i > 0) membuff_add_string(mb, ", ");
-        output_pseudo(pseudo, mb);
-        i++;
-    } END_FOR_EACH_PTR(pseudo);
-    membuff_add_string(mb, "}");
+void output_pseudo_list(struct pseudo_list *list, membuff_t *mb) {
+  struct pseudo *pseudo;
+  membuff_add_string(mb, " {");
+  int i = 0;
+  FOR_EACH_PTR(list, pseudo) {
+    if (i > 0)
+      membuff_add_string(mb, ", ");
+    output_pseudo(pseudo, mb);
+    i++;
+  }
+  END_FOR_EACH_PTR(pseudo);
+  membuff_add_string(mb, "}");
 }
 
-void output_instruction(struct instruction* insn, membuff_t* mb) {
-    membuff_add_fstring(mb, "\t%s", op_codenames[insn->opcode]);
-    if (insn->operands) {
-        output_pseudo_list(insn->operands, mb);
-    }
-    if (insn->targets) {
-        output_pseudo_list(insn->targets, mb);
-    }
-    membuff_add_string(mb, "\n");
+void output_instruction(struct instruction *insn, membuff_t *mb) {
+  membuff_add_fstring(mb, "\t%s", op_codenames[insn->opcode]);
+  if (insn->operands) {
+    output_pseudo_list(insn->operands, mb);
+  }
+  if (insn->targets) {
+    output_pseudo_list(insn->targets, mb);
+  }
+  membuff_add_string(mb, "\n");
 }
 
-void output_instructions(struct instruction_list* list, membuff_t* mb) {
-    struct instruction* insn;
-    FOR_EACH_PTR(list, insn) {
-        output_instruction(insn, mb);
-    } END_FOR_EACH_PTR(insn);
+void output_instructions(struct instruction_list *list, membuff_t *mb) {
+  struct instruction *insn;
+  FOR_EACH_PTR(list, insn) { output_instruction(insn, mb); }
+  END_FOR_EACH_PTR(insn);
 }
 
-void output_basic_block(struct basic_block* bb, membuff_t* mb) {
-    membuff_add_fstring(mb, "L%d\n", bb->index);
-    output_instructions(bb->insns, mb);
+void output_basic_block(struct basic_block *bb, membuff_t *mb) {
+  membuff_add_fstring(mb, "L%d\n", bb->index);
+  output_instructions(bb->insns, mb);
 }
 
-void output_proc(struct proc* proc, membuff_t* mb) {
-    struct basic_block* bb;
-    for (int i = 0; i < proc->node_count; i++) {
-        bb = n2bb(proc->nodes[i]);
-        output_basic_block(bb, mb);
-    }
+void output_proc(struct proc *proc, membuff_t *mb) {
+  struct basic_block *bb;
+  for (int i = 0; i < (int)proc->node_count; i++) {
+    bb = n2bb(proc->nodes[i]);
+    output_basic_block(bb, mb);
+  }
 }
 
 void raviA_ast_linearize(struct linearizer *linearizer, struct ast_container *container) {
