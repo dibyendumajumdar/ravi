@@ -86,21 +86,13 @@ static uint32_t hash_constant(const void *c) {
     return c1->s->hash;
 }
 
-static const struct constant *allocate_constant(struct proc *proc, struct ast_node *node) {
-  assert(node->type == AST_LITERAL_EXPR);
-  struct constant c = {.type = node->literal_expr.type.type_code};
-  if (c.type == RAVI_TNUMINT)
-    c.i = node->literal_expr.u.i;
-  else if (c.type == RAVI_TNUMFLT)
-    c.n = node->literal_expr.u.n;
-  else
-    c.s = node->literal_expr.u.s;
-  struct set_entry *entry = set_search(proc->constants, &c);
+static const struct constant *add_constant(struct proc *proc, const struct constant *c) {
+  struct set_entry *entry = set_search(proc->constants, c);
   if (entry == NULL) {
     int reg = proc->num_constants++;
     struct constant *c1 = dmrC_allocator_allocate(&proc->linearizer->constant_allocator, 0);
     assert(c1);
-    memcpy(c1, &c, sizeof *c1);
+    memcpy(c1, c, sizeof(struct constant));
     c1->index = reg;
     set_add(proc->constants, c1);
     printf("Created new constant and assigned reg %d\n", reg);
@@ -111,6 +103,23 @@ static const struct constant *allocate_constant(struct proc *proc, struct ast_no
     printf("Found constant at reg %d\n", c1->index);
     return c1;
   }
+}
+
+static const struct constant *allocate_constant(struct proc *proc, struct ast_node *node) {
+  assert(node->type == AST_LITERAL_EXPR);
+  struct constant c = {.type = node->literal_expr.type.type_code};
+  if (c.type == RAVI_TNUMINT)
+    c.i = node->literal_expr.u.i;
+  else if (c.type == RAVI_TNUMFLT)
+    c.n = node->literal_expr.u.n;
+  else
+    c.s = node->literal_expr.u.s;
+  return add_constant(proc, &c);
+}
+
+static const struct constant *allocate_string_constant(struct proc *proc, const TString *s) {
+  struct constant c = {.type = RAVI_TSTRING, .s = s};
+  return add_constant(proc, &c);
 }
 
 struct pseudo *allocate_local_pseudo(struct proc *proc, struct lua_symbol *sym, unsigned reg) {
@@ -251,6 +260,76 @@ static struct pseudo *linearize_literal(struct proc *proc, struct ast_node *expr
     abort();
     return NULL;
   }
+}
+
+static struct pseudo *linearize_unaryop(struct proc *proc, struct ast_node *node) {
+  UnOpr op = node->unary_expr.unary_op;
+  struct pseudo *subexpr = linearize_expr(proc, node->unary_expr.expr);
+  ravitype_t subexpr_type = node->unary_expr.expr->common_expr.type.type_code;
+  enum opcode targetop = op_nop;
+  switch (op) {
+    case OPR_MINUS:
+      if (subexpr_type == RAVI_TNUMINT)
+        targetop = op_unmi;
+      else if (subexpr_type == RAVI_TNUMFLT)
+        targetop = op_unmf;
+      else
+        targetop = op_unm;
+      break;
+    case OPR_LEN:
+      if (subexpr_type == RAVI_TARRAYINT || subexpr_type == RAVI_TARRAYFLT)
+        targetop = op_leni;
+      else
+        targetop = op_len;
+      break;
+    case OPR_TO_INTEGER:
+      targetop = op_toint;
+      break;
+    case OPR_TO_NUMBER:
+      targetop = op_toflt;
+      break;
+    case OPR_TO_CLOSURE:
+      targetop = op_toclosure;
+      break;
+    case OPR_TO_STRING:
+      targetop = op_tostring;
+      break;
+    case OPR_TO_INTARRAY:
+      targetop = op_toiarray;
+      break;
+    case OPR_TO_NUMARRAY:
+      targetop = op_tofarray;
+      break;
+    case OPR_TO_TABLE:
+      targetop = op_totable;
+      break;
+    case OPR_TO_TYPE:
+      targetop = op_totype;
+      break;
+    case OPR_NOT:
+      targetop = op_not;
+      break;
+    case OPR_BNOT:
+      targetop = op_bnot;
+      break;
+    default:
+      abort();
+      break;
+  }
+  struct instruction *insn = alloc_instruction(proc, targetop);
+  struct pseudo *target = subexpr;
+  if (op == OPR_TO_TYPE) {
+    struct constant *tname_constant = allocate_string_constant(proc, node->unary_expr.type.type_name);
+    struct pseudo *tname_pseudo = allocate_constant_pseudo(proc, tname_constant);
+    ptrlist_add((struct ptr_list **)&insn->operands, tname_pseudo, &proc->linearizer->ptrlist_allocator);
+  }
+  else if (op == OPR_NOT || op == OPR_BNOT) {
+    ptrlist_add((struct ptr_list **)&insn->operands, target, &proc->linearizer->ptrlist_allocator);
+    target = allocate_temp_pseudo(proc, RAVI_TANY);
+  }
+  ptrlist_add((struct ptr_list **)&insn->targets, target, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+  return target;
 }
 
 /* Type checker - WIP  */
@@ -425,6 +504,9 @@ static struct pseudo *linearize_expr(struct proc *proc, struct ast_node *expr) {
     } break;
     case AST_FUNCTION_EXPR: {
       return linearize_function_expr(proc, expr);
+    } break;
+    case AST_UNARY_EXPR: {
+      return linearize_unaryop(proc, expr);
     } break;
     default:
       abort();
@@ -675,11 +757,13 @@ void output_pseudo(struct pseudo *pseudo, membuff_t *mb) {
   }
 }
 
-static const char *op_codenames[] = {"NOOP",   "RET",   "LOADK", "ADD",  "ADDff", "ADDfi",  "ADDii", "SUB",    "SUBff",
-                                     "SUBfi",  "SUBif", "SUBii", "MUL",  "MULff", "MULfi",  "MULii", "DIV",    "DIVff",
-                                     "DIVfi",  "DIVif", "DIVii", "IDIV", "BAND",  "BANDii", "BOR",   "BORii",  "BXOR",
-                                     "BXORii", "SHL",   "SHLii", "SHR",  "SHRii", "EQ",     "EQii",  "EQff",   "LT",
-                                     "LIii",   "LTff",  "LE",    "LEii", "LEff",  "MOD",    "POW",   "CLOSURE"};
+static const char *op_codenames[] = {
+    "NOOP",  "RET",       "LOADK",    "ADD",      "ADDff",    "ADDfi",   "ADDii",  "SUB",    "SUBff", "SUBfi",
+    "SUBif", "SUBii",     "MUL",      "MULff",    "MULfi",    "MULii",   "DIV",    "DIVff",  "DIVfi", "DIVif",
+    "DIVii", "IDIV",      "BAND",     "BANDii",   "BOR",      "BORii",   "BXOR",   "BXORii", "SHL",   "SHLii",
+    "SHR",   "SHRii",     "EQ",       "EQii",     "EQff",     "LT",      "LIii",   "LTff",   "LE",    "LEii",
+    "LEff",  "MOD",       "POW",      "CLOSURE",  "UNM",      "UNMi",    "UNMf",   "LEN",    "LENi",  "TOINT",
+    "TOFLT", "TOCLOSURE", "TOSTRING", "TOIARRAY", "TOFARRAY", "TOTABLE", "TOTYPE", "NOT",    "BNOT"};
 
 void output_pseudo_list(struct pseudo_list *list, membuff_t *mb) {
   struct pseudo *pseudo;

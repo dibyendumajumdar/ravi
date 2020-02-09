@@ -348,7 +348,22 @@ enum opcode {
   op_leff,
   op_mod,
   op_pow,
-  op_closure
+  op_closure,
+  op_unm,
+  op_unmi,
+  op_unmf,
+  op_len,
+  op_leni,
+  op_toint,
+  op_toflt,
+  op_toclosure,
+  op_tostring,
+  op_toiarray,
+  op_tofarray,
+  op_totable,
+  op_totype,
+  op_not,
+  op_bnot,
 };
 
 enum pseudo_type { PSEUDO_LOCAL, PSEUDO_TEMP_FLT, PSEUDO_TEMP_INT, PSEUDO_TEMP_ANY, PSEUDO_CONSTANT, PSEUDO_PROC };
