@@ -41,6 +41,7 @@ b) Perform type checking (Ravi enhancement)
 //////////////////////////
 
 struct lua_symbol_list;
+struct linearizer;
 
 /*
  * Userdata object to hold the abstract syntax tree;
@@ -55,6 +56,7 @@ struct ast_container {
   struct allocator block_scope_allocator;
   struct allocator symbol_allocator;
   struct ast_node *main_function;
+  struct linearizer *linearizer;
   bool killed; /* flag to check if this is already destroyed */
 };
 
@@ -302,30 +304,71 @@ DECLARE_PTR_LIST(proc_list, struct proc);
 #define container_of(ptr, type, member) ((type *)((char *)(ptr)-offsetof(type, member)))
 
 /* order is important here ! */
-enum opcode { op_nop, op_ret, op_loadk, op_add, op_addff, op_addfi, op_addii,
-    op_sub, op_subff, op_subfi, op_subif, op_subii, op_mul, op_mulff, op_mulfi, op_mulii,
-    op_div, op_divff, op_divfi, op_divif, op_divii, op_idiv, op_band, op_bandii, op_bor, op_borii,
-    op_bxor, op_bxorii, op_shl, opshlii, op_shr, op_shrii, op_eq, op_eqii, op_eqff,
-    op_lt, op_ltii, op_ltff, op_le, op_leii, op_leff, op_mod, op_pow
+enum opcode {
+  op_nop,
+  op_ret,
+  op_loadk,
+  op_add,
+  op_addff,
+  op_addfi,
+  op_addii,
+  op_sub,
+  op_subff,
+  op_subfi,
+  op_subif,
+  op_subii,
+  op_mul,
+  op_mulff,
+  op_mulfi,
+  op_mulii,
+  op_div,
+  op_divff,
+  op_divfi,
+  op_divif,
+  op_divii,
+  op_idiv,
+  op_band,
+  op_bandii,
+  op_bor,
+  op_borii,
+  op_bxor,
+  op_bxorii,
+  op_shl,
+  opshlii,
+  op_shr,
+  op_shrii,
+  op_eq,
+  op_eqii,
+  op_eqff,
+  op_lt,
+  op_ltii,
+  op_ltff,
+  op_le,
+  op_leii,
+  op_leff,
+  op_mod,
+  op_pow,
+  op_closure
 };
 
-enum pseudo_type { PSEUDO_LOCAL, PSEUDO_TEMP_FLT, PSEUDO_TEMP_INT, PSEUDO_TEMP_ANY, PSEUDO_CONSTANT };
+enum pseudo_type { PSEUDO_LOCAL, PSEUDO_TEMP_FLT, PSEUDO_TEMP_INT, PSEUDO_TEMP_ANY, PSEUDO_CONSTANT, PSEUDO_PROC };
 
 /* pseudo represents a pseudo (virtual) register */
 struct pseudo {
   unsigned type : 4, regnum : 16;
   union {
-    struct lua_symbol *symbol; /* If local var this should be set */
-    const struct constant *constant;
-    ravitype_t temp_type;
+    struct lua_symbol *symbol;       /* PSEUDO_LOCAL */
+    const struct constant *constant; /* PSEUDO_CONSTANT */
+    ravitype_t temp_type;            /* PSEUDO_TEMP* */
+    struct proc *proc;               /* PSEUDO_PROC */
   };
 };
 
 /* single instruction */
 struct instruction {
   unsigned opcode : 8;
-  struct pseudo_list* operands;
-  struct pseudo_list* targets;
+  struct pseudo_list *operands;
+  struct pseudo_list *targets;
 };
 
 struct edge {
@@ -383,7 +426,7 @@ struct proc {
   struct proc *parent;            /* enclosing proc */
   struct ast_node *function_expr; /* function ast that we are compiling */
   struct block_scope *current_scope;
-  struct basic_block* current_bb;
+  struct basic_block *current_bb;
   struct pseudo_generator local_pseudos;    /* locals */
   struct pseudo_generator temp_int_pseudos; /* temporaries known to be integer type */
   struct pseudo_generator temp_flt_pseudos; /* temporaries known to be number type */
@@ -410,6 +453,9 @@ struct linearizer {
   struct proc *current_proc;   /* proc being compiled */
 };
 
-void raviA_ast_linearize(struct linearizer *linearizer, struct ast_container *container);
+void raviA_init_linearizer(struct linearizer *linearizer, struct ast_container *container);
+void raviA_destroy_linearizer(struct linearizer *linearizer);
+void raviA_ast_linearize(struct linearizer *linearizer);
+void raviA_show_linearizer(struct linearizer *linearizer, membuff_t *mb);
 
 #endif

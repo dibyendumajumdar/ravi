@@ -1434,8 +1434,6 @@ static void parse_lua_chunk(struct parser_state *parser) {
   assert(parser->current_scope == NULL);
   check(parser->ls, TK_EOS);
   raviA_ast_typecheck(parser->container);
-  struct linearizer linearizer;
-  raviA_ast_linearize(&linearizer, parser->container);
 }
 
 static void parser_state_init(struct parser_state *parser, LexState *ls, struct ast_container *container) {
@@ -1653,6 +1651,7 @@ static struct ast_container *new_ast_container(lua_State *L) {
   dmrC_allocator_init(&container->symbol_allocator, "symbols", sizeof(struct lua_symbol), sizeof(double), CHUNK);
   container->main_function = NULL;
   container->killed = false;
+  container->linearizer = NULL;
   luaL_getmetatable(L, AST_type);
   lua_setmetatable(L, -2);
   return container;
@@ -1662,6 +1661,10 @@ static struct ast_container *new_ast_container(lua_State *L) {
 static int collect_ast_container(lua_State *L) {
   struct ast_container *container = check_Ravi_AST(L, 1);
   if (!container->killed) {
+    if (container->linearizer) {
+      raviA_destroy_linearizer(container->linearizer);
+      free(container->linearizer);
+    }
     dmrC_allocator_destroy(&container->symbol_allocator);
     dmrC_allocator_destroy(&container->block_scope_allocator);
     dmrC_allocator_destroy(&container->ast_node_allocator);
@@ -1671,8 +1674,37 @@ static int collect_ast_container(lua_State *L) {
   return 0;
 }
 
-static const luaL_Reg container_methods[] = {
-    {"tostring", ast_container_to_string}, {"release", collect_ast_container}, {NULL, NULL}};
+static int ast_linearize(lua_State *L) {
+  struct ast_container *container = check_Ravi_AST(L, 1);
+  if (container->linearizer) {
+    luaL_error(L, "Already linearized");
+  }
+  struct linearizer *linearizer = (struct linearizer *)calloc(1, sizeof(struct linearizer));
+  raviA_init_linearizer(linearizer, container);
+  container->linearizer = linearizer;
+  raviA_ast_linearize(container->linearizer);
+  return 0;
+}
+
+static int ast_show_linearized(lua_State *L) {
+  struct ast_container *container = check_Ravi_AST(L, 1);
+  if (!container->linearizer) {
+    luaL_error(L, "Not yet linearized");
+    return 0;
+  }
+  membuff_t mb;
+  membuff_init(&mb, 1024);
+  raviA_show_linearizer(container->linearizer, &mb);
+  lua_pushstring(L, mb.buf);
+  membuff_free(&mb);
+  return 1;
+}
+
+static const luaL_Reg container_methods[] = {{"tostring", ast_container_to_string},
+                                             {"release", collect_ast_container},
+                                             {"linearize", ast_linearize},
+                                             {"showlinear", ast_show_linearized},
+                                             {NULL, NULL}};
 
 static const luaL_Reg astlib[] = {
     /* Entrypoint for new AST */

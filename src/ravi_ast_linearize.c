@@ -29,7 +29,7 @@ static inline void free_reg(struct pseudo_generator *generator, unsigned reg) {
 }
 
 /* Linearizer - WIP  */
-static void ravi_init_linearizer(struct linearizer *linearizer, struct ast_container *container) {
+void raviA_init_linearizer(struct linearizer *linearizer, struct ast_container *container) {
   memset(linearizer, 0, sizeof *linearizer);
   linearizer->ast_container = container;
   dmrC_allocator_init(&linearizer->edge_allocator, "edge_allocator", sizeof(struct edge), sizeof(double), CHUNK);
@@ -46,7 +46,7 @@ static void ravi_init_linearizer(struct linearizer *linearizer, struct ast_conta
                       CHUNK);
 }
 
-static void ravi_destroy_linearizer(struct linearizer *linearizer) {
+void raviA_destroy_linearizer(struct linearizer *linearizer) {
   struct proc *proc;
   FOR_EACH_PTR(linearizer->all_procs, proc) {
     if (proc->constants)
@@ -129,6 +129,13 @@ struct pseudo *allocate_constant_pseudo(struct proc *proc, const struct constant
   pseudo->type = PSEUDO_CONSTANT;
   pseudo->constant = constant;
   pseudo->regnum = constant->index;
+  return pseudo;
+}
+
+struct pseudo *allocate_closure_pseudo(struct linearizer *linearizer, struct proc *proc) {
+  struct pseudo *pseudo = dmrC_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+  pseudo->type = PSEUDO_PROC;
+  pseudo->proc = proc;
   return pseudo;
 }
 
@@ -389,6 +396,25 @@ static struct pseudo *linearize_binaryop(struct proc *proc, struct ast_node *nod
   return target;
 }
 
+/* generates closure instruction - linearize a proc, and then add instruction to create closure from it */
+static struct pseudo *linearize_function_expr(struct proc *proc, struct ast_node *expr) {
+  struct proc *curproc = proc->linearizer->current_proc;
+  struct proc *newproc = allocate_proc(proc->linearizer, expr);
+  set_current_proc(proc->linearizer, newproc);
+  printf("linearizing function\n");
+
+  set_current_proc(proc->linearizer, curproc);  // restore the proc
+  ravitype_t target_type = expr->function_expr.type.type_code;
+  struct pseudo *target = allocate_temp_pseudo(proc, target_type);
+  struct pseudo *operand = allocate_closure_pseudo(proc->linearizer, newproc);
+  struct instruction *insn = alloc_instruction(proc, op_closure);
+  ptrlist_add((struct ptr_list **)&insn->operands, operand, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&insn->targets, target, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+
+  return target;
+}
+
 static struct pseudo *linearize_expr(struct proc *proc, struct ast_node *expr) {
   switch (expr->type) {
     case AST_LITERAL_EXPR: {
@@ -396,9 +422,10 @@ static struct pseudo *linearize_expr(struct proc *proc, struct ast_node *expr) {
     } break;
     case AST_BINARY_EXPR: {
       return linearize_binaryop(proc, expr);
-      break;
-    }
-
+    } break;
+    case AST_FUNCTION_EXPR: {
+      return linearize_function_expr(proc, expr);
+    } break;
     default:
       abort();
       break;
@@ -642,14 +669,17 @@ void output_pseudo(struct pseudo *pseudo, membuff_t *mb) {
     case PSEUDO_TEMP_ANY:
       membuff_add_fstring(mb, "T(%d)", pseudo->regnum);
       break;
+    case PSEUDO_PROC:
+      membuff_add_fstring(mb, "Proc(%p)", pseudo->proc);
+      break;
   }
 }
 
-static const char *op_codenames[] = {"NOOP",   "RET",   "LOADK", "ADD",  "ADDff", "ADDfi",  "ADDii", "SUB",   "SUBff",
-                                     "SUBfi",  "SUBif", "SUBii", "MUL",  "MULff", "MULfi",  "MULii", "DIV",   "DIVff",
-                                     "DIVfi",  "DIVif", "DIVii", "IDIV", "BAND",  "BANDii", "BOR",   "BORii", "BXOR",
-                                     "BXORii", "SHL",   "SHLii", "SHR",  "SHRii", "EQ",     "EQii",  "EQff",  "LT",
-                                     "LIii",   "LTff",  "LE",    "LEii", "LEff",  "MOD",    "POW"};
+static const char *op_codenames[] = {"NOOP",   "RET",   "LOADK", "ADD",  "ADDff", "ADDfi",  "ADDii", "SUB",    "SUBff",
+                                     "SUBfi",  "SUBif", "SUBii", "MUL",  "MULff", "MULfi",  "MULii", "DIV",    "DIVff",
+                                     "DIVfi",  "DIVif", "DIVii", "IDIV", "BAND",  "BANDii", "BOR",   "BORii",  "BXOR",
+                                     "BXORii", "SHL",   "SHLii", "SHR",  "SHRii", "EQ",     "EQii",  "EQff",   "LT",
+                                     "LIii",   "LTff",  "LE",    "LEii", "LEff",  "MOD",    "POW",   "CLOSURE"};
 
 void output_pseudo_list(struct pseudo_list *list, membuff_t *mb) {
   struct pseudo *pseudo;
@@ -695,15 +725,11 @@ void output_proc(struct proc *proc, membuff_t *mb) {
   }
 }
 
-void raviA_ast_linearize(struct linearizer *linearizer, struct ast_container *container) {
-  ravi_init_linearizer(linearizer, container);
-  struct proc *proc = allocate_proc(linearizer, container->main_function);
+void raviA_ast_linearize(struct linearizer *linearizer) {
+  struct proc *proc = allocate_proc(linearizer, linearizer->ast_container->main_function);
   set_main_proc(linearizer, proc);
   set_current_proc(linearizer, proc);
   linearize_function(linearizer);
-  membuff_t mb;
-  membuff_init(&mb, 1024);
-  output_proc(proc, &mb);
-  printf(mb.buf);
-  ravi_destroy_linearizer(linearizer);
 }
+
+void raviA_show_linearizer(struct linearizer *linearizer, membuff_t *mb) { output_proc(linearizer->main_proc, mb); }
