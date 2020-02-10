@@ -349,7 +349,7 @@ static struct pseudo *linearize_unaryop(struct proc *proc, struct ast_node *node
   struct instruction *insn = alloc_instruction(proc, targetop);
   struct pseudo *target = subexpr;
   if (op == OPR_TO_TYPE) {
-    struct constant *tname_constant = allocate_string_constant(proc, node->unary_expr.type.type_name);
+    const struct constant *tname_constant = allocate_string_constant(proc, node->unary_expr.type.type_name);
     struct pseudo *tname_pseudo = allocate_constant_pseudo(proc, tname_constant);
     ptrlist_add((struct ptr_list **)&insn->operands, tname_pseudo, &proc->linearizer->ptrlist_allocator);
   }
@@ -523,6 +523,31 @@ static struct pseudo *linearize_function_expr(struct proc *proc, struct ast_node
 
   return target;
 }
+
+/*
+ * Suffixed expression examples:
+ * f()[1]
+ * x[1][2]
+ * x.y[1]
+ */
+static struct pseudo * linearize_suffixedexpr(struct proc* proc, struct ast_node* node) {
+    /* suffixedexp -> primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
+    struct pseudo *prev_psedo = linearize_expr(proc, node->suffixed_expr.primary_expr);
+    struct ast_node* prev_node = node->suffixed_expr.primary_expr;
+    struct ast_node* this_node;
+    FOR_EACH_PTR(node->suffixed_expr.suffix_list, this_node) {
+        if (this_node->type == AST_Y_INDEX_EXPR) {
+        }
+        else if (this_node->type == AST_FIELD_SELECTOR_EXPR) {
+        }
+        else if (this_node->type == AST_FUNCTION_CALL_EXPR) {
+        }
+        prev_node = this_node;
+    }
+    END_FOR_EACH_PTR(node);
+    //copy_type(node->suffixed_expr.type, prev_node->common_expr.type);
+}
+
 
 static struct pseudo *linearize_expr(struct proc *proc, struct ast_node *expr) {
   switch (expr->type) {

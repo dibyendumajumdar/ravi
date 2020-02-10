@@ -213,11 +213,11 @@ struct ast_node {
       struct var_type type;
       struct lua_symbol *var;
     } symbol_expr;
-    struct {
+    struct { /* AST_Y_INDEX_EXPR */
       struct var_type type;
       struct ast_node *expr; /* '[' expr ']' */
     } index_expr;
-    struct {
+    struct { /* AST_UNARY_EXPR */
       struct var_type type;
       UnOpr unary_op;
       struct ast_node *expr;
@@ -240,10 +240,10 @@ struct ast_node {
       struct lua_symbol_list *upvalues;      /* List of upvalues */
       struct lua_symbol_list *locals;        /* List of locals */
     } function_expr;                         /* a literal expression whose result is a value of type function */
-    struct {
+    struct {                                 /* AST_INDEXED_ASSIGN_EXPR - used in table constructor */
       struct var_type type;
-      struct ast_node *
-          index_expr; /* If NULL means this is a list field with next available index, else specfies index expression */
+      struct ast_node *index_expr; /* If NULL means this is a list field with next available index, else specifies index
+                                      expression */
       struct ast_node *value_expr;
     } indexed_assign_expr; /* Assign values in table constructor */
     struct {
@@ -251,6 +251,8 @@ struct ast_node {
       struct ast_node_list *expr_list;
     } table_expr; /* table constructor expression */
     struct {
+      /* suffixedexp -> primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
+      /* suffix_list may have AST_FIELD_SELECTOR_EXPR, AST_Y_INDEX_EXPR, AST_FUNCTION_CALL_EXPR */
       struct var_type type;
       struct ast_node *primary_expr;
       struct ast_node_list *suffix_list;
@@ -368,7 +370,17 @@ enum opcode {
   op_bnot,
 };
 
-enum pseudo_type { PSEUDO_LOCAL, PSEUDO_TEMP_FLT, PSEUDO_TEMP_INT, PSEUDO_TEMP_ANY, PSEUDO_CONSTANT, PSEUDO_PROC, PSEUDO_NIL, PSEUDO_TRUE, PSEUDO_FALSE };
+enum pseudo_type {
+  PSEUDO_LOCAL,
+  PSEUDO_TEMP_FLT,
+  PSEUDO_TEMP_INT,
+  PSEUDO_TEMP_ANY,
+  PSEUDO_CONSTANT,
+  PSEUDO_PROC,
+  PSEUDO_NIL,
+  PSEUDO_TRUE,
+  PSEUDO_FALSE
+};
 
 /* pseudo represents a pseudo (virtual) register */
 struct pseudo {
