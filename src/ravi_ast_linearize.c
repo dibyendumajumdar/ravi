@@ -10,7 +10,7 @@ Copyright (C) 2018-2020 Dibyendu Majumdar
 #include <stdlib.h>
 #include <stddef.h>
 
-static struct pseudo *linearize_expr(struct proc *proc, struct ast_node *expr);
+static struct pseudo *linearize_expression(struct proc *proc, struct ast_node *expr);
 
 static inline unsigned alloc_reg(struct pseudo_generator *generator) {
   if (generator->free_pos > 0) {
@@ -122,14 +122,15 @@ static const struct constant *allocate_string_constant(struct proc *proc, const 
   return add_constant(proc, &c);
 }
 
-struct pseudo *allocate_local_pseudo(struct proc *proc, struct lua_symbol *sym, unsigned reg) {
-  assert(sym->symbol_type == SYM_LOCAL);
+struct pseudo *allocate_symbol_pseudo(struct proc *proc, struct lua_symbol *sym, unsigned reg) {
   assert(sym->var.pseudo == NULL);
   struct pseudo *pseudo = dmrC_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
-  pseudo->type = PSEUDO_LOCAL;
+  pseudo->type = PSEUDO_SYMBOL;
   pseudo->symbol = sym;
   pseudo->regnum = reg;
-  sym->var.pseudo = pseudo;
+  if (sym->symbol_type == SYM_LOCAL) {
+    sym->var.pseudo = pseudo;
+  }
   return pseudo;
 }
 
@@ -294,7 +295,7 @@ static struct pseudo *linearize_literal(struct proc *proc, struct ast_node *expr
 
 static struct pseudo *linearize_unaryop(struct proc *proc, struct ast_node *node) {
   UnOpr op = node->unary_expr.unary_op;
-  struct pseudo *subexpr = linearize_expr(proc, node->unary_expr.expr);
+  struct pseudo *subexpr = linearize_expression(proc, node->unary_expr.expr);
   ravitype_t subexpr_type = node->unary_expr.expr->common_expr.type.type_code;
   enum opcode targetop = op_nop;
   switch (op) {
@@ -367,8 +368,8 @@ static struct pseudo *linearize_binaryop(struct proc *proc, struct ast_node *nod
   BinOpr op = node->binary_expr.binary_op;
   struct ast_node *e1 = node->binary_expr.expr_left;
   struct ast_node *e2 = node->binary_expr.expr_right;
-  struct pseudo *operand1 = linearize_expr(proc, e1);
-  struct pseudo *operand2 = linearize_expr(proc, e2);
+  struct pseudo *operand1 = linearize_expression(proc, e1);
+  struct pseudo *operand2 = linearize_expression(proc, e2);
 
   enum opcode targetop;
   switch (op) {
@@ -524,32 +525,52 @@ static struct pseudo *linearize_function_expr(struct proc *proc, struct ast_node
   return target;
 }
 
+static struct pseudo *linearize_symbol_expression(struct proc *proc, struct ast_node *expr) {
+  struct lua_symbol *sym = expr->symbol_expr.var;
+  if (sym->symbol_type == SYM_GLOBAL) {
+    struct pseudo *target = allocate_temp_pseudo(proc, RAVI_TANY);
+    struct pseudo *operand = allocate_symbol_pseudo(proc, sym, 0);  // no register actually
+    struct instruction *insn = alloc_instruction(proc, op_loadglobal);
+    ptrlist_add((struct ptr_list **)&insn->operands, operand, &proc->linearizer->ptrlist_allocator);
+    ptrlist_add((struct ptr_list **)&insn->targets, target, &proc->linearizer->ptrlist_allocator);
+    ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+    return target;
+  }
+  else if (sym->symbol_type == SYM_LOCAL) {
+    return sym->var.pseudo;
+  }
+  else {
+    abort();
+    return NULL;
+  }
+}
+
 /*
  * Suffixed expression examples:
  * f()[1]
  * x[1][2]
  * x.y[1]
  */
-static struct pseudo * linearize_suffixedexpr(struct proc* proc, struct ast_node* node) {
-    /* suffixedexp -> primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
-    struct pseudo *prev_psedo = linearize_expr(proc, node->suffixed_expr.primary_expr);
-    struct ast_node* prev_node = node->suffixed_expr.primary_expr;
-    struct ast_node* this_node;
-    FOR_EACH_PTR(node->suffixed_expr.suffix_list, this_node) {
-        if (this_node->type == AST_Y_INDEX_EXPR) {
-        }
-        else if (this_node->type == AST_FIELD_SELECTOR_EXPR) {
-        }
-        else if (this_node->type == AST_FUNCTION_CALL_EXPR) {
-        }
-        prev_node = this_node;
+static struct pseudo *linearize_suffixedexpr(struct proc *proc, struct ast_node *node) {
+  /* suffixedexp -> primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
+  struct pseudo *prev_psedo = linearize_expression(proc, node->suffixed_expr.primary_expr);
+  struct ast_node *prev_node = node->suffixed_expr.primary_expr;
+  struct ast_node *this_node;
+  FOR_EACH_PTR(node->suffixed_expr.suffix_list, this_node) {
+    if (this_node->type == AST_Y_INDEX_EXPR) {
     }
-    END_FOR_EACH_PTR(node);
-    //copy_type(node->suffixed_expr.type, prev_node->common_expr.type);
+    else if (this_node->type == AST_FIELD_SELECTOR_EXPR) {
+    }
+    else if (this_node->type == AST_FUNCTION_CALL_EXPR) {
+    }
+    prev_node = this_node;
+  }
+  END_FOR_EACH_PTR(node);
+  // copy_type(node->suffixed_expr.type, prev_node->common_expr.type);
+  return prev_psedo;
 }
 
-
-static struct pseudo *linearize_expr(struct proc *proc, struct ast_node *expr) {
+static struct pseudo *linearize_expression(struct proc *proc, struct ast_node *expr) {
   switch (expr->type) {
     case AST_LITERAL_EXPR: {
       return linearize_literal(proc, expr);
@@ -563,6 +584,12 @@ static struct pseudo *linearize_expr(struct proc *proc, struct ast_node *expr) {
     case AST_UNARY_EXPR: {
       return linearize_unaryop(proc, expr);
     } break;
+    case AST_SUFFIXED_EXPR: {
+      return linearize_suffixedexpr(proc, expr);
+    } break;
+    case AST_SYMBOL_EXPR: {
+      return linearize_symbol_expression(proc, expr);
+    } break;
     default:
       abort();
       break;
@@ -575,7 +602,7 @@ static void linearize_expr_list(struct proc *proc, struct ast_node_list *expr_li
                                 struct pseudo_list **pseudo_list) {
   struct ast_node *expr;
   FOR_EACH_PTR(expr_list, expr) {
-    struct pseudo *pseudo = linearize_expr(proc, expr);
+    struct pseudo *pseudo = linearize_expression(proc, expr);
     ptrlist_add((struct ptr_list **)pseudo_list, pseudo, &proc->linearizer->ptrlist_allocator);
   }
   END_FOR_EACH_PTR(expr);
@@ -746,7 +773,7 @@ static void start_scope(struct linearizer *linearizer, struct proc *proc, struct
   FOR_EACH_PTR(scope->symbol_list, sym) {
     if (sym->symbol_type == SYM_LOCAL) {
       uint8_t reg = alloc_reg(&proc->local_pseudos);
-      allocate_local_pseudo(proc, sym, reg);
+      allocate_symbol_pseudo(proc, sym, reg);
       printf("Assigning register %d to local %s\n", (int)reg, getstr(sym->var.var_name));
     }
   }
@@ -764,7 +791,7 @@ static void end_scope(struct linearizer *linearizer, struct proc *proc) {
   FOR_EACH_PTR_REVERSE(scope->symbol_list, sym) {
     if (sym->symbol_type == SYM_LOCAL) {
       struct pseudo *pseudo = sym->var.pseudo;
-      assert(pseudo && pseudo->type == PSEUDO_LOCAL && pseudo->symbol == sym);
+      assert(pseudo && pseudo->type == PSEUDO_SYMBOL && pseudo->symbol == sym);
       printf("Free register %d for local %s\n", (int)pseudo->regnum, getstr(sym->var.var_name));
       free_reg(&proc->local_pseudos, pseudo->regnum);
     }
@@ -821,17 +848,29 @@ void output_pseudo(struct pseudo *pseudo, membuff_t *mb) {
     case PSEUDO_TRUE:
       membuff_add_string(mb, "true");
       break;
+    case PSEUDO_SYMBOL: {
+      switch (pseudo->symbol->symbol_type) {
+        case SYM_UPVALUE:
+        case SYM_LOCAL:
+        case SYM_GLOBAL: {
+          membuff_add_string(mb, getstr(pseudo->symbol->var.var_name));
+          break;
+        }
+        default:
+          assert(0);
+      }
+    } break;
   }
 }
 
 static const char *op_codenames[] = {
-    "NOOP",     "RET",      "LOADK",    "LOADNIL", "LOADBOOL", "ADD",  "ADDff", "ADDfi",  "ADDii",
-    "SUB",      "SUBff",    "SUBfi",    "SUBif",   "SUBii",    "MUL",  "MULff", "MULfi",  "MULii",
-    "DIV",      "DIVff",    "DIVfi",    "DIVif",   "DIVii",    "IDIV", "BAND",  "BANDii", "BOR",
-    "BORii",    "BXOR",     "BXORii",   "SHL",     "SHLii",    "SHR",  "SHRii", "EQ",     "EQii",
-    "EQff",     "LT",       "LIii",     "LTff",    "LE",       "LEii", "LEff",  "MOD",    "POW",
-    "CLOSURE",  "UNM",      "UNMi",     "UNMf",    "LEN",      "LENi", "TOINT", "TOFLT",  "TOCLOSURE",
-    "TOSTRING", "TOIARRAY", "TOFARRAY", "TOTABLE", "TOTYPE",   "NOT",  "BNOT"};
+    "NOOP",     "RET",      "LOADK",    "LOADNIL", "LOADBOOL", "ADD",  "ADDff", "ADDfi",     "ADDii",
+    "SUB",      "SUBff",    "SUBfi",    "SUBif",   "SUBii",    "MUL",  "MULff", "MULfi",     "MULii",
+    "DIV",      "DIVff",    "DIVfi",    "DIVif",   "DIVii",    "IDIV", "BAND",  "BANDii",    "BOR",
+    "BORii",    "BXOR",     "BXORii",   "SHL",     "SHLii",    "SHR",  "SHRii", "EQ",        "EQii",
+    "EQff",     "LT",       "LIii",     "LTff",    "LE",       "LEii", "LEff",  "MOD",       "POW",
+    "CLOSURE",  "UNM",      "UNMi",     "UNMf",    "LEN",      "LENi", "TOINT", "TOFLT",     "TOCLOSURE",
+    "TOSTRING", "TOIARRAY", "TOFARRAY", "TOTABLE", "TOTYPE",   "NOT",  "BNOT",  "LOADGLOBAL"};
 
 void output_pseudo_list(struct pseudo_list *list, membuff_t *mb) {
   struct pseudo *pseudo;

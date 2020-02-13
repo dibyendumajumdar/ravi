@@ -209,7 +209,7 @@ struct ast_node {
         const TString *s;
       } u;
     } literal_expr;
-    struct {
+    struct { /* primaryexp -> NAME | '(' expr ')', NAME is parsed as AST_SYMBOL_EXPR */
       struct var_type type;
       struct lua_symbol *var;
     } symbol_expr;
@@ -246,10 +246,10 @@ struct ast_node {
                                       expression */
       struct ast_node *value_expr;
     } indexed_assign_expr; /* Assign values in table constructor */
-    struct {
+    struct {               /* constructor -> '{' [ field { sep field } [sep] ] '}' where sep -> ',' | ';' */
       struct var_type type;
       struct ast_node_list *expr_list;
-    } table_expr; /* table constructor expression */
+    } table_expr; /* table constructor expression AST_TABLE_EXPR occurs in function call and simple expr */
     struct {
       /* suffixedexp -> primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
       /* suffix_list may have AST_FIELD_SELECTOR_EXPR, AST_Y_INDEX_EXPR, AST_FUNCTION_CALL_EXPR */
@@ -338,7 +338,7 @@ enum opcode {
   op_bxor,
   op_bxorii,
   op_shl,
-  opshlii,
+  op_shlii,
   op_shr,
   op_shrii,
   op_eq,
@@ -368,10 +368,11 @@ enum opcode {
   op_totype,
   op_not,
   op_bnot,
+  op_loadglobal,
 };
 
 enum pseudo_type {
-  PSEUDO_LOCAL,
+  PSEUDO_SYMBOL,
   PSEUDO_TEMP_FLT,
   PSEUDO_TEMP_INT,
   PSEUDO_TEMP_ANY,
@@ -386,7 +387,7 @@ enum pseudo_type {
 struct pseudo {
   unsigned type : 4, regnum : 16;
   union {
-    struct lua_symbol *symbol;       /* PSEUDO_LOCAL */
+    struct lua_symbol *symbol;       /* PSEUDO_SYMBOL */
     const struct constant *constant; /* PSEUDO_CONSTANT */
     ravitype_t temp_type;            /* PSEUDO_TEMP* */
     struct proc *proc;               /* PSEUDO_PROC */
