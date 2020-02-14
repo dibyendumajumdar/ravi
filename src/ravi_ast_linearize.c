@@ -263,34 +263,22 @@ static struct pseudo *linearize_literal(struct proc *proc, struct ast_node *expr
   assert(expr->type == AST_LITERAL_EXPR);
   ravitype_t type = expr->literal_expr.type.type_code;
   struct pseudo *pseudo = NULL;
-  struct pseudo *target = NULL;
-  enum opcode opcode;
   switch (type) {
     case RAVI_TNUMFLT:
     case RAVI_TNUMINT:
     case RAVI_TSTRING:
       pseudo = allocate_constant_pseudo(proc, allocate_constant(proc, expr));
-      target = allocate_temp_pseudo(proc, pseudo->constant->type);
-      opcode = op_loadk;
       break;
     case RAVI_TNIL:
       pseudo = allocate_nil_pseudo(proc);
-      target = allocate_temp_pseudo(proc, RAVI_TANY);
-      opcode = op_loadnil;
       break;
     case RAVI_TBOOLEAN:
       pseudo = allocate_boolean_pseudo(proc, expr->literal_expr.u.i);
-      target = allocate_temp_pseudo(proc, RAVI_TBOOLEAN);
-      opcode = op_loadbool;
       break;
     default:
       abort();
   }
-  struct instruction *insn = alloc_instruction(proc, op_loadk);
-  ptrlist_add((struct ptr_list **)&insn->operands, pseudo, &proc->linearizer->ptrlist_allocator);
-  ptrlist_add((struct ptr_list **)&insn->targets, target, &proc->linearizer->ptrlist_allocator);
-  ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
-  return target;
+  return pseudo;
 }
 
 static struct pseudo *linearize_unaryop(struct proc *proc, struct ast_node *node) {
@@ -314,25 +302,25 @@ static struct pseudo *linearize_unaryop(struct proc *proc, struct ast_node *node
         targetop = op_len;
       break;
     case OPR_TO_INTEGER:
-      targetop = op_toint;
+      targetop = subexpr_type != RAVI_TNUMINT ? op_toint : op_nop;
       break;
     case OPR_TO_NUMBER:
-      targetop = op_toflt;
+      targetop = subexpr_type != RAVI_TNUMFLT ? op_toflt : op_nop;
       break;
     case OPR_TO_CLOSURE:
-      targetop = op_toclosure;
+      targetop = subexpr_type != RAVI_TFUNCTION ? op_toclosure : op_nop;
       break;
     case OPR_TO_STRING:
-      targetop = op_tostring;
+      targetop = subexpr_type != RAVI_TSTRING ? op_tostring : op_nop;
       break;
     case OPR_TO_INTARRAY:
-      targetop = op_toiarray;
+      targetop = subexpr_type != RAVI_TIARRAY ? op_toiarray : op_nop;
       break;
     case OPR_TO_NUMARRAY:
-      targetop = op_tofarray;
+      targetop = subexpr_type != RAVI_TFARRAY ? op_tofarray : op_nop;
       break;
     case OPR_TO_TABLE:
-      targetop = op_totable;
+      targetop = subexpr_type != RAVI_TTABLE ? op_totable : op_nop;
       break;
     case OPR_TO_TYPE:
       targetop = op_totype;
@@ -346,6 +334,9 @@ static struct pseudo *linearize_unaryop(struct proc *proc, struct ast_node *node
     default:
       abort();
       break;
+  }
+  if (targetop == op_nop) {
+    return subexpr;
   }
   struct instruction *insn = alloc_instruction(proc, targetop);
   struct pseudo *target = subexpr;
@@ -816,16 +807,20 @@ void output_pseudo(struct pseudo *pseudo, membuff_t *mb) {
   switch (pseudo->type) {
     case PSEUDO_CONSTANT: {
       const struct constant *constant = pseudo->constant;
+      const char *tc = "";
       if (constant->type == RAVI_TNUMFLT) {
         membuff_add_fstring(mb, "%.12f", constant->n);
+        tc = "flt";
       }
       else if (constant->type == RAVI_TNUMINT) {
         membuff_add_fstring(mb, "%ld", constant->i);
+        tc = "int";
       }
       else {
         membuff_add_fstring(mb, "'%s'", getstr(constant->s));
+        tc = "s";
       }
-      membuff_add_fstring(mb, " K(%d)", pseudo->regnum);
+      membuff_add_fstring(mb, " K%s(%d)", tc, pseudo->regnum);
     } break;
     case PSEUDO_TEMP_INT:
       membuff_add_fstring(mb, "Tint(%d)", pseudo->regnum);
