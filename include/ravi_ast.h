@@ -372,12 +372,15 @@ enum opcode {
   op_newtable,
   op_newiarray,
   op_newfarray,
-  op_tput,
+  op_put, /* target is any */
+  op_put_ikey,
+  op_put_skey,
+  op_tput, /* target is table */
   op_tput_ikey,
   op_tput_skey,
-  op_iaput,
+  op_iaput, /* target is integer[]*/
   op_iaput_ival,
-  op_faput,
+  op_faput, /* target is number[] */
   op_faput_fval
 };
 

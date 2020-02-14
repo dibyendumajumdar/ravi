@@ -1,0 +1,403 @@
+Testing return
+L0
+	RET
+L1
+
+Testing return 1
+L0
+	RET {1 Kint(0)}
+L1
+
+Testing return 42, 4.2, true, "hello"
+L0
+	RET {42 Kint(0), 4.200000000000 Kflt(1), true, 'hello' Ks(2)}
+L1
+
+Testing return a
+L0
+	LOADGLOBAL {a} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return 1+2
+L0
+	ADDii {1 Kint(0), 2 Kint(1)} {Tint(0)}
+	RET {Tint(0)}
+L1
+
+Testing return 2^3-5*4
+L0
+	POW {2 Kint(0), 3 Kint(1)} {Tflt(0)}
+	MULii {5 Kint(2), 4 Kint(3)} {Tint(0)}
+	SUBfi {Tflt(0), Tint(0)} {Tflt(1)}
+	RET {Tflt(1)}
+L1
+
+Testing return 1+1
+L0
+	ADDii {1 Kint(0), 1 Kint(0)} {Tint(0)}
+	RET {Tint(0)}
+L1
+
+Testing return 1+1+1
+L0
+	ADDii {1 Kint(0), 1 Kint(0)} {Tint(0)}
+	ADDii {Tint(0), 1 Kint(0)} {Tint(1)}
+	RET {Tint(1)}
+L1
+
+Testing return 2-3/5*4
+L0
+	DIVii {3 Kint(1), 5 Kint(2)} {Tflt(0)}
+	MULfi {Tflt(0), 4 Kint(3)} {Tflt(1)}
+	SUBif {2 Kint(0), Tflt(1)} {Tflt(0)}
+	RET {Tflt(0)}
+L1
+
+Testing return 4.2//5
+L0
+	IDIV {4.200000000000 Kflt(0), 5 Kint(1)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return 0.0
+L0
+	RET {0.000000000000 Kflt(0)}
+L1
+
+Testing return 0
+L0
+	RET {0 Kint(0)}
+L1
+
+Testing return -0//1
+L0
+	UNMi {0 Kint(0)} {Tint(0)}
+	IDIV {Tint(0), 1 Kint(1)} {Tint(1)}
+	RET {Tint(1)}
+L1
+
+Testing return 3^-1
+L0
+	UNMi {1 Kint(1)} {Tint(0)}
+	POW {3 Kint(0), Tint(0)} {Tflt(0)}
+	RET {Tflt(0)}
+L1
+
+Testing return (1 + 1)^(50 + 50)
+L0
+	ADDii {1 Kint(0), 1 Kint(0)} {Tint(0)}
+	ADDii {50 Kint(1), 50 Kint(1)} {Tint(1)}
+	POW {Tint(0), Tint(1)} {Tflt(0)}
+	RET {Tflt(0)}
+L1
+
+Testing return (-2)^(31 - 2)
+L0
+	UNMi {2 Kint(0)} {Tint(0)}
+	SUBii {31 Kint(1), 2 Kint(0)} {Tint(1)}
+	POW {Tint(0), Tint(1)} {Tflt(0)}
+	RET {Tflt(0)}
+L1
+
+Testing return (-3^0 + 5) // 3.0
+L0
+	POW {3 Kint(0), 0 Kint(1)} {Tflt(0)}
+	UNMf {Tflt(0)} {Tflt(1)}
+	ADDfi {Tflt(1), 5 Kint(2)} {Tflt(2)}
+	IDIV {Tflt(2), 3 Kint(0)} {T(0)}       - wrong result type
+	RET {T(0)}
+L1
+
+Testing return -3 % 5
+L0
+	UNMi {3 Kint(0)} {Tint(0)}
+	MOD {Tint(0), 5 Kint(1)} {Tint(1)}
+	RET {Tint(1)}
+L1
+
+Testing return -((2.0^8 + -(-1)) % 8)/2 * 4 - 3
+L0
+	POW {2.000000000000 Kflt(0), 8 Kint(1)} {Tflt(0)}
+	UNMi {1 Kint(2)} {Tint(0)}
+	UNMi {Tint(0)} {Tint(1)}
+	ADDfi {Tflt(0), Tint(1)} {Tflt(1)}
+	MOD {Tflt(1), 8 Kint(1)} {Tflt(0)}
+	UNMf {Tflt(0)} {Tflt(1)}
+	DIVfi {Tflt(1), 2.000000000000 Kflt(0)} {Tflt(2)}
+	MULfi {Tflt(2), 4 Kint(3)} {Tflt(1)}
+	SUBfi {Tflt(1), 3 Kint(4)} {Tflt(2)}
+	RET {Tflt(2)}
+L1
+
+Testing return -((2^8 + -(-1)) % 8)//2 * 4 - 3
+L0
+	POW {2 Kint(0), 8 Kint(1)} {Tflt(0)}
+	UNMi {1 Kint(2)} {Tint(0)}
+	UNMi {Tint(0)} {Tint(1)}
+	ADDfi {Tflt(0), Tint(1)} {Tflt(1)}
+	MOD {Tflt(1), 8 Kint(1)} {Tflt(0)}
+	UNMf {Tflt(0)} {Tflt(1)}
+	IDIV {Tflt(1), 2 Kint(0)} {T(0)}
+	MUL {T(0), 4 Kint(3)} {T(1)}
+	SUB {T(1), 3 Kint(4)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return 0xF0.0 | 0xCC.0 ~ 0xAA & 0xFD
+L0
+	BANDii {170 Kint(2), 253 Kint(3)} {Tint(0)}
+	BXOR {204.000000000000 Kflt(1), Tint(0)} {Tint(1)}
+	BOR {240.000000000000 Kflt(0), Tint(1)} {Tint(0)}
+	RET {Tint(0)}
+L1
+
+Testing return ~(~0xFF0 | 0xFF0)
+L0
+	BNOT {4080 Kint(0)} {T(0)}
+	BOR {T(0), 4080 Kint(0)} {T(1)}
+	BNOT {T(1)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return ~~-100024.0
+L0
+	UNMf {100024.000000000000 Kflt(0)} {Tflt(0)}
+	BNOT {Tflt(0)} {T(0)}
+	BNOT {T(0)} {T(1)}
+	RET {T(1)}
+L1
+
+Testing return ((100 << 6) << -4) >> 2
+L0
+	SHLii {100 Kint(0), 6 Kint(1)} {Tint(0)}
+	UNMi {4 Kint(2)} {Tint(1)}
+	SHLii {Tint(0), Tint(1)} {Tint(2)}
+	SHRii {Tint(2), 2 Kint(3)} {Tint(1)}
+	RET {Tint(1)}
+L1
+
+Testing return 2^3^2 == 2^(3^2)
+L0
+	POW {3 Kint(1), 2 Kint(0)} {Tflt(0)}
+	POW {2 Kint(0), Tflt(0)} {Tflt(1)}
+	POW {3 Kint(1), 2 Kint(0)} {Tflt(0)}
+	POW {2 Kint(0), Tflt(0)} {Tflt(2)}
+	EQff {Tflt(1), Tflt(2)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return 2^3*4 == (2^3)*4
+L0
+	POW {2 Kint(0), 3 Kint(1)} {Tflt(0)}
+	MULfi {Tflt(0), 4 Kint(2)} {Tflt(1)}
+	POW {2 Kint(0), 3 Kint(1)} {Tflt(0)}
+	MULfi {Tflt(0), 4 Kint(2)} {Tflt(2)}
+	EQff {Tflt(1), Tflt(2)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return 2.0^-2 == 1/4, -2^- -2 == - - -4
+L0
+	UNMi {2.000000000000 Kflt(0)} {Tint(0)}
+	POW {2.000000000000 Kflt(0), Tint(0)} {Tflt(0)}
+	DIVii {1 Kint(1), 4 Kint(2)} {Tflt(1)}
+	EQff {Tflt(0), Tflt(1)} {T(0)}
+	UNMi {2.000000000000 Kflt(0)} {Tint(0)}
+	UNMi {Tint(0)} {Tint(1)}
+	POW {2.000000000000 Kflt(0), Tint(1)} {Tflt(1)}
+	UNMf {Tflt(1)} {Tflt(0)}
+	UNMi {4 Kint(2)} {Tint(1)}
+	UNMi {Tint(1)} {Tint(2)}
+	UNMi {Tint(2)} {Tint(3)}
+	EQ {Tflt(0), Tint(3)} {T(1)}
+	RET {T(0), T(1)}
+L1
+
+Testing return -3-1-5 == 0+0-9
+L0
+	UNMi {3 Kint(0)} {Tint(0)}
+	SUBii {Tint(0), 1 Kint(1)} {Tint(1)}
+	SUBii {Tint(1), 5 Kint(2)} {Tint(0)}
+	ADDii {0 Kint(3), 0 Kint(3)} {Tint(1)}
+	SUBii {Tint(1), 9 Kint(4)} {Tint(2)}
+	EQii {Tint(0), Tint(2)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return -2^2 == -4, (-2)^2 == 4, 2*2-3-1 == 0
+L0
+	POW {2 Kint(0), 2 Kint(0)} {Tflt(0)}
+	UNMf {Tflt(0)} {Tflt(1)}
+	UNMi {4 Kint(1)} {Tint(0)}
+	EQ {Tflt(1), Tint(0)} {T(0)}
+	UNMi {2 Kint(0)} {Tint(0)}
+	POW {Tint(0), 2 Kint(0)} {Tflt(1)}
+	EQ {Tflt(1), 4 Kint(1)} {T(1)}
+	MULii {2 Kint(0), 2 Kint(0)} {Tint(0)}
+	SUBii {Tint(0), 3 Kint(2)} {Tint(1)}
+	SUBii {Tint(1), 1 Kint(3)} {Tint(0)}
+	EQii {Tint(0), 0 Kint(4)} {T(2)}
+	RET {T(0), T(1), T(2)}
+L1
+
+Testing return -3%5 == 2, -3+5 == 2
+L0
+	UNMi {3 Kint(0)} {Tint(0)}
+	MOD {Tint(0), 5 Kint(1)} {Tint(1)}
+	EQii {Tint(1), 2 Kint(2)} {T(0)}
+	UNMi {3 Kint(0)} {Tint(1)}
+	ADDii {Tint(1), 5 Kint(1)} {Tint(0)}
+	EQii {Tint(0), 2 Kint(2)} {T(1)}
+	RET {T(0), T(1)}
+L1
+
+Testing return 0xF0 | 0xCC ~ 0xAA & 0xFD == 0xF4
+L0
+	BANDii {170 Kint(2), 253 Kint(3)} {Tint(0)}
+	BXORii {204 Kint(1), Tint(0)} {Tint(1)}
+	BORii {240 Kint(0), Tint(1)} {Tint(0)}
+	EQii {Tint(0), 244 Kint(4)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return 0xFD & 0xAA ~ 0xCC | 0xF0 == 0xF4
+L0
+	BANDii {253 Kint(0), 170 Kint(1)} {Tint(0)}
+	BXORii {Tint(0), 204 Kint(2)} {Tint(1)}
+	BORii {Tint(1), 240 Kint(3)} {Tint(0)}
+	EQii {Tint(0), 244 Kint(4)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return 0xF0 & 0x0F + 1 == 0x10
+L0
+	ADDii {15 Kint(1), 1 Kint(2)} {Tint(0)}
+	BANDii {240 Kint(0), Tint(0)} {Tint(1)}
+	EQii {Tint(1), 16 Kint(3)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return 3^4//2^3//5 == 2
+L0
+	POW {3 Kint(0), 4 Kint(1)} {Tflt(0)}
+	POW {2 Kint(2), 3 Kint(0)} {Tflt(1)}
+	IDIV {Tflt(0), Tflt(1)} {T(0)}
+	IDIV {T(0), 5 Kint(3)} {T(1)}
+	EQ {T(1), 2 Kint(2)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return -3+4*5//2^3^2//9+4%10/3 == (-3)+(((4*5)//(2^(3^2)))//9)+((4%10)/3)
+L0
+	UNMi {3 Kint(0)} {Tint(0)}
+	MULii {4 Kint(1), 5 Kint(2)} {Tint(1)}
+	POW {3 Kint(0), 2 Kint(3)} {Tflt(0)}
+	POW {2 Kint(3), Tflt(0)} {Tflt(1)}
+	IDIV {Tint(1), Tflt(1)} {T(0)}
+	IDIV {T(0), 9 Kint(4)} {T(1)}
+	ADD {Tint(0), T(1)} {T(0)}
+	MOD {4 Kint(1), 10 Kint(5)} {Tint(0)}
+	DIVii {Tint(0), 3 Kint(0)} {Tflt(1)}
+	ADD {T(0), Tflt(1)} {T(1)}
+	UNMi {3 Kint(0)} {Tint(0)}
+	MULii {4 Kint(1), 5 Kint(2)} {Tint(1)}
+	POW {3 Kint(0), 2 Kint(3)} {Tflt(1)}
+	POW {2 Kint(3), Tflt(1)} {Tflt(0)}
+	IDIV {Tint(1), Tflt(0)} {T(0)}
+	IDIV {T(0), 9 Kint(4)} {T(2)}
+	ADD {Tint(0), T(2)} {T(0)}
+	MOD {4 Kint(1), 10 Kint(5)} {Tint(0)}
+	DIVii {Tint(0), 3 Kint(0)} {Tflt(0)}
+	ADD {T(0), Tflt(0)} {T(2)}
+	EQ {T(1), T(2)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return @integer 1
+L0
+	RET {1 Kint(0)}
+L1
+
+Testing return @string "hello"
+L0
+	RET {'hello' Ks(0)}
+L1
+
+Testing return @table {}
+L0
+	NEWTABLE {T(0)}
+	RET {T(0)}
+L1
+
+Testing return @integer[] {}
+L0
+	NEWIARRAY {T(0)}
+	RET {T(0)}
+L1
+
+Testing return @number[] {}
+L0
+	NEWFARRAY {T(0)}
+	RET {T(0)}
+L1
+
+Testing return @closure function() end
+L0
+	CLOSURE {Proc(000002190048ACE8)} {T(0)}   - Proc not dumped
+	RET {T(0)}
+L1
+
+Testing return @number 54.4
+L0
+	RET {54.400000000000 Kflt(0)}
+L1
+
+Testing return @User.Type a
+L0
+	LOADGLOBAL {a} {T(0)}
+	TOTYPE {'User.Type' Ks(0)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return {1,2,3}
+L0
+	NEWTABLE {T(0)}
+	TPUTik {1 Kint(0), 1 Kint(0)} {T(0)}
+	TPUTik {2 Kint(1), 2 Kint(1)} {T(0)}
+	TPUTik {3 Kint(2), 3 Kint(2)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return {[1] = a}
+L0
+	NEWTABLE {T(0)}
+	LOADGLOBAL {a} {T(1)}
+	TPUTik {1 Kint(0), T(1)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return {a = b}
+L0
+	NEWTABLE {T(0)}
+	LOADGLOBAL {b} {T(1)}
+	TPUTsk {'a' Ks(0), T(1)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return @integer[]{[1] = 5.5, [2] = 4}
+L0
+	NEWIARRAY {T(0)}
+	IAPUT {1 Kint(0), 5.500000000000 Kflt(1)} {T(0)}
+	IAPUTiv {2 Kint(2), 4 Kint(3)} {T(0)}
+	RET {T(0)}
+L1
+
+Testing return @number[] {[1] = 4, [2] = 5.4}
+L0
+	NEWFARRAY {T(0)}
+	FAPUT {1 Kint(0), 4 Kint(1)} {T(0)}
+	FAPUTfv {2 Kint(2), 5.400000000000 Kflt(3)} {T(0)}
+	RET {T(0)}
+L1
+
