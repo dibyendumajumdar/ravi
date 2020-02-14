@@ -314,10 +314,10 @@ static struct pseudo *linearize_unaryop(struct proc *proc, struct ast_node *node
       targetop = subexpr_type != RAVI_TSTRING ? op_tostring : op_nop;
       break;
     case OPR_TO_INTARRAY:
-      targetop = subexpr_type != RAVI_TIARRAY ? op_toiarray : op_nop;
+      targetop = subexpr_type != RAVI_TARRAYINT ? op_toiarray : op_nop;
       break;
     case OPR_TO_NUMARRAY:
-      targetop = subexpr_type != RAVI_TFARRAY ? op_tofarray : op_nop;
+      targetop = subexpr_type != RAVI_TARRAYFLT ? op_tofarray : op_nop;
       break;
     case OPR_TO_TABLE:
       targetop = subexpr_type != RAVI_TTABLE ? op_totable : op_nop;
@@ -561,6 +561,23 @@ static struct pseudo *linearize_suffixedexpr(struct proc *proc, struct ast_node 
   return prev_psedo;
 }
 
+static struct pseudo *linearize_table_constructor(struct proc *proc, struct ast_node *expr) {
+  /* constructor -> '{' [ field { sep field } [sep] ] '}' where sep -> ',' | ';' */
+    struct pseudo* target = allocate_temp_pseudo(proc, expr->table_expr.type.type_code);
+    enum opcode op = op_newtable;
+    if (expr->table_expr.type.type_code == RAVI_TARRAYINT)
+        op = op_newiarray;
+    else if (expr->table_expr.type.type_code == RAVI_TARRAYFLT)
+        op = op_newfarray;
+    struct instruction* insn = alloc_instruction(proc, op);
+    ptrlist_add((struct ptr_list**) & insn->targets, target, &proc->linearizer->ptrlist_allocator);
+    ptrlist_add((struct ptr_list**) & proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+
+    /*TODO process constructor elements */
+
+    return target;
+}
+
 static struct pseudo *linearize_expression(struct proc *proc, struct ast_node *expr) {
   switch (expr->type) {
     case AST_LITERAL_EXPR: {
@@ -580,6 +597,9 @@ static struct pseudo *linearize_expression(struct proc *proc, struct ast_node *e
     } break;
     case AST_SYMBOL_EXPR: {
       return linearize_symbol_expression(proc, expr);
+    } break;
+    case AST_TABLE_EXPR: {
+      return linearize_table_constructor(proc, expr);
     } break;
     default:
       abort();
@@ -859,13 +879,13 @@ void output_pseudo(struct pseudo *pseudo, membuff_t *mb) {
 }
 
 static const char *op_codenames[] = {
-    "NOOP",     "RET",      "LOADK",    "LOADNIL", "LOADBOOL", "ADD",  "ADDff", "ADDfi",     "ADDii",
-    "SUB",      "SUBff",    "SUBfi",    "SUBif",   "SUBii",    "MUL",  "MULff", "MULfi",     "MULii",
-    "DIV",      "DIVff",    "DIVfi",    "DIVif",   "DIVii",    "IDIV", "BAND",  "BANDii",    "BOR",
-    "BORii",    "BXOR",     "BXORii",   "SHL",     "SHLii",    "SHR",  "SHRii", "EQ",        "EQii",
-    "EQff",     "LT",       "LIii",     "LTff",    "LE",       "LEii", "LEff",  "MOD",       "POW",
-    "CLOSURE",  "UNM",      "UNMi",     "UNMf",    "LEN",      "LENi", "TOINT", "TOFLT",     "TOCLOSURE",
-    "TOSTRING", "TOIARRAY", "TOFARRAY", "TOTABLE", "TOTYPE",   "NOT",  "BNOT",  "LOADGLOBAL"};
+    "NOOP",  "RET",        "LOADK",    "LOADNIL",   "LOADBOOL", "ADD",      "ADDff",    "ADDfi",   "ADDii",  "SUB",
+    "SUBff", "SUBfi",      "SUBif",    "SUBii",     "MUL",      "MULff",    "MULfi",    "MULii",   "DIV",    "DIVff",
+    "DIVfi", "DIVif",      "DIVii",    "IDIV",      "BAND",     "BANDii",   "BOR",      "BORii",   "BXOR",   "BXORii",
+    "SHL",   "SHLii",      "SHR",      "SHRii",     "EQ",       "EQii",     "EQff",     "LT",      "LIii",   "LTff",
+    "LE",    "LEii",       "LEff",     "MOD",       "POW",      "CLOSURE",  "UNM",      "UNMi",    "UNMf",   "LEN",
+    "LENi",  "TOINT",      "TOFLT",    "TOCLOSURE", "TOSTRING", "TOIARRAY", "TOFARRAY", "TOTABLE", "TOTYPE", "NOT",
+    "BNOT",  "LOADGLOBAL", "NEWTABLE", "NEWIARRAY", "NEWFARRAY"};
 
 void output_pseudo_list(struct pseudo_list *list, membuff_t *mb) {
   struct pseudo *pseudo;

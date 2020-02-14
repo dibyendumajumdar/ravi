@@ -369,6 +369,9 @@ enum opcode {
   op_not,
   op_bnot,
   op_loadglobal,
+  op_newtable,
+  op_newiarray,
+  op_newfarray
 };
 
 enum pseudo_type {
