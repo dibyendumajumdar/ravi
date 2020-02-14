@@ -563,19 +563,19 @@ static struct pseudo *linearize_suffixedexpr(struct proc *proc, struct ast_node 
 
 static struct pseudo *linearize_table_constructor(struct proc *proc, struct ast_node *expr) {
   /* constructor -> '{' [ field { sep field } [sep] ] '}' where sep -> ',' | ';' */
-    struct pseudo* target = allocate_temp_pseudo(proc, expr->table_expr.type.type_code);
-    enum opcode op = op_newtable;
-    if (expr->table_expr.type.type_code == RAVI_TARRAYINT)
-        op = op_newiarray;
-    else if (expr->table_expr.type.type_code == RAVI_TARRAYFLT)
-        op = op_newfarray;
-    struct instruction* insn = alloc_instruction(proc, op);
-    ptrlist_add((struct ptr_list**) & insn->targets, target, &proc->linearizer->ptrlist_allocator);
-    ptrlist_add((struct ptr_list**) & proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+  struct pseudo *target = allocate_temp_pseudo(proc, expr->table_expr.type.type_code);
+  enum opcode op = op_newtable;
+  if (expr->table_expr.type.type_code == RAVI_TARRAYINT)
+    op = op_newiarray;
+  else if (expr->table_expr.type.type_code == RAVI_TARRAYFLT)
+    op = op_newfarray;
+  struct instruction *insn = alloc_instruction(proc, op);
+  ptrlist_add((struct ptr_list **)&insn->targets, target, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
 
-    /*TODO process constructor elements */
+  /*TODO process constructor elements */
 
-    return target;
+  return target;
 }
 
 static struct pseudo *linearize_expression(struct proc *proc, struct ast_node *expr) {
