@@ -117,6 +117,11 @@ static const struct constant *allocate_constant(struct proc *proc, struct ast_no
   return add_constant(proc, &c);
 }
 
+static const struct constant *allocate_constant_for_i(struct proc *proc, int i) {
+  struct constant c = {.type = RAVI_TNUMINT, .i = i};
+  return add_constant(proc, &c);
+}
+
 static const struct constant *allocate_string_constant(struct proc *proc, const TString *s) {
   struct constant c = {.type = RAVI_TSTRING, .s = s};
   return add_constant(proc, &c);
@@ -201,8 +206,8 @@ void free_temp_pseudo(struct proc *proc, struct pseudo *pseudo) {
       gen = &proc->temp_pseudos;
       break;
     default:
-      abort();
-      break;
+      // Not a temp, so no need to do anything
+      return;
   }
   free_reg(gen, pseudo->regnum);
 }
@@ -536,6 +541,10 @@ static struct pseudo *linearize_symbol_expression(struct proc *proc, struct ast_
   }
 }
 
+static struct pseudo *linearize_index_expression(struct proc *proc, struct ast_node *expr) {
+  return linearize_expression(proc, expr->indexed_assign_expr.index_expr);
+}
+
 /*
  * Suffixed expression examples:
  * f()[1]
@@ -561,6 +570,61 @@ static struct pseudo *linearize_suffixedexpr(struct proc *proc, struct ast_node 
   return prev_psedo;
 }
 
+static int linearize_indexed_assign(struct proc *proc, struct pseudo *table, enum ravitype_t table_type,
+                                    struct ast_node *expr, int next) {
+  struct pseudo *index_pseudo;
+  if (expr->indexed_assign_expr.index_expr) {
+    index_pseudo = linearize_expression(proc, expr->indexed_assign_expr.index_expr);
+    // TODO check valid index
+  }
+  else {
+    const struct constant *constant = allocate_constant_for_i(proc, next++);
+    index_pseudo = allocate_constant_pseudo(proc, constant);
+  }
+  struct pseudo *value_pseudo = linearize_expression(proc, expr->indexed_assign_expr.value_expr);
+  // TODO validate the type of assignment
+  // Insert type assertions if needed
+  enum opcode op;
+  switch (table_type) {
+    case RAVI_TTABLE:
+      op = op_tput;
+      if (expr->indexed_assign_expr.index_expr &&
+              expr->indexed_assign_expr.index_expr->common_expr.type.type_code == RAVI_TNUMINT ||
+          !expr->indexed_assign_expr.index_expr) {
+        op = op_tput_ikey;
+      }
+      else if (expr->indexed_assign_expr.index_expr &&
+               expr->indexed_assign_expr.index_expr->common_expr.type.type_code == RAVI_TSTRING) {
+        op = op_tput_skey;
+      }
+      break;
+    case RAVI_TARRAYINT:
+      op_iaput;
+      if (expr->indexed_assign_expr.value_expr->common_expr.type.type_code == RAVI_TNUMINT) {
+        op = op_iaput_ival;
+      }
+      break;
+    case RAVI_TARRAYFLT:
+      op_faput;
+      if (expr->indexed_assign_expr.value_expr->common_expr.type.type_code == RAVI_TNUMFLT) {
+        op = op_faput_fval;
+      }
+      break;
+    default:
+      abort();
+  }
+
+  struct instruction *insn = alloc_instruction(proc, op);
+  ptrlist_add((struct ptr_list **)&insn->operands, index_pseudo, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&insn->operands, value_pseudo, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&insn->targets, table, &proc->linearizer->ptrlist_allocator);
+  ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+
+  free_temp_pseudo(proc, index_pseudo);
+  free_temp_pseudo(proc, value_pseudo);
+  return next;
+}
+
 static struct pseudo *linearize_table_constructor(struct proc *proc, struct ast_node *expr) {
   /* constructor -> '{' [ field { sep field } [sep] ] '}' where sep -> ',' | ';' */
   struct pseudo *target = allocate_temp_pseudo(proc, expr->table_expr.type.type_code);
@@ -574,6 +638,12 @@ static struct pseudo *linearize_table_constructor(struct proc *proc, struct ast_
   ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
 
   /*TODO process constructor elements */
+  struct ast_node *ia;
+  int i = 1;
+  FOR_EACH_PTR(expr->table_expr.expr_list, ia) {
+    i = linearize_indexed_assign(proc, target, expr->table_expr.type.type_code, ia, i);
+  }
+  END_FOR_EACH_PTR(ia);
 
   return target;
 }
@@ -600,6 +670,10 @@ static struct pseudo *linearize_expression(struct proc *proc, struct ast_node *e
     } break;
     case AST_TABLE_EXPR: {
       return linearize_table_constructor(proc, expr);
+    } break;
+    case AST_Y_INDEX_EXPR:
+    case AST_FIELD_SELECTOR_EXPR: {
+      return linearize_index_expression(proc, expr);
     } break;
     default:
       abort();
@@ -879,13 +953,14 @@ void output_pseudo(struct pseudo *pseudo, membuff_t *mb) {
 }
 
 static const char *op_codenames[] = {
-    "NOOP",  "RET",        "LOADK",    "LOADNIL",   "LOADBOOL", "ADD",      "ADDff",    "ADDfi",   "ADDii",  "SUB",
-    "SUBff", "SUBfi",      "SUBif",    "SUBii",     "MUL",      "MULff",    "MULfi",    "MULii",   "DIV",    "DIVff",
-    "DIVfi", "DIVif",      "DIVii",    "IDIV",      "BAND",     "BANDii",   "BOR",      "BORii",   "BXOR",   "BXORii",
-    "SHL",   "SHLii",      "SHR",      "SHRii",     "EQ",       "EQii",     "EQff",     "LT",      "LIii",   "LTff",
-    "LE",    "LEii",       "LEff",     "MOD",       "POW",      "CLOSURE",  "UNM",      "UNMi",    "UNMf",   "LEN",
-    "LENi",  "TOINT",      "TOFLT",    "TOCLOSURE", "TOSTRING", "TOIARRAY", "TOFARRAY", "TOTABLE", "TOTYPE", "NOT",
-    "BNOT",  "LOADGLOBAL", "NEWTABLE", "NEWIARRAY", "NEWFARRAY"};
+    "NOOP",      "RET",       "LOADK",    "LOADNIL",   "LOADBOOL",  "ADD",   "ADDff",      "ADDfi",      "ADDii",
+    "SUB",       "SUBff",     "SUBfi",    "SUBif",     "SUBii",     "MUL",   "MULff",      "MULfi",      "MULii",
+    "DIV",       "DIVff",     "DIVfi",    "DIVif",     "DIVii",     "IDIV",  "BAND",       "BANDii",     "BOR",
+    "BORii",     "BXOR",      "BXORii",   "SHL",       "SHLii",     "SHR",   "SHRii",      "EQ",         "EQii",
+    "EQff",      "LT",        "LIii",     "LTff",      "LE",        "LEii",  "LEff",       "MOD",        "POW",
+    "CLOSURE",   "UNM",       "UNMi",     "UNMf",      "LEN",       "LENi",  "TOINT",      "TOFLT",      "TOCLOSURE",
+    "TOSTRING",  "TOIARRAY",  "TOFARRAY", "TOTABLE",   "TOTYPE",    "NOT",   "BNOT",       "LOADGLOBAL", "NEWTABLE",
+    "NEWIARRAY", "NEWFARRAY", "TPUT",     "TPUT_ikey", "TPUT_skey", "IAPUT", "IAPUT_ival", "FAPUT",      "FAPUT_fval"};
 
 void output_pseudo_list(struct pseudo_list *list, membuff_t *mb) {
   struct pseudo *pseudo;

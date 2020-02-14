@@ -213,7 +213,7 @@ struct ast_node {
       struct var_type type;
       struct lua_symbol *var;
     } symbol_expr;
-    struct { /* AST_Y_INDEX_EXPR */
+    struct { /* AST_Y_INDEX_EXPR or AST_FIELD_SELECTOR_EXPR */
       struct var_type type;
       struct ast_node *expr; /* '[' expr ']' */
     } index_expr;
@@ -371,7 +371,14 @@ enum opcode {
   op_loadglobal,
   op_newtable,
   op_newiarray,
-  op_newfarray
+  op_newfarray,
+  op_tput,
+  op_tput_ikey,
+  op_tput_skey,
+  op_iaput,
+  op_iaput_ival,
+  op_faput,
+  op_faput_fval
 };
 
 enum pseudo_type {
