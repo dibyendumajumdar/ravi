@@ -574,7 +574,7 @@ static struct pseudo *linearize_suffixedexpr(struct proc *proc, struct ast_node 
   return prev_psedo;
 }
 
-static int linearize_indexed_assign(struct proc *proc, struct pseudo *table, enum ravitype_t table_type,
+static int linearize_indexed_assign(struct proc *proc, struct pseudo *table, ravitype_t table_type,
                                     struct ast_node *expr, int next) {
   struct pseudo *index_pseudo;
   if (expr->indexed_assign_expr.index_expr) {
