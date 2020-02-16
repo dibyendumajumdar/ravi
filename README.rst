@@ -102,7 +102,7 @@ History
        - New JIT backend `MIR <https://github.com/vnmakarov/mir>`_. 
 
 * 2020 (Plan)
-       - New optimizing byte code generator based on new parser / type checker
+       - `New optimizing byte code generator based on new parser / type checker <https://github.com/dibyendumajumdar/ravi-compiler>`_
        - Ravi 1.0 release
 
 License
