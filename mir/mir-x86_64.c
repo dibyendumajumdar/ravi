@@ -2,6 +2,8 @@
    Copyright (C) 2018-2020 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
+#define VA_LIST_IS_ARRAY_P 1
+
 void *_MIR_get_bstart_builtin (MIR_context_t ctx) {
   static const uint8_t bstart_code[] = {
     0x48, 0x8d, 0x44, 0x24, 0x08, /* rax = rsp + 8 (lea) */
@@ -170,7 +172,7 @@ static void gen_st80 (MIR_context_t ctx, uint32_t src_offset) {
    r10=mem[rbx,<offset>]; res_reg=mem[r10]; ...
    pop rbx; ret. */
 void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, size_t nargs,
-                        MIR_type_t *arg_types) {
+                        MIR_type_t *arg_types, int vararg_p) {
   static const uint8_t prolog[] = {
     0x53,                         /* pushq %rbx */
     0x48, 0x81, 0xec, 0, 0, 0, 0, /* subq <sp_offset>, %rsp */
@@ -238,32 +240,33 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
                             VARR_LENGTH (uint8_t, machine_insns));
 }
 
+/* Transform C call to call of void handler (MIR_context_t ctx, MIR_item_t func_item,
+                                             va_list va, MIR_val_t *results) */
 void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handler) {
   static const uint8_t push_rbx[] = {0x53, /*push   %rbx  */};
   static const uint8_t prepare_pat[] = {
     /*  0: */ 0x48, 0x83, 0xec, 0x20,                      /* sub    32,%rsp	     */
     /*  4: */ 0x48, 0x89, 0xe2,                            /* mov    %rsp,%rdx	     */
     /*  7: */ 0xc7, 0x02, 0,    0,    0,    0,             /* movl   0,(%rdx)	     */
-    /*  d: */ 0xc7, 0x42, 0x04, 0x30, 0,    0, 0,          /* movl   48, 4(%rdx)	     */
+    /*  d: */ 0xc7, 0x42, 0x04, 0x30, 0,    0, 0,          /* movl   48, 4(%rdx)     */
     /* 14: */ 0x48, 0x8d, 0x44, 0x24, 0x20,                /* lea    32(%rsp),%rax   */
-    /* 19: */ 0x48, 0x89, 0x42, 0x10,                      /* mov    %rax,16(%rdx)     */
-    /* 1d: */ 0x48, 0x8d, 0x84, 0x24, 0xe0, 0, 0, 0,       /* lea    224(%rsp),%rax   */
+    /* 19: */ 0x48, 0x89, 0x42, 0x10,                      /* mov    %rax,16(%rdx)   */
+    /* 1d: */ 0x48, 0x8d, 0x84, 0x24, 0xe0, 0, 0, 0,       /* lea    224(%rsp),%rax  */
     /* 25: */ 0x48, 0x89, 0x42, 0x08,                      /* mov    %rax,8(%rdx)    */
     /* 29: */ 0x48, 0x81, 0xec, 0,    0,    0, 0,          /* sub    <n>,%rsp	     */
     /* 30: */ 0x48, 0x89, 0xe3,                            /* mov    %rsp,%rbx	     */
     /* 33: */ 0x48, 0x89, 0xe1,                            /* mov    %rsp,%rcx	     */
-    /* 36: */ 0x48, 0xbf, 0,    0,    0,    0, 0, 0, 0, 0, /* movabs <ctx>,%rdi */
-    /* 40: */ 0x48, 0xbe, 0,    0,    0,    0, 0, 0, 0, 0, /* movabs <func_item>,%rsi */
-    /* 4a: */ 0x48, 0xb8, 0,    0,    0,    0, 0, 0, 0, 0, /* movabs <handler>,%rax    */
-    /* 54: */ 0xff, 0xd0,                                  /* callq  *%rax            */
+    /* 36: */ 0x48, 0xbf, 0,    0,    0,    0, 0, 0, 0, 0, /* movabs <ctx>,%rdi      */
+    /* 40: */ 0x48, 0xbe, 0,    0,    0,    0, 0, 0, 0, 0, /* movabs <func_item>,%rsi*/
+    /* 4a: */ 0x48, 0xb8, 0,    0,    0,    0, 0, 0, 0, 0, /* movabs <handler>,%rax  */
+    /* 54: */ 0xff, 0xd0,                                  /* callq  *%rax           */
   };
   static const uint8_t shim_end[] = {
     /* 0: */ 0x48, 0x81, 0xc4, 0, 0, 0, 0, /*add    208+n,%rsp*/
     /* 7: */ 0x5b,                         /*pop          %rbx*/
     /* 8: */ 0xc3,                         /*retq             */
   };
-  static const uint8_t ld_pat[]
-    = {0x48, 0x8b, 0x83, 0, 0, 0, 0}; /* movss <offset>(%rbx), %xmm[01] */
+  static const uint8_t ld_pat[] = {0x48, 0x8b, 0x83, 0, 0, 0, 0}; /* mov <offset>(%rbx), %reg */
   static const uint8_t movss_pat[]
     = {0xf3, 0x0f, 0x10, 0x83, 0, 0, 0, 0}; /* movss <offset>(%rbx), %xmm[01] */
   static const uint8_t movsd_pat[]
@@ -348,7 +351,3 @@ void *_MIR_get_wrapper (MIR_context_t ctx, MIR_item_t called_func, void *hook_ad
   return _MIR_publish_code (ctx, VARR_ADDR (uint8_t, machine_insns),
                             VARR_LENGTH (uint8_t, machine_insns));
 }
-
-static void machine_init (MIR_context_t ctx) { VARR_CREATE (uint8_t, machine_insns, 1024); }
-
-static void machine_finish (MIR_context_t ctx) { VARR_DESTROY (uint8_t, machine_insns); }

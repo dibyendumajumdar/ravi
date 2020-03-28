@@ -6,7 +6,11 @@ message(STATUS "OS type is ${CMAKE_SYSTEM_NAME}")
 message(STATUS "System processor is ${CMAKE_HOST_SYSTEM_PROCESSOR}")
 message(STATUS "Build type is ${CMAKE_BUILD_TYPE}")
 
-set(TARGET x86_64)
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+    set(TARGET x86_64)
+else()
+    message(FATAL "Unsupported platform")
+endif()
 
 set(MIR_HEADERS 
     mir.h
