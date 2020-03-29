@@ -681,7 +681,11 @@ static int recover (lua_State *L, int status) {
   if (ci == NULL) return 0;  /* no recovery point */
   /* "finish" luaD_pcall */
   oldtop = restorestack(L, ci->extra);
+#ifdef RAVI_DEFER_STATEMENT
   luaF_close(L, oldtop, status);
+#else
+  luaF_close(L, oldtop);
+#endif
   luaD_seterrorobj(L, status, oldtop);
   L->ci = ci;
   L->allowhook = getoah(ci->callstatus);  /* restore original 'allowhook' */
@@ -826,12 +830,18 @@ int luaD_pcall (lua_State *L, Pfunc func, void *u,
   status = luaD_rawrunprotected(L, func, u);
   if (status != LUA_OK) {  /* an error occurred? */
     StkId oldtop = restorestack(L, old_top);
+#ifndef RAVI_DEFER_STATEMENT
+    luaF_close(L, oldtop);  /* close possible pending closures */
+    luaD_seterrorobj(L, status, oldtop);
+#endif
     L->ci = old_ci;
     L->allowhook = old_allowhooks;
     L->nny = old_nny;
+#ifdef RAVI_DEFER_STATEMENT
     status = luaF_close(L, oldtop, status);  /* close possible pending closures */
     oldtop = restorestack(L, old_top);
     luaD_seterrorobj(L, status, oldtop);
+#endif
     luaD_shrinkstack(L);
   }
   L->errfunc = old_errfunc;

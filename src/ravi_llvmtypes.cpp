@@ -694,8 +694,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   // struct UpVal {
   //  struct TValue *v;  /* points to stack or to its own value */
+#ifdef RAVI_DEFER_STATEMENT
   //  unsigned int refcount;  /* reference counter */
   //  unsigned int flags; /* Used to mark deferred values */
+#else
+  //  unsigned long long refcount;  /* reference counter */
+#endif
   //  union {
   //    struct {  /* (when open) */
   //      struct UpVal *next;  /* linked list */
@@ -706,8 +710,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   //};
   elements.clear();
   elements.push_back(pTValueT);
+#ifdef RAVI_DEFER_STATEMENT
   elements.push_back(C_intT);
   elements.push_back(C_intT);
+#else
+  elements.push_back(C_size_t);
+#endif
   elements.push_back(TValueT);
   UpValT->setBody(elements);
 
@@ -747,22 +755,31 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   elements.push_back(plua_StateT);
   luaV_executeT = llvm::FunctionType::get(C_intT, elements, false);
 
+#ifdef RAVI_DEFER_STATEMENT
   // int luaF_close (lua_State *L, StkId level, int status)
+#else
+  // void luaF_close (lua_State *L, StkId level)
+#endif
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(StkIdT);
+#ifdef RAVI_DEFER_STATEMENT
   elements.push_back(C_intT);
   luaF_closeT =
       llvm::FunctionType::get(C_intT, elements, false);
+#else
+  luaF_closeT =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
+#endif
 
   // int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2)
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(pTValueT);
-
+#ifdef RAVI_DEFER_STATEMENT
   // void raviV_op_defer(lua_State *L, TValue *ra);
   raviV_op_deferT = llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
-
+#endif
   elements.push_back(pTValueT);
   luaV_equalobjT = llvm::FunctionType::get(C_intT, elements, false);
 
@@ -1266,8 +1283,12 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
 
   nodes.clear();
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_pointerT, 0));
+#ifdef RAVI_DEFER_STATEMENT
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 4));
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_intT, 4));
+#else
+  nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_longlongT, 8));
+#endif
   nodes.push_back(std::pair<llvm::MDNode *, uint64_t>(tbaa_TValueT, 16));
   tbaa_UpValT = mdbuilder.createTBAAStructTypeNode("UpVal", nodes);
   tbaa_UpVal_vT =

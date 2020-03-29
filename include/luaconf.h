@@ -834,6 +834,8 @@
 /* If following is defined as true then LLVM instructions emitted for arithmetic ops 
    priority floating point ops, else default is to prioritise integer ops */
 #define RAVI_USE_LLVM_ARITH_FLOATPRIORITY 1
+/* Enables the 'defer' statement - RAVI extension */
+#define RAVI_DEFER_STATEMENT 1
 
 #endif
 

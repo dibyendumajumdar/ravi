@@ -56,6 +56,14 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B,
 
   bool traced = emit_debug_trace(def, OP_RETURN, pc);
 
+#ifndef RAVI_DEFER_STATEMENT
+  // Load pointer to base
+  emit_load_base(def);
+
+  // Get pointer to register A
+  llvm::Value *ra_ptr = emit_gep_register(def, A);
+#endif
+
   // if (cl->p->sizep > 0) luaF_close(L, base);
   // Get pointer to Proto->sizep
   llvm::Instruction *psize = emit_load_proto_sizep(def);
@@ -70,22 +78,28 @@ void RaviCodeGenerator::emit_RETURN(RaviFunctionDef *def, int A, int B,
   def->builder->CreateCondBr(psize_gt_0, then_block, else_block);
   def->builder->SetInsertPoint(then_block);
 
+#ifdef RAVI_DEFER_STATEMENT
   // Load pointer to base
   emit_load_base(def);
   // Get pointer to register A
   llvm::Value *ra_ptr = emit_gep_register(def, A);
   if (!traced)
     emit_update_savedpc(def, pc);
+#endif
   // Call luaF_close
+#ifdef RAVI_DEFER_STATEMENT
   CreateCall3(def->builder, def->luaF_closeF, def->L, def->base_ptr, def->types->kInt[LUA_OK]);
+#else
+  CreateCall2(def->builder, def->luaF_closeF, def->L, def->base_ptr);
+#endif
   def->builder->CreateBr(else_block);
 
   def->f->getBasicBlockList().push_back(else_block);
   def->builder->SetInsertPoint(else_block);
-
+#ifdef RAVI_DEFER_STATEMENT
   emit_load_base(def);                 // As luaF_close() may have changed the stack
   ra_ptr = emit_gep_register(def, A);  // load RA
-
+#endif
   //*  b = luaD_poscall(L, ra, (b != 0 ? b - 1 : L->top - ra));
   llvm::Value *nresults = NULL;
   if (B != 0)
