@@ -406,6 +406,7 @@ void *MIR_compile_C_module(
     }
     MIR_load_module (ctx, module);
     MIR_gen_init (ctx);
+    MIR_gen_set_optimize_level(ctx, 3);
     MIR_link (ctx, MIR_set_gen_interface, Import_resolver_func);
     fun_addr = MIR_gen (ctx, main_func);
     MIR_gen_finish (ctx);
