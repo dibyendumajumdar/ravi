@@ -1,7 +1,7 @@
 -- Copyright vnmakarov see https://github.com/vnmakarov/mir/issues/2
 local function sieve()
-	local i, k, prime, count
-	local flags = {}
+	local i: integer, k: integer, prime: integer, count: integer
+	local flags: integer[] = table.intarray(8190)
 
 	for iter=0,100000  do
 		count = 0
@@ -21,7 +21,7 @@ local function sieve()
 	return count
 end
 
-if ravi and ravi.jit() then
+if ravi.jit() then
 	print('JIT ON')
 	ravi.optlevel(2)
 	ravi.compile(sieve, {omitArrayGetRangeCheck=1})
