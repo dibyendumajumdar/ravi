@@ -1333,9 +1333,21 @@ static void emit_binary_op(struct function *fn, int A, int B, int C, OpCode op, 
 void emit_ff_op(struct function *fn, int A, int B, int C, int pc, const char *op) {
   (void)pc;
   emit_reg(fn, "ra", A);
-  emit_reg_or_k(fn, "rb", B);
-  emit_reg_or_k(fn, "rc", C);
-  membuff_add_fstring(&fn->body, "setfltvalue(ra, fltvalue(rb) %s fltvalue(rc));\n", op);
+  if (ISK(B)) {
+    TValue *Konst1 = &fn->p->k[INDEXK(B)];
+    emit_reg_or_k(fn, "rc", C);
+    membuff_add_fstring(&fn->body, "setfltvalue(ra, %.17g %s fltvalue(rc));\n", Konst1->value_.n, op);
+  }
+  else if (ISK(C)) {
+    TValue *Konst1 = &fn->p->k[INDEXK(C)];
+    emit_reg_or_k(fn, "rb", B);
+    membuff_add_fstring(&fn->body, "setfltvalue(ra, fltvalue(rb) %s %.17g);\n", op, Konst1->value_.n);
+  }
+  else {
+    emit_reg_or_k(fn, "rb", B);
+    emit_reg_or_k(fn, "rc", C);
+    membuff_add_fstring(&fn->body, "setfltvalue(ra, fltvalue(rb) %s fltvalue(rc));\n", op);
+  }
 }
 
 static void emit_fi_op(struct function *fn, int A, int B, int C, int pc, const char *op) {
