@@ -977,6 +977,25 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j, int
         membuff_add_fstring(&fn->body, "result = (fltvalue(rb) %s fltvalue(rc));\n", oper);
       }
       break;
+    case OP_LT:
+      oper = "<";
+      goto Lemit;
+    case OP_LE:
+      oper = "<=";
+    Lemit:
+      emit_reg_or_k(fn, "rb", B);
+      emit_reg_or_k(fn, "rc", C);
+      membuff_add_string(&fn->body, "if (ttisinteger(rb) && ttisinteger(rc))\n");
+      membuff_add_fstring(&fn->body, "  result = (ivalue(rb) %s ivalue(rc));\n", oper);
+      membuff_add_string(&fn->body, "else {\n");
+      emit_update_savedpc(fn, pc);
+      membuff_add_fstring(&fn->body, "  result = %s(L, rb, rc);\n", compfunc);
+      // Reload pointer to base as the call to luaV_equalobj() may
+      // have invoked a Lua function and as a result the stack may have
+      // been reallocated - so the previous base pointer could be stale
+      membuff_add_string(&fn->body, "  base = ci->u.l.base;\n");
+      membuff_add_string(&fn->body, "}\n");
+      break;
     default:
       emit_reg_or_k(fn, "rb", B);
       emit_reg_or_k(fn, "rc", C);
