@@ -1357,9 +1357,21 @@ static void emit_if_op(struct function *fn, int A, int B, int C, int pc, const c
 static void emit_ii_op(struct function *fn, int A, int B, int C, int pc, const char *op) {
   (void)pc;
   emit_reg(fn, "ra", A);
-  emit_reg_or_k(fn, "rb", B);
-  emit_reg_or_k(fn, "rc", C);
-  membuff_add_fstring(&fn->body, "setivalue(ra, ivalue(rb) %s ivalue(rc));\n", op);
+  if (ISK(B)) {
+    TValue *Konst1 = &fn->p->k[INDEXK(B)];
+    emit_reg_or_k(fn, "rc", C);
+    membuff_add_fstring(&fn->body, "setivalue(ra, %lld %s ivalue(rc));\n", Konst1->value_.i, op);
+  }
+  else if (ISK(C)) {
+    TValue *Konst1 = &fn->p->k[INDEXK(C)];
+    emit_reg_or_k(fn, "rb", B);
+    membuff_add_fstring(&fn->body, "setivalue(ra, ivalue(rb) %s %lld);\n", op, Konst1->value_.i);
+  }
+  else {
+    emit_reg_or_k(fn, "rb", B);
+    emit_reg_or_k(fn, "rc", C);
+    membuff_add_fstring(&fn->body, "setivalue(ra, ivalue(rb) %s ivalue(rc));\n", op);
+  }
 }
 
 static void emit_op_divii(struct function *fn, int A, int B, int C, int pc) {
