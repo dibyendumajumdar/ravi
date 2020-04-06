@@ -131,8 +131,10 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
 
   "FORLOOP_IP",
   "FORLOOP_I1",
+  "FORLOOP_I",
   "FORPREP_IP",
   "FORPREP_I1",
+  "FORPREP_I",
 
   "SETUPVALI", /*	A B	UpValue[B] := tointeger(R(A))			*/
   "SETUPVALF", /*	A B	UpValue[B] := tonumber(R(A))			*/
@@ -275,8 +277,10 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
 
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_IP */
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_I1 */
+ ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORLOOP_I */
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_IP */
  ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_I1 */
+ ,opmode(0, 1, OpArgR, OpArgN, iAsBx)		/* OP_RAVI_FORPREP_I */
 
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALI */
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_RAVI_SETUPVALF */
@@ -542,9 +546,11 @@ static void PrintCode(membuff_t *mb, const Proto* f)
    case OP_FORLOOP:
    case OP_RAVI_FORLOOP_IP:
    case OP_RAVI_FORLOOP_I1:
+   case OP_RAVI_FORLOOP_I:
    case OP_FORPREP:
    case OP_RAVI_FORPREP_IP:
    case OP_RAVI_FORPREP_I1:
+   case OP_RAVI_FORPREP_I:
    case OP_TFORLOOP:
      membuff_add_fstring(mb, "\t; to %d",sbx+pc+2);
     break;

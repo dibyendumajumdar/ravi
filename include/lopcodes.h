@@ -242,8 +242,11 @@ OP_RAVI_FARRAY_SETF, /*	A B C	R(A)[RK(B)] := RK(C) where RK(B) is an int, R(A) i
 
 OP_RAVI_FORLOOP_IP,  /* As FORLOOP, but with integer index and positive integer step */
 OP_RAVI_FORLOOP_I1,  /* As FORLOOP, but with integer index 1 and step 1 */
+OP_RAVI_FORLOOP_I,   /* As FORLOOP, but with integer index 1 and integer step */
+
 OP_RAVI_FORPREP_IP,  /* As FORPREP, but with integer index and positive integer step */
 OP_RAVI_FORPREP_I1,  /* As FORPREP, but with integer index 1 and step 1 */
+OP_RAVI_FORPREP_I,   /* As FORPREP, but with integer index 1 and integer step */
 
 OP_RAVI_SETUPVALI,  /*	A B	UpValue[B] := tointeger(R(A))			*/
 OP_RAVI_SETUPVALF,  /*	A B	UpValue[B] := tonumber(R(A))			*/

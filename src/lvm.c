@@ -1253,8 +1253,10 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_FARRAY_SETF),
     &&vmlabel(OP_RAVI_FORLOOP_IP),
     &&vmlabel(OP_RAVI_FORLOOP_I1),
+    &&vmlabel(OP_RAVI_FORLOOP_I),
     &&vmlabel(OP_RAVI_FORPREP_IP),
     &&vmlabel(OP_RAVI_FORPREP_I1),
+    &&vmlabel(OP_RAVI_FORPREP_I),
     &&vmlabel(OP_RAVI_SETUPVALI),
     &&vmlabel(OP_RAVI_SETUPVALF),
     &&vmlabel(OP_RAVI_SETUPVAL_IARRAY),
@@ -2096,6 +2098,17 @@ int luaV_execute (lua_State *L) {
         }
         vmbreak;
       }
+      vmcase(OP_RAVI_FORLOOP_I) {
+          lua_Integer step = ivalue(ra + 2);
+          lua_Integer idx = intop(+, ivalue(ra), step); /* increment index */
+          lua_Integer limit = ivalue(ra + 1);
+          if (RAVI_LIKELY((0 < step)) ? (idx <= limit) : (limit <= idx)) {
+              pc += GETARG_sBx(i);  /* jump back */
+              chgivalue(ra, idx);  /* update internal index... */
+              setivalue(ra + 3, idx);  /* ...and external index */
+          }
+          vmbreak;
+      }
       vmcase(OP_RAVI_FORPREP_IP)
       vmcase(OP_RAVI_FORPREP_I1) {
         TValue *pinit = ra;
@@ -2108,6 +2121,15 @@ int luaV_execute (lua_State *L) {
         setivalue(pinit, initv - istep);
         pc += GETARG_sBx(i);
         vmbreak;
+      }
+      vmcase(OP_RAVI_FORPREP_I) {
+          TValue* init = ra;
+          TValue* pstep = ra + 2;
+          /* all values are integer */
+          lua_Integer initv = ivalue(init);
+          setivalue(init, intop(-, initv, ivalue(pstep)));
+          pc += GETARG_sBx(i);
+          vmbreak;
       }
       vmcase(OP_RAVI_NEW_IARRAY) {
         Table *t;

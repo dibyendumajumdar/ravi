@@ -649,8 +649,10 @@ static void scan_jump_targets(struct function *fn) {
       case OP_JMP:
       case OP_RAVI_FORPREP_IP:
       case OP_RAVI_FORPREP_I1:
+      case OP_RAVI_FORPREP_I:
       case OP_RAVI_FORLOOP_IP:
       case OP_RAVI_FORLOOP_I1:
+      case OP_RAVI_FORLOOP_I:
       case OP_FORLOOP:
       case OP_FORPREP:
       case OP_TFORLOOP: {
@@ -1694,6 +1696,31 @@ static void emit_op_iforprep(struct function *fn, int A, int pc, int step_one, i
   membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", pc);
 }
 
+static void emit_op_iforprep2(struct function* fn, int A, int pc, int pc1) {
+    (void)pc1;
+    if (!fn->locals[A]) {
+        fn->locals[A] = 1;  // Lua can reuse the same forloop vars if loop isn't nested
+        // Although in IFOR instructions we do not need all the vars below
+        // it can happen that the same slot is used by normal FOR loop
+        // The optimizer should get rid of unused vars anyway
+        membuff_add_fstring(&fn->prologue, "lua_Integer i_%d = 0;\n", A);
+        membuff_add_fstring(&fn->prologue, "lua_Integer limit_%d = 0;\n", A);
+        membuff_add_fstring(&fn->prologue, "lua_Integer step_%d = 0;\n", A);
+        membuff_add_fstring(&fn->prologue, "lua_Number ninit_%d = 0.0;\n", A);
+        membuff_add_fstring(&fn->prologue, "lua_Number nlimit_%d = 0.0;\n", A);
+        membuff_add_fstring(&fn->prologue, "lua_Number nstep_%d = 0.0;\n", A);
+        membuff_add_fstring(&fn->prologue, "int intloop_%d = 0;\n", A);
+    }
+    emit_reg(fn, "ra", A);
+    membuff_add_fstring(&fn->body, "i_%d = ivalue(ra);\n", A);
+    membuff_add_fstring(&fn->body, "ra = R(%d);\n", A + 1);
+    membuff_add_fstring(&fn->body, "limit_%d = ivalue(ra);\n", A);
+    membuff_add_fstring(&fn->body, "ra = R(%d);\n", A + 2);
+    membuff_add_fstring(&fn->body, "step_%d = ivalue(ra);\n", A);
+    membuff_add_fstring(&fn->body, "i_%d -= step_%d;\n", A, A);
+    membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", pc);
+}
+
 static void emit_op_forprep(struct function *fn, int A, int pc, int pc1) {
   (void)pc1;
   if (!fn->locals[A]) {
@@ -1763,6 +1790,14 @@ static void emit_op_iforloop(struct function *fn, int A, int pc, int step_one, i
                       "if (i_%d <= limit_%d) {\n  ra = R(%d);\n  setivalue(ra, "
                       "i_%d);\n  goto Lbc_%d;\n}\n",
                       A, A, A + 3, A, pc);
+}
+
+static void emit_op_iforloop2(struct function* fn, int A, int pc, int pc1) {
+    (void)pc1;
+    membuff_add_fstring(&fn->body, "i_%d += step_%d;\n", A, A);
+    membuff_add_fstring(&fn->body, "if ((0 < step_%d) ? (i_%d <= limit_%d) : (limit_%d <= i_%d)) {\n", A, A, A, A, A);
+    membuff_add_fstring(&fn->body, "  ra = R(%d);\n   setivalue(ra, i_%d);\n   goto Lbc_%d;\n", A + 3, A, pc);
+    membuff_add_string(&fn->body,  "}\n");
 }
 
 static void emit_op_forloop(struct function *fn, int A, int pc, int pc1) {
@@ -1867,11 +1902,21 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p, struct ravi_compile_opt
         int B = GETARG_B(i);
         emit_op_return(&fn, A, B, pc);
       } break;
+      case OP_RAVI_FORPREP_I: {
+        int sbx = GETARG_sBx(i);
+        int j = sbx + pc + 1;
+        emit_op_iforprep2(&fn, A, j, pc);
+      } break;
       case OP_RAVI_FORPREP_I1:
       case OP_RAVI_FORPREP_IP: {
         int sbx = GETARG_sBx(i);
         int j = sbx + pc + 1;
         emit_op_iforprep(&fn, A, j, op == OP_RAVI_FORPREP_I1, pc);
+      } break;
+      case OP_RAVI_FORLOOP_I: {
+        int sbx = GETARG_sBx(i);
+        int j = sbx + pc + 1;
+        emit_op_iforloop2(&fn, A, j, pc);
       } break;
       case OP_RAVI_FORLOOP_I1:
       case OP_RAVI_FORLOOP_IP: {

@@ -1685,6 +1685,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int j = sbx + pc + 1;
         emit_iFORPREP(def, A, j, op == OP_RAVI_FORPREP_I1, pc);
       } break;
+      case OP_RAVI_FORPREP_I:
       case OP_FORPREP: {
         int sbx = GETARG_sBx(i);
         int j = sbx + pc + 1;
@@ -1701,6 +1702,7 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         emit_iFORLOOP(def, A, j, def->jmp_targets[pc], op == OP_RAVI_FORLOOP_I1,
                       pc);
       } break;
+      case OP_RAVI_FORLOOP_I: 
       case OP_FORLOOP: {
         int sbx = GETARG_sBx(i);
         int j = sbx + pc + 1;
@@ -2075,8 +2077,10 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
       case OP_JMP:
       case OP_RAVI_FORPREP_IP:
       case OP_RAVI_FORPREP_I1:
+      case OP_RAVI_FORPREP_I:
       case OP_RAVI_FORLOOP_IP:
       case OP_RAVI_FORLOOP_I1:
+      case OP_RAVI_FORLOOP_I:
       case OP_FORLOOP:
       case OP_FORPREP:
       case OP_TFORLOOP: {
@@ -2085,10 +2089,10 @@ void RaviCodeGenerator::scan_jump_targets(RaviFunctionDef *def, Proto *p) {
         if (op == OP_JMP)
           targetname = "jmp";
         else if (op == OP_FORLOOP || op == OP_RAVI_FORLOOP_IP ||
-                 op == OP_RAVI_FORLOOP_I1)
+                 op == OP_RAVI_FORLOOP_I1 || op == OP_RAVI_FORLOOP_I)
           targetname = "forbody";
         else if (op == OP_FORPREP || op == OP_RAVI_FORPREP_IP ||
-                 op == OP_RAVI_FORPREP_I1)
+                 op == OP_RAVI_FORPREP_I1 || op == OP_RAVI_FORPREP_I)
 #if RAVI_CODEGEN_FORPREP2
           targetname = "forloop_ilt";
 #else

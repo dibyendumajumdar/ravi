@@ -2051,6 +2051,10 @@ static void forbody (LexState *ls, int base, int line, int nvars, int isnum, For
       forprep_inst = OP_RAVI_FORPREP_I1;
       forloop_inst = OP_RAVI_FORLOOP_I1;
     }
+    else if (info && info->type == RAVI_TNUMINT) {
+      forprep_inst = OP_RAVI_FORPREP_I;
+      forloop_inst = OP_RAVI_FORLOOP_I;
+    }
   }
   prep = isnum ? luaK_codeAsBx(fs, forprep_inst, base, NO_JUMP) : luaK_jump(fs);
   enterblock(fs, &bl, 0);  /* scope for declared variables */
@@ -2107,7 +2111,7 @@ static void fornum (LexState *ls, TString *varname, int line) {
   if (tidx.type == tlimit.type && tlimit.type == tstep.type && 
      (tidx.type == RAVI_TNUMFLT || tidx.type == RAVI_TNUMINT)) {
     LocVar *vidx, *vlimit, *vstep, *vvar;
-    if (tidx.type == RAVI_TNUMINT && tstep.is_constant)
+    if (tidx.type == RAVI_TNUMINT)
       info = &tstep;
     /* Note that as locvars may be reallocated while creating variables
        therefore we access the variables here */
