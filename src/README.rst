@@ -13,13 +13,7 @@ The following Lua sources have been enhanced for Ravi.
 * ltable.c - enhancements for Ravi array types
 * lapi.c - enhancements for Ravi array types
 
-The new Ravi Parser and Code Generator implementation is in:
-
-* ravi_ast_parse.c - contains the parser that builds AST
-* ravi_ast_print.c - contains utilities for printing out the AST
-* ravi_ast_typecheck.c - contains the type checking phase of the parser
-
-Ravi also uses Doug Lea's malloc implementation. The implementation is in:
+Ravi uses Doug Lea's malloc implementation. The implementation is in:
 
 * ravi_alloc.c - Doug Lea's malloc implementation, adapted for Ravi.
 
@@ -34,10 +28,6 @@ Some backends use C as the intermediate language. The common C code generator is
 The MIR JIT implementation is in:
 
 * ravi_mirjit.c - defines the driver functions. The MIR backend has its own C preprocessor, parser and code generator.
-
-The OMR JIT driver is in:
-
-* ravi_omrjit.c - defines the driver functions. The OMR JIT backend uses the dmrC project as the C preprocessor, parser and code generator.
 
 The LLVM JIT implementation is in following sources:
 
