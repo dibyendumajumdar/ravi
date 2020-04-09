@@ -68,15 +68,22 @@ UpVal *luaF_findupval (lua_State *L, StkId level) {
   lua_assert(isintwups(L) || L->openupval == NULL);
   while (*pp != NULL && (p = *pp)->v >= level) {
     lua_assert(upisopen(p));
+#ifdef RAVI_DEFER_STATEMENT
     if (p->v == level && !p->flags)  /* found a corresponding upvalue that is not a deferred value? */ {
       return p; /* return it */
     }
+#else
+    if (p->v == level)  /* found a corresponding upvalue? */
+      return p;  /* return it */
+#endif
     pp = &p->u.open.next;
   }
   /* not found: create a new upvalue */
   uv = luaM_new(L, UpVal);
   uv->refcount = 0;
+#ifdef RAVI_DEFER_STATEMENT
   uv->flags = 0;
+#endif
   uv->u.open.next = *pp;  /* link it to list of open upvalues */
   uv->u.open.touched = 1;
   *pp = uv;
@@ -88,6 +95,7 @@ UpVal *luaF_findupval (lua_State *L, StkId level) {
   return uv;
 }
 
+#ifdef RAVI_DEFER_STATEMENT
 static void calldeferred(lua_State *L, void *ud) {
   UNUSED(ud);
   luaD_callnoyield(L, L->top - 2, 0);
@@ -167,6 +175,22 @@ int luaF_close (lua_State *L, StkId level, int status) {
   }
   return status;
 }
+#else
+void luaF_close (lua_State *L, StkId level) {
+  UpVal *uv;
+  while (L->openupval != NULL && (uv = L->openupval)->v >= level) {
+    lua_assert(upisopen(uv));
+    L->openupval = uv->u.open.next;  /* remove from 'open' list */
+    if (uv->refcount == 0)  /* no references? */
+      luaM_free(L, uv);  /* free upvalue */
+    else {
+      setobj(L, &uv->u.value, uv->v);  /* move value to upvalue slot */
+      uv->v = &uv->u.value;  /* now current value lives here */
+      luaC_upvalbarrier(L, uv);
+    }
+  }
+}
+#endif
 
 
 Proto *luaF_newproto (lua_State *L) {

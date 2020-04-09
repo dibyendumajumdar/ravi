@@ -517,8 +517,12 @@ static const char Lua_header[] =
     "};\n"
     "struct UpVal {\n"
     "	TValue *v;\n"
+#ifdef RAVI_DEFER_STATEMENT
     "       unsigned int refcount;\n"
     "       unsigned int flags;\n"
+#else
+    "	lu_mem refcount;\n"
+#endif
     "	union {\n"
     "		struct {\n"
     "			UpVal *next;\n"
@@ -547,7 +551,11 @@ static const char Lua_header[] =
     "  (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))\n"
     "extern int luaV_tonumber_(const TValue *obj, lua_Number *n);\n"
     "extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);\n"
+#ifdef RAVI_DEFER_STATEMENT
     "extern int luaF_close (lua_State *L, StkId level, int status);\n"
+#else
+    "extern void luaF_close (lua_State *L, StkId level);\n"
+#endif
     "extern int luaD_poscall (lua_State *L, CallInfo *ci, StkId firstResult, int nres);\n"
     "extern int luaV_equalobj(lua_State *L, const TValue *t1, const TValue *t2);\n"
     "extern int luaV_lessthan(lua_State *L, const TValue *l, const TValue *r);\n"
@@ -583,7 +591,9 @@ static const char Lua_header[] =
     "extern void raviV_settable_sskey(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
     "extern void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
     "extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
+#ifdef RAVI_DEFER_STATEMENT
     "extern void raviV_op_defer(lua_State *L, TValue *ra);\n"
+#endif
     "extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);\n"
     "extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);\n"
     "extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);\n"
@@ -967,6 +977,25 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j, int
         membuff_add_fstring(&fn->body, "result = (fltvalue(rb) %s fltvalue(rc));\n", oper);
       }
       break;
+    case OP_LT:
+      oper = "<";
+      goto Lemit;
+    case OP_LE:
+      oper = "<=";
+    Lemit:
+      emit_reg_or_k(fn, "rb", B);
+      emit_reg_or_k(fn, "rc", C);
+      membuff_add_string(&fn->body, "if (ttisinteger(rb) && ttisinteger(rc))\n");
+      membuff_add_fstring(&fn->body, "  result = (ivalue(rb) %s ivalue(rc));\n", oper);
+      membuff_add_string(&fn->body, "else {\n");
+      emit_update_savedpc(fn, pc);
+      membuff_add_fstring(&fn->body, "  result = %s(L, rb, rc);\n", compfunc);
+      // Reload pointer to base as the call to luaV_equalobj() may
+      // have invoked a Lua function and as a result the stack may have
+      // been reallocated - so the previous base pointer could be stale
+      membuff_add_string(&fn->body, "  base = ci->u.l.base;\n");
+      membuff_add_string(&fn->body, "}\n");
+      break;
     default:
       emit_reg_or_k(fn, "rb", B);
       emit_reg_or_k(fn, "rc", C);
@@ -981,8 +1010,12 @@ static void emit_comparison(struct function *fn, int A, int B, int C, int j, int
   membuff_add_fstring(&fn->body, "if (result == %d) {\n", A);
   if (jA > 0) {
     membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
+#ifdef RAVI_DEFER_STATEMENT
     membuff_add_string(&fn->body, " luaF_close(L, ra, LUA_OK);\n");
     membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
+#else
+    membuff_add_string(&fn->body, " luaF_close(L, ra);\n");
+#endif
   }
   membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, "}\n");
@@ -1021,9 +1054,13 @@ static void emit_op_loadk(struct function *fn, int A, int Bx, int pc) {
 static void emit_op_return(struct function *fn, int A, int B, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
+#ifdef RAVI_DEFER_STATEMENT
   membuff_add_string(&fn->body, "if (cl->p->sizep > 0) {\n luaF_close(L, base, LUA_OK);\n");
   membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
   membuff_add_string(&fn->body, "}\n");
+#else
+  membuff_add_string(&fn->body, "if (cl->p->sizep > 0) luaF_close(L, base);\n");
+#endif
   membuff_add_fstring(&fn->body, "result = (%d != 0 ? %d - 1 : cast_int(L->top - ra));\n", B, B);
   membuff_add_string(&fn->body, "return luaD_poscall(L, ci, ra, result);\n");
 }
@@ -1048,8 +1085,12 @@ static void emit_op_jmp(struct function *fn, int A, int sBx, int pc) {
   (void)pc;
   if (A > 0) {
     membuff_add_fstring(&fn->body, "ra = R(%d);\n", A - 1);
+#ifdef RAVI_DEFER_STATEMENT
     membuff_add_string(&fn->body, "luaF_close(L, ra, LUA_OK);\n");
     membuff_add_string(&fn->body, "base = ci->u.l.base;\n");
+#else
+    membuff_add_string(&fn->body, "luaF_close(L, ra);\n");
+#endif
   }
   membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", sBx);
 }
@@ -1077,8 +1118,12 @@ static void emit_op_test(struct function *fn, int A, int B, int C, int j, int jA
   membuff_add_fstring(&fn->body, "if (!result) {\n", A);
   if (jA > 0) {
     membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
+#ifdef RAVI_DEFER_STATEMENT
     membuff_add_string(&fn->body, " luaF_close(L, ra, LUA_OK);\n");
     membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
+#else
+    membuff_add_string(&fn->body, " luaF_close(L, ra);\n");
+#endif
   }
   membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, " }\n");
@@ -1098,8 +1143,12 @@ static void emit_op_testset(struct function *fn, int A, int B, int C, int j, int
   membuff_add_string(&fn->body, "  setobjs2s(L, ra, rb);");
   if (jA > 0) {
     membuff_add_fstring(&fn->body, " ra = R(%d);\n", jA - 1);
+#ifdef RAVI_DEFER_STATEMENT
     membuff_add_string(&fn->body, " luaF_close(L, ra, LUA_OK);\n");
     membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
+#else
+    membuff_add_string(&fn->body, " luaF_close(L, ra);\n");
+#endif
   }
   membuff_add_fstring(&fn->body, "  goto Lbc_%d;\n", j);
   membuff_add_string(&fn->body, " }\n");
@@ -1303,9 +1352,21 @@ static void emit_binary_op(struct function *fn, int A, int B, int C, OpCode op, 
 void emit_ff_op(struct function *fn, int A, int B, int C, int pc, const char *op) {
   (void)pc;
   emit_reg(fn, "ra", A);
-  emit_reg_or_k(fn, "rb", B);
-  emit_reg_or_k(fn, "rc", C);
-  membuff_add_fstring(&fn->body, "setfltvalue(ra, fltvalue(rb) %s fltvalue(rc));\n", op);
+  if (ISK(B)) {
+    TValue *Konst1 = &fn->p->k[INDEXK(B)];
+    emit_reg_or_k(fn, "rc", C);
+    membuff_add_fstring(&fn->body, "setfltvalue(ra, %.17g %s fltvalue(rc));\n", Konst1->value_.n, op);
+  }
+  else if (ISK(C)) {
+    TValue *Konst1 = &fn->p->k[INDEXK(C)];
+    emit_reg_or_k(fn, "rb", B);
+    membuff_add_fstring(&fn->body, "setfltvalue(ra, fltvalue(rb) %s %.17g);\n", op, Konst1->value_.n);
+  }
+  else {
+    emit_reg_or_k(fn, "rb", B);
+    emit_reg_or_k(fn, "rc", C);
+    membuff_add_fstring(&fn->body, "setfltvalue(ra, fltvalue(rb) %s fltvalue(rc));\n", op);
+  }
 }
 
 static void emit_fi_op(struct function *fn, int A, int B, int C, int pc, const char *op) {
@@ -1327,9 +1388,21 @@ static void emit_if_op(struct function *fn, int A, int B, int C, int pc, const c
 static void emit_ii_op(struct function *fn, int A, int B, int C, int pc, const char *op) {
   (void)pc;
   emit_reg(fn, "ra", A);
-  emit_reg_or_k(fn, "rb", B);
-  emit_reg_or_k(fn, "rc", C);
-  membuff_add_fstring(&fn->body, "setivalue(ra, ivalue(rb) %s ivalue(rc));\n", op);
+  if (ISK(B)) {
+    TValue *Konst1 = &fn->p->k[INDEXK(B)];
+    emit_reg_or_k(fn, "rc", C);
+    membuff_add_fstring(&fn->body, "setivalue(ra, %lld %s ivalue(rc));\n", Konst1->value_.i, op);
+  }
+  else if (ISK(C)) {
+    TValue *Konst1 = &fn->p->k[INDEXK(C)];
+    emit_reg_or_k(fn, "rb", B);
+    membuff_add_fstring(&fn->body, "setivalue(ra, ivalue(rb) %s %lld);\n", op, Konst1->value_.i);
+  }
+  else {
+    emit_reg_or_k(fn, "rb", B);
+    emit_reg_or_k(fn, "rc", C);
+    membuff_add_fstring(&fn->body, "setivalue(ra, ivalue(rb) %s ivalue(rc));\n", op);
+  }
 }
 
 static void emit_op_divii(struct function *fn, int A, int B, int C, int pc) {
@@ -1342,11 +1415,13 @@ static void emit_op_divii(struct function *fn, int A, int B, int C, int pc) {
                      "(lua_Number)(ivalue(rc)));\n");
 }
 
+#ifdef RAVI_DEFER_STATEMENT
 static void emit_op_defer(struct function *fn, int A, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
   membuff_add_string(&fn->body, "raviV_op_defer(L, ra);\n");
 }
+#endif
 
 static void emit_op_loadfz(struct function *fn, int A, int pc) {
   (void)pc;
@@ -2210,9 +2285,11 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p, struct ravi_compile_opt
         int B = GETARG_B(i);
         emit_op_len(&fn, A, B, pc);
       } break;
+#ifdef RAVI_DEFER_STATEMENT
       case OP_RAVI_DEFER: {
         emit_op_defer(&fn, A, pc);
       } break;
+#endif
       case OP_RAVI_SHR_II:
       case OP_RAVI_SHL_II:
       case OP_RAVI_BXOR_II:

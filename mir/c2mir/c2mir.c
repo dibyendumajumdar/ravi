@@ -25,11 +25,22 @@
 
 #include "c2mir.h"
 
-#ifdef __x86_64__
+#if defined(__x86_64__)
 #include "x86_64/cx86_64.h"
+#elif defined(__aarch64__)
+#include "aarch64/caarch64.h"
+#elif defined(__PPC64__)
+#include "ppc64/cppc64.h"
 #else
 #error "undefined or unsupported generation target for C"
 #endif
+
+#define SWAP(a1, a2, t) \
+  do {                  \
+    t = a1;             \
+    a1 = a2;            \
+    a2 = t;             \
+  } while (0)
 
 typedef enum {
   C_alloc_error,
@@ -300,8 +311,12 @@ static mir_size_t raw_type_size (c2m_ctx_t c2m_ctx, struct type *type) {
   return type->raw_size;
 }
 
-#ifdef __x86_64__
+#if defined(__x86_64__)
 #include "x86_64/cx86_64-code.c"
+#elif defined(__aarch64__)
+#include "aarch64/caarch64-code.c"
+#elif defined(__PPC64__)
+#include "ppc64/cppc64-code.c"
 #else
 #error "undefined or unsupported generation target for C"
 #endif
@@ -332,18 +347,18 @@ static int char_is_signed_p (void) { return MIR_CHAR_MAX == MIR_SCHAR_MAX; }
 
 enum str_flag { FLAG_EXT = 1, FLAG_C89, FLAG_EXT89 };
 
-static int str_eq (str_t str1, str_t str2) {
+static int str_eq (str_t str1, str_t str2, void *arg) {
   return str1.len == str2.len && memcmp (str1.s, str2.s, str1.len) == 0;
 }
-static htab_hash_t str_hash (str_t str) { return mir_hash (str.s, str.len, 0x42); }
-static int str_key_eq (str_t str1, str_t str2) { return str1.key == str2.key; }
-static htab_hash_t str_key_hash (str_t str) { return mir_hash64 (str.key, 0x24); }
+static htab_hash_t str_hash (str_t str, void *arg) { return mir_hash (str.s, str.len, 0x42); }
+static int str_key_eq (str_t str1, str_t str2, void *arg) { return str1.key == str2.key; }
+static htab_hash_t str_key_hash (str_t str, void *arg) { return mir_hash64 (str.key, 0x24); }
 
 static str_t uniq_cstr (c2m_ctx_t c2m_ctx, const char *str);
 
 static void str_init (c2m_ctx_t c2m_ctx) {
-  HTAB_CREATE (str_t, str_tab, 1000, str_hash, str_eq);
-  HTAB_CREATE (str_t, str_key_tab, 200, str_key_hash, str_key_eq);
+  HTAB_CREATE (str_t, str_tab, 1000, str_hash, str_eq, NULL);
+  HTAB_CREATE (str_t, str_key_tab, 200, str_key_hash, str_key_eq, NULL);
   empty_str = uniq_cstr (c2m_ctx, "");
 }
 
@@ -927,11 +942,7 @@ static char *reverse (VARR (char) * v) {
   int i, j, temp, last = (int) VARR_LENGTH (char, v) - 1;
 
   if (last >= 0 && addr[last] == '\0') last--;
-  for (i = last, j = 0; i > j; i--, j++) {
-    temp = addr[i];
-    addr[i] = addr[j];
-    addr[j] = temp;
-  }
+  for (i = last, j = 0; i > j; i--, j++) SWAP (addr[i], addr[j], temp);
   return addr;
 }
 
@@ -1804,11 +1815,11 @@ static void add_to_temp_string (c2m_ctx_t c2m_ctx, const char *str) {
   VARR_PUSH (char, temp_string, '\0');
 }
 
-static int macro_eq (macro_t macro1, macro_t macro2) {
+static int macro_eq (macro_t macro1, macro_t macro2, void *arg) {
   return macro1->id->repr == macro2->id->repr;
 }
 
-static htab_hash_t macro_hash (macro_t macro) {
+static htab_hash_t macro_hash (macro_t macro, void *arg) {
   return mir_hash (macro->id->repr, strlen (macro->id->repr), 0x42);
 }
 
@@ -1823,7 +1834,7 @@ static void init_macros (c2m_ctx_t c2m_ctx) {
   VARR (token_t) * params;
 
   VARR_CREATE (macro_t, macros, 2048);
-  HTAB_CREATE (macro_t, macro_tab, 2048, macro_hash, macro_eq);
+  HTAB_CREATE (macro_t, macro_tab, 2048, macro_hash, macro_eq, NULL);
   /* Standard macros : */
   new_std_macro (c2m_ctx, "__DATE__");
   new_std_macro (c2m_ctx, "__TIME__");
@@ -3529,17 +3540,19 @@ typedef struct {
 DEF_HTAB (tpname_t);
 static HTAB (tpname_t) * tpname_tab;
 
-static int tpname_eq (tpname_t tpname1, tpname_t tpname2) {
+static int tpname_eq (tpname_t tpname1, tpname_t tpname2, void *arg) {
   return tpname1.id->u.s.s == tpname2.id->u.s.s && tpname1.scope == tpname2.scope;
 }
 
-static htab_hash_t tpname_hash (tpname_t tpname) {
+static htab_hash_t tpname_hash (tpname_t tpname, void *arg) {
   return (mir_hash_finish (
     mir_hash_step (mir_hash_step (mir_hash_init (0x42), (uint64_t) tpname.id->u.s.s),
                    (uint64_t) tpname.scope)));
 }
 
-static void tpname_init (void) { HTAB_CREATE (tpname_t, tpname_tab, 1000, tpname_hash, tpname_eq); }
+static void tpname_init (void) {
+  HTAB_CREATE (tpname_t, tpname_tab, 1000, tpname_hash, tpname_eq, NULL);
+}
 
 static int tpname_find (node_t id, node_t scope, tpname_t *res) {
   int found_p;
@@ -5013,21 +5026,22 @@ struct check_ctx {
 
 static int supported_alignment_p (mir_llong align) { return TRUE; }  // ???
 
-static int symbol_eq (symbol_t s1, symbol_t s2) {
+static int symbol_eq (symbol_t s1, symbol_t s2, void *arg) {
   return s1.mode == s2.mode && s1.id->u.s.s == s2.id->u.s.s && s1.scope == s2.scope;
 }
 
-static htab_hash_t symbol_hash (symbol_t s) {
+static htab_hash_t symbol_hash (symbol_t s, void *arg) {
   return (mir_hash_finish (
     mir_hash_step (mir_hash_step (mir_hash_step (mir_hash_init (0x42), (uint64_t) s.mode),
                                   (uint64_t) s.id->u.s.s),
                    (uint64_t) s.scope)));
 }
 
-static void symbol_clear (symbol_t sym) { VARR_DESTROY (node_t, sym.defs); }
+static void symbol_clear (symbol_t sym, void *arg) { VARR_DESTROY (node_t, sym.defs); }
 
 static void symbol_init (c2m_ctx_t c2m_ctx) {
-  HTAB_CREATE_WITH_FREE_FUNC (symbol_t, symbol_tab, 5000, symbol_hash, symbol_eq, symbol_clear);
+  HTAB_CREATE_WITH_FREE_FUNC (symbol_t, symbol_tab, 5000, symbol_hash, symbol_eq, symbol_clear,
+                              NULL);
 }
 
 static int symbol_find (c2m_ctx_t c2m_ctx, enum symbol_mode mode, node_t id, node_t scope,
@@ -5182,13 +5196,6 @@ static struct type integer_promotion (const struct type *type) {
     res.u.basic_type = TP_INT;
   return res;
 }
-
-#define SWAP(a1, a2, t) \
-  do {                  \
-    t = a1;             \
-    a1 = a2;            \
-    a2 = t;             \
-  } while (0)
 
 static struct type arithmetic_conversion (const struct type *type1, const struct type *type2) {
   struct type res, t1, t2;
@@ -5884,10 +5891,8 @@ static node_t process_tag (c2m_ctx_t c2m_ctx, node_t r, node_t id, node_t decl_l
     error (c2m_ctx, id->pos, "tag %s redeclaration", id->u.s.s);
   } else {
     if (decl_list->code != N_IGNORE) { /* swap decl lists */
-      DLIST (node_t) temp = r->ops;
-
-      r->ops = sym.def_node->ops;
-      sym.def_node->ops = temp;
+      DLIST (node_t) temp;
+      SWAP (r->ops, sym.def_node->ops, temp);
     }
     r = sym.def_node;
   }
@@ -6302,9 +6307,13 @@ static void adjust_param_type (c2m_ctx_t c2m_ctx, struct type **type_ptr) {
 
   if (type->mode == TM_ARR) {  // ??? static, old type qual
     arr_type = type->u.arr_type;
-    type->mode = TM_PTR;
-    type->u.ptr_type = arr_type->el_type;
-    type->type_qual = arr_type->ind_type_qual;
+    par_type = create_type (c2m_ctx, NULL);
+    par_type->mode = TM_PTR;
+    par_type->pos_node = type->pos_node;
+    par_type->u.ptr_type = arr_type->el_type;
+    par_type->type_qual = arr_type->ind_type_qual;
+    par_type->arr_type = type;
+    *type_ptr = type = par_type;
     make_type_complete (c2m_ctx, type);
   } else if (type->mode == TM_FUNC) {
     par_type = create_type (c2m_ctx, NULL);
@@ -7486,7 +7495,7 @@ static struct expr *check_assign_op (c2m_ctx_t c2m_ctx, node_t r, node_t op1, no
   return e;
 }
 
-static unsigned case_hash (case_t el) {
+static unsigned case_hash (case_t el, void *arg) {
   node_t case_expr = NL_HEAD (el->case_node->ops);
   struct expr *expr;
 
@@ -7498,7 +7507,7 @@ static unsigned case_hash (case_t el) {
   return mir_hash (&expr->u.u_val, sizeof (expr->u.u_val), 0x42);
 }
 
-static int case_eq (case_t el1, case_t el2) {
+static int case_eq (case_t el1, case_t el2, void *arg) {
   node_t case_expr1 = NL_HEAD (el1->case_node->ops);
   node_t case_expr2 = NL_HEAD (el2->case_node->ops);
   struct expr *expr1, *expr2;
@@ -9050,7 +9059,7 @@ static void context_init (MIR_context_t ctx) {
   symbol_init (c2m_ctx);
   in_params_p = FALSE;
   curr_unnamed_anon_struct_union_member = NULL;
-  HTAB_CREATE (case_t, case_tab, 100, case_hash, case_eq);
+  HTAB_CREATE (case_t, case_tab, 100, case_hash, case_eq, NULL);
   VARR_CREATE (decl_t, func_decls_for_allocation, 1024);
 }
 
@@ -9162,14 +9171,18 @@ static op_t new_op (decl_t decl, MIR_op_t mir_op) {
   return res;
 }
 
-static htab_hash_t reg_var_hash (reg_var_t r) { return mir_hash (r.name, strlen (r.name), 0x42); }
-static int reg_var_eq (reg_var_t r1, reg_var_t r2) { return strcmp (r1.name, r2.name) == 0; }
+static htab_hash_t reg_var_hash (reg_var_t r, void *arg) {
+  return mir_hash (r.name, strlen (r.name), 0x42);
+}
+static int reg_var_eq (reg_var_t r1, reg_var_t r2, void *arg) {
+  return strcmp (r1.name, r2.name) == 0;
+}
 
 static void init_reg_vars (MIR_context_t ctx) {
   c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
 
   reg_free_mark = 0;
-  HTAB_CREATE (reg_var_t, reg_var_tab, 128, reg_var_hash, reg_var_eq);
+  HTAB_CREATE (reg_var_t, reg_var_tab, 128, reg_var_hash, reg_var_eq, NULL);
 }
 
 static void finish_curr_func_reg_vars (MIR_context_t ctx) {
@@ -9325,6 +9338,29 @@ static MIR_insn_code_t tp_mov (MIR_type_t t) {
 static void emit_insn (MIR_context_t ctx, MIR_insn_t insn) {
   c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
 
+  MIR_append_insn (ctx, curr_func, insn);
+}
+
+/* BCOND T, L1; JMP L2; L1: => BNCOND T, L2; L1:
+   JMP L; L: => L: */
+static void emit_label_insn_opt (MIR_context_t ctx, MIR_insn_t insn) {
+  c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
+  MIR_insn_code_t rev_code;
+  MIR_insn_t last, prev;
+
+  assert (insn->code == MIR_LABEL);
+  if ((last = DLIST_TAIL (MIR_insn_t, curr_func->u.func->insns)) != NULL
+      && (prev = DLIST_PREV (MIR_insn_t, last)) != NULL && last->code == MIR_JMP
+      && (rev_code = MIR_reverse_branch_code (prev->code)) != MIR_INSN_BOUND
+      && prev->ops[0].mode == MIR_OP_LABEL && prev->ops[0].u.label == insn) {
+    prev->ops[0] = last->ops[0];
+    prev->code = rev_code;
+    MIR_remove_insn (ctx, curr_func, last);
+  }
+  if ((last = DLIST_TAIL (MIR_insn_t, curr_func->u.func->insns)) != NULL && last->code == MIR_JMP
+      && last->ops[0].mode == MIR_OP_LABEL && last->ops[0].u.label == insn) {
+    MIR_remove_insn (ctx, curr_func, last);
+  }
   MIR_append_insn (ctx, curr_func, insn);
 }
 
@@ -9589,16 +9625,22 @@ static op_t mem_to_address (MIR_context_t ctx, op_t mem) {
 static op_t force_val (MIR_context_t ctx, op_t op, int arr_p) {
   op_t temp_op;
   int sh;
+  c2m_ctx_t c2m_ctx;
 
   if (arr_p && op.mir_op.mode == MIR_OP_MEM) {
     /* an array -- use a pointer: */
     return mem_to_address (ctx, op);
   }
   if (op.decl == NULL || op.decl->bit_offset < 0) return op;
+  c2m_ctx = *c2m_ctx_loc (ctx);
   assert (op.mir_op.mode == MIR_OP_MEM);
   temp_op = get_new_temp (ctx, MIR_T_I64);
   emit2 (ctx, MIR_MOV, temp_op.mir_op, op.mir_op);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   sh = 64 - op.decl->bit_offset - op.decl->width;
+#else
+  sh = op.decl->bit_offset + (64 - type_size (c2m_ctx, op.decl->decl_spec.type) * MIR_CHAR_BIT);
+#endif
   if (sh != 0) emit3 (ctx, MIR_LSH, temp_op.mir_op, temp_op.mir_op, MIR_new_int_op (ctx, sh));
   emit3 (ctx,
          signed_integer_type_p (op.decl->decl_spec.type)
@@ -9820,7 +9862,7 @@ static void emit_label (MIR_context_t ctx, node_t r) {
   assert (labels->code == N_LIST);
   if (NL_HEAD (labels->ops) == NULL) return;
   if (labels->attr == NULL) labels->attr = MIR_new_label (ctx);
-  emit_insn (ctx, labels->attr);
+  emit_label_insn_opt (ctx, labels->attr);
 }
 
 static MIR_label_t get_label (MIR_context_t ctx, node_t target) {
@@ -9877,7 +9919,7 @@ static void block_move (MIR_context_t ctx, op_t var, op_t val, mir_size_t size) 
     emit2 (ctx, MIR_MOV, index.mir_op, MIR_new_int_op (ctx, size));
     val = modify_for_block_move (ctx, val, index);
     var = modify_for_block_move (ctx, var, index);
-    emit_insn (ctx, repeat_label);
+    emit_label_insn_opt (ctx, repeat_label);
     emit3 (ctx, MIR_SUB, index.mir_op, index.mir_op, one_op.mir_op);
     assert (var.mir_op.mode == MIR_OP_MEM && val.mir_op.mode == MIR_OP_MEM);
     val.mir_op.u.mem.type = var.mir_op.u.mem.type = MIR_T_I8;
@@ -10234,10 +10276,16 @@ static void emit_scalar_assign (MIR_context_t ctx, op_t var, op_t *val, MIR_type
     int width = var.decl->width;
     uint64_t mask, mask2;
     op_t temp_op1, temp_op2, temp_op3, temp_op4;
+    c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
+    size_t size = type_size (c2m_ctx, var.decl->decl_spec.type) * MIR_CHAR_BIT;
 
     assert (var.mir_op.mode == MIR_OP_MEM);
     mask = 0xffffffffffffffff >> (64 - width);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
     mask2 = ~(mask << var.decl->bit_offset);
+#else
+    mask2 = ~(mask << (size - var.decl->bit_offset - width));
+#endif
     temp_op1 = get_new_temp (ctx, MIR_T_I64);
     temp_op2 = get_new_temp (ctx, MIR_T_I64);
     temp_op3 = get_new_temp (ctx, MIR_T_I64);
@@ -10255,12 +10303,21 @@ static void emit_scalar_assign (MIR_context_t ctx, op_t var, op_t *val, MIR_type
     }
     emit3 (ctx, MIR_AND, temp_op3.mir_op, temp_op1.mir_op, MIR_new_uint_op (ctx, mask));
     temp_op4 = get_new_temp (ctx, MIR_T_I64);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
     if (var.decl->bit_offset == 0) {
       temp_op4 = temp_op3;
     } else {
       emit3 (ctx, MIR_LSH, temp_op4.mir_op, temp_op3.mir_op,
              MIR_new_int_op (ctx, var.decl->bit_offset));
     }
+#else
+    if (size - var.decl->bit_offset - width == 0) {
+      temp_op4 = temp_op3;
+    } else {
+      emit3 (ctx, MIR_LSH, temp_op4.mir_op, temp_op3.mir_op,
+             MIR_new_int_op (ctx, size - var.decl->bit_offset - width));
+    }
+#endif
     if (!ignore_others_p) {
       emit3 (ctx, MIR_OR, temp_op4.mir_op, temp_op4.mir_op, temp_op2.mir_op);
     }
@@ -10268,19 +10325,29 @@ static void emit_scalar_assign (MIR_context_t ctx, op_t var, op_t *val, MIR_type
   }
 }
 
-static void add_bit_field (uint64_t *u, uint64_t v, decl_t member_decl) {
+static void add_bit_field (MIR_context_t ctx, uint64_t *u, uint64_t v, decl_t member_decl) {
   uint64_t mask, mask2;
   int bit_offset = member_decl->bit_offset, width = member_decl->width;
+  c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
+  size_t size = type_size (c2m_ctx, member_decl->decl_spec.type) * MIR_CHAR_BIT;
 
   mask = 0xffffffffffffffff >> (64 - width);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   mask2 = ~(mask << bit_offset);
+#else
+  mask2 = ~(mask << (size - bit_offset - width));
+#endif
   *u &= mask2;
-  v &= mask;
   if (signed_integer_type_p (member_decl->decl_spec.type)) {
     v <<= (64 - width);
     v = (int64_t) v >> (64 - width);
   }
+  v &= mask;
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   v <<= bit_offset;
+#else
+  v <<= size - bit_offset - width;
+#endif
   *u |= v;
 }
 
@@ -10400,14 +10467,14 @@ static void gen_initializer (MIR_context_t ctx, size_t init_start, op_t var,
           uint64_t u = 0;
 
           assert (val.mir_op.mode == MIR_OP_INT || val.mir_op.mode == MIR_OP_UINT);
-          add_bit_field (&u, val.mir_op.u.u, init_el.member_decl);
+          add_bit_field (ctx, &u, val.mir_op.u.u, init_el.member_decl);
           for (; i + 1 < VARR_LENGTH (init_el_t, init_els); i++, init_el = next_init_el) {
             next_init_el = VARR_GET (init_el_t, init_els, i + 1);
             if (next_init_el.offset != init_el.offset) break;
             if (next_init_el.member_decl->bit_offset == init_el.member_decl->bit_offset) continue;
             val = gen (ctx, next_init_el.init, NULL, NULL, TRUE, NULL);
             assert (val.mir_op.mode == MIR_OP_INT || val.mir_op.mode == MIR_OP_UINT);
-            add_bit_field (&u, val.mir_op.u.u, next_init_el.member_decl);
+            add_bit_field (ctx, &u, val.mir_op.u.u, next_init_el.member_decl);
           }
           val.mir_op.u.u = u;
         }
@@ -10589,19 +10656,19 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
       assert (t_label != NULL && f_label != NULL);
       gen (ctx, NL_HEAD (r->ops), r->code == N_ANDAND ? temp_label : t_label,
            r->code == N_ANDAND ? f_label : temp_label, FALSE, NULL);
-      emit_insn (ctx, temp_label);
+      emit_label_insn_opt (ctx, temp_label);
       gen (ctx, NL_EL (r->ops, 1), t_label, f_label, FALSE, NULL);
       if (make_val_p) {
         MIR_label_t end_label = MIR_new_label (ctx);
 
         type = ((struct expr *) r->attr)->type;
         res = get_new_temp (ctx, get_mir_type (ctx, type));
-        emit_insn (ctx, t_label);
+        emit_label_insn_opt (ctx, t_label);
         emit2 (ctx, MIR_MOV, res.mir_op, one_op.mir_op);
         emit1 (ctx, MIR_JMP, MIR_new_label_op (ctx, end_label));
-        emit_insn (ctx, f_label);
+        emit_label_insn_opt (ctx, f_label);
         emit2 (ctx, MIR_MOV, res.mir_op, zero_op.mir_op);
-        emit_insn (ctx, end_label);
+        emit_label_insn_opt (ctx, end_label);
       }
       true_label = false_label = NULL;
     } else if (true_label != NULL) {
@@ -10633,12 +10700,12 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
 
       res = get_new_temp (ctx, MIR_T_I64);
       gen (ctx, NL_HEAD (r->ops), t_label, f_label, FALSE, NULL);
-      emit_insn (ctx, t_label);
+      emit_label_insn_opt (ctx, t_label);
       emit2 (ctx, MIR_MOV, res.mir_op, zero_op.mir_op);
       emit1 (ctx, MIR_JMP, MIR_new_label_op (ctx, end_label));
-      emit_insn (ctx, f_label);
+      emit_label_insn_opt (ctx, f_label);
       emit2 (ctx, MIR_MOV, res.mir_op, one_op.mir_op);
-      emit_insn (ctx, end_label);
+      emit_label_insn_opt (ctx, end_label);
     }
     break;
   case N_ADD:
@@ -10705,8 +10772,10 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     t = get_mir_type (ctx, type);
     var = gen (ctx, NL_HEAD (r->ops), NULL, NULL, FALSE, NULL);
     op1 = force_val (ctx, var, FALSE);
-    res = get_new_temp (ctx, t);
-    emit2 (ctx, tp_mov (t), res.mir_op, op1.mir_op);
+    if (val_p || true_label != NULL) {
+      res = get_new_temp (ctx, t);
+      emit2 (ctx, tp_mov (t), res.mir_op, op1.mir_op);
+    }
     val = promote (ctx, op1, t, TRUE);
     op2 = promote (ctx,
                    type->mode != TM_PTR
@@ -10756,7 +10825,7 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     t = get_op_type (ctx, var);
     op2
       = gen (ctx, NL_EL (r->ops, 1), NULL, NULL, t != MIR_T_UNDEF, t != MIR_T_UNDEF ? NULL : &var);
-    if (t == MIR_T_UNDEF) {
+    if ((!val_p && true_label == NULL) || t == MIR_T_UNDEF) {
       res = var;
       val = op2;
     } else {
@@ -10769,7 +10838,7 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
       assert (t != MIR_T_UNDEF);
       val = cast (ctx, val, get_mir_type (ctx, ((struct expr *) r->attr)->type), FALSE);
       emit_scalar_assign (ctx, var, &val, t, FALSE);
-      if (r->code != N_POST_INC && r->code != N_POST_DEC)
+      if ((val_p || true_label != NULL) && r->code != N_POST_INC && r->code != N_POST_DEC)
         emit2_noopt (ctx, tp_mov (t), res.mir_op, val.mir_op);
     } else { /* block move */
       mir_size_t size = type_size (c2m_ctx, ((struct expr *) r->attr)->type);
@@ -10929,7 +10998,7 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
 
     if (!void_p) t = get_mir_type (ctx, type);
     gen (ctx, cond, true_label, false_label, FALSE, NULL);
-    emit_insn (ctx, true_label);
+    emit_label_insn_opt (ctx, true_label);
     op1 = gen (ctx, true_expr, NULL, NULL, !void_p && t != MIR_T_UNDEF, NULL);
     if (!void_p) {
       if (t != MIR_T_UNDEF) {
@@ -10945,7 +11014,7 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
       }
     }
     emit1 (ctx, MIR_JMP, MIR_new_label_op (ctx, end_label));
-    emit_insn (ctx, false_label);
+    emit_label_insn_opt (ctx, false_label);
     op1 = gen (ctx, false_expr, NULL, NULL, !void_p && t != MIR_T_UNDEF, NULL);
     if (!void_p) {
       if (t != MIR_T_UNDEF) {
@@ -10958,7 +11027,7 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
         block_move (ctx, res, op1, size);
       }
     }
-    emit_insn (ctx, end_label);
+    emit_label_insn_opt (ctx, end_label);
     break;
   }
   case N_ALIGNOF:
@@ -11317,12 +11386,12 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     assert (false_label == NULL && true_label == NULL);
     emit_label (ctx, r);
     top_gen (ctx, expr, if_label, else_label);
-    emit_insn (ctx, if_label);
+    emit_label_insn_opt (ctx, if_label);
     gen (ctx, if_stmt, NULL, NULL, FALSE, NULL);
     emit1 (ctx, MIR_JMP, MIR_new_label_op (ctx, end_label));
-    emit_insn (ctx, else_label);
+    emit_label_insn_opt (ctx, else_label);
     gen (ctx, else_stmt, NULL, NULL, FALSE, NULL);
-    emit_insn (ctx, end_label);
+    emit_label_insn_opt (ctx, end_label);
     break;
   }
   case N_SWITCH: {
@@ -11421,14 +11490,14 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
             emit3 (ctx, short_p ? MIR_UBLES : MIR_UBLE, MIR_new_label_op (ctx, label),
                    case_reg_op.mir_op, MIR_new_int_op (ctx, e2->u.i_val));
           }
-          emit_insn (ctx, cont_label);
+          emit_label_insn_opt (ctx, cont_label);
         }
       }
       if (c == NULL) /* no default: */
         emit1 (ctx, MIR_JMP, MIR_new_label_op (ctx, break_label));
     }
     top_gen (ctx, stmt, NULL, NULL);
-    emit_insn (ctx, break_label);
+    emit_label_insn_opt (ctx, break_label);
     break_label = saved_break_label;
     break;
   }
@@ -11442,11 +11511,11 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     continue_label = MIR_new_label (ctx);
     break_label = MIR_new_label (ctx);
     emit_label (ctx, r);
-    emit_insn (ctx, start_label);
+    emit_label_insn_opt (ctx, start_label);
     gen (ctx, stmt, NULL, NULL, FALSE, NULL);
-    emit_insn (ctx, continue_label);
+    emit_label_insn_opt (ctx, continue_label);
     top_gen (ctx, expr, start_label, break_label);
-    emit_insn (ctx, break_label);
+    emit_label_insn_opt (ctx, break_label);
     continue_label = saved_continue_label;
     break_label = saved_break_label;
     break;
@@ -11461,12 +11530,12 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     continue_label = MIR_new_label (ctx);
     break_label = MIR_new_label (ctx);
     emit_label (ctx, r);
-    emit_insn (ctx, continue_label);
+    emit_label_insn_opt (ctx, continue_label);
     top_gen (ctx, expr, stmt_label, break_label);
-    emit_insn (ctx, stmt_label);
+    emit_label_insn_opt (ctx, stmt_label);
     gen (ctx, stmt, NULL, NULL, FALSE, NULL);
-    emit1 (ctx, MIR_JMP, MIR_new_label_op (ctx, continue_label));
-    emit_insn (ctx, break_label);
+    top_gen (ctx, expr, stmt_label, break_label);
+    emit_label_insn_opt (ctx, break_label);
     continue_label = saved_continue_label;
     break_label = saved_break_label;
     break;
@@ -11476,7 +11545,7 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     node_t cond = NL_NEXT (init);
     node_t iter = NL_NEXT (cond);
     node_t stmt = NL_NEXT (iter);
-    MIR_label_t start_label = MIR_new_label (ctx), stmt_label = MIR_new_label (ctx);
+    MIR_label_t stmt_label = MIR_new_label (ctx);
     MIR_label_t saved_continue_label = continue_label, saved_break_label = break_label;
 
     assert (false_label == NULL && true_label == NULL);
@@ -11484,15 +11553,18 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     break_label = MIR_new_label (ctx);
     emit_label (ctx, r);
     top_gen (ctx, init, NULL, NULL);
-    emit_insn (ctx, start_label);
     if (cond->code != N_IGNORE) /* non-empty condition: */
       top_gen (ctx, cond, stmt_label, break_label);
-    emit_insn (ctx, stmt_label);
+    emit_label_insn_opt (ctx, stmt_label);
     gen (ctx, stmt, NULL, NULL, FALSE, NULL);
-    emit_insn (ctx, continue_label);
+    emit_label_insn_opt (ctx, continue_label);
     top_gen (ctx, iter, NULL, NULL);
-    emit1 (ctx, MIR_JMP, MIR_new_label_op (ctx, start_label));
-    emit_insn (ctx, break_label);
+    if (cond->code == N_IGNORE) { /* empty condition: */
+      emit1 (ctx, MIR_JMP, MIR_new_label_op (ctx, stmt_label));
+    } else {
+      top_gen (ctx, cond, stmt_label, break_label);
+    }
+    emit_label_insn_opt (ctx, break_label);
     continue_label = saved_continue_label;
     break_label = saved_break_label;
     break;
@@ -11579,7 +11651,7 @@ finish:
 DEF_HTAB (MIR_item_t);
 static HTAB (MIR_item_t) * proto_tab;
 
-static htab_hash_t proto_hash (MIR_item_t pi) {
+static htab_hash_t proto_hash (MIR_item_t pi, void *arg) {
   MIR_proto_t p = pi->u.proto;
   MIR_var_t *args = VARR_ADDR (MIR_var_t, p->args);
   uint64_t h = mir_hash_init (42);
@@ -11594,7 +11666,7 @@ static htab_hash_t proto_hash (MIR_item_t pi) {
   return mir_hash_finish (h);
 }
 
-static int proto_eq (MIR_item_t pi1, MIR_item_t pi2) {
+static int proto_eq (MIR_item_t pi1, MIR_item_t pi2, void *arg) {
   MIR_proto_t p1 = pi1->u.proto, p2 = pi2->u.proto;
 
   if (p1->nres != p2->nres || p1->vararg_p != p2->vararg_p
@@ -11639,7 +11711,7 @@ static void gen_mir_protos (MIR_context_t ctx) {
   MIR_type_t ret_type;
 
   curr_mir_proto_num = 0;
-  HTAB_CREATE (MIR_item_t, proto_tab, 512, proto_hash, proto_eq);
+  HTAB_CREATE (MIR_item_t, proto_tab, 512, proto_hash, proto_eq, NULL);
   for (size_t i = 0; i < VARR_LENGTH (node_t, call_nodes); i++) {
     call = VARR_GET (node_t, call_nodes, i);
     assert (call->code == N_CALL);
@@ -12105,6 +12177,8 @@ static void init_include_dirs (MIR_context_t ctx) {
 #endif
 #if defined(__linux__) && defined(__x86_64__)
   VARR_PUSH (char_ptr_t, system_headers, "/usr/include/x86_64-linux-gnu");
+#elif defined(__linux__) && defined(__aarch64__)
+  VARR_PUSH (char_ptr_t, system_headers, "/usr/include/aarch64-linux-gnu");
 #endif
 #if defined(__APPLE__) || defined(__unix__)
   VARR_PUSH (char_ptr_t, system_headers, "/usr/include");

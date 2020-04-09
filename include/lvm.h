@@ -161,7 +161,9 @@ LUAI_FUNC void raviV_gettable_i(lua_State *L, const TValue *t, TValue *key, StkI
 LUAI_FUNC void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, StkId val);
 LUAI_FUNC void raviV_op_totype(lua_State *L, TValue *ra, TValue *rb);
 LUAI_FUNC int raviV_check_usertype(lua_State *L, TString *name, const TValue *o);
+#ifdef RAVI_DEFER_STATEMENT
 LUAI_FUNC void raviV_op_defer(lua_State *L, TValue *ra);
+#endif
 LUAI_FUNC void raviV_debug_trace(lua_State *L, int opCode, int pc);
 
 #endif

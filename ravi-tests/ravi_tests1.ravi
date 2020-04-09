@@ -1736,6 +1736,8 @@ compile(x)
 assert(x(2,3) == 2^3)
 print 'Test 77 OK'
 
+--
+
 -- Test defer statement
 y = 0
 function x()
@@ -1835,6 +1837,8 @@ pcall(x, false)
 assert(z.count == 0)
 assert(y == 1)
 print 'Test 82 OK'
+
+--
 
 for k,v in pairs(opcodes_coverage)
 do

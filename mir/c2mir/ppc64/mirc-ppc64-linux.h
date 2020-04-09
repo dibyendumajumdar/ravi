@@ -1,15 +1,14 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2019-2020 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2020 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
-static char x86_64_mirc[]
-  = "#define __amd64 1\n"
-    "#define __amd64__ 1\n"
+static char ppc64_mirc[]
+  = "#define __PPC64__ 1\n"
+    "#define _ARCH_PPC64 1\n"
     "#define _LP64 1\n"
     "#define __LP64__ 1\n"
-    "#define __x86_64 1\n"
-    "#define __x86_64__ 1\n"
     "\n"
+    "#define __LONG_DOUBLE_128__ 1\n" // ???
     "#define __SIZEOF_DOUBLE__ 8\n"
     "#define __SIZEOF_FLOAT__ 4\n"
     "#define __SIZEOF_INT__ 4\n"
@@ -21,9 +20,10 @@ static char x86_64_mirc[]
     "#define __SIZEOF_SHORT__ 2\n"
     "#define __SIZEOF_SIZE_T__ 8\n"
     "\n"
-    "#define __BYTE_ORDER__ 1234\n"
+    "#define _BIG_ENDIAN 1\n" // ??? Implement LE too
     "#define __ORDER_LITTLE_ENDIAN__ 1234\n"
     "#define __ORDER_BIG_ENDIAN__ 4321\n"
+    "#define __BYTE_ORDER__ __ORDER_BIG_ENDIAN__\n"
     "\n"
     "/* Some GCC predefined macros: */\n"
     "#define __SIZE_TYPE__ unsigned long\n"
@@ -90,16 +90,6 @@ static char x86_64_mirc[]
     "#define linux 1\n"
     "#define __unix 1\n"
     "#define __unix__ 1\n"
-#elif defined(__APPLE__)
-    "#define __APPLE__ 1\n"
-    "typedef struct {\n"
-    "  unsigned int gp_offset;\n"
-    "  unsigned int fp_offset;\n"
-    "  void *overflow_arg_area;\n"
-    "  void *reg_save_area;\n"
-    "} __darwin_va_list[1];\n"
-#else
-#error Uknown OS
 #endif
     "\n"
     "void *alloca (unsigned long);\n";

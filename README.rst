@@ -5,7 +5,7 @@ Ravi Programming Language
     :target: https://travis-ci.org/dibyendumajumdar/ravi
 
 Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and 
-features `LLVM <http://www.llvm.org/>`_ and `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ 
+features `MIR <https://github.com/vnmakarov/mir>`_, `LLVM <http://www.llvm.org/>`_ and `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ 
 powered JIT compilers. The name Ravi comes from the Sanskrit word for the Sun. 
 Interestingly a precursor to Lua was `Sol <http://www.lua.org/history.html>`_ which had support for 
 static types; Sol means the Sun in Portugese.
@@ -33,10 +33,9 @@ Features
 * Optional static typing - for details `see the reference manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
+* New! JIT backend `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported for now.
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
 * `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ powered JIT compiler
-* New (wip) small JIT backend based on `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported.
-* Built-in C pre-processor, parser and JIT compiler
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 
 Documentation
@@ -102,7 +101,7 @@ History
        - New JIT backend `MIR <https://github.com/vnmakarov/mir>`_. 
 
 * 2020 (Plan)
-       - New optimizing byte code generator based on new parser / type checker
+       - `New optimizing byte code generator based on new parser / type checker <https://github.com/dibyendumajumdar/ravi-compiler>`_
        - Ravi 1.0 release
 
 License

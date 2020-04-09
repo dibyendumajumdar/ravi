@@ -40,7 +40,11 @@
 static const char *const luaX_tokens [] = {
     "and", "break", "do", "else", "elseif",
     "end", "false", "for", "function", "goto", "if",
+#ifdef RAVI_DEFER_STATEMENT
     "in", "local", "defer", "nil", "not", "or", "repeat",
+#else
+    "in", "local", "nil", "not", "or", "repeat",
+#endif
     "return", "then", "true", "until", "while",
     "//", "..", "...", "==", ">=", "<=", "~=",
     "<<", ">>", "::", "<eof>",

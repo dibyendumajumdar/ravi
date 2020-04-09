@@ -1204,10 +1204,11 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_totypeF = def->raviF->addExternFunction(
       def->types->raviV_op_totypeT, reinterpret_cast<void *>(&raviV_op_totype),
       "raviV_op_totype");
+#ifdef RAVI_DEFER_STATEMENT
   def->raviV_op_deferF = def->raviF->addExternFunction(
 	  def->types->raviV_op_deferT, reinterpret_cast<void *>(&raviV_op_defer), 
 	  "raviV_op_defer");
-
+#endif
 #if 0
   // DEBUG routines
   def->ravi_dump_valueF = def->raviF->addExternFunction(
@@ -1337,7 +1338,11 @@ llvm::Value *RaviCodeGenerator::emit_gep_upval_v(RaviFunctionDef *def,
 // Get &upval->value -> result is TValue *
 llvm::Value *RaviCodeGenerator::emit_gep_upval_value(
     RaviFunctionDef *def, llvm::Instruction *pupval) {
+#ifdef RAVI_DEFER_STATEMENT
   return emit_gep(def, "value", pupval, 0, 3);
+#else
+  return emit_gep(def, "value", pupval, 0, 2);
+#endif
 }
 
 // Alternative code generator uses dmrC based C front-end
@@ -2022,9 +2027,11 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int B = GETARG_B(i);
         emit_UNM(def, A, B, pc);
       } break;
+#ifdef RAVI_DEFER_STATEMENT
       case OP_RAVI_DEFER: {
         emit_DEFER(def, A, pc);
       } break;
+#endif
       default: {
         fprintf(stderr, "Unexpected bytecode %d\n", op);
         abort();
