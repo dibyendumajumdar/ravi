@@ -59,7 +59,6 @@ static const luaL_Reg loadedlibs[] = {
   {LUA_BITLIBNAME, luaopen_bit32},
 #endif
   {LUAJIT_BITLIBNAME, luaopen_bit },
-  {LUA_ASTLIBNAME, raviopen_ast_library},
   {NULL, NULL}
 };
 

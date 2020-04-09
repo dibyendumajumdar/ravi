@@ -17,7 +17,6 @@ Contents:
    ravi-omr-instructions
    ravi-llvm-instructions
    ravi-dmrc
-   ravi-new-parser-codegenerator
    lua-introduction
    lua_bytecode_reference
    lua-parser

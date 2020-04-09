@@ -52,13 +52,11 @@ endif ()
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
 # define the Lua core source files
-set(RAVI_AST_SOURCES src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c)
 set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
         src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
         src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
         src/lvm.c src/lzio.c src/ravi_jit.c src/ltests.c src/ravi_profile.c
-        src/ravi_membuf.c src/ravi_jitshared.c src/bit.c src/ravi_alloc.c
-        ${RAVI_AST_SOURCES})
+        src/ravi_membuf.c src/ravi_jitshared.c src/bit.c src/ravi_alloc.c)
 # define the Lua library source files
 set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
         src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
@@ -149,7 +147,7 @@ if (LLVM_JIT)
     set_property(SOURCE ${DMR_C_JIT_SRCS} src/ravi_llvmcodegen.cpp ${RAVI_C_SYMBOL_PARSER}
             APPEND
             PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
-    set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS} ${RAVI_AST_SOURCES}
+    set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS}
             APPEND
             PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
     set_property(
@@ -177,7 +175,7 @@ elseif (OMR_JIT)
     set_property(SOURCE ${DMR_C_JIT_SRCS} ${RAVI_C_SYMBOL_PARSER} ${OMR_JIT_SRCS}
             APPEND
             PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
-    set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS} ${RAVI_AST_SOURCES}
+    set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS}
             APPEND
             PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
     set_property(SOURCE ${DMR_C_JIT_SRCS} ${OMR_JIT_SRCS} ${RAVI_C_SYMBOL_PARSER}
@@ -190,7 +188,7 @@ else ()
     set(DMR_C_SRCS ${DMR_C_SRCS_COMMON})
     set(EMBEDDED_DMRC OFF)
 
-    set_property(SOURCE ${DMR_C_SRCS_COMMON} ${RAVI_AST_SOURCES}
+    set_property(SOURCE ${DMR_C_SRCS_COMMON}
             APPEND
             PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
 

@@ -96,7 +96,6 @@ History
        - Implemented Eclipse OMR JIT backend
        - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * 2019 
-       - `New parser, type checker for Ravi <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-new-parser-codegenerator.html>`_ - work in progress
        - New language feature - `defer` statement
        - New JIT backend `MIR <https://github.com/vnmakarov/mir>`_. 
 
