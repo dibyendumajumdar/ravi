@@ -7,7 +7,7 @@
 PLAT= none
 
 #CC= gcc -std=gnu99
-CFLAGS= -O2 -Wall -DNDEBUG -fomit-frame-pointer -DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1 $(SYSCFLAGS) $(MYCFLAGS) -I../include
+CFLAGS= -O2 -Wall -DNDEBUG -fomit-frame-pointer $(SYSCFLAGS) $(MYCFLAGS) -I../include
 CXXFLAGS=$(CFLAGS) -fno-rtti -Wno-sign-compare -std=c++14 -fno-exceptions -I../include
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS= -lm $(SYSLIBS) $(MYLIBS)
@@ -31,11 +31,10 @@ MYOBJS=
 PLATS= aix bsd c89 freebsd generic linux macosx mingw posix solaris
 
 LUA_A=	libravinojit.a
-CORE_CPP_O=ravijit.o
 CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
 	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o ltests.o \
 	ltm.o lundump.o lvm.o lzio.o ravi_profile.o ravi_membuf.o \
-	ravi_jitshared.o ravi_nojit.o ravi_alloc.o $(CORE_CPP_O)
+	ravi_jitshared.o ravi_nojit.o ravi_alloc.o ravi_jit.o $(CORE_CPP_O)
 LIB_O=	lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o \
 	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o \
 	bit.o
@@ -360,7 +359,7 @@ ravi_profile.o: ravi_profile.c ../include/ravi_profile.h ../include/lua.h \
  ../include/luaconf.h ../include/lopcodes.h ../include/llimits.h \
  ../include/ravi_arch.h ../include/lstate.h ../include/lobject.h \
  ../include/ltm.h ../include/lzio.h ../include/lmem.h
-ravijit.o: ravi_jit.c ../include/ravi_jit.h ../include/ravi_jitshared.h \
+ravi_jit.o: ravi_jit.c ../include/ravi_jit.h ../include/ravi_jitshared.h \
  ../include/lprefix.h ../include/lauxlib.h ../include/lua.h \
  ../include/luaconf.h ../include/ldebug.h ../include/lstate.h \
  ../include/lobject.h ../include/llimits.h ../include/ltm.h \
