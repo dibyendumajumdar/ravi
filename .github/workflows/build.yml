@@ -41,6 +41,5 @@ jobs:
       run: cmake --build . --config $BUILD_TYPE
 
     - name: Test
-      working-directory: ${{runner.workspace}}/lua-tests
       shell: bash
-      run: sh run_tests.sh ${{runner.workspace}}/build/ravi
+      run: cd lua-tests && sh run_tests.sh ${{runner.workspace}}/build/ravi
