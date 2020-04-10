@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.12)
 project(Ravi VERSION 1.0.4 LANGUAGES C CXX)
 
-# Get access to CMake helpers
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+# By default on platforms where MIR is supported (right now Linux X86_64)
+# MIR JIt backend is automatically enabled. To disable user must specify
+# NO_JIT=ON
+# LLVM has to be explicitly specified using LLVM_JIT=ON
 
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(NO_JIT "Controls whether JIT should be disabled, default is OFF" OFF)
