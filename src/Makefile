@@ -69,7 +69,6 @@ clean:
 
 depend:
 	@$(CC) $(CFLAGS) -MM *.c
-	@$(CC) $(CXXFLAGS) -MM ravijit.cpp
 
 echo:
 	@echo "PLAT= $(PLAT)"
@@ -184,7 +183,7 @@ ldo.o: ldo.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/lobject.h ../include/lopcodes.h ../include/lparser.h \
  ../include/lstate.h ../include/lstring.h ../include/lgc.h \
  ../include/ltable.h ../include/ltm.h ../include/lundump.h \
- ../include/lvm.h ../include/ldo.h ../include/lzio.h ../include/ravijit.h \
+ ../include/lvm.h ../include/ldo.h ../include/lzio.h ../include/ravi_jit.h \
  ../include/ravi_jitshared.h ../include/lprefix.h ../include/lauxlib.h \
  ../include/ldebug.h ../include/lfunc.h ../include/lstring.h \
  ../include/ltable.h ../include/lvm.h ../include/ravi_membuf.h
@@ -198,7 +197,7 @@ lfunc.o: lfunc.c ../include/lprefix.h ../include/lua.h \
  ../include/llimits.h ../include/lua.h ../include/lgc.h \
  ../include/lstate.h ../include/ltm.h ../include/lzio.h ../include/lmem.h \
  ../include/lopcodes.h ../include/ravi_arch.h ../include/lmem.h \
- ../include/lobject.h ../include/lstate.h ../include/ravijit.h
+ ../include/lobject.h ../include/lstate.h ../include/ravi_jit.h
 lgc.o: lgc.c ../include/lprefix.h ../include/lua.h ../include/luaconf.h \
  ../include/ldebug.h ../include/lstate.h ../include/lua.h \
  ../include/lobject.h ../include/llimits.h ../include/ltm.h \
@@ -267,7 +266,7 @@ lstate.o: lstate.c ../include/lprefix.h ../include/lua.h \
  ../include/ldo.h ../include/lfunc.h ../include/lgc.h ../include/llex.h \
  ../include/lmem.h ../include/lstate.h ../include/lstring.h \
  ../include/lgc.h ../include/ltable.h ../include/ltm.h \
- ../include/ravijit.h ../include/ravi_profile.h ../include/ravi_alloc.h
+ ../include/ravi_jit.h ../include/ravi_profile.h ../include/ravi_alloc.h
 lstring.o: lstring.c ../include/lprefix.h ../include/lua.h \
  ../include/luaconf.h ../include/ldebug.h ../include/lstate.h \
  ../include/lua.h ../include/lobject.h ../include/llimits.h \
@@ -349,7 +348,7 @@ ravi_jitshared.o: ravi_jitshared.c ../include/ravi_jitshared.h \
  ../include/lstring.h ../include/lgc.h ../include/ltable.h \
  ../include/lvm.h ../include/ravi_membuf.h
 ravi_membuf.o: ravi_membuf.c ../include/ravi_membuf.h
-ravi_nojit.o: ravi_nojit.c ../include/ravijit.h \
+ravi_nojit.o: ravi_nojit.c ../include/ravi_jit.h \
  ../include/ravi_jitshared.h ../include/lprefix.h ../include/lauxlib.h \
  ../include/lua.h ../include/luaconf.h ../include/ldebug.h \
  ../include/lstate.h ../include/lobject.h ../include/llimits.h \
@@ -361,7 +360,7 @@ ravi_profile.o: ravi_profile.c ../include/ravi_profile.h ../include/lua.h \
  ../include/luaconf.h ../include/lopcodes.h ../include/llimits.h \
  ../include/ravi_arch.h ../include/lstate.h ../include/lobject.h \
  ../include/ltm.h ../include/lzio.h ../include/lmem.h
-ravijit.o: ravijit.cpp ../include/ravijit.h ../include/ravi_jitshared.h \
+ravijit.o: ravi_jit.c ../include/ravi_jit.h ../include/ravi_jitshared.h \
  ../include/lprefix.h ../include/lauxlib.h ../include/lua.h \
  ../include/luaconf.h ../include/ldebug.h ../include/lstate.h \
  ../include/lobject.h ../include/llimits.h ../include/ltm.h \
