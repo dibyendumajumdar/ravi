@@ -5,8 +5,8 @@ Ravi Programming Language
     :target: https://travis-ci.org/dibyendumajumdar/ravi
 
 Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and 
-features `MIR <https://github.com/vnmakarov/mir>`_, `LLVM <http://www.llvm.org/>`_ and `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ 
-powered JIT compilers. The name Ravi comes from the Sanskrit word for the Sun. 
+features `MIR <https://github.com/vnmakarov/mir>`_ and `LLVM <http://www.llvm.org/>`_ powered JIT compilers. 
+The name Ravi comes from the Sanskrit word for the Sun. 
 Interestingly a precursor to Lua was `Sol <http://www.lua.org/history.html>`_ which had support for 
 static types; Sol means the Sun in Portugese.
 
@@ -35,14 +35,12 @@ Features
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * New! JIT backend `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported for now.
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
-* `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ powered JIT compiler
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 
 Documentation
 =============
 * For the Lua extensions in Ravi see the `Reference Manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
 * `MIR JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-mir-instructions.html>`_.
-* `OMR JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-omr-instructions.html>`_.
 * `LLVM JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-llvm-instructions.html>`_.
 * Also see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
 * and the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
@@ -90,13 +88,12 @@ History
 * 2016
        - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_
 * 2017
-       - Embedded C compiler using dmrC project (C JIT compiler)
+       - Embedded C compiler using dmrC project (C JIT compiler) (now discontinued)
        - Additional type-annotations
 * 2018
-       - Implemented Eclipse OMR JIT backend
+       - Implemented Eclipse OMR JIT backend (now discontinued)
        - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * 2019 
-       - `New parser, type checker for Ravi <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-new-parser-codegenerator.html>`_ - work in progress
        - New language feature - `defer` statement
        - New JIT backend `MIR <https://github.com/vnmakarov/mir>`_. 
 

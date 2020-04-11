@@ -488,8 +488,6 @@ class RaviJITState {
   // May slow down compilation
   unsigned int validation_ : 1;
 
-  unsigned int use_dmrc_ : 1;
-
   // min code size for compilation
   int min_code_size_;
 
@@ -589,7 +587,6 @@ class RaviJITState {
     else
       compiling_--;
   }
-  int is_use_dmrc() const { return use_dmrc_; }
 };
 
 // A wrapper for LLVM Module
@@ -890,12 +887,6 @@ struct RaviFunctionDef {
 class RaviCodeGenerator {
  public:
   RaviCodeGenerator(RaviJITState *jitState);
-
-  // Compile given function if possible
-  // The p->ravi_jit structure will be updated
-  // Note that if a function fails to compile then
-  // a flag is set so that it doesn't get compiled again
-  bool alt_compile(lua_State *L, Proto *p, std::shared_ptr<RaviJITModule> module, ravi_compile_options_t *options);
 
   // Compile given function if possible
   // The p->ravi_jit structure will be updated
