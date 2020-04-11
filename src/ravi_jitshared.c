@@ -1680,6 +1680,7 @@ static void emit_op_iforprep(struct function *fn, int A, int pc, int step_one, i
     membuff_add_fstring(&fn->prologue, "lua_Number nlimit_%d = 0.0;\n", A);
     membuff_add_fstring(&fn->prologue, "lua_Number nstep_%d = 0.0;\n", A);
     membuff_add_fstring(&fn->prologue, "int intloop_%d = 0;\n", A);
+    membuff_add_fstring(&fn->prologue, "int is_positive_step_%d = 0;\n", A);
   }
   emit_reg(fn, "ra", A);
   membuff_add_fstring(&fn->body, "i_%d = ivalue(ra);\n", A);
@@ -1710,6 +1711,7 @@ static void emit_op_iforprep2(struct function* fn, int A, int pc, int pc1) {
         membuff_add_fstring(&fn->prologue, "lua_Number nlimit_%d = 0.0;\n", A);
         membuff_add_fstring(&fn->prologue, "lua_Number nstep_%d = 0.0;\n", A);
         membuff_add_fstring(&fn->prologue, "int intloop_%d = 0;\n", A);
+        membuff_add_fstring(&fn->prologue, "int is_positive_step_%d = 0;\n", A);
     }
     emit_reg(fn, "ra", A);
     membuff_add_fstring(&fn->body, "i_%d = ivalue(ra);\n", A);
@@ -1717,6 +1719,7 @@ static void emit_op_iforprep2(struct function* fn, int A, int pc, int pc1) {
     membuff_add_fstring(&fn->body, "limit_%d = ivalue(ra);\n", A);
     membuff_add_fstring(&fn->body, "ra = R(%d);\n", A + 2);
     membuff_add_fstring(&fn->body, "step_%d = ivalue(ra);\n", A);
+    membuff_add_fstring(&fn->body, "is_positive_step_%d = 0 < step_%d;\n", A, A);
     membuff_add_fstring(&fn->body, "i_%d -= step_%d;\n", A, A);
     membuff_add_fstring(&fn->body, "goto Lbc_%d;\n", pc);
 }
@@ -1732,6 +1735,7 @@ static void emit_op_forprep(struct function *fn, int A, int pc, int pc1) {
     membuff_add_fstring(&fn->prologue, "lua_Number nlimit_%d = 0.0;\n", A);
     membuff_add_fstring(&fn->prologue, "lua_Number nstep_%d = 0.0;\n", A);
     membuff_add_fstring(&fn->prologue, "int intloop_%d = 0;\n", A);
+    membuff_add_fstring(&fn->prologue, "int is_positive_step_%d = 0;\n", A);
   }
   emit_reg(fn, "ra", A);  // init
   membuff_add_string(&fn->body, "rb = ra+1; /*limit*/\n");
@@ -1795,9 +1799,14 @@ static void emit_op_iforloop(struct function *fn, int A, int pc, int step_one, i
 static void emit_op_iforloop2(struct function* fn, int A, int pc, int pc1) {
     (void)pc1;
     membuff_add_fstring(&fn->body, "i_%d += step_%d;\n", A, A);
-    membuff_add_fstring(&fn->body, "if ((0 < step_%d) ? (i_%d <= limit_%d) : (limit_%d <= i_%d)) {\n", A, A, A, A, A);
-    membuff_add_fstring(&fn->body, "  ra = R(%d);\n   setivalue(ra, i_%d);\n   goto Lbc_%d;\n", A + 3, A, pc);
-    membuff_add_string(&fn->body,  "}\n");
+    membuff_add_fstring(&fn->body, "if (is_positive_step_%d) goto Lpos%d; else goto Lneg%d;\n", A, pc, pc);
+    membuff_add_fstring(&fn->body, "Lpos%d:\n", pc);
+    membuff_add_fstring(&fn->body, "if (i_%d > limit_%d) goto Lend%d; else goto Lbody%d;\n", A, A, pc, pc);
+    membuff_add_fstring(&fn->body, "Lneg%d:\n", pc);
+    membuff_add_fstring(&fn->body, "if (i_%d < limit_%d) goto Lend%d; else goto Lbody%d;\n", A, A, pc, pc);
+    membuff_add_fstring(&fn->body, "Lbody%d:\n", pc);
+    membuff_add_fstring(&fn->body, "ra = R(%d);\n   setivalue(ra, i_%d);\n   goto Lbc_%d;\n", A + 3, A, pc);
+    membuff_add_fstring(&fn->body,  "Lend%d:\n", pc);
 }
 
 static void emit_op_forloop(struct function *fn, int A, int pc, int pc1) {
