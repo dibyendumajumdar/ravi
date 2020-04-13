@@ -407,6 +407,10 @@ class RaviJITState {
   std::unique_ptr<llvm::orc::ThreadSafeContext> Ctx;
   std::unique_ptr<llvm::TargetMachine> TM;
 
+#if LLVM_VERSION_MAJOR >= 10
+  llvm::orc::JITDylib *MainJD;
+#endif
+
 #elif USE_ORC_JIT
 
   // The LLVM Context
@@ -515,7 +519,11 @@ class RaviJITState {
   llvm::Error addModule(std::unique_ptr<llvm::Module> M);
 
   llvm::Expected<llvm::JITEvaluatedSymbol> findSymbol(llvm::StringRef Name) {
+#if LLVM_VERSION_MAJOR >= 10
+    return ES->lookup({MainJD}, (*Mangle)(Name.str()));
+#else
     return ES->lookup({&ES->getMainJITDylib()}, (*Mangle)(Name.str()));
+#endif
   }
 
   const llvm::DataLayout &getDataLayout() const { return *DL; }

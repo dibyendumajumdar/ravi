@@ -43,8 +43,9 @@
 #define USE_ORCv2_JIT 0
 #endif
 
-#if LLVM_VERSION_MAJOR >= 9
-#define USE_ORCv2_JIT 0
+#if LLVM_VERSION_MAJOR >= 10
+#undef USE_ORCv2_JIT
+#define USE_ORCv2_JIT 1
 #endif
 
 // In lua.c we include this just to get version numbers

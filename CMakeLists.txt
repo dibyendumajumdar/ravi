@@ -118,6 +118,11 @@ if (LLVM_JIT)
             SOURCE ${LUA_CMD_SRCS}
             APPEND
             PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS})
+
+    if ($ENV{CLION_IDE})
+        # CLion seems unable to handle include paths set on sources
+        include_directories(${LLVM_INCLUDE_DIRS})
+    endif ()
 else ()
     if (MIR_JIT)
         message(STATUS "MIRJIT enabled")

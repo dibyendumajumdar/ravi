@@ -185,7 +185,11 @@ RaviJITState::RaviJITState()
       min_code_size_(150),
       min_exec_count_(50),
       allocated_modules_(0),
-      compiling_(false) {
+      compiling_(false)
+#if LLVM_VERSION_MAJOR >= 10
+      ,MainJD(nullptr)
+#endif
+{
   // LLVM needs to be initialized else
   // ExecutionEngine cannot be created
   // This needs to be an atomic check although LLVM docs
@@ -201,28 +205,37 @@ RaviJITState::RaviJITState()
   triple_ = llvm::sys::getProcessTriple();
 
 #if USE_ORCv2_JIT
-
   auto JTMB = llvm::cantFail(llvm::orc::JITTargetMachineBuilder::detectHost());
   JTMB.setCodeGenOptLevel(llvm::CodeGenOpt::Default);
   auto dataLayout = llvm::cantFail(JTMB.getDefaultDataLayoutForTarget());
   TM = llvm::cantFail(JTMB.createTargetMachine());
-  ES = llvm::make_unique<llvm::orc::ExecutionSession>();
-  ObjectLayer = llvm::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(
-      *ES, []() { return llvm::make_unique<llvm::SectionMemoryManager>(); });
-  CompileLayer = llvm::make_unique<llvm::orc::IRCompileLayer>(*ES, *ObjectLayer, llvm::orc::SimpleCompiler(*TM));
-  OptimizeLayer = llvm::make_unique<llvm::orc::IRTransformLayer>(
+  ES = std::make_unique<llvm::orc::ExecutionSession>();
+  ObjectLayer = std::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(
+      *ES, []() { return std::make_unique<llvm::SectionMemoryManager>(); });
+#if LLVM_VERSION_MAJOR < 10
+  CompileLayer = std::make_unique<llvm::orc::IRCompileLayer>(*ES, *ObjectLayer, llvm::orc::SimpleCompiler(*TM));
+#else
+  CompileLayer = std::make_unique<llvm::orc::IRCompileLayer>(*ES, *ObjectLayer, std::make_unique<llvm::orc::SimpleCompiler>(*TM));
+#endif
+  OptimizeLayer = std::make_unique<llvm::orc::IRTransformLayer>(
       *ES, *CompileLayer, [this](llvm::orc::ThreadSafeModule TSM, const llvm::orc::MaterializationResponsibility &R) {
         return this->optimizeModule(std::move(TSM), R);
       });
-  DL = llvm::make_unique<llvm::DataLayout>(std::move(dataLayout));
-  Mangle = llvm::make_unique<llvm::orc::MangleAndInterner>(*ES, *this->DL);
-  Ctx = llvm::make_unique<llvm::orc::ThreadSafeContext>(llvm::make_unique<llvm::LLVMContext>());
-#if LLVM_VERSION_MAJOR >= 9
+  DL = std::make_unique<llvm::DataLayout>(std::move(dataLayout));
+  Mangle = std::make_unique<llvm::orc::MangleAndInterner>(*ES, *this->DL);
+  Ctx = std::make_unique<llvm::orc::ThreadSafeContext>(std::make_unique<llvm::LLVMContext>());
+#if LLVM_VERSION_MAJOR >= 10
+  ES->createJITDylib("<main>");
+  MainJD = ES->getJITDylibByName("<main>");
+  MainJD->addGenerator(
+      cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(
+          DL->getGlobalPrefix())));
+#elif LLVM_VERSION_MAJOR >= 9
   ES->getMainJITDylib().setGenerator(llvm::cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(DL->getGlobalPrefix())));
 #else
   ES->getMainJITDylib().setGenerator(llvm::cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(*DL)));
 #endif
-  types_ = llvm::make_unique<LuaLLVMTypes>(*Ctx->getContext());
+  types_ = std::make_unique<LuaLLVMTypes>(*Ctx->getContext());
 
 #else
 
@@ -276,7 +289,11 @@ RaviJITState::RaviJITState()
 
   // Register global symbols
 #if USE_ORCv2_JIT
+#if LLVM_VERSION_MAJOR >= 10
+  auto &JD = *MainJD;
+#else
   auto &JD = ES->getMainJITDylib();
+#endif
   llvm::orc::MangleAndInterner mangle(*ES, *this->DL);
   llvm::orc::SymbolMap Symbols;
   for (int i = 0; global_syms[i].name != nullptr; i++) {
@@ -311,7 +328,11 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
   using llvm::legacy::PassManager;
 
 #if USE_ORCv2_JIT
+#if LLVM_VERSION_MAJOR >= 10
+  auto M = TSM.getModuleUnlocked();
+#else
   auto M = TSM.getModule();
+#endif
 #endif
   if (get_verbosity() >= 1)
     M->print(llvm::errs(), nullptr, false, true);
@@ -336,7 +357,7 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
   pmb.SizeLevel = get_sizelevel();
   {
     // Create a function pass manager for this engine
-    auto FPM = llvm::make_unique<FunctionPassManager>(&*M);
+    auto FPM = std::make_unique<FunctionPassManager>(&*M);
     pmb.populateFunctionPassManager(*FPM);
     FPM->doInitialization();
     // Run the optimizations over all functions in the module being added to
@@ -362,7 +383,12 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
 #if LLVM_VERSION_MAJOR >= 7
                                   nullptr,  // DWO output file
 #endif
-                                  llvm::TargetMachine::CGFT_AssemblyFile)) {
+#if LLVM_VERSION_MAJOR < 10
+                                  llvm::TargetMachine::CGFT_AssemblyFile
+#else
+                                  llvm::CodeGenFileType::CGFT_AssemblyFile
+#endif
+                                  )) {
         llvm::errs() << "unable to add passes for generating assemblyfile\n";
         break;
       }
@@ -388,7 +414,11 @@ void RaviJITState::addGlobalSymbol(const std::string &name, void *address) {
 
 #if USE_ORCv2_JIT
 llvm::Error RaviJITState::addModule(std::unique_ptr<llvm::Module> M) {
+#if LLVM_VERSION_MAJOR < 10
   return OptimizeLayer->add(ES->getMainJITDylib(), llvm::orc::ThreadSafeModule(std::move(M), *Ctx));
+#else
+  return OptimizeLayer->add(*MainJD, llvm::orc::ThreadSafeModule(std::move(M), *Ctx));
+#endif
 }
 #elif USE_ORC_JIT
 RaviJITState::ModuleHandle RaviJITState::addModule(std::unique_ptr<llvm::Module> M) {
