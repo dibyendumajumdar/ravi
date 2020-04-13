@@ -133,6 +133,7 @@ static struct {
                    {"raise_error", reinterpret_cast<void *>(raise_error)},
                    {"luaV_tonumber_", reinterpret_cast<void *>(luaV_tonumber_)},
                    {"luaV_tointeger", reinterpret_cast<void *>(luaV_tointeger)},
+                   {"luaV_tointeger_", reinterpret_cast<void *>(luaV_tointeger_)},
                    {"luaD_poscall", reinterpret_cast<void *>(luaD_poscall)},
                    {"luaV_equalobj", reinterpret_cast<void *>(luaV_equalobj)},
                    {"luaV_lessthan", reinterpret_cast<void *>(luaV_lessthan)},
@@ -166,6 +167,26 @@ static struct {
                    {"raviV_settable_sskey", reinterpret_cast<void *>(raviV_settable_sskey)},
                    {"raviV_gettable_i", reinterpret_cast<void *>(raviV_gettable_i)},
                    {"raviV_settable_i", reinterpret_cast<void *>(raviV_settable_i)},
+                   {"luaG_runerror", reinterpret_cast<void *>(luaG_runerror)},
+                   {"luaC_upvalbarrier_", reinterpret_cast<void *>(luaC_upvalbarrier_)},
+                   {"luaV_finishget", reinterpret_cast<void *>(luaV_finishget)},
+                   {"luaH_getstr", reinterpret_cast<void *>(luaH_getstr)},
+                   {"raviV_op_add", reinterpret_cast<void *>(raviV_op_add)},
+                   {"raviV_op_mul", reinterpret_cast<void *>(raviV_op_mul)},
+                   {"raviV_op_sub", reinterpret_cast<void *>(raviV_op_sub)},
+                   {"raviV_op_div", reinterpret_cast<void *>(raviV_op_div)},
+                   {"raviV_op_shr", reinterpret_cast<void *>(raviV_op_shr)},
+                   {"raviV_op_shl", reinterpret_cast<void *>(raviV_op_shl)},
+                   {"raviV_op_bnot", reinterpret_cast<void *>(raviV_op_bnot)},
+                   {"raviV_op_band", reinterpret_cast<void *>(raviV_op_band)},
+                   {"raviV_op_bor", reinterpret_cast<void *>(raviV_op_bor)},
+                   {"raviV_op_bxor", reinterpret_cast<void *>(raviV_op_bxor)},
+                   {"luaV_mod", reinterpret_cast<void *>(luaV_mod)},
+                   {"luaV_div", reinterpret_cast<void *>(luaV_div)},
+                   {"raviV_op_totype", reinterpret_cast<void *>(raviV_op_totype)},
+#ifdef RAVI_DEFER_STATEMENT
+                   {"raviV_op_defer", reinterpret_cast<void *>(raviV_op_defer)},
+#endif
                    {"printf", reinterpret_cast<void *>(printf)},
                    {"puts", reinterpret_cast<void *>(puts)},
                    {nullptr, nullptr}};
@@ -186,7 +207,7 @@ RaviJITState::RaviJITState()
       min_exec_count_(50),
       allocated_modules_(0),
       compiling_(false)
-#if LLVM_VERSION_MAJOR >= 10
+#if LLVM_VERSION_MAJOR >= 10 && USE_ORCv2_JIT
       ,MainJD(nullptr)
 #endif
 {
@@ -389,7 +410,7 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
                                   llvm::CodeGenFileType::CGFT_AssemblyFile
 #endif
                                   )) {
-        llvm::errs() << "unable to add passes for generating assemblyfile\n";
+        llvm::errs() << "unable to add passes for generating assembly file\n";
         break;
       }
     }
