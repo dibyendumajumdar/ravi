@@ -938,20 +938,27 @@ Syntax
 
 ::
 
-  TEST        A C     if not (R(A) <=> C) then pc++     
-  TESTSET     A B C   if (R(B) <=> C) then R(A) := R(B) else pc++ 
+  TEST        A C     if (boolean(R(A)) != C) then pc++     
+  TESTSET     A B C   if (boolean(R(B)) == C) then R(A) := R(B) else pc++   
+  
+  where boolean(x) => ((x == nil || x == false) ? 0 : 1)
 
 Description
 -----------
-These two instructions used for performing boolean tests and implementing Lua’s logic operators.
+These two instructions used for performing boolean tests and implementing Lua’s logical operators.
 
-Used to implement and and or logical operators, or for testing a single register in a conditional statement.
+Used to implement ``and`` and ``or`` logical operators, or for testing a single register in a conditional statement.
 
-For ``TESTSET``, register R(B) is coerced into a boolean and compared to the boolean field C. If R(B) matches C, the next instruction is skipped, otherwise R(B) is assigned to R(A) and the VM continues with the next instruction. The and operator uses a C of 0 (false) while or uses a C value of 1 (true).
+For ``TESTSET``, register ``R(B)`` is coerced into a boolean (i.e. ``false`` and ``nil`` evaluate to ``0`` and any other value to ``1``) and 
+compared to the boolean field ``C`` (``0`` or ``1``). If ``boolean(R(B))`` does not match ``C``, the next instruction is skipped, 
+otherwise ``R(B)`` is assigned to ``R(A)`` and the VM continues with the next instruction. The ``and`` operator uses a ``C`` of ``0`` (false) while 
+``or`` uses a C value of ``1`` (true).
 
-``TEST`` is a more primitive version of ``TESTSET``. ``TEST`` is used when the assignment operation is not needed, otherwise it is the same as ``TESTSET`` except that the operand slots are different.
+``TEST`` is a more primitive version of ``TESTSET``. ``TEST`` is used when the assignment operation is not needed, otherwise it is the same as ``TESTSET`` 
+except that the operand slots are different.
 
-For the fall-through case, a ``JMP`` is always expected, in order to optimize execution in the virtual machine. In effect, ``TEST`` and ``TESTSET`` must always be paired with a following ``JMP`` instruction.
+For the fall-through case, a ``JMP`` is always expected, in order to optimize execution in the virtual machine. In effect, ``TEST`` and ``TESTSET`` 
+must always be paired with a following ``JMP`` instruction.
 
 Examples
 --------
@@ -977,9 +984,12 @@ Generates::
   upvalues (1) for 0000020F274CF1A0:
         0       _ENV    1       0
 
-An ``and`` sequence exits on ``false`` operands (which can be ``false`` or ``nil``) because any ``false`` operands in a string of and operations will make the whole boolean expression ``false``. If operands evaluates to ``true``, evaluation continues. When a string of ``and`` operations evaluates to ``true``, the result is the last operand value.
+An ``and`` sequence exits on ``false`` operands (which can be ``false`` or ``nil``) because any ``false`` operands in a string of ``and`` operations 
+will make the whole boolean expression ``false``. If operands evaluates to ``true``, evaluation continues. When a string of ``and`` operations 
+evaluates to ``true``, the result is the last operand value.
 
-In line [2], the first operand (the local a) is set to local c when the test is false (with a field C of 0), while the jump to [4] is made when the test is true, and then in line [4], the expression result is set to the second operand (the local b). This is equivalent to::
+In line [2], ``C`` is ``0``. Since ``B`` is ``0``, therefore ``R(B)`` refers to the local ``a``. Since ``R(B)`` is ``nil`` then ``boolean(R(B))`` evaluates to ``0``.
+Thus ``C`` matches ``boolean(R(B))``. Therefore the value of `a` is assigned to `c` and the next instruction which is a ``JMP`` is executed. This is equivalent to::
 
   if a then  
     c = b      -- executed by MOVE on line [4] 
@@ -987,7 +997,8 @@ In line [2], the first operand (the local a) is set to local c when the test is 
     c = a      -- executed by TESTSET on line [2] 
   end
 
-The ``c = a`` portion is done by ``TESTSET`` itself, while ``MOVE`` performs ``c = b``. Now, if the result is already set with one of the possible values, a ``TEST`` instruction is used instead::
+The ``c = a`` portion is done by ``TESTSET`` itself, while ``MOVE`` performs ``c = b``. Now, if the result is already set with one of the possible values, 
+a ``TEST`` instruction is used instead::
 
   f=load('local a,b; a = a and b')
 
@@ -1008,6 +1019,8 @@ Generates::
         0       _ENV    1       0
 
 The ``TEST`` instruction does not perform an assignment operation, since ``a = a`` is redundant. This makes ``TEST`` a little faster. This is equivalent to::
+
+Here ``C`` is ``0``, and ``boolean(R(A))`` is ``0`` too, so that the ``TEST`` instruction on line [2] does not skip the next instruction which is a ``JMP``.
 
   if a then  
     a = b 
@@ -1034,9 +1047,12 @@ Generates::
   upvalues (1) for 0000020F274D1AB0:
         0       _ENV    1       0
 
-An ``or`` sequence exits on ``true`` operands, because any operands evaluating to ``true`` in a string of or operations will make the whole boolean expression ``true``. If operands evaluates to ``false``, evaluation continues. When a string of or operations evaluates to ``false``, all operands must have evaluated to ``false``.
+An ``or`` sequence exits on ``true`` operands, because any operands evaluating to ``true`` in a string of or operations will make the whole boolean 
+expression ``true``. If operands evaluates to ``false``, evaluation continues. When a string of or operations evaluates to ``false``, 
+all operands must have evaluated to ``false``.
 
-In line [2], the local ``a`` value is set to local c if it is ``true``, while the jump is made if it is ``false`` (the field C is 1). Thus in line [4], the local ``b`` value is the result of the expression if local ``a`` evaluates to ``false``. This is equivalent to::
+In line [2], ``C`` is ``1``. Since ``B`` is ``0``, therefore ``R(B)`` refers to the local ``a``. Since ``R(B)`` is ``nil`` then ``boolean(R(B))`` evaluates to ``0``.
+Thus ``C`` does not match ``boolean(R(B))``. Therefore, the next instruction which is a ``JMP`` is skipped and execution continues on line [4]. This is equivalent to::
 
   if a then  
     c = a      -- executed by TESTSET on line [2] 
@@ -1044,7 +1060,7 @@ In line [2], the local ``a`` value is set to local c if it is ``true``, while th
     c = b      -- executed by MOVE on line [4] 
   end
 
-Like the case of and, TEST is used when the result already has one of the possible values, saving an assignment operation::
+Like the case of ``and``, ``TEST`` is used when the result already has one of the possible values, saving an assignment operation::
 
   f=load('local a,b; a = a or b')
 
