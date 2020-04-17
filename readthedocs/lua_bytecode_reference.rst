@@ -1018,9 +1018,8 @@ Generates::
   upvalues (1) for 0000020F274D0A70:
         0       _ENV    1       0
 
-The ``TEST`` instruction does not perform an assignment operation, since ``a = a`` is redundant. This makes ``TEST`` a little faster. This is equivalent to::
-
 Here ``C`` is ``0``, and ``boolean(R(A))`` is ``0`` too, so that the ``TEST`` instruction on line [2] does not skip the next instruction which is a ``JMP``.
+The ``TEST`` instruction does not perform an assignment operation, since ``a = a`` is redundant. This makes ``TEST`` a little faster. This is equivalent to::
 
   if a then  
     a = b 
