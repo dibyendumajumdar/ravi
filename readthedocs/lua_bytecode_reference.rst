@@ -989,7 +989,7 @@ will make the whole boolean expression ``false``. If operands evaluates to ``tru
 evaluates to ``true``, the result is the last operand value.
 
 In line [2], ``C`` is ``0``. Since ``B`` is ``0``, therefore ``R(B)`` refers to the local ``a``. Since ``R(B)`` is ``nil`` then ``boolean(R(B))`` evaluates to ``0``.
-Thus ``C`` matches ``boolean(R(B))``. Therefore the value of `a` is assigned to `c` and the next instruction which is a ``JMP`` is executed. This is equivalent to::
+Thus ``C`` matches ``boolean(R(B))``. Therefore the value of ``a`` is assigned to ``c`` and the next instruction which is a ``JMP`` is executed. This is equivalent to::
 
   if a then  
     c = b      -- executed by MOVE on line [4] 
