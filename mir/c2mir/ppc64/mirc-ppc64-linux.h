@@ -7,6 +7,13 @@ static char ppc64_mirc[]
     "#define _ARCH_PPC64 1\n"
     "#define _LP64 1\n"
     "#define __LP64__ 1\n"
+    "#define __powerpc64__ 1\n"
+    "#define __powerpc__ 1\n"
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    "#define _CALL_ELF 1\n"
+#else
+    "#define _CALL_ELF 2\n"
+#endif
     "\n"
     "#define __LONG_DOUBLE_128__ 1\n" // ???
     "#define __SIZEOF_DOUBLE__ 8\n"
@@ -20,10 +27,15 @@ static char ppc64_mirc[]
     "#define __SIZEOF_SHORT__ 2\n"
     "#define __SIZEOF_SIZE_T__ 8\n"
     "\n"
-    "#define _BIG_ENDIAN 1\n" // ??? Implement LE too
     "#define __ORDER_LITTLE_ENDIAN__ 1234\n"
     "#define __ORDER_BIG_ENDIAN__ 4321\n"
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    "#define _BIG_ENDIAN 1\n"
     "#define __BYTE_ORDER__ __ORDER_BIG_ENDIAN__\n"
+#else
+    "#define _LITTLE_ENDIAN 1\n"
+    "#define __BYTE_ORDER__ __ORDER_LITTLE_ENDIAN__\n"
+#endif
     "\n"
     "/* Some GCC predefined macros: */\n"
     "#define __SIZE_TYPE__ unsigned long\n"
