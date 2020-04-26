@@ -22,6 +22,8 @@ static int target_locs_num (MIR_reg_t loc, MIR_type_t type) {
   return loc > MAX_HARD_REG && type == MIR_T_LD ? 2 : 1;
 }
 
+static inline MIR_reg_t target_nth_loc (MIR_reg_t loc, MIR_type_t type, int n) { return loc + n; }
+
 /* Hard regs not used in machinized code, preferably call used ones. */
 const MIR_reg_t TEMP_INT_HARD_REG1 = R10_HARD_REG, TEMP_INT_HARD_REG2 = R11_HARD_REG;
 const MIR_reg_t TEMP_FLOAT_HARD_REG1 = XMM8_HARD_REG, TEMP_FLOAT_HARD_REG2 = XMM9_HARD_REG;
@@ -693,7 +695,7 @@ static void target_machinize (MIR_context_t ctx) {
                || code == MIR_LE || code == MIR_ULE || code == MIR_GT || code == MIR_UGT
                || code == MIR_GE || code == MIR_UGE || code == MIR_EQS || code == MIR_NES
                || code == MIR_LTS || code == MIR_ULTS || code == MIR_LES || code == MIR_ULES
-               || code == MIR_GTS || code == MIR_UGT || code == MIR_GES || code == MIR_UGES
+               || code == MIR_GTS || code == MIR_UGTS || code == MIR_GES || code == MIR_UGES
                || code == MIR_FEQ || code == MIR_FNE || code == MIR_FLT || code == MIR_FLE
                || code == MIR_FGT || code == MIR_FGE || code == MIR_DEQ || code == MIR_DNE
                || code == MIR_DLT || code == MIR_DLE || code == MIR_DGT || code == MIR_DGE) {
