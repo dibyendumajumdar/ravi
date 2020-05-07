@@ -31,6 +31,8 @@
 #include "aarch64/caarch64.h"
 #elif defined(__PPC64__)
 #include "ppc64/cppc64.h"
+#elif defined(__s390x__)
+#include "s390x/cs390x.h"
 #else
 #error "undefined or unsupported generation target for C"
 #endif
@@ -317,6 +319,8 @@ static mir_size_t raw_type_size (c2m_ctx_t c2m_ctx, struct type *type) {
 #include "aarch64/caarch64-code.c"
 #elif defined(__PPC64__)
 #include "ppc64/cppc64-code.c"
+#elif defined(__s390x__)
+#include "s390x/cs390x-code.c"
 #else
 #error "undefined or unsupported generation target for C"
 #endif
@@ -10237,7 +10241,8 @@ static void gen_memcpy (MIR_context_t ctx, MIR_disp_t disp, MIR_reg_t base, op_t
   MIR_op_t treg_op, args[6];
   MIR_module_t module;
 
-  if (val.mir_op.u.mem.index == 0 && val.mir_op.u.mem.disp == disp && val.mir_op.u.mem.base == base)
+  if (val.mir_op.mode == MIR_OP_MEM && val.mir_op.u.mem.index == 0 && val.mir_op.u.mem.disp == disp
+      && val.mir_op.u.mem.base == base)
     return;
   if (memcpy_item == NULL) {
     ret_type = get_int_mir_type (sizeof (mir_size_t));
@@ -11435,6 +11440,7 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
              signed_p ? MIR_new_int_op (ctx, e->u.i_val) : MIR_new_uint_op (ctx, e->u.u_val));
       emit3 (ctx, short_p ? MIR_UBGTS : MIR_UBGT, MIR_new_label_op (ctx, label), index.mir_op,
              MIR_new_uint_op (ctx, range));
+      if (short_p) emit2 (ctx, MIR_UEXT32, index.mir_op, index.mir_op);
       VARR_TRUNC (case_t, switch_cases, 0);
       for (c = DLIST_HEAD (case_t, switch_attr->case_labels);
            c != NULL && c->case_node->code != N_DEFAULT; c = DLIST_NEXT (case_t, c))
@@ -12179,6 +12185,14 @@ static void init_include_dirs (MIR_context_t ctx) {
   VARR_PUSH (char_ptr_t, system_headers, "/usr/include/x86_64-linux-gnu");
 #elif defined(__linux__) && defined(__aarch64__)
   VARR_PUSH (char_ptr_t, system_headers, "/usr/include/aarch64-linux-gnu");
+#elif defined(__linux__) && defined(__PPC64__)
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  VARR_PUSH (char_ptr_t, system_headers, "/usr/include/powerpc64le-linux-gnu");
+#else
+  VARR_PUSH (char_ptr_t, system_headers, "/usr/include/powerpc64-linux-gnu");
+#endif
+#elif defined(__linux__) && defined(__s390x__)
+  VARR_PUSH (char_ptr_t, system_headers, "/usr/include/s390x-linux-gnu");
 #endif
 #if defined(__APPLE__) || defined(__unix__)
   VARR_PUSH (char_ptr_t, system_headers, "/usr/include");

@@ -2,21 +2,20 @@
    Copyright (C) 2020 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
-static char ppc64_mirc[]
-  = "#define __PPC64__ 1\n"
-    "#define _ARCH_PPC64 1\n"
+static char s390x_mirc[]
+  = "#define __zarch__ 1\n"
     "#define _LP64 1\n"
     "#define __LP64__ 1\n"
-    "#define __powerpc64__ 1\n"
-    "#define __powerpc__ 1\n"
-#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-    "#define _CALL_ELF 1\n"
-#else
-    "#define _CALL_ELF 2\n"
-#endif
+    "#define __s390__ 1\n"
+    "#define __s390x__ 1\n"
+    "#define __ELF__ 1\n"
     "\n"
+#if __SIZEOF_LONG_DOUBLE__ == 16
     "#define __LONG_DOUBLE_128__ 1\n" // ???
-    "#define __SIZEOF_DOUBLE__ 8\n"
+    "#define __SIZEOF_LONG_DOUBLE__ 16\n"
+#else
+    "#define __SIZEOF_LONG_DOUBLE__ 8\n"
+#endif
     "#define __SIZEOF_FLOAT__ 4\n"
     "#define __SIZEOF_INT__ 4\n"
     "#define __SIZEOF_LONG_DOUBLE__ 16\n"
@@ -29,13 +28,8 @@ static char ppc64_mirc[]
     "\n"
     "#define __ORDER_LITTLE_ENDIAN__ 1234\n"
     "#define __ORDER_BIG_ENDIAN__ 4321\n"
-#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
     "#define _BIG_ENDIAN 1\n"
     "#define __BYTE_ORDER__ __ORDER_BIG_ENDIAN__\n"
-#else
-    "#define _LITTLE_ENDIAN 1\n"
-    "#define __BYTE_ORDER__ __ORDER_LITTLE_ENDIAN__\n"
-#endif
     "\n"
     "/* Some GCC predefined macros: */\n"
     "#define __SIZE_TYPE__ unsigned long\n"
@@ -100,6 +94,7 @@ static char ppc64_mirc[]
     "#define __linux 1\n"
     "#define __linux__ 1\n"
     "#define linux 1\n"
+    "#define unix 1\n"
     "#define __unix 1\n"
     "#define __unix__ 1\n"
 #endif

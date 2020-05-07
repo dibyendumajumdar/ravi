@@ -23,7 +23,7 @@ LLVM JIT Backend
 ================
 Following versions of LLVM work with Ravi.
 
-* LLVM 3.7, 3.8, 3.9, 4.0, 5.0, 6.0, 8.0.1
+* LLVM 3.7, 3.8, 3.9, 4.0, 5.0, 6.0, 8.0.1, 9.0.1, 10.0
 * LLVM 7.0 was skipped because of unstable ORC api changes
 * LLVM 3.5 and 3.6 should also work but have not been recently tested
 
@@ -40,7 +40,7 @@ I built LLVM from source. I used the following sequence from the VS2017 command 
 
   mkdir build
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=c:\Software\llvm801 -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 15 2017 Win64" ..  
+  cmake -DCMAKE_INSTALL_PREFIX=c:\Software\llvm801 -DLLVM_TARGETS_TO_BUILD="X86" -G "Visual Studio 15 2017 Win64" ..
 
 I then opened the generated solution in VS2017 and performed a INSTALL build from there. Above will build the 64-bit version of LLVM libraries. To build a 32-bit version omit the ``Win64`` parameter. 
 

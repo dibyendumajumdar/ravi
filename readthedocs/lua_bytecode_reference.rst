@@ -938,8 +938,8 @@ Syntax
 
 ::
 
-  TEST        A C     if (boolean(R(A)) != C) then pc++     
-  TESTSET     A B C   if (boolean(R(B)) == C) then R(A) := R(B) else pc++   
+  TEST        A C     if (boolean(R(A)) != C) then PC++
+  TESTSET     A B C   if (boolean(R(B)) != C) then PC++ else R(A) := R(B)
   
   where boolean(x) => ((x == nil || x == false) ? 0 : 1)
 
