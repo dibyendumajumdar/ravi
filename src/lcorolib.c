@@ -17,6 +17,7 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#ifdef RAVI_SUPPORT_COROUTINES
 
 static lua_State *getco (lua_State *L) {
   lua_State *co = lua_tothread(L, 1);
@@ -166,3 +167,4 @@ LUAMOD_API int luaopen_coroutine (lua_State *L) {
   return 1;
 }
 
+#endif

@@ -181,6 +181,7 @@ static void correctstack (lua_State *L, TValue *oldstack) {
 
 
 void luaD_reallocstack (lua_State *L, int newsize) {
+#ifdef RAVI_SUPPORT_COROUTINES
   TValue *oldstack = L->stack;
   int lim = L->stacksize;
   lua_assert(newsize <= LUAI_MAXSTACK || newsize == ERRORSTACKSIZE);
@@ -191,10 +192,14 @@ void luaD_reallocstack (lua_State *L, int newsize) {
   L->stacksize = newsize;
   L->stack_last = L->stack + newsize - EXTRA_STACK;
   correctstack(L, oldstack);
+#else
+  luaG_runerror(L, "stack overflow");
+#endif
 }
 
 
 void luaD_growstack (lua_State *L, int n) {
+#ifdef RAVI_SUPPORT_COROUTINES
   int size = L->stacksize;
   if (size > LUAI_MAXSTACK)  /* error after extra size? */
     luaD_throw(L, LUA_ERRERR);
@@ -210,6 +215,9 @@ void luaD_growstack (lua_State *L, int n) {
     else
       luaD_reallocstack(L, newsize);
   }
+#else
+  luaG_runerror(L, "stack overflow");
+#endif
 }
 
 
@@ -225,6 +233,7 @@ static int stackinuse (lua_State *L) {
 
 
 void luaD_shrinkstack (lua_State *L) {
+#ifdef RAVI_SUPPORT_COROUTINES
   int inuse = stackinuse(L);
   int goodsize = inuse + (inuse / 8) + 2*EXTRA_STACK;
   if (goodsize > LUAI_MAXSTACK)
@@ -240,6 +249,7 @@ void luaD_shrinkstack (lua_State *L) {
     luaD_reallocstack(L, goodsize);
   else  /* don't change stack */
     condmovestack(L,{},{});  /* (change only for debugging) */
+#endif
 }
 
 
@@ -607,7 +617,7 @@ void luaD_callnoyield (lua_State *L, StkId func, int nResults) {
   L->nny--;
 }
 
-
+#ifdef RAVI_SUPPORT_COROUTINES
 /*
 ** Completes the execution of an interrupted C function, calling its
 ** continuation function.
@@ -817,7 +827,7 @@ LUA_API int lua_yieldk (lua_State *L, int nresults, lua_KContext ctx,
   lua_unlock(L);
   return 0;  /* return to 'luaD_hook' */
 }
-
+#endif
 
 int luaD_pcall (lua_State *L, Pfunc func, void *u,
                 ptrdiff_t old_top, ptrdiff_t ef) {

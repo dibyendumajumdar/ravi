@@ -80,8 +80,11 @@ struct lua_longjmp;  /* defined in ldo.c */
 /* extra stack space to handle TM calls and some other extras */
 #define EXTRA_STACK   5
 
-
+#ifdef RAVI_SUPPORT_COROUTINES
 #define BASIC_STACK_SIZE        (2*LUA_MINSTACK)
+#else
+#define BASIC_STACK_SIZE        (128*300)
+#endif
 
 
 /* kinds of Garbage Collection */

@@ -225,7 +225,9 @@ extern const char lua_ident[];
 */
 LUA_API lua_State *(lua_newstate) (lua_Alloc f, void *ud);
 LUA_API void       (lua_close) (lua_State *L);
+#ifdef RAVI_SUPPORT_COROUTINES
 LUA_API lua_State *(lua_newthread) (lua_State *L);
+#endif
 
 LUA_API lua_CFunction (lua_atpanic) (lua_State *L, lua_CFunction panicf);
 

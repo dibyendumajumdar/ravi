@@ -276,7 +276,7 @@ static void close_state (lua_State *L) {
     (*g->frealloc)(g->ud, fromstate(L), sizeof(LG), 0);  /* free main block */
 }
 
-
+#ifdef RAVI_SUPPORT_COROUTINES
 LUA_API lua_State *lua_newthread (lua_State *L) {
   global_State *g = G(L);
   lua_State *L1;
@@ -305,7 +305,7 @@ LUA_API lua_State *lua_newthread (lua_State *L) {
   lua_unlock(L);
   return L1;
 }
-
+#endif
 
 void luaE_freethread (lua_State *L, lua_State *L1) {
   LX *l = fromstate(L1);

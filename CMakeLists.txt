@@ -48,8 +48,9 @@ set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src
         src/lvm.c src/lzio.c src/ravi_jit.c src/ltests.c src/ravi_profile.c
         src/ravi_membuf.c src/ravi_jitshared.c src/bit.c src/ravi_alloc.c)
 # define the Lua library source files
-set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
-        src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
+set(LUA_COROUTINE_LIB src/lcorolib.c)
+set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c  src/ldblib.c src/liolib.c
+        src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c ${LUA_COROUTINE_LIB})
 set(LUA_HEADERS include/lua.h include/luaconf.h include/lualib.h include/lauxlib.h)
 # LLVM code gen
 set(LLVM_JIT_SRCS src/ravi_llvmjit.cpp src/ravi_llvmtypes.cpp
