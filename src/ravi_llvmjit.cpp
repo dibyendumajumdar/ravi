@@ -236,6 +236,11 @@ RaviJITState::RaviJITState()
 #if LLVM_VERSION_MAJOR < 10
   CompileLayer = std::make_unique<llvm::orc::IRCompileLayer>(*ES, *ObjectLayer, llvm::orc::SimpleCompiler(*TM));
 #else
+#ifndef _WIN32
+  if (JTMB.getTargetTriple().isOSBinFormatCOFF())
+#endif
+    // Force on Win32
+    ObjectLayer->setOverrideObjectFlagsWithResponsibilityFlags(true);
   CompileLayer = std::make_unique<llvm::orc::IRCompileLayer>(*ES, *ObjectLayer, std::make_unique<llvm::orc::SimpleCompiler>(*TM));
 #endif
   OptimizeLayer = std::make_unique<llvm::orc::IRTransformLayer>(

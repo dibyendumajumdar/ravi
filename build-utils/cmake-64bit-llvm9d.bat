@@ -1,5 +1,5 @@
-rmdir /s llvm9d
-mkdir llvm9d
-cd llvm9d
-cmake -DCMAKE_INSTALL_PREFIX=c:\Software\ravi -G "Visual Studio 15 2017 Win64" -DLLVM_JIT=ON -DLLVM_DIR=c:\Software\llvm900\lib\cmake\llvm ..
+rmdir /s llvm10d
+mkdir llvm10d
+cd llvm10d
+cmake -DCMAKE_INSTALL_PREFIX=c:\Software\ravi -G "Visual Studio 16 2019" -DLLVM_JIT=ON -DLLVM_DIR=c:\Software\llvm10d\lib\cmake\llvm ..
 cd ..
