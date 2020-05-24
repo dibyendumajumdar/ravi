@@ -333,6 +333,20 @@ static void checkobject (global_State *g, GCObject *o, int maybedead) {
         checkvalref(g, o, &uservalue);
         break;
       }
+      case RAVI_TFARRAY:
+      case RAVI_TIARRAY: {
+        Table *mt = gco2array(o)->metatable;
+        checkobjref(g, o, mt);
+        // TODO use macro for below - see lgc too
+        if (arrvalue(o)->flags & RAVI_ARRAY_SLICE) {
+          TValue parent;
+          lua_assert(arrvalue(o)->parent);
+          parent.tt_ = ctb(arrvalue(o)->parent->tt);
+          parent.value_.gc = obj2gco(arrvalue(o)->parent);
+          checkvalref(g, o, &parent);
+        }
+        break;
+      }
       case LUA_TTABLE: {
         checktable(g, gco2t(o));
         break;

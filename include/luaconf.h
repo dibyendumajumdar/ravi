@@ -813,7 +813,7 @@
 #endif
 
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 
 #define RAVI_NORETURN		__declspec(noreturn)
 #define RAVI_INLINE			__inline

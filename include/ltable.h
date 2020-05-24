@@ -124,49 +124,52 @@ LUAI_FUNC int luaH_getn (Table *t);
 /* Creates a specialized version of Lua Table to support Ravi's
  * integer[] and number[] arrays.
  */
-LUAI_FUNC Table *raviH_new(lua_State *L, ravitype_t array_type, int is_slice);
+LUAI_FUNC RaviArray *raviH_new(lua_State *L, ravitype_t array_type, int is_slice);
+LUAI_FUNC void raviH_free(lua_State* L, RaviArray* t);
+LUAI_FUNC int raviH_next(lua_State* L, RaviArray* t, StkId key);
 
-LUAI_FUNC Table *raviH_new_integer_array(lua_State *L, unsigned int len,
+LUAI_FUNC RaviArray *raviH_new_integer_array(lua_State *L, unsigned int len,
                                          lua_Integer init_value);
 
-LUAI_FUNC Table *raviH_new_number_array(lua_State *L, unsigned int len,
+LUAI_FUNC RaviArray *raviH_new_number_array(lua_State *L, unsigned int len,
                                         lua_Number init_value);
 
 /* Returns the array length - note that this function will
  * ignore any elements outside of the Ravi Array structure
  */
-LUAI_FUNC int raviH_getn(Table *t);
+LUAI_FUNC int raviH_getn(RaviArray *t);
 
 /* Type specific array set operation */
-LUAI_FUNC void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key,
+LUAI_FUNC void raviH_set_int(lua_State *L, RaviArray *t, lua_Unsigned key,
                              lua_Integer value);
 
 /* Type specific array set operation */
-LUAI_FUNC void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key,
+LUAI_FUNC void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned key,
                                lua_Number value);
 
-/* Create a slice of an existing array
-* The original table containing the array is inserted into the
-* the slice as a value against special key pointer('key_orig_table') so that
-* the parent table is not garbage collected while this array contains a
-* reference to it
+/* 
+* Create a slice of an existing array
+* The original array is inserted into the
+* the slice as a paren so that
+* the parent array is not garbage collected while this array contains a
+* reference to it. This is enforced in the GC.
 * The array slice starts at start but start-1 is also accessible because of the
 * implementation having array values starting at 0.
 * A slice must not attempt to release the data array as this is not owned by it,
 * and in fact may point to garbage from a memory allocater's point of view.
 */
-LUAI_FUNC Table *raviH_new_slice(lua_State *L, TValue *parent,
+LUAI_FUNC RaviArray *raviH_new_slice(lua_State *L, TValue *parent,
                                  unsigned int start, unsigned int len);
 
 /* Obtain parent array of the slice */
-LUAI_FUNC const TValue *raviH_slice_parent(lua_State *L, TValue *slice);
+LUAI_FUNC const RaviArray *raviH_slice_parent(lua_State *L, TValue *slice);
 
 /* Type specific array get operation */
 #define raviH_get_int_inline(L, t, key, v)                                     \
   {                                                                            \
     unsigned int ukey = (unsigned int)((key));                                 \
-    lua_Integer *data = (lua_Integer *)t->ravi_array.data;                     \
-    if (ukey < t->ravi_array.len) {                                            \
+    lua_Integer *data = (lua_Integer *)t->data;                                \
+    if (ukey < t->len) {                                            \
       setivalue(v, data[ukey]);                                                \
     } else                                                                     \
       luaG_runerror(L, "array out of bounds");                                 \
@@ -176,8 +179,8 @@ LUAI_FUNC const TValue *raviH_slice_parent(lua_State *L, TValue *slice);
 #define raviH_get_float_inline(L, t, key, v)                                   \
   {                                                                            \
     unsigned int ukey = (unsigned int)((key));                                 \
-    lua_Number *data = (lua_Number *)t->ravi_array.data;                       \
-    if (ukey < t->ravi_array.len) {                                            \
+    lua_Number *data = (lua_Number *)t->data;                                  \
+    if (ukey < t->len) {                                            \
       setfltvalue(v, data[ukey]);                                              \
     } else                                                                     \
       luaG_runerror(L, "array out of bounds");                                 \
@@ -187,8 +190,8 @@ LUAI_FUNC const TValue *raviH_slice_parent(lua_State *L, TValue *slice);
 #define raviH_set_int_inline(L, t, key, value)                                 \
   {                                                                            \
     unsigned int ukey = (unsigned int)((key));                                 \
-    lua_Integer *data = (lua_Integer *)t->ravi_array.data;                     \
-    if (ukey < t->ravi_array.len) {                                            \
+    lua_Integer *data = (lua_Integer *)t->data;                                \
+    if (ukey < t->len) {                                            \
       data[ukey] = (value);                                                    \
     } else                                                                     \
       raviH_set_int(L, t, ukey, (value));                                      \
@@ -198,15 +201,15 @@ LUAI_FUNC const TValue *raviH_slice_parent(lua_State *L, TValue *slice);
 #define raviH_set_float_inline(L, t, key, value)                               \
   {                                                                            \
     unsigned int ukey = (unsigned int)((key));                                 \
-    lua_Number *data = (lua_Number *)t->ravi_array.data;                       \
-    if (ukey < t->ravi_array.len) {                                            \
+    lua_Number *data = (lua_Number *)t->data;                                  \
+    if (ukey < t->len) {                                            \
       data[ukey] = (value);                                                    \
     } else                                                                     \
       raviH_set_float(L, t, ukey, (value));                                    \
   }
 
-LUAI_FUNC void raviH_get_number_array_rawdata(lua_State *L, Table *t, Ravi_NumberArray *data);
-LUAI_FUNC void raviH_get_integer_array_rawdata(lua_State *L, Table *t, Ravi_IntegerArray *data);
+LUAI_FUNC void raviH_get_number_array_rawdata(lua_State *L, RaviArray *t, Ravi_NumberArray *data);
+LUAI_FUNC void raviH_get_integer_array_rawdata(lua_State *L, RaviArray *t, Ravi_IntegerArray *data);
 
 #if defined(LUA_DEBUG)
 LUAI_FUNC Node *luaH_mainposition (const Table *t, const TValue *key);

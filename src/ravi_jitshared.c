@@ -153,6 +153,7 @@ static const char Lua_header[] =
     "#define ttistable(o)		checktype((o), LUA_TTABLE)\n"
     "#define ttisiarray(o)    checktag((o), ctb(RAVI_TIARRAY))\n"
     "#define ttisfarray(o)    checktag((o), ctb(RAVI_TFARRAY))\n"
+    "#define ttisarray(o)     (ttisiarray(o) || ttisfarray(o))\n"
     "#define ttisLtable(o)    checktag((o), ctb(LUA_TTABLE))\n"
     "#define ttisfunction(o)		checktype(o, LUA_TFUNCTION)\n"
     "#define ttisclosure(o)		((rttype(o) & 0x1F) == LUA_TFUNCTION)\n"
@@ -177,6 +178,8 @@ static const char Lua_header[] =
     "#define fvalue(o)	check_exp(ttislcf(o), val_(o).f)\n"
     "#define fcfvalue(o) check_exp(ttisfcf(o), val_(o).p)\n"
     "#define hvalue(o)	check_exp(ttistable(o), gco2t(val_(o).gc))\n"
+    "#define arrvalue(o) check_exp(ttisarray(o), gco2array(val_(o).gc))\n"
+    "#define arrvalue(o) check_exp(ttisarray(o), gco2array(val_(o).gc))\n"
     "#define bvalue(o)	check_exp(ttisboolean(o), val_(o).b)\n"
     "#define thvalue(o)	check_exp(ttisthread(o), gco2th(val_(o).gc))\n"
     "#define deadvalue(o)	check_exp(ttisdeadkey(o), cast(void *, val_(o).gc))\n"
@@ -402,30 +405,38 @@ static const char Lua_header[] =
     "	TKey i_key;\n"
     "} Node;\n"
     "typedef enum RaviArrayModifer {\n"
-    "	RAVI_ARRAY_SLICE = 1,\n"
-    "	RAVI_ARRAY_FIXEDSIZE = 2\n"
+    " RAVI_ARRAY_SLICE = 1,\n"
+    " RAVI_ARRAY_FIXEDSIZE = 2,\n"
+    " RAVI_ARRAY_ALLOCATED = 4,\n"
+    " RAVI_ARRAY_ISFLOAT = 8\n"
     "} RaviArrayModifier;\n"
+    "enum {\n"
+    " RAVI_ARRAY_MAX_INLINE = 3,\n"
+    "};\n"
     "typedef struct RaviArray {\n"
-    "	char *data;\n"
-    "	unsigned int len;\n"
-    "	unsigned int size;\n"
-    "	lu_byte array_type;\n"
-    "	lu_byte array_modifier;\n"
+    " CommonHeader;\n"
+    " lu_byte flags;\n"
+    " unsigned int len;\n"
+    " unsigned int size;\n"
+    " union {\n"
+    "  lua_Number numarray[RAVI_ARRAY_MAX_INLINE];\n"
+    "  lua_Integer intarray[RAVI_ARRAY_MAX_INLINE];\n"
+    "  struct RaviArray* parent;\n"
+    " };\n"
+    " char *data;\n"
+    " struct Table *metatable;\n"
     "} RaviArray;\n"
     "typedef struct Table {\n"
-    "	CommonHeader;\n"
-    "	lu_byte flags;\n"
-    "	lu_byte lsizenode;\n"
-    "	unsigned int sizearray;\n"
-    "	TValue *array;\n"
-    "	Node *node;\n"
-    "	Node *lastfree;\n"
-    "	struct Table *metatable;\n"
-    "	GCObject *gclist;\n"
-    "	RaviArray ravi_array;\n"
-#if RAVI_USE_NEWHASH
-    "	unsigned int hmask;\n"
-#endif
+    " CommonHeader;\n"
+    " lu_byte flags;\n"
+    " lu_byte lsizenode;\n"
+    " unsigned int sizearray;\n"
+    " TValue *array;\n"
+    " Node *node;\n"
+    " Node *lastfree;\n"
+    " struct Table *metatable;\n"
+    " GCObject *gclist;\n"
+    " unsigned int hmask;\n"
     "} Table;\n"
     "typedef struct Mbuffer {\n"
     "	char *buffer;\n"
@@ -539,7 +550,8 @@ static const char Lua_header[] =
     "#define gco2ccl(o)  check_exp((o)->tt == LUA_TCCL, &((cast_u(o))->cl.c))\n"
     "#define gco2cl(o)  \\\n"
     "	check_exp(novariant((o)->tt) == LUA_TFUNCTION, &((cast_u(o))->cl))\n"
-    "#define gco2t(o)  check_exp(novariant((o)->tt) == LUA_TTABLE, &((cast_u(o))->h))\n"
+    "#define gco2t(o)  check_exp((o)->tt == LUA_TTABLE, &((cast_u(o))->h))\n"
+    "#define gco2array(o)  check_exp(((o)->tt == RAVI_TIARRAY || (o)->tt == RAVI_TFARRAY), &((cast_u(o))->arr))\n"
     "#define gco2p(o)  check_exp((o)->tt == LUA_TPROTO, &((cast_u(o))->p))\n"
     "#define gco2th(o)  check_exp((o)->tt == LUA_TTHREAD, &((cast_u(o))->th))\n"
     "#define obj2gco(v) \\\n"
@@ -583,8 +595,8 @@ static const char Lua_header[] =
     "extern void raise_error(lua_State *L, int errorcode);\n"
     "extern void raise_error_with_info(lua_State *L, int errorcode, const char *info);\n"
     "extern void luaD_call (lua_State *L, StkId func, int nResults);\n"
-    "extern void raviH_set_int(lua_State *L, Table *t, lua_Unsigned key, lua_Integer value);\n"
-    "extern void raviH_set_float(lua_State *L, Table *t, lua_Unsigned key, lua_Number value);\n"
+    "extern void raviH_set_int(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Integer value);\n"
+    "extern void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Number value);\n"
     "extern int raviV_check_usertype(lua_State *L, TString *name, const TValue *o);\n"
     "extern void luaT_trybinTM (lua_State *L, const TValue *p1, const TValue *p2, TValue *res, TMS event);\n"
     "extern void raviV_gettable_sskey(lua_State *L, const TValue *t, TValue *key, TValue *val);\n"
@@ -699,10 +711,10 @@ static void emit_IARRAY_GET(struct function *fn, int A, int B, int C, bool omitA
   emit_reg(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
   membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rc));\n");
-  membuff_add_string(&fn->body, "t = hvalue(rb);");
-  membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->ravi_array.data;\n");
+  membuff_add_string(&fn->body, "t = arrvalue(rb);");
+  membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->data;\n");
   if (!omitArrayGetRangeCheck) {
-    membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+    membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->len)) {\n");
   }
   membuff_add_string(&fn->body, " setivalue(ra, iptr[ukey]);\n");
   if (!omitArrayGetRangeCheck) {
@@ -723,10 +735,10 @@ static void emit_FARRAY_GET(struct function *fn, int A, int B, int C, bool omitA
   emit_reg(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
   membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rc));\n");
-  membuff_add_string(&fn->body, "t = hvalue(rb);");
-  membuff_add_string(&fn->body, "nptr = (lua_Number *)t->ravi_array.data;\n");
+  membuff_add_string(&fn->body, "t = arrvalue(rb);");
+  membuff_add_string(&fn->body, "nptr = (lua_Number *)t->data;\n");
   if (!omitArrayGetRangeCheck) {
-    membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+    membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->len)) {\n");
   }
   membuff_add_string(&fn->body, " setfltvalue(ra, nptr[ukey]);\n");
   if (!omitArrayGetRangeCheck) {
@@ -747,10 +759,10 @@ static void emit_IARRAY_SETI(struct function *fn, int A, int B, int C, bool know
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
-  membuff_add_string(&fn->body, "t = hvalue(ra);\n");
+  membuff_add_string(&fn->body, "t = arrvalue(ra);\n");
   membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
-  membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->ravi_array.data;\n");
-  membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+  membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->data;\n");
+  membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->len)) {\n");
   membuff_add_string(&fn->body, " iptr[ukey] = ivalue(rc);\n");
   membuff_add_string(&fn->body, "} else {\n");
   membuff_add_fstring(&fn->body, " raviH_set_int(L, t, ukey, ivalue(rc));\n");
@@ -763,9 +775,9 @@ static void emit_IARRAY_SET(struct function *fn, int A, int B, int C, bool known
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
-  membuff_add_string(&fn->body, "t = hvalue(ra);\n");
+  membuff_add_string(&fn->body, "t = arrvalue(ra);\n");
   membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
-  membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->ravi_array.data;\n");
+  membuff_add_string(&fn->body, "iptr = (lua_Integer *)t->data;\n");
   membuff_add_string(&fn->body, "if (!ttisinteger(rc)) {\n");
 #if GOTO_ON_ERROR
   membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_integer_expected);
@@ -775,7 +787,7 @@ static void emit_IARRAY_SET(struct function *fn, int A, int B, int C, bool known
 #endif
   membuff_add_string(&fn->body, "}\n");
   membuff_add_string(&fn->body, "i = ivalue(rc);\n");
-  membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+  membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->len)) {\n");
   membuff_add_string(&fn->body, " iptr[ukey] = i;\n");
   membuff_add_string(&fn->body, "} else {\n");
   membuff_add_fstring(&fn->body, " raviH_set_int(L, t, ukey, i);\n");
@@ -788,10 +800,10 @@ static void emit_FARRAY_SETF(struct function *fn, int A, int B, int C, bool know
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
-  membuff_add_string(&fn->body, "t = hvalue(ra);\n");
+  membuff_add_string(&fn->body, "t = arrvalue(ra);\n");
   membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
-  membuff_add_string(&fn->body, "nptr = (lua_Number *)t->ravi_array.data;\n");
-  membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+  membuff_add_string(&fn->body, "nptr = (lua_Number *)t->data;\n");
+  membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->len)) {\n");
   membuff_add_string(&fn->body, " nptr[ukey] = fltvalue(rc);\n");
   membuff_add_string(&fn->body, "} else {\n");
   membuff_add_fstring(&fn->body, " raviH_set_float(L, t, ukey, fltvalue(rc));\n");
@@ -804,9 +816,9 @@ static void emit_FARRAY_SET(struct function *fn, int A, int B, int C, bool known
   emit_reg(fn, "ra", A);
   emit_reg_or_k(fn, "rb", B);
   emit_reg_or_k(fn, "rc", C);
-  membuff_add_string(&fn->body, "t = hvalue(ra);\n");
+  membuff_add_string(&fn->body, "t = arrvalue(ra);\n");
   membuff_add_string(&fn->body, "ukey = (lua_Unsigned)(ivalue(rb));\n");
-  membuff_add_string(&fn->body, "nptr = (lua_Number *)t->ravi_array.data;\n");
+  membuff_add_string(&fn->body, "nptr = (lua_Number *)t->data;\n");
   membuff_add_string(&fn->body, "if (!ttisnumber(rc)) {\n");
 #if GOTO_ON_ERROR
   membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_number_expected);
@@ -816,7 +828,7 @@ static void emit_FARRAY_SET(struct function *fn, int A, int B, int C, bool known
 #endif
   membuff_add_string(&fn->body, "}\n");
   membuff_add_string(&fn->body, "n = (ttisinteger(rc) ? (double)ivalue(rc) : fltvalue(rc));\n");
-  membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->ravi_array.len)) {\n");
+  membuff_add_string(&fn->body, "if (ukey < (lua_Unsigned)(t->len)) {\n");
   membuff_add_string(&fn->body, " nptr[ukey] = n;\n");
   membuff_add_string(&fn->body, "} else {\n");
   membuff_add_fstring(&fn->body, " raviH_set_float(L, t, ukey, n);\n");
@@ -1191,7 +1203,7 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p, co
   membuff_add_string(&fn->prologue, "lua_Unsigned ukey = 0;\n");
   membuff_add_string(&fn->prologue, "lua_Integer *iptr = NULL;\n");
   membuff_add_string(&fn->prologue, "lua_Number *nptr = NULL;\n");
-  membuff_add_string(&fn->prologue, "Table *t = NULL;\n");
+  membuff_add_string(&fn->prologue, "RaviArray *t = NULL;\n");
   // TODO we never set this???
   // ci->callstatus |= CIST_FRESH;  /* fresh invocation of 'luaV_execute" */
   // lua_assert(ci == L->ci);

@@ -69,7 +69,11 @@ const TValue *luaT_gettm (Table *events, TMS event, TString *ename) {
 
 const TValue *luaT_gettmbyobj (lua_State *L, const TValue *o, TMS event) {
   Table *mt;
-  switch (ttnov(o)) {
+  switch (ttype(o)) {
+    case RAVI_TIARRAY:
+    case RAVI_TFARRAY:
+      mt = arrvalue(o)->metatable;
+      break;
     case LUA_TTABLE:
       mt = hvalue(o)->metatable;
       break;
@@ -89,8 +93,9 @@ const TValue *luaT_gettmbyobj (lua_State *L, const TValue *o, TMS event) {
 */
 const char *luaT_objtypename (lua_State *L, const TValue *o) {
   Table *mt;
-  if ((ttistable(o) && (mt = hvalue(o)->metatable) != NULL) ||
-      (ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != NULL)) {
+  if ((ttisLtable(o) && (mt = hvalue(o)->metatable) != NULL) ||
+      (ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != NULL) ||
+      (ttisarray(o) && (mt = arrvalue(o)->metatable) != NULL)) {
     const TValue *name = luaH_getshortstr(mt, luaS_new(L, "__name"));
     if (ttisstring(name))  /* is '__name' a string? */
       return getstr(tsvalue(name));  /* use it as type name */
@@ -104,8 +109,9 @@ const char *luaT_objtypename (lua_State *L, const TValue *o) {
 */
 const char *raviT_objtypename(lua_State *L, const TValue *o) {
   Table *mt;
-  if ((ttistable(o) && (mt = hvalue(o)->metatable) != NULL) ||
-    (ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != NULL)) {
+  if ((ttisLtable(o) && (mt = hvalue(o)->metatable) != NULL) ||
+    (ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != NULL) ||
+    (ttisarray(o) && (mt = arrvalue(o)->metatable) != NULL)) {
     const TValue *name = luaH_getshortstr(mt, luaS_new(L, "__name"));
     if (ttisstring(name))  /* is '__name' a string? */
       return getstr(tsvalue(name));  /* use it as type name */
