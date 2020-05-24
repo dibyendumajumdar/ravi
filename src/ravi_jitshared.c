@@ -34,7 +34,6 @@
  */
 
 static const char Lua_header[] =
-    ""
     //"#ifndef __SIZE_TYPE__\n"
     //"#define __SIZE_TYPE__ long long\n"
     //"#endif\n"
