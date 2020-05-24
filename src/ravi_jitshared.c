@@ -523,6 +523,7 @@ static const char Lua_header[] =
     "	struct Udata u;\n"
     "	union Closure cl;\n"
     "	struct Table h;\n"
+    "   struct RaviArray arr;\n"
     "	struct Proto p;\n"
     "	struct lua_State th;\n"
     "};\n"
