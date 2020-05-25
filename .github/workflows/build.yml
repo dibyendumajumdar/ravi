@@ -42,4 +42,4 @@ jobs:
 
     - name: Test
       shell: bash
-      run: cd lua-tests && sh run_tests.sh ${{runner.workspace}}/build/ravi
+      run: cd tests && sh run_tests.sh ${{runner.workspace}}/build/ravi

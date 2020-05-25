@@ -19,8 +19,8 @@ script:
  - mkdir $TRAVIS_BUILD_DIR/build
  - cd $TRAVIS_BUILD_DIR/build && cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=$TRAVIS_BUILD_DIR/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04/lib/cmake/llvm -G "Unix Makefiles" -DLLVM_JIT=ON ..
  - cd $TRAVIS_BUILD_DIR/build && make
- - cd $TRAVIS_BUILD_DIR/lua-tests && sh ./run_travis_tests.sh $TRAVIS_BUILD_DIR/build/ravi
+ - cd $TRAVIS_BUILD_DIR/tests && sh ./run_tests.sh $TRAVIS_BUILD_DIR/build/ravi
  - mkdir $TRAVIS_BUILD_DIR/buildmir
- - cd $TRAVIS_BUILD_DIR/buildmir && cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" -DMIR_JIT=ON ..
+ - cd $TRAVIS_BUILD_DIR/buildmir && cmake -DCMAKE_BUILD_TYPE=Debug -DLTESTS=ON -DMIR_JIT=ON -G "Unix Makefiles" ..
  - cd $TRAVIS_BUILD_DIR/buildmir && make
- - cd $TRAVIS_BUILD_DIR/lua-tests && sh ./run_travis_tests.sh $TRAVIS_BUILD_DIR/buildmir/ravi
+ - cd $TRAVIS_BUILD_DIR/tests && sh ./run_tests.sh $TRAVIS_BUILD_DIR/buildmir/ravi
