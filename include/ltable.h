@@ -137,7 +137,7 @@ LUAI_FUNC RaviArray *raviH_new_number_array(lua_State *L, unsigned int len,
 /* Returns the array length - note that this function will
  * ignore any elements outside of the Ravi Array structure
  */
-LUAI_FUNC int raviH_getn(RaviArray *t);
+#define raviH_getn(t) ((t)->len - 1)
 
 /* Type specific array set operation */
 LUAI_FUNC void raviH_set_int(lua_State *L, RaviArray *t, lua_Unsigned key,
@@ -160,9 +160,6 @@ LUAI_FUNC void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned key,
 */
 LUAI_FUNC RaviArray *raviH_new_slice(lua_State *L, TValue *parent,
                                  unsigned int start, unsigned int len);
-
-/* Obtain parent array of the slice */
-LUAI_FUNC const RaviArray *raviH_slice_parent(lua_State *L, TValue *slice);
 
 /* Type specific array get operation */
 #define raviH_get_int_inline(L, t, key, v)                                     \

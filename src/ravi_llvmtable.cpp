@@ -477,8 +477,8 @@ void RaviCodeGenerator::emit_FARRAY_GET(RaviFunctionDef *def, int A, int B,
                                          int pc) {
   //#define raviH_get_float_inline(L, t, key, v)
   //{ unsigned ukey = (unsigned)((key));
-  //  lua_Number *data = (lua_Number *)t->ravi_array.data;
-  //  if (ukey < t->ravi_array.len) {
+  //  lua_Number *data = (lua_Number *)t->data;
+  //  if (ukey < t->len) {
   //    setfltvalue(v, data[ukey]);
   //      }else
   //    luaG_runerror(L, "array out of bounds");
@@ -496,7 +496,7 @@ void RaviCodeGenerator::emit_FARRAY_GET(RaviFunctionDef *def, int A, int B,
   llvm::Value *rb = emit_gep_register(def, B);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
   llvm::Instruction *key = emit_load_reg_i(def, rc);
-  llvm::Instruction *t = emit_load_reg_h(def, rb);
+  llvm::Instruction *t = emit_load_reg_arr(def, rb);
   llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);
   llvm::BasicBlock *then_block = nullptr;
   llvm::BasicBlock *else_block = nullptr;
@@ -541,8 +541,8 @@ void RaviCodeGenerator::emit_IARRAY_GET(RaviFunctionDef *def, int A, int B,
                                          int pc) {
   //#define raviH_get_int_inline(L, t, key, v)
   //{ unsigned ukey = (unsigned)((key));
-  //  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
-  //  if (ukey < t->ravi_array.len) {
+  //  lua_Integer *data = (lua_Integer *)t->data;
+  //  if (ukey < t->len) {
   //    setivalue(v, data[ukey]);
   //      } else
   //    luaG_runerror(L, "array out of bounds");
@@ -560,7 +560,7 @@ void RaviCodeGenerator::emit_IARRAY_GET(RaviFunctionDef *def, int A, int B,
   llvm::Value *rb = emit_gep_register(def, B);
   llvm::Value *rc = emit_gep_register_or_constant(def, C);
   llvm::Instruction *key = emit_load_reg_i(def, rc);
-  llvm::Instruction *t = emit_load_reg_h(def, rb);
+  llvm::Instruction *t = emit_load_reg_arr(def, rb);
   llvm::Instruction *data = emit_load_reg_h_intarray(def, t);
 
   llvm::BasicBlock *then_block = nullptr;
@@ -605,8 +605,8 @@ void RaviCodeGenerator::emit_IARRAY_SET(RaviFunctionDef *def, int A, int B,
                                          int C, bool known_int, int pc) {
   //#define raviH_set_int_inline(L, t, key, value)
   //{ unsigned ukey = (unsigned)((key));
-  //  lua_Integer *data = (lua_Integer *)t->ravi_array.data;
-  //  if (ukey < t->ravi_array.len) {
+  //  lua_Integer *data = (lua_Integer *)t->data;
+  //  if (ukey < t->len) {
   //    data[ukey] = value;
   //      } else
   //    raviH_set_int(L, t, ukey, value);
@@ -628,7 +628,7 @@ void RaviCodeGenerator::emit_IARRAY_SET(RaviFunctionDef *def, int A, int B,
   llvm::Instruction *key = emit_load_reg_i(def, rb);
   llvm::Instruction *value =
       known_int ? emit_load_reg_i(def, rc) : emit_tointeger(def, rc);
-  llvm::Instruction *t = emit_load_reg_h(def, ra);
+  llvm::Instruction *t = emit_load_reg_arr(def, ra);
   llvm::Instruction *data = emit_load_reg_h_intarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
   llvm::Value *ulen =
@@ -665,8 +665,8 @@ void RaviCodeGenerator::emit_FARRAY_SET(RaviFunctionDef *def, int A, int B,
                                          int C, bool known_float, int pc) {
   //#define raviH_set_float_inline(L, t, key, value)
   //{ unsigned ukey = (unsigned)((key));
-  //  lua_Number *data = (lua_Number *)t->ravi_array.data;
-  //  if (ukey < t->ravi_array.len) {
+  //  lua_Number *data = (lua_Number *)t->data;
+  //  if (ukey < t->len) {
   //    data[ukey] = value;
   //      } else
   //    raviH_set_float(L, t, ukey, value);
@@ -692,7 +692,7 @@ void RaviCodeGenerator::emit_FARRAY_SET(RaviFunctionDef *def, int A, int B,
   llvm::Instruction *key = emit_load_reg_i(def, rb);
   llvm::Instruction *value =
       known_float ? emit_load_reg_n(def, rc) : emit_tofloat(def, rc);
-  llvm::Instruction *t = emit_load_reg_h(def, ra);
+  llvm::Instruction *t = emit_load_reg_arr(def, ra);
   llvm::Instruction *data = emit_load_reg_h_floatarray(def, t);
   llvm::Instruction *len = emit_load_ravi_arraylength(def, t);
   llvm::Value *ulen =

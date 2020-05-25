@@ -179,6 +179,8 @@ struct LuaLLVMTypes {
 
   llvm::StructType *UdataT;
   llvm::StructType *RaviArrayT;
+  llvm::PointerType* pRaviArrayT;
+  llvm::PointerType* ppRaviArrayT;
   llvm::StructType *TableT;
   llvm::PointerType *pTableT;
   llvm::PointerType *ppTableT;
@@ -1036,6 +1038,9 @@ class RaviCodeGenerator {
   // emit code to load the table value from register
   llvm::Instruction *emit_load_reg_h(RaviFunctionDef *def, llvm::Value *ra);
 
+  // emit code to load the RaviArray value from register
+  llvm::Instruction* emit_load_reg_arr(RaviFunctionDef* def, llvm::Value* ra);
+
   // Gets the size of the hash table
   // This is the sizenode() macro in lobject.h
   llvm::Value *emit_table_get_hashsize(RaviFunctionDef *def, llvm::Value *table);
@@ -1097,7 +1102,8 @@ class RaviCodeGenerator {
   llvm::Instruction *emit_load_type(RaviFunctionDef *def, llvm::Value *value);
 
   // emit code to load the array type
-  llvm::Instruction *emit_load_ravi_arraytype(RaviFunctionDef *def, llvm::Value *value);
+  // Disabled as it is now broken
+  //llvm::Instruction *emit_load_ravi_arraytype(RaviFunctionDef *def, llvm::Value *value);
 
   // emit code to load the array length
   llvm::Instruction *emit_load_ravi_arraylength(RaviFunctionDef *def, llvm::Value *value);

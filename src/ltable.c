@@ -767,11 +767,6 @@ int luaH_getn (Table *t) {
   else return unbound_search(t, j);
 }
 
-/* RAVI array specialization */
-int raviH_getn(RaviArray *t) {
-  return t->len - 1;
-}
-
 /* resize array and initialize new elements if requested */
 static int ravi_resize_array(lua_State *L, RaviArray *t, unsigned int new_size, int initialize) {
   if (t->flags & RAVI_ARRAY_FIXEDSIZE || t->flags & RAVI_ARRAY_SLICE) {
@@ -920,7 +915,8 @@ RaviArray *raviH_new_slice(lua_State *L, TValue *parent, unsigned int start,
         L, "cannot create slice from dynamic integer[] or number[] array");
   /* Create the slice table */
   RaviArray *t = raviH_new(L, (orig->flags & RAVI_ARRAY_ISFLOAT) ? RAVI_TARRAYFLT : RAVI_TARRAYINT, 1);
-  /* Add a reference to the parent table */
+  /* Add a reference to the parent table. From GC perspective the slice is a white object
+     so we do not need a write barrier */
   t->parent = orig;
   /* Initialize */
   if (orig->flags & RAVI_ARRAY_ISFLOAT) {
@@ -934,18 +930,6 @@ RaviArray *raviH_new_slice(lua_State *L, TValue *parent, unsigned int start,
   t->len = len + 1;
   t->size = len + 1;
   return t;
-}
-
-/* Obtain parent array of the slice */
-const RaviArray *raviH_slice_parent(lua_State *L, TValue *slice) {
-  if (!ttisarray(slice))
-    luaG_runerror(L, "slice of integer[] or number[] expected");
-  RaviArray *orig = arrvalue(slice);
-  if ((orig->flags & RAVI_ARRAY_SLICE) == 0)
-    luaG_runerror(L, "slice of integer[] or number[] expected");
-  /* Get reference to the parent table */
-  //TODO do a liveness check here
-  return orig->parent;
 }
 
 #if defined(LUA_DEBUG)
