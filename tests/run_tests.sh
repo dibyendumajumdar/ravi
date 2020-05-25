@@ -44,7 +44,6 @@ run_lua53_tests "_port=true ravi.auto(true,1)" "Lua53 auto JIT all test failed"
 
 run_ravi_tests language ravi_tests1.ravi "ravi.jit(false)"
 run_ravi_tests language ravi_tests1.ravi "ravi.auto(true,1)"
-run_ravi_tests language ravi_tests2.ravi "ravi.auto(true,1)"
 run_ravi_tests language ravi_tests3.ravi "ravi.auto(true,1)"
 run_ravi_tests language ravi_errors.ravi "ravi.auto(true,1)"
 run_ravi_tests language basics.lua "ravi.auto(true,1)"
@@ -62,5 +61,7 @@ then
   exit 0
 fi
 
+# The following tests require JIT code to execute a hook at each instruction
+# and are only supported by the LLVM backend
 run_lua53_tests "_port=true ravi.tracehook(true) ravi.auto(true)" "Lua53 tracehook test failed"
 run_lua53_tests "_port=true ravi.tracehook(true) ravi.auto(true,1)" "Lua53 tracehook test failed"
