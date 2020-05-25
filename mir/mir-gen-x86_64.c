@@ -26,8 +26,13 @@ static inline MIR_reg_t target_nth_loc (MIR_reg_t loc, MIR_type_t type, int n) {
 
 /* Hard regs not used in machinized code, preferably call used ones. */
 const MIR_reg_t TEMP_INT_HARD_REG1 = R10_HARD_REG, TEMP_INT_HARD_REG2 = R11_HARD_REG;
+#ifndef _WIN64
 const MIR_reg_t TEMP_FLOAT_HARD_REG1 = XMM8_HARD_REG, TEMP_FLOAT_HARD_REG2 = XMM9_HARD_REG;
 const MIR_reg_t TEMP_DOUBLE_HARD_REG1 = XMM8_HARD_REG, TEMP_DOUBLE_HARD_REG2 = XMM9_HARD_REG;
+#else
+const MIR_reg_t TEMP_FLOAT_HARD_REG1 = XMM4_HARD_REG, TEMP_FLOAT_HARD_REG2 = XMM5_HARD_REG;
+const MIR_reg_t TEMP_DOUBLE_HARD_REG1 = XMM4_HARD_REG, TEMP_DOUBLE_HARD_REG2 = XMM5_HARD_REG;
+#endif
 const MIR_reg_t TEMP_LDOUBLE_HARD_REG1 = MIR_NON_HARD_REG;
 const MIR_reg_t TEMP_LDOUBLE_HARD_REG2 = MIR_NON_HARD_REG;
 
@@ -50,7 +55,13 @@ static inline int target_fixed_hard_reg_p (MIR_reg_t hard_reg) {
 
 static inline int target_call_used_hard_reg_p (MIR_reg_t hard_reg) {
   assert (hard_reg <= MAX_HARD_REG);
+#ifndef _WIN64
   return !(hard_reg == BX_HARD_REG || (hard_reg >= R12_HARD_REG && hard_reg <= R15_HARD_REG));
+#else
+  return !(hard_reg == BX_HARD_REG || hard_reg == SI_HARD_REG || hard_reg == DI_HARD_REG
+           || (hard_reg >= R12_HARD_REG && hard_reg <= R15_HARD_REG)
+           || (hard_reg >= XMM6_HARD_REG && hard_reg <= XMM15_HARD_REG));
+#endif
 }
 
 /* Stack layout (sp refers to the last reserved stack slot address)
@@ -249,7 +260,7 @@ static void machinize_call (MIR_context_t ctx, MIR_insn_t call_insn) {
       if (proto->vararg_p && type == MIR_T_D) {
         gen_assert (int_arg_num > 0 && int_arg_num <= 4);
         arg_reg = get_int_arg_reg (int_arg_num - 1);
-        setup_call_hard_reg_args (call_insn, arg_reg);
+        setup_call_hard_reg_args (ctx, call_insn, arg_reg);
         /* mir does not support moving fp to int regs directly, spill and load them instead */
         mem_op = _MIR_new_hard_reg_mem_op (ctx, MIR_T_D, 8, SP_HARD_REG, MIR_NON_HARD_REG, 1);
         new_insn = MIR_new_insn (ctx, MIR_DMOV, mem_op, arg_op);
@@ -278,7 +289,7 @@ static void machinize_call (MIR_context_t ctx, MIR_insn_t call_insn) {
   }
 #ifndef _WIN64
   if (proto->vararg_p) {
-    setup_call_hard_reg_args (call_insn, AX_HARD_REG);
+    setup_call_hard_reg_args (ctx, call_insn, AX_HARD_REG);
     new_insn = MIR_new_insn (ctx, MIR_MOV, _MIR_new_hard_reg_op (ctx, AX_HARD_REG),
                              MIR_new_int_op (ctx, xmm_args));
     gen_add_insn_before (ctx, call_insn, new_insn);
@@ -568,7 +579,8 @@ static void target_machinize (MIR_context_t ctx) {
       mem_size = 8 /*ret*/ + start_sp_from_bp_offset;
       for (int i = 0; i < 4; i++) {
         arg_reg = get_int_arg_reg (i);
-        mem_op = _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, mem_size, FP_HARD_REG, MIR_NON_HARD_REG, 1);
+        mem_op
+          = _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, mem_size, FP_HARD_REG, MIR_NON_HARD_REG, 1);
         new_insn = MIR_new_insn (ctx, MIR_MOV, mem_op, _MIR_new_hard_reg_op (ctx, arg_reg));
         gen_add_insn_before (ctx, insn, new_insn);
         mem_size += 8;
@@ -617,12 +629,14 @@ static void target_machinize (MIR_context_t ctx) {
               && mem_op.mode == MIR_OP_MEM);
       /* load and increment va pointer */
       treg_op = MIR_new_reg_op (ctx, gen_new_temp_reg (ctx, MIR_T_I64, curr_func_item->u.func));
-      gen_mov (ctx, insn, MIR_MOV, treg_op, MIR_new_mem_op (ctx, MIR_T_I64, 0, va_reg_op.u.reg, 0, 1));
+      gen_mov (ctx, insn, MIR_MOV, treg_op,
+               MIR_new_mem_op (ctx, MIR_T_I64, 0, va_reg_op.u.reg, 0, 1));
       new_insn = MIR_new_insn (ctx, MIR_MOV, res_reg_op, treg_op);
       gen_add_insn_before (ctx, insn, new_insn);
       new_insn = MIR_new_insn (ctx, MIR_ADD, treg_op, treg_op, MIR_new_int_op (ctx, 8));
       gen_add_insn_before (ctx, insn, new_insn);
-      gen_mov (ctx, insn, MIR_MOV, MIR_new_mem_op (ctx, MIR_T_I64, 0, va_reg_op.u.reg, 0, 1), treg_op);
+      gen_mov (ctx, insn, MIR_MOV, MIR_new_mem_op (ctx, MIR_T_I64, 0, va_reg_op.u.reg, 0, 1),
+               treg_op);
 #endif
       gen_delete_insn (ctx, insn);
     } else if (MIR_call_code_p (code)) {
@@ -750,12 +764,16 @@ static void target_make_prolog_epilog (MIR_context_t ctx, bitmap_t used_hard_reg
   /* Use add for matching LEA: */
   new_insn = MIR_new_insn (ctx, MIR_ADD, fp_reg_op, sp_reg_op, MIR_new_int_op (ctx, -8));
   gen_add_insn_before (ctx, anchor, new_insn); /* bp = sp - 8 */
-  if (!func->vararg_p) {
-    service_area_size = 8;
-  } else {
-    service_area_size = reg_save_area_size + 8;
+  service_area_size = func->vararg_p ? reg_save_area_size + 8 : 8;
+  stack_slots_size = stack_slots_num * 8;
+  /* stack slots, and saved regs as multiple of 16 bytes: */
+  block_size = (stack_slots_size + 8 * saved_hard_regs_num + 15) / 16 * 16;
+  new_insn = MIR_new_insn (ctx, MIR_SUB, sp_reg_op, sp_reg_op,
+                           MIR_new_int_op (ctx, block_size + service_area_size));
+  gen_add_insn_before (ctx, anchor, new_insn); /* sp -= block size + service_area_size */
+  if (func->vararg_p) {
 #ifndef _WIN64
-    start = -(int64_t) service_area_size;
+    start = block_size;
     isave (ctx, anchor, start, DI_HARD_REG);
     isave (ctx, anchor, start + 8, SI_HARD_REG);
     isave (ctx, anchor, start + 16, DX_HARD_REG);
@@ -772,12 +790,6 @@ static void target_make_prolog_epilog (MIR_context_t ctx, bitmap_t used_hard_reg
     dsave (ctx, anchor, start + 160, XMM7_HARD_REG);
 #endif
   }
-  stack_slots_size = stack_slots_num * 8;
-  /* stack slots, and saved regs as multiple of 16 bytes: */
-  block_size = (stack_slots_size + 8 * saved_hard_regs_num + 15) / 16 * 16;
-  new_insn = MIR_new_insn (ctx, MIR_SUB, sp_reg_op, sp_reg_op,
-                           MIR_new_int_op (ctx, block_size + service_area_size));
-  gen_add_insn_before (ctx, anchor, new_insn); /* sp -= block size + service_area_size */
   bp_saved_reg_offset = block_size + (func->vararg_p ? reg_save_area_size : 0);
   /* Saving callee saved hard registers: */
   for (i = n = 0; i <= MAX_HARD_REG; i++)
@@ -1044,7 +1056,7 @@ static const struct pattern patterns[] = {
   {MIR_D2I, "r r", "F2 X 0F 2C r0 R1"},  /* cvttsd2si r0,r1 */
   {MIR_D2I, "r md", "F2 X 0F 2C r0 m1"}, /* cvttsd2si r0,m1 */
 
-  {MIR_F2D, "r r", "F3 0F 5A r0 R1"},    /* cvtss2sd r0,r1 */
+  {MIR_F2D, "r r", "F3 Y 0F 5A r0 R1"},  /* cvtss2sd r0,r1 */
   {MIR_F2D, "r mf", "F3 Y 0F 5A r0 m1"}, /* cvtss2sd r0,m1 */
                                          /* fld m1;fstpl -16(sp);movsd r0,-16(sp): */
   {MIR_LD2D, "r mld", "DB /5 m1; DD /3 mt; F2 Y 0F 10 r0 mt"},
@@ -1913,7 +1925,7 @@ static uint8_t *target_translate (MIR_context_t ctx, size_t *len) {
   for (insn = DLIST_HEAD (MIR_insn_t, curr_func_item->u.func->insns); insn != NULL;
        insn = DLIST_NEXT (MIR_insn_t, insn)) {
     if (insn->code == MIR_LABEL) {
-      set_label_disp (insn, VARR_LENGTH (uint8_t, result_code));
+      set_label_disp (ctx, insn, VARR_LENGTH (uint8_t, result_code));
     } else {
       replacement = find_insn_pattern_replacement (ctx, insn);
       if (replacement == NULL) {
@@ -1932,10 +1944,10 @@ static uint8_t *target_translate (MIR_context_t ctx, size_t *len) {
 
     if (!lr.abs_addr_p) {
       set_int64 (&VARR_ADDR (uint8_t, result_code)[lr.label_val_disp],
-                 (int64_t) get_label_disp (lr.label) - (int64_t) lr.next_insn_disp, 4);
+                 (int64_t) get_label_disp (ctx, lr.label) - (int64_t) lr.next_insn_disp, 4);
     } else {
       set_int64 (&VARR_ADDR (uint8_t, result_code)[lr.label_val_disp],
-                 (int64_t) get_label_disp (lr.label), 8);
+                 (int64_t) get_label_disp (ctx, lr.label), 8);
       VARR_PUSH (uint64_t, abs_address_locs, lr.label_val_disp);
     }
   }

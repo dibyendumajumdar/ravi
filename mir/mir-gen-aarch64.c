@@ -702,15 +702,15 @@ static void target_machinize (MIR_context_t ctx) {
   }
 }
 
-static void isave (MIR_context_t ctx, MIR_insn_t anchor, int disp, MIR_reg_t hard_reg) {
+static void isave (MIR_context_t ctx, MIR_insn_t anchor, int disp, MIR_reg_t base, MIR_reg_t hard_reg) {
   gen_mov (ctx, anchor, MIR_MOV,
-           _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, disp, SP_HARD_REG, MIR_NON_HARD_REG, 1),
+           _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, disp, base, MIR_NON_HARD_REG, 1),
            _MIR_new_hard_reg_op (ctx, hard_reg));
 }
 
-static void fsave (MIR_context_t ctx, MIR_insn_t anchor, int disp, MIR_reg_t hard_reg) {
+static void fsave (MIR_context_t ctx, MIR_insn_t anchor, int disp, MIR_reg_t base,  MIR_reg_t hard_reg) {
   gen_mov (ctx, anchor, MIR_LDMOV,
-           _MIR_new_hard_reg_mem_op (ctx, MIR_T_LD, disp, SP_HARD_REG, MIR_NON_HARD_REG, 1),
+           _MIR_new_hard_reg_mem_op (ctx, MIR_T_LD, disp, base, MIR_NON_HARD_REG, 1),
            _MIR_new_hard_reg_op (ctx, hard_reg));
 }
 
@@ -719,7 +719,7 @@ static void target_make_prolog_epilog (MIR_context_t ctx, bitmap_t used_hard_reg
   struct gen_ctx *gen_ctx = *gen_ctx_loc (ctx);
   MIR_func_t func;
   MIR_insn_t anchor, new_insn;
-  MIR_op_t sp_reg_op, fp_reg_op, treg_op;
+  MIR_op_t sp_reg_op, fp_reg_op, treg_op, treg_op2;
   int64_t start;
   int save_prev_stack_p;
   size_t i, offset, frame_size, frame_size_after_saved_regs, saved_iregs_num, saved_fregs_num;
@@ -755,14 +755,21 @@ static void target_make_prolog_epilog (MIR_context_t ctx, bitmap_t used_hard_reg
   frame_size += stack_slots_num * 8;
   if (frame_size % 16 != 0) frame_size = (frame_size + 15) / 16 * 16;
   save_prev_stack_p = func->vararg_p || stack_arg_func_p;
+  treg_op = _MIR_new_hard_reg_op (ctx, R9_HARD_REG);
   if (save_prev_stack_p) { /* prev stack pointer */
-    treg_op = _MIR_new_hard_reg_op (ctx, R9_HARD_REG);
     gen_mov (ctx, anchor, MIR_MOV, treg_op, sp_reg_op);
     frame_size += 16;
   }
   frame_size += 16; /* lr/fp */
-  new_insn = MIR_new_insn (ctx, MIR_SUB, sp_reg_op, sp_reg_op, MIR_new_int_op (ctx, frame_size));
-  gen_add_insn_before (ctx, anchor, new_insn); /* sp = sp - frame_size */
+  if (frame_size < (1 << 12)) {
+    new_insn = MIR_new_insn (ctx, MIR_SUB, sp_reg_op, sp_reg_op, MIR_new_int_op (ctx, frame_size));
+  } else {
+    treg_op2 = _MIR_new_hard_reg_op (ctx, R10_HARD_REG);
+    new_insn = MIR_new_insn (ctx, MIR_MOV, treg_op2, MIR_new_int_op (ctx, frame_size));
+    gen_add_insn_before (ctx, anchor, new_insn); /* t = frame_size */
+    new_insn = MIR_new_insn (ctx, MIR_SUB, sp_reg_op, sp_reg_op, treg_op2);
+  }
+  gen_add_insn_before (ctx, anchor, new_insn); /* sp = sp - (frame_size|t) */
   if (save_prev_stack_p)
     gen_mov (ctx, anchor, MIR_MOV,
              _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, 16, SP_HARD_REG, MIR_NON_HARD_REG, 1),
@@ -775,23 +782,31 @@ static void target_make_prolog_epilog (MIR_context_t ctx, bitmap_t used_hard_reg
            _MIR_new_hard_reg_op (ctx, FP_HARD_REG));    /* mem[sp] = fp */
   gen_mov (ctx, anchor, MIR_MOV, fp_reg_op, sp_reg_op); /* fp = sp */
   if (func->vararg_p) {
+    MIR_reg_t base = SP_HARD_REG;
+    
     start = (int64_t) frame_size - reg_save_area_size;
-    fsave (ctx, anchor, start, V0_HARD_REG);
-    fsave (ctx, anchor, start + 16, V1_HARD_REG);
-    fsave (ctx, anchor, start + 32, V2_HARD_REG);
-    fsave (ctx, anchor, start + 48, V3_HARD_REG);
-    fsave (ctx, anchor, start + 64, V4_HARD_REG);
-    fsave (ctx, anchor, start + 80, V5_HARD_REG);
-    fsave (ctx, anchor, start + 96, V6_HARD_REG);
-    fsave (ctx, anchor, start + 112, V7_HARD_REG);
-    isave (ctx, anchor, start + 128, R0_HARD_REG);
-    isave (ctx, anchor, start + 136, R1_HARD_REG);
-    isave (ctx, anchor, start + 144, R2_HARD_REG);
-    isave (ctx, anchor, start + 152, R3_HARD_REG);
-    isave (ctx, anchor, start + 160, R4_HARD_REG);
-    isave (ctx, anchor, start + 168, R5_HARD_REG);
-    isave (ctx, anchor, start + 176, R6_HARD_REG);
-    isave (ctx, anchor, start + 184, R7_HARD_REG);
+    if ((start + 184) >= (1 << 12)) {
+      new_insn = MIR_new_insn (ctx, MIR_MOV, treg_op, MIR_new_int_op (ctx, start));
+      gen_add_insn_before (ctx, anchor, new_insn); /* t = frame_size - reg_save_area_size */
+      start = 0;
+      base = R9_HARD_REG;
+    }
+    fsave (ctx, anchor, start, base, V0_HARD_REG);
+    fsave (ctx, anchor, start + 16, base, V1_HARD_REG);
+    fsave (ctx, anchor, start + 32, base, V2_HARD_REG);
+    fsave (ctx, anchor, start + 48, base, V3_HARD_REG);
+    fsave (ctx, anchor, start + 64, base, V4_HARD_REG);
+    fsave (ctx, anchor, start + 80, base, V5_HARD_REG);
+    fsave (ctx, anchor, start + 96, base, V6_HARD_REG);
+    fsave (ctx, anchor, start + 112, base, V7_HARD_REG);
+    isave (ctx, anchor, start + 128, base, R0_HARD_REG);
+    isave (ctx, anchor, start + 136, base, R1_HARD_REG);
+    isave (ctx, anchor, start + 144, base, R2_HARD_REG);
+    isave (ctx, anchor, start + 152, base, R3_HARD_REG);
+    isave (ctx, anchor, start + 160, base, R4_HARD_REG);
+    isave (ctx, anchor, start + 168, base, R5_HARD_REG);
+    isave (ctx, anchor, start + 176, base, R6_HARD_REG);
+    isave (ctx, anchor, start + 184, base, R7_HARD_REG);
   }
   /* Saving callee saved hard registers: */
   offset = frame_size - frame_size_after_saved_regs;
@@ -834,8 +849,14 @@ static void target_make_prolog_epilog (MIR_context_t ctx, bitmap_t used_hard_reg
   /* Restore lr, sp, fp */
   gen_mov (ctx, anchor, MIR_MOV, _MIR_new_hard_reg_op (ctx, LINK_HARD_REG),
            _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, 8, FP_HARD_REG, MIR_NON_HARD_REG, 1));
-  new_insn = MIR_new_insn (ctx, MIR_ADD, sp_reg_op, fp_reg_op, MIR_new_int_op (ctx, frame_size));
-  gen_add_insn_before (ctx, anchor, new_insn); /* sp = fp + frame_size */
+  if (frame_size < (1 << 12)) {
+    new_insn = MIR_new_insn (ctx, MIR_ADD, sp_reg_op, fp_reg_op, MIR_new_int_op (ctx, frame_size));
+  } else  {
+    new_insn = MIR_new_insn (ctx, MIR_MOV, treg_op, MIR_new_int_op (ctx, frame_size));
+    gen_add_insn_before (ctx, anchor, new_insn); /* t = frame_size */
+    new_insn = MIR_new_insn (ctx, MIR_ADD, sp_reg_op, fp_reg_op, treg_op);
+  }
+  gen_add_insn_before (ctx, anchor, new_insn); /* sp = fp + (frame_size|t) */
   gen_mov (ctx, anchor, MIR_MOV, fp_reg_op,
            _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, 0, FP_HARD_REG, MIR_NON_HARD_REG, 1));
 }
@@ -995,8 +1016,7 @@ static const struct pattern patterns[] = {
   {MIR_UEXT16, "r r", "53003c00:fffffc00 rd0 rn1"}, /* uxth wd, wn */
   {MIR_UEXT32, "r r", "2a0003e0:7fe0ffe0 rd0 rm1"}, /* mov wd, wm */
 
-  // ??? add extended reg insns:
-  {MIR_ADD, "r r r", "8b000000:ff200000 rd0 rn1 rm2"},  /* add Rd,Rn,Rm*/
+  {MIR_ADD, "r r r", "8b206000:ffe0fc00 rd0 rn1 rm2"},  /* extended add Rd,Rn,Rm*/
   {MIR_ADD, "r r I", "91000000:ff000000 rd0 rn1 I"},    /* add Rd,Rn,I,shift */
   {MIR_ADDS, "r r r", "0b000000:ff200000 rd0 rn1 rm2"}, /* add Wd,Wn,Wm*/
   {MIR_ADDS, "r r I", "11000000:ff000000 rd0 rn1 I"},   /* add Wd,Wn,I,shift */
@@ -1004,7 +1024,7 @@ static const struct pattern patterns[] = {
   {MIR_DADD, "r r r", "1e602800:ffe0fc00 vd0 vn1 vm2"}, /* fadd Dd,Dn,Dm*/
   // ldadd is implemented through builtin
 
-  {MIR_SUB, "r r r", "cb000000:ff200000 rd0 rn1 rm2"},  /* sub Rd,Rn,Rm*/
+  {MIR_SUB, "r r r", "cb206000:ffe0fc00 rd0 rn1 rm2"},  /* extended sub Rd,Rn,Rm*/
   {MIR_SUB, "r r I", "d1000000:ff000000 rd0 rn1 I"},    /* sub Rd,Rn,I,shift */
   {MIR_SUBS, "r r r", "4b000000:ff200000 rd0 rn1 rm2"}, /* sub Wd,Wn,Wm*/
   {MIR_SUBS, "r r I", "51000000:ff000000 rd0 rn1 I"},   /* sub Wd,Wn,I,shift */
@@ -2057,7 +2077,7 @@ static uint8_t *target_translate (MIR_context_t ctx, size_t *len) {
   for (insn = DLIST_HEAD (MIR_insn_t, curr_func_item->u.func->insns); insn != NULL;
        insn = DLIST_NEXT (MIR_insn_t, insn)) {
     if (insn->code == MIR_LABEL) {
-      set_label_disp (insn, VARR_LENGTH (uint8_t, result_code));
+      set_label_disp (ctx, insn, VARR_LENGTH (uint8_t, result_code));
     } else {
       replacement = find_insn_pattern_replacement (ctx, insn);
       if (replacement == NULL) {
@@ -2076,7 +2096,7 @@ static uint8_t *target_translate (MIR_context_t ctx, size_t *len) {
 
     if (!lr.abs_addr_p) {
       int64_t offset
-        = (int64_t) get_label_disp (lr.label) - (int64_t) lr.label_val_disp; /* pc offset */
+        = (int64_t) get_label_disp (ctx, lr.label) - (int64_t) lr.label_val_disp; /* pc offset */
       gen_assert ((offset & 0x3) == 0);
       if (lr.short_p)
         *(uint32_t *) (VARR_ADDR (uint8_t, result_code) + lr.label_val_disp)
@@ -2086,7 +2106,7 @@ static uint8_t *target_translate (MIR_context_t ctx, size_t *len) {
           |= (offset / 4) & 0x3ffffff; /* 26-bit */
     } else {
       set_int64 (&VARR_ADDR (uint8_t, result_code)[lr.label_val_disp],
-                 (int64_t) get_label_disp (lr.label), 8);
+                 (int64_t) get_label_disp (ctx, lr.label), 8);
       VARR_PUSH (uint64_t, abs_address_locs, lr.label_val_disp);
     }
   }

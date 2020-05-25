@@ -3,7 +3,7 @@
 mkdir build
 cd build
 
-cmake3 -DCMAKE_INSTALL_PREFIX=$HOME/Software/llvm10 \
+cmake3 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/Software/llvm10 \
   -DLLVM_TARGETS_TO_BUILD="X86" \
   -DLLVM_BUILD_TOOLS=OFF \
   -DLLVM_INCLUDE_TOOLS=OFF \
@@ -11,5 +11,6 @@ cmake3 -DCMAKE_INSTALL_PREFIX=$HOME/Software/llvm10 \
   -DLLVM_INCLUDE_EXAMPLES=OFF \
   -DLLVM_BUILD_TESTS=OFF \
   -DLLVM_INCLUDE_TESTS=OFF \
+  -DLLVM_OPTIMIZED_TABLEGEN=ON \
   ..
-cmake3 --build . --config Release --target install
+make install
