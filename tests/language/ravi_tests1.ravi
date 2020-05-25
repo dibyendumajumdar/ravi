@@ -1838,7 +1838,58 @@ assert(z.count == 0)
 assert(y == 1)
 print 'Test 82 OK'
 
---
+-- Create some slices and invoke GC
+x = function ()
+    local function createarray(values: number[])
+        local arr: number[] = table.numarray(#values, 0)
+        for i=1,#values do
+            arr[i] = values[i]
+        end
+        return arr
+    end
+
+    local slice1, slice2, slice3
+    local finalizer_called = false
+    do
+      local arr: number[] = createarray (@number[]{ 1.1, 2.2, 3.3, 4.4, 5.5, 6.6 })
+      setmetatable(arr, { __gc = function() finalizer_called = true end })
+      assert(#arr == 6)
+      slice1 = table.slice(arr, 1, 4)
+      collectgarbage()
+      assert(not finalizer_called)
+      assert(#arr == 6)
+      assert(#slice1 == 4)
+      slice2 = table.slice(slice1, 2, 2)
+      collectgarbage()
+      assert(not finalizer_called)
+      assert(#arr == 6)
+      assert(#slice1 == 4)
+      assert(#slice2 == 2)
+    end
+    collectgarbage()
+    assert(not finalizer_called)
+    slice3 = table.slice(slice2, 1, 1)
+    assert(#slice1 == 4)
+    assert(#slice2 == 2)
+    assert(slice3[1] == 2.2)
+    slice1 = nil
+    collectgarbage()
+    assert(not finalizer_called)
+    assert(#slice2 == 2)
+    assert(slice3[1] == 2.2)
+    slice2 = nil
+    collectgarbage()
+    assert(not finalizer_called)
+    assert(#slice3 == 1)
+    assert(slice3[1] == 2.2)
+    slice3 = nil
+    collectgarbage()
+    assert(finalizer_called)
+end
+x()
+compile(x)
+x()
+print 'Test 83 OK'
 
 for k,v in pairs(opcodes_coverage)
 do
