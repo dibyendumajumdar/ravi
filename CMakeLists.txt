@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 project(Ravi VERSION 1.0.4 LANGUAGES C CXX)
 
 # By default on platforms where MIR is supported (right now Linux X86_64)
-# MIR JIt backend is automatically enabled. To disable user must specify
+# MIR JIT backend is automatically enabled. To disable user must specify
 # NO_JIT=ON
 # LLVM has to be explicitly specified using LLVM_JIT=ON
 
@@ -12,20 +12,16 @@ option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
 option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires Debug build" ON)
 
-# By default on X86_64 non-Windows platforms we enable MIR JIT
+# By default on non-Windows platforms we enable MIR JIT
 if (NOT WIN32
         AND NOT LLVM_JIT
-        AND NOT NO_JIT
-        AND CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+        AND NOT NO_JIT)
     set(MIR_JIT ON)
 endif ()
 
 if (MIR_JIT)
     if (MSVC OR WIN32)
         message(FATAL_ERROR "MIR_JIT is not supported when using MSVC and/or WIN32")
-    endif ()
-    if (NOT (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)"))
-        message(FATAL_ERROR "MIR_JIT is only supported on X86-64 platforms")
     endif ()
     set(LLVM_JIT OFF)
     set(STATIC_BUILD OFF) # Because we need to expose the symbols in the library
@@ -62,6 +58,10 @@ set(LLVM_JIT_SRCS src/ravi_llvmjit.cpp src/ravi_llvmtypes.cpp
         src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
         src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
 # MIR sources
+#if (MIR_JIT)
+#    add_subdirectory(mir)
+#    set(MIRJIT_LIBRARIES c2mir)
+#endif()
 set(MIR_HEADERS mir/mir.h mir/mir-gen.h mir/mir-varr.h mir/mir-dlist.h mir/mir-htab.h
         mir/mir-hash.h mir/mir-bitmap.h)
 set(MIR_SRCS mir/mir.c mir/mir-gen.c)
@@ -117,13 +117,17 @@ if (LLVM_JIT)
 else ()
     if (MIR_JIT)
         message(STATUS "MIRJIT enabled")
+#        set(JIT_SRCS ${MIR_JIT_SRCS})
+#        set_property(SOURCE ${MIR_JIT_SRCS}
+#                APPEND
+#                PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
         set(JIT_SRCS ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS})
         set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
                 APPEND
                 PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
         set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
                 APPEND
-                PROPERTY COMPILE_DEFINITIONS "x86_64;MIR_IO;MIR_SCAN")
+                PROPERTY COMPILE_DEFINITIONS "MIR_NO_IO=0;MIR_NO_SCAN=1")
     else()
         set(JIT_SRCS ${NO_JIT_SRCS})
     endif ()
