@@ -175,6 +175,7 @@ typedef struct lua_TValue {
 #define ttistable(o)		checktype((o), LUA_TTABLE)
 #define ttisiarray(o)    checktag((o), ctb(RAVI_TIARRAY))
 #define ttisfarray(o)    checktag((o), ctb(RAVI_TFARRAY))
+#define ttisarray(o)     (ttisiarray(o) || ttisfarray(o))
 #define ttisLtable(o)    checktag((o), ctb(LUA_TTABLE))
 #define ttisfunction(o)		checktype(o, LUA_TFUNCTION)
 #define ttisclosure(o)		((rttype(o) & 0x1F) == LUA_TFUNCTION)
@@ -201,7 +202,8 @@ typedef struct lua_TValue {
 #define clCvalue(o)	check_exp(ttisCclosure(o), gco2ccl(val_(o).gc))
 #define fvalue(o)	check_exp(ttislcf(o), val_(o).f)
 #define fcfvalue(o) check_exp(ttisfcf(o), val_(o).p)
-#define hvalue(o)	check_exp(ttistable(o), gco2t(val_(o).gc))
+#define hvalue(o)	check_exp(ttisLtable(o), gco2t(val_(o).gc))
+#define arrvalue(o) check_exp(ttisarray(o), gco2array(val_(o).gc))
 #define bvalue(o)	check_exp(ttisboolean(o), val_(o).b)
 #define thvalue(o)	check_exp(ttisthread(o), gco2th(val_(o).gc))
 /* a dead value may get the 'gc' field, but cannot access its contents */
@@ -295,13 +297,13 @@ typedef struct lua_TValue {
 
 /** RAVI extension **/
 #define setiarrayvalue(L,obj,x) \
-  { TValue *io = (obj); Table *x_ = (x); \
+  { TValue *io = (obj); RaviArray *x_ = (x); \
     val_(io).gc = obj2gco(x_); settt_(io, ctb(RAVI_TIARRAY)); \
     checkliveness(L,io); }
 
 /** RAVI extension **/
 #define setfarrayvalue(L,obj,x) \
-  { TValue *io = (obj); Table *x_ = (x); \
+  { TValue *io = (obj); RaviArray *x_ = (x); \
     val_(io).gc = obj2gco(x_); settt_(io, ctb(RAVI_TFARRAY)); \
     checkliveness(L,io); }
 
@@ -593,17 +595,32 @@ typedef struct Node {
 
 /** RAVI extension */
 typedef enum RaviArrayModifer {
-  RAVI_ARRAY_SLICE = 1,
-  RAVI_ARRAY_FIXEDSIZE = 2
+  RAVI_ARRAY_SLICE = 1, /* Array is a slice - implies fixed size */
+  RAVI_ARRAY_FIXEDSIZE = 2, /* Fixed size array */
+  RAVI_ARRAY_ALLOCATED = 4, /* Array has memory allocated - cannot be true for slices */
+  RAVI_ARRAY_ISFLOAT = 8 /* A number array */
 } RaviArrayModifier;
 
+enum {
+  RAVI_ARRAY_MAX_INLINE = 3 /* By default we allow for inline storage of 3 elements */,
+};
+
 /** RAVI extension */
+/* Array types look like Userdata from GC point of view, but
+ * have the same base type as Lua tables.
+ */
 typedef struct RaviArray {
-  char *data;             /* Note that the array data is 0-based so this holds 1+Lua length items */
-  unsigned int len;       /* RAVI len specialization, holds real length which is 1+Lua length */
-  unsigned int size;      /* amount of memory allocated */
-  lu_byte array_type;     /* RAVI specialization */
-  lu_byte array_modifier; /* Flags that affect how the array is handled */
+  CommonHeader;
+  lu_byte flags;
+  unsigned int len;  /* array length, holds real length which is 1+Lua length */
+  unsigned int size; /* size of data, in arrays (not slices) if == RAVI_ARRAY_MAX_INLINE then it means we are using inline storage */
+  union {
+    lua_Number numarray[RAVI_ARRAY_MAX_INLINE];
+    lua_Integer intarray[RAVI_ARRAY_MAX_INLINE];
+    struct RaviArray* parent; /* Only set if this is a slice, parent must be a slice or a fixed length array */
+  };
+  char *data;    /* Pointer to data. In case of slices points in parent->data. In case of arrays this may point to heap or internal data */
+  struct Table *metatable;
 } RaviArray;
 
 typedef struct Table {
@@ -616,8 +633,6 @@ typedef struct Table {
   Node *lastfree;  /* any free position is before this position */
   struct Table *metatable;
   GCObject *gclist;
-  /** RAVI extension */
-  RaviArray ravi_array;
 #if RAVI_USE_NEWHASH
   // TODO we should reorganize this structure
   unsigned int hmask; /* Hash part mask (size of hash part - 1) - borrowed from LuaJIT */

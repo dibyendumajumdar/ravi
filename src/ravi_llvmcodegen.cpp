@@ -345,6 +345,15 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_h(RaviFunctionDef *def,
   return h;
 }
 
+// emit code to load the RaviArray value from register (TValue)
+llvm::Instruction* RaviCodeGenerator::emit_load_reg_arr(RaviFunctionDef* def,
+    llvm::Value* rb) {
+    llvm::Value* rb_h = def->builder->CreateBitCast(rb, def->types->ppRaviArrayT);
+    llvm::Instruction* h = def->builder->CreateLoad(rb_h);
+    h->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_hT);
+    return h;
+}
+
 // Gets the size of the hash table
 // This is the sizenode() macro in lobject.h
 llvm::Value *RaviCodeGenerator::emit_table_get_hashsize(RaviFunctionDef *def,
@@ -370,7 +379,7 @@ llvm::Value *RaviCodeGenerator::emit_table_get_hashstr(RaviFunctionDef *def,
                                                        TString *key) {
 #if RAVI_USE_NEWHASH
   unsigned int hash = key->hash;
-  llvm::Value *hmask_ptr = emit_gep(def, "hmask", table, 0, 12);
+  llvm::Value *hmask_ptr = emit_gep(def, "hmask", table, 0, 11);
   llvm::Instruction *hmask = def->builder->CreateLoad(hmask_ptr);
   hmask->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Table_hmask);
   llvm::Value *offset = def->builder->CreateAnd(
@@ -462,9 +471,10 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_s(RaviFunctionDef *def,
   return s;
 }
 
+/* Loads the data pointer as lua_Number[] from a RaviArray object */
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_h_floatarray(
     RaviFunctionDef *def, llvm::Instruction *h) {
-  llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 11, 0);
+  llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 7);
   llvm::Value *darray_ptr =
       def->builder->CreateBitCast(data_ptr, def->types->pplua_NumberT);
   llvm::Instruction *darray = def->builder->CreateLoad(darray_ptr);
@@ -473,9 +483,10 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_h_floatarray(
   return darray;
 }
 
+/* Loads the data pointer as lua_Integer[] from a RaviArray object */
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_h_intarray(
     RaviFunctionDef *def, llvm::Instruction *h) {
-  llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 11, 0);
+  llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 7);
   llvm::Value *darray_ptr =
       def->builder->CreateBitCast(data_ptr, def->types->pplua_IntegerT);
   llvm::Instruction *darray = def->builder->CreateLoad(darray_ptr);
@@ -580,17 +591,21 @@ llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type_class(
       llvm::ConstantInt::get(def->types->lua_LuaTypeT, lua_type), varname);
 }
 
-llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(
-    RaviFunctionDef *def, llvm::Value *value) {
-  llvm::Value *tt_ptr = emit_gep(def, "raviarray.type_ptr", value, 0, 11, 3);
-  llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.type");
-  tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_typeT);
-  return tt;
-}
+/* This loads the RaviArray type value from the tt field maintained in the 
+ GC part. However this tt is 8-bit value and needs to be converted to 
+ the 16-bit value used in TValue objects */
+//llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(
+//    RaviFunctionDef *def, llvm::Value *value) {
+//  llvm::Value *tt_ptr = emit_gep(def, "raviarray.type_ptr", value, 0, 1);
+//  llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.type");
+//  // FIXME promote to 16 bit and set collectible bit
+//  tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_typeT);
+//  return tt;
+//}
 
 llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraylength(
     RaviFunctionDef *def, llvm::Value *value) {
-  llvm::Value *tt_ptr = emit_gep(def, "raviarray.len_ptr", value, 0, 11, 1);
+  llvm::Value *tt_ptr = emit_gep(def, "raviarray.len_ptr", value, 0, 4);
   llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.len");
   tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_lenT);
   return tt;

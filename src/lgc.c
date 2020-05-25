@@ -338,9 +338,22 @@ static void reallymarkobject (global_State *g, GCObject *o) {
       linkgclist(gco2ccl(o), g->gray);
       break;
     }
-    /* RAVI changes */
+    /* arrays are treated like userdata. */
     case RAVI_TIARRAY:
-    case RAVI_TFARRAY:
+    case RAVI_TFARRAY: {
+      RaviArray *slice = gco2array(o);
+      markobjectN(g, gco2array(o)->metatable);  /* mark its metatable */
+      gray2black(o);
+      if (slice->flags & RAVI_ARRAY_SLICE) {
+        lua_assert(slice->parent);
+        TValue pvalue = {.tt_ = ctb(slice->parent->tt), .value_.gc = obj2gco(slice->parent)};  // FIX we should use appropriate macro
+        if (valiswhite(&pvalue)) {
+          o = gcvalue(&pvalue);
+          goto reentry;
+        }
+      }
+      break;
+    }
     case LUA_TTABLE: {
       linkgclist(gco2t(o), g->gray);
       break;
@@ -641,9 +654,6 @@ static void propagatemark (global_State *g) {
   lua_assert(isgray(o));
   gray2black(o);
   switch (o->tt) {
-    /* RAVI changes */
-    case RAVI_TIARRAY:
-    case RAVI_TFARRAY:
     case LUA_TTABLE: {
       Table *h = gco2t(o);
       g->gray = h->gclist;  /* remove from 'gray' list */
@@ -789,7 +799,7 @@ static void freeobj (lua_State *L, GCObject *o) {
     }
     /* RAVI changes */
     case RAVI_TFARRAY:
-    case RAVI_TIARRAY:
+    case RAVI_TIARRAY: raviH_free(L, gco2array(o)); break;
     case LUA_TTABLE: luaH_free(L, gco2t(o)); break;
     case LUA_TTHREAD: luaE_freethread(L, gco2th(o)); break;
     case LUA_TUSERDATA: luaM_freemem(L, o, sizeudata(gco2u(o))); break;
