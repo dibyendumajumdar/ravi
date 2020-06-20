@@ -753,14 +753,19 @@ typedef struct Table {
 /*
 ** Macros to manipulate keys inserted in nodes
 */
-#define keytt(node)		((node)->nk.tt_)
-#define keyval(node)		((node)->nk.value_)
+#define keytt(node)         ((node)->i_key.nk.tt_)
+#define keyval(node)        ((node)->i_key.nk.value_)
 
-#define keyisnil(node)		(keytt(node) == LUA_TNIL)
-#define keyisinteger(node)	(keytt(node) == LUA_TNUMINT)
-#define keyival(node)		(keyval(node).i)
-#define keyisshrstr(node)	(keytt(node) == ctb(LUA_TSHRSTR))
-#define keystrval(node)		(gco2ts(keyval(node).gc))
+#define keyisnil(node)      (keytt(node) == LUA_TNIL)
+#define keyisinteger(node)  (keytt(node) == LUA_TNUMINT)
+#define keyival(node)       (keyval(node).i)
+#define keyfltval(node)     (keyval(node).n)
+#define keyfval(node)       (keyval(node).f)
+#define keypval(node)       (keyval(node).p)
+#define keybval(node)       (keyval(node).b)
+#define keygcval(node)      (keyval(node).gc)
+#define keyisshrstr(node)   (keytt(node) == ctb(LUA_TSHRSTR))
+#define keystrval(node)     (gco2ts(keyval(node).gc))
 
 #define setnilkey(node)		(keytt(node) = LUA_TNIL)
 

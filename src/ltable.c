@@ -122,6 +122,56 @@ static Node *mainposition (const Table *t, const TValue *key) {
   }
 }
 
+/*
+** Check whether key 'k1' is equal to the key in node 'n2'.
+** This equality is raw, so there are no metamethods. Floats
+** with integer values have been normalized, so integers cannot
+** be equal to floats. It is assumed that 'eqshrstr' is simply
+** pointer equality, so that short strings are handled in the
+** default case.
+*/
+static int equalkey (const TValue *k1, const Node *n2) {
+  if (rttype(k1) != keytt(n2))  /* not the same variants? */
+   return 0;  /* cannot be same key */
+  switch (ttype(k1)) {
+    case LUA_TNIL:
+      return 1;
+    case LUA_TBOOLEAN:
+      return (bvalue(k1) == keybval(n2));
+    case LUA_TNUMINT:
+      return (ivalue(k1) == keyival(n2));
+    case LUA_TNUMFLT:
+      return luai_numeq(fltvalue(k1), keyfltval(n2));
+    case RAVI_TFCF:
+    case LUA_TLIGHTUSERDATA:
+      return pvalue(k1) == keypval(n2);
+    case LUA_TLCF:
+      return fvalue(k1) == keyfval(n2);
+    case LUA_TLNGSTR:
+      return luaS_eqlngstr(tsvalue(k1), keystrval(n2));
+    default:
+      return gcvalue(k1) == keygcval(n2);
+  }
+}
+
+/*
+** "Generic" get version. (Not that generic: not valid for integers,
+** which may be in array part, nor for floats with integral values.)
+*/
+static const TValue *getgeneric (Table *t, const TValue *key) {
+  Node *n = mainposition(t, key);
+  for (;;) {  /* check whether 'key' is somewhere in the chain */
+    if (equalkey(key, n))
+      return gval(n);  /* that's it */
+    else {
+      int nx = gnext(n);
+      if (nx == 0)
+        return luaO_nilobject;  /* not found */
+      n += nx;
+    }
+  }
+}
+
 
 /*
 ** returns the index for 'key' if 'key' is an appropriate key to live in
@@ -168,6 +218,27 @@ static unsigned int findindex (lua_State *L, Table *t, StkId key) {
   }
 }
 
+
+
+int luaH_next(lua_State *L, Table *t, StkId key) {
+  unsigned int i = findindex(L, t, key); /* find original element */
+  for (; i < t->sizearray; i++) {        /* try first array part */
+    if (!ttisnil(&t->array[i])) {        /* a non-nil value? */
+      setivalue(key, i + 1);
+      setobj2s(L, key + 1, &t->array[i]);
+      return 1;
+    }
+  }
+  for (i -= t->sizearray; cast_int(i) < sizenode(t); i++) { /* hash part */
+    if (!ttisnil(gval(gnode(t, i)))) {                      /* a non-nil value? */
+      setobj2s(L, key, gkey(gnode(t, i)));
+      setobj2s(L, key + 1, gval(gnode(t, i)));
+      return 1;
+    }
+  }
+  return 0; /* no more elements */
+}
+
 /* RAVI's implementation of luaH_next() equivalent 
  * if no more keys return 0
  * else return 1
@@ -198,25 +269,6 @@ int raviH_next(lua_State *L, RaviArray *t, StkId key) {
     raviH_get_int_inline(L, t, i, (key + 1));
   }
   return 1;
-}
-
-int luaH_next(lua_State *L, Table *t, StkId key) {
-  unsigned int i = findindex(L, t, key); /* find original element */
-  for (; i < t->sizearray; i++) {        /* try first array part */
-    if (!ttisnil(&t->array[i])) {        /* a non-nil value? */
-      setivalue(key, i + 1);
-      setobj2s(L, key + 1, &t->array[i]);
-      return 1;
-    }
-  }
-  for (i -= t->sizearray; cast_int(i) < sizenode(t); i++) { /* hash part */
-    if (!ttisnil(gval(gnode(t, i)))) {                      /* a non-nil value? */
-      setobj2s(L, key, gkey(gnode(t, i)));
-      setobj2s(L, key + 1, gval(gnode(t, i)));
-      return 1;
-    }
-  }
-  return 0; /* no more elements */
 }
 
 /*
@@ -578,7 +630,7 @@ const TValue *luaH_getint (Table *t, lua_Integer key) {
   else {
     Node *n = hashint(t, key);
     for (;;) {  /* check whether 'key' is somewhere in the chain */
-      if (ttisinteger(gkey(n)) && ivalue(gkey(n)) == key)
+      if (keyisinteger(n) && keyival(n) == key)
         return gval(n);  /* that's it */
       else {
         int nx = gnext(n);
@@ -624,24 +676,6 @@ const TValue *luaH_getshortstr_continue(TString *key, Node *n) {
   }
 }
 #endif
-
-/*
-** "Generic" get version. (Not that generic: not valid for integers,
-** which may be in array part, nor for floats with integral values.)
-*/
-static const TValue *getgeneric (Table *t, const TValue *key) {
-  Node *n = mainposition(t, key);
-  for (;;) {  /* check whether 'key' is somewhere in the chain */
-    if (luaV_rawequalobj(gkey(n), key))
-      return gval(n);  /* that's it */
-    else {
-      int nx = gnext(n);
-      if (nx == 0)
-        return luaO_nilobject;  /* not found */
-      n += nx;
-    }
-  }
-}
 
 
 const TValue *luaH_getstr (Table *t, TString *key) {
