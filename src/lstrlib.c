@@ -14,6 +14,7 @@
 #include <float.h>
 #include <limits.h>
 #include <locale.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -969,7 +970,7 @@ static int str_gsub (lua_State *L) {
 ** to nibble boundaries by making what is left after that first digit a
 ** multiple of 4.
 */
-#define L_NBFD		((l_mathlim(MANT_DIG) - 1)%4 + 1)
+#define L_NBFD		((l_floatatt(MANT_DIG) - 1)%4 + 1)
 
 
 /*
@@ -1032,13 +1033,23 @@ static int lua_number2strx (lua_State *L, char *buff, int sz,
 
 
 /*
-** Maximum size of each formatted item. This maximum size is produced
+** Maximum size for items formatted with '%f'. This size is produced
 ** by format('%.99f', -maxfloat), and is equal to 99 + 3 ('-', '.',
 ** and '\0') + number of decimal digits to represent maxfloat (which
-** is maximum exponent + 1). (99+3+1 then rounded to 120 for "extra
-** expenses", such as locale-dependent stuff)
+** is maximum exponent + 1). (99+3+1, adding some extra, 110)
 */
-#define MAX_ITEM        (120 + l_mathlim(MAX_10_EXP))
+#define MAX_ITEMF	(110 + l_floatatt(MAX_10_EXP))
+
+
+/*
+** All formats except '%f' do not need that large limit.  The other
+** float formats use exponents, so that they fit in the 99 limit for
+** significant digits; 's' for large strings and 'q' add items directly
+** to the buffer; all integer formats also fit in the 99 limit.  The
+** worst case are floats: they may need 99 significant digits, plus
+** '0x', '-', '.', 'e+XXXX', and '\0'. Adding some extra, 120.
+*/
+#define MAX_ITEM	120
 
 
 /* valid flags in a format specification */
@@ -1173,36 +1184,51 @@ static int str_format (lua_State *L) {
       luaL_addchar(&b, *strfrmt++);  /* %% */
     else { /* format item */
       char form[MAX_FORMAT];  /* to store the format ('%...') */
-      char *buff = luaL_prepbuffsize(&b, MAX_ITEM);  /* to put formatted item */
+      int maxitem = MAX_ITEM;
+      char *buff = luaL_prepbuffsize(&b, maxitem);  /* to put formatted item */
       int nb = 0;  /* number of bytes in added item */
       if (++arg > top)
-        luaL_argerror(L, arg, "no value");
+        return luaL_argerror(L, arg, "no value");
       strfrmt = scanformat(L, strfrmt, form);
       switch (*strfrmt++) {
         case 'c': {
-          nb = l_sprintf(buff, MAX_ITEM, form, (int)luaL_checkinteger(L, arg));
+          nb = l_sprintf(buff, maxitem, form, (int)luaL_checkinteger(L, arg));
           break;
         }
         case 'd': case 'i':
         case 'o': case 'u': case 'x': case 'X': {
           lua_Integer n = luaL_checkinteger(L, arg);
           addlenmod(form, LUA_INTEGER_FRMLEN);
-          nb = l_sprintf(buff, MAX_ITEM, form, (LUAI_UACINT)n);
+          nb = l_sprintf(buff, maxitem, form, (LUAI_UACINT)n);
           break;
         }
         case 'a': case 'A':
           addlenmod(form, LUA_NUMBER_FRMLEN);
-          nb = lua_number2strx(L, buff, MAX_ITEM, form,
+          nb = lua_number2strx(L, buff, maxitem, form,
                                   luaL_checknumber(L, arg));
           break;
-        case 'e': case 'E': case 'f':
-        case 'g': case 'G': {
+        case 'f':
+          maxitem = MAX_ITEMF;  /* extra space for '%f' */
+          buff = luaL_prepbuffsize(&b, maxitem);
+          /* FALLTHROUGH */
+        case 'e': case 'E': case 'g': case 'G': {
           lua_Number n = luaL_checknumber(L, arg);
           addlenmod(form, LUA_NUMBER_FRMLEN);
-          nb = l_sprintf(buff, MAX_ITEM, form, (LUAI_UACNUMBER)n);
+          nb = l_sprintf(buff, maxitem, form, (LUAI_UACNUMBER)n);
+          break;
+        }
+        case 'p': {
+          const void *p = lua_topointer(L, arg);
+          if (p == NULL) {  /* avoid calling 'printf' with argument NULL */
+            p = "(null)";  /* result */
+            form[strlen(form) - 1] = 's';  /* format it as a string */
+          }
+          nb = l_sprintf(buff, maxitem, form, p);
           break;
         }
         case 'q': {
+          if (form[2] != '\0')  /* modifiers? */
+            return luaL_error(L, "specifier '%%q' cannot have modifiers");
           addliteral(L, &b, arg);
           break;
         }
@@ -1218,18 +1244,17 @@ static int str_format (lua_State *L) {
               luaL_addvalue(&b);  /* keep entire string */
             }
             else {  /* format the string into 'buff' */
-              nb = l_sprintf(buff, MAX_ITEM, form, s);
+              nb = l_sprintf(buff, maxitem, form, s);
               lua_pop(L, 1);  /* remove result from 'luaL_tolstring' */
             }
           }
           break;
         }
         default: {  /* also treat cases 'pnLlh' */
-          return luaL_error(L, "invalid option '%%%c' to 'format'",
-                               *(strfrmt - 1));
+          return luaL_error(L, "invalid conversion '%s' to 'format'", form);
         }
       }
-      lua_assert(nb < MAX_ITEM);
+      lua_assert(nb < maxitem);
       luaL_addsize(&b, nb);
     }
   }
