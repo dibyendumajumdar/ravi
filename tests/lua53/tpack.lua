@@ -204,6 +204,8 @@ do
 
   checkerror("contains zeros", pack, "z", "alo\0");
 
+  checkerror("unfinished string", unpack, "zc10000000", "alo")
+
   for i = 2, NB do
     local s1 = pack("s" .. i, s)
     assert(unpack("s" .. i, s1) == s and #s1 == #s + i)
@@ -312,9 +314,7 @@ do    -- testing initial position
   for i = 1, #x + 1 do
     assert(unpack("c0", x, i) == "")
   end
-  checkerror("out of string", unpack, "c0", x, 0)
   checkerror("out of string", unpack, "c0", x, #x + 2)
-  checkerror("out of string", unpack, "c0", x, -(#x + 1))
  
 end
 

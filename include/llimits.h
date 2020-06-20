@@ -33,6 +33,7 @@ typedef long l_mem;
 
 /* chars used as small naturals (so that 'char' is reserved for characters) */
 typedef unsigned char lu_byte;
+typedef signed char ls_byte;
 
 
 /* maximum value for size_t */
@@ -121,10 +122,15 @@ typedef LUAI_UACINT l_uacInt;
 #define cast(t, exp)	((t)(exp))
 
 #define cast_void(i)	cast(void, (i))
-#define cast_byte(i)	cast(lu_byte, (i))
+#define cast_voidp(i)	cast(void *, (i))
 #define cast_num(i)	cast(lua_Number, (i))
 #define cast_int(i)	cast(int, (i))
+#define cast_uint(i)	cast(unsigned int, (i))
+#define cast_byte(i)	cast(lu_byte, (i))
 #define cast_uchar(i)	cast(unsigned char, (i))
+#define cast_char(i)	cast(char, (i))
+#define cast_charp(i)	cast(char *, (i))
+#define cast_sizet(i)	cast(size_t, (i))
 
 
 /* cast a signed lua_Integer to lua_Unsigned */
@@ -139,6 +145,22 @@ typedef LUAI_UACINT l_uacInt;
 */
 #if !defined(l_castU2S)
 #define l_castU2S(i)	((lua_Integer)(i))
+#endif
+
+
+/*
+** macros to improve jump prediction (used mainly for error handling)
+*/
+#if !defined(likely)
+
+#if defined(__GNUC__)
+#define likely(x)	(__builtin_expect(((x) != 0), 1))
+#define unlikely(x)	(__builtin_expect(((x) != 0), 0))
+#else
+#define likely(x)	(x)
+#define unlikely(x)	(x)
+#endif
+
 #endif
 
 

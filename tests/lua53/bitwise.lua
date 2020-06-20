@@ -1,7 +1,9 @@
--- $Id: bitwise.lua,v 1.26 2016/11/07 13:11:28 roberto Exp $
+-- $Id: testes/bitwise.lua $
 -- See Copyright Notice in file all.lua
 
 print("testing bitwise operations")
+
+require "bwcoercion"
 
 local numbits = string.packsize('j') * 8
 
@@ -54,6 +56,22 @@ assert("0xffffffffffffffff" | 0 == -1)
 assert("0xfffffffffffffffe" & "-1" == -2)
 assert(" \t-0xfffffffffffffffe\n\t" & "-1" == 2)
 assert("   \n  -45  \t " >> "  -2  " == -45 * 4)
+assert("1234.0" << "5.0" == 1234 * 32)
+assert("0xffff.0" ~ "0xAAAA" == 0x5555)
+assert(~"0x0.000p4" == -1)
+
+assert(("7" .. 3) << 1 == 146)
+assert(0xffffffff >> (1 .. "9") == 0x1fff)
+assert(10 | (1 .. "9") == 27)
+
+do
+  local st, msg = pcall(function () return 4 & "a" end)
+  assert(string.find(msg, "'band'"))
+
+  local st, msg = pcall(function () return ~"a" end)
+  assert(string.find(msg, "'bnot'"))
+end
+
 
 -- out of range number
 assert(not pcall(function () return "0xffffffffffffffff.0" | 0 end))
