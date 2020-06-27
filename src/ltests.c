@@ -53,9 +53,8 @@ static int runC (lua_State *L, lua_State *L1, const char *pc);
 
 
 static void setnameval (lua_State *L, const char *name, int val) {
-  lua_pushstring(L, name);
   lua_pushinteger(L, val);
-  lua_settable(L, -3);
+  lua_setfield(L, -2, name);
 }
 
 
@@ -270,6 +269,15 @@ static void checktable (global_State *g, Table *h) {
 }
 
 
+static void checkudata (global_State *g, Udata *u) {
+  GCObject *hgc = obj2gco(u);
+  TValue uservalue;
+  Table *mt = u->metatable;
+  checkobjref(g, hgc, mt);
+  getuservalue(g->mainthread, u, &uservalue);
+  checkvalref(g, hgc, &uservalue);
+}
+
 /*
 ** All marks are conditional because a GC may happen while the
 ** prototype is still being created
@@ -354,11 +362,7 @@ static void checkstack (global_State *g, lua_State *L1) {
 static void checkrefs (global_State *g, GCObject *o) {
     switch (o->tt) {
       case LUA_TUSERDATA: {
-        TValue uservalue;
-        Table *mt = gco2u(o)->metatable;
-        checkobjref(g, o, mt);
-        getuservalue(g->mainthread, gco2u(o), &uservalue);
-        checkvalref(g, o, &uservalue);
+        checkudata(g, gco2u(o));
         break;
       }
       case LUA_TTABLE: {
@@ -659,7 +663,7 @@ static int mem_query (lua_State *L) {
         return 1;
       }
     }
-    return luaL_error(L, "unkown type '%s'", t);
+    return luaL_error(L, "unknown type '%s'", t);
   }
 }
 
@@ -1087,8 +1091,8 @@ static const char *const delimits = " \t\n,;";
 static void skip (const char **pc) {
   for (;;) {
     if (**pc != '\0' && strchr(delimits, **pc)) (*pc)++;
-    else if (**pc == '#') {
-      while (**pc != '\n' && **pc != '\0') (*pc)++;
+    else if (**pc == '#') {  /* comment? */
+      while (**pc != '\n' && **pc != '\0') (*pc)++;  /* until end-of-line */
     }
     else break;
   }

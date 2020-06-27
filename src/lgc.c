@@ -125,7 +125,6 @@ static GCObject **getgclist (GCObject *o) {
     case LUA_TCCL: return &gco2ccl(o)->gclist;
     case LUA_TTHREAD: return &gco2th(o)->gclist;
     case LUA_TPROTO: return &gco2p(o)->gclist;
-
     default: lua_assert(0); return 0;
   }
 }
@@ -279,11 +278,11 @@ void luaC_barrier_ (lua_State *L, GCObject *o, GCObject *v) {
 ** must be marked.
 */
 void luaC_upvalbarrier_(lua_State* L, GCObject* o) {
-    global_State* g = G(L);
-    if (keepinvariant(g) && !isold(o)) {
-        markobject(g, o);
-        setage(o, G_OLD0);
-    }
+  global_State* g = G(L);
+  if (keepinvariant(g) && !isold(o)) {
+    markobject(g, o);
+    setage(o, G_OLD0);
+  }
 }
 
 /*
@@ -440,7 +439,6 @@ static int remarkupvals (global_State *g) {
       thread->twups = thread;  /* mark that it is out of list */
       for (uv = thread->openupval; uv != NULL; uv = uv->u.open.next) {
         work++;
-
         if (uv->u.open.touched) {
           markvalue(g, uv->v);  /* remark upvalue's value */
           uv->u.open.touched = 0;
