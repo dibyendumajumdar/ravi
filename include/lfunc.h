@@ -30,26 +30,6 @@
 /* RAVI change; #define MAXUPVAL	255 */
 
 
-/*
-** Upvalues for Lua closures
-*/
-struct UpVal {
-  TValue *v;  /* points to stack or to its own value */
-#ifdef RAVI_DEFER_STATEMENT
-  unsigned int refcount;  /* reference counter */
-  unsigned int flags; /* Used to mark deferred values */
-#else
-  lu_mem refcount;  /* reference counter */
-#endif
-  union {
-    struct {  /* (when open) */
-      UpVal *next;  /* linked list */
-      int touched;  /* mark to avoid cycles with dead threads */
-    } open;
-    TValue value;  /* the value (when closed) */
-  } u;
-};
-
 #define upisopen(up)	((up)->v != &(up)->u.value)
 
 

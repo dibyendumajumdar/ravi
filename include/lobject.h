@@ -68,8 +68,6 @@ typedef enum {
   RAVI_TUSERDATA       /* userdata or lightuserdata */
 } ravitype_t;
 
-
-
 /*
 ** Tagged Values. This is the basic representation of values in Lua,
 ** an actual value plus a tag with its type.
@@ -99,11 +97,7 @@ typedef struct lua_TValue {
   TValuefields;
 } TValue;
 
-
-
-
 #define val_(o)		((o)->value_)
-
 
 /* raw type tag of a TValue */
 #define rttype(o)	((o)->tt_)
@@ -567,15 +561,29 @@ typedef struct Proto {
     settt_(io, ((tag << 8) | RAVI_TFCF)); \
   }
 #define getfcf_tag(typecode) (typecode >> 8)
-/*
-** Lua Upvalues
-*/
-typedef struct UpVal UpVal;
-
 
 /*
-** Closures
+** Upvalues for Lua closures
 */
+
+typedef struct UpVal {
+  TValue *v;  /* points to stack or to its own value */
+#ifdef RAVI_DEFER_STATEMENT
+  unsigned int refcount;  /* reference counter */
+  unsigned int flags; /* Used to mark deferred values */
+#else
+  lu_mem refcount;  /* reference counter */
+#endif
+  union {
+    struct {  /* (when open) */
+      struct UpVal *next;  /* linked list */
+      int touched;  /* mark to avoid cycles with dead threads */
+    } open;
+    TValue value;  /* the value (when closed) */
+  } u;
+} UpVal;
+
+
 
 #define ClosureHeader \
 	CommonHeader; lu_byte nupvalues; GCObject *gclist
@@ -630,7 +638,6 @@ typedef union Closure {
 
 #define ttisdeadkey(o)		checktag((o), LUA_TDEADKEY)
 
-
 /* Macros to access values */
 
 #define hvalue(o)	check_exp(ttisLtable(o), gco2t(val_(o).gc))
@@ -638,25 +645,10 @@ typedef union Closure {
 /* a dead value may get the 'gc' field, but cannot access its contents */
 #define deadvalue(o)	check_exp(ttisdeadkey(o), cast(void *, val_(o).gc))
 
-
-
-
-
-
-
-
-
-
-
-
-
 #define sethvalue(L,obj,x) \
   { TValue *io = (obj); Table *x_ = (x); \
     val_(io).gc = obj2gco(x_); settt_(io, ctb(LUA_TTABLE)); \
     checkliveness(L,io); }
-
-
-
 
 /** RAVI extension **/
 #define setiarrayvalue(L,obj,x) \
@@ -670,44 +662,9 @@ typedef union Closure {
     val_(io).gc = obj2gco(x_); settt_(io, ctb(RAVI_TFARRAY)); \
     checkliveness(L,io); }
 
-
-
-
-
 #define sethvalue2s	sethvalue
 #define setptvalue2s	setptvalue
 
-
-
-
-
-/*
-** {======================================================
-** types and prototypes
-** =======================================================
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-** Tables
-*/
 
 typedef union TKey {
   struct {
@@ -730,9 +687,6 @@ typedef struct Node {
 	{ TKey *k_=(key); const TValue *io_=(obj); \
 	  k_->nk.value_ = io_->value_; k_->nk.tt_ = io_->tt_; \
 	  (void)L; checkliveness(L,io_); }
-
-
-
 
 typedef struct Table {
   CommonHeader;
