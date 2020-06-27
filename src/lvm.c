@@ -1358,7 +1358,7 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_SETUPVAL) {
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_GETTABUP) {
@@ -2273,7 +2273,7 @@ int luaV_execute (lua_State *L) {
         if (tointeger(ra, &ia)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
           setivalue(uv->v, ia);
-          luaC_upvalbarrier(L, uv);
+          luaC_upvalbarrier(L, uv, ra);
         }
         else
           luaG_runerror(
@@ -2285,7 +2285,7 @@ int luaV_execute (lua_State *L) {
         if (tonumber(ra, &na)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
           setfltvalue(uv->v, na);
-          luaC_upvalbarrier(L, uv);
+          luaC_upvalbarrier(L, uv, ra);
         }
         else
           luaG_runerror(
@@ -2299,7 +2299,7 @@ int luaV_execute (lua_State *L) {
             "integer[] value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_SETUPVAL_FARRAY) {
@@ -2309,7 +2309,7 @@ int luaV_execute (lua_State *L) {
             "upvalue of number[] type, cannot be set to non number[] value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_SETUPVALT) {
@@ -2318,7 +2318,7 @@ int luaV_execute (lua_State *L) {
             L, "upvalue of table type, cannot be set to non table value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_LOADIZ) {
@@ -2835,7 +2835,7 @@ void raviV_op_setupvali(lua_State *L, LClosure *cl, TValue *ra, int b) {
   if (tointeger(ra, &ia)) {
     UpVal *uv = cl->upvals[b];
     setivalue(uv->v, ia);
-    luaC_upvalbarrier(L, uv);
+    luaC_upvalbarrier(L, uv, ra);
   }
   else
     luaG_runerror(
@@ -2847,7 +2847,7 @@ void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b) {
   if (tonumber(ra, &na)) {
     UpVal *uv = cl->upvals[b];
     setfltvalue(uv->v, na);
-    luaC_upvalbarrier(L, uv);
+    luaC_upvalbarrier(L, uv, ra);
   }
   else
     luaG_runerror(L,
@@ -2860,7 +2860,7 @@ void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b) {
         L, "upvalue of integer[] type, cannot be set to non integer[] value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b) {
@@ -2869,7 +2869,7 @@ void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b) {
         L, "upvalue of number[] type, cannot be set to non number[] value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b) {
@@ -2877,13 +2877,13 @@ void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b) {
     luaG_runerror(L, "upvalue of table type, cannot be set to non table value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b) {
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_add(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {

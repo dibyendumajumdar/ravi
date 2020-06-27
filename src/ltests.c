@@ -1,5 +1,5 @@
 /*
-** $Id: ltests.c,v 2.211 2016/12/04 20:17:24 roberto Exp $
+** $Id: ltests.c $
 ** Internal Module for Debugging of the Lua Implementation
 ** See Copyright Notice in lua.h
 */
@@ -664,6 +664,15 @@ static int mem_query (lua_State *L) {
 }
 
 
+static int alloc_count (lua_State *L) {
+  if (lua_isnone(L, 1))
+    l_memcontrol.countlimit = ~0L;
+  else
+    l_memcontrol.countlimit = luaL_checkinteger(L, 1);
+  return 0;
+}
+  
+
 static int settrick (lua_State *L) {
   if (ttisnil(obj_at(L, 1)))
     l_Trick = NULL;
@@ -683,17 +692,50 @@ static int gc_color (lua_State *L) {
     GCObject *obj = gcvalue(o);
     lua_pushstring(L, isdead(G(L), obj) ? "dead" :
                       iswhite(obj) ? "white" :
-                      isblack(obj) ? "black" : "grey");
+                      isblack(obj) ? "black" : "gray");
   }
   return 1;
 }
 
 
+static int gc_age (lua_State *L) {
+  TValue *o;
+  luaL_checkany(L, 1);
+  o = obj_at(L, 1);
+  if (!iscollectable(o))
+    lua_pushstring(L, "no collectable");
+  else {
+    static const char *gennames[] = {"new", "survival", "old0", "old1",
+                                     "old", "touched1", "touched2"};
+    GCObject *obj = gcvalue(o);
+    lua_pushstring(L, gennames[getage(obj)]);
+  }
+  return 1;
+}
+
+
+static int gc_printobj (lua_State *L) {
+  TValue *o;
+  luaL_checkany(L, 1);
+  o = obj_at(L, 1);
+  if (!iscollectable(o))
+    printf("no collectable\n");
+  else {
+    GCObject *obj = gcvalue(o);
+    printobj(G(L), obj);
+    printf("\n");
+  }
+  return 0;
+}
+
+
 static int gc_state (lua_State *L) {
-  static const char *statenames[] = {"propagate", "atomic", "sweepallgc",
-      "sweepfinobj", "sweeptobefnz", "sweepend", "pause", ""};
-  static const int states[] = {GCSpropagate, GCSatomic, GCSswpallgc,
-      GCSswpfinobj, GCSswptobefnz, GCSswpend, GCSpause, -1};
+  static const char *statenames[] = {
+    "propagate", "atomic", "enteratomic", "sweepallgc", "sweepfinobj",
+    "sweeptobefnz", "sweepend", "callfin", "pause", ""};
+  static const int states[] = {
+    GCSpropagate, GCSenteratomic, GCSatomic, GCSswpallgc, GCSswpfinobj,
+    GCSswptobefnz, GCSswpend, GCScallfin, GCSpause, -1};
   int option = states[luaL_checkoption(L, 1, "", statenames)];
   if (option == -1) {
     lua_pushstring(L, statenames[G(L)->gcstate]);
@@ -701,6 +743,8 @@ static int gc_state (lua_State *L) {
   }
   else {
     global_State *g = G(L);
+    if (G(L)->gckind == KGC_GEN)
+      luaL_error(L, "cannot change states in generational mode");
     lua_lock(L);
     if (option < g->gcstate) {  /* must cross 'pause'? */
       luaC_runtilstate(L, bitmask(GCSpause));  /* run until pause */
@@ -917,6 +961,7 @@ static int loadlib (lua_State *L) {
     {"math", luaopen_math},
     {"string", luaopen_string},
     {"table", luaopen_table},
+    {"T", luaB_opentests},
     {NULL, NULL}
   };
   lua_State *L1 = getstate(L);
@@ -1288,7 +1333,7 @@ static int runC (lua_State *L, lua_State *L1, const char *pc) {
     else if EQ("pop") {
       lua_pop(L1, getnum);
     }
-    else if EQ("print") {
+    else if EQ("printstack") {
       int n = getnum;
       if (n != 0) {
         printf("%s\n", luaL_tolstring(L1, n, NULL));
@@ -1296,6 +1341,11 @@ static int runC (lua_State *L, lua_State *L1, const char *pc) {
       }
       else printstack(L1);
     }
+    else if EQ("print") {
+      const char *msg = getstring;
+      printf("%s\n", msg);
+    }
+
     else if EQ("pushbool") {
       lua_pushboolean(L1, getnum);
     }
@@ -1385,6 +1435,9 @@ static int runC (lua_State *L, lua_State *L1, const char *pc) {
     }
     else if EQ("error") {
       lua_error(L1);
+    }
+    else if EQ("abort") {
+      abort();
     }
     else if EQ("throw") {
 #if defined(__cplusplus)
@@ -1574,7 +1627,9 @@ static const struct luaL_Reg tests_funcs[] = {
   {"doonnewstack", doonnewstack},
   {"doremote", doremote},
   {"gccolor", gc_color},
+  {"gcage", gc_age},
   {"gcstate", gc_state},
+  {"pobj", gc_printobj},
   {"getref", getref},
   {"hash", hash_query},
   {"int2fb", int2fb_aux},
