@@ -50,10 +50,13 @@ assert(a[3] == a[4] and a[4] == a[5])
 for i = 1, 5 do  a[i] = function (x) return i + a + _ENV end  end
 assert(a[3] ~= a[4] and a[4] ~= a[5])
 
-local function f()
-  return function (x)  return math.sin(_ENV[x])  end
+do
+  local a = function (x)  return math.sin(_ENV[x])  end
+  local function f()
+    return a
+  end
+  assert(f() == f())
 end
-assert(f() == f())
 
 
 -- testing closures with 'for' control variable
@@ -155,6 +158,28 @@ y = f(10)
 w = 1.345
 assert(y(20)(30) == 60+w)
 
+
+-- testing closures x break
+do
+  local X, Y
+  local a = math.sin(0)
+
+  while a do
+    local b = 10
+    X = function () return b end   -- closure with upvalue
+    if a then break end
+  end
+  
+  do
+    local b = 20
+    Y = function () return b end   -- closure with upvalue
+  end
+
+  -- upvalues must be different
+  assert(X() == 10 and Y() == 20)
+end
+
+  
 -- testing closures x repeat-until
 
 local a = {}
