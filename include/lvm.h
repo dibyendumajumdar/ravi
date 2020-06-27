@@ -96,7 +96,7 @@
 */
 #define luaV_finishfastset(L,t,slot,v) \
     { setobj2t(L, cast(TValue *,slot), v); \
-      luaC_barrierback(L, hvalue(t), v); }
+      luaC_barrierback(L, gcvalue(t), v); }
 
 
 

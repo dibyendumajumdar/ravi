@@ -53,6 +53,23 @@ typedef signed char ls_byte;
 
 
 /*
+** floor of the log2 of the maximum signed value for integral type 't'.
+** (That is, maximum 'n' such that '2^n' fits in the given signed type.)
+*/
+#define log2maxs(t)	(sizeof(t) * 8 - 2)
+
+
+/*
+** test whether an unsigned value is a power of 2 (or zero)
+*/
+#define ispow2(x)	(((x) & ((x) - 1)) == 0)
+
+
+/* number of chars of a literal string without the ending \0 */
+#define LL(x)   (sizeof(x)/sizeof(char) - 1)
+
+
+/*
 ** conversion of pointer to unsigned integer:
 ** this is for hashing only; there is no problem if the integer
 ** cannot hold the whole pointer value

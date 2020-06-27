@@ -244,7 +244,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
         /* no metamethod and (now) there is an entry with given key */
         setobj2t(L, cast(TValue *, slot), val);  /* set its new value */
         invalidateTMcache(h);
-        luaC_barrierback(L, h, val);
+        luaC_barrierback(L, obj2gco(h), val);
         return;
       }
       /* else will try the metamethod */
@@ -364,7 +364,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       slot = luaH_get(hvalue(t), key);                                      \
     if (!ttisnil(slot)) {                                                   \
       setobj2t(L, cast(TValue *, slot), val);                               \
-      luaC_barrierback(L, hvalue(t), val);                                  \
+      luaC_barrierback(L, gcvalue(t), val);                                  \
     }                                                                       \
     else {                                                                  \
       protect(luaV_finishset(L, t, key, val, slot));                        \
@@ -421,7 +421,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       slot = luaH_getint(h, idx);                                           \
     if (!ttisnil(slot)) {                                                   \
       setobj2t(L, cast(TValue *, slot), val);                               \
-      luaC_barrierback(L, h, val);                                          \
+      luaC_barrierback(L, obj2gco(h), val);                                          \
     }                                                                       \
     else {                                                                  \
       protect(luaV_finishset(L, t, key, val, slot));                        \
@@ -471,7 +471,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     const TValue *slot = luaH_getshortstr(hvalue(t), tsvalue(key)); \
     if (!ttisnil(slot)) {                                           \
       setobj2t(L, cast(TValue *, slot), val);                       \
-      luaC_barrierback(L, hvalue(t), val);                          \
+      luaC_barrierback(L, gcvalue(t), val);                          \
     }                                                               \
     else {                                                          \
       protect(luaV_finishset(L, t, key, val, slot));                \
@@ -1896,7 +1896,7 @@ int luaV_execute (lua_State *L) {
           for (; n > 0; n--) {
             TValue *val = ra + n;
             luaH_setint(L, h, last--, val);
-            luaC_barrierback(L, h, val);
+            luaC_barrierback(L, obj2gco(h), val);
           }
         }
         else {
@@ -2570,7 +2570,7 @@ static void ravi_dump_ci(lua_State *L, CallInfo *ci) {
   int func_type = ttype(func);
   StkId base = NULL;
   Proto *p = NULL;
-  int funcpos = ci->func - L->stack;
+  int funcpos = (int)(ci->func - L->stack);
   StkId stack_ptr = ci->top - 1;
   int i;
   switch (func_type) {
@@ -2589,7 +2589,7 @@ static void ravi_dump_ci(lua_State *L, CallInfo *ci) {
   case LUA_TFUNCTION:
     p = clLvalue(func)->p;
     base = ci->u.l.base;
-    i = ci->top - L->stack - 1;
+    i = (int) (ci->top - L->stack - 1);
     break;
   default:
     return;
@@ -2730,7 +2730,7 @@ void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
     for (; n > 0; n--) {
       TValue *val = ra + n;
       luaH_setint(L, h, last--, val);
-      luaC_barrierback(L, h, val);
+      luaC_barrierback(L, obj2gco(h), val);
     }
   }
   else {
