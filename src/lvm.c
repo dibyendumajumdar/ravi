@@ -244,7 +244,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
         /* no metamethod and (now) there is an entry with given key */
         setobj2t(L, cast(TValue *, slot), val);  /* set its new value */
         invalidateTMcache(h);
-        luaC_barrierback(L, h, val);
+        luaC_barrierback(L, obj2gco(h), val);
         return;
       }
       /* else will try the metamethod */
@@ -364,7 +364,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       slot = luaH_get(hvalue(t), key);                                      \
     if (!ttisnil(slot)) {                                                   \
       setobj2t(L, cast(TValue *, slot), val);                               \
-      luaC_barrierback(L, hvalue(t), val);                                  \
+      luaC_barrierback(L, gcvalue(t), val);                                  \
     }                                                                       \
     else {                                                                  \
       protect(luaV_finishset(L, t, key, val, slot));                        \
@@ -421,7 +421,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       slot = luaH_getint(h, idx);                                           \
     if (!ttisnil(slot)) {                                                   \
       setobj2t(L, cast(TValue *, slot), val);                               \
-      luaC_barrierback(L, h, val);                                          \
+      luaC_barrierback(L, obj2gco(h), val);                                          \
     }                                                                       \
     else {                                                                  \
       protect(luaV_finishset(L, t, key, val, slot));                        \
@@ -471,7 +471,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     const TValue *slot = luaH_getshortstr(hvalue(t), tsvalue(key)); \
     if (!ttisnil(slot)) {                                           \
       setobj2t(L, cast(TValue *, slot), val);                       \
-      luaC_barrierback(L, hvalue(t), val);                          \
+      luaC_barrierback(L, gcvalue(t), val);                          \
     }                                                               \
     else {                                                          \
       protect(luaV_finishset(L, t, key, val, slot));                \
@@ -1358,7 +1358,7 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_SETUPVAL) {
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_GETTABUP) {
@@ -1896,7 +1896,7 @@ int luaV_execute (lua_State *L) {
           for (; n > 0; n--) {
             TValue *val = ra + n;
             luaH_setint(L, h, last--, val);
-            luaC_barrierback(L, h, val);
+            luaC_barrierback(L, obj2gco(h), val);
           }
         }
         else {
@@ -2273,7 +2273,7 @@ int luaV_execute (lua_State *L) {
         if (tointeger(ra, &ia)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
           setivalue(uv->v, ia);
-          luaC_upvalbarrier(L, uv);
+          luaC_upvalbarrier(L, uv, ra);
         }
         else
           luaG_runerror(
@@ -2285,7 +2285,7 @@ int luaV_execute (lua_State *L) {
         if (tonumber(ra, &na)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
           setfltvalue(uv->v, na);
-          luaC_upvalbarrier(L, uv);
+          luaC_upvalbarrier(L, uv, ra);
         }
         else
           luaG_runerror(
@@ -2299,7 +2299,7 @@ int luaV_execute (lua_State *L) {
             "integer[] value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_SETUPVAL_FARRAY) {
@@ -2309,7 +2309,7 @@ int luaV_execute (lua_State *L) {
             "upvalue of number[] type, cannot be set to non number[] value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_SETUPVALT) {
@@ -2318,7 +2318,7 @@ int luaV_execute (lua_State *L) {
             L, "upvalue of table type, cannot be set to non table value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_LOADIZ) {
@@ -2570,7 +2570,7 @@ static void ravi_dump_ci(lua_State *L, CallInfo *ci) {
   int func_type = ttype(func);
   StkId base = NULL;
   Proto *p = NULL;
-  int funcpos = ci->func - L->stack;
+  int funcpos = (int)(ci->func - L->stack);
   StkId stack_ptr = ci->top - 1;
   int i;
   switch (func_type) {
@@ -2589,7 +2589,7 @@ static void ravi_dump_ci(lua_State *L, CallInfo *ci) {
   case LUA_TFUNCTION:
     p = clLvalue(func)->p;
     base = ci->u.l.base;
-    i = ci->top - L->stack - 1;
+    i = (int) (ci->top - L->stack - 1);
     break;
   default:
     return;
@@ -2730,7 +2730,7 @@ void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
     for (; n > 0; n--) {
       TValue *val = ra + n;
       luaH_setint(L, h, last--, val);
-      luaC_barrierback(L, h, val);
+      luaC_barrierback(L, obj2gco(h), val);
     }
   }
   else {
@@ -2835,7 +2835,7 @@ void raviV_op_setupvali(lua_State *L, LClosure *cl, TValue *ra, int b) {
   if (tointeger(ra, &ia)) {
     UpVal *uv = cl->upvals[b];
     setivalue(uv->v, ia);
-    luaC_upvalbarrier(L, uv);
+    luaC_upvalbarrier(L, uv, ra);
   }
   else
     luaG_runerror(
@@ -2847,7 +2847,7 @@ void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b) {
   if (tonumber(ra, &na)) {
     UpVal *uv = cl->upvals[b];
     setfltvalue(uv->v, na);
-    luaC_upvalbarrier(L, uv);
+    luaC_upvalbarrier(L, uv, ra);
   }
   else
     luaG_runerror(L,
@@ -2860,7 +2860,7 @@ void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b) {
         L, "upvalue of integer[] type, cannot be set to non integer[] value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b) {
@@ -2869,7 +2869,7 @@ void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b) {
         L, "upvalue of number[] type, cannot be set to non number[] value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b) {
@@ -2877,13 +2877,13 @@ void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b) {
     luaG_runerror(L, "upvalue of table type, cannot be set to non table value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b) {
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_add(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {

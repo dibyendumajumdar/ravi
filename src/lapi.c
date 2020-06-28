@@ -1069,10 +1069,11 @@ LUA_API void lua_rawset (lua_State *L, int idx) {
   o = index2addr(L, idx);
   api_check(L, ttistable(o), "table expected");
   if (ttisLtable(o)) {
+
     slot = luaH_set(L, hvalue(o), L->top - 2);
     setobj2t(L, slot, L->top - 1);
     invalidateTMcache(hvalue(o));
-    luaC_barrierback(L, hvalue(o), L->top - 1);
+    luaC_barrierback(L, gcvalue(o), L->top - 1);
   }
   else if (ttisfarray(o)) {
     RaviArray *t = arrvalue(o); 
@@ -1124,7 +1125,7 @@ LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
   api_check(L, ttistable(o), "table expected");
   if (ttisLtable(o)) {
     luaH_setint(L, hvalue(o), n, L->top - 1);
-    luaC_barrierback(L, hvalue(o), L->top - 1);
+    luaC_barrierback(L, gcvalue(o), L->top - 1);
   }
   else if (ttisfarray(o)) {
     RaviArray *t = arrvalue(o);
@@ -1166,7 +1167,7 @@ LUA_API void lua_rawsetp (lua_State *L, int idx, const void *p) {
   setpvalue(&k, cast(void *, p));
   slot = luaH_set(L, hvalue(o), &k);
   setobj2t(L, slot, L->top - 1);
-  luaC_barrierback(L, hvalue(o), L->top - 1);
+  luaC_barrierback(L, gcvalue(o), L->top - 1);
   L->top--;
   lua_unlock(L);
 }
@@ -1345,7 +1346,7 @@ LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
       const TValue *gt = luaH_getint(reg, LUA_RIDX_GLOBALS);
       /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
       setobj(L, f->upvals[0]->v, gt);
-      luaC_upvalbarrier(L, f->upvals[0]);
+      luaC_upvalbarrier(L, f->upvals[0], gt);
     }
   }
   lua_unlock(L);
@@ -1376,12 +1377,12 @@ LUA_API int lua_status (lua_State *L) {
 /*
 ** Garbage-collection function
 */
-
-LUA_API int lua_gc (lua_State *L, int what, int data) {
+LUA_API int lua_gc (lua_State *L, int what, ...) {
+  va_list argp;
   int res = 0;
-  global_State *g;
+  global_State *g = G(L);
   lua_lock(L);
-  g = G(L);
+  va_start(argp, what);
   switch (what) {
     case LUA_GCSTOP: {
       g->gcrunning = 0;
@@ -1406,11 +1407,12 @@ LUA_API int lua_gc (lua_State *L, int what, int data) {
       break;
     }
     case LUA_GCSTEP: {
+      int data = va_arg(argp, int);
       l_mem debt = 1;  /* =1 to signal that it did an actual step */
       lu_byte oldrunning = g->gcrunning;
       g->gcrunning = 1;  /* allow GC to run */
       if (data == 0) {
-        luaE_setdebt(g, -GCSTEPSIZE);  /* to do a "small" step */
+        luaE_setdebt(g, 0);  /* do a basic step */
         luaC_step(L);
       }
       else {  /* add 'data' to total debt */
@@ -1424,22 +1426,49 @@ LUA_API int lua_gc (lua_State *L, int what, int data) {
       break;
     }
     case LUA_GCSETPAUSE: {
-      res = g->gcpause;
-      g->gcpause = data;
+      int data = va_arg(argp, int);
+      res = getgcparam(g->gcpause);
+      setgcparam(g->gcpause, data);
       break;
     }
     case LUA_GCSETSTEPMUL: {
-      res = g->gcstepmul;
-      if (data < 40) data = 40;  /* avoid ridiculous low values (and 0) */
-      g->gcstepmul = data;
+      int data = va_arg(argp, int);
+      res = getgcparam(g->gcstepmul);
+      setgcparam(g->gcstepmul, data);
       break;
     }
     case LUA_GCISRUNNING: {
       res = g->gcrunning;
       break;
     }
+    case LUA_GCGEN: {
+      int minormul = va_arg(argp, int);
+      int majormul = va_arg(argp, int);
+      res = isdecGCmodegen(g) ? LUA_GCGEN : LUA_GCINC;
+      if (minormul != 0)
+        g->genminormul = minormul;
+      if (majormul != 0)
+        setgcparam(g->genmajormul, majormul);
+      luaC_changemode(L, KGC_GEN);
+      break;
+    }
+    case LUA_GCINC: {
+      int pause = va_arg(argp, int);
+      int stepmul = va_arg(argp, int);
+      int stepsize = va_arg(argp, int);
+      res = isdecGCmodegen(g) ? LUA_GCGEN : LUA_GCINC;
+      if (pause != 0)
+        setgcparam(g->gcpause, pause);
+      if (stepmul != 0)
+        setgcparam(g->gcstepmul, stepmul);
+      if (stepsize != 0)
+        g->gcstepsize = stepsize;
+      luaC_changemode(L, KGC_INC);
+      break;
+    }
     default: res = -1;  /* invalid option */
   }
+  va_end(argp);
   lua_unlock(L);
   return res;
 }
@@ -1611,8 +1640,8 @@ LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
   if (name) {
     L->top--;
     setobj(L, val, L->top);
-    if (owner) { luaC_barrier(L, owner, L->top); }
-    else if (uv) { luaC_upvalbarrier(L, uv); }
+    if (owner) { luaC_barrier(L, owner, val); }
+    else if (uv) { luaC_upvalbarrier(L, uv, val); }
   }
   lua_unlock(L);
   return name;
@@ -1661,7 +1690,7 @@ LUA_API void lua_upvaluejoin (lua_State *L, int fidx1, int n1,
     *up1 = *up2;
     (*up1)->refcount++;
     if (upisopen(*up1)) (*up1)->u.open.touched = 1;
-    luaC_upvalbarrier(L, *up1);
+    luaC_upvalbarrier(L, *up1, (*up1)->v);
   }
 }
 

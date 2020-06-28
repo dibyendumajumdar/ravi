@@ -44,13 +44,20 @@ else
   T = rawget(_G, "T")  -- avoid problems with 'strict' module
 end
 
-math.randomseed(0)
 
 --[=[
   example of a long [comment],
   [[spanning several [lines]]]
 
 ]=]
+
+print("\n\tStarting Tests")
+
+do
+  -- set random seed
+  local random_x, random_y = math.randomseed()
+  print(string.format("random seeds: %d, %d", random_x, random_y))
+end
 
 print("current path:\n****" .. package.path .. "****\n")
 
@@ -162,7 +169,7 @@ olddofile('strings.lua')
 olddofile('literals.lua')
 dofile('tpack.lua')
 assert(dofile('attrib.lua') == 27)
-
+dofile('gengc.lua')
 assert(dofile('locals.lua') == 5)
 dofile('constructs.lua')
 dofile('code.lua', true)

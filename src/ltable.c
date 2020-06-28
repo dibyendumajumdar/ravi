@@ -614,7 +614,7 @@ TValue *luaH_newkey (lua_State *L, Table *t, const TValue *key) {
     }
   }
   setnodekey(L, &mp->i_key, key);
-  luaC_barrierback(L, t, key);
+  luaC_barrierback(L, obj2gco(t), key);
   lua_assert(ttisnil(gval(mp)));
   return gval(mp);
 }
@@ -782,7 +782,7 @@ static lua_Unsigned unbound_search (Table *t, lua_Unsigned j) {
 ** Try to find a boundary in table 't'. A 'boundary' is an integer index
 ** such that t[i] is non-nil and t[i+1] is nil (and 0 if t[1] is nil).
 */
-int luaH_getn (Table *t) {
+lua_Unsigned luaH_getn (Table *t) {
   unsigned int j;
   j = t->sizearray;
   if (j > 0 && ttisnil(&t->array[j - 1])) {
@@ -816,7 +816,7 @@ static int ravi_resize_array(lua_State *L, RaviArray *t, unsigned int new_size, 
   unsigned int size = new_size < t->size + 10 ? t->size + 10 : new_size;
   int was_allocated = t->flags & RAVI_ARRAY_ALLOCATED;
   lua_assert(!was_allocated ? t->size == RAVI_ARRAY_MAX_INLINE : 1);
-  lua_assert(!was_allocated ? (t->data == &t->numarray || t->data == &t->intarray) : 1);
+  lua_assert(!was_allocated ? (t->data == (char*)&t->numarray || t->data == (char*)&t->intarray) : 1);
   char *olddata = was_allocated ? t->data : NULL;  // Not allocated
   if (number_array) {
     t->data = (char *)luaM_reallocv(L, olddata, t->size, size, sizeof(lua_Number));

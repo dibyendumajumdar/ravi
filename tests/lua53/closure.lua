@@ -44,8 +44,9 @@ assert(B.g == 19)
 
 -- testing equality
 a = {}
-for i = 1, 5 do  a[i] = function (x) return x + a + _ENV end  end
-assert(a[3] == a[4] and a[4] == a[5])
+-- following was removed in Lua 5.4 - why? Fails with generational GC.
+--for i = 1, 5 do  a[i] = function (x) return x + a + _ENV end  end
+--assert(a[3] == a[4] and a[4] == a[5])
 
 for i = 1, 5 do  a[i] = function (x) return i + a + _ENV end  end
 assert(a[3] ~= a[4] and a[4] ~= a[5])

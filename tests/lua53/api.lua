@@ -863,30 +863,25 @@ end
 
 -------------------------------------------------------------------------
 do   -- testing errors during GC
+  --warn("@off")
+  collectgarbage("stop")
   local a = {}
   for i=1,20 do
     a[i] = T.newuserdata(i)   -- creates several udata
   end
   for i=1,20,2 do   -- mark half of them to raise errors during GC
-    debug.setmetatable(a[i], {__gc = function (x) error("error inside gc") end})
+    debug.setmetatable(a[i],
+      {__gc = function (x) error("@expected error in gc") end})
   end
   for i=2,20,2 do   -- mark the other half to count and to create more garbage
     debug.setmetatable(a[i], {__gc = function (x) load("A=A+1")() end})
   end
+  a = nil
   _G.A = 0
-  a = 0
-  while 1 do
-    local stat, msg = pcall(collectgarbage)
-    if stat then
-      break   -- stop when no more errors
-    else
-      a = a + 1
-      assert(string.find(msg, "__gc"))
-    end
-  end
-  assert(a == 10)  -- number of errors
-
+  collectgarbage()
   assert(A == 10)  -- number of normal collections
+  collectgarbage("restart")
+  --warn("@on")
 end
 -------------------------------------------------------------------------
 -- test for userdata vals
