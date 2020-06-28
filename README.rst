@@ -51,8 +51,22 @@ Lua Goodies
 * `Lua 5.3 Bytecode Reference <http://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html>`_ is my attempt to bring up to date the `Lua 5.1 Bytecode Reference <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_.
 * A `patch for Lua 5.3 <http://lua-users.org/lists/lua-l/2020-01/msg00004.html>`_ implements the 'defer' statement.
 
-Compatibility with Lua
-======================
+Lua 5.4 Position Statement
+==========================
+Lua 5.4 relationship to Ravi is as follows:
+
+* Generational GC - This has been back-ported to Ravi.
+* New random number generator - back-ported to Ravi.
+* Multiple user values can be associated with userdata - under consideration.
+* ``<const>`` variables - no plan to include this. 
+* ``<close>`` variables - Ravi has ``'defer'`` statement which is better option in my opinion, hence no plans to support ``<close>`` variables.
+* Interpreter performance improvements - these are beneficial to Lua interpreter but not to the JIT backends, hence not much point in back-porting.
+* Table implementation changes - under consideration. 
+* String to number coertion is now part of string library metamethods - back-ported to Ravi.
+* Removal of compatibility layers for 5.1, and 5.2 - not implemented as Ravi continues to provide these layers as per Lua 5.3.
+
+Compatibility with Lua 5.3
+==========================
 Ravi should be able to run all Lua 5.3 programs in interpreted mode, but following should be noted:
 
 * Ravi supports optional typing and enhanced types such as arrays (described above). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions; operations on Ravi arrays within Lua code will be subject to restrictions as described in the section above on arrays.
@@ -99,6 +113,7 @@ History
 
 * 2020 (Plan)
        - `New optimizing byte code generator based on new parser / type checker <https://github.com/dibyendumajumdar/ravi-compiler>`_
+       - Generational GC back-ported from Lua 5.4
        - Ravi 1.0 release
 
 License
