@@ -285,6 +285,17 @@ void luaC_upvalbarrier_(lua_State* L, GCObject* o) {
   }
 }
 
+/* This is for compat with LLVM backend */
+void luaC_upvalbarrier_compat(lua_State* L, UpVal* uv) {
+  global_State* g = G(L);
+  GCObject* o = gcvalue(uv->v);
+  lua_assert(!upisopen(uv));  /* ensured by macro luaC_upvalbarrier */
+  if (keepinvariant(g) && !isold(o)) {
+    markobject(g, o);
+    setage(o, G_OLD0);
+  }
+}
+
 /*
 ** barrier that moves collector backward, that is, mark the black object
 ** pointing to a white object as gray again.

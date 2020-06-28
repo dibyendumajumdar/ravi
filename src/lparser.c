@@ -962,6 +962,7 @@ static void open_func (LexState *ls, FuncState *fs, BlockCnt *bl) {
   fs->bl = NULL;
   f = fs->f;
   f->source = ls->source;
+  luaC_objbarrier(ls->L, f, f->source);
   f->maxstacksize = 2;  /* registers 0/1 are always valid */
   enterblock(fs, bl, 0);
   DEBUG_VARS(raviY_printf(fs, "open_func -> fs->firstlocal set to %d (ls->dyd->actvar.n), and fs->nactvar reset to 0\n", ls->dyd->actvar.n));
@@ -2463,6 +2464,7 @@ static void mainfunc (LexState *ls, FuncState *fs) {
   fs->f->is_vararg = 1;  /* main function is always declared vararg */
   init_exp(&v, VLOCAL, 0, RAVI_TANY, NULL);  /* create and... - RAVI TODO var arg is unknown type */
   newupvalue(fs, ls->envn, &v);  /* ...set environment upvalue */
+  luaC_objbarrier(ls->L, fs->f, ls->envn);
   luaX_next(ls);  /* read first token */
   statlist(ls);  /* parse main body */
   check(ls, TK_EOS);

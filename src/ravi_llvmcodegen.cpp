@@ -1142,7 +1142,7 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       "luaV_objlen");
   def->luaC_upvalbarrierF = def->raviF->addExternFunction(
       def->types->luaC_upvalbarrierT,
-      reinterpret_cast<void *>(&luaC_upvalbarrier_), "luaC_upvalbarrier_");
+      reinterpret_cast<void *>(&luaC_upvalbarrier_compat), "luaC_upvalbarrier_");
   def->raviV_op_concatF = def->raviF->addExternFunction(
       def->types->raviV_op_concatT, reinterpret_cast<void *>(&raviV_op_concat),
       "raviV_op_concat");
