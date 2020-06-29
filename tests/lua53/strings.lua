@@ -148,6 +148,43 @@ else   -- compatible coercion
   assert(tostring(-1203 + 0.0) == "-1203")
 end
 
+do  -- tests for '%p' format
+  -- not much to test, as C does not specify what '%p' does.
+  -- ("The value of the pointer is converted to a sequence of printing
+  -- characters, in an implementation-defined manner.")
+  local null = "(null)"    -- nulls are formatted by Lua
+  assert(string.format("%p", 4) == null)
+  assert(string.format("%p", true) == null)
+  assert(string.format("%p", nil) == null)
+  assert(string.format("%p", {}) ~= null)
+  assert(string.format("%p", print) ~= null)
+  assert(string.format("%p", coroutine.running()) ~= null)
+  assert(string.format("%p", io.stdin) ~= null)
+  assert(string.format("%p", io.stdin) == string.format("%p", io.stdin))
+  assert(string.format("%p", print) == string.format("%p", print))
+  assert(string.format("%p", print) ~= string.format("%p", assert))
+
+  assert(#string.format("%90p", {}) == 90)
+  assert(#string.format("%-60p", {}) == 60)
+  assert(string.format("%10p", false) == string.rep(" ", 10 - #null) .. null)
+  assert(string.format("%-12p", 1.5) == null .. string.rep(" ", 12 - #null))
+
+  do
+    local t1 = {}; local t2 = {}
+    assert(string.format("%p", t1) ~= string.format("%p", t2))
+  end
+
+  do     -- short strings are internalized
+    local s1 = string.rep("a", 10)
+    local s2 = string.rep("aa", 5)
+  assert(string.format("%p", s1) == string.format("%p", s2))
+  end
+
+  do     -- long strings aren't internalized
+    local s1 = string.rep("a", 300); local s2 = string.rep("a", 300)
+    assert(string.format("%p", s1) ~= string.format("%p", s2))
+  end
+end
 
 x = '"ílo"\n\\'
 assert(string.format('%q%s', x, x) == '"\\"ílo\\"\\\n\\\\""ílo"\n\\')
@@ -374,6 +411,69 @@ do
   co = coroutine.wrap(f)
   assert(co() == "2")
 end
+
+
+if T==nil then
+  (Message or print)
+     ("\n >>> testC not active: skipping 'pushfstring' tests <<<\n")
+else
+
+  print"testing 'pushfstring'"
+
+  -- formats %U, %f, %I already tested elsewhere
+
+  local blen = 400    -- internal buffer length in 'luaO_pushfstring'
+
+  local function callpfs (op, fmt, n)
+    local x = {T.testC("pushfstring" .. op .. "; return *", fmt, n)}
+    -- stack has code, 'fmt', 'n', and result from operation
+    assert(#x == 4)  -- make sure nothing else was left in the stack
+    return x[4]
+  end
+
+  local function testpfs (op, fmt, n)
+    assert(callpfs(op, fmt, n) == string.format(fmt, n))
+  end
+
+  testpfs("I", "", 0)
+  testpfs("I", string.rep("a", blen - 1), 0)
+  testpfs("I", string.rep("a", blen), 0)
+  testpfs("I", string.rep("a", blen + 1), 0)
+
+  local str = string.rep("ab", blen) .. "%d" .. string.rep("d", blen / 2)
+  testpfs("I", str, 2^14)
+  testpfs("I", str, -2^15)
+
+  str = "%d" .. string.rep("cd", blen)
+  testpfs("I", str, 2^14)
+  testpfs("I", str, -2^15)
+
+  str = string.rep("c", blen - 2) .. "%d"
+  testpfs("I", str, 2^14)
+  testpfs("I", str, -2^15)
+
+  for l = 12, 14 do
+    local str1 = string.rep("a", l)
+    for i = 0, 500, 13 do
+      for j = 0, 500, 13 do
+        str = string.rep("a", i) .. "%s" .. string.rep("d", j)
+        testpfs("S", str, str1)
+        testpfs("S", str, str)
+      end
+    end
+  end
+
+  str = "abc %c def"
+  testpfs("I", str, string.byte("A"))
+  testpfs("I", str, 255)
+
+  str = string.rep("a", blen - 1) .. "%p" .. string.rep("cd", blen)
+  testpfs("P", str, {})
+
+  str = string.rep("%%", 3 * blen) .. "%p" .. string.rep("%%", 2 * blen)
+  testpfs("P", str, {})
+end
+
 
 print('OK')
 
