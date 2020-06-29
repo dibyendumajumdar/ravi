@@ -115,7 +115,7 @@ static void freeblock (Memcontrol *mc, Header *block) {
     size_t size = block->d.size;
     int i;
     for (i = 0; i < MARKSIZE; i++)  /* check marks after block */
-      lua_assert(*(cast(char *, block + 1) + size + i) == MARK);
+      lua_assert(*(cast_charp(block + 1) + size + i) == MARK);
     mc->objcount[block->d.type]--;
     fillmem(block, sizeof(Header) + size + MARKSIZE);  /* erase block */
     free(block);  /* actually free block */
@@ -167,10 +167,10 @@ LUA_API void *debug_realloc (void *ud, void *b, size_t oldsize, size_t size) {
       freeblock(mc, block);  /* erase (and check) old copy */
     }
     /* initialize new part of the block with something weird */
-    fillmem(cast(char *, newblock + 1) + commonsize, size - commonsize);
+    fillmem(cast_charp(newblock + 1) + commonsize, size - commonsize);
     /* initialize marks after block */
     for (i = 0; i < MARKSIZE; i++)
-      *(cast(char *, newblock + 1) + size + i) = MARK;
+      *(cast_charp(newblock + 1) + size + i) = MARK;
     newblock->d.size = size;
     newblock->d.type = type;
     mc->total += size;
@@ -1376,6 +1376,15 @@ static int runC (lua_State *L, lua_State *L1, const char *pc) {
     }
     else if EQ("pushvalue") {
       lua_pushvalue(L1, getindex);
+    }
+    else if EQ("pushfstringI") {
+      lua_pushfstring(L1, lua_tostring(L, -2), (int)lua_tointeger(L, -1));
+    }
+    else if EQ("pushfstringS") {
+      lua_pushfstring(L1, lua_tostring(L, -2), lua_tostring(L, -1));
+    }
+    else if EQ("pushfstringP") {
+      lua_pushfstring(L1, lua_tostring(L, -2), lua_topointer(L, -1));
     }
     else if EQ("rawgeti") {
       int t = getindex;
