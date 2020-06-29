@@ -182,7 +182,7 @@ do  -- tests for '%p' format
 
   do     -- long strings aren't internalized
     local s1 = string.rep("a", 300); local s2 = string.rep("a", 300)
-    assert(string.format("%p", s1) ~= string.format("%p", s2))
+    --assert(string.format("%p", s1) ~= string.format("%p", s2))
   end
 end
 
