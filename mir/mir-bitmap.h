@@ -11,6 +11,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdint.h>
+#include <limits.h>
 #include "mir-varr.h"
 
 #define FALSE 0
@@ -99,6 +100,40 @@ static inline int bitmap_clear_bit_p (bitmap_t bm, size_t nb) {
   return res;
 }
 
+static inline int bitmap_set_or_clear_bit_range_p (bitmap_t bm, size_t nb, size_t len, int set_p) {
+  size_t nw, lsh, rsh, range_len;
+  bitmap_el_t mask, *addr;
+  int res = 0;
+
+  bitmap_expand (bm, nb + len);
+  addr = VARR_ADDR (bitmap_el_t, bm);
+  while (len > 0) {
+    nw = nb / BITMAP_WORD_BITS;
+    lsh = nb % BITMAP_WORD_BITS;
+    rsh = len >= BITMAP_WORD_BITS - lsh ? 0 : BITMAP_WORD_BITS - (nb + len) % BITMAP_WORD_BITS;
+    mask = ((~(bitmap_el_t) 0) >> (rsh + lsh)) << lsh;
+    if (set_p) {
+      res |= (~addr[nw] & mask) != 0;
+      addr[nw] |= mask;
+    } else {
+      res |= (addr[nw] & mask) != 0;
+      addr[nw] &= ~mask;
+    }
+    range_len = BITMAP_WORD_BITS - rsh - lsh;
+    len -= range_len;
+    nb += range_len;
+  }
+  return res;
+}
+
+static inline int bitmap_set_bit_range_p (bitmap_t bm, size_t nb, size_t len) {
+  return bitmap_set_or_clear_bit_range_p (bm, nb, len, TRUE);
+}
+
+static inline int bitmap_clear_bit_range_p (bitmap_t bm, size_t nb, size_t len) {
+  return bitmap_set_or_clear_bit_range_p (bm, nb, len, FALSE);
+}
+
 static inline void bitmap_copy (bitmap_t dst, const_bitmap_t src) {
   size_t dst_len = VARR_LENGTH (bitmap_el_t, dst);
   size_t src_len = VARR_LENGTH (bitmap_el_t, src);
@@ -154,15 +189,13 @@ static inline int bitmap_empty_p (const_bitmap_t bm) {
   return TRUE;
 }
 
+static inline bitmap_el_t bitmap_el_max2 (bitmap_el_t el1, bitmap_el_t el2) {
+  return el1 < el2 ? el2 : el1;
+}
+
 static inline bitmap_el_t bitmap_el_max3 (bitmap_el_t el1, bitmap_el_t el2, bitmap_el_t el3) {
   if (el1 <= el2) return el2 < el3 ? el3 : el2;
   return el1 < el3 ? el3 : el1;
-}
-
-static inline bitmap_el_t bitmap_el_max4 (bitmap_el_t el1, bitmap_el_t el2, bitmap_el_t el3,
-                                          bitmap_el_t el4) {
-  if (el1 <= el2) return bitmap_el_max3 (el2, el3, el4);
-  return bitmap_el_max3 (el1, el3, el4);
 }
 
 /* Return the number of bits set in BM.  */
@@ -188,7 +221,7 @@ static inline int bitmap_op2 (bitmap_t dst, const_bitmap_t src1, const_bitmap_t 
 
   src1_len = VARR_LENGTH (bitmap_el_t, src1);
   src2_len = VARR_LENGTH (bitmap_el_t, src2);
-  len = bitmap_el_max3 (VARR_LENGTH (bitmap_el_t, dst), src1_len, src2_len);
+  len = bitmap_el_max2 (src1_len, src2_len);
   bitmap_expand (dst, len * BITMAP_WORD_BITS);
   dst_addr = VARR_ADDR (bitmap_el_t, dst);
   src1_addr = VARR_ADDR (bitmap_el_t, src1);
@@ -234,7 +267,7 @@ static inline int bitmap_op3 (bitmap_t dst, const_bitmap_t src1, const_bitmap_t 
   src1_len = VARR_LENGTH (bitmap_el_t, src1);
   src2_len = VARR_LENGTH (bitmap_el_t, src2);
   src3_len = VARR_LENGTH (bitmap_el_t, src3);
-  len = bitmap_el_max4 (VARR_LENGTH (bitmap_el_t, dst), src1_len, src2_len, src3_len);
+  len = bitmap_el_max3 (src1_len, src2_len, src3_len);
   bitmap_expand (dst, len * BITMAP_WORD_BITS);
   dst_addr = VARR_ADDR (bitmap_el_t, dst);
   src1_addr = VARR_ADDR (bitmap_el_t, src1);
@@ -271,16 +304,32 @@ static inline int bitmap_ior_and_compl (bitmap_t dst, bitmap_t src1, bitmap_t sr
   return bitmap_op3 (dst, src1, src2, src3, bitmap_el_ior_and_compl);
 }
 
-static inline void bitmap_for_each (bitmap_t bm, void (*func) (size_t, void *), void *data) {
-  size_t i, nb, len = VARR_LENGTH (bitmap_el_t, bm);
-  bitmap_el_t el, *addr = VARR_ADDR (bitmap_el_t, bm);
+typedef struct {
+  bitmap_t bitmap;
+  size_t nbit;
+} bitmap_iterator_t;
 
-  for (i = 0; i < len; i++) {
-    if ((el = addr[i]) != 0) {
-      for (nb = 0; el != 0; el >>= 1, nb++)
-        if (el & 1) func (i * BITMAP_WORD_BITS + nb, data);
-    }
-  }
+static inline void bitmap_iterator_init (bitmap_iterator_t *iter, bitmap_t bitmap) {
+  iter->bitmap = bitmap;
+  iter->nbit = 0;
 }
+
+static inline int bitmap_iterator_next (bitmap_iterator_t *iter, size_t *nbit) {
+  const size_t el_bits_num = sizeof (bitmap_el_t) * CHAR_BIT;
+  size_t curr_nel = iter->nbit / el_bits_num, len = VARR_LENGTH (bitmap_el_t, iter->bitmap);
+  bitmap_el_t el, *addr = VARR_ADDR (bitmap_el_t, iter->bitmap);
+
+  for (; curr_nel < len; curr_nel++, iter->nbit = curr_nel * el_bits_num)
+    if ((el = addr[curr_nel]) != 0)
+      for (el >>= iter->nbit % el_bits_num; el != 0; el >>= 1, iter->nbit++)
+        if (el & 1) {
+          *nbit = iter->nbit++;
+          return TRUE;
+        }
+  return FALSE;
+}
+
+#define FOREACH_BITMAP_BIT(iter, bitmap, nbit) \
+  for (bitmap_iterator_init (&iter, bitmap); bitmap_iterator_next (&iter, &nbit);)
 
 #endif /* #ifndef MIR_BITMAP_H */

@@ -1,5 +1,5 @@
 /*
-** $Id: llex.c,v 2.96.1.1 2017/04/19 17:20:42 roberto Exp $
+** $Id: llex.c $
 ** Lexical Analyzer
 ** See Copyright Notice in lua.h
 */
@@ -29,7 +29,7 @@
 
 
 
-#define next(ls) (ls->current = zgetc(ls->z))
+#define next(ls)	(ls->current = zgetc(ls->z))
 
 
 
@@ -40,7 +40,11 @@
 static const char *const luaX_tokens [] = {
     "and", "break", "do", "else", "elseif",
     "end", "false", "for", "function", "goto", "if",
+#ifdef RAVI_DEFER_STATEMENT
     "in", "local", "defer", "nil", "not", "or", "repeat",
+#else
+    "in", "local", "nil", "not", "or", "repeat",
+#endif
     "return", "then", "true", "until", "while",
     "//", "..", "...", "==", ">=", "<=", "~=",
     "<<", ">>", "::", "<eof>",
@@ -84,7 +88,10 @@ void luaX_init (lua_State *L) {
 const char *luaX_token2str (LexState *ls, int token) {
   if (token < FIRST_RESERVED) {  /* single-byte symbols? */
     lua_assert(token == cast_uchar(token));
-    return luaO_pushfstring(ls->L, "'%c'", token);
+    if (lisprint(token))
+      return luaO_pushfstring(ls->L, "'%c'", token);
+    else  /* control character */
+      return luaO_pushfstring(ls->L, "'<\\%d>'", token);
   }
   else {
     const char *s = luaX_tokens[token - FIRST_RESERVED];
@@ -220,8 +227,16 @@ static int check_next2 (LexState *ls, const char *set) {
 
 /* LUA_NUMBER */
 /*
-** this function is quite liberal in what it accepts, as 'luaO_str2num'
-** will reject ill-formed numerals.
+** This function is quite liberal in what it accepts, as 'luaO_str2num'
+** will reject ill-formed numerals. Roughly, it accepts the following
+** pattern:
+**
+**   %d(%x|%.|([Ee][+-]?))* | 0[Xx](%x|%.|([Pp][+-]?))*
+**
+** The only tricky part is to accept [+-] only after a valid exponent
+** mark, to avoid reading '3-4' or '0xe+1' as a single number.
+**
+** The caller might have already read an initial dot.
 */
 static int read_numeral (LexState *ls, SemInfo *seminfo) {
   TValue obj;
@@ -232,14 +247,14 @@ static int read_numeral (LexState *ls, SemInfo *seminfo) {
   if (first == '0' && check_next2(ls, "xX"))  /* hexadecimal? */
     expo = "Pp";
   for (;;) {
-    if (check_next2(ls, expo))  /* exponent part? */
+    if (check_next2(ls, expo))  /* exponent mark? */
       check_next2(ls, "-+");  /* optional exponent sign */
-    if (lisxdigit(ls->current))
-      save_and_next(ls);
-    else if (ls->current == '.')
+    else if (lisxdigit(ls->current) || ls->current == '.')  /* '%x|%.' */
       save_and_next(ls);
     else break;
   }
+  if (lislalpha(ls->current))  /* is numeral touching a letter? */
+    save_and_next(ls);  /* force an error */
   save(ls, '\0');
   if (luaO_str2num(luaZ_buffer(ls->buff), &obj) == 0)  /* format error? */
     lexerror(ls, "malformed number", TK_FLT);
@@ -256,12 +271,12 @@ static int read_numeral (LexState *ls, SemInfo *seminfo) {
 
 
 /*
-** skip a sequence '[=*[' or ']=*]'; if sequence is well formed, return
-** its number of '='s; otherwise, return a negative number (-1 iff there
-** are no '='s after initial bracket)
+** reads a sequence '[=*[' or ']=*]', leaving the last bracket.
+** If sequence is well formed, return its number of '='s + 2; otherwise,
+** return 1 if there is no '='s or 0 otherwise (an unfinished '[==...').
 */
-static int skip_sep (LexState *ls) {
-  int count = 0;
+static size_t skip_sep (LexState *ls) {
+  size_t count = 0;
   int s = ls->current;
   lua_assert(s == '[' || s == ']');
   save_and_next(ls);
@@ -269,11 +284,13 @@ static int skip_sep (LexState *ls) {
     save_and_next(ls);
     count++;
   }
-  return (ls->current == s) ? count : (-count) - 1;
+  return (ls->current == s) ? count + 2
+         : (count == 0) ? 1
+         : 0;
 }
 
 
-static void read_long_string (LexState *ls, SemInfo *seminfo, int sep) {
+static void read_long_string (LexState *ls, SemInfo *seminfo, size_t sep) {
   int line = ls->linenumber;  /* initial line (for error message) */
   save_and_next(ls);  /* skip 2nd '[' */
   if (currIsNewline(ls))  /* string starts with a newline? */
@@ -307,8 +324,8 @@ static void read_long_string (LexState *ls, SemInfo *seminfo, int sep) {
     }
   } endloop:
   if (seminfo)
-    seminfo->ts = luaX_newstring(ls, luaZ_buffer(ls->buff) + (2 + sep),
-                                     luaZ_bufflen(ls->buff) - 2*(2 + sep));
+    seminfo->ts = luaX_newstring(ls, luaZ_buffer(ls->buff) + sep,
+                                     luaZ_bufflen(ls->buff) - 2 * sep);
 }
 
 
@@ -344,8 +361,8 @@ static unsigned long readutf8esc (LexState *ls) {
   r = gethexa(ls);  /* must have at least one digit */
   while ((save_and_next(ls), lisxdigit(ls->current))) {
     i++;
+    esccheck(ls, r <= (0x7FFFFFFFu >> 4), "UTF-8 value too large");
     r = (r << 4) + luaO_hexavalue(ls->current);
-    esccheck(ls, r <= 0x10FFFF, "UTF-8 value too large");
   }
   esccheck(ls, ls->current == '}', "missing '}'");
   next(ls);  /* skip '}' */
@@ -490,9 +507,9 @@ static int llex (LexState *ls, SemInfo *seminfo) {
         /* else is a comment */
         next(ls);
         if (ls->current == '[') {  /* long comment? */
-          int sep = skip_sep(ls);
+          size_t sep = skip_sep(ls);
           luaZ_resetbuffer(ls->buff);  /* 'skip_sep' may dirty the buffer */
-          if (sep >= 0) {
+          if (sep >= 2) {
             read_long_string(ls, NULL, sep);  /* skip long comment */
             luaZ_resetbuffer(ls->buff);  /* previous call may dirty the buff. */
             break;
@@ -504,12 +521,12 @@ static int llex (LexState *ls, SemInfo *seminfo) {
         break;
       }
       case '[': {  /* long string or simply '[' */
-        int sep = skip_sep(ls);
-        if (sep >= 0) {
+        size_t sep = skip_sep(ls);
+        if (sep >= 2) {
           read_long_string(ls, seminfo, sep);
           return TK_STRING;
         }
-        else if (sep != -1)  /* '[=...' missing second bracket */
+        else if (sep == 0)  /* '[=...' missing second bracket? */
           lexerror(ls, "invalid long string delimiter", TK_STRING);
         return '[';
       }

@@ -1,5 +1,5 @@
 /*
-** $Id: lauxlib.h,v 1.131.1.1 2017/04/19 17:20:42 roberto Exp $
+** $Id: lauxlib.h $
 ** Auxiliary functions for building Lua libraries
 ** See Copyright Notice in lua.h
 */
@@ -14,6 +14,12 @@
 
 #include "lua.h"
 
+
+/* global table */
+#define LUA_GNAME	"_G"
+
+
+typedef struct luaL_Buffer luaL_Buffer;
 
 
 /* extra error code for 'luaL_loadfilex' */
@@ -48,6 +54,7 @@ LUALIB_API const char *(luaL_tolstring) (lua_State *L, int idx, size_t *len);
    api function ravi_typename() */
 LUALIB_API const char *(raviL_tolstring) (lua_State *L, int idx, size_t *len);
 LUALIB_API int (luaL_argerror) (lua_State *L, int arg, const char *extramsg);
+LUALIB_API int (luaL_typeerror) (lua_State *L, int arg, const char *tname);
 LUALIB_API const char *(luaL_checklstring) (lua_State *L, int arg,
                                                           size_t *l);
 LUALIB_API const char *(luaL_optlstring) (lua_State *L, int arg,
@@ -77,6 +84,7 @@ LUALIB_API int (luaL_checkoption) (lua_State *L, int arg, const char *def,
 LUALIB_API int (luaL_fileresult) (lua_State *L, int stat, const char *fname);
 LUALIB_API int (luaL_execresult) (lua_State *L, int stat);
 
+
 /* predefined references */
 #define LUA_NOREF       (-2)
 #define LUA_REFNIL      (-1)
@@ -97,8 +105,10 @@ LUALIB_API lua_State *(luaL_newstate) (void);
 
 LUALIB_API lua_Integer (luaL_len) (lua_State *L, int idx);
 
-LUALIB_API const char *(luaL_gsub) (lua_State *L, const char *s, const char *p,
-                                                  const char *r);
+LUALIB_API void luaL_addgsub (luaL_Buffer *b, const char *s,
+                                     const char *p, const char *r);
+LUALIB_API const char *(luaL_gsub) (lua_State *L, const char *s,
+                                    const char *p, const char *r);
 
 LUALIB_API void (luaL_setfuncs) (lua_State *L, const luaL_Reg *l, int nup);
 
@@ -125,6 +135,10 @@ LUALIB_API void (luaL_requiref) (lua_State *L, const char *modname,
 
 #define luaL_argcheck(L, cond,arg,extramsg)	\
 		((void)((cond) || luaL_argerror(L, (arg), (extramsg))))
+
+#define luaL_argexpected(L,cond,arg,tname)	\
+		((void)((cond) || luaL_typeerror(L, (arg), (tname))))
+
 #define luaL_checkstring(L,n)	(luaL_checklstring(L, (n), NULL))
 #define luaL_optstring(L,n,d)	(luaL_optlstring(L, (n), (d), NULL))
 
@@ -141,6 +155,10 @@ LUALIB_API void (luaL_requiref) (lua_State *L, const char *modname,
 #define luaL_opt(L,f,n,d)	(lua_isnoneornil(L,(n)) ? (d) : f(L,(n)))
 
 #define luaL_loadbuffer(L,s,sz,n)	luaL_loadbufferx(L,s,sz,n,NULL)
+
+
+/* push the value used to represent failure/error */
+#define luaL_pushfail(L)	lua_pushnil(L)
 
 
 /*

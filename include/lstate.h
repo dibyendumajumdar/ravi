@@ -27,6 +27,22 @@
 ** 'fixedgc': all objects that are not to be collected (currently
 ** only small strings, such as reserved words).
 **
+** For the generational collector, some of these lists have marks for
+** generations. Each mark points to the first element in the list for
+** that particular generation; that generation goes until the next mark.
+**
+** 'allgc' -> 'survival': new objects;
+** 'survival' -> 'old': objects that survived one collection;
+** 'old' -> 'reallyold': objects that became old in last collection;
+** 'reallyold' -> NULL: objects old for more than one cycle.
+**
+** 'finobj' -> 'finobjsur': new objects marked for finalization;
+** 'finobjsur' -> 'finobjold': survived   """";
+** 'finobjold' -> 'finobjrold': just old  """";
+** 'finobjrold' -> NULL: really old       """".
+*/
+
+/*
 ** Moreover, there is another set of lists that control gray objects.
 ** These lists are linked by fields 'gclist'. (All objects that
 ** can become gray have such a field. The field is not the same
@@ -43,7 +59,7 @@
 ** 'weak': tables with weak values to be cleared;
 ** 'ephemeron': ephemeron tables with white->white entries;
 ** 'allweak': tables with weak keys and/or weak values to be cleared.
-** The last three lists are used only during the atomic phase.
+
 
 */
 
@@ -69,8 +85,8 @@ struct lua_longjmp;  /* defined in ldo.c */
 
 
 /* kinds of Garbage Collection */
-#define KGC_NORMAL	0
-#define KGC_EMERGENCY	1	/* gc was forced by an allocation failure */
+#define KGC_INC		0	/* incremental gc */
+#define KGC_GEN		1	/* generational gc */
 
 
 typedef struct stringtable {
@@ -146,15 +162,21 @@ typedef struct global_State {
   void *ud;         /* auxiliary data to 'frealloc' */
   l_mem totalbytes;  /* number of bytes currently allocated - GCdebt */
   l_mem GCdebt;  /* bytes allocated not yet compensated by the collector */
-  lu_mem GCmemtrav;  /* memory traversed by the GC */
   lu_mem GCestimate;  /* an estimate of the non-garbage memory in use */
+  lu_mem lastatomic;  /* see function 'genstep' in file 'lgc.c' */
   stringtable strt;  /* hash table for strings */
   TValue l_registry;
   unsigned int seed;  /* randomized seed for hashes */
   lu_byte currentwhite;
   lu_byte gcstate;  /* state of garbage collector */
   lu_byte gckind;  /* kind of GC running */
+  lu_byte genminormul;  /* control for minor generational collections */
+  lu_byte genmajormul;  /* control for major generational collections */
   lu_byte gcrunning;  /* true if GC is running */
+  lu_byte gcemergency;  /* true if this is an emergency collection */
+  lu_byte gcpause;  /* size of pause between successive GCs */
+  lu_byte gcstepmul;  /* GC "speed" */
+  lu_byte gcstepsize;  /* (log2 of) GC granularity */
   GCObject *allgc;  /* list of all collectable objects */
   GCObject **sweepgc;  /* current position of sweep in list */
   GCObject *finobj;  /* list of collectable objects with finalizers */
@@ -165,10 +187,14 @@ typedef struct global_State {
   GCObject *allweak;  /* list of all-weak tables */
   GCObject *tobefnz;  /* list of userdata to be GC */
   GCObject *fixedgc;  /* list of objects not to be collected */
+  /* fields for generational collector */
+  GCObject *survival;  /* start of objects that survived one GC cycle */
+  GCObject *old;  /* start of old objects */
+  GCObject *reallyold;  /* old objects with more than one cycle */
+  GCObject *finobjsur;  /* list of survival objects with finalizers */
+  GCObject *finobjold;  /* list of old objects with finalizers */
+  GCObject *finobjrold;  /* list of really old objects with finalizers */
   struct lua_State *twups;  /* list of threads with open upvalues */
-  unsigned int gcfinnum;  /* number of finalizers to call in each GC step */
-  int gcpause;  /* size of pause between successive GCs */
-  int gcstepmul;  /* GC 'granularity' */
   lua_CFunction panic;  /* to be called in unprotected errors */
   struct lua_State *mainthread;
   const lua_Number *version;  /* pointer to version number */
@@ -240,6 +266,7 @@ union GCUnion {
   struct Udata u;
   union Closure cl;
   struct Table h;
+  struct RaviArray arr;
   struct Proto p;
   struct lua_State th;  /* thread */
 };
@@ -256,7 +283,8 @@ union GCUnion {
 #define gco2cl(o)  \
 	check_exp(novariant((o)->tt) == LUA_TFUNCTION, &((cast_u(o))->cl))
 /** RAVI change - we have table sub types in RAVI **/
-#define gco2t(o)  check_exp(novariant((o)->tt) == LUA_TTABLE, &((cast_u(o))->h))
+#define gco2t(o)  check_exp((o)->tt == LUA_TTABLE, &((cast_u(o))->h))
+#define gco2array(o)  check_exp(((o)->tt == RAVI_TIARRAY || (o)->tt == RAVI_TFARRAY), &((cast_u(o))->arr))
 #define gco2p(o)  check_exp((o)->tt == LUA_TPROTO, &((cast_u(o))->p))
 #define gco2th(o)  check_exp((o)->tt == LUA_TTHREAD, &((cast_u(o))->th))
 

@@ -1,27 +1,21 @@
 cmake_minimum_required(VERSION 3.12)
 project(Ravi VERSION 1.0.4 LANGUAGES C CXX)
 
-# Get access to CMake helpers
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+# By default on platforms where MIR is supported (right now Linux X86_64)
+# MIR JIT backend is automatically enabled. To disable user must specify
+# NO_JIT=ON
+# LLVM has to be explicitly specified using LLVM_JIT=ON
 
 option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
-option(OMR_JIT "Controls whether NanoJIT compilation will be enabled, default is OFF" OFF)
 option(NO_JIT "Controls whether JIT should be disabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
 option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires Debug build" ON)
 
-if (LLVM_JIT AND OMR_JIT)
-    message(FATAL_ERROR
-            "LLVM_JIT and OMR_JIT cannot be set to ON at the same time")
-endif ()
-
-# By default on X86_64 non-Windows platforms we enable MIR JIT
+# By default on non-Windows platforms we enable MIR JIT
 if (NOT WIN32
         AND NOT LLVM_JIT
-        AND NOT OMR_JIT
-        AND NOT NO_JIT
-        AND CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+        AND NOT NO_JIT)
     set(MIR_JIT ON)
 endif ()
 
@@ -29,11 +23,7 @@ if (MIR_JIT)
     if (MSVC OR WIN32)
         message(FATAL_ERROR "MIR_JIT is not supported when using MSVC and/or WIN32")
     endif ()
-    if (NOT (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)"))
-        message(FATAL_ERROR "MIR_JIT is only supported on X86-64 platforms")
-    endif ()
     set(LLVM_JIT OFF)
-    set(OMR_JIT OFF)
     set(STATIC_BUILD OFF) # Because we need to expose the symbols in the library
 endif ()
 
@@ -52,13 +42,11 @@ endif ()
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
 # define the Lua core source files
-set(RAVI_AST_SOURCES src/ravi_ast_parse.c src/ravi_ast_print.c src/ravi_ast_typecheck.c)
 set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ldump.c
         src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c
         src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c
         src/lvm.c src/lzio.c src/ravi_jit.c src/ltests.c src/ravi_profile.c
-        src/ravi_membuf.c src/ravi_jitshared.c src/bit.c src/ravi_alloc.c
-        ${RAVI_AST_SOURCES})
+        src/ravi_membuf.c src/ravi_jitshared.c src/bit.c src/ravi_alloc.c)
 # define the Lua library source files
 set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
         src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
@@ -70,28 +58,17 @@ set(LLVM_JIT_SRCS src/ravi_llvmjit.cpp src/ravi_llvmtypes.cpp
         src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
         src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
 # MIR sources
+#if (MIR_JIT)
+#    add_subdirectory(mir)
+#    set(MIRJIT_LIBRARIES c2mir)
+#endif()
 set(MIR_HEADERS mir/mir.h mir/mir-gen.h mir/mir-varr.h mir/mir-dlist.h mir/mir-htab.h
         mir/mir-hash.h mir/mir-bitmap.h)
 set(MIR_SRCS mir/mir.c mir/mir-gen.c)
 set(C2MIR_SRCS mir/c2mir/c2mir.c)
-# OMR code gen
-set(OMR_JIT_SRCS src/ravi_omrjit.c src/ravi_omrjitapi.c)
 # MIR code gen
 set(MIR_JIT_SRCS src/ravi_mirjit.c)
 set(NO_JIT_SRCS src/ravi_nojit.c)
-# Common stuff we need even if we don't use dmrC.
-set(DMR_C_HEADERS_COMMON dmr_c/src/allocate.h dmr_c/src/port.h dmr_c/src/ptrlist.h)
-set(DMR_C_SRCS_COMMON dmr_c/src/allocate.c dmr_c/src/ptrlist.c)
-# dmrC Optional sources
-set(RAVI_C_SYMBOL_PARSER src/ravi_dmrc_parsesymbols.c)
-set(DMR_C_SRCS_OPT dmr_c/src/builtin.c dmr_c/src/char.c dmr_c/src/expression.c dmr_c/src/evaluate.c
-        dmr_c/src/expand.c dmr_c/src/inline.c dmr_c/src/lib.c dmr_c/src/linearize.c
-        dmr_c/src/liveness.c dmr_c/src/parse.c dmr_c/src/target.c dmr_c/src/tokenize.c
-        dmr_c/src/pre-process.c dmr_c/src/scope.c dmr_c/src/show-parse.c dmr_c/src/symbol.c
-        dmr_c/src/walksymbol.c)
-set(DMR_C_HEADERS_OPT dmr_c/src/char.h dmr_c/src/expression.h dmr_c/src/flow.h dmr_c/src/ident-list.h
-        dmr_c/src/linearize.h dmr_c/src/lib.h dmr_c/src/parse.h dmr_c/src/scope.h dmr_c/src/symbol.h
-        dmr_c/src/target.h dmr_c/src/token.h dmr_c/src/walksymbol.h)
 set(LUA_CMD_SRCS src/lua.c)
 file(GLOB RAVI_HEADERS "${PROJECT_SOURCE_DIR}/include/*.h")
 
@@ -103,7 +80,12 @@ if (COMPUTED_GOTO AND NOT MSVC)
     endif ()
 endif ()
 
-set(EMBEDDED_DMRC ON)
+include(CheckCCompilerFlag)
+check_c_compiler_flag("-march=native" COMPILER_OPT_ARCH_NATIVE_SUPPORTED)
+if (COMPILER_OPT_ARCH_NATIVE_SUPPORTED AND NOT CMAKE_C_FLAGS MATCHES "-march=")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
+endif()
+
 if (LLVM_JIT)
     find_package(LLVM REQUIRED CONFIG)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
@@ -122,94 +104,37 @@ if (LLVM_JIT)
             APPEND
             PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS}
     )
-    set(DMR_C_JIT_SRCS
-            dmr_c/llvm-backend/sparse-llvm.c
-            )
-    set(DMR_C_JIT_HEADERS
-            dmr_c/llvm-backend/dmr_c.h
-            )
-    set(DMR_C_HEADERS ${DMR_C_HEADERS_OPT} ${DMR_C_HEADERS_COMMON})
-    set(DMR_C_SRCS ${DMR_C_SRCS_OPT} ${DMR_C_SRCS_COMMON} ${RAVI_C_SYMBOL_PARSER})
-
-    set_property(SOURCE ${DMR_C_JIT_SRCS} src/ravi_llvmcodegen.cpp ${RAVI_C_SYMBOL_PARSER}
-            APPEND
-            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/llvm-backend")
-    set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS} ${RAVI_AST_SOURCES}
-            APPEND
-            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
-    set_property(
-            SOURCE ${RAVI_C_SYMBOL_PARSER} ${DMR_C_JIT_SRCS}
-            APPEND
-            PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS})
     # FIXME get rid of this dependency
     set_property(
             SOURCE ${LUA_CMD_SRCS}
             APPEND
             PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS})
-elseif (OMR_JIT)
-    find_package(OMRJIT REQUIRED)
-    message(STATUS "OMRJIT enabled")
-    set(JIT_SRCS ${OMR_JIT_SRCS})
-    set(DMR_C_JIT_SRCS
-            dmr_c/omrjit-backend/sparse-omrjit.c
-            )
-    set(DMR_C_JIT_HEADERS
-            dmr_c/omrjit-backend/dmr_c.h
-            )
-    set(DMR_C_HEADERS ${DMR_C_HEADERS_OPT} ${DMR_C_HEADERS_COMMON})
-    set(DMR_C_SRCS ${DMR_C_SRCS_OPT} ${DMR_C_SRCS_COMMON} ${RAVI_C_SYMBOL_PARSER})
 
-    set_property(SOURCE ${DMR_C_JIT_SRCS} ${RAVI_C_SYMBOL_PARSER} ${OMR_JIT_SRCS}
-            APPEND
-            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/omrjit-backend")
-    set_property(SOURCE ${DMR_C_SRCS} ${DMR_C_JIT_SRCS} ${RAVI_AST_SOURCES}
-            APPEND
-            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
-    set_property(SOURCE ${DMR_C_JIT_SRCS} ${OMR_JIT_SRCS} ${RAVI_C_SYMBOL_PARSER}
-            APPEND
-            PROPERTY INCLUDE_DIRECTORIES "${OMRJIT_INCLUDE_DIRS}"
-            )
+    if ($ENV{CLION_IDE})
+        # CLion seems unable to handle include paths set on sources
+        include_directories(${LLVM_INCLUDE_DIRS})
+    endif ()
 else ()
-    # Omit all dmrC stuff except for what we need for the parser
-    set(DMR_C_HEADERS ${DMR_C_HEADERS_COMMON})
-    set(DMR_C_SRCS ${DMR_C_SRCS_COMMON})
-    set(EMBEDDED_DMRC OFF)
-
-    set_property(SOURCE ${DMR_C_SRCS_COMMON} ${RAVI_AST_SOURCES}
-            APPEND
-            PROPERTY INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/dmr_c/src")
-
     if (MIR_JIT)
         message(STATUS "MIRJIT enabled")
+#        set(JIT_SRCS ${MIR_JIT_SRCS})
+#        set_property(SOURCE ${MIR_JIT_SRCS}
+#                APPEND
+#                PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
         set(JIT_SRCS ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS})
         set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
                 APPEND
                 PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
         set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
                 APPEND
-                PROPERTY COMPILE_DEFINITIONS "x86_64;MIR_IO;MIR_SCAN")
+                PROPERTY COMPILE_DEFINITIONS "MIR_NO_IO=0;MIR_NO_SCAN=1")
     else()
         set(JIT_SRCS ${NO_JIT_SRCS})
     endif ()
 endif ()
 
-# Additional stuff for dmrC
-if (CMAKE_COMPILER_IS_GNUCC AND EMBEDDED_DMRC)
-    execute_process(COMMAND ${CMAKE_C_COMPILER} --print-file-name=
-            OUTPUT_VARIABLE GCC_BASE OUTPUT_STRIP_TRAILING_WHITESPACE)
-    execute_process(COMMAND ${CMAKE_C_COMPILER} -print-multiarch
-            OUTPUT_VARIABLE MULTIARCH_TRIPLET ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-    set_source_files_properties(dmr_c/src/lib.c PROPERTIES COMPILE_FLAGS "-DGCC_BASE=${GCC_BASE} -DMULTIARCH_TRIPLET=${MULTIARCH_TRIPLET}")
-
-    message(STATUS "GCC_BASE_DIR      : " ${GCC_BASE})
-    message(STATUS "MULTIARCH_TRIPLET : " ${MULTIARCH_TRIPLET})
-endif ()
-
 # IDE stuff
 if (MSVC OR APPLE)
-    source_group("dmrC Headers" FILES ${DMR_C_HEADERS} ${DMR_C_JIT_HEADERS})
-    source_group("dmrC Source Files" FILES ${DMR_C_SRCS} ${DMR_C_JIT_SRCS})
     source_group("Ravi Headers" FILES ${RAVI_HEADERS})
     source_group("Ravi Source Files" FILES ${LUA_CORE_SRCS} ${LUA_LIB_SRCS} ${JIT_SRCS})
 endif ()
@@ -290,11 +215,8 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${RAVI_HEADERS}
         ${LUA_LIB_SRCS}
         ${LUA_CORE_SRCS}
-        ${JIT_SRCS}
-        ${DMR_C_HEADERS}
-        ${DMR_C_SRCS}
-        ${DMR_C_JIT_SRCS})
-target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${OMRJIT_LIBRARIES} ${MIRJIT_LIBRARIES})
+        ${JIT_SRCS})
+target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${MIRJIT_LIBRARIES})
 
 # Main Ravi executable
 add_executable(ravi ${LUA_CMD_SRCS})
@@ -305,9 +227,6 @@ set(NOJIT_RAVI_SRCS
         ${RAVI_HEADERS}
         ${LUA_LIB_SRCS}
         ${LUA_CORE_SRCS}
-        ${DMR_C_HEADERS}
-        ${DMR_C_SRCS}
-        ${DMR_C_JIT_SRCS}
         ${NO_JIT_SRCS})
 set(RAVI_STATICEXEC_TARGET ravi_s)
 
@@ -340,12 +259,6 @@ if (LLVM_JIT)
             APPEND
             PROPERTY COMPILE_DEFINITIONS "USE_LLVM=1")
     set(USE_LLVM 1)
-elseif (OMR_JIT)
-    set_property(
-            TARGET ${LIBRAVI_NAME} ravi
-            APPEND
-            PROPERTY COMPILE_DEFINITIONS "USE_OMRJIT=1")
-    set(USE_OMRJIT 1)
 elseif (MIR_JIT)
     set_property(
             TARGET ${LIBRAVI_NAME} ravi
@@ -365,12 +278,6 @@ if (NOT STATIC_BUILD)
     endif ()
 else ()
     set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
-endif ()
-if (EMBEDDED_DMRC)
-    set_property(
-            TARGET ${LIBRAVI_NAME} ravi
-            APPEND
-            PROPERTY COMPILE_DEFINITIONS "USE_DMR_C=1")
 endif ()
 if (APPLE)
     set_property(

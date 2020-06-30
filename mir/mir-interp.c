@@ -51,6 +51,7 @@ DEF_VARR (MIR_val_t);
 
 struct ff_interface {
   size_t nres, nargs;
+  int vararg_p;
   MIR_type_t *res_types, *arg_types;
   void *interface_addr;
 };
@@ -731,7 +732,7 @@ static ALWAYS_INLINE int64_t get_mem_addr (MIR_val_t *bp, code_t c) { return bp[
     *((mem_type *) a) = v;                  \
   } while (0)
 
-#if defined(__GNUC__) && !defined(__clang__)
+#if !MIR_INTERP_TRACE && defined(__GNUC__) && !defined(__clang__)
 #define OPTIMIZE \
   __attribute__ ((__optimize__ ("O2"))) __attribute__ ((__optimize__ ("-fno-ipa-cp-clone")))
 #else
@@ -806,7 +807,7 @@ static void finish_insn_trace (MIR_context_t ctx, MIR_full_insn_code_t code, cod
   case MIR_OP_LDOUBLE:
     fprintf (stderr, "\t# res = %.*Le", LDBL_DECIMAL_DIG, bp[ops[0].i].ld);
     break;
-  default: assert (FALSE);
+  default: assert (op_mode == MIR_OP_UNDEF);
   }
   fprintf (stderr, "\n");
 }
@@ -1336,23 +1337,25 @@ static inline func_desc_t get_func_desc (MIR_item_t func_item) {
   return func_item->data;
 }
 
-static htab_hash_t ff_interface_hash (ff_interface_t i) {
-  return mir_hash_finish (
-    mir_hash_step (mir_hash_step (mir_hash_step (mir_hash_init (0), i->nres), i->nargs),
-                   mir_hash (i->res_types, sizeof (MIR_type_t) * i->nres,
-                             mir_hash (i->arg_types, sizeof (MIR_type_t) * i->nargs, 42))));
+static htab_hash_t ff_interface_hash (ff_interface_t i, void *arg) {
+  htab_hash_t h = mir_hash_step (mir_hash_init (0), i->nres);
+  h = mir_hash_step (h, i->nargs);
+  h = mir_hash_step (h, i->vararg_p);
+  h = mir_hash (i->res_types, sizeof (MIR_type_t) * i->nres, h);
+  h = mir_hash (i->arg_types, sizeof (MIR_type_t) * i->nargs, h);
+  return mir_hash_finish (h);
 }
 
-static int ff_interface_eq (ff_interface_t i1, ff_interface_t i2) {
-  return (i1->nres == i2->nres && i1->nargs == i2->nargs
+static int ff_interface_eq (ff_interface_t i1, ff_interface_t i2, void *arg) {
+  return (i1->nres == i2->nres && i1->nargs == i2->nargs && i1->vararg_p == i2->vararg_p
           && memcmp (i1->res_types, i2->res_types, sizeof (MIR_type_t) * i1->nres) == 0
           && memcmp (i1->arg_types, i2->arg_types, sizeof (MIR_type_t) * i1->nargs) == 0);
 }
 
-static void ff_interface_clear (ff_interface_t ffi) { free (ffi); }
+static void ff_interface_clear (ff_interface_t ffi, void *arg) { free (ffi); }
 
 static void *get_ff_interface (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, size_t nargs,
-                               MIR_type_t *arg_types) {
+                               MIR_type_t *arg_types, int vararg_p) {
   struct interp_ctx *interp_ctx = ctx->interp_ctx;
   struct ff_interface ffi_s;
   ff_interface_t tab_ffi, ffi;
@@ -1360,6 +1363,7 @@ static void *get_ff_interface (MIR_context_t ctx, size_t nres, MIR_type_t *res_t
 
   ffi_s.nres = nres;
   ffi_s.nargs = nargs;
+  ffi_s.vararg_p = !!vararg_p;
   ffi_s.res_types = res_types;
   ffi_s.arg_types = arg_types;
   if (HTAB_DO (ff_interface_t, ff_interface_tab, &ffi_s, HTAB_FIND, tab_ffi))
@@ -1367,11 +1371,12 @@ static void *get_ff_interface (MIR_context_t ctx, size_t nres, MIR_type_t *res_t
   ffi = malloc (sizeof (struct ff_interface) + sizeof (MIR_type_t) * (nres + nargs));
   ffi->nres = nres;
   ffi->nargs = nargs;
+  ffi->vararg_p = !!vararg_p;
   ffi->res_types = (MIR_type_t *) ((char *) ffi + sizeof (struct ff_interface));
   ffi->arg_types = ffi->res_types + nres;
   memcpy (ffi->res_types, res_types, sizeof (MIR_type_t) * nres);
   memcpy (ffi->arg_types, arg_types, sizeof (MIR_type_t) * nargs);
-  ffi->interface_addr = _MIR_get_ff_call (ctx, nres, res_types, nargs, call_arg_types);
+  ffi->interface_addr = _MIR_get_ff_call (ctx, nres, res_types, nargs, call_arg_types, vararg_p);
   htab_res = HTAB_DO (ff_interface_t, ff_interface_tab, ffi, HTAB_INSERT, tab_ffi);
   mir_assert (!htab_res && ffi == tab_ffi);
   return ffi->interface_addr;
@@ -1419,7 +1424,7 @@ static void call (MIR_context_t ctx, MIR_val_t *bp, MIR_op_t *insn_arg_ops, code
         = (mode == MIR_OP_DOUBLE ? MIR_T_D : mode == MIR_OP_LDOUBLE ? MIR_T_LD : MIR_T_I64);
     }
     ff_interface_addr = ffi_address_ptr->a
-      = get_ff_interface (ctx, nres, proto->res_types, nargs, call_arg_types);
+      = get_ff_interface (ctx, nres, proto->res_types, nargs, call_arg_types, proto->vararg_p);
   }
 
   for (i = 0; i < nargs; i++) {
@@ -1482,7 +1487,7 @@ static void interp_init (MIR_context_t ctx) {
   call_res_args = VARR_ADDR (MIR_val_t, call_res_args_varr);
   call_arg_types = VARR_ADDR (MIR_type_t, call_arg_types_varr);
   HTAB_CREATE_WITH_FREE_FUNC (ff_interface_t, ff_interface_tab, 1000, ff_interface_hash,
-                              ff_interface_eq, ff_interface_clear);
+                              ff_interface_eq, ff_interface_clear, NULL);
 #if MIR_INTERP_TRACE
   trace_insn_ident = 0;
 #endif
@@ -1504,8 +1509,14 @@ static void interp_finish (MIR_context_t ctx) {
   ctx->interp_ctx = NULL;
 }
 
+#if VA_LIST_IS_ARRAY_P
+typedef va_list va_t;
+#else
+    typedef va_list *va_t;
+#endif
+
 static void interp_arr_varg (MIR_context_t ctx, MIR_item_t func_item, MIR_val_t *results,
-                             size_t nargs, MIR_val_t *vals, va_list va) {
+                             size_t nargs, MIR_val_t *vals, va_t va) {
   func_desc_t func_desc;
   MIR_val_t *bp;
 
@@ -1519,7 +1530,12 @@ static void interp_arr_varg (MIR_context_t ctx, MIR_item_t func_item, MIR_val_t 
   bp[0].i = 0;
   memcpy (&bp[1], vals, sizeof (MIR_val_t) * nargs);
   eval (ctx, func_desc, bp, results);
-  if (va != NULL) va_end (va);
+  if (va != NULL)
+#if VA_LIST_IS_ARRAY_P
+    va_end (va);
+#else
+        va_end (*va);
+#endif
 }
 
 void MIR_interp (MIR_context_t ctx, MIR_item_t func_item, MIR_val_t *results, size_t nargs, ...) {
@@ -1531,7 +1547,11 @@ void MIR_interp (MIR_context_t ctx, MIR_item_t func_item, MIR_val_t *results, si
     arg_vals = VARR_ADDR (MIR_val_t, arg_vals_varr);
   va_start (argp, nargs);
   for (i = 0; i < nargs; i++) arg_vals[i] = va_arg (argp, MIR_val_t);
+#if VA_LIST_IS_ARRAY_P
   interp_arr_varg (ctx, func_item, results, nargs, arg_vals, argp);
+#else
+      interp_arr_varg (ctx, func_item, results, nargs, arg_vals, (va_t) &argp);
+#endif
 }
 
 void MIR_interp_arr_varg (MIR_context_t ctx, MIR_item_t func_item, MIR_val_t *results, size_t nargs,
@@ -1543,7 +1563,11 @@ void MIR_interp_arr_varg (MIR_context_t ctx, MIR_item_t func_item, MIR_val_t *re
   if (func_item->data == NULL) generate_icode (ctx, func_item);
   func_desc = get_func_desc (func_item);
   bp = alloca ((func_desc->nregs + 1) * sizeof (MIR_val_t));
+#if VA_LIST_IS_ARRAY_P
   bp[0].a = va;
+#else
+      bp[0].a = &va;
+#endif
   bp++;
   if (func_desc->nregs < nargs + 1) nargs = func_desc->nregs - 1;
   bp[0].i = 0;
@@ -1586,7 +1610,11 @@ static void interp (MIR_context_t ctx, MIR_item_t func_item, va_list va, MIR_val
         float f;
       } u;
       u.d = va_arg (va, double);
-      arg_vals[i].f = u.f;
+#if defined(__PPC64__)
+      arg_vals[i].f = u.d;
+#else
+          arg_vals[i].f = u.f;
+#endif
       break;
     }
     case MIR_T_D: arg_vals[i].d = va_arg (va, double); break;
@@ -1595,7 +1623,11 @@ static void interp (MIR_context_t ctx, MIR_item_t func_item, va_list va, MIR_val
     default: mir_assert (FALSE);
     }
   }
+#if VA_LIST_IS_ARRAY_P
   interp_arr_varg (ctx, func_item, results, nargs, arg_vals, va);
+#else
+      interp_arr_varg (ctx, func_item, results, nargs, arg_vals, (va_t) &va);
+#endif
 }
 
 static void redirect_interface_to_interp (MIR_context_t ctx, MIR_item_t func_item) {

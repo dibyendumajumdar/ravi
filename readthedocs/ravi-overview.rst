@@ -1,10 +1,12 @@
 =========================
 Ravi Programming Language
 =========================
+.. image:: https://travis-ci.org/dibyendumajumdar/ravi.svg?branch=master
+    :target: https://travis-ci.org/dibyendumajumdar/ravi
 
 Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and 
-features `LLVM <http://www.llvm.org/>`_ and `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ 
-powered JIT compilers. The name Ravi comes from the Sanskrit word for the Sun. 
+features `MIR <https://github.com/vnmakarov/mir>`_ and `LLVM <http://www.llvm.org/>`_ powered JIT compilers. 
+The name Ravi comes from the Sanskrit word for the Sun. 
 Interestingly a precursor to Lua was `Sol <http://www.lua.org/history.html>`_ which had support for 
 static types; Sol means the Sun in Portugese.
 
@@ -31,17 +33,14 @@ Features
 * Optional static typing - for details `see the reference manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
+* New! JIT backend `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported for now.
 * `LLVM <http://www.llvm.org/>`_ powered JIT compiler
-* `Eclipse OMR <https://github.com/dibyendumajumdar/nj>`_ powered JIT compiler
-* New (wip) small JIT backend based on `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported.
-* Built-in C pre-processor, parser and JIT compiler
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 
 Documentation
 =============
 * For the Lua extensions in Ravi see the `Reference Manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
 * `MIR JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-mir-instructions.html>`_.
-* `OMR JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-omr-instructions.html>`_.
 * `LLVM JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-llvm-instructions.html>`_.
 * Also see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
 * and the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
@@ -50,9 +49,24 @@ Lua Goodies
 ===========
 * `An Introduction to Lua <http://the-ravi-programming-language.readthedocs.io/en/latest/lua-introduction.html>`_ attempts to provide a quick overview of Lua for folks coming from other languages.
 * `Lua 5.3 Bytecode Reference <http://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html>`_ is my attempt to bring up to date the `Lua 5.1 Bytecode Reference <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_.
+* A `patch for Lua 5.3 <http://lua-users.org/lists/lua-l/2020-01/msg00004.html>`_ implements the 'defer' statement.
 
-Compatibility with Lua
-======================
+Lua 5.4 Position Statement
+==========================
+Lua 5.4 relationship to Ravi is as follows:
+
+* Generational GC - This has been back-ported to Ravi.
+* New random number generator - back-ported to Ravi.
+* Multiple user values can be associated with userdata - under consideration.
+* ``<const>`` variables - no plan to include this. 
+* ``<close>`` variables - Ravi has ``'defer'`` statement which is better option in my opinion, hence no plans to support ``<close>`` variables.
+* Interpreter performance improvements - these are beneficial to Lua interpreter but not to the JIT backends, hence not much point in back-porting.
+* Table implementation changes - under consideration. 
+* String to number coertion is now part of string library metamethods - back-ported to Ravi.
+* Removal of compatibility layers for 5.1, and 5.2 - not implemented as Ravi continues to provide these layers as per Lua 5.3.
+
+Compatibility with Lua 5.3
+==========================
 Ravi should be able to run all Lua 5.3 programs in interpreted mode, but following should be noted:
 
 * Ravi supports optional typing and enhanced types such as arrays (described above). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions; operations on Ravi arrays within Lua code will be subject to restrictions as described in the section above on arrays.
@@ -88,18 +102,18 @@ History
 * 2016
        - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_
 * 2017
-       - Embedded C compiler using dmrC project (C JIT compiler)
+       - Embedded C compiler using dmrC project (C JIT compiler) (now discontinued)
        - Additional type-annotations
 * 2018
-       - Implemented Eclipse OMR JIT backend
+       - Implemented Eclipse OMR JIT backend (now discontinued)
        - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * 2019 
-       - `New parser, type checker for Ravi <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-new-parser-codegenerator.html>`_ - work in progress
        - New language feature - `defer` statement
        - New JIT backend `MIR <https://github.com/vnmakarov/mir>`_. 
 
 * 2020 (Plan)
-       - New optimizing byte code generator based on new parser / type checker
+       - `New optimizing byte code generator based on new parser / type checker <https://github.com/dibyendumajumdar/ravi-compiler>`_
+       - Generational GC back-ported from Lua 5.4
        - Ravi 1.0 release
 
 License

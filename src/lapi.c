@@ -427,7 +427,7 @@ LUA_API size_t lua_rawlen (lua_State *L, int idx) {
     case LUA_TUSERDATA: return uvalue(o)->len;
     case RAVI_TIARRAY:
     case RAVI_TFARRAY: {
-      Table *h = hvalue(o);
+      RaviArray *h = arrvalue(o);
       return raviH_getn(h);
     }
     case LUA_TTABLE: {
@@ -468,7 +468,7 @@ LUA_API const void *lua_topointer(lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
   switch (ttype(o)) {
     case RAVI_TIARRAY:
-    case RAVI_TFARRAY:
+    case RAVI_TFARRAY: return arrvalue(o);
     case LUA_TTABLE: return hvalue(o);
     case LUA_TLCL: return clLvalue(o);
     case LUA_TCCL: return clCvalue(o);
@@ -691,7 +691,7 @@ LUA_API int lua_geti (lua_State *L, int idx, lua_Integer n) {
     }
   }
   else {
-    Table *h = hvalue(t);
+    RaviArray *h = arrvalue(t);
     if (ttisfarray(t)) {
       if (n <= raviH_getn(h)) { raviH_get_float_inline(L, h, n, L->top); }
       else {
@@ -712,15 +712,15 @@ LUA_API int lua_geti (lua_State *L, int idx, lua_Integer n) {
 
 LUA_API int lua_rawget(lua_State *L, int idx) {
   StkId t;
-  Table *h;
   lua_lock(L);
   t = index2addr(L, idx);
   api_check(L, ttistable(t), "table expected");
-  h = hvalue(t);
   if (ttisLtable(t)) {
-    setobj2s(L, L->top - 1, luaH_get(h, L->top - 1));
+      Table* h = hvalue(t);
+      setobj2s(L, L->top - 1, luaH_get(h, L->top - 1));
   }
   else if (ttisfarray(t)) {
+    RaviArray* h = arrvalue(t);
     TValue *key = L->top - 1;
     api_check(L, ttisinteger(key), "key must be integer");
     if (ttisinteger(key)) {
@@ -735,6 +735,7 @@ LUA_API int lua_rawget(lua_State *L, int idx) {
     }
   }
   else {
+    RaviArray* h = arrvalue(t);
     TValue *key = L->top - 1;
     api_check(L, ttisinteger(key), "key must be integer");
     if (ttisinteger(key)) {
@@ -755,21 +756,22 @@ LUA_API int lua_rawget(lua_State *L, int idx) {
 
 LUA_API int lua_rawgeti (lua_State *L, int idx, lua_Integer n) {
   StkId t;
-  Table *h;
   lua_lock(L);
   t = index2addr(L, idx);
   api_check(L, ttistable(t), "table expected");
-  h = hvalue(t);
   if (ttisLtable(t)) {
+    Table *h = hvalue(t);
     setobj2s(L, L->top, luaH_getint(h, n));
   }
   else if (ttisfarray(t)) {
+    RaviArray *h = arrvalue(t);
     if (n <= raviH_getn(h)) { raviH_get_float_inline(L, h, n, L->top); }
     else {
       setnilvalue(L->top);
     }
   }
   else {
+    RaviArray *h = arrvalue(t);
     if (n <= raviH_getn(h)) { raviH_get_int_inline(L, h, n, L->top); }
     else {
       setnilvalue(L->top);
@@ -812,7 +814,7 @@ LUA_API void lua_createtable (lua_State *L, int narray, int nrec) {
  */
 LUA_API void ravi_create_integer_array(lua_State *L, int narray,
                                      lua_Integer initial_value) {
-  Table *t;
+  RaviArray *t;
   lua_lock(L);
   t = raviH_new_integer_array(L, (unsigned int)narray, initial_value);
   setiarrayvalue(L, L->top, t);
@@ -826,7 +828,7 @@ LUA_API void ravi_create_integer_array(lua_State *L, int narray,
  */
 LUA_API void ravi_create_number_array(lua_State *L, int narray,
                                     lua_Number initial_value) {
-  Table *t;
+  RaviArray *t;
   lua_lock(L);
   t = raviH_new_number_array(L, (unsigned int)narray, initial_value);
   setfarrayvalue(L, L->top, t);
@@ -857,7 +859,7 @@ LUA_API void ravi_get_number_array_rawdata(lua_State *L, int idx, Ravi_NumberArr
   StkId o = index2addr(L, idx);
   if (!ttisfarray(o))
     luaG_runerror(L, "number[] required");
-  raviH_get_number_array_rawdata(L, hvalue(o), data);
+  raviH_get_number_array_rawdata(L, arrvalue(o), data);
 }
 
 /* Get the raw data associated with the number array at idx.
@@ -868,7 +870,7 @@ LUA_API void ravi_get_integer_array_rawdata(lua_State *L, int idx, Ravi_IntegerA
   StkId o = index2addr(L, idx);
   if (!ttisiarray(o))
     luaG_runerror(L, "integer[] required");
-  raviH_get_integer_array_rawdata(L, hvalue(o), data);
+  raviH_get_integer_array_rawdata(L, arrvalue(o), data);
 }
 
 /* Create a slice of an existing array
@@ -885,7 +887,7 @@ LUA_API void ravi_get_integer_array_rawdata(lua_State *L, int idx, Ravi_IntegerA
 LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
                                unsigned int len) {
   TValue *parent;
-  Table *slice;
+  RaviArray *slice;
   const char *errmsg = NULL;
   lua_lock(L);
   /* The do-while loop here is just for error handling */
@@ -898,8 +900,8 @@ LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
     errmsg = "cannot create a slice of a table, integer[] or number[] expected";
     goto done;
   }
-  Table *orig = hvalue(parent);
-  if (start < 1 || start + len > orig->ravi_array.len) {
+  RaviArray *orig = arrvalue(parent);
+  if (start < 1 || start + len > orig->len) {
     errmsg = "cannot create a slice of given bounds";
     goto done;
   }
@@ -924,7 +926,11 @@ LUA_API int lua_getmetatable (lua_State *L, int objindex) {
   int res = 0;
   lua_lock(L);
   obj = index2addr(L, objindex);
-  switch (ttnov(obj)) {
+  switch (ttype(obj)) {
+    case RAVI_TIARRAY:
+    case RAVI_TFARRAY:
+      mt = arrvalue(obj)->metatable;
+      break;
     case LUA_TTABLE:
       mt = hvalue(obj)->metatable;
       break;
@@ -1025,7 +1031,7 @@ LUA_API void lua_seti (lua_State *L, int idx, lua_Integer n) {
     }
   }
   else {
-    Table *h = hvalue(t);
+    RaviArray *h = arrvalue(t);
     if (ttisfarray(t)) {
       TValue *val = L->top - 1;
       if (ttisfloat(val)) { raviH_set_float_inline(L, h, n, fltvalue(val)); }
@@ -1063,13 +1069,14 @@ LUA_API void lua_rawset (lua_State *L, int idx) {
   o = index2addr(L, idx);
   api_check(L, ttistable(o), "table expected");
   if (ttisLtable(o)) {
+
     slot = luaH_set(L, hvalue(o), L->top - 2);
     setobj2t(L, slot, L->top - 1);
     invalidateTMcache(hvalue(o));
-    luaC_barrierback(L, hvalue(o), L->top - 1);
+    luaC_barrierback(L, gcvalue(o), L->top - 1);
   }
   else if (ttisfarray(o)) {
-    Table *t = hvalue(o); 
+    RaviArray *t = arrvalue(o); 
     TValue *key = L->top - 2;
     TValue *val = L->top - 1;
     if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
@@ -1089,7 +1096,7 @@ LUA_API void lua_rawset (lua_State *L, int idx) {
     }
   }
   else {
-    Table *t = hvalue(o); 
+    RaviArray *t = arrvalue(o); 
     TValue *key = L->top - 2;
     TValue *val = L->top - 1;
     if (!ttisinteger(key)) luaG_typeerror(L, key, "index");
@@ -1118,10 +1125,10 @@ LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
   api_check(L, ttistable(o), "table expected");
   if (ttisLtable(o)) {
     luaH_setint(L, hvalue(o), n, L->top - 1);
-    luaC_barrierback(L, hvalue(o), L->top - 1);
+    luaC_barrierback(L, gcvalue(o), L->top - 1);
   }
   else if (ttisfarray(o)) {
-    Table *t = hvalue(o);
+    RaviArray *t = arrvalue(o);
     TValue *val = L->top - 1;
     if (ttisfloat(val)) { raviH_set_float_inline(L, t, n, fltvalue(val)); }
     else if (ttisinteger(val)) {
@@ -1135,7 +1142,7 @@ LUA_API void lua_rawseti (lua_State *L, int idx, lua_Integer n) {
     }
   }
   else {
-    Table *t = hvalue(o);
+    RaviArray *t = arrvalue(o);
     TValue *val = L->top - 1;
     if (ttisinteger(val)) { raviH_set_int_inline(L, t, n, ivalue(val)); }
     else {
@@ -1160,7 +1167,7 @@ LUA_API void lua_rawsetp (lua_State *L, int idx, const void *p) {
   setpvalue(&k, cast(void *, p));
   slot = luaH_set(L, hvalue(o), &k);
   setobj2t(L, slot, L->top - 1);
-  luaC_barrierback(L, hvalue(o), L->top - 1);
+  luaC_barrierback(L, gcvalue(o), L->top - 1);
   L->top--;
   lua_unlock(L);
 }
@@ -1180,7 +1187,16 @@ LUA_API int lua_setmetatable (lua_State *L, int objindex) {
       luaG_runerror(L, "Lua table expected");
     mt = hvalue(L->top - 1);
   }
-  switch (ttnov(obj)) {
+  switch (ttype(obj)) {
+    case RAVI_TIARRAY:
+    case RAVI_TFARRAY: {
+      arrvalue(obj)->metatable = mt;
+      if (mt) {
+        luaC_objbarrier(L, gcvalue(obj), mt);
+        luaC_checkfinalizer(L, gcvalue(obj), mt);
+      }
+      break;
+    }
     case LUA_TTABLE: {
       hvalue(obj)->metatable = mt;
       if (mt) {
@@ -1330,7 +1346,7 @@ LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
       const TValue *gt = luaH_getint(reg, LUA_RIDX_GLOBALS);
       /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
       setobj(L, f->upvals[0]->v, gt);
-      luaC_upvalbarrier(L, f->upvals[0]);
+      luaC_upvalbarrier(L, f->upvals[0], gt);
     }
   }
   lua_unlock(L);
@@ -1361,12 +1377,12 @@ LUA_API int lua_status (lua_State *L) {
 /*
 ** Garbage-collection function
 */
-
-LUA_API int lua_gc (lua_State *L, int what, int data) {
+LUA_API int lua_gc (lua_State *L, int what, ...) {
+  va_list argp;
   int res = 0;
-  global_State *g;
+  global_State *g = G(L);
   lua_lock(L);
-  g = G(L);
+  va_start(argp, what);
   switch (what) {
     case LUA_GCSTOP: {
       g->gcrunning = 0;
@@ -1391,11 +1407,12 @@ LUA_API int lua_gc (lua_State *L, int what, int data) {
       break;
     }
     case LUA_GCSTEP: {
+      int data = va_arg(argp, int);
       l_mem debt = 1;  /* =1 to signal that it did an actual step */
       lu_byte oldrunning = g->gcrunning;
       g->gcrunning = 1;  /* allow GC to run */
       if (data == 0) {
-        luaE_setdebt(g, -GCSTEPSIZE);  /* to do a "small" step */
+        luaE_setdebt(g, 0);  /* do a basic step */
         luaC_step(L);
       }
       else {  /* add 'data' to total debt */
@@ -1409,22 +1426,49 @@ LUA_API int lua_gc (lua_State *L, int what, int data) {
       break;
     }
     case LUA_GCSETPAUSE: {
-      res = g->gcpause;
-      g->gcpause = data;
+      int data = va_arg(argp, int);
+      res = getgcparam(g->gcpause);
+      setgcparam(g->gcpause, data);
       break;
     }
     case LUA_GCSETSTEPMUL: {
-      res = g->gcstepmul;
-      if (data < 40) data = 40;  /* avoid ridiculous low values (and 0) */
-      g->gcstepmul = data;
+      int data = va_arg(argp, int);
+      res = getgcparam(g->gcstepmul);
+      setgcparam(g->gcstepmul, data);
       break;
     }
     case LUA_GCISRUNNING: {
       res = g->gcrunning;
       break;
     }
+    case LUA_GCGEN: {
+      int minormul = va_arg(argp, int);
+      int majormul = va_arg(argp, int);
+      res = isdecGCmodegen(g) ? LUA_GCGEN : LUA_GCINC;
+      if (minormul != 0)
+        g->genminormul = minormul;
+      if (majormul != 0)
+        setgcparam(g->genmajormul, majormul);
+      luaC_changemode(L, KGC_GEN);
+      break;
+    }
+    case LUA_GCINC: {
+      int pause = va_arg(argp, int);
+      int stepmul = va_arg(argp, int);
+      int stepsize = va_arg(argp, int);
+      res = isdecGCmodegen(g) ? LUA_GCGEN : LUA_GCINC;
+      if (pause != 0)
+        setgcparam(g->gcpause, pause);
+      if (stepmul != 0)
+        setgcparam(g->gcstepmul, stepmul);
+      if (stepsize != 0)
+        g->gcstepsize = stepsize;
+      luaC_changemode(L, KGC_INC);
+      break;
+    }
     default: res = -1;  /* invalid option */
   }
+  va_end(argp);
   lua_unlock(L);
   return res;
 }
@@ -1451,7 +1495,7 @@ LUA_API int lua_next (lua_State *L, int idx) {
   lua_lock(L);
   t = index2addr(L, idx);
   api_check(L, ttistable(t), "table expected");
-  more = luaH_next(L, hvalue(t), L->top - 1);
+  more = ttisLtable(t) ? luaH_next(L, hvalue(t), L->top - 1) : raviH_next(L, arrvalue(t), L->top - 1);
   if (more) {
     api_incr_top(L);
   }
@@ -1596,8 +1640,8 @@ LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
   if (name) {
     L->top--;
     setobj(L, val, L->top);
-    if (owner) { luaC_barrier(L, owner, L->top); }
-    else if (uv) { luaC_upvalbarrier(L, uv); }
+    if (owner) { luaC_barrier(L, owner, val); }
+    else if (uv) { luaC_upvalbarrier(L, uv, val); }
   }
   lua_unlock(L);
   return name;
@@ -1646,7 +1690,7 @@ LUA_API void lua_upvaluejoin (lua_State *L, int fidx1, int n1,
     *up1 = *up2;
     (*up1)->refcount++;
     if (upisopen(*up1)) (*up1)->u.open.touched = 1;
-    luaC_upvalbarrier(L, *up1);
+    luaC_upvalbarrier(L, *up1, (*up1)->v);
   }
 }
 

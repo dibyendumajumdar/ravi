@@ -421,14 +421,14 @@
 @@ LUA_NUMBER is the floating-point type used by Lua.
 @@ LUAI_UACNUMBER is the result of a 'default argument promotion'
 @@ over a floating number.
-@@ l_mathlim(x) corrects limit name 'x' to the proper float type
+@@ l_floatatt(x) corrects float attribute 'x' to the proper float type
 ** by prefixing it with one of FLT/DBL/LDBL.
 @@ LUA_NUMBER_FRMLEN is the length modifier for writing floats.
 @@ LUA_NUMBER_FMT is the format for writing floats.
 @@ lua_number2str converts a float to a string.
 @@ l_mathop allows the addition of an 'l' or 'f' to all math operations.
 @@ l_floor takes the floor of a float.
-@@ lua_str2number converts a decimal numeric string to a number.
+@@ lua_str2number converts a decimal numeral to a number.
 */
 
 
@@ -440,12 +440,13 @@
 	l_sprintf((s), sz, LUA_NUMBER_FMT, (LUAI_UACNUMBER)(n))
 
 /*
-@@ lua_numbertointeger converts a float number to an integer, or
-** returns 0 if float is not within the range of a lua_Integer.
-** (The range comparisons are tricky because of rounding. The tests
-** here assume a two-complement representation, where MININTEGER always
-** has an exact representation as a float; MAXINTEGER may not have one,
-** and therefore its conversion to float may have an ill-defined value.)
+@@ lua_numbertointeger converts a float number with an integral value
+** to an integer, or returns 0 if float is not within the range of
+** a lua_Integer.  (The range comparisons are tricky because of
+** rounding. The tests here assume a two-complement representation,
+** where MININTEGER always has an exact representation as a float;
+** MAXINTEGER may not have one, and therefore its conversion to float
+** may have an ill-defined value.)
 */
 #define lua_numbertointeger(n,p) \
   ((n) >= (LUA_NUMBER)(LUA_MININTEGER) && \
@@ -459,7 +460,7 @@
 
 #define LUA_NUMBER	float
 
-#define l_mathlim(n)		(FLT_##n)
+#define l_floatatt(n)		(FLT_##n)
 
 #define LUAI_UACNUMBER	double
 
@@ -475,7 +476,7 @@
 
 #define LUA_NUMBER	long double
 
-#define l_mathlim(n)		(LDBL_##n)
+#define l_floatatt(n)		(LDBL_##n)
 
 #define LUAI_UACNUMBER	long double
 
@@ -490,7 +491,7 @@
 
 #define LUA_NUMBER	double
 
-#define l_mathlim(n)		(DBL_##n)
+#define l_floatatt(n)		(DBL_##n)
 
 #define LUAI_UACNUMBER	double
 
@@ -515,11 +516,13 @@
 @@ LUA_UNSIGNED is the unsigned version of LUA_INTEGER.
 **
 @@ LUAI_UACINT is the result of a 'default argument promotion'
-@@ over a lUA_INTEGER.
+@@ over a LUA_INTEGER.
 @@ LUA_INTEGER_FRMLEN is the length modifier for reading/writing integers.
 @@ LUA_INTEGER_FMT is the format for writing integers.
 @@ LUA_MAXINTEGER is the maximum value for a LUA_INTEGER.
 @@ LUA_MININTEGER is the minimum value for a LUA_INTEGER.
+@@ LUA_MAXUNSIGNED is the maximum value for a LUA_UNSIGNED.
+@@ LUA_UNSIGNEDBITS is the number of bits in a LUA_UNSIGNED.
 @@ lua_integer2str converts an integer to a string.
 */
 
@@ -540,6 +543,9 @@
 #define LUA_UNSIGNED		unsigned LUAI_UACINT
 
 
+#define LUA_UNSIGNEDBITS	(sizeof(LUA_UNSIGNED) * CHAR_BIT)
+
+
 /* now the variable definitions */
 
 #if LUA_INT_TYPE == LUA_INT_INT		/* { int */
@@ -550,6 +556,8 @@
 #define LUA_MAXINTEGER		INT_MAX
 #define LUA_MININTEGER		INT_MIN
 
+#define LUA_MAXUNSIGNED		UINT_MAX
+
 #elif LUA_INT_TYPE == LUA_INT_LONG	/* }{ long */
 
 #define LUA_INTEGER		long
@@ -557,6 +565,8 @@
 
 #define LUA_MAXINTEGER		LONG_MAX
 #define LUA_MININTEGER		LONG_MIN
+
+#define LUA_MAXUNSIGNED		ULONG_MAX
 
 #elif LUA_INT_TYPE == LUA_INT_LONGLONG	/* }{ long long */
 
@@ -570,6 +580,8 @@
 #define LUA_MAXINTEGER		LLONG_MAX
 #define LUA_MININTEGER		LLONG_MIN
 
+#define LUA_MAXUNSIGNED		ULLONG_MAX
+
 #elif defined(LUA_USE_WINDOWS) /* }{ */
 /* in Windows, can use specific Windows types */
 
@@ -578,6 +590,8 @@
 
 #define LUA_MAXINTEGER		_I64_MAX
 #define LUA_MININTEGER		_I64_MIN
+
+#define LUA_MAXUNSIGNED		_UI64_MAX
 
 #else				/* }{ */
 
@@ -613,7 +627,7 @@
 
 
 /*
-@@ lua_strx2number converts an hexadecimal numeric string to a number.
+@@ lua_strx2number converts a hexadecimal numeral to a number.
 ** In C99, 'strtod' does that conversion. Otherwise, you can
 ** leave 'lua_strx2number' undefined and Lua will provide its own
 ** implementation.
@@ -631,7 +645,7 @@
 
 
 /*
-@@ lua_number2strx converts a float to an hexadecimal numeric string.
+@@ lua_number2strx converts a float to a hexadecimal numeral.
 ** In C99, 'sprintf' (with format specifiers '%a'/'%A') does that.
 ** Otherwise, you can leave 'lua_number2strx' undefined and Lua will
 ** provide its own implementation.
@@ -677,7 +691,7 @@
 /*
 @@ lua_getlocaledecpoint gets the locale "radix character" (decimal point).
 ** Change that if you do not want to use C locales. (Code using this
-** macro must include header 'locale.h'.)
+** macro must include the header 'locale.h'.)
 */
 #if !defined(lua_getlocaledecpoint)
 #define lua_getlocaledecpoint()		(localeconv()->decimal_point[0])
@@ -718,7 +732,7 @@
 ** {==================================================================
 ** Macros that affect the API and must be stable (that is, must be the
 ** same when you compile Lua and when you compile code that links to
-** Lua). You probably do not want/need to change them.
+** Lua).
 ** =====================================================================
 */
 
@@ -813,7 +827,7 @@
 #endif
 
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 
 #define RAVI_NORETURN		__declspec(noreturn)
 #define RAVI_INLINE			__inline
@@ -834,6 +848,8 @@
 /* If following is defined as true then LLVM instructions emitted for arithmetic ops 
    priority floating point ops, else default is to prioritise integer ops */
 #define RAVI_USE_LLVM_ARITH_FLOATPRIORITY 1
+/* Enables the 'defer' statement - RAVI extension */
+#define RAVI_DEFER_STATEMENT
 
 #endif
 

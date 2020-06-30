@@ -129,43 +129,65 @@ static struct {
                    {"lua_concat", reinterpret_cast<void *>(lua_concat)},
                    {"lua_len", reinterpret_cast<void *>(lua_len)},
                    {"lua_stringtonumber", reinterpret_cast<void *>(lua_stringtonumber)},
+                   {"luaC_upvalbarrier_", reinterpret_cast<void *>(luaC_upvalbarrier_)},
+                   {"luaD_call", reinterpret_cast<void *>(luaD_call)},
+                   {"luaD_poscall", reinterpret_cast<void *>(luaD_poscall)},
+                   {"luaD_precall", reinterpret_cast<void *>(luaD_precall)},
                    {"luaF_close", reinterpret_cast<void *>(luaF_close)},
-                   {"raise_error", reinterpret_cast<void *>(raise_error)},
+                   {"luaG_runerror", reinterpret_cast<void *>(luaG_runerror)},
+                   {"luaH_getstr", reinterpret_cast<void *>(luaH_getstr)},
+                   {"luaO_arith", reinterpret_cast<void *>(luaO_arith)},
+                   {"luaT_trybinTM", reinterpret_cast<void *>(luaT_trybinTM)},
                    {"luaV_tonumber_", reinterpret_cast<void *>(luaV_tonumber_)},
                    {"luaV_tointeger", reinterpret_cast<void *>(luaV_tointeger)},
-                   {"luaD_poscall", reinterpret_cast<void *>(luaD_poscall)},
+                   {"luaV_tointeger_", reinterpret_cast<void *>(luaV_tointeger_)},
                    {"luaV_equalobj", reinterpret_cast<void *>(luaV_equalobj)},
                    {"luaV_lessthan", reinterpret_cast<void *>(luaV_lessthan)},
                    {"luaV_lessequal", reinterpret_cast<void *>(luaV_lessequal)},
                    {"luaV_execute", reinterpret_cast<void *>(luaV_execute)},
                    {"luaV_gettable", reinterpret_cast<void *>(luaV_gettable)},
                    {"luaV_settable", reinterpret_cast<void *>(luaV_settable)},
-                   {"luaD_precall", reinterpret_cast<void *>(luaD_precall)},
+                   {"luaV_objlen", reinterpret_cast<void *>(luaV_objlen)},
+                   {"luaV_forlimit", reinterpret_cast<void *>(luaV_forlimit)},
+                   {"luaV_finishget", reinterpret_cast<void *>(luaV_finishget)},
+                   {"luaV_mod", reinterpret_cast<void *>(luaV_mod)},
+                   {"luaV_div", reinterpret_cast<void *>(luaV_div)},
                    {"raviV_op_newtable", reinterpret_cast<void *>(raviV_op_newtable)},
-                   {"luaO_arith", reinterpret_cast<void *>(luaO_arith)},
                    {"raviV_op_newarrayint", reinterpret_cast<void *>(raviV_op_newarrayint)},
                    {"raviV_op_newarrayfloat", reinterpret_cast<void *>(raviV_op_newarrayfloat)},
                    {"raviV_op_setlist", reinterpret_cast<void *>(raviV_op_setlist)},
                    {"raviV_op_concat", reinterpret_cast<void *>(raviV_op_concat)},
                    {"raviV_op_closure", reinterpret_cast<void *>(raviV_op_closure)},
                    {"raviV_op_vararg", reinterpret_cast<void *>(raviV_op_vararg)},
-                   {"luaV_objlen", reinterpret_cast<void *>(luaV_objlen)},
-                   {"luaV_forlimit", reinterpret_cast<void *>(luaV_forlimit)},
                    {"raviV_op_setupval", reinterpret_cast<void *>(raviV_op_setupval)},
                    {"raviV_op_setupvali", reinterpret_cast<void *>(raviV_op_setupvali)},
                    {"raviV_op_setupvalf", reinterpret_cast<void *>(raviV_op_setupvalf)},
                    {"raviV_op_setupvalai", reinterpret_cast<void *>(raviV_op_setupvalai)},
                    {"raviV_op_setupvalaf", reinterpret_cast<void *>(raviV_op_setupvalaf)},
                    {"raviV_op_setupvalt", reinterpret_cast<void *>(raviV_op_setupvalt)},
-                   {"luaD_call", reinterpret_cast<void *>(luaD_call)},
                    {"raviH_set_int", reinterpret_cast<void *>(raviH_set_int)},
                    {"raviH_set_float", reinterpret_cast<void *>(raviH_set_float)},
                    {"raviV_check_usertype", reinterpret_cast<void *>(raviV_check_usertype)},
-                   {"luaT_trybinTM", reinterpret_cast<void *>(luaT_trybinTM)},
                    {"raviV_gettable_sskey", reinterpret_cast<void *>(raviV_gettable_sskey)},
                    {"raviV_settable_sskey", reinterpret_cast<void *>(raviV_settable_sskey)},
                    {"raviV_gettable_i", reinterpret_cast<void *>(raviV_gettable_i)},
                    {"raviV_settable_i", reinterpret_cast<void *>(raviV_settable_i)},
+                   {"raviV_op_add", reinterpret_cast<void *>(raviV_op_add)},
+                   {"raviV_op_mul", reinterpret_cast<void *>(raviV_op_mul)},
+                   {"raviV_op_sub", reinterpret_cast<void *>(raviV_op_sub)},
+                   {"raviV_op_div", reinterpret_cast<void *>(raviV_op_div)},
+                   {"raviV_op_shr", reinterpret_cast<void *>(raviV_op_shr)},
+                   {"raviV_op_shl", reinterpret_cast<void *>(raviV_op_shl)},
+                   {"raviV_op_bnot", reinterpret_cast<void *>(raviV_op_bnot)},
+                   {"raviV_op_band", reinterpret_cast<void *>(raviV_op_band)},
+                   {"raviV_op_bor", reinterpret_cast<void *>(raviV_op_bor)},
+                   {"raviV_op_bxor", reinterpret_cast<void *>(raviV_op_bxor)},
+                   {"raviV_op_totype", reinterpret_cast<void *>(raviV_op_totype)},
+#ifdef RAVI_DEFER_STATEMENT
+                   {"raviV_op_defer", reinterpret_cast<void *>(raviV_op_defer)},
+#endif
+                   {"raviV_debug_trace", reinterpret_cast<void *>(raviV_debug_trace)},
+                   {"raise_error", reinterpret_cast<void *>(raise_error)},
                    {"printf", reinterpret_cast<void *>(printf)},
                    {"puts", reinterpret_cast<void *>(puts)},
                    {nullptr, nullptr}};
@@ -182,11 +204,14 @@ RaviJITState::RaviJITState()
       verbosity_(0),
       tracehook_enabled_(false),
       validation_(false),
-      use_dmrc_(false),
       min_code_size_(150),
       min_exec_count_(50),
       allocated_modules_(0),
-      compiling_(false) {
+      compiling_(false)
+#if LLVM_VERSION_MAJOR >= 10 && USE_ORCv2_JIT
+      ,MainJD(nullptr)
+#endif
+{
   // LLVM needs to be initialized else
   // ExecutionEngine cannot be created
   // This needs to be an atomic check although LLVM docs
@@ -200,32 +225,44 @@ RaviJITState::RaviJITState()
     init++;
   }
   triple_ = llvm::sys::getProcessTriple();
-  if (::getenv("RAVI_USE_DMRC_LLVM"))
-    use_dmrc_ = true;
 
 #if USE_ORCv2_JIT
-
   auto JTMB = llvm::cantFail(llvm::orc::JITTargetMachineBuilder::detectHost());
   JTMB.setCodeGenOptLevel(llvm::CodeGenOpt::Default);
   auto dataLayout = llvm::cantFail(JTMB.getDefaultDataLayoutForTarget());
   TM = llvm::cantFail(JTMB.createTargetMachine());
-  ES = llvm::make_unique<llvm::orc::ExecutionSession>();
-  ObjectLayer = llvm::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(
-      *ES, []() { return llvm::make_unique<llvm::SectionMemoryManager>(); });
-  CompileLayer = llvm::make_unique<llvm::orc::IRCompileLayer>(*ES, *ObjectLayer, llvm::orc::SimpleCompiler(*TM));
-  OptimizeLayer = llvm::make_unique<llvm::orc::IRTransformLayer>(
+  ES = std::make_unique<llvm::orc::ExecutionSession>();
+  ObjectLayer = std::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(
+      *ES, []() { return std::make_unique<llvm::SectionMemoryManager>(); });
+#if LLVM_VERSION_MAJOR < 10
+  CompileLayer = std::make_unique<llvm::orc::IRCompileLayer>(*ES, *ObjectLayer, llvm::orc::SimpleCompiler(*TM));
+#else
+#ifndef _WIN32
+  if (JTMB.getTargetTriple().isOSBinFormatCOFF())
+#endif
+    // Force on Win32
+    ObjectLayer->setOverrideObjectFlagsWithResponsibilityFlags(true);
+  CompileLayer = std::make_unique<llvm::orc::IRCompileLayer>(*ES, *ObjectLayer, std::make_unique<llvm::orc::SimpleCompiler>(*TM));
+#endif
+  OptimizeLayer = std::make_unique<llvm::orc::IRTransformLayer>(
       *ES, *CompileLayer, [this](llvm::orc::ThreadSafeModule TSM, const llvm::orc::MaterializationResponsibility &R) {
         return this->optimizeModule(std::move(TSM), R);
       });
-  DL = llvm::make_unique<llvm::DataLayout>(std::move(dataLayout));
-  Mangle = llvm::make_unique<llvm::orc::MangleAndInterner>(*ES, *this->DL);
-  Ctx = llvm::make_unique<llvm::orc::ThreadSafeContext>(llvm::make_unique<llvm::LLVMContext>());
-#if LLVM_VERSION_MAJOR >= 9
+  DL = std::make_unique<llvm::DataLayout>(std::move(dataLayout));
+  Mangle = std::make_unique<llvm::orc::MangleAndInterner>(*ES, *this->DL);
+  Ctx = std::make_unique<llvm::orc::ThreadSafeContext>(std::make_unique<llvm::LLVMContext>());
+#if LLVM_VERSION_MAJOR >= 10
+  ES->createJITDylib("<main>");
+  MainJD = ES->getJITDylibByName("<main>");
+  MainJD->addGenerator(
+      cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(
+          DL->getGlobalPrefix())));
+#elif LLVM_VERSION_MAJOR >= 9
   ES->getMainJITDylib().setGenerator(llvm::cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(DL->getGlobalPrefix())));
 #else
   ES->getMainJITDylib().setGenerator(llvm::cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(*DL)));
 #endif
-  types_ = llvm::make_unique<LuaLLVMTypes>(*Ctx->getContext());
+  types_ = std::make_unique<LuaLLVMTypes>(*Ctx->getContext());
 
 #else
 
@@ -279,7 +316,11 @@ RaviJITState::RaviJITState()
 
   // Register global symbols
 #if USE_ORCv2_JIT
+#if LLVM_VERSION_MAJOR >= 10
+  auto &JD = *MainJD;
+#else
   auto &JD = ES->getMainJITDylib();
+#endif
   llvm::orc::MangleAndInterner mangle(*ES, *this->DL);
   llvm::orc::SymbolMap Symbols;
   for (int i = 0; global_syms[i].name != nullptr; i++) {
@@ -314,7 +355,11 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
   using llvm::legacy::PassManager;
 
 #if USE_ORCv2_JIT
+#if LLVM_VERSION_MAJOR >= 10
+  auto M = TSM.getModuleUnlocked();
+#else
   auto M = TSM.getModule();
+#endif
 #endif
   if (get_verbosity() >= 1)
     M->print(llvm::errs(), nullptr, false, true);
@@ -339,7 +384,7 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
   pmb.SizeLevel = get_sizelevel();
   {
     // Create a function pass manager for this engine
-    auto FPM = llvm::make_unique<FunctionPassManager>(&*M);
+    auto FPM = std::make_unique<FunctionPassManager>(&*M);
     pmb.populateFunctionPassManager(*FPM);
     FPM->doInitialization();
     // Run the optimizations over all functions in the module being added to
@@ -365,8 +410,13 @@ std::shared_ptr<llvm::Module> RaviJITState::optimizeModule(std::shared_ptr<llvm:
 #if LLVM_VERSION_MAJOR >= 7
                                   nullptr,  // DWO output file
 #endif
-                                  llvm::TargetMachine::CGFT_AssemblyFile)) {
-        llvm::errs() << "unable to add passes for generating assemblyfile\n";
+#if LLVM_VERSION_MAJOR < 10
+                                  llvm::TargetMachine::CGFT_AssemblyFile
+#else
+                                  llvm::CodeGenFileType::CGFT_AssemblyFile
+#endif
+                                  )) {
+        llvm::errs() << "unable to add passes for generating assembly file\n";
         break;
       }
     }
@@ -391,7 +441,11 @@ void RaviJITState::addGlobalSymbol(const std::string &name, void *address) {
 
 #if USE_ORCv2_JIT
 llvm::Error RaviJITState::addModule(std::unique_ptr<llvm::Module> M) {
+#if LLVM_VERSION_MAJOR < 10
   return OptimizeLayer->add(ES->getMainJITDylib(), llvm::orc::ThreadSafeModule(std::move(M), *Ctx));
+#else
+  return OptimizeLayer->add(*MainJD, llvm::orc::ThreadSafeModule(std::move(M), *Ctx));
+#endif
 }
 #elif USE_ORC_JIT
 RaviJITState::ModuleHandle RaviJITState::addModule(std::unique_ptr<llvm::Module> M) {
@@ -847,8 +901,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
   }
   if (doCompile) {
     auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
-    if (G->ravi_state->jit->is_use_dmrc() ? G->ravi_state->code_generator->alt_compile(L, p, module, options)
-                                          : G->ravi_state->code_generator->compile(L, p, module, options)) {
+    if (G->ravi_state->code_generator->compile(L, p, module, options)) {
       module->runpasses();
       module->finalize(G->ravi_state->jit->get_verbosity() == 3);
     }
@@ -866,8 +919,7 @@ int raviV_compile_n(struct lua_State *L, struct Proto *p[], int n, ravi_compile_
     return 0;
   auto module = std::make_shared<ravi::RaviJITModule>(G->ravi_state->jit);
   for (int i = 0; i < n; i++) {
-    if (G->ravi_state->jit->is_use_dmrc() ? G->ravi_state->code_generator->alt_compile(L, p[i], module, options)
-                                          : G->ravi_state->code_generator->compile(L, p[i], module, options))
+    if (G->ravi_state->code_generator->compile(L, p[i], module, options))
       count++;
   }
   if (count) {

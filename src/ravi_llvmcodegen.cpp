@@ -23,7 +23,6 @@
 #include <ravi_jit.h>
 #include <ravi_llvmcodegen.h>
 #include <ravi_jitshared.h>
-#include <dmr_c.h>
 
 namespace ravi {
 
@@ -346,6 +345,15 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_h(RaviFunctionDef *def,
   return h;
 }
 
+// emit code to load the RaviArray value from register (TValue)
+llvm::Instruction* RaviCodeGenerator::emit_load_reg_arr(RaviFunctionDef* def,
+    llvm::Value* rb) {
+    llvm::Value* rb_h = def->builder->CreateBitCast(rb, def->types->ppRaviArrayT);
+    llvm::Instruction* h = def->builder->CreateLoad(rb_h);
+    h->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_TValue_hT);
+    return h;
+}
+
 // Gets the size of the hash table
 // This is the sizenode() macro in lobject.h
 llvm::Value *RaviCodeGenerator::emit_table_get_hashsize(RaviFunctionDef *def,
@@ -371,7 +379,7 @@ llvm::Value *RaviCodeGenerator::emit_table_get_hashstr(RaviFunctionDef *def,
                                                        TString *key) {
 #if RAVI_USE_NEWHASH
   unsigned int hash = key->hash;
-  llvm::Value *hmask_ptr = emit_gep(def, "hmask", table, 0, 12);
+  llvm::Value *hmask_ptr = emit_gep(def, "hmask", table, 0, 11);
   llvm::Instruction *hmask = def->builder->CreateLoad(hmask_ptr);
   hmask->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_Table_hmask);
   llvm::Value *offset = def->builder->CreateAnd(
@@ -463,9 +471,10 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_s(RaviFunctionDef *def,
   return s;
 }
 
+/* Loads the data pointer as lua_Number[] from a RaviArray object */
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_h_floatarray(
     RaviFunctionDef *def, llvm::Instruction *h) {
-  llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 11, 0);
+  llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 7);
   llvm::Value *darray_ptr =
       def->builder->CreateBitCast(data_ptr, def->types->pplua_NumberT);
   llvm::Instruction *darray = def->builder->CreateLoad(darray_ptr);
@@ -474,9 +483,10 @@ llvm::Instruction *RaviCodeGenerator::emit_load_reg_h_floatarray(
   return darray;
 }
 
+/* Loads the data pointer as lua_Integer[] from a RaviArray object */
 llvm::Instruction *RaviCodeGenerator::emit_load_reg_h_intarray(
     RaviFunctionDef *def, llvm::Instruction *h) {
-  llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 11, 0);
+  llvm::Value *data_ptr = emit_gep(def, "data_ptr", h, 0, 7);
   llvm::Value *darray_ptr =
       def->builder->CreateBitCast(data_ptr, def->types->pplua_IntegerT);
   llvm::Instruction *darray = def->builder->CreateLoad(darray_ptr);
@@ -581,17 +591,21 @@ llvm::Value *RaviCodeGenerator::emit_is_not_value_of_type_class(
       llvm::ConstantInt::get(def->types->lua_LuaTypeT, lua_type), varname);
 }
 
-llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(
-    RaviFunctionDef *def, llvm::Value *value) {
-  llvm::Value *tt_ptr = emit_gep(def, "raviarray.type_ptr", value, 0, 11, 3);
-  llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.type");
-  tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_typeT);
-  return tt;
-}
+/* This loads the RaviArray type value from the tt field maintained in the 
+ GC part. However this tt is 8-bit value and needs to be converted to 
+ the 16-bit value used in TValue objects */
+//llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraytype(
+//    RaviFunctionDef *def, llvm::Value *value) {
+//  llvm::Value *tt_ptr = emit_gep(def, "raviarray.type_ptr", value, 0, 1);
+//  llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.type");
+//  // FIXME promote to 16 bit and set collectible bit
+//  tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_typeT);
+//  return tt;
+//}
 
 llvm::Instruction *RaviCodeGenerator::emit_load_ravi_arraylength(
     RaviFunctionDef *def, llvm::Value *value) {
-  llvm::Value *tt_ptr = emit_gep(def, "raviarray.len_ptr", value, 0, 11, 1);
+  llvm::Value *tt_ptr = emit_gep(def, "raviarray.len_ptr", value, 0, 4);
   llvm::Instruction *tt = def->builder->CreateLoad(tt_ptr, "raviarray.len");
   tt->setMetadata(llvm::LLVMContext::MD_tbaa, def->types->tbaa_RaviArray_lenT);
   return tt;
@@ -1128,7 +1142,7 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       "luaV_objlen");
   def->luaC_upvalbarrierF = def->raviF->addExternFunction(
       def->types->luaC_upvalbarrierT,
-      reinterpret_cast<void *>(&luaC_upvalbarrier_), "luaC_upvalbarrier_");
+      reinterpret_cast<void *>(&luaC_upvalbarrier_compat), "luaC_upvalbarrier_");
   def->raviV_op_concatF = def->raviF->addExternFunction(
       def->types->raviV_op_concatT, reinterpret_cast<void *>(&raviV_op_concat),
       "raviV_op_concat");
@@ -1204,10 +1218,11 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
   def->raviV_op_totypeF = def->raviF->addExternFunction(
       def->types->raviV_op_totypeT, reinterpret_cast<void *>(&raviV_op_totype),
       "raviV_op_totype");
+#ifdef RAVI_DEFER_STATEMENT
   def->raviV_op_deferF = def->raviF->addExternFunction(
 	  def->types->raviV_op_deferT, reinterpret_cast<void *>(&raviV_op_defer), 
 	  "raviV_op_defer");
-
+#endif
 #if 0
   // DEBUG routines
   def->ravi_dump_valueF = def->raviF->addExternFunction(
@@ -1337,68 +1352,11 @@ llvm::Value *RaviCodeGenerator::emit_gep_upval_v(RaviFunctionDef *def,
 // Get &upval->value -> result is TValue *
 llvm::Value *RaviCodeGenerator::emit_gep_upval_value(
     RaviFunctionDef *def, llvm::Instruction *pupval) {
+#ifdef RAVI_DEFER_STATEMENT
   return emit_gep(def, "value", pupval, 0, 3);
-}
-
-// Alternative code generator uses dmrC based C front-end
-// That the codegen emits C code that is then JIT compiled
-// via dmrC and LLVM.
-bool RaviCodeGenerator::alt_compile(lua_State *L, Proto *p,
-                         std::shared_ptr<RaviJITModule> module,
-                         ravi_compile_options_t *options) {
-  if (p->ravi_jit.jit_status != RAVI_JIT_NOT_COMPILED) {
-    return false;
-  }
-  if (module->owner()->get_compiling_flag()) return false;
-  if (!raviJ_cancompile(p)) {
-    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
-    return false;
-  }
-
-  auto M = module->module();
-  LLVMModuleRef moduleRef = llvm::wrap(M);
-
-  // Set flag so we can avoid recursive calls
-  module->owner()->set_compiling_flag(true);
-
-  membuff_t buf;
-  membuff_init(&buf, 4096);
-
-  const char *fname = unique_function_name();
-  if (!raviJ_codegen(L, p, options, fname, &buf)) {
-    p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
-  }
-  else {
-    if (options->manual_request && module->owner()->get_verbosity()) {
-      ravi_writestring(L, buf.buf, strlen(buf.buf));
-      ravi_writeline(L);
-    }
-    char *argv[] = {(char *)fname, NULL};
-    if (!dmrC_llvmcompile(2, argv, moduleRef, buf.buf)) {
-      p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
-    }
-    else {
-      p->ravi_jit.jit_function = nullptr;
-      std::unique_ptr<ravi::RaviJITFunction> func =
-          std::unique_ptr<RaviJITFunction>(new RaviJITFunction(&p->ravi_jit.jit_function, module, fname));
-      if (func->function() == nullptr) {
-        fprintf(stderr, "LLVM Compilation failed\n");
-        exit(1);
-      }
-      bool doVerify = module->owner()->get_validation() != 0;
-      if (doVerify && llvm::verifyFunction(*func->function(), &llvm::errs())) {
-        func->dump();
-        fprintf(stderr, "LLVM Code Verification failed\n");
-        exit(1);
-      }
-      ravi::RaviJITFunction *llvm_func = func.release();
-      p->ravi_jit.jit_data = reinterpret_cast<void *>(llvm_func);
-      p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
-    }
-  }
-  membuff_free(&buf);
-  module->owner()->set_compiling_flag(false);
-  return p->ravi_jit.jit_status == RAVI_JIT_COMPILED;
+#else
+  return emit_gep(def, "value", pupval, 0, 2);
+#endif
 }
 
 bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
@@ -2022,9 +1980,11 @@ bool RaviCodeGenerator::compile(lua_State *L, Proto *p,
         int B = GETARG_B(i);
         emit_UNM(def, A, B, pc);
       } break;
+#ifdef RAVI_DEFER_STATEMENT
       case OP_RAVI_DEFER: {
         emit_DEFER(def, A, pc);
       } break;
+#endif
       default: {
         fprintf(stderr, "Unexpected bytecode %d\n", op);
         abort();

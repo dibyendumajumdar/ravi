@@ -111,7 +111,9 @@ static LuaFunc Lua_functions[] = {
     { "raviV_settable_sskey", raviV_settable_sskey },
     { "raviV_gettable_i", raviV_gettable_i },
     { "raviV_settable_i", raviV_settable_i },
+#ifdef RAVI_DEFER_STATEMENT
     { "raviV_op_defer", raviV_op_defer },
+#endif
     { "raviV_op_bnot", raviV_op_bnot},
 
     { "lua_absindex", lua_absindex },
@@ -404,6 +406,7 @@ void *MIR_compile_C_module(
     }
     MIR_load_module (ctx, module);
     MIR_gen_init (ctx);
+    MIR_gen_set_optimize_level(ctx, 2);
     MIR_link (ctx, MIR_set_gen_interface, Import_resolver_func);
     fun_addr = MIR_gen (ctx, main_func);
     MIR_gen_finish (ctx);

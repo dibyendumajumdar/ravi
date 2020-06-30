@@ -179,6 +179,8 @@ struct LuaLLVMTypes {
 
   llvm::StructType *UdataT;
   llvm::StructType *RaviArrayT;
+  llvm::PointerType* pRaviArrayT;
+  llvm::PointerType* ppRaviArrayT;
   llvm::StructType *TableT;
   llvm::PointerType *pTableT;
   llvm::PointerType *ppTableT;
@@ -288,7 +290,9 @@ struct LuaLLVMTypes {
   llvm::FunctionType *raviV_gettable_iT;
   llvm::FunctionType *raviV_settable_iT;
   llvm::FunctionType *raviV_op_totypeT;
+#ifdef RAVI_DEFER_STATEMENT
   llvm::FunctionType *raviV_op_deferT;
+#endif
 
   llvm::FunctionType *raviH_set_intT;
   llvm::FunctionType *raviH_set_floatT;
@@ -405,6 +409,10 @@ class RaviJITState {
   std::unique_ptr<llvm::orc::ThreadSafeContext> Ctx;
   std::unique_ptr<llvm::TargetMachine> TM;
 
+#if LLVM_VERSION_MAJOR >= 10
+  llvm::orc::JITDylib *MainJD;
+#endif
+
 #elif USE_ORC_JIT
 
   // The LLVM Context
@@ -486,8 +494,6 @@ class RaviJITState {
   // May slow down compilation
   unsigned int validation_ : 1;
 
-  unsigned int use_dmrc_ : 1;
-
   // min code size for compilation
   int min_code_size_;
 
@@ -515,7 +521,11 @@ class RaviJITState {
   llvm::Error addModule(std::unique_ptr<llvm::Module> M);
 
   llvm::Expected<llvm::JITEvaluatedSymbol> findSymbol(llvm::StringRef Name) {
+#if LLVM_VERSION_MAJOR >= 10
+    return ES->lookup({MainJD}, (*Mangle)(Name.str()));
+#else
     return ES->lookup({&ES->getMainJITDylib()}, (*Mangle)(Name.str()));
+#endif
   }
 
   const llvm::DataLayout &getDataLayout() const { return *DL; }
@@ -587,7 +597,6 @@ class RaviJITState {
     else
       compiling_--;
   }
-  int is_use_dmrc() const { return use_dmrc_; }
 };
 
 // A wrapper for LLVM Module
@@ -830,7 +839,9 @@ struct RaviFunctionDef {
   llvm::Function *raviV_gettable_iF;
   llvm::Function *raviV_settable_iF;
   llvm::Function *raviV_op_totypeF;
+#ifdef RAVI_DEFER_STATEMENT
   llvm::Function *raviV_op_deferF;
+#endif
 
   // array setters
   llvm::Function *raviH_set_intF;
@@ -886,12 +897,6 @@ struct RaviFunctionDef {
 class RaviCodeGenerator {
  public:
   RaviCodeGenerator(RaviJITState *jitState);
-
-  // Compile given function if possible
-  // The p->ravi_jit structure will be updated
-  // Note that if a function fails to compile then
-  // a flag is set so that it doesn't get compiled again
-  bool alt_compile(lua_State *L, Proto *p, std::shared_ptr<RaviJITModule> module, ravi_compile_options_t *options);
 
   // Compile given function if possible
   // The p->ravi_jit structure will be updated
@@ -1033,6 +1038,9 @@ class RaviCodeGenerator {
   // emit code to load the table value from register
   llvm::Instruction *emit_load_reg_h(RaviFunctionDef *def, llvm::Value *ra);
 
+  // emit code to load the RaviArray value from register
+  llvm::Instruction* emit_load_reg_arr(RaviFunctionDef* def, llvm::Value* ra);
+
   // Gets the size of the hash table
   // This is the sizenode() macro in lobject.h
   llvm::Value *emit_table_get_hashsize(RaviFunctionDef *def, llvm::Value *table);
@@ -1094,7 +1102,8 @@ class RaviCodeGenerator {
   llvm::Instruction *emit_load_type(RaviFunctionDef *def, llvm::Value *value);
 
   // emit code to load the array type
-  llvm::Instruction *emit_load_ravi_arraytype(RaviFunctionDef *def, llvm::Value *value);
+  // Disabled as it is now broken
+  //llvm::Instruction *emit_load_ravi_arraytype(RaviFunctionDef *def, llvm::Value *value);
 
   // emit code to load the array length
   llvm::Instruction *emit_load_ravi_arraylength(RaviFunctionDef *def, llvm::Value *value);
@@ -1373,7 +1382,9 @@ class RaviCodeGenerator {
 
   void emit_BNOT(RaviFunctionDef *def, int A, int B, int pc);
 
+#ifdef RAVI_DEFER_STATEMENT
   void emit_DEFER(RaviFunctionDef *def, int A, int pc);
+#endif
 
   void emit_bitwise_shiftl(RaviFunctionDef *def, llvm::Value *ra, int B, lua_Integer y);
 

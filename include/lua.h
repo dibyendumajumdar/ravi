@@ -164,6 +164,7 @@ typedef struct Memcontrol {
 	unsigned long total;
 	unsigned long maxmem;
 	unsigned long memlimit;
+        unsigned long countlimit;
 	unsigned long objcount[LUA_NUMTAGS];
 } Memcontrol;
 
@@ -394,8 +395,10 @@ LUA_API int (lua_isyieldable) (lua_State *L);
 #define LUA_GCSETPAUSE		6
 #define LUA_GCSETSTEPMUL	7
 #define LUA_GCISRUNNING		9
+#define LUA_GCGEN		10
+#define LUA_GCINC		11
 
-LUA_API int (lua_gc) (lua_State *L, int what, int data);
+LUA_API int (lua_gc) (lua_State *L, int what, ...);
 
 
 /*

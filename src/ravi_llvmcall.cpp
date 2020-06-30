@@ -51,10 +51,14 @@ void RaviCodeGenerator::emit_JMP(RaviFunctionDef *def, int A, int sBx, int pc) {
     emit_load_base(def);
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, A - 1);
+#ifdef RAVI_DEFER_STATEMENT
     if (!traced)
       emit_update_savedpc(def, pc);
     // Call luaF_close
     CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
+#else
+    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
+#endif
   }
 
   // Do the actual jump
@@ -173,11 +177,13 @@ void RaviCodeGenerator::emit_CALL(RaviFunctionDef *def, int A, int B, int C,
   def->builder->SetInsertPoint(end_block);
 }
 
+#ifdef RAVI_DEFER_STATEMENT
 void RaviCodeGenerator::emit_DEFER(RaviFunctionDef *def, int A, int pc) {
   emit_debug_trace(def, OP_RAVI_DEFER, pc);
   emit_load_base(def);
   llvm::Value *ra = emit_gep_register(def, A);
   CreateCall2(def->builder, def->raviV_op_deferF, def->L, ra);
 }
+#endif
 
 }

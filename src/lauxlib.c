@@ -76,7 +76,7 @@ static int pushglobalfuncname (lua_State *L, lua_Debug *ar) {
   lua_getfield(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
   if (findfield(L, top + 1, 2)) {
     const char *name = lua_tostring(L, -1);
-    if (strncmp(name, "_G.", 3) == 0) {  /* name start with '_G.'? */
+    if (strncmp(name, LUA_GNAME ".", 3) == 0) {  /* name start with '_G.'? */
       lua_pushstring(L, name + 3);  /* push name without prefix */
       lua_remove(L, -2);  /* remove original name */
     }
@@ -179,7 +179,7 @@ LUALIB_API int luaL_argerror (lua_State *L, int arg, const char *extramsg) {
 }
 
 
-static int typeerror (lua_State *L, int arg, const char *tname) {
+int luaL_typeerror (lua_State *L, int arg, const char *tname) {
   const char *msg;
   const char *typearg;  /* name for the type of the actual argument */
   if (luaL_getmetafield(L, arg, "__name") == LUA_TSTRING)
@@ -194,7 +194,7 @@ static int typeerror (lua_State *L, int arg, const char *tname) {
 
 
 static void tag_error (lua_State *L, int arg, int tag) {
-  typeerror(L, arg, lua_typename(L, tag));
+  luaL_typeerror(L, arg, lua_typename(L, tag));
 }
 
 
@@ -332,7 +332,7 @@ LUALIB_API void *luaL_testudata (lua_State *L, int ud, const char *tname) {
 
 LUALIB_API void *luaL_checkudata (lua_State *L, int ud, const char *tname) {
   void *p = luaL_testudata(L, ud, tname);
-  if (p == NULL) typeerror(L, ud, tname);
+  luaL_argexpected(L, p != NULL, ud, tname);
   return p;
 }
 
@@ -1017,18 +1017,24 @@ LUALIB_API void luaL_requiref (lua_State *L, const char *modname,
 }
 
 
-LUALIB_API const char *luaL_gsub (lua_State *L, const char *s, const char *p,
-                                                               const char *r) {
+LUALIB_API void luaL_addgsub (luaL_Buffer *b, const char *s,
+                                     const char *p, const char *r) {
   const char *wild;
   size_t l = strlen(p);
-  luaL_Buffer b;
-  luaL_buffinit(L, &b);
   while ((wild = strstr(s, p)) != NULL) {
-    luaL_addlstring(&b, s, wild - s);  /* push prefix */
-    luaL_addstring(&b, r);  /* push replacement in place of pattern */
+    luaL_addlstring(b, s, wild - s);  /* push prefix */
+    luaL_addstring(b, r);  /* push replacement in place of pattern */
     s = wild + l;  /* continue after 'p' */
   }
-  luaL_addstring(&b, s);  /* push last suffix */
+  luaL_addstring(b, s);  /* push last suffix */
+}
+
+
+LUALIB_API const char *luaL_gsub (lua_State *L, const char *s,
+                                  const char *p, const char *r) {
+  luaL_Buffer b;
+  luaL_buffinit(L, &b);
+  luaL_addgsub(&b, s, p, r);
   luaL_pushresult(&b);
   return lua_tostring(L, -1);
 }

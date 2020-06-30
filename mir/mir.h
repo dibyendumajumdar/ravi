@@ -143,6 +143,12 @@ typedef enum {
   REP2 (TYPE_EL, UNDEF, BOUND),
 } MIR_type_t;
 
+static inline int MIR_int_type_p (MIR_type_t t) {
+  return (MIR_T_I8 <= t && t <= MIR_T_U64) || t == MIR_T_P;
+}
+
+static inline int MIR_fp_type_p (MIR_type_t t) { return MIR_T_F <= t && t <= MIR_T_LD; }
+
 #if UINTPTR_MAX == 0xffffffff
 #define MIR_PTR32 1
 #define MIR_PTR64 0
@@ -342,9 +348,9 @@ struct MIR_item {
   union {
     MIR_func_t func;
     MIR_proto_t proto;
-    MIR_name_t import;
-    MIR_name_t export;
-    MIR_name_t forward;
+    MIR_name_t import_id;
+    MIR_name_t export_id;
+    MIR_name_t forward_id;
     MIR_data_t data;
     MIR_ref_data_t ref_data;
     MIR_expr_data_t expr_data;
@@ -481,6 +487,8 @@ extern void MIR_insert_insn_before (MIR_context_t ctx, MIR_item_t func, MIR_insn
                                     MIR_insn_t insn);
 extern void MIR_remove_insn (MIR_context_t ctx, MIR_item_t func, MIR_insn_t insn);
 
+extern MIR_insn_code_t MIR_reverse_branch_code (MIR_insn_code_t code);
+
 extern const char *MIR_type_str (MIR_context_t ctx, MIR_type_t tp);
 extern void MIR_output_op (MIR_context_t ctx, FILE *f, MIR_op_t op, MIR_func_t func);
 extern void MIR_output_insn (MIR_context_t ctx, FILE *f, MIR_insn_t insn, MIR_func_t func,
@@ -556,8 +564,11 @@ extern MIR_item_t _MIR_builtin_proto (MIR_context_t ctx, MIR_module_t module, co
 extern MIR_item_t _MIR_builtin_func (MIR_context_t ctx, MIR_module_t module, const char *name,
                                      void *addr);
 
+extern void _MIR_flush_code_cache (void *start, void *bound);
 extern uint8_t *_MIR_publish_code (MIR_context_t ctx, const uint8_t *code, size_t code_len);
-
+extern uint8_t *_MIR_get_new_code_addr (MIR_context_t ctx, size_t size);
+extern uint8_t *_MIR_publish_code_by_addr (MIR_context_t ctx, void *addr, const uint8_t *code,
+                                           size_t code_len);
 struct MIR_code_reloc {
   size_t offset;
   void *value;
@@ -565,6 +576,8 @@ struct MIR_code_reloc {
 
 typedef struct MIR_code_reloc MIR_code_reloc_t;
 
+extern void _MIR_change_code (MIR_context_t ctx, uint8_t *addr, const uint8_t *code,
+                              size_t code_len);
 extern void _MIR_update_code_arr (MIR_context_t ctx, uint8_t *base, size_t nloc,
                                   const MIR_code_reloc_t *relocs);
 extern void _MIR_update_code (MIR_context_t ctx, uint8_t *base, size_t nloc, ...);
@@ -577,7 +590,7 @@ extern void *_MIR_get_bstart_builtin (MIR_context_t ctx);
 extern void *_MIR_get_bend_builtin (MIR_context_t ctx);
 
 extern void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, size_t nargs,
-                               MIR_type_t *arg_types);
+                               MIR_type_t *arg_types, int vararg_p);
 extern void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handler);
 extern void *_MIR_get_thunk (MIR_context_t ctx);
 extern void _MIR_redirect_thunk (MIR_context_t ctx, void *thunk, void *to);

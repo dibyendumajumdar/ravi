@@ -131,10 +131,14 @@ void RaviCodeGenerator::emit_EQ(RaviFunctionDef *def, int A, int B, int C,
 
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, jA - 1);
+#ifdef RAVI_DEFER_STATEMENT
     if (!traced)
       emit_update_savedpc(def, pc);
     // Call luaF_close
     CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
+#else
+    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
+#endif
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
@@ -238,10 +242,14 @@ void RaviCodeGenerator::emit_TEST(RaviFunctionDef *def, int A, int B, int C,
 
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, jA - 1);
+#ifdef RAVI_DEFER_STATEMENT
     if (!traced)
       emit_update_savedpc(def, pc);
     // Call luaF_close
     CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
+#else
+    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
+#endif
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);
@@ -311,10 +319,14 @@ void RaviCodeGenerator::emit_TESTSET(RaviFunctionDef *def, int A, int B, int C,
 
     // base + a - 1
     llvm::Value *val = emit_gep_register(def, jA - 1);
+#ifdef RAVI_DEFER_STATEMENT
     if (!traced)
       emit_update_savedpc(def, pc);
     // Call luaF_close
     CreateCall3(def->builder, def->luaF_closeF, def->L, val, def->types->kInt[LUA_OK]);
+#else
+    CreateCall2(def->builder, def->luaF_closeF, def->L, val);
+#endif
   }
   // Do the jump
   def->builder->CreateBr(def->jmp_targets[j].jmp1);

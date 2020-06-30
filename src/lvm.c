@@ -42,27 +42,33 @@
 
 
 /*
-** 'l_intfitsf' checks whether a given integer can be converted to a
-** float without rounding. Used in comparisons. Left undefined if
-** all integers fit in a float precisely.
+** 'l_intfitsf' checks whether a given integer is in the range that
+** can be converted to a float without rounding. Used in comparisons.
 */
 #if !defined(l_intfitsf)
 
 /* number of bits in the mantissa of a float */
-#define NBM		(l_mathlim(MANT_DIG))
+#define NBM		(l_floatatt(MANT_DIG))
 
 /*
-** Check whether some integers may not fit in a float, that is, whether
-** (maxinteger >> NBM) > 0 (that implies (1 << NBM) <= maxinteger).
-** (The shifts are done in parts to avoid shifting by more than the size
+** Check whether some integers may not fit in a float, testing whether
+** (maxinteger >> NBM) > 0. (That implies (1 << NBM) <= maxinteger.)
+** (The shifts are done in parts, to avoid shifting by more than the size
 ** of an integer. In a worst case, NBM == 113 for long double and
-** sizeof(integer) == 32.)
+** sizeof(long) == 32.)
 */
 #if ((((LUA_MAXINTEGER >> (NBM / 4)) >> (NBM / 4)) >> (NBM / 4)) \
 	>> (NBM - (3 * (NBM / 4))))  >  0
 
-#define l_intfitsf(i)  \
-  (-((lua_Integer)1 << NBM) <= (i) && (i) <= ((lua_Integer)1 << NBM))
+/* limit for integers that fit in a float */
+#define MAXINTFITSF	((lua_Unsigned)1 << NBM)
+
+/* check whether 'i' is in the interval [-MAXINTFITSF, MAXINTFITSF] */
+#define l_intfitsf(i)	((MAXINTFITSF + l_castS2U(i)) <= (2 * MAXINTFITSF))
+
+#else  /* all integers fit in a float precisely */
+
+#define l_intfitsf(i)	1
 
 #endif
 
@@ -238,7 +244,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
         /* no metamethod and (now) there is an entry with given key */
         setobj2t(L, cast(TValue *, slot), val);  /* set its new value */
         invalidateTMcache(h);
-        luaC_barrierback(L, h, val);
+        luaC_barrierback(L, obj2gco(h), val);
         return;
       }
       /* else will try the metamethod */
@@ -281,12 +287,12 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
   }                                                              \
   else if (ttisfarray(t)) {                                      \
     if (!ttisinteger(key)) luaG_typeerror(L, key, "index");      \
-    Table *h = hvalue(t);                                        \
+    RaviArray *h = arrvalue(t);                                        \
     raviH_get_float_inline(L, h, ivalue(key), val);              \
   }                                                              \
   else if (ttisiarray(t)) {                                      \
     if (!ttisinteger(key)) luaG_typeerror(L, key, "index");      \
-    Table *h = hvalue(t);                                        \
+    RaviArray *h = arrvalue(t);                                        \
     raviH_get_int_inline(L, h, ivalue(key), val);                \
   }                                                              \
   else {                                                         \
@@ -312,11 +318,11 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       protect(luaV_finishget(L, t, key, val, v));                \
   }                                                              \
   else if (ttisfarray(t)) {                                      \
-    Table *h = hvalue(t);                                        \
+    RaviArray *h = arrvalue(t);                                        \
     raviH_get_float_inline(L, h, ivalue(key), val);              \
   }                                                              \
   else if (ttisiarray(t)) {                                      \
-    Table *h = hvalue(t);                                        \
+    RaviArray *h = arrvalue(t);                                        \
     raviH_get_int_inline(L, h, ivalue(key), val);                \
   }                                                              \
   else {                                                         \
@@ -358,14 +364,14 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       slot = luaH_get(hvalue(t), key);                                      \
     if (!ttisnil(slot)) {                                                   \
       setobj2t(L, cast(TValue *, slot), val);                               \
-      luaC_barrierback(L, hvalue(t), val);                                  \
+      luaC_barrierback(L, gcvalue(t), val);                                  \
     }                                                                       \
     else {                                                                  \
       protect(luaV_finishset(L, t, key, val, slot));                        \
     }                                                                       \
   }                                                                         \
   else if (ttisfarray(t)) {                                                 \
-    Table *h = hvalue(t);                                                   \
+    RaviArray *h = arrvalue(t);                                                   \
     if (!ttisinteger(key)) luaG_typeerror(L, key, "index");                 \
     if (ttisfloat(val)) {                                                   \
       raviH_set_float_inline(L, h, ivalue(key), fltvalue(val));             \
@@ -383,7 +389,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     }                                                                       \
   }                                                                         \
   else if (ttisiarray(t)) {                                                 \
-    Table *h = hvalue(t);                                                   \
+    RaviArray *h = arrvalue(t);                                                   \
     if (!ttisinteger(key)) luaG_typeerror(L, key, "index");                 \
     if (ttisinteger(val)) {                                                 \
       raviH_set_int_inline(L, h, ivalue(key), ivalue(val));                 \
@@ -415,14 +421,14 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
       slot = luaH_getint(h, idx);                                           \
     if (!ttisnil(slot)) {                                                   \
       setobj2t(L, cast(TValue *, slot), val);                               \
-      luaC_barrierback(L, h, val);                                          \
+      luaC_barrierback(L, obj2gco(h), val);                                          \
     }                                                                       \
     else {                                                                  \
       protect(luaV_finishset(L, t, key, val, slot));                        \
     }                                                                       \
   }                                                                         \
   else if (ttisfarray(t)) {                                                 \
-    Table *h = hvalue(t);                                                   \
+    RaviArray *h = arrvalue(t);                                                   \
     if (ttisfloat(val)) {                                                   \
       raviH_set_float_inline(L, h, ivalue(key), fltvalue(val));             \
     }                                                                       \
@@ -439,7 +445,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     }                                                                       \
   }                                                                         \
   else if (ttisiarray(t)) {                                                 \
-    Table *h = hvalue(t);                                                   \
+    RaviArray *h = arrvalue(t);                                                   \
     if (ttisinteger(val)) {                                                 \
       raviH_set_int_inline(L, h, ivalue(key), ivalue(val));                 \
     }                                                                       \
@@ -465,7 +471,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     const TValue *slot = luaH_getshortstr(hvalue(t), tsvalue(key)); \
     if (!ttisnil(slot)) {                                           \
       setobj2t(L, cast(TValue *, slot), val);                       \
-      luaC_barrierback(L, hvalue(t), val);                          \
+      luaC_barrierback(L, gcvalue(t), val);                          \
     }                                                               \
     else {                                                          \
       protect(luaV_finishset(L, t, key, val, slot));                \
@@ -705,7 +711,7 @@ int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2) {
     }
     case RAVI_TIARRAY:
     case RAVI_TFARRAY: {
-      if (hvalue(t1) == hvalue(t2)) return 1;
+      if (arrvalue(t1) == arrvalue(t2)) return 1;
       else return 0;
     }
     case LUA_TTABLE: {
@@ -795,7 +801,7 @@ void luaV_objlen (lua_State *L, StkId ra, const TValue *rb) {
   switch (ttype(rb)) {
     case RAVI_TIARRAY:
     case RAVI_TFARRAY: {
-      Table *h = hvalue(rb);
+      RaviArray *h = arrvalue(rb);
       setivalue(ra, raviH_getn(h));
       return;
     }
@@ -1025,6 +1031,7 @@ void luaV_finishOp (lua_State *L) {
 ** Execute a jump instruction. The 'updatemask' allows signals to stop
 ** tight loops. (Without it, the local copy of 'mask' could never change.)
 */
+#ifdef RAVI_DEFER_STATEMENT
 #define dojump(ci, i, e)                                         \
   {                                                              \
     int a = GETARG_A(i);                                         \
@@ -1033,6 +1040,12 @@ void luaV_finishOp (lua_State *L) {
     pc += GETARG_sBx(i) + e;                                     \
     updatemask(L);                                               \
   }
+#else
+#define dojump(ci,i,e) \
+  { int a = GETARG_A(i); \
+    if (a != 0) luaF_close(L, ci->u.l.base + a - 1); \
+    pc += GETARG_sBx(i) + e; updatemask(L); }
+#endif
 
 /* for test instructions, execute the jump instruction that follows it */
 #define donextjump(ci)	{ i = *pc; dojump(ci, i, 1); }
@@ -1136,7 +1149,11 @@ void luaV_finishOp (lua_State *L) {
 int raviV_check_usertype(lua_State *L, TString *name, const TValue *o)
 {
   Table *mt;
-  switch (ttnov(o)) {
+  switch (ttype(o)) {
+  case RAVI_TIARRAY:
+  case RAVI_TFARRAY:
+    mt = arrvalue(o)->metatable;
+    break;
   case LUA_TTABLE:
     mt = hvalue(o)->metatable;
     break;
@@ -1274,7 +1291,9 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_SELF_SK),
     &&vmlabel(OP_RAVI_SETFIELD),
     &&vmlabel(OP_RAVI_GETTABUP_SK),
+#ifdef RAVI_DEFER_STATEMENT
     &&vmlabel(OP_RAVI_DEFER),
+#endif
   };
 #endif
   
@@ -1339,7 +1358,7 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_SETUPVAL) {
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_GETTABUP) {
@@ -1717,8 +1736,12 @@ int luaV_execute (lua_State *L) {
           StkId lim = nci->u.l.base + getproto(nfunc)->numparams;
           int aux;
           /* close all upvalues from previous call */
+#ifdef RAVI_DEFER_STATEMENT
           if (cl->p->sizep > 0)
             Protect_base(luaF_close(L, oci->u.l.base, LUA_OK));
+#else
+          if (cl->p->sizep > 0) luaF_close(L, oci->u.l.base);
+#endif
           /* move new frame into old one */
           for (aux = 0; nfunc + aux < lim; aux++)
             setobjs2s(L, ofunc + aux, nfunc + aux);
@@ -1735,8 +1758,12 @@ int luaV_execute (lua_State *L) {
       }
       vmcase(OP_RETURN) {
         int b = GETARG_B(i);
+#ifdef RAVI_DEFER_STATEMENT
         if (cl->p->sizep > 0)
           Protect_base(luaF_close(L, base, LUA_OK));
+#else
+        if (cl->p->sizep > 0) luaF_close(L, base);
+#endif
         savepc(L);
         int nres = (b != 0 ? b - 1 : cast_int(L->top - ra));
         b = luaD_poscall(L, ci, ra, nres);
@@ -1846,7 +1873,7 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_SETLIST) {
         int n = GETARG_B(i);
         int c = GETARG_C(i);
-#if 1
+#if 0
         if (c == 0) {
           lua_assert(GET_OPCODE(*pc) == OP_EXTRAARG);
           c = GETARG_Ax(*pc++);
@@ -1855,60 +1882,57 @@ int luaV_execute (lua_State *L) {
         raviV_op_setlist(L, ci, ra, n, c);
 #else
         unsigned int last;
-        Table *h;
         if (n == 0) n = cast_int(L->top - ra) - 1;
         if (c == 0) {
           lua_assert(GET_OPCODE(*pc) == OP_EXTRAARG);
           c = GETARG_Ax(*pc++);
         }
-        h = hvalue(ra);
         last = ((c-1)*LFIELDS_PER_FLUSH) + n;
         savepc(L);  /* in case of allocation errors */
-        if (h->ravi_array.array_type == RAVI_TTABLE) {
+        if (ttisLtable(ra)) {
+          Table* h = hvalue(ra);
           if (last > h->sizearray)  /* needs more space? */
             luaH_resizearray(L, h, last);  /* pre-allocate it at once */
           for (; n > 0; n--) {
             TValue *val = ra + n;
             luaH_setint(L, h, last--, val);
-            luaC_barrierback(L, h, val);
+            luaC_barrierback(L, obj2gco(h), val);
           }
         }
         else {
+          RaviArray *h = arrvalue(ra);
           int i = last - n + 1;
           for (; i <= (int)last; i++) {
             TValue *val = ra + i;
             unsigned int u = (unsigned int)(i);
-            switch (h->ravi_array.array_type) {
-              case RAVI_TARRAYINT: {
-                if (ttisinteger(val)) {
-                  raviH_set_int_inline(L, h, u, ivalue(val));
+            if ((h->flags & RAVI_ARRAY_ISFLOAT) == 0) {
+              if (ttisinteger(val)) {
+                raviH_set_int_inline(L, h, u, ivalue(val));
+              }
+              else {
+                lua_Integer i = 0;
+                if (luaV_tointeger_(val, &i)) {
+                  raviH_set_int_inline(L, h, u, i);
                 }
-                else {
-                  lua_Integer i = 0;
-                  if (luaV_tointeger_(val, &i)) {
-                    raviH_set_int_inline(L, h, u, i);
-                  }
-                  else
-                    luaG_runerror(L, "value cannot be converted to integer");
+                else
+                  luaG_runerror(L, "value cannot be converted to integer");
+              }
+            }
+            else {
+              if (ttisfloat(val)) {
+                raviH_set_float_inline(L, h, u, fltvalue(val));
+              }
+              else if (ttisinteger(val)) {
+                raviH_set_float_inline(L, h, u, (lua_Number)(ivalue(val)));
+              }
+              else {
+                lua_Number d = 0.0;
+                if (luaV_tonumber_(val, &d)) {
+                  raviH_set_float_inline(L, h, u, d);
                 }
-              } break;
-              case RAVI_TARRAYFLT: {
-                if (ttisfloat(val)) {
-                  raviH_set_float_inline(L, h, u, fltvalue(val));
-                }
-                else if (ttisinteger(val)) {
-                  raviH_set_float_inline(L, h, u, (lua_Number)(ivalue(val)));
-                }
-                else {
-                  lua_Number d = 0.0;
-                  if (luaV_tonumber_(val, &d)) {
-                    raviH_set_float_inline(L, h, u, d);
-                  }
-                  else
-                    luaG_runerror(L, "value cannot be converted to number");
-                }
-              } break;
-              default: lua_assert(0);
+                else
+                  luaG_runerror(L, "value cannot be converted to number");
+              }
             }
           }
         }
@@ -2093,7 +2117,7 @@ int luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_RAVI_NEW_IARRAY) {
-        Table *t;
+        RaviArray *t;
         savepc(L);  /* in case of allocation errors */
         t = raviH_new(L, RAVI_TARRAYINT, 0);
         setiarrayvalue(L, ra, t);
@@ -2101,7 +2125,7 @@ int luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_RAVI_NEW_FARRAY) {
-        Table *t;
+        RaviArray *t;
         savepc(L);  /* in case of allocation errors */
         t = raviH_new(L, RAVI_TARRAYFLT, 0);
         setfarrayvalue(L, ra, t);
@@ -2182,7 +2206,7 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rc);
-        Table *t = hvalue(rb);
+        RaviArray *t = arrvalue(rb);
         raviH_get_int_inline(L, t, idx, ra);
         vmbreak;
       }
@@ -2190,12 +2214,12 @@ int luaV_execute (lua_State *L) {
         TValue *rb = RB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rc);
-        Table *t = hvalue(rb);
+        RaviArray *t = arrvalue(rb);
         raviH_get_float_inline(L, t, idx, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_IARRAY_SET) {
-        Table *t = hvalue(ra);
+        RaviArray *t = arrvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rb);
@@ -2212,7 +2236,7 @@ int luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_RAVI_IARRAY_SETI) {
-        Table *t = hvalue(ra);
+        RaviArray *t = arrvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rb);
@@ -2220,7 +2244,7 @@ int luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_RAVI_FARRAY_SET) {
-        Table *t = hvalue(ra);
+        RaviArray *t = arrvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rb);
@@ -2237,7 +2261,7 @@ int luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_RAVI_FARRAY_SETF) {
-        Table *t = hvalue(ra);
+        RaviArray *t = arrvalue(ra);
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
         lua_Integer idx = ivalue(rb);
@@ -2249,7 +2273,7 @@ int luaV_execute (lua_State *L) {
         if (tointeger(ra, &ia)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
           setivalue(uv->v, ia);
-          luaC_upvalbarrier(L, uv);
+          luaC_upvalbarrier(L, uv, ra);
         }
         else
           luaG_runerror(
@@ -2261,7 +2285,7 @@ int luaV_execute (lua_State *L) {
         if (tonumber(ra, &na)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
           setfltvalue(uv->v, na);
-          luaC_upvalbarrier(L, uv);
+          luaC_upvalbarrier(L, uv, ra);
         }
         else
           luaG_runerror(
@@ -2275,7 +2299,7 @@ int luaV_execute (lua_State *L) {
             "integer[] value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_SETUPVAL_FARRAY) {
@@ -2285,7 +2309,7 @@ int luaV_execute (lua_State *L) {
             "upvalue of number[] type, cannot be set to non number[] value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_SETUPVALT) {
@@ -2294,7 +2318,7 @@ int luaV_execute (lua_State *L) {
             L, "upvalue of table type, cannot be set to non table value");
         UpVal *uv = cl->upvals[GETARG_B(i)];
         setobj(L, uv->v, ra);
-        luaC_upvalbarrier(L, uv);
+        luaC_upvalbarrier(L, uv, ra);
         vmbreak;
       }
       vmcase(OP_RAVI_LOADIZ) {
@@ -2494,12 +2518,14 @@ int luaV_execute (lua_State *L) {
         }
         vmbreak;
       }
+#ifdef RAVI_DEFER_STATEMENT
       vmcase(OP_RAVI_DEFER) {
         UpVal *up = luaF_findupval(L, ra); /* create new upvalue */
         up->flags = 1;                     /* mark it as deferred */
         setnilvalue(ra);                   /* initialize it with nil */
         vmbreak;
       }
+#endif
     }
   }
 }
@@ -2544,7 +2570,7 @@ static void ravi_dump_ci(lua_State *L, CallInfo *ci) {
   int func_type = ttype(func);
   StkId base = NULL;
   Proto *p = NULL;
-  int funcpos = ci->func - L->stack;
+  int funcpos = (int)(ci->func - L->stack);
   StkId stack_ptr = ci->top - 1;
   int i;
   switch (func_type) {
@@ -2563,7 +2589,7 @@ static void ravi_dump_ci(lua_State *L, CallInfo *ci) {
   case LUA_TFUNCTION:
     p = clLvalue(func)->p;
     base = ci->u.l.base;
-    i = ci->top - L->stack - 1;
+    i = (int) (ci->top - L->stack - 1);
     break;
   default:
     return;
@@ -2673,13 +2699,13 @@ void raviV_debug_trace(lua_State *L, int opCode, int pc) {
 }
 
 void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra) {
-  Table *t = raviH_new(L, RAVI_TARRAYINT, 0);
+  RaviArray *t = raviH_new(L, RAVI_TARRAYINT, 0);
   setiarrayvalue(L, ra, t);
   checkGC_(L, ra + 1);
 }
 
 void raviV_op_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra) {
-  Table *t = raviH_new(L, RAVI_TARRAYFLT, 0);
+  RaviArray *t = raviH_new(L, RAVI_TARRAYFLT, 0);
   setfarrayvalue(L, ra, t);
   checkGC_(L, ra + 1);
 }
@@ -2694,49 +2720,53 @@ void raviV_op_newtable(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
 void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
   int n = b;
   unsigned int last;
-  Table *h;
-  if (n == 0) n = cast_int(L->top - ra) - 1;
-  h = hvalue(ra);
+  if (n == 0)
+    n = cast_int(L->top - ra) - 1;
   last = ((c - 1) * LFIELDS_PER_FLUSH) + n;
-  if (h->ravi_array.array_type == RAVI_TTABLE) {
+  if (ttisLtable(ra)) {
+    Table *h = hvalue(ra);
     if (last > h->sizearray)        /* needs more space? */
       luaH_resizearray(L, h, last); /* pre-allocate it at once */
     for (; n > 0; n--) {
       TValue *val = ra + n;
       luaH_setint(L, h, last--, val);
-      luaC_barrierback(L, h, val);
+      luaC_barrierback(L, obj2gco(h), val);
     }
   }
   else {
+    RaviArray *h = arrvalue(ra);
     int i = last - n + 1;
     for (; i <= (int)last; i++) {
       TValue *val = ra + i;
       unsigned int u = (unsigned int)(i);
-      switch (h->ravi_array.array_type) {
-        case RAVI_TARRAYINT: {
-          if (ttisinteger(val)) { raviH_set_int_inline(L, h, u, ivalue(val)); }
-          else {
-            lua_Integer i = 0;
-            if (luaV_tointeger_(val, &i)) { raviH_set_int_inline(L, h, u, i); }
-            else
-              luaG_runerror(L, "value cannot be converted to integer");
+      if ((h->flags & RAVI_ARRAY_ISFLOAT) == 0) {
+        if (ttisinteger(val)) {
+          raviH_set_int_inline(L, h, u, ivalue(val));
+        }
+        else {
+          lua_Integer i = 0;
+          if (luaV_tointeger_(val, &i)) {
+            raviH_set_int_inline(L, h, u, i);
           }
-        } break;
-        case RAVI_TARRAYFLT: {
-          if (ttisfloat(val)) {
-            raviH_set_float_inline(L, h, u, fltvalue(val));
+          else
+            luaG_runerror(L, "value cannot be converted to integer");
+        }
+      }
+      else {
+        if (ttisfloat(val)) {
+          raviH_set_float_inline(L, h, u, fltvalue(val));
+        }
+        else if (ttisinteger(val)) {
+          raviH_set_float_inline(L, h, u, (lua_Number)(ivalue(val)));
+        }
+        else {
+          lua_Number d = 0.0;
+          if (luaV_tonumber_(val, &d)) {
+            raviH_set_float_inline(L, h, u, d);
           }
-          else if (ttisinteger(val)) {
-            raviH_set_float_inline(L, h, u, (lua_Number)(ivalue(val)));
-          }
-          else {
-            lua_Number d = 0.0;
-            if (luaV_tonumber_(val, &d)) { raviH_set_float_inline(L, h, u, d); }
-            else
-              luaG_runerror(L, "value cannot be converted to number");
-          }
-        } break;
-        default: lua_assert(0);
+          else
+            luaG_runerror(L, "value cannot be converted to number");
+        }
       }
     }
   }
@@ -2805,7 +2835,7 @@ void raviV_op_setupvali(lua_State *L, LClosure *cl, TValue *ra, int b) {
   if (tointeger(ra, &ia)) {
     UpVal *uv = cl->upvals[b];
     setivalue(uv->v, ia);
-    luaC_upvalbarrier(L, uv);
+    luaC_upvalbarrier(L, uv, ra);
   }
   else
     luaG_runerror(
@@ -2817,7 +2847,7 @@ void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b) {
   if (tonumber(ra, &na)) {
     UpVal *uv = cl->upvals[b];
     setfltvalue(uv->v, na);
-    luaC_upvalbarrier(L, uv);
+    luaC_upvalbarrier(L, uv, ra);
   }
   else
     luaG_runerror(L,
@@ -2830,7 +2860,7 @@ void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b) {
         L, "upvalue of integer[] type, cannot be set to non integer[] value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b) {
@@ -2839,7 +2869,7 @@ void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b) {
         L, "upvalue of number[] type, cannot be set to non number[] value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b) {
@@ -2847,13 +2877,13 @@ void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b) {
     luaG_runerror(L, "upvalue of table type, cannot be set to non table value");
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_setupval(lua_State *L, LClosure *cl, TValue *ra, int b) {
   UpVal *uv = cl->upvals[b];
   setobj(L, uv->v, ra);
-  luaC_upvalbarrier(L, uv);
+  luaC_upvalbarrier(L, uv, ra);
 }
 
 void raviV_op_add(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
@@ -3032,6 +3062,7 @@ void raviV_op_totype(lua_State *L, TValue *ra, TValue *rb) {
     luaG_runerror(L, "type mismatch: expected %s", getstr(key));
 }
 
+#ifdef RAVI_DEFER_STATEMENT
 /*
 ** OP_RAVI_DEFER 
  */
@@ -3040,6 +3071,7 @@ void raviV_op_defer(lua_State *L, TValue *ra) {
   up->flags = 1;                     /* mark it as deferred */
   setnilvalue(ra);                   /* initialize it with nil */
 }
+#endif
 
 /* }================================================================== */
 
