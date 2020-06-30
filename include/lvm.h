@@ -33,8 +33,18 @@
 ** integral values)
 */
 #if !defined(LUA_FLOORN2I)
-#define LUA_FLOORN2I		0
+#define LUA_FLOORN2I		F2Ieq
 #endif
+
+
+/*
+** Rounding modes for float->integer coercion
+ */
+typedef enum {
+  F2Ieq,     /* no rounding; accepts only integral values */
+  F2Ifloor,  /* takes the floor of the number */
+  F2Iceil    /* takes the ceil of the number */
+} F2Imod;
 
 
 /* convert an object to a float (including string coercion) */
@@ -55,8 +65,7 @@
 
 /* convert an object to an integer (without string coercion) */
 #define tointegerns(o,i) \
-    (ttisinteger(o) ? (*(i) = ivalue(o), 1) \
-                    : luaV_flttointeger(o,i,LUA_FLOORN2I))
+    (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointegerns(o,i,LUA_FLOORN2I))
 
 
 #define intop(op,v1,v2) l_castU2S(l_castS2U(v1) op l_castS2U(v2))
@@ -105,9 +114,11 @@ LUAI_FUNC int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2);
 LUAI_FUNC int luaV_lessthan (lua_State *L, const TValue *l, const TValue *r);
 LUAI_FUNC int luaV_lessequal (lua_State *L, const TValue *l, const TValue *r);
 LUAI_FUNC int luaV_tonumber_ (const TValue *obj, lua_Number *n);
-LUAI_FUNC int luaV_tointeger (const TValue *obj, lua_Integer *p, int mode);
+LUAI_FUNC int luaV_tointeger (const TValue *obj, lua_Integer *p, F2Imod mode);
+LUAI_FUNC int luaV_tointegerns (const TValue *obj, lua_Integer *p,
+                                F2Imod mode);
+LUAI_FUNC int luaV_flttointeger (lua_Number n, lua_Integer *p, F2Imod mode);
 /** RAVI changes start **/
-LUAI_FUNC int luaV_flttointeger (const TValue *obj, lua_Integer *p, int mode);
 LUAI_FUNC int luaV_tointeger_(const TValue *obj, lua_Integer *p);
 LUAI_FUNC void luaV_gettable (lua_State *L, const TValue *t, TValue *key,
                                             StkId val);
@@ -122,8 +133,9 @@ LUAI_FUNC void luaV_finishOp (lua_State *L);
 /* RAVI change: the int return value is a Ravi extension */
 LUAI_FUNC int luaV_execute (lua_State *L);
 LUAI_FUNC void luaV_concat (lua_State *L, int total);
-LUAI_FUNC lua_Integer luaV_div (lua_State *L, lua_Integer x, lua_Integer y);
+LUAI_FUNC lua_Integer luaV_idiv (lua_State *L, lua_Integer x, lua_Integer y);
 LUAI_FUNC lua_Integer luaV_mod (lua_State *L, lua_Integer x, lua_Integer y);
+LUAI_FUNC lua_Number luaV_modf (lua_State *L, lua_Number x, lua_Number y);
 LUAI_FUNC lua_Integer luaV_shiftl (lua_Integer x, lua_Integer y);
 LUAI_FUNC void luaV_objlen (lua_State *L, StkId ra, const TValue *rb);
 

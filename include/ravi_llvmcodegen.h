@@ -253,7 +253,7 @@ struct LuaLLVMTypes {
   llvm::FunctionType *luaV_tointegerT;
   llvm::FunctionType *luaV_modT;
   llvm::FunctionType *luaV_objlenT;
-  llvm::FunctionType *luaV_divT;
+  llvm::FunctionType *luaV_idivT;
   llvm::FunctionType *luaV_executeT;
   llvm::FunctionType *luaV_gettableT;
   llvm::FunctionType *luaV_settableT;
@@ -801,7 +801,7 @@ struct RaviFunctionDef {
   llvm::Function *luaV_gettableF;
   llvm::Function *luaV_settableF;
   llvm::Function *luaV_modF;
-  llvm::Function *luaV_divF;
+  llvm::Function *luaV_idivF;
   llvm::Function *luaV_objlenF;
   llvm::Function *luaC_upvalbarrierF;
   llvm::Function *luaH_getstrF;

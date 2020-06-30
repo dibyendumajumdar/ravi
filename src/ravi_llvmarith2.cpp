@@ -739,7 +739,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C,
   // lua_Number nb; lua_Number nc;
   // if (ttisinteger(rb) && ttisinteger(rc)) {
   //  lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
-  //  setivalue(ra, luaV_div(L, ib, ic));
+  //  setivalue(ra, luaV_idiv(L, ib, ic));
   //}
   // else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
   //  setfltvalue(ra, luai_numidiv(L, nb, nc));
@@ -786,7 +786,7 @@ void RaviCodeGenerator::emit_IDIV(RaviFunctionDef *def, int A, int B, int C,
   llvm::Instruction *rhs = emit_load_reg_i(def, rc);
 
   llvm::Value *result =
-      CreateCall3(def->builder, def->luaV_divF, def->L, lhs, rhs);
+      CreateCall3(def->builder, def->luaV_idivF, def->L, lhs, rhs);
   emit_store_reg_i_withtype(def, result, ra);
 
   def->builder->CreateBr(done_block);

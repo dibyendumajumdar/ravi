@@ -40,12 +40,10 @@
 #define MAXTAGLOOP	2000
 
 
-
 /*
 ** 'l_intfitsf' checks whether a given integer is in the range that
 ** can be converted to a float without rounding. Used in comparisons.
 */
-#if !defined(l_intfitsf)
 
 /* number of bits in the mantissa of a float */
 #define NBM		(l_floatatt(MANT_DIG))
@@ -72,8 +70,21 @@
 
 #endif
 
-#endif
 
+/*
+** Try to convert a value from string to a number value.
+** If the value is not a string or is a string not representing
+** a valid numeral (or if coercions from strings to numbers
+** are disabled via macro 'cvt2num'), do not modify 'result'
+** and return 0.
+*/
+static int l_strton (const TValue *obj, TValue *result) {
+  lua_assert(obj != result);
+  if (!cvt2num(obj))  /* is object not a string? */
+    return 0;
+  else
+    return (luaO_str2num(svalue(obj), result) == vslen(obj) + 1);
+}
 
 
 /*
@@ -86,8 +97,7 @@ int luaV_tonumber_ (const TValue *obj, lua_Number *n) {
     *n = cast_num(ivalue(obj));
     return 1;
   }
-  else if (cvt2num(obj) &&  /* string coercible to number? */
-            luaO_str2num(svalue(obj), &v) == vslen(obj) + 1) {
+  else if (l_strton(obj, &v)) {  /* string coercible to number? */
     *n = nvalue(&v);  /* convert result of 'luaO_str2num' to a float */
     return 1;
   }
@@ -97,46 +107,49 @@ int luaV_tonumber_ (const TValue *obj, lua_Number *n) {
 
 
 /*
-** try to convert a float to an integer, rounding according to 'mode':
-** mode == 0: accepts only integral values
-** mode == 1: takes the floor of the number
-** mode == 2: takes the ceil of the number
+** try to convert a float to an integer, rounding according to 'mode'.
 */
-int luaV_flttointeger (const TValue *obj, lua_Integer *p, int mode) {
-  if (!ttisfloat(obj))
-    return 0;
-  else {
-    lua_Number n = fltvalue(obj);
-    lua_Number f = l_floor(n);
-    if (n != f) {  /* not an integral value? */
-      if (mode == 0) return 0;  /* fails if mode demands integral value */
-      else if (mode > 1)  /* needs ceil? */
-        f += 1;  /* convert floor to ceil (remember: n != f) */
-    }
-    return lua_numbertointeger(f, p);
+int luaV_flttointeger (lua_Number n, lua_Integer *p, F2Imod mode) {
+  lua_Number f = l_floor(n);
+  if (n != f) {  /* not an integral value? */
+    if (mode == F2Ieq) return 0;  /* fails if mode demands integral value */
+    else if (mode == F2Iceil)  /* needs ceil? */
+      f += 1;  /* convert floor to ceil (remember: n != f) */
   }
+  return lua_numbertointeger(f, p);
 }
 
 
 /*
-** try to convert a value to an integer. ("Fast track" is handled
-** by macro 'tointeger'.)
+** try to convert a value to an integer, rounding according to 'mode',
+** without string coercion.
+** ("Fast track" handled by macro 'tointegerns'.)
 */
-int luaV_tointeger (const TValue *obj, lua_Integer *p, int mode) {
-  TValue v;
-  if (cvt2num(obj) && luaO_str2num(svalue(obj), &v) == vslen(obj) + 1)
-    obj = &v;  /* change string to its corresponding number */
-  if (ttisinteger(obj)) {
+int luaV_tointegerns (const TValue *obj, lua_Integer *p, F2Imod mode) {
+  if (ttisfloat(obj))
+    return luaV_flttointeger(fltvalue(obj), p, mode);
+  else if (ttisinteger(obj)) {
     *p = ivalue(obj);
     return 1;
   }
   else
-    return luaV_flttointeger(obj, p, mode);
+    return 0;
 }
 
 
 /*
-** try to convert a value to an integer
+** try to convert a value to an integer.
+*/
+int luaV_tointeger (const TValue *obj, lua_Integer *p, F2Imod mode) {
+  TValue v;
+  if (l_strton(obj, &v))  /* does 'obj' point to a numerical string? */
+    obj = &v;  /* change it to point to its corresponding number */
+  return luaV_tointegerns(obj, p, mode);
+}
+
+
+/*
+** try to convert a value to an integer.
 */
 int luaV_tointeger_ (const TValue *obj, lua_Integer *p) {
   return luaV_tointeger(obj, p, LUA_FLOORN2I);
@@ -163,7 +176,7 @@ int luaV_forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
   *stopnow = 0;  /* usually, let loops run */
   if (ttisinteger(obj))
     *p = ivalue(obj);
-  else if (!luaV_tointeger(obj, p, (step < 0 ? 2 : 1))) {
+  else if (!luaV_tointeger(obj, p, (step < 0 ? F2Iceil : F2Ifloor))) {
     /* not coercible to in integer */
     lua_Number n;  /* try to convert to float */
     if (!tonumber(obj, &n)) /* cannot convert to float? */
@@ -837,8 +850,8 @@ void luaV_objlen (lua_State *L, StkId ra, const TValue *rb) {
 ** 'floor(q) == trunc(q)' when 'q >= 0' or when 'q' is integer,
 ** otherwise 'floor(q) == trunc(q) - 1'.
 */
-lua_Integer luaV_div (lua_State *L, lua_Integer m, lua_Integer n) {
-  if (l_castS2U(n) + 1u <= 1u) {  /* special cases: -1 or 0 */
+lua_Integer luaV_idiv (lua_State *L, lua_Integer m, lua_Integer n) {
+  if (unlikely(l_castS2U(n) + 1u <= 1u)) {  /* special cases: -1 or 0 */
     if (n == 0)
       luaG_runerror(L, "attempt to divide by zero");
     return intop(-, 0, m);   /* n==-1; avoid overflow with 0x80000...//-1 */
@@ -855,20 +868,30 @@ lua_Integer luaV_div (lua_State *L, lua_Integer m, lua_Integer n) {
 /*
 ** Integer modulus; return 'm % n'. (Assume that C '%' with
 ** negative operands follows C99 behavior. See previous comment
-** about luaV_div.)
+** about luaV_idiv.)
 */
 lua_Integer luaV_mod (lua_State *L, lua_Integer m, lua_Integer n) {
-  if (l_castS2U(n) + 1u <= 1u) {  /* special cases: -1 or 0 */
+  if (unlikely(l_castS2U(n) + 1u <= 1u)) {  /* special cases: -1 or 0 */
     if (n == 0)
       luaG_runerror(L, "attempt to perform 'n%%0'");
     return 0;   /* m % -1 == 0; avoid overflow with 0x80000...%-1 */
   }
   else {
     lua_Integer r = m % n;
-    if (r != 0 && (m ^ n) < 0)  /* 'm/n' would be non-integer negative? */
+    if (r != 0 && (r ^ n) < 0)  /* 'm/n' would be non-integer negative? */
       r += n;  /* correct result for different rounding */
     return r;
   }
+}
+
+
+/*
+** Float modulus
+*/
+lua_Number luaV_modf (lua_State *L, lua_Number m, lua_Number n) {
+  lua_Number r;
+  luai_nummod(L, m, n, r);
+  return r;
 }
 
 
@@ -1547,7 +1570,7 @@ int luaV_execute (lua_State *L) {
         lua_Number nb; lua_Number nc;
         if (ttisinteger(rb) && ttisinteger(rc)) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
-          setivalue(ra, luaV_div(L, ib, ic));
+          setivalue(ra, luaV_idiv(L, ib, ic));
         }
         else if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
           setfltvalue(ra, luai_numidiv(L, nb, nc));
