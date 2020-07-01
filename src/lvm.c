@@ -526,8 +526,8 @@ void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
 
 
 /*
-** Compare two strings 'ls' x 'rs', returning an integer smaller-equal-
-** -larger than zero if 'ls' is smaller-equal-larger than 'rs'.
+** Compare two strings 'ls' x 'rs', returning an integer less-equal-
+** -greater than zero if 'ls' is less-equal-greater than 'rs'.
 ** The code is a little tricky because it allows '\0' in the strings
 ** and it uses 'strcoll' (to respect locales) for each segments
 ** of the strings.
@@ -546,7 +546,7 @@ static int l_strcmp (const TString *ls, const TString *rs) {
       if (len == lr)  /* 'rs' is finished? */
         return (len == ll) ? 0 : 1;  /* check 'ls' */
       else if (len == ll)  /* 'ls' is finished? */
-        return -1;  /* 'ls' is smaller than 'rs' ('rs' is not finished) */
+        return -1;  /* 'ls' is less than 'rs' ('rs' is not finished) */
       /* both strings longer than 'len'; go on comparing after the '\0' */
       len++;
       l += len; ll -= len; r += len; lr -= len;
@@ -558,25 +558,24 @@ static int l_strcmp (const TString *ls, const TString *rs) {
 /*
 ** Check whether integer 'i' is less than float 'f'. If 'i' has an
 ** exact representation as a float ('l_intfitsf'), compare numbers as
-** floats. Otherwise, if 'f' is outside the range for integers, result
-** is trivial. Otherwise, compare them as integers. (When 'i' has no
-** float representation, either 'f' is "far away" from 'i' or 'f' has
-** no precision left for a fractional part; either way, how 'f' is
-** truncated is irrelevant.) When 'f' is NaN, comparisons must result
-** in false.
+** floats. Otherwise, use the equivalence 'i < f <=> i < ceil(f)'.
+** If 'ceil(f)' is out of integer range, either 'f' is greater than
+** all integers or less than all integers.
+** (The test with 'l_intfitsf' is only for performance; the else
+** case is correct for all values, but it is slow due to the conversion
+** from float to int.)
+** When 'f' is NaN, comparisons must result in false.
 */
 static int LTintfloat (lua_Integer i, lua_Number f) {
-#if defined(l_intfitsf)
-  if (!l_intfitsf(i)) {
-    if (f >= -cast_num(LUA_MININTEGER))  /* -minint == maxint + 1 */
-      return 1;  /* f >= maxint + 1 > i */
-    else if (f > cast_num(LUA_MININTEGER))  /* minint < f <= maxint ? */
-      return (i < cast(lua_Integer, f));  /* compare them as integers */
-    else  /* f <= minint <= i (or 'f' is NaN)  -->  not(i < f) */
-      return 0;
+  if (l_intfitsf(i))
+    return luai_numlt(cast_num(i), f);  /* compare them as floats */
+  else {  /* i < f <=> i < ceil(f) */
+    lua_Integer fi;
+    if (luaV_flttointeger(f, &fi, F2Iceil))  /* fi = ceil(f) */
+      return i < fi;   /* compare them as integers */
+    else  /* 'f' is either greater or less than all integers */
+      return f > 0;  /* greater? */
   }
-#endif
-  return luai_numlt(cast_num(i), f);  /* compare them as floats */
 }
 
 
@@ -585,17 +584,49 @@ static int LTintfloat (lua_Integer i, lua_Number f) {
 ** See comments on previous function.
 */
 static int LEintfloat (lua_Integer i, lua_Number f) {
-#if defined(l_intfitsf)
-  if (!l_intfitsf(i)) {
-    if (f >= -cast_num(LUA_MININTEGER))  /* -minint == maxint + 1 */
-      return 1;  /* f >= maxint + 1 > i */
-    else if (f >= cast_num(LUA_MININTEGER))  /* minint <= f <= maxint ? */
-      return (i <= cast(lua_Integer, f));  /* compare them as integers */
-    else  /* f < minint <= i (or 'f' is NaN)  -->  not(i <= f) */
-      return 0;
+  if (l_intfitsf(i))
+    return luai_numle(cast_num(i), f);  /* compare them as floats */
+  else {  /* i <= f <=> i <= floor(f) */
+    lua_Integer fi;
+    if (luaV_flttointeger(f, &fi, F2Ifloor))  /* fi = floor(f) */
+      return i <= fi;   /* compare them as integers */
+    else  /* 'f' is either greater or less than all integers */
+      return f > 0;  /* greater? */
   }
-#endif
-  return luai_numle(cast_num(i), f);  /* compare them as floats */
+}
+
+
+/*
+** Check whether float 'f' is less than integer 'i'.
+** See comments on previous function.
+*/
+static int LTfloatint (lua_Number f, lua_Integer i) {
+  if (l_intfitsf(i))
+    return luai_numlt(f, cast_num(i));  /* compare them as floats */
+  else {  /* f < i <=> floor(f) < i */
+    lua_Integer fi;
+    if (luaV_flttointeger(f, &fi, F2Ifloor))  /* fi = floor(f) */
+      return fi < i;   /* compare them as integers */
+    else  /* 'f' is either greater or less than all integers */
+      return f < 0;  /* less? */
+  }
+}
+
+
+/*
+** Check whether float 'f' is less than or equal to integer 'i'.
+** See comments on previous function.
+*/
+static int LEfloatint (lua_Number f, lua_Integer i) {
+  if (l_intfitsf(i))
+    return luai_numle(f, cast_num(i));  /* compare them as floats */
+  else {  /* f <= i <=> ceil(f) <= i */
+    lua_Integer fi;
+    if (luaV_flttointeger(f, &fi, F2Iceil))  /* fi = ceil(f) */
+      return fi <= i;   /* compare them as integers */
+    else  /* 'f' is either greater or less than all integers */
+      return f < 0;  /* less? */
+  }
 }
 
 
@@ -615,10 +646,8 @@ static int LTnum (const TValue *l, const TValue *r) {
     lua_Number lf = fltvalue(l);  /* 'l' must be float */
     if (ttisfloat(r))
       return luai_numlt(lf, fltvalue(r));  /* both are float */
-    else if (luai_numisnan(lf))  /* 'r' is int and 'l' is float */
-      return 0;  /* NaN < i is always false */
-    else  /* without NaN, (l < r)  <-->  not(r <= l) */
-      return !LEintfloat(ivalue(r), lf);  /* not (r <= l) ? */
+    else  /* 'l' is float and 'r' is int */
+      return LTfloatint(lf, ivalue(r));
   }
 }
 
@@ -639,10 +668,8 @@ static int LEnum (const TValue *l, const TValue *r) {
     lua_Number lf = fltvalue(l);  /* 'l' must be float */
     if (ttisfloat(r))
       return luai_numle(lf, fltvalue(r));  /* both are float */
-    else if (luai_numisnan(lf))  /* 'r' is int and 'l' is float */
-      return 0;  /*  NaN <= i is always false */
-    else  /* without NaN, (l <= r)  <-->  not(r < l) */
-      return !LTintfloat(ivalue(r), lf);  /* not (r < l) ? */
+    else  /* 'l' is float and 'r' is int */
+      return LEfloatint(lf, ivalue(r));
   }
 }
 
@@ -785,7 +812,7 @@ void luaV_concat (lua_State *L, int total) {
       /* collect total length and number of strings */
       for (n = 1; n < total && tostring(L, top - n - 1); n++) {
         size_t l = vslen(top - n - 1);
-        if (l >= (MAX_SIZE/sizeof(char)) - tl)
+        if (unlikely(l >= (MAX_SIZE/sizeof(char)) - tl))
           luaG_runerror(L, "string length overflow");
         tl += l;
       }
@@ -835,7 +862,7 @@ void luaV_objlen (lua_State *L, StkId ra, const TValue *rb) {
     }
     default: {  /* try metamethod */
       tm = luaT_gettmbyobj(L, rb, TM_LEN);
-      if (ttisnil(tm))  /* no metamethod? */
+      if (unlikely(ttisnil(tm)))  /* no metamethod? */
         luaG_typeerror(L, rb, "get length of");
       break;
     }
