@@ -151,7 +151,7 @@ static struct {
                    {"luaV_forlimit", reinterpret_cast<void *>(luaV_forlimit)},
                    {"luaV_finishget", reinterpret_cast<void *>(luaV_finishget)},
                    {"luaV_mod", reinterpret_cast<void *>(luaV_mod)},
-                   {"luaV_div", reinterpret_cast<void *>(luaV_div)},
+                   {"luaV_idiv", reinterpret_cast<void *>(luaV_idiv)},
                    {"raviV_op_newtable", reinterpret_cast<void *>(raviV_op_newtable)},
                    {"raviV_op_newarrayint", reinterpret_cast<void *>(raviV_op_newarrayint)},
                    {"raviV_op_newarrayfloat", reinterpret_cast<void *>(raviV_op_newarrayfloat)},

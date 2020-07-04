@@ -1135,8 +1135,8 @@ void RaviCodeGenerator::emit_extern_declarations(RaviFunctionDef *def) {
       reinterpret_cast<void *>(&raviV_op_setlist), "raviV_op_setlist");
   def->luaV_modF = def->raviF->addExternFunction(
       def->types->luaV_modT, reinterpret_cast<void *>(&luaV_mod), "luaV_mod");
-  def->luaV_divF = def->raviF->addExternFunction(
-      def->types->luaV_divT, reinterpret_cast<void *>(&luaV_div), "luaV_div");
+  def->luaV_idivF = def->raviF->addExternFunction(
+      def->types->luaV_idivT, reinterpret_cast<void *>(&luaV_idiv), "luaV_idiv");
   def->luaV_objlenF = def->raviF->addExternFunction(
       def->types->luaV_objlenT, reinterpret_cast<void *>(&luaV_objlen),
       "luaV_objlen");

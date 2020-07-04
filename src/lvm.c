@@ -40,12 +40,10 @@
 #define MAXTAGLOOP	2000
 
 
-
 /*
 ** 'l_intfitsf' checks whether a given integer is in the range that
 ** can be converted to a float without rounding. Used in comparisons.
 */
-#if !defined(l_intfitsf)
 
 /* number of bits in the mantissa of a float */
 #define NBM		(l_floatatt(MANT_DIG))
@@ -72,8 +70,21 @@
 
 #endif
 
-#endif
 
+/*
+** Try to convert a value from string to a number value.
+** If the value is not a string or is a string not representing
+** a valid numeral (or if coercions from strings to numbers
+** are disabled via macro 'cvt2num'), do not modify 'result'
+** and return 0.
+*/
+static int l_strton (const TValue *obj, TValue *result) {
+  lua_assert(obj != result);
+  if (!cvt2num(obj))  /* is object not a string? */
+    return 0;
+  else
+    return (luaO_str2num(svalue(obj), result) == vslen(obj) + 1);
+}
 
 
 /*
@@ -86,8 +97,7 @@ int luaV_tonumber_ (const TValue *obj, lua_Number *n) {
     *n = cast_num(ivalue(obj));
     return 1;
   }
-  else if (cvt2num(obj) &&  /* string coercible to number? */
-            luaO_str2num(svalue(obj), &v) == vslen(obj) + 1) {
+  else if (l_strton(obj, &v)) {  /* string coercible to number? */
     *n = nvalue(&v);  /* convert result of 'luaO_str2num' to a float */
     return 1;
   }
@@ -97,46 +107,49 @@ int luaV_tonumber_ (const TValue *obj, lua_Number *n) {
 
 
 /*
-** try to convert a float to an integer, rounding according to 'mode':
-** mode == 0: accepts only integral values
-** mode == 1: takes the floor of the number
-** mode == 2: takes the ceil of the number
+** try to convert a float to an integer, rounding according to 'mode'.
 */
-int luaV_flttointeger (const TValue *obj, lua_Integer *p, int mode) {
-  if (!ttisfloat(obj))
-    return 0;
-  else {
-    lua_Number n = fltvalue(obj);
-    lua_Number f = l_floor(n);
-    if (n != f) {  /* not an integral value? */
-      if (mode == 0) return 0;  /* fails if mode demands integral value */
-      else if (mode > 1)  /* needs ceil? */
-        f += 1;  /* convert floor to ceil (remember: n != f) */
-    }
-    return lua_numbertointeger(f, p);
+int luaV_flttointeger (lua_Number n, lua_Integer *p, F2Imod mode) {
+  lua_Number f = l_floor(n);
+  if (n != f) {  /* not an integral value? */
+    if (mode == F2Ieq) return 0;  /* fails if mode demands integral value */
+    else if (mode == F2Iceil)  /* needs ceil? */
+      f += 1;  /* convert floor to ceil (remember: n != f) */
   }
+  return lua_numbertointeger(f, p);
 }
 
 
 /*
-** try to convert a value to an integer. ("Fast track" is handled
-** by macro 'tointeger'.)
+** try to convert a value to an integer, rounding according to 'mode',
+** without string coercion.
+** ("Fast track" handled by macro 'tointegerns'.)
 */
-int luaV_tointeger (const TValue *obj, lua_Integer *p, int mode) {
-  TValue v;
-  if (cvt2num(obj) && luaO_str2num(svalue(obj), &v) == vslen(obj) + 1)
-    obj = &v;  /* change string to its corresponding number */
-  if (ttisinteger(obj)) {
+int luaV_tointegerns (const TValue *obj, lua_Integer *p, F2Imod mode) {
+  if (ttisfloat(obj))
+    return luaV_flttointeger(fltvalue(obj), p, mode);
+  else if (ttisinteger(obj)) {
     *p = ivalue(obj);
     return 1;
   }
   else
-    return luaV_flttointeger(obj, p, mode);
+    return 0;
 }
 
 
 /*
-** try to convert a value to an integer
+** try to convert a value to an integer.
+*/
+int luaV_tointeger (const TValue *obj, lua_Integer *p, F2Imod mode) {
+  TValue v;
+  if (l_strton(obj, &v))  /* does 'obj' point to a numerical string? */
+    obj = &v;  /* change it to point to its corresponding number */
+  return luaV_tointegerns(obj, p, mode);
+}
+
+
+/*
+** try to convert a value to an integer.
 */
 int luaV_tointeger_ (const TValue *obj, lua_Integer *p) {
   return luaV_tointeger(obj, p, LUA_FLOORN2I);
@@ -163,7 +176,7 @@ int luaV_forlimit (const TValue *obj, lua_Integer *p, lua_Integer step,
   *stopnow = 0;  /* usually, let loops run */
   if (ttisinteger(obj))
     *p = ivalue(obj);
-  else if (!luaV_tointeger(obj, p, (step < 0 ? 2 : 1))) {
+  else if (!luaV_tointeger(obj, p, (step < 0 ? F2Iceil : F2Ifloor))) {
     /* not coercible to in integer */
     lua_Number n;  /* try to convert to float */
     if (!tonumber(obj, &n)) /* cannot convert to float? */
@@ -513,8 +526,8 @@ void luaV_settable (lua_State *L, const TValue *t, TValue *key, StkId val) {
 
 
 /*
-** Compare two strings 'ls' x 'rs', returning an integer smaller-equal-
-** -larger than zero if 'ls' is smaller-equal-larger than 'rs'.
+** Compare two strings 'ls' x 'rs', returning an integer less-equal-
+** -greater than zero if 'ls' is less-equal-greater than 'rs'.
 ** The code is a little tricky because it allows '\0' in the strings
 ** and it uses 'strcoll' (to respect locales) for each segments
 ** of the strings.
@@ -533,7 +546,7 @@ static int l_strcmp (const TString *ls, const TString *rs) {
       if (len == lr)  /* 'rs' is finished? */
         return (len == ll) ? 0 : 1;  /* check 'ls' */
       else if (len == ll)  /* 'ls' is finished? */
-        return -1;  /* 'ls' is smaller than 'rs' ('rs' is not finished) */
+        return -1;  /* 'ls' is less than 'rs' ('rs' is not finished) */
       /* both strings longer than 'len'; go on comparing after the '\0' */
       len++;
       l += len; ll -= len; r += len; lr -= len;
@@ -545,25 +558,24 @@ static int l_strcmp (const TString *ls, const TString *rs) {
 /*
 ** Check whether integer 'i' is less than float 'f'. If 'i' has an
 ** exact representation as a float ('l_intfitsf'), compare numbers as
-** floats. Otherwise, if 'f' is outside the range for integers, result
-** is trivial. Otherwise, compare them as integers. (When 'i' has no
-** float representation, either 'f' is "far away" from 'i' or 'f' has
-** no precision left for a fractional part; either way, how 'f' is
-** truncated is irrelevant.) When 'f' is NaN, comparisons must result
-** in false.
+** floats. Otherwise, use the equivalence 'i < f <=> i < ceil(f)'.
+** If 'ceil(f)' is out of integer range, either 'f' is greater than
+** all integers or less than all integers.
+** (The test with 'l_intfitsf' is only for performance; the else
+** case is correct for all values, but it is slow due to the conversion
+** from float to int.)
+** When 'f' is NaN, comparisons must result in false.
 */
 static int LTintfloat (lua_Integer i, lua_Number f) {
-#if defined(l_intfitsf)
-  if (!l_intfitsf(i)) {
-    if (f >= -cast_num(LUA_MININTEGER))  /* -minint == maxint + 1 */
-      return 1;  /* f >= maxint + 1 > i */
-    else if (f > cast_num(LUA_MININTEGER))  /* minint < f <= maxint ? */
-      return (i < cast(lua_Integer, f));  /* compare them as integers */
-    else  /* f <= minint <= i (or 'f' is NaN)  -->  not(i < f) */
-      return 0;
+  if (l_intfitsf(i))
+    return luai_numlt(cast_num(i), f);  /* compare them as floats */
+  else {  /* i < f <=> i < ceil(f) */
+    lua_Integer fi;
+    if (luaV_flttointeger(f, &fi, F2Iceil))  /* fi = ceil(f) */
+      return i < fi;   /* compare them as integers */
+    else  /* 'f' is either greater or less than all integers */
+      return f > 0;  /* greater? */
   }
-#endif
-  return luai_numlt(cast_num(i), f);  /* compare them as floats */
 }
 
 
@@ -572,17 +584,49 @@ static int LTintfloat (lua_Integer i, lua_Number f) {
 ** See comments on previous function.
 */
 static int LEintfloat (lua_Integer i, lua_Number f) {
-#if defined(l_intfitsf)
-  if (!l_intfitsf(i)) {
-    if (f >= -cast_num(LUA_MININTEGER))  /* -minint == maxint + 1 */
-      return 1;  /* f >= maxint + 1 > i */
-    else if (f >= cast_num(LUA_MININTEGER))  /* minint <= f <= maxint ? */
-      return (i <= cast(lua_Integer, f));  /* compare them as integers */
-    else  /* f < minint <= i (or 'f' is NaN)  -->  not(i <= f) */
-      return 0;
+  if (l_intfitsf(i))
+    return luai_numle(cast_num(i), f);  /* compare them as floats */
+  else {  /* i <= f <=> i <= floor(f) */
+    lua_Integer fi;
+    if (luaV_flttointeger(f, &fi, F2Ifloor))  /* fi = floor(f) */
+      return i <= fi;   /* compare them as integers */
+    else  /* 'f' is either greater or less than all integers */
+      return f > 0;  /* greater? */
   }
-#endif
-  return luai_numle(cast_num(i), f);  /* compare them as floats */
+}
+
+
+/*
+** Check whether float 'f' is less than integer 'i'.
+** See comments on previous function.
+*/
+static int LTfloatint (lua_Number f, lua_Integer i) {
+  if (l_intfitsf(i))
+    return luai_numlt(f, cast_num(i));  /* compare them as floats */
+  else {  /* f < i <=> floor(f) < i */
+    lua_Integer fi;
+    if (luaV_flttointeger(f, &fi, F2Ifloor))  /* fi = floor(f) */
+      return fi < i;   /* compare them as integers */
+    else  /* 'f' is either greater or less than all integers */
+      return f < 0;  /* less? */
+  }
+}
+
+
+/*
+** Check whether float 'f' is less than or equal to integer 'i'.
+** See comments on previous function.
+*/
+static int LEfloatint (lua_Number f, lua_Integer i) {
+  if (l_intfitsf(i))
+    return luai_numle(f, cast_num(i));  /* compare them as floats */
+  else {  /* f <= i <=> ceil(f) <= i */
+    lua_Integer fi;
+    if (luaV_flttointeger(f, &fi, F2Iceil))  /* fi = ceil(f) */
+      return fi <= i;   /* compare them as integers */
+    else  /* 'f' is either greater or less than all integers */
+      return f < 0;  /* less? */
+  }
 }
 
 
@@ -602,10 +646,8 @@ static int LTnum (const TValue *l, const TValue *r) {
     lua_Number lf = fltvalue(l);  /* 'l' must be float */
     if (ttisfloat(r))
       return luai_numlt(lf, fltvalue(r));  /* both are float */
-    else if (luai_numisnan(lf))  /* 'r' is int and 'l' is float */
-      return 0;  /* NaN < i is always false */
-    else  /* without NaN, (l < r)  <-->  not(r <= l) */
-      return !LEintfloat(ivalue(r), lf);  /* not (r <= l) ? */
+    else  /* 'l' is float and 'r' is int */
+      return LTfloatint(lf, ivalue(r));
   }
 }
 
@@ -626,10 +668,8 @@ static int LEnum (const TValue *l, const TValue *r) {
     lua_Number lf = fltvalue(l);  /* 'l' must be float */
     if (ttisfloat(r))
       return luai_numle(lf, fltvalue(r));  /* both are float */
-    else if (luai_numisnan(lf))  /* 'r' is int and 'l' is float */
-      return 0;  /*  NaN <= i is always false */
-    else  /* without NaN, (l <= r)  <-->  not(r < l) */
-      return !LTintfloat(ivalue(r), lf);  /* not (r < l) ? */
+    else  /* 'l' is float and 'r' is int */
+      return LEfloatint(lf, ivalue(r));
   }
 }
 
@@ -772,7 +812,7 @@ void luaV_concat (lua_State *L, int total) {
       /* collect total length and number of strings */
       for (n = 1; n < total && tostring(L, top - n - 1); n++) {
         size_t l = vslen(top - n - 1);
-        if (l >= (MAX_SIZE/sizeof(char)) - tl)
+        if (unlikely(l >= (MAX_SIZE/sizeof(char)) - tl))
           luaG_runerror(L, "string length overflow");
         tl += l;
       }
@@ -822,7 +862,7 @@ void luaV_objlen (lua_State *L, StkId ra, const TValue *rb) {
     }
     default: {  /* try metamethod */
       tm = luaT_gettmbyobj(L, rb, TM_LEN);
-      if (ttisnil(tm))  /* no metamethod? */
+      if (unlikely(ttisnil(tm)))  /* no metamethod? */
         luaG_typeerror(L, rb, "get length of");
       break;
     }
@@ -837,8 +877,8 @@ void luaV_objlen (lua_State *L, StkId ra, const TValue *rb) {
 ** 'floor(q) == trunc(q)' when 'q >= 0' or when 'q' is integer,
 ** otherwise 'floor(q) == trunc(q) - 1'.
 */
-lua_Integer luaV_div (lua_State *L, lua_Integer m, lua_Integer n) {
-  if (l_castS2U(n) + 1u <= 1u) {  /* special cases: -1 or 0 */
+lua_Integer luaV_idiv (lua_State *L, lua_Integer m, lua_Integer n) {
+  if (unlikely(l_castS2U(n) + 1u <= 1u)) {  /* special cases: -1 or 0 */
     if (n == 0)
       luaG_runerror(L, "attempt to divide by zero");
     return intop(-, 0, m);   /* n==-1; avoid overflow with 0x80000...//-1 */
@@ -855,20 +895,30 @@ lua_Integer luaV_div (lua_State *L, lua_Integer m, lua_Integer n) {
 /*
 ** Integer modulus; return 'm % n'. (Assume that C '%' with
 ** negative operands follows C99 behavior. See previous comment
-** about luaV_div.)
+** about luaV_idiv.)
 */
 lua_Integer luaV_mod (lua_State *L, lua_Integer m, lua_Integer n) {
-  if (l_castS2U(n) + 1u <= 1u) {  /* special cases: -1 or 0 */
+  if (unlikely(l_castS2U(n) + 1u <= 1u)) {  /* special cases: -1 or 0 */
     if (n == 0)
       luaG_runerror(L, "attempt to perform 'n%%0'");
     return 0;   /* m % -1 == 0; avoid overflow with 0x80000...%-1 */
   }
   else {
     lua_Integer r = m % n;
-    if (r != 0 && (m ^ n) < 0)  /* 'm/n' would be non-integer negative? */
+    if (r != 0 && (r ^ n) < 0)  /* 'm/n' would be non-integer negative? */
       r += n;  /* correct result for different rounding */
     return r;
   }
+}
+
+
+/*
+** Float modulus
+*/
+lua_Number luaV_modf (lua_State *L, lua_Number m, lua_Number n) {
+  lua_Number r;
+  luai_nummod(L, m, n, r);
+  return r;
 }
 
 
@@ -1547,7 +1597,7 @@ int luaV_execute (lua_State *L) {
         lua_Number nb; lua_Number nc;
         if (ttisinteger(rb) && ttisinteger(rc)) {
           lua_Integer ib = ivalue(rb); lua_Integer ic = ivalue(rc);
-          setivalue(ra, luaV_div(L, ib, ic));
+          setivalue(ra, luaV_idiv(L, ib, ic));
         }
         else if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
           setfltvalue(ra, luai_numidiv(L, nb, nc));
