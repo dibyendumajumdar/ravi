@@ -1809,8 +1809,10 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_RETURN) {
         int b = GETARG_B(i);
 #ifdef RAVI_DEFER_STATEMENT
-        if (cl->p->sizep > 0)
+        if (cl->p->sizep > 0) {
           Protect_base(luaF_close(L, base, LUA_OK));
+          ra = RA(i);
+        }
 #else
         if (cl->p->sizep > 0) luaF_close(L, base);
 #endif
