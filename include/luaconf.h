@@ -850,7 +850,7 @@
 #define RAVI_USE_LLVM_ARITH_FLOATPRIORITY 1
 /* Enables the 'defer' statement - RAVI extension */
 #define RAVI_DEFER_STATEMENT
-//#define RAVI_SUPPORT_COROUTINES
+#define RAVI_SUPPORT_COROUTINES
 
 #endif
 
