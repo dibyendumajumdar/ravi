@@ -32,7 +32,7 @@
 
 #define upisopen(up)	((up)->v != &(up)->u.value)
 
-
+#ifdef RAVI_DEFER_STATEMENT
 /*
 ** Special "status" for 'luaF_close'
 */
@@ -42,7 +42,7 @@
 
 /* close upvalues running all closing methods in protected mode */
 #define CLOSEPROTECT	(-2)
-
+#endif
 
 LUAI_FUNC Proto *luaF_newproto (lua_State *L);
 LUAI_FUNC CClosure *luaF_newCclosure (lua_State *L, int nelems);

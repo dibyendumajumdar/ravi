@@ -320,6 +320,7 @@ void luaE_freethread (lua_State *L, lua_State *L1) {
   luaM_free(L, l);
 }
 
+#ifdef RAVI_DEFER_STATEMENT
 int lua_resetthread (lua_State *L) {
   CallInfo *ci;
   int status;
@@ -340,6 +341,7 @@ int lua_resetthread (lua_State *L) {
   lua_unlock(L);
   return status;
 }
+#endif
 
 /* TODO following should probably not live here*/
 
