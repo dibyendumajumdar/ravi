@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ravi_jit.h>
 
 #include "lua.h"
 
@@ -43,20 +44,6 @@
 #endif
 
 #define LUA_INITVARVERSION	LUA_INIT_VAR LUA_VERSUFFIX
-
-#ifdef USE_LLVM
-#define ravi_xstringify(s) ravi_stringify(s)
-#define ravi_stringify(s) #s
-#define RAVI_OPTION_STRING3 " LLVM-" LLVM_VERSION_STRING " ORC=" ravi_xstringify(USE_ORC_JIT) " v2=" ravi_xstringify(USE_ORCv2_JIT)
-#elif USE_OMRJIT
-#define RAVI_OPTION_STRING3 " omrjit"
-#elif USE_MIRJIT
-#define RAVI_OPTION_STRING3 " mirjit"
-#else
-#define RAVI_OPTION_STRING3 " nojit"
-#endif
-
-#define RAVI_OPTIONS "\nOptions" RAVI_OPTION_STRING1 RAVI_OPTION_STRING2 RAVI_OPTION_STRING3
 
 /*
 ** lua_stdin_is_tty detects whether the standard input is a 'tty' (that
@@ -228,7 +215,12 @@ static int docall (lua_State *L, int narg, int nres) {
 
 static void print_version (lua_State *L) {
   lua_writestring(LUA_COPYRIGHT, strlen(LUA_COPYRIGHT));
-  lua_writestring(RAVI_OPTIONS, strlen(RAVI_OPTIONS));
+  const char *options = raviV_options(L);
+  lua_writeline();
+#define OPTSTR "Options "
+  lua_writestring(OPTSTR, strlen(OPTSTR));
+#undef OPTSTR
+  lua_writestring(options, strlen(options));
   lua_writeline();
 }
 

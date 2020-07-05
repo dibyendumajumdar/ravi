@@ -140,10 +140,10 @@ typedef void(*ravi_Writestringerror)(const char *fmt, const char *p);
 #define lua_assert(c)           assert(c)
 
 #if !defined(RAVI_OPTION_STRING1)
-#define RAVI_OPTION_STRING1 " assertions"
+#define RAVI_OPTION_STRING1 "assertions "
 #endif
 
-#define RAVI_OPTION_STRING2 " ltests"
+#define RAVI_OPTION_STRING2 "ltests "
 
 /* to avoid warnings, and to make sure value is really unused */
 #define UNUSED(x)       (x=0, (void)(x))

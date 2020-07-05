@@ -1080,3 +1080,17 @@ int raviV_gettraceenabled(lua_State *L) {
 }
 
 extern "C" int ravi_compile_C(lua_State *L) { return 0; }
+
+const char *raviV_jit_id(struct lua_State *L) {
+  return "llvm";
+}
+
+#define ravi_xstringify(s) ravi_stringify(s)
+#define ravi_stringify(s) #s
+#define RAVI_OPTION_STRING3 "LLVM-" LLVM_VERSION_STRING " ORC=" ravi_xstringify(USE_ORC_JIT) " v2=" ravi_xstringify(USE_ORCv2_JIT)
+#define RAVI_OPTIONS RAVI_OPTION_STRING1 RAVI_OPTION_STRING2 RAVI_OPTION_STRING3
+
+const char *raviV_options(struct lua_State *L) {
+    return RAVI_OPTIONS;
+}
+
