@@ -294,10 +294,6 @@ LUALIB_API void  (luaL_setmetatable)(lua_State *L, const char *tname);
 LUALIB_API void *(luaL_testudata)(lua_State *L, int ud, const char *tname);
 LUALIB_API void *(luaL_checkudata)(lua_State *L, int ud, const char *tname);
 
-LUALIB_API int (raviL_build_ast_from_buffer) (lua_State *L, const char *buff, size_t size,
-                                 const char *name, const char *mode);
-
-LUALIB_API int (raviL_dumpast) (lua_State *L);
 LUALIB_API void *ravi_alloc_f(void *msp, void *ptr, size_t osize, size_t nsize);
 
 #endif
