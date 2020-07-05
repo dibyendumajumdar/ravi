@@ -102,7 +102,7 @@ typedef LUAI_UACINT l_uacInt;
 #if defined(lua_assert)
 /** RAVI changes */
 #if !defined(RAVI_OPTION_STRING1)
-#define RAVI_OPTION_STRING1 " assertions"
+#define RAVI_OPTION_STRING1 "assertions "
 #endif
 #if !defined(RAVI_OPTION_STRING2)
 #define RAVI_OPTION_STRING2
@@ -114,7 +114,7 @@ typedef LUAI_UACINT l_uacInt;
 #define lua_assert(c)		((void)0)
 #define check_exp(c,e)		(e)
 #define lua_longassert(c)	((void)0)
-/** RVAI changes */
+/** RAVI changes */
 #define RAVI_OPTION_STRING1
 #define RAVI_OPTION_STRING2
 #endif

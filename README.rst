@@ -33,8 +33,10 @@ Features
 * Optional static typing - for details `see the reference manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
-* New! JIT backend `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported for now.
-* `LLVM <http://www.llvm.org/>`_ powered JIT compiler
+* Generational GC from Lua 5.4
+* ``defer`` statement added
+* Compact JIT backend `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported for now.
+* `LLVM <http://www.llvm.org/>`_ supported as alternative JIT backend.
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 
 Documentation
@@ -55,14 +57,15 @@ Lua 5.4 Position Statement
 ==========================
 Lua 5.4 relationship to Ravi is as follows:
 
-* Generational GC - This has been back-ported to Ravi.
+* Generational GC - back-ported to Ravi.
 * New random number generator - back-ported to Ravi.
 * Multiple user values can be associated with userdata - under consideration.
-* ``<const>`` variables - no plan to include this. 
+* ``<const>`` variables - not planned. 
 * ``<close>`` variables - Ravi has ``'defer'`` statement which is better option in my opinion, hence no plans to support ``<close>`` variables.
 * Interpreter performance improvements - these are beneficial to Lua interpreter but not to the JIT backends, hence not much point in back-porting.
 * Table implementation changes - under consideration. 
-* String to number coertion is now part of string library metamethods - back-ported to Ravi.
+* String to number coercion is now part of string library metamethods - back-ported to Ravi.
+* utf8 library accepts codepoints up to 2^31 - back-ported to Ravi.
 * Removal of compatibility layers for 5.1, and 5.2 - not implemented as Ravi continues to provide these layers as per Lua 5.3.
 
 Compatibility with Lua 5.3
@@ -74,6 +77,7 @@ Ravi should be able to run all Lua 5.3 programs in interpreted mode, but followi
 * Upvalues cannot subvert the static typing of local variables (issue #26) when types are annotated.
 * Certain Lua limits are reduced due to changed byte code structure. These are described below.
 * Ravi uses an extended bytecode which means it is not compatible with Lua 5.3 bytecode.
+* Ravi incorporates the new Generational GC from Lua 5.4, hence the GC interface has changed. 
 
 +-----------------+-------------+-------------+
 | Limit name      | Lua value   | Ravi value  |

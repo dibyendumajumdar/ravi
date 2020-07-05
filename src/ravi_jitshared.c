@@ -1062,7 +1062,6 @@ static void emit_op_loadk(struct function *fn, int A, int Bx, int pc) {
 
 static void emit_op_return(struct function *fn, int A, int B, int pc) {
   (void)pc;
-  emit_reg(fn, "ra", A);
 #ifdef RAVI_DEFER_STATEMENT
   membuff_add_string(&fn->body, "if (cl->p->sizep > 0) {\n luaF_close(L, base, LUA_OK);\n");
   membuff_add_string(&fn->body, " base = ci->u.l.base;\n");
@@ -1070,6 +1069,7 @@ static void emit_op_return(struct function *fn, int A, int B, int pc) {
 #else
   membuff_add_string(&fn->body, "if (cl->p->sizep > 0) luaF_close(L, base);\n");
 #endif
+  emit_reg(fn, "ra", A);
   membuff_add_fstring(&fn->body, "result = (%d != 0 ? %d - 1 : cast_int(L->top - ra));\n", B, B);
   membuff_add_string(&fn->body, "return luaD_poscall(L, ci, ra, result);\n");
 }

@@ -5,6 +5,18 @@ Ravi Extensions to Lua 5.3
    :depth: 2
    :backlinks: top
 
+------------
+Introduction
+------------
+
+Ravi is based on Lua 5.3. Additionally some features of Lua 5.4 have been back-ported to Ravi. 
+This document describes the enhancements available in Ravi compared to the Lua 5.3 baseline.
+
+* Optional static typing
+* ``defer`` statement
+* Generational Garbage Collector
+* New random number generator
+
 ----------------------
 Optional Static Typing
 ----------------------
@@ -277,8 +289,9 @@ Another example using arrays. Here the function receives a parameter ``arr`` of 
 
 The ``table.numarray(n, initial_value)`` creates a ``number[]`` of specified size and initializes the array with the given initial value.
 
-``defer`` statement
--------------------
+-----------------------
+The ``defer`` statement
+-----------------------
 
 A new addition to Ravi is the ``defer`` statement. The statement has the form::
 
@@ -327,6 +340,10 @@ A JIT api is available with following functions:
 
 ``ravi.jit([b])``
   returns enabled setting of JIT compiler; also enables/disables the JIT compiler; defaults to true
+``ravi.jitname()``
+  returns an identifier for the JIT
+``ravi.options()``
+  returns a string with compiled options
 ``ravi.auto([b [, min_size [, min_executions]]])``
   returns setting of auto compilation and compilation thresholds; also sets the new settings if values are supplied; defaults are false, 150, 50.
 ``ravi.compile(func_or_table[, options])``
@@ -350,7 +367,29 @@ A JIT api is available with following functions:
   Enables support for line hooks via the debug api. Note that enabling this option will result in inefficient JIT as a call to a C function will be inserted at beginning of every Lua bytecode boundary; use this option only when you want to use the debug api to step through code line by line. Currently only supported by LLVM backend.
 ``ravi.verbosity([b])``
   Controls the amount of verbose messages generated during compilation.
-  
+
+-------------------------------
+Generational Garbage Collection
+-------------------------------
+Ravi incorporates the generational garbage collector from Lua 5.4.
+Please refer to the Lua 5.4 manual regarding the api changes to support generational collection.
+
+Note that by default, Ravi now enables generational garbage collector.
+
+To switch to incremental GC::
+
+   collectgarbage("incremental")
+   
+To switch to generational GC::
+
+   collectgarbage("generational")
+
+-----------------------
+Random Number Generator
+-----------------------
+Ravi incorporates the new random number generator from Lua 5.4.
+Please refer to the Lua 5.4 manual for api changes in this area.
+
 ----------------
 C API Extensions
 ----------------

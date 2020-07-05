@@ -495,3 +495,14 @@ int ravi_compile_C(lua_State *L) {
   (void)L;
   return 0;
 }
+
+const char *raviV_jit_id(struct lua_State *L) {
+  return "mir";
+}
+
+#define RAVI_OPTION_STRING3 "mirjit"
+#define RAVI_OPTIONS RAVI_OPTION_STRING1 RAVI_OPTION_STRING2 RAVI_OPTION_STRING3
+
+const char *raviV_options(struct lua_State *L) {
+  return RAVI_OPTIONS;
+}

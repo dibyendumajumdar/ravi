@@ -238,6 +238,18 @@ static int ravi_listcode(lua_State *L) {
   return ravi_list_code(L);
 }
 
+static int ravi_get_jit_id(lua_State *L) {
+  const char *id = raviV_jit_id(L);
+  lua_pushstring(L, id);
+  return 1;
+}
+
+static int ravi_get_options(lua_State *L) {
+  const char *options = raviV_options(L);
+  lua_pushstring(L, options);
+  return 1;
+}
+
 static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"compile", ravi_compile_n},
                                    {"dumplua", ravi_dump_luacode},
@@ -254,6 +266,8 @@ static const luaL_Reg ravilib[] = {{"iscompiled", ravi_is_compiled},
                                    {"tracehook", ravi_traceenable},
                                    {"listcode", ravi_listcode},
                                    {"limits", ravi_get_limits},
+                                   {"jitname", ravi_get_jit_id},
+                                   {"options", ravi_get_options},
                                    {NULL, NULL}};
 
 #include <math.h> 
