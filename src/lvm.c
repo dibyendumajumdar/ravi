@@ -1788,7 +1788,7 @@ int luaV_execute (lua_State *L) {
           /* close all upvalues from previous call */
 #ifdef RAVI_DEFER_STATEMENT
           if (cl->p->sizep > 0)
-            Protect_base(luaF_close(L, oci->u.l.base, LUA_OK));
+            Protect_base(luaF_close(L, oci->u.l.base, NOCLOSINGMETH));
 #else
           if (cl->p->sizep > 0) luaF_close(L, oci->u.l.base);
 #endif

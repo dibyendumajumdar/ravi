@@ -104,6 +104,10 @@ void luaD_seterrorobj (lua_State *L, int errcode, StkId oldtop) {
       setsvalue2s(L, oldtop, luaS_newliteral(L, "error in error handling"));
       break;
     }
+    case CLOSEPROTECT: {
+      setnilvalue(oldtop);  /* no error message */
+      break;
+    }
     default: {
       setobjs2s(L, oldtop, L->top - 1);  /* error message on current top */
       break;

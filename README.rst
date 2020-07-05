@@ -34,7 +34,7 @@ Features
 * Type specific bytecodes to improve performance
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * Generational GC from Lua 5.4
-* ``defer`` statement added
+* ``defer`` statement for releasing resources
 * Compact JIT backend `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported for now.
 * `LLVM <http://www.llvm.org/>`_ supported as alternative JIT backend.
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.

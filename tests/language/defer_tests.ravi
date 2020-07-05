@@ -2,7 +2,6 @@ if ravi then
   ravi.auto(true)
 end
 
-print "testing code generation and optimizations"
 T = ravi
 
 local opcodes_coverage = {}
@@ -393,6 +392,36 @@ do
     compile(t)
     t()
     print 'Test 9 OK'
+end
+
+do
+    local function t()
+        -- an error in a wrapped coroutine closes variables
+        local x = false
+        local y = false
+        local co = coroutine.wrap(function ()
+            local xv = func2close(function () x = true end)
+            defer getmetatable(xv).__close(xv) end
+            do
+                local yv = func2close(function () y = true end)
+                defer getmetatable(yv).__close(yv) end
+                coroutine.yield(100)   -- yield doesn't close variable
+            end
+            coroutine.yield(200)   -- yield doesn't close variable
+            error(23)              -- error does
+        end)
+
+        local b = co()
+        assert(b == 100 and not x and not y)
+        b = co()
+        assert(b == 200 and not x and y)
+        local a, b = pcall(co)
+        assert(not a and b == 23 and x and y)
+    end
+    t()
+    compile(t)
+    t()
+    print 'Test 10 OK'
 end
 
 print 'OK'
