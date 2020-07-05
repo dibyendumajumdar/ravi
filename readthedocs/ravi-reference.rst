@@ -340,6 +340,10 @@ A JIT api is available with following functions:
 
 ``ravi.jit([b])``
   returns enabled setting of JIT compiler; also enables/disables the JIT compiler; defaults to true
+``ravi.jitname()``
+  returns an identifier for the JIT
+``ravi.options()``
+  returns a string with compiled options
 ``ravi.auto([b [, min_size [, min_executions]]])``
   returns setting of auto compilation and compilation thresholds; also sets the new settings if values are supplied; defaults are false, 150, 50.
 ``ravi.compile(func_or_table[, options])``
