@@ -424,4 +424,62 @@ do
     print 'Test 10 OK'
 end
 
+-- a suspended coroutine should not close its variables when collected
+do
+    function t()
+        local co
+        co = coroutine.wrap(function()
+            -- should not run
+            local x = func2close(function () os.exit(false) end)
+            defer getmetatable(x).__close(x) end
+            co = nil
+            coroutine.yield()
+        end)
+        co()                 -- start coroutine
+        assert(co == nil)    -- eventually it will be collected
+        collectgarbage()
+    end
+    t()
+    compile(t)
+    t()
+    print 'Test 11 OK'
+end
+
+do
+    local function t()
+        -- error in a wrapped coroutine raising errors when closing a variable
+        local x = 0
+        local co = coroutine.wrap(function ()
+            local xx = func2close(function () x = x + 1; error("@YYY") end)
+            defer getmetatable(xx).__close(xx) end
+            local xv = func2close(function () x = x + 1; error("@XXX") end)
+            defer getmetatable(xv).__close(xv) end
+            coroutine.yield(100)
+            error(200)
+        end)
+        assert(co() == 100); assert(x == 0)
+        local st, msg = pcall(co); assert(x == 2)
+        assert(not st and msg == 200)   -- should get first error raised
+
+        local x = 0
+        local y = 0
+        co = coroutine.wrap(function ()
+            local xx = func2close(function () y = y + 1; error("YYY") end)
+            defer getmetatable(xx).__close(xx) end
+            local xv = func2close(function () x = x + 1; error("XXX") end)
+            defer getmetatable(xv).__close(xv) end
+            coroutine.yield(100)
+            return 200
+        end)
+        assert(co() == 100); assert(x == 0)
+        local st, msg = pcall(co)
+        assert(not st and string.find(msg, "%w+%.%w+:%d+: XXX"))
+        assert(x == 1 and y == 1)  
+    end
+    t()
+    compile(t)
+    t()
+    print 'Test 12 OK'
+end
+
 print 'OK'
