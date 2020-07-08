@@ -117,10 +117,6 @@ if (LLVM_JIT)
 else ()
     if (MIR_JIT)
         message(STATUS "MIRJIT enabled")
-#        set(JIT_SRCS ${MIR_JIT_SRCS})
-#        set_property(SOURCE ${MIR_JIT_SRCS}
-#                APPEND
-#                PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
         set(JIT_SRCS ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS})
         set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
                 APPEND
