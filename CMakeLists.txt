@@ -85,6 +85,12 @@ check_c_compiler_flag("-march=native" COMPILER_OPT_ARCH_NATIVE_SUPPORTED)
 if (COMPILER_OPT_ARCH_NATIVE_SUPPORTED AND NOT CMAKE_C_FLAGS MATCHES "-march=")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
 endif()
+set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
+check_c_compiler_flag("-fsanitize=address" COMPILER_ASAN_SUPPORTED)
+if (COMPILER_ASAN_SUPPORTED AND NOT CMAKE_C_FLAGS_DEBUG MATCHES "-fsanitize=address")
+        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
+endif()
+
 
 if (LLVM_JIT)
     find_package(LLVM REQUIRED CONFIG)
