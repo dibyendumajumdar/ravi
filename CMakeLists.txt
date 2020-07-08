@@ -11,6 +11,7 @@ option(NO_JIT "Controls whether JIT should be disabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
 option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires Debug build" ON)
+option(ASAN "Controls whether address sanitizer should be enabled" OFF)
 
 # By default on non-Windows platforms we enable MIR JIT
 if (NOT WIN32
@@ -57,11 +58,6 @@ set(LLVM_JIT_SRCS src/ravi_llvmjit.cpp src/ravi_llvmtypes.cpp
         src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
         src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
         src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
-# MIR sources
-#if (MIR_JIT)
-#    add_subdirectory(mir)
-#    set(MIRJIT_LIBRARIES c2mir)
-#endif()
 set(MIR_HEADERS mir/mir.h mir/mir-gen.h mir/mir-varr.h mir/mir-dlist.h mir/mir-htab.h
         mir/mir-hash.h mir/mir-bitmap.h)
 set(MIR_SRCS mir/mir.c mir/mir-gen.c)
@@ -85,10 +81,12 @@ check_c_compiler_flag("-march=native" COMPILER_OPT_ARCH_NATIVE_SUPPORTED)
 if (COMPILER_OPT_ARCH_NATIVE_SUPPORTED AND NOT CMAKE_C_FLAGS MATCHES "-march=")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
 endif()
-set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
-check_c_compiler_flag("-fsanitize=address" COMPILER_ASAN_SUPPORTED)
-if (COMPILER_ASAN_SUPPORTED AND NOT CMAKE_C_FLAGS_DEBUG MATCHES "-fsanitize=address")
+if (ASAN)
+    set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
+    check_c_compiler_flag("-fsanitize=address" COMPILER_ASAN_SUPPORTED)
+    if (COMPILER_ASAN_SUPPORTED AND NOT CMAKE_C_FLAGS_DEBUG MATCHES "-fsanitize=address")
         set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
+    endif()
 endif()
 
 
