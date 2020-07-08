@@ -639,6 +639,9 @@ LUA_API int ravi_list_code(lua_State *L);
 /* Returns a table with various system limits */
 LUA_API int ravi_get_limits(lua_State *L);
 
+/* Options */
+LUA_API const char *raviV_options(struct lua_State *L);
+
 /* Following are for debugging purposes only */
 LUAI_DDEC int ravi_parser_debug;
 LUA_API void ravi_set_debuglevel(int level);
