@@ -259,7 +259,7 @@ void *ravi_alloc_f(void *msp, void *ptr, size_t osize, size_t nsize)
 static void close_state (lua_State *L) {
   global_State *g = G(L);
 #ifdef RAVI_DEFER_STATEMENT
-  luaF_close(L, L->stack, -1);  /* close all upvalues for this thread */
+  luaF_close(L, L->stack, CLOSEPROTECT);  /* close all upvalues for this thread */
 #else
   luaF_close(L, L->stack);  /* close all upvalues for this thread */
 #endif
@@ -310,7 +310,7 @@ LUA_API lua_State *lua_newthread (lua_State *L) {
 void luaE_freethread (lua_State *L, lua_State *L1) {
   LX *l = fromstate(L1);
 #ifdef RAVI_DEFER_STATEMENT
-  luaF_close(L1, L1->stack, -1);  /* close all upvalues for this thread */
+  luaF_close(L1, L1->stack, NOCLOSINGMETH);  /* close all upvalues for this thread */
 #else
   luaF_close(L1, L1->stack);  /* close all upvalues for this thread */
 #endif
@@ -319,6 +319,29 @@ void luaE_freethread (lua_State *L, lua_State *L1) {
   freestack(L1);
   luaM_free(L, l);
 }
+
+#ifdef RAVI_DEFER_STATEMENT
+int lua_resetthread (lua_State *L) {
+  CallInfo *ci;
+  int status;
+  lua_lock(L);
+  L->ci = ci = &L->base_ci;  /* unwind CallInfo list */
+  setnilvalue(L->stack);  /* 'function' entry for basic 'ci' */
+  ci->func = L->stack;
+  ci->callstatus = 0;
+  status = luaF_close(L, L->stack, CLOSEPROTECT);
+  if (status != CLOSEPROTECT)  /* real errors? */
+    luaD_seterrorobj(L, status, L->stack + 1);
+  else {
+    status = LUA_OK;
+    L->top = L->stack + 1;
+  }
+  ci->top = L->top + LUA_MINSTACK;
+  L->status = status;
+  lua_unlock(L);
+  return status;
+}
+#endif
 
 /* TODO following should probably not live here*/
 

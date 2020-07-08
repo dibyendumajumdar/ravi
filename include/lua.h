@@ -140,10 +140,10 @@ typedef void(*ravi_Writestringerror)(const char *fmt, const char *p);
 #define lua_assert(c)           assert(c)
 
 #if !defined(RAVI_OPTION_STRING1)
-#define RAVI_OPTION_STRING1 " assertions"
+#define RAVI_OPTION_STRING1 "assertions "
 #endif
 
-#define RAVI_OPTION_STRING2 " ltests"
+#define RAVI_OPTION_STRING2 "ltests "
 
 /* to avoid warnings, and to make sure value is really unused */
 #define UNUSED(x)       (x=0, (void)(x))
@@ -226,7 +226,9 @@ extern const char lua_ident[];
 LUA_API lua_State *(lua_newstate) (lua_Alloc f, void *ud);
 LUA_API void       (lua_close) (lua_State *L);
 LUA_API lua_State *(lua_newthread) (lua_State *L);
-
+#ifdef RAVI_DEFER_STATEMENT
+LUA_API int        (lua_resetthread) (lua_State *L);
+#endif
 LUA_API lua_CFunction (lua_atpanic) (lua_State *L, lua_CFunction panicf);
 
 

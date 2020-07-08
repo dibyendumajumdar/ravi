@@ -899,14 +899,14 @@ LuaLLVMTypes::LuaLLVMTypes(llvm::LLVMContext &context) : mdbuilder(context) {
   raviV_op_setlistT =
       llvm::FunctionType::get(llvm::Type::getVoidTy(context), elements, false);
 
-  // lua_Integer luaV_div (lua_State *L, lua_Integer m, lua_Integer n)
+  // lua_Integer luaV_idiv (lua_State *L, lua_Integer m, lua_Integer n)
   // lua_Integer luaV_mod (lua_State *L, lua_Integer m, lua_Integer n)
   elements.clear();
   elements.push_back(plua_StateT);
   elements.push_back(lua_IntegerT);
   elements.push_back(lua_IntegerT);
   luaV_modT = llvm::FunctionType::get(lua_IntegerT, elements, false);
-  luaV_divT = llvm::FunctionType::get(lua_IntegerT, elements, false);
+  luaV_idivT = llvm::FunctionType::get(lua_IntegerT, elements, false);
 
   // void raviV_op_concat(lua_State *L, CallInfo *ci, int a, int b, int c)
   elements.clear();
