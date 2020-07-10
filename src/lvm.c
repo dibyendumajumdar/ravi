@@ -36,6 +36,15 @@
 #include "lvm.h"
 #include "ravi_profile.h"
 
+/*
+** By default, use jump tables in the main interpreter loop on gcc
+** and compatible compilers.
+*/
+#if !defined(RAVI_USE_COMPUTED_GOTO)
+#if defined(__GNUC__) || defined(__clang__)
+#define RAVI_USE_COMPUTED_GOTO
+#endif
+#endif
 /* limit for table tag-method chains (to avoid loops) */
 #define MAXTAGLOOP	2000
 
@@ -1221,6 +1230,12 @@ int raviV_check_usertype(lua_State *L, TString *name, const TValue *o)
   return (!ttisnil(metatab) && ttisLtable(metatab) && hvalue(metatab) == mt) || 0;
 }
 
+// When using computed gotos GCC generates worse code if crossjumping and gcse are enabled
+// We normally set these flags via CMake but this is to help out when building via the
+// supplied Makefile
+#if defined(RAVI_ENABLE_GCC_FLAGS) && defined(__GNUC__) && !defined(__clang__)
+__attribute((optimize("no-crossjumping,no-gcse")))
+#endif
 int luaV_execute (lua_State *L) {
   
 #ifdef RAVI_USE_COMPUTED_GOTO

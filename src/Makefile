@@ -4,11 +4,12 @@
 # == CHANGE THE SETTINGS BELOW TO SUIT YOUR ENVIRONMENT =======================
 
 # Your platform. See PLATS for possible values.
-PLAT= none
+PLAT= guess
 
-#CC= gcc -std=gnu99
-CFLAGS= -O2 -Wall -DNDEBUG -fomit-frame-pointer $(SYSCFLAGS) $(MYCFLAGS) -I../include
-CXXFLAGS=$(CFLAGS) -fno-rtti -Wno-sign-compare -std=c++14 -fno-exceptions -I../include
+CC= gcc -std=gnu99
+# Note for Ravi we need NDEBUG to disable LTESTS
+# Also we enable some GCC specific flags in lvm.c via RAVI_ENABLE_GCC_FLAGS
+CFLAGS= -O2 -DNDEBUG -DRAVI_ENABLE_GCC_FLAGS -Wall $(SYSCFLAGS) $(MYCFLAGS) -I../include
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS= -lm $(SYSLIBS) $(MYLIBS)
 VPATH=../include
@@ -16,6 +17,7 @@ VPATH=../include
 AR= ar rcu
 RANLIB= ranlib
 RM= rm -f
+UNAME= uname
 
 SYSCFLAGS=
 SYSLDFLAGS=
@@ -28,13 +30,13 @@ MYOBJS=
 
 # == END OF USER SETTINGS -- NO NEED TO CHANGE ANYTHING BELOW THIS LINE =======
 
-PLATS= aix bsd c89 freebsd generic linux macosx mingw posix solaris
+PLATS= guess aix bsd c89 freebsd generic linux linux-readline macosx mingw posix solaris
 
 LUA_A=	libravinojit.a
 CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
 	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o ltests.o \
 	ltm.o lundump.o lvm.o lzio.o ravi_profile.o ravi_membuf.o \
-	ravi_jitshared.o ravi_nojit.o ravi_alloc.o ravi_jit.o $(CORE_CPP_O)
+	ravi_jitshared.o ravi_nojit.o ravi_alloc.o ravi_jit.o
 LIB_O=	lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o \
 	lmathlib.o loslib.o lstrlib.o ltablib.o lutf8lib.o loadlib.o linit.o \
 	bit.o
@@ -78,15 +80,20 @@ echo:
 	@echo "AR= $(AR)"
 	@echo "RANLIB= $(RANLIB)"
 	@echo "RM= $(RM)"
+	@echo "UNAME= $(UNAME)"
 
 # Convenience targets for popular platforms
 ALL= all
 
-none:
-	@echo "Please do 'make PLATFORM' where PLATFORM is one of these:"
+help:
+	@echo "Do 'make PLATFORM' where PLATFORM is one of these:"
 	@echo "   $(PLATS)"
 
-aix:
+guess:
+	@echo Guessing `$(UNAME)`
+	@$(MAKE) `$(UNAME)`
+
+AIX aix:
 	$(MAKE) $(ALL) CC="xlc" CFLAGS="-O2 -DLUA_USE_POSIX -DLUA_USE_DLOPEN" SYSLIBS="-ldl" SYSLDFLAGS="-brtl -bexpall"
 
 bsd:
@@ -98,17 +105,21 @@ c89:
 	@echo '*** C89 does not guarantee 64-bit integers for Lua.'
 	@echo ''
 
-
-freebsd:
-	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_LINUX" SYSLIBS="-Wl,-E -lreadline"
+FreeBSD NetBSD OpenBSD freebsd:
+	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_LINUX -DLUA_USE_READLINE -I/usr/include/edit" SYSLIBS="-Wl,-E -ledit" CC="cc"
 
 generic: $(ALL)
 
-linux:
-	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_LINUX" SYSLIBS="-Wl,-E -ldl -lreadline"
+Linux linux:	linux-readline
 
-macosx:
-	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_MACOSX" SYSLIBS="-lreadline" CC=cc
+linux-noreadline:
+	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_LINUX" SYSLIBS="-Wl,-E -ldl"
+
+linux-readline:
+	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_LINUX -DLUA_USE_READLINE" SYSLIBS="-Wl,-E -ldl -lreadline"
+
+Darwin macos macosx:
+	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_MACOSX -DLUA_USE_READLINE" SYSLIBS="-lreadline"
 
 mingw:
 	$(MAKE) "LUA_A=ravi.dll" "LUA_T=ravi.exe" \
@@ -118,7 +129,7 @@ mingw:
 posix:
 	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_POSIX"
 
-solaris:
+SunOS solaris:
 	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_POSIX -DLUA_USE_DLOPEN -D_REENTRANT" SYSLIBS="-ldl"
 
 # list targets that do not create files (but not all makes understand .PHONY)
