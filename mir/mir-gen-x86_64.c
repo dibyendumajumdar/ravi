@@ -445,6 +445,8 @@ DEF_VARR (label_ref_t);
 
 DEF_VARR (MIR_code_reloc_t);
 
+#define MOVDQA_CODE 0
+
 struct target_ctx {
   unsigned char alloca_p, stack_arg_func_p, leaf_p;
   int start_sp_from_bp_offset;
@@ -745,19 +747,24 @@ static void target_make_prolog_epilog (gen_ctx_t gen_ctx, bitmap_t used_hard_reg
   MIR_func_t func;
   MIR_insn_t anchor, new_insn;
   MIR_op_t sp_reg_op, fp_reg_op;
-  int64_t bp_saved_reg_offset, start;
-  size_t i, n, service_area_size, saved_hard_regs_num, stack_slots_size, block_size;
+  int64_t bp_saved_reg_offset, offset;
+  size_t i, service_area_size, saved_hard_regs_size, stack_slots_size, block_size;
 
   assert (curr_func_item->item_type == MIR_func_item);
   func = curr_func_item->u.func;
-  for (i = saved_hard_regs_num = 0; i <= MAX_HARD_REG; i++)
-    if (!target_call_used_hard_reg_p (i) && bitmap_bit_p (used_hard_regs, i)) saved_hard_regs_num++;
-  if (leaf_p && !alloca_p && !stack_arg_func_p && saved_hard_regs_num == 0 && !func->vararg_p
+  for (i = saved_hard_regs_size = 0; i <= R15_HARD_REG; i++)
+    if (!target_call_used_hard_reg_p (i) && bitmap_bit_p (used_hard_regs, i))
+      saved_hard_regs_size += 8;
+#ifdef _WIN64
+  for (; i <= XMM15_HARD_REG; i++)
+    if (!target_call_used_hard_reg_p (i) && bitmap_bit_p (used_hard_regs, i))
+      saved_hard_regs_size += 16;
+#endif
+  if (leaf_p && !alloca_p && !stack_arg_func_p && saved_hard_regs_size == 0 && !func->vararg_p
       && stack_slots_num == 0)
     return;
-  sp_reg_op.mode = fp_reg_op.mode = MIR_OP_HARD_REG;
-  sp_reg_op.u.hard_reg = SP_HARD_REG;
-  fp_reg_op.u.hard_reg = FP_HARD_REG;
+  sp_reg_op = _MIR_new_hard_reg_op (ctx, SP_HARD_REG);
+  fp_reg_op = _MIR_new_hard_reg_op (ctx, FP_HARD_REG);
   /* Prologue: */
   anchor = DLIST_HEAD (MIR_insn_t, func->insns);
   new_insn
@@ -771,68 +778,75 @@ static void target_make_prolog_epilog (gen_ctx_t gen_ctx, bitmap_t used_hard_reg
   service_area_size = func->vararg_p ? reg_save_area_size + 8 : 8;
   stack_slots_size = stack_slots_num * 8;
   /* stack slots, and saved regs as multiple of 16 bytes: */
-  block_size = (stack_slots_size + 8 * saved_hard_regs_num + 15) / 16 * 16;
+  block_size = (stack_slots_size + saved_hard_regs_size + 15) / 16 * 16;
   new_insn = MIR_new_insn (ctx, MIR_SUB, sp_reg_op, sp_reg_op,
                            MIR_new_int_op (ctx, block_size + service_area_size));
   gen_add_insn_before (gen_ctx, anchor, new_insn); /* sp -= block size + service_area_size */
-  if (func->vararg_p) {
+  bp_saved_reg_offset = block_size;
 #ifndef _WIN64
-    start = block_size;
-    isave (gen_ctx, anchor, start, DI_HARD_REG);
-    isave (gen_ctx, anchor, start + 8, SI_HARD_REG);
-    isave (gen_ctx, anchor, start + 16, DX_HARD_REG);
-    isave (gen_ctx, anchor, start + 24, CX_HARD_REG);
-    isave (gen_ctx, anchor, start + 32, R8_HARD_REG);
-    isave (gen_ctx, anchor, start + 40, R9_HARD_REG);
-    dsave (gen_ctx, anchor, start + 48, XMM0_HARD_REG);
-    dsave (gen_ctx, anchor, start + 64, XMM1_HARD_REG);
-    dsave (gen_ctx, anchor, start + 80, XMM2_HARD_REG);
-    dsave (gen_ctx, anchor, start + 96, XMM3_HARD_REG);
-    dsave (gen_ctx, anchor, start + 112, XMM4_HARD_REG);
-    dsave (gen_ctx, anchor, start + 128, XMM5_HARD_REG);
-    dsave (gen_ctx, anchor, start + 144, XMM6_HARD_REG);
-    dsave (gen_ctx, anchor, start + 160, XMM7_HARD_REG);
-#endif
+  if (func->vararg_p) {
+    offset = block_size;
+    isave (gen_ctx, anchor, offset, DI_HARD_REG);
+    isave (gen_ctx, anchor, offset + 8, SI_HARD_REG);
+    isave (gen_ctx, anchor, offset + 16, DX_HARD_REG);
+    isave (gen_ctx, anchor, offset + 24, CX_HARD_REG);
+    isave (gen_ctx, anchor, offset + 32, R8_HARD_REG);
+    isave (gen_ctx, anchor, offset + 40, R9_HARD_REG);
+    dsave (gen_ctx, anchor, offset + 48, XMM0_HARD_REG);
+    dsave (gen_ctx, anchor, offset + 64, XMM1_HARD_REG);
+    dsave (gen_ctx, anchor, offset + 80, XMM2_HARD_REG);
+    dsave (gen_ctx, anchor, offset + 96, XMM3_HARD_REG);
+    dsave (gen_ctx, anchor, offset + 112, XMM4_HARD_REG);
+    dsave (gen_ctx, anchor, offset + 128, XMM5_HARD_REG);
+    dsave (gen_ctx, anchor, offset + 144, XMM6_HARD_REG);
+    dsave (gen_ctx, anchor, offset + 160, XMM7_HARD_REG);
+    bp_saved_reg_offset += reg_save_area_size;
   }
-  bp_saved_reg_offset = block_size + (func->vararg_p ? reg_save_area_size : 0);
-  /* Saving callee saved hard registers: */
-  for (i = n = 0; i <= MAX_HARD_REG; i++)
-    if (!target_call_used_hard_reg_p (i) && bitmap_bit_p (used_hard_regs, i)) {
-      MIR_insn_code_t code = MIR_MOV;
-      MIR_type_t type = MIR_T_I64;
-#ifdef _WIN64
-      if (i > R15_HARD_REG) {
-        code = MIR_DMOV;
-        type = MIR_T_D;
-      }
-#else
-      assert (i <= R15_HARD_REG); /* xmm regs are always callee-clobbered */
 #endif
-      new_insn = MIR_new_insn (ctx, code,
-                               _MIR_new_hard_reg_mem_op (ctx, type,
-                                                         (int64_t) (n++ * 8) - bp_saved_reg_offset,
-                                                         FP_HARD_REG, MIR_NON_HARD_REG, 1),
+  /* Saving callee saved hard registers: */
+  offset = -bp_saved_reg_offset;
+#ifdef _WIN64
+  for (i = XMM0_HARD_REG; i <= XMM15_HARD_REG; i++)
+    if (!target_call_used_hard_reg_p (i) && bitmap_bit_p (used_hard_regs, i)) {
+      new_insn = _MIR_new_unspec_insn (ctx, 3, MIR_new_int_op (ctx, MOVDQA_CODE),
+                                       _MIR_new_hard_reg_mem_op (ctx, MIR_T_D, offset, FP_HARD_REG,
+                                                                 MIR_NON_HARD_REG, 1),
+                                       _MIR_new_hard_reg_op (ctx, i));
+      gen_add_insn_before (gen_ctx, anchor, new_insn); /* disp(sp) = saved hard reg */
+      offset += 16;
+    }
+#endif
+  for (i = 0; i <= R15_HARD_REG; i++)
+    if (!target_call_used_hard_reg_p (i) && bitmap_bit_p (used_hard_regs, i)) {
+      new_insn = MIR_new_insn (ctx, MIR_MOV,
+                               _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, offset, FP_HARD_REG,
+                                                         MIR_NON_HARD_REG, 1),
                                _MIR_new_hard_reg_op (ctx, i));
       gen_add_insn_before (gen_ctx, anchor, new_insn); /* disp(sp) = saved hard reg */
+      offset += 8;
     }
   /* Epilogue: */
   anchor = DLIST_TAIL (MIR_insn_t, func->insns);
   /* Restoring hard registers: */
-  for (i = n = 0; i <= MAX_HARD_REG; i++)
-    if (!target_call_used_hard_reg_p (i) && bitmap_bit_p (used_hard_regs, i)) {
-      MIR_insn_code_t code = MIR_MOV;
-      MIR_type_t type = MIR_T_I64;
+  offset = -bp_saved_reg_offset;
 #ifdef _WIN64
-      if (i > R15_HARD_REG) {
-        code = MIR_DMOV;
-        type = MIR_T_D;
-      }
-#endif
-      new_insn = MIR_new_insn (ctx, code, _MIR_new_hard_reg_op (ctx, i),
-                               _MIR_new_hard_reg_mem_op (ctx, type,
-                                                         (int64_t) (n++ * 8) - bp_saved_reg_offset,
-                                                         FP_HARD_REG, MIR_NON_HARD_REG, 1));
+  for (i = XMM0_HARD_REG; i <= XMM15_HARD_REG; i++)
+    if (!target_call_used_hard_reg_p (i) && bitmap_bit_p (used_hard_regs, i)) {
+      new_insn = _MIR_new_unspec_insn (ctx, 3, MIR_new_int_op (ctx, MOVDQA_CODE),
+                                       _MIR_new_hard_reg_op (ctx, i),
+                                       _MIR_new_hard_reg_mem_op (ctx, MIR_T_D, offset, FP_HARD_REG,
+                                                                 MIR_NON_HARD_REG, 1));
       gen_add_insn_before (gen_ctx, anchor, new_insn); /* hard reg = disp(sp) */
+      offset += 16;
+    }
+#endif
+  for (i = 0; i <= R15_HARD_REG; i++)
+    if (!target_call_used_hard_reg_p (i) && bitmap_bit_p (used_hard_regs, i)) {
+      new_insn = MIR_new_insn (ctx, MIR_MOV, _MIR_new_hard_reg_op (ctx, i),
+                               _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, offset, FP_HARD_REG,
+                                                         MIR_NON_HARD_REG, 1));
+      gen_add_insn_before (gen_ctx, anchor, new_insn); /* hard reg = disp(sp) */
+      offset += 8;
     }
   new_insn = MIR_new_insn (ctx, MIR_ADD, sp_reg_op, fp_reg_op, MIR_new_int_op (ctx, 8));
   gen_add_insn_before (gen_ctx, anchor, new_insn); /* sp = bp + 8 */
@@ -854,6 +868,7 @@ struct pattern {
      i[0-3] - immediate of size 8,16,32,64-bits
      p[0-3] - reference
      s - immediate 1, 2, 4, or 8 (scale)
+     c<number> - immediate integer <number>
      m[0-3] - int (signed or unsigned) type memory of size 8,16,32,64-bits
      ms[0-3] - signed int type memory of size 8,16,32,64-bits
      mu[0-3] - unsigned int type memory of size 8,16,32,64-bits
@@ -1045,13 +1060,20 @@ static const struct pattern patterns[] = {
 
   {MIR_DMOV, "r r", "F2 Y 0F 10 r0 R1"},  /* movsd r0,r1 */
   {MIR_DMOV, "r md", "F2 Y 0F 10 r0 m1"}, /* movsd r0,m64 */
-  {MIR_DMOV, "md r", "F2 Y 0F 11 r1 m0"}, /* movsd r0,m64 */
+  {MIR_DMOV, "md r", "F2 Y 0F 11 r1 m0"}, /* movsd m64,r0 */
 
   {MIR_LDMOV, "mld h32", "DB /7 m0"},           /*only for ret and calls in given order: fstp m0 */
   {MIR_LDMOV, "h32 mld", "DB /5 m1"},           /*only for ret and calls in given order: fld m1 */
   {MIR_LDMOV, "mld h33", "D9 C9; DB /7 m0"},    /*only for ret and calls: fxch;fstp m0 */
   {MIR_LDMOV, "h33 mld", "DB /5 m1; D9 C9"},    /*only for ret and calls: fld m1; fxch */
   {MIR_LDMOV, "mld mld", "DB /5 m1; DB /7 m0"}, /* fld m1; fstp m0 */
+
+#define STR(c) #c
+#define STR_VAL(c) STR (c)
+
+  {MIR_UNSPEC, "c" STR_VAL (MOVDQA_CODE) " r r", "66 Y 0F 6F r1 R2"},  /* movdqa r0,r1 */
+  {MIR_UNSPEC, "c" STR_VAL (MOVDQA_CODE) " r md", "66 Y 0F 6F r1 m2"}, /* movdqa r0,m128 */
+  {MIR_UNSPEC, "c" STR_VAL (MOVDQA_CODE) " md r", "66 Y 0F 7F r2 m1"}, /* movdqa m128,r0 */
 
   {MIR_EXT8, "r r", "X 0F BE r0 R1"},    /* movsx r0,r1 */
   {MIR_EXT8, "r m0", "X 0F BE r0 m1"},   /* movsx r0,m1 */
@@ -1239,6 +1261,22 @@ static int MIR_UNUSED uint16_p (int64_t v) { return 0 <= v && v <= UINT16_MAX; }
 static int int32_p (int64_t v) { return INT32_MIN <= v && v <= INT32_MAX; }
 static int uint32_p (int64_t v) { return 0 <= v && v <= UINT32_MAX; }
 
+static int dec_value (int ch) { return '0' <= ch && ch <= '9' ? ch - '0' : -1; }
+
+static uint64_t read_dec (const char **ptr) {
+  int v;
+  const char *p;
+  uint64_t res = 0;
+
+  for (p = *ptr; (v = dec_value (*p)) >= 0; p++) {
+    gen_assert ((res >> 60) == 0);
+    res = res * 10 + v;
+  }
+  gen_assert (p != *ptr);
+  *ptr = p - 1;
+  return res;
+}
+
 static int pattern_index_cmp (const void *a1, const void *a2) {
   int i1 = *(const int *) a1, i2 = *(const int *) a2;
   int c1 = (int) patterns[i1].code, c2 = (int) patterns[i2].code;
@@ -1322,6 +1360,13 @@ static int pattern_match_p (gen_ctx_t gen_ctx, const struct pattern *pat, MIR_in
           || (op.u.i != 1 && op.u.i != 2 && op.u.i != 4 && op.u.i != 8))
         return FALSE;
       break;
+    case 'c': {
+      uint64_t n;
+      p++;
+      n = read_dec (&p);
+      if ((op.mode != MIR_OP_INT && op.mode != MIR_OP_UINT) || op.u.u != n) return FALSE;
+      break;
+    }
     case 'm': {
       MIR_type_t type, type2, type3 = MIR_T_BOUND;
       int u_p, s_p;
@@ -2004,6 +2049,9 @@ static void target_init (gen_ctx_t gen_ctx) {
   VARR_CREATE (label_ref_t, label_refs, 0);
   VARR_CREATE (uint64_t, abs_address_locs, 0);
   VARR_CREATE (MIR_code_reloc_t, relocs, 0);
+  MIR_type_t res = MIR_T_D;
+  MIR_var_t args[] = {{MIR_T_D, "src"}};
+  _MIR_register_unspec_insn (gen_ctx->ctx, MOVDQA_CODE, "movdqa", 1, &res, 1, FALSE, args);
   patterns_init (gen_ctx);
 }
 
