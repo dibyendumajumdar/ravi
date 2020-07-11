@@ -96,9 +96,6 @@ void raviV_dumpASM(struct lua_State *L, struct Proto *p);
 /* Return JIT backend identifier */
 const char *raviV_jit_id(struct lua_State *L);
 
-/* Options */
-const char *raviV_options(struct lua_State *L);
-
 #ifdef __cplusplus
 }
 #endif

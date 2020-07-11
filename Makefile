@@ -6,7 +6,7 @@
 # == CHANGE THE SETTINGS BELOW TO SUIT YOUR ENVIRONMENT =======================
 
 # Your platform. See PLATS for possible values.
-PLAT= none
+PLAT= guess
 
 # Where to install. The installation starts in the src and doc directories,
 # so take care if INSTALL_TOP is not an absolute path. See the local target.
@@ -38,7 +38,7 @@ RM= rm -f
 # == END OF USER SETTINGS -- NO NEED TO CHANGE ANYTHING BELOW THIS LINE =======
 
 # Convenience platforms targets.
-PLATS= aix bsd c89 freebsd generic linux macosx mingw posix solaris
+PLATS= guess aix bsd c89 freebsd generic linux linux-noreadline macosx mingw posix solaris
 
 # What to install.
 TO_BIN= ravi

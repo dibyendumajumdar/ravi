@@ -51,8 +51,8 @@ static inline int mir_assert (int cond) { return 0 && cond; }
 typedef enum MIR_error_type {
   REP8 (ERR_EL, no, syntax, binary_io, alloc, finish, no_module, nested_module, no_func),
   REP4 (ERR_EL, func, vararg_func, nested_func, wrong_param_value),
-  REP4 (ERR_EL, reserved_name, import_export, undeclared_func_reg, repeated_decl),
-  REP8 (ERR_EL, reg_type, unique_reg, undeclared_op_ref, ops_num, call_op, ret, op_mode, out_op),
+  REP5 (ERR_EL, reserved_name, import_export, undeclared_func_reg, repeated_decl, reg_type),
+  REP8 (ERR_EL, unique_reg, undeclared_op_ref, ops_num, call_op, unspec_op, ret, op_mode, out_op),
   ERR_EL (invalid_insn)
 } MIR_error_type_t;
 
@@ -129,6 +129,7 @@ typedef enum {
   INSN_EL (VA_START),
   INSN_EL (VA_END), /* operand is va_list */
   INSN_EL (LABEL),  /* One immediate operand is unique label number  */
+  INSN_EL (UNSPEC), /* First operand unspec code and the rest are args */
   INSN_EL (INVALID_INSN),
   INSN_EL (INSN_BOUND), /* Should be the last  */
 } MIR_insn_code_t;
@@ -547,6 +548,10 @@ extern MIR_reg_t _MIR_new_temp_reg (MIR_context_t ctx, MIR_type_t type,
 extern size_t _MIR_type_size (MIR_context_t ctx, MIR_type_t type);
 extern MIR_op_mode_t _MIR_insn_code_op_mode (MIR_context_t ctx, MIR_insn_code_t code, size_t nop,
                                              int *out_p);
+extern MIR_insn_t _MIR_new_unspec_insn (MIR_context_t ctx, size_t nops, ...);
+extern void _MIR_register_unspec_insn (MIR_context_t ctx, uint64_t code, const char *name,
+                                       size_t nres, MIR_type_t *res_types, size_t nargs,
+                                       int vararg_p, MIR_var_t *args);
 extern void _MIR_duplicate_func_insns (MIR_context_t ctx, MIR_item_t func_item);
 extern void _MIR_restore_func_insns (MIR_context_t ctx, MIR_item_t func_item);
 extern void _MIR_simplify_insn (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn,

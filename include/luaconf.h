@@ -61,14 +61,18 @@
 #if defined(LUA_USE_LINUX)
 #define LUA_USE_POSIX
 #define LUA_USE_DLOPEN		/* needs an extra library: -ldl */
+#ifndef LUA_USE_READLINE
 #define LUA_USE_READLINE	/* needs some extra libraries */
+#endif
 #endif
 
 
 #if defined(LUA_USE_MACOSX)
 #define LUA_USE_POSIX
 #define LUA_USE_DLOPEN		/* MacOS does not need -ldl */
+#ifndef LUA_USE_READLINE
 #define LUA_USE_READLINE	/* needs an extra library: -lreadline */
+#endif
 #endif
 
 
@@ -256,9 +260,11 @@
 #endif				/* } */
 
 
-/* more often than not the libs go together with the core */
+/*
+** More often than not the libs go together with the core.
+*/
 #define LUALIB_API	LUA_API
-#define LUAMOD_API	LUALIB_API
+#define LUAMOD_API	LUA_API
 
 
 /*
@@ -277,8 +283,7 @@
 */
 #if defined(__GNUC__) && ((__GNUC__*100 + __GNUC_MINOR__) >= 302) && \
     defined(__ELF__)		/* { */
-/** RAVI change **/
-#define LUAI_FUNC	/* __attribute__((visibility("hidden")))*/ extern
+#define LUAI_FUNC	__attribute__((visibility("internal"))) extern
 #else				/* }{ */
 #define LUAI_FUNC	extern
 #endif				/* } */

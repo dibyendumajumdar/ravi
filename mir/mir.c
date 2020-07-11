@@ -13,6 +13,7 @@ DEF_VARR (MIR_module_t);
 DEF_VARR (size_t);
 DEF_VARR (char);
 DEF_VARR (uint8_t);
+DEF_VARR (MIR_proto_t);
 
 struct gen_ctx;
 struct c2mir_ctx;
@@ -28,6 +29,7 @@ struct MIR_context {
   struct gen_ctx *gen_ctx;     /* should be the 1st member */
   struct c2mir_ctx *c2mir_ctx; /* should be the 2nd member */
   MIR_error_func_t error_func;
+  VARR (MIR_proto_t) * unspec_protos; /* protos of unspec insns */
   VARR (MIR_insn_t) * temp_insns, *temp_insns2;
   VARR (MIR_op_t) * temp_insn_ops;
   VARR (MIR_var_t) * temp_vars;
@@ -56,6 +58,7 @@ struct MIR_context {
 };
 
 #define error_func ctx->error_func
+#define unspec_protos ctx->unspec_protos
 #define temp_insns ctx->temp_insns
 #define temp_insns2 ctx->temp_insns2
 #define temp_insn_ops ctx->temp_insn_ops
@@ -312,6 +315,7 @@ static const struct insn_desc insn_descs[] = {
   {MIR_VA_START, "va_start", {MIR_OP_INT, MIR_OP_BOUND}},
   {MIR_VA_END, "va_end", {MIR_OP_INT, MIR_OP_BOUND}},
   {MIR_LABEL, "label", {MIR_OP_BOUND}},
+  {MIR_UNSPEC, "unspec", {MIR_OP_BOUND}},
   {MIR_INVALID_INSN, "invalid-insn", {MIR_OP_BOUND}},
 };
 
@@ -604,6 +608,7 @@ MIR_context_t MIR_init (void) {
     (*error_func) (MIR_alloc_error, "Not enough memory for ctx");
   string_init (&strings, &string_tab);
   reg_init (ctx);
+  VARR_CREATE (MIR_proto_t, unspec_protos, 0);
   VARR_CREATE (MIR_insn_t, temp_insns, 0);
   VARR_CREATE (MIR_insn_t, temp_insns2, 0);
   VARR_CREATE (MIR_op_t, temp_insn_ops, 0);
@@ -722,6 +727,12 @@ void MIR_finish (MIR_context_t ctx) {
   VARR_DESTROY (uint8_t, temp_data);
   VARR_DESTROY (char, temp_string);
   VARR_DESTROY (MIR_reg_t, inline_reg_map);
+  while (VARR_LENGTH (MIR_proto_t, unspec_protos) != 0) {
+    MIR_proto_t proto = VARR_POP (MIR_proto_t, unspec_protos);
+    VARR_DESTROY (MIR_var_t, proto->args);
+    free (proto);
+  }
+  VARR_DESTROY (MIR_proto_t, unspec_protos);
   reg_finish (ctx);
   string_finish (&strings, &string_tab);
   vn_finish (ctx);
@@ -1062,31 +1073,35 @@ MIR_item_t MIR_new_expr_data (MIR_context_t ctx, const char *name, MIR_item_t ex
   return item;
 }
 
-static MIR_item_t new_proto_arr (MIR_context_t ctx, const char *name, size_t nres,
+static MIR_proto_t create_proto (MIR_context_t ctx, const char *name, size_t nres,
                                  MIR_type_t *res_types, size_t nargs, int vararg_p,
                                  MIR_var_t *args) {
-  MIR_item_t proto_item, tab_item;
-  MIR_proto_t proto;
-  size_t i;
+  MIR_proto_t proto = malloc (sizeof (struct MIR_proto) + nres * sizeof (MIR_type_t));
 
-  if (curr_module == NULL)
-    (*error_func) (MIR_no_module_error, "Creating proto %s outside module", name);
-  proto_item = create_item (ctx, MIR_proto_item, "proto");
-  proto_item->u.proto = proto = malloc (sizeof (struct MIR_proto) + nres * sizeof (MIR_type_t));
-  if (proto == NULL) {
-    free (proto_item);
+  if (proto == NULL)
     (*error_func) (MIR_alloc_error, "Not enough memory for creation of proto %s", name);
-  }
   proto->name
     = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).str.s;
   proto->res_types = (MIR_type_t *) ((char *) proto + sizeof (struct MIR_proto));
   memcpy (proto->res_types, res_types, nres * sizeof (MIR_type_t));
   proto->nres = nres;
   proto->vararg_p = vararg_p != 0;
+  VARR_CREATE (MIR_var_t, proto->args, nargs);
+  for (size_t i = 0; i < nargs; i++) VARR_PUSH (MIR_var_t, proto->args, args[i]);
+  return proto;
+}
+
+static MIR_item_t new_proto_arr (MIR_context_t ctx, const char *name, size_t nres,
+                                 MIR_type_t *res_types, size_t nargs, int vararg_p,
+                                 MIR_var_t *args) {
+  MIR_item_t proto_item, tab_item;
+
+  if (curr_module == NULL)
+    (*error_func) (MIR_no_module_error, "Creating proto %s outside module", name);
+  proto_item = create_item (ctx, MIR_proto_item, "proto");
+  proto_item->u.proto = create_proto (ctx, name, nres, res_types, nargs, vararg_p, args);
   tab_item = add_item (ctx, proto_item);
   mir_assert (tab_item == proto_item);
-  VARR_CREATE (MIR_var_t, proto->args, nargs);
-  for (i = 0; i < nargs; i++) VARR_PUSH (MIR_var_t, proto->args, args[i]);
   return proto_item;
 }
 
@@ -1283,8 +1298,10 @@ void MIR_finish_func (MIR_context_t ctx) {
   int expr_p = TRUE;
   MIR_insn_t insn;
   MIR_insn_code_t code;
+  const char *func_name;
 
   if (curr_func == NULL) (*error_func) (MIR_no_func_error, "finish of non-existing function");
+  func_name = curr_func->name;
   if (curr_func->vararg_p || curr_func->nargs != 0 || curr_func->nres != 1) expr_p = FALSE;
   for (insn = DLIST_HEAD (MIR_insn_t, curr_func->insns); insn != NULL;
        insn = DLIST_NEXT (MIR_insn_t, insn)) {
@@ -1296,17 +1313,21 @@ void MIR_finish_func (MIR_context_t ctx) {
     code = insn->code;
     if (!curr_func->vararg_p && code == MIR_VA_START) {
       curr_func = NULL;
-      (*error_func) (MIR_vararg_func_error, "va_start is not in vararg function");
+      (*error_func) (MIR_vararg_func_error, "func %s: va_start is not in vararg function",
+                     func_name);
     } else if (code == MIR_RET && actual_nops != curr_func->nres) {
       curr_func = NULL;
       (*error_func) (MIR_vararg_func_error,
-                     "in instruction '%s': number of operands in return does not correspond number "
-                     "of function returns. Expected %d, got %d",
-                     insn_descs[code].name, curr_func->nres, actual_nops);
+                     "func %s: in instruction '%s': number of operands in return does not "
+                     "correspond number of function returns. Expected %d, got %d",
+                     func_name, insn_descs[code].name, curr_func->nres, actual_nops);
     } else if (MIR_call_code_p (code))
       expr_p = FALSE;
     for (i = 0; i < actual_nops; i++) {
-      if (MIR_call_code_p (code)) {
+      if (code == MIR_UNSPEC && i == 0) {
+        mir_assert (insn->ops[i].mode == MIR_OP_INT);
+        continue;
+      } else if (MIR_call_code_p (code)) {
         if (i == 0) {
           mir_assert (insn->ops[i].mode == MIR_OP_REF
                       && insn->ops[i].u.ref->item_type == MIR_proto_item);
@@ -1347,8 +1368,9 @@ void MIR_finish_func (MIR_context_t ctx) {
           if (type2mode (rd->type) != MIR_OP_INT) {
             curr_func = NULL;
             (*error_func) (MIR_reg_type_error,
-                           "in instruction '%s': base reg of non-integer type for operand #%d",
-                           insn_descs[code].name, i + 1);
+                           "func %s: in instruction '%s': base reg of non-integer type for operand "
+                           "#%d",
+                           func_name, insn_descs[code].name, i + 1);
           }
         }
         if (insn->ops[i].u.mem.index != 0) {
@@ -1357,8 +1379,9 @@ void MIR_finish_func (MIR_context_t ctx) {
           if (type2mode (rd->type) != MIR_OP_INT) {
             curr_func = NULL;
             (*error_func) (MIR_reg_type_error,
-                           "in instruction '%s': index reg of non-integer type for operand #%d",
-                           insn_descs[code].name, i + 1);
+                           "func %s: in instruction '%s': index reg of non-integer type for "
+                           "operand #%d",
+                           func_name, insn_descs[code].name, i + 1);
           }
         }
         mode = type2mode (insn->ops[i].u.mem.type);
@@ -1384,13 +1407,15 @@ void MIR_finish_func (MIR_context_t ctx) {
                  && (mode == MIR_OP_UINT ? MIR_OP_INT : mode) != expected_mode) {
         curr_func = NULL;
         (*error_func) (MIR_op_mode_error,
-                       "in instruction '%s': unexpected operand mode for operand #%d. Got '%s', "
-                       "expected '%s'",
-                       insn_descs[code].name, i + 1, mode_str (mode), mode_str (expected_mode));
+                       "func %s: in instruction '%s': unexpected operand mode for operand #%d. Got "
+                       "'%s', expected '%s'",
+                       func_name, insn_descs[code].name, i + 1, mode_str (mode),
+                       mode_str (expected_mode));
       }
       if (out_p && !can_be_out_p) {
         curr_func = NULL;
-        (*error_func) (MIR_out_op_error, "in instruction '%s': wrong operand #%d for insn output",
+        (*error_func) (MIR_out_op_error,
+                       "func %s; in instruction '%s': wrong operand #%d for insn output", func_name,
                        insn_descs[code].name, i + 1);
       }
     }
@@ -1502,6 +1527,8 @@ void MIR_load_module (MIR_context_t ctx, MIR_module_t m) {
   mir_assert (m != NULL);
   for (MIR_item_t item = DLIST_HEAD (MIR_item_t, m->items); item != NULL;
        item = DLIST_NEXT (MIR_item_t, item)) {
+    MIR_item_t first_item = item;
+
     if (item->item_type == MIR_bss_item || item->item_type == MIR_data_item
         || item->item_type == MIR_ref_data_item || item->item_type == MIR_expr_data_item) {
       item = load_bss_data_section (ctx, item, FALSE);
@@ -1514,10 +1541,11 @@ void MIR_load_module (MIR_context_t ctx, MIR_module_t m) {
       }
       _MIR_redirect_thunk (ctx, item->addr, undefined_interface);
     }
-    if (item->export_p) { /* update global item table */
-      mir_assert (item->item_type != MIR_export_item && item->item_type != MIR_import_item
-                  && item->item_type != MIR_forward_item);
-      setup_global (ctx, MIR_item_name (ctx, item), item->addr, item);
+    if (first_item->export_p) { /* update global item table */
+      mir_assert (first_item->item_type != MIR_export_item
+                  && first_item->item_type != MIR_import_item
+                  && first_item->item_type != MIR_forward_item);
+      setup_global (ctx, MIR_item_name (ctx, first_item), first_item->addr, first_item);
     }
   }
   VARR_PUSH (MIR_module_t, modules_to_link, m);
@@ -1677,23 +1705,32 @@ MIR_op_mode_t MIR_insn_op_mode (MIR_context_t ctx, MIR_insn_t insn, size_t nop, 
     *out_p = FALSE;
     /* should be already checked in MIR_finish_func */
     return nop == 0 && code == MIR_SWITCH ? MIR_OP_INT : insn->ops[nop].mode;
-  } else if (MIR_call_code_p (code)) {
-    MIR_op_t proto_op = insn->ops[0];
+  } else if (MIR_call_code_p (code) || code == MIR_UNSPEC) {
+    MIR_op_t proto_op;
     MIR_proto_t proto;
+    size_t args_start;
 
-    mir_assert (proto_op.mode == MIR_OP_REF && proto_op.u.ref->item_type == MIR_proto_item);
-    proto = proto_op.u.ref->u.proto;
-    *out_p = 2 <= nop && nop < proto->nres + 2;
-    nargs = proto->nres + 2 + (proto->args == NULL ? 0 : VARR_LENGTH (MIR_var_t, proto->args));
+    if (code == MIR_UNSPEC) {
+      args_start = 1;
+      mir_assert (insn->ops[0].mode == MIR_OP_INT);
+      mir_assert (insn->ops[0].u.u < VARR_LENGTH (MIR_proto_t, unspec_protos));
+      proto = VARR_GET (MIR_proto_t, unspec_protos, insn->ops[0].u.u);
+    } else {
+      args_start = 2;
+      proto_op = insn->ops[0];
+      mir_assert (proto_op.mode == MIR_OP_REF && proto_op.u.ref->item_type == MIR_proto_item);
+      proto = proto_op.u.ref->u.proto;
+    }
+    *out_p = args_start <= nop && nop < proto->nres + args_start;
+    nargs
+      = proto->nres + args_start + (proto->args == NULL ? 0 : VARR_LENGTH (MIR_var_t, proto->args));
     if (proto->vararg_p && nop >= nargs) return MIR_OP_UNDEF; /* unknown */
     mir_assert (nops >= nargs && (proto->vararg_p || nops == nargs));
-    return (nop == 0
-              ? insn->ops[nop].mode
-              : nop == 1
-                  ? MIR_OP_INT
-                  : 2 <= nop && nop < proto->nres + 2
-                      ? type2mode (proto->res_types[nop - 2])
-                      : type2mode (VARR_GET (MIR_var_t, proto->args, nop - 2 - proto->nres).type));
+    if (nop == 0) return insn->ops[nop].mode;
+    if (nop == 1 && code != MIR_UNSPEC) return MIR_OP_INT; /* call func addr */
+    if (args_start <= nop && nop < proto->nres + args_start)
+      return type2mode (proto->res_types[nop - args_start]);
+    return type2mode (VARR_GET (MIR_var_t, proto->args, nop - args_start - proto->nres).type);
   }
   mode = insn_descs[code].op_modes[nop];
   *out_p = (mode & OUTPUT_FLAG) != 0;
@@ -1747,25 +1784,34 @@ static MIR_insn_t new_insn1 (MIR_context_t ctx, MIR_insn_code_t code) {
 MIR_insn_t MIR_new_insn_arr (MIR_context_t ctx, MIR_insn_code_t code, size_t nops, MIR_op_t *ops) {
   MIR_insn_t insn;
   MIR_proto_t proto;
-  size_t i = 0, expected_nops = insn_code_nops (ctx, code);
+  size_t args_start, i = 0, expected_nops = insn_code_nops (ctx, code);
   mir_assert (ops != NULL);
 
-  if (!MIR_call_code_p (code) && code != MIR_RET && code != MIR_SWITCH && nops != expected_nops) {
+  if (!MIR_call_code_p (code) && code != MIR_UNSPEC && code != MIR_RET && code != MIR_SWITCH
+      && nops != expected_nops) {
     (*error_func) (MIR_ops_num_error, "wrong number of operands for insn %s",
                    insn_descs[code].name);
   } else if (code == MIR_SWITCH) {
     if (nops < 2) (*error_func) (MIR_ops_num_error, "number of MIR_SWITCH operands is less 2");
-  } else if (MIR_call_code_p (code)) {
-    if (nops < 2) (*error_func) (MIR_ops_num_error, "wrong number of call operands");
-    if (ops[0].mode != MIR_OP_REF || ops[0].u.ref->item_type != MIR_proto_item)
-      (*error_func) (MIR_call_op_error, "the 1st call operand should be a prototype");
-    proto = ops[0].u.ref->u.proto;
+  } else if (MIR_call_code_p (code) || code == MIR_UNSPEC) {
+    args_start = code == MIR_UNSPEC ? 1 : 2;
+    if (nops < args_start)
+      (*error_func) (MIR_ops_num_error, "wrong number of call/unspec operands");
+    if (code == MIR_UNSPEC) {
+      if (ops[0].mode != MIR_OP_INT || ops[0].u.u >= VARR_LENGTH (MIR_proto_t, unspec_protos))
+        (*error_func) (MIR_unspec_op_error, "the 1st unspec operand should be valid unspec code");
+      proto = VARR_GET (MIR_proto_t, unspec_protos, ops[0].u.u);
+    } else {
+      if (ops[0].mode != MIR_OP_REF || ops[0].u.ref->item_type != MIR_proto_item)
+        (*error_func) (MIR_call_op_error, "the 1st call operand should be a prototype");
+      proto = ops[0].u.ref->u.proto;
+    }
     i = proto->nres;
     if (proto->args != NULL) i += VARR_LENGTH (MIR_var_t, proto->args);
-    if (nops < i + 2 || (nops != i + 2 && !proto->vararg_p))
-      (*error_func) (MIR_call_op_error,
-                     "number of call operands or results does not correspond to prototype %s",
-                     proto->name);
+    if (nops < i + args_start || (nops != i + args_start && !proto->vararg_p))
+      (*error_func) (code == MIR_UNSPEC ? MIR_unspec_op_error : MIR_call_op_error,
+                     "number of %s operands or results does not correspond to prototype %s",
+                     code == MIR_UNSPEC ? "unspec" : "call", proto->name);
   } else if (code == MIR_VA_ARG) {
     if (ops[2].mode != MIR_OP_MEM)
       (*error_func) (MIR_op_mode_error,
@@ -1792,10 +1838,10 @@ MIR_insn_t MIR_new_insn (MIR_context_t ctx, MIR_insn_code_t code, ...) {
   va_list argp;
   size_t nops = insn_code_nops (ctx, code);
 
-  if (MIR_call_code_p (code) || code == MIR_RET || code == MIR_SWITCH)
+  if (MIR_call_code_p (code) || code == MIR_UNSPEC || code == MIR_RET || code == MIR_SWITCH)
     (*error_func) (MIR_call_op_error,
-                   "Use only MIR_new_insn_arr or MIR_new_{call,ret}_insn for creating a "
-                   "call/ret/switch insn");
+                   "Use only MIR_new_insn_arr or MIR_new_{call,unspec,ret}_insn for creating a "
+                   "call/unspec/ret/switch insn");
   va_start (argp, code);
   return new_insn (ctx, code, nops, argp);
 }
@@ -1812,6 +1858,28 @@ MIR_insn_t MIR_new_ret_insn (MIR_context_t ctx, size_t nops, ...) {
 
   va_start (argp, nops);
   return new_insn (ctx, MIR_RET, nops, argp);
+}
+
+MIR_insn_t _MIR_new_unspec_insn (MIR_context_t ctx, size_t nops, ...) {
+  va_list argp;
+
+  va_start (argp, nops);
+  return new_insn (ctx, MIR_UNSPEC, nops, argp);
+}
+
+void _MIR_register_unspec_insn (MIR_context_t ctx, uint64_t code, const char *name, size_t nres,
+                                MIR_type_t *res_types, size_t nargs, int vararg_p,
+                                MIR_var_t *args) {
+  MIR_proto_t proto;
+
+  while (VARR_LENGTH (MIR_proto_t, unspec_protos) <= code)
+    VARR_PUSH (MIR_proto_t, unspec_protos, NULL);
+  if ((proto = VARR_GET (MIR_proto_t, unspec_protos, code)) == NULL) {
+    VARR_SET (MIR_proto_t, unspec_protos, code,
+              create_proto (ctx, name, nres, res_types, nargs, vararg_p, args));
+  } else {
+    assert (strcmp (proto->name, name) == 0);
+  }
 }
 
 MIR_insn_t MIR_copy_insn (MIR_context_t ctx, MIR_insn_t insn) {
@@ -2293,6 +2361,8 @@ void MIR_output_insn (MIR_context_t ctx, FILE *f, MIR_insn_t insn, MIR_func_t fu
     fprintf (f, i == 0 ? "\t" : ", ");
     MIR_output_op (ctx, f, insn->ops[i], func);
   }
+  if (insn->code == MIR_UNSPEC)
+    fprintf (f, " # %s", VARR_GET (MIR_proto_t, unspec_protos, insn->ops[0].u.u)->name);
   if (newline_p) fprintf (f, "\n");
 }
 
@@ -2519,6 +2589,7 @@ void MIR_simplify_op (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn, 
   MIR_op_mode_t value_mode = op->value_mode;
   int move_p = code == MIR_MOV || code == MIR_FMOV || code == MIR_DMOV || code == MIR_LDMOV;
 
+  if (code == MIR_UNSPEC && nop == 0) return; /* do nothing: it is an unspec code */
   if (MIR_call_code_p (code)) {
     if (nop == 0) return; /* do nothing: it is a prototype */
     if (nop == 1 && op->mode == MIR_OP_REF
@@ -3341,7 +3412,7 @@ static code_holder_t *get_last_code_holder (MIR_context_t ctx, size_t size) {
 #ifndef __MIRC__
 void _MIR_flush_code_cache (void *start, void *bound) {
 #ifdef __GNUC__
-  __clear_cache (start, bound);
+  __builtin___clear_cache (start, bound);
 #endif
 }
 #endif
@@ -3773,6 +3844,8 @@ static size_t write_insn (MIR_context_t ctx, writer_func_t writer, MIR_func_t fu
   MIR_insn_code_t code = insn->code;
   size_t len;
 
+  if (code == MIR_UNSPEC)
+    (*error_func) (MIR_binary_io_error, "MIR_UNSPEC is not portable and can not be output");
   if (code == MIR_LABEL) return write_lab (ctx, writer, insn);
   nops = MIR_insn_nops (ctx, insn);
   len = write_uint (ctx, writer, code);
@@ -4583,6 +4656,8 @@ void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t))
 
       if (insn_code >= MIR_LABEL)
         (*error_func) (MIR_binary_io_error, "wrong insn code %d", insn_code);
+      if (insn_code == MIR_UNSPEC)
+        (*error_func) (MIR_binary_io_error, "UNSPEC is not portable and can not be read");
       for (uint64_t i = 0; i < VARR_LENGTH (uint64_t, insn_label_string_nums); i++) {
         lab = to_lab (ctx, VARR_GET (uint64_t, insn_label_string_nums, i));
         MIR_append_insn (ctx, func, lab);
@@ -5164,6 +5239,8 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
       if (!HTAB_DO (insn_name_t, insn_name_tab, in, HTAB_FIND, el))
         scan_error (ctx, "Unknown insn %s", name);
       insn_code = el.code;
+      if (insn_code == MIR_UNSPEC)
+        scan_error (ctx, "UNSPEC is not portable and can not be scanned", name);
       for (n = 0; n < VARR_LENGTH (label_name_t, label_names); n++) {
         label = create_label_desc (ctx, VARR_GET (label_name_t, label_names, n));
         if (func != NULL) MIR_append_insn (ctx, func, label);
