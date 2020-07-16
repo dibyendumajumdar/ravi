@@ -51,7 +51,7 @@ Lua Goodies
 ===========
 * `An Introduction to Lua <http://the-ravi-programming-language.readthedocs.io/en/latest/lua-introduction.html>`_ attempts to provide a quick overview of Lua for folks coming from other languages.
 * `Lua 5.3 Bytecode Reference <http://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html>`_ is my attempt to bring up to date the `Lua 5.1 Bytecode Reference <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_.
-* A `patch for Lua 5.3 <http://lua-users.org/lists/lua-l/2020-01/msg00004.html>`_ implements the 'defer' statement.
+* A `patch for Lua 5.3 <https://github.com/dibyendumajumdar/ravi/blob/master/patches/defer_statement_for_Lua_5_3.patch>`_ implements the 'defer' statement.
 
 Lua 5.4 Position Statement
 ==========================
