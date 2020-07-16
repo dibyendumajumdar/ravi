@@ -374,15 +374,17 @@ Generational Garbage Collection
 Ravi incorporates the generational garbage collector from Lua 5.4.
 Please refer to the Lua 5.4 manual regarding the api changes to support generational collection.
 
-Note that by default, Ravi now enables generational garbage collector.
+Note that by default, Ravi uses the incremental garbage collector. The generational collector is new and may have bugs in its implementation
+(a few bugs have been reported on Lua mailing lists, fixes are being applied to Ravi when applicable).
+
+To switch to generational GC::
+
+   collectgarbage("generational")
 
 To switch to incremental GC::
 
    collectgarbage("incremental")
-   
-To switch to generational GC::
 
-   collectgarbage("generational")
 
 -----------------------
 Random Number Generator
