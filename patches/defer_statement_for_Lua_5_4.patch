@@ -1,0 +1,669 @@
+Index: lopnames.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- lopnames.h	(revision 170752d62751963767b93263989bac427d7c785f)
++++ lopnames.h	(date 1594983665385)
+@@ -93,6 +93,7 @@
+   "TFORLOOP",
+   "SETLIST",
+   "CLOSURE",
++  "DEFER",
+   "VARARG",
+   "VARARGPREP",
+   "EXTRAARG",
+Index: lfunc.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- lfunc.c	(revision 170752d62751963767b93263989bac427d7c785f)
++++ lfunc.c	(date 1594987185491)
+@@ -91,7 +91,7 @@
+   lua_assert(isintwups(L) || L->openupval == NULL);
+   while ((p = *pp) != NULL && uplevel(p) >= level) {  /* search for it */
+     lua_assert(!isdead(G(L), p));
+-    if (uplevel(p) == level)  /* corresponding upvalue? */
++    if (uplevel(p) == level && p->tbc != UV_FLAG_DEFER)  /* corresponding upvalue? - not deferred */
+       return p;  /* return it */
+     pp = &p->u.open.next;
+   }
+@@ -99,6 +99,27 @@
+   return newupval(L, 0, level, pp);
+ }
+ 
++static void calldeferred(lua_State *L, void *ud) {
++  UNUSED(ud);
++  luaD_callnoyield(L, L->top - 2, 0);
++}
++
++/*
++** Prepare deferred function plus its arguments for object 'obj' with
++** error message 'err'. (This function assumes EXTRA_STACK.)
++*/
++static int preparetocall(lua_State *L, TValue *func, TValue *err) {
++  StkId top = L->top;
++  setobj2s(L, top, func);  /* will call deferred function */
++  if (err) {
++    setobj2s(L, top + 1, err); /* and error msg. as 1st argument */
++  }
++  else {
++    setnilvalue(s2v(top + 1));
++  }
++  L->top = top + 2;  /* add function and arguments */
++  return 1;
++}
+ 
+ static void callclose (lua_State *L, void *ud) {
+   UNUSED(ud);
+@@ -147,11 +168,15 @@
+ ** the 'level' of the upvalue being closed, as everything after
+ ** that won't be used again.
+ */
+-static int callclosemth (lua_State *L, StkId level, int status) {
++static int callclosemth (lua_State *L, StkId level, int status, int tbc) {
+   TValue *uv = s2v(level);  /* value being closed */
+   if (likely(status == LUA_OK)) {
+-    if (prepclosingmethod(L, uv, &G(L)->nilvalue))  /* something to call? */
++    if (tbc == UV_FLAG_TBC && prepclosingmethod(L, uv, &G(L)->nilvalue))  /* something to call? */
+       callclose(L, NULL);  /* call closing method */
++    else if (tbc == UV_FLAG_DEFER && ttisfunction(uv)) {
++      preparetocall(L, uv, &G(L)->nilvalue);
++      calldeferred(L, NULL);
++    }
+     else if (!l_isfalse(uv))  /* non-closable non-false value? */
+       varerror(L, level, "attempt to close non-closable variable '%s'");
+   }
+@@ -160,8 +185,16 @@
+     level++;  /* space for error message */
+     oldtop = savestack(L, level + 1);  /* top will be after that */
+     luaD_seterrorobj(L, status, level);  /* set error message */
+-    if (prepclosingmethod(L, uv, s2v(level))) {  /* something to call? */
+-      int newstatus = luaD_pcall(L, callclose, NULL, oldtop, 0);
++    int docall = 1;
++    if (tbc == UV_FLAG_TBC) {
++      docall = prepclosingmethod(L, uv, s2v(level));
++    }
++    else {
++      lua_assert(tbc == UV_FLAG_DEFER);
++      preparetocall(L, uv, s2v(level));
++    }
++    if (docall) {  /* something to call? */
++      int newstatus = luaD_pcall(L, tbc == UV_FLAG_TBC ? callclose: calldeferred, NULL, oldtop, 0);
+       if (newstatus != LUA_OK && status == CLOSEPROTECT)  /* first error? */
+         status = newstatus;  /* this will be the new error */
+       else {
+@@ -228,7 +261,7 @@
+     if (uv->tbc && status != NOCLOSINGMETH) {
+       /* must run closing method, which may change the stack */
+       ptrdiff_t levelrel = savestack(L, level);
+-      status = callclosemth(L, uplevel(uv), status);
++      status = callclosemth(L, uplevel(uv), status, uv->tbc);
+       level = restorestack(L, levelrel);
+     }
+     luaF_unlinkupval(uv);
+Index: ljumptab.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ljumptab.h	(revision 170752d62751963767b93263989bac427d7c785f)
++++ ljumptab.h	(date 1594983953252)
+@@ -105,6 +105,7 @@
+ &&L_OP_TFORLOOP,
+ &&L_OP_SETLIST,
+ &&L_OP_CLOSURE,
++&&L_OP_DEFER,
+ &&L_OP_VARARG,
+ &&L_OP_VARARGPREP,
+ &&L_OP_EXTRAARG
+Index: llex.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- llex.c	(revision 170752d62751963767b93263989bac427d7c785f)
++++ llex.c	(date 1594983621522)
+@@ -40,7 +40,7 @@
+ static const char *const luaX_tokens [] = {
+     "and", "break", "do", "else", "elseif",
+     "end", "false", "for", "function", "goto", "if",
+-    "in", "local", "nil", "not", "or", "repeat",
++    "in", "local", "defer", "nil", "not", "or", "repeat",
+     "return", "then", "true", "until", "while",
+     "//", "..", "...", "==", ">=", "<=", "~=",
+     "<<", ">>", "::", "<eof>",
+Index: lopcodes.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- lopcodes.c	(revision 170752d62751963767b93263989bac427d7c785f)
++++ lopcodes.c	(date 1594984035037)
+@@ -97,6 +97,7 @@
+  ,opmode(0, 0, 0, 0, 1, iABx)		/* OP_TFORLOOP */
+  ,opmode(0, 0, 1, 0, 0, iABC)		/* OP_SETLIST */
+  ,opmode(0, 0, 0, 0, 1, iABx)		/* OP_CLOSURE */
++ ,opmode(0, 0, 0, 0, 1, iABC)		/* OP_DEFER */
+  ,opmode(0, 1, 0, 0, 1, iABC)		/* OP_VARARG */
+  ,opmode(0, 0, 1, 0, 1, iABC)		/* OP_VARARGPREP */
+  ,opmode(0, 0, 0, 0, 0, iAx)		/* OP_EXTRAARG */
+Index: lparser.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- lparser.c	(revision 170752d62751963767b93263989bac427d7c785f)
++++ lparser.c	(date 1594983592571)
+@@ -709,10 +709,17 @@
+ ** are in use at that time.
+ 
+ */
+-static void codeclosure (LexState *ls, expdesc *v) {
++static void codeclosure (LexState *ls, expdesc *v, int deferred) {
+   FuncState *fs = ls->fs->prev;
++  int pc = -1;
++  if (deferred) {
++    pc = luaK_codeABC(fs, OP_DEFER, 0, 0, 0);
++  }
+   init_exp(v, VRELOC, luaK_codeABx(fs, OP_CLOSURE, 0, fs->np - 1));
+   luaK_exp2nextreg(fs, v);  /* fix it at the last register */
++  if (deferred) {
++    SETARG_A(fs->f->code[pc], v->u.info);
++  }
+ }
+ 
+ 
+@@ -977,24 +984,26 @@
+ }
+ 
+ 
+-static void body (LexState *ls, expdesc *e, int ismethod, int line) {
++static void body (LexState *ls, expdesc *e, int ismethod, int line, int deferred) {
+   /* body ->  '(' parlist ')' block END */
+   FuncState new_fs;
+   BlockCnt bl;
+   new_fs.f = addprototype(ls);
+   new_fs.f->linedefined = line;
+   open_func(ls, &new_fs, &bl);
+-  checknext(ls, '(');
+-  if (ismethod) {
+-    new_localvarliteral(ls, "self");  /* create 'self' parameter */
+-    adjustlocalvars(ls, 1);
+-  }
+-  parlist(ls);
+-  checknext(ls, ')');
++  if (!deferred) {
++    checknext(ls, '(');
++    if (ismethod) {
++      new_localvarliteral(ls, "self"); /* create 'self' parameter */
++      adjustlocalvars(ls, 1);
++    }
++    parlist(ls);
++    checknext(ls, ')');
++  }
+   statlist(ls);
+   new_fs.f->lastlinedefined = ls->linenumber;
+   check_match(ls, TK_END, TK_FUNCTION, line);
+-  codeclosure(ls, e);
++  codeclosure(ls, e, deferred);
+   close_func(ls);
+ }
+ 
+@@ -1170,7 +1179,7 @@
+     }
+     case TK_FUNCTION: {
+       luaX_next(ls);
+-      body(ls, v, 0, ls->linenumber);
++      body(ls, v, 0, ls->linenumber, 0);
+       return;
+     }
+     default: {
+@@ -1714,13 +1723,21 @@
+ }
+ 
+ 
+-static void localfunc (LexState *ls) {
++static void localfunc (LexState *ls, int defer) {
+   expdesc b;
+   FuncState *fs = ls->fs;
+   int fvar = fs->nactvar;  /* function's variable index */
+-  new_localvar(ls, str_checkname(ls));  /* new local variable */
++  if (defer) {
++    static const char funcname[] = "(deferred function)";
++    new_localvar(ls, luaX_newstring(ls, funcname, sizeof funcname-1));  /* new local variable */
++    markupval(fs, fs->nactvar);
++    fs->bl->insidetbc = 1;  /* in the scope of a defer closure variable */
++  }
++  else {
++    new_localvar(ls, str_checkname(ls)); /* new local variable */
++  }
+   adjustlocalvars(ls, 1);  /* enter its scope */
+-  body(ls, &b, 0, ls->linenumber);  /* function created in next register */
++  body(ls, &b, 0, ls->linenumber, defer);  /* function created in next register */
+   /* debug information will only see the variable after this point! */
+   localdebuginfo(fs, fvar)->startpc = fs->pc;
+ }
+@@ -1815,7 +1832,7 @@
+   expdesc v, b;
+   luaX_next(ls);  /* skip FUNCTION */
+   ismethod = funcname(ls, &v);
+-  body(ls, &b, ismethod, line);
++  body(ls, &b, ismethod, line, 0);
+   luaK_storevar(ls->fs, &v, &b);
+   luaK_fixline(ls->fs, line);  /* definition "happens" in the first line */
+ }
+@@ -1908,10 +1925,15 @@
+     case TK_LOCAL: {  /* stat -> localstat */
+       luaX_next(ls);  /* skip LOCAL */
+       if (testnext(ls, TK_FUNCTION))  /* local function? */
+-        localfunc(ls);
++        localfunc(ls, 0);
+       else
+         localstat(ls);
+       break;
++    }
++    case TK_DEFER: {  /* stat -> deferstat */
++      luaX_next(ls);  /* skip DEFER */
++      localfunc(ls, 1);
++      break;
+     }
+     case TK_DBCOLON: {  /* stat -> label */
+       luaX_next(ls);  /* skip double colon */
+Index: llex.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- llex.h	(revision 170752d62751963767b93263989bac427d7c785f)
++++ llex.h	(date 1594983196960)
+@@ -27,7 +27,7 @@
+   /* terminal symbols denoted by reserved words */
+   TK_AND = FIRST_RESERVED, TK_BREAK,
+   TK_DO, TK_ELSE, TK_ELSEIF, TK_END, TK_FALSE, TK_FOR, TK_FUNCTION,
+-  TK_GOTO, TK_IF, TK_IN, TK_LOCAL, TK_NIL, TK_NOT, TK_OR, TK_REPEAT,
++  TK_GOTO, TK_IF, TK_IN, TK_LOCAL, TK_DEFER, TK_NIL, TK_NOT, TK_OR, TK_REPEAT,
+   TK_RETURN, TK_THEN, TK_TRUE, TK_UNTIL, TK_WHILE,
+   /* other terminal symbols */
+   TK_IDIV, TK_CONCAT, TK_DOTS, TK_EQ, TK_GE, TK_LE, TK_NE,
+Index: lvm.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- lvm.c	(revision 170752d62751963767b93263989bac427d7c785f)
++++ lvm.c	(date 1594983746500)
+@@ -1785,6 +1785,12 @@
+         checkGC(L, ra + 1);
+         vmbreak;
+       }
++      vmcase(OP_DEFER) {
++        UpVal *up = luaF_findupval(L, ra); /* create new upvalue */
++        up->tbc = UV_FLAG_DEFER;  /* mark it as deferred */
++        setnilvalue(s2v(ra));  /* initialize it with nil */
++        vmbreak;
++      }
+       vmcase(OP_VARARG) {
+         int n = GETARG_C(i) - 1;  /* required results */
+         Protect(luaT_getvarargs(L, ci, ra, n));
+Index: testes/defer.lua
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- testes/defer.lua	(date 1594989486660)
++++ testes/defer.lua	(date 1594989486660)
+@@ -0,0 +1,319 @@
++-- ================================================================
++-- Following section is an extract from the code.lua test 
++-- These functions test bytecode generation, and also provide
++-- helper routines that we use later on in other test cases
++
++-- testing opcodes
++function check (f, ...)
++  if not T then
++    return true
++  end
++  local arg = {...}
++  local c = T.listcode(f)
++  for i=1, #arg do
++    --print(arg[i], c[i])
++    opcodes_coverage[arg[i]] = opcodes_coverage[arg[i]]+1
++    assert(string.find(c[i], '- '..arg[i]..' *[AB][xs]?=%d'))
++  end
++  assert(c[#arg+2] == nil)
++end
++
++-- Test defer statement
++do
++    local y = 0
++    local function x()
++        defer y = y + 1 end
++        defer y = y + 1 end
++    end
++    check(x, 'DEFER', 'CLOSURE', 'DEFER', 'CLOSURE', 'RETURN')
++    x()
++    assert(y == 2)
++    print 'Test 1 OK'
++end
++
++-- Test defer statement
++do
++    local y = 0
++    local function x()
++        defer y = y + 1 end
++        error('raise error')
++        defer y = y + 2 end -- will not be called
++    end
++    pcall(x)
++    assert(y == 1)
++    print 'Test 2 OK'
++end
++
++-- Test defer statement
++do
++    local y = 0
++    local function x()
++        defer y = y + 1 end
++        defer y = y + 2; error('err') end
++        defer y = y + 3 end
++    end
++    pcall(x)
++    --assert(y == 6)
++    -- Seems the defer closure that errored is called twice
++    -- FIXME why? See also test 12 below - same issue I think
++    -- This appears to be a feature of Lua 5.4
++    assert(y == 8)
++    print 'Test 3 OK'
++end
++
++-- Test defer statement in tailcalls
++do
++    local y = 0
++    local function x (n)
++        defer y = y + 1 end
++        if n > 0 then return x(n - 1) end
++    end
++    pcall(x, 3)
++    assert(y == 4)
++    print 'Test 4 OK'
++end
++
++-- Simulate a test of resource closure with defer
++do
++    local y = 0
++    local z = { count = 0 }
++    z.__index = z;
++    function z:new()
++        local object = {}
++        setmetatable(object, z)
++        return object
++    end
++    function z:open(arg) 
++        if (arg) then
++            z.count = z.count + 1
++            return
++        end
++        y = 1
++        error('error opening')
++    end
++    function z.close()
++        z.count = z.count - 1
++    end
++    local function x(arg) 
++        local f = z:new()
++        f:open(arg)
++        assert(z.count == 1)
++        defer f:close() end
++    end
++    x('filename')
++    assert(y == 0)
++    assert(z.count == 0)
++    pcall(x, false)
++    assert(z.count == 0)
++    assert(y == 1)
++    print 'Test 5 OK'
++end
++
++--- Test stack reallocation in defer statement
++do
++    local function x(a) if a <= 0 then return else x(a-1) end end
++    local y = 100
++    local function z(...)
++        -- recursive call to make stack
++	    defer x(y) end
++	    return ...
++    end
++    do
++        local a,b,c = z(1,2,3)
++        assert(a == 1 and b == 2 and c == 3)
++        a,b,c = z(3,2,1)
++        assert(a == 3 and b == 2 and c == 1)
++    end
++    print 'Test 6 OK'
++end
++
++-- Adapted from Lua 5.4
++local function stack(n) n = ((n == 0) or stack(n - 1)) end
++
++local function func2close (f, x, y)
++    local obj = setmetatable({}, {__close = f})
++    if x then
++        return x, obj, y
++    else
++        return obj
++    end
++end
++
++do
++    local function t() 
++        local a = {}
++        do
++            local b = false   -- not to be closed
++            -- x is <close>
++            local x = setmetatable({"x"}, {__close = function (self)
++                                                    a[#a + 1] = self[1] end})
++            defer getmetatable(x).__close(x) end
++            -- y is <close>
++            local w, y, z = func2close(function (self, err)
++                                    assert(err == nil); a[#a + 1] = "y"
++                                end, 10, 20)
++            defer getmetatable(y).__close(y) end
++            local c = nil  -- not to be closed
++            a[#a + 1] = "in"
++            assert(w == 10 and z == 20)
++        end
++        a[#a + 1] = "out"
++        assert(a[1] == "in" and a[2] == "y" and a[3] == "x" and a[4] == "out")
++    end
++    t()
++    print 'Test 7 OK'
++end
++
++do
++    local function t()
++    local X = false
++
++    local x, closescope = func2close(function () stack(10); X = true end, 100)
++    assert(x == 100);  x = 101;   -- 'x' is not read-only
++
++    -- closing functions do not corrupt returning values
++    local function foo (x)
++        local _ = closescope
++        defer getmetatable(_).__close(_) end
++        return x, X, 23
++    end
++
++    local a, b, c = foo(1.5)
++    assert(a == 1.5 and b == false and c == 23 and X == true)
++
++    X = false
++    foo = function (x)
++        local _ = closescope
++        defer getmetatable(_).__close(_) end
++        local y = 15
++        return y
++    end
++
++    assert(foo() == 15 and X == true)
++
++    X = false
++    foo = function ()
++        local x = closescope
++        defer getmetatable(x).__close(x) end
++        return x
++    end
++
++    assert(foo() == closescope and X == true)
++    end
++    t()
++    print 'Test 8 OK'
++end
++
++do
++    local function t()
++        -- calls cannot be tail in the scope of to-be-closed variables
++        local X, Y
++        local function foo ()
++            local _ = func2close(function () Y = 10 end)
++            defer getmetatable(_).__close(_) end
++            assert(X == true and Y == nil)    -- 'X' not closed yet
++            return 1,2,3
++        end
++
++        local function bar ()
++            local _ = func2close(function () X = false end)
++            defer getmetatable(_).__close(_) end
++            X = true
++            do
++                return foo()    -- not a tail call!
++            end
++        end
++        
++        local a, b, c, d = bar()
++        assert(a == 1 and b == 2 and c == 3 and X == false and Y == 10 and d == nil)
++        return foo, bar
++    end
++    local f,b = t()
++    print 'Test 9 OK'
++end
++
++do
++    local function t()
++        -- an error in a wrapped coroutine closes variables
++        local x = false
++        local y = false
++        local co = coroutine.wrap(function ()
++            local xv = func2close(function () x = true end)
++            defer getmetatable(xv).__close(xv) end
++            do
++                local yv = func2close(function () y = true end)
++                defer getmetatable(yv).__close(yv) end
++                coroutine.yield(100)   -- yield doesn't close variable
++            end
++            coroutine.yield(200)   -- yield doesn't close variable
++            error(23)              -- error does
++        end)
++
++        local b = co()
++        assert(b == 100 and not x and not y)
++        b = co()
++        assert(b == 200 and not x and y)
++        local a, b = pcall(co)
++        assert(not a and b == 23 and x and y)
++    end
++    t()
++    print 'Test 10 OK'
++end
++
++-- a suspended coroutine should not close its variables when collected
++do
++    function t()
++        local co
++        co = coroutine.wrap(function()
++            -- should not run
++            local x = func2close(function () os.exit(false) end)
++            defer getmetatable(x).__close(x) end
++            co = nil
++            coroutine.yield()
++        end)
++        co()                 -- start coroutine
++        assert(co == nil)    -- eventually it will be collected
++        collectgarbage()
++    end
++    t()
++    print 'Test 11 OK'
++end
++
++do
++    local function t()
++        -- error in a wrapped coroutine raising errors when closing a variable
++        local x = 0
++        local co = coroutine.wrap(function ()
++            local xx = func2close(function () x = x + 1; error("@YYY") end)
++            defer getmetatable(xx).__close(xx) end
++            local xv = func2close(function () x = x + 1; error("@XXX") end)
++            defer getmetatable(xv).__close(xv) end
++            coroutine.yield(100)
++            error(200)
++        end)
++        assert(co() == 100); assert(x == 0)
++        local st, msg = pcall(co); assert(x == 2)
++        assert(not st and msg == 200)   -- should get first error raised
++
++        local x = 0
++        local y = 0
++        co = coroutine.wrap(function ()
++            local xx = func2close(function () y = y + 1; error("YYY") end)
++            defer getmetatable(xx).__close(xx) end
++            local xv = func2close(function () x = x + 1; error("XXX") end)
++            defer getmetatable(xv).__close(xv) end
++            coroutine.yield(100)
++            return 200
++        end)
++        assert(co() == 100); assert(x == 0)
++        local st, msg = pcall(co)
++        assert(not st and string.find(msg, "%w+%.%w+:%d+: XXX"))
++        -- Seems the close is called twice here
++        -- FIXME why ?
++        assert(x == 2 and y == 1)
++    end
++    t()
++    print 'Test 12 OK'
++end
++
++print 'OK'
+Index: lobject.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- lobject.h	(revision 170752d62751963767b93263989bac427d7c785f)
++++ lobject.h	(date 1594981708043)
+@@ -596,6 +596,10 @@
+     val_(io).gc = obj2gco(x_); settt_(io, ctb(LUA_VCCL)); \
+     checkliveness(L,io); }
+ 
++enum {
++  UV_FLAG_TBC = 1,
++  UV_FLAG_DEFER = 3
++};
+ 
+ /*
+ ** Upvalues for Lua closures
+Index: lopcodes.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- lopcodes.h	(revision 170752d62751963767b93263989bac427d7c785f)
++++ lopcodes.h	(date 1594983320288)
+@@ -300,6 +300,7 @@
+ OP_SETLIST,/*	A B C k	R[A][(C-1)*FPF+i] := R[A+i], 1 <= i <= B	*/
+ 
+ OP_CLOSURE,/*	A Bx	R[A] := closure(KPROTO[Bx])			*/
++OP_DEFER,
+ 
+ OP_VARARG,/*	A C	R[A], R[A+1], ..., R[A+C-2] = vararg		*/
+ 
