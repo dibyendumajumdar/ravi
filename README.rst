@@ -4,7 +4,7 @@ Ravi Programming Language
 .. image:: https://travis-ci.org/dibyendumajumdar/ravi.svg?branch=master
     :target: https://travis-ci.org/dibyendumajumdar/ravi
 
-Ravi is a derivative/dialect of `Lua 5.3 <http://www.lua.org/>`_ with limited optional static typing and 
+Ravi is a dialect of `Lua <http://www.lua.org/>`_ with limited optional static typing and 
 features `MIR <https://github.com/vnmakarov/mir>`_ and `LLVM <http://www.llvm.org/>`_ powered JIT compilers. 
 The name Ravi comes from the Sanskrit word for the Sun. 
 Interestingly a precursor to Lua was `Sol <http://www.lua.org/history.html>`_ which had support for 
@@ -52,6 +52,7 @@ Lua Goodies
 * `An Introduction to Lua <http://the-ravi-programming-language.readthedocs.io/en/latest/lua-introduction.html>`_ attempts to provide a quick overview of Lua for folks coming from other languages.
 * `Lua 5.3 Bytecode Reference <http://the-ravi-programming-language.readthedocs.io/en/latest/lua_bytecode_reference.html>`_ is my attempt to bring up to date the `Lua 5.1 Bytecode Reference <http://luaforge.net/docman/83/98/ANoFrillsIntroToLua51VMInstructions.pdf>`_.
 * A `patch for Lua 5.3 <https://github.com/dibyendumajumdar/ravi/blob/master/patches/defer_statement_for_Lua_5_3.patch>`_ implements the 'defer' statement.
+* A `patch for Lua 5.4 <https://github.com/dibyendumajumdar/ravi/blob/master/patches/defer_statement_for_Lua_5_4.patch>`_ implements the 'defer' statement.
 
 Lua 5.4 Position Statement
 ==========================
@@ -61,7 +62,7 @@ Lua 5.4 relationship to Ravi is as follows:
 * New random number generator - back-ported to Ravi.
 * Multiple user values can be associated with userdata - under consideration.
 * ``<const>`` variables - not planned. 
-* ``<close>`` variables - Ravi has ``'defer'`` statement which is better option in my opinion, hence no plans to support ``<close>`` variables.
+* ``<close>`` variables - Ravi has ``'defer'`` statement which is the better option in my opinion, hence no plans to support ``<close>`` variables. 
 * Interpreter performance improvements - these are beneficial to Lua interpreter but not to the JIT backends, hence not much point in back-porting.
 * Table implementation changes - under consideration. 
 * String to number coercion is now part of string library metamethods - back-ported to Ravi.
@@ -76,7 +77,7 @@ Ravi should be able to run all Lua 5.3 programs in interpreted mode, but followi
 * Values crossing from Lua to Ravi will be subjected to typechecks should these values be assigned to typed variables.
 * Upvalues cannot subvert the static typing of local variables (issue #26) when types are annotated.
 * Certain Lua limits are reduced due to changed byte code structure. These are described below.
-* Ravi uses an extended bytecode which means it is not compatible with Lua 5.3 bytecode.
+* Ravi uses an extended bytecode which means it is not compatible with Lua 5.x bytecode.
 * Ravi incorporates the new Generational GC from Lua 5.4, hence the GC interface has changed. 
 
 +-----------------+-------------+-------------+
