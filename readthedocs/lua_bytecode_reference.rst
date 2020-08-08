@@ -55,6 +55,7 @@ All register addressing is done as offset from ``base`` - so ``R(0)`` is at ``ba
 
    The figure above shows how the stack is related to other Lua objects.
 
+When the function returns the return values are copied to location starting at the function reference.
 
 Instruction Notation
 ====================
@@ -262,9 +263,9 @@ Thus upon entry to a function ``base`` is always the location of the first fixed
   R(A+3)                               CI->base  [ fixed arg 1 ]   CI->base [ local 1    ]
   R(A+4)                                         [ local 1     ]
                                         
-Results returned by the function call are placed in a range of registers starting from R(A). 
-If C is 1, no return results are saved. If C is 2 or more, (C-1) return values are saved. 
-If C is 0, then multiple return results are saved. In this case the number of values to save is 
+Results returned by the function call are placed in a range of registers starting from ``CI->func``. 
+If ``C`` is ``1``, no return results are saved. If ``C`` is 2 or more, ``(C-1)`` return values are saved. 
+If ``C`` is ``0``, then multiple return results are saved. In this case the number of values to save is 
 determined by one of following ways:
 
 * A C function returns an integer value indicating number of results returned so for C function calls
