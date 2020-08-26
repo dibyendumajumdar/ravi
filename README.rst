@@ -103,14 +103,14 @@ History
 =======
 * 2015
        - Implemented JIT compilation using LLVM
-       - Implemented libgccjit based alternative JIT (now discontinued)
+       - Implemented `libgccjit based alternative JIT <https://github.com/dibyendumajumdar/ravi/tree/gccjit-ravi534>`_ (now discontinued)
 * 2016
        - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_
 * 2017
        - Embedded C compiler using dmrC project (C JIT compiler) (now discontinued)
        - Additional type-annotations
 * 2018
-       - Implemented Eclipse OMR JIT backend (now discontinued)
+       - Implemented `Eclipse OMR JIT backend <https://github.com/dibyendumajumdar/ravi/tree/omrjit>`_ (now discontinued)
        - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * 2019 
        - New language feature - `defer` statement
