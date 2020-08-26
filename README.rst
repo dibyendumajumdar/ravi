@@ -103,7 +103,7 @@ History
 =======
 * 2015
        - Implemented JIT compilation using LLVM
-       - Implemented libgccjit based alternative JIT (now discontinued)
+       - Implemented [libgccjit based alternative JIT](https://github.com/dibyendumajumdar/ravi/tree/gccjit-ravi534) (now discontinued)
 * 2016
        - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_
 * 2017
