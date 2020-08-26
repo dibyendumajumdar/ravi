@@ -110,7 +110,7 @@ History
        - Embedded C compiler using dmrC project (C JIT compiler) (now discontinued)
        - Additional type-annotations
 * 2018
-       - Implemented Eclipse OMR JIT backend (now discontinued)
+       - Implemented `Eclipse OMR JIT backend <https://github.com/dibyendumajumdar/ravi/tree/omrjit>`_ (now discontinued)
        - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * 2019 
        - New language feature - `defer` statement
