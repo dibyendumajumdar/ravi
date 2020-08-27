@@ -54,8 +54,10 @@ LUAMOD_API int (luaopen_package) (lua_State *L);
 #define LUA_RAVILIBNAME	"ravi"
 LUAMOD_API int (raviopen_jit)(lua_State *L);
 
-#define LUA_ASTLIBNAME	"ast"
-LUAMOD_API int (raviopen_ast_library)(lua_State *L);
+#define LUA_RAVICOMPLIBNAME	"compiler"
+LUAMOD_API int (raviopen_compiler)(lua_State *L);
+
+
 
 /* open all previous libraries */
 LUALIB_API void (luaL_openlibs) (lua_State *L);
