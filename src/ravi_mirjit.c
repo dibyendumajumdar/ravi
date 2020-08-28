@@ -387,7 +387,7 @@ MIR_module_t mir_compile_C_module(
   MIR_module_t module = NULL;
   c2mir_init(ctx);
   options->module_num++;
-  snprintf(module_name, sizeof module_name, "__mod_%d__", options->module_num);
+  snprintf(module_name, sizeof module_name, "__mod_%lld__", options->module_num);
   options->message_file = stderr;
   if (!c2mir_compile(ctx, options, t_getc, &read_buffer, module_name, NULL)) {
     ret_code = 1;
