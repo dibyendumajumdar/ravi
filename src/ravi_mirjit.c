@@ -188,7 +188,7 @@ int raviV_initjit(struct lua_State *L) {
   jit->enabled_ = 1;
   jit->min_code_size_ = 150;
   jit->min_exec_count_ = 50;
-  jit->opt_level_ = 1;
+  jit->opt_level_ = 2;
   // The parameter true means we will be dumping stuff as we compile
   jit->jit = MIR_init();
   G->ravi_state = jit;
@@ -281,7 +281,7 @@ int raviV_getjitenabled(lua_State *L) {
 void raviV_setoptlevel(lua_State *L, int value) {
   global_State *G = G(L);
   if (!G->ravi_state) return;
-  G->ravi_state->opt_level_ = value;
+  G->ravi_state->opt_level_ = value >= 0 && value <= 3 ? value : G->ravi_state->opt_level_;
 }
 int raviV_getoptlevel(lua_State *L) {
   global_State *G = G(L);
@@ -364,7 +364,7 @@ static int t_getc (void *data) {
 }
 
 /* Searches within a Module for a function by name */ 
-static MIR_item_t find_function(MIR_module_t module, const char *func_name) {
+MIR_item_t mir_find_function(MIR_module_t module, const char *func_name) {
   MIR_item_t func, main_func = NULL;
   for (func = DLIST_HEAD (MIR_item_t, module->items); func != NULL;
        func = DLIST_NEXT (MIR_item_t, func)) {
@@ -374,21 +374,21 @@ static MIR_item_t find_function(MIR_module_t module, const char *func_name) {
   return main_func;
 }
 
-void *MIR_compile_C_module(
+MIR_module_t mir_compile_C_module(
   struct c2mir_options *options, 
   MIR_context_t ctx, 
   const char *inputbuffer, /* Code to be compiled */
-  const char *func_name, /* Name of the function, must be unique */
+  const char *source_name, /* Name of the function, must be unique */
   void *(Import_resolver_func)(const char *name)) /* Resolve external symbols */
 {
   int ret_code = 0;
-  int (*fun_addr) (void *) = NULL;
+  char module_name[30];
   struct ReadBuffer read_buffer = {.Current_char = 0, .Source_code = inputbuffer};
   MIR_module_t module = NULL;
-  c2mir_init(ctx);
   options->module_num++;
+  snprintf(module_name, sizeof module_name, "__mod_%lld__", options->module_num);
   options->message_file = stderr;
-  if (!c2mir_compile(ctx, options, t_getc, &read_buffer, func_name, NULL)) {
+  if (!c2mir_compile(ctx, options, t_getc, &read_buffer, module_name, NULL)) {
     ret_code = 1;
   }
   else {
@@ -399,21 +399,49 @@ void *MIR_compile_C_module(
     ret_code = 1;
   }
   if (ret_code == 0 && module) {
-    MIR_item_t main_func = find_function(module, func_name);
-    if (main_func == NULL) {
-      fprintf(stderr, "Error: Compiled function %s not found\n", func_name);
-      exit(1);
-    }
     MIR_load_module (ctx, module);
-    MIR_gen_init (ctx);
-    MIR_gen_set_optimize_level(ctx, 2);
     MIR_link (ctx, MIR_set_gen_interface, Import_resolver_func);
-    fun_addr = MIR_gen (ctx, main_func);
-    MIR_gen_finish (ctx);
   }
+  return ret_code == 0 && module ? module : NULL;
+}
+
+void *mir_get_func(MIR_context_t ctx, MIR_module_t module, const char *func_name) {
+  MIR_item_t main_func = mir_find_function(module, func_name);
+  if (main_func == NULL) {
+    fprintf(stderr, "Error: Compiled function %s not found\n", func_name);
+    exit(1);
+  }
+  return MIR_gen (ctx, main_func);
+}
+
+void mir_prepare(MIR_context_t ctx, int optlevel) {
+  c2mir_init(ctx);
+  MIR_gen_init (ctx);
+  MIR_gen_set_optimize_level(ctx, optlevel);
+}
+
+void mir_cleanup(MIR_context_t ctx) {
+  MIR_gen_finish (ctx);
   c2mir_finish (ctx);
+}
+
+static void *compile_C_module(
+    struct c2mir_options *options,
+    MIR_context_t ctx,
+    const char *inputbuffer, /* Code to be compiled */
+    const char *func_name, /* Name of the function, must be unique */
+    void *(Import_resolver_func)(const char *name)) /* Resolve external symbols */
+{
+  int (*fun_addr) (void *) = NULL;
+  mir_prepare(ctx, 2);
+  MIR_module_t module = mir_compile_C_module(options, ctx, inputbuffer, func_name, Import_resolver_func);
+  if (module) {
+    fun_addr = mir_get_func(ctx, module, func_name);
+  }
+  mir_cleanup(ctx);
   return fun_addr;
 }
+
 
 // Compile a Lua function
 // If JIT is turned off then compilation is skipped
@@ -469,7 +497,7 @@ int raviV_compile(struct lua_State *L, struct Proto *p, ravi_compile_options_t *
     ravi_writestring(L, buf.buf, strlen(buf.buf));
     ravi_writeline(L);
   }
-  fp = MIR_compile_C_module(&G->ravi_state->options, G->ravi_state->jit, buf.buf, fname, import_resolver);
+  fp = compile_C_module(&G->ravi_state->options, G->ravi_state->jit, buf.buf, fname, import_resolver);
   if (!fp) {
     p->ravi_jit.jit_status = RAVI_JIT_CANT_COMPILE;
   }

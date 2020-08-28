@@ -563,7 +563,39 @@ typedef struct Proto {
 #define getfcf_tag(typecode) (typecode >> 8)
 
 /*
-** Upvalues for Lua closures
+* Upvalues for Lua closures. The UpVal structure mediates the connection between a
+* closure and a variable. An upvalue may be two states: open or closed.
+* When the upvalue is created, it is open, and its pointer points to the corresponding
+* variable in the Lua stack. That is, an open upvalue is one that's v is pointing to
+* the stack. When the upvalue is closed, the value is moved from the stack to the
+* UpVal structure itself (value) and the pointer v is corrected to point internally.
+*
+* At any point a variable can have at most one upvalue pointing to it, and all
+* closures that reference the upvalue access this shared  upvalue. Lua keeps a
+* linked list of open upvalues of a stack. This list is ordered by the level of the
+* corresponding variables on the stack. When Lua needs an upvalue for a local variable
+* it traverse this linked list. If it finds an upvalue for the variable it reuses it
+* thus ensuring that closures share the same upvalue.
+*
+* Because the list is ordered and there is at most one upvalue for each variable
+* the maximum number of elements to be traversed when looking for a variable in this
+* list can be known at compile time. This maximum is the number of variables that escape
+* to inner closures and that are declared between the closure and the external variable.
+* For instance
+*
+*    function foo()
+*      local a, b, c, d
+*      local f1 = function() return d + b end
+*      local f2 = function() return f() + a end
+*
+* When Lua instantiates f2 it will traverse exactly three upvalues before realizing
+* that a has no upvalue yet: f1, d, and b in that order.
+*
+* When a variable goes out of scope, its corrsponding update (if there is one) must
+* be closed. The list of open upvalues is also used for this task. When compiling a
+* block that contains variables that escape, a "close" operation must be emitted (in Ravi
+* there is no explicit close op, the JMP instruction takes care of it) to close all
+* upvalues up to this level, at the end of the block.
 */
 
 typedef struct UpVal {
@@ -598,7 +630,7 @@ typedef struct CClosure {
 typedef struct LClosure {
   ClosureHeader;
   struct Proto *p;
-  UpVal *upvals[1];  /* list of upvalues */
+  UpVal *upvals[1];  /* list of upvalues - each upvalue represents one non-local variable used by the closure */
 } LClosure;
 
 
