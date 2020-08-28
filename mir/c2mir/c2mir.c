@@ -5074,7 +5074,20 @@ static void symbol_insert (c2m_ctx_t c2m_ctx, enum symbol_mode mode, node_t id, 
   symbol.def_node = def_node;
   symbol.aux_node = aux_node;
   VARR_CREATE (node_t, symbol.defs, 4);
+  VARR_PUSH (node_t, symbol.defs, def_node);
   HTAB_DO (symbol_t, symbol_tab, symbol, HTAB_INSERT, el);
+}
+
+static void symbol_def_replace (c2m_ctx_t c2m_ctx, symbol_t symbol, node_t def_node) {
+  symbol_t el;
+  VARR (node_t) * defs;
+
+  VARR_CREATE (node_t, defs, 4);
+  for (size_t i = 0; i < VARR_LENGTH (node_t, symbol.defs); i++)
+    VARR_PUSH (node_t, defs, VARR_GET (node_t, symbol.defs, i));
+  symbol.defs = defs;
+  symbol.def_node = def_node;
+  HTAB_DO (symbol_t, symbol_tab, symbol, HTAB_REPLACE, el);
 }
 
 static void symbol_finish (c2m_ctx_t c2m_ctx) {
@@ -5287,6 +5300,10 @@ struct decl {
   int bit_offset, width; /* for bitfields, -1 bit_offset for non bitfields. */
   mir_size_t offset;     /* var offset in frame or bss */
   node_t scope;          /* declaration scope */
+  /* The next 2 members are used only for param decls. The 1st member is number of the start MIR
+     func arg. The 2nd one is number or MIR func args used to pass param value, it is positive only
+     for aggregates passed by value.  */
+  uint32_t param_args_start, param_args_num;
   struct decl_spec decl_spec;
   /* Unnamed member if this scope is anon struct/union for the member,
      NULL otherwise: */
@@ -5941,6 +5958,9 @@ static void def_symbol (c2m_ctx_t c2m_ctx, enum symbol_mode mode, node_t id, nod
       || (decl_spec.linkage == N_STATIC && linkage == N_EXTERN))
     warning (c2m_ctx, id->pos, "%s defined with external and internal linkage", id->u.s.s);
   VARR_PUSH (node_t, sym.defs, def_node);
+  if (!incomplete_type_p (c2m_ctx, decl_spec.type)
+      && incomplete_type_p (c2m_ctx, tab_decl_spec.type))
+    symbol_def_replace (c2m_ctx, sym, def_node);
 }
 
 static void make_type_complete (c2m_ctx_t c2m_ctx, struct type *type) {
@@ -7131,6 +7151,7 @@ static void init_decl (c2m_ctx_t c2m_ctx, decl_t decl) {
   decl->reg_p = decl->used_p = FALSE;
   decl->offset = 0;
   decl->bit_offset = -1;
+  decl->param_args_start = decl->param_args_num = 0;
   decl->scope = curr_scope;
   decl->containing_unnamed_anon_struct_union_member = curr_unnamed_anon_struct_union_member;
   decl->item = NULL;
@@ -8201,12 +8222,7 @@ static void check (c2m_ctx_t c2m_ctx, node_t r, node_t context) {
       *e->type = *t2;
     } else if ((t2->mode == TM_PTR && null_const_p (e3, t3))
                || (t3->mode == TM_PTR && null_const_p (e2, t2))) {
-      e->type->mode = TM_PTR;
-      e->type->pos_node = r;
-      e->type->u.ptr_type = create_type (c2m_ctx, NULL);
-      e->type->u.ptr_type->pos_node = r;
-      e->type->u.ptr_type->mode = TM_BASIC;
-      e->type->u.ptr_type->u.basic_type = TP_VOID;
+      e->type = null_const_p (e3, t2) ? t3 : t2;
     } else if (t2->mode != TM_PTR && t3->mode != TM_PTR) {
       error (c2m_ctx, r->pos, "incompatible types in true and false parts of cond-expression");
       break;
@@ -9090,6 +9106,7 @@ static void context_finish (MIR_context_t ctx) {
 
 static const char *FP_NAME = "fp";
 static const char *RET_ADDR_NAME = "Ret_Addr";
+static const char *RET_VAL_NAME = "Ret_Val";
 
 /* New attribute for non-empty label LIST is a MIR label.  */
 
@@ -9120,8 +9137,8 @@ struct reg_var {
 typedef struct reg_var reg_var_t;
 
 DEF_HTAB (reg_var_t);
-
-static VARR (MIR_var_t) * vars;
+DEF_VARR (int);
+DEF_VARR (MIR_type_t);
 
 struct init_el {
   mir_size_t num, offset;
@@ -9142,7 +9159,11 @@ struct gen_ctx {
   HTAB (reg_var_t) * reg_var_tab;
   int reg_free_mark;
   MIR_label_t continue_label, break_label;
-  VARR (node_t) * mem_params;
+  struct {
+    int res_ref_p; /* flag of returning an aggregate by reference */
+    VARR (MIR_type_t) * ret_types;
+    VARR (MIR_var_t) * arg_vars;
+  } proto_info;
   VARR (init_el_t) * init_els;
   MIR_item_t memset_proto, memset_item;
   MIR_item_t memcpy_proto, memcpy_item;
@@ -9159,7 +9180,7 @@ struct gen_ctx {
 #define reg_free_mark c2m_ctx->gen_ctx->reg_free_mark
 #define continue_label c2m_ctx->gen_ctx->continue_label
 #define break_label c2m_ctx->gen_ctx->break_label
-#define mem_params c2m_ctx->gen_ctx->mem_params
+#define proto_info c2m_ctx->gen_ctx->proto_info
 #define init_els c2m_ctx->gen_ctx->init_els
 #define memset_proto c2m_ctx->gen_ctx->memset_proto
 #define memset_item c2m_ctx->gen_ctx->memset_item
@@ -9596,14 +9617,26 @@ static op_t promote (MIR_context_t ctx, op_t op, MIR_type_t t, int new_op_p) {
   return cast (ctx, op, t, new_op_p);
 }
 
-static op_t mem_to_address (MIR_context_t ctx, op_t mem) {
+static op_t mem_to_address (MIR_context_t ctx, op_t mem, int reg_p) {
   op_t temp;
 
-  if (mem.mir_op.mode == MIR_OP_STR) return mem;
+  if (mem.mir_op.mode == MIR_OP_STR) {
+    if (!reg_p) return mem;
+    temp = get_new_temp (ctx, MIR_T_I64);
+    emit2 (ctx, MIR_MOV, temp.mir_op, mem.mir_op);
+    temp.mir_op.value_mode = MIR_OP_INT;
+    return temp;
+  }
   assert (mem.mir_op.mode == MIR_OP_MEM);
   if (mem.mir_op.u.mem.base == 0 && mem.mir_op.u.mem.index == 0) {
-    mem.mir_op.mode = MIR_OP_INT;
-    mem.mir_op.u.i = mem.mir_op.u.mem.disp;
+    if (!reg_p) {
+      mem.mir_op.mode = MIR_OP_INT;
+      mem.mir_op.u.i = mem.mir_op.u.mem.disp;
+    } else {
+      temp = get_new_temp (ctx, MIR_T_I64);
+      emit2 (ctx, MIR_MOV, temp.mir_op, MIR_new_int_op (ctx, mem.mir_op.u.mem.disp));
+      mem = temp;
+    }
   } else if (mem.mir_op.u.mem.index == 0 && mem.mir_op.u.mem.disp == 0) {
     mem.mir_op.mode = MIR_OP_REG;
     mem.mir_op.u.reg = mem.mir_op.u.mem.base;
@@ -9636,7 +9669,7 @@ static op_t force_val (MIR_context_t ctx, op_t op, int arr_p) {
 
   if (arr_p && op.mir_op.mode == MIR_OP_MEM) {
     /* an array -- use a pointer: */
-    return mem_to_address (ctx, op);
+    return mem_to_address (ctx, op, FALSE);
   }
   if (op.decl == NULL || op.decl->bit_offset < 0) return op;
   c2m_ctx = *c2m_ctx_loc (ctx);
@@ -9917,7 +9950,7 @@ static void block_move (MIR_context_t ctx, op_t var, op_t val, mir_size_t size) 
 
   if (MIR_op_eq_p (ctx, var.mir_op, val.mir_op)) return;
   if (size > 5) {
-    var = mem_to_address (ctx, var);
+    var = mem_to_address (ctx, var, TRUE);
     assert (var.mir_op.mode == MIR_OP_REG);
     gen_memcpy (ctx, 0, var.mir_op.u.reg, val, size);
   } else {
@@ -9978,54 +10011,98 @@ static const char *get_func_static_var_name (MIR_context_t ctx, const char *suff
   return get_func_var_name (ctx, prefix, suffix);
 }
 
-static const char *get_param_name (MIR_context_t ctx, MIR_type_t *type, struct type *param_type,
-                                   const char *name) {
-  *type = (param_type->mode == TM_STRUCT || param_type->mode == TM_UNION
-             ? MIR_POINTER_TYPE
-             : get_mir_type (ctx, param_type));
-  return get_reg_var_name (ctx, promote_mir_int_type (*type), name, 0);
+static const char *get_param_name (MIR_context_t ctx, struct type *param_type, const char *name) {
+  MIR_type_t type = (param_type->mode == TM_STRUCT || param_type->mode == TM_UNION
+                       ? MIR_POINTER_TYPE
+                       : get_mir_type (ctx, param_type));
+  return get_reg_var_name (ctx, promote_mir_int_type (type), name, 0);
 }
 
-static void collect_args_and_func_types (MIR_context_t ctx, struct func_type *func_type,
-                                         MIR_type_t *ret_type) {
+#if 0 && defined(__x86_64__)
+#include "x86_64/cx86_64-ABI-code.c"
+#endif
+
+#ifndef ATYPICAL_CALL_ABI
+typedef int target_arg_info_t;
+
+static void target_init_arg_vars (MIR_context_t ctx, target_arg_info_t *arg_info) {}
+
+static void target_add_res (MIR_context_t ctx, struct func_type *func_type,
+                            target_arg_info_t *arg_info) {
+  MIR_var_t var;
+  c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
+
+  proto_info.res_ref_p = FALSE;
+  if (void_type_p (func_type->ret_type)) return;
+  if (func_type->ret_type->mode != TM_STRUCT && func_type->ret_type->mode != TM_UNION) {
+    VARR_PUSH (MIR_type_t, proto_info.ret_types, get_mir_type (ctx, func_type->ret_type));
+    return;
+  }
+  var.name = RET_ADDR_NAME;
+  var.type = MIR_POINTER_TYPE;
+  VARR_PUSH (MIR_var_t, proto_info.arg_vars, var);
+  proto_info.res_ref_p = TRUE;
+}
+
+static void target_add_param (MIR_context_t ctx, const char *name, struct type *param_type,
+                              decl_t param_decl, target_arg_info_t *arg_info) {
+  MIR_var_t var;
+  MIR_type_t type;
+  c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
+
+  if (param_decl != NULL) {
+    param_decl->param_args_num = 0;
+    param_decl->param_args_start = VARR_LENGTH (MIR_var_t, proto_info.arg_vars);
+  }
+  type = (param_type->mode == TM_STRUCT || param_type->mode == TM_UNION
+#ifdef BLK_PARAM
+            ? MIR_T_BLK
+#else
+            ? MIR_POINTER_TYPE
+#endif
+            : get_mir_type (ctx, param_type));
+  var.name = name;
+  var.type = type;
+#ifdef BLK_PARAM
+  if (type == MIR_T_BLK) var.size = type_size (c2m_ctx, param_type);
+#endif
+  VARR_PUSH (MIR_var_t, proto_info.arg_vars, var);
+}
+
+#endif
+
+static void collect_args_and_func_types (MIR_context_t ctx, struct func_type *func_type) {
   c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
   node_t declarator, id, first_param, p;
   struct type *param_type;
-  MIR_var_t var;
-  MIR_type_t type;
+  decl_t param_decl;
+  const char *name;
+  target_arg_info_t arg_info;
 
   first_param = NL_HEAD (func_type->param_list->ops);
-  VARR_TRUNC (MIR_var_t, vars, 0);
-  VARR_TRUNC (node_t, mem_params, 0);
-  if (func_type->ret_type->mode == TM_STRUCT || func_type->ret_type->mode == TM_UNION) {
-    var.name = RET_ADDR_NAME;
-    var.type = MIR_POINTER_TYPE;
-    VARR_PUSH (MIR_var_t, vars, var);
-  }
+  VARR_TRUNC (MIR_var_t, proto_info.arg_vars, 0);
+  VARR_TRUNC (MIR_type_t, proto_info.ret_types, 0);
+  proto_info.res_ref_p = FALSE;
+  target_init_arg_vars (ctx, &arg_info);
+  set_type_layout (c2m_ctx, func_type->ret_type);
+  target_add_res (ctx, func_type, &arg_info);
   if (first_param != NULL && !void_param_p (first_param)) {
     for (p = first_param; p != NULL; p = NL_NEXT (p)) {
       if (p->code == N_TYPE) {
-        var.name = "p";
+        name = "p";
         param_type = ((struct decl_spec *) p->attr)->type;
-        type = (param_type->mode == TM_STRUCT || param_type->mode == TM_UNION
-                  ? MIR_POINTER_TYPE
-                  : get_mir_type (ctx, param_type));
+        param_decl = NULL;
       } else {
         declarator = NL_EL (p->ops, 1);
         assert (p->code == N_SPEC_DECL && declarator != NULL && declarator->code == N_DECL);
         id = NL_HEAD (declarator->ops);
-        param_type = ((decl_t) p->attr)->decl_spec.type;
-        var.name = get_param_name (ctx, &type, param_type, id->u.s.s);
-        if (param_type->mode == TM_STRUCT || param_type->mode == TM_UNION
-            || !((decl_t) p->attr)->reg_p)
-          VARR_PUSH (node_t, mem_params, p);
+        param_decl = p->attr;
+        param_type = param_decl->decl_spec.type;
+        name = get_param_name (ctx, param_type, id->u.s.s);
       }
-      var.type = type;
-      VARR_PUSH (MIR_var_t, vars, var);
+      target_add_param (ctx, name, param_type, param_decl, &arg_info);
     }
   }
-  set_type_layout (c2m_ctx, func_type->ret_type);
-  *ret_type = get_mir_type (ctx, func_type->ret_type);
 }
 
 static mir_size_t get_object_path_offset (c2m_ctx_t c2m_ctx) {
@@ -10271,7 +10348,7 @@ static void gen_memcpy (MIR_context_t ctx, MIR_disp_t disp, MIR_reg_t base, op_t
     emit3 (ctx, MIR_ADD, treg_op, MIR_new_reg_op (ctx, base), MIR_new_int_op (ctx, disp));
   }
   args[3] = treg_op;
-  args[4] = mem_to_address (ctx, val).mir_op;
+  args[4] = mem_to_address (ctx, val, FALSE).mir_op;
   args[5] = MIR_new_uint_op (ctx, len);
   emit_insn (ctx, MIR_new_insn_arr (ctx, MIR_CALL, 6 /* args + proto + func + res */, args));
 }
@@ -11011,10 +11088,11 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     if (!void_p) {
       if (t != MIR_T_UNDEF) {
         res = get_new_temp (ctx, t);
+        op1 = cast (ctx, op1, t, FALSE);
         emit2 (ctx, tp_mov (t), res.mir_op, op1.mir_op);
       } else if (desirable_dest == NULL) {
         res = get_new_temp (ctx, MIR_T_I64);
-        addr = mem_to_address (ctx, op1);
+        addr = mem_to_address (ctx, op1, FALSE);
         emit2 (ctx, MIR_MOV, res.mir_op, addr.mir_op);
       } else {
         block_move (ctx, *desirable_dest, op1, size);
@@ -11026,9 +11104,10 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     op1 = gen (ctx, false_expr, NULL, NULL, !void_p && t != MIR_T_UNDEF, NULL);
     if (!void_p) {
       if (t != MIR_T_UNDEF) {
+        op1 = cast (ctx, op1, t, FALSE);
         emit2 (ctx, tp_mov (t), res.mir_op, op1.mir_op);
       } else if (desirable_dest == NULL) {
-        addr = mem_to_address (ctx, op1);
+        addr = mem_to_address (ctx, op1, FALSE);
         emit2 (ctx, MIR_MOV, res.mir_op, addr.mir_op);
         res = new_op (NULL, MIR_new_mem_op (ctx, MIR_T_I8, 0, res.mir_op.u.reg, 0, 1));
       } else {
@@ -11141,13 +11220,25 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     if (va_arg_p) {
       op1 = get_new_temp (ctx, MIR_T_I64);
       op2 = gen (ctx, NL_HEAD (args->ops), NULL, NULL, TRUE, NULL);
-      MIR_append_insn (ctx, curr_func,
-                       MIR_new_insn (ctx, MIR_VA_ARG, op1.mir_op, op2.mir_op,
-                                     MIR_new_mem_op (ctx, t, 0, 0, 0, 1)));
-      op2 = get_new_temp (ctx, t);
-      MIR_append_insn (ctx, curr_func,
-                       MIR_new_insn (ctx, tp_mov (t), op2.mir_op,
-                                     MIR_new_mem_op (ctx, t, 0, op1.mir_op.u.reg, 0, 1)));
+#ifdef BLK_PARAM
+      if (type->mode == TM_STRUCT || type->mode == TM_UNION) {
+        MIR_append_insn (ctx, curr_func,
+                         MIR_new_insn (ctx, MIR_VA_STACK_ARG, op1.mir_op, op2.mir_op,
+                                       MIR_new_int_op (ctx, type_size (c2m_ctx, type))));
+        op2 = op1;
+      } else
+#endif
+      {
+	if (op2.mir_op.mode == MIR_OP_MEM && op2.mir_op.u.mem.type == MIR_T_UNDEF)
+	  op2 = mem_to_address (ctx, op2, FALSE);
+        MIR_append_insn (ctx, curr_func,
+                         MIR_new_insn (ctx, MIR_VA_ARG, op1.mir_op, op2.mir_op,
+                                       MIR_new_mem_op (ctx, t, 0, 0, 0, 1)));
+        op2 = get_new_temp (ctx, t);
+        MIR_append_insn (ctx, curr_func,
+                         MIR_new_insn (ctx, tp_mov (t), op2.mir_op,
+                                       MIR_new_mem_op (ctx, t, 0, op1.mir_op.u.reg, 0, 1)));
+      }
       if (res.mir_op.mode == MIR_OP_REG) {
         res = op2;
       } else {
@@ -11156,6 +11247,8 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
       }
     } else if (va_start_p) {
       op1 = gen (ctx, NL_HEAD (args->ops), NULL, NULL, TRUE, NULL);
+      if (op1.mir_op.mode == MIR_OP_MEM && op1.mir_op.u.mem.type == MIR_T_UNDEF)
+	op1 = mem_to_address (ctx, op1, FALSE);
       MIR_append_insn (ctx, curr_func, MIR_new_insn (ctx, MIR_VA_START, op1.mir_op));
     } else if (alloca_p) {
       res = get_new_temp (ctx, t);
@@ -11172,7 +11265,12 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
                 || func_type->u.func_type->dots_p);
         if (struct_p) { /* pass an adress of struct/union: */
           assert (op2.mir_op.mode == MIR_OP_MEM);
-          op2 = mem_to_address (ctx, op2);
+          op2 = mem_to_address (ctx, op2, TRUE);
+#ifdef BLK_PARAM
+          assert (op2.mir_op.mode == MIR_OP_REG);
+          op2 = new_op (NULL /*???*/, MIR_new_mem_op (ctx, MIR_T_BLK, type_size (c2m_ctx, e->type),
+                                                      op2.mir_op.u.reg, 0, 1));
+#endif
         } else if (param != NULL) {
           assert (param->code == N_SPEC_DECL || param->code == N_TYPE);
           decl_spec = get_param_decl_spec (param);
@@ -11306,7 +11404,7 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     struct node_scope *ns = stmt->attr;
     decl_t param_decl, decl = r->attr;
     struct type *decl_type = decl->decl_spec.type;
-    node_t param, param_declarator, param_id;
+    node_t first_param, param, param_declarator, param_id;
     struct type *param_type;
     MIR_insn_t insn;
     MIR_type_t res_type, param_mir_type;
@@ -11319,13 +11417,17 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
     reg_free_mark = 0;
     curr_func_def = r;
     curr_call_arg_area_offset = 0;
-    collect_args_and_func_types (ctx, decl_type->u.func_type, &res_type);
-    curr_func
-      = ((decl_type->u.func_type->dots_p
-            ? MIR_new_vararg_func_arr
-            : MIR_new_func_arr) (ctx, NL_HEAD (declarator->ops)->u.s.s,
-                                 res_type == MIR_T_UNDEF ? 0 : 1, &res_type,
-                                 VARR_LENGTH (MIR_var_t, vars), VARR_ADDR (MIR_var_t, vars)));
+    collect_args_and_func_types (ctx, decl_type->u.func_type);
+    res_type = (VARR_LENGTH (MIR_type_t, proto_info.ret_types) == 0
+                  ? MIR_T_UNDEF
+                  : VARR_GET (MIR_type_t, proto_info.ret_types, 0));
+    curr_func = ((decl_type->u.func_type->dots_p
+                    ? MIR_new_vararg_func_arr
+                    : MIR_new_func_arr) (ctx, NL_HEAD (declarator->ops)->u.s.s,
+                                         VARR_LENGTH (MIR_type_t, proto_info.ret_types),
+                                         VARR_ADDR (MIR_type_t, proto_info.ret_types),
+                                         VARR_LENGTH (MIR_var_t, proto_info.arg_vars),
+                                         VARR_ADDR (MIR_var_t, proto_info.arg_vars)));
     decl->item = curr_func;
     if (ns->stack_var_p /* we can have empty struct only with size 0 and still need a frame: */
         || ns->size > 0) {
@@ -11334,28 +11436,34 @@ static op_t gen (MIR_context_t ctx, node_t r, MIR_label_t true_label, MIR_label_
                        MIR_new_insn (ctx, MIR_ALLOCA, MIR_new_reg_op (ctx, fp_reg),
                                      MIR_new_int_op (ctx, ns->size)));
     }
-    for (size_t i = 0; i < VARR_LENGTH (MIR_var_t, vars); i++)
-      get_reg_var (ctx, MIR_T_UNDEF, VARR_GET (MIR_var_t, vars, i).name);
-    for (size_t i = 0; i < VARR_LENGTH (node_t, mem_params); i++) {
-      param = VARR_GET (node_t, mem_params, i);
-      param_declarator = NL_EL (param->ops, 1);
-      param_decl = param->attr;
-      assert (param_declarator != NULL && param_declarator->code == N_DECL);
-      param_id = NL_HEAD (param_declarator->ops);
-      param_type = param_decl->decl_spec.type;
-      name = get_param_name (ctx, &param_mir_type, param_type, param_id->u.s.s);
-      if (param_type->mode == TM_STRUCT || param_type->mode == TM_UNION) {
-        param_reg = get_reg_var (ctx, MIR_POINTER_TYPE, name).reg;
-        val = new_op (NULL, MIR_new_mem_op (ctx, MIR_T_UNDEF, 0, param_reg, 0, 1));
-        var = new_op (param_decl, MIR_new_mem_op (ctx, MIR_T_UNDEF, param_decl->offset,
+    for (size_t i = 0; i < VARR_LENGTH (MIR_var_t, proto_info.arg_vars); i++)
+      get_reg_var (ctx, MIR_T_UNDEF, VARR_GET (MIR_var_t, proto_info.arg_vars, i).name);
+    if ((first_param = NL_HEAD (decl_type->u.func_type->param_list->ops)) != NULL
+        && !void_param_p (first_param)) {
+      for (param = first_param; param != NULL; param = NL_NEXT (param)) {
+        param_declarator = NL_EL (param->ops, 1);
+        assert (param_declarator != NULL && param_declarator->code == N_DECL);
+        param_decl = param->attr;
+        param_id = NL_HEAD (param_declarator->ops);
+        param_type = param_decl->decl_spec.type;
+        assert (!param_decl->reg_p
+                || (param_type->mode != TM_STRUCT && param_type->mode != TM_UNION));
+        if (param_decl->reg_p) continue;
+        name = get_param_name (ctx, param_type, param_id->u.s.s);
+        if (param_type->mode == TM_STRUCT || param_type->mode == TM_UNION) {
+          param_reg = get_reg_var (ctx, MIR_POINTER_TYPE, name).reg;
+          val = new_op (NULL, MIR_new_mem_op (ctx, MIR_T_UNDEF, 0, param_reg, 0, 1));
+          var
+            = new_op (param_decl, MIR_new_mem_op (ctx, MIR_T_UNDEF, param_decl->offset,
                                                   MIR_reg (ctx, FP_NAME, curr_func->u.func), 0, 1));
-        block_move (ctx, var, val, type_size (c2m_ctx, param_type));
-      } else {
-        assert (!param_decl->reg_p);
-        emit2 (ctx, tp_mov (param_mir_type),
-               MIR_new_mem_op (ctx, param_mir_type, param_decl->offset,
-                               MIR_reg (ctx, FP_NAME, curr_func->u.func), 0, 1),
-               MIR_new_reg_op (ctx, get_reg_var (ctx, MIR_T_UNDEF, name).reg));
+          block_move (ctx, var, val, type_size (c2m_ctx, param_type));
+        } else {
+          param_mir_type = get_mir_type (ctx, param_type);
+          emit2 (ctx, tp_mov (param_mir_type),
+                 MIR_new_mem_op (ctx, param_mir_type, param_decl->offset,
+                                 MIR_reg (ctx, FP_NAME, curr_func->u.func), 0, 1),
+                 MIR_new_reg_op (ctx, get_reg_var (ctx, MIR_T_UNDEF, name).reg));
+        }
       }
     }
     gen (ctx, stmt, NULL, NULL, FALSE, NULL);
@@ -11671,6 +11779,7 @@ static htab_hash_t proto_hash (MIR_item_t pi, void *arg) {
   for (size_t i = 0; i < VARR_LENGTH (MIR_var_t, p->args); i++) {
     h = mir_hash_step (h, args[i].type);
     h = mir_hash_step (h, mir_hash (args[i].name, strlen (args[i].name), 24));
+    if (args[i].type == MIR_T_BLK) h = mir_hash_step (h, args[i].size);
   }
   return mir_hash_finish (h);
 }
@@ -11687,11 +11796,13 @@ static int proto_eq (MIR_item_t pi1, MIR_item_t pi2, void *arg) {
   MIR_var_t *args1 = VARR_ADDR (MIR_var_t, p1->args), *args2 = VARR_ADDR (MIR_var_t, p2->args);
 
   for (size_t i = 0; i < VARR_LENGTH (MIR_var_t, p1->args); i++)
-    if (args1[i].type != args2[i].type || strcmp (args1[i].name, args2[i].name) != 0) return FALSE;
+    if (args1[i].type != args2[i].type || strcmp (args1[i].name, args2[i].name) != 0
+        || args1[i].type == MIR_T_BLK && args1[i].size != args2[i].size)
+      return FALSE;
   return TRUE;
 }
 
-static MIR_item_t get_mir_proto (MIR_context_t ctx, int vararg_p, MIR_type_t ret_type,
+static MIR_item_t get_mir_proto (MIR_context_t ctx, int vararg_p, VARR (MIR_type_t) * ret_types,
                                  VARR (MIR_var_t) * vars) {
   c2m_ctx_t c2m_ctx = *c2m_ctx_loc (ctx);
   struct MIR_item pi, *el;
@@ -11700,14 +11811,15 @@ static MIR_item_t get_mir_proto (MIR_context_t ctx, int vararg_p, MIR_type_t ret
 
   pi.u.proto = &p;
   p.vararg_p = vararg_p;
-  p.nres = ret_type == MIR_T_UNDEF ? 0 : 1;
-  p.res_types = &ret_type;
+  p.nres = VARR_LENGTH (MIR_type_t, proto_info.ret_types);
+  p.res_types = VARR_ADDR (MIR_type_t, proto_info.ret_types);
   p.args = vars;
   if (HTAB_DO (MIR_item_t, proto_tab, &pi, HTAB_FIND, el)) return el;
   sprintf (buf, "proto%d", curr_mir_proto_num++);
-  el = (vararg_p ? MIR_new_vararg_proto_arr : MIR_new_proto_arr) (ctx, buf, p.nres, &ret_type,
-                                                                  VARR_LENGTH (MIR_var_t, vars),
-                                                                  VARR_ADDR (MIR_var_t, vars));
+  el = (vararg_p ? MIR_new_vararg_proto_arr
+                 : MIR_new_proto_arr) (ctx, buf, p.nres, p.res_types,
+                                       VARR_LENGTH (MIR_var_t, proto_info.arg_vars),
+                                       VARR_ADDR (MIR_var_t, proto_info.arg_vars));
   HTAB_DO (MIR_item_t, proto_tab, el, HTAB_INSERT, el);
   return el;
 }
@@ -11717,7 +11829,6 @@ static void gen_mir_protos (MIR_context_t ctx) {
   node_t call, func;
   struct type *type;
   struct func_type *func_type;
-  MIR_type_t ret_type;
 
   curr_mir_proto_num = 0;
   HTAB_CREATE (MIR_item_t, proto_tab, 512, proto_hash, proto_eq, NULL);
@@ -11730,10 +11841,10 @@ static void gen_mir_protos (MIR_context_t ctx) {
     set_type_layout (c2m_ctx, type);
     func_type = type->u.ptr_type->u.func_type;
     assert (func_type->param_list->code == N_LIST);
-    collect_args_and_func_types (ctx, func_type, &ret_type);
+    collect_args_and_func_types (ctx, func_type);
     func_type->proto_item
       = get_mir_proto (ctx, func_type->dots_p || NL_HEAD (func_type->param_list->ops) == NULL,
-                       ret_type, vars);
+                       proto_info.ret_types, proto_info.arg_vars);
   }
   HTAB_DESTROY (MIR_item_t, proto_tab);
 }
@@ -11743,8 +11854,8 @@ static void gen_finish (MIR_context_t ctx) {
 
   if (c2m_ctx == NULL || c2m_ctx->gen_ctx == NULL) return;
   finish_reg_vars (ctx);
-  if (vars != NULL) VARR_DESTROY (MIR_var_t, vars);
-  if (mem_params != NULL) VARR_DESTROY (node_t, mem_params);
+  if (proto_info.arg_vars != NULL) VARR_DESTROY (MIR_var_t, proto_info.arg_vars);
+  if (proto_info.ret_types != NULL) VARR_DESTROY (MIR_type_t, proto_info.ret_types);
   if (call_ops != NULL) VARR_DESTROY (MIR_op_t, call_ops);
   if (switch_ops != NULL) VARR_DESTROY (MIR_op_t, switch_ops);
   if (switch_cases != NULL) VARR_DESTROY (case_t, switch_cases);
@@ -11760,8 +11871,8 @@ static void gen_mir (MIR_context_t ctx, node_t r) {
   one_op = new_op (NULL, MIR_new_int_op (ctx, 1));
   minus_one_op = new_op (NULL, MIR_new_int_op (ctx, -1));
   init_reg_vars (ctx);
-  VARR_CREATE (MIR_var_t, vars, 32);
-  VARR_CREATE (node_t, mem_params, 16);
+  VARR_CREATE (MIR_var_t, proto_info.arg_vars, 32);
+  VARR_CREATE (MIR_type_t, proto_info.ret_types, 16);
   gen_mir_protos (ctx);
   VARR_CREATE (MIR_op_t, call_ops, 32);
   VARR_CREATE (MIR_op_t, switch_ops, 128);
