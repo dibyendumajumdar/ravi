@@ -385,7 +385,6 @@ MIR_module_t mir_compile_C_module(
   char module_name[30];
   struct ReadBuffer read_buffer = {.Current_char = 0, .Source_code = inputbuffer};
   MIR_module_t module = NULL;
-  c2mir_init(ctx);
   options->module_num++;
   snprintf(module_name, sizeof module_name, "__mod_%lld__", options->module_num);
   options->message_file = stderr;
@@ -401,14 +400,9 @@ MIR_module_t mir_compile_C_module(
   }
   if (ret_code == 0 && module) {
     MIR_load_module (ctx, module);
-    MIR_gen_init (ctx);
-    MIR_gen_set_optimize_level(ctx, 2);
     MIR_link (ctx, MIR_set_gen_interface, Import_resolver_func);
-    fun_addr = MIR_gen (ctx, main_func);
-    MIR_gen_finish (ctx);
   }
-  c2mir_finish (ctx);
-  return fun_addr;
+  return ret_code == 0 && module ? module : NULL;
 }
 
 void *mir_get_func(MIR_context_t ctx, MIR_module_t module, const char *func_name) {
