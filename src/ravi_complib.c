@@ -107,12 +107,25 @@ static int lua_newStringConstant(void *context, Proto* proto, struct string_obje
 	return lua_stringK(L, proto, h, ts);
 }
 
-/* Compile the C code for the given proto, and C source */
-int lua_compileProto(void *context, Proto* proto, const char* C_src, unsigned len) {
-	struct CompilerContext* ccontext = (struct CompilerContext*)context;
-	lua_State* L = ccontext->L;
-
+static void init_C_compiler(void* context) {
+  struct CompilerContext* ccontext = (struct CompilerContext*)context;
+  mir_prepare(ccontext->jit->jit, 2);
 }
+static void* compile_C(void* context, const char* C_src, unsigned len) {
+  struct CompilerContext* ccontext = (struct CompilerContext*)context;
+
+  return NULL;
+}
+static void finish_C_compiler(void* context) {
+  struct CompilerContext* ccontext = (struct CompilerContext*)context;
+  mir_cleanup(ccontext->jit->jit);
+}
+static lua_CFunction get_compiled_function(void* context, void* module, const char* name) {
+  struct CompilerContext* ccontext = (struct CompilerContext*)context;
+  MIR_module_t M = (MIR_module_t)module;
+  return (lua_CFunction)mir_get_func(ccontext->jit->jit, M, name);
+}
+static void lua_setProtoFunction(void* context, Proto* p, lua_CFunction func) { p->ravi_jit.jit_function = func; }
 
 static int load_and_compile(lua_State* L) {
 	const char* s = luaL_checkstring(L, 1);
