@@ -51,8 +51,8 @@ extern MIR_module_t mir_compile_C_module(
     struct c2mir_options *options,
     MIR_context_t ctx,
     const char *inputbuffer, /* Code to be compiled */
-    const char *source_name, /* Name of the function, must be unique */
-    void *(Import_resolver_func)(const char *name)); /* Resolve external symbols */
+    const char *source_name /* Name of the function, must be unique */
+    );
 extern void *mir_get_func(MIR_context_t ctx, MIR_module_t module, const char *func_name);
 
 #ifdef __cplusplus
