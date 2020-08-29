@@ -140,12 +140,17 @@ else ()
     endif ()
 endif ()
 
-if (RAVICOMP)
+if (RAVICOMP AND MIR_JIT)
+    # Need MIR_JIT for the compiler add-on
     find_package(RaviComp REQUIRED)
     set(ADDON_SRCS ${RAVICOMP_SRCS})
     set_property(SOURCE ${RAVICOMP_SRCS}
         APPEND
         PROPERTY INCLUDE_DIRECTORIES ${RAVICOMP_INCLUDE_DIRS})
+    if ($ENV{CLION_IDE})
+        # CLion seems unable to handle include paths set on sources
+        include_directories(${RAVICOMP_INCLUDE_DIRS})
+    endif ()
 endif()
 
 # IDE stuff
