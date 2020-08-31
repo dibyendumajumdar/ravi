@@ -163,6 +163,7 @@ static lua_CFunction get_compiled_function(void* context, void* module, const ch
   return (lua_CFunction)mir_get_func(ccontext->jit->jit, M, name);
 }
 static void lua_setProtoFunction(void* context, Proto* p, lua_CFunction func) { p->ravi_jit.jit_function = func; }
+static void lua_setVarArg(void *context, Proto *p) { p->is_vararg = 1; }
 
 static int load_and_compile(lua_State* L) {
   const char* s = luaL_checkstring(L, 1);
@@ -189,6 +190,7 @@ static int load_and_compile(lua_State* L) {
                                                       .finish_C_compiler = finish_C_compiler,
                                                       .get_compiled_function = get_compiled_function,
                                                       .add_upvalue = add_upvalue,
+                                                      .lua_setVarArg = lua_setVarArg,
                                                       .lua_setProtoFunction = lua_setProtoFunction};
 
   int rc = raviX_compile(&ravicomp_interface);
