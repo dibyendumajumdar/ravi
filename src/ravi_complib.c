@@ -185,10 +185,15 @@ static lua_CFunction get_compiled_function(void* context, void* module, const ch
   MIR_module_t M = (MIR_module_t)module;
   return (lua_CFunction)mir_get_func(ccontext->jit->jit, M, name);
 }
-static void lua_setProtoFunction(void* context, Proto* p, lua_CFunction func) { p->ravi_jit.jit_function = func; }
+static void lua_setProtoFunction(void* context, Proto* p, lua_CFunction func) {
+  p->ravi_jit.jit_function = func;
+  p->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+}
 static void lua_setVarArg(void* context, Proto* p) { p->is_vararg = 1; }
-
-
+static void lua_setNumParams(void* context, Proto* p, unsigned num_params) { p->numparams = cast_byte(num_params); }
+static void lua_setMaxStackSize(void *context, Proto *p, unsigned max_stack_size) {
+  p->maxstacksize = cast_byte(max_stack_size);
+}
 
 static int load_and_compile(lua_State* L) {
   const char* s = luaL_checkstring(L, 1);
@@ -213,6 +218,8 @@ static int load_and_compile(lua_State* L) {
                                                       .lua_addUpValue = lua_addUpValue,
                                                       .lua_setVarArg = lua_setVarArg,
                                                       .lua_setProtoFunction = lua_setProtoFunction,
+                                                      .lua_setNumParams = lua_setNumParams,
+                                                      .lua_setMaxStackSize = lua_setMaxStackSize,
                                                       .init_C_compiler = init_C_compiler,
                                                       .compile_C = compile_C,
                                                       .finish_C_compiler = finish_C_compiler,
@@ -221,7 +228,7 @@ static int load_and_compile(lua_State* L) {
                                                       .error_message = error_message};
 
   int rc = raviX_compile(&ravicomp_interface);
-  L->top--; /* remove table */
+  L->top--; /* remove table for string constants */
   if (rc == 0) {
     lua_assert(cl->nupvalues == cl->p->sizeupvalues);
     luaF_initupvals(L, cl);
