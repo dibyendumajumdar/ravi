@@ -49,10 +49,26 @@
 
 #define luaM_newobject(L,tag,s)	luaM_realloc_(L, NULL, tag, (s))
 
+/*
+ * Note that this will grow the vector by unspecified amount and set the size parameter to new size!
+ *
+ * v - pointer to memory
+ * nelems - number of elements needed
+ * size - curent size of v, will be UPDATED!
+ * t - element type
+ * limit - max number allowed
+ * e - for error message?
+ */
 #define luaM_growvector(L,v,nelems,size,t,limit,e) \
           if ((nelems)+1 > (size)) \
             ((v)=cast(t *, luaM_growaux_(L,v,&(size),sizeof(t),limit,e)))
 
+/*
+ * v - vector - will be updated!
+ * oldn - old size
+ * n - new size
+ * t - element type
+ */
 #define luaM_reallocvector(L, v,oldn,n,t) \
    ((v)=cast(t *, luaM_reallocv(L, v, oldn, n, sizeof(t))))
 
