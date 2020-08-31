@@ -21,6 +21,22 @@ struct CompilerContext {
   Table* h; /* to avoid collection/reuse strings */
 };
 
+static void debug_message(void* context, const char* filename, long long line, const char* message) {
+  struct CompilerContext* ccontext = (struct CompilerContext*)context;
+  ravi_writestring(ccontext->L, filename, strlen(filename));
+  char temp[80];
+  snprintf(temp, sizeof temp, "%lld: ", line);
+  ravi_writestring(ccontext->L, temp, strlen(temp));
+  ravi_writestring(ccontext->L, message, strlen(message));
+  ravi_writeline(ccontext->L);
+}
+
+void error_message(void* context, const char* message) {
+  struct CompilerContext* ccontext = (struct CompilerContext*)context;
+  ravi_writestring(ccontext->L, message, strlen(message));
+  ravi_writeline(ccontext->L);
+}
+
 /* Create a new proto and insert it into parent's list of protos */
 static Proto* lua_newProto(void* context, Proto* parent) {
   struct CompilerContext* ccontext = (struct CompilerContext*)context;
@@ -39,9 +55,11 @@ static Proto* lua_newProto(void* context, Proto* parent) {
 }
 
 /*
- * Based off the Lua lexer code.
+ * Based off the Lua lexer code. Strings are anchored in a table initially - eventually
+ * ending up either in a Proto constant table or some other structure related to
+ * protos.
  */
-TString* create_newstring(lua_State* L, Table* h, const char* str, size_t l) {
+TString* intern_string(lua_State* L, Table* h, const char* str, size_t l) {
   TValue* o;                             /* entry for 'str' */
   TString* ts = luaS_newlstr(L, str, l); /* create new string */
   setsvalue2s(L, L->top++, ts);          /* temporarily anchor it in stack */
@@ -61,28 +79,27 @@ TString* create_newstring(lua_State* L, Table* h, const char* str, size_t l) {
 
 /*
 ** Add constant 'v' to prototype's list of constants (field 'k').
-** Use scanner's table to cache position of constants in constant list
-** and try to reuse constants. Because some values should not be used
-** as keys (nil cannot be a key, integer keys can collapse with float
-** keys), the caller must provide a useful 'key' for indexing the cache.
+** Use parser's table to cache position of constants in constant list
+** and try to reuse constants.
 */
-static int addk(lua_State* L, Proto* f, Table* h, TValue* key, TValue* v) {
-  TValue* idx = luaH_set(L, h, key); /* index scanner table */
+static int add_konstant(lua_State* L, Proto* f, Table* h, TValue* key, TValue* v) {
+  TValue* idx = luaH_set(L, h, key); /* The k index is cached against the key */
   int k, oldsize, newsize;
-  if (ttisinteger(idx)) { /* is there an index there? */
+  if (ttisinteger(idx)) { /* is there an integer value index there? */
     k = cast_int(ivalue(idx));
     /* correct value? (warning: must distinguish floats from integers!) */
-    if (k < f->sizek && ttype(&f->k[k]) == ttype(v) && luaV_rawequalobj(&f->k[k], v))
+    if (k >= 0 && k < f->sizek && ttype(&f->k[k]) == ttype(v) && luaV_rawequalobj(&f->k[k], v))
       return k; /* reuse index */
   }
-  /* constant not found; create a new entry */
+  /* constant not found; create a new entry in Proto->k */
   oldsize = k = f->sizek;
   newsize = oldsize + 1;
   /* numerical value does not need GC barrier;
      table has no metatable, so it does not need to invalidate cache */
   setivalue(idx, k);
+  // FIXME make the allocation more efficient
   luaM_reallocvector(L, f->k, oldsize, newsize, TValue);
-  setobj(L, &f->k[k], v);
+  setobj(L, &f->k[k], v); /* record the position k in the table against key */
   f->sizek++;
   lua_assert(f->sizek == newsize);
   luaC_barrier(L, f, v);
@@ -92,15 +109,19 @@ static int addk(lua_State* L, Proto* f, Table* h, TValue* key, TValue* v) {
 /*
 ** Add a string to list of constants and return its index.
 */
-static int lua_stringK(lua_State* L, Proto* p, Table* h, TString* s) {
+static int add_string_konstant(lua_State* L, Proto* p, Table* h, TString* s) {
   TValue o;
   setsvalue(L, &o, s);
-  return addk(L, p, h, &o, &o); /* use string itself as key */
+  return add_konstant(L, p, h, &o, &o); /* use string itself as key */
 }
 
+/* Create a Lua TString object from a string. Save it so that we can avoid creating same
+ * string again.
+ */
 static inline TString* create_luaString(lua_State* L, Table* h, struct string_object* s) {
   if (s->userdata == NULL) {
-    s->userdata = create_newstring(L, h, s->str, s->len);
+    /* Create and save it */
+    s->userdata = intern_string(L, h, s->str, s->len);
   }
   return (TString*)s->userdata;
 }
@@ -111,15 +132,15 @@ static int lua_newStringConstant(void* context, Proto* proto, struct string_obje
   lua_State* L = ccontext->L;
   Table* h = ccontext->h;
   TString* ts = create_luaString(L, h, s);
-  return lua_stringK(L, proto, h, ts);
+  return add_string_konstant(L, proto, h, ts);
 }
 
 /* Add an upvalue. If the upvalue refers to a local variable in parent proto then idx should contain
  * the register for the local variable and instack should be true, else idx should have the index of
  * upvalue in parent proto and instack should be false.
  */
-static int add_upvalue(void* context, Proto* f, struct string_object* name, unsigned idx, int instack, unsigned tc,
-                       struct string_object* usertype) {
+static int lua_addUpValue(void* context, Proto* f, struct string_object* name, unsigned idx, int instack, unsigned tc,
+                          struct string_object* usertype) {
   ravitype_t typecode = (ravitype_t)tc;
   struct CompilerContext* ccontext = (struct CompilerContext*)context;
   lua_State* L = ccontext->L;
@@ -128,16 +149,17 @@ static int add_upvalue(void* context, Proto* f, struct string_object* name, unsi
   int newsize = oldsize + 1;
   int pos = oldsize;
   // checklimit(fs, fs->nups + 1, MAXUPVAL, "upvalues");
-  // TODO optimize the allocation
+  // FIXME optimize the allocation
   luaM_reallocvector(L, f->upvalues, oldsize, newsize, Upvaldesc);
   f->sizeupvalues++;
   lua_assert(f->sizeupvalues == newsize);
-  f->upvalues[pos].instack = instack;    /* is the upvalue in parent function's local stack ? */
+  f->upvalues[pos].instack = cast_byte(instack); /* is the upvalue in parent function's local stack ? */
   f->upvalues[pos].idx = cast_byte(idx); /* If instack then parent's local register else parent's upvalue index */
-  TString* tsname = create_luaString(L, h, name);
+  TString* tsname = create_luaString(L, h, name); /* name of the variable */
   f->upvalues[pos].name = tsname;
   f->upvalues[pos].ravi_type = typecode;
   if (usertype != NULL) {
+    /* User type string goes into the proto's constant table */
     int kpos = lua_newStringConstant(context, f, usertype);
     f->upvalues[pos].usertype = tsvalue(&f->k[kpos]);
   }
@@ -151,6 +173,7 @@ static void init_C_compiler(void* context) {
 }
 static void* compile_C(void* context, const char* C_src, unsigned len) {
   struct CompilerContext* ccontext = (struct CompilerContext*)context;
+  fprintf(stdout, "%s\n", C_src);
   return mir_compile_C_module(&ccontext->jit->options, ccontext->jit->jit, C_src, "input");
 }
 static void finish_C_compiler(void* context) {
@@ -163,13 +186,15 @@ static lua_CFunction get_compiled_function(void* context, void* module, const ch
   return (lua_CFunction)mir_get_func(ccontext->jit->jit, M, name);
 }
 static void lua_setProtoFunction(void* context, Proto* p, lua_CFunction func) { p->ravi_jit.jit_function = func; }
-static void lua_setVarArg(void *context, Proto *p) { p->is_vararg = 1; }
+static void lua_setVarArg(void* context, Proto* p) { p->is_vararg = 1; }
+
+
 
 static int load_and_compile(lua_State* L) {
   const char* s = luaL_checkstring(L, 1);
   struct CompilerContext ccontext = {.L = L, .jit = G(L)->ravi_state};
 
-  LClosure* cl = luaF_newLclosure(L, 1); /* create main closure */
+  LClosure* cl = luaF_newLclosure(L, 1); /* create main closure with 1 up-value for _ENV */
   setclLvalue(L, L->top, cl);            /* anchor it (to avoid being collected) */
   luaD_inctop(L);
   ccontext.h = luaH_new(L);         /* create table for string constants */
@@ -185,19 +210,27 @@ static int load_and_compile(lua_State* L) {
                                                       .context = &ccontext,
                                                       .lua_newProto = lua_newProto,
                                                       .lua_newStringConstant = lua_newStringConstant,
+                                                      .lua_addUpValue = lua_addUpValue,
+                                                      .lua_setVarArg = lua_setVarArg,
+                                                      .lua_setProtoFunction = lua_setProtoFunction,
                                                       .init_C_compiler = init_C_compiler,
                                                       .compile_C = compile_C,
                                                       .finish_C_compiler = finish_C_compiler,
                                                       .get_compiled_function = get_compiled_function,
-                                                      .add_upvalue = add_upvalue,
-                                                      .lua_setVarArg = lua_setVarArg,
-                                                      .lua_setProtoFunction = lua_setProtoFunction};
+                                                      .debug_message = debug_message,
+                                                      .error_message = error_message};
 
   int rc = raviX_compile(&ravicomp_interface);
   L->top--; /* remove table */
-  lua_assert(cl->nupvalues == cl->p->sizeupvalues);
-  luaF_initupvals(L, cl);
-  return 1;
+  if (rc == 0) {
+    lua_assert(cl->nupvalues == cl->p->sizeupvalues);
+    luaF_initupvals(L, cl);
+    return 1;
+  }
+  else {
+    lua_error(L);
+    return 0;
+  }
 }
 
 static const luaL_Reg ravilib[] = {{"load", load_and_compile}, {NULL, NULL}};
