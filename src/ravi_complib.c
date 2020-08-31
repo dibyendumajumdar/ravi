@@ -30,8 +30,10 @@ static Proto* lua_newProto(void* context, Proto* parent) {
   /* FIXME make this more efficient */
   int old_size = parent->sizep;
   int new_size = parent->sizep + 1;
-  luaM_growvector(L, parent->p, old_size, new_size, Proto*, MAXARG_Bx, "functions");
-  parent->p[parent->sizep++] = p;
+  luaM_reallocvector(L, parent->p, old_size, new_size, Proto*);
+  parent->p[old_size] = p;
+  parent->sizep++;
+  lua_assert(parent->sizep == new_size);
   luaC_objbarrier(L, parent, p);
   return p;
 }
@@ -66,7 +68,7 @@ TString* create_newstring(lua_State* L, Table* h, const char* str, size_t l) {
 */
 static int addk(lua_State* L, Proto* f, Table* h, TValue* key, TValue* v) {
   TValue* idx = luaH_set(L, h, key); /* index scanner table */
-  int k, oldsize;
+  int k, oldsize, newsize;
   if (ttisinteger(idx)) { /* is there an index there? */
     k = cast_int(ivalue(idx));
     /* correct value? (warning: must distinguish floats from integers!) */
@@ -74,16 +76,15 @@ static int addk(lua_State* L, Proto* f, Table* h, TValue* key, TValue* v) {
       return k; /* reuse index */
   }
   /* constant not found; create a new entry */
-  oldsize = f->sizek;
-  k = f->sizek;
+  oldsize = k = f->sizek;
+  newsize = oldsize + 1;
   /* numerical value does not need GC barrier;
      table has no metatable, so it does not need to invalidate cache */
   setivalue(idx, k);
-  luaM_growvector(L, f->k, k, f->sizek, TValue, MAXARG_Ax, "constants");
-  while (oldsize < f->sizek)
-    setnilvalue(&f->k[oldsize++]);
+  luaM_reallocvector(L, f->k, oldsize, newsize, TValue);
   setobj(L, &f->k[k], v);
   f->sizek++;
+  lua_assert(f->sizek == newsize);
   luaC_barrier(L, f, v);
   return k;
 }
@@ -97,20 +98,51 @@ static int lua_stringK(lua_State* L, Proto* p, Table* h, TString* s) {
   return addk(L, p, h, &o, &o); /* use string itself as key */
 }
 
+static inline TString* create_luaString(lua_State* L, Table* h, struct string_object* s) {
+  if (s->userdata == NULL) {
+    s->userdata = create_newstring(L, h, s->str, s->len);
+  }
+  return (TString*)s->userdata;
+}
+
 /* Add a string constant to Proto and return its index */
 static int lua_newStringConstant(void* context, Proto* proto, struct string_object* s) {
   struct CompilerContext* ccontext = (struct CompilerContext*)context;
   lua_State* L = ccontext->L;
   Table* h = ccontext->h;
-  TString* ts = NULL;
-  if (s->userdata == NULL) {
-    ts = create_newstring(L, h, s->str, s->len);
-    s->userdata = ts;
-  }
-  else {
-    ts = (TString*)s->userdata;
-  }
+  TString* ts = create_luaString(L, h, s);
   return lua_stringK(L, proto, h, ts);
+}
+
+/* Add an upvalue. If the upvalue refers to a local variable in parent proto then idx should contain
+ * the register for the local variable and instack should be true, else idx should have the index of
+ * upvalue in parent proto and instack should be false.
+ */
+static int add_upvalue(void* context, Proto* f, struct string_object* name, unsigned idx, int instack, unsigned tc,
+                       struct string_object* usertype) {
+  ravitype_t typecode = (ravitype_t)tc;
+  struct CompilerContext* ccontext = (struct CompilerContext*)context;
+  lua_State* L = ccontext->L;
+  Table* h = ccontext->h;
+  int oldsize = f->sizeupvalues;
+  int newsize = oldsize + 1;
+  int pos = oldsize;
+  // checklimit(fs, fs->nups + 1, MAXUPVAL, "upvalues");
+  // TODO optimize the allocation
+  luaM_reallocvector(L, f->upvalues, oldsize, newsize, Upvaldesc);
+  f->sizeupvalues++;
+  lua_assert(f->sizeupvalues == newsize);
+  f->upvalues[pos].instack = instack;    /* is the upvalue in parent function's local stack ? */
+  f->upvalues[pos].idx = cast_byte(idx); /* If instack then parent's local register else parent's upvalue index */
+  TString* tsname = create_luaString(L, h, name);
+  f->upvalues[pos].name = tsname;
+  f->upvalues[pos].ravi_type = typecode;
+  if (usertype != NULL) {
+    int kpos = lua_newStringConstant(context, f, usertype);
+    f->upvalues[pos].usertype = tsvalue(&f->k[kpos]);
+  }
+  luaC_objbarrier(L, f, tsname);
+  return pos;
 }
 
 static void init_C_compiler(void* context) {
@@ -119,8 +151,7 @@ static void init_C_compiler(void* context) {
 }
 static void* compile_C(void* context, const char* C_src, unsigned len) {
   struct CompilerContext* ccontext = (struct CompilerContext*)context;
-
-  return NULL;
+  return mir_compile_C_module(&ccontext->jit->options, ccontext->jit->jit, C_src, "input");
 }
 static void finish_C_compiler(void* context) {
   struct CompilerContext* ccontext = (struct CompilerContext*)context;
@@ -157,16 +188,17 @@ static int load_and_compile(lua_State* L) {
                                                       .compile_C = compile_C,
                                                       .finish_C_compiler = finish_C_compiler,
                                                       .get_compiled_function = get_compiled_function,
+                                                      .add_upvalue = add_upvalue,
                                                       .lua_setProtoFunction = lua_setProtoFunction};
 
   int rc = raviX_compile(&ravicomp_interface);
   L->top--; /* remove table */
-
   lua_assert(cl->nupvalues == cl->p->sizeupvalues);
   luaF_initupvals(L, cl);
+  return 1;
 }
 
-static const luaL_Reg ravilib[] = {{NULL, NULL}};
+static const luaL_Reg ravilib[] = {{"load", load_and_compile}, {NULL, NULL}};
 
 int(raviopen_compiler)(lua_State* L) {
   luaL_newlib(L, ravilib);
