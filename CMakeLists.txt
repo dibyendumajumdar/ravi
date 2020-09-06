@@ -147,6 +147,9 @@ if (RAVICOMP AND MIR_JIT)
     set_property(SOURCE ${RAVICOMP_SRCS}
         APPEND
         PROPERTY INCLUDE_DIRECTORIES ${RAVICOMP_INCLUDE_DIRS})
+    set_property(SOURCE ${RAVICOMP_SRCS}
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
     if ($ENV{CLION_IDE})
         # CLion seems unable to handle include paths set on sources
         include_directories(${RAVICOMP_INCLUDE_DIRS})
