@@ -1,4 +1,5 @@
 f = compiler.load("local a, b, c = 4.2, true, 'hi' return a, b, c")
+assert(f and type(f) == 'function')
 local z = 62
 local a,b,c,d = f()
 assert(z == 62)
