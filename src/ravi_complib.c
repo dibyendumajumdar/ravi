@@ -163,6 +163,9 @@ static int lua_addUpValue(void* context, Proto* f, struct string_object* name, u
     int kpos = lua_newStringConstant(context, f, usertype);
     f->upvalues[pos].usertype = tsvalue(&f->k[kpos]);
   }
+  else {
+    f->upvalues[pos].usertype = NULL;
+  }
   luaC_objbarrier(L, f, tsname);
   return pos;
 }
