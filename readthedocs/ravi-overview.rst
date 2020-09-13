@@ -38,6 +38,7 @@ Features
 * Compact JIT backend `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported for now.
 * `LLVM <http://www.llvm.org/>`_ supported as alternative JIT backend.
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
+* A `Visual Studio Code debugger extension <https://marketplace.visualstudio.com/items?itemName=ravilang.ravi-debug>`_ - interpreted mode debugger.
 
 Documentation
 =============
@@ -73,7 +74,7 @@ Compatibility with Lua 5.3
 ==========================
 Ravi should be able to run all Lua 5.3 programs in interpreted mode, but following should be noted:
 
-* Ravi supports optional typing and enhanced types such as arrays (described above). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions; operations on Ravi arrays within Lua code will be subject to restrictions as described in the section above on arrays.
+* Ravi supports optional typing and enhanced types such as arrays (see the documentation). Programs using these features cannot be run by standard Lua. However all types in Ravi can be passed to Lua functions; operations on Ravi arrays within Lua code will be subject to restrictions as described in the section above on arrays.
 * Values crossing from Lua to Ravi will be subjected to typechecks should these values be assigned to typed variables.
 * Upvalues cannot subvert the static typing of local variables (issue #26) when types are annotated.
 * Certain Lua limits are reduced due to changed byte code structure. These are described below.
@@ -103,14 +104,14 @@ History
 =======
 * 2015
        - Implemented JIT compilation using LLVM
-       - Implemented libgccjit based alternative JIT (now discontinued)
+       - Implemented `libgccjit based alternative JIT <https://github.com/dibyendumajumdar/ravi/tree/gccjit-ravi534>`_ (now discontinued)
 * 2016
        - Implemented debugger for Ravi and Lua 5.3 for `Visual Studio Code <https://github.com/dibyendumajumdar/ravi/tree/master/vscode-debugger>`_
 * 2017
        - Embedded C compiler using dmrC project (C JIT compiler) (now discontinued)
        - Additional type-annotations
 * 2018
-       - Implemented Eclipse OMR JIT backend (now discontinued)
+       - Implemented `Eclipse OMR JIT backend <https://github.com/dibyendumajumdar/ravi/tree/omrjit>`_ (now discontinued)
        - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * 2019 
        - New language feature - `defer` statement
