@@ -44,6 +44,17 @@ struct ravi_State {
 	struct c2mir_options options; /* MIR options */
 };
 
+extern void mir_prepare(MIR_context_t ctx, int optlevel);
+extern void mir_cleanup(MIR_context_t ctx);
+extern MIR_item_t mir_find_function(MIR_module_t module, const char *func_name);
+extern MIR_module_t mir_compile_C_module(
+    struct c2mir_options *options,
+    MIR_context_t ctx,
+    const char *inputbuffer, /* Code to be compiled */
+    const char *source_name /* Name of the function, must be unique */
+    );
+extern void *mir_get_func(MIR_context_t ctx, MIR_module_t module, const char *func_name);
+
 #ifdef __cplusplus
 };
 #endif

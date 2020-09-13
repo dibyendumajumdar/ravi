@@ -60,6 +60,8 @@ void *va_arg_builtin (void *p, uint64_t t) {
   return a;
 }
 
+void *va_stack_arg_builtin (void *p, size_t s) { return *(void **) va_arg_builtin (p, MIR_T_I64); }
+
 void va_start_interp_builtin (MIR_context_t ctx, void *p, void *a) {
   struct aarch64_va_list *va = p;
   va_list *vap = a;
@@ -88,10 +90,11 @@ static int setup_imm64_insns (MIR_context_t ctx, uint32_t *to, int reg, uint64_t
   return sizeof (imm64_pat) / sizeof (uint32_t);
 }
 
-static void push_insns (MIR_context_t ctx, const uint32_t *pat, size_t pat_len) {
+static uint8_t *push_insns (MIR_context_t ctx, const uint32_t *pat, size_t pat_len) {
   uint8_t *p = (uint8_t *) pat;
 
   for (size_t i = 0; i < pat_len; i++) VARR_PUSH (uint8_t, machine_insns, p[i]);
+  return VARR_ADDR (uint8_t, machine_insns) + VARR_LENGTH (uint8_t, machine_insns) - pat_len;
 }
 
 static size_t gen_mov_addr (MIR_context_t ctx, int reg, void *addr) {
@@ -150,6 +153,34 @@ void _MIR_redirect_thunk (MIR_context_t ctx, void *thunk, void *to) {
   }
 }
 
+static void gen_blk_mov (MIR_context_t ctx, uint32_t offset, uint32_t addr_offset, uint32_t qwords,
+			 uint32_t addr_reg) {
+  static const uint32_t blk_mov_pat[] = {
+    /* 0:*/	0xf940026c, /* ldr x12, [x19,<addr_offset>]*/
+    /* 4:*/	0x910003e0, /* add <addr_reg>, sp, <offset>*/
+    /* 8:*/	0xd280000b, /* mov x11, 0*/
+    /* c:*/	0xd280000e, /* mov x14, <qwords>*/
+    /* 10:*/	0xf86c696a, /* ldr x10, [x11,x12]*/
+    /* 14:*/	0xd10005ce, /* sub x14, x14, #0x1*/
+    /* 18:*/	0xf820696a, /* str x10, [x11,<addr_reg>x13]*/
+    /* 1c:*/	0xf10001df, /* cmp x14, 0*/
+    /* 20:*/	0x9100216b, /* add x11, x11, 8*/
+    /* 24:*/	0x54ffff61, /* b.ne 10 */
+  };
+  if (qwords == 0) {
+    uint32_t pat = 0x910003e0 | addr_reg | (offset << 10); /* add <add_reg>, sp, <offset>*/
+    push_insns (ctx, &pat, sizeof (pat));
+  } else {
+    uint32_t *addr = (uint32_t *) push_insns (ctx, blk_mov_pat, sizeof (blk_mov_pat));
+    mir_assert (offset < (1 << 12) && addr_offset % 8 == 0 && (addr_offset >> 3) < (1 << 12));
+    mir_assert (addr_reg < 32 && qwords < (1 << 16));
+    addr[0] |= (addr_offset >> 3) << 10;
+    addr[1] |= addr_reg | (offset << 10);
+    addr[3] |= qwords << 5;
+    addr[6] |= addr_reg << 16;
+  }
+}
+
 /* save r0-r7, v0-v7 */
 static const uint32_t save_insns[] = {
   0xa9bf1fe6, /* stp R6, R7, [SP, #-16]! */
@@ -180,12 +211,14 @@ static const uint32_t ldld_pat = 0x3dc00260; /* ldr q, [x19], offset */
 
 /* Generation: fun (fun_addr, res_arg_addresses):
    push x19, x30; sp-=sp_offset; x9=fun_addr; x19=res/arg_addrs
-   x8=mem[x19,<offset>]; (arg_reg=mem[x8] or x8=mem[x8];mem[sp,sp_offset]=x8) ...
+   x8=mem[x19,<offset>]; (arg_reg=mem[x8](or addr of blk copy on the stack)
+                          or x8=mem[x8] or x13=addr of blk copy on the stack;
+                             mem[sp,sp_offset]=x8|x13) ...
    call fun_addr; sp+=offset
    x8=mem[x19,<offset>]; res_reg=mem[x8]; ...
    pop x19, x30; ret x30. */
 void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, size_t nargs,
-                        MIR_type_t *arg_types, int vararg_p) {
+                        _MIR_arg_desc_t *arg_descs, int vararg_p) {
   static const uint32_t prolog[] = {
     0xa9bf7bf3, /* stp x19,x30,[sp, -16]! */
     0xd10003ff, /* sub sp,sp,<sp_offset> */
@@ -204,17 +237,42 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
   static const uint32_t sts_pat = 0xbd000000;  /* str s, [xn|sp], offset */
   static const uint32_t std_pat = 0xfd000000;  /* str d, [xn|sp], offset */
   static const uint32_t stld_pat = 0x3d800000; /* str q, [xn|sp], offset */
-  uint32_t n_xregs = 0, n_vregs = 0, sp_offset = 0, pat, offset_imm, scale, sp = 31;
+  MIR_type_t type;
+  uint32_t n_xregs = 0, n_vregs = 0, sp_offset = 0, blk_offset = 0, pat, offset_imm, scale;
+  uint32_t sp = 31, addr_reg, qwords;
   uint32_t *addr;
   const uint32_t temp_reg = 8; /* x8 or v9 */
 
+  mir_assert (sizeof (long double) == 16);
+  for (size_t i = 0; i < nargs; i++) { /* caclulate offset for blk params */
+    type = arg_descs[i].type;
+    if ((MIR_T_I8 <= type && type <= MIR_T_U64) || type == MIR_T_P || type == MIR_T_BLK) {
+      if (n_xregs++ >= 8) blk_offset += 8;
+    } else if (type == MIR_T_F || type == MIR_T_D || type == MIR_T_LD) {
+      if (n_vregs++ >= 8) blk_offset += type == MIR_T_LD ? 16 : 8;
+    } else {
+      (*error_func) (MIR_call_op_error, "wrong type of arg value");
+    }
+  }
+  blk_offset = (blk_offset + 15) / 16 * 16;
   VARR_TRUNC (uint8_t, machine_insns, 0);
   push_insns (ctx, prolog, sizeof (prolog));
-  mir_assert (sizeof (long double) == 16);
+  n_xregs = n_vregs = 0;
   for (size_t i = 0; i < nargs; i++) { /* args */
-    scale = arg_types[i] == MIR_T_F ? 2 : arg_types[i] == MIR_T_LD ? 4 : 3;
+    type = arg_descs[i].type;
+    scale = type == MIR_T_F ? 2 : type == MIR_T_LD ? 4 : 3;
     offset_imm = (((i + nres) * sizeof (long double) << 10)) >> scale;
-    if ((MIR_T_I8 <= arg_types[i] && arg_types[i] <= MIR_T_U64) || arg_types[i] == MIR_T_P) {
+    if (type == MIR_T_BLK) {
+      qwords = (arg_descs[i].size + 7) / 8;
+      addr_reg = n_xregs < 8 ? n_xregs : 13;
+      gen_blk_mov (ctx, blk_offset, (i + nres) * sizeof (long double), qwords, addr_reg);
+      blk_offset += qwords * 8;
+      if (n_xregs++ >= 8) {
+        pat = st_pat | ((sp_offset >> scale) << 10) | addr_reg | (sp << 5);
+	push_insns (ctx, &pat, sizeof (pat));
+        sp_offset += 8;
+      }
+    } else if ((MIR_T_I8 <= type && type <= MIR_T_U64) || type == MIR_T_P) {
       if (n_xregs < 8) {
         pat = ld_pat | offset_imm | n_xregs++;
       } else {
@@ -224,24 +282,24 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
         sp_offset += 8;
       }
       push_insns (ctx, &pat, sizeof (pat));
-    } else if (arg_types[i] == MIR_T_F || arg_types[i] == MIR_T_D || arg_types[i] == MIR_T_LD) {
-      pat = arg_types[i] == MIR_T_F ? lds_pat : arg_types[i] == MIR_T_D ? ldd_pat : ldld_pat;
+    } else if (type == MIR_T_F || type == MIR_T_D || type == MIR_T_LD) {
+      pat = type == MIR_T_F ? lds_pat : type == MIR_T_D ? ldd_pat : ldld_pat;
       if (n_vregs < 8) {
         pat |= offset_imm | n_vregs++;
       } else {
-        if (arg_types[i] == MIR_T_LD) sp_offset = (sp_offset + 15) % 16;
+        if (type == MIR_T_LD) sp_offset = (sp_offset + 15) % 16;
         pat |= offset_imm | temp_reg;
         push_insns (ctx, &pat, sizeof (pat));
-        pat = arg_types[i] == MIR_T_F ? sts_pat : arg_types[i] == MIR_T_D ? std_pat : stld_pat;
+        pat = type == MIR_T_F ? sts_pat : type == MIR_T_D ? std_pat : stld_pat;
         pat |= ((sp_offset >> scale) << 10) | temp_reg | (sp << 5);
-        sp_offset += arg_types[i] == MIR_T_LD ? 16 : 8;
+        sp_offset += type == MIR_T_LD ? 16 : 8;
       }
       push_insns (ctx, &pat, sizeof (pat));
-    } else {
-      (*error_func) (MIR_call_op_error, "wrong type of arg value");
     }
   }
   sp_offset = (sp_offset + 15) / 16 * 16;
+  blk_offset = (blk_offset + 15) / 16 * 16;
+  if (blk_offset != 0) sp_offset = blk_offset;
   mir_assert (sp_offset < (1 << 12));
   ((uint32_t *) VARR_ADDR (uint8_t, machine_insns))[1] |= sp_offset << 10; /* sub sp,sp,<offset> */
   push_insns (ctx, call_end, sizeof (call_end));

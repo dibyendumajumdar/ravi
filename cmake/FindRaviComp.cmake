@@ -10,5 +10,6 @@ find_library(RAVICOMP_LIBRARIES
     PATHS
     c:/Software/ravicomp/lib
     ~/Software/ravicomp/lib
+    ~/Software/ravicomp/lib64
   )
 
