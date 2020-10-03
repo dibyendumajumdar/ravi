@@ -172,21 +172,33 @@ static int lua_addUpValue(void* context, Proto* f, struct string_object* name, u
 
 static void init_C_compiler(void* context) {
   struct CompilerContext* ccontext = (struct CompilerContext*)context;
+#ifdef USE_MIRJIT
   mir_prepare(ccontext->jit->jit, 2);
+#endif
 }
 static void* compile_C(void* context, const char* C_src, unsigned len) {
   struct CompilerContext* ccontext = (struct CompilerContext*)context;
   fprintf(stdout, "%s\n", C_src);
+#ifdef USE_MIRJIT
   return mir_compile_C_module(&ccontext->jit->options, ccontext->jit->jit, C_src, "input");
+#else
+  return NULL;
+#endif
 }
 static void finish_C_compiler(void* context) {
   struct CompilerContext* ccontext = (struct CompilerContext*)context;
+#ifdef USE_MIRJIT
   mir_cleanup(ccontext->jit->jit);
+#endif
 }
 static lua_CFunction get_compiled_function(void* context, void* module, const char* name) {
   struct CompilerContext* ccontext = (struct CompilerContext*)context;
+#if USE_MIRJIT
   MIR_module_t M = (MIR_module_t)module;
   return (lua_CFunction)mir_get_func(ccontext->jit->jit, M, name);
+#else
+  return NULL;
+#endif  
 }
 static void lua_setProtoFunction(void* context, Proto* p, lua_CFunction func) {
   p->ravi_jit.jit_function = func;
