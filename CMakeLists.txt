@@ -12,6 +12,9 @@ option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
 option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires Debug build" ON)
 option(ASAN "Controls whether address sanitizer should be enabled" OFF)
+option(RAVICOMP "Controls whether to link in RaviComp" OFF)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 # By default on non-Windows platforms we enable MIR JIT
 if (NOT WIN32
@@ -66,6 +69,7 @@ set(C2MIR_SRCS mir/c2mir/c2mir.c)
 set(MIR_JIT_SRCS src/ravi_mirjit.c)
 set(NO_JIT_SRCS src/ravi_nojit.c)
 set(LUA_CMD_SRCS src/lua.c)
+set(RAVICOMP_SRCS src/ravi_complib.c)
 file(GLOB RAVI_HEADERS "${PROJECT_SOURCE_DIR}/include/*.h")
 
 if (COMPUTED_GOTO AND NOT MSVC)
@@ -79,16 +83,15 @@ endif ()
 include(CheckCCompilerFlag)
 check_c_compiler_flag("-march=native" COMPILER_OPT_ARCH_NATIVE_SUPPORTED)
 if (COMPILER_OPT_ARCH_NATIVE_SUPPORTED AND NOT CMAKE_C_FLAGS MATCHES "-march=")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
-endif()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
+endif ()
 if (ASAN)
     set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
     check_c_compiler_flag("-fsanitize=address" COMPILER_ASAN_SUPPORTED)
     if (COMPILER_ASAN_SUPPORTED AND NOT CMAKE_C_FLAGS_DEBUG MATCHES "-fsanitize=address")
         set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
-    endif()
-endif()
-
+    endif ()
+endif ()
 
 if (LLVM_JIT)
     find_package(LLVM REQUIRED CONFIG)
@@ -132,15 +135,33 @@ else ()
             # CLion seems unable to handle include paths set on sources
             include_directories("${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
         endif ()
-    else()
+    else ()
         set(JIT_SRCS ${NO_JIT_SRCS})
+    endif ()
+endif ()
+
+if (RAVICOMP)
+    # Need MIR_JIT for the compiler add-on
+    find_package(RaviComp REQUIRED)
+    set(ADDON_SRCS ${RAVICOMP_SRCS})
+    set_property(SOURCE ${RAVICOMP_SRCS}
+            APPEND
+            PROPERTY INCLUDE_DIRECTORIES ${RAVICOMP_INCLUDE_DIRS})
+    if (MIR_JIT)
+        set_property(SOURCE ${RAVICOMP_SRCS}
+                APPEND
+                PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
+    endif ()
+    if ($ENV{CLION_IDE})
+        # CLion seems unable to handle include paths set on sources
+        include_directories(${RAVICOMP_INCLUDE_DIRS})
     endif ()
 endif ()
 
 # IDE stuff
 if (MSVC OR APPLE)
     source_group("Ravi Headers" FILES ${RAVI_HEADERS})
-    source_group("Ravi Source Files" FILES ${LUA_CORE_SRCS} ${LUA_LIB_SRCS} ${JIT_SRCS})
+    source_group("Ravi Source Files" FILES ${LUA_CORE_SRCS} ${LUA_LIB_SRCS} ${JIT_SRCS} ${ADDON_SRCS})
 endif ()
 
 # Misc setup
@@ -212,6 +233,7 @@ if (LLVM_JIT)
     message(STATUS "LLVM_LIBS ${LLVM_LIBS}")
 endif ()
 
+
 set(LIBRAVI_NAME libravi)
 
 #Main library
@@ -219,8 +241,9 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${RAVI_HEADERS}
         ${LUA_LIB_SRCS}
         ${LUA_CORE_SRCS}
-        ${JIT_SRCS})
-target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${MIRJIT_LIBRARIES})
+        ${JIT_SRCS}
+        ${ADDON_SRCS})
+target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${MIRJIT_LIBRARIES} ${RAVICOMP_LIBRARIES})
 
 # Main Ravi executable
 add_executable(ravi ${LUA_CMD_SRCS})
@@ -282,6 +305,13 @@ if (NOT STATIC_BUILD)
     endif ()
 else ()
     set_target_properties(${LIBRAVI_NAME} PROPERTIES PREFIX "")
+endif ()
+if (RAVICOMP)
+    set_property(
+            TARGET ${LIBRAVI_NAME}
+            APPEND
+            PROPERTY COMPILE_DEFINITIONS "USE_RAVICOMP=1")
+    set(USE_RAVICOMP 1)
 endif ()
 if (APPLE)
     set_property(
