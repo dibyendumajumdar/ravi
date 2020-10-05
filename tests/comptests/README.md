@@ -1,0 +1,2 @@
+The tests in this folder are meant to be for the upcoming new compiler for Ravi.
+For details go to [https://github.com/dibyendumajumdar/ravi-compiler](https://github.com/dibyendumajumdar/ravi-compiler).
