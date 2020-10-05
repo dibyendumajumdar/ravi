@@ -247,6 +247,14 @@ static int load_and_compile(lua_State* L) {
   if (rc == 0) {
     lua_assert(cl->nupvalues == cl->p->sizeupvalues);
     luaF_initupvals(L, cl);
+    if (cl->nupvalues >= 1) {  /* does it have an upvalue? */
+      /* get global table from registry */
+      Table *reg = hvalue(&G(L)->l_registry);
+      const TValue *gt = luaH_getint(reg, LUA_RIDX_GLOBALS);
+      /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
+      setobj(L, cl->upvals[0]->v, gt);
+      luaC_upvalbarrier(L, cl->upvals[0], gt);
+    }
     return 1;
   }
   else {
