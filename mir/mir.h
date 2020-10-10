@@ -131,6 +131,7 @@ typedef enum {
   INSN_EL (VA_END), /* operand is va_list */
   INSN_EL (LABEL),  /* One immediate operand is unique label number  */
   INSN_EL (UNSPEC), /* First operand unspec code and the rest are args */
+  INSN_EL (PHI),    /* Used only internally in the generator, the first operand is output */
   INSN_EL (INVALID_INSN),
   INSN_EL (INSN_BOUND), /* Should be the last  */
 } MIR_insn_code_t;
@@ -141,7 +142,7 @@ typedef enum {
 typedef enum {
   REP8 (TYPE_EL, I8, U8, I16, U16, I32, U32, I64, U64), /* Integer types of different size: */
   REP3 (TYPE_EL, F, D, LD),                             /* Float or (long) double type */
-  REP2 (TYPE_EL, P, BLK),                               /* Pointer and memory block */
+  REP3 (TYPE_EL, P, BLK, RBLK),                         /* Pointer, (return) memory block */
   REP2 (TYPE_EL, UNDEF, BOUND),
 } MIR_type_t;
 
@@ -150,6 +151,8 @@ static inline int MIR_int_type_p (MIR_type_t t) {
 }
 
 static inline int MIR_fp_type_p (MIR_type_t t) { return MIR_T_F <= t && t <= MIR_T_LD; }
+
+static inline int MIR_blk_type_p (MIR_type_t t) { return t == MIR_T_BLK || t == MIR_T_RBLK; }
 
 #if UINTPTR_MAX == 0xffffffff
 #define MIR_PTR32 1
@@ -258,9 +261,9 @@ struct MIR_insn {
 DEF_DLIST (MIR_insn_t, insn_link);
 
 typedef struct MIR_var {
-  MIR_type_t type; /* MIR_T_BLK can be used only args */
+  MIR_type_t type; /* MIR_T_BLK and MIR_T_RBLK can be used only args */
   const char *name;
-  size_t size; /* ignored for type != MIR_T_BLK */
+  size_t size; /* ignored for type != MIR_T_BLK, MIR_T_RBLK */
 } MIR_var_t;
 
 DEF_VARR (MIR_var_t);
@@ -559,7 +562,8 @@ extern void _MIR_restore_func_insns (MIR_context_t ctx, MIR_item_t func_item);
 extern void _MIR_simplify_insn (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn,
                                 int keep_ref_p, int mem_float_p);
 
-extern const char *_MIR_get_temp_item_name (MIR_context_t ctx, MIR_module_t module);
+extern void _MIR_get_temp_item_name (MIR_context_t ctx, MIR_module_t module, char *buff,
+                                     size_t buff_len);
 
 extern MIR_op_t _MIR_new_hard_reg_op (MIR_context_t ctx, MIR_reg_t hard_reg);
 
@@ -599,7 +603,7 @@ extern void *_MIR_get_bend_builtin (MIR_context_t ctx);
 
 typedef struct {
   MIR_type_t type;
-  size_t size; /* used only for block arg (type == MIR_T_BLK) */
+  size_t size; /* used only for block arg (type == MIR_T_BLK, MIR_T_RBLK) */
 } _MIR_arg_desc_t;
 
 extern void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, size_t nargs,

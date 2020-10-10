@@ -262,12 +262,12 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
   for (size_t i = start; i < nops; i++) {
     arg_op = call_insn->ops[i];
     gen_assert (arg_op.mode == MIR_OP_REG || arg_op.mode == MIR_OP_HARD_REG
-                || (arg_op.mode == MIR_OP_MEM && arg_op.u.mem.type == MIR_T_BLK));
+                || (arg_op.mode == MIR_OP_MEM && MIR_blk_type_p (arg_op.u.mem.type)));
     if (i - start < nargs) {
       type = arg_vars[i - start].type;
     } else if (call_insn->ops[i].mode == MIR_OP_MEM) {
-      type = MIR_T_BLK;
-      gen_assert (call_insn->ops[i].u.mem.type == type);
+      type = arg_op.u.mem.type;
+      gen_assert (type == MIR_T_BLK || type == MIR_T_RBLK);
     } else {
       mode = call_insn->ops[i].value_mode;  // ??? smaller ints
       gen_assert (mode == MIR_OP_INT || mode == MIR_OP_UINT || mode == MIR_OP_FLOAT
@@ -333,7 +333,14 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
     } else if (type != MIR_T_F && type != MIR_T_D && type != MIR_T_LD && n_iregs < 8) {
       if (ext_insn != NULL) gen_add_insn_before (gen_ctx, call_insn, ext_insn);
       arg_reg_op = _MIR_new_hard_reg_op (ctx, R3_HARD_REG + n_iregs);
-      gen_mov (gen_ctx, call_insn, MIR_MOV, arg_reg_op, arg_op);
+      if (type != MIR_T_RBLK) {
+	gen_mov (gen_ctx, call_insn, MIR_MOV, arg_reg_op, arg_op);
+      } else {
+	assert (arg_op.mode == MIR_OP_MEM);
+	gen_mov (gen_ctx, call_insn, MIR_MOV, arg_reg_op, MIR_new_reg_op (ctx, arg_op.u.mem.base));
+	arg_reg_op = _MIR_new_hard_reg_mem_op (ctx, MIR_T_RBLK, arg_op.u.mem.disp,
+					       R3_HARD_REG + n_iregs, MIR_NON_HARD_REG, 1);
+      }
       call_insn->ops[i] = arg_reg_op;
     } else { /* put arguments on the stack */
       if (ext_insn != NULL) gen_add_insn_before (gen_ctx, call_insn, ext_insn);
@@ -342,7 +349,12 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
                            : type == MIR_T_D ? MIR_DMOV : type == MIR_T_LD ? MIR_LDMOV : MIR_MOV);
       mem_op = _MIR_new_hard_reg_mem_op (ctx, mem_type, mem_size + PPC64_STACK_HEADER_SIZE,
                                          SP_HARD_REG, MIR_NON_HARD_REG, 1);
-      gen_mov (gen_ctx, call_insn, new_insn_code, mem_op, arg_op);
+      if (type != MIR_T_RBLK) {
+	gen_mov (gen_ctx, call_insn, new_insn_code, mem_op, arg_op);
+      } else {
+	assert (arg_op.mode == MIR_OP_MEM);
+	gen_mov (gen_ctx, call_insn, new_insn_code, mem_op, MIR_new_reg_op (ctx, arg_op.u.mem.base));
+      }
       call_insn->ops[i] = mem_op;
     }
     mem_size += type == MIR_T_LD ? 16 : 8;
@@ -649,7 +661,7 @@ static void target_machinize (gen_ctx_t gen_ctx) {
       gen_mov (gen_ctx, anchor, type == MIR_T_F ? MIR_FMOV : type == MIR_T_D ? MIR_DMOV : MIR_LDMOV,
                arg_var_op,
                _MIR_new_hard_reg_mem_op (ctx, type, disp, R12_HARD_REG, MIR_NON_HARD_REG, 1));
-    } else if (type == MIR_T_BLK) {  // ??? FBLK
+    } else if (type == MIR_T_BLK) {
       qwords = (VARR_GET (MIR_var_t, func->vars, i).size + 7) / 8;
       offset = int_arg_num < 8 ? PPC64_STACK_HEADER_SIZE + int_arg_num * 8 : disp;
       set_prev_sp_op (gen_ctx, anchor, &prev_sp_op);
@@ -2329,7 +2341,7 @@ static uint8_t *target_translate (gen_ctx_t gen_ctx, size_t *len) {
         if (insn->ops[2].u.i == 0) {
           gen_mov (gen_ctx, insn, MIR_MOV, insn->ops[0], insn->ops[1]);
           old_insn = insn;
-          insn = DLIST_NEXT (MIR_insn_t, insn);
+          insn = DLIST_PREV (MIR_insn_t, insn);
           gen_delete_insn (gen_ctx, old_insn);
         } else {
           if (insn->ops[2].mode == MIR_OP_INT && insn->ops[2].u.i < 0) {

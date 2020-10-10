@@ -286,8 +286,8 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
     } else if (i - start < nargs) {
       type = arg_vars[i - start].type;
     } else if (arg_op.mode == MIR_OP_MEM) {
-      type = MIR_T_BLK;
-      gen_assert (arg_op.u.mem.type == type);
+      type = arg_op.u.mem.type;
+      gen_assert (type == MIR_T_BLK || type == MIR_T_RBLK);
     } else {
       mode = arg_op.value_mode;  // ??? smaller ints
       gen_assert (mode == MIR_OP_INT || mode == MIR_OP_UINT || mode == MIR_OP_FLOAT
@@ -307,7 +307,7 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
     if ((type == MIR_T_F || type == MIR_T_D) && n_fregs < 4) {
       /* put arguments to argument hard regs: */
       n_fregs++;
-    } else if (type != MIR_T_F && type != MIR_T_D && n_iregs < 5) {
+    } else if (type != MIR_T_F && type != MIR_T_D && n_iregs < 5) { /* RBLK too */
       n_iregs++;
     } else { /* put arguments on the stack */
       param_mem_size += 8;
@@ -321,14 +321,14 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
   for (size_t i = 2; i < nops; i++) { /* process args and ???long double results: */
     arg_op = call_insn->ops[i];
     gen_assert (arg_op.mode == MIR_OP_REG || arg_op.mode == MIR_OP_HARD_REG
-                || (arg_op.mode == MIR_OP_MEM && arg_op.u.mem.type == MIR_T_BLK));
+                || (arg_op.mode == MIR_OP_MEM && MIR_blk_type_p (arg_op.u.mem.type)));
     if (i < start) {
       type = proto->res_types[i - 2];
     } else if (i - start < nargs) {
       type = arg_vars[i - start].type;
     } else if (call_insn->ops[i].mode == MIR_OP_MEM) {
-      type = MIR_T_BLK;
-      gen_assert (call_insn->ops[i].u.mem.type == type);
+      type = call_insn->ops[i].u.mem.type;
+      gen_assert (type == MIR_T_BLK || type == MIR_T_RBLK);
     } else {
       mode = call_insn->ops[i].value_mode;  // ??? smaller ints
       gen_assert (mode == MIR_OP_INT || mode == MIR_OP_UINT || mode == MIR_OP_DOUBLE
@@ -372,7 +372,14 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
     } else if (type != MIR_T_F && type != MIR_T_D && n_iregs < 5) {
       if (ext_insn != NULL) gen_add_insn_before (gen_ctx, call_insn, ext_insn);
       arg_reg_op = _MIR_new_hard_reg_op (ctx, R2_HARD_REG + n_iregs);
-      gen_mov (gen_ctx, call_insn, MIR_MOV, arg_reg_op, arg_op);
+      if (type != MIR_T_RBLK) {
+        gen_mov (gen_ctx, call_insn, MIR_MOV, arg_reg_op, arg_op);
+      } else {
+        assert (arg_op.mode == MIR_OP_MEM);
+        gen_mov (gen_ctx, call_insn, MIR_MOV, arg_reg_op, MIR_new_reg_op (ctx, arg_op.u.mem.base));
+        arg_reg_op = _MIR_new_hard_reg_mem_op (ctx, MIR_T_RBLK, arg_op.u.mem.disp,
+                                               R2_HARD_REG + n_iregs, MIR_NON_HARD_REG, 1);
+      }
       if (i >= start) call_insn->ops[i] = arg_reg_op; /* don't change LD return yet */
       n_iregs++;
     } else { /* put arguments on the stack: */
@@ -380,7 +387,13 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
       new_insn_code = (type == MIR_T_F ? MIR_FMOV : type == MIR_T_D ? MIR_DMOV : MIR_MOV);
       mem_op = _MIR_new_hard_reg_mem_op (ctx, mem_type, param_mem_size + S390X_STACK_HEADER_SIZE,
                                          SP_HARD_REG, MIR_NON_HARD_REG, 1);
-      gen_mov (gen_ctx, call_insn, new_insn_code, mem_op, arg_op);
+      if (type != MIR_T_RBLK) {
+        gen_mov (gen_ctx, call_insn, new_insn_code, mem_op, arg_op);
+      } else {
+        assert (arg_op.mode == MIR_OP_MEM);
+        gen_mov (gen_ctx, call_insn, new_insn_code, mem_op,
+                 MIR_new_reg_op (ctx, arg_op.u.mem.base));
+      }
       if (i >= start) call_insn->ops[i] = mem_op;
       param_mem_size += 8;
     }

@@ -2,7 +2,9 @@
    Copyright (C) 2018-2020 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
-// _MIR_get_thunk, _MIR_redirect_thunk, _MIR_get_interp_shim, _MIR_get_ff_call, _MIR_get_wrapper
+/* BLK is passed in int regs, and if the regs are not enough, the rest is passed on the stack.
+   RBLK is always passed by address.  */
+
 #define VA_LIST_IS_ARRAY_P 1 /* one element which is a pointer to args */
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -321,26 +323,11 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
       if (qwords > 0) ppc64_gen_ld (ctx, 11, res_reg, param_offset, MIR_T_I64);
       for (blk_disp = 0; qwords > 0 && n_gpregs < 8; qwords--, n_gpregs++, blk_disp += 8, disp += 8)
         ppc64_gen_ld (ctx, n_gpregs + 3, 11, blk_disp, MIR_T_I64);
-#if 0
-      /* passing FBLK: */
-      for (blk_disp = 0, qwords = (arg_descs[i].size + 7) / 8;
-	   qwords > 0 && n_fpregs < 13;
-	   qwords--, n_fpregs++, blk_disp += 8, disp += 8) {
-	ppc64_gen_ld (ctx, n_fpregs + 1, 11, blk_disp, MIR_T_D);
-	if (vararg_p) {
-	  if (n_gpregs < 8) { /* load into gp reg too */
-	    ppc64_gen_ld (ctx, n_gpregs + 3, 11, blk_disp, MIR_T_I64);
-	  } else {
-	    ppc64_gen_st (ctx, 1 + n_fpregs, 1, disp, MIR_T_D);
-	  }
-	}
-      }
-#endif
       if (qwords > 0) gen_blk_mov (ctx, disp, 11, blk_disp, qwords);
       disp += qwords * 8;
       param_offset += 16;
       continue;
-    } else if (n_gpregs < 8) {
+    } else if (n_gpregs < 8) { /* including RBLK */
       ppc64_gen_ld (ctx, n_gpregs + 3, res_reg, param_offset, MIR_T_I64);
     } else {
       ppc64_gen_ld (ctx, 0, res_reg, param_offset, MIR_T_I64);
@@ -355,16 +342,16 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
   disp = 0;
   for (uint32_t i = 0; i < nres; i++) {
     type = res_types[i];
-    if ((type == MIR_T_F || type == MIR_T_D || type == MIR_T_LD) && n_fpregs < 4) {
+    if ((type == MIR_T_F || type == MIR_T_D || type == MIR_T_LD) && n_fpregs < 8) {
       ppc64_gen_st (ctx, n_fpregs + 1, res_reg, disp, type);
       n_fpregs++;
       if (type == MIR_T_LD) {
-        if (n_fpregs >= 4)
+        if (n_fpregs >= 8)
           (*error_func) (MIR_ret_error, "ppc64 can not handle this combination of return values");
         ppc64_gen_st (ctx, n_fpregs + 1, res_reg, disp + 8, type);
         n_fpregs++;
       }
-    } else if (n_gpregs < 1) {  // just one gp reg
+    } else if (n_gpregs < 2) {  // just one-two gp reg
       ppc64_gen_st (ctx, n_gpregs + 3, res_reg, disp, MIR_T_I64);
       n_gpregs++;
     } else {
@@ -444,7 +431,7 @@ void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handl
             ppc64_gen_st (ctx, 0, 1, disp + 8, MIR_T_D);
           }
         }
-      } else if (type == MIR_T_BLK) {  // ??? FBLK
+      } else if (type == MIR_T_BLK) {
         qwords = (arg_vars[i].size + 7) / 8;
         for (; qwords > 0 && n_gpregs < 8; qwords--, n_gpregs++, disp += 8, param_offset += 8)
           ppc64_gen_st (ctx, n_gpregs + 3, 1, disp, MIR_T_I64);
@@ -484,16 +471,16 @@ void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handl
   disp = n_gpregs = n_fpregs = 0;
   for (uint32_t i = 0; i < nres; i++) {
     type = res_types[i];
-    if ((type == MIR_T_F || type == MIR_T_D || type == MIR_T_LD) && n_fpregs < 4) {
+    if ((type == MIR_T_F || type == MIR_T_D || type == MIR_T_LD) && n_fpregs < 8) {
       ppc64_gen_ld (ctx, n_fpregs + 1, res_reg, disp, type);
       n_fpregs++;
       if (type == MIR_T_LD) {
-        if (n_fpregs >= 4)
+        if (n_fpregs >= 8)
           (*error_func) (MIR_ret_error, "ppc64 can not handle this combination of return values");
         ppc64_gen_ld (ctx, n_fpregs + 1, res_reg, disp + 8, type);
         n_fpregs++;
       }
-    } else if (n_gpregs < 1) {  // just one gp reg
+    } else if (n_gpregs < 2) {  // just one-two gp reg
       ppc64_gen_ld (ctx, n_gpregs + 3, res_reg, disp, MIR_T_I64);
       n_gpregs++;
     } else {
