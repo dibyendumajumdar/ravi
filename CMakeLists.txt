@@ -17,16 +17,12 @@ option(RAVICOMP "Controls whether to link in RaviComp" OFF)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 # By default on non-Windows platforms we enable MIR JIT
-if (NOT WIN32
-        AND NOT LLVM_JIT
+if (NOT LLVM_JIT
         AND NOT NO_JIT)
     set(MIR_JIT ON)
 endif ()
 
 if (MIR_JIT)
-    if (MSVC OR WIN32)
-        message(FATAL_ERROR "MIR_JIT is not supported when using MSVC and/or WIN32")
-    endif ()
     set(LLVM_JIT OFF)
     set(STATIC_BUILD OFF) # Because we need to expose the symbols in the library
 endif ()
