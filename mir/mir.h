@@ -31,6 +31,15 @@ static inline int mir_assert (int cond) { return 0 && cond; }
 #define MIR_NO_SCAN 0
 #endif
 
+#ifndef MIR_PARALLEL_GEN
+#define MIR_PARALLEL_GEN 0
+#endif
+
+#if MIR_PARALLEL_GEN && defined(_WIN64) /* TODO: Win64 thread primitives ??? */
+#undef MIR_PARALLEL_GEN
+#define MIR_PARALLEL_GEN 0
+#endif
+
 #ifdef __GNUC__
 #define MIR_UNUSED __attribute__ ((unused))
 #else
@@ -53,7 +62,7 @@ typedef enum MIR_error_type {
   REP4 (ERR_EL, func, vararg_func, nested_func, wrong_param_value),
   REP5 (ERR_EL, reserved_name, import_export, undeclared_func_reg, repeated_decl, reg_type),
   REP6 (ERR_EL, wrong_type, unique_reg, undeclared_op_ref, ops_num, call_op, unspec_op),
-  REP4 (ERR_EL, ret, op_mode, out_op, invalid_insn)
+  REP6 (ERR_EL, ret, op_mode, out_op, invalid_insn, ctx_change, parallel)
 } MIR_error_type_t;
 
 #ifdef __GNUC__
@@ -64,6 +73,28 @@ typedef enum MIR_error_type {
 
 typedef void MIR_NO_RETURN (*MIR_error_func_t) (MIR_error_type_t error_type, const char *format,
                                                 ...);
+
+#if MIR_PARALLEL_GEN
+#include <pthread.h>
+typedef pthread_mutex_t mir_mutex_t;
+typedef pthread_cond_t mir_cond_t;
+#define mir_thread_create(m, attr, f, arg) pthread_create (m, attr, f, arg)
+#define mir_thread_join(t, r) pthread_join (t, r)
+#define mir_mutex_init(m, a) pthread_mutex_init (m, a)
+#define mir_mutex_destroy(m) pthread_mutex_destroy (m)
+#define mir_mutex_lock(m) pthread_mutex_lock (m)
+#define mir_mutex_unlock(m) pthread_mutex_unlock (m)
+#define mir_cond_init(m, a) pthread_cond_init (m, a)
+#define mir_cond_destroy(m) pthread_cond_destroy (m)
+#define mir_cond_wait(c, m) pthread_cond_wait (c, m)
+#define mir_cond_signal(c) pthread_cond_signal (c)
+#define mir_cond_broadcast(c) pthread_cond_broadcast (c)
+#else
+#define mir_mutex_init(m, a) 0
+#define mir_mutex_destroy(m) 0
+#define mir_mutex_lock(m) 0
+#define mir_mutex_unlock(m) 0
+#endif
 
 #define INSN_EL(i) MIR_##i
 
@@ -131,7 +162,6 @@ typedef enum {
   INSN_EL (VA_END), /* operand is va_list */
   INSN_EL (LABEL),  /* One immediate operand is unique label number  */
   INSN_EL (UNSPEC), /* First operand unspec code and the rest are args */
-  INSN_EL (PHI),    /* Used only internally in the generator, the first operand is output */
   INSN_EL (INVALID_INSN),
   INSN_EL (INSN_BOUND), /* Should be the last  */
 } MIR_insn_code_t;
@@ -279,6 +309,7 @@ typedef struct MIR_func {
   VARR (MIR_var_t) * vars; /* args and locals but temps */
   void *machine_code;      /* address of generated machine code or NULL */
   void *call_addr;         /* address to call the function, it can be the same as machine_code */
+  void *internal;          /* internal data structure */
 } * MIR_func_t;
 
 typedef struct MIR_proto {
@@ -492,6 +523,8 @@ extern void MIR_insert_insn_after (MIR_context_t ctx, MIR_item_t func, MIR_insn_
 extern void MIR_insert_insn_before (MIR_context_t ctx, MIR_item_t func, MIR_insn_t before,
                                     MIR_insn_t insn);
 extern void MIR_remove_insn (MIR_context_t ctx, MIR_item_t func, MIR_insn_t insn);
+
+extern void MIR_change_module_ctx (MIR_context_t old_ctx, MIR_module_t m, MIR_context_t new_ctx);
 
 extern MIR_insn_code_t MIR_reverse_branch_code (MIR_insn_code_t code);
 

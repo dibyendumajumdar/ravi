@@ -167,15 +167,15 @@ static const uint8_t restore_pat[] = {
 #endif
 };
 
-static uint8_t *push_insns (MIR_context_t ctx, const uint8_t *pat, size_t pat_len) {
-  for (size_t i = 0; i < pat_len; i++) VARR_PUSH (uint8_t, machine_insns, pat[i]);
-  return VARR_ADDR (uint8_t, machine_insns) + VARR_LENGTH (uint8_t, machine_insns) - pat_len;
+static uint8_t *push_insns (VARR (uint8_t) * insn_varr, const uint8_t *pat, size_t pat_len) {
+  for (size_t i = 0; i < pat_len; i++) VARR_PUSH (uint8_t, insn_varr, pat[i]);
+  return VARR_ADDR (uint8_t, insn_varr) + VARR_LENGTH (uint8_t, insn_varr) - pat_len;
 }
 
-static void gen_mov (MIR_context_t ctx, uint32_t offset, uint32_t reg, int ld_p) {
+static void gen_mov (VARR (uint8_t) * insn_varr, uint32_t offset, uint32_t reg, int ld_p) {
   static const uint8_t ld_gp_reg[] = {0x48, 0x8b, 0x83, 0, 0, 0, 0 /* mov <offset>(%rbx),%reg */};
   static const uint8_t st_gp_reg[] = {0x48, 0x89, 0x83, 0, 0, 0, 0 /* mov %reg,<offset>(%rbx) */};
-  uint8_t *addr = push_insns (ctx, ld_p ? ld_gp_reg : st_gp_reg,
+  uint8_t *addr = push_insns (insn_varr, ld_p ? ld_gp_reg : st_gp_reg,
                               ld_p ? sizeof (ld_gp_reg) : sizeof (st_gp_reg));
   memcpy (addr + 3, &offset, sizeof (uint32_t));
   assert (reg <= 15);
@@ -183,7 +183,7 @@ static void gen_mov (MIR_context_t ctx, uint32_t offset, uint32_t reg, int ld_p)
   addr[2] |= (reg & 7) << 3;
 }
 
-static void gen_blk_mov (MIR_context_t ctx, uint32_t offset, uint32_t addr_offset,
+static void gen_blk_mov (VARR (uint8_t) * insn_varr, uint32_t offset, uint32_t addr_offset,
                          uint32_t qwords) {
   static const uint8_t blk_mov_pat[] = {
     /*0:*/ 0x4c,  0x8b, 0xa3, 0,    0, 0, 0,    /*mov <addr_offset>(%rbx),%r12*/
@@ -194,20 +194,21 @@ static void gen_blk_mov (MIR_context_t ctx, uint32_t offset, uint32_t addr_offse
     /*1e:*/ 0x48, 0x85, 0xc0,                   /*test %rax,%rax*/
     /*21:*/ 0x7f, 0xeb,                         /*jg e <L0>*/
   };
-  uint8_t *addr = push_insns (ctx, blk_mov_pat, sizeof (blk_mov_pat));
+  uint8_t *addr = push_insns (insn_varr, blk_mov_pat, sizeof (blk_mov_pat));
   memcpy (addr + 3, &addr_offset, sizeof (uint32_t));
   memcpy (addr + 10, &qwords, sizeof (uint32_t));
   memcpy (addr + 26, &offset, sizeof (uint32_t));
 }
 
-static void gen_movxmm (MIR_context_t ctx, uint32_t offset, uint32_t reg, int b32_p, int ld_p) {
+static void gen_movxmm (VARR (uint8_t) * insn_varr, uint32_t offset, uint32_t reg, int b32_p,
+                        int ld_p) {
   static const uint8_t ld_xmm_reg_pat[] = {
     0xf2, 0x0f, 0x10, 0x83, 0, 0, 0, 0 /* movs[sd] <offset>(%rbx),%xmm */
   };
   static const uint8_t st_xmm_reg_pat[] = {
     0xf2, 0x0f, 0x11, 0x83, 0, 0, 0, 0 /* movs[sd] %xmm, <offset>(%rbx) */
   };
-  uint8_t *addr = push_insns (ctx, ld_p ? ld_xmm_reg_pat : st_xmm_reg_pat,
+  uint8_t *addr = push_insns (insn_varr, ld_p ? ld_xmm_reg_pat : st_xmm_reg_pat,
                               ld_p ? sizeof (ld_xmm_reg_pat) : sizeof (st_xmm_reg_pat));
   memcpy (addr + 4, &offset, sizeof (uint32_t));
   assert (reg <= 7);
@@ -215,12 +216,13 @@ static void gen_movxmm (MIR_context_t ctx, uint32_t offset, uint32_t reg, int b3
   if (b32_p) addr[0] |= 1;
 }
 
-static void gen_ldst (MIR_context_t ctx, uint32_t sp_offset, uint32_t src_offset, int b64_p) {
+static void gen_ldst (VARR (uint8_t) * insn_varr, uint32_t sp_offset, uint32_t src_offset,
+                      int b64_p) {
   static const uint8_t ldst_pat[] = {
     0x44, 0x8b, 0x93, 0,    0, 0, 0,    /* mov    <src_offset>(%rbx),%r10 */
     0x44, 0x89, 0x94, 0x24, 0, 0, 0, 0, /* mov    %r10,<sp_offset>(%sp) */
   };
-  uint8_t *addr = push_insns (ctx, ldst_pat, sizeof (ldst_pat));
+  uint8_t *addr = push_insns (insn_varr, ldst_pat, sizeof (ldst_pat));
   memcpy (addr + 3, &src_offset, sizeof (uint32_t));
   memcpy (addr + 11, &sp_offset, sizeof (uint32_t));
   if (b64_p) {
@@ -229,19 +231,19 @@ static void gen_ldst (MIR_context_t ctx, uint32_t sp_offset, uint32_t src_offset
   }
 }
 
-static void gen_ldst80 (MIR_context_t ctx, uint32_t sp_offset, uint32_t src_offset) {
+static void gen_ldst80 (VARR (uint8_t) * insn_varr, uint32_t sp_offset, uint32_t src_offset) {
   static uint8_t const ldst80_pat[] = {
     0xdb, 0xab, 0,    0, 0, 0,    /* fldt   <src_offset>(%rbx) */
     0xdb, 0xbc, 0x24, 0, 0, 0, 0, /* fstpt  <sp_offset>(%sp) */
   };
-  uint8_t *addr = push_insns (ctx, ldst80_pat, sizeof (ldst80_pat));
+  uint8_t *addr = push_insns (insn_varr, ldst80_pat, sizeof (ldst80_pat));
   memcpy (addr + 2, &src_offset, sizeof (uint32_t));
   memcpy (addr + 9, &sp_offset, sizeof (uint32_t));
 }
 
-static void gen_st80 (MIR_context_t ctx, uint32_t src_offset) {
+static void gen_st80 (VARR (uint8_t) * insn_varr, uint32_t src_offset) {
   static const uint8_t st80_pat[] = {0xdb, 0xbb, 0, 0, 0, 0 /* fstpt   <src_offset>(%rbx) */};
-  memcpy (push_insns (ctx, st80_pat, sizeof (st80_pat)) + 2, &src_offset, sizeof (uint32_t));
+  memcpy (push_insns (insn_varr, st80_pat, sizeof (st80_pat)) + 2, &src_offset, sizeof (uint32_t));
 }
 
 /* Generation: fun (fun_addr, res_arg_addresses):
@@ -293,69 +295,74 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
 #endif
   uint32_t n_iregs = 0, n_xregs = 0, n_fregs, qwords;
   uint8_t *addr;
+  VARR (uint8_t) * code;
+  void *res;
 
-  VARR_TRUNC (uint8_t, machine_insns, 0);
-  push_insns (ctx, prolog, sizeof (prolog));
+  VARR_CREATE (uint8_t, code, 128);
+  push_insns (code, prolog, sizeof (prolog));
   for (size_t i = 0; i < nargs; i++) {
     MIR_type_t type = arg_descs[i].type;
 
     if ((MIR_T_I8 <= type && type <= MIR_T_U64) || type == MIR_T_P || type == MIR_T_RBLK) {
       if (n_iregs < max_iregs) {
-        gen_mov (ctx, (i + nres) * sizeof (long double), iregs[n_iregs++], TRUE);
+        gen_mov (code, (i + nres) * sizeof (long double), iregs[n_iregs++], TRUE);
 #ifdef _WIN64
         n_xregs++;
 #endif
       } else {
-        gen_ldst (ctx, sp_offset, (i + nres) * sizeof (long double), TRUE);
+        gen_ldst (code, sp_offset, (i + nres) * sizeof (long double), TRUE);
         sp_offset += 8;
       }
     } else if (type == MIR_T_F || type == MIR_T_D) {
       if (n_xregs < max_xregs) {
-        gen_movxmm (ctx, (i + nres) * sizeof (long double), n_xregs++, type == MIR_T_F, TRUE);
+        gen_movxmm (code, (i + nres) * sizeof (long double), n_xregs++, type == MIR_T_F, TRUE);
 #ifdef _WIN64
-        gen_mov (ctx, (i + nres) * sizeof (long double), iregs[n_iregs++], TRUE);
+        gen_mov (code, (i + nres) * sizeof (long double), iregs[n_iregs++], TRUE);
 #endif
       } else {
-        gen_ldst (ctx, sp_offset, (i + nres) * sizeof (long double), type == MIR_T_D);
+        gen_ldst (code, sp_offset, (i + nres) * sizeof (long double), type == MIR_T_D);
         sp_offset += 8;
       }
     } else if (type == MIR_T_LD) {
-      gen_ldst80 (ctx, sp_offset, (i + nres) * sizeof (long double));
+      gen_ldst80 (code, sp_offset, (i + nres) * sizeof (long double));
       sp_offset += 16;
     } else if (type == MIR_T_BLK) {
       qwords = (arg_descs[i].size + 7) / 8;
-      gen_blk_mov (ctx, sp_offset, (i + nres) * sizeof (long double), qwords);
+      gen_blk_mov (code, sp_offset, (i + nres) * sizeof (long double), qwords);
       sp_offset += qwords * 8;
     } else {
-      (*error_func) (MIR_call_op_error, "wrong type of arg value");
+      MIR_get_error_func (ctx) (MIR_call_op_error, "wrong type of arg value");
     }
   }
   sp_offset = (sp_offset + 15) / 16 * 16;
   sp_offset += 8;
-  addr = VARR_ADDR (uint8_t, machine_insns);
+  addr = VARR_ADDR (uint8_t, code);
   memcpy (addr + 6, &sp_offset, sizeof (uint32_t));
-  addr = push_insns (ctx, call_end, sizeof (call_end));
+  addr = push_insns (code, call_end, sizeof (call_end));
   memcpy (addr + sizeof (call_end) - 4, &sp_offset, sizeof (uint32_t));
 #ifdef _WIN64
   if (nres > 1)
-    (*error_func) (MIR_call_op_error, "Windows x86-64 doesn't support multiple return values");
+    MIR_get_error_func (ctx) (MIR_call_op_error,
+                              "Windows x86-64 doesn't support multiple return values");
 #endif
   n_iregs = n_xregs = n_fregs = 0;
   for (size_t i = 0; i < nres; i++) {
     if (((MIR_T_I8 <= res_types[i] && res_types[i] <= MIR_T_U64) || res_types[i] == MIR_T_P)
         && n_iregs < 2) {
-      gen_mov (ctx, i * sizeof (long double), n_iregs++ == 0 ? 0 : 2, FALSE); /* rax or rdx */
+      gen_mov (code, i * sizeof (long double), n_iregs++ == 0 ? 0 : 2, FALSE); /* rax or rdx */
     } else if ((res_types[i] == MIR_T_F || res_types[i] == MIR_T_D) && n_xregs < 2) {
-      gen_movxmm (ctx, i * sizeof (long double), n_xregs++, res_types[i] == MIR_T_F, FALSE);
+      gen_movxmm (code, i * sizeof (long double), n_xregs++, res_types[i] == MIR_T_F, FALSE);
     } else if (res_types[i] == MIR_T_LD && n_fregs < 2) {
-      gen_st80 (ctx, i * sizeof (long double));
+      gen_st80 (code, i * sizeof (long double));
     } else {
-      (*error_func) (MIR_ret_error, "x86-64 can not handle this combination of return values");
+      MIR_get_error_func (ctx) (MIR_ret_error,
+                                "x86-64 can not handle this combination of return values");
     }
   }
-  push_insns (ctx, epilog, sizeof (epilog));
-  return _MIR_publish_code (ctx, VARR_ADDR (uint8_t, machine_insns),
-                            VARR_LENGTH (uint8_t, machine_insns));
+  push_insns (code, epilog, sizeof (epilog));
+  res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+  VARR_DESTROY (uint8_t, code);
+  return res;
 }
 
 /* Transform C call to call of void handler (MIR_context_t ctx, MIR_item_t func_item,
@@ -419,13 +426,15 @@ void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handl
   uint32_t imm, n_iregs, n_xregs, n_fregs, offset;
   uint32_t nres = func_item->u.func->nres;
   MIR_type_t *results = func_item->u.func->res_types;
+  VARR (uint8_t) * code;
+  void *res;
 
-  VARR_TRUNC (uint8_t, machine_insns, 0);
+  VARR_CREATE (uint8_t, code, 128);
 #ifndef _WIN64
-  push_insns (ctx, push_rbx, sizeof (push_rbx));
+  push_insns (code, push_rbx, sizeof (push_rbx));
 #endif
-  push_insns (ctx, save_pat, sizeof (save_pat));
-  addr = push_insns (ctx, prepare_pat, sizeof (prepare_pat));
+  push_insns (code, save_pat, sizeof (save_pat));
+  addr = push_insns (code, prepare_pat, sizeof (prepare_pat));
   imm = nres * 16;
   memcpy (addr + nres_offset, &imm, sizeof (uint32_t));
   memcpy (addr + ctx_offset, &ctx, sizeof (void *));
@@ -434,40 +443,43 @@ void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handl
   /* move results: */
 #ifdef _WIN64
   if (nres > 1)
-    (*error_func) (MIR_call_op_error, "Windows x86-64 doesn't support multiple return values");
+    MIR_get_error_func (ctx) (MIR_call_op_error,
+                              "Windows x86-64 doesn't support multiple return values");
 #endif
   n_iregs = n_xregs = n_fregs = offset = 0;
   for (uint32_t i = 0; i < nres; i++) {
     if (results[i] == MIR_T_F && n_xregs < 2) {
-      addr = push_insns (ctx, movss_pat, sizeof (movss_pat));
+      addr = push_insns (code, movss_pat, sizeof (movss_pat));
       addr[3] |= n_xregs << 3;
       memcpy (addr + 4, &offset, sizeof (uint32_t));
       n_xregs++;
     } else if (results[i] == MIR_T_D && n_xregs < 2) {
-      addr = push_insns (ctx, movsd_pat, sizeof (movsd_pat));
+      addr = push_insns (code, movsd_pat, sizeof (movsd_pat));
       addr[3] |= n_xregs << 3;
       memcpy (addr + 4, &offset, sizeof (uint32_t));
       n_xregs++;
     } else if (results[i] == MIR_T_LD && n_fregs < 2) {
-      addr = push_insns (ctx, fldt_pat, sizeof (fldt_pat));
+      addr = push_insns (code, fldt_pat, sizeof (fldt_pat));
       memcpy (addr + 2, &offset, sizeof (uint32_t));
-      if (n_fregs == 1) push_insns (ctx, fxch_pat, sizeof (fxch_pat));
+      if (n_fregs == 1) push_insns (code, fxch_pat, sizeof (fxch_pat));
       n_fregs++;
     } else if (n_iregs < 2) {
-      addr = push_insns (ctx, ld_pat, sizeof (ld_pat));
+      addr = push_insns (code, ld_pat, sizeof (ld_pat));
       addr[2] |= n_iregs << 4;
       memcpy (addr + 3, &offset, sizeof (uint32_t));
       n_iregs++;
     } else {
-      (*error_func) (MIR_ret_error, "x86-64 can not handle this combination of return values");
+      MIR_get_error_func (ctx) (MIR_ret_error,
+                                "x86-64 can not handle this combination of return values");
     }
     offset += 16;
   }
-  addr = push_insns (ctx, shim_end, sizeof (shim_end));
+  addr = push_insns (code, shim_end, sizeof (shim_end));
   imm = prep_stack_size + nres * 16;
   memcpy (addr + 3, &imm, sizeof (uint32_t));
-  return _MIR_publish_code (ctx, VARR_ADDR (uint8_t, machine_insns),
-                            VARR_LENGTH (uint8_t, machine_insns));
+  res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+  VARR_DESTROY (uint8_t, code);
+  return res;
 }
 
 /* save regs; r10 = call hook_address (ctx, called_func); restore regs; jmp *r10
@@ -500,18 +512,21 @@ void *_MIR_get_wrapper (MIR_context_t ctx, MIR_item_t called_func, void *hook_ad
 #endif
   };
   uint8_t *addr;
+  VARR (uint8_t) * code;
+  void *res;
 
-  VARR_TRUNC (uint8_t, machine_insns, 0);
+  VARR_CREATE (uint8_t, code, 128);
 #ifndef _WIN64
-  push_insns (ctx, push_rax, sizeof (push_rax));
+  push_insns (code, push_rax, sizeof (push_rax));
 #endif
-  push_insns (ctx, save_pat, sizeof (save_pat));
-  addr = push_insns (ctx, call_pat, sizeof (call_pat));
+  push_insns (code, save_pat, sizeof (save_pat));
+  addr = push_insns (code, call_pat, sizeof (call_pat));
   memcpy (addr + 2, &called_func, sizeof (void *));
   memcpy (addr + 12, &ctx, sizeof (void *));
   memcpy (addr + 22, &hook_address, sizeof (void *));
-  push_insns (ctx, restore_pat, sizeof (restore_pat));
-  push_insns (ctx, wrap_end, sizeof (wrap_end));
-  return _MIR_publish_code (ctx, VARR_ADDR (uint8_t, machine_insns),
-                            VARR_LENGTH (uint8_t, machine_insns));
+  push_insns (code, restore_pat, sizeof (restore_pat));
+  push_insns (code, wrap_end, sizeof (wrap_end));
+  res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+  VARR_DESTROY (uint8_t, code);
+  return res;
 }

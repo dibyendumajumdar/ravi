@@ -1,5 +1,5 @@
 local function x()
-  local j = 0.0
+  local j = 0
   for i=2,1000000000 do
   	j = i
   end
