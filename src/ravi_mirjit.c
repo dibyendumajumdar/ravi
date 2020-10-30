@@ -389,6 +389,7 @@ MIR_module_t mir_compile_C_module(
   options->module_num++;
   snprintf(module_name, sizeof module_name, "__mod_%lld__", options->module_num);
   options->message_file = stderr;
+  //MIR_gen_set_debug_file(ctx, 0, stdout);
   if (!c2mir_compile(ctx, options, t_getc, &read_buffer, module_name, NULL)) {
     ret_code = 1;
   }
