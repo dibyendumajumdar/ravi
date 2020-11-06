@@ -14,25 +14,25 @@
 
 #define S390X_STACK_HEADER_SIZE 160
 
-static uint8_t *push_insns (MIR_context_t ctx, const uint8_t *pat, size_t pat_len) {
-  for (size_t i = 0; i < pat_len; i++) VARR_PUSH (uint8_t, machine_insns, pat[i]);
-  return VARR_ADDR (uint8_t, machine_insns) + VARR_LENGTH (uint8_t, machine_insns) - pat_len;
+static uint8_t *push_insns (VARR (uint8_t) * insn_varr, const uint8_t *pat, size_t pat_len) {
+  for (size_t i = 0; i < pat_len; i++) VARR_PUSH (uint8_t, insn_varr, pat[i]);
+  return VARR_ADDR (uint8_t, insn_varr) + VARR_LENGTH (uint8_t, insn_varr) - pat_len;
 }
 
-static void s390x_gen_mov (MIR_context_t ctx, unsigned to, unsigned from) {
+static void s390x_gen_mov (VARR (uint8_t) * insn_varr, unsigned to, unsigned from) {
   uint32_t lgr = (0xb904 << 16) | (to << 4) | from; /* lgr to,from: */
   assert (to < 16 && from < 16);
-  push_insns (ctx, (uint8_t *) &lgr, 4);
+  push_insns (insn_varr, (uint8_t *) &lgr, 4);
 }
 
-static void s390x_gen_mvi (MIR_context_t ctx, int val, unsigned base, int disp) {
+static void s390x_gen_mvi (VARR (uint8_t) * insn_varr, int val, unsigned base, int disp) {
   uint64_t mvghi /* mvghi disp(base), val: */
     = ((0xe548l << 32) | ((uint64_t) base << 28) | ((disp & 0xfff) << 16) | (val & 0xffff)) << 16;
   assert (base < 16 && 0 <= disp && disp < (1 << 12) && -(1 << 15) < val && val < (1 << 15));
-  push_insns (ctx, (uint8_t *) &mvghi, 6);
+  push_insns (insn_varr, (uint8_t *) &mvghi, 6);
 }
 
-static void s390x_gen_ld_st (MIR_context_t ctx, unsigned reg, unsigned base, int disp,
+static void s390x_gen_ld_st (VARR (uint8_t) * insn_varr, unsigned reg, unsigned base, int disp,
                              MIR_type_t type, int ld_p) {
   int single_p = type == MIR_T_F;
   int double_p = type == MIR_T_D;
@@ -54,66 +54,66 @@ static void s390x_gen_ld_st (MIR_context_t ctx, unsigned reg, unsigned base, int
   uint64_t dy = ((0xedl << 40) | common | (ld_p ? 0x65 : 0x67)) << 16;
   /* (lg|lgf|llgf|lgb|llgc|lhy|llgh|ley|ldy|stg|sty|sthy|stcy|stey|stdy) reg, disp(base): */
   assert (type != MIR_T_LD && reg < 16 && base < 16 && -(1 << 19) < disp && disp < (1 << 19));
-  push_insns (ctx, (uint8_t *) (single_p ? &ey : double_p ? &dy : &g), 6);
+  push_insns (insn_varr, (uint8_t *) (single_p ? &ey : double_p ? &dy : &g), 6);
 }
 
-static void s390x_gen_ld (MIR_context_t ctx, unsigned to, unsigned base, int disp,
+static void s390x_gen_ld (VARR (uint8_t) * insn_varr, unsigned to, unsigned base, int disp,
                           MIR_type_t type) {
-  s390x_gen_ld_st (ctx, to, base, disp, type, TRUE);
+  s390x_gen_ld_st (insn_varr, to, base, disp, type, TRUE);
 }
 
-static void s390x_gen_st (MIR_context_t ctx, unsigned from, unsigned base, int disp,
+static void s390x_gen_st (VARR (uint8_t) * insn_varr, unsigned from, unsigned base, int disp,
                           MIR_type_t type) {
-  s390x_gen_ld_st (ctx, from, base, disp, type, FALSE);
+  s390x_gen_ld_st (insn_varr, from, base, disp, type, FALSE);
 }
 
-static void s390x_gen_ldstm (MIR_context_t ctx, unsigned from, unsigned to, unsigned base, int disp,
-                             int ld_p) {
+static void s390x_gen_ldstm (VARR (uint8_t) * insn_varr, unsigned from, unsigned to, unsigned base,
+                             int disp, int ld_p) {
   uint64_t dl = disp & 0xfff, dh = (disp >> 12) & 0xff;
   uint64_t common = ((uint64_t) from << 36) | ((uint64_t) to << 32) | ((uint64_t) base << 28)
                     | (dl << 16) | (dh << 8);
   uint64_t g = ((0xebl << 40) | common | (ld_p ? 0x4 : 0x24)) << 16;
   /* (lmg|stmg) from,to,disp(base): */
   assert (from < 16 && to < 16 && base < 16 && -(1 << 19) < disp && disp < (1 << 19));
-  push_insns (ctx, (uint8_t *) &g, 6);
+  push_insns (insn_varr, (uint8_t *) &g, 6);
 }
 
-static void s390x_gen_jump (MIR_context_t ctx, unsigned int reg, int call_p) {
+static void s390x_gen_jump (VARR (uint8_t) * insn_varr, unsigned int reg, int call_p) {
   uint16_t bcr = (0x7 << 8) | (15 << 4) | reg;  /* bcr 15,reg: */
   uint16_t balr = (0x5 << 8) | (14 << 4) | reg; /* balr 14,reg: */
   assert (reg < 16);
-  push_insns (ctx, (uint8_t *) (call_p ? &balr : &bcr), 2);
+  push_insns (insn_varr, (uint8_t *) (call_p ? &balr : &bcr), 2);
 }
 
-static void s390x_gen_addi (MIR_context_t ctx, unsigned dst, unsigned src, int disp) {
+static void s390x_gen_addi (VARR (uint8_t) * insn_varr, unsigned dst, unsigned src, int disp) {
   uint64_t dl = disp & 0xfff, dh = (disp >> 12) & 0xff;
   uint64_t ops = ((uint64_t) dst << 36) | ((uint64_t) src << 28) | (dl << 16) | (dh << 8);
   uint64_t lay = ((0xe3l << 40) | ops | 0x71) << 16; /* lay dst,disp(src) */
   assert (dst < 16 && src < 16 && -(1 << 19) < disp && disp < (1 << 19));
-  push_insns (ctx, (uint8_t *) &lay, 6);
+  push_insns (insn_varr, (uint8_t *) &lay, 6);
 }
 
-static void s390x_gen_3addrs (MIR_context_t ctx, unsigned int r1, void *a1, unsigned int r2,
-                              void *a2, unsigned int r3, void *a3) {
+static void s390x_gen_3addrs (VARR (uint8_t) * insn_varr, unsigned int r1, void *a1,
+                              unsigned int r2, void *a2, unsigned int r3, void *a3) {
   /* 6b:lalr r3,22+align;6b:lg r1,0(r3);6b:lg r2,8(r3);6b:lg r3,16(r3);4b:bc m15,28;align;a1-a3 */
-  size_t rem = (VARR_LENGTH (uint8_t, machine_insns) + 28) % 8;
+  size_t rem = (VARR_LENGTH (uint8_t, insn_varr) + 28) % 8;
   size_t padding = rem == 0 ? 0 : 8 - rem;
   uint64_t lalr = ((0xc0l << 40) | ((uint64_t) r1 << 36) | (28 + padding) / 2) << 16;
   uint32_t brc = (0xa7 << 24) | (15 << 20) | (4 << 16) | (28 + padding) / 2; /* brc m15,28: */
   assert (r1 != 0);
-  push_insns (ctx, (uint8_t *) &lalr, 6);
-  s390x_gen_ld (ctx, r3, r1, 16, MIR_T_I64); /* lg r3,16(r1) */
-  s390x_gen_ld (ctx, r2, r1, 8, MIR_T_I64);  /* lg r2,8(r1) */
-  s390x_gen_ld (ctx, r1, r1, 0, MIR_T_I64);  /* lg r1,0(r1) */
-  push_insns (ctx, (uint8_t *) &brc, 4);
-  for (size_t i = 0; i < padding; i++) VARR_PUSH (uint8_t, machine_insns, 0);
-  push_insns (ctx, (uint8_t *) &a1, 8);
-  push_insns (ctx, (uint8_t *) &a2, 8);
-  push_insns (ctx, (uint8_t *) &a3, 8);
+  push_insns (insn_varr, (uint8_t *) &lalr, 6);
+  s390x_gen_ld (insn_varr, r3, r1, 16, MIR_T_I64); /* lg r3,16(r1) */
+  s390x_gen_ld (insn_varr, r2, r1, 8, MIR_T_I64);  /* lg r2,8(r1) */
+  s390x_gen_ld (insn_varr, r1, r1, 0, MIR_T_I64);  /* lg r1,0(r1) */
+  push_insns (insn_varr, (uint8_t *) &brc, 4);
+  for (size_t i = 0; i < padding; i++) VARR_PUSH (uint8_t, insn_varr, 0);
+  push_insns (insn_varr, (uint8_t *) &a1, 8);
+  push_insns (insn_varr, (uint8_t *) &a2, 8);
+  push_insns (insn_varr, (uint8_t *) &a3, 8);
 }
 
-static void s390x_gen_blk_mov (MIR_context_t ctx, uint32_t param_offset, uint32_t addr_offset,
-                               uint32_t qwords, uint32_t addr_reg) {
+static void s390x_gen_blk_mov (VARR (uint8_t) * insn_varr, uint32_t param_offset,
+                               uint32_t addr_offset, uint32_t qwords, uint32_t addr_reg) {
   uint16_t *addr;
   static const uint16_t blk_mov_pat[] = {
     /*0:*/ 0xa7a9,  0x0000,         /* lghi	%r10,<size> */
@@ -123,63 +123,77 @@ static void s390x_gen_blk_mov (MIR_context_t ctx, uint32_t param_offset, uint32_
     /*20:*/ 0xb902, 0x00aa,         /* ltgr %r10,%r10 */
     /*24:*/ 0xa724, 0xfff6,         /* jh 4 */
   };
-  s390x_gen_addi (ctx, addr_reg, 15, addr_offset); /* lay <addr_reg>,addr_offset(r15) */
+  s390x_gen_addi (insn_varr, addr_reg, 15, addr_offset); /* lay <addr_reg>,addr_offset(r15) */
   if (qwords == 0) return;
   assert (qwords * 8 < (1 << 15) && addr_reg < 16 && addr_offset % 8 == 0);
-  s390x_gen_ld (ctx, 9, 7, param_offset, MIR_T_I64); /* lg* 9,param_offset(r7) */
-  addr = (uint16_t *) push_insns (ctx, (uint8_t *) blk_mov_pat, sizeof (blk_mov_pat));
+  s390x_gen_ld (insn_varr, 9, 7, param_offset, MIR_T_I64); /* lg* 9,param_offset(r7) */
+  addr = (uint16_t *) push_insns (insn_varr, (uint8_t *) blk_mov_pat, sizeof (blk_mov_pat));
   addr[1] |= qwords * 8;     /* lghi */
   addr[8] |= addr_reg << 12; /* stg */
 }
 
 void *_MIR_get_bstart_builtin (MIR_context_t ctx) {
-  VARR_TRUNC (uint8_t, machine_insns, 0);
-  s390x_gen_mov (ctx, 2, 15);      /* lgr r2,15 */
-  s390x_gen_jump (ctx, 14, FALSE); /* bcr m15,r14 */
-  return _MIR_publish_code (ctx, VARR_ADDR (uint8_t, machine_insns),
-                            VARR_LENGTH (uint8_t, machine_insns));
+  VARR (uint8_t) * code;
+  void *res;
+
+  VARR_CREATE (uint8_t, code, 128);
+  s390x_gen_mov (code, 2, 15);      /* lgr r2,15 */
+  s390x_gen_jump (code, 14, FALSE); /* bcr m15,r14 */
+  res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+  VARR_DESTROY (uint8_t, code);
+  return res;
 }
 
 void *_MIR_get_bend_builtin (MIR_context_t ctx) {
-  VARR_TRUNC (uint8_t, machine_insns, 0);
-  s390x_gen_ld (ctx, 0, 15, 0, MIR_T_I64); /* r0 = 0(r15) */
-  s390x_gen_st (ctx, 0, 2, 0, MIR_T_I64);  /* 0(r2) = r0 */
-  s390x_gen_mov (ctx, 15, 2);              /* lgr r15,2 */
-  s390x_gen_jump (ctx, 14, FALSE);         /* bcr m15,r14 */
-  return _MIR_publish_code (ctx, VARR_ADDR (uint8_t, machine_insns),
-                            VARR_LENGTH (uint8_t, machine_insns));
+  VARR (uint8_t) * code;
+  void *res;
+
+  VARR_CREATE (uint8_t, code, 128);
+  s390x_gen_ld (code, 0, 15, 0, MIR_T_I64); /* r0 = 0(r15) */
+  s390x_gen_st (code, 0, 2, 0, MIR_T_I64);  /* 0(r2) = r0 */
+  s390x_gen_mov (code, 15, 2);              /* lgr r15,2 */
+  s390x_gen_jump (code, 14, FALSE);         /* bcr m15,r14 */
+  res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+  VARR_DESTROY (uint8_t, code);
+  return res;
 }
 
 void *_MIR_get_thunk (MIR_context_t ctx) {
   const int max_thunk_len = (4 * 8); /* see _MIR_redirect_thunk */
-  VARR_TRUNC (uint8_t, machine_insns, 0);
-  for (int i = 0; i < max_thunk_len; i++) VARR_PUSH (uint8_t, machine_insns, 0);
-  return _MIR_publish_code (ctx, VARR_ADDR (uint8_t, machine_insns),
-                            VARR_LENGTH (uint8_t, machine_insns));
+  VARR (uint8_t) * code;
+  void *res;
+
+  VARR_CREATE (uint8_t, code, 128);
+  for (int i = 0; i < max_thunk_len; i++) VARR_PUSH (uint8_t, code, 0);
+  res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+  VARR_DESTROY (uint8_t, code);
+  return res;
 }
 
 void _MIR_redirect_thunk (MIR_context_t ctx, void *thunk, void *to) {
   int64_t offset = (uint8_t *) to - (uint8_t *) thunk;
-  VARR_TRUNC (uint8_t, machine_insns, 0);
+  VARR (uint8_t) * code;
+
+  VARR_CREATE (uint8_t, code, 128);
   assert (offset % 2 == 0);
   offset /= 2;
   if (-(1l << 31) < offset && offset < (1l << 31)) { /* brcl m15,offset: */
     uint64_t brcl = ((0xc0l << 40) | (15l << 36) | (4l << 32) | offset & 0xffffffff) << 16;
-    push_insns (ctx, (uint8_t *) &brcl, 6);
+    push_insns (code, (uint8_t *) &brcl, 6);
   } else { /* 6b:lalr r1,8+padding; 6b:lg r1,0(r1); 2b:bcr m15,r1;padding; 64-bit address: */
-    size_t rem = (VARR_LENGTH (uint8_t, machine_insns) + 14) % 8;
+    size_t rem = (VARR_LENGTH (uint8_t, code) + 14) % 8;
     size_t padding = rem == 0 ? 0 : 8 - rem;
     uint64_t lalr = ((0xc0l << 40) | (1l << 36) | (14 + padding) / 2) << 16;
     uint64_t lg = ((0xe3l << 40) | (1l << 36) | (1l << 28) | 0x4) << 16;
     uint16_t bcr = (0x7 << 8) | (15 << 4) | 1; /* bcr 15,r1: */
-    push_insns (ctx, (uint8_t *) &lalr, 6);
-    push_insns (ctx, (uint8_t *) &lg, 6);
-    push_insns (ctx, (uint8_t *) &bcr, 2);
-    for (size_t i = 0; i < padding; i++) VARR_PUSH (uint8_t, machine_insns, 0);
-    push_insns (ctx, (uint8_t *) &to, 8);
+    push_insns (code, (uint8_t *) &lalr, 6);
+    push_insns (code, (uint8_t *) &lg, 6);
+    push_insns (code, (uint8_t *) &bcr, 2);
+    for (size_t i = 0; i < padding; i++) VARR_PUSH (uint8_t, code, 0);
+    push_insns (code, (uint8_t *) &to, 8);
   }
-  _MIR_change_code (ctx, thunk, VARR_ADDR (uint8_t, machine_insns),
-                    VARR_LENGTH (uint8_t, machine_insns));
+  _MIR_change_code (ctx, thunk, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+  VARR_DESTROY (uint8_t, code);
 }
 
 struct s390x_va_list {
@@ -242,8 +256,10 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
   MIR_type_t type;
   int n_gpregs = 0, n_fpregs = 0, res_reg = 7, frame_size, disp, param_offset, blk_offset;
   uint32_t qwords, addr_reg;
+  VARR (uint8_t) * code;
+  void *res;
 
-  VARR_TRUNC (uint8_t, machine_insns, 0);
+  VARR_CREATE (uint8_t, code, 128);
   blk_offset = frame_size = S390X_STACK_HEADER_SIZE;
   if (nres > 0 && res_types[0] == MIR_T_LD) n_gpregs++; /* ld address */
   for (uint32_t i = 0; i < nargs; i++) {                /* calculate param area size: */
@@ -258,84 +274,86 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
       blk_offset += 8;
     }
   }
-  s390x_gen_ldstm (ctx, 6, 7, 15, 48, FALSE); /* stmg 6,7,48(r15) : */
-  s390x_gen_ldstm (ctx, 8, 9, 15, 64, FALSE); /* stmg 8,9,64(r15) : */
-  s390x_gen_st (ctx, 10, 15, 80, MIR_T_I64);  /* stg r10,80(r15) */
-  s390x_gen_st (ctx, 14, 15, 112, MIR_T_I64); /* stg r14,112(r15) */
-  s390x_gen_addi (ctx, 15, 15, -frame_size);  /* lay r15,-frame_size(r15) */
-  s390x_gen_mov (ctx, 1, 2);                  /* fun_addr */
-  s390x_gen_mov (ctx, res_reg, 3);            /* results & args */
+  s390x_gen_ldstm (code, 6, 7, 15, 48, FALSE); /* stmg 6,7,48(r15) : */
+  s390x_gen_ldstm (code, 8, 9, 15, 64, FALSE); /* stmg 8,9,64(r15) : */
+  s390x_gen_st (code, 10, 15, 80, MIR_T_I64);  /* stg r10,80(r15) */
+  s390x_gen_st (code, 14, 15, 112, MIR_T_I64); /* stg r14,112(r15) */
+  s390x_gen_addi (code, 15, 15, -frame_size);  /* lay r15,-frame_size(r15) */
+  s390x_gen_mov (code, 1, 2);                  /* fun_addr */
+  s390x_gen_mov (code, res_reg, 3);            /* results & args */
   n_gpregs = n_fpregs = 0;
   param_offset = nres * 16;                   /* args start */
   disp = S390X_STACK_HEADER_SIZE;             /* param area start */
   if (nres > 0 && res_types[0] == MIR_T_LD) { /* ld address: */
-    s390x_gen_mov (ctx, 2, res_reg);          /* lgr r2,r7 */
+    s390x_gen_mov (code, 2, res_reg);         /* lgr r2,r7 */
     n_gpregs++;
   }
   for (uint32_t i = 0; i < nargs; i++) { /* load args: */
     type = arg_descs[i].type;
     if ((type == MIR_T_F || type == MIR_T_D) && n_fpregs < 4) {
       /* (le,ld) (f0,f2,f4,f6),param_ofset(r7) */
-      s390x_gen_ld (ctx, n_fpregs * 2, res_reg, param_offset, type);
+      s390x_gen_ld (code, n_fpregs * 2, res_reg, param_offset, type);
       n_fpregs++;
     } else if (type == MIR_T_F || type == MIR_T_D) {
-      s390x_gen_ld (ctx, 1, res_reg, param_offset, type); /* (le,ld) f1,param_offset(r7) */
-      s390x_gen_st (ctx, 1, 15, disp, type);              /* (ste,std) f1,disp(r15) */
+      s390x_gen_ld (code, 1, res_reg, param_offset, type); /* (le,ld) f1,param_offset(r7) */
+      s390x_gen_st (code, 1, 15, disp, type);              /* (ste,std) f1,disp(r15) */
       disp += 8;
-    } else if (type == MIR_T_LD && n_gpregs < 5) {               /* ld address */
-      s390x_gen_addi (ctx, n_gpregs + 2, res_reg, param_offset); /* lay rn,param_offset(r7) */
+    } else if (type == MIR_T_LD && n_gpregs < 5) {                /* ld address */
+      s390x_gen_addi (code, n_gpregs + 2, res_reg, param_offset); /* lay rn,param_offset(r7) */
       n_gpregs++;
-    } else if (type == MIR_T_LD) {                    /* pass address of location in the result: */
-      s390x_gen_addi (ctx, 0, res_reg, param_offset); /* lay r0,param_offset(r7) */
-      s390x_gen_st (ctx, 0, 15, disp, MIR_T_I64);     /* stg r0,disp(r15) */
+    } else if (type == MIR_T_LD) {                     /* pass address of location in the result: */
+      s390x_gen_addi (code, 0, res_reg, param_offset); /* lay r0,param_offset(r7) */
+      s390x_gen_st (code, 0, 15, disp, MIR_T_I64);     /* stg r0,disp(r15) */
       disp += 8;
     } else if (type == MIR_T_BLK) {
       qwords = (arg_descs[i].size + 7) / 8;
       addr_reg = n_gpregs < 5 ? n_gpregs + 2 : 8;
-      s390x_gen_blk_mov (ctx, param_offset, blk_offset, qwords, addr_reg);
+      s390x_gen_blk_mov (code, param_offset, blk_offset, qwords, addr_reg);
       blk_offset += qwords * 8;
       if (n_gpregs < 5) {
         n_gpregs++;
       } else {
-        s390x_gen_st (ctx, 8, 15, disp, MIR_T_I64); /* stg r8,disp(r15) */
+        s390x_gen_st (code, 8, 15, disp, MIR_T_I64); /* stg r8,disp(r15) */
         disp += 8;
       }
     } else if (n_gpregs < 5) { /* RBLK too */
-      s390x_gen_ld (ctx, n_gpregs + 2, res_reg, param_offset,
+      s390x_gen_ld (code, n_gpregs + 2, res_reg, param_offset,
                     MIR_T_I64); /* lg* rn,param_offset(r7) */
       n_gpregs++;
     } else {
-      s390x_gen_ld (ctx, 0, res_reg, param_offset, MIR_T_I64); /* lg* r0,param_offset(r7) */
-      s390x_gen_st (ctx, 0, 15, disp, MIR_T_I64);              /* stg* r0,disp(r15) */
+      s390x_gen_ld (code, 0, res_reg, param_offset, MIR_T_I64); /* lg* r0,param_offset(r7) */
+      s390x_gen_st (code, 0, 15, disp, MIR_T_I64);              /* stg* r0,disp(r15) */
       disp += 8;
     }
     param_offset += 16;
   }
-  s390x_gen_jump (ctx, 1, TRUE); /* call *r1 */
+  s390x_gen_jump (code, 1, TRUE); /* call *r1 */
   n_gpregs = n_fpregs = 0;
   disp = 0;
   for (uint32_t i = 0; i < nres; i++) {
     type = res_types[i];
     if (type == MIR_T_LD) continue; /* do nothing: the result value is already in results */
     if ((type == MIR_T_F || type == MIR_T_D) && n_fpregs < 4) {
-      s390x_gen_st (ctx, n_fpregs * 2, res_reg, disp, type);
+      s390x_gen_st (code, n_fpregs * 2, res_reg, disp, type);
       n_fpregs++;
     } else if (type != MIR_T_F && type != MIR_T_D && n_gpregs < 1) {  // just one gp reg
-      s390x_gen_st (ctx, n_gpregs + 2, res_reg, disp, MIR_T_I64);
+      s390x_gen_st (code, n_gpregs + 2, res_reg, disp, MIR_T_I64);
       n_gpregs++;
     } else {
-      (*error_func) (MIR_ret_error, "s390x can not handle this combination of return values");
+      MIR_get_error_func (ctx) (MIR_ret_error,
+                                "s390x can not handle this combination of return values");
     }
     disp += 16;
   }
-  s390x_gen_addi (ctx, 15, 15, frame_size);   /* lay 15,frame_size(15) */
-  s390x_gen_ldstm (ctx, 6, 7, 15, 48, TRUE);  /* lmg 6,7,48(r15) : */
-  s390x_gen_ldstm (ctx, 8, 9, 15, 64, TRUE);  /* lmg 8,9,64(r15) : */
-  s390x_gen_ld (ctx, 10, 15, 80, MIR_T_I64);  /* lg 10,80(r15) */
-  s390x_gen_ld (ctx, 14, 15, 112, MIR_T_I64); /* lg 14,112(r15) */
-  s390x_gen_jump (ctx, 14, FALSE);            /* bcr m15,r14 */
-  return _MIR_publish_code (ctx, VARR_ADDR (uint8_t, machine_insns),
-                            VARR_LENGTH (uint8_t, machine_insns));
+  s390x_gen_addi (code, 15, 15, frame_size);   /* lay 15,frame_size(15) */
+  s390x_gen_ldstm (code, 6, 7, 15, 48, TRUE);  /* lmg 6,7,48(r15) : */
+  s390x_gen_ldstm (code, 8, 9, 15, 64, TRUE);  /* lmg 8,9,64(r15) : */
+  s390x_gen_ld (code, 10, 15, 80, MIR_T_I64);  /* lg 10,80(r15) */
+  s390x_gen_ld (code, 14, 15, 112, MIR_T_I64); /* lg 14,112(r15) */
+  s390x_gen_jump (code, 14, FALSE);            /* bcr m15,r14 */
+  res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+  VARR_DESTROY (uint8_t, code);
+  return res;
 }
 
 /* Transform C call to call of void handler (MIR_context_t ctx, MIR_item_t func_item,
@@ -348,63 +366,67 @@ void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handl
   uint32_t nres = func->nres, nargs = func->nargs;
   MIR_type_t type, *res_types = func->res_types;
   int disp, frame_size, local_var_size, n_gpregs, n_fpregs, va_list_disp, results_disp;
+  VARR (uint8_t) * code;
+  void *res;
 
-  VARR_TRUNC (uint8_t, machine_insns, 0);
-  frame_size = S390X_STACK_HEADER_SIZE;       /* register save area */
-  s390x_gen_st (ctx, 14, 15, 112, MIR_T_I64); /* stg 14,112(r15) */
-  s390x_gen_ldstm (ctx, 2, 6, 15, 16, FALSE); /* stmg 2,6,16(r15) : */
-  for (unsigned reg = 0; reg <= 6; reg += 2)  /* stdy f0,f2,f4,f6,128(r15) : */
-    s390x_gen_st (ctx, reg, 15, reg * 4 + 128, MIR_T_D);
+  VARR_CREATE (uint8_t, code, 128);
+  frame_size = S390X_STACK_HEADER_SIZE;        /* register save area */
+  s390x_gen_st (code, 14, 15, 112, MIR_T_I64); /* stg 14,112(r15) */
+  s390x_gen_ldstm (code, 2, 6, 15, 16, FALSE); /* stmg 2,6,16(r15) : */
+  for (unsigned reg = 0; reg <= 6; reg += 2)   /* stdy f0,f2,f4,f6,128(r15) : */
+    s390x_gen_st (code, reg, 15, reg * 4 + 128, MIR_T_D);
   local_var_size = sizeof (struct s390x_va_list) + nres * 16; /* allocate va and results */
   va_list_disp = frame_size;
   results_disp = va_list_disp + sizeof (struct s390x_va_list);
   frame_size += local_var_size;
   assert (frame_size % 8 == 0);
-  s390x_gen_addi (ctx, 15, 15, -frame_size);
+  s390x_gen_addi (code, 15, 15, -frame_size);
   /* setup va: mvghi va(15),(0,1): __gpr */
-  s390x_gen_mvi (ctx, nres > 0 && res_types[0] == MIR_T_LD ? 1 : 0, 15, va_list_disp);
-  s390x_gen_mvi (ctx, 0, 15, va_list_disp + 8);            /* mvghi va+8(15),0: __fpr */
-  s390x_gen_addi (ctx, 1, 15, frame_size);                 /* lay 1,frame_size(15) */
-  s390x_gen_st (ctx, 1, 15, va_list_disp + 24, MIR_T_I64); /* stg 1,va+24(r15): __reg_save_area */
-  s390x_gen_addi (ctx, 1, 1, S390X_STACK_HEADER_SIZE);     /* lay 1,S390X_STACK_HEADER_SIZE(1) */
+  s390x_gen_mvi (code, nres > 0 && res_types[0] == MIR_T_LD ? 1 : 0, 15, va_list_disp);
+  s390x_gen_mvi (code, 0, 15, va_list_disp + 8);            /* mvghi va+8(15),0: __fpr */
+  s390x_gen_addi (code, 1, 15, frame_size);                 /* lay 1,frame_size(15) */
+  s390x_gen_st (code, 1, 15, va_list_disp + 24, MIR_T_I64); /* stg 1,va+24(r15): __reg_save_area */
+  s390x_gen_addi (code, 1, 1, S390X_STACK_HEADER_SIZE);     /* lay 1,S390X_STACK_HEADER_SIZE(1) */
   /* stg 1,va+16(r15):__overflow_arg_area: */
-  s390x_gen_st (ctx, 1, 15, va_list_disp + 16, MIR_T_I64);
+  s390x_gen_st (code, 1, 15, va_list_disp + 16, MIR_T_I64);
   /* call handler: */
-  s390x_gen_3addrs (ctx, 2, ctx, 3, func_item, 1, handler);
-  s390x_gen_addi (ctx, 4, 15, va_list_disp);
-  s390x_gen_addi (ctx, 5, 15, results_disp);
-  s390x_gen_jump (ctx, 1, TRUE);
+  s390x_gen_3addrs (code, 2, ctx, 3, func_item, 1, handler);
+  s390x_gen_addi (code, 4, 15, va_list_disp);
+  s390x_gen_addi (code, 5, 15, results_disp);
+  s390x_gen_jump (code, 1, TRUE);
   /* setup result regs: */
   disp = results_disp;
   n_gpregs = n_fpregs = 0;
   for (uint32_t i = 0; i < nres; i++) {
     type = res_types[i];
     if ((type == MIR_T_F || type == MIR_T_D) && n_fpregs < 4) {
-      s390x_gen_ld (ctx, n_fpregs * 2, 15, disp, type);
+      s390x_gen_ld (code, n_fpregs * 2, 15, disp, type);
       n_fpregs++;
     } else if (type != MIR_T_F && type != MIR_T_D && n_gpregs < 1) {  // just one gp reg
       if (type != MIR_T_LD) {
-        s390x_gen_ld (ctx, n_gpregs + 2, 15, disp, MIR_T_I64);
+        s390x_gen_ld (code, n_gpregs + 2, 15, disp, MIR_T_I64);
       } else {
         /* ld address: lg r2,16+frame_size(r15)  */
-        s390x_gen_ld (ctx, 2, 15, 16 + frame_size, MIR_T_I64);
-        s390x_gen_ld (ctx, 0, 15, disp, MIR_T_D);     /* ld f0,disp(r15) */
-        s390x_gen_ld (ctx, 2, 15, disp + 8, MIR_T_D); /* ld f2,disp + 8(r15) */
-        s390x_gen_st (ctx, 0, 2, 0, MIR_T_D);         /* st f0,0(r2) */
-        s390x_gen_st (ctx, 2, 2, 8, MIR_T_D);         /* st f2,8(r2) */
+        s390x_gen_ld (code, 2, 15, 16 + frame_size, MIR_T_I64);
+        s390x_gen_ld (code, 0, 15, disp, MIR_T_D);     /* ld f0,disp(r15) */
+        s390x_gen_ld (code, 2, 15, disp + 8, MIR_T_D); /* ld f2,disp + 8(r15) */
+        s390x_gen_st (code, 0, 2, 0, MIR_T_D);         /* st f0,0(r2) */
+        s390x_gen_st (code, 2, 2, 8, MIR_T_D);         /* st f2,8(r2) */
       }
       n_gpregs++;
     } else {
-      (*error_func) (MIR_ret_error, "s390x can not handle this combination of return values");
+      MIR_get_error_func (ctx) (MIR_ret_error,
+                                "s390x can not handle this combination of return values");
     }
     disp += 16;
   }
-  s390x_gen_addi (ctx, 15, 15, frame_size);   /* lay 15,frame_size(15) */
-  s390x_gen_ld (ctx, 6, 15, 48, MIR_T_I64);   /* lg 6,48(r15) : */
-  s390x_gen_ld (ctx, 14, 15, 112, MIR_T_I64); /* lg 14,112(r15) */
-  s390x_gen_jump (ctx, 14, FALSE);            /* bcr m15,r14 */
-  return _MIR_publish_code (ctx, VARR_ADDR (uint8_t, machine_insns),
-                            VARR_LENGTH (uint8_t, machine_insns));
+  s390x_gen_addi (code, 15, 15, frame_size);   /* lay 15,frame_size(15) */
+  s390x_gen_ld (code, 6, 15, 48, MIR_T_I64);   /* lg 6,48(r15) : */
+  s390x_gen_ld (code, 14, 15, 112, MIR_T_I64); /* lg 14,112(r15) */
+  s390x_gen_jump (code, 14, FALSE);            /* bcr m15,r14 */
+  res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+  VARR_DESTROY (uint8_t, code);
+  return res;
 }
 
 /* Brief: save r14 (r15+120); save all param regs r2-r6 (r15+16),f0,f2,f4,f6 (r15+128);
@@ -412,23 +434,26 @@ void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handl
    r2 = call hook_address (ctx, called_func); r1=r2; restore all params regs, r15, r14; bcr r1 */
 void *_MIR_get_wrapper (MIR_context_t ctx, MIR_item_t called_func, void *hook_address) {
   int frame_size = S390X_STACK_HEADER_SIZE;
+  VARR (uint8_t) * code;
+  void *res;
 
-  VARR_TRUNC (uint8_t, machine_insns, 0);
-  s390x_gen_st (ctx, 14, 15, 112, MIR_T_I64); /* stg 14,112(r15) */
-  s390x_gen_ldstm (ctx, 2, 6, 15, 16, FALSE); /* stmg 2,6,16(r15) : */
-  for (unsigned reg = 0; reg <= 6; reg += 2)  /* stdy f0,f2,f4,f6,128(r15) : */
-    s390x_gen_st (ctx, reg, 15, reg * 4 + 128, MIR_T_D);
+  VARR_CREATE (uint8_t, code, 128);
+  s390x_gen_st (code, 14, 15, 112, MIR_T_I64); /* stg 14,112(r15) */
+  s390x_gen_ldstm (code, 2, 6, 15, 16, FALSE); /* stmg 2,6,16(r15) : */
+  for (unsigned reg = 0; reg <= 6; reg += 2)   /* stdy f0,f2,f4,f6,128(r15) : */
+    s390x_gen_st (code, reg, 15, reg * 4 + 128, MIR_T_D);
   /* r15 -= frame_size: */
-  s390x_gen_addi (ctx, 15, 15, -frame_size);
-  s390x_gen_3addrs (ctx, 2, ctx, 3, called_func, 4, hook_address);
-  s390x_gen_jump (ctx, 4, TRUE);
-  s390x_gen_mov (ctx, 1, 2);
-  s390x_gen_addi (ctx, 15, 15, frame_size);
+  s390x_gen_addi (code, 15, 15, -frame_size);
+  s390x_gen_3addrs (code, 2, ctx, 3, called_func, 4, hook_address);
+  s390x_gen_jump (code, 4, TRUE);
+  s390x_gen_mov (code, 1, 2);
+  s390x_gen_addi (code, 15, 15, frame_size);
   for (unsigned reg = 0; reg <= 6; reg += 2) /* ldy fn,disp(r15) : */
-    s390x_gen_ld (ctx, reg, 15, reg * 4 + 128, MIR_T_D);
-  s390x_gen_ldstm (ctx, 2, 6, 15, 16, TRUE);  /* lmg 2,6,16(r15) : */
-  s390x_gen_ld (ctx, 14, 15, 112, MIR_T_I64); /* lg 14,112(r15) */
-  s390x_gen_jump (ctx, 1, FALSE);
-  return _MIR_publish_code (ctx, VARR_ADDR (uint8_t, machine_insns),
-                            VARR_LENGTH (uint8_t, machine_insns));
+    s390x_gen_ld (code, reg, 15, reg * 4 + 128, MIR_T_D);
+  s390x_gen_ldstm (code, 2, 6, 15, 16, TRUE);  /* lmg 2,6,16(r15) : */
+  s390x_gen_ld (code, 14, 15, 112, MIR_T_I64); /* lg 14,112(r15) */
+  s390x_gen_jump (code, 1, FALSE);
+  res = _MIR_publish_code (ctx, VARR_ADDR (uint8_t, code), VARR_LENGTH (uint8_t, code));
+  VARR_DESTROY (uint8_t, code);
+  return res;
 }

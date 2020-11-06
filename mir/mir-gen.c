@@ -125,10 +125,27 @@ struct fg_ctx;
 typedef struct loop_node *loop_node_t;
 DEF_VARR (loop_node_t);
 
+typedef struct dead_var *dead_var_t;
+DEF_DLIST_LINK (dead_var_t);
+
+struct dead_var {
+  MIR_reg_t var;
+  DLIST_LINK (dead_var_t) dead_var_link;
+};
+DEF_DLIST (dead_var_t, dead_var_link);
+
+struct all_gen_ctx;
+
 typedef struct bb_insn *bb_insn_t;
 DEF_VARR (bb_insn_t);
 
 struct gen_ctx {
+  struct all_gen_ctx *all_gen_ctx;
+  int gen_num; /* always 1 for non-parallel generation */
+#if MIR_PARALLEL_GEN
+  pthread_t gen_thread;
+  int busy_p;
+#endif
   MIR_context_t ctx;
   unsigned optimize_level; /* 0:fast gen; 1:RA+combiner; 2: +GVN/CCP (default); >=3: everything  */
   MIR_item_t curr_func_item;
@@ -139,6 +156,7 @@ struct gen_ctx {
   bitmap_t call_used_hard_regs[MIR_T_BOUND], func_used_hard_regs;
   func_cfg_t curr_cfg;
   uint32_t curr_bb_index, curr_loop_node_index;
+  DLIST (dead_var_t) free_dead_vars;
   struct target_ctx *target_ctx;
   struct data_flow_ctx *data_flow_ctx;
   struct ssa_ctx *ssa_ctx;
@@ -155,8 +173,6 @@ struct gen_ctx {
   size_t func_stack_slots_num;
 };
 
-static inline gen_ctx_t *gen_ctx_loc (MIR_context_t ctx) { return (gen_ctx_t *) ctx; }
-
 #define optimize_level gen_ctx->optimize_level
 #define curr_func_item gen_ctx->curr_func_item
 #define debug_file gen_ctx->debug_file
@@ -168,6 +184,7 @@ static inline gen_ctx_t *gen_ctx_loc (MIR_context_t ctx) { return (gen_ctx_t *) 
 #define curr_cfg gen_ctx->curr_cfg
 #define curr_bb_index gen_ctx->curr_bb_index
 #define curr_loop_node_index gen_ctx->curr_loop_node_index
+#define free_dead_vars gen_ctx->free_dead_vars
 #define dead_bb_insns gen_ctx->dead_bb_insns
 #define loop_nodes gen_ctx->loop_nodes
 #define queue_nodes gen_ctx->queue_nodes
@@ -175,6 +192,31 @@ static inline gen_ctx_t *gen_ctx_loc (MIR_context_t ctx) { return (gen_ctx_t *) 
 #define max_int_hard_regs gen_ctx->max_int_hard_regs
 #define max_fp_hard_regs gen_ctx->max_fp_hard_regs
 #define func_stack_slots_num gen_ctx->func_stack_slots_num
+
+DEF_VARR (MIR_item_t);
+struct all_gen_ctx {
+#if MIR_PARALLEL_GEN
+  mir_mutex_t queue_mutex;
+  mir_cond_t generate_signal, done_signal;
+  size_t funcs_start;
+  VARR (MIR_item_t) * funcs_to_generate;
+#endif
+  MIR_context_t ctx;
+  size_t gens_num; /* size of the following array: */
+  struct gen_ctx gen_ctx[1];
+};
+
+#if MIR_PARALLEL_GEN
+#define queue_mutex all_gen_ctx->queue_mutex
+#define generate_signal all_gen_ctx->generate_signal
+#define done_signal all_gen_ctx->done_signal
+#define funcs_start all_gen_ctx->funcs_start
+#define funcs_to_generate all_gen_ctx->funcs_to_generate
+#endif
+
+static inline struct all_gen_ctx **all_gen_ctx_loc (MIR_context_t ctx) {
+  return (struct all_gen_ctx **) ctx;
+}
 
 #if defined(__x86_64__) || defined(_M_AMD64)
 #include "mir-gen-x86_64.c"
@@ -251,10 +293,6 @@ static void make_io_dup_op_insns (gen_ctx_t gen_ctx) {
   }
 }
 
-typedef struct dead_var *dead_var_t;
-
-DEF_DLIST_LINK (dead_var_t);
-
 typedef struct bb *bb_t;
 
 DEF_DLIST_LINK (bb_t);
@@ -282,13 +320,6 @@ struct edge {
 
 DEF_DLIST (in_edge_t, in_link);
 DEF_DLIST (out_edge_t, out_link);
-
-struct dead_var {
-  MIR_reg_t var;
-  DLIST_LINK (dead_var_t) dead_var_link;
-};
-
-DEF_DLIST (dead_var_t, dead_var_link);
 
 struct insn_data { /* used only for calls/labels in -O0 mode */
   bb_t bb;
@@ -410,11 +441,11 @@ struct func_cfg {
   loop_node_t root_loop_node;
 };
 
-static DLIST (dead_var_t) free_dead_vars;
+static void init_dead_vars (gen_ctx_t gen_ctx) { DLIST_INIT (dead_var_t, free_dead_vars); }
 
-static void init_dead_vars (void) { DLIST_INIT (dead_var_t, free_dead_vars); }
-
-static void free_dead_var (dead_var_t dv) { DLIST_APPEND (dead_var_t, free_dead_vars, dv); }
+static void free_dead_var (gen_ctx_t gen_ctx, dead_var_t dv) {
+  DLIST_APPEND (dead_var_t, free_dead_vars, dv);
+}
 
 static dead_var_t get_dead_var (gen_ctx_t gen_ctx) {
   dead_var_t dv;
@@ -425,7 +456,7 @@ static dead_var_t get_dead_var (gen_ctx_t gen_ctx) {
   return dv;
 }
 
-static void finish_dead_vars (void) {
+static void finish_dead_vars (gen_ctx_t gen_ctx) {
   dead_var_t dv;
 
   while ((dv = DLIST_HEAD (dead_var_t, free_dead_vars)) != NULL) {
@@ -454,16 +485,16 @@ static dead_var_t find_bb_insn_dead_var (bb_insn_t bb_insn, MIR_reg_t var) {
   return NULL;
 }
 
-static void clear_bb_insn_dead_vars (bb_insn_t bb_insn) {
+static void clear_bb_insn_dead_vars (gen_ctx_t gen_ctx, bb_insn_t bb_insn) {
   dead_var_t dv;
 
   while ((dv = DLIST_HEAD (dead_var_t, bb_insn->dead_vars)) != NULL) {
     DLIST_REMOVE (dead_var_t, bb_insn->dead_vars, dv);
-    free_dead_var (dv);
+    free_dead_var (gen_ctx, dv);
   }
 }
 
-static void remove_bb_insn_dead_var (bb_insn_t bb_insn, MIR_reg_t hr) {
+static void remove_bb_insn_dead_var (gen_ctx_t gen_ctx, bb_insn_t bb_insn, MIR_reg_t hr) {
   dead_var_t dv, next_dv;
 
   gen_assert (hr <= MAX_HARD_REG);
@@ -471,7 +502,7 @@ static void remove_bb_insn_dead_var (bb_insn_t bb_insn, MIR_reg_t hr) {
     next_dv = DLIST_NEXT (dead_var_t, dv);
     if (dv->var != hr) continue;
     DLIST_REMOVE (dead_var_t, bb_insn->dead_vars, dv);
-    free_dead_var (dv);
+    free_dead_var (gen_ctx, dv);
   }
 }
 
@@ -521,7 +552,7 @@ static bb_insn_t create_bb_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, bb_t bb) {
   bb_insn->insn = insn;
   bb_insn->flag = FALSE;
   bb_insn->call_hard_reg_args = NULL;
-  gen_assert (curr_cfg->curr_bb_insn_index < (1ull << 32));
+  gen_assert (curr_cfg->curr_bb_insn_index != (uint32_t) ~0ull);
   bb_insn->index = curr_cfg->curr_bb_insn_index++;
   bb_insn->gvn_val = bb_insn->index;
   DLIST_INIT (dead_var_t, bb_insn->dead_vars);
@@ -536,10 +567,10 @@ static bb_insn_t add_new_bb_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, bb_t bb) {
   return bb_insn;
 }
 
-static void delete_bb_insn (bb_insn_t bb_insn) {
+static void delete_bb_insn (gen_ctx_t gen_ctx, bb_insn_t bb_insn) {
   DLIST_REMOVE (bb_insn_t, bb_insn->bb->bb_insns, bb_insn);
   bb_insn->insn->data = NULL;
-  clear_bb_insn_dead_vars (bb_insn);
+  clear_bb_insn_dead_vars (gen_ctx, bb_insn);
   if (bb_insn->call_hard_reg_args != NULL) bitmap_destroy (bb_insn->call_hard_reg_args);
   free (bb_insn);
 }
@@ -588,7 +619,7 @@ static void gen_delete_insn (gen_ctx_t gen_ctx, MIR_insn_t insn) {
   if (optimize_level == 0)
     delete_insn_data (insn);
   else
-    delete_bb_insn (insn->data);
+    delete_bb_insn (gen_ctx, insn->data);
   MIR_remove_insn (gen_ctx->ctx, curr_func_item, insn);
 }
 
@@ -610,6 +641,16 @@ static void gen_add_insn_after (gen_ctx_t gen_ctx, MIR_insn_t after, MIR_insn_t 
   gen_assert (!MIR_branch_code_p (after->code));
   MIR_insert_insn_after (gen_ctx->ctx, curr_func_item, after, insn);
   create_new_bb_insns (gen_ctx, after, DLIST_NEXT (MIR_insn_t, insn), after);
+}
+
+static void gen_move_insn_before (gen_ctx_t gen_ctx, MIR_insn_t before, MIR_insn_t insn) {
+  DLIST_REMOVE (MIR_insn_t, curr_func_item->u.func->insns, insn);
+  MIR_insert_insn_before (gen_ctx->ctx, curr_func_item, before, insn);
+  if (optimize_level != 0) {
+    bb_insn_t bb_insn = insn->data, before_bb_insn = before->data;
+    DLIST_REMOVE (bb_insn_t, bb_insn->bb->bb_insns, bb_insn);
+    DLIST_INSERT_BEFORE (bb_insn_t, before_bb_insn->bb->bb_insns, before_bb_insn, bb_insn);
+  }
 }
 
 static void setup_call_hard_reg_args (gen_ctx_t gen_ctx, MIR_insn_t call_insn, MIR_reg_t hard_reg) {
@@ -1302,7 +1343,7 @@ static void destroy_func_cfg (gen_ctx_t gen_ctx) {
     } else {
       bb_insn = insn->data;
       gen_assert (bb_insn != NULL);
-      delete_bb_insn (bb_insn);
+      delete_bb_insn (gen_ctx, bb_insn);
     }
   for (bb = DLIST_HEAD (bb_t, curr_cfg->bbs); bb != NULL; bb = next_bb) {
     next_bb = DLIST_NEXT (bb_t, bb);
@@ -3412,7 +3453,7 @@ static void add_bb_insn_dead_vars (gen_ctx_t gen_ctx) {
     bitmap_copy (live, bb->live_out);
     for (bb_insn = DLIST_TAIL (bb_insn_t, bb->bb_insns); bb_insn != NULL; bb_insn = prev_bb_insn) {
       prev_bb_insn = DLIST_PREV (bb_insn_t, bb_insn);
-      clear_bb_insn_dead_vars (bb_insn);
+      clear_bb_insn_dead_vars (gen_ctx, bb_insn);
       insn = bb_insn->insn;
       FOREACH_INSN_VAR (gen_ctx, insn_var_iter, insn, var, op_num, out_p, mem_p, passed_mem_num) {
         if (out_p) bitmap_clear_bit_p (live, var);
@@ -4438,7 +4479,7 @@ static void combine_delete_insn (gen_ctx_t gen_ctx, MIR_insn_t def_insn, bb_insn
     fprintf (debug_file, "      deleting now dead insn ");
     print_bb_insn (gen_ctx, def_insn->data, TRUE);
   });
-  remove_bb_insn_dead_var (bb_insn, hr);
+  remove_bb_insn_dead_var (gen_ctx, bb_insn, hr);
   move_bb_insn_dead_vars (bb_insn, def_insn->data);
   /* We should delete the def insn here because of possible
      substitution of the def insn 'r0 = ... r0 ...'.  We still
@@ -4459,20 +4500,35 @@ static int64_t power2 (int64_t p) {
 static int64_t int_log2 (int64_t i) {
   int64_t n;
 
-  if (i == 0) return -1;
+  if (i <= 0) return -1;
   for (n = 0; (i & 1) == 0; n++, i >>= 1)
     ;
   return i == 1 ? n : -1;
 }
 
-static int combine_substitute (gen_ctx_t gen_ctx, bb_insn_t bb_insn) {
+static MIR_insn_t get_uptodate_def_insn (gen_ctx_t gen_ctx, int hr) {
+  MIR_insn_t def_insn;
+
+  if (!hreg_refs_addr[hr].def_p) return NULL;
+  gen_assert (!hreg_refs_addr[hr].del_p);
+  def_insn = hreg_refs_addr[hr].insn;
+  /* Checking hr0 = ... hr1 ...; ...; hr1 = ...; ...; insn */
+  if ((def_insn->nops > 1 && obsolete_op_p (gen_ctx, def_insn->ops[1], hreg_refs_addr[hr].insn_num))
+      || (def_insn->nops > 2
+          && obsolete_op_p (gen_ctx, def_insn->ops[2], hreg_refs_addr[hr].insn_num)))
+    return NULL;
+  return def_insn;
+}
+
+static int combine_substitute (gen_ctx_t gen_ctx, bb_insn_t *bb_insn_ref) {
   MIR_context_t ctx = gen_ctx->ctx;
   MIR_insn_code_t code, new_code;
+  bb_insn_t bb_insn = *bb_insn_ref;
   MIR_insn_t insn = bb_insn->insn, def_insn, new_insn;
   size_t i, nops = insn->nops;
   int out_p, insn_change_p, insn_hr_change_p, op_change_p, mem_reg_change_p, success_p;
-  MIR_op_t *op_ref, *src_op_ref, *src_op2_ref;
-  MIR_reg_t hr;
+  MIR_op_t *op_ref, *src_op_ref, *src_op2_ref, saved_op;
+  MIR_reg_t hr, early_clobbered_hard_reg1, early_clobbered_hard_reg2;
   int64_t scale, sh;
 
   if (nops == 0) return FALSE;
@@ -4485,17 +4541,51 @@ static int combine_substitute (gen_ctx_t gen_ctx, bb_insn_t bb_insn) {
     if (out_p && insn->ops[i].mode != MIR_OP_HARD_REG_MEM) continue;
     combine_process_op (gen_ctx, &insn->ops[i], bb_insn);
   }
+  if (move_code_p (insn->code) && VARR_LENGTH (MIR_reg_t, insn_hard_regs) == 1) {
+    /* We processed all other regs already.  Try to change insn the following way:
+       hr0 = hr2 op hr3; ...; ... = hr0  =>  ...; ... = hr2 op hr3 */
+    hr = VARR_GET (MIR_reg_t, insn_hard_regs, 0);
+    if ((def_insn = get_uptodate_def_insn (gen_ctx, hr)) == NULL
+        || MIR_call_code_p (def_insn->code))
+      return FALSE;
+    target_get_early_clobbered_hard_regs (def_insn, &early_clobbered_hard_reg1,
+                                          &early_clobbered_hard_reg2);
+    if (!move_code_p (def_insn->code) && early_clobbered_hard_reg1 == MIR_NON_HARD_REG
+        && early_clobbered_hard_reg2 == MIR_NON_HARD_REG && insn->ops[1].mode == MIR_OP_HARD_REG
+        && insn->ops[1].u.hard_reg == hr
+        /* Check that insn->ops[0] is not mem[...hr0...]: */
+        && (insn->ops[0].mode != MIR_OP_HARD_REG_MEM
+            || (insn->ops[0].u.hard_reg_mem.base != hr
+                && insn->ops[0].u.hard_reg_mem.index != hr))) {
+      saved_op = def_insn->ops[0];
+      def_insn->ops[0] = insn->ops[0];
+      success_p = target_insn_ok_p (gen_ctx, def_insn);
+      def_insn->ops[0] = saved_op;
+      if (!success_p) return FALSE;
+      gen_move_insn_before (gen_ctx, insn, def_insn);
+      DEBUG ({
+        fprintf (debug_file, "      moving insn ");
+        print_bb_insn (gen_ctx, def_insn->data, FALSE);
+        fprintf (debug_file, "      before insn ");
+        print_bb_insn (gen_ctx, bb_insn, TRUE);
+      });
+      def_insn->ops[0] = insn->ops[0];
+      DEBUG ({
+        fprintf (debug_file, "      changing it to ");
+        print_bb_insn (gen_ctx, def_insn->data, TRUE);
+        // deleted_insns_num++;
+        fprintf (debug_file, "      deleting insn ");
+        print_bb_insn (gen_ctx, bb_insn, TRUE);
+      });
+      gen_delete_insn (gen_ctx, insn);
+      *bb_insn_ref = def_insn->data;
+      return TRUE;
+    }
+  }
   insn_change_p = FALSE;
   while (VARR_LENGTH (MIR_reg_t, insn_hard_regs) != 0) {
     hr = VARR_POP (MIR_reg_t, insn_hard_regs);
-    if (!hreg_refs_addr[hr].def_p) continue;
-    gen_assert (!hreg_refs_addr[hr].del_p);
-    def_insn = hreg_refs_addr[hr].insn;
-    if ((def_insn->nops > 1
-         && obsolete_op_p (gen_ctx, def_insn->ops[1], hreg_refs_addr[hr].insn_num))
-        || (def_insn->nops > 2
-            && obsolete_op_p (gen_ctx, def_insn->ops[2], hreg_refs_addr[hr].insn_num)))
-      continue; /* hr0 = ... hr1 ...; ...; hr1 = ...; ...; insn */
+    if ((def_insn = get_uptodate_def_insn (gen_ctx, hr)) == NULL) continue;
     insn_hr_change_p = FALSE;
     for (i = 0; i < nops; i++) { /* Change all hr occurences: */
       op_ref = &insn->ops[i];
@@ -4588,28 +4678,6 @@ static int combine_substitute (gen_ctx_t gen_ctx, bb_insn_t bb_insn) {
         }
       }
       if (op_change_p) VARR_PUSH (size_t, changed_op_numbers, i);
-    }
-    code = insn->code;
-    if (i >= nops && (code == MIR_MUL || code == MIR_MULS || code == MIR_UDIV || code == MIR_UDIVS)
-        && insn->ops[2].mode == MIR_OP_INT && (sh = int_log2 (insn->ops[2].u.i)) >= 0) {
-      new_code = code; /* to remove an initialized warning */
-      switch (code) {
-      case MIR_MUL: new_code = MIR_LSH; break;
-      case MIR_MULS: new_code = MIR_LSHS; break;
-      case MIR_UDIV: new_code = MIR_URSH; break;
-      case MIR_UDIVS: new_code = MIR_URSHS; break;
-      default: gen_assert (FALSE);
-      }
-      new_insn = MIR_new_insn (ctx, new_code, insn->ops[0], insn->ops[1], MIR_new_int_op (ctx, sh));
-      MIR_insert_insn_after (ctx, curr_func_item, insn, new_insn);
-      if (target_insn_ok_p (gen_ctx, new_insn)) {
-        insn->code = new_insn->code;
-        insn->ops[0] = new_insn->ops[0];
-        insn->ops[1] = new_insn->ops[1];
-        insn->ops[2] = new_insn->ops[2];
-      }
-      MIR_remove_insn (ctx, curr_func_item, new_insn);
-      insn_hr_change_p = TRUE;
     }
     if (insn_hr_change_p) {
       if ((success_p = i >= nops && target_insn_ok_p (gen_ctx, insn))) insn_change_p = TRUE;
@@ -4714,6 +4782,110 @@ static MIR_insn_t combine_branch_and_cmp (gen_ctx_t gen_ctx, bb_insn_t bb_insn) 
   }
 }
 
+static MIR_insn_t combine_mul_div_substitute (gen_ctx_t gen_ctx, bb_insn_t bb_insn) {
+  MIR_context_t ctx = gen_ctx->ctx;
+  MIR_insn_t def_insn = NULL, new_insns[6], insn = bb_insn->insn;
+  MIR_insn_code_t new_code, code = insn->code;
+  int n, sh, ok_p;
+  MIR_op_t op, temp;
+
+  switch (code) {
+  case MIR_MUL: new_code = MIR_LSH; break;
+  case MIR_MULS: new_code = MIR_LSHS; break;
+  case MIR_UDIV: new_code = MIR_URSH; break;
+  case MIR_UDIVS: new_code = MIR_URSHS; break;
+  case MIR_DIV: new_code = MIR_RSH; break;
+  case MIR_DIVS: new_code = MIR_RSHS; break;
+  default: return NULL;
+  }
+  op = insn->ops[2];
+  if (op.mode == MIR_OP_HARD_REG && safe_hreg_substitution_p (gen_ctx, op.u.hard_reg, bb_insn)) {
+    def_insn = hreg_refs_addr[op.u.hard_reg].insn;
+    if (def_insn->code != MIR_MOV) return NULL;
+    op = def_insn->ops[1];
+  }
+  if (op.mode != MIR_OP_INT && op.mode != MIR_OP_UINT) return NULL;
+  if ((sh = int_log2 (op.u.i)) < 0) return NULL;
+  if (sh == 0) {
+    new_insns[0] = MIR_new_insn (ctx, MIR_MOV, insn->ops[0], insn->ops[1]);
+    gen_add_insn_before (gen_ctx, insn, new_insns[0]);
+    move_bb_insn_dead_vars (new_insns[0]->data, bb_insn);
+    DEBUG ({
+      fprintf (debug_file, "      changing to ");
+      print_bb_insn (gen_ctx, new_insns[0]->data, TRUE);
+    });
+    gen_delete_insn (gen_ctx, insn);
+    if (def_insn != NULL) {
+      DEBUG ({
+        fprintf (debug_file, "      deleting now dead insn ");
+        print_bb_insn (gen_ctx, def_insn->data, TRUE);
+      });
+      gen_delete_insn (gen_ctx, def_insn);
+    }
+    return new_insns[0];
+  } else if (code == MIR_MUL || code == MIR_MULS || code == MIR_UDIV || code == MIR_UDIVS) {
+    new_insns[0]
+      = MIR_new_insn (ctx, new_code, insn->ops[0], insn->ops[1], MIR_new_int_op (ctx, sh));
+    MIR_insert_insn_after (ctx, curr_func_item, insn, new_insns[0]);
+    if ((ok_p = target_insn_ok_p (gen_ctx, new_insns[0]))) {
+      insn->code = new_insns[0]->code;
+      insn->ops[2] = new_insns[0]->ops[2];
+      DEBUG ({
+        fprintf (debug_file, "      changing to ");
+        print_bb_insn (gen_ctx, bb_insn, TRUE);
+      });
+    }
+    MIR_remove_insn (ctx, curr_func_item, new_insns[0]);
+    return ok_p ? insn : NULL;
+  } else if (insn->ops[1].mode == MIR_OP_HARD_REG
+             && insn->ops[1].u.hard_reg == TEMP_INT_HARD_REG2) {
+  } else if (insn->ops[1].mode == MIR_OP_HARD_REG_MEM
+             && (insn->ops[1].u.hard_reg_mem.base == TEMP_INT_HARD_REG2
+                 || insn->ops[1].u.hard_reg_mem.index == TEMP_INT_HARD_REG2)) {
+  } else {
+    temp = _MIR_new_hard_reg_op (ctx, TEMP_INT_HARD_REG2);
+    gen_assert (code == MIR_DIV || code == MIR_DIVS);
+    new_insns[0] = MIR_new_insn (ctx, MIR_MOV, temp, insn->ops[1]);
+    if (code == MIR_DIV) {
+      new_insns[1] = MIR_new_insn (ctx, MIR_RSH, temp, temp, MIR_new_int_op (ctx, 63));
+      new_insns[2] = MIR_new_insn (ctx, MIR_AND, temp, temp, MIR_new_int_op (ctx, op.u.i - 1));
+      new_insns[3] = MIR_new_insn (ctx, MIR_ADD, temp, temp, insn->ops[1]);
+    } else {
+      new_insns[1] = MIR_new_insn (ctx, MIR_RSHS, temp, temp, MIR_new_int_op (ctx, 31));
+      new_insns[2] = MIR_new_insn (ctx, MIR_ANDS, temp, temp, MIR_new_int_op (ctx, op.u.i - 1));
+      new_insns[3] = MIR_new_insn (ctx, MIR_ADDS, temp, temp, insn->ops[1]);
+    }
+    new_insns[4] = MIR_new_insn (ctx, new_code, temp, temp, MIR_new_int_op (ctx, sh));
+    new_insns[5] = MIR_new_insn (ctx, MIR_MOV, insn->ops[0], temp);
+    for (n = 0; n < 6; n++) gen_add_insn_before (gen_ctx, insn, new_insns[n]);
+    for (n = 0; n < 6; n++)
+      if (!target_insn_ok_p (gen_ctx, new_insns[n])) break;
+    if (n < 6) {
+      for (n = 0; n < 6; n++) gen_delete_insn (gen_ctx, new_insns[n]);
+    } else {
+      move_bb_insn_dead_vars (new_insns[3]->data, bb_insn);
+      add_bb_insn_dead_var (gen_ctx, new_insns[5]->data, TEMP_INT_HARD_REG2);
+      DEBUG ({
+        fprintf (debug_file, "      changing to ");
+        for (n = 0; n < 6; n++) {
+          if (n != 0) fprintf (debug_file, "                  ");
+          print_bb_insn (gen_ctx, new_insns[n]->data, TRUE);
+        }
+      });
+      gen_delete_insn (gen_ctx, insn);
+      if (def_insn != NULL) {
+        DEBUG ({
+          fprintf (debug_file, "      deleting now dead insn ");
+          print_bb_insn (gen_ctx, def_insn->data, TRUE);
+        });
+        gen_delete_insn (gen_ctx, def_insn);
+      }
+      return new_insns[0];
+    }
+  }
+  return NULL;
+}
+
 static void setup_hreg_ref (gen_ctx_t gen_ctx, MIR_reg_t hr, MIR_insn_t insn, size_t nop,
                             size_t insn_num, int def_p) {
   if (hr == MIR_NON_HARD_REG) return;
@@ -4771,20 +4943,27 @@ static void combine (gen_ctx_t gen_ctx) {
           last_mem_ref_insn_num = curr_insn_num; /* Potentially call can change memory */
         } else if (code == MIR_RET) {
           /* ret is transformed in machinize and should be not modified after that */
-        } else if ((new_insn = combine_branch_and_cmp (gen_ctx, bb_insn)) != NULL) {
+        } else if ((new_insn = combine_branch_and_cmp (gen_ctx, bb_insn)) != NULL
+                   || (new_insn = combine_mul_div_substitute (gen_ctx, bb_insn)) != NULL) {
+          bb_insn = new_insn->data;
           insn = new_insn;
           nops = MIR_insn_nops (ctx, insn);
           block_change_p = TRUE;
         } else {
-          change_p = combine_substitute (gen_ctx, bb_insn);
-          if (!change_p && (new_code = commutative_insn_code (insn->code)) != MIR_INSN_BOUND) {
+          if ((change_p = combine_substitute (gen_ctx, &bb_insn))) {
+            insn = bb_insn->insn;
+            nops = MIR_insn_nops (ctx, insn);
+          } else if (!change_p
+                     && (new_code = commutative_insn_code (insn->code)) != MIR_INSN_BOUND) {
             insn->code = new_code;
             temp_op = insn->ops[1];
             insn->ops[1] = insn->ops[2];
             insn->ops[2] = temp_op;
-            if (combine_substitute (gen_ctx, bb_insn))
+            if (combine_substitute (gen_ctx, &bb_insn)) {
+              insn = bb_insn->insn;
+              nops = MIR_insn_nops (ctx, insn);
               change_p = TRUE;
-            else {
+            } else {
               insn->code = code;
               temp_op = insn->ops[1];
               insn->ops[1] = insn->ops[2];
@@ -4992,7 +5171,7 @@ static void ssa_dead_code_elimination (gen_ctx_t gen_ctx) {
 static void print_code (gen_ctx_t gen_ctx, uint8_t *code, size_t code_len, void *start_addr) {
   size_t i;
   int ch;
-  char cfname[30];
+  char cfname[50];
   char command[500];
   FILE *f;
 #if !defined(__APPLE__)
@@ -5000,7 +5179,7 @@ static void print_code (gen_ctx_t gen_ctx, uint8_t *code, size_t code_len, void 
   FILE *bf;
 #endif
 
-  sprintf (cfname, "_mir_%lu.c", (unsigned long) getpid ());
+  sprintf (cfname, "_mir_%d_%lu.c", gen_ctx->gen_num, (unsigned long) getpid ());
   if ((f = fopen (cfname, "w")) == NULL) return;
 #if defined(__APPLE__)
   fprintf (f, "unsigned char code[] = {");
@@ -5013,7 +5192,7 @@ static void print_code (gen_ctx_t gen_ctx, uint8_t *code, size_t code_len, void 
   sprintf (command, "gcc -c -o %s.o %s 2>&1 && objdump --section=.data -D %s.o; rm -f %s.o %s",
            cfname, cfname, cfname, cfname, cfname);
 #else
-  sprintf (bfname, "_mir_%lu.bin", (unsigned long) getpid ());
+  sprintf (bfname, "_mir_%d_%lu.bin", gen_ctx->gen_num, (unsigned long) getpid ());
   if ((bf = fopen (bfname, "w")) == NULL) return;
   fprintf (f, "void code (void) {}\n");
   for (i = 0; i < code_len; i++) fputc (code[i], bf);
@@ -5045,14 +5224,23 @@ static void *print_and_execute_wrapper (gen_ctx_t gen_ctx, MIR_item_t called_fun
 }
 #endif
 
-void *MIR_gen (MIR_context_t ctx, MIR_item_t func_item) {
-  gen_ctx_t gen_ctx = *gen_ctx_loc (ctx);
-  uint8_t *code;
-  size_t code_len;
-#if !MIR_NO_GEN_DEBUG
-  double start_time = 0.0;
-#endif
+static void parallel_error (MIR_context_t ctx, const char *err_message) {
+  MIR_get_error_func (ctx) (MIR_parallel_error, err_message);
+}
 
+void *MIR_gen (MIR_context_t ctx, int gen_num, MIR_item_t func_item) {
+  struct all_gen_ctx *all_gen_ctx = *all_gen_ctx_loc (ctx);
+  gen_ctx_t gen_ctx;
+  uint8_t *code;
+  void *machine_code;
+  size_t code_len;
+  double start_time = real_usec_time ();
+
+#if !MIR_PARALLEL_GEN
+  gen_num = 0;
+#endif
+  gen_assert (gen_num >= 0 && gen_num < all_gen_ctx->gens_num);
+  gen_ctx = &all_gen_ctx->gen_ctx[gen_num];
   gen_assert (func_item->item_type == MIR_func_item && func_item->data == NULL);
   if (func_item->u.func->machine_code != NULL) {
     gen_assert (func_item->u.func->call_addr != NULL);
@@ -5064,7 +5252,6 @@ void *MIR_gen (MIR_context_t ctx, MIR_item_t func_item) {
     return func_item->addr;
   }
   DEBUG ({
-    start_time = real_usec_time ();
     fprintf (debug_file, "+++++++++++++MIR before generator:\n");
     MIR_output_item (ctx, debug_file, func_item);
   });
@@ -5180,15 +5367,13 @@ void *MIR_gen (MIR_context_t ctx, MIR_item_t func_item) {
     print_CFG (gen_ctx, FALSE, FALSE, TRUE, FALSE, NULL);
   });
   code = target_translate (gen_ctx, &code_len);
-  func_item->u.func->machine_code = func_item->u.func->call_addr
-    = _MIR_publish_code (ctx, code, code_len);
-  target_rebase (gen_ctx, func_item->u.func->machine_code);
+  machine_code = func_item->u.func->call_addr = _MIR_publish_code (ctx, code, code_len);
+  target_rebase (gen_ctx, func_item->u.func->call_addr);
 #if MIR_GEN_CALL_TRACE
   func_item->u.func->call_addr = _MIR_get_wrapper (ctx, func_item, print_and_execute_wrapper);
 #endif
   DEBUG ({
-    print_code (gen_ctx, func_item->u.func->machine_code, code_len,
-                func_item->u.func->machine_code);
+    print_code (gen_ctx, machine_code, code_len, machine_code);
     fprintf (debug_file, "code size = %lu:\n", (unsigned long) code_len);
   });
   _MIR_redirect_thunk (ctx, func_item->addr, func_item->u.func->call_addr);
@@ -5196,118 +5381,296 @@ void *MIR_gen (MIR_context_t ctx, MIR_item_t func_item) {
   if (optimize_level != 0) destroy_loop_tree (gen_ctx, curr_cfg->root_loop_node);
   destroy_func_cfg (gen_ctx);
   DEBUG ({
-    fprintf (debug_file, "Generation of code for %s: %lu MIR insns -- time %.0f usec\n",
+    fprintf (debug_file,
+             "Generation of code for %s: %lu MIR insns (addr=%lx, len=%lu) -- time %.2f ms\n",
              MIR_item_name (ctx, func_item), DLIST_LENGTH (MIR_insn_t, func_item->u.func->insns),
-             real_usec_time () - start_time);
+             (unsigned long) machine_code, (unsigned long) code_len,
+             (real_usec_time () - start_time) / 1000.0);
   });
   _MIR_restore_func_insns (ctx, func_item);
+  /* ??? We should use atomic here but c2mir does not implement them yet.  */
+#if MIR_PARALLEL_GEN
+  if (mir_mutex_lock (&queue_mutex)) parallel_error (ctx, "error in mutex lock");
+#endif
+  func_item->u.func->machine_code = machine_code;
+#if MIR_PARALLEL_GEN
+  if (mir_cond_broadcast (&done_signal)) parallel_error (ctx, "error in cond broadcast");
+  if (mir_mutex_unlock (&queue_mutex)) parallel_error (ctx, "error in mutex lock");
+#endif
   return func_item->addr;
 }
 
-void MIR_gen_set_debug_file (MIR_context_t ctx, FILE *f) {
+void MIR_gen_set_debug_file (MIR_context_t ctx, int gen_num, FILE *f) {
 #if !MIR_NO_GEN_DEBUG
-  gen_ctx_t gen_ctx = *gen_ctx_loc (ctx);
+  struct all_gen_ctx *all_gen_ctx = *all_gen_ctx_loc (ctx);
+  gen_ctx_t gen_ctx;
 
-  if (gen_ctx == NULL) {
+  if (all_gen_ctx == NULL) {
     fprintf (stderr, "Calling MIR_gen_set_debug_file before MIR_gen_init -- good bye\n");
     exit (1);
   }
+#if !MIR_PARALLEL_GEN
+  gen_num = 0;
+#endif
+  gen_assert (gen_num >= 0 && gen_num < all_gen_ctx->gens_num);
+  gen_ctx = &all_gen_ctx->gen_ctx[gen_num];
   debug_file = f;
 #endif
 }
 
-void MIR_gen_set_optimize_level (MIR_context_t ctx, unsigned int level) {
-  gen_ctx_t gen_ctx = *gen_ctx_loc (ctx);
+void MIR_gen_set_optimize_level (MIR_context_t ctx, int gen_num, unsigned int level) {
+  struct all_gen_ctx *all_gen_ctx = *all_gen_ctx_loc (ctx);
+  gen_ctx_t gen_ctx;
 
+#if !MIR_PARALLEL_GEN
+  gen_num = 0;
+#endif
+  gen_assert (gen_num >= 0 && gen_num < all_gen_ctx->gens_num);
+  gen_ctx = &all_gen_ctx->gen_ctx[gen_num];
   optimize_level = level;
 }
 
-void MIR_gen_init (MIR_context_t ctx) {
-  gen_ctx_t *gen_ctx_ptr = gen_ctx_loc (ctx), gen_ctx;
-  MIR_reg_t i;
+#if MIR_PARALLEL_GEN
+static void *gen (void *arg) {
+  MIR_item_t func_item;
+  gen_ctx_t gen_ctx = arg;
+  struct all_gen_ctx *all_gen_ctx = gen_ctx->all_gen_ctx;
+  MIR_context_t ctx = all_gen_ctx->ctx;
+  size_t len;
 
-  *gen_ctx_ptr = gen_ctx = gen_malloc (NULL, sizeof (struct gen_ctx));
-  gen_ctx->ctx = ctx;
-  optimize_level = 2;
-  gen_ctx->target_ctx = NULL;
-  gen_ctx->data_flow_ctx = NULL;
-  gen_ctx->gvn_ctx = NULL;
-  gen_ctx->ccp_ctx = NULL;
-  gen_ctx->lr_ctx = NULL;
-  gen_ctx->ra_ctx = NULL;
-  gen_ctx->selection_ctx = NULL;
-#if !MIR_NO_GEN_DEBUG
-  debug_file = NULL;
-#endif
-  VARR_CREATE (bb_insn_t, dead_bb_insns, 16);
-  VARR_CREATE (loop_node_t, loop_nodes, 32);
-  VARR_CREATE (loop_node_t, queue_nodes, 32);
-  VARR_CREATE (loop_node_t, loop_entries, 16);
-  init_dead_vars ();
-  init_data_flow (gen_ctx);
-  init_ssa (gen_ctx);
-  init_gvn (gen_ctx);
-  init_ccp (gen_ctx);
-  temp_bitmap = bitmap_create2 (DEFAULT_INIT_BITMAP_BITS_NUM);
-  temp_bitmap2 = bitmap_create2 (DEFAULT_INIT_BITMAP_BITS_NUM);
-  init_live_ranges (gen_ctx);
-  init_ra (gen_ctx);
-  init_selection (gen_ctx);
-  target_init (gen_ctx);
-  max_int_hard_regs = max_fp_hard_regs = 0;
-  for (i = 0; i <= MAX_HARD_REG; i++) {
-    if (target_fixed_hard_reg_p (i)) continue;
-    target_hard_reg_type_ok_p (i, MIR_T_I32) ? max_int_hard_regs++ : max_fp_hard_regs++;
+  for (;;) {
+    if (mir_mutex_lock (&queue_mutex)) parallel_error (ctx, "error in mutex lock");
+    while (VARR_LENGTH (MIR_item_t, funcs_to_generate) <= funcs_start)
+      if (mir_cond_wait (&generate_signal, &queue_mutex))
+        parallel_error (ctx, "error in cond wait");
+    if ((func_item = VARR_GET (MIR_item_t, funcs_to_generate, funcs_start)) == NULL) {
+      if (mir_mutex_unlock (&queue_mutex)) parallel_error (ctx, "error in mutex unlock");
+      break;
+    }
+    funcs_start++;
+    if (funcs_start > 64 && VARR_LENGTH (MIR_item_t, funcs_to_generate) < 2 * funcs_start) {
+      len = VARR_LENGTH (MIR_item_t, funcs_to_generate) - funcs_start;
+      memmove (VARR_ADDR (MIR_item_t, funcs_to_generate), /* compact */
+               VARR_ADDR (MIR_item_t, funcs_to_generate) + funcs_start, len * sizeof (MIR_item_t));
+      VARR_TRUNC (MIR_item_t, funcs_to_generate, len);
+      funcs_start = 0;
+    }
+    gen_ctx->busy_p = TRUE;
+    if (mir_mutex_unlock (&queue_mutex)) parallel_error (ctx, "error in mutex unlock");
+    MIR_gen (gen_ctx->ctx, gen_ctx->gen_num, func_item);
+    if (mir_mutex_lock (&queue_mutex)) parallel_error (ctx, "error in mutex lock");
+    gen_ctx->busy_p = FALSE;
+    if (mir_cond_signal (&done_signal)) parallel_error (ctx, "error in cond signal");
+    if (mir_mutex_unlock (&queue_mutex)) parallel_error (ctx, "error in mutex unlock");
   }
-  for (MIR_type_t type = MIR_T_I8; type < MIR_T_BOUND; type++) {
-    call_used_hard_regs[type] = bitmap_create2 (MAX_HARD_REG + 1);
-    for (i = 0; i <= MAX_HARD_REG; i++) {
-      /* We need call_used_hard_regs even for fixed regs in combine. */
-      if (target_call_used_hard_reg_p (i, type)) bitmap_set_bit_p (call_used_hard_regs[type], i);
+  return NULL;
+}
+
+static void signal_threads_to_finish (struct all_gen_ctx *all_gen_ctx) {
+  MIR_context_t ctx = all_gen_ctx->ctx;
+
+  if (mir_mutex_lock (&queue_mutex)) parallel_error (ctx, "error in mutex lock");
+  funcs_start = 0;
+  VARR_TRUNC (MIR_item_t, funcs_to_generate, 0);
+  VARR_PUSH (MIR_item_t, funcs_to_generate, NULL); /* flag to finish threads */
+  if (mir_cond_broadcast (&generate_signal)) parallel_error (ctx, "error in cond broadcast");
+  if (mir_mutex_unlock (&queue_mutex)) parallel_error (ctx, "error in mutex unlock");
+}
+#endif
+
+void MIR_gen_init (MIR_context_t ctx, int gens_num) {
+  struct all_gen_ctx **all_gen_ctx_ptr = all_gen_ctx_loc (ctx), *all_gen_ctx;
+  gen_ctx_t gen_ctx;
+  MIR_reg_t reg;
+
+#if !MIR_PARALLEL_GEN
+  gens_num = 1;
+#else
+  if (gens_num < 1) gens_num = 1;
+#endif
+  *all_gen_ctx_ptr = all_gen_ctx
+    = gen_malloc (NULL, sizeof (struct all_gen_ctx) + sizeof (struct gen_ctx) * (gens_num - 1));
+  all_gen_ctx->ctx = ctx;
+  all_gen_ctx->gens_num = gens_num;
+#if MIR_PARALLEL_GEN
+  funcs_start = 0;
+  VARR_CREATE (MIR_item_t, funcs_to_generate, 0);
+  if (mir_mutex_init (&queue_mutex, NULL) != 0) {
+    (*MIR_get_error_func (ctx)) (MIR_parallel_error, "can not create a generator thread lock");
+  } else if (mir_cond_init (&generate_signal, NULL) != 0) {
+    mir_mutex_destroy (&queue_mutex);
+    (*MIR_get_error_func (ctx)) (MIR_parallel_error, "can not create a generator thread signal");
+  } else if (mir_cond_init (&done_signal, NULL) != 0) {
+    mir_cond_destroy (&generate_signal);
+    mir_mutex_destroy (&queue_mutex);
+    (*MIR_get_error_func (ctx)) (MIR_parallel_error, "can not create a generator thread signal");
+  } else {
+    for (int i = 0; i < gens_num; i++) {
+      gen_ctx = &all_gen_ctx->gen_ctx[i];
+      gen_ctx->busy_p = FALSE;
+      gen_ctx->gen_num = i;
+      gen_ctx->all_gen_ctx = all_gen_ctx;
+      if (mir_thread_create (&gen_ctx->gen_thread, NULL, gen, gen_ctx) != 0) {
+        signal_threads_to_finish (all_gen_ctx);
+        for (int j = 0; j < i; j++) mir_thread_join (all_gen_ctx->gen_ctx[j].gen_thread, NULL);
+        mir_cond_destroy (&done_signal);
+        mir_cond_destroy (&generate_signal);
+        mir_mutex_destroy (&queue_mutex);
+        (*MIR_get_error_func (ctx)) (MIR_parallel_error, "can not create a generator thread");
+      }
     }
   }
-  insn_to_consider = bitmap_create2 (1024);
-  func_used_hard_regs = bitmap_create2 (MAX_HARD_REG + 1);
+#endif
+  for (int n = 0; n < gens_num; n++) {
+    gen_ctx = &all_gen_ctx->gen_ctx[n];
+#if !MIR_PARALLEL_GEN
+    gen_ctx->all_gen_ctx = all_gen_ctx;
+    gen_ctx->gen_num = n;
+#endif
+    gen_ctx->ctx = ctx;
+    optimize_level = 2;
+    gen_ctx->target_ctx = NULL;
+    gen_ctx->data_flow_ctx = NULL;
+    gen_ctx->gvn_ctx = NULL;
+    gen_ctx->ccp_ctx = NULL;
+    gen_ctx->lr_ctx = NULL;
+    gen_ctx->ra_ctx = NULL;
+    gen_ctx->selection_ctx = NULL;
+#if !MIR_NO_GEN_DEBUG
+    debug_file = NULL;
+#endif
+    VARR_CREATE (bb_insn_t, dead_bb_insns, 16);
+    VARR_CREATE (loop_node_t, loop_nodes, 32);
+    VARR_CREATE (loop_node_t, queue_nodes, 32);
+    VARR_CREATE (loop_node_t, loop_entries, 16);
+    init_dead_vars (gen_ctx);
+    init_data_flow (gen_ctx);
+    init_ssa (gen_ctx);
+    init_gvn (gen_ctx);
+    init_ccp (gen_ctx);
+    temp_bitmap = bitmap_create2 (DEFAULT_INIT_BITMAP_BITS_NUM);
+    temp_bitmap2 = bitmap_create2 (DEFAULT_INIT_BITMAP_BITS_NUM);
+    init_live_ranges (gen_ctx);
+    init_ra (gen_ctx);
+    init_selection (gen_ctx);
+    target_init (gen_ctx);
+    max_int_hard_regs = max_fp_hard_regs = 0;
+    for (int i = 0; i <= MAX_HARD_REG; i++) {
+      if (target_fixed_hard_reg_p (i)) continue;
+      target_hard_reg_type_ok_p (i, MIR_T_I32) ? max_int_hard_regs++ : max_fp_hard_regs++;
+    }
+    for (MIR_type_t type = MIR_T_I8; type < MIR_T_BOUND; type++) {
+      call_used_hard_regs[type] = bitmap_create2 (MAX_HARD_REG + 1);
+      for (int i = 0; i <= MAX_HARD_REG; i++) {
+        /* We need call_used_hard_regs even for fixed regs in combine. */
+        if (target_call_used_hard_reg_p (i, type)) bitmap_set_bit_p (call_used_hard_regs[type], i);
+      }
+    }
+    insn_to_consider = bitmap_create2 (1024);
+    func_used_hard_regs = bitmap_create2 (MAX_HARD_REG + 1);
+  }
 }
 
 void MIR_gen_finish (MIR_context_t ctx) {
-  gen_ctx_t *gen_ctx_ptr = gen_ctx_loc (ctx);
-  gen_ctx_t gen_ctx = *gen_ctx_ptr;
+  struct all_gen_ctx **all_gen_ctx_ptr = all_gen_ctx_loc (ctx), *all_gen_ctx = *all_gen_ctx_ptr;
+  gen_ctx_t gen_ctx;
 
-  finish_data_flow (gen_ctx);
-  finish_ssa (gen_ctx);
-  finish_gvn (gen_ctx);
-  finish_ccp (gen_ctx);
-  bitmap_destroy (temp_bitmap);
-  bitmap_destroy (temp_bitmap2);
-  finish_live_ranges (gen_ctx);
-  finish_ra (gen_ctx);
-  finish_selection (gen_ctx);
-  for (MIR_type_t type = MIR_T_I8; type < MIR_T_BOUND; type++)
-    bitmap_destroy (call_used_hard_regs[type]);
-  bitmap_destroy (insn_to_consider);
-  bitmap_destroy (func_used_hard_regs);
-  target_finish (gen_ctx);
-  finish_dead_vars ();
-  free (gen_ctx->data_flow_ctx);
-  VARR_DESTROY (bb_insn_t, dead_bb_insns);
-  VARR_DESTROY (loop_node_t, loop_nodes);
-  VARR_DESTROY (loop_node_t, queue_nodes);
-  VARR_DESTROY (loop_node_t, loop_entries);
-  free (gen_ctx);
-  *gen_ctx_ptr = NULL;
+#if MIR_PARALLEL_GEN
+  signal_threads_to_finish (all_gen_ctx);
+  for (int i = 0; i < all_gen_ctx->gens_num; i++)
+    mir_thread_join (all_gen_ctx->gen_ctx[i].gen_thread, NULL);
+  if (mir_mutex_destroy (&queue_mutex) != 0 || mir_cond_destroy (&generate_signal) != 0
+      || mir_cond_destroy (&done_signal) != 0) {  // ???
+    (*MIR_get_error_func (all_gen_ctx->ctx)) (MIR_parallel_error,
+                                              "can not destroy generator mutex  or signals");
+  }
+#endif
+  for (int i = 0; i < all_gen_ctx->gens_num; i++) {
+    gen_ctx = &all_gen_ctx->gen_ctx[i];
+    finish_data_flow (gen_ctx);
+    finish_ssa (gen_ctx);
+    finish_gvn (gen_ctx);
+    finish_ccp (gen_ctx);
+    bitmap_destroy (temp_bitmap);
+    bitmap_destroy (temp_bitmap2);
+    finish_live_ranges (gen_ctx);
+    finish_ra (gen_ctx);
+    finish_selection (gen_ctx);
+    for (MIR_type_t type = MIR_T_I8; type < MIR_T_BOUND; type++)
+      bitmap_destroy (call_used_hard_regs[type]);
+    bitmap_destroy (insn_to_consider);
+    bitmap_destroy (func_used_hard_regs);
+    target_finish (gen_ctx);
+    finish_dead_vars (gen_ctx);
+    free (gen_ctx->data_flow_ctx);
+    VARR_DESTROY (bb_insn_t, dead_bb_insns);
+    VARR_DESTROY (loop_node_t, loop_nodes);
+    VARR_DESTROY (loop_node_t, queue_nodes);
+    VARR_DESTROY (loop_node_t, loop_entries);
+  }
+  free (all_gen_ctx);
+  *all_gen_ctx_ptr = NULL;
 }
 
-void MIR_set_gen_interface (MIR_context_t ctx, MIR_item_t func_item) { MIR_gen (ctx, func_item); }
+void MIR_set_gen_interface (MIR_context_t ctx, MIR_item_t func_item) {
+  if (func_item == NULL) return; /* finish setting interfaces */
+  MIR_gen (ctx, 0, func_item);
+}
+
+void MIR_set_parallel_gen_interface (MIR_context_t ctx, MIR_item_t func_item) {
+  struct all_gen_ctx *all_gen_ctx = *all_gen_ctx_loc (ctx);
+
+#if !MIR_PARALLEL_GEN
+  if (func_item == NULL) return; /* finish setting interfaces */
+  MIR_gen (ctx, 0, func_item);
+#else
+  if (func_item == NULL) {
+    size_t i;
+
+    if (mir_mutex_lock (&queue_mutex)) parallel_error (ctx, "error in mutex lock");
+    for (;;) {
+      for (i = 0; i < all_gen_ctx->gens_num; i++)
+        if (all_gen_ctx->gen_ctx[i].busy_p) break;
+      if (VARR_LENGTH (MIR_item_t, funcs_to_generate) <= funcs_start && i >= all_gen_ctx->gens_num)
+        break; /* nothing to generate and nothing is being generated */
+      if (mir_cond_wait (&done_signal, &queue_mutex)) parallel_error (ctx, "error in cond wait");
+    }
+    if (mir_mutex_unlock (&queue_mutex)) parallel_error (ctx, "error in mutex unlock");
+  } else {
+    if (mir_mutex_lock (&queue_mutex)) parallel_error (ctx, "error in mutex lock");
+    VARR_PUSH (MIR_item_t, funcs_to_generate, func_item);
+    if (mir_cond_broadcast (&generate_signal)) parallel_error (ctx, "error in cond broadcast");
+    if (mir_mutex_unlock (&queue_mutex)) parallel_error (ctx, "error in mutex unlock");
+  }
+#endif
+}
 
 static void *gen_and_redirect (MIR_context_t ctx, MIR_item_t func_item) {
-  MIR_gen (ctx, func_item);
+#if !MIR_PARALLEL_GEN
+  MIR_gen (ctx, 0, func_item);
+#else
+  struct all_gen_ctx *all_gen_ctx = *all_gen_ctx_loc (ctx);
+  MIR_func_t func = func_item->u.func;
+
+  if (mir_mutex_lock (&queue_mutex)) parallel_error (ctx, "error in mutex lock");
+  VARR_PUSH (MIR_item_t, funcs_to_generate, func_item);
+  if (mir_cond_broadcast (&generate_signal)) parallel_error (ctx, "error in cond broadcast");
+  if (mir_mutex_unlock (&queue_mutex)) parallel_error (ctx, "error in mutex unlock");
+  if (mir_mutex_lock (&queue_mutex)) parallel_error (ctx, "error in mutex lock");
+  for (;;) {
+    if (func->machine_code != NULL) break;
+    if (mir_cond_wait (&done_signal, &queue_mutex)) parallel_error (ctx, "error in cond wait");
+  }
+  if (mir_mutex_unlock (&queue_mutex)) parallel_error (ctx, "error in mutex unlock");
+#endif
   return func_item->u.func->machine_code;
 }
 
 void MIR_set_lazy_gen_interface (MIR_context_t ctx, MIR_item_t func_item) {
-  void *addr = _MIR_get_wrapper (ctx, func_item, gen_and_redirect);
+  void *addr;
 
+  if (func_item == NULL) return;
+  addr = _MIR_get_wrapper (ctx, func_item, gen_and_redirect);
   _MIR_redirect_thunk (ctx, func_item->addr, addr);
 }
 

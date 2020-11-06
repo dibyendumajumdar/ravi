@@ -28,20 +28,17 @@ struct interp_ctx;
 struct MIR_context {
   struct gen_ctx *gen_ctx;     /* should be the 1st member */
   struct c2mir_ctx *c2mir_ctx; /* should be the 2nd member */
+#if MIR_PARALLEL_GEN
+  mir_mutex_t ctx_mutex;
+#endif
   MIR_error_func_t error_func;
-  VARR (MIR_proto_t) * unspec_protos; /* protos of unspec insns */
-  VARR (MIR_insn_t) * temp_insns, *temp_insns2;
-  VARR (MIR_op_t) * temp_insn_ops;
-  VARR (MIR_var_t) * temp_vars;
-  VARR (MIR_type_t) * temp_types;
-  VARR (size_t) * insn_nops;
+  VARR (size_t) * insn_nops;          /* constant after initialization */
+  VARR (MIR_proto_t) * unspec_protos; /* protos of unspec insns (set only during initialization) */
   VARR (char) * temp_string;
   VARR (uint8_t) * temp_data;
-  char temp_buff[30];
   HTAB (MIR_item_t) * module_item_tab;
   /* Module to keep items potentially used by all modules:  */
   struct MIR_module environment_module;
-  VARR (MIR_reg_t) * inline_reg_map;
   MIR_module_t curr_module;
   MIR_func_t curr_func;
   int curr_label_num;
@@ -54,31 +51,21 @@ struct MIR_context {
   struct io_ctx *io_ctx;
   struct scan_ctx *scan_ctx;
   struct interp_ctx *interp_ctx;
-  size_t inlined_calls, inline_insns_before, inline_insns_after;
 };
 
+#define ctx_mutex ctx->ctx_mutex
 #define error_func ctx->error_func
 #define unspec_protos ctx->unspec_protos
-#define temp_insns ctx->temp_insns
-#define temp_insns2 ctx->temp_insns2
-#define temp_insn_ops ctx->temp_insn_ops
-#define temp_vars ctx->temp_vars
-#define temp_types ctx->temp_types
 #define insn_nops ctx->insn_nops
 #define temp_string ctx->temp_string
 #define temp_data ctx->temp_data
-#define temp_buff ctx->temp_buff
 #define module_item_tab ctx->module_item_tab
 #define environment_module ctx->environment_module
-#define inline_reg_map ctx->inline_reg_map
 #define curr_module ctx->curr_module
 #define curr_func ctx->curr_func
 #define curr_label_num ctx->curr_label_num
 #define all_modules ctx->all_modules
 #define modules_to_link ctx->modules_to_link
-#define inlined_calls ctx->inlined_calls
-#define inline_insns_before ctx->inline_insns_before
-#define inline_insns_after ctx->inline_insns_after
 
 static void util_error (MIR_context_t ctx, const char *message);
 #define MIR_VARR_ERROR util_error
@@ -109,7 +96,7 @@ static void MIR_NO_RETURN default_error (enum MIR_error_type error_type, const c
 }
 
 static void MIR_NO_RETURN MIR_UNUSED util_error (MIR_context_t ctx, const char *message) {
-  (*error_func) (MIR_alloc_error, message);
+  MIR_get_error_func (ctx) (MIR_alloc_error, message);
 }
 
 #define HARD_REG_NAME_PREFIX "hr"
@@ -391,7 +378,7 @@ static string_t string_store (MIR_context_t ctx, VARR (string_t) * *strs,
 
   if (string_find (strs, str_tab, str, &el)) return el;
   if ((heap_str = malloc (str.len)) == NULL)
-    (*error_func) (MIR_alloc_error, "Not enough memory for strings");
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for strings");
   memcpy (heap_str, str.s, str.len);
   string.str.s = heap_str;
   string.str.len = str.len;
@@ -399,6 +386,14 @@ static string_t string_store (MIR_context_t ctx, VARR (string_t) * *strs,
   VARR_PUSH (string_t, *strs, string);
   HTAB_DO (string_t, *str_tab, string, HTAB_INSERT, el);
   return string;
+}
+
+static struct string get_ctx_string (MIR_context_t ctx, MIR_str_t str) {
+  return string_store (ctx, &strings, &string_tab, str);
+}
+
+static const char *get_ctx_str (MIR_context_t ctx, const char *string) {
+  return get_ctx_string (ctx, (MIR_str_t){strlen (string) + 1, string}).str.s;
 }
 
 static void string_finish (VARR (string_t) * *strs, HTAB (string_t) * *str_tab) {
@@ -413,8 +408,7 @@ static void string_finish (VARR (string_t) * *strs, HTAB (string_t) * *str_tab) 
 /* New Page */
 
 typedef struct reg_desc {
-  size_t name_num; /* 1st key for the namenum2rdn hash tab */
-  MIR_func_t func; /* 2nd key for hash the both tabs */
+  char *name; /* 1st key for the name2rdn hash tab */
   MIR_type_t type;
   MIR_reg_t reg; /* 1st key reg2rdn hash tab */
 } reg_desc_t;
@@ -423,99 +417,92 @@ DEF_VARR (reg_desc_t);
 
 DEF_HTAB (size_t);
 
-struct reg_type_cache {
-  MIR_func_t func;
-  VARR (MIR_type_t) * types;
-};
-
-struct reg_ctx {
+typedef struct func_regs {
   VARR (reg_desc_t) * reg_descs;
-  HTAB (size_t) * namenum2rdn_tab;
+  HTAB (size_t) * name2rdn_tab;
   HTAB (size_t) * reg2rdn_tab;
-  struct reg_type_cache reg_type_cache;
-};
+} * func_regs_t;
 
-#define reg_descs ctx->reg_ctx->reg_descs
-#define namenum2rdn_tab ctx->reg_ctx->namenum2rdn_tab
-#define reg2rdn_tab ctx->reg_ctx->reg2rdn_tab
-#define reg_type_cache ctx->reg_ctx->reg_type_cache
+static int name2rdn_eq (size_t rdn1, size_t rdn2, void *arg) {
+  func_regs_t func_regs = arg;
+  reg_desc_t *addr = VARR_ADDR (reg_desc_t, func_regs->reg_descs);
 
-static int namenum2rdn_eq (size_t rdn1, size_t rdn2, void *arg) {
-  MIR_context_t ctx = arg;
-  reg_desc_t *addr = VARR_ADDR (reg_desc_t, reg_descs);
-
-  return (addr[rdn1].name_num == addr[rdn2].name_num && addr[rdn1].func == addr[rdn2].func);
+  return strcmp (addr[rdn1].name, addr[rdn2].name) == 0;
 }
 
-static htab_hash_t namenum2rdn_hash (size_t rdn, void *arg) {
-  MIR_context_t ctx = arg;
-  reg_desc_t *addr = VARR_ADDR (reg_desc_t, reg_descs);
+static htab_hash_t name2rdn_hash (size_t rdn, void *arg) {
+  func_regs_t func_regs = arg;
+  reg_desc_t *addr = VARR_ADDR (reg_desc_t, func_regs->reg_descs);
 
-  return mir_hash_finish (
-    mir_hash_step (mir_hash_step (mir_hash_init (0), (uint64_t) addr[rdn].func),
-                   (uint64_t) addr[rdn].name_num));
+  return mir_hash (addr[rdn].name, strlen (addr[rdn].name), 0);
 }
 
 static int reg2rdn_eq (size_t rdn1, size_t rdn2, void *arg) {
-  MIR_context_t ctx = arg;
-  reg_desc_t *addr = VARR_ADDR (reg_desc_t, reg_descs);
+  func_regs_t func_regs = arg;
+  reg_desc_t *addr = VARR_ADDR (reg_desc_t, func_regs->reg_descs);
 
-  return addr[rdn1].reg == addr[rdn2].reg && addr[rdn1].func == addr[rdn2].func;
+  return addr[rdn1].reg == addr[rdn2].reg;
 }
 
 static htab_hash_t reg2rdn_hash (size_t rdn, void *arg) {
-  MIR_context_t ctx = arg;
-  reg_desc_t *addr = VARR_ADDR (reg_desc_t, reg_descs);
+  func_regs_t func_regs = arg;
+  reg_desc_t *addr = VARR_ADDR (reg_desc_t, func_regs->reg_descs);
 
-  return mir_hash_finish (
-    mir_hash_step (mir_hash_step (mir_hash_init (0), (uint64_t) addr[rdn].func), addr[rdn].reg));
+  return mir_hash_finish (mir_hash_step (mir_hash_init (0), addr[rdn].reg));
 }
 
-static void reg_init (MIR_context_t ctx) {
-  reg_desc_t rd = {0, NULL, MIR_T_I64, 0};
+static void func_regs_init (MIR_context_t ctx, MIR_func_t func) {
+  func_regs_t func_regs;
+  reg_desc_t rd = {NULL, MIR_T_I64, 0};
 
-  if ((ctx->reg_ctx = malloc (sizeof (struct reg_ctx))) == NULL)
-    (*error_func) (MIR_alloc_error, "Not enough memory for ctx");
-  VARR_CREATE (reg_desc_t, reg_descs, 300);
-  VARR_PUSH (reg_desc_t, reg_descs, rd); /* for 0 reg */
-  HTAB_CREATE (size_t, namenum2rdn_tab, 300, namenum2rdn_hash, namenum2rdn_eq, ctx);
-  HTAB_CREATE (size_t, reg2rdn_tab, 300, reg2rdn_hash, reg2rdn_eq, ctx);
-  reg_type_cache.func = NULL;
-  VARR_CREATE (MIR_type_t, reg_type_cache.types, 1000);
+  if ((func_regs = func->internal = malloc (sizeof (struct func_regs))) == NULL)
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for func regs info");
+  VARR_CREATE (reg_desc_t, func_regs->reg_descs, 50);
+  VARR_PUSH (reg_desc_t, func_regs->reg_descs, rd); /* for 0 reg */
+  HTAB_CREATE (size_t, func_regs->name2rdn_tab, 100, name2rdn_hash, name2rdn_eq, func_regs);
+  HTAB_CREATE (size_t, func_regs->reg2rdn_tab, 100, reg2rdn_hash, reg2rdn_eq, func_regs);
 }
 
 static MIR_reg_t create_func_reg (MIR_context_t ctx, MIR_func_t func, const char *name,
-                                  MIR_reg_t reg, MIR_type_t type, int any_p) {
+                                  MIR_reg_t reg, MIR_type_t type, int any_p, char **name_ptr) {
+  func_regs_t func_regs = func->internal;
   reg_desc_t rd;
   size_t rdn, tab_rdn;
   int htab_res;
 
   if (!any_p && _MIR_reserved_name_p (ctx, name))
-    (*error_func) (MIR_reserved_name_error, "redefining a reserved name %s", name);
-  rd.name_num = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).num;
-  rd.func = func;
+    MIR_get_error_func (ctx) (MIR_reserved_name_error, "redefining a reserved name %s", name);
+  rd.name = (char *) name;
   rd.type = type;
   rd.reg = reg; /* 0 is reserved */
-  rdn = VARR_LENGTH (reg_desc_t, reg_descs);
-  VARR_PUSH (reg_desc_t, reg_descs, rd);
-  if (HTAB_DO (size_t, namenum2rdn_tab, rdn, HTAB_FIND, tab_rdn)) {
-    VARR_POP (reg_desc_t, reg_descs);
-    (*error_func) (MIR_repeated_decl_error, "Repeated reg declaration %s", name);
+  rdn = VARR_LENGTH (reg_desc_t, func_regs->reg_descs);
+  VARR_PUSH (reg_desc_t, func_regs->reg_descs, rd);
+  if (HTAB_DO (size_t, func_regs->name2rdn_tab, rdn, HTAB_FIND, tab_rdn)) {
+    VARR_POP (reg_desc_t, func_regs->reg_descs);
+    MIR_get_error_func (ctx) (MIR_repeated_decl_error, "Repeated reg declaration %s", name);
   }
-  htab_res = HTAB_DO (size_t, namenum2rdn_tab, rdn, HTAB_INSERT, tab_rdn);
+  if ((rd.name = malloc (strlen (name) + 1)) == NULL)
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for reg names");
+  VARR_ADDR (reg_desc_t, func_regs->reg_descs)[rdn].name = *name_ptr = rd.name;
+  strcpy (*name_ptr, name);
+  htab_res = HTAB_DO (size_t, func_regs->name2rdn_tab, rdn, HTAB_INSERT, tab_rdn);
   mir_assert (!htab_res);
-  htab_res = HTAB_DO (size_t, reg2rdn_tab, rdn, HTAB_INSERT, tab_rdn);
+  htab_res = HTAB_DO (size_t, func_regs->reg2rdn_tab, rdn, HTAB_INSERT, tab_rdn);
   mir_assert (!htab_res);
   return reg;
 }
 
-static void reg_finish (MIR_context_t ctx) {
-  VARR_DESTROY (reg_desc_t, reg_descs);
-  HTAB_DESTROY (size_t, namenum2rdn_tab);
-  HTAB_DESTROY (size_t, reg2rdn_tab);
-  VARR_DESTROY (MIR_type_t, reg_type_cache.types);
-  free (ctx->reg_ctx);
-  ctx->reg_ctx = NULL;
+static void func_regs_finish (MIR_context_t ctx, MIR_func_t func) {
+  func_regs_t func_regs = func->internal;
+  char *name;
+
+  for (size_t i = 0; i < VARR_LENGTH (reg_desc_t, func_regs->reg_descs); i++)
+    if ((name = VARR_GET (reg_desc_t, func_regs->reg_descs, i).name) != NULL) free (name);
+  VARR_DESTROY (reg_desc_t, func_regs->reg_descs);
+  HTAB_DESTROY (size_t, func_regs->name2rdn_tab);
+  HTAB_DESTROY (size_t, func_regs->reg2rdn_tab);
+  free (func->internal);
+  func->internal = NULL;
 }
 
 /* New Page */
@@ -550,12 +537,14 @@ static void scan_init (MIR_context_t ctx);
 static void scan_finish (MIR_context_t ctx);
 #endif
 
-static void vn_init (MIR_context_t ctx);
-static void vn_finish (MIR_context_t ctx);
+static void simplify_init (MIR_context_t ctx);
+static void simplify_finish (MIR_context_t ctx);
 
-MIR_error_func_t MIR_get_error_func (MIR_context_t ctx) { return error_func; }
+MIR_error_func_t MIR_get_error_func (MIR_context_t ctx) { return error_func; }  // ??? atomic
 
-void MIR_set_error_func (MIR_context_t ctx, MIR_error_func_t func) { error_func = func; }
+void MIR_set_error_func (MIR_context_t ctx, MIR_error_func_t func) {  // ?? atomic access
+  error_func = func;
+}
 
 static htab_hash_t item_hash (MIR_item_t it, void *arg) {
   return mir_hash_finish (
@@ -566,7 +555,7 @@ static int item_eq (MIR_item_t it1, MIR_item_t it2, void *arg) {
   return it1->module == it2->module && MIR_item_name (NULL, it1) == MIR_item_name (NULL, it2);
 }
 
-static MIR_item_t find_item (MIR_context_t ctx, const char *name, MIR_module_t module) {
+static MIR_item_t item_tab_find (MIR_context_t ctx, const char *name, MIR_module_t module) {
   MIR_item_t tab_item;
   struct MIR_item item_s;
   struct MIR_func func_s;
@@ -579,15 +568,30 @@ static MIR_item_t find_item (MIR_context_t ctx, const char *name, MIR_module_t m
   return NULL;
 }
 
+static MIR_item_t item_tab_insert (MIR_context_t ctx, MIR_item_t item) {
+  MIR_item_t tab_item;
+
+  HTAB_DO (MIR_item_t, module_item_tab, item, HTAB_INSERT, tab_item);
+  return tab_item;
+}
+
+static void item_tab_remove (MIR_context_t ctx, MIR_item_t item) {
+  HTAB_DO (MIR_item_t, module_item_tab, item, HTAB_DELETE, item);
+}
+
 static void init_module (MIR_context_t ctx, MIR_module_t m, const char *name) {
   m->data = NULL;
   m->last_temp_item_num = 0;
-  m->name = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).str.s;
+  m->name = get_ctx_str (ctx, name);
   DLIST_INIT (MIR_item_t, m->items);
 }
 
 static void code_init (MIR_context_t ctx);
 static void code_finish (MIR_context_t ctx);
+
+static void parallel_error (MIR_context_t ctx, const char *err_message) {
+  MIR_get_error_func (ctx) (MIR_parallel_error, err_message);
+}
 
 MIR_context_t MIR_init (void) {
   MIR_context_t ctx;
@@ -601,6 +605,7 @@ MIR_context_t MIR_init (void) {
   ctx->io_ctx = NULL;
   ctx->scan_ctx = NULL;
   ctx->interp_ctx = NULL;
+  if (mir_mutex_init (&ctx_mutex, NULL)) parallel_error (ctx, "error in mutex init");
 #ifndef NDEBUG
   for (MIR_insn_code_t c = 0; c < MIR_INVALID_INSN; c++) mir_assert (c == insn_descs[c].code);
 #endif
@@ -609,19 +614,12 @@ MIR_context_t MIR_init (void) {
   curr_func = NULL;
   curr_label_num = 0;
   if ((ctx->string_ctx = malloc (sizeof (struct string_ctx))) == NULL)
-    (*error_func) (MIR_alloc_error, "Not enough memory for ctx");
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for ctx");
   string_init (&strings, &string_tab);
-  reg_init (ctx);
   VARR_CREATE (MIR_proto_t, unspec_protos, 0);
-  VARR_CREATE (MIR_insn_t, temp_insns, 0);
-  VARR_CREATE (MIR_insn_t, temp_insns2, 0);
-  VARR_CREATE (MIR_op_t, temp_insn_ops, 0);
-  VARR_CREATE (MIR_var_t, temp_vars, 0);
-  VARR_CREATE (MIR_type_t, temp_types, 0);
   check_and_prepare_insn_descs (ctx);
   DLIST_INIT (MIR_module_t, all_modules);
-  vn_init (ctx);
-  VARR_CREATE (MIR_reg_t, inline_reg_map, 256);
+  simplify_init (ctx);
   VARR_CREATE (char, temp_string, 64);
   VARR_CREATE (uint8_t, temp_data, 512);
 #if !MIR_NO_IO
@@ -635,14 +633,13 @@ MIR_context_t MIR_init (void) {
   HTAB_CREATE (MIR_item_t, module_item_tab, 512, item_hash, item_eq, NULL);
   code_init (ctx);
   interp_init (ctx);
-  inlined_calls = inline_insns_before = inline_insns_after = 0;
   return ctx;
 }
 
 void MIR_remove_insn (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn) {
   mir_assert (func_item != NULL);
   if (func_item->item_type != MIR_func_item)
-    (*error_func) (MIR_wrong_param_value_error, "MIR_remove_insn: wrong func item");
+    MIR_get_error_func (ctx) (MIR_wrong_param_value_error, "MIR_remove_insn: wrong func item");
   DLIST_REMOVE (MIR_insn_t, func_item->u.func->insns, insn);
   free (insn);
 }
@@ -663,6 +660,7 @@ static void remove_item (MIR_context_t ctx, MIR_item_t item) {
     remove_func_insns (ctx, item, &item->u.func->insns);
     remove_func_insns (ctx, item, &item->u.func->original_insns);
     VARR_DESTROY (MIR_var_t, item->u.func->vars);
+    func_regs_finish (ctx, item->u.func);
     free (item->u.func);
     break;
   case MIR_proto_item:
@@ -728,44 +726,35 @@ void MIR_finish (MIR_context_t ctx) {
 #endif
   VARR_DESTROY (uint8_t, temp_data);
   VARR_DESTROY (char, temp_string);
-  VARR_DESTROY (MIR_reg_t, inline_reg_map);
   while (VARR_LENGTH (MIR_proto_t, unspec_protos) != 0) {
     MIR_proto_t proto = VARR_POP (MIR_proto_t, unspec_protos);
     VARR_DESTROY (MIR_var_t, proto->args);
     free (proto);
   }
   VARR_DESTROY (MIR_proto_t, unspec_protos);
-  reg_finish (ctx);
   string_finish (&strings, &string_tab);
-  vn_finish (ctx);
-  VARR_DESTROY (MIR_var_t, temp_vars);
+  simplify_finish (ctx);
   VARR_DESTROY (size_t, insn_nops);
-  VARR_DESTROY (MIR_op_t, temp_insn_ops);
-  VARR_DESTROY (MIR_insn_t, temp_insns2);
-  VARR_DESTROY (MIR_insn_t, temp_insns);
-  VARR_DESTROY (MIR_type_t, temp_types);
   code_finish (ctx);
   if (curr_func != NULL)
-    (*error_func) (MIR_finish_error, "finish when function %s is not finished", curr_func->name);
+    MIR_get_error_func (ctx) (MIR_finish_error, "finish when function %s is not finished",
+                              curr_func->name);
   if (curr_module != NULL)
-    (*error_func) (MIR_finish_error, "finish when module %s is not finished", curr_module->name);
-#if 0
-  if (inlined_calls != 0)
-    fprintf (stderr, "inlined calls = %lu, insns before = %lu, insns_after = %lu, ratio = %.2f\n",
-             inlined_calls, inline_insns_before, inline_insns_after,
-             (double) inline_insns_after / inline_insns_before);
-#endif
+    MIR_get_error_func (ctx) (MIR_finish_error, "finish when module %s is not finished",
+                              curr_module->name);
   free (ctx->string_ctx);
+  if (mir_mutex_destroy (&ctx_mutex)) parallel_error (ctx, "error in mutex destroy");
   free (ctx);
   ctx = NULL;
 }
 
 MIR_module_t MIR_new_module (MIR_context_t ctx, const char *name) {
   if (curr_module != NULL)
-    (*error_func) (MIR_nested_module_error,
-                   "Creating module when previous module %s is not finished", curr_module->name);
+    MIR_get_error_func (ctx) (MIR_nested_module_error,
+                              "Creating module when previous module %s is not finished",
+                              curr_module->name);
   if ((curr_module = malloc (sizeof (struct MIR_module))) == NULL)
-    (*error_func) (MIR_alloc_error, "Not enough memory for module %s creation", name);
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for module %s creation", name);
   init_module (ctx, curr_module, name);
   DLIST_APPEND (MIR_module_t, all_modules, curr_module);
   return curr_module;
@@ -798,7 +787,7 @@ const char *MIR_type_str (MIR_context_t ctx, MIR_type_t tp) {
   const char *str = type_str (tp);
 
   if (strcmp (str, "") == 0)
-    (*error_func) (MIR_wrong_param_value_error, "MIR_type_str: wrong type");
+    MIR_get_error_func (ctx) (MIR_wrong_param_value_error, "MIR_type_str: wrong type");
   return str;
 }
 
@@ -826,7 +815,7 @@ static MIR_item_t add_item (MIR_context_t ctx, MIR_item_t item) {
   int replace_p;
   MIR_item_t tab_item;
 
-  if ((tab_item = find_item (ctx, MIR_item_name (ctx, item), item->module)) == NULL) {
+  if ((tab_item = item_tab_find (ctx, MIR_item_name (ctx, item), item->module)) == NULL) {
     DLIST_APPEND (MIR_item_t, curr_module->items, item);
     HTAB_DO (MIR_item_t, module_item_tab, item, HTAB_INSERT, item);
     return item;
@@ -834,16 +823,17 @@ static MIR_item_t add_item (MIR_context_t ctx, MIR_item_t item) {
   switch (tab_item->item_type) {
   case MIR_import_item:
     if (item->item_type != MIR_import_item)
-      (*error_func) (MIR_import_export_error,
-                     "existing module definition %s already defined as import",
-                     tab_item->u.import_id);
+      MIR_get_error_func (ctx) (MIR_import_export_error,
+                                "existing module definition %s already defined as import",
+                                tab_item->u.import_id);
     item = tab_item;
     break;
   case MIR_export_item:
   case MIR_forward_item:
     replace_p = FALSE;
     if (item->item_type == MIR_import_item) {
-      (*error_func) (MIR_import_export_error, "export/forward of import %s", item->u.import_id);
+      MIR_get_error_func (ctx) (MIR_import_export_error, "export/forward of import %s",
+                                item->u.import_id);
     } else if (item->item_type != MIR_export_item && item->item_type != MIR_forward_item) {
       replace_p = TRUE;
       DLIST_APPEND (MIR_item_t, curr_module->items, item);
@@ -858,14 +848,14 @@ static MIR_item_t add_item (MIR_context_t ctx, MIR_item_t item) {
     if (replace_p) { /* replace forward by export or export/forward by its definition: */
       tab_item->ref_def = item;
       if (tab_item->item_type == MIR_export_item) item->export_p = TRUE;
-      HTAB_DO (MIR_item_t, module_item_tab, tab_item, HTAB_DELETE, tab_item);
-      HTAB_DO (MIR_item_t, module_item_tab, item, HTAB_INSERT, tab_item);
+      item_tab_remove (ctx, tab_item);
+      tab_item = item_tab_insert (ctx, item);
       mir_assert (item == tab_item);
     }
     break;
   case MIR_proto_item:
-    (*error_func) (MIR_repeated_decl_error, "item %s was already defined as proto",
-                   tab_item->u.proto->name);
+    MIR_get_error_func (ctx) (MIR_repeated_decl_error, "item %s was already defined as proto",
+                              tab_item->u.proto->name);
     break;
   case MIR_bss_item:
   case MIR_data_item:
@@ -884,10 +874,11 @@ static MIR_item_t add_item (MIR_context_t ctx, MIR_item_t item) {
       DLIST_APPEND (MIR_item_t, curr_module->items, item);
       item->ref_def = tab_item;
     } else if (item->item_type == MIR_import_item) {
-      (*error_func) (MIR_import_export_error, "import of local definition %s", item->u.import_id);
+      MIR_get_error_func (ctx) (MIR_import_export_error, "import of local definition %s",
+                                item->u.import_id);
     } else {
-      (*error_func) (MIR_repeated_decl_error, "Repeated item declaration %s",
-                     MIR_item_name (ctx, item));
+      MIR_get_error_func (ctx) (MIR_repeated_decl_error, "Repeated item declaration %s",
+                                MIR_item_name (ctx, item));
     }
     break;
   default: mir_assert (FALSE);
@@ -899,9 +890,11 @@ static MIR_item_t create_item (MIR_context_t ctx, MIR_item_type_t item_type,
                                const char *item_name) {
   MIR_item_t item;
 
-  if (curr_module == NULL) (*error_func) (MIR_no_module_error, "%s outside module", item_name);
+  if (curr_module == NULL)
+    MIR_get_error_func (ctx) (MIR_no_module_error, "%s outside module", item_name);
   if ((item = malloc (sizeof (struct MIR_item))) == NULL)
-    (*error_func) (MIR_alloc_error, "Not enough memory for creation of item %s", item_name);
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for creation of item %s",
+                              item_name);
   item->data = NULL;
   item->module = curr_module;
   item->item_type = item_type;
@@ -919,7 +912,7 @@ static MIR_item_t new_export_import_forward (MIR_context_t ctx, const char *name
   const char *uniq_name;
 
   item = create_item (ctx, item_type, item_name);
-  uniq_name = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).str.s;
+  uniq_name = get_ctx_str (ctx, name);
   if (item_type == MIR_export_item)
     item->u.export_id = uniq_name;
   else if (item_type == MIR_import_item)
@@ -952,10 +945,9 @@ MIR_item_t MIR_new_bss (MIR_context_t ctx, const char *name, size_t len) {
   item->u.bss = malloc (sizeof (struct MIR_bss));
   if (item->u.bss == NULL) {
     free (item);
-    (*error_func) (MIR_alloc_error, "Not enough memory for creation of bss %s", name);
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for creation of bss %s", name);
   }
-  if (name != NULL)
-    name = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).str.s;
+  if (name != NULL) name = get_ctx_str (ctx, name);
   item->u.bss->name = name;
   item->u.bss->len = len;
   if (name == NULL) {
@@ -1002,17 +994,16 @@ MIR_item_t MIR_new_data (MIR_context_t ctx, const char *name, MIR_type_t el_type
 
   if (wrong_type_p (el_type)) {
     free (item);
-    (*error_func) (MIR_wrong_type_error, "wrong type in data %s", name);
+    MIR_get_error_func (ctx) (MIR_wrong_type_error, "wrong type in data %s", name);
   }
   el_len = _MIR_type_size (ctx, el_type);
   item->u.data = data = malloc (sizeof (struct MIR_data) + el_len * nel);
   if (data == NULL) {
     free (item);
-    (*error_func) (MIR_alloc_error, "Not enough memory for creation of data %s",
-                   name == NULL ? "" : name);
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for creation of data %s",
+                              name == NULL ? "" : name);
   }
-  if (name != NULL)
-    name = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).str.s;
+  if (name != NULL) name = get_ctx_str (ctx, name);
   data->name = name;
   if (name == NULL) {
     DLIST_APPEND (MIR_item_t, curr_module->items, item);
@@ -1038,11 +1029,10 @@ MIR_item_t MIR_new_ref_data (MIR_context_t ctx, const char *name, MIR_item_t ref
   item->u.ref_data = ref_data = malloc (sizeof (struct MIR_ref_data));
   if (ref_data == NULL) {
     free (item);
-    (*error_func) (MIR_alloc_error, "Not enough memory for creation of ref data %s",
-                   name == NULL ? "" : name);
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for creation of ref data %s",
+                              name == NULL ? "" : name);
   }
-  if (name != NULL)
-    name = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).str.s;
+  if (name != NULL) name = get_ctx_str (ctx, name);
   ref_data->name = name;
   ref_data->ref_item = ref_item;
   ref_data->disp = disp;
@@ -1062,17 +1052,17 @@ MIR_item_t MIR_new_expr_data (MIR_context_t ctx, const char *name, MIR_item_t ex
   item->u.expr_data = expr_data = malloc (sizeof (struct MIR_expr_data));
   if (expr_data == NULL) {
     free (item);
-    (*error_func) (MIR_alloc_error, "Not enough memory for creation of expr data %s",
-                   name == NULL ? "" : name);
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for creation of expr data %s",
+                              name == NULL ? "" : name);
   }
   mir_assert (expr_item != NULL);
   if (expr_item->item_type != MIR_func_item || expr_item->u.func->vararg_p
       || expr_item->u.func->nargs != 0 || expr_item->u.func->nres != 1)
-    (*error_func) (MIR_binary_io_error,
-                   "%s can not be an expr which should be non-argument, one result function",
-                   MIR_item_name (ctx, expr_item));
-  if (name != NULL)
-    name = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).str.s;
+    MIR_get_error_func (
+      ctx) (MIR_binary_io_error,
+            "%s can not be an expr which should be non-argument, one result function",
+            MIR_item_name (ctx, expr_item));
+  if (name != NULL) name = get_ctx_str (ctx, name);
   expr_data->name = name;
   expr_data->expr_item = expr_item;
   if (name == NULL) {
@@ -1090,11 +1080,10 @@ static MIR_proto_t create_proto (MIR_context_t ctx, const char *name, size_t nre
   MIR_proto_t proto = malloc (sizeof (struct MIR_proto) + nres * sizeof (MIR_type_t));
 
   if (proto == NULL)
-    (*error_func) (MIR_alloc_error, "Not enough memory for creation of proto %s", name);
-  proto->name
-    = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).str.s;
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for creation of proto %s", name);
+  proto->name = get_ctx_str (ctx, name);
   proto->res_types = (MIR_type_t *) ((char *) proto + sizeof (struct MIR_proto));
-  memcpy (proto->res_types, res_types, nres * sizeof (MIR_type_t));
+  if (nres != 0) memcpy (proto->res_types, res_types, nres * sizeof (MIR_type_t));
   proto->nres = nres;
   proto->vararg_p = vararg_p != 0;
   VARR_CREATE (MIR_var_t, proto->args, nargs);
@@ -1108,10 +1097,10 @@ static MIR_item_t new_proto_arr (MIR_context_t ctx, const char *name, size_t nre
   MIR_item_t proto_item, tab_item;
 
   if (curr_module == NULL)
-    (*error_func) (MIR_no_module_error, "Creating proto %s outside module", name);
+    MIR_get_error_func (ctx) (MIR_no_module_error, "Creating proto %s outside module", name);
   for (size_t i = 0; i < nres; i++)
     if (wrong_type_p (res_types[i]))
-      (*error_func) (MIR_wrong_type_error, "wrong result type in proto %s", name);
+      MIR_get_error_func (ctx) (MIR_wrong_type_error, "wrong result type in proto %s", name);
   proto_item = create_item (ctx, MIR_proto_item, "proto");
   proto_item->u.proto = create_proto (ctx, name, nres, res_types, nargs, vararg_p, args);
   tab_item = add_item (ctx, proto_item);
@@ -1129,19 +1118,20 @@ MIR_item_t MIR_new_vararg_proto_arr (MIR_context_t ctx, const char *name, size_t
   return new_proto_arr (ctx, name, nres, res_types, nargs, TRUE, args);
 }
 
+#if defined(_MSC_VER)
+#define alloca _alloca
+#endif
+
 static MIR_item_t new_proto (MIR_context_t ctx, const char *name, size_t nres,
                              MIR_type_t *res_types, size_t nargs, int vararg_p, va_list argp) {
-  MIR_var_t arg;
+  MIR_var_t *args = alloca (nargs * sizeof (MIR_var_t));
   size_t i;
 
-  VARR_TRUNC (MIR_var_t, temp_vars, 0);
   for (i = 0; i < nargs; i++) {
-    arg.type = va_arg (argp, MIR_type_t);
-    arg.name = va_arg (argp, const char *);
-    VARR_PUSH (MIR_var_t, temp_vars, arg);
+    args[i].type = va_arg (argp, MIR_type_t);
+    args[i].name = va_arg (argp, const char *);
   }
-  return new_proto_arr (ctx, name, nres, res_types, nargs, vararg_p,
-                        VARR_ADDR (MIR_var_t, temp_vars));
+  return new_proto_arr (ctx, name, nres, res_types, nargs, vararg_p, args);
 }
 
 MIR_item_t MIR_new_proto (MIR_context_t ctx, const char *name, size_t nres, MIR_type_t *res_types,
@@ -1173,23 +1163,23 @@ static MIR_item_t new_func_arr (MIR_context_t ctx, const char *name, size_t nres
   MIR_func_t func;
 
   if (curr_func != NULL)
-    (*error_func) (MIR_nested_func_error,
-                   "Creating function when previous function %s is not finished", curr_func->name);
+    MIR_get_error_func (ctx) (MIR_nested_func_error,
+                              "Creating function when previous function %s is not finished",
+                              curr_func->name);
   if (nargs == 0 && vararg_p)
-    (*error_func) (MIR_vararg_func_error, "Variable arg function %s w/o any mandatory argument",
-                   name);
+    MIR_get_error_func (ctx) (MIR_vararg_func_error,
+                              "Variable arg function %s w/o any mandatory argument", name);
   for (size_t i = 0; i < nres; i++)
     if (wrong_type_p (res_types[i]))
-      (*error_func) (MIR_wrong_type_error, "wrong result type in func %s", name);
+      MIR_get_error_func (ctx) (MIR_wrong_type_error, "wrong result type in func %s", name);
   func_item = create_item (ctx, MIR_func_item, "function");
   curr_func = func_item->u.func = func
     = malloc (sizeof (struct MIR_func) + nres * sizeof (MIR_type_t));
   if (func == NULL) {
     free (func_item);
-    (*error_func) (MIR_alloc_error, "Not enough memory for creation of func %s", name);
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for creation of func %s", name);
   }
-  func->name
-    = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).str.s;
+  func->name = get_ctx_str (ctx, name);
   func->nres = nres;
   func->res_types = (MIR_type_t *) ((char *) func + sizeof (struct MIR_func));
   for (size_t i = 0; i < nres; i++) func->res_types[i] = canon_type (res_types[i]);
@@ -1204,13 +1194,16 @@ static MIR_item_t new_func_arr (MIR_context_t ctx, const char *name, size_t nres
   func->expr_p = FALSE;
   func->n_inlines = 0;
   func->machine_code = func->call_addr = NULL;
+  func_regs_init (ctx, func);
   for (size_t i = 0; i < nargs; i++) {
+    char *stored_name;
     MIR_type_t type = canon_type (vars[i].type);
 
-    VARR_PUSH (MIR_var_t, func->vars, vars[i]);
     create_func_reg (ctx, func, vars[i].name, i + 1,
                      type == MIR_T_F || type == MIR_T_D || type == MIR_T_LD ? type : MIR_T_I64,
-                     FALSE);
+                     FALSE, &stored_name);
+    vars[i].name = stored_name;
+    VARR_PUSH (MIR_var_t, func->vars, vars[i]);
   }
   return func_item;
 }
@@ -1227,17 +1220,14 @@ MIR_item_t MIR_new_vararg_func_arr (MIR_context_t ctx, const char *name, size_t 
 
 static MIR_item_t new_func (MIR_context_t ctx, const char *name, size_t nres, MIR_type_t *res_types,
                             size_t nargs, int vararg_p, va_list argp) {
-  MIR_var_t var;
   size_t i;
+  MIR_var_t *vars = alloca (sizeof (MIR_var_t) * nargs);
 
-  VARR_TRUNC (MIR_var_t, temp_vars, 0);
   for (i = 0; i < nargs; i++) {
-    var.type = va_arg (argp, MIR_type_t);
-    var.name = va_arg (argp, const char *);
-    VARR_PUSH (MIR_var_t, temp_vars, var);
+    vars[i].type = va_arg (argp, MIR_type_t);
+    vars[i].name = va_arg (argp, const char *);
   }
-  return new_func_arr (ctx, name, nres, res_types, nargs, vararg_p,
-                       VARR_ADDR (MIR_var_t, temp_vars));
+  return new_func_arr (ctx, name, nres, res_types, nargs, vararg_p, vars);
 }
 
 MIR_item_t MIR_new_func (MIR_context_t ctx, const char *name, size_t nres, MIR_type_t *res_types,
@@ -1264,51 +1254,56 @@ MIR_item_t MIR_new_vararg_func (MIR_context_t ctx, const char *name, size_t nres
 
 MIR_reg_t MIR_new_func_reg (MIR_context_t ctx, MIR_func_t func, MIR_type_t type, const char *name) {
   MIR_var_t var;
+  MIR_reg_t res;
+  char *stored_name;
 
   if (type != MIR_T_I64 && type != MIR_T_F && type != MIR_T_D && type != MIR_T_LD)
-    (*error_func) (MIR_reg_type_error, "wrong type for register %s: got '%s'", name,
-                   type_str (type));
-  var.type = type;
-  var.name = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).str.s;
+    MIR_get_error_func (ctx) (MIR_reg_type_error, "wrong type for register %s: got '%s'", name,
+                              type_str (type));
   mir_assert (func != NULL);
+  res = create_func_reg (ctx, func, name, VARR_LENGTH (MIR_var_t, func->vars) + 1, type, FALSE,
+                         &stored_name);
+  var.type = type;
+  var.name = stored_name;
   VARR_PUSH (MIR_var_t, func->vars, var);
-  return create_func_reg (ctx, func, name, VARR_LENGTH (MIR_var_t, func->vars), type, FALSE);
+  return res;
 }
 
-static reg_desc_t *find_rd_by_name_num (MIR_context_t ctx, size_t name_num, MIR_func_t func) {
+static reg_desc_t *find_rd_by_name (MIR_context_t ctx, const char *name, MIR_func_t func) {
+  func_regs_t func_regs = func->internal;
   size_t rdn, temp_rdn;
   reg_desc_t rd;
 
-  rd.name_num = name_num;
-  rd.func = func; /* keys */
+  rd.name = (char *) name;
   rd.type = MIR_T_I64;
   rd.reg = 0; /* to eliminate warnings */
-  temp_rdn = VARR_LENGTH (reg_desc_t, reg_descs);
-  VARR_PUSH (reg_desc_t, reg_descs, rd);
-  if (!HTAB_DO (size_t, namenum2rdn_tab, temp_rdn, HTAB_FIND, rdn)) {
-    VARR_POP (reg_desc_t, reg_descs);
+  temp_rdn = VARR_LENGTH (reg_desc_t, func_regs->reg_descs);
+  VARR_PUSH (reg_desc_t, func_regs->reg_descs, rd);
+  if (!HTAB_DO (size_t, func_regs->name2rdn_tab, temp_rdn, HTAB_FIND, rdn)) {
+    VARR_POP (reg_desc_t, func_regs->reg_descs);
     return NULL; /* undeclared */
   }
-  VARR_POP (reg_desc_t, reg_descs);
-  return &VARR_ADDR (reg_desc_t, reg_descs)[rdn];
+  VARR_POP (reg_desc_t, func_regs->reg_descs);
+  return &VARR_ADDR (reg_desc_t, func_regs->reg_descs)[rdn];
 }
 
 static reg_desc_t *find_rd_by_reg (MIR_context_t ctx, MIR_reg_t reg, MIR_func_t func) {
+  func_regs_t func_regs = func->internal;
   size_t rdn, temp_rdn;
   reg_desc_t rd;
 
   rd.reg = reg;
-  rd.func = func; /* keys */
-  rd.name_num = 0;
+  rd.name = NULL;
   rd.type = MIR_T_I64; /* to eliminate warnings */
-  temp_rdn = VARR_LENGTH (reg_desc_t, reg_descs);
-  VARR_PUSH (reg_desc_t, reg_descs, rd);
-  if (!HTAB_DO (size_t, reg2rdn_tab, temp_rdn, HTAB_FIND, rdn)) {
-    VARR_POP (reg_desc_t, reg_descs);
-    (*error_func) (MIR_undeclared_func_reg_error, "undeclared reg %u of func %s", reg, func->name);
+  temp_rdn = VARR_LENGTH (reg_desc_t, func_regs->reg_descs);
+  VARR_PUSH (reg_desc_t, func_regs->reg_descs, rd);
+  if (!HTAB_DO (size_t, func_regs->reg2rdn_tab, temp_rdn, HTAB_FIND, rdn)) {
+    VARR_POP (reg_desc_t, func_regs->reg_descs);
+    MIR_get_error_func (ctx) (MIR_undeclared_func_reg_error, "undeclared reg %u of func %s", reg,
+                              func->name);
   }
-  VARR_POP (reg_desc_t, reg_descs);
-  return &VARR_ADDR (reg_desc_t, reg_descs)[rdn];
+  VARR_POP (reg_desc_t, func_regs->reg_descs);
+  return &VARR_ADDR (reg_desc_t, func_regs->reg_descs)[rdn];
 }
 
 void MIR_finish_func (MIR_context_t ctx) {
@@ -1317,7 +1312,8 @@ void MIR_finish_func (MIR_context_t ctx) {
   MIR_insn_code_t code;
   const char *func_name;
 
-  if (curr_func == NULL) (*error_func) (MIR_no_func_error, "finish of non-existing function");
+  if (curr_func == NULL)
+    MIR_get_error_func (ctx) (MIR_no_func_error, "finish of non-existing function");
   func_name = curr_func->name;
   if (curr_func->vararg_p || curr_func->nargs != 0 || curr_func->nres != 1) expr_p = FALSE;
   for (insn = DLIST_HEAD (MIR_insn_t, curr_func->insns); insn != NULL;
@@ -1330,19 +1326,19 @@ void MIR_finish_func (MIR_context_t ctx) {
     code = insn->code;
     if (code == MIR_PHI) {
       curr_func = NULL;
-      (*error_func) (MIR_vararg_func_error, "phi can be used only internally");
+      MIR_get_error_func (ctx) (MIR_vararg_func_error, "phi can be used only internally");
     } else if (!curr_func->vararg_p && code == MIR_VA_START) {
       curr_func = NULL;
-      (*error_func) (MIR_vararg_func_error, "func %s: va_start is not in vararg function",
-                     func_name);
+      MIR_get_error_func (ctx) (MIR_vararg_func_error, "va_start is not in vararg function");
     } else if (code == MIR_RET && actual_nops != curr_func->nres) {
       int nres = curr_func->nres;
 
       curr_func = NULL;
-      (*error_func) (MIR_vararg_func_error,
-                     "func %s: in instruction '%s': number of operands in return does not "
-                     "correspond number of function returns. Expected %d, got %d",
-                     func_name, insn_descs[code].name, nres, actual_nops);
+      MIR_get_error_func (
+        ctx) (MIR_vararg_func_error,
+              "func %s: in instruction '%s': number of operands in return does not "
+              "correspond number of function returns. Expected %d, got %d",
+              func_name, insn_descs[code].name, nres, actual_nops);
     } else if (MIR_call_code_p (code))
       expr_p = FALSE;
     for (i = 0; i < actual_nops; i++) {
@@ -1387,24 +1383,26 @@ void MIR_finish_func (MIR_context_t ctx) {
         if (wrong_type_p (insn->ops[i].u.mem.type)
             && (!MIR_blk_type_p (insn->ops[i].u.mem.type) || !MIR_call_code_p (code))) {
           curr_func = NULL;
-          (*error_func) (MIR_wrong_type_error, "func %s: in instruction '%s': wrong type memory",
-                         func_name, insn_descs[code].name);
+          MIR_get_error_func (ctx) (MIR_wrong_type_error,
+                                    "func %s: in instruction '%s': wrong type memory", func_name,
+                                    insn_descs[code].name);
         }
         if (MIR_blk_type_p (insn->ops[i].u.mem.type) && insn->ops[i].u.mem.disp < 0) {
           curr_func = NULL;
-          (*error_func) (MIR_wrong_type_error,
-                         "func %s: in instruction '%s': block type memory with disp < 0", func_name,
-                         insn_descs[code].name);
+          MIR_get_error_func (ctx) (MIR_wrong_type_error,
+                                    "func %s: in instruction '%s': block type memory with disp < 0",
+                                    func_name, insn_descs[code].name);
         }
         if (insn->ops[i].u.mem.base != 0) {
           rd = find_rd_by_reg (ctx, insn->ops[i].u.mem.base, curr_func);
           mir_assert (rd != NULL && insn->ops[i].u.mem.base == rd->reg);
           if (type2mode (rd->type) != MIR_OP_INT) {
             curr_func = NULL;
-            (*error_func) (MIR_reg_type_error,
-                           "func %s: in instruction '%s': base reg of non-integer type for operand "
-                           "#%d",
-                           func_name, insn_descs[code].name, i + 1);
+            MIR_get_error_func (
+              ctx) (MIR_reg_type_error,
+                    "func %s: in instruction '%s': base reg of non-integer type for operand "
+                    "#%d",
+                    func_name, insn_descs[code].name, i + 1);
           }
         }
         if (insn->ops[i].u.mem.index != 0) {
@@ -1412,10 +1410,11 @@ void MIR_finish_func (MIR_context_t ctx) {
           mir_assert (rd != NULL && insn->ops[i].u.mem.index == rd->reg);
           if (type2mode (rd->type) != MIR_OP_INT) {
             curr_func = NULL;
-            (*error_func) (MIR_reg_type_error,
-                           "func %s: in instruction '%s': index reg of non-integer type for "
-                           "operand #%d",
-                           func_name, insn_descs[code].name, i + 1);
+            MIR_get_error_func (
+              ctx) (MIR_reg_type_error,
+                    "func %s: in instruction '%s': index reg of non-integer type for "
+                    "operand #%d",
+                    func_name, insn_descs[code].name, i + 1);
           }
         }
         mode = type2mode (insn->ops[i].u.mem.type);
@@ -1441,17 +1440,17 @@ void MIR_finish_func (MIR_context_t ctx) {
       } else if (expected_mode != MIR_OP_UNDEF
                  && (mode == MIR_OP_UINT ? MIR_OP_INT : mode) != expected_mode) {
         curr_func = NULL;
-        (*error_func) (MIR_op_mode_error,
-                       "func %s: in instruction '%s': unexpected operand mode for operand #%d. Got "
-                       "'%s', expected '%s'",
-                       func_name, insn_descs[code].name, i + 1, mode_str (mode),
-                       mode_str (expected_mode));
+        MIR_get_error_func (
+          ctx) (MIR_op_mode_error,
+                "func %s: in instruction '%s': unexpected operand mode for operand #%d. Got "
+                "'%s', expected '%s'",
+                func_name, insn_descs[code].name, i + 1, mode_str (mode), mode_str (expected_mode));
       }
       if (out_p && !can_be_out_p) {
         curr_func = NULL;
-        (*error_func) (MIR_out_op_error,
-                       "func %s; in instruction '%s': wrong operand #%d for insn output", func_name,
-                       insn_descs[code].name, i + 1);
+        MIR_get_error_func (ctx) (MIR_out_op_error,
+                                  "func %s; in instruction '%s': wrong operand #%d for insn output",
+                                  func_name, insn_descs[code].name, i + 1);
       }
     }
   }
@@ -1460,7 +1459,8 @@ void MIR_finish_func (MIR_context_t ctx) {
 }
 
 void MIR_finish_module (MIR_context_t ctx) {
-  if (curr_module == NULL) (*error_func) (MIR_no_module_error, "finish of non-existing module");
+  if (curr_module == NULL)
+    MIR_get_error_func (ctx) (MIR_no_module_error, "finish of non-existing module");
   curr_module = NULL;
 }
 
@@ -1471,7 +1471,7 @@ static void setup_global (MIR_context_t ctx, const char *name, void *addr, MIR_i
   curr_module = &environment_module;
   /* Use import for proto representation: */
   item = new_export_import_forward (ctx, name, MIR_import_item, "import", TRUE);
-  if ((tab_item = find_item (ctx, MIR_item_name (ctx, item), &environment_module)) != item
+  if ((tab_item = item_tab_find (ctx, MIR_item_name (ctx, item), &environment_module)) != item
       && tab_item != NULL) {
     free (item);
   } else {
@@ -1485,7 +1485,7 @@ static void setup_global (MIR_context_t ctx, const char *name, void *addr, MIR_i
 }
 
 static void undefined_interface (MIR_context_t ctx) {
-  (*error_func) (MIR_call_op_error, "undefined call interface");
+  MIR_get_error_func (ctx) (MIR_call_op_error, "undefined call interface");
 }
 
 static MIR_item_t load_bss_data_section (MIR_context_t ctx, MIR_item_t item, int first_only_p) {
@@ -1512,16 +1512,17 @@ static MIR_item_t load_bss_data_section (MIR_context_t ctx, MIR_item_t item, int
         expr_item = curr_item->u.expr_data->expr_item;
         if (expr_item->item_type != MIR_func_item || !expr_item->u.func->expr_p
             || expr_item->u.func->nres != 1)
-          (*error_func) (MIR_binary_io_error,
-                         "%s can not be an expr which should be a func w/o calls and memory ops",
-                         MIR_item_name (ctx, expr_item));
+          MIR_get_error_func (
+            ctx) (MIR_binary_io_error,
+                  "%s can not be an expr which should be a func w/o calls and memory ops",
+                  MIR_item_name (ctx, expr_item));
         section_size += _MIR_type_size (ctx, expr_item->u.func->res_types[0]);
       } else
         break;
     if ((item->addr = malloc (section_size)) == NULL) {
       name = MIR_item_name (ctx, item);
-      (*error_func) (MIR_alloc_error, "Not enough memory to allocate data/bss %s",
-                     name == NULL ? "" : name);
+      MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory to allocate data/bss %s",
+                                name == NULL ? "" : name);
     }
     item->section_head_p = TRUE;
   }
@@ -1619,26 +1620,26 @@ void MIR_link (MIR_context_t ctx, void (*set_interface) (MIR_context_t ctx, MIR_
         assert (item->data == NULL);
         if (simplify_func (ctx, item, TRUE)) item->data = (void *) 1; /* flag inlining */
       } else if (item->item_type == MIR_import_item) {
-        if ((tab_item = find_item (ctx, item->u.import_id, &environment_module)) == NULL) {
+        if ((tab_item = item_tab_find (ctx, item->u.import_id, &environment_module)) == NULL) {
           if (import_resolver == NULL || (addr = import_resolver (item->u.import_id)) == NULL)
-            (*error_func) (MIR_undeclared_op_ref_error, "import of undefined item %s",
-                           item->u.import_id);
+            MIR_get_error_func (ctx) (MIR_undeclared_op_ref_error, "import of undefined item %s",
+                                      item->u.import_id);
           MIR_load_external (ctx, item->u.import_id, addr);
-          tab_item = find_item (ctx, item->u.import_id, &environment_module);
+          tab_item = item_tab_find (ctx, item->u.import_id, &environment_module);
           mir_assert (tab_item != NULL);
         }
         item->addr = tab_item->addr;
         item->ref_def = tab_item;
       } else if (item->item_type == MIR_export_item) {
-        if ((tab_item = find_item (ctx, item->u.export_id, m)) == NULL)
-          (*error_func) (MIR_undeclared_op_ref_error, "export of undefined item %s",
-                         item->u.export_id);
+        if ((tab_item = item_tab_find (ctx, item->u.export_id, m)) == NULL)
+          MIR_get_error_func (ctx) (MIR_undeclared_op_ref_error, "export of undefined item %s",
+                                    item->u.export_id);
         item->addr = tab_item->addr;
         item->ref_def = tab_item;
       } else if (item->item_type == MIR_forward_item) {
-        if ((tab_item = find_item (ctx, item->u.forward_id, m)) == NULL)
-          (*error_func) (MIR_undeclared_op_ref_error, "forward of undefined item %s",
-                         item->u.forward_id);
+        if ((tab_item = item_tab_find (ctx, item->u.forward_id, m)) == NULL)
+          MIR_get_error_func (ctx) (MIR_undeclared_op_ref_error, "forward of undefined item %s",
+                                    item->u.forward_id);
         item->addr = tab_item->addr;
         item->ref_def = tab_item;
       }
@@ -1683,7 +1684,7 @@ void MIR_link (MIR_context_t ctx, void (*set_interface) (MIR_context_t ctx, MIR_
               _MIR_type_size (ctx, expr_item->u.func->res_types[0]));
     }
   }
-  if (set_interface != NULL)
+  if (set_interface != NULL) {
     while (VARR_LENGTH (MIR_module_t, modules_to_link) != 0) {
       m = VARR_POP (MIR_module_t, modules_to_link);
       for (item = DLIST_HEAD (MIR_item_t, m->items); item != NULL;
@@ -1693,6 +1694,8 @@ void MIR_link (MIR_context_t ctx, void (*set_interface) (MIR_context_t ctx, MIR_
           set_interface (ctx, item);
         }
     }
+    set_interface (ctx, NULL); /* finish interface setting */
+  }
 }
 
 static const char *insn_name (MIR_insn_code_t code) {
@@ -1701,13 +1704,15 @@ static const char *insn_name (MIR_insn_code_t code) {
 
 const char *MIR_insn_name (MIR_context_t ctx, MIR_insn_code_t code) {
   if ((unsigned) code >= MIR_INSN_BOUND)
-    (*error_func) (MIR_wrong_param_value_error, "MIR_insn_name: wrong insn code %d", (int) code);
+    MIR_get_error_func (ctx) (MIR_wrong_param_value_error, "MIR_insn_name: wrong insn code %d",
+                              (int) code);
   return insn_descs[code].name;
 }
 
 static size_t insn_code_nops (MIR_context_t ctx, MIR_insn_code_t code) { /* 0 for calls */
   if ((unsigned) code >= MIR_INSN_BOUND)
-    (*error_func) (MIR_wrong_param_value_error, "insn_code_nops: wrong insn code %d", (int) code);
+    MIR_get_error_func (ctx) (MIR_wrong_param_value_error, "insn_code_nops: wrong insn code %d",
+                              (int) code);
   return VARR_GET (size_t, insn_nops, code);
 }
 
@@ -1780,7 +1785,8 @@ static MIR_insn_t create_insn (MIR_context_t ctx, size_t nops, MIR_insn_code_t c
 
   if (nops == 0) nops = 1;
   insn = malloc (sizeof (struct MIR_insn) + sizeof (MIR_op_t) * (nops - 1));
-  if (insn == NULL) (*error_func) (MIR_alloc_error, "Not enough memory for insn creation");
+  if (insn == NULL)
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for insn creation");
 #if __SIZEOF_LONG_DOUBLE__ == 8
   switch (code) {
   case MIR_LDMOV: code = MIR_DMOV; break;
@@ -1827,65 +1833,71 @@ MIR_insn_t MIR_new_insn_arr (MIR_context_t ctx, MIR_insn_code_t code, size_t nop
 
   if (!MIR_call_code_p (code) && code != MIR_UNSPEC && code != MIR_PHI && code != MIR_RET
       && code != MIR_SWITCH && nops != expected_nops) {
-    (*error_func) (MIR_ops_num_error, "wrong number of operands for insn %s",
-                   insn_descs[code].name);
+    MIR_get_error_func (ctx) (MIR_ops_num_error, "wrong number of operands for insn %s",
+                              insn_descs[code].name);
   } else if (code == MIR_SWITCH) {
-    if (nops < 2) (*error_func) (MIR_ops_num_error, "number of MIR_SWITCH operands is less 2");
+    if (nops < 2)
+      MIR_get_error_func (ctx) (MIR_ops_num_error, "number of MIR_SWITCH operands is less 2");
   } else if (code == MIR_PHI) {
-    if (nops < 3) (*error_func) (MIR_ops_num_error, "number of MIR_PHI operands is less 3");
+    if (nops < 3)
+      MIR_get_error_func (ctx) (MIR_ops_num_error, "number of MIR_PHI operands is less 3");
   } else if (MIR_call_code_p (code) || code == MIR_UNSPEC) {
     args_start = code == MIR_UNSPEC ? 1 : 2;
     if (nops < args_start)
-      (*error_func) (MIR_ops_num_error, "wrong number of call/unspec operands");
+      MIR_get_error_func (ctx) (MIR_ops_num_error, "wrong number of call/unspec operands");
     if (code == MIR_UNSPEC) {
       if (ops[0].mode != MIR_OP_INT || ops[0].u.u >= VARR_LENGTH (MIR_proto_t, unspec_protos))
-        (*error_func) (MIR_unspec_op_error, "the 1st unspec operand should be valid unspec code");
+        MIR_get_error_func (ctx) (MIR_unspec_op_error,
+                                  "the 1st unspec operand should be valid unspec code");
       proto = VARR_GET (MIR_proto_t, unspec_protos, ops[0].u.u);
     } else {
       if (ops[0].mode != MIR_OP_REF || ops[0].u.ref->item_type != MIR_proto_item)
-        (*error_func) (MIR_call_op_error, "the 1st call operand should be a prototype");
+        MIR_get_error_func (ctx) (MIR_call_op_error, "the 1st call operand should be a prototype");
       proto = ops[0].u.ref->u.proto;
     }
     i = proto->nres;
     if (proto->args != NULL) i += VARR_LENGTH (MIR_var_t, proto->args);
     if (nops < i + args_start || (nops != i + args_start && !proto->vararg_p))
-      (*error_func) (code == MIR_UNSPEC ? MIR_unspec_op_error : MIR_call_op_error,
-                     "number of %s operands or results does not correspond to prototype %s",
-                     code == MIR_UNSPEC ? "unspec" : "call", proto->name);
+      MIR_get_error_func (
+        ctx) (code == MIR_UNSPEC ? MIR_unspec_op_error : MIR_call_op_error,
+              "number of %s operands or results does not correspond to prototype %s",
+              code == MIR_UNSPEC ? "unspec" : "call", proto->name);
     for (i = args_start; i < nops; i++) {
       if (ops[i].mode == MIR_OP_MEM && MIR_blk_type_p (ops[i].u.mem.type)) {
         if (i - args_start < proto->nres)
-          (*error_func) (MIR_wrong_type_error, "result of %s is block type memory",
-                         code == MIR_UNSPEC ? "unspec" : "call");
+          MIR_get_error_func (ctx) (MIR_wrong_type_error, "result of %s is block type memory",
+                                    code == MIR_UNSPEC ? "unspec" : "call");
         else if ((narg = i - args_start - proto->nres) < VARR_LENGTH (MIR_var_t, proto->args)) {
           if (VARR_GET (MIR_var_t, proto->args, narg).type != ops[i].u.mem.type) {
-            (*error_func) (MIR_wrong_type_error,
-                           "arg of %s is block type memory but param is not of block type",
-                           code == MIR_UNSPEC ? "unspec" : "call");
+            MIR_get_error_func (
+              ctx) (MIR_wrong_type_error,
+                    "arg of %s is block type memory but param is not of block type",
+                    code == MIR_UNSPEC ? "unspec" : "call");
           } else if (VARR_GET (MIR_var_t, proto->args, narg).size != ops[i].u.mem.disp) {
-            (*error_func) (MIR_wrong_type_error,
-                           "different sizes (%lu vs %lu) of arg and param block memory in %s insn",
-                           (unsigned long) VARR_GET (MIR_var_t, proto->args, narg).size,
-                           (unsigned long) ops[i].u.mem.disp,
-                           code == MIR_UNSPEC ? "unspec" : "call");
+            MIR_get_error_func (
+              ctx) (MIR_wrong_type_error,
+                    "different sizes (%lu vs %lu) of arg and param block memory in %s insn",
+                    (unsigned long) VARR_GET (MIR_var_t, proto->args, narg).size,
+                    (unsigned long) ops[i].u.mem.disp, code == MIR_UNSPEC ? "unspec" : "call");
           }
         } else if (ops[i].u.mem.type == MIR_T_RBLK) {
-          (*error_func) (MIR_wrong_type_error,
-                         "RBLK memory can not correspond to unnamed param in %s insn",
-                         code == MIR_UNSPEC ? "unspec" : "call");
+          MIR_get_error_func (ctx) (MIR_wrong_type_error,
+                                    "RBLK memory can not correspond to unnamed param in %s insn",
+                                    code == MIR_UNSPEC ? "unspec" : "call");
         }
       } else if (i - args_start >= proto->nres
                  && (narg = i - args_start - proto->nres) < VARR_LENGTH (MIR_var_t, proto->args)
                  && MIR_blk_type_p (VARR_GET (MIR_var_t, proto->args, narg).type)) {
-        (*error_func) (MIR_wrong_type_error,
-                       "param of %s is of block type but arg is not of block type memory",
-                       code == MIR_UNSPEC ? "unspec" : "call");
+        MIR_get_error_func (
+          ctx) (MIR_wrong_type_error,
+                "param of %s is of block type but arg is not of block type memory",
+                code == MIR_UNSPEC ? "unspec" : "call");
       }
     }
   } else if (code == MIR_VA_ARG) {  // undef mem ???
     if (ops[2].mode != MIR_OP_MEM)
-      (*error_func) (MIR_op_mode_error,
-                     "3rd operand of va_arg should be any memory with given type");
+      MIR_get_error_func (ctx) (MIR_op_mode_error,
+                                "3rd operand of va_arg should be any memory with given type");
   }
   insn = create_insn (ctx, nops, code);
   insn->nops = nops;
@@ -1894,14 +1906,11 @@ MIR_insn_t MIR_new_insn_arr (MIR_context_t ctx, MIR_insn_code_t code, size_t nop
 }
 
 static MIR_insn_t new_insn (MIR_context_t ctx, MIR_insn_code_t code, size_t nops, va_list argp) {
-  VARR_TRUNC (MIR_op_t, temp_insn_ops, 0);
-  for (size_t i = 0; i < nops; i++) {
-    MIR_op_t op = va_arg (argp, MIR_op_t);
+  MIR_op_t *insn_ops = alloca (sizeof (MIR_op_t) * nops);
 
-    VARR_PUSH (MIR_op_t, temp_insn_ops, op);
-  }
+  for (size_t i = 0; i < nops; i++) insn_ops[i] = va_arg (argp, MIR_op_t);
   va_end (argp);
-  return MIR_new_insn_arr (ctx, code, nops, VARR_ADDR (MIR_op_t, temp_insn_ops));
+  return MIR_new_insn_arr (ctx, code, nops, insn_ops);
 }
 
 MIR_insn_t MIR_new_insn (MIR_context_t ctx, MIR_insn_code_t code, ...) {
@@ -1909,11 +1918,13 @@ MIR_insn_t MIR_new_insn (MIR_context_t ctx, MIR_insn_code_t code, ...) {
   size_t nops = insn_code_nops (ctx, code);
 
   if (code == MIR_PHI)
-    (*error_func) (MIR_call_op_error, "Use only MIR_new_insn_arr for creating a phi insn");
+    MIR_get_error_func (ctx) (MIR_call_op_error,
+                              "Use only MIR_new_insn_arr for creating a phi insn");
   else if (MIR_call_code_p (code) || code == MIR_UNSPEC || code == MIR_RET || code == MIR_SWITCH)
-    (*error_func) (MIR_call_op_error,
-                   "Use only MIR_new_insn_arr or MIR_new_{call,unspec,ret}_insn for creating a "
-                   "call/unspec/ret/switch insn");
+    MIR_get_error_func (
+      ctx) (MIR_call_op_error,
+            "Use only MIR_new_insn_arr or MIR_new_{call,unspec,ret}_insn for creating a "
+            "call/unspec/ret/switch insn");
   va_start (argp, code);
   return new_insn (ctx, code, nops, argp);
 }
@@ -1961,7 +1972,8 @@ MIR_insn_t MIR_copy_insn (MIR_context_t ctx, MIR_insn_t insn) {
   MIR_insn_t new_insn = malloc (size);
 
   if (new_insn == NULL)
-    (*error_func) (MIR_alloc_error, "Not enough memory to copy insn %s", insn_name (insn->code));
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory to copy insn %s",
+                              insn_name (insn->code));
   memcpy (new_insn, insn, size);
   return new_insn;
 }
@@ -1977,29 +1989,28 @@ static MIR_insn_t create_label (MIR_context_t ctx, int64_t label_num) {
 MIR_insn_t MIR_new_label (MIR_context_t ctx) { return create_label (ctx, ++curr_label_num); }
 
 MIR_reg_t _MIR_new_temp_reg (MIR_context_t ctx, MIR_type_t type, MIR_func_t func) {
-  string_t string;
+  char reg_name[30];
 
   if (type != MIR_T_I64 && type != MIR_T_F && type != MIR_T_D && type != MIR_T_LD)
-    (*error_func) (MIR_reg_type_error, "wrong type %s for temporary register", type_str (type));
+    MIR_get_error_func (ctx) (MIR_reg_type_error, "wrong type %s for temporary register",
+                              type_str (type));
   mir_assert (func != NULL);
   for (;;) {
     func->last_temp_num++;
-    if (func->last_temp_num == 0) (*error_func) (MIR_unique_reg_error, "out of unique regs");
-    sprintf (temp_buff, "%s%d", TEMP_REG_NAME_PREFIX, func->last_temp_num);
-    string
-      = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (temp_buff) + 1, temp_buff});
-    if (find_rd_by_name_num (ctx, string.num, func) == NULL)
-      return MIR_new_func_reg (ctx, func, type, string.str.s);
+    if (func->last_temp_num == 0)
+      MIR_get_error_func (ctx) (MIR_unique_reg_error, "out of unique regs");
+    sprintf (reg_name, "%s%d", TEMP_REG_NAME_PREFIX, func->last_temp_num);
+    if (find_rd_by_name (ctx, reg_name, func) == NULL)
+      return MIR_new_func_reg (ctx, func, type, reg_name);
   }
 }
 
 static reg_desc_t *get_func_rd_by_name (MIR_context_t ctx, const char *reg_name, MIR_func_t func) {
-  string_t string
-    = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (reg_name) + 1, reg_name});
   reg_desc_t *rd;
 
-  rd = find_rd_by_name_num (ctx, string.num, func);
-  if (rd == NULL) (*error_func) (MIR_undeclared_func_reg_error, "undeclared func reg %s", reg_name);
+  rd = find_rd_by_name (ctx, reg_name, func);
+  if (rd == NULL)
+    MIR_get_error_func (ctx) (MIR_undeclared_func_reg_error, "undeclared func reg %s", reg_name);
   return rd;
 }
 
@@ -2015,24 +2026,11 @@ MIR_reg_t MIR_reg (MIR_context_t ctx, const char *reg_name, MIR_func_t func) {
 }
 
 MIR_type_t MIR_reg_type (MIR_context_t ctx, MIR_reg_t reg, MIR_func_t func) {
-  MIR_type_t type;
-
-  if (reg_type_cache.func != func) {
-    reg_type_cache.func = func;
-    VARR_TRUNC (MIR_type_t, reg_type_cache.types, 0);
-  }
-  if (VARR_LENGTH (MIR_type_t, reg_type_cache.types) > reg
-      && (type = VARR_GET (MIR_type_t, reg_type_cache.types, reg)) != MIR_T_UNDEF)
-    return type;
-  type = get_func_rd_by_reg (ctx, reg, func)->type;
-  while (VARR_LENGTH (MIR_type_t, reg_type_cache.types) <= reg)
-    VARR_PUSH (MIR_type_t, reg_type_cache.types, MIR_T_UNDEF);
-  VARR_SET (MIR_type_t, reg_type_cache.types, reg, type);
-  return type;
+  return get_func_rd_by_reg (ctx, reg, func)->type;
 }
 
 const char *MIR_reg_name (MIR_context_t ctx, MIR_reg_t reg, MIR_func_t func) {
-  return VARR_ADDR (string_t, strings)[get_func_rd_by_reg (ctx, reg, func)->name_num].str.s;
+  return get_func_rd_by_reg (ctx, reg, func)->name;
 }
 
 /* Functions to create operands.  */
@@ -2116,7 +2114,7 @@ MIR_op_t MIR_new_str_op (MIR_context_t ctx, MIR_str_t str) {
   MIR_op_t op;
 
   init_op (&op, MIR_OP_STR);
-  op.u.str = string_store (ctx, &strings, &string_tab, str).str;
+  op.u.str = get_ctx_string (ctx, str).str;
   return op;
 }
 
@@ -2237,14 +2235,14 @@ htab_hash_t MIR_op_hash_step (MIR_context_t ctx, htab_hash_t h, MIR_op_t op) {
 void MIR_append_insn (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn) {
   mir_assert (func_item != NULL);
   if (func_item->item_type != MIR_func_item)
-    (*error_func) (MIR_wrong_param_value_error, "MIR_append_insn: wrong func item");
+    MIR_get_error_func (ctx) (MIR_wrong_param_value_error, "MIR_append_insn: wrong func item");
   DLIST_APPEND (MIR_insn_t, func_item->u.func->insns, insn);
 }
 
 void MIR_prepend_insn (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn) {
   mir_assert (func_item != NULL);
   if (func_item->item_type != MIR_func_item)
-    (*error_func) (MIR_wrong_param_value_error, "MIR_prepend_insn: wrong func item");
+    MIR_get_error_func (ctx) (MIR_wrong_param_value_error, "MIR_prepend_insn: wrong func item");
   DLIST_PREPEND (MIR_insn_t, func_item->u.func->insns, insn);
 }
 
@@ -2252,7 +2250,8 @@ void MIR_insert_insn_after (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t 
                             MIR_insn_t insn) {
   mir_assert (func_item != NULL);
   if (func_item->item_type != MIR_func_item)
-    (*error_func) (MIR_wrong_param_value_error, "MIR_insert_insn_after: wrong func item");
+    MIR_get_error_func (ctx) (MIR_wrong_param_value_error,
+                              "MIR_insert_insn_after: wrong func item");
   DLIST_INSERT_AFTER (MIR_insn_t, func_item->u.func->insns, after, insn);
 }
 
@@ -2260,27 +2259,31 @@ void MIR_insert_insn_before (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t
                              MIR_insn_t insn) {
   mir_assert (func_item != NULL);
   if (func_item->item_type != MIR_func_item)
-    (*error_func) (MIR_wrong_param_value_error, "MIR_insert_insn_before: wrong func item");
+    MIR_get_error_func (ctx) (MIR_wrong_param_value_error,
+                              "MIR_insert_insn_before: wrong func item");
   DLIST_INSERT_BEFORE (MIR_insn_t, func_item->u.func->insns, before, insn);
 }
 
-static void store_labels_for_duplication (MIR_context_t ctx, MIR_insn_t insn, MIR_insn_t new_insn) {
+static void store_labels_for_duplication (MIR_context_t ctx, VARR (MIR_insn_t) * labels,
+                                          VARR (MIR_insn_t) * branch_insns, MIR_insn_t insn,
+                                          MIR_insn_t new_insn) {
   if (MIR_branch_code_p (insn->code) || insn->code == MIR_SWITCH) {
-    VARR_PUSH (MIR_insn_t, temp_insns2, new_insn);
+    VARR_PUSH (MIR_insn_t, branch_insns, new_insn);
   } else if (insn->code == MIR_LABEL) {
     mir_assert (insn->data == NULL);
     insn->data = new_insn;
-    VARR_PUSH (MIR_insn_t, temp_insns, insn);
+    VARR_PUSH (MIR_insn_t, labels, insn);
   }
 }
 
-static void redirect_duplicated_labels (MIR_context_t ctx) {
+static void redirect_duplicated_labels (MIR_context_t ctx, VARR (MIR_insn_t) * labels,
+                                        VARR (MIR_insn_t) * branch_insns) {
   MIR_insn_t insn;
 
-  while (VARR_LENGTH (MIR_insn_t, temp_insns2) != 0) { /* redirect new label operands */
+  while (VARR_LENGTH (MIR_insn_t, branch_insns) != 0) { /* redirect new label operands */
     size_t start_label_nop = 0, bound_label_nop = 1, n;
 
-    insn = VARR_POP (MIR_insn_t, temp_insns2);
+    insn = VARR_POP (MIR_insn_t, branch_insns);
     if (insn->code == MIR_SWITCH) {
       start_label_nop = 1;
       bound_label_nop = start_label_nop + insn->nops - 1;
@@ -2288,8 +2291,8 @@ static void redirect_duplicated_labels (MIR_context_t ctx) {
     for (n = start_label_nop; n < bound_label_nop; n++)
       insn->ops[n].u.label = insn->ops[n].u.label->data;
   }
-  while (VARR_LENGTH (MIR_insn_t, temp_insns) != 0) { /* reset data */
-    insn = VARR_POP (MIR_insn_t, temp_insns);
+  while (VARR_LENGTH (MIR_insn_t, labels) != 0) { /* reset data */
+    insn = VARR_POP (MIR_insn_t, labels);
     insn->data = NULL;
   }
 }
@@ -2297,21 +2300,24 @@ static void redirect_duplicated_labels (MIR_context_t ctx) {
 void _MIR_duplicate_func_insns (MIR_context_t ctx, MIR_item_t func_item) {
   MIR_func_t func;
   MIR_insn_t insn, new_insn;
+  VARR (MIR_insn_t) * labels, *branch_insns;
 
   mir_assert (func_item != NULL && func_item->item_type == MIR_func_item);
   func = func_item->u.func;
   mir_assert (DLIST_HEAD (MIR_insn_t, func->original_insns) == NULL);
   func->original_insns = func->insns;
   DLIST_INIT (MIR_insn_t, func->insns);
-  VARR_TRUNC (MIR_insn_t, temp_insns, 0);
-  VARR_TRUNC (MIR_insn_t, temp_insns2, 0);
+  VARR_CREATE (MIR_insn_t, labels, 0);
+  VARR_CREATE (MIR_insn_t, branch_insns, 0);
   for (insn = DLIST_HEAD (MIR_insn_t, func->original_insns); insn != NULL;
        insn = DLIST_NEXT (MIR_insn_t, insn)) { /* copy insns and collect label info */
     new_insn = MIR_copy_insn (ctx, insn);
     DLIST_APPEND (MIR_insn_t, func->insns, new_insn);
-    store_labels_for_duplication (ctx, insn, new_insn);
+    store_labels_for_duplication (ctx, labels, branch_insns, insn, new_insn);
   }
-  redirect_duplicated_labels (ctx);
+  redirect_duplicated_labels (ctx, labels, branch_insns);
+  VARR_DESTROY (MIR_insn_t, labels);
+  VARR_DESTROY (MIR_insn_t, branch_insns);
 }
 
 void _MIR_restore_func_insns (MIR_context_t ctx, MIR_item_t func_item) {
@@ -2324,6 +2330,68 @@ void _MIR_restore_func_insns (MIR_context_t ctx, MIR_item_t func_item) {
     MIR_remove_insn (ctx, func_item, insn);
   func->insns = func->original_insns;
   DLIST_INIT (MIR_insn_t, func->original_insns);
+}
+
+static void set_item_name (MIR_item_t item, const char *name) {
+  mir_assert (item != NULL);
+  switch (item->item_type) {
+  case MIR_func_item: item->u.func->name = name; break;
+  case MIR_proto_item: item->u.proto->name = name; break;
+  case MIR_import_item: item->u.import_id = name; break;
+  case MIR_export_item: item->u.export_id = name; break;
+  case MIR_forward_item: item->u.forward_id = name; break;
+  case MIR_bss_item: item->u.bss->name = name; break;
+  case MIR_data_item: item->u.data->name = name; break;
+  case MIR_ref_data_item: item->u.ref_data->name = name; break;
+  case MIR_expr_data_item: item->u.expr_data->name = name; break;
+  default: mir_assert (FALSE);
+  }
+}
+
+static void change_var_names (MIR_context_t new_ctx, VARR (MIR_var_t) * vars) {
+  for (size_t i = 0; i < VARR_LENGTH (MIR_var_t, vars); i++) {
+    MIR_var_t *var_ptr = &VARR_ADDR (MIR_var_t, vars)[i];
+    var_ptr->name = get_ctx_str (new_ctx, var_ptr->name);
+  }
+}
+
+/* It is not thread-safe */
+void MIR_change_module_ctx (MIR_context_t old_ctx, MIR_module_t m, MIR_context_t new_ctx) {
+  MIR_item_t item, tab_item;
+  MIR_op_mode_t mode;
+  const char *name, *new_name;
+
+  DLIST_REMOVE (MIR_module_t, *MIR_get_module_list (old_ctx), m);
+  DLIST_APPEND (MIR_module_t, *MIR_get_module_list (new_ctx), m);
+  m->name = get_ctx_str (new_ctx, m->name);
+  for (item = DLIST_HEAD (MIR_item_t, m->items); item != NULL;
+       item = DLIST_NEXT (MIR_item_t, item)) {
+    if (item->addr != NULL)
+      MIR_get_error_func (old_ctx) (MIR_ctx_change_error, "Change context of a loaded module");
+    if ((name = MIR_item_name (old_ctx, item)) != NULL) {
+      new_name = get_ctx_str (new_ctx, name);
+      if (item_tab_find (old_ctx, name, m) != item) {
+        set_item_name (item, new_name);
+      } else {
+        item_tab_remove (old_ctx, item);
+        set_item_name (item, new_name);
+        tab_item = item_tab_insert (new_ctx, item);
+        mir_assert (item == tab_item);
+      }
+    }
+    if (item->item_type == MIR_proto_item) {
+      change_var_names (new_ctx, item->u.proto->args);
+    } else if (item->item_type == MIR_func_item) {
+      func_regs_t func_regs = item->u.func->internal;
+      change_var_names (new_ctx, item->u.func->vars);
+      for (MIR_insn_t insn = DLIST_HEAD (MIR_insn_t, item->u.func->insns); insn != NULL;
+           insn = DLIST_NEXT (MIR_insn_t, insn))
+        for (size_t i = 0; i < insn->nops; i++) {
+          if ((mode = insn->ops[i].mode) == MIR_OP_STR)
+            insn->ops[i].u.str = get_ctx_string (new_ctx, insn->ops[i].u.str).str;
+        }
+    }
+  }
 }
 
 static void output_type (FILE *f, MIR_type_t tp) { fprintf (f, "%s", MIR_type_str (NULL, tp)); }
@@ -2575,6 +2643,9 @@ void MIR_output (MIR_context_t ctx, FILE *f) {
     MIR_output_module (ctx, f, module);
 }
 
+/* New Page */
+/* This page contains code for simplification and inlining */
+
 static MIR_insn_t insert_op_insn (MIR_context_t ctx, int out_p, MIR_item_t func_item,
                                   MIR_insn_t anchor, MIR_insn_t insn) {
   if (!out_p) {
@@ -2596,9 +2667,18 @@ DEF_HTAB (val_t);
 
 struct simplify_ctx {
   HTAB (val_t) * val_tab;
+  VARR (MIR_insn_t) * temp_insns, *labels; /* temp_insns is for branch or ret insns */
+  VARR (MIR_reg_t) * inline_reg_map;
+  size_t inlined_calls, inline_insns_before, inline_insns_after;
 };
 
 #define val_tab ctx->simplify_ctx->val_tab
+#define temp_insns ctx->simplify_ctx->temp_insns
+#define labels ctx->simplify_ctx->labels
+#define inline_reg_map ctx->simplify_ctx->inline_reg_map
+#define inlined_calls ctx->simplify_ctx->inlined_calls
+#define inline_insns_before ctx->simplify_ctx->inline_insns_before
+#define inline_insns_after ctx->simplify_ctx->inline_insns_after
 
 static htab_hash_t val_hash (val_t v, void *arg) {
   MIR_context_t ctx = arg;
@@ -2618,13 +2698,26 @@ static int val_eq (val_t v1, val_t v2, void *arg) {
   return v1.code == MIR_INSN_BOUND || MIR_op_eq_p (ctx, v1.op2, v2.op2);
 }
 
-static void vn_init (MIR_context_t ctx) {
+static void simplify_init (MIR_context_t ctx) {
   if ((ctx->simplify_ctx = malloc (sizeof (struct simplify_ctx))) == NULL)
-    (*error_func) (MIR_alloc_error, "Not enough memory for ctx");
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for ctx");
   HTAB_CREATE (val_t, val_tab, 512, val_hash, val_eq, ctx);
+  VARR_CREATE (MIR_insn_t, temp_insns, 0);
+  VARR_CREATE (MIR_insn_t, labels, 0);
+  VARR_CREATE (MIR_reg_t, inline_reg_map, 256);
+  inlined_calls = inline_insns_before = inline_insns_after = 0;
 }
 
-static void vn_finish (MIR_context_t ctx) {
+static void simplify_finish (MIR_context_t ctx) {
+  VARR_DESTROY (MIR_reg_t, inline_reg_map);
+#if 0
+  if (inlined_calls != 0)
+    fprintf (stderr, "inlined calls = %lu, insns before = %lu, insns_after = %lu, ratio = %.2f\n",
+             inlined_calls, inline_insns_before, inline_insns_after,
+             (double) inline_insns_after / inline_insns_before);
+#endif
+  VARR_DESTROY (MIR_insn_t, labels);
+  VARR_DESTROY (MIR_insn_t, temp_insns);
   HTAB_DESTROY (val_t, val_tab);
   free (ctx->simplify_ctx);
   ctx->simplify_ctx = NULL;
@@ -2931,8 +3024,8 @@ static void make_one_ret (MIR_context_t ctx, MIR_item_t func_item) {
 }
 
 static void remove_unused_labels (MIR_context_t ctx, MIR_item_t func_item) {
-  while (VARR_LENGTH (MIR_insn_t, temp_insns2) != 0) {
-    MIR_insn_t label = VARR_POP (MIR_insn_t, temp_insns2);
+  while (VARR_LENGTH (MIR_insn_t, labels) != 0) {
+    MIR_insn_t label = VARR_POP (MIR_insn_t, labels);
     int64_t label_num = label->ops[0].u.i;
 
     if (label_num < VARR_LENGTH (uint8_t, temp_data) && VARR_GET (uint8_t, temp_data, label_num))
@@ -2987,7 +3080,7 @@ static int simplify_func (MIR_context_t ctx, MIR_item_t func_item, int mem_float
   int jmps_num = 0, inline_p = FALSE;
 
   if (func_item->item_type != MIR_func_item)
-    (*error_func) (MIR_wrong_param_value_error, "MIR_remove_simplify: wrong func item");
+    MIR_get_error_func (ctx) (MIR_wrong_param_value_error, "MIR_remove_simplify: wrong func item");
   vn_empty (ctx);
   func = func_item->u.func;
   for (size_t i = 0; i < func->nargs; i++) {
@@ -3014,7 +3107,7 @@ static int simplify_func (MIR_context_t ctx, MIR_item_t func_item, int mem_float
     }
   }
   VARR_TRUNC (MIR_insn_t, temp_insns, 0);
-  VARR_TRUNC (MIR_insn_t, temp_insns2, 0);
+  VARR_TRUNC (MIR_insn_t, labels, 0);
   VARR_TRUNC (uint8_t, temp_data, 0);
   for (insn = DLIST_HEAD (MIR_insn_t, func->insns); insn != NULL; insn = next_insn) {
     MIR_insn_code_t code = insn->code;
@@ -3034,7 +3127,7 @@ static int simplify_func (MIR_context_t ctx, MIR_item_t func_item, int mem_float
       insn->ops[0] = temp_op;
     }
     if (code == MIR_RET) VARR_PUSH (MIR_insn_t, temp_insns, insn);
-    if (code == MIR_LABEL) VARR_PUSH (MIR_insn_t, temp_insns2, insn);
+    if (code == MIR_LABEL) VARR_PUSH (MIR_insn_t, labels, insn);
     next_insn = DLIST_NEXT (MIR_insn_t, insn);
     if (code == MIR_ALLOCA
         && (insn->ops[1].mode == MIR_OP_INT || insn->ops[1].mode == MIR_OP_UINT)) {
@@ -3114,7 +3207,8 @@ static int simplify_func (MIR_context_t ctx, MIR_item_t func_item, int mem_float
     } else if (MIR_branch_code_p (code) && insn->ops[0].mode == MIR_OP_LABEL
                && (jmp_insn = skip_labels (insn->ops[0].u.label, NULL)) != NULL
                && jmp_insn->code == MIR_JMP && ++jmps_num < MAX_JUMP_CHAIN_LEN) {
-      /* B L;...;L<labels>:JMP L2 => B L2; ... Also constrain processing to avoid infinite loops */
+      /* B L;...;L<labels>:JMP L2 => B L2; ... Also constrain processing to avoid infinite loops
+       */
       insn->ops[0] = jmp_insn->ops[0];
       next_insn = insn;
       continue;
@@ -3301,7 +3395,7 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
     ret_reg = 0;
     alloca_p = FALSE;
     VARR_TRUNC (MIR_insn_t, temp_insns, 0);
-    VARR_TRUNC (MIR_insn_t, temp_insns2, 0);
+    VARR_TRUNC (MIR_insn_t, labels, 0);
     VARR_TRUNC (uint8_t, temp_data, 0);
     for (insn = DLIST_HEAD (MIR_insn_t, called_func->insns); insn != NULL;
          insn = DLIST_NEXT (MIR_insn_t, insn)) {
@@ -3326,7 +3420,7 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
         }
       if (new_insn->code != MIR_RET) {
         MIR_insert_insn_before (ctx, func_item, ret_label, new_insn);
-        store_labels_for_duplication (ctx, insn, new_insn);
+        store_labels_for_duplication (ctx, labels, temp_insns, insn, new_insn);
       } else {
         /* should be the last insn after simplification */
         mir_assert (DLIST_NEXT (MIR_insn_t, insn) == NULL && call->ops[0].mode == MIR_OP_REF
@@ -3348,7 +3442,7 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
         free (ret_insn);
       }
     }
-    redirect_duplicated_labels (ctx);
+    redirect_duplicated_labels (ctx, labels, temp_insns);
     if (alloca_p) {
       temp_reg = _MIR_new_temp_reg (ctx, MIR_T_I64, func);
       new_insn = MIR_new_insn (ctx, MIR_BSTART, MIR_new_reg_op (ctx, temp_reg));
@@ -3360,9 +3454,9 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
   }
 }
 
-const char *_MIR_uniq_string (MIR_context_t ctx, const char *str) {
-  return string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (str) + 1, str}).str.s;
-}
+/* New Page */
+
+const char *_MIR_uniq_string (MIR_context_t ctx, const char *str) { return get_ctx_str (ctx, str); }
 
 /* The next two function can be called any time relative to
    load/linkage.  You can also call them many times for the same name
@@ -3372,20 +3466,19 @@ MIR_item_t _MIR_builtin_proto (MIR_context_t ctx, MIR_module_t module, const cha
                                size_t nres, MIR_type_t *res_types, size_t nargs, ...) {
   size_t i;
   va_list argp;
-  MIR_var_t arg;
+  MIR_var_t *args = alloca (nargs * sizeof (MIR_var_t));
   MIR_item_t proto_item;
   MIR_module_t saved_module = curr_module;
 
   va_start (argp, nargs);
-  VARR_TRUNC (MIR_var_t, temp_vars, 0);
+  if (mir_mutex_lock (&ctx_mutex)) parallel_error (ctx, "error in mutex lock");
   for (i = 0; i < nargs; i++) {
-    arg.type = va_arg (argp, MIR_type_t);
-    arg.name = va_arg (argp, const char *);
-    VARR_PUSH (MIR_var_t, temp_vars, arg);
+    args[i].type = va_arg (argp, MIR_type_t);
+    args[i].name = va_arg (argp, const char *);
   }
   va_end (argp);
   name = _MIR_uniq_string (ctx, name);
-  proto_item = find_item (ctx, name, module);
+  proto_item = item_tab_find (ctx, name, module);
   if (proto_item != NULL) {
     if (proto_item->item_type == MIR_proto_item && proto_item->u.proto->nres == nres
         && VARR_LENGTH (MIR_var_t, proto_item->u.proto->args) == nargs) {
@@ -3393,22 +3486,24 @@ MIR_item_t _MIR_builtin_proto (MIR_context_t ctx, MIR_module_t module, const cha
         if (res_types[i] != proto_item->u.proto->res_types[i]) break;
       if (i >= nres) {
         for (i = 0; i < nargs; i++)
-          if (VARR_GET (MIR_var_t, temp_vars, i).type
-              != VARR_GET (MIR_var_t, proto_item->u.proto->args, i).type)
-            break;
-        if (i >= nargs) return proto_item;
+          if (args[i].type != VARR_GET (MIR_var_t, proto_item->u.proto->args, i).type) break;
+        if (i >= nargs) {
+          if (mir_mutex_unlock (&ctx_mutex)) parallel_error (ctx, "error in mutex unlock");
+          return proto_item;
+        }
       }
     }
-    (*error_func) (MIR_repeated_decl_error,
-                   "_MIR_builtin_proto: proto item %s was already defined differently", name);
+    MIR_get_error_func (ctx) (MIR_repeated_decl_error,
+                              "_MIR_builtin_proto: proto item %s was already defined differently",
+                              name);
   }
   saved_module = curr_module;
   curr_module = module;
-  proto_item
-    = MIR_new_proto_arr (ctx, name, nres, res_types, nargs, VARR_ADDR (MIR_var_t, temp_vars));
+  proto_item = MIR_new_proto_arr (ctx, name, nres, res_types, nargs, args);
   DLIST_REMOVE (MIR_item_t, curr_module->items, proto_item);
   DLIST_PREPEND (MIR_item_t, curr_module->items, proto_item); /* make it first in the list */
   curr_module = saved_module;
+  if (mir_mutex_unlock (&ctx_mutex)) parallel_error (ctx, "error in mutex unlock");
   return proto_item;
 }
 
@@ -3417,11 +3512,12 @@ MIR_item_t _MIR_builtin_func (MIR_context_t ctx, MIR_module_t module, const char
   MIR_item_t item, ref_item;
   MIR_module_t saved_module = curr_module;
 
+  if (mir_mutex_lock (&ctx_mutex)) parallel_error (ctx, "error in mutex lock");
   name = _MIR_uniq_string (ctx, name);
-  if ((ref_item = find_item (ctx, name, &environment_module)) != NULL) {
+  if ((ref_item = item_tab_find (ctx, name, &environment_module)) != NULL) {
     if (ref_item->item_type != MIR_import_item || ref_item->addr != addr)
-      (*error_func) (MIR_repeated_decl_error,
-                     "_MIR_builtin_func: func %s has already another address", name);
+      MIR_get_error_func (ctx) (MIR_repeated_decl_error,
+                                "_MIR_builtin_func: func %s has already another address", name);
   } else {
     curr_module = &environment_module;
     /* Use import for builtin func: */
@@ -3432,12 +3528,13 @@ MIR_item_t _MIR_builtin_func (MIR_context_t ctx, MIR_module_t module, const char
     ref_item->addr = addr;
     curr_module = saved_module;
   }
-  if ((item = find_item (ctx, name, module)) != NULL) {
+  if ((item = item_tab_find (ctx, name, module)) != NULL) {
     if (item->item_type != MIR_import_item || item->addr != addr || item->ref_def != ref_item)
-      (*error_func) (MIR_repeated_decl_error,
-                     "_MIR_builtin_func: func name %s was already defined differently in the "
-                     "module",
-                     name);
+      MIR_get_error_func (
+        ctx) (MIR_repeated_decl_error,
+              "_MIR_builtin_func: func name %s was already defined differently in the "
+              "module",
+              name);
   } else {
     curr_module = module;
     item = new_export_import_forward (ctx, name, MIR_import_item, "import", FALSE);
@@ -3447,10 +3544,12 @@ MIR_item_t _MIR_builtin_func (MIR_context_t ctx, MIR_module_t module, const char
     item->ref_def = ref_item;
     curr_module = saved_module;
   }
+  if (mir_mutex_unlock (&ctx_mutex)) parallel_error (ctx, "error in mutex unlock");
   return item;
 }
 
 /* New Page */
+/* This page is for dealing with generated machine code */
 
 #ifndef _WIN32
 #include <sys/mman.h>
@@ -3501,14 +3600,16 @@ typedef struct code_holder code_holder_t;
 DEF_VARR (code_holder_t);
 
 struct machine_code_ctx {
+#if MIR_PARALLEL_GEN
+  mir_mutex_t code_mutex;
+#endif
   VARR (code_holder_t) * code_holders;
   size_t page_size;
-  VARR (uint8_t) * machine_insns;
 };
 
+#define code_mutex ctx->machine_code_ctx->code_mutex
 #define code_holders ctx->machine_code_ctx->code_holders
 #define page_size ctx->machine_code_ctx->page_size
-#define machine_insns ctx->machine_code_ctx->machine_insns
 
 static code_holder_t *get_last_code_holder (MIR_context_t ctx, size_t size) {
   uint8_t *mem;
@@ -3553,11 +3654,16 @@ static uint8_t *add_code (MIR_context_t ctx, code_holder_t *ch_ptr, const uint8_
   return mem;
 }
 
-uint8_t *_MIR_publish_code (MIR_context_t ctx, const uint8_t *code, size_t code_len) {
+uint8_t *_MIR_publish_code (MIR_context_t ctx, const uint8_t *code,
+                            size_t code_len) { /* thread safe */
   code_holder_t *ch_ptr;
+  uint8_t *res = NULL;
 
-  if ((ch_ptr = get_last_code_holder (ctx, code_len)) == NULL) return NULL;
-  return add_code (ctx, ch_ptr, code, code_len);
+  if (mir_mutex_lock (&code_mutex)) parallel_error (ctx, "error in mutex lock");
+  if ((ch_ptr = get_last_code_holder (ctx, code_len)) != NULL)
+    res = add_code (ctx, ch_ptr, code, code_len);
+  if (mir_mutex_unlock (&code_mutex)) parallel_error (ctx, "error in mutex unlock");
+  return res;
 }
 
 uint8_t *_MIR_get_new_code_addr (MIR_context_t ctx, size_t size) {
@@ -3569,25 +3675,29 @@ uint8_t *_MIR_get_new_code_addr (MIR_context_t ctx, size_t size) {
 uint8_t *_MIR_publish_code_by_addr (MIR_context_t ctx, void *addr, const uint8_t *code,
                                     size_t code_len) {
   code_holder_t *ch_ptr = get_last_code_holder (ctx, 0);
+  uint8_t *res = NULL;
 
-  if (ch_ptr == NULL || ch_ptr->free != addr || ch_ptr->free + code_len >= ch_ptr->bound)
-    return NULL;
-  return add_code (ctx, ch_ptr, code, code_len);
+  if (ch_ptr != NULL && ch_ptr->free == addr && ch_ptr->free + code_len < ch_ptr->bound)
+    res = add_code (ctx, ch_ptr, code, code_len);
+  return res;
 }
 
-void _MIR_change_code (MIR_context_t ctx, uint8_t *addr, const uint8_t *code, size_t code_len) {
+void _MIR_change_code (MIR_context_t ctx, uint8_t *addr, const uint8_t *code,
+                       size_t code_len) { /* thread safe */
   size_t len, start;
 
   start = (size_t) addr / page_size * page_size;
   len = (size_t) addr + code_len - start;
+  if (mir_mutex_lock (&code_mutex)) parallel_error (ctx, "error in mutex lock");
   mem_protect ((uint8_t *) start, len, PROT_WRITE_EXEC);
   memcpy (addr, code, code_len);
   mem_protect ((uint8_t *) start, len, PROT_READ_EXEC);
   _MIR_flush_code_cache (addr, addr + code_len);
+  if (mir_mutex_unlock (&code_mutex)) parallel_error (ctx, "error in mutex unlock");
 }
 
 void _MIR_update_code_arr (MIR_context_t ctx, uint8_t *base, size_t nloc,
-                           const MIR_code_reloc_t *relocs) {
+                           const MIR_code_reloc_t *relocs) { /* thread safe */
   size_t i, len, start, max_offset = 0;
 
   mir_assert (relocs != NULL);
@@ -3595,13 +3705,15 @@ void _MIR_update_code_arr (MIR_context_t ctx, uint8_t *base, size_t nloc,
     if (max_offset < relocs[i].offset) max_offset = relocs[i].offset;
   start = (size_t) base / page_size * page_size;
   len = (size_t) base + max_offset + sizeof (void *) - start;
+  if (mir_mutex_lock (&code_mutex)) parallel_error (ctx, "error in mutex lock");
   mem_protect ((uint8_t *) start, len, PROT_WRITE_EXEC);
   for (i = 0; i < nloc; i++) memcpy (base + relocs[i].offset, &relocs[i].value, sizeof (void *));
   mem_protect ((uint8_t *) start, len, PROT_READ_EXEC);
   _MIR_flush_code_cache (base, base + max_offset + sizeof (void *));
+  if (mir_mutex_unlock (&code_mutex)) parallel_error (ctx, "error in mutex unlock");
 }
 
-void _MIR_update_code (MIR_context_t ctx, uint8_t *base, size_t nloc, ...) {
+void _MIR_update_code (MIR_context_t ctx, uint8_t *base, size_t nloc, ...) { /* thread safe */
   size_t start, len, offset, max_offset = 0;
   void *value;
   va_list args;
@@ -3615,8 +3727,9 @@ void _MIR_update_code (MIR_context_t ctx, uint8_t *base, size_t nloc, ...) {
   va_end (args);
   start = (size_t) base / page_size * page_size;
   len = (size_t) base + max_offset + sizeof (void *) - start;
-  mem_protect ((uint8_t *) start, len, PROT_WRITE_EXEC);
   va_start (args, nloc);
+  if (mir_mutex_lock (&code_mutex)) parallel_error (ctx, "error in mutex lock");
+  mem_protect ((uint8_t *) start, len, PROT_WRITE_EXEC);
   for (size_t i = 0; i < nloc; i++) {
     offset = va_arg (args, size_t);
     value = va_arg (args, void *);
@@ -3624,24 +3737,25 @@ void _MIR_update_code (MIR_context_t ctx, uint8_t *base, size_t nloc, ...) {
   }
   mem_protect ((uint8_t *) start, len, PROT_READ_EXEC);
   _MIR_flush_code_cache (base, base + max_offset + sizeof (void *));
+  if (mir_mutex_unlock (&code_mutex)) parallel_error (ctx, "error in mutex unlock");
   va_end (args);
 }
 
 static void code_init (MIR_context_t ctx) {
   if ((ctx->machine_code_ctx = malloc (sizeof (struct machine_code_ctx))) == NULL)
-    (*error_func) (MIR_alloc_error, "Not enough memory for ctx");
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for ctx");
   page_size = mem_page_size ();
   VARR_CREATE (code_holder_t, code_holders, 128);
-  VARR_CREATE (uint8_t, machine_insns, 1024);
+  if (mir_mutex_init (&code_mutex, NULL)) parallel_error (ctx, "error in mutex init");
 }
 
 static void code_finish (MIR_context_t ctx) {
+  if (mir_mutex_destroy (&code_mutex)) parallel_error (ctx, "error in mutex destroy");
   while (VARR_LENGTH (code_holder_t, code_holders) != 0) {
     code_holder_t ch = VARR_POP (code_holder_t, code_holders);
     mem_unmap (ch.start, ch.bound - ch.start);
   }
   VARR_DESTROY (code_holder_t, code_holders);
-  VARR_DESTROY (uint8_t, machine_insns);
   free (ctx->machine_code_ctx);
   ctx->machine_code_ctx = NULL;
 }
@@ -3707,6 +3821,9 @@ struct io_ctx {
   int (*io_writer) (MIR_context_t, uint8_t);
   int (*io_reader) (MIR_context_t);
   struct reduce_data *io_reduce_data;
+  VARR (MIR_var_t) * proto_vars;
+  VARR (MIR_type_t) * proto_types;
+  VARR (MIR_op_t) * read_insn_ops;
   VARR (string_t) * output_strings;
   HTAB (string_t) * output_string_tab;
   VARR (MIR_str_t) * bin_strings;
@@ -3720,6 +3837,9 @@ struct io_ctx {
 #define io_writer ctx->io_ctx->io_writer
 #define io_reader ctx->io_ctx->io_reader
 #define io_reduce_data ctx->io_ctx->io_reduce_data
+#define proto_vars ctx->io_ctx->proto_vars
+#define proto_types ctx->io_ctx->proto_types
+#define read_insn_ops ctx->io_ctx->read_insn_ops
 #define output_strings ctx->io_ctx->output_strings
 #define output_string_tab ctx->io_ctx->output_string_tab
 #define bin_strings ctx->io_ctx->bin_strings
@@ -3968,7 +4088,8 @@ static size_t write_insn (MIR_context_t ctx, writer_func_t writer, MIR_func_t fu
   size_t len;
 
   if (code == MIR_UNSPEC || code == MIR_PHI)
-    (*error_func) (MIR_binary_io_error, "UNSPEC or PHI is not portable and can not be output");
+    MIR_get_error_func (ctx) (MIR_binary_io_error,
+                              "UNSPEC or PHI is not portable and can not be output");
   if (code == MIR_LABEL) return write_lab (ctx, writer, insn);
   nops = MIR_insn_nops (ctx, insn);
   len = write_uint (ctx, writer, code);
@@ -4149,7 +4270,7 @@ void MIR_write_module_with_func (MIR_context_t ctx, int (*const writer) (MIR_con
   io_writer = writer;
 #ifndef MIR_NO_BIN_COMPRESSION
   if ((io_reduce_data = reduce_encode_start (reduce_writer, ctx)) == NULL)
-    (*error_func) (MIR_binary_io_error, "can not alloc data for MIR binary compression");
+    MIR_get_error_func (ctx) (MIR_binary_io_error, "can not alloc data for MIR binary compression");
 #endif
   output_insns_len = output_labs_len = 0;
   output_regs_len = output_mem_len = output_int_len = output_float_len = 0;
@@ -4179,7 +4300,7 @@ void MIR_write_module_with_func (MIR_context_t ctx, int (*const writer) (MIR_con
   string_finish (&output_strings, &output_string_tab);
 #ifndef MIR_NO_BIN_COMPRESSION
   if (!reduce_encode_finish (io_reduce_data))
-    (*error_func) (MIR_binary_io_error, "error in writing MIR binary");
+    MIR_get_error_func (ctx) (MIR_binary_io_error, "error in writing MIR binary");
 #endif
 }
 
@@ -4205,7 +4326,7 @@ static int get_byte (MIR_context_t ctx) {
   int c = reduce_decode_get (io_reduce_data);
 #endif
 
-  if (c == EOF) (*error_func) (MIR_binary_io_error, "unfinished binary MIR");
+  if (c == EOF) MIR_get_error_func (ctx) (MIR_binary_io_error, "unfinished binary MIR");
   return c;
 }
 
@@ -4261,7 +4382,7 @@ static long double get_ldouble (MIR_context_t ctx) {
 
 static MIR_str_t to_str (MIR_context_t ctx, uint64_t str_num) {
   if (str_num >= VARR_LENGTH (MIR_str_t, bin_strings))
-    (*error_func) (MIR_binary_io_error, "wrong string num %lu", str_num);
+    MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong string num %lu", str_num);
   return VARR_GET (MIR_str_t, bin_strings, str_num);
 }
 
@@ -4297,7 +4418,7 @@ static MIR_label_t to_lab (MIR_context_t ctx, uint64_t lab_num) {
 static int64_t read_int (MIR_context_t ctx, const char *err_msg) {
   int c = get_byte (ctx);
 
-  if (TAG_I1 > c || c > TAG_I8) (*error_func) (MIR_binary_io_error, err_msg);
+  if (TAG_I1 > c || c > TAG_I8) MIR_get_error_func (ctx) (MIR_binary_io_error, err_msg);
   return get_int (ctx, c - TAG_I1 + 1);
 }
 
@@ -4305,7 +4426,7 @@ static uint64_t read_uint (MIR_context_t ctx, const char *err_msg) {
   int c = get_byte (ctx);
 
   if (c & U0_FLAG) return c & U0_MASK;
-  if (TAG_U1 > c || c > TAG_U8) (*error_func) (MIR_binary_io_error, err_msg);
+  if (TAG_U1 > c || c > TAG_U8) MIR_get_error_func (ctx) (MIR_binary_io_error, err_msg);
   return get_uint (ctx, c - TAG_U1 + 1);
 }
 
@@ -4324,7 +4445,7 @@ static void read_all_strings (MIR_context_t ctx, uint64_t nstr) {
     }
     str.s = VARR_ADDR (char, temp_string);
     str.len = len;
-    str = string_store (ctx, &strings, &string_tab, str).str;
+    str = get_ctx_string (ctx, str).str;
     VARR_PUSH (MIR_str_t, bin_strings, str);
   }
 }
@@ -4334,7 +4455,7 @@ static MIR_type_t tag_type (bin_tag_t tag) { return (MIR_type_t) (tag - TAG_TI8)
 static MIR_type_t read_type (MIR_context_t ctx, const char *err_msg) {
   int c = get_byte (ctx);
 
-  if (TAG_TI8 > c || c > TAG_TRBLOCK) (*error_func) (MIR_binary_io_error, err_msg);
+  if (TAG_TI8 > c || c > TAG_TRBLOCK) MIR_get_error_func (ctx) (MIR_binary_io_error, err_msg);
   return tag_type (c);
 }
 
@@ -4342,9 +4463,9 @@ static const char *read_name (MIR_context_t ctx, MIR_module_t module, const char
   int c = get_byte (ctx);
   const char *s;
 
-  if (TAG_NAME1 > c || c > TAG_NAME4) (*error_func) (MIR_binary_io_error, err_msg);
+  if (TAG_NAME1 > c || c > TAG_NAME4) MIR_get_error_func (ctx) (MIR_binary_io_error, err_msg);
   s = to_str (ctx, get_uint (ctx, c - TAG_NAME1 + 1)).s;
-  process_reserved_name (s, TEMP_ITEM_NAME_PREFIX, &module->last_temp_item_num);
+  if (module != NULL) process_reserved_name (s, TEMP_ITEM_NAME_PREFIX, &module->last_temp_item_num);
   return s;
 }
 
@@ -4392,7 +4513,7 @@ static bin_tag_t read_token (MIR_context_t ctx, token_attr_t *attr) {
     REP6 (TAG_CASE, TF, TD, TP, TV, TBLOCK, TRBLOCK)
     attr->t = (MIR_type_t) (c - TAG_TI8) + MIR_T_I8;
     break;
-  default: (*error_func) (MIR_binary_io_error, "wrong tag %d", c);
+  default: MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong tag %d", c);
   }
   return c;
 }
@@ -4403,7 +4524,7 @@ static MIR_disp_t read_disp (MIR_context_t ctx) {
 
   tag = read_token (ctx, &attr);
   if (TAG_I1 > tag || tag > TAG_I8)
-    (*error_func) (MIR_binary_io_error, "memory disp has wrong tag %d", tag);
+    MIR_get_error_func (ctx) (MIR_binary_io_error, "memory disp has wrong tag %d", tag);
   return attr.i;
 }
 
@@ -4413,7 +4534,7 @@ static MIR_reg_t read_reg (MIR_context_t ctx, MIR_item_t func) {
 
   tag = read_token (ctx, &attr);
   if (TAG_REG1 > tag || tag > TAG_REG4)
-    (*error_func) (MIR_binary_io_error, "register has wrong tag %d", tag);
+    MIR_get_error_func (ctx) (MIR_binary_io_error, "register has wrong tag %d", tag);
   return to_reg (ctx, attr.u, func);
 }
 
@@ -4447,9 +4568,9 @@ static int read_operand (MIR_context_t ctx, MIR_op_t *op, MIR_item_t func) {
     break;
     REP4 (TAG_CASE, NAME1, NAME2, NAME3, NAME4) {
       const char *name = to_str (ctx, attr.u).s;
-      MIR_item_t item = find_item (ctx, name, func->module);
+      MIR_item_t item = item_tab_find (ctx, name, func->module);
 
-      if (item == NULL) (*error_func) (MIR_binary_io_error, "not found item %s", name);
+      if (item == NULL) MIR_get_error_func (ctx) (MIR_binary_io_error, "not found item %s", name);
       *op = MIR_new_ref_op (ctx, item);
       break;
     }
@@ -4493,23 +4614,23 @@ static int func_proto_read (MIR_context_t ctx, MIR_module_t module, uint64_t *nr
   int vararg_p = read_uint (ctx, "wrong vararg flag") != 0;
   uint64_t i, nres = read_uint (ctx, "wrong func nres");
 
-  VARR_TRUNC (MIR_type_t, temp_types, 0);
+  VARR_TRUNC (MIR_type_t, proto_types, 0);
   for (i = 0; i < nres; i++) {
     tag = read_token (ctx, &attr);
     if (TAG_TI8 > tag || tag > TAG_TRBLOCK)
-      (*error_func) (MIR_binary_io_error, "wrong prototype result type tag %d", tag);
-    VARR_PUSH (MIR_type_t, temp_types, tag_type (tag));
+      MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong prototype result type tag %d", tag);
+    VARR_PUSH (MIR_type_t, proto_types, tag_type (tag));
   }
-  VARR_TRUNC (MIR_var_t, temp_vars, 0);
+  VARR_TRUNC (MIR_var_t, proto_vars, 0);
   for (;;) {
     tag = read_token (ctx, &attr);
     if (tag == TAG_EOI) break;
     if (TAG_TI8 > tag || tag > TAG_TRBLOCK)
-      (*error_func) (MIR_binary_io_error, "wrong prototype arg type tag %d", tag);
+      MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong prototype arg type tag %d", tag);
     var.type = tag_type (tag);
     var.name = read_name (ctx, module, "wrong arg name");
     if (MIR_blk_type_p (var.type)) var.size = read_uint (ctx, "wrong block arg size");
-    VARR_PUSH (MIR_var_t, temp_vars, var);
+    VARR_PUSH (MIR_var_t, proto_vars, var);
   }
   *nres_ptr = nres;
   return vararg_p;
@@ -4542,12 +4663,14 @@ void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t))
   io_reader = reader;
 #ifndef MIR_NO_BIN_COMPRESSION
   if ((io_reduce_data = reduce_decode_start (reduce_reader, ctx)) == NULL)
-    (*error_func) (MIR_binary_io_error, "can not alloc data for MIR binary decompression");
+    MIR_get_error_func (ctx) (MIR_binary_io_error,
+                              "can not alloc data for MIR binary decompression");
 #endif
   version = read_uint (ctx, "wrong header");
   if (version > CURR_BIN_VERSION)
-    (*error_func) (MIR_binary_io_error, "can not read version %d MIR binary: expected %d or less",
-                   version, CURR_BIN_VERSION);
+    MIR_get_error_func (ctx) (MIR_binary_io_error,
+                              "can not read version %d MIR binary: expected %d or less", version,
+                              CURR_BIN_VERSION);
   nstr = read_uint (ctx, "wrong header");
   read_all_strings (ctx, nstr);
   module = NULL;
@@ -4559,95 +4682,102 @@ void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t))
       VARR_PUSH (uint64_t, insn_label_string_nums, attr.u);
       tag = read_token (ctx, &attr);
     }
-    VARR_TRUNC (MIR_op_t, temp_insn_ops, 0);
+    VARR_TRUNC (MIR_op_t, read_insn_ops, 0);
     if (TAG_NAME1 <= tag && tag <= TAG_NAME4) {
       name = to_str (ctx, attr.u).s;
       if (strcmp (name, "module") == 0) {
         name = read_name (ctx, module, "wrong module name");
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "insn label before module %s", name);
-        if (module != NULL) (*error_func) (MIR_binary_io_error, "nested module %s", name);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "insn label before module %s", name);
+        if (module != NULL)
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "nested module %s", name);
         module = MIR_new_module (ctx, name);
       } else if (strcmp (name, "endmodule") == 0) {
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "endmodule should have no labels");
-        if (module == NULL) (*error_func) (MIR_binary_io_error, "endmodule without module");
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "endmodule should have no labels");
+        if (module == NULL)
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "endmodule without module");
         MIR_finish_module (ctx);
         module = NULL;
       } else if (strcmp (name, "proto") == 0) {
         name = read_name (ctx, module, "wrong prototype name");
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "insn label before proto %s", name);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "insn label before proto %s", name);
         if (module == NULL)
-          (*error_func) (MIR_binary_io_error, "prototype %s outside module", name);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "prototype %s outside module", name);
         if (func_proto_read (ctx, module, &nres))
-          MIR_new_vararg_proto_arr (ctx, name, nres, VARR_ADDR (MIR_type_t, temp_types),
-                                    VARR_LENGTH (MIR_var_t, temp_vars),
-                                    VARR_ADDR (MIR_var_t, temp_vars));
+          MIR_new_vararg_proto_arr (ctx, name, nres, VARR_ADDR (MIR_type_t, proto_types),
+                                    VARR_LENGTH (MIR_var_t, proto_vars),
+                                    VARR_ADDR (MIR_var_t, proto_vars));
         else
-          MIR_new_proto_arr (ctx, name, nres, VARR_ADDR (MIR_type_t, temp_types),
-                             VARR_LENGTH (MIR_var_t, temp_vars), VARR_ADDR (MIR_var_t, temp_vars));
+          MIR_new_proto_arr (ctx, name, nres, VARR_ADDR (MIR_type_t, proto_types),
+                             VARR_LENGTH (MIR_var_t, proto_vars),
+                             VARR_ADDR (MIR_var_t, proto_vars));
       } else if (strcmp (name, "func") == 0) {
         name = read_name (ctx, module, "wrong func name");
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "insn label before func %s", name);
-        if (func != NULL) (*error_func) (MIR_binary_io_error, "nested func %s", name);
-        if (module == NULL) (*error_func) (MIR_binary_io_error, "func %s outside module", name);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "insn label before func %s", name);
+        if (func != NULL) MIR_get_error_func (ctx) (MIR_binary_io_error, "nested func %s", name);
+        if (module == NULL)
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "func %s outside module", name);
         if (func_proto_read (ctx, module, &nres))
-          func = MIR_new_vararg_func_arr (ctx, name, nres, VARR_ADDR (MIR_type_t, temp_types),
-                                          VARR_LENGTH (MIR_var_t, temp_vars),
-                                          VARR_ADDR (MIR_var_t, temp_vars));
+          func = MIR_new_vararg_func_arr (ctx, name, nres, VARR_ADDR (MIR_type_t, proto_types),
+                                          VARR_LENGTH (MIR_var_t, proto_vars),
+                                          VARR_ADDR (MIR_var_t, proto_vars));
         else
-          func = MIR_new_func_arr (ctx, name, nres, VARR_ADDR (MIR_type_t, temp_types),
-                                   VARR_LENGTH (MIR_var_t, temp_vars),
-                                   VARR_ADDR (MIR_var_t, temp_vars));
+          func = MIR_new_func_arr (ctx, name, nres, VARR_ADDR (MIR_type_t, proto_types),
+                                   VARR_LENGTH (MIR_var_t, proto_vars),
+                                   VARR_ADDR (MIR_var_t, proto_vars));
         VARR_TRUNC (MIR_label_t, func_labels, 0);
       } else if (strcmp (name, "endfunc") == 0) {
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "endfunc should have no labels");
-        if (func == NULL) (*error_func) (MIR_binary_io_error, "endfunc without func");
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "endfunc should have no labels");
+        if (func == NULL) MIR_get_error_func (ctx) (MIR_binary_io_error, "endfunc without func");
         MIR_finish_func (ctx);
         func = NULL;
       } else if (strcmp (name, "export") == 0) {
         name = read_name (ctx, module, "wrong export name");
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "export %s should have no labels", name);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "export %s should have no labels", name);
         MIR_new_export (ctx, name);
       } else if (strcmp (name, "import") == 0) {
         name = read_name (ctx, module, "wrong import name");
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "import %s should have no labels", name);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "import %s should have no labels", name);
         MIR_new_import (ctx, name);
       } else if (strcmp (name, "forward") == 0) {
         name = read_name (ctx, module, "wrong forward name");
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "forward %s should have no labels", name);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "forward %s should have no labels", name);
         MIR_new_forward (ctx, name);
       } else if (strcmp (name, "nbss") == 0 || strcmp (name, "bss") == 0) {
         name = strcmp (name, "nbss") == 0 ? read_name (ctx, module, "wrong bss name") : NULL;
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "bss %s should have no labels",
-                         name == NULL ? "" : name);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "bss %s should have no labels",
+                                    name == NULL ? "" : name);
         u = read_uint (ctx, "wrong bss len");
         MIR_new_bss (ctx, name, u);
       } else if (strcmp (name, "nref") == 0 || strcmp (name, "ref") == 0) {
         name = strcmp (name, "nref") == 0 ? read_name (ctx, module, "wrong ref data name") : NULL;
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "ref data %s should have no labels",
-                         name == NULL ? "" : name);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "ref data %s should have no labels",
+                                    name == NULL ? "" : name);
         item_name = read_name (ctx, module, "wrong ref data item name");
-        if ((item = find_item (ctx, item_name, module)) == NULL)
-          (*error_func) (MIR_binary_io_error, "ref data refers to non-existing item %s", item_name);
+        if ((item = item_tab_find (ctx, item_name, module)) == NULL)
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "ref data refers to non-existing item %s",
+                                    item_name);
         i = read_int (ctx, "wrong ref disp");
         MIR_new_ref_data (ctx, name, item, i);
       } else if (strcmp (name, "nexpr") == 0 || strcmp (name, "expr") == 0) {
         name = strcmp (name, "nexpr") == 0 ? read_name (ctx, module, "wrong expr name") : NULL;
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "expr %s should have no labels",
-                         name == NULL ? "" : name);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "expr %s should have no labels",
+                                    name == NULL ? "" : name);
         item_name = read_name (ctx, module, "wrong expr func name");
-        if ((item = find_item (ctx, item_name, module)) == NULL || item->item_type != MIR_func_item)
-          (*error_func) (MIR_binary_io_error, "expr refers to non-function %s", item_name);
+        if ((item = item_tab_find (ctx, item_name, module)) == NULL
+            || item->item_type != MIR_func_item)
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "expr refers to non-function %s",
+                                    item_name);
         MIR_new_expr_data (ctx, name, item);
       } else if (strcmp (name, "ndata") == 0 || strcmp (name, "data") == 0) {
         MIR_type_t type;
@@ -4665,11 +4795,11 @@ void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t))
 
         name = strcmp (name, "ndata") == 0 ? read_name (ctx, module, "wrong data name") : NULL;
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "data %s should have no labels",
-                         name == NULL ? "" : name);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "data %s should have no labels",
+                                    name == NULL ? "" : name);
         tag = read_token (ctx, &attr);
         if (TAG_TI8 > tag || tag > TAG_TRBLOCK)
-          (*error_func) (MIR_binary_io_error, "wrong data type tag %d", tag);
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong data type tag %d", tag);
         type = tag_type (tag);
         VARR_TRUNC (uint8_t, temp_data, 0);
         for (nel = 0;; nel++) {
@@ -4703,8 +4833,9 @@ void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t))
               push_data (ctx, (uint8_t *) &v.i64, sizeof (uint64_t));
               break;
             default:
-              (*error_func) (MIR_binary_io_error, "data type %s does not correspond value type",
-                             type_str (type));
+              MIR_get_error_func (ctx) (MIR_binary_io_error,
+                                        "data type %s does not correspond value type",
+                                        type_str (type));
             }
             break;
           case TAG_I1:
@@ -4733,57 +4864,62 @@ void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t))
               push_data (ctx, (uint8_t *) &v.i64, sizeof (int64_t));
               break;
             default:
-              (*error_func) (MIR_binary_io_error, "data type %s does not correspond value type",
-                             type_str (type));
+              MIR_get_error_func (ctx) (MIR_binary_io_error,
+                                        "data type %s does not correspond value type",
+                                        type_str (type));
             }
             break;
           case TAG_F:
             if (type != MIR_T_F)
-              (*error_func) (MIR_binary_io_error, "data type %s does not correspond value type",
-                             type_str (type));
+              MIR_get_error_func (ctx) (MIR_binary_io_error,
+                                        "data type %s does not correspond value type",
+                                        type_str (type));
             push_data (ctx, (uint8_t *) &attr.f, sizeof (float));
             break;
           case TAG_D:
             if (type != MIR_T_D)
-              (*error_func) (MIR_binary_io_error, "data type %s does not correspond value type",
-                             type_str (type));
+              MIR_get_error_func (ctx) (MIR_binary_io_error,
+                                        "data type %s does not correspond value type",
+                                        type_str (type));
             push_data (ctx, (uint8_t *) &attr.d, sizeof (double));
             break;
           case TAG_LD:
             if (type != MIR_T_LD)
-              (*error_func) (MIR_binary_io_error, "data type %s does not correspond value type",
-                             type_str (type));
+              MIR_get_error_func (ctx) (MIR_binary_io_error,
+                                        "data type %s does not correspond value type",
+                                        type_str (type));
             push_data (ctx, (uint8_t *) &attr.ld, sizeof (long double));
             break;
             /* ??? ptr */
-          default: (*error_func) (MIR_binary_io_error, "wrong data value tag %d", tag);
+          default: MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong data value tag %d", tag);
           }
         }
         MIR_new_data (ctx, name, type,
                       VARR_LENGTH (uint8_t, temp_data) / _MIR_type_size (ctx, type),
                       VARR_ADDR (uint8_t, temp_data));
       } else if (strcmp (name, "local") == 0) {
-        if (func == NULL) (*error_func) (MIR_binary_io_error, "local outside func");
+        if (func == NULL) MIR_get_error_func (ctx) (MIR_binary_io_error, "local outside func");
         if (VARR_LENGTH (uint64_t, insn_label_string_nums) != 0)
-          (*error_func) (MIR_binary_io_error, "local should have no labels");
+          MIR_get_error_func (ctx) (MIR_binary_io_error, "local should have no labels");
         for (;;) {
           tag = read_token (ctx, &attr);
           if (tag == TAG_EOI) break;
           if (TAG_TI8 > tag || tag > TAG_TRBLOCK)
-            (*error_func) (MIR_binary_io_error, "wrong local var type tag %d", tag);
+            MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong local var type tag %d", tag);
           MIR_new_func_reg (ctx, func->u.func, tag_type (tag),
                             read_name (ctx, module, "wrong local var name"));
         }
       } else {
-        (*error_func) (MIR_binary_io_error, "unknown insn name %s", name);
+        MIR_get_error_func (ctx) (MIR_binary_io_error, "unknown insn name %s", name);
       }
     } else if (TAG_U0 <= tag && tag <= TAG_U8) { /* insn code */
       MIR_insn_code_t insn_code = attr.u;
 
       if (insn_code >= MIR_LABEL)
-        (*error_func) (MIR_binary_io_error, "wrong insn code %d", insn_code);
+        MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong insn code %d", insn_code);
       if (insn_code == MIR_UNSPEC || insn_code == MIR_PHI)
-        (*error_func) (MIR_binary_io_error, "UNSPEC or PHI is not portable and can not be read");
+        MIR_get_error_func (ctx) (MIR_binary_io_error,
+                                  "UNSPEC or PHI is not portable and can not be read");
       for (uint64_t i = 0; i < VARR_LENGTH (uint64_t, insn_label_string_nums); i++) {
         lab = to_lab (ctx, VARR_GET (uint64_t, insn_label_string_nums, i));
         MIR_append_insn (ctx, func, lab);
@@ -4792,21 +4928,24 @@ void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t))
       mir_assert (nop != 0 || MIR_call_code_p (insn_code) || insn_code == MIR_RET
                   || insn_code == MIR_SWITCH);
       for (n = 0; (nop == 0 || n < nop) && read_operand (ctx, &op, func); n++)
-        VARR_PUSH (MIR_op_t, temp_insn_ops, op);
+        VARR_PUSH (MIR_op_t, read_insn_ops, op);
       if (nop != 0 && n < nop)
-        (*error_func) (MIR_binary_io_error, "wrong number of operands of insn %s",
-                       insn_name (insn_code));
+        MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong number of operands of insn %s",
+                                  insn_name (insn_code));
       MIR_append_insn (ctx, func,
-                       MIR_new_insn_arr (ctx, insn_code, n, VARR_ADDR (MIR_op_t, temp_insn_ops)));
+                       MIR_new_insn_arr (ctx, insn_code, n, VARR_ADDR (MIR_op_t, read_insn_ops)));
     } else if (tag == TAG_EOFILE) {
       break;
     } else {
-      (*error_func) (MIR_binary_io_error, "wrong token %d", tag);
+      MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong token %d", tag);
     }
   }
-  if (func != NULL) (*error_func) (MIR_binary_io_error, "unfinished func %s", func->u.func->name);
-  if (module != NULL) (*error_func) (MIR_binary_io_error, "unfinished module %s", module->name);
-  if (reader (ctx) != EOF) (*error_func) (MIR_binary_io_error, "garbage at the end of file");
+  if (func != NULL)
+    MIR_get_error_func (ctx) (MIR_binary_io_error, "unfinished func %s", func->u.func->name);
+  if (module != NULL)
+    MIR_get_error_func (ctx) (MIR_binary_io_error, "unfinished module %s", module->name);
+  if (reader (ctx) != EOF)
+    MIR_get_error_func (ctx) (MIR_binary_io_error, "garbage at the end of file");
 #ifndef MIR_NO_BIN_COMPRESSION
   reduce_decode_finish (io_reduce_data);
 #endif
@@ -4821,7 +4960,10 @@ void MIR_read (MIR_context_t ctx, FILE *f) {
 
 static void io_init (MIR_context_t ctx) {
   if ((ctx->io_ctx = malloc (sizeof (struct io_ctx))) == NULL)
-    (*error_func) (MIR_alloc_error, "Not enough memory for ctx");
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for ctx");
+  VARR_CREATE (MIR_var_t, proto_vars, 0);
+  VARR_CREATE (MIR_type_t, proto_types, 0);
+  VARR_CREATE (MIR_op_t, read_insn_ops, 0);
   VARR_CREATE (MIR_str_t, bin_strings, 512);
   VARR_CREATE (uint64_t, insn_label_string_nums, 64);
   VARR_CREATE (MIR_label_t, func_labels, 512);
@@ -4831,6 +4973,9 @@ static void io_finish (MIR_context_t ctx) {
   VARR_DESTROY (MIR_label_t, func_labels);
   VARR_DESTROY (uint64_t, insn_label_string_nums);
   VARR_DESTROY (MIR_str_t, bin_strings);
+  VARR_DESTROY (MIR_op_t, read_insn_ops);
+  VARR_DESTROY (MIR_var_t, proto_vars);
+  VARR_DESTROY (MIR_type_t, proto_types);
   free (ctx->io_ctx);
   ctx->io_ctx = NULL;
 }
@@ -4895,6 +5040,9 @@ DEF_HTAB (label_desc_t);
 struct scan_ctx {
   jmp_buf error_jmp_buf;
   VARR (char) * error_msg_buf;
+  VARR (MIR_var_t) * scan_vars;
+  VARR (MIR_type_t) * scan_types;
+  VARR (MIR_op_t) * scan_insn_ops;
   size_t curr_lno;
   HTAB (insn_name_t) * insn_name_tab;
   const char *input_string;
@@ -4905,6 +5053,9 @@ struct scan_ctx {
 
 #define error_jmp_buf ctx->scan_ctx->error_jmp_buf
 #define error_msg_buf ctx->scan_ctx->error_msg_buf
+#define scan_vars ctx->scan_ctx->scan_vars
+#define scan_types ctx->scan_ctx->scan_types
+#define scan_insn_ops ctx->scan_ctx->scan_insn_ops
 #define curr_lno ctx->scan_ctx->curr_lno
 #define insn_name_tab ctx->scan_ctx->insn_name_tab
 #define input_string ctx->scan_ctx->input_string
@@ -5195,16 +5346,16 @@ static MIR_label_t create_label_desc (MIR_context_t ctx, const char *name) {
 }
 
 static int func_reg_p (MIR_context_t ctx, MIR_func_t func, const char *name) {
+  func_regs_t func_regs = func->internal;
   size_t rdn, tab_rdn;
   reg_desc_t rd;
   int res;
 
-  rd.name_num = string_store (ctx, &strings, &string_tab, (MIR_str_t){strlen (name) + 1, name}).num;
-  rd.func = func;
-  rdn = VARR_LENGTH (reg_desc_t, reg_descs);
-  VARR_PUSH (reg_desc_t, reg_descs, rd);
-  res = HTAB_DO (size_t, namenum2rdn_tab, rdn, HTAB_FIND, tab_rdn);
-  VARR_POP (reg_desc_t, reg_descs);
+  rd.name = (char *) name;
+  rdn = VARR_LENGTH (reg_desc_t, func_regs->reg_descs);
+  VARR_PUSH (reg_desc_t, func_regs->reg_descs, rd);
+  res = HTAB_DO (size_t, func_regs->name2rdn_tab, rdn, HTAB_FIND, tab_rdn);
+  VARR_POP (reg_desc_t, func_regs->reg_descs);
   return res;
 }
 
@@ -5212,14 +5363,14 @@ static void read_func_proto (MIR_context_t ctx, size_t nops, MIR_op_t *ops) {
   MIR_var_t var;
   size_t i;
 
-  VARR_TRUNC (MIR_type_t, temp_types, 0);
+  VARR_TRUNC (MIR_type_t, scan_types, 0);
   for (i = 0; i < nops; i++) {
     var.name = (const char *) ops[i].u.mem.disp;
     if ((var.name = (const char *) ops[i].u.mem.disp) != NULL) break;
     var.type = ops[i].u.mem.type;
-    VARR_PUSH (MIR_type_t, temp_types, var.type);
+    VARR_PUSH (MIR_type_t, scan_types, var.type);
   }
-  VARR_TRUNC (MIR_var_t, temp_vars, 0);
+  VARR_TRUNC (MIR_var_t, scan_vars, 0);
   for (; i < nops; i++) {
     if (ops[i].mode != MIR_OP_MEM) scan_error (ctx, "wrong prototype/func arg");
     var.type = ops[i].u.mem.type;
@@ -5227,7 +5378,7 @@ static void read_func_proto (MIR_context_t ctx, size_t nops, MIR_op_t *ops) {
     if (var.name == NULL)
       scan_error (ctx, "all func/prototype args should have form type:name or (r)blk:size(name)");
     if (MIR_blk_type_p (var.type)) var.size = ops[i].u.mem.base;
-    VARR_PUSH (MIR_var_t, temp_vars, var);
+    VARR_PUSH (MIR_var_t, scan_vars, var);
   }
 }
 
@@ -5376,7 +5527,7 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
         if (func != NULL) MIR_append_insn (ctx, func, label);
       }
     }
-    VARR_TRUNC (MIR_op_t, temp_insn_ops, 0);
+    VARR_TRUNC (MIR_op_t, scan_insn_ops, 0);
     dots_p = FALSE;
     for (;;) { /* ops */
       if (t.code == TC_NL || t.code == TC_SEMICOL) {
@@ -5405,14 +5556,14 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
             push_op_p = FALSE;
           } else if (!module_p && !end_module_p && !proto_p && !func_p && !end_func_p && !local_p
                      && ((MIR_branch_code_p (insn_code)
-                          && VARR_LENGTH (MIR_op_t, temp_insn_ops) == 0)
+                          && VARR_LENGTH (MIR_op_t, scan_insn_ops) == 0)
                          || (insn_code == MIR_SWITCH
-                             && VARR_LENGTH (MIR_op_t, temp_insn_ops) > 0))) {
+                             && VARR_LENGTH (MIR_op_t, scan_insn_ops) > 0))) {
             op = MIR_new_label_op (ctx, create_label_desc (ctx, name));
           } else if (!expr_p && !ref_p && func_reg_p (ctx, func->u.func, name)) {
             op.mode = MIR_OP_REG;
             op.u.reg = MIR_reg (ctx, name, func->u.func);
-          } else if ((item = find_item (ctx, name, module)) != NULL) {
+          } else if ((item = item_tab_find (ctx, name, module)) != NULL) {
             op = MIR_new_ref_op (ctx, item);
           } else {
             scan_error (ctx, "undeclared name %s", name);
@@ -5508,7 +5659,7 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
       default: break;
       }
       if (dots_p) break;
-      if (push_op_p) VARR_PUSH (MIR_op_t, temp_insn_ops, op);
+      if (push_op_p) VARR_PUSH (MIR_op_t, scan_insn_ops, op);
       if (read_p) scan_token (ctx, &t, get_string_char, unget_string_char);
       if (t.code != TC_COMMA) break;
       scan_token (ctx, &t, get_string_char, unget_string_char);
@@ -5517,19 +5668,19 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
       scan_error (ctx, "wrong insn end");
     if (module_p) {
       if (module != NULL) scan_error (ctx, "nested module");
-      if (VARR_LENGTH (MIR_op_t, temp_insn_ops) != 0)
+      if (VARR_LENGTH (MIR_op_t, scan_insn_ops) != 0)
         scan_error (ctx, "module should have no params");
       module = MIR_new_module (ctx, VARR_GET (label_name_t, label_names, 0));
     } else if (end_module_p) {
       if (module == NULL) scan_error (ctx, "standalone endmodule");
-      if (VARR_LENGTH (MIR_op_t, temp_insn_ops) != 0)
+      if (VARR_LENGTH (MIR_op_t, scan_insn_ops) != 0)
         scan_error (ctx, "endmodule should have no params");
       MIR_finish_module (ctx);
       module = NULL;
     } else if (bss_p) {
-      if (VARR_LENGTH (MIR_op_t, temp_insn_ops) != 1)
+      if (VARR_LENGTH (MIR_op_t, scan_insn_ops) != 1)
         scan_error (ctx, "bss should have one operand");
-      op_addr = VARR_ADDR (MIR_op_t, temp_insn_ops);
+      op_addr = VARR_ADDR (MIR_op_t, scan_insn_ops);
       if (op_addr[0].mode != MIR_OP_INT || op_addr[0].u.i < 0)
         scan_error (ctx, "wrong bss operand type or value");
       name
@@ -5537,9 +5688,9 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
                                                         : VARR_GET (label_name_t, label_names, 0));
       MIR_new_bss (ctx, name, op_addr[0].u.i);
     } else if (ref_p) {
-      if (VARR_LENGTH (MIR_op_t, temp_insn_ops) != 2)
+      if (VARR_LENGTH (MIR_op_t, scan_insn_ops) != 2)
         scan_error (ctx, "ref should have two operands");
-      op_addr = VARR_ADDR (MIR_op_t, temp_insn_ops);
+      op_addr = VARR_ADDR (MIR_op_t, scan_insn_ops);
       if (op_addr[0].mode != MIR_OP_REF) scan_error (ctx, "wrong ref operand");
       if (op_addr[1].mode != MIR_OP_INT) scan_error (ctx, "wrong ref disp operand");
       name
@@ -5547,9 +5698,9 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
                                                         : VARR_GET (label_name_t, label_names, 0));
       MIR_new_ref_data (ctx, name, op_addr[0].u.ref, op_addr[1].u.i);
     } else if (expr_p) {
-      if (VARR_LENGTH (MIR_op_t, temp_insn_ops) != 1)
+      if (VARR_LENGTH (MIR_op_t, scan_insn_ops) != 1)
         scan_error (ctx, "expr should have one operand");
-      op_addr = VARR_ADDR (MIR_op_t, temp_insn_ops);
+      op_addr = VARR_ADDR (MIR_op_t, scan_insn_ops);
       if (op_addr[0].mode != MIR_OP_REF || op_addr[0].u.ref->item_type != MIR_func_item)
         scan_error (ctx, "wrong expr operand");
       name
@@ -5557,9 +5708,9 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
                                                         : VARR_GET (label_name_t, label_names, 0));
       MIR_new_expr_data (ctx, name, op_addr[0].u.ref);
     } else if (string_p) {
-      if (VARR_LENGTH (MIR_op_t, temp_insn_ops) != 1)
+      if (VARR_LENGTH (MIR_op_t, scan_insn_ops) != 1)
         scan_error (ctx, "string should have one operand");
-      op_addr = VARR_ADDR (MIR_op_t, temp_insn_ops);
+      op_addr = VARR_ADDR (MIR_op_t, scan_insn_ops);
       if (op_addr[0].mode != MIR_OP_STR) scan_error (ctx, "wrong string data operand type");
       name
         = (VARR_LENGTH (label_name_t, label_names) == 0 ? NULL
@@ -5567,47 +5718,47 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
       MIR_new_string_data (ctx, name, op_addr[0].u.str);
     } else if (proto_p) {
       if (module == NULL) scan_error (ctx, "prototype outside module");
-      read_func_proto (ctx, VARR_LENGTH (MIR_op_t, temp_insn_ops),
-                       VARR_ADDR (MIR_op_t, temp_insn_ops));
+      read_func_proto (ctx, VARR_LENGTH (MIR_op_t, scan_insn_ops),
+                       VARR_ADDR (MIR_op_t, scan_insn_ops));
       if (dots_p)
         MIR_new_vararg_proto_arr (ctx, VARR_GET (label_name_t, label_names, 0),
-                                  VARR_LENGTH (MIR_type_t, temp_types),
-                                  VARR_ADDR (MIR_type_t, temp_types),
-                                  VARR_LENGTH (MIR_var_t, temp_vars),
-                                  VARR_ADDR (MIR_var_t, temp_vars));
+                                  VARR_LENGTH (MIR_type_t, scan_types),
+                                  VARR_ADDR (MIR_type_t, scan_types),
+                                  VARR_LENGTH (MIR_var_t, scan_vars),
+                                  VARR_ADDR (MIR_var_t, scan_vars));
       else
         MIR_new_proto_arr (ctx, VARR_GET (label_name_t, label_names, 0),
-                           VARR_LENGTH (MIR_type_t, temp_types), VARR_ADDR (MIR_type_t, temp_types),
-                           VARR_LENGTH (MIR_var_t, temp_vars), VARR_ADDR (MIR_var_t, temp_vars));
+                           VARR_LENGTH (MIR_type_t, scan_types), VARR_ADDR (MIR_type_t, scan_types),
+                           VARR_LENGTH (MIR_var_t, scan_vars), VARR_ADDR (MIR_var_t, scan_vars));
     } else if (func_p) {
       if (module == NULL) scan_error (ctx, "func outside module");
       if (func != NULL) scan_error (ctx, "nested func");
-      read_func_proto (ctx, VARR_LENGTH (MIR_op_t, temp_insn_ops),
-                       VARR_ADDR (MIR_op_t, temp_insn_ops));
+      read_func_proto (ctx, VARR_LENGTH (MIR_op_t, scan_insn_ops),
+                       VARR_ADDR (MIR_op_t, scan_insn_ops));
       if (dots_p)
         func = MIR_new_vararg_func_arr (ctx, VARR_GET (label_name_t, label_names, 0),
-                                        VARR_LENGTH (MIR_type_t, temp_types),
-                                        VARR_ADDR (MIR_type_t, temp_types),
-                                        VARR_LENGTH (MIR_var_t, temp_vars),
-                                        VARR_ADDR (MIR_var_t, temp_vars));
+                                        VARR_LENGTH (MIR_type_t, scan_types),
+                                        VARR_ADDR (MIR_type_t, scan_types),
+                                        VARR_LENGTH (MIR_var_t, scan_vars),
+                                        VARR_ADDR (MIR_var_t, scan_vars));
       else
         func
           = MIR_new_func_arr (ctx, VARR_GET (label_name_t, label_names, 0),
-                              VARR_LENGTH (MIR_type_t, temp_types),
-                              VARR_ADDR (MIR_type_t, temp_types),
-                              VARR_LENGTH (MIR_var_t, temp_vars), VARR_ADDR (MIR_var_t, temp_vars));
+                              VARR_LENGTH (MIR_type_t, scan_types),
+                              VARR_ADDR (MIR_type_t, scan_types),
+                              VARR_LENGTH (MIR_var_t, scan_vars), VARR_ADDR (MIR_var_t, scan_vars));
       HTAB_CLEAR (label_desc_t, label_desc_tab);
     } else if (end_func_p) {
       if (func == NULL) scan_error (ctx, "standalone endfunc");
-      if (VARR_LENGTH (MIR_op_t, temp_insn_ops) != 0)
+      if (VARR_LENGTH (MIR_op_t, scan_insn_ops) != 0)
         scan_error (ctx, "endfunc should have no params");
       func = NULL;
       MIR_finish_func (ctx);
     } else if (export_p || import_p || forward_p) { /* we already created items, now do nothing: */
-      mir_assert (VARR_LENGTH (MIR_op_t, temp_insn_ops) == 0);
+      mir_assert (VARR_LENGTH (MIR_op_t, scan_insn_ops) == 0);
     } else if (local_p) {
-      op_addr = VARR_ADDR (MIR_op_t, temp_insn_ops);
-      n = VARR_LENGTH (MIR_op_t, temp_insn_ops);
+      op_addr = VARR_ADDR (MIR_op_t, scan_insn_ops);
+      n = VARR_LENGTH (MIR_op_t, scan_insn_ops);
       for (i = 0; i < n; i++) {
         if (op_addr[i].mode != MIR_OP_MEM || (const char *) op_addr[i].u.mem.disp == NULL)
           scan_error (ctx, "wrong local var");
@@ -5626,8 +5777,8 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
         int64_t i64;
       } v;
 
-      n = VARR_LENGTH (MIR_op_t, temp_insn_ops);
-      op_addr = VARR_ADDR (MIR_op_t, temp_insn_ops);
+      n = VARR_LENGTH (MIR_op_t, scan_insn_ops);
+      op_addr = VARR_ADDR (MIR_op_t, scan_insn_ops);
       VARR_TRUNC (uint8_t, temp_data, 0);
       for (i = 0; i < n; i++) {
         if (op_addr[i].mode != type2mode (data_type))
@@ -5681,15 +5832,15 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
                     VARR_LENGTH (uint8_t, temp_data) / _MIR_type_size (ctx, data_type),
                     VARR_ADDR (uint8_t, temp_data));
     } else {
-      insn = MIR_new_insn_arr (ctx, insn_code, VARR_LENGTH (MIR_op_t, temp_insn_ops),
-                               VARR_ADDR (MIR_op_t, temp_insn_ops));
+      insn = MIR_new_insn_arr (ctx, insn_code, VARR_LENGTH (MIR_op_t, scan_insn_ops),
+                               VARR_ADDR (MIR_op_t, scan_insn_ops));
       if (func != NULL) MIR_append_insn (ctx, func, insn);
     }
   }
   if (func != NULL) scan_error (ctx, "absent endfunc");
   if (module != NULL) scan_error (ctx, "absent endmodule");
   if (VARR_LENGTH (char, error_msg_buf) != 0)
-    (*error_func) (MIR_syntax_error, VARR_ADDR (char, error_msg_buf));
+    MIR_get_error_func (ctx) (MIR_syntax_error, VARR_ADDR (char, error_msg_buf));
 }
 
 static void scan_init (MIR_context_t ctx) {
@@ -5697,8 +5848,11 @@ static void scan_init (MIR_context_t ctx) {
   size_t i;
 
   if ((ctx->scan_ctx = malloc (sizeof (struct scan_ctx))) == NULL)
-    (*error_func) (MIR_alloc_error, "Not enough memory for ctx");
+    MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for ctx");
   VARR_CREATE (char, error_msg_buf, 0);
+  VARR_CREATE (MIR_var_t, scan_vars, 0);
+  VARR_CREATE (MIR_type_t, scan_types, 0);
+  VARR_CREATE (MIR_op_t, scan_insn_ops, 0);
   VARR_CREATE (label_name_t, label_names, 0);
   HTAB_CREATE (label_desc_t, label_desc_tab, 100, label_hash, label_eq, NULL);
   HTAB_CREATE (insn_name_t, insn_name_tab, MIR_INSN_BOUND, insn_name_hash, insn_name_eq, NULL);
@@ -5711,6 +5865,9 @@ static void scan_init (MIR_context_t ctx) {
 
 static void scan_finish (MIR_context_t ctx) {
   VARR_DESTROY (char, error_msg_buf);
+  VARR_DESTROY (MIR_var_t, scan_vars);
+  VARR_DESTROY (MIR_type_t, scan_types);
+  VARR_DESTROY (MIR_op_t, scan_insn_ops);
   VARR_DESTROY (label_name_t, label_names);
   HTAB_DESTROY (label_desc_t, label_desc_tab);
   HTAB_DESTROY (insn_name_t, insn_name_tab);

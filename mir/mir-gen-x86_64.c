@@ -978,6 +978,7 @@ struct pattern {
      X - match everything
      $ - finish successfully matching
      r - register (we don't care about bp and sp because they are fixed and used correctly)
+     t - ax, cx, dx, or bx register
      h[0-31] - hard register with given number
      z - operand is zero
      i[0-3] - immediate of size 8,16,32,64-bits
@@ -1068,12 +1069,12 @@ struct pattern {
 
 /* cmp ...; setx r0; movzbl r0,r0: */
 #define CMP0(ICODE, SUFF, PREF, SETX)                                                            \
-  {ICODE##SUFF, "r r r", #PREF " 3B r1 R2;" SETX " R0;X 0F B6 r0 R0"},        /* cmp r1,r2;...*/ \
-    {ICODE##SUFF, "r r m3", #PREF " 3B r1 m2;" SETX " R0;X 0F B6 r0 R0"},     /* cmp r1,m2;...*/ \
-    {ICODE##SUFF, "r r i0", #PREF " 83 /7 R1 i2;" SETX " R0;X 0F B6 r0 R0"},  /* cmp r1,i2;...*/ \
-    {ICODE##SUFF, "r r i2", #PREF " 81 /7 R1 I2;" SETX " R0;X 0F B6 r0 R0"},  /* cmp r1,i2;...*/ \
-    {ICODE##SUFF, "r m3 i0", #PREF " 83 /7 m1 i2;" SETX " R0;X 0F B6 r0 R0"}, /* cmp m1,i2;...*/ \
-    {ICODE##SUFF, "r m3 i2", #PREF " 81 /7 m1 I2;" SETX " R0;X 0F B6 r0 R0"}, /* cmp m1,i2;...*/
+  {ICODE##SUFF, "t r r", #PREF " 3B r1 R2;" SETX " R0;X 0F B6 r0 R0"},        /* cmp r1,r2;...*/ \
+    {ICODE##SUFF, "t r m3", #PREF " 3B r1 m2;" SETX " R0;X 0F B6 r0 R0"},     /* cmp r1,m2;...*/ \
+    {ICODE##SUFF, "t r i0", #PREF " 83 /7 R1 i2;" SETX " R0;X 0F B6 r0 R0"},  /* cmp r1,i2;...*/ \
+    {ICODE##SUFF, "t r i2", #PREF " 81 /7 R1 I2;" SETX " R0;X 0F B6 r0 R0"},  /* cmp r1,i2;...*/ \
+    {ICODE##SUFF, "t m3 i0", #PREF " 83 /7 m1 i2;" SETX " R0;X 0F B6 r0 R0"}, /* cmp m1,i2;...*/ \
+    {ICODE##SUFF, "t m3 i2", #PREF " 81 /7 m1 I2;" SETX " R0;X 0F B6 r0 R0"}, /* cmp m1,i2;...*/
 
 #define CMP(ICODE, SET_OPCODE)  \
   CMP0 (ICODE, , X, SET_OPCODE) \
@@ -1443,6 +1444,11 @@ static int pattern_match_p (gen_ctx_t gen_ctx, const struct pattern *pat, MIR_in
     case 'X': break;
     case 'r':
       if (op.mode != MIR_OP_HARD_REG) return FALSE;
+      break;
+    case 't':
+      if (op.mode != MIR_OP_HARD_REG
+          || !(AX_HARD_REG <= op.u.hard_reg && op.u.hard_reg <= BX_HARD_REG))
+        return FALSE;
       break;
     case 'h':
       if (op.mode != MIR_OP_HARD_REG) return FALSE;
@@ -2107,7 +2113,7 @@ static uint8_t *target_translate (gen_ctx_t gen_ctx, size_t *len) {
     } else {
       replacement = find_insn_pattern_replacement (gen_ctx, insn);
       if (replacement == NULL) {
-        fprintf (stderr, "fatal failure in matching insn:");
+        fprintf (stderr, "%d: fatal failure in matching insn:", gen_ctx->gen_num);
         MIR_output_insn (ctx, stderr, insn, curr_func_item->u.func, TRUE);
         exit (1);
       } else {

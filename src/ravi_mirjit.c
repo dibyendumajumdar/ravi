@@ -412,13 +412,12 @@ void *mir_get_func(MIR_context_t ctx, MIR_module_t module, const char *func_name
     fprintf(stderr, "Error: Compiled function %s not found\n", func_name);
     exit(1);
   }
-  return MIR_gen (ctx, main_func);
+  return MIR_gen (ctx, 0, main_func);
 }
 
 void mir_prepare(MIR_context_t ctx, int optlevel) {
   c2mir_init(ctx);
-  MIR_gen_init (ctx);
-  MIR_gen_set_optimize_level(ctx, optlevel);
+  MIR_gen_init (ctx, optlevel);
 }
 
 void mir_cleanup(MIR_context_t ctx) {
