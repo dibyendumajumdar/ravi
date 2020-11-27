@@ -27,3 +27,4 @@ assert(l and type(l) == 'function')
 b = l()
 assert(b == 4)
 assert('integer' == math.type(b))
+print 'Ok'

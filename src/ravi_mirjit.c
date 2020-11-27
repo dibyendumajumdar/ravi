@@ -174,6 +174,11 @@ static LuaFunc Lua_functions[] = {
     { "lua_setmetatable", lua_setmetatable },
     { "lua_setuservalue", lua_setuservalue },
     { "luaD_growstack", luaD_growstack },
+    { "luaF_newLclosure", luaF_newLclosure },
+    { "luaS_newlstr", luaS_newlstr },
+    { "luaF_newproto", luaF_newproto },
+    { "luaD_inctop", luaD_inctop },
+    { "luaM_realloc_", luaM_realloc_ },
     { NULL, NULL }
 };
 

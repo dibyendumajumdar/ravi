@@ -51,4 +51,5 @@ local t1 = os.clock()
 local a = matrix.mul(matrix.gen(n), matrix.gen(n))
 local t2 = os.clock()
 print("time taken ", t2-t1)
-print(a[n/2+1][n//2+1]);
+print(a[n/2+1][n//2+1])
+print 'Ok'

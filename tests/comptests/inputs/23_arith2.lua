@@ -45,3 +45,4 @@ assert(math.abs(doit(11.1, 'add') - 16.1) < 1e-15)
 assert(math.abs(doit(1.1, 'mul') - 5.5) < 1e-15)
 assert(math.abs(doit(5.5, 'sub') + 0.5) < 1e-15)
 assert(math.abs(doit(2.5, 'div') - 2.0) < 1e-15)
+print 'Ok'

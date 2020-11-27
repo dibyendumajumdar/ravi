@@ -13,3 +13,4 @@ assert(f() == true)
 f = compiler.load('return b >= a')
 assert(f and type(f) == 'function')
 assert(f() == true)
+print 'Ok'

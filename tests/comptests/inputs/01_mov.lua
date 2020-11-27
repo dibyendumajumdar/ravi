@@ -6,3 +6,4 @@ assert(z == 62)
 assert(a == 4.2)
 assert(b == true)
 assert(c == 'hi')
+print 'Ok'

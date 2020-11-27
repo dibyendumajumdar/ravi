@@ -5,3 +5,4 @@ assert(f and type(f) == 'function')
 f()
 assert(x == 2)
 assert(y == 4)
+print 'Ok'

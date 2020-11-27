@@ -19,3 +19,4 @@ assert(x[2] == 2.2)
 assert(x[11] == 11.11)
 z(x, 12, 12)
 assert(x[12] == 12.0)
+print 'Ok'

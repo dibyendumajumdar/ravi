@@ -8,3 +8,4 @@ assert(c == 5.6)
 assert(d == true)
 assert(x == 4.3)
 assert(e == nil)
+print 'Ok'

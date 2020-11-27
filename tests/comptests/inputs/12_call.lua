@@ -5,3 +5,4 @@ local a, b, c = f()
 assert(a == 0)
 assert(b == 3)
 assert(c == 1)
+print 'Ok'

@@ -4,3 +4,4 @@ assert(f and type(f) == 'function')
 f()
 assert(x.a == 'Dibyendu')
 assert(x[1] == 2)
+print 'Ok'

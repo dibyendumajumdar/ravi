@@ -19,3 +19,4 @@ assert(arr[0] == 10)
 assert(arr[4] == 2)
 assert(arr[11] == 6)
 assert(#arr == 11)
+print 'Ok'

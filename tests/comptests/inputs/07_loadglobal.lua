@@ -5,3 +5,4 @@ assert(f and type(f) == 'function')
 local a,b = f()
 assert(a == 1)
 assert(b == 2)
+print 'Ok'

@@ -28,3 +28,4 @@ local t2 = os.clock()
 print("time taken ", t2-t1)
 print(count)
 assert(count == 1899)
+print 'Ok'
