@@ -47,19 +47,20 @@ static int load_and_compile(lua_State* L) {
                                                       .context = &ccontext,
                                                       .debug_message = debug_message,
                                                       .error_message = error_message};
-
+  snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "__luachunk_%lld",
+           ccontext.jit->id++);
   int rc = raviX_compile(&ravicomp_interface);
+  if (ravicomp_interface.generated_code) {
+    fprintf(stdout, "%s\n", ravicomp_interface.generated_code);
+  }
   if (rc == 0) {
 #ifdef USE_MIRJIT
     LClosure* (*load_in_lua)(lua_State * L) = NULL;
-
-    fprintf(stdout, "%s\n", ravicomp_interface.generated_code);
-
     mir_prepare(ccontext.jit->jit, 2);
     MIR_module_t M =
         mir_compile_C_module(&ccontext.jit->options, ccontext.jit->jit, ravicomp_interface.generated_code, "input");
     if (M != NULL) {
-      load_in_lua = mir_get_func(ccontext.jit->jit, M, "load_in_lua");
+      load_in_lua = mir_get_func(ccontext.jit->jit, M, ravicomp_interface.main_func_name);
     }
     mir_cleanup(ccontext.jit->jit);
     if (load_in_lua) {
@@ -76,10 +77,16 @@ static int load_and_compile(lua_State* L) {
       }
     }
     else {
-      return 0;
+      rc = -1;
     }
-    return 1;
+    if (ravicomp_interface.generated_code) {
+      free((void *)ravicomp_interface.generated_code);
+    }
+    return rc == 0 ? 1 : 0;
 #else
+    if (ravicomp_interface.generated_code) {
+      free(ravicomp_interface.generated_code);
+    }
     return 0;
 #endif
   }
