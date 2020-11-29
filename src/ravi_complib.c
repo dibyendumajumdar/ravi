@@ -36,6 +36,20 @@ void error_message(void* context, const char* message) {
   ravi_writeline(ccontext->L);
 }
 
+static void setup_lua_closure(lua_State* L, LClosure* (*load_in_lua)(lua_State*)) {
+  LClosure* cl = load_in_lua(L);
+  lua_assert(cl->nupvalues == cl->p->sizeupvalues);
+  luaF_initupvals(L, cl);
+  if (cl->nupvalues >= 1) { /* does it have an upvalue? */
+    /* get global table from registry */
+    Table* reg = hvalue(&G(L)->l_registry);
+    const TValue* gt = luaH_getint(reg, LUA_RIDX_GLOBALS);
+    /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
+    setobj(L, cl->upvals[0]->v, gt);
+    luaC_upvalbarrier(L, cl->upvals[0], gt);
+  }
+}
+
 static int load_and_compile(lua_State* L) {
   const char* s = luaL_checkstring(L, 1);
   struct CompilerContext ccontext = {.L = L, .jit = G(L)->ravi_state};
@@ -63,24 +77,14 @@ static int load_and_compile(lua_State* L) {
       load_in_lua = mir_get_func(ccontext.jit->jit, M, ravicomp_interface.main_func_name);
     }
     mir_cleanup(ccontext.jit->jit);
-    if (load_in_lua) {
-      LClosure* cl = load_in_lua(L);
-      lua_assert(cl->nupvalues == cl->p->sizeupvalues);
-      luaF_initupvals(L, cl);
-      if (cl->nupvalues >= 1) { /* does it have an upvalue? */
-                                /* get global table from registry */
-        Table* reg = hvalue(&G(L)->l_registry);
-        const TValue* gt = luaH_getint(reg, LUA_RIDX_GLOBALS);
-        /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
-        setobj(L, cl->upvals[0]->v, gt);
-        luaC_upvalbarrier(L, cl->upvals[0], gt);
-      }
+    if (load_in_lua != NULL) {
+      setup_lua_closure(L, load_in_lua);
     }
     else {
       rc = -1;
     }
     if (ravicomp_interface.generated_code) {
-      free((void *)ravicomp_interface.generated_code);
+      free((void*)ravicomp_interface.generated_code);
     }
     return rc == 0 ? 1 : 0;
 #else
