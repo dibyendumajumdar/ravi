@@ -1329,6 +1329,17 @@ LUA_API int lua_pcallk (lua_State *L, int nargs, int nresults, int errfunc,
   return status;
 }
 
+LUA_API void ravi_closure_setenv(lua_State* L) {
+  LClosure *f = clLvalue(L->top - 1);  /* get newly created function */
+  if (f->nupvalues >= 1) {  /* does it have an upvalue? */
+    /* get global table from registry */
+    Table *reg = hvalue(&G(L)->l_registry);
+    const TValue *gt = luaH_getint(reg, LUA_RIDX_GLOBALS);
+    /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
+    setobj(L, f->upvals[0]->v, gt);
+    luaC_upvalbarrier(L, f->upvals[0], gt);
+  }
+}
 
 LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
                       const char *chunkname, const char *mode) {
@@ -1339,15 +1350,7 @@ LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
   luaZ_init(L, &z, reader, data);
   status = luaD_protectedparser(L, &z, chunkname, mode);
   if (status == LUA_OK) {  /* no errors? */
-    LClosure *f = clLvalue(L->top - 1);  /* get newly created function */
-    if (f->nupvalues >= 1) {  /* does it have an upvalue? */
-      /* get global table from registry */
-      Table *reg = hvalue(&G(L)->l_registry);
-      const TValue *gt = luaH_getint(reg, LUA_RIDX_GLOBALS);
-      /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
-      setobj(L, f->upvals[0]->v, gt);
-      luaC_upvalbarrier(L, f->upvals[0], gt);
-    }
+    ravi_closure_setenv(L);
   }
   lua_unlock(L);
   return status;

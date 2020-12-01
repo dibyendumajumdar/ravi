@@ -33,34 +33,6 @@
 #include "lstate.h"
 #include "lua.h"
 
-static const char *errortext[] = {"integer expected",
-                                  "number expected",
-                                  "integer[] expected",
-                                  "number[] expected",
-                                  "table expected",
-                                  "upvalue of integer type, cannot be set to non integer value",
-                                  "upvalue of number type, cannot be set to non number value",
-                                  "upvalue of integer[] type, cannot be set to non integer[] value",
-                                  "upvalue of number[] type, cannot be set to non number[] value",
-                                  "upvalue of table type, cannot be set to non table value",
-                                  "for llimit must be a number",
-                                  "for step must be a number",
-                                  "for initial value must be a number",
-                                  "array index is out of bounds",
-                                  "string expected",
-                                  "closure expected",
-                                  "type mismatch: wrong userdata type",
-                                  NULL};
-
-static void raise_error(lua_State *L, int errorcode) {
-  assert(errorcode >= 0 && errorcode < Error_type_mismatch);
-  luaG_runerror(L, errortext[errorcode]);
-}
-
-static void raise_error_with_info(lua_State *L, int errorcode, const char *info) {
-  assert(errorcode == Error_type_mismatch);
-  luaG_runerror(L, "type mismatch: expected %s", info);
-}
 
 #if !RAVI_TARGET_X64
 #error MIRJIT is currently only supported on X64 architecture
@@ -73,8 +45,8 @@ typedef struct LuaFunc {
 
 static LuaFunc Lua_functions[] = {
     { "luaF_close", luaF_close },
-    { "raise_error", raise_error },
-    { "raise_error_with_info", raise_error_with_info },
+    { "raviV_raise_error", raviV_raise_error },
+    { "raviV_raise_error_with_info", raviV_raise_error_with_info },
     { "luaV_tonumber_", luaV_tonumber_ },
     { "luaV_tointeger", luaV_tointeger },
     { "luaV_shiftl", luaV_shiftl },

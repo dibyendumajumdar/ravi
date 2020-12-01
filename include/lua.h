@@ -366,11 +366,14 @@ LUA_API int   (lua_pcallk) (lua_State *L, int nargs, int nresults, int errfunc,
                             lua_KContext ctx, lua_KFunction k);
 #define lua_pcall(L,n,r,f)	lua_pcallk(L, (n), (r), (f), 0, NULL)
 
+/* A Lua Closure must be on top of the stack. This will set _ENV upvalue */
+LUA_API void  (ravi_closure_setenv) (lua_State* L);
 LUA_API int   (lua_load) (lua_State *L, lua_Reader reader, void *dt,
                           const char *chunkname, const char *mode);
 
 LUA_API int (lua_dump) (lua_State *L, lua_Writer writer, void *data, int strip);
 
+LUA_API void (raviV_raise_error) (lua_State *L, int errorcode);
 
 /*
 ** coroutine functions

@@ -122,6 +122,8 @@ LUAI_FUNC bool raviJ_cancompile(Proto *p);
 LUAI_FUNC bool raviJ_codegen(struct lua_State *L, struct Proto *p,
                              struct ravi_compile_options_t *options,
                              const char *fname, membuff_t *buf);
+void raviV_raise_error(lua_State *L, int errorcode);
+void raviV_raise_error_with_info(lua_State *L, int errorcode, const char *info);
 
 #ifdef __cplusplus
 };

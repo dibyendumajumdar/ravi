@@ -57,11 +57,6 @@ static const char *errortext[] = {"integer expected",
                                   "type mismatch: wrong userdata type",
                                   NULL};
 
-static void raise_error(lua_State *L, int errorcode) {
-  assert(errorcode >= 0 && errorcode <= Error_type_mismatch);
-  luaG_runerror(L, errortext[errorcode]);
-}
-
 static struct {
   const char *name;
   void *address;
@@ -187,7 +182,7 @@ static struct {
                    {"raviV_op_defer", reinterpret_cast<void *>(raviV_op_defer)},
 #endif
                    {"raviV_debug_trace", reinterpret_cast<void *>(raviV_debug_trace)},
-                   {"raise_error", reinterpret_cast<void *>(raise_error)},
+                   {"raviV_raise_error", reinterpret_cast<void *>(raviV_raise_error)},
                    {"printf", reinterpret_cast<void *>(printf)},
                    {"puts", reinterpret_cast<void *>(puts)},
                    {nullptr, nullptr}};

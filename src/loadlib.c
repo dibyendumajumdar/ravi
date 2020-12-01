@@ -22,6 +22,8 @@
 
 #include "lauxlib.h"
 #include "lualib.h"
+#include "lobject.h"
+#include "lfunc.h"
 
 
 /*
@@ -404,6 +406,55 @@ static int ll_loadlib (lua_State *L) {
   }
 }
 
+/*
+** Look for a compiled Ravi function named 'sym' in a dynamically loaded library
+** 'path'.
+** First, check whether the library is already loaded; if not, try
+** to load it.
+** Then, if 'sym' is '*', return true (as library has been loaded).
+** Otherwise, look for symbol 'sym' in the library and push a
+** C function with that symbol.
+** Return 0 and 'true' or a function in the stack; in case of
+** errors, return an error code and an error message in the stack.
+*/
+static int ravi_lookforfunc (lua_State *L, const char *path, const char *sym) {
+  void *reg = checkclib(L, path);  /* check loaded C libraries */
+  if (reg == NULL) {  /* must load library? */
+    reg = lsys_load(L, path, *sym == '*');  /* global symbols if 'sym'=='*' */
+    if (reg == NULL) return ERRLIB;  /* unable to load library */
+    addtoclib(L, path, reg);
+  }
+  if (*sym == '*') {  /* loading only library (no function)? */
+    lua_pushboolean(L, 1);  /* return 'true' */
+    return 0;  /* no errors */
+  }
+  else {
+    LClosure* (*load_in_lua)(lua_State * L);
+    load_in_lua = lsys_sym(L, reg, sym);
+    if (load_in_lua == NULL)
+      return ERRFUNC;  /* unable to find function */
+    LClosure* cl = load_in_lua(L);
+    lua_assert(cl->nupvalues == cl->p->sizeupvalues);
+    luaF_initupvals(L, cl);
+    ravi_closure_setenv(L);
+    return 0;  /* no errors */
+  }
+}
+
+static int ravi_loadlib (lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
+  const char *init = luaL_checkstring(L, 2);
+  int stat = ravi_lookforfunc(L, path, init);
+  if (stat == 0)  /* no errors? */
+    return 1;  /* return the loaded function */
+  else {  /* error; error message is on stack top */
+    lua_pushnil(L);
+    lua_insert(L, -2);
+    lua_pushstring(L, (stat == ERRLIB) ?  LIB_FAIL : "init");
+    return 3;  /* return nil, error message, and where */
+  }
+}
+
 
 
 /*
@@ -707,6 +758,7 @@ static int ll_seeall (lua_State *L) {
 
 static const luaL_Reg pk_funcs[] = {
   {"loadlib", ll_loadlib},
+  { "load_ravi_lib", ravi_loadlib },
   {"searchpath", ll_searchpath},
 #if defined(LUA_COMPAT_MODULE)
   {"seeall", ll_seeall},

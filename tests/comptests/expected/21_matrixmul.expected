@@ -36,9 +36,9 @@ L3
 	CBR {Tbool(6)} {L5, L4}
 L4
 	MOV {Tint(3)} {Tint(2)}
-	LOADGLOBAL {Upval(_ENV), 'table' Ks(1)} {T(0)}
-	GETsk {T(0), 'numarray' Ks(2)} {T(2)}
-	CALL {T(2), Tint(1), 0.000000000000 Kflt(3)} {T(2..), 1 Kint(0)}
+	LOADGLOBAL {Upval(_ENV), 'table' Ks(0)} {T(0)}
+	GETsk {T(0), 'numarray' Ks(1)} {T(2)}
+	CALL {T(2), Tint(1), 0.000000000000 Kflt(0)} {T(2..), 1 Kint(0)}
 	TOFARRAY {T(2[2..])}
 	MOV {T(2[2..])} {local(xi, 2)}
 	TPUTik {local(xi, 2)} {local(x, 1), Tint(2)}
@@ -69,16 +69,16 @@ L0 (entry)
 	TOTABLE {local(a, 0)}
 	TOTABLE {local(b, 1)}
 	LOADGLOBAL {Upval(_ENV), 'assert' Ks(0)} {T(0)}
-	TGETik {local(a, 0), 1 Kint(1)} {T(1)}
+	TGETik {local(a, 0), 1 Kint(0)} {T(1)}
 	LEN {T(1)} {T(2)}
 	TOINT {T(2)}
 	LEN {local(b, 1)} {T(3)}
 	EQ {T(2), T(3)} {T(4)}
-	CALL {T(0), T(4)} {T(0..), 1 Kint(1)}
+	CALL {T(0), T(4)} {T(0..), 1 Kint(0)}
 	LEN {local(a, 0)} {T(4)}
-	TGETik {local(a, 0), 1 Kint(1)} {T(3)}
+	TGETik {local(a, 0), 1 Kint(0)} {T(3)}
 	LEN {T(3)} {T(2)}
-	TGETik {local(b, 1), 1 Kint(1)} {T(5)}
+	TGETik {local(b, 1), 1 Kint(0)} {T(5)}
 	LEN {T(5)} {T(6)}
 	NEWTABLE {T(7)}
 	MOV {T(7)} {local(x, 2)}
@@ -88,13 +88,13 @@ L0 (entry)
 	MOVi {T(2)} {Tint(1)}
 	TOINT {T(4)}
 	MOVi {T(4)} {Tint(0)}
-	GETsk {Upval(1, Proc%1, matrix), 'T' Ks(2)} {T(4)}
-	CALL {T(4), local(b, 1)} {T(4..), 1 Kint(1)}
+	GETsk {Upval(1, Proc%1, matrix), 'T' Ks(1)} {T(4)}
+	CALL {T(4), local(b, 1)} {T(4..), 1 Kint(0)}
 	TOTABLE {T(4[4..])}
 	MOV {T(4[4..])} {local(c, 3)}
-	MOV {1 Kint(1)} {Tint(4)}
+	MOV {1 Kint(0)} {Tint(4)}
 	MOV {Tint(0)} {Tint(5)}
-	MOV {1 Kint(1)} {Tint(6)}
+	MOV {1 Kint(0)} {Tint(6)}
 	SUBii {Tint(4), Tint(6)} {Tint(4)}
 	BR {L2}
 L1 (exit)
@@ -106,15 +106,15 @@ L3
 	CBR {Tbool(7)} {L5, L4}
 L4
 	MOV {Tint(4)} {Tint(3)}
-	LOADGLOBAL {Upval(_ENV), 'table' Ks(3)} {T(2)}
-	GETsk {T(2), 'numarray' Ks(4)} {T(6)}
-	CALL {T(6), Tint(2), 0.000000000000 Kflt(5)} {T(6..), 1 Kint(1)}
+	LOADGLOBAL {Upval(_ENV), 'table' Ks(2)} {T(2)}
+	GETsk {T(2), 'numarray' Ks(3)} {T(6)}
+	CALL {T(6), Tint(2), 0.000000000000 Kflt(0)} {T(6..), 1 Kint(0)}
 	TOFARRAY {T(6[6..])}
 	MOV {T(6[6..])} {local(xi, 4)}
 	TPUTik {local(xi, 4)} {local(x, 2), Tint(3)}
-	MOV {1 Kint(1)} {Tint(9)}
+	MOV {1 Kint(0)} {Tint(9)}
 	MOV {Tint(2)} {Tint(10)}
-	MOV {1 Kint(1)} {Tint(11)}
+	MOV {1 Kint(0)} {Tint(11)}
 	SUBii {Tint(9), Tint(11)} {Tint(9)}
 	BR {L6}
 L5
@@ -133,10 +133,10 @@ L8
 	TOFARRAY {T(8)}
 	MOV {T(8)} {local(cj, 6)}
 	MOV {T(7)} {local(ai, 5)}
-	MOVf {0.000000000000 Kflt(5)} {Tflt(0)}
-	MOV {1 Kint(1)} {Tint(14)}
+	MOVf {0.000000000000 Kflt(0)} {Tflt(0)}
+	MOV {1 Kint(0)} {Tint(14)}
 	MOV {Tint(1)} {Tint(15)}
-	MOV {1 Kint(1)} {Tint(16)}
+	MOV {1 Kint(0)} {Tint(16)}
 	SUBii {Tint(14), Tint(16)} {Tint(14)}
 	BR {L10}
 L9
@@ -166,9 +166,9 @@ L0 (entry)
 	DIVfi {Tflt(1), local(n, 0)} {Tflt(2)}
 	MOVf {Tflt(2)} {Tflt(0)}
 	MOV {T(0)} {local(a, 1)}
-	MOV {1 Kint(1)} {Tint(1)}
+	MOV {1 Kint(0)} {Tint(1)}
 	MOV {local(n, 0)} {Tint(2)}
-	MOV {1 Kint(1)} {Tint(3)}
+	MOV {1 Kint(0)} {Tint(3)}
 	SUBii {Tint(1), Tint(3)} {Tint(1)}
 	BR {L2}
 L1 (exit)
@@ -180,15 +180,15 @@ L3
 	CBR {Tbool(4)} {L5, L4}
 L4
 	MOV {Tint(1)} {Tint(0)}
-	LOADGLOBAL {Upval(_ENV), 'table' Ks(2)} {T(0)}
-	GETsk {T(0), 'numarray' Ks(3)} {T(1)}
-	CALL {T(1), local(n, 0), 0.000000000000 Kflt(4)} {T(1..), 1 Kint(1)}
+	LOADGLOBAL {Upval(_ENV), 'table' Ks(0)} {T(0)}
+	GETsk {T(0), 'numarray' Ks(1)} {T(1)}
+	CALL {T(1), local(n, 0), 0.000000000000 Kflt(1)} {T(1..), 1 Kint(0)}
 	TOFARRAY {T(1[1..])}
 	MOV {T(1[1..])} {local(ai, 2)}
 	TPUTik {local(ai, 2)} {local(a, 1), Tint(0)}
-	MOV {1 Kint(1)} {Tint(6)}
+	MOV {1 Kint(0)} {Tint(6)}
 	MOV {local(n, 0)} {Tint(7)}
-	MOV {1 Kint(1)} {Tint(8)}
+	MOV {1 Kint(0)} {Tint(8)}
 	SUBii {Tint(6), Tint(8)} {Tint(6)}
 	BR {L6}
 L5
@@ -204,12 +204,13 @@ L8
 	SUBii {Tint(0), Tint(5)} {Tint(10)}
 	MULfi {Tflt(0), Tint(10)} {Tflt(1)}
 	ADDii {Tint(0), Tint(5)} {Tint(10)}
-	SUBii {Tint(10), 2 Kint(5)} {Tint(11)}
+	SUBii {Tint(10), 2 Kint(1)} {Tint(11)}
 	MULfi {Tflt(1), Tint(11)} {Tflt(3)}
 	FAPUTfv {Tflt(3)} {local(ai, 2), Tint(5)}
 	BR {L6}
 L9
 	BR {L2}
+#ifdef __MIRC__
 typedef __SIZE_TYPE__ size_t;
 typedef __PTRDIFF_TYPE__ ptrdiff_t;
 typedef __INTPTR_TYPE__ intptr_t;
@@ -221,10 +222,18 @@ typedef __INT16_TYPE__ int16_t;
 typedef __UINT16_TYPE__ uint16_t;
 typedef __INT8_TYPE__ int8_t;
 typedef __UINT8_TYPE__ uint8_t;
+#define NULL ((void *)0)
+#define EXPORT
+#else
+#include <stddef.h>
+#include <stdint.h>
+#ifdef _WIN32
+#define EXPORT __declspec(dllexport)
+#endif
+#endif
 typedef size_t lu_mem;
 typedef unsigned char lu_byte;
 typedef uint16_t LuaType;
-#define NULL ((void *)0)
 typedef struct lua_State lua_State;
 #define LUA_TNONE		(-1)
 #define LUA_TNIL		0
@@ -753,8 +762,8 @@ extern void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);
-extern void raise_error(lua_State *L, int errorcode);
-extern void raise_error_with_info(lua_State *L, int errorcode, const char *info);
+extern void raviV_raise_error(lua_State *L, int errorcode);
+extern void raviV_raise_error_with_info(lua_State *L, int errorcode, const char *info);
 extern void luaD_call (lua_State *L, StkId func, int nResults);
 extern void raviH_set_int(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Integer value);
 extern void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Number value);
@@ -767,6 +776,13 @@ extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue 
 extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);
 extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);
 extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
+extern void *luaM_realloc_ (lua_State *L, void *block, size_t osize, size_t nsize);
+extern LClosure *luaF_newLclosure (lua_State *L, int n);
+extern TString *luaS_newlstr (lua_State *L, const char *str, size_t l);
+extern Proto *luaF_newproto (lua_State *L);
+extern void luaD_inctop (lua_State *L);
+#define luaM_reallocv(L,b,on,n,e) luaM_realloc_(L, (b), (on)*(e), (n)*(e))
+#define luaM_newvector(L,n,t) cast(t *, luaM_reallocv(L, NULL, 0, n, sizeof(t)))
 #define R(i) (base + i)
 #define K(i) (k + i)
 #define S(i) (stackbase + i)
@@ -780,8 +796,7 @@ extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
 #define nan (0./0.)
 #define inf (1./0.)
 #define luai_numunm(L,a)        (-(a))
-extern int __ravifunc_1(lua_State *L);
-int __ravifunc_1(lua_State *L) {
+static int __ravifunc_1(lua_State *L) {
 int error_code = 0;
 int result = 0;
 CallInfo *ci = L->ci;
@@ -861,11 +876,10 @@ goto L1;
 L1:
  return result;
 Lraise_error:
- raise_error(L, error_code); /* does not return */
+ raviV_raise_error(L, error_code); /* does not return */
  return result;
 }
-extern int __ravifunc_2(lua_State *L);
-int __ravifunc_2(lua_State *L) {
+static int __ravifunc_2(lua_State *L) {
 int error_code = 0;
 int result = 0;
 CallInfo *ci = L->ci;
@@ -949,7 +963,7 @@ goto L2;
 L1:
  return result;
 Lraise_error:
- raise_error(L, error_code); /* does not return */
+ raviV_raise_error(L, error_code); /* does not return */
  return result;
 L2:
 { i_3 = i_3 + i_5; }
@@ -1090,8 +1104,7 @@ goto L6;
 L9:
 goto L2;
 }
-extern int __ravifunc_3(lua_State *L);
-int __ravifunc_3(lua_State *L) {
+static int __ravifunc_3(lua_State *L) {
 int error_code = 0;
 int result = 0;
 CallInfo *ci = L->ci;
@@ -1313,7 +1326,7 @@ goto L2;
 L1:
  return result;
 Lraise_error:
- raise_error(L, error_code); /* does not return */
+ raviV_raise_error(L, error_code); /* does not return */
  return result;
 L2:
 { i_4 = i_4 + i_6; }
@@ -1502,8 +1515,7 @@ L13:
 }
 goto L6;
 }
-extern int __ravifunc_4(lua_State *L);
-int __ravifunc_4(lua_State *L) {
+static int __ravifunc_4(lua_State *L) {
 int error_code = 0;
 int result = 0;
 CallInfo *ci = L->ci;
@@ -1552,7 +1564,7 @@ goto L2;
 L1:
  return result;
 Lraise_error:
- raise_error(L, error_code); /* does not return */
+ raviV_raise_error(L, error_code); /* does not return */
  return result;
 L2:
 { i_1 = i_1 + i_3; }
@@ -1680,6 +1692,147 @@ goto L6;
 L9:
 goto L2;
 }
+EXPORT LClosure *__luachunk_0(lua_State *L) {
+ LClosure *cl = luaF_newLclosure(L, 1);
+ setclLvalue(L, L->top, cl);
+ luaD_inctop(L);
+ cl->p = luaF_newproto(L);
+ Proto *f = cl->p;
+ f->ravi_jit.jit_function = __ravifunc_1;
+ f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+ f->numparams = 0;
+ f->is_vararg = 0;
+ f->maxstacksize = 5;
+ f->k = luaM_newvector(L, 3, TValue);
+ f->sizek = 3;
+ for (int i = 0; i < 3; i++)
+  setnilvalue(&f->k[i]);
+ {
+  TValue *o = &f->k[1];
+  setsvalue2n(L, o, luaS_newlstr(L, "mul", 3));
+ }
+ {
+  TValue *o = &f->k[2];
+  setsvalue2n(L, o, luaS_newlstr(L, "gen", 3));
+ }
+ {
+  TValue *o = &f->k[0];
+  setsvalue2n(L, o, luaS_newlstr(L, "T", 1));
+ }
+ f->upvalues = luaM_newvector(L, 1, Upvaldesc);
+ f->sizeupvalues = 1;
+ f->upvalues[0].instack = 0;
+ f->upvalues[0].idx = 0;
+ f->upvalues[0].name = NULL;
+ f->upvalues[0].usertype = NULL;
+ f->upvalues[0].ravi_type = 6;
+ f->p = luaM_newvector(L, 3, Proto *);
+ f->sizep = 3;
+ for (int i = 0; i < 3; i++)
+   f->p[i] = NULL;
+ f->p[0] = luaF_newproto(L);
+{ 
+ Proto *parent = f; f = f->p[0];
+ f->ravi_jit.jit_function = __ravifunc_2;
+ f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+ f->numparams = 1;
+ f->is_vararg = 0;
+ f->maxstacksize = 8;
+ f->k = luaM_newvector(L, 2, TValue);
+ f->sizek = 2;
+ for (int i = 0; i < 2; i++)
+  setnilvalue(&f->k[i]);
+ {
+  TValue *o = &f->k[1];
+  setsvalue2n(L, o, luaS_newlstr(L, "numarray", 8));
+ }
+ {
+  TValue *o = &f->k[0];
+  setsvalue2n(L, o, luaS_newlstr(L, "table", 5));
+ }
+ f->upvalues = luaM_newvector(L, 1, Upvaldesc);
+ f->sizeupvalues = 1;
+ f->upvalues[0].instack = 0;
+ f->upvalues[0].idx = 0;
+ f->upvalues[0].name = NULL;
+ f->upvalues[0].usertype = NULL;
+ f->upvalues[0].ravi_type = 6;
+ f = parent;
+}
+ f->p[1] = luaF_newproto(L);
+{ 
+ Proto *parent = f; f = f->p[1];
+ f->ravi_jit.jit_function = __ravifunc_3;
+ f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+ f->numparams = 2;
+ f->is_vararg = 0;
+ f->maxstacksize = 16;
+ f->k = luaM_newvector(L, 4, TValue);
+ f->sizek = 4;
+ for (int i = 0; i < 4; i++)
+  setnilvalue(&f->k[i]);
+ {
+  TValue *o = &f->k[0];
+  setsvalue2n(L, o, luaS_newlstr(L, "assert", 6));
+ }
+ {
+  TValue *o = &f->k[3];
+  setsvalue2n(L, o, luaS_newlstr(L, "numarray", 8));
+ }
+ {
+  TValue *o = &f->k[1];
+  setsvalue2n(L, o, luaS_newlstr(L, "T", 1));
+ }
+ {
+  TValue *o = &f->k[2];
+  setsvalue2n(L, o, luaS_newlstr(L, "table", 5));
+ }
+ f->upvalues = luaM_newvector(L, 2, Upvaldesc);
+ f->sizeupvalues = 2;
+ f->upvalues[0].instack = 0;
+ f->upvalues[0].idx = 0;
+ f->upvalues[0].name = NULL;
+ f->upvalues[0].usertype = NULL;
+ f->upvalues[0].ravi_type = 6;
+ f->upvalues[1].instack = 1;
+ f->upvalues[1].idx = 0;
+ f->upvalues[1].name = NULL;
+ f->upvalues[1].usertype = NULL;
+ f->upvalues[1].ravi_type = 0;
+ f = parent;
+}
+ f->p[2] = luaF_newproto(L);
+{ 
+ Proto *parent = f; f = f->p[2];
+ f->ravi_jit.jit_function = __ravifunc_4;
+ f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+ f->numparams = 1;
+ f->is_vararg = 0;
+ f->maxstacksize = 6;
+ f->k = luaM_newvector(L, 2, TValue);
+ f->sizek = 2;
+ for (int i = 0; i < 2; i++)
+  setnilvalue(&f->k[i]);
+ {
+  TValue *o = &f->k[0];
+  setsvalue2n(L, o, luaS_newlstr(L, "table", 5));
+ }
+ {
+  TValue *o = &f->k[1];
+  setsvalue2n(L, o, luaS_newlstr(L, "numarray", 8));
+ }
+ f->upvalues = luaM_newvector(L, 1, Upvaldesc);
+ f->sizeupvalues = 1;
+ f->upvalues[0].instack = 0;
+ f->upvalues[0].idx = 0;
+ f->upvalues[0].name = NULL;
+ f->upvalues[0].usertype = NULL;
+ f->upvalues[0].ravi_type = 6;
+ f = parent;
+}
+ return cl;
+}
 
-time taken 	0.98
+time taken 	2.395
 -95.5835833333
+Ok

@@ -2,68 +2,69 @@ define Proc%1
 L0 (entry)
 	LOADGLOBAL {Upval(_ENV), 'table' Ks(0)} {T(0)}
 	GETsk {T(0), 'intarray' Ks(1)} {T(1)}
-	CALL {T(1), 8190 Kint(2)} {T(1..), 1 Kint(3)}
+	CALL {T(1), 8190 Kint(0)} {T(1..), 1 Kint(1)}
 	TOIARRAY {T(1[1..])}
 	MOV {T(1[1..])} {local(flags, 0)}
-	MOVi {0 Kint(4)} {Tint(4)}
+	MOVi {0 Kint(2)} {Tint(4)}
 	BR {L2}
 L1 (exit)
 L2
-	LEii {Tint(4), 100000 Kint(5)} {Tbool(5)}
+	LEii {Tint(4), 100000 Kint(3)} {Tbool(5)}
 	CBR {Tbool(5)} {L3, L4}
 L3
-	MOVi {0 Kint(4)} {Tint(3)}
-	MOVi {0 Kint(4)} {Tint(0)}
+	MOVi {0 Kint(2)} {Tint(3)}
+	MOVi {0 Kint(2)} {Tint(0)}
 	BR {L5}
 L4
 	RET {Tint(3)} {L1}
 L5
-	LEii {Tint(0), 8190 Kint(2)} {Tbool(5)}
+	LEii {Tint(0), 8190 Kint(0)} {Tbool(5)}
 	CBR {Tbool(5)} {L6, L7}
 L6
-	IAPUTiv {1 Kint(3)} {local(flags, 0), Tint(0)}
-	ADDii {Tint(0), 1 Kint(3)} {Tint(5)}
+	IAPUTiv {1 Kint(1)} {local(flags, 0), Tint(0)}
+	ADDii {Tint(0), 1 Kint(1)} {Tint(5)}
 	MOVi {Tint(5)} {Tint(0)}
 	BR {L5}
 L7
-	MOVi {0 Kint(4)} {Tint(0)}
+	MOVi {0 Kint(2)} {Tint(0)}
 	BR {L8}
 L8
-	LEii {Tint(0), 8190 Kint(2)} {Tbool(5)}
+	LEii {Tint(0), 8190 Kint(0)} {Tbool(5)}
 	CBR {Tbool(5)} {L9, L10}
 L9
 	BR {L11}
 L10
-	ADDii {Tint(4), 1 Kint(3)} {Tint(7)}
+	ADDii {Tint(4), 1 Kint(1)} {Tint(7)}
 	MOVi {Tint(7)} {Tint(4)}
 	BR {L2}
 L11
 	IAGETik {local(flags, 0), Tint(0)} {Tint(5)}
-	EQii {Tint(5), 1 Kint(3)} {Tbool(6)}
+	EQii {Tint(5), 1 Kint(1)} {Tbool(6)}
 	CBR {Tbool(6)} {L12, L13}
 L12
 	ADDii {Tint(0), Tint(0)} {Tint(5)}
-	ADDii {Tint(5), 3 Kint(6)} {Tint(7)}
+	ADDii {Tint(5), 3 Kint(4)} {Tint(7)}
 	MOVi {Tint(7)} {Tint(2)}
 	ADDii {Tint(0), Tint(2)} {Tint(7)}
 	MOVi {Tint(7)} {Tint(1)}
 	BR {L14}
 L13
-	ADDii {Tint(0), 1 Kint(3)} {Tint(7)}
+	ADDii {Tint(0), 1 Kint(1)} {Tint(7)}
 	MOVi {Tint(7)} {Tint(0)}
 	BR {L8}
 L14
-	LEii {Tint(1), 8190 Kint(2)} {Tbool(7)}
+	LEii {Tint(1), 8190 Kint(0)} {Tbool(7)}
 	CBR {Tbool(7)} {L15, L16}
 L15
-	IAPUTiv {0 Kint(4)} {local(flags, 0), Tint(1)}
+	IAPUTiv {0 Kint(2)} {local(flags, 0), Tint(1)}
 	ADDii {Tint(1), Tint(2)} {Tint(7)}
 	MOVi {Tint(7)} {Tint(1)}
 	BR {L14}
 L16
-	ADDii {Tint(3), 1 Kint(3)} {Tint(7)}
+	ADDii {Tint(3), 1 Kint(1)} {Tint(7)}
 	MOVi {Tint(7)} {Tint(3)}
 	BR {L13}
+#ifdef __MIRC__
 typedef __SIZE_TYPE__ size_t;
 typedef __PTRDIFF_TYPE__ ptrdiff_t;
 typedef __INTPTR_TYPE__ intptr_t;
@@ -75,10 +76,18 @@ typedef __INT16_TYPE__ int16_t;
 typedef __UINT16_TYPE__ uint16_t;
 typedef __INT8_TYPE__ int8_t;
 typedef __UINT8_TYPE__ uint8_t;
+#define NULL ((void *)0)
+#define EXPORT
+#else
+#include <stddef.h>
+#include <stdint.h>
+#ifdef _WIN32
+#define EXPORT __declspec(dllexport)
+#endif
+#endif
 typedef size_t lu_mem;
 typedef unsigned char lu_byte;
 typedef uint16_t LuaType;
-#define NULL ((void *)0)
 typedef struct lua_State lua_State;
 #define LUA_TNONE		(-1)
 #define LUA_TNIL		0
@@ -607,8 +616,8 @@ extern void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);
-extern void raise_error(lua_State *L, int errorcode);
-extern void raise_error_with_info(lua_State *L, int errorcode, const char *info);
+extern void raviV_raise_error(lua_State *L, int errorcode);
+extern void raviV_raise_error_with_info(lua_State *L, int errorcode, const char *info);
 extern void luaD_call (lua_State *L, StkId func, int nResults);
 extern void raviH_set_int(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Integer value);
 extern void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Number value);
@@ -621,6 +630,13 @@ extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue 
 extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);
 extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);
 extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
+extern void *luaM_realloc_ (lua_State *L, void *block, size_t osize, size_t nsize);
+extern LClosure *luaF_newLclosure (lua_State *L, int n);
+extern TString *luaS_newlstr (lua_State *L, const char *str, size_t l);
+extern Proto *luaF_newproto (lua_State *L);
+extern void luaD_inctop (lua_State *L);
+#define luaM_reallocv(L,b,on,n,e) luaM_realloc_(L, (b), (on)*(e), (n)*(e))
+#define luaM_newvector(L,n,t) cast(t *, luaM_reallocv(L, NULL, 0, n, sizeof(t)))
 #define R(i) (base + i)
 #define K(i) (k + i)
 #define S(i) (stackbase + i)
@@ -634,8 +650,7 @@ extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
 #define nan (0./0.)
 #define inf (1./0.)
 #define luai_numunm(L,a)        (-(a))
-extern int __ravifunc_1(lua_State *L);
-int __ravifunc_1(lua_State *L) {
+static int __ravifunc_1(lua_State *L) {
 int error_code = 0;
 int result = 0;
 CallInfo *ci = L->ci;
@@ -702,7 +717,7 @@ goto L2;
 L1:
  return result;
 Lraise_error:
- raise_error(L, error_code); /* does not return */
+ raviV_raise_error(L, error_code); /* does not return */
  return result;
 L2:
 { i_5 = i_4 <= 100000; }
@@ -804,6 +819,39 @@ L16:
 i_3 = i_7;
 goto L13;
 }
+EXPORT LClosure *__luachunk_0(lua_State *L) {
+ LClosure *cl = luaF_newLclosure(L, 1);
+ setclLvalue(L, L->top, cl);
+ luaD_inctop(L);
+ cl->p = luaF_newproto(L);
+ Proto *f = cl->p;
+ f->ravi_jit.jit_function = __ravifunc_1;
+ f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+ f->numparams = 0;
+ f->is_vararg = 0;
+ f->maxstacksize = 3;
+ f->k = luaM_newvector(L, 2, TValue);
+ f->sizek = 2;
+ for (int i = 0; i < 2; i++)
+  setnilvalue(&f->k[i]);
+ {
+  TValue *o = &f->k[0];
+  setsvalue2n(L, o, luaS_newlstr(L, "table", 5));
+ }
+ {
+  TValue *o = &f->k[1];
+  setsvalue2n(L, o, luaS_newlstr(L, "intarray", 8));
+ }
+ f->upvalues = luaM_newvector(L, 1, Upvaldesc);
+ f->sizeupvalues = 1;
+ f->upvalues[0].instack = 0;
+ f->upvalues[0].idx = 0;
+ f->upvalues[0].name = NULL;
+ f->upvalues[0].usertype = NULL;
+ f->upvalues[0].ravi_type = 6;
+ return cl;
+}
 
-time taken 	6.41
+time taken 	8.626
 1899
+Ok

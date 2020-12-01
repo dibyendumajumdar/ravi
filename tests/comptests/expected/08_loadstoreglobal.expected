@@ -6,6 +6,7 @@ L0 (entry)
 	STOREGLOBAL {T(2)} {Upval(_ENV), 'x' Ks(0)}
 	RET {L1}
 L1 (exit)
+#ifdef __MIRC__
 typedef __SIZE_TYPE__ size_t;
 typedef __PTRDIFF_TYPE__ ptrdiff_t;
 typedef __INTPTR_TYPE__ intptr_t;
@@ -17,10 +18,18 @@ typedef __INT16_TYPE__ int16_t;
 typedef __UINT16_TYPE__ uint16_t;
 typedef __INT8_TYPE__ int8_t;
 typedef __UINT8_TYPE__ uint8_t;
+#define NULL ((void *)0)
+#define EXPORT
+#else
+#include <stddef.h>
+#include <stdint.h>
+#ifdef _WIN32
+#define EXPORT __declspec(dllexport)
+#endif
+#endif
 typedef size_t lu_mem;
 typedef unsigned char lu_byte;
 typedef uint16_t LuaType;
-#define NULL ((void *)0)
 typedef struct lua_State lua_State;
 #define LUA_TNONE		(-1)
 #define LUA_TNIL		0
@@ -549,8 +558,8 @@ extern void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);
-extern void raise_error(lua_State *L, int errorcode);
-extern void raise_error_with_info(lua_State *L, int errorcode, const char *info);
+extern void raviV_raise_error(lua_State *L, int errorcode);
+extern void raviV_raise_error_with_info(lua_State *L, int errorcode, const char *info);
 extern void luaD_call (lua_State *L, StkId func, int nResults);
 extern void raviH_set_int(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Integer value);
 extern void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Number value);
@@ -563,6 +572,13 @@ extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue 
 extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);
 extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);
 extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
+extern void *luaM_realloc_ (lua_State *L, void *block, size_t osize, size_t nsize);
+extern LClosure *luaF_newLclosure (lua_State *L, int n);
+extern TString *luaS_newlstr (lua_State *L, const char *str, size_t l);
+extern Proto *luaF_newproto (lua_State *L);
+extern void luaD_inctop (lua_State *L);
+#define luaM_reallocv(L,b,on,n,e) luaM_realloc_(L, (b), (on)*(e), (n)*(e))
+#define luaM_newvector(L,n,t) cast(t *, luaM_reallocv(L, NULL, 0, n, sizeof(t)))
 #define R(i) (base + i)
 #define K(i) (k + i)
 #define S(i) (stackbase + i)
@@ -576,8 +592,7 @@ extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
 #define nan (0./0.)
 #define inf (1./0.)
 #define luai_numunm(L,a)        (-(a))
-extern int __ravifunc_1(lua_State *L);
-int __ravifunc_1(lua_State *L) {
+static int __ravifunc_1(lua_State *L) {
 int error_code = 0;
 int result = 0;
 CallInfo *ci = L->ci;
@@ -594,28 +609,28 @@ TValue nilval; setnilvalue(&nilval);
 L0:
 {
  TValue *tab = cl->upvals[0]->v;
- TValue *name = K(0);
+ TValue *name = K(1);
  TValue *dst = R(2);
  raviV_gettable_sskey(L, tab, name, dst);
  base = ci->u.l.base;
 }
 {
  TValue *tab = cl->upvals[0]->v;
- TValue *name = K(1);
+ TValue *name = K(0);
  TValue *dst = R(3);
  raviV_gettable_sskey(L, tab, name, dst);
  base = ci->u.l.base;
 }
 {
  TValue *tab = cl->upvals[0]->v;
- TValue *name = K(0);
+ TValue *name = K(1);
  TValue *src = R(3);
  raviV_settable_sskey(L, tab, name, src);
  base = ci->u.l.base;
 }
 {
  TValue *tab = cl->upvals[0]->v;
- TValue *name = K(1);
+ TValue *name = K(0);
  TValue *src = R(2);
  raviV_settable_sskey(L, tab, name, src);
  base = ci->u.l.base;
@@ -637,7 +652,40 @@ goto L1;
 L1:
  return result;
 Lraise_error:
- raise_error(L, error_code); /* does not return */
+ raviV_raise_error(L, error_code); /* does not return */
  return result;
 }
+EXPORT LClosure *__luachunk_0(lua_State *L) {
+ LClosure *cl = luaF_newLclosure(L, 1);
+ setclLvalue(L, L->top, cl);
+ luaD_inctop(L);
+ cl->p = luaF_newproto(L);
+ Proto *f = cl->p;
+ f->ravi_jit.jit_function = __ravifunc_1;
+ f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+ f->numparams = 0;
+ f->is_vararg = 0;
+ f->maxstacksize = 4;
+ f->k = luaM_newvector(L, 2, TValue);
+ f->sizek = 2;
+ for (int i = 0; i < 2; i++)
+  setnilvalue(&f->k[i]);
+ {
+  TValue *o = &f->k[0];
+  setsvalue2n(L, o, luaS_newlstr(L, "x", 1));
+ }
+ {
+  TValue *o = &f->k[1];
+  setsvalue2n(L, o, luaS_newlstr(L, "y", 1));
+ }
+ f->upvalues = luaM_newvector(L, 1, Upvaldesc);
+ f->sizeupvalues = 1;
+ f->upvalues[0].instack = 0;
+ f->upvalues[0].idx = 0;
+ f->upvalues[0].name = NULL;
+ f->upvalues[0].usertype = NULL;
+ f->upvalues[0].ravi_type = 6;
+ return cl;
+}
 
+Ok

@@ -22,20 +22,21 @@ L5
 	EQ {local(what, 1), 'div' Ks(3)} {T(3)}
 	CBR {T(3)} {L9, L10}
 L6
-	ADDfi {local(a, 0), 5 Kint(4)} {Tflt(0)}
+	ADDfi {local(a, 0), 5 Kint(0)} {Tflt(0)}
 	RET {Tflt(0)} {L1}
 L7
-	SUBfi {local(a, 0), 5 Kint(4)} {Tflt(1)}
+	SUBfi {local(a, 0), 5 Kint(0)} {Tflt(1)}
 	RET {Tflt(1)} {L1}
 L8
-	MULfi {local(a, 0), 5 Kint(4)} {Tflt(2)}
+	MULfi {local(a, 0), 5 Kint(0)} {Tflt(2)}
 	RET {Tflt(2)} {L1}
 L9
-	DIVfi {local(a, 0), 5 Kint(4)} {Tflt(3)}
+	DIVfi {local(a, 0), 5 Kint(0)} {Tflt(3)}
 	RET {Tflt(3)} {L1}
 L10
-	RET {0 Kint(5)} {L1}
+	RET {0 Kint(1)} {L1}
 L11
+#ifdef __MIRC__
 typedef __SIZE_TYPE__ size_t;
 typedef __PTRDIFF_TYPE__ ptrdiff_t;
 typedef __INTPTR_TYPE__ intptr_t;
@@ -47,10 +48,18 @@ typedef __INT16_TYPE__ int16_t;
 typedef __UINT16_TYPE__ uint16_t;
 typedef __INT8_TYPE__ int8_t;
 typedef __UINT8_TYPE__ uint8_t;
+#define NULL ((void *)0)
+#define EXPORT
+#else
+#include <stddef.h>
+#include <stdint.h>
+#ifdef _WIN32
+#define EXPORT __declspec(dllexport)
+#endif
+#endif
 typedef size_t lu_mem;
 typedef unsigned char lu_byte;
 typedef uint16_t LuaType;
-#define NULL ((void *)0)
 typedef struct lua_State lua_State;
 #define LUA_TNONE		(-1)
 #define LUA_TNIL		0
@@ -579,8 +588,8 @@ extern void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);
-extern void raise_error(lua_State *L, int errorcode);
-extern void raise_error_with_info(lua_State *L, int errorcode, const char *info);
+extern void raviV_raise_error(lua_State *L, int errorcode);
+extern void raviV_raise_error_with_info(lua_State *L, int errorcode, const char *info);
 extern void luaD_call (lua_State *L, StkId func, int nResults);
 extern void raviH_set_int(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Integer value);
 extern void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Number value);
@@ -593,6 +602,13 @@ extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue 
 extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);
 extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);
 extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
+extern void *luaM_realloc_ (lua_State *L, void *block, size_t osize, size_t nsize);
+extern LClosure *luaF_newLclosure (lua_State *L, int n);
+extern TString *luaS_newlstr (lua_State *L, const char *str, size_t l);
+extern Proto *luaF_newproto (lua_State *L);
+extern void luaD_inctop (lua_State *L);
+#define luaM_reallocv(L,b,on,n,e) luaM_realloc_(L, (b), (on)*(e), (n)*(e))
+#define luaM_newvector(L,n,t) cast(t *, luaM_reallocv(L, NULL, 0, n, sizeof(t)))
 #define R(i) (base + i)
 #define K(i) (k + i)
 #define S(i) (stackbase + i)
@@ -606,8 +622,7 @@ extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
 #define nan (0./0.)
 #define inf (1./0.)
 #define luai_numunm(L,a)        (-(a))
-extern int __ravifunc_1(lua_State *L);
-int __ravifunc_1(lua_State *L) {
+static int __ravifunc_1(lua_State *L) {
 int error_code = 0;
 int result = 0;
 CallInfo *ci = L->ci;
@@ -649,11 +664,10 @@ goto L1;
 L1:
  return result;
 Lraise_error:
- raise_error(L, error_code); /* does not return */
+ raviV_raise_error(L, error_code); /* does not return */
  return result;
 }
-extern int __ravifunc_2(lua_State *L);
-int __ravifunc_2(lua_State *L) {
+static int __ravifunc_2(lua_State *L) {
 int error_code = 0;
 int result = 0;
 CallInfo *ci = L->ci;
@@ -682,7 +696,7 @@ goto L2;
 L1:
  return result;
 Lraise_error:
- raise_error(L, error_code); /* does not return */
+ raviV_raise_error(L, error_code); /* does not return */
  return result;
 L2:
 {
@@ -871,6 +885,70 @@ setivalue(dst_reg, 0);
 }
 goto L1;
 }
+EXPORT LClosure *__luachunk_0(lua_State *L) {
+ LClosure *cl = luaF_newLclosure(L, 1);
+ setclLvalue(L, L->top, cl);
+ luaD_inctop(L);
+ cl->p = luaF_newproto(L);
+ Proto *f = cl->p;
+ f->ravi_jit.jit_function = __ravifunc_1;
+ f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+ f->numparams = 0;
+ f->is_vararg = 0;
+ f->maxstacksize = 2;
+ f->k = luaM_newvector(L, 1, TValue);
+ f->sizek = 1;
+ for (int i = 0; i < 1; i++)
+  setnilvalue(&f->k[i]);
+ {
+  TValue *o = &f->k[0];
+  setsvalue2n(L, o, luaS_newlstr(L, "doit", 4));
+ }
+ f->upvalues = luaM_newvector(L, 1, Upvaldesc);
+ f->sizeupvalues = 1;
+ f->upvalues[0].instack = 0;
+ f->upvalues[0].idx = 0;
+ f->upvalues[0].name = NULL;
+ f->upvalues[0].usertype = NULL;
+ f->upvalues[0].ravi_type = 6;
+ f->p = luaM_newvector(L, 1, Proto *);
+ f->sizep = 1;
+ for (int i = 0; i < 1; i++)
+   f->p[i] = NULL;
+ f->p[0] = luaF_newproto(L);
+{ 
+ Proto *parent = f; f = f->p[0];
+ f->ravi_jit.jit_function = __ravifunc_2;
+ f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+ f->numparams = 2;
+ f->is_vararg = 0;
+ f->maxstacksize = 6;
+ f->k = luaM_newvector(L, 4, TValue);
+ f->sizek = 4;
+ for (int i = 0; i < 4; i++)
+  setnilvalue(&f->k[i]);
+ {
+  TValue *o = &f->k[1];
+  setsvalue2n(L, o, luaS_newlstr(L, "sub", 3));
+ }
+ {
+  TValue *o = &f->k[0];
+  setsvalue2n(L, o, luaS_newlstr(L, "add", 3));
+ }
+ {
+  TValue *o = &f->k[3];
+  setsvalue2n(L, o, luaS_newlstr(L, "div", 3));
+ }
+ {
+  TValue *o = &f->k[2];
+  setsvalue2n(L, o, luaS_newlstr(L, "mul", 3));
+ }
+ f->upvalues = luaM_newvector(L, 0, Upvaldesc);
+ f->sizeupvalues = 0;
+ f = parent;
+}
+ return cl;
+}
 
 define Proc%1
 L0 (entry)
@@ -896,20 +974,21 @@ L5
 	EQ {local(what, 1), 'div' Ks(3)} {T(3)}
 	CBR {T(3)} {L9, L10}
 L6
-	ADDfi {local(a, 0), 5 Kint(4)} {Tflt(0)}
+	ADDfi {local(a, 0), 5 Kint(0)} {Tflt(0)}
 	RET {Tflt(0)} {L1}
 L7
-	SUBif {5 Kint(4), local(a, 0)} {Tflt(1)}
+	SUBif {5 Kint(0), local(a, 0)} {Tflt(1)}
 	RET {Tflt(1)} {L1}
 L8
-	MULfi {local(a, 0), 5 Kint(4)} {Tflt(2)}
+	MULfi {local(a, 0), 5 Kint(0)} {Tflt(2)}
 	RET {Tflt(2)} {L1}
 L9
-	DIVif {5 Kint(4), local(a, 0)} {Tflt(3)}
+	DIVif {5 Kint(0), local(a, 0)} {Tflt(3)}
 	RET {Tflt(3)} {L1}
 L10
-	RET {0 Kint(5)} {L1}
+	RET {0 Kint(1)} {L1}
 L11
+#ifdef __MIRC__
 typedef __SIZE_TYPE__ size_t;
 typedef __PTRDIFF_TYPE__ ptrdiff_t;
 typedef __INTPTR_TYPE__ intptr_t;
@@ -921,10 +1000,18 @@ typedef __INT16_TYPE__ int16_t;
 typedef __UINT16_TYPE__ uint16_t;
 typedef __INT8_TYPE__ int8_t;
 typedef __UINT8_TYPE__ uint8_t;
+#define NULL ((void *)0)
+#define EXPORT
+#else
+#include <stddef.h>
+#include <stdint.h>
+#ifdef _WIN32
+#define EXPORT __declspec(dllexport)
+#endif
+#endif
 typedef size_t lu_mem;
 typedef unsigned char lu_byte;
 typedef uint16_t LuaType;
-#define NULL ((void *)0)
 typedef struct lua_State lua_State;
 #define LUA_TNONE		(-1)
 #define LUA_TNIL		0
@@ -1453,8 +1540,8 @@ extern void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalai(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalaf(lua_State *L, LClosure *cl, TValue *ra, int b);
 extern void raviV_op_setupvalt(lua_State *L, LClosure *cl, TValue *ra, int b);
-extern void raise_error(lua_State *L, int errorcode);
-extern void raise_error_with_info(lua_State *L, int errorcode, const char *info);
+extern void raviV_raise_error(lua_State *L, int errorcode);
+extern void raviV_raise_error_with_info(lua_State *L, int errorcode, const char *info);
 extern void luaD_call (lua_State *L, StkId func, int nResults);
 extern void raviH_set_int(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Integer value);
 extern void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned key, lua_Number value);
@@ -1467,6 +1554,13 @@ extern void raviV_settable_i(lua_State *L, const TValue *t, TValue *key, TValue 
 extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);
 extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);
 extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
+extern void *luaM_realloc_ (lua_State *L, void *block, size_t osize, size_t nsize);
+extern LClosure *luaF_newLclosure (lua_State *L, int n);
+extern TString *luaS_newlstr (lua_State *L, const char *str, size_t l);
+extern Proto *luaF_newproto (lua_State *L);
+extern void luaD_inctop (lua_State *L);
+#define luaM_reallocv(L,b,on,n,e) luaM_realloc_(L, (b), (on)*(e), (n)*(e))
+#define luaM_newvector(L,n,t) cast(t *, luaM_reallocv(L, NULL, 0, n, sizeof(t)))
 #define R(i) (base + i)
 #define K(i) (k + i)
 #define S(i) (stackbase + i)
@@ -1480,8 +1574,7 @@ extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);
 #define nan (0./0.)
 #define inf (1./0.)
 #define luai_numunm(L,a)        (-(a))
-extern int __ravifunc_1(lua_State *L);
-int __ravifunc_1(lua_State *L) {
+static int __ravifunc_1(lua_State *L) {
 int error_code = 0;
 int result = 0;
 CallInfo *ci = L->ci;
@@ -1523,11 +1616,10 @@ goto L1;
 L1:
  return result;
 Lraise_error:
- raise_error(L, error_code); /* does not return */
+ raviV_raise_error(L, error_code); /* does not return */
  return result;
 }
-extern int __ravifunc_2(lua_State *L);
-int __ravifunc_2(lua_State *L) {
+static int __ravifunc_2(lua_State *L) {
 int error_code = 0;
 int result = 0;
 CallInfo *ci = L->ci;
@@ -1556,7 +1648,7 @@ goto L2;
 L1:
  return result;
 Lraise_error:
- raise_error(L, error_code); /* does not return */
+ raviV_raise_error(L, error_code); /* does not return */
  return result;
 L2:
 {
@@ -1745,4 +1837,69 @@ setivalue(dst_reg, 0);
 }
 goto L1;
 }
+EXPORT LClosure *__luachunk_1(lua_State *L) {
+ LClosure *cl = luaF_newLclosure(L, 1);
+ setclLvalue(L, L->top, cl);
+ luaD_inctop(L);
+ cl->p = luaF_newproto(L);
+ Proto *f = cl->p;
+ f->ravi_jit.jit_function = __ravifunc_1;
+ f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+ f->numparams = 0;
+ f->is_vararg = 0;
+ f->maxstacksize = 2;
+ f->k = luaM_newvector(L, 1, TValue);
+ f->sizek = 1;
+ for (int i = 0; i < 1; i++)
+  setnilvalue(&f->k[i]);
+ {
+  TValue *o = &f->k[0];
+  setsvalue2n(L, o, luaS_newlstr(L, "doit", 4));
+ }
+ f->upvalues = luaM_newvector(L, 1, Upvaldesc);
+ f->sizeupvalues = 1;
+ f->upvalues[0].instack = 0;
+ f->upvalues[0].idx = 0;
+ f->upvalues[0].name = NULL;
+ f->upvalues[0].usertype = NULL;
+ f->upvalues[0].ravi_type = 6;
+ f->p = luaM_newvector(L, 1, Proto *);
+ f->sizep = 1;
+ for (int i = 0; i < 1; i++)
+   f->p[i] = NULL;
+ f->p[0] = luaF_newproto(L);
+{ 
+ Proto *parent = f; f = f->p[0];
+ f->ravi_jit.jit_function = __ravifunc_2;
+ f->ravi_jit.jit_status = RAVI_JIT_COMPILED;
+ f->numparams = 2;
+ f->is_vararg = 0;
+ f->maxstacksize = 6;
+ f->k = luaM_newvector(L, 4, TValue);
+ f->sizek = 4;
+ for (int i = 0; i < 4; i++)
+  setnilvalue(&f->k[i]);
+ {
+  TValue *o = &f->k[1];
+  setsvalue2n(L, o, luaS_newlstr(L, "sub", 3));
+ }
+ {
+  TValue *o = &f->k[0];
+  setsvalue2n(L, o, luaS_newlstr(L, "add", 3));
+ }
+ {
+  TValue *o = &f->k[3];
+  setsvalue2n(L, o, luaS_newlstr(L, "div", 3));
+ }
+ {
+  TValue *o = &f->k[2];
+  setsvalue2n(L, o, luaS_newlstr(L, "mul", 3));
+ }
+ f->upvalues = luaM_newvector(L, 0, Upvaldesc);
+ f->sizeupvalues = 0;
+ f = parent;
+}
+ return cl;
+}
 
+Ok
