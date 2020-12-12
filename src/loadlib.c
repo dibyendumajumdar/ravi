@@ -430,7 +430,7 @@ static int ravi_lookforfunc (lua_State *L, const char *path, const char *sym) {
   }
   else {
     LClosure* (*load_in_lua)(lua_State * L);
-    load_in_lua = lsys_sym(L, reg, sym);
+    load_in_lua = (void*) lsys_sym(L, reg, sym);
     if (load_in_lua == NULL)
       return ERRFUNC;  /* unable to find function */
     LClosure* cl = load_in_lua(L);
@@ -758,7 +758,7 @@ static int ll_seeall (lua_State *L) {
 
 static const luaL_Reg pk_funcs[] = {
   {"loadlib", ll_loadlib},
-  { "load_ravi_lib", ravi_loadlib },
+  {"load_ravi_lib", ravi_loadlib},
   {"searchpath", ll_searchpath},
 #if defined(LUA_COMPAT_MODULE)
   {"seeall", ll_seeall},

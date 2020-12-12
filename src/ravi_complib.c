@@ -44,7 +44,11 @@ static void setup_lua_closure(lua_State* L, LClosure* (*load_in_lua)(lua_State*)
 }
 
 static int load_and_compile(lua_State* L) {
-  const char* s = luaL_checkstring(L, 1);
+  const char *s = luaL_checkstring(L, 1);
+  const char *options = "";
+  if (lua_isstring(L, 2)) {
+    options = luaL_checkstring(L, 2);
+  }
   struct CompilerContext ccontext = {.L = L, .jit = G(L)->ravi_state};
 
   struct Ravi_CompilerInterface ravicomp_interface = {.source = s,
@@ -56,6 +60,7 @@ static int load_and_compile(lua_State* L) {
                                                       .error_message = error_message};
   snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "__luachunk_%lld",
            ccontext.jit->id++);
+  ravicomp_interface.compiler_options = options;
   int rc = raviX_compile(&ravicomp_interface);
   if (ravicomp_interface.generated_code) {
     fprintf(stdout, "%s\n", ravicomp_interface.generated_code);
