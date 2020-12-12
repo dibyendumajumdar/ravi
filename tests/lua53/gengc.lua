@@ -37,6 +37,22 @@ do
 end
 
 
+do
+  -- ensure that 'firstold1' is corrected when object is removed from
+  -- the 'allgc' list
+  local function foo () end
+  local old = {10}
+  collectgarbage()    -- make 'old' old
+  assert(not T or T.gcage(old) == "old")
+  setmetatable(old, {})    -- new table becomes OLD0 (barrier)
+  assert(not T or T.gcage(getmetatable(old)) == "old0")
+  collectgarbage("step", 0)   -- new table becomes OLD1 and firstold1
+  assert(not T or T.gcage(getmetatable(old)) == "old1")
+  setmetatable(getmetatable(old), {__gc = foo})  -- get it out of allgc list
+  collectgarbage("step", 0)   -- should not seg. fault
+end
+
+
 do   -- bug in 5.4.0
 -- When an object aged OLD1 is finalized, it is moved from the list
 -- 'finobj' to the *beginning* of the list 'allgc', but that part of the
@@ -57,10 +73,53 @@ do   -- bug in 5.4.0
   local obj = {}     -- create a new object
   collectgarbage("step", 0)   -- make it a survival
   assert(not T or T.gcage(obj) == "survival")
-  setmetatable(obj, {__gc = gcf, x = "ok"})   -- create its metatable
+  setmetatable(obj, {__gc = gcf, x = "+"})   -- create its metatable
   assert(not T or T.gcage(getmetatable(obj)) == "new")
   obj = nil   -- clear object
   collectgarbage("step", 0)   -- will call obj's finalizer
+end
+
+
+do   -- another bug in 5.4.0
+  local old = {10}
+  collectgarbage()   -- make 'old' old
+  local co = coroutine.create(
+    function ()
+      local x = nil
+      local f = function ()
+                  return x[1]
+                end
+      x = coroutine.yield(f)
+      coroutine.yield()
+    end
+  )
+  local _, f = coroutine.resume(co)   -- create closure over 'x' in coroutine
+  collectgarbage("step", 0)   -- make upvalue a survival
+  old[1] = {"hello"}    -- 'old' go to grayagain as 'touched1'
+  coroutine.resume(co, {123})     -- its value will be new
+  co = nil
+  collectgarbage("step", 0)   -- hit the barrier
+  assert(f() == 123 and old[1][1] == "hello")
+  collectgarbage("step", 0)   -- run the collector once more
+  -- make sure old[1] was not collected
+  assert(f() == 123 and old[1][1] == "hello")
+end
+
+
+do   -- bug introduced in commit 9cf3299fa
+  local t = setmetatable({}, {__mode = "kv"})   -- all-weak table
+  collectgarbage()   -- full collection
+  assert(not T or T.gcage(t) == "old")
+  t[1] = {10}
+  assert(not T or (T.gcage(t) == "touched1" and T.gccolor(t) == "gray"))
+  collectgarbage("step", 0)   -- minor collection
+  assert(not T or (T.gcage(t) == "touched2" and T.gccolor(t) == "black"))
+  collectgarbage("step", 0)   -- minor collection
+  assert(not T or T.gcage(t) == "old")   -- t should be black, but it was gray
+  t[1] = {10}      -- no barrier here, so t was still old
+  collectgarbage("step", 0)   -- minor collection
+  -- t, being old, is ignored by the collection, so it is not cleared
+  assert(t[1] == nil)   -- fails with the bug
 end
 
 

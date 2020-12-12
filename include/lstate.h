@@ -15,7 +15,6 @@
 #include "lopcodes.h"
 
 /*
-
 ** Some notes about garbage-collected objects: All objects in Lua must
 ** be kept somehow accessible until being freed, so all objects always
 ** belong to one (and only one) of these lists, using field 'next' of
@@ -33,13 +32,29 @@
 **
 ** 'allgc' -> 'survival': new objects;
 ** 'survival' -> 'old': objects that survived one collection;
-** 'old' -> 'reallyold': objects that became old in last collection;
+** 'old1' -> 'reallyold': objects that became old in last collection;
 ** 'reallyold' -> NULL: objects old for more than one cycle.
 **
 ** 'finobj' -> 'finobjsur': new objects marked for finalization;
-** 'finobjsur' -> 'finobjold': survived   """";
-** 'finobjold' -> 'finobjrold': just old  """";
+** 'finobjsur' -> 'finobjold1': survived   """";
+** 'finobjold1' -> 'finobjrold': just old  """";
 ** 'finobjrold' -> NULL: really old       """".
+**
+** All lists can contain elements older than their main ages, due
+** to 'luaC_checkfinalizer' and 'udata2finalize', which move
+** objects between the normal lists and the "marked for finalization"
+** lists. Moreover, barriers can age young objects in young lists as
+** OLD0, which then become OLD1. However, a list never contains
+** elements younger than their main ages.
+**
+** The generational collector also uses a pointer 'firstold1', which
+** points to the first OLD1 object in the list. It is used to optimize
+** 'markold'. (Potentially OLD1 objects can be anywhere between 'allgc'
+** and 'reallyold', but often the list has no OLD1 objects or they are
+** after 'old1'.) Note the difference between it and 'old1':
+** 'firstold1': no OLD1 objects before this point; there can be all
+**   ages after it.
+** 'old1': no objects younger than OLD1 after this point.
 */
 
 /*
@@ -48,7 +63,7 @@
 ** can become gray have such a field. The field is not the same
 ** in all objects, but it always has this name.)  Any gray object
 ** must belong to one of these lists, and all objects in these lists
-** must be gray:
+** must be gray (with two exceptions explained below):
 **
 ** 'gray': regular gray objects, still waiting to be visited.
 ** 'grayagain': objects that must be revisited at the atomic phase.
@@ -59,9 +74,17 @@
 ** 'weak': tables with weak values to be cleared;
 ** 'ephemeron': ephemeron tables with white->white entries;
 ** 'allweak': tables with weak keys and/or weak values to be cleared.
-
-
+**
+** The exceptions to that "gray rule" are:
+** - TOUCHED2 objects in generational mode stay in a gray list (because
+** they must be visited again at the end of the cycle), but they are
+** marked black because assignments to them must activate barriers (to
+** move them back to TOUCHED1).
+** - Open upvales are kept gray to avoid barriers, but they stay out
+** of gray lists. (They don't even have a 'gclist' field.)
 */
+
+
 
 
 struct lua_longjmp;  /* defined in ldo.c */
@@ -82,6 +105,8 @@ struct lua_longjmp;  /* defined in ldo.c */
 
 
 #define BASIC_STACK_SIZE        (2*LUA_MINSTACK)
+
+#define stacksize(th)	cast_int((th)->stack_last - (th)->stack)
 
 
 /* kinds of Garbage Collection */
@@ -189,10 +214,11 @@ typedef struct global_State {
   GCObject *fixedgc;  /* list of objects not to be collected */
   /* fields for generational collector */
   GCObject *survival;  /* start of objects that survived one GC cycle */
-  GCObject *old;  /* start of old objects */
-  GCObject *reallyold;  /* old objects with more than one cycle */
+  GCObject *old1;  /* start of old1 objects */
+  GCObject *reallyold;  /* objects more than one cycle old ("really old") */
+  GCObject *firstold1;  /* first OLD1 object in the list (if any) */
   GCObject *finobjsur;  /* list of survival objects with finalizers */
-  GCObject *finobjold;  /* list of old objects with finalizers */
+  GCObject *finobjold1;  /* list of old1 objects with finalizers */
   GCObject *finobjrold;  /* list of really old objects with finalizers */
   struct lua_State *twups;  /* list of threads with open upvalues */
   lua_CFunction panic;  /* to be called in unprotected errors */
