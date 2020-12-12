@@ -103,7 +103,7 @@ typedef pthread_cond_t mir_cond_t;
 
    There are additional constraints on insn operands:
 
-   o A register in porgram can contain only one type values: integer,
+   o A register in program can contain only one type values: integer,
      float, double, or long double.
    o Operand types should be what the insn expects */
 typedef enum {
