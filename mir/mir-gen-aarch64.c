@@ -261,7 +261,7 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
       type = arg_vars[i - start].type;
     } else if (call_insn->ops[i].mode == MIR_OP_MEM) {
       type = call_insn->ops[i].u.mem.type;
-      gen_assert (type == MIR_T_BLK || type == MIR_T_RBLK);
+      gen_assert (MIR_all_blk_type_p (type));
     } else {
       mode = call_insn->ops[i].value_mode;  // ??? smaller ints
       gen_assert (mode == MIR_OP_INT || mode == MIR_OP_UINT || mode == MIR_OP_FLOAT
@@ -271,9 +271,9 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
                                      "passing float variadic arg (should be passed as double)");
       type = mode == MIR_OP_DOUBLE ? MIR_T_D : mode == MIR_OP_LDOUBLE ? MIR_T_LD : MIR_T_I64;
     }
-    gen_assert (!MIR_blk_type_p (type) || call_insn->ops[i].mode == MIR_OP_MEM);
+    gen_assert (!MIR_all_blk_type_p (type) || call_insn->ops[i].mode == MIR_OP_MEM);
     if (type == MIR_T_RBLK && i == start) continue; /* hidden arg */
-    if (type == MIR_T_BLK && (qwords = (call_insn->ops[i].u.mem.disp + 7) / 8) <= 2) {
+    if (MIR_blk_type_p (type) && (qwords = (call_insn->ops[i].u.mem.disp + 7) / 8) <= 2) {
       if (int_arg_num + qwords > 8) blk_offset += qwords * 8;
       int_arg_num += qwords;
     } else if (get_arg_reg (type, &int_arg_num, &fp_arg_num, &new_insn_code) == MIR_NON_HARD_REG) {
@@ -286,12 +286,12 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
   for (size_t i = start; i < nops; i++) {
     arg_op = call_insn->ops[i];
     gen_assert (arg_op.mode == MIR_OP_REG || arg_op.mode == MIR_OP_HARD_REG
-                || (arg_op.mode == MIR_OP_MEM && MIR_blk_type_p (arg_op.u.mem.type)));
+                || (arg_op.mode == MIR_OP_MEM && MIR_all_blk_type_p (arg_op.u.mem.type)));
     if (i - start < nargs) {
       type = arg_vars[i - start].type;
     } else if (call_insn->ops[i].mode == MIR_OP_MEM) {
       type = call_insn->ops[i].u.mem.type;
-      gen_assert (type == MIR_T_BLK || type == MIR_T_RBLK);
+      gen_assert (MIR_all_blk_type_p (type));
     } else {
       mode = call_insn->ops[i].value_mode;  // ??? smaller ints
       type = mode == MIR_OP_DOUBLE ? MIR_T_D : mode == MIR_OP_LDOUBLE ? MIR_T_LD : MIR_T_I64;
@@ -303,14 +303,14 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
       call_insn->ops[i] = arg_op = temp_op;
     }
     gen_assert (
-      !MIR_blk_type_p (type)
+      !MIR_all_blk_type_p (type)
       || (arg_op.mode == MIR_OP_MEM && arg_op.u.mem.disp >= 0 && arg_op.u.mem.index == 0));
     if (type == MIR_T_RBLK && i == start) { /* hidden arg */
       arg_reg_op = _MIR_new_hard_reg_op (ctx, R8_HARD_REG);
       gen_mov (gen_ctx, call_insn, MIR_MOV, arg_reg_op, MIR_new_reg_op (ctx, arg_op.u.mem.base));
       call_insn->ops[i] = arg_reg_op;
       continue;
-    } else if (type == MIR_T_BLK) {
+    } else if (MIR_blk_type_p (type)) {
       qwords = (arg_op.u.mem.disp + 7) / 8;
       if (qwords <= 2) {
         arg_reg = R0_HARD_REG + int_arg_num;
@@ -488,8 +488,8 @@ static const char *LDNEG_P = "mir.ldneg.p";
 
 static const char *VA_ARG_P = "mir.va_arg.p";
 static const char *VA_ARG = "mir.va_arg";
-static const char *VA_STACK_ARG_P = "mir.va_stack_arg.p";
-static const char *VA_STACK_ARG = "mir.va_stack_arg";
+static const char *VA_BLOCK_ARG_P = "mir.va_block_arg.p";
+static const char *VA_BLOCK_ARG = "mir.va_block_arg";
 
 static int64_t mir_ldeq (long double d1, long double d2) { return d1 == d2; }
 static const char *LDEQ = "mir.ldeq";
@@ -636,13 +636,13 @@ static int get_builtin (gen_ctx_t gen_ctx, MIR_insn_code_t code, MIR_item_t *pro
                                       MIR_T_I64, "va", MIR_T_I64, "type");
     *func_import_item = _MIR_builtin_func (ctx, curr_func_item->module, VA_ARG, va_arg_builtin);
     return 2;
-  case MIR_VA_STACK_ARG:
-    res_type = MIR_T_I64;
-    *proto_item = _MIR_builtin_proto (ctx, curr_func_item->module, VA_STACK_ARG_P, 1, &res_type, 2,
-                                      MIR_T_I64, "va", MIR_T_I64, "size");
+  case MIR_VA_BLOCK_ARG:
+    *proto_item
+      = _MIR_builtin_proto (ctx, curr_func_item->module, VA_BLOCK_ARG_P, 0, NULL, 4, MIR_T_I64,
+                            "res", MIR_T_I64, "va", MIR_T_I64, "size", MIR_T_I64, "ncase");
     *func_import_item
-      = _MIR_builtin_func (ctx, curr_func_item->module, VA_STACK_ARG, va_stack_arg_builtin);
-    return 2;
+      = _MIR_builtin_func (ctx, curr_func_item->module, VA_BLOCK_ARG, va_block_arg_builtin);
+    return 4;
   default: return 0;
   }
 }
@@ -670,7 +670,7 @@ DEF_VARR (label_ref_t);
 DEF_VARR (MIR_code_reloc_t);
 
 struct target_ctx {
-  unsigned char alloca_p, stack_arg_func_p, leaf_p;
+  unsigned char alloca_p, block_arg_func_p, leaf_p;
   size_t small_aggregate_save_area;
   VARR (int) * pattern_indexes;
   VARR (insn_pattern_info_t) * insn_pattern_info;
@@ -681,7 +681,7 @@ struct target_ctx {
 };
 
 #define alloca_p gen_ctx->target_ctx->alloca_p
-#define stack_arg_func_p gen_ctx->target_ctx->stack_arg_func_p
+#define block_arg_func_p gen_ctx->target_ctx->block_arg_func_p
 #define leaf_p gen_ctx->target_ctx->leaf_p
 #define small_aggregate_save_area gen_ctx->target_ctx->small_aggregate_save_area
 #define pattern_indexes gen_ctx->target_ctx->pattern_indexes
@@ -694,7 +694,7 @@ struct target_ctx {
 static MIR_disp_t target_get_stack_slot_offset (gen_ctx_t gen_ctx, MIR_type_t type,
                                                 MIR_reg_t slot) {
   /* slot is 0, 1, ... */
-  size_t offset = curr_func_item->u.func->vararg_p || stack_arg_func_p ? 32 : 16;
+  size_t offset = curr_func_item->u.func->vararg_p || block_arg_func_p ? 32 : 16;
 
   return ((MIR_disp_t) slot * 8 + offset);
 }
@@ -712,7 +712,7 @@ static void target_machinize (gen_ctx_t gen_ctx) {
 
   assert (curr_func_item->item_type == MIR_func_item);
   func = curr_func_item->u.func;
-  stack_arg_func_p = FALSE;
+  block_arg_func_p = FALSE;
   anchor = DLIST_HEAD (MIR_insn_t, func->insns);
   small_aggregate_save_area = 0;
   for (i = int_arg_num = fp_arg_num = mem_size = 0; i < func->nargs; i++) {
@@ -724,7 +724,7 @@ static void target_machinize (gen_ctx_t gen_ctx) {
       arg_reg_op = _MIR_new_hard_reg_op (ctx, R8_HARD_REG);
       gen_mov (gen_ctx, anchor, MIR_MOV, MIR_new_reg_op (ctx, i + 1), arg_reg_op);
       continue;
-    } else if (type == MIR_T_BLK && (qwords = (var.size + 7) / 8) <= 2) {
+    } else if (MIR_blk_type_p (type) && (qwords = (var.size + 7) / 8) <= 2) {
       if (int_arg_num + qwords <= 8) {
         small_aggregate_save_area += qwords * 8;
         new_insn = MIR_new_insn (ctx, MIR_SUB, MIR_new_reg_op (ctx, i + 1),
@@ -738,8 +738,8 @@ static void target_machinize (gen_ctx_t gen_ctx) {
           gen_mov (gen_ctx, anchor, MIR_MOV, MIR_new_mem_op (ctx, MIR_T_I64, 8, i + 1, 0, 1),
                    _MIR_new_hard_reg_op (ctx, int_arg_num + 1));
       } else { /* pass on stack w/o address: */
-        if (!stack_arg_func_p) {
-          stack_arg_func_p = TRUE;
+        if (!block_arg_func_p) {
+          block_arg_func_p = TRUE;
           gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_hard_reg_op (ctx, R8_HARD_REG),
                    _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, 16, FP_HARD_REG, MIR_NON_HARD_REG, 1));
         }
@@ -758,8 +758,8 @@ static void target_machinize (gen_ctx_t gen_ctx) {
       gen_mov (gen_ctx, anchor, new_insn_code, MIR_new_reg_op (ctx, i + 1), arg_reg_op);
     } else {
       /* arg is on the stack */
-      if (!stack_arg_func_p) {
-        stack_arg_func_p = TRUE;
+      if (!block_arg_func_p) {
+        block_arg_func_p = TRUE;
         gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_hard_reg_op (ctx, R8_HARD_REG),
                  _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, 16, FP_HARD_REG, MIR_NON_HARD_REG, 1));
       }
@@ -799,29 +799,33 @@ static void target_machinize (gen_ctx_t gen_ctx) {
       insn = new_insn;
     }
     if ((nargs = get_builtin (gen_ctx, code, &proto_item, &func_import_item)) > 0) {
-      if (code == MIR_VA_ARG) { /* do nothing */
-        /* Use a builtin func call:
-           mov func_reg, func ref; mov flag_reg, <type>; call proto, func_reg, res_reg, va_reg,
-           flag_reg */
-        MIR_op_t ops[5], func_reg_op, flag_reg_op;
-        MIR_op_t res_reg_op = insn->ops[0], va_reg_op = insn->ops[1], mem_op = insn->ops[2];
+      if (code == MIR_VA_ARG || code == MIR_VA_BLOCK_ARG) {
+	/* Use a builtin func call:
+	   mov func_reg, func ref; [mov reg3, type;] call proto, func_reg, res_reg, va_reg,
+	   reg3 */
+        MIR_op_t ops[6], func_reg_op, reg_op3;
+        MIR_op_t res_reg_op = insn->ops[0], va_reg_op = insn->ops[1], op3 = insn->ops[2];
 
         assert (res_reg_op.mode == MIR_OP_REG && va_reg_op.mode == MIR_OP_REG
-                && mem_op.mode == MIR_OP_MEM);
+                && op3.mode == (code == MIR_VA_ARG ? MIR_OP_MEM : MIR_OP_REG));
         func_reg_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
-        flag_reg_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+        reg_op3 = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
         next_insn = new_insn
           = MIR_new_insn (ctx, MIR_MOV, func_reg_op, MIR_new_ref_op (ctx, func_import_item));
         gen_add_insn_before (gen_ctx, insn, new_insn);
-        new_insn = MIR_new_insn (ctx, MIR_MOV, flag_reg_op,
-                                 MIR_new_int_op (ctx, (int64_t) mem_op.u.mem.type));
-        gen_add_insn_before (gen_ctx, insn, new_insn);
+	if (code == MIR_VA_ARG) {
+	  new_insn = MIR_new_insn (ctx, MIR_MOV, reg_op3,
+				   MIR_new_int_op (ctx, (int64_t) op3.u.mem.type));
+	  op3 = reg_op3;
+	  gen_add_insn_before (gen_ctx, insn, new_insn);
+	}
         ops[0] = MIR_new_ref_op (ctx, proto_item);
         ops[1] = func_reg_op;
         ops[2] = res_reg_op;
         ops[3] = va_reg_op;
-        ops[4] = flag_reg_op;
-        new_insn = MIR_new_insn_arr (ctx, MIR_CALL, 5, ops);
+        ops[4] = op3;
+	if (code == MIR_VA_BLOCK_ARG) ops[5] = insn->ops[3];
+        new_insn = MIR_new_insn_arr (ctx, MIR_CALL, code == MIR_VA_ARG ? 5 : 6, ops);
         gen_add_insn_before (gen_ctx, insn, new_insn);
         gen_delete_insn (gen_ctx, insn);
       } else { /* Use builtin: mov freg, func ref; call proto, freg, res_reg, op_reg[, op_reg2] */
@@ -942,7 +946,7 @@ static void target_make_prolog_epilog (gen_ctx_t gen_ctx, bitmap_t used_hard_reg
         saved_fregs_num++;
     }
   if (leaf_p && !alloca_p && saved_iregs_num == 0 && saved_fregs_num == 0 && !func->vararg_p
-      && stack_slots_num == 0 && !stack_arg_func_p && small_aggregate_save_area == 0)
+      && stack_slots_num == 0 && !block_arg_func_p && small_aggregate_save_area == 0)
     return;
   sp_reg_op = _MIR_new_hard_reg_op (ctx, SP_HARD_REG);
   fp_reg_op = _MIR_new_hard_reg_op (ctx, FP_HARD_REG);
@@ -962,7 +966,7 @@ static void target_make_prolog_epilog (gen_ctx_t gen_ctx, bitmap_t used_hard_reg
   frame_size_after_saved_regs = frame_size;
   frame_size += stack_slots_num * 8;
   if (frame_size % 16 != 0) frame_size = (frame_size + 15) / 16 * 16;
-  save_prev_stack_p = func->vararg_p || stack_arg_func_p;
+  save_prev_stack_p = func->vararg_p || block_arg_func_p;
   treg_op = _MIR_new_hard_reg_op (ctx, R9_HARD_REG);
   if (save_prev_stack_p) { /* prev stack pointer */
     gen_mov (gen_ctx, anchor, MIR_MOV, treg_op, sp_reg_op);

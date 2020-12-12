@@ -413,7 +413,7 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
           mir_assert (ops[i].mode == MIR_OP_LABEL);
           v.i = 0;
         } else if (MIR_call_code_p (code) && ops[i].mode == MIR_OP_MEM) {
-          mir_assert (MIR_blk_type_p (ops[i].u.mem.type));
+          mir_assert (MIR_all_blk_type_p (ops[i].u.mem.type));
           v.i = ops[i].u.mem.base;
           update_max_nreg (v.i, &max_nreg);
         } else {
@@ -916,7 +916,7 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     REP5 (LAB_EL, MIR_UBGE, MIR_UBGES, MIR_FBGE, MIR_DBGE, MIR_LDBGE);
     REP4 (LAB_EL, MIR_CALL, MIR_INLINE, MIR_SWITCH, MIR_RET);
     REP3 (LAB_EL, MIR_ALLOCA, MIR_BSTART, MIR_BEND);
-    REP4 (LAB_EL, MIR_VA_ARG, MIR_VA_STACK_ARG, MIR_VA_START, MIR_VA_END);
+    REP4 (LAB_EL, MIR_VA_ARG, MIR_VA_BLOCK_ARG, MIR_VA_START, MIR_VA_END);
     REP8 (LAB_EL, IC_LDI8, IC_LDU8, IC_LDI16, IC_LDU16, IC_LDI32, IC_LDU32, IC_LDI64, IC_LDF);
     REP8 (LAB_EL, IC_LDD, IC_LDLD, IC_STI8, IC_STU8, IC_STI16, IC_STU16, IC_STI32, IC_STU32);
     REP8 (LAB_EL, IC_STI64, IC_STF, IC_STD, IC_STLD, IC_MOVI, IC_MOVP, IC_MOVF, IC_MOVD);
@@ -1305,11 +1305,11 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     *r = (uint64_t) va_arg_builtin ((void *) va, tp);
     END_INSN;
   }
-  CASE (MIR_VA_STACK_ARG, 3) {
+  CASE (MIR_VA_BLOCK_ARG, 4) {
     int64_t *r, va, size;
 
     r = get_3iops (bp, ops, &va, &size);
-    *r = (uint64_t) va_stack_arg_builtin ((void *) va, size);
+    va_block_arg_builtin ((void *) *r, (void *) va, size, *get_iop (bp, ops + 3));
     END_INSN;
   }
   SCASE (MIR_VA_START, 1, va_start_interp_builtin (ctx, bp[get_i (ops)].a, bp[-1].a));
@@ -1379,7 +1379,7 @@ static htab_hash_t ff_interface_hash (ff_interface_t i, void *arg) {
   h = mir_hash (i->res_types, sizeof (MIR_type_t) * i->nres, h);
   for (size_t n = 0; n < i->nargs; n++) {
     h = mir_hash_step (h, i->arg_descs[n].type);
-    if (MIR_blk_type_p (i->arg_descs[n].type)) h = mir_hash_step (h, i->arg_descs[n].size);
+    if (MIR_all_blk_type_p (i->arg_descs[n].type)) h = mir_hash_step (h, i->arg_descs[n].size);
   }
   return mir_hash_finish (h);
 }
@@ -1389,7 +1389,8 @@ static int ff_interface_eq (ff_interface_t i1, ff_interface_t i2, void *arg) {
   if (memcmp (i1->res_types, i2->res_types, sizeof (MIR_type_t) * i1->nres) != 0) return FALSE;
   for (size_t n = 0; n < i1->nargs; n++) {
     if (i1->arg_descs[n].type != i2->arg_descs[n].type) return FALSE;
-    if (MIR_blk_type_p (i1->arg_descs[n].type) && i1->arg_descs[n].size != i2->arg_descs[n].size)
+    if (MIR_all_blk_type_p (i1->arg_descs[n].type)
+        && i1->arg_descs[n].size != i2->arg_descs[n].size)
       return FALSE;
   }
   return TRUE;
@@ -1456,11 +1457,11 @@ static void call (MIR_context_t ctx, MIR_val_t *bp, MIR_op_t *insn_arg_ops, code
     for (i = 0; i < nargs; i++) {
       if (i < arg_vars_num) {
         call_arg_descs[i].type = arg_vars[i].type;
-        if (MIR_blk_type_p (arg_vars[i].type)) call_arg_descs[i].size = arg_vars[i].size;
+        if (MIR_all_blk_type_p (arg_vars[i].type)) call_arg_descs[i].size = arg_vars[i].size;
         continue;
       }
       if (insn_arg_ops[i].mode == MIR_OP_MEM) { /* (r)block arg */
-        mir_assert (MIR_blk_type_p (insn_arg_ops[i].u.mem.type));
+        mir_assert (MIR_all_blk_type_p (insn_arg_ops[i].u.mem.type));
         call_arg_descs[i].type = insn_arg_ops[i].u.mem.type;
         call_arg_descs[i].size = insn_arg_ops[i].u.mem.disp;
       } else {
@@ -1498,6 +1499,10 @@ static void call (MIR_context_t ctx, MIR_val_t *bp, MIR_op_t *insn_arg_ops, code
     case MIR_T_LD: call_res_args[i + nres].ld = arg_vals[i].ld; break;
     case MIR_T_P:
     case MIR_T_BLK:
+    case MIR_T_BLK2:
+    case MIR_T_BLK3:
+    case MIR_T_BLK4:
+    case MIR_T_BLK5:
     case MIR_T_RBLK: call_res_args[i + nres].u = (uint64_t) arg_vals[i].a; break;
     default: mir_assert (FALSE);
     }
@@ -1675,12 +1680,18 @@ static void interp (MIR_context_t ctx, MIR_item_t func_item, va_list va, MIR_val
     case MIR_T_P:
     case MIR_T_RBLK: arg_vals[i].a = va_arg (va, void *); break;
     case MIR_T_BLK:
-#if defined(__PPC64__) || defined(__aarch64__)
-      arg_vals[i].a = va_stack_arg_builtin (&va, arg_vars[i].size);
+    case MIR_T_BLK2:
+    case MIR_T_BLK3:
+    case MIR_T_BLK4:
+    case MIR_T_BLK5: {
+      arg_vals[i].a = alloca (arg_vars[i].size);
+#if defined(__PPC64__) || defined(__aarch64__) || defined(_WIN32)
+      va_block_arg_builtin (arg_vals[i].a, &va, arg_vars[i].size, type - MIR_T_BLK);
 #else
-          arg_vals[i].a = va_stack_arg_builtin (va, arg_vars[i].size);
+          va_block_arg_builtin (arg_vals[i].a, va, arg_vars[i].size, type - MIR_T_BLK);
 #endif
       break;
+    }
     default: mir_assert (FALSE);
     }
   }

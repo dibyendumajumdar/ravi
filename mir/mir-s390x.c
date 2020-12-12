@@ -4,7 +4,7 @@
 
 /* Long doubles (-mlong-double=128) are always passed by its address (for args and results) */
 
-/* BLK and RBLK args are always passed by address.  */
+/* BLK..BLK5 and RBLK args are always passed by address.  */
 
 #if 0 && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #error "s390x works only in BE mode"
@@ -230,7 +230,9 @@ void *va_arg_builtin (void *p, uint64_t t) {
   return a;
 }
 
-void *va_stack_arg_builtin (void *p, size_t s) { return *(void **) va_arg_builtin (p, MIR_T_I64); }
+void va_block_arg_builtin (void *res, void *p, size_t s, uint64_t ncase) {
+  memcpy (res, *(void **) va_arg_builtin (p, MIR_T_I64), s);
+}
 
 void va_start_interp_builtin (MIR_context_t ctx, void *p, void *a) {
   struct s390x_va_list *va = p;
@@ -264,7 +266,7 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
   if (nres > 0 && res_types[0] == MIR_T_LD) n_gpregs++; /* ld address */
   for (uint32_t i = 0; i < nargs; i++) {                /* calculate param area size: */
     type = arg_descs[i].type;
-    if (type == MIR_T_BLK) frame_size += (arg_descs[i].size + 7) / 8; /* blk value space */
+    if (MIR_blk_type_p (type)) frame_size += (arg_descs[i].size + 7) / 8; /* blk value space */
     if ((type == MIR_T_F || type == MIR_T_D) && n_fpregs < 4) {
       n_fpregs++;
     } else if (type != MIR_T_F && type != MIR_T_D && n_gpregs < 5) { /* RBLK too */
@@ -305,7 +307,7 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
       s390x_gen_addi (code, 0, res_reg, param_offset); /* lay r0,param_offset(r7) */
       s390x_gen_st (code, 0, 15, disp, MIR_T_I64);     /* stg r0,disp(r15) */
       disp += 8;
-    } else if (type == MIR_T_BLK) {
+    } else if (MIR_blk_type_p (type)) {
       qwords = (arg_descs[i].size + 7) / 8;
       addr_reg = n_gpregs < 5 ? n_gpregs + 2 : 8;
       s390x_gen_blk_mov (code, param_offset, blk_offset, qwords, addr_reg);

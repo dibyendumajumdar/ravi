@@ -128,10 +128,10 @@ int _MIR_reserved_name_p (MIR_context_t ctx, const char *name) {
 struct insn_desc {
   MIR_insn_code_t code;
   const char *name;
-  unsigned op_modes[4];
+  unsigned char op_modes[5];
 };
 
-#define OUTPUT_FLAG (1 << 30)
+#define OUTPUT_FLAG (1 << 7)
 
 static const struct insn_desc insn_descs[] = {
   {MIR_MOV, "mov", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_BOUND}},
@@ -299,9 +299,9 @@ static const struct insn_desc insn_descs[] = {
   {MIR_BSTART, "bstart", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_BOUND}},
   {MIR_BEND, "bend", {MIR_OP_INT, MIR_OP_BOUND}},
   {MIR_VA_ARG, "va_arg", {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_UNDEF, MIR_OP_BOUND}},
-  {MIR_VA_STACK_ARG,
-   "va_stack_arg",
-   {MIR_OP_INT | OUTPUT_FLAG, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
+  {MIR_VA_BLOCK_ARG,
+   "va_block_arg",
+   {MIR_OP_INT, MIR_OP_INT, MIR_OP_INT, MIR_OP_INT, MIR_OP_BOUND}},
   {MIR_VA_START, "va_start", {MIR_OP_INT, MIR_OP_BOUND}},
   {MIR_VA_END, "va_end", {MIR_OP_INT, MIR_OP_BOUND}},
   {MIR_LABEL, "label", {MIR_OP_BOUND}},
@@ -523,7 +523,7 @@ const char *MIR_item_name (MIR_context_t ctx, MIR_item_t item) {
   case MIR_data_item: return item->u.data->name;
   case MIR_ref_data_item: return item->u.ref_data->name;
   case MIR_expr_data_item: return item->u.expr_data->name;
-  default: mir_assert (FALSE);
+  default: mir_assert (FALSE); return NULL;
   }
 }
 
@@ -596,6 +596,7 @@ static void parallel_error (MIR_context_t ctx, const char *err_message) {
 MIR_context_t MIR_init (void) {
   MIR_context_t ctx;
 
+  mir_assert (MIR_OP_BOUND < OUTPUT_FLAG);
   if ((ctx = malloc (sizeof (struct MIR_context))) == NULL)
     default_error (MIR_alloc_error, "Not enough memory for ctx");
   ctx->string_ctx = NULL;
@@ -777,6 +778,10 @@ static const char *type_str (MIR_type_t tp) {
   case MIR_T_LD: return "ld";
   case MIR_T_P: return "p";
   case MIR_T_BLK: return "blk";
+  case MIR_T_BLK2: return "blk2";
+  case MIR_T_BLK3: return "blk3";
+  case MIR_T_BLK4: return "blk4";
+  case MIR_T_BLK5: return "blk5";
   case MIR_T_RBLK: return "rblk";
   case MIR_T_UNDEF: return "undef";
   default: return "";
@@ -960,7 +965,7 @@ MIR_item_t MIR_new_bss (MIR_context_t ctx, const char *name, size_t len) {
 }
 
 static MIR_type_t canon_type (MIR_type_t type) {
-#if __SIZEOF_LONG_DOUBLE__ == 8
+#if defined(_WIN32) || __SIZEOF_LONG_DOUBLE__ == 8
   if (type == MIR_T_LD) type = MIR_T_D;
 #endif
   return type;
@@ -1381,13 +1386,13 @@ void MIR_finish_func (MIR_context_t ctx) {
       case MIR_OP_MEM:
         expr_p = FALSE;
         if (wrong_type_p (insn->ops[i].u.mem.type)
-            && (!MIR_blk_type_p (insn->ops[i].u.mem.type) || !MIR_call_code_p (code))) {
+            && (!MIR_all_blk_type_p (insn->ops[i].u.mem.type) || !MIR_call_code_p (code))) {
           curr_func = NULL;
           MIR_get_error_func (ctx) (MIR_wrong_type_error,
                                     "func %s: in instruction '%s': wrong type memory", func_name,
                                     insn_descs[code].name);
         }
-        if (MIR_blk_type_p (insn->ops[i].u.mem.type) && insn->ops[i].u.mem.disp < 0) {
+        if (MIR_all_blk_type_p (insn->ops[i].u.mem.type) && insn->ops[i].u.mem.disp < 0) {
           curr_func = NULL;
           MIR_get_error_func (ctx) (MIR_wrong_type_error,
                                     "func %s: in instruction '%s': block type memory with disp < 0",
@@ -1434,7 +1439,7 @@ void MIR_finish_func (MIR_context_t ctx) {
       insn->ops[i].value_mode = mode;
       if (mode == MIR_OP_UNDEF && insn->ops[i].mode == MIR_OP_MEM
           && ((code == MIR_VA_START && i == 0)
-              || ((code == MIR_VA_ARG || code == MIR_VA_STACK_ARG) && i == 1)
+              || ((code == MIR_VA_ARG || code == MIR_VA_BLOCK_ARG) && i == 1)
               || (code == MIR_VA_END && i == 1))) { /* a special case: va_list as undef type mem */
         insn->ops[i].value_mode = expected_mode;
       } else if (expected_mode != MIR_OP_UNDEF
@@ -1787,7 +1792,7 @@ static MIR_insn_t create_insn (MIR_context_t ctx, size_t nops, MIR_insn_code_t c
   insn = malloc (sizeof (struct MIR_insn) + sizeof (MIR_op_t) * (nops - 1));
   if (insn == NULL)
     MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for insn creation");
-#if __SIZEOF_LONG_DOUBLE__ == 8
+#if defined(_WIN32) || __SIZEOF_LONG_DOUBLE__ == 8
   switch (code) {
   case MIR_LDMOV: code = MIR_DMOV; break;
   case MIR_I2LD: code = MIR_I2D; break;
@@ -1863,7 +1868,7 @@ MIR_insn_t MIR_new_insn_arr (MIR_context_t ctx, MIR_insn_code_t code, size_t nop
               "number of %s operands or results does not correspond to prototype %s",
               code == MIR_UNSPEC ? "unspec" : "call", proto->name);
     for (i = args_start; i < nops; i++) {
-      if (ops[i].mode == MIR_OP_MEM && MIR_blk_type_p (ops[i].u.mem.type)) {
+      if (ops[i].mode == MIR_OP_MEM && MIR_all_blk_type_p (ops[i].u.mem.type)) {
         if (i - args_start < proto->nres)
           MIR_get_error_func (ctx) (MIR_wrong_type_error, "result of %s is block type memory",
                                     code == MIR_UNSPEC ? "unspec" : "call");
@@ -1887,7 +1892,7 @@ MIR_insn_t MIR_new_insn_arr (MIR_context_t ctx, MIR_insn_code_t code, size_t nop
         }
       } else if (i - args_start >= proto->nres
                  && (narg = i - args_start - proto->nres) < VARR_LENGTH (MIR_var_t, proto->args)
-                 && MIR_blk_type_p (VARR_GET (MIR_var_t, proto->args, narg).type)) {
+                 && MIR_all_blk_type_p (VARR_GET (MIR_var_t, proto->args, narg).type)) {
         MIR_get_error_func (
           ctx) (MIR_wrong_type_error,
                 "param of %s is of block type but arg is not of block type memory",
@@ -2093,7 +2098,7 @@ MIR_op_t MIR_new_double_op (MIR_context_t ctx, double d) {
 MIR_op_t MIR_new_ldouble_op (MIR_context_t ctx, long double ld) {
   MIR_op_t op;
 
-#if __SIZEOF_LONG_DOUBLE__ == 8
+#if defined(_WIN32) || __SIZEOF_LONG_DOUBLE__ == 8
   return MIR_new_double_op (ctx, ld);
 #endif
   mir_assert (sizeof (long double) == 16); /* machine-defined 80- or 128-bit FP  */
@@ -2382,7 +2387,6 @@ void MIR_change_module_ctx (MIR_context_t old_ctx, MIR_module_t m, MIR_context_t
     if (item->item_type == MIR_proto_item) {
       change_var_names (new_ctx, item->u.proto->args);
     } else if (item->item_type == MIR_func_item) {
-      func_regs_t func_regs = item->u.func->internal;
       change_var_names (new_ctx, item->u.func->vars);
       for (MIR_insn_t insn = DLIST_HEAD (MIR_insn_t, item->u.func->insns); insn != NULL;
            insn = DLIST_NEXT (MIR_insn_t, insn))
@@ -2519,7 +2523,7 @@ static void output_func_proto (FILE *f, size_t nres, MIR_type_t *types, size_t n
     var = VARR_GET (MIR_var_t, args, i);
     if (i != 0 || nres != 0) fprintf (f, ", ");
     mir_assert (var.name != NULL);
-    if (!MIR_blk_type_p (var.type))
+    if (!MIR_all_blk_type_p (var.type))
       fprintf (f, "%s:%s", MIR_type_str (NULL, var.type), var.name);
     else
       fprintf (f, "%s:%lu(%s)", MIR_type_str (NULL, var.type), (unsigned long) var.size, var.name);
@@ -2904,11 +2908,11 @@ void MIR_simplify_op (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn, 
     if (move_p && (nop == 1 || insn->ops[1].mode == MIR_OP_REG)) {
       *op = mem_op;
     } else if (((code == MIR_VA_START && nop == 0)
-                || ((code == MIR_VA_ARG || code == MIR_VA_STACK_ARG) && nop == 1)
+                || ((code == MIR_VA_ARG || code == MIR_VA_BLOCK_ARG) && nop == 1)
                 || (code == MIR_VA_END && nop == 0))
                && mem_op.u.mem.type == MIR_T_UNDEF) {
       *op = MIR_new_reg_op (ctx, addr_reg);
-    } else if (!MIR_blk_type_p (mem_op.u.mem.type) || !MIR_call_code_p (code)) {
+    } else if (!MIR_all_blk_type_p (mem_op.u.mem.type) || !MIR_call_code_p (code)) {
       type = (mem_op.u.mem.type == MIR_T_F || mem_op.u.mem.type == MIR_T_D
                   || mem_op.u.mem.type == MIR_T_LD
                 ? mem_op.u.mem.type
@@ -3374,8 +3378,8 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
       if (i < nargs && call->nops > i + 2 + called_func->nres) { /* Parameter passing */
         MIR_op_t op = call->ops[i + 2 + called_func->nres];
 
-        mir_assert (!MIR_blk_type_p (type) || (op.mode == MIR_OP_MEM && type == MIR_T_I64));
-        if (var.type == MIR_T_BLK) { /* alloca and block move: */
+        mir_assert (!MIR_all_blk_type_p (type) || (op.mode == MIR_OP_MEM && type == MIR_T_I64));
+        if (MIR_blk_type_p (var.type)) { /* alloca and block move: */
           add_blk_move (ctx, func_item, ret_label, MIR_new_reg_op (ctx, new_reg),
                         MIR_new_reg_op (ctx, op.u.mem.base), var.size);
         } else {
@@ -3786,7 +3790,8 @@ typedef enum {
   REP3 (TAG_EL, MEM_DISP_INDEX, MEM_BASE_INDEX, MEM_DISP_BASE_INDEX),
   /* MIR types. The same order as MIR types: */
   REP8 (TAG_EL, TI8, TU8, TI16, TU16, TI32, TU32, TI64, TU64),
-  REP7 (TAG_EL, TF, TD, TP, TV, TBLOCK, TRBLOCK, EOI),
+  REP8 (TAG_EL, TF, TD, TP, TV, TBLOCK, TBLOCK2, TBLOCK3, TBLOCK4),
+  REP3 (TAG_EL, TBLOCK5, TRBLOCK, EOI),
   TAG_EL (EOFILE), /* end of insn with variable number operands (e.g. a call) or end of file */
   /* unsigned integer 0..127 is kept in one byte.  The most significant bit of the byte is 1: */
   U0_MASK = 0x7f,
@@ -4199,7 +4204,7 @@ static size_t write_item (MIR_context_t ctx, writer_func_t writer, MIR_item_t it
       var = VARR_GET (MIR_var_t, proto->args, i);
       len += write_type (ctx, writer, var.type);
       len += write_name (ctx, writer, var.name);
-      if (MIR_blk_type_p (var.type)) len += write_uint (ctx, writer, var.size);
+      if (MIR_all_blk_type_p (var.type)) len += write_uint (ctx, writer, var.size);
     }
     len += put_byte (ctx, writer, TAG_EOI);
     return len;
@@ -4214,7 +4219,7 @@ static size_t write_item (MIR_context_t ctx, writer_func_t writer, MIR_item_t it
     var = VARR_GET (MIR_var_t, func->vars, i);
     len += write_type (ctx, writer, var.type);
     len += write_name (ctx, writer, var.name);
-    if (MIR_blk_type_p (var.type)) len += write_uint (ctx, writer, var.size);
+    if (MIR_all_blk_type_p (var.type)) len += write_uint (ctx, writer, var.size);
   }
   len += put_byte (ctx, writer, TAG_EOI);
   nlocals = VARR_LENGTH (MIR_var_t, func->vars) - func->nargs;
@@ -4510,7 +4515,8 @@ static bin_tag_t read_token (MIR_context_t ctx, token_attr_t *attr) {
     REP3 (TAG_CASE, MEM_DISP_BASE_INDEX, EOI, EOFILE)
     break;
     REP8 (TAG_CASE, TI8, TU8, TI16, TU16, TI32, TU32, TI64, TU64)
-    REP6 (TAG_CASE, TF, TD, TP, TV, TBLOCK, TRBLOCK)
+    REP8 (TAG_CASE, TF, TD, TP, TV, TBLOCK, TBLOCK2, TBLOCK3, TBLOCK4)
+    REP2 (TAG_CASE, TBLOCK5, TRBLOCK)
     attr->t = (MIR_type_t) (c - TAG_TI8) + MIR_T_I8;
     break;
   default: MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong tag %d", c);
@@ -4629,7 +4635,7 @@ static int func_proto_read (MIR_context_t ctx, MIR_module_t module, uint64_t *nr
       MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong prototype arg type tag %d", tag);
     var.type = tag_type (tag);
     var.name = read_name (ctx, module, "wrong arg name");
-    if (MIR_blk_type_p (var.type)) var.size = read_uint (ctx, "wrong block arg size");
+    if (MIR_all_blk_type_p (var.type)) var.size = read_uint (ctx, "wrong block arg size");
     VARR_PUSH (MIR_var_t, proto_vars, var);
   }
   *nres_ptr = nres;
@@ -5038,7 +5044,7 @@ typedef struct label_desc {
 DEF_HTAB (label_desc_t);
 
 struct scan_ctx {
-  jmp_buf error_jmp_buf;
+  jmp_buf error_jmp_buf; /* keep it here to provide malloc alignment */
   VARR (char) * error_msg_buf;
   VARR (MIR_var_t) * scan_vars;
   VARR (MIR_type_t) * scan_types;
@@ -5152,7 +5158,7 @@ static void scan_number (MIR_context_t ctx, int ch, int get_char (MIR_context_t)
       *double_p = FALSE;
       ch = get_char (ctx);
     } else if (ch == 'l' || ch == 'L') {
-#if __SIZEOF_LONG_DOUBLE__ != 8
+#if !defined(_WIN32) && __SIZEOF_LONG_DOUBLE__ != 8
       *ldouble_p = TRUE;
       *double_p = FALSE;
 #endif
@@ -5377,7 +5383,7 @@ static void read_func_proto (MIR_context_t ctx, size_t nops, MIR_op_t *ops) {
     var.name = (const char *) ops[i].u.mem.disp;
     if (var.name == NULL)
       scan_error (ctx, "all func/prototype args should have form type:name or (r)blk:size(name)");
-    if (MIR_blk_type_p (var.type)) var.size = ops[i].u.mem.base;
+    if (MIR_all_blk_type_p (var.type)) var.size = ops[i].u.mem.base;
     VARR_PUSH (MIR_var_t, scan_vars, var);
   }
 }
@@ -5396,6 +5402,10 @@ static MIR_type_t str2type (const char *type_name) {
   if (strcmp (type_name, "i8") == 0) return MIR_T_I8;
   if (strcmp (type_name, "u8") == 0) return MIR_T_U8;
   if (strcmp (type_name, "blk") == 0) return MIR_T_BLK;
+  if (strcmp (type_name, "blk2") == 0) return MIR_T_BLK2;
+  if (strcmp (type_name, "blk3") == 0) return MIR_T_BLK3;
+  if (strcmp (type_name, "blk4") == 0) return MIR_T_BLK4;
+  if (strcmp (type_name, "blk5") == 0) return MIR_T_BLK5;
   if (strcmp (type_name, "rblk") == 0) return MIR_T_RBLK;
   return MIR_T_BOUND;
 }
@@ -5583,7 +5593,7 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
             scan_token (ctx, &t, get_string_char, unget_string_char);
             if (t.code == TC_NAME) {
               op.u.mem.disp = (MIR_disp_t) t.u.name;
-            } else if (local_p || t.code != TC_INT || !MIR_blk_type_p (type)) {
+            } else if (local_p || t.code != TC_INT || !MIR_all_blk_type_p (type)) {
               scan_error (ctx, local_p ? "wrong var" : "wrong arg");
             } else {
               op.u.mem.base = t.u.i;
@@ -5645,7 +5655,7 @@ void MIR_scan_string (MIR_context_t ctx, const char *str) {
         op.u.f = t.u.f;
         break;
       case TC_LDOUBLE: op.mode = MIR_OP_LDOUBLE; op.u.ld = t.u.ld;
-#if __SIZEOF_LONG_DOUBLE__ != 8
+#if !defined(_WIN32) && __SIZEOF_LONG_DOUBLE__ != 8
         break;
 #endif
       case TC_DOUBLE:

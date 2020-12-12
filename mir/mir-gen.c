@@ -1273,16 +1273,14 @@ static void build_func_cfg (gen_ctx_t gen_ctx) {
   exit_bb = create_bb (gen_ctx, NULL);
   add_bb (gen_ctx, exit_bb);
   insn = DLIST_HEAD (MIR_insn_t, curr_func_item->u.func->insns);
-  if (insn != NULL) {
-    bb = create_bb (gen_ctx, NULL);
-    add_bb (gen_ctx, bb);
-    if (insn->code == MIR_LABEL) { /* Create one more BB.  First BB will be empty. */
-      prev_bb = bb;
-      bb = create_bb (gen_ctx, NULL);
-      add_bb (gen_ctx, bb);
-      create_edge (gen_ctx, prev_bb, bb, TRUE);
-    }
+  if (insn == NULL || insn->code == MIR_LABEL || MIR_call_code_p (insn->code)) {
+    /* To deal with special cases like adding insns before call in
+       machinize or moving invariant out of loop: */
+    MIR_prepend_insn (ctx, curr_func_item, MIR_new_label (ctx));
+    insn = DLIST_HEAD (MIR_insn_t, curr_func_item->u.func->insns);
   }
+  bb = create_bb (gen_ctx, NULL);
+  add_bb (gen_ctx, bb);
   for (; insn != NULL; insn = next_insn) {
     next_insn = DLIST_NEXT (MIR_insn_t, insn);
     if (insn->data == NULL) {
@@ -1666,7 +1664,7 @@ static void minimize_ssa (gen_ctx_t gen_ctx, size_t insns_num) {
   } while (change_p);
   DEBUG ({
     fprintf (debug_file, "Minimizing SSA phis: from %ld to %ld phis (non-phi insns %ld)\n",
-             (long) VARR_LENGTH (bb_insn_t, deleted_phis) + VARR_LENGTH (bb_insn_t, phis),
+             (long) VARR_LENGTH (bb_insn_t, deleted_phis) + (long) VARR_LENGTH (bb_insn_t, phis),
              (long) VARR_LENGTH (bb_insn_t, phis), (long) insns_num);
   });
   for (bb_t bb = DLIST_HEAD (bb_t, curr_cfg->bbs); bb != NULL; bb = DLIST_NEXT (bb_t, bb))
@@ -1782,7 +1780,7 @@ static MIR_reg_t get_new_reg (gen_ctx_t gen_ctx, MIR_reg_t reg, size_t index) {
   MIR_func_t func = curr_func_item->u.func;
   MIR_type_t type = MIR_reg_type (ctx, reg, func);
   const char *name = MIR_reg_name (ctx, reg, func);
-  char ind_str[20];
+  char ind_str[30];
   MIR_reg_t new_reg;
 
   VARR_TRUNC (char, reg_name, 0);
@@ -2071,7 +2069,7 @@ static void copy_prop (gen_ctx_t gen_ctx) {
       }
       w = get_ext_params (insn->code, &sign_p);
       if (w != 0 && insn->ops[1].mode == MIR_OP_REG && var_is_reg_p (insn->ops[1].u.reg)) {
-        se = insn->ops[op_num].data;
+        se = insn->ops[1].data;
         def_insn = se->def->insn;
         w2 = get_ext_params (def_insn->code, &sign2_p);
         if (w2 != 0 && sign_p == sign2_p && w2 <= w
@@ -2278,7 +2276,7 @@ static void gvn_modify (gen_ctx_t gen_ctx) {
     for (bb_insn = DLIST_HEAD (bb_insn_t, bb->bb_insns); bb_insn != NULL; bb_insn = next_bb_insn) {
       expr_t e, new_e;
       MIR_op_t op;
-      int out_p, add_def_p;
+      int add_def_p;
       MIR_type_t type;
       MIR_insn_code_t move_code;
       MIR_insn_t new_insn, def_insn, insn = bb_insn->insn;
@@ -2310,6 +2308,7 @@ static void gvn_modify (gen_ctx_t gen_ctx) {
       op = MIR_new_reg_op (ctx, temp_reg);
       type = MIR_reg_type (ctx, temp_reg, curr_func_item->u.func);
 #ifndef NDEBUG
+      int out_p;
       MIR_insn_op_mode (ctx, insn, 0, &out_p); /* result here is always 0-th op */
       gen_assert (out_p);
 #endif
@@ -3553,7 +3552,7 @@ static void print_live_ranges (gen_ctx_t gen_ctx) {
   gen_assert (get_nvars (gen_ctx) == VARR_LENGTH (live_range_t, var_live_ranges));
   for (size_t i = 0; i < VARR_LENGTH (live_range_t, var_live_ranges); i++) {
     if ((lr = VARR_GET (live_range_t, var_live_ranges, i)) == NULL) continue;
-    fprintf (debug_file, "%lu", i);
+    fprintf (debug_file, "%lu", (unsigned long) i);
     if (var_is_reg_p (i))
       fprintf (debug_file, " (%s:%s)",
                MIR_type_str (ctx, MIR_reg_type (ctx, var2reg (gen_ctx, i), curr_func_item->u.func)),
@@ -4522,14 +4521,13 @@ static MIR_insn_t get_uptodate_def_insn (gen_ctx_t gen_ctx, int hr) {
 
 static int combine_substitute (gen_ctx_t gen_ctx, bb_insn_t *bb_insn_ref) {
   MIR_context_t ctx = gen_ctx->ctx;
-  MIR_insn_code_t code, new_code;
   bb_insn_t bb_insn = *bb_insn_ref;
-  MIR_insn_t insn = bb_insn->insn, def_insn, new_insn;
+  MIR_insn_t insn = bb_insn->insn, def_insn;
   size_t i, nops = insn->nops;
   int out_p, insn_change_p, insn_hr_change_p, op_change_p, mem_reg_change_p, success_p;
   MIR_op_t *op_ref, *src_op_ref, *src_op2_ref, saved_op;
   MIR_reg_t hr, early_clobbered_hard_reg1, early_clobbered_hard_reg2;
-  int64_t scale, sh;
+  int64_t scale;
 
   if (nops == 0) return FALSE;
   VARR_TRUNC (MIR_op_t, last_right_ops, 0);
@@ -4941,6 +4939,8 @@ static void combine (gen_ctx_t gen_ctx) {
               setup_hreg_ref (gen_ctx, hr, insn, 0 /* whatever */, curr_insn_num, TRUE);
             }
           last_mem_ref_insn_num = curr_insn_num; /* Potentially call can change memory */
+        } else if (code == MIR_VA_BLOCK_ARG) {
+          last_mem_ref_insn_num = curr_insn_num; /* Change memory */
         } else if (code == MIR_RET) {
           /* ret is transformed in machinize and should be not modified after that */
         } else if ((new_insn = combine_branch_and_cmp (gen_ctx, bb_insn)) != NULL
@@ -4997,8 +4997,8 @@ static void combine (gen_ctx_t gen_ctx) {
     } while (block_change_p);
   }
   DEBUG ({
-    fprintf (debug_file, "  %lu deleted out of %lu (%.1f%%)\n", deleted_insns_num, insns_num,
-             100.0 * deleted_insns_num / insns_num);
+    fprintf (debug_file, "  %lu deleted out of %lu (%.1f%%)\n", (long unsigned) deleted_insns_num,
+             (long unsigned) insns_num, 100.0 * deleted_insns_num / insns_num);
   });
 }
 
@@ -5200,9 +5200,9 @@ static void print_code (gen_ctx_t gen_ctx, uint8_t *code, size_t code_len, void 
   fclose (bf);
   sprintf (command,
            "gcc -c -o %s.o %s 2>&1 && objcopy --update-section .text=%s %s.o && objdump "
-           "--adjust-vma=0x%lx -d %s.o; rm -f "
+           "--adjust-vma=0x%llx -d %s.o; rm -f "
            "%s.o %s %s",
-           cfname, cfname, bfname, cfname, (unsigned long) start_addr, cfname, cfname, cfname,
+           cfname, cfname, bfname, cfname, (unsigned long long) start_addr, cfname, cfname, cfname,
            bfname);
 #endif
   fprintf (stderr, "%s\n", command);
@@ -5382,9 +5382,10 @@ void *MIR_gen (MIR_context_t ctx, int gen_num, MIR_item_t func_item) {
   destroy_func_cfg (gen_ctx);
   DEBUG ({
     fprintf (debug_file,
-             "Generation of code for %s: %lu MIR insns (addr=%lx, len=%lu) -- time %.2f ms\n",
-             MIR_item_name (ctx, func_item), DLIST_LENGTH (MIR_insn_t, func_item->u.func->insns),
-             (unsigned long) machine_code, (unsigned long) code_len,
+             "Generation of code for %s: %lu MIR insns (addr=%llx, len=%lu) -- time %.2f ms\n",
+             MIR_item_name (ctx, func_item),
+             (long unsigned) DLIST_LENGTH (MIR_insn_t, func_item->u.func->insns),
+             (unsigned long long) machine_code, (unsigned long) code_len,
              (real_usec_time () - start_time) / 1000.0);
   });
   _MIR_restore_func_insns (ctx, func_item);
@@ -5481,7 +5482,6 @@ static void signal_threads_to_finish (struct all_gen_ctx *all_gen_ctx) {
 void MIR_gen_init (MIR_context_t ctx, int gens_num) {
   struct all_gen_ctx **all_gen_ctx_ptr = all_gen_ctx_loc (ctx), *all_gen_ctx;
   gen_ctx_t gen_ctx;
-  MIR_reg_t reg;
 
 #if !MIR_PARALLEL_GEN
   gens_num = 1;

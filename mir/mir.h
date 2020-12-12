@@ -6,6 +6,10 @@
 
 #define MIR_H
 
+#if defined(_WIN32) && !defined(_WIN64)
+#error "MIR does not work on 32-bit Windows"
+#endif
+
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
@@ -35,7 +39,7 @@ static inline int mir_assert (int cond) { return 0 && cond; }
 #define MIR_PARALLEL_GEN 0
 #endif
 
-#if MIR_PARALLEL_GEN && defined(_WIN64) /* TODO: Win64 thread primitives ??? */
+#if MIR_PARALLEL_GEN && defined(_WIN32) /* TODO: Win thread primitives ??? */
 #undef MIR_PARALLEL_GEN
 #define MIR_PARALLEL_GEN 0
 #endif
@@ -78,6 +82,7 @@ typedef void MIR_NO_RETURN (*MIR_error_func_t) (MIR_error_type_t error_type, con
 #include <pthread.h>
 typedef pthread_mutex_t mir_mutex_t;
 typedef pthread_cond_t mir_cond_t;
+typedef pthread_attr_t mir_thread_attr_t;
 #define mir_thread_create(m, attr, f, arg) pthread_create (m, attr, f, arg)
 #define mir_thread_join(t, r) pthread_join (t, r)
 #define mir_mutex_init(m, a) pthread_mutex_init (m, a)
@@ -89,6 +94,8 @@ typedef pthread_cond_t mir_cond_t;
 #define mir_cond_wait(c, m) pthread_cond_wait (c, m)
 #define mir_cond_signal(c) pthread_cond_signal (c)
 #define mir_cond_broadcast(c) pthread_cond_broadcast (c)
+#define mir_thread_attr_init(a) pthread_attr_init (a)
+#define mir_thread_attr_setstacksize(a, s) pthread_attr_setstacksize (a, s)
 #else
 #define mir_mutex_init(m, a) 0
 #define mir_mutex_destroy(m) 0
@@ -157,7 +164,7 @@ typedef enum {
   REP2 (INSN_EL, BSTART, BEND), /* block start: result addr; block end: addr from block start */
   /* Special insns: */
   INSN_EL (VA_ARG),       /* result is arg address, operands: va_list addr and memory */
-  INSN_EL (VA_STACK_ARG), /* result is arg address, operands: va_list addr and integer (size) */
+  INSN_EL (VA_BLOCK_ARG), /* result is arg address, operands: va_list addr and integer (size) */
   INSN_EL (VA_START),
   INSN_EL (VA_END), /* operand is va_list */
   INSN_EL (LABEL),  /* One immediate operand is unique label number  */
@@ -173,7 +180,7 @@ typedef enum {
 typedef enum {
   REP8 (TYPE_EL, I8, U8, I16, U16, I32, U32, I64, U64), /* Integer types of different size: */
   REP3 (TYPE_EL, F, D, LD),                             /* Float or (long) double type */
-  REP3 (TYPE_EL, P, BLK, RBLK),                         /* Pointer, (return) memory block */
+  REP7 (TYPE_EL, P, BLK, BLK2, BLK3, BLK4, BLK5, RBLK), /* Pointer, (return) memory block */
   REP2 (TYPE_EL, UNDEF, BOUND),
 } MIR_type_t;
 
@@ -183,7 +190,8 @@ static inline int MIR_int_type_p (MIR_type_t t) {
 
 static inline int MIR_fp_type_p (MIR_type_t t) { return MIR_T_F <= t && t <= MIR_T_LD; }
 
-static inline int MIR_blk_type_p (MIR_type_t t) { return t == MIR_T_BLK || t == MIR_T_RBLK; }
+static inline int MIR_blk_type_p (MIR_type_t t) { return MIR_T_BLK <= t && t <= MIR_T_BLK5; }
+static inline int MIR_all_blk_type_p (MIR_type_t t) { return MIR_T_BLK <= t && t <= MIR_T_RBLK; }
 
 #if UINTPTR_MAX == 0xffffffff
 #define MIR_PTR32 1
@@ -292,9 +300,9 @@ struct MIR_insn {
 DEF_DLIST (MIR_insn_t, insn_link);
 
 typedef struct MIR_var {
-  MIR_type_t type; /* MIR_T_BLK and MIR_T_RBLK can be used only args */
+  MIR_type_t type; /* MIR_T_BLK .. MIR_T_RBLK can be used only args */
   const char *name;
-  size_t size; /* ignored for type != MIR_T_BLK, MIR_T_RBLK */
+  size_t size; /* ignored for type != [MIR_T_BLK .. MIR_T_RBLK] */
 } MIR_var_t;
 
 DEF_VARR (MIR_var_t);
@@ -628,7 +636,7 @@ extern void _MIR_update_code_arr (MIR_context_t ctx, uint8_t *base, size_t nloc,
 extern void _MIR_update_code (MIR_context_t ctx, uint8_t *base, size_t nloc, ...);
 
 extern void *va_arg_builtin (void *p, uint64_t t);
-extern void *va_stack_arg_builtin (void *p, size_t s);
+extern void va_block_arg_builtin (void *res, void *p, size_t s, uint64_t t);
 extern void va_start_interp_builtin (MIR_context_t ctx, void *p, void *a);
 extern void va_end_interp_builtin (MIR_context_t ctx, void *p);
 
@@ -637,7 +645,7 @@ extern void *_MIR_get_bend_builtin (MIR_context_t ctx);
 
 typedef struct {
   MIR_type_t type;
-  size_t size; /* used only for block arg (type == MIR_T_BLK, MIR_T_RBLK) */
+  size_t size; /* used only for block arg (type == [MIR_T_BLK ..  MIR_T_RBLK]) */
 } _MIR_arg_desc_t;
 
 extern void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, size_t nargs,

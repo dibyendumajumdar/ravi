@@ -287,7 +287,7 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
       type = arg_vars[i - start].type;
     } else if (arg_op.mode == MIR_OP_MEM) {
       type = arg_op.u.mem.type;
-      gen_assert (type == MIR_T_BLK || type == MIR_T_RBLK);
+      gen_assert (MIR_all_blk_type_p (type));
     } else {
       mode = arg_op.value_mode;  // ??? smaller ints
       gen_assert (mode == MIR_OP_INT || mode == MIR_OP_UINT || mode == MIR_OP_FLOAT
@@ -300,7 +300,7 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
     if (type != MIR_T_LD && i < start) continue;
     if (type == MIR_T_LD)
       call_blk_ld_value_area_size += 16;
-    else if (type == MIR_T_BLK) {
+    else if (MIR_blk_type_p (type)) {
       gen_assert (arg_op.mode == MIR_OP_MEM && arg_op.u.mem.disp >= 0 && arg_op.u.mem.index == 0);
       call_blk_ld_value_area_size += (arg_op.u.mem.disp + 7) / 8 * 8;
     }
@@ -321,14 +321,14 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
   for (size_t i = 2; i < nops; i++) { /* process args and ???long double results: */
     arg_op = call_insn->ops[i];
     gen_assert (arg_op.mode == MIR_OP_REG || arg_op.mode == MIR_OP_HARD_REG
-                || (arg_op.mode == MIR_OP_MEM && MIR_blk_type_p (arg_op.u.mem.type)));
+                || (arg_op.mode == MIR_OP_MEM && MIR_all_blk_type_p (arg_op.u.mem.type)));
     if (i < start) {
       type = proto->res_types[i - 2];
     } else if (i - start < nargs) {
       type = arg_vars[i - start].type;
     } else if (call_insn->ops[i].mode == MIR_OP_MEM) {
       type = call_insn->ops[i].u.mem.type;
-      gen_assert (type == MIR_T_BLK || type == MIR_T_RBLK);
+      gen_assert (MIR_all_blk_type_p (type));
     } else {
       mode = call_insn->ops[i].value_mode;  // ??? smaller ints
       gen_assert (mode == MIR_OP_INT || mode == MIR_OP_UINT || mode == MIR_OP_DOUBLE
@@ -342,7 +342,7 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
       ext_insn = MIR_new_insn (ctx, ext_code, temp_op, arg_op);
       call_insn->ops[i] = arg_op = temp_op;
     }
-    if (type == MIR_T_LD || type == MIR_T_BLK) {
+    if (type == MIR_T_LD || MIR_blk_type_p (type)) {
       if (i >= start) { /* put arg value in saved blk/ld value area: */
         if (type == MIR_T_LD) {
           mem_op
@@ -490,8 +490,8 @@ static const char *LDNEG_P = "mir.ldneg.p";
 
 static const char *VA_ARG_P = "mir.va_arg.p";
 static const char *VA_ARG = "mir.va_arg";
-static const char *VA_STACK_ARG_P = "mir.va_stack_arg.p";
-static const char *VA_STACK_ARG = "mir.va_stack_arg";
+static const char *VA_BLOCK_ARG_P = "mir.va_block_arg.p";
+static const char *VA_BLOCK_ARG = "mir.va_block_arg";
 
 static int64_t mir_ldeq (long double d1, long double d2) { return d1 == d2; }
 static const char *LDEQ = "mir.ldeq";
@@ -638,13 +638,13 @@ static int get_builtin (gen_ctx_t gen_ctx, MIR_insn_code_t code, MIR_item_t *pro
                                       MIR_T_I64, "va", MIR_T_I64, "type");
     *func_import_item = _MIR_builtin_func (ctx, curr_func_item->module, VA_ARG, va_arg_builtin);
     return 2;
-  case MIR_VA_STACK_ARG:
-    res_type = MIR_T_I64;
-    *proto_item = _MIR_builtin_proto (ctx, curr_func_item->module, VA_STACK_ARG_P, 1, &res_type, 2,
-                                      MIR_T_I64, "va", MIR_T_I64, "size");
+  case MIR_VA_BLOCK_ARG:
+    *proto_item
+      = _MIR_builtin_proto (ctx, curr_func_item->module, VA_BLOCK_ARG_P, 0, NULL, 4, MIR_T_I64,
+                            "res", MIR_T_I64, "va", MIR_T_I64, "size", MIR_T_I64, "ncase");
     *func_import_item
-      = _MIR_builtin_func (ctx, curr_func_item->module, VA_STACK_ARG, va_stack_arg_builtin);
-    return 2;
+      = _MIR_builtin_func (ctx, curr_func_item->module, VA_BLOCK_ARG, va_block_arg_builtin);
+    return 4;
   default: return 0;
   }
 }
@@ -765,29 +765,33 @@ static void target_machinize (gen_ctx_t gen_ctx) {
       insn = new_insn;
     }
     if ((nargs = get_builtin (gen_ctx, code, &proto_item, &func_import_item)) > 0) {
-      if (code == MIR_VA_ARG) {
-        /* Use a builtin func call:
-           mov func_reg, func ref; mov flag_reg, <type>; call proto, func_reg, res_reg, va_reg,
-           flag_reg */
-        MIR_op_t ops[5], func_reg_op, flag_reg_op;
-        MIR_op_t res_reg_op = insn->ops[0], va_reg_op = insn->ops[1], mem_op = insn->ops[2];
+      if (code == MIR_VA_ARG || code == MIR_VA_BLOCK_ARG) {
+	/* Use a builtin func call:
+	   mov func_reg, func ref; [mov reg3, type;] call proto, func_reg, res_reg, va_reg,
+	   reg3 */
+        MIR_op_t ops[6], func_reg_op, reg_op3;
+        MIR_op_t res_reg_op = insn->ops[0], va_reg_op = insn->ops[1], op3 = insn->ops[2];
 
-        gen_assert (res_reg_op.mode == MIR_OP_REG && va_reg_op.mode == MIR_OP_REG
-                    && mem_op.mode == MIR_OP_MEM);
+        assert (res_reg_op.mode == MIR_OP_REG && va_reg_op.mode == MIR_OP_REG
+                && op3.mode == (code == MIR_VA_ARG ? MIR_OP_MEM : MIR_OP_REG));
         func_reg_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
-        flag_reg_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+        reg_op3 = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
         next_insn = new_insn
           = MIR_new_insn (ctx, MIR_MOV, func_reg_op, MIR_new_ref_op (ctx, func_import_item));
         gen_add_insn_before (gen_ctx, insn, new_insn);
-        new_insn = MIR_new_insn (ctx, MIR_MOV, flag_reg_op,
-                                 MIR_new_int_op (ctx, (int64_t) mem_op.u.mem.type));
-        gen_add_insn_before (gen_ctx, insn, new_insn);
+	if (code == MIR_VA_ARG) {
+	  new_insn = MIR_new_insn (ctx, MIR_MOV, reg_op3,
+				   MIR_new_int_op (ctx, (int64_t) op3.u.mem.type));
+	  op3 = reg_op3;
+	  gen_add_insn_before (gen_ctx, insn, new_insn);
+	}
         ops[0] = MIR_new_ref_op (ctx, proto_item);
         ops[1] = func_reg_op;
         ops[2] = res_reg_op;
         ops[3] = va_reg_op;
-        ops[4] = flag_reg_op;
-        new_insn = MIR_new_insn_arr (ctx, MIR_CALL, 5, ops);
+        ops[4] = op3;
+	if (code == MIR_VA_BLOCK_ARG) ops[5] = insn->ops[3];
+        new_insn = MIR_new_insn_arr (ctx, MIR_CALL, code == MIR_VA_ARG ? 5 : 6, ops);
         gen_add_insn_before (gen_ctx, insn, new_insn);
         gen_delete_insn (gen_ctx, insn);
       } else { /* Use builtin: mov freg, func ref; call proto, freg, res_reg, op_reg[, op_reg2] */

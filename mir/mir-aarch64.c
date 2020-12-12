@@ -4,7 +4,7 @@
 
 #define VA_LIST_IS_ARRAY_P 0
 
-/* Small BLK (less or equal to two quadwords) args are passed in
+/* Small BLK..BLK5 (less or equal to two quadwords) args are passed in
    *fully* regs or on stack (w/o address), otherwise it is put
    somehwere on stack and its address passed instead. First RBLK arg
    is passed in r8. Other RBLK independently of size is always passed
@@ -64,7 +64,7 @@ void *va_arg_builtin (void *p, uint64_t t) {
   return a;
 }
 
-void *va_stack_arg_builtin (void *p, size_t s) {
+void va_block_arg_builtin (void *res, void *p, size_t s, uint64_t ncase) {
   struct aarch64_va_list *va = p;
   void *a;
   long size = (s + 7) / 8 * 8;
@@ -73,7 +73,8 @@ void *va_stack_arg_builtin (void *p, size_t s) {
     a = va->__stack;
     va->__stack = (char *) va->__stack + size;
     va->__gr_offs += size;
-    return a;
+    memcpy (res, a, s);
+    return;
   }
   if (size > 2 * 8) size = 8;
   if (va->__gr_offs < 0) {
@@ -83,8 +84,8 @@ void *va_stack_arg_builtin (void *p, size_t s) {
     a = va->__stack;
     va->__stack = (char *) va->__stack + size;
   }
-  if (s > 2 * 8) return *(void **) a; /* address */
-  return a;
+  if (s > 2 * 8) a = *(void **) a; /* address */
+  memcpy (res, a, s);
 }
 
 void va_start_interp_builtin (MIR_context_t ctx, void *p, void *a) {
@@ -280,8 +281,8 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
   mir_assert (sizeof (long double) == 16);
   for (size_t i = 0; i < nargs; i++) { /* caclulate offset for blk params */
     type = arg_descs[i].type;
-    if ((MIR_T_I8 <= type && type <= MIR_T_U64) || type == MIR_T_P || MIR_blk_type_p (type)) {
-      if (type == MIR_T_BLK && (qwords = (arg_descs[i].size + 7) / 8) <= 2) {
+    if ((MIR_T_I8 <= type && type <= MIR_T_U64) || type == MIR_T_P || MIR_all_blk_type_p (type)) {
+      if (MIR_blk_type_p (type) && (qwords = (arg_descs[i].size + 7) / 8) <= 2) {
         if (n_xregs + qwords > 8) blk_offset += qwords * 8;
         n_xregs += qwords;
       } else {
@@ -300,7 +301,7 @@ void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_types, s
     type = arg_descs[i].type;
     scale = type == MIR_T_F ? 2 : type == MIR_T_LD ? 4 : 3;
     offset_imm = (((i + nres) * sizeof (long double) << 10)) >> scale;
-    if (type == MIR_T_BLK) {
+    if (MIR_blk_type_p (type)) {
       qwords = (arg_descs[i].size + 7) / 8;
       if (qwords <= 2) {
         addr_reg = 13;
@@ -486,9 +487,7 @@ void *_MIR_get_wrapper (MIR_context_t ctx, MIR_item_t called_func, void *hook_ad
   size_t len = sizeof (save_insns) + sizeof (restore_insns); /* initial code length */
   VARR (uint8_t) * code;
 
-#if MIR_PARALLEL_GEN
-  pthread_mutex_lock (&code_mutex);
-#endif
+  mir_mutex_lock (&code_mutex);
   VARR_CREATE (uint8_t, code, 128);
   for (;;) { /* dealing with moving code to another page */
     curr_addr = base_addr = _MIR_get_new_code_addr (ctx, len);
@@ -510,8 +509,6 @@ void *_MIR_get_wrapper (MIR_context_t ctx, MIR_item_t called_func, void *hook_ad
     if (res_code != NULL) break;
   }
   VARR_DESTROY (uint8_t, code);
-#if MIR_PARALLEL_GEN
-  pthread_mutex_unlock (&code_mutex);
-#endif
+  mir_mutex_unlock (&code_mutex);
   return res_code;
 }
