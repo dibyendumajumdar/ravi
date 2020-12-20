@@ -48,7 +48,6 @@
 		#error "No support for this architecture (yet)"
 		#define RAVI__TARGET	RAVI__ARCH_ARM
 	#elif defined(__aarch64__)
-		#error "No support for this architecture (yet)"
 		#define RAVI__TARGET	RAVI__ARCH_ARM64
 	#elif defined(__ppc__) || defined(__ppc) || defined(__PPC__) || defined(__PPC) || defined(__powerpc__) || defined(__powerpc) || defined(__POWERPC__) || defined(__POWERPC) || defined(_M_PPC)
 		#error "No support for this architecture (yet)"
@@ -121,10 +120,6 @@
 	#endif
 	#define RAVI_TARGET_X86		1
 	#define RAVI_TARGET_X86ORX64	1
-	#define RAVI_TARGET_EHRETREG	0
-	#define RAVI_TARGET_MASKSHIFT	1
-	#define RAVI_TARGET_MASKROT	1
-	#define RAVI_TARGET_UNALIGNED	1
 
 #elif RAVI__TARGET == RAVI__ARCH_X64
 
@@ -138,14 +133,21 @@
 	#endif
 	#define RAVI_TARGET_X64		1
 	#define RAVI_TARGET_X86ORX64	1
-	#define RAVI_TARGET_EHRETREG	0
-	#define RAVI_TARGET_JUMPRANGE	31	/* +-2^31 = +-2GB */
-	#define RAVI_TARGET_MASKSHIFT	1
-	#define RAVI_TARGET_MASKROT	1
-	#define RAVI_TARGET_UNALIGNED	1
+
+#elif RAVI__TARGET == RAVI__ARCH_ARM64
+
+	#define RAVI_ARCH_BITS 64
+	#if defined(__AARCH64EB__)
+	#define RAVI_ARCH_NAME "arm64be"
+	#define RAVI_ARCH_ENDIAN RAVI__ARCH_BE
+	#else
+	#define RAVI_ARCH_NAME "arm64"
+	#define RAVI_ARCH_ENDIAN RAVI__ARCH_LE
+	#endif
+	#define RAVI_TARGET_ARM64 1
 
 #else
-	#error "No target architecture defined"
+#error "No target architecture defined"
 #endif
 
 #ifndef RAVI_PAGESIZE
@@ -170,10 +172,6 @@
 #else
 #define RAVI_32			0
 #define RAVI_64			1
-#endif
-
-#ifndef RAVI_TARGET_UNALIGNED
-#define RAVI_TARGET_UNALIGNED	0
 #endif
 
 #endif

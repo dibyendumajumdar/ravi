@@ -34,8 +34,8 @@
 #include "lua.h"
 
 
-#if !RAVI_TARGET_X64
-#error MIRJIT is currently only supported on X64 architecture
+#if !RAVI_64
+#error MIRJIT is currently only supported on 64-bit architecture
 #endif
 
 typedef struct LuaFunc {
