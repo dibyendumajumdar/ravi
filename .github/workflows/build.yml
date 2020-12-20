@@ -17,7 +17,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        arch: [aarch64, amd64]
     
     steps:
     - uses: actions/checkout@v2
