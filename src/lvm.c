@@ -1386,6 +1386,8 @@ int luaV_execute (lua_State *L) {
     StkId ra;
 
     vmfetch;
+    lua_assert(base >= ci->func + 1);
+    lua_assert(base <= L->top && L->top < L->stack + L->stacksize);
     vmdispatch(op) {
       vmcase(OP_MOVE) {
         setobjs2s(L, ra, RB(i));
