@@ -227,7 +227,7 @@ objects that are stored into it (which are likely white, too).
 2. Or immediately mark the white object, turning it gray and push it onto
 the gray stack. This moves the barrier "forward", because it implicitly
 drives the GC forward. This works best for objects that only receive
-isolated stores.
+isolated stores. (example meta tables).
 
 There are many optimizations to turn this into a practical algorithm.
 Here are the most important:
@@ -293,9 +293,11 @@ void luaC_barrier_ (lua_State *L, GCObject *o, GCObject *v) {
 */
 void luaC_upvalbarrier_(lua_State* L, GCObject* o) {
   global_State* g = G(L);
-  if (keepinvariant(g) && !isold(o)) {
+  if (keepinvariant(g)) {
     markobject(g, o);
-    setage(o, G_OLD0);
+    if (!isold(o)) {
+      setage(o, G_OLD0);
+    }
   }
 }
 
@@ -304,9 +306,11 @@ void luaC_upvalbarrier_compat(lua_State* L, UpVal* uv) {
   global_State* g = G(L);
   GCObject* o = gcvalue(uv->v);
   lua_assert(!upisopen(uv));  /* ensured by macro luaC_upvalbarrier */
-  if (keepinvariant(g) && !isold(o)) {
+  if (keepinvariant(g)) {
     markobject(g, o);
-    setage(o, G_OLD0);
+    if (!isold(o)) {
+      setage(o, G_OLD0);
+    }
   }
 }
 
