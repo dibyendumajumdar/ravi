@@ -121,6 +121,11 @@ else ()
     if (MIR_JIT)
         message(STATUS "MIRJIT enabled")
         set(JIT_SRCS ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS})
+        set(ALL_MIR_SRCS ${MIR_SRCS} ${C2MIR_SRCS})
+        if (NOT MSVC)
+            set_source_files_properties(${ALL_MIR_SRCS} PROPERTIES
+                    COMPILE_FLAGS "-fsigned-char")
+        endif ()
         set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
                 APPEND
                 PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
