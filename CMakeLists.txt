@@ -1,12 +1,9 @@
 cmake_minimum_required(VERSION 3.12)
-project(Ravi VERSION 1.0.4 LANGUAGES C CXX)
+project(Ravi VERSION 1.0.4 LANGUAGES C)
 
-# By default on platforms where MIR is supported (right now Linux X86_64)
-# MIR JIT backend is automatically enabled. To disable user must specify
+# By default MIR JIT backend is automatically enabled. To disable user must specify
 # NO_JIT=ON
-# LLVM has to be explicitly specified using LLVM_JIT=ON
 
-option(LLVM_JIT "Controls whether LLVM JIT compilation will be enabled, default is OFF" OFF)
 option(NO_JIT "Controls whether JIT should be disabled, default is OFF" OFF)
 option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
@@ -16,14 +13,12 @@ option(RAVICOMP "Controls whether to link in RaviComp" OFF)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-# By default on non-Windows platforms we enable MIR JIT
-if (NOT LLVM_JIT
-        AND NOT NO_JIT)
+# By we enable MIR JIT
+if (NOT NO_JIT)
     set(MIR_JIT ON)
 endif ()
 
 if (MIR_JIT)
-    set(LLVM_JIT OFF)
     set(STATIC_BUILD OFF) # Because we need to expose the symbols in the library
 endif ()
 
@@ -51,12 +46,6 @@ set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src
 set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
         src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
 set(LUA_HEADERS include/lua.h include/luaconf.h include/lualib.h include/lauxlib.h)
-# LLVM code gen
-set(LLVM_JIT_SRCS src/ravi_llvmjit.cpp src/ravi_llvmtypes.cpp
-        src/ravi_llvmcodegen.cpp src/ravi_llvmforprep.cpp src/ravi_llvmcomp.cpp
-        src/ravi_llvmreturn.cpp src/ravi_llvmload.cpp src/ravi_llvmforloop.cpp
-        src/ravi_llvmarith1.cpp src/ravi_llvmcall.cpp src/ravi_llvmtable.cpp
-        src/ravi_llvmarith2.cpp src/ravi_llvmtforcall.cpp src/ravi_llvmrest.cpp)
 set(MIR_HEADERS mir/mir.h mir/mir-gen.h mir/mir-varr.h mir/mir-dlist.h mir/mir-htab.h
         mir/mir-hash.h mir/mir-bitmap.h)
 set(MIR_SRCS mir/mir.c mir/mir-gen.c)
@@ -89,56 +78,26 @@ if (ASAN)
     endif ()
 endif ()
 
-if (LLVM_JIT)
-    find_package(LLVM REQUIRED CONFIG)
-    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-    message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-
-    message(STATUS "LLVM Definitions ${LLVM_DEFINITIONS}")
-    message(STATUS "LLVMJIT enabled")
-
-    set(JIT_SRCS ${LLVM_JIT_SRCS})
+if (MIR_JIT)
+    message(STATUS "MIRJIT enabled")
+    set(JIT_SRCS ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS})
+    set(ALL_MIR_SRCS ${MIR_SRCS} ${C2MIR_SRCS})
     if (NOT MSVC)
-        set_source_files_properties(${LLVM_JIT_SRCS} PROPERTIES
-                COMPILE_FLAGS "-fno-rtti -fno-exceptions ${LLVM_DEFINITIONS}")
+        set_source_files_properties(${ALL_MIR_SRCS} PROPERTIES
+                COMPILE_FLAGS "-fsigned-char")
     endif ()
-    set_property(
-            SOURCE ${LLVM_JIT_SRCS}
+    set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
             APPEND
-            PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS}
-    )
-    # FIXME get rid of this dependency
-    set_property(
-            SOURCE ${LUA_CMD_SRCS}
+            PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
+    set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
             APPEND
-            PROPERTY INCLUDE_DIRECTORIES ${LLVM_INCLUDE_DIRS})
-
+            PROPERTY COMPILE_DEFINITIONS "MIR_NO_IO=0;MIR_NO_SCAN=1;MIR_NO_INTERP=1")
     if ($ENV{CLION_IDE})
         # CLion seems unable to handle include paths set on sources
-        include_directories(${LLVM_INCLUDE_DIRS})
+        include_directories("${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
     endif ()
 else ()
-    if (MIR_JIT)
-        message(STATUS "MIRJIT enabled")
-        set(JIT_SRCS ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS})
-        set(ALL_MIR_SRCS ${MIR_SRCS} ${C2MIR_SRCS})
-        if (NOT MSVC)
-            set_source_files_properties(${ALL_MIR_SRCS} PROPERTIES
-                    COMPILE_FLAGS "-fsigned-char")
-        endif ()
-        set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
-                APPEND
-                PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
-        set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
-                APPEND
-                PROPERTY COMPILE_DEFINITIONS "MIR_NO_IO=0;MIR_NO_SCAN=1;MIR_NO_INTERP=1")
-        if ($ENV{CLION_IDE})
-            # CLion seems unable to handle include paths set on sources
-            include_directories("${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
-        endif ()
-    else ()
-        set(JIT_SRCS ${NO_JIT_SRCS})
-    endif ()
+    set(JIT_SRCS ${NO_JIT_SRCS})
 endif ()
 
 if (RAVICOMP)
@@ -177,64 +136,6 @@ elseif (NOT WIN32)
     set(EXTRA_LIBRARIES m dl readline)
 endif ()
 
-# Enable minimal required LLVM components so that the
-# the size of the resulting binary is manageable
-if (LLVM_JIT)
-    if (${LLVM_PACKAGE_VERSION} VERSION_LESS "3.8")
-        set(LLVM_EXTRA_LIBS ipa)
-    endif ()
-    if (NOT ${LLVM_PACKAGE_VERSION} VERSION_LESS "5.0.0")
-        set(LLVM_EXTRA_LIBS orcjit)
-    endif ()
-    message(STATUS "SYSTEM_PROCESSOR ${CMAKE_SYSTEM_PROCESSOR}")
-    if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
-        set(LLVM_LIBS_PROCESSOR
-                X86CodeGen
-                X86AsmParser
-                X86Disassembler
-                X86Desc
-                X86Info
-                X86Utils
-                )
-        if (${LLVM_PACKAGE_VERSION} VERSION_LESS "9.0.0")
-            list(APPEND LLVM_LIBS_PROCESSOR X86AsmPrinter)
-        endif ()
-    elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
-        set(LLVM_LIBS_PROCESSOR
-                ARMCodeGen
-                ARMAsmParser
-                ARMDisassembler
-                ARMAsmPrinter
-                ARMDesc
-                ARMInfo
-                )
-    endif ()
-    llvm_map_components_to_libnames(LLVM_LIBS
-            Analysis
-            AsmParser
-            AsmPrinter
-            BitReader
-            Core
-            CodeGen
-            ExecutionEngine
-            InstCombine
-            ${LLVM_EXTRA_LIBS}
-            ipo
-            MC
-            MCJIT
-            MCParser
-            Object
-            RuntimeDyld
-            ScalarOpts
-            Support
-            Target
-            TransformUtils
-            ${LLVM_LIBS_PROCESSOR}
-            )
-    message(STATUS "LLVM_LIBS ${LLVM_LIBS}")
-endif ()
-
-
 set(LIBRAVI_NAME libravi)
 
 #Main library
@@ -244,7 +145,7 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${LUA_CORE_SRCS}
         ${JIT_SRCS}
         ${ADDON_SRCS})
-target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${LLVM_LIBS} ${MIRJIT_LIBRARIES} ${RAVICOMP_LIBRARIES})
+target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${MIRJIT_LIBRARIES} ${RAVICOMP_LIBRARIES})
 
 # Main Ravi executable
 add_executable(ravi ${LUA_CMD_SRCS})
@@ -281,13 +182,7 @@ if (NOT LTESTS)
             PROPERTY COMPILE_DEFINITIONS NO_LUA_DEBUG)
     set(NO_LUA_DEBUG 1)
 endif ()
-if (LLVM_JIT)
-    set_property(
-            TARGET ${LIBRAVI_NAME} ravi
-            APPEND
-            PROPERTY COMPILE_DEFINITIONS "USE_LLVM=1")
-    set(USE_LLVM 1)
-elseif (MIR_JIT)
+if (MIR_JIT)
     set_property(
             TARGET ${LIBRAVI_NAME} ravi
             APPEND
@@ -325,8 +220,6 @@ elseif (UNIX)
             APPEND
             PROPERTY COMPILE_DEFINITIONS "LUA_USE_LINUX=1")
 endif ()
-set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_STANDARD 14)
-set_property(TARGET ${LIBRAVI_NAME} PROPERTY CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 configure_file(ravi-config.h.in ravi-config.h @ONLY)

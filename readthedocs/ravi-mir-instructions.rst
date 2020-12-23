@@ -1,8 +1,6 @@
 Instructions for Building With MIR JIT support
 ==============================================
 
-Please note that currently `MIR <https://github.com/vnmakarov/mir>`_ JIT support is only available on Linux X86-64 platforms.
-
 Building with MIR support is straightforward as MIR is included in Ravi::
 
    mkdir buildmir
@@ -11,3 +9,10 @@ Building with MIR support is straightforward as MIR is included in Ravi::
    make install
    
 That's it. 
+
+For Windows, try this::
+
+   mkdir buildmir
+   cd buildmir
+   cmake -DCMAKE_INSTALL_PREFIX=/Software/ravi -DCMAKE_BUILD_TYPE=Release -DMIR_JIT=ON ..
+   cmake --build . --config Release

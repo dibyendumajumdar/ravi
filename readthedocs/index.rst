@@ -14,16 +14,11 @@ Contents:
    ravi-overview
    ravi-reference
    ravi-mir-instructions
-   ravi-llvm-instructions
    lua-introduction
    lua_bytecode_reference
    lua-parser
    ravi-internals
    ravi-jit-compilation-hook
-   ravi-lua-types
-   llvm-tbaa
-   ravi-benchmarks
-   ravi-jit-status
 
 
 Indices and tables

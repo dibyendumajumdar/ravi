@@ -5,7 +5,7 @@ Ravi Programming Language
     :target: https://travis-ci.org/dibyendumajumdar/ravi
 
 Ravi is a dialect of `Lua <http://www.lua.org/>`_ with limited optional static typing and 
-features `MIR <https://github.com/vnmakarov/mir>`_ and `LLVM <http://www.llvm.org/>`_ powered JIT compilers. 
+features `MIR <https://github.com/vnmakarov/mir>`_ powered JIT compilers.
 The name Ravi comes from the Sanskrit word for the Sun. 
 Interestingly a precursor to Lua was `Sol <http://www.lua.org/history.html>`_ which had support for 
 static types; Sol means the Sun in Portugese.
@@ -35,8 +35,7 @@ Features
 * Compatibility with Lua 5.3 (see Compatibility section below)
 * Generational GC from Lua 5.4
 * ``defer`` statement for releasing resources
-* Compact JIT backend `MIR <https://github.com/vnmakarov/mir>`_; only Linux and x86-64 supported for now.
-* `LLVM <http://www.llvm.org/>`_ supported as alternative JIT backend.
+* Compact JIT backend `MIR <https://github.com/vnmakarov/mir>`_.
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * A `Visual Studio Code debugger extension <https://marketplace.visualstudio.com/items?itemName=ravilang.ravi-debug>`_ - interpreted mode debugger.
 
@@ -44,7 +43,6 @@ Documentation
 =============
 * For the Lua extensions in Ravi see the `Reference Manual <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-reference.html>`_.
 * `MIR JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-mir-instructions.html>`_.
-* `LLVM JIT Build instructions <https://the-ravi-programming-language.readthedocs.io/en/latest/ravi-llvm-instructions.html>`_.
 * Also see `Ravi Documentation <http://the-ravi-programming-language.readthedocs.org/en/latest/index.html>`_.
 * and the slides I presented at the `Lua 2015 Workshop <http://www.lua.org/wshop15.html>`_.
 
@@ -99,6 +97,7 @@ When JIT compilation is enabled there are following additional constraints:
 
 * Ravi will only execute JITed code from the main Lua thread; any secondary threads (coroutines) execute in interpreter mode.
 * In JITed code tailcalls are implemented as regular calls so unlike the interpreter VM which supports infinite tail recursion JIT compiled code only supports tail recursion to a depth of about 110 (issue #17)
+* Debug api and hooks are not supported in JIT mode
 
 History
 =======
@@ -115,11 +114,13 @@ History
        - Created `Ravi with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * 2019 
        - New language feature - `defer` statement
-       - New JIT backend `MIR <https://github.com/vnmakarov/mir>`_. 
-
-* 2020 (Plan)
-       - `New optimizing byte code generator based on new parser / type checker <https://github.com/dibyendumajumdar/ravi-compiler>`_
+       - New JIT backend `MIR <https://github.com/vnmakarov/mir>`_.
+* 2020
+       - `New parser / type checker / compiler <https://github.com/dibyendumajumdar/ravi-compiler>`_
        - Generational GC back-ported from Lua 5.4
+       - Support for `LLVM backend <https://github.com/dibyendumajumdar/ravi/tree/llvm>`_ archived
+* 2021 (Plan)
+       - Integrated AOT and JIT compilation support
        - Ravi 1.0 release
 
 License

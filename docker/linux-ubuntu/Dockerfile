@@ -12,20 +12,15 @@ RUN set -x \
     && cd /Software \
     && tar xvf "cmake-3.14.5-Linux-x86_64.tar.gz" \
     && rm -rf "/Software/cmake-3.14.5-Linux-x86_64.tar.gz" \
-    && wget -O "/Software/clang+llvm-8.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz" "http://releases.llvm.org/8.0.0/clang+llvm-8.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz" \
-    && cd /Software \
-    && tar xvf "clang+llvm-8.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz" \
-    && rm -rf "/Software/clang+llvm-8.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz" \
     && mkdir -p /sources \
     && cd /sources \
     && git clone https://github.com/dibyendumajumdar/ravi.git \
     && cd /sources/ravi \
     && mkdir build \
     && cd build \
-    && /Software/cmake-3.14.5-Linux-x86_64/bin/cmake -DSTATIC_BUILD=ON -DCMAKE_INSTALL_PREFIX=/Software/ravi -DLLVM_JIT=ON -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/Software/clang+llvm-8.0.0-x86_64-linux-gnu-ubuntu-18.04/lib/cmake/llvm .. \
+    && /Software/cmake-3.14.5-Linux-x86_64/bin/cmake -DCMAKE_INSTALL_PREFIX=/Software/ravi -DCMAKE_BUILD_TYPE=Release .. \
     && make install \
     && rm -rf /Software/cmake-3.14.5-Linux-x86_64 \
-    && rm -rf /Software/clang+llvm-8.0.0-x86_64-linux-gnu-ubuntu-18.04 \
     && rm -rf /sources \
     && apt-get autoremove \
     && apt-get remove -y --purge git wget build-essential \
