@@ -1231,7 +1231,7 @@ LUA_API void lua_setuservalue (lua_State *L, int idx) {
   o = index2addr(L, idx);
   api_check(L, ttisfulluserdata(o), "full userdata expected");
   setuservalue(L, uvalue(o), L->top - 1);
-  luaC_barrier(L, gcvalue(o), L->top - 1);
+  luaC_barrier(L, gcvalue(o), L->top - 1); /* Note this is different from Lua 5.4 where userdata is treated like a table */
   L->top--;
   lua_unlock(L);
 }
