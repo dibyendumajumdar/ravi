@@ -7,7 +7,7 @@ arch:
 compiler:
  - gcc
 cache: ccache
-dist: bionic
+dist: focal
 addons:
   apt:
     packages:
