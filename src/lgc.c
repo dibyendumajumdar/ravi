@@ -249,19 +249,23 @@ use forward barriers.
 */
 
 /*
-** barrier that moves collector forward, that is, mark the white object
-** 'v' being pointed by the black object 'o'. (If in sweep phase, clear
-** the black object to white [sweep it] to avoid other barrier calls for
-** this same object.) In the generational mode, 'v' must also become
-** old, if 'o' is old; however, it cannot be changed directly to OLD,
-** because it may still point to non-old objects. So, it is marked as
-** OLD0. In the next cycle it will become OLD1, and in the next it
-** will finally become OLD (regular old).
+** Barrier that moves collector forward, that is, marks the white object
+** 'v' being pointed by the black object 'o'.  In the generational
+** mode, 'v' must also become old, if 'o' is old; however, it cannot
+** be changed directly to OLD, because it may still point to non-old
+** objects. So, it is marked as OLD0. In the next cycle it will become
+** OLD1, and in the next it will finally become OLD (regular old). By
+** then, any object it points to will also be old.  If called in the
+** incremental sweep phase, it clears the black object to white (sweep
+** it) to avoid other barrier calls for this same object. (That cannot
+** be done is generational mode, as its sweep does not distinguish
+** whites from deads.)
+
 
 **
 ** Here we have a black object pointing / referencing a white object
 ** So to preserve tri-color invariant the white object must
-** be marked and turned gray or black. Userdata, strings and upvalues
+** be turned gray or black. Userdata, strings and upvalues
 ** are turned black, whereas functions, threads, tables and protos are turned
 ** gray.
 **
@@ -286,7 +290,7 @@ void luaC_barrier_ (lua_State *L, GCObject *o, GCObject *v) {
 }
 
 /*
-** barrier for assignments to closed upvalues. Because upvalues are
+** Barrier for assignments to closed upvalues. Because upvalues are
 ** shared among closures, it is impossible to know the color of all
 ** closures pointing to it. So, we assume that the object being assigned
 ** must be marked.
@@ -301,18 +305,6 @@ void luaC_upvalbarrier_(lua_State* L, GCObject* o) {
   }
 }
 
-/* This is for compat with LLVM backend */
-void luaC_upvalbarrier_compat(lua_State* L, UpVal* uv) {
-  global_State* g = G(L);
-  GCObject* o = gcvalue(uv->v);
-  lua_assert(!upisopen(uv));  /* ensured by macro luaC_upvalbarrier */
-  if (keepinvariant(g)) {
-    markobject(g, o);
-    if (!isold(o)) {
-      setage(o, G_OLD0);
-    }
-  }
-}
 
 /*
 ** barrier that moves collector backward, that is, mark the black object
@@ -374,10 +366,13 @@ GCObject *luaC_newobj (lua_State *L, int tt, size_t sz) {
 
 /*
 ** mark an object. Userdata, strings, and closed upvalues are visited
-** and turned black here. Other objects (functions, tables, threads, protos)
-** are marked gray and added
-** to appropriate list to be visited (and turned black) later. (Open
-** upvalues are already linked in 'headuv' list.)
+** and turned black here. Open upvalues are
+** already indirectly linked through their respective threads in the
+** 'twups' list, so they don't go to the gray list; nevertheless, they
+** are kept gray to avoid barriers, as their values will be revisited
+** by the thread or by 'remarkupvals'. Other objects (functions, tables, 
+** threads, protos) are marked gray and added to appropriate list to 
+** be visited (and turned black) later. 
 */
 static void reallymarkobject (global_State *g, GCObject *o) {
  reentry:
@@ -392,7 +387,7 @@ static void reallymarkobject (global_State *g, GCObject *o) {
       markobjectN(g, gco2u(o)->metatable);  /* mark its metatable */
       set2black(o);
       getuservalue(g->mainthread, gco2u(o), &uvalue);
-      if (valiswhite(&uvalue)) {  /* markvalue(g, &uvalue); */
+      if (valiswhite(&uvalue)) {
         o = gcvalue(&uvalue);
         goto reentry;
       }
@@ -406,7 +401,10 @@ static void reallymarkobject (global_State *g, GCObject *o) {
       set2black(o);
       if (slice->flags & RAVI_ARRAY_SLICE) {
         lua_assert(slice->parent);
-        TValue pvalue = {.tt_ = ctb(slice->parent->tt), .value_.gc = obj2gco(slice->parent)};  // FIX we should use appropriate macro
+        TValue pvalue = {
+			.tt_ = ctb(slice->parent->tt), 
+			.value_.gc = obj2gco(slice->parent)
+		};  // FIXME we should use appropriate macro here
         if (valiswhite(&pvalue)) {
           o = gcvalue(&pvalue);
           goto reentry;
@@ -1290,7 +1288,7 @@ static void correctgraylists (global_State *g) {
 
 
 /*
-** Mark 'OLD1' objects when starting a new young collection.
+** Mark black 'OLD1' objects when starting a new young collection.
 ** Gray objects are already in some gray list, and so will be visited
 ** in the atomic step.
 */
