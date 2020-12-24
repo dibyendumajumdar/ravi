@@ -132,33 +132,29 @@ end
 
 
 -- ensure that userdata barrier evolves correctly
+-- unlike 5.4, we use forward barrier (as in 5.3) so the uservalue will
+-- become old0 on assignment to userdata
 do
   local U = T.newuserdata(0, 1)
   -- full collection makes 'U' old
   collectgarbage()
   assert(T.gcage(U) == "old")
 
-  -- U refers to a new table, so it becomes 'touched1'
+  -- U stays 'old', uservalue will be set to old0
   debug.setuservalue(U, {x = {234}})
-  print(T.gcage(U))
-  print(T.gcage(debug.getuservalue(U)))
-  --assert(T.gcage(U) == "touched1" and
-  --       T.gcage(debug.getuservalue(U)) == "new")
+  assert(T.gcage(U) == "old" and
+         T.gcage(debug.getuservalue(U)) == "old0")
 
   -- both U and the table survive one more collection
   collectgarbage("step", 0)
-  print(T.gcage(U))
-  print(T.gcage(debug.getuservalue(U)))
-  --assert(T.gcage(U) == "touched2" and
-  --       T.gcage(debug.getuservalue(U)) == "survival")
+  assert(T.gcage(U) == "old" and
+         T.gcage(debug.getuservalue(U)) == "old1")
 
   -- both U and the table survive yet another collection
   -- now everything is old
   collectgarbage("step", 0)
-  print(T.gcage(U))
-  print(T.gcage(debug.getuservalue(U)))
-  --assert(T.gcage(U) == "old" and
-  --       T.gcage(debug.getuservalue(U)) == "old1")
+  assert(T.gcage(U) == "old" and
+         T.gcage(debug.getuservalue(U)) == "old")
 
   -- data was not corrupted
   assert(debug.getuservalue(U).x[1] == 234)
