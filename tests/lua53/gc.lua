@@ -584,7 +584,6 @@ if T then   -- tests for weird cases collecting upvalues
   assert(t.co == nil and f() == 30)   -- ensure correct access to 'a'
 
   collectgarbage("restart")
-  print '+++'
   -- test barrier in sweep phase (advance cleaning of upvalue to white)
   local u = T.newuserdata(0)   -- create a userdata
   collectgarbage()
@@ -596,7 +595,7 @@ if T then   -- tests for weird cases collecting upvalues
   assert(T.gccolor(u) == "black")   -- userdata is "old" (black)
   assert(T.gccolor(x) == "white")   -- table is "new" (white)
   debug.setuservalue(u, x)          -- trigger barrier
-  --assert(T.gccolor(u) == "gray")   -- userdata changed back to gray
+  assert(T.gccolor(u) == "white")   -- userdata changed to white (per Lua 5.3, gray in 5.4)
   collectgarbage"restart"
 
   print"+"
