@@ -536,10 +536,14 @@ do
     local co = coroutine.create(f)
     assert(coroutine.resume(co, co))
   end
-  -- Now, thread and closure are not reacheable any more.
+  -- Now, thread and closure are not reacheable any more;
+  -- two collections are needed to break cycle
+  -- Note that this is consistent with Lua 5.3 (reference counted up-values)
+  -- but in 5.4 the first collection below fires the finaliser
   collectgarbage()
-  -- FIXME
-  --assert(collected)
+  assert(not collected)
+  collectgarbage()
+  assert(collected)
   collectgarbage("restart")
 end
 
