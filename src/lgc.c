@@ -868,44 +868,43 @@ static void freeLclosure (lua_State *L, LClosure *cl) {
   luaM_freemem(L, cl, sizeLclosure(cl->nupvalues));
 }
 
-
-static void freeobj (lua_State *L, GCObject *o) {
+static void freeobj(lua_State *L, GCObject *o) {
   switch (o->tt) {
-    case LUA_TPROTO: 
-	  luaF_freeproto(L, gco2p(o)); 
-	  break;
+    case LUA_TPROTO:
+      luaF_freeproto(L, gco2p(o));
+      break;
     case LUA_TLCL:
       freeLclosure(L, gco2lcl(o));
       break;
     case LUA_TCCL:
       luaM_freemem(L, o, sizeCclosure(gco2ccl(o)->nupvalues));
       break;
-    case LUA_TTABLE: 
-	  luaH_free(L, gco2t(o)); 
-	  break;
-    case LUA_TTHREAD: 
-	  luaE_freethread(L, gco2th(o)); 
-	  break;
-    case LUA_TUSERDATA: 
-	  luaM_freemem(L, o, sizeudata(gco2u(o))); 
-	  break;
+    case LUA_TTABLE:
+      luaH_free(L, gco2t(o));
+      break;
+    case LUA_TTHREAD:
+      luaE_freethread(L, gco2th(o));
+      break;
+    case LUA_TUSERDATA:
+      luaM_freemem(L, o, sizeudata(gco2u(o)));
+      break;
 
     /* RAVI changes */
     case RAVI_TFARRAY:
-    case RAVI_TIARRAY: 
-	  raviH_free(L, gco2array(o)); 
-	  break;
+    case RAVI_TIARRAY:
+      raviH_free(L, gco2array(o));
+      break;
     case LUA_TSHRSTR:
-      luaS_remove(L, gco2ts(o));  /* remove it from hash table */
+      luaS_remove(L, gco2ts(o)); /* remove it from hash table */
       luaM_freemem(L, o, sizelstring(gco2ts(o)->shrlen));
       break;
     case LUA_TLNGSTR:
       luaM_freemem(L, o, sizelstring(gco2ts(o)->u.lnglen));
       break;
-    default: lua_assert(0);
+    default:
+      lua_assert(0);
   }
 }
-
 
 /*
 ** sweep at most 'countin' elements from a list of GCObjects erasing dead
