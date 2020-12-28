@@ -25,6 +25,9 @@ assert(f() == 0)
 assert(f({1,2,3}, 1, 2, 3) == 3)
 assert(f({"alo", nil, 45, f, nil}, "alo", nil, 45, f, nil) == 5)
 
+assert(vararg().n == 0)
+assert(vararg(nil, nil).n == 2)
+
 assert(c12(1,2)==55)
 a,b = assert(call(c12, {1,2}))
 assert(a == 55 and b == 2)
