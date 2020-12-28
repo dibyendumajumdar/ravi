@@ -794,6 +794,10 @@ typedef struct RaviArray {
   struct Table *metatable;
 } RaviArray;
 
+#define getsliceunderlying(L,s,o) \
+	{ TValue *io=(o); const RaviArray *is = (s); \
+	  io->value_.gc = obj2gco(is->parent); settt_(io, ctb(is->parent->tt)); \
+	  checkliveness(L,io); }
 
 /*
 ** 'module' operation for hashing (size is always a power of 2)

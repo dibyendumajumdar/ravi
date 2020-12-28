@@ -882,7 +882,7 @@ LUA_API void ravi_get_integer_array_rawdata(lua_State *L, int idx, Ravi_IntegerA
  * implementation having array values starting at 0.
  * A slice must not attempt to release the data array as this is not owned by
  * it,
- * and in fact may point to garbage from a memory allocater's point of view.
+ * and in fact may point to garbage from a memory allocator's point of view.
  */
 LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
                                unsigned int len) {
@@ -890,7 +890,6 @@ LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
   RaviArray *slice;
   const char *errmsg = NULL;
   lua_lock(L);
-  /* The do-while loop here is just for error handling */
   parent = index2addr(L, idx);
   if (!ttistable(parent)) {
     errmsg = "integer[] or number[] expected";

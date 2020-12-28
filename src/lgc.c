@@ -400,11 +400,9 @@ static void reallymarkobject (global_State *g, GCObject *o) {
       markobjectN(g, gco2array(o)->metatable);  /* mark its metatable */
       set2black(o);
       if (slice->flags & RAVI_ARRAY_SLICE) {
+        TValue pvalue;
         lua_assert(slice->parent);
-        TValue pvalue = {
-			.tt_ = ctb(slice->parent->tt), 
-			.value_.gc = obj2gco(slice->parent)
-		};  // FIXME we should use appropriate macro here
+        getsliceunderlying(g->mainthread, slice, &pvalue);
         if (valiswhite(&pvalue)) {
           o = gcvalue(&pvalue);
           goto reentry;
