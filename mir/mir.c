@@ -51,6 +51,7 @@ struct MIR_context {
   struct io_ctx *io_ctx;
   struct scan_ctx *scan_ctx;
   struct interp_ctx *interp_ctx;
+  void *setjmp_addr; /* used in interpreter to call setjmp directly not from a shim and FFI */
 };
 
 #define ctx_mutex ctx->ctx_mutex
@@ -66,6 +67,7 @@ struct MIR_context {
 #define curr_label_num ctx->curr_label_num
 #define all_modules ctx->all_modules
 #define modules_to_link ctx->modules_to_link
+#define setjmp_addr ctx->setjmp_addr
 
 static void util_error (MIR_context_t ctx, const char *message);
 #define MIR_VARR_ERROR util_error
@@ -763,7 +765,10 @@ MIR_module_t MIR_new_module (MIR_context_t ctx, const char *name) {
 
 DLIST (MIR_module_t) * MIR_get_module_list (MIR_context_t ctx) { return &all_modules; }
 
-static const char *type_str (MIR_type_t tp) {
+static const char *type_str (MIR_context_t ctx, MIR_type_t tp) {
+  int n;
+  char str[100];
+
   switch (tp) {
   case MIR_T_I8: return "i8";
   case MIR_T_U8: return "u8";
@@ -777,19 +782,19 @@ static const char *type_str (MIR_type_t tp) {
   case MIR_T_D: return "d";
   case MIR_T_LD: return "ld";
   case MIR_T_P: return "p";
-  case MIR_T_BLK: return "blk";
-  case MIR_T_BLK2: return "blk2";
-  case MIR_T_BLK3: return "blk3";
-  case MIR_T_BLK4: return "blk4";
-  case MIR_T_BLK5: return "blk5";
   case MIR_T_RBLK: return "rblk";
   case MIR_T_UNDEF: return "undef";
-  default: return "";
+  default:
+    if (MIR_blk_type_p (tp) && (n = tp - MIR_T_BLK) >= 0 && n < MIR_BLK_NUM) {
+      sprintf (str, "blk%d", n);
+      return get_ctx_str (ctx, str);
+    }
+    return "";
   }
 }
 
 const char *MIR_type_str (MIR_context_t ctx, MIR_type_t tp) {
-  const char *str = type_str (tp);
+  const char *str = type_str (ctx, tp);
 
   if (strcmp (str, "") == 0)
     MIR_get_error_func (ctx) (MIR_wrong_param_value_error, "MIR_type_str: wrong type");
@@ -1264,7 +1269,7 @@ MIR_reg_t MIR_new_func_reg (MIR_context_t ctx, MIR_func_t func, MIR_type_t type,
 
   if (type != MIR_T_I64 && type != MIR_T_F && type != MIR_T_D && type != MIR_T_LD)
     MIR_get_error_func (ctx) (MIR_reg_type_error, "wrong type for register %s: got '%s'", name,
-                              type_str (type));
+                              type_str (ctx, type));
   mir_assert (func != NULL);
   res = create_func_reg (ctx, func, name, VARR_LENGTH (MIR_var_t, func->vars) + 1, type, FALSE,
                          &stored_name);
@@ -1576,8 +1581,8 @@ void MIR_load_module (MIR_context_t ctx, MIR_module_t m) {
     } else if (item->item_type == MIR_func_item) {
       if (item->addr == NULL) {
         item->addr = _MIR_get_thunk (ctx);
-#ifdef MIR_DEBUG
-        fprintf (stderr, "%016lx: %s\n", (size_t) item->addr, item->u.func->name);
+#if defined(MIR_DEBUG)
+        fprintf (stderr, "%016llx: %s\n", (unsigned long long) item->addr, item->u.func->name);
 #endif
       }
       _MIR_redirect_thunk (ctx, item->addr, undefined_interface);
@@ -1592,7 +1597,12 @@ void MIR_load_module (MIR_context_t ctx, MIR_module_t m) {
   VARR_PUSH (MIR_module_t, modules_to_link, m);
 }
 
+#define SETJMP_NAME "setjmp"
+#define SETJMP_NAME2 "_setjmp"
+
 void MIR_load_external (MIR_context_t ctx, const char *name, void *addr) {
+  if (strcmp (name, SETJMP_NAME) == 0 || (SETJMP_NAME2 != NULL && strcmp (name, SETJMP_NAME2) == 0))
+    setjmp_addr = addr;
   setup_global (ctx, name, addr, NULL);
 }
 
@@ -1998,7 +2008,7 @@ MIR_reg_t _MIR_new_temp_reg (MIR_context_t ctx, MIR_type_t type, MIR_func_t func
 
   if (type != MIR_T_I64 && type != MIR_T_F && type != MIR_T_D && type != MIR_T_LD)
     MIR_get_error_func (ctx) (MIR_reg_type_error, "wrong type %s for temporary register",
-                              type_str (type));
+                              type_str (ctx, type));
   mir_assert (func != NULL);
   for (;;) {
     func->last_temp_num++;
@@ -2398,7 +2408,9 @@ void MIR_change_module_ctx (MIR_context_t old_ctx, MIR_module_t m, MIR_context_t
   }
 }
 
-static void output_type (FILE *f, MIR_type_t tp) { fprintf (f, "%s", MIR_type_str (NULL, tp)); }
+static void output_type (MIR_context_t ctx, FILE *f, MIR_type_t tp) {
+  fprintf (f, "%s", MIR_type_str (ctx, tp));
+}
 
 static void output_disp (FILE *f, MIR_disp_t disp) { fprintf (f, "%" PRId64, (int64_t) disp); }
 
@@ -2451,7 +2463,7 @@ void MIR_output_op (MIR_context_t ctx, FILE *f, MIR_op_t op, MIR_func_t func) {
   case MIR_OP_HARD_REG_MEM: {
     MIR_reg_t no_reg = op.mode == MIR_OP_MEM ? 0 : MIR_NON_HARD_REG;
 
-    output_type (f, op.u.mem.type);
+    output_type (ctx, f, op.u.mem.type);
     fprintf (f, ":");
     if (op.u.mem.disp != 0 || (op.u.mem.base == no_reg && op.u.mem.index == no_reg))
       output_disp (f, op.u.mem.disp);
@@ -2510,23 +2522,23 @@ void MIR_output_insn (MIR_context_t ctx, FILE *f, MIR_insn_t insn, MIR_func_t fu
   if (newline_p) fprintf (f, "\n");
 }
 
-static void output_func_proto (FILE *f, size_t nres, MIR_type_t *types, size_t nargs,
-                               VARR (MIR_var_t) * args, int vararg_p) {
+static void output_func_proto (MIR_context_t ctx, FILE *f, size_t nres, MIR_type_t *types,
+                               size_t nargs, VARR (MIR_var_t) * args, int vararg_p) {
   size_t i;
   MIR_var_t var;
 
   for (i = 0; i < nres; i++) {
     if (i != 0) fprintf (f, ", ");
-    fprintf (f, "%s", MIR_type_str (NULL, types[i]));
+    fprintf (f, "%s", MIR_type_str (ctx, types[i]));
   }
   for (i = 0; i < nargs; i++) {
     var = VARR_GET (MIR_var_t, args, i);
     if (i != 0 || nres != 0) fprintf (f, ", ");
     mir_assert (var.name != NULL);
     if (!MIR_all_blk_type_p (var.type))
-      fprintf (f, "%s:%s", MIR_type_str (NULL, var.type), var.name);
+      fprintf (f, "%s:%s", MIR_type_str (ctx, var.type), var.name);
     else
-      fprintf (f, "%s:%lu(%s)", MIR_type_str (NULL, var.type), (unsigned long) var.size, var.name);
+      fprintf (f, "%s:%lu(%s)", MIR_type_str (ctx, var.type), (unsigned long) var.size, var.name);
   }
   if (vararg_p) fprintf (f, nargs == 0 && nres == 0 ? "..." : ", ...");
   fprintf (f, "\n");
@@ -2575,7 +2587,7 @@ void MIR_output_item (MIR_context_t ctx, FILE *f, MIR_item_t item) {
   if (item->item_type == MIR_data_item) {
     data = item->u.data;
     if (data->name != NULL) fprintf (f, "%s:", data->name);
-    fprintf (f, "\t%s\t", MIR_type_str (NULL, data->el_type));
+    fprintf (f, "\t%s\t", MIR_type_str (ctx, data->el_type));
     for (size_t i = 0; i < data->nel; i++) {
       switch (data->el_type) {
       case MIR_T_I8: fprintf (f, "%" PRId8, ((int8_t *) data->u.els)[i]); break;
@@ -2607,13 +2619,13 @@ void MIR_output_item (MIR_context_t ctx, FILE *f, MIR_item_t item) {
   if (item->item_type == MIR_proto_item) {
     proto = item->u.proto;
     fprintf (f, "%s:\tproto\t", proto->name);
-    output_func_proto (f, proto->nres, proto->res_types, VARR_LENGTH (MIR_var_t, proto->args),
+    output_func_proto (ctx, f, proto->nres, proto->res_types, VARR_LENGTH (MIR_var_t, proto->args),
                        proto->args, proto->vararg_p);
     return;
   }
   func = item->u.func;
   fprintf (f, "%s:\tfunc\t", func->name);
-  output_func_proto (f, func->nres, func->res_types, func->nargs, func->vars, func->vararg_p);
+  output_func_proto (ctx, f, func->nres, func->res_types, func->nargs, func->vars, func->vararg_p);
   nlocals = VARR_LENGTH (MIR_var_t, func->vars) - func->nargs;
   for (i = 0; i < nlocals; i++) {
     var = VARR_GET (MIR_var_t, func->vars, i + func->nargs);
@@ -2621,7 +2633,7 @@ void MIR_output_item (MIR_context_t ctx, FILE *f, MIR_item_t item) {
       if (i != 0) fprintf (f, "\n");
       fprintf (f, "\tlocal\t");
     }
-    fprintf (f, i % 8 == 0 ? "%s:%s" : ", %s:%s", MIR_type_str (NULL, var.type), var.name);
+    fprintf (f, i % 8 == 0 ? "%s:%s" : ", %s:%s", MIR_type_str (ctx, var.type), var.name);
   }
   fprintf (f, "\n# %u arg%s, %u local%s\n", func->nargs, func->nargs == 1 ? "" : "s",
            (unsigned) nlocals, nlocals == 1 ? "" : "s");
@@ -3790,8 +3802,9 @@ typedef enum {
   REP3 (TAG_EL, MEM_DISP_INDEX, MEM_BASE_INDEX, MEM_DISP_BASE_INDEX),
   /* MIR types. The same order as MIR types: */
   REP8 (TAG_EL, TI8, TU8, TI16, TU16, TI32, TU32, TI64, TU64),
-  REP8 (TAG_EL, TF, TD, TP, TV, TBLOCK, TBLOCK2, TBLOCK3, TBLOCK4),
-  REP3 (TAG_EL, TBLOCK5, TRBLOCK, EOI),
+  REP5 (TAG_EL, TF, TD, TP, TV, TBLOCK),
+  TAG_EL (TRBLOCK) = TAG_EL (TBLOCK) + MIR_BLK_NUM,
+  TAG_EL (EOI),
   TAG_EL (EOFILE), /* end of insn with variable number operands (e.g. a call) or end of file */
   /* unsigned integer 0..127 is kept in one byte.  The most significant bit of the byte is 1: */
   U0_MASK = 0x7f,
@@ -4515,11 +4528,15 @@ static bin_tag_t read_token (MIR_context_t ctx, token_attr_t *attr) {
     REP3 (TAG_CASE, MEM_DISP_BASE_INDEX, EOI, EOFILE)
     break;
     REP8 (TAG_CASE, TI8, TU8, TI16, TU16, TI32, TU32, TI64, TU64)
-    REP8 (TAG_CASE, TF, TD, TP, TV, TBLOCK, TBLOCK2, TBLOCK3, TBLOCK4)
-    REP2 (TAG_CASE, TBLOCK5, TRBLOCK)
+    REP5 (TAG_CASE, TF, TD, TP, TV, TRBLOCK)
     attr->t = (MIR_type_t) (c - TAG_TI8) + MIR_T_I8;
     break;
-  default: MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong tag %d", c);
+  default:
+    if (TAG_TBLOCK <= c && c < TAG_TBLOCK + MIR_BLK_NUM) {
+      attr->t = (MIR_type_t) (c - TAG_TBLOCK) + MIR_T_BLK;
+      break;
+    }
+    MIR_get_error_func (ctx) (MIR_binary_io_error, "wrong tag %d", c);
   }
   return c;
 }
@@ -4841,7 +4858,7 @@ void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t))
             default:
               MIR_get_error_func (ctx) (MIR_binary_io_error,
                                         "data type %s does not correspond value type",
-                                        type_str (type));
+                                        type_str (ctx, type));
             }
             break;
           case TAG_I1:
@@ -4872,28 +4889,28 @@ void MIR_read_with_func (MIR_context_t ctx, int (*const reader) (MIR_context_t))
             default:
               MIR_get_error_func (ctx) (MIR_binary_io_error,
                                         "data type %s does not correspond value type",
-                                        type_str (type));
+                                        type_str (ctx, type));
             }
             break;
           case TAG_F:
             if (type != MIR_T_F)
               MIR_get_error_func (ctx) (MIR_binary_io_error,
                                         "data type %s does not correspond value type",
-                                        type_str (type));
+                                        type_str (ctx, type));
             push_data (ctx, (uint8_t *) &attr.f, sizeof (float));
             break;
           case TAG_D:
             if (type != MIR_T_D)
               MIR_get_error_func (ctx) (MIR_binary_io_error,
                                         "data type %s does not correspond value type",
-                                        type_str (type));
+                                        type_str (ctx, type));
             push_data (ctx, (uint8_t *) &attr.d, sizeof (double));
             break;
           case TAG_LD:
             if (type != MIR_T_LD)
               MIR_get_error_func (ctx) (MIR_binary_io_error,
                                         "data type %s does not correspond value type",
-                                        type_str (type));
+                                        type_str (ctx, type));
             push_data (ctx, (uint8_t *) &attr.ld, sizeof (long double));
             break;
             /* ??? ptr */
@@ -4965,6 +4982,7 @@ void MIR_read (MIR_context_t ctx, FILE *f) {
 }
 
 static void io_init (MIR_context_t ctx) {
+  mir_assert (TAG_EOFILE < 127); /* see bin_tag_t */
   if ((ctx->io_ctx = malloc (sizeof (struct io_ctx))) == NULL)
     MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for ctx");
   VARR_CREATE (MIR_var_t, proto_vars, 0);
@@ -5401,11 +5419,11 @@ static MIR_type_t str2type (const char *type_name) {
   if (strcmp (type_name, "u16") == 0) return MIR_T_U16;
   if (strcmp (type_name, "i8") == 0) return MIR_T_I8;
   if (strcmp (type_name, "u8") == 0) return MIR_T_U8;
-  if (strcmp (type_name, "blk") == 0) return MIR_T_BLK;
-  if (strcmp (type_name, "blk2") == 0) return MIR_T_BLK2;
-  if (strcmp (type_name, "blk3") == 0) return MIR_T_BLK3;
-  if (strcmp (type_name, "blk4") == 0) return MIR_T_BLK4;
-  if (strcmp (type_name, "blk5") == 0) return MIR_T_BLK5;
+  if (strncmp (type_name, "blk", 3) == 0) {
+    int i, n = 0;
+    for (i = 3; isdigit (type_name[i]) && n < MIR_BLK_NUM; i++) n = n * 10 + (type_name[i] - '0');
+    if (type_name[i] == 0 && n < MIR_BLK_NUM) return MIR_T_BLK + n;
+  }
   if (strcmp (type_name, "rblk") == 0) return MIR_T_RBLK;
   return MIR_T_BOUND;
 }

@@ -401,11 +401,11 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
           mir_assert (ops[i].mode == MIR_OP_REF && ops[i].u.ref->item_type == MIR_proto_item);
           v.a = ops[i].u.ref;
         } else if (i == 1 && imm_call_p) {
-          mir_assert (ops[i].u.ref->item_type == MIR_import_item
-                      || ops[i].u.ref->item_type == MIR_export_item
-                      || ops[i].u.ref->item_type == MIR_forward_item
-                      || ops[i].u.ref->item_type == MIR_func_item);
-          v.a = ops[i].u.ref->addr;
+          MIR_item_t item = ops[i].u.ref;
+
+          mir_assert (item->item_type == MIR_import_item || item->item_type == MIR_export_item
+                      || item->item_type == MIR_forward_item || item->item_type == MIR_func_item);
+          v.a = item->addr;
         } else if (code == MIR_VA_ARG && i == 2) { /* type */
           mir_assert (ops[i].mode == MIR_OP_MEM);
           v.i = ops[i].u.mem.type;
@@ -830,10 +830,12 @@ static void finish_insn_trace (MIR_context_t ctx, MIR_full_insn_code_t code, cod
              bp[ops[0].i].u, bp[ops[0].i].u);
     break;
   case MIR_OP_FLOAT: fprintf (stderr, "\t# res = %.*ef", FLT_DECIMAL_DIG, bp[ops[0].i].f); break;
-  case MIR_OP_DOUBLE: fprintf (stderr, "\t# res = %.*e", DBL_DECIMAL_DIG, bp[ops[0].i].d); break;
   case MIR_OP_LDOUBLE:
+#ifndef _WIN32
     fprintf (stderr, "\t# res = %.*Le", LDBL_DECIMAL_DIG, bp[ops[0].i].ld);
     break;
+#endif
+  case MIR_OP_DOUBLE: fprintf (stderr, "\t# res = %.*e", DBL_DECIMAL_DIG, bp[ops[0].i].d); break;
   default: assert (op_mode == MIR_OP_UNDEF);
   }
   fprintf (stderr, "\n");
@@ -1261,8 +1263,37 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
   SCASE (MIR_DBGE, 3, BDCMP (>=));
   SCASE (MIR_LDBGE, 3, BLDCMP (>=));
 
-  SCASE (MIR_CALL, 0, pc = call_insn_execute (ctx, pc, bp, ops, FALSE));
-  SCASE (IC_IMM_CALL, 0, pc = call_insn_execute (ctx, pc, bp, ops, TRUE));
+  CASE (MIR_CALL, 0) {
+    int (*func_addr) (void *buf) = *get_aop (bp, ops + 4);
+
+    if (func_addr != setjmp_addr) {
+      pc = call_insn_execute (ctx, pc, bp, ops, FALSE);
+    } else {
+      int64_t nops = get_i (ops); /* #args w/o nop, insn, and ff interface address */
+      MIR_item_t proto_item = get_a (ops + 3);
+      size_t start = proto_item->u.proto->nres + 5;
+
+      bp[get_i (ops + 5)].i = (*func_addr) (*get_aop (bp, ops + start));
+      pc += nops + 3; /* nops itself, the call insn, add ff interface address */
+    }
+    END_INSN;
+  }
+  CASE (IC_IMM_CALL, 0) {
+    int (*func_addr) (void *buf) = get_a (ops + 4);
+
+    if (func_addr != setjmp_addr) {
+      pc = call_insn_execute (ctx, pc, bp, ops, TRUE);
+    } else {
+      int64_t nops = get_i (ops); /* #args w/o nop, insn, and ff interface address */
+      MIR_item_t proto_item = get_a (ops + 3);
+      size_t start = proto_item->u.proto->nres + 5;
+
+      bp[get_i (ops + 5)].i = (*func_addr) (*get_aop (bp, ops + start));
+      pc += nops + 3; /* nops itself, the call insn, add ff interface address */
+    }
+    END_INSN;
+  }
+
   SCASE (MIR_INLINE, 0, mir_assert (FALSE));
 
   CASE (MIR_SWITCH, 0) {
@@ -1497,14 +1528,11 @@ static void call (MIR_context_t ctx, MIR_val_t *bp, MIR_op_t *insn_arg_ops, code
     case MIR_T_F: call_res_args[i + nres].f = arg_vals[i].f; break;
     case MIR_T_D: call_res_args[i + nres].d = arg_vals[i].d; break;
     case MIR_T_LD: call_res_args[i + nres].ld = arg_vals[i].ld; break;
-    case MIR_T_P:
-    case MIR_T_BLK:
-    case MIR_T_BLK2:
-    case MIR_T_BLK3:
-    case MIR_T_BLK4:
-    case MIR_T_BLK5:
-    case MIR_T_RBLK: call_res_args[i + nres].u = (uint64_t) arg_vals[i].a; break;
-    default: mir_assert (FALSE);
+    case MIR_T_P: call_res_args[i + nres].u = (uint64_t) arg_vals[i].a; break;
+    default:
+      mir_assert (MIR_all_blk_type_p (type));
+      call_res_args[i + nres].u = (uint64_t) arg_vals[i].a;
+      break;
     }
   }
   ((void (*) (void *, void *)) ff_interface_addr) (addr, call_res_args); /* call */
@@ -1679,20 +1707,13 @@ static void interp (MIR_context_t ctx, MIR_item_t func_item, va_list va, MIR_val
     case MIR_T_LD: arg_vals[i].ld = va_arg (va, long double); break;
     case MIR_T_P:
     case MIR_T_RBLK: arg_vals[i].a = va_arg (va, void *); break;
-    case MIR_T_BLK:
-    case MIR_T_BLK2:
-    case MIR_T_BLK3:
-    case MIR_T_BLK4:
-    case MIR_T_BLK5: {
-      arg_vals[i].a = alloca (arg_vars[i].size);
+    default: mir_assert (MIR_blk_type_p (type)); arg_vals[i].a = alloca (arg_vars[i].size);
 #if defined(__PPC64__) || defined(__aarch64__) || defined(_WIN32)
       va_block_arg_builtin (arg_vals[i].a, &va, arg_vars[i].size, type - MIR_T_BLK);
 #else
           va_block_arg_builtin (arg_vals[i].a, va, arg_vars[i].size, type - MIR_T_BLK);
 #endif
       break;
-    }
-    default: mir_assert (FALSE);
     }
   }
 #if VA_LIST_IS_ARRAY_P
