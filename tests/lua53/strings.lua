@@ -228,6 +228,9 @@ do
   checkQ(true)
   checkQ(nil)
   checkQ(false)
+  checkQ(math.huge)
+  checkQ(-math.huge)
+  assert(string.format("%q", 0/0) == "(0/0)")   -- NaN
   checkerror("no literal", string.format, "%q", {})
 end
 
