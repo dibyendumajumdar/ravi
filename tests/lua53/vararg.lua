@@ -140,6 +140,12 @@ end
 -- assertion fail here
 f()
 
-
+-- missing arguments in tail call
+do
+  local function f(a,b,c) return c, b end
+  local function g() return f(1,2) end
+  local a, b = g()
+  assert(a == nil and b == 2)
+end
 print('OK')
 
