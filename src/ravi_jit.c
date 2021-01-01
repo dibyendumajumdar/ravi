@@ -20,8 +20,8 @@
 * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
-#include <ravi_jit.h>
-#include <ravi_jitshared.h>
+#include "ravi_jit.h"
+#include "ravi_jitshared.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -20,8 +20,8 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
-#include <ravi_jitshared.h>
-#include <ravi_membuf.h>
+#include "ravi_jitshared.h"
+#include "ravi_membuf.h"
 
 #include <stddef.h>
 #include <assert.h>

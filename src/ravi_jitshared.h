@@ -54,7 +54,7 @@ extern "C" {
 #include "lua.h"
 #include "lvm.h"
 
-#include <ravi_membuf.h>
+#include "ravi_membuf.h"
 
 #define RA(i) (base + GETARG_A(i))
 /* to be used after possible stack reallocation */

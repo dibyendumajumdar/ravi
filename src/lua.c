@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ravi_jit.h>
+#include "ravi_jit.h"
 
 #include "lua.h"
 

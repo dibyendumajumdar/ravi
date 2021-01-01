@@ -5,7 +5,7 @@
 #ifndef RAVI_VSCODE_PROTOCOL_H
 #define RAVI_VSCODE_PROTOCOL_H
 
-#include <ravi_membuf.h>
+#include "../../src/ravi_membuf.h"
 #include "json.h"
 
 #include <stdbool.h>

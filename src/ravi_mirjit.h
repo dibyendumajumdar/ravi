@@ -23,7 +23,7 @@
 #ifndef RAVI_MIRJIT_H
 #define RAVI_MIRJIT_H
 
-#include <ravi_jitshared.h>
+#include "ravi_jitshared.h"
 
 #ifdef USE_MIRJIT
 #include "c2mir.h"

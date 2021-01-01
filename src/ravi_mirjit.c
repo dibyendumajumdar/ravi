@@ -21,8 +21,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  ******************************************************************************/
 
-#include <ravi_mirjit.h>
-#include <ravi_jit.h>
+#include "ravi_mirjit.h"
+#include "ravi_jit.h"
 #include <stddef.h>
 #include <assert.h>
 

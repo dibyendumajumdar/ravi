@@ -21,8 +21,8 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 
-#include <ravi_jit.h>
-#include <ravi_jitshared.h>
+#include "ravi_jit.h"
+#include "ravi_jitshared.h"
 
 int raviV_compile(struct lua_State *L, struct Proto *p,
                   ravi_compile_options_t *options) {

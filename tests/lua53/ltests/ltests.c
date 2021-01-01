@@ -7,8 +7,7 @@
 #define ltests_c
 #define LUA_CORE
 
-#include "lprefix.h"
-
+#include "../../../src/lprefix.h"
 
 #include <limits.h>
 #include <setjmp.h>
@@ -18,18 +17,18 @@
 
 #include "lua.h"
 
-#include "lapi.h"
+#include "../../../src/lapi.h"
 #include "lauxlib.h"
-#include "lcode.h"
-#include "lctype.h"
-#include "ldebug.h"
-#include "ldo.h"
-#include "lfunc.h"
-#include "lmem.h"
-#include "lopcodes.h"
-#include "lstate.h"
-#include "lstring.h"
-#include "ltable.h"
+#include "../../../src/lcode.h"
+#include "../../../src/lctype.h"
+#include "../../../src/ldebug.h"
+#include "../../../src/ldo.h"
+#include "../../../src/lfunc.h"
+#include "../../../src/lmem.h"
+#include "../../../src/lopcodes.h"
+#include "../../../src/lstate.h"
+#include "../../../src/lstring.h"
+#include "../../../src/ltable.h"
 #include "lualib.h"
 
 
