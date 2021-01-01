@@ -4,10 +4,6 @@
 ** See Copyright Notice in lua.h
 */
 
-#if USE_LLVM
-#include <ravi_llvm.h>
-#endif
-
 #define lua_c
 
 #include "lprefix.h"

@@ -852,11 +852,6 @@
 /* Following cause the first hash lookup to be inlined,
    and if value is 2 then the second hash lookup is also inlined. */
 #define RAVI_USE_INLINE_SHORTSTR_TGET 1
-#define RAVI_USE_LLVM_BRANCH_WEIGHTS 1
-/* If following is defined as true then LLVM instructions emitted for arithmetic ops 
-   priority floating point ops, else default is to prioritise integer ops */
-#define RAVI_USE_LLVM_ARITH_FLOATPRIORITY 1
-/* Enables the 'defer' statement - RAVI extension */
 #define RAVI_DEFER_STATEMENT
 
 #endif

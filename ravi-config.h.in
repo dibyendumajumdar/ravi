@@ -2,7 +2,6 @@
 #define _REDUKTI_RAVI_CONFIG_H_IN_H
 
 #cmakedefine NO_LUA_DEBUG @NO_LUA_DEBUG@
-#cmakedefine USE_LLVM @USE_LLVM@
 #cmakedefine USE_OMRJIT @USE_OMRJIT@
 #cmakedefine USE_MIRJIT @USE_MIRJIT@
 #cmakedefine USE_RAVICOMP @USE_RAVICOMP@
