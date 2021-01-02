@@ -24,7 +24,12 @@ set(C2MIR_SRCS
     c2mir/c2mir.c
     )
 
-set(LIBS dl)
+set(LIBS ${CMAKE_DL_LIBS})
+if (WIN32)
+    set(MIR_BUILD_TYPE STATIC)
+else()
+    set(MIR_BUILD_TYPE SHARED)
+endif()
 
 #add_definitions(-DMIR_NO_IO=0)
 #add_definitions(-DMIR_NO_SCAN=1)
@@ -51,7 +56,7 @@ if (COMPILER_OPT_NO_IPA_CP_CLONE_SUPPORTED AND NOT CMAKE_C_FLAGS MATCHES "-fno-i
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-ipa-cp-clone")
 endif()
 
-add_library(c2mir SHARED
+add_library(c2mir ${MIR_BUILD_TYPE}
     ${MIR_HEADERS}
     ${MIR_SRCS}
     ${C2MIR_SRCS})
