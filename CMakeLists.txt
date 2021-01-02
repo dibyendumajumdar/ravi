@@ -9,7 +9,7 @@ option(STATIC_BUILD "Build static version of Ravi, default is OFF" OFF)
 option(COMPUTED_GOTO "Controls whether the interpreter switch will use computed gotos on gcc/clang, default is ON" ON)
 option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires Debug build" ON)
 option(ASAN "Controls whether address sanitizer should be enabled" OFF)
-option(RAVICOMP "Controls whether to link in RaviComp" OFF)
+option(RAVICOMP "Controls whether to link in RaviComp" ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -105,20 +105,22 @@ endif ()
 
 if (RAVICOMP)
     # Need MIR_JIT for the compiler add-on
-    find_package(RaviComp REQUIRED)
+    #find_package(RaviComp REQUIRED)
     set(ADDON_SRCS ${RAVICOMP_SRCS})
-    set_property(SOURCE ${RAVICOMP_SRCS}
-            APPEND
-            PROPERTY INCLUDE_DIRECTORIES ${RAVICOMP_INCLUDE_DIRS})
-    if (MIR_JIT)
-        set_property(SOURCE ${RAVICOMP_SRCS}
-                APPEND
-                PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
-    endif ()
-    if ($ENV{CLION_IDE})
-        # CLion seems unable to handle include paths set on sources
-        include_directories(${RAVICOMP_INCLUDE_DIRS})
-    endif ()
+    #set_property(SOURCE ${RAVICOMP_SRCS}
+    #        APPEND
+    #        PROPERTY INCLUDE_DIRECTORIES ${RAVICOMP_INCLUDE_DIRS})
+    #if (MIR_JIT)
+    #    set_property(SOURCE ${RAVICOMP_SRCS}
+    #            APPEND
+    #            PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
+    #endif ()
+    #if ($ENV{CLION_IDE})
+    #    # CLion seems unable to handle include paths set on sources
+    #    include_directories(${RAVICOMP_INCLUDE_DIRS})
+    #endif ()
+    add_subdirectory(ravicomp)
+    set(RAVICOMP_LIBRARIES ravicomp)
 endif ()
 
 # IDE stuff
