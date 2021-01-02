@@ -80,22 +80,25 @@ endif ()
 
 if (MIR_JIT)
     message(STATUS "MIRJIT enabled")
-    set(JIT_SRCS ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS})
-    set(ALL_MIR_SRCS ${MIR_SRCS} ${C2MIR_SRCS})
-    if (NOT MSVC)
-        set_source_files_properties(${ALL_MIR_SRCS} PROPERTIES
-                COMPILE_FLAGS "-fsigned-char")
-    endif ()
-    set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
-            APPEND
-            PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
-    set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
-            APPEND
-            PROPERTY COMPILE_DEFINITIONS "MIR_NO_IO=0;MIR_NO_SCAN=1;MIR_NO_INTERP=1")
-    if ($ENV{CLION_IDE})
-        # CLion seems unable to handle include paths set on sources
-        include_directories("${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
-    endif ()
+#    set(JIT_SRCS ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS})
+#    set(ALL_MIR_SRCS ${MIR_SRCS} ${C2MIR_SRCS})
+#    if (NOT MSVC)
+#        set_source_files_properties(${ALL_MIR_SRCS} PROPERTIES
+#                COMPILE_FLAGS "-fsigned-char")
+#    endif ()
+#    set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
+#            APPEND
+#            PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
+#    set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
+#            APPEND
+#            PROPERTY COMPILE_DEFINITIONS "MIR_NO_IO=0;MIR_NO_SCAN=1;MIR_NO_INTERP=1")
+#    if ($ENV{CLION_IDE})
+#        # CLion seems unable to handle include paths set on sources
+#        include_directories("${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
+#    endif ()
+    add_subdirectory(mir)
+    set(MIRJIT_LIBRARIES c2mir)
+    set(JIT_SRCS ${MIR_JIT_SRCS})
 else ()
     set(JIT_SRCS ${NO_JIT_SRCS})
 endif ()
@@ -145,7 +148,7 @@ add_library(${LIBRAVI_NAME} ${LIBRAVI_BUILD_TYPE}
         ${LUA_CORE_SRCS}
         ${JIT_SRCS}
         ${ADDON_SRCS})
-target_link_libraries(${LIBRAVI_NAME} ${EXTRA_LIBRARIES} ${MIRJIT_LIBRARIES} ${RAVICOMP_LIBRARIES})
+target_link_libraries(${LIBRAVI_NAME} LINK_PUBLIC ${EXTRA_LIBRARIES} ${MIRJIT_LIBRARIES} ${RAVICOMP_LIBRARIES})
 
 # Main Ravi executable
 add_executable(ravi ${LUA_CMD_SRCS})
