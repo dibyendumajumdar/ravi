@@ -46,11 +46,6 @@ set(LUA_CORE_SRCS src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src
 set(LUA_LIB_SRCS src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c src/liolib.c
         src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/loadlib.c src/linit.c src/lutf8lib.c)
 set(LUA_HEADERS include/lua.h include/luaconf.h include/lualib.h include/lauxlib.h)
-set(MIR_HEADERS mir/mir.h mir/mir-gen.h mir/mir-varr.h mir/mir-dlist.h mir/mir-htab.h
-        mir/mir-hash.h mir/mir-bitmap.h)
-set(MIR_SRCS mir/mir.c mir/mir-gen.c)
-set(C2MIR_SRCS mir/c2mir/c2mir.c)
-# MIR code gen
 set(MIR_JIT_SRCS src/ravi_mirjit.c)
 set(NO_JIT_SRCS src/ravi_nojit.c)
 set(LUA_CMD_SRCS src/lua.c)
@@ -80,22 +75,6 @@ endif ()
 
 if (MIR_JIT)
     message(STATUS "MIRJIT enabled")
-#    set(JIT_SRCS ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS})
-#    set(ALL_MIR_SRCS ${MIR_SRCS} ${C2MIR_SRCS})
-#    if (NOT MSVC)
-#        set_source_files_properties(${ALL_MIR_SRCS} PROPERTIES
-#                COMPILE_FLAGS "-fsigned-char")
-#    endif ()
-#    set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
-#            APPEND
-#            PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
-#    set_property(SOURCE ${MIR_SRCS} ${C2MIR_SRCS} ${MIR_JIT_SRCS}
-#            APPEND
-#            PROPERTY COMPILE_DEFINITIONS "MIR_NO_IO=0;MIR_NO_SCAN=1;MIR_NO_INTERP=1")
-#    if ($ENV{CLION_IDE})
-#        # CLion seems unable to handle include paths set on sources
-#        include_directories("${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
-#    endif ()
     add_subdirectory(mir)
     set(MIRJIT_LIBRARIES c2mir)
     set(JIT_SRCS ${MIR_JIT_SRCS})
@@ -104,21 +83,7 @@ else ()
 endif ()
 
 if (RAVICOMP)
-    # Need MIR_JIT for the compiler add-on
-    #find_package(RaviComp REQUIRED)
     set(ADDON_SRCS ${RAVICOMP_SRCS})
-    #set_property(SOURCE ${RAVICOMP_SRCS}
-    #        APPEND
-    #        PROPERTY INCLUDE_DIRECTORIES ${RAVICOMP_INCLUDE_DIRS})
-    #if (MIR_JIT)
-    #    set_property(SOURCE ${RAVICOMP_SRCS}
-    #            APPEND
-    #            PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/mir;${CMAKE_SOURCE_DIR}/mir/c2mir")
-    #endif ()
-    #if ($ENV{CLION_IDE})
-    #    # CLion seems unable to handle include paths set on sources
-    #    include_directories(${RAVICOMP_INCLUDE_DIRS})
-    #endif ()
     add_subdirectory(ravicomp)
     set(RAVICOMP_LIBRARIES ravicomp)
 endif ()
