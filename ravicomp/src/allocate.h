@@ -34,8 +34,10 @@
  * small bits and pieces of it with no maintenance overhead.
  */
 /*
- * Portions Copyright (C) 2017-2020 Dibyendu Majumdar
+ * Portions Copyright (C) 2017-2021 Dibyendu Majumdar
  */
+#ifndef ravicomp_ALLOCATE_H
+#define ravicomp_ALLOCATE_H
 
 #include <stddef.h>
 #include <stdio.h>
@@ -125,6 +127,8 @@ extern size_t raviX_del_array_element(void *p, size_t element_size, size_t array
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif
 
 #endif

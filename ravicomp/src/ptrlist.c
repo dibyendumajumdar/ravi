@@ -7,7 +7,7 @@
  */
 /*
  * This version is part of the dmr_c project.
- * Copyright (C) 2017 Dibyendu Majumdar
+ * Copyright (C) 2017-2021 Dibyendu Majumdar
  */
 
 #define PARANOIA 1

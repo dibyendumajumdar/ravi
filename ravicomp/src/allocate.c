@@ -32,7 +32,7 @@
  */
 /*
  * This version is part of the Ravi Compiler project.
- * Copyright (C) 2017-2020 Dibyendu Majumdar
+ * Copyright (C) 2017-2021 Dibyendu Majumdar
  */
 
 #include <allocate.h>

@@ -1,6 +1,26 @@
-/*
-Copyright (C) 2018-2020 Dibyendu Majumdar
-*/
+/******************************************************************************
+ * Copyright (C) 2020-2021 Dibyendu Majumdar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ ******************************************************************************/
+
 #include <parser.h>
 
 /*
@@ -16,7 +36,6 @@ d) Any unassigned local vars that have type info must be set to valid initial va
 
 None of these operations are explicit in the AST.
 */
-
 
 static bool is_type_same(const VariableType *a, const VariableType *b)
 {
@@ -98,8 +117,7 @@ static void typecheck_unary_operator(CompilerState *container, AstNode *function
 }
 
 /* Type checker - WIP  */
-static void typecheck_binary_operator(CompilerState *container, AstNode *function,
-				      AstNode *node)
+static void typecheck_binary_operator(CompilerState *container, AstNode *function, AstNode *node)
 {
 	BinaryOperatorType op = node->binary_expr.binary_op;
 	AstNode *e1 = node->binary_expr.expr_left;
@@ -260,8 +278,7 @@ static void typecheck_var_assignment(CompilerState *container, VariableType *var
 	}
 }
 
-static void typecheck_local_statement(CompilerState *container, AstNode *function,
-				      AstNode *node)
+static void typecheck_local_statement(CompilerState *container, AstNode *function, AstNode *node)
 {
 	// The local vars should already be annotated
 	// We need to typecheck the expressions to the right of =
@@ -317,15 +334,13 @@ static void typecheck_expr_statement(CompilerState *container, AstNode *function
 	}
 }
 
-static void typecheck_for_in_statment(CompilerState *container, AstNode *function,
-				      AstNode *node)
+static void typecheck_for_in_statment(CompilerState *container, AstNode *function, AstNode *node)
 {
 	typecheck_ast_list(container, function, node->for_stmt.expr_list);
 	typecheck_ast_list(container, function, node->for_stmt.for_statement_list);
 }
 
-static void typecheck_for_num_statment(CompilerState *container, AstNode *function,
-				       AstNode *node)
+static void typecheck_for_num_statment(CompilerState *container, AstNode *function, AstNode *node)
 {
 	typecheck_ast_list(container, function, node->for_stmt.expr_list);
 	AstNode *expr;
@@ -381,8 +396,7 @@ static void typecheck_if_statement(CompilerState *container, AstNode *function, 
 	}
 }
 
-static void typecheck_while_or_repeat_statement(CompilerState *container, AstNode *function,
-						AstNode *node)
+static void typecheck_while_or_repeat_statement(CompilerState *container, AstNode *function, AstNode *node)
 {
 	typecheck_ast_node(container, function, node->while_or_repeat_stmt.condition);
 	if (node->while_or_repeat_stmt.loop_statement_list) {
@@ -459,8 +473,7 @@ static void typecheck_ast_node(CompilerState *container, AstNode *function, AstN
 		/* symbol type should have been set when symbol was created */
 		if (node->symbol_expr.var->symbol_type != SYM_LABEL) {
 			copy_type(&node->symbol_expr.type, &node->symbol_expr.var->variable.value_type);
-		}
-		else {
+		} else {
 			// TODO can this happen?
 			node->symbol_expr.type.type_code = RAVI_TANY;
 		}
@@ -491,7 +504,8 @@ static void typecheck_ast_node(CompilerState *container, AstNode *function, AstN
 			typecheck_ast_node(container, function, node->table_elem_assign_expr.key_expr);
 		}
 		typecheck_ast_node(container, function, node->table_elem_assign_expr.value_expr);
-		copy_type(&node->table_elem_assign_expr.type, &node->table_elem_assign_expr.value_expr->common_expr.type);
+		copy_type(&node->table_elem_assign_expr.type,
+			  &node->table_elem_assign_expr.value_expr->common_expr.type);
 		break;
 	}
 	case EXPR_TABLE_LITERAL: {
