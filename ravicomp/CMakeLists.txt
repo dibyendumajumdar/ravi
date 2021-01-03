@@ -10,7 +10,6 @@ set(PUBLIC_HEADERS
 set(HEADERS
         ${PUBLIC_HEADERS}
         src/allocate.h
-        src/bitset.h
         src/ptrlist.h
         src/fnv_hash.h
         src/graph.h
@@ -18,10 +17,8 @@ set(HEADERS
         src/set.h
         src/membuf.h
         src/cfg.h
-        src/dominator.h
         src/linearizer.h
         src/common.h
-        src/dataflow_framework.h
         src/optimizer.h
         src/parser.h
         src/codegen.h)
@@ -30,12 +27,10 @@ set(SRCS
         src/allocate.c
         src/ast_walker.c
         src/ast_simplify.c
-        src/bitset.c
         src/ptrlist.c
         src/fnv_hash.c
         src/graph.c
         src/cfg.c
-        src/dominator.c
         src/hash_table.c
         src/set.c
         src/lexer.c
@@ -43,10 +38,8 @@ set(SRCS
         src/ast_printer.c
         src/typechecker.c
         src/linearizer.c
-        src/dataflow_framework.c
         src/opt_unusedcode.c
         src/membuf.c
-        src/df_liveness.c
         src/codegen.c
         src/ravi_binding.c
         )

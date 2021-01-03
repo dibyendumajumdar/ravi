@@ -1,5 +1,5 @@
 /******************************************************************************
-* Copyright (C) 2019-2020 Dibyendu Majumdar
+* Copyright (C) 2019-2021 Dibyendu Majumdar
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
