@@ -11,8 +11,6 @@ option(LTESTS "Controls whether ltests are enabled in Debug mode; note requires 
 option(ASAN "Controls whether address sanitizer should be enabled" OFF)
 option(RAVICOMP "Controls whether to link in RaviComp" ON)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
-
 # By we enable MIR JIT
 if (NOT NO_JIT)
     set(MIR_JIT ON)
