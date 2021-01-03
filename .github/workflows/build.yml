@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ master, cmake ]
+    branches: [ master ]
   pull_request:
     branches: [ master ]
 
