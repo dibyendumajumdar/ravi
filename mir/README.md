@@ -3,3 +3,5 @@ project. Following changes have been made:
 
 * A CMake build script added to create a library
 * Unused files / tests have been removed to avoid clutter
+
+Last update: 7th Jan 2021
