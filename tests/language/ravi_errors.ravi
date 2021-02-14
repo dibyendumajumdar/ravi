@@ -105,5 +105,7 @@ checkmessage('local function x(y: closure) end x(1)', 'closure expected')
 checkmessage('local function x() local s: string; s = 1 end', "Invalid assignment: string expected near 'end'")
 checkmessage('function x() local s: string; s = (function() return 1 end)() end; x()', 'string expected')
 checkmessage('function x() local s: User; s = (function() return 1 end)() end; x()', 'type mismatch: expected User')
+checkmessage('table.intarray(0xFFFFFFFF)', 'array length out of range') -- Note only valid when int is 32 bits
+checkmessage('table.numarray(0xFFFFFFFF)', 'array length out of range') -- Note only valid when int is 32 bits
 
 print 'Ok'
