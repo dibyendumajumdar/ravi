@@ -107,5 +107,6 @@ checkmessage('function x() local s: string; s = (function() return 1 end)() end;
 checkmessage('function x() local s: User; s = (function() return 1 end)() end; x()', 'type mismatch: expected User')
 checkmessage('table.intarray(0xFFFFFFFF)', 'array length out of range') -- Note only valid when int is 32 bits
 checkmessage('table.numarray(0xFFFFFFFF)', 'array length out of range') -- Note only valid when int is 32 bits
+checkmessage('table.slice(table.intarray(3), 2, 0xFFFFFFFE)', 'cannot create a slice of given bounds')
 
 print 'Ok'
