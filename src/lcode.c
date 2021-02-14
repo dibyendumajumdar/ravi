@@ -1269,8 +1269,12 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
   ravitype_t e_type = e->ravi_type;
   int r = luaK_exp2anyreg(fs, e);  /* opcodes operate only on registers */
   freeexp(fs, e);
-  if (op == OP_BNOT && e->ravi_type == RAVI_TNUMINT) 
-    op = OP_RAVI_BNOT_I;
+  if (op == OP_BNOT) {
+    if (e->ravi_type == RAVI_TNUMINT)
+      op = OP_RAVI_BNOT_I;
+    else
+      e->ravi_type = RAVI_TANY; /* Since it could be a float*/
+  }
   e->u.info = luaK_codeABC(fs, op, 0, r, 0);  /* generate opcode */
   e->k = VRELOCABLE;  /* all those operations are relocatable */
   if (op == OP_LEN) {
