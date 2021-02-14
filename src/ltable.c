@@ -890,13 +890,17 @@ void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned u1, lua_Number val
 RaviArray *raviH_new_integer_array(lua_State *L, unsigned int len,
                                lua_Integer init_value) {
   RaviArray *t = raviH_new(L, RAVI_TARRAYINT, 0);
-  ravi_resize_array(L, t, len + 1, 0);
+  unsigned int new_len = len + 1; // Ravi arrays have an extra slot at offset 0
+  if (new_len < len) { // Wrapped?
+    luaG_runerror(L, "array length out of range");
+  }
+  ravi_resize_array(L, t, new_len, 0);
   lua_Integer *data = (lua_Integer *)t->data;
   data[0] = 0;
-  for (unsigned int i = 1; i <= len; i++) {
+  for (unsigned int i = 1; i < new_len; i++) {
     data[i] = init_value;
   }
-  t->len = len + 1;
+  t->len = new_len;
   t->flags |= RAVI_ARRAY_FIXEDSIZE;
   return t;
 }
@@ -904,13 +908,17 @@ RaviArray *raviH_new_integer_array(lua_State *L, unsigned int len,
 RaviArray *raviH_new_number_array(lua_State *L, unsigned int len,
                               lua_Number init_value) {
   RaviArray *t = raviH_new(L, RAVI_TARRAYFLT, 0);
-  ravi_resize_array(L, t, len + 1, 0);
+  unsigned int new_len = len + 1; // Ravi arrays have an extra slot at offset 0
+  if (new_len < len) { // Wrapped?
+    luaG_runerror(L, "array length out of range");
+  }
+  ravi_resize_array(L, t, new_len, 0);
   lua_Number *data = (lua_Number *)t->data;
   data[0] = 0;
-  for (unsigned int i = 1; i <= len; i++) {
+  for (unsigned int i = 1; i < new_len; i++) {
     data[i] = init_value;
   }
-  t->len = len + 1;
+  t->len = new_len;
   t->flags |= RAVI_ARRAY_FIXEDSIZE;
   return t;
 }
