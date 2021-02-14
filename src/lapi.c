@@ -900,7 +900,8 @@ LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
     goto done;
   }
   RaviArray *orig = arrvalue(parent);
-  if (start < 1 || start + len > orig->len) {
+  unsigned int slice_len = start + len;
+  if (start < 1 || slice_len <= start || slice_len > orig->len) {
     errmsg = "cannot create a slice of given bounds";
     goto done;
   }
@@ -914,9 +915,10 @@ LUA_API void ravi_create_slice(lua_State *L, int idx, unsigned int start,
   api_incr_top(L);
   luaC_checkGC(L);
 done:
-  lua_unlock(L);
   if (errmsg)
     luaG_runerror(L, errmsg);
+  else
+    lua_unlock(L);
 }
 
 LUA_API int lua_getmetatable (lua_State *L, int objindex) {
