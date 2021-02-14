@@ -1278,13 +1278,16 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
   e->u.info = luaK_codeABC(fs, op, 0, r, 0);  /* generate opcode */
   e->k = VRELOCABLE;  /* all those operations are relocatable */
   if (op == OP_LEN) {
-	if (e_type == RAVI_TARRAYINT || e_type == RAVI_TARRAYFLT)
+    if (e_type == RAVI_TARRAYINT || e_type == RAVI_TARRAYFLT)
       e->ravi_type = RAVI_TNUMINT;
-	else if (e_type == RAVI_TTABLE) {
-	  luaK_exp2anyreg(fs, e);
-	  luaK_codeABC(fs, OP_RAVI_TOINT, e->u.info, 0, 0);
-	  e->ravi_type = RAVI_TNUMINT;
-	}
+    else if (e_type == RAVI_TTABLE) {
+      luaK_exp2anyreg(fs, e);
+      luaK_codeABC(fs, OP_RAVI_TOINT, e->u.info, 0, 0);
+      e->ravi_type = RAVI_TNUMINT;
+    }
+    else {
+      e->ravi_type = RAVI_TANY;
+    }
   }
   luaK_fixline(fs, line);
 }
