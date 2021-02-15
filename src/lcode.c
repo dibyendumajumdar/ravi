@@ -1266,8 +1266,8 @@ static int constfolding (FuncState *fs, int op, expdesc *e1,
 ** Expression to produce final result will be encoded in 'e'.
 */
 static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
-  ravitype_t e_type = e->ravi_type;
   int r = luaK_exp2anyreg(fs, e);  /* opcodes operate only on registers */
+  ravitype_t e_type = e->ravi_type;
   freeexp(fs, e);
   if (op == OP_BNOT) {
     if (e->ravi_type == RAVI_TNUMINT)

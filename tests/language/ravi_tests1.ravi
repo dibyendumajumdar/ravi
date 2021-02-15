@@ -1811,6 +1811,14 @@ end
 check(x, 'TOIARRAY', 'IARRAY_GET', 'LEN', 'ADD', 'RETURN', 'RETURN')
 print 'Test 85 OK'
 
+-- Test that #() applied to non integer type produces any type
+-- issue #210
+function x(x:integer[])
+    return #x[1]+1
+end
+check(x, 'TOIARRAY', 'IARRAY_GET', 'LEN', 'ADD', 'RETURN', 'RETURN')
+print 'Test 86 OK'
+
 
 for k,v in pairs(opcodes_coverage)
 do
