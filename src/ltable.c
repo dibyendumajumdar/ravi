@@ -809,7 +809,7 @@ static int ravi_resize_array(lua_State *L, RaviArray *t, unsigned int new_size, 
   }
   /* make sure new size is not going to overflow */
   unsigned int size;
-  uint64_t next_size = t->size + 10;
+  uint64_t next_size = (uint64_t)t->size + 10;
   if (new_size < next_size) {
     size = (unsigned int)next_size;
     if (size != next_size)
