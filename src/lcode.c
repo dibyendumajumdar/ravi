@@ -1201,16 +1201,6 @@ void luaK_indexed (FuncState *fs, expdesc *t, expdesc *k) {
   t->u.ind.idx = luaK_exp2RK(fs, k);  /* R/K index for key */
   t->u.ind.vt = (t->k == VUPVAL) ? VUPVAL : VLOCAL;
   t->k = VINDEXED;
-  /*
-  RAVI - when parsing something like (10)[3] - t->ravi_type is RAVI_TNUMINT
-  which is wrong so we need to check for this situation. Problem is that 
-  because of metatables the index [] operator can even be applied to numeric 
-  values (see for example Lua test events.lua) so we can't raise an error
-  here.
-  */
-  if (t->ravi_type != RAVI_TTABLE && t->ravi_type != RAVI_TARRAYFLT && t->ravi_type != RAVI_TARRAYINT) {
-    t->ravi_type = RAVI_TANY;
-  }
 }
 
 
