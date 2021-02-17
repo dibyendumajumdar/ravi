@@ -1,0 +1,19 @@
+# Bugs
+# issue 208
+do
+    debug.setmetatable(1, {
+        __index = function() return "hello" end,
+        __len = function() return "123" end
+    })
+    assert((10)[1] == 'hello')
+    local function f(x:integer[])
+        return #(x[1]) + 1
+    end
+    local function f2(x:integer[])
+        return #x[1] + 1
+    end
+    assert(f(table.intarray(2)) == 124)
+    assert(f2(table.intarray(2)) == 124)
+    debug.setmetatable(1, nil)
+end
+print 'Ok'
