@@ -1,5 +1,5 @@
-# Bugs
-# issue 208
+-- Bugs
+-- issue 210
 do
     debug.setmetatable(1, {
         __index = function() return "hello" end,
