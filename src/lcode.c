@@ -1292,9 +1292,9 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
         e->ravi_type = RAVI_TANY;
       }
       break;
-    case OPR_MINUS:
-      e->u.info = luaK_codeABC(fs, OPR_MINUS, 0, r, 0);
-      if(e->ravi_type != RAVI_TNUMINT && e->ravi_type != RAVI_TNUMFLT) {
+    case OP_UNM:
+      e->u.info = luaK_codeABC(fs, OP_UNM, 0, r, 0);
+      if (e->ravi_type != RAVI_TNUMINT && e->ravi_type != RAVI_TNUMFLT) {
         e->ravi_type = RAVI_TANY;
       }
       break;
