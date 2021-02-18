@@ -613,11 +613,6 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
           op = OP_RAVI_GETFIELD;
         else
           op = OP_GETTABLE;
-        if (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT)
-          /* set the type of resulting expression */
-          e->ravi_type = e->ravi_type == RAVI_TARRAYFLT ? RAVI_TNUMFLT : RAVI_TNUMINT;
-        else
-          e->ravi_type = RAVI_TANY;
       }
       else {
         lua_assert(e->u.ind.vt == VUPVAL);
@@ -625,8 +620,12 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
           op = OP_RAVI_GETTABUP_SK;
         else
           op = OP_GETTABUP;  /* 't' is in an upvalue */
-        e->ravi_type = RAVI_TANY;
       }
+      if (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT)
+        /* set the type of resulting expression */
+        e->ravi_type = e->ravi_type == RAVI_TARRAYFLT ? RAVI_TNUMFLT : RAVI_TNUMINT;
+      else
+        e->ravi_type = RAVI_TANY;
       e->u.info = luaK_codeABC(fs, op, 0, e->u.ind.t, e->u.ind.idx);
       e->k = VRELOCABLE;
       DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VINDEXED->VRELOCABLE) %e\n", e));
