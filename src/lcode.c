@@ -1116,9 +1116,10 @@ void luaK_goiftrue (FuncState *fs, expdesc *e) {
     }
     default: {
       if (e->ravi_type == RAVI_TNIL || e->ravi_type == RAVI_TANY || e->ravi_type == RAVI_TBOOLEAN) {
-        pc = jumponcond(fs, e, 0);  /* jump when false */
-      } else {
-        pc = NO_JUMP;  /* always true; do nothing */
+        pc = jumponcond(fs, e, 0); /* jump when false */
+      }
+      else {
+        pc = NO_JUMP; /* always true; do nothing */
       }
       break;
     }
@@ -1146,9 +1147,10 @@ void luaK_goiffalse (FuncState *fs, expdesc *e) {
     }
     default: {
       if (e->ravi_type == RAVI_TNIL) {
-        pc = NO_JUMP;  /* always false; do nothing */
-      } else {
-        pc = jumponcond(fs, e, 1);  /* jump if true */
+        pc = NO_JUMP; /* always false; do nothing */
+      }
+      else {
+        pc = jumponcond(fs, e, 1); /* jump if true */
       }
       break;
     }
@@ -1264,9 +1266,9 @@ static int constfolding (FuncState *fs, int op, expdesc *e1,
 static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
   int r = luaK_exp2anyreg(fs, e);  /* opcodes operate only on registers */
   freeexp(fs, e);
-  switch(op) {
+  switch (op) {
     case OP_BNOT:
-      if(e->ravi_type == RAVI_TNUMINT) {
+      if (e->ravi_type == RAVI_TNUMINT) {
         e->u.info = luaK_codeABC(fs, OP_RAVI_BNOT_I, 0, r, 0);
         e->ravi_type = RAVI_TNUMINT;
         break;
@@ -1278,7 +1280,8 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
       e->u.info = luaK_codeABC(fs, OP_LEN, 0, r, 0);
       if (e->ravi_type == RAVI_TARRAYINT || e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TSTRING) {
         e->ravi_type = RAVI_TNUMINT;
-      } else if(e->ravi_type == RAVI_TTABLE) {
+      }
+      else if (e->ravi_type == RAVI_TTABLE) {
         e->k = VRELOCABLE;
         luaK_exp2anyreg(fs, e);
         /* This is not incompatible with lua since a type annotation is require to get here or the table trivially has
@@ -1322,10 +1325,10 @@ static void codebinexpval (FuncState *fs, OpCode op,
   int rk1 = luaK_exp2RK(fs, e1);
   freeexps(fs, e1, e2);
 
-#define RAVI_OPCODE_SPECIALIZED(op,t) OP_RAVI_##op##t
-#define RAVI_OPCODE_GENERIC(op,t) OP_##op
-#define RAVI_COMMUTATIVE(op,t) luaK_codeABC(fs, t(op,FI), 0, rk2, rk1)
-#define RAVI_NON_COMMUTATIVE(op,t) luaK_codeABC(fs, t(op,IF), 0, rk1, rk2)
+#define RAVI_OPCODE_SPECIALIZED(op, t) OP_RAVI_##op##t
+#define RAVI_OPCODE_GENERIC(op, t) OP_##op
+#define RAVI_COMMUTATIVE(op, t) luaK_codeABC(fs, t(op, FI), 0, rk2, rk1)
+#define RAVI_NON_COMMUTATIVE(op, t) luaK_codeABC(fs, t(op, IF), 0, rk1, rk2)
 #define RAVI_GEN_ARITH(op, co, ii, t)                          \
   case OP_##op:                                                \
     if (e1->ravi_type == RAVI_TNUMFLT) {                       \
@@ -1372,7 +1375,7 @@ static void codebinexpval (FuncState *fs, OpCode op,
       e1->ravi_type = RAVI_TANY;                                                 \
     }                                                                            \
     break
-  
+
   switch (op) {
     RAVI_GEN_ARITH(ADD, RAVI_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_SPECIALIZED);
     RAVI_GEN_ARITH(SUB, RAVI_NON_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_SPECIALIZED);
@@ -1652,12 +1655,15 @@ void luaK_posfix (FuncState *fs, BinOpr op,
       if (e1->ravi_type == RAVI_TNIL) {
         /* nil and something is still nil. */
         e2->ravi_type = RAVI_TNIL;
-      } else if (e1->ravi_type == RAVI_TBOOLEAN || e1->ravi_type == RAVI_TANY) {
+      }
+      else if (e1->ravi_type == RAVI_TBOOLEAN || e1->ravi_type == RAVI_TANY) {
         /* In these cases the 'and' can go both ways. */
         if (e2->ravi_type != e1->ravi_type)
           e2->ravi_type = RAVI_TANY;
-      } else {
-        /* Nothing to do here, since the first arg is always truish and therefore the second arg will be used every time. */
+      }
+      else {
+        /* Nothing to do here, since the first arg is always truish and therefore the second arg will be used every
+         * time. */
       }
       *e1 = *e2;
       break;
@@ -1667,12 +1673,15 @@ void luaK_posfix (FuncState *fs, BinOpr op,
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->t, e1->t);
       if (e1->ravi_type == RAVI_TNIL) {
-        /* Nothing to do here, since the first arg is always truish and therefore the second arg will be used every time. */
-      } else if (e1->ravi_type == RAVI_TBOOLEAN || e1->ravi_type == RAVI_TANY) {
+        /* Nothing to do here, since the first arg is always truish and therefore the second arg will be used every
+         * time. */
+      }
+      else if (e1->ravi_type == RAVI_TBOOLEAN || e1->ravi_type == RAVI_TANY) {
         /* In these cases the 'or' can go both ways. */
         if (e2->ravi_type != e1->ravi_type)
           e2->ravi_type = RAVI_TANY;
-      } else {
+      }
+      else {
         /* In this case the first argument is truish and will be the return from 'or' */
         e2->ravi_type = e1->ravi_type;
       }
@@ -1688,9 +1697,11 @@ void luaK_posfix (FuncState *fs, BinOpr op,
         SETARG_B(getinstruction(fs, e2), e1->u.info);
         DEBUG_CODEGEN(raviY_printf(fs, "[%d]* %o ; set A to %d\n", e2->u.info, getinstruction(fs,e2), e1->u.info));
         e1->k = VRELOCABLE; e1->u.info = e2->u.info;
-        if (e2->ravi_type == RAVI_TSTRING && (e1->ravi_type == RAVI_TSTRING || e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT)) {
+        if (e2->ravi_type == RAVI_TSTRING &&
+            (e1->ravi_type == RAVI_TSTRING || e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT)) {
           e1->ravi_type = RAVI_TSTRING;
-        } else {
+        }
+        else {
           e1->ravi_type = RAVI_TANY;
         }
       }
