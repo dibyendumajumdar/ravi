@@ -1819,6 +1819,25 @@ end
 check(x, 'TOIARRAY', 'IARRAY_GET', 'LEN', 'ADD', 'RETURN', 'RETURN')
 print 'Test 86 OK'
 
+-- An upvalue that is an array will yield a primitive value
+-- issue #211
+do
+    local x: integer[] = {4}
+    local y: number[] = {4.2}
+    local function f()
+        return x[1] + 1, y[1] + 2.2
+    end
+    check(f, 'GETTABUP', 'ADDII', 'GETTABUP', 'ADDFF', 'RETURN', 'RETURN')
+    local a,b = f()
+    assert(a == 5)
+    assert(b == 6.4)
+    compile(f)
+    a,b = f()
+    assert(a == 5)
+    assert(b == 6.4)
+end
+print 'Test 87 OK'
+
 
 for k,v in pairs(opcodes_coverage)
 do

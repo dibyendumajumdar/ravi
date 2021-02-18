@@ -19,12 +19,11 @@ end
 print 'Ok'
 
 -- issue
---do
---    local function f(x:integer[])
---        return function ()
---            return x[1][1] + 1
---        end
---    end
---    local x = f(table.intarray(3))
---    x()
---end
+do
+    local x: integer[] = {4}
+    local y: number[] = {4.2}
+    local function f()
+        return x[1] + 1, y[1] + 2.2
+    end
+    ravi.dumplua(f)
+end
