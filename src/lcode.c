@@ -1278,7 +1278,17 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
       e->u.info = luaK_codeABC(fs, OP_LEN, 0, r, 0);
       if (e->ravi_type == RAVI_TARRAYINT || e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TSTRING) {
         e->ravi_type = RAVI_TNUMINT;
-      } else {
+      } else if(e->ravi_type == RAVI_TTABLE) {
+        e->k = VRELOCABLE;
+        luaK_exp2anyreg(fs, e);
+        /* This is not incompatible with lua since a type annotation is require to get here or the table trivially has
+         * no metatable */
+        luaK_codeABC(fs, OP_RAVI_TOINT, e->u.info, 0, 0);
+        e->ravi_type = RAVI_TNUMINT;
+        luaK_fixline(fs, line);
+        return;
+      }
+      else {
         e->ravi_type = RAVI_TANY;
       }
       break;

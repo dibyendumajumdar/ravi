@@ -1523,7 +1523,7 @@ print 'Test 58 OK'
 function x(s1: string, s2: string)
   return @string( s1 .. s2 )
 end
-check(x, 'TOSTRING', 'TOSTRING', 'MOVE', 'MOVE', 'CONCAT', 'TOSTRING', 'RETURN', 'RETURN')
+check(x, 'TOSTRING', 'TOSTRING', 'MOVE', 'MOVE', 'CONCAT', 'RETURN', 'RETURN')
 assert(x('a', 'b') == 'ab')
 compile(x)
 assert(x('a', 'b') == 'ab')
@@ -1699,8 +1699,8 @@ function x()
 end
 assert(ravitype(x()) == 'number[]')
 assert(x()[1] == 42.0)
-check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST', 'TEST',
-  'JMP', 'NEW_FARRAY', 'LOADK', 'SETLIST', 'TOFARRAY',
+check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST',
+  'NEW_FARRAY', 'LOADK', 'SETLIST',
   'RETURN', 'RETURN')
 print 'Test 74 OK'
 
@@ -1797,10 +1797,14 @@ print 'Test 83 OK'
 function x(x:number)
     return (~x)+1
 end
-check(x, 'TOFLT', 'BNOT', 'ADD', 'RETURN', 'RETURN')
+check(x, 'TOFLT', 'BNOT', 'ADDII', 'RETURN', 'RETURN')
 assert(x(1.0) == -1)
 compile(x)
 assert(x(1.0) == -1)
+function x(x:table)
+    return (~x)+1
+end
+check(x, 'TOTAB', 'BNOT', 'ADD', 'RETURN', 'RETURN')
 print 'Test 84 OK'
 
 -- Test that #() applied to non integer type produces any type
