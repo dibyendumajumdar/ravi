@@ -1115,7 +1115,11 @@ void luaK_goiftrue (FuncState *fs, expdesc *e) {
       break;
     }
     default: {
-      pc = jumponcond(fs, e, 0);  /* jump when false */
+      if (e->ravi_type == RAVI_TNIL || e->ravi_type == RAVI_TANY || e->ravi_type == RAVI_TBOOLEAN) {
+        pc = jumponcond(fs, e, 0);  /* jump when false */
+      } else {
+        pc = NO_JUMP;  /* always true; do nothing */
+      }
       break;
     }
   }
@@ -1141,7 +1145,11 @@ void luaK_goiffalse (FuncState *fs, expdesc *e) {
       break;
     }
     default: {
-      pc = jumponcond(fs, e, 1);  /* jump if true */
+      if (e->ravi_type == RAVI_TNIL) {
+        pc = NO_JUMP;  /* always false; do nothing */
+      } else {
+        pc = jumponcond(fs, e, 1);  /* jump if true */
+      }
       break;
     }
   }
@@ -1159,12 +1167,10 @@ static void codenot (FuncState *fs, expdesc *e) {
   switch (e->k) {
     case VNIL: case VFALSE: {
       e->k = VTRUE;  /* true == not nil == not false */
-      e->ravi_type = RAVI_TANY; /* RAVI TODO */
       break;
     }
     case VK: case VKFLT: case VKINT: case VTRUE: {
       e->k = VFALSE;  /* false == not "x" == not 0.5 == not 1 == not true */
-      e->ravi_type = RAVI_TANY; /* RAVI TODO*/
       break;
     }
     case VJMP: {
@@ -1177,11 +1183,11 @@ static void codenot (FuncState *fs, expdesc *e) {
       freeexp(fs, e);
       e->u.info = luaK_codeABC(fs, OP_NOT, 0, e->u.info, 0);
       e->k = VRELOCABLE;
-      e->ravi_type = RAVI_TANY; /* RAVI TODO */
       break;
     }
     default: lua_assert(0);  /* cannot happen */
   }
+  e->ravi_type = RAVI_TBOOLEAN;
   /* interchange true and false lists */
   { int temp = e->f; e->f = e->t; e->t = temp; }
   removevalues(fs, e->f);  /* values are useless when negated */
@@ -1257,28 +1263,36 @@ static int constfolding (FuncState *fs, int op, expdesc *e1,
 */
 static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
   int r = luaK_exp2anyreg(fs, e);  /* opcodes operate only on registers */
-  ravitype_t e_type = e->ravi_type;
   freeexp(fs, e);
-  if (op == OP_BNOT) {
-    if (e->ravi_type == RAVI_TNUMINT)
-      op = OP_RAVI_BNOT_I;
-    else
-      e->ravi_type = RAVI_TANY; /* Since it could be a float*/
-  }
-  e->u.info = luaK_codeABC(fs, op, 0, r, 0);  /* generate opcode */
-  e->k = VRELOCABLE;  /* all those operations are relocatable */
-  if (op == OP_LEN) {
-    if (e_type == RAVI_TARRAYINT || e_type == RAVI_TARRAYFLT)
-      e->ravi_type = RAVI_TNUMINT;
-    else if (e_type == RAVI_TTABLE) {
-      luaK_exp2anyreg(fs, e);
-      luaK_codeABC(fs, OP_RAVI_TOINT, e->u.info, 0, 0);
-      e->ravi_type = RAVI_TNUMINT;
-    }
-    else {
+  switch(op) {
+    case OP_BNOT:
+      if(e->ravi_type == RAVI_TNUMINT) {
+        e->u.info = luaK_codeABC(fs, OP_RAVI_BNOT_I, 0, r, 0);
+        e->ravi_type = RAVI_TNUMINT;
+        break;
+      }
+      e->u.info = luaK_codeABC(fs, OP_BNOT, 0, r, 0);
+      e->ravi_type = e->ravi_type == RAVI_TNUMFLT ? RAVI_TNUMINT : RAVI_TANY;
+      break;
+    case OP_LEN:
+      e->u.info = luaK_codeABC(fs, OP_LEN, 0, r, 0);
+      if (e->ravi_type == RAVI_TARRAYINT || e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TSTRING) {
+        e->ravi_type = RAVI_TNUMINT;
+      } else {
+        e->ravi_type = RAVI_TANY;
+      }
+      break;
+    case OPR_MINUS:
+      e->u.info = luaK_codeABC(fs, OPR_MINUS, 0, r, 0);
+      if(e->ravi_type != RAVI_TNUMINT && e->ravi_type != RAVI_TNUMFLT) {
+        e->ravi_type = RAVI_TANY;
+      }
+      break;
+    default:
+      e->u.info = luaK_codeABC(fs, op, 0, r, 0);
       e->ravi_type = RAVI_TANY;
-    }
   }
+  e->k = VRELOCABLE;  /* all those operations are relocatable */
   luaK_fixline(fs, line);
 }
 
@@ -1297,103 +1311,87 @@ static void codebinexpval (FuncState *fs, OpCode op,
   int rk2 = luaK_exp2RK(fs, e2);  /* both operands are "RK" */
   int rk1 = luaK_exp2RK(fs, e1);
   freeexps(fs, e1, e2);
-  if (op == OP_ADD && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFF, 0, rk1, rk2);
+
+#define RAVI_OPCODE_SPECIALIZED(op,t) OP_RAVI_##op##t
+#define RAVI_OPCODE_GENERIC(op,t) OP_##op
+#define RAVI_COMMUTATIVE(op,t) luaK_codeABC(fs, t(op,FI), 0, rk2, rk1)
+#define RAVI_NON_COMMUTATIVE(op,t) luaK_codeABC(fs, t(op,IF), 0, rk1, rk2)
+#define RAVI_GEN_ARITH(op, co, ii, t)                          \
+  case OP_##op:                                                \
+    if (e1->ravi_type == RAVI_TNUMFLT) {                       \
+      if (e2->ravi_type == RAVI_TNUMFLT) {                     \
+        e1->u.info = luaK_codeABC(fs, t(op, FF), 0, rk1, rk2); \
+        e1->ravi_type = RAVI_TNUMFLT;                          \
+        break;                                                 \
+      }                                                        \
+      else if (e2->ravi_type == RAVI_TNUMINT) {                \
+        e1->u.info = luaK_codeABC(fs, t(op, FI), 0, rk1, rk2); \
+        e1->ravi_type = RAVI_TNUMFLT;                          \
+        break;                                                 \
+      }                                                        \
+    }                                                          \
+    else if (e1->ravi_type == RAVI_TNUMINT) {                  \
+      if (e2->ravi_type == RAVI_TNUMFLT) {                     \
+        e1->u.info = co(op, t);                                \
+        e1->ravi_type = RAVI_TNUMFLT;                          \
+        break;                                                 \
+      }                                                        \
+      else if (e2->ravi_type == RAVI_TNUMINT) {                \
+        e1->u.info = luaK_codeABC(fs, t(op, II), 0, rk1, rk2); \
+        e1->ravi_type = ii;                                    \
+        break;                                                 \
+      }                                                        \
+    }                                                          \
+    e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);       \
+    e1->ravi_type = RAVI_TANY;                                 \
+    break
+
+#define RAVI_GEN_INT_OP(op)                                                      \
+  case OP_##op:                                                                  \
+    if (e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {        \
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_##op##_II, 0, rk1, rk2);             \
+      e1->ravi_type = RAVI_TNUMINT;                                              \
+    }                                                                            \
+    else if ((e1->ravi_type == RAVI_TNUMFLT || e1->ravi_type == RAVI_TNUMINT) && \
+             (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT)) { \
+      e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                       \
+      e1->ravi_type = RAVI_TNUMINT;                                              \
+    }                                                                            \
+    else {                                                                       \
+      e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                       \
+      e1->ravi_type = RAVI_TANY;                                                 \
+    }                                                                            \
+    break
+  
+  switch (op) {
+    RAVI_GEN_ARITH(ADD, RAVI_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_SPECIALIZED);
+    RAVI_GEN_ARITH(SUB, RAVI_NON_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_SPECIALIZED);
+    RAVI_GEN_ARITH(MUL, RAVI_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_SPECIALIZED);
+    RAVI_GEN_ARITH(DIV, RAVI_NON_COMMUTATIVE, RAVI_TNUMFLT, RAVI_OPCODE_SPECIALIZED);
+    RAVI_GEN_ARITH(IDIV, RAVI_NON_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_GENERIC);
+    RAVI_GEN_ARITH(MOD, RAVI_NON_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_GENERIC);
+    RAVI_GEN_ARITH(POW, RAVI_NON_COMMUTATIVE, RAVI_TNUMFLT, RAVI_OPCODE_GENERIC);
+    RAVI_GEN_INT_OP(BAND);
+    RAVI_GEN_INT_OP(BOR);
+    RAVI_GEN_INT_OP(BXOR);
+    RAVI_GEN_INT_OP(SHL);
+    RAVI_GEN_INT_OP(SHR);
+    case OP_CONCAT:
+      e1->u.info = luaK_codeABC(fs, op, 0, rk1, rk2);
+      if ((e1->ravi_type == RAVI_TSTRING || e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT) ||
+          (e2->ravi_type == RAVI_TSTRING || e2->ravi_type == RAVI_TNUMINT || e2->ravi_type == RAVI_TNUMFLT)) {
+        e1->ravi_type = RAVI_TSTRING;
+      }
+      else {
+        e1->ravi_type = RAVI_TANY;
+      }
+      break;
+    default:
+      e1->u.info = luaK_codeABC(fs, op, 0, rk1, rk2);
+      e1->ravi_type = RAVI_TANY;
   }
-  else if (op == OP_ADD && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFI, 0, rk1, rk2);
-  }
-  else if (op == OP_ADD && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMFLT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDFI, 0, rk2, rk1);
-  }
-  else if (op == OP_ADD && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_ADDII, 0, rk1, rk2);
-  }
-  else if (op == OP_MUL && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFF, 0, rk1, rk2);
-  }
-  else if (op == OP_MUL && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFI, 0, rk1, rk2);
-  }
-  else if (op == OP_MUL && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMFLT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_MULFI, 0, rk2, rk1);
-  }
-  else if (op == OP_MUL && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_MULII, 0, rk1, rk2);
-  }
-  else if (op == OP_SUB && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFF, 0, rk1, rk2); 
-  }
-  else if (op == OP_SUB && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBFI, 0, rk1, rk2); 
-  }
-  else if (op == OP_SUB && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMFLT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBIF, 0, rk1, rk2);  
-  }
-  else if (op == OP_SUB && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_SUBII, 0, rk1, rk2); 
-  }
-  else if (op == OP_DIV && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFF, 0, rk1, rk2);
-  }
-  else if (op == OP_DIV && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVFI, 0, rk1, rk2);
-  }
-  else if (op == OP_DIV && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMFLT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVIF, 0, rk1, rk2);
-  }
-  else if (op == OP_DIV && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_DIVII, 0, rk1, rk2);
-  }
-  else if (op == OP_BAND && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_BAND_II, 0, rk1, rk2);
-  }
-  else if (op == OP_BOR && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_BOR_II, 0, rk1, rk2);
-  }
-  else if (op == OP_BXOR && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_BXOR_II, 0, rk1, rk2);
-  }
-  else if (op == OP_SHL && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_SHL_II, 0, rk1, rk2);
-  }
-  else if (op == OP_SHR && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {
-    e1->u.info = luaK_codeABC(fs, OP_RAVI_SHR_II, 0, rk1, rk2);
-  }
-  else {
-    e1->u.info = luaK_codeABC(fs, op, 0, rk1, rk2);  /* generate opcode */
-  }
+
   e1->k = VRELOCABLE;  /* all those operations are relocatable */
-  if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) &&
-    e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMFLT)
-    e1->ravi_type = RAVI_TNUMFLT;
-  else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) 
-    && e1->ravi_type == RAVI_TNUMFLT && e2->ravi_type == RAVI_TNUMINT)
-    e1->ravi_type = RAVI_TNUMFLT;
-  else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL || op == OP_DIV) 
-    && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMFLT)
-    e1->ravi_type = RAVI_TNUMFLT;
-  else if ((op == OP_ADD || op == OP_SUB || op == OP_MUL) 
-    && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
-    e1->ravi_type = RAVI_TNUMINT;
-  else if ((op == OP_DIV) 
-    && e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT)
-    e1->ravi_type = RAVI_TNUMFLT;
-  else if ((op == OP_IDIV)
-    && (e1->ravi_type == RAVI_TNUMINT)
-    && (e2->ravi_type == RAVI_TNUMINT))
-    e1->ravi_type = RAVI_TNUMINT;
-  else if ((op == OP_BAND || op == OP_BOR || op == OP_BXOR || op == OP_SHL || op == OP_SHR)
-    && (e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT)
-    && (e2->ravi_type == RAVI_TNUMINT || e2->ravi_type == RAVI_TNUMFLT))
-    e1->ravi_type = RAVI_TNUMINT;
-  else if (op == OP_POW && (e1->ravi_type == RAVI_TNUMFLT || e1->ravi_type == RAVI_TNUMINT) &&
-           (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT))
-    e1->ravi_type = RAVI_TNUMFLT;
-  else if (op == OP_MOD && (e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT))
-    e1->ravi_type = RAVI_TNUMINT;
-  else
-    e1->ravi_type = RAVI_TANY;
   luaK_fixline(fs, line);
 }
 
@@ -1453,7 +1451,7 @@ static void codecomp (FuncState *fs, BinOpr opr, expdesc *e1, expdesc *e2) {
     }
   }
   e1->k = VJMP;
-  e1->ravi_type = RAVI_TANY;
+  e1->ravi_type = RAVI_TBOOLEAN;
 }
 
 
@@ -1641,7 +1639,16 @@ void luaK_posfix (FuncState *fs, BinOpr op,
       lua_assert(e1->t == NO_JUMP);  /* list closed by 'luK_infix' */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->f, e1->f);
-      e2->ravi_type = e1->ravi_type;  /* RAVI TODO why ? this seems to be needed but don't understand reason */
+      if (e1->ravi_type == RAVI_TNIL) {
+        /* nil and something is still nil. */
+        e2->ravi_type = RAVI_TNIL;
+      } else if (e1->ravi_type == RAVI_TBOOLEAN || e1->ravi_type == RAVI_TANY) {
+        /* In these cases the 'and' can go both ways. */
+        if (e2->ravi_type != e1->ravi_type)
+          e2->ravi_type = RAVI_TANY;
+      } else {
+        /* Nothing to do here, since the first arg is always truish and therefore the second arg will be used every time. */
+      }
       *e1 = *e2;
       break;
     }
@@ -1649,7 +1656,16 @@ void luaK_posfix (FuncState *fs, BinOpr op,
       lua_assert(e1->f == NO_JUMP);  /* list closed by 'luK_infix' */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->t, e1->t);
-      e2->ravi_type = e1->ravi_type; /* RAVI TODO why ? this seems to be needed but don't understand reason */
+      if (e1->ravi_type == RAVI_TNIL) {
+        /* Nothing to do here, since the first arg is always truish and therefore the second arg will be used every time. */
+      } else if (e1->ravi_type == RAVI_TBOOLEAN || e1->ravi_type == RAVI_TANY) {
+        /* In these cases the 'or' can go both ways. */
+        if (e2->ravi_type != e1->ravi_type)
+          e2->ravi_type = RAVI_TANY;
+      } else {
+        /* In this case the first argument is truish and will be the return from 'or' */
+        e2->ravi_type = e1->ravi_type;
+      }
       *e1 = *e2;
       break;
     }
@@ -1662,7 +1678,11 @@ void luaK_posfix (FuncState *fs, BinOpr op,
         SETARG_B(getinstruction(fs, e2), e1->u.info);
         DEBUG_CODEGEN(raviY_printf(fs, "[%d]* %o ; set A to %d\n", e2->u.info, getinstruction(fs,e2), e1->u.info));
         e1->k = VRELOCABLE; e1->u.info = e2->u.info;
-        e1->ravi_type = RAVI_TANY; /* RAVI TODO check */
+        if (e2->ravi_type == RAVI_TSTRING && (e1->ravi_type == RAVI_TSTRING || e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT)) {
+          e1->ravi_type = RAVI_TSTRING;
+        } else {
+          e1->ravi_type = RAVI_TANY;
+        }
       }
       else {
         luaK_exp2nextreg(fs, e2);  /* operand must be on the 'stack' */
