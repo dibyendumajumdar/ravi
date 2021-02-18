@@ -18,12 +18,3 @@ do
 end
 print 'Ok'
 
--- issue
-do
-    local x: integer[] = {4}
-    local y: number[] = {4.2}
-    local function f()
-        return x[1] + 1, y[1] + 2.2
-    end
-    ravi.dumplua(f)
-end
