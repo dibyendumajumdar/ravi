@@ -33,7 +33,7 @@
 LUAI_DDEF const TValue luaO_nilobject_ = {NILCONSTANT};
 
 
-int ravi_checktype(StkId input, ravi_type_map type) {
+int ravi_checktype(lua_State *L, StkId input, ravi_type_map type, TString* usertype) {
   if (type == RAVI_TM_ANY) return 1;
   if (type & RAVI_TM_NIL && ttisnil(input)) return 1;
   if (type & RAVI_TM_FALSE && ttisboolean(input) && l_isfalse(input)) return 1;
@@ -45,7 +45,9 @@ int ravi_checktype(StkId input, ravi_type_map type) {
   if (type & RAVI_TM_TABLE && ttisLtable(input)) return 1;
   if (type & RAVI_TM_STRING && ttisstring(input)) return 1;
   if (type & RAVI_TM_FUNCTION && ttisclosure(input)) return 1;
-  // TODO if (type & RAVI_TM_USERDATA && )
+  if (type & RAVI_TM_USERDATA) {
+    if (raviV_check_usertype(L, usertype, input)) return 1;
+  }
   return 0;
 }
 

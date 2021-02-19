@@ -72,18 +72,18 @@ typedef enum {
 
 typedef uint32_t ravi_type_map;
 
-#define RAVI_TM_NIL (((uint32_t)1)<<RAVI_TI_NIL)
-#define RAVI_TM_FALSE (((uint32_t)1)<<RAVI_TI_FALSE)
-#define RAVI_TM_TRUE (((uint32_t)1)<<RAVI_TI_TRUE)
-#define RAVI_TM_INTEGER (((uint32_t)1)<<RAVI_TI_INTEGER)
-#define RAVI_TM_FLOAT (((uint32_t)1)<<RAVI_TI_FLOAT)
-#define RAVI_TM_INTEGER_ARRAY (((uint32_t)1)<<RAVI_TI_INTEGER_ARRAY)
-#define RAVI_TM_FLOAT_ARRAY (((uint32_t)1)<<RAVI_TI_FLOAT_ARRAY)
-#define RAVI_TM_TABLE (((uint32_t)1)<<RAVI_TI_TABLE)
-#define RAVI_TM_STRING (((uint32_t)1)<<RAVI_TI_STRING)
-#define RAVI_TM_FUNCTION (((uint32_t)1)<<RAVI_TI_FUNCTION)
-#define RAVI_TM_USERDATA (((uint32_t)1)<<RAVI_TI_USERDATA)
-#define RAVI_TM_OTHER (((uint32_t)1)<<RAVI_TI_OTHER)
+#define RAVI_TM_NIL (((ravi_type_map)1)<<RAVI_TI_NIL)
+#define RAVI_TM_FALSE (((ravi_type_map)1)<<RAVI_TI_FALSE)
+#define RAVI_TM_TRUE (((ravi_type_map)1)<<RAVI_TI_TRUE)
+#define RAVI_TM_INTEGER (((ravi_type_map)1)<<RAVI_TI_INTEGER)
+#define RAVI_TM_FLOAT (((ravi_type_map)1)<<RAVI_TI_FLOAT)
+#define RAVI_TM_INTEGER_ARRAY (((ravi_type_map)1)<<RAVI_TI_INTEGER_ARRAY)
+#define RAVI_TM_FLOAT_ARRAY (((ravi_type_map)1)<<RAVI_TI_FLOAT_ARRAY)
+#define RAVI_TM_TABLE (((ravi_type_map)1)<<RAVI_TI_TABLE)
+#define RAVI_TM_STRING (((ravi_type_map)1)<<RAVI_TI_STRING)
+#define RAVI_TM_FUNCTION (((ravi_type_map)1)<<RAVI_TI_FUNCTION)
+#define RAVI_TM_USERDATA (((ravi_type_map)1)<<RAVI_TI_USERDATA)
+#define RAVI_TM_OTHER (((ravi_type_map)1)<<RAVI_TI_OTHER)
 
 #define RAVI_TM_FALSISH (RAVI_TM_NIL | RAVI_TM_FALSE)
 #define RAVI_TM_TRUISH (~RAVI_TM_FALSISH)
@@ -860,7 +860,7 @@ LUAI_FUNC void luaO_chunkid (char *out, const char *source, size_t srclen);
 
 
 
-LUAI_FUNC int ravi_checktype(StkId input, ravi_type_map type);
+LUAI_FUNC int ravi_checktype(lua_State *L, StkId input, ravi_type_map type, TString* usertype);
 
 #endif
 

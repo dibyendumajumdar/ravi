@@ -75,7 +75,7 @@ static char* raviY_buf_append(char* buf, const char* what) {
   return buf;
 }
 
-void raviY_typemap_string(uint32_t tm, char* buf) {
+void raviY_typemap_string(ravi_type_map tm, char* buf) {
   if (tm == RAVI_TM_ANY) {
     memcpy(buf, "any", 4);
     return;
@@ -364,7 +364,7 @@ static TString *str_checkname (LexState *ls) {
  * expression kind in e->k, e->u.info may have a register 
  * or bytecode 
  */
-static void init_exp (expdesc *e, expkind k, int info, uint32_t tt, TString *usertype) {
+static void init_exp (expdesc *e, expkind k, int info, ravi_type_map tt, TString *usertype) {
   e->f = e->t = NO_JUMP;
   e->k = k;
   e->u.info = info;
@@ -394,7 +394,7 @@ static void checkname (LexState *ls, expdesc *e) {
  * variable's index in ls->f->locvars.
  * RAVI change - added the type of the variable.
  */
-static int registerlocalvar (LexState *ls, TString *varname, ravi_type_map ravi_type_map, TString *usertype) {
+static int registerlocalvar (LexState *ls, TString *varname, ravi_type_map tm, TString *usertype) {
   FuncState *fs = ls->fs;
   Proto *f = fs->f;
   int oldsize = f->sizelocvars;
@@ -409,7 +409,7 @@ static int registerlocalvar (LexState *ls, TString *varname, ravi_type_map ravi_
     f->locvars[oldsize++].varname = NULL;
   }
   f->locvars[fs->nlocvars].varname = varname;
-  f->locvars[fs->nlocvars].ravi_type_map = ravi_type_map;
+  f->locvars[fs->nlocvars].ravi_type_map = tm;
   f->locvars[fs->nlocvars].usertype = usertype;
   luaC_objbarrier(ls->L, f, varname);
   return fs->nlocvars++;
@@ -625,29 +625,22 @@ static void singlevar (LexState *ls, expdesc *var) {
 
 /* RAVI code an instruction to coerce the type, reg is the register, 
    and ravi_type is the type we want */
-static void ravi_code_typecoersion(LexState *ls, int reg, ravi_type_map ravi_type_map, TString *typename /* only if tt is USERDATA */) {
+static void ravi_code_typecoersion(LexState *ls, int reg, ravi_type_map tm,
+                                   TString *typename /* only if tt is USERDATA */) {
   /* do we need to convert ? */
-  if (ravi_type_map == RAVI_TM_FLOAT || ravi_type_map == RAVI_TM_INTEGER)
+  if (tm == RAVI_TM_FLOAT || tm == RAVI_TM_INTEGER)
     /* code an instruction to convert in place */
-    luaK_codeABC(ls->fs,
-                 ravi_type_map == RAVI_TM_FLOAT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, reg,
-                 0, 0);
-  else if (ravi_type_map == RAVI_TM_INTEGER_ARRAY || ravi_type_map == RAVI_TM_FLOAT_ARRAY)
-    luaK_codeABC(ls->fs, ravi_type_map == RAVI_TM_INTEGER_ARRAY ? OP_RAVI_TOIARRAY
-                                                     : OP_RAVI_TOFARRAY,
-                 reg, 0, 0);
-  else if (ravi_type_map == RAVI_TM_TABLE)
-    luaK_codeABC(ls->fs, OP_RAVI_TOTAB,
-                 reg, 0, 0);
-  else if (ravi_type_map == (RAVI_TM_USERDATA | RAVI_TM_NIL))
-    luaK_codeABx(ls->fs, OP_RAVI_TOTYPE,
-	    reg, luaK_stringK(ls->fs, typename));
-  else if (ravi_type_map == (RAVI_TM_STRING | RAVI_TM_NIL))
-    luaK_codeABC(ls->fs, OP_RAVI_TOSTRING,
-	    reg, 0, 0);
-  else if (ravi_type_map == (RAVI_TM_FUNCTION | RAVI_TM_NIL))
-    luaK_codeABC(ls->fs, OP_RAVI_TOCLOSURE,
-	    reg, 0, 0);
+    luaK_codeABC(ls->fs, tm == RAVI_TM_FLOAT ? OP_RAVI_TOFLT : OP_RAVI_TOINT, reg, 0, 0);
+  else if (tm == RAVI_TM_INTEGER_ARRAY || tm == RAVI_TM_FLOAT_ARRAY)
+    luaK_codeABC(ls->fs, tm == RAVI_TM_INTEGER_ARRAY ? OP_RAVI_TOIARRAY : OP_RAVI_TOFARRAY, reg, 0, 0);
+  else if (tm == RAVI_TM_TABLE)
+    luaK_codeABC(ls->fs, OP_RAVI_TOTAB, reg, 0, 0);
+  else if (tm == (RAVI_TM_USERDATA | RAVI_TM_NIL))
+    luaK_codeABx(ls->fs, OP_RAVI_TOTYPE, reg, luaK_stringK(ls->fs, typename));
+  else if (tm == (RAVI_TM_STRING | RAVI_TM_NIL))
+    luaK_codeABC(ls->fs, OP_RAVI_TOSTRING, reg, 0, 0);
+  else if (tm == (RAVI_TM_FUNCTION | RAVI_TM_NIL))
+    luaK_codeABC(ls->fs, OP_RAVI_TOCLOSURE, reg, 0, 0);
   // TODO coerse to boolean
 }
 
@@ -695,10 +688,10 @@ static void ravi_coercetype(LexState *ls, expdesc *v, int n)
      * first convert from local register to variable index.
      */
     int idx = register_to_locvar_index(ls->fs, i);
-    ravi_type_map ravi_type_map = ls->fs->f->locvars[idx].ravi_type_map;  /* get variable's type */
+    ravi_type_map tm = ls->fs->f->locvars[idx].ravi_type_map;  /* get variable's type */
     TString *usertype = ls->fs->f->locvars[idx].usertype;
     /* do we need to convert ? */
-    ravi_code_typecoersion(ls, i, ravi_type_map, usertype);
+    ravi_code_typecoersion(ls, i, tm, usertype);
   }
 }
 
@@ -712,10 +705,10 @@ static void ravi_setzero(FuncState *fs, int from, int n) {
     * first convert from local register to variable index.
     */
     int idx = register_to_locvar_index(fs, i);
-    ravi_type_map ravi_type_map = fs->f->locvars[idx].ravi_type_map;  /* get variable's type */
+    ravi_type_map tm = fs->f->locvars[idx].ravi_type_map;  /* get variable's type */
     TString *usertype = fs->f->locvars[idx].usertype;
     /* do we need to convert ? */
-    ravi_code_setzero(fs, i, ravi_type_map, usertype);
+    ravi_code_setzero(fs, i, tm, usertype);
   }
 }
 
@@ -1417,92 +1410,96 @@ static int explist (LexState *ls, expdesc *v) {
 */
 static void ravi_typecheck(LexState *ls, expdesc *v, ravi_type_map *var_types,
                            TString **usertypes, int nvars, int n) {
-  /* NOTE that 'v' may not have register assigned yet */  
+  /* NOTE that 'v' may not have register assigned yet */
+  if (n >= nvars) return;
   ravi_type_map vartype = var_types[n];
-  if (n < nvars && (v->ravi_type_map & ~vartype)) {
-    if ((vartype == RAVI_TM_FLOAT_ARRAY || vartype == RAVI_TM_INTEGER_ARRAY) &&
-        v->k == VNONRELOC) {
-      /* as the bytecode for generating a table is already emitted by this stage
-       * we have to amend the generated byte code - not sure if there is a
-       * better approach. The location of the OP_NEWTABLE instruction is in
-       * v->pc and we check that this has the same destination register as
-       * v->u.info which is our variable */ 
-       // local a:int[] = { 1 } 
-       //                     ^ We are just past this 
-       //                       and about to assign to a
-      int ok = 0;
-      if (v->pc >= 0) {
-        Instruction *pc =
-            &ls->fs->f->code[v->pc]; /* Get the OP_NEWTABLE instruction */
-        OpCode op = GET_OPCODE(*pc);
-        if (op == OP_NEWTABLE) { /* check before making changes */
-          int reg = GETARG_A(*pc);
-          if (reg ==
-              v->u.info) { /* double check that register is as expected */
-            op = (vartype == RAVI_TM_INTEGER_ARRAY) ? OP_RAVI_NEW_IARRAY
-                                             : OP_RAVI_NEW_FARRAY;
-            SET_OPCODE(*pc, op); /* modify opcode */
-            DEBUG_CODEGEN(
-                raviY_printf(ls->fs, "[%d]* %o ; modify opcode\n", v->pc, *pc));
-            ok = 1;
-          }
+  ravi_type_map v_type_map = v->ravi_type_map;
+  if (v->k == VINDEXED) {
+    if (v_type_map == RAVI_TM_INTEGER_ARRAY) {
+      v_type_map = RAVI_TM_INTEGER;
+    } else if (v_type_map == RAVI_TM_FLOAT_ARRAY) {
+      v_type_map = RAVI_TM_FLOAT;
+    } else {
+      v_type_map = RAVI_TM_ANY;
+    }
+  }
+  if ((v_type_map & ~vartype) == 0) return;
+  if ((vartype == RAVI_TM_FLOAT_ARRAY || vartype == RAVI_TM_INTEGER_ARRAY) &&
+      v->k == VNONRELOC) {
+    /* as the bytecode for generating a table is already emitted by this stage
+      * we have to amend the generated byte code - not sure if there is a
+      * better approach. The location of the OP_NEWTABLE instruction is in
+      * v->pc and we check that this has the same destination register as
+      * v->u.info which is our variable */ 
+      // local a:int[] = { 1 } 
+      //                     ^ We are just past this 
+      //                       and about to assign to a
+    int ok = 0;
+    if (v->pc >= 0) {
+      Instruction *pc =
+          &ls->fs->f->code[v->pc]; /* Get the OP_NEWTABLE instruction */
+      OpCode op = GET_OPCODE(*pc);
+      if (op == OP_NEWTABLE) { /* check before making changes */
+        int reg = GETARG_A(*pc);
+        if (reg ==
+            v->u.info) { /* double check that register is as expected */
+          op = (vartype == RAVI_TM_INTEGER_ARRAY) ? OP_RAVI_NEW_IARRAY
+                                            : OP_RAVI_NEW_FARRAY;
+          SET_OPCODE(*pc, op); /* modify opcode */
+          DEBUG_CODEGEN(
+              raviY_printf(ls->fs, "[%d]* %o ; modify opcode\n", v->pc, *pc));
+          ok = 1;
         }
       }
-      if (!ok) 
-        luaX_syntaxerror(ls, "expecting array initializer");
     }
-    /* if we are calling a function then convert return types */
-    else if ((vartype == RAVI_TM_FLOAT || vartype == RAVI_TM_INTEGER ||
-              vartype == RAVI_TM_FLOAT_ARRAY || vartype == RAVI_TM_INTEGER_ARRAY ||
-              vartype == RAVI_TM_TABLE || vartype == (RAVI_TM_STRING | RAVI_TM_NIL) ||
-              vartype == (RAVI_TM_FUNCTION | RAVI_TM_NIL) || vartype == (RAVI_TM_USERDATA | RAVI_TM_NIL)) &&
-             v->k == VCALL) {
-      /* For local variable declarations that call functions e.g.
-       * local i = func()
-       * Lua ensures that the function returns values to register assigned to
-       * variable i and above so that no separate OP_MOVE instruction is
-       * necessary. So that means that we need to coerce the return values
-       * in situ.
-       */
-      Instruction *pc =
-          &getinstruction(ls->fs, v); /* Obtain the instruction for OP_CALL */
-      lua_assert(GET_OPCODE(*pc) == OP_CALL);
-      int a = GETARG_A(*pc); /* function return values will be placed from
-                                register pointed by A and upwards */
-      int nrets = GETARG_C(*pc) - 1;
-      /* operand C contains number of return values expected  */
-      /* Note that at this stage nrets is always 1 - as Lua patches in the this
-       * value for the last function call in a
-       * variable declaration statement in adjust_assign and
-       * localvar_adjust_assign */
-      /* all return values that are going to be assigned to typed local vars
-       * must be converted to the correct type */
-      int i;
-      for (i = n; i < (n + nrets); i++)
-        /* do we need to convert ? */
-        ravi_code_typecoersion(ls, a + (i - n), var_types[i], NULL);
-    }
-    else if ((vartype == RAVI_TM_FLOAT || vartype == RAVI_TM_INTEGER) &&
-             v->k == VINDEXED) {
-      if ((vartype == RAVI_TM_FLOAT && v->ravi_type_map != RAVI_TM_FLOAT_ARRAY) ||
-          (vartype == RAVI_TM_INTEGER && v->ravi_type_map != RAVI_TM_INTEGER_ARRAY))
-        luaX_syntaxerror(ls, "Invalid local assignment");
-    }
-    else if ((vartype == (RAVI_TM_STRING | RAVI_TM_NIL) && v->ravi_type_map != RAVI_TM_STRING) ||
-             (vartype == (RAVI_TM_FUNCTION | RAVI_TM_NIL) && v->ravi_type_map != RAVI_TM_FUNCTION) ||
-             vartype == (RAVI_TM_USERDATA | RAVI_TM_NIL)) { // TODO this is wrong since nil is ignored
-      TString *usertype = usertypes[n]; // NULL if var_types[n] is not userdata
-      /* we need to make sure that a register is assigned to 'v'
-        so that we can emit type assertion instructions. This would have 
-	normally happened in the calling function but we do it early here - 
-	possibly missing some optimization opportunity (i.e. avoiding register
-	assignment) */
-      luaK_exp2nextreg(ls->fs, v);
-      ravi_code_typecoersion(ls, v->u.info, vartype, usertype);
-    }
-    else {
-      luaX_syntaxerror(ls, "Invalid local assignment");
-    }
+    if (!ok) 
+      luaX_syntaxerror(ls, "expecting array initializer");
+  }
+  /* if we are calling a function then convert return types */
+  else if ((vartype == RAVI_TM_FLOAT || vartype == RAVI_TM_INTEGER ||
+            vartype == RAVI_TM_FLOAT_ARRAY || vartype == RAVI_TM_INTEGER_ARRAY ||
+            vartype == RAVI_TM_TABLE || vartype == (RAVI_TM_STRING | RAVI_TM_NIL) ||
+            vartype == (RAVI_TM_FUNCTION | RAVI_TM_NIL) || vartype == (RAVI_TM_USERDATA | RAVI_TM_NIL)) &&
+            v->k == VCALL) {
+    /* For local variable declarations that call functions e.g.
+      * local i = func()
+      * Lua ensures that the function returns values to register assigned to
+      * variable i and above so that no separate OP_MOVE instruction is
+      * necessary. So that means that we need to coerce the return values
+      * in situ.
+      */
+    Instruction *pc =
+        &getinstruction(ls->fs, v); /* Obtain the instruction for OP_CALL */
+    lua_assert(GET_OPCODE(*pc) == OP_CALL);
+    int a = GETARG_A(*pc); /* function return values will be placed from
+                              register pointed by A and upwards */
+    int nrets = GETARG_C(*pc) - 1;
+    /* operand C contains number of return values expected  */
+    /* Note that at this stage nrets is always 1 - as Lua patches in the this
+      * value for the last function call in a
+      * variable declaration statement in adjust_assign and
+      * localvar_adjust_assign */
+    /* all return values that are going to be assigned to typed local vars
+      * must be converted to the correct type */
+    int i;
+    for (i = n; i < (n + nrets); i++)
+      /* do we need to convert ? */
+      ravi_code_typecoersion(ls, a + (i - n), var_types[i], NULL);
+  }
+  else if (vartype == (RAVI_TM_STRING | RAVI_TM_NIL) ||
+            vartype == (RAVI_TM_FUNCTION | RAVI_TM_NIL) ||
+            vartype == (RAVI_TM_USERDATA | RAVI_TM_NIL)) {
+    TString *usertype = usertypes[n]; // NULL if var_types[n] is not userdata
+    /* we need to make sure that a register is assigned to 'v'
+      so that we can emit type assertion instructions. This would have 
+      normally happened in the calling function but we do it early here - 
+      possibly missing some optimization opportunity (i.e. avoiding register
+      assignment) */
+    luaK_exp2nextreg(ls->fs, v);
+    ravi_code_typecoersion(ls, v->u.info, vartype, usertype);
+  }
+  else {
+    luaX_syntaxerror(ls, "Invalid local assignment");
   }
 }
 
@@ -2032,7 +2029,7 @@ static void repeatstat (LexState *ls, int line) {
 }
 
 typedef struct Fornuminfo {
-  uint32_t type_map;
+  ravi_type_map type_map;
   int is_constant;
   int int_value;
 } Fornuminfo;

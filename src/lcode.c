@@ -1415,7 +1415,7 @@ static void codebinexpval (FuncState *fs, OpCode op,
 }
 
 
-static OpCode get_type_specific_comp_op(OpCode op, uint32_t o1_tm, uint32_t o2_tm) {
+static OpCode get_type_specific_comp_op(OpCode op, ravi_type_map o1_tm, ravi_type_map o2_tm) {
   if (op == OP_EQ) {
     if (o1_tm == RAVI_TM_INTEGER && o2_tm == RAVI_TM_INTEGER)
       op = OP_RAVI_EQ_II;
@@ -1445,9 +1445,9 @@ static void codecomp (FuncState *fs, BinOpr opr, expdesc *e1, expdesc *e2) {
   DEBUG_EXPR(raviY_printf(fs, "Comparison of %e and %e\n", e1, e2));
   int rk1 = (e1->k == VK) ? RKASK(e1->u.info)
                           : check_exp(e1->k == VNONRELOC, e1->u.info);
-  uint32_t rk1_tm = e1->ravi_type_map;
+  ravi_type_map rk1_tm = e1->ravi_type_map;
   int rk2 = luaK_exp2RK(fs, e2);
-  uint32_t rk2_tm = e2->ravi_type_map;
+  ravi_type_map rk2_tm = e2->ravi_type_map;
   freeexps(fs, e1, e2);
   switch (opr) {
     case OPR_NE: {  /* '(a ~= b)' ==> 'not (a == b)' */
@@ -1508,7 +1508,7 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
     case VNONRELOC: {
       discharge2anyreg(fs, e);
       OpCode opcode;
-      uint32_t tm;
+      ravi_type_map tm;
       if (op == OPR_TO_NUMBER && e->ravi_type_map != RAVI_TM_FLOAT) {
         opcode = OP_RAVI_TOFLT;
         tm = RAVI_TM_FLOAT;
