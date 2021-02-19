@@ -600,32 +600,35 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
         freereg(fs, e->u.ind.t);
         /* TODO we should do this for upvalues too */
         /* table access - set specialized op codes if array types are detected */
-        if (e->ravi_type == RAVI_TARRAYFLT && e->u.ind.key_ravi_type == RAVI_TNUMINT)
-          op = OP_RAVI_FARRAY_GET;
-        else if (e->ravi_type == RAVI_TARRAYINT && e->u.ind.key_ravi_type == RAVI_TNUMINT)
-          op = OP_RAVI_IARRAY_GET;
-        /* Check that we have a short string constant */
-        else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
-          op = OP_RAVI_TABLE_GETFIELD;
-        else if (e->u.ind.key_ravi_type == RAVI_TNUMINT)
-          op = OP_RAVI_GETI;
-        else if (e->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
-          op = OP_RAVI_GETFIELD;
-        else
+        if (e->u.ind.key_ravi_type_map == RAVI_TM_INTEGER) {
+          if (e->ravi_type_map == RAVI_TM_FLOAT_ARRAY) {
+            op = OP_RAVI_FARRAY_GET;
+          } else if (e->ravi_type_map == RAVI_TM_INTEGER_ARRAY) {
+            op = OP_RAVI_IARRAY_GET;
+          } else {
+            op = OP_RAVI_GETI;
+          }
+        } else if (e->u.ind.key_ravi_type_map == RAVI_TM_STRING && isshortstr(fs, e->u.ind.idx)) {
+          op = e->ravi_type_map == RAVI_TM_TABLE ? OP_RAVI_TABLE_GETFIELD : OP_RAVI_GETFIELD;
+        } else {
           op = OP_GETTABLE;
+        }
       }
       else {
         lua_assert(e->u.ind.vt == VUPVAL);
-        if (e->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
+        if (e->u.ind.key_ravi_type_map == RAVI_TM_STRING && isshortstr(fs, e->u.ind.idx))
           op = OP_RAVI_GETTABUP_SK;
         else
           op = OP_GETTABUP;  /* 't' is in an upvalue */
       }
-      if (e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TARRAYINT)
-        /* set the type of resulting expression */
-        e->ravi_type = e->ravi_type == RAVI_TARRAYFLT ? RAVI_TNUMFLT : RAVI_TNUMINT;
-      else
-        e->ravi_type = RAVI_TANY;
+      uint32_t result_type = 0;
+      if (e->ravi_type_map & (~(RAVI_TM_INTEGER_ARRAY | RAVI_TM_FLOAT_ARRAY))) {
+        result_type = RAVI_TM_ANY;
+      } else {
+        if (e->ravi_type_map & RAVI_TM_INTEGER_ARRAY) result_type |= RAVI_TM_INTEGER;
+        if (e->ravi_type_map & RAVI_TM_FLOAT_ARRAY) result_type |= RAVI_TM_FLOAT;
+      }
+      e->ravi_type_map = result_type;
       e->u.info = luaK_codeABC(fs, op, 0, e->u.ind.t, e->u.ind.idx);
       e->k = VRELOCABLE;
       DEBUG_EXPR(raviY_printf(fs, "luaK_dischargevars (VINDEXED->VRELOCABLE) %e\n", e));
@@ -859,23 +862,22 @@ int luaK_exp2RK (FuncState *fs, expdesc *e) {
 }
 
 static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
+  lua_assert(var->ravi_type_map == RAVI_TM_ANY || (var->ravi_type_map != 0 && (var->ravi_type_map & (var->ravi_type_map - 1)) == 0));
   /* VNONRELOC means we have fixed register and do we know the type? */
   if (ex->k == VNONRELOC &&
-      (var->ravi_type == RAVI_TNUMFLT ||
-       var->ravi_type == RAVI_TNUMINT ||
-       var->ravi_type == RAVI_TARRAYFLT ||
-       var->ravi_type == RAVI_TARRAYINT ||
-       var->ravi_type == RAVI_TTABLE ||
-       var->ravi_type == RAVI_TSTRING ||
-       var->ravi_type == RAVI_TFUNCTION ||
-       var->ravi_type == RAVI_TUSERDATA)) {
+      (var->ravi_type_map == RAVI_TM_FLOAT ||
+       var->ravi_type_map == RAVI_TM_INTEGER ||
+       var->ravi_type_map == RAVI_TM_FLOAT_ARRAY ||
+       var->ravi_type_map == RAVI_TM_INTEGER_ARRAY ||
+       var->ravi_type_map == RAVI_TM_TABLE ||
+       var->ravi_type_map == (RAVI_TM_STRING | RAVI_TM_NIL) ||
+       var->ravi_type_map == (RAVI_TM_FUNCTION | RAVI_TM_NIL) ||
+       var->ravi_type_map == (RAVI_TM_USERDATA | RAVI_TM_NIL))) {
     /* handled by MOVEI, MOVEF, MOVEIARRAY, MOVEFARRAY at runtime */
     return;
   }
-  if (var->ravi_type == RAVI_TNUMFLT) {
-    if (ex->ravi_type == RAVI_TNUMFLT)
-      return;
-    if (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYFLT)
+  if (var->ravi_type_map == RAVI_TM_FLOAT) {
+    if (ex->ravi_type_map == RAVI_TM_FLOAT)
       return;
     luaX_syntaxerror(
       fs->ls,
@@ -883,33 +885,27 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       fs->ls->L,
       "Invalid assignment: number expected"));
   }
-  else if (var->ravi_type == RAVI_TNUMINT) {
-    if (ex->ravi_type == RAVI_TNUMINT)
-      return;
-    if (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYINT)
+  else if (var->ravi_type_map == RAVI_TM_INTEGER) {
+    if (ex->ravi_type_map == RAVI_TM_INTEGER)
       return;
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
-      "Invalid assignment: integer expected",
-      var->ravi_type,
-      ex->ravi_type));
+      "Invalid assignment: integer expected"));
   }
-  else if (var->ravi_type == RAVI_TARRAYFLT ||
-           var->ravi_type == RAVI_TARRAYINT ||
-           var->ravi_type == RAVI_TTABLE) {
-    if (ex->ravi_type == var->ravi_type && ex->k != VINDEXED)
+  else if (var->ravi_type_map & (~(RAVI_TM_INTEGER_ARRAY | RAVI_TM_FLOAT_ARRAY | RAVI_TM_TABLE)) == 0) {
+    if (ex->ravi_type_map == var->ravi_type_map)
       return;
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
       "Invalid assignment: %s expected",
-      var->ravi_type == RAVI_TTABLE ? "table" : (var->ravi_type == RAVI_TARRAYFLT ? "number[]" : "integer[]")));
+      var->ravi_type_map == RAVI_TM_TABLE ? "table" : (var->ravi_type_map == RAVI_TM_FLOAT_ARRAY ? "number[]" : "integer[]")));
   }
-  else if (var->ravi_type == RAVI_TSTRING) {
-    if (ex->ravi_type == RAVI_TNIL || (ex->ravi_type == var->ravi_type && ex->k != VINDEXED))
+  else if (var->ravi_type_map == (RAVI_TM_STRING | RAVI_TM_NIL)) {
+    if ((ex->ravi_type_map & ~(RAVI_TM_STRING | RAVI_TM_NIL)) == 0)
       return;
     luaX_syntaxerror(
       fs->ls,
@@ -917,8 +913,8 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       fs->ls->L,
       "Invalid assignment: string expected"));      
   }
-  else if (var->ravi_type == RAVI_TFUNCTION) {
-    if (ex->ravi_type == RAVI_TNIL || (ex->ravi_type == var->ravi_type && ex->k != VINDEXED))
+  else if (var->ravi_type_map == (RAVI_TM_FUNCTION | RAVI_TM_NIL)) {
+    if ((ex->ravi_type_map & ~(RAVI_TM_FUNCTION | RAVI_TM_NIL)) == 0)
       return;
     luaX_syntaxerror(
       fs->ls,
@@ -926,9 +922,9 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       fs->ls->L,
       "Invalid assignment: function expected"));      
   }
-  else if (var->ravi_type == RAVI_TUSERDATA) {
-    if (ex->ravi_type == RAVI_TNIL || 
-        (ex->ravi_type == var->ravi_type && var->usertype && var->usertype == ex->usertype && ex->k != VINDEXED))
+  else if (var->ravi_type_map == (RAVI_TM_USERDATA | RAVI_TM_NIL)) {
+    if ((ex->ravi_type_map & ~(RAVI_TM_USERDATA | RAVI_TM_NIL)) == 0 &&
+      (!(ex->ravi_type_map & RAVI_TM_USERDATA) || (var->usertype && var->usertype == ex->usertype)))
       return;
     luaX_syntaxerror(
       fs->ls,
@@ -940,27 +936,28 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
 
 static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex,
                                    int reg) {
+  lua_assert(var->ravi_type_map == RAVI_TM_ANY || (var->ravi_type_map != 0 && (var->ravi_type_map & (var->ravi_type_map - 1)) == 0));
   OpCode op = OP_SETUPVAL;
-  if ((var->ravi_type == RAVI_TNUMINT || var->ravi_type == RAVI_TNUMFLT ||
-       var->ravi_type == RAVI_TARRAYFLT || var->ravi_type == RAVI_TARRAYINT ||
-       var->ravi_type == RAVI_TTABLE || var->ravi_type == RAVI_TSTRING ||
-       var->ravi_type == RAVI_TFUNCTION || var->ravi_type == RAVI_TUSERDATA) &&
-      var->ravi_type != ex->ravi_type) {
-    if (var->ravi_type == RAVI_TNUMINT)
+  if ((var->ravi_type_map == RAVI_TM_INTEGER || var->ravi_type_map == RAVI_TM_FLOAT ||
+       var->ravi_type_map == RAVI_TM_INTEGER_ARRAY || var->ravi_type_map == RAVI_TM_FLOAT_ARRAY ||
+       var->ravi_type_map == RAVI_TM_TABLE || var->ravi_type_map == RAVI_TM_STRING | RAVI_TM_NIL ||
+       var->ravi_type_map == RAVI_TM_FUNCTION | RAVI_TM_NIL || var->ravi_type_map == RAVI_TM_USERDATA | RAVI_TM_NIL) &&
+      ex->ravi_type_map & ~var->ravi_type_map) {
+    if (var->ravi_type_map == RAVI_TM_INTEGER)
       op = OP_RAVI_SETUPVALI;
-    else if (var->ravi_type == RAVI_TNUMFLT)
+    else if (var->ravi_type_map == RAVI_TM_FLOAT)
       op = OP_RAVI_SETUPVALF;
-    else if (var->ravi_type == RAVI_TARRAYINT)
+    else if (var->ravi_type_map == RAVI_TM_INTEGER_ARRAY)
       op = OP_RAVI_SETUPVAL_IARRAY;
-    else if (var->ravi_type == RAVI_TARRAYFLT)
+    else if (var->ravi_type_map == RAVI_TM_FLOAT_ARRAY)
       op = OP_RAVI_SETUPVAL_FARRAY;
-    else if (var->ravi_type == RAVI_TTABLE)
+    else if (var->ravi_type_map == RAVI_TM_TABLE)
       op = OP_RAVI_SETUPVALT;
-    else if (var->ravi_type == RAVI_TSTRING)
+    else if (var->ravi_type_map == RAVI_TM_STRING | RAVI_TM_NIL)
       luaK_codeABC(fs, OP_RAVI_TOSTRING, reg, 0, 0);
-    else if (var->ravi_type == RAVI_TFUNCTION)
+    else if (var->ravi_type_map == RAVI_TM_FUNCTION | RAVI_TM_NIL)
       luaK_codeABC(fs, OP_RAVI_TOCLOSURE, reg, 0, 0);
-    else if (var->ravi_type == RAVI_TUSERDATA) {
+    else if (var->ravi_type_map == RAVI_TM_USERDATA | RAVI_TM_NIL) {
       TString *usertype = fs->f->upvalues[var->u.info].usertype;
       luaK_codeABx(fs, OP_RAVI_TOTYPE, reg, luaK_stringK(fs, usertype));
     }
@@ -979,9 +976,9 @@ static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex,
 void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
   switch (var->k) {
     case VLOCAL: {
-      check_valid_store(fs, var, ex);
       freeexp(fs, ex);
       exp2reg(fs, ex, var->u.info);  /* compute 'ex' into proper place */
+      check_valid_store(fs, var, ex);
       return;
     }
     case VUPVAL: {
@@ -991,38 +988,26 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
       break;
     }
     case VINDEXED: {
-      OpCode op = (var->u.ind.vt == VLOCAL) ? OP_SETTABLE : OP_SETTABUP;
-      if (op == OP_SETTABLE) {
-        /* table value set - if array access then use specialized versions */
-        if (var->ravi_type == RAVI_TARRAYFLT &&
-            var->u.ind.key_ravi_type == RAVI_TNUMINT) {
-          if (!(ex->ravi_type == RAVI_TNUMFLT || (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYFLT)))
-            /* input value may need conversion */
-            op = OP_RAVI_FARRAY_SET;
-          else
-            /* input value is known to be number */
-            op = OP_RAVI_FARRAY_SETF;
-        } else if (var->ravi_type == RAVI_TARRAYINT &&
-                   var->u.ind.key_ravi_type == RAVI_TNUMINT) {
-          if (!(ex->ravi_type == RAVI_TNUMINT || (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYINT)))
-            /* input value may need conversion */
-            op = OP_RAVI_IARRAY_SET;          
-          else
-            /* input value is known to be integer */
-            op = OP_RAVI_IARRAY_SETI;
-        } else if (var->u.ind.key_ravi_type == RAVI_TNUMINT) {
-          /* index op with integer key, target may not be a table */
-          op = OP_RAVI_SETI;
-        } else if (var->ravi_type == RAVI_TTABLE && var->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, var->u.ind.idx)) {
-          /* table with string key */
-          op = OP_RAVI_TABLE_SETFIELD;
-        }
-        else if (var->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, var->u.ind.idx)) {
-          /* index op with string key, target may not be a table */
-          op = OP_RAVI_SETFIELD;
-        }
-      }
+      OpCode op;
       int e = luaK_exp2RK(fs, ex);
+      if (var->u.ind.vt == VLOCAL) {
+        /* table value set - if array access then use specialized versions */
+        if (var->u.ind.key_ravi_type_map == RAVI_TM_INTEGER) {
+          if (var->ravi_type_map == RAVI_TM_FLOAT_ARRAY) {
+                op = ex->ravi_type_map == RAVI_TM_FLOAT ? OP_RAVI_FARRAY_SETF : OP_RAVI_FARRAY_SET;
+          } else if (var->ravi_type_map == RAVI_TM_INTEGER_ARRAY) {
+                op = ex->ravi_type_map == RAVI_TM_INTEGER ? OP_RAVI_IARRAY_SETI : OP_RAVI_IARRAY_SET;
+          } else {
+            op = OP_RAVI_SETI;
+          }
+        } else if (var->u.ind.key_ravi_type_map == RAVI_TM_STRING && isshortstr(fs, var->u.ind.idx)) {
+          op = var->ravi_type_map == RAVI_TM_TABLE ? OP_RAVI_TABLE_SETFIELD : OP_RAVI_SETFIELD;
+        } else {
+          op = OP_SETTABLE;
+        }
+      } else {
+        op = OP_SETTABUP;
+      }
       luaK_codeABC(fs, op, var->u.ind.t, var->u.ind.idx, e);
       break;
     }
@@ -1045,13 +1030,13 @@ void luaK_self (FuncState *fs, expdesc *e, expdesc *key) {
   */
   int is_string_constant_key =
     key->k == VK &&
-    key->ravi_type == RAVI_TSTRING &&
+    key->ravi_type_map == RAVI_TM_STRING &&
     ttisshrstring(&fs->f->k[key->u.info]);
   luaK_exp2anyreg(fs, e);
   // The check below needs to be 
   // after exp2anyreg as this can modify e->ravi_type
   int table_and_string =
-	  e->ravi_type == RAVI_TTABLE &&
+	  e->ravi_type_map == RAVI_TM_TABLE &&
 	  is_string_constant_key;
   ereg = e->u.info;  /* register where 'e' was placed */
   freeexp(fs, e);
@@ -1115,7 +1100,7 @@ void luaK_goiftrue (FuncState *fs, expdesc *e) {
       break;
     }
     default: {
-      if (e->ravi_type == RAVI_TNIL || e->ravi_type == RAVI_TANY || e->ravi_type == RAVI_TBOOLEAN) {
+      if (e->ravi_type_map & RAVI_TM_FALSISH) {
         pc = jumponcond(fs, e, 0); /* jump when false */
       }
       else {
@@ -1146,11 +1131,11 @@ void luaK_goiffalse (FuncState *fs, expdesc *e) {
       break;
     }
     default: {
-      if (e->ravi_type == RAVI_TNIL) {
-        pc = NO_JUMP; /* always false; do nothing */
+      if (e->ravi_type_map & RAVI_TM_TRUISH) {
+        pc = jumponcond(fs, e, 1); /* jump if true */
       }
       else {
-        pc = jumponcond(fs, e, 1); /* jump if true */
+        pc = NO_JUMP; /* always false; do nothing */
       }
       break;
     }
@@ -1169,14 +1154,17 @@ static void codenot (FuncState *fs, expdesc *e) {
   switch (e->k) {
     case VNIL: case VFALSE: {
       e->k = VTRUE;  /* true == not nil == not false */
+      e->ravi_type_map = RAVI_TM_TRUE;
       break;
     }
     case VK: case VKFLT: case VKINT: case VTRUE: {
       e->k = VFALSE;  /* false == not "x" == not 0.5 == not 1 == not true */
+      e->ravi_type_map = RAVI_TM_FALSE;
       break;
     }
     case VJMP: {
       negatecondition(fs, e);
+      e->ravi_type_map = RAVI_TM_BOOLEAN;
       break;
     }
     case VRELOCABLE:
@@ -1185,11 +1173,11 @@ static void codenot (FuncState *fs, expdesc *e) {
       freeexp(fs, e);
       e->u.info = luaK_codeABC(fs, OP_NOT, 0, e->u.info, 0);
       e->k = VRELOCABLE;
+      e->ravi_type_map = RAVI_TM_BOOLEAN;
       break;
     }
     default: lua_assert(0);  /* cannot happen */
   }
-  e->ravi_type = RAVI_TBOOLEAN;
   /* interchange true and false lists */
   { int temp = e->f; e->f = e->t; e->t = temp; }
   removevalues(fs, e->f);  /* values are useless when negated */
@@ -1204,7 +1192,7 @@ static void codenot (FuncState *fs, expdesc *e) {
 void luaK_indexed (FuncState *fs, expdesc *t, expdesc *k) {
   lua_assert(!hasjumps(t) && (vkisinreg(t->k) || t->k == VUPVAL));
   t->u.ind.t = t->u.info;  /* register or upvalue index */
-  t->u.ind.key_ravi_type = k->ravi_type;   /* RAVI record the key type */
+  t->u.ind.key_ravi_type_map = k->ravi_type_map;   /* RAVI record the key type */
   t->u.ind.usertype = k->usertype; /* RAVI record the key type */
   t->u.ind.idx = luaK_exp2RK(fs, k);  /* R/K index for key */
   t->u.ind.vt = (t->k == VUPVAL) ? VUPVAL : VLOCAL;
@@ -1244,7 +1232,7 @@ static int constfolding (FuncState *fs, int op, expdesc *e1,
   if (ttisinteger(&res)) {
     e1->k = VKINT;
     e1->u.ival = ivalue(&res);
-    e1->ravi_type = RAVI_TNUMINT;
+    e1->ravi_type_map = RAVI_TM_INTEGER;
   }
   else {  /* folds neither NaN nor 0.0 (to avoid problems with -0.0) */
     lua_Number n = fltvalue(&res);
@@ -1252,7 +1240,7 @@ static int constfolding (FuncState *fs, int op, expdesc *e1,
       return 0;
     e1->k = VKFLT;
     e1->u.nval = n;
-    e1->ravi_type = RAVI_TNUMFLT;
+    e1->ravi_type_map = RAVI_TM_FLOAT;
   }
   return 1;
 }
@@ -1268,42 +1256,41 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
   freeexp(fs, e);
   switch (op) {
     case OP_BNOT:
-      if (e->ravi_type == RAVI_TNUMINT) {
+      if (e->ravi_type_map == RAVI_TM_INTEGER) {
         e->u.info = luaK_codeABC(fs, OP_RAVI_BNOT_I, 0, r, 0);
-        e->ravi_type = RAVI_TNUMINT;
         break;
       }
       e->u.info = luaK_codeABC(fs, OP_BNOT, 0, r, 0);
-      e->ravi_type = e->ravi_type == RAVI_TNUMFLT ? RAVI_TNUMINT : RAVI_TANY;
+      e->ravi_type_map = e->ravi_type_map == RAVI_TM_FLOAT ? RAVI_TM_INTEGER : RAVI_TM_ANY;
       break;
     case OP_LEN:
       e->u.info = luaK_codeABC(fs, OP_LEN, 0, r, 0);
-      if (e->ravi_type == RAVI_TARRAYINT || e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TSTRING) {
-        e->ravi_type = RAVI_TNUMINT;
+      if ((e->ravi_type_map & (~(RAVI_TM_INTEGER_ARRAY | RAVI_TM_FLOAT_ARRAY | RAVI_TM_STRING))) == 0) {
+        e->ravi_type_map = RAVI_TM_INTEGER;
       }
-      else if (e->ravi_type == RAVI_TTABLE) {
+      else if ((e->ravi_type_map & (~(RAVI_TM_INTEGER_ARRAY | RAVI_TM_FLOAT_ARRAY | RAVI_TM_STRING | RAVI_TM_TABLE))) == 0) {
         e->k = VRELOCABLE;
         luaK_exp2anyreg(fs, e);
         /* This is not incompatible with lua since a type annotation is require to get here or the table trivially has
          * no metatable */
         luaK_codeABC(fs, OP_RAVI_TOINT, e->u.info, 0, 0);
-        e->ravi_type = RAVI_TNUMINT;
+        e->ravi_type_map = RAVI_TM_INTEGER;
         luaK_fixline(fs, line);
         return;
       }
       else {
-        e->ravi_type = RAVI_TANY;
+        e->ravi_type_map = RAVI_TM_ANY;
       }
       break;
     case OP_UNM:
       e->u.info = luaK_codeABC(fs, OP_UNM, 0, r, 0);
-      if (e->ravi_type != RAVI_TNUMINT && e->ravi_type != RAVI_TNUMFLT) {
-        e->ravi_type = RAVI_TANY;
+      if (e->ravi_type_map & ~RAVI_TM_NUMBER) {
+        e->ravi_type_map = RAVI_TM_ANY;
       }
       break;
     default:
       e->u.info = luaK_codeABC(fs, op, 0, r, 0);
-      e->ravi_type = RAVI_TANY;
+      e->ravi_type_map = RAVI_TM_ANY;
   }
   e->k = VRELOCABLE;  /* all those operations are relocatable */
   luaK_fixline(fs, line);
@@ -1329,61 +1316,68 @@ static void codebinexpval (FuncState *fs, OpCode op,
 #define RAVI_OPCODE_GENERIC(op, t) OP_##op
 #define RAVI_COMMUTATIVE(op, t) luaK_codeABC(fs, t(op, FI), 0, rk2, rk1)
 #define RAVI_NON_COMMUTATIVE(op, t) luaK_codeABC(fs, t(op, IF), 0, rk1, rk2)
-#define RAVI_GEN_ARITH(op, co, ii, t)                          \
-  case OP_##op:                                                \
-    if (e1->ravi_type == RAVI_TNUMFLT) {                       \
-      if (e2->ravi_type == RAVI_TNUMFLT) {                     \
-        e1->u.info = luaK_codeABC(fs, t(op, FF), 0, rk1, rk2); \
-        e1->ravi_type = RAVI_TNUMFLT;                          \
-        break;                                                 \
-      }                                                        \
-      else if (e2->ravi_type == RAVI_TNUMINT) {                \
-        e1->u.info = luaK_codeABC(fs, t(op, FI), 0, rk1, rk2); \
-        e1->ravi_type = RAVI_TNUMFLT;                          \
-        break;                                                 \
-      }                                                        \
-    }                                                          \
-    else if (e1->ravi_type == RAVI_TNUMINT) {                  \
-      if (e2->ravi_type == RAVI_TNUMFLT) {                     \
-        e1->u.info = co(op, t);                                \
-        e1->ravi_type = RAVI_TNUMFLT;                          \
-        break;                                                 \
-      }                                                        \
-      else if (e2->ravi_type == RAVI_TNUMINT) {                \
-        e1->u.info = luaK_codeABC(fs, t(op, II), 0, rk1, rk2); \
-        e1->ravi_type = ii;                                    \
-        break;                                                 \
-      }                                                        \
-    }                                                          \
-    e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);       \
-    e1->ravi_type = RAVI_TANY;                                 \
+#define RAVI_GEN_ARITH(op, co, ii, t)                                      \
+  case OP_##op:                                                            \
+    if (e1->ravi_type_map == RAVI_TM_FLOAT) {                              \
+      if (e2->ravi_type_map == RAVI_TM_FLOAT) {                            \
+        e1->u.info = luaK_codeABC(fs, t(op, FF), 0, rk1, rk2);             \
+        break;                                                             \
+      }                                                                    \
+      else if (e2->ravi_type_map == RAVI_TM_INTEGER) {                     \
+        e1->u.info = luaK_codeABC(fs, t(op, FI), 0, rk1, rk2);             \
+        break;                                                             \
+      }                                                                    \
+    }                                                                      \
+    else if (e1->ravi_type_map == RAVI_TM_INTEGER) {                       \
+      if (e2->ravi_type_map == RAVI_TM_FLOAT) {                            \
+        e1->u.info = co(op, t);                                            \
+        e1->ravi_type_map = RAVI_TM_FLOAT;                                 \
+        break;                                                             \
+      }                                                                    \
+      else if (e2->ravi_type_map == RAVI_TM_INTEGER) {                     \
+        e1->u.info = luaK_codeABC(fs, t(op, II), 0, rk1, rk2);             \
+        e1->ravi_type_map = ii;                                            \
+        break;                                                             \
+      }                                                                    \
+    }                                                                      \
+    e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                   \
+    if ((e1->ravi_type_map & (~(RAVI_TM_FLOAT | RAVI_TM_INTEGER))) == 0 && \
+        (e1->ravi_type_map & (~(RAVI_TM_FLOAT | RAVI_TM_INTEGER))) == 0) { \
+      if (e1->ravi_type_map & e2->ravi_type_map & RAVI_TM_INTEGER) {       \
+        e1->ravi_type_map = RAVI_TM_FLOAT | RAVI_TM_INTEGER;               \
+      }                                                                    \
+      else {                                                               \
+        e1->ravi_type_map = RAVI_TM_FLOAT;                                 \
+      }                                                                    \
+    }                                                                      \
+    else {                                                                 \
+      e1->ravi_type_map = RAVI_TM_ANY;                                     \
+    }                                                                      \
     break
 
-#define RAVI_GEN_INT_OP(op)                                                      \
-  case OP_##op:                                                                  \
-    if (e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {        \
-      e1->u.info = luaK_codeABC(fs, OP_RAVI_##op##_II, 0, rk1, rk2);             \
-      e1->ravi_type = RAVI_TNUMINT;                                              \
-    }                                                                            \
-    else if ((e1->ravi_type == RAVI_TNUMFLT || e1->ravi_type == RAVI_TNUMINT) && \
-             (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT)) { \
-      e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                       \
-      e1->ravi_type = RAVI_TNUMINT;                                              \
-    }                                                                            \
-    else {                                                                       \
-      e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                       \
-      e1->ravi_type = RAVI_TANY;                                                 \
-    }                                                                            \
+#define RAVI_GEN_INT_OP(op)                                                                                  \
+  case OP_##op:                                                                                              \
+    if (e1->ravi_type_map == RAVI_TM_INTEGER && e2->ravi_type_map == RAVI_TM_INTEGER) {                      \
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_##op##_II, 0, rk1, rk2);                                         \
+    }                                                                                                        \
+    else if ((e1->ravi_type_map & (~RAVI_TM_NUMBER)) == 0 && (e2->ravi_type_map & (~RAVI_TM_NUMBER)) == 0) { \
+      e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                                                   \
+      e1->ravi_type_map = RAVI_TM_INTEGER;                                                                   \
+    }                                                                                                        \
+    else {                                                                                                   \
+      e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                                                   \
+      e1->ravi_type_map = RAVI_TM_ANY;                                                                       \
+    }                                                                                                        \
     break
 
   switch (op) {
-    RAVI_GEN_ARITH(ADD, RAVI_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_SPECIALIZED);
-    RAVI_GEN_ARITH(SUB, RAVI_NON_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_SPECIALIZED);
-    RAVI_GEN_ARITH(MUL, RAVI_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_SPECIALIZED);
-    RAVI_GEN_ARITH(DIV, RAVI_NON_COMMUTATIVE, RAVI_TNUMFLT, RAVI_OPCODE_SPECIALIZED);
-    RAVI_GEN_ARITH(IDIV, RAVI_NON_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_GENERIC);
-    RAVI_GEN_ARITH(MOD, RAVI_NON_COMMUTATIVE, RAVI_TNUMINT, RAVI_OPCODE_GENERIC);
-    RAVI_GEN_ARITH(POW, RAVI_NON_COMMUTATIVE, RAVI_TNUMFLT, RAVI_OPCODE_GENERIC);
+    RAVI_GEN_ARITH(ADD, RAVI_COMMUTATIVE, RAVI_TM_INTEGER, RAVI_OPCODE_SPECIALIZED);
+    RAVI_GEN_ARITH(SUB, RAVI_NON_COMMUTATIVE, RAVI_TM_INTEGER, RAVI_OPCODE_SPECIALIZED);
+    RAVI_GEN_ARITH(MUL, RAVI_COMMUTATIVE, RAVI_TM_INTEGER, RAVI_OPCODE_SPECIALIZED);
+    RAVI_GEN_ARITH(DIV, RAVI_NON_COMMUTATIVE, RAVI_TM_FLOAT, RAVI_OPCODE_SPECIALIZED);
+    RAVI_GEN_ARITH(IDIV, RAVI_NON_COMMUTATIVE, RAVI_TM_INTEGER, RAVI_OPCODE_GENERIC);
+    RAVI_GEN_ARITH(MOD, RAVI_NON_COMMUTATIVE, RAVI_TM_INTEGER, RAVI_OPCODE_GENERIC);
+    RAVI_GEN_ARITH(POW, RAVI_NON_COMMUTATIVE, RAVI_TM_FLOAT, RAVI_OPCODE_GENERIC);
     RAVI_GEN_INT_OP(BAND);
     RAVI_GEN_INT_OP(BOR);
     RAVI_GEN_INT_OP(BXOR);
@@ -1391,17 +1385,17 @@ static void codebinexpval (FuncState *fs, OpCode op,
     RAVI_GEN_INT_OP(SHR);
     case OP_CONCAT:
       e1->u.info = luaK_codeABC(fs, op, 0, rk1, rk2);
-      if ((e1->ravi_type == RAVI_TSTRING || e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT) ||
-          (e2->ravi_type == RAVI_TSTRING || e2->ravi_type == RAVI_TNUMINT || e2->ravi_type == RAVI_TNUMFLT)) {
-        e1->ravi_type = RAVI_TSTRING;
+      if ((e1->ravi_type_map & (~(RAVI_TM_STRING | RAVI_TM_INTEGER | RAVI_TM_FLOAT))) == 0 ||
+          (e2->ravi_type_map & (~(RAVI_TM_STRING | RAVI_TM_INTEGER | RAVI_TM_FLOAT))) == 0) {
+        e1->ravi_type_map = RAVI_TM_STRING;
       }
       else {
-        e1->ravi_type = RAVI_TANY;
+        e1->ravi_type_map = RAVI_TM_ANY;
       }
       break;
     default:
       e1->u.info = luaK_codeABC(fs, op, 0, rk1, rk2);
-      e1->ravi_type = RAVI_TANY;
+      e1->ravi_type_map = RAVI_TM_ANY;
   }
 
   e1->k = VRELOCABLE;  /* all those operations are relocatable */
@@ -1409,23 +1403,23 @@ static void codebinexpval (FuncState *fs, OpCode op,
 }
 
 
-static OpCode get_type_specific_comp_op(OpCode op, ravitype_t o1_tt, ravitype_t o2_tt) {
+static OpCode get_type_specific_comp_op(OpCode op, uint32_t o1_tm, uint32_t o2_tm) {
   if (op == OP_EQ) {
-    if (o1_tt == RAVI_TNUMINT && o2_tt == RAVI_TNUMINT)
+    if (o1_tm == RAVI_TM_INTEGER && o2_tm == RAVI_TM_INTEGER)
       op = OP_RAVI_EQ_II;
-    else if (o1_tt == RAVI_TNUMFLT && o2_tt == RAVI_TNUMFLT)
+    else if (o1_tm == RAVI_TM_FLOAT && o2_tm == RAVI_TM_FLOAT)
       op = OP_RAVI_EQ_FF;
   }
   else if (op == OP_LT) {
-    if (o1_tt == RAVI_TNUMINT && o2_tt == RAVI_TNUMINT)
+    if (o1_tm == RAVI_TM_INTEGER && o2_tm == RAVI_TM_INTEGER)
       op = OP_RAVI_LT_II;
-    else if (o1_tt == RAVI_TNUMFLT && o2_tt == RAVI_TNUMFLT)
+    else if (o1_tm == RAVI_TM_FLOAT && o2_tm == RAVI_TM_FLOAT)
       op = OP_RAVI_LT_FF;
   }
   else if (op == OP_LE) {
-    if (o1_tt == RAVI_TNUMINT && o2_tt == RAVI_TNUMINT)
+    if (o1_tm == RAVI_TM_INTEGER && o2_tm == RAVI_TM_INTEGER)
       op = OP_RAVI_LE_II;
-    else if (o1_tt == RAVI_TNUMFLT && o2_tt == RAVI_TNUMFLT)
+    else if (o1_tm == RAVI_TM_FLOAT && o2_tm == RAVI_TM_FLOAT)
       op = OP_RAVI_LE_FF;
   }
   return op;  
@@ -1439,32 +1433,32 @@ static void codecomp (FuncState *fs, BinOpr opr, expdesc *e1, expdesc *e2) {
   DEBUG_EXPR(raviY_printf(fs, "Comparison of %e and %e\n", e1, e2));
   int rk1 = (e1->k == VK) ? RKASK(e1->u.info)
                           : check_exp(e1->k == VNONRELOC, e1->u.info);
-  ravitype_t rk1_tt = e1->ravi_type;
+  uint32_t rk1_tm = e1->ravi_type_map;
   int rk2 = luaK_exp2RK(fs, e2);
-  ravitype_t rk2_tt = e2->ravi_type;
+  uint32_t rk2_tm = e2->ravi_type_map;
   freeexps(fs, e1, e2);
   switch (opr) {
     case OPR_NE: {  /* '(a ~= b)' ==> 'not (a == b)' */
-      OpCode op = get_type_specific_comp_op(OP_EQ, rk1_tt, rk2_tt);
+      OpCode op = get_type_specific_comp_op(OP_EQ, rk1_tm, rk2_tm);
       e1->u.info = condjump(fs, op, 0, rk1, rk2);
       break;
     }
     case OPR_GT: case OPR_GE: {
       /* '(a > b)' ==> '(b < a)';  '(a >= b)' ==> '(b <= a)' */
       OpCode op = cast(OpCode, (opr - OPR_NE) + OP_EQ);
-      op = get_type_specific_comp_op(op, rk2_tt, rk1_tt);
+      op = get_type_specific_comp_op(op, rk2_tm, rk1_tm);
       e1->u.info = condjump(fs, op, 1, rk2, rk1);  /* invert operands */
       break;
     }
     default: {  /* '==', '<', '<=' use their own opcodes */
       OpCode op = cast(OpCode, (opr - OPR_EQ) + OP_EQ);
-      op = get_type_specific_comp_op(op, rk1_tt, rk2_tt);
+      op = get_type_specific_comp_op(op, rk1_tm, rk2_tm);
       e1->u.info = condjump(fs, op, 1, rk1, rk2);
       break;
     }
   }
   e1->k = VJMP;
-  e1->ravi_type = RAVI_TBOOLEAN;
+  e1->ravi_type_map = RAVI_TM_BOOLEAN;
 }
 
 
@@ -1479,21 +1473,21 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
   switch (e->k) {
     case VKFLT: {
       if (op == OPR_TO_NUMBER) {
-        e->ravi_type = RAVI_TNUMFLT; /* RAVI TODO*/
+        lua_assert(e->ravi_type_map == RAVI_TM_FLOAT);
         return;
       }
       break;
     }
     case VKINT: {
       if (op == OPR_TO_INTEGER) {
-        e->ravi_type = RAVI_TNUMINT; /* RAVI TODO*/
+        lua_assert(e->ravi_type_map == RAVI_TM_INTEGER);
         return;
       }
       break;
     }
     case VK: {
       if (op == OPR_TO_STRING) {
-        if (e->ravi_type == RAVI_TSTRING)
+        if (e->ravi_type_map == RAVI_TM_STRING)
 	  return;
       }
       break;
@@ -1502,56 +1496,56 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
     case VNONRELOC: {
       discharge2anyreg(fs, e);
       OpCode opcode;
-      ravitype_t tt;
-      if (op == OPR_TO_NUMBER && e->ravi_type != RAVI_TNUMFLT) {
+      uint32_t tm;
+      if (op == OPR_TO_NUMBER && e->ravi_type_map != RAVI_TM_FLOAT) {
         opcode = OP_RAVI_TOFLT;
-        tt = RAVI_TNUMFLT;
+        tm = RAVI_TM_FLOAT;
       }
-      else if (op == OPR_TO_INTEGER && e->ravi_type != RAVI_TNUMINT) {
+      else if (op == OPR_TO_INTEGER && e->ravi_type_map != RAVI_TM_INTEGER) {
         opcode = OP_RAVI_TOINT;
-        tt = RAVI_TNUMINT;
+        tm = RAVI_TM_INTEGER;
       }
-      else if (op == OPR_TO_INTARRAY && e->ravi_type != RAVI_TARRAYINT) {
-        if (e->ravi_type == RAVI_TTABLE && e->pc >= 0) {
+      else if (op == OPR_TO_INTARRAY && e->ravi_type_map != RAVI_TM_INTEGER_ARRAY) {
+        if (e->ravi_type_map == RAVI_TM_TABLE && e->pc >= 0) {
           Instruction *i = &fs->f->code[e->pc];
           if (GET_OPCODE(*i) == OP_NEWTABLE) {
             SET_OPCODE(*i, OP_RAVI_NEW_IARRAY);
-            e->ravi_type = RAVI_TARRAYINT;
+            e->ravi_type_map = RAVI_TM_INTEGER_ARRAY;
             DEBUG_EXPR(raviY_printf(fs, "code_type_assertion (OP_NEWTABLE to OP_RAVI_NEW_IARRAY) %e\n", e));
           }
           return;
         }
         opcode = OP_RAVI_TOIARRAY;
-        tt = RAVI_TARRAYINT;
+        tm = RAVI_TM_INTEGER_ARRAY;
       }
-      else if (op == OPR_TO_NUMARRAY && e->ravi_type != RAVI_TARRAYFLT) {
-        if (e->ravi_type == RAVI_TTABLE && e->pc >= 0) {
+      else if (op == OPR_TO_NUMARRAY && e->ravi_type_map != RAVI_TM_FLOAT_ARRAY) {
+        if (e->ravi_type_map == RAVI_TM_TABLE && e->pc >= 0) {
           Instruction *i = &fs->f->code[e->pc];
           if (GET_OPCODE(*i) == OP_NEWTABLE) {
             SET_OPCODE(*i, OP_RAVI_NEW_FARRAY);
-            e->ravi_type = RAVI_TARRAYFLT;
+            e->ravi_type_map = RAVI_TM_FLOAT_ARRAY;
             DEBUG_EXPR(raviY_printf(fs, "code_type_assertion (OP_NEWTABLE to OP_RAVI_NEW_IARRAY) %e\n", e));
           }
           return;
         }
         opcode = OP_RAVI_TOFARRAY;
-        tt = RAVI_TARRAYFLT;
+        tm = RAVI_TM_FLOAT_ARRAY;
       }
-      else if (op == OPR_TO_TABLE && e->ravi_type != RAVI_TTABLE) {
+      else if (op == OPR_TO_TABLE && e->ravi_type_map != RAVI_TM_TABLE) {
         opcode = OP_RAVI_TOTAB;
-        tt = RAVI_TTABLE;
+        tm = RAVI_TM_TABLE;
       }
-      else if (op == OPR_TO_STRING && e->ravi_type != RAVI_TSTRING) {
+      else if (op == OPR_TO_STRING && e->ravi_type_map != RAVI_TM_STRING) {
         opcode = OP_RAVI_TOSTRING;
-        tt = RAVI_TSTRING;
+        tm = RAVI_TM_STRING;
       }
-      else if (op == OPR_TO_CLOSURE && e->ravi_type != RAVI_TFUNCTION) {
+      else if (op == OPR_TO_CLOSURE && e->ravi_type_map != RAVI_TM_FUNCTION) {
         opcode = OP_RAVI_TOCLOSURE;
-        tt = RAVI_TFUNCTION;
+        tm = RAVI_TM_FUNCTION;
       }
       else if (op == OPR_TO_TYPE) {
         opcode = OP_RAVI_TOTYPE;  
-        tt = RAVI_TUSERDATA;
+        tm = RAVI_TM_USERDATA;
       }
       else {
         /* nothing to do*/
@@ -1563,7 +1557,7 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
       }
       else 
         luaK_codeABC(fs, opcode, e->u.info, 0, 0);
-      e->ravi_type = tt;
+      e->ravi_type_map = tm;
       e->k = VNONRELOC; 
       if (opcode == OP_RAVI_TOTYPE)
         e->usertype = usertype;
@@ -1578,7 +1572,7 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
 ** Apply prefix operation 'op' to expression 'e'.
 */
 void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line, TString *usertype) {
-  expdesc ef = {.ravi_type = RAVI_TANY,
+  expdesc ef = {.ravi_type_map = RAVI_TM_ANY,
                 .pc = -1,
                 .t = NO_JUMP,
                 .f = NO_JUMP,
@@ -1652,19 +1646,7 @@ void luaK_posfix (FuncState *fs, BinOpr op,
       lua_assert(e1->t == NO_JUMP);  /* list closed by 'luK_infix' */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->f, e1->f);
-      if (e1->ravi_type == RAVI_TNIL) {
-        /* nil and something is still nil. */
-        e2->ravi_type = RAVI_TNIL;
-      }
-      else if (e1->ravi_type == RAVI_TBOOLEAN || e1->ravi_type == RAVI_TANY) {
-        /* In these cases the 'and' can go both ways. */
-        if (e2->ravi_type != e1->ravi_type)
-          e2->ravi_type = RAVI_TANY;
-      }
-      else {
-        /* Nothing to do here, since the first arg is always truish and therefore the second arg will be used every
-         * time. */
-      }
+      e2->ravi_type_map |= e1->ravi_type_map & RAVI_TM_FALSISH;
       *e1 = *e2;
       break;
     }
@@ -1672,19 +1654,11 @@ void luaK_posfix (FuncState *fs, BinOpr op,
       lua_assert(e1->f == NO_JUMP);  /* list closed by 'luK_infix' */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->t, e1->t);
-      if (e1->ravi_type == RAVI_TNIL) {
-        /* Nothing to do here, since the first arg is always truish and therefore the second arg will be used every
-         * time. */
+      if (e1->ravi_type_map & e2->ravi_type_map & RAVI_TM_USERDATA) {
+        if (e1->usertype != e2->usertype)
+          e2->usertype = NULL;
       }
-      else if (e1->ravi_type == RAVI_TBOOLEAN || e1->ravi_type == RAVI_TANY) {
-        /* In these cases the 'or' can go both ways. */
-        if (e2->ravi_type != e1->ravi_type)
-          e2->ravi_type = RAVI_TANY;
-      }
-      else {
-        /* In this case the first argument is truish and will be the return from 'or' */
-        e2->ravi_type = e1->ravi_type;
-      }
+      e2->ravi_type_map |= e1->ravi_type_map & RAVI_TM_TRUISH;
       *e1 = *e2;
       break;
     }
@@ -1697,12 +1671,12 @@ void luaK_posfix (FuncState *fs, BinOpr op,
         SETARG_B(getinstruction(fs, e2), e1->u.info);
         DEBUG_CODEGEN(raviY_printf(fs, "[%d]* %o ; set A to %d\n", e2->u.info, getinstruction(fs,e2), e1->u.info));
         e1->k = VRELOCABLE; e1->u.info = e2->u.info;
-        if (e2->ravi_type == RAVI_TSTRING &&
-            (e1->ravi_type == RAVI_TSTRING || e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT)) {
-          e1->ravi_type = RAVI_TSTRING;
+        if (e2->ravi_type_map == RAVI_TM_STRING &&
+            (e1->ravi_type_map & (~(RAVI_TM_STRING | RAVI_TM_INTEGER | RAVI_TM_FLOAT))) == 0) {
+          e1->ravi_type_map = RAVI_TM_STRING;
         }
         else {
-          e1->ravi_type = RAVI_TANY;
+          e1->ravi_type_map = RAVI_TM_ANY;
         }
       }
       else {

@@ -68,6 +68,41 @@ typedef enum {
   RAVI_TUSERDATA       /* userdata or lightuserdata */
 } ravitype_t;
 
+typedef enum {
+  RAVI_TI_NIL,
+  RAVI_TI_FALSE,
+  RAVI_TI_TRUE,
+  RAVI_TI_INTEGER,
+  RAVI_TI_FLOAT,
+  RAVI_TI_INTEGER_ARRAY,
+  RAVI_TI_FLOAT_ARRAY,
+  RAVI_TI_TABLE,
+  RAVI_TI_STRING,
+  RAVI_TI_FUNCTION,
+  RAVI_TI_USERDATA,
+  RAVI_TI_OTHER
+} ravi_type_index;
+
+#define RAVI_TM_NIL (1<<RAVI_TI_NIL)
+#define RAVI_TM_FALSE (1<<RAVI_TI_FALSE)
+#define RAVI_TM_TRUE (1<<RAVI_TI_TRUE)
+#define RAVI_TM_INTEGER (1<<RAVI_TI_INTEGER)
+#define RAVI_TM_FLOAT (1<<RAVI_TI_FLOAT)
+#define RAVI_TM_INTEGER_ARRAY (1<<RAVI_TI_INTEGER_ARRAY)
+#define RAVI_TM_FLOAT_ARRAY (1<<RAVI_TI_FLOAT_ARRAY)
+#define RAVI_TM_TABLE (1<<RAVI_TI_TABLE)
+#define RAVI_TM_STRING (1<<RAVI_TI_STRING)
+#define RAVI_TM_FUNCTION (1<<RAVI_TI_FUNCTION)
+#define RAVI_TM_USERDATA (1<<RAVI_TI_USERDATA)
+#define RAVI_TM_OTHER (1<<RAVI_TI_OTHER)
+
+#define RAVI_TM_FALSISH (RAVI_TM_NIL | RAVI_TM_FALSE)
+#define RAVI_TM_TRUISH (~RAVI_TM_FALSISH)
+#define RAVI_TM_BOOLEAN (RAVI_TM_FALSE | RAVI_TM_TRUE)
+#define RAVI_TM_NUMBER (RAVI_TM_INTEGER | RAVI_TM_FLOAT)
+#define RAVI_TM_INDEXABLE (RAVI_TM_INTEGER_ARRAY | RAVI_TM_FLOAT_ARRAY | RAVI_TM_TABLE)
+#define RAVI_TM_ANY (~0)
+
 /*
 ** Tagged Values. This is the basic representation of values in Lua,
 ** an actual value plus a tag with its type.
@@ -432,7 +467,7 @@ typedef union UUdata {
 typedef struct Upvaldesc {
   TString *name;  /* upvalue name (for debug information) */
   TString *usertype; /* RAVI extension: name of user type */
-  lu_byte ravi_type; /* RAVI type of upvalue */
+  uint16_t ravi_type_map; /* RAVI type of upvalue */
   lu_byte instack;  /* whether it is in stack (register) */
   lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
 } Upvaldesc;
@@ -447,7 +482,7 @@ typedef struct LocVar {
   TString *usertype; /* RAVI extension: name of user type */
   int startpc;  /* first point where variable is active */
   int endpc;    /* first point where variable is dead */
-  lu_byte ravi_type; /* RAVI type of the variable - RAVI_TANY if unknown */
+  uint32_t ravi_type_map; /* RAVI type of the variable - RAVI_TANY if unknown */
 } LocVar;
 
 /** RAVI changes start */

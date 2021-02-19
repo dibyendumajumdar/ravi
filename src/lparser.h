@@ -66,13 +66,15 @@ typedef struct expdesc {
       short idx;  /* index (R/K) */
       lu_byte t;  /* table (register or upvalue) */
       lu_byte vt;  /* whether 't' is register (VLOCAL) or upvalue (VUPVAL) */
-      lu_byte key_ravi_type; /* RAVI change: key type */
+      uint32_t key_ravi_type_map;  /* Map of possible types the key could have */
+      // lu_byte key_ravi_type; /* RAVI change: key type */
       TString *usertype; /* RAVI change: usertype name */
     } ind;
   } u;
   int t;  /* patch list of 'exit when true' */
   int f;  /* patch list of 'exit when false' */
-  lu_byte ravi_type; /* RAVI change: type of the expression if known, else RAVI_TANY */
+  uint32_t ravi_type_map;  /* Map of possible types this expression could have */
+  // lu_byte ravi_type; /* RAVI change: type of the expression if known, else RAVI_TANY */
   TString *usertype; /* RAVI change: usertype name */
   int pc;         /* RAVI change: holds the program counter for OP_NEWTABLE instruction when a constructor expression is parsed */
 } expdesc;
