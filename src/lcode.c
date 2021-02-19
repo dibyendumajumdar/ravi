@@ -1168,17 +1168,14 @@ static void codenot (FuncState *fs, expdesc *e) {
   switch (e->k) {
     case VNIL: case VFALSE: {
       e->k = VTRUE;  /* true == not nil == not false */
-      e->ravi_type_map = RAVI_TM_TRUE;
       break;
     }
     case VK: case VKFLT: case VKINT: case VTRUE: {
       e->k = VFALSE;  /* false == not "x" == not 0.5 == not 1 == not true */
-      e->ravi_type_map = RAVI_TM_FALSE;
       break;
     }
     case VJMP: {
       negatecondition(fs, e);
-      e->ravi_type_map = RAVI_TM_BOOLEAN;
       break;
     }
     case VRELOCABLE:
@@ -1187,11 +1184,12 @@ static void codenot (FuncState *fs, expdesc *e) {
       freeexp(fs, e);
       e->u.info = luaK_codeABC(fs, OP_NOT, 0, e->u.info, 0);
       e->k = VRELOCABLE;
-      e->ravi_type_map = RAVI_TM_BOOLEAN;
       break;
     }
     default: lua_assert(0);  /* cannot happen */
   }
+  e->ravi_type_map = ((e->ravi_type_map & RAVI_TM_TRUISH) ? RAVI_TM_FALSE : 0) |
+                     ((e->ravi_type_map & RAVI_TM_FALSISH) ? RAVI_TM_TRUE : 0);
   /* interchange true and false lists */
   { int temp = e->f; e->f = e->t; e->t = temp; }
   removevalues(fs, e->f);  /* values are useless when negated */
@@ -1358,7 +1356,7 @@ static void codebinexpval (FuncState *fs, OpCode op,
     if ((e1->ravi_type_map & (~(RAVI_TM_FLOAT | RAVI_TM_INTEGER))) == 0 && \
         (e1->ravi_type_map & (~(RAVI_TM_FLOAT | RAVI_TM_INTEGER))) == 0) { \
       if (e1->ravi_type_map & e2->ravi_type_map & RAVI_TM_INTEGER) {       \
-        e1->ravi_type_map = RAVI_TM_FLOAT | RAVI_TM_INTEGER;               \
+        e1->ravi_type_map = RAVI_TM_FLOAT | ii;                            \
       }                                                                    \
       else {                                                               \
         e1->ravi_type_map = RAVI_TM_FLOAT;                                 \
