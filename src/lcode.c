@@ -1391,7 +1391,7 @@ static void codebinexpval (FuncState *fs, OpCode op,
     RAVI_GEN_INT_OP(SHR);
     case OP_CONCAT:
       e1->u.info = luaK_codeABC(fs, op, 0, rk1, rk2);
-      if ((e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT) ||
+      if ((e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT) &&
           (e2->ravi_type == RAVI_TNUMINT || e2->ravi_type == RAVI_TNUMFLT)) {
         e1->ravi_type = RAVI_TSTRING;
       }
