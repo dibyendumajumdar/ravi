@@ -1278,7 +1278,7 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
       break;
     case OP_LEN:
       e->u.info = luaK_codeABC(fs, OP_LEN, 0, r, 0);
-      if (e->ravi_type == RAVI_TARRAYINT || e->ravi_type == RAVI_TARRAYFLT || e->ravi_type == RAVI_TSTRING) {
+      if (e->ravi_type == RAVI_TARRAYINT || e->ravi_type == RAVI_TARRAYFLT) {
         e->ravi_type = RAVI_TNUMINT;
       }
       else if (e->ravi_type == RAVI_TTABLE) {
@@ -1391,8 +1391,8 @@ static void codebinexpval (FuncState *fs, OpCode op,
     RAVI_GEN_INT_OP(SHR);
     case OP_CONCAT:
       e1->u.info = luaK_codeABC(fs, op, 0, rk1, rk2);
-      if ((e1->ravi_type == RAVI_TSTRING || e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT) ||
-          (e2->ravi_type == RAVI_TSTRING || e2->ravi_type == RAVI_TNUMINT || e2->ravi_type == RAVI_TNUMFLT)) {
+      if ((e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT) ||
+          (e2->ravi_type == RAVI_TNUMINT || e2->ravi_type == RAVI_TNUMFLT)) {
         e1->ravi_type = RAVI_TSTRING;
       }
       else {
@@ -1697,13 +1697,7 @@ void luaK_posfix (FuncState *fs, BinOpr op,
         SETARG_B(getinstruction(fs, e2), e1->u.info);
         DEBUG_CODEGEN(raviY_printf(fs, "[%d]* %o ; set A to %d\n", e2->u.info, getinstruction(fs,e2), e1->u.info));
         e1->k = VRELOCABLE; e1->u.info = e2->u.info;
-        if (e2->ravi_type == RAVI_TSTRING &&
-            (e1->ravi_type == RAVI_TSTRING || e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMFLT)) {
-          e1->ravi_type = RAVI_TSTRING;
-        }
-        else {
-          e1->ravi_type = RAVI_TANY;
-        }
+        e1->ravi_type = RAVI_TANY;
       }
       else {
         luaK_exp2nextreg(fs, e2);  /* operand must be on the 'stack' */
