@@ -1399,7 +1399,7 @@ static void codebinexpval (FuncState *fs, OpCode op,
     RAVI_GEN_INT_OP(SHR);
     case OP_CONCAT:
       e1->u.info = luaK_codeABC(fs, op, 0, rk1, rk2);
-      if ((e1->ravi_type_map & (~(RAVI_TM_STRING | RAVI_TM_INTEGER | RAVI_TM_FLOAT))) == 0 ||
+      if ((e1->ravi_type_map & (~(RAVI_TM_STRING | RAVI_TM_INTEGER | RAVI_TM_FLOAT))) == 0 &&
           (e2->ravi_type_map & (~(RAVI_TM_STRING | RAVI_TM_INTEGER | RAVI_TM_FLOAT))) == 0) {
         e1->ravi_type_map = RAVI_TM_STRING;
       }
