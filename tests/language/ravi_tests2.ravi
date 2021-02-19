@@ -18,13 +18,3 @@ do
 end
 print 'Ok'
 
--- issue
---do
---    local function f(x:integer[])
---        return function ()
---            return x[1][1] + 1
---        end
---    end
---    local x = f(table.intarray(3))
---    x()
---end
