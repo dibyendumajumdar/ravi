@@ -150,6 +150,22 @@ static void DumpUpvalues (const Proto *f, DumpState *D) {
   }
 }
 
+static lu_byte ravi_type_map_to_old_type(ravi_type_map type_map) {
+  switch (type_map) {
+    case RAVI_TM_ANY: return 0;
+    case RAVI_TM_INTEGER: return 1;
+    case RAVI_TM_FLOAT: return 2;
+    case RAVI_TM_INTEGER_ARRAY: return 3;
+    case RAVI_TM_FLOAT_ARRAY: return 4;
+    case RAVI_TM_FUNCTION | RAVI_TM_NIL: return 5;
+    case RAVI_TM_TABLE: return 6;
+    case RAVI_TM_STRING | RAVI_TM_NIL: return 7;
+    case RAVI_TM_NIL: return 8;
+    case RAVI_TM_BOOLEAN | RAVI_TM_NIL: return 9;
+    case RAVI_TM_USERDATA | RAVI_TM_NIL: return 10;
+    default: return 0;
+  }
+}
 
 static void DumpDebug (const Proto *f, DumpState *D) {
   int i, n;
@@ -163,7 +179,7 @@ static void DumpDebug (const Proto *f, DumpState *D) {
     DumpString((D->strip) ? NULL : f->locvars[i].varname, D);
     DumpInt(f->locvars[i].startpc, D);
     DumpInt(f->locvars[i].endpc, D);
-    DumpByte(f->locvars[i].ravi_type, D);
+    DumpByte(ravi_type_map_to_old_type(f->locvars[i].ravi_type_map), D);
     DumpString(f->locvars[i].usertype, D);
   }
   /* n = (D->strip) ? 0 : f->sizeupvalues; */
@@ -171,7 +187,7 @@ static void DumpDebug (const Proto *f, DumpState *D) {
   DumpInt(n, D);
   for (i = 0; i < n; i++) {
     DumpString((D->strip) ? NULL : f->upvalues[i].name, D);
-    DumpByte(f->upvalues[i].ravi_type, D);
+    DumpByte(ravi_type_map_to_old_type(f->upvalues[i].ravi_type_map), D);
     DumpString(f->upvalues[i].usertype, D);
   }
 }

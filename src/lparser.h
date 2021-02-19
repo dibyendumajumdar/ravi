@@ -243,7 +243,9 @@ LUAI_FUNC LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
                                  Dyndata *dyd, const char *name, int firstchar);
 
 /** RAVI extensions **/
-LUAI_FUNC const char *raviY_typename(ravitype_t tt);
+#define RAVI_TYPEMAP_MAX_LEN (sizeof("nil|boolean|integer|number|integer[]|number[]|table|string|function|userdata|?|"))
+
+LUAI_FUNC void raviY_typemap_string(uint32_t tm, char* buf);
 
 /* Special printf that recognises following conversions:
  * %e - expdesc *
@@ -261,7 +263,7 @@ LUAI_FUNC void raviY_printf(FuncState *fs, const char *format, ...);
  * Else RAVI_TANY is returned. Note that this function only looks
  * at active local variables - see note on FuncState on what this means.
  */
-LUAI_FUNC ravitype_t raviY_get_register_typeinfo(FuncState *fs, int reg, TString **);
+LUAI_FUNC ravi_type_map raviY_get_register_typeinfo(FuncState *fs, int reg, TString **);
 
 #define DEBUG_EXPR(p)                                                          \
   if ((ravi_parser_debug & 1) != 0) {                                          \

@@ -54,19 +54,6 @@ typedef uint16_t LuaType;
 ** we care about from a performance point of view - if any
 ** other types appear then they are all treated as ANY
 **/
-typedef enum {
-  RAVI_TANY = 0,      /* Lua dynamic type */
-  RAVI_TNUMINT = 1,    /* integer number */
-  RAVI_TNUMFLT,        /* floating point number */
-  RAVI_TARRAYINT,      /* array of ints */
-  RAVI_TARRAYFLT,      /* array of doubles */
-  RAVI_TFUNCTION,      /* Lua or C Function */
-  RAVI_TTABLE,         /* Lua table */
-  RAVI_TSTRING,        /* string */
-  RAVI_TNIL,           /* NIL */
-  RAVI_TBOOLEAN,       /* boolean */
-  RAVI_TUSERDATA       /* userdata or lightuserdata */
-} ravitype_t;
 
 typedef enum {
   RAVI_TI_NIL,
@@ -83,18 +70,20 @@ typedef enum {
   RAVI_TI_OTHER
 } ravi_type_index;
 
-#define RAVI_TM_NIL (1<<RAVI_TI_NIL)
-#define RAVI_TM_FALSE (1<<RAVI_TI_FALSE)
-#define RAVI_TM_TRUE (1<<RAVI_TI_TRUE)
-#define RAVI_TM_INTEGER (1<<RAVI_TI_INTEGER)
-#define RAVI_TM_FLOAT (1<<RAVI_TI_FLOAT)
-#define RAVI_TM_INTEGER_ARRAY (1<<RAVI_TI_INTEGER_ARRAY)
-#define RAVI_TM_FLOAT_ARRAY (1<<RAVI_TI_FLOAT_ARRAY)
-#define RAVI_TM_TABLE (1<<RAVI_TI_TABLE)
-#define RAVI_TM_STRING (1<<RAVI_TI_STRING)
-#define RAVI_TM_FUNCTION (1<<RAVI_TI_FUNCTION)
-#define RAVI_TM_USERDATA (1<<RAVI_TI_USERDATA)
-#define RAVI_TM_OTHER (1<<RAVI_TI_OTHER)
+typedef uint32_t ravi_type_map;
+
+#define RAVI_TM_NIL (((uint32_t)1)<<RAVI_TI_NIL)
+#define RAVI_TM_FALSE (((uint32_t)1)<<RAVI_TI_FALSE)
+#define RAVI_TM_TRUE (((uint32_t)1)<<RAVI_TI_TRUE)
+#define RAVI_TM_INTEGER (((uint32_t)1)<<RAVI_TI_INTEGER)
+#define RAVI_TM_FLOAT (((uint32_t)1)<<RAVI_TI_FLOAT)
+#define RAVI_TM_INTEGER_ARRAY (((uint32_t)1)<<RAVI_TI_INTEGER_ARRAY)
+#define RAVI_TM_FLOAT_ARRAY (((uint32_t)1)<<RAVI_TI_FLOAT_ARRAY)
+#define RAVI_TM_TABLE (((uint32_t)1)<<RAVI_TI_TABLE)
+#define RAVI_TM_STRING (((uint32_t)1)<<RAVI_TI_STRING)
+#define RAVI_TM_FUNCTION (((uint32_t)1)<<RAVI_TI_FUNCTION)
+#define RAVI_TM_USERDATA (((uint32_t)1)<<RAVI_TI_USERDATA)
+#define RAVI_TM_OTHER (((uint32_t)1)<<RAVI_TI_OTHER)
 
 #define RAVI_TM_FALSISH (RAVI_TM_NIL | RAVI_TM_FALSE)
 #define RAVI_TM_TRUISH (~RAVI_TM_FALSISH)
@@ -467,7 +456,7 @@ typedef union UUdata {
 typedef struct Upvaldesc {
   TString *name;  /* upvalue name (for debug information) */
   TString *usertype; /* RAVI extension: name of user type */
-  uint16_t ravi_type_map; /* RAVI type of upvalue */
+  ravi_type_map ravi_type_map; /* RAVI type of upvalue */
   lu_byte instack;  /* whether it is in stack (register) */
   lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
 } Upvaldesc;
@@ -482,7 +471,7 @@ typedef struct LocVar {
   TString *usertype; /* RAVI extension: name of user type */
   int startpc;  /* first point where variable is active */
   int endpc;    /* first point where variable is dead */
-  uint32_t ravi_type_map; /* RAVI type of the variable - RAVI_TANY if unknown */
+  ravi_type_map ravi_type_map; /* RAVI type of the variable - RAVI_TANY if unknown */
 } LocVar;
 
 /** RAVI changes start */
@@ -869,6 +858,9 @@ LUAI_FUNC const char *luaO_pushvfstring (lua_State *L, const char *fmt,
 LUAI_FUNC const char *luaO_pushfstring (lua_State *L, const char *fmt, ...);
 LUAI_FUNC void luaO_chunkid (char *out, const char *source, size_t srclen);
 
+
+
+LUAI_FUNC int ravi_checktype(StkId input, ravi_type_map type);
 
 #endif
 

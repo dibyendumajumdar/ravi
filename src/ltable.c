@@ -503,19 +503,19 @@ Table *luaH_new (lua_State *L) {
   return t;
 }
 
-RaviArray *raviH_new(lua_State *L, ravitype_t tt, int is_slice) {
-  lua_assert(tt == RAVI_TARRAYFLT || tt == RAVI_TARRAYINT);
-  GCObject *o = luaC_newobj(L, tt == RAVI_TARRAYFLT ? RAVI_TFARRAY : RAVI_TIARRAY, sizeof(RaviArray));
+RaviArray *raviH_new(lua_State *L, ravi_type_map tm, int is_slice) {
+  lua_assert(tm == RAVI_TM_FLOAT_ARRAY || tm == RAVI_TM_INTEGER_ARRAY);
+  GCObject *o = luaC_newobj(L, tm == RAVI_TM_FLOAT_ARRAY ? RAVI_TFARRAY : RAVI_TIARRAY, sizeof(RaviArray));
   RaviArray *t = gco2array(o);
   t->len = 0;
   t->size = RAVI_ARRAY_MAX_INLINE; /* Initially we use inline storage */
-  t->flags = (tt == RAVI_TARRAYFLT) ? RAVI_ARRAY_ISFLOAT : 0;
-  t->data = (tt == RAVI_TARRAYFLT) ? (char *) &t->numarray : (char *) &t->intarray; /* data */
+  t->flags = (tm == RAVI_TM_FLOAT_ARRAY) ? RAVI_ARRAY_ISFLOAT : 0;
+  t->data = (tm == RAVI_TM_FLOAT_ARRAY) ? (char *) &t->numarray : (char *) &t->intarray; /* data */
   t->parent = NULL;
   t->metatable = NULL;
   if (!is_slice) {
     /* Note following will set len to 1 */
-    if (tt == RAVI_TARRAYFLT) {
+    if (tm == RAVI_TM_FLOAT_ARRAY) {
       raviH_set_float_inline(L, t, 0, 0.0);
     }
     else {
@@ -904,7 +904,7 @@ void raviH_set_float(lua_State *L, RaviArray *t, lua_Unsigned u1, lua_Number val
 
 RaviArray *raviH_new_integer_array(lua_State *L, unsigned int len,
                                lua_Integer init_value) {
-  RaviArray *t = raviH_new(L, RAVI_TARRAYINT, 0);
+  RaviArray *t = raviH_new(L, RAVI_TM_INTEGER_ARRAY, 0);
   unsigned int new_len = len + 1;  // Ravi arrays have an extra slot at offset 0
   if (new_len < len) {             // Wrapped?
     luaG_runerror(L, "array length out of range");
@@ -924,7 +924,7 @@ RaviArray *raviH_new_integer_array(lua_State *L, unsigned int len,
 
 RaviArray *raviH_new_number_array(lua_State *L, unsigned int len,
                               lua_Number init_value) {
-  RaviArray *t = raviH_new(L, RAVI_TARRAYFLT, 0);
+  RaviArray *t = raviH_new(L, RAVI_TM_FLOAT_ARRAY, 0);
   unsigned int new_len = len + 1; // Ravi arrays have an extra slot at offset 0
   if (new_len < len) { // Wrapped?
     luaG_runerror(L, "array length out of range");
@@ -975,7 +975,7 @@ RaviArray *raviH_new_slice(lua_State *L, TValue *parent, unsigned int start,
     luaG_runerror(
         L, "cannot create slice from dynamic integer[] or number[] array");
   /* Create the slice table */
-  RaviArray *t = raviH_new(L, (orig->flags & RAVI_ARRAY_ISFLOAT) ? RAVI_TARRAYFLT : RAVI_TARRAYINT, 1);
+  RaviArray *t = raviH_new(L, (orig->flags & RAVI_ARRAY_ISFLOAT) ? RAVI_TM_FLOAT_ARRAY : RAVI_TM_INTEGER_ARRAY, 1);
   /* Add a reference to the parent table. From GC perspective the slice is a white object
      so we do not need a write barrier */
   t->parent = orig;

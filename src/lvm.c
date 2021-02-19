@@ -2188,7 +2188,7 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_RAVI_NEW_IARRAY) {
         RaviArray *t;
         savepc(L);  /* in case of allocation errors */
-        t = raviH_new(L, RAVI_TARRAYINT, 0);
+        t = raviH_new(L, RAVI_TM_INTEGER_ARRAY, 0);
         setiarrayvalue(L, ra, t);
         checkGC(L, ra + 1);
         vmbreak;
@@ -2196,7 +2196,7 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_RAVI_NEW_FARRAY) {
         RaviArray *t;
         savepc(L);  /* in case of allocation errors */
-        t = raviH_new(L, RAVI_TARRAYFLT, 0);
+        t = raviH_new(L, RAVI_TM_FLOAT_ARRAY, 0);
         setfarrayvalue(L, ra, t);
         checkGC(L, ra + 1);
         vmbreak;
@@ -2768,13 +2768,13 @@ void raviV_debug_trace(lua_State *L, int opCode, int pc) {
 }
 
 void raviV_op_newarrayint(lua_State *L, CallInfo *ci, TValue *ra) {
-  RaviArray *t = raviH_new(L, RAVI_TARRAYINT, 0);
+  RaviArray *t = raviH_new(L, RAVI_TM_INTEGER_ARRAY, 0);
   setiarrayvalue(L, ra, t);
   checkGC_(L, ra + 1);
 }
 
 void raviV_op_newarrayfloat(lua_State *L, CallInfo *ci, TValue *ra) {
-  RaviArray *t = raviH_new(L, RAVI_TARRAYFLT, 0);
+  RaviArray *t = raviH_new(L, RAVI_TM_FLOAT_ARRAY, 0);
   setfarrayvalue(L, ra, t);
   checkGC_(L, ra + 1);
 }

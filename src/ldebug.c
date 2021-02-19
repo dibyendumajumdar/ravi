@@ -147,10 +147,10 @@ static const char *findvararg (CallInfo *ci, int n, StkId *pos) {
 
 
 static const char *findlocal (lua_State *L, CallInfo *ci, int n,
-                              StkId *pos, ravitype_t *type) {
+                              StkId *pos, ravi_type_map *type) {
   const char *name = NULL;
   StkId base;
-  *type = RAVI_TANY;
+  *type = RAVI_TM_ANY;
   if (isLua(ci)) {
     if (n < 0)  /* access to vararg values? */
       return findvararg(ci, -n, pos);
@@ -175,7 +175,7 @@ static const char *findlocal (lua_State *L, CallInfo *ci, int n,
 
 LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
   const char *name;
-  ravitype_t type;
+  ravi_type_map type;
   lua_lock(L);
   swapextra(L);
   if (ar == NULL) {  /* information about non-active function? */
@@ -201,7 +201,7 @@ LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
 LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
   StkId pos = NULL;  /* to avoid warnings */
   const char *name;
-  ravitype_t type;
+  ravi_type_map type;
   int compatible = 1;
   lua_lock(L);
   swapextra(L);
@@ -211,15 +211,8 @@ LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
     ** We need to ensure that this function does
     ** not subvert the types of local variables
     */
-    if (type == RAVI_TNUMFLT || type == RAVI_TNUMINT || type == RAVI_TARRAYFLT || type == RAVI_TARRAYINT) {
-      StkId input = L->top - 1;
-      compatible = (type == RAVI_TNUMFLT && ttisfloat(input))
-        || (type == RAVI_TNUMINT && ttisinteger(input))
-        || (type == RAVI_TARRAYFLT && ttisfarray(input))
-        || (type == RAVI_TARRAYINT && ttisiarray(input))
-        || (type == RAVI_TTABLE && ttisLtable(input))
-        ;
-    }
+    StkId input = L->top - 1;
+    int compatible = ravi_checktype(input, type);
     if (compatible) {
       setobjs2s(L, pos, L->top - 1);
       L->top--;  /* pop value */
@@ -456,7 +449,7 @@ static int findsetreg (Proto *p, int lastpc, int reg) {
 static const char *getobjname (Proto *p, int lastpc, int reg,
                                const char **name) {
   int pc;
-  ravitype_t type;
+  ravi_type_map type;
   *name = luaF_getlocalname(p, reg + 1, lastpc, &type);
   if (*name)  /* is a local? */
     return "local";
