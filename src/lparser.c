@@ -1238,8 +1238,8 @@ static ravitype_t declare_localvar(LexState *ls, TString **pusertype) {
       tt = RAVI_TTABLE;
     else if (strcmp(str, "string") == 0)
       tt = RAVI_TSTRING;
-    else if (strcmp(str, "boolean") == 0)
-      tt = RAVI_TBOOLEAN;
+    //else if (strcmp(str, "boolean") == 0)
+    //  tt = RAVI_TBOOLEAN;
     else if (strcmp(str, "any") == 0)
       tt = RAVI_TANY;
     else {
