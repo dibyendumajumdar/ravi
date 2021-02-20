@@ -1371,7 +1371,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *var_types,
                            TString **usertypes, int nvars, int n) {
   /* NOTE that 'v' may not have register assigned yet */  
   ravitype_t vartype = var_types[n];
-  if (n < nvars && vartype != RAVI_TANY && v->ravi_type != vartype) {
+  if (n < nvars && vartype != RAVI_TANY) {
     if (v->ravi_type != vartype &&
         (vartype == RAVI_TARRAYFLT || vartype == RAVI_TARRAYINT) &&
         v->k == VNONRELOC) {
@@ -1454,7 +1454,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, int *var_types,
       luaK_exp2nextreg(ls->fs, v);
       ravi_code_typecoersion(ls, v->u.info, vartype, usertype);
     }
-    else {
+    else if (vartype != v->ravi_type){
       luaX_syntaxerror(ls, "Invalid local assignment");
     }
   }
