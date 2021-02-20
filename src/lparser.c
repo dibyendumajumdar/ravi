@@ -1182,30 +1182,30 @@ static void constructor (LexState *ls, expdesc *t) {
  * be anchored somewhere else by the time parsing finishes
  */
 static TString *user_defined_type_name(LexState *ls, TString *typename) {
-	size_t len = 0;
-	if (testnext(ls, '.')) {
-		char buffer[128] = { 0 };
-		const char *str = getstr(typename);
-		len = strlen(str);
-		if (len >= sizeof buffer) {
-			luaX_syntaxerror(ls, "User defined type name is too long");
-			return typename;
-		}
-		snprintf(buffer, sizeof buffer, "%s", str);
-		do {
-			typename = str_checkname(ls);
-			str = getstr(typename);
-			size_t newlen = len + strlen(str) + 1;
-			if (newlen >= sizeof buffer) {
-				luaX_syntaxerror(ls, "User defined type name is too long");
-				return typename;
-			}
-			snprintf(buffer + len, sizeof buffer - len, ".%s", str);
-			len = newlen;
-		} while (testnext(ls, '.'));
-		typename = luaX_newstring(ls, buffer, strlen(buffer));
-	}
-	return typename;
+  size_t len = 0;
+  if (testnext(ls, '.')) {
+    char buffer[128] = {0};
+    const char *str = getstr(typename);
+    len = strlen(str);
+    if (len >= sizeof buffer) {
+      luaX_syntaxerror(ls, "User defined type name is too long");
+      return typename;
+    }
+    snprintf(buffer, sizeof buffer, "%s", str);
+    do {
+      typename = str_checkname(ls);
+      str = getstr(typename);
+      size_t newlen = len + strlen(str) + 1;
+      if (newlen >= sizeof buffer) {
+        luaX_syntaxerror(ls, "User defined type name is too long");
+        return typename;
+      }
+      snprintf(buffer + len, sizeof buffer - len, ".%s", str);
+      len = newlen;
+    } while (testnext(ls, '.'));
+    typename = luaX_newstring(ls, buffer, strlen(buffer));
+  }
+  return typename;
 }
 
 /* RAVI Parse
