@@ -993,38 +993,35 @@ void luaK_storevar (FuncState *fs, expdesc *var, expdesc *ex) {
       break;
     }
     case VINDEXED: {
-      OpCode op = (var->u.ind.vt == VLOCAL) ? OP_SETTABLE : OP_SETTABUP;
-      if (op == OP_SETTABLE) {
+      OpCode op;
+      int e = luaK_exp2RK(fs, ex);
+      if (var->u.ind.vt == VLOCAL) {
         /* table value set - if array access then use specialized versions */
-        if (var->ravi_type == RAVI_TARRAYFLT &&
-            var->u.ind.key_ravi_type == RAVI_TNUMINT) {
-          if (!(ex->ravi_type == RAVI_TNUMFLT || (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYFLT)))
-            /* input value may need conversion */
-            op = OP_RAVI_FARRAY_SET;
-          else
-            /* input value is known to be number */
-            op = OP_RAVI_FARRAY_SETF;
-        } else if (var->ravi_type == RAVI_TARRAYINT &&
-                   var->u.ind.key_ravi_type == RAVI_TNUMINT) {
-          if (!(ex->ravi_type == RAVI_TNUMINT || (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYINT)))
-            /* input value may need conversion */
-            op = OP_RAVI_IARRAY_SET;          
-          else
-            /* input value is known to be integer */
-            op = OP_RAVI_IARRAY_SETI;
-        } else if (var->u.ind.key_ravi_type == RAVI_TNUMINT) {
-          /* index op with integer key, target may not be a table */
-          op = OP_RAVI_SETI;
-        } else if (var->ravi_type == RAVI_TTABLE && var->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, var->u.ind.idx)) {
-          /* table with string key */
-          op = OP_RAVI_TABLE_SETFIELD;
+        if (var->u.ind.key_ravi_type == RAVI_TNUMINT) {
+          if (var->ravi_type == RAVI_TARRAYFLT) {
+            op = ex->ravi_type == RAVI_TNUMFLT ? OP_RAVI_FARRAY_SETF : /* input value is known to be number */
+                     OP_RAVI_FARRAY_SET;                               /* input value may need conversion */
+          }
+          else if (var->ravi_type == RAVI_TARRAYINT) {
+            op = ex->ravi_type == RAVI_TNUMINT ? OP_RAVI_IARRAY_SETI : /* input value is known to be integer */
+                     OP_RAVI_IARRAY_SET;                               /* input value may need conversion */
+          }
+          else {
+            /* index op with integer key, target may not be a table */
+            op = OP_RAVI_SETI;
+          }
         }
         else if (var->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, var->u.ind.idx)) {
-          /* index op with string key, target may not be a table */
-          op = OP_RAVI_SETFIELD;
+          op = var->ravi_type == RAVI_TTABLE ? OP_RAVI_TABLE_SETFIELD : /* table with string key */
+                   OP_RAVI_SETFIELD; /* index op with string key, target may not be a table */
+        }
+        else {
+          op = OP_SETTABLE;
         }
       }
-      int e = luaK_exp2RK(fs, ex);
+      else {
+        op = OP_SETTABUP;
+      }
       luaK_codeABC(fs, op, var->u.ind.t, var->u.ind.idx, e);
       break;
     }
