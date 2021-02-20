@@ -600,19 +600,21 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
         freereg(fs, e->u.ind.t);
         /* TODO we should do this for upvalues too */
         /* table access - set specialized op codes if array types are detected */
-        if (e->ravi_type == RAVI_TARRAYFLT && e->u.ind.key_ravi_type == RAVI_TNUMINT)
-          op = OP_RAVI_FARRAY_GET;
-        else if (e->ravi_type == RAVI_TARRAYINT && e->u.ind.key_ravi_type == RAVI_TNUMINT)
-          op = OP_RAVI_IARRAY_GET;
+        if (e->u.ind.key_ravi_type == RAVI_TNUMINT) {
+          if (e->ravi_type == RAVI_TARRAYFLT)
+            op = OP_RAVI_FARRAY_GET;
+          else if (e->ravi_type == RAVI_TARRAYINT)
+            op = OP_RAVI_IARRAY_GET;
+          else
+            op = OP_RAVI_GETI;
+        }
         /* Check that we have a short string constant */
-        else if (e->ravi_type == RAVI_TTABLE && e->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
-          op = OP_RAVI_TABLE_GETFIELD;
-        else if (e->u.ind.key_ravi_type == RAVI_TNUMINT)
-          op = OP_RAVI_GETI;
-        else if (e->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx))
-          op = OP_RAVI_GETFIELD;
-        else
+        else if (e->u.ind.key_ravi_type == RAVI_TSTRING && isshortstr(fs, e->u.ind.idx)) {
+          op = e->ravi_type == RAVI_TTABLE ? OP_RAVI_TABLE_GETFIELD : OP_RAVI_GETFIELD;
+        }
+        else {
           op = OP_GETTABLE;
+        }
       }
       else {
         lua_assert(e->u.ind.vt == VUPVAL);
