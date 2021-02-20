@@ -1842,6 +1842,42 @@ do
 end
 print 'Test 87 OK'
 
+do
+ local function doit(a: integer, what)
+    local f: integer = ~0
+    if what == '&' then
+        return a&f
+    elseif what == '|' then
+        return a|f
+    elseif what == '<<' then
+        return a<<1
+    elseif what == '>>' then
+        return a>>1
+    elseif what == '~' then
+        return ~a
+    else
+        return 0
+    end
+ end
+ check(doit, 'TOINT', 'LOADK', 'EQ', 'JMP', 'BAND_II',
+   'RETURN', 'JMP', 'EQ', 'JMP', 'BOR_II', 'RETURN', 
+   'JMP', 'EQ', 'JMP', 'SHL_II', 'RETURN', 'JMP', 'EQ',
+   'JMP', 'SHR_II', 'RETURN', 'JMP', 'EQ', 'JMP', 
+   'BNOT_I', 'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN') 
+ assert(doit and type(doit) == 'function')
+ assert(math.abs(doit(16, '&') - 16) < 1e-15)
+ assert(math.abs(doit(16, '|') - ~0) < 1e-15)
+ assert(math.abs(doit(16, '<<') - 32) < 1e-15)
+ assert(math.abs(doit(16, '>>') - 8) < 1e-15)
+ assert(math.abs(doit(16, '~') - ~16) < 1e-15)
+ compile(doit)
+ assert(math.abs(doit(16, '&') - 16) < 1e-15)
+ assert(math.abs(doit(16, '|') - ~0) < 1e-15)
+ assert(math.abs(doit(16, '<<') - 32) < 1e-15)
+ assert(math.abs(doit(16, '>>') - 8) < 1e-15)
+ assert(math.abs(doit(16, '~') - ~16) < 1e-15)
+end
+print 'Test 88 OK'
 
 for k,v in pairs(opcodes_coverage)
 do

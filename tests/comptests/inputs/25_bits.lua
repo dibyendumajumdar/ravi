@@ -1,5 +1,5 @@
 f = compiler.load([[
-function doit(a, 25_bits.luawhat)
+function doit(a, what)
     local f: integer = ~0
     if what == '&' then
         return a&f
