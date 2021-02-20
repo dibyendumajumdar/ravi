@@ -147,16 +147,17 @@ static const char *findvararg (CallInfo *ci, int n, StkId *pos) {
 
 
 static const char *findlocal (lua_State *L, CallInfo *ci, int n,
-                              StkId *pos, ravitype_t *type) {
+                              StkId *pos, ravitype_t *type, TString** usertype) {
   const char *name = NULL;
   StkId base;
   *type = RAVI_TANY;
+  *usertype = NULL;
   if (isLua(ci)) {
     if (n < 0)  /* access to vararg values? */
       return findvararg(ci, -n, pos);
     else {
       base = ci->u.l.base;
-      name = luaF_getlocalname(ci_func(ci)->p, n, currentpc(ci), type);
+      name = luaF_getlocalname(ci_func(ci)->p, n, currentpc(ci), type, usertype);
     }
   }
   else
@@ -176,17 +177,18 @@ static const char *findlocal (lua_State *L, CallInfo *ci, int n,
 LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
   const char *name;
   ravitype_t type;
+  TString *usertype;
   lua_lock(L);
   swapextra(L);
   if (ar == NULL) {  /* information about non-active function? */
     if (!isLfunction(L->top - 1))  /* not a Lua function? */
       name = NULL;
     else  /* consider live variables at function start (parameters) */
-      name = luaF_getlocalname(clLvalue(L->top - 1)->p, n, 0, &type);
+      name = luaF_getlocalname(clLvalue(L->top - 1)->p, n, 0, &type, &usertype);
   }
   else {  /* active function; get information through 'ar' */
     StkId pos = NULL;  /* to avoid warnings */
-    name = findlocal(L, ar->i_ci, n, &pos, &type);
+    name = findlocal(L, ar->i_ci, n, &pos, &type, &usertype);
     if (name) {
       setobj2s(L, L->top, pos);
       api_incr_top(L);
@@ -202,24 +204,18 @@ LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
   StkId pos = NULL;  /* to avoid warnings */
   const char *name;
   ravitype_t type;
+  TString* usertype;
   int compatible = 1;
   lua_lock(L);
   swapextra(L);
-  name = findlocal(L, ar->i_ci, n, &pos, &type);
+  name = findlocal(L, ar->i_ci, n, &pos, &type, &usertype);
   if (name) {
     /* RAVI extension
     ** We need to ensure that this function does
     ** not subvert the types of local variables
     */
-    if (type == RAVI_TNUMFLT || type == RAVI_TNUMINT || type == RAVI_TARRAYFLT || type == RAVI_TARRAYINT) {
-      StkId input = L->top - 1;
-      compatible = (type == RAVI_TNUMFLT && ttisfloat(input))
-        || (type == RAVI_TNUMINT && ttisinteger(input))
-        || (type == RAVI_TARRAYFLT && ttisfarray(input))
-        || (type == RAVI_TARRAYINT && ttisiarray(input))
-        || (type == RAVI_TTABLE && ttisLtable(input))
-        ;
-    }
+    StkId input = L->top - 1;
+    int compatible = raviV_checktype(L, input, type, usertype);
     if (compatible) {
       setobjs2s(L, pos, L->top - 1);
       L->top--;  /* pop value */
@@ -457,7 +453,8 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
                                const char **name) {
   int pc;
   ravitype_t type;
-  *name = luaF_getlocalname(p, reg + 1, lastpc, &type);
+  TString *usertype;
+  *name = luaF_getlocalname(p, reg + 1, lastpc, &type, &usertype);
   if (*name)  /* is a local? */
     return "local";
   /* else try symbolic execution */
@@ -488,7 +485,7 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
         int k = GETARG_C(i);  /* key index */
         int t = GETARG_B(i);  /* table index */
         const char *vn = (op != OP_GETTABUP && op != OP_RAVI_GETTABUP_SK)  /* name of indexed variable */
-                         ? luaF_getlocalname(p, t + 1, pc, &type)  /* t+1 is the local variable number */
+                         ? luaF_getlocalname(p, t + 1, pc, &type, &usertype)  /* t+1 is the local variable number */
                          : upvalname(p, t);
         kname(p, pc, k, name);
         return (vn && strcmp(vn, LUA_ENV) == 0) ? "global" : "field";

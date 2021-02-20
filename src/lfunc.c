@@ -243,7 +243,7 @@ void luaF_freeproto (lua_State *L, Proto *f) {
 ** Returns NULL if not found.
 ** RAVI extension - also return the known type if any
 */
-const char *luaF_getlocalname (const Proto *f, int local_number, int pc, ravitype_t *type) {
+const char *luaF_getlocalname (const Proto *f, int local_number, int pc, ravitype_t *type, TString **usertype) {
   int i;
   for (i = 0; i<f->sizelocvars && f->locvars[i].startpc <= pc; i++) {
     if (pc < f->locvars[i].endpc) {  /* is variable active? */
@@ -252,11 +252,13 @@ const char *luaF_getlocalname (const Proto *f, int local_number, int pc, ravityp
         if (f->locvars[i].varname == NULL)
           break;
         *type = f->locvars[i].ravi_type;
+        *usertype = f->locvars[i].usertype;
         return getstr(f->locvars[i].varname);
       }
     }
   }
   *type = RAVI_TANY;
+  *usertype = NULL;
   return NULL;  /* not found */
 }
 

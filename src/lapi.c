@@ -1568,8 +1568,9 @@ LUA_API void *lua_newuserdata (lua_State *L, size_t size) {
 
 
 static const char *aux_upvalue (StkId fi, int n, TValue **val,
-                                CClosure **owner, UpVal **uv, ravitype_t *type) {
+                                CClosure **owner, UpVal **uv, ravitype_t *type, TString **usertype) {
   *type = RAVI_TANY;
+  *usertype = NULL;
   switch (ttype(fi)) {
     case LUA_TCCL: {  /* C closure */
       CClosure *f = clCvalue(fi);
@@ -1587,6 +1588,7 @@ static const char *aux_upvalue (StkId fi, int n, TValue **val,
       if (uv) *uv = f->upvals[n - 1];
       name = p->upvalues[n-1].name;
       *type = p->upvalues[n - 1].ravi_type;
+      *usertype = p->upvalues[n - 1].usertype;
       return (name == NULL) ? "(*no name)" : getstr(name);
     }
     default: return NULL;  /* not a closure */
@@ -1597,9 +1599,10 @@ static const char *aux_upvalue (StkId fi, int n, TValue **val,
 LUA_API const char *lua_getupvalue (lua_State *L, int funcindex, int n) {
   const char *name;
   ravitype_t type;
+  TString *usertype;
   TValue *val = NULL;  /* to avoid warnings */
   lua_lock(L);
-  name = aux_upvalue(index2addr(L, funcindex), n, &val, NULL, NULL, &type);
+  name = aux_upvalue(index2addr(L, funcindex), n, &val, NULL, NULL, &type, &usertype);
   if (name) {
     setobj2s(L, L->top, val);
     api_incr_top(L);
@@ -1616,30 +1619,22 @@ LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
   UpVal *uv = NULL;
   StkId fi;
   ravitype_t type; /* RAVI upvalue type will be obtained if possible */
+  TString *usertype;
   lua_lock(L);
   fi = index2addr(L, funcindex);
   api_checknelems(L, 1);
-  name = aux_upvalue(fi, n, &val, &owner, &uv, &type);
+  name = aux_upvalue(fi, n, &val, &owner, &uv, &type, &usertype);
   if (name) {
     /* RAVI extension
     ** We need to ensure that this function does
     ** not subvert the types of local variables
     */
-    if (  type == RAVI_TNUMFLT 
-       || type == RAVI_TNUMINT 
-       || type == RAVI_TARRAYFLT 
-       || type == RAVI_TARRAYINT) {
-      StkId input = L->top - 1;
-      int compatible = 
-           (type == RAVI_TNUMFLT   && ttisfloat(input))
-        || (type == RAVI_TNUMINT   && ttisinteger(input))
-        || (type == RAVI_TARRAYFLT && ttisfarray(input))
-        || (type == RAVI_TARRAYINT && ttisiarray(input))
-        || (type == RAVI_TTABLE    && ttisLtable(input))
-        ;
-      if (!compatible)
-        name = NULL;
-    }
+  
+    StkId input = L->top - 1;
+    int compatible = raviV_checktype(L, input, type, usertype);
+          
+    if (!compatible)
+      name = NULL;
   }
   if (name) {
     L->top--;
