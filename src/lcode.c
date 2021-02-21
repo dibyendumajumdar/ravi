@@ -1103,6 +1103,10 @@ static int jumponcond (FuncState *fs, expdesc *e, int cond) {
 }
 
 
+static int ravi_is_falsish(ravitype_t type) {
+  return (type & RAVI_TTAG_FALSISH) || (type == RAVI_TANY || type == RAVI_TNIL || type == RAVI_TBOOLEAN || type == RAVI_TFUNCTION || type == RAVI_TSTRING || type == RAVI_TUSERDATA);
+}
+
 /*
 ** Emit code to go through if 'e' is true, jump otherwise.
 */
@@ -1120,7 +1124,7 @@ void luaK_goiftrue (FuncState *fs, expdesc *e) {
       break;
     }
     default: {
-      if (e->ravi_type == RAVI_TNIL || e->ravi_type == RAVI_TANY || e->ravi_type == RAVI_TBOOLEAN) {
+      if (ravi_is_falsish(e->ravi_type)) {
         pc = jumponcond(fs, e, 0); /* jump when false */
       }
       else {
@@ -1279,7 +1283,7 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
         break;
       }
       e->u.info = luaK_codeABC(fs, OP_BNOT, 0, r, 0);
-      e->ravi_type = e->ravi_type == RAVI_TNUMFLT ? RAVI_TNUMINT : RAVI_TANY;
+      e->ravi_type = e->ravi_type == RAVI_TNUMFLT || e->ravi_type == RAVI_TNUMBER ? RAVI_TNUMINT : RAVI_TANY;
       break;
     case OP_LEN:
       e->u.info = luaK_codeABC(fs, OP_LEN, 0, r, 0);
@@ -1302,7 +1306,7 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
       break;
     case OP_UNM:
       e->u.info = luaK_codeABC(fs, OP_UNM, 0, r, 0);
-      if (e->ravi_type != RAVI_TNUMINT && e->ravi_type != RAVI_TNUMFLT) {
+      if (e->ravi_type != RAVI_TNUMINT && e->ravi_type != RAVI_TNUMFLT && e->ravi_type != RAVI_TNUMBER) {
         e->ravi_type = RAVI_TANY;
       }
       break;
@@ -1334,51 +1338,60 @@ static void codebinexpval (FuncState *fs, OpCode op,
 #define RAVI_OPCODE_GENERIC(op, t) OP_##op
 #define RAVI_COMMUTATIVE(op, t) luaK_codeABC(fs, t(op, FI), 0, rk2, rk1)
 #define RAVI_NON_COMMUTATIVE(op, t) luaK_codeABC(fs, t(op, IF), 0, rk1, rk2)
-#define RAVI_GEN_ARITH(op, co, ii, t)                          \
-  case OP_##op:                                                \
-    if (e1->ravi_type == RAVI_TNUMFLT) {                       \
-      if (e2->ravi_type == RAVI_TNUMFLT) {                     \
-        e1->u.info = luaK_codeABC(fs, t(op, FF), 0, rk1, rk2); \
-        e1->ravi_type = RAVI_TNUMFLT;                          \
-        break;                                                 \
-      }                                                        \
-      else if (e2->ravi_type == RAVI_TNUMINT) {                \
-        e1->u.info = luaK_codeABC(fs, t(op, FI), 0, rk1, rk2); \
-        e1->ravi_type = RAVI_TNUMFLT;                          \
-        break;                                                 \
-      }                                                        \
-    }                                                          \
-    else if (e1->ravi_type == RAVI_TNUMINT) {                  \
-      if (e2->ravi_type == RAVI_TNUMFLT) {                     \
-        e1->u.info = co(op, t);                                \
-        e1->ravi_type = RAVI_TNUMFLT;                          \
-        break;                                                 \
-      }                                                        \
-      else if (e2->ravi_type == RAVI_TNUMINT) {                \
-        e1->u.info = luaK_codeABC(fs, t(op, II), 0, rk1, rk2); \
-        e1->ravi_type = ii;                                    \
-        break;                                                 \
-      }                                                        \
-    }                                                          \
-    e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);       \
-    e1->ravi_type = RAVI_TANY;                                 \
+#define RAVI_GEN_ARITH(op, co, ii, t)                                                                             \
+  case OP_##op:                                                                                                   \
+    if (e1->ravi_type == RAVI_TNUMFLT) {                                                                          \
+      if (e2->ravi_type == RAVI_TNUMFLT) {                                                                        \
+        e1->u.info = luaK_codeABC(fs, t(op, FF), 0, rk1, rk2);                                                    \
+        e1->ravi_type = RAVI_TNUMFLT;                                                                             \
+        break;                                                                                                    \
+      }                                                                                                           \
+      else if (e2->ravi_type == RAVI_TNUMINT) {                                                                   \
+        e1->u.info = luaK_codeABC(fs, t(op, FI), 0, rk1, rk2);                                                    \
+        e1->ravi_type = RAVI_TNUMFLT;                                                                             \
+        break;                                                                                                    \
+      }                                                                                                           \
+    }                                                                                                             \
+    else if (e1->ravi_type == RAVI_TNUMINT) {                                                                     \
+      if (e2->ravi_type == RAVI_TNUMFLT) {                                                                        \
+        e1->u.info = co(op, t);                                                                                   \
+        e1->ravi_type = RAVI_TNUMFLT;                                                                             \
+        break;                                                                                                    \
+      }                                                                                                           \
+      else if (e2->ravi_type == RAVI_TNUMINT) {                                                                   \
+        e1->u.info = luaK_codeABC(fs, t(op, II), 0, rk1, rk2);                                                    \
+        e1->ravi_type = ii;                                                                                       \
+        break;                                                                                                    \
+      }                                                                                                           \
+    }                                                                                                             \
+    e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                                                          \
+    if ((e1->ravi_type == RAVI_TNUMFLT || e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMBER) &&      \
+        (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT || e2->ravi_type == RAVI_TNUMBER)) {      \
+      e1->ravi_type = (ii == RAVI_TNUMINT) && (e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMBER) && \
+                              (e2->ravi_type == RAVI_TNUMINT || e2->ravi_type == RAVI_TNUMBER)                    \
+                          ? RAVI_TNUMBER                                                                          \
+                          : RAVI_TNUMFLT;                                                                         \
+    }                                                                                                             \
+    else {                                                                                                        \
+      e1->ravi_type = RAVI_TANY;                                                                                  \
+    }                                                                                                             \
     break
 
-#define RAVI_GEN_INT_OP(op)                                                      \
-  case OP_##op:                                                                  \
-    if (e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {        \
-      e1->u.info = luaK_codeABC(fs, OP_RAVI_##op##_II, 0, rk1, rk2);             \
-      e1->ravi_type = RAVI_TNUMINT;                                              \
-    }                                                                            \
-    else if ((e1->ravi_type == RAVI_TNUMFLT || e1->ravi_type == RAVI_TNUMINT) && \
-             (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT)) { \
-      e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                       \
-      e1->ravi_type = RAVI_TNUMINT;                                              \
-    }                                                                            \
-    else {                                                                       \
-      e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                       \
-      e1->ravi_type = RAVI_TANY;                                                 \
-    }                                                                            \
+#define RAVI_GEN_INT_OP(op)                                                                                       \
+  case OP_##op:                                                                                                   \
+    if (e1->ravi_type == RAVI_TNUMINT && e2->ravi_type == RAVI_TNUMINT) {                                         \
+      e1->u.info = luaK_codeABC(fs, OP_RAVI_##op##_II, 0, rk1, rk2);                                              \
+      e1->ravi_type = RAVI_TNUMINT;                                                                               \
+    }                                                                                                             \
+    else if ((e1->ravi_type == RAVI_TNUMFLT || e1->ravi_type == RAVI_TNUMINT || e1->ravi_type == RAVI_TNUMBER) && \
+             (e2->ravi_type == RAVI_TNUMFLT || e2->ravi_type == RAVI_TNUMINT || e2->ravi_type == RAVI_TNUMBER)) { \
+      e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                                                        \
+      e1->ravi_type = RAVI_TNUMINT;                                                                               \
+    }                                                                                                             \
+    else {                                                                                                        \
+      e1->u.info = luaK_codeABC(fs, OP_##op, 0, rk1, rk2);                                                        \
+      e1->ravi_type = RAVI_TANY;                                                                                  \
+    }                                                                                                             \
     break
 
   switch (op) {
@@ -1654,41 +1667,35 @@ void luaK_posfix (FuncState *fs, BinOpr op,
                   expdesc *e1, expdesc *e2, int line) {
   switch (op) {
     case OPR_AND: {
-      lua_assert(e1->t == NO_JUMP);  /* list closed by 'luK_infix' */
+      lua_assert(e1->t == NO_JUMP); /* list closed by 'luK_infix' */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->f, e1->f);
-      if (e1->ravi_type == RAVI_TNIL) {
-        /* nil and something is still nil. */
-        e2->ravi_type = RAVI_TNIL;
-      }
-      else if (e1->ravi_type == RAVI_TBOOLEAN || e1->ravi_type == RAVI_TANY) {
-        /* In these cases the 'and' can go both ways. */
-        if (e2->ravi_type != e1->ravi_type)
-          e2->ravi_type = RAVI_TANY;
-      }
-      else {
-        /* Nothing to do here, since the first arg is always truish and therefore the second arg will be used every
-         * time. */
+      if (ravi_is_falsish(e1->ravi_type)) {
+        if (!ravi_is_falsish(e2->ravi_type))
+          e2->ravi_type |= RAVI_TTAG_FALSISH;
       }
       *e1 = *e2;
       break;
     }
     case OPR_OR: {
-      lua_assert(e1->f == NO_JUMP);  /* list closed by 'luK_infix' */
+      lua_assert(e1->f == NO_JUMP); /* list closed by 'luK_infix' */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->t, e1->t);
-      if (e1->ravi_type == RAVI_TNIL) {
-        /* Nothing to do here, since the first arg is always truish and therefore the second arg will be used every
-         * time. */
-      }
-      else if (e1->ravi_type == RAVI_TBOOLEAN || e1->ravi_type == RAVI_TANY) {
-        /* In these cases the 'or' can go both ways. */
-        if (e2->ravi_type != e1->ravi_type)
-          e2->ravi_type = RAVI_TANY;
+      if (!ravi_is_falsish(e1->ravi_type)) {
+        e2->ravi_type = e1->ravi_type;
       }
       else {
-        /* In this case the first argument is truish and will be the return from 'or' */
-        e2->ravi_type = e1->ravi_type;
+        ravitype_t left = e1->ravi_type & ~RAVI_TTAG_FALSISH;
+        ravitype_t right = e2->ravi_type & ~RAVI_TTAG_FALSISH;
+        if (left != right) {
+          if ((left == RAVI_TNUMBER || left == RAVI_TNUMFLT || left == RAVI_TNUMINT) &&
+              (right == RAVI_TNUMBER || right == RAVI_TNUMFLT || right == RAVI_TNUMINT)) {
+            e2->ravi_type = RAVI_TNUMBER | (e2->ravi_type & RAVI_TTAG_FALSISH);
+          }
+          else {
+            e2->ravi_type = RAVI_TANY;
+          }
+        }
       }
       *e1 = *e2;
       break;

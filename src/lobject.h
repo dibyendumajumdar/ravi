@@ -65,7 +65,9 @@ typedef enum {
   RAVI_TSTRING,        /* string */
   RAVI_TNIL,           /* NIL */
   RAVI_TBOOLEAN,       /* boolean */
-  RAVI_TUSERDATA       /* userdata or lightuserdata */
+  RAVI_TUSERDATA,      /* userdata or lightuserdata */
+  RAVI_TNUMBER,        /* either an integer or a number */
+  RAVI_TTAG_FALSISH = 0x80
 } ravitype_t;
 
 /*

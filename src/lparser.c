@@ -68,6 +68,7 @@ void ravi_set_debuglevel(int level) { ravi_parser_debug = level; }
 
 /* RAVI - return the type name */
 const char *raviY_typename(ravitype_t tt) {
+  tt &= ~RAVI_TTAG_FALSISH;
   switch (tt) {
   case RAVI_TNIL:
     return "nil";
@@ -89,6 +90,8 @@ const char *raviY_typename(ravitype_t tt) {
     return "userdata";
   case RAVI_TTABLE:
     return "table";
+  case RAVI_TNUMBER:
+    return "number|float";
   default:
     return "?";
   }

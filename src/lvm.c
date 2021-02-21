@@ -1205,31 +1205,22 @@ void luaV_finishOp (lua_State *L) {
     Protect(luaV_finishset(L,t,k,v,slot)); }
 
 int raviV_checktype(lua_State *L, TValue *input, ravitype_t type, TString *usertype) {
-  if (type == RAVI_TANY)
-    return 1;
-  if (type == RAVI_TNIL && ttisnil(input))
-    return 1;
-  if (type == RAVI_TBOOLEAN && ttisboolean(input))
-    return 1;
-  if (type == RAVI_TNUMINT && ttisinteger(input))
-    return 1;
-  if (type == RAVI_TNUMFLT && ttisfloat(input))
-    return 1;
-  if (type == RAVI_TARRAYINT && ttisiarray(input))
-    return 1;
-  if (type == RAVI_TARRAYFLT && ttisfarray(input))
-    return 1;
-  if (type == RAVI_TTABLE && ttisLtable(input))
-    return 1;
-  if (type == RAVI_TSTRING && ttisstring(input))
-    return 1;
-  if (type == RAVI_TFUNCTION && ttisclosure(input))
-    return 1;
-  if (type == RAVI_TUSERDATA) {
-    if (raviV_check_usertype(L, usertype, input))
-      return 1;
+  if ((type & RAVI_TTAG_FALSISH) && (l_isfalse(input))) return 1;
+  switch(type & ~RAVI_TTAG_FALSISH) {
+    case RAVI_TANY: return 1;
+    case RAVI_TNIL: return ttisnil(input);
+    case RAVI_TBOOLEAN: return ttisnil(input) || ttisboolean(input);
+    case RAVI_TNUMINT: return ttisinteger(input);
+    case RAVI_TNUMFLT: return ttisfloat(input);
+    case RAVI_TARRAYINT: return ttisiarray(input);
+    case RAVI_TARRAYFLT: return ttisfarray(input);
+    case RAVI_TTABLE: return ttisLtable(input);
+    case RAVI_TSTRING: return ttisnil(input) || ttisstring(input);
+    case RAVI_TFUNCTION: return ttisnil(input) || ttisclosure(input);
+    case RAVI_TUSERDATA: return raviV_check_usertype(L, usertype, input);
+    case RAVI_TNUMBER: return ttisinteger(input) || ttisfloat(input);
+    default: lua_assert(0);
   }
-  return 0;
 }
 
 int raviV_check_usertype(lua_State *L, TString *name, const TValue *o)
