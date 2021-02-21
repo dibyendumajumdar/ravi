@@ -192,12 +192,12 @@ static ravi_type_map ravi_map_old_type_to_new(lu_byte type) {
     case 2: return RAVI_TM_FLOAT;
     case 3: return RAVI_TM_INTEGER_ARRAY;
     case 4: return RAVI_TM_FLOAT_ARRAY;
-    case 5: return RAVI_TM_FUNCTION | RAVI_TM_NIL;
+    case 5: return RAVI_TM_FUNCTION_OR_NIL;
     case 6: return RAVI_TM_TABLE;
-    case 7: return RAVI_TM_STRING | RAVI_TM_NIL;
+    case 7: return RAVI_TM_STRING_OR_NIL;
     case 8: return RAVI_TM_NIL;
-    case 9: return RAVI_TM_BOOLEAN | RAVI_TM_NIL;
-    case 10: return RAVI_TM_USERDATA | RAVI_TM_NIL;
+    case 9: return RAVI_TM_BOOLEAN_OR_NIL;
+    case 10: return RAVI_TM_USERDATA_OR_NIL;
     default: return RAVI_TM_ANY;
   }
 }

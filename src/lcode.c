@@ -700,11 +700,11 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
           break;
         default:
           luaK_codeABC(fs, OP_MOVE, reg, e->u.info, 0);
-          if (ravi_type == (RAVI_TM_STRING | RAVI_TM_NIL))
+          if (ravi_type == RAVI_TM_STRING_OR_NIL)
             luaK_codeABC(fs, OP_RAVI_TOSTRING, reg, 0, 0);
-          else if (ravi_type == (RAVI_TM_FUNCTION | RAVI_TM_NIL))
+          else if (ravi_type == RAVI_TM_FUNCTION_OR_NIL)
             luaK_codeABC(fs, OP_RAVI_TOCLOSURE, reg, 0, 0);
-          else if (ravi_type == (RAVI_TM_USERDATA | RAVI_TM_NIL) && usertype)
+          else if (ravi_type == RAVI_TM_USERDATA_OR_NIL && usertype)
             luaK_codeABx(fs, OP_RAVI_TOTYPE, reg, luaK_stringK(fs, usertype));
           break;
         }
@@ -869,9 +869,9 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
        var->ravi_type_map == RAVI_TM_FLOAT_ARRAY ||
        var->ravi_type_map == RAVI_TM_INTEGER_ARRAY ||
        var->ravi_type_map == RAVI_TM_TABLE ||
-       var->ravi_type_map == (RAVI_TM_STRING | RAVI_TM_NIL) ||
-       var->ravi_type_map == (RAVI_TM_FUNCTION | RAVI_TM_NIL) ||
-       var->ravi_type_map == (RAVI_TM_USERDATA | RAVI_TM_NIL))) {
+       var->ravi_type_map == RAVI_TM_STRING_OR_NIL ||
+       var->ravi_type_map == RAVI_TM_FUNCTION_OR_NIL ||
+       var->ravi_type_map == RAVI_TM_USERDATA_OR_NIL)) {
     /* handled by MOVEI, MOVEF, MOVEIARRAY, MOVEFARRAY at runtime */
     return;
   }
@@ -913,8 +913,8 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       "Invalid assignment: %s expected",
       var->ravi_type_map == RAVI_TM_TABLE ? "table" : (var->ravi_type_map == RAVI_TM_FLOAT_ARRAY ? "number[]" : "integer[]")));
   }
-  else if (var->ravi_type_map == (RAVI_TM_STRING | RAVI_TM_NIL)) {
-    if ((ex_ravi_type_map & ~(RAVI_TM_STRING | RAVI_TM_NIL)) == 0)
+  else if (var->ravi_type_map == RAVI_TM_STRING_OR_NIL) {
+    if ((ex_ravi_type_map & ~RAVI_TM_STRING_OR_NIL) == 0)
       return;
     luaX_syntaxerror(
       fs->ls,
@@ -922,8 +922,8 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       fs->ls->L,
       "Invalid assignment: string expected"));
   }
-  else if (var->ravi_type_map == (RAVI_TM_FUNCTION | RAVI_TM_NIL)) {
-    if ((ex_ravi_type_map & ~(RAVI_TM_FUNCTION | RAVI_TM_NIL)) == 0)
+  else if (var->ravi_type_map == RAVI_TM_FUNCTION_OR_NIL) {
+    if ((ex_ravi_type_map & ~RAVI_TM_FUNCTION_OR_NIL) == 0)
       return;
     luaX_syntaxerror(
       fs->ls,
@@ -931,8 +931,8 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       fs->ls->L,
       "Invalid assignment: function expected"));
   }
-  else if (var->ravi_type_map == (RAVI_TM_USERDATA | RAVI_TM_NIL)) {
-    if ((ex_ravi_type_map & ~(RAVI_TM_USERDATA | RAVI_TM_NIL)) == 0 &&
+  else if (var->ravi_type_map == RAVI_TM_USERDATA_OR_NIL) {
+    if ((ex_ravi_type_map & ~RAVI_TM_USERDATA_OR_NIL) == 0 &&
       (!(ex_ravi_type_map & RAVI_TM_USERDATA) || (var->usertype && var->usertype == ex->usertype)))
       return;
     luaX_syntaxerror(
@@ -948,8 +948,8 @@ static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex,
   OpCode op = OP_SETUPVAL;
   if ((var->ravi_type_map == RAVI_TM_INTEGER || var->ravi_type_map == RAVI_TM_FLOAT ||
        var->ravi_type_map == RAVI_TM_INTEGER_ARRAY || var->ravi_type_map == RAVI_TM_FLOAT_ARRAY ||
-       var->ravi_type_map == RAVI_TM_TABLE || var->ravi_type_map == (RAVI_TM_STRING | RAVI_TM_NIL) ||
-       var->ravi_type_map == (RAVI_TM_FUNCTION | RAVI_TM_NIL) || var->ravi_type_map == (RAVI_TM_USERDATA | RAVI_TM_NIL)) &&
+       var->ravi_type_map == RAVI_TM_TABLE || var->ravi_type_map == RAVI_TM_STRING_OR_NIL ||
+       var->ravi_type_map == RAVI_TM_FUNCTION_OR_NIL || var->ravi_type_map == RAVI_TM_USERDATA_OR_NIL) &&
       ex->ravi_type_map & ~var->ravi_type_map) {
     if (var->ravi_type_map == RAVI_TM_INTEGER)
       op = OP_RAVI_SETUPVALI;
@@ -961,11 +961,11 @@ static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex,
       op = OP_RAVI_SETUPVAL_FARRAY;
     else if (var->ravi_type_map == RAVI_TM_TABLE)
       op = OP_RAVI_SETUPVALT;
-    else if (var->ravi_type_map == (RAVI_TM_STRING | RAVI_TM_NIL))
+    else if (var->ravi_type_map == RAVI_TM_STRING_OR_NIL)
       luaK_codeABC(fs, OP_RAVI_TOSTRING, reg, 0, 0);
-    else if (var->ravi_type_map == (RAVI_TM_FUNCTION | RAVI_TM_NIL))
+    else if (var->ravi_type_map == RAVI_TM_FUNCTION_OR_NIL)
       luaK_codeABC(fs, OP_RAVI_TOCLOSURE, reg, 0, 0);
-    else if (var->ravi_type_map == (RAVI_TM_USERDATA | RAVI_TM_NIL)) {
+    else if (var->ravi_type_map == RAVI_TM_USERDATA_OR_NIL) {
       TString *usertype = fs->f->upvalues[var->u.info].usertype;
       luaK_codeABx(fs, OP_RAVI_TOTYPE, reg, luaK_stringK(fs, usertype));
     }
@@ -1547,17 +1547,17 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
         opcode = OP_RAVI_TOTAB;
         tm = RAVI_TM_TABLE;
       }
-      else if (op == OPR_TO_STRING && (e->ravi_type_map & (~(RAVI_TM_STRING | RAVI_TM_NIL))) != 0) {
+      else if (op == OPR_TO_STRING && (e->ravi_type_map & (~RAVI_TM_STRING_OR_NIL)) != 0) {
         opcode = OP_RAVI_TOSTRING;
-        tm = RAVI_TM_STRING | RAVI_TM_NIL;
+        tm = RAVI_TM_STRING_OR_NIL;
       }
-      else if (op == OPR_TO_CLOSURE && (e->ravi_type_map & (~(RAVI_TM_FUNCTION | RAVI_TM_NIL))) != 0) {
+      else if (op == OPR_TO_CLOSURE && (e->ravi_type_map & (~RAVI_TM_FUNCTION_OR_NIL)) != 0) {
         opcode = OP_RAVI_TOCLOSURE;
-        tm = RAVI_TM_FUNCTION | RAVI_TM_NIL;
+        tm = RAVI_TM_FUNCTION_OR_NIL;
       }
       else if (op == OPR_TO_TYPE) {
         opcode = OP_RAVI_TOTYPE;
-        tm = RAVI_TM_USERDATA | RAVI_TM_NIL;
+        tm = RAVI_TM_USERDATA_OR_NIL;
       }
       else {
         /* nothing to do*/

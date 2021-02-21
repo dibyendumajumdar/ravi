@@ -90,23 +90,27 @@ typedef uint32_t ravi_type_map;
 #define RAVI_TM_BOOLEAN (RAVI_TM_FALSE | RAVI_TM_TRUE)
 #define RAVI_TM_NUMBER (RAVI_TM_INTEGER | RAVI_TM_FLOAT)
 #define RAVI_TM_INDEXABLE (RAVI_TM_INTEGER_ARRAY | RAVI_TM_FLOAT_ARRAY | RAVI_TM_TABLE)
+#define RAVI_TM_STRING_OR_NIL (RAVI_TM_STRING | RAVI_TM_NIL)
+#define RAVI_TM_FUNCTION_OR_NIL (RAVI_TM_FUNCTION | RAVI_TM_NIL)
+#define RAVI_TM_BOOLEAN_OR_NIL (RAVI_TM_BOOLEAN | RAVI_TM_NIL)
+#define RAVI_TM_USERDATA_OR_NIL (RAVI_TM_USERDATA | RAVI_TM_NIL)
 #define RAVI_TM_ANY (~0)
 
 typedef enum {
-  RAVI_TNIL = RAVI_TM_NIL,           /* NIL */
-  RAVI_TNUMINT = RAVI_TM_INTEGER,    /* integer number */
-  RAVI_TNUMFLT = RAVI_TM_FLOAT,        /* floating point number */
+  RAVI_TNIL = RAVI_TM_NIL,        /* NIL */
+  RAVI_TNUMINT = RAVI_TM_INTEGER, /* integer number */
+  RAVI_TNUMFLT = RAVI_TM_FLOAT,   /* floating point number */
   RAVI_TNUMBER = RAVI_TM_NUMBER,
-  RAVI_TARRAYINT = RAVI_TM_INTEGER_ARRAY,      /* array of ints */
-  RAVI_TARRAYFLT = RAVI_TM_FLOAT_ARRAY,      /* array of doubles */
-  RAVI_TTABLE = RAVI_TM_TABLE,         /* Lua table */
-  RAVI_TSTRING = RAVI_TM_STRING | RAVI_TM_NIL,        /* string */
-  RAVI_TFUNCTION = RAVI_TM_FUNCTION | RAVI_TM_NIL,      /* Lua or C Function */
-  RAVI_TBOOLEAN = RAVI_TM_BOOLEAN | RAVI_TM_NIL,       /* boolean */
+  RAVI_TARRAYINT = RAVI_TM_INTEGER_ARRAY,   /* array of ints */
+  RAVI_TARRAYFLT = RAVI_TM_FLOAT_ARRAY,     /* array of doubles */
+  RAVI_TTABLE = RAVI_TM_TABLE,              /* Lua table */
+  RAVI_TSTRING = RAVI_TM_STRING_OR_NIL,     /* string */
+  RAVI_TFUNCTION = RAVI_TM_FUNCTION_OR_NIL, /* Lua or C Function */
+  RAVI_TBOOLEAN = RAVI_TM_BOOLEAN_OR_NIL,   /* boolean */
   RAVI_TTRUE = RAVI_TM_TRUE,
   RAVI_TFALSE = RAVI_TM_FALSE,
-  RAVI_TUSERDATA = RAVI_TM_USERDATA | RAVI_TM_NIL,      /* userdata or lightuserdata */
-  RAVI_TANY = RAVI_TM_ANY,      /* Lua dynamic type */
+  RAVI_TUSERDATA = RAVI_TM_USERDATA_OR_NIL, /* userdata or lightuserdata */
+  RAVI_TANY = RAVI_TM_ANY,                  /* Lua dynamic type */
 } ravitype_t;
 
 /*
