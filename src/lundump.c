@@ -37,6 +37,7 @@ typedef struct {
   lua_State *L;
   ZIO *Z;
   const char *name;
+  lu_byte version;
 } LoadState;
 
 
@@ -174,12 +175,30 @@ static void LoadUpvalues (LoadState *S, Proto *f) {
   f->sizeupvalues = n;
   for (i = 0; i < n; i++) {
     f->upvalues[i].name = NULL;
+    f->upvalues[i].ravi_type_map = RAVI_TM_ANY;
     f->upvalues[i].usertype = NULL;
   }
   for (i = 0; i < n; i++) {
     f->upvalues[i].instack = LoadByte(S);
     f->upvalues[i].idx = LoadByte(S);
     // FIXME f->upvalues[i].usertype = LoadString(S);
+  }
+}
+
+static ravi_type_map ravi_map_old_type_to_new(lu_byte type) {
+  switch (type) {
+    case 0: return RAVI_TM_ANY;
+    case 1: return RAVI_TM_INTEGER;
+    case 2: return RAVI_TM_FLOAT;
+    case 3: return RAVI_TM_INTEGER_ARRAY;
+    case 4: return RAVI_TM_FLOAT_ARRAY;
+    case 5: return RAVI_TM_FUNCTION | RAVI_TM_NIL;
+    case 6: return RAVI_TM_TABLE;
+    case 7: return RAVI_TM_STRING | RAVI_TM_NIL;
+    case 8: return RAVI_TM_NIL;
+    case 9: return RAVI_TM_BOOLEAN | RAVI_TM_NIL;
+    case 10: return RAVI_TM_USERDATA | RAVI_TM_NIL;
+    default: return RAVI_TM_ANY;
   }
 }
 
@@ -200,13 +219,13 @@ static void LoadDebug (LoadState *S, Proto *f) {
     f->locvars[i].varname = LoadString(S);
     f->locvars[i].startpc = LoadInt(S);
     f->locvars[i].endpc = LoadInt(S);
-    f->locvars[i].ravi_type_map = LoadInt(S);
+    f->locvars[i].ravi_type_map = S->version == 0 ? ravi_map_old_type_to_new(LoadByte(S)) : LoadInt(S);
     f->locvars[i].usertype = LoadString(S);
   }
   n = LoadInt(S);
   for (i = 0; i < n; i++) {
     f->upvalues[i].name = LoadString(S);
-    f->upvalues[i].ravi_type_map = LoadInt(S);
+    f->upvalues[i].ravi_type_map = S->version == 0 ? ravi_map_old_type_to_new(LoadByte(S)) : LoadInt(S);
     f->upvalues[i].usertype = LoadString(S);
   }
 }
@@ -250,7 +269,8 @@ static void checkHeader (LoadState *S) {
   checkliteral(S, LUA_SIGNATURE + 1, "not a");  /* 1st char already checked */
   if (LoadByte(S) != LUAC_VERSION)
     error(S, "version mismatch in");
-  if (LoadByte(S) != LUAC_FORMAT)
+  S->version = LoadByte(S);
+  if (S->version > LUAC_FORMAT)
     error(S, "format mismatch in");
   checkliteral(S, LUAC_DATA, "corrupted");
   checksize(S, int);
