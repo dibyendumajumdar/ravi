@@ -1568,8 +1568,8 @@ LUA_API void *lua_newuserdata (lua_State *L, size_t size) {
 
 
 static const char *aux_upvalue (StkId fi, int n, TValue **val,
-                                CClosure **owner, UpVal **uv, ravitype_t *type, TString **usertype) {
-  *type = RAVI_TANY;
+                                CClosure **owner, UpVal **uv, ravi_type_map *type, TString **usertype) {
+  *type = RAVI_TM_ANY;
   *usertype = NULL;
   switch (ttype(fi)) {
     case LUA_TCCL: {  /* C closure */
@@ -1587,7 +1587,7 @@ static const char *aux_upvalue (StkId fi, int n, TValue **val,
       *val = f->upvals[n-1]->v;
       if (uv) *uv = f->upvals[n - 1];
       name = p->upvalues[n-1].name;
-      *type = p->upvalues[n - 1].ravi_type;
+      *type = p->upvalues[n - 1].ravi_type_map;
       *usertype = p->upvalues[n - 1].usertype;
       return (name == NULL) ? "(*no name)" : getstr(name);
     }
@@ -1598,7 +1598,7 @@ static const char *aux_upvalue (StkId fi, int n, TValue **val,
 
 LUA_API const char *lua_getupvalue (lua_State *L, int funcindex, int n) {
   const char *name;
-  ravitype_t type;
+  ravi_type_map type;
   TString *usertype;
   TValue *val = NULL;  /* to avoid warnings */
   lua_lock(L);
@@ -1611,14 +1611,13 @@ LUA_API const char *lua_getupvalue (lua_State *L, int funcindex, int n) {
   return name;
 }
 
-
 LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
   const char *name;
   TValue *val = NULL;  /* to avoid warnings */
   CClosure *owner = NULL;
   UpVal *uv = NULL;
   StkId fi;
-  ravitype_t type; /* RAVI upvalue type will be obtained if possible */
+  ravi_type_map type; /* RAVI upvalue type will be obtained if possible */
   TString *usertype;
   lua_lock(L);
   fi = index2addr(L, funcindex);
@@ -1647,13 +1646,13 @@ LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
 }
 
 
-static UpVal **getupvalref (lua_State *L, int fidx, int n, LClosure **pf, ravitype_t *type) {
+static UpVal **getupvalref (lua_State *L, int fidx, int n, LClosure **pf, ravi_type_map *type) {
   LClosure *f;
   StkId fi = index2addr(L, fidx);
   api_check(L, ttisLclosure(fi), "Lua function expected");
   f = clLvalue(fi);
   api_check(L, (1 <= n && n <= f->p->sizeupvalues), "invalid upvalue index");
-  if (type) *type = f->p->upvalues[n - 1].ravi_type;
+  if (type) *type = f->p->upvalues[n - 1].ravi_type_map;
   if (pf) *pf = f;
   return &f->upvals[n - 1];  /* get its upvalue pointer */
 }
@@ -1681,7 +1680,7 @@ LUA_API void *lua_upvalueid (lua_State *L, int fidx, int n) {
 LUA_API void lua_upvaluejoin (lua_State *L, int fidx1, int n1,
                                             int fidx2, int n2) {
   LClosure *f1;
-  ravitype_t t1, t2;
+  ravi_type_map t1, t2;
   UpVal **up1 = getupvalref(L, fidx1, n1, &f1, &t1);
   UpVal **up2 = getupvalref(L, fidx2, n2, NULL, &t2);
   if (t1 == t2 && *up1 != *up2) {

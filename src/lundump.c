@@ -183,6 +183,23 @@ static void LoadUpvalues (LoadState *S, Proto *f) {
   }
 }
 
+static ravi_type_map ravi_old_type_to_type_map(lu_byte old) {
+  switch (old) {
+    case 0: return RAVI_TM_ANY;
+    case 1: return RAVI_TM_INTEGER;
+    case 2: return RAVI_TM_FLOAT;
+    case 3: return RAVI_TM_INTEGER_ARRAY;
+    case 4: return RAVI_TM_FLOAT_ARRAY;
+    case 5: return RAVI_TM_FUNCTION | RAVI_TM_NIL;
+    case 6: return RAVI_TM_TABLE;
+    case 7: return RAVI_TM_STRING | RAVI_TM_NIL;
+    case 8: return RAVI_TM_NIL;
+    case 9: return RAVI_TM_BOOLEAN | RAVI_TM_NIL;
+    case 10: return RAVI_TM_USERDATA | RAVI_TM_NIL;
+    default: return RAVI_TM_ANY;
+  }
+}
+
 
 static void LoadDebug (LoadState *S, Proto *f) {
   int i, n;
@@ -201,13 +218,13 @@ static void LoadDebug (LoadState *S, Proto *f) {
     f->locvars[i].varname = LoadString(S);
     f->locvars[i].startpc = LoadInt(S);
     f->locvars[i].endpc = LoadInt(S);
-    f->locvars[i].ravi_type = LoadByte(S);
+    f->locvars[i].ravi_type_map = ravi_old_type_to_type_map(LoadByte(S));
     f->locvars[i].usertype = LoadString(S);
   }
   n = LoadInt(S);
   for (i = 0; i < n; i++) {
     f->upvalues[i].name = LoadString(S);
-    f->upvalues[i].ravi_type = LoadByte(S);
+    f->upvalues[i].ravi_type_map = ravi_old_type_to_type_map(LoadByte(S));
     f->upvalues[i].usertype = LoadString(S);
   }
 }

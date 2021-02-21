@@ -147,10 +147,10 @@ static const char *findvararg (CallInfo *ci, int n, StkId *pos) {
 
 
 static const char *findlocal (lua_State *L, CallInfo *ci, int n,
-                              StkId *pos, ravitype_t *type, TString** usertype) {
+                              StkId *pos, ravi_type_map *type, TString** usertype) {
   const char *name = NULL;
   StkId base;
-  *type = RAVI_TANY;
+  *type = RAVI_TM_ANY;
   *usertype = NULL;
   if (isLua(ci)) {
     if (n < 0)  /* access to vararg values? */
@@ -176,7 +176,7 @@ static const char *findlocal (lua_State *L, CallInfo *ci, int n,
 
 LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
   const char *name;
-  ravitype_t type;
+  ravi_type_map type;
   TString *usertype;
   lua_lock(L);
   swapextra(L);
@@ -203,7 +203,7 @@ LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
 LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
   StkId pos = NULL;  /* to avoid warnings */
   const char *name;
-  ravitype_t type;
+  ravi_type_map type;
   TString* usertype;
   int compatible = 1;
   lua_lock(L);
@@ -215,7 +215,7 @@ LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
     ** not subvert the types of local variables
     */
     StkId input = L->top - 1;
-    int compatible = raviV_checktype(L, input, type, usertype);
+    int compatible = ravi_checktype(L, input, type, usertype);
     if (compatible) {
       setobjs2s(L, pos, L->top - 1);
       L->top--;  /* pop value */
@@ -452,7 +452,7 @@ static int findsetreg (Proto *p, int lastpc, int reg) {
 static const char *getobjname (Proto *p, int lastpc, int reg,
                                const char **name) {
   int pc;
-  ravitype_t type;
+  ravi_type_map type;
   TString *usertype;
   *name = luaF_getlocalname(p, reg + 1, lastpc, &type, &usertype);
   if (*name)  /* is a local? */
