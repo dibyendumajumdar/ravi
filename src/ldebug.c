@@ -215,7 +215,7 @@ LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
     ** not subvert the types of local variables
     */
     StkId input = L->top - 1;
-    int compatible = ravi_checktype(L, input, type, usertype);
+    int compatible = raviV_checktype(L, input, type, usertype);
     if (compatible) {
       setobjs2s(L, pos, L->top - 1);
       L->top--;  /* pop value */

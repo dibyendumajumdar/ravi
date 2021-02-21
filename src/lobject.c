@@ -33,24 +33,6 @@
 LUAI_DDEF const TValue luaO_nilobject_ = {NILCONSTANT};
 
 
-int ravi_checktype(lua_State *L, StkId input, ravi_type_map type, TString* usertype) {
-  if (type == RAVI_TM_ANY) return 1;
-  if (type & RAVI_TM_NIL && ttisnil(input)) return 1;
-  if (type & RAVI_TM_FALSE && ttisboolean(input) && l_isfalse(input)) return 1;
-  if (type & RAVI_TM_TRUE && ttisboolean(input) && !l_isfalse(input)) return 1;
-  if (type & RAVI_TM_INTEGER && ttisinteger(input)) return 1;
-  if (type & RAVI_TM_FLOAT && ttisfloat(input)) return 1;
-  if (type & RAVI_TM_INTEGER_ARRAY && ttisiarray(input)) return 1;
-  if (type & RAVI_TM_FLOAT_ARRAY && ttisfarray(input)) return 1;
-  if (type & RAVI_TM_TABLE && ttisLtable(input)) return 1;
-  if (type & RAVI_TM_STRING && ttisstring(input)) return 1;
-  if (type & RAVI_TM_FUNCTION && ttisclosure(input)) return 1;
-  if (type & RAVI_TM_USERDATA) {
-    if (raviV_check_usertype(L, usertype, input)) return 1;
-  }
-  return 0;
-}
-
 /*
 ** converts an integer to a "floating point byte", represented as
 ** (eeeeexxx), where the real value is (1xxx) * 2^(eeeee - 1) if
