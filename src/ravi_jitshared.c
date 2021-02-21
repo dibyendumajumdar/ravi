@@ -1214,8 +1214,8 @@ static void initfn(struct function *fn, struct lua_State *L, struct Proto *p, co
   fn->options = options;
   snprintf(fn->fname, sizeof fn->fname, "%s", fname);
   fn->jmps = calloc(p->sizecode, sizeof fn->jmps[0]);
-  if (p->sizelocvars)
-    fn->locals = calloc(p->sizelocvars, sizeof fn->locals[0]);
+  if (p->maxstacksize)
+    fn->locals = calloc(p->maxstacksize, sizeof fn->locals[0]);
   else
     fn->locals = NULL;
   membuff_init(&fn->prologue, strlen(Lua_header) + 4096);

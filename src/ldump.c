@@ -157,6 +157,13 @@ static void DumpDebug (const Proto *f, DumpState *D) {
   DumpVector(f->lineinfo, n, D);
   /* n = (D->strip) ? 0 : f->sizelocvars; */
   n = f->sizelocvars;
+  if (D->strip) {
+    for (i = n - 1; i >= 0; i--) {
+      if (f->locvars[i].ravi_type_map != RAVI_TM_ANY)
+        break;
+    }
+    n = i + 1;
+  }
   DumpInt(n, D);
   for (i = 0; i < n; i++) {
     DumpString((D->strip) ? NULL : f->locvars[i].varname, D);
@@ -167,6 +174,13 @@ static void DumpDebug (const Proto *f, DumpState *D) {
   }
   /* n = (D->strip) ? 0 : f->sizeupvalues; */
   n = f->sizeupvalues;
+  if (D->strip) {
+    for (i = n - 1; i >= 0; i--) {
+      if (f->upvalues[i].ravi_type_map != RAVI_TM_ANY)
+        break;
+    }
+    n = i + 1;
+  }
   DumpInt(n, D);
   for (i = 0; i < n; i++) {
     DumpString((D->strip) ? NULL : f->upvalues[i].name, D);

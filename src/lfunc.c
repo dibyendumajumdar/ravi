@@ -249,10 +249,10 @@ const char *luaF_getlocalname (const Proto *f, int local_number, int pc, ravi_ty
     if (pc < f->locvars[i].endpc) {  /* is variable active? */
       local_number--;
       if (local_number == 0) {
-        if (f->locvars[i].varname == NULL)
-          break;
         *type = f->locvars[i].ravi_type_map;
         *usertype = f->locvars[i].usertype;
+        if (f->locvars[i].varname == NULL)
+          return NULL;
         return getstr(f->locvars[i].varname);
       }
     }

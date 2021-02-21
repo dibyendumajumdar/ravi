@@ -367,7 +367,7 @@ do
   local header = string.pack("c5BBc6BBBBBj",
     "\27Ravi",                -- signature
     5*16 + 3,                -- version 5.3
-    0,                       -- format
+    1,                       -- format
     "\x19\x93\r\n\x1a\n",    -- data
     string.packsize("i"),    -- sizeof(int)
     string.packsize("T"),    -- sizeof(size_t)
