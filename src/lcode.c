@@ -874,10 +874,20 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
     /* handled by MOVEI, MOVEF, MOVEIARRAY, MOVEFARRAY at runtime */
     return;
   }
+  ravitype_t ex_ravi_type = ex->ravi_type;
+  if (ex->k == VINDEXED) {
+    if (ex_ravi_type == RAVI_TARRAYINT) {
+      ex_ravi_type = RAVI_TNUMINT;
+    }
+    else if (ex_ravi_type == RAVI_TARRAYFLT) {
+      ex_ravi_type = RAVI_TNUMFLT;
+    }
+    else {
+      ex_ravi_type = RAVI_TANY;
+    }
+  }
   if (var->ravi_type == RAVI_TNUMFLT) {
-    if (ex->ravi_type == RAVI_TNUMFLT)
-      return;
-    if (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYFLT)
+    if (ex_ravi_type == RAVI_TNUMFLT)
       return;
     luaX_syntaxerror(
       fs->ls,
@@ -886,22 +896,18 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       "Invalid assignment: number expected"));
   }
   else if (var->ravi_type == RAVI_TNUMINT) {
-    if (ex->ravi_type == RAVI_TNUMINT)
-      return;
-    if (ex->k == VINDEXED && ex->ravi_type == RAVI_TARRAYINT)
+    if (ex_ravi_type == RAVI_TNUMINT)
       return;
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
-      "Invalid assignment: integer expected",
-      var->ravi_type,
-      ex->ravi_type));
+      "Invalid assignment: integer expected"));
   }
   else if (var->ravi_type == RAVI_TARRAYFLT ||
            var->ravi_type == RAVI_TARRAYINT ||
            var->ravi_type == RAVI_TTABLE) {
-    if (ex->ravi_type == var->ravi_type && ex->k != VINDEXED)
+    if (ex_ravi_type == var->ravi_type)
       return;
     luaX_syntaxerror(
       fs->ls,
@@ -911,33 +917,33 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       var->ravi_type == RAVI_TTABLE ? "table" : (var->ravi_type == RAVI_TARRAYFLT ? "number[]" : "integer[]")));
   }
   else if (var->ravi_type == RAVI_TSTRING) {
-    if (ex->ravi_type == RAVI_TNIL || (ex->ravi_type == var->ravi_type && ex->k != VINDEXED))
+    if (ex_ravi_type == RAVI_TNIL || ex_ravi_type == RAVI_TSTRING)
       return;
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
-      "Invalid assignment: string expected"));      
+      "Invalid assignment: string expected"));
   }
   else if (var->ravi_type == RAVI_TFUNCTION) {
-    if (ex->ravi_type == RAVI_TNIL || (ex->ravi_type == var->ravi_type && ex->k != VINDEXED))
+    if (ex_ravi_type == RAVI_TNIL || ex_ravi_type == RAVI_TFUNCTION)
       return;
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
-      "Invalid assignment: function expected"));      
+      "Invalid assignment: function expected"));
   }
   else if (var->ravi_type == RAVI_TUSERDATA) {
-    if (ex->ravi_type == RAVI_TNIL || 
-        (ex->ravi_type == var->ravi_type && var->usertype && var->usertype == ex->usertype && ex->k != VINDEXED))
+    if (ex_ravi_type == RAVI_TNIL ||
+        (ex_ravi_type == RAVI_TUSERDATA && var->usertype && var->usertype == ex->usertype))
       return;
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
-      "Invalid assignment: usertype %s expected", (var->usertype ? getstr(var->usertype) : "UNKNOWN")));      
-  }  
+      "Invalid assignment: usertype %s expected", (var->usertype ? getstr(var->usertype) : "UNKNOWN")));
+  }
 }
 
 static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex,
