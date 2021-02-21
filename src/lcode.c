@@ -920,7 +920,7 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
-      "Invalid assignment: string expected"));      
+      "Invalid assignment: string expected"));
   }
   else if (var->ravi_type_map == (RAVI_TM_FUNCTION | RAVI_TM_NIL)) {
     if ((ex_ravi_type_map & ~(RAVI_TM_FUNCTION | RAVI_TM_NIL)) == 0)
@@ -929,7 +929,7 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
-      "Invalid assignment: function expected"));      
+      "Invalid assignment: function expected"));
   }
   else if (var->ravi_type_map == (RAVI_TM_USERDATA | RAVI_TM_NIL)) {
     if ((ex_ravi_type_map & ~(RAVI_TM_USERDATA | RAVI_TM_NIL)) == 0 &&
@@ -939,8 +939,8 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       fs->ls,
       luaO_pushfstring(
       fs->ls->L,
-      "Invalid assignment: usertype %s expected", (var->usertype ? getstr(var->usertype) : "UNKNOWN")));      
-  }  
+      "Invalid assignment: usertype %s expected", (var->usertype ? getstr(var->usertype) : "UNKNOWN")));
+  }
 }
 
 static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex,

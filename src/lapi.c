@@ -1630,7 +1630,7 @@ LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
     */
   
     StkId input = L->top - 1;
-    int compatible = ravi_checktype(L, input, type, usertype);
+    int compatible = raviV_checktype(L, input, type, usertype);
           
     if (!compatible)
       name = NULL;
