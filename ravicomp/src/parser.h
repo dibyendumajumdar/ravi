@@ -113,18 +113,64 @@ DECLARE_PTR_LIST(AstNodeList, AstNode);
 ** other types appear then they are all treated as ANY
 **/
 typedef enum {
-	RAVI_TANY = 0,	  /* Lua dynamic type */
-	RAVI_TNUMINT = 1, /* integer number */
-	RAVI_TNUMFLT,	  /* floating point number */
-	RAVI_TARRAYINT,	  /* array of ints */
-	RAVI_TARRAYFLT,	  /* array of doubles */
-	RAVI_TFUNCTION,	  /* Lua or C Function */
-	RAVI_TTABLE,	  /* Lua table */
-	RAVI_TSTRING,	  /* string */
-	RAVI_TNIL,	  /* NIL */
-	RAVI_TBOOLEAN,	  /* boolean */
-	RAVI_TUSERDATA,	  /* userdata or lightuserdata */
-	RAVI_TVARARGS     /* Not a real type - represents ... */
+	RAVI_TI_NIL,
+	RAVI_TI_FALSE,
+	RAVI_TI_TRUE,
+	RAVI_TI_INTEGER,
+	RAVI_TI_FLOAT,
+	RAVI_TI_INTEGER_ARRAY,
+	RAVI_TI_FLOAT_ARRAY,
+	RAVI_TI_TABLE,
+	RAVI_TI_STRING,
+	RAVI_TI_FUNCTION,
+	RAVI_TI_USERDATA,
+	RAVI_TI_OTHER,
+	RAVI_TI_VARARGS,
+} ravi_type_index;
+
+typedef uint32_t ravi_type_map;
+
+#define RAVI_TM_NIL (((ravi_type_map)1)<<RAVI_TI_NIL)
+#define RAVI_TM_FALSE (((ravi_type_map)1)<<RAVI_TI_FALSE)
+#define RAVI_TM_TRUE (((ravi_type_map)1)<<RAVI_TI_TRUE)
+#define RAVI_TM_INTEGER (((ravi_type_map)1)<<RAVI_TI_INTEGER)
+#define RAVI_TM_FLOAT (((ravi_type_map)1)<<RAVI_TI_FLOAT)
+#define RAVI_TM_INTEGER_ARRAY (((ravi_type_map)1)<<RAVI_TI_INTEGER_ARRAY)
+#define RAVI_TM_FLOAT_ARRAY (((ravi_type_map)1)<<RAVI_TI_FLOAT_ARRAY)
+#define RAVI_TM_TABLE (((ravi_type_map)1)<<RAVI_TI_TABLE)
+#define RAVI_TM_STRING (((ravi_type_map)1)<<RAVI_TI_STRING)
+#define RAVI_TM_FUNCTION (((ravi_type_map)1)<<RAVI_TI_FUNCTION)
+#define RAVI_TM_USERDATA (((ravi_type_map)1)<<RAVI_TI_USERDATA)
+#define RAVI_TM_OTHER (((ravi_type_map)1)<<RAVI_TI_OTHER)
+#define RAVI_TM_VARARGS (((ravi_type_map)1)<<RAVI_TI_VARARGS)
+
+#define RAVI_TM_FALSISH (RAVI_TM_NIL | RAVI_TM_FALSE)
+#define RAVI_TM_TRUISH (~RAVI_TM_FALSISH)
+#define RAVI_TM_BOOLEAN (RAVI_TM_FALSE | RAVI_TM_TRUE)
+#define RAVI_TM_NUMBER (RAVI_TM_INTEGER | RAVI_TM_FLOAT)
+#define RAVI_TM_INDEXABLE (RAVI_TM_INTEGER_ARRAY | RAVI_TM_FLOAT_ARRAY | RAVI_TM_TABLE)
+#define RAVI_TM_STRING_OR_NIL (RAVI_TM_STRING | RAVI_TM_NIL)
+#define RAVI_TM_FUNCTION_OR_NIL (RAVI_TM_FUNCTION | RAVI_TM_NIL)
+#define RAVI_TM_BOOLEAN_OR_NIL (RAVI_TM_BOOLEAN | RAVI_TM_NIL)
+#define RAVI_TM_USERDATA_OR_NIL (RAVI_TM_USERDATA | RAVI_TM_NIL)
+#define RAVI_TM_ANY (~0)
+
+typedef enum {
+	RAVI_TNIL = RAVI_TM_NIL,        /* NIL */
+	RAVI_TNUMINT = RAVI_TM_INTEGER, /* integer number */
+	RAVI_TNUMFLT = RAVI_TM_FLOAT,   /* floating point number */
+	RAVI_TNUMBER = RAVI_TM_NUMBER,
+	RAVI_TARRAYINT = RAVI_TM_INTEGER_ARRAY,   /* array of ints */
+	RAVI_TARRAYFLT = RAVI_TM_FLOAT_ARRAY,     /* array of doubles */
+	RAVI_TTABLE = RAVI_TM_TABLE,              /* Lua table */
+	RAVI_TSTRING = RAVI_TM_STRING_OR_NIL,     /* string */
+	RAVI_TFUNCTION = RAVI_TM_FUNCTION_OR_NIL, /* Lua or C Function */
+	RAVI_TBOOLEAN = RAVI_TM_BOOLEAN_OR_NIL,   /* boolean */
+	RAVI_TTRUE = RAVI_TM_TRUE,
+	RAVI_TFALSE = RAVI_TM_FALSE,
+	RAVI_TUSERDATA = RAVI_TM_USERDATA_OR_NIL, /* userdata or lightuserdata */
+	RAVI_TVARARGS = RAVI_TM_VARARGS,
+	RAVI_TANY = RAVI_TM_ANY,                  /* Lua dynamic type */
 } ravitype_t;
 
 /* Lua type info. We need to support user defined types too which are known by name */

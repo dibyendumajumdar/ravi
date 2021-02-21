@@ -204,7 +204,7 @@ typedef struct PseudoGenerator {
 } PseudoGenerator;
 
 struct Constant {
-	uint8_t type;	/* ravitype_t RAVI_TNUMINT, RAVI_TNUMFLT or RAVI_TSTRING */
+	uint16_t type;	/* ravitype_t RAVI_TNUMINT, RAVI_TNUMFLT or RAVI_TSTRING */
 	uint16_t index; /* index number starting from 0 assigned to each constant - acts like a reg num.
 			 * Each type will be assigned separate range */
 	union {

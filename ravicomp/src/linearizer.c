@@ -228,6 +228,7 @@ static const Constant *allocate_constant(Proc *proc, AstNode *node)
 {
 	assert(node->type == EXPR_LITERAL);
 	Constant c = {.type = node->literal_expr.type.type_code};
+	assert(c.type == node->literal_expr.type.type_code);
 	if (c.type == RAVI_TNUMINT)
 		c.i = node->literal_expr.u.i;
 	else if (c.type == RAVI_TNUMFLT)
@@ -240,6 +241,7 @@ static const Constant *allocate_constant(Proc *proc, AstNode *node)
 static const Constant *allocate_integer_constant(Proc *proc, int i)
 {
 	Constant c = {.type = RAVI_TNUMINT, .i = i};
+	assert(c.type == RAVI_TNUMINT);
 	return add_constant(proc, &c);
 }
 
@@ -290,6 +292,7 @@ Instruction *raviX_last_instruction(BasicBlock *block)
 static const Constant *allocate_string_constant(Proc *proc, const StringObject *s)
 {
 	Constant c = {.type = RAVI_TSTRING, .s = s};
+	assert(c.type == RAVI_TSTRING);
 	return add_constant(proc, &c);
 }
 
