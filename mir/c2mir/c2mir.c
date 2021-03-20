@@ -6572,7 +6572,7 @@ static struct decl_spec check_decl_spec (c2m_ctx_t c2m_ctx, node_t r, node_t dec
         int neg_p = FALSE;
 
         n->attr = enum_type = reg_malloc (c2m_ctx, sizeof (struct enum_type));
-        enum_type->enum_basic_type = TP_INT;
+        enum_type->enum_basic_type = TP_INT;                                           // ???
         for (node_t en = NL_HEAD (enum_list->u.ops); en != NULL; en = NL_NEXT (en)) {  // ??? id
           node_t id, const_expr;
           symbol_t sym;
@@ -6662,7 +6662,7 @@ static struct decl_spec check_decl_spec (c2m_ctx_t c2m_ctx, node_t r, node_t dec
             error (c2m_ctx, POS (op), "constant value in _Alignas is not of an integer type");
           } else if (!signed_integer_type_p (cexpr->type)
                      || !supported_alignment_p (cexpr->u.i_val)) {
-            error (c2m_ctx, POS (op), "constant value in _Alignas specifies unspported alignment");
+            error (c2m_ctx, POS (op), "constant value in _Alignas specifies unsupported alignment");
           } else if (invalid_alignment (cexpr->u.i_val)) {
             error (c2m_ctx, POS (op), "unsupported alignmnent");
           } else {
@@ -7089,6 +7089,11 @@ static void check_assignment_types (c2m_ctx_t c2m_ctx, struct type *left, struct
                                   : "assignment discards a type qualifier from a pointer");
       (c2m_options->pedantic_p ? error : warning) (c2m_ctx, POS (assign_node), "%s", msg);
     }
+  } else {
+    msg = (code == N_CALL ? "passing assign incompatible value"
+                          : code == N_RETURN ? "returning assign incompatible value"
+                                             : "assignment of incompatible value");
+    error (c2m_ctx, POS (assign_node), "%s", msg);
   }
 }
 
@@ -7658,9 +7663,9 @@ static void create_decl (c2m_ctx_t c2m_ctx, node_t scope, node_t decl_node,
       error (c2m_ctx, POS (initializer), "initialization of incomplete type variable");
     return;
   }
-  if (decl->decl_spec.linkage != N_IGNORE && scope != top_scope) {
-    error (c2m_ctx, POS (initializer),
-           "initialization of %s in block scope with external or internal linkage", id->u.s.s);
+  if (decl->decl_spec.linkage == N_EXTERN && scope != top_scope) {
+    error (c2m_ctx, POS (initializer), "initialization of %s in block scope with external linkage",
+           id->u.s.s);
     return;
   }
   check (c2m_ctx, initializer, decl_node);
@@ -8679,8 +8684,8 @@ static void check (c2m_ctx_t c2m_ctx, node_t r, node_t context) {
       *e->type = *t2;
     } else if ((t2->mode == TM_PTR && null_const_p (e3, t3))
                || (t3->mode == TM_PTR && null_const_p (e2, t2))) {
-      e->type = null_const_p (e3, t2) ? t3 : t2;
-    } else if (t2->mode != TM_PTR && t3->mode != TM_PTR) {
+      e->type = null_const_p (e2, t2) ? t3 : t2;
+    } else if (t2->mode != TM_PTR || t3->mode != TM_PTR) {
       error (c2m_ctx, POS (r), "incompatible types in true and false parts of cond-expression");
       break;
     } else if (compatible_types_p (t2, t3, TRUE)) {
@@ -8700,18 +8705,14 @@ static void check (c2m_ctx_t c2m_ctx, node_t r, node_t context) {
       e->type->pos_node = r;
       e->type->u.ptr_type = create_type (c2m_ctx, NULL);
       e->type->u.ptr_type->pos_node = r;
-      if (null_const_p (e2, t2)) {
-        e->type->u.ptr_type = e2->type->u.ptr_type;
-      } else if (null_const_p (e3, t3)) {
-        e->type->u.ptr_type = e3->type->u.ptr_type;
-      } else {
-        if (t2->u.ptr_type->type_qual.atomic_p || t3->u.ptr_type->type_qual.atomic_p) {
-          error (c2m_ctx, POS (r),
-                 "pointer to atomic type in true or false parts of cond-expression");
-        }
-        e->type->u.ptr_type->mode = TM_BASIC;
-        e->type->u.ptr_type->u.basic_type = TP_VOID;
+      assert (!null_const_p (e2, t2) && !null_const_p (e3, t3));
+      e->type->u.ptr_type = e3->type->u.ptr_type;
+      if (t2->u.ptr_type->type_qual.atomic_p || t3->u.ptr_type->type_qual.atomic_p) {
+        error (c2m_ctx, POS (r),
+               "pointer to atomic type in true or false parts of cond-expression");
       }
+      e->type->u.ptr_type->mode = TM_BASIC;
+      e->type->u.ptr_type->u.basic_type = TP_VOID;
       e->type->u.ptr_type->type_qual
         = type_qual_union (&t2->u.ptr_type->type_qual, &t3->u.ptr_type->type_qual);
     } else {
