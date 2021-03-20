@@ -56,6 +56,7 @@ if (COMPILER_OPT_NO_IPA_CP_CLONE_SUPPORTED AND NOT CMAKE_C_FLAGS MATCHES "-fno-i
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-ipa-cp-clone")
 endif()
 
+include(GNUInstallDirs)
 add_library(c2mir ${MIR_BUILD_TYPE}
     ${MIR_HEADERS}
     ${MIR_SRCS}
