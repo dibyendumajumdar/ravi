@@ -47,7 +47,7 @@ typedef double lua_Number;
 /* Initialize the compiler state */
 /* During compilation all data structures are stored in the compiler state */
 RAVICOMP_EXPORT CompilerState *raviX_init_compiler(void);
-/* Destroy the compiler state */
+/* Destroy the compiler state, and free up all resources */
 RAVICOMP_EXPORT void raviX_destroy_compiler(CompilerState *compiler);
 
 /* ------------------------ LEXICAL ANALYZER API -------------------------------*/
@@ -114,9 +114,9 @@ enum TokenType {
  */
 typedef struct StringObject {
 	uint32_t len;	  /* length of the string */
-	int32_t reserved; /* if is this a keyword then token id else -1 */
+	int32_t reserved; /* if is this a keyword then enum TokenType value else -1 */
 	uint32_t hash;	  /* hash value of the string */
-	const char *str;  /* string data */
+	const char *str;  /* string data, may not be 0 terminated */
 } StringObject;
 
 /*
@@ -130,7 +130,7 @@ typedef union {
 
 typedef struct Token {
 	int token; /* Token value or character value; token values start from FIRST_RESERVED which is 257, values < 256
-		      are characters */
+		      are ascii text characters */
 	SemInfo seminfo; /* Literal associated with the token, only valid when token is a literal or an identifier, i.e.
 			    token is > TOK_EOS */
 } Token;
@@ -161,24 +161,27 @@ typedef struct {
 } TextBuffer;
 
 /* all strings are interned and stored in a hash set, strings may have embedded
- * 0 bytes therefore explicit length is necessary
+ * 0 bytes therefore explicit length is necessary. This function will create a new string
+ * object if one doesn't already exist, else it will return the existing string object that
+ * matches the input string.
  */
 RAVICOMP_EXPORT const StringObject *raviX_create_string(CompilerState *compiler_state, const char *s,
 								uint32_t len);
 
-/* Initialize lexical analyser. Takes as input a buffer containing Lua/Ravi source and the source name */
+/* Initialize lexical analyser. Takes as input a buffer containing Lua/Ravi source and the source name. */
 RAVICOMP_EXPORT LexerState *raviX_init_lexer(CompilerState *compiler_state, const char *buf,
 						     size_t buflen, const char *source_name);
 /* Gets the public part of the lexer data structure to allow access the current token. Note that the returned
- * value should be treated as readonly data structure
+ * value should be treated as readonly data structure.
  */
 RAVICOMP_EXPORT const LexerInfo *raviX_get_lexer_info(LexerState *ls);
 /* Retrieves the next token and saves it is LexState structure. If a lookahead was set then that is retrieved
- * (and reset to EOS) else the next token is retrieved
+ * (and reset to EOS) else the next token is retrieved.
+ * LexerInfo->t gives you the current token, including any literal value.
  */
 RAVICOMP_EXPORT void raviX_next(LexerState *ls);
 /* Retrieves the next token and sets it as the lookahead. This means that a next call will get the lookahead.
- * Returns the token id.
+ * Returns the token id which is either the text ascii code (if below 257) or else the enum TokenType.
  */
 RAVICOMP_EXPORT int raviX_lookahead(LexerState *ls);
 /* Convert a token to text format. The token will be written to current position in mb. */

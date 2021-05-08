@@ -40,6 +40,7 @@ int raviX_compile(struct Ravi_CompilerInterface *compiler_interface)
 	}
 	compiler_interface->generated_code = NULL;
 	CompilerState *container = raviX_init_compiler();
+	LinearizerState* linearizer = raviX_init_linearizer(container);
 	rc = raviX_parse(container, compiler_interface->source, compiler_interface->source_len,
 			 compiler_interface->source_name);
 	if (rc != 0) {
@@ -56,11 +57,10 @@ int raviX_compile(struct Ravi_CompilerInterface *compiler_interface)
 		compiler_interface->error_message(compiler_interface->context, raviX_get_last_error(container));
 		goto L_exit;
 	}
-	LinearizerState *linearizer = raviX_init_linearizer(container);
 	rc = raviX_ast_linearize(linearizer);
 	if (rc != 0) {
 		compiler_interface->error_message(compiler_interface->context, raviX_get_last_error(container));
-		goto L_linend;
+		goto L_exit;
 	}
 	raviX_construct_cfg(linearizer->main_proc);
 	raviX_remove_unreachable_blocks(linearizer);
@@ -79,10 +79,8 @@ int raviX_compile(struct Ravi_CompilerInterface *compiler_interface)
 		compiler_interface->generated_code = buf.buf;
 	}
 
-L_linend:
-	raviX_destroy_linearizer(linearizer);
-
 L_exit:
+	raviX_destroy_linearizer(linearizer);
 	raviX_destroy_compiler(container);
 
 	return rc;

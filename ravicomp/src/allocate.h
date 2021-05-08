@@ -44,15 +44,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
+
+extern void *raviX_malloc(size_t size);
+extern void *raviX_calloc(size_t nmemb, size_t size);
+extern void *raviX_realloc(void *ptr, size_t size);
+extern void raviX_free(void *ptr);
 
 typedef struct AllocationBlob AllocationBlob;
 struct AllocationBlob {
 	AllocationBlob *next;
 	size_t left, offset;
-	unsigned char data[];
+	unsigned char data[1];
 };
 
 /*
@@ -64,12 +69,12 @@ struct AllocationBlob {
 #define CHUNK 32768
 
 typedef struct Allocator {
-	const char *name_;
-	AllocationBlob *blobs_;
-	size_t size_;
-	unsigned int alignment_;
-	unsigned int chunking_;
-	void *freelist_;
+	const char *name;
+	AllocationBlob *blobs;
+	size_t size;
+	unsigned int alignment;
+	unsigned int chunking;
+	void *freelist;
 	size_t allocations, total_bytes, useful_bytes;
 } Allocator;
 
@@ -96,38 +101,42 @@ initialized to zeros.
 */
 extern void *raviX_realloc_array(void *oldp, size_t element_size, size_t old_n, size_t new_n);
 /*
-Delete n elements starting at i from array a of size array_size, where sizeof(each element) is element_size.
-The freed up space will be zero initialized. Returns the new array_size.
+Delete num_to_delete elements starting at starting_index from array of size array_size, where sizeof(each element) is
+element_size. The freed up space will be zero initialized. Returns the new array_size.
 */
-extern size_t raviX_del_array_element(void *p, size_t element_size, size_t array_size, size_t i, size_t n);
+extern size_t raviX_del_array_element(void *p, size_t element_size, size_t array_size, size_t starting_index,
+				      size_t num_to_delete);
 
-/* structure of a node */
+/* We often want an array of some type with dynamic memory management. The following macros let us
+ * create such array types and provide simple ways of pushing an element to the array.
+ */
 #define DECLARE_ARRAY(array_type, TYPE)                                                                                \
 	typedef struct array_type {                                                                                    \
-		unsigned allocated;                                                                                    \
+		unsigned capacity;                                                                                     \
 		unsigned count;                                                                                        \
 		TYPE *data;                                                                                            \
 	} array_type
-#define array_push(A, value)                                                                                           \
+#define array_push(A, type, value)                                                                                     \
 	{                                                                                                              \
-		if ((A)->count == (A)->allocated) {                                                                    \
-			unsigned newsize = (A)->allocated += 10;                                                       \
-			(A)->data = raviX_realloc_array((A)->data, sizeof((A)->data[0]), (A)->allocated, newsize);     \
-			(A)->allocated = newsize;                                                                      \
+		if ((A)->count == (A)->capacity) {                                                                     \
+			unsigned newsize = (A)->capacity += 10;                                                        \
+			(A)->data =                                                                                    \
+			    (type *)raviX_realloc_array((A)->data, sizeof((A)->data[0]), (A)->capacity, newsize);      \
+			(A)->capacity = newsize;                                                                       \
 		}                                                                                                      \
 		(A)->data[(A)->count++] = value;                                                                       \
 	}
 #define array_clearmem(A)                                                                                              \
 	{                                                                                                              \
-		raviX_realloc_array((A)->data, sizeof((A)->data[0]), (A)->allocated, 0);                               \
+		raviX_realloc_array((A)->data, sizeof((A)->data[0]), (A)->capacity, 0);                                \
 		(A)->data = NULL;                                                                                      \
-		(A)->allocated = 0;                                                                                    \
+		(A)->capacity = 0;                                                                                     \
 		(A)->count = 0;                                                                                        \
 	}
 
-#ifdef __cplusplus
-}
-#endif
+//#ifdef __cplusplus
+//}
+//#endif
 
 #endif
 

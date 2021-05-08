@@ -61,19 +61,19 @@ static inline void mir_bitset_assert_fail (const char *op) {
 void raviX_bitset_create2(BitSet *bm, size_t init_bits_num) {
 	bm->els_num = 0;
 	bm->size = (init_bits_num + BITMAP_WORD_BITS - 1) / BITMAP_WORD_BITS;
-	bm->varr = calloc(bm->size, sizeof(bitset_el_t));
+	bm->varr = (bitset_el_t *) raviX_calloc(bm->size, sizeof(bitset_el_t));
 }
 
 void raviX_bitset_destroy(BitSet * bm)
 {
-	free(bm->varr);
+	raviX_free(bm->varr);
 }
 
 static void bitset_expand (BitSet * bm, size_t nb) {
 	size_t new_len = (nb + BITMAP_WORD_BITS - 1) / BITMAP_WORD_BITS;
 	if (new_len > bm->els_num) {
 		if (new_len > bm->size) {
-			bm->varr = raviX_realloc_array(bm->varr, sizeof(bitset_el_t), bm->size, new_len);
+			bm->varr = (bitset_el_t *) raviX_realloc_array(bm->varr, sizeof(bitset_el_t), bm->size, new_len);
 			bm->size = new_len;
 		}
 		bm->els_num = new_len;

@@ -733,53 +733,44 @@ enum {
 
 static inline Pseudo *get_operand(Instruction *insn, unsigned idx)
 {
-	return (Pseudo *)raviX_ptrlist_nth_entry((struct ptr_list *)insn->operands, idx);
+	return (Pseudo *)raviX_ptrlist_nth_entry((PtrList *)insn->operands, idx);
 }
 
 static inline Pseudo *get_first_operand(Instruction *insn)
 {
-	return (Pseudo *)raviX_ptrlist_first((struct ptr_list *)insn->operands);
+	return (Pseudo *)raviX_ptrlist_first((PtrList *)insn->operands);
 }
 
 static inline Pseudo *get_last_operand(Instruction *insn)
 {
-	return (Pseudo *)raviX_ptrlist_last((struct ptr_list *)insn->operands);
+	return (Pseudo *)raviX_ptrlist_last((PtrList *)insn->operands);
 }
 
 static inline Pseudo *get_target(Instruction *insn, unsigned idx)
 {
-	return (Pseudo *)raviX_ptrlist_nth_entry((struct ptr_list *)insn->targets, idx);
+	return (Pseudo *)raviX_ptrlist_nth_entry((PtrList *)insn->targets, idx);
 }
 
 static inline Pseudo *get_first_target(Instruction *insn)
 {
-	return (Pseudo *)raviX_ptrlist_first((struct ptr_list *)insn->targets);
+	return (Pseudo *)raviX_ptrlist_first((PtrList *)insn->targets);
 }
 
 static inline Pseudo *get_last_target(Instruction *insn)
 {
-	return (Pseudo *)raviX_ptrlist_last((struct ptr_list *)insn->targets);
+	return (Pseudo *)raviX_ptrlist_last((PtrList *)insn->targets);
 }
 
 static inline unsigned get_num_operands(Instruction *insn)
 {
-	return raviX_ptrlist_size((const struct ptr_list *)insn->operands);
+	return raviX_ptrlist_size((const PtrList *)insn->operands);
 }
 
-static inline unsigned get_num_targets(Instruction *insn)
-{
-	return raviX_ptrlist_size((const struct ptr_list *)insn->targets);
-}
+static inline unsigned get_num_targets(Instruction *insn) { return raviX_ptrlist_size((const PtrList *)insn->targets); }
 
-static inline unsigned get_num_instructions(BasicBlock *bb)
-{
-	return raviX_ptrlist_size((const struct ptr_list *)bb->insns);
-}
+static inline unsigned get_num_instructions(BasicBlock *bb) { return raviX_ptrlist_size((const PtrList *)bb->insns); }
 
-static inline unsigned get_num_childprocs(Proc *proc)
-{
-	return raviX_ptrlist_size((const struct ptr_list *)proc->procs);
-}
+static inline unsigned get_num_childprocs(Proc *proc) { return raviX_ptrlist_size((const PtrList *)proc->procs); }
 
 /**
  * Helper to generate a list of primitive C variables representing temp int/float values.
@@ -888,21 +879,22 @@ static unsigned compute_register_from_base(struct function *fn, const Pseudo *ps
 static bool refers_to_same_register(struct function *fn, Pseudo *src, Pseudo *dst)
 {
 	static bool reg_pseudos[] = {
-	    [PSEUDO_SYMBOL] = true,	/* An object of type lua_symbol representing local var or upvalue */
-	    [PSEUDO_TEMP_FLT] = false,	/* A floating point temp - may also be used for locals that don't escape */
-	    [PSEUDO_TEMP_INT] = false,	/* An integer temp - may also be used for locals that don't escape */
-	    [PSEUDO_TEMP_BOOL] = false, /* An (bool) integer temp - may also be used for locals that don't escape */
-	    [PSEUDO_TEMP_ANY] = true,	/* A temp of any type - will always be on Lua stack */
-	    [PSEUDO_CONSTANT] = false,	/* A literal value */
-	    [PSEUDO_PROC] = false,	/* A proc / function */
-	    [PSEUDO_NIL] = false,
-	    [PSEUDO_TRUE] = false,
-	    [PSEUDO_FALSE] = false,
-	    [PSEUDO_BLOCK] = false,	  /* Points to a basic block, used as targets for jumps */
-	    [PSEUDO_RANGE] = true,	  /* Represents a range of registers from a certain starting register */
-	    [PSEUDO_RANGE_SELECT] = true, /* Picks a certain register from a range */
-	    /* TODO we need a type for var args */
-	    [PSEUDO_LUASTACK] = true /* Specifies a Lua stack position - not used by linearizer - for use by codegen */
+	    /* [PSEUDO_SYMBOL] =*/true,	    /* An object of type lua_symbol representing local var or upvalue */
+	    /* [PSEUDO_TEMP_FLT] =*/false,  /* A floating point temp - may also be used for locals that don't escape */
+	    /* [PSEUDO_TEMP_INT] =*/false,  /* An integer temp - may also be used for locals that don't escape */
+	    /* [PSEUDO_TEMP_BOOL] =*/false, /* An (bool) integer temp - may also be used for locals that don't escape */
+	    /* [PSEUDO_TEMP_ANY] =*/true,   /* A temp of any type - will always be on Lua stack */
+	    /* [PSEUDO_CONSTANT] =*/false,  /* A literal value */
+	    /* [PSEUDO_PROC] =*/false,	    /* A proc / function */
+	    /* [PSEUDO_NIL] =*/false,
+	    /* [PSEUDO_TRUE] =*/false,
+	    /* [PSEUDO_FALSE] =*/false,
+	    /* [PSEUDO_BLOCK] =*/false,	      /* Points to a basic block, used as targets for jumps */
+	    /* [PSEUDO_RANGE] =*/true,	      /* Represents a range of registers from a certain starting register */
+	    /* [PSEUDO_RANGE_SELECT] =*/true, /* Picks a certain register from a range */
+					      /* TODO we need a type for var args */
+	    /* [PSEUDO_LUASTACK] =*/true /* Specifies a Lua stack position - not used by linearizer - for use by codegen
+					  */
 	};
 	if (!reg_pseudos[src->type] || !reg_pseudos[dst->type])
 		return false;
@@ -1189,13 +1181,13 @@ static int emit_op_ret(struct function *fn, Instruction *insn)
 {
 	// TODO Only call luaF_close if needed (i.e. some variable escaped)
 #ifdef RAVI_DEFER_STATEMENT
-	if (raviX_ptrlist_size((const struct ptr_list *)fn->proc->procs) > 0) {
+	if (raviX_ptrlist_size((const PtrList *)fn->proc->procs) > 0) {
 		raviX_buffer_add_string(&fn->body, "{\nluaF_close(L, base, LUA_OK);\n");
 		raviX_buffer_add_string(&fn->body, "base = ci->u.l.base;\n");
 		raviX_buffer_add_string(&fn->body, "}\n");
 	}
 #else
-	if (raviX_ptrlist_size((const struct ptr_list *)fn->proc->procs) > 0) {
+	if (raviX_ptrlist_size((const PtrList *)fn->proc->procs) > 0) {
 		raviX_buffer_add_string(&fn->body, "luaF_close(L, base);\n");
 	}
 #endif
@@ -1227,11 +1219,10 @@ static int emit_op_ret(struct function *fn, Instruction *insn)
 	Pseudo *pseudo;
 	int i = 0;
 	raviX_buffer_add_string(&fn->body, " int j = 0;\n");
-	FOR_EACH_PTR(insn->operands, pseudo)
+	FOR_EACH_PTR(insn->operands, Pseudo, pseudo)
 	{
 		if (pseudo->type != PSEUDO_RANGE) {
-			Pseudo dummy_dest = {.type = PSEUDO_LUASTACK,
-						    .stackidx = i}; /* will go to stackbase[i] */
+			Pseudo dummy_dest = {.type = PSEUDO_LUASTACK, .stackidx = i}; /* will go to stackbase[i] */
 			raviX_buffer_add_fstring(&fn->body, " if (%d < wanted) {\n", i);
 			/* FIXME last argument might be a range pseudo */
 			emit_move(fn, pseudo, &dummy_dest);
@@ -1848,13 +1839,13 @@ static int emit_op_toflt(struct function *fn, Instruction *insn)
 
 static int emit_op_tousertype(struct function *fn, Instruction *insn)
 {
-	Pseudo *typename = get_first_operand(insn);
+	Pseudo *type_name = get_first_operand(insn);
 	raviX_buffer_add_string(&fn->body, "{\n");
 	raviX_buffer_add_string(&fn->body, " TValue *ra = ");
 	emit_reg_accessor(fn, get_first_target(insn), 0);
 	raviX_buffer_add_string(&fn->body, ";\n if (!ttisnil(ra)) {\n");
 	raviX_buffer_add_string(&fn->body, "  TValue *rb = ");
-	emit_reg_accessor(fn, typename, 0);
+	emit_reg_accessor(fn, type_name, 0);
 	raviX_buffer_add_string(&fn->body, ";\n");
 	raviX_buffer_add_string(&fn->body,
 				"  if (!ttisshrstring(rb) || !raviV_check_usertype(L, tsvalue(rb), ra)) {\n");
@@ -1902,7 +1893,7 @@ static int emit_op_closure(struct function *fn, Instruction *insn)
 	Proc *cursor;
 	int parent_index = -1;
 	int i = 0;
-	FOR_EACH_PTR(parent_proc->procs, cursor)
+	FOR_EACH_PTR(parent_proc->procs, Proc, cursor)
 	{
 		if (cursor->id == proc->id) {
 			assert(cursor == proc);
@@ -2457,7 +2448,7 @@ static int output_instructions(struct function *fn, InstructionList *list)
 {
 	Instruction *insn;
 	int rc = 0;
-	FOR_EACH_PTR(list, insn)
+	FOR_EACH_PTR(list, Instruction, insn)
 	{
 		rc = output_instruction(fn, insn);
 		if (rc != 0)
@@ -2496,12 +2487,12 @@ static int output_basic_block(struct function *fn, BasicBlock *bb)
 
 static inline unsigned get_num_params(Proc *proc)
 {
-	return raviX_ptrlist_size((const struct ptr_list *)proc->function_expr->function_expr.args);
+	return raviX_ptrlist_size((const PtrList *)proc->function_expr->function_expr.args);
 }
 
 static inline unsigned get_num_upvalues(Proc *proc)
 {
-	return raviX_ptrlist_size((const struct ptr_list *)proc->function_expr->function_expr.upvalues);
+	return raviX_ptrlist_size((const PtrList *)proc->function_expr->function_expr.upvalues);
 }
 
 /* Generate code for setting up a Lua Proto structure, recursively for each child function */
@@ -2542,7 +2533,7 @@ static int generate_lua_proc(Proc *proc, TextBuffer *mb)
 	raviX_buffer_add_fstring(mb, " f->sizeupvalues = %u;\n", get_num_upvalues(proc));
 	int i = 0;
 	LuaSymbol *sym;
-	FOR_EACH_PTR(proc->function_expr->function_expr.upvalues, sym)
+	FOR_EACH_PTR(proc->function_expr->function_expr.upvalues, LuaSymbol, sym)
 	{
 		raviX_buffer_add_fstring(mb, " f->upvalues[%u].instack = %u;\n", i, sym->upvalue.is_in_parent_stack);
 		raviX_buffer_add_fstring(mb, " f->upvalues[%u].idx = %u;\n", i, sym->upvalue.parent_upvalue_index);
@@ -2562,7 +2553,7 @@ static int generate_lua_proc(Proc *proc, TextBuffer *mb)
 		raviX_buffer_add_string(mb, "   f->p[i] = NULL;\n");
 		Proc *childproc;
 		i = 0;
-		FOR_EACH_PTR(proc->procs, childproc)
+		FOR_EACH_PTR(proc->procs, Proc, childproc)
 		{
 			raviX_buffer_add_fstring(mb, " f->p[%u] = luaF_newproto(L);\n", i);
 			raviX_buffer_add_string(mb, "{ \n");
@@ -2619,7 +2610,7 @@ static int generate_C_code(struct Ravi_CompilerInterface *ravi_interface, Proc *
 		return rc;
 
 	Proc *childproc;
-	FOR_EACH_PTR(proc->procs, childproc)
+	FOR_EACH_PTR(proc->procs, Proc, childproc)
 	{
 		rc = generate_C_code(ravi_interface, childproc, mb);
 		if (rc != 0)
@@ -2659,7 +2650,7 @@ static unsigned get_upvalue_idx(Proc *proc, LuaSymbol *upvalue_symbol, bool *in_
 	/* Search for the upvalue in parent function */
 	LuaSymbol *sym;
 	AstNode *this_function = upvalue_symbol->upvalue.target_function;
-	FOR_EACH_PTR(this_function->function_expr.upvalues, sym)
+	FOR_EACH_PTR(this_function->function_expr.upvalues, LuaSymbol, sym)
 	{
 		if (sym->upvalue.target_variable == upvalue_symbol->upvalue.target_variable) {
 			// Same variable
@@ -2678,7 +2669,7 @@ static void compute_upvalue_attributes(Proc *proc)
 {
 	LuaSymbol *sym;
 	AstNode *this_function = proc->function_expr;
-	FOR_EACH_PTR(this_function->function_expr.upvalues, sym)
+	FOR_EACH_PTR(this_function->function_expr.upvalues, LuaSymbol, sym)
 	{
 		bool in_stack = false;
 		unsigned idx = get_upvalue_idx(proc, sym, &in_stack);
@@ -2695,7 +2686,7 @@ static void preprocess_upvalues(Proc *proc)
 {
 	compute_upvalue_attributes(proc);
 	Proc *child_proc;
-	FOR_EACH_PTR(proc->procs, child_proc) { preprocess_upvalues(child_proc); }
+	FOR_EACH_PTR(proc->procs, Proc, child_proc) { preprocess_upvalues(child_proc); }
 	END_FOR_EACH_PTR(childproc);
 }
 
@@ -2705,14 +2696,17 @@ static void debug_message(void *context, const char *filename, long long line, c
 }
 static void error_message(void *context, const char *message) { fprintf(stdout, "ERROR: %s\n", message); }
 
-static struct Ravi_CompilerInterface stub_compilerInterface = {.context = NULL,
-							       .source_name = "input",
-							       .source = NULL,
-							       .source_len = 0,
-							       .generated_code = NULL,
-							       .main_func_name = {"setup"},
-							       .error_message = error_message,
-							       .debug_message = debug_message};
+static struct Ravi_CompilerInterface stub_compilerInterface = {
+    .context = NULL,
+    .source = NULL,
+    .source_len = 0,
+    .source_name = "input",
+    .compiler_options = "",
+    .main_func_name = {"setup"},
+    .generated_code = NULL,
+    .debug_message = debug_message,
+    .error_message = error_message,
+};
 
 /* Generate and compile C code */
 int raviX_generate_C(LinearizerState *linearizer, TextBuffer *mb, struct Ravi_CompilerInterface *ravi_interface)

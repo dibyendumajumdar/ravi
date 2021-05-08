@@ -42,30 +42,65 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void *blob_alloc(size_t size)
+void *raviX_malloc(size_t size)
 {
 	void *ptr;
 	ptr = malloc(size);
-	if (ptr != NULL)
-		memset(ptr, 0, size);
+        if (!ptr) {
+                fprintf(stderr, "out of memory\n");
+                exit(1);
+        }
+	return ptr;
+}
+
+void *raviX_calloc(size_t nmemb, size_t size)
+{
+	void *ptr;
+	ptr = calloc(nmemb, size);
+        if (!ptr) {
+                fprintf(stderr, "out of memory\n");
+                exit(1);
+        }
+	return ptr;
+}
+
+void *raviX_realloc(void *p, size_t size)
+{
+	void *ptr;
+	ptr = realloc(p, size);
+        if (!ptr) {
+                fprintf(stderr, "out of memory\n");
+                exit(1);
+        }
+	return ptr;
+}
+
+void raviX_free(void *ptr)
+{
+    free(ptr);
+}
+
+static void *blob_alloc(size_t size)
+{
+	void *ptr = raviX_malloc(size);
+	memset(ptr, 0, size);
 	return ptr;
 }
 
 static void blob_free(void *addr, size_t size)
 {
 	(void)size;
-	free(addr);
+	raviX_free(addr);
 }
 
-void raviX_allocator_init(Allocator *A, const char *name, size_t size, unsigned int alignment,
-			  unsigned int chunking)
+void raviX_allocator_init(Allocator *A, const char *name, size_t size, unsigned int alignment, unsigned int chunking)
 {
-	A->name_ = name;
-	A->blobs_ = NULL;
-	A->size_ = size;
-	A->alignment_ = alignment;
-	A->chunking_ = chunking;
-	A->freelist_ = NULL;
+	A->name = name;
+	A->blobs = NULL;
+	A->size = size;
+	A->alignment = alignment;
+	A->chunking = chunking;
+	A->freelist = NULL;
 	A->allocations = 0;
 	A->total_bytes = 0;
 	A->useful_bytes = 0;
@@ -73,14 +108,14 @@ void raviX_allocator_init(Allocator *A, const char *name, size_t size, unsigned 
 
 void *raviX_allocator_allocate(Allocator *A, size_t extra)
 {
-	size_t size = extra + A->size_;
-	size_t alignment = A->alignment_;
-	AllocationBlob *blob = A->blobs_;
+	size_t size = extra + A->size;
+	size_t alignment = A->alignment;
+	AllocationBlob *blob = A->blobs;
 	void *retval;
 
-	if (size > A->chunking_) {
+	if (size > A->chunking) {
 		fprintf(stderr, "allocation failure: requested size %lld is larger than maximum chunk size %lld\n",
-			(long long)size, (long long) A->chunking_);
+			(long long)size, (long long)A->chunking);
 		exit(1);
 	}
 	/*
@@ -90,10 +125,10 @@ void *raviX_allocator_allocate(Allocator *A, size_t extra)
 	 * Don't try to free allocators that don't follow
 	 * these rules.
 	 */
-	if (A->freelist_) {
-		void **p = (void **)A->freelist_;
+	if (A->freelist) {
+		void **p = (void **)A->freelist;
 		retval = p;
-		A->freelist_ = *p;
+		A->freelist = *p;
 		memset(retval, 0, size);
 		return retval;
 	}
@@ -102,16 +137,12 @@ void *raviX_allocator_allocate(Allocator *A, size_t extra)
 	A->useful_bytes += size;
 	size = (size + alignment - 1) & ~(alignment - 1);
 	if (!blob || blob->left < size) {
-		size_t offset, chunking = A->chunking_;
+		size_t offset, chunking = A->chunking;
 		AllocationBlob *newblob = (AllocationBlob *)blob_alloc(chunking);
-		if (!newblob) {
-			fprintf(stderr, "out of memory\n");
-			exit(1);
-		}
 		A->total_bytes += chunking;
 		newblob->next = blob;
 		blob = newblob;
-		A->blobs_ = newblob;
+		A->blobs = newblob;
 		offset = offsetof(AllocationBlob, data);
 		offset = (offset + alignment - 1) & ~(alignment - 1);
 		blob->left = chunking - offset;
@@ -126,57 +157,57 @@ void *raviX_allocator_allocate(Allocator *A, size_t extra)
 void raviX_allocator_free(Allocator *A, void *entry)
 {
 	void **p = (void **)entry;
-	*p = A->freelist_;
-	A->freelist_ = p;
+	*p = A->freelist;
+	A->freelist = p;
 }
 void raviX_allocator_show_allocations(Allocator *A)
 {
 	fprintf(stderr,
 		"%s: %d allocations, %d bytes (%d total bytes, "
 		"%6.2f%% usage, %6.2f average size)\n",
-		A->name_, (int)A->allocations, (int)A->useful_bytes, (int)A->total_bytes,
+		A->name, (int)A->allocations, (int)A->useful_bytes, (int)A->total_bytes,
 		100 * (double)A->useful_bytes / A->total_bytes, (double)A->useful_bytes / A->allocations);
 }
 void raviX_allocator_drop_all_allocations(Allocator *A)
 {
-	AllocationBlob *blob = A->blobs_;
-	A->blobs_ = NULL;
+	AllocationBlob *blob = A->blobs;
+	A->blobs = NULL;
 	A->allocations = 0;
 	A->total_bytes = 0;
 	A->useful_bytes = 0;
-	A->freelist_ = NULL;
+	A->freelist = NULL;
 	while (blob) {
 		AllocationBlob *next = blob->next;
-		blob_free(blob, A->chunking_);
+		blob_free(blob, A->chunking);
 		blob = next;
 	}
 }
 void raviX_allocator_destroy(Allocator *A)
 {
 	raviX_allocator_drop_all_allocations(A);
-	A->blobs_ = NULL;
+	A->blobs = NULL;
 	A->allocations = 0;
 	A->total_bytes = 0;
 	A->useful_bytes = 0;
-	A->freelist_ = NULL;
+	A->freelist = NULL;
 }
 void raviX_allocator_transfer(Allocator *A, Allocator *transfer_to)
 {
-	assert(transfer_to->blobs_ == NULL);
-	assert(transfer_to->freelist_ == NULL);
-	transfer_to->blobs_ = A->blobs_;
+	assert(transfer_to->blobs == NULL);
+	assert(transfer_to->freelist == NULL);
+	transfer_to->blobs = A->blobs;
 	transfer_to->allocations = A->allocations;
 	transfer_to->total_bytes = A->total_bytes;
 	transfer_to->useful_bytes = A->useful_bytes;
-	transfer_to->freelist_ = A->freelist_;
-	transfer_to->alignment_ = A->alignment_;
-	transfer_to->chunking_ = A->chunking_;
-	transfer_to->size_ = A->size_;
-	A->blobs_ = NULL;
+	transfer_to->freelist = A->freelist;
+	transfer_to->alignment = A->alignment;
+	transfer_to->chunking = A->chunking;
+	transfer_to->size = A->size;
+	A->blobs = NULL;
 	A->allocations = 0;
 	A->total_bytes = 0;
 	A->useful_bytes = 0;
-	A->freelist_ = NULL;
+	A->freelist = NULL;
 }
 
 /*
@@ -188,10 +219,10 @@ initialized to zeros.
 void *raviX_realloc_array(void *oldp, size_t element_size, size_t old_n, size_t new_n)
 {
 	if (new_n == 0) {
-		free(oldp);
+		raviX_free(oldp);
 		return NULL;
 	}
-	assert (new_n > old_n);
+	assert(new_n > old_n);
 	size_t newsize = element_size * new_n;
 	void *newp = realloc(oldp, newsize);
 	if (!newp) {
@@ -199,7 +230,7 @@ void *raviX_realloc_array(void *oldp, size_t element_size, size_t old_n, size_t 
 		abort();
 	}
 	size_t oldsize = old_n * element_size;
-	char *p = newp;
+	char *p = (char *)newp;
 	memset(p + oldsize, 0, newsize - oldsize);
 	return newp;
 }

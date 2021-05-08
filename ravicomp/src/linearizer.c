@@ -106,12 +106,12 @@ static inline void free_register(Proc *proc, PseudoGenerator *generator, unsigne
 /* Linearizer initialization  */
 LinearizerState *raviX_init_linearizer(CompilerState *container)
 {
-	LinearizerState *linearizer = (LinearizerState *)calloc(1, sizeof(LinearizerState));
+	LinearizerState *linearizer = (LinearizerState *)raviX_calloc(1, sizeof(LinearizerState));
 	linearizer->ast_container = container;
 	raviX_allocator_init(&linearizer->instruction_allocator, "instruction_allocator", sizeof(Instruction),
 			     sizeof(double), sizeof(Instruction) * 128);
-	raviX_allocator_init(&linearizer->ptrlist_allocator, "ptrlist_allocator", sizeof(struct ptr_list),
-			     sizeof(double), sizeof(struct ptr_list) * 64);
+	raviX_allocator_init(&linearizer->ptrlist_allocator, "ptrlist_allocator", sizeof(PtrList),
+			     sizeof(double), sizeof(PtrList) * 64);
 	raviX_allocator_init(&linearizer->pseudo_allocator, "pseudo_allocator", sizeof(Pseudo), sizeof(double),
 			     sizeof(Pseudo) * 128);
 	raviX_allocator_init(&linearizer->basic_block_allocator, "basic_block_allocator", sizeof(BasicBlock),
@@ -130,7 +130,7 @@ void raviX_destroy_linearizer(LinearizerState *linearizer)
 	if (linearizer == NULL)
 		return;
 	Proc *proc;
-	FOR_EACH_PTR(linearizer->all_procs, proc)
+	FOR_EACH_PTR(linearizer->all_procs, Proc, proc)
 	{
 		if (proc->constants)
 			raviX_set_destroy(proc->constants, NULL);
@@ -145,7 +145,7 @@ void raviX_destroy_linearizer(LinearizerState *linearizer)
 	raviX_allocator_destroy(&linearizer->proc_allocator);
 	raviX_allocator_destroy(&linearizer->unsized_allocator);
 	raviX_allocator_destroy(&linearizer->constant_allocator);
-	free(linearizer);
+	raviX_free(linearizer);
 }
 
 /**
@@ -206,7 +206,7 @@ static const Constant *add_constant(Proc *proc, const Constant *c)
 			reg = proc->num_strconstants++;
 			break;
 		}
-		Constant *c1 = raviX_allocator_allocate(&proc->linearizer->constant_allocator, 0);
+		Constant *c1 = (Constant *) raviX_allocator_allocate(&proc->linearizer->constant_allocator, 0);
 		assert(c1); // FIXME
 		memcpy(c1, c, sizeof(Constant));
 		c1->index = reg;
@@ -214,7 +214,7 @@ static const Constant *add_constant(Proc *proc, const Constant *c)
 		// printf("Created new constant of type %d and assigned reg %d\n", c->type, reg);
 		return c1;
 	} else {
-		const Constant *c1 = entry->key;
+		const Constant *c1 = (Constant *) entry->key;
 		// printf("Found constant at reg %d\n", c1->index);
 		return c1;
 	}
@@ -227,7 +227,7 @@ static const Constant *add_constant(Proc *proc, const Constant *c)
 static const Constant *allocate_constant(Proc *proc, AstNode *node)
 {
 	assert(node->type == EXPR_LITERAL);
-	Constant c = {.type = node->literal_expr.type.type_code};
+	Constant c = {.type = (uint16_t) node->literal_expr.type.type_code};
 	assert(c.type == node->literal_expr.type.type_code);
 	if (c.type == RAVI_TNUMINT)
 		c.i = node->literal_expr.u.i;
@@ -247,17 +247,17 @@ static const Constant *allocate_integer_constant(Proc *proc, int i)
 
 static inline void add_instruction_operand(Proc *proc, Instruction *insn, Pseudo *pseudo)
 {
-	raviX_ptrlist_add((struct ptr_list **)&insn->operands, pseudo, &proc->linearizer->ptrlist_allocator);
+	raviX_ptrlist_add((PtrList **)&insn->operands, pseudo, &proc->linearizer->ptrlist_allocator);
 }
 
 static inline void add_instruction_target(Proc *proc, Instruction *insn, Pseudo *pseudo)
 {
-	raviX_ptrlist_add((struct ptr_list **)&insn->targets, pseudo, &proc->linearizer->ptrlist_allocator);
+	raviX_ptrlist_add((PtrList **)&insn->targets, pseudo, &proc->linearizer->ptrlist_allocator);
 }
 
 static Instruction *allocate_instruction(Proc *proc, enum opcode op)
 {
-	Instruction *insn = raviX_allocator_allocate(&proc->linearizer->instruction_allocator, 0);
+	Instruction *insn = (Instruction *) raviX_allocator_allocate(&proc->linearizer->instruction_allocator, 0);
 	insn->opcode = op;
 	return insn;
 }
@@ -265,28 +265,28 @@ static Instruction *allocate_instruction(Proc *proc, enum opcode op)
 static void free_instruction_operand_pseudos(Proc *proc, Instruction *insn)
 {
 	Pseudo *operand;
-	FOR_EACH_PTR_REVERSE(insn->operands, operand) { free_temp_pseudo(proc, operand, false); }
+	FOR_EACH_PTR_REVERSE(insn->operands, Pseudo, operand) { free_temp_pseudo(proc, operand, false); }
 	END_FOR_EACH_PTR_REVERSE(operand)
 }
 
 static inline void add_instruction(Proc *proc, Instruction *insn)
 {
 	assert(insn->block == NULL || insn->block == proc->current_bb);
-	raviX_ptrlist_add((struct ptr_list **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
+	raviX_ptrlist_add((PtrList **)&proc->current_bb->insns, insn, &proc->linearizer->ptrlist_allocator);
 	insn->block = proc->current_bb;
 }
 
 static inline void remove_instruction(BasicBlock *block, Instruction *insn)
 {
-	raviX_ptrlist_remove((struct ptr_list **)&block->insns, insn, 1);
+	raviX_ptrlist_remove((PtrList **)&block->insns, insn, 1);
 	insn->block = NULL;
 }
 
 Instruction *raviX_last_instruction(BasicBlock *block)
 {
-	if (raviX_ptrlist_size((struct ptr_list *)block->insns) == 0)
+	if (raviX_ptrlist_size((PtrList *)block->insns) == 0)
 		return NULL;
-	return (Instruction *)raviX_ptrlist_last((struct ptr_list *)block->insns);
+	return (Instruction *)raviX_ptrlist_last((PtrList *)block->insns);
 }
 
 static const Constant *allocate_string_constant(Proc *proc, const StringObject *s)
@@ -298,7 +298,7 @@ static const Constant *allocate_string_constant(Proc *proc, const StringObject *
 
 Pseudo* raviX_allocate_stack_pseudo(Proc* proc, unsigned reg)
 {
-	Pseudo* pseudo = raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo* pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
 	pseudo->type = PSEUDO_LUASTACK;
 	pseudo->regnum = reg;
 	return pseudo;
@@ -306,7 +306,7 @@ Pseudo* raviX_allocate_stack_pseudo(Proc* proc, unsigned reg)
 
 static Pseudo *allocate_symbol_pseudo(Proc *proc, LuaSymbol *sym, unsigned reg)
 {
-	Pseudo *pseudo = raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
 	pseudo->type = PSEUDO_SYMBOL;
 	pseudo->symbol = sym;
 	pseudo->regnum = reg;
@@ -319,7 +319,7 @@ static Pseudo *allocate_symbol_pseudo(Proc *proc, LuaSymbol *sym, unsigned reg)
 
 static Pseudo *allocate_constant_pseudo(Proc *proc, const Constant *constant)
 {
-	Pseudo *pseudo = raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
 	pseudo->type = PSEUDO_CONSTANT;
 	pseudo->constant = constant;
 	pseudo->regnum = constant->index;
@@ -328,7 +328,7 @@ static Pseudo *allocate_constant_pseudo(Proc *proc, const Constant *constant)
 
 static Pseudo *allocate_closure_pseudo(Proc *proc)
 {
-	Pseudo *pseudo = raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
 	pseudo->type = PSEUDO_PROC;
 	pseudo->proc = proc;
 	return pseudo;
@@ -336,7 +336,7 @@ static Pseudo *allocate_closure_pseudo(Proc *proc)
 
 static Pseudo *allocate_nil_pseudo(Proc *proc)
 {
-	Pseudo *pseudo = raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
 	pseudo->type = PSEUDO_NIL;
 	pseudo->proc = proc;
 	return pseudo;
@@ -344,7 +344,7 @@ static Pseudo *allocate_nil_pseudo(Proc *proc)
 
 static Pseudo *allocate_boolean_pseudo(Proc *proc, bool is_true)
 {
-	Pseudo *pseudo = raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
 	pseudo->type = is_true ? PSEUDO_TRUE : PSEUDO_FALSE;
 	pseudo->proc = proc;
 	return pseudo;
@@ -352,7 +352,7 @@ static Pseudo *allocate_boolean_pseudo(Proc *proc, bool is_true)
 
 static Pseudo *allocate_block_pseudo(Proc *proc, BasicBlock *block)
 {
-	Pseudo *pseudo = raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
 	pseudo->type = PSEUDO_BLOCK;
 	pseudo->block = block;
 	return pseudo;
@@ -388,7 +388,7 @@ static Pseudo *allocate_temp_pseudo(Proc *proc, ravitype_t type)
 		break;
 	}
 	unsigned reg = allocate_register(gen);
-	Pseudo *pseudo = raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
 	pseudo->type = pseudo_type;
 	pseudo->regnum = reg;
 	pseudo->temp_for_local = NULL;
@@ -397,7 +397,7 @@ static Pseudo *allocate_temp_pseudo(Proc *proc, ravitype_t type)
 
 static Pseudo *allocate_range_pseudo(Proc *proc, Pseudo *orig_pseudo)
 {
-	Pseudo *pseudo = raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
 	pseudo->type = PSEUDO_RANGE;
 	pseudo->regnum = orig_pseudo->regnum;
 	if (orig_pseudo->type == PSEUDO_TEMP_ANY) {
@@ -413,7 +413,7 @@ specified by a PSEUDO_RANGE. Pick of 0 means pick first value from the range.
 static Pseudo *allocate_range_select_pseudo(Proc *proc, Pseudo *range_pseudo, int pick)
 {
 	assert(range_pseudo->type == PSEUDO_RANGE);
-	Pseudo *pseudo = raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
+	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
 	pseudo->type = PSEUDO_RANGE_SELECT;
 	pseudo->regnum = range_pseudo->regnum + pick;
 	pseudo->range_pseudo = range_pseudo;
@@ -454,14 +454,14 @@ static void free_temp_pseudo(Proc *proc, Pseudo *pseudo, bool free_local)
 static Proc *allocate_proc(LinearizerState *linearizer, AstNode *function_expr)
 {
 	assert(function_expr->type == EXPR_FUNCTION);
-	Proc *proc = raviX_allocator_allocate(&linearizer->proc_allocator, 0);
+	Proc *proc = (Proc *) raviX_allocator_allocate(&linearizer->proc_allocator, 0);
 	proc->function_expr = function_expr;
-	proc->id = raviX_ptrlist_size((struct ptr_list *)linearizer->all_procs)+1; // so that 0 is not assigned
+	proc->id = raviX_ptrlist_size((PtrList *)linearizer->all_procs)+1; // so that 0 is not assigned
 	function_expr->function_expr.proc_id = proc->id;
-	raviX_ptrlist_add((struct ptr_list **)&linearizer->all_procs, proc, &linearizer->ptrlist_allocator);
+	raviX_ptrlist_add((PtrList **)&linearizer->all_procs, proc, &linearizer->ptrlist_allocator);
 	if (linearizer->current_proc) {
 		proc->parent = linearizer->current_proc;
-		raviX_ptrlist_add((struct ptr_list **)&linearizer->current_proc->procs, proc,
+		raviX_ptrlist_add((PtrList **)&linearizer->current_proc->procs, proc,
 				  &linearizer->ptrlist_allocator);
 	}
 	proc->constants = raviX_set_create(hash_constant, compare_constants);
@@ -530,7 +530,7 @@ static void linearize_function_args(LinearizerState *linearizer)
 	Proc *proc = linearizer->current_proc;
 	AstNode *func_expr = proc->function_expr;
 	LuaSymbol *sym;
-	FOR_EACH_PTR(func_expr->function_expr.args, sym)
+	FOR_EACH_PTR(func_expr->function_expr.args, LuaSymbol, sym)
 	{
 		/* The arg symbols already have register assigned by the local scope */
 		assert(sym->variable.pseudo); // We should already have a register assigned
@@ -542,7 +542,7 @@ static void linearize_function_args(LinearizerState *linearizer)
 static void linearize_statement_list(Proc *proc, AstNodeList *list)
 {
 	AstNode *node;
-	FOR_EACH_PTR(list, node) { linearize_statement(proc, node); }
+	FOR_EACH_PTR(list, AstNode, node) { linearize_statement(proc, node); }
 	END_FOR_EACH_PTR(node)
 }
 
@@ -781,7 +781,7 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 	Pseudo *operand1 = linearize_expression(proc, e1);
 	Pseudo *operand2 = linearize_expression(proc, e2);
 
-	enum opcode targetop;
+	int targetop;
 	switch (op) {
 	case BINOPR_ADD:
 		targetop = op_add;
@@ -917,7 +917,7 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 
 	ravitype_t target_type = node->binary_expr.type.type_code;
 	Pseudo *target = allocate_temp_pseudo(proc, target_type);
-	create_binary_instruction(proc, targetop, operand1, operand2, target);
+	create_binary_instruction(proc, (enum opcode) targetop, operand1, operand2, target);
 	free_temp_pseudo(proc, operand1, false);
 	free_temp_pseudo(proc, operand2, false);
 
@@ -977,7 +977,7 @@ static Pseudo *instruct_indexed_load(Proc *proc, ravitype_t container_type,
 					    Pseudo *container_pseudo, ravitype_t key_type,
 					    Pseudo *key_pseudo, ravitype_t target_type)
 {
-	enum opcode op = op_get;
+	int op = op_get;
 	switch (container_type) {
 	case RAVI_TTABLE:
 		op = op_tget;
@@ -1004,7 +1004,7 @@ static Pseudo *instruct_indexed_load(Proc *proc, ravitype_t container_type,
 		break;
 	}
 	Pseudo *target_pseudo = allocate_temp_pseudo(proc, target_type);
-	Instruction *insn = allocate_instruction(proc, op);
+	Instruction *insn = allocate_instruction(proc, (enum opcode)op);
 	add_instruction_operand(proc, insn, container_pseudo);
 	add_instruction_operand(proc, insn, key_pseudo);
 	add_instruction_target(proc, insn, target_pseudo);
@@ -1019,7 +1019,7 @@ static void instruct_indexed_store(Proc *proc, ravitype_t table_type, Pseudo *ta
 {
 	// TODO validate the type of assignment
 	// Insert type assertions if needed
-	enum opcode op;
+	int op;
 	switch (table_type) {
 	case RAVI_TARRAYINT:
 		op = op_iaput;
@@ -1043,7 +1043,7 @@ static void instruct_indexed_store(Proc *proc, ravitype_t table_type, Pseudo *ta
 		break;
 	}
 
-	Instruction *insn = allocate_instruction(proc, op);
+	Instruction *insn = allocate_instruction(proc, (enum opcode) op);
 	add_instruction_target(proc, insn, table);
 	add_instruction_target(proc, insn, index_pseudo);
 	add_instruction_operand(proc, insn, value_pseudo);
@@ -1057,13 +1057,13 @@ static void convert_loadglobal_to_store(Proc *proc, Instruction *insn, Pseudo *v
 	remove_instruction(insn->block, insn); // remove the instruction from its original block
 	insn->opcode = op_storeglobal;
 	// Remove the targets
-	Pseudo *get_target = raviX_ptrlist_delete_last((struct ptr_list **)&insn->targets);
+	Pseudo *get_target = (Pseudo *) raviX_ptrlist_delete_last((PtrList **)&insn->targets);
 	free_temp_pseudo(proc, get_target, false);
 	Pseudo *pseudo;
 	// Move the loadglobal operands to target
-	FOR_EACH_PTR(insn->operands, pseudo) { add_instruction_target(proc, insn, pseudo); }
+	FOR_EACH_PTR(insn->operands, Pseudo, pseudo) { add_instruction_target(proc, insn, pseudo); }
 	END_FOR_EACH_PTR(pseudo);
-	raviX_ptrlist_remove_all((struct ptr_list **)&insn->operands);
+	raviX_ptrlist_remove_all((PtrList **)&insn->operands);
 	// Add new operand
 	add_instruction_operand(proc, insn, value_pseudo);
 	add_instruction(proc, insn);
@@ -1106,13 +1106,13 @@ static void convert_indexed_load_to_store(Proc *proc, Instruction *insn, Pseudo 
 	remove_instruction(insn->block, insn);
 	insn->opcode = putop;
 	// Remove target
-	Pseudo *get_target = raviX_ptrlist_delete_last((struct ptr_list **)&insn->targets);
+	Pseudo *get_target = (Pseudo *) raviX_ptrlist_delete_last((PtrList **)&insn->targets);
 	free_temp_pseudo(proc, get_target, false);
 	Pseudo *pseudo;
 	// Move the get operands to put target (table, key)
-	FOR_EACH_PTR(insn->operands, pseudo) { add_instruction_target(proc, insn, pseudo); }
+	FOR_EACH_PTR(insn->operands, Pseudo, pseudo) { add_instruction_target(proc, insn, pseudo); }
 	END_FOR_EACH_PTR(pseudo);
-	raviX_ptrlist_remove_all((struct ptr_list **)&insn->operands);
+	raviX_ptrlist_remove_all((PtrList **)&insn->operands);
 	// Add new operand
 	add_instruction_operand(proc, insn, value_pseudo);
 	add_instruction(proc, insn);
@@ -1145,8 +1145,8 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 	}
 
 	AstNode *arg;
-	int argc = raviX_ptrlist_size((const struct ptr_list *)expr->function_call_expr.arg_list);
-	FOR_EACH_PTR(expr->function_call_expr.arg_list, arg)
+	int argc = raviX_ptrlist_size((const PtrList *)expr->function_call_expr.arg_list);
+	FOR_EACH_PTR(expr->function_call_expr.arg_list, AstNode, arg)
 	{
 		argc -= 1;
 		Pseudo *arg_pseudo = linearize_expression(proc, arg);
@@ -1186,7 +1186,7 @@ static Pseudo *linearize_suffixedexpr(Proc *proc, AstNode *node)
 	Pseudo *prev_pseudo = linearize_expression(proc, node->suffixed_expr.primary_expr);
 	AstNode *prev_node = node->suffixed_expr.primary_expr;
 	AstNode *this_node;
-	FOR_EACH_PTR(node->suffixed_expr.suffix_list, this_node)
+	FOR_EACH_PTR(node->suffixed_expr.suffix_list, AstNode, this_node)
 	{
 		Pseudo *next;
 		if (prev_pseudo->type == PSEUDO_RANGE)
@@ -1247,7 +1247,7 @@ static Pseudo *linearize_table_constructor(Proc *proc, AstNode *expr)
 	/*TODO process constructor elements */
 	AstNode *ia;
 	int i = 1;
-	FOR_EACH_PTR(expr->table_expr.expr_list, ia)
+	FOR_EACH_PTR(expr->table_expr.expr_list, AstNode, ia)
 	{
 		i = linearize_indexed_assign(proc, target, expr->table_expr.type.type_code, ia, i);
 	}
@@ -1312,11 +1312,11 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 {
 	AstNode *expr;
 
-	int ne = raviX_ptrlist_size((const struct ptr_list *)expr_list);
+	int ne = raviX_ptrlist_size((const PtrList *)expr_list);
 	struct node_info *valinfo = (struct node_info *)alloca(ne * sizeof(struct node_info));
 	Pseudo *last_val_pseudo = NULL;
 	int i = 0;
-	FOR_EACH_PTR(expr_list, expr)
+	FOR_EACH_PTR(expr_list, AstNode, expr)
 	{
 		Pseudo *val_pseudo = last_val_pseudo = linearize_expression(proc, expr);
 		valinfo[i].vartype = &expr->common_expr.type;
@@ -1395,10 +1395,10 @@ static void linearize_expression_statement(Proc *proc, AstNode *node)
 {
 	AstNode *var;
 
-	int nv = raviX_ptrlist_size((const struct ptr_list *)node->expression_stmt.var_expr_list);
+	int nv = raviX_ptrlist_size((const PtrList *)node->expression_stmt.var_expr_list);
 	struct node_info *varinfo = (struct node_info *)alloca(nv * sizeof(struct node_info));
 	int i = 0;
-	FOR_EACH_PTR(node->expression_stmt.var_expr_list, var)
+	FOR_EACH_PTR(node->expression_stmt.var_expr_list, AstNode, var)
 	{
 		Pseudo *var_pseudo = linearize_expression(proc, var);
 		varinfo[i].vartype = &var->common_expr.type;
@@ -1414,11 +1414,11 @@ static void linearize_local_statement(Proc *proc, AstNode *stmt)
 {
 	LuaSymbol *sym;
 
-	int nv = raviX_ptrlist_size((const struct ptr_list *)stmt->local_stmt.var_list);
+	int nv = raviX_ptrlist_size((const PtrList *)stmt->local_stmt.var_list);
 	struct node_info *varinfo = (struct node_info *)alloca(nv * sizeof(struct node_info));
 	int i = 0;
 
-	FOR_EACH_PTR(stmt->local_stmt.var_list, sym)
+	FOR_EACH_PTR(stmt->local_stmt.var_list, LuaSymbol, sym)
 	{
 		Pseudo *var_pseudo = sym->variable.pseudo;
 		assert(var_pseudo);
@@ -1476,15 +1476,15 @@ static void linearize_expr_list(Proc *proc, AstNodeList *expr_list, Instruction 
 				PseudoList **pseudo_list)
 {
 	AstNode *expr;
-	int ne = raviX_ptrlist_size((const struct ptr_list *)expr_list);
-	FOR_EACH_PTR(expr_list, expr)
+	int ne = raviX_ptrlist_size((const PtrList *)expr_list);
+	FOR_EACH_PTR(expr_list, AstNode, expr)
 	{
 		ne -= 1;
 		Pseudo *pseudo = linearize_expression(proc, expr);
 		if (ne != 0 && pseudo->type == PSEUDO_RANGE) {
 			convert_range_to_temp(pseudo); // Only accept one result unless it is the last expr
 		}
-		raviX_ptrlist_add((struct ptr_list **)pseudo_list, pseudo, &proc->linearizer->ptrlist_allocator);
+		raviX_ptrlist_add((PtrList **)pseudo_list, pseudo, &proc->linearizer->ptrlist_allocator);
 	}
 	END_FOR_EACH_PTR(expr)
 }
@@ -1592,17 +1592,17 @@ static void linearize_if_statement(Proc *proc, AstNode *ifnode)
 	Scope *else_scope = ifnode->if_stmt.else_block;
 
 	AstNode *this_node;
-	FOR_EACH_PTR(if_else_stmts, this_node)
+	FOR_EACH_PTR(if_else_stmts, AstNode, this_node)
 	{
 		BasicBlock *block = create_block(proc);
-		raviX_ptrlist_add((struct ptr_list **)&if_blocks, block, &proc->linearizer->ptrlist_allocator);
+		raviX_ptrlist_add((PtrList **)&if_blocks, block, &proc->linearizer->ptrlist_allocator);
 	}
 	END_FOR_EACH_PTR(this_node)
 
-	FOR_EACH_PTR(if_else_stmts, this_node)
+	FOR_EACH_PTR(if_else_stmts, AstNode, this_node)
 	{
 		BasicBlock *block = create_block(proc);
-		raviX_ptrlist_add((struct ptr_list **)&if_true_blocks, block, &proc->linearizer->ptrlist_allocator);
+		raviX_ptrlist_add((PtrList **)&if_true_blocks, block, &proc->linearizer->ptrlist_allocator);
 	}
 	END_FOR_EACH_PTR(this_node)
 
@@ -1617,12 +1617,12 @@ static void linearize_if_statement(Proc *proc, AstNode *ifnode)
 	BasicBlock *block = NULL;
 
 	{
-		PREPARE_PTR_LIST(if_blocks, block);
-		PREPARE_PTR_LIST(if_true_blocks, true_block);
-		FOR_EACH_PTR(if_else_stmts, this_node)
+		PREPARE_PTR_LIST(if_blocks, BasicBlock, block);
+		PREPARE_PTR_LIST(if_true_blocks, BasicBlock, true_block);
+		FOR_EACH_PTR(if_else_stmts, AstNode, this_node)
 		{
 			start_block(proc, block);
-			NEXT_PTR_LIST(block);
+			NEXT_PTR_LIST(BasicBlock, block);
 			if (!block) {
 				// last one
 				if (else_block)
@@ -1633,18 +1633,18 @@ static void linearize_if_statement(Proc *proc, AstNode *ifnode)
 				false_block = block;
 			}
 			linearize_test_cond(proc, this_node, true_block, false_block);
-			NEXT_PTR_LIST(true_block);
+			NEXT_PTR_LIST(BasicBlock, true_block);
 		}
 		END_FOR_EACH_PTR(node)
 		FINISH_PTR_LIST(block);
 		FINISH_PTR_LIST(true_block);
 	}
 	{
-		PREPARE_PTR_LIST(if_true_blocks, true_block);
-		FOR_EACH_PTR(if_else_stmts, this_node)
+		PREPARE_PTR_LIST(if_true_blocks, BasicBlock, true_block);
+		FOR_EACH_PTR(if_else_stmts, AstNode, this_node)
 		{
 			linearize_test_then(proc, this_node, true_block, end_block);
-			NEXT_PTR_LIST(true_block);
+			NEXT_PTR_LIST(BasicBlock, true_block);
 		}
 		END_FOR_EACH_PTR(node)
 		FINISH_PTR_LIST(true_block);
@@ -1680,7 +1680,7 @@ static void linearize_label_statement(Proc *proc, AstNode *node)
 	else {
 		block = proc->current_bb;
 		/* If the current block is empty then we can use it as the label target */
-		if (raviX_ptrlist_size((const struct ptr_list *)block->insns) > 0) {
+		if (raviX_ptrlist_size((const PtrList *)block->insns) > 0) {
 			/* Create new block as label target */
 			block = create_block(proc);
 			start_block(proc, block);
@@ -1704,7 +1704,7 @@ static LuaSymbol *find_label(Proc *proc, Scope *block,
 		if (block->need_close) {
 			*min_closing_block = block;
 		}
-		FOR_EACH_PTR_REVERSE(block->symbol_list, symbol)
+		FOR_EACH_PTR_REVERSE(block->symbol_list, LuaSymbol, symbol)
 		{
 			if (symbol->symbol_type == SYM_LABEL && symbol->label.label_name == label_name) {
 				return symbol;
@@ -1769,7 +1769,7 @@ static void instruct_close(Proc *proc, BasicBlock *block, Scope *scope)
 	proc->current_bb = block;
 
 	LuaSymbol *symbol;
-	FOR_EACH_PTR(scope->symbol_list, symbol)
+	FOR_EACH_PTR(scope->symbol_list, LuaSymbol, symbol)
 	{
 		/* We add the first escaping variable as the operand to op_close.
 		 * op_close is meant to scan the stack from that point and close
@@ -1937,10 +1937,10 @@ static void linearize_for_num_statement_positivestep(Proc *proc, AstNode *node)
 {
 	start_scope(proc->linearizer, proc, node->for_stmt.for_scope);
 
-	AstNode *index_var_expr = raviX_ptrlist_nth_entry((struct ptr_list *)node->for_stmt.expr_list, 0);
-	AstNode *limit_expr = raviX_ptrlist_nth_entry((struct ptr_list *)node->for_stmt.expr_list, 1);
-	AstNode *step_expr = raviX_ptrlist_nth_entry((struct ptr_list *)node->for_stmt.expr_list, 2);
-	LuaSymbol *var_sym = raviX_ptrlist_nth_entry((struct ptr_list *)node->for_stmt.symbols, 0);
+	AstNode *index_var_expr = (AstNode *) raviX_ptrlist_nth_entry((PtrList *)node->for_stmt.expr_list, 0);
+	AstNode *limit_expr = (AstNode *) raviX_ptrlist_nth_entry((PtrList *)node->for_stmt.expr_list, 1);
+	AstNode *step_expr = (AstNode *) raviX_ptrlist_nth_entry((PtrList *)node->for_stmt.expr_list, 2);
+	LuaSymbol *var_sym = (LuaSymbol *) raviX_ptrlist_nth_entry((PtrList *)node->for_stmt.symbols, 0);
 
 	if (index_var_expr == NULL || limit_expr == NULL) {
 		handle_error(proc->linearizer->ast_container, "A least index and limit must be supplied");
@@ -2023,7 +2023,7 @@ static void linearize_for_num_statement(Proc *proc, AstNode *node)
 
 	/* For now we only allow integer expressions */
 	AstNode *expr;
-	FOR_EACH_PTR(node->for_stmt.expr_list, expr)
+	FOR_EACH_PTR(node->for_stmt.expr_list, AstNode, expr)
 		{
 			if (expr->common_expr.type.type_code != RAVI_TNUMINT) {
 				handle_error(proc->linearizer->ast_container,
@@ -2033,7 +2033,7 @@ static void linearize_for_num_statement(Proc *proc, AstNode *node)
 	END_FOR_EACH_PTR(expr)
 
 	/* Check if we can optimize */
-	AstNode *step_expr = raviX_ptrlist_nth_entry((struct ptr_list *)node->for_stmt.expr_list, 2);
+	AstNode *step_expr = (AstNode *) raviX_ptrlist_nth_entry((PtrList *)node->for_stmt.expr_list, 2);
 	{
 		bool step_known_positive = false;
 //		bool step_known_negative = false;
@@ -2056,9 +2056,9 @@ static void linearize_for_num_statement(Proc *proc, AstNode *node)
 	/* Default case where we do not know if step is negative or positive */
 	start_scope(proc->linearizer, proc, node->for_stmt.for_scope);
 
-	AstNode *index_var_expr = raviX_ptrlist_nth_entry((struct ptr_list *)node->for_stmt.expr_list, 0);
-	AstNode *limit_expr = raviX_ptrlist_nth_entry((struct ptr_list *)node->for_stmt.expr_list, 1);
-	LuaSymbol *var_sym = raviX_ptrlist_nth_entry((struct ptr_list *)node->for_stmt.symbols, 0);
+	AstNode *index_var_expr = (AstNode *) raviX_ptrlist_nth_entry((PtrList *)node->for_stmt.expr_list, 0);
+	AstNode *limit_expr = (AstNode *) raviX_ptrlist_nth_entry((PtrList *)node->for_stmt.expr_list, 1);
+	LuaSymbol *var_sym = (LuaSymbol *) raviX_ptrlist_nth_entry((PtrList *)node->for_stmt.symbols, 0);
 
 	if (index_var_expr == NULL || limit_expr == NULL) {
 		handle_error(proc->linearizer->ast_container, "A least index and limit must be supplied");
@@ -2193,7 +2193,7 @@ static void linearize_function_statement(Proc *proc, AstNode *node)
 	Pseudo *prev_pseudo = linearize_symbol_expression(proc, node->function_stmt.name);
 	AstNode *prev_node = node->function_stmt.name;
 	AstNode *this_node;
-	FOR_EACH_PTR(node->function_stmt.selectors, this_node)
+	FOR_EACH_PTR(node->function_stmt.selectors, AstNode, this_node)
 	{
 		Pseudo *next;
 		if (this_node->type == EXPR_FIELD_SELECTOR) {
@@ -2296,7 +2296,7 @@ static BasicBlock *create_block(Proc *proc)
 {
 	if (proc->node_count >= proc->allocated) {
 		unsigned new_size = proc->allocated + 25;
-		BasicBlock **new_data =
+		BasicBlock **new_data = (BasicBlock **)
 		    raviX_allocator_allocate(&proc->linearizer->unsized_allocator, new_size * sizeof(BasicBlock *));
 		assert(new_data != NULL);
 		if (proc->node_count > 0) {
@@ -2306,7 +2306,7 @@ static BasicBlock *create_block(Proc *proc)
 		proc->nodes = new_data;
 	}
 	assert(proc->node_count < proc->allocated);
-	BasicBlock *new_block = raviX_allocator_allocate(&proc->linearizer->basic_block_allocator, 0);
+	BasicBlock *new_block = (BasicBlock *) raviX_allocator_allocate(&proc->linearizer->basic_block_allocator, 0);
 	/* note that each block must have an index that can be used to access the block as nodes[index] */
 	new_block->index = proc->node_count;
 	proc->nodes[proc->node_count++] = new_block;
@@ -2351,7 +2351,7 @@ static void start_scope(LinearizerState *linearizer, Proc *proc, Scope *scope)
 {
 	proc->current_scope = scope;
 	LuaSymbol *sym;
-	FOR_EACH_PTR(scope->symbol_list, sym)
+	FOR_EACH_PTR(scope->symbol_list, LuaSymbol, sym)
 	{
 		if (sym->symbol_type == SYM_LOCAL) {
 			uint8_t reg;
@@ -2388,7 +2388,7 @@ static void end_scope(LinearizerState *linearizer, Proc *proc)
 	if (scope->need_close) {
 		instruct_close(proc, proc->current_bb, scope);
 	}
-	FOR_EACH_PTR_REVERSE(scope->symbol_list, sym)
+	FOR_EACH_PTR_REVERSE(scope->symbol_list, LuaSymbol, sym)
 	{
 		if (sym->symbol_type == SYM_LOCAL) {
 			Pseudo *pseudo = sym->variable.pseudo;
@@ -2534,7 +2534,7 @@ static void output_pseudo_list(PseudoList *list, TextBuffer *mb)
 	Pseudo *pseudo;
 	raviX_buffer_add_string(mb, " {");
 	int i = 0;
-	FOR_EACH_PTR(list, pseudo)
+	FOR_EACH_PTR(list, Pseudo, pseudo)
 	{
 		if (i > 0)
 			raviX_buffer_add_string(mb, ", ");
@@ -2549,6 +2549,10 @@ const char *raviX_opcode_name(unsigned int opcode) {
 	return op_codenames[opcode];
 }
 
+/* Outputs a single instruction. A prefix and suffix can be prepended/appended for formatting reasons.
+Each instruction is output in following format.
+instruction_name { operands } { targets }
+*/
 static void output_instruction(Instruction *insn, TextBuffer *mb, const char *prefix, const char *suffix)
 {
 	raviX_buffer_add_fstring(mb, "%s%s", prefix, op_codenames[insn->opcode]);
@@ -2561,13 +2565,17 @@ static void output_instruction(Instruction *insn, TextBuffer *mb, const char *pr
 	raviX_buffer_add_string(mb, suffix);
 }
 
+/* Outputs linear IR instructions in text format, each instruction is prefixed and suffixed by given strings */
 static void output_instructions(InstructionList *list, TextBuffer *mb, const char *prefix, const char *suffix)
 {
 	Instruction *insn;
-	FOR_EACH_PTR(list, insn) { output_instruction(insn, mb, prefix, suffix); }
+	FOR_EACH_PTR(list, Instruction, insn) { output_instruction(insn, mb, prefix, suffix); }
 	END_FOR_EACH_PTR(insn)
 }
 
+/* Outputs the linear IR instructions within a basic block
+in textual format.
+*/
 static void output_basic_block(Proc *proc, BasicBlock *bb, TextBuffer *mb)
 {
 	raviX_buffer_add_fstring(mb, "L%d", bb->index);
@@ -2581,6 +2589,9 @@ static void output_basic_block(Proc *proc, BasicBlock *bb, TextBuffer *mb)
 	output_instructions(bb->insns, mb, "\t", "\n");
 }
 
+/* Outputs the basic block and instructions inside it as an HTML table. This is
+meant to be used in .dot files, hence the table is formatted in a way that works
+with graphviz tool */
 void raviX_output_basic_block_as_table(Proc *proc, BasicBlock *bb, TextBuffer *mb)
 {
 	raviX_buffer_add_string(mb, "<TABLE BORDER=\"1\" CELLBORDER=\"0\">\n");
@@ -2589,7 +2600,7 @@ void raviX_output_basic_block_as_table(Proc *proc, BasicBlock *bb, TextBuffer *m
 	raviX_buffer_add_string(mb, "</TABLE>");
 }
 
-
+/* Outputs the linear IR for the given proc in a text format. */
 static void output_proc(Proc *proc, TextBuffer *mb)
 {
 	BasicBlock *bb;
@@ -2600,6 +2611,10 @@ static void output_proc(Proc *proc, TextBuffer *mb)
 	}
 }
 
+/* 
+Generates the linear IR for the current parse tree (AST).
+Returns 0 on success.
+*/
 int raviX_ast_linearize(LinearizerState *linearizer)
 {
 	Proc *proc = allocate_proc(linearizer, linearizer->ast_container->main_function);
@@ -2608,18 +2623,18 @@ int raviX_ast_linearize(LinearizerState *linearizer)
 	int rc = setjmp(linearizer->ast_container->env);
 	if (rc == 0) {
 		linearize_function(linearizer);
-	} else {
-		// dump it
-		// raviX_output_linearizer(linearizer, stderr);
 	}
 	return rc;
 }
 
+/* Outputs the linear IR in text format to the given text buffer. Procs are output
+recursively starting at the main proc representing the Lua chunk.
+*/
 void raviX_show_linearizer(LinearizerState *linearizer, TextBuffer *mb)
 {
 	output_proc(linearizer->main_proc, mb);
 	Proc *proc;
-	FOR_EACH_PTR(linearizer->all_procs, proc)
+	FOR_EACH_PTR(linearizer->all_procs, Proc, proc)
 	{
 		if (proc == linearizer->main_proc)
 			continue;
@@ -2628,6 +2643,7 @@ void raviX_show_linearizer(LinearizerState *linearizer, TextBuffer *mb)
 	END_FOR_EACH_PTR(proc)
 }
 
+/* Outputs the linear IR in text format to the given file */
 void raviX_output_linearizer(LinearizerState *linearizer, FILE *fp)
 {
 	TextBuffer mb;

@@ -395,7 +395,7 @@ static void process_expression(CompilerState *container, AstNode *node)
 		    node->binary_expr.expr_right->type == EXPR_LITERAL && 
 			node->binary_expr.binary_op >= BINOPR_ADD &&
 			node->binary_expr.binary_op <= BINOPR_SHR) {
-			LiteralExpression result = {.type.type_code = RAVI_TANY};
+			LiteralExpression result = { { RAVI_TANY } };
 			if (luaO_rawarith(container, node->binary_expr.binary_op,
 					  &node->binary_expr.expr_left->literal_expr,
 					  &node->binary_expr.expr_right->literal_expr, &result)) {
@@ -415,7 +415,7 @@ static void process_expression(CompilerState *container, AstNode *node)
 		process_expression(container, node->unary_expr.expr);
 		if (node->unary_expr.expr->type == EXPR_LITERAL && 
 			(node->unary_expr.unary_op == UNOPR_BNOT || node->unary_expr.unary_op == UNOPR_MINUS)) {
-			LiteralExpression result = {.type.type_code = RAVI_TANY};
+			LiteralExpression result = { { RAVI_TANY } };
 			if (luaO_rawarith(container, node->unary_expr.unary_op, &node->unary_expr.expr->literal_expr,
 					  &node->unary_expr.expr->literal_expr, &result)) {
 				node->type = EXPR_LITERAL;
@@ -456,14 +456,14 @@ static void process_expression(CompilerState *container, AstNode *node)
 static void process_expression_list(CompilerState *container, AstNodeList *list)
 {
 	AstNode *node;
-	FOR_EACH_PTR(list, node) { process_expression(container, node); }
+	FOR_EACH_PTR(list, AstNode, node) { process_expression(container, node); }
 	END_FOR_EACH_PTR(node);
 }
 
 static void process_statement_list(CompilerState *container, AstNodeList *list)
 {
 	AstNode *node;
-	FOR_EACH_PTR(list, node) { process_statement(container, node); }
+	FOR_EACH_PTR(list, AstNode, node) { process_statement(container, node); }
 	END_FOR_EACH_PTR(node);
 }
 
@@ -495,7 +495,7 @@ static void process_statement(CompilerState *container, AstNode *node)
 		break;
 	case STMT_IF: {
 		AstNode *test_then_block;
-		FOR_EACH_PTR(node->if_stmt.if_condition_list, test_then_block)
+		FOR_EACH_PTR(node->if_stmt.if_condition_list, AstNode, test_then_block)
 		{
 			process_expression(container, test_then_block->test_then_block.condition);
 			process_statement_list(container, test_then_block->test_then_block.test_then_statement_list);

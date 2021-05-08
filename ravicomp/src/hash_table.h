@@ -28,9 +28,9 @@
 #ifndef ravicomp_HASH_TABLE_H
 #define ravicomp_HASH_TABLE_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
 
 #include <inttypes.h>
 
@@ -102,8 +102,8 @@ raviX_hash_table_insert_pre_hashed(HashTable *ht,
 			     const void *key, void *data);
 
 
-#ifdef __cplusplus
-} /* extern C */
-#endif
+//#ifdef __cplusplus
+//} /* extern C */
+//#endif
 
 #endif

@@ -35,9 +35,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
 
 typedef uint64_t bitset_el_t;
 
@@ -122,9 +122,9 @@ extern int raviX_bitset_iterator_next(BitSetIterator *iter, size_t *nbit);
 
 
 
-#ifdef __cplusplus
-} /* extern C */
-#endif
+//#ifdef __cplusplus
+//} /* extern C */
+//#endif
 
 #endif
 

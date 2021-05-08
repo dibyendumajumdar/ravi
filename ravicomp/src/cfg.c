@@ -42,7 +42,7 @@ int raviX_construct_cfg(Proc *proc)
 			continue;
 		if (insn->opcode == op_br || insn->opcode == op_cbr || insn->opcode == op_ret) {
 			Pseudo *pseudo;
-			FOR_EACH_PTR(insn->targets, pseudo)
+			FOR_EACH_PTR(insn->targets, Pseudo, pseudo)
 			{
 				assert(pseudo->type == PSEUDO_BLOCK);
 				raviX_add_edge(g, block->index, pseudo->block->index);
@@ -54,7 +54,7 @@ int raviX_construct_cfg(Proc *proc)
 	}
 	proc->cfg = g;
 	Proc *childproc;
-	FOR_EACH_PTR(proc->procs, childproc)
+	FOR_EACH_PTR(proc->procs, Proc, childproc)
 	{
 		if (raviX_construct_cfg(childproc) != 0)
 			return 1;
@@ -77,7 +77,7 @@ static void output_node(void *arg, Graph *g, uint32_t nodeid)
 	if (!successors)
 		return;
 	BasicBlock *block = proc->nodes[nodeid];
-	if (raviX_ptrlist_size((const struct ptr_list *)block->insns) > 0) {
+	if (raviX_ptrlist_size((const PtrList *)block->insns) > 0) {
 		TextBuffer buf;
 		raviX_buffer_init(&buf, 1024);
 		raviX_output_basic_block_as_table(proc, block, &buf);
@@ -88,7 +88,7 @@ static void output_node(void *arg, Graph *g, uint32_t nodeid)
 		fprintf(fp, "L%d -> L%d\n", nodeid, raviX_node_list_at(successors, i));
 	}
 	Proc *childproc;
-	FOR_EACH_PTR(proc->procs, childproc) { raviX_output_cfg(childproc, fp); }
+	FOR_EACH_PTR(proc->procs, Proc, childproc) { raviX_output_cfg(childproc, fp); }
 	END_FOR_EACH_PTR(childproc)
 }
 
@@ -98,7 +98,7 @@ void raviX_output_cfg(Proc *proc, FILE *fp)
 	if (!g)
 		return;
 	fprintf(fp, "digraph Proc%d {\n", proc->id);
-	struct CfgArg args = {.proc = proc, .fp = fp};
+	struct CfgArg args = {fp, proc};
 	raviX_for_each_node(g, output_node, &args);
 	fprintf(fp, "}\n");
 }

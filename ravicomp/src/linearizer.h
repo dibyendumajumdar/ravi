@@ -26,10 +26,10 @@
 
 #include "ravi_compiler.h"
 
-#include "common.h"
-#include "parser.h"
 #include "allocate.h"
+#include "common.h"
 #include "membuf.h"
+#include "parser.h"
 #include "ptrlist.h"
 
 /*
@@ -146,43 +146,54 @@ enum opcode {
 };
 
 /*
-* The IR instructions use operands and targets of type pseudo, which
-* is a way of referencing several different types of objects.
-*/
+ * The IR instructions use operands and targets of type pseudo, which
+ * is a way of referencing several different types of objects.
+ */
 enum PseudoType {
-	PSEUDO_SYMBOL, /* An object of type lua_symbol representing local var or upvalue, always refers to Lua stack relative to 'base' */
-	PSEUDO_TEMP_FLT, /* A floating point temp - may also be used for locals that don't escape - refers to C var */
-	PSEUDO_TEMP_INT, /* An integer temp - may also be used for locals that don't escape - refers to C var */
-	PSEUDO_TEMP_BOOL, /* An integer temp but restricted to 1 and 0  - refers to C var, shares the virtual C stack with PSEUDO_TEMP_INT */
-	PSEUDO_TEMP_ANY, /* A temp of any type - will always be on Lua stack relative to 'base' */
-	PSEUDO_CONSTANT, /* A literal value */
-	PSEUDO_PROC, /* A proc / function */
-	PSEUDO_NIL, /* Literal */
-	PSEUDO_TRUE, /* Literal */
-	PSEUDO_FALSE, /* Literal */
-	PSEUDO_BLOCK, /* Points to a basic block, used as targets for jumps */
-	PSEUDO_RANGE, /* Represents a range of registers from a certain starting register on Lua stack relative to 'base' */
-	PSEUDO_RANGE_SELECT, /* Picks a certain register from a range, resolves to register on Lua stack, relative to 'base' */
+	PSEUDO_SYMBOL,	  /* An object of type lua_symbol representing local variable or upvalue, always refers to Lua
+			     stack relative to 'base' */
+	PSEUDO_TEMP_FLT,  /* A floating point temp - may also be used for locals that don't escape - refers to C var */
+	PSEUDO_TEMP_INT,  /* An integer temp - may also be used for locals that don't escape - refers to C var */
+	PSEUDO_TEMP_BOOL, /* An integer temp but restricted to 1 and 0  - refers to C var, shares the virtual C stack
+			     with PSEUDO_TEMP_INT */
+	PSEUDO_TEMP_ANY,  /* A temp of any type - will always be on Lua stack relative to 'base' */
+	PSEUDO_CONSTANT,  /* A literal value */
+	PSEUDO_PROC,	  /* A proc / function */
+	PSEUDO_NIL,	  /* Literal */
+	PSEUDO_TRUE,	  /* Literal */
+	PSEUDO_FALSE,	  /* Literal */
+	PSEUDO_BLOCK,	  /* Points to a basic block, used as targets for jumps */
+	PSEUDO_RANGE,	  /* Represents a range of registers from a certain starting register on Lua stack relative to
+			     'base' */
+	PSEUDO_RANGE_SELECT, /* Picks a certain register from a range, resolves to register on Lua stack, relative to
+				'base' */
 	/* TODO we need a type for var args */
-	PSEUDO_LUASTACK /* Specifies a Lua stack position - not used by linearizer - for use by codegen. This is relative to CI->func rather than 'base' */
+	PSEUDO_LUASTACK /* Specifies a Lua stack position - not used by linearizer - for use by codegen. This is
+			   relative to CI->func rather than 'base' */
 };
 
-/* pseudo represents a pseudo (virtual) register */
+/* A pseudo represents an operand/target of an instruction, and can point to
+ * different things such as virtual registers, basic blocks, symbols, etc.
+ */
 struct Pseudo {
 	unsigned type : 4, regnum : 16, freed : 1;
 	Instruction *insn; /* instruction that created this pseudo */
 	union {
-		LuaSymbol *symbol;	 /* PSEUDO_SYMBOL */
-		const Constant *constant; /* PSEUDO_CONSTANT */
+		LuaSymbol *symbol;	   /* PSEUDO_SYMBOL */
+		const Constant *constant;  /* PSEUDO_CONSTANT */
 		LuaSymbol *temp_for_local; /* PSEUDO_TEMP - if the temp represents a local */
-		Proc *proc;		 /* PSEUDO_PROC */
-		BasicBlock *block;	 /* PSEUDO_BLOCK */
-		Pseudo *range_pseudo;	 /* PSEUDO_RANGE_SELECT */
-		int stackidx; /* PSEUDO_LUASTACK */
+		Proc *proc;		   /* PSEUDO_PROC */
+		BasicBlock *block;	   /* PSEUDO_BLOCK */
+		Pseudo *range_pseudo;	   /* PSEUDO_RANGE_SELECT */
+		int stackidx;		   /* PSEUDO_LUASTACK */
 	};
 };
 
-/* single instruction */
+/* single intermediate code (IR) instruction.
+ * All instructions have a uniform structure. There is an opcode, and
+ * optional operands and targets. A target is mostly like an output but can also
+ * be other things like branch targets.
+ */
 struct Instruction {
 	unsigned opcode : 8;
 	PseudoList *operands;
@@ -190,16 +201,19 @@ struct Instruction {
 	BasicBlock *block; /* owning block */
 };
 
-/* Basic block */
+/* Basic block.
+ * We don't store CFG info in basic blocks, instead the CFG data structure just
+ * references blocks by the block's index.
+ */
 struct BasicBlock {
-	nodeId_t index; /* The index of the block is a key to enable retrieving the block from its container */
+	nodeId_t index;		/* The index of the block is a key to enable retrieving the block from its container */
 	InstructionList *insns; /* Note that if number of instructions is 0 then the block was logically deleted */
 };
 DECLARE_PTR_LIST(BasicBlockList, BasicBlock);
 
 typedef struct PseudoGenerator {
-	uint8_t next_reg; /* Next register if no free registers, initially 0 */
-	int16_t free_pos; /* number of values in free_regs */
+	uint8_t next_reg;	/* Next register if no free registers, initially 0 */
+	int16_t free_pos;	/* number of values in free_regs */
 	uint8_t free_regs[256]; /* list of free registers */
 } PseudoGenerator;
 
@@ -214,8 +228,14 @@ struct Constant {
 	};
 };
 
-/* proc is a type of cfg */
+/* Proc represent a Ravi/Lua function. Procs can have nested procs, or children.
+ * All functions are anonymous in the language, therefore a Proc also lacks a user defined name, but we
+ * do assign a ID to each proc so that we can reference them, and we need names in the generated C code too.
+ */
 struct Proc {
+	// TODO fields below are mixed up between those that are used temporarily by the linearizer /
+	// code generator and those that actually define the proc.
+	// We should put them into distinct groups.
 	unsigned node_count;
 	unsigned allocated;
 	BasicBlock **nodes;
@@ -228,7 +248,7 @@ struct Proc {
 	BasicBlock *current_bb;
 	BasicBlock *current_break_target; /* track the current break target, previous target must be saved /
 						     restored in stack discipline */
-	Scope *current_break_scope;  /* as above track the block scope */
+	Scope *current_break_scope;	  /* as above track the block scope */
 	PseudoGenerator local_pseudos;	  /* locals */
 	PseudoGenerator temp_int_pseudos; /* temporaries known to be integer type */
 	PseudoGenerator temp_flt_pseudos; /* temporaries known to be number type */
@@ -237,9 +257,9 @@ struct Proc {
 	uint16_t num_intconstants;
 	uint16_t num_fltconstants;
 	uint16_t num_strconstants;
-	Graph *cfg;  /* place holder for control flow graph; the linearizer does not create this */
-	char funcname[30]; /* Each proc needs a name inside a module - name is a short string */
-	void *userdata; /* For use by code generator */
+	Graph *cfg;	   /* place holder for control flow graph; the linearizer does not create this */
+	char funcname[30]; /* Each proc needs a name inside a C module - name is a short string */
+	void *userdata;	   /* For use by code generator */
 };
 
 struct LinearizerState {
@@ -251,9 +271,9 @@ struct LinearizerState {
 	Allocator unsized_allocator;
 	Allocator constant_allocator;
 	CompilerState *ast_container;
-	Proc *main_proc;	     /* The root of the compiled chunk of code */
+	Proc *main_proc;     /* The root of the compiled chunk of code */
 	ProcList *all_procs; /* All procs allocated by the linearizer */
-	Proc *current_proc;   /* proc being compiled */
+	Proc *current_proc;  /* proc being compiled */
 	uint32_t proc_id;
 };
 
@@ -261,7 +281,7 @@ void raviX_show_linearizer(LinearizerState *linearizer, TextBuffer *mb);
 void raviX_output_basic_block_as_table(Proc *proc, BasicBlock *bb, TextBuffer *mb);
 
 Instruction *raviX_last_instruction(BasicBlock *block);
-Pseudo* raviX_allocate_stack_pseudo(Proc* proc, unsigned reg);
+Pseudo *raviX_allocate_stack_pseudo(Proc *proc, unsigned reg);
 const char *raviX_opcode_name(unsigned int opcode);
 
 #endif

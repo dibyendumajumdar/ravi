@@ -52,7 +52,7 @@ void raviX_function_foreach_child(const FunctionExpression *function_expression,
 						   const FunctionExpression *function_expression))
 {
 	AstNode *node;
-	FOR_EACH_PTR(function_expression->child_functions, node) { callback(userdata, &node->function_expr); }
+	FOR_EACH_PTR(function_expression->child_functions, AstNode, node) { callback(userdata, &node->function_expr); }
 	END_FOR_EACH_PTR(node)
 }
 const Scope *raviX_function_scope(const FunctionExpression *function_expression)
@@ -63,7 +63,7 @@ void raviX_function_foreach_statement(const FunctionExpression *function_express
 				      void (*callback)(void *userdata, const Statement *statement))
 {
 	AstNode *node;
-	FOR_EACH_PTR(function_expression->function_statement_list, node)
+	FOR_EACH_PTR(function_expression->function_statement_list, AstNode, node)
 	{
 		assert(node->type <= STMT_EXPR);
 		callback(userdata, (Statement *)node);
@@ -75,21 +75,21 @@ void raviX_function_foreach_argument(const FunctionExpression *function_expressi
 				     void (*callback)(void *userdata, const LuaVariableSymbol *symbol))
 {
 	LuaSymbol *symbol;
-	FOR_EACH_PTR(function_expression->args, symbol) { callback(userdata, &symbol->variable); }
+	FOR_EACH_PTR(function_expression->args, LuaSymbol, symbol) { callback(userdata, &symbol->variable); }
 	END_FOR_EACH_PTR(symbol)
 }
 void raviX_function_foreach_local(const FunctionExpression *function_expression, void *userdata,
 				  void (*callback)(void *userdata, const LuaVariableSymbol *lua_local_symbol))
 {
 	LuaSymbol *symbol;
-	FOR_EACH_PTR(function_expression->locals, symbol) { callback(userdata, &symbol->variable); }
+	FOR_EACH_PTR(function_expression->locals, LuaSymbol, symbol) { callback(userdata, &symbol->variable); }
 	END_FOR_EACH_PTR(symbol)
 }
 void raviX_function_foreach_upvalue(const FunctionExpression *function_expression, void *userdata,
 				    void (*callback)(void *userdata, const LuaUpvalueSymbol *symbol))
 {
 	LuaSymbol *symbol;
-	FOR_EACH_PTR(function_expression->upvalues, symbol) { callback(userdata, &symbol->upvalue); }
+	FOR_EACH_PTR(function_expression->upvalues, LuaSymbol, symbol) { callback(userdata, &symbol->upvalue); }
 	END_FOR_EACH_PTR(symbol)
 }
 
@@ -222,7 +222,7 @@ void raviX_return_statement_foreach_expression(const ReturnStatement *statement,
 					       void (*callback)(void *, const Expression *expr))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->expr_list, node)
+	FOR_EACH_PTR(statement->expr_list, AstNode, node)
 	{
 		assert(node->type >= EXPR_LITERAL && node->type <= EXPR_FUNCTION_CALL);
 		callback(userdata, (Expression *)node);
@@ -253,7 +253,7 @@ void raviX_local_statement_foreach_expression(const LocalStatement *statement, v
 					      void (*callback)(void *, const Expression *expr))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->expr_list, node)
+	FOR_EACH_PTR(statement->expr_list, AstNode, node)
 	{
 		assert(node->type >= EXPR_LITERAL && node->type <= EXPR_FUNCTION_CALL);
 		callback(userdata, (Expression *)node);
@@ -264,7 +264,7 @@ void raviX_local_statement_foreach_symbol(const LocalStatement *statement, void 
 					  void (*callback)(void *, const LuaVariableSymbol *expr))
 {
 	LuaSymbol *symbol;
-	FOR_EACH_PTR(statement->var_list, symbol)
+	FOR_EACH_PTR(statement->var_list, LuaSymbol, symbol)
 	{
 		assert(symbol->symbol_type == SYM_LOCAL);
 		callback(userdata, &symbol->variable);
@@ -275,7 +275,7 @@ void raviX_expression_statement_foreach_lhs_expression(const ExpressionStatement
 						       void (*callback)(void *, const Expression *expr))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->var_expr_list, node)
+	FOR_EACH_PTR(statement->var_expr_list, AstNode, node)
 	{
 		assert(node->type >= EXPR_LITERAL && node->type <= EXPR_FUNCTION_CALL);
 		callback(userdata, (Expression *)node);
@@ -286,7 +286,7 @@ void raviX_expression_statement_foreach_rhs_expression(const ExpressionStatement
 						       void (*callback)(void *, const Expression *expr))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->expr_list, node)
+	FOR_EACH_PTR(statement->expr_list, AstNode, node)
 	{
 		assert(node->type >= EXPR_LITERAL && node->type <= EXPR_FUNCTION_CALL);
 		callback(userdata, (Expression *)node);
@@ -315,7 +315,7 @@ void raviX_function_statement_foreach_selector(const FunctionStatement *statemen
 					       void (*callback)(void *, const IndexExpression *expr))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->selectors, node)
+	FOR_EACH_PTR(statement->selectors, AstNode, node)
 	{
 		assert(node->type == EXPR_Y_INDEX || node->type == EXPR_FIELD_SELECTOR);
 		callback(userdata, &node->index_expr);
@@ -332,7 +332,7 @@ void raviX_do_statement_foreach_statement(const DoStatement *statement, void *us
 					  void (*callback)(void *userdata, const Statement *statement))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->do_statement_list, node)
+	FOR_EACH_PTR(statement->do_statement_list, AstNode, node)
 	{
 		assert(node->type <= STMT_EXPR);
 		callback(userdata, (Statement *)node);
@@ -347,7 +347,7 @@ void raviX_test_then_statement_foreach_statement(const TestThenStatement *statem
 						 void (*callback)(void *userdata, const Statement *statement))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->test_then_statement_list, node)
+	FOR_EACH_PTR(statement->test_then_statement_list, AstNode, node)
 	{
 		assert(node->type <= STMT_EXPR);
 		callback(userdata, (Statement *)node);
@@ -363,7 +363,7 @@ void raviX_if_statement_foreach_test_then_statement(const IfStatement *statement
 						    void (*callback)(void *, const TestThenStatement *stmt))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->if_condition_list, node)
+	FOR_EACH_PTR(statement->if_condition_list, AstNode, node)
 	{
 		assert(node->type == STMT_TEST_THEN);
 		callback(userdata, &node->test_then_block);
@@ -378,7 +378,7 @@ void raviX_if_statement_foreach_else_statement(const IfStatement *statement, voi
 					       void (*callback)(void *userdata, const Statement *statement))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->else_statement_list, node)
+	FOR_EACH_PTR(statement->else_statement_list, AstNode, node)
 	{
 		assert(node->type <= STMT_EXPR);
 		callback(userdata, (Statement *)node);
@@ -401,7 +401,7 @@ void raviX_while_or_repeat_statement_foreach_statement(const WhileOrRepeatStatem
 									const Statement *statement))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->loop_statement_list, node)
+	FOR_EACH_PTR(statement->loop_statement_list, AstNode, node)
 	{
 		assert(node->type <= STMT_EXPR);
 		callback(userdata, (Statement *)node);
@@ -416,7 +416,7 @@ void raviX_for_statement_foreach_symbol(const ForStatement *statement, void *use
 					void (*callback)(void *, const LuaVariableSymbol *expr))
 {
 	LuaSymbol *symbol;
-	FOR_EACH_PTR(statement->symbols, symbol)
+	FOR_EACH_PTR(statement->symbols, LuaSymbol, symbol)
 	{
 		assert(symbol->symbol_type == SYM_LOCAL);
 		callback(userdata, &symbol->variable);
@@ -427,7 +427,7 @@ void raviX_for_statement_foreach_expression(const ForStatement *statement, void 
 					    void (*callback)(void *, const Expression *expr))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->expr_list, node)
+	FOR_EACH_PTR(statement->expr_list, AstNode, node)
 	{
 		assert(node->type >= EXPR_LITERAL && node->type <= EXPR_FUNCTION_CALL);
 		callback(userdata, (Expression *)node);
@@ -442,7 +442,7 @@ void raviX_for_statement_body_foreach_statement(const ForStatement *statement, v
 						void (*callback)(void *userdata, const Statement *statement))
 {
 	AstNode *node;
-	FOR_EACH_PTR(statement->for_statement_list, node)
+	FOR_EACH_PTR(statement->for_statement_list, AstNode, node)
 	{
 		assert(node->type <= STMT_EXPR);
 		callback(userdata, (Statement *)node);
@@ -530,7 +530,7 @@ void raviX_table_literal_expression_foreach_element(
     void (*callback)(void *, const TableElementAssignmentExpression *expr))
 {
 	AstNode *node;
-	FOR_EACH_PTR(expression->expr_list, node)
+	FOR_EACH_PTR(expression->expr_list, AstNode, node)
 	{
 		assert(node->type == EXPR_TABLE_ELEMENT_ASSIGN);
 		callback(userdata, &node->table_elem_assign_expr);
@@ -551,7 +551,7 @@ void raviX_suffixed_expression_foreach_suffix(const SuffixedExpression *expressi
 					      void (*callback)(void *, const Expression *expr))
 {
 	AstNode *node;
-	FOR_EACH_PTR(expression->suffix_list, node)
+	FOR_EACH_PTR(expression->suffix_list, AstNode, node)
 	{
 		assert(node->type >= EXPR_LITERAL && node->type <= EXPR_FUNCTION_CALL);
 		callback(userdata, (Expression *)node);
@@ -573,7 +573,7 @@ void raviX_function_call_expression_foreach_argument(const FunctionCallExpressio
 						     void (*callback)(void *, const Expression *expr))
 {
 	AstNode *node;
-	FOR_EACH_PTR(expression->arg_list, node)
+	FOR_EACH_PTR(expression->arg_list, AstNode, node)
 	{
 		assert(node->type >= EXPR_LITERAL && node->type <= EXPR_FUNCTION_CALL);
 		callback(userdata, (Expression *)node);
@@ -593,7 +593,7 @@ RAVICOMP_EXPORT void raviX_scope_foreach_symbol(const Scope *scope, void *userda
 						void (*callback)(void *userdata, const LuaSymbol *symbol))
 {
 	LuaSymbol *symbol;
-	FOR_EACH_PTR(scope->symbol_list, symbol) { callback(userdata, symbol); }
+	FOR_EACH_PTR(scope->symbol_list, LuaSymbol, symbol) { callback(userdata, symbol); }
 	END_FOR_EACH_PTR(node)
 }
 enum SymbolType raviX_symbol_type(const LuaSymbol *symbol) { return symbol->symbol_type; }

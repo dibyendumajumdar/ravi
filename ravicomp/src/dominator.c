@@ -23,8 +23,8 @@
 
 #include "dominator.h"
 
-#include "ravi_compiler.h"
 #include "graph.h"
+#include "ravi_compiler.h"
 
 #include <assert.h>
 
@@ -51,25 +51,25 @@ algorithm iterates until a fixed point is reached. The output of the algorithm i
 array that describes the dominator tree.
 */
 
-struct dominator_tree {
+struct DominatorTree {
 	Graph *g;
 	GraphNode **IDOM; /* IDOM[] - array of immediate dominators, one per node in the graph, indexed by node id */
-	uint32_t N;	    /* sizeof IDOM */
+	uint32_t N;	  /* sizeof IDOM */
 };
 
-struct dominator_tree *raviX_new_dominator_tree(Graph *g)
+DominatorTree *raviX_new_dominator_tree(Graph *g)
 {
-	struct dominator_tree *state = (struct dominator_tree *)calloc(1, sizeof(struct dominator_tree));
+	DominatorTree *state = (DominatorTree *)raviX_calloc(1, sizeof(DominatorTree));
 	state->N = raviX_graph_size(g);
-	state->IDOM = (GraphNode **)calloc(state->N, sizeof(GraphNode *));
+	state->IDOM = (GraphNode **)raviX_calloc(state->N, sizeof(GraphNode *));
 	state->g = g;
 	return state;
 }
 
-void raviX_destroy_dominator_tree(struct dominator_tree *state)
+void raviX_destroy_dominator_tree(DominatorTree *state)
 {
-	free(state->IDOM);
-	free(state);
+	raviX_free(state->IDOM);
+	raviX_free(state);
 }
 
 /* Finds nearest common ancestor */
@@ -77,7 +77,7 @@ void raviX_destroy_dominator_tree(struct dominator_tree *state)
  * upward from each toward the root. By comparing the nodes with their RPO numbers
  * the algorithm finds the common ancestor - the immediate dominator of i and j.
  */
-static GraphNode *intersect(struct dominator_tree *state, GraphNode *i, GraphNode *j)
+static GraphNode *intersect(DominatorTree *state, GraphNode *i, GraphNode *j)
 {
 	GraphNode *finger1 = i;
 	GraphNode *finger2 = j;
@@ -98,7 +98,7 @@ static GraphNode *intersect(struct dominator_tree *state, GraphNode *i, GraphNod
  * Because of the order in which this search occurs, we will always find at least 1
  * such predecessor.
  */
-static GraphNode *find_first_predecessor_with_idom(struct dominator_tree *state, GraphNodeList *predlist)
+static GraphNode *find_first_predecessor_with_idom(DominatorTree *state, GraphNodeList *predlist)
 {
 	for (uint32_t i = 0; i < raviX_node_list_size(predlist); i++) {
 		nodeId_t id = raviX_node_list_at(predlist, i);
@@ -113,7 +113,7 @@ static GraphNode *find_first_predecessor_with_idom(struct dominator_tree *state,
  * Before this is called the graph links should have been numbered in
  * reverse post order.
  */
-void raviX_calculate_dominator_tree(struct dominator_tree *state)
+void raviX_calculate_dominator_tree(DominatorTree *state)
 {
 	/*
 	Some implementation details:
@@ -161,10 +161,10 @@ void raviX_calculate_dominator_tree(struct dominator_tree *state)
 			}
 		}
 	}
-	free(nodes_in_reverse_postorder);
+	raviX_free(nodes_in_reverse_postorder);
 }
 
-void raviX_dominator_tree_output(struct dominator_tree *tree, FILE *fp)
+void raviX_dominator_tree_output(DominatorTree *tree, FILE *fp)
 {
 	for (uint32_t i = 0; i < tree->N; i++) {
 		fprintf(stdout, "IDOM[%d] = %d\n", i, raviX_node_index(tree->IDOM[i]));

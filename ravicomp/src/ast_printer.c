@@ -115,7 +115,7 @@ static void print_ast_node_list(TextBuffer *buf, AstNodeList *list, int level, c
 {
 	AstNode *node;
 	bool is_first = true;
-	FOR_EACH_PTR(list, node)
+	FOR_EACH_PTR(list, AstNode, node)
 	{
 		if (is_first)
 			is_first = false;
@@ -189,7 +189,7 @@ static void print_symbol_list(TextBuffer *buf, LuaSymbolList *list, int level, c
 {
 	LuaSymbol *node;
 	bool is_first = true;
-	FOR_EACH_PTR(list, node)
+	FOR_EACH_PTR(list, LuaSymbol, node)
 	{
 		if (is_first)
 			is_first = false;
@@ -204,7 +204,7 @@ static void print_symbol_names(TextBuffer *buf, LuaSymbolList *list)
 {
 	LuaSymbol *node;
 	bool is_first = true;
-	FOR_EACH_PTR(list, node)
+	FOR_EACH_PTR(list, LuaSymbol, node)
 	{
 		if (is_first)
 			is_first = false;
@@ -383,7 +383,7 @@ void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 	case STMT_IF: {
 		AstNode *test_then_block;
 		bool is_first = true;
-		FOR_EACH_PTR(node->if_stmt.if_condition_list, test_then_block)
+		FOR_EACH_PTR(node->if_stmt.if_condition_list, AstNode, test_then_block)
 		{
 			if (is_first) {
 				is_first = false;

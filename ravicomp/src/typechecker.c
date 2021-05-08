@@ -57,7 +57,7 @@ static void typecheck_ast_node(CompilerState *container, AstNode *function, AstN
 static void typecheck_ast_list(CompilerState *container, AstNode *function, AstNodeList *list)
 {
 	AstNode *node;
-	FOR_EACH_PTR(list, node) { typecheck_ast_node(container, function, node); }
+	FOR_EACH_PTR(list, AstNode, node) { typecheck_ast_node(container, function, node); }
 	END_FOR_EACH_PTR(node);
 }
 
@@ -217,7 +217,7 @@ static void typecheck_suffixedexpr(CompilerState *container, AstNode *function, 
 	typecheck_ast_node(container, function, node->suffixed_expr.primary_expr);
 	AstNode *prev_node = node->suffixed_expr.primary_expr;
 	AstNode *this_node;
-	FOR_EACH_PTR(node->suffixed_expr.suffix_list, this_node)
+	FOR_EACH_PTR(node->suffixed_expr.suffix_list, AstNode, this_node)
 	{
 		typecheck_ast_node(container, function, this_node);
 		if (this_node->type == EXPR_Y_INDEX) {
@@ -289,8 +289,8 @@ static void typecheck_local_statement(CompilerState *container, AstNode *functio
 
 	LuaSymbol *var;
 	AstNode *expr;
-	PREPARE_PTR_LIST(node->local_stmt.var_list, var);
-	PREPARE_PTR_LIST(node->local_stmt.expr_list, expr);
+	PREPARE_PTR_LIST(node->local_stmt.var_list, LuaSymbol, var);
+	PREPARE_PTR_LIST(node->local_stmt.expr_list, AstNode, expr);
 
 	for (;;) {
 		if (!var || !expr)
@@ -301,8 +301,8 @@ static void typecheck_local_statement(CompilerState *container, AstNode *functio
 
 		typecheck_var_assignment(container, var_type, expr, var_name);
 
-		NEXT_PTR_LIST(var);
-		NEXT_PTR_LIST(expr);
+		NEXT_PTR_LIST(LuaSymbol, var);
+		NEXT_PTR_LIST(AstNode, expr);
 	}
 }
 
@@ -317,8 +317,8 @@ static void typecheck_expr_statement(CompilerState *container, AstNode *function
 
 	AstNode *var;
 	AstNode *expr;
-	PREPARE_PTR_LIST(node->expression_stmt.var_expr_list, var);
-	PREPARE_PTR_LIST(node->local_stmt.expr_list, expr);
+	PREPARE_PTR_LIST(node->expression_stmt.var_expr_list, AstNode, var);
+	PREPARE_PTR_LIST(node->local_stmt.expr_list, AstNode, expr);
 
 	for (;;) {
 		if (!var || !expr)
@@ -329,8 +329,8 @@ static void typecheck_expr_statement(CompilerState *container, AstNode *function
 
 		typecheck_var_assignment(container, var_type, expr, var_name);
 
-		NEXT_PTR_LIST(var);
-		NEXT_PTR_LIST(expr);
+		NEXT_PTR_LIST(AstNode, var);
+		NEXT_PTR_LIST(AstNode, expr);
 	}
 }
 
@@ -346,7 +346,7 @@ static void typecheck_for_num_statment(CompilerState *container, AstNode *functi
 	AstNode *expr;
 	enum { I = 1, F = 2, A = 4 }; /* bits representing integer, number, any */
 	int index_type = 0;
-	FOR_EACH_PTR(node->for_stmt.expr_list, expr)
+	FOR_EACH_PTR(node->for_stmt.expr_list, AstNode, expr)
 	{
 		switch (expr->common_expr.type.type_code) {
 		case RAVI_TNUMFLT:
@@ -369,7 +369,7 @@ static void typecheck_for_num_statment(CompilerState *container, AstNode *functi
 		LuaSymbolList *symbols = node->for_stmt.symbols;
 		LuaSymbol *sym;
 		/* actually there will be only index variable */
-		FOR_EACH_PTR(symbols, sym)
+		FOR_EACH_PTR(symbols, LuaSymbol, sym)
 		{
 			if (sym->symbol_type == SYM_LOCAL) {
 				set_typecode(&sym->variable.value_type, symbol_type);
@@ -385,7 +385,7 @@ static void typecheck_for_num_statment(CompilerState *container, AstNode *functi
 static void typecheck_if_statement(CompilerState *container, AstNode *function, AstNode *node)
 {
 	AstNode *test_then_block;
-	FOR_EACH_PTR(node->if_stmt.if_condition_list, test_then_block)
+	FOR_EACH_PTR(node->if_stmt.if_condition_list, AstNode, test_then_block)
 	{
 		typecheck_ast_node(container, function, test_then_block->test_then_block.condition);
 		typecheck_ast_list(container, function, test_then_block->test_then_block.test_then_statement_list);

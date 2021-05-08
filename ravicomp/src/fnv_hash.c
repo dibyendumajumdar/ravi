@@ -68,5 +68,5 @@ fnv1_hash_data(const void *data, size_t size)
 int
 string_key_equals(const void *a, const void *b)
 {
-	return strcmp(a, b) == 0;
+	return strcmp((const char *)a, (const char *)b) == 0;
 }

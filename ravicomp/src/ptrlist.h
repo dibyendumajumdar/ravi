@@ -16,9 +16,9 @@
 #include <assert.h>
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
 
 /*
  * The ptrlist data structure is copied from the Linux Sparse project.
@@ -56,35 +56,35 @@ extern "C" {
 	} listname
 
 /* Each node in the list */
-DECLARE_PTR_LIST(ptr_list, void);
+DECLARE_PTR_LIST(PtrList, void);
 
 /* The iterator strucure is used for looping */
 typedef struct PtrListIterator {
-	struct ptr_list *__head;
-	struct ptr_list *__list;
+	PtrList *__head;
+	PtrList *__list;
 	int __nr;
 } PtrListIterator;
 
 /* The ptr list */
-extern int raviX_ptrlist_size(const struct ptr_list *self);
-extern void **raviX_ptrlist_add(struct ptr_list **self, void *ptr, Allocator *ptr_list_allocator);
-extern void *raviX_ptrlist_nth_entry(struct ptr_list *list, unsigned int idx);
-extern void *raviX_ptrlist_first(struct ptr_list *list);
-extern void *raviX_ptrlist_last(struct ptr_list *list);
-extern int raviX_ptrlist_linearize(struct ptr_list *head, void **arr, int max);
-extern void raviX_ptrlist_split_node(struct ptr_list *head);
-extern void raviX_ptrlist_pack(struct ptr_list **self);
-extern void raviX_ptrlist_remove_all(struct ptr_list **self);
-extern int raviX_ptrlist_remove(struct ptr_list **self, void *entry, int count);
-extern int raviX_ptrlist_replace(struct ptr_list **self, void *old_ptr, void *new_ptr, int count);
-extern void *raviX_ptrlist_undo_last(struct ptr_list **self);
-extern void *raviX_ptrlist_delete_last(struct ptr_list **self);
-extern void raviX_ptrlist_concat(struct ptr_list *a, struct ptr_list **self);
-extern void raviX_ptrlist_sort(struct ptr_list **self, void *, int (*cmp)(void *, const void *, const void *));
+extern int raviX_ptrlist_size(const PtrList *self);
+extern void **raviX_ptrlist_add(PtrList **self, void *ptr, Allocator *ptr_list_allocator);
+extern void *raviX_ptrlist_nth_entry(PtrList *list, unsigned int idx);
+extern void *raviX_ptrlist_first(PtrList *list);
+extern void *raviX_ptrlist_last(PtrList *list);
+extern int raviX_ptrlist_linearize(PtrList *head, void **arr, int max);
+extern void raviX_ptrlist_split_node(PtrList *head);
+extern void raviX_ptrlist_pack(PtrList **self);
+extern void raviX_ptrlist_remove_all(PtrList **self);
+extern int raviX_ptrlist_remove(PtrList **self, void *entry, int count);
+extern int raviX_ptrlist_replace(PtrList **self, void *old_ptr, void *new_ptr, int count);
+extern void *raviX_ptrlist_undo_last(PtrList **self);
+extern void *raviX_ptrlist_delete_last(PtrList **self);
+extern void raviX_ptrlist_concat(PtrList *a, PtrList **self);
+extern void raviX_ptrlist_sort(PtrList **self, void *, int (*cmp)(void *, const void *, const void *));
 
 /* iterator functions */
-extern PtrListIterator raviX_ptrlist_forward_iterator(struct ptr_list *self);
-extern PtrListIterator raviX_ptrlist_reverse_iterator(struct ptr_list *self);
+extern PtrListIterator raviX_ptrlist_forward_iterator(PtrList *self);
+extern PtrListIterator raviX_ptrlist_reverse_iterator(PtrList *self);
 extern void *raviX_ptrlist_iter_next(PtrListIterator *self);
 extern void *raviX_ptrlist_iter_prev(PtrListIterator *self);
 extern void raviX_ptrlist_iter_split_current(PtrListIterator *self);
@@ -98,31 +98,31 @@ static inline void **raviX_ptrlist_iter_this_address(PtrListIterator *self) { re
 #define PTR_ENTRY_NOTAG(h, i) ((h)->list_[i])
 #define PTR_ENTRY(h, i) (void *)(PTR_ENTRY_NOTAG(h, i))
 
-#define FOR_EACH_PTR(list, var)                                                                                        \
+#define FOR_EACH_PTR(list, type, var)                                                                                  \
 	{                                                                                                              \
-		PtrListIterator var##iter__ = raviX_ptrlist_forward_iterator((struct ptr_list *)list);                 \
-		for (var = raviX_ptrlist_iter_next(&var##iter__); var != NULL;                                         \
-		     var = raviX_ptrlist_iter_next(&var##iter__))
+		PtrListIterator var##iter__ = raviX_ptrlist_forward_iterator((PtrList *)list);                         \
+		for (var = (type *)raviX_ptrlist_iter_next(&var##iter__); var != NULL;                                 \
+		     var = (type *)raviX_ptrlist_iter_next(&var##iter__))
 #define END_FOR_EACH_PTR(var) }
 
-#define FOR_EACH_PTR_REVERSE(list, var)                                                                                \
+#define FOR_EACH_PTR_REVERSE(list, type, var)                                                                          \
 	{                                                                                                              \
-		PtrListIterator var##iter__ = raviX_ptrlist_reverse_iterator((struct ptr_list *)list);                 \
-		for (var = raviX_ptrlist_iter_prev(&var##iter__); var != NULL;                                         \
-		     var = raviX_ptrlist_iter_prev(&var##iter__))
+		PtrListIterator var##iter__ = raviX_ptrlist_reverse_iterator((PtrList *)list);                         \
+		for (var = (type *)raviX_ptrlist_iter_prev(&var##iter__); var != NULL;                                 \
+		     var = (type *)raviX_ptrlist_iter_prev(&var##iter__))
 #define END_FOR_EACH_PTR_REVERSE(var) }
 
-#define RECURSE_PTR_REVERSE(list, var)                                                                                 \
+#define RECURSE_PTR_REVERSE(list, type, var)                                                                           \
 	{                                                                                                              \
 		PtrListIterator var##iter__ = list##iter__;                                                            \
-		for (var = raviX_ptrlist_iter_prev(&var##iter__); var != NULL;                                         \
-		     var = raviX_ptrlist_iter_prev(&var##iter__))
+		for (var = (type *)raviX_ptrlist_iter_prev(&var##iter__); var != NULL;                                 \
+		     var = (type *)raviX_ptrlist_iter_prev(&var##iter__))
 
-#define PREPARE_PTR_LIST(list, var)                                                                                    \
-	PtrListIterator var##iter__ = raviX_ptrlist_forward_iterator((struct ptr_list *)list);                         \
-	var = raviX_ptrlist_iter_next(&var##iter__)
+#define PREPARE_PTR_LIST(list, type, var)                                                                              \
+	PtrListIterator var##iter__ = raviX_ptrlist_forward_iterator((PtrList *)list);                                 \
+	var = (type *)raviX_ptrlist_iter_next(&var##iter__)
 
-#define NEXT_PTR_LIST(var) var = raviX_ptrlist_iter_next(&var##iter__)
+#define NEXT_PTR_LIST(type, var) var = (type *)raviX_ptrlist_iter_next(&var##iter__)
 #define FINISH_PTR_LIST(var)
 
 #define THIS_ADDRESS(type, var) (type *)raviX_ptrlist_iter_this_address(&var##iter__)
@@ -135,8 +135,8 @@ static inline void **raviX_ptrlist_iter_this_address(PtrListIterator *self) { re
 
 #define MARK_CURRENT_DELETED(PTR_TYPE, var) raviX_ptrlist_iter_mark_deleted(&var##iter__)
 
-#ifdef __cplusplus
-}
-#endif
+//#ifdef __cplusplus
+//}
+//#endif
 
 #endif

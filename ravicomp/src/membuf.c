@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <allocate.h>
 
 void raviX_string_copy(char *buf, const char *src, size_t buflen)
 {
@@ -42,11 +43,7 @@ void raviX_string_copy(char *buf, const char *src, size_t buflen)
 void raviX_buffer_init(TextBuffer *mb, size_t initial_size)
 {
 	if (initial_size > 0) {
-		mb->buf = (char *)calloc(1, initial_size);
-		if (mb->buf == NULL) {
-			fprintf(stderr, "out of memory\n");
-			exit(1);
-		}
+		mb->buf = (char *)raviX_calloc(1, initial_size);
 	} else
 		mb->buf = NULL;
 	mb->pos = 0;
@@ -72,7 +69,7 @@ void raviX_buffer_reserve(TextBuffer *mb, size_t n)
 		assert(mb->capacity > mb->pos + n);
 	}
 }
-void raviX_buffer_free(TextBuffer *mb) { free(mb->buf); }
+void raviX_buffer_free(TextBuffer *mb) { raviX_free(mb->buf); }
 void raviX_buffer_add_bytes(TextBuffer *mb, const char *str, size_t len)
 {
 	size_t required_size = mb->pos + len + 1; /* extra byte for NULL terminator */

@@ -76,7 +76,7 @@ void raviX_solve_dataflow(Graph *g, bool forward_p,
 	worklist->count = 0;
 	/* Initially the basic blocks are added to the worklist */
 	for (uint32_t i = 0; i < raviX_graph_size(ctx.g); i++) {
-		array_push(worklist, raviX_graph_node(ctx.g, i));
+		array_push(worklist, GraphNode *, raviX_graph_node(ctx.g, i));
 	}
 	iter = 0;
 	while (worklist->count != 0) {
@@ -99,7 +99,7 @@ void raviX_solve_dataflow(Graph *g, bool forward_p,
 					nodeId_t index = raviX_node_list_at(list, i);
 					/* If this bb is not already been added to pending then add it */
 					if (raviX_bitset_set_bit_p(&ctx.bb_to_consider, index)) {
-						array_push(pending, raviX_graph_node(ctx.g, index));
+						array_push(pending, GraphNode *, raviX_graph_node(ctx.g, index));
 					}
 				}
 			}

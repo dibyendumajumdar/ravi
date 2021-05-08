@@ -36,6 +36,7 @@
 #include <stdlib.h>
 
 #include <hash_table.h>
+#include <allocate.h>
 
 #define ARRAY_SIZE(array) ((int)(sizeof(array) / sizeof(array[0])))
 
@@ -45,7 +46,7 @@
  * free to avoid exponential performance degradation as the hash table fills
  */
 
-static const uint32_t deleted_key_value;
+static const uint32_t deleted_key_value = 0;
 static const void *deleted_key = &deleted_key_value;
 
 static const struct {
@@ -109,9 +110,7 @@ raviX_hash_table_create(uint32_t (*hash_function)(const void *key),
 {
 	HashTable *ht;
 
-	ht = malloc(sizeof(*ht));
-	if (ht == NULL)
-		return NULL;
+	ht = (HashTable *) raviX_malloc(sizeof(*ht));
 
 	ht->size_index = 0;
 	ht->size = hash_sizes[ht->size_index].size;
@@ -119,12 +118,12 @@ raviX_hash_table_create(uint32_t (*hash_function)(const void *key),
 	ht->max_entries = hash_sizes[ht->size_index].max_entries;
 	ht->hash_function = hash_function;
 	ht->key_equals_function = key_equals_function;
-	ht->table = calloc(ht->size, sizeof(*ht->table));
+	ht->table = (HashEntry *) raviX_calloc(ht->size, sizeof(*ht->table));
 	ht->entries = 0;
 	ht->deleted_entries = 0;
 
 	if (ht->table == NULL) {
-		free(ht);
+		raviX_free(ht);
 		return NULL;
 	}
 
@@ -151,8 +150,8 @@ raviX_hash_table_destroy(HashTable *ht,
 			delete_function(entry);
 		}
 	}
-	free(ht->table);
-	free(ht);
+	raviX_free(ht->table);
+	raviX_free(ht);
 }
 
 /**
@@ -212,9 +211,7 @@ hash_table_rehash(HashTable *ht, int new_size_index)
 	if (new_size_index >= ARRAY_SIZE(hash_sizes))
 		return;
 
-	table = calloc(hash_sizes[new_size_index].size, sizeof(*ht->table));
-	if (table == NULL)
-		return;
+	table = (HashEntry *) raviX_calloc(hash_sizes[new_size_index].size, sizeof(*ht->table));
 
 	old_ht = *ht;
 
@@ -231,7 +228,7 @@ hash_table_rehash(HashTable *ht, int new_size_index)
 					     entry->key, entry->data);
 	}
 
-	free(old_ht.table);
+	raviX_free(old_ht.table);
 }
 
 /**

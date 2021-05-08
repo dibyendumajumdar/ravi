@@ -36,6 +36,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <allocate.h>
 
 
 #define ARRAY_SIZE(array) ((int)(sizeof(array) / sizeof(array[0])))
@@ -46,7 +47,7 @@
  * free to avoid exponential performance degradation as the hash table fills
  */
 
-static const uint32_t deleted_key_value;
+static const uint32_t deleted_key_value = 0;
 static const void *deleted_key = &deleted_key_value;
 
 static const struct {
@@ -109,9 +110,7 @@ Set *raviX_set_create(uint32_t (*hash_function)(const void *key),
 {
 	Set *set;
 
-	set = malloc(sizeof(*set));
-	if (set == NULL)
-		return NULL;
+	set = (Set *) raviX_malloc(sizeof(*set));
 
 	set->size_index = 0;
 	set->size = hash_sizes[set->size_index].size;
@@ -119,12 +118,12 @@ Set *raviX_set_create(uint32_t (*hash_function)(const void *key),
 	set->max_entries = hash_sizes[set->size_index].max_entries;
 	set->hash_function = hash_function;
 	set->key_equals_function = key_equals_function;
-	set->table = calloc(set->size, sizeof(*set->table));
+	set->table = (SetEntry *) raviX_calloc(set->size, sizeof(*set->table));
 	set->entries = 0;
 	set->deleted_entries = 0;
 
 	if (set->table == NULL) {
-		free(set);
+		raviX_free(set);
 		return NULL;
 	}
 
@@ -149,8 +148,8 @@ void raviX_set_destroy(Set *set, void (*delete_function)(SetEntry *entry))
 			delete_function(entry);
 		}
 	}
-	free(set->table);
-	free(set);
+	raviX_free(set->table);
+	raviX_free(set);
 }
 
 /* Does the set contain an entry with the given key.
@@ -216,9 +215,7 @@ set_rehash(Set *set, int new_size_index)
 	if (new_size_index >= ARRAY_SIZE(hash_sizes))
 		return;
 
-	table = calloc(hash_sizes[new_size_index].size, sizeof(*set->table));
-	if (table == NULL)
-		return;
+	table = (SetEntry *) raviX_calloc(hash_sizes[new_size_index].size, sizeof(*set->table));
 
 	old_set = *set;
 
@@ -233,7 +230,7 @@ set_rehash(Set *set, int new_size_index)
 	set_foreach(&old_set, entry) { raviX_set_add_pre_hashed(set, entry->hash, entry->key);
 	}
 
-	free(old_set.table);
+	raviX_free(old_set.table);
 }
 
 /**

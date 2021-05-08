@@ -52,7 +52,7 @@ static int process_block(LinearizerState *linearizer, Proc *proc, BasicBlock *bb
 		return 0;
 	}
 	// Make a copy of the successor node list as we need to change the CFG
-	nodeId_t *nodes = raviX_realloc_array(NULL, sizeof(nodeId_t), 0, count);
+	nodeId_t *nodes = (nodeId_t *) raviX_realloc_array(NULL, sizeof(nodeId_t), 0, count);
 	for (uint32_t i = 0; i < count; i++) {
 		nodes[i] = raviX_node_list_at(successors, i);
 	}
@@ -60,11 +60,11 @@ static int process_block(LinearizerState *linearizer, Proc *proc, BasicBlock *bb
 		// Remove edge from bb to the successor node
 		raviX_delete_edge(proc->cfg, bb->index, nodes[i]);
 	}
-	free(nodes);
+	raviX_free(nodes);
 	assert(raviX_node_list_size(successors) == 0); // All should be gone
 	// Now clear out this bb
 	// FIXME deallocate instructions
-	raviX_ptrlist_remove_all((struct ptr_list **)&bb->insns);
+	raviX_ptrlist_remove_all((PtrList **)&bb->insns);
 	// FIXME do we deallocate bb?
 	return 1; // We changed something
 }
@@ -93,7 +93,7 @@ static int process_proc(LinearizerState *linearizer, Proc *proc)
 int raviX_remove_unreachable_blocks(LinearizerState *linearizer)
 {
 	Proc *proc;
-	FOR_EACH_PTR(linearizer->all_procs, proc)
+	FOR_EACH_PTR(linearizer->all_procs, Proc, proc)
 		{
 			if (process_proc(linearizer, proc) != 0)
 				return 1;

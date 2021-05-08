@@ -220,7 +220,7 @@ struct Scope {
 	AstNode *function;	     /* function owning this block - of type FUNCTION_EXPR */
 	Scope *parent;	     /* parent block, may belong to parent function */
 	LuaSymbolList *symbol_list; /* symbols defined in this block */
-	unsigned need_close: 1;              /* When we exit scope of this block the upvalues need to be closed */
+	unsigned need_close: 1;              /* When we exit scope of this block do the upvalues need to be closed? */
 };
 
 /*STMT_RETURN */
@@ -431,12 +431,12 @@ static inline void copy_type(VariableType *a, const VariableType *b)
 	a->type_name = b->type_name;
 }
 
-struct parser_state {
+typedef struct ParserState {
 	LexerState *ls;
 	CompilerState *container;
 	AstNode *current_function;
 	Scope *current_scope;
-};
+} ParserState;
 
 void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level); /* output the AST structure recursively */
 const char *raviX_get_type_name(ravitype_t tt);

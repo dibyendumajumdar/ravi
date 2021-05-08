@@ -31,6 +31,7 @@
 #include "bitset.h"
 #include "dataflow_framework.h"
 #include "linearizer.h"
+#include <allocate.h>
 
 struct liveness_info {
 	nodeId_t node_id;
@@ -51,13 +52,13 @@ static void init_liveness_data(Proc *proc, struct liveness_data *liveness_data)
 {
 	memset(liveness_data, 0, sizeof(*liveness_data));
 	for (unsigned i = 0; i < proc->node_count; i++) {
-		struct liveness_info *liveness_info = (struct liveness_info *)calloc(1, sizeof(struct liveness_info));
+		struct liveness_info *liveness_info = (struct liveness_info *)raviX_calloc(1, sizeof(struct liveness_info));
 		liveness_info->node_id = i;
 		raviX_bitset_create(&liveness_info->use);
 		raviX_bitset_create(&liveness_info->def);
 		raviX_bitset_create(&liveness_info->in);
 		raviX_bitset_create(&liveness_info->out);
-		array_push(&liveness_data->lives, liveness_info);
+		array_push(&liveness_data->lives, struct liveness_info *, liveness_info);
 	}
 }
 
