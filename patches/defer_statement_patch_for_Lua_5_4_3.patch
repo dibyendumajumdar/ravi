@@ -1,63 +1,3 @@
-Index: llex.h
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/llex.h b/llex.h
---- a/llex.h	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/llex.h	(date 1620514343391)
-@@ -33,7 +33,7 @@
-   /* terminal symbols denoted by reserved words */
-   TK_AND = FIRST_RESERVED, TK_BREAK,
-   TK_DO, TK_ELSE, TK_ELSEIF, TK_END, TK_FALSE, TK_FOR, TK_FUNCTION,
--  TK_GOTO, TK_IF, TK_IN, TK_LOCAL, TK_NIL, TK_NOT, TK_OR, TK_REPEAT,
-+  TK_GOTO, TK_IF, TK_IN, TK_LOCAL, TK_DEFER, TK_NIL, TK_NOT, TK_OR, TK_REPEAT,
-   TK_RETURN, TK_THEN, TK_TRUE, TK_UNTIL, TK_WHILE,
-   /* other terminal symbols */
-   TK_IDIV, TK_CONCAT, TK_DOTS, TK_EQ, TK_GE, TK_LE, TK_NE,
-Index: lobject.h
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/lobject.h b/lobject.h
---- a/lobject.h	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/lobject.h	(date 1620514343399)
-@@ -147,6 +147,7 @@
-   TValue val;
-   struct {
-     TValuefields;
-+    lu_byte is_deferred;
-     unsigned short delta;
-   } tbclist;
- } StackValue;
-@@ -609,6 +610,10 @@
-     val_(io).gc = obj2gco(x_); settt_(io, ctb(LUA_VCCL)); \
-     checkliveness(L,io); }
- 
-+enum {
-+  UV_FLAG_TBC = 1,
-+  UV_FLAG_DEFER = 3
-+};
- 
- /*
- ** Upvalues for Lua closures
-Index: ljumptab.h
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/ljumptab.h b/ljumptab.h
---- a/ljumptab.h	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/ljumptab.h	(date 1620514343380)
-@@ -105,6 +105,7 @@
- &&L_OP_TFORLOOP,
- &&L_OP_SETLIST,
- &&L_OP_CLOSURE,
-+&&L_OP_DEFER,
- &&L_OP_VARARG,
- &&L_OP_VARARGPREP,
- &&L_OP_EXTRAARG
 Index: lfunc.h
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
@@ -65,7 +5,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/lfunc.h b/lfunc.h
 --- a/lfunc.h	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/lfunc.h	(date 1620514343371)
++++ b/lfunc.h	(date 1620822689672)
 @@ -52,7 +52,7 @@
  LUAI_FUNC LClosure *luaF_newLclosure (lua_State *L, int nupvals);
  LUAI_FUNC void luaF_initupvals (lua_State *L, LClosure *cl);
@@ -75,215 +15,101 @@ diff --git a/lfunc.h b/lfunc.h
  LUAI_FUNC void luaF_closeupval (lua_State *L, StkId level);
  LUAI_FUNC void luaF_close (lua_State *L, StkId level, int status, int yy);
  LUAI_FUNC void luaF_unlinkupval (UpVal *uv);
-Index: lopcodes.h
+Index: lfunc.c
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
-diff --git a/lopcodes.h b/lopcodes.h
---- a/lopcodes.h	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/lopcodes.h	(date 1620514343412)
-@@ -300,6 +300,7 @@
- OP_SETLIST,/*	A B C k	R[A][C+i] := R[A+i], 1 <= i <= B		*/
+diff --git a/lfunc.c b/lfunc.c
+--- a/lfunc.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
++++ b/lfunc.c	(date 1620822689672)
+@@ -99,6 +99,16 @@
+   return newupval(L, 0, level, pp);
+ }
  
- OP_CLOSURE,/*	A Bx	R[A] := closure(KPROTO[Bx])			*/
-+OP_DEFER,
++/* DEFER patch */
++static void calldefermethod (lua_State *L, TValue *func, TValue *err) {
++  if (!ttisfunction(func))
++    return;
++  StkId top = L->top;
++  setobj2s(L, top, func);  /* will call defer function */
++  setobj2s(L, top + 1, err);  /* and error msg. as 1st argument */
++  L->top = top + 2;  /* add function and arguments */
++  luaD_callnoyield(L, top, 0);
++}
  
- OP_VARARG,/*	A C	R[A], R[A+1], ..., R[A+C-2] = vararg		*/
+ /*
+ ** Call closing method for object 'obj' with error message 'err'. The
+@@ -150,7 +160,10 @@
+     errobj = s2v(level + 1);  /* error object goes after 'uv' */
+     luaD_seterrorobj(L, status, level + 1);  /* set error object */
+   }
+-  callclosemethod(L, uv, errobj, yy);
++  if (level->tbclist.is_deferred)
++    calldefermethod(L, uv, errobj);
++  else
++    callclosemethod(L, uv, errobj, yy);
+ }
  
-Index: lopcodes.c
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/lopcodes.c b/lopcodes.c
---- a/lopcodes.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/lopcodes.c	(date 1620514343404)
-@@ -97,6 +97,7 @@
-  ,opmode(0, 0, 0, 0, 1, iABx)		/* OP_TFORLOOP */
-  ,opmode(0, 0, 1, 0, 0, iABC)		/* OP_SETLIST */
-  ,opmode(0, 0, 0, 0, 1, iABx)		/* OP_CLOSURE */
-+ ,opmode(0, 0, 0, 0, 1, iABC)		/* OP_DEFER */
-  ,opmode(0, 1, 0, 0, 1, iABC)		/* OP_VARARG */
-  ,opmode(0, 0, 1, 0, 1, iABC)		/* OP_VARARGPREP */
-  ,opmode(0, 0, 0, 0, 0, iAx)		/* OP_EXTRAARG */
-Index: llex.c
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/llex.c b/llex.c
---- a/llex.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/llex.c	(date 1620514343386)
-@@ -40,7 +40,7 @@
- static const char *const luaX_tokens [] = {
-     "and", "break", "do", "else", "elseif",
-     "end", "false", "for", "function", "goto", "if",
--    "in", "local", "nil", "not", "or", "repeat",
-+    "in", "local", "defer", "nil", "not", "or", "repeat",
-     "return", "then", "true", "until", "while",
-     "//", "..", "...", "==", ">=", "<=", "~=",
-     "<<", ">>", "::", "<eof>",
-Index: lparser.c
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/lparser.c b/lparser.c
---- a/lparser.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/lparser.c	(date 1620514343432)
-@@ -707,10 +707,17 @@
- ** are in use at that time.
  
+@@ -166,16 +179,20 @@
+ /*
+ ** Insert a variable in the list of to-be-closed variables.
  */
--static void codeclosure (LexState *ls, expdesc *v) {
-+static void codeclosure (LexState *ls, expdesc *v, int deferred) {
-   FuncState *fs = ls->fs->prev;
-+  int pc = -1;
-+  if (deferred) {
-+    pc = luaK_codeABC(fs, OP_DEFER, 0, 0, 0);
-+  }
-   init_exp(v, VRELOC, luaK_codeABx(fs, OP_CLOSURE, 0, fs->np - 1));
-   luaK_exp2nextreg(fs, v);  /* fix it at the last register */
-+  if (deferred) {
-+    SETARG_A(fs->f->code[pc], v->u.info);
-+  }
- }
- 
- 
-@@ -975,24 +982,26 @@
- }
- 
- 
--static void body (LexState *ls, expdesc *e, int ismethod, int line) {
-+static void body (LexState *ls, expdesc *e, int ismethod, int line, int deferred) {
-   /* body ->  '(' parlist ')' block END */
-   FuncState new_fs;
-   BlockCnt bl;
-   new_fs.f = addprototype(ls);
-   new_fs.f->linedefined = line;
-   open_func(ls, &new_fs, &bl);
--  checknext(ls, '(');
--  if (ismethod) {
--    new_localvarliteral(ls, "self");  /* create 'self' parameter */
--    adjustlocalvars(ls, 1);
--  }
--  parlist(ls);
--  checknext(ls, ')');
+-void luaF_newtbcupval (lua_State *L, StkId level) {
++void luaF_newtbcupval (lua_State *L, StkId level, int deferred) {
+   lua_assert(level > L->tbclist);
+-  if (l_isfalse(s2v(level)))
+-    return;  /* false doesn't need to be closed */
+-  checkclosemth(L, level);  /* value must have a close method */
 +  if (!deferred) {
-+    checknext(ls, '(');
-+    if (ismethod) {
-+      new_localvarliteral(ls, "self"); /* create 'self' parameter */
-+      adjustlocalvars(ls, 1);
-+    }
-+    parlist(ls);
-+    checknext(ls, ')');
++    if (l_isfalse(s2v(level)))
++      return;  /* false doesn't need to be closed */
++    checkclosemth(L, level);  /* value must have a close method */
 +  }
-   statlist(ls);
-   new_fs.f->lastlinedefined = ls->linenumber;
-   check_match(ls, TK_END, TK_FUNCTION, line);
--  codeclosure(ls, e);
-+  codeclosure(ls, e, deferred);
-   close_func(ls);
+   while (cast_uint(level - L->tbclist) > MAXDELTA) {
+     L->tbclist += MAXDELTA;  /* create a dummy node at maximum delta */
+     L->tbclist->tbclist.delta = 0;
++    L->tbclist->tbclist.is_deferred = 0;
+   }
+   level->tbclist.delta = cast(unsigned short, level - L->tbclist);
++  level->tbclist.is_deferred = deferred ? 1 : 0;
+   L->tbclist = level;
  }
  
-@@ -1168,7 +1177,7 @@
-     }
-     case TK_FUNCTION: {
-       luaX_next(ls);
--      body(ls, v, 0, ls->linenumber);
-+      body(ls, v, 0, ls->linenumber, 0);
-       return;
-     }
-     default: {
-@@ -1674,13 +1683,21 @@
- }
- 
- 
--static void localfunc (LexState *ls) {
-+static void localfunc (LexState *ls, int defer) {
-   expdesc b;
-   FuncState *fs = ls->fs;
-   int fvar = fs->nactvar;  /* function's variable index */
--  new_localvar(ls, str_checkname(ls));  /* new local variable */
-+  if (defer) {
-+    static const char funcname[] = "(deferred function)";
-+    new_localvar(ls, luaX_newstring(ls, funcname, sizeof funcname-1));  /* new local variable */
-+    markupval(fs, fs->nactvar);
-+    fs->bl->insidetbc = 1;  /* in the scope of a defer closure variable */
-+  }
-+  else {
-+    new_localvar(ls, str_checkname(ls)); /* new local variable */
-+  }
-   adjustlocalvars(ls, 1);  /* enter its scope */
--  body(ls, &b, 0, ls->linenumber);  /* function created in next register */
-+  body(ls, &b, 0, ls->linenumber, defer);  /* function created in next register */
-   /* debug information will only see the variable after this point! */
-   localdebuginfo(fs, fvar)->startpc = fs->pc;
- }
-@@ -1775,7 +1792,7 @@
-   expdesc v, b;
-   luaX_next(ls);  /* skip FUNCTION */
-   ismethod = funcname(ls, &v);
--  body(ls, &b, ismethod, line);
-+  body(ls, &b, ismethod, line, 0);
-   luaK_storevar(ls->fs, &v, &b);
-   luaK_fixline(ls->fs, line);  /* definition "happens" in the first line */
- }
-@@ -1868,10 +1885,15 @@
-     case TK_LOCAL: {  /* stat -> localstat */
-       luaX_next(ls);  /* skip LOCAL */
-       if (testnext(ls, TK_FUNCTION))  /* local function? */
--        localfunc(ls);
-+        localfunc(ls, 0);
-       else
-         localstat(ls);
-       break;
-+    }
-+    case TK_DEFER: {  /* stat -> deferstat */
-+      luaX_next(ls);  /* skip DEFER */
-+      localfunc(ls, 1);
-+      break;
-     }
-     case TK_DBCOLON: {  /* stat -> label */
-       luaX_next(ls);  /* skip double colon */
-Index: lvm.c
+Index: lobject.h
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
-diff --git a/lvm.c b/lvm.c
---- a/lvm.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/lvm.c	(date 1620514343445)
-@@ -1541,7 +1541,7 @@
-       }
-       vmcase(OP_TBC) {
-         /* create new to-be-closed upvalue */
--        halfProtect(luaF_newtbcupval(L, ra));
-+        halfProtect(luaF_newtbcupval(L, ra, 0));
-         vmbreak;
-       }
-       vmcase(OP_JMP) {
-@@ -1752,7 +1752,7 @@
-       }
-       vmcase(OP_TFORPREP) {
-         /* create to-be-closed upvalue (if needed) */
--        halfProtect(luaF_newtbcupval(L, ra + 3));
-+        halfProtect(luaF_newtbcupval(L, ra + 3, 0));
-         pc += GETARG_Bx(i);
-         i = *(pc++);  /* go to next instruction */
-         lua_assert(GET_OPCODE(i) == OP_TFORCALL && ra == RA(i));
-@@ -1810,6 +1810,10 @@
-         halfProtect(pushclosure(L, p, cl->upvals, base, ra));
-         checkGC(L, ra + 1);
-         vmbreak;
-+      }
-+      vmcase(OP_DEFER) {
-+        halfProtect(luaF_newtbcupval(L, ra, 1));
-+        vmbreak;
-       }
-       vmcase(OP_VARARG) {
-         int n = GETARG_C(i) - 1;  /* required results */
+diff --git a/lobject.h b/lobject.h
+--- a/lobject.h	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
++++ b/lobject.h	(date 1620822881235)
+@@ -147,6 +147,7 @@
+   TValue val;
+   struct {
+     TValuefields;
++    lu_byte is_deferred; /* 1 if deferred function, else 0 means regular TBC  */
+     unsigned short delta;
+   } tbclist;
+ } StackValue;
+Index: lapi.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lapi.c b/lapi.c
+--- a/lapi.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
++++ b/lapi.c	(date 1620822689657)
+@@ -1266,7 +1266,7 @@
+   o = index2stack(L, idx);
+   nresults = L->ci->nresults;
+   api_check(L, L->tbclist < o, "given index below or equal a marked one");
+-  luaF_newtbcupval(L, o);  /* create new to-be-closed upvalue */
++  luaF_newtbcupval(L, o, 0);  /* create new to-be-closed upvalue */
+   if (!hastocloseCfunc(nresults))  /* function not marked yet? */
+     L->ci->nresults = codeNresults(nresults);  /* mark it */
+   lua_assert(hastocloseCfunc(L->ci->nresults));
 Index: testes/defer.lua
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
@@ -291,11 +117,11 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/testes/defer.lua b/testes/defer.lua
 new file mode 100644
---- /dev/null	(date 1620514917535)
-+++ b/testes/defer.lua	(date 1620514917535)
-@@ -0,0 +1,318 @@
+--- /dev/null	(date 1620823329755)
++++ b/testes/defer.lua	(date 1620823329755)
+@@ -0,0 +1,314 @@
 +-- ================================================================
-+-- Following section is an extract from the code.lua test 
++-- These tests are mostly adapted from Lua 5.4 tests for TBC variables
 +-- These functions test bytecode generation, and also provide
 +-- helper routines that we use later on in other test cases
 +
@@ -350,10 +176,6 @@ new file mode 100644
 +    end
 +    pcall(x)
 +    assert(y == 6)
-+    -- Seems the defer closure that errored is called twice
-+    -- FIXME why? See also test 12 below - same issue I think
-+    -- This appears to be a feature of Lua 5.4
-+    --assert(y == 8)
 +    print 'Test 3 OK'
 +end
 +
@@ -612,6 +434,93 @@ new file mode 100644
 +end
 +
 +print 'OK'
+Index: lvm.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lvm.c b/lvm.c
+--- a/lvm.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
++++ b/lvm.c	(date 1620822689826)
+@@ -1541,7 +1541,7 @@
+       }
+       vmcase(OP_TBC) {
+         /* create new to-be-closed upvalue */
+-        halfProtect(luaF_newtbcupval(L, ra));
++        halfProtect(luaF_newtbcupval(L, ra, 0));
+         vmbreak;
+       }
+       vmcase(OP_JMP) {
+@@ -1752,7 +1752,7 @@
+       }
+       vmcase(OP_TFORPREP) {
+         /* create to-be-closed upvalue (if needed) */
+-        halfProtect(luaF_newtbcupval(L, ra + 3));
++        halfProtect(luaF_newtbcupval(L, ra + 3, 0));
+         pc += GETARG_Bx(i);
+         i = *(pc++);  /* go to next instruction */
+         lua_assert(GET_OPCODE(i) == OP_TFORCALL && ra == RA(i));
+@@ -1810,6 +1810,10 @@
+         halfProtect(pushclosure(L, p, cl->upvals, base, ra));
+         checkGC(L, ra + 1);
+         vmbreak;
++      }
++      vmcase(OP_DEFER) {
++        halfProtect(luaF_newtbcupval(L, ra, 1));
++        vmbreak;
+       }
+       vmcase(OP_VARARG) {
+         int n = GETARG_C(i) - 1;  /* required results */
+Index: llex.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/llex.c b/llex.c
+--- a/llex.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
++++ b/llex.c	(date 1620822689703)
+@@ -40,7 +40,7 @@
+ static const char *const luaX_tokens [] = {
+     "and", "break", "do", "else", "elseif",
+     "end", "false", "for", "function", "goto", "if",
+-    "in", "local", "nil", "not", "or", "repeat",
++    "in", "local", "defer", "nil", "not", "or", "repeat",
+     "return", "then", "true", "until", "while",
+     "//", "..", "...", "==", ">=", "<=", "~=",
+     "<<", ">>", "::", "<eof>",
+Index: ljumptab.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/ljumptab.h b/ljumptab.h
+--- a/ljumptab.h	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
++++ b/ljumptab.h	(date 1620822689703)
+@@ -105,6 +105,7 @@
+ &&L_OP_TFORLOOP,
+ &&L_OP_SETLIST,
+ &&L_OP_CLOSURE,
++&&L_OP_DEFER,
+ &&L_OP_VARARG,
+ &&L_OP_VARARGPREP,
+ &&L_OP_EXTRAARG
+Index: llex.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/llex.h b/llex.h
+--- a/llex.h	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
++++ b/llex.h	(date 1620822689726)
+@@ -33,7 +33,7 @@
+   /* terminal symbols denoted by reserved words */
+   TK_AND = FIRST_RESERVED, TK_BREAK,
+   TK_DO, TK_ELSE, TK_ELSEIF, TK_END, TK_FALSE, TK_FOR, TK_FUNCTION,
+-  TK_GOTO, TK_IF, TK_IN, TK_LOCAL, TK_NIL, TK_NOT, TK_OR, TK_REPEAT,
++  TK_GOTO, TK_IF, TK_IN, TK_LOCAL, TK_DEFER, TK_NIL, TK_NOT, TK_OR, TK_REPEAT,
+   TK_RETURN, TK_THEN, TK_TRUE, TK_UNTIL, TK_WHILE,
+   /* other terminal symbols */
+   TK_IDIV, TK_CONCAT, TK_DOTS, TK_EQ, TK_GE, TK_LE, TK_NE,
 Index: lopnames.h
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
@@ -619,7 +528,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/lopnames.h b/lopnames.h
 --- a/lopnames.h	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/lopnames.h	(date 1620514343417)
++++ b/lopnames.h	(date 1620822689788)
 @@ -93,6 +93,7 @@
    "TFORLOOP",
    "SETLIST",
@@ -628,82 +537,158 @@ diff --git a/lopnames.h b/lopnames.h
    "VARARG",
    "VARARGPREP",
    "EXTRAARG",
-Index: lapi.c
+Index: lopcodes.c
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
-diff --git a/lapi.c b/lapi.c
---- a/lapi.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/lapi.c	(date 1620514343354)
-@@ -1266,7 +1266,7 @@
-   o = index2stack(L, idx);
-   nresults = L->ci->nresults;
-   api_check(L, L->tbclist < o, "given index below or equal a marked one");
--  luaF_newtbcupval(L, o);  /* create new to-be-closed upvalue */
-+  luaF_newtbcupval(L, o, 0);  /* create new to-be-closed upvalue */
-   if (!hastocloseCfunc(nresults))  /* function not marked yet? */
-     L->ci->nresults = codeNresults(nresults);  /* mark it */
-   lua_assert(hastocloseCfunc(L->ci->nresults));
-Index: lfunc.c
+diff --git a/lopcodes.c b/lopcodes.c
+--- a/lopcodes.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
++++ b/lopcodes.c	(date 1620822689757)
+@@ -97,6 +97,7 @@
+  ,opmode(0, 0, 0, 0, 1, iABx)		/* OP_TFORLOOP */
+  ,opmode(0, 0, 1, 0, 0, iABC)		/* OP_SETLIST */
+  ,opmode(0, 0, 0, 0, 1, iABx)		/* OP_CLOSURE */
++ ,opmode(0, 0, 0, 0, 1, iABC)		/* OP_DEFER */
+  ,opmode(0, 1, 0, 0, 1, iABC)		/* OP_VARARG */
+  ,opmode(0, 0, 1, 0, 1, iABC)		/* OP_VARARGPREP */
+  ,opmode(0, 0, 0, 0, 0, iAx)		/* OP_EXTRAARG */
+Index: lparser.c
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
-diff --git a/lfunc.c b/lfunc.c
---- a/lfunc.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
-+++ b/lfunc.c	(date 1620514658224)
-@@ -99,6 +99,16 @@
-   return newupval(L, 0, level, pp);
- }
+diff --git a/lparser.c b/lparser.c
+--- a/lparser.c	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
++++ b/lparser.c	(date 1620822689804)
+@@ -707,10 +707,17 @@
+ ** are in use at that time.
  
-+/* DEFER patch */
-+static void calldefermethod (lua_State *L, TValue *func, TValue *err) {
-+  if (!ttisfunction(func))
-+    return;
-+  StkId top = L->top;
-+  setobj2s(L, top, func);  /* will call defer function */
-+  setobj2s(L, top + 1, err);  /* and error msg. as 1st argument */
-+  L->top = top + 2;  /* add function and arguments */
-+  luaD_callnoyield(L, top, 0);
-+}
- 
- /*
- ** Call closing method for object 'obj' with error message 'err'. The
-@@ -150,7 +160,10 @@
-     errobj = s2v(level + 1);  /* error object goes after 'uv' */
-     luaD_seterrorobj(L, status, level + 1);  /* set error object */
-   }
--  callclosemethod(L, uv, errobj, yy);
-+  if (level->tbclist.is_deferred)
-+    calldefermethod(L, uv, errobj);
-+  else
-+    callclosemethod(L, uv, errobj, yy);
- }
- 
- 
-@@ -166,16 +179,20 @@
- /*
- ** Insert a variable in the list of to-be-closed variables.
  */
--void luaF_newtbcupval (lua_State *L, StkId level) {
-+void luaF_newtbcupval (lua_State *L, StkId level, int deferred) {
-   lua_assert(level > L->tbclist);
--  if (l_isfalse(s2v(level)))
--    return;  /* false doesn't need to be closed */
--  checkclosemth(L, level);  /* value must have a close method */
-+  if (!deferred) {
-+    if (l_isfalse(s2v(level)))
-+      return;  /* false doesn't need to be closed */
-+    checkclosemth(L, level);  /* value must have a close method */
+-static void codeclosure (LexState *ls, expdesc *v) {
++static void codeclosure (LexState *ls, expdesc *v, int deferred) {
+   FuncState *fs = ls->fs->prev;
++  int pc = -1;
++  if (deferred) {
++    pc = luaK_codeABC(fs, OP_DEFER, 0, 0, 0);
 +  }
-   while (cast_uint(level - L->tbclist) > MAXDELTA) {
-     L->tbclist += MAXDELTA;  /* create a dummy node at maximum delta */
-     L->tbclist->tbclist.delta = 0;
-+    L->tbclist->tbclist.is_deferred = 0;
-   }
-   level->tbclist.delta = cast(unsigned short, level - L->tbclist);
-+  level->tbclist.is_deferred = deferred ? 1 : 0;
-   L->tbclist = level;
+   init_exp(v, VRELOC, luaK_codeABx(fs, OP_CLOSURE, 0, fs->np - 1));
+   luaK_exp2nextreg(fs, v);  /* fix it at the last register */
++  if (deferred) {
++    SETARG_A(fs->f->code[pc], v->u.info);
++  }
  }
+ 
+ 
+@@ -975,24 +982,26 @@
+ }
+ 
+ 
+-static void body (LexState *ls, expdesc *e, int ismethod, int line) {
++static void body (LexState *ls, expdesc *e, int ismethod, int line, int deferred) {
+   /* body ->  '(' parlist ')' block END */
+   FuncState new_fs;
+   BlockCnt bl;
+   new_fs.f = addprototype(ls);
+   new_fs.f->linedefined = line;
+   open_func(ls, &new_fs, &bl);
+-  checknext(ls, '(');
+-  if (ismethod) {
+-    new_localvarliteral(ls, "self");  /* create 'self' parameter */
+-    adjustlocalvars(ls, 1);
+-  }
+-  parlist(ls);
+-  checknext(ls, ')');
++  if (!deferred) {
++    checknext(ls, '(');
++    if (ismethod) {
++      new_localvarliteral(ls, "self"); /* create 'self' parameter */
++      adjustlocalvars(ls, 1);
++    }
++    parlist(ls);
++    checknext(ls, ')');
++  }
+   statlist(ls);
+   new_fs.f->lastlinedefined = ls->linenumber;
+   check_match(ls, TK_END, TK_FUNCTION, line);
+-  codeclosure(ls, e);
++  codeclosure(ls, e, deferred);
+   close_func(ls);
+ }
+ 
+@@ -1168,7 +1177,7 @@
+     }
+     case TK_FUNCTION: {
+       luaX_next(ls);
+-      body(ls, v, 0, ls->linenumber);
++      body(ls, v, 0, ls->linenumber, 0);
+       return;
+     }
+     default: {
+@@ -1674,13 +1683,21 @@
+ }
+ 
+ 
+-static void localfunc (LexState *ls) {
++static void localfunc (LexState *ls, int defer) {
+   expdesc b;
+   FuncState *fs = ls->fs;
+   int fvar = fs->nactvar;  /* function's variable index */
+-  new_localvar(ls, str_checkname(ls));  /* new local variable */
++  if (defer) {
++    static const char funcname[] = "(deferred function)";
++    new_localvar(ls, luaX_newstring(ls, funcname, sizeof funcname-1));  /* new local variable */
++    markupval(fs, fs->nactvar);
++    fs->bl->insidetbc = 1;  /* in the scope of a defer closure variable */
++  }
++  else {
++    new_localvar(ls, str_checkname(ls)); /* new local variable */
++  }
+   adjustlocalvars(ls, 1);  /* enter its scope */
+-  body(ls, &b, 0, ls->linenumber);  /* function created in next register */
++  body(ls, &b, 0, ls->linenumber, defer);  /* function created in next register */
+   /* debug information will only see the variable after this point! */
+   localdebuginfo(fs, fvar)->startpc = fs->pc;
+ }
+@@ -1775,7 +1792,7 @@
+   expdesc v, b;
+   luaX_next(ls);  /* skip FUNCTION */
+   ismethod = funcname(ls, &v);
+-  body(ls, &b, ismethod, line);
++  body(ls, &b, ismethod, line, 0);
+   luaK_storevar(ls->fs, &v, &b);
+   luaK_fixline(ls->fs, line);  /* definition "happens" in the first line */
+ }
+@@ -1868,10 +1885,15 @@
+     case TK_LOCAL: {  /* stat -> localstat */
+       luaX_next(ls);  /* skip LOCAL */
+       if (testnext(ls, TK_FUNCTION))  /* local function? */
+-        localfunc(ls);
++        localfunc(ls, 0);
+       else
+         localstat(ls);
+       break;
++    }
++    case TK_DEFER: {  /* stat -> deferstat */
++      luaX_next(ls);  /* skip DEFER */
++      localfunc(ls, 1);
++      break;
+     }
+     case TK_DBCOLON: {  /* stat -> label */
+       luaX_next(ls);  /* skip double colon */
+Index: lopcodes.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lopcodes.h b/lopcodes.h
+--- a/lopcodes.h	(revision a03ceb4b47666501369a6b300e00f57c1dc1c708)
++++ b/lopcodes.h	(date 1620822689757)
+@@ -300,6 +300,7 @@
+ OP_SETLIST,/*	A B C k	R[A][C+i] := R[A+i], 1 <= i <= B		*/
+ 
+ OP_CLOSURE,/*	A Bx	R[A] := closure(KPROTO[Bx])			*/
++OP_DEFER,
+ 
+ OP_VARARG,/*	A C	R[A], R[A+1], ..., R[A+C-2] = vararg		*/
  
