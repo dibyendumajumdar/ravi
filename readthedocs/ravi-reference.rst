@@ -171,15 +171,11 @@ The main use case for these annotations is to help with type-checking of larger 
 
 Examples::
 
-  -- Create a metatable
-  local mt = { __name='MyType'}
-
-  -- Register the metatable in Lua registry
-  debug.getregistry().MyType = mt
+  -- Register new type in Lua registry and get associated metatable
+  local mytype = debug.registertype("MyType", {__name='MyType'})
 
   -- Create an object and assign the metatable as its type
-  local t = {}
-  setmetatable(t, mt)
+  local t = setmetatable({}, mytype)
 
   -- Use the metatable name as the object's type
   function x(s: MyType) 
