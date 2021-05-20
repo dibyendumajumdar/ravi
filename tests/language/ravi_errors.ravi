@@ -101,6 +101,7 @@ checkmessage('@string 1', 'unexpected symbol near @string') -- FIXME bad error m
 checkmessage('@MyType 1', "unexpected symbol near '@'") -- FIXME bad error message
 checkmessage('local function x(y: MyType) end x(1)', 'type mismatch: expected MyType')
 checkmessage('local function x(y: string) end x(1)', 'string expected')
+checkmessage('local function x(y: boolean) end x(1)', 'boolean expected')
 checkmessage('local function x(y: closure) end x(1)', 'closure expected')
 checkmessage('local function x() local s: string; s = 1 end', "Invalid assignment: string expected near 'end'")
 checkmessage('function x() local s: string; s = (function() return 1 end)() end; x()', 'string expected')

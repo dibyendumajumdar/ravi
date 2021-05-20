@@ -600,6 +600,7 @@ static const char Lua_header[] =
     "  (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))\n"
     "extern int luaV_tonumber_(const TValue *obj, lua_Number *n);\n"
     "extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);\n"
+    "extern int luaV_toboolean (const TValue *obj, int *b); \n"
 #ifdef RAVI_DEFER_STATEMENT
     "extern int luaF_close (lua_State *L, StkId level, int status);\n"
 #else
@@ -1659,6 +1660,21 @@ static void emit_op_tostring(struct function *fn, int A, int pc) {
   membuff_add_string(&fn->body, "}\n");
 }
 
+static void emit_op_toboolean(struct function *fn, int A, int pc) {
+  (void)pc;
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "int bool = 0;\n");
+  membuff_add_string(&fn->body, "if (luaV_toboolean(ra, &bool)) { setbvalue(ra, bool); }\n");
+  membuff_add_string(&fn->body, "if (!ttisboolean(ra)) {\n");
+#if GOTO_ON_ERROR
+  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_boolean_expected);
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
+#else
+  membuff_add_fstring(&fn->body, " raviV_raise_error(L, %d);\n", Error_boolean_expected);
+#endif
+  membuff_add_string(&fn->body, "}\n");
+}
+
 static void emit_op_totype(struct function *fn, int A, int Bx, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
@@ -2267,6 +2283,9 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p, struct ravi_compile_opt
       case OP_RAVI_TOSTRING: {
         emit_op_tostring(&fn, A, pc);
       } break;
+      case OP_RAVI_TOBOOLEAN: {
+        emit_op_toboolean(&fn, A, pc);
+      } break;
       case OP_RAVI_TOCLOSURE: {
         emit_op_toclosure(&fn, A, pc);
       } break;
@@ -2391,6 +2410,7 @@ static const char *errortext[] = {"integer expected",
                                   "for initial value must be a number",
                                   "array index is out of bounds",
                                   "string expected",
+                                  "boolean expected",
                                   "closure expected",
                                   "type mismatch: wrong userdata type",
                                   NULL};
@@ -2404,3 +2424,4 @@ void raviV_raise_error_with_info(lua_State *L, int errorcode, const char *info) 
   assert(errorcode == Error_type_mismatch);
   luaG_runerror(L, "type mismatch: expected %s", info);
 }
+

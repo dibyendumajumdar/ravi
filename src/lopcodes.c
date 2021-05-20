@@ -112,6 +112,7 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "TOFARRAY", /* A R(A) := to_arrayf(R(A)) */
   "TOTAB",     /* A R(A) := to_table(R(A)) */
   "TOSTRING",
+  "TOBOOLEAN",
   "TOCLOSURE",
   "TOTYPE",
 
@@ -256,6 +257,7 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOFARRAY A R(A) := check_array_of_float(R(A)) */
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOTAB A R(A) := check_table(R(A)) */
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOSTRING */
+ ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOBOOLEAN */
  ,opmode(0, 1, OpArgN, OpArgN, iABC)    /* OP_RAVI_TOCLOSURE */
  ,opmode(0, 1, OpArgK, OpArgN, iABx)    /* OP_RAVI_TOTYPE */
 
