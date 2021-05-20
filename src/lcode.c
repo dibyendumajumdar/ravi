@@ -1531,6 +1531,10 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
         opcode = OP_RAVI_TOINT;
         tm = RAVI_TM_INTEGER;
       }
+      else if (op == OPR_TO_BOOLEAN && e->ravi_type_map != RAVI_TM_BOOLEAN) {
+        opcode = OP_RAVI_TOBOOLEAN;
+        tm = RAVI_TM_BOOLEAN;
+      }
       else if (op == OPR_TO_INTARRAY && e->ravi_type_map != RAVI_TM_INTEGER_ARRAY) {
         if (e->ravi_type_map == RAVI_TM_TABLE && e->pc >= 0) {
           Instruction *i = &fs->f->code[e->pc];
@@ -1616,7 +1620,7 @@ void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line, TString *userty
     case OPR_LEN:
       codeunexpval(fs, cast(OpCode, op + OP_UNM), e, line);
       break;
-    case OPR_TO_INTEGER: case OPR_TO_NUMBER: case OPR_TO_INTARRAY:
+    case OPR_TO_INTEGER: case OPR_TO_NUMBER: case OPR_TO_INTARRAY: case OPR_TO_BOOLEAN:
     case OPR_TO_NUMARRAY: case OPR_TO_TABLE: case OPR_TO_STRING: case OPR_TO_CLOSURE:
       code_type_assertion(fs, op, e, NULL); break;
     case OPR_TO_TYPE:

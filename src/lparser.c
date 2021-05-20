@@ -1709,6 +1709,7 @@ static UnOpr getunopr (int op) {
     case TK_TO_NUMARRAY: return OPR_TO_NUMARRAY;
     case TK_TO_TABLE: return OPR_TO_TABLE;
     case TK_TO_STRING: return OPR_TO_STRING;
+    case TK_TO_BOOLEAN: return OPR_TO_BOOLEAN;
     case TK_TO_CLOSURE: return OPR_TO_CLOSURE;
     case '@': return OPR_TO_TYPE;
     default: return OPR_NOUNOPR;

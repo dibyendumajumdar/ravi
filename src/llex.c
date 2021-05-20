@@ -50,7 +50,7 @@ static const char *const luaX_tokens [] = {
     "<<", ">>", "::", "<eof>",
     "<number>", "<integer>", "<name>", "<string>",
     "@integer", "@number", "@integer[]", "@number[]",
-    "@table", "@string", "@closure"
+    "@table", "@string", "@boolean", "@closure"
 };
 
 
@@ -478,6 +478,8 @@ static int casttoken(LexState *ls, SemInfo *seminfo) {
     tok = TK_TO_TABLE;
   else if (strncmp(s, "@string", n) == 0)
     tok = TK_TO_STRING;
+  else if (strncmp(s, "@boolean", n) == 0)
+    tok = TK_TO_BOOLEAN;
   else if (strncmp(s, "@closure", n) == 0)
     tok = TK_TO_CLOSURE;
   else {

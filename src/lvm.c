@@ -79,7 +79,6 @@
 
 #endif
 
-
 /*
 ** Try to convert a value from string to a number value.
 ** If the value is not a string or is a string not representing
@@ -95,6 +94,33 @@ static int l_strton (const TValue *obj, TValue *result) {
     return (luaO_str2num(svalue(obj), result) == vslen(obj) + 1);
 }
 
+/*
+** Try to convert a value (string or numeric) to boolean.
+** On successful conversion returns 1 and stores value in (*b).
+** On failure, returns 0.
+*/
+int luaV_toboolean (const TValue *obj, int *b) {
+  // initial value is negative
+  (*b) = -1;
+  // try as integer
+  if (ttisinteger(obj)) {
+    int i = ivalue(obj);
+    if (i == 0)
+      (*b) = 0;
+    else if (i == 1)
+      (*b) = 1;
+  }
+  // try as string
+  else if (ttisstring(obj)) {
+    const char* s = getstr(tsvalue(obj));
+    if (strcmp(s, "false") == 0)
+      (*b) = 0;
+    else if (strcmp(s, "true") == 0)
+      (*b) = 1;
+  }
+  // if still negative (so unchanged) -- conversion failed
+  return ((*b) >= 0);
+}
 
 /*
 ** Try to convert a value to a float. The float case is already handled
@@ -2591,6 +2617,8 @@ int luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_RAVI_TOBOOLEAN) {
+        int b;
+        if (RAVI_LIKELY(luaV_toboolean(ra, &b))) { setbvalue(ra, b); }
         if (!ttisnil(ra) && RAVI_UNLIKELY(!ttisboolean(ra)))
           luaG_runerror(L, "boolean expected");
         vmbreak;

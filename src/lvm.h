@@ -109,7 +109,7 @@ typedef enum {
 
 
 
-
+LUAI_FUNC int luaV_toboolean (const TValue *obj, int *b);
 LUAI_FUNC int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2);
 LUAI_FUNC int luaV_lessthan (lua_State *L, const TValue *l, const TValue *r);
 LUAI_FUNC int luaV_lessequal (lua_State *L, const TValue *l, const TValue *r);
