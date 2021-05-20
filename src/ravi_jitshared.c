@@ -1659,6 +1659,19 @@ static void emit_op_tostring(struct function *fn, int A, int pc) {
   membuff_add_string(&fn->body, "}\n");
 }
 
+static void emit_op_toboolean(struct function *fn, int A, int pc) {
+  (void)pc;
+  emit_reg(fn, "ra", A);
+  membuff_add_string(&fn->body, "if (!ttisboolean(ra)) {\n");
+#if GOTO_ON_ERROR
+  membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_string_expected);
+  membuff_add_string(&fn->body, " goto Lraise_error;\n");
+#else
+  membuff_add_fstring(&fn->body, " raviV_raise_error(L, %d);\n", Error_string_expected);
+#endif
+  membuff_add_string(&fn->body, "}\n");
+}
+
 static void emit_op_totype(struct function *fn, int A, int Bx, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
@@ -2266,6 +2279,9 @@ bool raviJ_codegen(struct lua_State *L, struct Proto *p, struct ravi_compile_opt
       } break;
       case OP_RAVI_TOSTRING: {
         emit_op_tostring(&fn, A, pc);
+      } break;
+      case OP_RAVI_TOBOOLEAN: {
+        emit_op_toboolean(&fn, A, pc);
       } break;
       case OP_RAVI_TOCLOSURE: {
         emit_op_toclosure(&fn, A, pc);

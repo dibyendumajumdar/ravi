@@ -38,6 +38,8 @@ The supported type-annotations are as follows:
   denotes a Lua table
 ``string``
   denotes a string
+``boolean``
+  denotes a boolean
 ``closure``
   denotes a function
 ``Name [. Name]*``

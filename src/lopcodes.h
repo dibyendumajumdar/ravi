@@ -223,6 +223,7 @@ OP_RAVI_TOIARRAY, /* A R(A) := to_arrayi(R(A)) */
 OP_RAVI_TOFARRAY, /* A R(A) := to_arrayf(R(A)) */
 OP_RAVI_TOTAB,    /* A R(A) := to_table(R(A)) */
 OP_RAVI_TOSTRING, /* A R(A) := assert_string(R(A)) */
+OP_RAVI_TOBOOLEAN, /* A R(A) := assert_string(R(A)) */
 OP_RAVI_TOCLOSURE, /* A R(A) := assert_closure(R(A)) */
 OP_RAVI_TOTYPE,  /* A R(A) := assert_usertype(R(A)), where usertype has metatable in Lua registry */
 

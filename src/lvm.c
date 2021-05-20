@@ -1331,6 +1331,7 @@ int luaV_execute (lua_State *L) {
     &&vmlabel(OP_RAVI_TOFARRAY),
     &&vmlabel(OP_RAVI_TOTAB),
     &&vmlabel(OP_RAVI_TOSTRING),
+    &&vmlabel(OP_RAVI_TOBOOLEAN),
     &&vmlabel(OP_RAVI_TOCLOSURE),
     &&vmlabel(OP_RAVI_TOTYPE),
     &&vmlabel(OP_RAVI_MOVEI),
@@ -2587,6 +2588,11 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_RAVI_TOSTRING) {
         if (!ttisnil(ra) && RAVI_UNLIKELY(!ttisstring(ra)))
           luaG_runerror(L, "string expected");        
+        vmbreak;
+      }
+      vmcase(OP_RAVI_TOBOOLEAN) {
+        if (!ttisnil(ra) && RAVI_UNLIKELY(!ttisboolean(ra)))
+          luaG_runerror(L, "boolean expected");
         vmbreak;
       }
       vmcase(OP_RAVI_TOCLOSURE) {

@@ -702,6 +702,8 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
           luaK_codeABC(fs, OP_MOVE, reg, e->u.info, 0);
           if (ravi_type == RAVI_TM_STRING_OR_NIL)
             luaK_codeABC(fs, OP_RAVI_TOSTRING, reg, 0, 0);
+          else if (ravi_type == RAVI_TM_BOOLEAN_OR_NIL)
+            luaK_codeABC(fs, OP_RAVI_TOBOOLEAN, reg, 0, 0);
           else if (ravi_type == RAVI_TM_FUNCTION_OR_NIL)
             luaK_codeABC(fs, OP_RAVI_TOCLOSURE, reg, 0, 0);
           else if (ravi_type == RAVI_TM_USERDATA_OR_NIL && usertype)
@@ -870,6 +872,7 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
        var->ravi_type_map == RAVI_TM_INTEGER_ARRAY ||
        var->ravi_type_map == RAVI_TM_TABLE ||
        var->ravi_type_map == RAVI_TM_STRING_OR_NIL ||
+       var->ravi_type_map == RAVI_TM_BOOLEAN_OR_NIL ||
        var->ravi_type_map == RAVI_TM_FUNCTION_OR_NIL ||
        var->ravi_type_map == RAVI_TM_USERDATA_OR_NIL)) {
     /* handled by MOVEI, MOVEF, MOVEIARRAY, MOVEFARRAY at runtime */
@@ -922,6 +925,15 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
       fs->ls->L,
       "Invalid assignment: string expected"));
   }
+  else if (var->ravi_type_map == RAVI_TM_BOOLEAN_OR_NIL) {
+    if ((ex_ravi_type_map & ~RAVI_TM_BOOLEAN_OR_NIL) == 0)
+      return;
+    luaX_syntaxerror(
+      fs->ls,
+      luaO_pushfstring(
+      fs->ls->L,
+      "Invalid assignment: boolean expected"));
+  }
   else if (var->ravi_type_map == RAVI_TM_FUNCTION_OR_NIL) {
     if ((ex_ravi_type_map & ~RAVI_TM_FUNCTION_OR_NIL) == 0)
       return;
@@ -948,7 +960,7 @@ static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex,
   OpCode op = OP_SETUPVAL;
   if ((var->ravi_type_map == RAVI_TM_INTEGER || var->ravi_type_map == RAVI_TM_FLOAT ||
        var->ravi_type_map == RAVI_TM_INTEGER_ARRAY || var->ravi_type_map == RAVI_TM_FLOAT_ARRAY ||
-       var->ravi_type_map == RAVI_TM_TABLE || var->ravi_type_map == RAVI_TM_STRING_OR_NIL ||
+       var->ravi_type_map == RAVI_TM_TABLE || var->ravi_type_map == RAVI_TM_STRING_OR_NIL || var->ravi_type_map == RAVI_TM_BOOLEAN_OR_NIL ||
        var->ravi_type_map == RAVI_TM_FUNCTION_OR_NIL || var->ravi_type_map == RAVI_TM_USERDATA_OR_NIL) &&
       ex->ravi_type_map & ~var->ravi_type_map) {
     if (var->ravi_type_map == RAVI_TM_INTEGER)
@@ -963,6 +975,8 @@ static OpCode check_valid_setupval(FuncState *fs, expdesc *var, expdesc *ex,
       op = OP_RAVI_SETUPVALT;
     else if (var->ravi_type_map == RAVI_TM_STRING_OR_NIL)
       luaK_codeABC(fs, OP_RAVI_TOSTRING, reg, 0, 0);
+    else if (var->ravi_type_map == RAVI_TM_BOOLEAN_OR_NIL)
+      luaK_codeABC(fs, OP_RAVI_TOBOOLEAN, reg, 0, 0);
     else if (var->ravi_type_map == RAVI_TM_FUNCTION_OR_NIL)
       luaK_codeABC(fs, OP_RAVI_TOCLOSURE, reg, 0, 0);
     else if (var->ravi_type_map == RAVI_TM_USERDATA_OR_NIL) {
@@ -1550,6 +1564,10 @@ static void code_type_assertion(FuncState *fs, UnOpr op, expdesc *e, TString *us
       else if (op == OPR_TO_STRING && (e->ravi_type_map & (~RAVI_TM_STRING_OR_NIL)) != 0) {
         opcode = OP_RAVI_TOSTRING;
         tm = RAVI_TM_STRING_OR_NIL;
+      }
+      else if (op == OPR_TO_BOOLEAN && (e->ravi_type_map & (~RAVI_TM_BOOLEAN_OR_NIL)) != 0) {
+        opcode = OP_RAVI_TOBOOLEAN;
+        tm = RAVI_TM_BOOLEAN_OR_NIL;
       }
       else if (op == OPR_TO_CLOSURE && (e->ravi_type_map & (~RAVI_TM_FUNCTION_OR_NIL)) != 0) {
         opcode = OP_RAVI_TOCLOSURE;

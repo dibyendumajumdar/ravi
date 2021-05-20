@@ -639,9 +639,10 @@ static void ravi_code_typecoersion(LexState *ls, int reg, ravi_type_map tm,
     luaK_codeABx(ls->fs, OP_RAVI_TOTYPE, reg, luaK_stringK(ls->fs, typename));
   else if (tm == RAVI_TM_STRING_OR_NIL)
     luaK_codeABC(ls->fs, OP_RAVI_TOSTRING, reg, 0, 0);
+  else if (tm == RAVI_TM_BOOLEAN_OR_NIL)
+    luaK_codeABC(ls->fs, OP_RAVI_TOBOOLEAN, reg, 0, 0);
   else if (tm == RAVI_TM_FUNCTION_OR_NIL)
     luaK_codeABC(ls->fs, OP_RAVI_TOCLOSURE, reg, 0, 0);
-  // TODO coerse to boolean
 }
 
 /* RAVI code an instruction to initialize a scalar typed value
@@ -1279,8 +1280,8 @@ static ravi_type_map declare_localvar(LexState *ls, TString **pusertype) {
       tm = RAVI_TM_TABLE;
     else if (strcmp(str, "string") == 0)
       tm = RAVI_TM_STRING_OR_NIL;
-    //else if (strcmp(str, "boolean") == 0)
-    //  tm = RAVI_TM_BOOLEAN_OR_NIL;
+    else if (strcmp(str, "boolean") == 0)
+      tm = RAVI_TM_BOOLEAN_OR_NIL;
     else if (strcmp(str, "any") == 0)
       tm = RAVI_TM_ANY;
     else {
@@ -1458,7 +1459,7 @@ static void ravi_typecheck(LexState *ls, expdesc *v, ravi_type_map *var_types,
   /* if we are calling a function then convert return types */
   else if ((vartype == RAVI_TM_FLOAT || vartype == RAVI_TM_INTEGER ||
             vartype == RAVI_TM_FLOAT_ARRAY || vartype == RAVI_TM_INTEGER_ARRAY ||
-            vartype == RAVI_TM_TABLE || vartype == RAVI_TM_STRING_OR_NIL ||
+            vartype == RAVI_TM_TABLE || vartype == RAVI_TM_STRING_OR_NIL || vartype == RAVI_TM_BOOLEAN_OR_NIL ||
             vartype == RAVI_TM_FUNCTION_OR_NIL || vartype == RAVI_TM_USERDATA_OR_NIL) &&
             v->k == VCALL) {
     /* For local variable declarations that call functions e.g.
@@ -1488,7 +1489,8 @@ static void ravi_typecheck(LexState *ls, expdesc *v, ravi_type_map *var_types,
   }
   else if (vartype == RAVI_TM_STRING_OR_NIL ||
             vartype == RAVI_TM_FUNCTION_OR_NIL ||
-            vartype == RAVI_TM_USERDATA_OR_NIL) {
+            vartype == RAVI_TM_USERDATA_OR_NIL || 
+            vartype == RAVI_TM_BOOLEAN_OR_NIL) {
     TString *usertype = usertypes[n]; // NULL if var_types[n] is not userdata
     /* we need to make sure that a register is assigned to 'v'
       so that we can emit type assertion instructions. This would have 
