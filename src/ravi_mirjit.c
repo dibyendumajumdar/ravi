@@ -49,6 +49,7 @@ static LuaFunc Lua_functions[] = {
     { "raviV_raise_error_with_info", raviV_raise_error_with_info },
     { "luaV_tonumber_", luaV_tonumber_ },
     { "luaV_tointeger", luaV_tointeger },
+    { "luaV_tointegerns", luaV_tointegerns },
     { "luaV_shiftl", luaV_shiftl },
     { "luaD_poscall", luaD_poscall },
     { "luaV_equalobj", luaV_equalobj },

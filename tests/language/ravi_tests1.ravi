@@ -1879,6 +1879,63 @@ do
 end
 print 'Test 88 OK'
 
+do
+  local data = { "a", 5.5, false }
+  for i = 1,4 do -- check nil too
+    local y = data[i]
+    local function x()
+      return @integer y
+    end
+    assert(not pcall(x))
+    compile(x)
+    assert(not pcall(x))
+  end
+end
+print 'Test 89 OK'
+
+do
+  local y = 56.0
+  local function x()
+    return @integer y
+  end
+  local _,z = pcall(x)
+  assert(_)
+  assert(math.type(z) == 'integer')
+  compile(x)
+  _,z = pcall(x)
+  assert(_)
+  assert(math.type(z) == 'integer')
+end
+print 'Test 90 OK'
+
+do
+  local data = { "a", 5.5, false }
+  for i = 1,4 do -- check nil too
+    local y = data[i]
+    local function x(y: integer)
+      return y
+    end
+    assert(not pcall(x))
+    compile(x)
+    assert(not pcall(x))
+  end
+end
+print 'Test 91 OK'
+
+do
+  local function x(y: integer)
+    return y
+  end
+  local _,z = pcall(x, 56.0)
+  assert(_)
+  assert(math.type(z) == 'integer')
+  compile(x)
+  _,z = pcall(x, 56.0)
+  assert(_)
+  assert(math.type(z) == 'integer')
+end
+print 'Test 92 OK'
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)

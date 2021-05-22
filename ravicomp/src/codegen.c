@@ -611,8 +611,10 @@ static const char Lua_header[] =
     "  (ttisfloat(o) ? (*(n) = fltvalue(o), 1) : luaV_tonumber_(o,n))\n"
     "#define tointeger(o,i) \\\n"
     "  (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))\n"
+    "#define tointegerns(o, i) (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointegerns(o, i, LUA_FLOORN2I))\n"
     "extern int luaV_tonumber_(const TValue *obj, lua_Number *n);\n"
     "extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);\n"
+    "extern int luaV_tointegerns(const TValue *obj, lua_Integer *p, int mode);\n"
 #ifdef RAVI_DEFER_STATEMENT
     "extern int luaF_close (lua_State *L, StkId level, int status);\n"
 #else
@@ -2198,7 +2200,7 @@ static int emit_op_movfi(struct function *fn, Instruction *insn)
 	emit_reg_accessor(fn, operand, 0);
 	raviX_buffer_add_string(&fn->body, ";\n");
 	raviX_buffer_add_string(&fn->body, " lua_Integer i = 0;\n");
-	raviX_buffer_add_string(&fn->body, " if (!tointeger(rb, &i)) {\n");
+	raviX_buffer_add_string(&fn->body, " if (!tointegerns(rb, &i)) {\n");
 	raviX_buffer_add_fstring(&fn->body, "  error_code = %d;\n", Error_integer_expected);
 	raviX_buffer_add_string(&fn->body, "  goto Lraise_error;\n");
 	raviX_buffer_add_string(&fn->body, " }\n");

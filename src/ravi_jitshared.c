@@ -598,8 +598,10 @@ static const char Lua_header[] =
     "  (ttisfloat(o) ? (*(n) = fltvalue(o), 1) : luaV_tonumber_(o,n))\n"
     "#define tointeger(o,i) \\\n"
     "  (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointeger(o,i,LUA_FLOORN2I))\n"
+    "#define tointegerns(o, i) (ttisinteger(o) ? (*(i) = ivalue(o), 1) : luaV_tointegerns(o, i, LUA_FLOORN2I))\n"
     "extern int luaV_tonumber_(const TValue *obj, lua_Number *n);\n"
     "extern int luaV_tointeger(const TValue *obj, lua_Integer *p, int mode);\n"
+    "extern int luaV_tointegerns(const TValue *obj, lua_Integer *p, int mode);\n"
 #ifdef RAVI_DEFER_STATEMENT
     "extern int luaF_close (lua_State *L, StkId level, int status);\n"
 #else
@@ -1566,7 +1568,7 @@ static void emit_op_toint(struct function *fn, int A, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
   membuff_add_string(&fn->body, "i = 0;\n");
-  membuff_add_string(&fn->body, "if (ttisinteger(ra)) {i = ivalue(ra); setivalue(ra, i); }\n");
+  membuff_add_string(&fn->body, "if (tointegerns(ra, &i)) { setivalue(ra, i); }\n");
   membuff_add_string(&fn->body, "else {\n");
 #if GOTO_ON_ERROR
   membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_integer_expected);
@@ -1636,7 +1638,7 @@ static void emit_op_totab(struct function *fn, int A, int pc) {
 static void emit_op_toclosure(struct function *fn, int A, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
-  membuff_add_string(&fn->body, "if (!ttisclosure(ra)) {\n");
+  membuff_add_string(&fn->body, "if (!ttisnil(ra) && !ttisclosure(ra)) {\n");
 #if GOTO_ON_ERROR
   membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_closure_expected);
   membuff_add_string(&fn->body, " goto Lraise_error;\n");
@@ -1649,7 +1651,7 @@ static void emit_op_toclosure(struct function *fn, int A, int pc) {
 static void emit_op_tostring(struct function *fn, int A, int pc) {
   (void)pc;
   emit_reg(fn, "ra", A);
-  membuff_add_string(&fn->body, "if (!ttisstring(ra)) {\n");
+  membuff_add_string(&fn->body, "if (!ttisnil(ra) && !ttisstring(ra)) {\n");
 #if GOTO_ON_ERROR
   membuff_add_fstring(&fn->body, " error_code = %d;\n", Error_string_expected);
   membuff_add_string(&fn->body, " goto Lraise_error;\n");

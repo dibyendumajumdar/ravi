@@ -403,7 +403,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     }                                                                       \
     else {                                                                  \
       lua_Number d = 0.0;                                                   \
-      if (luaV_tonumber_(val, &d)) {                                        \
+      if (tonumberns(val, d)) {                                             \
         raviH_set_float_inline(L, h, ivalue(key), d);                       \
       }                                                                     \
       else                                                                  \
@@ -418,7 +418,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     }                                                                       \
     else {                                                                  \
       lua_Integer i = 0;                                                    \
-      if (luaV_tointeger_(val, &i)) {                                       \
+      if (tointegerns(val, &i)) {                                           \
         raviH_set_int_inline(L, h, ivalue(key), i);                         \
       }                                                                     \
       else                                                                  \
@@ -459,7 +459,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     }                                                                       \
     else {                                                                  \
       lua_Number d = 0.0;                                                   \
-      if (luaV_tonumber_(val, &d)) {                                        \
+      if (tonumberns(val, d)) {                                             \
         raviH_set_float_inline(L, h, ivalue(key), d);                       \
       }                                                                     \
       else                                                                  \
@@ -473,7 +473,7 @@ void luaV_finishset (lua_State *L, const TValue *t, TValue *key,
     }                                                                       \
     else {                                                                  \
       lua_Integer i = 0;                                                    \
-      if (luaV_tointeger_(val, &i)) {                                       \
+      if (tointegerns(val, &i)) {                                           \
         raviH_set_int_inline(L, h, ivalue(key), i);                         \
       }                                                                     \
       else                                                                  \
@@ -1998,7 +1998,7 @@ int luaV_execute (lua_State *L) {
               }
               else {
                 lua_Integer i = 0;
-                if (luaV_tointeger_(val, &i)) {
+                if (tointegerns(val, &i)) {
                   raviH_set_int_inline(L, h, u, i);
                 }
                 else
@@ -2014,7 +2014,7 @@ int luaV_execute (lua_State *L) {
               }
               else {
                 lua_Number d = 0.0;
-                if (luaV_tonumber_(val, &d)) {
+                if (tonumberns(val, d)) {
                   raviH_set_float_inline(L, h, u, d);
                 }
                 else
@@ -2316,7 +2316,7 @@ int luaV_execute (lua_State *L) {
         }
         else {
           lua_Integer j;
-          if (tointeger(rc, &j)) { raviH_set_int_inline(L, t, idx, j); }
+          if (tointegerns(rc, &j)) { raviH_set_int_inline(L, t, idx, j); }
           else
             luaG_runerror(L, "integer expected");
         }
@@ -2341,7 +2341,7 @@ int luaV_execute (lua_State *L) {
         }
         else {
           lua_Number j;
-          if (tonumber(rc, &j)) { raviH_set_float_inline(L, t, idx, j); }
+          if (tonumberns(rc, j)) { raviH_set_float_inline(L, t, idx, j); }
           else
             luaG_runerror(L, "number expected");
         }
@@ -2357,7 +2357,7 @@ int luaV_execute (lua_State *L) {
       }
       vmcase(OP_RAVI_SETUPVALI) {
         lua_Integer ia;
-        if (tointeger(ra, &ia)) {
+        if (tointegerns(ra, &ia)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
           setivalue(uv->v, ia);
           luaC_upvalbarrier(L, uv, ra);
@@ -2369,7 +2369,7 @@ int luaV_execute (lua_State *L) {
       }
       vmcase(OP_RAVI_SETUPVALF) {
         lua_Number na;
-        if (tonumber(ra, &na)) {
+        if (tonumberns(ra, na)) {
           UpVal *uv = cl->upvals[GETARG_B(i)];
           setfltvalue(uv->v, na);
           luaC_upvalbarrier(L, uv, ra);
@@ -2515,7 +2515,7 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_RAVI_MOVEI) {
         TValue *rb = RB(i);
         lua_Integer j;
-        if (RAVI_LIKELY(tointeger(rb, &j))) { setivalue(ra, j); }
+        if (RAVI_LIKELY(tointegerns(rb, &j))) { setivalue(ra, j); }
         else
           luaG_runerror(L, "MOVEI: integer expected");
         vmbreak;
@@ -2523,7 +2523,7 @@ int luaV_execute (lua_State *L) {
       vmcase(OP_RAVI_MOVEF) {
         TValue *rb = RB(i);
         lua_Number j;
-        if (RAVI_LIKELY(tonumber(rb, &j))) { setfltvalue(ra, j); }
+        if (RAVI_LIKELY(tonumberns(rb, j))) { setfltvalue(ra, j); }
         else
           luaG_runerror(L, "MOVEF: number expected");
         vmbreak;
@@ -2557,14 +2557,14 @@ int luaV_execute (lua_State *L) {
       }
       vmcase(OP_RAVI_TOINT) {
         lua_Integer j;
-        if (RAVI_LIKELY(tointeger(ra, &j))) { setivalue(ra, j); }
+        if (RAVI_LIKELY(tointegerns(ra, &j))) { setivalue(ra, j); }
         else
           luaG_runerror(L, "TOINT: integer expected");
         vmbreak;
       }
       vmcase(OP_RAVI_TOFLT) {
         lua_Number j;
-        if (RAVI_LIKELY(tonumber(ra, &j))) { setfltvalue(ra, j); }
+        if (RAVI_LIKELY(tonumberns(ra, j))) { setfltvalue(ra, j); }
         else
           luaG_runerror(L, "TOFLT: number expected");
         vmbreak;
@@ -2832,7 +2832,7 @@ void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
         }
         else {
           lua_Integer i = 0;
-          if (luaV_tointeger_(val, &i)) {
+          if (tointegerns(val, &i)) {
             raviH_set_int_inline(L, h, u, i);
           }
           else
@@ -2848,7 +2848,7 @@ void raviV_op_setlist(lua_State *L, CallInfo *ci, TValue *ra, int b, int c) {
         }
         else {
           lua_Number d = 0.0;
-          if (luaV_tonumber_(val, &d)) {
+          if (tonumberns(val, d)) {
             raviH_set_float_inline(L, h, u, d);
           }
           else
@@ -2919,7 +2919,7 @@ void raviV_op_loadnil(CallInfo *ci, int a, int b) {
 
 void raviV_op_setupvali(lua_State *L, LClosure *cl, TValue *ra, int b) {
   lua_Integer ia;
-  if (tointeger(ra, &ia)) {
+  if (tointegerns(ra, &ia)) {
     UpVal *uv = cl->upvals[b];
     setivalue(uv->v, ia);
     luaC_upvalbarrier(L, uv, ra);
@@ -2931,7 +2931,7 @@ void raviV_op_setupvali(lua_State *L, LClosure *cl, TValue *ra, int b) {
 
 void raviV_op_setupvalf(lua_State *L, LClosure *cl, TValue *ra, int b) {
   lua_Number na;
-  if (tonumber(ra, &na)) {
+  if (tonumberns(ra, na)) {
     UpVal *uv = cl->upvals[b];
     setfltvalue(uv->v, na);
     luaC_upvalbarrier(L, uv, ra);
@@ -2981,7 +2981,7 @@ void raviV_op_add(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
     lua_Integer ic = ivalue(rc);
     setivalue(ra, intop(+, ib, ic));
   }
-  else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+  else if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
     setfltvalue(ra, luai_numadd(L, nb, nc));
   }
   else {
@@ -2997,7 +2997,7 @@ void raviV_op_sub(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
     lua_Integer ic = ivalue(rc);
     setivalue(ra, intop(-, ib, ic));
   }
-  else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+  else if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
     setfltvalue(ra, luai_numsub(L, nb, nc));
   }
   else {
@@ -3013,7 +3013,7 @@ void raviV_op_mul(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
     lua_Integer ic = ivalue(rc);
     setivalue(ra, intop(*, ib, ic));
   }
-  else if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+  else if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
     setfltvalue(ra, luai_nummul(L, nb, nc));
   }
   else {
@@ -3024,7 +3024,7 @@ void raviV_op_mul(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
 void raviV_op_div(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
   lua_Number nb;
   lua_Number nc;
-  if (tonumber(rb, &nb) && tonumber(rc, &nc)) {
+  if (tonumberns(rb, nb) && tonumberns(rc, nc)) {
     setfltvalue(ra, luai_numdiv(L, nb, nc));
   }
   else {
@@ -3035,7 +3035,7 @@ void raviV_op_div(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
 void raviV_op_shl(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
   lua_Integer ib;
   lua_Integer ic;
-  if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+  if (tointegerns(rb, &ib) && tointegerns(rc, &ic)) {
     setivalue(ra, luaV_shiftl(ib, ic));
   }
   else {
@@ -3046,7 +3046,7 @@ void raviV_op_shl(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
 void raviV_op_shr(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
   lua_Integer ib;
   lua_Integer ic;
-  if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+  if (tointegerns(rb, &ib) && tointegerns(rc, &ic)) {
     setivalue(ra, luaV_shiftl(ib, -ic));
   }
   else {
@@ -3057,7 +3057,7 @@ void raviV_op_shr(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
 void raviV_op_band(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
   lua_Integer ib;
   lua_Integer ic;
-  if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+  if (tointegerns(rb, &ib) && tointegerns(rc, &ic)) {
     setivalue(ra, intop(&, ib, ic));
   }
   else {
@@ -3068,7 +3068,7 @@ void raviV_op_band(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
 void raviV_op_bor(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
   lua_Integer ib;
   lua_Integer ic;
-  if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+  if (tointegerns(rb, &ib) && tointegerns(rc, &ic)) {
     setivalue(ra, intop(|, ib, ic));
   }
   else {
@@ -3079,7 +3079,7 @@ void raviV_op_bor(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
 void raviV_op_bxor(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
   lua_Integer ib;
   lua_Integer ic;
-  if (tointeger(rb, &ib) && tointeger(rc, &ic)) {
+  if (tointegerns(rb, &ib) && tointegerns(rc, &ic)) {
     setivalue(ra, intop (^, ib, ic));
   }
   else {
@@ -3089,7 +3089,7 @@ void raviV_op_bxor(lua_State *L, TValue *ra, TValue *rb, TValue *rc) {
 
 void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb) {
   lua_Integer ib;
-  if (tointeger(rb, &ib)) { setivalue(ra, intop (^, ~l_castS2U(0), ib)); }
+  if (tointegerns(rb, &ib)) { setivalue(ra, intop (^, ~l_castS2U(0), ib)); }
   else {
     luaT_trybinTM(L, rb, rb, ra, TM_BNOT);
   }
