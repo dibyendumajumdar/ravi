@@ -2,7 +2,6 @@ if ravi then
   ravi.auto(true)
 end
 
-print "testing code generation and optimizations"
 T = ravi
 
 local opcodes_coverage = {}
@@ -333,7 +332,7 @@ print("Test 1 OK")
 x = function () 
   local i, j:integer
   j=0
-  for i=1,1000000000 do
+  for i=1,10 do
   	j = j+1
   end
   return j
@@ -342,13 +341,13 @@ check(x, 'LOADNIL', 'LOADIZ', 'LOADK', 'LOADK',
   'LOADK', 'LOADK', 'FORPREP_I1', 'ADDII', 'FORLOOP_I1',
   'RETURN', 'RETURN')
 compile(x)
-assert(x() == 1000000000)
+assert(x() == 10)
 print("Test 2 OK")
 
 -- test 3
 x = function ()
   local j:number
-  for i=1,10000000 do
+  for i=1,10 do
     j = j+1
   end
   return j
@@ -357,7 +356,7 @@ check(x, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
   'LOADK', 'FORPREP_I1', 'ADDFI', 'FORLOOP_I1',
   'RETURN', 'RETURN')
 compile(x)
-assert(x() == 10000000.0)
+assert(x() == 10.0)
 print("Test 3 OK")
 
 -- test 4
