@@ -1994,6 +1994,62 @@ do
 end
 print 'Test 96 OK'
 
+do
+  local data = { 1, 1.5, function() end, false }
+  for i = 1,#data do
+    local y = data[i]
+    local function x()
+      return @string y
+    end
+    assert(not pcall(x))
+    compile(x)
+    assert(not pcall(x))
+  end
+end
+print 'Test 97 OK'
+
+do
+  local data = { 1, 1.5, function() end, false }
+  for i = 1,#data do
+    local y = data[i]
+    local function x(y: string)
+      return y
+    end
+    assert(not pcall(x, y))
+    compile(x)
+    assert(not pcall(x, y))
+  end
+end
+print 'Test 98 OK'
+
+do
+  local data = { 'hello' }
+  for i = 1,2 do -- check nil too
+    local y = data[i]
+    local function x()
+      return @string y
+    end
+    assert(pcall(x))
+    compile(x)
+    assert(pcall(x))
+  end
+end
+print 'Test 99 OK'
+
+do
+  local data = { 'hello' }
+  for i = 1,2 do -- check nil too
+    local y = data[i]
+    local function x(y: string)
+      return y
+    end
+    assert(pcall(x, y))
+    compile(x)
+    assert(pcall(x, y))
+  end
+end
+print 'Test 100 OK'
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)
