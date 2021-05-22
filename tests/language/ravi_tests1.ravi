@@ -2050,6 +2050,43 @@ do
 end
 print 'Test 100 OK'
 
+do
+  local function x(a, b)
+    local z : integer[] =  { a, b }
+    return z
+  end
+  assert(pcall(x, 1, 2.0))
+  assert(not pcall(x, 1.5, 2))
+  assert(not pcall(x, '1.5', 2))
+  assert(not pcall(x, false, 2))
+  assert(not pcall(x, nil, 2))
+  compile(x)
+  assert(pcall(x, 1, 2.0))
+  assert(not pcall(x, 1.5, 2))
+  assert(not pcall(x, '1.5', 2))
+  assert(not pcall(x, false, 2))
+  assert(not pcall(x, nil, 2))
+end
+print 'Test 101 OK'
+
+do
+  local function x(a, b)
+    local z : number[] =  { a, b }
+    return z
+  end
+  assert(pcall(x, 42, 2.2))
+  assert(not pcall(x, '1.5', 2))
+  assert(not pcall(x, false, 2))
+  assert(not pcall(x, nil, 2))
+  compile(x)
+  assert(pcall(x, 42, 2.2))
+  assert(not pcall(x, '1.5', 2))
+  assert(not pcall(x, false, 2))
+  assert(not pcall(x, nil, 2))
+end
+print 'Test 102 OK'
+
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)
