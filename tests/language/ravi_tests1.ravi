@@ -2085,6 +2085,33 @@ do
 end
 print 'Test 102 OK'
 
+do
+  local data = { 'hello', 0, false, 5.6 }
+  for i = 1,#data do
+    local y = data[i]
+    local function x()
+      return @closure y
+    end
+    assert(not pcall(x))
+    compile(x)
+    assert(not pcall(x))
+  end
+end
+print 'Test 103 OK'
+
+do
+  local data = { 'hello', 0, false, 5.6 }
+  for i = 1,#data do
+    local y = data[i]
+    local function x(z: closure)
+      return z
+    end
+    assert(not pcall(x, y))
+    compile(x)
+    assert(not pcall(x, y))
+  end
+end
+print 'Test 104 OK'
 
 for k,v in pairs(opcodes_coverage)
 do
