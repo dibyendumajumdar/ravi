@@ -1936,6 +1936,64 @@ do
 end
 print 'Test 92 OK'
 
+
+do
+  local data = { "a", function() end, false }
+  for i = 1,4 do -- check nil too
+    local y = data[i]
+    local function x()
+      return @number y
+    end
+    assert(not pcall(x))
+    compile(x)
+    assert(not pcall(x))
+  end
+end
+print 'Test 93 OK'
+
+do
+  local y = 56
+  local function x()
+    return @number y
+  end
+  local _,z = pcall(x)
+  assert(_)
+  assert(math.type(z) == 'float')
+  compile(x)
+  _,z = pcall(x)
+  assert(_)
+  assert(math.type(z) == 'float')
+end
+print 'Test 94 OK'
+
+do
+  local data = { "a", function() end, false }
+  for i = 1,4 do -- check nil too
+    local y = data[i]
+    local function x(y: number)
+      return y
+    end
+    assert(not pcall(x))
+    compile(x)
+    assert(not pcall(x))
+  end
+end
+print 'Test 95 OK'
+
+do
+  local function x(y: number)
+    return y
+  end
+  local _,z = pcall(x, 56)
+  assert(_)
+  assert(math.type(z) == 'float')
+  compile(x)
+  _,z = pcall(x, 56)
+  assert(_)
+  assert(math.type(z) == 'float')
+end
+print 'Test 96 OK'
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)
