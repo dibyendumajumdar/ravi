@@ -2230,7 +2230,7 @@ static int emit_op_movif(struct function *fn, Instruction *insn)
 	emit_reg_accessor(fn, operand, 0);
 	raviX_buffer_add_string(&fn->body, ";\n");
 	raviX_buffer_add_string(&fn->body, " lua_Number n = 0.0;\n");
-	raviX_buffer_add_string(&fn->body, " if (!tonumber(rb, &n)) {\n");
+	raviX_buffer_add_string(&fn->body, " if (!tonumberns(rb, n)) {\n");
 	raviX_buffer_add_fstring(&fn->body, "  error_code = %d;\n", Error_number_expected);
 	raviX_buffer_add_string(&fn->body, "  goto Lraise_error;\n");
 	raviX_buffer_add_string(&fn->body, " }\n");
