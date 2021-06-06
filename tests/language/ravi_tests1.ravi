@@ -935,24 +935,26 @@ assert(f() == 5)
 print("Test 36 OK")
 
 -- test 37
--- upvalues
-x1 = 3
-local y=function()
-  local f = function()
+do
+  -- upvalues
+  local x1 = 3
+  local y=function()
+    local f = function()
                return x1
             end
-  compile(f)
-  return f
+    compile(f)
+    return f
+  end
+  --ravi.dumplua(y)
+  compile(y)
+  local f = y()
+  --assert(ravi.iscompiled(f))
+  --ravi.dumplua(f)
+  --ravi.dumpllvm(f)
+  assert(f() == 3)
+  x1=5
+  assert(f() == 5)
 end
---ravi.dumplua(y)
-compile(y)
-local f = y()
---assert(ravi.iscompiled(f))
---ravi.dumplua(f)
---ravi.dumpllvm(f)
-assert(f() == 3)
-x1=5
-assert(f() == 5)
 print("Test 37 OK")
 
 -- test 38
