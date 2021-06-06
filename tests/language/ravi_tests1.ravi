@@ -700,16 +700,18 @@ assert(not y(x(true)))
 print("Test 23 OK")
 
 -- test 24
-t = { name_ = "ravi" }
-function t:name() 
-  return self.name_
+do
+  local t = { name_ = "ravi" }
+  function t:name()
+    return self.name_
+  end
+  local function z(t)
+    return t:name()
+  end
+  assert(compile(t.name))
+  assert(compile(z))
+  assert(z(t) == "ravi")
 end
-function z(t)
-  return t:name()
-end
-assert(compile(t.name))
-assert(compile(z))
-assert(z(t) == "ravi")
 print("Test 24 OK")
 
 -- test 25
