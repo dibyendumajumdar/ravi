@@ -956,32 +956,36 @@ assert(f() == 5)
 print("Test 37 OK")
 
 -- test 38
-function x()
-  local x = 1
-  local f = function()
-    x=x+1
-    return x
+do
+  local function x()
+    local x = 1
+    local f = function()
+      x=x+1
+      return x
+    end
+    return f
   end
-  return f
+  local f=x()
+  assert(compile(f))
+  assert(f() == 2)
+  assert(f() == 3)
 end
-f=x()
-assert(compile(f))
-assert(f() == 2)
-assert(f() == 3)
 print("Test 38 OK")
 
 -- test setupval, getupval
-function x() 
-  local a = 0
-  return function(x) a=a+x; return a; end
+do
+  local function x()
+    local a = 0
+    return function(x) a=a+x; return a; end
+  end
+  -- ravi.dumplua(x)
+  compile(x)
+  local y=x()
+  compile(y)
+  assert(y(2) == 2)
+  assert(y(2) == 4)
+  assert(y(3) == 7)
 end
--- ravi.dumplua(x)
-compile(x)
-y=x()
-compile(y)
-assert(y(2) == 2)
-assert(y(2) == 4)
-assert(y(3) == 7)
 print('Test 39 OK')
 
 -- test 40
