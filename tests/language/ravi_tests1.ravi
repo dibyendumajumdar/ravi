@@ -634,24 +634,27 @@ assert(optest() == 5)
 print("Test 20 OK")
 
 -- test 21
-z = function()
-  local x=function()
-    local j:number[] = {}
-    return j
+do
+  local y
+  local z = function()
+    local x=function()
+      local j:number[] = {}
+      return j
+    end
+    compile(x)
+    y=x()
+    y[1] = 99.67
+    assert(y[1], 99.67)
+    assert(@integer (#y) == 1)
   end
-  compile(x)
-  y=x()
-  y[1] = 99.67
-  assert(y[1], 99.67)
-  assert(@integer (#y) == 1)
+  check(z, 'CLOSURE', 'GETUPVAL', 'MOVE', 'CALL',
+    'MOVE', 'CALL', 'SETUPVAL', 'SETTABUP', 'GETTABUP_SK', 'GETTABUP',
+    'LOADK', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'LEN', 'TOINT', 'EQ_II',
+    'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
+  z()
+  compile(z)
+  z()
 end
-check(z, 'CLOSURE', 'GETUPVAL', 'MOVE', 'CALL',
-  'MOVE', 'CALL', 'SETUPVAL', 'SETTABUP', 'GETTABUP_SK', 'GETTABUP',
-  'LOADK', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'LEN', 'TOINT', 'EQ_II',
-  'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
-z()
-compile(z)
-z()
 print("Test 21 OK")
 
 -- test 22
