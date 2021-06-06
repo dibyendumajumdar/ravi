@@ -1150,19 +1150,21 @@ end
 test_tableaccess()
 print 'Test 48 OK'
 
-function test_self_s()
-  local t : table = {}
-  t.name_ = 'dibyendu majumdar'
-  t.name = function (t:table) return t.name_ end
-  assert(t:name())
-  return t:name()
-end  
-check(test_self_s, 'NEWTABLE', 'TABLE_SETFIELD', 'CLOSURE',
-  'TABLE_SETFIELD', 'GETTABUP_SK', 'TABLE_SELF_SK', 'CALL', 'CALL', 'TABLE_SELF_SK', 'TAILCALL',
-  'RETURN')
-assert(test_self_s() == 'dibyendu majumdar')
-compile(test_self_s)
-assert(test_self_s() == 'dibyendu majumdar')
+do
+  local function test_self_s()
+    local t : table = {}
+    t.name_ = 'dibyendu majumdar'
+    t.name = function (t:table) return t.name_ end
+    assert(t:name())
+    return t:name()
+  end
+  check(test_self_s, 'NEWTABLE', 'TABLE_SETFIELD', 'CLOSURE',
+    'TABLE_SETFIELD', 'GETTABUP_SK', 'TABLE_SELF_SK', 'CALL', 'CALL', 'TABLE_SELF_SK', 'TAILCALL',
+    'RETURN')
+  assert(test_self_s() == 'dibyendu majumdar')
+  compile(test_self_s)
+  assert(test_self_s() == 'dibyendu majumdar')
+end
 print 'Test 49 OK'
 
 -- issue #73
