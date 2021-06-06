@@ -325,11 +325,11 @@ static void check_and_prepare_insn_descs (MIR_context_t ctx) {
 }
 
 static MIR_op_mode_t type2mode (MIR_type_t type) {
-  return (type == MIR_T_UNDEF
-            ? MIR_OP_UNDEF
-            : type == MIR_T_F
-                ? MIR_OP_FLOAT
-                : type == MIR_T_D ? MIR_OP_DOUBLE : type == MIR_T_LD ? MIR_OP_LDOUBLE : MIR_OP_INT);
+  return (type == MIR_T_UNDEF ? MIR_OP_UNDEF
+          : type == MIR_T_F   ? MIR_OP_FLOAT
+          : type == MIR_T_D   ? MIR_OP_DOUBLE
+          : type == MIR_T_LD  ? MIR_OP_LDOUBLE
+                              : MIR_OP_INT);
 }
 
 /* New Page */
@@ -1830,6 +1830,7 @@ static MIR_insn_t create_insn (MIR_context_t ctx, size_t nops, MIR_insn_code_t c
   case MIR_LDBLE: code = MIR_DBLE; break;
   case MIR_LDBGT: code = MIR_DBGT; break;
   case MIR_LDBGE: code = MIR_DBGE; break;
+  default: break;
   }
 #endif
   insn->code = code;
@@ -2830,20 +2831,18 @@ void MIR_simplify_op (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn, 
       curr_module = m;
     }
     if (move_p) return;
-    type = (op->mode == MIR_OP_FLOAT ? MIR_T_F
-                                     : op->mode == MIR_OP_DOUBLE
-                                         ? MIR_T_D
-                                         : op->mode == MIR_OP_LDOUBLE
-                                             ? MIR_T_LD
-                                             : op->mode == MIR_OP_MEM ? op->u.mem.type : MIR_T_I64);
+    type = (op->mode == MIR_OP_FLOAT     ? MIR_T_F
+            : op->mode == MIR_OP_DOUBLE  ? MIR_T_D
+            : op->mode == MIR_OP_LDOUBLE ? MIR_T_LD
+            : op->mode == MIR_OP_MEM     ? op->u.mem.type
+                                         : MIR_T_I64);
     new_op = MIR_new_reg_op (ctx, vn_add_val (ctx, func, type, MIR_INSN_BOUND, *op, *op));
     MIR_insert_insn_before (ctx, func_item, insn,
                             MIR_new_insn (ctx,
-                                          type == MIR_T_F
-                                            ? MIR_FMOV
-                                            : type == MIR_T_D
-                                                ? MIR_DMOV
-                                                : type == MIR_T_LD ? MIR_LDMOV : MIR_MOV,
+                                          type == MIR_T_F    ? MIR_FMOV
+                                          : type == MIR_T_D  ? MIR_DMOV
+                                          : type == MIR_T_LD ? MIR_LDMOV
+                                                             : MIR_MOV,
                                           new_op, *op));
     *op = new_op;
     break;
@@ -2930,9 +2929,10 @@ void MIR_simplify_op (MIR_context_t ctx, MIR_item_t func_item, MIR_insn_t insn, 
                   || mem_op.u.mem.type == MIR_T_LD
                 ? mem_op.u.mem.type
                 : MIR_T_I64);
-      code
-        = (type == MIR_T_F ? MIR_FMOV
-                           : type == MIR_T_D ? MIR_DMOV : type == MIR_T_LD ? MIR_LDMOV : MIR_MOV);
+      code = (type == MIR_T_F    ? MIR_FMOV
+              : type == MIR_T_D  ? MIR_DMOV
+              : type == MIR_T_LD ? MIR_LDMOV
+                                 : MIR_MOV);
       new_op = MIR_new_reg_op (ctx, vn_add_val (ctx, func, type, MIR_INSN_BOUND, mem_op, mem_op));
       if (out_p)
         new_insn = MIR_new_insn (ctx, code, mem_op, new_op);
@@ -2991,10 +2991,10 @@ static void make_one_ret (MIR_context_t ctx, MIR_item_t func_item) {
     if (one_last_ret_p) {
       ret_reg_op = first_ret_insn->ops[i];
     } else {
-      mov_code
-        = (res_types[i] == MIR_T_F
-             ? MIR_FMOV
-             : res_types[i] == MIR_T_D ? MIR_DMOV : res_types[i] == MIR_T_LD ? MIR_LDMOV : MIR_MOV);
+      mov_code = (res_types[i] == MIR_T_F    ? MIR_FMOV
+                  : res_types[i] == MIR_T_D  ? MIR_DMOV
+                  : res_types[i] == MIR_T_LD ? MIR_LDMOV
+                                             : MIR_MOV);
       ret_reg = _MIR_new_temp_reg (ctx, mov_code == MIR_MOV ? MIR_T_I64 : res_types[i], func);
       ret_reg_op = MIR_new_reg_op (ctx, ret_reg);
       VARR_PUSH (MIR_op_t, ret_ops, ret_reg_op);
@@ -3022,10 +3022,10 @@ static void make_one_ret (MIR_context_t ctx, MIR_item_t func_item) {
       insn = VARR_GET (MIR_insn_t, temp_insns, i);
       mir_assert (func->nres == MIR_insn_nops (ctx, insn));
       for (j = 0; j < func->nres; j++) {
-        mov_code = (res_types[j] == MIR_T_F
-                      ? MIR_FMOV
-                      : res_types[j] == MIR_T_D ? MIR_DMOV
-                                                : res_types[j] == MIR_T_LD ? MIR_LDMOV : MIR_MOV);
+        mov_code = (res_types[j] == MIR_T_F    ? MIR_FMOV
+                    : res_types[j] == MIR_T_D  ? MIR_DMOV
+                    : res_types[j] == MIR_T_LD ? MIR_LDMOV
+                                               : MIR_MOV);
         reg_op = insn->ops[j];
         mir_assert (reg_op.mode == MIR_OP_REG);
         ret_reg_op = VARR_GET (MIR_op_t, ret_ops, j);
@@ -3132,14 +3132,12 @@ static int simplify_func (MIR_context_t ctx, MIR_item_t func_item, int mem_float
 
     if ((code == MIR_MOV || code == MIR_FMOV || code == MIR_DMOV || code == MIR_LDMOV)
         && insn->ops[0].mode == MIR_OP_MEM && insn->ops[1].mode == MIR_OP_MEM) {
-      temp_op
-        = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx,
-                                                  code == MIR_MOV
-                                                    ? MIR_T_I64
-                                                    : code == MIR_FMOV
-                                                        ? MIR_T_F
-                                                        : code == MIR_DMOV ? MIR_T_D : MIR_T_LD,
-                                                  func));
+      temp_op = MIR_new_reg_op (ctx, _MIR_new_temp_reg (ctx,
+                                                        code == MIR_MOV    ? MIR_T_I64
+                                                        : code == MIR_FMOV ? MIR_T_F
+                                                        : code == MIR_DMOV ? MIR_T_D
+                                                                           : MIR_T_LD,
+                                                        func));
       MIR_insert_insn_after (ctx, func_item, insn, MIR_new_insn (ctx, code, insn->ops[0], temp_op));
       insn->ops[0] = temp_op;
     }
@@ -3397,12 +3395,12 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
                         MIR_new_reg_op (ctx, op.u.mem.base), var.size);
         } else {
           if (var.type == MIR_T_RBLK) op = MIR_new_reg_op (ctx, op.u.mem.base);
-          new_insn
-            = MIR_new_insn (ctx,
-                            type == MIR_T_F
-                              ? MIR_FMOV
-                              : type == MIR_T_D ? MIR_DMOV : type == MIR_T_LD ? MIR_LDMOV : MIR_MOV,
-                            MIR_new_reg_op (ctx, new_reg), op);
+          new_insn = MIR_new_insn (ctx,
+                                   type == MIR_T_F    ? MIR_FMOV
+                                   : type == MIR_T_D  ? MIR_DMOV
+                                   : type == MIR_T_LD ? MIR_LDMOV
+                                                      : MIR_MOV,
+                                   MIR_new_reg_op (ctx, new_reg), op);
           MIR_insert_insn_before (ctx, func_item, ret_label, new_insn);
         }
       }
@@ -3448,11 +3446,10 @@ static void process_inlines (MIR_context_t ctx, MIR_item_t func_item) {
           mir_assert (ret_insn->ops[i].mode == MIR_OP_REG);
           ret_reg = ret_insn->ops[i].u.reg;
           new_insn = MIR_new_insn (ctx,
-                                   res_types[i] == MIR_T_F
-                                     ? MIR_FMOV
-                                     : res_types[i] == MIR_T_D
-                                         ? MIR_DMOV
-                                         : res_types[i] == MIR_T_LD ? MIR_LDMOV : MIR_MOV,
+                                   res_types[i] == MIR_T_F    ? MIR_FMOV
+                                   : res_types[i] == MIR_T_D  ? MIR_DMOV
+                                   : res_types[i] == MIR_T_LD ? MIR_LDMOV
+                                                              : MIR_MOV,
                                    call->ops[i + 2], MIR_new_reg_op (ctx, ret_reg));
           MIR_insert_insn_before (ctx, func_item, ret_label, new_insn);
         }
@@ -3574,11 +3571,46 @@ MIR_item_t _MIR_builtin_func (MIR_context_t ctx, MIR_module_t module, const char
 
 #define PROT_WRITE_EXEC (PROT_WRITE | PROT_EXEC)
 #define PROT_READ_EXEC (PROT_READ | PROT_EXEC)
-#define mem_protect mprotect
+
+#if defined(__APPLE__) && defined(__aarch64__)
+#include <libkern/OSCacheControl.h>
+#include <pthread.h>
+#endif
+
+static int mem_protect (void *addr, size_t len, int prot) {
+#if !defined(__APPLE__) || !defined(__aarch64__)
+  return mprotect (addr, len, prot);
+#else
+  int res;
+
+  if (!pthread_jit_write_protect_supported_np ()) {
+    fprintf (stderr, "unsupported pthread_jit_write_protect_np -- good bye!\n");
+    exit (1);
+  }
+  if (prot & PROT_WRITE) pthread_jit_write_protect_np (FALSE);
+  if (prot & PROT_READ) {
+    pthread_jit_write_protect_np (TRUE);
+    sys_icache_invalidate (addr, len);
+  } else if (0) {
+    if ((res = mprotect (addr, len, prot)) != 0) {
+      perror ("mem_protect");
+      fprintf (stderr, "good bye!\n");
+      exit (1);
+    }
+  }
+  return res;
+#endif
+}
+
 #define mem_unmap munmap
 
 static void *mem_map (size_t len) {
+#if defined(__APPLE__) && defined(__aarch64__)
+  return mmap (NULL, len, PROT_EXEC | PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT,
+               -1, 0);
+#else
   return mmap (NULL, len, PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+#endif
 }
 
 static size_t mem_page_size () { return sysconf (_SC_PAGE_SIZE); }
@@ -3650,11 +3682,23 @@ static code_holder_t *get_last_code_holder (MIR_context_t ctx, size_t size) {
   return VARR_ADDR (code_holder_t, code_holders) + len - 1;
 }
 
-#ifndef __MIRC__
 void _MIR_flush_code_cache (void *start, void *bound) {
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__MIRC__)
   __builtin___clear_cache (start, bound);
 #endif
+}
+
+#if !defined(MIR_BOOTSTRAP) || !defined(__APPLE__) || !defined(__aarch64__)
+void _MIR_set_code (size_t prot_start, size_t prot_len, uint8_t *base, size_t nloc,
+                    const MIR_code_reloc_t *relocs, size_t reloc_size) {
+  mem_protect ((uint8_t *) prot_start, prot_len, PROT_WRITE_EXEC);
+  if (reloc_size == 0) {
+    for (size_t i = 0; i < nloc; i++)
+      memcpy (base + relocs[i].offset, &relocs[i].value, sizeof (void *));
+  } else {
+    for (size_t i = 0; i < nloc; i++) memcpy (base + relocs[i].offset, relocs[i].value, reloc_size);
+  }
+  mem_protect ((uint8_t *) prot_start, prot_len, PROT_READ_EXEC);
 }
 #endif
 
@@ -3664,9 +3708,10 @@ static uint8_t *add_code (MIR_context_t ctx, code_holder_t *ch_ptr, const uint8_
 
   ch_ptr->free += code_len;
   mir_assert (ch_ptr->free <= ch_ptr->bound);
-  mem_protect (ch_ptr->start, ch_ptr->bound - ch_ptr->start, PROT_WRITE_EXEC);
-  memcpy (mem, code, code_len);
-  mem_protect (ch_ptr->start, ch_ptr->bound - ch_ptr->start, PROT_READ_EXEC);
+  MIR_code_reloc_t reloc;
+  reloc.offset = 0;
+  reloc.value = code;
+  _MIR_set_code ((size_t) ch_ptr->start, ch_ptr->bound - ch_ptr->start, mem, 1, &reloc, code_len);
   _MIR_flush_code_cache (mem, ch_ptr->free);
   return mem;
 }
@@ -3683,12 +3728,6 @@ uint8_t *_MIR_publish_code (MIR_context_t ctx, const uint8_t *code,
   return res;
 }
 
-uint8_t *_MIR_get_new_code_addr (MIR_context_t ctx, size_t size) {
-  code_holder_t *ch_ptr = get_last_code_holder (ctx, size);
-
-  return ch_ptr == NULL ? NULL : ch_ptr->free;
-}
-
 uint8_t *_MIR_publish_code_by_addr (MIR_context_t ctx, void *addr, const uint8_t *code,
                                     size_t code_len) {
   code_holder_t *ch_ptr = get_last_code_holder (ctx, 0);
@@ -3701,14 +3740,15 @@ uint8_t *_MIR_publish_code_by_addr (MIR_context_t ctx, void *addr, const uint8_t
 
 void _MIR_change_code (MIR_context_t ctx, uint8_t *addr, const uint8_t *code,
                        size_t code_len) { /* thread safe */
+  MIR_code_reloc_t reloc;
   size_t len, start;
 
   start = (size_t) addr / page_size * page_size;
   len = (size_t) addr + code_len - start;
   if (mir_mutex_lock (&code_mutex)) parallel_error (ctx, "error in mutex lock");
-  mem_protect ((uint8_t *) start, len, PROT_WRITE_EXEC);
-  memcpy (addr, code, code_len);
-  mem_protect ((uint8_t *) start, len, PROT_READ_EXEC);
+  reloc.offset = 0;
+  reloc.value = code;
+  _MIR_set_code (start, len, addr, 1, &reloc, code_len);
   _MIR_flush_code_cache (addr, addr + code_len);
   if (mir_mutex_unlock (&code_mutex)) parallel_error (ctx, "error in mutex unlock");
 }
@@ -3723,39 +3763,29 @@ void _MIR_update_code_arr (MIR_context_t ctx, uint8_t *base, size_t nloc,
   start = (size_t) base / page_size * page_size;
   len = (size_t) base + max_offset + sizeof (void *) - start;
   if (mir_mutex_lock (&code_mutex)) parallel_error (ctx, "error in mutex lock");
-  mem_protect ((uint8_t *) start, len, PROT_WRITE_EXEC);
-  for (i = 0; i < nloc; i++) memcpy (base + relocs[i].offset, &relocs[i].value, sizeof (void *));
-  mem_protect ((uint8_t *) start, len, PROT_READ_EXEC);
+  _MIR_set_code (start, len, base, nloc, relocs, 0);
   _MIR_flush_code_cache (base, base + max_offset + sizeof (void *));
   if (mir_mutex_unlock (&code_mutex)) parallel_error (ctx, "error in mutex unlock");
 }
 
 void _MIR_update_code (MIR_context_t ctx, uint8_t *base, size_t nloc, ...) { /* thread safe */
-  size_t start, len, offset, max_offset = 0;
-  void *value;
   va_list args;
+  MIR_code_reloc_t relocs[20];
+  if (nloc >= 20)
+    MIR_get_error_func (ctx) (MIR_wrong_param_value_error, "_MIR_update_code: too many locations");
+  va_start (args, nloc);
+  for (size_t i = 0; i < nloc; i++) {
+    relocs[i].offset = va_arg (args, size_t);
+    relocs[i].value = va_arg (args, void *);
+  }
+  va_end (args);
+  _MIR_update_code_arr (ctx, base, nloc, relocs);
+}
 
-  va_start (args, nloc);
-  for (size_t i = 0; i < nloc; i++) {
-    offset = va_arg (args, size_t);
-    value = va_arg (args, void *);
-    if (max_offset < offset) max_offset = offset;
-  }
-  va_end (args);
-  start = (size_t) base / page_size * page_size;
-  len = (size_t) base + max_offset + sizeof (void *) - start;
-  va_start (args, nloc);
-  if (mir_mutex_lock (&code_mutex)) parallel_error (ctx, "error in mutex lock");
-  mem_protect ((uint8_t *) start, len, PROT_WRITE_EXEC);
-  for (size_t i = 0; i < nloc; i++) {
-    offset = va_arg (args, size_t);
-    value = va_arg (args, void *);
-    memcpy (base + offset, &value, sizeof (void *));
-  }
-  mem_protect ((uint8_t *) start, len, PROT_READ_EXEC);
-  _MIR_flush_code_cache (base, base + max_offset + sizeof (void *));
-  if (mir_mutex_unlock (&code_mutex)) parallel_error (ctx, "error in mutex unlock");
-  va_end (args);
+uint8_t *_MIR_get_new_code_addr (MIR_context_t ctx, size_t size) {
+  code_holder_t *ch_ptr = get_last_code_holder (ctx, size);
+
+  return ch_ptr == NULL ? NULL : ch_ptr->free;
 }
 
 static void code_init (MIR_context_t ctx) {
@@ -5905,6 +5935,68 @@ static void scan_finish (MIR_context_t ctx) {
 }
 
 #endif /* if !MIR_NO_SCAN */
+
+/* New Page */
+
+#ifndef _WIN32
+#include <sys/types.h>
+#include <unistd.h>
+#else
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define getpid GetCurrentProcessId
+#define popen _popen
+#define pclose _pclose
+#endif
+
+void _MIR_dump_code (const char *name, int index, uint8_t *code, size_t code_len) {
+  size_t i;
+  int ch;
+  char cfname[50];
+  char command[500];
+  FILE *f;
+#if !defined(__APPLE__)
+  char bfname[30];
+  FILE *bf;
+#endif
+
+  if (name != NULL) fprintf (stderr, "%s:", name);
+  sprintf (cfname, "_mir_%d_%lu.c", index, (unsigned long) getpid ());
+  if ((f = fopen (cfname, "w")) == NULL) return;
+#if defined(__APPLE__)
+  fprintf (f, "unsigned char code[] = {");
+  for (i = 0; i < code_len; i++) {
+    if (i != 0) fprintf (f, ", ");
+    fprintf (f, "0x%x", code[i]);
+  }
+  fprintf (f, "};\n");
+  fclose (f);
+#if defined(__aarch64__)
+  sprintf (command, "gcc -c -o %s.o %s 2>&1 && objdump --section=__data -D %s.o; rm -f %s.o %s",
+           cfname, cfname, cfname, cfname, cfname);
+#else
+  sprintf (command, "gcc -c -o %s.o %s 2>&1 && objdump --section=.data -D %s.o; rm -f %s.o %s",
+           cfname, cfname, cfname, cfname, cfname);
+#endif
+#else
+  sprintf (bfname, "_mir_%d_%lu.bin", index, (unsigned long) getpid ());
+  if ((bf = fopen (bfname, "w")) == NULL) return;
+  fprintf (f, "void code (void) {}\n");
+  for (i = 0; i < code_len; i++) fputc (code[i], bf);
+  fclose (f);
+  fclose (bf);
+  sprintf (command,
+           "gcc -c -o %s.o %s 2>&1 && objcopy --update-section .text=%s %s.o && objdump "
+           "--adjust-vma=0x%llx -d %s.o; rm -f "
+           "%s.o %s %s",
+           cfname, cfname, bfname, cfname, (unsigned long long) code, cfname, cfname, cfname,
+           bfname);
+#endif
+  fprintf (stderr, "%s\n", command);
+  if ((f = popen (command, "r")) == NULL) return;
+  while ((ch = fgetc (f)) != EOF) fprintf (stderr, "%c", ch);
+  pclose (f);
+}
 
 /* New Page */
 

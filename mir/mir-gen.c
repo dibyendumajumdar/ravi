@@ -1533,8 +1533,10 @@ static int def_tab_el_eq (def_tab_el_t el1, def_tab_el_t el2, void *arg) {
 }
 
 static MIR_insn_code_t get_move_code (MIR_type_t type) {
-  return (type == MIR_T_F ? MIR_FMOV
-                          : type == MIR_T_D ? MIR_DMOV : type == MIR_T_LD ? MIR_LDMOV : MIR_MOV);
+  return (type == MIR_T_F    ? MIR_FMOV
+          : type == MIR_T_D  ? MIR_DMOV
+          : type == MIR_T_LD ? MIR_LDMOV
+                             : MIR_MOV);
 }
 
 static bb_insn_t get_start_insn (gen_ctx_t gen_ctx, VARR (bb_insn_t) * start_insns, MIR_reg_t reg) {
@@ -2234,13 +2236,12 @@ static MIR_reg_t get_expr_temp_reg (gen_ctx_t gen_ctx, expr_t e) {
 
   if (e->temp_reg == 0) {
     mode = MIR_insn_op_mode (gen_ctx->ctx, e->insn, 0, &out_p);
-    e->temp_reg
-      = gen_new_temp_reg (gen_ctx,
-                          mode == MIR_OP_FLOAT
-                            ? MIR_T_F
-                            : mode == MIR_OP_DOUBLE ? MIR_T_D
-                                                    : mode == MIR_OP_LDOUBLE ? MIR_T_LD : MIR_T_I64,
-                          curr_func_item->u.func);
+    e->temp_reg = gen_new_temp_reg (gen_ctx,
+                                    mode == MIR_OP_FLOAT     ? MIR_T_F
+                                    : mode == MIR_OP_DOUBLE  ? MIR_T_D
+                                    : mode == MIR_OP_LDOUBLE ? MIR_T_LD
+                                                             : MIR_T_I64,
+                                    curr_func_item->u.func);
   }
   return e->temp_reg;
 }
@@ -3115,6 +3116,7 @@ static int ccp_modify (gen_ctx_t gen_ctx) {
   const_t val;
   MIR_op_t op;
   MIR_insn_t insn, prev_insn, first_insn;
+  ssa_edge_t se, next_se;
   int res, change_p = FALSE;
 
 #ifndef NDEBUG
@@ -3162,8 +3164,12 @@ static int ccp_modify (gen_ctx_t gen_ctx) {
           gen_assert (out_p);
         }
 #endif
+        /* remove edges whose def and use is the insn, e.g. for case "5: phi a,a #index 5,5" */
+        for (se = bb_insn->insn->ops[0].data; se != NULL; se = next_se) {
+          next_se = se->next_use;
+          if (se->use == bb_insn) remove_ssa_edge (gen_ctx, se);
+        }
         insn = MIR_new_insn (ctx, MIR_MOV, bb_insn->insn->ops[0], op); /* copy ops[0].data too! */
-        // changing def in ssa_edges ????
         MIR_insert_insn_before (ctx, curr_func_item, bb_insn->insn, insn);
         bb_insn->insn->ops[0].data = NULL;
         ccp_remove_insn_ssa_edges (gen_ctx, bb_insn->insn);
@@ -5172,63 +5178,6 @@ static void ssa_dead_code_elimination (gen_ctx_t gen_ctx) {
 /* New Page */
 
 #if !MIR_NO_GEN_DEBUG
-
-#ifndef _WIN32
-#include <sys/types.h>
-#include <unistd.h>
-#else
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#define getpid GetCurrentProcessId
-#define popen _popen
-#define pclose _pclose
-#endif
-
-static void print_code (gen_ctx_t gen_ctx, uint8_t *code, size_t code_len, void *start_addr) {
-  size_t i;
-  int ch;
-  char cfname[50];
-  char command[500];
-  FILE *f;
-#if !defined(__APPLE__)
-  char bfname[30];
-  FILE *bf;
-#endif
-
-  sprintf (cfname, "_mir_%d_%lu.c", gen_ctx->gen_num, (unsigned long) getpid ());
-  if ((f = fopen (cfname, "w")) == NULL) return;
-#if defined(__APPLE__)
-  fprintf (f, "unsigned char code[] = {");
-  for (i = 0; i < code_len; i++) {
-    if (i != 0) fprintf (f, ", ");
-    fprintf (f, "0x%x", code[i]);
-  }
-  fprintf (f, "};\n");
-  fclose (f);
-  sprintf (command, "gcc -c -o %s.o %s 2>&1 && objdump --section=.data -D %s.o; rm -f %s.o %s",
-           cfname, cfname, cfname, cfname, cfname);
-#else
-  sprintf (bfname, "_mir_%d_%lu.bin", gen_ctx->gen_num, (unsigned long) getpid ());
-  if ((bf = fopen (bfname, "w")) == NULL) return;
-  fprintf (f, "void code (void) {}\n");
-  for (i = 0; i < code_len; i++) fputc (code[i], bf);
-  fclose (f);
-  fclose (bf);
-  sprintf (command,
-           "gcc -c -o %s.o %s 2>&1 && objcopy --update-section .text=%s %s.o && objdump "
-           "--adjust-vma=0x%llx -d %s.o; rm -f "
-           "%s.o %s %s",
-           cfname, cfname, bfname, cfname, (unsigned long long) start_addr, cfname, cfname, cfname,
-           bfname);
-#endif
-  fprintf (stderr, "%s\n", command);
-  if ((f = popen (command, "r")) == NULL) return;
-  while ((ch = fgetc (f)) != EOF) fprintf (debug_file, "%c", ch);
-  pclose (f);
-}
-#endif
-
-#if !MIR_NO_GEN_DEBUG
 #include "real-time.h"
 #endif
 
@@ -5389,7 +5338,7 @@ void *MIR_gen (MIR_context_t ctx, int gen_num, MIR_item_t func_item) {
   func_item->u.func->call_addr = _MIR_get_wrapper (ctx, func_item, print_and_execute_wrapper);
 #endif
   DEBUG ({
-    print_code (gen_ctx, machine_code, code_len, machine_code);
+    _MIR_dump_code (NULL, gen_ctx->gen_num, machine_code, code_len);
     fprintf (debug_file, "code size = %lu:\n", (unsigned long) code_len);
   });
   _MIR_redirect_thunk (ctx, func_item->addr, func_item->u.func->call_addr);
