@@ -985,25 +985,29 @@ assert(y(3) == 7)
 print('Test 39 OK')
 
 -- test 40
-x=function(a,b) 
-  return a%b
+do
+  local x=function(a,b)
+    return a%b
+  end
+  assert(compile(x))
+  -- When using 32-bit numbers we don't jit mod
+  -- if ravi.jit() then ravi.compile(x) end
+  assert(x(5,2) == 1)
+  assert(math.abs(x(5.1,2.1)-0.9) < 1e-6)
 end
-assert(compile(x))
--- When using 32-bit numbers we don't jit mod
--- if ravi.jit() then ravi.compile(x) end 
-assert(x(5,2) == 1)
-assert(math.abs(x(5.1,2.1)-0.9) < 1e-6)
 print("Test 40 OK")
 
 -- test 41
-x=function(a,b) 
-  return a//b
+do
+  local x=function(a,b)
+    return a//b
+  end
+  assert(compile(x))
+  -- When using 32-bit numbers we don't jit idiv
+  -- if ravi.jit() then ravi.compile(x) end
+  assert(x(5,2) == 2)
+  assert(math.abs(x(5.5,2.1)-2.0) < 1e-6)
 end
-assert(compile(x))
--- When using 32-bit numbers we don't jit idiv
--- if ravi.jit() then ravi.compile(x) end 
-assert(x(5,2) == 2)
-assert(math.abs(x(5.5,2.1)-2.0) < 1e-6)
 print("Test 41 OK")
 
 -- test 42
