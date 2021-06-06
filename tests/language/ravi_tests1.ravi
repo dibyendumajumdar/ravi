@@ -918,29 +918,31 @@ assert(t[2]() == 20)
 print("Test 35 OK")
 
 -- test 36
--- upvalues
-local x = 1
-local y=function()
-  local f = function()
+do
+  -- upvalues
+  local x = 1
+  local y=function()
+    local f = function()
                return x
             end
-  compile(f)
-  return f
+    compile(f)
+    return f
+  end
+  compile(y)
+  local f = y()
+  assert(f() == 1)
+  x=5
+  assert(f() == 5)
 end
-compile(y)
-local f = y()
-assert(f() == 1)
-x=5
-assert(f() == 5)
 print("Test 36 OK")
 
 -- test 37
 do
-  -- upvalues
-  local x1 = 3
+  -- upvalues - TODO is this test worth keeping?
+  g = 3 -- global
   local y=function()
     local f = function()
-               return x1
+               return g
             end
     compile(f)
     return f
@@ -952,7 +954,7 @@ do
   --ravi.dumplua(f)
   --ravi.dumpllvm(f)
   assert(f() == 3)
-  x1=5
+  g=5
   assert(f() == 5)
 end
 print("Test 37 OK")
