@@ -520,38 +520,42 @@ assert(math.abs(pisum()-1.644834071848065) < 1e-12)
 print("Test 12 OK")
 
 -- test 13
-function y()
-  local i,j = 5.1,6.2
-  return i,j
+do
+  local function y()
+    local i,j = 5.1,6.2
+    return i,j
+  end
+  local function x(f)
+    local i:number, j:number = f()
+    return i+j
+  end
+  assert(math.abs(x(y) - 11.3) < 0.0001)
+  check(x, 'MOVE', 'CALL', 'TOFLT',
+    'TOFLT', 'ADDFF', 'RETURN', 'RETURN')
+  assert(compile(y))
+  assert(compile(x))
+  assert(math.abs(x(y) - 11.3) < 0.0001)
 end
-function x(f)
-  local i:number, j:number = f()
-  return i+j
-end
-assert(math.abs(x(y) - 11.3) < 0.0001)
-check(x, 'MOVE', 'CALL', 'TOFLT',
-  'TOFLT', 'ADDFF', 'RETURN', 'RETURN')
-assert(compile(y))
-assert(compile(x))
-assert(math.abs(x(y) - 11.3) < 0.0001)
 print("Test 13 OK")
 
 -- test 14
-function tryme(x,y)
-  if x < y then
-    return 1
-  else
-    return 0
+do
+  local function tryme(x,y)
+    if x < y then
+      return 1
+    else
+      return 0
+    end
   end
+  check(tryme, 'LT', 'JMP', 'LOADK',
+    'RETURN', 'JMP', 'LOADK', 'RETURN',
+    'RETURN')
+  assert(tryme(1,2) == 1)
+  assert(tryme(2,1) == 0)
+  compile(tryme)
+  assert(tryme(1,2) == 1)
+  assert(tryme(2,1) == 0)
 end
-check(tryme, 'LT', 'JMP', 'LOADK',
-  'RETURN', 'JMP', 'LOADK', 'RETURN',
-  'RETURN')
-assert(tryme(1,2) == 1)
-assert(tryme(2,1) == 0)
-compile(tryme)
-assert(tryme(1,2) == 1)
-assert(tryme(2,1) == 0)
 print("Test 14 OK")
 
 -- test 15
