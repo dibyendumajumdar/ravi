@@ -1102,52 +1102,54 @@ compile(test_idiv)
 test_idiv()
 print'Test 47 (IDIV) OK'
 
-function test_tableaccess()
-  -- Test specialised version of GETTABLE and SETTABLE
-  -- when local variable is known to be of table type
-  -- and key is a string
-  local f = function() 
-    local t : table = {}
-    t.name = 'dibyendu'
-    t.data = {}
-    t.data.city = 'london'
-    return t.name, t.data.city
-  end
-  check(f, 'NEWTABLE', 'TABLE_SETFIELD', 'NEWTABLE',
-    'TABLE_SETFIELD', 'TABLE_GETFIELD', 'SETFIELD', 
-    'TABLE_GETFIELD', 'TABLE_GETFIELD' , 'GETFIELD',
-    'RETURN', 'RETURN')
-  local a,b = f()
-  assert(a == 'dibyendu')
-  assert(b == 'london')
-  assert(compile(f))
-  a,b = f()
-  assert(a == 'dibyendu')
-  assert(b == 'london')
+do
+  local function test_tableaccess()
+    -- Test specialised version of GETTABLE and SETTABLE
+    -- when local variable is known to be of table type
+    -- and key is a string
+    local f = function()
+      local t : table = {}
+      t.name = 'dibyendu'
+      t.data = {}
+      t.data.city = 'london'
+      return t.name, t.data.city
+    end
+    check(f, 'NEWTABLE', 'TABLE_SETFIELD', 'NEWTABLE',
+      'TABLE_SETFIELD', 'TABLE_GETFIELD', 'SETFIELD',
+      'TABLE_GETFIELD', 'TABLE_GETFIELD' , 'GETFIELD',
+      'RETURN', 'RETURN')
+    local a,b = f()
+    assert(a == 'dibyendu')
+    assert(b == 'london')
+    assert(compile(f))
+    a,b = f()
+    assert(a == 'dibyendu')
+    assert(b == 'london')
 
-  -- Test specialised version of GETTABLE and SETTABLE
-  -- when local variable is known to be of table type
-  -- and key is a integer
-  f = function() 
-    local t : table = {}
-    t[1] = 'dibyendu'
-    t[2] = {}
-    t[2][1] = 'london'
-    return t[1], t[2][1]
+    -- Test specialised version of GETTABLE and SETTABLE
+    -- when local variable is known to be of table type
+    -- and key is a integer
+    local f = function()
+      local t : table = {}
+      t[1] = 'dibyendu'
+      t[2] = {}
+      t[2][1] = 'london'
+      return t[1], t[2][1]
+    end
+    check(f, 'NEWTABLE', 'SETI', 'NEWTABLE',
+      'SETI', 'GETI', 'SETI',
+      'GETI', 'GETI' , 'GETI',
+      'RETURN', 'RETURN')
+    local a,b = f()
+    assert(a == 'dibyendu')
+    assert(b == 'london')
+    assert(compile(f))
+    a,b = f()
+    assert(a == 'dibyendu')
+    assert(b == 'london')
   end
-  check(f, 'NEWTABLE', 'SETI', 'NEWTABLE',
-    'SETI', 'GETI', 'SETI', 
-    'GETI', 'GETI' , 'GETI',
-    'RETURN', 'RETURN')
-  local a,b = f()
-  assert(a == 'dibyendu')
-  assert(b == 'london')
-  assert(compile(f))
-  a,b = f()
-  assert(a == 'dibyendu')
-  assert(b == 'london')
+  test_tableaccess()
 end
-test_tableaccess()
 print 'Test 48 OK'
 
 do
