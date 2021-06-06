@@ -555,52 +555,60 @@ assert(tryme(2,1) == 0)
 print("Test 14 OK")
 
 -- test 15
-function tryme(x,y)
-  return x < y
+do
+  local function tryme(x,y)
+    return x < y
+  end
+  check(tryme, 'LT', 'JMP', 'LOADBOOL',
+    'LOADBOOL', 'RETURN', 'RETURN')
+  assert(tryme(1,2))
+  compile(tryme)
+  assert(tryme(1,2))
+  assert(not tryme(2,1))
 end
-check(tryme, 'LT', 'JMP', 'LOADBOOL',
-  'LOADBOOL', 'RETURN', 'RETURN')
-assert(tryme(1,2))
-compile(tryme)
-assert(tryme(1,2))
-assert(not tryme(2,1))
 print("Test 15 OK")
 
 -- test 16
-function tabtest(x)
-  x[1] = 5
-  return x[1]
+do
+  local function tabtest(x)
+    x[1] = 5
+    return x[1]
+  end
+  assert(tabtest({}) == 5)
+  check(tabtest, 'SETI', 'GETI', 'RETURN', 'RETURN')
+  compile(tabtest)
+  assert(tabtest({}) == 5)
 end
-assert(tabtest({}) == 5)
-check(tabtest, 'SETI', 'GETI', 'RETURN', 'RETURN')
-compile(tabtest)
-assert(tabtest({}) == 5)
 print("Test 16 OK")
 
 -- test 17
-function optest()
-  local a,b,c = 1, 5
-  c = a and b
-  return c
+do
+  local function optest()
+    local a,b,c = 1, 5
+    c = a and b
+    return c
+  end
+  check(optest, 'LOADK', 'LOADK', 'LOADNIL',
+    'TESTSET', 'JMP', 'MOVE', 'RETURN', 'RETURN')
+  assert(optest() == 5)
+  compile(optest)
+  assert(optest() == 5)
 end
-check(optest, 'LOADK', 'LOADK', 'LOADNIL',
-  'TESTSET', 'JMP', 'MOVE', 'RETURN', 'RETURN')
-assert(optest() == 5)
-compile(optest)
-assert(optest() == 5)
 print("Test 17 OK")
 
 -- test 18
-function optest()
-  local a,b,c = 1, 5
-  c = a or b
-  return c
+do
+  local function optest()
+    local a,b,c = 1, 5
+    c = a or b
+    return c
+  end
+  check(optest, 'LOADK', 'LOADK', 'LOADNIL',
+    'TESTSET', 'JMP', 'MOVE', 'RETURN', 'RETURN')
+  assert(optest() == 1)
+  compile(optest)
+  assert(optest() == 1)
 end
-check(optest, 'LOADK', 'LOADK', 'LOADNIL',
-  'TESTSET', 'JMP', 'MOVE', 'RETURN', 'RETURN')
-assert(optest() == 1)
-compile(optest)
-assert(optest() == 1)
 print("Test 18 OK")
 
 -- test 19
