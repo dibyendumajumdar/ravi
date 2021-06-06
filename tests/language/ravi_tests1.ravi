@@ -1022,30 +1022,33 @@ assert(x() == 5.1)
 print("Test 42 OK")
 
 -- test parameter types
-x = function (a: integer, b: number)
-  local i: integer = a
-  local j: number = b
-  return i+j
+do
+  local x = function (a: integer, b: number)
+    local i: integer = a
+    local j: number = b
+    return i+j
+  end
+  --ravi.dumplua(x)
+  assert(x(1,5.5) == 6.5)
+  compile(x)
+  assert(x(1,5.5) == 6.5)
 end
---ravi.dumplua(x)
-assert(x(1,5.5) == 6.5)
-compile(x)
-assert(x(1,5.5) == 6.5)
 print'Test 43 OK'
 
-x=function (a:number[], b:integer)
-  local j: number = a[b]
-  return j
+do
+  local x=function (a:number[], b:integer)
+    local j: number = a[b]
+    return j
+  end
+  local function y()
+    local t: number[] = { 4.2 }
+    return x(t, 1)
+  end
+  assert(y() == 4.2)
+  compile(x)
+  compile(y)
+  assert(y() == 4.2)
 end
-function y()
-  local t: number[] = { 4.2 }
-  return x(t, 1)
-end
-
-assert(y() == 4.2)
-compile(x)
-compile(y)
-assert(y() == 4.2)
 print'Test 44 OK'
 
 -- test 45
