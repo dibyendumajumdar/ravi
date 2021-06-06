@@ -1077,29 +1077,31 @@ assert(not pcall(f))
 print("Test 45 OK")
 
 -- test 47
-function test_idiv() 
-  local t = {}
-  t.__idiv = function(...) return 'idiv' end
-  local t1=setmetatable({1,2,3}, t)
-  local t2=setmetatable({4,5,6}, t)
-  local x= function() return t1//t2 end
-  check(x, 'GETUPVAL', 'GETUPVAL', 'IDIV', 'RETURN', 'RETURN')
-  local s1=x()
-  assert(s1 == 'idiv')
-  assert(compile(t.__idiv))
-  assert(compile(x))
-  local s2=x()
-  assert(s1 == s2)
-  local x= function(t1: number, t2: number) return t1//t2 end
-  check(x, 'TOFLT', 'TOFLT', 'IDIV', 'RETURN', 'RETURN')
-  local s1=x(4.1,2.0)
-  assert(s1 == 2)
-  assert(compile(x))
-  local s2=x(4.1,2.0)
-  assert(s1 == s2)
+do
+  local function test_idiv()
+    local t = {}
+    t.__idiv = function(...) return 'idiv' end
+    local t1=setmetatable({1,2,3}, t)
+    local t2=setmetatable({4,5,6}, t)
+    local x= function() return t1//t2 end
+    check(x, 'GETUPVAL', 'GETUPVAL', 'IDIV', 'RETURN', 'RETURN')
+    local s1=x()
+    assert(s1 == 'idiv')
+    assert(compile(t.__idiv))
+    assert(compile(x))
+    local s2=x()
+    assert(s1 == s2)
+    local x= function(t1: number, t2: number) return t1//t2 end
+    check(x, 'TOFLT', 'TOFLT', 'IDIV', 'RETURN', 'RETURN')
+    local s1=x(4.1,2.0)
+    assert(s1 == 2)
+    assert(compile(x))
+    local s2=x(4.1,2.0)
+    assert(s1 == s2)
+  end
+  compile(test_idiv)
+  test_idiv()
 end
-compile(test_idiv)
-test_idiv()
 print'Test 47 (IDIV) OK'
 
 do
