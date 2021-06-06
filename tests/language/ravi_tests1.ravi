@@ -310,38 +310,42 @@ print 'Lua bytecode tests OK'
 
 local z,x,y,tryme
 
--- test 1 
-z = function(a)
-  return a+1
+-- test 1
+do
+  local z = function(a)
+    return a+1
+  end
+  local x = function(f)
+    local j = 5
+    j = f(j)
+    return j
+  end
+  check(x, 'LOADK', 'MOVE', 'MOVE', 'CALL',
+    'MOVE', 'RETURN', 'RETURN')
+  check(z, 'ADD', 'RETURN', 'RETURN')
+  local y = x(z)
+  compile(z)
+  compile(x)
+  assert(x(z) == 6 and y == 6)
 end
-x = function(f)
-  local j = 5
-  j = f(j)
-  return j
-end
-check(x, 'LOADK', 'MOVE', 'MOVE', 'CALL',
-  'MOVE', 'RETURN', 'RETURN')
-check(z, 'ADD', 'RETURN', 'RETURN')
-y = x(z)
-compile(z)
-compile(x)
-assert(x(z) == 6 and y == 6)
 print("Test 1 OK")
 
 -- test 2
-x = function () 
-  local i, j:integer
-  j=0
-  for i=1,10 do
-  	j = j+1
+do
+  local x = function ()
+    local i, j:integer
+    j=0
+    for i=1,10 do
+  	  j = j+1
+    end
+    return j
   end
-  return j
+  check(x, 'LOADNIL', 'LOADIZ', 'LOADK', 'LOADK',
+    'LOADK', 'LOADK', 'FORPREP_I1', 'ADDII', 'FORLOOP_I1',
+    'RETURN', 'RETURN')
+  compile(x)
+  assert(x() == 10)
 end
-check(x, 'LOADNIL', 'LOADIZ', 'LOADK', 'LOADK',
-  'LOADK', 'LOADK', 'FORPREP_I1', 'ADDII', 'FORLOOP_I1',
-  'RETURN', 'RETURN')
-compile(x)
-assert(x() == 10)
 print("Test 2 OK")
 
 -- test 3
