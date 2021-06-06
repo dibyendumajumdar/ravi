@@ -1574,26 +1574,30 @@ assert(pcall(f, nil))
 assert(not pcall(f, 'hello'))
 print 'Test 62 OK'
 
-function x()
-   local f: closure = function() end
-   f = nil
-   local f
-   f = 'a'
-   return f
+do
+  local function x()
+    local f: closure = function() end
+    f = nil
+    local f
+    f = 'a'
+    return f
+  end
+  assert(x() == 'a')
+  ravi.compile(x)
+  assert(x() == 'a')
 end
-assert(x() == 'a')
-ravi.compile(x)
-assert(x() == 'a')
 print 'Test 63 OK'
 
 -- Codegen bug #issue 148
-function x()
-  assert(({pcall(function() comp 'x for __result' end)})[2]
+do
+  local function x()
+    assert(({pcall(function() comp 'x for __result' end)})[2]
        :find'not contain __ prefix')
+  end
+  check(x, 'GETTABUP_SK', 'NEWTABLE', 'GETTABUP_SK', 'CLOSURE',
+    'CALL', 'SETLIST', 'GETI', 'SELF_SK', 'LOADK',
+    'CALL', 'CALL', 'RETURN')
 end
-check(x, 'GETTABUP_SK', 'NEWTABLE', 'GETTABUP_SK', 'CLOSURE',
-  'CALL', 'SETLIST', 'GETI', 'SELF_SK', 'LOADK', 
-  'CALL', 'CALL', 'RETURN')
 print 'Test 64 OK'
 
 do
