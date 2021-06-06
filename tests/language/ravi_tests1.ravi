@@ -1271,136 +1271,134 @@ compile(test_longkey);
 assert(pcall(test_longkey));
 print 'Test 54 OK'
 
-
-function test_yields_in_metamethods()
-  --print"testing yields inside metamethods"
-  local mt = {
-    __eq = function(a:table,b:table) coroutine.yield(nil, "eq"); return a.x == b.x end,
-    __lt = function(a:table,b:table) coroutine.yield(nil, "lt"); return a.x < b.x end,
-    __le = function(a:table,b:table) coroutine.yield(nil, "le"); return a - b <= 0 end,
-    __add = function(a:table,b:table) coroutine.yield(nil, "add"); return a.x + b.x end,
-    __sub = function(a:table,b:table) coroutine.yield(nil, "sub"); return a.x - b.x end,
-    __mod = function(a:table,b:table) coroutine.yield(nil, "mod"); return a.x % b.x end,
-    __unm = function(a:table,b) coroutine.yield(nil, "unm"); return -a.x end,
-    __bnot = function(a:table,b) coroutine.yield(nil, "bnot"); return ~a.x end,
-    __shl = function(a:table,b:table) coroutine.yield(nil, "shl"); return a.x << b.x end,
-    __shr = function(a:table,b:table) coroutine.yield(nil, "shr"); return a.x >> b.x end,
-    __band = function(a,b)
+do
+  local function test_yields_in_metamethods()
+    --print"testing yields inside metamethods"
+    local mt = {
+      __eq = function(a:table,b:table) coroutine.yield(nil, "eq"); return a.x == b.x end,
+      __lt = function(a:table,b:table) coroutine.yield(nil, "lt"); return a.x < b.x end,
+      __le = function(a:table,b:table) coroutine.yield(nil, "le"); return a - b <= 0 end,
+      __add = function(a:table,b:table) coroutine.yield(nil, "add"); return a.x + b.x end,
+      __sub = function(a:table,b:table) coroutine.yield(nil, "sub"); return a.x - b.x end,
+      __mod = function(a:table,b:table) coroutine.yield(nil, "mod"); return a.x % b.x end,
+      __unm = function(a:table,b) coroutine.yield(nil, "unm"); return -a.x end,
+      __bnot = function(a:table,b) coroutine.yield(nil, "bnot"); return ~a.x end,
+      __shl = function(a:table,b:table) coroutine.yield(nil, "shl"); return a.x << b.x end,
+      __shr = function(a:table,b:table) coroutine.yield(nil, "shr"); return a.x >> b.x end,
+      __band = function(a,b)
                a = type(a) == "table" and a.x or a
                b = type(b) == "table" and b.x or b
                coroutine.yield(nil, "band")
                return a & b
              end,
-    __bor = function(a:table,b:table) coroutine.yield(nil, "bor"); return a.x | b.x end,
-    __bxor = function(a:table,b:table) coroutine.yield(nil, "bxor"); return a.x ~ b.x end,
+      __bor = function(a:table,b:table) coroutine.yield(nil, "bor"); return a.x | b.x end,
+      __bxor = function(a:table,b:table) coroutine.yield(nil, "bxor"); return a.x ~ b.x end,
 
-    __concat = function(a,b)
+      __concat = function(a,b)
                  coroutine.yield(nil, "concat");
                  a = type(a) == "table" and a.x or a
                  b = type(b) == "table" and b.x or b
                  return a .. b
                end,
-    __index = function (t:table,k) coroutine.yield(nil, "idx"); return t.k[k] end,
-    __newindex = function (t:table,k,v) coroutine.yield(nil, "nidx"); t.k[k] = v end,
-  }
+      __index = function (t:table,k) coroutine.yield(nil, "idx"); return t.k[k] end,
+      __newindex = function (t:table,k,v) coroutine.yield(nil, "nidx"); t.k[k] = v end,
+    }
 
-
-  local function new (x)
-    return setmetatable({x = x, k = {}}, mt)
-  end
-
-
-  local a : table = new(10)
-  local b : table = new(12)
-  local c : table = new"hello"
-
-  local function run (f, t)
-    local i = 1
-    local c = coroutine.wrap(f)
-    while true do
-      local res, stat = c()
-      if res then assert(t[i] == nil); return res, t end
-      assert(stat == t[i])
-      i = i + 1
+    local function new (x)
+      return setmetatable({x = x, k = {}}, mt)
     end
-  end
 
+    local a : table = new(10)
+    local b : table = new(12)
+    local c : table = new"hello"
 
-  assert(run(function () if (a>=b) then return '>=' else return '<' end end,
+    local function run (f, t)
+      local i = 1
+      local c = coroutine.wrap(f)
+      while true do
+        local res, stat = c()
+        if res then assert(t[i] == nil); return res, t end
+        assert(stat == t[i])
+        i = i + 1
+      end
+    end
+
+    assert(run(function () if (a>=b) then return '>=' else return '<' end end,
          {"le", "sub"}) == "<")
-  -- '<=' using '<'
-  mt.__le = nil
-  assert(run(function () if (a<=b) then return '<=' else return '>' end end,
+    -- '<=' using '<'
+    mt.__le = nil
+    assert(run(function () if (a<=b) then return '<=' else return '>' end end,
          {"lt"}) == "<=")
-  assert(run(function () if (a==b) then return '==' else return '~=' end end,
+    assert(run(function () if (a==b) then return '==' else return '~=' end end,
          {"eq"}) == "~=")
 
-  assert(run(function () return a & b + a end, {"add", "band"}) == 2)
+    assert(run(function () return a & b + a end, {"add", "band"}) == 2)
 
-  assert(run(function () return a % b end, {"mod"}) == 10)
+    assert(run(function () return a % b end, {"mod"}) == 10)
 
-  assert(run(function () return ~a & b end, {"bnot", "band"}) == ~10 & 12)
-  assert(run(function () return a | b end, {"bor"}) == 10 | 12)
-  assert(run(function () return a ~ b end, {"bxor"}) == 10 ~ 12)
-  assert(run(function () return a << b end, {"shl"}) == 10 << 12)
-  assert(run(function () return a >> b end, {"shr"}) == 10 >> 12)
+    assert(run(function () return ~a & b end, {"bnot", "band"}) == ~10 & 12)
+    assert(run(function () return a | b end, {"bor"}) == 10 | 12)
+    assert(run(function () return a ~ b end, {"bxor"}) == 10 ~ 12)
+    assert(run(function () return a << b end, {"shl"}) == 10 << 12)
+    assert(run(function () return a >> b end, {"shr"}) == 10 >> 12)
 
-  assert(run(function () return a..b end, {"concat"}) == "1012")
+    assert(run(function () return a..b end, {"concat"}) == "1012")
 
-  assert(run(function() return a .. b .. c .. a end,
+    assert(run(function() return a .. b .. c .. a end,
          {"concat", "concat", "concat"}) == "1012hello10")
 
-  assert(run(function() return "a" .. "b" .. a .. "c" .. c .. b .. "x" end,
+    assert(run(function() return "a" .. "b" .. a .. "c" .. c .. b .. "x" end,
          {"concat", "concat", "concat"}) == "ab10chello12x")
 
 
-  do   -- a few more tests for comparsion operators
-    local mt1 = {
-      __le = function (a,b)
-        coroutine.yield(10)
-        return
-          (type(a) == "table" and a.x or a) <= (type(b) == "table" and b.x or b)
-      end,
-      __lt = function (a,b)
-        coroutine.yield(10)
-        return
-          (type(a) == "table" and a.x or a) < (type(b) == "table" and b.x or b)
-      end,
-    }
-    local mt2 = { __lt = mt1.__lt }   -- no __le
+    do   -- a few more tests for comparison operators
+      local mt1 = {
+        __le = function (a,b)
+          coroutine.yield(10)
+          return
+            (type(a) == "table" and a.x or a) <= (type(b) == "table" and b.x or b)
+        end,
+        __lt = function (a,b)
+          coroutine.yield(10)
+          return
+            (type(a) == "table" and a.x or a) < (type(b) == "table" and b.x or b)
+        end,
+      }
+      local mt2 = { __lt = mt1.__lt }   -- no __le
 
-    local function run (f)
-      local co = coroutine.wrap(f)
-      local res
-      repeat
-        res = co()
-      until res ~= 10
-      return res
-    end
+      local function run (f)
+        local co = coroutine.wrap(f)
+        local res
+        repeat
+          res = co()
+        until res ~= 10
+        return res
+      end
     
-    local function test ()
-      local a1 : table = setmetatable({x=1}, mt1)
-      local a2 : table = setmetatable({x=2}, mt2)
-      assert(a1 < a2)
-      assert(a1 <= a2)
-      assert(1 < a2)
-      assert(1 <= a2)
-      assert(2 > a1)
-      assert(2 >= a2)
-      return true
+      local function test ()
+        local a1 : table = setmetatable({x=1}, mt1)
+        local a2 : table = setmetatable({x=2}, mt2)
+        assert(a1 < a2)
+        assert(a1 <= a2)
+        assert(1 < a2)
+        assert(1 <= a2)
+        assert(2 > a1)
+        assert(2 >= a2)
+        return true
+      end
+      run(test)
     end
-    run(test)
-  end
 
-  assert(run(function ()
+    assert(run(function ()
              local a: table = a
              a.BB = print
              return a.BB
            end, {"nidx", "idx"}) == print)
+  end
+  assert(pcall(test_yields_in_metamethods));
+  compile(test_yields_in_metamethods);
+  assert(pcall(test_yields_in_metamethods));
 end
-assert(pcall(test_yields_in_metamethods));
-compile(test_longkey);
-assert(pcall(test_yields_in_metamethods));
 print 'Test 55 OK'
 
 do
