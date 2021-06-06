@@ -375,65 +375,73 @@ assert(x() == 5)
 print("Test 4 OK")
 
 -- test 5
-x = function ()
-  if 1 == 2 then
-    return 5.0
+do
+  local x = function ()
+    if 1 == 2 then
+      return 5.0
+    end
+    return 1.0
   end
-  return 1.0
+  check(x, 'EQ_II', 'JMP', 'LOADK',
+    'RETURN', 'LOADK', 'RETURN', 'RETURN')
+  compile(x)
+  assert(x() == 1.0)
 end
-check(x, 'EQ_II', 'JMP', 'LOADK',
-  'RETURN', 'LOADK', 'RETURN', 'RETURN')
-compile(x)
-assert(x() == 1.0)
 print("Test 5 OK")
 
 -- test 6
-x = function (a: integer, b: integer)
-  if a == b then
-    return 5.0
+do
+  local x = function (a: integer, b: integer)
+    if a == b then
+      return 5.0
+    end
+    return 1.0
   end
-  return 1.0
+  check(x, 'TOINT', 'TOINT', 'EQ_II', 'JMP', 'LOADK',
+    'RETURN', 'LOADK', 'RETURN', 'RETURN')
+  compile(x)
+  assert(x(1,2) == 1.0)
 end
-check(x, 'TOINT', 'TOINT', 'EQ_II', 'JMP', 'LOADK',
-  'RETURN', 'LOADK', 'RETURN', 'RETURN')
-compile(x)
-assert(x(1,2) == 1.0)
 print("Test 6 OK")
 
 -- test 7
-x = function (y: integer)
-  if y < 1 then
-    return 1.0
-  elseif y >= 5 then
-    return 2.0
-  else
-    return 3.0
+do
+  local x = function (y: integer)
+    if y < 1 then
+      return 1.0
+    elseif y >= 5 then
+      return 2.0
+    else
+      return 3.0
+    end
   end
+  check(x, 'TOINT', 'LT_II', 'JMP', 'LOADK',
+    'RETURN', 'JMP', 'LE_II', 'JMP', 'LOADK',
+    'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
+  compile(x)
+  assert(x(5) == 2.0)
+  assert(x(4) == 3.0)
 end
-check(x, 'TOINT', 'LT_II', 'JMP', 'LOADK',
-  'RETURN', 'JMP', 'LE_II', 'JMP', 'LOADK',
-  'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
-compile(x)
-assert(x(5) == 2.0)
-assert(x(4) == 3.0)
 print("Test 7 OK")
 
 -- test 8
-x = function (y: number)
-  if y < 1.0 then
-    return 1.0
-  elseif y >= 5.0 then
-    return 2.0
-  else
-    return 3.0
+do
+  local x = function (y: number)
+    if y < 1.0 then
+      return 1.0
+    elseif y >= 5.0 then
+      return 2.0
+    else
+      return 3.0
+    end
   end
+  check(x, 'TOFLT', 'LT_FF', 'JMP', 'LOADK',
+    'RETURN', 'JMP', 'LE_FF', 'JMP', 'LOADK',
+    'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
+  compile(x)
+  assert(x(5.1) == 2.0)
+  assert(x(4.0) == 3.0)
 end
-check(x, 'TOFLT', 'LT_FF', 'JMP', 'LOADK',
-  'RETURN', 'JMP', 'LE_FF', 'JMP', 'LOADK',
-  'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
-compile(x)
-assert(x(5.1) == 2.0)
-assert(x(4.0) == 3.0)
 print("Test 8 OK")
 
 -- test 9
