@@ -713,18 +713,20 @@ assert(z(t) == "ravi")
 print("Test 24 OK")
 
 -- test 25
--- test ravi integer array
-function f()
-  local x: integer[] = { 1, 5 }
-  local y: integer
+do
+  -- test ravi integer array
+  local function f()
+    local x: integer[] = { 1, 5 }
+    local y: integer
 
-  x[3] = x[1] + x[2]
-  y = x[3]
+    x[3] = x[1] + x[2]
+    y = x[3]
 
-  return y
+    return y
+  end
+  assert(compile(f))
+  assert(f() == 6)
 end
-assert(compile(f))
-assert(f() == 6)
 print("Test 25 OK")
 
 -- test 26
