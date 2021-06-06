@@ -1,4 +1,4 @@
--- Test 5 from language tests
+-- Test 7 from language tests
 f = compiler.load([[
 function doit(y: integer)
     if y < 1 then
