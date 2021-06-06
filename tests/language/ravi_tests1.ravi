@@ -1668,29 +1668,35 @@ x=load 'local t: number[] = @number[] ( @number[] {} )'
 check(x, 'NEW_FARRAY', 'RETURN')
 print 'Test 70 OK'
 
-function x()
-  return { @integer[] {1,2}, @number[] {42} }
+do
+  local function x()
+    return { @integer[] {1,2}, @number[] {42} }
+  end
+  check(x, 'NEWTABLE', 'NEW_IARRAY', 'LOADK', 'LOADK',
+    'SETLIST', 'NEW_FARRAY', 'LOADK', 'SETLIST',
+    'SETLIST', 'RETURN', 'RETURN')
+  local y = x()
+  assert(ravitype(y[1]) == 'integer[]')
+  assert(ravitype(y[2]) == 'number[]')
 end
-check(x, 'NEWTABLE', 'NEW_IARRAY', 'LOADK', 'LOADK',
-  'SETLIST', 'NEW_FARRAY', 'LOADK', 'SETLIST',
-  'SETLIST', 'RETURN', 'RETURN')
-y = x()
-assert(ravitype(y[1]) == 'integer[]')
-assert(ravitype(y[2]) == 'number[]')
 print 'Test 71 OK'
 
-function x()
-  return @integer[] @integer[] @integer[]{1}
+do
+  local function x()
+    return @integer[] @integer[] @integer[]{1}
+  end
+  check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST', 'RETURN', 'RETURN')
+  assert(ravitype(x()) == 'integer[]')
 end
-check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST', 'RETURN', 'RETURN')
-assert(ravitype(x()) == 'integer[]')
 print 'Test 72 OK'
 
-function x()
-  return nil or @integer[] {1}
+do
+  local function x()
+    return nil or @integer[] {1}
+  end
+  assert(ravitype(x()) == 'integer[]')
+  check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST', 'RETURN', 'RETURN')
 end
-assert(ravitype(x()) == 'integer[]')
-check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST', 'RETURN', 'RETURN')
 print 'Test 73 OK'
 
 do
