@@ -1218,32 +1218,36 @@ compile(event_test)
 event_test();
 print 'Test 51 OK'
 
-function test_intarray_as_table(t)
-  t.a = 'a'
-  --print(ravitype(t))
+do
+  local function test_intarray_as_table(t)
+    t.a = 'a'
+    --print(ravitype(t))
+  end
+  local function do_test_intarray_as_table()
+    local iarray: integer[] = {1}
+    test_intarray_as_table(iarray);
+  end
+  assert(not pcall(do_test_intarray_as_table))
+  compile(do_test_intarray_as_table);
+  compile(test_intarray_as_table);
+  assert(not pcall(do_test_intarray_as_table))
 end
-function do_test_intarray_as_table()
-  local iarray: integer[] = {1}
-  test_intarray_as_table(iarray);
-end
-assert(not pcall(do_test_intarray_as_table));
-compile(do_test_intarray_as_table);
-compile(test_intarray_as_table);
-assert(not pcall(do_test_intarray_as_table));
 print 'Test 52 OK'
 
-function test_numarray_meta()
-  local farray : number[] = {1.1, 2.2, 3.3}
-  setmetatable(farray, {
-    __name = 'matrix',
-    __tostring = function() return '{' .. table.concat(farray, ",") .. '}' end 
-    })
-  assert(ravitype(farray) == 'matrix')
-  assert(tostring(farray) == '{1.1,2.2,3.3}')
+do
+  local function test_numarray_meta()
+    local farray : number[] = {1.1, 2.2, 3.3}
+    setmetatable(farray, {
+      __name = 'matrix',
+      __tostring = function() return '{' .. table.concat(farray, ",") .. '}' end
+      })
+    assert(ravitype(farray) == 'matrix')
+    assert(tostring(farray) == '{1.1,2.2,3.3}')
+  end
+  assert(pcall(test_numarray_meta));
+  compile(test_numarray_meta);
+  assert(pcall(test_numarray_meta));
 end
-assert(pcall(test_numarray_meta));
-compile(test_numarray_meta);
-assert(pcall(test_numarray_meta));
 print 'Test 53 OK'
 
 do
