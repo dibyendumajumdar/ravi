@@ -1596,76 +1596,88 @@ check(x, 'GETTABUP_SK', 'NEWTABLE', 'GETTABUP_SK', 'CLOSURE',
   'CALL', 'CALL', 'RETURN')
 print 'Test 64 OK'
 
-x = function()
-  local i: integer = @integer 1
-  local n: number = @number 1.2
-  assert(i == 1 and n == 1.2)
-  local j = { 1, 2, 3, 4.2, 5 }
-  i = @integer( @integer (j[2]) )
-  n = @number( @number (j[4]) )
-  assert(i == 2)
-  assert(n == 4.2)
+do
+  local x = function()
+    local i: integer = @integer 1
+    local n: number = @number 1.2
+    assert(i == 1 and n == 1.2)
+    local j = { 1, 2, 3, 4.2, 5 }
+    i = @integer( @integer (j[2]) )
+    n = @number( @number (j[4]) )
+    assert(i == 2)
+    assert(n == 4.2)
+  end
+  check(x, 'LOADK', 'LOADK', 'GETTABUP_SK', 'EQ_II',
+    'JMP', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
+    'CALL', 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK',
+    'LOADK', 'LOADK', 'SETLIST', 'GETI', 'TOINT',
+    'MOVEI', 'GETI', 'TOFLT', 'MOVEF', 'GETTABUP_SK',
+    'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+    'GETTABUP_SK', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
+    'CALL', 'RETURN')
+  x()
+  compile(x)
+  x()
 end
-check(x, 'LOADK', 'LOADK', 'GETTABUP_SK', 'EQ_II',
-  'JMP', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
-  'CALL', 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK',
-  'LOADK', 'LOADK', 'SETLIST', 'GETI', 'TOINT',
-  'MOVEI', 'GETI', 'TOFLT', 'MOVEF', 'GETTABUP_SK',
-  'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
-  'GETTABUP_SK', 'EQ_FF', 'JMP', 'LOADBOOL', 'LOADBOOL',
-  'CALL', 'RETURN')
-x()
-compile(x)
-x()  
 print 'Test 65 OK'
 
-function x()
-   local a,b = 1,2
-   local c: integer,d: integer = @integer a, @integer b
-   assert(c == a and b == d)
+do
+  local function x()
+    local a,b = 1,2
+    local c: integer,d: integer = @integer a, @integer b
+    assert(c == a and b == d)
+  end
+  check(x, 'LOADK', 'LOADK', 'TOINT', 'MOVE',
+    'TOINT', 'MOVE', 'GETTABUP_SK', 'EQ', 'JMP',
+    'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+    'RETURN')
+  x()
+  compile(x)
+  x()
 end
-check(x, 'LOADK', 'LOADK', 'TOINT', 'MOVE',
-  'TOINT', 'MOVE', 'GETTABUP_SK', 'EQ', 'JMP',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
-  'RETURN')
-x()
-compile(x)
-x()
 print 'Test 66 OK'
 
-g = { 1, 5.5 }
-local h = { 10, 4.2 }
-function x() 
-  local a: integer = 11
-  local b: number = 6.5
-  local c = 6
-  a = @integer( g[1] ) + @integer( h[1] ) * @integer( c )
-  c = 3.2
-  b = @number( g[2] ) * @number( h[2] ) - @number( c )
-  return a,b
+do
+  g = { 1, 5.5 } -- global
+  local h = { 10, 4.2 }
+  local function x()
+    local a: integer = 11
+    local b: number = 6.5
+    local c = 6
+    a = @integer( g[1] ) + @integer( h[1] ) * @integer( c )
+    c = 3.2
+    b = @number( g[2] ) * @number( h[2] ) - @number( c )
+    return a,b
+  end
+  local y,z = x()
+  assert(y == 61 and math.abs(z - 19.9) < 1e-5)
+  compile(x)
+  y,z = x()
+  assert(y == 61 and math.abs(z - 19.9) < 1e-10)
+  check(x, 'LOADK', 'LOADK', 'LOADK', 'GETTABUP_SK',
+    'GETI', 'TOINT', 'GETTABUP', 'TOINT', 'TOINT',
+    'MULII', 'ADDII', 'LOADK', 'GETTABUP_SK', 'GETI',
+    'TOFLT', 'GETTABUP', 'TOFLT', 'MULFF', 'TOFLT',
+    'SUBFF', 'MOVE', 'MOVE', 'RETURN', 'RETURN')
 end
-y,z = x()
-assert(y == 61 and math.abs(z - 19.9) < 1e-5)
-compile(x)
-y,z = x()
-assert(y == 61 and math.abs(z - 19.9) < 1e-10)
-check(x, 'LOADK', 'LOADK', 'LOADK', 'GETTABUP_SK',
-  'GETI', 'TOINT', 'GETTABUP', 'TOINT', 'TOINT',
-  'MULII', 'ADDII', 'LOADK', 'GETTABUP_SK', 'GETI',
-  'TOFLT', 'GETTABUP', 'TOFLT', 'MULFF', 'TOFLT',
-  'SUBFF', 'MOVE', 'MOVE', 'RETURN', 'RETURN')
 print 'Test 67 OK'
 
-x=load 'local t: number[] = {}'
-check(x, 'NEW_FARRAY', 'RETURN')
+do
+  local x=load 'local t: number[] = {}'
+  check(x, 'NEW_FARRAY', 'RETURN')
+end
 print 'Test 68 OK'
 
-x=load 'local t = @number[] {}'
-check(x, 'NEW_FARRAY', 'RETURN')
+do
+  local x=load 'local t = @number[] {}'
+  check(x, 'NEW_FARRAY', 'RETURN')
+end
 print 'Test 69 OK'
 
-x=load 'local t: number[] = @number[] ( @number[] {} )'
-check(x, 'NEW_FARRAY', 'RETURN')
+do
+  local x=load 'local t: number[] = @number[] ( @number[] {} )'
+  check(x, 'NEW_FARRAY', 'RETURN')
+end
 print 'Test 70 OK'
 
 do
