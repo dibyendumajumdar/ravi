@@ -1200,22 +1200,23 @@ compile(bug_index_event)
 bug_index_event()
 print 'Test 50 OK'
 
-
-function event_test()
-  local a: table = {}
-  setmetatable(a, {__metatable = "xuxu",
+do
+  local function event_test()
+    local a: table = {}
+    setmetatable(a, {__metatable = "xuxu",
                     __tostring=function(x: table) return x.name end})
-  assert(getmetatable(a) == "xuxu")
-  --assert(tostring(a) == nil)
-  -- cannot change a protected metatable
-  assert(pcall(setmetatable, a, {}) == false)
-  a.name = "gororoba"
-  assert(tostring(a) == "gororoba")
+    assert(getmetatable(a) == "xuxu")
+    --assert(tostring(a) == nil)
+    -- cannot change a protected metatable
+    assert(pcall(setmetatable, a, {}) == false)
+    a.name = "gororoba"
+    assert(tostring(a) == "gororoba")
+  end
+  event_test();
+  compile(event_test)
+  --ravi.dumpllvm(event_test)
+  event_test()
 end
-event_test();
-compile(event_test)
---ravi.dumpllvm(event_test)
-event_test();
 print 'Test 51 OK'
 
 do
