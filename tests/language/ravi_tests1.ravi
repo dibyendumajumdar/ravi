@@ -463,39 +463,43 @@ assert(x(4) == 3.0)
 print("Test 9 OK")
 
 -- test 10
-x = function() 
-  local function tryme()
-    local i,j = 5,6
-    return i,j
+do
+  local x = function()
+    local function tryme()
+      local i,j = 5,6
+      return i,j
+    end
+    assert(compile(tryme))
+    local i:integer, j:integer = tryme()
+    assert(i+j == 11)
   end
-  assert(compile(tryme))
-  local i:integer, j:integer = tryme()
-  assert(i+j == 11)
+  compile(x)
+  check(x, 'CLOSURE', 'GETTABUP_SK', 'GETUPVAL',
+    'MOVE', 'CALL', 'CALL', 'MOVE', 'CALL', 'TOINT', 'TOINT',
+    'GETTABUP_SK', 'ADDII', 'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL',
+    'CALL', 'RETURN')
+  x()
 end
-compile(x)
-check(x, 'CLOSURE', 'GETTABUP_SK', 'GETUPVAL',
-  'MOVE', 'CALL', 'CALL', 'MOVE', 'CALL', 'TOINT', 'TOINT',
-  'GETTABUP_SK', 'ADDII', 'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL',
-  'CALL', 'RETURN')
-x()
 print("Test 10 OK")
 
 -- test 11
-function x()
-  local a : number[], j:number = {}
-  for i=1,10 do
-    a[i] = i
-    j = j + a[i]
+do
+  local function x()
+    local a : number[], j:number = {}
+    for i=1,10 do
+      a[i] = i
+      j = j + a[i]
+    end
+    return j
   end
-  return j
+  assert(x() == 55.0)
+  check(x, 'NEW_FARRAY', 'LOADNIL', 'LOADFZ',
+    'LOADK', 'LOADK', 'LOADK', 'FORPREP_I1',
+    'FARRAY_SET', 'FARRAY_GET', 'ADDFF',
+    'FORLOOP_I1', 'RETURN', 'RETURN')
+  compile(x)
+  assert(x() == 55.0)
 end
-assert(x() == 55.0)
-check(x, 'NEW_FARRAY', 'LOADNIL', 'LOADFZ',
-  'LOADK', 'LOADK', 'LOADK', 'FORPREP_I1',
-  'FARRAY_SET', 'FARRAY_GET', 'ADDFF',
-  'FORLOOP_I1', 'RETURN', 'RETURN')
-compile(x)
-assert(x() == 55.0)
 print("Test 11 OK")
 
 -- test 12
