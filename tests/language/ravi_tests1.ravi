@@ -893,28 +893,30 @@ print("Test 34 OK")
 
 
 -- test 35
--- this tests that within the for loop
--- the locals get mapped correctly to upvalues
-function f()
-  local a={}
-  for i=1,2 do
-    local y:integer = 0
-    a[i] = function()
-      y = y + 10
-      return y;
+do
+  -- this tests that within the for loop
+  -- the locals get mapped correctly to upvalues
+  local function f()
+    local a={}
+    for i=1,2 do
+      local y:integer = 0
+      a[i] = function()
+        y = y + 10
+        return y;
+      end
     end
+    return a
   end
-  return a
+  assert(compile(f))
+  local t = f()
+  assert(#t == 2)
+  assert(compile(t[1]))
+  assert(compile(t[2]))
+  assert(t[1]() == 10)
+  assert(t[2]() == 10)
+  assert(t[1]() == 20)
+  assert(t[2]() == 20)
 end
-assert(compile(f))
-t = f()
-assert(#t == 2)
-assert(compile(t[1]))
-assert(compile(t[2]))
-assert(t[1]() == 10)
-assert(t[2]() == 10)
-assert(t[1]() == 20)
-assert(t[2]() == 20)
 print("Test 35 OK")
 
 -- test 36
