@@ -345,33 +345,37 @@ assert(x() == 10)
 print("Test 2 OK")
 
 -- test 3
-x = function ()
-  local j:number
-  for i=1,10 do
-    j = j+1
+do
+  local x = function ()
+    local j:number
+    for i=1,10 do
+      j = j+1
+    end
+    return j
   end
-  return j
+  check(x, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
+    'LOADK', 'FORPREP_I1', 'ADDFI', 'FORLOOP_I1',
+    'RETURN', 'RETURN')
+  compile(x)
+  assert(x() == 10.0)
 end
-check(x, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
-  'LOADK', 'FORPREP_I1', 'ADDFI', 'FORLOOP_I1',
-  'RETURN', 'RETURN')
-compile(x)
-assert(x() == 10.0)
 print("Test 3 OK")
 
 -- test 4
-x = function ()
-  local j = 0
-  for i=2,6,3 do
-    j = i
+do
+  local x = function ()
+    local j = 0
+    for i=2,6,3 do
+      j = i
+    end
+    return j
   end
-  return j
+  check(x, 'LOADK', 'LOADK',
+    'LOADK', 'LOADK', 'FORPREP_IP', 'MOVE', 'FORLOOP_IP',
+    'RETURN', 'RETURN')
+  compile(x)
+  assert(x() == 5)
 end
-check(x, 'LOADK', 'LOADK',
-  'LOADK', 'LOADK', 'FORPREP_IP', 'MOVE', 'FORLOOP_IP',
-  'RETURN', 'RETURN')
-compile(x)
-assert(x() == 5)
 print("Test 4 OK")
 
 -- test 5
