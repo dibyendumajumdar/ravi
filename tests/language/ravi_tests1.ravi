@@ -1693,53 +1693,60 @@ assert(ravitype(x()) == 'integer[]')
 check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST', 'RETURN', 'RETURN')
 print 'Test 73 OK'
 
-function x()
-  return @number[]( @integer[] {1} and @number[] {42} )
+do
+  local function x()
+    return @number[]( @integer[] {1} and @number[] {42} )
+  end
+  assert(ravitype(x()) == 'number[]')
+  assert(x()[1] == 42.0)
+  check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST',
+    'NEW_FARRAY', 'LOADK', 'SETLIST',
+    'RETURN', 'RETURN')
 end
-assert(ravitype(x()) == 'number[]')
-assert(x()[1] == 42.0)
-check(x, 'NEW_IARRAY', 'LOADK', 'SETLIST',
-  'NEW_FARRAY', 'LOADK', 'SETLIST',
-  'RETURN', 'RETURN')
 print 'Test 74 OK'
 
-function x()
-  assert(math.exp(2) == ravi.exp(2))
-  assert(math.log(2) == ravi.ln(2))
-  assert(math.exp(math.log(2)) == ravi.exp(ravi.ln(2)))
+do
+  local function x()
+    assert(math.exp(2) == ravi.exp(2))
+    assert(math.log(2) == ravi.ln(2))
+    assert(math.exp(math.log(2)) == ravi.exp(ravi.ln(2)))
+  end
+  x()
+  compile(x)
+  x()
 end
-x()
-compile(x)
-x()
 print 'Test 75 OK'
 
 -- Test that % of ints results in int
-function x(a: integer, b:integer)
+do
+  local function x(a: integer, b:integer)
     return a%b == 0
-end
-check(x, 'TOINT', 'TOINT', 'MOD',
+  end
+  check(x, 'TOINT', 'TOINT', 'MOD',
     'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'RETURN', 'RETURN')
-assert(x(10,5))
-compile(x)
-assert(x(10,5))
+  assert(x(10,5))
+  compile(x)
+  assert(x(10,5))
+end
 print 'Test 76 OK'
 
 -- Test that ^ applied to numbers results in a number
-function x(a:number, b:number)
+do
+  local function x(a:number, b:number)
     local c:number = a^b
     return c
+  end
+  check(x, 'TOFLT', 'TOFLT', 'POW', 'RETURN', 'RETURN')
+  assert(x(2,3) == 2^3)
+  compile(x)
+  assert(x(2,3) == 2^3)
 end
-check(x, 'TOFLT', 'TOFLT', 'POW', 'RETURN', 'RETURN')
-assert(x(2,3) == 2^3)
-compile(x)
-assert(x(2,3) == 2^3)
 print 'Test 77 OK'
-
---
 
 
 -- Create some slices and invoke GC
-x = function ()
+do
+  local x = function ()
     local function createarray(values: number[])
         local arr: number[] = table.numarray(#values, 0)
         for i=1,#values do
@@ -1785,25 +1792,28 @@ x = function ()
     slice3 = nil
     collectgarbage()
     assert(finalizer_called)
+  end
+  x()
+  compile(x)
+  x()
 end
-x()
-compile(x)
-x()
 print 'Test 83 OK'
 
 -- Test that ~ applied to non integer result in any type
 -- issue #209
-function x(x:number)
+do
+  local function x(x:number)
     return (~x)+1
-end
-check(x, 'TOFLT', 'BNOT', 'ADDII', 'RETURN', 'RETURN')
-assert(x(1.0) == -1)
-compile(x)
-assert(x(1.0) == -1)
-function x(x:table)
+  end
+  check(x, 'TOFLT', 'BNOT', 'ADDII', 'RETURN', 'RETURN')
+  assert(x(1.0) == -1)
+  compile(x)
+  assert(x(1.0) == -1)
+  local function x(x:table)
     return (~x)+1
+  end
+  check(x, 'TOTAB', 'BNOT', 'ADD', 'RETURN', 'RETURN')
 end
-check(x, 'TOTAB', 'BNOT', 'ADD', 'RETURN', 'RETURN')
 print 'Test 84 OK'
 
 -- Test that #() applied to non integer type produces any type
