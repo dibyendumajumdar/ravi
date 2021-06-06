@@ -1007,18 +1007,19 @@ assert(math.abs(x(5.5,2.1)-2.0) < 1e-6)
 print("Test 41 OK")
 
 -- test 42
-x = function ()
-  local j = 0
-  for i=2.0,6.0,3.1 do
-    j = i
+do
+  local x = function ()
+    local j = 0
+    for i=2.0,6.0,3.1 do
+      j = i
+    end
+    return j
   end
-  return j
+  if (not compile(x)) then
+    print("Test FAILED to compile")
+  end
+  assert(x() == 5.1)
 end
-
-if (not compile(x)) then
-  print("Test FAILED to compile")
-end
-assert(x() == 5.1)
 print("Test 42 OK")
 
 -- test parameter types
