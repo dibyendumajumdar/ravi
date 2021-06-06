@@ -1528,21 +1528,23 @@ compile(x)
 assert(x('a', 'b') == 'ab')
 print 'Test 59 OK'
 
-function x(f: closure)
-  local g = @closure f
-  return g()
+do
+  local function x(f: closure)
+    local g = @closure f
+    return g()
+  end
+  check(x, 'TOCLOSURE', 'MOVE', 'MOVE', 'TAILCALL', 'RETURN', 'RETURN')
+  local called = 0
+  local function y()
+    called = called + 1
+  end
+  x(y)
+  assert(called == 1)
+  compile(x)
+  compile(y)
+  x(y)
+  assert(called == 2)
 end
-check(x, 'TOCLOSURE', 'MOVE', 'MOVE', 'TAILCALL', 'RETURN', 'RETURN')
-local called = 0
-function y()
-  called = called + 1
-end
-x(y)
-assert(called == 1)
-compile(x)
-compile(y)
-x(y)
-assert(called == 2) 
 print 'Test 60 OK'
 
 do
