@@ -655,34 +655,37 @@ z()
 print("Test 21 OK")
 
 -- test 22
-z = function()
-  local days: table = {"Sunday", "Monday", "Tuesday", "Wednesday",
+do
+  local x
+  local z = function()
+    local days: table = {"Sunday", "Monday", "Tuesday", "Wednesday",
             "Thursday", "Friday", "Saturda"}
-  assert(days[1] == 'Sunday')
-  assert(#days == 7)
-  assert(days[3] == 'Tuesday')
-  days[7] = days[7] .. 'y'
-  x = function() 
-    local t = ''
-    for k,v in pairs(days) do
-      t = t .. v
+    assert(days[1] == 'Sunday')
+    assert(#days == 7)
+    assert(days[3] == 'Tuesday')
+    days[7] = days[7] .. 'y'
+    x = function()
+      local t = ''
+      for k,v in pairs(days) do
+        t = t .. v
+      end
+      return t
     end
-    return t
+    assert(compile(x))
+    assert(x() == "SundayMondayTuesdayWednesdayThursdayFridaySaturday")
   end
-  assert(compile(x))
-  assert(x() == "SundayMondayTuesdayWednesdayThursdayFridaySaturday")
+  check(z, 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK', 'LOADK',
+    'LOADK', 'LOADK', 'LOADK', 'SETLIST', 'GETTABUP_SK', 'GETI',
+    'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'LEN', 'TOINT',
+    'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'GETI',
+    'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETI', 'LOADK',
+    'CONCAT', 'SETI', 'CLOSURE', 'SETUPVAL', 'GETTABUP_SK', 'GETUPVAL',
+    'GETUPVAL', 'CALL', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'CALL', 'EQ',
+    'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
+  z()
+  compile(z)
+  z()
 end
-check(z, 'NEWTABLE', 'LOADK', 'LOADK', 'LOADK', 'LOADK',
-  'LOADK', 'LOADK', 'LOADK', 'SETLIST', 'GETTABUP_SK', 'GETI',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'LEN', 'TOINT',
-  'EQ_II', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETTABUP_SK', 'GETI',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'GETI', 'LOADK',
-  'CONCAT', 'SETI', 'CLOSURE', 'SETUPVAL', 'GETTABUP_SK', 'GETUPVAL',
-  'GETUPVAL', 'CALL', 'CALL', 'GETTABUP_SK', 'GETUPVAL', 'CALL', 'EQ',
-  'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'RETURN')
-z()
-compile(z)
-z()
 print("Test 22 OK")
 
 -- test 23
