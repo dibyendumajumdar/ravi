@@ -1550,28 +1550,32 @@ debug.getregistry().MyType = mt
 local t = {}
 setmetatable(t, mt)
 
-function x(s: MyType) 
-  local assert = assert
-  assert(@MyType s == @MyType t)
-  assert(@MyType t == t)
+do
+  local function x(s: MyType)
+    local assert = assert
+    assert(@MyType s == @MyType t)
+    assert(@MyType t == t)
+  end
+  x(t)
+  compile(x)
+  x(t)
 end
-x(t)
-compile(x)
-x(t)
 print 'Test 61 OK'
 
-function x()
-   local a: MyType
-   return function (b) a = b end
+do
+  local function x()
+    local a: MyType
+    return function (b) a = b end
+  end
+  local f = x()
+  assert(pcall(f, t)) -- t is of MyType so okay
+  assert(pcall(f, nil)) -- nil is okay
+  assert(not pcall(f, 'hello')) -- string not okay
+  ravi.compile(f)
+  assert(pcall(f, t))
+  assert(pcall(f, nil))
+  assert(not pcall(f, 'hello'))
 end
-f = x()
-assert(pcall(f, t)) -- t is of MyType so okay
-assert(pcall(f, nil)) -- nil is okay
-assert(not pcall(f, 'hello')) -- string not okay
-ravi.compile(f)
-assert(pcall(f, t))
-assert(pcall(f, nil))
-assert(not pcall(f, 'hello'))
 print 'Test 62 OK'
 
 do
