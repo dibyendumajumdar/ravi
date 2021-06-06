@@ -1519,13 +1519,15 @@ check(from_dmy1, 'TOINT', 'TOINT', 'TOINT', 'LE_II', 'JMP',
   'SUBII','RETURN','RETURN')
 print 'Test 58 OK'
 
-function x(s1: string, s2: string)
-  return @string( s1 .. s2 )
+do
+  local function x(s1: string, s2: string)
+    return @string( s1 .. s2 )
+  end
+  check(x, 'TOSTRING', 'TOSTRING', 'MOVE', 'MOVE', 'CONCAT', 'TOSTRING', 'RETURN', 'RETURN')
+  assert(x('a', 'b') == 'ab')
+  compile(x)
+  assert(x('a', 'b') == 'ab')
 end
-check(x, 'TOSTRING', 'TOSTRING', 'MOVE', 'MOVE', 'CONCAT', 'TOSTRING', 'RETURN', 'RETURN')
-assert(x('a', 'b') == 'ab')
-compile(x)
-assert(x('a', 'b') == 'ab')
 print 'Test 59 OK'
 
 do
