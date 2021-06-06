@@ -728,50 +728,56 @@ assert(f() == 6)
 print("Test 25 OK")
 
 -- test 26
-function f()
-  local x: number[] = { 5.0, 6.1 }
-  x[3] = x[1] + x[2]
-  return x[3]
+do
+  local function f()
+    local x: number[] = { 5.0, 6.1 }
+    x[3] = x[1] + x[2]
+    return x[3]
+  end
+  --ravi.dumplua(f)
+  assert(compile(f))
+  assert(math.abs(f()-11.1) < 1e-12)
 end
---ravi.dumplua(f)
-assert(compile(f))
-assert(math.abs(f()-11.1) < 1e-12)
 print("Test 26 OK")
 
 -- test 27
--- Ravi arrays support for ipairs()
--- Plus special slot at [0]
-x = function() 
-  local nums: integer[] = {1, 2, 3, 4, 5, 6, 7}
-  local t = 0
-  assert(#nums == 7)
-  nums[0] = 558
-  for k,v in ipairs(nums) do
-    t = t + v
+do
+  -- Ravi arrays support for ipairs()
+  -- Plus special slot at [0]
+  local x = function()
+    local nums: integer[] = {1, 2, 3, 4, 5, 6, 7}
+    local t = 0
+    assert(#nums == 7)
+    nums[0] = 558
+    for k,v in ipairs(nums) do
+      t = t + v
+    end
+    assert(nums[0] == 558)
+    return t
   end
-  assert(nums[0] == 558)
-  return t
+  assert(compile(x))
+  assert(x() == 28)
 end
-assert(compile(x))
-assert(x() == 28)
 print("Test 27 OK")
 
 -- test 28
--- Ravi arrays support for pairs()
--- Plus special slot at [0]
-x = function() 
-  local nums: integer[] = {1, 2, 3, 4, 5, 6, 7}
-  local t = 0
-  assert(#nums == 7)
-  nums[0] = 558
-  for k,v in pairs(nums) do
-    t = t + v
+do
+  -- Ravi arrays support for pairs()
+  -- Plus special slot at [0]
+  local x = function()
+    local nums: integer[] = {1, 2, 3, 4, 5, 6, 7}
+    local t = 0
+    assert(#nums == 7)
+    nums[0] = 558
+    for k,v in pairs(nums) do
+      t = t + v
+    end
+    assert(nums[0] == 558)
+    return t
   end
-  assert(nums[0] == 558)
-  return t
+  assert(compile(x))
+  assert(x() == 28)
 end
-assert(compile(x))
-assert(x() == 28)
 print("Test 28 OK")
 
 -- test 29
