@@ -437,29 +437,31 @@ assert(x(4.0) == 3.0)
 print("Test 8 OK")
 
 -- test 9
-x = function (y: integer, z)
-  if y == 1 then
-    if z == 1 then
-      return 99.0
+do
+  local x = function (y: integer, z)
+    if y == 1 then
+      if z == 1 then
+        return 99.0
+      else
+        return z
+      end
+    elseif y >= 5 then
+      return 2.0
     else
-      return z
+      return 3.0
     end
-  elseif y >= 5 then
-    return 2.0
-  else
-    return 3.0
   end
+  check(x, 'TOINT', 'EQ_II', 'JMP', 'EQ',
+    'JMP', 'LOADK', 'RETURN', 'JMP', 'RETURN', 'JMP',
+    'LE_II', 'JMP', 'LOADK',
+    'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
+  assert(compile(x))
+  assert(x(1,1) == 99.0)
+  assert(x(1,2) == 2)
+  assert(x(1,5.3) == 5.3)
+  assert(x(5) == 2.0)
+  assert(x(4) == 3.0)
 end
-check(x, 'TOINT', 'EQ_II', 'JMP', 'EQ',
-  'JMP', 'LOADK', 'RETURN', 'JMP', 'RETURN', 'JMP',
-  'LE_II', 'JMP', 'LOADK',
-  'RETURN', 'JMP', 'LOADK', 'RETURN', 'RETURN')
-assert(compile(x))
-assert(x(1,1) == 99.0)
-assert(x(1,2) == 2)
-assert(x(1,5.3) == 5.3)
-assert(x(5) == 2.0)
-assert(x(4) == 3.0)
 print("Test 9 OK")
 
 -- test 10
