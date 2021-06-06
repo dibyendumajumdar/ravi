@@ -499,7 +499,8 @@ assert(x() == 55.0)
 print("Test 11 OK")
 
 -- test 12
-function pisum()
+do
+  local function pisum()
     local sum : number
     for j = 1,500 do
         sum = 0.0
@@ -508,15 +509,16 @@ function pisum()
         end
     end
     return sum
+  end
+  assert(math.abs(pisum()-1.644834071848065) < 1e-12)
+  check(pisum, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
+    'LOADK', 'FORPREP_I1', 'LOADK', 'LOADK',
+    'LOADK', 'LOADK', 'FORPREP_I1', 'MULII',
+    'DIVFI', 'ADDFF', 'FORLOOP_I1', 'FORLOOP_I1',
+    'RETURN', 'RETURN')
+  assert(compile(pisum))
+  assert(math.abs(pisum()-1.644834071848065) < 1e-12)
 end
-assert(math.abs(pisum()-1.644834071848065) < 1e-12)
-check(pisum, 'LOADNIL', 'LOADFZ', 'LOADK', 'LOADK',
-  'LOADK', 'FORPREP_I1', 'LOADK', 'LOADK',
-  'LOADK', 'LOADK', 'FORPREP_I1', 'MULII',
-  'DIVFI', 'ADDFF', 'FORLOOP_I1', 'FORLOOP_I1',
-  'RETURN', 'RETURN')
-assert(compile(pisum))
-assert(math.abs(pisum()-1.644834071848065) < 1e-12)
 print("Test 12 OK")
 
 -- test 13
