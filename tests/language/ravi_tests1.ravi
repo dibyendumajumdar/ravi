@@ -604,33 +604,37 @@ assert(optest() == 1)
 print("Test 18 OK")
 
 -- test 19
-function optest()
-  local a,b = 1, 5
-  if a and b then
-    return b
+do
+  local function optest()
+    local a,b = 1, 5
+    if a and b then
+      return b
+    end
+    return a
   end
-  return a
+  check(optest, 'LOADK', 'LOADK', 'TEST', 'JMP',
+    'TEST', 'JMP', 'RETURN', 'RETURN', 'RETURN')
+  assert(optest() == 5)
+  compile(optest)
+  assert(optest() == 5)
 end
-check(optest, 'LOADK', 'LOADK', 'TEST', 'JMP',
-  'TEST', 'JMP', 'RETURN', 'RETURN', 'RETURN')
-assert(optest() == 5)
-compile(optest)
-assert(optest() == 5)
 print("Test 19 OK")
 
 -- test 20
-function optest()
-  local a,b = nil, 5
-  if a or b then
-    return b
+do
+  local function optest()
+    local a,b = nil, 5
+    if a or b then
+      return b
+    end
+    return a
   end
-  return a
+  check(optest, 'LOADNIL', 'LOADK', 'TEST', 'JMP',
+    'TEST', 'JMP', 'RETURN', 'RETURN', 'RETURN')
+  assert(optest() == 5)
+  compile(optest)
+  assert(optest() == 5)
 end
-check(optest, 'LOADNIL', 'LOADK', 'TEST', 'JMP',
-  'TEST', 'JMP', 'RETURN', 'RETURN', 'RETURN')
-assert(optest() == 5)
-compile(optest)
-assert(optest() == 5)
 print("Test 20 OK")
 
 -- test 21
