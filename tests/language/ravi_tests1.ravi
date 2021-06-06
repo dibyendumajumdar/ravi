@@ -1049,31 +1049,32 @@ assert(y() == 4.2)
 print'Test 44 OK'
 
 -- test 45
-function x(t) return t; end
-function f()
-  local tt: integer[] = {1}
-  local ss: number[] = { 55.5 }
-  tt = x(tt)
-  ss = x(ss)
+do
+  local function x(t) return t; end
+  local function f()
+    local tt: integer[] = {1}
+    local ss: number[] = { 55.5 }
+    tt = x(tt)
+    ss = x(ss)
+  end
+  assert(compile(x))
+  assert(compile(f))
+  assert(pcall(f))
+  local function f()
+    local tt: integer[] = {1}
+    tt = x({})
+  end
+  --ravi.dumplua(f)
+  assert(compile(f))
+  assert(not pcall(f))
+  local function f()
+    local tt: integer[] = {1}
+    local ss: number[] = { 55.5 }
+    ss = x(tt)
+  end
+  assert(compile(f))
+  assert(not pcall(f))
 end
-assert(compile(x))
-assert(compile(f))
-assert(pcall(f))
-function f()
-  local tt: integer[] = {1}
-  tt = x({})
-end
---ravi.dumplua(f)
-assert(compile(f))
-assert(not pcall(f))
-function f()
-  local tt: integer[] = {1}
-  local ss: number[] = { 55.5 }
-  ss = x(tt)
-end
-assert(compile(f))
-assert(not pcall(f))
-
 print("Test 45 OK")
 
 -- test 47
