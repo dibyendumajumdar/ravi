@@ -1545,12 +1545,11 @@ x(y)
 assert(called == 2) 
 print 'Test 60 OK'
 
-local mt = { __name='MyType'}
-debug.getregistry().MyType = mt
-local t = {}
-setmetatable(t, mt)
-
 do
+  local mt = { __name='MyType'}
+  debug.getregistry().MyType = mt
+  local t = {}
+  setmetatable(t, mt)
   local function x(s: MyType)
     local assert = assert
     assert(@MyType s == @MyType t)
@@ -1563,6 +1562,10 @@ end
 print 'Test 61 OK'
 
 do
+  local mt = { __name='MyType'}
+  debug.getregistry().MyType = mt
+  local t = {}
+  setmetatable(t, mt)
   local function x()
     local a: MyType
     return function (b) a = b end
