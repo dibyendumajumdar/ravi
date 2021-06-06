@@ -686,17 +686,19 @@ z()
 print("Test 22 OK")
 
 -- test 23
-x = function(a)
-  return not a
+do
+  local x = function(a)
+    return not a
+  end
+  local y = function(a)
+    return a
+  end
+  assert(compile(x))
+  assert(compile(y))
+  assert(y(x()))
+  assert(y(x(false)))
+  assert(not y(x(true)))
 end
-y = function(a)
-  return a
-end
-assert(compile(x))
-assert(compile(y))
-assert(y(x()))
-assert(y(x(false)))
-assert(not y(x(true)))
 print("Test 23 OK")
 
 -- test 24
