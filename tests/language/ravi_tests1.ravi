@@ -847,48 +847,56 @@ assert(x() == 65)
 print("Test 30 OK")
 
 -- test 31
-function testadd(a,b)
-  return a+b
+do
+  local function testadd(a,b)
+    return a+b
+  end
+  assert(compile(testadd))
+  assert(testadd(1,1) == 2)
+  assert(testadd(1.5,1.6) == 3.1)
+  assert(testadd("1.5",1.6) == 3.1)
+  assert(testadd("1.5","1.6") == 3.1)
 end
-assert(compile(testadd))
-assert(testadd(1,1) == 2)
-assert(testadd(1.5,1.6) == 3.1)
-assert(testadd("1.5",1.6) == 3.1)
-assert(testadd("1.5","1.6") == 3.1)
 print("Test 31 OK")
 
 -- test 32
-function testsub(a,b)
-  return a-b
+do
+  local function testsub(a,b)
+    return a-b
+  end
+  assert(compile(testsub))
+  assert(testsub(1,1) == 0)
+  assert(math.abs(testsub(1.5,1.6)-(-0.1)) < 1e-6)
+  assert(math.abs(testsub("1.5",1.6)-(-0.1)) < 1e-6)
+  assert(math.abs(testsub("1.5","1.6")-(-0.1)) < 1e-6)
 end
-assert(compile(testsub))
-assert(testsub(1,1) == 0)
-assert(math.abs(testsub(1.5,1.6)-(-0.1)) < 1e-6)
-assert(math.abs(testsub("1.5",1.6)-(-0.1)) < 1e-6)
-assert(math.abs(testsub("1.5","1.6")-(-0.1)) < 1e-6)
 print("Test 32 OK")
 
 -- test 33
-function testmul(a,b)
-  return a*b
+do
+  local function testmul(a,b)
+    return a*b
+  end
+  assert(compile(testmul))
+  assert(testmul(2,2) == 4)
+  assert(math.abs(testmul(1.5,1.6)-2.4) < 1e-12)
+  assert(math.abs(testmul("1.5",1.6)-2.4) < 1e-12)
+  assert(math.abs(testmul("1.5","1.6")-2.4) < 1e-12)
 end
-assert(compile(testmul))
-assert(testmul(2,2) == 4)
-assert(math.abs(testmul(1.5,1.6)-2.4) < 1e-12)
-assert(math.abs(testmul("1.5",1.6)-2.4) < 1e-12)
-assert(math.abs(testmul("1.5","1.6")-2.4) < 1e-12)
 print("Test 33 OK")
 
 
 -- test 34
-function testdiv(a,b)
-  return a/b
+do
+  local function testdiv(a,b)
+    return a/b
+  end
+  assert(compile(testdiv))
+  assert(testdiv(2,2) == 1.0)
+  assert(math.abs(testdiv(1.5,1.6)-0.9375) < 1e-12)
+  assert(math.abs(testdiv("1.5",1.6)-0.9375) < 1e-12)
+  assert(math.abs(testdiv("1.5","1.6")-0.9375) < 1e-12)
 end
-assert(compile(testdiv))
-assert(testdiv(2,2) == 1.0)
-assert(math.abs(testdiv(1.5,1.6)-0.9375) < 1e-12)
-assert(math.abs(testdiv("1.5",1.6)-0.9375) < 1e-12)
-assert(math.abs(testdiv("1.5","1.6")-0.9375) < 1e-12)
 print("Test 34 OK")
 
 
