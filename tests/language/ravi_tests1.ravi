@@ -1246,29 +1246,30 @@ compile(test_numarray_meta);
 assert(pcall(test_numarray_meta));
 print 'Test 53 OK'
 
-
-function test_longkey()
-  local t: table = {}
-  t._01234567890123456789012345678901234567890123456789 = 4.2
-  assert(t._01234567890123456789012345678901234567890123456789 == 4.2)
-  t._01234567890 = 4.3
-  assert(t._01234567890 == 4.3)
-  t["_01234567890"] = 4.4
-  assert(t["_01234567890"] == 4.4)
-  local s = "_01234567890"
-  assert(t[s] == 4.4)
-  assert(t.s == nil) 
+do
+  local function test_longkey()
+    local t: table = {}
+    t._01234567890123456789012345678901234567890123456789 = 4.2
+    assert(t._01234567890123456789012345678901234567890123456789 == 4.2)
+    t._01234567890 = 4.3
+    assert(t._01234567890 == 4.3)
+    t["_01234567890"] = 4.4
+    assert(t["_01234567890"] == 4.4)
+    local s = "_01234567890"
+    assert(t[s] == 4.4)
+    assert(t.s == nil)
+  end
+  check(test_longkey,	'NEWTABLE', 'SETTABLE', 'GETTABUP_SK', 'GETTABLE',
+    'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'TABLE_SETFIELD', 'GETTABUP_SK',
+    'TABLE_GETFIELD', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'TABLE_SETFIELD',
+    'GETTABUP_SK', 'TABLE_GETFIELD', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+    'LOADK', 'GETTABUP_SK', 'GETTABLE', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+    'GETTABUP_SK', 'TABLE_GETFIELD', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
+    'RETURN')
+  assert(pcall(test_longkey));
+  compile(test_longkey);
+  assert(pcall(test_longkey));
 end
-check(test_longkey,	'NEWTABLE', 'SETTABLE', 'GETTABUP_SK', 'GETTABLE',
-  'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'TABLE_SETFIELD', 'GETTABUP_SK',
-  'TABLE_GETFIELD', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL', 'TABLE_SETFIELD',
-  'GETTABUP_SK', 'TABLE_GETFIELD', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
-  'LOADK', 'GETTABUP_SK', 'GETTABLE', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
-  'GETTABUP_SK', 'TABLE_GETFIELD', 'EQ', 'JMP', 'LOADBOOL', 'LOADBOOL', 'CALL',
-  'RETURN')
-assert(pcall(test_longkey));
-compile(test_longkey);
-assert(pcall(test_longkey));
 print 'Test 54 OK'
 
 do
