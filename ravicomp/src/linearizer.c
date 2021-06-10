@@ -1331,6 +1331,32 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 	/* TODO do we need to insert type assertions in some cases such as function return values ? */
 
 	int note_ne = ne;
+	// nv = number of variables (LHS)
+	// ne = number of expressions (RHS)
+	for (i = 0; i < nv; i++) {
+		if (i >= ne) {
+			// Went past ne
+			if (last_val_pseudo != NULL && last_val_pseudo->type == PSEUDO_RANGE) {
+				int pick = i - ne + 1;
+				linearize_store_var(proc, varinfo[i].vartype, varinfo[i].pseudo,
+						    valinfo[ne-1].vartype,
+						    allocate_range_select_pseudo(proc, last_val_pseudo, pick));
+			} else {
+				// TODO store NIL
+			}
+		}
+		else {
+			if (valinfo[i].pseudo->type == PSEUDO_RANGE) {
+				/* Only the topmost expression can be a range ... assert */
+				assert(i == note_ne-1);
+				valinfo[i].pseudo = allocate_range_select_pseudo(proc, valinfo[i].pseudo, 0);
+			}
+			linearize_store_var(proc, varinfo[i].vartype, varinfo[i].pseudo,
+					    valinfo[i].vartype, valinfo[i].pseudo);
+			free_temp_pseudo(proc, valinfo[i].pseudo, false);
+		}
+	}
+#if 0
 	while (nv > 0) {
 		if (nv > ne) {
 			if (last_val_pseudo != NULL && last_val_pseudo->type == PSEUDO_RANGE) {
@@ -1355,6 +1381,7 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 			ne--;
 		}
 	}
+#endif
 }
 
 /*
