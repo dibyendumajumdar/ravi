@@ -1,4 +1,3 @@
--- Test 7 from language tests
 f = compiler.load([[
 local a, b = {}, 10
 a[b], b = 20, 30
