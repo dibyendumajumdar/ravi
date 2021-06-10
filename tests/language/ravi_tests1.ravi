@@ -2267,6 +2267,23 @@ do
 end
 print 'Test 104 OK'
 
+-- 
+do
+  local function x()
+    local a, b = {}, 10
+    a[b], b = 20, 30
+    return a[10], a[30]
+  end
+  local a,b = x()
+  assert(a == 20)
+  assert(b == nil)
+  compile(x)
+  a,b = x()
+  assert(a == 20)
+  assert(b == nil)
+end
+print 'Test 105 OK'
+
 for k,v in pairs(opcodes_coverage)
 do
   print(k, v)
