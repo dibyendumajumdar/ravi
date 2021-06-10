@@ -425,6 +425,7 @@ static inline void set_typename(VariableType *vt, ravitype_t t, const StringObje
 	vt->type_code = t;
 	vt->type_name = name;
 }
+/* copy type from b to a */
 static inline void copy_type(VariableType *a, const VariableType *b)
 {
 	a->type_code = b->type_code;
