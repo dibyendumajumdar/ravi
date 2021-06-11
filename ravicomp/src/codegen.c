@@ -824,7 +824,8 @@ static void initfn(struct function *fn, Proc *proc, struct Ravi_CompilerInterfac
 	emit_vars("lua_Integer", int_var_prefix, &proc->temp_int_pseudos, &fn->prologue);
 	emit_vars("lua_Number", flt_var_prefix, &proc->temp_flt_pseudos, &fn->prologue);
 	// Following are temp dummy regs
-	// In ops like luaV_settable we may use up to two variables
+	// In ops like luaV_settable we may use up to two variables, hence we create
+	// two of each
 	raviX_buffer_add_string(&fn->prologue, "TValue ival0; settt_(&ival0, LUA_TNUMINT);\n");
 	raviX_buffer_add_string(&fn->prologue, "TValue fval0; settt_(&fval0, LUA_TNUMFLT);\n");
 	raviX_buffer_add_string(&fn->prologue, "TValue bval0; settt_(&bval0, LUA_TBOOLEAN);\n");
@@ -852,6 +853,12 @@ static inline unsigned num_temps(Proc *proc) { return proc->temp_pseudos.next_re
  * stack space may be needed when making function calls - that is not accounted for here.
  */
 static unsigned compute_max_stack_size(Proc *proc) { return num_locals(proc) + num_temps(proc); }
+
+// Gets the regnum of the register at L->top
+// this is equal to number of temps because the temps are above
+// locals - and when we access the register it needs to be temp range
+// where first temp is at 0.
+static unsigned temp_register_stacktop(Proc *proc) { return num_temps(proc); }
 
 /**
  * Computes the register offset from base. Input pseudo must be a local variable,
@@ -881,6 +888,7 @@ static unsigned compute_register_from_base(struct function *fn, const Pseudo *ps
 // be var args between CI->func and base. So stackbase may not be base-1 always.
 static bool refers_to_same_register(struct function *fn, Pseudo *src, Pseudo *dst)
 {
+	// C++ doesn't support the syntax using [] :-(
 	static bool reg_pseudos[] = {
 	    /* [PSEUDO_SYMBOL] =*/true,	    /* An object of type lua_symbol representing local var or upvalue */
 	    /* [PSEUDO_TEMP_FLT] =*/false,  /* A floating point temp - may also be used for locals that don't escape */
@@ -921,9 +929,11 @@ Outputs accessor for a pseudo so that the accessor is always of type
 TValue *. Thus for constants, we need to use a temp stack variable of type TValue.
 The issue is what happens if we need two values at the same time and both are constants
 of the same type. This is where the discriminator comes in - to help differentiate.
+The discriminator must be 0 or 1 (see initfn())
 */
 static int emit_reg_accessor(struct function *fn, const Pseudo *pseudo, unsigned discriminator)
 {
+	assert(discriminator == 0 || discriminator == 1);
 	if (pseudo->type == PSEUDO_LUASTACK) {
 		// Note pseudo->stackidx is relative to ci->func
 		// But ci->func is not always base-1 because of var args
@@ -1435,7 +1445,7 @@ static int emit_op_concat(struct function *fn, Instruction *insn) {
 	    &fn->body, " if (stackoverflow(L,%d)) { luaD_growstack(L, %d); base = ci->u.l.base; }\n", n, n);
 	raviX_buffer_add_string(&fn->body, "{\n");
 	// Copy the rest of the args
-	unsigned start_reg = num_temps(fn->proc); // TODO this is L->top, when accessed as TEMP_ANY
+	unsigned start_reg = temp_register_stacktop(fn->proc); // this is L->top, when accessed as TEMP_ANY
 	// Our emit_move needs pseudo operands hence we cannot easily use a pointer
 	// value that points to L->top
 	// First copy the input values to Lua stack - first value goes
