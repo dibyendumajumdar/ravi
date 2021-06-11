@@ -832,7 +832,7 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 		targetop = op_pow;
 		break;
 	case BINOPR_CONCAT:
-		targetop = op_string_concat;
+		targetop = op_concat;
 		break;
 	default: {
 		char err[100];
@@ -921,6 +921,24 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 	free_temp_pseudo(proc, operand1, false);
 	free_temp_pseudo(proc, operand2, false);
 
+	return target;
+}
+
+/* The concat opcode attempts to help the efficiency of concatenation
+ */
+static Pseudo *linearize_concat_expression(Proc *proc, AstNode *expr)
+{
+	Instruction *insn = allocate_instruction(proc, op_concat);
+	ravitype_t target_type = expr->string_concatenation_expr.type.type_code;
+	Pseudo *target = allocate_temp_pseudo(proc, target_type);
+	AstNode *n;
+	FOR_EACH_PTR(expr->string_concatenation_expr.expr_list, AstNode, n) {
+		Pseudo *operand = linearize_expression(proc, n);
+		add_instruction_operand(proc, insn, operand);
+	}
+	END_FOR_EACH_PTR(n)
+	add_instruction_target(proc, insn, target);
+	add_instruction(proc, insn);
 	return target;
 }
 
@@ -1516,6 +1534,9 @@ static Pseudo *linearize_expression(Proc *proc, AstNode *expr)
 	case EXPR_Y_INDEX:
 	case EXPR_FIELD_SELECTOR: {
 		result = linearize_expression(proc, expr->index_expr.expr);
+	} break;
+	case EXPR_CONCAT: {
+		result = linearize_concat_expression(proc, expr);
 	} break;
 	default:
 		handle_error(proc->linearizer->ast_container, "feature not yet implemented");
@@ -2584,7 +2605,7 @@ static const char *op_codenames[] = {
     "PUTik",	  "PUTsk",  "TPUT", "TPUTik", "TPUTsk",	    "IAPUT",	 "IAPUTiv",   "FAPUT",	   "FAPUTfv",
     "CBR",	  "BR",	    "MOV",  "MOVi",   "MOVif",	    "MOVf",	 "MOVfi",     "CALL",	   "GET",
     "GETik",	  "GETsk",  "TGET", "TGETik", "TGETsk",	    "IAGET",	 "IAGETik",   "FAGET",	   "FAGETik",
-    "STOREGLOBAL", "CLOSE", "STRCONCAT"};
+    "STOREGLOBAL", "CLOSE", "CONCAT"};
 
 static void output_pseudo_list(PseudoList *list, TextBuffer *mb)
 {

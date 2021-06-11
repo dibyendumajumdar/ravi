@@ -142,7 +142,7 @@ enum opcode {
 	op_faget_ikey,
 	op_storeglobal,
 	op_close,
-	op_string_concat
+	op_concat
 };
 
 /*

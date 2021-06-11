@@ -367,6 +367,45 @@ static int luaO_rawarith(CompilerState *compiler_state, int op, const LiteralExp
 	}
 }
 
+static void walk_binary_expr(CompilerState *container, AstNode *node, AstNodeList **expr_list) { 
+	assert(node->type == EXPR_BINARY && node->binary_expr.binary_op == BINOPR_CONCAT);
+	AstNode *left = node->binary_expr.expr_left;
+	AstNode *right = node->binary_expr.expr_right;
+	if (left->type == EXPR_BINARY && left->binary_expr.binary_op == BINOPR_CONCAT) {
+		walk_binary_expr(container, left, expr_list);
+	} else {
+		raviX_ptrlist_add((PtrList **)expr_list, left, &container->ptrlist_allocator);
+	}
+	if (right->type == EXPR_BINARY && right->binary_expr.binary_op == BINOPR_CONCAT) {
+		walk_binary_expr(container, right, expr_list);
+	} else {
+		raviX_ptrlist_add((PtrList **)expr_list, right, &container->ptrlist_allocator);
+	}
+}
+
+/* node must be a binary op with op code CONCAT */
+static void flatten_concat_expression(CompilerState *container, AstNode *node) {
+	assert(node->type == EXPR_BINARY && node->binary_expr.binary_op == BINOPR_CONCAT);
+	AstNodeList  *expr_list = NULL;
+	walk_binary_expr(container, node, &expr_list);
+	node->type = EXPR_CONCAT;
+	node->binary_expr.expr_left = NULL;
+	node->binary_expr.expr_left = NULL;
+	node->string_concatenation_expr.expr_list = expr_list;
+	node->common_expr.type.type_code = RAVI_TSTRING; /* assume string  */
+	AstNode *e;
+	FOR_EACH_PTR(expr_list, AstNode, e) {
+		/* The concat operator converts to string if operands are string or number */
+		if (e->common_expr.type.type_code != RAVI_TSTRING &&
+		    e->common_expr.type.type_code != RAVI_TNUMFLT &&
+		    e->common_expr.type.type_code != RAVI_TNUMFLT) {
+			node->common_expr.type.type_code = RAVI_TANY;
+			break;
+		}
+	}
+	END_FOR_EACH_PTR(node);
+}
+
 static void process_expression(CompilerState *container, AstNode *node)
 {
 	switch (node->type) {
@@ -389,6 +428,10 @@ static void process_expression(CompilerState *container, AstNode *node)
 	case EXPR_SYMBOL:
 		break;
 	case EXPR_BINARY:
+		if (node->binary_expr.binary_op == BINOPR_CONCAT) {
+			flatten_concat_expression(container, node);
+			goto L_string_concat;
+		}
 		process_expression(container, node->binary_expr.expr_left);
 		process_expression(container, node->binary_expr.expr_right);
 		if (node->binary_expr.expr_left->type == EXPR_LITERAL &&
@@ -410,6 +453,10 @@ static void process_expression(CompilerState *container, AstNode *node)
 				// TODO free expr_left and expr_right
 			}
 		}
+		break;
+	case EXPR_CONCAT:
+	L_string_concat:
+		process_expression_list(container, node->string_concatenation_expr.expr_list);
 		break;
 	case EXPR_UNARY:
 		process_expression(container, node->unary_expr.expr);

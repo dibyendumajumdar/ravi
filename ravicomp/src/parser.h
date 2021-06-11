@@ -316,6 +316,11 @@ struct BinaryExpression {
 	AstNode *expr_left;
 	AstNode *expr_right;
 };
+/* Special handling of string concatenation for efficiency. */
+struct StringConcatenationExpression {
+	BASE_EXPRESSION_FIELDS;
+	AstNodeList *expr_list;
+};
 struct FunctionExpression {
 	BASE_EXPRESSION_FIELDS;
 	unsigned is_vararg : 1;
@@ -410,6 +415,7 @@ struct AstNode {
 		TableLiteralExpression table_expr;
 		SuffixedExpression suffixed_expr;
 		FunctionCallExpression function_call_expr;
+		StringConcatenationExpression string_concatenation_expr;
 	};
 };
 #undef BASE_AST_FIELDS

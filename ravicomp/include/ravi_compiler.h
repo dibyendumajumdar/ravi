@@ -309,7 +309,8 @@ enum AstNodeType {
 	EXPR_BINARY,
 	EXPR_FUNCTION,	    /* function literal */
 	EXPR_TABLE_LITERAL, /* table constructor */
-	EXPR_FUNCTION_CALL
+	EXPR_FUNCTION_CALL,
+	EXPR_CONCAT
 };
 
 typedef struct Statement Statement;
@@ -336,6 +337,7 @@ typedef struct TableElementAssignmentExpression TableElementAssignmentExpression
 typedef struct TableLiteralExpression TableLiteralExpression;
 typedef struct SuffixedExpression SuffixedExpression;
 typedef struct FunctionCallExpression FunctionCallExpression;
+typedef struct StringConcatenationExpression StringConcatenationExpression;
 
 typedef struct Scope Scope;
 

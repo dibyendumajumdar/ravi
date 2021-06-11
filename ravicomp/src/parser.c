@@ -67,6 +67,7 @@ static AstNode *allocate_ast_node(ParserState *parser, enum AstNodeType type)
 
 static AstNode *allocate_expr_ast_node(ParserState *parser, enum AstNodeType type)
 {
+	assert(type >= EXPR_LITERAL && type <= EXPR_CONCAT);
 	AstNode *node = allocate_ast_node(parser, type);
 	node->common_expr.truncate_results = 0;
 	set_typecode(&node->common_expr.type, RAVI_TANY);
