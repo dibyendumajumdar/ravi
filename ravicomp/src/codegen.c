@@ -662,6 +662,7 @@ static const char Lua_header[] =
     "extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);\n"
     "extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);\n"
     "extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);\n"
+    "extern void luaV_concat (lua_State *L, int total);\n"
     "extern void *luaM_realloc_ (lua_State *L, void *block, size_t osize, size_t nsize);\n"
     "extern LClosure *luaF_newLclosure (lua_State *L, int n);\n"
     "extern TString *luaS_newlstr (lua_State *L, const char *str, size_t l);\n"

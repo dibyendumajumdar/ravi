@@ -648,6 +648,7 @@ static const char Lua_header[] =
     "extern lua_Integer luaV_shiftl(lua_Integer x, lua_Integer y);\n"
     "extern void ravi_dump_value(lua_State *L, const struct lua_TValue *v);\n"
     "extern void raviV_op_bnot(lua_State *L, TValue *ra, TValue *rb);\n"
+    "extern void luaV_concat (lua_State *L, int total);\n"
     "#define R(i) (base + i)\n"
     "#define K(i) (k + i)\n"
     "#define tonumberns(o,n) \\\n"
