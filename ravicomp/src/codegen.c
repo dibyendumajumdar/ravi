@@ -1421,6 +1421,47 @@ static int emit_op_call(struct function *fn, Instruction *insn)
 	return 0;
 }
 
+// We invoke luaV_concat() to concatenate values
+// luaV_concat requires that the values to be concatenated are at the top of the stack
+// and that L->top points just past the values.
+// Our input expressions may be at different places so we copy all the values
+// to the top of stack before invoking luaV_concat().
+// After the call we copy the value to the correct place.
+// This may result in extra copies but the cost of string concatenation
+// outweighs this anyway so it doesn't matter much.
+static int emit_op_concat(struct function *fn, Instruction *insn) {
+	unsigned int n = get_num_operands(insn);
+	raviX_buffer_add_fstring(
+	    &fn->body, " if (stackoverflow(L,%d)) { luaD_growstack(L, %d); base = ci->u.l.base; }\n", n, n);
+	raviX_buffer_add_string(&fn->body, "{\n");
+	// Copy the rest of the args
+	unsigned start_reg = num_temps(fn->proc); // TODO this is L->top, when accessed as TEMP_ANY
+	// Our emit_move needs pseudo operands hence we cannot easily use a pointer
+	// value that points to L->top
+	// First copy the input values to Lua stack - first value goes
+	// to L->top, second to L->top+1 etc.
+	for (unsigned j = 0; j < n; j++) {
+		Pseudo tmp = {.type = PSEUDO_TEMP_ANY, .regnum = start_reg + j};
+		emit_move(fn, get_operand(insn, j), &tmp);
+	}
+	// L->top must be just past the last arg
+	raviX_buffer_add_string(&fn->body, " L->top = ");
+	Pseudo tmp1 = {.type = PSEUDO_TEMP_ANY, .regnum = start_reg};
+	emit_reg_accessor(fn, &tmp1, 0);
+	raviX_buffer_add_fstring(&fn->body, " + %d;\n", n);
+	// Invoke luaV_concat()
+	raviX_buffer_add_fstring(&fn->body, " luaV_concat(L, %d);\n", n);
+	raviX_buffer_add_string(&fn->body, " base = ci->u.l.base;\n");
+	raviX_buffer_add_string(&fn->body, " L->top = ci->top;\n");
+	// Copy result at L->top to the correct place
+	{
+		Pseudo tmp = {.type = PSEUDO_TEMP_ANY, .regnum = start_reg};
+		emit_move(fn, &tmp, get_target(insn, 0));
+	}
+	raviX_buffer_add_string(&fn->body, "}\n");
+	return 0;
+}
+
 /*
  * Output a C stack variable representing int/float value or constant
  */
@@ -2438,6 +2479,10 @@ static int output_instruction(struct function *fn, Instruction *insn)
 	case op_len:
 	case op_leni:
 		rc = emit_op_len(fn, insn);
+		break;
+
+	case op_concat:
+		rc = emit_op_concat(fn, insn);
 		break;
 
 	default:
