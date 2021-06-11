@@ -1303,6 +1303,31 @@ static void linearize_store_var(Proc *proc, const VariableType *var_type, Pseudo
 	}
 }
 
+static ravitype_t get_type(LuaSymbol *symbol) {
+	ravitype_t t = RAVI_TANY;
+	if (symbol->symbol_type == SYM_LOCAL) {
+		if (symbol->variable.value_type.type_code == RAVI_TNUMINT ||
+		    symbol->variable.value_type.type_code == RAVI_TNUMFLT)
+			t = symbol->variable.value_type.type_code;
+	}
+	else if (symbol->symbol_type == SYM_UPVALUE) {
+		if (symbol->upvalue.value_type.type_code == RAVI_TNUMINT ||
+		    symbol->upvalue.value_type.type_code == RAVI_TNUMFLT)
+			t = symbol->upvalue.value_type.type_code;
+	}
+	return t;
+}
+
+static Pseudo *copy_to_temp_if_necessary(Proc *proc, Pseudo *original) {
+	if (original->type == PSEUDO_SYMBOL) {
+		Pseudo *copy = allocate_temp_pseudo(proc, get_type(original->symbol));
+		instruct_move(proc, op_mov, copy, original);
+		// TODO we may need to set type more specifically
+		return copy;
+	}
+	return original;
+}
+
 struct node_info {
 	const VariableType *vartype;
 	Pseudo *pseudo;
@@ -1312,6 +1337,7 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 {
 	AstNode *expr;
 
+	// Process RHS expressions
 	int ne = raviX_ptrlist_size((const PtrList *)expr_list);
 	struct node_info *valinfo = (struct node_info *)alloca(ne * sizeof(struct node_info));
 	Pseudo *last_val_pseudo = NULL;
@@ -1320,7 +1346,11 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 	{
 		Pseudo *val_pseudo = last_val_pseudo = linearize_expression(proc, expr);
 		valinfo[i].vartype = &expr->common_expr.type;
-		valinfo[i].pseudo = val_pseudo;
+		// To support the Lua semantics of x,y = y,x as a swap
+		// we need to copy locals to temps
+		// TODO can this be optimized to only do when needed
+		// See also check_conflict() in Lua parser
+		valinfo[i].pseudo = copy_to_temp_if_necessary(proc, val_pseudo);
 		i++;
 		if (i < ne && val_pseudo->type == PSEUDO_RANGE) {
 			convert_range_to_temp(val_pseudo);
