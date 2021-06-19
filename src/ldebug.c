@@ -529,6 +529,10 @@ static const char *funcnamefromcode (lua_State *L, CallInfo *ci,
   TMS tm = (TMS)0;  /* (initial value avoids warnings) */
   Proto *p = ci_func(ci)->p;  /* calling function */
   int pc = currentpc(ci);  /* calling instruction index */
+  if (p->code == NULL) {
+    *name = "?";
+    return "compiledfunction";
+  }
   Instruction i = p->code[pc];  /* calling instruction */
   if (ci->callstatus & CIST_HOOKED) {  /* was it called inside a hook? */
     *name = "?";
