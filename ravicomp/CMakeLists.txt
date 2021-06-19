@@ -27,6 +27,7 @@ set(SRCS
         src/allocate.c
         src/ast_walker.c
         src/ast_simplify.c
+        src/ast_lower.c
         src/ptrlist.c
         src/fnv_hash.c
         src/graph.c

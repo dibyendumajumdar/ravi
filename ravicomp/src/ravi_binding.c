@@ -47,6 +47,11 @@ int raviX_compile(struct Ravi_CompilerInterface *compiler_interface)
 		compiler_interface->error_message(compiler_interface->context, raviX_get_last_error(container));
 		goto L_exit;
 	}
+	rc = raviX_ast_lower(container);
+	if (rc != 0) {
+		compiler_interface->error_message(compiler_interface->context, raviX_get_last_error(container));
+		goto L_exit;
+	}
 	rc = raviX_ast_typecheck(container);
 	if (rc != 0) {
 		compiler_interface->error_message(compiler_interface->context, raviX_get_last_error(container));
