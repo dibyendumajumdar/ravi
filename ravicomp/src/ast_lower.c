@@ -31,6 +31,21 @@ static void process_expression_list(CompilerState *container, AstNodeList *node)
 static void process_statement_list(CompilerState *container, AstNodeList *node);
 static void process_statement(CompilerState *container, AstNode *node);
 
+static int astlist_num_nodes(AstNodeList *list)
+{
+	return raviX_ptrlist_size((struct PtrList *) list);
+}
+
+static AstNode* astlist_get(AstNodeList *list, unsigned int i)
+{
+	return (AstNode*) raviX_ptrlist_nth_entry((struct PtrList *) list, i);
+}
+
+static AstNode* astlist_last(AstNodeList *list)
+{
+	return (AstNode*) raviX_ptrlist_last((struct PtrList *) list);
+}
+
 static void process_expression(CompilerState *container, AstNode *node)
 {
 	switch (node->type) {
@@ -182,6 +197,32 @@ static AstNode *break_statment(CompilerState *container, Scope *goto_scope)
 	return goto_stmt;
 }
 
+// In generic for loops the exprlist is required to result
+// in 3 values, function, state, and var.
+// Perhaps the parser needs to do this instead of here
+// We try to ensure that exprlist will result in 3 values
+static AstNodeList *fix_numresults(AstNodeList *exprlist)
+{
+	if (astlist_num_nodes(exprlist) >= 3) {
+		// already 3 or more values so OK
+		return exprlist;
+	}
+	AstNode *n = astlist_last(exprlist);
+	if (n->type != EXPR_SUFFIXED) {
+		// TODO last expression is not a simple function call
+		return exprlist;
+	}
+	AstNode *expr = astlist_get(n->suffixed_expr.suffix_list, 0);
+	if (expr == NULL || expr->type != EXPR_FUNCTION_CALL) {
+		// TODO last expression is not a simple function call
+		return exprlist;
+	}
+	// adjust the number of results expected so that the last function call
+	// expr has its results adjusted
+	expr->function_call_expr.num_results = 3-(astlist_num_nodes(exprlist)-1);
+	return exprlist;
+}
+
 // clang-format off
 /*
 Lower generic for a do block with a while loop as described in Lua 5.3 manual.
@@ -216,6 +257,8 @@ static void lower_for_in_statement(CompilerState *container, AstNode *node)
 	ForStatement *for_stmt = &node->for_stmt;
 	AstNode *function = for_stmt->for_scope->function;
 
+	// FIXME - the for variables must be removed from parent scope
+
 	// Create do block
 	AstNode *do_stmt = raviX_allocate_ast_node_at_line(container, STMT_DO, node->line_number);
 	do_stmt->do_stmt.do_statement_list = NULL;
@@ -232,7 +275,7 @@ static void lower_for_in_statement(CompilerState *container, AstNode *node)
 
 	AstNode *local_stmt = raviX_allocate_ast_node_at_line(container, STMT_LOCAL, node->line_number);
 	local_stmt->local_stmt.var_list = NULL;
-	local_stmt->local_stmt.expr_list = for_stmt->expr_list;
+	local_stmt->local_stmt.expr_list = fix_numresults(for_stmt->expr_list);
 
 	LuaSymbol *fsym = raviX_new_local_symbol(container, do_scope, raviX_create_string(container, f, sizeof f-1), RAVI_TANY, NULL);
 	LuaSymbol *ssym = raviX_new_local_symbol(container, do_scope, raviX_create_string(container, s, sizeof s-1), RAVI_TANY, NULL);
