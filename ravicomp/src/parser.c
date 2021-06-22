@@ -57,6 +57,22 @@ static void add_ast_node(CompilerState *container, AstNodeList **list, AstNode *
 	raviX_ptrlist_add((PtrList **)list, node, &container->ptrlist_allocator);
 }
 
+static int astlist_num_nodes(AstNodeList *list)
+{
+	return raviX_ptrlist_size((struct PtrList *) list);
+}
+
+static AstNode* astlist_get(AstNodeList *list, unsigned int i)
+{
+	return (AstNode*) raviX_ptrlist_nth_entry((struct PtrList *) list, i);
+}
+
+static AstNode* astlist_last(AstNodeList *list)
+{
+	return (AstNode*) raviX_ptrlist_last((struct PtrList *) list);
+}
+
+
 AstNode *raviX_allocate_ast_node_at_line(CompilerState *container, enum AstNodeType type, int line_num) {
 	AstNode *node = (AstNode *)raviX_allocator_allocate(&container->ast_node_allocator, 0);
 	node->type = type;
@@ -1234,6 +1250,33 @@ static void parse_forbody(ParserState *parser, AstNode *stmt, int line, int nvar
 	stmt->for_stmt.for_body = parse_block(parser, &stmt->for_stmt.for_statement_list);
 }
 
+// In generic for loops the exprlist is required to result
+// in 3 values, function, state, and var.
+// Perhaps the parser needs to do this instead of here
+// We try to ensure that exprlist will result in 3 values
+static AstNodeList *fix_numresults(AstNodeList *exprlist, int num_results)
+{
+	if (astlist_num_nodes(exprlist) >= num_results) {
+		// already 3 or more values so OK
+		return exprlist;
+	}
+	AstNode *n = astlist_last(exprlist);
+	if (n->type != EXPR_SUFFIXED) {
+		// TODO last expression is not a simple function call
+		return exprlist;
+	}
+	AstNode *expr = astlist_get(n->suffixed_expr.suffix_list, 0);
+	if (expr == NULL || expr->type != EXPR_FUNCTION_CALL) {
+		// TODO last expression is not a simple function call
+		return exprlist;
+	}
+	// adjust the number of results expected so that the last function call
+	// expr has its results adjusted
+	expr->function_call_expr.num_results = num_results-(astlist_num_nodes(exprlist)-1);
+	return exprlist;
+}
+
+
 /* parse a numerical for loop */
 static void parse_fornum_statement(ParserState *parser, AstNode *stmt,
 				   const StringObject *varname, int line)
@@ -1273,6 +1316,7 @@ static void parse_for_list(ParserState *parser, AstNode *stmt, const StringObjec
 	}
 	checknext(ls, TOK_in);
 	parse_expression_list(parser, &stmt->for_stmt.expr_list);
+	stmt->for_stmt.expr_list = fix_numresults(stmt->for_stmt.expr_list, 3); // Expect 3 results
 	int line = ls->linenumber;
 	parse_forbody(parser, stmt, line, nvars - 3, 0);
 }
