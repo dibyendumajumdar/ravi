@@ -1138,7 +1138,7 @@ static void add_local_symbol_to_current_scope(ParserState *parser, LuaSymbol *sy
 	// Note that Lua allows multiple local declarations of the same name
 	// so a new instance just gets added to the end
 	raviX_add_symbol(parser->container, &parser->current_scope->symbol_list, sym);
-	raviX_add_symbol(parser->container, &parser->current_scope->function->function_expr.locals, sym);
+	//raviX_add_symbol(parser->container, &parser->current_scope->function->function_expr.locals, sym);
 }
 
 static Scope *parse_block(ParserState *parser, AstNodeList **statement_list)
@@ -1690,7 +1690,7 @@ static AstNode *new_function(ParserState *parser)
 	node->function_expr.args = NULL;
 	node->function_expr.child_functions = NULL;
 	node->function_expr.upvalues = NULL;
-	node->function_expr.locals = NULL;
+	//node->function_expr.locals = NULL;
 	node->function_expr.main_block = NULL;
 	node->function_expr.function_statement_list = NULL;
 	node->function_expr.parent_function = parser->current_function;

@@ -180,6 +180,10 @@ static void print_symbol_name(TextBuffer *buf, LuaSymbol *sym)
 		}
 		break;
 	}
+	case SYM_LABEL: {
+		printf_buf(buf, "%t:", sym->label.label_name);
+		break;
+	}
 	default:
 		assert(0);
 	}
@@ -297,6 +301,16 @@ const char *raviX_get_binary_opr_str(BinaryOperatorType op)
 	}
 }
 
+void print_locals_in_scope(TextBuffer *buf, Scope *scope, int level)
+{
+	if (raviX_ptrlist_size((PtrList *)scope->symbol_list) == 0) {
+		return;
+	}
+	printf_buf(buf, "%p%c ", level, "[local symbols]");
+	print_symbol_names(buf, scope->symbol_list);
+	printf_buf(buf, "\n");
+}
+
 void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 {
 	switch (node->type) {
@@ -308,16 +322,17 @@ void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 		} else {
 			printf_buf(buf, "%pfunction()\n", level);
 		}
-		if (node->function_expr.locals) {
-			printf_buf(buf, "%p%c ", level, "locals ");
-			print_symbol_names(buf, node->function_expr.locals);
-			printf_buf(buf, "\n");
-		}
+//		if (node->function_expr.locals) {
+//			printf_buf(buf, "%p%c ", level, "locals ");
+//			print_symbol_names(buf, node->function_expr.locals);
+//			printf_buf(buf, "\n");
+//		}
 		if (node->function_expr.upvalues) {
 			printf_buf(buf, "%p%c ", level, "upvalues ");
 			print_symbol_names(buf, node->function_expr.upvalues);
 			printf_buf(buf, "\n");
 		}
+		print_locals_in_scope(buf, node->function_expr.main_block, level);
 		print_statement_list(buf, node->function_expr.function_statement_list, level);
 		printf_buf(buf, "%pend\n", level);
 		break;
@@ -363,6 +378,7 @@ void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 	}
 	case STMT_DO: {
 		printf_buf(buf, "%pdo\n", level);
+		print_locals_in_scope(buf, node->do_stmt.scope, level);
 		print_ast_node_list(buf, node->do_stmt.do_statement_list, level + 1, NULL);
 		printf_buf(buf, "%pend\n", level);
 		break;
@@ -390,6 +406,7 @@ void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 				printf_buf(buf, "%pif\n", level);
 			} else
 				printf_buf(buf, "%pelseif\n", level);
+			print_locals_in_scope(buf, test_then_block->test_then_block.test_then_scope, level);
 			raviX_print_ast_node(buf, test_then_block->test_then_block.condition, level + 1);
 			printf_buf(buf, "%pthen\n", level);
 			print_ast_node_list(buf, test_then_block->test_then_block.test_then_statement_list, level + 1,
@@ -398,6 +415,7 @@ void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 		END_FOR_EACH_PTR(node);
 		if (node->if_stmt.else_block) {
 			printf_buf(buf, "%pelse\n", level);
+			print_locals_in_scope(buf, node->if_stmt.else_block, level);
 			print_ast_node_list(buf, node->if_stmt.else_statement_list, level + 1, NULL);
 		}
 		printf_buf(buf, "%pend\n", level);
@@ -405,6 +423,7 @@ void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 	}
 	case STMT_WHILE: {
 		printf_buf(buf, "%pwhile\n", level);
+		print_locals_in_scope(buf, node->while_or_repeat_stmt.loop_scope, level);
 		raviX_print_ast_node(buf, node->while_or_repeat_stmt.condition, level + 1);
 		printf_buf(buf, "%pdo\n", level);
 		print_ast_node_list(buf, node->while_or_repeat_stmt.loop_statement_list, level + 1, NULL);
@@ -413,6 +432,7 @@ void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 	}
 	case STMT_REPEAT: {
 		printf_buf(buf, "%prepeat\n", level);
+		print_locals_in_scope(buf, node->while_or_repeat_stmt.loop_scope, level);
 		print_ast_node_list(buf, node->while_or_repeat_stmt.loop_statement_list, level + 1, NULL);
 		printf_buf(buf, "%puntil\n", level);
 		raviX_print_ast_node(buf, node->while_or_repeat_stmt.condition, level + 1);
@@ -421,20 +441,24 @@ void raviX_print_ast_node(TextBuffer *buf, AstNode *node, int level)
 	}
 	case STMT_FOR_IN: {
 		printf_buf(buf, "%pfor\n", level);
+		print_locals_in_scope(buf, node->for_stmt.for_scope, level);
 		print_symbol_list(buf, node->for_stmt.symbols, level + 1, ",");
 		printf_buf(buf, "%pin\n", level);
 		print_ast_node_list(buf, node->for_stmt.expr_list, level + 1, ",");
 		printf_buf(buf, "%pdo\n", level);
+		print_locals_in_scope(buf, node->for_stmt.for_body, level);
 		print_statement_list(buf, node->for_stmt.for_statement_list, level + 1);
 		printf_buf(buf, "%pend\n", level);
 		break;
 	}
 	case STMT_FOR_NUM: {
 		printf_buf(buf, "%pfor\n", level);
+		print_locals_in_scope(buf, node->for_stmt.for_scope, level);
 		print_symbol_list(buf, node->for_stmt.symbols, level + 1, NULL);
 		printf_buf(buf, "%p=\n", level);
 		print_ast_node_list(buf, node->for_stmt.expr_list, level + 1, ",");
 		printf_buf(buf, "%pdo\n", level);
+		print_locals_in_scope(buf, node->for_stmt.for_body, level);
 		print_statement_list(buf, node->for_stmt.for_statement_list, level + 1);
 		printf_buf(buf, "%pend\n", level);
 		break;

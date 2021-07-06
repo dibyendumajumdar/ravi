@@ -81,9 +81,9 @@ void raviX_function_foreach_argument(const FunctionExpression *function_expressi
 void raviX_function_foreach_local(const FunctionExpression *function_expression, void *userdata,
 				  void (*callback)(void *userdata, const LuaVariableSymbol *lua_local_symbol))
 {
-	LuaSymbol *symbol;
-	FOR_EACH_PTR(function_expression->locals, LuaSymbol, symbol) { callback(userdata, &symbol->variable); }
-	END_FOR_EACH_PTR(symbol)
+//	LuaSymbol *symbol;
+//	FOR_EACH_PTR(function_expression->locals, LuaSymbol, symbol) { callback(userdata, &symbol->variable); }
+//	END_FOR_EACH_PTR(symbol)
 }
 void raviX_function_foreach_upvalue(const FunctionExpression *function_expression, void *userdata,
 				    void (*callback)(void *userdata, const LuaUpvalueSymbol *symbol))

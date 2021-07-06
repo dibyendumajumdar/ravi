@@ -334,7 +334,7 @@ struct FunctionExpression {
 	    *args; /* arguments, also must be part of the function block's symbol list */
 	AstNodeList *child_functions; /* child functions declared in this function */
 	LuaSymbolList *upvalues;      /* List of upvalues */
-	LuaSymbolList *locals;	       /* List of locals */
+	//LuaSymbolList *locals;	       /* List of locals */
 };
 /* Assign values in table constructor */
 /* EXPR_TABLE_ELEMENT_ASSIGN - used in table constructor */
