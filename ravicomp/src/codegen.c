@@ -947,7 +947,7 @@ static int emit_reg_accessor(struct function *fn, const Pseudo *pseudo, unsigned
 		if (pseudo->symbol->symbol_type == SYM_LOCAL) {
 			raviX_buffer_add_fstring(&fn->body, "R(%d)", pseudo->regnum);
 		} else if (pseudo->symbol->symbol_type == SYM_UPVALUE) {
-			raviX_buffer_add_fstring(&fn->body, "cl->upvals[%d]->v", pseudo->regnum);
+			raviX_buffer_add_fstring(&fn->body, "cl->upvals[%d]->v", pseudo->symbol->upvalue.upvalue_index);
 		} else {
 			fn->api->error_message(fn->api->context, "Unexpected pseudo symbol type");
 			assert(0);
@@ -2595,7 +2595,7 @@ static int generate_lua_proc(Proc *proc, TextBuffer *mb)
 	{
 		raviX_buffer_add_fstring(mb, " f->upvalues[%u].instack = %u;\n", i, sym->upvalue.is_in_parent_stack);
 		raviX_buffer_add_fstring(mb, " f->upvalues[%u].idx = %u;\n", i, sym->upvalue.parent_upvalue_index);
-		raviX_buffer_add_fstring(mb, " f->upvalues[%u].name = NULL;\n", i);
+		raviX_buffer_add_fstring(mb, " f->upvalues[%u].name = NULL; // %s\n", i, sym->upvalue.target_variable->variable.var_name->str);
 		raviX_buffer_add_fstring(mb, " f->upvalues[%u].usertype = NULL;\n", i);
 		raviX_buffer_add_fstring(mb, " f->upvalues[%u].ravi_type = %d;\n", i,
 					 sym->upvalue.value_type.type_code);
@@ -2707,7 +2707,12 @@ static unsigned get_upvalue_idx(Proc *proc, LuaSymbol *upvalue_symbol, bool *in_
 	}
 	/* Search for the upvalue in parent function */
 	LuaSymbol *sym;
-	AstNode *this_function = upvalue_symbol->upvalue.target_function;
+	AstNode *this_function = get_parent_function_of_upvalue(upvalue_symbol);
+	if (this_function == NULL) {
+		assert(underlying->symbol_type == SYM_ENV);
+		*in_stack = true;
+		return 0;
+	}
 	FOR_EACH_PTR(this_function->function_expr.upvalues, LuaSymbol, sym)
 	{
 		if (sym->upvalue.target_variable == upvalue_symbol->upvalue.target_variable) {
