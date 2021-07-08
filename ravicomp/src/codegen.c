@@ -832,6 +832,9 @@ static void initfn(struct function *fn, Proc *proc, struct Ravi_CompilerInterfac
 	raviX_buffer_add_string(&fn->prologue, "TValue ival1; settt_(&ival1, LUA_TNUMINT);\n");
 	raviX_buffer_add_string(&fn->prologue, "TValue fval1; settt_(&fval1, LUA_TNUMFLT);\n");
 	raviX_buffer_add_string(&fn->prologue, "TValue bval1; settt_(&bval1, LUA_TBOOLEAN);\n");
+	raviX_buffer_add_string(&fn->prologue, "TValue ival2; settt_(&ival2, LUA_TNUMINT);\n");
+	raviX_buffer_add_string(&fn->prologue, "TValue fval2; settt_(&fval2, LUA_TNUMFLT);\n");
+	raviX_buffer_add_string(&fn->prologue, "TValue bval2; settt_(&bval2, LUA_TBOOLEAN);\n");
 	raviX_buffer_add_string(&fn->prologue, "TValue nilval; setnilvalue(&nilval);\n");
 }
 
@@ -933,7 +936,7 @@ The discriminator must be 0 or 1 (see initfn())
 */
 static int emit_reg_accessor(struct function *fn, const Pseudo *pseudo, unsigned discriminator)
 {
-	assert(discriminator == 0 || discriminator == 1);
+	assert(discriminator == 0 || discriminator == 1 || discriminator == 2);
 	if (pseudo->type == PSEUDO_LUASTACK) {
 		// Note pseudo->stackidx is relative to ci->func
 		// But ci->func is not always base-1 because of var args
@@ -2163,15 +2166,30 @@ static int emit_op_binary(struct function *fn, Instruction *insn)
 		assert(0);
 		return -1;
 	}
+	Pseudo *target = get_first_target(insn);
 	raviX_buffer_add_string(&fn->body, "{\n");
 	raviX_buffer_add_string(&fn->body, " TValue *ra = ");
-	emit_reg_accessor(fn, get_first_target(insn), 0);
+	emit_reg_accessor(fn, target, 0);
 	raviX_buffer_add_string(&fn->body, ";\n TValue *rb = ");
-	emit_reg_accessor(fn, get_operand(insn, 0), 0);
+	emit_reg_accessor(fn, get_operand(insn, 0), 1);
 	raviX_buffer_add_string(&fn->body, ";\n TValue *rc = ");
-	emit_reg_accessor(fn, get_operand(insn, 1), 1);
+	emit_reg_accessor(fn, get_operand(insn, 1), 2);
 	raviX_buffer_add_fstring(&fn->body, ";\n luaO_arith(L, %d, rb, rc, ra);\n", op);
 	emit_reload_base(fn);
+	if (target->type == PSEUDO_TEMP_FLT || target->type == PSEUDO_TEMP_INT || target->type == PSEUDO_TEMP_BOOL) {
+		raviX_buffer_add_string(&fn->body, " ");
+		emit_varname(target, &fn->body);
+		raviX_buffer_add_string(&fn->body, " = ");
+		if (target->type == PSEUDO_TEMP_FLT) {
+			raviX_buffer_add_string(&fn->body, " fltvalue(ra);\n");
+		}
+		else if (target->type == PSEUDO_TEMP_INT) {
+			raviX_buffer_add_string(&fn->body, " ivalue(ra);\n");
+		}
+		else {
+			raviX_buffer_add_string(&fn->body, " bvalue(ra);\n");
+		}
+	}
 	raviX_buffer_add_string(&fn->body, "}\n");
 	return 0;
 }
