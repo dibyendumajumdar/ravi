@@ -2571,6 +2571,25 @@ static inline unsigned get_num_upvalues(Proc *proc)
 	return raviX_ptrlist_size((const PtrList *)proc->function_expr->function_expr.upvalues);
 }
 
+static void output_string_literal(TextBuffer *mb, const char *s, unsigned int len)
+{
+	// simplistic escaping of chars
+	static const char *scapes[] = {
+	    "\\0",  "\\1",  "\\2",  "\\3",  "\\4",  "\\5",  "\\6",  "\\7",  "\\8",  "\\9",  "\\n",
+	    "\\11", "\\12", "\\r",  "\\14", "\\15", "\\16", "\\17", "\\18", "\\19", "\\20", "\\21",
+	    "\\22", "\\23", "\\24", "\\25", "\\26", "\\27", "\\28", "\\29", "\\30", "\\31",
+	};
+
+	for (unsigned i = 0; i < len; i++) {
+		int ch = s[i];
+		if (ch < 32) {
+			raviX_buffer_add_string(mb, scapes[ch]);
+		} else {
+			raviX_buffer_add_char(mb, ch);
+		}
+	}
+}
+
 /* Generate code for setting up a Lua Proto structure, recursively for each child function */
 static int generate_lua_proc(Proc *proc, TextBuffer *mb)
 {
@@ -2596,9 +2615,10 @@ static int generate_lua_proc(Proc *proc, TextBuffer *mb)
 			if (constant->s->len == 0) {
 				raviX_buffer_add_string(mb, "  o = NULL;\n");
 			} else {
-				// FIXME we need to escape chars?
-				raviX_buffer_add_fstring(mb, "  setsvalue2n(L, o, luaS_newlstr(L, \"%.*s\", %u));\n",
-							 constant->s->len, constant->s->str, constant->s->len);
+				raviX_buffer_add_string(mb, "  setsvalue2n(L, o, luaS_newlstr(L, \"");
+				output_string_literal(mb, constant->s->str, constant->s->len);
+				raviX_buffer_add_fstring(mb, "\", %u));\n",
+							 constant->s->len);
 			}
 			raviX_buffer_add_string(mb, " }\n");
 		}
