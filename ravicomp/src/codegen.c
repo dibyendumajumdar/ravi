@@ -2103,14 +2103,34 @@ static int emit_op_arith(struct function *fn, Instruction *insn)
 
 static int emit_op_not(struct function *fn, Instruction *insn)
 {
-	raviX_buffer_add_string(&fn->body, "{\n");
-	raviX_buffer_add_string(&fn->body, " TValue *ra = ");
-	emit_reg_accessor(fn, get_first_target(insn), 0);
-	raviX_buffer_add_string(&fn->body, ";\n TValue *rb = ");
-	emit_reg_accessor(fn, get_first_operand(insn), 0);
-	raviX_buffer_add_string(&fn->body, ";\n int result = l_isfalse(rb);\n");
-	raviX_buffer_add_string(&fn->body, " setbvalue(ra, result);\n");
-	raviX_buffer_add_string(&fn->body, "}\n");
+	Pseudo *target = get_first_target(insn);
+	Pseudo *operand = get_first_operand(insn);
+	if (target->type == PSEUDO_TEMP_BOOL && operand->type == PSEUDO_TEMP_BOOL) {
+		raviX_buffer_add_string(&fn->body, "{ ");
+		emit_varname(target, &fn->body);
+		raviX_buffer_add_string(&fn->body, " = (0 == ");
+		emit_varname_or_constant(fn, operand);
+		raviX_buffer_add_string(&fn->body, "); }\n");
+	}
+	else if (target->type == PSEUDO_TEMP_BOOL && operand->type != PSEUDO_TEMP_BOOL) {
+		assert(operand->type != PSEUDO_TEMP_FLT && operand->type != PSEUDO_TEMP_INT);
+		raviX_buffer_add_string(&fn->body, "{\n");
+		raviX_buffer_add_string(&fn->body, " TValue *rb = ");
+		emit_reg_accessor(fn, get_first_operand(insn), 0);
+		raviX_buffer_add_string(&fn->body, ";\n ");
+		emit_varname(target, &fn->body);
+		raviX_buffer_add_string(&fn->body, " = l_isfalse(rb);\n}\n");
+	}
+	else {
+		raviX_buffer_add_string(&fn->body, "{\n");
+		raviX_buffer_add_string(&fn->body, " TValue *ra = ");
+		emit_reg_accessor(fn, target, 0);
+		raviX_buffer_add_string(&fn->body, ";\n TValue *rb = ");
+		emit_reg_accessor(fn, get_first_operand(insn), 0);
+		raviX_buffer_add_string(&fn->body, ";\n int result = l_isfalse(rb);\n");
+		raviX_buffer_add_string(&fn->body, " setbvalue(ra, result);\n");
+		raviX_buffer_add_string(&fn->body, "}\n");
+	}
 	return 0;
 }
 

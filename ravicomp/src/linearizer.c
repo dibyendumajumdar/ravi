@@ -852,10 +852,9 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 	case op_mul:
 		swap = t1 == RAVI_TNUMINT && t2 == RAVI_TNUMFLT;
 		break;
-	case op_eq:
 	case op_lt:
 	case op_le:
-		swap = op == BINOPR_NE || op == BINOPR_GT || op == BINOPR_GE;
+		swap = op == BINOPR_GT || op == BINOPR_GE;
 		break;
 	default:
 		break;
@@ -918,6 +917,15 @@ static Pseudo *linearize_binary_operator(Proc *proc, AstNode *node)
 	ravitype_t target_type = node->binary_expr.type.type_code;
 	Pseudo *target = allocate_temp_pseudo(proc, target_type);
 	create_binary_instruction(proc, (enum opcode) targetop, operand1, operand2, target);
+	if (op == BINOPR_NE) {
+		Pseudo *temp = target;
+		Instruction *not_insn = allocate_instruction(proc, op_not);
+		add_instruction_operand(proc, not_insn, target);
+		target = allocate_temp_pseudo(proc, target_type);
+		add_instruction_target(proc, not_insn, target);
+		add_instruction(proc, not_insn);
+		free_temp_pseudo(proc, temp, false);
+	}
 	free_temp_pseudo(proc, operand1, false);
 	free_temp_pseudo(proc, operand2, false);
 
