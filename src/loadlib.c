@@ -407,6 +407,8 @@ static int ll_loadlib (lua_State *L) {
 }
 
 /*
+** RAVI extension to load AOT compiled function from shared library
+**
 ** Look for a compiled Ravi function named 'sym' in a dynamically loaded library
 ** 'path'.
 ** First, check whether the library is already loaded; if not, try
@@ -441,9 +443,13 @@ static int ravi_lookforfunc (lua_State *L, const char *path, const char *sym) {
   }
 }
 
+/*
+ * RAVI extension to load AOT compiled function from shared library
+ * Load named function from a dynamic library file
+ */
 static int ravi_loadlib (lua_State *L) {
-  const char *path = luaL_checkstring(L, 1);
-  const char *init = luaL_checkstring(L, 2);
+  const char *path = luaL_checkstring(L, 1); /* Path to dynamic library */
+  const char *init = luaL_checkstring(L, 2); /* Function to call */
   int stat = ravi_lookforfunc(L, path, init);
   if (stat == 0)  /* no errors? */
     return 1;  /* return the loaded function */

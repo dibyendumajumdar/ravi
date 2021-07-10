@@ -65,6 +65,9 @@ static void setup_lua_closure(lua_State* L, LClosure* (*load_in_lua)(lua_State*)
   ravi_closure_setenv(L);
 }
 
+/* JIT compile chunk of code and return function closure, optional options string can include
+ * --verbose and --dump-ir.
+ */
 static int load_and_compile(lua_State* L) {
   const char *s = luaL_checkstring(L, 1);
   const char *options = "";
@@ -84,7 +87,7 @@ static int load_and_compile(lua_State* L) {
            ccontext.jit->id++);
   ravicomp_interface.compiler_options = options;
   int rc = raviX_compile(&ravicomp_interface);
-  if (ravicomp_interface.generated_code) {
+  if (ravicomp_interface.generated_code && strstr(options, "--verbose") != NULL) {
     fprintf(stdout, "%s\n", ravicomp_interface.generated_code);
   }
   if (rc == 0) {
@@ -103,14 +106,10 @@ static int load_and_compile(lua_State* L) {
     else {
       rc = -1;
     }
-    if (ravicomp_interface.generated_code) {
-      free((void*)ravicomp_interface.generated_code);
-    }
+    raviX_release(&ravicomp_interface);
     return rc == 0 ? 1 : 0;
 #else
-    if (ravicomp_interface.generated_code) {
-      free(ravicomp_interface.generated_code);
-    }
+    raviX_release(&ravicomp_interface);
     return 0;
 #endif
   }
@@ -120,7 +119,46 @@ static int load_and_compile(lua_State* L) {
   }
 }
 
-static const luaL_Reg ravilib[] = {{"load", load_and_compile}, {NULL, NULL}};
+/* Compile given chunk of code and generate C code, optional arg specifies name of main function */
+static int generate(lua_State* L) {
+  const char* s = luaL_checkstring(L, 1);
+  const char* mainfunc = NULL;
+  if (lua_isstring(L, 2)) {
+    mainfunc = luaL_checkstring(L, 2);
+  }
+  struct CompilerContext ccontext = {.L = L, .jit = G(L)->ravi_state};
+  struct Ravi_CompilerInterface ravicomp_interface = {.source = s,
+                                                      .source_len = strlen(s),
+                                                      .source_name = "input",
+                                                      .generated_code = NULL,
+                                                      .context = &ccontext,
+                                                      .compiler_options = "--dump-ir",
+                                                      .debug_message = debug_message,
+                                                      .error_message = error_message};
+  if (mainfunc) {
+    snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "%s", mainfunc);
+  }
+  else {
+    snprintf(ravicomp_interface.main_func_name, sizeof ravicomp_interface.main_func_name, "__luachunk_%lld",
+             ccontext.jit->id++);
+  }
+  int rc = raviX_compile(&ravicomp_interface);
+  if (rc == 0) {
+    lua_pushstring(L, ravicomp_interface.generated_code);
+    raviX_release(&ravicomp_interface);
+    return 1;
+  }
+  else {
+    raviX_release(&ravicomp_interface);
+    lua_error(L);
+    return 0;
+  }
+}
+
+static const luaL_Reg ravilib[] = {
+    {"load", load_and_compile},
+    {"compile", generate},
+    {NULL, NULL}};
 
 int(raviopen_compiler)(lua_State* L) {
   luaL_newlib(L, ravilib);
