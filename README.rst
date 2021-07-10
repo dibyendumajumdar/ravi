@@ -38,6 +38,7 @@ Features
 * Compact JIT backend `MIR <https://github.com/vnmakarov/mir>`_.
 * A `distribution with batteries <https://github.com/dibyendumajumdar/Suravi>`_.
 * A `Visual Studio Code debugger extension <https://marketplace.visualstudio.com/items?itemName=ravilang.ravi-debug>`_ - interpreted mode debugger.
+* `AOT Compilation to shared library <https://github.com/dibyendumajumdar/ravi/tree/master/aot-examples>`_.
 
 Documentation
 =============
