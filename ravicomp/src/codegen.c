@@ -2341,6 +2341,30 @@ static int emit_op_movif(struct function *fn, Instruction *insn)
 	return 0;
 }
 
+static int emit_op_init(struct function *fn, Instruction *insn)
+{
+	Pseudo *dst = get_first_target(insn);
+	Pseudo src = { PSEUDO_NIL };
+	if (dst->type == PSEUDO_TEMP_FLT) {
+		Constant zerof = { RAVI_TNUMINT, 0, { 0.0 }};
+		src.type = PSEUDO_CONSTANT;
+		src.constant = &zerof;
+		emit_move(fn, &src, dst);
+	} else if (dst->type == PSEUDO_TEMP_INT || dst->type == PSEUDO_TEMP_BOOL) {
+		Constant zeroi = { RAVI_TNUMINT, 0, { 0 }};
+		src.type = PSEUDO_CONSTANT;
+		src.constant = &zeroi;
+		emit_move(fn, &src, dst);
+	} else if (dst->type == PSEUDO_TEMP_ANY || dst->type == PSEUDO_SYMBOL || dst->type == PSEUDO_LUASTACK) {
+		// FIXME we need to check for initialization of integer[], number[] or table
+		emit_move(fn, &src, dst);
+	} else {
+		assert(0);
+		return -1;
+	}
+	return 0;
+}
+
 static int output_instruction(struct function *fn, Instruction *insn)
 {
 	int rc = 0;
@@ -2531,6 +2555,10 @@ static int output_instruction(struct function *fn, Instruction *insn)
 
 	case op_concat:
 		rc = emit_op_concat(fn, insn);
+		break;
+
+	case op_init:
+		rc = emit_op_init(fn, insn);
 		break;
 
 	default:

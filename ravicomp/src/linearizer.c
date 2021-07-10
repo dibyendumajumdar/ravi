@@ -990,7 +990,7 @@ static Pseudo *linearize_symbol_expression(Proc *proc, AstNode *expr)
 	} else if (sym->symbol_type == SYM_UPVALUE) {
 		/* upvalue index is the position of upvalue in the function, we treat this as the pseudo register for
 		 * the upvalue */
-		/* TODO maybe the pseudo be pre-created when we start linearizing the funcon and stored in the symbol
+		/* TODO maybe the pseudo be pre-created when we start linearizing the function and stored in the symbol
 		 * like we do for locals? */
 		return allocate_symbol_pseudo(proc, sym, sym->upvalue.upvalue_index);
 	} else {
@@ -1354,6 +1354,13 @@ static Pseudo *copy_to_temp_if_necessary(Proc *proc, Pseudo *original) {
 	return original;
 }
 
+static void linearize_init(Proc *proc, Pseudo *pseudo)
+{
+	Instruction *insn = allocate_instruction(proc, op_init);
+	add_instruction_target(proc, insn, pseudo);
+	add_instruction(proc, insn);
+}
+
 struct node_info {
 	const VariableType *vartype;
 	Pseudo *pseudo;
@@ -1399,6 +1406,7 @@ static void linearize_assignment(Proc *proc, AstNodeList *expr_list, struct node
 						    allocate_range_select_pseudo(proc, last_val_pseudo, pick));
 			} else {
 				// TODO store NIL
+				linearize_init(proc, varinfo[i].pseudo);
 			}
 		}
 		else {
@@ -2613,7 +2621,7 @@ static const char *op_codenames[] = {
     "PUTik",	  "PUTsk",  "TPUT", "TPUTik", "TPUTsk",	    "IAPUT",	 "IAPUTiv",   "FAPUT",	   "FAPUTfv",
     "CBR",	  "BR",	    "MOV",  "MOVi",   "MOVif",	    "MOVf",	 "MOVfi",     "CALL",	   "GET",
     "GETik",	  "GETsk",  "TGET", "TGETik", "TGETsk",	    "IAGET",	 "IAGETik",   "FAGET",	   "FAGETik",
-    "STOREGLOBAL", "CLOSE", "CONCAT"};
+    "STOREGLOBAL", "CLOSE", "CONCAT", "INIT"};
 
 static void output_pseudo_list(PseudoList *list, TextBuffer *mb)
 {

@@ -142,7 +142,8 @@ enum opcode {
 	op_faget_ikey,
 	op_storeglobal,
 	op_close,
-	op_concat
+	op_concat,
+	op_init
 };
 
 /*
