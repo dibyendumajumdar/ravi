@@ -94,7 +94,7 @@ L_exit:
 void raviX_release(struct Ravi_CompilerInterface *compiler_interface)
 {
 	if (compiler_interface->generated_code != NULL) {
-		raviX_free(compiler_interface->generated_code);
+		raviX_free((void *)compiler_interface->generated_code);
 		compiler_interface->generated_code = NULL;
 	}
 }

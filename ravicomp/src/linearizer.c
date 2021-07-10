@@ -2651,6 +2651,11 @@ static void output_instruction(Instruction *insn, TextBuffer *mb, const char *pr
 	raviX_buffer_add_string(mb, suffix);
 }
 
+void raviX_output_instruction(Instruction *insn, TextBuffer *mb)
+{
+	output_instruction(insn, mb, "", "");
+}
+
 /* Outputs linear IR instructions in text format, each instruction is prefixed and suffixed by given strings */
 static void output_instructions(InstructionList *list, TextBuffer *mb, const char *prefix, const char *suffix)
 {

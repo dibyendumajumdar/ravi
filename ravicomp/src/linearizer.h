@@ -279,6 +279,7 @@ struct LinearizerState {
 };
 
 void raviX_show_linearizer(LinearizerState *linearizer, TextBuffer *mb);
+void raviX_output_instruction(Instruction *insn, TextBuffer *mb);
 void raviX_output_basic_block_as_table(Proc *proc, BasicBlock *bb, TextBuffer *mb);
 
 Instruction *raviX_last_instruction(BasicBlock *block);
