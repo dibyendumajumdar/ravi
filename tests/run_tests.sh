@@ -59,6 +59,7 @@ run_ravi_tests performance matmul1_ravi.lua "ravi.auto(true,1)"
 run_ravi_tests performance sieve.ravi "ravi.auto(true,1)"
 run_ravi_tests performance pisum.ravi "ravi.auto(true,1)"
 run_ravi_tests performance md5test.lua "ravi.auto(true,1)"
+run_ravi_tests comptests test.lua "ravi.jit(false)"
 
 if [ "$RUN_TRACEHOOK_TESTS" = "" ]
 then
