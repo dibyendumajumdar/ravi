@@ -775,8 +775,10 @@ static inline unsigned get_num_instructions(BasicBlock *bb) { return raviX_ptrli
 
 static inline unsigned get_num_childprocs(Proc *proc) { return raviX_ptrlist_size((const PtrList *)proc->procs); }
 
+
 /**
  * Helper to generate a list of primitive C variables representing temp int/float values.
+ * All are initialized to 0.
  */
 static void emit_vars(const char *type, const char *prefix, PseudoGenerator *gen, TextBuffer *mb)
 {
@@ -792,18 +794,6 @@ static void emit_vars(const char *type, const char *prefix, PseudoGenerator *gen
 		raviX_buffer_add_fstring(mb, "%s%d", prefix, i);
 	}
 	raviX_buffer_add_string(mb, " = 0;\n");
-}
-
-static void emit_varname(const Pseudo *pseudo, TextBuffer *mb)
-{
-	if (pseudo->type == PSEUDO_TEMP_INT || pseudo->type == PSEUDO_TEMP_BOOL) {
-		raviX_buffer_add_fstring(mb, "%s%d", int_var_prefix, pseudo->regnum);
-	} else if (pseudo->type == PSEUDO_TEMP_FLT) {
-		raviX_buffer_add_fstring(mb, "%s%d", flt_var_prefix, pseudo->regnum);
-	} else {
-		fprintf(stderr, "Unexpected pseudo type %d\n", pseudo->type);
-		assert(0);
-	}
 }
 
 static void initfn(struct function *fn, Proc *proc, struct Ravi_CompilerInterface *api)
@@ -842,6 +832,19 @@ static void cleanup(struct function *fn)
 {
 	raviX_buffer_free(&fn->prologue);
 	raviX_buffer_free(&fn->body);
+}
+
+/* Outputs an l-value/r-value variable name for a primitive C int / float type */
+static void emit_varname(const Pseudo *pseudo, TextBuffer *mb)
+{
+	if (pseudo->type == PSEUDO_TEMP_INT || pseudo->type == PSEUDO_TEMP_BOOL) {
+		raviX_buffer_add_fstring(mb, "%s%d", int_var_prefix, pseudo->regnum);
+	} else if (pseudo->type == PSEUDO_TEMP_FLT) {
+		raviX_buffer_add_fstring(mb, "%s%d", flt_var_prefix, pseudo->regnum);
+	} else {
+		fprintf(stderr, "Unexpected pseudo type %d\n", pseudo->type);
+		assert(0);
+	}
 }
 
 static void emit_reload_base(struct function *fn) { raviX_buffer_add_string(&fn->body, "base = ci->u.l.base;\n"); }
@@ -886,53 +889,19 @@ static unsigned compute_register_from_base(struct function *fn, const Pseudo *ps
 	}
 }
 
-// Check if two pseudos point to the same register
-// note we cannot easily check PSEUDO_LUASTACK type because there may
-// be var args between CI->func and base. So stackbase may not be base-1 always.
-static bool refers_to_same_register(struct function *fn, Pseudo *src, Pseudo *dst)
-{
-	// C++ doesn't support the syntax using [] :-(
-	static bool reg_pseudos[] = {
-	    /* [PSEUDO_SYMBOL] =*/true,	    /* An object of type lua_symbol representing local var or upvalue */
-	    /* [PSEUDO_TEMP_FLT] =*/false,  /* A floating point temp - may also be used for locals that don't escape */
-	    /* [PSEUDO_TEMP_INT] =*/false,  /* An integer temp - may also be used for locals that don't escape */
-	    /* [PSEUDO_TEMP_BOOL] =*/false, /* An (bool) integer temp - may also be used for locals that don't escape */
-	    /* [PSEUDO_TEMP_ANY] =*/true,   /* A temp of any type - will always be on Lua stack */
-	    /* [PSEUDO_CONSTANT] =*/false,  /* A literal value */
-	    /* [PSEUDO_PROC] =*/false,	    /* A proc / function */
-	    /* [PSEUDO_NIL] =*/false,
-	    /* [PSEUDO_TRUE] =*/false,
-	    /* [PSEUDO_FALSE] =*/false,
-	    /* [PSEUDO_BLOCK] =*/false,	      /* Points to a basic block, used as targets for jumps */
-	    /* [PSEUDO_RANGE] =*/true,	      /* Represents a range of registers from a certain starting register */
-	    /* [PSEUDO_RANGE_SELECT] =*/true, /* Picks a certain register from a range */
-					      /* TODO we need a type for var args */
-	    /* [PSEUDO_LUASTACK] =*/true /* Specifies a Lua stack position - not used by linearizer - for use by codegen
-					  */
-	};
-	if (!reg_pseudos[src->type] || !reg_pseudos[dst->type])
-		return false;
-	if (src->type == PSEUDO_LUASTACK || dst->type == PSEUDO_LUASTACK) {
-		return src->type == dst->type && src->stackidx == dst->stackidx;
-	}
-	if (src->type == PSEUDO_SYMBOL && dst->type != PSEUDO_SYMBOL)
-		// a temp reg can never equate local reg
-		return false;
-	if (src->type == PSEUDO_SYMBOL && dst->type == PSEUDO_SYMBOL) {
-		// up-values are not registers
-		if (src->symbol->symbol_type != SYM_LOCAL || dst->symbol->symbol_type != SYM_LOCAL) {
-			return false;
-		}
-	}
-	return compute_register_from_base(fn, src) == compute_register_from_base(fn, dst);
-}
-
 /*
 Outputs accessor for a pseudo so that the accessor is always of type
 TValue *. Thus for constants, we need to use a temp stack variable of type TValue.
 The issue is what happens if we need two values at the same time and both are constants
 of the same type. This is where the discriminator comes in - to help differentiate.
-The discriminator must be 0 or 1 (see initfn())
+The discriminator must be 0,1 or 2 (see initfn()).
+
+Note that for PSEUDO_TEMP_FLT, PSEUDO_TEMP_INT, PSEUDO_TRUE, PSEUDO_FALSE, PSEUDO_TEMP_BOOL
+we use stack allocated TValues - and the way this is set only works when used as in RHS
+of an assignment statement. Code is generated in this form:
+
+... &var; var.field = value
+
 */
 static int emit_reg_accessor(struct function *fn, const Pseudo *pseudo, unsigned discriminator)
 {
@@ -998,6 +967,90 @@ static int emit_reg_accessor(struct function *fn, const Pseudo *pseudo, unsigned
 	}
 	return 0;
 }
+
+
+/*
+ * Outputs an r-value for a C stack variable representing int/float value or constant
+ * or the int/float value from a symbol.
+ */
+static void emit_varname_or_constant(struct function *fn, Pseudo *pseudo)
+{
+	if (pseudo->type == PSEUDO_CONSTANT) {
+		if (pseudo->constant->type == RAVI_TNUMINT) {
+			raviX_buffer_add_fstring(&fn->body, "%lld", pseudo->constant->i);
+		} else if (pseudo->constant->type == RAVI_TNUMFLT) {
+			raviX_buffer_add_fstring(&fn->body, "%.16g", pseudo->constant->n);
+		} else {
+			assert(0);
+		}
+	} else if (pseudo->type == PSEUDO_TEMP_INT || pseudo->type == PSEUDO_TEMP_BOOL ||
+		   pseudo->type == PSEUDO_TEMP_FLT) {
+		emit_varname(pseudo, &fn->body);
+	} else if (pseudo->type == PSEUDO_SYMBOL) {
+		ravitype_t typecode = RAVI_TANY;
+		if (pseudo->symbol->symbol_type == SYM_LOCAL) {
+			typecode = pseudo->symbol->variable.value_type.type_code;
+		} else if (pseudo->symbol->symbol_type == SYM_UPVALUE) {
+			typecode = pseudo->symbol->upvalue.value_type.type_code;
+		}
+		if (typecode == RAVI_TNUMFLT) {
+			raviX_buffer_add_string(&fn->body, "fltvalue(");
+			emit_reg_accessor(fn, pseudo, 0);
+			raviX_buffer_add_string(&fn->body, ")");
+		} else if (typecode == RAVI_TNUMINT) {
+			raviX_buffer_add_string(&fn->body, "ivalue(");
+			emit_reg_accessor(fn, pseudo, 0);
+			raviX_buffer_add_string(&fn->body, ")");
+		} else {
+			assert(0);
+		}
+	} else {
+		assert(0);
+	}
+}
+
+
+// Check if two pseudos point to the same register
+// note we cannot easily check PSEUDO_LUASTACK type because there may
+// be var args between CI->func and base. So stackbase may not be base-1 always.
+static bool refers_to_same_register(struct function *fn, Pseudo *src, Pseudo *dst)
+{
+	// C++ doesn't support the syntax using [] :-(
+	static bool reg_pseudos[] = {
+	    /* [PSEUDO_SYMBOL] =*/true,	    /* An object of type lua_symbol representing local var or upvalue */
+	    /* [PSEUDO_TEMP_FLT] =*/false,  /* A floating point temp - may also be used for locals that don't escape */
+	    /* [PSEUDO_TEMP_INT] =*/false,  /* An integer temp - may also be used for locals that don't escape */
+	    /* [PSEUDO_TEMP_BOOL] =*/false, /* An (bool) integer temp - may also be used for locals that don't escape */
+	    /* [PSEUDO_TEMP_ANY] =*/true,   /* A temp of any type - will always be on Lua stack */
+	    /* [PSEUDO_CONSTANT] =*/false,  /* A literal value */
+	    /* [PSEUDO_PROC] =*/false,	    /* A proc / function */
+	    /* [PSEUDO_NIL] =*/false,
+	    /* [PSEUDO_TRUE] =*/false,
+	    /* [PSEUDO_FALSE] =*/false,
+	    /* [PSEUDO_BLOCK] =*/false,	      /* Points to a basic block, used as targets for jumps */
+	    /* [PSEUDO_RANGE] =*/true,	      /* Represents a range of registers from a certain starting register */
+	    /* [PSEUDO_RANGE_SELECT] =*/true, /* Picks a certain register from a range */
+					      /* TODO we need a type for var args */
+	    /* [PSEUDO_LUASTACK] =*/true /* Specifies a Lua stack position - not used by linearizer - for use by codegen
+					  */
+	};
+	if (!reg_pseudos[src->type] || !reg_pseudos[dst->type])
+		return false;
+	if (src->type == PSEUDO_LUASTACK || dst->type == PSEUDO_LUASTACK) {
+		return src->type == dst->type && src->stackidx == dst->stackidx;
+	}
+	if (src->type == PSEUDO_SYMBOL && dst->type != PSEUDO_SYMBOL)
+		// a temp reg can never equate local reg
+		return false;
+	if (src->type == PSEUDO_SYMBOL && dst->type == PSEUDO_SYMBOL) {
+		// up-values are not registers
+		if (src->symbol->symbol_type != SYM_LOCAL || dst->symbol->symbol_type != SYM_LOCAL) {
+			return false;
+		}
+	}
+	return compute_register_from_base(fn, src) == compute_register_from_base(fn, dst);
+}
+
 
 /*copy floating point value to a temporary float */
 static int emit_move_flttemp(struct function *fn, Pseudo *src, Pseudo *dst)
@@ -1475,44 +1528,6 @@ static int emit_op_concat(struct function *fn, Instruction *insn) {
 	return 0;
 }
 
-/*
- * Output a C stack variable representing int/float value or constant
- */
-static void emit_varname_or_constant(struct function *fn, Pseudo *pseudo)
-{
-	if (pseudo->type == PSEUDO_CONSTANT) {
-		if (pseudo->constant->type == RAVI_TNUMINT) {
-			raviX_buffer_add_fstring(&fn->body, "%lld", pseudo->constant->i);
-		} else if (pseudo->constant->type == RAVI_TNUMFLT) {
-			raviX_buffer_add_fstring(&fn->body, "%.16g", pseudo->constant->n);
-		} else {
-			assert(0);
-		}
-	} else if (pseudo->type == PSEUDO_TEMP_INT || pseudo->type == PSEUDO_TEMP_BOOL ||
-		   pseudo->type == PSEUDO_TEMP_FLT) {
-		emit_varname(pseudo, &fn->body);
-	} else if (pseudo->type == PSEUDO_SYMBOL) {
-		ravitype_t typecode = RAVI_TANY;
-		if (pseudo->symbol->symbol_type == SYM_LOCAL) {
-			typecode = pseudo->symbol->variable.value_type.type_code;
-		} else if (pseudo->symbol->symbol_type == SYM_UPVALUE) {
-			typecode = pseudo->symbol->upvalue.value_type.type_code;
-		}
-		if (typecode == RAVI_TNUMFLT) {
-			raviX_buffer_add_string(&fn->body, "fltvalue(");
-			emit_reg_accessor(fn, pseudo, 0);
-			raviX_buffer_add_string(&fn->body, ")");
-		} else if (typecode == RAVI_TNUMINT) {
-			raviX_buffer_add_string(&fn->body, "ivalue(");
-			emit_reg_accessor(fn, pseudo, 0);
-			raviX_buffer_add_string(&fn->body, ")");
-		} else {
-			assert(0);
-		}
-	} else {
-		assert(0);
-	}
-}
 
 static int emit_comp_ii(struct function *fn, Instruction *insn)
 {

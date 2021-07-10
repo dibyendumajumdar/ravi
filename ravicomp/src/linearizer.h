@@ -282,7 +282,6 @@ void raviX_show_linearizer(LinearizerState *linearizer, TextBuffer *mb);
 void raviX_output_basic_block_as_table(Proc *proc, BasicBlock *bb, TextBuffer *mb);
 
 Instruction *raviX_last_instruction(BasicBlock *block);
-Pseudo *raviX_allocate_stack_pseudo(Proc *proc, unsigned reg);
 const char *raviX_opcode_name(unsigned int opcode);
 
 #endif

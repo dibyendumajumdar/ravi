@@ -54,5 +54,6 @@ struct Ravi_CompilerInterface {
  * @return 0 for success, non-zero for failure
  */
 RAVICOMP_EXPORT int raviX_compile(struct Ravi_CompilerInterface *compiler_interface);
+RAVICOMP_EXPORT void raviX_release(struct Ravi_CompilerInterface *compiler_interface);
 
 #endif

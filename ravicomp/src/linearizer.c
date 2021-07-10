@@ -296,14 +296,6 @@ static const Constant *allocate_string_constant(Proc *proc, const StringObject *
 	return add_constant(proc, &c);
 }
 
-Pseudo* raviX_allocate_stack_pseudo(Proc* proc, unsigned reg)
-{
-	Pseudo* pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
-	pseudo->type = PSEUDO_LUASTACK;
-	pseudo->regnum = reg;
-	return pseudo;
-}
-
 static Pseudo *allocate_symbol_pseudo(Proc *proc, LuaSymbol *sym, unsigned reg)
 {
 	Pseudo *pseudo = (Pseudo *) raviX_allocator_allocate(&proc->linearizer->pseudo_allocator, 0);
