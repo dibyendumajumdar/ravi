@@ -243,45 +243,6 @@ static void typecheck_suffixedexpr(CompilerState *container, AstNode *function, 
 	copy_type(&node->suffixed_expr.type, &prev_node->common_expr.type);
 }
 
-static UnaryOperatorType get_type_assertion_op(VariableType *var_type)
-{
-	switch (var_type->type_code) {
-	case RAVI_TNUMINT:
-		return UNOPR_TO_INTEGER;
-	case RAVI_TNUMFLT:
-		return UNOPR_TO_NUMBER;
-	case RAVI_TARRAYINT:
-		return UNOPR_TO_INTARRAY;
-	case RAVI_TARRAYFLT:
-		return UNOPR_TO_NUMARRAY;
-	case RAVI_TTABLE:
-		return UNOPR_TO_TABLE;
-	case RAVI_TSTRING:
-		return UNOPR_TO_STRING;
-	case RAVI_TFUNCTION:
-		return UNOPR_TO_CLOSURE;
-	case RAVI_TUSERDATA:
-		return UNOPR_TO_TYPE;
-	default:
-		return UNOPR_NOUNOPR;
-	}
-}
-
-static void insert_type_assertion(CompilerState *container, VariableType *var_type, AstNode *expr)
-{
-	UnaryOperatorType op = get_type_assertion_op(var_type);
-	if (op == UNOPR_NOUNOPR)
-		return;
-	// Copy original expr to new one
-	AstNode *subexpr = raviX_allocate_ast_node_at_line(container, expr->type, expr->line_number);
-	*subexpr = *expr;
-	// Original becomes a UNARY type assertion
-	expr->type = EXPR_UNARY;
-	expr->unary_expr.expr = subexpr;
-	expr->unary_expr.unary_op = op;
-	copy_type(&expr->unary_expr.type, var_type);
-}
-
 static void typecheck_var_assignment(CompilerState *container, VariableType *var_type, AstNode *expr,
 				     const StringObject *var_name)
 {
@@ -290,13 +251,6 @@ static void typecheck_var_assignment(CompilerState *container, VariableType *var
 		return;
 	const char *variable_name = var_name ? var_name->str : "unknown-TODO";
 	VariableType *expr_type = &expr->common_expr.type;
-
-	// If the value is ANY type we allow it but
-	// add runtime type assertion
-	if (expr_type->type_code == RAVI_TANY) {
-		insert_type_assertion(container, var_type, expr);
-		return;
-	}
 
 	if (var_type->type_code == RAVI_TNUMINT) {
 		/* if the expr is of type number or # operator then insert @integer operator */
