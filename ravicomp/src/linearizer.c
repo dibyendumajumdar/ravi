@@ -1146,6 +1146,14 @@ static Pseudo *linearize_function_call_expression(Proc *proc, AstNode *expr,
 							 AstNode *callsite_expr, Pseudo *callsite_pseudo)
 {
 	Instruction *insn = allocate_instruction(proc, op_call);
+
+	// if call site is a symbol copy to temp so that when return values are copied they end up in the temp space
+	if (callsite_pseudo->type == PSEUDO_SYMBOL) {
+		Pseudo *temp = allocate_temp_pseudo(proc, RAVI_TANY);
+		instruct_move(proc, op_mov, temp, callsite_pseudo);
+		callsite_pseudo = temp;
+	}
+
 	Pseudo *self_arg = NULL; /* For method call */
 	if (expr->function_call_expr.method_name) {
 		const Constant *name_constant =
