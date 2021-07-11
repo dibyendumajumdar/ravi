@@ -888,6 +888,11 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
   if (var->ravi_type_map == RAVI_TM_FLOAT) {
     if (ex_ravi_type_map == RAVI_TM_FLOAT)
       return;
+    if (ex_ravi_type_map == RAVI_TM_ANY) {
+      int e = luaK_exp2RK(fs, ex);
+      luaK_codeABC(fs, OP_RAVI_TOFLT, e, 0, 0);
+      return;
+    }
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
@@ -897,6 +902,11 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
   else if (var->ravi_type_map == RAVI_TM_INTEGER) {
     if (ex_ravi_type_map == RAVI_TM_INTEGER)
       return;
+    if (ex_ravi_type_map == RAVI_TM_ANY) {
+       int e = luaK_exp2RK(fs, ex);
+      luaK_codeABC(fs, OP_RAVI_TOINT, e, 0, 0);
+      return;
+    }
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
@@ -906,6 +916,18 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
   else if ((var->ravi_type_map & (~(RAVI_TM_INTEGER_ARRAY | RAVI_TM_FLOAT_ARRAY | RAVI_TM_TABLE))) == 0) {
     if (ex_ravi_type_map == var->ravi_type_map)
       return;
+    if (ex_ravi_type_map == RAVI_TM_ANY) {
+      OpCode opCode;
+      if (var->ravi_type_map & RAVI_TM_INTEGER_ARRAY)
+        opCode = OP_RAVI_TOIARRAY;
+      else if (var->ravi_type_map & RAVI_TM_FLOAT_ARRAY)
+        opCode = OP_RAVI_TOFARRAY;
+      else
+        opCode = OP_RAVI_TOTAB;
+      int e = luaK_exp2RK(fs, ex);
+      luaK_codeABC(fs, opCode, e, 0, 0);
+      return;
+    }
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
@@ -916,6 +938,11 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
   else if (var->ravi_type_map == RAVI_TM_STRING_OR_NIL) {
     if ((ex_ravi_type_map & ~RAVI_TM_STRING_OR_NIL) == 0)
       return;
+    if (ex_ravi_type_map == RAVI_TM_ANY) {
+      int e = luaK_exp2RK(fs, ex);
+      luaK_codeABC(fs, OP_RAVI_TOSTRING, e, 0, 0);
+      return;
+    }
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
@@ -925,6 +952,11 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
   else if (var->ravi_type_map == RAVI_TM_FUNCTION_OR_NIL) {
     if ((ex_ravi_type_map & ~RAVI_TM_FUNCTION_OR_NIL) == 0)
       return;
+    if (ex_ravi_type_map == RAVI_TM_ANY) {
+      int e = luaK_exp2RK(fs, ex);
+      luaK_codeABC(fs, OP_RAVI_TOCLOSURE, e, 0, 0);
+      return;
+    }
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(
@@ -935,6 +967,11 @@ static void check_valid_store(FuncState *fs, expdesc *var, expdesc *ex) {
     if ((ex_ravi_type_map & ~RAVI_TM_USERDATA_OR_NIL) == 0 &&
       (!(ex_ravi_type_map & RAVI_TM_USERDATA) || (var->usertype && var->usertype == ex->usertype)))
       return;
+    if (ex_ravi_type_map == RAVI_TM_ANY) {
+      int e = luaK_exp2RK(fs, ex);
+      luaK_codeABx(fs, OP_RAVI_TOTYPE, e, luaK_stringK(fs, var->usertype));
+      return;
+    }
     luaX_syntaxerror(
       fs->ls,
       luaO_pushfstring(

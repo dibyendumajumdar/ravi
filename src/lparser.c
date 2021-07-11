@@ -1498,7 +1498,11 @@ static void ravi_typecheck(LexState *ls, expdesc *v, ravi_type_map *var_types,
     luaK_exp2nextreg(ls->fs, v);
     ravi_code_typecoersion(ls, v->u.info, vartype, usertype);
   }
-  else {
+  else if (v_type_map == RAVI_TM_ANY) {
+    luaK_exp2nextreg(ls->fs, v);
+    ravi_code_typecoersion(ls, v->u.info, vartype, NULL);
+  }
+  else  {
     luaX_syntaxerror(ls, "Invalid local assignment");
   }
 }
