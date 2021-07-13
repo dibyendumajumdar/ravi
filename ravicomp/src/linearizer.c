@@ -2526,7 +2526,7 @@ static void linearize_function(LinearizerState *linearizer)
 	}
 }
 
-static void output_pseudo(Pseudo *pseudo, TextBuffer *mb)
+void raviX_output_pseudo(Pseudo *pseudo, TextBuffer *mb)
 {
 	switch (pseudo->type) {
 	case PSEUDO_CONSTANT: {
@@ -2632,7 +2632,7 @@ static void output_pseudo_list(PseudoList *list, TextBuffer *mb)
 	{
 		if (i > 0)
 			raviX_buffer_add_string(mb, ", ");
-		output_pseudo(pseudo, mb);
+		raviX_output_pseudo(pseudo, mb);
 		i++;
 	}
 	END_FOR_EACH_PTR(pseudo)
