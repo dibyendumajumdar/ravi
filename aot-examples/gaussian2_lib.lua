@@ -15,7 +15,7 @@ end
 local function partial_pivot(columns: table, nrow: integer[], i: integer, n: integer)
   local p: integer = i
   local max: number = 0.0
-  local a: number[] = @number[]( columns[i] )
+  local a: number[] = columns[i]
   local max_set = false
 
   -- find the row from i to n that has
@@ -91,14 +91,14 @@ local function gaussian_solve(A: number[], b: number[], m: integer, n: integer)
 
     for i = j+1,m do -- i is the row
       -- obtain the column j
-      local column: number[] = @number[]( columns[j] ) 
+      local column: number[] = columns[j]
       local multiplier: number = column[nrow[i]]/column[nrow[j]]
       write('m(' .. i .. ',' .. j .. ') = ', column[nrow[i]], ' / ', column[nrow[j]], "\\n")
       write('Performing R(' .. i .. ') = R(' .. i .. ') - m(' .. i .. ',' .. j .. ') * R(' .. j .. ')\\n')
       -- For the row i, we need to 
       -- do row(i) = row(i) - multipler * row(j)
       for q = j,n+1 do
-        local col: number[] = @number[]( columns[q] )
+        local col: number[] = columns[q]
         col[nrow[i]] = col[nrow[i]] - multiplier*col[nrow[j]]
       end
     end
@@ -114,7 +114,7 @@ local function gaussian_solve(A: number[], b: number[], m: integer, n: integer)
 
   -- Now we do the back substitution
   local x: number[] = numarray(n, 0.0)
-  local a: number[] = @number[]( columns[n] )
+  local a: number[] = columns[n]
 
   write('Performing back substitution\\n')
   x[n] = b[nrow[n]] / a[nrow[n]]
@@ -122,7 +122,7 @@ local function gaussian_solve(A: number[], b: number[], m: integer, n: integer)
   for i = n-1,1,-1 do
     local sum: number
     for j = i+1, n do
-      a = @number[]( columns[j] )
+      a = columns[j]
       sum = sum + a[nrow[i]] * x[j]
       if j == i+1 then
         write('sum = ')
@@ -132,7 +132,7 @@ local function gaussian_solve(A: number[], b: number[], m: integer, n: integer)
       write('a[', i, ', ', j, '] * x[', j, ']', "\\n")
     end
     write('sum = ', sum, '\\n')
-    a = @number[]( columns[i] )
+    a = columns[i]
     x[i] = (b[nrow[i]] - sum) / a[nrow[i]]
     write('x[',i,'] = (b[', i, '] - sum) / a[', i, ', ', i, '] = ', x[i], "\\n")
   end  

@@ -73,7 +73,6 @@ L0 (entry)
 	LOADGLOBAL {Upval(_ENV), 'assert' Ks(0)} {T(0)}
 	TGETik {local(a, 0), 1 Kint(0)} {T(1)}
 	LEN {T(1)} {T(2)}
-	TOINT {T(2)}
 	LEN {local(b, 1)} {T(3)}
 	EQ {T(2), T(3)} {T(4)}
 	CALL {T(0), T(4)} {T(0..), 1 Kint(0)}
@@ -131,11 +130,11 @@ L7
 L8
 	MOV {Tint(9)} {Tint(8)}
 	TGETik {local(a, 0), Tint(3)} {T(8)}
-	TOFARRAY {T(8)}
 	TGETik {local(c, 3), Tint(8)} {T(4)}
-	TOFARRAY {T(4)}
 	MOVf {0.000000000000 Kflt(0)} {Tflt(0)}
+	TOFARRAY {T(8)}
 	MOV {T(8)} {local(ai, 5)}
+	TOFARRAY {T(4)}
 	MOV {T(4)} {local(cj, 6)}
 	MOV {1 Kint(0)} {Tint(14)}
 	MOV {Tint(1)} {Tint(15)}
@@ -1279,14 +1278,6 @@ L0:
  luaV_objlen(L, len, obj);
 base = ci->u.l.base;
 }
-// TOINT {T(2)}
-{
- TValue *ra = R(9);
- if (!ttisinteger(ra)) {
-  error_code = 0;
-  goto Lraise_error;
- }
-}
 // LEN {local(b, 1)} {T(3)}
 {
  TValue *len = R(10);
@@ -1617,14 +1608,6 @@ i_8 = i_9;
  raviV_gettable_i(L, tab, key, dst);
  base = ci->u.l.base;
 }
-// TOFARRAY {T(8)}
-{
- TValue *ra = R(15);
- if (!ttisfarray(ra)) {
-  error_code = 3;
-  goto Lraise_error;
- }
-}
 // TGETik {local(c, 3), Tint(8)} {T(4)}
 {
  TValue *tab = R(3);
@@ -1633,6 +1616,23 @@ i_8 = i_9;
  raviV_gettable_i(L, tab, key, dst);
  base = ci->u.l.base;
 }
+// MOVf {0.000000000000 Kflt(0)} {Tflt(0)}
+f_0 = 0;
+// TOFARRAY {T(8)}
+{
+ TValue *ra = R(15);
+ if (!ttisfarray(ra)) {
+  error_code = 3;
+  goto Lraise_error;
+ }
+}
+// MOV {T(8)} {local(ai, 5)}
+{
+ const TValue *src_reg = R(15);
+ TValue *dst_reg = R(5);
+ dst_reg->tt_ = src_reg->tt_;
+ dst_reg->value_.n = src_reg->value_.n;
+}
 // TOFARRAY {T(4)}
 {
  TValue *ra = R(11);
@@ -1640,15 +1640,6 @@ i_8 = i_9;
   error_code = 3;
   goto Lraise_error;
  }
-}
-// MOVf {0.000000000000 Kflt(0)} {Tflt(0)}
-f_0 = 0;
-// MOV {T(8)} {local(ai, 5)}
-{
- const TValue *src_reg = R(15);
- TValue *dst_reg = R(5);
- dst_reg->tt_ = src_reg->tt_;
- dst_reg->value_.n = src_reg->value_.n;
 }
 // MOV {T(4)} {local(cj, 6)}
 {
